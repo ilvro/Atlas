@@ -1,0 +1,147 @@
+{
+  "gpu": "ANGLE (AMD, AMD Radeon RX 580 2048SP (radeonsi polaris10 ACO), OpenGL 4.6)",
+  "resultados": [
+    {
+      "nome": "ilustrado-caixa-noite",
+      "estado": {
+        "estilo": "ilustrado",
+        "paredes": "caixa"
+      },
+      "clima": "noite",
+      "fps": {
+        "media": 60,
+        "p5": 60
+      }
+    },
+    {
+      "nome": "ilustrado-caixa-dia-mestre",
+      "estado": {
+        "estilo": "ilustrado",
+        "paredes": "caixa",
+        "visao": "mestre"
+      },
+      "clima": "dia",
+      "fps": {
+        "media": 60,
+        "p5": 60
+      }
+    },
+    {
+      "nome": "ilustrado-solida-dia-mestre",
+      "estado": {
+        "estilo": "ilustrado",
+        "paredes": "solida",
+        "visao": "mestre"
+      },
+      "clima": "dia",
+      "fps": {
+        "media": 60,
+        "p5": 60
+      }
+    },
+    {
+      "nome": "ilustrado-caixa-tempestade-mestre",
+      "estado": {
+        "estilo": "ilustrado",
+        "paredes": "caixa",
+        "visao": "mestre"
+      },
+      "clima": "tempestade",
+      "fps": {
+        "media": 60,
+        "p5": 60
+      }
+    },
+    {
+      "nome": "ilustrado-caixa-apagao",
+      "estado": {
+        "estilo": "ilustrado",
+        "paredes": "caixa",
+        "visao": "jogadores"
+      },
+      "clima": "apagao",
+      "fps": {
+        "media": 60,
+        "p5": 60
+      }
+    },
+    {
+      "nome": "pixel16-caixa-noite-mestre",
+      "estado": {
+        "estilo": "pixel",
+        "ppc": 16,
+        "paredes": "caixa",
+        "visao": "mestre"
+      },
+      "clima": "noite",
+      "fps": {
+        "media": 60,
+        "p5": 60
+      }
+    },
+    {
+      "nome": "pixel16-caixa-dia-mestre",
+      "estado": {
+        "estilo": "pixel",
+        "ppc": 16,
+        "paredes": "caixa",
+        "visao": "mestre"
+      },
+      "clima": "dia",
+      "fps": {
+        "media": 60,
+        "p5": 60
+      }
+    },
+    {
+      "nome": "pixel24-caixa-dia-mestre",
+      "estado": {
+        "estilo": "pixel",
+        "ppc": 24,
+        "paredes": "caixa",
+        "visao": "mestre"
+      },
+      "clima": "dia",
+      "fps": {
+        "media": 60,
+        "p5": 60
+      }
+    },
+    {
+      "nome": "pixel12-caixa-dia-mestre",
+      "estado": {
+        "estilo": "pixel",
+        "ppc": 12,
+        "paredes": "caixa",
+        "visao": "mestre"
+      },
+      "clima": "dia",
+      "fps": {
+        "media": 60,
+        "p5": 60
+      }
+    },
+    {
+      "nome": "pixel16-caixa-apagao",
+      "estado": {
+        "estilo": "pixel",
+        "ppc": 16,
+        "paredes": "caixa",
+        "visao": "jogadores"
+      },
+      "clima": "apagao",
+      "fps": {
+        "media": 60,
+        "p5": 60
+      }
+    }
+  ],
+  "tempos": {
+    "ilustrado:caixa:16:ordem": 1871,
+    "ilustrado:solida:16:ordem": 32,
+    "pixel:caixa:16:ordem": 328,
+    "pixel:caixa:24:ordem": 548,
+    "pixel:caixa:12:ordem": 178
+  },
+  "erros": []
+}

@@ -1,0 +1,19 @@
+{
+  "name": "atlas-spike-estilos",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.12.0" },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5180",
+    "build": "vite build",
+    "medir": "node scripts/medir.mjs"
+  },
+  "dependencies": {
+    "pixi.js": "8.22.0"
+  },
+  "devDependencies": {
+    "playwright": "1.58.2",
+    "vite": "7.3.6"
+  }
+}
