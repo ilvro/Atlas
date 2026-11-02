@@ -6,7 +6,6 @@ export function assetsDoMapa(m: MapaAtlas): RefAsset[] {
   const ver = (r: RefAsset | null | undefined) => { if (r) achados.set(r.id, r); };
   for (const t of Object.values(m.tokens)) ver(t.portrait);
   for (const p of Object.values(m.presence)) ver(p.mask);
-  for (const c of Object.values(m.terrain.layers)) ver(c.mask);
   ver(m.session.explored);
   return [...achados.values()];
 }

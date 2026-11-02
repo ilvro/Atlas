@@ -51,7 +51,9 @@ Concluída em 2 de novembro de 2026; relatório em [progress.md](../progress.md)
 
 **Pronto quando:** criar, salvar, reabrir, desfazer e exportar um mapa vazio; trocar de tema ao vivo (e ver outra aba mudar junto); abrir o mapa por link profundo; testes de domínio e de contrato passando.
 
-## Fase 3 — Construir
+## Fase 3 — Construir ✅ (com pendências)
+
+Concluída em 2 de novembro de 2026; relatório e pendências em [progress.md](../progress.md). Documento passou para a **v2** (migração 1→2 testada). Ficaram para depois: transições automáticas entre terrenos (3.1; vão com o espalhamento da Fase 5.4), edição da cartela de título na interface (3.8; o campo já existe no documento) e `refs` do cômodo com a campanha (3.10; a leitura e as notas do mestre já funcionam).
 
 | Etapa | Entrega |
 | --- | --- |

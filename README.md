@@ -2,7 +2,7 @@
 
 Editor de mapas 2D de cena para a mesa: construa rápido, jogue com luz, clima e névoa. Faz parte da plataforma da campanha (Ficha, Ateliê, Jukebox, Tabletop): todos falam o [contrato da mesa](docs/PLATAFORMA.md).
 
-> Estado: **Fase 2 (fundação) concluída**. Já existem o documento do mapa, o histórico com gestos, o rascunho automático, a galeria, o backup, a paleta de comandos, o menu radial, os três temas e a ligação com a campanha. Cômodos, paredes, objetos de verdade, luz e sessão chegam nas próximas fases ([ROADMAP](docs/ROADMAP.md)).
+> Estado: **Fase 3 (construir) concluída**, com pendências listadas em [progress.md](progress.md). Já dá para pintar cômodos (as paredes nascem sozinhas), pôr portas e janelas, mobiliar com uma biblioteca de objetos procedurais, acender luzes e pintar terreno, com histórico, rascunho automático, galeria, backup, paleta de comandos, menu radial, três temas e ligação com a campanha. Clima, sessão e névoa chegam nas próximas fases ([ROADMAP](docs/ROADMAP.md)).
 
 ## Usar
 
@@ -14,14 +14,14 @@ npm run dev          # http://127.0.0.1:5190/
 npm run build        # confere os tipos e gera dist/ (funciona em qualquer caminho, inclusive no GitHub Pages)
 ```
 
-Atalhos principais: `Ctrl+K` paleta · `?` todos os atalhos · `Ctrl+S` gravar · `Ctrl+Z` / `Ctrl+Shift+Z` · `V H L O T R` ferramentas · `F` enquadrar · `G` grade · clique direito: menu radial.
+Atalhos principais: `Ctrl+K` paleta · `?` todos os atalhos · `Ctrl+S` gravar · `Ctrl+Z` / `Ctrl+Shift+Z` · `V H C X W D O L T R N` ferramentas (ou `1`–`9`) · `B` biblioteca · `Q`/`E` giram · `Shift` + arrastar pinta retângulos · `Ctrl` + clique copia o pincel (pipeta) · `Ctrl` + arrastar duplica · `F` enquadrar · `G` grade · clique direito: menu radial.
 
 ## Testes
 
 ```bash
 npm run typecheck    # TypeScript strict
 npm test             # unitários: documento, comandos, store, dados, interface, plataforma, mesa-core
-npm run test:e2e     # Playwright (Chromium com WebGL): 16 cenários que cobrem os critérios da Fase 2
+npm run test:e2e     # Playwright (Chromium com WebGL): cenários que cobrem os critérios das Fases 2 e 3
 ```
 
 ## Todos os projetos numa origem só (como no GitHub Pages)

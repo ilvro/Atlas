@@ -5,6 +5,7 @@ import { criarBarramento, criarRef, validarEvento, CONTRATO, type Barramento, ty
 const ficha = criarRef('ficha', 'ficha', 's1'), mapa = criarRef('atlas', 'mapa', 'm1');
 const base = (extra: Partial<Evento> & Record<string, unknown> = {}) => ({ contrato: CONTRATO, app: 'ficha', tipo: 'ficha.rolagem', id: 'e1', em: 1, campanhaId: null, dados: { ficha, titulo: 'Luta', total: 14 }, ...extra });
 const esperar = (ms: number) => new Promise(r => setTimeout(r, ms));
+const ate = async (ok: () => boolean, limite = 1000) => { const t = Date.now(); while (!ok() && Date.now() - t < limite) await esperar(5); };
 const abertos: Barramento[] = [];
 const novo = (app: Barramento['app'], extra: Parameters<typeof criarBarramento>[0] extends infer O ? Partial<O> : never = {}) => { const b = criarBarramento({ app, aviso: () => {}, ...extra }); abertos.push(b); return b; };
 
@@ -34,7 +35,7 @@ test('um evento emitido chega aos ouvintes do outro aplicativo e aos locais', as
   a.ouvir('ficha.rolagem', e => recebidos.push(e));
   f.ouvir('*', e => locais.push(e));
   f.emitir('ficha.rolagem', { ficha, titulo: 'Percepção', total: 17 });
-  await esperar(30);
+  await ate(() => recebidos.length >= 1);
   assert.equal(recebidos.length, 1);
   assert.equal(recebidos[0]!.app, 'ficha');
   assert.deepEqual(recebidos[0]!.dados, { ficha, titulo: 'Percepção', total: 17 });

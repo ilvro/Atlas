@@ -6,7 +6,8 @@ import { avisar } from './toasts.ts';
 import { trocarTema } from './tema.ts';
 import { definirFx, fxPreferido } from '../fx/fx.ts';
 import { definirSom, somPreferido, tocar } from '../fx/som.ts';
-import { colecaoDaFerramenta, type Ferramenta } from '../render/viewport.ts';
+import { ROTULO_DA_FERRAMENTA, type Ferramenta } from '../render/pincel.ts';
+import { colecaoDaFerramenta } from '../render/viewport.ts';
 import { campanhaAtiva } from './campanha.ts';
 import type { Alvo } from '../render/selecao.ts';
 import type { Ponto } from '../domain/mapa.ts';
@@ -30,13 +31,36 @@ const noEditor = () => app.sessao.value !== null;
 const comSelecao = () => (app.sessao.value?.selecao.value.length ?? 0) > 0;
 const passoDeSetas = (grande: boolean) => { const g = app.sessao.value?.doc.value.grid.size ?? 1.5; return grande ? g : g / 2; };
 
-function usarFerramenta(f: Ferramenta): void {
+/** Ferramentas que têm uma biblioteca de escolhas (a gaveta abre sozinha). */
+const COM_BIBLIOTECA: readonly Ferramenta[] = ['comodo', 'parede', 'abertura', 'objeto', 'luz', 'terreno'];
+
+export function usarFerramenta(f: Ferramenta): void {
   const s = app.sessao.value; if (!s) return;
-  s.ferramenta.value = f;
-  const nomes: Record<Ferramenta, string> = { selecionar: 'Selecionar', mao: 'Mover a vista', luz: 'Adicionar luz', objeto: 'Adicionar objeto', peca: 'Adicionar peça', regiao: 'Adicionar região' };
-  avisar(nomes[f], { duracao: 1400 });
+  s.ferramenta.value = f; s.biblioteca.value = COM_BIBLIOTECA.includes(f);
+  avisar(ROTULO_DA_FERRAMENTA[f], { duracao: 1400 });
 }
 const adicionar = (f: Ferramenta) => () => { const c = colecaoDaFerramenta(f); if (c) app.adicionarEm(c, app.pontoDeAdicionar()); };
+
+/** Gira o que a ferramenta carrega (objeto, direção da luz) ou, sem ferramenta de pôr, os objetos selecionados. */
+function girar(graus: number): void {
+  const s = app.sessao.value; if (!s) return;
+  const rad = (graus * Math.PI) / 180, f = s.ferramenta.value, p = s.pincel.value;
+  if (f === 'objeto') { s.pincel.value = { ...p, objeto: { ...p.objeto, rotacao: p.objeto.rotacao + rad } }; return; }
+  if (f === 'luz') { s.pincel.value = { ...p, luz: { ...p.luz, direcao: p.luz.direcao + rad } }; return; }
+  const objetos = s.selecao.value.filter(a => a.colecao === 'props'), luzes = s.selecao.value.filter(a => a.colecao === 'lights' && s.doc.value.lights[a.id]?.cone);
+  if (!objetos.length && !luzes.length) { avisar('Selecione um objeto ou uma lanterna para girar.', { duracao: 1600 }); return; }
+  s.store.transacao(objetos.length + luzes.length === 1 ? 'Girar' : 'Girar itens', g => {
+    for (const a of objetos) g.aplicar({ tipo: 'item.atualizar', colecao: 'props', id: a.id, patch: { rotation: s.doc.value.props[a.id]!.rotation + rad } });
+    for (const a of luzes) { const l = s.store.documento.lights[a.id]!; g.aplicar({ tipo: 'item.atualizar', colecao: 'lights', id: a.id, patch: { cone: { direction: l.cone!.direction + rad } } }); }
+  });
+  tocar('selecionar');
+}
+
+function mudarRaio(delta: number): void {
+  const s = app.sessao.value; if (!s) return;
+  const p = s.pincel.value, raio = Math.max(0.25, Math.min(12, p.terreno.raio + delta));
+  s.pincel.value = { ...p, terreno: { ...p.terreno, raio } }; avisar(`Pincel de ${raio.toFixed(2).replace(/\.?0+$/, '')} m`, { duracao: 900 });
+}
 
 export const ACOES: readonly Acao[] = [
   { id: 'paleta', nome: 'Abrir a paleta de comandos', grupo: 'Geral', atalhos: ['Ctrl+K'], executar: () => { app.paletaAberta.value = !app.paletaAberta.value; } },
@@ -54,7 +78,7 @@ export const ACOES: readonly Acao[] = [
   { id: 'limpar', nome: 'Limpar a seleção', grupo: 'Editar', atalhos: ['Esc'], habilitada: noEditor, executar: () => {
     const s = app.sessao.value; if (!s) return;
     if (app.menuRadial.value) { app.menuRadial.value = null; return; }
-    if (s.ferramenta.value !== 'selecionar') { s.ferramenta.value = 'selecionar'; return; }
+    if (s.ferramenta.value !== 'selecionar') { s.ferramenta.value = 'selecionar'; s.biblioteca.value = false; return; }
     s.selecao.value = [];
   } },
   { id: 'remover', nome: 'Remover a seleção', grupo: 'Editar', atalhos: ['Delete', 'Backspace'], habilitada: comSelecao, executar: app.removerSelecao },
@@ -71,10 +95,22 @@ export const ACOES: readonly Acao[] = [
 
   { id: 'ferr-selecionar', nome: 'Ferramenta: selecionar', grupo: 'Ferramentas', atalhos: ['V', '1'], habilitada: noEditor, executar: () => usarFerramenta('selecionar') },
   { id: 'ferr-mao', nome: 'Ferramenta: mover a vista', grupo: 'Ferramentas', palavras: 'mao pan arrastar', atalhos: ['H', '2'], habilitada: noEditor, executar: () => usarFerramenta('mao') },
-  { id: 'ferr-luz', nome: 'Adicionar luz', grupo: 'Ferramentas', palavras: 'lampada lampiao lanterna', atalhos: ['L', '3'], habilitada: noEditor, executar: () => usarFerramenta('luz') },
-  { id: 'ferr-objeto', nome: 'Adicionar objeto', grupo: 'Ferramentas', palavras: 'movel', atalhos: ['O', '4'], habilitada: noEditor, executar: () => usarFerramenta('objeto') },
-  { id: 'ferr-peca', nome: 'Adicionar peça', grupo: 'Ferramentas', palavras: 'token personagem', atalhos: ['T', '5'], habilitada: noEditor, executar: () => usarFerramenta('peca') },
-  { id: 'ferr-regiao', nome: 'Adicionar região', grupo: 'Ferramentas', palavras: 'area gatilho', atalhos: ['R', '6'], habilitada: noEditor, executar: () => usarFerramenta('regiao') },
+  { id: 'ferr-comodo', nome: 'Pintar cômodo', grupo: 'Construir', palavras: 'sala quarto piso paredes', atalhos: ['C', '3'], habilitada: noEditor, executar: () => usarFerramenta('comodo') },
+  { id: 'ferr-borracha', nome: 'Apagar cômodo', grupo: 'Construir', palavras: 'borracha remover piso', atalhos: ['X', '4'], habilitada: noEditor, executar: () => usarFerramenta('borracha') },
+  { id: 'ferr-parede', nome: 'Desenhar parede', grupo: 'Construir', palavras: 'muro cerca', atalhos: ['W', '5'], habilitada: noEditor, executar: () => usarFerramenta('parede') },
+  { id: 'ferr-abertura', nome: 'Pôr porta ou janela', grupo: 'Construir', palavras: 'porta janela arco abertura', atalhos: ['D', '6'], habilitada: noEditor, executar: () => usarFerramenta('abertura') },
+  { id: 'ferr-objeto', nome: 'Pôr objeto', grupo: 'Construir', palavras: 'movel mesa cadeira cama biblioteca', atalhos: ['O', '7'], habilitada: noEditor, executar: () => usarFerramenta('objeto') },
+  { id: 'ferr-luz', nome: 'Pôr luz', grupo: 'Construir', palavras: 'lampada lamparina lanterna vela tocha', atalhos: ['L', '8'], habilitada: noEditor, executar: () => usarFerramenta('luz') },
+  { id: 'ferr-peca', nome: 'Pôr peça', grupo: 'Construir', palavras: 'token personagem', atalhos: ['T', '9'], habilitada: noEditor, executar: () => usarFerramenta('peca') },
+  { id: 'ferr-regiao', nome: 'Pôr região', grupo: 'Construir', palavras: 'area gatilho', atalhos: ['R'], habilitada: noEditor, executar: () => usarFerramenta('regiao') },
+  { id: 'ferr-terreno', nome: 'Pintar terreno', grupo: 'Construir', palavras: 'grama terra areia neve lama natureza', atalhos: ['N'], habilitada: noEditor, executar: () => usarFerramenta('terreno') },
+  { id: 'biblioteca', nome: 'Abrir ou fechar a biblioteca', grupo: 'Construir', palavras: 'gaveta itens catalogo', atalhos: ['B'], habilitada: noEditor, executar: () => { const s = app.sessao.value; if (s) s.biblioteca.value = !s.biblioteca.value; } },
+  { id: 'girar-dir', nome: 'Girar para a direita (90°)', grupo: 'Construir', palavras: 'rotacionar', atalhos: ['E'], habilitada: noEditor, executar: () => girar(90) },
+  { id: 'girar-esq', nome: 'Girar para a esquerda (90°)', grupo: 'Construir', palavras: 'rotacionar', atalhos: ['Q'], habilitada: noEditor, executar: () => girar(-90) },
+  { id: 'girar-dir-fino', nome: 'Girar para a direita (15°)', grupo: 'Construir', atalhos: ['Shift+E'], habilitada: noEditor, executar: () => girar(15) },
+  { id: 'girar-esq-fino', nome: 'Girar para a esquerda (15°)', grupo: 'Construir', atalhos: ['Shift+Q'], habilitada: noEditor, executar: () => girar(-15) },
+  { id: 'pincel-menor', nome: 'Pincel de terreno menor', grupo: 'Construir', atalhos: ['['], habilitada: noEditor, executar: () => mudarRaio(-0.5) },
+  { id: 'pincel-maior', nome: 'Pincel de terreno maior', grupo: 'Construir', atalhos: [']'], habilitada: noEditor, executar: () => mudarRaio(0.5) },
   { id: 'aqui-luz', nome: 'Pôr uma luz aqui', grupo: 'Adicionar', habilitada: noEditor, executar: adicionar('luz') },
   { id: 'aqui-objeto', nome: 'Pôr um objeto aqui', grupo: 'Adicionar', habilitada: noEditor, executar: adicionar('objeto') },
   { id: 'aqui-peca', nome: 'Pôr uma peça aqui', grupo: 'Adicionar', habilitada: noEditor, executar: adicionar('peca') },

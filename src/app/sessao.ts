@@ -3,7 +3,7 @@ import { criarAutosalvamento, type Autosalvamento, type EstadoDeGravacao } from 
 import type { RepositorioMapas } from '../data/repositorio.ts';
 import type { MapaAtlas } from '../domain/mapa.ts';
 import { podarSelecao, type Alvo } from '../render/selecao.ts';
-import type { Ferramenta } from '../render/viewport.ts';
+import { PINCEL_PADRAO, type Ferramenta, type Pincel } from '../render/pincel.ts';
 import { criarStore, type Store } from '../state/store.ts';
 
 /** Tudo de um mapa aberto: o store, o autossalvamento e o estado de interface que depende dele, como signals. */
@@ -20,6 +20,10 @@ export interface SessaoDeEdicao {
   readonly gravacao: Signal<EstadoDeGravacao>;
   readonly selecao: Signal<Alvo[]>;
   readonly ferramenta: Signal<Ferramenta>;
+  /** O que a ferramenta ativa carrega na mão: tipo de cômodo, objeto, luz, abertura… */
+  readonly pincel: Signal<Pincel>;
+  /** A biblioteca (gaveta com os itens da ferramenta) está aberta? */
+  readonly biblioteca: Signal<boolean>;
   fechar(): void;
 }
 
@@ -29,6 +33,7 @@ export function criarSessao(mapa: MapaAtlas, repo: RepositorioMapas, opcoes: { s
   const doc = signal(store.documento), sujo = signal(store.sujo), podeDesfazer = signal(false), podeRefazer = signal(false);
   const rotuloDesfazer = signal(''), rotuloRefazer = signal(''), historico = signal<readonly string[]>([]);
   const gravacao = signal<EstadoDeGravacao>(auto.estado), selecao = signal<Alvo[]>([]), ferramenta = signal<Ferramenta>('selecionar');
+  const pincel = signal<Pincel>(structuredClone(PINCEL_PADRAO)), biblioteca = signal(false);
 
   const sincronizar = () => {
     doc.value = store.documento; sujo.value = store.sujo; podeDesfazer.value = store.podeDesfazer; podeRefazer.value = store.podeRefazer;
@@ -41,7 +46,7 @@ export function criarSessao(mapa: MapaAtlas, repo: RepositorioMapas, opcoes: { s
   sincronizar();
 
   return {
-    store, auto, doc, sujo, podeDesfazer, podeRefazer, rotuloDesfazer, rotuloRefazer, historico, gravacao, selecao, ferramenta,
+    store, auto, doc, sujo, podeDesfazer, podeRefazer, rotuloDesfazer, rotuloRefazer, historico, gravacao, selecao, ferramenta, pincel, biblioteca,
     fechar() { sair(); sairGravacao(); auto.fechar(); store.dispor(); },
   };
 }

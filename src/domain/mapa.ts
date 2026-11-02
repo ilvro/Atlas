@@ -2,7 +2,7 @@ import type { Ref } from '#mesa';
 import type { Faixa } from './celulas.ts';
 
 export const SCHEMA_MAPA = 'atlas.map';
-export const VERSAO_MAPA = 1;
+export const VERSAO_MAPA = 2;
 
 /** Unidade de mundo: metro. Coordenadas [x, y] com origem no canto superior esquerdo e y para baixo. */
 export type Ponto = [x: number, y: number];
@@ -22,10 +22,11 @@ export interface Clima {
   /** HH:MM */
   time: string;
 }
-export interface Acabamento { preset: string; texture: number; vignette: number; saturation: number; grain: number; grade: { lift: number; gamma: number; gain: number } }
+export interface Acabamento { preset: string; texture: number; vignette: number; saturation: number; grain: number; /** Cor que tinge a cena; #ffffff não tinge. */ tint: string; grade: { lift: number; gamma: number; gain: number } }
 export interface Memoria { sketch: boolean; paper: string; ink: string }
 export interface Fundo { kind: 'solid' | 'texture'; color: string; material: string | null; title: null | { text: string; font: string; position: Ponto } }
-export interface Terreno { resolution: number; base: string; layers: Record<string, { id: string; material: string; mask: RefAsset | null; order: number }> }
+/** Camadas de terreno pintadas por células de `resolution` metros (em RLE). `base: 'vazio'` deixa ver o fundo do mapa. */
+export interface Terreno { resolution: number; base: string; layers: Record<string, { id: string; material: string; cells: Faixa[]; order: number }> }
 
 export interface Comodo {
   id: string; name: string; function: string | null; cells: Faixa[];
@@ -41,6 +42,8 @@ export interface Parede {
 export interface Abertura {
   id: string; wallId: string; at: number; width: number; kind: 'door' | 'window' | 'arch' | 'secret';
   state: 'closed' | 'open' | 'locked'; material: string; som: Ref | null;
+  /** De que lado a porta abre: 'a' (esquerda/cima da parede) ou 'b' (direita/baixo). */
+  swing: 'a' | 'b';
 }
 export type FonteObjeto = { kind: 'recipe'; recipe: string; seed: number; params: Record<string, unknown> } | { kind: 'asset'; assetId: string };
 export interface Objeto {
@@ -53,6 +56,8 @@ export interface Luz {
   id: string; position: Ponto; radius: number; color: string; intensity: number; flicker: number;
   cone: null | { angle: number; direction: number }; ownerId: string | null;
   power: 'grid' | 'fire' | 'battery' | 'magic'; on: boolean; nightOnly: boolean;
+  /** A predefinição que originou a luz (vela, lanterna…), só para a interface; os valores é que valem. */
+  preset: string | null;
 }
 export interface Regiao {
   id: string; polygon: Ponto[]; kind: 'reveal' | 'trigger' | 'note' | 'audio'; gmOnly: boolean;
@@ -110,10 +115,10 @@ export function criarMapa(o: OpcoesNovoMapa = {}): MapaAtlas {
     bounds: { width: o.largura ?? 45, height: o.altura ?? 30 },
     style: { renderer: 'illustrated', palette: 'investigacao-sepia', walls: 'box', pixel: { pixelsPerCell: 16, dither: 'bayer4', outline: true } },
     climate: { preset: 'dia', ambient: { color: '#d1ccc0', intensity: 0.82 }, sun: { angle: 0.6, color: '#fff2d6', intensity: 1 }, time: '14:30' },
-    finish: { preset: 'neutro', texture: 0.2, vignette: 0.28, saturation: 1, grain: 0.03, grade: { lift: 0, gamma: 1, gain: 1 } },
+    finish: { preset: 'neutro', texture: 0.2, vignette: 0.28, saturation: 1, grain: 0.03, tint: '#ffffff', grade: { lift: 0, gamma: 1, gain: 1 } },
     memory: { sketch: true, paper: 'papel-claro', ink: '#241b14' },
     backdrop: { kind: 'solid', color: '#07080b', material: null, title: null },
-    terrain: { resolution: 0.25, base: 'terra', layers: {} },
+    terrain: { resolution: 0.25, base: 'vazio', layers: {} },
     rooms: {}, walls: {}, openings: {}, props: {}, lights: {}, regions: {}, presence: {}, tokens: {},
     comodosExtra: {},
     session: { explored: null, initiative: null, revealed: [], event: null },

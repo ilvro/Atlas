@@ -1,3 +1,4 @@
+import type { Ponto } from './mapa.ts';
 /**
  * Células de um cômodo guardadas em RLE por linha: `[y, x0, comprimento]`, em ordem e sem emendas.
  * Pintar no grid é o gesto principal; o contorno é derivado e fica em cache fora do documento.
@@ -60,4 +61,21 @@ export function ehCanonica(faixas: readonly Faixa[]): boolean {
     if (anterior && (y < anterior[0] || (y === anterior[0] && x0 <= anterior[1] + anterior[2]))) return false;
   }
   return true;
+}
+
+/** Células entre duas (linha de Bresenham), para a pincelada não deixar buracos quando o mouse anda rápido. */
+export function celulasEntre(a: readonly [number, number], b: readonly [number, number]): [number, number][] {
+  const saida: [number, number][] = []; let x = a[0], y = a[1]; const dx = Math.abs(b[0] - x), dy = -Math.abs(b[1] - y), sx = x < b[0] ? 1 : -1, sy = y < b[1] ? 1 : -1; let erro = dx + dy;
+  for (;;) { saida.push([x, y]); if (x === b[0] && y === b[1]) break; const e2 = 2 * erro; if (e2 >= dy) { erro += dy; x += sx; } if (e2 <= dx) { erro += dx; y += sy; } }
+  return saida;
+}
+
+/** Células de uma grade de `res` metros dentro de um círculo de `raio` metros em torno de `centro`. */
+export function celulasDoDisco(centro: Ponto, raio: number, res: number, colunas: number, linhas: number): [number, number][] {
+  const saida: [number, number][] = [], i0 = Math.floor((centro[0] - raio) / res), i1 = Math.floor((centro[0] + raio) / res), j0 = Math.floor((centro[1] - raio) / res), j1 = Math.floor((centro[1] + raio) / res);
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    if (i < 0 || j < 0 || i >= colunas || j >= linhas) continue;
+    if (Math.hypot((i + 0.5) * res - centro[0], (j + 0.5) * res - centro[1]) <= raio) saida.push([i, j]);
+  }
+  return saida;
 }

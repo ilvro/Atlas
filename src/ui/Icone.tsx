@@ -24,6 +24,17 @@ const CAMINHOS: Record<string, string> = {
   casa: 'M3 11l9-8 9 8M5 10v10h14V10',
   campanha: 'M5 4h12a2 2 0 012 2v14H7a2 2 0 01-2-2zM9 4v16',
   aviso: 'M12 3l10 18H2zM12 10v5M12 18v.01',
+  comodo: 'M4 4h16v16H4zM4 12h8V4M12 12v8',
+  borracha: 'M7 21h12M5 14l8-8 6 6-8 8H8zM9 10l6 6',
+  parede: 'M3 7h18v4H3zM3 13h8v4H3zM13 13h8v4h-8zM8 7v4M16 7v4',
+  porta: 'M6 21V3h12v18M6 21h12M14 12v.01M6 3l8 2v14l-8 2',
+  janela: 'M4 4h16v16H4zM12 4v16M4 12h16',
+  arco: 'M5 21V11a7 7 0 0114 0v10M9 21v-8a3 3 0 016 0v8',
+  secreta: 'M5 3h14v18H5zM9 8h6M9 12h6M12 16v.01',
+  terreno: 'M3 18c3-5 5-8 9-8s6 3 9 8zM8 10a2 2 0 100-4 2 2 0 000 4z',
+  gaveta: 'M4 5h16v14H4zM4 9h16M10 13h4',
+  copiar: 'M9 9h11v11H9zM5 15V4h11',
+  fechar: 'M6 6l12 12M18 6L6 18',
 };
 
 export function Icone({ nome, tamanho = 18 }: { nome: string; tamanho?: number }) {

@@ -1,36 +1,37 @@
 import { useEffect, useRef } from 'preact/hooks';
 import { signal, useSignalEffect } from '@preact/signals';
 import { acaoPorId, executarAcao } from '../app/acoes.ts';
-import { focarNoComodo, menuRadial, sessao, viewport as viewportAtual } from '../app/app.ts';
+import { acabamentoLigado, adicionarEm, aoColocar, focarNoComodo, menuRadial, sessao, viewport as viewportAtual } from '../app/app.ts';
 import { mostrarAtalho } from '../app/atalhos.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { tema } from '../app/tema.ts';
-import { encaixar } from '../render/grade.ts';
-import { criarViewport, type Ferramenta, type PonteViewport, type Viewport } from '../render/viewport.ts';
-import { adicionarEm } from '../app/app.ts';
+import { avisar } from '../app/toasts.ts';
 import { tocar } from '../fx/som.ts';
+import { encaixar } from '../render/grade.ts';
+import { ROTULO_DA_FERRAMENTA, type Ferramenta } from '../render/pincel.ts';
+import { criarViewport, type PonteViewport, type Viewport } from '../render/viewport.ts';
+import { Biblioteca } from './Biblioteca.tsx';
+import { CartaoContextual } from './CartaoContextual.tsx';
 import { Icone } from './Icone.tsx';
 import { Inspetor } from './Inspetor.tsx';
 
-const FERRAMENTAS: { id: Ferramenta; nome: string; icone: string; acao: string }[] = [
-  { id: 'selecionar', nome: 'Selecionar', icone: 'selecionar', acao: 'ferr-selecionar' },
-  { id: 'mao', nome: 'Mover a vista', icone: 'mao', acao: 'ferr-mao' },
-  { id: 'luz', nome: 'Adicionar luz', icone: 'luz', acao: 'ferr-luz' },
-  { id: 'objeto', nome: 'Adicionar objeto', icone: 'objeto', acao: 'ferr-objeto' },
-  { id: 'peca', nome: 'Adicionar peça', icone: 'peca', acao: 'ferr-peca' },
-  { id: 'regiao', nome: 'Adicionar região', icone: 'regiao', acao: 'ferr-regiao' },
+const FERRAMENTAS: { id: Ferramenta; icone: string }[] = [
+  { id: 'selecionar', icone: 'selecionar' }, { id: 'mao', icone: 'mao' }, { id: 'comodo', icone: 'comodo' }, { id: 'borracha', icone: 'borracha' }, { id: 'parede', icone: 'parede' },
+  { id: 'abertura', icone: 'porta' }, { id: 'objeto', icone: 'objeto' }, { id: 'luz', icone: 'luz' }, { id: 'peca', icone: 'peca' }, { id: 'regiao', icone: 'regiao' }, { id: 'terreno', icone: 'terreno' },
 ];
 
-const zoomPct = signal(100), cursorMundo = signal<[number, number] | null>(null);
+const zoomPct = signal(100), cursorMundo = signal<[number, number] | null>(null), pintando = signal(0);
 
 function Ferramentas({ s }: { s: SessaoDeEdicao }) {
   return (
     <nav class="ferramentas" aria-label="Ferramentas">
       {FERRAMENTAS.map((f, i) => {
-        const atalho = acaoPorId(f.acao)?.atalhos?.[0];
-        return <button type="button" key={f.id} class={`ferramenta ${s.ferramenta.value === f.id ? 'ativa' : ''}`} aria-pressed={s.ferramenta.value === f.id} title={`${f.nome}${atalho ? ` (${mostrarAtalho(atalho)} ou ${i + 1})` : ''}`} data-testid={`ferramenta-${f.id}`} onClick={() => { const a = acaoPorId(f.acao); if (a) executarAcao(a); }}><Icone nome={f.icone} tamanho={20} /><span class="numero-ferramenta">{i + 1}</span></button>;
+        const atalhos = acaoPorId(`ferr-${f.id}`)?.atalhos ?? [], letra = atalhos[0];
+        return <button type="button" key={f.id} class={`ferramenta ${s.ferramenta.value === f.id ? 'ativa' : ''}`} aria-pressed={s.ferramenta.value === f.id} title={`${ROTULO_DA_FERRAMENTA[f.id]}${letra ? ` (${atalhos.map(mostrarAtalho).join(' ou ')})` : ''}`} data-testid={`ferramenta-${f.id}`}
+          onClick={() => { const a = acaoPorId(`ferr-${f.id}`); if (a) executarAcao(a); }}><Icone nome={f.icone} tamanho={20} />{i < 9 && <span class="numero-ferramenta">{i + 1}</span>}</button>;
       })}
       <span class="espaco" />
+      <button type="button" class={`ferramenta ${s.biblioteca.value ? 'ativa' : ''}`} aria-pressed={s.biblioteca.value} title="Biblioteca (B)" onClick={() => { s.biblioteca.value = !s.biblioteca.value; }} data-testid="alternar-biblioteca"><Icone nome="gaveta" tamanho={20} /></button>
       <button type="button" class="ferramenta" title="Enquadrar o mapa (F)" onClick={() => { const a = acaoPorId('enquadrar'); if (a) executarAcao(a); }} data-testid="enquadrar"><Icone nome="enquadrar" tamanho={20} /></button>
       <button type="button" class={`ferramenta ${s.doc.value.grid.visible ? 'ativa' : ''}`} aria-pressed={s.doc.value.grid.visible} title="Grade (G)" onClick={() => { const a = acaoPorId('grade'); if (a) executarAcao(a); }} data-testid="alternar-grade"><Icone nome="grade" tamanho={20} /></button>
     </nav>
@@ -43,13 +44,19 @@ function ponteDa(s: SessaoDeEdicao): PonteViewport {
     selecao: () => s.selecao.peek(),
     definirSelecao: alvos => { s.selecao.value = alvos; tocar('selecionar'); },
     ferramenta: () => s.ferramenta.peek(),
-    definirFerramenta: f => { s.ferramenta.value = f; },
+    definirFerramenta: f => { s.ferramenta.value = f; s.biblioteca.value = ['comodo', 'parede', 'abertura', 'objeto', 'luz', 'terreno'].includes(f); },
+    pincel: () => s.pincel.peek(),
+    definirPincel: p => { s.pincel.value = { ...s.pincel.peek(), ...p }; },
     adicionar: (colecao, mundo) => adicionarEm(colecao, mundo),
+    aoColocar: (rotulo, mundo) => aoColocar(rotulo, mundo),
+    aviso: texto => { avisar(texto, { tipo: 'erro', duracao: 3200 }); tocar('erro'); },
     aoMenuContexto: ({ tela, mundo, alvo }) => {
       // O clique direito sobre um item o seleciona (a menos que já faça parte da seleção).
       if (alvo && !s.selecao.peek().some(a => a.colecao === alvo.colecao && a.id === alvo.id)) s.selecao.value = [alvo];
-      menuRadial.value = { x: tela[0], y: tela[1], mundo, alvo, aberto: Date.now() }; },
+      menuRadial.value = { x: tela[0], y: tela[1], mundo, alvo, aberto: Date.now() };
+    },
     aoCamera: c => { zoomPct.value = Math.round((c.zoom / 20) * 100); },
+    acabamento: () => acabamentoLigado.peek(),
   };
 }
 
@@ -63,14 +70,15 @@ function AreaDoMapa({ s }: { s: SessaoDeEdicao }) {
     });
     return () => { morto = true; vp?.destruir(); if (viewportAtual.atual === vp) viewportAtual.atual = null; };
   }, [s]);
-  // A seleção e a ferramenta vivem em signals; o viewport só precisa saber que deve redesenhar as sobreposições.
-  useSignalEffect(() => { s.selecao.value; s.ferramenta.value; viewportAtual.atual?.atualizarSobreposicoes(); });
+  // A seleção, a ferramenta e o pincel vivem em signals; o viewport só precisa saber que deve redesenhar as sobreposições.
+  useSignalEffect(() => { s.selecao.value; s.ferramenta.value; s.pincel.value; acabamentoLigado.value; viewportAtual.atual?.atualizarSobreposicoes(); });
   useSignalEffect(() => { tema.value; requestAnimationFrame(() => viewportAtual.atual?.redesenhar()); });
   useEffect(() => {
     let quadro = 0;
     const laco = () => {
-      const p = viewportAtual.atual?.ponteiro() ?? null, atual = cursorMundo.peek();
+      const v = viewportAtual.atual, p = v?.ponteiro() ?? null, atual = cursorMundo.peek();
       if ((p?.[0] ?? null) !== (atual?.[0] ?? null) || (p?.[1] ?? null) !== (atual?.[1] ?? null)) cursorMundo.value = p ? [p[0], p[1]] : null;
+      const n = v?.pintando ?? 0; if (n !== pintando.peek()) pintando.value = n;
       quadro = requestAnimationFrame(laco);
     };
     quadro = requestAnimationFrame(laco);
@@ -88,6 +96,7 @@ function BarraDeEstado({ s }: { s: SessaoDeEdicao }) {
       <span>célula {celula}</span>
       <span>{m.grid.size} m por célula · {m.bounds.width}×{m.bounds.height} m</span>
       <span class="espaco" />
+      {pintando.value > 0 && <span class="pintando" data-testid="pintando" title="Pintando texturas em segundo plano"><i /> pintando…</span>}
       <span data-testid="contagem-selecao">{n ? `${n} selecionado(s)` : 'nada selecionado'}</span>
       <span data-testid="zoom">{zoomPct.value}%</span>
     </footer>
@@ -100,7 +109,8 @@ export function Editor() {
   return (
     <div class="editor" data-testid="editor">
       <Ferramentas s={s} />
-      <AreaDoMapa s={s} />
+      <Biblioteca s={s} />
+      <div class="area-com-cartao"><AreaDoMapa s={s} /><CartaoContextual s={s} /></div>
       <Inspetor />
       <BarraDeEstado s={s} />
     </div>

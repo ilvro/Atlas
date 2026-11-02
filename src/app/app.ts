@@ -2,13 +2,13 @@ import { batch, signal } from '@preact/signals';
 import { exportarBackup, importarBackup, lerPacote, nomeDoArquivo, type RelatorioImportacao } from '../data/backup.ts';
 import { ErroDeBackup } from '../data/backup.ts';
 import { ErroDeConflito, type ResumoMapa } from '../data/repositorio.ts';
-import { duplicarParaNovaSessao, criarMapa, type Ponto } from '../domain/mapa.ts';
-import { novaLuz, novaPeca, novaRegiao, novoObjeto, novoIdEntidade } from '../domain/fabrica.ts';
+import { duplicarParaNovaSessao, criarMapa, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
+import { copiasDe, novaLuz, novaPeca, novaRegiao, novoObjeto } from '../domain/fabrica.ts';
 import { faiscar, flutuar, ponto } from '../fx/fx.ts';
 import { tocar } from '../fx/som.ts';
-import { todosOsAlvos, caixaDe, caixaDaSelecao, type Alvo } from '../render/selecao.ts';
+import { todosOsAlvos, caixaDe, caixaDaSelecao, ehMovel, type Alvo, type ColecaoSelecionavel } from '../render/selecao.ts';
 import type { Viewport } from '../render/viewport.ts';
-import type { ColecaoLivre } from '../state/comandos.ts';
+import type { ColecaoLivre, Comando } from '../state/comandos.ts';
 import { campanhaAtiva, carregarCampanhas, desvincularMapa, refDoMapa, revincularMapa, sincronizarMapaComCampanha } from './campanha.ts';
 import { lerRota, formatarRota, type Rota } from './rotas.ts';
 import { iniciarServicos, type Servicos } from './servicos.ts';
@@ -33,8 +33,14 @@ export const focoPendente = signal<string | null>(null);
 
 export const viewport: { atual: Viewport | null } = { atual: null };
 
-const SINGULAR: Record<ColecaoLivre, string> = { lights: 'luz', props: 'objeto', tokens: 'peça', regions: 'região', presence: 'presença' };
-const PLURAL: Record<ColecaoLivre, string> = { lights: 'luzes', props: 'objetos', tokens: 'peças', regions: 'regiões', presence: 'presenças' };
+/** Mostrar o acabamento da cena (vinheta, tinta…) no editor? Preferência de quem edita, não do mapa. */
+const CHAVE_ACABAMENTO = 'atlas:acabamento';
+let acabamentoInicial = true; try { acabamentoInicial = localStorage.getItem(CHAVE_ACABAMENTO) !== '0'; } catch { /* padrão ligado */ }
+export const acabamentoLigado = signal(acabamentoInicial);
+export function definirAcabamentoLigado(v: boolean): void { acabamentoLigado.value = v; try { localStorage.setItem(CHAVE_ACABAMENTO, v ? '1' : '0'); } catch { /* ignora */ } }
+
+const SINGULAR: Record<ColecaoSelecionavel, string> = { lights: 'luz', props: 'objeto', tokens: 'peça', regions: 'região', presence: 'presença', rooms: 'cômodo', walls: 'parede', openings: 'abertura' };
+const PLURAL: Record<ColecaoSelecionavel, string> = { lights: 'luzes', props: 'objetos', tokens: 'peças', regions: 'regiões', presence: 'presenças', rooms: 'cômodos', walls: 'paredes', openings: 'aberturas' };
 
 // ---------- Início ----------
 let iniciado = false;
@@ -225,11 +231,14 @@ export function escolherArquivoParaImportar(): void {
 }
 
 // ---------- Edição ----------
-function ancora(colecao: ColecaoLivre, mundo: Ponto): void {
+function efeitoDeColocar(texto: string, mundo: Ponto): void {
   const v = viewport.atual; if (!v) return;
   const [x, y] = v.clientDe(mundo), r = ponto(x, y);
-  flutuar(r, `+ ${SINGULAR[colecao]}`, { cor: 'var(--acento)', tamanho: 15 }); faiscar(r, { quantidade: 8, alcance: 26, cor: 'var(--acento)' });
+  flutuar(r, texto, { cor: 'var(--acento)', tamanho: 15 }); faiscar(r, { quantidade: 8, alcance: 26, cor: 'var(--acento)' });
 }
+
+/** Uma ferramenta de construção pôs algo: som e um efeito no lugar. */
+export function aoColocar(rotulo: string, mundo: Ponto): void { tocar('pop'); efeitoDeColocar(`+ ${rotulo.toLowerCase()}`, mundo); }
 
 export function adicionarEm(colecao: ColecaoLivre, mundo: Ponto): void {
   const s = sessao.value; if (!s) return;
@@ -238,7 +247,7 @@ export function adicionarEm(colecao: ColecaoLivre, mundo: Ponto): void {
   if (!item) return;
   try { s.store.executar({ tipo: 'item.adicionar', colecao, item: item as never }, { rotulo: `Adicionar ${SINGULAR[colecao]}` }); } catch (erro) { avisar(String(erro instanceof Error ? erro.message : erro), { tipo: 'erro' }); tocar('erro'); return; }
   s.selecao.value = [{ colecao, id: item.id }];
-  tocar('pop'); ancora(colecao, mundo);
+  tocar('pop'); efeitoDeColocar(`+ ${SINGULAR[colecao]}`, mundo);
 }
 
 /** Onde "adicionar aqui" cai: sob o ponteiro, ou no centro da vista. */
@@ -252,37 +261,40 @@ export function pontoDeAdicionar(base?: Ponto): Ponto {
 
 export function selecionarTudo(): void { const s = sessao.value; if (s) { s.selecao.value = todosOsAlvos(s.doc.value); tocar('selecionar'); } }
 
+/** O comando que remove um item selecionado, qualquer que seja o tipo. */
+function comandoDeRemocao(m: MapaAtlas, a: Alvo): Comando | null {
+  if (a.colecao === 'rooms') return { tipo: 'comodo.remover', id: a.id };
+  if (a.colecao === 'openings') return { tipo: 'abertura.remover', id: a.id };
+  if (a.colecao === 'walls') return m.walls[a.id]?.source ? null : { tipo: 'parede.remover', id: a.id };
+  return { tipo: 'item.remover', colecao: a.colecao, id: a.id };
+}
+
 export function removerSelecao(): void {
   const s = sessao.value; if (!s || !s.selecao.value.length) return;
   const alvos = [...s.selecao.value], doc = s.doc.value;
-  const centros = alvos.map(a => { const c = caixaDe(doc, a); return c ? ([(c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2] as Ponto) : null; });
-  const v = viewport.atual;
-  const rotulo = alvos.length === 1 ? `Remover ${SINGULAR[alvos[0]!.colecao]}` : `Remover ${alvos.length} itens`;
-  s.store.transacao(rotulo, g => { for (const a of alvos) g.aplicar({ tipo: 'item.remover', colecao: a.colecao, id: a.id }); });
+  const aRemover = alvos.filter(a => comandoDeRemocao(doc, a)), fixas = alvos.length - aRemover.length;
+  if (!aRemover.length) { avisar('Paredes de cômodo seguem o cômodo: desanexe a parede para removê-la, ou mude o cômodo.'); tocar('erro'); return; }
+  const centros = aRemover.map(a => { const c = caixaDe(doc, a); return c ? ([(c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2] as Ponto) : null; });
+  const v = viewport.atual, un = aRemover.length === 1;
+  const rotulo = un ? `Remover ${SINGULAR[aRemover[0]!.colecao]}` : `Remover ${aRemover.length} itens`;
+  try { s.store.transacao(rotulo, g => { for (const a of aRemover) { if (!existeAinda(s.store.documento, a)) continue; const c = comandoDeRemocao(s.store.documento, a); if (c) g.aplicar(c); } }); } catch (erro) { avisar(erro instanceof Error ? erro.message : String(erro), { tipo: 'erro' }); tocar('erro'); return; }
   s.selecao.value = [];
   tocar('remover');
   for (const c of centros) if (c && v) { const [x, y] = v.clientDe(c); faiscar(ponto(x, y), { quantidade: 7, alcance: 28, cor: '#9aa0ad' }); }
-  avisar(alvos.length === 1 ? `${SINGULAR[alvos[0]!.colecao][0]!.toUpperCase()}${SINGULAR[alvos[0]!.colecao].slice(1)} removida.` : `${alvos.length} itens removidos.`, { acao: { rotulo: 'Desfazer', fazer: desfazer } });
+  const nome = SINGULAR[aRemover[0]!.colecao];
+  avisar(`${un ? `${nome[0]!.toUpperCase()}${nome.slice(1)} removid${nome.endsWith('a') ? 'a' : 'o'}.` : `${aRemover.length} itens removidos.`}${fixas ? ` ${fixas} parede(s) de cômodo ficaram.` : ''}`, { acao: { rotulo: 'Desfazer', fazer: desfazer } });
 }
 
+/** Remover um cômodo pode levar objetos e paredes junto: o que já sumiu não se remove de novo. */
+const existeAinda = (m: MapaAtlas, a: Alvo): boolean => ((m[a.colecao] as unknown) as Record<string, unknown>)[a.id] !== undefined;
+
 export function duplicarSelecao(): void {
-  const s = sessao.value; if (!s || !s.selecao.value.length) return;
-  const doc = s.doc.value, d = doc.grid.size / 2, novos: Alvo[] = [];
-  s.store.transacao(s.selecao.value.length === 1 ? 'Duplicar' : `Duplicar ${s.selecao.value.length} itens`, g => {
-    for (const a of s.selecao.value) {
-      const original = ((doc[a.colecao] as unknown) as Record<string, Record<string, unknown>>)[a.id]; if (!original) continue;
-      const copia = structuredClone(original) as Record<string, unknown> & { id: string };
-      copia.id = novoIdEntidade(a.colecao[0]);
-      if (a.colecao === 'regions') copia.polygon = (copia.polygon as Ponto[]).map(([x, y]) => [x + d, y + d]);
-      else copia.position = [(copia.position as Ponto)[0] + d, (copia.position as Ponto)[1] + d];
-      if (a.colecao === 'tokens') { copia.name = `${String(copia.name)} (cópia)`; copia.lightId = null; }
-      if (a.colecao === 'lights') copia.ownerId = null;
-      g.aplicar({ tipo: 'item.adicionar', colecao: a.colecao, item: copia });
-      novos.push({ colecao: a.colecao, id: copia.id });
-    }
-  });
-  s.selecao.value = novos; tocar('pop');
-  avisar(novos.length === 1 ? 'Duplicado.' : `${novos.length} itens duplicados.`);
+  const s = sessao.value; if (!s) return;
+  const { comandos, alvos } = copiasDe(s.doc.value, s.selecao.value, [s.doc.value.grid.size / 2, s.doc.value.grid.size / 2]);
+  if (!comandos.length) { avisar('Só objetos, luzes, peças e regiões se duplicam.'); return; }
+  s.store.transacao(comandos.length === 1 ? 'Duplicar' : `Duplicar ${comandos.length} itens`, g => { for (const c of comandos) g.aplicar(c as never); });
+  s.selecao.value = alvos; tocar('pop');
+  avisar(alvos.length === 1 ? 'Duplicado.' : `${alvos.length} itens duplicados.`);
 }
 
 export function alternarLuzes(): void {
@@ -296,7 +308,8 @@ export function alternarLuzes(): void {
 
 export function moverSelecao(dx: number, dy: number): void {
   const s = sessao.value; if (!s || !s.selecao.value.length) return;
-  s.store.executar({ tipo: 'selecao.mover', alvos: s.selecao.value as never, delta: [dx, dy] }, { rotulo: 'Mover' });
+  const alvos = s.selecao.value.filter(ehMovel); if (!alvos.length) return;
+  s.store.executar({ tipo: 'selecao.mover', alvos, delta: [dx, dy] }, { rotulo: 'Mover' });
 }
 
 export function centralizarNaSelecao(): void {

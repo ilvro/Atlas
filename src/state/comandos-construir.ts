@@ -1,0 +1,158 @@
+import type { Ref } from '#mesa';
+import { codificar, decodificar, subtrair, unir, type Celula } from '../domain/celulas.ts';
+import { atualizarSalasDosObjetos, limparOrfaos, motivoDeNaoCaber, recalcularParedes } from '../domain/geometria.ts';
+import type { Abertura, Comodo, MapaAtlas, Parede } from '../domain/mapa.ts';
+import { clonar } from './imutavel.ts';
+
+export type ParcialProfundo<T> = { [K in keyof T]?: T[K] extends readonly unknown[] ? T[K] : T[K] extends object ? ParcialProfundo<T[K]> : T[K] };
+export type CelulaDoComando = readonly [number, number];
+
+/** Comandos de construção: cômodos, paredes, aberturas e terreno. Cômodos e paredes refazem as paredes derivadas. */
+export type ComandoConstruir =
+  | { tipo: 'comodo.criar'; id: string; nome: string; funcao: string | null; piso: Comodo['floor']; papel: Comodo['wallpaper']; celulas: readonly CelulaDoComando[] }
+  | { tipo: 'comodo.pintar'; id: string; celulas: readonly CelulaDoComando[] }
+  | { tipo: 'comodo.apagar'; celulas: readonly CelulaDoComando[] }
+  | { tipo: 'comodo.atualizar'; id: string; patch: ParcialProfundo<Omit<Comodo, 'id' | 'cells'>> }
+  | { tipo: 'comodo.remover'; id: string }
+  | { tipo: 'comodo.notas'; id: string; patch: { leitura?: string; notasMestre?: string; refs?: Ref[] } }
+  | { tipo: 'parede.adicionar'; parede: Omit<Parede, 'source'> }
+  | { tipo: 'parede.atualizar'; id: string; patch: ParcialProfundo<Omit<Parede, 'id' | 'path' | 'source'>> }
+  | { tipo: 'parede.remover'; id: string }
+  | { tipo: 'parede.desanexar'; id: string }
+  | { tipo: 'abertura.adicionar'; abertura: Abertura }
+  | { tipo: 'abertura.atualizar'; id: string; patch: Partial<Pick<Abertura, 'at' | 'width' | 'kind' | 'state' | 'material' | 'som' | 'swing' | 'wallId'>> }
+  | { tipo: 'abertura.remover'; id: string }
+  | { tipo: 'terreno.pintar'; material: string; celulas: readonly CelulaDoComando[] }
+  | { tipo: 'terreno.apagar'; celulas: readonly CelulaDoComando[] }
+  | { tipo: 'terreno.base'; material: string };
+
+export const TIPOS_DE_CONSTRUCAO = ['comodo.criar', 'comodo.pintar', 'comodo.apagar', 'comodo.atualizar', 'comodo.remover', 'comodo.notas', 'parede.adicionar', 'parede.atualizar', 'parede.remover', 'parede.desanexar', 'abertura.adicionar', 'abertura.atualizar', 'abertura.remover', 'terreno.pintar', 'terreno.apagar', 'terreno.base'] as const;
+export const ehComandoDeConstrucao = (c: { tipo: string }): c is ComandoConstruir => (TIPOS_DE_CONSTRUCAO as readonly string[]).includes(c.tipo);
+
+export const ROTULOS_CONSTRUIR: Record<ComandoConstruir['tipo'], string> = {
+  'comodo.criar': 'Criar cômodo', 'comodo.pintar': 'Pintar cômodo', 'comodo.apagar': 'Apagar cômodo', 'comodo.atualizar': 'Editar cômodo', 'comodo.remover': 'Remover cômodo', 'comodo.notas': 'Notas do cômodo',
+  'parede.adicionar': 'Desenhar parede', 'parede.atualizar': 'Editar parede', 'parede.remover': 'Remover parede', 'parede.desanexar': 'Desanexar parede',
+  'abertura.adicionar': 'Pôr abertura', 'abertura.atualizar': 'Editar abertura', 'abertura.remover': 'Remover abertura',
+  'terreno.pintar': 'Pintar terreno', 'terreno.apagar': 'Apagar terreno', 'terreno.base': 'Terreno base',
+};
+
+/** Um comando que não pode ser aplicado (alvo inexistente, valor que o mapa não aceita). */
+export class ErroDeComando extends Error { constructor(mensagem: string) { super(mensagem); this.name = 'ErroDeComando'; } }
+const nao = (msg: string): never => { throw new ErroDeComando(msg); };
+const ehPlano = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+const chave = (x: number, y: number) => y * 200_003 + x;
+
+function mesclar(alvo: Record<string, any>, patch: Record<string, unknown>): void {
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === undefined) delete alvo[k];
+    else if (ehPlano(v) && ehPlano(alvo[k])) mesclar(alvo[k], v);
+    else alvo[k] = clonar(v);
+  }
+}
+
+const normais = (cel: readonly CelulaDoComando[]): Celula[] => cel.map(([x, y]) => {
+  if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0) nao(`Célula inválida: ${x}, ${y}.`);
+  return [x, y] as const;
+});
+
+/** Dá as `celulas` ao cômodo `id`, tirando-as de quem as tinha; cômodos que ficam sem células deixam de existir. */
+function darCelulas(m: MapaAtlas, id: string, celulas: readonly Celula[]): void {
+  const sala = m.rooms[id] ?? nao(`O cômodo “${id}” não existe.`);
+  const novas = codificar(celulas);
+  const doOutro = new Map<string, Celula[]>();
+  for (const outra of Object.values(m.rooms)) {
+    if (outra.id === id) continue;
+    const dela = new Set(decodificar(outra.cells).map(([x, y]) => chave(x, y))), roubadas = celulas.filter(([x, y]) => dela.has(chave(x, y)));
+    if (roubadas.length) doOutro.set(outra.id, roubadas as Celula[]);
+  }
+  sala.cells = unir(sala.cells, novas);
+  for (const [outraId, roubadas] of doOutro) m.rooms[outraId]!.cells = subtrair(m.rooms[outraId]!.cells, codificar(roubadas));
+  removerVazios(m);
+}
+
+function removerVazios(m: MapaAtlas): void { for (const s of Object.values(m.rooms)) if (!s.cells.length) delete m.rooms[s.id]; }
+
+const idDaCamada = (material: string) => `t_${material.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 60)}`;
+
+export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
+  switch (c.tipo) {
+    case 'comodo.criar': {
+      if (m.rooms[c.id]) nao(`Já existe o cômodo “${c.id}”.`);
+      const cel = normais(c.celulas); if (!cel.length) nao('Um cômodo precisa de pelo menos uma célula.');
+      m.rooms[c.id] = { id: c.id, name: c.nome, function: c.funcao, cells: [], floor: clonar(c.piso), wallpaper: c.papel ? clonar(c.papel) : null, wallStyle: null, palette: null, roof: { material: null, visible: true }, levelId: null };
+      darCelulas(m, c.id, cel); recalcularParedes(m); break;
+    }
+    case 'comodo.pintar': darCelulas(m, c.id, normais(c.celulas)); recalcularParedes(m); break;
+    case 'comodo.apagar': {
+      const tirar = codificar(normais(c.celulas));
+      for (const s of Object.values(m.rooms)) s.cells = subtrair(s.cells, tirar);
+      removerVazios(m); recalcularParedes(m); break;
+    }
+    case 'comodo.atualizar': {
+      const s = m.rooms[c.id] ?? nao(`O cômodo “${c.id}” não existe.`);
+      if ('id' in c.patch || 'cells' in c.patch) nao('Identificador e células não se editam assim.');
+      mesclar(s, c.patch as Record<string, unknown>); break;
+    }
+    case 'comodo.notas': {
+      if (!m.rooms[c.id]) nao(`O cômodo “${c.id}” não existe.`);
+      const n = (m.comodosExtra[c.id] ??= { id: c.id, leitura: '', notasMestre: '', refs: [] });
+      if (c.patch.leitura !== undefined) n.leitura = c.patch.leitura;
+      if (c.patch.notasMestre !== undefined) n.notasMestre = c.patch.notasMestre;
+      if (c.patch.refs !== undefined) n.refs = clonar(c.patch.refs) as Ref[];
+      // Um cômodo sem nada escrito não precisa de entrada.
+      if (!n.leitura && !n.notasMestre && !n.refs.length) delete m.comodosExtra[c.id];
+      break;
+    }
+    case 'comodo.remover': { if (!m.rooms[c.id]) nao(`O cômodo “${c.id}” não existe.`); delete m.rooms[c.id]; recalcularParedes(m); break; }
+
+    case 'parede.adicionar': {
+      if (m.walls[c.parede.id]) nao(`Já existe a parede “${c.parede.id}”.`);
+      const p = c.parede.path;
+      if (p.length < 2 || p.every(q => q[0] === p[0]![0] && q[1] === p[0]![1])) nao('Uma parede precisa de dois pontos diferentes.');
+      m.walls[c.parede.id] = { ...clonar(c.parede), source: null }; recalcularParedes(m); break;
+    }
+    case 'parede.atualizar': { const p = m.walls[c.id] ?? nao(`A parede “${c.id}” não existe.`); mesclar(p, c.patch as Record<string, unknown>); break; }
+    case 'parede.remover': {
+      const p = m.walls[c.id] ?? nao(`A parede “${c.id}” não existe.`);
+      if (p.source) nao('Esta parede segue o cômodo. Desanexe-a antes, ou mude o cômodo.');
+      delete m.walls[c.id]; for (const a of Object.values(m.openings)) if (a.wallId === c.id) delete m.openings[a.id];
+      for (const o of Object.values(m.props)) if (o.wall?.wallId === c.id) delete m.props[o.id];
+      recalcularParedes(m); break;
+    }
+    case 'parede.desanexar': {
+      const p = m.walls[c.id] ?? nao(`A parede “${c.id}” não existe.`);
+      if (!p.source) nao('Esta parede já é sua.');
+      p.source = null; recalcularParedes(m); break;
+    }
+
+    case 'abertura.adicionar': {
+      if (m.openings[c.abertura.id]) nao(`Já existe a abertura “${c.abertura.id}”.`);
+      const motivo = motivoDeNaoCaber(m, c.abertura); if (motivo) nao(motivo);
+      m.openings[c.abertura.id] = clonar(c.abertura); break;
+    }
+    case 'abertura.atualizar': {
+      const a = m.openings[c.id] ?? nao(`A abertura “${c.id}” não existe.`);
+      const depois = { ...JSON.parse(JSON.stringify(a)), ...c.patch };
+      const motivo = motivoDeNaoCaber(m, depois); if (motivo) nao(motivo);
+      mesclar(a, c.patch as Record<string, unknown>); break;
+    }
+    case 'abertura.remover': { if (!m.openings[c.id]) nao(`A abertura “${c.id}” não existe.`); delete m.openings[c.id]; break; }
+
+    case 'terreno.pintar': {
+      const cel = normais(c.celulas), novas = codificar(cel), id = idDaCamada(c.material);
+      m.terrain.layers[id] ??= { id, material: c.material, cells: [], order: Object.keys(m.terrain.layers).length };
+      for (const camada of Object.values(m.terrain.layers)) if (camada.id !== id) camada.cells = subtrair(camada.cells, novas);
+      m.terrain.layers[id]!.cells = unir(m.terrain.layers[id]!.cells, novas);
+      for (const camada of Object.values(m.terrain.layers)) if (!camada.cells.length) delete m.terrain.layers[camada.id];
+      break;
+    }
+    case 'terreno.apagar': {
+      const tirar = codificar(normais(c.celulas));
+      for (const camada of Object.values(m.terrain.layers)) { camada.cells = subtrair(camada.cells, tirar); if (!camada.cells.length) delete m.terrain.layers[camada.id]; }
+      break;
+    }
+    case 'terreno.base': m.terrain.base = c.material; break;
+    default: { const _fim: never = c; nao(`Comando desconhecido: ${JSON.stringify(_fim)}`); }
+  }
+  if (c.tipo.startsWith('comodo.') || c.tipo.startsWith('parede.')) limparOrfaos(m); else if (c.tipo.startsWith('abertura.')) atualizarSalasDosObjetos(m);
+}

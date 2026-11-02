@@ -78,12 +78,12 @@ test('o que está por cima é pego primeiro; regiões só pelo interior; a toler
   const m = mapaCompleto();
   assert.deepEqual(alvoEm(m, [5.25, 6.75]), { colecao: 'tokens', id: 'muirenn' });
   assert.deepEqual(alvoEm(m, [7.5, 6.2]), { colecao: 'lights', id: 'lampiao' });      // a luz está sobre a mesa
-  assert.deepEqual(alvoEm(m, [7.88, 6.2]), { colecao: 'props', id: 'mesa' });     // fora da luz (até 7,85), dentro da mesa (até 7,9)
+  assert.deepEqual(alvoEm(m, [7.88, 6.2]), { colecao: 'props', id: 'mesa' });     // fora da luz (até 7,85), dentro da mesa (até 8,13)
   assert.deepEqual(alvoEm(m, [4, 4]), { colecao: 'regions', id: 'entrada' });
   assert.equal(alvoEm(m, [20, 20]), null);
-  assert.equal(alvoEm(m, [6.5, 6.2]), null);
-  assert.equal(alvoEm(m, [7.02, 6.2]), null);
-  assert.deepEqual(alvoEm(m, [7.02, 6.2], 0.1), { colecao: 'props', id: 'mesa' });   // a tolerância alcança a mesa (7,1) mas não a luz (7,15)
+  assert.deepEqual(alvoEm(m, [6.5, 6.2]), { colecao: 'rooms', id: 'sala' });   // o chão do cômodo é o último recurso
+  assert.deepEqual(alvoEm(m, [6.8, 6.2]), { colecao: 'rooms', id: 'sala' });
+  assert.deepEqual(alvoEm(m, [6.8, 6.2], 0.1), { colecao: 'props', id: 'mesa' });   // a tolerância alcança a mesa (6,87) mas não a luz (7,15)
 });
 
 test('seleção por retângulo e por laço usa o centro de cada item', () => {

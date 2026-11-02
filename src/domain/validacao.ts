@@ -30,7 +30,7 @@ const parede = e.obj({
 });
 const abertura = e.obj({
   id, wallId: id, at: unidade, width: e.num({ min: 0.2, max: 10 }), kind: e.um('door', 'window', 'arch', 'secret'),
-  state: e.um('closed', 'open', 'locked'), material, som: e.nulo(ref),
+  state: e.um('closed', 'open', 'locked'), material, som: e.nulo(ref), swing: e.um('a', 'b'),
 });
 const objeto = e.obj({
   id,
@@ -46,7 +46,7 @@ const objeto = e.obj({
 const luz = e.obj({
   id, position: ponto, radius: e.num({ min: 0.1, max: 200 }), color: hex, intensity: e.num({ min: 0, max: 3 }), flicker: unidade,
   cone: e.nulo(e.obj({ angle: e.num({ min: 0.05, max: Math.PI * 2 }), direction: e.num({ min: -1000, max: 1000 }) })),
-  ownerId: idOuNulo, power: e.um('grid', 'fire', 'battery', 'magic'), on: e.bool(), nightOnly: e.bool(),
+  ownerId: idOuNulo, power: e.um('grid', 'fire', 'battery', 'magic'), on: e.bool(), nightOnly: e.bool(), preset: e.nulo(e.texto({ min: 1, max: 40 })),
 });
 const regiao = e.obj({
   id, polygon: e.lista(ponto, { min: 3, max: 2_000 }), kind: e.um('reveal', 'trigger', 'note', 'audio'), gmOnly: e.bool(), payload: e.json(), refs,
@@ -76,7 +76,7 @@ export const ESQUEMA_MAPA: Esq = e.obj({
     time: e.texto({ min: 5, max: 5, padrao: /^([01]\d|2[0-3]):[0-5]\d$/ }),
   }),
   finish: e.obj({
-    preset: e.texto({ min: 1, max: 60 }), texture: unidade, vignette: unidade, saturation: e.num({ min: 0, max: 2 }), grain: unidade,
+    preset: e.texto({ min: 1, max: 60 }), texture: unidade, vignette: unidade, saturation: e.num({ min: 0, max: 2 }), grain: unidade, tint: hex,
     grade: e.obj({ lift: e.num({ min: -1, max: 1 }), gamma: e.num({ min: 0.1, max: 4 }), gain: e.num({ min: 0, max: 4 }) }),
   }),
   memory: e.obj({ sketch: e.bool(), paper: e.texto({ min: 1, max: 60 }), ink: hex }),
@@ -86,7 +86,7 @@ export const ESQUEMA_MAPA: Esq = e.obj({
   }),
   terrain: e.obj({
     resolution: e.num({ min: 0.05, max: 2 }), base: material,
-    layers: e.porId(e.obj({ id, material, mask: refAsset, order: e.num({ inteiro: true, min: 0, max: 10_000 }) })),
+    layers: e.porId(e.obj({ id, material, cells: faixas, order: e.num({ inteiro: true, min: 0, max: 10_000 }) })),
   }),
   rooms: e.porId(comodo), walls: e.porId(parede), openings: e.porId(abertura), props: e.porId(objeto), lights: e.porId(luz),
   regions: e.porId(regiao), presence: e.porId(presenca), tokens: e.porId(peca),
@@ -141,7 +141,11 @@ export function validarMapa(valor: unknown): asserts valor is MapaAtlas {
     if (ini.current >= Math.max(1, ini.order.length)) falha('Vez fora da ordem.', 'session.initiative.current');
   }
   for (const alvo of m.session.revealed) if (!COLECOES.some(c => (m[c] as Record<string, unknown>)[alvo])) falha('Alvo revelado inexistente.', 'session.revealed');
-  for (const [cid, camada] of Object.entries(m.terrain.layers)) if (camada.id !== cid) falha('Identificador diferente da chave.', `terrain.layers.${cid}.id`);
+  const celT = Math.ceil(m.bounds.width / m.terrain.resolution), linT = Math.ceil(m.bounds.height / m.terrain.resolution);
+  for (const [cid, camada] of Object.entries(m.terrain.layers)) {
+    if (camada.id !== cid) falha('Identificador diferente da chave.', `terrain.layers.${cid}.id`);
+    for (const [y, x0, n] of camada.cells) if (y >= linT || x0 + n > celT) falha('Células de terreno fora dos limites do mapa.', `terrain.layers.${cid}.cells`);
+  }
 }
 
 /** Validação que devolve o erro em vez de lançar, para a interface. */

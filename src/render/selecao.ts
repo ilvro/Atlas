@@ -1,26 +1,47 @@
-import type { MapaAtlas, Ponto } from '../domain/mapa.ts';
+import { decodificar } from '../domain/celulas.ts';
+import { caixaDasCelulas, comprimentoDaParede, pontoNaParede, projetarNaParede } from '../domain/geometria.ts';
+import type { MapaAtlas, Objeto, Ponto } from '../domain/mapa.ts';
+import { pegadaDaReceita } from '../procedural/receitas.ts';
 import { COLECOES_LIVRES, type AlvoMovel, type ColecaoLivre } from '../state/comandos.ts';
 
-export type Alvo = AlvoMovel;
+/** O que o mestre pode selecionar: itens soltos (que também se movem) e a construção (cômodos, paredes, aberturas). */
+export type ColecaoSelecionavel = ColecaoLivre | 'rooms' | 'walls' | 'openings';
+export interface Alvo { colecao: ColecaoSelecionavel; id: string }
+export const ehMovel = (a: Alvo): a is AlvoMovel => (COLECOES_LIVRES as readonly string[]).includes(a.colecao);
 export interface Caixa { x0: number; y0: number; x1: number; y1: number }
 
 /** Ordem de empilhamento, do fundo para o topo: o que está por cima é pego primeiro. */
-const ORDEM: ColecaoLivre[] = ['regions', 'presence', 'props', 'lights', 'tokens'];
+const ORDEM: ColecaoSelecionavel[] = ['rooms', 'regions', 'presence', 'walls', 'props', 'openings', 'lights', 'tokens'];
 
 export const mesmoAlvo = (a: Alvo, b: Alvo): boolean => a.colecao === b.colecao && a.id === b.id;
 export const chaveDoAlvo = (a: Alvo): string => `${a.colecao}:${a.id}`;
 
 const caixaDePontos = (pts: readonly Ponto[]): Caixa => ({ x0: Math.min(...pts.map(p => p[0])), y0: Math.min(...pts.map(p => p[1])), x1: Math.max(...pts.map(p => p[0])), y1: Math.max(...pts.map(p => p[1])) });
+const centrada = (p: Ponto, lado: number): Caixa => ({ x0: p[0] - lado / 2, y0: p[1] - lado / 2, x1: p[0] + lado / 2, y1: p[1] + lado / 2 });
+
+/** Largura × profundidade de um objeto no mapa, já com a escala. */
+export function tamanhoDoObjeto(o: Objeto): [number, number] {
+  const [w, h] = pegadaDaReceita(o.source.kind === 'recipe' ? o.source.recipe : 'caixa', o.source.kind === 'recipe' ? o.source.params : {});
+  return [w * o.scale, h * o.scale];
+}
 
 /** Caixa que o editor usa para pegar, desenhar o contorno e enquadrar o item. `null` para o que não tem posição (presença). */
 export function caixaDe(mapa: MapaAtlas, alvo: Alvo): Caixa | null {
-  if (alvo.colecao === 'regions') { const r = mapa.regions[alvo.id]; return r ? caixaDePontos(r.polygon) : null; }
-  if (alvo.colecao === 'props') { const o = mapa.props[alvo.id]; return o ? centrada(o.position, 0.8 * o.scale) : null; }
-  if (alvo.colecao === 'lights') { const l = mapa.lights[alvo.id]; return l ? centrada(l.position, 0.7) : null; }
-  if (alvo.colecao === 'tokens') { const t = mapa.tokens[alvo.id]; return t ? centrada(t.position, t.size * mapa.grid.size * 0.9) : null; }
-  return null;
+  switch (alvo.colecao) {
+    case 'rooms': { const r = mapa.rooms[alvo.id]; return r ? caixaDasCelulas(mapa, decodificar(r.cells)) : null; }
+    case 'walls': { const p = mapa.walls[alvo.id]; if (!p) return null; const c = caixaDePontos(p.path), f = p.thickness / 2 + 0.05; return { x0: c.x0 - f, y0: c.y0 - f, x1: c.x1 + f, y1: c.y1 + f }; }
+    case 'openings': { const a = mapa.openings[alvo.id], p = a && mapa.walls[a.wallId]; return a && p ? centrada(pontoNaParede(p, a.at * comprimentoDaParede(p)).ponto, a.width + 0.2) : null; }
+    case 'regions': { const r = mapa.regions[alvo.id]; return r ? caixaDePontos(r.polygon) : null; }
+    case 'props': {
+      const o = mapa.props[alvo.id]; if (!o) return null;
+      const [w, h] = tamanhoDoObjeto(o), c = Math.abs(Math.cos(o.rotation)), s = Math.abs(Math.sin(o.rotation)), ex = (c * w + s * h) / 2, ey = (s * w + c * h) / 2;
+      return { x0: o.position[0] - ex, y0: o.position[1] - ey, x1: o.position[0] + ex, y1: o.position[1] + ey };
+    }
+    case 'lights': { const l = mapa.lights[alvo.id]; return l ? centrada(l.position, 0.7) : null; }
+    case 'tokens': { const t = mapa.tokens[alvo.id]; return t ? centrada(t.position, t.size * mapa.grid.size * 0.9) : null; }
+    default: return null;
+  }
 }
-const centrada = (p: Ponto, lado: number): Caixa => ({ x0: p[0] - lado / 2, y0: p[1] - lado / 2, x1: p[0] + lado / 2, y1: p[1] + lado / 2 });
 
 export function todosOsAlvos(mapa: MapaAtlas): Alvo[] {
   const saida: Alvo[] = [];
@@ -37,17 +58,30 @@ export function pontoNoPoligono(p: Ponto, poligono: readonly Ponto[]): boolean {
   return dentro;
 }
 
+/** O ponto cai dentro do objeto (retângulo girado), com `tolerancia` metros de folga? */
+function pontoNoObjeto(o: Objeto, p: Ponto, tolerancia: number): boolean {
+  const [w, h] = tamanhoDoObjeto(o), dx = p[0] - o.position[0], dy = p[1] - o.position[1], c = Math.cos(-o.rotation), s = Math.sin(-o.rotation);
+  const lx = dx * c - dy * s, ly = dx * s + dy * c;
+  return Math.abs(lx) <= w / 2 + tolerancia && Math.abs(ly) <= h / 2 + tolerancia;
+}
+
 /** O alvo do topo sob `ponto`, com tolerância em metros (para o toque acertar em zoom afastado). */
 export function alvoEm(mapa: MapaAtlas, ponto: Ponto, tolerancia = 0): Alvo | null {
   for (let i = ORDEM.length - 1; i >= 0; i--) {
     const colecao = ORDEM[i]!;
-    const ids = Object.keys(mapa[colecao]).reverse();
-    for (const id of ids) {
-      const caixa = caixaDe(mapa, { colecao, id });
-      if (!caixa) continue;
-      // Regiões só são pegas pelo interior; o resto, pela caixa (com tolerância).
-      if (colecao === 'regions') { if (pontoNoPoligono(ponto, mapa.regions[id]!.polygon)) return { colecao, id }; continue; }
-      if (ponto[0] >= caixa.x0 - tolerancia && ponto[0] <= caixa.x1 + tolerancia && ponto[1] >= caixa.y0 - tolerancia && ponto[1] <= caixa.y1 + tolerancia) return { colecao, id };
+    for (const id of Object.keys(mapa[colecao]).reverse()) {
+      const alvo: Alvo = { colecao, id };
+      if (colecao === 'rooms') { const r = mapa.rooms[id]!, t = mapa.grid.size; if (decodificar(r.cells).some(([x, y]) => ponto[0] >= mapa.grid.offset[0] + x * t && ponto[0] < mapa.grid.offset[0] + (x + 1) * t && ponto[1] >= mapa.grid.offset[1] + y * t && ponto[1] < mapa.grid.offset[1] + (y + 1) * t)) return alvo; continue; }
+      if (colecao === 'regions') { if (pontoNoPoligono(ponto, mapa.regions[id]!.polygon)) return alvo; continue; }
+      if (colecao === 'walls') { const p = mapa.walls[id]!; if (projetarNaParede(p, ponto).distancia <= p.thickness / 2 + tolerancia) return alvo; continue; }
+      if (colecao === 'props') { const o = mapa.props[id]!; if (o.elevation !== 'wall' && pontoNoObjeto(o, ponto, tolerancia)) return alvo; continue; }
+      if (colecao === 'openings') {
+        const a = mapa.openings[id]!, p = mapa.walls[a.wallId]; if (!p) continue;
+        const r = projetarNaParede(p, ponto), centro = a.at * comprimentoDaParede(p);
+        if (Math.abs(r.dist - centro) <= a.width / 2 + tolerancia && r.distancia <= p.thickness / 2 + 0.1 + tolerancia) return alvo; continue;
+      }
+      const caixa = caixaDe(mapa, alvo);
+      if (caixa && ponto[0] >= caixa.x0 - tolerancia && ponto[0] <= caixa.x1 + tolerancia && ponto[1] >= caixa.y0 - tolerancia && ponto[1] <= caixa.y1 + tolerancia) return alvo;
     }
   }
   return null;

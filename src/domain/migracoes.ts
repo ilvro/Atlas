@@ -6,8 +6,27 @@ import { validarMapa } from './validacao.ts';
 export type Migracao = (doc: Record<string, unknown>) => Record<string, unknown>;
 export type TabelaDeMigracoes = Readonly<Record<number, Migracao>>;
 
-/** Hoje só existe a versão 1; quando o formato mudar, a migração 1→2 entra aqui. */
-export const MIGRACOES: TabelaDeMigracoes = {};
+type Objetos = Record<string, Record<string, unknown>>;
+const porValor = (o: unknown): Record<string, unknown>[] => (o && typeof o === 'object' ? Object.values(o as Objetos) : []);
+
+/**
+ * 1 → 2 (Fase 3): as camadas de terreno passam de máscara de imagem para células em RLE; o terreno base padrão deixa
+ * de ser 'terra' (o fundo do mapa aparece); luzes ganham `preset`; portas ganham `swing`; o acabamento ganha `tint`.
+ */
+const de1para2: Migracao = doc => {
+  const d = doc as Record<string, any>;
+  const terreno = d.terrain as { base?: unknown; layers?: unknown } | undefined;
+  if (terreno && typeof terreno === 'object') {
+    for (const camada of porValor(terreno.layers)) { delete camada.mask; camada.cells ??= []; }
+    if (terreno.base === 'terra' && !Object.keys((terreno.layers as object) ?? {}).length) terreno.base = 'vazio';
+  }
+  if (d.finish && typeof d.finish === 'object') d.finish.tint ??= '#ffffff';
+  for (const luz of porValor(d.lights)) luz.preset ??= null;
+  for (const a of porValor(d.openings)) a.swing ??= 'a';
+  return d;
+};
+
+export const MIGRACOES: TabelaDeMigracoes = { 1: de1para2 };
 
 /** Aplica a cadeia de migrações até `alvo`. Separada para ser testada com tabelas de mentira. */
 export function aplicarMigracoes(bruto: unknown, tabela: TabelaDeMigracoes, alvo: number): Record<string, unknown> {

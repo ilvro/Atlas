@@ -1,16 +1,20 @@
 import { ErroDeValidacao } from '../domain/esquema.ts';
 import { clonar, produzir } from './imutavel.ts';
 import type { Acabamento, Clima, Estilo, Fundo, Grade, Memoria, MapaAtlas, NomeColecao, Ponto } from '../domain/mapa.ts';
+import { atualizarSalasDosObjetos } from '../domain/geometria.ts';
 import { validarMapa } from '../domain/validacao.ts';
+import { aplicarConstrucao, ehComandoDeConstrucao, ErroDeComando, ROTULOS_CONSTRUIR, type ComandoConstruir, type ParcialProfundo } from './comandos-construir.ts';
 
 /** Coleções que os comandos genéricos manipulam. Cômodos, paredes e aberturas têm comandos próprios (Fase 3). */
 export const COLECOES_LIVRES = ['props', 'lights', 'tokens', 'regions', 'presence'] as const;
 export type ColecaoLivre = (typeof COLECOES_LIVRES)[number];
 
-export type ParcialProfundo<T> = { [K in keyof T]?: T[K] extends readonly unknown[] ? T[K] : T[K] extends object ? ParcialProfundo<T[K]> : T[K] };
+export { ErroDeComando };
+export type { ParcialProfundo };
 export interface AlvoMovel { colecao: ColecaoLivre; id: string }
 
 export type Comando =
+  | ComandoConstruir
   | { tipo: 'mapa.renomear'; nome: string }
   | { tipo: 'mapa.notas'; texto: string }
   | { tipo: 'mapa.campanha'; campanhaId: string | null }
@@ -26,9 +30,6 @@ export type Comando =
   | { tipo: 'item.remover'; colecao: ColecaoLivre; id: string }
   | { tipo: 'selecao.mover'; alvos: AlvoMovel[]; delta: Ponto };
 
-export class ErroDeComando extends Error {
-  constructor(mensagem: string) { super(mensagem); this.name = 'ErroDeComando'; }
-}
 const nao = (msg: string): never => { throw new ErroDeComando(msg); };
 
 const ehPlano = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -64,6 +65,7 @@ function remover(m: MapaAtlas, colecao: ColecaoLivre, id: string): void {
 }
 
 function aplicar(m: MapaAtlas, c: Comando): void {
+  if (ehComandoDeConstrucao(c)) { aplicarConstrucao(m, c); return; }
   switch (c.tipo) {
     case 'mapa.renomear': m.name = c.nome; break;
     case 'mapa.notas': m.notes = c.texto; break;
@@ -80,12 +82,14 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       const colecao = m[c.colecao] as Record<string, unknown>;
       if (colecao[c.item.id]) nao(`Já existe “${c.item.id}” em ${c.colecao}.`);
       colecao[c.item.id] = clonar(c.item);
+      if (c.colecao === 'props') atualizarSalasDosObjetos(m);
       break;
     }
     case 'item.atualizar': {
       const item = existente(m, c.colecao, c.id);
       if ('id' in c.patch && c.patch.id !== c.id) nao('O identificador não muda.');
       mesclar(item, c.patch);
+      if (c.colecao === 'props') atualizarSalasDosObjetos(m);
       break;
     }
     case 'item.remover': remover(m, c.colecao, c.id); break;
@@ -98,6 +102,7 @@ function aplicar(m: MapaAtlas, c: Comando): void {
         else if (item.position) item.position = [item.position[0] + dx, item.position[1] + dy];
         else nao(`“${id}” não tem posição.`);
       }
+      atualizarSalasDosObjetos(m);
       break;
     }
     default: { const _fim: never = c; nao(`Comando desconhecido: ${JSON.stringify(_fim)}`); }
@@ -119,6 +124,7 @@ export function aplicarComando(mapa: MapaAtlas, comando: Comando): MapaAtlas {
 }
 
 export const ROTULOS: Record<Comando['tipo'], string> = {
+  ...ROTULOS_CONSTRUIR,
   'mapa.renomear': 'Renomear mapa', 'mapa.notas': 'Editar notas', 'mapa.campanha': 'Ligar à campanha', 'grade.atualizar': 'Ajustar grade',
   'limites.atualizar': 'Redimensionar mapa', 'estilo.atualizar': 'Mudar estilo', 'clima.aplicar': 'Mudar clima', 'acabamento.atualizar': 'Ajustar acabamento',
   'fundo.atualizar': 'Ajustar fundo', 'memoria.atualizar': 'Ajustar memória', 'item.adicionar': 'Adicionar', 'item.atualizar': 'Editar',

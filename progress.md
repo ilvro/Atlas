@@ -59,10 +59,38 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 - Os outros projetos (Ficha, Ateliê, Jukebox, Tabletop) ainda não usam o `mesa-core`; mudam só com autorização.
 - Dois relatórios do protótipo continuam valendo: fonte pixel própria e transição da memória (Fases 3 a 8).
 
+## Fase 3 — Construir (2 de novembro) — concluída, com pendências
+
+### Implementado
+
+- **Documento v2** com migração 1→2 testada: terreno por camadas de material (RLE), `swing` nas aberturas, `preset` nas luzes, `tint` no acabamento.
+- **Geometria pura e testada** (`domain/geometria.ts`): paredes derivadas do contorno dos cômodos, portas e objetos de parede que acompanham a parede ao redesenhar, encaixe com tolerância, parede manual e desanexar.
+- **Comandos de construção** (`state/comandos-construir.ts`): cômodo criar/pintar/apagar/remover/notas, parede, abertura, terreno; pintar rouba células de outros cômodos e cômodos vazios somem; tudo desfaz, e cada arrasto é UMA entrada de histórico.
+- **Procedural**: descrição de desenho, 22 receitas (mesas, cadeiras, camas, sofá, estantes, tapetes, balcão, vaso, livros, papéis, quadro, espelho…), materiais de piso/papel/objeto/terreno, assado em Web Worker com cache e textura enquanto chega.
+- **Render**: cômodos com piso, papel e paredes caixa, terreno, luzes (círculo e cone, 10 predefinições), acabamento (vinheta, grão, tinta) com liga/desliga só para quem edita.
+- **Ferramentas**: pintar cômodo (pincel; `Shift` faz retângulo), borracha, parede, porta/janela/arco/secreta, objeto, luz, peça, região, terreno; fantasma de prévia, `Q`/`E` giram, `Ctrl`+clique é pipeta, `Ctrl`+arrastar duplica, `Alt` desliga o encaixe.
+- **Interface**: biblioteca buscável por ferramenta (com prévia de cada receita), cartão contextual colado ao item (some com ferramentas de construção na mão), inspetor completo para cômodo, parede, abertura, objeto (variar), luz (predefinição) e aba Mapa (terreno base, acabamento).
+
+### Validação
+
+- `tsc --noEmit` limpo; `npm run build` sem erros (aviso de chunk grande, esperado por causa do Pixi).
+- **161 testes unitários** passando (repetidos várias vezes, sem oscilação) e **20 testes e2e** em Chromium com WebGL.
+- O e2e cobre o critério de pronto: casa de três cômodos com portas, objeto e luz **só pela interface**, cartão contextual abrindo a porta, desfazer, gravar e recarregar; borracha refazendo paredes e desfazendo; busca na biblioteca, terreno e Esc cancelando o traço; notas do mestre do cômodo.
+- Captura visual conferida nos temas Ordem e Prata (cômodos com piso e papel, portas, mobília, luzes).
+- Defeitos reais achados e corrigidos no caminho: a paleta de comandos apagava o que já tinha sido digitado (efeito rodava depois de abrir); teste do `mesa-core` dependia de um atraso fixo; o cartão contextual cobria os cliques de quem estava pondo itens.
+
+### Pendências reais
+
+- **3.1** Transições automáticas entre terrenos (hoje cada camada tem borda seca).
+- **3.8** Editar a cartela de título na interface (o campo existe no documento) e escolher o fundo por textura.
+- **3.10** `refs` do cômodo com a campanha: a leitura e as notas do mestre funcionam, ligar documentos de outros apps ainda não.
+- Parâmetros de receita só aparecem na biblioteca antes de pôr; depois, o inspetor oferece apenas "Variar".
+- O tempo "menos de dez minutos" foi conferido pelo fluxo automatizado, não cronometrado com uma pessoa.
+
 ## Próximo
 
-Fase 3 — Construir (etapas 3.1–3.10 do roadmap): terreno, cômodo que vira paredes, portas e janelas, objetos por receita, luzes de verdade.
+Fase 4 — Climas e atmosfera: o mesmo mapa de dia, em tempestade, à noite e sem energia.
 
 ## Pendências
 
-- Nenhuma que bloqueie a Fase 3.
+- As da Fase 3 acima; nenhuma bloqueia a Fase 4.

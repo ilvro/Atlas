@@ -1,0 +1,146 @@
+import { contornoDoComodo, facesDoContorno, caixaDasCelulas, type SegmentoDeContorno } from '../domain/geometria.ts';
+import type { Faixa } from '../domain/celulas.ts';
+import { decodificar } from '../domain/celulas.ts';
+import type { Ponto } from '../domain/mapa.ts';
+import { contextoDe, criarTela, type Contexto, type Tela } from './canvas.ts';
+import { caixaDasPartes, type Parte } from './descricao.ts';
+import { materialDe, pintarMaterial, tom } from './materiais.ts';
+import { desenharPartes, partesParaFace } from './raster.ts';
+import { descreverReceita } from './receitas.ts';
+
+export interface Assado { tela: Tela; /** Canto superior esquerdo da tela, em metros (no espaço local do objeto, ou do mundo para cômodos e terreno). */ origem: Ponto; res: number }
+
+// ---------- Objetos de piso ----------
+const MARGEM_SOMBRA = 0.3;
+
+/** Um objeto de piso inteiro (partes + sombras) numa tela, com o centro do objeto em (0, 0) do espaço local. */
+export function assarObjeto(receita: string, params: Record<string, unknown>, seed: number, res: number): Assado {
+  const d = descreverReceita(receita, { seed, params });
+  const partes = d.tipo === 'piso' ? d.partes : [...d.face.map(p => ({ ...p })), ...d.topo];
+  const c = caixaDasPartes(partes), x0 = c.x0 - MARGEM_SOMBRA, y0 = c.y0 - MARGEM_SOMBRA;
+  const tela = criarTela((c.x1 - c.x0 + 2 * MARGEM_SOMBRA) * res, (c.y1 - c.y0 + 2 * MARGEM_SOMBRA) * res), ctx = contextoDe(tela);
+  ctx.setTransform(res, 0, 0, res, -x0 * res, -y0 * res);
+  desenharPartes(ctx, d.tipo === 'piso' ? d.partes : d.face, { res, seed });
+  return { tela, origem: [x0, y0], res };
+}
+
+// ---------- Cômodos ----------
+export interface AberturaNaFace { tipo: 'door' | 'window' | 'arch' | 'secret'; centro: Ponto; largura: number; material: string }
+export interface ObjetoNaFace { receita: string; params: Record<string, unknown>; seed: number; centro: Ponto }
+export interface EntradaDoComodo {
+  grade: { size: number; offset: [number, number] };
+  celulas: Faixa[];
+  piso: { material: string; seed: number };
+  papel: { material: string; seed: number } | null;
+  estilo: 'box' | 'solid';
+  altura: number;
+  aberturas: AberturaNaFace[];
+  objetos: ObjetoNaFace[];
+}
+
+/** Profundidade (m) com que a face de uma parede de `altura` aparece para dentro do cômodo. */
+export const profundidadeDaFace = (altura: number): number => altura * 0.21;
+
+const MARGEM_COMODO = 0.4;
+
+/** Onde um ponto do mundo cai sobre um segmento do contorno: distância ao longo dele, ou `null` se não está nele. */
+function ao_longo(seg: SegmentoDeContorno, p: Ponto): number | null {
+  const dx = seg.b[0] - seg.a[0], dy = seg.b[1] - seg.a[1], c = Math.hypot(dx, dy);
+  const u = ((p[0] - seg.a[0]) * dx + (p[1] - seg.a[1]) * dy) / c, perp = Math.abs((p[0] - seg.a[0]) * -dy / c + (p[1] - seg.a[1]) * dx / c);
+  return perp <= 0.08 && u >= -0.01 && u <= c + 0.01 ? Math.max(0, Math.min(c, u)) : null;
+}
+
+function desenharAbertura(ctx: Contexto, a: AberturaNaFace, u: number, H: number, res: number): void {
+  const w = a.largura, mad = a.material || 'madeira.media';
+  if (a.tipo === 'door' || a.tipo === 'arch') {
+    ctx.fillStyle = '#0a080b'; ctx.beginPath();
+    if (a.tipo === 'arch') { ctx.rect(u - w / 2 + 0.08, H - 1.7, w - 0.16, 1.7); ctx.moveTo(u - w / 2 + 0.08, H - 1.7); ctx.arc(u, H - 1.7, w / 2 - 0.08, Math.PI, 0); } else ctx.rect(u - w / 2 + 0.08, H - 2.15, w - 0.16, 2.15);
+    ctx.fill();
+    if (a.tipo === 'door') desenharPartes(ctx, partesParaFace([
+      { forma: 'ret', x: -w / 2 + 0.08, y: 1.08, w: 0.1, h: 2.16, mat: mad, z: 0.1 }, { forma: 'ret', x: w / 2 - 0.08, y: 1.08, w: 0.1, h: 2.16, mat: mad, z: 0.1 },
+      { forma: 'ret', x: 0, y: 2.18, w: w - 0.06, h: 0.1, mat: mad, z: 0.1 },
+    ], u, H), { res, sombras: false });
+  } else if (a.tipo === 'window') {
+    const l = w, cortina = 'cortina.vinho';
+    desenharPartes(ctx, partesParaFace([
+      { forma: 'ret', x: 0, y: 1.55, w: l * 0.82, h: 1.3, mat: mad, z: 0.04 }, { forma: 'ret', x: 0, y: 1.55, w: l * 0.68, h: 1.16, mat: 'vidro', z: 0.05, vidro: true },
+      { forma: 'ret', x: 0, y: 1.55, w: 0.04, h: 1.16, mat: mad, z: 0.06 }, { forma: 'ret', x: 0, y: 1.55, w: l * 0.68, h: 0.04, mat: mad, z: 0.06 },
+      { forma: 'ret', x: -l * 0.4, y: 1.5, w: 0.22, h: 1.5, mat: cortina, z: 0.08 }, { forma: 'ret', x: l * 0.4, y: 1.5, w: 0.22, h: 1.5, mat: cortina, z: 0.08 },
+      { forma: 'ret', x: 0, y: 0.88, w: l * 0.9, h: 0.07, mat: 'madeira.escura', z: 0.09 },
+    ], u, H), { res, sombras: false });
+  }
+  // Porta secreta: parece parede; só uma fresta quase invisível.
+  else { ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 0.01; ctx.strokeRect(u - w / 2, H - 2.1, w, 2.1); }
+}
+
+/** O cômodo inteiro numa tela: piso, sombra de contato com as paredes e, no estilo caixa, as quatro faces internas. */
+export function assarComodo(e: EntradaDoComodo, res: number): Assado {
+  const cells = decodificar(e.celulas), caixa = caixaDasCelulas({ grid: { size: e.grade.size, offset: e.grade.offset, kind: 'square', visible: true } }, cells);
+  if (!caixa) return { tela: criarTela(1, 1), origem: [0, 0], res };
+  const x0 = caixa.x0 - MARGEM_COMODO, y0 = caixa.y0 - MARGEM_COMODO;
+  const tela = criarTela((caixa.x1 - caixa.x0 + 2 * MARGEM_COMODO) * res, (caixa.y1 - caixa.y0 + 2 * MARGEM_COMODO) * res), ctx = contextoDe(tela);
+  const base = () => ctx.setTransform(res, 0, 0, res, -x0 * res, -y0 * res);
+  base();
+  const lacos = contornoDoComodo({ grid: { size: e.grade.size, offset: e.grade.offset, kind: 'square', visible: true } }, cells);
+  const tracar = () => { ctx.beginPath(); for (const laco of lacos) { ctx.moveTo(laco[0]!.a[0], laco[0]!.a[1]); for (const s of laco) ctx.lineTo(s.b[0], s.b[1]); ctx.closePath(); } };
+
+  ctx.save(); tracar(); ctx.clip();
+  pintarMaterial(ctx, e.piso.material, { x: caixa.x0, y: caixa.y0, w: caixa.x1 - caixa.x0, h: caixa.y1 - caixa.y0 }, e.piso.seed);
+  // Sombra de contato: o piso escurece junto das paredes.
+  ctx.shadowColor = 'rgba(0,0,0,0.75)'; ctx.shadowBlur = 0.35 * res; ctx.lineWidth = 0.25; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; tracar(); ctx.stroke();
+  if (e.estilo === 'solid') { ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 0.5 * res; ctx.shadowOffsetX = 0.12 * res; ctx.shadowOffsetY = 0.18 * res; ctx.lineWidth = 0.5; ctx.strokeStyle = 'rgba(0,0,0,0.6)'; tracar(); ctx.stroke(); }
+  ctx.restore();
+
+  if (e.estilo === 'box') {
+    const H = e.altura, prof = profundidadeDaFace(H), k = prof / H, papel = e.papel ?? { material: 'papel.liso-claro', seed: 1 };
+    for (const laco of lacos) for (const f of facesDoContorno(laco, prof)) {
+      const s = f.segmento, comp = Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1]), dx = (s.b[0] - s.a[0]) / comp, dy = (s.b[1] - s.a[1]) / comp;
+      ctx.save(); base();
+      ctx.beginPath(); ctx.moveTo(f.quad[0][0], f.quad[0][1]); for (const q of f.quad.slice(1)) ctx.lineTo(q[0], q[1]); ctx.closePath(); ctx.clip();
+      ctx.transform(dx, dy, s.n[0] * k, s.n[1] * k, s.a[0], s.a[1]);
+      const sementeDaFace = Math.round(s.a[0] * 13 + s.a[1] * 7);
+      pintarMaterial(ctx, papel.material, { x: 0, y: 0, w: comp, h: H }, papel.seed + sementeDaFace);
+      pintarMaterial(ctx, 'madeira.escura', { x: 0, y: H - 0.9, w: comp, h: 0.9 }, 3 + sementeDaFace);
+      ctx.fillStyle = tom(materialDe('madeira.media').base, 0.1); ctx.fillRect(0, H - 0.93, comp, 0.05);
+      const gr = ctx.createLinearGradient(0, 0, 0, H);
+      gr.addColorStop(0, 'rgba(0,0,0,0.55)'); gr.addColorStop(0.35, 'rgba(0,0,0,0.12)'); gr.addColorStop(0.9, 'rgba(0,0,0,0.1)'); gr.addColorStop(1, 'rgba(0,0,0,0.5)');
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, comp, H);
+      for (const a of e.aberturas) { const u = ao_longo(s, a.centro); if (u !== null) desenharAbertura(ctx, a, u, H, res); }
+      for (const o of e.objetos) {
+        const u = ao_longo(s, o.centro); if (u === null) continue;
+        const d = descreverReceita(o.receita, { seed: o.seed, params: o.params });
+        if (d.tipo === 'parede') desenharPartes(ctx, partesParaFace(d.face, u, H), { res, seed: o.seed, sombras: false });
+      }
+      ctx.restore();
+    }
+  }
+  return { tela, origem: [x0, y0], res };
+}
+
+// ---------- Terreno ----------
+export interface EntradaDeTerreno {
+  largura: number; altura: number; resolucao: number; base: string;
+  camadas: { material: string; celulas: Faixa[] }[];
+}
+
+/** O terreno todo numa tela só: o material de base e cada camada, com as bordas suavizadas (a transição automática). */
+export function assarTerreno(e: EntradaDeTerreno, res: number): Assado {
+  const W = e.largura * res, Hh = e.altura * res, tela = criarTela(W, Hh), ctx = contextoDe(tela);
+  ctx.setTransform(res, 0, 0, res, 0, 0);
+  if (e.base !== 'vazio') pintarMaterial(ctx, e.base, { x: 0, y: 0, w: e.largura, h: e.altura }, 7);
+  e.camadas.forEach((camada, idx) => {
+    if (!camada.celulas.length) return;
+    const mascara = criarTela(W, Hh), mc = contextoDe(mascara);
+    mc.setTransform(res, 0, 0, res, 0, 0); mc.fillStyle = '#fff';
+    for (const [y, x0, n] of camada.celulas) mc.fillRect(x0 * e.resolucao, y * e.resolucao, n * e.resolucao, e.resolucao);
+    const macia = criarTela(W, Hh), mac = contextoDe(macia);
+    mac.filter = `blur(${Math.max(1, 0.28 * res)}px)`; mac.drawImage(mascara as CanvasImageSource, 0, 0);
+    const pintada = criarTela(W, Hh), pc = contextoDe(pintada);
+    pc.setTransform(res, 0, 0, res, 0, 0); pintarMaterial(pc, camada.material, { x: 0, y: 0, w: e.largura, h: e.altura }, 11 + idx * 5);
+    pc.setTransform(1, 0, 0, 1, 0, 0); pc.globalCompositeOperation = 'destination-in'; pc.drawImage(macia as CanvasImageSource, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(pintada as CanvasImageSource, 0, 0); ctx.setTransform(res, 0, 0, res, 0, 0);
+  });
+  return { tela, origem: [0, 0], res };
+}
+
+export type { Parte };

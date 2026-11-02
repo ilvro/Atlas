@@ -36,7 +36,7 @@ test('criar, gravar, reabrir, desfazer e exportar um mapa', async () => {
   assert.equal(Object.keys((await documento(page)).lights).length, 1);
   await page.keyboard.press('Control+z');
   assert.equal(Object.keys((await documento(page)).lights).length, 0);
-  await toast(page, /Desfeito: Adicionar luz/).waitFor();
+  await toast(page, /Desfeito: Pôr lamparina/).waitFor();
   await page.keyboard.press('Control+Shift+z');
   assert.equal(Object.keys((await documento(page)).lights).length, 1);
   await page.click('[data-testid="gravar"]');
@@ -122,13 +122,14 @@ test('paleta de comandos: busca sem acento, executa e fecha com Esc', async () =
   await criarMapaPelaInterface(page); await page.click('[data-testid="ferramenta-selecionar"]');
   await page.keyboard.press('Control+k');
   const campo = page.locator('[data-testid="paleta"] input'); await campo.waitFor();
-  await campo.fill('adicionar regiao'); assert.match(await page.locator('[role="option"]').first().innerText(), /Adicionar região/i);
+  await campo.fill('adicionar regiao'); await page.locator('[role="option"]').first().filter({ hasText: /região/i }).waitFor();
   await page.keyboard.press('Enter');
-  await page.waitForFunction(() => document.querySelector('[data-testid="area-do-mapa"]')?.getAttribute('data-ferramenta') === 'regiao');
-  assert.equal(await page.locator('[data-testid="paleta"]').count(), 0);
+  await page.waitForFunction(() => document.querySelector('[data-testid="contagem-selecao"]')?.textContent?.startsWith('1'));
+  assert.equal(Object.keys((await documento(page)).regions).length, 1);
+  await page.locator('[data-testid="paleta"]').waitFor({ state: 'detached' });
   await page.keyboard.press('Control+k'); await campo.waitFor(); await campo.fill('zzzz');
   await page.locator('.paleta-vazio').waitFor(); await page.keyboard.press('Escape');
-  assert.equal(await page.locator('[data-testid="paleta"]').count(), 0);
+  await page.locator('[data-testid="paleta"]').waitFor({ state: 'detached' });
   // Esc fora da paleta volta para a ferramenta de seleção.
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => document.querySelector('[data-testid="area-do-mapa"]')?.getAttribute('data-ferramenta') === 'selecionar');
@@ -316,7 +317,10 @@ test('campanha: o mapa vira um "lugar" na campanha, acompanha o nome e sobrevive
 test('plataforma: um pedido atlas.focar vindo de outro aplicativo abre o mapa e é respondido', async () => {
   const ctx = await novoContexto(amb), atlas = await abrir(ctx, amb.url);
   const id = await criarMapaPelaInterface(atlas.page);
-  await atlas.page.keyboard.press('Alt+g'); await atlas.page.waitForSelector('[data-testid="lista-mapas"]');
+  await atlas.page.click('[data-testid="gravar"]');
+  await atlas.page.waitForFunction(() => document.querySelector('[data-testid="estado-gravacao"]')?.getAttribute('data-sujo') === 'false');
+  for (let i = 0; i < 5 && !(await atlas.page.locator('[data-testid="lista-mapas"]').count()); i++) { await atlas.page.keyboard.press('Alt+g'); await esperarMs(400); }
+  await atlas.page.waitForSelector('[data-testid="lista-mapas"]');
   // Uma página "da Ficha" na mesma origem pede ao Atlas que mostre o mapa.
   const ficha = await ctx.newPage(); await ficha.goto(`${amb.url}icone.svg`);
   const resposta = await ficha.evaluate(async (mapaId: string) => {

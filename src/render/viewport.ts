@@ -1,15 +1,24 @@
-import { Application, Container, Graphics, Text } from 'pixi.js';
-import type { Luz, MapaAtlas, Objeto, Peca, Ponto, Regiao } from '../domain/mapa.ts';
+import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { celulasDoDisco, celulasEntre, decodificar } from '../domain/celulas.ts';
+import { copiasDe, novaLuz, novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
+import { comprimentoDaParede, contornoDoComodo, encaixarNaParede, encaixarObjetoDeParede, indiceDeCelulas, pontoNaParede, salaDaCelula } from '../domain/geometria.ts';
+import type { Abertura, MapaAtlas, Ponto } from '../domain/mapa.ts';
+import { TIPOS_DE_COMODO, camposDoPreset, presetDeLuz, tipoDeComodo } from '../domain/presets.ts';
 import { fxAtivo } from '../fx/fx.ts';
-import type { EventoStore, Gesto, Store } from '../state/store.ts';
+import { criarBaker, type Baker } from '../procedural/baker.ts';
+import { receitaDe } from '../procedural/receitas.ts';
 import type { ColecaoLivre } from '../state/comandos.ts';
+import type { EventoStore, Gesto, Store } from '../state/store.ts';
+import { criarFiltroAcabamento } from './acabamento.ts';
 import { enquadrar as calcularEnquadre, mundoParaTela, panear, telaParaMundo, zoomEm, type Camera, type Tela } from './camera.ts';
-import { corDoNome, hexParaNumero } from './cores.ts';
+import { RES_OBJETO, criarCena, type Cena } from './cena.ts';
+import { hexParaNumero } from './cores.ts';
+import { chaveDoObjeto } from './entradas.ts';
 import { deltaEncaixado, encaixar, linhasDaGrade } from './grade.ts';
-import { alvoEm, alvosNaCaixa, alvosNoLaco, caixaDaSelecao, caixaDe, combinarSelecao, mesmoAlvo, type Alvo, type Caixa } from './selecao.ts';
+import { LARGURA_DA_ABERTURA, type Ferramenta, type Pincel } from './pincel.ts';
+import { alvoEm, alvosNaCaixa, alvosNoLaco, caixaDaSelecao, caixaDe, combinarSelecao, ehMovel, mesmoAlvo, type Alvo, type Caixa } from './selecao.ts';
 
-export type Ferramenta = 'selecionar' | 'mao' | 'luz' | 'objeto' | 'peca' | 'regiao';
-export const FERRAMENTAS_DE_ADICIONAR: readonly Ferramenta[] = ['luz', 'objeto', 'peca', 'regiao'];
+export type { Ferramenta } from './pincel.ts';
 export const colecaoDaFerramenta = (f: Ferramenta): ColecaoLivre | null => ({ luz: 'lights', objeto: 'props', peca: 'tokens', regiao: 'regions' } as Partial<Record<Ferramenta, ColecaoLivre>>)[f] ?? null;
 
 /** O que o viewport precisa do resto do aplicativo. Ele não conhece Preact nem signals. */
@@ -19,25 +28,35 @@ export interface PonteViewport {
   definirSelecao(alvos: Alvo[]): void;
   ferramenta(): Ferramenta;
   definirFerramenta(f: Ferramenta): void;
-  /** Clique com uma ferramenta de adicionar: o aplicativo cria a entidade (com som, efeito e seleção). */
+  pincel(): Pincel;
+  definirPincel(p: Partial<Pincel>): void;
+  /** Clique com a ferramenta de peça ou de região: o aplicativo cria o item (com som, efeito e seleção). */
   adicionar(colecao: ColecaoLivre, mundo: Ponto): void;
+  /** Algo foi posto pelas ferramentas de construção: som e efeito. */
+  aoColocar(rotulo: string, mundo: Ponto): void;
+  /** Uma operação foi recusada (não cabe, fora do mapa…): o aplicativo mostra o motivo. */
+  aviso(texto: string): void;
   aoMenuContexto(info: { tela: Ponto; mundo: Ponto; alvo: Alvo | null }): void;
   aoCamera?(c: Camera): void;
+  /** Mostrar o acabamento (vinheta, tinta…) no editor? */
+  acabamento(): boolean;
 }
 
 export interface Viewport {
   readonly camera: Camera;
   readonly tela: Tela;
+  /** Quantos desenhos ainda estão sendo pintados no worker. */
+  readonly pintando: number;
   ponteiro(): Ponto | null;
   centro(): Ponto;
   enquadrar(): void;
   focarEm(caixa: Caixa): void;
   zoomPor(fator: number): void;
-  /** Posição na tela do navegador (px de `client`) de um ponto do mundo, para ancorar efeitos DOM. */
+  /** Posição na tela do navegador (px de `client`) de um ponto do mundo, para ancorar efeitos DOM e o cartão contextual. */
   clientDe(mundo: Ponto): Ponto;
   /** Refaz tudo (mudou o tema, por exemplo). */
   redesenhar(): void;
-  /** Só a seleção, o fantasma e a grade: a seleção ou a ferramenta mudaram fora do viewport. */
+  /** Só a seleção, o fantasma e a grade: a seleção, a ferramenta ou o pincel mudaram fora do viewport. */
   atualizarSobreposicoes(): void;
   destruir(): void;
 }
@@ -47,9 +66,25 @@ const COR_PADRAO_ACENTO = 0xe91d25;
 
 type Interacao =
   | { tipo: 'pan'; botao: number; x0: number; y0: number; camera0: Camera; moveu: boolean }
-  | { tipo: 'mover'; hit: Alvo; alvos: Alvo[]; origem: Ponto; ref: Ponto; aplicado: Ponto; gesto: Gesto | null; x0: number; y0: number; somar: boolean; estavaNaSelecao: boolean }
+  | { tipo: 'mover'; hit: Alvo; alvos: Alvo[]; origem: Ponto; ref: Ponto; aplicado: Ponto; gesto: Gesto | null; x0: number; y0: number; estavaNaSelecao: boolean; ctrl: boolean }
+  | { tipo: 'deslizar'; id: string; gesto: Gesto | null; x0: number; y0: number }
   | { tipo: 'retangulo'; ini: Ponto; atual: Ponto; modo: 'trocar' | 'somar'; x0: number; y0: number; moveu: boolean }
-  | { tipo: 'laco'; pontos: Ponto[]; modo: 'trocar' | 'somar' };
+  | { tipo: 'laco'; pontos: Ponto[]; modo: 'trocar' | 'somar' }
+  | { tipo: 'cômodo'; apagar: boolean; sala: string; criado: boolean; gesto: Gesto; ini: [number, number]; atual: [number, number]; retangulo: boolean; visitadas: Set<number> }
+  | { tipo: 'terreno'; apagar: boolean; gesto: Gesto; ultimo: Ponto }
+  | { tipo: 'parede'; ini: Ponto; fim: Ponto };
+
+const chaveCel = (x: number, y: number) => y * 200_003 + x;
+
+const colunasDe = (m: MapaAtlas) => Math.ceil(m.bounds.width / m.grid.size), linhasDe = (m: MapaAtlas) => Math.ceil(m.bounds.height / m.grid.size);
+const celulaDe = (m: MapaAtlas, p: Ponto): [number, number] => [Math.floor((p[0] - m.grid.offset[0]) / m.grid.size), Math.floor((p[1] - m.grid.offset[1]) / m.grid.size)];
+const dentroDoMapa = (m: MapaAtlas, c: readonly [number, number]) => c[0] >= 0 && c[1] >= 0 && c[0] < colunasDe(m) && c[1] < linhasDe(m);
+
+function retanguloDeCelulas(m: MapaAtlas, a: readonly [number, number], b: readonly [number, number]): [number, number][] {
+  const saida: [number, number][] = [];
+  for (let y = Math.max(0, Math.min(a[1], b[1])); y <= Math.min(linhasDe(m) - 1, Math.max(a[1], b[1])); y++) for (let x = Math.max(0, Math.min(a[0], b[0])); x <= Math.min(colunasDe(m) - 1, Math.max(a[0], b[0])); x++) saida.push([x, y]);
+  return saida;
+}
 
 export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Promise<Viewport> {
   const app = new Application();
@@ -59,88 +94,30 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   app.canvas.setAttribute('data-testid', 'mapa');
   host.appendChild(app.canvas);
 
-  const store = ponte.store;
-  const mundo = new Container(), area_ = new Graphics(), comodos = new Graphics(), grade = new Graphics(), paredes = new Graphics();
-  const camadas: Record<ColecaoLivre, Container> = { regions: new Container(), presence: new Container(), props: new Container(), lights: new Container(), tokens: new Container() };
-  const selecaoG = new Graphics(), fantasma = new Graphics(), laco = new Graphics();
-  mundo.addChild(area_, comodos, grade, paredes, camadas.regions, camadas.props, camadas.lights, camadas.tokens, selecaoG, fantasma, laco);
-  app.stage.addChild(mundo);
-
+  const store = ponte.store, baker: Baker = criarBaker();
+  const mundo = new Container(), area_ = new Graphics(), grade = new Graphics(), selecaoG = new Graphics(), fantasmaC = new Container(), fantasmaG = new Graphics(), laco = new Graphics();
   let camera: Camera = { x: 0, y: 0, zoom: 20 };
   let ponteiro: Ponto | null = null, interacao: Interacao | null = null, espaco = false, camadaSuja = true, destruido = false;
-  const entidades: Record<ColecaoLivre, Map<string, Container>> = { regions: new Map(), presence: new Map(), props: new Map(), lights: new Map(), tokens: new Map() };
-  const animacoes: { alvo: Container; t0: number; dur: number }[] = [];
   const doc = (): MapaAtlas => store.documento;
   const tela = (): Tela => ({ largura: app.screen.width, altura: app.screen.height });
   const acento = (): number => { const v = getComputedStyle(document.documentElement).getPropertyValue('--acento').trim(); return /^#[0-9a-f]{6}$/i.test(v) ? hexParaNumero(v) : COR_PADRAO_ACENTO; };
   const px = (n: number) => n / camera.zoom;
 
-  // ---------- Desenho das entidades (marcadores provisórios; a Fase 3 os troca pelos renderizadores de verdade) ----------
-  function desenharObjeto(c: Container, o: Objeto): void {
-    const g = (c.getChildByLabel('g') as Graphics | null) ?? c.addChild(Object.assign(new Graphics(), { label: 'g' })), s = 0.8 * o.scale, cor = corDoNome(o.source.kind === 'recipe' ? o.source.recipe : o.source.assetId, 0.35, 0.34);
-    g.clear().roundRect(-s / 2, -s / 2, s, s, 0.12 * s).fill(cor).stroke({ width: 0.04, color: 0x000000, alpha: 0.65 });
-    g.moveTo(-s * 0.22, 0).lineTo(s * 0.22, 0).stroke({ width: 0.03, color: 0xffffff, alpha: 0.25 });
-    c.position.set(o.position[0], o.position[1]); c.rotation = o.rotation;
-  }
-  function desenharLuz(c: Container, l: Luz): void {
-    const g = (c.getChildByLabel('g') as Graphics | null) ?? c.addChild(Object.assign(new Graphics(), { label: 'g' })), cor = hexParaNumero(l.color), apagada = !l.on;
-    g.clear();
-    const brilho = Math.min(l.radius, 3.2);
-    for (const [k, a] of [[1, 0.05], [0.66, 0.07], [0.33, 0.1]] as const) g.circle(0, 0, brilho * k).fill({ color: cor, alpha: apagada ? a * 0.3 : a });
-    if (l.cone) {
-      const ang = l.cone.angle / 2, d = l.cone.direction, r = Math.min(l.radius, 4);
-      g.moveTo(0, 0).arc(0, 0, r, d - ang, d + ang).lineTo(0, 0).fill({ color: cor, alpha: apagada ? 0.04 : 0.16 }).stroke({ width: 0.03, color: cor, alpha: 0.6 });
-    }
-    g.circle(0, 0, 0.2).fill(apagada ? 0x3a3a44 : cor).stroke({ width: 0.04, color: 0x000000, alpha: 0.7 });
-    c.position.set(l.position[0], l.position[1]);
-  }
-  function desenharPeca(c: Container, t: Peca, m: MapaAtlas): void {
-    const g = (c.getChildByLabel('g') as Graphics | null) ?? c.addChild(Object.assign(new Graphics(), { label: 'g' })), r = (t.size * m.grid.size * 0.9) / 2, cor = corDoNome(t.name, 0.5, 0.4);
-    g.clear().circle(0, 0, r).fill(cor).stroke({ width: 0.07, color: acento(), alpha: 1 }).circle(0, 0, r * 0.82).stroke({ width: 0.02, color: 0xffffff, alpha: 0.35 });
-    let rotulo = c.getChildByLabel('t') as Text | null;
-    if (!rotulo) { rotulo = Object.assign(new Text({ text: '', style: { fontFamily: 'Hanken Grotesk, sans-serif', fontSize: 64, fontWeight: '800', fill: 0xffffff } }), { label: 't' }); rotulo.anchor.set(0.5); c.addChild(rotulo); }
-    rotulo.text = (t.name.trim()[0] ?? '?').toUpperCase(); rotulo.scale.set((r * 1.1) / 64);
-    c.position.set(t.position[0], t.position[1]);
-  }
-  function desenharRegiao(c: Container, r: Regiao): void {
-    const g = (c.getChildByLabel('g') as Graphics | null) ?? c.addChild(Object.assign(new Graphics(), { label: 'g' })), cor = r.gmOnly ? 0xd9a23b : 0x5aa9e6;
-    g.clear().poly(r.polygon.flat()).fill({ color: cor, alpha: 0.1 }).stroke({ width: 0.04, color: cor, alpha: 0.7 });
-  }
-  function desenharEntidade(colecao: ColecaoLivre, c: Container, id: string, m: MapaAtlas): void {
-    if (colecao === 'props') desenharObjeto(c, m.props[id]!);
-    else if (colecao === 'lights') desenharLuz(c, m.lights[id]!);
-    else if (colecao === 'tokens') desenharPeca(c, m.tokens[id]!, m);
-    else if (colecao === 'regions') desenharRegiao(c, m.regions[id]!);
-  }
+  const cena: Cena = criarCena({ baker, acento, efeitos: fxAtivo, aoPintar: () => { camadaSuja = true; } });
+  const acabamento = criarFiltroAcabamento();
+  fantasmaC.addChild(fantasmaG);
+  mundo.addChild(area_, cena.raiz, grade, selecaoG, fantasmaC, laco);
+  app.stage.addChild(mundo);
 
-  function sincronizarColecao(colecao: ColecaoLivre, m: MapaAtlas, ids: readonly string[] | null, comPop: boolean): void {
-    const dados = m[colecao] as Record<string, unknown>, mapa = entidades[colecao];
-    for (const id of ids ?? [...new Set([...mapa.keys(), ...Object.keys(dados)])]) {
-      const existe = dados[id] !== undefined, c = mapa.get(id);
-      if (!existe) { if (c) { c.destroy({ children: true }); mapa.delete(id); } continue; }
-      if (colecao === 'presence') continue;
-      const novo = c ?? new Container();
-      if (!c) { novo.label = id; camadas[colecao].addChild(novo); mapa.set(id, novo); if (comPop && fxAtivo() && colecao !== 'regions') { novo.scale.set(0.6); animacoes.push({ alvo: novo, t0: performance.now(), dur: 180 }); } }
-      desenharEntidade(colecao, novo, id, m);
-    }
+  function aplicarAcabamento(): void {
+    const m = doc(), ligado = ponte.acabamento() && m.finish.preset !== 'nenhum';
+    cena.raiz.filters = ligado ? [acabamento.filtro] : [];
+    if (ligado) acabamento.aplicar(m.finish, performance.now() / 1000);
   }
 
   function desenharBase(m: MapaAtlas): void {
-    const fundo = hexParaNumero(m.backdrop.color);
-    app.renderer.background.color = fundo;
-    area_.clear().rect(0, 0, m.bounds.width, m.bounds.height).fill({ color: 0xffffff, alpha: 0.035 }).stroke({ width: px(1.5), color: 0xffffff, alpha: 0.14 });
-    comodos.clear();
-    for (const sala of Object.values(m.rooms)) {
-      const cor = corDoNome(sala.floor.material, 0.32, 0.26), t = m.grid.size;
-      for (const [y, x0, n] of sala.cells) comodos.rect(x0 * t, y * t, n * t, t).fill(cor);
-    }
-    comodos.rect(0, 0, 0, 0).fill({ color: 0, alpha: 0 });
-    paredes.clear();
-    for (const p of Object.values(m.walls)) {
-      paredes.moveTo(p.path[0]![0], p.path[0]![1]);
-      for (const q of p.path.slice(1)) paredes.lineTo(q[0], q[1]);
-      paredes.stroke({ width: p.thickness, color: 0x6b6780, alpha: 0.9, join: 'round', cap: 'round' });
-    }
+    app.renderer.background.color = hexParaNumero(m.backdrop.color);
+    area_.clear().rect(0, 0, m.bounds.width, m.bounds.height).fill({ color: 0xffffff, alpha: 0.03 }).stroke({ width: px(1.5), color: 0xffffff, alpha: 0.14 });
   }
 
   function desenharGrade(): void {
@@ -152,8 +129,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       grade.stroke({ width: px(1), color: 0xffffff, alpha });
     };
     const maior = (v: number, o: number) => Math.abs(Math.round((v - o) / (m.grid.size * l.passo * 5)) * (m.grid.size * l.passo * 5) - (v - o)) < 1e-6;
-    traco(l.verticais.filter(v => !maior(v, m.grid.offset[0])), true, 0.07); traco(l.horizontais.filter(v => !maior(v, m.grid.offset[1])), false, 0.07);
-    traco(l.verticais.filter(v => maior(v, m.grid.offset[0])), true, 0.15); traco(l.horizontais.filter(v => maior(v, m.grid.offset[1])), false, 0.15);
+    traco(l.verticais.filter(v => !maior(v, m.grid.offset[0])), true, 0.06); traco(l.horizontais.filter(v => !maior(v, m.grid.offset[1])), false, 0.06);
+    traco(l.verticais.filter(v => maior(v, m.grid.offset[0])), true, 0.14); traco(l.horizontais.filter(v => maior(v, m.grid.offset[1])), false, 0.14);
   }
 
   function desenharSelecao(): void {
@@ -161,10 +138,15 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     selecaoG.clear();
     const pad = px(5);
     for (const a of alvos) {
+      if (a.colecao === 'rooms') {
+        for (const lc of contornoDoComodo(m, decodificar(m.rooms[a.id]!.cells))) { selecaoG.moveTo(lc[0]!.a[0], lc[0]!.a[1]); for (const s of lc) selecaoG.lineTo(s.b[0], s.b[1]); selecaoG.closePath(); }
+        selecaoG.stroke({ width: px(2.5), color: cor, alpha: 0.95 }); continue;
+      }
+      if (a.colecao === 'walls') { const p = m.walls[a.id]!; selecaoG.moveTo(p.path[0]![0], p.path[0]![1]); for (const q of p.path.slice(1)) selecaoG.lineTo(q[0], q[1]); selecaoG.stroke({ width: p.thickness + px(6), color: cor, alpha: 0.55, cap: 'round', join: 'round' }); continue; }
       const c = caixaDe(m, a)!;
       selecaoG.roundRect(c.x0 - pad, c.y0 - pad, c.x1 - c.x0 + 2 * pad, c.y1 - c.y0 + 2 * pad, px(3)).stroke({ width: px(2), color: cor });
     }
-    const u = caixaDaSelecao(m, alvos);
+    const u = caixaDaSelecao(m, alvos.filter(a => a.colecao !== 'rooms' && a.colecao !== 'walls'));
     if (u && alvos.length > 1) {
       selecaoG.rect(u.x0 - pad * 2, u.y0 - pad * 2, u.x1 - u.x0 + 4 * pad, u.y1 - u.y0 + 4 * pad).stroke({ width: px(1), color: cor, alpha: 0.55 });
       for (const [x, y] of [[u.x0, u.y0], [u.x1, u.y0], [u.x0, u.y1], [u.x1, u.y1]] as const) selecaoG.rect(x - pad * 2 - px(3), y - pad * 2 - px(3), px(6), px(6)).fill(0xffffff).stroke({ width: px(1), color: cor });
@@ -173,24 +155,86 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   function desenharLaco(): void {
     laco.clear();
-    const cor = acento();
+    const cor = acento(), m = doc();
     if (interacao?.tipo === 'retangulo' && interacao.moveu) {
       const { ini, atual } = interacao;
       laco.rect(Math.min(ini[0], atual[0]), Math.min(ini[1], atual[1]), Math.abs(ini[0] - atual[0]), Math.abs(ini[1] - atual[1])).fill({ color: cor, alpha: 0.1 }).stroke({ width: px(1.5), color: cor, alpha: 0.9 });
     } else if (interacao?.tipo === 'laco' && interacao.pontos.length > 1) {
       laco.poly(interacao.pontos.flat()).fill({ color: cor, alpha: 0.1 }).stroke({ width: px(1.5), color: cor, alpha: 0.9 });
+    } else if (interacao?.tipo === 'cômodo' && interacao.retangulo) {
+      const t = m.grid.size, cor2 = interacao.apagar ? 0xff6b6b : cor;
+      for (const [x, y] of retanguloDeCelulas(m, interacao.ini, interacao.atual)) laco.rect(m.grid.offset[0] + x * t, m.grid.offset[1] + y * t, t, t);
+      laco.fill({ color: cor2, alpha: 0.28 }).stroke({ width: px(1), color: cor2, alpha: 0.6 });
+    } else if (interacao?.tipo === 'parede') {
+      laco.moveTo(interacao.ini[0], interacao.ini[1]).lineTo(interacao.fim[0], interacao.fim[1]).stroke({ width: 0.2, color: cor, alpha: 0.75, cap: 'round' });
+      for (const q of [interacao.ini, interacao.fim]) laco.circle(q[0], q[1], px(5)).fill(0xffffff).stroke({ width: px(1.5), color: cor });
     }
   }
 
+  // ---------- Fantasma: uma prévia do que a ferramenta ativa vai pôr ----------
+  let semente = Math.floor(Math.random() * 2 ** 30), fantasmaChave = '', fantasmaSprite: Sprite | null = null, fantasmaTextura: Texture | null = null;
+  const novaSemente = () => { semente = Math.floor(Math.random() * 2 ** 30); };
+  const sementeAtual = (): number => ponte.pincel().objeto.semente ?? semente;
+
+  function limparFantasmaSprite(): void {
+    fantasmaC.getChildByLabel('fantasma-objeto')?.destroy({ children: true });
+    fantasmaSprite = null; fantasmaTextura?.destroy(true); fantasmaTextura = null; fantasmaChave = '';
+  }
+
   function desenharFantasma(): void {
-    fantasma.clear();
-    const f = ponte.ferramenta(), colecao = colecaoDaFerramenta(f);
-    if (!colecao || !ponteiro || interacao) return;
-    const m = doc(), p: Ponto = [encaixar(ponteiro[0], m.grid, 0), encaixar(ponteiro[1], m.grid, 1)], cor = acento();
-    if (colecao === 'lights') fantasma.circle(p[0], p[1], 0.2).fill({ color: cor, alpha: 0.6 }).circle(p[0], p[1], 1.2).stroke({ width: px(1), color: cor, alpha: 0.5 });
-    else if (colecao === 'tokens') fantasma.circle(p[0], p[1], m.grid.size * 0.45).fill({ color: cor, alpha: 0.35 }).stroke({ width: px(1.5), color: cor, alpha: 0.8 });
-    else if (colecao === 'regions') fantasma.rect(p[0] - 1.5, p[1] - 1.5, 3, 3).fill({ color: cor, alpha: 0.12 }).stroke({ width: px(1.5), color: cor, alpha: 0.8 });
-    else fantasma.roundRect(p[0] - 0.4, p[1] - 0.4, 0.8, 0.8, 0.1).fill({ color: cor, alpha: 0.35 }).stroke({ width: px(1.5), color: cor, alpha: 0.8 });
+    fantasmaG.clear();
+    const f = ponte.ferramenta(), m = doc(), cor = acento(), pincel = ponte.pincel(), receita = receitaDe(pincel.objeto.receita);
+    const comSprite = f === 'objeto' && receita?.tipo === 'piso';
+    if (!comSprite && fantasmaSprite) limparFantasmaSprite();
+    const objetoFantasma = fantasmaC.getChildByLabel('fantasma-objeto');
+    if (!ponteiro || interacao || !['objeto', 'luz', 'peca', 'regiao', 'abertura', 'comodo', 'borracha', 'terreno'].includes(f)) { if (objetoFantasma) objetoFantasma.visible = false; return; }
+    const p: Ponto = [encaixar(ponteiro[0], m.grid, 0), encaixar(ponteiro[1], m.grid, 1)];
+    if (f === 'comodo' || f === 'borracha') {
+      const [x, y] = celulaDe(m, ponteiro), t = m.grid.size, c = f === 'borracha' ? 0xff6b6b : cor;
+      if (dentroDoMapa(m, [x, y])) fantasmaG.rect(m.grid.offset[0] + x * t, m.grid.offset[1] + y * t, t, t).fill({ color: c, alpha: 0.28 }).stroke({ width: px(1.5), color: c, alpha: 0.9 });
+      return;
+    }
+    if (f === 'terreno') { fantasmaG.circle(ponteiro[0], ponteiro[1], pincel.terreno.raio).fill({ color: 0x6a9a4a, alpha: 0.18 }).stroke({ width: px(1.5), color: cor, alpha: 0.9 }); return; }
+    if (f === 'luz') {
+      const preset = presetDeLuz(pincel.luz.preset);
+      if (preset) {
+        const c = hexParaNumero(preset.color);
+        if (preset.cone !== null) { const meia = (preset.cone * Math.PI) / 360, r = Math.min(preset.radius, 6); fantasmaG.moveTo(p[0], p[1]).arc(p[0], p[1], r, pincel.luz.direcao - meia, pincel.luz.direcao + meia).lineTo(p[0], p[1]).fill({ color: c, alpha: 0.18 }).stroke({ width: px(1.5), color: c, alpha: 0.8 }); }
+        else fantasmaG.circle(p[0], p[1], Math.min(preset.radius, 6)).fill({ color: c, alpha: 0.12 }).stroke({ width: px(1.5), color: c, alpha: 0.7 });
+        fantasmaG.circle(p[0], p[1], 0.2).fill(c).stroke({ width: 0.04, color: 0x000000, alpha: 0.7 });
+      }
+      return;
+    }
+    if (f === 'peca') { fantasmaG.circle(p[0], p[1], m.grid.size * 0.45).fill({ color: cor, alpha: 0.35 }).stroke({ width: px(1.5), color: cor, alpha: 0.8 }); return; }
+    if (f === 'regiao') { fantasmaG.rect(p[0] - 1.5, p[1] - 1.5, 3, 3).fill({ color: cor, alpha: 0.12 }).stroke({ width: px(1.5), color: cor, alpha: 0.8 }); return; }
+    if (f === 'abertura') {
+      const l = LARGURA_DA_ABERTURA[pincel.abertura.tipo], e = encaixarNaParede(m, ponteiro, l);
+      if (e) { const c = e.at * comprimentoDaParede(e.parede), a = pontoNaParede(e.parede, c - l / 2).ponto, b = pontoNaParede(e.parede, c + l / 2).ponto; fantasmaG.moveTo(a[0], a[1]).lineTo(b[0], b[1]).stroke({ width: e.parede.thickness + 0.12, color: cor, alpha: 0.85, cap: 'butt' }); }
+      return;
+    }
+    if (!receita) return;
+    if (receita.tipo === 'parede') {
+      const l = typeof pincel.objeto.params.largura === 'number' ? pincel.objeto.params.largura : receita.pegada[0], e = encaixarObjetoDeParede(m, ponteiro, l);
+      if (e) { const c = e.at * comprimentoDaParede(e.parede), a = pontoNaParede(e.parede, Math.max(0, c - l / 2)).ponto, b = pontoNaParede(e.parede, Math.min(comprimentoDaParede(e.parede), c + l / 2)).ponto; fantasmaG.moveTo(a[0], a[1]).lineTo(b[0], b[1]).stroke({ width: e.parede.thickness + 0.14, color: 0xd9a75e, alpha: 0.9, cap: 'butt' }); }
+      return;
+    }
+    // Objeto de piso: o desenho de verdade, pela mesma fila de pintura dos objetos postos.
+    const pedido = { tipo: 'objeto' as const, receita: receita.id, params: pincel.objeto.params, seed: sementeAtual(), res: RES_OBJETO };
+    const falso = { id: 'f', source: { kind: 'recipe' as const, recipe: pedido.receita, seed: pedido.seed, params: pedido.params }, position: p, rotation: 0, scale: 1, elevation: 'floor' as const, wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true };
+    const chave = chaveDoObjeto(falso, RES_OBJETO)!;
+    if (chave !== fantasmaChave) {
+      fantasmaChave = chave;
+      baker.pedir(chave, pedido).then(r => {
+        if (destruido || fantasmaChave !== chave) return;
+        limparFantasmaSprite(); fantasmaChave = chave;
+        fantasmaTextura = Texture.from(r.bitmap); fantasmaSprite = new Sprite(fantasmaTextura); fantasmaSprite.alpha = 0.7; fantasmaSprite.position.set(r.origem[0], r.origem[1]); fantasmaSprite.scale.set(1 / r.res);
+        const c = new Container(); c.label = 'fantasma-objeto'; c.addChild(fantasmaSprite); fantasmaC.addChild(c); camadaSuja = true;
+      }).catch(() => { /* a prévia é só um enfeite */ });
+    }
+    const c = fantasmaC.getChildByLabel('fantasma-objeto');
+    if (c && fantasmaSprite) { c.visible = true; c.position.set(p[0], p[1]); c.rotation = pincel.objeto.rotacao; }
+    const [w, h] = receita.pegada;
+    fantasmaG.roundRect(p[0] - w / 2, p[1] - h / 2, w, h, 0.05).stroke({ width: px(1.2), color: cor, alpha: fantasmaSprite ? 0.35 : 0.9 });
   }
 
   function aplicarCamera(): void { mundo.position.set(camera.x, camera.y); mundo.scale.set(camera.zoom); camadaSuja = true; ponte.aoCamera?.(camera); }
@@ -198,18 +242,17 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   function redesenharTudo(): void {
     const m = doc();
-    desenharBase(m); desenharGrade(); desenharSelecao(); desenharLaco(); desenharFantasma();
-    for (const colecao of Object.keys(camadas) as ColecaoLivre[]) sincronizarColecao(colecao, m, null, false);
+    desenharBase(m); desenharGrade(); desenharSelecao(); desenharLaco(); desenharFantasma(); aplicarAcabamento();
+    cena.sincronizar(m, null, false);
   }
 
   function aoEvento(e: EventoStore): void {
     if (destruido) return;
-    const m = e.documento;
     if (e.mudancas.completo) { redesenharTudo(); if (e.tipo === 'substituir') enquadrarMapa(); return; }
-    const mudou = e.mudancas;
-    if (mudou.campos.some(c => ['backdrop', 'bounds', 'grid'].includes(c)) || mudou.colecoes.rooms || mudou.colecoes.walls) { desenharBase(m); camadaSuja = true; }
-    const pop = e.tipo === 'executar' || e.tipo === 'refazer';
-    for (const colecao of Object.keys(camadas) as ColecaoLivre[]) { const ids = mudou.colecoes[colecao]; if (ids) sincronizarColecao(colecao, m, ids, pop); }
+    const mud = e.mudancas;
+    if (mud.campos.some(c => ['backdrop', 'bounds', 'grid'].includes(c))) desenharBase(e.documento);
+    if (mud.campos.includes('finish')) aplicarAcabamento();
+    cena.sincronizar(e.documento, mud, e.tipo === 'executar' || e.tipo === 'refazer');
     camadaSuja = true;
   }
   const cancelarAssinatura = store.assinar(aoEvento);
@@ -224,14 +267,12 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const retangulo = () => canvas.getBoundingClientRect();
   const telaDe = (e: { clientX: number; clientY: number }): Ponto => { const r = retangulo(); return [e.clientX - r.left, e.clientY - r.top]; };
   const mundoDe = (e: { clientX: number; clientY: number }): Ponto => telaParaMundo(camera, telaDe(e));
-  const posicaoDe = (m: MapaAtlas, a: Alvo): Ponto => {
-    if (a.colecao === 'regions') return m.regions[a.id]!.polygon[0]!;
-    return (m[a.colecao] as Record<string, { position: Ponto }>)[a.id]!.position;
-  };
+  const posicaoDe = (m: MapaAtlas, a: Alvo): Ponto => a.colecao === 'regions' ? m.regions[a.id]!.polygon[0]! : (m[a.colecao as ColecaoLivre] as Record<string, { position: Ponto }>)[a.id]!.position;
   const cursor = () => {
     const f = ponte.ferramenta();
-    canvas.style.cursor = interacao?.tipo === 'pan' ? 'grabbing' : (f === 'mao' || espaco) ? 'grab' : f === 'selecionar' ? (interacao?.tipo === 'mover' ? 'move' : 'default') : 'crosshair';
+    canvas.style.cursor = interacao?.tipo === 'pan' ? 'grabbing' : (f === 'mao' || espaco) ? 'grab' : f === 'selecionar' ? (interacao?.tipo === 'mover' || interacao?.tipo === 'deslizar' ? 'move' : 'default') : 'crosshair';
   };
+  const tentar = (fazer: () => void): boolean => { try { fazer(); return true; } catch (erro) { ponte.aviso(erro instanceof Error ? erro.message.replace(/^O comando deixaria o mapa inválido — /, '') : String(erro)); return false; } };
 
   canvas.addEventListener('contextmenu', e => e.preventDefault());
   canvas.addEventListener('wheel', e => {
@@ -240,56 +281,168 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     definirCamera(zoomEm(camera, telaDe(e), Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015))));
   }, { passive: false });
 
+  // Pincelada de cômodo ou de borracha.
+  function comecarComodo(e: PointerEvent, p: Ponto, apagar: boolean): void {
+    const m = doc(), c = celulaDe(m, p); if (!dentroDoMapa(m, c)) return;
+    const existente = apagar ? null : salaDaCelula(indiceDeCelulas(m), c[0], c[1]), tipo = tipoDeComodo(ponte.pincel().comodo) ?? tipoDeComodo('sala')!;
+    interacao = {
+      tipo: 'cômodo', apagar, sala: apagar ? '' : existente ?? novoIdEntidade('c'), criado: !!existente,
+      gesto: store.iniciarGesto(apagar ? 'Apagar cômodo' : existente ? 'Pintar cômodo' : `Criar ${tipo.nome.toLowerCase()}`), ini: c, atual: c, retangulo: e.shiftKey, visitadas: new Set(),
+    };
+    if (!e.shiftKey) pintarCelulas([c]);
+  }
+
+  function pintarCelulas(celulas: readonly [number, number][]): void {
+    const i = interacao; if (i?.tipo !== 'cômodo') return;
+    const novas = celulas.filter(c => !i.visitadas.has(chaveCel(c[0], c[1])));
+    if (!novas.length) return;
+    for (const c of novas) i.visitadas.add(chaveCel(c[0], c[1]));
+    const m = doc(), tipo = tipoDeComodo(ponte.pincel().comodo) ?? tipoDeComodo('sala')!;
+    const ok = tentar(() => {
+      if (i.apagar) i.gesto.aplicar({ tipo: 'comodo.apagar', celulas: novas });
+      else if (!i.criado) {
+        const mesmos = Object.values(m.rooms).filter(s => s.function === tipo.funcao).length;
+        i.gesto.aplicar({ tipo: 'comodo.criar', id: i.sala, nome: mesmos ? `${tipo.nome} ${mesmos + 1}` : tipo.nome, funcao: tipo.funcao, piso: { material: tipo.piso, seed: Math.floor(Math.random() * 1e6) }, papel: { material: tipo.papel, seed: Math.floor(Math.random() * 1e6) }, celulas: novas });
+        i.criado = true;
+      } else i.gesto.aplicar({ tipo: 'comodo.pintar', id: i.sala, celulas: novas });
+    });
+    if (!ok) { i.gesto.cancelar(); interacao = null; }
+  }
+
+  function pintarTerreno(p: Ponto, anterior: Ponto | null): void {
+    const i = interacao; if (i?.tipo !== 'terreno') return;
+    const m = doc(), pincel = ponte.pincel(), res = m.terrain.resolution, cols = Math.ceil(m.bounds.width / res), lins = Math.ceil(m.bounds.height / res);
+    const pontos: Ponto[] = [];
+    if (anterior) { const d = Math.hypot(p[0] - anterior[0], p[1] - anterior[1]), n = Math.max(1, Math.ceil(d / Math.max(0.1, pincel.terreno.raio / 2))); for (let k = 1; k <= n; k++) pontos.push([anterior[0] + ((p[0] - anterior[0]) * k) / n, anterior[1] + ((p[1] - anterior[1]) * k) / n]); } else pontos.push(p);
+    const unicas = new Map<number, [number, number]>();
+    for (const q of pontos) for (const c of celulasDoDisco(q, pincel.terreno.raio, res, cols, lins)) unicas.set(chaveCel(c[0], c[1]), c);
+    if (!unicas.size) return;
+    const celulas = [...unicas.values()];
+    if (!tentar(() => i.gesto.aplicar(i.apagar ? { tipo: 'terreno.apagar', celulas } : { tipo: 'terreno.pintar', material: pincel.terreno.material, celulas }))) { i.gesto.cancelar(); interacao = null; }
+  }
+
+  /** O ponto encaixado nos vértices da grade e, se `ini` existe, preso ao eixo mais próximo: paredes são retas na grade. */
+  function pontoDeParede(m: MapaAtlas, p: Ponto, ini?: Ponto): Ponto {
+    const q: Ponto = [encaixar(p[0], m.grid, 0, 1), encaixar(p[1], m.grid, 1, 1)];
+    if (!ini) return q;
+    return Math.abs(q[0] - ini[0]) >= Math.abs(q[1] - ini[1]) ? [q[0], ini[1]] : [ini[0], q[1]];
+  }
+
+  function colocar(e: PointerEvent, p: Ponto): void {
+    const m = doc(), f = ponte.ferramenta(), pincel = ponte.pincel();
+    const alvo: Ponto = [encaixar(p[0], m.grid, 0, 0.5, e.altKey), encaixar(p[1], m.grid, 1, 0.5, e.altKey)];
+    if (f === 'comodo' || f === 'borracha') { comecarComodo(e, p, f === 'borracha'); return; }
+    if (f === 'terreno') { interacao = { tipo: 'terreno', apagar: e.altKey, gesto: store.iniciarGesto(e.altKey ? 'Apagar terreno' : 'Pintar terreno'), ultimo: p }; pintarTerreno(p, null); return; }
+    if (f === 'parede') { const q = pontoDeParede(m, p); interacao = { tipo: 'parede', ini: q, fim: q }; return; }
+    if (f === 'abertura') {
+      const largura = LARGURA_DA_ABERTURA[pincel.abertura.tipo], enc = encaixarNaParede(m, p, largura);
+      if (!enc) { ponte.aviso('Chegue mais perto de uma parede.'); return; }
+      const abertura: Abertura = { id: novoIdEntidade('a'), wallId: enc.parede.id, at: enc.at, width: largura, kind: pincel.abertura.tipo, state: 'closed', material: 'madeira.media', som: null, swing: enc.lado === 1 ? 'a' : 'b' };
+      const nome = { door: 'Porta', window: 'Janela', arch: 'Arco', secret: 'Porta secreta' }[abertura.kind];
+      if (tentar(() => store.executar({ tipo: 'abertura.adicionar', abertura }, { rotulo: `Pôr ${nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'openings', id: abertura.id }]); ponte.aoColocar(nome, enc.ponto); }
+      return;
+    }
+    if (f === 'objeto') {
+      const receita = receitaDe(pincel.objeto.receita); if (!receita) { ponte.aviso('Escolha um objeto na biblioteca.'); return; }
+      const sementeDoObjeto = sementeAtual(), fonte = { kind: 'recipe' as const, recipe: receita.id, seed: sementeDoObjeto, params: pincel.objeto.params };
+      if (receita.tipo === 'parede') {
+        const l = typeof pincel.objeto.params.largura === 'number' ? pincel.objeto.params.largura : receita.pegada[0], enc = encaixarObjetoDeParede(m, p, l);
+        if (!enc) { ponte.aviso('Objetos de parede vão na face de um cômodo: aproxime-se de uma parede por dentro.'); return; }
+        const item = novoObjeto(enc.ponto, { source: fonte, elevation: 'wall', wall: { wallId: enc.parede.id, at: enc.at, face: 'inner' }, roomId: enc.roomId, blocks: { move: false, sight: false }, castsShadow: false });
+        if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item: item as never }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, enc.ponto); novaSemente(); }
+        return;
+      }
+      const item = novoObjeto(alvo, { source: fonte, rotation: pincel.objeto.rotacao });
+      if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item: item as never }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, alvo); novaSemente(); }
+      return;
+    }
+    if (f === 'luz') {
+      const preset = presetDeLuz(pincel.luz.preset); if (!preset) return;
+      const item = novaLuz(alvo, camposDoPreset(preset, pincel.luz.direcao));
+      if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'lights', item: item as never }, { rotulo: `Pôr ${preset.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'lights', id: item.id }]); ponte.aoColocar(preset.nome, alvo); }
+      return;
+    }
+    const colecao = colecaoDaFerramenta(f);
+    if (colecao) ponte.adicionar(colecao, alvo);
+  }
+
   canvas.addEventListener('pointerdown', e => {
     if (interacao) return;
     canvas.setPointerCapture(e.pointerId);
     const [tx, ty] = telaDe(e), m = doc(), f = ponte.ferramenta();
-    if (e.button === 1 || e.button === 2 || (e.button === 0 && (f === 'mao' || espaco))) {
-      interacao = { tipo: 'pan', botao: e.button, x0: tx, y0: ty, camera0: camera, moveu: false }; cursor(); return;
-    }
+    if (e.button === 1 || e.button === 2 || (e.button === 0 && (f === 'mao' || espaco))) { interacao = { tipo: 'pan', botao: e.button, x0: tx, y0: ty, camera0: camera, moveu: false }; cursor(); return; }
     if (e.button !== 0) return;
     const p = mundoDe(e);
-    const colecao = colecaoDaFerramenta(f);
-    if (colecao) { ponte.adicionar(colecao, [encaixar(p[0], m.grid, 0, 0.5, e.altKey), encaixar(p[1], m.grid, 1, 0.5, e.altKey)]); return; }
+    if (f !== 'selecionar') { colocar(e, p); cursor(); camadaSuja = true; return; }
     const hit = alvoEm(m, p, px(8)), sel = ponte.selecao();
     if (hit) {
       const naSelecao = sel.some(a => mesmoAlvo(a, hit));
       if (e.shiftKey) { ponte.definirSelecao(combinarSelecao(sel, [hit], 'alternar')); return; }
-      const alvos = naSelecao ? [...sel] : [hit];
-      if (!naSelecao) ponte.definirSelecao(alvos);
-      interacao = { tipo: 'mover', hit, alvos, origem: p, ref: posicaoDe(m, hit), aplicado: [0, 0], gesto: null, x0: tx, y0: ty, somar: e.shiftKey, estavaNaSelecao: naSelecao };
+      if (hit.colecao === 'openings' && !e.ctrlKey) { ponte.definirSelecao([hit]); interacao = { tipo: 'deslizar', id: hit.id, gesto: null, x0: tx, y0: ty }; cursor(); return; }
+      if (!naSelecao || !ehMovel(hit)) ponte.definirSelecao([hit]);
+      if (!ehMovel(hit) && !e.ctrlKey) return;
+      const alvos = (naSelecao ? [...sel] : [hit]).filter(ehMovel);
+      interacao = { tipo: 'mover', hit, alvos, origem: p, ref: ehMovel(hit) ? posicaoDe(m, hit) : p, aplicado: [0, 0], gesto: null, x0: tx, y0: ty, estavaNaSelecao: naSelecao, ctrl: e.ctrlKey };
       cursor(); return;
     }
-    interacao = e.altKey
-      ? { tipo: 'laco', pontos: [p], modo: e.shiftKey ? 'somar' : 'trocar' }
-      : { tipo: 'retangulo', ini: p, atual: p, modo: e.shiftKey ? 'somar' : 'trocar', x0: tx, y0: ty, moveu: false };
+    if (e.ctrlKey) return;
+    interacao = e.altKey ? { tipo: 'laco', pontos: [p], modo: e.shiftKey ? 'somar' : 'trocar' } : { tipo: 'retangulo', ini: p, atual: p, modo: e.shiftKey ? 'somar' : 'trocar', x0: tx, y0: ty, moveu: false };
   });
 
   canvas.addEventListener('pointermove', e => {
     ponteiro = mundoDe(e);
-    const [tx, ty] = telaDe(e);
+    const [tx, ty] = telaDe(e), m = doc();
     if (!interacao) { camadaSuja = true; return; }
-    if (interacao.tipo === 'pan') {
-      if (Math.hypot(tx - interacao.x0, ty - interacao.y0) > LIMIAR_ARRASTO) interacao.moveu = true;
-      if (interacao.moveu) definirCamera(panear({ ...interacao.camera0 }, tx - interacao.x0, ty - interacao.y0));
-    } else if (interacao.tipo === 'mover') {
-      const i = interacao;
+    const i = interacao;
+    if (i.tipo === 'pan') {
+      if (Math.hypot(tx - i.x0, ty - i.y0) > LIMIAR_ARRASTO) i.moveu = true;
+      if (i.moveu) definirCamera(panear({ ...i.camera0 }, tx - i.x0, ty - i.y0));
+    } else if (i.tipo === 'mover') {
       if (!i.gesto) {
-        if (Math.hypot(tx - i.x0, ty - i.y0) <= LIMIAR_ARRASTO) return;
+        if (Math.hypot(tx - i.x0, ty - i.y0) <= LIMIAR_ARRASTO || !i.alvos.length) return;
         i.gesto = store.iniciarGesto(i.alvos.length > 1 ? `Mover ${i.alvos.length} itens` : 'Mover');
+        if (i.ctrl) {
+          // Ctrl+arrastar: o que se arrasta é uma cópia; o original fica onde estava.
+          const { comandos, alvos } = copiasDe(m, i.alvos, [0, 0]), gesto = i.gesto;
+          if (!tentar(() => { for (const c of comandos) gesto.aplicar(c as never); })) { gesto.cancelar(); interacao = null; return; }
+          i.alvos = alvos; ponte.definirSelecao(alvos);
+        }
       }
-      const p = ponteiro, d = deltaEncaixado(i.ref, [p[0] - i.origem[0], p[1] - i.origem[1]], doc().grid, 0.5, e.altKey);
-      const passo: Ponto = [d[0] - i.aplicado[0], d[1] - i.aplicado[1]];
-      if (Math.abs(passo[0]) > 1e-9 || Math.abs(passo[1]) > 1e-9) { i.gesto.aplicar({ tipo: 'selecao.mover', alvos: i.alvos, delta: passo }); i.aplicado = d; }
-    } else if (interacao.tipo === 'retangulo') {
-      interacao.atual = ponteiro;
-      if (Math.hypot(tx - interacao.x0, ty - interacao.y0) > LIMIAR_ARRASTO) interacao.moveu = true;
-    } else if (interacao.tipo === 'laco') {
-      const ultimo = interacao.pontos.at(-1)!;
-      if (Math.hypot(ponteiro[0] - ultimo[0], ponteiro[1] - ultimo[1]) > px(3)) interacao.pontos.push(ponteiro);
-    }
+      const d = deltaEncaixado(i.ref, [ponteiro[0] - i.origem[0], ponteiro[1] - i.origem[1]], doc().grid, 0.5, e.altKey), passo: Ponto = [d[0] - i.aplicado[0], d[1] - i.aplicado[1]];
+      if (Math.abs(passo[0]) > 1e-9 || Math.abs(passo[1]) > 1e-9) { i.gesto.aplicar({ tipo: 'selecao.mover', alvos: i.alvos as never, delta: passo }); i.aplicado = d; }
+    } else if (i.tipo === 'deslizar') {
+      if (!i.gesto) { if (Math.hypot(tx - i.x0, ty - i.y0) <= LIMIAR_ARRASTO) return; i.gesto = store.iniciarGesto('Mover abertura'); }
+      const a = m.openings[i.id]; if (!a) return;
+      const enc = encaixarNaParede(m, ponteiro, a.width, 1.2);
+      if (enc && (enc.parede.id !== a.wallId || Math.abs(enc.at - a.at) > 1e-6)) { try { i.gesto.aplicar({ tipo: 'abertura.atualizar', id: i.id, patch: { wallId: enc.parede.id, at: enc.at } }); } catch { /* ali não cabe: fica onde estava */ } }
+    } else if (i.tipo === 'retangulo') {
+      i.atual = ponteiro; if (Math.hypot(tx - i.x0, ty - i.y0) > LIMIAR_ARRASTO) i.moveu = true;
+    } else if (i.tipo === 'laco') {
+      const u = i.pontos.at(-1)!; if (Math.hypot(ponteiro[0] - u[0], ponteiro[1] - u[1]) > px(3)) i.pontos.push(ponteiro);
+    } else if (i.tipo === 'cômodo') {
+      const c = celulaDe(m, ponteiro);
+      if (i.retangulo) i.atual = c; else { pintarCelulas(celulasEntre(i.atual, c).filter(x => dentroDoMapa(m, x))); i.atual = c; }
+    } else if (i.tipo === 'terreno') { const antes = i.ultimo; i.ultimo = ponteiro; pintarTerreno(ponteiro, antes); }
+    else if (i.tipo === 'parede') i.fim = pontoDeParede(m, ponteiro, i.ini);
     camadaSuja = true;
   });
+
+  /** Ctrl+clique num item: o pincel passa a ser como ele (receita, luz, tipo de cômodo, abertura). */
+  function pipeta(a: Alvo): void {
+    const m = doc();
+    if (a.colecao === 'props') {
+      const o = m.props[a.id]; if (o?.source.kind !== 'recipe') return;
+      ponte.definirPincel({ objeto: { receita: o.source.recipe, params: structuredClone(o.source.params), semente: o.source.seed, rotacao: o.rotation } }); ponte.definirFerramenta('objeto'); ponte.aviso(`Pincel: ${receitaDe(o.source.recipe)?.nome ?? o.source.recipe}`);
+    } else if (a.colecao === 'lights') {
+      const l = m.lights[a.id]; if (!l) return;
+      ponte.definirPincel({ luz: { preset: l.preset && presetDeLuz(l.preset) ? l.preset : l.cone ? 'lanterna' : 'lamparina', direcao: l.cone?.direction ?? 0 } }); ponte.definirFerramenta('luz'); ponte.aviso('Pincel: luz copiada');
+    } else if (a.colecao === 'rooms') {
+      const s = m.rooms[a.id], tipo = s && TIPOS_DE_COMODO.find(t => t.funcao === s.function);
+      if (tipo) { ponte.definirPincel({ comodo: tipo.id }); ponte.definirFerramenta('comodo'); ponte.aviso(`Pincel: ${tipo.nome}`); }
+    } else if (a.colecao === 'openings') {
+      const o = m.openings[a.id]; if (o) { ponte.definirPincel({ abertura: { tipo: o.kind } }); ponte.definirFerramenta('abertura'); ponte.aviso('Pincel: abertura copiada'); }
+    }
+  }
 
   function terminar(e: PointerEvent, cancelado: boolean): void {
     const i = interacao; if (!i) return;
@@ -300,13 +453,23 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       if (!i.moveu && i.botao === 2 && !cancelado) { const p = mundoDe(e); ponte.aoMenuContexto({ tela: [e.clientX, e.clientY], mundo: p, alvo: alvoEm(m, p, px(8)) }); }
     } else if (i.tipo === 'mover') {
       if (i.gesto) { if (cancelado) i.gesto.cancelar(); else i.gesto.concluir(); }
+      else if (!cancelado && i.ctrl) pipeta(i.hit);
       else if (!cancelado && i.estavaNaSelecao && sel.length > 1) ponte.definirSelecao([i.hit]);
-    } else if (i.tipo === 'retangulo') {
-      if (cancelado) { /* nada */ }
-      else if (!i.moveu) { if (i.modo === 'trocar' && sel.length) ponte.definirSelecao([]); }
+    } else if (i.tipo === 'deslizar') { if (i.gesto) { if (cancelado) i.gesto.cancelar(); else i.gesto.concluir(); } }
+    else if (i.tipo === 'retangulo') {
+      if (cancelado) { /* nada */ } else if (!i.moveu) { if (i.modo === 'trocar' && sel.length) ponte.definirSelecao([]); }
       else ponte.definirSelecao(combinarSelecao(sel, alvosNaCaixa(m, { x0: i.ini[0], y0: i.ini[1], x1: i.atual[0], y1: i.atual[1] }), i.modo));
-    } else if (i.tipo === 'laco' && !cancelado) {
-      ponte.definirSelecao(combinarSelecao(sel, alvosNoLaco(m, i.pontos), i.modo));
+    } else if (i.tipo === 'laco' && !cancelado) ponte.definirSelecao(combinarSelecao(sel, alvosNoLaco(m, i.pontos), i.modo));
+    else if (i.tipo === 'cômodo') {
+      if (cancelado) i.gesto.cancelar();
+      else { if (i.retangulo) { interacao = i; pintarCelulas(retanguloDeCelulas(m, i.ini, i.atual)); interacao = null; } if (i.gesto.ativo) i.gesto.concluir(); }
+      if (!cancelado && !i.apagar) { const sala = doc().rooms[i.sala]; if (sala) { ponte.definirSelecao([{ colecao: 'rooms', id: i.sala }]); const c = caixaDe(doc(), { colecao: 'rooms', id: i.sala }); if (c) ponte.aoColocar(sala.name, [(c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2]); } }
+    } else if (i.tipo === 'terreno') { if (cancelado) i.gesto.cancelar(); else i.gesto.concluir(); }
+    else if (i.tipo === 'parede' && !cancelado) {
+      if (Math.hypot(i.fim[0] - i.ini[0], i.fim[1] - i.ini[1]) >= 0.25) {
+        const tipo = ponte.pincel().parede.tipo, id = novoIdEntidade('w');
+        if (tentar(() => store.executar({ tipo: 'parede.adicionar', parede: { id, path: [i.ini, i.fim], height: tipo === 'wall' ? 2.6 : 1.1, thickness: tipo === 'wall' ? 0.2 : 0.14, material: 'parede.topo', kind: tipo, blocks: { move: true, sight: tipo === 'wall', light: tipo === 'wall' } } }, { rotulo: 'Desenhar parede' }))) { ponte.definirSelecao([{ colecao: 'walls', id }]); ponte.aoColocar('Parede', i.fim); }
+      }
     }
     camadaSuja = true; cursor();
   }
@@ -317,11 +480,12 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const aoTeclar = (e: KeyboardEvent) => {
     const emCampo = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable="true"]');
     if (e.key === ' ' && !emCampo) { if (!e.repeat) { espaco = true; cursor(); } e.preventDefault(); return; }
-    // Esc durante um arrasto ou seleção em andamento cancela só isso, antes de qualquer outro atalho.
+    // Esc durante um arrasto ou uma pincelada cancela só isso, antes de qualquer outro atalho.
     if (e.key === 'Escape' && interacao) {
       e.stopImmediatePropagation();
       const i = interacao; interacao = null;
-      if (i.tipo === 'mover' && i.gesto) i.gesto.cancelar();
+      if ((i.tipo === 'mover' || i.tipo === 'deslizar') && i.gesto) i.gesto.cancelar();
+      else if (i.tipo === 'cômodo' || i.tipo === 'terreno') i.gesto.cancelar();
       camadaSuja = true; cursor();
     }
   };
@@ -331,19 +495,13 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   // ---------- Laço do desenho ----------
   const aoQuadro = () => {
-    const agora = performance.now();
-    for (let i = animacoes.length - 1; i >= 0; i--) {
-      const a = animacoes[i]!, t = Math.min(1, (agora - a.t0) / a.dur), e = 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2;   // easeOutBack
-      if (a.alvo.destroyed) { animacoes.splice(i, 1); continue; }
-      a.alvo.scale.set(0.6 + 0.4 * e); if (t >= 1) { a.alvo.scale.set(1); animacoes.splice(i, 1); }
-    }
+    cena.quadro(performance.now());
+    if (doc().finish.grain > 0 && cena.raiz.filters?.length) acabamento.aplicar(doc().finish, performance.now() / 1000);
     if (!camadaSuja) return;
     camadaSuja = false;
     desenharGrade(); desenharSelecao(); desenharLaco(); desenharFantasma(); cursor();
   };
   app.ticker.add(aoQuadro);
-
-  // Seleção e ferramenta vivem fora do viewport: quem mudar avisa por `atualizarSobreposicoes()`.
   const observador = new ResizeObserver(() => { camadaSuja = true; });
   observador.observe(host);
 
@@ -353,16 +511,17 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   return {
     get camera() { return camera; },
     get tela() { return tela(); },
+    get pintando() { return cena.pintando; },
     ponteiro: () => ponteiro,
     centro: () => telaParaMundo(camera, [app.screen.width / 2, app.screen.height / 2]),
     enquadrar: enquadrarMapa, focarEm, zoomPor,
     clientDe: m => { const r = retangulo(), [x, y] = mundoParaTela(camera, m); return [r.left + x, r.top + y]; },
     redesenhar: () => { redesenharTudo(); },
-    atualizarSobreposicoes: () => { camadaSuja = true; },
+    atualizarSobreposicoes: () => { camadaSuja = true; aplicarAcabamento(); },
     destruir() {
       destruido = true; cancelarAssinatura(); observador.disconnect();
       window.removeEventListener('keydown', aoTeclar, true); window.removeEventListener('keyup', aoSoltar);
-      app.ticker.remove(aoQuadro); app.destroy(true, { children: true });
+      app.ticker.remove(aoQuadro); limparFantasmaSprite(); cena.destruir(); baker.encerrar(); app.destroy(true, { children: true });
     },
   };
 }

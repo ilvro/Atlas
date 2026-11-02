@@ -7,7 +7,8 @@ import { mostrarAtalho } from '../app/atalhos.ts';
 /** Ctrl+K: acha qualquer ação pelo nome, sem acento, e a executa. Não é um modal: Esc ou um clique fora fecham. */
 export function Paleta() {
   const consulta = useSignal(''), ativo = useSignal(0), entrada = useRef<HTMLInputElement>(null);
-  useEffect(() => { if (paletaAberta.value) { consulta.value = ''; ativo.value = 0; setTimeout(() => entrada.current?.focus(), 0); } }, [paletaAberta.value]);
+  // A consulta é limpa ao fechar (não ao abrir): um efeito ao abrir apagaria o que já foi digitado.
+  useEffect(() => { if (paletaAberta.value) setTimeout(() => entrada.current?.focus(), 0); else { consulta.value = ''; ativo.value = 0; } }, [paletaAberta.value]);
   if (!paletaAberta.value) return null;
   const resultados = buscarAcoes(consulta.value).slice(0, 12);
   const fechar = () => { paletaAberta.value = false; };

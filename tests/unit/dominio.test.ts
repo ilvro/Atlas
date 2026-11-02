@@ -13,7 +13,7 @@ const mexer = (fn: (m: MapaAtlas) => void) => { const m = structuredClone(mapaCo
 test('um mapa novo é válido, vazio e no padrão de 1,5 m', () => {
   const m = criarMapa({ id: 'a', agora: 5 });
   validarMapa(m);
-  assert.equal(m.schema, 'atlas.map'); assert.equal(m.version, 1); assert.equal(m.revision, 0);
+  assert.equal(m.schema, 'atlas.map'); assert.equal(m.version, 2); assert.equal(m.revision, 0);
   assert.equal(m.grid.size, 1.5); assert.equal(colunas(m), 30); assert.equal(linhas(m), 20);
   assert.deepEqual(Object.keys(m.rooms), []);
 });
@@ -109,10 +109,10 @@ test('lerMapa recusa o que não é mapa e devolve cópias independentes do que l
   assert.throws(() => lerMapa(null), /não é um mapa/);
   assert.throws(() => lerMapa({ schema: 'outra.coisa', version: 1 }), /atlas\.map/);
   assert.throws(() => lerMapa({ schema: 'atlas.map', version: 'x' }), /Versão inválida/);
-  assert.throws(() => lerMapa({ ...criarMapa(), version: 2 }), /mais nova/);
+  assert.throws(() => lerMapa({ ...criarMapa(), version: 3 }), /mais nova/);
   const original = mapaCompleto(), lido = lerMapa(original);
   assert.deepEqual(lido, original); assert.notEqual(lido, original);
-  assert.deepEqual(MIGRACOES, {});
+  assert.deepEqual(Object.keys(MIGRACOES), ['1']);
 });
 
 test('conteúdo ignora revisão e carimbos de tempo, e só eles', () => {
@@ -128,4 +128,28 @@ test('duplicar para nova sessão mantém o mapa e zera o que aconteceu na sessã
   assert.deepEqual(c.session, { explored: null, initiative: null, revealed: [], event: null });
   assert.deepEqual(c.rooms, m.rooms); assert.notEqual(c.rooms, m.rooms);
   assert.equal(m.session.revealed.length, 1);
+});
+
+test('migração 1→2: mapas da Fase 2 abrem no formato novo, sem perder nada', () => {
+  // Um mapa como a Fase 2 o gravava: terreno base 'terra', luzes sem preset, portas sem lado.
+  const atual = mapaCompleto(), v1 = structuredClone(atual) as unknown as Record<string, any>;
+  v1.version = 1; v1.terrain = { resolution: 0.25, base: 'terra', layers: {} };
+  for (const l of Object.values(v1.lights) as Record<string, unknown>[]) delete l.preset;
+  for (const a of Object.values(v1.openings) as Record<string, unknown>[]) delete a.swing;
+  const lido = lerMapa(v1);
+  assert.equal(lido.version, 2); assert.equal(lido.terrain.base, 'vazio');
+  assert.equal(lido.lights.lampiao!.preset, null); assert.equal(lido.openings.porta!.swing, 'a');
+  assert.deepEqual(lido.rooms, atual.rooms); assert.deepEqual(lido.props, atual.props);
+  assert.equal(v1.version, 1, 'o original não é tocado');
+  // Um terreno base escolhido pelo mestre (com camadas) é respeitado; máscaras de imagem viram células vazias.
+  const v1b = structuredClone(v1); v1b.terrain = { resolution: 0.25, base: 'terra', layers: { l1: { id: 'l1', material: 'grama', mask: { id: 'm', hash: 'abcdef012345' }, order: 0 } } };
+  const lidob = lerMapa(v1b);
+  assert.equal(lidob.terrain.base, 'terra'); assert.deepEqual(lidob.terrain.layers.l1, { id: 'l1', material: 'grama', cells: [], order: 0 });
+});
+
+test('camadas de terreno: células dentro do mapa, em faixas canônicas', () => {
+  const m = mexer(x => { x.terrain.layers.g = { id: 'g', material: 'grama', cells: [[0, 0, 10], [1, 3, 4]], order: 0 }; });
+  validarMapa(m);
+  assert.equal(caminhoDoErro(mexer(x => { x.terrain.layers.g = { id: 'g', material: 'grama', cells: [[119, 170, 11]], order: 0 }; })), 'terrain.layers.g.cells');   // 180 × 120 células de 0,25 m
+  assert.equal(caminhoDoErro(mexer(x => { x.terrain.layers.g = { id: 'g', material: 'grama', cells: [[0, 0, 5], [0, 4, 3]], order: 0 }; })), 'terrain.layers.g.cells');
 });
