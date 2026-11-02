@@ -10,4 +10,5 @@
 - O Atlas é para mapas de qualquer gênero; horror é um clima (luz, paleta, acabamento), não um padrão fixo.
 - `src/domain` não importa render, UI nem Pixi. Construção inteligente e sessão produzem comandos ou propostas.
 - Código adaptado do Tabletop, da Ficha ou do Ateliê é copiado e ajustado; não importe entre projetos.
-- Contratos com Ficha, Ateliê e Jukebox não mudam sem mudar os dois lados.
+- Integrações passam pelo contrato da mesa (docs/PLATAFORMA.md): Refs, banco `mesa-campanha-v1`, barramento `mesa:eventos`, manifesto, tema. Nada de pontes ponto a ponto novas.
+- Não altere Ficha, Ateliê, Jukebox ou Tabletop sem autorização do usuário. Contratos existentes não mudam sem mudar os dois lados.

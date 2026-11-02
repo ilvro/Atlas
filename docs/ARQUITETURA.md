@@ -12,7 +12,8 @@ Leia antes: [VISAO.md](VISAO.md).
 | Build | Vite 7 (o ecossistema resolve 7.3.6) | `base: './'` para o GitHub Pages |
 | Render | **PixiJS 8** | Batching de sprites, render targets, filtros e shaders próprios. Versão exata fixada no lockfile. **[spike]** confirmar desempenho com luz e névoa. |
 | Interface | DOM, CSS e templates, sem framework | Padrão do ecossistema |
-| Persistência | IndexedDB, com exportar e importar backup em JSON | Padrão do Ateliê (`Atelie/src/data/backup.js`) |
+| Persistência | IndexedDB, com exportar e importar backup em JSON | Padrão do Ateliê (`Atelie/src/data/backup.js`); banco interno com escopo de caminho (`atlas-v1:<caminho>`) |
+| Plataforma | `vendor/mesa-core/` (cópia com versão fixa) | Refs, banco da campanha, barramento, manifesto e tema de [PLATAFORMA.md](PLATAFORMA.md) |
 | Testes | `node --test` para domínio puro; Playwright para e2e, capturas e FPS | Padrão do Tabletop |
 | Node | 22.12 ou superior | Exigência do Vite 7 |
 
@@ -80,11 +81,13 @@ Unidade de mundo: **metro**. Grid padrão: quadrados de **1,5 m**, configurável
                       roomId, blocks: { move, sight }, castsShadow: true, harmonize: true } },
   lights:   { [id]: { position, radius, color, intensity, flicker, cone: null | { angle, direction }, ownerId: null,
                       power: 'grid'|'fire'|'battery'|'magic', on: true, nightOnly: false } },
-  regions:  { [id]: { polygon, kind: 'reveal'|'trigger'|'note'|'audio', gmOnly, payload } },
+  regions:  { [id]: { polygon, kind: 'reveal'|'trigger'|'note'|'audio', gmOnly, payload, refs: Ref[] } },
   presence: { [id]: { brush: 'musgo'|'neve'|'corrupcao'|'ordem.sangue'|…, mask: assetRef, intensity: 0.6, seed, gmOnly: false } },
   tokens:   { [id]: { name, portrait: assetRef, sprite: null | { body, hair, outfit, accessories, colors, seed }, facing,
                       position, size: 1, vision: { radius, dark: false }, lightId,
-                      figure: { state }, sheetRef: { provider: 'ficha-ordem', sheetId } | null } },
+                      figure: { state }, refs: Ref[] } },          // ex.: a ficha na Ficha e o personagem na campanha
+  campanhaId: null | string,                            // campanha a que o mapa pertence (PLATAFORMA.md §4)
+  comodosExtra: { [roomId]: { leitura: '', notasMestre: '', refs: Ref[] } },   // texto para ler em voz alta, notas e ligações por cômodo
   session:  { explored: assetRef | null, initiative: null | { order, current, round }, revealed: [], event: null },
   audioCue: null,
   notes: '',
@@ -269,16 +272,20 @@ O Tabletop já tem a mesma ideia em 3D (`Tabletop/src/authoring/room-insight.js`
 - **Janela de projetor** por `BroadcastChannel` na mesma origem, com câmera publicada independente da câmera de trabalho, adaptando `Tabletop/src/app/presentation-window.js`.
 - Iniciativa adaptada de `Tabletop/src/domain/initiative.js` (`startInitiative`, `stepInitiative`, `sortOrder`); estados dos personagens de `Tabletop/src/domain/figures.js` (`FIGURE_STATES`, `stateLook`).
 
-## 8. Integrações
+## 8. Integrações: o Atlas na plataforma
 
-| Com | Como | Base |
+O Atlas não faz pontes ponto a ponto. Ele fala o **contrato da mesa** ([PLATAFORMA.md](PLATAFORMA.md)) desde a Fase 2: mesma origem no GitHub Pages, Refs, banco da campanha `mesa-campanha-v1`, barramento `mesa:eventos`, manifesto `mesa.json` e tema `mesa:tema`.
+
+| Com | Como, pelo contrato | Base |
 | --- | --- | --- |
-| Ficha | `token.sheetRef = { provider: 'ficha-ordem', sheetId }`. Sem servidor, a ponte é `window.postMessage` entre janelas abertas uma pela outra. Leitura apenas; a Ficha continua dona dos dados. | `Tabletop/docs/INTEGRACAO_FICHA.md` |
-| Ateliê | Pistas como `region` ou `prop` inspecionável, com imagens assadas (luz normal e UV) | `Atelie/docs/plano/CONTRATO-TABLETOP.md` (contrato v1) |
-| Jukebox | `audioCue` por mapa e por região de gatilho | Contratos do Tabletop |
-| Tabletop 3D | Exportar paredes, aberturas, cômodos e luzes como mapa importável (futuro) | — |
+| Campanha | Mapa com `campanhaId`; cômodos, regiões e tokens com `refs`; o Atlas cria entidades "lugar" e liga cômodos a pistas e personagens | PLATAFORMA.md §4 |
+| Ficha | Token com `Ref` da ficha; lê a ficha pelo que a Ficha publicar; escuta `ficha.rolagem` e `ficha.recursos` (rolagem flutua sobre o token); pede `ficha.abrir`. A Ficha continua dona dos dados. | PLATAFORMA.md §5; `Tabletop/docs/INTEGRACAO_FICHA.md` |
+| Ateliê | Pistas pelo banco `mesa-handouts-v1` e canal `mesa:handout` (contrato v1, sem mudança); pede `atelie.abrir` para editar | `Atelie/docs/plano/CONTRATO-TABLETOP.md` |
+| Jukebox | Mapa, região e clima com `Ref` de cena sonora; ao entrar numa região, emite `atlas.regiao-entrou` e pede `jukebox.tocar` | PLATAFORMA.md §5 |
+| Mesa (hub) | Manifesto com rotas (`#/mapa/{id}`, `#/mapa/{mapa}/comodo/{id}`); atende `atlas.focar`; pode ser embutido no modo sessão | PLATAFORMA.md §6, §9 |
+| Tabletop 3D | Exportar paredes, aberturas, cômodos e luzes como mapa importável (futuro); a mesma entidade "lugar" liga os dois | — |
 
-Nenhum contrato existente muda sem mudar os dois lados.
+Fora da mesma origem (desenvolvimento sem `mesa-dev`, domínio próprio), o Atlas cai para o caminho de janela + `postMessage`, com recursos reduzidos. Nenhum contrato existente muda sem mudar os dois lados.
 
 ## 9. Interface e efeitos
 

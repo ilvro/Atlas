@@ -20,6 +20,12 @@ Protótipo em [spikes/estilos/](spikes/estilos/README.md), com PixiJS 8.22.0 e V
 - Respostas: as seis perguntas da fase deram sim; detalhes e lições no README do protótipo.
 - Pendências: fonte pixel própria para a cartela; transição animada da memória; borda suave da névoa no Ilustrado; sprite opcional no Ilustrado; luzes vindas das receitas; assar em worker.
 
+## Plataforma (2 de novembro) — planejada
+
+- Decisão com o usuário: todos os projetos no mesmo GitHub Pages (`ilvro.github.io`) falam um contrato comum. Novo documento [PLATAFORMA.md](docs/PLATAFORMA.md): Refs, banco da campanha `mesa-campanha-v1`, barramento `mesa:eventos`, manifestos `mesa.json`, tema `mesa:tema`, biblioteca `mesa-core` e o hub "Mesa". O contrato Ateliê ↔ Tabletop v1 vira parte dele, sem mudança.
+- Roadmap: contrato e campanha entram na Fase 2 (2.7, 2.8); notas por cômodo na Fase 3 (3.10); Fase 9 virou "Plataforma e tutoriais".
+- Obsidian e Miro ficam como possibilidades em aberto, sem desenho.
+
 ## Próximo
 
 Fase 2 — fundação (etapas 2.1–2.6 do roadmap), aplicando as lições do protótipo.

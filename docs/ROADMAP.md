@@ -2,7 +2,7 @@
 
 Data: 2 de novembro de 2026. Ordem de implementação em fases e etapas. Uma etapa por vez; cada fase termina com resumo do que foi feito, validação e pendências em [progress.md](../progress.md). Sem commits: o usuário revisa.
 
-Documentos: [VISAO.md](VISAO.md) · [ARQUITETURA.md](ARQUITETURA.md) · [INTERFACE.md](INTERFACE.md)
+Documentos: [VISAO.md](VISAO.md) · [ARQUITETURA.md](ARQUITETURA.md) · [INTERFACE.md](INTERFACE.md) · [PLATAFORMA.md](PLATAFORMA.md)
 
 ## Fase 0 — Planejamento ✅
 
@@ -44,8 +44,10 @@ Perguntas que o protótipo responde:
 | 2.4 | Repositório IndexedDB, galeria de mapas, exportar e importar backup |
 | 2.5 | Viewport definitivo: pan, zoom, grid configurável, seleção, laço |
 | 2.6 | Efeitos de interface (adaptados de `src/fx/ui-fx.js` da Ficha), toasts com Desfazer, paleta de comandos, atalhos, menu radial |
+| 2.7 | `mesa-core` v1 (implementação de referência): Refs, envelope e catálogo de eventos, banco `mesa-campanha-v1`, manifesto, tema `mesa:tema`; testes de contrato |
+| 2.8 | O Atlas na plataforma: `mesa.json`, rotas profundas (`#/mapa/{id}`), mapa ligado a uma campanha, tema compartilhado; `mesa-dev` para servir os projetos numa porta só em desenvolvimento |
 
-**Pronto quando:** criar, salvar, reabrir, desfazer e exportar um mapa vazio; trocar de tema ao vivo; testes de domínio passando.
+**Pronto quando:** criar, salvar, reabrir, desfazer e exportar um mapa vazio; trocar de tema ao vivo (e ver outra aba mudar junto); abrir o mapa por link profundo; testes de domínio e de contrato passando.
 
 ## Fase 3 — Construir
 
@@ -60,6 +62,7 @@ Perguntas que o protótipo responde:
 | 3.7 | Luzes pontuais e com cone, com `power` |
 | 3.8 | Fundo do mapa, cartela de título, acabamento com predefinições |
 | 3.9 | Cartão contextual com ações para cômodo, parede, abertura, objeto e luz |
+| 3.10 | Por cômodo: texto para ler em voz alta, notas do mestre e ligações (`refs`) com a campanha |
 
 **Pronto quando:** uma casa de três cômodos com portas, mobília colocada à mão e luz fica pronta em menos de dez minutos.
 
@@ -124,18 +127,24 @@ Perguntas que o protótipo responde:
 
 **Pronto quando:** o mapa da casa, sem nenhuma alteração, é jogado inteiro no Pixel e trocado ao vivo com o Ilustrado.
 
-## Fase 9 — Integrações e tutoriais
+## Fase 9 — Plataforma e tutoriais
+
+Cada etapa que muda outro projeto só começa com autorização do usuário. A ordem segue [PLATAFORMA.md](PLATAFORMA.md) §11.
 
 | Etapa | Entrega |
 | --- | --- |
-| 9.1 | Ficha: arrastar ficha → token; cartão com PV/PD em pips e rolagens; rolagem flutuando sobre o token |
-| 9.2 | Ateliê: arrastar documento → pista; inspeção com luz UV |
-| 9.3 | Jukebox: cena sonora por mapa, por região e por clima |
-| 9.4 | Tutoriais interativos das ferramentas principais |
+| 9.1 | Mesa (hub) mínimo: campanhas, entidades, notas com `[[ligações]]`, inventário de aplicativos |
+| 9.2 | Ficha no contrato: arrastar ficha → token; cartão com PV/PD em pips e rolagens; `ficha.rolagem` flutuando sobre o token |
+| 9.3 | Ateliê: arrastar documento → pista; inspeção com luz UV; `atelie.abrir` para editar |
+| 9.4 | Jukebox: cena sonora por mapa, região e clima; `jukebox.tocar` ao entrar numa região |
+| 9.5 | Mesa em modo sessão: Atlas, fichas e Jukebox lado a lado; roteiro e registro da sessão |
+| 9.6 | Tutoriais interativos das ferramentas principais |
 
 ## Depois
 
 - Importação opcional de pacotes do mestre (privada, com harmonização e substituto procedural).
+- Tabletop 3D no contrato da mesa (com autorização).
+- Possibilidades em aberto: notas em Markdown compatíveis com Obsidian; importação ou exportação com quadros do Miro (exige credenciais, fora do site estático).
 - Andares no mesmo mapa.
 - Grid hexagonal.
 - Mapas de região e mundo.

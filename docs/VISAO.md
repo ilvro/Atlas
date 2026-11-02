@@ -22,7 +22,14 @@ O nome funciona igual em português e inglês, como Jukebox e Ateliê.
 | Ateliê | Documentos de pista com luz UV | Pistas colocadas no mapa e inspecionadas na sessão |
 | Jukebox | Música e cenas sonoras | Cena sonora por mapa e por região |
 
-Os projetos continuam independentes e conversam por contratos versionados, como o Ateliê já faz com o Tabletop.
+Os projetos continuam independentes, mas formam **uma plataforma para a campanha**, como o Atlas VTT faz dentro do Obsidian: todos no mesmo endereço do GitHub Pages, falando um contrato comum (referências, campanha, eventos, tema) e reunidos por um hub leve, a **Mesa**. Detalhes em [PLATAFORMA.md](PLATAFORMA.md). O Atlas é a implementação de referência desse contrato.
+
+| Na plataforma | Exemplo |
+| --- | --- |
+| Tudo ligado | O cômodo "Biblioteca" sabe que a "Carta queimada" (Ateliê) está nele e que a cena sonora "Chuva na janela" (Jukebox) toca ali |
+| A sessão conversa | Uma rolagem na Ficha aparece flutuando sobre o token no mapa; entrar na biblioteca troca a música |
+| Um tema só | Trocar para Ordem ou Prata muda todos os aplicativos ao mesmo tempo |
+| Notas da campanha | Lugares, personagens e pistas com `[[ligações]]`, abrindo cada coisa no aplicativo dono |
 
 ## 3. Decisões tomadas
 
