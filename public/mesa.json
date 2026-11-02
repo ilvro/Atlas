@@ -1,0 +1,13 @@
+{
+  "app": "atlas",
+  "nome": "Atlas",
+  "contrato": 1,
+  "icone": "./icone.svg",
+  "rotas": {
+    "mapa": "./#/mapa/{id}",
+    "comodo": "./#/mapa/{pai}/comodo/{filho}"
+  },
+  "oferece": ["mapa", "comodo"],
+  "emite": ["atlas.cena-aberta"],
+  "atende": ["atlas.focar"]
+}

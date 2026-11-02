@@ -34,7 +34,9 @@ Perguntas que o protótipo responde:
 
 **Pronto quando:** `npm run dev` abre o protótipo; renderizador, paredes e clima trocam ao vivo; o token anda (WASD ou clique), a visão acompanha e deixa esboço para trás; a porta abre e a luz muda; capturas e FPS medido no relatório.
 
-## Fase 2 — Fundação
+## Fase 2 — Fundação ✅
+
+Concluída em 2 de novembro de 2026; relatório em [progress.md](../progress.md). As ferramentas de adicionar (L, O, T, R) e o menu de contexto já criam luzes, objetos, peças e regiões com marcadores provisórios, só para exercitar seleção, mover, desfazer e inspetor; a Fase 3 as troca pelas ferramentas e renderizadores de verdade.
 
 | Etapa | Entrega |
 | --- | --- |

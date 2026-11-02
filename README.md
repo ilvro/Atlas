@@ -1,0 +1,48 @@
+# Atlas
+
+Editor de mapas 2D de cena para a mesa: construa rápido, jogue com luz, clima e névoa. Faz parte da plataforma da campanha (Ficha, Ateliê, Jukebox, Tabletop): todos falam o [contrato da mesa](docs/PLATAFORMA.md).
+
+> Estado: **Fase 2 (fundação) concluída**. Já existem o documento do mapa, o histórico com gestos, o rascunho automático, a galeria, o backup, a paleta de comandos, o menu radial, os três temas e a ligação com a campanha. Cômodos, paredes, objetos de verdade, luz e sessão chegam nas próximas fases ([ROADMAP](docs/ROADMAP.md)).
+
+## Usar
+
+Requer Node.js 22.18 ou superior.
+
+```bash
+npm install
+npm run dev          # http://127.0.0.1:5190/
+npm run build        # confere os tipos e gera dist/ (funciona em qualquer caminho, inclusive no GitHub Pages)
+```
+
+Atalhos principais: `Ctrl+K` paleta · `?` todos os atalhos · `Ctrl+S` gravar · `Ctrl+Z` / `Ctrl+Shift+Z` · `V H L O T R` ferramentas · `F` enquadrar · `G` grade · clique direito: menu radial.
+
+## Testes
+
+```bash
+npm run typecheck    # TypeScript strict
+npm test             # unitários: documento, comandos, store, dados, interface, plataforma, mesa-core
+npm run test:e2e     # Playwright (Chromium com WebGL): 16 cenários que cobrem os critérios da Fase 2
+```
+
+## Todos os projetos numa origem só (como no GitHub Pages)
+
+```bash
+npm run dev:mesa                                       # Atlas com base /Atlas/
+node scripts/mesa-dev.ts Atlas=5190 Ficha=5173@raiz    # http://127.0.0.1:5100/Atlas/ e /Ficha/
+```
+
+Na mesma origem os aplicativos compartilham tema, campanha e eventos. `Nome=porta@raiz` serve para projetos que rodam sem `base`.
+
+## Mapa do código
+
+| Pasta | O quê |
+| --- | --- |
+| `src/domain` | O documento `atlas.map` v1: tipos, validação estrita com caminho do erro, migrações, células em RLE. Não importa render nem interface |
+| `src/state` | Comandos puros, rascunhos copy-on-write, store com histórico, gestos e transações |
+| `src/data` | Repositório IndexedDB (`atlas-v1:<caminho>`), backup, autossalvamento |
+| `src/render` | Viewport em PixiJS: câmera, grade, seleção. Sem Preact |
+| `src/ui`, `src/app` | Componentes Preact com signals, ações (paleta, atalhos, menu radial), rotas, tema, campanha |
+| `src/fx` | Efeitos e sons, adaptados da Ficha |
+| `mesa-core` | O contrato da plataforma: referências, eventos, banco da campanha, manifesto, tema |
+| `scripts/mesa-dev.ts` | O servidor de desenvolvimento único |
+| `spikes/estilos` | O protótipo descartável da Fase 1 |

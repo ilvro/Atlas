@@ -31,10 +31,38 @@ Protótipo em [spikes/estilos/](spikes/estilos/README.md), com PixiJS 8.22.0 e V
 
 - TypeScript 7 (`strict`) e Preact 11 com signals; Pixi 8 fora do Preact; `mesa-core` em TS publicado como JS + `.d.ts`. Versões fixadas em ARQUITETURA §1. O protótipo continua em JavaScript (descartável).
 
+## Fase 2 — Fundação (2 de novembro) — concluída
+
+Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0 (fora do Preact) e Vite 7.3.6. README com o mapa do código.
+
+- **2.1 Projeto e casca:** `npm run typecheck | test | test:e2e | build | dev | dev:mesa`; fontes OFL locais (Hanken Grotesk, Cinzel, Special Elite, via fontsource); três temas (Ordem, Prata, Neutro) por variáveis CSS; faixas rasgadas, chips, pílulas e transições (glitch, tinta, fade) da Ficha.
+- **2.2 Documento `atlas.map` v1:** tipos, esquema declarativo com validação estrita (campo desconhecido, tipo e limite com o caminho exato do erro), relações entre as partes conferidas, migrações encadeadas (testadas com tabelas de mentira), células em RLE, duplicar para nova sessão.
+- **2.3 Store:** comandos puros e atômicos sobre rascunhos copy-on-write (compartilhamento estrutural), histórico de 150 com rótulos, gestos e transações (uma entrada de histórico por arrasto; Esc ou Ctrl+Z cancelam), `versaoEsperada`, `marcarSalvo` que aceita edições feitas durante a gravação, recuperar rascunho sobre o mapa do disco.
+- **2.4 Dados:** repositório IndexedDB com escopo de caminho (revisão otimista e conflito), assets endereçados pelo conteúdo, rascunho automático (um cronômetro só, fila de gravações, descarregar ao sair), galeria com miniaturas, exportar e importar (mapa avulso ou cópia de segurança; cópia, substituir ou pular; um mapa ruim não derruba os outros).
+- **2.5 Viewport:** pan, zoom no cursor, grade configurável (adaptativa), seleção por clique, Shift, retângulo e laço (Alt), arrastar com encaixe de meia célula (Alt desliga), setas, marcadores provisórios de luz (círculo e cone), objeto, peça e região.
+- **2.6 Interface de jogo:** efeitos adaptados da Ficha (número flutuante, faíscas), sons sintetizados, toasts com Desfazer, paleta de comandos (Ctrl+K, busca sem acento), menu radial, mapa de atalhos (`?`), animações e sons desligáveis, `prefers-reduced-motion` respeitado.
+- **2.7 `mesa-core` v1:** referências, barramento de eventos com pedidos e respostas, banco da campanha com regra de quem altera o quê, manifesto, tema compartilhado; publicado como JS + `.d.ts`.
+- **2.8 Plataforma:** `mesa.json`, rotas profundas (`#/mapa/{id}`, `#/mapa/{id}/comodo/{c}`), mapa ligado à campanha (entidade "lugar" que acompanha o nome e sobrevive à remoção do mapa), pedido `atlas.focar` atendido, `mesa-dev` (todos os projetos numa origem).
+
+### Validação
+
+- `tsc --noEmit` limpo; `npm run build` e `build:core` sem erros; o build funciona em qualquer caminho.
+- **115 testes unitários** (36 do `mesa-core`, 79 do Atlas) e **16 testes e2e** em Chromium com WebGL, todos passando. O e2e cobre os critérios de pronto: criar, gravar, reabrir, desfazer, exportar e importar; tema trocando em outra aba ao vivo; link profundo; rascunho recuperado; conflito entre duas abas; campanha; `atlas.focar` vindo de outro aplicativo; e dois aplicativos sob o `mesa-dev` compartilhando tema e campanha na mesma origem.
+- Fluxo real `npm run dev:mesa` + `mesa-dev` verificado no navegador, sem erros no console (recarregamento ao vivo incluído).
+- Os testes acharam, além de erros meus, **defeitos reais que foram corrigidos**: `acharRefs` engolindo o ponto final; `salvar` lançando de forma síncrona em vez de rejeitar; cronômetro do rascunho duplicado depois de gravar; tela em branco para mapa inexistente; menu radial fechando sozinho (evento `contextmenu` tardio); atalhos engolidos por caixas de seleção; "Luz aqui" caindo no centro em vez do ponto clicado; `Espaço` com cedilha no parser de atalhos.
+
+### Pendências reais
+
+- Os marcadores do viewport são provisórios (cômodos, paredes, objetos, luzes e peças reais chegam na Fase 3); as ferramentas L, O, T e R existem só para exercitar seleção, mover e inspetor.
+- Estilo, clima e acabamento já estão no documento e nos comandos, mas ainda não têm interface nem efeito visível (Fases 3 e 4).
+- O `mesa-dev` não foi testado com os outros projetos (só com o Atlas e uma página de mentira): eles precisam rodar com `base: '/Nome/'` ou entrar como `@raiz`.
+- Os outros projetos (Ficha, Ateliê, Jukebox, Tabletop) ainda não usam o `mesa-core`; mudam só com autorização.
+- Dois relatórios do protótipo continuam valendo: fonte pixel própria e transição da memória (Fases 3 a 8).
+
 ## Próximo
 
-Fase 2 — fundação (etapas 2.1–2.6 do roadmap), aplicando as lições do protótipo.
+Fase 3 — Construir (etapas 3.1–3.10 do roadmap): terreno, cômodo que vira paredes, portas e janelas, objetos por receita, luzes de verdade.
 
 ## Pendências
 
-- Nenhuma no momento.
+- Nenhuma que bloqueie a Fase 3.

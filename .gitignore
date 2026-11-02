@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-pages/
+test-results/
+data-private/
+*.log
+.DS_Store
+spikes/*/node_modules/
+spikes/*/dist/
+mesa-core/dist/

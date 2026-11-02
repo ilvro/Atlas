@@ -20,7 +20,7 @@ Todos os projetos estão em `https://ilvro.github.io/<repositório>/`. A origem 
 | Situação | Como fica |
 | --- | --- |
 | GitHub Pages (uso principal) | Mesma origem. Tudo funciona direto. |
-| Desenvolvimento local | Um **servidor de desenvolvimento único** (`mesa-dev`) serve cada projeto num caminho da mesma porta (`http://127.0.0.1:5100/Atlas/`, `/Ficha/`…), repassando para o Vite de cada um. Reproduz o Pages. |
+| Desenvolvimento local | Um **servidor de desenvolvimento único** (`mesa-dev`, em `Atlas/scripts/mesa-dev.ts`) serve cada projeto num caminho da mesma porta (`http://127.0.0.1:5100/Atlas/`, `/Ficha/`…), repassando para o Vite de cada um. Reproduz o Pages. ✅ Implementado: cada projeto roda o Vite com `base: '/Nome/'` (no Atlas, `npm run dev:mesa`) e o proxy repassa o caminho inteiro, WebSocket do recarregamento ao vivo incluído; um projeto que serve na raiz entra como `Nome=porta@raiz`. |
 | Outra origem (domínio próprio, outra conta, Tabletop com servidor local) | Caminho B do contrato do Ateliê: janela + `postMessage`, com `nonce` e verificação de origem. Recursos reduzidos. |
 
 **Exceção:** o Jukebox depende de um servidor para baixar e editar áudio. O player participa da plataforma no Pages; ações que precisam do servidor continuam no servidor.
@@ -80,7 +80,7 @@ Cada aplicativo publica `mesa.json` na raiz:
 
 ```json
 { "app": "atlas", "nome": "Atlas", "contrato": 1, "icone": "./icone.svg",
-  "rotas": { "mapa": "./#/mapa/{id}", "comodo": "./#/mapa/{mapa}/comodo/{id}" },
+  "rotas": { "mapa": "./#/mapa/{id}", "comodo": "./#/mapa/{pai}/comodo/{filho}" },
   "oferece": ["mapa", "comodo"], "emite": ["atlas.cena-aberta", "atlas.regiao-entrou"], "atende": ["atlas.focar"] }
 ```
 
@@ -113,6 +113,18 @@ O nome "Mesa" funciona em português e inglês, como Jukebox e Ateliê. Pode mud
 - **Obsidian:** exportar e importar notas e entidades como Markdown com `[[ligações]]`, se a campanha um dia for para um vault.
 - **Miro:** hoje a preparação do usuário está no Miro. Uma importação de quadros ou exportação da campanha para um quadro é possível pela API do Miro, mas exige credenciais, que não cabem num site estático sem servidor. Fica registrado, sem desenho.
 - **Vários dispositivos e jogadores:** exige servidor ou sincronização; fora do escopo.
+
+## 10.1. Chaves e bancos compartilhados (v1, implementados no Atlas)
+
+| O quê | Onde | Quem escreve |
+| --- | --- | --- |
+| Tema | `localStorage['mesa:tema']` → `{ v: 1, id: 'ordem'\|'prata'\|'neutro', acento?: '#rrggbb' }`; o evento `storage` avisa as outras abas | qualquer aplicativo |
+| Campanha ativa | `localStorage['mesa:campanha-ativa']` → id da campanha | qualquer aplicativo |
+| Campanha | IndexedDB `mesa-campanha-v1` (`campanhas`, `entidades`, `ligacoes`, `sessoes`), sem escopo de caminho | quem criou a entidade altera tudo; os outros só as próprias referências (aplicado pelo repositório e testado) |
+| Eventos | `BroadcastChannel('mesa:eventos')`, envelope `{ contrato, app, tipo, id, em, campanhaId, dados, respondeA? }`; fatos só do dono, pedidos de qualquer um, resposta como `mesa.resposta` | todos |
+| Mapas do Atlas | IndexedDB `atlas-v1:<caminho>`, **com** escopo de caminho (interno ao Atlas) | só o Atlas |
+
+A implementação de referência é o `mesa-core` (`Atlas/mesa-core/`, TypeScript, 36 testes de contrato). `npm run build:core` o publica como JS + `.d.ts`; os outros projetos usam a cópia compilada em `vendor/mesa-core/`.
 
 ## 11. Ordem de adoção
 

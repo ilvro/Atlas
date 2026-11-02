@@ -15,7 +15,8 @@ Leia antes: [VISAO.md](VISAO.md).
 | Persistência | IndexedDB, com exportar e importar backup em JSON | Padrão do Ateliê (`Atelie/src/data/backup.js`); banco interno com escopo de caminho (`atlas-v1:<caminho>`) |
 | Plataforma | `vendor/mesa-core/` (cópia com versão fixa) | Refs, banco da campanha, barramento, manifesto e tema de [PLATAFORMA.md](PLATAFORMA.md) |
 | Testes | `node --test` (com o carregamento de TS do Node) para domínio puro; `tsc --noEmit`; Playwright para e2e, capturas e FPS | Padrão do Tabletop |
-| Versões | preact 11.0.1, @preact/signals 2.11.3, @preact/preset-vite 2.10.6, typescript 7.0.2, pixi.js 8.22.0, vite 7.3.6 | Fixadas no lockfile em 2 de novembro de 2026 |
+| Versões | preact 11.0.1, @preact/signals 2.11.3, @preact/preset-vite 2.10.6, typescript 7.0.2, pixi.js 8.22.0, vite 7.3.6, playwright 1.58.2, fake-indexeddb 6.2.6 (testes) | Fixadas no lockfile em 2 de novembro de 2026 |
+| Plataforma | `mesa-core/` no próprio repositório, importado como `#mesa` (campo `imports` do package.json) | Contrato da mesa; ver PLATAFORMA.md §7 e §10.1 |
 | Node | 22.12 ou superior | Exigência do Vite 7 |
 
 Sem servidor. Tudo roda no navegador.

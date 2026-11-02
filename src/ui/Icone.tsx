@@ -1,0 +1,31 @@
+const CAMINHOS: Record<string, string> = {
+  selecionar: 'M5 3l14 8-6 2-2 6z',
+  mao: 'M8 12V6a1.5 1.5 0 013 0v5M11 11V4.5a1.5 1.5 0 013 0V11M14 11V6a1.5 1.5 0 013 0v7c0 4-2 7-6 7s-5-2-6-4l-2-4a1.5 1.5 0 012.5-1.5L8 14',
+  luz: 'M9 18h6M10 21h4M12 3a6 6 0 00-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0012 3z',
+  objeto: 'M4 7l8-4 8 4v10l-8 4-8-4zM4 7l8 4 8-4M12 11v10',
+  peca: 'M12 12a4 4 0 100-8 4 4 0 000 8zM5 21a7 7 0 0114 0',
+  regiao: 'M4 6h16v12H4zM8 6v12M16 6v12',
+  desfazer: 'M9 7L4 12l5 5M4 12h11a5 5 0 010 10h-3',
+  refazer: 'M15 7l5 5-5 5M20 12H9a5 5 0 000 10h3',
+  gravar: 'M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6',
+  paleta: 'M4 6h16M4 12h10M4 18h6',
+  grade: 'M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18',
+  enquadrar: 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
+  duplicar: 'M8 8h12v12H8zM4 16V4h12',
+  lixeira: 'M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14',
+  alvo: 'M12 3v4M12 17v4M3 12h4M17 12h4M12 12m-3 0a3 3 0 106 0 3 3 0 10-6 0',
+  anim: 'M13 2L4 14h7l-1 8 9-12h-7z',
+  som: 'M4 9h4l5-4v14l-5-4H4zM17 9a4 4 0 010 6',
+  mudo: 'M4 9h4l5-4v14l-5-4H4zM17 9l5 6M22 9l-5 6',
+  ajuda: 'M12 17v.01M9.5 9a2.5 2.5 0 115 0c0 1.5-2.5 2-2.5 4M12 22a10 10 0 100-20 10 10 0 000 20z',
+  novo: 'M12 5v14M5 12h14',
+  importar: 'M12 3v12M7 10l5 5 5-5M4 21h16',
+  exportar: 'M12 15V3M7 8l5-5 5 5M4 21h16',
+  casa: 'M3 11l9-8 9 8M5 10v10h14V10',
+  campanha: 'M5 4h12a2 2 0 012 2v14H7a2 2 0 01-2-2zM9 4v16',
+  aviso: 'M12 3l10 18H2zM12 10v5M12 18v.01',
+};
+
+export function Icone({ nome, tamanho = 18 }: { nome: string; tamanho?: number }) {
+  return <svg class="icone" width={tamanho} height={tamanho} viewBox="0 0 24 24" aria-hidden="true"><path d={CAMINHOS[nome] ?? CAMINHOS.aviso!} /></svg>;
+}
