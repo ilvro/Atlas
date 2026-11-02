@@ -1,6 +1,6 @@
 # Atlas — roadmap
 
-Data: 2 de novembro de 2026. Ordem de implementação em fases e etapas. Uma etapa por vez; cada fase termina com resumo do que foi feito, validação e pendências em [progress.md](../progress.md). Sem commits: o usuário revisa.
+Data: 2 de novembro de 2026. Ordem de implementação em fases e etapas. Este documento diz **o quê**; o **como** fica em [plano/](plano/README.md), com cada etapa quebrada em tarefas do tamanho de um commit. Uma tarefa por vez; cada fase termina com resumo do que foi feito, validação e pendências em [progress.md](../progress.md). Sem commits: o usuário revisa.
 
 Documentos: [VISAO.md](VISAO.md) · [ARQUITETURA.md](ARQUITETURA.md) · [INTERFACE.md](INTERFACE.md) · [PLATAFORMA.md](PLATAFORMA.md)
 
@@ -53,6 +53,8 @@ Concluída em 2 de novembro de 2026; relatório em [progress.md](../progress.md)
 
 ## Fase 3 — Construir ✅ (com pendências)
 
+Pendências em tarefas: [plano/fase-3-pendencias.md](plano/fase-3-pendencias.md).
+
 Concluída em 2 de novembro de 2026; relatório e pendências em [progress.md](../progress.md). Documento passou para a **v2** (migração 1→2 testada). Ficaram para depois: transições automáticas entre terrenos (3.1; vão com o espalhamento da Fase 5.4), edição da cartela de título na interface (3.8; o campo já existe no documento) e `refs` do cômodo com a campanha (3.10; a leitura e as notas do mestre já funcionam).
 
 | Etapa | Entrega |
@@ -72,6 +74,8 @@ Concluída em 2 de novembro de 2026; relatório e pendências em [progress.md](.
 
 ## Fase 4 — Climas e atmosfera
 
+Tarefas: [plano/fase-4.md](plano/fase-4.md) (tarefas detalhadas).
+
 "O mesmo mapa, vários momentos": a casa de dia, numa tempestade, à noite, sem energia.
 
 | Etapa | Entrega |
@@ -79,14 +83,16 @@ Concluída em 2 de novembro de 2026; relatório e pendências em [progress.md](.
 | 4.1 | Engine de luz por horário: sol e lua com direção e cor, luz pelas janelas |
 | 4.2 | Climas predefinidos: manhã, tarde, entardecer, noite, tempestade, neblina, neve, apagão, neon; clima do usuário |
 | 4.3 | Reações automáticas: lâmpadas `grid` no apagão, `nightOnly`, relâmpagos pelas janelas, janelas acesas à noite |
-| 4.7 | Áudio do clima: cada clima pode apontar para uma cena do Jukebox ("Tempestade" → "Chuva forte"), com troca por mapa; relâmpago com trovão |
 | 4.4 | Partículas: chuva, neve, poeira, brasas, folhas, neblina; vento |
 | 4.5 | Transição animada entre climas (comando com duração) |
 | 4.6 | Pincéis de presença: naturais, sobrenaturais e pacote Ordem Paranormal |
+| 4.7 | Áudio do clima: cada clima pode apontar para uma cena do Jukebox ("Tempestade" → "Chuva forte"), com troca por mapa; relâmpago com trovão |
 
 **Pronto quando:** a casa da Fase 3 passa por dia → tempestade → noite → apagão ao vivo, sem editar nada, e cada momento parece outra cena.
 
 ## Fase 5 — Construção inteligente
+
+Tarefas: [plano/fase-5.md](plano/fase-5.md) (lista de tarefas; detalhar antes de começar).
 
 | Etapa | Entrega |
 | --- | --- |
@@ -100,6 +106,8 @@ Concluída em 2 de novembro de 2026; relatório e pendências em [progress.md](.
 
 ## Fase 6 — Acervo da casa
 
+Tarefas: [plano/fase-6.md](plano/fase-6.md) (lista de tarefas; detalhar antes de começar).
+
 | Etapa | Entrega |
 | --- | --- |
 | 6.1 | Script de assar geradores pesados (estofados, plantas, tapetes ornamentados) para `public/colecao/` |
@@ -111,18 +119,22 @@ Concluída em 2 de novembro de 2026; relatório e pendências em [progress.md](.
 
 ## Fase 7 — Sessão
 
+Tarefas: [plano/fase-7.md](plano/fase-7.md) (lista de tarefas; detalhar antes de começar).
+
 | Etapa | Entrega |
 | --- | --- |
 | 7.1 | Tokens: retrato, sprite, tamanho, estado, lanterna; movimento com trilha |
 | 7.2 | Visão e névoa com memória; revelação animada; telhados que somem |
 | 7.3 | Portas na sessão (abrir, fechar, trancar, secreta revelada), por clique ou pelo token ao lado; régua em quadrados; iniciativa |
-| 7.6 | Interagíveis: portas, interruptores, objetos e pistas com ação e efeito sonoro próprio (ranger de porta, interruptor, gaveta); acender ou apagar luzes do cômodo pelo interruptor |
 | 7.4 | Dock de sessão: clima, eventos de cena, presença, iniciativa |
 | 7.5 | Janela de projetor com câmera publicada, moldura do tema e projeção filtrada |
+| 7.6 | Interagíveis: portas, interruptores, objetos e pistas com ação e efeito sonoro próprio (ranger de porta, interruptor, gaveta); acender ou apagar luzes do cômodo pelo interruptor |
 
 **Pronto quando:** jogar a casa com dois tokens no projetor, abrindo portas, trocando o clima e revelando cômodos, sem nada do mestre vazar.
 
 ## Fase 8 — Renderizador Pixel completo
+
+Tarefas: [plano/fase-8.md](plano/fase-8.md) (lista de tarefas; detalhar antes de começar).
 
 | Etapa | Entrega |
 | --- | --- |
@@ -134,6 +146,8 @@ Concluída em 2 de novembro de 2026; relatório e pendências em [progress.md](.
 **Pronto quando:** o mapa da casa, sem nenhuma alteração, é jogado inteiro no Pixel e trocado ao vivo com o Ilustrado.
 
 ## Fase 9 — Plataforma e tutoriais
+
+Tarefas: [plano/fase-9.md](plano/fase-9.md) (lista de tarefas; detalhar antes de começar).
 
 Cada etapa que muda outro projeto só começa com autorização do usuário. A ordem segue [PLATAFORMA.md](PLATAFORMA.md) §11.
 

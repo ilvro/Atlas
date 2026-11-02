@@ -89,7 +89,7 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 
 ## Próximo
 
-Fase 4 — Climas e atmosfera: o mesmo mapa de dia, em tempestade, à noite e sem energia.
+Fase 4 — Climas e atmosfera: o mesmo mapa de dia, em tempestade, à noite e sem energia. Tarefas em [docs/plano/fase-4.md](docs/plano/fase-4.md); começar pela **4.1a**. Pendências da Fase 3 em [docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md).
 
 ## Pendências
 

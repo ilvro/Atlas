@@ -1,8 +1,9 @@
 # Atlas
 
-- Leia docs/VISAO.md, docs/ARQUITETURA.md e docs/ROADMAP.md antes de implementar. Uma fase por vez.
-- Não commite. Ao fim de cada fase, resuma o que foi implementado, a validação e as pendências.
-- Mantenha progress.md atualizado: concluído, em andamento, validação e pendências reais.
+- Uma tarefa por vez, pela ficha em docs/plano/fase-N.md (como trabalhar: docs/plano/README.md). Leia a ficha, os arquivos que ela cita e este arquivo; VISAO, ARQUITETURA e ROADMAP só quando a ficha mandar ou para planejar uma fase.
+- Não decida arquitetura fora da ficha. Se a ficha não bate com o código, pare e reporte.
+- Não commite. Ao fim de cada tarefa: typecheck e testes passando, ficha marcada ✅, uma linha no progress.md e uma sugestão de mensagem de commit curta em inglês.
+- Ao fim de cada fase, resuma no progress.md o que foi implementado, a validação e as pendências reais.
 - O documento do mapa guarda significado (cômodos, paredes, receitas, IDs de assets), nunca pixels de objetos. Toda automação produz entidades comuns e editáveis.
 - O app tem de ser completo só com a coleção da casa (procedural + public/colecao/). Todo asset achado tem licença que permite redistribuir e entra em docs/LICENCAS.md. Importações do mestre ficam em data-private/ ou no IndexedDB: nunca no git, em public/ ou em dist/.
 - docs/referencias/ é só para consulta interna; nada dali vai para o build.
