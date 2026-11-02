@@ -8,6 +8,7 @@
 - docs/referencias/ é só para consulta interna; nada dali vai para o build.
 - Um asset é descrito uma vez (descrição de desenho); os renderizadores Ilustrado e Pixel o interpretam. Não crie versões separadas por estilo, exceto `pixelSrc` manual opcional para imagens.
 - O Atlas é para mapas de qualquer gênero; horror é um clima (luz, paleta, acabamento), não um padrão fixo.
+- TypeScript `strict` e Preact com signals. O mapa é Pixi puro, fora do Preact; componentes leem o store por signals e alteram só por comandos. CSS próprio, sem Tailwind.
 - `src/domain` não importa render, UI nem Pixi. Construção inteligente e sessão produzem comandos ou propostas.
 - Código adaptado do Tabletop, da Ficha ou do Ateliê é copiado e ajustado; não importe entre projetos.
 - Integrações passam pelo contrato da mesa (docs/PLATAFORMA.md): Refs, banco `mesa-campanha-v1`, barramento `mesa:eventos`, manifesto, tema. Nada de pontes ponto a ponto novas.

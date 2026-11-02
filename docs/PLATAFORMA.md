@@ -88,7 +88,7 @@ Com isso o hub e os outros aplicativos descobrem quem existe (`fetch('../Ficha/m
 
 ## 7. Biblioteca comum `mesa-core`
 
-Um módulo pequeno, sem dependências: Refs, envelope e catálogo de eventos, acesso ao banco da campanha, manifesto, tema.
+Um módulo pequeno, sem dependências: Refs, envelope e catálogo de eventos, acesso ao banco da campanha, manifesto, tema. Escrito em **TypeScript** e distribuído como **JavaScript compilado + `.d.ts`**: projetos em JavaScript (Ficha, Ateliê, Jukebox, Tabletop) usam sem migrar nada e ainda ganham autocompletar e checagem com JSDoc (`// @ts-check`).
 
 - **Fonte única** no repositório do hub; cada aplicativo guarda uma **cópia com versão fixa** em `vendor/mesa-core/` (sem npm, sem depender de outro site estar no ar).
 - Testes de contrato em cada aplicativo garantem que a cópia segue a versão.

@@ -25,6 +25,11 @@ Protótipo em [spikes/estilos/](spikes/estilos/README.md), com PixiJS 8.22.0 e V
 - Decisão com o usuário: todos os projetos no mesmo GitHub Pages (`ilvro.github.io`) falam um contrato comum. Novo documento [PLATAFORMA.md](docs/PLATAFORMA.md): Refs, banco da campanha `mesa-campanha-v1`, barramento `mesa:eventos`, manifestos `mesa.json`, tema `mesa:tema`, biblioteca `mesa-core` e o hub "Mesa". O contrato Ateliê ↔ Tabletop v1 vira parte dele, sem mudança.
 - Roadmap: contrato e campanha entram na Fase 2 (2.7, 2.8); notas por cômodo na Fase 3 (3.10); Fase 9 virou "Plataforma e tutoriais".
 - Obsidian e Miro ficam como possibilidades em aberto, sem desenho.
+- Detalhado depois: tipos de luz (círculo e cone) com cor ajustável (3.7), áudio do clima (4.7), portas com estados (7.3), interagíveis com efeito sonoro (7.6) e as duas camadas de áudio (ARQUITETURA §8.1).
+
+## Stack (2 de novembro) — decidida
+
+- TypeScript 7 (`strict`) e Preact 11 com signals; Pixi 8 fora do Preact; `mesa-core` em TS publicado como JS + `.d.ts`. Versões fixadas em ARQUITETURA §1. O protótipo continua em JavaScript (descartável).
 
 ## Próximo
 

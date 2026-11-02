@@ -38,13 +38,13 @@ Perguntas que o protótipo responde:
 
 | Etapa | Entrega |
 | --- | --- |
-| 2.1 | Projeto definitivo, scripts de teste, fontes OFL locais, temas Ordem/Prata/Neutro e casca da interface ([INTERFACE.md](INTERFACE.md) §5) |
+| 2.1 | Projeto definitivo em TypeScript + Preact (versões em ARQUITETURA §1), `tsc --noEmit` e testes, fontes OFL locais, temas Ordem/Prata/Neutro e casca da interface ([INTERFACE.md](INTERFACE.md) §5) |
 | 2.2 | Documento `atlas.map` v1: criação, validação estrita, migrações; testes |
 | 2.3 | Store com comandos, transações de gesto, undo/redo com rótulos, rascunho automático |
 | 2.4 | Repositório IndexedDB, galeria de mapas, exportar e importar backup |
 | 2.5 | Viewport definitivo: pan, zoom, grid configurável, seleção, laço |
 | 2.6 | Efeitos de interface (adaptados de `src/fx/ui-fx.js` da Ficha), toasts com Desfazer, paleta de comandos, atalhos, menu radial |
-| 2.7 | `mesa-core` v1 (implementação de referência): Refs, envelope e catálogo de eventos, banco `mesa-campanha-v1`, manifesto, tema `mesa:tema`; testes de contrato |
+| 2.7 | `mesa-core` v1 em TypeScript, publicado como JS + `.d.ts` (implementação de referência): Refs, envelope e catálogo de eventos, banco `mesa-campanha-v1`, manifesto, tema `mesa:tema`; testes de contrato |
 | 2.8 | O Atlas na plataforma: `mesa.json`, rotas profundas (`#/mapa/{id}`), mapa ligado a uma campanha, tema compartilhado; `mesa-dev` para servir os projetos numa porta só em desenvolvimento |
 
 **Pronto quando:** criar, salvar, reabrir, desfazer e exportar um mapa vazio; trocar de tema ao vivo (e ver outra aba mudar junto); abrir o mapa por link profundo; testes de domínio e de contrato passando.
@@ -59,7 +59,7 @@ Perguntas que o protótipo responde:
 | 3.4 | Paredes caixa e sólidas, papel de parede, objetos de parede |
 | 3.5 | Descrição de desenho e renderizador Ilustrado completos; lote 1 de receitas (pisos, paredes, tapetes, mesas, cadeiras, camas, estantes, armários, papéis, livros) |
 | 3.6 | Biblioteca buscável, fantasma, encaixe, rotação, pipeta, Alt + arrastar |
-| 3.7 | Luzes pontuais e com cone, com `power` |
+| 3.7 | Luzes: lamparinas e lâmpadas (círculo) e lanternas, holofotes e faróis (cone), com cor, intensidade, alcance, abertura do cone, tremulação e `power`; predefinições (vela, lamparina, tocha, lâmpada, neon, lanterna) e cor livre |
 | 3.8 | Fundo do mapa, cartela de título, acabamento com predefinições |
 | 3.9 | Cartão contextual com ações para cômodo, parede, abertura, objeto e luz |
 | 3.10 | Por cômodo: texto para ler em voz alta, notas do mestre e ligações (`refs`) com a campanha |
@@ -75,6 +75,7 @@ Perguntas que o protótipo responde:
 | 4.1 | Engine de luz por horário: sol e lua com direção e cor, luz pelas janelas |
 | 4.2 | Climas predefinidos: manhã, tarde, entardecer, noite, tempestade, neblina, neve, apagão, neon; clima do usuário |
 | 4.3 | Reações automáticas: lâmpadas `grid` no apagão, `nightOnly`, relâmpagos pelas janelas, janelas acesas à noite |
+| 4.7 | Áudio do clima: cada clima pode apontar para uma cena do Jukebox ("Tempestade" → "Chuva forte"), com troca por mapa; relâmpago com trovão |
 | 4.4 | Partículas: chuva, neve, poeira, brasas, folhas, neblina; vento |
 | 4.5 | Transição animada entre climas (comando com duração) |
 | 4.6 | Pincéis de presença: naturais, sobrenaturais e pacote Ordem Paranormal |
@@ -110,7 +111,8 @@ Perguntas que o protótipo responde:
 | --- | --- |
 | 7.1 | Tokens: retrato, sprite, tamanho, estado, lanterna; movimento com trilha |
 | 7.2 | Visão e névoa com memória; revelação animada; telhados que somem |
-| 7.3 | Portas na sessão; régua em quadrados; iniciativa |
+| 7.3 | Portas na sessão (abrir, fechar, trancar, secreta revelada), por clique ou pelo token ao lado; régua em quadrados; iniciativa |
+| 7.6 | Interagíveis: portas, interruptores, objetos e pistas com ação e efeito sonoro próprio (ranger de porta, interruptor, gaveta); acender ou apagar luzes do cômodo pelo interruptor |
 | 7.4 | Dock de sessão: clima, eventos de cena, presença, iniciativa |
 | 7.5 | Janela de projetor com câmera publicada, moldura do tema e projeção filtrada |
 
@@ -136,7 +138,7 @@ Cada etapa que muda outro projeto só começa com autorização do usuário. A o
 | 9.1 | Mesa (hub) mínimo: campanhas, entidades, notas com `[[ligações]]`, inventário de aplicativos |
 | 9.2 | Ficha no contrato: arrastar ficha → token; cartão com PV/PD em pips e rolagens; `ficha.rolagem` flutuando sobre o token |
 | 9.3 | Ateliê: arrastar documento → pista; inspeção com luz UV; `atelie.abrir` para editar |
-| 9.4 | Jukebox: cena sonora por mapa, região e clima; `jukebox.tocar` ao entrar numa região |
+| 9.4 | Jukebox: cena sonora por mapa, região e clima; `jukebox.tocar` ao entrar numa região ou trocar de clima; efeitos da biblioteca do Jukebox nos interagíveis (se o Jukebox ganhar efeitos avulsos, com autorização) |
 | 9.5 | Mesa em modo sessão: Atlas, fichas e Jukebox lado a lado; roteiro e registro da sessão |
 | 9.6 | Tutoriais interativos das ferramentas principais |
 

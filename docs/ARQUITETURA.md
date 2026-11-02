@@ -8,13 +8,14 @@ Leia antes: [VISAO.md](VISAO.md).
 
 | Camada | Escolha | Observação |
 | --- | --- | --- |
-| Linguagem | JavaScript com módulos ES | Igual a Tabletop, Ficha e Ateliê |
+| Linguagem | **TypeScript 7** (`strict`), módulos ES | Tipos para o documento do mapa, a descrição de desenho, os comandos e o contrato da mesa. O Vite compila; `tsc --noEmit` checa |
 | Build | Vite 7 (o ecossistema resolve 7.3.6) | `base: './'` para o GitHub Pages |
 | Render | **PixiJS 8** | Batching de sprites, render targets, filtros e shaders próprios. Versão exata fixada no lockfile. **[spike]** confirmar desempenho com luz e névoa. |
-| Interface | DOM, CSS e templates, sem framework | Padrão do ecossistema |
+| Interface | **Preact 11 + @preact/signals**, JSX, CSS próprio (sem Tailwind) | API do React; os signals atualizam só o que mudou. Resolve a armadilha do `render()` completo da Ficha. `@preact/preset-vite` no build |
 | Persistência | IndexedDB, com exportar e importar backup em JSON | Padrão do Ateliê (`Atelie/src/data/backup.js`); banco interno com escopo de caminho (`atlas-v1:<caminho>`) |
 | Plataforma | `vendor/mesa-core/` (cópia com versão fixa) | Refs, banco da campanha, barramento, manifesto e tema de [PLATAFORMA.md](PLATAFORMA.md) |
-| Testes | `node --test` para domínio puro; Playwright para e2e, capturas e FPS | Padrão do Tabletop |
+| Testes | `node --test` (com o carregamento de TS do Node) para domínio puro; `tsc --noEmit`; Playwright para e2e, capturas e FPS | Padrão do Tabletop |
+| Versões | preact 11.0.1, @preact/signals 2.11.3, @preact/preset-vite 2.10.6, typescript 7.0.2, pixi.js 8.22.0, vite 7.3.6 | Fixadas no lockfile em 2 de novembro de 2026 |
 | Node | 22.12 ou superior | Exigência do Vite 7 |
 
 Sem servidor. Tudo roda no navegador.
@@ -25,7 +26,7 @@ Sem servidor. Tudo roda no navegador.
 Atlas/
   index.html
   src/
-    main.js
+    main.tsx
     app/          inicialização, modos Construir/Sessão, janela do projetor
     domain/       documento, validação, migrações, geometria, regras (puro, sem DOM nem Pixi)
     state/        store, comandos, undo/redo, rascunho
@@ -47,6 +48,13 @@ Atlas/
 ```
 
 Regra de dependência: `domain` não importa nada de `render`, `ui` ou Pixi. `authoring` e `session` produzem comandos; nunca mexem em sprites.
+
+Duas árvores, uma fonte de verdade:
+
+- **Mapa:** Pixi puro em `render/`, fora do Preact. Lê o store e redesenha só o que mudou.
+- **Interface:** componentes Preact em `ui/` (`.tsx`). Leem o store por signals derivados (`documento`, `selecao`, `ferramenta`, `clima`…) e alteram só por comandos.
+- O store de comandos (`state/`) é a ponte: nenhum componente mexe em sprite, e o render nunca mexe em DOM de painel.
+- Efeitos de jogo (`fx/`) ficam numa camada própria sobre a interface, como na Ficha, mas sem fila pós-render: um componente pode animar sem ser recriado.
 
 ## 3. Documento do mapa
 
@@ -73,7 +81,7 @@ Unidade de mundo: **metro**. Grid padrão: quadrados de **1,5 m**, configurável
                       wallStyle: null | 'box' | 'solid', palette: null, roof: { material, visible }, levelId: null } },
   walls:    { [id]: { path: [[x, y], ...], height: 2.6, thickness: 0.2, material, kind: 'wall'|'low'|'fence'|'cliff',
                       blocks: { move: true, sight: true, light: true }, source: { roomId } | null } },
-  openings: { [id]: { wallId, at: 0.42, width: 0.9, kind: 'door'|'window'|'arch'|'secret', state: 'closed'|'open'|'locked', material } },
+  openings: { [id]: { wallId, at: 0.42, width: 0.9, kind: 'door'|'window'|'arch'|'secret', state: 'closed'|'open'|'locked', material, som: Ref | null } },
   props:    { [id]: { source: { kind: 'recipe', recipe: 'mesa.madeira', seed, params }
                             | { kind: 'asset', assetId: 'casa:sofa-chesterfield' | 'import:<hash>' },
                       position, rotation, scale, elevation: 'floor'|'table'|'wall'|'ceiling',
@@ -281,9 +289,22 @@ O Atlas não faz pontes ponto a ponto. Ele fala o **contrato da mesa** ([PLATAFO
 | Campanha | Mapa com `campanhaId`; cômodos, regiões e tokens com `refs`; o Atlas cria entidades "lugar" e liga cômodos a pistas e personagens | PLATAFORMA.md §4 |
 | Ficha | Token com `Ref` da ficha; lê a ficha pelo que a Ficha publicar; escuta `ficha.rolagem` e `ficha.recursos` (rolagem flutua sobre o token); pede `ficha.abrir`. A Ficha continua dona dos dados. | PLATAFORMA.md §5; `Tabletop/docs/INTEGRACAO_FICHA.md` |
 | Ateliê | Pistas pelo banco `mesa-handouts-v1` e canal `mesa:handout` (contrato v1, sem mudança); pede `atelie.abrir` para editar | `Atelie/docs/plano/CONTRATO-TABLETOP.md` |
-| Jukebox | Mapa, região e clima com `Ref` de cena sonora; ao entrar numa região, emite `atlas.regiao-entrou` e pede `jukebox.tocar` | PLATAFORMA.md §5 |
+| Jukebox | Mapa, região e clima com `Ref` de cena sonora (as cenas do Jukebox já são mixagens de várias faixas com volume); ao entrar numa região ou trocar de clima, pede `jukebox.tocar` | PLATAFORMA.md §5 |
 | Mesa (hub) | Manifesto com rotas (`#/mapa/{id}`, `#/mapa/{mapa}/comodo/{id}`); atende `atlas.focar`; pode ser embutido no modo sessão | PLATAFORMA.md §6, §9 |
 | Tabletop 3D | Exportar paredes, aberturas, cômodos e luzes como mapa importável (futuro); a mesma entidade "lugar" liga os dois | — |
+
+### 8.1. Áudio do mapa
+
+Duas camadas, com donos diferentes:
+
+| Camada | Quem toca | Exemplos |
+| --- | --- | --- |
+| **Música e ambiente** (longos, em loop, mixados) | Jukebox, pelo pedido `jukebox.tocar { ref }` | Cena "Chuva forte" no clima Tempestade; "Biblioteca" ao entrar no cômodo |
+| **Efeitos de interação** (curtos, no momento da ação) | O próprio Atlas, com Web Audio | Porta rangendo, porta trancada, interruptor, gaveta, passos, trovão no relâmpago |
+
+- Os efeitos do Atlas vêm de uma biblioteca da casa: sons sintetizados (como o trovão do protótipo e os sons da Ficha) e arquivos com licença livre em `public/colecao/sons/`, registrados em `docs/LICENCAS.md`. O mestre pode trocar o som de cada interagível (`som: Ref`), inclusive por um arquivo seu.
+- Hoje os "efeitos" do Jukebox são filtros aplicados a trechos de músicas, não sons avulsos. Se um dia o Jukebox ganhar uma biblioteca de efeitos avulsos, `som` pode apontar para ela (pedido `jukebox.efeito`), com autorização.
+- Volume geral e por camada; os efeitos tocam no computador do mestre (o projetor não tem som próprio).
 
 Fora da mesma origem (desenvolvimento sem `mesa-dev`, domínio próprio), o Atlas cai para o caminho de janela + `postMessage`, com recursos reduzidos. Nenhum contrato existente muda sem mudar os dois lados.
 

@@ -159,11 +159,12 @@ Inspirado na Ficha Ordem II, que tem "parecer um jogo" como objetivo explícito 
 
 ### 8.3. Imersão na sessão
 
-- Luz dinâmica com sombras das paredes; lanternas e tochas dos tokens; tremulação de chamas.
+- Luz dinâmica com sombras das paredes: lamparinas, velas e lâmpadas iluminam em círculo; lanternas e holofotes, em cone. Cor, intensidade, alcance e abertura ajustáveis; tremulação de chamas.
 - Névoa com memória em esboço (§5.1) e revelação animada.
 - Tokens que andam: deslizam com trilha no Ilustrado e caminham como sprite no Pixel.
 - Telhados que somem quando um token entra.
-- Portas que abrem com animação e mudam a visão na hora.
+- Portas que abrem, fecham, trancam ou se revelam (secretas), com animação e som, mudando a visão na hora. Interruptores acendem e apagam as luzes do cômodo.
+- Som no lugar certo: o clima e o cômodo trocam a cena sonora do Jukebox; portas, interruptores e objetos tocam seus próprios efeitos.
 - Clima e partículas: chuva, neve, poeira, brasas, neblina, folhas.
 - Pincéis de presença com intensidade ao vivo (§5.3).
 - Eventos de cena acionados pelo mestre: troca de clima, apagão, relâmpago, tremor, falha na imagem.
