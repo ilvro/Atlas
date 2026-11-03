@@ -139,7 +139,8 @@ test('seletor de clima: chips, paleta, Alt+número, ajustes finos, clima salvo e
 });
 
 // ---- 4.3: luzes que reagem ao clima, relâmpago e janelas acesas ----
-const aplicarClimaPor = (p: Page, id: string) => sessao(p, `(s, id) => s.store.executar({ tipo: "clima.predefinir", id })`, id);
+/** Aplica o clima e espera a transição (1,6 s) terminar, para as medidas partirem do estado final. */
+const aplicarClimaPor = async (p: Page, id: string) => { await sessao(p, `(s, id) => s.store.executar({ tipo: "clima.predefinir", id })`, id); await p.waitForTimeout(1800); };
 const poluirLuz = (p: Page, itens: { id: string; x: number; y: number; power: string; color: string; radius?: number }[]) => sessao(p, `(s, itens) => { for (const i of itens) s.store.executar({ tipo: "item.adicionar", colecao: "lights", item: { id: i.id, position: [i.x, i.y], radius: i.radius ?? 7, color: i.color, intensity: 1, flicker: 0, cone: null, ownerId: null, power: i.power, on: true, nightOnly: false, preset: null } }); }`, itens);
 
 test('apagão: as lâmpadas de rede piscam e apagam; a vela continua acesa; voltar a energia religa', async () => {
@@ -301,5 +302,31 @@ test('neblina: cobre o terreno e entra menos na casa; some com fog 0 e sem atmos
   await tempoDe(page, { fog: 0.9 }); await page.click('[data-testid="aba-mapa"]'); await page.getByLabel('Ver atmosfera no editor').uncheck(); await page.waitForTimeout(600);
   const comNeblinaSemAtmosfera = await brilho(page, ...FORA); await tempoDe(page, { fog: 0 }); await page.waitForTimeout(400);
   assert.ok(Math.abs(comNeblinaSemAtmosfera - await brilho(page, ...FORA)) < 3, 'sem atmosfera no editor não há neblina');
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('transição: trocar de clima escurece aos poucos, e desfazer volta animando; ajuste fino não anima', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await casaNoGramado(page);
+  const predefinir = (id: string) => sessao(page, '(s, id) => s.store.executar({ tipo: "clima.predefinir", id })', id);
+  await predefinir('tarde'); await page.waitForTimeout(2200);
+  const dia = await brilho(page, ...FORA);
+  await predefinir('noite'); await page.waitForTimeout(100);
+  const meio = await brilho(page, ...FORA);
+  await page.waitForTimeout(2200);
+  const noite = await brilho(page, ...FORA);
+  assert.ok(noite < dia - 30, `a noite é bem mais escura (${dia.toFixed(1)} → ${noite.toFixed(1)})`);
+  assert.ok(meio < dia - 1 && meio > noite + 3, `no meio da transição ainda está entre os dois (${meio.toFixed(1)})`);
+  assert.equal((await documento(page)).climate.preset, 'noite', 'o documento já tinha mudado na hora');
+
+  await page.keyboard.press('Control+z'); await page.waitForTimeout(500);
+  const voltando = await brilho(page, ...FORA);
+  assert.ok(voltando > noite + 3 && voltando < dia - 3, `desfazer também anima (${voltando.toFixed(1)})`);
+  await page.waitForTimeout(2200);
+  assert.ok(Math.abs(await brilho(page, ...FORA) - dia) < 4, 'e termina no clima anterior');
+
+  // Ajuste fino (o inspetor): vale já no quadro seguinte.
+  await sessao(page, '(s) => s.store.executar({ tipo: "clima.aplicar", patch: { ambient: { color: "#000000", intensity: 0.05 } } })'); await page.waitForTimeout(150);
+  assert.ok(await brilho(page, ...FORA) < dia - 30, 'o ajuste fino não espera a transição');
   assert.deepEqual(erros, []); await ctx.close();
 });

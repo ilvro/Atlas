@@ -44,6 +44,13 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 - **2.7 `mesa-core` v1:** referências, barramento de eventos com pedidos e respostas, banco da campanha com regra de quem altera o quê, manifesto, tema compartilhado; publicado como JS + `.d.ts`.
 - **2.8 Plataforma:** `mesa.json`, rotas profundas (`#/mapa/{id}`, `#/mapa/{id}/comodo/{c}`), mapa ligado à campanha (entidade "lugar" que acompanha o nome e sobrevive à remoção do mapa), pedido `atlas.focar` atendido, `mesa-dev` (todos os projetos numa origem).
 
+### 4.5 Mistura e transição (3 de novembro) — concluída
+
+- **4.5a `misturar(a, b, t)`** (`domain/clima.ts`): números por lerp, cores por canal (o ambiente pela cor efetiva, que embute a intensidade), sol que aparece ou some muda só de intensidade com a cor do lado que tem sol, `gridPower` vira `rede` (0 a 1), `preset` e `time` do destino. 4 testes novos.
+- **4.5b Transição animada** (`render/viewport.ts`): o documento muda na hora e o viewport guarda o clima **exibido**, que caminha até ele em 1,6 s com `t²(3−2t)`. Luz, partículas, neblina e acabamento leem o exibido (`cena.atualizarAtmosfera` a cada quadro; `cena.sincronizar` ganhou a "visão do clima"). Só anima troca de `climate.preset` e desfazer/refazer; ajuste fino do inspetor vale na hora, e abrir mapa, movimento reduzido ou atmosfera desligada são instantâneos. O marcador das luzes no editor segue o documento.
+- Limites assumidos: o piscar do apagão continua sendo o da 4.3a (acionado pelo `gridPower` do destino; `rede` da mistura não é lido pelo render); `time` e "é noite" já valem o destino, então luzes só-noturnas ligam/desligam no início; o relâmpago sorteia de novo o intervalo enquanto a intensidade muda.
+- e2e novo: Tarde → Noite escurece aos poucos (o meio fica entre os dois), desfazer volta animando, ajuste fino não espera. Os testes antigos de 4.x agora esperam a transição acabar antes de medir (`aplicarClimaPor`).
+
 ### Validação
 
 - `tsc --noEmit` limpo; `npm run build` e `build:core` sem erros; o build funciona em qualquer caminho.
@@ -145,7 +152,7 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 
 ## Próximo
 
-Fase 4.5: mistura de climas e transição animada. Tarefas em [docs/plano/fase-4.md](docs/plano/fase-4.md); começar pela **4.1a**. Pendências da Fase 3 em [docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md).
+Fase 4.6: presença (pincel, render e pacotes). Tarefas em [docs/plano/fase-4.md](docs/plano/fase-4.md); começar pela **4.6a**. Pendências da Fase 3 em [docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md).
 
 ## Pendências
 

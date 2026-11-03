@@ -225,7 +225,7 @@ Testes: manual; FPS.
 Pronto quando: o clima "Neblina" cobre o terreno com névoa que se move devagar.
 Commit: animated fog
 
-### 4.5a — Mistura de climas  ⬜
+### 4.5a — Mistura de climas  ✅
 Objetivo: interpolar dois estados de clima + acabamento, para a transição.
 Depende de: 4.2a
 Ler: `spikes/estilos/src/climas.js` (`misturarClimas`).
@@ -236,7 +236,7 @@ Testes: `t = 0` é `a`, `t = 1` é `b`, meio-termo de cores; sol → nulo some s
 Pronto quando: testes passam.
 Commit: climate interpolation
 
-### 4.5b — Transição animada  ⬜
+### 4.5b — Transição animada  ✅
 Objetivo: trocar de clima anima luz, partículas, neblina e acabamento em ~1,6 s.
 Depende de: 4.5a, 4.3a, 4.4a
 Ler: `src/render/viewport.ts` (`aplicarAcabamento`, `aoQuadro`); `src/render/mapa-de-luz.ts`; `src/render/particulas.ts`.

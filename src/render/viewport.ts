@@ -1,5 +1,6 @@
 import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { celulasDoDisco, celulasEntre, decodificar } from '../domain/celulas.ts';
+import { misturar, type EstadoDeClima, type MisturaDeClima } from '../domain/clima.ts';
 import { copiasDe, novaLuz, novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
 import { comprimentoDaParede, contornoDoComodo, encaixarNaParede, encaixarObjetoDeParede, indiceDeCelulas, pontoNaParede, salaDaCelula } from '../domain/geometria.ts';
 import type { Abertura, MapaAtlas, Ponto } from '../domain/mapa.ts';
@@ -41,6 +42,9 @@ export interface PonteViewport {
   /** Mostrar o acabamento (vinheta, tinta…) no editor? */
   acabamento(): boolean;
 }
+
+/** Quanto dura a transição entre dois climas, em milissegundos. */
+const DURACAO_DA_TRANSICAO = 1600;
 
 export interface Viewport {
   readonly camera: Camera;
@@ -113,11 +117,36 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   mundo.addChild(area_, cena.raiz, grade, selecaoG, fantasmaC, laco);
   app.stage.addChild(mundo);
 
+  // ---------- Transição de clima ----------
+  // O documento muda na hora; o que a cena exibe (luz, partículas, neblina, acabamento) caminha até ele em DURACAO_DA_TRANSICAO.
+  let transicao: { de: EstadoDeClima; alvo: EstadoDeClima; inicio: number } | null = null;
+  let exibido: MisturaDeClima | null = null;      // o estado misturado agora; null quando o exibido é o próprio documento
+  const estadoDoDoc = (m: MapaAtlas): EstadoDeClima => ({ climate: m.climate, finish: m.finish });
+  /** O clima que a cena exibe agora, em forma de estado (a rede ainda é ligada ou não: o piscar da queda é da luz). */
+  let vistoDoDoc: EstadoDeClima = estadoDoDoc(doc());      // o clima do documento no último evento (o `doc()` já é o novo quando o evento chega)
+  const estadoExibido = (): EstadoDeClima => exibido ? { climate: { ...exibido.climate, gridPower: doc().climate.gridPower }, finish: exibido.finish } : vistoDoDoc;
+  /** O documento visto com o clima exibido (o próprio documento quando não há transição). */
+  const visaoDoClima = (m: MapaAtlas): MapaAtlas => exibido ? { ...m, ...estadoExibido() } : m;
+  const suave = (t: number) => t * t * (3 - 2 * t);
+
   function aplicarAcabamento(): void {
-    const m = doc(), ligado = ponte.acabamento() && m.finish.preset !== 'nenhum';
+    const m = doc(), finish = (exibido ?? m).finish, ligado = ponte.acabamento() && (finish.preset !== 'nenhum' || exibido !== null);
     cena.definirAtmosfera(ponte.acabamento());
     cena.raiz.filters = ligado ? [acabamento.filtro] : [];
-    if (ligado) acabamento.aplicar(m.finish, performance.now() / 1000);
+    if (ligado) acabamento.aplicar(finish, performance.now() / 1000);
+  }
+
+  function pararTransicao(): void { transicao = null; exibido = null; }
+  function iniciarTransicao(de: EstadoDeClima, m: MapaAtlas): void {
+    transicao = { de, alvo: estadoDoDoc(m), inicio: performance.now() };
+    exibido = misturar(de, transicao.alvo, 0);
+  }
+  function passoDaTransicao(agora: number): void {
+    if (!transicao) return;
+    const t = Math.min(1, (agora - transicao.inicio) / DURACAO_DA_TRANSICAO), m = doc();
+    if (t >= 1) { pararTransicao(); cena.atualizarAtmosfera(m); aplicarAcabamento(); return; }
+    exibido = misturar(transicao.de, transicao.alvo, suave(t));
+    cena.atualizarAtmosfera(visaoDoClima(m)); aplicarAcabamento();
   }
 
   function desenharBase(m: MapaAtlas): void {
@@ -247,6 +276,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   function redesenharTudo(): void {
     const m = doc();
+    pararTransicao(); vistoDoDoc = estadoDoDoc(m);
     desenharBase(m); desenharGrade(); desenharSelecao(); desenharLaco(); desenharFantasma(); aplicarAcabamento();
     cena.sincronizar(m, null, false);
   }
@@ -256,8 +286,15 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (e.mudancas.completo) { redesenharTudo(); if (e.tipo === 'substituir') enquadrarMapa(); return; }
     const mud = e.mudancas;
     if (mud.campos.some(c => ['backdrop', 'bounds', 'grid'].includes(c))) desenharBase(e.documento);
+    if (mud.campos.includes('climate') || mud.campos.includes('finish')) {
+      // Só troca de clima (ou desfazer e refazer) anima; arrastar um controle fino do inspetor acompanha na hora.
+      const antes = estadoExibido(), trocou = antes.climate.preset !== e.documento.climate.preset || e.tipo === 'desfazer' || e.tipo === 'refazer';
+      if (trocou && ponte.acabamento() && fxAtivo()) iniciarTransicao(antes, e.documento); else pararTransicao();
+    }
     if (mud.campos.includes('finish')) aplicarAcabamento();
-    cena.sincronizar(e.documento, mud, e.tipo === 'executar' || e.tipo === 'refazer');
+    cena.sincronizar(e.documento, mud, e.tipo === 'executar' || e.tipo === 'refazer', visaoDoClima(e.documento));
+    if (transicao) aplicarAcabamento();
+    vistoDoDoc = estadoDoDoc(e.documento);
     camadaSuja = true;
   }
   const cancelarAssinatura = store.assinar(aoEvento);
@@ -501,7 +538,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   // ---------- Laço do desenho ----------
   const aoQuadro = () => {
     cena.quadro(performance.now());
-    if (doc().finish.grain > 0 && cena.raiz.filters?.length) acabamento.aplicar(doc().finish, performance.now() / 1000);
+    if (transicao) passoDaTransicao(performance.now());
+    else if (doc().finish.grain > 0 && cena.raiz.filters?.length) acabamento.aplicar(doc().finish, performance.now() / 1000);
     if (!camadaSuja) return;
     camadaSuja = false;
     desenharGrade(); desenharSelecao(); desenharLaco(); desenharFantasma(); cursor();

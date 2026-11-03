@@ -30,7 +30,9 @@ export interface OpcoesDaCena {
 export interface Cena {
   readonly raiz: Container;
   /** `mudancas === null` refaz tudo. */
-  sincronizar(m: MapaAtlas, mudancas: Mudancas | null, comPop: boolean): void;
+  sincronizar(m: MapaAtlas, mudancas: Mudancas | null, comPop: boolean, visaoDoClima?: MapaAtlas): void;
+  /** Só a atmosfera (luz, neblina, partículas) com o clima de `visao`: o que a transição de clima chama a cada quadro. */
+  atualizarAtmosfera(visao: MapaAtlas): void;
   /** Avança as animações de entrada e a tremulação das luzes. */
   quadro(agora: number): void;
   /** A atmosfera (luz, sombras) aparece? É do editor, não do mapa. */
@@ -262,20 +264,25 @@ export function criarCena(op: OpcoesDaCena): Cena {
   return {
     raiz,
     get pintando() { return pintandoAgora + op.baker.pendentes; },
-    sincronizar(m, mud, comPop) {
+    sincronizar(m, mud, comPop, visaoDoClima) {
       mapa = m;
       const tudo = !mud || mud.completo, campos = (...c: string[]) => tudo || c.some(x => mud!.campos.includes(x)), colecao = (c: string) => tudo || !!(mud!.colecoes as Record<string, unknown>)[c];
       if (campos('terrain', 'bounds', 'grid', 'backdrop')) sincronizarTerreno(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid')) sincronizarComodos(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid')) desenharParedes(m);
       if (tudo || colecao('props')) sincronizarObjetos(m, tudo ? null : mud!.colecoes.props ?? null, comPop);
-      luz.sincronizar(m, mud); neblina.sincronizar(m, mud); particulas.sincronizar(m, mud);
+      const v = visaoDoClima ?? m;
+      luz.sincronizar(v, mud); neblina.sincronizar(v, mud); particulas.sincronizar(v, mud);
       // Os marcadores das luzes também refletem o clima (apagada pela rede ou pelo dia), então refazem quando ele muda.
       if (tudo || colecao('lights') || campos('climate')) sincronizarSimples(luzes, luzesC, m.lights, tudo || campos('climate') ? null : mud!.colecoes.lights ?? null, (c, l) => desenharLuz(c, l, m), comPop);
       if (tudo || colecao('tokens') || campos('grid')) sincronizarSimples(pecas, pecasC, m.tokens, tudo || campos('grid') ? null : mud!.colecoes.tokens ?? null, (c, t) => desenharPeca(c, t, m), comPop);
       if (tudo || colecao('regions')) sincronizarSimples(regioes, regioesC, m.regions, tudo ? null : mud!.colecoes.regions ?? null, desenharRegiao, comPop);
       if (tudo || campos('backdrop', 'bounds')) sincronizarTitulo(m);
       op.baker.coletar(chavesEmUso());
+    },
+    atualizarAtmosfera(visao) {
+      const mud: Mudancas = { completo: false, colecoes: {}, campos: ['climate'] };
+      luz.sincronizar(visao, mud); neblina.sincronizar(visao, mud); particulas.sincronizar(visao, mud);
     },
     definirAtmosfera: ligada => { luz.definirLigado(ligada); neblina.definirLigado(ligada); particulas.definirLigado(ligada); },
     relampagoAgora: () => luz.relampagoAgora(),

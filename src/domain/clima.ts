@@ -1,6 +1,6 @@
 import { ErroDeValidacao } from './esquema.ts';
 import { arestasDeParede, centroDaAbertura, comodoEm, indiceDeCelulas, pontoNaParede, salasDaAbertura } from './geometria.ts';
-import type { Clima, Luz, MapaAtlas } from './mapa.ts';
+import type { Acabamento, Clima, Luz, MapaAtlas } from './mapa.ts';
 
 /** O céu de um horário: de onde vem a luz (sol ou lua), o ambiente sugerido e se é noite. Tudo derivado, nunca gravado. */
 export interface Ceu { sun: NonNullable<Clima['sun']>; ambient: Clima['ambient']; noite: boolean }
@@ -113,4 +113,35 @@ export function luzesDerivadas(m: MapaAtlas): Luz[] {
     }
   }
   return saida;
+}
+
+// ---------- Mistura de climas ----------
+/** O clima e o acabamento de um momento: o que a transição interpola. */
+export interface EstadoDeClima { climate: Clima; finish: Acabamento }
+/** O resultado de `misturar`: igual ao estado, mas a energia da rede é um número de 0 a 1 (`rede`), para a luz poder esmaecer. */
+export interface MisturaDeClima { climate: Omit<Clima, 'gridPower'> & { rede: number }; finish: Acabamento }
+
+const mistura = (a: Cor, b: Cor, t: number) => lerpCor(a, b, t);
+const corMisturada = (a: string, b: string, t: number): string => hex(mistura(canaisDe(a), canaisDe(b), t));
+const efetiva = (a: Clima['ambient']): Cor => canaisDe(a.color).map(v => v * a.intensity) as Cor;
+
+/**
+ * Interpola dois estados: de `a` (t = 0) a `b` (t = 1). Números por `lerp`, cores por canal (o ambiente pela cor efetiva, que já embute a intensidade),
+ * sol que aparece ou some só muda de intensidade (com a cor do lado que tem sol), `rede` vai de 0 a 1; `preset` e `time` já são os do destino.
+ */
+export function misturar(a: EstadoDeClima, b: EstadoDeClima, t: number): MisturaDeClima {
+  t = Math.min(1, Math.max(0, t));
+  const ca = a.climate, cb = b.climate, fa = a.finish, fb = b.finish;
+  const sun: Clima['sun'] = !ca.sun && !cb.sun ? null
+    : !ca.sun ? { ...cb.sun!, intensity: lerp(0, cb.sun!.intensity, t) }
+    : !cb.sun ? { ...ca.sun, intensity: lerp(ca.sun.intensity, 0, t) }
+    : { angle: lerp(ca.sun.angle, cb.sun.angle, t), color: corMisturada(ca.sun.color, cb.sun.color, t), intensity: lerp(ca.sun.intensity, cb.sun.intensity, t) };
+  const weather = Object.fromEntries((Object.keys(cb.weather) as (keyof Clima['weather'])[]).map(k => [k, lerp(ca.weather[k], cb.weather[k], t)])) as unknown as Clima['weather'];
+  return {
+    climate: { preset: cb.preset, ambient: ambienteDaCor(mistura(efetiva(ca.ambient), efetiva(cb.ambient), t)), sun, time: cb.time, weather, rede: lerp(ca.gridPower ? 1 : 0, cb.gridPower ? 1 : 0, t) },
+    finish: {
+      preset: fb.preset, texture: lerp(fa.texture, fb.texture, t), vignette: lerp(fa.vignette, fb.vignette, t), saturation: lerp(fa.saturation, fb.saturation, t), grain: lerp(fa.grain, fb.grain, t),
+      tint: corMisturada(fa.tint, fb.tint, t), grade: { lift: lerp(fa.grade.lift, fb.grade.lift, t), gamma: lerp(fa.grade.gamma, fb.grade.gamma, t), gain: lerp(fa.grade.gain, fb.grade.gain, t) },
+    },
+  };
 }

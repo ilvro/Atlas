@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { codificar } from '../../src/domain/celulas.ts';
-import { ceuNoHorario, curvaDoClarao, ehNoite, intervaloDoRelampago, lerHorario, luzesDerivadas, nivelDaLuz, piscarDaQueda, piscarDaVolta } from '../../src/domain/clima.ts';
+import { ceuNoHorario, curvaDoClarao, ehNoite, intervaloDoRelampago, lerHorario, luzesDerivadas, misturar, nivelDaLuz, piscarDaQueda, piscarDaVolta } from '../../src/domain/clima.ts';
 import { recalcularParedes } from '../../src/domain/geometria.ts';
+import { PRESETS_DE_CLIMA } from '../../src/domain/presets.ts';
 import { criarMapa, type Abertura, type Comodo, type Luz, type MapaAtlas } from '../../src/domain/mapa.ts';
 import { ErroDeValidacao } from '../../src/domain/esquema.ts';
 
@@ -172,4 +173,45 @@ test('a janela acesa usa a cor média das luzes do cômodo', () => {
   const m = casa(sala('a', 2, 2, 4, 4)); janela(m, parede(m, p => p.every(q => q[1] === 3)).id);
   m.climate.time = '22:00'; m.lights.a = lamp({ id: 'a', color: '#ff0000' }); m.lights.b = lamp({ id: 'b', color: '#0000ff', position: [5, 5] });
   assert.equal(luzesDerivadas(m).find(l => l.id === 'janela-fora:j')!.color, '#800080');
+});
+
+// ---------- Mistura de climas ----------
+const estado = (id: string) => { const p = PRESETS_DE_CLIMA.find(x => x.id === id)!; return { climate: { ...p.climate, preset: id }, finish: p.finish }; };
+
+test('misturar: t = 0 é o clima de origem e t = 1 é o de destino', () => {
+  const a = estado('tarde'), b = estado('tempestade');
+  const m0 = misturar(a, b, 0), m1 = misturar(a, b, 1);
+  assert.equal(m0.climate.weather.rain, a.climate.weather.rain); assert.equal(m1.climate.weather.rain, b.climate.weather.rain);
+  assert.equal(m1.climate.preset, 'tempestade'); assert.equal(m1.climate.time, b.climate.time);
+  assert.equal(m0.finish.vignette, a.finish.vignette); assert.equal(m1.finish.vignette, b.finish.vignette);
+  assert.ok(Math.abs(brilho(m0.climate) - brilho(a.climate)) < 0.01 && Math.abs(brilho(m1.climate) - brilho(b.climate)) < 0.01);
+  assert.equal(m0.finish.tint, a.finish.tint); assert.equal(m1.finish.tint, b.finish.tint);
+});
+
+test('misturar: o meio-termo fica entre os dois (ambiente, chuva, tinta)', () => {
+  const a = estado('tarde'), b = estado('noite'), m = misturar(a, b, 0.5);
+  const x = brilho(m.climate);
+  assert.ok(x < brilho(a.climate) && x > brilho(b.climate));
+  const c = misturar({ ...a, finish: { ...a.finish, tint: '#000000' } }, { ...b, finish: { ...b.finish, tint: '#ffffff' } }, 0.5);
+  assert.equal(c.finish.tint, '#808080');
+  const chuva = misturar({ ...a, climate: { ...a.climate, weather: { ...a.climate.weather, rain: 0 } } }, { ...b, climate: { ...b.climate, weather: { ...b.climate.weather, rain: 1 } } }, 0.25);
+  assert.ok(Math.abs(chuva.climate.weather.rain - 0.25) < 1e-9);
+});
+
+test('misturar: o sol que some (ou aparece) muda só de intensidade, com a cor do lado que tem sol', () => {
+  const a = estado('tarde'), b = { ...estado('noite'), climate: { ...estado('noite').climate, sun: null } };
+  assert.ok(a.climate.sun);
+  const meio = misturar(a, b, 0.5).climate.sun!;
+  assert.equal(meio.color, a.climate.sun!.color); assert.ok(Math.abs(meio.intensity - a.climate.sun!.intensity / 2) < 1e-9);
+  assert.equal(misturar(a, b, 1).climate.sun!.intensity, 0);
+  const volta = misturar(b, a, 0.5).climate.sun!;
+  assert.equal(volta.color, a.climate.sun!.color); assert.ok(Math.abs(volta.intensity - a.climate.sun!.intensity / 2) < 1e-9);
+  assert.equal(misturar(b, b, 0.5).climate.sun, null);
+});
+
+test('misturar: a energia da rede vira um número de 0 a 1', () => {
+  const a = estado('tarde'), b = estado('apagao');
+  assert.equal(a.climate.gridPower, true); assert.equal(b.climate.gridPower, false);
+  assert.equal(misturar(a, b, 0).climate.rede, 1); assert.equal(misturar(a, b, 0.25).climate.rede, 0.75); assert.equal(misturar(a, b, 1).climate.rede, 0);
+  assert.equal(misturar(a, b, 7).climate.rede, 0);
 });
