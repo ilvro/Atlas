@@ -4,6 +4,7 @@ import { ErroDeValidacao } from '../domain/esquema.ts';
 import { clonar, produzir } from './imutavel.ts';
 import type { Acabamento, Clima, Estilo, Fundo, Grade, Memoria, MapaAtlas, NomeColecao, Ponto } from '../domain/mapa.ts';
 import { atualizarSalasDosObjetos } from '../domain/geometria.ts';
+import { anguloDoMovimento, bloqueioNoCaminho, centroDaCelula, ladoDoMovimento } from '../domain/movimento.ts';
 import { presetDeClima } from '../domain/presets.ts';
 import { validarMapa } from '../domain/validacao.ts';
 import { aplicarConstrucao, ehComandoDeConstrucao, ErroDeComando, ROTULOS_CONSTRUIR, type ComandoConstruir, type ParcialProfundo } from './comandos-construir.ts';
@@ -37,7 +38,11 @@ export type Comando =
   | { tipo: 'item.remover'; colecao: ColecaoLivre; id: string }
   /** Uma sugestão do assistente aceita: vários comandos como UMA entrada de histórico. Não aninha. */
   | { tipo: 'proposta.aceitar'; rotulo: string; comandos: Comando[] }
-  | { tipo: 'selecao.mover'; alvos: AlvoMovel[]; delta: Ponto };
+  | { tipo: 'selecao.mover'; alvos: AlvoMovel[]; delta: Ponto }
+  /** Anda com uma peça: encaixa no centro da célula e recusa atravessar parede ou porta fechada (a menos que `livre`). */
+  | { tipo: 'peca.mover'; id: string; para: Ponto; livre?: boolean }
+  /** Gira o cone da lanterna da peça para `direcao` (rad), sem mover a peça. */
+  | { tipo: 'peca.virar'; id: string; direcao: number };
 
 const nao = (msg: string): never => { throw new ErroDeComando(msg); };
 
@@ -152,6 +157,27 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       atualizarSalasDosObjetos(m);
       break;
     }
+    case 'peca.mover': {
+      const t = m.tokens[c.id] ?? nao(`A peça “${c.id}” não existe.`);
+      if (!c.para.every(Number.isFinite)) nao('Destino inválido.');
+      const destino = centroDaCelula(m, c.para), de: Ponto = [t.position[0], t.position[1]];
+      if (destino[0] < 0 || destino[1] < 0 || destino[0] > m.bounds.width || destino[1] > m.bounds.height) nao('Fora do mapa.');
+      if (Math.hypot(destino[0] - de[0], destino[1] - de[1]) < 1e-6) break;
+      if (!c.livre) { const motivo = bloqueioNoCaminho(m, de, destino); if (motivo) nao(motivo); }
+      t.position = destino; t.facing = ladoDoMovimento(de, destino);
+      // A lanterna vai junto e aponta para onde a peça andou.
+      const luz = t.lightId ? m.lights[t.lightId] : undefined;
+      if (luz) { luz.position = [destino[0], destino[1]]; if (luz.cone) luz.cone.direction = anguloDoMovimento(de, destino); }
+      break;
+    }
+    case 'peca.virar': {
+      const t = m.tokens[c.id] ?? nao(`A peça “${c.id}” não existe.`);
+      if (!Number.isFinite(c.direcao)) nao('Direção inválida.');
+      const luz = t.lightId ? m.lights[t.lightId] : undefined;
+      if (!luz?.cone) nao('Esta peça não carrega uma lanterna.');
+      else luz.cone.direction = c.direcao;
+      break;
+    }
     default: { const _fim: never = c; nao(`Comando desconhecido: ${JSON.stringify(_fim)}`); }
   }
 }
@@ -175,7 +201,7 @@ export const ROTULOS: Record<Comando['tipo'], string> = {
   'mapa.renomear': 'Renomear mapa', 'mapa.notas': 'Editar notas', 'mapa.campanha': 'Ligar à campanha', 'grade.atualizar': 'Ajustar grade',
   'limites.atualizar': 'Redimensionar mapa', 'estilo.atualizar': 'Mudar estilo', 'clima.aplicar': 'Mudar clima', 'clima.predefinir': 'Aplicar clima', 'clima.salvar': 'Salvar clima', 'clima.esquecer': 'Esquecer clima', 'clima.audio': 'Som do clima', 'acabamento.atualizar': 'Ajustar acabamento',
   'fundo.atualizar': 'Ajustar fundo', 'memoria.atualizar': 'Ajustar memória', 'item.adicionar': 'Adicionar', 'item.atualizar': 'Editar',
-  'item.remover': 'Remover', 'selecao.mover': 'Mover', 'proposta.aceitar': 'Aceitar sugestão',
+  'item.remover': 'Remover', 'selecao.mover': 'Mover', 'peca.mover': 'Mover peça', 'peca.virar': 'Virar a lanterna', 'proposta.aceitar': 'Aceitar sugestão',
 };
 
 export type { NomeColecao };

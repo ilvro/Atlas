@@ -259,9 +259,20 @@ Nada disso é erro de lógica: é densidade e acabamento do acervo, que cresce c
 - Os enfeites de mesa são postos em posição sorteada sobre o móvel: não há ainda arrumação (alinhados, em bandeja) nem se sabe a altura do móvel.
 - O estilo Pixel (Fase 8) ainda não rasteriza as descrições dos geradores pesados.
 
+## Fase 7 — Sessão (em andamento: 7.0a, 7.0b e 7.1 feitas, a pedido; o resto da fase não foi começado)
+
+- **7.0b Documento v5** — `Peca.player`, `Objeto.interaction`, `Sessao.explored` (células + resolução); migração `de4para5`, validação (luz inexistente em `targets`, `res` 0,25–2) e `assetsDoMapa` sem o explorado. Commit: `document v5 for session`.
+- **7.0a Modos Construir e Sessão** — `app/modo.ts`, chave no cabeçalho, atalho `M`, faixa "SESSÃO"; na sessão somem biblioteca, pílula, fantasma e ferramentas de construir, e a paleta só oferece o que vale. Abrir outro mapa volta a Construir. Commit: `build and session modes`.
+- **7.1a Peça com retrato, tamanho e estado** — `domain/figuras.ts` (`aparenciaDoEstado`), `render/pecas.ts`, `render/retratos.ts` (blob do IndexedDB → textura própria, em cache, solta ao fechar o mapa); inspetor com retrato (reduzido a 256 px), jogador, tamanho, visão e estado. Commit: `tokens with portrait, size and state`.
+- **7.1b Movimento com trilha** — `domain/movimento.ts` (`centroDaCelula`, `bloqueioNoCaminho`, `ladoDoMovimento`); `oclusores(m, 'movimento')` reaproveita os vãos de arco e porta aberta; comando `peca.mover` (uma entrada "Mover peça", `livre` com Alt); na sessão o arrasto mostra o caminho verde/vermelho e as setas andam uma célula; a peça desliza (160 ms por célula, no máximo 600 ms) e deixa uma trilha pontilhada de 2 s (só com animações ligadas). Commit: `token movement with trail`.
+- **7.1c Lanterna da peça** — campo "Lanterna" (nenhuma, lanterna, lamparina, vela) cria/troca/remove a luz numa transação; `peca.mover` leva a luz e aponta o cone para o movimento; `peca.virar` com `Q`/`E` (45°) na sessão. Commit: `token lantern follows movement`.
+- **Validação:** `tsc` limpo; testes unitários `figuras`, `movimento` (10) e `dominio`; e2e `fase7` (modos ×2, retrato/estado, movimento com parede, porta fechada, porta aberta e Alt, lanterna).
+- **Desvios:** na sessão só as peças se movem e ajustam (o resto só se seleciona); `FERRAMENTAS_DA_SESSAO` ainda sem a régua (7.3b).
+- **Pendente da fase:** 7.2 em diante (visão e névoa, portas e régua, iniciativa, dock, projetor, interagíveis, validação 7.7).
+
 ## Próximo
 
-A Fase 6 está concluída, menos a 6.2b (importar os achados), que espera a sua decisão sobre [docs/curadoria.md](docs/curadoria.md). Próximo: Fase 7 ([docs/plano/fase-7.md](docs/plano/fase-7.md)); detalhar com o Opus antes de começar. Da Fase 3 só resta a P3c ([docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md)).
+A Fase 7 está em andamento (7.0a, 7.0b e 7.1 feitas; começar pela 7.2a ou 7.5a). A Fase 6 está concluída, menos a 6.2b (importar os achados), que espera a sua decisão sobre [docs/curadoria.md](docs/curadoria.md). Próximo: Fase 7 ([docs/plano/fase-7.md](docs/plano/fase-7.md)); detalhar com o Opus antes de começar. Da Fase 3 só resta a P3c ([docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md)).
 
 ## Pendências
 

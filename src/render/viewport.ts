@@ -14,10 +14,12 @@ import type { EventoStore, Gesto, Store } from '../state/store.ts';
 import { criarFiltroAcabamento } from './acabamento.ts';
 import { enquadrar as calcularEnquadre, mundoParaTela, panear, telaParaMundo, zoomEm, type Camera, type Tela } from './camera.ts';
 import { RES_OBJETO, criarCena, type Cena } from './cena.ts';
+import { bloqueioNoCaminho, centroDaCelula } from '../domain/movimento.ts';
 import { hexParaNumero } from './cores.ts';
 import { chaveDoObjeto, pedidoDoObjeto } from './entradas.ts';
 import { texturaPropria } from './textura-propria.ts';
 import { criarFantasmaDeProposta } from './fantasma-proposta.ts';
+import { criarRetratos } from './retratos.ts';
 import { deltaEncaixado, encaixar, linhasDaGrade } from './grade.ts';
 import { LARGURA_DA_ABERTURA, type Ferramenta, type Pincel } from './pincel.ts';
 import { alvoEm, alvosNaCaixa, alvosNoLaco, caixaDaSelecao, caixaDe, combinarSelecao, ehMovel, mesmoAlvo, type Alvo, type Caixa } from './selecao.ts';
@@ -44,6 +46,10 @@ export interface PonteViewport {
   aoCamera?(c: Camera): void;
   /** Mostrar o acabamento (vinheta, tinta…) no editor? */
   acabamento(): boolean;
+  /** Lê a imagem guardada de um retrato (pelo id do asset). */
+  lerRetrato?(id: string): Promise<Blob | null>;
+  /** Na sessão, arrastar uma peça a leva de célula em célula e as outras coisas só se selecionam. */
+  emSessao?(): boolean;
 }
 
 /** Quanto dura a transição entre dois climas, em milissegundos. */
@@ -72,6 +78,8 @@ export interface Viewport {
   contagemDePresencas(): number;
   /** Quantos objetos de piso já têm a textura pintada (para os testes). */
   objetosPintados(): number;
+  /** Para os testes: como cada peça está desenhada. */
+  diagnosticoDasPecas(): ReturnType<Cena['diagnosticoDasPecas']>;
   /** Mostra, translúcido, o que `previa` acrescenta ao documento; `null` limpa. Quem chamou recalcula se o documento mudar. */
   mostrarProposta(previa: MapaAtlas | null): void;
   contagemDoFantasma(): number;
@@ -84,6 +92,7 @@ const COR_PADRAO_ACENTO = 0xe91d25;
 type Interacao =
   | { tipo: 'pan'; botao: number; x0: number; y0: number; camera0: Camera; moveu: boolean }
   | { tipo: 'mover'; hit: Alvo; alvos: Alvo[]; origem: Ponto; ref: Ponto; aplicado: Ponto; gesto: Gesto | null; x0: number; y0: number; estavaNaSelecao: boolean; ctrl: boolean }
+  | { tipo: 'peca'; id: string; de: Ponto; para: Ponto; motivo: string | null; livre: boolean; x0: number; y0: number; moveu: boolean }
   | { tipo: 'deslizar'; id: string; gesto: Gesto | null; x0: number; y0: number }
   | { tipo: 'retangulo'; ini: Ponto; atual: Ponto; modo: 'trocar' | 'somar'; x0: number; y0: number; moveu: boolean }
   | { tipo: 'laco'; pontos: Ponto[]; modo: 'trocar' | 'somar' }
@@ -121,7 +130,11 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const acento = (): number => { const v = getComputedStyle(document.documentElement).getPropertyValue('--acento').trim(); return /^#[0-9a-f]{6}$/i.test(v) ? hexParaNumero(v) : COR_PADRAO_ACENTO; };
   const px = (n: number) => n / camera.zoom;
 
-  const cena: Cena = criarCena({ baker, renderer: app.renderer, acento, efeitos: fxAtivo, aoPintar: () => { camadaSuja = true; } });
+  const retratos = criarRetratos(async id => (await ponte.lerRetrato?.(id)) ?? null, () => {
+    // Chegou um retrato: redesenha as peças (só as peças, sem refazer o resto).
+    if (destruido) return; const m = doc(); cena.sincronizar(m, { completo: false, colecoes: { tokens: Object.keys(m.tokens) }, campos: [] }, false, visaoDoClima(m)); camadaSuja = true;
+  });
+  const cena: Cena = criarCena({ baker, renderer: app.renderer, acento, efeitos: fxAtivo, aoPintar: () => { camadaSuja = true; }, retrato: id => retratos.obter(id) });
   const acabamento = criarFiltroAcabamento();
   fantasmaC.addChild(fantasmaG);
   const fantasmaDaProposta = criarFantasmaDeProposta({ baker, acento, efeitos: fxAtivo });
@@ -210,6 +223,10 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       const t = m.grid.size, cor2 = interacao.apagar ? 0xff6b6b : cor;
       for (const [x, y] of retanguloDeCelulas(m, interacao.ini, interacao.atual)) laco.rect(m.grid.offset[0] + x * t, m.grid.offset[1] + y * t, t, t);
       laco.fill({ color: cor2, alpha: 0.28 }).stroke({ width: px(1), color: cor2, alpha: 0.6 });
+    } else if (interacao?.tipo === 'peca' && interacao.moveu) {
+      const { de, para, motivo, livre } = interacao, t = m.grid.size, cor3 = motivo ? 0xe0342c : livre ? 0xd9a23b : 0x3fb950;
+      laco.rect(para[0] - t / 2, para[1] - t / 2, t, t).fill({ color: cor3, alpha: 0.22 }).stroke({ width: px(1.5), color: cor3, alpha: 0.9 });
+      laco.moveTo(de[0], de[1]).lineTo(para[0], para[1]).stroke({ width: px(2.5), color: cor3, alpha: 0.9, cap: 'round' });
     } else if (interacao?.tipo === 'parede') {
       laco.moveTo(interacao.ini[0], interacao.ini[1]).lineTo(interacao.fim[0], interacao.fim[1]).stroke({ width: 0.2, color: cor, alpha: 0.75, cap: 'round' });
       for (const q of [interacao.ini, interacao.fim]) laco.circle(q[0], q[1], px(5)).fill(0xffffff).stroke({ width: px(1.5), color: cor });
@@ -266,7 +283,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       return;
     }
     // Objeto de piso: o desenho de verdade, pela mesma fila de pintura dos objetos postos.
-    const falso = { id: 'f', source: ACERVO.fonte(receita.id, sementeAtual(), pincel.objeto.params), position: p, rotation: 0, scale: 1, elevation: 'floor' as const, wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true };
+    const falso = { id: 'f', source: ACERVO.fonte(receita.id, sementeAtual(), pincel.objeto.params), position: p, rotation: 0, scale: 1, elevation: 'floor' as const, wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true, interaction: null };
     const chave = chaveDoObjeto(falso, RES_OBJETO, m.style.genre), pedido = pedidoDoObjeto(falso, RES_OBJETO, m.style.genre);
     if (chave && pedido && chave !== fantasmaChave) {
       fantasmaChave = chave;
@@ -324,7 +341,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const posicaoDe = (m: MapaAtlas, a: Alvo): Ponto => a.colecao === 'regions' ? m.regions[a.id]!.polygon[0]! : (m[a.colecao as ColecaoLivre] as Record<string, { position: Ponto }>)[a.id]!.position;
   const cursor = () => {
     const f = ponte.ferramenta();
-    canvas.style.cursor = interacao?.tipo === 'pan' ? 'grabbing' : (f === 'mao' || espaco) ? 'grab' : f === 'selecionar' ? (interacao?.tipo === 'mover' || interacao?.tipo === 'deslizar' ? 'move' : 'default') : 'crosshair';
+    canvas.style.cursor = interacao?.tipo === 'pan' ? 'grabbing' : (f === 'mao' || espaco) ? 'grab' : f === 'selecionar' ? (interacao?.tipo === 'mover' || interacao?.tipo === 'peca' || interacao?.tipo === 'deslizar' ? 'move' : 'default') : 'crosshair';
   };
   const tentar = (fazer: () => void): boolean => { try { fazer(); return true; } catch (erro) { ponte.aviso(erro instanceof Error ? erro.message.replace(/^O comando deixaria o mapa inválido — /, '') : String(erro)); return false; } };
 
@@ -452,6 +469,18 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     const p = mundoDe(e);
     if (f !== 'selecionar') { colocar(e, p); cursor(); camadaSuja = true; return; }
     const hit = alvoEm(m, p, px(8)), sel = ponte.selecao();
+    if (ponte.emSessao?.()) {
+      // Na sessão só as peças andam; o resto apenas se seleciona.
+      if (hit?.colecao === 'tokens' && !e.shiftKey) {
+        ponte.definirSelecao([hit]);
+        const t = m.tokens[hit.id]; if (!t) return;
+        interacao = { tipo: 'peca', id: hit.id, de: [t.position[0], t.position[1]], para: [t.position[0], t.position[1]], motivo: null, livre: e.altKey, x0: tx, y0: ty, moveu: false };
+        cursor(); return;
+      }
+      if (hit) { ponte.definirSelecao(e.shiftKey ? combinarSelecao(sel, [hit], 'alternar') : [hit]); return; }
+      if (sel.length) ponte.definirSelecao([]);
+      return;
+    }
     if (hit) {
       const naSelecao = sel.some(a => mesmoAlvo(a, hit));
       if (e.shiftKey) { ponte.definirSelecao(combinarSelecao(sel, [hit], 'alternar')); return; }
@@ -487,6 +516,10 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       }
       const d = deltaEncaixado(i.ref, [ponteiro[0] - i.origem[0], ponteiro[1] - i.origem[1]], doc().grid, 0.5, e.altKey), passo: Ponto = [d[0] - i.aplicado[0], d[1] - i.aplicado[1]];
       if (Math.abs(passo[0]) > 1e-9 || Math.abs(passo[1]) > 1e-9) { i.gesto.aplicar({ tipo: 'selecao.mover', alvos: i.alvos as never, delta: passo }); i.aplicado = d; }
+    } else if (i.tipo === 'peca') {
+      if (Math.hypot(tx - i.x0, ty - i.y0) > LIMIAR_ARRASTO) i.moveu = true;
+      i.livre = e.altKey; i.para = centroDaCelula(m, ponteiro);
+      i.motivo = i.livre ? null : bloqueioNoCaminho(m, i.de, i.para);
     } else if (i.tipo === 'deslizar') {
       if (!i.gesto) { if (Math.hypot(tx - i.x0, ty - i.y0) <= LIMIAR_ARRASTO) return; i.gesto = store.iniciarGesto('Mover abertura'); }
       const a = m.openings[i.id]; if (!a) return;
@@ -534,6 +567,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       if (i.gesto) { if (cancelado) i.gesto.cancelar(); else i.gesto.concluir(); }
       else if (!cancelado && i.ctrl) pipeta(i.hit);
       else if (!cancelado && i.estavaNaSelecao && sel.length > 1) ponte.definirSelecao([i.hit]);
+    } else if (i.tipo === 'peca') {
+      if (!cancelado && i.moveu && Math.hypot(i.para[0] - i.de[0], i.para[1] - i.de[1]) > 1e-6) tentar(() => store.executar({ tipo: 'peca.mover', id: i.id, para: i.para, livre: i.livre }));
     } else if (i.tipo === 'deslizar') { if (i.gesto) { if (cancelado) i.gesto.cancelar(); else i.gesto.concluir(); } }
     else if (i.tipo === 'retangulo') {
       if (cancelado) { /* nada */ } else if (!i.moveu) { if (i.modo === 'trocar' && sel.length) ponte.definirSelecao([]); }
@@ -602,12 +637,13 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     contagemDeParticulas: () => cena.contagemDeParticulas(),
     contagemDePresencas: () => cena.contagemDePresencas(),
     objetosPintados: () => cena.objetosPintados(),
+    diagnosticoDasPecas: () => cena.diagnosticoDasPecas(),
     mostrarProposta: previa => { fantasmaDaProposta.mostrar(doc(), previa); camadaSuja = true; },
     contagemDoFantasma: () => fantasmaDaProposta.contagem(),
     destruir() {
       destruido = true; cancelarAssinatura(); observador.disconnect();
       window.removeEventListener('keydown', aoTeclar, true); window.removeEventListener('keyup', aoSoltar);
-      app.ticker.remove(aoQuadro); limparFantasmaSprite(); fantasmaDaProposta.destruir(); cena.destruir(); baker.encerrar(); app.destroy(true, { children: true });
+      app.ticker.remove(aoQuadro); limparFantasmaSprite(); fantasmaDaProposta.destruir(); retratos.limpar(); cena.destruir(); baker.encerrar(); app.destroy(true, { children: true });
     },
   };
 }

@@ -24,7 +24,7 @@ test('fantasma da proposta: o que a prévia acrescenta aparece (2 objetos e 1 lu
   await page.evaluate(() => {
     const w = window as unknown as { __atlas: { sessao(): { doc: { value: Record<string, any> } }; viewport(): { mostrarProposta(m: unknown): void } } };
     const previa = structuredClone(w.__atlas.sessao().doc.value);
-    const obj = (id: string, recipe: string, x: number) => ({ id, source: { kind: 'recipe', recipe, seed: 3, params: {} }, position: [x, 9], rotation: 0, scale: 1, elevation: 'floor', wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true });
+    const obj = (id: string, recipe: string, x: number) => ({ id, source: { kind: 'recipe', recipe, seed: 3, params: {} }, position: [x, 9], rotation: 0, scale: 1, elevation: 'floor', wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true, interaction: null });
     previa.props = { n1: obj('n1', 'cama.solteiro', 8.5), n2: obj('n2', 'mesinha', 10.5) };
     previa.lights = { l1: { id: 'l1', position: [12, 9], radius: 5, color: '#ffb36b', intensity: 1, flicker: 0.1, cone: null, ownerId: null, power: 'fire', on: true, nightOnly: false, preset: null } };
     w.__atlas.viewport().mostrarProposta(previa);
@@ -104,7 +104,7 @@ test('pincel de espalhar: uma pincelada sobre a escrivaninha põe papéis (eleva
   await criarMapaPelaInterface(page);
   await ferramenta(page, 'comodo'); await retangulo(page, [6.75, 6.75], [14.25, 12.75]);
   const id = Object.keys((await documento(page)).rooms)[0]!;
-  await sessao(page, '(s, id) => s.store.executar({ tipo: "item.adicionar", colecao: "props", item: { id: "mesa", source: { kind: "recipe", recipe: "escrivaninha", seed: 1, params: {} }, position: [10.5, 7.35], rotation: 0, scale: 1, elevation: "floor", wall: null, roomId: id, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true } })', id);
+  await sessao(page, '(s, id) => s.store.executar({ tipo: "item.adicionar", colecao: "props", item: { id: "mesa", source: { kind: "recipe", recipe: "escrivaninha", seed: 1, params: {} }, position: [10.5, 7.35], rotation: 0, scale: 1, elevation: "floor", wall: null, roomId: id, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true, interaction: null } })', id);
   await ferramenta(page, 'selecionar'); await clicar(page, [30, 25]);
   await page.keyboard.press('s'); await page.waitForTimeout(350);
   assert.equal(await page.locator('[data-testid="espalhar-papelada"]').count(), 1, 'a biblioteca lista os conjuntos');

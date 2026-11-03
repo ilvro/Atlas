@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'preact/hooks';
 import { signal, useSignalEffect } from '@preact/signals';
 import { acaoPorId, executarAcao } from '../app/acoes.ts';
-import { acabamentoLigado, adicionarEm, aoColocar, focarNoComodo, menuRadial, sessao, viewport as viewportAtual } from '../app/app.ts';
+import { FERRAMENTAS_DA_SESSAO, modo } from '../app/modo.ts';
+import { acabamentoLigado, adicionarEm, aoColocar, focarNoComodo, menuRadial, servicos, sessao, viewport as viewportAtual } from '../app/app.ts';
 import { mostrarAtalho } from '../app/atalhos.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { tema } from '../app/tema.ts';
@@ -26,15 +27,15 @@ const zoomPct = signal(100), cursorMundo = signal<[number, number] | null>(null)
 function Ferramentas({ s }: { s: SessaoDeEdicao }) {
   return (
     <nav class="ferramentas" aria-label="Ferramentas">
-      {FERRAMENTAS.map((f, i) => {
+      {FERRAMENTAS.filter(f => modo.value === 'construir' || FERRAMENTAS_DA_SESSAO.includes(f.id)).map((f, i) => {
         const atalhos = acaoPorId(`ferr-${f.id}`)?.atalhos ?? [], letra = atalhos[0];
         return <button type="button" key={f.id} class={`ferramenta ${s.ferramenta.value === f.id ? 'ativa' : ''}`} aria-pressed={s.ferramenta.value === f.id} title={`${ROTULO_DA_FERRAMENTA[f.id]}${letra ? ` (${atalhos.map(mostrarAtalho).join(' ou ')})` : ''}`} data-testid={`ferramenta-${f.id}`}
           onClick={() => { const a = acaoPorId(`ferr-${f.id}`); if (a) executarAcao(a); }}><Icone nome={f.icone} tamanho={20} />{i < 9 && <span class="numero-ferramenta">{i + 1}</span>}</button>;
       })}
       <span class="espaco" />
-      <button type="button" class={`ferramenta ${s.biblioteca.value ? 'ativa' : ''}`} aria-pressed={s.biblioteca.value} title="Biblioteca (B)" onClick={() => { s.biblioteca.value = !s.biblioteca.value; }} data-testid="alternar-biblioteca"><Icone nome="gaveta" tamanho={20} /></button>
+      {modo.value === 'construir' && <button type="button" class={`ferramenta ${s.biblioteca.value ? 'ativa' : ''}`} aria-pressed={s.biblioteca.value} title="Biblioteca (B)" onClick={() => { s.biblioteca.value = !s.biblioteca.value; }} data-testid="alternar-biblioteca"><Icone nome="gaveta" tamanho={20} /></button>}
       <button type="button" class="ferramenta" title="Enquadrar o mapa (F)" onClick={() => { const a = acaoPorId('enquadrar'); if (a) executarAcao(a); }} data-testid="enquadrar"><Icone nome="enquadrar" tamanho={20} /></button>
-      <button type="button" class={`ferramenta ${s.doc.value.grid.visible ? 'ativa' : ''}`} aria-pressed={s.doc.value.grid.visible} title="Grade (G)" onClick={() => { const a = acaoPorId('grade'); if (a) executarAcao(a); }} data-testid="alternar-grade"><Icone nome="grade" tamanho={20} /></button>
+      {modo.value === 'construir' && <button type="button" class={`ferramenta ${s.doc.value.grid.visible ? 'ativa' : ''}`} aria-pressed={s.doc.value.grid.visible} title="Grade (G)" onClick={() => { const a = acaoPorId('grade'); if (a) executarAcao(a); }} data-testid="alternar-grade"><Icone nome="grade" tamanho={20} /></button>}
     </nav>
   );
 }
@@ -52,12 +53,15 @@ function ponteDa(s: SessaoDeEdicao): PonteViewport {
     aoColocar: (rotulo, mundo) => aoColocar(rotulo, mundo),
     aviso: texto => { avisar(texto, { tipo: 'erro', duracao: 3200 }); tocar('erro'); },
     aoMenuContexto: ({ tela, mundo, alvo }) => {
+      if (modo.peek() === 'sessao') return;                  // o menu radial é de construir
       // O clique direito sobre um item o seleciona (a menos que já faça parte da seleção).
       if (alvo && !s.selecao.peek().some(a => a.colecao === alvo.colecao && a.id === alvo.id)) s.selecao.value = [alvo];
       menuRadial.value = { x: tela[0], y: tela[1], mundo, alvo, aberto: Date.now() };
     },
     aoCamera: c => { zoomPct.value = Math.round((c.zoom / 20) * 100); },
     acabamento: () => acabamentoLigado.peek(),
+    emSessao: () => modo.value === 'sessao',
+    lerRetrato: async id => (await servicos.peek()?.repo.obterAsset(id))?.blob ?? null,
   };
 }
 
@@ -111,7 +115,7 @@ export function Editor() {
     <div class="editor" data-testid="editor">
       <Ferramentas s={s} />
       <Biblioteca s={s} />
-      <div class="area-com-cartao"><AreaDoMapa s={s} /><CartaoContextual s={s} /><PilulaDeSugestao s={s} /></div>
+      <div class="area-com-cartao"><AreaDoMapa s={s} />{modo.value === 'construir' && <CartaoContextual s={s} />}{modo.value === 'construir' && <PilulaDeSugestao s={s} />}</div>
       <Inspetor />
       <BarraDeEstado s={s} />
     </div>

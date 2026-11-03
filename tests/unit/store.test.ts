@@ -7,7 +7,7 @@ import { ErroDeStore, criarStore, type EventoStore } from '../../src/state/store
 import { mapaCompleto } from './fixtures.ts';
 
 const luz = (id: string, extra: Partial<Luz> = {}): Luz => ({ id, position: [4, 4], radius: 5, color: '#ffaa55', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'fire', on: true, nightOnly: false, preset: null, ...extra });
-const peca = (id: string, extra: Partial<Peca> = {}): Peca => ({ id, name: id, portrait: null, sprite: null, facing: 'down', position: [3, 3], size: 1, vision: { radius: 8, dark: false }, lightId: null, figure: { state: 'normal' }, refs: [], ...extra });
+const peca = (id: string, extra: Partial<Peca> = {}): Peca => ({ id, name: id, portrait: null, sprite: null, facing: 'down', position: [3, 3], size: 1, player: false, vision: { radius: 8, dark: false }, lightId: null, figure: { state: 'normal' }, refs: [], ...extra });
 const add = (colecao: 'lights' | 'tokens', item: Luz | Peca): Comando => ({ tipo: 'item.adicionar', colecao, item: item as never });
 
 test('comandos são puros: o mapa recebido nunca muda e o novo vem congelado', () => {

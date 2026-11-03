@@ -12,6 +12,7 @@ import type { Viewport } from '../render/viewport.ts';
 import type { ColecaoLivre, Comando } from '../state/comandos.ts';
 import { campanhaAtiva, carregarCampanhas, desvincularMapa, refDoMapa, revincularMapa, sincronizarMapaComCampanha } from './campanha.ts';
 import { pedirSomDoClima } from './audio-do-clima.ts';
+import { modo } from './modo.ts';
 import { iniciarSugestoes } from './sugestoes.ts';
 import { lerRota, formatarRota, type Rota } from './rotas.ts';
 import { iniciarServicos, type Servicos } from './servicos.ts';
@@ -104,10 +105,18 @@ export async function atualizarLista(): Promise<void> {
 }
 
 // ---------- Abrir e fechar mapas ----------
+/** Troca entre Construir e Sessão: ao entrar na Sessão, a ferramenta volta a selecionar e a biblioteca fecha. */
+export function alternarModo(): void {
+  const s = sessao.value; if (!s) return;
+  const novo = modo.value === 'construir' ? 'sessao' : 'construir';
+  batch(() => { modo.value = novo; if (novo === 'sessao') { s.ferramenta.value = 'selecionar'; s.biblioteca.value = false; } });
+  tocar('selecionar'); avisar(novo === 'sessao' ? 'Modo Sessão' : 'Modo Construir', { duracao: 1200 });
+}
+
 let pararSugestoes: (() => void) | null = null;
 export function fecharSessao(): void {
   const atual = sessao.value; if (!atual) return;
-  pararSugestoes?.(); pararSugestoes = null;
+  pararSugestoes?.(); pararSugestoes = null; modo.value = 'construir';
   void atual.auto.descarregar().finally(() => atual.fechar());
   viewport.atual = null; sessao.value = null;
 }
@@ -122,7 +131,7 @@ async function abrirMapa(id: string, comodo?: string): Promise<void> {
     await comTransicao(() => {
       fecharSessao();
       const nova = criarSessao(mapa, s.repo, { salvo: true });
-      pararSugestoes = iniciarSugestoes(nova, viewport);
+      modo.value = 'construir'; pararSugestoes = iniciarSugestoes(nova, viewport);
       batch(() => { sessao.value = nova; focoPendente.value = comodo ?? null; });
     });
     tocar('abrir');
@@ -334,8 +343,34 @@ export function alternarLuzes(): void {
 
 export function moverSelecao(dx: number, dy: number): void {
   const s = sessao.value; if (!s || !s.selecao.value.length) return;
+  if (modo.value === 'sessao') {
+    // Na sessão as setas levam as peças uma célula (sem atravessar paredes); o resto do mapa não anda.
+    const pecas = s.selecao.value.filter(a => a.colecao === 'tokens'); if (!pecas.length) return;
+    const g = s.doc.value.grid.size, passo = [Math.sign(dx) * g, Math.sign(dy) * g] as const;
+    try {
+      s.store.transacao(pecas.length > 1 ? 'Mover peças' : 'Mover peça', gesto => {
+        for (const a of pecas) { const t = s.doc.value.tokens[a.id]; if (t) gesto.aplicar({ tipo: 'peca.mover', id: a.id, para: [t.position[0] + passo[0], t.position[1] + passo[1]] }); }
+      });
+    } catch (erro) { avisar(erro instanceof Error ? erro.message : String(erro)); }
+    return;
+  }
   const alvos = s.selecao.value.filter(ehMovel); if (!alvos.length) return;
   s.store.executar({ tipo: 'selecao.mover', alvos, delta: [dx, dy] }, { rotulo: 'Mover' });
+}
+
+/** Alguma peça selecionada carrega uma lanterna (uma luz em cone)? */
+export function comLanterna(): boolean {
+  const s = sessao.value; if (!s) return false;
+  const m = s.doc.value;
+  return s.selecao.value.some(a => { const l = a.colecao === 'tokens' ? m.tokens[a.id]?.lightId : null; return !!(l && m.lights[l]?.cone); });
+}
+
+/** Gira em `graus` o facho da lanterna das peças selecionadas, sem mover a peça (Q e E na Sessão). */
+export function virarLanterna(graus: number): void {
+  const s = sessao.value; if (!s) return;
+  const m = s.doc.value, alvos = s.selecao.value.filter(a => a.colecao === 'tokens' && m.tokens[a.id]?.lightId && m.lights[m.tokens[a.id]!.lightId!]?.cone);
+  if (!alvos.length) { avisar('Selecione uma peça com lanterna.'); return; }
+  s.store.transacao('Virar a lanterna', g => { for (const a of alvos) g.aplicar({ tipo: 'peca.virar', id: a.id, direcao: m.lights[m.tokens[a.id]!.lightId!]!.cone!.direction + (graus * Math.PI) / 180 }); });
 }
 
 export function centralizarNaSelecao(): void {

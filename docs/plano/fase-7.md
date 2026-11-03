@@ -53,7 +53,7 @@ Ordem sugerida: 7.0b, 7.0a, 7.5a, depois a tabela. A 7.5a é pura e dá o "Ver c
 
 ---
 
-### 7.0a — Modos Construir e Sessão  ⬜
+### 7.0a — Modos Construir e Sessão  ✅
 Objetivo: alternar entre construir e jogar na mesma janela, cada modo com as suas ferramentas.
 Depende de: —
 Ler: `src/app/sessao.ts`; `src/app/acoes.ts` (`usarFerramenta`, `habilitada`); `src/render/pincel.ts` (`Ferramenta`); `src/ui/Editor.tsx`, `Cabecalho.tsx`, `Biblioteca.tsx`, `CartaoContextual.tsx`, `PilulaDeSugestao.tsx`; `src/app/sugestoes.ts`.
@@ -68,7 +68,7 @@ Testes: e2e: `M` entra na sessão, a biblioteca e a pílula somem, `C` não troc
 Pronto quando: o e2e passa.
 Commit: build and session modes
 
-### 7.0b — Documento v5  ⬜
+### 7.0b — Documento v5  ✅
 Objetivo: o documento passa a guardar quem é jogador, os interagíveis e o explorado em células.
 Depende de: —
 Ler: `src/domain/mapa.ts` (`Peca`, `Objeto`, `Sessao`, `duplicarParaNovaSessao`); `src/domain/migracoes.ts`; `src/domain/validacao.ts`; `src/domain/assets.ts`; `src/domain/celulas.ts`.
@@ -85,7 +85,7 @@ Testes: migração 4→5 de um mapa da Fase 6 (fixture); validação recusa `tar
 Pronto quando: testes passam; mapas antigos abrem.
 Commit: document v5 for session
 
-### 7.1a — Peça com retrato, tamanho e estado  ⬜
+### 7.1a — Peça com retrato, tamanho e estado  ✅
 Objetivo: a peça mostra o retrato recortado em círculo, ocupa o tamanho certo e muda de cara com o estado.
 Depende de: 7.0b
 Ler: `src/render/cena.ts` (`desenharPeca`, `sincronizarSimples`); `src/data/repositorio.ts` (`salvarAsset`, `obterAsset`); `Tabletop/src/domain/figures.js` (`stateLook`); `src/ui/Inspetor.tsx` (`CamposDaPeca`); `src/domain/mapa.ts` (`ESTADOS_FIGURA`).
@@ -100,7 +100,7 @@ Testes: unitário de `aparenciaDoEstado` (os seis estados); e2e: enviar um retra
 Pronto quando: os testes passam e uma peça com retrato fica legível no zoom normal.
 Commit: tokens with portrait, size and state
 
-### 7.1b — Movimento com trilha  ⬜
+### 7.1b — Movimento com trilha  ✅
 Objetivo: na sessão, arrastar a peça a leva de célula em célula, sem atravessar paredes, com uma trilha que some aos poucos.
 Depende de: 7.0a, 7.0b
 Ler: `src/render/viewport.ts` (interação `mover`); `src/domain/visibilidade.ts` (`oclusores`, segmentos); `src/state/comandos.ts` (`selecao.mover`).
@@ -115,7 +115,7 @@ Testes: unitários: atravessar parede é recusado, porta aberta passa, porta tra
 Pronto quando: os testes passam e o movimento é uma entrada de histórico.
 Commit: token movement with trail
 
-### 7.1c — Lanterna da peça  ⬜
+### 7.1c — Lanterna da peça  ✅
 Objetivo: a peça pode carregar uma lanterna que a acompanha e aponta para onde ela andou.
 Depende de: 7.1b
 Ler: `src/domain/presets.ts` (`camposDoPreset`, preset `lanterna`); `src/domain/fabrica.ts` (`novaLuz`); `src/state/comandos.ts` (`remover`: luz que pertence à peça).

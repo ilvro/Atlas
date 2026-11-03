@@ -11,11 +11,11 @@ export const novaLuz = (position: Ponto, extra: Partial<Luz> = {}): Luz => ({
 
 export const novoObjeto = (position: Ponto, extra: Partial<Objeto> = {}): Objeto => ({
   id: novoIdEntidade('o'), source: { kind: 'recipe', recipe: 'caixa', seed: Math.floor(Math.random() * 2 ** 31), params: {} }, position, rotation: 0, scale: 1,
-  elevation: 'floor', wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true, ...extra,
+  elevation: 'floor', wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true, interaction: null, ...extra,
 });
 
 export const novaPeca = (position: Ponto, name = 'Peça', extra: Partial<Peca> = {}): Peca => ({
-  id: novoIdEntidade('t'), name, portrait: null, sprite: null, facing: 'down', position, size: 1, vision: { radius: 8, dark: false }, lightId: null, figure: { state: 'normal' }, refs: [], ...extra,
+  id: novoIdEntidade('t'), name, portrait: null, sprite: null, facing: 'down', position, size: 1, player: false, vision: { radius: 8, dark: false }, lightId: null, figure: { state: 'normal' }, refs: [], ...extra,
 });
 
 export const novaRegiao = (centro: Ponto, lado = 3, extra: Partial<Regiao> = {}): Regiao => ({

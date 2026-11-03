@@ -4,6 +4,7 @@ import { chaveDeDispensa, outraDoMesmoTipo, proximaSugestao, type Contexto } fro
 import { tocar } from '../fx/som.ts';
 import type { Viewport } from '../render/viewport.ts';
 import type { EventoStore } from '../state/store.ts';
+import { modo } from './modo.ts';
 import type { SessaoDeEdicao } from './sessao.ts';
 import { avisar } from './toasts.ts';
 
@@ -47,7 +48,7 @@ export function iniciarSugestoes(s: SessaoDeEdicao, viewport: { atual: Viewport 
   }
   function recalcular(): void {
     if (!vivo) return;
-    if (!sugestoesLigadas.peek() || s.store.emGesto) { sugestao.value = null; return; }
+    if (!sugestoesLigadas.peek() || s.store.emGesto || modo.peek() === 'sessao') { sugestao.value = null; return; }
     const foco = escolherFoco(); comodoEmFoco.value = foco;
     if (!foco) { sugestao.value = null; return; }
     const p = proximaSugestao(contexto(s, sementes.get(foco) ?? 0), foco, dispensadas);
@@ -68,7 +69,7 @@ export function iniciarSugestoes(s: SessaoDeEdicao, viewport: { atual: Viewport 
     if (sugestao.peek() && sugestao.peek()!.versaoEsperada !== e.versaoEdicao) sugestao.value = null;
     agendar();
   });
-  const sairSelecao = effect(() => { s.selecao.value; agendar(); });
+  const sairSelecao = effect(() => { s.selecao.value; modo.value; agendar(); });
   // O fantasma acompanha a sugestão; se a prévia não cabe mais, a sugestão some.
   const sairFantasma = effect(() => {
     const p = sugestao.value, v = viewport.atual; if (!v) return;

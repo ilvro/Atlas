@@ -41,7 +41,7 @@ test('coleção no mapa: escolher o chesterfield na biblioteca, pôr no mapa, ve
 test('coleção no mapa: asset desconhecido fica como marcador, sem erro', async () => {
   const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
   await criarMapaPelaInterface(page);
-  await sessao(page, '(s) => s.store.executar({ tipo: "item.adicionar", colecao: "props", item: { id: "x", source: { kind: "asset", assetId: "casa:nao-existe" }, position: [10, 10], rotation: 0, scale: 1, elevation: "floor", wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true } })');
+  await sessao(page, '(s) => s.store.executar({ tipo: "item.adicionar", colecao: "props", item: { id: "x", source: { kind: "asset", assetId: "casa:nao-existe" }, position: [10, 10], rotation: 0, scale: 1, elevation: "floor", wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true, interaction: null } })');
   await page.waitForTimeout(600);
   assert.equal(await pintados(page), 0); assert.equal(Object.keys((await documento(page)).props).length, 1);
   assert.deepEqual(erros, []); await ctx.close();
@@ -134,7 +134,7 @@ test('fase 6: ala da mansão (8 cômodos mobiliados pelo assistente e pela cole�
 test('o fantasma não derruba a textura de um objeto que já está no mapa (mesmo desenho, mesma fonte da GPU)', async () => {
   const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
   await criarMapaPelaInterface(page);
-  const objeto = (id: string, x: number) => `{ id: "${id}", source: { kind: "recipe", recipe: "sofa", seed: 7, params: {} }, position: [${x}, 10], rotation: 0, scale: 1, elevation: "floor", wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true }`;
+  const objeto = (id: string, x: number) => `{ id: "${id}", source: { kind: "recipe", recipe: "sofa", seed: 7, params: {} }, position: [${x}, 10], rotation: 0, scale: 1, elevation: "floor", wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true, interaction: null }`;
   await sessao(page, `(s) => s.store.executar({ tipo: "item.adicionar", colecao: "props", item: ${objeto('real', 10)} })`);
   await page.waitForFunction(() => (window as unknown as { __atlas: { viewport(): { objetosPintados(): number } } }).__atlas.viewport().objetosPintados() === 1, null, { timeout: 8000 });
   for (let i = 0; i < 4; i++) {

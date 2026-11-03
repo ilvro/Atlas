@@ -91,7 +91,7 @@ test('uma porta entre dois cômodos some se um deles é apagado e a parede deixa
 test('objetos de parede acompanham a parede como as portas', () => {
   const m = mapaCom(sala('a', retangulo(2, 2, 4, 4)));
   const topo = Object.values(m.walls).find(p => p.path[0]![1] === 3 && p.path[1]![1] === 3)!;
-  m.props.quadro = { id: 'quadro', source: { kind: 'recipe', recipe: 'quadro', seed: 1, params: {} }, position: [4.5, 3], rotation: 0, scale: 1, elevation: 'wall', wall: { wallId: topo.id, at: 0.5, face: 'inner' }, roomId: 'a', blocks: { move: false, sight: false }, castsShadow: false, harmonize: true };
+  m.props.quadro = { id: 'quadro', source: { kind: 'recipe', recipe: 'quadro', seed: 1, params: {} }, position: [4.5, 3], rotation: 0, scale: 1, elevation: 'wall', wall: { wallId: topo.id, at: 0.5, face: 'inner' }, roomId: 'a', blocks: { move: false, sight: false }, castsShadow: false, harmonize: true, interaction: null };
   validarMapa(m);
   m.rooms.a!.cells = codificar([...retangulo(2, 2, 5, 4)]);          // topo vai de 3 m a 4,5 m de comprimento
   recalcularParedes(m);
@@ -103,7 +103,7 @@ test('objetos de parede acompanham a parede como as portas', () => {
 
 test('o cômodo de um objeto de chão acompanha a posição; luzes e peças órfãs são limpas', () => {
   const m = mapaCom(sala('a', retangulo(2, 2, 4, 4)));
-  m.props.mesa = { id: 'mesa', source: { kind: 'recipe', recipe: 'mesa.redonda', seed: 1, params: {} }, position: [4.5, 4.5], rotation: 0, scale: 1, elevation: 'floor', wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true };
+  m.props.mesa = { id: 'mesa', source: { kind: 'recipe', recipe: 'mesa.redonda', seed: 1, params: {} }, position: [4.5, 4.5], rotation: 0, scale: 1, elevation: 'floor', wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true, interaction: null };
   recalcularParedes(m);
   assert.equal(m.props.mesa!.roomId, 'a');
   m.props.mesa!.position = [20, 20]; recalcularParedes(m); assert.equal(m.props.mesa!.roomId, null);
@@ -194,7 +194,7 @@ test('a chave do cache muda só quando algo que aparece no cômodo muda', () => 
 test('objetos de parede entram no cômodo da face; objetos de piso têm chave por receita, semente e parâmetros', () => {
   const m = mapaCom(sala('a', retangulo(2, 2, 4, 4)));
   const topo = Object.values(m.walls).find(p => p.path[0]![1] === 3 && p.path[1]![1] === 3)!;
-  const base = { rotation: 0, scale: 1, blocks: { move: false, sight: false }, castsShadow: false, harmonize: true } as const;
+  const base = { interaction: null, rotation: 0, scale: 1, blocks: { move: false, sight: false }, castsShadow: false, harmonize: true } as const;
   m.props.q = { id: 'q', source: { kind: 'recipe', recipe: 'quadro', seed: 4, params: { largura: 1.2 } }, position: [4.5, 3], elevation: 'wall', wall: { wallId: topo.id, at: 0.5, face: 'inner' }, roomId: 'a', ...base };
   m.props.t = { id: 't', source: { kind: 'recipe', recipe: 'tapete.persa', seed: 2, params: {} }, position: [4.5, 4.5], elevation: 'floor', wall: null, roomId: 'a', ...base };
   const e = entradaDoComodo(m, m.rooms.a!);
@@ -231,9 +231,9 @@ test('encaixar um objeto de parede: na face do cômodo que está do lado do pont
 
 test('copiar itens: ids novos, deslocamento, e nada de dono ou luz compartilhados', () => {
   const base = mapaCom(sala('a', retangulo(2, 2, 4, 4)));
-  base.props.mesa = { id: 'mesa', source: { kind: 'recipe', recipe: 'mesa.redonda', seed: 1, params: {} }, position: [4.5, 4.5], rotation: 0, scale: 1, elevation: 'floor', wall: null, roomId: 'a', blocks: { move: true, sight: false }, castsShadow: true, harmonize: true };
+  base.props.mesa = { id: 'mesa', source: { kind: 'recipe', recipe: 'mesa.redonda', seed: 1, params: {} }, position: [4.5, 4.5], rotation: 0, scale: 1, elevation: 'floor', wall: null, roomId: 'a', blocks: { move: true, sight: false }, castsShadow: true, harmonize: true, interaction: null };
   base.lights.l = { id: 'l', position: [4.5, 4.5], radius: 3, color: '#ffffff', intensity: 1, flicker: 0, cone: null, ownerId: 'mesa', power: 'fire', on: true, nightOnly: false, preset: 'vela' };
-  base.tokens.t = { id: 't', name: 'Arthur', portrait: null, sprite: null, facing: 'down', position: [3, 3], size: 1, vision: { radius: 8, dark: false }, lightId: 'l', figure: { state: 'normal' }, refs: [] };
+  base.tokens.t = { id: 't', name: 'Arthur', portrait: null, sprite: null, facing: 'down', position: [3, 3], size: 1, player: false, vision: { radius: 8, dark: false }, lightId: 'l', figure: { state: 'normal' }, refs: [] };
   const { comandos, alvos } = copiasDe(base, [{ colecao: 'props', id: 'mesa' }, { colecao: 'lights', id: 'l' }, { colecao: 'tokens', id: 't' }, { colecao: 'rooms', id: 'a' }, { colecao: 'props', id: 'fantasma' }], [0.75, 0]);
   assert.equal(comandos.length, 3); assert.equal(alvos.length, 3);                       // o cômodo e o que não existe ficam de fora
   assert.deepEqual(comandos.map(c => c.item.position), [[5.25, 4.5], [5.25, 4.5], [3.75, 3]]);

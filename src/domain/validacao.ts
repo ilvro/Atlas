@@ -42,6 +42,7 @@ const objeto = e.obj({
   elevation: e.um('floor', 'table', 'wall', 'ceiling'),
   wall: e.nulo(e.obj({ wallId: id, at: unidade, face: e.um('inner', 'outer') })),
   roomId: idOuNulo, blocks: e.obj({ move: e.bool(), sight: e.bool() }), castsShadow: e.bool(), harmonize: e.bool(),
+  interaction: e.nulo(e.obj({ kind: e.um('switch', 'drawer', 'clue'), on: e.bool(), targets: e.lista(id, { max: 200 }), sound: e.nulo(ref), clue: e.nulo(ref) })),
 });
 const luz = e.obj({
   id, position: ponto, radius: e.num({ min: 0.1, max: 200 }), color: hex, intensity: e.num({ min: 0, max: 3 }), flicker: unidade,
@@ -55,7 +56,7 @@ const presenca = e.obj({ id, brush: e.texto({ min: 1, max: 60 }), cells: faixas,
 const peca = e.obj({
   id, name: nome, portrait: refAsset,
   sprite: e.nulo(e.obj({ body: e.texto({ min: 1, max: 40 }), hair: e.texto({ min: 1, max: 40 }), outfit: e.texto({ min: 1, max: 40 }), accessories: e.lista(e.texto({ min: 1, max: 40 }), { max: 20 }), colors: e.json(2_000), seed: e.num({ inteiro: true, min: 0, max: 2 ** 31 }) })),
-  facing: e.um('down', 'left', 'right', 'up'), position: ponto, size: e.num({ min: 0.5, max: 12 }),
+  facing: e.um('down', 'left', 'right', 'up'), position: ponto, size: e.num({ min: 0.5, max: 12 }), player: e.bool(),
   vision: e.obj({ radius: e.num({ min: 0, max: 200 }), dark: e.bool() }), lightId: idOuNulo,
   figure: e.obj({ state: e.um(...ESTADOS_FIGURA) }), refs,
 });
@@ -100,7 +101,7 @@ export const ESQUEMA_MAPA: Esq = e.obj({
     e.porId(e.obj({ id, leitura: e.texto({ max: 50_000 }), notasMestre: e.texto({ max: 50_000 }), refs })).verificar(v, c);
   }),
   session: e.obj({
-    explored: refAsset,
+    explored: e.nulo(e.obj({ res: e.num({ min: 0.25, max: 2 }), cells: faixas })),
     initiative: e.nulo(e.obj({
       order: e.lista(e.obj({ tokenId: id, value: e.num({ min: -999, max: 999 }) }), { max: 64 }),
       current: e.num({ inteiro: true, min: 0, max: 64 }), round: e.num({ inteiro: true, min: 1, max: 9999 }),
@@ -135,6 +136,7 @@ export function validarMapa(valor: unknown): asserts valor is MapaAtlas {
   for (const [oid, a] of Object.entries(m.openings)) if (!m.walls[a.wallId]) falha('Parede inexistente.', `openings.${oid}.wallId`);
   for (const [pid, o] of Object.entries(m.props)) {
     if (o.roomId && !m.rooms[o.roomId]) falha('Cômodo inexistente.', `props.${pid}.roomId`);
+    for (const alvo of o.interaction?.targets ?? []) if (!m.lights[alvo]) falha('O interruptor controla uma luz que não existe.', `props.${pid}.interaction.targets`);
     if (o.wall && !m.walls[o.wall.wallId]) falha('Parede inexistente.', `props.${pid}.wall.wallId`);
     if ((o.elevation === 'wall') !== (o.wall !== null)) falha('Objeto de parede precisa de “wall”, e só ele.', `props.${pid}.wall`);
   }

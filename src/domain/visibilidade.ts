@@ -7,12 +7,12 @@ import { centroDaAbertura } from './geometria.ts';
  */
 export interface Segmento { a: Ponto; b: Ponto }
 
-/** O vão da abertura deixa passar a luz (ou a visão)? Arco sempre; porta e porta secreta só abertas; janela só a luz. */
-const deixaPassar = (kind: 'door' | 'window' | 'arch' | 'secret', estado: 'closed' | 'open' | 'locked', para: 'luz' | 'visao'): boolean =>
+/** O vão da abertura deixa passar a luz, a visão ou quem anda? Arco sempre; porta e porta secreta só abertas (a trancada não); janela só a luz. */
+const deixaPassar = (kind: 'door' | 'window' | 'arch' | 'secret', estado: 'closed' | 'open' | 'locked', para: 'luz' | 'visao' | 'movimento'): boolean =>
   kind === 'arch' || ((kind === 'door' || kind === 'secret') && estado === 'open') || (kind === 'window' && para === 'luz');
 
 /** Os segmentos que bloqueiam, já sem os vãos das aberturas que deixam passar. */
-export function oclusores(m: Pick<MapaAtlas, 'walls' | 'openings'>, para: 'luz' | 'visao'): Segmento[] {
+export function oclusores(m: Pick<MapaAtlas, 'walls' | 'openings'>, para: 'luz' | 'visao' | 'movimento'): Segmento[] {
   const saida: Segmento[] = [], vaos = new Map<string, [number, number][]>();
   for (const o of Object.values(m.openings)) {
     if (!deixaPassar(o.kind, o.state, para)) continue;
@@ -21,7 +21,7 @@ export function oclusores(m: Pick<MapaAtlas, 'walls' | 'openings'>, para: 'luz' 
     lista.push([c - o.width / 2, c + o.width / 2]); vaos.set(p.id, lista);
   }
   for (const p of Object.values(m.walls)) {
-    if (!(para === 'luz' ? p.blocks.light : p.blocks.sight)) continue;
+    if (!(para === 'luz' ? p.blocks.light : para === 'visao' ? p.blocks.sight : p.blocks.move)) continue;
     const buracos = (vaos.get(p.id) ?? []).sort((x, y) => x[0] - y[0]);
     let inicio = 0;
     for (let i = 0; i + 1 < p.path.length; i++) {

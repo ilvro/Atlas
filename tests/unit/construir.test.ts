@@ -42,7 +42,7 @@ test('pintar estende o cômodo e as paredes acompanham; pintar sobre outro cômo
 
 test('apagar células encolhe o cômodo; apagar tudo o remove e leva o que dependia dele', () => {
   let m = comAs(criarMapa(), criar('a', retangulo(2, 2, 5, 4)));
-  m = aplicarComando(m, { tipo: 'item.adicionar', colecao: 'props', item: { id: 'mesa', source: { kind: 'recipe', recipe: 'mesa.redonda', seed: 1, params: {} }, position: [4.5, 4.5], rotation: 0, scale: 1, elevation: 'floor', wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true } });
+  m = aplicarComando(m, { tipo: 'item.adicionar', colecao: 'props', item: { id: 'mesa', source: { kind: 'recipe', recipe: 'mesa.redonda', seed: 1, params: {} }, position: [4.5, 4.5], rotation: 0, scale: 1, elevation: 'floor', wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true, interaction: null } });
   assert.equal(m.props.mesa!.roomId, 'a');
   m = aplicarComando(m, { tipo: 'comodo.apagar', celulas: [[4, 2], [4, 3]] });
   assert.equal(celulasDe(m, 'a').length, 4); assert.equal(Object.keys(m.walls).length, 4);

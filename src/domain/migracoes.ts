@@ -48,7 +48,19 @@ const de3para4: Migracao = doc => {
   return d;
 };
 
-export const MIGRACOES: TabelaDeMigracoes = { 1: de1para2, 2: de2para3, 3: de3para4 };
+/**
+ * 4 → 5 (Fase 7): peças ganham `player` (ninguém era jogador), objetos ganham `interaction: null`, e o explorado passa de imagem a células
+ * (como nunca foi escrito como imagem, vira `null`).
+ */
+const de4para5: Migracao = doc => {
+  const d = doc as Record<string, any>;
+  for (const t of porValor(d.tokens)) t.player ??= false;
+  for (const o of porValor(d.props)) o.interaction ??= null;
+  if (d.session && typeof d.session === 'object') d.session.explored = null;
+  return d;
+};
+
+export const MIGRACOES: TabelaDeMigracoes = { 1: de1para2, 2: de2para3, 3: de3para4, 4: de4para5 };
 
 /** Aplica a cadeia de migrações até `alvo`. Separada para ser testada com tabelas de mentira. */
 export function aplicarMigracoes(bruto: unknown, tabela: TabelaDeMigracoes, alvo: number): Record<string, unknown> {

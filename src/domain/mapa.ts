@@ -2,7 +2,7 @@ import type { Ref } from '#mesa';
 import type { Faixa } from './celulas.ts';
 
 export const SCHEMA_MAPA = 'atlas.map';
-export const VERSAO_MAPA = 4;
+export const VERSAO_MAPA = 5;
 
 /** Unidade de mundo: metro. Coordenadas [x, y] com origem no canto superior esquerdo e y para baixo. */
 export type Ponto = [x: number, y: number];
@@ -61,7 +61,11 @@ export interface Objeto {
   elevation: 'floor' | 'table' | 'wall' | 'ceiling';
   wall: null | { wallId: string; at: number; face: 'inner' | 'outer' };
   roomId: string | null; blocks: { move: boolean; sight: boolean }; castsShadow: boolean; harmonize: boolean;
+  /** O que o mestre pode acionar na sessão (interruptor, gaveta, pista); `null` é um objeto comum. */
+  interaction: Interacao | null;
 }
+/** `targets` vazio num interruptor = as luzes `power: 'grid'` do cômodo do objeto. `clue` só vai ao jogador depois de revelada. */
+export interface Interacao { kind: 'switch' | 'drawer' | 'clue'; on: boolean; targets: string[]; sound: Ref | null; clue: Ref | null }
 export interface Luz {
   id: string; position: Ponto; radius: number; color: string; intensity: number; flicker: number;
   cone: null | { angle: number; direction: number }; ownerId: string | null;
@@ -80,12 +84,15 @@ export interface Peca {
   id: string; name: string; portrait: RefAsset | null;
   sprite: null | { body: string; hair: string; outfit: string; accessories: string[]; colors: Record<string, string>; seed: number };
   facing: 'down' | 'left' | 'right' | 'up'; position: Ponto; size: number;
+  /** É uma peça de jogador? A visão (névoa) e o explorado vêm só das peças de jogador. */
+  player: boolean;
   vision: { radius: number; dark: boolean }; lightId: string | null;
   figure: { state: (typeof ESTADOS_FIGURA)[number] }; refs: Ref[];
 }
 export interface NotaDeComodo { id: string; leitura: string; notasMestre: string; refs: Ref[] }
 export interface Sessao {
-  explored: RefAsset | null;
+  /** O que as peças de jogador já viram, em células de `res` metros (RLE): a memória da névoa. */
+  explored: null | { res: number; cells: Faixa[] };
   initiative: null | { order: { tokenId: string; value: number }[]; current: number; round: number };
   revealed: string[]; event: string | null;
 }

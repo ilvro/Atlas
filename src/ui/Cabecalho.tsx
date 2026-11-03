@@ -1,6 +1,7 @@
 import { mostrarAtalho } from '../app/atalhos.ts';
 import { acaoPorId, executarAcao, fxLigado, somLigado } from '../app/acoes.ts';
 import { ajudaAberta, navegar, paletaAberta, renomearMapaAberto, rota, sessao } from '../app/app.ts';
+import { ROTULO_DO_MODO, modo, type Modo } from '../app/modo.ts';
 import { tituloDoEstado } from '../app/sessao.ts';
 import { tema, trocarTema } from '../app/tema.ts';
 import { TEMAS, type TemaId } from '#mesa';
@@ -12,7 +13,7 @@ const dica = (nome: string, id: string) => { const t = acaoPorId(id)?.atalhos?.[
 export function Cabecalho() {
   const s = sessao.value, noEditor = rota.value.tipo === 'mapa' && s;
   return (
-    <header class="cabecalho">
+    <header class={`cabecalho ${noEditor && modo.value === 'sessao' ? 'em-sessao' : ''}`} data-modo={noEditor ? modo.value : undefined}>
       <a class="marca" href="#/" onClick={e => { e.preventDefault(); navegar({ tipo: 'galeria' }); }} aria-label="Atlas: ir para a galeria"><span class="marca-escudo" aria-hidden="true">◈</span> ATLAS</a>
       {noEditor && s ? (<>
         <span class="separador" aria-hidden="true">/</span>
@@ -24,7 +25,11 @@ export function Cabecalho() {
           <i aria-hidden="true" />{tituloDoEstado(s.gravacao.value, s.sujo.value)}
         </span>
       </>) : null}
+      {noEditor && modo.value === 'sessao' ? <span class="faixa-sessao" data-testid="faixa-sessao">SESSÃO</span> : null}
       <span class="espaco" />
+      {noEditor && s ? (<div class="grupo chave-de-modo" role="radiogroup" aria-label="Modo" data-testid="chave-de-modo">
+        {(['construir', 'sessao'] as Modo[]).map(id => <button type="button" key={id} role="radio" aria-checked={modo.value === id} class={`ficha ${modo.value === id ? 'ativa' : ''}`} title={dica(`Modo ${ROTULO_DO_MODO[id]}`, 'modo')} data-testid={`modo-${id}`} onClick={() => { if (modo.value !== id) executar('modo')(); }}>{ROTULO_DO_MODO[id]}</button>)}
+      </div>) : null}
       {noEditor && s ? (<div class="grupo">
         <button type="button" class="botao-icone" title={s.rotuloDesfazer.value ? `Desfazer: ${s.rotuloDesfazer.value} (Ctrl+Z)` : 'Desfazer (Ctrl+Z)'} disabled={!s.podeDesfazer.value} onClick={executar('desfazer')} data-testid="desfazer"><Icone nome="desfazer" /></button>
         <button type="button" class="botao-icone" title={s.rotuloRefazer.value ? `Refazer: ${s.rotuloRefazer.value} (Ctrl+Shift+Z)` : 'Refazer (Ctrl+Shift+Z)'} disabled={!s.podeRefazer.value} onClick={executar('refazer')} data-testid="refazer"><Icone nome="refazer" /></button>

@@ -6,10 +6,12 @@ import { servicos } from '../app/app.ts';
 import { avisar } from '../app/toasts.ts';
 import { NOMES_COLECAO, desfazer, duplicarSelecao, refazer, removerSelecao, sessao } from '../app/app.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
-import { nomeDoAlvo } from '../domain/fabrica.ts';
+import { nomeDoAlvo, novaLuz } from '../domain/fabrica.ts';
+import { ROTULOS_DE_ESTADO } from '../domain/figuras.ts';
 import { ESTADOS_FIGURA, type Abertura, type Acabamento, type Clima, type Comodo, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Presenca, type Regiao } from '../domain/mapa.ts';
 import { GENEROS, generoDe, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
 import { acabamentoLigado, aplicarClima, definirAcabamentoLigado } from '../app/app.ts';
+import { modo } from '../app/modo.ts';
 import { definirSugestoesLigadas, sugestoesLigadas } from '../app/sugestoes.ts';
 import { COLECAO } from '../procedural/colecao.ts';
 import { receitaDe } from '../procedural/receitas/index.ts';
@@ -23,12 +25,12 @@ import { Icone } from './Icone.tsx';
 
 const graus = (rad: number) => Math.round((rad * 180) / Math.PI * 10) / 10;
 const radianos = (g: number) => (g * Math.PI) / 180;
-const NOMES_ESTADO: Record<(typeof ESTADOS_FIGURA)[number], string> = { normal: 'Normal', hurt: 'Ferido', dying: 'Morrendo', unconscious: 'Inconsciente', dead: 'Morto', maddened: 'Enlouquecendo' };
 
 function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
   const m = s.doc.value, st = s.store;
   return (
     <div class="painel-corpo" data-testid="painel-mapa">
+      {modo.value === 'construir' && <>
       <h3 class="faixa pequena">Mapa</h3>
       <CampoTexto rotulo="Nome" valor={m.name} aoConfirmar={v => v.trim() ? tentar(() => st.executar({ tipo: 'mapa.renomear', nome: v.trim() })) : false} />
       <CampoOpcoes rotulo="Gênero" dica={generoDe(m.style.genre).descricao} valor={generoDe(m.style.genre).id} opcoes={GENEROS.map(g => [g.id, g.nome] as const)} aoMudar={v => tentar(() => st.executar({ tipo: 'estilo.atualizar', patch: { genre: v } }, { rotulo: 'Gênero do mapa' }))} />
@@ -54,10 +56,11 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
       <CartelaDeTitulo s={s} />
       <h3 class="faixa pequena">Terreno</h3>
       <CampoOpcoes rotulo="Base" valor={m.terrain.base} opcoes={[['vazio', 'Vazio (o fundo)'], ...materiaisDo('terreno').map(x => [x.id, x.nome] as const)]} aoMudar={v => tentar(() => st.executar({ tipo: 'terreno.base', material: v }))} />
+      </>}
       <h3 class="faixa pequena">Clima</h3>
       <SeletorDeClima s={s} />
       <h3 class="faixa pequena">Acabamento</h3>
-      <CampoCaixa rotulo="Sugestões do assistente" dica="Só para quem edita: uma pílula sugere o próximo passo do cômodo. Não muda o mapa." valor={sugestoesLigadas.value} aoMudar={definirSugestoesLigadas} />
+      {modo.value === 'construir' && <CampoCaixa rotulo="Sugestões do assistente" dica="Só para quem edita: uma pílula sugere o próximo passo do cômodo. Não muda o mapa." valor={sugestoesLigadas.value} aoMudar={definirSugestoesLigadas} />}
       <CampoCaixa rotulo="Ver atmosfera no editor" dica="Só para quem edita: não muda o mapa." valor={acabamentoLigado.value} aoMudar={definirAcabamentoLigado} />
       <CampoOpcoes rotulo="Estilo" valor={m.finish.preset} opcoes={[...PRESETS_DE_ACABAMENTO.map(p => [p.id, p.nome] as const), ...(PRESETS_DE_ACABAMENTO.some(p => p.id === m.finish.preset) ? [] : [[m.finish.preset, 'Personalizado'] as const])]} aoMudar={v => { const p = presetDeAcabamento(v); if (p) tentar(() => st.executar({ tipo: 'acabamento.atualizar', patch: { preset: v, ...p.valores } }, { rotulo: 'Acabamento' })); }} />
       <CampoNumero rotulo="Vinheta" valor={m.finish.vignette} min={0} max={1} passo={0.05} aoConfirmar={v => tentar(() => st.executar({ tipo: 'acabamento.atualizar', patch: { vignette: v } }))} />
@@ -203,13 +206,51 @@ function CamposDaLuz({ s, l }: { s: SessaoDeEdicao; l: Luz }) {
   </>);
 }
 
+/** Reduz uma imagem para um retrato de até 256 px (WebP), recortada ao quadrado pelo centro: o banco guarda retratos leves. */
+async function reduzirParaRetrato(arquivo: File): Promise<Blob> {
+  const bitmap = await createImageBitmap(arquivo), lado = Math.min(bitmap.width, bitmap.height), alvo = Math.min(256, lado);
+  const tela = document.createElement('canvas'); tela.width = tela.height = alvo;
+  tela.getContext('2d')!.drawImage(bitmap, (bitmap.width - lado) / 2, (bitmap.height - lado) / 2, lado, lado, 0, 0, alvo, alvo); bitmap.close();
+  return new Promise((ok, falha) => tela.toBlob(b => (b ? ok(b) : falha(new Error('Não consegui converter a imagem.'))), 'image/webp', 0.9));
+}
+
+/** As luzes que uma peça pode carregar, e para onde o facho aponta (rad) quando a peça olha para cada lado. */
+const LANTERNAS_DA_PECA = ['lanterna', 'lamparina', 'vela'];
+const DIRECAO_DO_LADO: Record<Peca['facing'], number> = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 };
+
 function CamposDaPeca({ s, t }: { s: SessaoDeEdicao; t: Peca }) {
   const editar = (patch: Record<string, unknown>, rotulo?: string) => tentar(() => s.store.executar({ tipo: 'item.atualizar', colecao: 'tokens', id: t.id, patch }, rotulo ? { rotulo } : {}));
+  const enviar = async (arquivo: File | undefined) => {
+    if (!arquivo) return;
+    const repo = servicos.value?.repo; if (!repo) { avisar('O banco de imagens não está disponível.', { tipo: 'erro' }); return; }
+    try { const ref = await repo.salvarAsset(await reduzirParaRetrato(arquivo)); editar({ portrait: ref }, 'Retrato da peça'); } catch (erro) { avisar(`Não consegui usar essa imagem: ${erro instanceof Error ? erro.message : String(erro)}`, { tipo: 'erro' }); }
+  };
+  const luz = t.lightId ? s.doc.value.lights[t.lightId] : undefined;
+  const lanterna = luz ? (luz.preset && LANTERNAS_DA_PECA.includes(luz.preset) ? luz.preset : 'outra') : 'nenhuma';
+  const opcoesDeLanterna: readonly (readonly [string, string])[] = [['nenhuma', 'Nenhuma'], ...LANTERNAS_DA_PECA.map(id => [id, PRESETS_DE_LUZ.find(p => p.id === id)!.nome] as const), ...(lanterna === 'outra' ? [['outra', 'Personalizada'] as const] : [])];
+  /** Escolher cria a luz da peça (e tira a anterior) numa transação só; "nenhuma" a remove. */
+  const trocarLanterna = (id: string) => {
+    if (id === lanterna || id === 'outra') return;
+    const preset = PRESETS_DE_LUZ.find(p => p.id === id), direcao = DIRECAO_DO_LADO[t.facing];
+    tentar(() => s.store.transacao(preset ? `Lanterna: ${preset.nome.toLowerCase()}` : 'Tirar a lanterna', g => {
+      if (t.lightId && s.doc.value.lights[t.lightId]) g.aplicar({ tipo: 'item.remover', colecao: 'lights', id: t.lightId });
+      if (!preset) return;
+      const nova = novaLuz([t.position[0], t.position[1]], { ...camposDoPreset(preset, direcao), ownerId: t.id });
+      g.aplicar({ tipo: 'item.adicionar', colecao: 'lights', item: nova as never });
+      g.aplicar({ tipo: 'item.atualizar', colecao: 'tokens', id: t.id, patch: { lightId: nova.id } });
+    }));
+  };
   return (<>
     <CampoTexto rotulo="Nome" valor={t.name} aoConfirmar={v => v.trim() ? editar({ name: v.trim() }, 'Renomear peça') : false} />
-    <CampoNumero rotulo="Tamanho" unidade="células" valor={t.size} min={0.5} max={12} passo={0.5} aoConfirmar={v => editar({ size: v }, 'Tamanho da peça')} />
+    <Linha rotulo="Retrato" dica="Uma imagem quadrada fica melhor; o Atlas recorta em círculo.">
+      <label class="botao-pilula" data-testid="retrato-enviar"><Icone nome="novo" tamanho={14} />{t.portrait ? 'Trocar…' : 'Enviar…'}<input type="file" accept="image/*" hidden data-testid="retrato-arquivo" onChange={e => { const campo = e.target as HTMLInputElement; void enviar(campo.files?.[0]); campo.value = ''; }} /></label>
+      {t.portrait && <button type="button" class="botao-pilula" onClick={() => editar({ portrait: null }, 'Tirar o retrato')} data-testid="retrato-remover">Tirar</button>}
+    </Linha>
+    <CampoCaixa rotulo="Jogador" dica="A névoa e a visão da sessão vêm das peças de jogador." valor={t.player} aoMudar={v => editar({ player: v }, v ? 'Peça de jogador' : 'Peça do mestre')} />
+    <CampoNumero rotulo="Tamanho" unidade="células" valor={t.size} min={0.5} max={4} passo={0.5} aoConfirmar={v => editar({ size: v }, 'Tamanho da peça')} />
     <CampoNumero rotulo="Visão" unidade="m" valor={t.vision.radius} min={0} max={200} passo={1} aoConfirmar={v => editar({ vision: { radius: v } }, 'Visão da peça')} />
-    <CampoOpcoes rotulo="Estado" valor={t.figure.state} opcoes={ESTADOS_FIGURA.map(e => [e, NOMES_ESTADO[e]] as const)} aoMudar={v => editar({ figure: { state: v } }, 'Estado da peça')} />
+    <CampoOpcoes rotulo="Lanterna" dica="A luz anda com a peça e aponta para onde ela andou. Q e E giram o facho na Sessão." valor={lanterna} opcoes={opcoesDeLanterna} aoMudar={trocarLanterna} />
+    <CampoOpcoes rotulo="Estado" valor={t.figure.state} opcoes={ESTADOS_FIGURA.map(e => [e, ROTULOS_DE_ESTADO[e]] as const)} aoMudar={v => editar({ figure: { state: v } }, 'Estado da peça')} />
   </>);
 }
 
@@ -327,14 +368,14 @@ function PainelDaSelecao({ s }: { s: SessaoDeEdicao }) {
   return (
     <div class="painel-corpo" data-testid="painel-selecao">
       <h3 class="faixa pequena" data-testid="titulo-selecao">{unico ? nomeDoAlvo(unico.colecao, (m[unico.colecao] as Record<string, { id: string }>)[unico.id]!) : `${alvos.length} itens`}</h3>
-      {unico ? <Detalhe s={s} m={m} a={unico} /> : (
+      {unico ? (modo.value === 'sessao' && unico.colecao !== 'tokens' ? <p class="dica" data-testid="dica-sessao">Na Sessão só as peças se ajustam aqui. Para editar isto, volte ao modo Construir (M).</p> : <Detalhe s={s} m={m} a={unico} />) : (
         <ul class="lista-itens">{alvos.map(a => <li key={chaveDoAlvo(a)}><button type="button" onClick={() => { s.selecao.value = [a]; }}>
           <span class="tipo-item">{NOMES_COLECAO.singular[a.colecao]}</span> {nomeDoAlvo(a.colecao, (m[a.colecao] as Record<string, { id: string }>)[a.id]!)}</button></li>)}</ul>
       )}
-      <div class="acoes-selecao">
+      {modo.value === 'construir' && <div class="acoes-selecao">
         <button type="button" class="botao-pilula" onClick={duplicarSelecao} data-testid="duplicar"><Icone nome="duplicar" tamanho={14} />Duplicar</button>
         <button type="button" class="botao-pilula perigo" onClick={removerSelecao} data-testid="remover"><Icone nome="lixeira" tamanho={14} />Remover</button>
-      </div>
+      </div>}
     </div>
   );
 }

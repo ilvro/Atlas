@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'preact/hooks';
 import { useSignal } from '@preact/signals';
+import { modo } from '../app/modo.ts';
 import { tocar } from '../fx/som.ts';
 import { TIPOS_DE_COMODO, PRESETS_DE_LUZ, PACOTES_DE_PRESENCA, PINCEIS_DE_PRESENCA } from '../domain/presets.ts';
 import type { Pincel } from '../render/pincel.ts';
@@ -128,7 +129,7 @@ const TITULOS: Record<string, string> = { comodo: 'Cômodos', abertura: 'Portas 
 /** A gaveta da ferramenta ativa: o que se pode pôr com ela, e os ajustes do que está na mão. */
 export function Biblioteca({ s }: { s: SessaoDeEdicao }) {
   const f = s.ferramenta.value;
-  if (!s.biblioteca.value || !TITULOS[f]) return null;
+  if (modo.value === 'sessao' || !s.biblioteca.value || !TITULOS[f]) return null;
   return (
     <aside class="biblioteca" aria-label={`Biblioteca: ${TITULOS[f]}`} data-testid="biblioteca">
       <div class="biblioteca-topo"><h3 class="faixa pequena">{TITULOS[f]}</h3><button type="button" class="botao-icone" aria-label="Fechar a biblioteca" title="Fechar (B)" onClick={() => { s.biblioteca.value = false; }}><Icone nome="fechar" tamanho={16} /></button></div>

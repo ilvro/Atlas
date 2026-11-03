@@ -30,7 +30,7 @@ test('as receitas do kit fantasia desenham sem erro, com pegada estável e parte
 
 test('capela e forja existem como funções, com sinônimos, regras, sinais fortes e luz', () => {
   for (const f of ['capela', 'forja']) { assert.ok(TIPOS_DE_COMODO.some(t => t.funcao === f), f); assert.ok(REGRAS_DE_MOBILIA[f]?.length, f); }
-  const nome = (n: string, receitasDoComodo: string[] = []) => { const m = mapaCom(sala('c', 0, 0, 4, 3, { name: n })); receitasDoComodo.forEach((r, i) => { m.props[`o${i}`] = { ...ACERVO && { id: `o${i}`, source: { kind: 'recipe', recipe: r, seed: 1, params: {} }, position: [1 + i * 0.6, 2], rotation: 0, scale: 1, elevation: 'floor', wall: null, roomId: 'c', blocks: { move: true, sight: false }, castsShadow: true, harmonize: true } } as never; }); return funcaoProvavel(insightDoComodo(m, 'c')!)?.funcao; };
+  const nome = (n: string, receitasDoComodo: string[] = []) => { const m = mapaCom(sala('c', 0, 0, 4, 3, { name: n })); receitasDoComodo.forEach((r, i) => { m.props[`o${i}`] = { ...ACERVO && { id: `o${i}`, source: { kind: 'recipe', recipe: r, seed: 1, params: {} }, position: [1 + i * 0.6, 2], rotation: 0, scale: 1, elevation: 'floor', wall: null, roomId: 'c', blocks: { move: true, sight: false }, castsShadow: true, harmonize: true, interaction: null } } as never; }); return funcaoProvavel(insightDoComodo(m, 'c')!)?.funcao; };
   for (const [n, f] of [['Igreja', 'capela'], ['Templo', 'capela'], ['Santuário', 'capela'], ['Capela', 'capela'], ['Ferraria', 'forja'], ['Forja', 'forja']] as const) assert.equal(nome(n), f, n);
   assert.equal(nome('Cômodo', ['altar', 'altar']), 'capela'); assert.equal(nome('Cômodo', ['bigorna', 'bigorna']), 'forja');
 });

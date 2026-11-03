@@ -13,6 +13,7 @@ import { nivelDaLuz } from '../domain/clima.ts';
 import { criarMapaDeLuz } from './mapa-de-luz.ts';
 import { criarNeblina } from './neblina.ts';
 import { criarParticulas } from './particulas.ts';
+import { criarPeca, type PecaVisual } from './pecas.ts';
 import { criarPresenca } from './presenca.ts';
 
 export const RES_OBJETO = 96, RES_COMODO = 64, RES_TERRENO = 24;
@@ -26,6 +27,8 @@ export interface OpcoesDaCena {
   efeitos(): boolean;
   /** Uma textura nova chegou do worker: o viewport precisa redesenhar. */
   aoPintar?(): void;
+  /** O retrato de uma peça (pelo id do asset), ou `null` se ainda não chegou. */
+  retrato?(id: string | null | undefined): Texture | null;
 }
 
 export interface Cena {
@@ -40,6 +43,8 @@ export interface Cena {
   definirAtmosfera(ligada: boolean): void;
   /** Um relâmpago agora (com trovão, se o som estiver ligado). */
   relampagoAgora(): void;
+  /** Para os testes: como cada peça está desenhada agora (retrato, deitada, raio). */
+  diagnosticoDasPecas(): { id: string; retrato: boolean; deitada: boolean; raio: number }[];
   /** Quantos objetos de piso já têm a textura pintada (sem o marcador). */
   objetosPintados(): number;
   /** Quantas presenças estão desenhadas agora. */
@@ -218,13 +223,10 @@ export function criarCena(op: OpcoesDaCena): Cena {
     c.position.set(l.position[0], l.position[1]);
   }
 
+  const visuais = new WeakMap<Container, PecaVisual>();
   function desenharPeca(c: Container, t: Peca, m: MapaAtlas): void {
-    const g = grafico(c), r = (t.size * m.grid.size * 0.9) / 2, cor = corDoNome(t.name, 0.5, 0.4);
-    g.clear().circle(0, 0, r).fill(cor).stroke({ width: 0.07, color: op.acento() }).circle(0, 0, r * 0.82).stroke({ width: 0.02, color: 0xffffff, alpha: 0.35 });
-    let rotulo = c.getChildByLabel('t') as Text | null;
-    if (!rotulo) { rotulo = Object.assign(new Text({ text: '', style: { fontFamily: 'Hanken Grotesk Variable, Hanken Grotesk, sans-serif', fontSize: 64, fontWeight: '800', fill: 0xffffff } }), { label: 't' }); rotulo.anchor.set(0.5); c.addChild(rotulo); }
-    rotulo.text = (t.name.trim()[0] ?? '?').toUpperCase(); rotulo.scale.set((r * 1.1) / 64);
-    c.position.set(t.position[0], t.position[1]);
+    let v = visuais.get(c); if (!v) { v = criarPeca(); visuais.set(c, v); c.addChild(v.c); }
+    v.atualizar(t, m.grid.size, op.acento(), op.retrato?.(t.portrait?.id) ?? null, op.efeitos());
   }
 
   function desenharRegiao(c: Container, r: Regiao): void {
@@ -292,9 +294,11 @@ export function criarCena(op: OpcoesDaCena): Cena {
     relampagoAgora: () => luz.relampagoAgora(),
     contagemDeParticulas: () => particulas.contagem(),
     contagemDePresencas: () => presenca.contagem(),
+    diagnosticoDasPecas: () => [...pecas.entries()].map(([id, c]) => ({ id, ...(visuais.get(c)?.estado() ?? { retrato: false, deitada: false, raio: 0, deslizando: false, trilha: 0 }) })),
     objetosPintados: () => [...objetos.values()].filter(e => e.sprite !== null && !e.placeholder.visible).length,
     quadro(agora) {
       luz.quadro(agora);
+      for (const c of pecas.values()) visuais.get(c)?.quadro(agora, op.efeitos());
       const dt = ultimoQuadro < 0 ? 0 : (agora - ultimoQuadro) / 1000; ultimoQuadro = agora; neblina.quadro(dt); particulas.quadro(dt); presenca.quadro(dt);
       for (let i = animacoes.length - 1; i >= 0; i--) {
         const a = animacoes[i]!, t = Math.min(1, (agora - a.t0) / a.dur), e = 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2;   // easeOutBack

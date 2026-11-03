@@ -294,3 +294,8 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
 .selo-acervo { position: absolute; top: 3px; right: 3px; padding: 0 5px; border-radius: 999px; background: var(--superficie-2); border: 1px solid var(--linha); font: 700 8px var(--corpo); letter-spacing: 0.06em; text-transform: uppercase; color: var(--acento); font-style: normal; }
 
 .item-da-colecao { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--linha); border-left: 3px solid var(--acento); border-radius: 8px; background: var(--superficie); }
+
+/* Modos: Construir e Sessão. */
+.chave-de-modo { margin-right: 4px; }
+.cabecalho.em-sessao { border-bottom: 3px solid var(--acento); }
+.faixa-sessao { padding: 3px 12px; margin-left: 8px; background: var(--acento); color: #fff; font: 800 11px var(--titulo, var(--corpo)); letter-spacing: 0.18em; clip-path: polygon(0 0, 100% 0, 96% 100%, 3% 100%); }

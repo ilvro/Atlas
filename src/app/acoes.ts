@@ -10,6 +10,7 @@ import { ROTULO_DA_FERRAMENTA, type Ferramenta } from '../render/pincel.ts';
 import { colecaoDaFerramenta } from '../render/viewport.ts';
 import { campanhaAtiva } from './campanha.ts';
 import { PRESETS_DE_CLIMA } from '../domain/presets.ts';
+import { FERRAMENTAS_DA_SESSAO, modo } from './modo.ts';
 import { aceitarSugestao, definirSugestoesLigadas, dispensarSugestao, outraSugestao, sugestao, sugestoesLigadas } from './sugestoes.ts';
 import type { Alvo } from '../render/selecao.ts';
 import type { Ponto } from '../domain/mapa.ts';
@@ -38,6 +39,7 @@ const COM_BIBLIOTECA: readonly Ferramenta[] = ['comodo', 'parede', 'abertura', '
 
 export function usarFerramenta(f: Ferramenta): void {
   const s = app.sessao.value; if (!s) return;
+  if (modo.value === 'sessao' && !FERRAMENTAS_DA_SESSAO.includes(f)) return;
   s.ferramenta.value = f; s.biblioteca.value = COM_BIBLIOTECA.includes(f);
   avisar(ROTULO_DA_FERRAMENTA[f], { duracao: 1400 });
 }
@@ -120,7 +122,10 @@ export const ACOES: readonly Acao[] = [
   { id: 'sugestao-outra', nome: 'Outra sugestão', grupo: 'Assistente', palavras: 'assistente pilula gerar de novo', habilitada: () => sugestao.value !== null, executar: outraSugestao },
   { id: 'sugestao-dispensar', nome: 'Dispensar a sugestão', grupo: 'Assistente', palavras: 'assistente pilula agora nao', habilitada: () => sugestao.value !== null, executar: dispensarSugestao },
   { id: 'sugestoes-alternar', nome: 'Ligar ou desligar sugestões', grupo: 'Assistente', palavras: 'assistente pilula', habilitada: noEditor, executar: () => definirSugestoesLigadas(!sugestoesLigadas.value) },
+  { id: 'modo', nome: 'Alternar modo: Construir / Sessão', grupo: 'Geral', palavras: 'jogar mestre construir sessao editar', atalhos: ['M'], habilitada: noEditor, executar: () => app.alternarModo() },
   { id: 'biblioteca', nome: 'Abrir ou fechar a biblioteca', grupo: 'Construir', palavras: 'gaveta itens catalogo', atalhos: ['B'], habilitada: noEditor, executar: () => { const s = app.sessao.value; if (s) s.biblioteca.value = !s.biblioteca.value; } },
+  { id: 'virar-lanterna-esq', nome: 'Virar a lanterna para a esquerda (45°)', grupo: 'Sessão', palavras: 'facho cone luz peça', atalhos: ['Q'], habilitada: () => modo.value === 'sessao' && app.comLanterna(), executar: () => app.virarLanterna(-45) },
+  { id: 'virar-lanterna-dir', nome: 'Virar a lanterna para a direita (45°)', grupo: 'Sessão', palavras: 'facho cone luz peça', atalhos: ['E'], habilitada: () => modo.value === 'sessao' && app.comLanterna(), executar: () => app.virarLanterna(45) },
   { id: 'girar-dir', nome: 'Girar para a direita (90°)', grupo: 'Construir', palavras: 'rotacionar', atalhos: ['E'], habilitada: noEditor, executar: () => girar(90) },
   { id: 'girar-esq', nome: 'Girar para a esquerda (90°)', grupo: 'Construir', palavras: 'rotacionar', atalhos: ['Q'], habilitada: noEditor, executar: () => girar(-90) },
   { id: 'girar-dir-fino', nome: 'Girar para a direita (15°)', grupo: 'Construir', atalhos: ['Shift+E'], habilitada: noEditor, executar: () => girar(15) },
@@ -148,7 +153,10 @@ export const ACOES: readonly Acao[] = [
   { id: 'som', nome: 'Ligar ou desligar os sons', grupo: 'Aparência', executar: () => { somLigado.value = !somLigado.value; definirSom(somLigado.value); tocar('pop'); avisar(somLigado.value ? 'Sons ligados.' : 'Sons desligados.'); } },
 ];
 
-const HABILITADA = (a: Acao) => (a.habilitada ? a.habilitada() : true);
+/** O que só existe em Construir: tudo o que muda o mapa (ferramentas de pôr, biblioteca, assistente, remover, duplicar, grade). Na Sessão fica desabilitado. */
+const GRUPOS_SO_DE_CONSTRUIR = new Set(['Construir', 'Adicionar', 'Assistente']), IDS_SO_DE_CONSTRUIR = new Set(['remover', 'duplicar', 'luz-acesa', 'grade']);
+const soEmConstruir = (a: Acao) => GRUPOS_SO_DE_CONSTRUIR.has(a.grupo) || IDS_SO_DE_CONSTRUIR.has(a.id);
+const HABILITADA = (a: Acao) => (modo.value === 'sessao' && soEmConstruir(a) ? false : a.habilitada ? a.habilitada() : true);
 export const acaoPorId = (id: string): Acao | undefined => ACOES.find(a => a.id === id);
 
 export function executarAcao(a: Acao): void {

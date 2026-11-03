@@ -100,10 +100,10 @@ test('base64 vai e volta sem perder bytes, inclusive arquivos grandes', async ()
   assert.deepEqual(new Uint8Array(await volta.arrayBuffer()), bytes);
 });
 
-test('os assets de um mapa são achados em retratos, máscaras de presença e área explorada', () => {
+test('os assets de um mapa são achados nos retratos (a presença e a área explorada são por células, sem imagem)', () => {
   const m = mapaCompleto();
-  m.tokens.muirenn!.portrait = { id: 'p', hash: 'abcdef012345' }; m.session.explored = { id: 'e', hash: 'abcdef012345' }; 
-  assert.deepEqual(assetsDoMapa(m).map(a => a.id).sort(), ['e', 'p'].sort());   // retrato e área explorada (a presença é por células, sem imagem)
+  m.tokens.muirenn!.portrait = { id: 'p', hash: 'abcdef012345' };  
+  assert.deepEqual(assetsDoMapa(m).map(a => a.id), ['p']);
 });
 
 test('backup completo: exportar e importar em outro banco reproduz mapas e assets', async () => {
