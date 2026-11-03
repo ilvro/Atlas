@@ -81,7 +81,7 @@ test('cozinha com a mesa já posta ganha cadeiras ao redor dela, viradas para el
 
 test('um cômodo de 1,5 × 1,5 m devolve pouco ou nada sem lançar', () => {
   const m = mapaCom(sala('p', 0, 0, 1, 1, { name: 'Quarto', function: 'quarto' }));
-  const l = pedir(m, 1, 'quarto', 'p'); assert.ok(l.objetos.length <= 2); assert.ok(l.faltaram.includes('cama'));
+  const l = pedir(m, 1, 'quarto', 'p'); assert.ok(!l.objetos.some(o => receitaDe(o).startsWith('cama.')), 'a cama não cabe'); assert.ok(l.objetos.filter(o => o.elevation === 'floor').length <= 3, 'no máximo uns itens pequenos de piso'); assert.ok(l.objetos.length <= 8); assert.ok(l.faltaram.includes('cama'));
   assert.deepEqual(gerarLayout(m, { roomId: 'inexistente', funcao: 'quarto', genero: 'investigacao', semente: 1 }), { objetos: [], faltaram: [] });
 });
 

@@ -1,24 +1,301 @@
 # Fase 9 — Plataforma e tutoriais
 
-Só a lista de tarefas (revisada em 3 de novembro de 2026, depois da Fase 5). **Detalhar com o Opus antes de começar** (fichas no modelo do [README](README.md)), conferindo o código do momento. Critério de pronto da fase: ver o [ROADMAP](../ROADMAP.md).
+"O Atlas na mesa." Critério de pronto: não há um no ROADMAP. Proposta: **numa sessão de verdade sob o `mesa-dev`, a ficha de um personagem vira peça no mapa, a rolagem dele aparece sobre a peça, uma pista do Ateliê é inspecionada no projetor e o Jukebox troca a música quando o clima muda, sem copiar nada à mão.** Confirmar com o usuário ao começar a fase.
 
-Cada tarefa que muda outro projeto só começa com autorização do usuário (marcadas com 🔒).
+Detalhado em 3 de novembro de 2026, **antes das Fases 6 a 8**. **Ao começar a fase, o Opus confere as fichas de novo**, sobretudo as que dependem da Fase 7 (peças de jogador, interagíveis, sessão, projetor).
 
-| # | Tarefa |
-| --- | --- |
-| 9.1a | 🔒 Mesa (hub): projeto novo, campanhas e entidades |
-| 9.1b | 🔒 Mesa: notas com `[[ligações]]` |
-| 9.1c | 🔒 Mesa: inventário de aplicativos pelos manifestos; rodar o `mesa-dev` com os outros projetos de verdade (até hoje só testado com o Atlas e uma página falsa) |
-| 9.2a | 🔒 Ficha publica no contrato (lado da Ficha) |
-| 9.2b | Arrastar ficha → token; cartão com PV/PD em pips |
-| 9.2c | `ficha.rolagem` flutuando sobre o token |
-| 9.3a | Arrastar documento do Ateliê → pista |
-| 9.3b | Inspeção com luz UV; `atelie.abrir` para editar |
-| 9.4a | 🔒 Jukebox publica suas cenas no contrato |
-| 9.4b | Escolha de cena sonora por mapa, região e clima (substitui o campo provisório da 4.7a); conferir `jukebox.tocar` com o Jukebox de verdade |
-| 9.4c | `jukebox.tocar` ao entrar numa região |
-| 9.4d | 🔒 Efeitos avulsos da biblioteca do Jukebox nos interagíveis (se o Jukebox ganhar efeitos avulsos) |
-| 9.5a | 🔒 Mesa em modo sessão: apps lado a lado |
-| 9.5b | 🔒 Roteiro e registro da sessão |
-| 9.6a | Motor de tutoriais (adaptar `Tabletop/src/tutorial/`) |
-| 9.6b | Lições das ferramentas principais: construir, assistente (pílulas), espalhar, clima, sessão. Cada lição define valores reais, marca onde clicar e confere o resultado (como os tutoriais do Tabletop deviam ter sido) |
+**🔒 = muda outro projeto.** A tarefa só começa com autorização explícita do usuário para aquele projeto, e o primeiro passo dela é **ler o projeto** e reportar como ele está antes de mudar qualquer coisa. Contratos existentes (como o do Ateliê com o Tabletop) não mudam sem mudar os dois lados (AGENTS.md). 👤 = decisão do usuário no meio da tarefa.
+
+## Como as coisas estão hoje
+
+- **Atlas:** fala o contrato da mesa desde a Fase 2 (`mesa-core` em `Atlas/mesa-core/`, compilado por `npm run build:core`): Refs, banco `mesa-campanha-v1`, barramento `mesa:eventos` com o catálogo em `mesa-core/src/eventos.ts`, manifesto `public/mesa.json`, tema `mesa:tema`, `scripts/mesa-dev.ts` (todos os projetos numa origem; **só testado com o Atlas e uma página falsa**). Pede `jukebox.tocar` ao trocar de clima (4.7a, campo provisório; nunca conferido com o Jukebox).
+- **Ficha** (`Projects/Ficha teste - Ordem II`): JavaScript sem framework, Vite; quase tudo em `src/app.js` (estado da ficha com `pv`, `maxPv`, `pd`, `maxPd`, `tokenImage`; rolagens por `rollDice3d` em `src/dice3d.js`); persistência em `sheets.json` no desenvolvimento e IndexedDB/localStorage no Pages. Análise antiga em `Tabletop/docs/INTEGRACAO_FICHA.md`. Não conhece o contrato da mesa. Atenção: o catálogo diz `pvMax`/`pdMax`; a Ficha diz `maxPv`/`maxPd`.
+- **Ateliê:** já oferece pistas pelo contrato v1 com o Tabletop (`Atelie/docs/plano/CONTRATO-TABLETOP.md`): banco `mesa-handouts-v1` (`handouts`, `bakes` normal e UV) e canal `mesa:handout`. **O Atlas pode consumir isso sem mudar o Ateliê.** Manifesto e `atelie.abrir` exigem mudar o Ateliê.
+- **Jukebox:** JavaScript sem bundler (`index.html`, `player.js`, `scenes.js`); as cenas ficam no localStorage (`scenes.js`, `loadScenes`); tem um `server.js` opcional. Não conhece o contrato.
+- **Mesa (hub):** não existe.
+- **Tabletop** tem o motor de tutoriais para adaptar: `src/tutorial/tutor.js`, `conditions.js`, `lessons.js` (20 lições).
+
+## Decisões já tomadas (não rediscutir na implementação)
+
+- **Cada aplicativo usa uma cópia compilada e fixa** do `mesa-core` em `vendor/mesa-core/` (PLATAFORMA §7). A fonte continua no Atlas até o usuário decidir mudá-la para o repositório da Mesa (👤 na 9.1a).
+- **A Mesa usa a mesma pilha do Atlas** (TypeScript, Preact com signals, Vite, CSS próprio, a identidade de `docs/INTERFACE.md`), em `Projects/Mesa`, publicada em `/Mesa/`.
+- **O Atlas não guarda dados de outro aplicativo no documento**, só `Ref`. PV, PD e rolagens chegam pelo barramento e vivem na memória da sessão; pistas são lidas do `mesa-handouts-v1` na hora.
+- **Ponto de encontro de uma pista no mapa:** um objeto com `interaction.kind === 'clue'` e `interaction.clue = Ref` do documento do Ateliê (o campo existe desde a 7.0b).
+- **Tutoriais seguem a lição do Tabletop:** o resultado da lição é desenhado primeiro e precisa ficar bonito; a pessoa **define** cada valor que faz o visual, com condição conferindo o valor exato; o tutor marca onde clicar; a lição termina comparando o resultado com o original.
+
+## Tarefas
+
+| # | Tarefa | Tipo |
+| --- | --- | --- |
+| 9.1a | 🔒 Mesa: projeto, campanhas e entidades | projeto novo |
+| 9.1b | 🔒 Mesa: notas com `[[ligações]]` | Mesa |
+| 9.1c | 🔒 Mesa: inventário de aplicativos e o `mesa-dev` com todos | Mesa + scripts |
+| 9.2a | 🔒 Ficha no contrato | Ficha |
+| 9.2b | Ficha → peça; cartão com PV e PD | Atlas |
+| 9.2c | Rolagem sobre a peça | Atlas |
+| 9.3a | Pistas do Ateliê no mapa | Atlas |
+| 9.3b | Inspeção com luz UV, no projetor | Atlas |
+| 9.3c | 🔒 Ateliê: manifesto e `atelie.abrir` | Ateliê |
+| 9.4a | 🔒 Jukebox no contrato | Jukebox |
+| 9.4b | Cena sonora por mapa, região e clima | Atlas |
+| 9.4c | Entrar numa região | Atlas |
+| 9.4d | 🔒 Efeitos avulsos do Jukebox nos interagíveis | Jukebox + Atlas |
+| 9.5a | 🔒 Mesa em modo sessão | Mesa + Atlas |
+| 9.5b | 🔒 Roteiro e registro da sessão | Mesa |
+| 9.6a | Motor de tutoriais | Atlas |
+| 9.6b | Lições | Atlas |
+| 9.7 | Validação da fase | e2e + relatório |
+
+---
+
+### 9.1a — 🔒 Mesa: projeto, campanhas e entidades  ⬜
+Objetivo: o hub existe, abre no `mesa-dev` e cria campanhas e entidades no banco comum.
+Depende de: autorização para criar `Projects/Mesa`.
+Ler: `Atlas/docs/PLATAFORMA.md` inteiro; `Atlas/mesa-core/src/campanha.ts` (`abrirRepositorioCampanha`, `Entidade`, `TIPOS_ENTIDADE`); `Atlas/package.json`, `vite.config.ts`, `src/app/tema.ts`, `src/ui/estilo.css` (pilha e identidade); `Atlas/scripts/mesa-dev.ts`.
+Arquivos: criar `Projects/Mesa/` (package.json, vite.config.ts com `base: '/Mesa/'`, tsconfig, `index.html`, `src/`, `public/mesa.json`, `vendor/mesa-core/`, `AGENTS.md`, `docs/`, `tests/`).
+Como:
+1. 👤 Antes de começar: perguntar se a fonte do `mesa-core` muda para a Mesa agora (PLATAFORMA §7) ou continua no Atlas. A ficha segue igual nos dois casos; muda só de onde vem o `vendor/`.
+2. Telas: campanha ativa (lista, criar, renomear, sistema, tema; `mesa:campanha-ativa`); entidades por tipo (personagem, lugar, pista, cena, sessão, facção, nota), com busca sem acento, criar, editar nome, tags e notas; cada entidade mostra os seus `refs` com o nome do aplicativo e um link "Abrir" (por manifesto, na 9.1c).
+3. Respeitar a regra de dono do repositório (quem criou altera; os outros só os próprios refs).
+4. Tema pelo `mesa:tema`, igual aos outros aplicativos.
+Não fazer: notas ricas (9.1b); modo sessão (9.5a).
+Testes: unitários do que for puro (filtros, ordenação); e2e com o Atlas sob o `mesa-dev`: criar uma campanha na Mesa e ver a campanha no Atlas (aba Mapa → campanha), e o "lugar" que o Atlas cria aparecer na Mesa.
+Pronto quando: a Mesa abre em `/Mesa/` sob o `mesa-dev` e compartilha a campanha com o Atlas.
+Commit (no repositório da Mesa): first hub with campaigns and entities
+
+### 9.1b — 🔒 Mesa: notas com `[[ligações]]`  ⬜
+Objetivo: notas da campanha que ligam a qualquer entidade ou Ref, abrindo o que está ligado.
+Depende de: 9.1a
+Ler: `Atlas/mesa-core/src/refs.ts` (formato `mesa:app/tipo/id`); `Atlas/mesa-core/src/campanha.ts` (`ligacoes`).
+Arquivos: na Mesa, `src/dominio/notas.ts`, `src/ui/EditorDeNota.tsx`, testes.
+Como:
+1. Sintaxe: `[[Nome da entidade]]` e `[[mesa:app/tipo/id|rótulo]]`. Parser puro que devolve trechos de texto e ligações; ligação a nome inexistente fica marcada "sem destino", com ação "Criar entidade".
+2. Editor de texto simples com autocompletar ao digitar `[[`; ao salvar, as ligações viram `ligacoes` do tipo `menciona` (apaga as que saíram).
+3. Na leitura, ligação clicável: entidade abre na Mesa; Ref abre no aplicativo dono (manifesto) ou pede `atlas.focar`/`ficha.abrir`/`atelie.abrir` pelo barramento, se o aplicativo estiver aberto.
+Não fazer: Markdown completo; exportação para Obsidian (fora do plano).
+Testes: parser por tabela (aninhamento, colchetes soltos, acento, Ref com rótulo); salvar uma nota cria e apaga ligações.
+Pronto quando: uma nota com `[[Casa dos Salgueiros]]` abre o mapa no Atlas.
+Commit (Mesa): campaign notes with links
+
+### 9.1c — 🔒 Mesa: inventário de aplicativos e o `mesa-dev` com todos  ⬜
+Objetivo: a Mesa lista os aplicativos pelos manifestos, e o `mesa-dev` roda os projetos de verdade numa origem só.
+Depende de: 9.1a; autorização para mexer na configuração de base (`base` do Vite ou equivalente) de cada projeto que precisar.
+Ler: `Atlas/scripts/mesa-dev.ts`; `Atlas/mesa-core/src/manifesto.ts` (`descobrir`, `enderecoDaRef`); o `vite.config` (ou o servidor) de Ficha, Ateliê, Jukebox e Tabletop.
+Arquivos: Mesa (`src/ui/Aplicativos.tsx`); `Atlas/scripts/mesa-dev.ts`; nos outros projetos, só o necessário para servirem num subcaminho.
+Como:
+1. Inventário: `descobrir('../<App>/')` para Atlas, Ficha, Atelie, Jukebox e Tabletop; cartão por aplicativo com ícone, nome, o que oferece e atende, e estado (achado, sem manifesto, fora do ar).
+2. `mesa-dev`: rotas para os cinco, com o modo de cada um (dev server com `base`, ou arquivos estáticos para o Jukebox). Documentar no README da Mesa como subir tudo com um comando.
+3. Rodar e anotar o que quebrou em cada projeto sob subcaminho; consertar só configuração, nunca lógica de outro projeto nesta tarefa.
+Não fazer: manifestos dos outros projetos (são das tarefas deles).
+Testes: e2e na Mesa: o inventário mostra Atlas e Mesa como "achado" e os outros como "sem manifesto" até as tarefas deles.
+Pronto quando: `npm run mesa-dev` sobe os cinco projetos e a Mesa numa origem.
+Commit (Atlas): run all apps under mesa-dev; (Mesa): app inventory
+
+### 9.2a — 🔒 Ficha no contrato  ⬜
+Objetivo: a Ficha emite rolagens e recursos, atende `ficha.abrir` e se anuncia por manifesto.
+Depende de: 9.1c; autorização para mudar a Ficha.
+Ler: na Ficha, `src/app.js` (estado, `defaults`, onde PV e PD mudam, onde as rolagens terminam), `src/dice3d.js` (`rollDice3d`), `vite.config.js`, `package.json`; `Tabletop/docs/INTEGRACAO_FICHA.md`; `Atlas/mesa-core/src/eventos.ts` (`ficha.rolagem`, `ficha.recursos`, `ficha.abrir`).
+Arquivos: na Ficha, `vendor/mesa-core/`, `public/mesa.json`, um módulo novo `src/mesa.js` e o mínimo de ganchos em `app.js`.
+Como:
+1. Primeiro passo: relatório de como a Ficha identifica cada ficha (id estável?), onde termina uma rolagem e onde PV/PD mudam. Pare se a ficha não tiver id estável e proponha como dar um.
+2. `src/mesa.js`: cria o barramento (`app: 'ficha'`); `emitirRolagem({ ficha, titulo, total, modificador })` no fim de cada rolagem; `emitirRecursos({ ficha, pv, pvMax, pd, pdMax })` quando mudam (mapeando `maxPv` → `pvMax`); atende `ficha.abrir { ref }` trazendo a ficha à frente.
+3. Ao entrar numa campanha ativa (`mesa:campanha-ativa`), a Ficha cria ou atualiza a entidade "personagem" dela com o seu Ref (`mesa:ficha/ficha/<id>`).
+4. Retrato: se o usuário autorizar, a Ficha publica o retrato no banco da campanha como asset da entidade (campo novo no `mesa-core`, contrato v1 com tipo novo, sem quebrar nada); senão, o Atlas não tem retrato da Ficha. 👤
+5. Tudo desligável: sem `BroadcastChannel`, a Ficha funciona como antes.
+Não fazer: a Ficha ler nada do Atlas.
+Testes: na Ficha, um teste do módulo `mesa.js` com um barramento falso; e2e no Atlas sob o `mesa-dev`: rolar na Ficha chega como `ficha.rolagem` no Atlas.
+Pronto quando: rolagens e recursos saem da Ficha pelo barramento e a ficha aparece como personagem na Mesa.
+Commit (Ficha): join the table contract
+
+### 9.2b — Ficha → peça; cartão com PV e PD  ⬜
+Objetivo: arrastar um personagem da campanha para o mapa cria a peça ligada à ficha; a peça mostra PV e PD em pips.
+Depende de: 9.2a (para dados reais; dá para desenvolver com um barramento falso); (depois da 7) peças de jogador.
+Ler: `src/app/campanha.ts`; `src/render/pecas.ts`; `src/ui/Dock.tsx`; `mesa-core` (`listarEntidades`).
+Arquivos: criar `src/app/fichas.ts`, `src/ui/Personagens.tsx`; mudar `pecas.ts`, `Dock.tsx`, `Inspetor.tsx`.
+Como:
+1. Seção "Personagens" no dock da sessão (e na biblioteca de peças em Construir): entidades `personagem` da campanha com Ref da Ficha. Arrastar para o mapa cria a peça (`player: true`, nome, `refs: [ref da ficha]`, retrato se a 9.2a publicar).
+2. `fichas.ts`: escuta `ficha.recursos` e guarda o último por Ref (memória, não documento); signal por peça.
+3. Na peça: dois arcos ou fileiras de pips (PV vermelho, PD azul), só para o mestre e, se ele quiser, no projetor ("Mostrar PV no projetor", preferência local). Pip piscando quando o valor cai; estado crítico (PV ≤ 25%) muda o estado da peça para "ferido" só na tela, sem mexer no documento.
+4. Cartão contextual da peça na sessão: PV x/y, PD x/y, "Abrir ficha" (`ficha.abrir`; sem resposta, oferece abrir a Ficha pelo manifesto).
+Não fazer: escrever na Ficha.
+Testes: unitário de `fichas.ts` com barramento falso; e2e: um `ficha.recursos` falso atualiza os pips da peça ligada.
+Pronto quando: os testes passam.
+Commit: sheet tokens with health pips
+
+### 9.2c — Rolagem sobre a peça  ⬜
+Objetivo: quando o personagem rola na Ficha, o resultado flutua sobre a peça dele no mapa e no projetor.
+Depende de: 9.2b
+Ler: `src/fx/fx.ts` (número flutuante, faíscas); `src/app/fichas.ts`; `src/app/projetor.ts` (7.5b).
+Arquivos: mudar `fichas.ts`, `src/fx/fx.ts`, `projetor.ts`.
+Como:
+1. `ficha.rolagem` de um Ref ligado a uma peça no mapa aberto: número flutuante grande sobre a peça (título pequeno embaixo), com faíscas no acento; total alto ou baixo muda a cor (sem decidir sucesso: o Atlas não conhece a regra).
+2. O projetor recebe o mesmo efeito (mensagem `evento` da 7.5b) quando a peça está visível.
+3. Uma rolagem de quem não tem peça no mapa vira um toast discreto.
+Não fazer: histórico de rolagens (é o registro da 9.5b).
+Testes: e2e com barramento falso: a rolagem aparece sobre a peça certa e no projetor.
+Pronto quando: o teste passa.
+Commit: roll results over tokens
+
+### 9.3a — Pistas do Ateliê no mapa  ⬜
+Objetivo: os documentos entregues pelo Ateliê aparecem numa lista e viram pistas no mapa.
+Depende de: (depois da 7) `interaction.clue`.
+Ler: `Atelie/docs/plano/CONTRATO-TABLETOP.md` inteiro (banco `mesa-handouts-v1`, `Summary`, `bakes`, canal `mesa:handout`); `src/ui/Biblioteca.tsx`.
+Arquivos: criar `src/data/pistas.ts`, `src/ui/Pistas.tsx`, `tests/unit/pistas.test.ts`; mudar `Biblioteca.tsx` (ou o dock), `src/state/comandos.ts` se precisar.
+Como:
+1. `pistas.ts`: lê `handouts` do `mesa-handouts-v1` (só leitura, seguindo o contrato v1 à risca) e escuta `mesa:handout` para atualizar a lista.
+2. Lista "Pistas" (em Construir, na biblioteca de objetos; na Sessão, no dock) com a prévia de cada documento. Arrastar para o mapa cria um objeto `papeis` (ou outra receita de papel) com `interaction: { kind: 'clue', clue: mesa:atelie/documento/<id> }`; também dá para ligar um objeto existente pelo inspetor.
+3. A pista cria a ligação `esta-em` (pista → cômodo) no banco da campanha, se houver campanha ativa.
+4. Pista cujo documento sumiu do banco: o objeto fica, com o aviso "documento não encontrado" no inspetor.
+Não fazer: mudar o Ateliê; inspeção (9.3b).
+Testes: unitário de `pistas.ts` com `fake-indexeddb` (já é dependência de desenvolvimento) seguindo o formato do contrato; e2e: gravar um handout falso no banco e ele aparecer na lista e virar pista.
+Pronto quando: os testes passam.
+Commit: Atelie handouts as clues
+
+### 9.3b — Inspeção com luz UV, no projetor  ⬜
+Objetivo: na sessão, abrir a pista mostra o documento grande, com a luz UV quando houver, e o mestre pode mostrar aos jogadores.
+Depende de: 9.3a, (depois da 7) projetor.
+Ler: `Tabletop/src/ui/inspection-overlay.js` e a parte de inspeção de `presentation-window.js` (como o projetor segue a inspeção); `src/data/pistas.ts`.
+Arquivos: criar `src/ui/Inspecao.tsx`; mudar `src/app/projetor.ts`, `src/ui/Projetor.tsx`, `src/app/acoes.ts`.
+Como:
+1. Clicar na pista na sessão (ou `Enter` com a peça ao lado) abre a inspeção: o `bake` normal em tela grande, zoom e arrasto, "Luz UV" (quando `hasUv`) com uma lanterna que segue o ponteiro revelando o `bake` UV num círculo; Esc fecha.
+2. "Mostrar aos jogadores": o projetor abre a mesma inspeção e segue a posição da lanterna UV do mestre (suavizado). A pista entra em `session.revealed` (e emite `atlas.revelado`).
+3. "Editar no Ateliê": pede `atelie.abrir { ref }`; sem resposta (antes da 9.3c), abre o Ateliê pela URL base do `source` do handout.
+Não fazer: anotar sobre o documento.
+Testes: e2e com handout falso com UV: abrir, ligar UV, mostrar aos jogadores e o projetor receber.
+Pronto quando: o teste passa e a lanterna UV é fluida.
+Commit: clue inspection with UV light
+
+### 9.3c — 🔒 Ateliê: manifesto e `atelie.abrir`  ⬜
+Objetivo: o Ateliê se anuncia e abre um documento quando pedido.
+Depende de: 9.1c; autorização para mudar o Ateliê.
+Ler: `Atelie/AGENTS.md`, `Atelie/docs/plano/CONTRATO-TABLETOP.md`, `etapa-28-integracao-tabletop.md`; as rotas do Ateliê.
+Arquivos: no Ateliê, `vendor/mesa-core/`, `public/mesa.json`, um módulo de barramento e o gancho que abre um documento por id.
+Como: primeiro, relatório de como o Ateliê abre um documento por id. Depois: manifesto (`oferece: ['documento']`, `atende: ['atelie.abrir']`), atender `atelie.abrir { ref }` abrindo o documento e respondendo; emitir `atelie.documento-salvo` ao salvar. O contrato v1 com o Tabletop não muda.
+Não fazer: mudar o banco `mesa-handouts-v1`.
+Testes: no Ateliê, teste do módulo com barramento falso; e2e no Atlas sob o `mesa-dev`: "Editar no Ateliê" abre o documento.
+Pronto quando: o pedido é atendido.
+Commit (Ateliê): join the table contract
+
+### 9.4a — 🔒 Jukebox no contrato  ⬜
+Objetivo: o Jukebox publica as cenas na campanha, toca uma cena quando pedido e avisa o que está tocando.
+Depende de: 9.1c; autorização para mudar o Jukebox.
+Ler: `Jukebox/index.html`, `scenes.js` (`loadScenes`, ids das cenas, aplicar uma cena), `player.js`, `README.md`.
+Arquivos: no Jukebox, `vendor/mesa-core/` (o JS compilado, importado por `<script type="module">`, sem bundler), `mesa.json`, `mesa.js`.
+Como:
+1. Primeiro, relatório: como uma cena é aplicada (função), se o id é estável, o que acontece quando faltam faixas (`countMissingTracks`).
+2. `mesa.js`: com campanha ativa, cria ou atualiza uma entidade `cena` por cena do Jukebox, com Ref `mesa:jukebox/cena-sonora/<id>`; atende `jukebox.tocar { ref }` aplicando a cena (resposta `ok: false, motivo` se faltam faixas); emite `jukebox.tocando { cena | null }`.
+3. Navegador sem `BroadcastChannel`: nada muda.
+Não fazer: efeitos avulsos (9.4d).
+Testes: e2e no Atlas sob o `mesa-dev` com o Jukebox: trocar o clima no Atlas toca a cena escolhida (confere `jukebox.tocando`). É a primeira vez que a 4.7a roda contra o Jukebox de verdade.
+Pronto quando: o pedido do Atlas toca a cena no Jukebox.
+Commit (Jukebox): join the table contract
+
+### 9.4b — Cena sonora por mapa, região e clima  ⬜
+Objetivo: escolher a cena do Jukebox para o mapa, para cada região de áudio e para cada clima, a partir das cenas da campanha.
+Depende de: 9.4a (para dados reais).
+Ler: `src/app/audio-do-clima.ts` e o campo "Som deste clima" (4.7a); `src/domain/mapa.ts` (`audioCue`, `climateAudio`, `Regiao.kind === 'audio'`, `refs`); `src/ui/Inspetor.tsx`.
+Arquivos: criar `src/ui/EscolherCena.tsx`; mudar `Inspetor.tsx`, `audio-do-clima.ts`, `src/app/app.ts`.
+Como:
+1. `EscolherCena`: lista as entidades `cena` com Ref do Jukebox da campanha ativa, com busca, "Ouvir" (pede `jukebox.tocar`) e "Nenhuma". Substitui o campo provisório da 4.7a e é usado em três lugares: aba Mapa ("Som do mapa" → `audioCue`), seção Clima ("Som deste clima" → `climateAudio`) e inspetor da região `audio` (→ o primeiro `refs` da região).
+2. Abrir o mapa na sessão pede a cena do mapa; trocar o clima pede a do clima (como hoje).
+Não fazer: entrar em região (9.4c).
+Testes: e2e com barramento falso: escolher uma cena para "Noite" e trocar para Noite pede aquela cena.
+Pronto quando: o teste passa e o campo provisório sumiu.
+Commit: pick sound scenes from the campaign
+
+### 9.4c — Entrar numa região  ⬜
+Objetivo: quando uma peça de jogador entra numa região, o Atlas avisa e, se for região de áudio, pede a cena.
+Depende de: 9.4b; (depois da 7) movimento e peças de jogador.
+Ler: `src/state/comandos.ts` (`peca.mover`); `src/render/selecao.ts` (`pontoNoPoligono`); `mesa-core` (`atlas.regiao-entrou`).
+Arquivos: criar `src/domain/regioes.ts`, `tests/unit/regioes.test.ts`; mudar `src/app/app.ts` (ou `src/app/sessao.ts`).
+Como:
+1. `regioesEntradas(antes: MapaAtlas, depois: MapaAtlas): { regiao: string; peca: string }[]`, pura: regiões em que alguma peça de jogador passou a estar.
+2. Depois de cada `peca.mover` na sessão: emite `atlas.regiao-entrou { mapa, regiao }`; região `audio` com Ref pede `jukebox.tocar`; região `trigger` mostra ao mestre o `payload` (toast com o texto, se houver).
+3. Sair da região de áudio volta à cena do clima (ou do mapa).
+Não fazer: regiões que disparam efeitos de cena (pode ser pendência).
+Testes: unitários de `regioesEntradas` (entrar, já estar dentro, peça que não é de jogador); e2e com barramento falso.
+Pronto quando: os testes passam.
+Commit: region enter events
+
+### 9.4d — 🔒 Efeitos avulsos do Jukebox nos interagíveis  ⬜
+Objetivo: portas e interagíveis podem tocar um efeito da biblioteca do Jukebox no lugar do som sintetizado.
+Depende de: 9.4a, 7.6b; autorização; **só se o Jukebox tiver ou ganhar efeitos avulsos** (hoje os "efeitos" dele são filtros sobre trechos de música).
+Ler: ARQUITETURA §8.1; o Jukebox inteiro, de novo.
+Arquivos: Jukebox (efeitos avulsos e pedido `jukebox.efeito`); `mesa-core` (tipo novo no catálogo, sem subir o contrato); Atlas (`som: Ref` de aberturas e interagíveis tocado por `jukebox.efeito`, com o sintetizado como reserva).
+Como: 👤 Primeiro, mostrar ao usuário o que seria preciso no Jukebox e decidir se vale. Se não valer, a alternativa é uma biblioteca de efeitos do próprio Atlas em `public/colecao/sons/` (arquivos CC0 registrados em `LICENCAS.md`), e esta tarefa vira isso, sem 🔒.
+Não fazer: nada antes da decisão.
+Testes: definidos depois da decisão.
+Pronto quando: a decisão está tomada e implementada.
+Commit: (conforme a decisão)
+
+### 9.5a — 🔒 Mesa em modo sessão  ⬜
+Objetivo: a Mesa mostra Atlas, fichas e Jukebox lado a lado durante a sessão.
+Depende de: 9.1c, 9.2a, 9.4a.
+Ler: PLATAFORMA §9; `Atlas/src/app/rotas.ts`; `Atlas/src/ui/App.tsx`.
+Arquivos: Mesa (`src/ui/ModoSessao.tsx`); Atlas (modo embutido); nos outros, só se precisarem de modo embutido (autorização por projeto).
+Como:
+1. Mesa: layout em colunas redimensionáveis com `iframe` de mesma origem (Atlas grande; fichas dos personagens da sessão em abas; Jukebox estreito), presets de layout, tela cheia por painel.
+2. Atlas: `?embutido=1` esconde galeria e cabeçalho grande, abre direto em Sessão e deixa o projetor como botão. Os outros aplicativos ganham o mesmo parâmetro só se quebrarem dentro do `iframe`.
+3. O tema e a campanha já se propagam pelo `mesa-core`.
+Não fazer: roteiro (9.5b).
+Testes: e2e na Mesa: os três `iframe` carregam sob o `mesa-dev`, e uma rolagem na Ficha embutida aparece no Atlas embutido.
+Pronto quando: o teste passa.
+Commit (Mesa): session mode; (Atlas): embedded mode
+
+### 9.5b — 🔒 Roteiro e registro da sessão  ⬜
+Objetivo: a sessão tem um roteiro (mapas, cenas, documentos) e um registro automático do que aconteceu.
+Depende de: 9.5a.
+Ler: `Atlas/mesa-core/src/campanha.ts` (`Sessao`); `mesa-core/src/eventos.ts` (fatos).
+Arquivos: Mesa (`src/ui/Roteiro.tsx`, `src/dominio/registro.ts`, testes).
+Como:
+1. Roteiro: lista ordenada de Refs com notas; clicar abre no painel certo (pede `atlas.focar` etc.).
+2. Registro: a Mesa escuta os fatos do barramento durante a sessão ativa e grava entradas legíveis ("Muirenn rolou Investigação: 17", "Cômodo Biblioteca revelado", "Tocando: Chuva forte") com hora; o mestre acrescenta notas; exportar em Markdown.
+3. `mesa.sessao-iniciada` ao começar.
+Não fazer: sincronizar entre computadores.
+Testes: unitário de `registro.ts` (fato → texto) por tabela; e2e: três fatos falsos viram três linhas.
+Pronto quando: os testes passam.
+Commit (Mesa): session script and log
+
+### 9.6a — Motor de tutoriais  ⬜
+Objetivo: um tutor que aponta, espera a pessoa fazer e confere o resultado, sobre a interface real do Atlas.
+Depende de: —
+Ler: `Tabletop/src/tutorial/tutor.js` e `conditions.js` inteiros; `Tabletop/src/tutorial/lessons.js` (duas lições, para ver o formato); `src/app/sessao.ts`; `src/ui/App.tsx`.
+Arquivos: criar `src/tutorial/tutor.ts`, `src/tutorial/condicoes.ts`, `src/ui/Tutor.tsx`, `tests/unit/condicoes.test.ts`; mudar `src/app/acoes.ts`, `src/ui/estilo.css`.
+Como:
+1. Porte para TypeScript e Preact: lição = passos `{ texto; alvo: seletor | ponto do mapa; condicao(estado): boolean; valores?: Record<string, string>; tentar?: boolean }`; anel no alvo, mancha no ponto do mapa (`viewport.clientDe`), cartão com o passo; ajuda em degraus (o anel insiste aos 20 s, oferece os valores aos 35 s); nunca faz o passo pela pessoa.
+2. `condicoes.ts`: ajudantes puros sobre o documento e a sessão (`temComodoComFuncao`, `luzComPreset`, `climaE`, `valorIgual(caminho, valor, tolerancia)`…).
+3. Progresso e registro local (`atlas-tutoriais-v1`), como no Tabletop; "Exportar relatório" na paleta.
+4. As lições rodam num mapa de treino criado pela lição (o mapa do mestre não é tocado).
+Não fazer: as lições (9.6b).
+Testes: unitários das condições; e2e com uma lição de dois passos de teste.
+Pronto quando: a lição de teste completa só com cliques reais.
+Commit: tutorial engine
+
+### 9.6b — Lições  ⬜
+Objetivo: cinco lições que terminam num resultado bonito e ensinam o Atlas de verdade.
+Depende de: 9.6a
+Ler: `src/tutorial/`; a decisão sobre tutoriais no topo deste arquivo; as capturas das validações das fases 5 a 8.
+Arquivos: criar `src/tutorial/licoes.ts`, `tests/e2e/tutoriais.test.ts`; mudar `src/ui/Galeria.tsx` (entrada "Aprender").
+Como:
+1. Para cada lição, **primeiro** monte o resultado final à mão e capture (`test-results/licao-<id>-alvo.png`); só depois escreva os passos.
+2. Lições: **Primeira casa** (pintar três cômodos, portas, um objeto, uma luz; cada valor definido); **O assistente** (nomear cômodos e aceitar pílulas, ajustar o que não gostou); **Espalhar e terreno** (jardim e bosque em volta da casa); **Climas** (a mesma casa de dia, na tempestade e no apagão; os valores de luz e acabamento definidos, com paleta coerente: quente por dentro, frio por fora); **Sessão** (duas peças, portas, revelar, projetor).
+3. Cada passo que define o visual confere o valor exato (com tolerância pequena) e o encaixe na grade é desligado quando a posição importa.
+4. Cada lição termina mostrando o resultado ao lado da captura-alvo.
+Não fazer: lições de integração com outros aplicativos.
+Testes: e2e que percorre cada lição fazendo os passos pela interface e compara a captura final com a alvo (diferença média baixa).
+Pronto quando: as cinco lições passam no e2e e a captura final de cada uma fica bonita.
+Commit: tutorial lessons
+
+### 9.7 — Validação da fase  ⬜
+Objetivo: provar o critério de pronto (confirmado com o usuário no começo da fase) e registrar o relatório.
+Depende de: todas as que foram autorizadas.
+Ler: os e2e das fases 7 e 8.
+Arquivos: criar `tests/e2e/fase9.test.ts` (no Atlas; e o equivalente na Mesa, se ela existir); mudar `progress.md`.
+Como:
+1. Sob o `mesa-dev` com todos os aplicativos autorizados: campanha na Mesa; personagem da Ficha vira peça; rolagem aparece sobre a peça e no projetor; pista do Ateliê é inspecionada com UV no projetor; trocar o clima toca a cena no Jukebox; entrar numa região troca a música; registro da sessão tem tudo isso.
+2. O que não foi autorizado fica fora do e2e e entra no relatório como "não feito por decisão".
+3. progress.md: resumo da fase e o estado de cada integração.
+Não fazer: consertar outro projeto sem autorização.
+Testes: os acima, mais os testes de cada projeto tocado.
+Pronto quando: tudo passa e o relatório está no progress.md.
+Commit: validate phase 9

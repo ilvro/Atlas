@@ -18,6 +18,7 @@ export const TIPOS_DE_COMODO: readonly TipoDeComodo[] = [
   { id: 'sala-de-jogos', nome: 'Sala de jogos', funcao: 'sala-de-jogos', piso: 'tabuas.carvalho', papel: 'papel.listras-musgo', descricao: 'Carvalho e listras verde-musgo' },
   { id: 'capela', nome: 'Capela', funcao: 'capela', piso: 'laje.pedra', papel: 'reboco.branco', descricao: 'Lajes de pedra e reboco branco' },
   { id: 'forja', nome: 'Forja', funcao: 'forja', piso: 'laje.pedra', papel: 'tijolo', descricao: 'Lajes de pedra e tijolo' },
+  { id: 'varanda', nome: 'Varanda', funcao: 'varanda', piso: 'laje.pedra', papel: 'reboco.branco', descricao: 'Lajes de pedra, balaustrada e vasos' },
   { id: 'porao', nome: 'Porão', funcao: 'porao', piso: 'laje.pedra', papel: 'tijolo', descricao: 'Lajes de pedra e tijolo' },
 ];
 export const tipoDeComodo = (id: string): TipoDeComodo | undefined => TIPOS_DE_COMODO.find(t => t.id === id);

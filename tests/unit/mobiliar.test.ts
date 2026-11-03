@@ -57,9 +57,10 @@ test('piso escolhido à mão não é trocado; o par de um tipo de cômodo é tro
   assert.ok(!propostaDeMobilia(ctx(aMao), 'q')!.comandos.some(c => c.tipo === 'comodo.atualizar'));
   const doTipo = quarto({ floor: { material: t.piso, seed: 1 }, wallpaper: { material: t.papel, seed: 1 } }); doTipo.style = { ...doTipo.style, genre: 'moderno' };
   const troca = propostaDeMobilia(ctx(doTipo), 'q')!.comandos.find(c => c.tipo === 'comodo.atualizar') as { patch: { floor: { material: string } } };
-  assert.equal(troca.patch.floor.material, 'tabuas.claras');
-  const investigacao = quarto({ floor: { material: t.piso, seed: 1 }, wallpaper: { material: t.papel, seed: 1 } });
-  assert.ok(!propostaDeMobilia(ctx(investigacao), 'q')!.comandos.some(c => c.tipo === 'comodo.atualizar'), 'investigação, semente 0: já é o par do tipo');
+  assert.ok(['tabuas.claras', 'carpete.cinza', 'concreto', 'tabuas.cinza'].includes(troca.patch.floor.material), `piso do moderno: ${troca.patch.floor.material}`);
+  // O piso e o papel variam de cômodo para cômodo, mas para o mesmo cômodo e a mesma semente o resultado é o mesmo.
+  const a = quarto({ floor: { material: t.piso, seed: 1 }, wallpaper: { material: t.papel, seed: 1 } }), b = quarto({ floor: { material: t.piso, seed: 1 }, wallpaper: { material: t.papel, seed: 1 } });
+  assert.equal(JSON.stringify(propostaDeMobilia(ctx(a), 'q')!.comandos.find(c => c.tipo === 'comodo.atualizar') ?? null), JSON.stringify(propostaDeMobilia(ctx(b), 'q')!.comandos.find(c => c.tipo === 'comodo.atualizar') ?? null));
 });
 
 test('cômodo já mobiliado não recebe a sugestão de novo; outra semente traz outra paleta e outro arranjo', () => {

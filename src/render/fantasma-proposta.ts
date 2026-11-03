@@ -7,6 +7,7 @@ import type { Baker } from '../procedural/baker.ts';
 import { RES_OBJETO } from './cena.ts';
 import { hexParaNumero } from './cores.ts';
 import { chaveDoObjeto, pedidoDoObjeto } from './entradas.ts';
+import { texturaPropria } from './textura-propria.ts';
 
 export interface FantasmaDeProposta {
   readonly raiz: Container;
@@ -51,7 +52,7 @@ export function criarFantasmaDeProposta(op: { baker: Baker; acento(): number; ef
     const chave = chaveDoObjeto(o, RES_OBJETO, genero), pedido = pedidoDoObjeto(o, RES_OBJETO, genero); if (!chave || !pedido) return;
     op.baker.pedir(chave, pedido).then(r => {
       if (destruido || geracao !== minha || c.destroyed) return;
-      const tex = Texture.from(r.bitmap); texturas.push(tex);
+      const tex = texturaPropria(r.bitmap); texturas.push(tex);
       const sp = new Sprite(tex); sp.position.set(r.origem[0], r.origem[1]); sp.scale.set(1 / r.res); sp.alpha = 0.8; c.addChildAt(sp, 0);
     }).catch(() => { /* a prévia é só um enfeite */ });
   }

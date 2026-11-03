@@ -117,7 +117,7 @@ Tarefas: [plano/fase-6.md](plano/fase-6.md) (tarefas detalhadas).
 
 ## Fase 7 — Sessão
 
-Tarefas: [plano/fase-7.md](plano/fase-7.md) (lista de tarefas; detalhar antes de começar).
+Tarefas: [plano/fase-7.md](plano/fase-7.md) (detalhadas antes da hora; conferir ao começar).
 
 | Etapa | Entrega |
 | --- | --- |
@@ -132,7 +132,7 @@ Tarefas: [plano/fase-7.md](plano/fase-7.md) (lista de tarefas; detalhar antes de
 
 ## Fase 8 — Renderizador Pixel completo
 
-Tarefas: [plano/fase-8.md](plano/fase-8.md) (lista de tarefas; detalhar antes de começar).
+Tarefas: [plano/fase-8.md](plano/fase-8.md) (detalhadas antes da hora; conferir ao começar).
 
 | Etapa | Entrega |
 | --- | --- |
@@ -145,7 +145,7 @@ Tarefas: [plano/fase-8.md](plano/fase-8.md) (lista de tarefas; detalhar antes de
 
 ## Fase 9 — Plataforma e tutoriais
 
-Tarefas: [plano/fase-9.md](plano/fase-9.md) (lista de tarefas; detalhar antes de começar).
+Tarefas: [plano/fase-9.md](plano/fase-9.md) (detalhadas antes da hora; conferir ao começar).
 
 Cada etapa que muda outro projeto só começa com autorização do usuário. A ordem segue [PLATAFORMA.md](PLATAFORMA.md) §11.
 

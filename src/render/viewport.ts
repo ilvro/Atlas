@@ -16,6 +16,7 @@ import { enquadrar as calcularEnquadre, mundoParaTela, panear, telaParaMundo, zo
 import { RES_OBJETO, criarCena, type Cena } from './cena.ts';
 import { hexParaNumero } from './cores.ts';
 import { chaveDoObjeto, pedidoDoObjeto } from './entradas.ts';
+import { texturaPropria } from './textura-propria.ts';
 import { criarFantasmaDeProposta } from './fantasma-proposta.ts';
 import { deltaEncaixado, encaixar, linhasDaGrade } from './grade.ts';
 import { LARGURA_DA_ABERTURA, type Ferramenta, type Pincel } from './pincel.ts';
@@ -272,7 +273,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       baker.pedir(chave, pedido).then(r => {
         if (destruido || fantasmaChave !== chave) return;
         limparFantasmaSprite(); fantasmaChave = chave;
-        fantasmaTextura = Texture.from(r.bitmap); fantasmaSprite = new Sprite(fantasmaTextura); fantasmaSprite.alpha = 0.7; fantasmaSprite.position.set(r.origem[0], r.origem[1]); fantasmaSprite.scale.set(1 / r.res);
+        fantasmaTextura = texturaPropria(r.bitmap); fantasmaSprite = new Sprite(fantasmaTextura); fantasmaSprite.alpha = 0.7; fantasmaSprite.position.set(r.origem[0], r.origem[1]); fantasmaSprite.scale.set(1 / r.res);
         const c = new Container(); c.label = 'fantasma-objeto'; c.addChild(fantasmaSprite); fantasmaC.addChild(c); camadaSuja = true;
       }).catch(() => { /* a prévia é só um enfeite */ });
     }

@@ -34,6 +34,7 @@ export const LUZES_POR_FUNCAO: Readonly<Record<string, LuzDaFuncao>> = {
   corredor: { m2PorLuz: 20, aCadaMetros: 6, tamanho: 'pequena', sobre: [] },
   hospital: { m2PorLuz: 15, tamanho: 'principal', sobre: ['mesinha'] },
   taverna: { m2PorLuz: 15, tamanho: 'principal', sobre: ['mesa.redonda', 'balcao'] },
+  varanda: { m2PorLuz: 12, tamanho: 'pequena', sobre: ['urna.pedestal', 'pilar'] },
   capela: { m2PorLuz: 14, tamanho: 'pequena', sobre: ['altar'] },
   forja: { m2PorLuz: 14, tamanho: 'principal', sobre: ['bigorna', 'lareira.pedra'] },
   porao: { m2PorLuz: 18, tamanho: 'principal', sobre: [] },

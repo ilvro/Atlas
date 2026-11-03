@@ -61,6 +61,8 @@ class Gerador {
   /** Caixas dos móveis que bloqueiam (os de agora e os novos), para a folga entre eles. */
   private readonly bloqueantes: Caixa[] = [];
   private readonly faltaram: string[] = [];
+  /** Os enfeites já postos sobre móveis (posição e maior lado), para não se sobreporem. */
+  private readonly sobre: { pos: Ponto; lado: number }[] = [];
   private readonly centroide: Ponto;
 
   private readonly m: MapaAtlas; private readonly ins: InsightDoComodo; private readonly malha: Malha; private readonly circ: Circulacao;
@@ -113,6 +115,7 @@ class Gerador {
     const receita = this.escolherReceita(regra), rec = ACERVO.item(receita); if (!rec) return null;
     const params = { ...(regra.params ?? {}), ...(this.pedido.params?.(receita) ?? {}) }, [w, h] = ACERVO.pegadaDaFonte(ACERVO.fonte(receita, 1, params));
     if (regra.lugar === 'na-parede') return this.colocarNaParede(receita, params, w);
+    if (regra.lugar === 'sobre') return this.colocarSobre(regra, receita, params, w, h);
     const tapete = rec.categoria === 'tapetes', bloqueia = !tapete;
     const temDependentes = this.regras.some(r => r.junto?.de === regra.id);
     for (const c of this.candidatos(regra, w, h)) {
@@ -131,6 +134,27 @@ class Gerador {
       return obj;
     }
     return null;
+  }
+
+  /** Um enfeite sobre o móvel âncora: numa posição sorteada dentro da pegada dele, longe dos outros enfeites. É objeto de mesa (`elevation: 'table'`), não bloqueia nada. */
+  private colocarSobre(regra: ItemDeRegra, receita: string, params: Record<string, unknown>, w: number, h: number): Objeto | null {
+    const ancoras = this.ancorasDe(regra.junto?.de ?? ''); if (!ancoras.length) return null;
+    const lado = Math.max(w, h), candidatos: { pos: Ponto; rot: number; nota: number }[] = [];
+    for (const a of ancoras) {
+      const ex: Ponto = [Math.cos(a.rot), Math.sin(a.rot)], ey: Ponto = [-Math.sin(a.rot), Math.cos(a.rot)], mx = Math.max(0, a.w / 2 - lado / 2 - 0.04), my = Math.max(0, a.h / 2 - lado / 2 - 0.04);
+      const ja = this.sobre.filter(q => distancia(q.pos, a.pos) < Math.max(a.w, a.h)).length;
+      for (let k = 0; k < 16; k++) {
+        const lx = (this.rng() * 2 - 1) * mx, ly = (this.rng() * 2 - 1) * my;
+        candidatos.push({ pos: [a.pos[0] + ex[0] * lx + ey[0] * ly, a.pos[1] + ex[1] * lx + ey[1] * ly], rot: a.rot + (this.rng() - 0.5) * 0.7, nota: this.rng() - ja * 0.5 });
+      }
+    }
+    candidatos.sort((x, y) => y.nota - x.nota);
+    const livre = candidatos.find(c => !this.sobre.some(q => distancia(q.pos, c.pos) < 0.42 * (lado + q.lado)));
+    if (!livre) return null;
+    this.sobre.push({ pos: livre.pos, lado });
+    return novoObjeto([Math.round(livre.pos[0] * 1000) / 1000, Math.round(livre.pos[1] * 1000) / 1000], {
+      id: this.gerarId('o'), source: ACERVO.fonte(receita, Math.floor(this.rng() * 2 ** 31), params), rotation: livre.rot, roomId: this.ins.id, elevation: 'table', blocks: { move: false, sight: false }, castsShadow: false,
+    });
   }
 
   /** O móvel alto não fica na frente de uma janela. */

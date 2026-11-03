@@ -22,7 +22,7 @@ function escritorio(): MapaAtlas {
 const pedido = (centro: [number, number], raio: number, conjunto: string, semente = 1) => ({ centro, raio, conjunto, semente, gerarId: contador() });
 
 test('os conjuntos existem e só citam receitas que existem', () => {
-  assert.deepEqual(CONJUNTOS_DE_ESPALHAR.map(c => c.id), ['papelada', 'caixotes', 'plantas']);
+  assert.deepEqual(CONJUNTOS_DE_ESPALHAR.map(c => c.id), ['papelada', 'caixotes', 'bibelos', 'refeicao', 'bagunca', 'plantas']);
   for (const c of CONJUNTOS_DE_ESPALHAR) { assert.ok(c.densidade > 0); for (const i of c.itens) assert.ok(receitaDe(i.receita), i.receita); }
   assert.deepEqual(espalhar(escritorio(), pedido([3, 2], 1.5, 'nao-existe')), []);
 });

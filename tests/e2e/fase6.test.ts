@@ -94,15 +94,23 @@ test('fase 6: ala da mansão (8 cômodos mobiliados pelo assistente e pela cole�
       ['corredor', 'Corredor', 0, 0, 2, 11], ['jantar', 'Sala de jantar', 2, 6, 5, 11], ['lareira', 'Sala de estar', 5, 0, 12, 5], ['salao', 'Salão', 5, 5, 12, 11],
       ['biblioteca', 'Biblioteca', 12, 0, 16, 4], ['jogos', 'Sala de jogos', 12, 4, 16, 7], ['banheiro', 'Banheiro', 12, 7, 14, 9], ['quarto', 'Quarto', 14, 7, 16, 10], ['varanda', 'Varanda', 5, 11, 12, 13],
     ];
-    s.store.executar({ tipo: 'limites.atualizar', largura: 27, altura: 21 });
+    s.store.executar({ tipo: 'limites.atualizar', largura: 36, altura: 28 });
     for (const [id, nome, x0, y0, x1, y1] of comodos) s.store.executar({ tipo: 'comodo.criar', id, nome, funcao: null, piso: { material: 'tabuas.carvalho', seed: 3 }, papel: { material: 'papel.damasco-vinho', seed: 3 }, celulas: retangulo(x0, y0, x1, y1) });
     // O assistente: aceita as sugestões de cada cômodo até não haver mais (como a Fase 5), exceto as luzes da varanda (sem função).
     let aceitas = 0;
     for (let volta = 0; volta < 14; volta++) { let andou = false; for (const [id] of comodos) { const p = proximaSugestao({ m: s.store.documento, versao: s.store.versaoEdicao, semente: 0 }, id, new Set()); if (p) { aceitarProposta(s.store, p); aceitas++; andou = true; } } if (!andou) break; }
-    // À mão, onde a referência tem algo marcante: um tapete grande e duas poltronas capitonê no salão, uma palmeira, e o jardim da varanda.
+    // À mão, onde a referência tem algo marcante: um tapete grande, um divã e uma poltrona capitonê e uma palmeira no salão.
     const pr = (idItem: string, x: number, y: number, rot = 0, extra: Record<string, unknown> = {}) => s.store.executar({ tipo: 'item.adicionar', colecao: 'props', item: novoObjeto([x, y], { source: ACERVO.fonte(idItem, 5), rotation: rot, blocks: { move: false, sight: false }, ...extra }) });
     pr('casa:tapete-persa-g-vinho', 13.5, 12.75); pr('casa:diva-couro', 9.7, 14.6, 0); pr('casa:poltrona-capitone-verde', 11.4, 14.4, -Math.PI / 2); pr('casa:palmeira-pedra', 8.4, 10.6);
-    pr('casa:arbusto-verde', 9, 18.6); pr('casa:arbusto-florido', 12.5, 18.6); pr('banco.jardim', 10.7, 18.9, 0); pr('vaso.planta', 8.5, 17.8); pr('casa:samambaia-a', 15.5, 18.6);
+    // O entorno: gramado, calçada até uma fonte, jardim ao lado e mata do outro (o espalhar contextual).
+    const c5 = '/src/authoring/espalhar.ts', { espalhar } = await import(/* @vite-ignore */ c5), res = s.store.documento.terrain.resolution;
+    s.store.executar({ tipo: 'terreno.base', material: 'grama' });
+    const celulasDe = (x0: number, y0: number, x1: number, y1: number) => { const r: [number, number][] = []; for (let y = Math.floor(y0 / res); y < Math.ceil(y1 / res); y++) for (let x = Math.floor(x0 / res); x < Math.ceil(x1 / res); x++) r.push([x, y]); return r; };
+    s.store.executar({ tipo: 'terreno.pintar', material: 'calcada', celulas: celulasDe(12.2, 19.6, 15.2, 24.5) });
+    pr('fonte', 13.7, 25.2); pr('casa:arbusto-florido', 9, 21); pr('casa:arbusto-verde', 18.5, 21);
+    for (const [conjunto, cx, cy, raio, semente] of [['jardim', 6, 24, 5, 3], ['jardim', 21, 24.5, 4, 4], ['mata', 31, 8, 7, 5], ['mata', 31, 21, 6, 6], ['cemiterio', 28, 25, 3.5, 7]] as const) {
+      for (const o of espalhar(s.store.documento, { centro: [cx, cy], raio, conjunto, semente })) s.store.executar({ tipo: 'item.adicionar', colecao: 'props', item: o });
+    }
     return { aceitas, objetos: Object.keys(s.store.documento.props).length, luzes: Object.keys(s.store.documento.lights).length, portas: Object.keys(s.store.documento.openings).length };
   });
   await page.click('[data-testid="enquadrar"]'); await page.waitForTimeout(300);
@@ -112,11 +120,32 @@ test('fase 6: ala da mansão (8 cômodos mobiliados pelo assistente e pela cole�
   console.log(`# ala da mansão: ${resumo.aceitas} sugestões, ${resumo.objetos} objetos, ${resumo.luzes} luzes, ${resumo.portas} portas; primeira pintura completa em ${(primeiraPintura / 1000).toFixed(1)} s`);
   const m = await documento(page);
   assert.equal(Object.keys(m.rooms).length, 9);
-  assert.ok(resumo.objetos >= 60, `${resumo.objetos} objetos`);
+  const tabela = Object.values(m.props).filter(o => o.elevation === 'table').length, deParede = Object.values(m.props).filter(o => o.elevation === 'wall').length, pisos = new Set(Object.values(m.rooms).map(r => r.floor.material)), papeis = new Set(Object.values(m.rooms).map(r => r.wallpaper?.material));
+  console.log(`# detalhes: ${deParede} objetos de parede, ${tabela} enfeites sobre mesas, ${pisos.size} pisos e ${papeis.size} papéis diferentes nos 9 cômodos`);
+  assert.ok(resumo.objetos >= 150, `${resumo.objetos} objetos`); assert.ok(deParede >= 20, `${deParede} objetos de parede`); assert.ok(tabela >= 8, `${tabela} enfeites sobre mesas`); assert.ok(pisos.size >= 4 && papeis.size >= 5, `${pisos.size} pisos, ${papeis.size} papéis`);
   const assets = Object.values(m.props).filter(o => o.source.kind === 'asset').length; assert.ok(assets >= 9, `${assets} itens da coleção`);
   await sessao(page, '(s) => s.store.executar({ tipo: "clima.predefinir", id: "tarde" })'); await page.waitForTimeout(2000);
   await page.screenshot({ path: 'test-results/fase6-mansao.png' });
   await sessao(page, '(s) => s.store.executar({ tipo: "clima.predefinir", id: "noite" })'); await page.waitForTimeout(2400);
   await page.screenshot({ path: 'test-results/fase6-mansao-noite.png' });
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('o fantasma não derruba a textura de um objeto que já está no mapa (mesmo desenho, mesma fonte da GPU)', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  const objeto = (id: string, x: number) => `{ id: "${id}", source: { kind: "recipe", recipe: "sofa", seed: 7, params: {} }, position: [${x}, 10], rotation: 0, scale: 1, elevation: "floor", wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true }`;
+  await sessao(page, `(s) => s.store.executar({ tipo: "item.adicionar", colecao: "props", item: ${objeto('real', 10)} })`);
+  await page.waitForFunction(() => (window as unknown as { __atlas: { viewport(): { objetosPintados(): number } } }).__atlas.viewport().objetosPintados() === 1, null, { timeout: 8000 });
+  for (let i = 0; i < 4; i++) {
+    // Uma prévia com o MESMO desenho (mesma receita, semente e parâmetros) em outro lugar; some e volta várias vezes, como a pílula faz.
+    await page.evaluate(`(() => { const w = window.__atlas, previa = structuredClone(w.sessao().doc.value); previa.props.fantasma = ${objeto('fantasma', 14)}; w.viewport().mostrarProposta(previa); })()`);
+    await page.waitForTimeout(250);
+    await page.evaluate(() => (window as unknown as { __atlas: { viewport(): { mostrarProposta(m: null): void } } }).__atlas.viewport().mostrarProposta(null));
+    await page.waitForTimeout(120);
+  }
+  assert.equal(await pintados(page), 1, 'o sofá do mapa continua pintado');
+  await sessao(page, '(s) => s.store.executar({ tipo: "item.atualizar", colecao: "props", id: "real", patch: { rotation: 1 } })'); await page.waitForTimeout(400);
+  assert.equal(await pintados(page), 1);
   assert.deepEqual(erros, []); await ctx.close();
 });

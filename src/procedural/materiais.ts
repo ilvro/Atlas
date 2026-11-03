@@ -1,7 +1,7 @@
 import type { Contexto } from './canvas.ts';
 import { ladrilhoDeRuido, mulberry32 } from './ruido.ts';
 
-export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama';
+export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri';
 export interface Material {
   id: string; nome: string; /** Para onde o material vai: piso, papel de parede, objeto ou terreno. */ uso: 'piso' | 'papel' | 'objeto' | 'terreno';
   base: string; escuro: string; claro: string; padrao: Padrao; largura?: number; lado?: number; ouro?: string; borda?: string; meio?: string;
@@ -23,6 +23,12 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('concreto', 'Concreto', 'piso', '#6c6a66', '#34322f', '#8d8a85', 'liso'),
   m('carpete.vinho', 'Carpete vinho', 'piso', '#5a1b25', '#2c0c12', '#7d2b36', 'trama'),
   m('carpete.cinza', 'Carpete cinza', 'piso', '#4d4f55', '#272830', '#6c6e76', 'trama'),
+  m('parquet.espinha', 'Parquet em espinha de peixe', 'piso', '#8a5a34', '#4a2e18', '#c08a54', 'espinha'),
+  m('marmore.branco', 'Mármore branco', 'piso', '#d4d2cb', '#8d8b84', '#efede6', 'marmore', { lado: 0.9 }),
+  m('marmore.xadrez-diagonal', 'Mármore preto e branco em diagonal', 'piso', '#dcd8cf', '#25232a', '#f2eee4', 'losango', { lado: 0.5 }),
+  m('hexagono.salvia', 'Hexágonos verde-sálvia', 'piso', '#8a9a7b', '#4a5642', '#b5c3a6', 'hexagono', { lado: 0.2 }),
+  m('hexagono.terracota', 'Hexágonos de terracota', 'piso', '#b9653a', '#6b3018', '#d68c5e', 'hexagono', { lado: 0.2 }),
+  m('tabuas.cinza', 'Tábuas cinza (pintadas)', 'piso', '#7d8186', '#3d4044', '#a9adb2', 'tabuas', { largura: 0.2 }),
   // Papéis e paredes
   m('papel.damasco-vinho', 'Damasco vinho', 'papel', '#4f1820', '#2c0c12', '#7d2b33', 'damasco'),
   m('papel.damasco-azul', 'Damasco azul', 'papel', '#1f3350', '#0e1a2b', '#3a5a86', 'damasco'),
@@ -32,6 +38,13 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('papel.liso-escuro', 'Liso escuro', 'papel', '#2c2a30', '#16151a', '#46434d', 'liso'),
   m('reboco.branco', 'Reboco branco', 'papel', '#cfcbc0', '#8c8878', '#e8e5db', 'liso'),
   m('tijolo', 'Tijolo aparente', 'papel', '#7a3f30', '#3d1d15', '#a35a46', 'laje'),
+  m('papel.floral-azul', 'Floral azul', 'papel', '#d4dce6', '#8b98ad', '#3f5f8e', 'floral', { ouro: '#c9a45a' }),
+  m('papel.floral-rosa', 'Floral rosa', 'papel', '#e6d2d2', '#a98a8a', '#a8465f', 'floral', { ouro: '#b08a3a' }),
+  m('papel.verde-esmeralda', 'Damasco verde-esmeralda', 'papel', '#1d4a3a', '#0e261e', '#3d7a5e', 'damasco'),
+  m('papel.bordo-listras', 'Listras bordô', 'papel', '#4a1820', '#25090e', '#8a2d3a', 'listras', { ouro: '#b08a3a' }),
+  m('papel.azul-listras', 'Listras azul-marinho', 'papel', '#1f3350', '#0e1a2b', '#4a6a96', 'listras', { ouro: '#c9a45a' }),
+  m('boiserie.escura', 'Boiserie de madeira escura', 'papel', '#4a2e1e', '#20120a', '#7a4e32', 'lambri'),
+  m('boiserie.verde', 'Boiserie verde-musgo', 'papel', '#2f4a38', '#15261c', '#4f7a5c', 'lambri'),
   // Objetos
   m('madeira.escura', 'Madeira escura', 'objeto', '#3d2416', '#1e110a', '#6b4024', 'veio'),
   m('madeira.media', 'Madeira média', 'objeto', '#74431f', '#3d2312', '#a46a36', 'veio'),
@@ -162,6 +175,66 @@ export function pintarMaterial(ctx: Contexto, id: string, area: Area, seed = 1, 
       ctx.strokeStyle = mat.escuro; ctx.lineWidth = 0.008;
       for (let y = A.y; y < A.y + A.h; y += 0.025) { ctx.globalAlpha = 0.15 + r() * 0.25; ctx.beginPath(); ctx.moveTo(A.x, y); for (let x = A.x; x < A.x + A.w; x += 0.15) ctx.lineTo(x, y + Math.sin(x * 3 + y * 9) * 0.008); ctx.stroke(); }
       ctx.globalAlpha = 1; camadaDeRuido(ctx, A, seed, 1.5, 0.3); break;
+    }
+    case 'espinha': {
+      // Espinha de peixe: tábuas 2:1 em degraus (horizontal onde i+j é par, vertical onde é ímpar), com o conjunto girado 45°.
+      const u = 0.13, cx = A.x + A.w / 2, cy = A.y + A.h / 2, n = Math.ceil(diag / u / 2) + 2;
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.PI / 4);
+      for (let j = -n; j < n; j++) for (let i = -n; i < n; i++) {
+        const h = (i + j) % 2 === 0, x = i * u, y = j * u, w = h ? 2 * u : u, l = h ? u : 2 * u;
+        ctx.fillStyle = misturar(mat.escuro, mat.claro, 0.3 + r() * 0.5); ctx.fillRect(x + 0.004, y + 0.004, w - 0.008, l - 0.008);
+        ctx.globalAlpha = 0.25; ctx.fillStyle = mat.escuro; ctx.fillRect(x + (h ? 0 : u * 0.25), y + (h ? u * 0.25 : 0), h ? w : 0.006, h ? 0.006 : l); ctx.globalAlpha = 1;
+      }
+      ctx.restore(); camadaDeRuido(ctx, A, seed, 2.5, 0.3); break;
+    }
+    case 'marmore': {
+      // Lajes grandes de mármore com veios e juntas finas.
+      const l = mat.lado ?? 0.8;
+      for (let y = Math.floor(A.y / l) * l; y < A.y + A.h; y += l) for (let x = Math.floor(A.x / l) * l; x < A.x + A.w; x += l) {
+        ctx.fillStyle = misturar(mat.base, mat.claro, r() * 0.6); ctx.fillRect(x + 0.008, y + 0.008, l - 0.016, l - 0.016);
+        ctx.strokeStyle = mat.escuro; ctx.lineWidth = 0.006;
+        for (let v = 0; v < 3; v++) { ctx.globalAlpha = 0.2 + r() * 0.3; ctx.beginPath(); ctx.moveTo(x + r() * l, y); ctx.bezierCurveTo(x + r() * l, y + l * 0.3, x + r() * l, y + l * 0.6, x + r() * l, y + l); ctx.stroke(); }
+        ctx.globalAlpha = 1;
+      }
+      camadaDeRuido(ctx, A, seed, 1.6, 0.25, 'soft-light', 6); break;
+    }
+    case 'losango': {
+      // Xadrez em diagonal (mármore preto e branco).
+      const l = mat.lado ?? 0.5, cx = A.x + A.w / 2, cy = A.y + A.h / 2, n = Math.ceil(diag / l / 2) + 2;
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.PI / 4);
+      for (let j = -n; j < n; j++) for (let i = -n; i < n; i++) { const escuro = (i + j) % 2 === 0; ctx.fillStyle = misturar(escuro ? mat.escuro : mat.base, escuro ? mat.base : mat.claro, r() * 0.14); ctx.fillRect(i * l + 0.005, j * l + 0.005, l - 0.01, l - 0.01); }
+      ctx.restore(); camadaDeRuido(ctx, A, seed, 2.2, 0.4); break;
+    }
+    case 'hexagono': {
+      const R = mat.lado ?? 0.2, dx = R * 1.732, dy = R * 1.5;
+      for (let j = Math.floor(A.y / dy) - 1; j * dy < A.y + A.h + dy; j++) for (let i = Math.floor(A.x / dx) - 1; i * dx < A.x + A.w + dx; i++) {
+        const cx = i * dx + (j % 2 ? dx / 2 : 0), cy = j * dy; ctx.beginPath();
+        for (let k = 0; k < 6; k++) { const a = (k * Math.PI) / 3 + Math.PI / 6; ctx[k ? 'lineTo' : 'moveTo'](cx + Math.cos(a) * (R - 0.01), cy + Math.sin(a) * (R - 0.01)); }
+        ctx.closePath(); ctx.fillStyle = misturar(mat.base, r() < 0.5 ? mat.claro : mat.escuro, r() * 0.35); ctx.fill();
+      }
+      camadaDeRuido(ctx, A, seed, 1.8, 0.4, 'multiply', 6); break;
+    }
+    case 'floral': {
+      // Papel de parede florido: flores de cinco pétalas em meia-queda, com folhas.
+      camadaDeRuido(ctx, A, seed, 2, 0.25);
+      for (let y = A.y; y < A.y + A.h + 0.4; y += 0.34) for (let x = A.x; x < A.x + A.w + 0.4; x += 0.34) {
+        const cx = x + (Math.round(y / 0.34) % 2 ? 0.17 : 0) + (r() - 0.5) * 0.02, cy = y;
+        ctx.globalAlpha = 0.5; ctx.fillStyle = mat.escuro; for (const a of [0.8, 2.4]) { ctx.beginPath(); ctx.ellipse(cx + Math.cos(a) * 0.08, cy + Math.sin(a) * 0.08, 0.05, 0.022, a, 0, 7); ctx.fill(); }
+        ctx.globalAlpha = 0.75; ctx.fillStyle = mat.claro; for (let k = 0; k < 5; k++) { const a = (k * Math.PI * 2) / 5; ctx.beginPath(); ctx.arc(cx + Math.cos(a) * 0.04, cy + Math.sin(a) * 0.04, 0.032, 0, 7); ctx.fill(); }
+        ctx.globalAlpha = 0.9; ctx.fillStyle = mat.ouro ?? mat.escuro; ctx.beginPath(); ctx.arc(cx, cy, 0.016, 0, 7); ctx.fill();
+      }
+      ctx.globalAlpha = 1; camadaDeRuido(ctx, A, seed + 1, 4, 0.35, 'multiply', 4); break;
+    }
+    case 'lambri': {
+      // Boiserie: painéis de madeira com moldura, em duas fileiras, e rodapé.
+      const w = 0.62, h = 1.1;
+      for (let x = A.x; x < A.x + A.w; x += w + 0.06) for (let y = A.y; y < A.y + A.h; y += h + 0.06) {
+        ctx.fillStyle = misturar(mat.base, mat.claro, 0.15 + r() * 0.15); ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = mat.escuro; ctx.lineWidth = 0.012; ctx.globalAlpha = 0.8; ctx.strokeRect(x + 0.05, y + 0.05, w - 0.1, h - 0.1);
+        ctx.strokeStyle = mat.claro; ctx.globalAlpha = 0.4; ctx.strokeRect(x + 0.075, y + 0.075, w - 0.15, h - 0.15); ctx.globalAlpha = 1;
+      }
+      ctx.fillStyle = mat.escuro; ctx.globalAlpha = 0.6; for (let y = A.y; y < A.y + A.h; y += h + 0.06) ctx.fillRect(A.x, y + h, A.w, 0.06); ctx.globalAlpha = 1;
+      camadaDeRuido(ctx, A, seed, 1.8, 0.4); break;
     }
     case 'trama': camadaDeRuido(ctx, A, seed, 0.6, 0.35, 'multiply', 16); camadaDeRuido(ctx, A, seed + 2, 2, 0.25, 'soft-light'); break;
     case 'couro': camadaDeRuido(ctx, A, seed, 0.8, 0.4, 'multiply', 12); break;

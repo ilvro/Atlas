@@ -22,8 +22,8 @@ for (const genero of GENEROS.map(g => g.id)) for (const funcao of funcoes) {
         assert.equal(rec!.tipo === 'parede', r.lugar === 'na-parede', `${r.id}/${nome}: só receitas de parede vão “na-parede”, e elas só vão lá`);
       }
       assert.ok(r.quantos[0] >= 0 && r.quantos[1] >= r.quantos[0] && r.quantos[1] > 0, r.id);
-      if (r.lugar === 'junto') {
-        assert.ok(r.junto, `${r.id} é “junto” e precisa de âncora`);
+      if (r.lugar === 'junto' || r.lugar === 'sobre') {
+        assert.ok(r.junto, `${r.id} é “${r.lugar}” e precisa de âncora`);
         const ancora = regras.find(x => x.id === r.junto!.de); assert.ok(ancora, `${r.id}: a âncora “${r.junto!.de}” não está na regra`);
         assert.ok(ancora!.prioridade < r.prioridade, `${r.id}: a âncora vem antes`);
       }

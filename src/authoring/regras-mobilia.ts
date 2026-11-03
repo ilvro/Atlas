@@ -5,7 +5,8 @@ import { generoDe } from '../domain/presets.ts';
  * Que móveis um cômodo costuma ter, onde ficam e quantos, por função. Dados puros: o gerador de layout (layout.ts) é que posiciona.
  * Só receitas que existem. O gênero muda sobretudo o que é trocado ou tirado; com poucas receitas, a variedade maior vem com o acervo da Fase 6.
  */
-export type Lugar = 'parede' | 'canto' | 'centro' | 'junto' | 'na-parede';
+/** `sobre`: em cima do móvel âncora (`junto.de`), com `elevation: 'table'`: enfeites de mesa. */
+export type Lugar = 'parede' | 'canto' | 'centro' | 'junto' | 'na-parede' | 'sobre';
 
 export interface ItemDeRegra {
   id: string;
@@ -19,7 +20,7 @@ export interface ItemDeRegra {
   porArea?: [areaMinima: number, receita: string][];
   /** Os menores números entram primeiro. */
   prioridade: number;
-  /** Para 'junto': ao redor de que item (id da regra) e como. */
+  /** Para 'junto' e 'sobre': ao redor de que item (id da regra) e como (o modo só vale para 'junto'). */
   junto?: { de: string; modo: 'ao-redor' | 'ao-lado' | 'em-frente'; /** Para 'em-frente': a distância (m) entre a âncora e o móvel; padrão 1,2. */ folga?: number };
   /** Não fica na frente de janela. */
   alto?: boolean;
@@ -35,10 +36,15 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('armario', ['armario'], 'parede', [1, 1], 3, { alto: true, areaMinima: 8 }),
     item('comoda', ['comoda'], 'parede', [0, 1], 4, { areaMinima: 10 }),
     item('tapete', ['tapete.liso', 'tapete.persa', 'casa:tapete-persa-p-vinho', 'casa:tapete-persa-p-verde', 'casa:tapete-persa-p-creme', 'casa:tapete-oval-vinho', 'casa:tapete-oval-verde', 'casa:tapete-oval-creme'], 'centro', [1, 1], 5, { areaMinima: 10 }),
-    item('quadro', ['quadro'], 'na-parede', [1, 2], 6),
+    item('quadro', ['quadro', 'retrato.oval', 'paisagem.grande', 'quadros.grupo', 'mapa.mundi', 'quadro.abstrato'], 'na-parede', [1, 3], 6),
     item('espelho', ['espelho'], 'na-parede', [0, 1], 7),
     item('luminaria', ['luminaria.chao'], 'canto', [0, 1], 9),
     item('estante', ['estante'], 'na-parede', [0, 1], 8, { areaMinima: 14 }),
+    item('arandela', ['arandela'], 'na-parede', [0, 2], 10),
+    item('cortina', ['cortina.janela'], 'na-parede', [0, 1], 10.5, { areaMinima: 10 }),
+    item('enfeite-mesinha', ['abajur.mesa', 'relogio.mesa', 'vaso.flores', 'livro.aberto', 'notebook'], 'sobre', [1, 2], 11, { junto: { de: 'mesinha', modo: 'ao-lado' } }),
+    item('cesto', ['cesto.roupa'], 'canto', [0, 1], 12),
+    item('sapatos', ['sapatos'], 'parede', [0, 1], 13),
   ],
   sala: [
     item('lareira', ['lareira.marmore'], 'parede', [1, 1], 1, { alto: true, areaMinima: 12 }),
@@ -48,12 +54,19 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('tapete', ['tapete.persa', 'tapete.liso', 'casa:tapete-persa-p-vinho', 'casa:tapete-persa-p-verde', 'casa:tapete-persa-p-creme', 'casa:tapete-oval-vinho', 'casa:tapete-oval-verde', 'casa:tapete-oval-creme', 'casa:tapete-persa-g-vinho', 'casa:tapete-persa-g-verde', 'casa:tapete-persa-g-creme'], 'centro', [1, 1], 5, { areaMinima: 9 }),
     item('aparador', ['aparador', 'estante.piso'], 'parede', [1, 1], 6, { alto: true }),
     item('vaso', ['vaso.planta'], 'canto', [1, 2], 7),
-    item('quadro', ['quadro'], 'na-parede', [1, 2], 8),
+    item('quadro', ['quadro', 'retrato.oval', 'paisagem.grande', 'quadros.grupo', 'mapa.mundi', 'quadro.abstrato'], 'na-parede', [2, 4], 8),
+    item('espelho', ['espelho', 'espelho.grande'], 'na-parede', [0, 1], 8.5),
+    item('relogio-parede', ['relogio.parede'], 'na-parede', [0, 1], 8.6),
+    item('arandela', ['arandela'], 'na-parede', [1, 2], 8.7),
+    item('cortina', ['cortina.janela'], 'na-parede', [0, 1], 8.8, { areaMinima: 12 }),
+    item('prateleira-flutuante', ['prateleira.flutuante'], 'na-parede', [0, 1], 8.9),
     item('poltrona-lareira', ['poltrona'], 'junto', [1, 2], 9, { junto: { de: 'lareira', modo: 'em-frente' } }),
     item('piano', ['piano.cauda'], 'parede', [0, 1], 10, { areaMinima: 20 }),
     item('relogio', ['relogio.pe'], 'canto', [0, 1], 11),
     item('tv', ['rack.tv'], 'parede', [0, 1], 12, { alto: true }),
     item('luminaria', ['luminaria.chao'], 'canto', [0, 1], 13),
+    item('enfeite-mesinha', ['vaso.flores', 'castical.mesa', 'abajur.mesa', 'relogio.mesa', 'bule.xicaras'], 'sobre', [1, 2], 14, { junto: { de: 'mesinha', modo: 'ao-lado' } }),
+    item('enfeite-aparador', ['castical.mesa', 'vaso.flores', 'relogio.mesa', 'garrafa.tacas', 'tabuleiro.xadrez'], 'sobre', [1, 2], 15, { junto: { de: 'aparador', modo: 'ao-lado' } }),
   ],
   cozinha: [
     item('balcao', ['balcao'], 'parede', [1, 2], 1, { params: { largura: 2.6 } }),
@@ -64,6 +77,10 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('lareira', ['lareira.pedra'], 'parede', [1, 1], 1, { alto: true, areaMinima: 8 }),
     item('geladeira', ['geladeira'], 'parede', [1, 1], 6, { alto: true }),
     item('fogao', ['fogao'], 'parede', [1, 1], 7, { alto: true }),
+    item('prateleira', ['prateleira.parede'], 'na-parede', [1, 2], 9),
+    item('relogio-parede', ['relogio.parede'], 'na-parede', [0, 1], 9.5),
+    item('painel', ['painel.azulejo'], 'na-parede', [0, 1], 9.6),
+    item('servico', ['fruteira', 'bule.xicaras', 'pratos.servico', 'garrafa.tacas'], 'sobre', [1, 3], 10, { junto: { de: 'mesa', modo: 'ao-redor' } }),
   ],
   biblioteca: [
     item('estante', ['estante'], 'na-parede', [2, 3], 1),
@@ -73,14 +90,25 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('livros', ['livros.pilha'], 'canto', [1, 2], 5),
     item('escrivaninha', ['escrivaninha', 'escrivaninha.verde'], 'parede', [0, 1], 6, { areaMinima: 12 }),
     item('globo', ['globo.terrestre'], 'canto', [0, 1], 7),
+    item('mapa', ['mapa.mundi'], 'na-parede', [0, 1], 8),
+    item('arandela', ['arandela'], 'na-parede', [1, 2], 8.5),
+    item('prateleira', ['prateleira.parede'], 'na-parede', [0, 2], 9),
+    item('quadro', ['quadro', 'retrato.oval', 'paisagem.grande', 'quadros.grupo', 'mapa.mundi', 'quadro.abstrato'], 'na-parede', [0, 2], 9.5),
+    item('enfeite-mesa', ['livro.aberto', 'abajur.mesa', 'tabuleiro.xadrez', 'tinteiro.pena'], 'sobre', [1, 2], 10, { junto: { de: 'escrivaninha', modo: 'ao-lado' } }),
   ],
   escritorio: [
     item('escrivaninha', ['escrivaninha', 'escrivaninha.verde'], 'parede', [1, 1], 1),
     item('cadeira', ['cadeira'], 'junto', [1, 1], 2, { junto: { de: 'escrivaninha', modo: 'em-frente', folga: 0.1 } }),
     item('estante', ['estante'], 'na-parede', [1, 2], 3),
     item('poltrona', ['poltrona'], 'canto', [0, 1], 4, { areaMinima: 10 }),
-    item('quadro', ['quadro'], 'na-parede', [0, 1], 5),
+    item('quadro', ['quadro', 'retrato.oval', 'paisagem.grande', 'quadros.grupo', 'mapa.mundi', 'quadro.abstrato'], 'na-parede', [1, 2], 5),
     item('vaso', ['vaso.planta'], 'canto', [0, 1], 6),
+    item('mapa', ['mapa.mundi'], 'na-parede', [0, 1], 7),
+    item('arandela', ['arandela'], 'na-parede', [0, 1], 8),
+    item('relogio-parede', ['relogio.parede'], 'na-parede', [0, 1], 8.5),
+    item('globo', ['globo.terrestre'], 'canto', [0, 1], 9),
+    item('enfeite-mesa', ['tinteiro.pena', 'abajur.mesa', 'livro.aberto', 'telefone.antigo', 'papeis', 'notebook'], 'sobre', [2, 3], 10, { junto: { de: 'escrivaninha', modo: 'ao-lado' } }),
+    item('jornais', ['jornais'], 'parede', [0, 1], 11),
   ],
   banheiro: [
     item('banheira', ['banheira.pes'], 'parede', [1, 1], 1, { areaMinima: 6 }),
@@ -88,14 +116,22 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('pia', ['pia.pedestal'], 'parede', [1, 1], 3),
     item('espelho', ['espelho'], 'na-parede', [1, 1], 4),
     item('box', ['box.banheiro'], 'parede', [1, 1], 5, { areaMinima: 4 }),
+    item('painel', ['painel.azulejo'], 'na-parede', [0, 1], 6),
+    item('prateleira', ['prateleira.parede'], 'na-parede', [0, 1], 7),
+    item('cesto', ['cesto.roupa'], 'canto', [0, 1], 8),
+    item('espelho-grande', ['espelho.grande'], 'na-parede', [0, 1], 9),
   ],
   corredor: [
     item('aparador', ['aparador'], 'parede', [0, 2], 1, { alto: true }),
     item('vaso', ['vaso.planta'], 'canto', [0, 2], 2),
-    item('quadro', ['quadro'], 'na-parede', [1, 3], 3),
+    item('quadro', ['quadro', 'retrato.oval', 'paisagem.grande', 'quadros.grupo', 'mapa.mundi', 'quadro.abstrato'], 'na-parede', [2, 5], 3),
     item('cabideiro', ['cabideiro'], 'canto', [0, 1], 5),
     item('relogio', ['relogio.pe'], 'canto', [0, 1], 6),
     item('passadeira', ['casa:passadeira-vinho', 'casa:passadeira-verde', 'casa:passadeira-creme'], 'centro', [1, 1], 4, { areaMinima: 6 }),
+    item('arandela', ['arandela'], 'na-parede', [1, 3], 3.5),
+    item('espelho', ['espelho', 'espelho.grande'], 'na-parede', [0, 1], 3.6),
+    item('relogio-parede', ['relogio.parede'], 'na-parede', [0, 1], 3.7),
+    item('enfeite-aparador', ['vaso.flores', 'castical.mesa', 'relogio.mesa', 'telefone.antigo'], 'sobre', [1, 2], 7, { junto: { de: 'aparador', modo: 'ao-lado' } }),
   ],
   'sala-de-jantar': [
     item('mesa', ['mesa.oval'], 'centro', [1, 1], 1, { areaMinima: 10 }),
@@ -104,15 +140,22 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('aparador', ['aparador'], 'parede', [0, 1], 4, { alto: true }),
     item('lareira', ['lareira.marmore'], 'parede', [0, 1], 5, { alto: true, areaMinima: 16 }),
     item('vaso', ['vaso.planta'], 'canto', [0, 1], 6),
-    item('quadro', ['quadro'], 'na-parede', [1, 2], 7),
+    item('quadro', ['quadro', 'retrato.oval', 'paisagem.grande', 'quadros.grupo', 'mapa.mundi', 'quadro.abstrato'], 'na-parede', [2, 3], 7),
+    item('arandela', ['arandela'], 'na-parede', [1, 3], 7.5),
+    item('cortina', ['cortina.janela'], 'na-parede', [0, 1], 7.6, { areaMinima: 10 }),
+    item('relogio-parede', ['relogio.parede'], 'na-parede', [0, 1], 7.7),
+    item('servico', ['bule.xicaras', 'candelabro', 'castical.mesa', 'fruteira', 'garrafa.tacas', 'pratos.servico'], 'sobre', [2, 4], 8, { junto: { de: 'mesa', modo: 'ao-redor' } }),
   ],
   'sala-de-jogos': [
     item('bilhar', ['mesa.bilhar'], 'centro', [1, 1], 1, { areaMinima: 14 }),
     item('poltrona', ['poltrona'], 'canto', [1, 2], 2, { areaMinima: 10 }),
     item('aparador', ['aparador'], 'parede', [1, 1], 3, { alto: true }),
     item('banco', ['banco'], 'parede', [0, 2], 4),
-    item('quadro', ['quadro'], 'na-parede', [1, 2], 5),
+    item('quadro', ['quadro', 'retrato.oval', 'paisagem.grande', 'quadros.grupo', 'mapa.mundi', 'quadro.abstrato'], 'na-parede', [1, 3], 5),
     item('relogio', ['relogio.pe'], 'canto', [0, 1], 6),
+    item('trofeu', ['trofeu.cervo'], 'na-parede', [0, 1], 7),
+    item('arandela', ['arandela'], 'na-parede', [1, 2], 7.5),
+    item('enfeite-aparador', ['garrafa.tacas', 'tabuleiro.xadrez', 'castical.mesa'], 'sobre', [1, 2], 8, { junto: { de: 'aparador', modo: 'ao-lado' } }),
   ],
   capela: [
     item('altar', ['altar'], 'parede', [1, 1], 1, { alto: true }),
@@ -120,6 +163,9 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('banco-lateral', ['banco.longo'], 'parede', [0, 2], 3),
     item('tapecaria', ['tapecaria'], 'na-parede', [1, 2], 4),
     item('bau', ['bau'], 'canto', [0, 1], 5),
+    item('arandela', ['arandela'], 'na-parede', [2, 4], 6),
+    item('brasao', ['brasao'], 'na-parede', [0, 1], 7),
+    item('altar-velas', ['candelabro', 'castical.mesa'], 'sobre', [1, 2], 8, { junto: { de: 'altar', modo: 'ao-lado' } }),
   ],
   forja: [
     item('bigorna', ['bigorna'], 'centro', [1, 1], 1, { areaMinima: 8 }),
@@ -127,6 +173,16 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('barril', ['barril.em-pe', 'barril.deitado'], 'canto', [1, 3], 3),
     item('prateleira', ['prateleira.pocoes'], 'parede', [0, 1], 4, { alto: true }),
     item('bau', ['bau'], 'parede', [0, 1], 5),
+  ],
+  varanda: [
+    item('escada', ['escada.externa'], 'parede', [1, 1], 1, { areaMinima: 8 }),
+    item('urna', ['urna.pedestal'], 'canto', [2, 4], 1.5),
+    item('pilar', ['pilar'], 'canto', [0, 4], 1.6, { areaMinima: 12 }),
+    item('balaustrada', ['balaustrada'], 'parede', [3, 6], 2),
+    item('banco', ['banco.jardim'], 'parede', [0, 2], 5),
+    item('fonte', ['fonte'], 'centro', [0, 1], 6, { areaMinima: 30 }),
+    item('estatua', ['estatua'], 'canto', [0, 2], 7, { areaMinima: 14 }),
+    item('vaso', ['vaso.planta'], 'canto', [0, 2], 8),
   ],
   hospital: [
     item('cama', ['cama.solteiro'], 'parede', [2, 4], 1),
@@ -141,6 +197,12 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('banco', ['banco'], 'parede', [0, 2], 4),
     item('barril', ['barril.em-pe', 'barril.deitado'], 'canto', [1, 3], 5),
     item('lareira', ['lareira.pedra'], 'parede', [0, 1], 6, { alto: true, areaMinima: 14 }),
+    item('trofeu', ['trofeu.cervo'], 'na-parede', [0, 1], 7),
+    item('tapecaria', ['tapecaria'], 'na-parede', [0, 2], 7.5),
+    item('espadas', ['espadas.cruzadas'], 'na-parede', [0, 1], 7.6),
+    item('brasao', ['brasao'], 'na-parede', [0, 1], 7.7),
+    item('arandela', ['arandela'], 'na-parede', [1, 3], 7.8),
+    item('servico', ['garrafa.tacas', 'castical.mesa', 'pratos.servico', 'candelabro'], 'sobre', [2, 4], 8, { junto: { de: 'mesa', modo: 'ao-redor' } }),
   ],
   porao: [
     item('caixote-canto', ['caixa'], 'canto', [2, 4], 1),

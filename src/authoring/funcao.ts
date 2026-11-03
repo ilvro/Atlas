@@ -18,6 +18,7 @@ const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number
   { palavras: ['corredor', 'hall', 'passagem', 'vestibulo'], funcao: 'corredor', confianca: 0.9 },
   { palavras: ['enfermaria', 'consultorio', 'hospital'], funcao: 'hospital', confianca: 0.9 },
   { palavras: ['taverna', 'bar', 'estalagem', 'pub'], funcao: 'taverna', confianca: 0.9 },
+  { palavras: ['varanda', 'terraco', 'sacada', 'alpendre'], funcao: 'varanda', confianca: 0.9 },
   { palavras: ['capela', 'igreja', 'templo', 'santuario'], funcao: 'capela', confianca: 0.9 },
   { palavras: ['forja', 'ferraria', 'oficina'], funcao: 'forja', confianca: 0.9 },
   { palavras: ['porao', 'adega', 'cripta'], funcao: 'porao', confianca: 0.9 },
@@ -41,7 +42,7 @@ function pelaNome(nome: string): Palpite | null {
 
 // Sinais fortes: ter isto basta para a função (vale 3 votos).
 const FORTES: readonly [(receita: string) => boolean, string][] = [
-  [r => r.startsWith('cama.'), 'quarto'], [r => r === 'balcao', 'cozinha'], [r => r === 'estante' || r === 'estante.piso', 'biblioteca'], [r => r === 'escrivaninha' || r === 'escrivaninha.verde', 'escritorio'], [r => r === 'piano.cauda', 'sala'], [r => r === 'mesa.bilhar', 'sala-de-jogos'], [r => r === 'banheira.pes', 'banheiro'], [r => r === 'mesa.oval', 'sala-de-jantar'], [r => r === 'altar', 'capela'], [r => r === 'bigorna', 'forja'],
+  [r => r.startsWith('cama.'), 'quarto'], [r => r === 'balcao', 'cozinha'], [r => r === 'estante' || r === 'estante.piso', 'biblioteca'], [r => r === 'escrivaninha' || r === 'escrivaninha.verde', 'escritorio'], [r => r === 'piano.cauda', 'sala'], [r => r === 'mesa.bilhar', 'sala-de-jogos'], [r => r === 'banheira.pes', 'banheiro'], [r => r === 'mesa.oval', 'sala-de-jantar'], [r => r === 'altar', 'capela'], [r => r === 'balaustrada' || r === 'escada.externa' || r === 'fonte', 'varanda'], [r => r === 'bigorna', 'forja'],
 ];
 const FUNCOES_DA_RECEITA = new Map(ACERVO.lista().map(r => [r.id, r.funcoes]));
 

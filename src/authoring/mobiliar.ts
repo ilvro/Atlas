@@ -18,14 +18,15 @@ const SEM_PAR = (funcao: string): MateriaisDoComodo => {
 export const MATERIAIS_POR_GENERO: Readonly<Record<string, Record<string, MateriaisDoComodo>>> = {
   investigacao: Object.fromEntries(TIPOS_DE_COMODO.map(t => {
     const extra: Record<string, MateriaisDoComodo> = {
-      sala: { pisos: ['tabuas.escuras'], papeis: ['papel.listras-musgo'] }, cozinha: { pisos: ['azulejo.branco'], papeis: ['reboco.branco'] }, quarto: { pisos: ['tabuas.carvalho'], papeis: ['papel.damasco-vinho'] },
-      biblioteca: { pisos: ['tabuas.escuras'], papeis: ['papel.damasco-vinho'] }, escritorio: { pisos: ['tabuas.carvalho'], papeis: ['papel.listras-musgo'] }, banheiro: { pisos: ['ladrilho.cozinha'], papeis: ['papel.liso-claro'] },
-      corredor: { pisos: ['tabuas.escuras'], papeis: ['papel.damasco-azul'] }, 'sala-de-jantar': { pisos: ['tabuas.carvalho'], papeis: ['papel.listras-musgo'] }, 'sala-de-jogos': { pisos: ['tabuas.escuras'], papeis: ['papel.damasco-vinho'] }, capela: { pisos: ['laje.pedra'], papeis: ['reboco.branco'] }, forja: { pisos: ['laje.pedra'], papeis: ['tijolo'] }, hospital: { pisos: ['azulejo.branco'], papeis: ['papel.liso-claro'] }, taverna: { pisos: ['tabuas.carvalho'], papeis: ['tijolo'] }, porao: { pisos: ['concreto'], papeis: ['tijolo'] },
+      sala: { pisos: ['tabuas.escuras', 'parquet.espinha', 'marmore.xadrez-diagonal'], papeis: ['papel.listras-musgo', 'papel.verde-esmeralda', 'boiserie.escura'] }, cozinha: { pisos: ['azulejo.branco', 'hexagono.salvia', 'hexagono.terracota'], papeis: ['reboco.branco', 'papel.floral-azul'] },
+      quarto: { pisos: ['tabuas.carvalho', 'parquet.espinha'], papeis: ['papel.damasco-vinho', 'papel.floral-rosa', 'papel.floral-azul'] }, biblioteca: { pisos: ['tabuas.escuras', 'parquet.espinha'], papeis: ['papel.damasco-vinho', 'boiserie.escura', 'boiserie.verde'] },
+      escritorio: { pisos: ['tabuas.carvalho', 'parquet.espinha'], papeis: ['papel.listras-musgo', 'boiserie.escura', 'papel.bordo-listras'] }, banheiro: { pisos: ['ladrilho.cozinha', 'marmore.branco', 'hexagono.salvia'], papeis: ['papel.liso-claro', 'papel.floral-azul'] },
+      corredor: { pisos: ['tabuas.escuras', 'marmore.xadrez-diagonal'], papeis: ['papel.damasco-azul', 'papel.azul-listras'] }, 'sala-de-jantar': { pisos: ['tabuas.carvalho', 'marmore.xadrez-diagonal', 'parquet.espinha'], papeis: ['papel.listras-musgo', 'papel.bordo-listras', 'boiserie.verde'] }, 'sala-de-jogos': { pisos: ['tabuas.escuras', 'parquet.espinha'], papeis: ['papel.damasco-vinho', 'boiserie.verde'] }, capela: { pisos: ['laje.pedra', 'marmore.branco'], papeis: ['reboco.branco'] }, forja: { pisos: ['laje.pedra'], papeis: ['tijolo'] }, varanda: { pisos: ['laje.pedra', 'marmore.branco', 'hexagono.terracota'], papeis: ['reboco.branco', 'tijolo'] }, hospital: { pisos: ['azulejo.branco'], papeis: ['papel.liso-claro'] }, taverna: { pisos: ['tabuas.carvalho'], papeis: ['tijolo'] }, porao: { pisos: ['concreto'], papeis: ['tijolo'] },
     };
     const e = extra[t.funcao]!; return [t.funcao, { pisos: [t.piso, ...e.pisos], papeis: [t.papel, ...e.papeis] }];
   })),
-  moderno: Object.fromEntries(TIPOS_DE_COMODO.map(t => [t.funcao, t.funcao === 'cozinha' ? { pisos: ['ladrilho.cozinha', 'azulejo.branco', 'concreto'], papeis: ['reboco.branco', 'papel.liso-claro'] } : t.funcao === 'banheiro' || t.funcao === 'hospital' ? { pisos: ['azulejo.branco', 'ladrilho.cozinha'], papeis: ['reboco.branco', 'papel.liso-claro'] }
-    : t.funcao === 'porao' ? { pisos: ['concreto', 'carpete.cinza'], papeis: ['reboco.branco', 'papel.liso-escuro'] } : { pisos: ['tabuas.claras', 'carpete.cinza', 'concreto'], papeis: ['papel.liso-claro', 'reboco.branco', 'papel.liso-escuro'] }])),
+  moderno: Object.fromEntries(TIPOS_DE_COMODO.map(t => [t.funcao, t.funcao === 'cozinha' ? { pisos: ['ladrilho.cozinha', 'azulejo.branco', 'hexagono.salvia', 'concreto'], papeis: ['reboco.branco', 'papel.liso-claro'] } : t.funcao === 'banheiro' || t.funcao === 'hospital' ? { pisos: ['azulejo.branco', 'ladrilho.cozinha'], papeis: ['reboco.branco', 'papel.liso-claro'] }
+    : t.funcao === 'porao' ? { pisos: ['concreto', 'carpete.cinza'], papeis: ['reboco.branco', 'papel.liso-escuro'] } : { pisos: ['tabuas.claras', 'carpete.cinza', 'concreto', 'tabuas.cinza'], papeis: ['papel.liso-claro', 'reboco.branco', 'papel.liso-escuro'] }])),
   fantasia: Object.fromEntries(TIPOS_DE_COMODO.map(t => [t.funcao, t.funcao === 'quarto' || t.funcao === 'biblioteca' || t.funcao === 'escritorio' ? { pisos: ['tabuas.escuras', 'tabuas.carvalho'], papeis: ['tijolo', 'papel.damasco-vinho'] } : { pisos: ['laje.pedra', 'tabuas.escuras'], papeis: ['tijolo', 'papel.liso-escuro'] }])),
 };
 
@@ -76,6 +77,8 @@ export function paramsDaPaleta(paleta: Paleta, receita: string): Record<string, 
  * A proposta de mobiliar um cômodo: piso e papel do gênero (só se ainda são os de um tipo de cômodo, ou seja, não escolhidos à mão),
  * mais os móveis que faltam, numa paleta só. `null` se o cômodo não tem função, não há regra ou o layout trouxe menos de 2 objetos.
  */
+const hashDoTexto = (t: string): number => { let h = 2166136261; for (const ch of t) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return (h >>> 0) % 997; };
+
 export function propostaDeMobilia(c: Contexto, roomId: string): Proposta | null {
   const sala = c.m.rooms[roomId]; if (!sala?.function) return null;
   const genero = generoDe(c.m.style.genre).id; if (!regrasPara(sala.function, genero).length) return null;
@@ -83,7 +86,8 @@ export function propostaDeMobilia(c: Contexto, roomId: string): Proposta | null 
   const layout = gerarLayout(c.m, { roomId, funcao: sala.function, genero, semente: c.semente, gerarId, params: r => paramsDaPaleta(paleta, r), preferir: r => pesoNaPaleta(paleta, r) });
   if (layout.objetos.length < 2) return null;
   const comandos: Proposta['comandos'] = [];
-  const mat = materiaisDe(genero, sala.function), piso = mat.pisos[c.semente % mat.pisos.length]!, papel = mat.papeis[c.semente % mat.papeis.length]!;
+  // A escolha varia de cômodo para cômodo (pela identidade dele) e com a semente: casas de vários cômodos não saem com o mesmo piso em todos.
+  const mat = materiaisDe(genero, sala.function), vario = hashDoTexto(roomId), piso = mat.pisos[(c.semente + vario) % mat.pisos.length]!, papel = mat.papeis[(c.semente + Math.floor(vario / 7)) % mat.papeis.length]!;
   const ehDeTipo = TIPOS_DE_COMODO.some(t => t.piso === sala.floor.material && t.papel === (sala.wallpaper?.material ?? null));
   if (ehDeTipo && (piso !== sala.floor.material || papel !== sala.wallpaper?.material)) {
     comandos.push({ tipo: 'comodo.atualizar', id: roomId, patch: { floor: { material: piso }, wallpaper: { material: papel, seed: sala.wallpaper?.seed ?? sala.floor.seed } } as never });

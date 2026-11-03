@@ -4,7 +4,7 @@ O [ROADMAP](../ROADMAP.md) diz **o quê** e em que ordem. Esta pasta diz **como*
 
 ## Fluxo
 
-1. **Planejar (Opus):** antes de uma fase começar, o arquivo `fase-N.md` é detalhado em fichas, conferidas contra o código do momento. Fases futuras ficam só com a lista de tarefas, porque o código ainda vai mudar.
+1. **Planejar (Opus):** antes de uma fase começar, o arquivo `fase-N.md` é detalhado em fichas, conferidas contra o código do momento. Fases futuras ficam só com a lista de tarefas, porque o código ainda vai mudar. Exceção: as Fases 7 a 9 foram detalhadas antes da hora, a pedido do usuário; ao começar cada uma, o Opus confere as fichas contra o código (e o Sonnet, se não bater, para e reporta).
 2. **Implementar (Sonnet):** uma tarefa por sessão. Pedido típico: *"Implemente a tarefa 4.1a de docs/plano/fase-4.md."* Leia a ficha, os arquivos de "Ler" e o [AGENTS.md](../../AGENTS.md); não é preciso reler VISAO e ARQUITETURA inteiros.
 3. **Fechar a tarefa:**
    - `npm run typecheck` e `npm test` passando (e `npm run test:e2e` quando a ficha pedir);
@@ -46,6 +46,6 @@ Commit: mensagem curta em inglês
 | [fase-4.md](fase-4.md) | Detalhado — concluída |
 | [fase-5.md](fase-5.md) | Detalhado — concluída |
 | [fase-6.md](fase-6.md) | Detalhado — **próximo** |
-| [fase-7.md](fase-7.md) | Lista de tarefas |
-| [fase-8.md](fase-8.md) | Lista de tarefas |
-| [fase-9.md](fase-9.md) | Lista de tarefas |
+| [fase-7.md](fase-7.md) | Detalhado antes da hora — o Opus confere ao começar |
+| [fase-8.md](fase-8.md) | Detalhado antes da hora — o Opus confere ao começar |
+| [fase-9.md](fase-9.md) | Detalhado antes da hora — o Opus confere ao começar |

@@ -311,12 +311,14 @@ test('transição: trocar de clima escurece aos poucos, e desfazer volta animand
   const predefinir = (id: string) => sessao(page, '(s, id) => s.store.executar({ tipo: "clima.predefinir", id })', id);
   await predefinir('tarde'); await page.waitForTimeout(2200);
   const dia = await brilho(page, ...FORA);
-  await predefinir('noite'); await page.waitForTimeout(100);
-  const meio = await brilho(page, ...FORA);
+  await predefinir('noite');
+  // A captura de tela leva um tempo imprevisível sob carga: em vez de um instante só, amostra durante a transição e pede ao menos uma amostra entre os dois extremos.
+  const amostras: number[] = []; for (let i = 0; i < 8; i++) { amostras.push(await brilho(page, ...FORA)); await page.waitForTimeout(60); }
   await page.waitForTimeout(2200);
   const noite = await brilho(page, ...FORA);
   assert.ok(noite < dia - 30, `a noite é bem mais escura (${dia.toFixed(1)} → ${noite.toFixed(1)})`);
-  assert.ok(meio < dia - 1 && meio > noite + 3, `no meio da transição ainda está entre os dois (${meio.toFixed(1)})`);
+  assert.ok(amostras.some(v => v < dia - 1 && v > noite + 3), `alguma amostra no meio da transição fica entre os dois (${amostras.map(v => v.toFixed(0)).join(', ')})`);
+  assert.ok(amostras[0]! >= amostras.at(-1)! - 1, 'a luz só desce durante a transição');
   assert.equal((await documento(page)).climate.preset, 'noite', 'o documento já tinha mudado na hora');
 
   await page.keyboard.press('Control+z'); await page.waitForTimeout(500);

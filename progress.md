@@ -219,22 +219,35 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 - **6.3 Harmonização** (`procedural/harmonizar.ts`, funções puras testadas sem navegador): recorte do vazio, encaixe na pegada, contorno de nanquim (1,5 px a 128 px/m) e sombra de contato; cor puxada para o alvo do gênero (`alvoDeCor` em `GENEROS`) mantendo o matiz; chave de cache inclui `harmonize` e o gênero (trocar o gênero repinta); caixa "Harmonizar com o mapa" e origem do item no inspetor. **Só imagens achadas passam por ela** (as geradas já nascem no traço da casa, com contorno e sombra): desvio da ficha, porque harmonizar de novo recortaria a própria sombra.
 - **6.4 Kits por gênero:** investigação (12 receitas: lareira de mármore, piano de cauda, bilhar, mesa oval, relógio de pé, cristaleira, banheira com pés, vaso e pia de época, cabideiro, globo, escrivaninha de tampo verde; funções novas `sala-de-jantar` e `sala-de-jogos`), moderno (11: sofá de canto, rack com TV, geladeira, fogão, mesa de vidro, cama box, guarda-roupa liso, box, vaso moderno, escrivaninha com computador, luminária; materiais cinza, mostarda e sálvia; 3 paletas novas), fantasia (12: barris, mesa e banco de taverna, lareira com caldeirão, catre, baú, prateleira de poções, bigorna, altar, banco de igreja, tapeçaria de parede; funções `capela` e `forja`) e exterior (11: pedras, toco, tronco caído, cerca com largura, poço, banco de jardim, canteiro, poste, lápide). `VARIACOES_DE_GENERO` troca os itens por gênero; um item que só serve a outros gêneros sai das alternativas e leva embora quem dependia dele. O **espalhar** ganhou o contexto `sob-arvore` (dentro da copa) e os conjuntos `mata`, `jardim` e `cemiterio` (lápides em fileiras); espaçamento por par de itens; a frente de porta externa (1,5 m) fica livre.
 
+### Acervo próprio ampliado (depois do relatório, a pedido: a importação de achados fica pendente e o acervo cresce com assets próprios)
+
+O relatório abaixo apontou quatro lacunas; todas foram atacadas com assets gerados pelo Atlas:
+- **Detalhe de parede:** 16 objetos de parede novos (retrato oval, paisagem grande, grupo de quadros, espelho grande, relógio, arandela, mapa-múndi, troféu de cervo, prateleira, painel de azulejos, espadas cruzadas, brasão, quadro abstrato, prateleira flutuante, TV na parede, cortina). As regras de cada cômodo ganharam quadros de seis tipos, arandelas, relógios, mapas, prateleiras, cortinas e, na fantasia, troféus, tapeçarias, espadas e brasões. Uma sala de investigação sai com ao menos 4 objetos de parede de 4 tipos, um corredor com 3 e uma biblioteca com 4.
+- **Variedade de piso e papel:** 6 pisos novos (parquet em espinha de peixe, mármore branco, mármore preto e branco em diagonal, hexágonos verde-sálvia e de terracota, tábuas cinza) e 7 papéis (florais azul e rosa, damasco verde-esmeralda, listras bordô e azul-marinho, boiserie escura e verde-musgo), com seis padrões novos no renderizador. O mobiliar escolhe piso e papel por cômodo (pela identidade dele e a semente), então uma casa de vários cômodos já não sai com o mesmo piso em todos: na ala da mansão são **7 pisos e 7 papéis** diferentes nos 9 cômodos.
+- **Bagunça:** 15 enfeites de mesa (bule com xícaras, castiçal, candelabro, vaso de flores, livro aberto, garrafa e taças, abajur, tabuleiro de xadrez, fruteira, serviço de pratos, relógio de mesa, tinteiro, telefone antigo, notebook) e 3 de chão (cesto de roupa, sapatos, jornais). O gerador de layout ganhou o lugar **`sobre`**: o enfeite entra em cima do móvel âncora (mesa de jantar, mesinha, aparador, escrivaninha, balcão do altar), com `elevation: 'table'`, sem sobrepor outro enfeite. Três conjuntos novos no espalhar: `bibelos`, `refeicao` (mesa posta) e `bagunca`.
+- **Entorno:** função `varanda` (nome, sinônimos "terraço", "sacada", "alpendre", regras, luz, materiais) e 6 itens exteriores novos (balaustrada com largura, escada externa, fonte, estátua, urna em pedestal, pilar). O assistente mobilia a varanda com escada, urnas nos cantos e balaustrada nas bordas.
+
 ### Números
 
-- **105 itens no acervo:** 70 receitas leves (24 da casa, 12 investigação, 11 moderno, 12 fantasia, 11 exterior) e **35 imagens da coleção** (6 básicas, 21 de investigação, 8 de exterior), todas geradas; 0 achadas. `public/colecao/` tem **700 KB** (limite 15 MB; o maior arquivo, 38 KB). O build leva `colecao/` para o `dist/` e não leva `data-private/`.
-- **Testes:** `tsc` limpo, build sem erros, **379 testes unitários** e **46 e2e** passando (duas rodadas completas seguidas).
-- **Ala da mansão (e2e):** 9 cômodos criados por comando, 32 sugestões aceitas pelo assistente, 72 objetos, 21 luzes e 8 portas, mais 9 itens da coleção postos à mão; **primeira pintura completa em 3,5 s** (inclui montar o mapa), no Chromium de teste. Capturas: `test-results/fase6-mansao.png` e `fase6-mansao-noite.png`.
+- **144 itens no acervo:** 109 receitas leves (51 básicas, incluindo 16 de parede e 18 enfeites; 12 investigação, 15 moderno, 14 fantasia, 17 exterior) e **35 imagens da coleção** (6 básicas, 21 de investigação, 8 de exterior), todas geradas; 0 achadas. `public/colecao/` tem **700 KB** (limite 15 MB; o maior arquivo, 38 KB). O build leva `colecao/` para o `dist/` e não leva `data-private/`.
+- **Testes:** `tsc` limpo, build sem erros, **389 testes unitários** e **47 e2e** passando (duas rodadas completas seguidas).
+- **Ala da mansão (e2e):** 9 cômodos criados por comando, 35 sugestões aceitas pelo assistente, **183 objetos** (48 de parede, 16 enfeites sobre mesas), 24 luzes e 8 portas, mais itens da coleção postos à mão e um entorno com fonte, calçada, jardim, mata e cemitério pelo espalhar; **primeira pintura completa em 4,9 s** (inclui montar o mapa e o entorno), no Chromium de teste. Capturas: `test-results/fase6-mansao.png` e `fase6-mansao-noite.png`.
 
 ### Relatório: a ala da mansão contra a referência
 
 No mesmo nível: planta com salão, sala com piano e lareira, jantar com mesa oval, sala de jogos com bilhar, biblioteca, banheiro de época, quarto, corredor com passadeira e varanda; tapetes persas com medalhão, borda e franja; capitonê legível; plantas e arbustos com volume; luzes acesas à noite iluminando só os cômodos.
-Abaixo da referência, e por quê:
-- **Detalhe de parede:** a referência cobre as paredes de quadros, estantes e cortinas; o gerador põe poucos objetos de parede (falta de itens de parede na coleção: ficaram só quadro, espelho, estante e tapeçaria).
-- **Variedade de piso e papel:** na referência cada cômodo tem um piso e uma textura própria; aqui a maioria usa os mesmos pares de `TIPOS_DE_COMODO` (falta de materiais: nenhum mármore, tapete de corredor em lã ou parquet em espinha).
-- **Escala dos móveis e densidade:** a referência tem móveis grandes e muita bagunça pequena (livros, bibelôs, flores sobre as mesas); o assistente põe o essencial e deixa o resto para o espalhar.
-- **Cor:** coerente (sem nada destoando), mas mais uniforme que a referência, que mistura azuis, verdes e vinhos por cômodo; o gênero investigação tem três paletas.
-- **Entorno:** a referência tem terraço, escada e balaústres; aqui a varanda é só um cômodo com plantas.
-Nada disso é erro de lógica: é falta de acervo, e o caminho é mais itens (6.2b) e mais materiais.
+Abaixo da referência, e por quê (depois de ampliar o acervo próprio):
+- **Detalhe de parede:** agora há quadros de vários tipos, arandelas, relógios e mapas, mas a referência cobre as paredes de cima a baixo (estantes até o teto, cortinas pesadas, molduras largas); aqui a densidade ainda é menor e o desenho de parede é pequeno visto de cima.
+- **Variedade de piso e papel:** de 7 pisos e 7 papéis na ala, a referência ainda tem mais variação *dentro* do mesmo cômodo (faixas, bordas e tapetes de corredor em lã).
+- **Densidade da bagunça:** os enfeites de mesa e de chão existem; a referência tem mais objetos pequenos e menos alinhados.
+- **Cor:** coerente, mas a referência mistura mais tons por cômodo.
+- **Entorno:** terraço com escada e balaustrada, fonte, calçada, jardim e mata existem; a referência tem escadaria monumental e balaústres esculpidos com mais detalhe.
+Nada disso é erro de lógica: é densidade e acabamento do acervo, que cresce com mais itens próprios (e, se quiser, com os achados da 6.2b).
+
+### Defeito real achado e corrigido no caminho
+
+- **Fantasma derrubava a textura de um objeto do mapa** (erro raro de console `Cannot read properties of null (reading 'alphaMode')`, visto uma vez no e2e da casa da Fase 5): o fantasma da proposta e o do pincel criavam a textura com `Texture.from(bitmap)`, que reaproveita a fonte da GPU de quem já usa o mesmo bitmap (o baker devolve o mesmo bitmap para o mesmo desenho, que a cena também usa), e depois destruíam essa fonte compartilhada. Agora cada fantasma cria a sua (`render/textura-propria.ts`). Há um e2e que o reproduz de forma determinística (o sofá do mapa com uma prévia do mesmo desenho que some e volta); sem a correção ele falha, com ela passa.
+- O e2e de transição de clima media o brilho num único instante (100 ms depois da troca), e a captura de tela leva um tempo imprevisível sob carga; passou a amostrar durante a transição e exigir ao menos uma amostra entre os dois extremos. O e2e do `atlas.focar` (da Fase 4) ainda oscilou uma vez em carga alta e passa 3 de 3 isolado.
 
 ### Pendências reais
 
@@ -242,7 +255,8 @@ Nada disso é erro de lógica: é falta de acervo, e o caminho é mais itens (6.
 - A harmonização só vale para achados; se um dia um gerado precisar ser retocado, falta um jeito de pedir isso.
 - Árvores e plantas não bloqueiam luz nem visão (a copa não é oclusor).
 - O item da coleção não tem parâmetros de cor (é imagem): o tapete e o estofado variam só pela variante escolhida no sorteio.
-- Faltam objetos de parede na coleção (a face do cômodo ainda é assada só de receitas).
+- Os objetos de parede são receitas (a face do cômodo é assada delas); a coleção de imagens ainda não tem nenhum.
+- Os enfeites de mesa são postos em posição sorteada sobre o móvel: não há ainda arrumação (alinhados, em bandeja) nem se sabe a altura do móvel.
 - O estilo Pixel (Fase 8) ainda não rasteriza as descrições dos geradores pesados.
 
 ## Próximo
