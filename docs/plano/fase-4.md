@@ -188,7 +188,7 @@ Testes: noite + luz acesa → gera; dia → não; apagão sem velas → não.
 Pronto quando: a casa vista de fora à noite mostra as janelas acesas.
 Commit: lit windows at night
 
-### 4.4a — Partículas: base e chuva  ⬜
+### 4.4a — Partículas: base e chuva  ✅
 Objetivo: um sistema de partículas leve e a chuva caindo só fora dos cômodos, inclinada pelo vento.
 Depende de: 4.2a
 Ler: `spikes/estilos/src/main.js` (`criarChuva`, laço da chuva); `src/render/cena.ts`.
@@ -203,7 +203,7 @@ Testes: e2e existentes passam; FPS em 60 com chuva 1 num mapa 45×30.
 Pronto quando: aplicar "Tempestade" faz chover no terreno e não dentro da casa.
 Commit: particle system and rain
 
-### 4.4b — Neve, poeira, brasas, folhas  ⬜
+### 4.4b — Neve, poeira, brasas, folhas  ✅
 Objetivo: os outros quatro tipos de partícula, cada um com seu movimento.
 Depende de: 4.4a
 Ler: `src/render/particulas.ts`.
@@ -214,7 +214,7 @@ Testes: manual; FPS com todos em 1.
 Pronto quando: cada controle do inspetor liga seu tipo ao vivo.
 Commit: snow, dust, embers and leaves
 
-### 4.4c — Neblina  ⬜
+### 4.4c — Neblina  ✅
 Objetivo: neblina rasteira animada por ruído, com densidade por `weather.fog`.
 Depende de: 4.2a
 Ler: `src/render/acabamento.ts` (modelo de filtro com `GlProgram`, vértice e cuidados com GLSL ES 1.00).

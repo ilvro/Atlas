@@ -115,9 +115,16 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 - **4.3b Relâmpago e trovão:** com `weather.lightning > 0`, clarões aleatórios (de 4 a 11 s, mais seguidos quanto mais forte) clareiam o ambiente e as luzes do céu pelas janelas, e o trovão (ruído sintetizado) vem 0,4 a 1,6 s depois, se o som estiver ligado. Com movimento reduzido o clarão tem metade da força e não treme. `lightning: 0` nunca dispara. Nova ação na paleta: “Clima: relâmpago agora”. Nada disso acontece com “Ver atmosfera no editor” desligado.
 - **4.3c Janelas acesas à noite:** a janela de um cômodo com luz acesa brilha para fora (raio 4 m, na cor média das luzes de dentro), mesmo sem lua; de dia, com a luz apagada ou com a rede caída e sem velas, não.
 
+### 4.4 Partículas e neblina (2 de novembro) — concluída
+
+- **4.4a Sistema de partículas e chuva** (`render/particulas.ts`, números em `particulas-config.ts`): um `ParticleContainer` por tipo, quantidade proporcional à área × intensidade (teto de 4000), chuva de traços a 16–24 m/s inclinada pelo vento (`vento × 0,4`), `alpha = weather.rain`. Cai só fora: uma máscara invertida com as células de todos os cômodos. A camada fica acima do mapa de luz e abaixo dos marcadores.
+- **4.4b Neve, poeira, brasas, folhas:** neve oscila e cai fora; folhas giram e derivam com o vento, fora; poeira vive só dentro dos cômodos (máscara normal) e some e aparece; brasas sobem das luzes de fogo (24 por luz; sem luz de fogo, soltas pelo mapa) com mistura aditiva. Cada controle do inspetor liga o seu tipo ao vivo.
+- **4.4c Neblina** (`render/neblina.ts`): um véu do tamanho do mapa com filtro próprio (ruído de 3 oitavas com o domínio girado, para não sair quadriculado), que anda devagar e é empurrado pelo vento; cor vinda do ambiente (de noite é escura); opacidade máxima 0,55 × `fog`; dentro dos cômodos vale metade.
+- Com movimento reduzido tudo anda a 35% da velocidade. “Ver atmosfera no editor” desligado esconde partículas e neblina junto com a luz. Novo `contagemDeParticulas()` no viewport, usado nos testes.
+
 ### Validação
 
-- `tsc --noEmit` limpo, `npm run build` sem erros, **197 testes unitários** e **28 e2e** passando (3 rodadas completas seguidas, também depois da 4.3).
+- `tsc --noEmit` limpo, `npm run build` sem erros, **200 testes unitários** e **31 e2e** passando (3 rodadas completas seguidas, também depois da 4.4).
 - Novos e2e medem o brilho dos pixels: o cômodo vizinho fica escuro com a porta fechada, clareia com ela aberta e volta a escurecer ao desfazer; desligar a atmosfera clareia o mapa sem mexer no documento; a janela clareia o piso de dia, menos à noite e nada sem sol.
 - Capturas conferidas: sombra pela porta, facho pela porta aberta, janelas de dia e de noite.
 - **60 FPS** medidos com 10 luzes tremulando (igual ao mapa sem luzes), no Chromium de teste com WebGL por software: indica que o custo é pequeno, mas não substitui medir no notebook do mestre.
@@ -129,15 +136,16 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 
 ### Pendências
 
-- **Chuva, neve, neblina e vento ainda não são desenhados** (4.4): tempestade e neblina diferem hoje só em luz, cor e relâmpago.
-- A luz que as janelas derramam para fora só aparece onde há o que iluminar (terreno ou fundo em textura); sobre o fundo liso não há glow, porque a luz multiplica a cena.
-- Os testes de relâmpago medem o brilho em poucos quadros e contam o trovão com um `AudioContext` falso; o som real e a sensação do clarão só foram vistos em captura, não ouvidos.
-- O áudio do clima (`climateAudio`) segue sem interface (4.7a).
-- Falta medir o FPS no notebook do mestre e rever o `Alt+número` em navegadores que o usam para trocar de aba.
+- **Um teste de regressão meu oscilava** (o da corrida da galeria, da 4.1): `esperarEditor` aceitava o viewport da sessão antiga que ainda estava fechando. Era defeito do teste, não do app; agora espera o estado final estável (8 de 8 seguidas).
+- O teste de chuva mede o brilho médio do terreno: a diferença é pequena (cerca de +1 em 255), então a margem é estreita; ele passou em todas as rodadas, mas é o primeiro a olhar se um dia oscilar. A contagem de partículas é o que garante a quantidade.
+- **60 FPS** medidos com todos os tipos em 1 no mapa de 45 × 30 m, no Chromium de teste com WebGL por software; falta medir no notebook do mestre.
+- As partículas de cada tipo são fixas (tamanhos e cores definidos no código); não há ainda botão para estilo (por exemplo, neve maior).
+- O som da chuva é do Jukebox (4.7a, sem interface ainda).
+- O estilo Pixel (Fase 8) ainda não tem versão em pixels das partículas e da neblina.
 
 ## Próximo
 
-Fase 4.4: partículas (chuva, neve, poeira, brasas, folhas) e neblina. Tarefas em [docs/plano/fase-4.md](docs/plano/fase-4.md); começar pela **4.1a**. Pendências da Fase 3 em [docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md).
+Fase 4.5: mistura de climas e transição animada. Tarefas em [docs/plano/fase-4.md](docs/plano/fase-4.md); começar pela **4.1a**. Pendências da Fase 3 em [docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md).
 
 ## Pendências
 

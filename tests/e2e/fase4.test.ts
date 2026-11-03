@@ -228,3 +228,78 @@ test('janelas acesas à noite: a luz de dentro sai pela janela e a luz apagada n
   await page.waitForTimeout(800); assert.ok(await brilho(page, ...fora) < com - 2, 'luz apagada: a janela escurece');
   assert.deepEqual(erros, []); await ctx.close();
 });
+
+// ---- 4.4: partículas e neblina ----
+const tempoDe = (p: Page, w: Record<string, number>) => sessao(p, `(s, w) => s.store.executar({ tipo: "clima.aplicar", patch: { weather: { rain: 0, snow: 0, fog: 0, wind: 0, dust: 0, embers: 0, leaves: 0, lightning: 0, ...w } } })`, w);
+type Contagem = Record<'chuva' | 'neve' | 'poeira' | 'brasa' | 'folha', number>;
+const contagem = (p: Page) => p.evaluate(() => (window as unknown as { __atlas: { viewport(): { contagemDeParticulas(): Record<string, number> } } }).__atlas.viewport().contagemDeParticulas()) as Promise<Contagem>;
+async function casaNoGramado(p: Page) {
+  await criarMapaPelaInterface(p);
+  await ferramenta(p, 'comodo'); await retangulo(p, [6.75, 6.75], [14.25, 12.75]);
+  await ferramenta(p, 'selecionar'); await clicar(p, [35, 25]);
+  await sessao(p, '(s) => s.store.executar({ tipo: "terreno.base", material: "grama" })');
+  await aplicarClimaPor(p, 'tarde');
+}
+const DENTRO: [[number, number], [number, number]] = [[7.5, 7.5], [13.5, 12]], FORA: [[number, number], [number, number]] = [[16, 6], [24, 14]];
+
+test('chuva: cai no terreno e não dentro da casa; a quantidade acompanha a intensidade; sem atmosfera, some', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await casaNoGramado(page); await page.waitForTimeout(700);
+  assert.equal((await contagem(page)).chuva, 0);
+  const [fora0, dentro0] = [await brilho(page, ...FORA), await brilho(page, ...DENTRO)];
+  await tempoDe(page, { rain: 1, wind: 0.5 }); await page.waitForTimeout(900);
+  assert.equal((await contagem(page)).chuva, 2970, 'mapa 45 × 30 m, chuva 1');
+  const [fora1, dentro1] = [await brilho(page, ...FORA), await brilho(page, ...DENTRO)];
+  assert.ok(fora1 > fora0 + 0.6, `os traços de chuva aparecem no terreno (${fora0.toFixed(1)} → ${fora1.toFixed(1)})`);
+  assert.ok(Math.abs(dentro1 - dentro0) < 1, `e não dentro da casa (${dentro0.toFixed(1)} → ${dentro1.toFixed(1)})`);
+  await tempoDe(page, { rain: 0.5 }); await page.waitForTimeout(300);
+  assert.equal((await contagem(page)).chuva, 1485);
+  await tempoDe(page, { rain: 1 }); await page.waitForTimeout(500);
+  await page.click('[data-testid="aba-mapa"]'); await page.getByLabel('Ver atmosfera no editor').uncheck(); await page.waitForTimeout(700);
+  // Sem atmosfera o mapa nem escurece pelo ambiente; o que importa é que chover ou não chover dê no mesmo.
+  const comChuvaSemAtmosfera = await brilho(page, ...FORA); await tempoDe(page, {}); await page.waitForTimeout(400);
+  assert.ok(Math.abs(comChuvaSemAtmosfera - await brilho(page, ...FORA)) < 0.5, 'sem atmosfera no editor não chove');
+  await tempoDe(page, { rain: 1 }); await page.waitForTimeout(300);
+  await page.getByLabel('Ver atmosfera no editor').check(); await tempoDe(page, {}); await page.waitForTimeout(400);
+  assert.equal((await contagem(page)).chuva, 0);
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('cada controle liga o seu tipo: neve, folhas, poeira só dentro dos cômodos, brasas junto às luzes de fogo', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await casaNoGramado(page);
+  await tempoDe(page, { snow: 1 }); await page.waitForTimeout(400);
+  let c = await contagem(page); assert.equal(c.neve, 1350); assert.equal(c.chuva + c.folha + c.poeira + c.brasa, 0);
+  await tempoDe(page, { leaves: 1 }); await page.waitForTimeout(300);
+  c = await contagem(page); assert.equal(c.folha, 135); assert.equal(c.neve, 0);
+  await tempoDe(page, { dust: 1 }); await page.waitForTimeout(300);
+  const m = await documento(page), areaDaCasa = Object.values(m.rooms).reduce((t, r) => t + r.cells.reduce((u, [, , n]) => u + n * m.grid.size ** 2, 0), 0);
+  c = await contagem(page); assert.equal(c.poeira, Math.ceil(0.9 * areaDaCasa - 1e-9), 'poeira proporcional à área dos cômodos');
+  assert.ok(c.poeira > 0 && c.poeira < 200, `a poeira conta só a área da casa, não a do mapa (${c.poeira})`);
+  await tempoDe(page, { embers: 1 }); await page.waitForTimeout(300);
+  assert.equal((await contagem(page)).brasa, Math.ceil(0.04 * 45 * 30), 'sem luz de fogo, brasas soltas pelo mapa');
+  await sessao(page, '(s) => s.store.executar({ tipo: "item.adicionar", colecao: "lights", item: { id: "tocha", position: [10, 9], radius: 6, color: "#ffb36b", intensity: 1, flicker: 0.2, cone: null, ownerId: null, power: "fire", on: true, nightOnly: false, preset: "tocha" } })');
+  await page.waitForTimeout(300);
+  assert.equal((await contagem(page)).brasa, 24, 'com uma luz de fogo, as brasas nascem dela');
+  await tempoDe(page, {}); await page.waitForTimeout(300);
+  c = await contagem(page); assert.equal(c.chuva + c.neve + c.poeira + c.brasa + c.folha, 0);
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('neblina: cobre o terreno e entra menos na casa; some com fog 0 e sem atmosfera', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await casaNoGramado(page); await page.waitForTimeout(700);
+  const [fora0, dentro0] = [await brilho(page, ...FORA), await brilho(page, ...DENTRO)];
+  await tempoDe(page, { fog: 0.9 }); await page.waitForTimeout(900);
+  const [fora1, dentro1] = [await brilho(page, ...FORA), await brilho(page, ...DENTRO)];
+  assert.ok(fora1 > fora0 + 25, `a neblina clareia o terreno (${fora0.toFixed(1)} → ${fora1.toFixed(1)})`);
+  assert.ok(dentro1 > dentro0 + 2 && (dentro1 - dentro0) < (fora1 - fora0), `e entra menos na casa (+${(dentro1 - dentro0).toFixed(1)} contra +${(fora1 - fora0).toFixed(1)})`);
+  await page.waitForTimeout(1500); const depois = await brilho(page, ...FORA);
+  assert.ok(Math.abs(depois - fora1) > 0.05, 'a neblina se move (o quadro mudou)');
+  await tempoDe(page, { fog: 0 }); await page.waitForTimeout(500);
+  assert.ok(Math.abs(await brilho(page, ...FORA) - fora0) < 3, 'fog 0: o terreno volta ao que era');
+  await tempoDe(page, { fog: 0.9 }); await page.click('[data-testid="aba-mapa"]'); await page.getByLabel('Ver atmosfera no editor').uncheck(); await page.waitForTimeout(600);
+  const comNeblinaSemAtmosfera = await brilho(page, ...FORA); await tempoDe(page, { fog: 0 }); await page.waitForTimeout(400);
+  assert.ok(Math.abs(comNeblinaSemAtmosfera - await brilho(page, ...FORA)) < 3, 'sem atmosfera no editor não há neblina');
+  assert.deepEqual(erros, []); await ctx.close();
+});

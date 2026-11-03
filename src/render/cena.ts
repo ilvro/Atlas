@@ -11,6 +11,8 @@ import { corDoNome, hexParaNumero } from './cores.ts';
 import { chaveDoComodo, chaveDoObjeto, chaveDoTerreno, contextoDeEntradas, entradaDoComodo, entradaDoTerreno } from './entradas.ts';
 import { nivelDaLuz } from '../domain/clima.ts';
 import { criarMapaDeLuz } from './mapa-de-luz.ts';
+import { criarNeblina } from './neblina.ts';
+import { criarParticulas } from './particulas.ts';
 
 export const RES_OBJETO = 96, RES_COMODO = 64, RES_TERRENO = 24;
 
@@ -35,6 +37,8 @@ export interface Cena {
   definirAtmosfera(ligada: boolean): void;
   /** Um relâmpago agora (com trovão, se o som estiver ligado). */
   relampagoAgora(): void;
+  /** Quantas partículas de cada tipo existem agora. */
+  contagemDeParticulas(): ReturnType<ReturnType<typeof criarParticulas>['contagem']>;
   /** Quantos desenhos ainda estão sendo pintados no worker. */
   readonly pintando: number;
   destruir(): void;
@@ -45,11 +49,11 @@ interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; 
 export function criarCena(op: OpcoesDaCena): Cena {
   const raiz = new Container(), terrenoC = new Container(), comodosC = new Container(), objetosC = new Container(), paredesG = new Graphics();
   const regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), tituloC = new Container();
-  const luz = criarMapaDeLuz(op.renderer);
+  const luz = criarMapaDeLuz(op.renderer), neblina = criarNeblina(), particulas = criarParticulas();
   // A luz multiplica tudo o que está embaixo (piso, objetos, paredes); marcadores, regiões e peças ficam por cima, sempre legíveis.
-  raiz.addChild(terrenoC, comodosC, objetosC, paredesG, luz.sprite, regioesC, luzesC, pecasC, tituloC);
+  raiz.addChild(terrenoC, comodosC, objetosC, paredesG, luz.sprite, neblina.raiz, particulas.raiz, regioesC, luzesC, pecasC, tituloC);
 
-  let mapa: MapaAtlas | null = null, destruida = false, pintandoAgora = 0;
+  let mapa: MapaAtlas | null = null, destruida = false, pintandoAgora = 0, ultimoQuadro = -1;
   const salas = new Map<string, Entrada>(), objetos = new Map<string, Entrada>();
   const luzes = new Map<string, Container>(), pecas = new Map<string, Container>(), regioes = new Map<string, Container>();
   const animacoes: { alvo: Container; t0: number; dur: number; final: number }[] = [];
@@ -265,7 +269,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid')) sincronizarComodos(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid')) desenharParedes(m);
       if (tudo || colecao('props')) sincronizarObjetos(m, tudo ? null : mud!.colecoes.props ?? null, comPop);
-      luz.sincronizar(m, mud);
+      luz.sincronizar(m, mud); neblina.sincronizar(m, mud); particulas.sincronizar(m, mud);
       // Os marcadores das luzes também refletem o clima (apagada pela rede ou pelo dia), então refazem quando ele muda.
       if (tudo || colecao('lights') || campos('climate')) sincronizarSimples(luzes, luzesC, m.lights, tudo || campos('climate') ? null : mud!.colecoes.lights ?? null, (c, l) => desenharLuz(c, l, m), comPop);
       if (tudo || colecao('tokens') || campos('grid')) sincronizarSimples(pecas, pecasC, m.tokens, tudo || campos('grid') ? null : mud!.colecoes.tokens ?? null, (c, t) => desenharPeca(c, t, m), comPop);
@@ -273,10 +277,12 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (tudo || campos('backdrop', 'bounds')) sincronizarTitulo(m);
       op.baker.coletar(chavesEmUso());
     },
-    definirAtmosfera: ligada => luz.definirLigado(ligada),
+    definirAtmosfera: ligada => { luz.definirLigado(ligada); neblina.definirLigado(ligada); particulas.definirLigado(ligada); },
     relampagoAgora: () => luz.relampagoAgora(),
+    contagemDeParticulas: () => particulas.contagem(),
     quadro(agora) {
       luz.quadro(agora);
+      const dt = ultimoQuadro < 0 ? 0 : (agora - ultimoQuadro) / 1000; ultimoQuadro = agora; neblina.quadro(dt); particulas.quadro(dt);
       for (let i = animacoes.length - 1; i >= 0; i--) {
         const a = animacoes[i]!, t = Math.min(1, (agora - a.t0) / a.dur), e = 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2;   // easeOutBack
         if (a.alvo.destroyed) { animacoes.splice(i, 1); continue; }
@@ -288,7 +294,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       destruida = true; if (terrenoTimer) clearTimeout(terrenoTimer);
       for (const e of [...salas.values(), ...objetos.values(), ...(terreno ? [terreno] : [])]) soltar(e.chaveTextura);
       for (const t of texturas.values()) t.tex.destroy(true); texturas.clear();
-      luz.destruir(); raiz.destroy({ children: true });
+      luz.destruir(); neblina.destruir(); particulas.destruir(); raiz.destroy({ children: true });
     },
   };
 }

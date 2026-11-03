@@ -60,6 +60,8 @@ export interface Viewport {
   atualizarSobreposicoes(): void;
   /** Dispara um relâmpago (e o trovão, se o som estiver ligado). Só vale com a atmosfera visível. */
   relampagoAgora(): void;
+  /** Quantas partículas de cada tipo existem agora (diagnóstico e testes). */
+  contagemDeParticulas(): ReturnType<Cena['contagemDeParticulas']>;
   destruir(): void;
 }
 
@@ -522,6 +524,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     redesenhar: () => { redesenharTudo(); },
     atualizarSobreposicoes: () => { camadaSuja = true; aplicarAcabamento(); },
     relampagoAgora: () => cena.relampagoAgora(),
+    contagemDeParticulas: () => cena.contagemDeParticulas(),
     destruir() {
       destruido = true; cancelarAssinatura(); observador.disconnect();
       window.removeEventListener('keydown', aoTeclar, true); window.removeEventListener('keyup', aoSoltar);

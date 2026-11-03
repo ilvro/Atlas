@@ -1,0 +1,99 @@
+import { Container, Filter, GlProgram, Graphics, Sprite, Texture, UniformGroup } from 'pixi.js';
+import type { MapaAtlas } from '../domain/mapa.ts';
+import { movimentoReduzido } from '../fx/fx.ts';
+import type { Mudancas } from '../state/mudancas.ts';
+import { desenharComodos } from './mascara-de-comodos.ts';
+import { FATOR_DE_MOVIMENTO_REDUZIDO, NEBLINA_DENTRO, alfaDaNeblina } from './particulas-config.ts';
+
+export interface Neblina {
+  readonly raiz: Container;
+  sincronizar(m: MapaAtlas, mudancas: Mudancas | null): void;
+  /** `dt` em segundos. */
+  quadro(dt: number): void;
+  definirLigado(ligado: boolean): void;
+  destruir(): void;
+}
+
+const vertex = `in vec2 aPosition;
+out vec2 vTextureCoord;
+uniform vec4 uInputSize;
+uniform vec4 uOutputFrame;
+uniform vec4 uOutputTexture;
+vec4 filterVertexPosition(void) {
+  vec2 position = aPosition * uOutputFrame.zw + uOutputFrame.xy;
+  position.x = position.x * (2.0 / uOutputTexture.x) - 1.0;
+  position.y = position.y * (2.0 * uOutputTexture.z / uOutputTexture.y) - uOutputTexture.z;
+  return vec4(position, 0.0, 1.0);
+}
+vec2 filterTextureCoord(void) { return aPosition * (uOutputFrame.zw * uInputSize.zw); }
+void main(void) { gl_Position = filterVertexPosition(); vTextureCoord = filterTextureCoord(); }`;
+
+// fbm de 2 oitavas, deslocado pelo tempo e pelo vento. Sem arrays constantes (GLSL ES 1.00); uniformes compartilhados com o vértice em highp.
+const fragment = `in vec2 vTextureCoord;
+out vec4 finalColor;
+uniform sampler2D uTexture;
+uniform highp vec4 uInputSize;
+uniform highp vec4 uOutputFrame;
+uniform highp vec2 uTamanho;
+uniform highp vec2 uDeslocamento;
+uniform highp float uTempo;
+uniform vec3 uCor;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float ruido(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
+void main() {
+  vec2 uv = vTextureCoord * uInputSize.xy / uOutputFrame.zw;
+  vec2 p = uv * uTamanho * 0.16;
+  // Cada oitava gira o domínio: o ruído de valor é alinhado à grade, e sem isso a névoa sai quadriculada.
+  mat2 giro = mat2(0.8, -0.6, 0.6, 0.8);
+  vec2 q = giro * p * 2.1 - uDeslocamento * 0.3 + vec2(7.3, 1.9) + vec2(uTempo * 0.012);
+  vec2 r = giro * giro * p * 4.4 + uDeslocamento * 0.45 + vec2(2.7, 9.1);
+  float n = ruido(p + uDeslocamento * 0.18) * 0.5 + ruido(q) * 0.3 + ruido(r) * 0.2;
+  float densidade = smoothstep(0.22, 0.82, n);
+  float a = 0.18 + 0.82 * densidade;
+  finalColor = vec4(uCor * a, a);
+}`;
+
+/**
+ * Neblina rasteira: um véu do tamanho do mapa, com ruído que anda devagar e o vento empurra. Cobre o terreno inteiro;
+ * dentro dos cômodos vale metade (a neblina entra pouco em casa). A cor vem do ambiente, então à noite ela é escura.
+ */
+export function criarNeblina(): Neblina {
+  const grupo = new UniformGroup({
+    uTamanho: { value: new Float32Array([1, 1]), type: 'vec2<f32>' }, uDeslocamento: { value: new Float32Array([0, 0]), type: 'vec2<f32>' },
+    uTempo: { value: 0, type: 'f32' }, uCor: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
+  });
+  const programa = GlProgram.from({ vertex, fragment, name: 'atlas-neblina' });
+  const veu = () => { const s = new Sprite(Texture.WHITE); s.filters = [new Filter({ glProgram: programa, resources: { neblina: grupo } })]; return s; };
+  const raiz = new Container(), fora = new Container(), dentro = new Container(), veuFora = veu(), veuDentro = veu();
+  const mascaraFora = new Graphics(), mascaraDentro = new Graphics();
+  fora.addChild(veuFora, mascaraFora); dentro.addChild(veuDentro, mascaraDentro);
+  fora.setMask({ mask: mascaraFora, inverse: true }); dentro.mask = mascaraDentro; dentro.alpha = NEBLINA_DENTRO;
+  raiz.addChild(fora, dentro); raiz.visible = false;
+
+  let mapa: MapaAtlas | null = null, tempo = 0, desloc: [number, number] = [0, 0], ligado = true, destruido = false;
+
+  return {
+    raiz,
+    sincronizar(m, mud) {
+      if (destruido) return;
+      const tudo = !mud || mud.completo, col = (c: string) => tudo || !!(mud!.colecoes as Record<string, unknown>)[c], campo = (...c: string[]) => tudo || c.some(x => mud!.campos.includes(x));
+      mapa = m;
+      if (campo('bounds')) { for (const s of [veuFora, veuDentro]) { s.width = m.bounds.width; s.height = m.bounds.height; } (grupo.uniforms as Record<string, unknown>).uTamanho = new Float32Array([m.bounds.width, m.bounds.height]); }
+      if (col('rooms') || campo('grid')) { desenharComodos(mascaraFora, m); desenharComodos(mascaraDentro, m); }
+      if (campo('climate')) {
+        const f = m.climate.weather.fog, a = m.climate.ambient, bruto = [1, 3, 5].map(i => parseInt(a.color.slice(i, i + 2), 16) / 255 * a.intensity);
+        // A névoa é clara, mas iluminada pelo ambiente: de noite fica escura, de dia, quase branca.
+        (grupo.uniforms as Record<string, unknown>).uCor = new Float32Array(bruto.map(v => Math.min(1, 0.07 + v * 0.9)));
+        raiz.alpha = alfaDaNeblina(f); raiz.visible = ligado && f > 0.001;
+      }
+    },
+    quadro(dt) {
+      if (destruido || !ligado || !raiz.visible || !mapa) return;
+      const passo = Math.min(0.1, dt) * (movimentoReduzido() ? FATOR_DE_MOVIMENTO_REDUZIDO : 1), vento = mapa.climate.weather.wind;
+      tempo += passo; desloc = [desloc[0] + (0.18 + vento * 0.7) * passo, desloc[1] + 0.05 * passo];
+      const u = grupo.uniforms as Record<string, unknown>; u.uTempo = tempo; u.uDeslocamento = new Float32Array(desloc);
+    },
+    definirLigado(v) { ligado = v; raiz.visible = v && (mapa?.climate.weather.fog ?? 0) > 0.001; },
+    destruir() { destruido = true; raiz.destroy({ children: true }); },
+  };
+}

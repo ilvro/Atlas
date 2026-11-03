@@ -403,7 +403,8 @@ test('abrir um mapa logo ao chegar na galeria funciona (a transição de saída 
   for (let i = 0; i < 3; i++) {
     await page.click('a.marca'); await page.waitForSelector('[data-testid="lista-mapas"]');
     await page.click('.cartao-link');                       // sem esperar: é aí que a sessão antiga ainda está fechando
-    await esperarEditor(page); assert.equal((await documento(page)).id, id);
+    // O editor antigo ainda está se fechando nos primeiros ~170 ms: só vale o estado depois que a troca termina.
+    await page.waitForTimeout(900); await esperarEditor(page); assert.equal((await documento(page)).id, id);
   }
   assert.deepEqual(erros, []); await ctx.close();
 });
