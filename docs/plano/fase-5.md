@@ -39,7 +39,7 @@ Detalhado em 3 de novembro de 2026, contra o código do fim da Fase 4. Faça na 
 
 ---
 
-### 5.0 — Documento v4: gênero do mapa  ⬜
+### 5.0 — Documento v4: gênero do mapa  ✅
 Objetivo: o mapa guarda o gênero (`style.genre`), e o mestre o escolhe na aba Mapa.
 Depende de: —
 Ler: `src/domain/mapa.ts` (`Estilo`, `VERSAO_MAPA`, `criarMapa`); `src/domain/migracoes.ts` (`de2para3` como modelo); `src/domain/validacao.ts` (linha do `style`); `src/ui/Inspetor.tsx` (`PainelDoMapa`).
@@ -55,7 +55,7 @@ Testes: migração 3→4 preenche o gênero; mapa v4 válido; `generoDe('xyz').i
 Pronto quando: testes passam; trocar o gênero na aba Mapa entra no histórico e sobrevive a gravar e recarregar.
 Commit: map genre (document v4)
 
-### 5.1a — Insight do cômodo  ⬜
+### 5.1a — Insight do cômodo  ✅
 Objetivo: do documento e de um cômodo, saber área, perímetro, portas, janelas, vizinhos, objetos e luzes.
 Depende de: —
 Ler: `src/domain/geometria.ts` (`arestasDeParede`, `salasDaAbertura`, `pontoNaParede`, `comprimentoDaParede`, `comodoEm`, `caixaDasCelulas`); `src/domain/clima.ts` (`luzesDerivadas`: como descobre a normal para dentro de uma janela); `src/render/selecao.ts` (`tamanhoDoObjeto`).
@@ -84,7 +84,7 @@ Testes: sala 4×3 células (grid 1,5) tem área 27 m² e perímetro 21 m; porta 
 Pronto quando: testes passam; `src/authoring` não importa render, UI nem app.
 Commit: room insight
 
-### 5.1b — Malha e circulação livre  ⬜
+### 5.1b — Malha e circulação livre  ✅
 Objetivo: saber, numa malha de 0,25 m, o que está ocupado, o que cada porta precisa de livre e por onde se passa entre as portas.
 Depende de: 5.1a
 Ler: `src/authoring/insight.ts`; `src/domain/celulas.ts`.
@@ -112,7 +112,7 @@ Testes: cômodo vazio com duas portas está ligado e a faixa liga as duas; um m�
 Pronto quando: testes passam; uma casa de 3 cômodos de 6 × 4,5 m calcula a malha em menos de 5 ms (meça no teste, sem afirmar o tempo).
 Commit: room grid and free circulation
 
-### 5.1c — Função provável  ⬜
+### 5.1c — Função provável  ✅
 Objetivo: dizer para que serve um cômodo pelo nome, pelos objetos ou pelo tamanho, com um grau de confiança.
 Depende de: 5.1a
 Ler: `src/domain/presets.ts` (`TIPOS_DE_COMODO`: as funções válidas); `src/procedural/receitas.ts` (`funcoes` de cada receita); `src/app/busca.ts` (`normalizar`, sem acento: copie a linha, porque `authoring` não importa `app`).
@@ -132,7 +132,7 @@ Testes: por tabela, um caso por linha (`'Cozinha'`, `'Sala de jantar'`, `'Sala 2
 Pronto quando: a tabela passa.
 Commit: guess room function
 
-### 5.2a — Proposta e `proposta.aceitar`  ⬜
+### 5.2a — Proposta e `proposta.aceitar`  ✅
 Objetivo: uma lista de comandos que se vê antes, se aceita como uma ação e se recusa se o mapa mudou.
 Depende de: —
 Ler: `src/state/comandos.ts` (`Comando`, `aplicar`, `aplicarComando`, `ROTULOS`); `src/state/store.ts` (`executar` com `versaoEsperada`).
@@ -153,7 +153,7 @@ Testes: aceitar três `item.adicionar` cria uma entrada de histórico com o rót
 Pronto quando: testes passam.
 Commit: proposals accepted as one action
 
-### 5.2b — Fantasma da proposta  ⬜
+### 5.2b — Fantasma da proposta  ✅
 Objetivo: o que a proposta acrescenta aparece no mapa, translúcido, antes de aceitar.
 Depende de: 5.2a
 Ler: `src/render/viewport.ts` (fantasma da ferramenta, ~linhas 209–275: como pede o desenho do objeto ao `baker` com `chaveDoObjeto`; `fantasmaC`; `fxAtivo`); `src/render/selecao.ts` (`caixaDe`); `src/domain/geometria.ts` (`pontoNaParede`).
@@ -168,7 +168,7 @@ Testes: e2e em `tests/e2e/fase5.test.ts`: montar uma prévia com dois objetos e 
 Pronto quando: a prévia aparece translúcida no lugar certo e some com `null`.
 Commit: proposal ghost preview
 
-### 5.2c — Pílula de sugestão  ⬜
+### 5.2c — Pílula de sugestão  ✅
 Objetivo: junto ao cômodo em foco, uma pílula discreta oferece a próxima sugestão: aceitar, outra, dispensar. A primeira sugestão é a função.
 Depende de: 5.1c, 5.2b
 Ler: `src/ui/CartaoContextual.tsx` (como segue o item na tela); `src/app/sessao.ts`; `src/app/app.ts` (onde a sessão é criada, `acabamentoLigado` como modelo de preferência local, `aoColocar`); `src/app/acoes.ts`; `src/app/toasts.ts`; `docs/INTERFACE.md` ("Sugestões no fluxo").
@@ -191,7 +191,7 @@ Testes: unitário de `proximaSugestao` (renomear "Sala 2" para "Cozinha" sugere 
 Pronto quando: o fluxo do e2e funciona sem erros de console.
 Commit: suggestion pill with room function
 
-### 5.3a — Regras de mobília  ⬜
+### 5.3a — Regras de mobília  ✅
 Objetivo: para cada função, que móveis um cômodo costuma ter, onde ficam e quantos, em dados puros.
 Depende de: —
 Ler: `src/procedural/receitas.ts` (ids, `funcoes`, `pegada`, `campos`); `src/domain/presets.ts` (`TIPOS_DE_COMODO`, `GENEROS`).
@@ -216,7 +216,7 @@ Testes: toda receita citada existe e é do tipo certo (`na-parede` só com recei
 Pronto quando: testes passam.
 Commit: furnishing rules by function and genre
 
-### 5.3b — Gerador de layout  ⬜
+### 5.3b — Gerador de layout  ✅
 Objetivo: dado um cômodo e as regras, as posições dos móveis que faltam, encostados na parede, sem tampar porta nem passagem.
 Depende de: 5.1b, 5.3a
 Ler: `src/authoring/insight.ts`, `malha.ts`, `regras-mobilia.ts`; `src/domain/geometria.ts` (`contornoDoComodo`, `encaixarObjetoDeParede`, `motivoDeNaoCaber` como modelo para objetos de parede); `src/domain/fabrica.ts` (`novoObjeto`); `src/procedural/receitas.ts` (`pegadaDaReceita`, `mulberry32` em `ruido.ts`).
@@ -241,7 +241,7 @@ Testes: a rotação de parede bate com a fórmula (cama na parede de cima fica c
 Pronto quando: testes passam.
 Commit: furniture layout generator
 
-### 5.3c — Materiais, paleta e a sugestão "Mobiliar"  ⬜
+### 5.3c — Materiais, paleta e a sugestão "Mobiliar"  ✅
 Objetivo: a proposta de mobília vem com piso, papel e uma paleta de tecidos e madeiras que combinam, e aparece na pílula.
 Depende de: 5.2c, 5.3b
 Ler: `src/procedural/materiais.ts` (`materiaisDo`, ids de piso, papel e objeto); `src/procedural/receitas.ts` (`campos` com `tipo: 'material'`); `src/authoring/sugestoes.ts`.
@@ -259,7 +259,7 @@ Testes: todos os materiais das tabelas existem com o uso certo; a proposta de um
 Pronto quando: no editor, renomear um cômodo para "Quarto" e aceitar duas pílulas (função, mobiliar) gera um quarto mobiliado, com fantasma antes, desfazível em duas entradas.
 Commit: furnish suggestion with materials and palette
 
-### 5.4a — Regras de espalhamento  ⬜
+### 5.4a — Regras de espalhamento  ✅
 Objetivo: espalhar pequenos objetos num círculo de forma natural, conforme o contexto: junto à parede, sobre ou perto de mesas, livre.
 Depende de: 5.1b
 Ler: `src/authoring/malha.ts`; `src/procedural/receitas.ts` (categoria `mesas`, `caixa`, `papeis`, `livros.pilha`, `vaso.planta`); `src/domain/mapa.ts` (`elevation: 'table'`).
@@ -279,7 +279,7 @@ Testes: papelada num escritório com escrivaninha põe itens com `elevation: 'ta
 Pronto quando: testes passam.
 Commit: contextual scatter rules
 
-### 5.4b — Pincel de espalhar  ⬜
+### 5.4b — Pincel de espalhar  ✅
 Objetivo: uma ferramenta que espalha o conjunto escolhido por onde o mestre arrasta; cada pincelada é uma ação.
 Depende de: 5.4a
 Ler: `src/render/pincel.ts`; `src/render/viewport.ts` (interação `terreno`, gesto da pincelada, fantasma do pincel de terreno); `src/app/acoes.ts` (`usarFerramenta`, `mudarRaio`, atalhos); `src/ui/Biblioteca.tsx` (lista por ferramenta).
@@ -294,7 +294,7 @@ Testes: e2e: num escritório com escrivaninha, uma pincelada sobre ela põe pap�
 Pronto quando: o e2e passa e os anteriores continuam passando.
 Commit: scatter brush tool
 
-### 5.5a — Portas entre vizinhos e porta de entrada  ⬜
+### 5.5a — Portas entre vizinhos e porta de entrada  ✅
 Objetivo: sugerir uma porta para o cômodo que não se liga a nada, e a porta de entrada da casa.
 Depende de: 5.2c, 5.1b
 Ler: `src/authoring/insight.ts`, `malha.ts`, `sugestoes.ts`; `src/domain/geometria.ts` (`paredesDerivadas` e o id `d{orient}{linha}_{ini}_{fim}`, `arestasDeParede`, `encaixarNaParede`, `motivoDeNaoCaber`).
@@ -310,7 +310,7 @@ Testes: dois cômodos lado a lado sem porta → proposta com uma porta na parede
 Pronto quando: testes passam e, no editor, três cômodos sem portas ficam ligados aceitando as pílulas.
 Commit: suggest doors between rooms
 
-### 5.5b — Luzes pela função  ⬜
+### 5.5b — Luzes pela função  ✅
 Objetivo: sugerir as luzes de um cômodo pela função e pelo gênero, de preferência sobre as mesas.
 Depende de: 5.3c
 Ler: `src/domain/presets.ts` (`PRESETS_DE_LUZ`, `camposDoPreset`, `GENEROS`); `src/domain/fabrica.ts` (`novaLuz`); `src/authoring/insight.ts`, `sugestoes.ts`.
@@ -324,7 +324,7 @@ Testes: escritório com escrivaninha recebe a luz sobre ela com `ownerId`; cômo
 Pronto quando: testes passam; à noite, aceitar "Iluminar" acende o cômodo.
 Commit: suggest lights by room function
 
-### 5.6 — Validação da fase  ⬜
+### 5.6 — Validação da fase  ✅
 Objetivo: provar o critério de pronto e registrar o relatório.
 Depende de: todas
 Ler: `tests/e2e/fase4.test.ts` (modelo de validação de fase e capturas); `tests/e2e/apoio.ts`.

@@ -140,6 +140,16 @@ export function salasDaAbertura(m: Pick<MapaAtlas, 'walls' | 'grid' | 'rooms'>, 
   return (arestas.get(chave)?.salas ?? ([] as (string | null)[])).filter((x): x is string => x !== null);
 }
 
+/**
+ * A normal da parede, no ponto a `dist` metros do início, que aponta para dentro de `roomId`: a que, um passo adiante, cai no cômodo.
+ * `null` se nenhum dos dois lados cai nele.
+ */
+export function normalParaDentro(m: Pick<MapaAtlas, 'rooms' | 'grid'>, parede: Pick<Parede, 'path'>, dist: number, roomId: string, indice = indiceDeCelulas(m)): Ponto | null {
+  const { ponto, tangente } = pontoNaParede(parede, dist);
+  const candidatas: Ponto[] = [[-tangente[1], tangente[0]], [tangente[1], -tangente[0]]];
+  return candidatas.find(n => comodoEm(m, [ponto[0] + n[0] * 0.4, ponto[1] + n[1] * 0.4], indice) === roomId) ?? null;
+}
+
 export const centroDaAbertura = (p: Pick<Parede, 'path'>, a: Pick<Abertura, 'at'>): number => a.at * comprimentoDaParede(p);
 
 /** A abertura cabe na parede e não encosta nas outras? Devolve o motivo da recusa, ou `null`. */

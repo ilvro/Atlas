@@ -35,6 +35,8 @@ export type Comando =
   | { tipo: 'item.adicionar'; colecao: ColecaoLivre; item: { id: string } & Record<string, unknown> }
   | { tipo: 'item.atualizar'; colecao: ColecaoLivre; id: string; patch: Record<string, unknown> }
   | { tipo: 'item.remover'; colecao: ColecaoLivre; id: string }
+  /** Uma sugestão do assistente aceita: vários comandos como UMA entrada de histórico. Não aninha. */
+  | { tipo: 'proposta.aceitar'; rotulo: string; comandos: Comando[] }
   | { tipo: 'selecao.mover'; alvos: AlvoMovel[]; delta: Ponto };
 
 const nao = (msg: string): never => { throw new ErroDeComando(msg); };
@@ -74,6 +76,11 @@ function remover(m: MapaAtlas, colecao: ColecaoLivre, id: string): void {
 function aplicar(m: MapaAtlas, c: Comando): void {
   if (ehComandoDeConstrucao(c)) { aplicarConstrucao(m, c); return; }
   switch (c.tipo) {
+    case 'proposta.aceitar': {
+      if (!c.comandos.length) nao('A sugestão está vazia.');
+      for (const filho of c.comandos) { if (filho.tipo === 'proposta.aceitar') nao('Uma sugestão não pode conter outra.'); aplicar(m, filho); }
+      break;
+    }
     case 'mapa.renomear': m.name = c.nome; break;
     case 'mapa.notas': m.notes = c.texto; break;
     case 'mapa.campanha': m.campanhaId = c.campanhaId; break;
@@ -168,7 +175,7 @@ export const ROTULOS: Record<Comando['tipo'], string> = {
   'mapa.renomear': 'Renomear mapa', 'mapa.notas': 'Editar notas', 'mapa.campanha': 'Ligar à campanha', 'grade.atualizar': 'Ajustar grade',
   'limites.atualizar': 'Redimensionar mapa', 'estilo.atualizar': 'Mudar estilo', 'clima.aplicar': 'Mudar clima', 'clima.predefinir': 'Aplicar clima', 'clima.salvar': 'Salvar clima', 'clima.esquecer': 'Esquecer clima', 'clima.audio': 'Som do clima', 'acabamento.atualizar': 'Ajustar acabamento',
   'fundo.atualizar': 'Ajustar fundo', 'memoria.atualizar': 'Ajustar memória', 'item.adicionar': 'Adicionar', 'item.atualizar': 'Editar',
-  'item.remover': 'Remover', 'selecao.mover': 'Mover',
+  'item.remover': 'Remover', 'selecao.mover': 'Mover', 'proposta.aceitar': 'Aceitar sugestão',
 };
 
 export type { NomeColecao };

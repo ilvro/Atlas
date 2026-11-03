@@ -8,6 +8,7 @@ import { materialDe, materiaisDo } from '../procedural/materiais.ts';
 import { CATEGORIAS, listaDeReceitas, receitaDe, type Receita } from '../procedural/receitas.ts';
 import { filtrar } from '../app/busca.ts';
 import { CampoNumero } from './campos.tsx';
+import { CONJUNTOS_DE_ESPALHAR } from '../authoring/espalhar.ts';
 import { Amostra, CampoMaterial } from './campos-material.tsx';
 import { Icone } from './Icone.tsx';
 import { desenharPrevia, pedirPrevia } from './previa.ts';
@@ -100,6 +101,15 @@ function Terreno({ s }: { s: SessaoDeEdicao }) {
   </>);
 }
 
+function Espalhar({ s }: { s: SessaoDeEdicao }) {
+  const p = s.pincel.value.espalhar;
+  return (<>
+    <p class="dica">Arraste para espalhar o conjunto: cada pincelada é uma ação. A papelada vai sobre as mesas, os caixotes junto das paredes. Nunca na frente de portas. <kbd>Alt</kbd> apaga; <kbd>[</kbd> e <kbd>]</kbd> mudam o pincel.</p>
+    <div class="lista-cartas">{CONJUNTOS_DE_ESPALHAR.map(c => <button type="button" key={c.id} class={`carta ${p.conjunto === c.id ? 'ativa' : ''}`} onClick={() => mudar(s, { espalhar: { ...p, conjunto: c.id } })} data-testid={`espalhar-${c.id}`}><span class="carta-nome">{c.nome}</span><span class="carta-desc">{c.descricao}</span></button>)}</div>
+    <CampoNumero rotulo="Pincel" unidade="m" valor={p.raio} min={0.25} max={12} passo={0.5} aoConfirmar={v => { mudar(s, { espalhar: { ...p, raio: v } }); }} />
+  </>);
+}
+
 function Presenca({ s }: { s: SessaoDeEdicao }) {
   const p = s.pincel.value.presenca;
   return (<>
@@ -112,7 +122,7 @@ function Presenca({ s }: { s: SessaoDeEdicao }) {
   </>);
 }
 
-const TITULOS: Record<string, string> = { comodo: 'Cômodos', abertura: 'Portas e janelas', parede: 'Paredes', objeto: 'Objetos', luz: 'Luzes', terreno: 'Terreno', presenca: 'Presença' };
+const TITULOS: Record<string, string> = { comodo: 'Cômodos', abertura: 'Portas e janelas', parede: 'Paredes', objeto: 'Objetos', luz: 'Luzes', terreno: 'Terreno', presenca: 'Presença', espalhar: 'Espalhar' };
 
 /** A gaveta da ferramenta ativa: o que se pode pôr com ela, e os ajustes do que está na mão. */
 export function Biblioteca({ s }: { s: SessaoDeEdicao }) {
@@ -123,7 +133,7 @@ export function Biblioteca({ s }: { s: SessaoDeEdicao }) {
       <div class="biblioteca-topo"><h3 class="faixa pequena">{TITULOS[f]}</h3><button type="button" class="botao-icone" aria-label="Fechar a biblioteca" title="Fechar (B)" onClick={() => { s.biblioteca.value = false; }}><Icone nome="fechar" tamanho={16} /></button></div>
       <div class="biblioteca-corpo">
         {f === 'comodo' && <Comodos s={s} />}{f === 'objeto' && <Objetos s={s} />}{f === 'luz' && <Luzes s={s} />}
-        {f === 'abertura' && <Aberturas s={s} />}{f === 'parede' && <Paredes s={s} />}{f === 'terreno' && <Terreno s={s} />}{f === 'presenca' && <Presenca s={s} />}
+        {f === 'abertura' && <Aberturas s={s} />}{f === 'parede' && <Paredes s={s} />}{f === 'terreno' && <Terreno s={s} />}{f === 'presenca' && <Presenca s={s} />}{f === 'espalhar' && <Espalhar s={s} />}
       </div>
     </aside>
   );

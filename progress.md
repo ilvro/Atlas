@@ -44,31 +44,6 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 - **2.7 `mesa-core` v1:** referências, barramento de eventos com pedidos e respostas, banco da campanha com regra de quem altera o quê, manifesto, tema compartilhado; publicado como JS + `.d.ts`.
 - **2.8 Plataforma:** `mesa.json`, rotas profundas (`#/mapa/{id}`, `#/mapa/{id}/comodo/{c}`), mapa ligado à campanha (entidade "lugar" que acompanha o nome e sobrevive à remoção do mapa), pedido `atlas.focar` atendido, `mesa-dev` (todos os projetos numa origem).
 
-### 4.5 Mistura e transição (3 de novembro) — concluída
-
-- **4.5a `misturar(a, b, t)`** (`domain/clima.ts`): números por lerp, cores por canal (o ambiente pela cor efetiva, que embute a intensidade), sol que aparece ou some muda só de intensidade com a cor do lado que tem sol, `gridPower` vira `rede` (0 a 1), `preset` e `time` do destino. 4 testes novos.
-- **4.5b Transição animada** (`render/viewport.ts`): o documento muda na hora e o viewport guarda o clima **exibido**, que caminha até ele em 1,6 s com `t²(3−2t)`. Luz, partículas, neblina e acabamento leem o exibido (`cena.atualizarAtmosfera` a cada quadro; `cena.sincronizar` ganhou a "visão do clima"). Só anima troca de `climate.preset` e desfazer/refazer; ajuste fino do inspetor vale na hora, e abrir mapa, movimento reduzido ou atmosfera desligada são instantâneos. O marcador das luzes no editor segue o documento.
-- Limites assumidos: o piscar do apagão continua sendo o da 4.3a (acionado pelo `gridPower` do destino; `rede` da mistura não é lido pelo render); `time` e "é noite" já valem o destino, então luzes só-noturnas ligam/desligam no início; o relâmpago sorteia de novo o intervalo enquanto a intensidade muda.
-- e2e novo: Tarde → Noite escurece aos poucos (o meio fica entre os dois), desfazer volta animando, ajuste fino não espera. Os testes antigos de 4.x agora esperam a transição acabar antes de medir (`aplicarClimaPor`).
-
-### 4.6 Presença (3 de novembro) — concluída
-
-- **4.6a Pincel e comandos:** ferramenta `presenca` (atalho `P`, ícone de gota, biblioteca própria; `[` e `]` mudam o raio dela). `presenca.pintar { brush, celulas }` acha ou cria a entidade do pincel (`p_<pincel>`, intensidade 0,6, semente estável por pincel) e soma as células; `presenca.apagar { brush | null, celulas }` tira de um pincel ou de todos, e entidade sem células some. Mesmo gesto do terreno: uma pincelada, uma entrada de histórico; Esc cancela; Alt apaga. A prévia do pincel é um círculo na cor dele. Não fiz a prévia "provisória em contorno" da ficha: fui direto ao render da 4.6b.
-- **4.6b Render** (`render/presenca.ts`): cada entidade é uma malha com shader próprio sobre a caixa das suas células (e não um filtro, porque o filtro do Pixi recorta ao que está na tela e o ruído nadaria ao mover a câmera). A máscara é 1 px por célula, ampliada em linear e desfocada por 4 amostras; um fbm decide até onde a mancha chegou (`intensity` 0 recolhe, 1 vai até a máscara inteira), com manchas de tom e pulsação. Naturais entram **antes** do mapa de luz (a luz as escurece); as que brilham ficam **acima** dele, com um halo. `gmOnly` aparece a 50% com hachura. Movimento reduzido anda a 35%.
-- **4.6c Pacotes:** `PINCEIS_DE_PRESENCA` com os dez (naturais: musgo, mofo, poça; sobrenaturais: corrupção, sombra; Ordem: sangue, morte, conhecimento, energia, medo, com as cores da Ficha), agrupados por pacote na biblioteca. Como a presença não tem caixa e não se pega com o clique, o "inspetor da presença" ficou numa seção **Presença** da aba Mapa: intensidade (campo numérico, não arrasto), "Só o mestre vê" e Remover.
-- Testes: 2 unitários novos (comandos de presença com desfazer; catálogo dos pincéis) e 2 e2e novos (pintar pela ferramenta, intensidade expande/recolhe, desfazer; dez pincéis, inspetor, quadros por segundo). Capturas em `test-results/fase4-presenca.png` e `fase4-presencas.png`.
-- Fica para depois: dar um jeito de selecionar uma presença no mapa (hoje só pela aba Mapa); versão Pixel (Fase 8); arrastar a intensidade como gesto.
-
-### 4.7a Áudio do clima (3 de novembro) — concluída
-
-- Comando `clima.audio { id, ref | null }` (aceita predefinido, apelido `dia` ou clima salvo; `clima.esquecer` já limpa a entrada). Na seção Clima, "Som deste clima" lista as entidades da campanha ativa com ref do Jukebox, mais "Nenhum"; sem campanha, o campo explica por quê (provisório até a 9.4).
-- `app/audio-do-clima.ts`: ao mudar `climate.preset` do mesmo mapa e havendo cena para ele, `barramento.pedir('jukebox.tocar', { ref })`; sem resposta ou recusado, nada aparece na tela. Abrir outro mapa não pede nada. Testado com dois barramentos (Atlas e um Jukebox falso) e por e2e escutando o canal `mesa:eventos`. **Não testei com o `mesa-dev` e o Jukebox de verdade.**
-
-### 4.8 Validação da fase (3 de novembro) — concluída
-
-- `__atlas.fps(ms)` (média e p5) exposto como no protótipo. e2e novo `fase 4: Tarde → Tempestade → Noite → Apagão`: casa com janela externa e lâmpada de rede, troca pelo seletor, espera a transição, confere que o documento não mudou fora de `climate`/`finish`, mede o brilho (as quatro cenas diferem e escurecem da tarde à noite) e captura `test-results/fase4-<clima>.png`. Sem erros de console.
-- **FPS em 1920×1080 com tempestade, 5 s: média 60,0, p5 59,9** (300 quadros), no Chromium de teste com WebGL por software.
-
 ### Validação
 
 - `tsc --noEmit` limpo; `npm run build` e `build:core` sem erros; o build funciona em qualquer caminho.
@@ -147,6 +122,31 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 - **4.4c Neblina** (`render/neblina.ts`): um véu do tamanho do mapa com filtro próprio (ruído de 3 oitavas com o domínio girado, para não sair quadriculado), que anda devagar e é empurrado pelo vento; cor vinda do ambiente (de noite é escura); opacidade máxima 0,55 × `fog`; dentro dos cômodos vale metade.
 - Com movimento reduzido tudo anda a 35% da velocidade. “Ver atmosfera no editor” desligado esconde partículas e neblina junto com a luz. Novo `contagemDeParticulas()` no viewport, usado nos testes.
 
+### 4.5 Mistura e transição (3 de novembro) — concluída
+
+- **4.5a `misturar(a, b, t)`** (`domain/clima.ts`): números por lerp, cores por canal (o ambiente pela cor efetiva, que embute a intensidade), sol que aparece ou some muda só de intensidade com a cor do lado que tem sol, `gridPower` vira `rede` (0 a 1), `preset` e `time` do destino. 4 testes novos.
+- **4.5b Transição animada** (`render/viewport.ts`): o documento muda na hora e o viewport guarda o clima **exibido**, que caminha até ele em 1,6 s com `t²(3−2t)`. Luz, partículas, neblina e acabamento leem o exibido (`cena.atualizarAtmosfera` a cada quadro; `cena.sincronizar` ganhou a "visão do clima"). Só anima troca de `climate.preset` e desfazer/refazer; ajuste fino do inspetor vale na hora, e abrir mapa, movimento reduzido ou atmosfera desligada são instantâneos. O marcador das luzes no editor segue o documento.
+- Limites assumidos: o piscar do apagão continua sendo o da 4.3a (acionado pelo `gridPower` do destino; `rede` da mistura não é lido pelo render); `time` e "é noite" já valem o destino, então luzes só-noturnas ligam/desligam no início; o relâmpago sorteia de novo o intervalo enquanto a intensidade muda.
+- e2e novo: Tarde → Noite escurece aos poucos (o meio fica entre os dois), desfazer volta animando, ajuste fino não espera. Os testes antigos de 4.x agora esperam a transição acabar antes de medir (`aplicarClimaPor`).
+
+### 4.6 Presença (3 de novembro) — concluída
+
+- **4.6a Pincel e comandos:** ferramenta `presenca` (atalho `P`, ícone de gota, biblioteca própria; `[` e `]` mudam o raio dela). `presenca.pintar { brush, celulas }` acha ou cria a entidade do pincel (`p_<pincel>`, intensidade 0,6, semente estável por pincel) e soma as células; `presenca.apagar { brush | null, celulas }` tira de um pincel ou de todos, e entidade sem células some. Mesmo gesto do terreno: uma pincelada, uma entrada de histórico; Esc cancela; Alt apaga. A prévia do pincel é um círculo na cor dele. Não fiz a prévia "provisória em contorno" da ficha: fui direto ao render da 4.6b.
+- **4.6b Render** (`render/presenca.ts`): cada entidade é uma malha com shader próprio sobre a caixa das suas células (e não um filtro, porque o filtro do Pixi recorta ao que está na tela e o ruído nadaria ao mover a câmera). A máscara é 1 px por célula, ampliada em linear e desfocada por 4 amostras; um fbm decide até onde a mancha chegou (`intensity` 0 recolhe, 1 vai até a máscara inteira), com manchas de tom e pulsação. Naturais entram **antes** do mapa de luz (a luz as escurece); as que brilham ficam **acima** dele, com um halo. `gmOnly` aparece a 50% com hachura. Movimento reduzido anda a 35%.
+- **4.6c Pacotes:** `PINCEIS_DE_PRESENCA` com os dez (naturais: musgo, mofo, poça; sobrenaturais: corrupção, sombra; Ordem: sangue, morte, conhecimento, energia, medo, com as cores da Ficha), agrupados por pacote na biblioteca. Como a presença não tem caixa e não se pega com o clique, o "inspetor da presença" ficou numa seção **Presença** da aba Mapa: intensidade (campo numérico, não arrasto), "Só o mestre vê" e Remover.
+- Testes: 2 unitários novos (comandos de presença com desfazer; catálogo dos pincéis) e 2 e2e novos (pintar pela ferramenta, intensidade expande/recolhe, desfazer; dez pincéis, inspetor, quadros por segundo). Capturas em `test-results/fase4-presenca.png` e `fase4-presencas.png`.
+- Fica para depois: dar um jeito de selecionar uma presença no mapa (hoje só pela aba Mapa); versão Pixel (Fase 8); arrastar a intensidade como gesto.
+
+### 4.7a Áudio do clima (3 de novembro) — concluída
+
+- Comando `clima.audio { id, ref | null }` (aceita predefinido, apelido `dia` ou clima salvo; `clima.esquecer` já limpa a entrada). Na seção Clima, "Som deste clima" lista as entidades da campanha ativa com ref do Jukebox, mais "Nenhum"; sem campanha, o campo explica por quê (provisório até a 9.4).
+- `app/audio-do-clima.ts`: ao mudar `climate.preset` do mesmo mapa e havendo cena para ele, `barramento.pedir('jukebox.tocar', { ref })`; sem resposta ou recusado, nada aparece na tela. Abrir outro mapa não pede nada. Testado com dois barramentos (Atlas e um Jukebox falso) e por e2e escutando o canal `mesa:eventos`. **Não testei com o `mesa-dev` e o Jukebox de verdade.**
+
+### 4.8 Validação da fase (3 de novembro) — concluída
+
+- `__atlas.fps(ms)` (média e p5) exposto como no protótipo. e2e novo `fase 4: Tarde → Tempestade → Noite → Apagão`: casa com janela externa e lâmpada de rede, troca pelo seletor, espera a transição, confere que o documento não mudou fora de `climate`/`finish`, mede o brilho (as quatro cenas diferem e escurecem da tarde à noite) e captura `test-results/fase4-<clima>.png`. Sem erros de console.
+- **FPS em 1920×1080 com tempestade, 5 s: média 60,0, p5 59,9** (300 quadros), no Chromium de teste com WebGL por software.
+
 ### Validação
 
 - `tsc --noEmit` limpo, `npm run build` sem erros, **208 testes unitários** e **36 e2e** passando em rodadas completas seguidas, depois de todas as tarefas da fase (4.1 a 4.8).
@@ -169,9 +169,48 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 - Uma presença não se seleciona no mapa (só pela aba Mapa); a intensidade é campo numérico, não arrasto; a versão Pixel dela é da Fase 8.
 - O estilo Pixel (Fase 8) ainda não tem versão em pixels das partículas e da neblina.
 
+## Fase 5 — Construção inteligente (3 de novembro) — concluída
+
+"O assistente lê o que o mestre fez e sugere o próximo passo." Critério: pintar três cômodos, nomear as funções e aceitar as sugestões gera uma casa jogável que o mestre ajusta, não refaz. Código em `src/authoring/` (puro: nunca importa render, UI, app nem Pixi).
+
+### Implementado
+
+- **5.0 Documento v4:** `style.genre` (`investigacao` padrão, `moderno`, `fantasia`; id desconhecido vale como `investigacao`), migração 3→4, campo "Gênero" na aba Mapa.
+- **5.1 Ler o cômodo:** `insightDoComodo` (área, perímetro, portas e janelas com normal para dentro, vizinhos com metros em comum e se estão ligados, objetos com caixa girada, luzes); `normalParaDentro` saiu de `luzesDerivadas` para `geometria.ts` (4.1d sem mudar). Malha de 0,25 m (`malha.ts`): dentro, ocupada, vão das portas e circulação (busca em largura entre as portas; faixa de 0,75 m). `funcaoProvavel`: nome (tabela de sinônimos, "sala de ritual" não vira sala), objetos (votos, sinais fortes valem 3) e tamanho; 26 casos por tabela.
+- **5.2 Propostas:** `Proposta` e o comando `proposta.aceitar` (uma entrada de histórico, recusada se a versão de edição mudou, vazia ou aninhada é erro); fantasma no render (`fantasma-proposta.ts`: objetos com o desenho de verdade a 55%, traço na parede, luz, abertura, cômodo com piso trocado; pulsa); pílula de sugestão junto do cômodo (aceitar, ↻ outra, ✕ agora não), uma por vez, recalculada 300 ms depois de cada edição, "dispensar" vale até fechar o mapa, ligada e desligada pela aba Mapa e pela paleta.
+- **5.3 Mobiliar:** regras por função e gênero (`regras-mobilia.ts`, só receitas que existem; fantasia troca cadeira e sofá por banco, moderno tira a estante do quarto); gerador de layout determinístico por semente (`layout.ts`): encosta o fundo do móvel na parede (`rotação = atan2(-n.x, n.y)`), cantos, centro, "junto" (ao redor, ao lado, em frente) e objetos de parede, sem tampar porta nem a faixa de passagem, contando o que já existe; piso e papel por gênero (só se ainda são o par de um tipo de cômodo) e três paletas por gênero (tecidos, madeira e tapete que combinam).
+- **5.4 Espalhar:** conjuntos `papelada` (sobre as mesas), `caixotes` (de costas para a parede) e `plantas`, por amostragem com distância mínima, densidade caindo para a borda e contando o que já existe (pincelar duas vezes não dobra); ferramenta `S` com raio em `[` `]`, Alt apaga, uma pincelada é uma entrada.
+- **5.5 Portas e luzes:** porta entre vizinhos para o cômodo sem nenhuma ligação (corredor, depois sala, depois quem tem mais parede em comum; a cozinha prefere a sala; abre para o cômodo maior) e a porta de entrada da casa; luzes pela função e pelo gênero, sobre as mesas quando há (`ownerId`), moderno de rede (some no apagão) e fantasia de fogo.
+- Fila de sugestões por cômodo: função → porta → mobiliar → luz; só a primeira que se aplica aparece.
+
+### Validação
+
+- `tsc --noEmit` limpo, `npm run build` sem erros, **324 testes unitários** e **42 e2e** passando (duas rodadas completas seguidas).
+- **Casa jogável (unitário, nos 3 gêneros):** três cômodos de 6 × 4,5 m com os nomes "Sala", "Cozinha" e "Quarto"; aceitar `proximaSugestao` em laço dá 12 sugestões, ~22 objetos, 5 luzes e 3 portas; funções certas, todos os cômodos alcançáveis pelas portas, uma porta para fora, circulação ligada em cada cômodo, nenhum móvel que bloqueia sobrepõe outro nem sai do cômodo, luz em todos, mapa válido; uma entrada de histórico por sugestão; desfazer e refazer a última.
+- **e2e `fase 5: três cômodos viram uma casa`:** pintar os três pela interface, renomear no inspetor, aceitar as pílulas pelo clique até não haver mais (11 pílulas, 21 objetos, 5 luzes, 3 portas), conferido pelo mesmo verificador; uma entrada por pílula; desfazer e refazer; Noite. Capturas em `test-results/fase5-casa.png`, `fase5-casa-noite.png` e `fase5-quarto.png`.
+- Conferi à mão a captura da casa: a mobília encosta nas paredes, nada atravessa porta, o tapete fica no centro e cada cômodo tem cara do que é.
+
+### Defeitos reais achados no caminho
+
+- **Mobiliar antes de pôr a porta tampava a porta:** a cozinha era mobiliada antes de o quarto ganhar a sua porta, e os móveis ocupavam toda a parede comum. O gerador agora reserva o vão onde a porta que falta ainda vai entrar (para o cômodo e para os vizinhos sem ligação), mesmo sem a porta existir.
+- O sorteio de quantos móveis de cada item entram era refeito depois de aceitar (o consumo do sorteio mudava), e a sugestão voltava; agora cada item tem o seu sorteio, e a sugestão de mobiliar não reaparece depois de aceita.
+- Gerar de novo dá ids novos, então a pílula piscava a cada edição; agora ela só troca quando muda o tipo, o cômodo, a semente ou a versão do mapa.
+- A pílula (HTML) cobre cliques no mapa e o fantasma muda o brilho medido, o que quebrou três e2e das Fases 3 e 4. As sugestões são uma preferência local, então os e2e das fases anteriores a desligam (`novoContexto`, `comSugestoes = false`) e só os da Fase 5 a ligam; há um e2e da preferência (desligada: nada aparece; ligar na aba Mapa traz a pílula e vale ao recarregar).
+- Os blocos 4.5 a 4.8 deste arquivo estavam na seção da Fase 2; foram para a da Fase 4.
+
+### Pendências
+
+- A paleta (`Comodo.palette`) ainda não é usada pelo render: as cores dos tecidos vão nos parâmetros de cada objeto.
+- Só 22 receitas: a mobília varia pouco entre gêneros até o acervo da Fase 6 (fantasia só troca cadeira e sofá por banco).
+- "Sob árvore" no espalhar fica para quando houver árvores (Fase 6).
+- A pílula flutua sobre o mapa e pode cobrir cliques perto do cômodo; dá para dispensá-la ou desligar as sugestões, mas ela poderia sair da frente do ponteiro.
+- A pílula só acompanha um cômodo por vez (o selecionado ou o último pintado); não há uma lista de sugestões pendentes.
+- Móvel de parede (quadro, estante) não considera os móveis de piso na frente; uma estante pode ficar atrás de um armário.
+- O desempenho do gerador foi medido só pelos testes (a casa de três cômodos gera em milissegundos); não medi um mapa grande com dezenas de cômodos.
+
 ## Próximo
 
-A Fase 4 está concluída. Próximo: Fase 5 ([docs/plano/fase-5.md](docs/plano/fase-5.md)). Pendências da Fase 3 em [docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md).
+A Fase 5 está concluída. Próximo: Fase 6 ([docs/plano/fase-6.md](docs/plano/fase-6.md)); detalhar com o Opus antes de começar. Pendências da Fase 3 em [docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md).
 
 ## Pendências
 

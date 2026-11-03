@@ -80,7 +80,7 @@ export const ESQUEMA_MAPA: Esq = e.obj({
   grid: e.obj({ kind: e.um('square'), size: e.num({ min: 0.25, max: 10 }), offset: ponto, visible: e.bool() }),
   bounds: e.obj({ width: e.num({ min: 3, max: 600 }), height: e.num({ min: 3, max: 600 }) }),
   style: e.obj({
-    renderer: e.um('illustrated', 'pixel'), palette: e.texto({ min: 1, max: 60 }), walls: e.um('box', 'solid'),
+    renderer: e.um('illustrated', 'pixel'), palette: e.texto({ min: 1, max: 60 }), walls: e.um('box', 'solid'), genre: e.texto({ min: 1, max: 40 }),
     pixel: e.obj({ pixelsPerCell: e.num({ inteiro: true, min: 8, max: 64 }), dither: e.um('none', 'bayer4'), outline: e.bool() }),
   }),
   climate: e.obj({ preset: e.texto({ min: 1, max: 60 }), ...CAMPOS_DO_CLIMA }),

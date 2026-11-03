@@ -41,7 +41,14 @@ const de2para3: Migracao = doc => {
   return d;
 };
 
-export const MIGRACOES: TabelaDeMigracoes = { 1: de1para2, 2: de2para3 };
+/** 3 → 4 (Fase 5): o estilo ganha `genre` (o gênero do mapa, para o assistente). */
+const de3para4: Migracao = doc => {
+  const d = doc as Record<string, any>;
+  if (d.style && typeof d.style === 'object') d.style.genre ??= 'investigacao';
+  return d;
+};
+
+export const MIGRACOES: TabelaDeMigracoes = { 1: de1para2, 2: de2para3, 3: de3para4 };
 
 /** Aplica a cadeia de migrações até `alvo`. Separada para ser testada com tabelas de mentira. */
 export function aplicarMigracoes(bruto: unknown, tabela: TabelaDeMigracoes, alvo: number): Record<string, unknown> {

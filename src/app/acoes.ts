@@ -10,6 +10,7 @@ import { ROTULO_DA_FERRAMENTA, type Ferramenta } from '../render/pincel.ts';
 import { colecaoDaFerramenta } from '../render/viewport.ts';
 import { campanhaAtiva } from './campanha.ts';
 import { PRESETS_DE_CLIMA } from '../domain/presets.ts';
+import { aceitarSugestao, definirSugestoesLigadas, dispensarSugestao, outraSugestao, sugestao, sugestoesLigadas } from './sugestoes.ts';
 import type { Alvo } from '../render/selecao.ts';
 import type { Ponto } from '../domain/mapa.ts';
 
@@ -33,7 +34,7 @@ const comSelecao = () => (app.sessao.value?.selecao.value.length ?? 0) > 0;
 const passoDeSetas = (grande: boolean) => { const g = app.sessao.value?.doc.value.grid.size ?? 1.5; return grande ? g : g / 2; };
 
 /** Ferramentas que têm uma biblioteca de escolhas (a gaveta abre sozinha). */
-const COM_BIBLIOTECA: readonly Ferramenta[] = ['comodo', 'parede', 'abertura', 'objeto', 'luz', 'terreno', 'presenca'];
+const COM_BIBLIOTECA: readonly Ferramenta[] = ['comodo', 'parede', 'abertura', 'objeto', 'luz', 'terreno', 'presenca', 'espalhar'];
 
 export function usarFerramenta(f: Ferramenta): void {
   const s = app.sessao.value; if (!s) return;
@@ -59,7 +60,7 @@ function girar(graus: number): void {
 
 function mudarRaio(delta: number): void {
   const s = app.sessao.value; if (!s) return;
-  const p = s.pincel.value, chave = s.ferramenta.value === 'presenca' ? 'presenca' : 'terreno', raio = Math.max(0.25, Math.min(12, p[chave].raio + delta));
+  const p = s.pincel.value, chave = s.ferramenta.value === 'presenca' ? 'presenca' : s.ferramenta.value === 'espalhar' ? 'espalhar' : 'terreno', raio = Math.max(0.25, Math.min(12, p[chave].raio + delta));
   s.pincel.value = { ...p, [chave]: { ...p[chave], raio } }; avisar(`Pincel de ${raio.toFixed(2).replace(/\.?0+$/, '')} m`, { duracao: 900 });
 }
 
@@ -113,7 +114,12 @@ export const ACOES: readonly Acao[] = [
   { id: 'ferr-peca', nome: 'Pôr peça', grupo: 'Construir', palavras: 'token personagem', atalhos: ['T', '9'], habilitada: noEditor, executar: () => usarFerramenta('peca') },
   { id: 'ferr-regiao', nome: 'Pôr região', grupo: 'Construir', palavras: 'area gatilho', atalhos: ['R'], habilitada: noEditor, executar: () => usarFerramenta('regiao') },
   { id: 'ferr-terreno', nome: 'Pintar terreno', grupo: 'Construir', palavras: 'grama terra areia neve lama natureza', atalhos: ['N'], habilitada: noEditor, executar: () => usarFerramenta('terreno') },
+  { id: 'ferr-espalhar', nome: 'Espalhar objetos', grupo: 'Construir', palavras: 'papelada caixotes plantas pincel conjunto bagunca', atalhos: ['S'], habilitada: noEditor, executar: () => usarFerramenta('espalhar') },
   { id: 'ferr-presenca', nome: 'Pintar presença', grupo: 'Construir', palavras: 'musgo mofo sangue corrupcao sombra paranormal ordem mancha', atalhos: ['P'], habilitada: noEditor, executar: () => usarFerramenta('presenca') },
+  { id: 'sugestao-aceitar', nome: 'Aceitar a sugestão', grupo: 'Assistente', palavras: 'assistente pilula sugerir', habilitada: () => sugestao.value !== null, executar: aceitarSugestao },
+  { id: 'sugestao-outra', nome: 'Outra sugestão', grupo: 'Assistente', palavras: 'assistente pilula gerar de novo', habilitada: () => sugestao.value !== null, executar: outraSugestao },
+  { id: 'sugestao-dispensar', nome: 'Dispensar a sugestão', grupo: 'Assistente', palavras: 'assistente pilula agora nao', habilitada: () => sugestao.value !== null, executar: dispensarSugestao },
+  { id: 'sugestoes-alternar', nome: 'Ligar ou desligar sugestões', grupo: 'Assistente', palavras: 'assistente pilula', habilitada: noEditor, executar: () => definirSugestoesLigadas(!sugestoesLigadas.value) },
   { id: 'biblioteca', nome: 'Abrir ou fechar a biblioteca', grupo: 'Construir', palavras: 'gaveta itens catalogo', atalhos: ['B'], habilitada: noEditor, executar: () => { const s = app.sessao.value; if (s) s.biblioteca.value = !s.biblioteca.value; } },
   { id: 'girar-dir', nome: 'Girar para a direita (90°)', grupo: 'Construir', palavras: 'rotacionar', atalhos: ['E'], habilitada: noEditor, executar: () => girar(90) },
   { id: 'girar-esq', nome: 'Girar para a esquerda (90°)', grupo: 'Construir', palavras: 'rotacionar', atalhos: ['Q'], habilitada: noEditor, executar: () => girar(-90) },

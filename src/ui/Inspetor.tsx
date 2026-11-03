@@ -8,8 +8,9 @@ import { NOMES_COLECAO, desfazer, duplicarSelecao, refazer, removerSelecao, sess
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { nomeDoAlvo } from '../domain/fabrica.ts';
 import { ESTADOS_FIGURA, type Abertura, type Acabamento, type Clima, type Comodo, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Presenca, type Regiao } from '../domain/mapa.ts';
-import { PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
+import { GENEROS, generoDe, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
 import { acabamentoLigado, aplicarClima, definirAcabamentoLigado } from '../app/app.ts';
+import { definirSugestoesLigadas, sugestoesLigadas } from '../app/sugestoes.ts';
 import { receitaDe } from '../procedural/receitas.ts';
 import { materiaisDo } from '../procedural/materiais.ts';
 import { Amostra } from './campos-material.tsx';
@@ -29,6 +30,7 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
     <div class="painel-corpo" data-testid="painel-mapa">
       <h3 class="faixa pequena">Mapa</h3>
       <CampoTexto rotulo="Nome" valor={m.name} aoConfirmar={v => v.trim() ? tentar(() => st.executar({ tipo: 'mapa.renomear', nome: v.trim() })) : false} />
+      <CampoOpcoes rotulo="Gênero" dica={generoDe(m.style.genre).descricao} valor={generoDe(m.style.genre).id} opcoes={GENEROS.map(g => [g.id, g.nome] as const)} aoMudar={v => tentar(() => st.executar({ tipo: 'estilo.atualizar', patch: { genre: v } }, { rotulo: 'Gênero do mapa' }))} />
       <label class="linha"><span class="linha-rotulo">Campanha</span><span class="linha-controle">
         <select data-testid="campanha-do-mapa" value={m.campanhaId ?? ''} onChange={e => { const v = (e.target as HTMLSelectElement).value || null; tentar(() => st.executar({ tipo: 'mapa.campanha', campanhaId: v }, { rotulo: 'Ligar à campanha' })); }}>
           <option value="">Nenhuma</option>
@@ -54,6 +56,7 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
       <h3 class="faixa pequena">Clima</h3>
       <SeletorDeClima s={s} />
       <h3 class="faixa pequena">Acabamento</h3>
+      <CampoCaixa rotulo="Sugestões do assistente" dica="Só para quem edita: uma pílula sugere o próximo passo do cômodo. Não muda o mapa." valor={sugestoesLigadas.value} aoMudar={definirSugestoesLigadas} />
       <CampoCaixa rotulo="Ver atmosfera no editor" dica="Só para quem edita: não muda o mapa." valor={acabamentoLigado.value} aoMudar={definirAcabamentoLigado} />
       <CampoOpcoes rotulo="Estilo" valor={m.finish.preset} opcoes={[...PRESETS_DE_ACABAMENTO.map(p => [p.id, p.nome] as const), ...(PRESETS_DE_ACABAMENTO.some(p => p.id === m.finish.preset) ? [] : [[m.finish.preset, 'Personalizado'] as const])]} aoMudar={v => { const p = presetDeAcabamento(v); if (p) tentar(() => st.executar({ tipo: 'acabamento.atualizar', patch: { preset: v, ...p.valores } }, { rotulo: 'Acabamento' })); }} />
       <CampoNumero rotulo="Vinheta" valor={m.finish.vignette} min={0} max={1} passo={0.05} aoConfirmar={v => tentar(() => st.executar({ tipo: 'acabamento.atualizar', patch: { vignette: v } }))} />

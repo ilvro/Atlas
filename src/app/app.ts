@@ -12,6 +12,7 @@ import type { Viewport } from '../render/viewport.ts';
 import type { ColecaoLivre, Comando } from '../state/comandos.ts';
 import { campanhaAtiva, carregarCampanhas, desvincularMapa, refDoMapa, revincularMapa, sincronizarMapaComCampanha } from './campanha.ts';
 import { pedirSomDoClima } from './audio-do-clima.ts';
+import { iniciarSugestoes } from './sugestoes.ts';
 import { lerRota, formatarRota, type Rota } from './rotas.ts';
 import { iniciarServicos, type Servicos } from './servicos.ts';
 import { criarSessao, type SessaoDeEdicao } from './sessao.ts';
@@ -103,8 +104,10 @@ export async function atualizarLista(): Promise<void> {
 }
 
 // ---------- Abrir e fechar mapas ----------
+let pararSugestoes: (() => void) | null = null;
 export function fecharSessao(): void {
   const atual = sessao.value; if (!atual) return;
+  pararSugestoes?.(); pararSugestoes = null;
   void atual.auto.descarregar().finally(() => atual.fechar());
   viewport.atual = null; sessao.value = null;
 }
@@ -119,6 +122,7 @@ async function abrirMapa(id: string, comodo?: string): Promise<void> {
     await comTransicao(() => {
       fecharSessao();
       const nova = criarSessao(mapa, s.repo, { salvo: true });
+      pararSugestoes = iniciarSugestoes(nova, viewport);
       batch(() => { sessao.value = nova; focoPendente.value = comodo ?? null; });
     });
     tocar('abrir');

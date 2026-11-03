@@ -2,7 +2,7 @@ import type { Ref } from '#mesa';
 import type { Faixa } from './celulas.ts';
 
 export const SCHEMA_MAPA = 'atlas.map';
-export const VERSAO_MAPA = 3;
+export const VERSAO_MAPA = 4;
 
 /** Unidade de mundo: metro. Coordenadas [x, y] com origem no canto superior esquerdo e y para baixo. */
 export type Ponto = [x: number, y: number];
@@ -13,6 +13,8 @@ export interface Estilo {
   renderer: 'illustrated' | 'pixel';
   palette: string;
   walls: 'box' | 'solid';
+  /** O gênero do mapa (`GENEROS`): guia as sugestões do assistente. Um id desconhecido vale como 'investigacao'. */
+  genre: string;
   pixel: { pixelsPerCell: number; dither: 'none' | 'bayer4'; outline: boolean };
 }
 /** O tempo que faz: cada campo vai de 0 a 1 (o vento, de −1 a 1: o sinal é a direção). */
@@ -125,7 +127,7 @@ export function criarMapa(o: OpcoesNovoMapa = {}): MapaAtlas {
     campanhaId: o.campanhaId ?? null,
     grid: { kind: 'square', size: celula, offset: [0, 0], visible: true },
     bounds: { width: o.largura ?? 45, height: o.altura ?? 30 },
-    style: { renderer: 'illustrated', palette: 'investigacao-sepia', walls: 'box', pixel: { pixelsPerCell: 16, dither: 'bayer4', outline: true } },
+    style: { renderer: 'illustrated', palette: 'investigacao-sepia', walls: 'box', genre: 'investigacao', pixel: { pixelsPerCell: 16, dither: 'bayer4', outline: true } },
     climate: { preset: 'dia', ambient: { color: '#d1ccc0', intensity: 0.82 }, sun: { angle: 0.6, color: '#fff2d6', intensity: 1 }, time: '14:30', weather: { rain: 0, snow: 0, fog: 0, wind: 0, dust: 0, embers: 0, leaves: 0, lightning: 0 }, gridPower: true },
     finish: { preset: 'neutro', texture: 0.2, vignette: 0.28, saturation: 1, grain: 0.03, tint: '#ffffff', grade: { lift: 0, gamma: 1, gain: 1 } },
     memory: { sketch: true, paper: 'papel-claro', ink: '#241b14' },

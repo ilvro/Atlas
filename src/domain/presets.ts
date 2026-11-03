@@ -114,3 +114,13 @@ export const PINCEIS_DE_PRESENCA: readonly PincelDePresenca[] = [
   { id: 'ordem.medo', nome: 'Medo', pacote: 'ordem', cor: '#d5d7e0', brilho: true, pulso: 0.3, escala: 1.5 },
 ];
 export const pincelDePresenca = (id: string): PincelDePresenca | undefined => PINCEIS_DE_PRESENCA.find(p => p.id === id);
+
+// ---------- Gênero ----------
+/** O gênero guia o que o assistente sugere (materiais, paleta, luzes). Um id desconhecido vale como `investigacao`. */
+export interface Genero { id: string; nome: string; descricao: string }
+export const GENEROS: readonly Genero[] = [
+  { id: 'investigacao', nome: 'Investigação', descricao: 'Casa antiga, lamparinas, damasco' },
+  { id: 'moderno', nome: 'Moderno', descricao: 'Lâmpadas, cores claras' },
+  { id: 'fantasia', nome: 'Fantasia', descricao: 'Velas, tochas, pedra e madeira' },
+];
+export const generoDe = (id: string): Genero => GENEROS.find(g => g.id === id) ?? GENEROS[0]!;

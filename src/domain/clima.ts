@@ -1,5 +1,5 @@
 import { ErroDeValidacao } from './esquema.ts';
-import { arestasDeParede, centroDaAbertura, comodoEm, indiceDeCelulas, pontoNaParede, salasDaAbertura } from './geometria.ts';
+import { arestasDeParede, centroDaAbertura, comodoEm, indiceDeCelulas, normalParaDentro, pontoNaParede, salasDaAbertura } from './geometria.ts';
 import type { Acabamento, Clima, Luz, MapaAtlas } from './mapa.ts';
 
 /** O céu de um horário: de onde vem a luz (sol ou lua), o ambiente sugerido e se é noite. Tudo derivado, nunca gravado. */
@@ -93,10 +93,8 @@ export function luzesDerivadas(m: MapaAtlas): Luz[] {
     if (a.kind !== 'window') continue;
     const parede = m.walls[a.wallId]; if (!parede) continue;
     const salas = salasDaAbertura(m, a, arestas); if (salas.length !== 1) continue;
-    const { ponto, tangente } = pontoNaParede(parede, centroDaAbertura(parede, a));
-    // A normal que aponta para dentro é a que, um passo adiante, cai no cômodo.
-    const candidatas: [number, number][] = [[-tangente[1], tangente[0]], [tangente[1], -tangente[0]]];
-    const para = candidatas.find(n => comodoEm(m, [ponto[0] + n[0] * 0.4, ponto[1] + n[1] * 0.4], indice) === salas[0]); if (!para) continue;
+    const { ponto } = pontoNaParede(parede, centroDaAbertura(parede, a));
+    const para = normalParaDentro(m, parede, centroDaAbertura(parede, a), salas[0]!, indice); if (!para) continue;
     const direcao = Math.atan2(para[1], para[0]);
     if (sun) saida.push({
       id: `janela:${a.id}`, position: [ponto[0] + para[0] * 0.3, ponto[1] + para[1] * 0.3], radius: JANELA_ALCANCE, color: sun.color, intensity: sun.intensity, flicker: 0,

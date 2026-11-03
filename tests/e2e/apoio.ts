@@ -15,9 +15,14 @@ export async function iniciarAmbiente(): Promise<Ambiente> {
 
 export async function encerrar(a: Ambiente): Promise<void> { await a.navegador.close(); await a.servidor.close(); }
 
-/** Cada teste ganha um contexto novo: IndexedDB e localStorage vazios. */
-export async function novoContexto(a: Ambiente, opcoes: Parameters<Browser['newContext']>[0] = {}): Promise<BrowserContext> {
-  return a.navegador.newContext({ viewport: { width: 1440, height: 860 }, acceptDownloads: true, ...opcoes });
+/**
+ * Cada teste ganha um contexto novo: IndexedDB e localStorage vazios. As sugestões do assistente (a pílula e o fantasma, que ficam por cima do mapa
+ * e mudam o brilho medido) começam desligadas; só os testes da Fase 5 as ligam (`comSugestoes`).
+ */
+export async function novoContexto(a: Ambiente, opcoes: Parameters<Browser['newContext']>[0] = {}, comSugestoes = false): Promise<BrowserContext> {
+  const ctx = await a.navegador.newContext({ viewport: { width: 1440, height: 860 }, acceptDownloads: true, ...opcoes });
+  if (!comSugestoes) await ctx.addInitScript(() => { try { if (localStorage.getItem('atlas:sugestoes') === null) localStorage.setItem('atlas:sugestoes', '0'); } catch { /* sem armazenamento */ } });
+  return ctx;
 }
 
 export interface Pagina { page: Page; erros: string[] }

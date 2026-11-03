@@ -1,6 +1,7 @@
 import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { celulasDoDisco, celulasEntre, decodificar } from '../domain/celulas.ts';
 import { misturar, type EstadoDeClima, type MisturaDeClima } from '../domain/clima.ts';
+import { conjuntoDeEspalhar, espalhar } from '../authoring/espalhar.ts';
 import { copiasDe, novaLuz, novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
 import { comprimentoDaParede, contornoDoComodo, encaixarNaParede, encaixarObjetoDeParede, indiceDeCelulas, pontoNaParede, salaDaCelula } from '../domain/geometria.ts';
 import type { Abertura, MapaAtlas, Ponto } from '../domain/mapa.ts';
@@ -15,6 +16,7 @@ import { enquadrar as calcularEnquadre, mundoParaTela, panear, telaParaMundo, zo
 import { RES_OBJETO, criarCena, type Cena } from './cena.ts';
 import { hexParaNumero } from './cores.ts';
 import { chaveDoObjeto } from './entradas.ts';
+import { criarFantasmaDeProposta } from './fantasma-proposta.ts';
 import { deltaEncaixado, encaixar, linhasDaGrade } from './grade.ts';
 import { LARGURA_DA_ABERTURA, type Ferramenta, type Pincel } from './pincel.ts';
 import { alvoEm, alvosNaCaixa, alvosNoLaco, caixaDaSelecao, caixaDe, combinarSelecao, ehMovel, mesmoAlvo, type Alvo, type Caixa } from './selecao.ts';
@@ -67,6 +69,9 @@ export interface Viewport {
   /** Quantas partículas de cada tipo existem agora (diagnóstico e testes). */
   contagemDeParticulas(): ReturnType<Cena['contagemDeParticulas']>;
   contagemDePresencas(): number;
+  /** Mostra, translúcido, o que `previa` acrescenta ao documento; `null` limpa. Quem chamou recalcula se o documento mudar. */
+  mostrarProposta(previa: MapaAtlas | null): void;
+  contagemDoFantasma(): number;
   destruir(): void;
 }
 
@@ -81,6 +86,7 @@ type Interacao =
   | { tipo: 'laco'; pontos: Ponto[]; modo: 'trocar' | 'somar' }
   | { tipo: 'cômodo'; apagar: boolean; sala: string; criado: boolean; gesto: Gesto; ini: [number, number]; atual: [number, number]; retangulo: boolean; visitadas: Set<number> }
   | { tipo: 'terreno'; apagar: boolean; gesto: Gesto; ultimo: Ponto; presenca: boolean }
+  | { tipo: 'espalhar'; apagar: boolean; gesto: Gesto; ultimo: Ponto; semente: number }
   | { tipo: 'parede'; ini: Ponto; fim: Ponto };
 
 const chaveCel = (x: number, y: number) => y * 200_003 + x;
@@ -115,7 +121,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const cena: Cena = criarCena({ baker, renderer: app.renderer, acento, efeitos: fxAtivo, aoPintar: () => { camadaSuja = true; } });
   const acabamento = criarFiltroAcabamento();
   fantasmaC.addChild(fantasmaG);
-  mundo.addChild(area_, cena.raiz, grade, selecaoG, fantasmaC, laco);
+  const fantasmaDaProposta = criarFantasmaDeProposta({ baker, acento, efeitos: fxAtivo });
+  mundo.addChild(area_, cena.raiz, grade, selecaoG, fantasmaC, fantasmaDaProposta.raiz, laco);
   app.stage.addChild(mundo);
 
   // ---------- Transição de clima ----------
@@ -222,13 +229,14 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     const comSprite = f === 'objeto' && receita?.tipo === 'piso';
     if (!comSprite && fantasmaSprite) limparFantasmaSprite();
     const objetoFantasma = fantasmaC.getChildByLabel('fantasma-objeto');
-    if (!ponteiro || interacao || !['objeto', 'luz', 'peca', 'regiao', 'abertura', 'comodo', 'borracha', 'terreno', 'presenca'].includes(f)) { if (objetoFantasma) objetoFantasma.visible = false; return; }
+    if (!ponteiro || interacao || !['objeto', 'luz', 'peca', 'regiao', 'abertura', 'comodo', 'borracha', 'terreno', 'presenca', 'espalhar'].includes(f)) { if (objetoFantasma) objetoFantasma.visible = false; return; }
     const p: Ponto = [encaixar(ponteiro[0], m.grid, 0), encaixar(ponteiro[1], m.grid, 1)];
     if (f === 'comodo' || f === 'borracha') {
       const [x, y] = celulaDe(m, ponteiro), t = m.grid.size, c = f === 'borracha' ? 0xff6b6b : cor;
       if (dentroDoMapa(m, [x, y])) fantasmaG.rect(m.grid.offset[0] + x * t, m.grid.offset[1] + y * t, t, t).fill({ color: c, alpha: 0.28 }).stroke({ width: px(1.5), color: c, alpha: 0.9 });
       return;
     }
+    if (f === 'espalhar') { fantasmaG.circle(ponteiro[0], ponteiro[1], pincel.espalhar.raio).fill({ color: cor, alpha: 0.1 }).stroke({ width: px(1.5), color: cor, alpha: 0.9 }); return; }
     if (f === 'presenca') { const cp = hexParaNumero(pincelDePresenca(pincel.presenca.brush)?.cor ?? '#ffffff'); fantasmaG.circle(ponteiro[0], ponteiro[1], pincel.presenca.raio).fill({ color: cp, alpha: 0.2 }).stroke({ width: px(1.5), color: cp, alpha: 0.9 }); return; }
     if (f === 'terreno') { fantasmaG.circle(ponteiro[0], ponteiro[1], pincel.terreno.raio).fill({ color: 0x6a9a4a, alpha: 0.18 }).stroke({ width: px(1.5), color: cor, alpha: 0.9 }); return; }
     if (f === 'luz') {
@@ -353,6 +361,20 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (!ok) { i.gesto.cancelar(); interacao = null; }
   }
 
+  /** Uma pincelada de espalhar: põe (ou, com Alt, tira) os objetos do conjunto no círculo, dentro do gesto. */
+  function espalharAqui(p: Ponto): void {
+    const i = interacao; if (i?.tipo !== 'espalhar') return;
+    const pincel = ponte.pincel().espalhar, conjunto = conjuntoDeEspalhar(pincel.conjunto); if (!conjunto) return;
+    const antes = i.gesto, base = store.documento;
+    if (i.apagar) {
+      const receitas = new Set(conjunto.itens.map(x => x.receita));
+      for (const o of Object.values(base.props)) if (o.source.kind === 'recipe' && receitas.has(o.source.recipe) && Math.hypot(o.position[0] - p[0], o.position[1] - p[1]) <= pincel.raio) if (!tentar(() => antes.aplicar({ tipo: 'item.remover', colecao: 'props', id: o.id }))) { antes.cancelar(); interacao = null; return; }
+      return;
+    }
+    const novos = espalhar(base, { centro: p, raio: pincel.raio, conjunto: pincel.conjunto, semente: i.semente++ });
+    for (const item of novos) if (!tentar(() => antes.aplicar({ tipo: 'item.adicionar', colecao: 'props', item: item as never }))) { antes.cancelar(); interacao = null; return; }
+  }
+
   function pintarTerreno(p: Ponto, anterior: Ponto | null): void {
     const i = interacao; if (i?.tipo !== 'terreno') return;
     const m = doc(), pincel = ponte.pincel(), raio = i.presenca ? pincel.presenca.raio : pincel.terreno.raio, res = m.terrain.resolution, cols = Math.ceil(m.bounds.width / res), lins = Math.ceil(m.bounds.height / res);
@@ -378,6 +400,10 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     const m = doc(), f = ponte.ferramenta(), pincel = ponte.pincel();
     const alvo: Ponto = [encaixar(p[0], m.grid, 0, 0.5, e.altKey), encaixar(p[1], m.grid, 1, 0.5, e.altKey)];
     if (f === 'comodo' || f === 'borracha') { comecarComodo(e, p, f === 'borracha'); return; }
+    if (f === 'espalhar') {
+      interacao = { tipo: 'espalhar', apagar: e.altKey, gesto: store.iniciarGesto(e.altKey ? 'Apagar espalhados' : 'Espalhar'), ultimo: p, semente: Math.floor(Math.random() * 1e6) };
+      espalharAqui(p); return;
+    }
     if (f === 'terreno' || f === 'presenca') {
       const presenca = f === 'presenca', nome = presenca ? 'presença' : 'terreno';
       interacao = { tipo: 'terreno', presenca, apagar: e.altKey, gesto: store.iniciarGesto(e.altKey ? `Apagar ${nome}` : `Pintar ${nome}`), ultimo: p }; pintarTerreno(p, null); return;
@@ -472,6 +498,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       const c = celulaDe(m, ponteiro);
       if (i.retangulo) i.atual = c; else { pintarCelulas(celulasEntre(i.atual, c).filter(x => dentroDoMapa(m, x))); i.atual = c; }
     } else if (i.tipo === 'terreno') { const antes = i.ultimo; i.ultimo = ponteiro; pintarTerreno(ponteiro, antes); }
+    else if (i.tipo === 'espalhar') { if (Math.hypot(ponteiro[0] - i.ultimo[0], ponteiro[1] - i.ultimo[1]) >= ponte.pincel().espalhar.raio / 2) { i.ultimo = ponteiro; espalharAqui(ponteiro); } }
     else if (i.tipo === 'parede') i.fim = pontoDeParede(m, ponteiro, i.ini);
     camadaSuja = true;
   });
@@ -513,7 +540,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       if (cancelado) i.gesto.cancelar();
       else { if (i.retangulo) { interacao = i; pintarCelulas(retanguloDeCelulas(m, i.ini, i.atual)); interacao = null; } if (i.gesto.ativo) i.gesto.concluir(); }
       if (!cancelado && !i.apagar) { const sala = doc().rooms[i.sala]; if (sala) { ponte.definirSelecao([{ colecao: 'rooms', id: i.sala }]); const c = caixaDe(doc(), { colecao: 'rooms', id: i.sala }); if (c) ponte.aoColocar(sala.name, [(c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2]); } }
-    } else if (i.tipo === 'terreno') { if (cancelado) i.gesto.cancelar(); else i.gesto.concluir(); }
+    } else if (i.tipo === 'terreno' || i.tipo === 'espalhar') { if (cancelado) i.gesto.cancelar(); else i.gesto.concluir(); }
     else if (i.tipo === 'parede' && !cancelado) {
       if (Math.hypot(i.fim[0] - i.ini[0], i.fim[1] - i.ini[1]) >= 0.25) {
         const tipo = ponte.pincel().parede.tipo, id = novoIdEntidade('w');
@@ -534,7 +561,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       e.stopImmediatePropagation();
       const i = interacao; interacao = null;
       if ((i.tipo === 'mover' || i.tipo === 'deslizar') && i.gesto) i.gesto.cancelar();
-      else if (i.tipo === 'cômodo' || i.tipo === 'terreno') i.gesto.cancelar();
+      else if (i.tipo === 'cômodo' || i.tipo === 'terreno' || i.tipo === 'espalhar') i.gesto.cancelar();
       camadaSuja = true; cursor();
     }
   };
@@ -544,7 +571,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   // ---------- Laço do desenho ----------
   const aoQuadro = () => {
-    cena.quadro(performance.now());
+    cena.quadro(performance.now()); fantasmaDaProposta.quadro(performance.now());
     if (transicao) passoDaTransicao(performance.now());
     else if (doc().finish.grain > 0 && cena.raiz.filters?.length) acabamento.aplicar(doc().finish, performance.now() / 1000);
     if (!camadaSuja) return;
@@ -571,10 +598,12 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     relampagoAgora: () => cena.relampagoAgora(),
     contagemDeParticulas: () => cena.contagemDeParticulas(),
     contagemDePresencas: () => cena.contagemDePresencas(),
+    mostrarProposta: previa => { fantasmaDaProposta.mostrar(doc(), previa); camadaSuja = true; },
+    contagemDoFantasma: () => fantasmaDaProposta.contagem(),
     destruir() {
       destruido = true; cancelarAssinatura(); observador.disconnect();
       window.removeEventListener('keydown', aoTeclar, true); window.removeEventListener('keyup', aoSoltar);
-      app.ticker.remove(aoQuadro); limparFantasmaSprite(); cena.destruir(); baker.encerrar(); app.destroy(true, { children: true });
+      app.ticker.remove(aoQuadro); limparFantasmaSprite(); fantasmaDaProposta.destruir(); cena.destruir(); baker.encerrar(); app.destroy(true, { children: true });
     },
   };
 }

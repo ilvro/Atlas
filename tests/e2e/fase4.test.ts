@@ -132,7 +132,7 @@ test('seletor de clima: chips, paleta, Alt+número, ajustes finos, clima salvo e
   await page.click('[data-testid="gravar"]');
   await page.waitForFunction(() => document.querySelector('[data-testid="estado-gravacao"]')?.getAttribute('data-sujo') === 'false');
   await page.reload(); await page.waitForSelector('[data-testid="ferramenta-selecionar"]'); await page.click('[data-testid="aba-mapa"]');
-  assert.equal((await documento(page)).version, 3); assert.equal((await documento(page)).climate.preset, salvo!.id);
+  assert.equal((await documento(page)).version, 4); assert.equal((await documento(page)).climate.preset, salvo!.id);
   await page.click(`[data-testid="esquecer-${salvo!.id}"]`);
   assert.equal(Object.keys((await documento(page)).customClimates).length, 0);
   assert.deepEqual(erros.filter(e => !/Failed to load resource/.test(e)), []); await ctx.close();

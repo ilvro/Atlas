@@ -14,10 +14,11 @@ import { Biblioteca } from './Biblioteca.tsx';
 import { CartaoContextual } from './CartaoContextual.tsx';
 import { Icone } from './Icone.tsx';
 import { Inspetor } from './Inspetor.tsx';
+import { PilulaDeSugestao } from './PilulaDeSugestao.tsx';
 
 const FERRAMENTAS: { id: Ferramenta; icone: string }[] = [
   { id: 'selecionar', icone: 'selecionar' }, { id: 'mao', icone: 'mao' }, { id: 'comodo', icone: 'comodo' }, { id: 'borracha', icone: 'borracha' }, { id: 'parede', icone: 'parede' },
-  { id: 'abertura', icone: 'porta' }, { id: 'objeto', icone: 'objeto' }, { id: 'luz', icone: 'luz' }, { id: 'peca', icone: 'peca' }, { id: 'regiao', icone: 'regiao' }, { id: 'terreno', icone: 'terreno' }, { id: 'presenca', icone: 'presenca' },
+  { id: 'abertura', icone: 'porta' }, { id: 'objeto', icone: 'objeto' }, { id: 'luz', icone: 'luz' }, { id: 'peca', icone: 'peca' }, { id: 'regiao', icone: 'regiao' }, { id: 'terreno', icone: 'terreno' }, { id: 'presenca', icone: 'presenca' }, { id: 'espalhar', icone: 'espalhar' },
 ];
 
 const zoomPct = signal(100), cursorMundo = signal<[number, number] | null>(null), pintando = signal(0);
@@ -44,7 +45,7 @@ function ponteDa(s: SessaoDeEdicao): PonteViewport {
     selecao: () => s.selecao.peek(),
     definirSelecao: alvos => { s.selecao.value = alvos; tocar('selecionar'); },
     ferramenta: () => s.ferramenta.peek(),
-    definirFerramenta: f => { s.ferramenta.value = f; s.biblioteca.value = ['comodo', 'parede', 'abertura', 'objeto', 'luz', 'terreno', 'presenca'].includes(f); },
+    definirFerramenta: f => { s.ferramenta.value = f; s.biblioteca.value = ['comodo', 'parede', 'abertura', 'objeto', 'luz', 'terreno', 'presenca', 'espalhar'].includes(f); },
     pincel: () => s.pincel.peek(),
     definirPincel: p => { s.pincel.value = { ...s.pincel.peek(), ...p }; },
     adicionar: (colecao, mundo) => adicionarEm(colecao, mundo),
@@ -110,7 +111,7 @@ export function Editor() {
     <div class="editor" data-testid="editor">
       <Ferramentas s={s} />
       <Biblioteca s={s} />
-      <div class="area-com-cartao"><AreaDoMapa s={s} /><CartaoContextual s={s} /></div>
+      <div class="area-com-cartao"><AreaDoMapa s={s} /><CartaoContextual s={s} /><PilulaDeSugestao s={s} /></div>
       <Inspetor />
       <BarraDeEstado s={s} />
     </div>
