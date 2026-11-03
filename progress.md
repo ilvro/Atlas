@@ -59,7 +59,7 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 - Os outros projetos (Ficha, Ateliê, Jukebox, Tabletop) ainda não usam o `mesa-core`; mudam só com autorização.
 - Dois relatórios do protótipo continuam valendo: fonte pixel própria e transição da memória (Fases 3 a 8).
 
-## Fase 3 — Construir (2 de novembro) — concluída, com pendências
+## Fase 3 — Construir (2 de novembro) — concluída
 
 ### Implementado
 
@@ -74,18 +74,25 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 ### Validação
 
 - `tsc --noEmit` limpo; `npm run build` sem erros (aviso de chunk grande, esperado por causa do Pixi).
-- **161 testes unitários** passando (repetidos várias vezes, sem oscilação) e **20 testes e2e** em Chromium com WebGL.
+- **161 testes unitários** passando (repetidos várias vezes, sem oscilação) e **21 testes e2e** em Chromium com WebGL.
 - O e2e cobre o critério de pronto: casa de três cômodos com portas, objeto e luz **só pela interface**, cartão contextual abrindo a porta, desfazer, gravar e recarregar; borracha refazendo paredes e desfazendo; busca na biblioteca, terreno e Esc cancelando o traço; notas do mestre do cômodo.
 - Captura visual conferida nos temas Ordem e Prata (cômodos com piso e papel, portas, mobília, luzes).
 - Defeitos reais achados e corrigidos no caminho: a paleta de comandos apagava o que já tinha sido digitado (efeito rodava depois de abrir); teste do `mesa-core` dependia de um atraso fixo; o cartão contextual cobria os cliques de quem estava pondo itens.
 
-### Pendências reais
+### Pendências da Fase 3: resolvidas no mesmo dia
 
-- **3.1** Transições automáticas entre terrenos (hoje cada camada tem borda seca).
-- **3.8** Editar a cartela de título na interface (o campo existe no documento) e escolher o fundo por textura.
-- **3.10** `refs` do cômodo com a campanha: a leitura e as notas do mestre funcionam, ligar documentos de outros apps ainda não.
+- **3.1 Transições de terreno:** cada camada tem agora a borda torcida por ruído (orgânica, não um borrão) e um aro escuro do próprio material por baixo. Antes era só um desfoque.
+- **3.8 Cartela de título e fundo:** aba Mapa com texto, fonte (Cinzel, Special Elite, Hanken Grotesk) e canto da cartela, que some com o texto vazio; fundo em cor ou **textura** (a textura aparece onde o terreno base é "Vazio"). O render passou a respeitar a fonte escolhida.
+- **3.10 Ligações do cômodo:** lista de `refs` no inspetor do cômodo, colar `mesa:app/tipo/id` (recusa texto inválido e repetido), escolher algo da campanha ligada ao mapa, remover, e copiar a referência do próprio cômodo.
+- Novo e2e cobre título, fonte, canto, fundo em textura (com desfazer) e ligações.
+- Corrigido junto: o menu radial só ouvia o teclado depois do primeiro desenho (mesma classe de defeito da paleta); agora ouve na hora.
+
+### Ainda em aberto
+
 - Parâmetros de receita só aparecem na biblioteca antes de pôr; depois, o inspetor oferece apenas "Variar".
 - O tempo "menos de dez minutos" foi conferido pelo fluxo automatizado, não cronometrado com uma pessoa.
+- A textura "Terra" mostra a repetição do ladrilho em áreas grandes; vale um ladrilho maior ou sem emenda na Fase 6 (acervo).
+- **Testes e2e oscilam sob carga:** com a máquina ocupada (carga 6–7), um teste antigo diferente falhou de vez em quando em esperas por tempo e passou na repetição; sozinhos passam. Não achei defeito do produto nisso, mas os testes ainda não são à prova de máquina lenta.
 
 ## Próximo
 
@@ -93,4 +100,4 @@ Fase 4 — Climas e atmosfera: o mesmo mapa de dia, em tempestade, à noite e se
 
 ## Pendências
 
-- As da Fase 3 acima; nenhuma bloqueia a Fase 4.
+- As "ainda em aberto" da Fase 3; nenhuma bloqueia a Fase 4.

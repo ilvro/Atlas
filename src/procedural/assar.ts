@@ -5,6 +5,7 @@ import type { Ponto } from '../domain/mapa.ts';
 import { contextoDe, criarTela, type Contexto, type Tela } from './canvas.ts';
 import { caixaDasPartes, type Parte } from './descricao.ts';
 import { materialDe, pintarMaterial, tom } from './materiais.ts';
+import { fbm, valueNoise2D } from './ruido.ts';
 import { desenharPartes, partesParaFace } from './raster.ts';
 import { descreverReceita } from './receitas.ts';
 
@@ -123,9 +124,11 @@ export interface EntradaDeTerreno {
   camadas: { material: string; celulas: Faixa[] }[];
 }
 
-/** O terreno todo numa tela só: o material de base e cada camada, com as bordas suavizadas (a transição automática). */
+const suave = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+/** O terreno todo numa tela só. Cada camada tem a borda torcida por ruído (orgânica, não um borrão) e um aro escuro por baixo: a transição automática. */
 export function assarTerreno(e: EntradaDeTerreno, res: number): Assado {
-  const W = e.largura * res, Hh = e.altura * res, tela = criarTela(W, Hh), ctx = contextoDe(tela);
+  const W = Math.ceil(e.largura * res), Hh = Math.ceil(e.altura * res), tela = criarTela(W, Hh), ctx = contextoDe(tela);
   ctx.setTransform(res, 0, 0, res, 0, 0);
   if (e.base !== 'vazio') pintarMaterial(ctx, e.base, { x: 0, y: 0, w: e.largura, h: e.altura }, 7);
   e.camadas.forEach((camada, idx) => {
@@ -134,11 +137,26 @@ export function assarTerreno(e: EntradaDeTerreno, res: number): Assado {
     mc.setTransform(res, 0, 0, res, 0, 0); mc.fillStyle = '#fff';
     for (const [y, x0, n] of camada.celulas) mc.fillRect(x0 * e.resolucao, y * e.resolucao, n * e.resolucao, e.resolucao);
     const macia = criarTela(W, Hh), mac = contextoDe(macia);
-    mac.filter = `blur(${Math.max(1, 0.28 * res)}px)`; mac.drawImage(mascara as CanvasImageSource, 0, 0);
+    mac.filter = `blur(${Math.max(1, 0.5 * res)}px)`; mac.drawImage(mascara as CanvasImageSource, 0, 0);
+    const fonte = mac.getImageData(0, 0, W, Hh).data, ruido = valueNoise2D(1000 + idx * 17);
+    const corpo = new ImageData(W, Hh), aro = new ImageData(W, Hh);
+    for (let k = 0, px = 0; k < fonte.length; k += 4, px++) {
+      const b = fonte[k + 3]! / 255; if (b < 0.04) continue;
+      const v = b + (fbm(ruido, (px % W) / res * 1.3, Math.floor(px / W) / res * 1.3, 3) - 0.5) * 0.5;
+      corpo.data[k + 3] = suave(0.47, 0.53, v) * 255; aro.data[k + 3] = suave(0.3, 0.47, v) * 255;
+    }
+    const comAlfa = (dados: ImageData, cor: string | null) => {
+      const t = criarTela(W, Hh), c = contextoDe(t); c.putImageData(dados, 0, 0);
+      if (cor) { c.globalCompositeOperation = 'source-in'; c.fillStyle = cor; c.fillRect(0, 0, W, Hh); }
+      return t;
+    };
+    const material = materialDe(camada.material);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 0.5; ctx.drawImage(comAlfa(aro, material.escuro) as CanvasImageSource, 0, 0); ctx.globalAlpha = 1;
     const pintada = criarTela(W, Hh), pc = contextoDe(pintada);
     pc.setTransform(res, 0, 0, res, 0, 0); pintarMaterial(pc, camada.material, { x: 0, y: 0, w: e.largura, h: e.altura }, 11 + idx * 5);
-    pc.setTransform(1, 0, 0, 1, 0, 0); pc.globalCompositeOperation = 'destination-in'; pc.drawImage(macia as CanvasImageSource, 0, 0);
-    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(pintada as CanvasImageSource, 0, 0); ctx.setTransform(res, 0, 0, res, 0, 0);
+    pc.setTransform(1, 0, 0, 1, 0, 0); pc.globalCompositeOperation = 'destination-in'; pc.drawImage(comAlfa(corpo, null) as CanvasImageSource, 0, 0);
+    ctx.drawImage(pintada as CanvasImageSource, 0, 0); ctx.setTransform(res, 0, 0, res, 0, 0);
   });
   return { tela, origem: [0, 0], res };
 }

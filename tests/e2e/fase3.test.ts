@@ -90,6 +90,8 @@ test('apagar parte de um cômodo refaz as paredes; a borracha remove cômodos va
 test('biblioteca: busca por nome, escolher um objeto e pôr; terreno pinta uma camada; Esc cancela o traço', async () => {
   const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
   await criarMapaPelaInterface(page);
+  // O nome do mapa nasce com o foco (para digitar por cima): tira o foco antes de usar atalhos.
+  await page.waitForFunction(() => document.activeElement?.id === 'nome-do-mapa'); await page.evaluate(() => (document.activeElement as HTMLElement).blur());
   await page.keyboard.press('o');
   await page.locator('[data-testid="biblioteca"]').waitFor(); await page.waitForTimeout(350);
   await page.fill('.biblioteca .busca', 'sofa');
@@ -120,4 +122,38 @@ test('inspetor do cômodo: nome, função, piso e notas do mestre viram ações 
   const m = await documento(page), id = Object.keys(m.rooms)[0]!;
   assert.equal(m.comodosExtra[id]!.notasMestre, 'A carta está atrás do quadro.');
   assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('mapa: cartela de título, fundo em textura e ligações do cômodo, tudo na interface e desfazível', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await page.click('[data-testid="aba-mapa"]');
+  await page.fill('#titulo-do-mapa', 'Casa dos Salgueiros'); await page.press('#titulo-do-mapa', 'Enter');
+  await page.waitForFunction(() => /Salgueiros/.test(JSON.stringify((window as unknown as { __atlas: { sessao(): { doc: { value: { backdrop: unknown } } } } }).__atlas.sessao().doc.value.backdrop)));
+  let m = await documento(page);
+  assert.equal(m.backdrop.title?.text, 'Casa dos Salgueiros'); assert.equal(m.backdrop.title?.font, 'Cinzel');
+  await page.selectOption('[data-testid="painel-mapa"] select:has(option[value="topo"])', 'topo');
+  assert.ok((await documento(page)).backdrop.title!.position[0] > 10);
+  await page.selectOption('[data-testid="painel-mapa"] select:has(option[value="Special Elite"])', 'Special Elite');
+  assert.equal((await documento(page)).backdrop.title?.font, 'Special Elite');
+  await page.fill('#titulo-do-mapa', ''); await page.press('#titulo-do-mapa', 'Enter');
+  await page.waitForFunction(() => (window as unknown as { __atlas: { sessao(): { doc: { value: { backdrop: { title: unknown } } } } } }).__atlas.sessao().doc.value.backdrop.title === null);
+  assert.equal((await documento(page)).backdrop.title, null);
+
+  await page.selectOption('[data-testid="painel-mapa"] select:has(option[value="texture"])', 'texture');
+  m = await documento(page); assert.equal(m.backdrop.kind, 'texture'); assert.ok(m.backdrop.material);
+  await page.keyboard.press('Control+z');
+  assert.equal((await documento(page)).backdrop.kind, 'solid');
+
+  // Ligações: colar uma referência no cômodo selecionado; repetir é recusado; remover desliga.
+  await ferramenta(page, 'comodo'); await arrastar(page, [3.75, 3.75], [8.25, 8.25], true);
+  await ferramenta(page, 'selecionar'); await clicar(page, [6, 6]); await page.click('[data-testid="aba-selecao"]');
+  await page.fill('[aria-label="Colar uma referência"]', 'mesa:ficha/personagem/muirenn'); await page.press('[aria-label="Colar uma referência"]', 'Enter');
+  const id = Object.keys((await documento(page)).rooms)[0]!;
+  assert.deepEqual((await documento(page)).comodosExtra[id]!.refs, [{ app: 'ficha', tipo: 'personagem', id: 'muirenn' }]);
+  await page.fill('[aria-label="Colar uma referência"]', 'isso não é uma referência'); await page.press('[aria-label="Colar uma referência"]', 'Enter');
+  assert.equal((await documento(page)).comodosExtra[id]!.refs.length, 1);
+  await page.click('[aria-label="Remover a ligação"]');
+  assert.equal((await documento(page)).comodosExtra[id], undefined);
+  assert.deepEqual(erros.filter(e => !/Erro do usuário|Failed to load resource/.test(e)), []); await ctx.close();
 });

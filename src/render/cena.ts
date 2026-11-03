@@ -238,7 +238,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     for (const f of tituloC.removeChildren()) f.destroy({ children: true });
     if (!t) return;
     // Uma faixa rasgada, como os rótulos da Ficha: fica pequena e legível mesmo bem afastada.
-    const texto = new Text({ text: t.text.toUpperCase(), style: { fontFamily: 'Cinzel, Georgia, serif', fontSize: 64, fontWeight: '700', fill: 0xffffff, letterSpacing: 2 } });
+    const texto = new Text({ text: t.text.toUpperCase(), style: { fontFamily: `${t.font}, Georgia, serif`, fontSize: 64, fontWeight: '700', fill: 0xffffff, letterSpacing: 2 } });
     const escala = 0.62 / 64, larg = texto.width * escala + 1.0, alt = 1.1, g = new Graphics();
     g.poly([-0.2, -0.45, larg - 0.2, -0.5, larg, -0.2, larg - 0.15, 0.4, 0.1, 0.5, -0.15, 0.2]).fill(op.acento());
     texto.scale.set(escala); texto.position.set(0.3, -0.31); texto.alpha = 0.97;
@@ -258,7 +258,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     sincronizar(m, mud, comPop) {
       mapa = m;
       const tudo = !mud || mud.completo, campos = (...c: string[]) => tudo || c.some(x => mud!.campos.includes(x)), colecao = (c: string) => tudo || !!(mud!.colecoes as Record<string, unknown>)[c];
-      if (campos('terrain', 'bounds', 'grid')) sincronizarTerreno(m);
+      if (campos('terrain', 'bounds', 'grid', 'backdrop')) sincronizarTerreno(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid')) sincronizarComodos(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid')) desenharParedes(m);
       if (tudo || colecao('props')) sincronizarObjetos(m, tudo ? null : mud!.colecoes.props ?? null, comPop);

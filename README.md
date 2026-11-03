@@ -2,7 +2,7 @@
 
 Editor de mapas 2D de cena para a mesa: construa rápido, jogue com luz, clima e névoa. Faz parte da plataforma da campanha (Ficha, Ateliê, Jukebox, Tabletop): todos falam o [contrato da mesa](docs/PLATAFORMA.md).
 
-> Estado: **Fase 3 (construir) concluída**, com pendências listadas em [progress.md](progress.md). Já dá para pintar cômodos (as paredes nascem sozinhas), pôr portas e janelas, mobiliar com uma biblioteca de objetos procedurais, acender luzes e pintar terreno, com histórico, rascunho automático, galeria, backup, paleta de comandos, menu radial, três temas e ligação com a campanha. Clima, sessão e névoa chegam nas próximas fases ([ROADMAP](docs/ROADMAP.md)).
+> Estado: **Fase 3 (construir) concluída** ([progress.md](progress.md)). Já dá para pintar cômodos (as paredes nascem sozinhas), pôr portas e janelas, mobiliar com uma biblioteca de objetos procedurais, acender luzes e pintar terreno, com histórico, rascunho automático, galeria, backup, paleta de comandos, menu radial, três temas e ligação com a campanha. Clima, sessão e névoa chegam nas próximas fases ([ROADMAP](docs/ROADMAP.md)).
 
 ## Usar
 

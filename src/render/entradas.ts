@@ -30,7 +30,8 @@ export function entradaDoComodo(m: MapaAtlas, sala: Comodo, ctx: ContextoDeEntra
 }
 
 export function entradaDoTerreno(m: MapaAtlas): EntradaDeTerreno {
-  return { largura: m.bounds.width, altura: m.bounds.height, resolucao: m.terrain.resolution, base: m.terrain.base,
+  return { largura: m.bounds.width, altura: m.bounds.height, resolucao: m.terrain.resolution, // Um fundo em textura aparece onde o terreno é 'vazio': o mesmo desenho do terreno, sem uma segunda via.
+    base: m.terrain.base !== 'vazio' ? m.terrain.base : m.backdrop.kind === 'texture' && m.backdrop.material ? m.backdrop.material : 'vazio',
     camadas: Object.values(m.terrain.layers).sort((a, b) => a.order - b.order).map(c => ({ material: c.material, celulas: c.cells })) };
 }
 

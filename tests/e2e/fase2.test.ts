@@ -319,7 +319,7 @@ test('plataforma: um pedido atlas.focar vindo de outro aplicativo abre o mapa e 
   const id = await criarMapaPelaInterface(atlas.page);
   await atlas.page.click('[data-testid="gravar"]');
   await atlas.page.waitForFunction(() => document.querySelector('[data-testid="estado-gravacao"]')?.getAttribute('data-sujo') === 'false');
-  for (let i = 0; i < 5 && !(await atlas.page.locator('[data-testid="lista-mapas"]').count()); i++) { await atlas.page.keyboard.press('Alt+g'); await esperarMs(400); }
+  await atlas.page.click('a.marca');
   await atlas.page.waitForSelector('[data-testid="lista-mapas"]');
   // Uma página "da Ficha" na mesma origem pede ao Atlas que mostre o mapa.
   const ficha = await ctx.newPage(); await ficha.goto(`${amb.url}icone.svg`);

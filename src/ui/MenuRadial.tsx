@@ -1,4 +1,4 @@
-import { useEffect } from 'preact/hooks';
+import { useLayoutEffect } from 'preact/hooks';
 import { itensDoMenuRadial } from '../app/acoes.ts';
 import { menuRadial } from '../app/app.ts';
 import { mostrarAtalho } from '../app/atalhos.ts';
@@ -7,7 +7,7 @@ import { Icone } from './Icone.tsx';
 /** Clique direito: até 8 ações em volta do cursor, escolhidas pelo que está sob ele. Dígitos 1–8 também escolhem. */
 export function MenuRadial() {
   const info = menuRadial.value;
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!info) return;
     const itens = itensDoMenuRadial(info.alvo, info.mundo);
     const fechar = () => { menuRadial.value = null; };

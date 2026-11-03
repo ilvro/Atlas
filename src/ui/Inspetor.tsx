@@ -1,10 +1,14 @@
+import { useEffect } from 'preact/hooks';
 import { useSignal } from '@preact/signals';
-import { campanhaAtiva, campanhas } from '../app/campanha.ts';
+import { chaveDaRef, formatarRef, lerRef, type Entidade, type Ref } from '#mesa';
+import { campanhaAtiva, campanhas, refDoComodo } from '../app/campanha.ts';
+import { servicos } from '../app/app.ts';
+import { avisar } from '../app/toasts.ts';
 import { NOMES_COLECAO, desfazer, duplicarSelecao, refazer, removerSelecao, sessao } from '../app/app.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { nomeDoAlvo } from '../domain/fabrica.ts';
 import { ESTADOS_FIGURA, type Abertura, type Comodo, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Regiao } from '../domain/mapa.ts';
-import { PRESETS_DE_ACABAMENTO, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, presetDeAcabamento } from '../domain/presets.ts';
+import { PRESETS_DE_ACABAMENTO, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, presetDeAcabamento } from '../domain/presets.ts';
 import { acabamentoLigado, definirAcabamentoLigado } from '../app/app.ts';
 import { receitaDe } from '../procedural/receitas.ts';
 import { materiaisDo } from '../procedural/materiais.ts';
@@ -39,7 +43,12 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
       <CampoNumero id="largura-mapa" rotulo="Largura" unidade="m" valor={m.bounds.width} min={3} max={600} passo={1.5} aoConfirmar={v => tentar(() => st.executar({ tipo: 'limites.atualizar', largura: v, altura: m.bounds.height }))} />
       <CampoNumero id="altura-mapa" rotulo="Altura" unidade="m" valor={m.bounds.height} min={3} max={600} passo={1.5} aoConfirmar={v => tentar(() => st.executar({ tipo: 'limites.atualizar', largura: m.bounds.width, altura: v }))} />
       <h3 class="faixa pequena">Fundo</h3>
-      <CorDoFundo s={s} />
+      <CampoOpcoes rotulo="Tipo" valor={m.backdrop.kind} opcoes={[['solid', 'Cor'], ['texture', 'Textura']]} aoMudar={v => tentar(() => st.executar({ tipo: 'fundo.atualizar', patch: v === 'texture' ? { kind: v, material: m.backdrop.material ?? 'terra' } : { kind: v } }, { rotulo: 'Tipo de fundo' }))} />
+      {m.backdrop.kind === 'texture'
+        ? <CampoOpcoes rotulo="Textura" valor={m.backdrop.material ?? 'terra'} opcoes={materiaisDo('terreno').map(x => [x.id, x.nome] as const)} aoMudar={v => tentar(() => st.executar({ tipo: 'fundo.atualizar', patch: { material: v } }, { rotulo: 'Textura do fundo' }))} />
+        : <CorDoFundo s={s} />}
+      {m.backdrop.kind === 'texture' && m.terrain.base !== 'vazio' && <p class="dica">O terreno base cobre a textura: ponha a base em “Vazio” para vê-la.</p>}
+      <CartelaDeTitulo s={s} />
       <h3 class="faixa pequena">Terreno</h3>
       <CampoOpcoes rotulo="Base" valor={m.terrain.base} opcoes={[['vazio', 'Vazio (o fundo)'], ...materiaisDo('terreno').map(x => [x.id, x.nome] as const)]} aoMudar={v => tentar(() => st.executar({ tipo: 'terreno.base', material: v }))} />
       <h3 class="faixa pequena">Acabamento</h3>
@@ -67,6 +76,27 @@ function useGestoDeCor(s: SessaoDeEdicao, rotulo: string) {
 function CorDoFundo({ s }: { s: SessaoDeEdicao }) {
   const g = useGestoDeCor(s, 'Cor do fundo');
   return <CampoCor rotulo="Cor" valor={s.doc.value.backdrop.color} aoPrevia={v => g.previa(x => x.aplicar({ tipo: 'fundo.atualizar', patch: { color: v } }))} aoConfirmar={g.confirmar} />;
+}
+
+const FONTES_DO_TITULO = [['Cinzel', 'Cinzel (títulos)'], ['Special Elite', 'Máquina de escrever'], ['Hanken Grotesk Variable', 'Hanken Grotesk']] as const;
+const POSICOES_DO_TITULO = [['superior-esquerdo', 'Em cima, à esquerda'], ['topo', 'Em cima, no centro'], ['superior-direito', 'Em cima, à direita'], ['inferior-esquerdo', 'Embaixo, à esquerda'], ['inferior-direito', 'Embaixo, à direita']] as const;
+type PosicaoDoTitulo = (typeof POSICOES_DO_TITULO)[number][0];
+
+/** A cartela de título do mapa: texto, fonte e canto. Some quando o texto fica vazio. */
+function CartelaDeTitulo({ s }: { s: SessaoDeEdicao }) {
+  const m = s.doc.value, t = m.backdrop.title, st = s.store, onde = useSignal<PosicaoDoTitulo>('inferior-direito');
+  const por = (texto: string, fonte: string, pos: PosicaoDoTitulo) => {
+    const comprimento = Math.max(3, texto.length * 0.55 + 1);
+    return tentar(() => st.executar({ tipo: 'fundo.atualizar', patch: { title: { text: texto, font: fonte, position: posicaoDeTitulo(m.bounds.width, m.bounds.height, pos, comprimento) } } }, { rotulo: 'Cartela de título' }));
+  };
+  return (<>
+    <h3 class="faixa pequena">Cartela de título</h3>
+    <CampoTexto id="titulo-do-mapa" rotulo="Texto" valor={t?.text ?? ''} maximo={120} aoConfirmar={v => { const x = v.trim(); if (!x) return tentar(() => st.executar({ tipo: 'fundo.atualizar', patch: { title: null } }, { rotulo: 'Tirar a cartela' })); return por(x, t?.font ?? 'Cinzel', onde.value); }} />
+    {t && <>
+      <CampoOpcoes rotulo="Fonte" valor={t.font} opcoes={FONTES_DO_TITULO} aoMudar={v => por(t.text, v, onde.value)} />
+      <CampoOpcoes rotulo="Canto" valor={onde.value} opcoes={POSICOES_DO_TITULO} aoMudar={v => { onde.value = v; por(t.text, t.font, v); }} />
+    </>}
+  </>);
 }
 
 function CamposDaLuz({ s, l }: { s: SessaoDeEdicao; l: Luz }) {
@@ -119,6 +149,33 @@ function CamposDaRegiao({ s, r }: { s: SessaoDeEdicao; r: Regiao }) {
   </>);
 }
 
+/** Ligações do cômodo: o que, nos outros aplicativos, pertence a este lugar (ficha de um NPC, cena sonora, documento…). */
+function LigacoesDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
+  const m = s.doc.value, refs = m.comodosExtra[c.id]?.refs ?? [], entidades = useSignal<Entidade[]>([]), texto = useSignal('');
+  useEffect(() => {
+    let vivo = true; entidades.value = [];
+    const repo = servicos.value?.campanhas;
+    if (repo && m.campanhaId) void repo.listarEntidades(m.campanhaId).then(l => { if (vivo) entidades.value = l.filter(e => e.refs.some(r => r.app !== 'atlas')); }).catch(() => undefined);
+    return () => { vivo = false; };
+  }, [m.campanhaId]);
+  const gravar = (novas: Ref[], rotulo: string) => tentar(() => s.store.executar({ tipo: 'comodo.notas', id: c.id, patch: { refs: novas } }, { rotulo }));
+  const juntar = (r: Ref) => { if (refs.some(x => chaveDaRef(x) === chaveDaRef(r))) { avisar('Esta ligação já existe.', { tipo: 'erro' }); return false; } return gravar([...refs, r], 'Ligar ao cômodo'); };
+  return (<>
+    <h3 class="faixa pequena">Ligações</h3>
+    {refs.length ? <ul class="lista-itens" data-testid="ligacoes">{refs.map(r => (
+      <li key={chaveDaRef(r)} class="ligacao"><span class="tipo-item">{r.app}</span><span class="ligacao-nome" title={formatarRef(r)}>{r.tipo} · {r.id}</span>
+        <button type="button" class="botao-icone" aria-label="Remover a ligação" onClick={() => gravar(refs.filter(x => chaveDaRef(x) !== chaveDaRef(r)), 'Desligar do cômodo')}><Icone nome="fechar" tamanho={14} /></button></li>))}</ul>
+      : <p class="dica">Nada ligado. Cole uma referência <code>mesa:app/tipo/id</code> ou escolha algo da campanha.</p>}
+    {entidades.value.length > 0 && <label class="linha"><span class="linha-rotulo">Da campanha</span><span class="linha-controle">
+      <select aria-label="Ligar algo da campanha" value="" onChange={e => { const ent = entidades.value.find(x => x.id === (e.target as HTMLSelectElement).value); const r = ent?.refs.find(x => x.app !== 'atlas'); if (r) juntar(r); (e.target as HTMLSelectElement).value = ''; }}>
+        <option value="">Escolher…</option>{entidades.value.map(x => <option key={x.id} value={x.id}>{x.nome} ({x.tipo})</option>)}</select></span></label>}
+    <label class="linha"><span class="linha-rotulo">Colar</span><span class="linha-controle">
+      <input type="text" aria-label="Colar uma referência" placeholder="mesa:ficha/personagem/…" value={texto.value} onInput={e => { texto.value = (e.target as HTMLInputElement).value; }}
+        onKeyDown={e => { if (e.key !== 'Enter') return; const r = lerRef(texto.value); if (!r) { avisar('Isso não parece uma referência da mesa (mesa:app/tipo/id).', { tipo: 'erro' }); return; } if (juntar(r)) texto.value = ''; }} /></span></label>
+    <div class="acoes-selecao"><button type="button" class="botao-pilula" data-testid="copiar-ref" onClick={() => { const t = formatarRef(refDoComodo(m, c.id)); void navigator.clipboard?.writeText(t).then(() => avisar('Referência do cômodo copiada.'), () => avisar(t)); }}><Icone nome="copiar" tamanho={14} />Copiar referência</button></div>
+  </>);
+}
+
 function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
   const st = s.store, m = s.doc.value, extra = m.comodosExtra[c.id];
   const editar = (patch: Record<string, unknown>, rotulo?: string) => tentar(() => st.executar({ tipo: 'comodo.atualizar', id: c.id, patch: patch as never }, rotulo ? { rotulo } : {}));
@@ -132,6 +189,7 @@ function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
     <CampoCaixa rotulo="Telhado visível" valor={c.roof.visible} aoMudar={v => editar({ roof: { visible: v } }, 'Telhado')} />
     <h3 class="faixa pequena">Texto de leitura</h3>
     <textarea class="notas" aria-label="Texto de leitura do cômodo" rows={3} placeholder="O que os jogadores percebem ao entrar…" key={`l:${extra?.leitura ?? ''}`} defaultValue={extra?.leitura ?? ''} onBlur={e => { const v = (e.target as HTMLTextAreaElement).value; if (v !== (extra?.leitura ?? '')) notas({ leitura: v }); }} />
+    <LigacoesDoComodo s={s} c={c} />
     <h3 class="faixa pequena">Notas do mestre</h3>
     <textarea class="notas" aria-label="Notas do mestre do cômodo" rows={3} placeholder="Só você vê…" key={`n:${extra?.notasMestre ?? ''}`} defaultValue={extra?.notasMestre ?? ''} onBlur={e => { const v = (e.target as HTMLTextAreaElement).value; if (v !== (extra?.notasMestre ?? '')) notas({ notasMestre: v }); }} />
   </>);
