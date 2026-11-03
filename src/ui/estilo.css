@@ -275,3 +275,7 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
   .barra-de-estado { grid-column: 2 / 4; }
   .nome-do-mapa { max-width: 22vw; }
 }
+
+.amostra-presenca { display: block; width: 26px; height: 26px; border-radius: 50%; background: var(--cor); border: 1px solid var(--linha); }
+.amostra-presenca.brilha { box-shadow: 0 0 8px var(--cor); }
+.grupo-presenca { display: grid; gap: 6px; padding: 8px 0; border-top: 1px solid var(--linha); }

@@ -17,7 +17,7 @@ import { Inspetor } from './Inspetor.tsx';
 
 const FERRAMENTAS: { id: Ferramenta; icone: string }[] = [
   { id: 'selecionar', icone: 'selecionar' }, { id: 'mao', icone: 'mao' }, { id: 'comodo', icone: 'comodo' }, { id: 'borracha', icone: 'borracha' }, { id: 'parede', icone: 'parede' },
-  { id: 'abertura', icone: 'porta' }, { id: 'objeto', icone: 'objeto' }, { id: 'luz', icone: 'luz' }, { id: 'peca', icone: 'peca' }, { id: 'regiao', icone: 'regiao' }, { id: 'terreno', icone: 'terreno' },
+  { id: 'abertura', icone: 'porta' }, { id: 'objeto', icone: 'objeto' }, { id: 'luz', icone: 'luz' }, { id: 'peca', icone: 'peca' }, { id: 'regiao', icone: 'regiao' }, { id: 'terreno', icone: 'terreno' }, { id: 'presenca', icone: 'presenca' },
 ];
 
 const zoomPct = signal(100), cursorMundo = signal<[number, number] | null>(null), pintando = signal(0);
@@ -44,7 +44,7 @@ function ponteDa(s: SessaoDeEdicao): PonteViewport {
     selecao: () => s.selecao.peek(),
     definirSelecao: alvos => { s.selecao.value = alvos; tocar('selecionar'); },
     ferramenta: () => s.ferramenta.peek(),
-    definirFerramenta: f => { s.ferramenta.value = f; s.biblioteca.value = ['comodo', 'parede', 'abertura', 'objeto', 'luz', 'terreno'].includes(f); },
+    definirFerramenta: f => { s.ferramenta.value = f; s.biblioteca.value = ['comodo', 'parede', 'abertura', 'objeto', 'luz', 'terreno', 'presenca'].includes(f); },
     pincel: () => s.pincel.peek(),
     definirPincel: p => { s.pincel.value = { ...s.pincel.peek(), ...p }; },
     adicionar: (colecao, mundo) => adicionarEm(colecao, mundo),

@@ -250,7 +250,7 @@ Testes: e2e da 4.8 cobre.
 Pronto quando: dia → noite escurece suave, a chuva aparece aos poucos, desfazer volta animando.
 Commit: animated climate transitions
 
-### 4.6a — Pincel de presença  ⬜
+### 4.6a — Pincel de presença  ✅
 Objetivo: pintar e apagar presença por células, como o terreno.
 Depende de: 4.2a
 Ler: `src/state/comandos-construir.ts` (`terreno.pintar`, `terreno.apagar`); `src/render/pincel.ts`; `src/render/viewport.ts` (interação `'terreno'`); `src/app/acoes.ts` (`usarFerramenta`); `src/ui/Biblioteca.tsx` (aba do terreno).
@@ -266,7 +266,7 @@ Testes: unitários dos comandos (pintar, apagar, entidade vazia some, desfazer).
 Pronto quando: pintar musgo num canto e desfazer funciona.
 Commit: presence brush tool
 
-### 4.6b — Render de presença  ⬜
+### 4.6b — Render de presença  ✅
 Objetivo: a presença aparece como efeito vivo: borda que cresce por ruído, pulsação e reação à luz.
 Depende de: 4.6a, 4.1b
 Ler: `src/render/acabamento.ts` (filtro); `src/render/cena.ts` (`sincronizarTerreno`, como as células viram textura); ARQUITETURA §5.7.
@@ -281,7 +281,7 @@ Testes: manual; FPS com 5 presenças.
 Pronto quando: musgo parece musgo e mudar `intensity` no inspetor expande ou recolhe ao vivo.
 Commit: animated presence rendering
 
-### 4.6c — Pacotes de presença  ⬜
+### 4.6c — Pacotes de presença  ✅
 Objetivo: os pincéis naturais, sobrenaturais e de Ordem Paranormal, com aparência própria.
 Depende de: 4.6b
 Ler: `src/render/presenca.ts`; cores da Ficha em `../Ficha teste - Ordem II/src/systems/original/original-compendium.js` (`ELEMENT_COLORS`: Sangue `#e0150d`, Morte `#70707a`, Energia `#a230ed`, Conhecimento `#e5a11c`, Medo `#d5d7e0`) — só copiar os valores.

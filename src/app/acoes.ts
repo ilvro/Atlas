@@ -33,7 +33,7 @@ const comSelecao = () => (app.sessao.value?.selecao.value.length ?? 0) > 0;
 const passoDeSetas = (grande: boolean) => { const g = app.sessao.value?.doc.value.grid.size ?? 1.5; return grande ? g : g / 2; };
 
 /** Ferramentas que têm uma biblioteca de escolhas (a gaveta abre sozinha). */
-const COM_BIBLIOTECA: readonly Ferramenta[] = ['comodo', 'parede', 'abertura', 'objeto', 'luz', 'terreno'];
+const COM_BIBLIOTECA: readonly Ferramenta[] = ['comodo', 'parede', 'abertura', 'objeto', 'luz', 'terreno', 'presenca'];
 
 export function usarFerramenta(f: Ferramenta): void {
   const s = app.sessao.value; if (!s) return;
@@ -59,8 +59,8 @@ function girar(graus: number): void {
 
 function mudarRaio(delta: number): void {
   const s = app.sessao.value; if (!s) return;
-  const p = s.pincel.value, raio = Math.max(0.25, Math.min(12, p.terreno.raio + delta));
-  s.pincel.value = { ...p, terreno: { ...p.terreno, raio } }; avisar(`Pincel de ${raio.toFixed(2).replace(/\.?0+$/, '')} m`, { duracao: 900 });
+  const p = s.pincel.value, chave = s.ferramenta.value === 'presenca' ? 'presenca' : 'terreno', raio = Math.max(0.25, Math.min(12, p[chave].raio + delta));
+  s.pincel.value = { ...p, [chave]: { ...p[chave], raio } }; avisar(`Pincel de ${raio.toFixed(2).replace(/\.?0+$/, '')} m`, { duracao: 900 });
 }
 
 /** Um clima por atalho (Alt+1 a Alt+9, na ordem das predefinições) e um por busca na paleta. */
@@ -113,6 +113,7 @@ export const ACOES: readonly Acao[] = [
   { id: 'ferr-peca', nome: 'Pôr peça', grupo: 'Construir', palavras: 'token personagem', atalhos: ['T', '9'], habilitada: noEditor, executar: () => usarFerramenta('peca') },
   { id: 'ferr-regiao', nome: 'Pôr região', grupo: 'Construir', palavras: 'area gatilho', atalhos: ['R'], habilitada: noEditor, executar: () => usarFerramenta('regiao') },
   { id: 'ferr-terreno', nome: 'Pintar terreno', grupo: 'Construir', palavras: 'grama terra areia neve lama natureza', atalhos: ['N'], habilitada: noEditor, executar: () => usarFerramenta('terreno') },
+  { id: 'ferr-presenca', nome: 'Pintar presença', grupo: 'Construir', palavras: 'musgo mofo sangue corrupcao sombra paranormal ordem mancha', atalhos: ['P'], habilitada: noEditor, executar: () => usarFerramenta('presenca') },
   { id: 'biblioteca', nome: 'Abrir ou fechar a biblioteca', grupo: 'Construir', palavras: 'gaveta itens catalogo', atalhos: ['B'], habilitada: noEditor, executar: () => { const s = app.sessao.value; if (s) s.biblioteca.value = !s.biblioteca.value; } },
   { id: 'girar-dir', nome: 'Girar para a direita (90°)', grupo: 'Construir', palavras: 'rotacionar', atalhos: ['E'], habilitada: noEditor, executar: () => girar(90) },
   { id: 'girar-esq', nome: 'Girar para a esquerda (90°)', grupo: 'Construir', palavras: 'rotacionar', atalhos: ['Q'], habilitada: noEditor, executar: () => girar(-90) },

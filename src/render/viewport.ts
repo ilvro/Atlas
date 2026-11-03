@@ -4,7 +4,7 @@ import { misturar, type EstadoDeClima, type MisturaDeClima } from '../domain/cli
 import { copiasDe, novaLuz, novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
 import { comprimentoDaParede, contornoDoComodo, encaixarNaParede, encaixarObjetoDeParede, indiceDeCelulas, pontoNaParede, salaDaCelula } from '../domain/geometria.ts';
 import type { Abertura, MapaAtlas, Ponto } from '../domain/mapa.ts';
-import { TIPOS_DE_COMODO, camposDoPreset, presetDeLuz, tipoDeComodo } from '../domain/presets.ts';
+import { TIPOS_DE_COMODO, camposDoPreset, pincelDePresenca, presetDeLuz, tipoDeComodo } from '../domain/presets.ts';
 import { fxAtivo } from '../fx/fx.ts';
 import { criarBaker, type Baker } from '../procedural/baker.ts';
 import { receitaDe } from '../procedural/receitas.ts';
@@ -66,6 +66,7 @@ export interface Viewport {
   relampagoAgora(): void;
   /** Quantas partículas de cada tipo existem agora (diagnóstico e testes). */
   contagemDeParticulas(): ReturnType<Cena['contagemDeParticulas']>;
+  contagemDePresencas(): number;
   destruir(): void;
 }
 
@@ -79,7 +80,7 @@ type Interacao =
   | { tipo: 'retangulo'; ini: Ponto; atual: Ponto; modo: 'trocar' | 'somar'; x0: number; y0: number; moveu: boolean }
   | { tipo: 'laco'; pontos: Ponto[]; modo: 'trocar' | 'somar' }
   | { tipo: 'cômodo'; apagar: boolean; sala: string; criado: boolean; gesto: Gesto; ini: [number, number]; atual: [number, number]; retangulo: boolean; visitadas: Set<number> }
-  | { tipo: 'terreno'; apagar: boolean; gesto: Gesto; ultimo: Ponto }
+  | { tipo: 'terreno'; apagar: boolean; gesto: Gesto; ultimo: Ponto; presenca: boolean }
   | { tipo: 'parede'; ini: Ponto; fim: Ponto };
 
 const chaveCel = (x: number, y: number) => y * 200_003 + x;
@@ -221,13 +222,14 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     const comSprite = f === 'objeto' && receita?.tipo === 'piso';
     if (!comSprite && fantasmaSprite) limparFantasmaSprite();
     const objetoFantasma = fantasmaC.getChildByLabel('fantasma-objeto');
-    if (!ponteiro || interacao || !['objeto', 'luz', 'peca', 'regiao', 'abertura', 'comodo', 'borracha', 'terreno'].includes(f)) { if (objetoFantasma) objetoFantasma.visible = false; return; }
+    if (!ponteiro || interacao || !['objeto', 'luz', 'peca', 'regiao', 'abertura', 'comodo', 'borracha', 'terreno', 'presenca'].includes(f)) { if (objetoFantasma) objetoFantasma.visible = false; return; }
     const p: Ponto = [encaixar(ponteiro[0], m.grid, 0), encaixar(ponteiro[1], m.grid, 1)];
     if (f === 'comodo' || f === 'borracha') {
       const [x, y] = celulaDe(m, ponteiro), t = m.grid.size, c = f === 'borracha' ? 0xff6b6b : cor;
       if (dentroDoMapa(m, [x, y])) fantasmaG.rect(m.grid.offset[0] + x * t, m.grid.offset[1] + y * t, t, t).fill({ color: c, alpha: 0.28 }).stroke({ width: px(1.5), color: c, alpha: 0.9 });
       return;
     }
+    if (f === 'presenca') { const cp = hexParaNumero(pincelDePresenca(pincel.presenca.brush)?.cor ?? '#ffffff'); fantasmaG.circle(ponteiro[0], ponteiro[1], pincel.presenca.raio).fill({ color: cp, alpha: 0.2 }).stroke({ width: px(1.5), color: cp, alpha: 0.9 }); return; }
     if (f === 'terreno') { fantasmaG.circle(ponteiro[0], ponteiro[1], pincel.terreno.raio).fill({ color: 0x6a9a4a, alpha: 0.18 }).stroke({ width: px(1.5), color: cor, alpha: 0.9 }); return; }
     if (f === 'luz') {
       const preset = presetDeLuz(pincel.luz.preset);
@@ -353,14 +355,16 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   function pintarTerreno(p: Ponto, anterior: Ponto | null): void {
     const i = interacao; if (i?.tipo !== 'terreno') return;
-    const m = doc(), pincel = ponte.pincel(), res = m.terrain.resolution, cols = Math.ceil(m.bounds.width / res), lins = Math.ceil(m.bounds.height / res);
+    const m = doc(), pincel = ponte.pincel(), raio = i.presenca ? pincel.presenca.raio : pincel.terreno.raio, res = m.terrain.resolution, cols = Math.ceil(m.bounds.width / res), lins = Math.ceil(m.bounds.height / res);
     const pontos: Ponto[] = [];
-    if (anterior) { const d = Math.hypot(p[0] - anterior[0], p[1] - anterior[1]), n = Math.max(1, Math.ceil(d / Math.max(0.1, pincel.terreno.raio / 2))); for (let k = 1; k <= n; k++) pontos.push([anterior[0] + ((p[0] - anterior[0]) * k) / n, anterior[1] + ((p[1] - anterior[1]) * k) / n]); } else pontos.push(p);
+    if (anterior) { const d = Math.hypot(p[0] - anterior[0], p[1] - anterior[1]), n = Math.max(1, Math.ceil(d / Math.max(0.1, raio / 2))); for (let k = 1; k <= n; k++) pontos.push([anterior[0] + ((p[0] - anterior[0]) * k) / n, anterior[1] + ((p[1] - anterior[1]) * k) / n]); } else pontos.push(p);
     const unicas = new Map<number, [number, number]>();
-    for (const q of pontos) for (const c of celulasDoDisco(q, pincel.terreno.raio, res, cols, lins)) unicas.set(chaveCel(c[0], c[1]), c);
+    for (const q of pontos) for (const c of celulasDoDisco(q, raio, res, cols, lins)) unicas.set(chaveCel(c[0], c[1]), c);
     if (!unicas.size) return;
     const celulas = [...unicas.values()];
-    if (!tentar(() => i.gesto.aplicar(i.apagar ? { tipo: 'terreno.apagar', celulas } : { tipo: 'terreno.pintar', material: pincel.terreno.material, celulas }))) { i.gesto.cancelar(); interacao = null; }
+    const comando = i.presenca ? (i.apagar ? { tipo: 'presenca.apagar' as const, brush: null, celulas } : { tipo: 'presenca.pintar' as const, brush: pincel.presenca.brush, celulas })
+      : i.apagar ? { tipo: 'terreno.apagar' as const, celulas } : { tipo: 'terreno.pintar' as const, material: pincel.terreno.material, celulas };
+    if (!tentar(() => i.gesto.aplicar(comando))) { i.gesto.cancelar(); interacao = null; }
   }
 
   /** O ponto encaixado nos vértices da grade e, se `ini` existe, preso ao eixo mais próximo: paredes são retas na grade. */
@@ -374,7 +378,10 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     const m = doc(), f = ponte.ferramenta(), pincel = ponte.pincel();
     const alvo: Ponto = [encaixar(p[0], m.grid, 0, 0.5, e.altKey), encaixar(p[1], m.grid, 1, 0.5, e.altKey)];
     if (f === 'comodo' || f === 'borracha') { comecarComodo(e, p, f === 'borracha'); return; }
-    if (f === 'terreno') { interacao = { tipo: 'terreno', apagar: e.altKey, gesto: store.iniciarGesto(e.altKey ? 'Apagar terreno' : 'Pintar terreno'), ultimo: p }; pintarTerreno(p, null); return; }
+    if (f === 'terreno' || f === 'presenca') {
+      const presenca = f === 'presenca', nome = presenca ? 'presença' : 'terreno';
+      interacao = { tipo: 'terreno', presenca, apagar: e.altKey, gesto: store.iniciarGesto(e.altKey ? `Apagar ${nome}` : `Pintar ${nome}`), ultimo: p }; pintarTerreno(p, null); return;
+    }
     if (f === 'parede') { const q = pontoDeParede(m, p); interacao = { tipo: 'parede', ini: q, fim: q }; return; }
     if (f === 'abertura') {
       const largura = LARGURA_DA_ABERTURA[pincel.abertura.tipo], enc = encaixarNaParede(m, p, largura);
@@ -563,6 +570,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     atualizarSobreposicoes: () => { camadaSuja = true; aplicarAcabamento(); },
     relampagoAgora: () => cena.relampagoAgora(),
     contagemDeParticulas: () => cena.contagemDeParticulas(),
+    contagemDePresencas: () => cena.contagemDePresencas(),
     destruir() {
       destruido = true; cancelarAssinatura(); observador.disconnect();
       window.removeEventListener('keydown', aoTeclar, true); window.removeEventListener('keyup', aoSoltar);

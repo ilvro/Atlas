@@ -51,6 +51,14 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 - Limites assumidos: o piscar do apagão continua sendo o da 4.3a (acionado pelo `gridPower` do destino; `rede` da mistura não é lido pelo render); `time` e "é noite" já valem o destino, então luzes só-noturnas ligam/desligam no início; o relâmpago sorteia de novo o intervalo enquanto a intensidade muda.
 - e2e novo: Tarde → Noite escurece aos poucos (o meio fica entre os dois), desfazer volta animando, ajuste fino não espera. Os testes antigos de 4.x agora esperam a transição acabar antes de medir (`aplicarClimaPor`).
 
+### 4.6 Presença (3 de novembro) — concluída
+
+- **4.6a Pincel e comandos:** ferramenta `presenca` (atalho `P`, ícone de gota, biblioteca própria; `[` e `]` mudam o raio dela). `presenca.pintar { brush, celulas }` acha ou cria a entidade do pincel (`p_<pincel>`, intensidade 0,6, semente estável por pincel) e soma as células; `presenca.apagar { brush | null, celulas }` tira de um pincel ou de todos, e entidade sem células some. Mesmo gesto do terreno: uma pincelada, uma entrada de histórico; Esc cancela; Alt apaga. A prévia do pincel é um círculo na cor dele. Não fiz a prévia "provisória em contorno" da ficha: fui direto ao render da 4.6b.
+- **4.6b Render** (`render/presenca.ts`): cada entidade é uma malha com shader próprio sobre a caixa das suas células (e não um filtro, porque o filtro do Pixi recorta ao que está na tela e o ruído nadaria ao mover a câmera). A máscara é 1 px por célula, ampliada em linear e desfocada por 4 amostras; um fbm decide até onde a mancha chegou (`intensity` 0 recolhe, 1 vai até a máscara inteira), com manchas de tom e pulsação. Naturais entram **antes** do mapa de luz (a luz as escurece); as que brilham ficam **acima** dele, com um halo. `gmOnly` aparece a 50% com hachura. Movimento reduzido anda a 35%.
+- **4.6c Pacotes:** `PINCEIS_DE_PRESENCA` com os dez (naturais: musgo, mofo, poça; sobrenaturais: corrupção, sombra; Ordem: sangue, morte, conhecimento, energia, medo, com as cores da Ficha), agrupados por pacote na biblioteca. Como a presença não tem caixa e não se pega com o clique, o "inspetor da presença" ficou numa seção **Presença** da aba Mapa: intensidade (campo numérico, não arrasto), "Só o mestre vê" e Remover.
+- Testes: 2 unitários novos (comandos de presença com desfazer; catálogo dos pincéis) e 2 e2e novos (pintar pela ferramenta, intensidade expande/recolhe, desfazer; dez pincéis, inspetor, quadros por segundo). Capturas em `test-results/fase4-presenca.png` e `fase4-presencas.png`.
+- Fica para depois: dar um jeito de selecionar uma presença no mapa (hoje só pela aba Mapa); versão Pixel (Fase 8); arrastar a intensidade como gesto.
+
 ### Validação
 
 - `tsc --noEmit` limpo; `npm run build` e `build:core` sem erros; o build funciona em qualquer caminho.
@@ -152,7 +160,7 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 
 ## Próximo
 
-Fase 4.6: presença (pincel, render e pacotes). Tarefas em [docs/plano/fase-4.md](docs/plano/fase-4.md); começar pela **4.6a**. Pendências da Fase 3 em [docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md).
+Fase 4.7a: áudio do clima. Tarefas em [docs/plano/fase-4.md](docs/plano/fase-4.md); começar pela **4.7a**. Pendências da Fase 3 em [docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md).
 
 ## Pendências
 

@@ -94,3 +94,23 @@ export const PRESETS_DE_CLIMA: readonly PresetDeClima[] = [
 /** Mapas antigos chamam a tarde de "dia". */
 const APELIDOS_DE_CLIMA: Readonly<Record<string, string>> = { dia: 'tarde' };
 export const presetDeClima = (id: string): PresetDeClima | undefined => PRESETS_DE_CLIMA.find(p => p.id === (APELIDOS_DE_CLIMA[id] ?? id));
+
+// ---------- Presença ----------
+export type PacoteDePresenca = 'natural' | 'sobrenatural' | 'ordem';
+/** Um pincel de presença: o que ele pinta e como parece (cor, se brilha acima da luz, ritmo da pulsação e escala do ruído). */
+export interface PincelDePresenca { id: string; nome: string; pacote: PacoteDePresenca; cor: string; brilho: boolean; pulso: number; escala: number }
+export const PACOTES_DE_PRESENCA: readonly { id: PacoteDePresenca; nome: string }[] = [{ id: 'natural', nome: 'Natural' }, { id: 'sobrenatural', nome: 'Sobrenatural' }, { id: 'ordem', nome: 'Ordem Paranormal' }];
+// As cores dos cinco elementos são as da Ficha (ELEMENT_COLORS).
+export const PINCEIS_DE_PRESENCA: readonly PincelDePresenca[] = [
+  { id: 'musgo', nome: 'Musgo', pacote: 'natural', cor: '#4f7a34', brilho: false, pulso: 0, escala: 1 },
+  { id: 'mofo', nome: 'Mofo', pacote: 'natural', cor: '#5b6a4a', brilho: false, pulso: 0, escala: 1.6 },
+  { id: 'poca', nome: 'Poça', pacote: 'natural', cor: '#3a5a78', brilho: false, pulso: 0, escala: 0.6 },
+  { id: 'corrupcao', nome: 'Corrupção', pacote: 'sobrenatural', cor: '#7a2a8a', brilho: true, pulso: 0.5, escala: 1.2 },
+  { id: 'sombra', nome: 'Sombra', pacote: 'sobrenatural', cor: '#0a0710', brilho: false, pulso: 0.25, escala: 0.8 },
+  { id: 'ordem.sangue', nome: 'Sangue', pacote: 'ordem', cor: '#e0150d', brilho: true, pulso: 0.7, escala: 1 },
+  { id: 'ordem.morte', nome: 'Morte', pacote: 'ordem', cor: '#70707a', brilho: false, pulso: 0.2, escala: 1.4 },
+  { id: 'ordem.conhecimento', nome: 'Conhecimento', pacote: 'ordem', cor: '#e5a11c', brilho: true, pulso: 0.4, escala: 0.7 },
+  { id: 'ordem.energia', nome: 'Energia', pacote: 'ordem', cor: '#a230ed', brilho: true, pulso: 1.2, escala: 0.9 },
+  { id: 'ordem.medo', nome: 'Medo', pacote: 'ordem', cor: '#d5d7e0', brilho: true, pulso: 0.3, escala: 1.5 },
+];
+export const pincelDePresenca = (id: string): PincelDePresenca | undefined => PINCEIS_DE_PRESENCA.find(p => p.id === id);

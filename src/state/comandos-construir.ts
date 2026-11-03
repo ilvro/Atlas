@@ -24,9 +24,11 @@ export type ComandoConstruir =
   | { tipo: 'abertura.remover'; id: string }
   | { tipo: 'terreno.pintar'; material: string; celulas: readonly CelulaDoComando[] }
   | { tipo: 'terreno.apagar'; celulas: readonly CelulaDoComando[] }
-  | { tipo: 'terreno.base'; material: string };
+  | { tipo: 'terreno.base'; material: string }
+  | { tipo: 'presenca.pintar'; brush: string; celulas: readonly CelulaDoComando[] }
+  | { tipo: 'presenca.apagar'; brush: string | null; celulas: readonly CelulaDoComando[] };
 
-export const TIPOS_DE_CONSTRUCAO = ['comodo.criar', 'comodo.pintar', 'comodo.apagar', 'comodo.atualizar', 'comodo.remover', 'comodo.notas', 'parede.adicionar', 'parede.atualizar', 'parede.remover', 'parede.desanexar', 'abertura.adicionar', 'abertura.atualizar', 'abertura.remover', 'terreno.pintar', 'terreno.apagar', 'terreno.base'] as const;
+export const TIPOS_DE_CONSTRUCAO = ['comodo.criar', 'comodo.pintar', 'comodo.apagar', 'comodo.atualizar', 'comodo.remover', 'comodo.notas', 'parede.adicionar', 'parede.atualizar', 'parede.remover', 'parede.desanexar', 'abertura.adicionar', 'abertura.atualizar', 'abertura.remover', 'terreno.pintar', 'terreno.apagar', 'terreno.base', 'presenca.pintar', 'presenca.apagar'] as const;
 export const ehComandoDeConstrucao = (c: { tipo: string }): c is ComandoConstruir => (TIPOS_DE_CONSTRUCAO as readonly string[]).includes(c.tipo);
 
 export const ROTULOS_CONSTRUIR: Record<ComandoConstruir['tipo'], string> = {
@@ -34,6 +36,7 @@ export const ROTULOS_CONSTRUIR: Record<ComandoConstruir['tipo'], string> = {
   'parede.adicionar': 'Desenhar parede', 'parede.atualizar': 'Editar parede', 'parede.remover': 'Remover parede', 'parede.desanexar': 'Desanexar parede',
   'abertura.adicionar': 'Pôr abertura', 'abertura.atualizar': 'Editar abertura', 'abertura.remover': 'Remover abertura',
   'terreno.pintar': 'Pintar terreno', 'terreno.apagar': 'Apagar terreno', 'terreno.base': 'Terreno base',
+  'presenca.pintar': 'Pintar presença', 'presenca.apagar': 'Apagar presença',
 };
 
 /** Um comando que não pode ser aplicado (alvo inexistente, valor que o mapa não aceita). */
@@ -72,6 +75,9 @@ function darCelulas(m: MapaAtlas, id: string, celulas: readonly Celula[]): void 
 
 function removerVazios(m: MapaAtlas): void { for (const s of Object.values(m.rooms)) if (!s.cells.length) delete m.rooms[s.id]; }
 
+const idDaPresenca = (brush: string) => `p_${brush.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 60)}`;
+/** Uma semente estável por pincel: a mesma presença tem a mesma cara em qualquer cópia do mapa. */
+const sementeDe = (texto: string) => { let h = 2166136261; for (const ch of texto) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return (h >>> 0) % 2 ** 31; };
 const idDaCamada = (material: string) => `t_${material.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 60)}`;
 
 export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
@@ -152,6 +158,20 @@ export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
       break;
     }
     case 'terreno.base': m.terrain.base = c.material; break;
+    case 'presenca.pintar': {
+      if (!c.brush) nao('Escolha um pincel de presença.');
+      const id = idDaPresenca(c.brush);
+      m.presence[id] ??= { id, brush: c.brush, cells: [], intensity: 0.6, seed: sementeDe(c.brush), gmOnly: false };
+      m.presence[id]!.cells = unir(m.presence[id]!.cells, codificar(normais(c.celulas))); break;
+    }
+    case 'presenca.apagar': {
+      const tirar = codificar(normais(c.celulas));
+      for (const p of Object.values(m.presence)) {
+        if (c.brush !== null && p.brush !== c.brush) continue;
+        p.cells = subtrair(p.cells, tirar); if (!p.cells.length) delete m.presence[p.id];
+      }
+      break;
+    }
     default: { const _fim: never = c; nao(`Comando desconhecido: ${JSON.stringify(_fim)}`); }
   }
   if (c.tipo.startsWith('comodo.') || c.tipo.startsWith('parede.')) limparOrfaos(m); else if (c.tipo.startsWith('abertura.')) atualizarSalasDosObjetos(m);

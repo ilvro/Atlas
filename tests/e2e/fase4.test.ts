@@ -330,3 +330,57 @@ test('transição: trocar de clima escurece aos poucos, e desfazer volta animand
   assert.ok(await brilho(page, ...FORA) < dia - 30, 'o ajuste fino não espera a transição');
   assert.deepEqual(erros, []); await ctx.close();
 });
+
+const celulasDe = (x0: number, y0: number, x1: number, y1: number) => { const c: [number, number][] = []; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) c.push([x, y]); return c; };
+const presencas = (p: Page) => p.evaluate(() => (window as unknown as { __atlas: { viewport(): { contagemDePresencas(): number } } }).__atlas.viewport().contagemDePresencas());
+
+test('presença: pintar com a ferramenta desenha a mancha viva, a intensidade expande ao vivo e desfazer remove', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await casaNoGramado(page); await page.waitForTimeout(500);
+  const ANTES = await brilho(page, ...FORA);
+  // Pela ferramenta (atalho P): uma pincelada é uma entrada de histórico.
+  await page.keyboard.press('p'); await page.waitForTimeout(350);
+  assert.equal(await page.locator('[data-testid="presenca-musgo"]').count(), 1, 'a biblioteca lista os pincéis');
+  await page.click('[data-testid="presenca-ordem.sangue"]');
+  const [ax, ay] = await clientDe(page, [18, 8]), [bx, by] = await clientDe(page, [22, 12]);
+  await page.mouse.move(ax, ay); await page.mouse.down(); await page.mouse.move(bx, by, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(500);
+  let m = await documento(page);
+  assert.equal(Object.keys(m.presence).length, 1); assert.equal(Object.values(m.presence)[0]!.brush, 'ordem.sangue');
+  assert.equal(await presencas(page), 1);
+  const comSangue = await brilho(page, [17, 7], [23, 13]);
+  const ref = await brilho(page, [26, 17], [31, 22]);
+  assert.ok(Math.abs(ref - ANTES) < 40, 'o resto do terreno segue igual');
+  // A mancha aparece como outra cor na região pintada (vermelho domina).
+  const id = Object.keys(m.presence)[0]!;
+  await sessao(page, '(s, id) => s.store.executar({ tipo: "item.atualizar", colecao: "presence", id, patch: { intensity: 0.05 } })', id); await page.waitForTimeout(400);
+  const recolhida = await brilho(page, [17, 7], [23, 13]);
+  await sessao(page, '(s, id) => s.store.executar({ tipo: "item.atualizar", colecao: "presence", id, patch: { intensity: 1 } })', id); await page.waitForTimeout(400);
+  const expandida = await brilho(page, [17, 7], [23, 13]);
+  assert.ok(Math.abs(expandida - recolhida) > 3, `a intensidade muda o que se vê (${recolhida.toFixed(1)} → ${expandida.toFixed(1)}; entre elas ${comSangue.toFixed(1)})`);
+  await page.screenshot({ path: 'test-results/fase4-presenca.png' });
+  await page.keyboard.press('Control+z'); await page.keyboard.press('Control+z'); await page.keyboard.press('Control+z'); await page.waitForTimeout(300);
+  m = await documento(page); assert.equal(Object.keys(m.presence).length, 0); assert.equal(await presencas(page), 0);
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('presença: os dez pincéis pintam, o inspetor mexe na intensidade e em "só o mestre vê", e 5 presenças seguem a 60 quadros', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await casaNoGramado(page);
+  const ids = ['musgo', 'mofo', 'poca', 'corrupcao', 'sombra', 'ordem.sangue', 'ordem.morte', 'ordem.conhecimento', 'ordem.energia', 'ordem.medo'];
+  // Duas fileiras de blocos de 8×8 células no gramado, ao lado da casa.
+  const comandos = ids.map((brush, i) => ({ tipo: 'presenca.pintar', brush, celulas: celulasDe(26 + (i % 5) * 11, 4 + Math.floor(i / 5) * 12, 34 + (i % 5) * 11, 12 + Math.floor(i / 5) * 12) }));
+  await sessao(page, '(s, cs) => { for (const c of cs) s.store.executar(c); }', comandos); await page.waitForTimeout(600);
+  assert.equal(await presencas(page), 10);
+  await page.screenshot({ path: 'test-results/fase4-presencas.png' });
+  await page.click('[data-testid="aba-mapa"]');
+  const item = page.locator('[data-testid="presenca-item-p_musgo"]'); await item.waitFor();
+  await item.getByLabel('Só o mestre vê').check(); await page.waitForTimeout(200);
+  const musgo = (await documento(page)).presence.p_musgo!; assert.equal(musgo.gmOnly, true);
+  await item.getByLabel('Intensidade').fill('0.9'); await item.getByLabel('Intensidade').press('Enter'); await page.waitForTimeout(200);
+  assert.equal((await documento(page)).presence.p_musgo!.intensity, 0.9);
+  await item.locator('button', { hasText: 'Remover' }).click(); await page.waitForTimeout(300);
+  assert.equal(await presencas(page), 9);
+  const fps = await page.evaluate(() => new Promise<number>(r => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 >= 2000) r(n / ((performance.now() - t0) / 1000)); else requestAnimationFrame(f); }; requestAnimationFrame(f); }));
+  assert.ok(fps >= 40, `quadros por segundo com 9 presenças: ${fps.toFixed(0)}`);
+  assert.deepEqual(erros, []); await ctx.close();
+});

@@ -116,6 +116,27 @@ test('terreno: uma camada por material, pintar rouba da outra, apagar limpa, e b
   assert.throws(() => aplicarComando(m, { tipo: 'terreno.pintar', material: 'grama', celulas: [[500, 0]] }), /terrain\.layers/);
 });
 
+test('presença: pintar cria a entidade do pincel, apagar tira (por pincel ou de todos), vazia some, e desfaz', () => {
+  let m = comAs(criarMapa(), { tipo: 'presenca.pintar', brush: 'musgo', celulas: retangulo(0, 0, 4, 2) });
+  assert.deepEqual(Object.keys(m.presence), ['p_musgo']);
+  assert.equal(m.presence.p_musgo!.intensity, 0.6); assert.equal(decodificar(m.presence.p_musgo!.cells).length, 8);
+  m = aplicarComando(m, { tipo: 'presenca.pintar', brush: 'musgo', celulas: retangulo(3, 0, 6, 2) });
+  assert.equal(decodificar(m.presence.p_musgo!.cells).length, 12);                       // soma sem repetir
+  m = aplicarComando(m, { tipo: 'presenca.pintar', brush: 'ordem.sangue', celulas: retangulo(0, 0, 2, 2) });
+  assert.deepEqual(Object.keys(m.presence).sort(), ['p_musgo', 'p_ordem_sangue']);
+  validarMapa(m);
+  const semSangue = aplicarComando(m, { tipo: 'presenca.apagar', brush: 'ordem.sangue', celulas: retangulo(0, 0, 6, 2) });
+  assert.deepEqual(Object.keys(semSangue.presence), ['p_musgo']);                         // entidade vazia some
+  assert.equal(decodificar(semSangue.presence.p_musgo!.cells).length, 12);
+  const limpo = aplicarComando(m, { tipo: 'presenca.apagar', brush: null, celulas: retangulo(0, 0, 6, 2) });
+  assert.deepEqual(limpo.presence, {});
+  assert.throws(() => aplicarComando(m, { tipo: 'presenca.pintar', brush: 'musgo', celulas: [[500, 0]] }), /presence/);
+  const store = criarStore(criarMapa());
+  store.executar({ tipo: 'presenca.pintar', brush: 'musgo', celulas: retangulo(0, 0, 2, 2) });
+  assert.equal(Object.keys(store.documento.presence).length, 1);
+  store.desfazer(); assert.deepEqual(store.documento.presence, {});
+});
+
 test('construir pelo store: um gesto de pintar é uma entrada de histórico e desfaz por inteiro', () => {
   const s = criarStore(criarMapa());
   s.executar(criar('a', [[2, 2]]), { rotulo: 'Criar cômodo' });
@@ -180,4 +201,14 @@ test('celulasDoDisco devolve as células cujo centro cabe no círculo e respeita
   assert.ok(d.every(([i, j]) => Math.hypot(i + 0.5 - 5, j + 0.5 - 5) <= 1.5));
   assert.ok(celulasDoDisco([0.2, 0.2], 3, 1, 20, 20).every(([i, j]) => i >= 0 && j >= 0));    // não sai pela borda
   assert.deepEqual(celulasDoDisco([50, 50], 1, 1, 20, 20), []);
+});
+
+test('pincéis de presença: ids únicos, cores hex válidas, dez no total, e a validação aceita cada um', async () => {
+  const { PINCEIS_DE_PRESENCA, PACOTES_DE_PRESENCA } = await import('../../src/domain/presets.ts');
+  assert.equal(PINCEIS_DE_PRESENCA.length, 10);
+  assert.equal(new Set(PINCEIS_DE_PRESENCA.map(p => p.id)).size, PINCEIS_DE_PRESENCA.length);
+  for (const p of PINCEIS_DE_PRESENCA) { assert.match(p.cor, /^#[0-9a-f]{6}$/i, p.id); assert.ok(PACOTES_DE_PRESENCA.some(k => k.id === p.pacote)); assert.ok(p.escala > 0 && p.pulso >= 0); }
+  assert.deepEqual(PINCEIS_DE_PRESENCA.filter(p => p.pacote === 'ordem').map(p => p.id).sort(), ['ordem.conhecimento', 'ordem.energia', 'ordem.medo', 'ordem.morte', 'ordem.sangue']);
+  const m = comAs(criarMapa(), ...PINCEIS_DE_PRESENCA.map((p, i) => ({ tipo: 'presenca.pintar', brush: p.id, celulas: [[i, 0]] }) as Comando));
+  validarMapa(m); assert.equal(Object.keys(m.presence).length, 10);
 });

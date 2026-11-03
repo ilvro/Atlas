@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'preact/hooks';
 import { useSignal } from '@preact/signals';
 import { tocar } from '../fx/som.ts';
-import { TIPOS_DE_COMODO, PRESETS_DE_LUZ } from '../domain/presets.ts';
+import { TIPOS_DE_COMODO, PRESETS_DE_LUZ, PACOTES_DE_PRESENCA, PINCEIS_DE_PRESENCA } from '../domain/presets.ts';
 import type { Pincel } from '../render/pincel.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { materialDe, materiaisDo } from '../procedural/materiais.ts';
@@ -100,7 +100,19 @@ function Terreno({ s }: { s: SessaoDeEdicao }) {
   </>);
 }
 
-const TITULOS: Record<string, string> = { comodo: 'Cômodos', abertura: 'Portas e janelas', parede: 'Paredes', objeto: 'Objetos', luz: 'Luzes', terreno: 'Terreno' };
+function Presenca({ s }: { s: SessaoDeEdicao }) {
+  const p = s.pincel.value.presenca;
+  return (<>
+    <p class="dica">Pinte o que cresce ou se espalha: musgo, sangue, corrupção. Por cima do desenho, vivo e animado. <kbd>Alt</kbd> apaga; <kbd>[</kbd> e <kbd>]</kbd> mudam o pincel.</p>
+    {PACOTES_DE_PRESENCA.map(pac => (<div key={pac.id}>
+      <h4 class="faixa pequena">{pac.nome}</h4>
+      <div class="lista-cartas">{PINCEIS_DE_PRESENCA.filter(b => b.pacote === pac.id).map(b => <button type="button" key={b.id} class={`carta ${p.brush === b.id ? 'ativa' : ''}`} onClick={() => mudar(s, { presenca: { ...p, brush: b.id } })} data-testid={`presenca-${b.id}`}><span class="carta-amostras"><i class={`amostra-presenca ${b.brilho ? 'brilha' : ''}`} style={{ '--cor': b.cor }} /></span><span class="carta-nome">{b.nome}</span></button>)}</div>
+    </div>))}
+    <CampoNumero rotulo="Pincel" unidade="m" valor={p.raio} min={0.25} max={12} passo={0.5} aoConfirmar={v => { mudar(s, { presenca: { ...p, raio: v } }); }} />
+  </>);
+}
+
+const TITULOS: Record<string, string> = { comodo: 'Cômodos', abertura: 'Portas e janelas', parede: 'Paredes', objeto: 'Objetos', luz: 'Luzes', terreno: 'Terreno', presenca: 'Presença' };
 
 /** A gaveta da ferramenta ativa: o que se pode pôr com ela, e os ajustes do que está na mão. */
 export function Biblioteca({ s }: { s: SessaoDeEdicao }) {
@@ -111,7 +123,7 @@ export function Biblioteca({ s }: { s: SessaoDeEdicao }) {
       <div class="biblioteca-topo"><h3 class="faixa pequena">{TITULOS[f]}</h3><button type="button" class="botao-icone" aria-label="Fechar a biblioteca" title="Fechar (B)" onClick={() => { s.biblioteca.value = false; }}><Icone nome="fechar" tamanho={16} /></button></div>
       <div class="biblioteca-corpo">
         {f === 'comodo' && <Comodos s={s} />}{f === 'objeto' && <Objetos s={s} />}{f === 'luz' && <Luzes s={s} />}
-        {f === 'abertura' && <Aberturas s={s} />}{f === 'parede' && <Paredes s={s} />}{f === 'terreno' && <Terreno s={s} />}
+        {f === 'abertura' && <Aberturas s={s} />}{f === 'parede' && <Paredes s={s} />}{f === 'terreno' && <Terreno s={s} />}{f === 'presenca' && <Presenca s={s} />}
       </div>
     </aside>
   );

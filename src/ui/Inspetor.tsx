@@ -7,8 +7,8 @@ import { avisar } from '../app/toasts.ts';
 import { NOMES_COLECAO, desfazer, duplicarSelecao, refazer, removerSelecao, sessao } from '../app/app.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { nomeDoAlvo } from '../domain/fabrica.ts';
-import { ESTADOS_FIGURA, type Abertura, type Acabamento, type Clima, type Comodo, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Regiao } from '../domain/mapa.ts';
-import { PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
+import { ESTADOS_FIGURA, type Abertura, type Acabamento, type Clima, type Comodo, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Presenca, type Regiao } from '../domain/mapa.ts';
+import { PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
 import { acabamentoLigado, aplicarClima, definirAcabamentoLigado } from '../app/app.ts';
 import { receitaDe } from '../procedural/receitas.ts';
 import { materiaisDo } from '../procedural/materiais.ts';
@@ -58,6 +58,10 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
       <CampoOpcoes rotulo="Estilo" valor={m.finish.preset} opcoes={[...PRESETS_DE_ACABAMENTO.map(p => [p.id, p.nome] as const), ...(PRESETS_DE_ACABAMENTO.some(p => p.id === m.finish.preset) ? [] : [[m.finish.preset, 'Personalizado'] as const])]} aoMudar={v => { const p = presetDeAcabamento(v); if (p) tentar(() => st.executar({ tipo: 'acabamento.atualizar', patch: { preset: v, ...p.valores } }, { rotulo: 'Acabamento' })); }} />
       <CampoNumero rotulo="Vinheta" valor={m.finish.vignette} min={0} max={1} passo={0.05} aoConfirmar={v => tentar(() => st.executar({ tipo: 'acabamento.atualizar', patch: { vignette: v } }))} />
       <CampoNumero rotulo="Grão" valor={m.finish.grain} min={0} max={1} passo={0.05} aoConfirmar={v => tentar(() => st.executar({ tipo: 'acabamento.atualizar', patch: { grain: v } }))} />
+      {Object.keys(m.presence).length > 0 && <>
+        <h3 class="faixa pequena">Presença</h3>
+        {Object.values(m.presence).map(p => <CamposDaPresenca key={p.id} s={s} p={p} />)}
+      </>}
       <h3 class="faixa pequena">Notas</h3>
       <textarea class="notas" aria-label="Notas do mapa" rows={5} placeholder="Anotações do mestre sobre este mapa…" key={m.notes} defaultValue={m.notes}
         onBlur={e => { const v = (e.target as HTMLTextAreaElement).value; if (v !== m.notes) tentar(() => st.executar({ tipo: 'mapa.notas', texto: v })); }} />
@@ -145,6 +149,16 @@ function CartelaDeTitulo({ s }: { s: SessaoDeEdicao }) {
       <CampoOpcoes rotulo="Canto" valor={onde.value} opcoes={POSICOES_DO_TITULO} aoMudar={v => { onde.value = v; por(t.text, t.font, v); }} />
     </>}
   </>);
+}
+
+/** Uma mancha de presença: o quanto ela cresceu, se só o mestre vê, e tirar. Não tem posição, então vive na aba Mapa. */
+function CamposDaPresenca({ s, p }: { s: SessaoDeEdicao; p: Presenca }) {
+  const nome = pincelDePresenca(p.brush)?.nome ?? p.brush, editar = (patch: Record<string, unknown>, rotulo: string) => tentar(() => s.store.executar({ tipo: 'item.atualizar', colecao: 'presence', id: p.id, patch }, { rotulo }));
+  return (<div class="grupo-presenca" data-testid={`presenca-item-${p.id}`}>
+    <Linha rotulo={nome}><button type="button" class="botao-pilula" onClick={() => tentar(() => s.store.executar({ tipo: 'item.remover', colecao: 'presence', id: p.id }, { rotulo: `Remover ${nome.toLowerCase()}` }))}>Remover</button></Linha>
+    <CampoNumero rotulo="Intensidade" dica="0 recolhe a mancha; 1 a espalha por tudo o que foi pintado." valor={p.intensity} min={0} max={1} passo={0.05} aoConfirmar={v => editar({ intensity: v }, `Intensidade de ${nome.toLowerCase()}`)} />
+    <CampoCaixa rotulo="Só o mestre vê" valor={p.gmOnly} aoMudar={v => editar({ gmOnly: v }, 'Visibilidade da presença')} />
+  </div>);
 }
 
 function CamposDaLuz({ s, l }: { s: SessaoDeEdicao; l: Luz }) {

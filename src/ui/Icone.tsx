@@ -32,6 +32,7 @@ const CAMINHOS: Record<string, string> = {
   arco: 'M5 21V11a7 7 0 0114 0v10M9 21v-8a3 3 0 016 0v8',
   secreta: 'M5 3h14v18H5zM9 8h6M9 12h6M12 16v.01',
   terreno: 'M3 18c3-5 5-8 9-8s6 3 9 8zM8 10a2 2 0 100-4 2 2 0 000 4z',
+  presenca: 'M12 3c3 4 6 6 6 10a6 6 0 01-12 0c0-4 3-6 6-10zM9 14a3 3 0 003 3',
   gaveta: 'M4 5h16v14H4zM4 9h16M10 13h4',
   copiar: 'M9 9h11v11H9zM5 15V4h11',
   fechar: 'M6 6l12 12M18 6L6 18',
