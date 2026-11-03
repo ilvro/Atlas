@@ -1,7 +1,7 @@
 import { decodificar, type Celula } from '../domain/celulas.ts';
 import { arestasDeParede, caixaDasCelulas, centroDaAbertura, comodoEm, indiceDeCelulas, normalParaDentro, pontoNaParede, salasDaAbertura, type ArestaUnitaria } from '../domain/geometria.ts';
 import type { Abertura, MapaAtlas, Objeto, Ponto } from '../domain/mapa.ts';
-import { pegadaDaReceita } from '../procedural/receitas.ts';
+import { ACERVO } from '../procedural/acervo.ts';
 
 export interface Caixa { x0: number; y0: number; x1: number; y1: number }
 export interface AberturaDoComodo { id: string; kind: Abertura['kind']; wallId: string; at: number; centro: Ponto; largura: number; /** Aponta para dentro do cômodo. */ normal: Ponto; /** Cômodo do outro lado, ou null (lado de fora). */ outro: string | null }
@@ -20,7 +20,7 @@ export interface InsightDoComodo {
 
 /** Largura × profundidade de um objeto no mapa, já com a escala. */
 export function tamanhoDoObjeto(o: Objeto): [number, number] {
-  const [w, h] = pegadaDaReceita(o.source.kind === 'recipe' ? o.source.recipe : 'caixa', o.source.kind === 'recipe' ? o.source.params : {});
+  const [w, h] = ACERVO.pegadaDaFonte(o.source);
   return [w * o.scale, h * o.scale];
 }
 
@@ -53,7 +53,7 @@ export function insightDoComodo(m: MapaAtlas, roomId: string, arestas: Map<strin
     const item: AberturaDoComodo = { id: a.id, kind: a.kind, wallId: a.wallId, at: a.at, centro: pontoNaParede(parede, dist).ponto, largura: a.width, normal, outro };
     if (a.kind === 'window') janelas.push(item); else { portas.push(item); if (outro && LIGACOES.includes(a.kind)) ligados.add(outro); }
   }
-  const objetos = Object.values(m.props).filter(o => o.roomId === roomId).map(o => ({ id: o.id, receita: o.source.kind === 'recipe' ? o.source.recipe : null, elevation: o.elevation, caixa: caixaDoObjeto(o) }));
+  const objetos = Object.values(m.props).filter(o => o.roomId === roomId).map(o => ({ id: o.id, receita: ACERVO.idDaFonte(o.source), elevation: o.elevation, caixa: caixaDoObjeto(o) }));
   const luzes = Object.values(m.lights).filter(l => comodoEm(m, l.position, indice) === roomId).map(l => l.id);
   return {
     id: roomId, nome: sala.name, funcao: sala.function, celulas, area: celulas.length * t * t, perimetro, caixa, portas, janelas,

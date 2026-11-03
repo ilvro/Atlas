@@ -1,7 +1,11 @@
-import { assarComodo, assarObjeto, assarTerreno, type Assado, type EntradaDeTerreno, type EntradaDoComodo } from './assar.ts';
+import { MARGEM_SOMBRA, assarComodo, assarObjeto, assarTerreno, type Assado, type EntradaDeTerreno, type EntradaDoComodo } from './assar.ts';
+import { contextoDe, criarTela } from './canvas.ts';
+import { SOMBRA_DE_CONTATO, caixaDoConteudo, contorno, puxarCor, sobrepor, sombraDeContato, type AlvoDeCor } from './harmonizar.ts';
 
 export type PedidoDeBake =
   | { tipo: 'objeto'; receita: string; params: Record<string, unknown>; seed: number; res: number }
+  /** Uma imagem da coleção, já assada com a sombra: `resImagem` px/m, desenhada a `res` px/m, centrada no objeto. */
+  | { tipo: 'imagem'; url: string; pegada: [number, number]; res: number; resImagem: number; /** Recorta o vazio, encaixa na pegada e põe contorno e sombra de contato (imagens achadas). */ harmonizar: boolean; /** Para onde puxar a cor (o gênero do mapa); `null` não mexe na cor. */ alvo: AlvoDeCor | null }
   | { tipo: 'comodo'; entrada: EntradaDoComodo; res: number }
   | { tipo: 'terreno'; entrada: EntradaDeTerreno; res: number };
 
@@ -9,7 +13,36 @@ export interface ResultadoDeBake { bitmap: ImageBitmap; origem: [number, number]
 
 /** O trabalho pesado: pinta numa tela e devolve um `ImageBitmap`. Roda no worker, ou na página se o navegador não tiver worker. */
 export async function executarBake(p: PedidoDeBake): Promise<ResultadoDeBake> {
+  if (p.tipo === 'imagem') return assarImagem(p);
   const a: Assado = p.tipo === 'objeto' ? assarObjeto(p.receita, p.params, p.seed, p.res) : p.tipo === 'comodo' ? assarComodo(p.entrada, p.res) : assarTerreno(p.entrada, p.res);
   const bitmap = 'transferToImageBitmap' in a.tela ? a.tela.transferToImageBitmap() : await createImageBitmap(a.tela);
   return { bitmap, origem: a.origem, res: a.res };
+}
+
+/** Busca a imagem e a devolve numa tela do tamanho dela na escala pedida, centrada no objeto (origem do canto no espaço local). Com `harmonizar`: recorta o vazio, encaixa na pegada, contorno e sombra de contato. Falha de rede rejeita. */
+async function assarImagem(p: Extract<PedidoDeBake, { tipo: 'imagem' }>): Promise<ResultadoDeBake> {
+  const resposta = await fetch(p.url); if (!resposta.ok) throw new Error(`Não consegui buscar ${p.url} (${resposta.status}).`);
+  const imagem = await createImageBitmap(await resposta.blob()), k = p.res / p.resImagem;
+  const w = Math.max(p.pegada[0] + 2 * MARGEM_SOMBRA, imagem.width / p.resImagem), h = Math.max(p.pegada[1] + 2 * MARGEM_SOMBRA, imagem.height / p.resImagem);
+  const tela = criarTela(w * p.res, h * p.res), ctx = contextoDe(tela);
+  ctx.imageSmoothingQuality = 'high';
+  const original = p.harmonizar ? lerPixels(imagem) : null, caixa = original ? caixaDoConteudo(original) : null;
+  if (!caixa) ctx.drawImage(imagem, (tela.width - imagem.width * k) / 2, (tela.height - imagem.height * k) / 2, imagem.width * k, imagem.height * k);
+  else {
+    // Recorta o vazio e encaixa o conteúdo na pegada, mantendo a proporção.
+    const cw = caixa.x1 - caixa.x0, ch = caixa.y1 - caixa.y0, e = Math.min((p.pegada[0] * p.res) / cw, (p.pegada[1] * p.res) / ch), dw = cw * e, dh = ch * e;
+    ctx.drawImage(imagem, caixa.x0, caixa.y0, cw, ch, (tela.width - dw) / 2, (tela.height - dh) / 2, dw, dh);
+    const bruto = ctx.getImageData(0, 0, tela.width, tela.height), sprite = p.alvo ? puxarCor(bruto, p.alvo) : bruto, comContorno = contorno(sprite, Math.max(1, Math.round(SOMBRA_DE_CONTATO.contorno * p.res)));
+    const sombra = sombraDeContato(comContorno, SOMBRA_DE_CONTATO.raio * p.res, [SOMBRA_DE_CONTATO.deslocamento[0] * p.res, SOMBRA_DE_CONTATO.deslocamento[1] * p.res], SOMBRA_DE_CONTATO.opacidade);
+    const final = sobrepor(sombra, comContorno);
+    ctx.putImageData(new ImageData(final.data as unknown as Uint8ClampedArray<ArrayBuffer>, final.width, final.height), 0, 0);
+  }
+  imagem.close();
+  const bitmap = 'transferToImageBitmap' in tela ? tela.transferToImageBitmap() : await createImageBitmap(tela);
+  return { bitmap, origem: [-tela.width / p.res / 2, -tela.height / p.res / 2], res: p.res };
+}
+
+function lerPixels(imagem: ImageBitmap): { width: number; height: number; data: Uint8ClampedArray } {
+  const t = criarTela(imagem.width, imagem.height), c = contextoDe(t, { willReadFrequently: true }); c.drawImage(imagem, 0, 0);
+  const d = c.getImageData(0, 0, imagem.width, imagem.height); return { width: d.width, height: d.height, data: d.data };
 }

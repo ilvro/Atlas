@@ -27,11 +27,15 @@ export const LUZES_POR_FUNCAO: Readonly<Record<string, LuzDaFuncao>> = {
   sala: { m2PorLuz: 18, tamanho: 'principal', sobre: ['mesinha', 'aparador'] },
   cozinha: { m2PorLuz: 18, tamanho: 'principal', sobre: ['mesa.retangular', 'mesa.redonda', 'balcao'] },
   biblioteca: { m2PorLuz: 14, tamanho: 'pequena', sobre: ['escrivaninha', 'mesa.redonda', 'mesinha', 'poltrona'] },
-  escritorio: { m2PorLuz: 20, tamanho: 'principal', sobre: ['escrivaninha'] },
-  banheiro: { m2PorLuz: 20, tamanho: 'pequena', sobre: ['balcao'] },
+  escritorio: { m2PorLuz: 20, tamanho: 'principal', sobre: ['escrivaninha', 'escrivaninha.verde'] },
+  banheiro: { m2PorLuz: 20, tamanho: 'pequena', sobre: ['pia.pedestal', 'balcao'] },
+  'sala-de-jantar': { m2PorLuz: 16, tamanho: 'principal', sobre: ['mesa.oval', 'cristaleira'] },
+  'sala-de-jogos': { m2PorLuz: 14, tamanho: 'principal', sobre: ['mesa.bilhar'] },
   corredor: { m2PorLuz: 20, aCadaMetros: 6, tamanho: 'pequena', sobre: [] },
   hospital: { m2PorLuz: 15, tamanho: 'principal', sobre: ['mesinha'] },
   taverna: { m2PorLuz: 15, tamanho: 'principal', sobre: ['mesa.redonda', 'balcao'] },
+  capela: { m2PorLuz: 14, tamanho: 'pequena', sobre: ['altar'] },
+  forja: { m2PorLuz: 14, tamanho: 'principal', sobre: ['bigorna', 'lareira.pedra'] },
   porao: { m2PorLuz: 18, tamanho: 'principal', sobre: [] },
 };
 

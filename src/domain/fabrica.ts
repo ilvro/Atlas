@@ -1,4 +1,4 @@
-import { receitaDe } from '../procedural/receitas.ts';
+import { ACERVO } from '../procedural/acervo.ts';
 import type { Luz, MapaAtlas, Objeto, Peca, Ponto, Regiao } from './mapa.ts';
 import type { ColecaoLivre } from '../state/comandos.ts';
 
@@ -32,7 +32,7 @@ export function nomeDoAlvo(colecao: string, entidade: { id: string }): string {
   if (colecao === 'openings') return ({ door: 'Porta', window: 'Janela', arch: 'Arco', secret: 'Porta secreta' } as Record<string, string>)[String(item.kind)] ?? 'Abertura';
   if (colecao === 'tokens') return String(item.name ?? 'Peça');
   if (colecao === 'lights') return item.cone ? 'Lanterna' : 'Luz';
-  if (colecao === 'props') { const s = item.source as { kind?: string; recipe?: string; assetId?: string } | undefined; return s?.kind === 'recipe' ? (receitaDe(String(s.recipe))?.nome ?? String(s.recipe)) : String(s?.assetId ?? 'Objeto'); }
+  if (colecao === 'props') { const s = item.source as { kind?: string; recipe?: string; assetId?: string } | undefined; const id = s?.kind === 'recipe' ? String(s.recipe) : s?.kind === 'asset' ? String(s.assetId) : null; return id ? (ACERVO.item(id)?.nome ?? id) : 'Objeto'; }
   if (colecao === 'regions') return `Região (${String(item.kind ?? '')})`;
   return item.id;
 }

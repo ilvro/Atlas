@@ -5,7 +5,7 @@ import type { MapaAtlas, Objeto } from '../../src/domain/mapa.ts';
 import { insightDoComodo } from '../../src/authoring/insight.ts';
 import { gerarLayout, rotacaoDeParede } from '../../src/authoring/layout.ts';
 import { circulacao, malhaDoComodo, retanguloLivre } from '../../src/authoring/malha.ts';
-import { pegadaDaReceita } from '../../src/procedural/receitas.ts';
+import { pegadaDaReceita } from '../../src/procedural/receitas/index.ts';
 import { abertura, mapaCom, paredeEm, sala } from './apoio-casa.ts';
 
 const contador = () => { let n = 0; return (p: string) => `${p}${++n}`; };

@@ -3,12 +3,12 @@ import { decodificar } from '../domain/celulas.ts';
 import { comprimentoDaParede, pontoNaParede } from '../domain/geometria.ts';
 import type { Abertura, Luz, MapaAtlas, Objeto, Parede, Peca, Ponto, Regiao } from '../domain/mapa.ts';
 import { materialDe } from '../procedural/materiais.ts';
-import { pegadaDaReceita } from '../procedural/receitas.ts';
+import { ACERVO } from '../procedural/acervo.ts';
 import type { Baker } from '../procedural/baker.ts';
 import type { PedidoDeBake, ResultadoDeBake } from '../procedural/executar.ts';
 import type { Mudancas } from '../state/mudancas.ts';
 import { corDoNome, hexParaNumero } from './cores.ts';
-import { chaveDoComodo, chaveDoObjeto, chaveDoTerreno, contextoDeEntradas, entradaDoComodo, entradaDoTerreno } from './entradas.ts';
+import { chaveDoComodo, chaveDoObjeto, chaveDoTerreno, pedidoDoObjeto, contextoDeEntradas, entradaDoComodo, entradaDoTerreno } from './entradas.ts';
 import { nivelDaLuz } from '../domain/clima.ts';
 import { criarMapaDeLuz } from './mapa-de-luz.ts';
 import { criarNeblina } from './neblina.ts';
@@ -40,6 +40,8 @@ export interface Cena {
   definirAtmosfera(ligada: boolean): void;
   /** Um relâmpago agora (com trovão, se o som estiver ligado). */
   relampagoAgora(): void;
+  /** Quantos objetos de piso já têm a textura pintada (sem o marcador). */
+  objetosPintados(): number;
   /** Quantas presenças estão desenhadas agora. */
   contagemDePresencas(): number;
   /** Quantas partículas de cada tipo existem agora. */
@@ -181,14 +183,14 @@ export function criarCena(op: OpcoesDaCena): Cena {
 
   // ---------- Objetos de piso ----------
   function desenharMarcadorDeObjeto(e: Entrada, o: Objeto): void {
-    const [w, h] = o.source.kind === 'recipe' ? pegadaDaReceita(o.source.recipe, o.source.params) : [0.8, 0.8];
+    const [w, h] = ACERVO.pegadaDaFonte(o.source);
     e.placeholder.clear().roundRect(-w / 2, -h / 2, w, h, 0.08).fill({ color: corDoNome(o.source.kind === 'recipe' ? o.source.recipe : o.source.assetId, 0.35, 0.34), alpha: 0.7 });
   }
 
   function sincronizarObjetos(m: MapaAtlas, ids: readonly string[] | null, comPop: boolean): void {
     for (const id of ids ?? [...new Set([...objetos.keys(), ...Object.keys(m.props)])]) {
       const o = m.props[id] as Objeto | undefined, e = objetos.get(id);
-      const chave = o ? chaveDoObjeto(o, RES_OBJETO) : null;
+      const chave = o ? chaveDoObjeto(o, RES_OBJETO, m.style.genre) : null;
       if (!o || chave === null) { if (e) { removerEntrada(e); objetos.delete(id); } continue; }
       let entrada = e;
       if (!entrada) {
@@ -197,10 +199,8 @@ export function criarCena(op: OpcoesDaCena): Cena {
       }
       entrada.c.position.set(o.position[0], o.position[1]); entrada.c.rotation = o.rotation;
       if (!animacoes.some(a => a.alvo === entrada!.c)) entrada.c.scale.set(o.scale);
-      if (o.source.kind === 'recipe') {
-        const s = o.source;
-        pintar(entrada, chave, { tipo: 'objeto', receita: s.recipe, params: s.params, seed: s.seed, res: RES_OBJETO }, (sp, r) => { sp.position.set(r.origem[0], r.origem[1]); sp.scale.set(1 / r.res); });
-      }
+      const pedido = pedidoDoObjeto(o, RES_OBJETO, m.style.genre);
+      if (pedido) pintar(entrada, chave, pedido, (sp, r) => { sp.position.set(r.origem[0], r.origem[1]); sp.scale.set(1 / r.res); });
     }
   }
 
@@ -273,7 +273,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (campos('terrain', 'bounds', 'grid', 'backdrop')) sincronizarTerreno(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid')) sincronizarComodos(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid')) desenharParedes(m);
-      if (tudo || colecao('props')) sincronizarObjetos(m, tudo ? null : mud!.colecoes.props ?? null, comPop);
+      if (tudo || colecao('props') || campos('style')) sincronizarObjetos(m, tudo || campos('style') ? null : mud!.colecoes.props ?? null, comPop);
       presenca.sincronizar(m, mud);
       const v = visaoDoClima ?? m;
       luz.sincronizar(v, mud); neblina.sincronizar(v, mud); particulas.sincronizar(v, mud);
@@ -292,6 +292,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     relampagoAgora: () => luz.relampagoAgora(),
     contagemDeParticulas: () => particulas.contagem(),
     contagemDePresencas: () => presenca.contagem(),
+    objetosPintados: () => [...objetos.values()].filter(e => e.sprite !== null && !e.placeholder.visible).length,
     quadro(agora) {
       luz.quadro(agora);
       const dt = ultimoQuadro < 0 ? 0 : (agora - ultimoQuadro) / 1000; ultimoQuadro = agora; neblina.quadro(dt); particulas.quadro(dt); presenca.quadro(dt);

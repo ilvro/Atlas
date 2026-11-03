@@ -3,26 +3,30 @@ import type { Faixa } from '../domain/celulas.ts';
 import { decodificar } from '../domain/celulas.ts';
 import type { Ponto } from '../domain/mapa.ts';
 import { contextoDe, criarTela, type Contexto, type Tela } from './canvas.ts';
-import { caixaDasPartes, type Parte } from './descricao.ts';
+import { caixaDasPartes, type Descricao, type Parte } from './descricao.ts';
 import { materialDe, pintarMaterial, tom } from './materiais.ts';
 import { fbm, valueNoise2D } from './ruido.ts';
 import { desenharPartes, partesParaFace } from './raster.ts';
-import { descreverReceita } from './receitas.ts';
+import { descreverReceita } from './receitas/index.ts';
 
 export interface Assado { tela: Tela; /** Canto superior esquerdo da tela, em metros (no espaço local do objeto, ou do mundo para cômodos e terreno). */ origem: Ponto; res: number }
 
 // ---------- Objetos de piso ----------
-const MARGEM_SOMBRA = 0.3;
+export const MARGEM_SOMBRA = 0.3;
 
-/** Um objeto de piso inteiro (partes + sombras) numa tela, com o centro do objeto em (0, 0) do espaço local. */
-export function assarObjeto(receita: string, params: Record<string, unknown>, seed: number, res: number): Assado {
-  const d = descreverReceita(receita, { seed, params });
+/** Uma descrição pronta (de receita ou de gerador pesado) inteira, com partes e sombras, numa tela com o centro do objeto em (0, 0) do espaço local. */
+export function assarDescricao(d: Descricao, seed: number, res: number): Assado {
   const partes = d.tipo === 'piso' ? d.partes : [...d.face.map(p => ({ ...p })), ...d.topo];
   const c = caixaDasPartes(partes), x0 = c.x0 - MARGEM_SOMBRA, y0 = c.y0 - MARGEM_SOMBRA;
   const tela = criarTela((c.x1 - c.x0 + 2 * MARGEM_SOMBRA) * res, (c.y1 - c.y0 + 2 * MARGEM_SOMBRA) * res), ctx = contextoDe(tela);
   ctx.setTransform(res, 0, 0, res, -x0 * res, -y0 * res);
   desenharPartes(ctx, d.tipo === 'piso' ? d.partes : d.face, { res, seed });
   return { tela, origem: [x0, y0], res };
+}
+
+/** Um objeto de piso de receita inteiro (partes + sombras) numa tela, com o centro do objeto em (0, 0) do espaço local. */
+export function assarObjeto(receita: string, params: Record<string, unknown>, seed: number, res: number): Assado {
+  return assarDescricao(descreverReceita(receita, { seed, params }), seed, res);
 }
 
 // ---------- Cômodos ----------

@@ -11,7 +11,8 @@ import { ESTADOS_FIGURA, type Abertura, type Acabamento, type Clima, type Comodo
 import { GENEROS, generoDe, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
 import { acabamentoLigado, aplicarClima, definirAcabamentoLigado } from '../app/app.ts';
 import { definirSugestoesLigadas, sugestoesLigadas } from '../app/sugestoes.ts';
-import { receitaDe } from '../procedural/receitas.ts';
+import { COLECAO } from '../procedural/colecao.ts';
+import { receitaDe } from '../procedural/receitas/index.ts';
 import { materiaisDo } from '../procedural/materiais.ts';
 import { Amostra } from './campos-material.tsx';
 import { tocar } from '../fx/som.ts';
@@ -215,7 +216,11 @@ function CamposDaPeca({ s, t }: { s: SessaoDeEdicao; t: Peca }) {
 function CamposDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
   const editar = (patch: Record<string, unknown>, rotulo?: string) => tentar(() => s.store.executar({ tipo: 'item.atualizar', colecao: 'props', id: o.id, patch }, rotulo ? { rotulo } : {}));
   const receita = o.source.kind === 'recipe' ? receitaDe(o.source.recipe) : null;
+  const item = o.source.kind === 'asset' ? COLECAO.find(i => i.id === (o.source as { assetId: string }).assetId) ?? null : null;
+  const origem = item ? (item.origem.tipo === 'gerado' ? 'gerado pelo Atlas' : `achado: ${item.origem.autor}, ${item.origem.licenca}`) : null;
   return (<>
+    {o.source.kind === 'asset' && <div class="item-da-colecao" data-testid="item-da-colecao"><strong>{item?.nome ?? o.source.assetId}</strong><span class="dica">{item ? `Coleção da casa · ${origem}` : 'Este item não está na coleção desta versão do Atlas: aparece como marcador.'}</span></div>}
+    {o.source.kind === 'asset' && <CampoCaixa rotulo="Harmonizar com o mapa" dica="Recorta o vazio, põe contorno e sombra e puxa a cor para a do gênero do mapa. Vale para imagens achadas; as geradas já nascem no traço da casa." valor={o.harmonize} aoMudar={v => editar({ harmonize: v }, 'Harmonizar objeto')} />}
     {o.source.kind === 'recipe' && <Linha rotulo={receita?.nome ?? o.source.recipe}><button type="button" class="botao-pilula" data-testid="variar" onClick={() => editar({ source: { seed: (o.source.kind === 'recipe' ? o.source.seed : 0) + 1 } }, 'Variar o objeto')}>Variar</button></Linha>}
     <CampoNumero rotulo="Rotação" unidade="°" valor={graus(o.rotation)} min={-360} max={360} passo={15} aoConfirmar={v => editar({ rotation: radianos(v) }, 'Girar')} />
     <CampoNumero rotulo="Escala" valor={o.scale} min={0.05} max={50} passo={0.1} aoConfirmar={v => editar({ scale: v }, 'Escala do objeto')} />

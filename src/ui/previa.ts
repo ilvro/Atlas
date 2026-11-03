@@ -1,4 +1,7 @@
+import { ACERVO } from '../procedural/acervo.ts';
 import { criarBaker, type Baker } from '../procedural/baker.ts';
+import { COLECAO, RES_DA_COLECAO } from '../procedural/colecao.ts';
+import { urlDoItem } from '../render/url-da-colecao.ts';
 
 /** Um baker só para as miniaturas da biblioteca, separado do do mapa: elas não disputam a fila com o que está na tela. */
 let baker: Baker | null = null;
@@ -8,7 +11,11 @@ export function pedirPrevia(receita: string, params: Record<string, unknown> = {
   baker ??= criarBaker({ workers: 1 });
   const chave = `previa|${receita}|${seed}|${JSON.stringify(params)}`;
   let p = previas.get(chave);
-  if (!p) { p = baker.pedir(chave, { tipo: 'objeto', receita, params, seed, res: 72 }); previas.set(chave, p); }
+  if (!p) {
+    const item = ACERVO.item(receita), arquivo = item?.fonte === 'colecao' ? COLECAO.find(i => i.id === receita) : undefined;
+    p = baker.pedir(chave, arquivo ? { tipo: 'imagem', url: urlDoItem(arquivo), pegada: arquivo.pegada, res: 72, resImagem: arquivo.res ?? RES_DA_COLECAO, harmonizar: false, alvo: null } : { tipo: 'objeto', receita, params, seed, res: 72 });
+    previas.set(chave, p);
+  }
   return p;
 }
 

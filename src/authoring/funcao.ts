@@ -1,5 +1,5 @@
 import { TIPOS_DE_COMODO } from '../domain/presets.ts';
-import { listaDeReceitas } from '../procedural/receitas.ts';
+import { ACERVO } from '../procedural/acervo.ts';
 import type { InsightDoComodo } from './insight.ts';
 
 export interface Palpite { funcao: string; confianca: number; motivo: 'nome' | 'objetos' | 'tamanho' }
@@ -18,8 +18,12 @@ const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number
   { palavras: ['corredor', 'hall', 'passagem', 'vestibulo'], funcao: 'corredor', confianca: 0.9 },
   { palavras: ['enfermaria', 'consultorio', 'hospital'], funcao: 'hospital', confianca: 0.9 },
   { palavras: ['taverna', 'bar', 'estalagem', 'pub'], funcao: 'taverna', confianca: 0.9 },
+  { palavras: ['capela', 'igreja', 'templo', 'santuario'], funcao: 'capela', confianca: 0.9 },
+  { palavras: ['forja', 'ferraria', 'oficina'], funcao: 'forja', confianca: 0.9 },
   { palavras: ['porao', 'adega', 'cripta'], funcao: 'porao', confianca: 0.9 },
-  { palavras: ['estar', 'jantar', 'salao'], funcao: 'sala', confianca: 0.9 },
+  { palavras: ['jantar', 'refeitorio'], funcao: 'sala-de-jantar', confianca: 0.9 },
+  { palavras: ['jogos', 'bilhar', 'sinuca', 'fumar'], funcao: 'sala-de-jogos', confianca: 0.9 },
+  { palavras: ['estar', 'salao'], funcao: 'sala', confianca: 0.9 },
 ];
 const CONHECIDAS = new Set(POR_NOME.flatMap(r => r.palavras));
 const LIGACOES = new Set(['de', 'do', 'da', 'dos', 'das']);
@@ -37,9 +41,9 @@ function pelaNome(nome: string): Palpite | null {
 
 // Sinais fortes: ter isto basta para a função (vale 3 votos).
 const FORTES: readonly [(receita: string) => boolean, string][] = [
-  [r => r.startsWith('cama.'), 'quarto'], [r => r === 'balcao', 'cozinha'], [r => r === 'estante' || r === 'estante.piso', 'biblioteca'], [r => r === 'escrivaninha', 'escritorio'],
+  [r => r.startsWith('cama.'), 'quarto'], [r => r === 'balcao', 'cozinha'], [r => r === 'estante' || r === 'estante.piso', 'biblioteca'], [r => r === 'escrivaninha' || r === 'escrivaninha.verde', 'escritorio'], [r => r === 'piano.cauda', 'sala'], [r => r === 'mesa.bilhar', 'sala-de-jogos'], [r => r === 'banheira.pes', 'banheiro'], [r => r === 'mesa.oval', 'sala-de-jantar'], [r => r === 'altar', 'capela'], [r => r === 'bigorna', 'forja'],
 ];
-const FUNCOES_DA_RECEITA = new Map(listaDeReceitas().map(r => [r.id, r.funcoes]));
+const FUNCOES_DA_RECEITA = new Map(ACERVO.lista().map(r => [r.id, r.funcoes]));
 
 /** Pelos objetos: cada um vota nas funções da sua receita. */
 function pelosObjetos(ins: InsightDoComodo): Palpite | null {

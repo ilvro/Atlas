@@ -14,7 +14,7 @@ function palpite(nome: string, w = 4, h = 3, receitas: string[] = []) {
 }
 
 const POR_NOME: [string, string | null, number?][] = [
-  ['Cozinha', 'cozinha'], ['Copa', 'cozinha'], ['Sala de jantar', 'sala'], ['Sala de estar', 'sala'], ['Sala 2', 'sala', 0.6], ['Sala', 'sala', 0.6],
+  ['Cozinha', 'cozinha'], ['Copa', 'cozinha'], ['Sala de jantar', 'sala-de-jantar'], ['Sala de jogos', 'sala-de-jogos'], ['Sala de bilhar', 'sala-de-jogos'], ['Sala de estar', 'sala'], ['Sala 2', 'sala', 0.6], ['Sala', 'sala', 0.6],
   ['Sala de ritual', null], ['Quarto do Hugo', 'quarto'], ['Suíte', 'quarto'], ['Escritório', 'escritorio'], ['Gabinete', 'escritorio'], ['Biblioteca', 'biblioteca'],
   ['Banheiro', 'banheiro'], ['WC', 'banheiro'], ['Corredor', 'corredor'], ['Hall', 'corredor'], ['Enfermaria', 'hospital'], ['Taverna', 'taverna'], ['Porão', 'porao'], ['Adega', 'porao'],
   ['Ponte de comando', null], ['Cômodo', null],

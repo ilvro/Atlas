@@ -2,7 +2,7 @@ import { PAREDE_PADRAO, centroDaAbertura, contornoDoComodo, encaixarObjetoDePare
 import { novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
 import type { MapaAtlas, Objeto, Ponto } from '../domain/mapa.ts';
 import { mulberry32 } from '../procedural/ruido.ts';
-import { pegadaDaReceita, receitaDe } from '../procedural/receitas.ts';
+import { ACERVO } from '../procedural/acervo.ts';
 import { caixaDoObjeto, insightDoComodo, type Caixa, type InsightDoComodo } from './insight.ts';
 import { circulacao, malhaDoComodo, marcarRetangulo, retanguloLivre, type Circulacao, type Malha } from './malha.ts';
 import { reservasDePorta } from './portas.ts';
@@ -13,6 +13,8 @@ export interface PedidoDeLayout {
   gerarId?: (prefixo: string) => string;
   /** Parâmetros por receita (a paleta da 5.3c). */
   params?: (receita: string) => Record<string, unknown>;
+  /** Peso de cada alternativa no sorteio (padrão 1): a 6.1e usa para o tapete que combina com a paleta ganhar mais chance. */
+  preferir?: (item: string) => number;
 }
 export interface Layout {
   objetos: Objeto[];
@@ -79,7 +81,7 @@ class Gerador {
       if (regra.areaMinima && this.ins.area < regra.areaMinima) continue;
       // O alvo de cada item vem de um sorteio só dele: o que já foi posto não muda a conta, e a sugestão não volta depois de aceita.
       const alvo = regra.quantos[0] + Math.floor(mulberry32(Math.imul(this.pedido.semente | 0, 2654435761) ^ hashTexto(`${this.pedido.roomId}/${regra.id}`))() * (regra.quantos[1] - regra.quantos[0] + 1));
-      const receitas = todasAsReceitas(regra), ja = this.existentes.filter(o => o.source.kind === 'recipe' && receitas.includes(o.source.recipe)).length;
+      const receitas = todasAsReceitas(regra), ja = this.existentes.filter(o => receitas.includes(ACERVO.idDaFonte(o.source))).length;
       for (let k = 0; k < alvo - ja; k++) {
         const obj = this.colocar(regra);
         if (!obj) { this.faltaram.push(regra.id); break; }
@@ -91,26 +93,30 @@ class Gerador {
 
   private escolherReceita(regra: ItemDeRegra): string {
     const porArea = [...(regra.porArea ?? [])].filter(([a]) => this.ins.area >= a).sort((a, b) => b[0] - a[0])[0];
-    return porArea ? porArea[1] : regra.receitas[Math.floor(this.rng() * regra.receitas.length)]!;
+    if (porArea) return porArea[1];
+    const pesos = regra.receitas.map(r => Math.max(0, this.pedido.preferir?.(r) ?? 1)), total = pesos.reduce((a, b) => a + b, 0);
+    if (!(total > 0)) return regra.receitas[Math.floor(this.rng() * regra.receitas.length)]!;
+    let sorteio = this.rng() * total; for (let i = 0; i < pesos.length; i++) { sorteio -= pesos[i]!; if (sorteio <= 0) return regra.receitas[i]!; }
+    return regra.receitas.at(-1)!;
   }
 
   private ancorasDe(id: string): Ancora[] {
     const regra = this.regras.find(r => r.id === id); if (!regra) return [];
     const receitas = todasAsReceitas(regra);
-    return [...this.existentes.filter(o => o.source.kind === 'recipe' && receitas.includes(o.source.recipe)), ...(this.porRegra.get(id) ?? [])].map(o => {
-      const [w, h] = o.source.kind === 'recipe' ? pegadaDaReceita(o.source.recipe, o.source.params) : [0.8, 0.8];
+    return [...this.existentes.filter(o => receitas.includes(ACERVO.idDaFonte(o.source))), ...(this.porRegra.get(id) ?? [])].map(o => {
+      const [w, h] = ACERVO.pegadaDaFonte(o.source);
       return { pos: o.position, rot: o.rotation, w: w * o.scale, h: h * o.scale };
     });
   }
 
   private colocar(regra: ItemDeRegra): Objeto | null {
-    const receita = this.escolherReceita(regra), rec = receitaDe(receita); if (!rec) return null;
-    const params = { ...(regra.params ?? {}), ...(this.pedido.params?.(receita) ?? {}) }, [w, h] = pegadaDaReceita(receita, params);
+    const receita = this.escolherReceita(regra), rec = ACERVO.item(receita); if (!rec) return null;
+    const params = { ...(regra.params ?? {}), ...(this.pedido.params?.(receita) ?? {}) }, [w, h] = ACERVO.pegadaDaFonte(ACERVO.fonte(receita, 1, params));
     if (regra.lugar === 'na-parede') return this.colocarNaParede(receita, params, w);
     const tapete = rec.categoria === 'tapetes', bloqueia = !tapete;
     const temDependentes = this.regras.some(r => r.junto?.de === regra.id);
     for (const c of this.candidatos(regra, w, h)) {
-      const base = novoObjeto(c.pos, { rotation: c.rot, source: { kind: 'recipe', recipe: receita, seed: 1, params } }), caixa = caixaDoObjeto(base);
+      const base = novoObjeto(c.pos, { rotation: c.rot, source: ACERVO.fonte(receita, 1, params) }), caixa = caixaDoObjeto(base);
       if (!retanguloLivre(this.malha, caixa, tapete ? [this.malha.porta] : [this.malha.porta, this.circ.faixa])) continue;
       if (bloqueia) {
         const margem = regra.lugar === 'junto' ? FOLGA_JUNTO : regra.lugar === 'centro' ? (temDependentes ? 1.0 : 0.3) : FOLGA;
@@ -118,7 +124,7 @@ class Gerador {
         if (regra.alto && this.naFrenteDeJanela(caixa)) continue;
       }
       const obj = novoObjeto(c.pos, {
-        id: this.gerarId('o'), source: { kind: 'recipe', recipe: receita, seed: Math.floor(this.rng() * 2 ** 31), params }, rotation: c.rot, roomId: this.ins.id,
+        id: this.gerarId('o'), source: ACERVO.fonte(receita, Math.floor(this.rng() * 2 ** 31), params), rotation: c.rot, roomId: this.ins.id,
         blocks: { move: bloqueia, sight: false }, castsShadow: bloqueia,
       });
       if (bloqueia) this.bloqueantes.push(caixa);
@@ -206,9 +212,9 @@ class Gerador {
       const livreDeAberturas = Object.values(this.m.openings).every(a => a.wallId !== c.wallId || Math.abs(centroDaAbertura(parede, a) - centro) >= largura / 2 + a.width / 2 + 0.2);
       if (!livreDeAberturas) continue;
       const outros = [...this.existentes, ...this.novos].filter(o => o.elevation === 'wall' && o.wall?.wallId === c.wallId);
-      if (outros.some(o => Math.abs(o.wall!.at * total - centro) < ((o.source.kind === 'recipe' ? pegadaDaReceita(o.source.recipe, o.source.params)[0] : 0.8) + largura) / 2 + 0.2)) continue;
+      if (outros.some(o => Math.abs(o.wall!.at * total - centro) < (ACERVO.pegadaDaFonte(o.source)[0] + largura) / 2 + 0.2)) continue;
       return novoObjeto(c.ponto, {
-        id: this.gerarId('o'), source: { kind: 'recipe', recipe: receita, seed: Math.floor(this.rng() * 2 ** 31), params }, elevation: 'wall', wall: { wallId: c.wallId, at: c.at, face: 'inner' },
+        id: this.gerarId('o'), source: ACERVO.fonte(receita, Math.floor(this.rng() * 2 ** 31), params), elevation: 'wall', wall: { wallId: c.wallId, at: c.at, face: 'inner' },
         roomId: this.ins.id, blocks: { move: false, sight: false }, castsShadow: false, rotation: 0,
       });
     }

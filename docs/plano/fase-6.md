@@ -47,7 +47,7 @@ Detalhado em 3 de novembro de 2026, contra o código do fim da Fase 5. Faça na 
 
 ---
 
-### 6.0a — Receitas em pasta, com gêneros  ⬜
+### 6.0a — Receitas em pasta, com gêneros  ✅
 Objetivo: abrir espaço para dezenas de receitas novas sem um arquivo de 1 000 linhas, e marcar a que gênero cada uma serve.
 Depende de: —
 Ler: `src/procedural/receitas.ts` inteiro.
@@ -61,7 +61,7 @@ Testes: os de `tests/unit/receitas.test.ts` continuam passando; um teste novo co
 Pronto quando: `npm test` e `npm run test:e2e` passam sem mudar nenhuma captura.
 Commit: split recipes into kit files
 
-### 6.0b — Acervo unificado  ⬜
+### 6.0b — Acervo unificado  ✅
 Objetivo: todo o código pergunta "o que é este objeto, que tamanho tem, para que serve" a um lugar só, que conhece receitas e coleção.
 Depende de: 6.0a
 Ler: os pontos da lista em "Como o código está hoje"; `src/domain/mapa.ts` (`FonteObjeto`).
@@ -97,7 +97,7 @@ Testes: com `criarAcervo` e um item falso da coleção, `pegadaDaFonte` de `{ ki
 Pronto quando: `npm test` e `npm run test:e2e` passam; `grep -rn "pegadaDaReceita\|listaDeReceitas" src` só acha `procedural/`.
 Commit: unified catalog for recipes and collection
 
-### 6.1a — Catálogo da coleção e `docs/LICENCAS.md`  ⬜
+### 6.1a — Catálogo da coleção e `docs/LICENCAS.md`  ✅
 Objetivo: o formato do `colecao.json`, a validação que impede asset sem licença, e o arquivo de licenças.
 Depende de: 6.0b
 Ler: `src/procedural/acervo.ts`; `src/domain/esquema.ts` (validação com `e.*`); `docs/ARQUITETURA.md` §5.9; `package.json` (fontes `@fontsource`).
@@ -123,7 +123,7 @@ Testes: os do item 3, mais `validarColecao` recusando item sem licença, id sem 
 Pronto quando: testes passam com o catálogo vazio.
 Commit: collection catalog and licenses
 
-### 6.1b — Script de assar e o primeiro lote pesado: estofados  ⬜
+### 6.1b — Script de assar e o primeiro lote pesado: estofados  ✅
 Objetivo: `npm run assar` gera as imagens dos geradores pesados e atualiza o catálogo; primeiro lote: estofados capitonê.
 Depende de: 6.1a
 Ler: `tests/e2e/apoio.ts` (`iniciarAmbiente`: Vite + Chromium); `src/procedural/assar.ts` (`assarObjeto`, `MARGEM_SOMBRA`); `src/procedural/raster.ts`; `src/procedural/receitas/casa.ts` (`sofa`, `poltrona`); `docs/referencias/segredo-na-ilha-mansao.png` (o nível de detalhe a buscar).
@@ -147,7 +147,7 @@ Testes: o teste de coleção passa com os 9 itens; unitário: cada gerador pesad
 Pronto quando: as 9 imagens existem, cabem nos limites e, abertas no visualizador, têm o capitonê legível a 128 px/m.
 Commit: bake script and tufted upholstery
 
-### 6.1c — Objetos da coleção no mapa  ⬜
+### 6.1c — Objetos da coleção no mapa  ✅
 Objetivo: um item `casa:` aparece no mapa com a imagem dele, se escolhe na biblioteca e entra no mobiliar.
 Depende de: 6.1b
 Ler: `src/procedural/executar.ts`, `baker.ts`, `bake.worker.ts`; `src/render/entradas.ts` (`chaveDoObjeto`); `src/render/cena.ts` (`sincronizarObjetos`, `desenharMarcadorDeObjeto`); `src/render/viewport.ts` (fantasma do objeto); `src/render/fantasma-proposta.ts`; `src/ui/Biblioteca.tsx`; `src/render/pincel.ts` (`Pincel.objeto`).
@@ -165,7 +165,7 @@ Testes: unitário de `chaveDoObjeto` para asset conhecido e desconhecido; e2e: e
 Pronto quando: os e2e passam, sem erro de console, e o sofá aparece igual à imagem assada.
 Commit: render collection items on the map
 
-### 6.1d — Lote pesado: plantas e árvores  ⬜
+### 6.1d — Lote pesado: plantas e árvores  ✅
 Objetivo: plantas de interior com folhagem densa e as primeiras árvores, que o kit exterior e o espalhar "sob árvore" vão usar.
 Depende de: 6.1c
 Ler: `src/procedural/pesados/estofados.ts` (modelo); `src/procedural/receitas/casa.ts` (`vaso.planta`, `folhas`); `src/procedural/ruido.ts`.
@@ -192,7 +192,7 @@ Testes: coleção válida; mobiliar uma sala com semente fixa escolhe um tapete 
 Pronto quando: imagens geradas e um tapete com medalhão aparece mobiliando uma sala.
 Commit: baked ornate rugs
 
-### 6.2a — 👤 Curadoria: lista de candidatos  ⬜
+### 6.2a — 👤 Curadoria: lista de candidatos  ⏸ (lista entregue em docs/curadoria.md; falta a decisão do usuário)
 Objetivo: achar objetos vistos de cima, com licença que permite redistribuir, e trazer a lista para o usuário aprovar. **Não baixe nada nesta tarefa.**
 Depende de: 6.1a
 Ler: `docs/LICENCAS.md`; AGENTS.md (regras de assets); as referências em `docs/referencias/` (para saber o estilo que combina).
@@ -220,7 +220,7 @@ Testes: o teste de coleção passa (licença, tamanho, presença no `LICENCAS.md
 Pronto quando: os achados aprovados aparecem na biblioteca.
 Commit: import curated assets
 
-### 6.3a — Harmonização: forma, contorno e sombra  ⬜
+### 6.3a — Harmonização: forma, contorno e sombra  ✅
 Objetivo: uma imagem da coleção (achada ou não) fica do tamanho certo, recortada, com o contorno e a sombra de contato do resto do mapa.
 Depende de: 6.1c
 Ler: `src/procedural/executar.ts` (pedido `imagem`); `src/procedural/raster.ts` (como as receitas fazem contorno e sombra, para imitar a cor e a largura); `src/domain/mapa.ts` (`Objeto.harmonize`).
@@ -234,7 +234,7 @@ Testes: unitários das três funções com imagens pequenas feitas à mão (um q
 Pronto quando: um achado com margem transparente grande aparece do tamanho da pegada, com contorno e sombra como os móveis procedurais ao lado.
 Commit: harmonize collection images shape
 
-### 6.3b — Harmonização: cor e o interruptor por objeto  ⬜
+### 6.3b — Harmonização: cor e o interruptor por objeto  ✅
 Objetivo: a cor das imagens se aproxima da do mapa; o mestre pode desligar isso num objeto.
 Depende de: 6.3a
 Ler: `src/procedural/harmonizar.ts`; `src/domain/presets.ts` (`GENEROS`); `src/authoring/mobiliar.ts` (`PALETAS_POR_GENERO`, para o alvo combinar); `src/ui/Inspetor.tsx` (`CamposDoObjeto`).
@@ -249,7 +249,7 @@ Testes: `puxarCor` aproxima a saturação média do alvo e não mexe em pixels t
 Pronto quando: um achado de cor muito viva fica coerente com os móveis ao lado, e desligar a caixa mostra o original.
 Commit: harmonize collection colors
 
-### 6.4a — Kit investigação  ⬜
+### 6.4a — Kit investigação  ✅
 Objetivo: o que falta para mobiliar uma mansão como a da referência.
 Depende de: 6.0a, 6.1c
 Ler: `docs/referencias/segredo-na-ilha-mansao.png`; `src/procedural/receitas/casa.ts`; `src/authoring/regras-mobilia.ts`, `mobiliar.ts` (`MATERIAIS_POR_GENERO`, `PALETAS_POR_GENERO`); `src/authoring/funcao.ts` (sinais fortes e sinônimos).
@@ -263,7 +263,7 @@ Testes: cada receita nova desenha sem erro e tem pegada estável; regras só cit
 Pronto quando: mobiliar uma sala, uma sala de jantar e um banheiro de investigação lembra os cômodos da referência.
 Commit: investigation kit
 
-### 6.4b — Kit casa moderna  ⬜
+### 6.4b — Kit casa moderna  ✅
 Objetivo: que uma casa de gênero `moderno` pareça de hoje.
 Depende de: 6.4a
 Ler: os mesmos da 6.4a.
@@ -277,7 +277,7 @@ Testes: como na 6.4a, para `moderno`.
 Pronto quando: a mesma casa de três cômodos, mobiliada com gênero moderno, não lembra a de investigação.
 Commit: modern home kit
 
-### 6.4c — Kit fantasia  ⬜
+### 6.4c — Kit fantasia  ✅
 Objetivo: taverna, quarto de estalagem, armazém e capela de fantasia.
 Depende de: 6.4a
 Ler: os mesmos da 6.4a; `src/authoring/luzes.ts` (velas e tochas da fantasia).
@@ -291,7 +291,7 @@ Testes: como na 6.4a, para `fantasia`.
 Pronto quando: uma taverna mobiliada tem barris, mesas rústicas e lareira, e a luz vem de velas e tochas.
 Commit: fantasy kit
 
-### 6.4d — Kit exterior  ⬜
+### 6.4d — Kit exterior  ✅
 Objetivo: jardim, bosque e o entorno da casa, com o espalhar contextual.
 Depende de: 6.1d
 Ler: `src/authoring/espalhar.ts` (`CONJUNTOS_DE_ESPALHAR`, contextos); `src/procedural/materiais.ts` (terrenos); `src/procedural/pesados/plantas.ts`.
@@ -305,7 +305,7 @@ Testes: `mata` num terreno de grama põe pedras sob árvores; nada cai na frente
 Pronto quando: uma pincelada de "mata" ao redor da casa parece um bosque, não objetos soltos.
 Commit: outdoor kit
 
-### 6.5 — Recriar um mapa de referência; relatório  ⬜
+### 6.5 — Recriar um mapa de referência; relatório  ✅
 Objetivo: provar o critério da fase e registrar o que ainda falta.
 Depende de: todas
 Ler: `docs/referencias/segredo-na-ilha-mansao.png`; `tests/e2e/fase5.test.ts` (modelo de captura e de casa montada por interface).

@@ -5,7 +5,7 @@ import { previaDaProposta } from '../../src/authoring/proposta.ts';
 import { proximaSugestao, type Contexto } from '../../src/authoring/sugestoes.ts';
 import { GENEROS, TIPOS_DE_COMODO } from '../../src/domain/presets.ts';
 import { materialDe, MATERIAIS } from '../../src/procedural/materiais.ts';
-import { receitaDe } from '../../src/procedural/receitas.ts';
+import { receitaDe } from '../../src/procedural/receitas/index.ts';
 import type { Objeto } from '../../src/domain/mapa.ts';
 import { abertura, mapaCom, paredeEm, sala } from './apoio-casa.ts';
 
@@ -39,7 +39,7 @@ test('a paleta preenche os campos de material com tecidos, madeira e tapete dela
 test('a proposta de um quarto vazio tem cama e uma paleta só', () => {
   const m = quarto(), p = propostaDeMobilia(ctx(m, 0), 'q')!;
   assert.ok(p); assert.equal(p.tipo, 'mobiliar'); assert.equal(p.rotulo, 'Mobiliar a Quarto');
-  const objetos = itensDe(p).map(o => o.source as { recipe: string; params: Record<string, string> });
+  const objetos = itensDe(p).flatMap(o => (o.source.kind === 'recipe' ? [o.source as { recipe: string; params: Record<string, string> }] : []));
   assert.ok(objetos.some(o => o.recipe.startsWith('cama.')), 'tem cama'); assert.ok(objetos.length >= 3);
   const paleta = paletaDe('investigacao', 0);
   for (const o of objetos) for (const [campo, v] of Object.entries(o.params)) {
@@ -77,4 +77,24 @@ test('sem função ou sem cômodo: nada; cômodo minúsculo: quase nada, sem lan
   const pequeno = mapaCom(sala('p', 0, 0, 1, 1, { name: 'Quarto', function: 'quarto' }));
   const p = propostaDeMobilia({ m: pequeno, versao: 0, semente: 0 }, 'p');
   assert.ok(p === null || itensDe(p).filter(o => o.elevation === 'floor').length === 0, 'não cabe móvel de piso num cômodo de 1,5 × 1,5 m');
+});
+
+test('mobiliar uma sala de investigação pode usar o chesterfield da coleção (e uma casa moderna nunca)', () => {
+  const sala_ = (genero: string, semente: number) => { const m = mapaCom(sala('s', 0, 0, 4, 3, { name: 'Sala', function: 'sala' })); m.openings.p = abertura(m, 'p', paredeEm(m, 'x', 0, 4.4)!.id, 0.5); m.style = { ...m.style, genre: genero }; return propostaDeMobilia(ctx(m, semente), 's'); };
+  const assets = (genero: string) => [0, 1, 2, 3, 4, 5, 6, 7].flatMap(s => { const p = sala_(genero, s); return p ? itensDe(p).filter(o => o.source.kind === 'asset').map(o => (o.source as { assetId: string }).assetId) : []; });
+  assert.ok(assets('investigacao').some(a => a.startsWith('casa:chesterfield') || a.startsWith('casa:poltrona-capitone')), 'algum sorteio traz um item da coleção');
+  assert.deepEqual(assets('moderno'), []);
+});
+
+test('mobiliar uma sala traz um tapete ornamentado da coleção, e o da paleta que combina pesa mais', async () => {
+  const { pesoNaPaleta, paletaDe } = await import('../../src/authoring/mobiliar.ts');
+  const vinho = paletaDe('investigacao', 0), verde = paletaDe('investigacao', 2);
+  assert.equal(pesoNaPaleta(vinho, 'casa:tapete-persa-p-vinho'), 4); assert.equal(pesoNaPaleta(vinho, 'casa:tapete-persa-p-verde'), 1);
+  assert.equal(pesoNaPaleta(verde, 'casa:tapete-oval-verde'), 4); assert.equal(pesoNaPaleta(verde, 'sofa'), 1);
+  const tapetes = [0, 1, 2, 3, 4, 5, 6, 7].flatMap(s => { const m = mapaCom(sala('s', 0, 0, 4, 3, { name: 'Sala', function: 'sala' })); m.openings.p = abertura(m, 'p', paredeEm(m, 'x', 0, 4.4)!.id, 0.5); const p = propostaDeMobilia(ctx(m, s), 's'); return p ? itensDe(p).flatMap(o => (o.source.kind === 'asset' && /tapete/.test(o.source.assetId) ? [o.source.assetId] : [])) : []; });
+  assert.ok(tapetes.length >= 3, `só ${tapetes.length} tapetes da coleção em 8 sorteios`);
+  // A cor do tapete acompanha a paleta do sorteio na maioria das vezes.
+  let combinam = 0, total = 0;
+  for (let s = 0; s < 24; s++) { const m = mapaCom(sala('s', 0, 0, 4, 3, { name: 'Sala', function: 'sala' })); const p = propostaDeMobilia(ctx(m, s), 's'); const t = p && itensDe(p).find(o => o.source.kind === 'asset' && /tapete/.test(o.source.assetId)); if (t) { total++; if (pesoNaPaleta(paletaDe('investigacao', s), (t.source as { assetId: string }).assetId) === 4) combinam++; } }
+  assert.ok(total >= 6 && combinam / total > 0.4, `${combinam} de ${total} tapetes combinam com a paleta`);
 });

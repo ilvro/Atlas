@@ -8,14 +8,14 @@ import type { Abertura, MapaAtlas, Ponto } from '../domain/mapa.ts';
 import { TIPOS_DE_COMODO, camposDoPreset, pincelDePresenca, presetDeLuz, tipoDeComodo } from '../domain/presets.ts';
 import { fxAtivo } from '../fx/fx.ts';
 import { criarBaker, type Baker } from '../procedural/baker.ts';
-import { receitaDe } from '../procedural/receitas.ts';
+import { ACERVO } from '../procedural/acervo.ts';
 import type { ColecaoLivre } from '../state/comandos.ts';
 import type { EventoStore, Gesto, Store } from '../state/store.ts';
 import { criarFiltroAcabamento } from './acabamento.ts';
 import { enquadrar as calcularEnquadre, mundoParaTela, panear, telaParaMundo, zoomEm, type Camera, type Tela } from './camera.ts';
 import { RES_OBJETO, criarCena, type Cena } from './cena.ts';
 import { hexParaNumero } from './cores.ts';
-import { chaveDoObjeto } from './entradas.ts';
+import { chaveDoObjeto, pedidoDoObjeto } from './entradas.ts';
 import { criarFantasmaDeProposta } from './fantasma-proposta.ts';
 import { deltaEncaixado, encaixar, linhasDaGrade } from './grade.ts';
 import { LARGURA_DA_ABERTURA, type Ferramenta, type Pincel } from './pincel.ts';
@@ -69,6 +69,8 @@ export interface Viewport {
   /** Quantas partículas de cada tipo existem agora (diagnóstico e testes). */
   contagemDeParticulas(): ReturnType<Cena['contagemDeParticulas']>;
   contagemDePresencas(): number;
+  /** Quantos objetos de piso já têm a textura pintada (para os testes). */
+  objetosPintados(): number;
   /** Mostra, translúcido, o que `previa` acrescenta ao documento; `null` limpa. Quem chamou recalcula se o documento mudar. */
   mostrarProposta(previa: MapaAtlas | null): void;
   contagemDoFantasma(): number;
@@ -225,7 +227,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   function desenharFantasma(): void {
     fantasmaG.clear();
-    const f = ponte.ferramenta(), m = doc(), cor = acento(), pincel = ponte.pincel(), receita = receitaDe(pincel.objeto.receita);
+    const f = ponte.ferramenta(), m = doc(), cor = acento(), pincel = ponte.pincel(), receita = ACERVO.item(pincel.objeto.item);
     const comSprite = f === 'objeto' && receita?.tipo === 'piso';
     if (!comSprite && fantasmaSprite) limparFantasmaSprite();
     const objetoFantasma = fantasmaC.getChildByLabel('fantasma-objeto');
@@ -263,10 +265,9 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       return;
     }
     // Objeto de piso: o desenho de verdade, pela mesma fila de pintura dos objetos postos.
-    const pedido = { tipo: 'objeto' as const, receita: receita.id, params: pincel.objeto.params, seed: sementeAtual(), res: RES_OBJETO };
-    const falso = { id: 'f', source: { kind: 'recipe' as const, recipe: pedido.receita, seed: pedido.seed, params: pedido.params }, position: p, rotation: 0, scale: 1, elevation: 'floor' as const, wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true };
-    const chave = chaveDoObjeto(falso, RES_OBJETO)!;
-    if (chave !== fantasmaChave) {
+    const falso = { id: 'f', source: ACERVO.fonte(receita.id, sementeAtual(), pincel.objeto.params), position: p, rotation: 0, scale: 1, elevation: 'floor' as const, wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true };
+    const chave = chaveDoObjeto(falso, RES_OBJETO, m.style.genre), pedido = pedidoDoObjeto(falso, RES_OBJETO, m.style.genre);
+    if (chave && pedido && chave !== fantasmaChave) {
       fantasmaChave = chave;
       baker.pedir(chave, pedido).then(r => {
         if (destruido || fantasmaChave !== chave) return;
@@ -418,8 +419,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       return;
     }
     if (f === 'objeto') {
-      const receita = receitaDe(pincel.objeto.receita); if (!receita) { ponte.aviso('Escolha um objeto na biblioteca.'); return; }
-      const sementeDoObjeto = sementeAtual(), fonte = { kind: 'recipe' as const, recipe: receita.id, seed: sementeDoObjeto, params: pincel.objeto.params };
+      const receita = ACERVO.item(pincel.objeto.item); if (!receita) { ponte.aviso('Escolha um objeto na biblioteca.'); return; }
+      const sementeDoObjeto = sementeAtual(), fonte = ACERVO.fonte(receita.id, sementeDoObjeto, pincel.objeto.params);
       if (receita.tipo === 'parede') {
         const l = typeof pincel.objeto.params.largura === 'number' ? pincel.objeto.params.largura : receita.pegada[0], enc = encaixarObjetoDeParede(m, p, l);
         if (!enc) { ponte.aviso('Objetos de parede vão na face de um cômodo: aproxime-se de uma parede por dentro.'); return; }
@@ -507,8 +508,9 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   function pipeta(a: Alvo): void {
     const m = doc();
     if (a.colecao === 'props') {
-      const o = m.props[a.id]; if (o?.source.kind !== 'recipe') return;
-      ponte.definirPincel({ objeto: { receita: o.source.recipe, params: structuredClone(o.source.params), semente: o.source.seed, rotacao: o.rotation } }); ponte.definirFerramenta('objeto'); ponte.aviso(`Pincel: ${receitaDe(o.source.recipe)?.nome ?? o.source.recipe}`);
+      const o = m.props[a.id]; if (!o) return;
+      const id = ACERVO.idDaFonte(o.source); if (!ACERVO.item(id)) return;
+      ponte.definirPincel({ objeto: { item: id, params: o.source.kind === 'recipe' ? structuredClone(o.source.params) : {}, semente: o.source.kind === 'recipe' ? o.source.seed : null, rotacao: o.rotation } }); ponte.definirFerramenta('objeto'); ponte.aviso(`Pincel: ${ACERVO.item(id)?.nome ?? id}`);
     } else if (a.colecao === 'lights') {
       const l = m.lights[a.id]; if (!l) return;
       ponte.definirPincel({ luz: { preset: l.preset && presetDeLuz(l.preset) ? l.preset : l.cone ? 'lanterna' : 'lamparina', direcao: l.cone?.direction ?? 0 } }); ponte.definirFerramenta('luz'); ponte.aviso('Pincel: luz copiada');
@@ -598,6 +600,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     relampagoAgora: () => cena.relampagoAgora(),
     contagemDeParticulas: () => cena.contagemDeParticulas(),
     contagemDePresencas: () => cena.contagemDePresencas(),
+    objetosPintados: () => cena.objetosPintados(),
     mostrarProposta: previa => { fantasmaDaProposta.mostrar(doc(), previa); camadaSuja = true; },
     contagemDoFantasma: () => fantasmaDaProposta.contagem(),
     destruir() {

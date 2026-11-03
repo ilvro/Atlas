@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { caixaDasPartes } from '../../src/procedural/descricao.ts';
 import { MATERIAIS, materialDe, materiaisDo, tom } from '../../src/procedural/materiais.ts';
-import { CATEGORIAS, RECEITAS, descreverReceita, funcoesDeComodo, listaDeReceitas, pegadaDaReceita } from '../../src/procedural/receitas.ts';
+import { CATEGORIAS, RECEITAS, descreverReceita, funcoesDeComodo, listaDeReceitas, pegadaDaReceita } from '../../src/procedural/receitas/index.ts';
 import { PRESETS_DE_ACABAMENTO, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, presetDeLuz } from '../../src/domain/presets.ts';
 import { novaLuz } from '../../src/domain/fabrica.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
@@ -15,7 +15,8 @@ test('o lote 1 tem as receitas do roteiro, em todas as categorias', () => {
   const ids = Object.keys(RECEITAS);
   assert.ok(ids.length >= 20, `${ids.length} receitas`);
   for (const necessaria of ['mesa.redonda', 'mesa.retangular', 'cadeira', 'cama.solteiro', 'cama.casal', 'estante', 'estante.piso', 'armario', 'tapete.persa', 'papeis', 'livros.pilha', 'sofa', 'quadro', 'caixa']) assert.ok(RECEITAS[necessaria], necessaria);
-  for (const [cat] of CATEGORIAS) assert.ok(listaDeReceitas().some(r => r.categoria === cat), `categoria ${cat} vazia`);
+  // As categorias dos kits (banheiro, lareira-e-luz, exterior) só enchem a partir da 6.4.
+  for (const [cat] of CATEGORIAS) if (!['banheiro', 'lareira-e-luz', 'exterior'].includes(cat)) assert.ok(listaDeReceitas().some(r => r.categoria === cat), `categoria ${cat} vazia`);
   assert.equal(new Set(ids).size, ids.length);
 });
 
@@ -103,4 +104,11 @@ test('predefinições de acabamento cabem no documento, e a cartela de título f
   for (const onde of ['inferior-direito', 'inferior-esquerdo', 'superior-direito', 'superior-esquerdo', 'topo'] as const) {
     const [x, y] = posicaoDeTitulo(45, 30, onde); assert.ok(x >= 0 && x + 7 <= 45 && y >= 0 && y <= 30, onde);
   }
+});
+
+test('os ids de receita são únicos entre os arquivos de kit, e as categorias novas existem', async () => {
+  const { RECEITAS_DA_CASA } = await import('../../src/procedural/receitas/casa.ts');
+  const todos = listaDeReceitas().map(r => r.id);
+  assert.equal(new Set(todos).size, todos.length); assert.ok(RECEITAS_DA_CASA.length <= todos.length);
+  const ids = CATEGORIAS.map(c => c[0]); for (const nova of ['banheiro', 'lareira-e-luz', 'exterior']) assert.ok(ids.includes(nova as never), nova);
 });

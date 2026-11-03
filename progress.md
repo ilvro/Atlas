@@ -208,9 +208,46 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 - Móvel de parede (quadro, estante) não considera os móveis de piso na frente; uma estante pode ficar atrás de um armário.
 - O desempenho do gerador foi medido só pelos testes (a casa de três cômodos gera em milissegundos); não medi um mapa grande com dezenas de cômodos.
 
+## Fase 6 — Acervo da casa (3 de novembro) — concluída, menos a 6.2b (esperando decisão)
+
+"O app é completo só com a coleção da casa." Critério: recriar um dos mapas de referência só com a coleção da casa, no mesmo nível de detalhe e com cor coerente. **Atendido em parte** (ver o relatório abaixo): a ala da mansão sai mobiliada e coerente, mas abaixo da referência em detalhe de parede e variedade.
+
+### Implementado
+
+- **6.0 Acervo unificado:** `receitas.ts` virou a pasta `receitas/` (comum, casa e um arquivo por kit, com `generos` e `kit` em cada receita; categorias novas `banheiro`, `lareira-e-luz`, `exterior`). `procedural/acervo.ts` (`ACERVO`: `item`, `lista`, `pegadaDaFonte`, `idDaFonte`, `fonte`) é o único lugar que autoria, render e interface consultam: receita leve ou item da coleção (`casa:<nome>`).
+- **6.1 Coleção da casa:** `public/colecao/colecao.json` (validado ao importar; recusa item sem licença, id sem `casa:`, pegada zero…), `docs/LICENCAS.md` (a tabela dos gerados é reescrita pelo script) e o teste de coleção (todo arquivo no catálogo e no LICENCAS, ≤ 400 KB cada, ≤ 15 MB). `npm run assar` sobe o Vite e o Chromium e assa os **geradores pesados** (`procedural/pesados/`, descrição de desenho, fora do bundle) em WebP: estofados capitonê (chesterfield, poltrona e divã em 3 cores), plantas (palmeira, samambaia, costela-de-adão), árvores, pinheiros e arbustos, tapetes persas com medalhão (3 × 2 e 4 × 2,8 m), oval e passadeira em 3 paletas. Rodar de novo não muda nenhum arquivo (idempotente, conferido por hash). No mapa, um item `casa:` é pintado pelo mesmo worker (pedido `imagem`), entra na biblioteca (marca "acervo", miniatura pela imagem), no pincel, na pipeta, nos fantasmas e no mobiliar (o chesterfield e os tapetes entram nas regras da investigação; o tapete cuja paleta combina com a do cômodo pesa 4 vezes mais).
+- **6.3 Harmonização** (`procedural/harmonizar.ts`, funções puras testadas sem navegador): recorte do vazio, encaixe na pegada, contorno de nanquim (1,5 px a 128 px/m) e sombra de contato; cor puxada para o alvo do gênero (`alvoDeCor` em `GENEROS`) mantendo o matiz; chave de cache inclui `harmonize` e o gênero (trocar o gênero repinta); caixa "Harmonizar com o mapa" e origem do item no inspetor. **Só imagens achadas passam por ela** (as geradas já nascem no traço da casa, com contorno e sombra): desvio da ficha, porque harmonizar de novo recortaria a própria sombra.
+- **6.4 Kits por gênero:** investigação (12 receitas: lareira de mármore, piano de cauda, bilhar, mesa oval, relógio de pé, cristaleira, banheira com pés, vaso e pia de época, cabideiro, globo, escrivaninha de tampo verde; funções novas `sala-de-jantar` e `sala-de-jogos`), moderno (11: sofá de canto, rack com TV, geladeira, fogão, mesa de vidro, cama box, guarda-roupa liso, box, vaso moderno, escrivaninha com computador, luminária; materiais cinza, mostarda e sálvia; 3 paletas novas), fantasia (12: barris, mesa e banco de taverna, lareira com caldeirão, catre, baú, prateleira de poções, bigorna, altar, banco de igreja, tapeçaria de parede; funções `capela` e `forja`) e exterior (11: pedras, toco, tronco caído, cerca com largura, poço, banco de jardim, canteiro, poste, lápide). `VARIACOES_DE_GENERO` troca os itens por gênero; um item que só serve a outros gêneros sai das alternativas e leva embora quem dependia dele. O **espalhar** ganhou o contexto `sob-arvore` (dentro da copa) e os conjuntos `mata`, `jardim` e `cemiterio` (lápides em fileiras); espaçamento por par de itens; a frente de porta externa (1,5 m) fica livre.
+
+### Números
+
+- **105 itens no acervo:** 70 receitas leves (24 da casa, 12 investigação, 11 moderno, 12 fantasia, 11 exterior) e **35 imagens da coleção** (6 básicas, 21 de investigação, 8 de exterior), todas geradas; 0 achadas. `public/colecao/` tem **700 KB** (limite 15 MB; o maior arquivo, 38 KB). O build leva `colecao/` para o `dist/` e não leva `data-private/`.
+- **Testes:** `tsc` limpo, build sem erros, **379 testes unitários** e **46 e2e** passando (duas rodadas completas seguidas).
+- **Ala da mansão (e2e):** 9 cômodos criados por comando, 32 sugestões aceitas pelo assistente, 72 objetos, 21 luzes e 8 portas, mais 9 itens da coleção postos à mão; **primeira pintura completa em 3,5 s** (inclui montar o mapa), no Chromium de teste. Capturas: `test-results/fase6-mansao.png` e `fase6-mansao-noite.png`.
+
+### Relatório: a ala da mansão contra a referência
+
+No mesmo nível: planta com salão, sala com piano e lareira, jantar com mesa oval, sala de jogos com bilhar, biblioteca, banheiro de época, quarto, corredor com passadeira e varanda; tapetes persas com medalhão, borda e franja; capitonê legível; plantas e arbustos com volume; luzes acesas à noite iluminando só os cômodos.
+Abaixo da referência, e por quê:
+- **Detalhe de parede:** a referência cobre as paredes de quadros, estantes e cortinas; o gerador põe poucos objetos de parede (falta de itens de parede na coleção: ficaram só quadro, espelho, estante e tapeçaria).
+- **Variedade de piso e papel:** na referência cada cômodo tem um piso e uma textura própria; aqui a maioria usa os mesmos pares de `TIPOS_DE_COMODO` (falta de materiais: nenhum mármore, tapete de corredor em lã ou parquet em espinha).
+- **Escala dos móveis e densidade:** a referência tem móveis grandes e muita bagunça pequena (livros, bibelôs, flores sobre as mesas); o assistente põe o essencial e deixa o resto para o espalhar.
+- **Cor:** coerente (sem nada destoando), mas mais uniforme que a referência, que mistura azuis, verdes e vinhos por cômodo; o gênero investigação tem três paletas.
+- **Entorno:** a referência tem terraço, escada e balaústres; aqui a varanda é só um cômodo com plantas.
+Nada disso é erro de lógica: é falta de acervo, e o caminho é mais itens (6.2b) e mais materiais.
+
+### Pendências reais
+
+- **6.2a/6.2b (curadoria):** a lista está em `docs/curadoria.md`; **nenhum achado foi baixado**. Os candidatos com licença clara são quase todos pixel art de 16 a 48 px por tile, que destoam do traço ilustrado; o único razoável é o Kenney Furniture Kit (CC0) para o kit moderno, mas precisa abrir o pacote para conferir ângulo e resolução. Falta a sua decisão sobre o que importar. O script `importar-achado.ts` da 6.2b **não foi escrito**, e a harmonização de cor e forma de achados só foi testada com imagem sintética (não há achado real).
+- A harmonização só vale para achados; se um dia um gerado precisar ser retocado, falta um jeito de pedir isso.
+- Árvores e plantas não bloqueiam luz nem visão (a copa não é oclusor).
+- O item da coleção não tem parâmetros de cor (é imagem): o tapete e o estofado variam só pela variante escolhida no sorteio.
+- Faltam objetos de parede na coleção (a face do cômodo ainda é assada só de receitas).
+- O estilo Pixel (Fase 8) ainda não rasteriza as descrições dos geradores pesados.
+
 ## Próximo
 
-A Fase 5 está concluída. Próximo: Fase 6 ([docs/plano/fase-6.md](docs/plano/fase-6.md)), já detalhada; começa pela 6.0a. Da Fase 3 só resta a P3c ([docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md)).
+A Fase 6 está concluída, menos a 6.2b (importar os achados), que espera a sua decisão sobre [docs/curadoria.md](docs/curadoria.md). Próximo: Fase 7 ([docs/plano/fase-7.md](docs/plano/fase-7.md)); detalhar com o Opus antes de começar. Da Fase 3 só resta a P3c ([docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md)).
 
 ## Pendências
 

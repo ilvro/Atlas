@@ -1,6 +1,11 @@
 import { arestasDeParede, comprimentoDaParede, pontoNaParede, salasDaAbertura, type ArestaUnitaria } from '../domain/geometria.ts';
 import type { Comodo, MapaAtlas, Objeto } from '../domain/mapa.ts';
+import { generoDe } from '../domain/presets.ts';
+import { ACERVO } from '../procedural/acervo.ts';
 import type { EntradaDeTerreno, EntradaDoComodo } from '../procedural/assar.ts';
+import { COLECAO, RES_DA_COLECAO, type ItemDaColecao } from '../procedural/colecao.ts';
+import type { PedidoDeBake } from '../procedural/executar.ts';
+import { urlDoItem } from './url-da-colecao.ts';
 
 /** O que o desenho precisa saber de cada coisa, em dados simples: a chave do cache é o próprio JSON. */
 const r3 = (v: number) => Math.round(v * 1000) / 1000;
@@ -36,9 +41,22 @@ export function entradaDoTerreno(m: MapaAtlas): EntradaDeTerreno {
 }
 
 /** Chave do cache de um objeto de piso: a mesma receita, semente e parâmetros reaproveitam o mesmo desenho. */
-export function chaveDoObjeto(o: Objeto, res: number): string | null {
-  if (o.elevation === 'wall' || o.source.kind !== 'recipe') return null;
+export function chaveDoObjeto(o: Objeto, res: number, genero = 'investigacao'): string | null {
+  if (o.elevation === 'wall') return null;
+  if (o.source.kind === 'asset') { const item = itemDaColecao(o.source.assetId); return item ? `a|${res}|${o.source.assetId}|${harmoniza(o, item) ? `h:${generoDe(genero).id}` : '-'}` : null; }     // asset desconhecido: o marcador fica, sem erro
   return `o|${res}|${o.source.recipe}|${o.source.seed}|${JSON.stringify(o.source.params)}`;
+}
+
+const porId = new Map(COLECAO.map(i => [i.id, i]));
+/** Só as imagens achadas passam pela harmonização (as geradas já nascem no traço da casa, com contorno e sombra), e o mestre pode desligar por objeto (`harmonize`). */
+const harmoniza = (o: Objeto, item: ItemDaColecao): boolean => o.harmonize && item.origem.tipo === 'achado';
+export const itemDaColecao = (assetId: string) => porId.get(assetId);
+
+/** O pedido de pintura de um objeto de piso, de receita ou da coleção; `null` se não há o que pintar (asset desconhecido). */
+export function pedidoDoObjeto(o: Objeto, res: number, genero = 'investigacao'): PedidoDeBake | null {
+  if (o.source.kind === 'recipe') return { tipo: 'objeto', receita: o.source.recipe, params: o.source.params, seed: o.source.seed, res };
+  const item = itemDaColecao(o.source.assetId); if (!item) return null;
+  return { tipo: 'imagem', url: urlDoItem(item), pegada: ACERVO.pegadaDaFonte(o.source), res, resImagem: item.res ?? RES_DA_COLECAO, harmonizar: harmoniza(o, item), alvo: harmoniza(o, item) ? generoDe(genero).alvoDeCor : null };
 }
 export const chaveDoComodo = (e: EntradaDoComodo, res: number): string => `c|${res}|${JSON.stringify(e)}`;
 export const chaveDoTerreno = (e: EntradaDeTerreno, res: number): string => `t|${res}|${JSON.stringify(e)}`;

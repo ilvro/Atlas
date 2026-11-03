@@ -1,35 +1,9 @@
-import { elipse, poli, ret, type Descricao, type DescricaoDeParede, type DescricaoDePiso, type Parte } from './descricao.ts';
-import { mulberry32 } from './ruido.ts';
+import { elipse, poli, ret, type Parte } from '../descricao.ts';
+import { mulberry32 } from '../ruido.ts';
+import { LOMBADAS, folhas, mat, num, parede, piso, type Receita } from './comum.ts';
 
-export type Categoria = 'mesas' | 'assentos' | 'camas' | 'armazenamento' | 'tapetes' | 'cozinha' | 'decoracao' | 'parede';
-export const CATEGORIAS: readonly (readonly [Categoria, string])[] = [['mesas', 'Mesas'], ['assentos', 'Assentos'], ['camas', 'Camas'], ['armazenamento', 'Armários e estantes'], ['tapetes', 'Tapetes'], ['cozinha', 'Cozinha'], ['decoracao', 'Decoração'], ['parede', 'De parede']];
-
-export interface CampoDeReceita { id: string; rotulo: string; tipo: 'numero' | 'material'; padrao: number | string; min?: number; max?: number; passo?: number; /** Para `material`: que uso de material oferecer. */ uso?: 'piso' | 'papel' | 'objeto' | 'terreno' }
-export interface PedidoDeReceita { seed: number; params: Record<string, unknown> }
-
-export interface Receita {
-  id: string; nome: string; categoria: Categoria; tipo: 'piso' | 'parede';
-  /** Para que cômodos serve (a construção inteligente da Fase 5 usa isto). */
-  funcoes: string[]; tags: string[];
-  /** Tamanho padrão (m): largura × profundidade; para objetos de parede, largura × espessura. */
-  pegada: [number, number];
-  campos?: CampoDeReceita[];
-  gerar(p: PedidoDeReceita): Descricao;
-}
-
-const num = (p: PedidoDeReceita, id: string, padrao: number, min = 0.05, max = 20): number => { const v = p.params[id]; return typeof v === 'number' && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : padrao; };
-const mat = (p: PedidoDeReceita, id: string, padrao: string): string => (typeof p.params[id] === 'string' ? (p.params[id] as string) : padrao);
-const LOMBADAS = ['#7a1f24', '#2a3f6b', '#2f4a32', '#93592c', '#3a2244', '#b97d3d', '#1a2440', '#4a1418', '#d9a75e', '#46291b'];
-const piso = (pegada: [number, number], partes: Parte[]): DescricaoDePiso => ({ tipo: 'piso', pegada, partes });
-const parede = (largura: number, face: Parte[], topo: Parte[]): DescricaoDeParede => ({ tipo: 'parede', largura, face, topo });
-
-function folhas(r: () => number, cx: number, cy: number, n: number, esp: number, w: number): Parte[] {
-  const saida: Parte[] = [];
-  for (let i = 0; i < n; i++) { const x = cx + (r() - 0.5) * esp, y = cy + (r() - 0.5) * esp * 0.7, a = (r() - 0.5) * 1.2, h = 0.29, c = Math.cos(a), s = Math.sin(a); saida.push(poli([[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]].flatMap(([u, v]) => [x + u! * c - v! * s, y + u! * s + v! * c]), 'papel.folha', 0.78 + i * 0.002, { detalhe: 2, sombraLeve: true })); }
-  return saida;
-}
-
-const lista: Receita[] = [
+/** O acervo básico da casa: o lote 1 (22 receitas). */
+export const RECEITAS_DA_CASA: Receita[] = [
   { id: 'caixa', nome: 'Caixote', categoria: 'decoracao', tipo: 'piso', funcoes: ['porao', 'deposito', 'galpao'], tags: ['caixa', 'madeira'], pegada: [0.7, 0.7],
     gerar: () => piso([0.7, 0.7], [ret(0, 0, 0.7, 0.7, 'madeira.media', 0.6, { raio: 0.03 }), ret(0, 0, 0.56, 0.56, 'madeira.clara', 0.62, { detalhe: 2, contorno: 'leve' }), ret(0, 0, 0.7, 0.05, 'madeira.escura', 0.64, { detalhe: 2 }), ret(0, 0, 0.05, 0.7, 'madeira.escura', 0.64, { detalhe: 2 })]) },
 
@@ -124,21 +98,3 @@ const lista: Receita[] = [
       return parede(l, face, topo);
     } },
 ];
-
-/** O catálogo de receitas do lote 1. */
-export const RECEITAS: Readonly<Record<string, Receita>> = Object.fromEntries(lista.map(r => [r.id, r]));
-export const receitaDe = (id: string): Receita | undefined => RECEITAS[id];
-export const listaDeReceitas = (): Receita[] => lista;
-
-/** Descrição de uma receita com os parâmetros dados; uma receita que não existe vira um caixote, nunca um erro. */
-export function descreverReceita(id: string, pedido: PedidoDeReceita): Descricao {
-  return (RECEITAS[id] ?? RECEITAS.caixa!).gerar(pedido);
-}
-
-/** Largura × profundidade (m) que o objeto ocupa, com os parâmetros dados. */
-export function pegadaDaReceita(id: string, params: Record<string, unknown> = {}): [number, number] {
-  const d = descreverReceita(id, { seed: 1, params });
-  return d.tipo === 'piso' ? d.pegada : [d.largura, 0.05];
-}
-
-export const funcoesDeComodo = (): string[] => [...new Set(lista.flatMap(r => r.funcoes))].sort();

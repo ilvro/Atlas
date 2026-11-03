@@ -2,11 +2,11 @@ import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { decodificar } from '../domain/celulas.ts';
 import { centroDaAbertura, comprimentoDaParede, contornoDoComodo, pontoNaParede } from '../domain/geometria.ts';
 import type { Abertura, Luz, MapaAtlas, Objeto } from '../domain/mapa.ts';
-import { pegadaDaReceita, receitaDe } from '../procedural/receitas.ts';
+import { ACERVO } from '../procedural/acervo.ts';
 import type { Baker } from '../procedural/baker.ts';
 import { RES_OBJETO } from './cena.ts';
 import { hexParaNumero } from './cores.ts';
-import { chaveDoObjeto } from './entradas.ts';
+import { chaveDoObjeto, pedidoDoObjeto } from './entradas.ts';
 
 export interface FantasmaDeProposta {
   readonly raiz: Container;
@@ -44,13 +44,12 @@ export function criarFantasmaDeProposta(op: { baker: Baker; acento(): number; ef
     return g.stroke({ width: 0.035, color: cor, alpha: 0.95 });
   }
 
-  function objetoDePiso(o: Objeto, minha: number): void {
-    if (o.source.kind !== 'recipe') return;
-    const s = o.source, c = novo(), cor = op.acento(), [w, h] = pegadaDaReceita(s.recipe, s.params);
+  function objetoDePiso(o: Objeto, minha: number, genero: string): void {
+    const c = novo(), cor = op.acento(), [w, h] = ACERVO.pegadaDaFonte(o.source);
     c.position.set(o.position[0], o.position[1]); c.rotation = o.rotation; c.scale.set(o.scale);
     c.addChild(contornoTracejado(w, h, cor));
-    const chave = chaveDoObjeto(o, RES_OBJETO); if (!chave) return;
-    op.baker.pedir(chave, { tipo: 'objeto', receita: s.recipe, params: s.params, seed: s.seed, res: RES_OBJETO }).then(r => {
+    const chave = chaveDoObjeto(o, RES_OBJETO, genero), pedido = pedidoDoObjeto(o, RES_OBJETO, genero); if (!chave || !pedido) return;
+    op.baker.pedir(chave, pedido).then(r => {
       if (destruido || geracao !== minha || c.destroyed) return;
       const tex = Texture.from(r.bitmap); texturas.push(tex);
       const sp = new Sprite(tex); sp.position.set(r.origem[0], r.origem[1]); sp.scale.set(1 / r.res); sp.alpha = 0.8; c.addChildAt(sp, 0);
@@ -59,7 +58,7 @@ export function criarFantasmaDeProposta(op: { baker: Baker; acento(): number; ef
 
   function objetoDeParede(m: MapaAtlas, o: Objeto): void {
     const w = o.wall && m.walls[o.wall.wallId]; if (!o.wall || !w || o.source.kind !== 'recipe') return;
-    const largura = pegadaDaReceita(o.source.recipe, o.source.params)[0], total = comprimentoDaParede(w), c = o.wall.at * total;
+    const largura = ACERVO.pegadaDaFonte(o.source)[0], total = comprimentoDaParede(w), c = o.wall.at * total;
     const a = pontoNaParede(w, Math.max(0, c - largura / 2)).ponto, b = pontoNaParede(w, Math.min(total, c + largura / 2)).ponto;
     novo().addChild(new Graphics().moveTo(a[0], a[1]).lineTo(b[0], b[1]).stroke({ width: w.thickness + 0.14, color: 0xd9a75e, alpha: 0.9, cap: 'butt' }));
   }
@@ -94,8 +93,8 @@ export function criarFantasmaDeProposta(op: { baker: Baker; acento(): number; ef
       const minha = geracao;
       for (const o of Object.values(previa.props)) {
         if (atual.props[o.id]) continue;
-        const receita = o.source.kind === 'recipe' ? receitaDe(o.source.recipe) : null;
-        if (o.elevation === 'wall' || receita?.tipo === 'parede') objetoDeParede(previa, o); else objetoDePiso(o, minha);
+        const item = ACERVO.item(ACERVO.idDaFonte(o.source));
+        if (o.elevation === 'wall' || item?.tipo === 'parede') objetoDeParede(previa, o); else objetoDePiso(o, minha, previa.style.genre);
       }
       for (const l of Object.values(previa.lights)) if (!atual.lights[l.id]) luzNova(l);
       for (const a of Object.values(previa.openings)) if (!atual.openings[a.id]) aberturaNova(previa, a);

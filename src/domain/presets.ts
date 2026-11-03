@@ -14,6 +14,10 @@ export const TIPOS_DE_COMODO: readonly TipoDeComodo[] = [
   { id: 'corredor', nome: 'Corredor', funcao: 'corredor', piso: 'carpete.vinho', papel: 'papel.liso-claro', descricao: 'Carpete vinho' },
   { id: 'enfermaria', nome: 'Enfermaria', funcao: 'hospital', piso: 'ladrilho.azul', papel: 'reboco.branco', descricao: 'Ladrilho azul e reboco' },
   { id: 'taverna', nome: 'Taverna', funcao: 'taverna', piso: 'tabuas.escuras', papel: 'tijolo', descricao: 'Tábuas escuras e tijolo' },
+  { id: 'sala-de-jantar', nome: 'Sala de jantar', funcao: 'sala-de-jantar', piso: 'tabuas.escuras', papel: 'papel.damasco-vinho', descricao: 'Tábuas escuras e damasco vinho' },
+  { id: 'sala-de-jogos', nome: 'Sala de jogos', funcao: 'sala-de-jogos', piso: 'tabuas.carvalho', papel: 'papel.listras-musgo', descricao: 'Carvalho e listras verde-musgo' },
+  { id: 'capela', nome: 'Capela', funcao: 'capela', piso: 'laje.pedra', papel: 'reboco.branco', descricao: 'Lajes de pedra e reboco branco' },
+  { id: 'forja', nome: 'Forja', funcao: 'forja', piso: 'laje.pedra', papel: 'tijolo', descricao: 'Lajes de pedra e tijolo' },
   { id: 'porao', nome: 'Porão', funcao: 'porao', piso: 'laje.pedra', papel: 'tijolo', descricao: 'Lajes de pedra e tijolo' },
 ];
 export const tipoDeComodo = (id: string): TipoDeComodo | undefined => TIPOS_DE_COMODO.find(t => t.id === id);
@@ -117,10 +121,10 @@ export const pincelDePresenca = (id: string): PincelDePresenca | undefined => PI
 
 // ---------- Gênero ----------
 /** O gênero guia o que o assistente sugere (materiais, paleta, luzes). Um id desconhecido vale como `investigacao`. */
-export interface Genero { id: string; nome: string; descricao: string }
+export interface Genero { id: string; nome: string; descricao: string; /** Para onde a cor das imagens da coleção é puxada (saturação e luminância médias, 0 a 1, e uma tinta leve). */ alvoDeCor: { saturacao: number; luminancia: number; tinta: string } }
 export const GENEROS: readonly Genero[] = [
-  { id: 'investigacao', nome: 'Investigação', descricao: 'Casa antiga, lamparinas, damasco' },
-  { id: 'moderno', nome: 'Moderno', descricao: 'Lâmpadas, cores claras' },
-  { id: 'fantasia', nome: 'Fantasia', descricao: 'Velas, tochas, pedra e madeira' },
+  { id: 'investigacao', nome: 'Investigação', descricao: 'Casa antiga, lamparinas, damasco', alvoDeCor: { saturacao: 0.42, luminancia: 0.36, tinta: '#f1e2c8' } },
+  { id: 'moderno', nome: 'Moderno', descricao: 'Lâmpadas, cores claras', alvoDeCor: { saturacao: 0.5, luminancia: 0.58, tinta: '#f4f6f8' } },
+  { id: 'fantasia', nome: 'Fantasia', descricao: 'Velas, tochas, pedra e madeira', alvoDeCor: { saturacao: 0.5, luminancia: 0.42, tinta: '#f6dcb4' } },
 ];
 export const generoDe = (id: string): Genero => GENEROS.find(g => g.id === id) ?? GENEROS[0]!;

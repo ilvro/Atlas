@@ -1,3 +1,6 @@
+import { ACERVO } from '../procedural/acervo.ts';
+import { generoDe } from '../domain/presets.ts';
+
 /**
  * Que móveis um cômodo costuma ter, onde ficam e quantos, por função. Dados puros: o gerador de layout (layout.ts) é que posiciona.
  * Só receitas que existem. O gênero muda sobretudo o que é trocado ou tirado; com poucas receitas, a variedade maior vem com o acervo da Fase 6.
@@ -31,19 +34,26 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('mesinha', ['mesinha'], 'junto', [1, 2], 2, { junto: { de: 'cama', modo: 'ao-lado' } }),
     item('armario', ['armario'], 'parede', [1, 1], 3, { alto: true, areaMinima: 8 }),
     item('comoda', ['comoda'], 'parede', [0, 1], 4, { areaMinima: 10 }),
-    item('tapete', ['tapete.liso', 'tapete.persa'], 'centro', [1, 1], 5, { areaMinima: 10 }),
+    item('tapete', ['tapete.liso', 'tapete.persa', 'casa:tapete-persa-p-vinho', 'casa:tapete-persa-p-verde', 'casa:tapete-persa-p-creme', 'casa:tapete-oval-vinho', 'casa:tapete-oval-verde', 'casa:tapete-oval-creme'], 'centro', [1, 1], 5, { areaMinima: 10 }),
     item('quadro', ['quadro'], 'na-parede', [1, 2], 6),
     item('espelho', ['espelho'], 'na-parede', [0, 1], 7),
+    item('luminaria', ['luminaria.chao'], 'canto', [0, 1], 9),
     item('estante', ['estante'], 'na-parede', [0, 1], 8, { areaMinima: 14 }),
   ],
   sala: [
-    item('sofa', ['sofa'], 'parede', [1, 1], 1, { areaMinima: 9 }),
-    item('poltrona', ['poltrona'], 'junto', [1, 2], 2, { areaMinima: 12, junto: { de: 'sofa', modo: 'em-frente' } }),
-    item('mesinha', ['mesinha'], 'junto', [1, 1], 3, { junto: { de: 'sofa', modo: 'ao-lado' } }),
-    item('tapete', ['tapete.persa', 'tapete.liso'], 'centro', [1, 1], 4, { areaMinima: 9 }),
-    item('aparador', ['aparador', 'estante.piso'], 'parede', [1, 1], 5, { alto: true }),
-    item('vaso', ['vaso.planta'], 'canto', [1, 2], 6),
-    item('quadro', ['quadro'], 'na-parede', [1, 2], 7),
+    item('lareira', ['lareira.marmore'], 'parede', [1, 1], 1, { alto: true, areaMinima: 12 }),
+    item('sofa', ['sofa', 'casa:chesterfield-vinho', 'casa:chesterfield-verde', 'casa:chesterfield-couro'], 'parede', [1, 1], 2, { areaMinima: 9 }),
+    item('poltrona', ['poltrona', 'casa:poltrona-capitone-vinho', 'casa:poltrona-capitone-verde', 'casa:poltrona-capitone-couro'], 'junto', [1, 2], 3, { areaMinima: 12, junto: { de: 'sofa', modo: 'em-frente' } }),
+    item('mesinha', ['mesinha'], 'junto', [1, 1], 4, { junto: { de: 'sofa', modo: 'ao-lado' } }),
+    item('tapete', ['tapete.persa', 'tapete.liso', 'casa:tapete-persa-p-vinho', 'casa:tapete-persa-p-verde', 'casa:tapete-persa-p-creme', 'casa:tapete-oval-vinho', 'casa:tapete-oval-verde', 'casa:tapete-oval-creme', 'casa:tapete-persa-g-vinho', 'casa:tapete-persa-g-verde', 'casa:tapete-persa-g-creme'], 'centro', [1, 1], 5, { areaMinima: 9 }),
+    item('aparador', ['aparador', 'estante.piso'], 'parede', [1, 1], 6, { alto: true }),
+    item('vaso', ['vaso.planta'], 'canto', [1, 2], 7),
+    item('quadro', ['quadro'], 'na-parede', [1, 2], 8),
+    item('poltrona-lareira', ['poltrona'], 'junto', [1, 2], 9, { junto: { de: 'lareira', modo: 'em-frente' } }),
+    item('piano', ['piano.cauda'], 'parede', [0, 1], 10, { areaMinima: 20 }),
+    item('relogio', ['relogio.pe'], 'canto', [0, 1], 11),
+    item('tv', ['rack.tv'], 'parede', [0, 1], 12, { alto: true }),
+    item('luminaria', ['luminaria.chao'], 'canto', [0, 1], 13),
   ],
   cozinha: [
     item('balcao', ['balcao'], 'parede', [1, 2], 1, { params: { largura: 2.6 } }),
@@ -51,16 +61,21 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('cadeira', ['cadeira'], 'junto', [2, 4], 3, { junto: { de: 'mesa', modo: 'ao-redor' } }),
     item('aparador', ['aparador'], 'parede', [0, 1], 4, { areaMinima: 12, alto: true }),
     item('vaso', ['vaso.planta'], 'canto', [0, 1], 5),
+    item('lareira', ['lareira.pedra'], 'parede', [1, 1], 1, { alto: true, areaMinima: 8 }),
+    item('geladeira', ['geladeira'], 'parede', [1, 1], 6, { alto: true }),
+    item('fogao', ['fogao'], 'parede', [1, 1], 7, { alto: true }),
   ],
   biblioteca: [
     item('estante', ['estante'], 'na-parede', [2, 3], 1),
     item('estante-baixa', ['estante.piso'], 'parede', [1, 2], 2, { alto: true }),
-    item('poltrona', ['poltrona'], 'canto', [1, 2], 3, { areaMinima: 10 }),
+    item('poltrona', ['poltrona', 'casa:poltrona-capitone-vinho', 'casa:poltrona-capitone-verde', 'casa:poltrona-capitone-couro'], 'canto', [1, 2], 3, { areaMinima: 10 }),
     item('mesa', ['mesa.redonda'], 'centro', [0, 1], 4, { areaMinima: 14 }),
     item('livros', ['livros.pilha'], 'canto', [1, 2], 5),
+    item('escrivaninha', ['escrivaninha', 'escrivaninha.verde'], 'parede', [0, 1], 6, { areaMinima: 12 }),
+    item('globo', ['globo.terrestre'], 'canto', [0, 1], 7),
   ],
   escritorio: [
-    item('escrivaninha', ['escrivaninha'], 'parede', [1, 1], 1),
+    item('escrivaninha', ['escrivaninha', 'escrivaninha.verde'], 'parede', [1, 1], 1),
     item('cadeira', ['cadeira'], 'junto', [1, 1], 2, { junto: { de: 'escrivaninha', modo: 'em-frente', folga: 0.1 } }),
     item('estante', ['estante'], 'na-parede', [1, 2], 3),
     item('poltrona', ['poltrona'], 'canto', [0, 1], 4, { areaMinima: 10 }),
@@ -68,13 +83,50 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('vaso', ['vaso.planta'], 'canto', [0, 1], 6),
   ],
   banheiro: [
-    item('balcao', ['balcao'], 'parede', [1, 1], 1, { params: { largura: 1.2 } }),
-    item('espelho', ['espelho'], 'na-parede', [1, 1], 2),
+    item('banheira', ['banheira.pes'], 'parede', [1, 1], 1, { areaMinima: 6 }),
+    item('vaso', ['vaso.sanitario'], 'parede', [1, 1], 2),
+    item('pia', ['pia.pedestal'], 'parede', [1, 1], 3),
+    item('espelho', ['espelho'], 'na-parede', [1, 1], 4),
+    item('box', ['box.banheiro'], 'parede', [1, 1], 5, { areaMinima: 4 }),
   ],
   corredor: [
     item('aparador', ['aparador'], 'parede', [0, 2], 1, { alto: true }),
     item('vaso', ['vaso.planta'], 'canto', [0, 2], 2),
     item('quadro', ['quadro'], 'na-parede', [1, 3], 3),
+    item('cabideiro', ['cabideiro'], 'canto', [0, 1], 5),
+    item('relogio', ['relogio.pe'], 'canto', [0, 1], 6),
+    item('passadeira', ['casa:passadeira-vinho', 'casa:passadeira-verde', 'casa:passadeira-creme'], 'centro', [1, 1], 4, { areaMinima: 6 }),
+  ],
+  'sala-de-jantar': [
+    item('mesa', ['mesa.oval'], 'centro', [1, 1], 1, { areaMinima: 10 }),
+    item('cadeira', ['cadeira'], 'junto', [4, 6], 2, { junto: { de: 'mesa', modo: 'ao-redor' } }),
+    item('cristaleira', ['cristaleira'], 'parede', [1, 1], 3, { alto: true }),
+    item('aparador', ['aparador'], 'parede', [0, 1], 4, { alto: true }),
+    item('lareira', ['lareira.marmore'], 'parede', [0, 1], 5, { alto: true, areaMinima: 16 }),
+    item('vaso', ['vaso.planta'], 'canto', [0, 1], 6),
+    item('quadro', ['quadro'], 'na-parede', [1, 2], 7),
+  ],
+  'sala-de-jogos': [
+    item('bilhar', ['mesa.bilhar'], 'centro', [1, 1], 1, { areaMinima: 14 }),
+    item('poltrona', ['poltrona'], 'canto', [1, 2], 2, { areaMinima: 10 }),
+    item('aparador', ['aparador'], 'parede', [1, 1], 3, { alto: true }),
+    item('banco', ['banco'], 'parede', [0, 2], 4),
+    item('quadro', ['quadro'], 'na-parede', [1, 2], 5),
+    item('relogio', ['relogio.pe'], 'canto', [0, 1], 6),
+  ],
+  capela: [
+    item('altar', ['altar'], 'parede', [1, 1], 1, { alto: true }),
+    item('banco', ['banco.igreja'], 'centro', [2, 4], 2, { areaMinima: 12 }),
+    item('banco-lateral', ['banco.longo'], 'parede', [0, 2], 3),
+    item('tapecaria', ['tapecaria'], 'na-parede', [1, 2], 4),
+    item('bau', ['bau'], 'canto', [0, 1], 5),
+  ],
+  forja: [
+    item('bigorna', ['bigorna'], 'centro', [1, 1], 1, { areaMinima: 8 }),
+    item('lareira', ['lareira.pedra'], 'parede', [1, 1], 2, { alto: true }),
+    item('barril', ['barril.em-pe', 'barril.deitado'], 'canto', [1, 3], 3),
+    item('prateleira', ['prateleira.pocoes'], 'parede', [0, 1], 4, { alto: true }),
+    item('bau', ['bau'], 'parede', [0, 1], 5),
   ],
   hospital: [
     item('cama', ['cama.solteiro'], 'parede', [2, 4], 1),
@@ -87,6 +139,8 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('mesa', ['mesa.redonda'], 'centro', [1, 3], 2),
     item('cadeira', ['cadeira'], 'junto', [3, 4], 3, { junto: { de: 'mesa', modo: 'ao-redor' } }),
     item('banco', ['banco'], 'parede', [0, 2], 4),
+    item('barril', ['barril.em-pe', 'barril.deitado'], 'canto', [1, 3], 5),
+    item('lareira', ['lareira.pedra'], 'parede', [0, 1], 6, { alto: true, areaMinima: 14 }),
   ],
   porao: [
     item('caixote-canto', ['caixa'], 'canto', [2, 4], 1),
@@ -100,20 +154,38 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
  */
 export const VARIACOES_DE_GENERO: Readonly<Record<string, { trocar?: Record<string, string[]>; sem?: string[] }>> = {
   investigacao: {},
-  moderno: { sem: ['quarto:estante'] },
-  fantasia: { trocar: { 'taverna:cadeira': ['banco'], 'cozinha:cadeira': ['banco'], 'sala:sofa': ['banco'] } },
+  moderno: {
+    sem: ['quarto:estante'],
+    trocar: {
+      'sala:sofa': ['sofa.canto'], 'quarto:cama': ['cama.box'], 'quarto:cama.casal': ['cama.box'], 'quarto:armario': ['guarda-roupa.liso'], 'banheiro:vaso': ['vaso.moderno'], 'banheiro:pia': ['balcao'],
+      'escritorio:escrivaninha': ['escrivaninha.computador'], 'sala-de-jantar:mesa': ['mesa.vidro'], 'cozinha:mesa': ['mesa.vidro'],
+    },
+  },
+  fantasia: {
+    sem: ['cozinha:balcao'],
+    trocar: {
+      'taverna:cadeira': ['banco'], 'cozinha:cadeira': ['banco'], 'sala:sofa': ['banco'], 'taverna:mesa': ['mesa.taverna'], 'taverna:banco': ['banco.longo'], 'cozinha:mesa': ['mesa.taverna'],
+      'quarto:cama': ['catre'], 'quarto:cama.casal': ['catre'], 'quarto:armario': ['bau'], 'quarto:comoda': ['bau'], 'porao:caixote-canto': ['barril.em-pe'], 'porao:caixote-parede': ['barril.deitado', 'caixa'], 'sala:lareira': ['lareira.pedra'],
+    },
+  },
 };
 
 /** As regras de uma função para um gênero (id desconhecido vale como `investigacao`). Uma função sem regra devolve lista vazia. */
 export function regrasPara(funcao: string, genero: string): ItemDeRegra[] {
-  const base = REGRAS_DE_MOBILIA[funcao] ?? [], v = VARIACOES_DE_GENERO[genero] ?? {};
+  const base = REGRAS_DE_MOBILIA[funcao] ?? [], v = VARIACOES_DE_GENERO[genero] ?? {}, id = generoDe(genero).id;
+  // Itens do acervo que servem só a certos gêneros (`generos` não vazio) saem das alternativas dos outros.
+  const serve = (r: string) => { const g = ACERVO.item(r)?.generos ?? []; return !g.length || g.includes(id); };
   const tirados = new Set((v.sem ?? []).filter(k => k.startsWith(`${funcao}:`)).map(k => k.slice(funcao.length + 1)));
   // Quem dependia de um item tirado sai junto, em cascata.
   let mudou = true; while (mudou) { mudou = false; for (const r of base) if (!tirados.has(r.id) && r.junto && tirados.has(r.junto.de)) { tirados.add(r.id); mudou = true; } }
-  return base.filter(r => !tirados.has(r.id)).map(r => {
+  const lista = base.filter(r => !tirados.has(r.id)).map(r => {
     const troca = v.trocar?.[`${funcao}:${r.id}`] ?? null;
-    const porReceita = (lista: string[]) => lista.flatMap(x => v.trocar?.[`${funcao}:${x}`] ?? [x]);
-    const receitas = troca ?? porReceita(r.receitas);
+    const porReceita = (alternativas: string[]) => alternativas.flatMap(x => v.trocar?.[`${funcao}:${x}`] ?? [x]);
+    const receitas = (troca ?? porReceita(r.receitas)).filter(serve);
     return { ...r, receitas: [...new Set(receitas)], ...(r.porArea ? { porArea: r.porArea.map(([a, rec]) => [a, (v.trocar?.[`${funcao}:${rec}`] ?? [rec])[0]!] as [number, string]) } : {}) };
-  }).sort((a, b) => a.prioridade - b.prioridade);
+  }).filter(r => r.receitas.length > 0);
+  // Quem depende de um item que ficou sem nenhuma alternativa para este gênero sai também (em cascata).
+  let restantes = lista;
+  for (let mudou = true; mudou;) { const ids = new Set(restantes.map(r => r.id)), antes = restantes.length; restantes = restantes.filter(r => !r.junto || ids.has(r.junto.de)); mudou = restantes.length !== antes; }
+  return restantes.sort((a, b) => a.prioridade - b.prioridade);
 }

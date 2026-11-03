@@ -1,7 +1,7 @@
 import { decodificar } from '../domain/celulas.ts';
 import { caixaDasCelulas, comprimentoDaParede, pontoNaParede, projetarNaParede } from '../domain/geometria.ts';
 import type { MapaAtlas, Objeto, Ponto } from '../domain/mapa.ts';
-import { pegadaDaReceita } from '../procedural/receitas.ts';
+import { ACERVO } from '../procedural/acervo.ts';
 import { COLECOES_LIVRES, type AlvoMovel, type ColecaoLivre } from '../state/comandos.ts';
 
 /** O que o mestre pode selecionar: itens soltos (que também se movem) e a construção (cômodos, paredes, aberturas). */
@@ -21,7 +21,7 @@ const centrada = (p: Ponto, lado: number): Caixa => ({ x0: p[0] - lado / 2, y0: 
 
 /** Largura × profundidade de um objeto no mapa, já com a escala. */
 export function tamanhoDoObjeto(o: Objeto): [number, number] {
-  const [w, h] = pegadaDaReceita(o.source.kind === 'recipe' ? o.source.recipe : 'caixa', o.source.kind === 'recipe' ? o.source.params : {});
+  const [w, h] = ACERVO.pegadaDaFonte(o.source);
   return [w * o.scale, h * o.scale];
 }
 

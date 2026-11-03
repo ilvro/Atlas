@@ -1,0 +1,1163 @@
+{
+  "versao": 1,
+  "itens": [
+    {
+      "id": "casa:arbusto-florido",
+      "nome": "Arbusto (florido)",
+      "arquivo": "gerados/arbusto-florido.webp",
+      "categoria": "exterior",
+      "pegada": [
+        1.6,
+        1.6
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arbusto",
+        "planta",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "exterior",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arbusto",
+        "params": {
+          "diametro": 1.6,
+          "flores": "#d94a6a"
+        },
+        "seed": 52,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:arbusto-grande",
+      "nome": "Arbusto (grande)",
+      "arquivo": "gerados/arbusto-grande.webp",
+      "categoria": "exterior",
+      "pegada": [
+        2.2,
+        2.2
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arbusto",
+        "planta",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "exterior",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arbusto",
+        "params": {
+          "diametro": 2.2
+        },
+        "seed": 53,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:arbusto-verde",
+      "nome": "Arbusto (verde)",
+      "arquivo": "gerados/arbusto-verde.webp",
+      "categoria": "exterior",
+      "pegada": [
+        1.4,
+        1.4
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arbusto",
+        "planta",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "exterior",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arbusto",
+        "params": {
+          "diametro": 1.4
+        },
+        "seed": 51,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:arvore-3m",
+      "nome": "Árvore (3 m)",
+      "arquivo": "gerados/arvore-3m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        3,
+        3
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "planta",
+        "copa",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "exterior",
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arvore",
+        "params": {
+          "diametro": 3
+        },
+        "seed": 31,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:arvore-5m",
+      "nome": "Árvore (5 m)",
+      "arquivo": "gerados/arvore-5m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        5,
+        5
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "planta",
+        "copa",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "exterior",
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arvore",
+        "params": {
+          "diametro": 5
+        },
+        "seed": 32,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:arvore-7m",
+      "nome": "Árvore (7 m)",
+      "arquivo": "gerados/arvore-7m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        7,
+        7
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "planta",
+        "copa",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "exterior",
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arvore",
+        "params": {
+          "diametro": 7
+        },
+        "seed": 33,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:chesterfield-couro",
+      "nome": "Sofá chesterfield (couro)",
+      "arquivo": "gerados/chesterfield-couro.webp",
+      "categoria": "assentos",
+      "pegada": [
+        2.2,
+        0.95
+      ],
+      "funcoes": [
+        "sala",
+        "biblioteca",
+        "escritorio"
+      ],
+      "tags": [
+        "assento",
+        "sofa",
+        "capitone",
+        "chesterfield",
+        "estofado"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "chesterfield",
+        "params": {
+          "estofado": "couro.marrom"
+        },
+        "seed": 13,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:chesterfield-verde",
+      "nome": "Sofá chesterfield (verde-garrafa)",
+      "arquivo": "gerados/chesterfield-verde.webp",
+      "categoria": "assentos",
+      "pegada": [
+        2.2,
+        0.95
+      ],
+      "funcoes": [
+        "sala",
+        "biblioteca",
+        "escritorio"
+      ],
+      "tags": [
+        "assento",
+        "sofa",
+        "capitone",
+        "chesterfield",
+        "estofado"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "chesterfield",
+        "params": {
+          "estofado": "tecido.verde"
+        },
+        "seed": 12,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:chesterfield-vinho",
+      "nome": "Sofá chesterfield (vinho)",
+      "arquivo": "gerados/chesterfield-vinho.webp",
+      "categoria": "assentos",
+      "pegada": [
+        2.2,
+        0.95
+      ],
+      "funcoes": [
+        "sala",
+        "biblioteca",
+        "escritorio"
+      ],
+      "tags": [
+        "assento",
+        "sofa",
+        "capitone",
+        "chesterfield",
+        "estofado"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "chesterfield",
+        "params": {
+          "estofado": "tecido.veludo-vinho"
+        },
+        "seed": 11,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:costela-de-adao-madeira",
+      "nome": "Costela-de-adão (madeira)",
+      "arquivo": "gerados/costela-de-adao-madeira.webp",
+      "categoria": "decoracao",
+      "pegada": [
+        1,
+        1
+      ],
+      "funcoes": [
+        "sala",
+        "quarto",
+        "escritorio",
+        "corredor"
+      ],
+      "tags": [
+        "planta",
+        "monstera",
+        "vaso",
+        "folhagem"
+      ],
+      "generos": [],
+      "kit": null,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "costela-de-adao",
+        "params": {
+          "vaso": "madeira.escura"
+        },
+        "seed": 21,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:costela-de-adao-pedra",
+      "nome": "Costela-de-adão (pedra)",
+      "arquivo": "gerados/costela-de-adao-pedra.webp",
+      "categoria": "decoracao",
+      "pegada": [
+        1,
+        1
+      ],
+      "funcoes": [
+        "sala",
+        "quarto",
+        "escritorio",
+        "corredor"
+      ],
+      "tags": [
+        "planta",
+        "monstera",
+        "vaso",
+        "folhagem"
+      ],
+      "generos": [],
+      "kit": null,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "costela-de-adao",
+        "params": {
+          "vaso": "pedra.escura"
+        },
+        "seed": 22,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:diva-couro",
+      "nome": "Divã capitonê (couro)",
+      "arquivo": "gerados/diva-couro.webp",
+      "categoria": "assentos",
+      "pegada": [
+        1.75,
+        0.8
+      ],
+      "funcoes": [
+        "sala",
+        "quarto",
+        "biblioteca"
+      ],
+      "tags": [
+        "assento",
+        "diva",
+        "chaise",
+        "capitone",
+        "estofado"
+      ],
+      "generos": [
+        "investigacao"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "diva",
+        "params": {
+          "estofado": "couro.marrom"
+        },
+        "seed": 13,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:diva-verde",
+      "nome": "Divã capitonê (verde-garrafa)",
+      "arquivo": "gerados/diva-verde.webp",
+      "categoria": "assentos",
+      "pegada": [
+        1.75,
+        0.8
+      ],
+      "funcoes": [
+        "sala",
+        "quarto",
+        "biblioteca"
+      ],
+      "tags": [
+        "assento",
+        "diva",
+        "chaise",
+        "capitone",
+        "estofado"
+      ],
+      "generos": [
+        "investigacao"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "diva",
+        "params": {
+          "estofado": "tecido.verde"
+        },
+        "seed": 12,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:diva-vinho",
+      "nome": "Divã capitonê (vinho)",
+      "arquivo": "gerados/diva-vinho.webp",
+      "categoria": "assentos",
+      "pegada": [
+        1.75,
+        0.8
+      ],
+      "funcoes": [
+        "sala",
+        "quarto",
+        "biblioteca"
+      ],
+      "tags": [
+        "assento",
+        "diva",
+        "chaise",
+        "capitone",
+        "estofado"
+      ],
+      "generos": [
+        "investigacao"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "diva",
+        "params": {
+          "estofado": "tecido.veludo-vinho"
+        },
+        "seed": 11,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:palmeira-madeira",
+      "nome": "Palmeira em vaso (madeira)",
+      "arquivo": "gerados/palmeira-madeira.webp",
+      "categoria": "decoracao",
+      "pegada": [
+        1.1,
+        1.1
+      ],
+      "funcoes": [
+        "sala",
+        "corredor",
+        "escritorio",
+        "biblioteca"
+      ],
+      "tags": [
+        "planta",
+        "palmeira",
+        "vaso",
+        "folhagem"
+      ],
+      "generos": [],
+      "kit": null,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "palmeira",
+        "params": {
+          "vaso": "madeira.escura"
+        },
+        "seed": 21,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:palmeira-pedra",
+      "nome": "Palmeira em vaso (pedra)",
+      "arquivo": "gerados/palmeira-pedra.webp",
+      "categoria": "decoracao",
+      "pegada": [
+        1.1,
+        1.1
+      ],
+      "funcoes": [
+        "sala",
+        "corredor",
+        "escritorio",
+        "biblioteca"
+      ],
+      "tags": [
+        "planta",
+        "palmeira",
+        "vaso",
+        "folhagem"
+      ],
+      "generos": [],
+      "kit": null,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "palmeira",
+        "params": {
+          "vaso": "pedra.escura"
+        },
+        "seed": 22,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:passadeira-creme",
+      "nome": "Passadeira de corredor (creme e terracota)",
+      "arquivo": "gerados/passadeira-creme.webp",
+      "categoria": "tapetes",
+      "pegada": [
+        3,
+        0.9
+      ],
+      "funcoes": [
+        "corredor"
+      ],
+      "tags": [
+        "tapete",
+        "persa",
+        "ornamentado"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "passadeira",
+        "params": {
+          "paleta": "creme"
+        },
+        "seed": 63,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:passadeira-verde",
+      "nome": "Passadeira de corredor (verde e ouro)",
+      "arquivo": "gerados/passadeira-verde.webp",
+      "categoria": "tapetes",
+      "pegada": [
+        3,
+        0.9
+      ],
+      "funcoes": [
+        "corredor"
+      ],
+      "tags": [
+        "tapete",
+        "persa",
+        "ornamentado"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "passadeira",
+        "params": {
+          "paleta": "verde"
+        },
+        "seed": 62,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:passadeira-vinho",
+      "nome": "Passadeira de corredor (vinho e azul-marinho)",
+      "arquivo": "gerados/passadeira-vinho.webp",
+      "categoria": "tapetes",
+      "pegada": [
+        3,
+        0.9
+      ],
+      "funcoes": [
+        "corredor"
+      ],
+      "tags": [
+        "tapete",
+        "persa",
+        "ornamentado"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "passadeira",
+        "params": {
+          "paleta": "vinho"
+        },
+        "seed": 61,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:pinheiro-3m",
+      "nome": "Pinheiro (3 m)",
+      "arquivo": "gerados/pinheiro-3m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        3,
+        3
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "pinheiro",
+        "conifera",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "exterior",
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "pinheiro",
+        "params": {
+          "diametro": 3
+        },
+        "seed": 41,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:pinheiro-4m",
+      "nome": "Pinheiro (4,5 m)",
+      "arquivo": "gerados/pinheiro-4m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        4.5,
+        4.5
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "pinheiro",
+        "conifera",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "exterior",
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "pinheiro",
+        "params": {
+          "diametro": 4.5
+        },
+        "seed": 42,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:poltrona-capitone-couro",
+      "nome": "Poltrona capitonê (couro)",
+      "arquivo": "gerados/poltrona-capitone-couro.webp",
+      "categoria": "assentos",
+      "pegada": [
+        0.95,
+        0.95
+      ],
+      "funcoes": [
+        "sala",
+        "biblioteca",
+        "escritorio"
+      ],
+      "tags": [
+        "assento",
+        "poltrona",
+        "capitone",
+        "estofado"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "poltrona-capitone",
+        "params": {
+          "estofado": "couro.marrom"
+        },
+        "seed": 13,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:poltrona-capitone-verde",
+      "nome": "Poltrona capitonê (verde-garrafa)",
+      "arquivo": "gerados/poltrona-capitone-verde.webp",
+      "categoria": "assentos",
+      "pegada": [
+        0.95,
+        0.95
+      ],
+      "funcoes": [
+        "sala",
+        "biblioteca",
+        "escritorio"
+      ],
+      "tags": [
+        "assento",
+        "poltrona",
+        "capitone",
+        "estofado"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "poltrona-capitone",
+        "params": {
+          "estofado": "tecido.verde"
+        },
+        "seed": 12,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:poltrona-capitone-vinho",
+      "nome": "Poltrona capitonê (vinho)",
+      "arquivo": "gerados/poltrona-capitone-vinho.webp",
+      "categoria": "assentos",
+      "pegada": [
+        0.95,
+        0.95
+      ],
+      "funcoes": [
+        "sala",
+        "biblioteca",
+        "escritorio"
+      ],
+      "tags": [
+        "assento",
+        "poltrona",
+        "capitone",
+        "estofado"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "poltrona-capitone",
+        "params": {
+          "estofado": "tecido.veludo-vinho"
+        },
+        "seed": 11,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:samambaia-a",
+      "nome": "Samambaia em pedestal (a)",
+      "arquivo": "gerados/samambaia-a.webp",
+      "categoria": "decoracao",
+      "pegada": [
+        1.3,
+        1.3
+      ],
+      "funcoes": [
+        "sala",
+        "corredor",
+        "biblioteca"
+      ],
+      "tags": [
+        "planta",
+        "samambaia",
+        "pedestal",
+        "folhagem"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": null,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "samambaia",
+        "params": {},
+        "seed": 21,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:samambaia-b",
+      "nome": "Samambaia em pedestal (b)",
+      "arquivo": "gerados/samambaia-b.webp",
+      "categoria": "decoracao",
+      "pegada": [
+        1.3,
+        1.3
+      ],
+      "funcoes": [
+        "sala",
+        "corredor",
+        "biblioteca"
+      ],
+      "tags": [
+        "planta",
+        "samambaia",
+        "pedestal",
+        "folhagem"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": null,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "samambaia",
+        "params": {},
+        "seed": 22,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:tapete-oval-creme",
+      "nome": "Tapete oval (creme e terracota)",
+      "arquivo": "gerados/tapete-oval-creme.webp",
+      "categoria": "tapetes",
+      "pegada": [
+        2.4,
+        1.6
+      ],
+      "funcoes": [
+        "sala",
+        "quarto"
+      ],
+      "tags": [
+        "tapete",
+        "persa",
+        "ornamentado"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "tapete-oval",
+        "params": {
+          "paleta": "creme"
+        },
+        "seed": 63,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:tapete-oval-verde",
+      "nome": "Tapete oval (verde e ouro)",
+      "arquivo": "gerados/tapete-oval-verde.webp",
+      "categoria": "tapetes",
+      "pegada": [
+        2.4,
+        1.6
+      ],
+      "funcoes": [
+        "sala",
+        "quarto"
+      ],
+      "tags": [
+        "tapete",
+        "persa",
+        "ornamentado"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "tapete-oval",
+        "params": {
+          "paleta": "verde"
+        },
+        "seed": 62,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:tapete-oval-vinho",
+      "nome": "Tapete oval (vinho e azul-marinho)",
+      "arquivo": "gerados/tapete-oval-vinho.webp",
+      "categoria": "tapetes",
+      "pegada": [
+        2.4,
+        1.6
+      ],
+      "funcoes": [
+        "sala",
+        "quarto"
+      ],
+      "tags": [
+        "tapete",
+        "persa",
+        "ornamentado"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "tapete-oval",
+        "params": {
+          "paleta": "vinho"
+        },
+        "seed": 61,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:tapete-persa-g-creme",
+      "nome": "Tapete persa com medalhão (4 × 2,8 m) (creme e terracota)",
+      "arquivo": "gerados/tapete-persa-g-creme.webp",
+      "categoria": "tapetes",
+      "pegada": [
+        4,
+        2.8
+      ],
+      "funcoes": [
+        "sala",
+        "biblioteca"
+      ],
+      "tags": [
+        "tapete",
+        "persa",
+        "ornamentado"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "tapete-persa-g",
+        "params": {
+          "paleta": "creme"
+        },
+        "seed": 63,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:tapete-persa-g-verde",
+      "nome": "Tapete persa com medalhão (4 × 2,8 m) (verde e ouro)",
+      "arquivo": "gerados/tapete-persa-g-verde.webp",
+      "categoria": "tapetes",
+      "pegada": [
+        4,
+        2.8
+      ],
+      "funcoes": [
+        "sala",
+        "biblioteca"
+      ],
+      "tags": [
+        "tapete",
+        "persa",
+        "ornamentado"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "tapete-persa-g",
+        "params": {
+          "paleta": "verde"
+        },
+        "seed": 62,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:tapete-persa-g-vinho",
+      "nome": "Tapete persa com medalhão (4 × 2,8 m) (vinho e azul-marinho)",
+      "arquivo": "gerados/tapete-persa-g-vinho.webp",
+      "categoria": "tapetes",
+      "pegada": [
+        4,
+        2.8
+      ],
+      "funcoes": [
+        "sala",
+        "biblioteca"
+      ],
+      "tags": [
+        "tapete",
+        "persa",
+        "ornamentado"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "tapete-persa-g",
+        "params": {
+          "paleta": "vinho"
+        },
+        "seed": 61,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:tapete-persa-p-creme",
+      "nome": "Tapete persa com medalhão (3 × 2 m) (creme e terracota)",
+      "arquivo": "gerados/tapete-persa-p-creme.webp",
+      "categoria": "tapetes",
+      "pegada": [
+        3,
+        2
+      ],
+      "funcoes": [
+        "sala",
+        "quarto",
+        "biblioteca",
+        "escritorio"
+      ],
+      "tags": [
+        "tapete",
+        "persa",
+        "ornamentado"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "tapete-persa-p",
+        "params": {
+          "paleta": "creme"
+        },
+        "seed": 63,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:tapete-persa-p-verde",
+      "nome": "Tapete persa com medalhão (3 × 2 m) (verde e ouro)",
+      "arquivo": "gerados/tapete-persa-p-verde.webp",
+      "categoria": "tapetes",
+      "pegada": [
+        3,
+        2
+      ],
+      "funcoes": [
+        "sala",
+        "quarto",
+        "biblioteca",
+        "escritorio"
+      ],
+      "tags": [
+        "tapete",
+        "persa",
+        "ornamentado"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "tapete-persa-p",
+        "params": {
+          "paleta": "verde"
+        },
+        "seed": 62,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:tapete-persa-p-vinho",
+      "nome": "Tapete persa com medalhão (3 × 2 m) (vinho e azul-marinho)",
+      "arquivo": "gerados/tapete-persa-p-vinho.webp",
+      "categoria": "tapetes",
+      "pegada": [
+        3,
+        2
+      ],
+      "funcoes": [
+        "sala",
+        "quarto",
+        "biblioteca",
+        "escritorio"
+      ],
+      "tags": [
+        "tapete",
+        "persa",
+        "ornamentado"
+      ],
+      "generos": [
+        "investigacao",
+        "fantasia"
+      ],
+      "kit": "investigacao",
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "tapete-persa-p",
+        "params": {
+          "paleta": "vinho"
+        },
+        "seed": 61,
+        "versao": 2
+      }
+    }
+  ]
+}

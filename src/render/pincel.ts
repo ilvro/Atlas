@@ -5,7 +5,8 @@ export interface Pincel {
   /** Tipo de cômodo (`TIPOS_DE_COMODO`). */
   comodo: string;
   /** Receita e parâmetros do objeto; `semente: null` varia a cada objeto posto. `rotacao` em radianos. */
-  objeto: { receita: string; params: Record<string, unknown>; semente: number | null; rotacao: number };
+  /** `item` é qualquer id do acervo: uma receita (`sofa`) ou um item da coleção (`casa:chesterfield-vinho`). */
+  objeto: { item: string; params: Record<string, unknown>; semente: number | null; rotacao: number };
   luz: { preset: string; /** Direção do facho, em radianos. */ direcao: number };
   abertura: { tipo: 'door' | 'window' | 'arch' | 'secret' };
   parede: { tipo: 'wall' | 'low' | 'fence' };
@@ -16,7 +17,7 @@ export interface Pincel {
 
 export const PINCEL_PADRAO: Pincel = {
   comodo: 'sala',
-  objeto: { receita: 'mesa.redonda', params: {}, semente: null, rotacao: 0 },
+  objeto: { item: 'mesa.redonda', params: {}, semente: null, rotacao: 0 },
   luz: { preset: 'lamparina', direcao: 0 },
   abertura: { tipo: 'door' },
   parede: { tipo: 'wall' },

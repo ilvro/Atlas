@@ -5,10 +5,11 @@ import { TIPOS_DE_COMODO, PRESETS_DE_LUZ, PACOTES_DE_PRESENCA, PINCEIS_DE_PRESEN
 import type { Pincel } from '../render/pincel.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { materialDe, materiaisDo } from '../procedural/materiais.ts';
-import { CATEGORIAS, listaDeReceitas, receitaDe, type Receita } from '../procedural/receitas.ts';
+import { ACERVO, type ItemDoAcervo } from '../procedural/acervo.ts';
+import { CATEGORIAS } from '../procedural/receitas/index.ts';
 import { filtrar } from '../app/busca.ts';
 import { CampoNumero } from './campos.tsx';
-import { CONJUNTOS_DE_ESPALHAR } from '../authoring/espalhar.ts';
+import { TODOS_OS_CONJUNTOS } from '../authoring/espalhar.ts';
 import { Amostra, CampoMaterial } from './campos-material.tsx';
 import { Icone } from './Icone.tsx';
 import { desenharPrevia, pedirPrevia } from './previa.ts';
@@ -35,9 +36,9 @@ function Comodos({ s }: { s: SessaoDeEdicao }) {
 }
 
 function Objetos({ s }: { s: SessaoDeEdicao }) {
-  const consulta = useSignal(''), categoria = useSignal<string | null>(null), atual = s.pincel.value.objeto, receita = receitaDe(atual.receita);
-  const lista = filtrar(listaDeReceitas().filter(r => !categoria.value || r.categoria === categoria.value), consulta.value, r => `${r.nome} ${r.tags.join(' ')} ${r.funcoes.join(' ')} ${r.categoria}`);
-  const escolher = (r: Receita) => { s.ferramenta.value = 'objeto'; s.pincel.value = { ...s.pincel.value, objeto: { receita: r.id, params: {}, semente: null, rotacao: s.pincel.value.objeto.rotacao } }; tocar('selecionar'); };
+  const consulta = useSignal(''), categoria = useSignal<string | null>(null), atual = s.pincel.value.objeto, receita = ACERVO.item(atual.item);
+  const lista = filtrar(ACERVO.lista().filter(r => !categoria.value || r.categoria === categoria.value), consulta.value, r => `${r.nome} ${r.tags.join(' ')} ${r.funcoes.join(' ')} ${r.categoria}`);
+  const escolher = (r: ItemDoAcervo) => { s.ferramenta.value = 'objeto'; s.pincel.value = { ...s.pincel.value, objeto: { item: r.id, params: {}, semente: null, rotacao: s.pincel.value.objeto.rotacao } }; tocar('selecionar'); };
   return (<>
     <input class="busca" type="search" placeholder="Buscar: mesa, cama, livros…" aria-label="Buscar objeto" value={consulta.value} onInput={e => { consulta.value = (e.target as HTMLInputElement).value; }} data-testid="busca-objeto" />
     <div class="chips">
@@ -45,12 +46,12 @@ function Objetos({ s }: { s: SessaoDeEdicao }) {
       {CATEGORIAS.map(([id, nome]) => <button type="button" key={id} class={`chip ${categoria.value === id ? 'ativo' : ''}`} onClick={() => { categoria.value = categoria.value === id ? null : id; }}>{nome}</button>)}
     </div>
     <div class="grade-receitas" data-testid="lista-receitas">
-      {lista.map(r => <button type="button" key={r.id} class={`receita ${atual.receita === r.id ? 'ativa' : ''}`} onClick={() => escolher(r)} title={`${r.nome} · ${r.pegada[0]} × ${r.pegada[1]} m`} data-testid={`receita-${r.id}`}><MiniReceita id={r.id} /><span>{r.nome}</span></button>)}
+      {lista.map(r => <button type="button" key={r.id} class={`receita ${atual.item === r.id ? 'ativa' : ''}`} onClick={() => escolher(r)} title={`${r.nome} · ${r.pegada[0]} × ${r.pegada[1]} m`} data-testid={`receita-${r.id}`}><MiniReceita id={r.id} /><span>{r.nome}</span>{r.fonte === 'colecao' && <i class="selo-acervo" title="Imagem da coleção da casa">acervo</i>}</button>)}
       {!lista.length && <p class="dica">Nada com “{consulta.value}”.</p>}
     </div>
     {receita && <div class="ajustes"><h4>{receita.nome}</h4>
       <p class="dica"><kbd>Q</kbd> <kbd>E</kbd> giram. <kbd>Ctrl</kbd>+clique num objeto copia o pincel. <kbd>Alt</kbd> põe fora da grade.</p>
-      {receita.campos?.map(c => c.tipo === 'numero'
+      {receita.campos.map(c => c.tipo === 'numero'
         ? <CampoNumero key={c.id} rotulo={c.rotulo} unidade="m" valor={typeof atual.params[c.id] === 'number' ? atual.params[c.id] as number : c.padrao as number} min={c.min ?? 0} max={c.max ?? 20} passo={c.passo ?? 0.1} aoConfirmar={v => { s.pincel.value = { ...s.pincel.value, objeto: { ...atual, params: { ...atual.params, [c.id]: v } } }; }} />
         : <CampoMaterial key={c.id} rotulo={c.rotulo} uso={c.uso ?? 'objeto'} valor={typeof atual.params[c.id] === 'string' ? atual.params[c.id] as string : c.padrao as string} aoMudar={v => { if (v) s.pincel.value = { ...s.pincel.value, objeto: { ...atual, params: { ...atual.params, [c.id]: v } } }; }} />)}
     </div>}
@@ -104,8 +105,8 @@ function Terreno({ s }: { s: SessaoDeEdicao }) {
 function Espalhar({ s }: { s: SessaoDeEdicao }) {
   const p = s.pincel.value.espalhar;
   return (<>
-    <p class="dica">Arraste para espalhar o conjunto: cada pincelada é uma ação. A papelada vai sobre as mesas, os caixotes junto das paredes. Nunca na frente de portas. <kbd>Alt</kbd> apaga; <kbd>[</kbd> e <kbd>]</kbd> mudam o pincel.</p>
-    <div class="lista-cartas">{CONJUNTOS_DE_ESPALHAR.map(c => <button type="button" key={c.id} class={`carta ${p.conjunto === c.id ? 'ativa' : ''}`} onClick={() => mudar(s, { espalhar: { ...p, conjunto: c.id } })} data-testid={`espalhar-${c.id}`}><span class="carta-nome">{c.nome}</span><span class="carta-desc">{c.descricao}</span></button>)}</div>
+    <p class="dica">Arraste para espalhar o conjunto: cada pincelada é uma ação. A papelada vai sobre as mesas, os caixotes junto das paredes, as pedras sob as árvores. Nunca na frente de portas. <kbd>Alt</kbd> apaga; <kbd>[</kbd> e <kbd>]</kbd> mudam o pincel.</p>
+    <div class="lista-cartas">{TODOS_OS_CONJUNTOS.map(c => <button type="button" key={c.id} class={`carta ${p.conjunto === c.id ? 'ativa' : ''}`} onClick={() => mudar(s, { espalhar: { ...p, conjunto: c.id } })} data-testid={`espalhar-${c.id}`}><span class="carta-nome">{c.nome}</span><span class="carta-desc">{c.descricao}</span></button>)}</div>
     <CampoNumero rotulo="Pincel" unidade="m" valor={p.raio} min={0.25} max={12} passo={0.5} aoConfirmar={v => { mudar(s, { espalhar: { ...p, raio: v } }); }} />
   </>);
 }
