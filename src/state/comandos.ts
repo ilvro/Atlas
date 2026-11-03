@@ -1,3 +1,4 @@
+import type { Ref } from '#mesa';
 import { ceuNoHorario } from '../domain/clima.ts';
 import { ErroDeValidacao } from '../domain/esquema.ts';
 import { clonar, produzir } from './imutavel.ts';
@@ -27,6 +28,7 @@ export type Comando =
   | { tipo: 'clima.predefinir'; id: string }
   | { tipo: 'clima.salvar'; nome: string; id?: string }
   | { tipo: 'clima.esquecer'; id: string }
+  | { tipo: 'clima.audio'; id: string; ref: Ref | null }
   | { tipo: 'acabamento.atualizar'; patch: ParcialProfundo<Acabamento> }
   | { tipo: 'fundo.atualizar'; patch: ParcialProfundo<Fundo> }
   | { tipo: 'memoria.atualizar'; patch: ParcialProfundo<Memoria> }
@@ -103,6 +105,11 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       m.customClimates[id] = { id, name: nome, climate: clima, finish: acab };
       break;
     }
+    case 'clima.audio': {
+      if (!presetDeClima(c.id) && !m.customClimates[c.id]) nao('Esse clima não existe.');
+      const id = presetDeClima(c.id)?.id ?? c.id;
+      if (c.ref === null) delete m.climateAudio[id]; else m.climateAudio[id] = clonar(c.ref); break;
+    }
     case 'clima.esquecer': {
       if (!m.customClimates[c.id]) nao('Esse clima salvo não existe.');
       delete m.customClimates[c.id]; delete m.climateAudio[c.id]; break;
@@ -159,7 +166,7 @@ export function aplicarComando(mapa: MapaAtlas, comando: Comando): MapaAtlas {
 export const ROTULOS: Record<Comando['tipo'], string> = {
   ...ROTULOS_CONSTRUIR,
   'mapa.renomear': 'Renomear mapa', 'mapa.notas': 'Editar notas', 'mapa.campanha': 'Ligar à campanha', 'grade.atualizar': 'Ajustar grade',
-  'limites.atualizar': 'Redimensionar mapa', 'estilo.atualizar': 'Mudar estilo', 'clima.aplicar': 'Mudar clima', 'clima.predefinir': 'Aplicar clima', 'clima.salvar': 'Salvar clima', 'clima.esquecer': 'Esquecer clima', 'acabamento.atualizar': 'Ajustar acabamento',
+  'limites.atualizar': 'Redimensionar mapa', 'estilo.atualizar': 'Mudar estilo', 'clima.aplicar': 'Mudar clima', 'clima.predefinir': 'Aplicar clima', 'clima.salvar': 'Salvar clima', 'clima.esquecer': 'Esquecer clima', 'clima.audio': 'Som do clima', 'acabamento.atualizar': 'Ajustar acabamento',
   'fundo.atualizar': 'Ajustar fundo', 'memoria.atualizar': 'Ajustar memória', 'item.adicionar': 'Adicionar', 'item.atualizar': 'Editar',
   'item.remover': 'Remover', 'selecao.mover': 'Mover',
 };

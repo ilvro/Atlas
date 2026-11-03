@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { criarRef } from '#mesa';
+import { criarBarramento, criarRef, type Barramento, type Evento } from '#mesa';
+import { pedirSomDoClima } from '../../src/app/audio-do-clima.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { PRESETS_DE_CLIMA, presetDeClima } from '../../src/domain/presets.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
@@ -87,4 +88,42 @@ test('mexer no horário move o sol e o ambiente, a menos que o comando diga como
   const semHorario = aplicarComando(novo(), { tipo: 'clima.aplicar', patch: { weather: { rain: 1 } } });
   assert.deepEqual(semHorario.climate.sun, novo().climate.sun, 'sem mexer no horário, o céu fica como está');
   assert.throws(() => aplicarComando(novo(), { tipo: 'clima.aplicar', patch: { time: '25:99' } }), (e: unknown) => e instanceof ErroDeComando && /Horário inválido/.test(e.message));
+});
+
+// ---------- Áudio do clima (4.7a) ----------
+const chuva = criarRef('jukebox', 'cena-sonora', 'chuva');
+
+test('clima.audio grava e remove a cena do clima (predefinido ou salvo), valida o alvo e desfaz', () => {
+  const store = criarStore(novo());
+  store.executar({ tipo: 'clima.audio', id: 'tempestade', ref: chuva });
+  assert.deepEqual(store.documento.climateAudio.tempestade, chuva); validarMapa(store.documento);
+  store.executar({ tipo: 'clima.audio', id: 'dia', ref: chuva });               // apelido de "tarde"
+  assert.deepEqual(store.documento.climateAudio.tarde, chuva);
+  store.executar({ tipo: 'clima.audio', id: 'tempestade', ref: null });
+  assert.equal(store.documento.climateAudio.tempestade, undefined);
+  store.desfazer(); assert.deepEqual(store.documento.climateAudio.tempestade, chuva);
+  assert.throws(() => store.executar({ tipo: 'clima.audio', id: 'nao-existe', ref: chuva }), ErroDeComando);
+  store.executar({ tipo: 'clima.salvar', nome: 'Meu' });
+  const salvo = Object.keys(store.documento.customClimates)[0]!;
+  store.executar({ tipo: 'clima.audio', id: salvo, ref: chuva });
+  store.executar({ tipo: 'clima.esquecer', id: salvo });
+  assert.equal(store.documento.climateAudio[salvo], undefined);
+});
+
+test('trocar de clima pede ao Jukebox a cena daquele clima; sem cena, outro mapa ou mesmo clima, nada', async () => {
+  const atlas = criarBarramento({ app: 'atlas', aviso: () => {} }), jukebox = criarBarramento({ app: 'jukebox', aviso: () => {} });
+  const pedidos: Evento[] = []; jukebox.atender('jukebox.tocar', (_d, e) => { pedidos.push(e); return { ok: true }; });
+  try {
+    const store = criarStore(novo()); store.executar({ tipo: 'clima.audio', id: 'tempestade', ref: chuva });
+    const antes = store.documento; store.executar({ tipo: 'clima.predefinir', id: 'tempestade' });
+    assert.equal(pedirSomDoClima(antes, store.documento, atlas as Barramento), true);
+    await new Promise(r => setTimeout(r, 60));
+    assert.equal(pedidos.length, 1); assert.deepEqual((pedidos[0]!.dados as { ref: unknown }).ref, chuva);
+    const noite = store.documento; store.executar({ tipo: 'clima.predefinir', id: 'noite' });
+    assert.equal(pedirSomDoClima(noite, store.documento, atlas), false, 'noite não tem cena');
+    assert.equal(pedirSomDoClima(store.documento, store.documento, atlas), false, 'mesmo clima');
+    assert.equal(pedirSomDoClima({ ...antes, id: 'outro' }, store.documento, atlas), false, 'outro mapa');
+    assert.equal(pedirSomDoClima(antes, store.documento, null), false, 'sem barramento');
+    await new Promise(r => setTimeout(r, 40)); assert.equal(pedidos.length, 1);
+  } finally { atlas.fechar(); jukebox.fechar(); }
 });

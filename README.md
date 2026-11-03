@@ -2,7 +2,7 @@
 
 Editor de mapas 2D de cena para a mesa: construa rápido, jogue com luz, clima e névoa. Faz parte da plataforma da campanha (Ficha, Ateliê, Jukebox, Tabletop): todos falam o [contrato da mesa](docs/PLATAFORMA.md).
 
-> Estado: **Fase 3 (construir) concluída** ([progress.md](progress.md)). Já dá para pintar cômodos (as paredes nascem sozinhas), pôr portas e janelas, mobiliar com uma biblioteca de objetos procedurais, acender luzes e pintar terreno, com histórico, rascunho automático, galeria, backup, paleta de comandos, menu radial, três temas e ligação com a campanha. Clima, sessão e névoa chegam nas próximas fases ([ROADMAP](docs/ROADMAP.md)).
+> Estado: **Fase 4 (climas e atmosfera) concluída** ([progress.md](progress.md)): luz com sombras, nove climas com transição animada, chuva, neve, neblina, presença (musgo, sangue, corrupção…) e som do clima. Antes disso, a **Fase 3 (construir)**: Já dá para pintar cômodos (as paredes nascem sozinhas), pôr portas e janelas, mobiliar com uma biblioteca de objetos procedurais, acender luzes e pintar terreno, com histórico, rascunho automático, galeria, backup, paleta de comandos, menu radial, três temas e ligação com a campanha. Sessão e névoa de guerra chegam nas próximas fases ([ROADMAP](docs/ROADMAP.md)).
 
 ## Usar
 
@@ -21,7 +21,7 @@ Atalhos principais: `Ctrl+K` paleta · `?` todos os atalhos · `Ctrl+S` gravar �
 ```bash
 npm run typecheck    # TypeScript strict
 npm test             # unitários: documento, comandos, store, dados, interface, plataforma, mesa-core
-npm run test:e2e     # Playwright (Chromium com WebGL): cenários que cobrem os critérios das Fases 2, 3 e 4.1–4.4
+npm run test:e2e     # Playwright (Chromium com WebGL): cenários que cobrem os critérios das Fases 2, 3 e 4
 ```
 
 ## Todos os projetos numa origem só (como no GitHub Pages)

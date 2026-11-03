@@ -1,4 +1,4 @@
-import { batch, signal } from '@preact/signals';
+import { batch, effect, signal } from '@preact/signals';
 import { exportarBackup, importarBackup, lerPacote, nomeDoArquivo, type RelatorioImportacao } from '../data/backup.ts';
 import { ErroDeBackup } from '../data/backup.ts';
 import { ErroDeConflito, type ResumoMapa } from '../data/repositorio.ts';
@@ -11,6 +11,7 @@ import { todosOsAlvos, caixaDe, caixaDaSelecao, ehMovel, type Alvo, type Colecao
 import type { Viewport } from '../render/viewport.ts';
 import type { ColecaoLivre, Comando } from '../state/comandos.ts';
 import { campanhaAtiva, carregarCampanhas, desvincularMapa, refDoMapa, revincularMapa, sincronizarMapaComCampanha } from './campanha.ts';
+import { pedirSomDoClima } from './audio-do-clima.ts';
 import { lerRota, formatarRota, type Rota } from './rotas.ts';
 import { iniciarServicos, type Servicos } from './servicos.ts';
 import { criarSessao, type SessaoDeEdicao } from './sessao.ts';
@@ -356,3 +357,11 @@ export function refazer(): void {
 }
 
 export const NOMES_COLECAO = { singular: SINGULAR, plural: PLURAL };
+
+// Trocar de clima pede ao Jukebox a cena sonora daquele clima (se o mapa tiver uma). Abrir outro mapa não pede nada.
+let mapaVisto: MapaAtlas | null = null;
+effect(() => {
+  const doc = sessao.value?.doc.value ?? null;
+  if (mapaVisto && doc) pedirSomDoClima(mapaVisto, doc, servicos.peek()?.barramento);
+  mapaVisto = doc;
+});

@@ -59,6 +59,16 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 - Testes: 2 unitários novos (comandos de presença com desfazer; catálogo dos pincéis) e 2 e2e novos (pintar pela ferramenta, intensidade expande/recolhe, desfazer; dez pincéis, inspetor, quadros por segundo). Capturas em `test-results/fase4-presenca.png` e `fase4-presencas.png`.
 - Fica para depois: dar um jeito de selecionar uma presença no mapa (hoje só pela aba Mapa); versão Pixel (Fase 8); arrastar a intensidade como gesto.
 
+### 4.7a Áudio do clima (3 de novembro) — concluída
+
+- Comando `clima.audio { id, ref | null }` (aceita predefinido, apelido `dia` ou clima salvo; `clima.esquecer` já limpa a entrada). Na seção Clima, "Som deste clima" lista as entidades da campanha ativa com ref do Jukebox, mais "Nenhum"; sem campanha, o campo explica por quê (provisório até a 9.4).
+- `app/audio-do-clima.ts`: ao mudar `climate.preset` do mesmo mapa e havendo cena para ele, `barramento.pedir('jukebox.tocar', { ref })`; sem resposta ou recusado, nada aparece na tela. Abrir outro mapa não pede nada. Testado com dois barramentos (Atlas e um Jukebox falso) e por e2e escutando o canal `mesa:eventos`. **Não testei com o `mesa-dev` e o Jukebox de verdade.**
+
+### 4.8 Validação da fase (3 de novembro) — concluída
+
+- `__atlas.fps(ms)` (média e p5) exposto como no protótipo. e2e novo `fase 4: Tarde → Tempestade → Noite → Apagão`: casa com janela externa e lâmpada de rede, troca pelo seletor, espera a transição, confere que o documento não mudou fora de `climate`/`finish`, mede o brilho (as quatro cenas diferem e escurecem da tarde à noite) e captura `test-results/fase4-<clima>.png`. Sem erros de console.
+- **FPS em 1920×1080 com tempestade, 5 s: média 60,0, p5 59,9** (300 quadros), no Chromium de teste com WebGL por software.
+
 ### Validação
 
 - `tsc --noEmit` limpo; `npm run build` e `build:core` sem erros; o build funciona em qualquer caminho.
@@ -109,7 +119,7 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 - A textura "Terra" mostra a repetição do ladrilho em áreas grandes; vale um ladrilho maior ou sem emenda na Fase 6 (acervo).
 - ~~Testes e2e oscilam sob carga~~ **Corrigido na Fase 4.1:** a oscilação que atribuí à carga da máquina era uma corrida real (ver abaixo).
 
-## Fase 4 — Climas e atmosfera
+## Fase 4 — Climas e atmosfera (concluída em 3 de novembro)
 
 ### 4.1 Luz por horário (2 de novembro) — concluída
 
@@ -139,7 +149,7 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 
 ### Validação
 
-- `tsc --noEmit` limpo, `npm run build` sem erros, **200 testes unitários** e **31 e2e** passando (3 rodadas completas seguidas, também depois da 4.4).
+- `tsc --noEmit` limpo, `npm run build` sem erros, **208 testes unitários** e **36 e2e** passando em rodadas completas seguidas, depois de todas as tarefas da fase (4.1 a 4.8).
 - Novos e2e medem o brilho dos pixels: o cômodo vizinho fica escuro com a porta fechada, clareia com ela aberta e volta a escurecer ao desfazer; desligar a atmosfera clareia o mapa sem mexer no documento; a janela clareia o piso de dia, menos à noite e nada sem sol.
 - Capturas conferidas: sombra pela porta, facho pela porta aberta, janelas de dia e de noite.
 - **60 FPS** medidos com 10 luzes tremulando (igual ao mapa sem luzes), no Chromium de teste com WebGL por software: indica que o custo é pequeno, mas não substitui medir no notebook do mestre.
@@ -155,12 +165,13 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 - O teste de chuva mede o brilho médio do terreno: a diferença é pequena (cerca de +1 em 255), então a margem é estreita; ele passou em todas as rodadas, mas é o primeiro a olhar se um dia oscilar. A contagem de partículas é o que garante a quantidade.
 - **60 FPS** medidos com todos os tipos em 1 no mapa de 45 × 30 m, no Chromium de teste com WebGL por software; falta medir no notebook do mestre.
 - As partículas de cada tipo são fixas (tamanhos e cores definidos no código); não há ainda botão para estilo (por exemplo, neve maior).
-- O som da chuva é do Jukebox (4.7a, sem interface ainda).
+- O som do clima é do Jukebox: o pedido `jukebox.tocar` sai (4.7a), mas não foi conferido com o Jukebox de verdade; a escolha definitiva da cena é da Fase 9.4.
+- Uma presença não se seleciona no mapa (só pela aba Mapa); a intensidade é campo numérico, não arrasto; a versão Pixel dela é da Fase 8.
 - O estilo Pixel (Fase 8) ainda não tem versão em pixels das partículas e da neblina.
 
 ## Próximo
 
-Fase 4.7a: áudio do clima. Tarefas em [docs/plano/fase-4.md](docs/plano/fase-4.md); começar pela **4.7a**. Pendências da Fase 3 em [docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md).
+A Fase 4 está concluída. Próximo: Fase 5 ([docs/plano/fase-5.md](docs/plano/fase-5.md)). Pendências da Fase 3 em [docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md).
 
 ## Pendências
 

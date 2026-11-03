@@ -9,7 +9,21 @@ import { App } from './ui/App.tsx';
 
 render(<App />, document.getElementById('raiz')!);
 
+/** Mede os quadros por segundo durante `ms`: média e o 5º percentil (os piores 5% dos quadros), para os testes de desempenho. */
+function fps(ms: number): Promise<{ media: number; p5: number; quadros: number }> {
+  return new Promise(resolver => {
+    const duracoes: number[] = []; let ultimo = performance.now(); const inicio = ultimo;
+    const quadro = (agora: number) => {
+      duracoes.push(agora - ultimo); ultimo = agora;
+      if (agora - inicio < ms) { requestAnimationFrame(quadro); return; }
+      const d = duracoes.slice(1), taxas = d.map(x => 1000 / Math.max(1, x)).sort((a, b) => a - b);
+      resolver({ media: d.length ? 1000 / (d.reduce((a, b) => a + b, 0) / d.length) : 0, p5: taxas[Math.floor(taxas.length * 0.05)] ?? 0, quadros: d.length });
+    };
+    requestAnimationFrame(quadro);
+  });
+}
+
 // Gancho de diagnóstico para os testes e para a depuração: só em desenvolvimento ou com `?diagnostico` na endereço.
 if (import.meta.env.DEV || new URLSearchParams(location.search).has('diagnostico')) {
-  Object.defineProperty(window, '__atlas', { value: Object.freeze({ sessao: () => sessao.value, servicos: () => servicos.value, viewport: () => viewport.atual }), configurable: true });
+  Object.defineProperty(window, '__atlas', { value: Object.freeze({ sessao: () => sessao.value, servicos: () => servicos.value, viewport: () => viewport.atual, fps }), configurable: true });
 }

@@ -384,3 +384,48 @@ test('presença: os dez pincéis pintam, o inspetor mexe na intensidade e em "s�
   assert.ok(fps >= 40, `quadros por segundo com 9 presenças: ${fps.toFixed(0)}`);
   assert.deepEqual(erros, []); await ctx.close();
 });
+
+// ---- 4.7 e 4.8: som do clima e a validação da fase ----
+test('som do clima: trocar para a tempestade pede ao Jukebox a cena escolhida, e só ela', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await casaNoGramado(page);
+  await page.evaluate(() => { const w = window as unknown as { __pedidos: { tipo: string; dados: { ref: { id: string } } }[] }; w.__pedidos = []; const c = new BroadcastChannel('mesa:eventos'); c.onmessage = e => { if (e.data?.tipo === 'jukebox.tocar') w.__pedidos.push(e.data); }; });
+  await sessao(page, '(s) => s.store.executar({ tipo: "clima.audio", id: "tempestade", ref: { app: "jukebox", tipo: "cena-sonora", id: "chuva" } })');
+  const pedidos = () => page.evaluate(() => (window as unknown as { __pedidos: unknown[] }).__pedidos.length);
+  await aplicarClimaPor(page, 'noite'); assert.equal(await pedidos(), 0, 'noite não tem cena');
+  await aplicarClimaPor(page, 'tempestade');
+  assert.equal(await pedidos(), 1);
+  const ref = await page.evaluate(() => (window as unknown as { __pedidos: { dados: { ref: { app: string; id: string } } }[] }).__pedidos[0]!.dados.ref);
+  assert.equal(ref.app, 'jukebox'); assert.equal(ref.id, 'chuva');
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('fase 4: Tarde → Tempestade → Noite → Apagão ao vivo, sem editar nada, e cada momento é outra cena', async () => {
+  const ctx = await novoContexto(amb, { viewport: { width: 1920, height: 1080 } }), { page, erros } = await abrir(ctx, amb.url);
+  await casaNoGramado(page);
+  // A casa da Fase 3, com uma janela externa e uma lâmpada de rede.
+  await sessao(page, '(s) => { s.pincel.value = { ...s.pincel.value, abertura: { tipo: "window" } }; }');
+  await ferramenta(page, 'abertura'); await clicar(page, [10.5, 6.75]);
+  await ferramenta(page, 'selecionar'); await clicar(page, [35, 25]);
+  await poluirLuz(page, [{ id: 'lampada', x: 10.5, y: 9.75, power: 'grid', color: '#fff3d0', radius: 8 }]);
+  await page.click('[data-testid="aba-mapa"]'); await page.waitForTimeout(500);
+  const semClima = (m: Record<string, unknown>) => { const { climate, finish, revision, updatedAt, ...resto } = m; void climate; void finish; void revision; void updatedAt; return JSON.stringify(resto); };
+  const base = semClima(await documento(page) as unknown as Record<string, unknown>);
+  const todo: [[number, number], [number, number]] = [[0, 0], [44, 29]], medidas: Record<string, number> = {}, casa: Record<string, number> = {};
+  for (const [id, nome] of [['tarde', 'Tarde'], ['tempestade', 'Tempestade'], ['noite', 'Noite'], ['apagao', 'Apagão']] as const) {
+    await page.click(`[data-testid="clima-${id}"]`); await page.waitForTimeout(2200);
+    assert.equal((await documento(page)).climate.preset, id, nome);
+    assert.equal(semClima(await documento(page) as unknown as Record<string, unknown>), base, `${nome}: o documento não mudou fora de clima e acabamento`);
+    medidas[id] = await brilho(page, ...todo); casa[id] = await brilho(page, ...DENTRO);
+    await page.screenshot({ path: `test-results/fase4-${id}.png` });
+  }
+  const ordem = Object.entries(medidas);
+  for (let i = 0; i < ordem.length; i++) for (let j = i + 1; j < ordem.length; j++) { const [a, b] = [ordem[i]![0], ordem[j]![0]]; assert.ok(Math.abs(medidas[a]! - medidas[b]!) > 1.5 || Math.abs(casa[a]! - casa[b]!) > 3, `${a} e ${b} parecem a mesma cena (mapa ${medidas[a]!.toFixed(1)} × ${medidas[b]!.toFixed(1)}, casa ${casa[a]!.toFixed(1)} × ${casa[b]!.toFixed(1)})`); }
+  assert.ok(medidas.tarde! > medidas.tempestade! && medidas.tempestade! > medidas.noite!, `escurece da tarde à noite: ${JSON.stringify(medidas)}`);
+  // Desempenho: tempestade a 1920×1080 por 5 s.
+  await page.click('[data-testid="clima-tempestade"]'); await page.waitForTimeout(2200);
+  const f = await page.evaluate(() => (window as unknown as { __atlas: { fps(ms: number): Promise<{ media: number; p5: number; quadros: number }> } }).__atlas.fps(5000));
+  console.log(`FPS tempestade 1920×1080: média ${f.media.toFixed(1)}, p5 ${f.p5.toFixed(1)} (${f.quadros} quadros)`);
+  assert.ok(f.p5 >= 50, `p5 de ${f.p5.toFixed(1)} fps abaixo de 50`);
+  assert.deepEqual(erros, []); await ctx.close();
+});

@@ -294,7 +294,7 @@ Testes: unitário: todo pincel tem id único e cor hex válida; validação acei
 Pronto quando: os dez pincéis pintam e cada um tem cara própria.
 Commit: presence brush packs
 
-### 4.7a — Áudio do clima  ⬜
+### 4.7a — Áudio do clima  ✅
 Objetivo: cada clima pode apontar para uma cena do Jukebox; trocar de clima pede para tocá-la.
 Depende de: 4.2b
 Ler: `src/app/app.ts` (onde já emite `atlas.cena-aberta` pelo `barramento`); `mesa-core/src/eventos.ts` (`jukebox.tocar` é pedido com `ref`); `src/app/campanha.ts`; PLATAFORMA.md §5; ARQUITETURA §8.1.
@@ -308,7 +308,7 @@ Testes: unitário do comando; teste com barramento em memória (padrão de `mesa
 Pronto quando: com `mesa-dev`, trocar para Tempestade emite `jukebox.tocar` com o ref certo.
 Commit: climate audio requests
 
-### 4.8 — Validação da fase  ⬜
+### 4.8 — Validação da fase  ✅
 Objetivo: provar o critério de pronto e medir desempenho.
 Depende de: todas
 Ler: `tests/e2e/fase3.test.ts` (o teste da casa de três cômodos); `tests/e2e/apoio.ts`; `spikes/estilos/` (`window.atlas.fps` e `npm run medir`).

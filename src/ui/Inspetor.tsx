@@ -80,6 +80,23 @@ function amostraDoClima(c: Omit<Clima, 'preset'>, f: Omit<Acabamento, 'preset'>)
 }
 
 /** Escolher o clima: predefinições e os salvos pelo mestre, mais os ajustes finos do momento. */
+/** A cena do Jukebox que toca neste clima. Provisório: a escolha de verdade vem com a Fase 9. */
+function SomDoClima({ s, clima }: { s: SessaoDeEdicao; clima: string }) {
+  const m = s.doc.value, entidades = useSignal<Entidade[]>([]), atual = m.climateAudio[clima] ?? null;
+  useEffect(() => {
+    let vivo = true; entidades.value = [];
+    const repo = servicos.value?.campanhas;
+    if (repo && m.campanhaId) void repo.listarEntidades(m.campanhaId).then(l => { if (vivo) entidades.value = l.filter(e => e.refs.some(r => r.app === 'jukebox')); }).catch(() => undefined);
+    return () => { vivo = false; };
+  }, [m.campanhaId]);
+  if (!m.campanhaId) return <p class="dica">O som do clima vem de uma cena do Jukebox da campanha: ligue este mapa a uma campanha para escolher.</p>;
+  const jukebox = (e: Entidade) => e.refs.find(r => r.app === 'jukebox')!;
+  const opcoes: (readonly [string, string])[] = [['', 'Nenhum'], ...entidades.value.map(e => [chaveDaRef(jukebox(e)), e.nome] as const)];
+  if (atual && !opcoes.some(([k]) => k === chaveDaRef(atual))) opcoes.push([chaveDaRef(atual), `Outra (${atual.id})`]);
+  return <CampoOpcoes rotulo="Som deste clima" dica="Ao trocar para este clima, o Atlas pede ao Jukebox que toque esta cena." valor={atual ? chaveDaRef(atual) : ''} opcoes={opcoes}
+    aoMudar={v => { const ref = v ? entidades.value.map(jukebox).find(r => chaveDaRef(r) === v) ?? null : null; tentar(() => s.store.executar({ tipo: 'clima.audio', id: clima, ref }, { rotulo: 'Som do clima' })); }} />;
+}
+
 function SeletorDeClima({ s }: { s: SessaoDeEdicao }) {
   const m = s.doc.value, st = s.store, nomeando = useSignal(false), nome = useSignal('');
   const ativo = presetDeClima(m.climate.preset)?.id ?? m.climate.preset;
@@ -113,6 +130,7 @@ function SeletorDeClima({ s }: { s: SessaoDeEdicao }) {
     <CampoNumero rotulo="Vento" dica="De −1 (para a esquerda) a 1 (para a direita)." valor={m.climate.weather.wind} min={-1} max={1} passo={0.1} aoConfirmar={v => ajustar({ weather: { wind: v } }, 'Vento')} />
     <CampoNumero rotulo="Relâmpagos" valor={m.climate.weather.lightning} min={0} max={1} passo={0.05} aoConfirmar={v => ajustar({ weather: { lightning: v } }, 'Relâmpagos')} />
     <CampoCaixa rotulo="Energia da rede" dica="Desligada, as luzes de rede elétrica apagam (apagão)." valor={m.climate.gridPower} aoMudar={v => ajustar({ gridPower: v }, v ? 'Religar a rede' : 'Cortar a rede')} />
+    <SomDoClima s={s} clima={ativo} />
   </>);
 }
 
