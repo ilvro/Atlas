@@ -90,7 +90,7 @@ Tarefas: [plano/fase-4.md](plano/fase-4.md) (tarefas detalhadas).
 
 ## Fase 5 — Construção inteligente
 
-Tarefas: [plano/fase-5.md](plano/fase-5.md) (lista de tarefas; detalhar antes de começar).
+Tarefas: [plano/fase-5.md](plano/fase-5.md) (tarefas detalhadas).
 
 | Etapa | Entrega |
 | --- | --- |
