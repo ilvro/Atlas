@@ -41,7 +41,7 @@ Detalhado em 2 de novembro de 2026, contra o código da Fase 3. Faça na ordem d
 
 ---
 
-### 4.1a — Visibilidade pura  ⬜
+### 4.1a — Visibilidade pura  ✅
 Objetivo: dado o documento, calcular os segmentos que bloqueiam a luz e o polígono iluminado de uma fonte (círculo ou cone).
 Depende de: —
 Ler: `spikes/estilos/src/geometria.js` (`oclusores`, `raio`, `visibilidade`); `src/domain/geometria.ts` (`comprimentoDaParede`, `pontoNaParede`, `centroDaAbertura`).
@@ -56,7 +56,7 @@ Testes: cômodo fechado não vaza luz para fora; porta fechada bloqueia e aberta
 Pronto quando: testes passam; `src/domain` continua sem importar render.
 Commit: add pure light visibility
 
-### 4.1b — Mapa de luz com sombras  ⬜
+### 4.1b — Mapa de luz com sombras  ✅
 Objetivo: a cena passa a ser escurecida pelo ambiente e iluminada pelas luzes do mapa, com sombras das paredes.
 Depende de: 4.1a
 Ler: `spikes/estilos/src/main.js` (linhas ~70–100 e o laço, `atualizarLuz`); `src/render/cena.ts` (`criarCena`, `desenharLuz`, `sincronizar`); `src/render/luzes.ts`; `src/render/viewport.ts` (`aplicarAcabamento`, `aoQuadro`).
@@ -73,7 +73,7 @@ Testes: unitário não cabe (Pixi); rode `npm run test:e2e` — os testes da Fas
 Pronto quando: as luzes projetam sombra das paredes ao vivo e o FPS no editor continua em 60 com 10 luzes.
 Commit: light map with wall shadows
 
-### 4.1c — Céu por horário  ⬜
+### 4.1c — Céu por horário  ✅
 Objetivo: do horário `HH:MM`, obter sol ou lua, ambiente sugerido e se é noite.
 Depende de: —
 Ler: `src/domain/mapa.ts` (`Clima`); `spikes/estilos/src/climas.js` (cores dos climas).
@@ -88,7 +88,7 @@ Testes: 12:00 tem sol mais forte que 07:00; 23:00 é noite com lua; 18:30 é noi
 Pronto quando: testes passam.
 Commit: sky from time of day
 
-### 4.1d — Luz do céu pelas janelas  ⬜
+### 4.1d — Luz do céu pelas janelas  ✅
 Objetivo: cada janela entre um cômodo e o lado de fora derrama a luz do sol ou da lua para dentro.
 Depende de: 4.1b, 4.1c
 Ler: `spikes/estilos/src/main.js` (`luzesJanela`); `src/domain/geometria.ts` (`salasDaAbertura`, `pontoNaParede`, `centroDaAbertura`, `comodoEm`).

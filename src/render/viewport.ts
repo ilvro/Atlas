@@ -103,7 +103,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const acento = (): number => { const v = getComputedStyle(document.documentElement).getPropertyValue('--acento').trim(); return /^#[0-9a-f]{6}$/i.test(v) ? hexParaNumero(v) : COR_PADRAO_ACENTO; };
   const px = (n: number) => n / camera.zoom;
 
-  const cena: Cena = criarCena({ baker, acento, efeitos: fxAtivo, aoPintar: () => { camadaSuja = true; } });
+  const cena: Cena = criarCena({ baker, renderer: app.renderer, acento, efeitos: fxAtivo, aoPintar: () => { camadaSuja = true; } });
   const acabamento = criarFiltroAcabamento();
   fantasmaC.addChild(fantasmaG);
   mundo.addChild(area_, cena.raiz, grade, selecaoG, fantasmaC, laco);
@@ -111,6 +111,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   function aplicarAcabamento(): void {
     const m = doc(), ligado = ponte.acabamento() && m.finish.preset !== 'nenhum';
+    cena.definirAtmosfera(ponte.acabamento());
     cena.raiz.filters = ligado ? [acabamento.filtro] : [];
     if (ligado) acabamento.aplicar(m.finish, performance.now() / 1000);
   }

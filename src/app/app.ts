@@ -74,7 +74,19 @@ export function navegar(r: Rota): void {
   location.hash = alvo;
 }
 
+/**
+ * Uma sincronização de cada vez: trocar de tela tem uma transição de ~170 ms, e um clique nesse intervalo (abrir um mapa logo ao
+ * chegar na galeria) via a sessão antiga ainda aberta, desistia, e a transição então a fechava. Pedidos que chegam no meio
+ * esperam e, depois, a rota mais recente é que vale.
+ */
+let sincronizando = false, rotaPendente = false;
 async function sincronizarRota(): Promise<void> {
+  if (sincronizando) { rotaPendente = true; return; }
+  sincronizando = true;
+  try { do { rotaPendente = false; await sincronizarRotaAtual(); } while (rotaPendente); } finally { sincronizando = false; }
+}
+
+async function sincronizarRotaAtual(): Promise<void> {
   const r = rota.value, s = servicos.value;
   if (!s) return;
   if (r.tipo === 'mapa') { await abrirMapa(r.id, r.comodo); return; }

@@ -92,11 +92,38 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 - Parâmetros de receita só aparecem na biblioteca antes de pôr; depois, o inspetor oferece apenas "Variar".
 - O tempo "menos de dez minutos" foi conferido pelo fluxo automatizado, não cronometrado com uma pessoa.
 - A textura "Terra" mostra a repetição do ladrilho em áreas grandes; vale um ladrilho maior ou sem emenda na Fase 6 (acervo).
-- **Testes e2e oscilam sob carga:** com a máquina ocupada (carga 6–7), um teste antigo diferente falhou de vez em quando em esperas por tempo e passou na repetição; sozinhos passam. Não achei defeito do produto nisso, mas os testes ainda não são à prova de máquina lenta.
+- ~~Testes e2e oscilam sob carga~~ **Corrigido na Fase 4.1:** a oscilação que atribuí à carga da máquina era uma corrida real (ver abaixo).
+
+## Fase 4 — Climas e atmosfera
+
+### 4.1 Luz por horário (2 de novembro) — concluída
+
+- **4.1a Visibilidade pura** (`domain/visibilidade.ts`): `oclusores` (paredes que bloqueiam luz ou visão, recortando o vão de arcos, portas abertas e, só para a luz, janelas), `poligonoIluminado` (círculo ou cone, 96 direções de base) e `IndiceDeSegmentos` (baldes de 4 m; devolve exatamente o mesmo polígono que a lista inteira).
+- **4.1b Mapa de luz** (`render/mapa-de-luz.ts`): cada luz vira um brilho recortado pelo que ela enxerga (as paredes fazem sombra), somado, desfocado e multiplicado sobre a cena, 8 px/m. Polígonos só são refeitos quando a luz ou a geometria mudam; a tremulação mexe só na opacidade. O brilho aditivo antigo saiu e o marcador da luz ficou. O botão passou a "Ver atmosfera no editor" e vale para luz e acabamento.
+- **4.1c Céu por horário** (`domain/clima.ts`): `ceuNoHorario` (sol de 06:00 a 18:00, lua fora disso, ambiente interpolado entre âncoras), `ehNoite`, `lerHorario`.
+- **4.1d Luz do céu pelas janelas**: `luzesDerivadas` põe um cone de 2,1 rad a 0,3 m para dentro de cada janela entre um cômodo e o lado de fora; nada é gravado no documento. Janela entre dois cômodos, fora de cômodo ou com `sun: null` não gera luz.
+
+### Validação
+
+- `tsc --noEmit` limpo, `npm run build` sem erros, **178 testes unitários** e **24 e2e** passando (3 rodadas completas seguidas).
+- Novos e2e medem o brilho dos pixels: o cômodo vizinho fica escuro com a porta fechada, clareia com ela aberta e volta a escurecer ao desfazer; desligar a atmosfera clareia o mapa sem mexer no documento; a janela clareia o piso de dia, menos à noite e nada sem sol.
+- Capturas conferidas: sombra pela porta, facho pela porta aberta, janelas de dia e de noite.
+- **60 FPS** medidos com 10 luzes tremulando (igual ao mapa sem luzes), no Chromium de teste com WebGL por software: indica que o custo é pequeno, mas não substitui medir no notebook do mestre.
+
+### Defeito real achado e corrigido no caminho
+
+- **Corrida ao abrir um mapa pela galeria:** clicar num mapa logo ao chegar na galeria (dentro dos ~170 ms da transição que fecha o editor) fazia `abrirMapa` ver a sessão antiga, desistir, e a transição então a fechava: a URL mudava e a tela ficava na galeria. Era o que fazia o e2e de `atlas.focar` oscilar (antes eu tinha atribuído isso à carga da máquina, e estava errado). A sincronização de rota agora é uma de cada vez e a rota mais recente vence; há teste de regressão.
+- O viewport agora avisa com um toast quando não consegue abrir (antes a falha era silenciosa).
+
+### Pendências
+
+- O padrão de luz atual não distingue `nightOnly` nem `power` (isso é a 4.3a); luzes `on: false` já apagam.
+- O ambiente padrão de mapas novos (`#d1ccc0` × 0,82) escurece levemente a cena; as predefinições da 4.2b vão definir o ambiente de cada clima.
+- Falta medir o FPS no notebook do mestre.
 
 ## Próximo
 
-Fase 4 — Climas e atmosfera: o mesmo mapa de dia, em tempestade, à noite e sem energia. Tarefas em [docs/plano/fase-4.md](docs/plano/fase-4.md); começar pela **4.1a**. Pendências da Fase 3 em [docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md).
+Fase 4.2: documento v3 (clima, áudio do clima, presença por células), predefinições de clima e seletor. Tarefas em [docs/plano/fase-4.md](docs/plano/fase-4.md); começar pela **4.1a**. Pendências da Fase 3 em [docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md).
 
 ## Pendências
 

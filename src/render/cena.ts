@@ -1,4 +1,4 @@
-import { Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
+import { Container, Graphics, Sprite, Text, Texture, type Renderer } from 'pixi.js';
 import { decodificar } from '../domain/celulas.ts';
 import { comprimentoDaParede, pontoNaParede } from '../domain/geometria.ts';
 import type { Abertura, Luz, MapaAtlas, Objeto, Parede, Peca, Ponto, Regiao } from '../domain/mapa.ts';
@@ -9,12 +9,14 @@ import type { PedidoDeBake, ResultadoDeBake } from '../procedural/executar.ts';
 import type { Mudancas } from '../state/mudancas.ts';
 import { corDoNome, hexParaNumero } from './cores.ts';
 import { chaveDoComodo, chaveDoObjeto, chaveDoTerreno, contextoDeEntradas, entradaDoComodo, entradaDoTerreno } from './entradas.ts';
-import { texturaDeBrilho } from './luzes.ts';
+import { criarMapaDeLuz } from './mapa-de-luz.ts';
 
 export const RES_OBJETO = 96, RES_COMODO = 64, RES_TERRENO = 24;
 
 export interface OpcoesDaCena {
   baker: Baker;
+  /** O renderizador, para o mapa de luz (texturas fora da tela). */
+  renderer: Renderer;
   acento(): number;
   /** Os efeitos de entrada (o "pop" do item novo) estão ligados? */
   efeitos(): boolean;
@@ -26,8 +28,10 @@ export interface Cena {
   readonly raiz: Container;
   /** `mudancas === null` refaz tudo. */
   sincronizar(m: MapaAtlas, mudancas: Mudancas | null, comPop: boolean): void;
-  /** Avança as animações de entrada. */
+  /** Avança as animações de entrada e a tremulação das luzes. */
   quadro(agora: number): void;
+  /** A atmosfera (luz, sombras) aparece? É do editor, não do mapa. */
+  definirAtmosfera(ligada: boolean): void;
   /** Quantos desenhos ainda estão sendo pintados no worker. */
   readonly pintando: number;
   destruir(): void;
@@ -38,7 +42,9 @@ interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; 
 export function criarCena(op: OpcoesDaCena): Cena {
   const raiz = new Container(), terrenoC = new Container(), comodosC = new Container(), objetosC = new Container(), paredesG = new Graphics();
   const regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), tituloC = new Container();
-  raiz.addChild(terrenoC, comodosC, objetosC, paredesG, regioesC, luzesC, pecasC, tituloC);
+  const luz = criarMapaDeLuz(op.renderer);
+  // A luz multiplica tudo o que está embaixo (piso, objetos, paredes); marcadores, regiões e peças ficam por cima, sempre legíveis.
+  raiz.addChild(terrenoC, comodosC, objetosC, paredesG, luz.sprite, regioesC, luzesC, pecasC, tituloC);
 
   let mapa: MapaAtlas | null = null, destruida = false, pintandoAgora = 0;
   const salas = new Map<string, Entrada>(), objetos = new Map<string, Entrada>();
@@ -190,15 +196,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
   const grafico = (c: Container): Graphics => (c.getChildByLabel('g') as Graphics | null) ?? c.addChild(Object.assign(new Graphics(), { label: 'g' }));
 
   function desenharLuz(c: Container, l: Luz): void {
-    let brilho = c.getChildByLabel('b') as Sprite | null;
-    if (!brilho) { brilho = Object.assign(new Sprite(texturaDeBrilho()), { label: 'b' }); brilho.anchor.set(0.5); brilho.blendMode = 'add'; c.addChildAt(brilho, 0); }
-    let mascara = c.getChildByLabel('m') as Graphics | null;
-    if (!mascara) { mascara = Object.assign(new Graphics(), { label: 'm' }); c.addChild(mascara); }
     const cor = hexParaNumero(l.color), ligada = l.on;
-    brilho.tint = cor; brilho.width = brilho.height = l.radius * 2; brilho.alpha = ligada ? Math.min(0.55, 0.16 + l.intensity * 0.2) : 0;
-    mascara.clear();
-    if (l.cone) { const meia = l.cone.angle / 2; mascara.moveTo(0, 0).arc(0, 0, l.radius * 1.05, l.cone.direction - meia, l.cone.direction + meia).lineTo(0, 0).fill(0xffffff); brilho.mask = mascara; } else { brilho.mask = null; mascara.visible = false; }
-    mascara.visible = !!l.cone;
     const g = grafico(c).clear();
     if (l.cone) { const meia = l.cone.angle / 2, r = Math.min(l.radius, 5); g.moveTo(0, 0).arc(0, 0, r, l.cone.direction - meia, l.cone.direction + meia).lineTo(0, 0).stroke({ width: 0.03, color: cor, alpha: ligada ? 0.7 : 0.25 }); }
     g.circle(0, 0, 0.2).fill(ligada ? cor : 0x3a3a44).stroke({ width: 0.04, color: 0x000000, alpha: 0.75 });
@@ -262,13 +260,16 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid')) sincronizarComodos(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid')) desenharParedes(m);
       if (tudo || colecao('props')) sincronizarObjetos(m, tudo ? null : mud!.colecoes.props ?? null, comPop);
+      luz.sincronizar(m, mud);
       if (tudo || colecao('lights')) sincronizarSimples(luzes, luzesC, m.lights, tudo ? null : mud!.colecoes.lights ?? null, desenharLuz, comPop);
       if (tudo || colecao('tokens') || campos('grid')) sincronizarSimples(pecas, pecasC, m.tokens, tudo || campos('grid') ? null : mud!.colecoes.tokens ?? null, (c, t) => desenharPeca(c, t, m), comPop);
       if (tudo || colecao('regions')) sincronizarSimples(regioes, regioesC, m.regions, tudo ? null : mud!.colecoes.regions ?? null, desenharRegiao, comPop);
       if (tudo || campos('backdrop', 'bounds')) sincronizarTitulo(m);
       op.baker.coletar(chavesEmUso());
     },
+    definirAtmosfera: ligada => luz.definirLigado(ligada),
     quadro(agora) {
+      luz.quadro(agora);
       for (let i = animacoes.length - 1; i >= 0; i--) {
         const a = animacoes[i]!, t = Math.min(1, (agora - a.t0) / a.dur), e = 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2;   // easeOutBack
         if (a.alvo.destroyed) { animacoes.splice(i, 1); continue; }
@@ -280,7 +281,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       destruida = true; if (terrenoTimer) clearTimeout(terrenoTimer);
       for (const e of [...salas.values(), ...objetos.values(), ...(terreno ? [terreno] : [])]) soltar(e.chaveTextura);
       for (const t of texturas.values()) t.tex.destroy(true); texturas.clear();
-      raiz.destroy({ children: true });
+      luz.destruir(); raiz.destroy({ children: true });
     },
   };
 }

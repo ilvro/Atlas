@@ -21,7 +21,7 @@ Atalhos principais: `Ctrl+K` paleta · `?` todos os atalhos · `Ctrl+S` gravar �
 ```bash
 npm run typecheck    # TypeScript strict
 npm test             # unitários: documento, comandos, store, dados, interface, plataforma, mesa-core
-npm run test:e2e     # Playwright (Chromium com WebGL): cenários que cobrem os critérios das Fases 2 e 3
+npm run test:e2e     # Playwright (Chromium com WebGL): cenários que cobrem os critérios das Fases 2, 3 e 4.1
 ```
 
 ## Todos os projetos numa origem só (como no GitHub Pages)

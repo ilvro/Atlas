@@ -67,7 +67,7 @@ function AreaDoMapa({ s }: { s: SessaoDeEdicao }) {
     void criarViewport(ref.current!, ponteDa(s)).then(v => {
       if (morto) { v.destruir(); return; }
       vp = v; viewportAtual.atual = v; focarNoComodo();
-    });
+    }).catch(erro => { console.error('Atlas: o viewport não abriu', erro); avisar('Não consegui abrir o mapa na tela. Recarregue a página.', { tipo: 'erro', duracao: 8000 }); });
     return () => { morto = true; vp?.destruir(); if (viewportAtual.atual === vp) viewportAtual.atual = null; };
   }, [s]);
   // A seleção, a ferramenta e o pincel vivem em signals; o viewport só precisa saber que deve redesenhar as sobreposições.

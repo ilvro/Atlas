@@ -394,3 +394,16 @@ test('mesa-dev: dois aplicativos sob a mesma origem compartilham tema e campanha
     assert.deepEqual(atlas.erros, []);
   } finally { await ctx.close(); await vite.close(); await new Promise<void>(ok => { proxy.close(() => ok()); proxy.closeAllConnections(); }); await new Promise<void>(ok => { ficha.close(() => ok()); ficha.closeAllConnections(); }); }
 });
+
+test('abrir um mapa logo ao chegar na galeria funciona (a transição de saída não engole o clique)', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  const id = await criarMapaPelaInterface(page);
+  await page.click('[data-testid="gravar"]');
+  await page.waitForFunction(() => document.querySelector('[data-testid="estado-gravacao"]')?.getAttribute('data-sujo') === 'false');
+  for (let i = 0; i < 3; i++) {
+    await page.click('a.marca'); await page.waitForSelector('[data-testid="lista-mapas"]');
+    await page.click('.cartao-link');                       // sem esperar: é aí que a sessão antiga ainda está fechando
+    await esperarEditor(page); assert.equal((await documento(page)).id, id);
+  }
+  assert.deepEqual(erros, []); await ctx.close();
+});
