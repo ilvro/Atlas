@@ -25,12 +25,16 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const hex = (c: Cor) => `#${c.map(v => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, '0')).join('')}`;
 const lerpCor = (a: Cor, b: Cor, t: number): Cor => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
 
+/** O ambiente que dá a cor efetiva `rgb` (0 a 1): `color × intensity` é essa cor, então a cor guarda o matiz no brilho máximo e a intensidade, o quanto. */
+export function ambienteDaCor(rgb: readonly [number, number, number]): Clima['ambient'] {
+  const forca = Math.min(1, Math.max(...rgb, 1e-6));
+  return { color: hex(rgb.map(v => v / forca) as Cor), intensity: Math.round(forca * 1000) / 1000 };
+}
+
 function ambienteEm(h: number): Clima['ambient'] {
   let i = 0; while (i < ANCORAS.length - 2 && h >= ANCORAS[i + 1]![0]) i++;
-  const [h0, c0] = ANCORAS[i]!, [h1, c1] = ANCORAS[i + 1]!, cor = lerpCor(c0, c1, (h - h0) / (h1 - h0));
-  // `color × intensity` é a cor efetiva: a cor guarda o matiz no máximo de brilho e a intensidade, o quanto.
-  const forca = Math.max(...cor, 1e-6);
-  return { color: hex(cor.map(v => v / forca) as Cor), intensity: Math.round(forca * 1000) / 1000 };
+  const [h0, c0] = ANCORAS[i]!, [h1, c1] = ANCORAS[i + 1]!;
+  return ambienteDaCor(lerpCor(c0, c1, (h - h0) / (h1 - h0)));
 }
 
 /** Sol entre 06:00 e 18:00 (nasce a leste, põe a oeste); fora disso, a lua. */

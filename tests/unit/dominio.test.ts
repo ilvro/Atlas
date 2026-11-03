@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { area, codificar, contem, decodificar, ehCanonica, limites, normalizar, subtrair, unir } from '../../src/domain/celulas.ts';
+import { criarRef } from '#mesa';
 import { ErroDeValidacao } from '../../src/domain/esquema.ts';
 import { colunas, conteudo, criarMapa, duplicarParaNovaSessao, linhas, type MapaAtlas } from '../../src/domain/mapa.ts';
 import { MIGRACOES, aplicarMigracoes, lerMapa } from '../../src/domain/migracoes.ts';
@@ -13,7 +14,7 @@ const mexer = (fn: (m: MapaAtlas) => void) => { const m = structuredClone(mapaCo
 test('um mapa novo é válido, vazio e no padrão de 1,5 m', () => {
   const m = criarMapa({ id: 'a', agora: 5 });
   validarMapa(m);
-  assert.equal(m.schema, 'atlas.map'); assert.equal(m.version, 2); assert.equal(m.revision, 0);
+  assert.equal(m.schema, 'atlas.map'); assert.equal(m.version, 3); assert.equal(m.revision, 0);
   assert.equal(m.grid.size, 1.5); assert.equal(colunas(m), 30); assert.equal(linhas(m), 20);
   assert.deepEqual(Object.keys(m.rooms), []);
 });
@@ -109,10 +110,10 @@ test('lerMapa recusa o que não é mapa e devolve cópias independentes do que l
   assert.throws(() => lerMapa(null), /não é um mapa/);
   assert.throws(() => lerMapa({ schema: 'outra.coisa', version: 1 }), /atlas\.map/);
   assert.throws(() => lerMapa({ schema: 'atlas.map', version: 'x' }), /Versão inválida/);
-  assert.throws(() => lerMapa({ ...criarMapa(), version: 3 }), /mais nova/);
+  assert.throws(() => lerMapa({ ...criarMapa(), version: 4 }), /mais nova/);
   const original = mapaCompleto(), lido = lerMapa(original);
   assert.deepEqual(lido, original); assert.notEqual(lido, original);
-  assert.deepEqual(Object.keys(MIGRACOES), ['1']);
+  assert.deepEqual(Object.keys(MIGRACOES), ['1', '2']);
 });
 
 test('conteúdo ignora revisão e carimbos de tempo, e só eles', () => {
@@ -137,7 +138,7 @@ test('migração 1→2: mapas da Fase 2 abrem no formato novo, sem perder nada',
   for (const l of Object.values(v1.lights) as Record<string, unknown>[]) delete l.preset;
   for (const a of Object.values(v1.openings) as Record<string, unknown>[]) delete a.swing;
   const lido = lerMapa(v1);
-  assert.equal(lido.version, 2); assert.equal(lido.terrain.base, 'vazio');
+  assert.equal(lido.version, 3); assert.equal(lido.terrain.base, 'vazio');
   assert.equal(lido.lights.lampiao!.preset, null); assert.equal(lido.openings.porta!.swing, 'a');
   assert.deepEqual(lido.rooms, atual.rooms); assert.deepEqual(lido.props, atual.props);
   assert.equal(v1.version, 1, 'o original não é tocado');
@@ -152,4 +153,40 @@ test('camadas de terreno: células dentro do mapa, em faixas canônicas', () => 
   validarMapa(m);
   assert.equal(caminhoDoErro(mexer(x => { x.terrain.layers.g = { id: 'g', material: 'grama', cells: [[119, 170, 11]], order: 0 }; })), 'terrain.layers.g.cells');   // 180 × 120 células de 0,25 m
   assert.equal(caminhoDoErro(mexer(x => { x.terrain.layers.g = { id: 'g', material: 'grama', cells: [[0, 0, 5], [0, 4, 3]], order: 0 }; })), 'terrain.layers.g.cells');
+});
+
+test('migração 2→3: o mapa da Fase 3 abre no formato novo, com clima, tempo e presença por células', () => {
+  const atual = mapaCompleto(), v2 = structuredClone(atual) as unknown as Record<string, any>;
+  v2.version = 2; delete v2.climateAudio; delete v2.customClimates; delete v2.climate.weather; delete v2.climate.gridPower;
+  v2.presence.musgo = { id: 'musgo', brush: 'musgo', mask: { id: 'mask-1', hash: 'abcdef012345' }, intensity: 0.6, seed: 4, gmOnly: false };
+  const lido = lerMapa(v2);
+  assert.equal(lido.version, 3);
+  assert.deepEqual(lido.climate.weather, { rain: 0, snow: 0, fog: 0, wind: 0, dust: 0, embers: 0, leaves: 0, lightning: 0 });
+  assert.equal(lido.climate.gridPower, true); assert.deepEqual(lido.climateAudio, {}); assert.deepEqual(lido.customClimates, {});
+  assert.deepEqual(lido.presence.musgo!.cells, []); assert.ok(!('mask' in lido.presence.musgo!));
+  assert.deepEqual(lido.rooms, atual.rooms); assert.equal(lido.climate.time, atual.climate.time);
+  assert.equal(v2.version, 2, 'o original não é tocado');
+  // Um mapa v1 passa pelas duas migrações de uma vez.
+  const v1 = structuredClone(v2); v1.version = 1; v1.terrain = { resolution: 0.25, base: 'terra', layers: {} };
+  for (const l of Object.values(v1.lights) as Record<string, unknown>[]) delete l.preset;
+  for (const a of Object.values(v1.openings) as Record<string, unknown>[]) delete a.swing;
+  assert.equal(lerMapa(v1).version, 3);
+});
+
+test('tempo e clima: limites e campos desconhecidos são recusados com o caminho', () => {
+  validarMapa(mexer(x => { x.climate.weather.rain = 1; x.climate.weather.wind = -0.5; x.climate.gridPower = false; }));
+  assert.equal(caminhoDoErro(mexer(x => { x.climate.weather.lightning = 2; })), 'climate.weather.lightning');
+  assert.equal(caminhoDoErro(mexer(x => { x.climate.weather.wind = -1.5; })), 'climate.weather.wind');
+  assert.equal(caminhoDoErro(mexer(x => { (x.climate.weather as unknown as Record<string, number>).granizo = 1; })), 'climate.weather.granizo');
+  assert.equal(caminhoDoErro(mexer(x => { (x.climate as unknown as Record<string, unknown>).gridPower = 'sim'; })), 'climate.gridPower');
+});
+
+test('clima do usuário, áudio do clima e presença por células são validados', () => {
+  const salvo = (m: ReturnType<typeof mapaCompleto>) => ({ id: 'noite-de-vela', name: 'Noite de vela', climate: { ambient: m.climate.ambient, sun: null, time: '23:00', weather: m.climate.weather, gridPower: false }, finish: { texture: 0.2, vignette: 0.5, saturation: 0.9, grain: 0.05, tint: '#ffffff', grade: { lift: 0, gamma: 1, gain: 1 } } });
+  validarMapa(mexer(x => { x.customClimates['noite-de-vela'] = salvo(x); x.climateAudio.tempestade = criarRef('jukebox', 'cena-sonora', 'chuva-forte'); }));
+  assert.equal(caminhoDoErro(mexer(x => { x.customClimates.outro = salvo(x); })), 'customClimates.outro.id');
+  assert.equal(caminhoDoErro(mexer(x => { (x.climateAudio as Record<string, unknown>).tempestade = { app: 'x' }; })), 'climateAudio.tempestade');
+  assert.equal(caminhoDoErro(mexer(x => { (x.climateAudio as Record<string, unknown>)['com espaço'] = criarRef('jukebox', 'cena-sonora', 'a'); })), 'climateAudio.com espaço');
+  assert.equal(caminhoDoErro(mexer(x => { x.presence.musgo!.cells = [[119, 170, 11]]; })), 'presence.musgo.cells');
+  assert.equal(caminhoDoErro(mexer(x => { x.presence.musgo!.cells = [[0, 0, 5], [0, 4, 3]]; })), 'presence.musgo.cells');
 });

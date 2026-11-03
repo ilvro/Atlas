@@ -51,7 +51,7 @@ const luz = e.obj({
 const regiao = e.obj({
   id, polygon: e.lista(ponto, { min: 3, max: 2_000 }), kind: e.um('reveal', 'trigger', 'note', 'audio'), gmOnly: e.bool(), payload: e.json(), refs,
 });
-const presenca = e.obj({ id, brush: e.texto({ min: 1, max: 60 }), mask: refAsset, intensity: unidade, seed: e.num({ inteiro: true, min: 0, max: 2 ** 31 }), gmOnly: e.bool() });
+const presenca = e.obj({ id, brush: e.texto({ min: 1, max: 60 }), cells: faixas, intensity: unidade, seed: e.num({ inteiro: true, min: 0, max: 2 ** 31 }), gmOnly: e.bool() });
 const peca = e.obj({
   id, name: nome, portrait: refAsset,
   sprite: e.nulo(e.obj({ body: e.texto({ min: 1, max: 40 }), hair: e.texto({ min: 1, max: 40 }), outfit: e.texto({ min: 1, max: 40 }), accessories: e.lista(e.texto({ min: 1, max: 40 }), { max: 20 }), colors: e.json(2_000), seed: e.num({ inteiro: true, min: 0, max: 2 ** 31 }) })),
@@ -59,6 +59,19 @@ const peca = e.obj({
   vision: e.obj({ radius: e.num({ min: 0, max: 200 }), dark: e.bool() }), lightId: idOuNulo,
   figure: e.obj({ state: e.um(...ESTADOS_FIGURA) }), refs,
 });
+
+// Os campos do clima e do acabamento sem o `preset`: o mapa os guarda com ele, o clima salvo sem.
+const CAMPOS_DO_CLIMA = {
+  ambient: e.obj({ color: hex, intensity: unidade }),
+  sun: e.nulo(e.obj({ angle: e.num({ min: -1000, max: 1000 }), color: hex, intensity: e.num({ min: 0, max: 3 }) })),
+  time: e.texto({ min: 5, max: 5, padrao: /^([01]\d|2[0-3]):[0-5]\d$/ }),
+  weather: e.obj({ rain: unidade, snow: unidade, fog: unidade, wind: e.num({ min: -1, max: 1 }), dust: unidade, embers: unidade, leaves: unidade, lightning: unidade }),
+  gridPower: e.bool(),
+};
+const CAMPOS_DO_ACABAMENTO = {
+  texture: unidade, vignette: unidade, saturation: e.num({ min: 0, max: 2 }), grain: unidade, tint: hex,
+  grade: e.obj({ lift: e.num({ min: -1, max: 1 }), gamma: e.num({ min: 0.1, max: 4 }), gain: e.num({ min: 0, max: 4 }) }),
+};
 
 export const ESQUEMA_MAPA: Esq = e.obj({
   schema: e.um(SCHEMA_MAPA), version: e.num({ inteiro: true, min: 1, max: 1_000 }),
@@ -70,15 +83,8 @@ export const ESQUEMA_MAPA: Esq = e.obj({
     renderer: e.um('illustrated', 'pixel'), palette: e.texto({ min: 1, max: 60 }), walls: e.um('box', 'solid'),
     pixel: e.obj({ pixelsPerCell: e.num({ inteiro: true, min: 8, max: 64 }), dither: e.um('none', 'bayer4'), outline: e.bool() }),
   }),
-  climate: e.obj({
-    preset: e.texto({ min: 1, max: 60 }), ambient: e.obj({ color: hex, intensity: unidade }),
-    sun: e.nulo(e.obj({ angle: e.num({ min: -1000, max: 1000 }), color: hex, intensity: e.num({ min: 0, max: 3 }) })),
-    time: e.texto({ min: 5, max: 5, padrao: /^([01]\d|2[0-3]):[0-5]\d$/ }),
-  }),
-  finish: e.obj({
-    preset: e.texto({ min: 1, max: 60 }), texture: unidade, vignette: unidade, saturation: e.num({ min: 0, max: 2 }), grain: unidade, tint: hex,
-    grade: e.obj({ lift: e.num({ min: -1, max: 1 }), gamma: e.num({ min: 0.1, max: 4 }), gain: e.num({ min: 0, max: 4 }) }),
-  }),
+  climate: e.obj({ preset: e.texto({ min: 1, max: 60 }), ...CAMPOS_DO_CLIMA }),
+  finish: e.obj({ preset: e.texto({ min: 1, max: 60 }), ...CAMPOS_DO_ACABAMENTO }),
   memory: e.obj({ sketch: e.bool(), paper: e.texto({ min: 1, max: 60 }), ink: hex }),
   backdrop: e.obj({
     kind: e.um('solid', 'texture'), color: hex, material: e.nulo(material),
@@ -102,6 +108,11 @@ export const ESQUEMA_MAPA: Esq = e.obj({
     revealed: e.lista(id, { max: 5_000 }), event: e.nulo(e.texto({ min: 1, max: 60 })),
   }),
   audioCue: e.nulo(ref), notes: e.texto({ max: 200_000 }),
+  climateAudio: e.proprio((v, c) => {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) throw new ErroDeValidacao('Deve ser um dicionário.', c);
+    for (const [k, r] of Object.entries(v)) { id.verificar(k, `${c}.${k}`); ref.verificar(r, `${c}.${k}`); }
+  }),
+  customClimates: e.porId(e.obj({ id, name: nome, climate: e.obj(CAMPOS_DO_CLIMA), finish: e.obj(CAMPOS_DO_ACABAMENTO) })),
 });
 
 /**
@@ -129,6 +140,7 @@ export function validarMapa(valor: unknown): asserts valor is MapaAtlas {
   }
   for (const [lid, l] of Object.entries(m.lights)) if (l.ownerId && !m.props[l.ownerId] && !m.tokens[l.ownerId]) falha('Dono inexistente (objeto ou token).', `lights.${lid}.ownerId`);
   for (const [tid, t] of Object.entries(m.tokens)) if (t.lightId && !m.lights[t.lightId]) falha('Luz inexistente.', `tokens.${tid}.lightId`);
+  for (const [cid, c] of Object.entries(m.customClimates)) if (c.id !== cid) falha('Identificador diferente da chave.', `customClimates.${cid}.id`);
   for (const rid of Object.keys(m.comodosExtra)) if (!m.rooms[rid]) falha('Cômodo inexistente.', `comodosExtra.${rid}`);
   const ini = m.session.initiative;
   if (ini) {
@@ -142,6 +154,10 @@ export function validarMapa(valor: unknown): asserts valor is MapaAtlas {
   }
   for (const alvo of m.session.revealed) if (!COLECOES.some(c => (m[c] as Record<string, unknown>)[alvo])) falha('Alvo revelado inexistente.', 'session.revealed');
   const celT = Math.ceil(m.bounds.width / m.terrain.resolution), linT = Math.ceil(m.bounds.height / m.terrain.resolution);
+  for (const [pid, p] of Object.entries(m.presence)) {
+    if (p.id !== pid) falha('Identificador diferente da chave.', `presence.${pid}.id`);
+    for (const [y, x0, n] of p.cells) if (y >= linT || x0 + n > celT) falha('Células de presença fora dos limites do mapa.', `presence.${pid}.cells`);
+  }
   for (const [cid, camada] of Object.entries(m.terrain.layers)) {
     if (camada.id !== cid) falha('Identificador diferente da chave.', `terrain.layers.${cid}.id`);
     for (const [y, x0, n] of camada.cells) if (y >= linT || x0 + n > celT) falha('Células de terreno fora dos limites do mapa.', `terrain.layers.${cid}.cells`);

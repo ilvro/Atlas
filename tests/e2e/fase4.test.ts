@@ -77,3 +77,63 @@ test('janelas: o sol entra por elas de dia e a lua, de leve, à noite; sem sol, 
   assert.equal(Object.keys((await documento(page)).lights).length, 0, 'a luz da janela é derivada: não vai para o documento');
   assert.deepEqual(erros, []); await ctx.close();
 });
+
+const historicoDe = (p: Page) => p.evaluate(() => (window as unknown as { __atlas: { sessao(): { store: { historico: string[] } } } }).__atlas.sessao().store.historico.slice());
+async function soltarFoco(p: Page) { await p.waitForFunction(() => document.activeElement?.id === 'nome-do-mapa'); await p.evaluate(() => (document.activeElement as HTMLElement).blur()); }
+
+test('seletor de clima: chips, paleta, Alt+número, ajustes finos, clima salvo e histórico', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page); await soltarFoco(page);
+  await page.click('[data-testid="aba-mapa"]');
+
+  // Chip: uma entrada de histórico com o nome do clima, e desfazer volta ao anterior.
+  const antes = (await documento(page)).climate;
+  await page.click('[data-testid="clima-noite"]');
+  let m = await documento(page);
+  assert.equal(m.climate.preset, 'noite'); assert.equal(m.climate.sun!.color, '#9fb3e8'); assert.equal(m.finish.preset, 'frio');
+  assert.equal((await historicoDe(page)).at(-1), 'Clima: Noite');
+  assert.equal(await page.locator('[data-testid="clima-noite"]').getAttribute('aria-pressed'), 'true');
+  await page.keyboard.press('Control+z');
+  assert.deepEqual((await documento(page)).climate, antes);
+  assert.equal(await page.locator('[data-testid="clima-noite"]').getAttribute('aria-pressed'), 'false');
+
+  // Paleta de comandos: "tempest" acha o clima.
+  await page.keyboard.press('Control+k');
+  const campo = page.locator('[data-testid="paleta"] input'); await campo.waitFor(); await campo.fill('tempest');
+  await page.locator('[role="option"]').first().filter({ hasText: /Clima: Tempestade/ }).waitFor();
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => (window as unknown as { __atlas: { sessao(): { doc: { value: { climate: { preset: string } } } } } }).__atlas.sessao().doc.value.climate.preset === 'tempestade');
+  m = await documento(page); assert.equal(m.climate.weather.rain, 1); assert.ok(m.climate.weather.lightning > 0);
+
+  // Alt+4 é o quarto clima (Noite); Alt+1, a Manhã.
+  await page.keyboard.press('Alt+4'); assert.equal((await documento(page)).climate.preset, 'noite');
+  await page.keyboard.press('Alt+1'); assert.equal((await documento(page)).climate.preset, 'manha');
+
+  // Ajustes finos: o horário move o sol; horário inválido é recusado e o campo volta.
+  await page.fill('#horario-do-clima', '23:15'); await page.press('#horario-do-clima', 'Enter');
+  await page.waitForFunction(() => (window as unknown as { __atlas: { sessao(): { doc: { value: { climate: { time: string } } } } } }).__atlas.sessao().doc.value.climate.time === '23:15');
+  assert.equal((await documento(page)).climate.sun!.color, '#9fb3e8');
+  await page.fill('#horario-do-clima', '99:99'); await page.press('#horario-do-clima', 'Enter');
+  await page.locator('[data-testid="toasts"] .toast', { hasText: /Horário inválido/ }).waitFor();
+  assert.equal((await documento(page)).climate.time, '23:15');
+  await page.fill('[data-testid="painel-mapa"] .linha:has-text("Chuva") input', '0.6'); await page.press('[data-testid="painel-mapa"] .linha:has-text("Chuva") input', 'Enter');
+  await page.waitForFunction(() => (window as unknown as { __atlas: { sessao(): { doc: { value: { climate: { weather: { rain: number } } } } } } }).__atlas.sessao().doc.value.climate.weather.rain === 0.6);
+  await page.getByLabel('Energia da rede').uncheck(); assert.equal((await documento(page)).climate.gridPower, false);
+
+  // Salvar este clima, trocar, voltar pelo chip salvo, esquecer.
+  await page.click('[data-testid="salvar-clima"]'); await page.fill('[data-testid="nome-do-clima"]', 'Vigília'); await page.press('[data-testid="nome-do-clima"]', 'Enter');
+  const [salvo] = Object.values((await documento(page)).customClimates); assert.equal(salvo!.name, 'Vigília');
+  await page.click('[data-testid="clima-tarde"]'); assert.equal((await documento(page)).climate.gridPower, true);
+  await page.click(`[data-testid="clima-${salvo!.id}"]`);
+  m = await documento(page);
+  assert.equal(m.climate.preset, salvo!.id); assert.equal(m.climate.time, '23:15'); assert.equal(m.climate.weather.rain, 0.6); assert.equal(m.climate.gridPower, false);
+
+  // Sobrevive a gravar e recarregar (documento v3).
+  await page.click('[data-testid="gravar"]');
+  await page.waitForFunction(() => document.querySelector('[data-testid="estado-gravacao"]')?.getAttribute('data-sujo') === 'false');
+  await page.reload(); await page.waitForSelector('[data-testid="ferramenta-selecionar"]'); await page.click('[data-testid="aba-mapa"]');
+  assert.equal((await documento(page)).version, 3); assert.equal((await documento(page)).climate.preset, salvo!.id);
+  await page.click(`[data-testid="esquecer-${salvo!.id}"]`);
+  assert.equal(Object.keys((await documento(page)).customClimates).length, 0);
+  assert.deepEqual(erros.filter(e => !/Failed to load resource/.test(e)), []); await ctx.close();
+});

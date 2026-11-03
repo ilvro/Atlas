@@ -4,6 +4,7 @@ import { ErroDeBackup } from '../data/backup.ts';
 import { ErroDeConflito, type ResumoMapa } from '../data/repositorio.ts';
 import { duplicarParaNovaSessao, criarMapa, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
 import { copiasDe, novaLuz, novaPeca, novaRegiao, novoObjeto } from '../domain/fabrica.ts';
+import { presetDeClima } from '../domain/presets.ts';
 import { faiscar, flutuar, ponto } from '../fx/fx.ts';
 import { tocar } from '../fx/som.ts';
 import { todosOsAlvos, caixaDe, caixaDaSelecao, ehMovel, type Alvo, type ColecaoSelecionavel } from '../render/selecao.ts';
@@ -269,6 +270,14 @@ export function pontoDeAdicionar(base?: Ponto): Ponto {
   if (!g) return p;
   const passo = g.size / 2;
   return [Math.round((p[0] - g.offset[0]) / passo) * passo + g.offset[0], Math.round((p[1] - g.offset[1]) / passo) * passo + g.offset[1]];
+}
+
+/** Troca o clima do mapa aberto: uma entrada de histórico, "Clima: <nome>". Serve ao seletor, à paleta e aos atalhos. */
+export function aplicarClima(id: string): void {
+  const s = sessao.value; if (!s) return;
+  const nome = presetDeClima(id)?.nome ?? s.doc.value.customClimates[id]?.name ?? id;
+  try { s.store.executar({ tipo: 'clima.predefinir', id }, { rotulo: `Clima: ${nome}` }); } catch (erro) { avisar(String(erro instanceof Error ? erro.message : erro), { tipo: 'erro' }); tocar('erro'); return; }
+  tocar('selecionar'); avisar(`Clima: ${nome}`, { duracao: 1400 });
 }
 
 export function selecionarTudo(): void { const s = sessao.value; if (s) { s.selecao.value = todosOsAlvos(s.doc.value); tocar('selecionar'); } }

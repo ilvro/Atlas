@@ -9,6 +9,7 @@ import { definirSom, somPreferido, tocar } from '../fx/som.ts';
 import { ROTULO_DA_FERRAMENTA, type Ferramenta } from '../render/pincel.ts';
 import { colecaoDaFerramenta } from '../render/viewport.ts';
 import { campanhaAtiva } from './campanha.ts';
+import { PRESETS_DE_CLIMA } from '../domain/presets.ts';
 import type { Alvo } from '../render/selecao.ts';
 import type { Ponto } from '../domain/mapa.ts';
 
@@ -62,7 +63,14 @@ function mudarRaio(delta: number): void {
   s.pincel.value = { ...p, terreno: { ...p.terreno, raio } }; avisar(`Pincel de ${raio.toFixed(2).replace(/\.?0+$/, '')} m`, { duracao: 900 });
 }
 
+/** Um clima por atalho (Alt+1 a Alt+9, na ordem das predefinições) e um por busca na paleta. */
+const ACOES_DE_CLIMA: readonly Acao[] = PRESETS_DE_CLIMA.map((p, i) => ({
+  id: `clima-${p.id}`, nome: `Clima: ${p.nome}`, grupo: 'Clima', palavras: `${p.descricao} atmosfera tempo luz momento`, atalhos: i < 9 ? [`Alt+${i + 1}`] : [],
+  habilitada: noEditor, executar: () => app.aplicarClima(p.id),
+}));
+
 export const ACOES: readonly Acao[] = [
+  ...ACOES_DE_CLIMA,
   { id: 'paleta', nome: 'Abrir a paleta de comandos', grupo: 'Geral', atalhos: ['Ctrl+K'], executar: () => { app.paletaAberta.value = !app.paletaAberta.value; } },
   { id: 'ajuda', nome: 'Mostrar os atalhos', grupo: 'Geral', atalhos: ['?'], executar: () => { app.ajudaAberta.value = !app.ajudaAberta.value; } },
   { id: 'galeria', nome: 'Ir para a galeria de mapas', grupo: 'Geral', palavras: 'inicio voltar mapas', atalhos: ['Alt+G'], habilitada: noEditor, executar: () => app.navegar({ tipo: 'galeria' }) },

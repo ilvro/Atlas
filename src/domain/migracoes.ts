@@ -26,7 +26,22 @@ const de1para2: Migracao = doc => {
   return d;
 };
 
-export const MIGRACOES: TabelaDeMigracoes = { 1: de1para2 };
+/**
+ * 2 → 3 (Fase 4): o clima ganha `weather` e `gridPower`; o mapa ganha `climateAudio` e `customClimates`; a presença deixa a
+ * máscara de imagem pelas células em RLE (as máscaras antigas viram células vazias, como as do terreno na 1→2).
+ */
+const de2para3: Migracao = doc => {
+  const d = doc as Record<string, any>;
+  if (d.climate && typeof d.climate === 'object') {
+    d.climate.weather ??= { rain: 0, snow: 0, fog: 0, wind: 0, dust: 0, embers: 0, leaves: 0, lightning: 0 };
+    d.climate.gridPower ??= true;
+  }
+  d.climateAudio ??= {}; d.customClimates ??= {};
+  for (const p of porValor(d.presence)) { delete p.mask; p.cells ??= []; }
+  return d;
+};
+
+export const MIGRACOES: TabelaDeMigracoes = { 1: de1para2, 2: de2para3 };
 
 /** Aplica a cadeia de migrações até `alvo`. Separada para ser testada com tabelas de mentira. */
 export function aplicarMigracoes(bruto: unknown, tabela: TabelaDeMigracoes, alvo: number): Record<string, unknown> {

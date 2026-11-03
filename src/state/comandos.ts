@@ -1,7 +1,9 @@
+import { ceuNoHorario } from '../domain/clima.ts';
 import { ErroDeValidacao } from '../domain/esquema.ts';
 import { clonar, produzir } from './imutavel.ts';
 import type { Acabamento, Clima, Estilo, Fundo, Grade, Memoria, MapaAtlas, NomeColecao, Ponto } from '../domain/mapa.ts';
 import { atualizarSalasDosObjetos } from '../domain/geometria.ts';
+import { presetDeClima } from '../domain/presets.ts';
 import { validarMapa } from '../domain/validacao.ts';
 import { aplicarConstrucao, ehComandoDeConstrucao, ErroDeComando, ROTULOS_CONSTRUIR, type ComandoConstruir, type ParcialProfundo } from './comandos-construir.ts';
 
@@ -22,6 +24,9 @@ export type Comando =
   | { tipo: 'limites.atualizar'; largura: number; altura: number }
   | { tipo: 'estilo.atualizar'; patch: ParcialProfundo<Estilo> }
   | { tipo: 'clima.aplicar'; patch: ParcialProfundo<Clima> }
+  | { tipo: 'clima.predefinir'; id: string }
+  | { tipo: 'clima.salvar'; nome: string; id?: string }
+  | { tipo: 'clima.esquecer'; id: string }
   | { tipo: 'acabamento.atualizar'; patch: ParcialProfundo<Acabamento> }
   | { tipo: 'fundo.atualizar'; patch: ParcialProfundo<Fundo> }
   | { tipo: 'memoria.atualizar'; patch: ParcialProfundo<Memoria> }
@@ -73,7 +78,35 @@ function aplicar(m: MapaAtlas, c: Comando): void {
     case 'grade.atualizar': mesclar(m.grid, c.patch); break;
     case 'limites.atualizar': m.bounds.width = c.largura; m.bounds.height = c.altura; break;
     case 'estilo.atualizar': mesclar(m.style, c.patch); break;
-    case 'clima.aplicar': mesclar(m.climate, c.patch); break;
+    case 'clima.aplicar': {
+      const patch: Record<string, unknown> = { ...c.patch };
+      // Mexer no horário move o sol (ou a lua) e o ambiente, a menos que o próprio comando diga como ficam.
+      if (typeof patch.time === 'string') {
+        let ceu; try { ceu = ceuNoHorario(patch.time); } catch { return nao(`Horário inválido: “${patch.time}”. Use HH:MM.`); }
+        if (patch.sun === undefined) patch.sun = ceu.sun;          // `sun: null` é uma escolha (sem sol), não um "não informado"
+        if (patch.ambient === undefined) patch.ambient = ceu.ambient;
+      }
+      mesclar(m.climate, patch); break;
+    }
+    case 'clima.predefinir': {
+      const feito = presetDeClima(c.id), salvo = m.customClimates[c.id];
+      if (feito) { m.climate = { preset: feito.id, ...clonar(feito.climate) } as Clima; m.finish = clonar(feito.finish); }
+      else if (salvo) { m.climate = { preset: salvo.id, ...clonar(salvo.climate) } as Clima; m.finish = { preset: 'personalizado', ...clonar(salvo.finish) } as Acabamento; }
+      else nao(`Clima desconhecido: “${c.id}”.`);
+      break;
+    }
+    case 'clima.salvar': {
+      const nome = c.nome.trim(); if (!nome) nao('Dê um nome ao clima.');
+      const id = c.id ?? `usuario-${crypto.randomUUID()}`;
+      if (m.customClimates[id]) nao('Já existe um clima com esse identificador.');
+      const { preset: _p, ...clima } = clonar(m.climate), { preset: _f, ...acab } = clonar(m.finish);
+      m.customClimates[id] = { id, name: nome, climate: clima, finish: acab };
+      break;
+    }
+    case 'clima.esquecer': {
+      if (!m.customClimates[c.id]) nao('Esse clima salvo não existe.');
+      delete m.customClimates[c.id]; delete m.climateAudio[c.id]; break;
+    }
     case 'acabamento.atualizar': mesclar(m.finish, c.patch); break;
     case 'fundo.atualizar': mesclar(m.backdrop, c.patch); break;
     case 'memoria.atualizar': mesclar(m.memory, c.patch); break;
@@ -126,7 +159,7 @@ export function aplicarComando(mapa: MapaAtlas, comando: Comando): MapaAtlas {
 export const ROTULOS: Record<Comando['tipo'], string> = {
   ...ROTULOS_CONSTRUIR,
   'mapa.renomear': 'Renomear mapa', 'mapa.notas': 'Editar notas', 'mapa.campanha': 'Ligar à campanha', 'grade.atualizar': 'Ajustar grade',
-  'limites.atualizar': 'Redimensionar mapa', 'estilo.atualizar': 'Mudar estilo', 'clima.aplicar': 'Mudar clima', 'acabamento.atualizar': 'Ajustar acabamento',
+  'limites.atualizar': 'Redimensionar mapa', 'estilo.atualizar': 'Mudar estilo', 'clima.aplicar': 'Mudar clima', 'clima.predefinir': 'Aplicar clima', 'clima.salvar': 'Salvar clima', 'clima.esquecer': 'Esquecer clima', 'acabamento.atualizar': 'Ajustar acabamento',
   'fundo.atualizar': 'Ajustar fundo', 'memoria.atualizar': 'Ajustar memória', 'item.adicionar': 'Adicionar', 'item.atualizar': 'Editar',
   'item.remover': 'Remover', 'selecao.mover': 'Mover',
 };

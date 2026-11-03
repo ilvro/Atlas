@@ -2,7 +2,7 @@ import type { Ref } from '#mesa';
 import type { Faixa } from './celulas.ts';
 
 export const SCHEMA_MAPA = 'atlas.map';
-export const VERSAO_MAPA = 2;
+export const VERSAO_MAPA = 3;
 
 /** Unidade de mundo: metro. Coordenadas [x, y] com origem no canto superior esquerdo e y para baixo. */
 export type Ponto = [x: number, y: number];
@@ -15,14 +15,22 @@ export interface Estilo {
   walls: 'box' | 'solid';
   pixel: { pixelsPerCell: number; dither: 'none' | 'bayer4'; outline: boolean };
 }
+/** O tempo que faz: cada campo vai de 0 a 1 (o vento, de −1 a 1: o sinal é a direção). */
+export interface Tempo { rain: number; snow: number; fog: number; wind: number; dust: number; embers: number; leaves: number; lightning: number }
+export const CAMPOS_DO_TEMPO = ['rain', 'snow', 'fog', 'wind', 'dust', 'embers', 'leaves', 'lightning'] as const;
 export interface Clima {
   preset: string;
   ambient: { color: string; intensity: number };
   sun: null | { angle: number; color: string; intensity: number };
   /** HH:MM */
   time: string;
+  weather: Tempo;
+  /** A rede elétrica está ligada? Desligada (apagão), as luzes `power: 'grid'` apagam. */
+  gridPower: boolean;
 }
 export interface Acabamento { preset: string; texture: number; vignette: number; saturation: number; grain: number; /** Cor que tinge a cena; #ffffff não tinge. */ tint: string; grade: { lift: number; gamma: number; gain: number } }
+/** Um clima do usuário: o clima e o acabamento de um momento, guardados com nome para voltar a eles. */
+export interface ClimaSalvo { id: string; name: string; climate: Omit<Clima, 'preset'>; finish: Omit<Acabamento, 'preset'> }
 export interface Memoria { sketch: boolean; paper: string; ink: string }
 export interface Fundo { kind: 'solid' | 'texture'; color: string; material: string | null; title: null | { text: string; font: string; position: Ponto } }
 /** Camadas de terreno pintadas por células de `resolution` metros (em RLE). `base: 'vazio'` deixa ver o fundo do mapa. */
@@ -63,7 +71,8 @@ export interface Regiao {
   id: string; polygon: Ponto[]; kind: 'reveal' | 'trigger' | 'note' | 'audio'; gmOnly: boolean;
   payload: Record<string, unknown>; refs: Ref[];
 }
-export interface Presenca { id: string; brush: string; mask: RefAsset | null; intensity: number; seed: number; gmOnly: boolean }
+/** Presença pintada (musgo, sangue, mofo…) em células de `terrain.resolution` metros, em RLE: como o terreno, sem imagem. */
+export interface Presenca { id: string; brush: string; cells: Faixa[]; intensity: number; seed: number; gmOnly: boolean }
 export const ESTADOS_FIGURA = ['normal', 'hurt', 'dying', 'unconscious', 'dead', 'maddened'] as const;
 export interface Peca {
   id: string; name: string; portrait: RefAsset | null;
@@ -91,6 +100,9 @@ export interface MapaAtlas {
   presence: Record<string, Presenca>; tokens: Record<string, Peca>;
   comodosExtra: Record<string, NotaDeComodo>;
   session: Sessao; audioCue: Ref | null; notes: string;
+  /** Que cena do Jukebox toca em cada clima (id da predefinição ou do clima salvo). */
+  climateAudio: Record<string, Ref>;
+  customClimates: Record<string, ClimaSalvo>;
 }
 
 /** Coleções de entidades por identificador: as que o editor seleciona, move e remove. */
@@ -114,7 +126,7 @@ export function criarMapa(o: OpcoesNovoMapa = {}): MapaAtlas {
     grid: { kind: 'square', size: celula, offset: [0, 0], visible: true },
     bounds: { width: o.largura ?? 45, height: o.altura ?? 30 },
     style: { renderer: 'illustrated', palette: 'investigacao-sepia', walls: 'box', pixel: { pixelsPerCell: 16, dither: 'bayer4', outline: true } },
-    climate: { preset: 'dia', ambient: { color: '#d1ccc0', intensity: 0.82 }, sun: { angle: 0.6, color: '#fff2d6', intensity: 1 }, time: '14:30' },
+    climate: { preset: 'dia', ambient: { color: '#d1ccc0', intensity: 0.82 }, sun: { angle: 0.6, color: '#fff2d6', intensity: 1 }, time: '14:30', weather: { rain: 0, snow: 0, fog: 0, wind: 0, dust: 0, embers: 0, leaves: 0, lightning: 0 }, gridPower: true },
     finish: { preset: 'neutro', texture: 0.2, vignette: 0.28, saturation: 1, grain: 0.03, tint: '#ffffff', grade: { lift: 0, gamma: 1, gain: 1 } },
     memory: { sketch: true, paper: 'papel-claro', ink: '#241b14' },
     backdrop: { kind: 'solid', color: '#07080b', material: null, title: null },
@@ -122,7 +134,7 @@ export function criarMapa(o: OpcoesNovoMapa = {}): MapaAtlas {
     rooms: {}, walls: {}, openings: {}, props: {}, lights: {}, regions: {}, presence: {}, tokens: {},
     comodosExtra: {},
     session: { explored: null, initiative: null, revealed: [], event: null },
-    audioCue: null, notes: '',
+    audioCue: null, notes: '', climateAudio: {}, customClimates: {},
   };
 }
 

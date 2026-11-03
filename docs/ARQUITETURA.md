@@ -63,35 +63,39 @@ Unidade de mundo: **metro**. Grid padrão: quadrados de **1,5 m**, configurável
 
 ```js
 {
-  schema: 'atlas.map', version: 1,
+  schema: 'atlas.map', version: 3,                         // v2: terreno por células, swing, tint; v3: clima, tempo, presença por células
   id, name, revision, createdAt, updatedAt,
   grid:   { kind: 'square', size: 1.5, offset: [0, 0], visible: true },
   bounds: { width: 45, height: 30 },                       // metros
   style:  { renderer: 'illustrated'|'pixel', palette: 'investigacao-sepia', walls: 'box', pixel: { pixelsPerCell: 16, dither: 'bayer4', outline: true } },
-  climate: { preset: 'tarde', ambient: { color, intensity }, sun: null | { angle, color, intensity }, time: '16:30' },
-  finish: { preset: 'neutro', texture: 0.2, vignette: 0.3, saturation: 1, grain: 0.1, grade: { lift, gamma, gain } },
+  climate: { preset: 'tarde', ambient: { color, intensity }, sun: null | { angle, color, intensity }, time: '16:30',
+             weather: { rain, snow, fog, wind /* −1..1 */, dust, embers, leaves, lightning },   // 0 a 1
+             gridPower: true },                                       // false = apagão: luzes `power: 'grid'` apagam
+  customClimates: { [id]: { id, name, climate /* sem preset */, finish /* sem preset */ } },   // climas do mestre
+  climateAudio:   { [climaId]: Ref },                                // cena do Jukebox de cada clima, por mapa
+  finish: { preset: 'neutro', texture: 0.2, vignette: 0.3, saturation: 1, grain: 0.1, tint: '#ffffff', grade: { lift, gamma, gain } },
   memory: { sketch: true, paper: 'papel-claro', ink: '#2a2a2a' },     // aparência das áreas exploradas fora da vista
   backdrop: { kind: 'solid'|'texture', color: '#000000', material: null, title: null | { text, font, position } },
 
   terrain: {
-    resolution: 0.25,                                     // metros por texel das máscaras
-    base: 'terra',
-    layers: { [id]: { material: 'grama', mask: assetRef, order } },
+    resolution: 0.25,                                     // metros por célula pintada
+    base: 'vazio',                                        // 'vazio' deixa ver o fundo (ou a textura do fundo)
+    layers: { [id]: { material: 'grama', cells: rle, order } },
   },
   rooms:    { [id]: { name, function: 'cozinha'|null, cells: rle, floor: { material, seed }, wallpaper: { material, seed } | null,
                       wallStyle: null | 'box' | 'solid', palette: null, roof: { material, visible }, levelId: null } },
   walls:    { [id]: { path: [[x, y], ...], height: 2.6, thickness: 0.2, material, kind: 'wall'|'low'|'fence'|'cliff',
                       blocks: { move: true, sight: true, light: true }, source: { roomId } | null } },
-  openings: { [id]: { wallId, at: 0.42, width: 0.9, kind: 'door'|'window'|'arch'|'secret', state: 'closed'|'open'|'locked', material, som: Ref | null } },
+  openings: { [id]: { wallId, at: 0.42, width: 0.9, kind: 'door'|'window'|'arch'|'secret', state: 'closed'|'open'|'locked', material, som: Ref | null, swing: 'a'|'b' } },
   props:    { [id]: { source: { kind: 'recipe', recipe: 'mesa.madeira', seed, params }
                             | { kind: 'asset', assetId: 'casa:sofa-chesterfield' | 'import:<hash>' },
                       position, rotation, scale, elevation: 'floor'|'table'|'wall'|'ceiling',
                       wall: null | { wallId, at, face: 'inner'|'outer' },  // objetos de parede: quadros, janelas falsas, estantes
                       roomId, blocks: { move, sight }, castsShadow: true, harmonize: true } },
   lights:   { [id]: { position, radius, color, intensity, flicker, cone: null | { angle, direction }, ownerId: null,
-                      power: 'grid'|'fire'|'battery'|'magic', on: true, nightOnly: false } },
+                      power: 'grid'|'fire'|'battery'|'magic', on: true, nightOnly: false, preset: null | string } },
   regions:  { [id]: { polygon, kind: 'reveal'|'trigger'|'note'|'audio', gmOnly, payload, refs: Ref[] } },
-  presence: { [id]: { brush: 'musgo'|'neve'|'corrupcao'|'ordem.sangue'|…, mask: assetRef, intensity: 0.6, seed, gmOnly: false } },
+  presence: { [id]: { brush: 'musgo'|'neve'|'corrupcao'|'ordem.sangue'|…, cells: rle /* na resolução do terreno */, intensity: 0.6, seed, gmOnly: false } },
   tokens:   { [id]: { name, portrait: assetRef, sprite: null | { body, hair, outfit, accessories, colors, seed }, facing,
                       position, size: 1, vision: { radius, dark: false }, lightId,
                       figure: { state }, refs: Ref[] } },          // ex.: a ficha na Ficha e o personagem na campanha
@@ -233,7 +237,7 @@ renderer = {
 
 ### 5.7. Pincéis de presença
 
-- Cada pincel é uma máscara pintada (`presence[id].mask`) + um efeito animado em shader: crescimento por ruído na borda, pulsação, brilho reagindo à luz, distorção.
+- Cada pincel é uma região pintada em células (`presence[id].cells`, como o terreno) + um efeito animado em shader: crescimento por ruído na borda, pulsação, brilho reagindo à luz, distorção.
 - `intensity` muda ao vivo na sessão (comando com transição), expandindo ou recolhendo o efeito dentro da máscara.
 - Pacotes: naturais, sobrenaturais e **Ordem Paranormal** (um por elemento, cores alinhadas com `ELEMENT_COLORS` da Ficha, desenhos próprios).
 - Os dois renderizadores têm versão do efeito (suave ou em blocos com dithering).

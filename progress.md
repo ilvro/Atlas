@@ -103,9 +103,15 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 - **4.1c Céu por horário** (`domain/clima.ts`): `ceuNoHorario` (sol de 06:00 a 18:00, lua fora disso, ambiente interpolado entre âncoras), `ehNoite`, `lerHorario`.
 - **4.1d Luz do céu pelas janelas**: `luzesDerivadas` põe um cone de 2,1 rad a 0,3 m para dentro de cada janela entre um cômodo e o lado de fora; nada é gravado no documento. Janela entre dois cômodos, fora de cômodo ou com `sun: null` não gera luz.
 
+### 4.2 Climas (2 de novembro) — concluída
+
+- **4.2a Documento v3** (migração 2→3 testada): `climate.weather` (chuva, neve, neblina, vento, poeira, brasas, folhas, relâmpagos) e `gridPower`; `customClimates` (climas do mestre) e `climateAudio` (cena do Jukebox por clima); a presença deixa a máscara de imagem pelas células em RLE. Um mapa da Fase 3 abre sem perder nada, e um v1 passa pelas duas migrações de uma vez.
+- **4.2b Predefinições e comandos:** nove climas (manhã, tarde, entardecer, noite, tempestade, neblina, neve, apagão, neon) com céu, tempo e acabamento próprios; `dia` virou apelido de `tarde`. Comandos `clima.predefinir`, `clima.salvar` e `clima.esquecer`, cada um uma entrada de histórico (“Clima: Noite”); mexer no horário em `clima.aplicar` move sol e ambiente, a menos que o comando diga como ficam.
+- **4.2c Seletor:** seção “Clima” na aba Mapa com chips (amostra de cor de cada clima, o ativo destacado, os salvos com “esquecer”), horário, chuva, neve, neblina, vento, relâmpagos e energia da rede, “Salvar este clima…”; na paleta, “Clima: <nome>” para cada um; atalhos `Alt+1` a `Alt+9`.
+
 ### Validação
 
-- `tsc --noEmit` limpo, `npm run build` sem erros, **178 testes unitários** e **24 e2e** passando (3 rodadas completas seguidas).
+- `tsc --noEmit` limpo, `npm run build` sem erros, **188 testes unitários** e **25 e2e** passando (3 rodadas completas seguidas, também depois da 4.2).
 - Novos e2e medem o brilho dos pixels: o cômodo vizinho fica escuro com a porta fechada, clareia com ela aberta e volta a escurecer ao desfazer; desligar a atmosfera clareia o mapa sem mexer no documento; a janela clareia o piso de dia, menos à noite e nada sem sol.
 - Capturas conferidas: sombra pela porta, facho pela porta aberta, janelas de dia e de noite.
 - **60 FPS** medidos com 10 luzes tremulando (igual ao mapa sem luzes), no Chromium de teste com WebGL por software: indica que o custo é pequeno, mas não substitui medir no notebook do mestre.
@@ -117,13 +123,16 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 
 ### Pendências
 
-- O padrão de luz atual não distingue `nightOnly` nem `power` (isso é a 4.3a); luzes `on: false` já apagam.
-- O ambiente padrão de mapas novos (`#d1ccc0` × 0,82) escurece levemente a cena; as predefinições da 4.2b vão definir o ambiente de cada clima.
+- **Os climas ainda não têm todos os efeitos:** a luz, o ambiente, o acabamento e a luz pelas janelas já mudam com o clima; chuva, neve, neblina, vento e relâmpagos só aparecem na 4.3 e 4.4 (hoje o tempo é guardado e editável, mas não é desenhado). `gridPower: false` ainda não apaga as luzes de rede (4.3a), então o apagão hoje é só escuro.
+- A luz do céu ignora o clima de tempestade ou neblina além da cor e da intensidade do `sun` da predefinição.
+- O áudio do clima (`climateAudio`) está no documento e validado, mas sem interface (4.7a).
+- O ambiente padrão de mapas novos (`dia`) é um pouco mais escuro que a predefinição Tarde; aplicar a Tarde clareia.
 - Falta medir o FPS no notebook do mestre.
+- `Alt+número` pode ser capturado pelo navegador para trocar de aba em alguns sistemas; a paleta (`Ctrl+K`) é o caminho garantido.
 
 ## Próximo
 
-Fase 4.2: documento v3 (clima, áudio do clima, presença por células), predefinições de clima e seletor. Tarefas em [docs/plano/fase-4.md](docs/plano/fase-4.md); começar pela **4.1a**. Pendências da Fase 3 em [docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md).
+Fase 4.3: luzes que reagem ao clima (apagão, `nightOnly`), relâmpago e trovão, janelas acesas à noite. Tarefas em [docs/plano/fase-4.md](docs/plano/fase-4.md); começar pela **4.1a**. Pendências da Fase 3 em [docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md).
 
 ## Pendências
 

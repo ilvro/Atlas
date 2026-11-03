@@ -101,7 +101,7 @@ Testes: janela externa gera uma luz apontando para dentro; janela entre dois cô
 Pronto quando: de dia, uma sala escura com janela tem o facho da janela no piso.
 Commit: sky light through windows
 
-### 4.2a — Documento v3  ⬜
+### 4.2a — Documento v3  ✅
 Objetivo: o documento ganha os campos de clima, áudio do clima, climas do usuário e presença por células, com migração 2→3.
 Depende de: —
 Ler: `src/domain/mapa.ts`; `src/domain/validacao.ts`; `src/domain/esquema.ts`; `src/domain/migracoes.ts` (`de1para2` como modelo); `tests/unit/fixtures.ts`; `tests/unit/dominio.test.ts` (testes de migração existentes).
@@ -118,7 +118,7 @@ Testes: mapa v2 (o da fixture antes da mudança) migra para v3 válido; campo de
 Pronto quando: `npm test` passa e um mapa salvo na Fase 3 abre sem erro.
 Commit: map document v3 for climates
 
-### 4.2b — Predefinições de clima e comandos  ⬜
+### 4.2b — Predefinições de clima e comandos  ✅
 Objetivo: nove climas prontos e os comandos para aplicar e salvar climas, cada um uma entrada de histórico.
 Depende de: 4.1c, 4.2a
 Ler: `src/domain/presets.ts` (`PRESETS_DE_ACABAMENTO` como modelo); `src/state/comandos.ts` (`clima.aplicar`, `mesclar`, `ROTULOS`); `spikes/estilos/src/climas.js`.
@@ -133,7 +133,7 @@ Testes: cada predefinição produz documento válido; `clima.predefinir` é uma 
 Pronto quando: testes passam.
 Commit: climate presets and commands
 
-### 4.2c — Seletor de clima  ⬜
+### 4.2c — Seletor de clima  ✅
 Objetivo: trocar de clima pela aba Mapa, pela paleta de comandos e por atalho.
 Depende de: 4.2b
 Ler: `src/ui/Inspetor.tsx` (`PainelDoMapa`); `src/app/acoes.ts` (`ACOES`, `tratarTecla`); `src/ui/estilo.css` (chips e pílulas).

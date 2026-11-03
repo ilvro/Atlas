@@ -7,9 +7,9 @@ import { avisar } from '../app/toasts.ts';
 import { NOMES_COLECAO, desfazer, duplicarSelecao, refazer, removerSelecao, sessao } from '../app/app.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { nomeDoAlvo } from '../domain/fabrica.ts';
-import { ESTADOS_FIGURA, type Abertura, type Comodo, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Regiao } from '../domain/mapa.ts';
-import { PRESETS_DE_ACABAMENTO, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, presetDeAcabamento } from '../domain/presets.ts';
-import { acabamentoLigado, definirAcabamentoLigado } from '../app/app.ts';
+import { ESTADOS_FIGURA, type Abertura, type Acabamento, type Clima, type Comodo, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Regiao } from '../domain/mapa.ts';
+import { PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
+import { acabamentoLigado, aplicarClima, definirAcabamentoLigado } from '../app/app.ts';
 import { receitaDe } from '../procedural/receitas.ts';
 import { materiaisDo } from '../procedural/materiais.ts';
 import { Amostra } from './campos-material.tsx';
@@ -51,9 +51,11 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
       <CartelaDeTitulo s={s} />
       <h3 class="faixa pequena">Terreno</h3>
       <CampoOpcoes rotulo="Base" valor={m.terrain.base} opcoes={[['vazio', 'Vazio (o fundo)'], ...materiaisDo('terreno').map(x => [x.id, x.nome] as const)]} aoMudar={v => tentar(() => st.executar({ tipo: 'terreno.base', material: v }))} />
+      <h3 class="faixa pequena">Clima</h3>
+      <SeletorDeClima s={s} />
       <h3 class="faixa pequena">Acabamento</h3>
       <CampoCaixa rotulo="Ver atmosfera no editor" dica="Só para quem edita: não muda o mapa." valor={acabamentoLigado.value} aoMudar={definirAcabamentoLigado} />
-      <CampoOpcoes rotulo="Estilo" valor={m.finish.preset} opcoes={PRESETS_DE_ACABAMENTO.map(p => [p.id, p.nome] as const)} aoMudar={v => { const p = presetDeAcabamento(v); if (p) tentar(() => st.executar({ tipo: 'acabamento.atualizar', patch: { preset: v, ...p.valores } }, { rotulo: 'Acabamento' })); }} />
+      <CampoOpcoes rotulo="Estilo" valor={m.finish.preset} opcoes={[...PRESETS_DE_ACABAMENTO.map(p => [p.id, p.nome] as const), ...(PRESETS_DE_ACABAMENTO.some(p => p.id === m.finish.preset) ? [] : [[m.finish.preset, 'Personalizado'] as const])]} aoMudar={v => { const p = presetDeAcabamento(v); if (p) tentar(() => st.executar({ tipo: 'acabamento.atualizar', patch: { preset: v, ...p.valores } }, { rotulo: 'Acabamento' })); }} />
       <CampoNumero rotulo="Vinheta" valor={m.finish.vignette} min={0} max={1} passo={0.05} aoConfirmar={v => tentar(() => st.executar({ tipo: 'acabamento.atualizar', patch: { vignette: v } }))} />
       <CampoNumero rotulo="Grão" valor={m.finish.grain} min={0} max={1} passo={0.05} aoConfirmar={v => tentar(() => st.executar({ tipo: 'acabamento.atualizar', patch: { grain: v } }))} />
       <h3 class="faixa pequena">Notas</h3>
@@ -62,6 +64,52 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
       <p class="meta">{Object.keys(m.rooms).length} cômodo(s) · {Object.keys(m.props).length} objeto(s) · {Object.keys(m.lights).length} luz(es) · {Object.keys(m.tokens).length} peça(s) · {Object.keys(m.regions).length} região(ões)</p>
     </div>
   );
+}
+
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+const canais = (hex: string) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+/** Uma amostra do clima: o matiz do ambiente, tingido pelo acabamento, mais escuro quanto menos luz houver. */
+function amostraDoClima(c: Omit<Clima, 'preset'>, f: Omit<Acabamento, 'preset'>): string {
+  const a = canais(c.ambient.color), t = canais(f.tint), cor = (v: number[]) => `rgb(${v.map(x => Math.round(clamp01(x) * 255)).join(',')})`;
+  const base = a.map((x, i) => x * t[i]! * (0.3 + 0.7 * clamp01(c.ambient.intensity))), brilho = c.sun ? canais(c.sun.color).map(x => x * (0.35 + 0.65 * clamp01(c.sun!.intensity))) : base;
+  return `linear-gradient(135deg, ${cor(base)} 0%, ${cor(base)} 55%, ${cor(brilho)} 100%)`;
+}
+
+/** Escolher o clima: predefinições e os salvos pelo mestre, mais os ajustes finos do momento. */
+function SeletorDeClima({ s }: { s: SessaoDeEdicao }) {
+  const m = s.doc.value, st = s.store, nomeando = useSignal(false), nome = useSignal('');
+  const ativo = presetDeClima(m.climate.preset)?.id ?? m.climate.preset;
+  const ajustar = (patch: Record<string, unknown>, rotulo: string) => tentar(() => st.executar({ tipo: 'clima.aplicar', patch: patch as never }, { rotulo }));
+  const guardar = () => {
+    const n = nome.value.trim(); if (!n) { avisar('Dê um nome ao clima.', { tipo: 'erro' }); return; }
+    if (tentar(() => st.executar({ tipo: 'clima.salvar', nome: n }, { rotulo: `Salvar clima: ${n}` }))) { nomeando.value = false; nome.value = ''; tocar('pop'); }
+  };
+  const chip = (id: string, rotulo: string, c: Omit<Clima, 'preset'>, f: Omit<Acabamento, 'preset'>, dica: string, extra?: preact.ComponentChildren) => (
+    <span key={id} class="chip-clima-par">
+      <button type="button" class={`chip-clima ${ativo === id ? 'ativo' : ''}`} aria-pressed={ativo === id} title={dica} data-testid={`clima-${id}`} onClick={() => aplicarClima(id)}>
+        <i class="amostra-clima" style={{ background: amostraDoClima(c, f) }} aria-hidden="true" />{rotulo}</button>{extra}
+    </span>
+  );
+  const salvos = Object.values(m.customClimates);
+  return (<>
+    <div class="grade-de-climas" role="group" aria-label="Climas" data-testid="seletor-de-clima">
+      {PRESETS_DE_CLIMA.map((p, i) => chip(p.id, p.nome, p.climate, p.finish, `${p.descricao} (Alt+${i + 1})`))}
+      {salvos.map(c => chip(c.id, c.name, c.climate, c.finish, 'Um clima seu',
+        <button type="button" class="botao-icone chip-esquecer" aria-label={`Esquecer o clima ${c.name}`} title="Esquecer" data-testid={`esquecer-${c.id}`} onClick={() => { if (tentar(() => st.executar({ tipo: 'clima.esquecer', id: c.id }, { rotulo: `Esquecer clima: ${c.name}` }))) avisar(`Clima “${c.name}” esquecido.`); }}><Icone nome="fechar" tamanho={12} /></button>))}
+    </div>
+    {nomeando.value
+      ? <div class="linha-salvar-clima"><input type="text" aria-label="Nome do clima" placeholder="Nome do clima…" maxLength={60} value={nome.value} autoFocus data-testid="nome-do-clima" onInput={e => { nome.value = (e.target as HTMLInputElement).value; }}
+          onKeyDown={e => { if (e.key === 'Enter') guardar(); else if (e.key === 'Escape') { e.stopPropagation(); nomeando.value = false; } }} />
+          <button type="button" class="botao-pilula destaque" onClick={guardar} data-testid="confirmar-clima">Salvar</button></div>
+      : <button type="button" class="botao-pilula" onClick={() => { nomeando.value = true; }} data-testid="salvar-clima"><Icone nome="novo" tamanho={14} />Salvar este clima…</button>}
+    <CampoTexto id="horario-do-clima" rotulo="Horário" dica="HH:MM. Muda a luz do sol ou da lua." valor={m.climate.time} maximo={5} aoConfirmar={v => ajustar({ time: v.trim() }, 'Horário')} />
+    <CampoNumero rotulo="Chuva" valor={m.climate.weather.rain} min={0} max={1} passo={0.05} aoConfirmar={v => ajustar({ weather: { rain: v } }, 'Chuva')} />
+    <CampoNumero rotulo="Neve" valor={m.climate.weather.snow} min={0} max={1} passo={0.05} aoConfirmar={v => ajustar({ weather: { snow: v } }, 'Neve')} />
+    <CampoNumero rotulo="Neblina" valor={m.climate.weather.fog} min={0} max={1} passo={0.05} aoConfirmar={v => ajustar({ weather: { fog: v } }, 'Neblina')} />
+    <CampoNumero rotulo="Vento" dica="De −1 (para a esquerda) a 1 (para a direita)." valor={m.climate.weather.wind} min={-1} max={1} passo={0.1} aoConfirmar={v => ajustar({ weather: { wind: v } }, 'Vento')} />
+    <CampoNumero rotulo="Relâmpagos" valor={m.climate.weather.lightning} min={0} max={1} passo={0.05} aoConfirmar={v => ajustar({ weather: { lightning: v } }, 'Relâmpagos')} />
+    <CampoCaixa rotulo="Energia da rede" dica="Desligada, as luzes de rede elétrica apagam (apagão)." valor={m.climate.gridPower} aoMudar={v => ajustar({ gridPower: v }, v ? 'Religar a rede' : 'Cortar a rede')} />
+  </>);
 }
 
 /** Cor com prévia: arrastar o seletor muda o fundo na hora e vira UM item de histórico. */

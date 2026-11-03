@@ -15,7 +15,7 @@ export function mapaCompleto(): MapaAtlas {
   m.lights.lampiao = { id: 'lampiao', position: [7.5, 6.2], radius: 7, color: '#ffa85c', intensity: 1, flicker: 0.14, cone: null, ownerId: 'mesa', power: 'fire', on: true, nightOnly: false, preset: 'lamparina' };
   m.lights.lanterna = { id: 'lanterna', position: [5, 5], radius: 8.5, color: '#fff0cc', intensity: 1, flicker: 0, cone: { angle: 1.05, direction: 0 }, ownerId: 'muirenn', power: 'battery', on: true, nightOnly: false, preset: null };
   m.regions.entrada = { id: 'entrada', polygon: [[3, 3], [6, 3], [6, 6], [3, 6]], kind: 'trigger', gmOnly: false, payload: { cena: 'chuva' }, refs: [criarRef('jukebox', 'cena-sonora', 'chuva')] };
-  m.presence.musgo = { id: 'musgo', brush: 'musgo', mask: { id: 'mask-1', hash: 'abcdef012345' }, intensity: 0.6, seed: 4, gmOnly: false };
+  m.presence.musgo = { id: 'musgo', brush: 'musgo', cells: [[2, 10, 6], [3, 10, 6]], intensity: 0.6, seed: 4, gmOnly: false };
   m.tokens.muirenn = { id: 'muirenn', name: 'Muirenn', portrait: null, sprite: null, facing: 'down', position: [5.25, 6.75], size: 1, vision: { radius: 11, dark: false }, lightId: 'lanterna', figure: { state: 'normal' }, refs: [criarRef('ficha', 'ficha', 'sheet-1')] };
   m.comodosExtra.sala = { id: 'sala', leitura: 'O ar cheira a cera e papel velho.', notasMestre: 'A carta está atrás do quadro.', refs: [criarRef('atelie', 'documento', 'carta-queimada', 3)] };
   m.session = { explored: null, initiative: { order: [{ tokenId: 'muirenn', value: 17 }], current: 0, round: 1 }, revealed: ['sala'], event: null };
