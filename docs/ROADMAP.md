@@ -104,7 +104,7 @@ Tarefas: [plano/fase-5.md](plano/fase-5.md) (tarefas detalhadas).
 
 ## Fase 6 — Acervo da casa
 
-Tarefas: [plano/fase-6.md](plano/fase-6.md) (lista de tarefas; detalhar antes de começar).
+Tarefas: [plano/fase-6.md](plano/fase-6.md) (tarefas detalhadas).
 
 | Etapa | Entrega |
 | --- | --- |

@@ -2,7 +2,8 @@
 
 Independentes entre si e da Fase 4; podem entrar em qualquer momento. As transições automáticas entre terrenos (3.1) ficam na tarefa 5.4 (espalhamento), onde o mesmo código de máscara é usado.
 
-### P3a — Cartela de título editável  ⬜
+### P3a — Cartela de título editável  ✅
+Nota: feita em 2 de novembro (ver progress.md, "Pendências da Fase 3: resolvidas no mesmo dia").
 Objetivo: o mestre liga, escreve e posiciona a cartela de título pela aba Mapa do inspetor.
 Depende de: —
 Ler: `src/ui/Inspetor.tsx` (`PainelDoMapa`, `CorDoFundo`); `src/domain/presets.ts` (`posicaoDeTitulo`); `src/render/cena.ts` (`sincronizarTitulo`).
@@ -16,7 +17,8 @@ Testes: e2e opcional; unitário não precisa (só interface sobre comando existe
 Pronto quando: ligar, editar e desligar a cartela aparece no mapa e cada mudança é uma entrada de histórico.
 Commit: edit title card in inspector
 
-### P3b — Fundo por textura  ⬜
+### P3b — Fundo por textura  ✅
+Nota: feita em 2 de novembro (ver progress.md, "Pendências da Fase 3: resolvidas no mesmo dia").
 Objetivo: `backdrop.kind: 'texture'` desenha um material procedural atrás dos cômodos.
 Depende de: —
 Ler: `src/render/viewport.ts` (`desenharBase`); `src/render/cena.ts` (`sincronizarTerreno`, como pede textura ao baker); `src/procedural/materiais.ts` (`materiaisDo('terreno')`).
@@ -31,6 +33,7 @@ Pronto quando: escolher "Textura → pedra" muda o fundo ao vivo e desfaz.
 Commit: textured map backdrop
 
 ### P3c — Parâmetros da receita no inspetor  ⬜
+Nota (3 de novembro): ainda aberta. Depois da 6.0b, leia os campos por `ACERVO.item(id).campos` em vez de `receitaDe`; item da coleção não tem parâmetros.
 Objetivo: depois de pôr um objeto, o inspetor edita os parâmetros da receita (hoje só "Variar").
 Depende de: —
 Ler: `src/ui/Biblioteca.tsx` (como os parâmetros aparecem antes de pôr); `src/procedural/receitas.ts` (definição dos parâmetros); `src/ui/Inspetor.tsx` (`CamposDoObjeto`).
@@ -41,7 +44,8 @@ Testes: unitário de comando atualizando `source.params` e revalidando.
 Pronto quando: mudar a cor/tamanho de uma mesa posta redesenha só ela e desfaz numa entrada.
 Commit: edit recipe params in inspector
 
-### P3d — Ligações do cômodo com a campanha  ⬜
+### P3d — Ligações do cômodo com a campanha  ✅
+Nota: feita em 2 de novembro (ver progress.md, "Pendências da Fase 3: resolvidas no mesmo dia").
 Objetivo: o cômodo ganha `refs` escolhidos entre as entidades da campanha ativa.
 Depende de: —
 Ler: `src/app/campanha.ts`; `mesa-core/src/campanha.ts` (`listarEntidades(campanhaId)`); `src/state/comandos-construir.ts` (`comodo.notas`); PLATAFORMA.md §4.

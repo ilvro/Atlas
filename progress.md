@@ -210,7 +210,7 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 
 ## Próximo
 
-A Fase 5 está concluída. Próximo: Fase 6 ([docs/plano/fase-6.md](docs/plano/fase-6.md)); detalhar com o Opus antes de começar. Pendências da Fase 3 em [docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md).
+A Fase 5 está concluída. Próximo: Fase 6 ([docs/plano/fase-6.md](docs/plano/fase-6.md)), já detalhada; começa pela 6.0a. Da Fase 3 só resta a P3c ([docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md)).
 
 ## Pendências
 

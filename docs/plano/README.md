@@ -42,10 +42,10 @@ Commit: mensagem curta em inglês
 
 | Arquivo | Estado |
 | --- | --- |
-| [fase-3-pendencias.md](fase-3-pendencias.md) | Detalhado |
+| [fase-3-pendencias.md](fase-3-pendencias.md) | Detalhado — só a P3c aberta (independente) |
 | [fase-4.md](fase-4.md) | Detalhado — concluída |
-| [fase-5.md](fase-5.md) | Detalhado — **próximo** |
-| [fase-6.md](fase-6.md) | Lista de tarefas |
+| [fase-5.md](fase-5.md) | Detalhado — concluída |
+| [fase-6.md](fase-6.md) | Detalhado — **próximo** |
 | [fase-7.md](fase-7.md) | Lista de tarefas |
 | [fase-8.md](fase-8.md) | Lista de tarefas |
 | [fase-9.md](fase-9.md) | Lista de tarefas |
