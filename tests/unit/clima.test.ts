@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { codificar } from '../../src/domain/celulas.ts';
-import { ceuNoHorario, ehNoite, lerHorario, luzesDerivadas } from '../../src/domain/clima.ts';
+import { ceuNoHorario, curvaDoClarao, ehNoite, intervaloDoRelampago, lerHorario, luzesDerivadas, nivelDaLuz, piscarDaQueda, piscarDaVolta } from '../../src/domain/clima.ts';
 import { recalcularParedes } from '../../src/domain/geometria.ts';
-import { criarMapa, type Abertura, type Comodo, type MapaAtlas } from '../../src/domain/mapa.ts';
+import { criarMapa, type Abertura, type Comodo, type Luz, type MapaAtlas } from '../../src/domain/mapa.ts';
 import { ErroDeValidacao } from '../../src/domain/esquema.ts';
 
 const efetiva = (c: { ambient: { color: string; intensity: number } }) => [1, 3, 5].map(i => parseInt(c.ambient.color.slice(i, i + 2), 16) / 255 * c.ambient.intensity);
@@ -89,4 +89,87 @@ test('a cor da luz da janela acompanha o clima: sol de dia, lua à noite', () =>
   const m = casa(sala('a', 2, 2, 4, 4)); janela(m, parede(m, p => p.every(q => q[1] === 3)).id);
   const dia = luzesDerivadas(m)[0]!; m.climate.sun = ceuNoHorario('23:00').sun;
   const noite = luzesDerivadas(m)[0]!; assert.equal(noite.color, '#9fb3e8'); assert.ok(noite.intensity < dia.intensity);
+});
+
+// ---- luzes que reagem ao clima ----
+const lamp = (extra: Partial<Luz> = {}): Luz => ({ id: 'l', position: [4.5, 4.5], radius: 5, color: '#ffa85c', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'fire', on: true, nightOnly: false, preset: null, ...extra });
+const comClima = (gridPower: boolean, time: string) => { const m = criarMapa({ id: 'c', agora: 1 }); m.climate.gridPower = gridPower; m.climate.time = time; return m; };
+
+test('nivelDaLuz: tabela de apagada × rede × noite × só-noturna × fogo/rede', () => {
+  const casos: { on: boolean; power: Luz['power']; nightOnly: boolean; rede: boolean; hora: string; espera: 0 | 1 }[] = [];
+  for (const on of [true, false]) for (const power of ['grid', 'fire', 'battery', 'magic'] as const) for (const nightOnly of [true, false]) for (const rede of [true, false]) for (const hora of ['14:00', '23:00']) {
+    const espera = !on || (power === 'grid' && !rede) || (nightOnly && hora === '14:00') ? 0 : 1;
+    casos.push({ on, power, nightOnly, rede, hora, espera });
+  }
+  assert.equal(casos.length, 64);
+  for (const c of casos) assert.equal(nivelDaLuz(lamp({ on: c.on, power: c.power, nightOnly: c.nightOnly }), comClima(c.rede, c.hora)), c.espera, JSON.stringify(c));
+  // O render pode perguntar "e se a rede estivesse ligada?" durante o piscar da queda.
+  assert.equal(nivelDaLuz(lamp({ power: 'grid' }), comClima(false, '23:00'), { redeLigada: true }), 1);
+  assert.equal(nivelDaLuz(lamp({ nightOnly: true }), comClima(true, '14:00'), { noite: true }), 1);
+});
+
+test('apagão apaga as lâmpadas e deixa velas e lanternas', () => {
+  const m = comClima(false, '23:00');
+  const lampada = lamp({ power: 'grid' }), vela = lamp({ power: 'fire' }), lanterna = lamp({ power: 'battery' });
+  assert.deepEqual([lampada, vela, lanterna].map(l => nivelDaLuz(l, m)), [0, 1, 1]);
+});
+
+test('o relâmpago: sem força nunca dispara; com mais força, vem mais rápido', () => {
+  for (const sorteio of [0, 0.3, 0.999]) assert.equal(intervaloDoRelampago(0, sorteio), Infinity);
+  for (const sorteio of [0, 0.5, 1]) { const i = intervaloDoRelampago(1, sorteio); assert.ok(i >= 4 && i <= 11, `${i}`); }
+  assert.ok(intervaloDoRelampago(1, 0.5) < intervaloDoRelampago(0.25, 0.5));
+  assert.equal(intervaloDoRelampago(0.5, 0), 4);
+});
+
+test('o clarão pisca e some; com movimento reduzido tem metade da força e não treme', () => {
+  assert.equal(curvaDoClarao(0), 0); assert.equal(curvaDoClarao(-1), 0);
+  const amostras = Array.from({ length: 101 }, (_, i) => curvaDoClarao(i / 100));
+  assert.ok(amostras.every(v => v >= 0 && v <= 1) && Math.max(...amostras) > 0.5);
+  let picos = 0; for (let i = 1; i < 100; i++) if (amostras[i]! > amostras[i - 1]! && amostras[i]! >= amostras[i + 1]!) picos++;
+  assert.ok(picos >= 2, 'treme: mais de um pico');
+  const calmo = Array.from({ length: 101 }, (_, i) => curvaDoClarao(i / 100, true));
+  assert.equal(Math.max(...calmo), 0.5); for (let i = 1; i < 101; i++) assert.ok(calmo[i]! >= calmo[i - 1]!, 'cresce sem oscilar');
+});
+
+test('a queda de energia pisca e apaga; a volta pisca curto e fica', () => {
+  assert.equal(piscarDaQueda(0.2), 0); assert.equal(piscarDaQueda(0), 0);
+  const durante = Array.from({ length: 80 }, (_, i) => piscarDaQueda(0.26 + i * 0.01));
+  assert.ok(durante.every(v => v === 1 || v === 0.15) && durante.includes(1) && durante.includes(0.15), 'tremula entre aceso e quase apagado');
+  assert.equal(piscarDaVolta(0), 1); assert.ok([0.05, 0.1, 0.2, 0.3, 0.4].some(t => piscarDaVolta(t) < 1));
+});
+
+// ---- janelas acesas à noite ----
+test('à noite, a janela de um cômodo com luz acesa brilha para fora', () => {
+  const m = casa(sala('a', 2, 2, 4, 4)); janela(m, parede(m, p => p.every(q => q[1] === 3)).id);     // janela no topo, em y = 3
+  m.climate.time = '23:00'; m.lights.l = lamp({ id: 'l', position: [4.5, 4.5], color: '#ffa85c' });
+  const fora = luzesDerivadas(m).find(l => l.id === 'janela-fora:j')!;
+  assert.ok(fora, 'gera a luz de fora');
+  assert.equal(fora.radius, 4); assert.equal(fora.intensity, 0.6); assert.equal(fora.color, '#ffa85c');
+  assert.ok(Math.abs(fora.cone!.direction + Math.PI / 2) < 1e-9, 'aponta para cima, para fora do cômodo');
+  assert.ok(fora.position[1] < 3, 'nasce do lado de fora da parede');
+  assert.ok(luzesDerivadas(m).some(l => l.id === 'janela:j'), 'a do céu continua');
+});
+
+test('de dia não acende; luz apagada, de fora do cômodo ou só-noturna não conta', () => {
+  const m = casa(sala('a', 2, 2, 4, 4)); janela(m, parede(m, p => p.every(q => q[1] === 3)).id);
+  m.lights.l = lamp({ id: 'l' });
+  assert.ok(!luzesDerivadas(m).some(l => l.id.startsWith('janela-fora')), 'dia');
+  m.climate.time = '23:00';
+  m.lights.l = lamp({ id: 'l', on: false }); assert.ok(!luzesDerivadas(m).some(l => l.id.startsWith('janela-fora')), 'luz apagada');
+  m.lights.l = lamp({ id: 'l', position: [20, 20] }); assert.ok(!luzesDerivadas(m).some(l => l.id.startsWith('janela-fora')), 'luz fora do cômodo');
+  m.lights.l = lamp({ id: 'l', nightOnly: true }); assert.ok(luzesDerivadas(m).some(l => l.id.startsWith('janela-fora')), 'só-noturna acende à noite');
+});
+
+test('apagão sem velas não acende a janela; com uma vela, sim; e funciona sem lua', () => {
+  const m = casa(sala('a', 2, 2, 4, 4)); janela(m, parede(m, p => p.every(q => q[1] === 3)).id);
+  m.climate.time = '23:30'; m.climate.gridPower = false; m.climate.sun = null;
+  m.lights.l = lamp({ id: 'l', power: 'grid' }); assert.equal(luzesDerivadas(m).length, 0, 'só lâmpada de rede, sem energia, sem lua: nada');
+  m.lights.v = lamp({ id: 'v', power: 'fire', color: '#ffcc66' });
+  assert.deepEqual(luzesDerivadas(m).map(l => l.id), ['janela-fora:j'], 'a vela basta, mesmo sem lua');
+});
+
+test('a janela acesa usa a cor média das luzes do cômodo', () => {
+  const m = casa(sala('a', 2, 2, 4, 4)); janela(m, parede(m, p => p.every(q => q[1] === 3)).id);
+  m.climate.time = '22:00'; m.lights.a = lamp({ id: 'a', color: '#ff0000' }); m.lights.b = lamp({ id: 'b', color: '#0000ff', position: [5, 5] });
+  assert.equal(luzesDerivadas(m).find(l => l.id === 'janela-fora:j')!.color, '#800080');
 });

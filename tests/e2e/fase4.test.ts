@@ -137,3 +137,94 @@ test('seletor de clima: chips, paleta, Alt+número, ajustes finos, clima salvo e
   assert.equal(Object.keys((await documento(page)).customClimates).length, 0);
   assert.deepEqual(erros.filter(e => !/Failed to load resource/.test(e)), []); await ctx.close();
 });
+
+// ---- 4.3: luzes que reagem ao clima, relâmpago e janelas acesas ----
+const aplicarClimaPor = (p: Page, id: string) => sessao(p, `(s, id) => s.store.executar({ tipo: "clima.predefinir", id })`, id);
+const poluirLuz = (p: Page, itens: { id: string; x: number; y: number; power: string; color: string; radius?: number }[]) => sessao(p, `(s, itens) => { for (const i of itens) s.store.executar({ tipo: "item.adicionar", colecao: "lights", item: { id: i.id, position: [i.x, i.y], radius: i.radius ?? 7, color: i.color, intensity: 1, flicker: 0, cone: null, ownerId: null, power: i.power, on: true, nightOnly: false, preset: null } }); }`, itens);
+
+test('apagão: as lâmpadas de rede piscam e apagam; a vela continua acesa; voltar a energia religa', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await ferramenta(page, 'comodo'); await retangulo(page, [6.75, 6.75], [14.25, 12.75]); await retangulo(page, [15.75, 6.75], [20.25, 12.75]);
+  await ferramenta(page, 'selecionar'); await clicar(page, [35, 25]);
+  await aplicarClimaPor(page, 'noite');
+  await poluirLuz(page, [{ id: 'lampada', x: 10.5, y: 9.75, power: 'grid', color: '#fff3d0', radius: 8 }, { id: 'vela', x: 18, y: 9.75, power: 'fire', color: '#ffb36b', radius: 8 }]);
+  await page.waitForTimeout(900);
+  const salaDaLampada: [[number, number], [number, number]] = [[7.5, 7.5], [13.5, 12]], salaDaVela: [[number, number], [number, number]] = [[16.5, 7.5], [19.5, 12]];
+  const [lampada0, vela0] = [await brilho(page, ...salaDaLampada), await brilho(page, ...salaDaVela)];
+  assert.ok(lampada0 > 12 && vela0 > 12, `as duas salas estão acesas (${lampada0.toFixed(1)}, ${vela0.toFixed(1)})`);
+
+  await aplicarClimaPor(page, 'apagao');
+  await page.waitForTimeout(1800);                                     // passa o piscar de 1,1 s
+  const [lampada1, vela1] = [await brilho(page, ...salaDaLampada), await brilho(page, ...salaDaVela)];
+  assert.ok(lampada1 < lampada0 * 0.45, `a lâmpada apagou (${lampada0.toFixed(1)} → ${lampada1.toFixed(1)})`);
+  assert.ok(vela1 > vela0 * 0.5, `a vela segue acesa (${vela0.toFixed(1)} → ${vela1.toFixed(1)})`);
+
+  await page.keyboard.press('Control+z'); await page.waitForTimeout(1200);
+  assert.ok(await brilho(page, ...salaDaLampada) > lampada1 * 2, 'desfazer religa a lâmpada');
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('relâmpago: o clarão entra pela janela e o trovão vem depois; sem atmosfera, nada acontece', async () => {
+  const ctx = await novoContexto(amb);
+  await ctx.addInitScript(() => {
+    const w = window as unknown as Record<string, unknown>; w.__trovoes = 0;
+    const no = (extra: Record<string, unknown> = {}) => ({ connect: (x: unknown) => x, start() {}, stop() {}, ...extra });
+    class FalsoAudio {
+      state = 'running'; sampleRate = 8000; currentTime = 0; destination = {};
+      resume() { return Promise.resolve(); }
+      createBuffer(_c: number, n: number) { return { getChannelData: () => new Float32Array(n) }; }
+      createBufferSource() { return no({ start() { (window as unknown as { __trovoes: number }).__trovoes++; } }); }
+      createBiquadFilter() { return no({ frequency: { value: 0 } }); }
+      createGain() { return no({ gain: { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} } }); }
+      createOscillator() { return no({ frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} } }); }
+    }
+    w.AudioContext = FalsoAudio;
+  });
+  const { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await ferramenta(page, 'comodo'); await retangulo(page, [6.75, 6.75], [14.25, 14.25]);
+  await page.evaluate(() => { const s = (window as unknown as { __atlas: { sessao(): Sessao } }).__atlas.sessao(); s.pincel.value = { ...s.pincel.value, abertura: { tipo: 'window' } }; });
+  await ferramenta(page, 'abertura'); await clicar(page, [10.5, 6.75]);
+  await ferramenta(page, 'selecionar'); await clicar(page, [35, 25]);
+  await aplicarClimaPor(page, 'noite');
+  await page.waitForTimeout(800);
+  const sala: [[number, number], [number, number]] = [[7.5, 7.5], [13.5, 11]];
+  const parado = await brilho(page, ...sala);
+  assert.equal(await page.evaluate(() => (window as unknown as { __trovoes: number }).__trovoes), 0);
+
+  // A ação da paleta dispara o relâmpago; amostra vários quadros: o mais claro tem de passar bem do parado.
+  const disparar = async () => { await page.keyboard.press('Control+k'); const campo = page.locator('[data-testid="paleta"] input'); await campo.waitFor(); await campo.fill('relampago agora'); await page.keyboard.press('Enter'); };
+  await disparar();
+  let pico = 0; for (let i = 0; i < 8; i++) { pico = Math.max(pico, await brilho(page, ...sala)); await page.waitForTimeout(30); }
+  assert.ok(pico > parado * 1.4, `o clarão clareia a sala (${parado.toFixed(1)} → ${pico.toFixed(1)})`);
+  await page.waitForFunction(() => (window as unknown as { __trovoes: number }).__trovoes === 1, null, { timeout: 4000 });
+  await page.waitForTimeout(700);
+  assert.ok(Math.abs(await brilho(page, ...sala) - parado) < parado * 0.25 + 2, 'depois do clarão a sala volta ao normal');
+
+  // Sem atmosfera no editor, o relâmpago não dispara (nem o trovão).
+  await page.click('[data-testid="aba-mapa"]'); await page.getByLabel('Ver atmosfera no editor').uncheck();
+  await disparar(); await page.waitForTimeout(2200);
+  assert.equal(await page.evaluate(() => (window as unknown as { __trovoes: number }).__trovoes), 1);
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('janelas acesas à noite: a luz de dentro sai pela janela e a luz apagada não conta', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await ferramenta(page, 'comodo'); await retangulo(page, [6.75, 9.75], [14.25, 17.25]);
+  await page.evaluate(() => { const s = (window as unknown as { __atlas: { sessao(): Sessao } }).__atlas.sessao(); s.pincel.value = { ...s.pincel.value, abertura: { tipo: 'window' } }; });
+  await ferramenta(page, 'abertura'); await clicar(page, [10.5, 9.75]);                 // janela no topo (y = 9), voltada para o norte
+  await ferramenta(page, 'selecionar'); await clicar(page, [35, 25]);
+  await sessao(page, '(s) => s.store.executar({ tipo: "terreno.base", material: "grama" })');         // a luz multiplica a cena: precisa de chão do lado de fora
+  await aplicarClimaPor(page, 'noite');
+  await sessao(page, '(s) => s.store.executar({ tipo: "clima.aplicar", patch: { sun: null } })');      // sem lua: só o que vem de dentro
+  const fora: [[number, number], [number, number]] = [[9.5, 6.2], [11.5, 8.6]];
+  await page.waitForTimeout(800); const sem = await brilho(page, ...fora);
+  await poluirLuz(page, [{ id: 'vela', x: 10.5, y: 13, power: 'fire', color: '#ffb36b', radius: 6 }]);
+  await page.waitForTimeout(800); const com = await brilho(page, ...fora);
+  assert.ok(com > sem + 3, `a janela acesa ilumina o lado de fora (${sem.toFixed(1)} → ${com.toFixed(1)})`);
+  await sessao(page, '(s) => s.store.executar({ tipo: "item.atualizar", colecao: "lights", id: "vela", patch: { on: false } })');
+  await page.waitForTimeout(800); assert.ok(await brilho(page, ...fora) < com - 2, 'luz apagada: a janela escurece');
+  assert.deepEqual(erros, []); await ctx.close();
+});

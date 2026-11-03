@@ -22,6 +22,7 @@ const ANCORAS: readonly [number, Cor][] = [
 ];
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+const canaisDe = (c: string): Cor => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16) / 255) as Cor;
 const hex = (c: Cor) => `#${c.map(v => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, '0')).join('')}`;
 const lerpCor = (a: Cor, b: Cor, t: number): Cor => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
 
@@ -50,16 +51,44 @@ export function ceuNoHorario(time: string): Ceu {
 
 export const ehNoite = (m: Pick<MapaAtlas, 'climate'>): boolean => ceuNoHorario(m.climate.time).noite;
 
+/**
+ * O quanto a luz está ligada neste momento do mapa, 0 ou 1: apagada, sem energia (rede elétrica caída) ou só-noturna de dia valem 0.
+ * `opcoes` deixa o render perguntar "e se a rede estivesse ligada?" durante o piscar da queda de energia.
+ */
+export function nivelDaLuz(l: Pick<Luz, 'on' | 'power' | 'nightOnly'>, m: Pick<MapaAtlas, 'climate'>, opcoes: { redeLigada?: boolean; noite?: boolean } = {}): 0 | 1 {
+  if (!l.on) return 0;
+  if (l.power === 'grid' && !(opcoes.redeLigada ?? m.climate.gridPower)) return 0;
+  if (l.nightOnly && !(opcoes.noite ?? ehNoite(m))) return 0;
+  return 1;
+}
+
+// ---------- Relâmpago ----------
+/** Segundos até o próximo relâmpago: de 4 a 11 s, mais curto quanto mais forte a tempestade; `Infinity` sem relâmpagos. `sorteio` é um número de 0 a 1. */
+export const intervaloDoRelampago = (lightning: number, sorteio: number): number => (lightning > 0 ? 4 + (sorteio * 7) / lightning : Infinity);
+/** A força do clarão (0 a 1) quando o relâmpago está em `f` (1 no estouro, decaindo a 0): pisca duas ou três vezes. `reduzido`: metade da força e sem tremer. */
+export const curvaDoClarao = (f: number, reduzido = false): number => (f <= 0 ? 0 : reduzido ? 0.5 * Math.min(1, f) : Math.max(0, Math.sin(f * Math.PI * 3)) * Math.min(1, f));
+/** Como a queda de energia pisca: de 1,1 s até 0, a luz tremula e, no último quarto de segundo, apaga. Devolve o fator de 0 a 1 das luzes de rede. */
+export const piscarDaQueda = (restante: number): number => (restante <= 0.25 ? 0 : Math.sin(restante * 38) > 0.2 ? 1 : 0.15);
+/** O piscar curto de quando a energia volta (`restante` de 0,5 s até 0). */
+export const piscarDaVolta = (restante: number): number => (restante <= 0 ? 1 : Math.sin(restante * 30) > 0 ? 1 : 0.2);
+export const DURACAO_DA_QUEDA = 1.1, DURACAO_DA_VOLTA = 0.5;
+
 /** Largura do facho que a janela derrama e o quanto ele alcança, em metros. */
-export const JANELA_ABERTURA = 2.1, JANELA_ALCANCE = 9.5;
+export const JANELA_ABERTURA = 2.1, JANELA_ALCANCE = 9.5, JANELA_FORA_ALCANCE = 4;
 
 /**
- * As luzes que o clima faz nascer, sem gravar nada no documento: hoje, o sol ou a lua entrando por cada janela
- * entre um cômodo e o lado de fora. Janela entre dois cômodos, ou fora de qualquer cômodo, não derrama nada.
+ * As luzes que o clima faz nascer, sem gravar nada no documento: o sol ou a lua entrando por cada janela
+ * entre um cômodo e o lado de fora e, à noite, o brilho das luzes acesas saindo pela janela. Janela entre dois cômodos, ou fora de qualquer cômodo, não derrama nada.
  */
 export function luzesDerivadas(m: MapaAtlas): Luz[] {
-  const sun = m.climate.sun; if (!sun) return [];
-  const saida: Luz[] = [], arestas = arestasDeParede(m), indice = indiceDeCelulas(m);
+  const sun = m.climate.sun;
+  const saida: Luz[] = [], arestas = arestasDeParede(m), indice = indiceDeCelulas(m), noite = ehNoite(m);
+  // Cômodos com ao menos uma luz acesa dentro: as cores delas (para a janela acesa à noite).
+  const acesas = new Map<string, Cor[]>();
+  if (noite) for (const l of Object.values(m.lights)) {
+    if (nivelDaLuz(l, m, { noite }) === 0) continue;
+    const sala = comodoEm(m, l.position, indice); if (sala) acesas.set(sala, [...(acesas.get(sala) ?? []), canaisDe(l.color)]);
+  }
   for (const a of Object.values(m.openings)) {
     if (a.kind !== 'window') continue;
     const parede = m.walls[a.wallId]; if (!parede) continue;
@@ -68,10 +97,20 @@ export function luzesDerivadas(m: MapaAtlas): Luz[] {
     // A normal que aponta para dentro é a que, um passo adiante, cai no cômodo.
     const candidatas: [number, number][] = [[-tangente[1], tangente[0]], [tangente[1], -tangente[0]]];
     const para = candidatas.find(n => comodoEm(m, [ponto[0] + n[0] * 0.4, ponto[1] + n[1] * 0.4], indice) === salas[0]); if (!para) continue;
-    saida.push({
+    const direcao = Math.atan2(para[1], para[0]);
+    if (sun) saida.push({
       id: `janela:${a.id}`, position: [ponto[0] + para[0] * 0.3, ponto[1] + para[1] * 0.3], radius: JANELA_ALCANCE, color: sun.color, intensity: sun.intensity, flicker: 0,
-      cone: { angle: JANELA_ABERTURA, direction: Math.atan2(para[1], para[0]) }, ownerId: a.id, power: 'magic', on: true, nightOnly: false, preset: null,
+      cone: { angle: JANELA_ABERTURA, direction: direcao }, ownerId: a.id, power: 'magic', on: true, nightOnly: false, preset: null,
     });
+    // À noite, a janela de um cômodo com luz acesa brilha para fora, na cor média das luzes de dentro.
+    const cores = acesas.get(salas[0]!);
+    if (cores?.length) {
+      const media = hex(cores.reduce<Cor>((acc, c) => [acc[0] + c[0] / cores.length, acc[1] + c[1] / cores.length, acc[2] + c[2] / cores.length], [0, 0, 0]));
+      saida.push({
+        id: `janela-fora:${a.id}`, position: [ponto[0] - para[0] * 0.3, ponto[1] - para[1] * 0.3], radius: JANELA_FORA_ALCANCE, color: media, intensity: 0.6, flicker: 0,
+        cone: { angle: JANELA_ABERTURA, direction: Math.atan2(-para[1], -para[0]) }, ownerId: a.id, power: 'magic', on: true, nightOnly: false, preset: null,
+      });
+    }
   }
   return saida;
 }

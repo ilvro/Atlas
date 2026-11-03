@@ -80,7 +80,7 @@ Tarefas: [plano/fase-4.md](plano/fase-4.md) (tarefas detalhadas).
 | --- | --- |
 | 4.1 ✅ | Engine de luz por horário: sol e lua com direção e cor, luz pelas janelas |
 | 4.2 ✅ | Climas predefinidos: manhã, tarde, entardecer, noite, tempestade, neblina, neve, apagão, neon; clima do usuário |
-| 4.3 | Reações automáticas: lâmpadas `grid` no apagão, `nightOnly`, relâmpagos pelas janelas, janelas acesas à noite |
+| 4.3 ✅ | Reações automáticas: lâmpadas `grid` no apagão, `nightOnly`, relâmpagos pelas janelas, janelas acesas à noite |
 | 4.4 | Partículas: chuva, neve, poeira, brasas, folhas, neblina; vento |
 | 4.5 | Transição animada entre climas (comando com duração) |
 | 4.6 | Pincéis de presença: naturais, sobrenaturais e pacote Ordem Paranormal |

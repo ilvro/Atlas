@@ -148,7 +148,7 @@ Testes: unitário de `buscarAcoes('tempest')` achar a ação; e2e curto: clicar 
 Pronto quando: trocar de clima por qualquer dos três caminhos muda o documento e desfaz.
 Commit: climate picker in inspector and palette
 
-### 4.3a — Luzes que reagem ao clima  ⬜
+### 4.3a — Luzes que reagem ao clima  ✅
 Objetivo: luzes da rede apagam sem energia, `nightOnly` só acende à noite, e a queda de energia pisca antes de apagar.
 Depende de: 4.1d, 4.2a
 Ler: `src/domain/clima.ts`; `src/render/mapa-de-luz.ts`; `spikes/estilos/src/main.js` (`falhaRede`).
@@ -162,7 +162,7 @@ Testes: tabela de casos de `nivelDaLuz` (grid/fire × energia × noite × nightO
 Pronto quando: aplicar "Apagão" apaga as lâmpadas piscando e deixa velas e lanternas acesas.
 Commit: lights react to climate
 
-### 4.3b — Relâmpago e trovão  ⬜
+### 4.3b — Relâmpago e trovão  ✅
 Objetivo: com `weather.lightning > 0`, clarões aleatórios entram pelas janelas e clareiam o ambiente, seguidos de trovão.
 Depende de: 4.1d, 4.2a
 Ler: `spikes/estilos/src/main.js` (`relampago`, `trovao`, `flash`, `clarao`, `proximoRaio`); `src/fx/som.ts`.
@@ -177,7 +177,7 @@ Testes: manual (aleatório); garanta que `lightning: 0` nunca dispara.
 Pronto quando: na tempestade, a sala com janela pisca branca de tempos em tempos e o trovão vem depois.
 Commit: lightning and thunder
 
-### 4.3c — Janelas acesas à noite  ⬜
+### 4.3c — Janelas acesas à noite  ✅
 Objetivo: à noite, janelas de cômodos com luz acesa brilham para fora.
 Depende de: 4.3a
 Ler: `src/domain/clima.ts` (`luzesDerivadas`, `nivelDaLuz`).

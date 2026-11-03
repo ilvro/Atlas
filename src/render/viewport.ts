@@ -58,6 +58,8 @@ export interface Viewport {
   redesenhar(): void;
   /** Só a seleção, o fantasma e a grade: a seleção, a ferramenta ou o pincel mudaram fora do viewport. */
   atualizarSobreposicoes(): void;
+  /** Dispara um relâmpago (e o trovão, se o som estiver ligado). Só vale com a atmosfera visível. */
+  relampagoAgora(): void;
   destruir(): void;
 }
 
@@ -519,6 +521,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     clientDe: m => { const r = retangulo(), [x, y] = mundoParaTela(camera, m); return [r.left + x, r.top + y]; },
     redesenhar: () => { redesenharTudo(); },
     atualizarSobreposicoes: () => { camadaSuja = true; aplicarAcabamento(); },
+    relampagoAgora: () => cena.relampagoAgora(),
     destruir() {
       destruido = true; cancelarAssinatura(); observador.disconnect();
       window.removeEventListener('keydown', aoTeclar, true); window.removeEventListener('keyup', aoSoltar);

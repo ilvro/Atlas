@@ -109,9 +109,15 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 - **4.2b Predefinições e comandos:** nove climas (manhã, tarde, entardecer, noite, tempestade, neblina, neve, apagão, neon) com céu, tempo e acabamento próprios; `dia` virou apelido de `tarde`. Comandos `clima.predefinir`, `clima.salvar` e `clima.esquecer`, cada um uma entrada de histórico (“Clima: Noite”); mexer no horário em `clima.aplicar` move sol e ambiente, a menos que o comando diga como ficam.
 - **4.2c Seletor:** seção “Clima” na aba Mapa com chips (amostra de cor de cada clima, o ativo destacado, os salvos com “esquecer”), horário, chuva, neve, neblina, vento, relâmpagos e energia da rede, “Salvar este clima…”; na paleta, “Clima: <nome>” para cada um; atalhos `Alt+1` a `Alt+9`.
 
+### 4.3 Reações ao clima (2 de novembro) — concluída
+
+- **4.3a Luzes que reagem ao clima:** `nivelDaLuz` (apagada, rede caída e só-noturna de dia valem 0; tabela de 64 casos testada). Ao cortar a rede, as lâmpadas piscam por 1,1 s e então apagam; ao voltar, piscam de leve; velas, lanternas e luzes mágicas não mudam. Abrir ou importar um mapa não anima. O marcador da luz apagada pelo clima ganha um aro tracejado.
+- **4.3b Relâmpago e trovão:** com `weather.lightning > 0`, clarões aleatórios (de 4 a 11 s, mais seguidos quanto mais forte) clareiam o ambiente e as luzes do céu pelas janelas, e o trovão (ruído sintetizado) vem 0,4 a 1,6 s depois, se o som estiver ligado. Com movimento reduzido o clarão tem metade da força e não treme. `lightning: 0` nunca dispara. Nova ação na paleta: “Clima: relâmpago agora”. Nada disso acontece com “Ver atmosfera no editor” desligado.
+- **4.3c Janelas acesas à noite:** a janela de um cômodo com luz acesa brilha para fora (raio 4 m, na cor média das luzes de dentro), mesmo sem lua; de dia, com a luz apagada ou com a rede caída e sem velas, não.
+
 ### Validação
 
-- `tsc --noEmit` limpo, `npm run build` sem erros, **188 testes unitários** e **25 e2e** passando (3 rodadas completas seguidas, também depois da 4.2).
+- `tsc --noEmit` limpo, `npm run build` sem erros, **197 testes unitários** e **28 e2e** passando (3 rodadas completas seguidas, também depois da 4.3).
 - Novos e2e medem o brilho dos pixels: o cômodo vizinho fica escuro com a porta fechada, clareia com ela aberta e volta a escurecer ao desfazer; desligar a atmosfera clareia o mapa sem mexer no documento; a janela clareia o piso de dia, menos à noite e nada sem sol.
 - Capturas conferidas: sombra pela porta, facho pela porta aberta, janelas de dia e de noite.
 - **60 FPS** medidos com 10 luzes tremulando (igual ao mapa sem luzes), no Chromium de teste com WebGL por software: indica que o custo é pequeno, mas não substitui medir no notebook do mestre.
@@ -123,16 +129,15 @@ Projeto definitivo em TypeScript `strict` + Preact 11 com signals, PixiJS 8.22.0
 
 ### Pendências
 
-- **Os climas ainda não têm todos os efeitos:** a luz, o ambiente, o acabamento e a luz pelas janelas já mudam com o clima; chuva, neve, neblina, vento e relâmpagos só aparecem na 4.3 e 4.4 (hoje o tempo é guardado e editável, mas não é desenhado). `gridPower: false` ainda não apaga as luzes de rede (4.3a), então o apagão hoje é só escuro.
-- A luz do céu ignora o clima de tempestade ou neblina além da cor e da intensidade do `sun` da predefinição.
-- O áudio do clima (`climateAudio`) está no documento e validado, mas sem interface (4.7a).
-- O ambiente padrão de mapas novos (`dia`) é um pouco mais escuro que a predefinição Tarde; aplicar a Tarde clareia.
-- Falta medir o FPS no notebook do mestre.
-- `Alt+número` pode ser capturado pelo navegador para trocar de aba em alguns sistemas; a paleta (`Ctrl+K`) é o caminho garantido.
+- **Chuva, neve, neblina e vento ainda não são desenhados** (4.4): tempestade e neblina diferem hoje só em luz, cor e relâmpago.
+- A luz que as janelas derramam para fora só aparece onde há o que iluminar (terreno ou fundo em textura); sobre o fundo liso não há glow, porque a luz multiplica a cena.
+- Os testes de relâmpago medem o brilho em poucos quadros e contam o trovão com um `AudioContext` falso; o som real e a sensação do clarão só foram vistos em captura, não ouvidos.
+- O áudio do clima (`climateAudio`) segue sem interface (4.7a).
+- Falta medir o FPS no notebook do mestre e rever o `Alt+número` em navegadores que o usam para trocar de aba.
 
 ## Próximo
 
-Fase 4.3: luzes que reagem ao clima (apagão, `nightOnly`), relâmpago e trovão, janelas acesas à noite. Tarefas em [docs/plano/fase-4.md](docs/plano/fase-4.md); começar pela **4.1a**. Pendências da Fase 3 em [docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md).
+Fase 4.4: partículas (chuva, neve, poeira, brasas, folhas) e neblina. Tarefas em [docs/plano/fase-4.md](docs/plano/fase-4.md); começar pela **4.1a**. Pendências da Fase 3 em [docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md).
 
 ## Pendências
 

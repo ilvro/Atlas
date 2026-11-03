@@ -35,3 +35,16 @@ export function tocar(nome: NomeDeSom): void {
     }
   } catch { /* o som é opcional */ }
 }
+
+/** Um trovão: ruído marrom filtrado em graves, que decai em ~2,6 s. Respeita o interruptor de som. */
+export function trovao(): void {
+  if (!ligado) return;
+  try {
+    contexto ??= new AudioContext();
+    if (contexto.state === 'suspended') void contexto.resume();
+    const dur = 2.6, buf = contexto.createBuffer(1, Math.floor(contexto.sampleRate * dur), contexto.sampleRate), d = buf.getChannelData(0);
+    let v = 0; for (let i = 0; i < d.length; i++) { v = v * 0.985 + (Math.random() * 2 - 1) * 0.15; d[i] = v * (1 - i / d.length) ** 2; }
+    const src = contexto.createBufferSource(), lp = contexto.createBiquadFilter(), g = contexto.createGain();
+    lp.type = 'lowpass'; lp.frequency.value = 180; g.gain.value = 0.5; src.buffer = buf; src.connect(lp).connect(g).connect(contexto.destination); src.start();
+  } catch { /* o som é opcional */ }
+}

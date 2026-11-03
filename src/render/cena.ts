@@ -9,6 +9,7 @@ import type { PedidoDeBake, ResultadoDeBake } from '../procedural/executar.ts';
 import type { Mudancas } from '../state/mudancas.ts';
 import { corDoNome, hexParaNumero } from './cores.ts';
 import { chaveDoComodo, chaveDoObjeto, chaveDoTerreno, contextoDeEntradas, entradaDoComodo, entradaDoTerreno } from './entradas.ts';
+import { nivelDaLuz } from '../domain/clima.ts';
 import { criarMapaDeLuz } from './mapa-de-luz.ts';
 
 export const RES_OBJETO = 96, RES_COMODO = 64, RES_TERRENO = 24;
@@ -32,6 +33,8 @@ export interface Cena {
   quadro(agora: number): void;
   /** A atmosfera (luz, sombras) aparece? É do editor, não do mapa. */
   definirAtmosfera(ligada: boolean): void;
+  /** Um relâmpago agora (com trovão, se o som estiver ligado). */
+  relampagoAgora(): void;
   /** Quantos desenhos ainda estão sendo pintados no worker. */
   readonly pintando: number;
   destruir(): void;
@@ -195,9 +198,11 @@ export function criarCena(op: OpcoesDaCena): Cena {
   // ---------- Luzes, peças, regiões ----------
   const grafico = (c: Container): Graphics => (c.getChildByLabel('g') as Graphics | null) ?? c.addChild(Object.assign(new Graphics(), { label: 'g' }));
 
-  function desenharLuz(c: Container, l: Luz): void {
-    const cor = hexParaNumero(l.color), ligada = l.on;
+  function desenharLuz(c: Container, l: Luz, m: MapaAtlas): void {
+    // Apagada pelo clima (rede caída, só-noturna de dia): o marcador mostra "apagada" e um aro tracejado, para o mestre entender por quê.
+    const cor = hexParaNumero(l.color), apagadaPeloClima = l.on && nivelDaLuz(l, m) === 0, ligada = l.on && !apagadaPeloClima;
     const g = grafico(c).clear();
+    if (apagadaPeloClima) for (let i = 0; i < 12; i++) { const a0 = (i / 12) * Math.PI * 2; g.arc(0, 0, 0.34, a0, a0 + Math.PI / 12).stroke({ width: 0.04, color: cor, alpha: 0.85 }); }
     if (l.cone) { const meia = l.cone.angle / 2, r = Math.min(l.radius, 5); g.moveTo(0, 0).arc(0, 0, r, l.cone.direction - meia, l.cone.direction + meia).lineTo(0, 0).stroke({ width: 0.03, color: cor, alpha: ligada ? 0.7 : 0.25 }); }
     g.circle(0, 0, 0.2).fill(ligada ? cor : 0x3a3a44).stroke({ width: 0.04, color: 0x000000, alpha: 0.75 });
     if (l.cone) g.moveTo(0, 0).lineTo(Math.cos(l.cone.direction) * 0.5, Math.sin(l.cone.direction) * 0.5).stroke({ width: 0.05, color: 0x000000, alpha: 0.8 });
@@ -261,13 +266,15 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid')) desenharParedes(m);
       if (tudo || colecao('props')) sincronizarObjetos(m, tudo ? null : mud!.colecoes.props ?? null, comPop);
       luz.sincronizar(m, mud);
-      if (tudo || colecao('lights')) sincronizarSimples(luzes, luzesC, m.lights, tudo ? null : mud!.colecoes.lights ?? null, desenharLuz, comPop);
+      // Os marcadores das luzes também refletem o clima (apagada pela rede ou pelo dia), então refazem quando ele muda.
+      if (tudo || colecao('lights') || campos('climate')) sincronizarSimples(luzes, luzesC, m.lights, tudo || campos('climate') ? null : mud!.colecoes.lights ?? null, (c, l) => desenharLuz(c, l, m), comPop);
       if (tudo || colecao('tokens') || campos('grid')) sincronizarSimples(pecas, pecasC, m.tokens, tudo || campos('grid') ? null : mud!.colecoes.tokens ?? null, (c, t) => desenharPeca(c, t, m), comPop);
       if (tudo || colecao('regions')) sincronizarSimples(regioes, regioesC, m.regions, tudo ? null : mud!.colecoes.regions ?? null, desenharRegiao, comPop);
       if (tudo || campos('backdrop', 'bounds')) sincronizarTitulo(m);
       op.baker.coletar(chavesEmUso());
     },
     definirAtmosfera: ligada => luz.definirLigado(ligada),
+    relampagoAgora: () => luz.relampagoAgora(),
     quadro(agora) {
       luz.quadro(agora);
       for (let i = animacoes.length - 1; i >= 0; i--) {
