@@ -4,6 +4,8 @@ import { ErroDeValidacao } from '../domain/esquema.ts';
 import { clonar, produzir } from './imutavel.ts';
 import type { Acabamento, Clima, Estilo, Fundo, Grade, Memoria, MapaAtlas, NomeColecao, Ponto } from '../domain/mapa.ts';
 import { atualizarSalasDosObjetos } from '../domain/geometria.ts';
+import { definirValor, iniciar, passo, podar } from '../domain/iniciativa.ts';
+import { celulasVisiveis, exploradoAgora, RES_NEVOA } from '../domain/nevoa.ts';
 import { anguloDoMovimento, bloqueioNoCaminho, centroDaCelula, ladoDoMovimento } from '../domain/movimento.ts';
 import { presetDeClima } from '../domain/presets.ts';
 import { validarMapa } from '../domain/validacao.ts';
@@ -42,7 +44,17 @@ export type Comando =
   /** Anda com uma peça: encaixa no centro da célula e recusa atravessar parede ou porta fechada (a menos que `livre`). */
   | { tipo: 'peca.mover'; id: string; para: Ponto; livre?: boolean }
   /** Gira o cone da lanterna da peça para `direcao` (rad), sem mover a peça. */
-  | { tipo: 'peca.virar'; id: string; direcao: number };
+  | { tipo: 'peca.virar'; id: string; direcao: number }
+  /** Zera o que as peças já exploraram ("Recomeçar a exploração"). */
+  | { tipo: 'sessao.esquecer' }
+  /** Revela cômodos inteiros aos jogadores (contam como explorados) ou os esconde de novo. */
+  | { tipo: 'sessao.revelar'; ids: string[] }
+  | { tipo: 'sessao.ocultar'; ids: string[] }
+  /** Começa um combate com estas peças (do maior valor para o menor). */
+  | { tipo: 'iniciativa.iniciar'; entradas: { tokenId: string; value: number }[] }
+  | { tipo: 'iniciativa.passo'; passo: 1 | -1 }
+  | { tipo: 'iniciativa.valor'; tokenId: string; value: number }
+  | { tipo: 'iniciativa.encerrar' };
 
 const nao = (msg: string): never => { throw new ErroDeComando(msg); };
 
@@ -69,10 +81,7 @@ function remover(m: MapaAtlas, colecao: ColecaoLivre, id: string): void {
   if (colecao === 'props' || colecao === 'tokens') {
     // Luzes que pertenciam ao item vão com ele; o token que usava a luz fica sem lanterna.
     for (const luz of Object.values(m.lights)) if (luz.ownerId === id) remover(m, 'lights', luz.id);
-    if (colecao === 'tokens' && m.session.initiative) {
-      const ordem = m.session.initiative.order.filter(x => x.tokenId !== id);
-      m.session.initiative = ordem.length ? { ...m.session.initiative, order: ordem, current: Math.min(m.session.initiative.current, ordem.length - 1) } : null;
-    }
+    if (colecao === 'tokens') m.session.initiative = podar(m.session.initiative, t => t !== id);
   }
   if (colecao === 'lights') for (const t of Object.values(m.tokens)) if (t.lightId === id) t.lightId = null;
   m.session.revealed = m.session.revealed.filter(x => x !== id);
@@ -164,10 +173,13 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       if (destino[0] < 0 || destino[1] < 0 || destino[0] > m.bounds.width || destino[1] > m.bounds.height) nao('Fora do mapa.');
       if (Math.hypot(destino[0] - de[0], destino[1] - de[1]) < 1e-6) break;
       if (!c.livre) { const motivo = bloqueioNoCaminho(m, de, destino); if (motivo) nao(motivo); }
+      // O que a peça de jogador via de onde estava também fica explorado (antes de ela sair do lugar).
+      const viam = t.player ? celulasVisiveis(m, m.session.explored?.res ?? RES_NEVOA) : [];
       t.position = destino; t.facing = ladoDoMovimento(de, destino);
       // A lanterna vai junto e aponta para onde a peça andou.
       const luz = t.lightId ? m.lights[t.lightId] : undefined;
       if (luz) { luz.position = [destino[0], destino[1]]; if (luz.cone) luz.cone.direction = anguloDoMovimento(de, destino); }
+      if (t.player) m.session.explored = exploradoAgora(m, viam);
       break;
     }
     case 'peca.virar': {
@@ -177,6 +189,42 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       if (!luz?.cone) nao('Esta peça não carrega uma lanterna.');
       else luz.cone.direction = c.direcao;
       break;
+    }
+    case 'sessao.esquecer': m.session.explored = null; break;
+    case 'sessao.revelar': {
+      for (const id of c.ids) if (!m.rooms[id]) nao(`O cômodo “${id}” não existe.`);
+      m.session.revealed = [...new Set([...m.session.revealed, ...c.ids])];
+      break;
+    }
+    case 'sessao.ocultar': m.session.revealed = m.session.revealed.filter(id => !c.ids.includes(id)); break;
+    case 'iniciativa.iniciar': {
+      if (!c.entradas.length) nao('Escolha ao menos uma peça.');
+      if (c.entradas.length > 64) nao('Peças demais na iniciativa.');
+      const vistos = new Set<string>();
+      for (const x of c.entradas) {
+        if (!m.tokens[x.tokenId]) nao(`A peça “${x.tokenId}” não existe.`);
+        if (vistos.has(x.tokenId)) nao('Uma peça só entra uma vez na iniciativa.');
+        if (!Number.isFinite(x.value) || Math.abs(x.value) > 999) nao('Valor de iniciativa inválido.');
+        vistos.add(x.tokenId);
+      }
+      m.session.initiative = iniciar(c.entradas); break;
+    }
+    case 'iniciativa.passo': {
+      if (!m.session.initiative) nao('Não há iniciativa em andamento.');
+      else m.session.initiative = passo(m.session.initiative, c.passo === -1 ? -1 : 1);
+      break;
+    }
+    case 'iniciativa.valor': {
+      const ini = m.session.initiative;
+      if (!ini) nao('Não há iniciativa em andamento.');
+      else if (!ini.order.some(x => x.tokenId === c.tokenId)) nao('Essa peça não está na iniciativa.');
+      else if (!Number.isFinite(c.value) || Math.abs(c.value) > 999) nao('Valor de iniciativa inválido.');
+      else m.session.initiative = definirValor(ini, c.tokenId, c.value);
+      break;
+    }
+    case 'iniciativa.encerrar': {
+      if (!m.session.initiative) nao('Não há iniciativa em andamento.');
+      m.session.initiative = null; break;
     }
     default: { const _fim: never = c; nao(`Comando desconhecido: ${JSON.stringify(_fim)}`); }
   }
@@ -201,7 +249,7 @@ export const ROTULOS: Record<Comando['tipo'], string> = {
   'mapa.renomear': 'Renomear mapa', 'mapa.notas': 'Editar notas', 'mapa.campanha': 'Ligar à campanha', 'grade.atualizar': 'Ajustar grade',
   'limites.atualizar': 'Redimensionar mapa', 'estilo.atualizar': 'Mudar estilo', 'clima.aplicar': 'Mudar clima', 'clima.predefinir': 'Aplicar clima', 'clima.salvar': 'Salvar clima', 'clima.esquecer': 'Esquecer clima', 'clima.audio': 'Som do clima', 'acabamento.atualizar': 'Ajustar acabamento',
   'fundo.atualizar': 'Ajustar fundo', 'memoria.atualizar': 'Ajustar memória', 'item.adicionar': 'Adicionar', 'item.atualizar': 'Editar',
-  'item.remover': 'Remover', 'selecao.mover': 'Mover', 'peca.mover': 'Mover peça', 'peca.virar': 'Virar a lanterna', 'proposta.aceitar': 'Aceitar sugestão',
+  'item.remover': 'Remover', 'selecao.mover': 'Mover', 'peca.mover': 'Mover peça', 'peca.virar': 'Virar a lanterna', 'sessao.esquecer': 'Recomeçar a exploração', 'sessao.revelar': 'Revelar cômodos', 'sessao.ocultar': 'Esconder cômodos', 'iniciativa.iniciar': 'Começar a iniciativa', 'iniciativa.passo': 'Passar a vez', 'iniciativa.valor': 'Valor de iniciativa', 'iniciativa.encerrar': 'Encerrar a iniciativa', 'proposta.aceitar': 'Aceitar sugestão',
 };
 
 export type { NomeColecao };

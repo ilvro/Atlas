@@ -10,7 +10,7 @@ import { ROTULO_DA_FERRAMENTA, type Ferramenta } from '../render/pincel.ts';
 import { colecaoDaFerramenta } from '../render/viewport.ts';
 import { campanhaAtiva } from './campanha.ts';
 import { PRESETS_DE_CLIMA } from '../domain/presets.ts';
-import { FERRAMENTAS_DA_SESSAO, modo } from './modo.ts';
+import { FERRAMENTAS_DA_SESSAO, modo, vistaDeJogador } from './modo.ts';
 import { aceitarSugestao, definirSugestoesLigadas, dispensarSugestao, outraSugestao, sugestao, sugestoesLigadas } from './sugestoes.ts';
 import type { Alvo } from '../render/selecao.ts';
 import type { Ponto } from '../domain/mapa.ts';
@@ -124,6 +124,8 @@ export const ACOES: readonly Acao[] = [
   { id: 'sugestoes-alternar', nome: 'Ligar ou desligar sugestões', grupo: 'Assistente', palavras: 'assistente pilula', habilitada: noEditor, executar: () => definirSugestoesLigadas(!sugestoesLigadas.value) },
   { id: 'modo', nome: 'Alternar modo: Construir / Sessão', grupo: 'Geral', palavras: 'jogar mestre construir sessao editar', atalhos: ['M'], habilitada: noEditor, executar: () => app.alternarModo() },
   { id: 'biblioteca', nome: 'Abrir ou fechar a biblioteca', grupo: 'Construir', palavras: 'gaveta itens catalogo', atalhos: ['B'], habilitada: noEditor, executar: () => { const s = app.sessao.value; if (s) s.biblioteca.value = !s.biblioteca.value; } },
+  { id: 'vista-jogador', nome: 'Ver como jogador (névoa) / ver tudo', grupo: 'Sessão', palavras: 'visao nevoa mestre jogadores', atalhos: ['J'], habilitada: () => modo.value === 'sessao', executar: () => { vistaDeJogador.value = !vistaDeJogador.value; avisar(vistaDeJogador.value ? 'Vista dos jogadores.' : 'Vista do mestre.', { duracao: 1400 }); } },
+  { id: 'ferr-regua', nome: 'Ferramenta: régua (medir em quadrados)', grupo: 'Sessão', palavras: 'medir distancia metros quadrados', atalhos: ['R'], habilitada: () => modo.value === 'sessao', executar: () => usarFerramenta('regua') },
   { id: 'virar-lanterna-esq', nome: 'Virar a lanterna para a esquerda (45°)', grupo: 'Sessão', palavras: 'facho cone luz peça', atalhos: ['Q'], habilitada: () => modo.value === 'sessao' && app.comLanterna(), executar: () => app.virarLanterna(-45) },
   { id: 'virar-lanterna-dir', nome: 'Virar a lanterna para a direita (45°)', grupo: 'Sessão', palavras: 'facho cone luz peça', atalhos: ['E'], habilitada: () => modo.value === 'sessao' && app.comLanterna(), executar: () => app.virarLanterna(45) },
   { id: 'girar-dir', nome: 'Girar para a direita (90°)', grupo: 'Construir', palavras: 'rotacionar', atalhos: ['E'], habilitada: noEditor, executar: () => girar(90) },

@@ -1,5 +1,5 @@
 /** As ferramentas do editor e o que cada uma "carrega na mão" (o pincel). Dados puros, sem Pixi nem Preact. */
-export type Ferramenta = 'selecionar' | 'mao' | 'comodo' | 'borracha' | 'parede' | 'abertura' | 'objeto' | 'luz' | 'peca' | 'regiao' | 'terreno' | 'presenca' | 'espalhar';
+export type Ferramenta = 'selecionar' | 'mao' | 'comodo' | 'borracha' | 'parede' | 'abertura' | 'objeto' | 'luz' | 'peca' | 'regiao' | 'terreno' | 'presenca' | 'espalhar' | 'regua';
 
 export interface Pincel {
   /** Tipo de cômodo (`TIPOS_DE_COMODO`). */
@@ -29,5 +29,5 @@ export const PINCEL_PADRAO: Pincel = {
 export const LARGURA_DA_ABERTURA: Record<Pincel['abertura']['tipo'], number> = { door: 0.9, window: 1.0, arch: 1.2, secret: 0.9 };
 export const ROTULO_DA_FERRAMENTA: Record<Ferramenta, string> = {
   selecionar: 'Selecionar', mao: 'Mover a vista', comodo: 'Pintar cômodo', borracha: 'Apagar cômodo', parede: 'Desenhar parede', abertura: 'Porta ou janela',
-  objeto: 'Objeto', luz: 'Luz', peca: 'Peça', regiao: 'Região', terreno: 'Terreno', presenca: 'Presença', espalhar: 'Espalhar',
+  objeto: 'Objeto', luz: 'Luz', peca: 'Peça', regiao: 'Região', terreno: 'Terreno', presenca: 'Presença', espalhar: 'Espalhar', regua: 'Régua',
 };

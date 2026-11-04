@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'preact/hooks';
 import { signal, useSignalEffect } from '@preact/signals';
 import { acaoPorId, executarAcao } from '../app/acoes.ts';
-import { FERRAMENTAS_DA_SESSAO, modo } from '../app/modo.ts';
+import { FERRAMENTAS_DA_SESSAO, modo, regraDaRegua, vistaAtual } from '../app/modo.ts';
 import { acabamentoLigado, adicionarEm, aoColocar, focarNoComodo, menuRadial, servicos, sessao, viewport as viewportAtual } from '../app/app.ts';
 import { mostrarAtalho } from '../app/atalhos.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
@@ -20,6 +20,7 @@ import { PilulaDeSugestao } from './PilulaDeSugestao.tsx';
 const FERRAMENTAS: { id: Ferramenta; icone: string }[] = [
   { id: 'selecionar', icone: 'selecionar' }, { id: 'mao', icone: 'mao' }, { id: 'comodo', icone: 'comodo' }, { id: 'borracha', icone: 'borracha' }, { id: 'parede', icone: 'parede' },
   { id: 'abertura', icone: 'porta' }, { id: 'objeto', icone: 'objeto' }, { id: 'luz', icone: 'luz' }, { id: 'peca', icone: 'peca' }, { id: 'regiao', icone: 'regiao' }, { id: 'terreno', icone: 'terreno' }, { id: 'presenca', icone: 'presenca' }, { id: 'espalhar', icone: 'espalhar' },
+  { id: 'regua', icone: 'regua' },
 ];
 
 const zoomPct = signal(100), cursorMundo = signal<[number, number] | null>(null), pintando = signal(0);
@@ -30,7 +31,7 @@ function Ferramentas({ s }: { s: SessaoDeEdicao }) {
       {FERRAMENTAS.filter(f => modo.value === 'construir' || FERRAMENTAS_DA_SESSAO.includes(f.id)).map((f, i) => {
         const atalhos = acaoPorId(`ferr-${f.id}`)?.atalhos ?? [], letra = atalhos[0];
         return <button type="button" key={f.id} class={`ferramenta ${s.ferramenta.value === f.id ? 'ativa' : ''}`} aria-pressed={s.ferramenta.value === f.id} title={`${ROTULO_DA_FERRAMENTA[f.id]}${letra ? ` (${atalhos.map(mostrarAtalho).join(' ou ')})` : ''}`} data-testid={`ferramenta-${f.id}`}
-          onClick={() => { const a = acaoPorId(`ferr-${f.id}`); if (a) executarAcao(a); }}><Icone nome={f.icone} tamanho={20} />{i < 9 && <span class="numero-ferramenta">{i + 1}</span>}</button>;
+          onClick={() => { const a = acaoPorId(`ferr-${f.id}`); if (a) executarAcao(a); }}><Icone nome={f.icone} tamanho={20} />{i < 9 && f.id !== 'regua' && <span class="numero-ferramenta">{i + 1}</span>}</button>;
       })}
       <span class="espaco" />
       {modo.value === 'construir' && <button type="button" class={`ferramenta ${s.biblioteca.value ? 'ativa' : ''}`} aria-pressed={s.biblioteca.value} title="Biblioteca (B)" onClick={() => { s.biblioteca.value = !s.biblioteca.value; }} data-testid="alternar-biblioteca"><Icone nome="gaveta" tamanho={20} /></button>}
@@ -61,6 +62,8 @@ function ponteDa(s: SessaoDeEdicao): PonteViewport {
     aoCamera: c => { zoomPct.value = Math.round((c.zoom / 20) * 100); },
     acabamento: () => acabamentoLigado.peek(),
     emSessao: () => modo.value === 'sessao',
+    vista: vistaAtual,
+    regraDaRegua: () => regraDaRegua.peek(),
     lerRetrato: async id => (await servicos.peek()?.repo.obterAsset(id))?.blob ?? null,
   };
 }
@@ -71,12 +74,12 @@ function AreaDoMapa({ s }: { s: SessaoDeEdicao }) {
     let vp: Viewport | null = null, morto = false;
     void criarViewport(ref.current!, ponteDa(s)).then(v => {
       if (morto) { v.destruir(); return; }
-      vp = v; viewportAtual.atual = v; focarNoComodo();
+      vp = v; viewportAtual.atual = v; v.atualizarSobreposicoes(); focarNoComodo();
     }).catch(erro => { console.error('Atlas: o viewport não abriu', erro); avisar('Não consegui abrir o mapa na tela. Recarregue a página.', { tipo: 'erro', duracao: 8000 }); });
     return () => { morto = true; vp?.destruir(); if (viewportAtual.atual === vp) viewportAtual.atual = null; };
   }, [s]);
   // A seleção, a ferramenta e o pincel vivem em signals; o viewport só precisa saber que deve redesenhar as sobreposições.
-  useSignalEffect(() => { s.selecao.value; s.ferramenta.value; s.pincel.value; acabamentoLigado.value; viewportAtual.atual?.atualizarSobreposicoes(); });
+  useSignalEffect(() => { s.selecao.value; s.ferramenta.value; s.pincel.value; acabamentoLigado.value; vistaAtual(); regraDaRegua.value; viewportAtual.atual?.atualizarSobreposicoes(); });
   useSignalEffect(() => { tema.value; requestAnimationFrame(() => viewportAtual.atual?.redesenhar()); });
   useEffect(() => {
     let quadro = 0;

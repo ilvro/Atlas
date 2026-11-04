@@ -129,7 +129,7 @@ Testes: mover para a direita aponta o cone para 0 rad; remover a peça remove a 
 Pronto quando: andar com a peça num corredor escuro ilumina à frente dela.
 Commit: token lantern follows movement
 
-### 7.2a — Visão das peças de jogador  ⬜
+### 7.2a — Visão das peças de jogador  ✅
 Objetivo: saber e mostrar o que as peças de jogador veem agora.
 Depende de: 7.0b
 Ler: `src/domain/visibilidade.ts`; `src/render/mapa-de-luz.ts` (como os polígonos viram máscara); `spikes/estilos/src/main.js` (`visivelRT`, `aplicarVisao`).
@@ -150,7 +150,7 @@ Testes: unitários: peça dentro de um cômodo fechado não vê o vizinho; com a
 Pronto quando: abrir uma porta na vista de jogador revela o outro lado na hora, e os quadros por segundo continuam em 60 com 2 peças e 10 luzes.
 Commit: player vision
 
-### 7.2b — Explorado e névoa com memória em esboço  ⬜
+### 7.2b — Explorado e névoa com memória em esboço  ✅
 Objetivo: o que já foi visto fica no mapa como esboço a nanquim sobre papel; o nunca visto é fundo.
 Depende de: 7.2a, 7.1b
 Ler: `docs/ARQUITETURA.md` §5.6; `src/domain/mapa.ts` (`Memoria`: `sketch`, `paper`, `ink`); `spikes/estilos/src/assar.js` e `main.js` (a camada `memoria` do protótipo); `src/domain/celulas.ts` (`unir`).
@@ -165,7 +165,7 @@ Testes: unitários: mover acumula e nunca encolhe o explorado; desfazer o movime
 Pronto quando: a captura mostra visível em cor, memória em esboço e o nunca visto em fundo, sem costura entre eles.
 Commit: explored memory as sketch
 
-### 7.2c — Revelação animada e telhados  ⬜
+### 7.2c — Revelação animada e telhados  ✅
 Objetivo: o que entra na vista ganha cor aos poucos; o que sai desbota em esboço; telhados cobrem cômodos até alguém entrar.
 Depende de: 7.2b
 Ler: `src/render/nevoa.ts`, `memoria.ts`; `src/domain/mapa.ts` (`Comodo.roof`); `src/ui/Inspetor.tsx` (`CamposDoComodo`); `src/procedural/materiais.ts` (materiais de telhado, se houver; senão use os de terreno/pedra).

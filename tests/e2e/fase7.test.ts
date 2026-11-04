@@ -164,3 +164,192 @@ test('lanterna: o inspetor põe a luz na peça, ela anda apontando para onde a p
   assert.equal(Object.keys((await documento(page)).lights).length, 0);
   assert.deepEqual(erros, []); await ctx.close();
 });
+
+/** O brilho médio (0 a 255) de um retângulo do mundo, lido dos pixels da tela. */
+async function brilho(p: Page, a: [number, number], b: [number, number]): Promise<number> {
+  const [x0, y0] = await clientDe(p, a), [x1, y1] = await clientDe(p, b);
+  const png = await p.screenshot({ clip: { x: Math.min(x0, x1), y: Math.min(y0, y1), width: Math.abs(x1 - x0), height: Math.abs(y1 - y0) } });
+  return p.evaluate(async (base64: string) => {
+    const bmp = await createImageBitmap(await (await fetch(`data:image/png;base64,${base64}`)).blob()), c = new OffscreenCanvas(bmp.width, bmp.height), g = c.getContext('2d')!;
+    g.drawImage(bmp, 0, 0); const d = g.getImageData(0, 0, bmp.width, bmp.height).data; let soma = 0;
+    for (let i = 0; i < d.length; i += 4) soma += 0.299 * d[i]! + 0.587 * d[i + 1]! + 0.114 * d[i + 2]!;
+    return soma / (d.length / 4);
+  }, png.toString('base64'));
+}
+
+/** Grama em todo o mapa, uma parede em x = 12,75 com uma porta em y = 9 e uma peça de jogador à esquerda. */
+async function cenarioDaVisao(p: Page, estadoDaPorta: string) {
+  await sessao(p, `(s, a) => {
+    s.store.executar({ tipo: "terreno.base", material: "grama" });
+    s.store.executar({ tipo: "parede.adicionar", parede: a.parede }); s.store.executar({ tipo: "abertura.adicionar", abertura: a.porta });
+    s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.peca });
+  }`, {
+    parede: { id: 'w1', path: [[12.75, 0], [12.75, 30]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, source: null },
+    porta: { id: 'o1', wallId: 'w1', at: 0.3, width: 2, kind: 'door', state: estadoDaPorta, material: 'madeira.media', som: null, swing: 'a' },
+    peca: peca('hugo', 'Hugo', 9.75, 9.75, { player: true, vision: { radius: 14, dark: false } }),
+  });
+  await p.waitForTimeout(1500);
+}
+
+test('visão: na vista de jogador o outro lado da parede é o fundo do mapa, abrir a porta revela o que ela mostra, e o mestre vê tudo', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await cenarioDaVisao(page, 'closed');
+  const fora: [[number, number], [number, number]] = [[15, 9.3], [18, 10.2]], escondido: [[number, number], [number, number]] = [[15, 12], [18, 13]], dentro: [[number, number], [number, number]] = [[6, 7], [9, 8]];
+  await page.click('[data-testid="modo-sessao"]'); await page.waitForTimeout(500);
+  const tudo = await brilho(page, ...fora); assert.ok(tudo > 30, `o mestre vê a grama (${tudo})`);
+  await page.click('[data-testid="vista-jogador"]'); await page.waitForTimeout(700);
+  assert.equal(await page.locator('[data-testid="vista-jogador"]').getAttribute('aria-pressed'), 'true');
+  const vizinho = await brilho(page, ...fora), proprio = await brilho(page, ...dentro);
+  assert.ok(proprio > 30, `o próprio lado continua à vista (${proprio})`); assert.ok(vizinho < 18, `a porta fechada esconde o outro lado (${vizinho})`);
+  await page.screenshot({ path: 'test-results/fase7-visao-fechada.png' });
+  await sessao(page, '(s) => s.store.executar({ tipo: "abertura.atualizar", id: "o1", patch: { state: "open" } })'); await page.waitForTimeout(700);
+  const aberta = await brilho(page, ...fora), longe = await brilho(page, ...escondido);
+  assert.ok(aberta > 30, `a porta aberta mostra o que está em frente (${aberta})`); assert.ok(longe < 18, `mas não o resto (${longe})`);
+  await page.screenshot({ path: 'test-results/fase7-visao-aberta.png' });
+  await page.keyboard.press('Control+z'); await page.waitForTimeout(700);
+  assert.ok(await brilho(page, ...fora) < 18, 'desfazer fecha a porta e a névoa volta');
+  // Voltar à vista do mestre (J) mostra tudo; em Construir o mestre vê sempre tudo.
+  await semFoco(page); await page.keyboard.press('j'); await page.waitForTimeout(500);
+  assert.ok(await brilho(page, ...fora) > 30, 'J volta à vista do mestre');
+  await page.keyboard.press('j'); await page.waitForTimeout(500); assert.ok(await brilho(page, ...fora) < 18);
+  await page.click('[data-testid="modo-construir"]'); await page.waitForTimeout(500);
+  assert.ok(await brilho(page, ...fora) > 30, 'em Construir não há névoa');
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('memória: o que a peça já viu e deixou para trás vira esboço em papel; o nunca visto continua fundo; esquecer apaga a memória', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await cenarioDaVisao(page, 'open');
+  await sessao(page, '(s) => s.store.executar({ tipo: "item.atualizar", colecao: "tokens", id: "hugo", patch: { vision: { radius: 6 } } })');
+  await page.click('[data-testid="modo-sessao"]'); await page.waitForTimeout(400); await page.click('[data-testid="vista-jogador"]'); await page.waitForTimeout(600);
+  const lembrada: [[number, number], [number, number]] = [[5, 8.2], [7, 9.4]], nunca: [[number, number], [number, number]] = [[38, 24], [43, 28]], aqui = (x: number): [[number, number], [number, number]] => [[x - 2, 8.5], [x + 2, 10.5]];
+  assert.ok(await brilho(page, ...lembrada) > 30, 'a peça enxerga o lugar');
+  // A peça atravessa a porta e vai longe: o que ficou para trás sai do alcance mas fica na memória.
+  await sessao(page, '(s) => s.store.executar({ tipo: "peca.mover", id: "hugo", para: [24.75, 9.75] })'); await page.waitForTimeout(1200);
+  const m = await documento(page); assert.ok(m.session.explored && m.session.explored.cells.length > 0, 'o explorado foi gravado'); assert.equal(m.session.explored.res, 0.5);
+  const papel = await brilho(page, ...lembrada), fundo = await brilho(page, ...nunca), vendo = await brilho(page, ...aqui(24.75));
+  assert.ok(papel > 120, `memória: papel claro (${papel})`); assert.ok(fundo < 18, `nunca visto: fundo (${fundo})`); assert.ok(vendo > 20 && vendo < papel, `visível: a cena (${vendo})`);
+  await page.screenshot({ path: 'test-results/fase7-memoria.png' });
+  // Sem esboço, o explorado é a cena escurecida.
+  await sessao(page, '(s) => s.store.executar({ tipo: "memoria.atualizar", patch: { sketch: false } })'); await page.waitForTimeout(700);
+  const escura = await brilho(page, ...lembrada); assert.ok(escura > 8 && escura < papel * 0.5, `sem esboço: escurecida (${escura})`);
+  await sessao(page, '(s) => s.store.executar({ tipo: "memoria.atualizar", patch: { sketch: true } })'); await page.waitForTimeout(500);
+  // Recomeçar a exploração apaga a memória.
+  await page.click('[data-testid="aba-mapa"]'); await page.click('[data-testid="exploracao-recomecar"]'); await page.click('[data-testid="exploracao-confirmar"]'); await page.waitForTimeout(700);
+  assert.equal((await documento(page)).session.explored, null);
+  assert.ok(await brilho(page, ...lembrada) < 18, 'sem memória, o lugar vira fundo de novo');
+  await page.keyboard.press('Control+z'); await page.waitForTimeout(700);
+  assert.ok(await brilho(page, ...lembrada) > 120, 'desfazer devolve a memória');
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+const telhados = (p: Page) => p.evaluate(() => (window as unknown as { __atlas: { viewport(): { diagnosticoDosTelhados(): { id: string; alfa: number; alvo: number; dentro: boolean }[] } } }).__atlas.viewport().diagnosticoDosTelhados());
+
+test('telhado: cobre o cômodo na vista de jogador até uma peça entrar, com fade; o mestre o vê esmaecido e em Construir ele some', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await sessao(page, `(s, p) => {
+    const celulas = []; for (let y = 4; y < 8; y++) for (let x = 4; x < 8; x++) celulas.push([x, y]);
+    s.store.executar({ tipo: "terreno.base", material: "grama" });
+    s.store.executar({ tipo: "comodo.criar", id: "casa", nome: "Casa", funcao: null, piso: { material: "tabuas.carvalho", seed: 2 }, papel: null, celulas });
+    s.store.executar({ tipo: "comodo.atualizar", id: "casa", patch: { roof: { material: "telha.barro", visible: true } } });
+    s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: p });
+  }`, peca('hugo', 'Hugo', 3.75, 3.75, { player: true, vision: { radius: 20, dark: false } }));
+  await page.waitForTimeout(1500);
+  const centro: [[number, number], [number, number]] = [[8.5, 8.5], [9.5, 9.5]];
+  // Construir: sem telhado.
+  assert.equal((await telhados(page))[0]!.alfa, 0, 'em Construir não há telhado');
+  const piso = await brilho(page, ...centro);
+  await page.click('[data-testid="modo-sessao"]'); await page.waitForTimeout(500);
+  assert.ok(Math.abs((await telhados(page))[0]!.alfa - 0.25) < 0.01, 'o mestre vê o telhado a 25%');
+  await page.click('[data-testid="vista-jogador"]'); await page.waitForTimeout(800);
+  let t = (await telhados(page))[0]!; assert.equal(t.alfa, 1, 'os jogadores veem o telhado fechado'); assert.equal(t.dentro, false);
+  const coberto = await brilho(page, ...centro); assert.ok(Math.abs(coberto - piso) > 10, `o telhado muda o que se vê (${coberto} contra ${piso})`);
+  await page.screenshot({ path: 'test-results/fase7-telhado-fechado.png' });
+  // A peça entra: o telhado some com fade (no meio da animação há um meio-termo).
+  await sessao(page, '(s) => s.store.executar({ tipo: "peca.mover", id: "hugo", para: [9.75, 9.75], livre: true })'); await page.waitForTimeout(150);
+  const meio = (await telhados(page))[0]!; assert.ok(meio.alfa > 0.02 && meio.alfa < 0.98, `no meio do fade (${meio.alfa})`);
+  await page.screenshot({ path: 'test-results/fase7-telhado-meio.png' });
+  await page.waitForTimeout(900);
+  t = (await telhados(page))[0]!; assert.equal(t.alfa, 0); assert.equal(t.dentro, true);
+  assert.ok(Math.abs(await brilho(page, ...centro) - coberto) > 10, 'sem telhado, o cômodo aparece');
+  // Sair de novo fecha o telhado.
+  await sessao(page, '(s) => s.store.executar({ tipo: "peca.mover", id: "hugo", para: [3.75, 3.75], livre: true })'); await page.waitForTimeout(900);
+  assert.equal((await telhados(page))[0]!.alfa, 1);
+  // Telhado "não visível" não aparece.
+  await sessao(page, '(s) => s.store.executar({ tipo: "comodo.atualizar", id: "casa", patch: { roof: { visible: false } } })'); await page.waitForTimeout(800);
+  assert.equal((await telhados(page))[0]!.alfa, 0);
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('revelação: abrir a porta na vista de jogador revela o outro lado aos poucos, e fechar o desbota mais devagar', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await cenarioDaVisao(page, 'closed');
+  const fora: [[number, number], [number, number]] = [[15, 9.3], [18, 10.2]];
+  await page.click('[data-testid="modo-sessao"]'); await page.waitForTimeout(400); await page.click('[data-testid="vista-jogador"]'); await page.waitForTimeout(800);
+  const escuro = await brilho(page, ...fora);
+  await sessao(page, '(s) => s.store.executar({ tipo: "abertura.atualizar", id: "o1", patch: { state: "open" } })');
+  await page.waitForTimeout(60);
+  const meio = await brilho(page, ...fora); await page.screenshot({ path: 'test-results/fase7-revelando.png' });
+  await page.waitForTimeout(1400);
+  const cheio = await brilho(page, ...fora);
+  assert.ok(cheio > 30 && escuro < 18, `extremos (${escuro} → ${cheio})`);
+  assert.ok(meio > escuro + 1 && meio < cheio - 1, `no meio da revelação há um meio-termo (${escuro} < ${meio} < ${cheio})`);
+  // Descer é mais lento que subir: logo depois de fechar, ainda resta luz.
+  await sessao(page, '(s) => s.store.executar({ tipo: "abertura.atualizar", id: "o1", patch: { state: "closed" } })'); await page.waitForTimeout(250);
+  const saindo = await brilho(page, ...fora); assert.ok(saindo > escuro + 1, `ainda desbotando (${saindo})`);
+  await page.waitForTimeout(2200); assert.ok(await brilho(page, ...fora) < 18, 'por fim volta ao fundo');
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('desempenho: a vista de jogador com 2 peças e 10 luzes não derruba os quadros', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await cenarioDaVisao(page, 'open');
+  await sessao(page, `(s, a) => {
+    s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.p2 });
+    for (let i = 0; i < 10; i++) s.store.executar({ tipo: "item.adicionar", colecao: "lights", item: { id: "luz" + i, position: [4 + i * 3.5, 5 + (i % 3) * 8], radius: 8, color: "#ffb36b", intensity: 1, flicker: 0.2, cone: null, ownerId: null, power: "fire", on: true, nightOnly: false, preset: null } });
+  }`, { p2: peca('ana', 'Ana', 24.75, 9.75, { player: true, vision: { radius: 14, dark: false } }) });
+  await page.click('[data-testid="modo-sessao"]'); await page.waitForTimeout(400); await page.click('[data-testid="vista-jogador"]'); await page.waitForTimeout(1000);
+  const fps = await page.evaluate(() => new Promise<number>(ok => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 >= 2000) ok(n / 2); else requestAnimationFrame(f); }; requestAnimationFrame(f); }));
+  console.log(`# quadros por segundo com 2 peças e 10 luzes: ${fps.toFixed(1)}`);
+  assert.ok(fps > 25, `${fps} quadros por segundo`);
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+const reguaDiag = (p: Page) => p.evaluate(() => (window as unknown as { __atlas: { viewport(): { diagnosticoDaRegua(): { quadrados: number; texto: string; pontos: number } | null } } }).__atlas.viewport().diagnosticoDaRegua());
+
+test('régua: R só vale na Sessão; medir 4 células em reta mostra "4 quadrados"; um clique faz dobra; Esc limpa; não mexe no documento', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  // Em Construir o R continua sendo região.
+  await semFoco(page); await page.keyboard.press('r'); await page.waitForTimeout(200); assert.equal(await ferramentaAtual(page), 'regiao');
+  await page.keyboard.press('v'); await page.click('[data-testid="modo-sessao"]'); await page.waitForTimeout(300);
+  assert.equal(await page.locator('[data-testid="ferramenta-regua"]').count(), 1);
+  await semFoco(page); await page.keyboard.press('r'); await page.waitForTimeout(200); assert.equal(await ferramentaAtual(page), 'regua');
+  const antes = JSON.stringify(await documento(page));
+  // Arrasta do centro da célula (3,3) ao da (7,3): 4 quadrados, 6 m.
+  const [ax, ay] = await clientDe(page, [5.25, 5.25]), [bx, by] = await clientDe(page, [11.25, 5.25]);
+  await page.mouse.move(ax, ay); await page.mouse.down(); await page.mouse.move(bx, by, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(200);
+  assert.deepEqual(await reguaDiag(page), { quadrados: 4, texto: '4 quadrados · 6 m', pontos: 2 });
+  // Um clique em outro lugar acrescenta uma dobra (mais 3 quadrados para baixo).
+  await clicar(page, [11.25, 9.75]);
+  assert.deepEqual(await reguaDiag(page), { quadrados: 7, texto: '7 quadrados · 10,5 m', pontos: 3 });
+  // Diagonal: a regra alternada conta 1, 2, 1… (3 diagonais = 4).
+  await page.keyboard.press('Escape'); await page.waitForTimeout(150); assert.equal(await reguaDiag(page), null, 'Esc limpa a régua');
+  assert.equal(await ferramentaAtual(page), 'regua', 'o primeiro Esc só limpa a régua');
+  const [cx, cy] = await clientDe(page, [5.25, 5.25]), [dx, dy] = await clientDe(page, [9.75, 9.75]);
+  const medir = async () => { await page.mouse.move(cx, cy); await page.mouse.down(); await page.mouse.move(dx, dy, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(150); return reguaDiag(page); };
+  assert.equal((await medir())?.quadrados, 3, 'simples: a diagonal vale 1');
+  await page.evaluate(() => localStorage.setItem('atlas:regua-diagonal', 'alternada'));
+  await page.keyboard.press('Escape'); await page.getByLabel('Diagonal').selectOption('alternada').catch(() => undefined);
+  await page.waitForTimeout(200);
+  assert.equal((await medir())?.quadrados, 4, 'alternada: 1 + 2 + 1');
+  // Trocar de ferramenta limpa a régua; o documento nunca mudou.
+  await page.keyboard.press('v'); await page.waitForTimeout(200); assert.equal(await reguaDiag(page), null);
+  assert.equal(JSON.stringify(await documento(page)), antes, 'a régua não mexe no documento');
+  assert.deepEqual(erros, []); await ctx.close();
+});

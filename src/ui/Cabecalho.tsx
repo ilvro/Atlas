@@ -1,7 +1,7 @@
 import { mostrarAtalho } from '../app/atalhos.ts';
 import { acaoPorId, executarAcao, fxLigado, somLigado } from '../app/acoes.ts';
 import { ajudaAberta, navegar, paletaAberta, renomearMapaAberto, rota, sessao } from '../app/app.ts';
-import { ROTULO_DO_MODO, modo, type Modo } from '../app/modo.ts';
+import { ROTULO_DO_MODO, modo, vistaDeJogador, type Modo } from '../app/modo.ts';
 import { tituloDoEstado } from '../app/sessao.ts';
 import { tema, trocarTema } from '../app/tema.ts';
 import { TEMAS, type TemaId } from '#mesa';
@@ -26,6 +26,7 @@ export function Cabecalho() {
         </span>
       </>) : null}
       {noEditor && modo.value === 'sessao' ? <span class="faixa-sessao" data-testid="faixa-sessao">SESSÃO</span> : null}
+      {noEditor && modo.value === 'sessao' ? <button type="button" class="botao-pilula botao-vista" aria-pressed={vistaDeJogador.value} title={dica('Ver como jogador', 'vista-jogador')} onClick={executar('vista-jogador')} data-testid="vista-jogador"><Icone nome="olho" tamanho={14} />Ver como jogador</button> : null}
       <span class="espaco" />
       {noEditor && s ? (<div class="grupo chave-de-modo" role="radiogroup" aria-label="Modo" data-testid="chave-de-modo">
         {(['construir', 'sessao'] as Modo[]).map(id => <button type="button" key={id} role="radio" aria-checked={modo.value === id} class={`ficha ${modo.value === id ? 'ativa' : ''}`} title={dica(`Modo ${ROTULO_DO_MODO[id]}`, 'modo')} data-testid={`modo-${id}`} onClick={() => { if (modo.value !== id) executar('modo')(); }}>{ROTULO_DO_MODO[id]}</button>)}

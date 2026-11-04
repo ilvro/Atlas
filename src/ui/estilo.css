@@ -299,3 +299,4 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
 .chave-de-modo { margin-right: 4px; }
 .cabecalho.em-sessao { border-bottom: 3px solid var(--acento); }
 .faixa-sessao { padding: 3px 12px; margin-left: 8px; background: var(--acento); color: #fff; font: 800 11px var(--titulo, var(--corpo)); letter-spacing: 0.18em; clip-path: polygon(0 0, 100% 0, 96% 100%, 3% 100%); }
+.botao-vista { white-space: nowrap; margin-left: 8px; flex: none; }

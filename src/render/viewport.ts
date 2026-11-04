@@ -1,4 +1,5 @@
-import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { Application, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
+import { distanciaDoPercurso, pontosDaRegua, textoDaRegua, type RegraDeDiagonal } from '../domain/regua.ts';
 import { celulasDoDisco, celulasEntre, decodificar } from '../domain/celulas.ts';
 import { misturar, type EstadoDeClima, type MisturaDeClima } from '../domain/clima.ts';
 import { conjuntoDeEspalhar, espalhar } from '../authoring/espalhar.ts';
@@ -19,6 +20,7 @@ import { hexParaNumero } from './cores.ts';
 import { chaveDoObjeto, pedidoDoObjeto } from './entradas.ts';
 import { texturaPropria } from './textura-propria.ts';
 import { criarFantasmaDeProposta } from './fantasma-proposta.ts';
+import type { Vista } from './nevoa.ts';
 import { criarRetratos } from './retratos.ts';
 import { deltaEncaixado, encaixar, linhasDaGrade } from './grade.ts';
 import { LARGURA_DA_ABERTURA, type Ferramenta, type Pincel } from './pincel.ts';
@@ -50,6 +52,10 @@ export interface PonteViewport {
   lerRetrato?(id: string): Promise<Blob | null>;
   /** Na sessão, arrastar uma peça a leva de célula em célula e as outras coisas só se selecionam. */
   emSessao?(): boolean;
+  /** Pelos olhos de quem se vê o mapa agora (o mestre em Construir vê sempre tudo). */
+  vista?(): Vista;
+  /** Como a régua conta as diagonais (preferência local). */
+  regraDaRegua?(): RegraDeDiagonal;
 }
 
 /** Quanto dura a transição entre dois climas, em milissegundos. */
@@ -80,9 +86,12 @@ export interface Viewport {
   objetosPintados(): number;
   /** Para os testes: como cada peça está desenhada. */
   diagnosticoDasPecas(): ReturnType<Cena['diagnosticoDasPecas']>;
+  diagnosticoDosTelhados(): ReturnType<Cena['diagnosticoDosTelhados']>;
   /** Mostra, translúcido, o que `previa` acrescenta ao documento; `null` limpa. Quem chamou recalcula se o documento mudar. */
   mostrarProposta(previa: MapaAtlas | null): void;
   contagemDoFantasma(): number;
+  /** Para os testes: o que a régua mede agora (ou `null` sem régua ou com um ponto só). */
+  diagnosticoDaRegua(): { quadrados: number; texto: string; pontos: number } | null;
   destruir(): void;
 }
 
@@ -99,7 +108,11 @@ type Interacao =
   | { tipo: 'cômodo'; apagar: boolean; sala: string; criado: boolean; gesto: Gesto; ini: [number, number]; atual: [number, number]; retangulo: boolean; visitadas: Set<number> }
   | { tipo: 'terreno'; apagar: boolean; gesto: Gesto; ultimo: Ponto; presenca: boolean }
   | { tipo: 'espalhar'; apagar: boolean; gesto: Gesto; ultimo: Ponto; semente: number }
-  | { tipo: 'parede'; ini: Ponto; fim: Ponto };
+  | { tipo: 'parede'; ini: Ponto; fim: Ponto }
+  | { tipo: 'regua'; ini: Ponto; x0: number; y0: number; moveu: boolean };
+
+/** A régua: os pontos já fixados (centros de célula) e, enquanto se espera o próximo clique, o ponto sob o ponteiro. Não é do documento. */
+interface Regua { pontos: Ponto[]; atual: Ponto | null }
 
 const chaveCel = (x: number, y: number) => y * 200_003 + x;
 
@@ -124,7 +137,9 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const store = ponte.store, baker: Baker = criarBaker();
   const mundo = new Container(), area_ = new Graphics(), grade = new Graphics(), selecaoG = new Graphics(), fantasmaC = new Container(), fantasmaG = new Graphics(), laco = new Graphics();
   let camera: Camera = { x: 0, y: 0, zoom: 20 };
-  let ponteiro: Ponto | null = null, interacao: Interacao | null = null, espaco = false, camadaSuja = true, destruido = false;
+  let ponteiro: Ponto | null = null, interacao: Interacao | null = null, espaco = false, camadaSuja = true, destruido = false, regua: Regua | null = null;
+  const reguaTexto = new Text({ text: '', style: { fontFamily: 'system-ui, sans-serif', fontSize: 14, fontWeight: '600', fill: 0xffffff, stroke: { color: 0x07080b, width: 4 } } });
+  reguaTexto.visible = false;
   const doc = (): MapaAtlas => store.documento;
   const tela = (): Tela => ({ largura: app.screen.width, altura: app.screen.height });
   const acento = (): number => { const v = getComputedStyle(document.documentElement).getPropertyValue('--acento').trim(); return /^#[0-9a-f]{6}$/i.test(v) ? hexParaNumero(v) : COR_PADRAO_ACENTO; };
@@ -138,7 +153,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const acabamento = criarFiltroAcabamento();
   fantasmaC.addChild(fantasmaG);
   const fantasmaDaProposta = criarFantasmaDeProposta({ baker, acento, efeitos: fxAtivo });
-  mundo.addChild(area_, cena.raiz, grade, selecaoG, fantasmaC, fantasmaDaProposta.raiz, laco);
+  mundo.addChild(area_, cena.raiz, grade, selecaoG, fantasmaC, fantasmaDaProposta.raiz, laco, reguaTexto);
   app.stage.addChild(mundo);
 
   // ---------- Transição de clima ----------
@@ -211,9 +226,40 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     }
   }
 
+  /** Os pontos da régua, com o do ponteiro no fim enquanto se espera o próximo clique. */
+  const pontosDaReguaAgora = (): Ponto[] => (regua ? (regua.atual ? [...regua.pontos, regua.atual] : regua.pontos) : []);
+  function medidaDaRegua(): { quadrados: number; texto: string; pontos: number } | null {
+    const pts = pontosDaReguaAgora(), m = doc();
+    if (pts.length < 2) return null;
+    const quadrados = distanciaDoPercurso(pts, m.grid.size, ponte.regraDaRegua?.() ?? 'simples');
+    return { quadrados, texto: textoDaRegua(quadrados, m.grid.size), pontos: pts.length };
+  }
+
+  /** A linha da régua, as células que ela cruza e "6 quadrados · 9 m". Serve às duas vistas. */
+  function desenharRegua(cor: number): void {
+    const pts = pontosDaReguaAgora(), m = doc(), medida = medidaDaRegua();
+    reguaTexto.visible = false;
+    if (!pts.length) return;
+    const t = m.grid.size;
+    if (pts.length > 1) {
+      for (const [x, y] of pontosDaRegua(pts, m.grid)) laco.rect(m.grid.offset[0] + x * t, m.grid.offset[1] + y * t, t, t);
+      laco.fill({ color: cor, alpha: 0.16 });
+      laco.moveTo(pts[0]![0], pts[0]![1]); for (const q of pts.slice(1)) laco.lineTo(q[0], q[1]);
+      laco.stroke({ width: px(5), color: 0x07080b, alpha: 0.55, cap: 'round', join: 'round' });
+      laco.moveTo(pts[0]![0], pts[0]![1]); for (const q of pts.slice(1)) laco.lineTo(q[0], q[1]);
+      laco.stroke({ width: px(2.5), color: cor, alpha: 0.95, cap: 'round', join: 'round' });
+    }
+    for (const q of pts) laco.circle(q[0], q[1], px(4.5)).fill(0xffffff).stroke({ width: px(1.5), color: cor });
+    if (medida) {
+      const fim = pts.at(-1)!;
+      reguaTexto.text = medida.texto; reguaTexto.scale.set(1 / camera.zoom); reguaTexto.position.set(fim[0] + px(12), fim[1] - px(26)); reguaTexto.visible = true;
+    }
+  }
+
   function desenharLaco(): void {
     laco.clear();
     const cor = acento(), m = doc();
+    desenharRegua(cor);
     if (interacao?.tipo === 'retangulo' && interacao.moveu) {
       const { ini, atual } = interacao;
       laco.rect(Math.min(ini[0], atual[0]), Math.min(ini[1], atual[1]), Math.abs(ini[0] - atual[0]), Math.abs(ini[1] - atual[1])).fill({ color: cor, alpha: 0.1 }).stroke({ width: px(1.5), color: cor, alpha: 0.9 });
@@ -467,6 +513,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (e.button === 1 || e.button === 2 || (e.button === 0 && (f === 'mao' || espaco))) { interacao = { tipo: 'pan', botao: e.button, x0: tx, y0: ty, camera0: camera, moveu: false }; cursor(); return; }
     if (e.button !== 0) return;
     const p = mundoDe(e);
+    if (f === 'regua') { interacao = { tipo: 'regua', ini: centroDaCelula(m, p), x0: tx, y0: ty, moveu: false }; camadaSuja = true; return; }
     if (f !== 'selecionar') { colocar(e, p); cursor(); camadaSuja = true; return; }
     const hit = alvoEm(m, p, px(8)), sel = ponte.selecao();
     if (ponte.emSessao?.()) {
@@ -498,7 +545,11 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   canvas.addEventListener('pointermove', e => {
     ponteiro = mundoDe(e);
     const [tx, ty] = telaDe(e), m = doc();
-    if (!interacao) { camadaSuja = true; return; }
+    if (!interacao) {
+      // Com um ponto só fixado, a régua acompanha o ponteiro até o próximo clique.
+      if (regua && regua.pontos.length === 1 && ponte.ferramenta() === 'regua') regua.atual = centroDaCelula(m, ponteiro);
+      camadaSuja = true; return;
+    }
     const i = interacao;
     if (i.tipo === 'pan') {
       if (Math.hypot(tx - i.x0, ty - i.y0) > LIMIAR_ARRASTO) i.moveu = true;
@@ -525,6 +576,10 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       const a = m.openings[i.id]; if (!a) return;
       const enc = encaixarNaParede(m, ponteiro, a.width, 1.2);
       if (enc && (enc.parede.id !== a.wallId || Math.abs(enc.at - a.at) > 1e-6)) { try { i.gesto.aplicar({ tipo: 'abertura.atualizar', id: i.id, patch: { wallId: enc.parede.id, at: enc.at } }); } catch { /* ali não cabe: fica onde estava */ } }
+    } else if (i.tipo === 'regua') {
+      // Arrastar começa uma régua nova, do ponto onde se apertou; um clique sem arrastar só acrescenta um ponto (ao soltar).
+      if (!i.moveu && Math.hypot(tx - i.x0, ty - i.y0) > LIMIAR_ARRASTO) i.moveu = true;
+      if (i.moveu) regua = { pontos: [i.ini], atual: centroDaCelula(m, ponteiro) };
     } else if (i.tipo === 'retangulo') {
       i.atual = ponteiro; if (Math.hypot(tx - i.x0, ty - i.y0) > LIMIAR_ARRASTO) i.moveu = true;
     } else if (i.tipo === 'laco') {
@@ -569,6 +624,16 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       else if (!cancelado && i.estavaNaSelecao && sel.length > 1) ponte.definirSelecao([i.hit]);
     } else if (i.tipo === 'peca') {
       if (!cancelado && i.moveu && Math.hypot(i.para[0] - i.de[0], i.para[1] - i.de[1]) > 1e-6) tentar(() => store.executar({ tipo: 'peca.mover', id: i.id, para: i.para, livre: i.livre }));
+    } else if (i.tipo === 'regua') {
+      if (cancelado) { /* nada */ } else if (i.moveu) {
+        const fim = regua?.atual ?? i.ini;
+        regua = { pontos: Math.hypot(fim[0] - i.ini[0], fim[1] - i.ini[1]) < 1e-6 ? [i.ini] : [i.ini, fim], atual: null };
+        if (regua.pontos.length === 1) regua.atual = fim;
+      } else if (!regua || !regua.pontos.length) regua = { pontos: [i.ini], atual: i.ini };
+      else {
+        const ultimo = regua.pontos.at(-1)!;
+        if (Math.hypot(i.ini[0] - ultimo[0], i.ini[1] - ultimo[1]) > 1e-6) regua = { pontos: [...regua.pontos, i.ini], atual: null };
+      }
     } else if (i.tipo === 'deslizar') { if (i.gesto) { if (cancelado) i.gesto.cancelar(); else i.gesto.concluir(); } }
     else if (i.tipo === 'retangulo') {
       if (cancelado) { /* nada */ } else if (!i.moveu) { if (i.modo === 'trocar' && sel.length) ponte.definirSelecao([]); }
@@ -594,6 +659,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const aoTeclar = (e: KeyboardEvent) => {
     const emCampo = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable="true"]');
     if (e.key === ' ' && !emCampo) { if (!e.repeat) { espaco = true; cursor(); } e.preventDefault(); return; }
+    // Esc limpa a régua (e só isso: o próximo Esc volta à ferramenta de selecionar).
+    if (e.key === 'Escape' && regua) { e.stopImmediatePropagation(); regua = null; if (interacao?.tipo === 'regua') interacao = null; camadaSuja = true; return; }
     // Esc durante um arrasto ou uma pincelada cancela só isso, antes de qualquer outro atalho.
     if (e.key === 'Escape' && interacao) {
       e.stopImmediatePropagation();
@@ -612,6 +679,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     cena.quadro(performance.now()); fantasmaDaProposta.quadro(performance.now());
     if (transicao) passoDaTransicao(performance.now());
     else if (doc().finish.grain > 0 && cena.raiz.filters?.length) acabamento.aplicar(doc().finish, performance.now() / 1000);
+    if (regua && ponte.ferramenta() !== 'regua') { regua = null; camadaSuja = true; }   // trocar de ferramenta limpa a régua
     if (!camadaSuja) return;
     camadaSuja = false;
     desenharGrade(); desenharSelecao(); desenharLaco(); desenharFantasma(); cursor();
@@ -632,7 +700,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     enquadrar: enquadrarMapa, focarEm, zoomPor,
     clientDe: m => { const r = retangulo(), [x, y] = mundoParaTela(camera, m); return [r.left + x, r.top + y]; },
     redesenhar: () => { redesenharTudo(); },
-    atualizarSobreposicoes: () => { camadaSuja = true; aplicarAcabamento(); },
+    diagnosticoDosTelhados: () => cena.diagnosticoDosTelhados(),
+    atualizarSobreposicoes: () => { camadaSuja = true; cena.definirVista(ponte.vista?.() ?? 'construir'); aplicarAcabamento(); },
     relampagoAgora: () => cena.relampagoAgora(),
     contagemDeParticulas: () => cena.contagemDeParticulas(),
     contagemDePresencas: () => cena.contagemDePresencas(),
@@ -640,6 +709,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     diagnosticoDasPecas: () => cena.diagnosticoDasPecas(),
     mostrarProposta: previa => { fantasmaDaProposta.mostrar(doc(), previa); camadaSuja = true; },
     contagemDoFantasma: () => fantasmaDaProposta.contagem(),
+    diagnosticoDaRegua: medidaDaRegua,
     destruir() {
       destruido = true; cancelarAssinatura(); observador.disconnect();
       window.removeEventListener('keydown', aoTeclar, true); window.removeEventListener('keyup', aoSoltar);

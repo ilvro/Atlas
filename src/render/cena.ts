@@ -11,8 +11,10 @@ import { corDoNome, hexParaNumero } from './cores.ts';
 import { chaveDoComodo, chaveDoObjeto, chaveDoTerreno, pedidoDoObjeto, contextoDeEntradas, entradaDoComodo, entradaDoTerreno } from './entradas.ts';
 import { nivelDaLuz } from '../domain/clima.ts';
 import { criarMapaDeLuz } from './mapa-de-luz.ts';
+import { criarNevoa, type Vista } from './nevoa.ts';
 import { criarNeblina } from './neblina.ts';
 import { criarParticulas } from './particulas.ts';
+import { criarTelhados } from './telhados.ts';
 import { criarPeca, type PecaVisual } from './pecas.ts';
 import { criarPresenca } from './presenca.ts';
 
@@ -43,6 +45,10 @@ export interface Cena {
   definirAtmosfera(ligada: boolean): void;
   /** Um relâmpago agora (com trovão, se o som estiver ligado). */
   relampagoAgora(): void;
+  /** Para os testes: a opacidade de cada telhado. */
+  diagnosticoDosTelhados(): ReturnType<ReturnType<typeof criarTelhados>['diagnostico']>;
+  /** Pelos olhos de quem se vê o mapa: Construir e mestre veem tudo; os jogadores só o que as suas peças enxergam, com os telhados fechados. */
+  definirVista(v: Vista): void;
   /** Para os testes: como cada peça está desenhada agora (retrato, deitada, raio). */
   diagnosticoDasPecas(): { id: string; retrato: boolean; deitada: boolean; raio: number }[];
   /** Quantos objetos de piso já têm a textura pintada (sem o marcador). */
@@ -61,9 +67,9 @@ interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; 
 export function criarCena(op: OpcoesDaCena): Cena {
   const raiz = new Container(), terrenoC = new Container(), comodosC = new Container(), objetosC = new Container(), paredesG = new Graphics();
   const regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), tituloC = new Container();
-  const luz = criarMapaDeLuz(op.renderer), neblina = criarNeblina(), particulas = criarParticulas(), presenca = criarPresenca();
+  const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados(), neblina = criarNeblina(), particulas = criarParticulas(), presenca = criarPresenca();
   // A luz multiplica tudo o que está embaixo (piso, objetos, paredes); marcadores, regiões e peças ficam por cima, sempre legíveis.
-  raiz.addChild(terrenoC, comodosC, objetosC, paredesG, presenca.abaixo, luz.sprite, presenca.acima, neblina.raiz, particulas.raiz, regioesC, luzesC, pecasC, tituloC);
+  raiz.addChild(terrenoC, comodosC, objetosC, paredesG, presenca.abaixo, luz.sprite, presenca.acima, neblina.raiz, particulas.raiz, regioesC, luzesC, pecasC, nevoa.sprite, telhados.raiz, tituloC);
 
   let mapa: MapaAtlas | null = null, destruida = false, pintandoAgora = 0, ultimoQuadro = -1;
   const salas = new Map<string, Entrada>(), objetos = new Map<string, Entrada>();
@@ -276,7 +282,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid')) sincronizarComodos(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid')) desenharParedes(m);
       if (tudo || colecao('props') || campos('style')) sincronizarObjetos(m, tudo || campos('style') ? null : mud!.colecoes.props ?? null, comPop);
-      presenca.sincronizar(m, mud);
+      presenca.sincronizar(m, mud); nevoa.sincronizar(m, mud); telhados.sincronizar(m, mud);
       const v = visaoDoClima ?? m;
       luz.sincronizar(v, mud); neblina.sincronizar(v, mud); particulas.sincronizar(v, mud);
       // Os marcadores das luzes também refletem o clima (apagada pela rede ou pelo dia), então refazem quando ele muda.
@@ -292,12 +298,14 @@ export function criarCena(op: OpcoesDaCena): Cena {
     },
     definirAtmosfera: ligada => { luz.definirLigado(ligada); neblina.definirLigado(ligada); particulas.definirLigado(ligada); },
     relampagoAgora: () => luz.relampagoAgora(),
+    definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); },
+    diagnosticoDosTelhados: () => telhados.diagnostico(),
     contagemDeParticulas: () => particulas.contagem(),
     contagemDePresencas: () => presenca.contagem(),
     diagnosticoDasPecas: () => [...pecas.entries()].map(([id, c]) => ({ id, ...(visuais.get(c)?.estado() ?? { retrato: false, deitada: false, raio: 0, deslizando: false, trilha: 0 }) })),
     objetosPintados: () => [...objetos.values()].filter(e => e.sprite !== null && !e.placeholder.visible).length,
     quadro(agora) {
-      luz.quadro(agora);
+      luz.quadro(agora); nevoa.quadro(agora); telhados.quadro(agora);
       for (const c of pecas.values()) visuais.get(c)?.quadro(agora, op.efeitos());
       const dt = ultimoQuadro < 0 ? 0 : (agora - ultimoQuadro) / 1000; ultimoQuadro = agora; neblina.quadro(dt); particulas.quadro(dt); presenca.quadro(dt);
       for (let i = animacoes.length - 1; i >= 0; i--) {
@@ -311,7 +319,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       destruida = true; if (terrenoTimer) clearTimeout(terrenoTimer);
       for (const e of [...salas.values(), ...objetos.values(), ...(terreno ? [terreno] : [])]) soltar(e.chaveTextura);
       for (const t of texturas.values()) t.tex.destroy(true); texturas.clear();
-      luz.destruir(); neblina.destruir(); particulas.destruir(); presenca.destruir(); raiz.destroy({ children: true });
+      luz.destruir(); nevoa.destruir(); telhados.destruir(); neblina.destruir(); particulas.destruir(); presenca.destruir(); raiz.destroy({ children: true });
     },
   };
 }

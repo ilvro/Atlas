@@ -91,7 +91,7 @@ export interface Peca {
 }
 export interface NotaDeComodo { id: string; leitura: string; notasMestre: string; refs: Ref[] }
 export interface Sessao {
-  /** O que as peças de jogador já viram, em células de `res` metros (RLE): a memória da névoa. */
+  /** `res`: lado de cada célula do explorado, em metros (independe da grade do mapa); `cells` são faixas `[y, x0, n]` nessa malha. */
   explored: null | { res: number; cells: Faixa[] };
   initiative: null | { order: { tokenId: string; value: number }[]; current: number; round: number };
   revealed: string[]; event: string | null;

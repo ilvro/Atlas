@@ -12,7 +12,7 @@ import type { Viewport } from '../render/viewport.ts';
 import type { ColecaoLivre, Comando } from '../state/comandos.ts';
 import { campanhaAtiva, carregarCampanhas, desvincularMapa, refDoMapa, revincularMapa, sincronizarMapaComCampanha } from './campanha.ts';
 import { pedirSomDoClima } from './audio-do-clima.ts';
-import { modo } from './modo.ts';
+import { modo, vistaDeJogador } from './modo.ts';
 import { iniciarSugestoes } from './sugestoes.ts';
 import { lerRota, formatarRota, type Rota } from './rotas.ts';
 import { iniciarServicos, type Servicos } from './servicos.ts';
@@ -109,14 +109,14 @@ export async function atualizarLista(): Promise<void> {
 export function alternarModo(): void {
   const s = sessao.value; if (!s) return;
   const novo = modo.value === 'construir' ? 'sessao' : 'construir';
-  batch(() => { modo.value = novo; if (novo === 'sessao') { s.ferramenta.value = 'selecionar'; s.biblioteca.value = false; } });
+  batch(() => { modo.value = novo; if (novo === 'sessao' || s.ferramenta.value === 'regua') { s.ferramenta.value = 'selecionar'; s.biblioteca.value = false; } });
   tocar('selecionar'); avisar(novo === 'sessao' ? 'Modo Sessão' : 'Modo Construir', { duracao: 1200 });
 }
 
 let pararSugestoes: (() => void) | null = null;
 export function fecharSessao(): void {
   const atual = sessao.value; if (!atual) return;
-  pararSugestoes?.(); pararSugestoes = null; modo.value = 'construir';
+  pararSugestoes?.(); pararSugestoes = null; modo.value = 'construir'; vistaDeJogador.value = false;
   void atual.auto.descarregar().finally(() => atual.fechar());
   viewport.atual = null; sessao.value = null;
 }
@@ -131,7 +131,7 @@ async function abrirMapa(id: string, comodo?: string): Promise<void> {
     await comTransicao(() => {
       fecharSessao();
       const nova = criarSessao(mapa, s.repo, { salvo: true });
-      modo.value = 'construir'; pararSugestoes = iniciarSugestoes(nova, viewport);
+      modo.value = 'construir'; vistaDeJogador.value = false; pararSugestoes = iniciarSugestoes(nova, viewport);
       batch(() => { sessao.value = nova; focoPendente.value = comodo ?? null; });
     });
     tocar('abrir');

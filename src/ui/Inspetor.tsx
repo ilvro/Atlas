@@ -6,12 +6,14 @@ import { servicos } from '../app/app.ts';
 import { avisar } from '../app/toasts.ts';
 import { NOMES_COLECAO, desfazer, duplicarSelecao, refazer, removerSelecao, sessao } from '../app/app.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
+import { area } from '../domain/celulas.ts';
 import { nomeDoAlvo, novaLuz } from '../domain/fabrica.ts';
 import { ROTULOS_DE_ESTADO } from '../domain/figuras.ts';
 import { ESTADOS_FIGURA, type Abertura, type Acabamento, type Clima, type Comodo, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Presenca, type Regiao } from '../domain/mapa.ts';
 import { GENEROS, generoDe, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
 import { acabamentoLigado, aplicarClima, definirAcabamentoLigado } from '../app/app.ts';
-import { modo } from '../app/modo.ts';
+import { definirRegraDaRegua, modo, regraDaRegua } from '../app/modo.ts';
+import { ROTULO_DA_REGRA, type RegraDeDiagonal } from '../domain/regua.ts';
 import { definirSugestoesLigadas, sugestoesLigadas } from '../app/sugestoes.ts';
 import { COLECAO } from '../procedural/colecao.ts';
 import { receitaDe } from '../procedural/receitas/index.ts';
@@ -25,6 +27,18 @@ import { Icone } from './Icone.tsx';
 
 const graus = (rad: number) => Math.round((rad * 180) / Math.PI * 10) / 10;
 const radianos = (g: number) => (g * Math.PI) / 180;
+
+/** O que as peças de jogador já viram, com o botão de recomeçar (pede confirmação, porque apaga a memória do grupo). */
+function ExploracaoDoMapa({ s }: { s: SessaoDeEdicao }) {
+  const confirmando = useSignal(false), e = s.doc.value.session.explored, res = e?.res ?? 0.5, metros = e ? Math.round(area(e.cells) * res * res) : 0;
+  return (<>
+    <h3 class="faixa pequena">Exploração</h3>
+    <p class="dica" data-testid="exploracao-area">{metros ? `Os jogadores já viram cerca de ${metros} m².` : 'Os jogadores ainda não exploraram nada.'}</p>
+    {confirmando.value
+      ? <div class="acoes-selecao"><button type="button" class="botao-pilula perigo" data-testid="exploracao-confirmar" onClick={() => { confirmando.value = false; tentar(() => s.store.executar({ tipo: 'sessao.esquecer' })); }}>Apagar a memória</button><button type="button" class="botao-pilula" onClick={() => { confirmando.value = false; }}>Cancelar</button></div>
+      : <div class="acoes-selecao"><button type="button" class="botao-pilula" disabled={!e} data-testid="exploracao-recomecar" onClick={() => { confirmando.value = true; }}>Recomeçar a exploração</button></div>}
+  </>);
+}
 
 function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
   const m = s.doc.value, st = s.store;
@@ -57,6 +71,11 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
       <h3 class="faixa pequena">Terreno</h3>
       <CampoOpcoes rotulo="Base" valor={m.terrain.base} opcoes={[['vazio', 'Vazio (o fundo)'], ...materiaisDo('terreno').map(x => [x.id, x.nome] as const)]} aoMudar={v => tentar(() => st.executar({ tipo: 'terreno.base', material: v }))} />
       </>}
+      {modo.value === 'sessao' && <>
+        <h3 class="faixa pequena">Régua</h3>
+        <CampoOpcoes rotulo="Diagonal" dica="Como a régua conta as diagonais. Só para você: não muda o mapa." valor={regraDaRegua.value} opcoes={(Object.keys(ROTULO_DA_REGRA) as RegraDeDiagonal[]).map(r => [r, ROTULO_DA_REGRA[r]] as const)} aoMudar={v => definirRegraDaRegua(v as RegraDeDiagonal)} />
+      </>}
+      {Object.values(m.tokens).some(t => t.player) && <ExploracaoDoMapa s={s} />}
       <h3 class="faixa pequena">Clima</h3>
       <SeletorDeClima s={s} />
       <h3 class="faixa pequena">Acabamento</h3>
@@ -315,6 +334,7 @@ function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
     <CampoOpcoes rotulo="Piso" valor={c.floor.material} opcoes={materiaisDo('piso').map(x => [x.id, x.nome] as const)} aoMudar={v => editar({ floor: { material: v } }, 'Trocar o piso')} />
     <CampoOpcoes rotulo="Papel" valor={c.wallpaper?.material ?? ''} opcoes={[['', 'Sem papel'], ...materiaisDo('papel').map(x => [x.id, x.nome] as const)]} aoMudar={v => editar({ wallpaper: v ? { material: v, seed: c.wallpaper?.seed ?? 1 } : null }, 'Papel de parede')} />
     <CampoOpcoes rotulo="Paredes" valor={c.wallStyle ?? ''} opcoes={[['', 'Do mapa'], ['box', 'Caixa'], ['solid', 'Sólidas']]} aoMudar={v => editar({ wallStyle: v || null }, 'Estilo das paredes')} />
+    <CampoOpcoes rotulo="Telhado" dica="Na vista dos jogadores, cobre o cômodo até alguém entrar nele." valor={c.roof.material ?? ''} opcoes={[['', 'Nenhum'], ...materiaisDo('telhado').map(x => [x.id, x.nome] as const)]} aoMudar={v => editar({ roof: { material: v || null } }, 'Telhado')} />
     <CampoCaixa rotulo="Telhado visível" valor={c.roof.visible} aoMudar={v => editar({ roof: { visible: v } }, 'Telhado')} />
     <h3 class="faixa pequena">Texto de leitura</h3>
     <textarea class="notas" aria-label="Texto de leitura do cômodo" rows={3} placeholder="O que os jogadores percebem ao entrar…" key={`l:${extra?.leitura ?? ''}`} defaultValue={extra?.leitura ?? ''} onBlur={e => { const v = (e.target as HTMLTextAreaElement).value; if (v !== (extra?.leitura ?? '')) notas({ leitura: v }); }} />
