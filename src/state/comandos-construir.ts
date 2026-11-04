@@ -142,7 +142,7 @@ export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
       const motivo = motivoDeNaoCaber(m, depois); if (motivo) nao(motivo);
       mesclar(a, c.patch as Record<string, unknown>); break;
     }
-    case 'abertura.remover': { if (!m.openings[c.id]) nao(`A abertura “${c.id}” não existe.`); delete m.openings[c.id]; break; }
+    case 'abertura.remover': { if (!m.openings[c.id]) nao(`A abertura “${c.id}” não existe.`); delete m.openings[c.id]; m.session.revealed = m.session.revealed.filter(x => x !== c.id); break; }
 
     case 'terreno.pintar': {
       const cel = normais(c.celulas), novas = codificar(cel), id = idDaCamada(c.material);

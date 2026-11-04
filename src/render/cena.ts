@@ -12,6 +12,7 @@ import { chaveDoComodo, chaveDoObjeto, chaveDoTerreno, pedidoDoObjeto, contextoD
 import { nivelDaLuz } from '../domain/clima.ts';
 import { criarMapaDeLuz } from './mapa-de-luz.ts';
 import { criarNevoa, type Vista } from './nevoa.ts';
+import { secretaOculta } from '../domain/nevoa.ts';
 import { criarNeblina } from './neblina.ts';
 import { criarParticulas } from './particulas.ts';
 import { criarTelhados } from './telhados.ts';
@@ -71,7 +72,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
   // A luz multiplica tudo o que está embaixo (piso, objetos, paredes); marcadores, regiões e peças ficam por cima, sempre legíveis.
   raiz.addChild(terrenoC, comodosC, objetosC, paredesG, presenca.abaixo, luz.sprite, presenca.acima, neblina.raiz, particulas.raiz, regioesC, luzesC, pecasC, nevoa.sprite, telhados.raiz, tituloC);
 
-  let mapa: MapaAtlas | null = null, destruida = false, pintandoAgora = 0, ultimoQuadro = -1;
+  let mapa: MapaAtlas | null = null, vistaDaCena: Vista = 'construir', destruida = false, pintandoAgora = 0, ultimoQuadro = -1;
   const salas = new Map<string, Entrada>(), objetos = new Map<string, Entrada>();
   const luzes = new Map<string, Container>(), pecas = new Map<string, Container>(), regioes = new Map<string, Container>();
   const animacoes: { alvo: Container; t0: number; dur: number; final: number }[] = [];
@@ -135,7 +136,12 @@ export function criarCena(op: OpcoesDaCena): Cena {
   const COR_TOPO = 0x15131a, COR_TOPO_CLARO = 0x2b2833;
   function pontoEm(p: Pick<Parede, 'path'>, dist: number): Ponto { return pontoNaParede(p, dist).ponto; }
 
-  function desenharAbertura(g: Graphics, p: Parede, a: Abertura): void {
+  /** Na vista de jogador, uma porta secreta já revelada é uma porta como as outras; a que não foi revelada é só parede (não se desenha nada). */
+  const secretaRevelada = (m: MapaAtlas, a: Abertura): boolean => a.kind === 'secret' && vistaDaCena === 'jogador' && !secretaOculta(m, a);
+
+  function desenharAbertura(g: Graphics, p: Parede, a: Abertura, m: MapaAtlas): void {
+    if (a.kind === 'secret' && vistaDaCena === 'jogador' && secretaOculta(m, a)) return;
+    if (secretaRevelada(m, a)) a = { ...a, kind: 'door' };
     const c = a.at * comprimentoDaParede(p), { ponto, tangente } = pontoNaParede(p, c), nx = -tangente[1], ny = tangente[0], meia = a.width / 2;
     const ini = pontoEm(p, c - meia), fim = pontoEm(p, c + meia);
     if (a.kind === 'window') {
@@ -159,7 +165,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
 
   function desenharParede(g: Graphics, m: MapaAtlas, p: Parede): void {
     // A parede é traçada em trechos, pulando o vão das portas e dos arcos.
-    const comp = comprimentoDaParede(p), vaos = Object.values(m.openings).filter(a => a.wallId === p.id && (a.kind === 'door' || a.kind === 'arch')).map(a => [a.at * comp - a.width / 2, a.at * comp + a.width / 2] as const).sort((x, y) => x[0] - y[0]);
+    const comp = comprimentoDaParede(p), vaos = Object.values(m.openings).filter(a => a.wallId === p.id && (a.kind === 'door' || a.kind === 'arch' || secretaRevelada(m, a))).map(a => [a.at * comp - a.width / 2, a.at * comp + a.width / 2] as const).sort((x, y) => x[0] - y[0]);
     let pos = 0;
     const trecho = (d0: number, d1: number) => {
       if (d1 - d0 < 1e-4) return;
@@ -182,7 +188,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       // Um fio claro no meio do topo dá volume à faixa escura.
       if (p.kind === 'wall') { paredesG.moveTo(p.path[0]![0], p.path[0]![1]); for (const q of p.path.slice(1)) paredesG.lineTo(q[0], q[1]); paredesG.stroke({ width: p.thickness * 0.14, color: COR_TOPO_CLARO, alpha: 0.9, cap: 'butt' }); }
     }
-    for (const a of Object.values(m.openings)) { const p = m.walls[a.wallId]; if (p) desenharAbertura(paredesG, p, a); }
+    for (const a of Object.values(m.openings)) { const p = m.walls[a.wallId]; if (p) desenharAbertura(paredesG, p, a, m); }
     // Objetos de parede aparecem na faixa da parede como uma marca, e inteiros na face do cômodo.
     for (const o of Object.values(m.props) as Objeto[]) {
       if (!o.wall) continue; const p = m.walls[o.wall.wallId]; if (!p) continue;
@@ -280,7 +286,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       const tudo = !mud || mud.completo, campos = (...c: string[]) => tudo || c.some(x => mud!.campos.includes(x)), colecao = (c: string) => tudo || !!(mud!.colecoes as Record<string, unknown>)[c];
       if (campos('terrain', 'bounds', 'grid', 'backdrop')) sincronizarTerreno(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid')) sincronizarComodos(m);
-      if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid')) desenharParedes(m);
+      if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid', 'session')) desenharParedes(m);
       if (tudo || colecao('props') || campos('style')) sincronizarObjetos(m, tudo || campos('style') ? null : mud!.colecoes.props ?? null, comPop);
       presenca.sincronizar(m, mud); nevoa.sincronizar(m, mud); telhados.sincronizar(m, mud);
       const v = visaoDoClima ?? m;
@@ -298,7 +304,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     },
     definirAtmosfera: ligada => { luz.definirLigado(ligada); neblina.definirLigado(ligada); particulas.definirLigado(ligada); },
     relampagoAgora: () => luz.relampagoAgora(),
-    definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); },
+    definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); if (v !== vistaDaCena) { vistaDaCena = v; if (mapa) desenharParedes(mapa); } },
     diagnosticoDosTelhados: () => telhados.diagnostico(),
     contagemDeParticulas: () => particulas.contagem(),
     contagemDePresencas: () => presenca.contagem(),

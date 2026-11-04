@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { signal, useSignalEffect } from '@preact/signals';
 import { acaoPorId, executarAcao } from '../app/acoes.ts';
 import { FERRAMENTAS_DA_SESSAO, modo, regraDaRegua, vistaAtual } from '../app/modo.ts';
-import { acabamentoLigado, adicionarEm, aoColocar, focarNoComodo, menuRadial, servicos, sessao, viewport as viewportAtual } from '../app/app.ts';
+import { acabamentoLigado, adicionarEm, alternarPorta, aoColocar, focarNoComodo, menuRadial, servicos, sessao, viewport as viewportAtual } from '../app/app.ts';
 import { mostrarAtalho } from '../app/atalhos.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { tema } from '../app/tema.ts';
@@ -64,6 +64,7 @@ function ponteDa(s: SessaoDeEdicao): PonteViewport {
     emSessao: () => modo.value === 'sessao',
     vista: vistaAtual,
     regraDaRegua: () => regraDaRegua.peek(),
+    aoInteragir: alvo => { if (alvo.colecao === 'openings') alternarPorta(alvo.id); },
     lerRetrato: async id => (await servicos.peek()?.repo.obterAsset(id))?.blob ?? null,
   };
 }
@@ -118,7 +119,7 @@ export function Editor() {
     <div class="editor" data-testid="editor">
       <Ferramentas s={s} />
       <Biblioteca s={s} />
-      <div class="area-com-cartao"><AreaDoMapa s={s} />{modo.value === 'construir' && <CartaoContextual s={s} />}{modo.value === 'construir' && <PilulaDeSugestao s={s} />}</div>
+      <div class="area-com-cartao"><AreaDoMapa s={s} /><CartaoContextual s={s} />{modo.value === 'construir' && <PilulaDeSugestao s={s} />}</div>
       <Inspetor />
       <BarraDeEstado s={s} />
     </div>

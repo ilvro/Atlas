@@ -179,7 +179,7 @@ Testes: e2e: peça entra num cômodo com telhado e ele some (o brilho do ponto c
 Pronto quando: entrar e sair de um cômodo anima a revelação e o telhado.
 Commit: animated reveal and roofs
 
-### 7.3a — Portas na sessão  ⬜
+### 7.3a — Portas na sessão  ✅
 Objetivo: abrir, fechar, trancar e revelar portas na sessão, por clique ou pela peça ao lado.
 Depende de: 7.0a, 7.2a
 Ler: `src/ui/CartaoContextual.tsx` (ações da abertura); `src/state/comandos-construir.ts` (`abertura.atualizar`); `src/domain/nevoa.ts` (`explorarAgora`).
@@ -194,8 +194,9 @@ Não fazer: chaves e quem tem a chave.
 Testes: e2e: na sessão, clicar abre a porta e a vista de jogador passa a ver o outro lado; trancada não abre; porta secreta não aparece como porta na vista de jogador até revelar; `Enter` com a peça ao lado abre.
 Pronto quando: os testes passam.
 Commit: doors in session
+Nota: a função se chama `exploradoAgora` (não `explorarAgora`); abrir/fechar/trancar/revelar rodam numa transação com o comando novo `sessao.explorar` (uma entrada de histórico). `sessao.revelar` passou a aceitar também o id de uma abertura. Uma secreta que se abre é revelada junto; uma secreta aberta e não revelada continua parede para a visão (`secretaOculta` em `domain/nevoa.ts`) e não é desenhada na vista de jogador. O alcance é até o vão da porta, não até o centro (`domain/interacao.ts`, que a 7.6a estende com os interativos). O ref do fato é `atlas:abertura/<mapa>/<id>` e `atlas.revelado` entrou no `emite` do `mesa.json`. Clicar numa porta a abre e a seleciona; Shift+clique só seleciona.
 
-### 7.3b — Régua em quadrados  ⬜
+### 7.3b — Régua em quadrados  ✅
 Objetivo: medir distâncias em quadrados e metros, como na mesa.
 Depende de: 7.0a
 Ler: `src/render/viewport.ts` (sobreposições, `selecaoG`); `src/render/pincel.ts`.
@@ -208,8 +209,9 @@ Não fazer: régua no projetor (a 7.5b decide se mostra a régua do mestre; nest
 Testes: unitários das duas regras; e2e: medir 4 células em reta mostra "4 quadrados".
 Pronto quando: os testes passam.
 Commit: ruler in squares
+Nota: o clique intermediário vale quando não há arrasto: arrastar começa uma régua nova do ponto apertado, um clique acrescenta uma dobra, e com um ponto só a régua segue o ponteiro até o próximo clique. A regra alternada soma trecho a trecho (não continua a contagem 1, 2, 1, 2 entre dobras). Trocar de ferramenta também limpa a régua. A preferência "Diagonal" fica no `localStorage` (`atlas:regua-diagonal`).
 
-### 7.3c — Iniciativa  ⬜
+### 7.3c — Iniciativa  ✅
 Objetivo: ordem de iniciativa no documento, com rodadas, passo à frente e atrás.
 Depende de: —
 Ler: `Tabletop/src/domain/initiative.js` inteiro; `src/domain/mapa.ts` (`Sessao.initiative`); `src/state/comandos.ts` (`remover` já poda a iniciativa).
@@ -221,6 +223,7 @@ Não fazer: interface (7.4c); rolar os dados (é da Ficha).
 Testes: os do Tabletop adaptados (ordem, empate, rodada, passo para trás na primeira posição, podar ao remover peça).
 Pronto quando: testes passam.
 Commit: initiative
+Nota: `remover` (comandos.ts) passou a usar `podar`, que devolve `null` quando ninguém sobra.
 
 ### 7.4a — Dock: clima ao vivo  ⬜
 Objetivo: na sessão, trocar o clima, ajustar quanto dura a transição e soltar um relâmpago sem abrir o inspetor.

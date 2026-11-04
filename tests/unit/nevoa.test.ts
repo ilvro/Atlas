@@ -82,7 +82,7 @@ test('peça do mestre não explora; "esquecer" zera; revelar faz o cômodo conta
   const rev = aplicarComando(m, { tipo: 'sessao.revelar', ids: ['sala'] });
   assert.deepEqual(rev.session.revealed, ['sala']); assert.ok(contemFaixa(celulasExploradas(rev), Math.floor(15 / RES_NEVOA), Math.floor(11.5 / RES_NEVOA)), 'o centro do cômodo conta como explorado');
   assert.deepEqual(aplicarComando(rev, { tipo: 'sessao.ocultar', ids: ['sala'] }).session.revealed, []);
-  assert.throws(() => aplicarComando(m, { tipo: 'sessao.revelar', ids: ['nao-existe'] }), /não existe/);
+  assert.throws(() => aplicarComando(m, { tipo: 'sessao.revelar', ids: ['nao-existe'] }), /não é um cômodo nem uma abertura/);
 });
 
 import { comodosConhecidos } from '../../src/domain/nevoa.ts';

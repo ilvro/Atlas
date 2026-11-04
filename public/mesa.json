@@ -8,6 +8,6 @@
     "comodo": "./#/mapa/{pai}/comodo/{filho}"
   },
   "oferece": ["mapa", "comodo"],
-  "emite": ["atlas.cena-aberta"],
+  "emite": ["atlas.cena-aberta", "atlas.revelado"],
   "atende": ["atlas.focar"]
 }

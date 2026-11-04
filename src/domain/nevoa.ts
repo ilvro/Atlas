@@ -1,5 +1,5 @@
 import { codificar, decodificar, unir, type Faixa } from './celulas.ts';
-import type { MapaAtlas, Ponto, Sessao } from './mapa.ts';
+import type { Abertura, MapaAtlas, Ponto, Sessao } from './mapa.ts';
 import { IndiceDeSegmentos, oclusores, poligonoIluminado } from './visibilidade.ts';
 
 /** Lado de cada célula do explorado, em metros. */
@@ -8,15 +8,23 @@ export const RES_NEVOA = 0.5;
 /** O que uma peça de jogador enxerga: um polígono por peça (paredes, portas fechadas e janelas bloqueiam; portas abertas e arcos deixam ver), limitado ao raio de visão. */
 export function poligonosDeVisao(m: MapaAtlas): number[][] {
   // Quem pergunta várias vezes sobre o mesmo documento (névoa, telhados, explorado) paga uma vez: o resultado vale enquanto o que importa não mudar.
-  if (guardado && guardado.tokens === m.tokens && guardado.walls === m.walls && guardado.openings === m.openings) return guardado.poligonos;
+  if (guardado && guardado.tokens === m.tokens && guardado.walls === m.walls && guardado.openings === m.openings && guardado.revealed === m.session.revealed) return guardado.poligonos;
   const poligonos = calcularPoligonos(m);
-  guardado = { tokens: m.tokens, walls: m.walls, openings: m.openings, poligonos };
+  guardado = { tokens: m.tokens, walls: m.walls, openings: m.openings, revealed: m.session.revealed, poligonos };
   return poligonos;
 }
-let guardado: { tokens: MapaAtlas['tokens']; walls: MapaAtlas['walls']; openings: MapaAtlas['openings']; poligonos: number[][] } | null = null;
+let guardado: { tokens: MapaAtlas['tokens']; walls: MapaAtlas['walls']; openings: MapaAtlas['openings']; revealed: MapaAtlas['session']['revealed']; poligonos: number[][] } | null = null;
+
+/** Uma porta secreta que ninguém revelou ainda é parede para os jogadores, esteja ela aberta ou não. */
+export function secretaOculta(m: Pick<MapaAtlas, 'session'>, a: Pick<Abertura, 'id' | 'kind'>): boolean {
+  return a.kind === 'secret' && !m.session.revealed.includes(a.id);
+}
 
 function calcularPoligonos(m: MapaAtlas): number[][] {
-  const indice = new IndiceDeSegmentos(oclusores(m, 'visao')), saida: number[][] = [];
+  const aberturas = Object.values(m.openings).some(a => secretaOculta(m, a) && a.state !== 'closed')
+    ? Object.fromEntries(Object.entries(m.openings).map(([id, a]) => [id, secretaOculta(m, a) ? { ...a, state: 'closed' as const } : a]))
+    : m.openings;
+  const indice = new IndiceDeSegmentos(oclusores({ walls: m.walls, openings: aberturas }, 'visao')), saida: number[][] = [];
   for (const t of Object.values(m.tokens)) {
     if (!t.player || t.vision.radius <= 0) continue;
     const p: Ponto = [t.position[0], t.position[1]], pts = poligonoIluminado(p, indice.perto(p, t.vision.radius), t.vision.radius, null);

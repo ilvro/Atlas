@@ -1,9 +1,12 @@
 import { batch, effect, signal } from '@preact/signals';
+import { criarRef } from '#mesa';
 import { exportarBackup, importarBackup, lerPacote, nomeDoArquivo, type RelatorioImportacao } from '../data/backup.ts';
 import { ErroDeBackup } from '../data/backup.ts';
 import { ErroDeConflito, type ResumoMapa } from '../data/repositorio.ts';
 import { duplicarParaNovaSessao, criarMapa, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
 import { copiasDe, novaLuz, novaPeca, novaRegiao, novoObjeto } from '../domain/fabrica.ts';
+import { interagiveisPerto } from '../domain/interacao.ts';
+import { secretaOculta } from '../domain/nevoa.ts';
 import { presetDeClima } from '../domain/presets.ts';
 import { faiscar, flutuar, ponto } from '../fx/fx.ts';
 import { tocar } from '../fx/som.ts';
@@ -371,6 +374,57 @@ export function virarLanterna(graus: number): void {
   const m = s.doc.value, alvos = s.selecao.value.filter(a => a.colecao === 'tokens' && m.tokens[a.id]?.lightId && m.lights[m.tokens[a.id]!.lightId!]?.cone);
   if (!alvos.length) { avisar('Selecione uma peça com lanterna.'); return; }
   s.store.transacao('Virar a lanterna', g => { for (const a of alvos) g.aplicar({ tipo: 'peca.virar', id: a.id, direcao: m.lights[m.tokens[a.id]!.lightId!]!.cone!.direction + (graus * Math.PI) / 180 }); });
+}
+
+// ---------- Portas na sessão ----------
+/** Avisa os outros aplicativos da mesa que algo foi mostrado aos jogadores. Falhar aqui nunca atrapalha a sessão. */
+function emitirRevelado(abertura: string): void {
+  const s = sessao.value, b = servicos.value?.barramento; if (!s || !b) return;
+  try { b.emitir('atlas.revelado', { mapa: refDoMapa(s.doc.value), alvo: criarRef('atlas', 'abertura', `${s.doc.value.id}/${abertura}`) }); } catch (erro) { console.warn('Atlas: não consegui emitir atlas.revelado', erro); }
+}
+
+/** Abre ou fecha uma porta na sessão (e soma ao explorado o que ela passa a mostrar). Trancada não abre. Uma secreta que se abre é revelada junto. */
+export function alternarPorta(id: string): void {
+  const s = sessao.value; if (!s) return;
+  const o = s.doc.value.openings[id]; if (!o || (o.kind !== 'door' && o.kind !== 'secret')) return;
+  if (o.state === 'locked') { avisar('Trancada', { duracao: 1600 }); tocar('erro'); return; }
+  const abrir = o.state !== 'open', revelarJunto = abrir && secretaOculta(s.doc.value, o);
+  try {
+    s.store.transacao(abrir ? 'Abrir a porta' : 'Fechar a porta', g => {
+      g.aplicar({ tipo: 'abertura.atualizar', id, patch: { state: abrir ? 'open' : 'closed' } });
+      if (revelarJunto) g.aplicar({ tipo: 'sessao.revelar', ids: [id] });
+      g.aplicar({ tipo: 'sessao.explorar' });
+    });
+  } catch (erro) { avisar(erro instanceof Error ? erro.message : String(erro), { tipo: 'erro' }); tocar('erro'); return; }
+  tocar(abrir ? 'abrir' : 'selecionar');
+  if (revelarJunto) emitirRevelado(id);
+}
+
+/** Tranca ou destranca uma porta (uma porta aberta se fecha ao trancar). */
+export function trancarPorta(id: string): void {
+  const s = sessao.value; if (!s) return;
+  const o = s.doc.value.openings[id]; if (!o || (o.kind !== 'door' && o.kind !== 'secret')) return;
+  const trancar = o.state !== 'locked';
+  try { s.store.transacao(trancar ? 'Trancar' : 'Destrancar', g => { g.aplicar({ tipo: 'abertura.atualizar', id, patch: { state: trancar ? 'locked' : 'closed' } }); g.aplicar({ tipo: 'sessao.explorar' }); }); } catch (erro) { avisar(erro instanceof Error ? erro.message : String(erro), { tipo: 'erro' }); tocar('erro'); return; }
+  tocar('selecionar');
+}
+
+/** Mostra uma porta secreta aos jogadores: daí em diante ela é uma porta comum na vista deles. */
+export function revelarPorta(id: string): void {
+  const s = sessao.value; if (!s) return;
+  const o = s.doc.value.openings[id]; if (!o || !secretaOculta(s.doc.value, o)) return;
+  try { s.store.transacao('Revelar aos jogadores', g => { g.aplicar({ tipo: 'sessao.revelar', ids: [id] }); g.aplicar({ tipo: 'sessao.explorar' }); }); } catch (erro) { avisar(erro instanceof Error ? erro.message : String(erro), { tipo: 'erro' }); tocar('erro'); return; }
+  tocar('pop'); avisar('Porta revelada aos jogadores.', { duracao: 1800 }); emitirRevelado(id);
+}
+
+/** Enter com uma peça selecionada: interage com a porta mais perto (a que está à frente dela, se houver duas). */
+export function interagirComPerto(): void {
+  const s = sessao.value; if (!s) return;
+  const m = s.doc.value, peca = s.selecao.value.map(a => (a.colecao === 'tokens' ? m.tokens[a.id] : undefined)).find(Boolean);
+  if (!peca) { avisar('Selecione uma peça para interagir.', { duracao: 1600 }); return; }
+  const alvo = interagiveisPerto(m, peca)[0];
+  if (!alvo) { avisar('Não há nada ao alcance desta peça.', { duracao: 1600 }); return; }
+  alternarPorta(alvo.id);
 }
 
 export function centralizarNaSelecao(): void {

@@ -47,9 +47,11 @@ export type Comando =
   | { tipo: 'peca.virar'; id: string; direcao: number }
   /** Zera o que as peças já exploraram ("Recomeçar a exploração"). */
   | { tipo: 'sessao.esquecer' }
-  /** Revela cômodos inteiros aos jogadores (contam como explorados) ou os esconde de novo. */
+  /** Revela cômodos inteiros (contam como explorados) ou portas secretas aos jogadores, ou os esconde de novo. */
   | { tipo: 'sessao.revelar'; ids: string[] }
   | { tipo: 'sessao.ocultar'; ids: string[] }
+  /** Soma ao explorado o que as peças de jogador veem agora (abrir ou fechar uma porta muda o que elas veem). */
+  | { tipo: 'sessao.explorar' }
   /** Começa um combate com estas peças (do maior valor para o menor). */
   | { tipo: 'iniciativa.iniciar'; entradas: { tokenId: string; value: number }[] }
   | { tipo: 'iniciativa.passo'; passo: 1 | -1 }
@@ -192,8 +194,12 @@ function aplicar(m: MapaAtlas, c: Comando): void {
     }
     case 'sessao.esquecer': m.session.explored = null; break;
     case 'sessao.revelar': {
-      for (const id of c.ids) if (!m.rooms[id]) nao(`O cômodo “${id}” não existe.`);
+      for (const id of c.ids) if (!m.rooms[id] && !m.openings[id]) nao(`“${id}” não é um cômodo nem uma abertura deste mapa.`);
       m.session.revealed = [...new Set([...m.session.revealed, ...c.ids])];
+      break;
+    }
+    case 'sessao.explorar': {
+      if (Object.values(m.tokens).some(t => t.player)) m.session.explored = exploradoAgora(m);
       break;
     }
     case 'sessao.ocultar': m.session.revealed = m.session.revealed.filter(id => !c.ids.includes(id)); break;
@@ -249,7 +255,7 @@ export const ROTULOS: Record<Comando['tipo'], string> = {
   'mapa.renomear': 'Renomear mapa', 'mapa.notas': 'Editar notas', 'mapa.campanha': 'Ligar à campanha', 'grade.atualizar': 'Ajustar grade',
   'limites.atualizar': 'Redimensionar mapa', 'estilo.atualizar': 'Mudar estilo', 'clima.aplicar': 'Mudar clima', 'clima.predefinir': 'Aplicar clima', 'clima.salvar': 'Salvar clima', 'clima.esquecer': 'Esquecer clima', 'clima.audio': 'Som do clima', 'acabamento.atualizar': 'Ajustar acabamento',
   'fundo.atualizar': 'Ajustar fundo', 'memoria.atualizar': 'Ajustar memória', 'item.adicionar': 'Adicionar', 'item.atualizar': 'Editar',
-  'item.remover': 'Remover', 'selecao.mover': 'Mover', 'peca.mover': 'Mover peça', 'peca.virar': 'Virar a lanterna', 'sessao.esquecer': 'Recomeçar a exploração', 'sessao.revelar': 'Revelar cômodos', 'sessao.ocultar': 'Esconder cômodos', 'iniciativa.iniciar': 'Começar a iniciativa', 'iniciativa.passo': 'Passar a vez', 'iniciativa.valor': 'Valor de iniciativa', 'iniciativa.encerrar': 'Encerrar a iniciativa', 'proposta.aceitar': 'Aceitar sugestão',
+  'item.remover': 'Remover', 'selecao.mover': 'Mover', 'peca.mover': 'Mover peça', 'peca.virar': 'Virar a lanterna', 'sessao.esquecer': 'Recomeçar a exploração', 'sessao.revelar': 'Revelar', 'sessao.ocultar': 'Esconder cômodos', 'sessao.explorar': 'Explorar', 'iniciativa.iniciar': 'Começar a iniciativa', 'iniciativa.passo': 'Passar a vez', 'iniciativa.valor': 'Valor de iniciativa', 'iniciativa.encerrar': 'Encerrar a iniciativa', 'proposta.aceitar': 'Aceitar sugestão',
 };
 
 export type { NomeColecao };

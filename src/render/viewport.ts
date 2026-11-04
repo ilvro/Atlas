@@ -54,6 +54,8 @@ export interface PonteViewport {
   emSessao?(): boolean;
   /** Pelos olhos de quem se vê o mapa agora (o mestre em Construir vê sempre tudo). */
   vista?(): Vista;
+  /** Na sessão, clicar numa porta a abre ou fecha. */
+  aoInteragir?(alvo: Alvo): void;
   /** Como a régua conta as diagonais (preferência local). */
   regraDaRegua?(): RegraDeDiagonal;
 }
@@ -524,7 +526,11 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         interacao = { tipo: 'peca', id: hit.id, de: [t.position[0], t.position[1]], para: [t.position[0], t.position[1]], motivo: null, livre: e.altKey, x0: tx, y0: ty, moveu: false };
         cursor(); return;
       }
-      if (hit) { ponte.definirSelecao(e.shiftKey ? combinarSelecao(sel, [hit], 'alternar') : [hit]); return; }
+      if (hit) {
+        ponte.definirSelecao(e.shiftKey ? combinarSelecao(sel, [hit], 'alternar') : [hit]);
+        if (hit.colecao === 'openings' && !e.shiftKey) ponte.aoInteragir?.(hit);   // clicar numa porta a abre ou fecha; Shift+clique só a seleciona
+        return;
+      }
       if (sel.length) ponte.definirSelecao([]);
       return;
     }

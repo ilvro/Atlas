@@ -178,14 +178,14 @@ async function brilho(p: Page, a: [number, number], b: [number, number]): Promis
 }
 
 /** Grama em todo o mapa, uma parede em x = 12,75 com uma porta em y = 9 e uma peça de jogador à esquerda. */
-async function cenarioDaVisao(p: Page, estadoDaPorta: string) {
+async function cenarioDaVisao(p: Page, estadoDaPorta: string, tipoDaPorta = 'door') {
   await sessao(p, `(s, a) => {
     s.store.executar({ tipo: "terreno.base", material: "grama" });
     s.store.executar({ tipo: "parede.adicionar", parede: a.parede }); s.store.executar({ tipo: "abertura.adicionar", abertura: a.porta });
     s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.peca });
   }`, {
     parede: { id: 'w1', path: [[12.75, 0], [12.75, 30]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, source: null },
-    porta: { id: 'o1', wallId: 'w1', at: 0.3, width: 2, kind: 'door', state: estadoDaPorta, material: 'madeira.media', som: null, swing: 'a' },
+    porta: { id: 'o1', wallId: 'w1', at: 0.3, width: 2, kind: tipoDaPorta, state: estadoDaPorta, material: 'madeira.media', som: null, swing: 'a' },
     peca: peca('hugo', 'Hugo', 9.75, 9.75, { player: true, vision: { radius: 14, dark: false } }),
   });
   await p.waitForTimeout(1500);
@@ -325,8 +325,8 @@ const reguaDiag = (p: Page) => p.evaluate(() => (window as unknown as { __atlas:
 test('régua: R só vale na Sessão; medir 4 células em reta mostra "4 quadrados"; um clique faz dobra; Esc limpa; não mexe no documento', async () => {
   const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
   await criarMapaPelaInterface(page);
-  // Em Construir o R continua sendo região.
-  await semFoco(page); await page.keyboard.press('r'); await page.waitForTimeout(200); assert.equal(await ferramentaAtual(page), 'regiao');
+  // Em Construir o R continua sendo região. (Ao criar o mapa o campo do nome ganha o foco depois de 400 ms: espera passar.)
+  await page.waitForTimeout(700); await semFoco(page); await page.keyboard.press('r'); await page.waitForTimeout(200); assert.equal(await ferramentaAtual(page), 'regiao');
   await page.keyboard.press('v'); await page.click('[data-testid="modo-sessao"]'); await page.waitForTimeout(300);
   assert.equal(await page.locator('[data-testid="ferramenta-regua"]').count(), 1);
   await semFoco(page); await page.keyboard.press('r'); await page.waitForTimeout(200); assert.equal(await ferramentaAtual(page), 'regua');
@@ -344,12 +344,80 @@ test('régua: R só vale na Sessão; medir 4 células em reta mostra "4 quadrado
   const [cx, cy] = await clientDe(page, [5.25, 5.25]), [dx, dy] = await clientDe(page, [9.75, 9.75]);
   const medir = async () => { await page.mouse.move(cx, cy); await page.mouse.down(); await page.mouse.move(dx, dy, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(150); return reguaDiag(page); };
   assert.equal((await medir())?.quadrados, 3, 'simples: a diagonal vale 1');
-  await page.evaluate(() => localStorage.setItem('atlas:regua-diagonal', 'alternada'));
-  await page.keyboard.press('Escape'); await page.getByLabel('Diagonal').selectOption('alternada').catch(() => undefined);
+  await page.keyboard.press('Escape'); await page.click('[data-testid="aba-mapa"]'); await page.locator('[data-testid="painel-mapa"] .linha', { hasText: 'Diagonal' }).locator('select').selectOption('alternada', { timeout: 3000 });
   await page.waitForTimeout(200);
   assert.equal((await medir())?.quadrados, 4, 'alternada: 1 + 2 + 1');
   // Trocar de ferramenta limpa a régua; o documento nunca mudou.
   await page.keyboard.press('v'); await page.waitForTimeout(200); assert.equal(await reguaDiag(page), null);
   assert.equal(JSON.stringify(await documento(page)), antes, 'a régua não mexe no documento');
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('portas na sessão: clicar abre e fecha (e a vista de jogador acompanha), trancada não abre, Shift+clique só seleciona', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await cenarioDaVisao(page, 'closed');
+  const fora: [[number, number], [number, number]] = [[15, 9.3], [18, 10.2]];
+  await page.click('[data-testid="modo-sessao"]'); await page.waitForTimeout(400); await page.click('[data-testid="vista-jogador"]'); await page.waitForTimeout(700);
+  assert.ok(await brilho(page, ...fora) < 18, 'fechada: o outro lado está escondido');
+  const estado = async () => (await documento(page)).openings.o1!.state;
+  await clicar(page, [12.75, 9]); await page.waitForTimeout(700);
+  assert.equal(await estado(), 'open', 'clicar abre'); assert.equal((await sessao(page, '(s) => s.rotuloDesfazer.value')) as string, 'Abrir a porta');
+  assert.ok(await brilho(page, ...fora) > 30, 'aberta: a vista de jogador vê o outro lado');
+  assert.ok((await documento(page)).session.explored, 'abrir a porta soma ao explorado');
+  await clicar(page, [12.75, 9]); await page.waitForTimeout(500); assert.equal(await estado(), 'closed', 'clicar de novo fecha');
+  // O cartão da porta, na sessão, tranca; trancada não abre e avisa.
+  await page.locator('[data-testid="cartao-trancar"]').click(); await page.waitForTimeout(250); assert.equal(await estado(), 'locked');
+  await clicar(page, [12.75, 9]); assert.equal(await estado(), 'locked', 'trancada não abre');
+  await page.getByText('Trancada', { exact: true }).first().waitFor({ timeout: 3000 });
+  // Shift+clique só seleciona.
+  await page.locator('[data-testid="cartao-trancar"]').click(); await page.waitForTimeout(250); assert.equal(await estado(), 'closed', 'destranca pelo cartão');
+  const [x, y] = await clientDe(page, [12.75, 9]); await page.keyboard.down('Shift'); await page.mouse.click(x, y); await page.keyboard.up('Shift'); await page.waitForTimeout(200);
+  assert.equal(await estado(), 'closed', 'Shift+clique não abre');
+  // Em Construir, clicar numa porta só a seleciona.
+  await page.click('[data-testid="modo-construir"]'); await page.waitForTimeout(400); await clicar(page, [12.75, 9]); assert.equal(await estado(), 'closed');
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('portas na sessão: Enter com a peça ao lado interage com a porta; longe, não faz nada', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await sessao(page, `(s, a) => {
+    s.store.executar({ tipo: "parede.adicionar", parede: a.parede }); s.store.executar({ tipo: "abertura.adicionar", abertura: a.porta });
+    s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.perto }); s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.longe });
+  }`, {
+    parede: { id: 'w1', path: [[12, 0], [12, 30]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, source: null },
+    porta: { id: 'o1', wallId: 'w1', at: 0.3, width: 2, kind: 'door', state: 'closed', material: 'madeira.media', som: null, swing: 'a' },
+    perto: peca('perto', 'Perto', 11.25, 9.75, { facing: 'right' }), longe: peca('longe', 'Longe', 5.25, 9.75, { facing: 'right' }),
+  });
+  await page.click('[data-testid="modo-sessao"]'); await page.waitForTimeout(400);
+  const estado = async () => (await documento(page)).openings.o1!.state;
+  await clicar(page, [5.25, 9.75]); await semFoco(page); await page.keyboard.press('Enter'); await page.waitForTimeout(250);
+  assert.equal(await estado(), 'closed', 'longe da porta, nada acontece');
+  await clicar(page, [11.25, 9.75]); await semFoco(page); await page.keyboard.press('Enter'); await page.waitForTimeout(250);
+  assert.equal(await estado(), 'open', 'Enter com a peça ao lado abre a porta');
+  await page.keyboard.press('Enter'); await page.waitForTimeout(250); assert.equal(await estado(), 'closed', 'Enter de novo fecha');
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('portas secretas: parecem parede na vista de jogador mesmo abertas, até o mestre revelar (que emite atlas.revelado)', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await cenarioDaVisao(page, 'closed', 'secret');
+  const fora: [[number, number], [number, number]] = [[15, 9.3], [18, 10.2]];
+  await page.evaluate(() => { const w = window as unknown as { __atlas: { servicos(): { barramento: { ouvir(t: string, f: (e: unknown) => void): void } } }; __revelado?: unknown[] }; w.__revelado = []; w.__atlas.servicos().barramento.ouvir('atlas.revelado', e => w.__revelado!.push(e)); });
+  await page.click('[data-testid="modo-sessao"]'); await page.waitForTimeout(400); await page.click('[data-testid="vista-jogador"]'); await page.waitForTimeout(700);
+  // O mestre abre a secreta por baixo dos panos (como um mapa feito em Construir): os jogadores ainda não veem nada além da parede.
+  await sessao(page, '(s) => s.store.executar({ tipo: "abertura.atualizar", id: "o1", patch: { state: "open" } })'); await page.waitForTimeout(700);
+  assert.ok(await brilho(page, ...fora) < 18, 'secreta aberta e não revelada ainda é parede para os jogadores');
+  // Selecionar com Shift+clique mostra o cartão com "Revelar aos jogadores".
+  const [x, y] = await clientDe(page, [12.75, 9]); await page.keyboard.down('Shift'); await page.mouse.click(x, y); await page.keyboard.up('Shift');
+  await page.locator('[data-testid="cartao-revelar"]').click(); await page.waitForTimeout(800);
+  assert.deepEqual((await documento(page)).session.revealed, ['o1']);
+  assert.ok(await brilho(page, ...fora) > 30, 'revelada e aberta: os jogadores veem o outro lado');
+  assert.equal(await page.locator('[data-testid="cartao-revelar"]').count(), 0, 'o botão some depois de revelar');
+  const eventos = await page.evaluate(() => (window as unknown as { __revelado: { tipo: string }[] }).__revelado);
+  assert.equal(eventos.length, 1); assert.equal(eventos[0]!.tipo, 'atlas.revelado');
+  assert.equal(await page.evaluate(() => (window as unknown as { __atlas: { sessao(): { rotuloDesfazer: { value: string } } } }).__atlas.sessao().rotuloDesfazer.value), 'Revelar aos jogadores');
   assert.deepEqual(erros, []); await ctx.close();
 });

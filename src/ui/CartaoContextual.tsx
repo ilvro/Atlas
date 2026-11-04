@@ -1,6 +1,7 @@
 import { useEffect } from 'preact/hooks';
 import { signal } from '@preact/signals';
-import { alternarLuzes, desfazer, duplicarSelecao, removerSelecao, viewport } from '../app/app.ts';
+import { alternarLuzes, alternarPorta, desfazer, revelarPorta, trancarPorta, duplicarSelecao, removerSelecao, viewport } from '../app/app.ts';
+import { modo } from '../app/modo.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { avisar } from '../app/toasts.ts';
 import { tocar } from '../fx/som.ts';
@@ -10,6 +11,7 @@ import { Amostra } from './campos-material.tsx';
 import { Icone } from './Icone.tsx';
 import { materiaisDo } from '../procedural/materiais.ts';
 import { nomeDoAlvo } from '../domain/fabrica.ts';
+import { secretaOculta } from '../domain/nevoa.ts';
 
 const posicao = signal<{ x: number; y: number; abaixo: boolean } | null>(null);
 
@@ -45,7 +47,16 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
   const st = s.store, item = ((m[a.colecao] as unknown) as Record<string, { id: string }>)[a.id]; if (!item) return null;
   const editar = (fn: () => void) => { if (tentar(fn)) tocar('selecionar'); };
   let acoes = null;
-  if (a.colecao === 'rooms') {
+  const emSessao = modo.value === 'sessao';
+  if (emSessao && a.colecao !== 'openings') return null;       // na sessão o cartão só tem ações de porta (a 7.6a acrescenta as dos interativos)
+  if (emSessao) {
+    const o = m.openings[a.id]!, porta = o.kind === 'door' || o.kind === 'secret';
+    acoes = porta ? (<>
+      <Acao icone="porta" rotulo={o.state === 'open' ? 'Fechar a porta' : 'Abrir a porta'} aoClicar={() => alternarPorta(o.id)} id="cartao-abrir" />
+      <Acao icone="secreta" rotulo={o.state === 'locked' ? 'Destrancar' : 'Trancar'} aoClicar={() => trancarPorta(o.id)} id="cartao-trancar" />
+      {secretaOculta(m, o) && <button type="button" class="cartao-texto" title="Mostrar esta porta secreta aos jogadores" onClick={() => revelarPorta(o.id)} data-testid="cartao-revelar">Revelar aos jogadores</button>}
+    </>) : <span class="cartao-texto">Sem folha para abrir</span>;
+  } else if (a.colecao === 'rooms') {
     const r = m.rooms[a.id]!;
     acoes = (<>
       <label class="cartao-select" title="Piso"><Amostra id={r.floor.material} /><select aria-label="Piso" value={r.floor.material} onChange={e => editar(() => st.executar({ tipo: 'comodo.atualizar', id: r.id, patch: { floor: { material: (e.target as HTMLSelectElement).value } } }, { rotulo: 'Trocar o piso' }))}>{materiaisDo('piso').map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}</select></label>
