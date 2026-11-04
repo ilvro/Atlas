@@ -580,7 +580,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       }
       if (hit) {
         ponte.definirSelecao(e.shiftKey ? combinarSelecao(sel, [hit], 'alternar') : [hit]);
-        if (hit.colecao === 'openings' && !e.shiftKey) ponte.aoInteragir?.(hit);   // clicar numa porta a abre ou fecha; Shift+clique só a seleciona
+        if ((hit.colecao === 'openings' || (hit.colecao === 'props' && m.props[hit.id]?.interaction)) && !e.shiftKey) ponte.aoInteragir?.(hit);   // clicar numa porta a abre ou fecha; Shift+clique só a seleciona
         return;
       }
       if (sel.length) ponte.definirSelecao([]);
@@ -766,6 +766,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   observador.observe(host);
 
   cena.definirModoProjetor(somenteLeitura);
+  cena.definirVista(ponte.vista?.() ?? 'construir');      // o projetor já nasce na vista de jogador
   redesenharTudo();
   enquadrarMapa();
 

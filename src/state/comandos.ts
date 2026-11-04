@@ -4,6 +4,7 @@ import { ErroDeValidacao } from '../domain/esquema.ts';
 import { clonar, produzir } from './imutavel.ts';
 import type { Acabamento, Clima, Estilo, Fundo, Grade, Memoria, MapaAtlas, NomeColecao, Ponto } from '../domain/mapa.ts';
 import { atualizarSalasDosObjetos } from '../domain/geometria.ts';
+import { alvosDoInterruptor } from '../domain/interagiveis.ts';
 import { definirValor, iniciar, passo, podar } from '../domain/iniciativa.ts';
 import { celulasVisiveis, exploradoAgora, RES_NEVOA } from '../domain/nevoa.ts';
 import { anguloDoMovimento, bloqueioNoCaminho, centroDaCelula, ladoDoMovimento } from '../domain/movimento.ts';
@@ -53,6 +54,8 @@ export type Comando =
   /** Soma ao explorado o que as peças de jogador veem agora (abrir ou fechar uma porta muda o que elas veem). */
   | { tipo: 'sessao.explorar' }
   /** Começa um combate com estas peças (do maior valor para o menor). */
+  /** Usa um objeto interativo: o interruptor liga ou desliga as luzes dele, a gaveta abre ou fecha. */
+  | { tipo: 'interagir'; id: string }
   | { tipo: 'iniciativa.iniciar'; entradas: { tokenId: string; value: number }[] }
   | { tipo: 'iniciativa.passo'; passo: 1 | -1 }
   | { tipo: 'iniciativa.valor'; tokenId: string; value: number }
@@ -203,6 +206,16 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       break;
     }
     case 'sessao.ocultar': m.session.revealed = m.session.revealed.filter(id => !c.ids.includes(id)); break;
+    case 'interagir': {
+      const o = m.props[c.id] ?? nao(`O objeto “${c.id}” não existe.`), i = o.interaction;
+      if (!i) nao('Este objeto não é interativo.');
+      else if (i.kind === 'clue') nao('As pistas chegam com a Fase 9.');
+      else {
+        i.on = !i.on;
+        if (i.kind === 'switch') for (const id of alvosDoInterruptor(m, o)) { const l = m.lights[id]; if (l) l.on = i.on; }
+      }
+      break;
+    }
     case 'iniciativa.iniciar': {
       if (!c.entradas.length) nao('Escolha ao menos uma peça.');
       if (c.entradas.length > 64) nao('Peças demais na iniciativa.');
@@ -255,7 +268,7 @@ export const ROTULOS: Record<Comando['tipo'], string> = {
   'mapa.renomear': 'Renomear mapa', 'mapa.notas': 'Editar notas', 'mapa.campanha': 'Ligar à campanha', 'grade.atualizar': 'Ajustar grade',
   'limites.atualizar': 'Redimensionar mapa', 'estilo.atualizar': 'Mudar estilo', 'clima.aplicar': 'Mudar clima', 'clima.predefinir': 'Aplicar clima', 'clima.salvar': 'Salvar clima', 'clima.esquecer': 'Esquecer clima', 'clima.audio': 'Som do clima', 'acabamento.atualizar': 'Ajustar acabamento',
   'fundo.atualizar': 'Ajustar fundo', 'memoria.atualizar': 'Ajustar memória', 'item.adicionar': 'Adicionar', 'item.atualizar': 'Editar',
-  'item.remover': 'Remover', 'selecao.mover': 'Mover', 'peca.mover': 'Mover peça', 'peca.virar': 'Virar a lanterna', 'sessao.esquecer': 'Recomeçar a exploração', 'sessao.revelar': 'Revelar', 'sessao.ocultar': 'Esconder cômodos', 'sessao.explorar': 'Explorar', 'iniciativa.iniciar': 'Começar a iniciativa', 'iniciativa.passo': 'Passar a vez', 'iniciativa.valor': 'Valor de iniciativa', 'iniciativa.encerrar': 'Encerrar a iniciativa', 'proposta.aceitar': 'Aceitar sugestão',
+  'item.remover': 'Remover', 'selecao.mover': 'Mover', 'peca.mover': 'Mover peça', 'peca.virar': 'Virar a lanterna', 'sessao.esquecer': 'Recomeçar a exploração', 'sessao.revelar': 'Revelar', 'sessao.ocultar': 'Esconder cômodos', 'sessao.explorar': 'Explorar', 'interagir': 'Usar', 'iniciativa.iniciar': 'Começar a iniciativa', 'iniciativa.passo': 'Passar a vez', 'iniciativa.valor': 'Valor de iniciativa', 'iniciativa.encerrar': 'Encerrar a iniciativa', 'proposta.aceitar': 'Aceitar sugestão',
 };
 
 export type { NomeColecao };

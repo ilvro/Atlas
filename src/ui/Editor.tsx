@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { signal, useSignalEffect } from '@preact/signals';
 import { acaoPorId, executarAcao } from '../app/acoes.ts';
 import { FERRAMENTAS_DA_SESSAO, duracaoDoClima, modo, regraDaRegua, vistaAtual } from '../app/modo.ts';
-import { acabamentoLigado, adicionarEm, alternarPorta, aoColocar, focarNoComodo, menuRadial, servicos, sessao, viewport as viewportAtual } from '../app/app.ts';
+import { acabamentoLigado, adicionarEm, alternarPorta, usarObjeto, aoColocar, focarNoComodo, menuRadial, servicos, sessao, viewport as viewportAtual } from '../app/app.ts';
 import { mostrarAtalho } from '../app/atalhos.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { tema } from '../app/tema.ts';
@@ -70,7 +70,7 @@ function ponteDa(s: SessaoDeEdicao): PonteViewport {
     caixaDoProjetor: () => (mostrarQuadroDoProjetor.peek() && projetorConectado.peek() ? caixaDoProjetor.peek() : null),
     aspectoDoProjetor: () => aspectoDoProjetor.peek(),
     aoMudarCaixaDoProjetor: c => { seguirJogadores.value = false; caixaDoProjetor.value = c; },
-    aoInteragir: alvo => { if (alvo.colecao === 'openings') alternarPorta(alvo.id); },
+    aoInteragir: alvo => { if (alvo.colecao === 'openings') alternarPorta(alvo.id); else if (alvo.colecao === 'props') usarObjeto(alvo.id); },
     lerRetrato: async id => (await servicos.peek()?.repo.obterAsset(id))?.blob ?? null,
   };
 }

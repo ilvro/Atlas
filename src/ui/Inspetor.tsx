@@ -8,6 +8,7 @@ import { NOMES_COLECAO, desfazer, duplicarSelecao, refazer, removerSelecao, sess
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { area } from '../domain/celulas.ts';
 import { nomeDoAlvo, novaLuz } from '../domain/fabrica.ts';
+import { alvosDoInterruptor } from '../domain/interagiveis.ts';
 import { ROTULOS_DE_ESTADO } from '../domain/figuras.ts';
 import { ESTADOS_FIGURA, type Abertura, type Acabamento, type Clima, type Comodo, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Presenca, type Regiao } from '../domain/mapa.ts';
 import { GENEROS, generoDe, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
@@ -273,6 +274,24 @@ function CamposDaPeca({ s, t }: { s: SessaoDeEdicao; t: Peca }) {
   </>);
 }
 
+/** O que o mestre pode acionar no objeto durante a sessão: um interruptor (acende e apaga luzes) ou uma gaveta (abre e fecha). */
+function InteracaoDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
+  const m = s.doc.value, i = o.interaction;
+  const editar = (interaction: Objeto['interaction'] | undefined, rotulo: string) => tentar(() => s.store.executar({ tipo: 'item.atualizar', colecao: 'props', id: o.id, patch: { interaction: interaction as never } }, { rotulo }));
+  const efetivas = i?.kind === 'switch' ? alvosDoInterruptor(m, o) : [];
+  const trocar = (id: string, marcar: boolean) => editar({ ...i!, targets: marcar ? [...new Set([...efetivas, id])] : efetivas.filter(x => x !== id) }, 'Luzes do interruptor');
+  return (<>
+    <CampoOpcoes rotulo="Interação" dica="O que o mestre aciona na sessão, clicando no objeto ou com Enter ao lado de uma peça." valor={i?.kind === 'switch' || i?.kind === 'drawer' ? i.kind : ''}
+      opcoes={[['', 'Nenhuma'], ['switch', 'Interruptor'], ['drawer', 'Gaveta']] as never}
+      aoMudar={v => editar(v ? { kind: v as 'switch' | 'drawer', on: i?.on ?? true, targets: [], sound: i?.sound ?? null, clue: null } : null, 'Interação do objeto')} />
+    {i?.kind === 'switch' && (<div data-testid="luzes-do-interruptor">
+      <p class="dica">{i.targets.length ? 'Controla as luzes marcadas.' : 'Sem escolha, controla as luzes de rede deste cômodo (as de fogo ficam de fora).'}</p>
+      {Object.values(m.lights).map(l => <CampoCaixa key={l.id} rotulo={nomeDoAlvo('lights', l)} valor={efetivas.includes(l.id)} aoMudar={v => trocar(l.id, v)} />)}
+      {i.targets.length > 0 && <button type="button" class="botao-pilula" onClick={() => editar({ ...i, targets: [] }, 'Luzes do interruptor')}>Voltar ao padrão</button>}
+    </div>)}
+  </>);
+}
+
 function CamposDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
   const editar = (patch: Record<string, unknown>, rotulo?: string) => tentar(() => s.store.executar({ tipo: 'item.atualizar', colecao: 'props', id: o.id, patch }, rotulo ? { rotulo } : {}));
   const receita = o.source.kind === 'recipe' ? receitaDe(o.source.recipe) : null;
@@ -284,6 +303,7 @@ function CamposDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
     {o.source.kind === 'recipe' && <Linha rotulo={receita?.nome ?? o.source.recipe}><button type="button" class="botao-pilula" data-testid="variar" onClick={() => editar({ source: { seed: (o.source.kind === 'recipe' ? o.source.seed : 0) + 1 } }, 'Variar o objeto')}>Variar</button></Linha>}
     <CampoNumero rotulo="Rotação" unidade="°" valor={graus(o.rotation)} min={-360} max={360} passo={15} aoConfirmar={v => editar({ rotation: radianos(v) }, 'Girar')} />
     <CampoNumero rotulo="Escala" valor={o.scale} min={0.05} max={50} passo={0.1} aoConfirmar={v => editar({ scale: v }, 'Escala do objeto')} />
+    <InteracaoDoObjeto s={s} o={o} />
     <CampoCaixa rotulo="Bloqueia o movimento" valor={o.blocks.move} aoMudar={v => editar({ blocks: { move: v } })} />
     <CampoCaixa rotulo="Projeta sombra" valor={o.castsShadow} aoMudar={v => editar({ castsShadow: v })} />
   </>);

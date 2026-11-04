@@ -10,6 +10,8 @@ const topo = (l: number, prof = 0.05, material = OURO, z = 1.6) => [ret(0, prof 
 
 /** Detalhes de parede: o que enche as paredes de uma casa de verdade (quadros de vários tipos, relógio, arandela, mapa, troféu, prateleira, painéis). Todas são objetos de parede. */
 export const RECEITAS_DE_PAREDE: Receita[] = [
+  { ...base('interruptor', 'Interruptor', ['sala', 'quarto', 'corredor', 'cozinha', 'banheiro', 'escritorio', 'biblioteca', 'sala-de-jantar'], ['interruptor', 'luz', 'eletrico'], 0.2, MODERNO),
+    gerar: () => parede(0.2, [ret(0, 1.3, 0.13, 0.19, '#e8e4da', 0.03, { raio: 0.025 }), ret(0, 1.3, 0.045, 0.08, '#8a8576', 0.04, { contorno: false, detalhe: 3 })], topo(0.2, 0.05, '#e8e4da', 1.3)) },
   { ...base('retrato.oval', 'Retrato oval', ['sala', 'quarto', 'biblioteca', 'corredor', 'sala-de-jantar', 'escritorio'], ['retrato', 'pintura', 'moldura'], 0.6, ORNADO),
     gerar: () => parede(0.6, [elipse(0, 1.65, 0.6, 0.8, OURO, 0.03), elipse(0, 1.65, 0.5, 0.7, '#3a2a22', 0.04), elipse(0, 1.78, 0.2, 0.22, '#d9b99a', 0.05, { contorno: false, detalhe: 2 }), elipse(0, 1.5, 0.36, 0.3, '#1c1a20', 0.05, { contorno: false, detalhe: 2 }), ret(0, 1.86, 0.24, 0.07, '#4a3020', 0.06, { contorno: false, detalhe: 3 })], topo(0.6)) },
   { ...base('paisagem.grande', 'Paisagem grande', ['sala', 'sala-de-jantar', 'biblioteca', 'corredor'], ['pintura', 'paisagem', 'moldura'], 1.7, { ...ORNADO, campos: campoLargura(1.7, 1, 3) }),

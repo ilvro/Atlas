@@ -6,6 +6,7 @@ import { ErroDeConflito, type ResumoMapa } from '../data/repositorio.ts';
 import { duplicarParaNovaSessao, criarMapa, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
 import { copiasDe, novaLuz, novaPeca, novaRegiao, novoObjeto } from '../domain/fabrica.ts';
 import { interagiveisPerto } from '../domain/interacao.ts';
+import { ROTULO_DA_INTERACAO } from '../domain/interagiveis.ts';
 import { secretaOculta } from '../domain/nevoa.ts';
 import { presetDeClima } from '../domain/presets.ts';
 import { faiscar, flutuar, ponto } from '../fx/fx.ts';
@@ -396,7 +397,8 @@ function emitirRevelado(abertura: string): void {
 export function alternarPorta(id: string): void {
   const s = sessao.value; if (!s) return;
   const o = s.doc.value.openings[id]; if (!o || (o.kind !== 'door' && o.kind !== 'secret')) return;
-  if (o.state === 'locked') { avisar('Trancada', { duracao: 1600 }); tocar('erro'); return; }
+  // O `som` guardado na abertura (um Ref do Jukebox) ainda não toca: fica para a 9.4d. Por ora, os sons sintetizados.
+  if (o.state === 'locked') { avisar('Trancada', { duracao: 1600 }); tocar('trancada'); return; }
   const abrir = o.state !== 'open', revelarJunto = abrir && secretaOculta(s.doc.value, o);
   try {
     s.store.transacao(abrir ? 'Abrir a porta' : 'Fechar a porta', g => {
@@ -405,7 +407,7 @@ export function alternarPorta(id: string): void {
       g.aplicar({ tipo: 'sessao.explorar' });
     });
   } catch (erro) { avisar(erro instanceof Error ? erro.message : String(erro), { tipo: 'erro' }); tocar('erro'); return; }
-  tocar(abrir ? 'abrir' : 'selecionar');
+  tocar(abrir ? 'porta-abrir' : 'porta-fechar');
   if (revelarJunto) emitirRevelado(id);
 }
 
@@ -415,7 +417,7 @@ export function trancarPorta(id: string): void {
   const o = s.doc.value.openings[id]; if (!o || (o.kind !== 'door' && o.kind !== 'secret')) return;
   const trancar = o.state !== 'locked';
   try { s.store.transacao(trancar ? 'Trancar' : 'Destrancar', g => { g.aplicar({ tipo: 'abertura.atualizar', id, patch: { state: trancar ? 'locked' : 'closed' } }); g.aplicar({ tipo: 'sessao.explorar' }); }); } catch (erro) { avisar(erro instanceof Error ? erro.message : String(erro), { tipo: 'erro' }); tocar('erro'); return; }
-  tocar('selecionar');
+  tocar('trancada');
 }
 
 /** Mostra uma porta secreta aos jogadores: daí em diante ela é uma porta comum na vista deles. */
@@ -426,6 +428,16 @@ export function revelarPorta(id: string): void {
   tocar('pop'); avisar('Porta revelada aos jogadores.', { duracao: 1800 }); emitirRevelado(id);
 }
 
+/** Usa um objeto interativo (interruptor ou gaveta) na sessão; é UMA entrada de histórico. */
+export function usarObjeto(id: string): void {
+  const s = sessao.value; if (!s) return;
+  const o = s.doc.value.props[id]; if (!o?.interaction) return;
+  if (o.interaction.kind === 'clue') { avisar('As pistas chegam com a Fase 9.', { duracao: 1800 }); return; }
+  // O `sound` guardado no objeto (um Ref do Jukebox) também fica para a 9.4d.
+  try { s.store.executar({ tipo: 'interagir', id }, { rotulo: ROTULO_DA_INTERACAO[o.interaction.kind] }); } catch (erro) { avisar(erro instanceof Error ? erro.message : String(erro), { tipo: 'erro' }); tocar('erro'); return; }
+  tocar(o.interaction.kind === 'switch' ? 'interruptor' : 'gaveta');
+}
+
 /** Enter com uma peça selecionada: interage com a porta mais perto (a que está à frente dela, se houver duas). */
 export function interagirComPerto(): void {
   const s = sessao.value; if (!s) return;
@@ -433,7 +445,7 @@ export function interagirComPerto(): void {
   if (!peca) { avisar('Selecione uma peça para interagir.', { duracao: 1600 }); return; }
   const alvo = interagiveisPerto(m, peca)[0];
   if (!alvo) { avisar('Não há nada ao alcance desta peça.', { duracao: 1600 }); return; }
-  alternarPorta(alvo.id);
+  if (alvo.tipo === 'objeto') usarObjeto(alvo.id); else alternarPorta(alvo.id);
 }
 
 export function centralizarNaSelecao(): void {

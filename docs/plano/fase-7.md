@@ -307,7 +307,7 @@ Pronto quando: os testes passam e o projetor fica em 60 quadros por segundo junt
 Commit: projector window
 Nota: o projetor não abre o banco, então os retratos vão pelo canal (mensagem `retrato` com o blob). O store ganhou `projetar(mapa)`, que troca o documento avisando só o que mudou (`compartilhar` em `state/imutavel.ts`), para o projetor não redesenhar tudo a cada estado. O quadro da câmera do projetor aparece em azul no mapa do mestre (a borda move, os cantos redimensionam mantendo a proporção da tela do projetor); "Seguir os jogadores" o recalcula pelas peças de jogador. Eventos de cena e relâmpago chegam ao projetor; o áudio fica mudo nessa janela (`silenciarNestaJanela`). `mesa.json` não mudou (a rota do projetor não é uma Ref).
 
-### 7.6a — Interagíveis: interruptor e gaveta  ⬜
+### 7.6a — Interagíveis: interruptor e gaveta  ✅
 Objetivo: um interruptor acende e apaga as luzes do cômodo; uma gaveta abre e fecha.
 Depende de: 7.0b, 7.3a
 Ler: `src/domain/mapa.ts` (`Objeto.interaction`); `src/ui/Inspetor.tsx` (`CamposDoObjeto`); `src/procedural/receitas/` (para uma receita de interruptor, de parede).
@@ -321,8 +321,9 @@ Não fazer: pistas (9.3); som (7.6b).
 Testes: unitários: interruptor sem alvos controla as luzes de rede do cômodo e não as de fogo; desfazer volta as luzes; e2e: na sessão, clicar no interruptor apaga a sala.
 Pronto quando: os testes passam.
 Commit: switches and drawers
+Nota: o comando é `interagir { id }` (o rótulo do histórico sai do tipo: "Interruptor" ou "Gaveta"); `alvoEm` passou a achar objetos de parede interativos pelo ponto (senão o interruptor, que é de parede, não seria clicável); o marcador do interativo é desenhado na cena e some na vista de jogador e no projetor. Pistas (`clue`) ainda recusam: são da 9.3.
 
-### 7.6b — Sons dos interagíveis  ⬜
+### 7.6b — Sons dos interagíveis  ✅
 Objetivo: porta rangendo, porta batendo, trinco, interruptor e gaveta, cada um com som próprio.
 Depende de: 7.3a, 7.6a
 Ler: `src/fx/som.ts` (`tocar`, `trovao`: síntese com Web Audio); `docs/ARQUITETURA.md` §8.1.
@@ -335,8 +336,9 @@ Não fazer: arquivos de som; Jukebox.
 Testes: unitário de que cada nome novo existe e `tocar` não lança sem `AudioContext` (ambiente de teste).
 Pronto quando: abrir, fechar, trancar, interruptor e gaveta soam diferentes e não cansam depois de dez vezes.
 Commit: interaction sound effects
+Nota: o `som` (Ref) da abertura e do interagível segue sem tocar, anotado no código para a 9.4d. A trava da porta usa `trancada` no lugar do `erro`.
 
-### 7.7 — Validação da fase  ⬜
+### 7.7 — Validação da fase  ✅
 Objetivo: provar o critério de pronto e registrar o relatório.
 Depende de: todas
 Ler: `tests/e2e/fase5.test.ts`, `fase6.test.ts` (modelo); `tests/e2e/apoio.ts`.
@@ -350,3 +352,4 @@ Não fazer: consertar lógica aqui; o que faltar vira pendência.
 Testes: os acima, mais `npm run typecheck`, `npm test`, `npm run test:e2e`.
 Pronto quando: tudo passa e o relatório está no progress.md.
 Commit: validate phase 7
+Nota: a validação achou um defeito real (o projetor nascia na vista do mestre: mostrava o cômodo nunca visto); corrigido em `viewport.ts` (`definirVista` na criação) e coberto pelo teste. O e2e usa três peças na iniciativa porque o dock inclui todas quando nada está selecionado.

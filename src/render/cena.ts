@@ -71,10 +71,10 @@ interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; 
 
 export function criarCena(op: OpcoesDaCena): Cena {
   const raiz = new Container(), terrenoC = new Container(), comodosC = new Container(), objetosC = new Container(), paredesG = new Graphics();
-  const regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), tituloC = new Container();
+  const marcasG = new Graphics(), regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), tituloC = new Container();
   const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados(), neblina = criarNeblina(), particulas = criarParticulas(), presenca = criarPresenca();
   // A luz multiplica tudo o que está embaixo (piso, objetos, paredes); marcadores, regiões e peças ficam por cima, sempre legíveis.
-  raiz.addChild(terrenoC, comodosC, objetosC, paredesG, presenca.abaixo, luz.sprite, presenca.acima, neblina.raiz, particulas.raiz, regioesC, luzesC, pecasC, nevoa.sprite, telhados.raiz, tituloC);
+  raiz.addChild(terrenoC, comodosC, objetosC, paredesG, presenca.abaixo, luz.sprite, presenca.acima, neblina.raiz, particulas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
 
   let mapa: MapaAtlas | null = null, vistaDaCena: Vista = 'construir', destruida = false, pintandoAgora = 0, ultimoQuadro = -1;
   const salas = new Map<string, Entrada>(), objetos = new Map<string, Entrada>();
@@ -260,6 +260,20 @@ export function criarCena(op: OpcoesDaCena): Cena {
     }
   }
 
+  // ---------- Marcas dos interativos (só para o mestre) ----------
+  let modoDoProjetor = false;
+  const marcasVisiveis = () => { marcasG.visible = !modoDoProjetor && vistaDaCena !== 'jogador'; };
+  function desenharMarcas(m: MapaAtlas): void {
+    marcasG.clear();
+    for (const o of Object.values(m.props) as Objeto[]) {
+      const i = o.interaction; if (!i || i.kind === 'clue') continue;
+      const [x, y] = o.position, cor = i.kind === 'switch' ? (i.on ? 0xffd23f : 0x6b6f80) : (i.on ? 0x4fc3f7 : 0x6b6f80);
+      marcasG.circle(x, y, 0.2).fill({ color: 0x0c0c12, alpha: 0.85 }).stroke({ width: 0.04, color: cor });
+      if (i.kind === 'switch') marcasG.moveTo(x, y + 0.08).lineTo(x, y - 0.1).stroke({ width: 0.05, color: cor, cap: 'round' });
+      else marcasG.rect(x - 0.09, y - 0.07, 0.18, 0.14).stroke({ width: 0.035, color: cor }).moveTo(x - 0.03, y).lineTo(x + 0.03, y).stroke({ width: 0.035, color: cor });
+    }
+  }
+
   // ---------- Cartela de título ----------
   let chaveDoTitulo = '';
   function sincronizarTitulo(m: MapaAtlas): void {
@@ -292,6 +306,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid')) sincronizarComodos(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid', 'session')) desenharParedes(m);
       if (tudo || colecao('props') || campos('style')) sincronizarObjetos(m, tudo || campos('style') ? null : mud!.colecoes.props ?? null, comPop);
+      if (tudo || colecao('props')) desenharMarcas(m);
       presenca.sincronizar(m, mud); nevoa.sincronizar(m, mud); telhados.sincronizar(m, mud);
       const v = visaoDoClima ?? m;
       luz.sincronizar(v, mud); neblina.sincronizar(v, mud); particulas.sincronizar(v, mud);
@@ -309,9 +324,9 @@ export function criarCena(op: OpcoesDaCena): Cena {
     },
     definirAtmosfera: ligada => { luz.definirLigado(ligada); neblina.definirLigado(ligada); particulas.definirLigado(ligada); },
     relampagoAgora: () => luz.relampagoAgora(),
-    definirModoProjetor: ligado => { luzesC.visible = !ligado; regioesC.visible = !ligado; },
+    definirModoProjetor: ligado => { modoDoProjetor = ligado; marcasVisiveis(); luzesC.visible = !ligado; regioesC.visible = !ligado; },
     definirEfeitosDeLuz: (luzes, ambiente) => luz.definirEfeitos(luzes, ambiente),
-    definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); if (v !== vistaDaCena) { vistaDaCena = v; if (mapa) desenharParedes(mapa); } },
+    definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); if (v !== vistaDaCena) { vistaDaCena = v; if (mapa) desenharParedes(mapa); } marcasVisiveis(); },
     diagnosticoDosTelhados: () => telhados.diagnostico(),
     contagemDeParticulas: () => particulas.contagem(),
     contagemDePresencas: () => presenca.contagem(),

@@ -541,3 +541,165 @@ test('projetor: recebe só a projeção (sem notas, região do mestre, porta sec
   await proj.close(); await page.waitForFunction(() => document.querySelector('[data-testid="dock-projetor-estado"]')?.textContent === 'Nenhum projetor aberto', null, { timeout: 5000 });
   assert.deepEqual(errosProj, []); assert.deepEqual(erros, []); await ctx.close();
 });
+
+test('interativos: na sessão, clicar no interruptor apaga a luz de rede da sala (e só ela), desfazer acende, Enter com a peça ao lado usa a gaveta', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await sessao(page, `(s, a) => {
+    const cel = []; for (let y = 2; y < 8; y++) for (let x = 2; x < 9; x++) cel.push([x, y]);
+    s.store.executar({ tipo: "comodo.criar", id: "sala", nome: "Sala", funcao: "sala", piso: { material: "tabuas.carvalho", seed: 1 }, papel: null, celulas: cel });
+    s.store.executar({ tipo: "clima.predefinir", id: "noite" });
+    s.store.executar({ tipo: "item.adicionar", colecao: "lights", item: a.rede });
+    s.store.executar({ tipo: "item.adicionar", colecao: "props", item: a.interruptor });
+    s.store.executar({ tipo: "item.adicionar", colecao: "props", item: a.gaveta });
+    s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.peca });
+  }`, {
+    rede: { id: 'rede', position: [9.75, 7.5], radius: 7, color: '#ffe2b0', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'grid', on: true, nightOnly: false, preset: null },
+    interruptor: { id: 'sw', source: { kind: 'recipe', recipe: 'caixa', seed: 1, params: {} }, position: [4.5, 4.5], rotation: 0, scale: 0.5, elevation: 'floor', wall: null, roomId: 'sala', blocks: { move: false, sight: false }, castsShadow: false, harmonize: true, interaction: { kind: 'switch', on: true, targets: [], sound: null, clue: null } },
+    gaveta: { id: 'gv', source: { kind: 'recipe', recipe: 'caixa', seed: 2, params: {} }, position: [15, 12], rotation: 0, scale: 0.5, elevation: 'floor', wall: null, roomId: null, blocks: { move: false, sight: false }, castsShadow: false, harmonize: true, interaction: { kind: 'drawer', on: false, targets: [], sound: null, clue: null } },
+    peca: peca('p', 'Pri', 14.25, 12.75, { facing: 'up' }),
+  });
+  await page.waitForTimeout(1500);
+  await page.click('[data-testid="modo-sessao"]'); await page.waitForTimeout(600);
+  const perto: [[number, number], [number, number]] = [[8, 6], [12, 9]];
+  const aceso = await brilho(page, ...perto);
+  await clicar(page, [4.5, 4.5]); await page.waitForTimeout(900);
+  const doc1 = await documento(page);
+  assert.equal(doc1.lights.rede!.on, false, 'clicar no interruptor apagou a luz de rede'); assert.equal(doc1.props.sw!.interaction!.on, false);
+  assert.equal((await sessao(page, '(s) => s.rotuloDesfazer.value')) as string, 'Interruptor');
+  const apagado = await brilho(page, ...perto); console.log(`# brilho da sala aceso/apagado: ${aceso.toFixed(1)} / ${apagado.toFixed(1)}`);
+  assert.ok(apagado < aceso - 4, `a sala escureceu (${aceso} → ${apagado})`);
+  await page.keyboard.press('Control+z'); await page.waitForTimeout(900);
+  assert.equal((await documento(page)).lights.rede!.on, true, 'desfazer acende'); assert.ok(await brilho(page, ...perto) > apagado + 4);
+  // Gaveta com Enter: a peça está ao lado e olha para cima.
+  await clicar(page, [14.25, 12.75]); await semFoco(page); await page.keyboard.press('Enter'); await page.waitForTimeout(250);
+  assert.equal((await documento(page)).props.gv!.interaction!.on, true, 'Enter abriu a gaveta'); assert.equal((await sessao(page, '(s) => s.rotuloDesfazer.value')) as string, 'Gaveta');
+  // Em Construir, clicar no interruptor só o seleciona.
+  await page.click('[data-testid="modo-construir"]'); await page.waitForTimeout(400); await clicar(page, [4.5, 4.5]);
+  assert.equal((await documento(page)).props.sw!.interaction!.on, true);
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+// ---------- 7.7: jogar a casa no projetor ----------
+const projDoc = (p: Page) => p.evaluate(() => structuredClone((window as unknown as { __projetor: { doc(): import('../../src/domain/mapa.ts').MapaAtlas } }).__projetor.doc()));
+async function brilhoNoProjetor(p: Page, a: [number, number], b: [number, number]): Promise<number> {
+  const [x0, y0] = await p.evaluate(m => (window as unknown as { __projetor: { viewport(): { clientDe(q: [number, number]): [number, number] } } }).__projetor.viewport().clientDe(m), a);
+  const [x1, y1] = await p.evaluate(m => (window as unknown as { __projetor: { viewport(): { clientDe(q: [number, number]): [number, number] } } }).__projetor.viewport().clientDe(m), b);
+  const png = await p.screenshot({ clip: { x: Math.min(x0, x1), y: Math.min(y0, y1), width: Math.abs(x1 - x0), height: Math.abs(y1 - y0) } });
+  return p.evaluate(async (base64: string) => {
+    const bmp = await createImageBitmap(await (await fetch(`data:image/png;base64,${base64}`)).blob()), c = new OffscreenCanvas(bmp.width, bmp.height), g = c.getContext('2d')!;
+    g.drawImage(bmp, 0, 0); const d = g.getImageData(0, 0, bmp.width, bmp.height).data; let soma = 0;
+    for (let i = 0; i < d.length; i += 4) soma += 0.299 * d[i]! + 0.587 * d[i + 1]! + 0.114 * d[i + 2]!;
+    return soma / (d.length / 4);
+  }, png.toString('base64'));
+}
+const fpsDe = (p: Page, ms: number) => p.evaluate((t: number) => new Promise<number>(ok => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 >= t) ok((n * 1000) / t); else requestAnimationFrame(f); }; requestAnimationFrame(f); }), ms);
+
+test('fase 7: jogar a casa no projetor — portas, clima, revelação, interruptor e iniciativa, sem nada do mestre vazar', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  const mapaId = await criarMapaPelaInterface(page);
+  const parede = (id: string, x: number) => ({ id, path: [[x, 3], [x, 9]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, source: null });
+  await sessao(page, `(s, a) => {
+    const sala = [], cozinha = [], despensa = [];
+    for (let y = 2; y < 6; y++) { for (let x = 2; x < 8; x++) sala.push([x, y]); for (let x = 8; x < 14; x++) cozinha.push([x, y]); for (let x = 14; x < 20; x++) despensa.push([x, y]); }
+    const piso = { material: "tabuas.carvalho", seed: 1 };
+    s.store.executar({ tipo: "comodo.criar", id: "sala", nome: "Sala", funcao: "sala", piso, papel: null, celulas: sala });
+    s.store.executar({ tipo: "comodo.criar", id: "cozinha", nome: "Cozinha", funcao: "cozinha", piso, papel: null, celulas: cozinha });
+    s.store.executar({ tipo: "comodo.criar", id: "despensa", nome: "Despensa", funcao: "sala", piso, papel: null, celulas: despensa });
+    s.store.executar({ tipo: "parede.adicionar", parede: a.v1 }); s.store.executar({ tipo: "parede.adicionar", parede: a.v2 });
+    s.store.executar({ tipo: "abertura.adicionar", abertura: a.porta }); s.store.executar({ tipo: "abertura.adicionar", abertura: a.cofre });
+    s.store.executar({ tipo: "clima.predefinir", id: "noite" });
+    s.store.executar({ tipo: "mapa.notas", texto: "NOTA-DO-MESTRE-FASE7" });
+    s.store.executar({ tipo: "item.adicionar", colecao: "regions", item: a.regiao });
+    for (const k of ["rede", "interruptor"]) s.store.executar({ tipo: "item.adicionar", colecao: k === "rede" ? "lights" : "props", item: a[k] });
+    for (const k of ["ana", "beto", "ogro"]) s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a[k] });
+  }`, {
+    v1: parede('v1', 12), v2: parede('v2', 21),
+    porta: { id: 'porta', wallId: 'v1', at: 0.5, width: 1.5, kind: 'door', state: 'closed', material: 'madeira.media', som: null, swing: 'a' },
+    cofre: { id: 'cofre', wallId: 'v2', at: 0.5, width: 1.5, kind: 'secret', state: 'closed', material: 'madeira.media', som: null, swing: 'a' },
+    regiao: { id: 'armadilha', polygon: [[22, 4], [27, 4], [27, 8]], kind: 'trigger', gmOnly: true, payload: { x: 'REGIAO-SECRETA-FASE7' }, refs: [] },
+    rede: { id: 'rede', position: [7.5, 6], radius: 7, color: '#ffe2b0', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'grid', on: true, nightOnly: false, preset: null },
+    interruptor: { id: 'sw', source: { kind: 'recipe', recipe: 'caixa', seed: 1, params: {} }, position: [4.5, 4.5], rotation: 0, scale: 0.5, elevation: 'floor', wall: null, roomId: 'sala', blocks: { move: false, sight: false }, castsShadow: false, harmonize: true, interaction: { kind: 'switch', on: true, targets: [], sound: null, clue: null } },
+    ana: peca('ana', 'Ana', 9.75, 5.25, { player: true, vision: { radius: 8, dark: false } }),
+    beto: peca('beto', 'Beto', 9.75, 6.75, { player: true, vision: { radius: 8, dark: false } }),
+    ogro: peca('ogro', 'OGRO-ESCONDIDO-FASE7', 24.75, 6),
+  });
+  await page.waitForTimeout(1200);
+  await page.click('[data-testid="modo-sessao"]'); await page.locator('[data-testid="dock"]').waitFor();
+  await page.click('[data-testid="dock-titulo-projetor"]');
+
+  const proj = await ctx.newPage(), errosProj: string[] = [];
+  proj.on('pageerror', e => errosProj.push(e.message)); proj.on('console', m => { if (m.type() === 'error') errosProj.push(m.text()); });
+  await proj.goto(`${amb.url}#/projetor/${mapaId}`);
+  await proj.waitForFunction(() => (window as unknown as { __projetor?: { doc(): unknown } }).__projetor?.doc() != null, null, { timeout: 20_000 });
+  await page.getByText('Conectado', { exact: true }).waitFor({ timeout: 5000 });
+
+  /** Em cada passo: nada do mestre no que o projetor recebeu. `secretaRevelada` libera a porta secreta; `ogroVisto`, o inimigo. */
+  const confere = async (passo: string, { secretaRevelada = false, ogroVisto = false } = {}) => {
+    const d = await projDoc(proj), json = JSON.stringify(d);
+    for (const segredo of ['NOTA-DO-MESTRE-FASE7', 'REGIAO-SECRETA-FASE7', 'armadilha']) assert.ok(!json.includes(segredo), `${passo}: vazou ${segredo}`);
+    assert.equal(!!d.openings.cofre, secretaRevelada, `${passo}: a porta secreta ${secretaRevelada ? 'devia' : 'não devia'} estar no projetor`);
+    assert.equal(!!d.tokens.ogro, ogroVisto, `${passo}: o ogro ${ogroVisto ? 'devia' : 'não devia'} estar no projetor`);
+    assert.equal(d.notes, ''); assert.deepEqual(d.comodosExtra, {});
+    return d;
+  };
+  const esperaNoProjetor = (fn: string, arg?: unknown) => proj.waitForFunction(`(() => { const d = window.__projetor.doc(); const a = ${JSON.stringify(arg ?? null)}; return (${fn})(d, a); })()`, null, { timeout: 6000 });
+  await confere('início');
+  // O cômodo nunca visto tem o brilho do fundo: a despensa no projetor é tão escura quanto o vazio fora dos cômodos.
+  await proj.evaluate(() => (window as unknown as { __projetor: { viewport(): { enquadrarCaixa(c: object, s: boolean): void } } }).__projetor.viewport().enquadrarCaixa({ x0: 0, y0: 0, x1: 45, y1: 30 }, false));
+  await page.waitForTimeout(600);
+  const despensa = await brilhoNoProjetor(proj, [24, 3.3], [29, 8.7]), vazio = await brilhoNoProjetor(proj, [33, 14], [41, 24]);
+  assert.ok(despensa < 14 && Math.abs(despensa - vazio) < 6, `a despensa nunca vista é fundo (${despensa} × ${vazio})`);
+  await proj.screenshot({ path: 'test-results/fase7-projetor-inicio.png' });
+
+  // Portas: a fechada recusa; clicar abre; as duas peças passam.
+  await assert.rejects(() => sessao(page, '(s) => s.store.executar({ tipo: "peca.mover", id: "ana", para: [14.25, 5.25] })'), 'a porta fechada recusa');
+  await clicar(page, [12, 6]); await page.waitForTimeout(500);
+  await esperaNoProjetor('(d) => d.openings.porta.state === "open"');
+  for (const [id, y] of [['ana', 5.25], ['beto', 6.75]] as const) { await sessao(page, `(s, a) => s.store.executar({ tipo: "peca.mover", id: a.id, para: [14.25, a.y] })`, { id, y }); await sessao(page, `(s, a) => s.store.executar({ tipo: "peca.mover", id: a.id, para: [17.25, a.y] })`, { id, y }); }
+  await esperaNoProjetor('(d) => d.tokens.ana.position[0] === 17.25 && d.tokens.beto.position[0] === 17.25');
+  await confere('portas');
+  await proj.screenshot({ path: 'test-results/fase7-projetor-porta.png' });
+
+  // Clima pelo dock: Tarde → Tempestade → Noite; o projetor acompanha.
+  await page.click('[data-testid="dock-clima-tarde"]'); await esperaNoProjetor('(d) => d.climate.preset === "tarde"');
+  await page.click('[data-testid="dock-clima-tempestade"]'); await esperaNoProjetor('(d) => d.climate.preset === "tempestade"');
+  await confere('tempestade');
+  // Quadros por segundo das duas janelas com tempestade e as duas peças andando.
+  let andando = true;
+  const andar = (async () => { for (let i = 0; andando && i < 40; i++) { const x = i % 2 ? 17.25 : 15.75; for (const [id, y] of [['ana', 5.25], ['beto', 6.75]] as const) await sessao(page, `(s, a) => { try { s.store.executar({ tipo: "peca.mover", id: a.id, para: [a.x, a.y] }); } catch (e) {} }`, { id, x, y }); await page.waitForTimeout(150); } })();
+  const [fpsMestre, fpsProjetor] = await Promise.all([fpsDe(page, 3000), fpsDe(proj, 3000)]); andando = false; await andar;
+  console.log(`# quadros por segundo com tempestade e as peças andando: mestre ${fpsMestre.toFixed(1)}, projetor ${fpsProjetor.toFixed(1)}`);
+  assert.ok(fpsMestre > 25 && fpsProjetor > 25, `mestre ${fpsMestre}, projetor ${fpsProjetor}`);
+  await proj.screenshot({ path: 'test-results/fase7-projetor-tempestade.png' });
+  await page.click('[data-testid="dock-clima-noite"]'); await esperaNoProjetor('(d) => d.climate.preset === "noite"');
+  await sessao(page, '(s) => s.store.executar({ tipo: "peca.mover", id: "ana", para: [17.25, 5.25] })').catch(() => undefined);
+  await sessao(page, '(s) => s.store.executar({ tipo: "peca.mover", id: "beto", para: [17.25, 6.75] })').catch(() => undefined);
+
+  // Porta secreta: aberta por baixo dos panos, o projetor ainda não a conhece nem vê o ogro; ao revelar, vê.
+  await sessao(page, '(s) => s.store.executar({ tipo: "abertura.atualizar", id: "cofre", patch: { state: "open" } })'); await page.waitForTimeout(500);
+  await confere('secreta aberta e oculta');
+  await sessao(page, '(s) => s.store.executar({ tipo: "sessao.revelar", ids: ["cofre"] })');
+  await esperaNoProjetor('(d) => !!d.openings.cofre');
+  await esperaNoProjetor('(d) => !!d.tokens.ogro');
+  await confere('revelada', { secretaRevelada: true, ogroVisto: true });
+  // Revelar um cômodo inteiro.
+  await sessao(page, '(s) => s.store.executar({ tipo: "sessao.revelar", ids: ["despensa"] })'); await esperaNoProjetor('(d) => d.session.revealed.includes("despensa")');
+
+  // Interruptor: apaga a luz de rede da sala e o projetor vê a luz apagada.
+  await clicar(page, [4.5, 4.5]); await esperaNoProjetor('(d) => d.lights.rede.on === false');
+  assert.equal((await documento(page)).props.sw!.interaction!.on, false);
+
+  // Iniciativa de duas rodadas, vista pelo projetor.
+  await page.click('[data-testid="dock-titulo-iniciativa"]');
+  await page.locator('[data-testid="dock-iniciativa-valor-ana"]').fill('15'); await page.locator('[data-testid="dock-iniciativa-valor-beto"]').fill('10'); await page.locator('[data-testid="dock-iniciativa-valor-ogro"]').fill('5');
+  await page.click('[data-testid="dock-iniciativa-comecar"]');
+  await esperaNoProjetor('(d) => d.session.initiative && d.session.initiative.round === 1');
+  for (let i = 0; i < 4; i++) await page.click('[data-testid="iniciativa-proxima"]');   // três na ordem (Ana, Beto, ogro): quatro passos = segunda rodada, vez de Beto
+  await esperaNoProjetor('(d) => d.session.initiative.round === 2 && d.session.initiative.current === 1');
+  assert.match((await proj.locator('[data-testid="iniciativa-rodada"]').textContent()) ?? '', /Rodada 2/);
+  assert.equal(await proj.locator('[data-testid="biblioteca"]').count(), 0);
+  await confere('fim', { secretaRevelada: true, ogroVisto: true });
+  await proj.screenshot({ path: 'test-results/fase7-projetor-fim.png' });
+  assert.deepEqual(errosProj, []); assert.deepEqual(erros, []); await ctx.close();
+});

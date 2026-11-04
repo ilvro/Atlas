@@ -74,7 +74,7 @@ export function alvoEm(mapa: MapaAtlas, ponto: Ponto, tolerancia = 0): Alvo | nu
       if (colecao === 'rooms') { const r = mapa.rooms[id]!, t = mapa.grid.size; if (decodificar(r.cells).some(([x, y]) => ponto[0] >= mapa.grid.offset[0] + x * t && ponto[0] < mapa.grid.offset[0] + (x + 1) * t && ponto[1] >= mapa.grid.offset[1] + y * t && ponto[1] < mapa.grid.offset[1] + (y + 1) * t)) return alvo; continue; }
       if (colecao === 'regions') { if (pontoNoPoligono(ponto, mapa.regions[id]!.polygon)) return alvo; continue; }
       if (colecao === 'walls') { const p = mapa.walls[id]!; if (projetarNaParede(p, ponto).distancia <= p.thickness / 2 + tolerancia) return alvo; continue; }
-      if (colecao === 'props') { const o = mapa.props[id]!; if (o.elevation !== 'wall' && pontoNoObjeto(o, ponto, tolerancia)) return alvo; continue; }
+      if (colecao === 'props') { const o = mapa.props[id]!; if (o.elevation !== 'wall' && pontoNoObjeto(o, ponto, tolerancia)) return alvo; if (o.interaction && o.elevation === 'wall' && Math.hypot(ponto[0] - o.position[0], ponto[1] - o.position[1]) <= 0.35 + tolerancia) return alvo; continue; }
       if (colecao === 'openings') {
         const a = mapa.openings[id]!, p = mapa.walls[a.wallId]; if (!p) continue;
         const r = projetarNaParede(p, ponto), centro = a.at * comprimentoDaParede(p);

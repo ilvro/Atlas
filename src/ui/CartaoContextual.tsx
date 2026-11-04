@@ -1,6 +1,7 @@
 import { useEffect } from 'preact/hooks';
 import { signal } from '@preact/signals';
-import { alternarLuzes, alternarPorta, desfazer, revelarPorta, trancarPorta, duplicarSelecao, removerSelecao, viewport } from '../app/app.ts';
+import { acaoDoInterativo } from '../domain/interagiveis.ts';
+import { alternarLuzes, alternarPorta, usarObjeto, desfazer, revelarPorta, trancarPorta, duplicarSelecao, removerSelecao, viewport } from '../app/app.ts';
 import { modo } from '../app/modo.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { avisar } from '../app/toasts.ts';
@@ -48,8 +49,11 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
   const editar = (fn: () => void) => { if (tentar(fn)) tocar('selecionar'); };
   let acoes = null;
   const emSessao = modo.value === 'sessao';
-  if (emSessao && a.colecao !== 'openings') return null;       // na sessão o cartão só tem ações de porta (a 7.6a acrescenta as dos interativos)
-  if (emSessao) {
+  if (emSessao && a.colecao === 'props' && m.props[a.id]?.interaction && m.props[a.id]!.interaction!.kind !== 'clue') {
+    const o = m.props[a.id]!;
+    acoes = <button type="button" class="cartao-texto" onClick={() => usarObjeto(o.id)} data-testid="cartao-usar">{acaoDoInterativo(o)}</button>;
+  } else if (emSessao && a.colecao !== 'openings') return null;       // na sessão o cartão só tem ações de porta (a 7.6a acrescenta as dos interativos)
+  else if (emSessao) {
     const o = m.openings[a.id]!, porta = o.kind === 'door' || o.kind === 'secret';
     acoes = porta ? (<>
       <Acao icone="porta" rotulo={o.state === 'open' ? 'Fechar a porta' : 'Abrir a porta'} aoClicar={() => alternarPorta(o.id)} id="cartao-abrir" />
