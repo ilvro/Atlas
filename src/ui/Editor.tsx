@@ -1,3 +1,7 @@
+import { recursosDaPeca } from '../app/fichas.ts';
+import { TIPO_ARRASTE, soltarPersonagem } from './Personagens.tsx';
+import { Inspecao } from './Inspecao.tsx';
+import { TIPO_ARRASTE_PISTA, soltarPista } from './Pistas.tsx';
 import { useEffect, useRef } from 'preact/hooks';
 import { signal, useSignalEffect } from '@preact/signals';
 import { acaoPorId, executarAcao } from '../app/acoes.ts';
@@ -72,6 +76,7 @@ function ponteDa(s: SessaoDeEdicao): PonteViewport {
     aoMudarCaixaDoProjetor: c => { seguirJogadores.value = false; caixaDoProjetor.value = c; },
     aoInteragir: alvo => { if (alvo.colecao === 'openings') alternarPorta(alvo.id); else if (alvo.colecao === 'props') usarObjeto(alvo.id); },
     lerRetrato: async id => (await servicos.peek()?.repo.obterAsset(id))?.blob ?? null,
+    recursosDaPeca: t => recursosDaPeca(t),
   };
 }
 
@@ -100,7 +105,7 @@ function AreaDoMapa({ s }: { s: SessaoDeEdicao }) {
     quadro = requestAnimationFrame(laco);
     return () => cancelAnimationFrame(quadro);
   }, []);
-  return <div class="area-do-mapa" ref={ref} data-testid="area-do-mapa" data-ferramenta={s.ferramenta.value} />;
+  return <div class="area-do-mapa" ref={ref} data-testid="area-do-mapa" data-ferramenta={s.ferramenta.value} onDragOver={e => { if (e.dataTransfer?.types.includes(TIPO_ARRASTE) || e.dataTransfer?.types.includes(TIPO_ARRASTE_PISTA)) e.preventDefault(); }} onDrop={e => { soltarPersonagem(s, e); soltarPista(s, e); }} />;
 }
 
 function BarraDeEstado({ s }: { s: SessaoDeEdicao }) {
@@ -126,7 +131,7 @@ export function Editor() {
     <div class="editor" data-testid="editor">
       <Ferramentas s={s} />
       <Biblioteca s={s} />
-      <div class="area-com-cartao"><AreaDoMapa s={s} /><CartaoContextual s={s} />{modo.value === 'sessao' && <Dock s={s} />}{modo.value === 'construir' && <PilulaDeSugestao s={s} />}</div>
+      <div class="area-com-cartao"><AreaDoMapa s={s} /><CartaoContextual s={s} />{modo.value === 'sessao' && <Dock s={s} />}{modo.value === 'sessao' && <Inspecao />}{modo.value === 'construir' && <PilulaDeSugestao s={s} />}</div>
       <Inspetor />
       <BarraDeEstado s={s} />
     </div>

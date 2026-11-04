@@ -1,3 +1,8 @@
+import { iniciarPistas } from './pistas.ts';
+import { abrirInspecao, fecharInspecao, inspecao, mostrandoAosJogadores } from './inspecao.ts';
+import type { Vista } from '../domain/inspecao.ts';
+import { aoRolar, iniciarFichas, pecaDaFicha, recursosDasFichas } from './fichas.ts';
+import { flutuarRolagem, ponto as pontoDaTela } from '../fx/fx.ts';
 import { batch, effect, signal } from '@preact/signals';
 import { criarRef } from '#mesa';
 import { exportarBackup, importarBackup, lerPacote, nomeDoArquivo, type RelatorioImportacao } from '../data/backup.ts';
@@ -15,7 +20,8 @@ import { todosOsAlvos, caixaDe, caixaDaSelecao, ehMovel, type Alvo, type Colecao
 import type { Viewport } from '../render/viewport.ts';
 import type { ColecaoLivre, Comando } from '../state/comandos.ts';
 import { campanhaAtiva, carregarCampanhas, desvincularMapa, refDoMapa, revincularMapa, sincronizarMapaComCampanha } from './campanha.ts';
-import { pedirSomDoClima } from './audio-do-clima.ts';
+import { pedirCena, pedirSomDoClima, pedirSomDoMapa } from './audio-do-clima.ts';
+import { iniciarRegioes } from './regioes.ts';
 import { modo, vistaDeJogador } from './modo.ts';
 import { iniciarSugestoes } from './sugestoes.ts';
 import { abrirJanelaDoProjetor, iniciarPublicacao, type Publicador } from './projetor.ts';
@@ -61,6 +67,8 @@ export async function iniciar(): Promise<void> {
     const s = await iniciarServicos();
     servicos.value = s;
     await carregarCampanhas(s);
+    if (s.barramento) iniciarFichas(s.barramento);
+    iniciarPistas();
     await atualizarLista();
     s.barramento?.atender('atlas.focar', dados => {
       const ref = (dados as { ref: { tipo: string; id: string } }).ref;
@@ -121,14 +129,14 @@ export function alternarModo(): void {
 
 let pararSugestoes: (() => void) | null = null;
 /** Quem publica o mapa aberto para a janela do projetor. */
-let publicador: Publicador | null = null;
+let publicador: Publicador | null = null, pararRegioes: (() => void) | null = null;
 /** Um evento de cena (tremor, piscar…) no mapa do mestre e, junto, no projetor. */
 export function dispararEventoDeCena(e: EventoDeCena): void { viewport.atual?.dispararEvento(e); publicador?.evento(e); }
 export function relampagoNoProjetor(): void { publicador?.relampago(); }
 export function abrirProjetor(): void { const s = sessao.value; if (s) abrirJanelaDoProjetor(s.doc.value.id); }
 export function fecharSessao(): void {
   const atual = sessao.value; if (!atual) return;
-  pararSugestoes?.(); pararSugestoes = null; publicador?.parar(); publicador = null; modo.value = 'construir'; vistaDeJogador.value = false;
+  pararSugestoes?.(); pararSugestoes = null; pararRegioes?.(); pararRegioes = null; publicador?.parar(); publicador = null; modo.value = 'construir'; vistaDeJogador.value = false;
   void atual.auto.descarregar().finally(() => atual.fechar());
   viewport.atual = null; sessao.value = null;
 }
@@ -145,6 +153,7 @@ async function abrirMapa(id: string, comodo?: string): Promise<void> {
       const nova = criarSessao(mapa, s.repo, { salvo: true });
       modo.value = 'construir'; vistaDeJogador.value = false; pararSugestoes = iniciarSugestoes(nova, viewport);
       publicador = iniciarPublicacao(nova, async id => (await s.repo.obterAsset(id))?.blob ?? null);
+      pararRegioes = iniciarRegioes(nova, () => modo.peek() === 'sessao', { emitir: (tipo, dados) => { try { s.barramento?.emitir(tipo, dados); } catch (erro) { console.warn('Atlas: não consegui emitir', tipo, erro); } }, pedirCena: ref => { pedirCena(s.barramento, ref); }, avisar: texto => avisar(texto, { duracao: 4200 }) });
       batch(() => { sessao.value = nova; focoPendente.value = comodo ?? null; });
     });
     tocar('abrir');
@@ -388,9 +397,9 @@ export function virarLanterna(graus: number): void {
 
 // ---------- Portas na sessão ----------
 /** Avisa os outros aplicativos da mesa que algo foi mostrado aos jogadores. Falhar aqui nunca atrapalha a sessão. */
-function emitirRevelado(abertura: string): void {
+function emitirRevelado(id: string, tipo = 'abertura'): void {
   const s = sessao.value, b = servicos.value?.barramento; if (!s || !b) return;
-  try { b.emitir('atlas.revelado', { mapa: refDoMapa(s.doc.value), alvo: criarRef('atlas', 'abertura', `${s.doc.value.id}/${abertura}`) }); } catch (erro) { console.warn('Atlas: não consegui emitir atlas.revelado', erro); }
+  try { b.emitir('atlas.revelado', { mapa: refDoMapa(s.doc.value), alvo: criarRef('atlas', tipo, `${s.doc.value.id}/${id}`) }); } catch (erro) { console.warn('Atlas: não consegui emitir atlas.revelado', erro); }
 }
 
 /** Abre ou fecha uma porta na sessão (e soma ao explorado o que ela passa a mostrar). Trancada não abre. Uma secreta que se abre é revelada junto. */
@@ -428,11 +437,26 @@ export function revelarPorta(id: string): void {
   tocar('pop'); avisar('Porta revelada aos jogadores.', { duracao: 1800 }); emitirRevelado(id);
 }
 
+// ---------- Inspeção de pistas ----------
+export function enviarEstadoDaInspecao(vista: Vista, lanterna: { x: number; y: number } | null): void { if (mostrandoAosJogadores.peek()) publicador?.inspecaoEstado(vista, lanterna); }
+/** Mostra a inspeção aos jogadores: o projetor abre o mesmo documento, e a pista entra nos revelados (com `atlas.revelado`). */
+export function mostrarInspecaoAosJogadores(vista: Vista, lanterna: { x: number; y: number } | null): void {
+  const d = inspecao.value, s = sessao.value; if (!d || !s) return;
+  publicador?.inspecao({ nome: d.pista.name, normal: d.blobNormal, uv: d.blobUv });
+  publicador?.inspecaoEstado(vista, lanterna);
+  mostrandoAosJogadores.value = true;
+  if (d.objetoId && s.doc.value.props[d.objetoId] && !s.doc.value.session.revealed.includes(d.objetoId)) {
+    try { s.store.executar({ tipo: 'sessao.revelar', ids: [d.objetoId] }, { rotulo: 'Revelar a pista' }); emitirRevelado(d.objetoId, 'objeto'); } catch (erro) { console.warn('Atlas: não consegui revelar a pista', erro); }
+  }
+}
+export function pararDeMostrarInspecao(): void { if (mostrandoAosJogadores.peek()) publicador?.inspecao(null); mostrandoAosJogadores.value = false; }
+export function fecharInspecaoDoMestre(): void { pararDeMostrarInspecao(); fecharInspecao(); }
+
 /** Usa um objeto interativo (interruptor ou gaveta) na sessão; é UMA entrada de histórico. */
 export function usarObjeto(id: string): void {
   const s = sessao.value; if (!s) return;
   const o = s.doc.value.props[id]; if (!o?.interaction) return;
-  if (o.interaction.kind === 'clue') { avisar('As pistas chegam com a Fase 9.', { duracao: 1800 }); return; }
+  if (o.interaction.kind === 'clue') { void abrirInspecao(o.interaction.clue, o.id); return; }
   // O `sound` guardado no objeto (um Ref do Jukebox) também fica para a 9.4d.
   try { s.store.executar({ tipo: 'interagir', id }, { rotulo: ROTULO_DA_INTERACAO[o.interaction.kind] }); } catch (erro) { avisar(erro instanceof Error ? erro.message : String(erro), { tipo: 'erro' }); tocar('erro'); return; }
   tocar(o.interaction.kind === 'switch' ? 'interruptor' : 'gaveta');
@@ -471,6 +495,27 @@ export function refazer(): void {
 }
 
 export const NOMES_COLECAO = { singular: SINGULAR, plural: PLURAL };
+
+// Uma rolagem da Ficha: o resultado flutua sobre a peça ligada (no mapa e no projetor). Quem não tem peça no mapa vira um aviso discreto.
+aoRolar(r => {
+  const s = sessao.value, v = viewport.atual; if (!s) return;
+  const peca = pecaDaFicha(s.doc.value, r.ficha);
+  if (!peca || !v) { avisar(`Rolagem: ${r.titulo} ${r.total}`, { duracao: 2200 }); return; }
+  const [x, y] = v.clientDe([peca.position[0], peca.position[1] - (peca.size * s.doc.value.grid.size) / 2]);
+  flutuarRolagem(pontoDaTela(x, y), r.total, r.titulo, r.tom, getComputedStyle(document.documentElement).getPropertyValue('--acento').trim() || undefined);
+  publicador?.rolagem(peca.id, r.titulo, r.total, r.tom);
+});
+
+// PV e PD novos vindos da Ficha: as peças ligadas refazem os pips (só elas).
+effect(() => { void recursosDasFichas.value; viewport.atual?.redesenharPecas(); });
+
+// Abrir o mapa na sessão pede ao Jukebox a cena do mapa (uma vez por mapa e por entrada na sessão).
+let mapaDoSom: string | null = null;
+effect(() => {
+  const emSessao = modo.value === 'sessao', doc = sessao.value?.doc.peek() ?? null;
+  if (!emSessao || !doc) { mapaDoSom = null; return; }
+  if (mapaDoSom !== doc.id) { mapaDoSom = doc.id; pedirSomDoMapa(doc, servicos.peek()?.barramento); }
+});
 
 // Trocar de clima pede ao Jukebox a cena sonora daquele clima (se o mapa tiver uma). Abrir outro mapa não pede nada.
 let mapaVisto: MapaAtlas | null = null;

@@ -48,4 +48,4 @@ Commit: mensagem curta em inglês
 | [fase-6.md](fase-6.md) | Detalhado — **próximo** |
 | [fase-7.md](fase-7.md) | Detalhado antes da hora — o Opus confere ao começar |
 | [fase-8.md](fase-8.md) | Detalhado — concluída |
-| [fase-9.md](fase-9.md) | Detalhado antes da hora — o Opus confere ao começar |
+| [fase-9.md](fase-9.md) | Parte do Atlas feita; as tarefas 🔒 esperam autorização para mexer em Mesa, Ficha, Ateliê e Jukebox |

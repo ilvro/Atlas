@@ -1,8 +1,11 @@
 import { useEffect } from 'preact/hooks';
 import { signal } from '@preact/signals';
 import { acaoDoInterativo } from '../domain/interagiveis.ts';
-import { alternarLuzes, alternarPorta, usarObjeto, desfazer, revelarPorta, trancarPorta, duplicarSelecao, removerSelecao, viewport } from '../app/app.ts';
+import { alternarLuzes, alternarPorta, usarObjeto, desfazer, revelarPorta, trancarPorta, duplicarSelecao, removerSelecao, viewport, servicos } from '../app/app.ts';
 import { modo } from '../app/modo.ts';
+import { abrirFicha, recursosDasFichas } from '../app/fichas.ts';
+import { refDaFicha } from '../domain/fichas.ts';
+import { chaveDaRef } from '#mesa';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { avisar } from '../app/toasts.ts';
 import { tocar } from '../fx/som.ts';
@@ -49,9 +52,17 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
   const editar = (fn: () => void) => { if (tentar(fn)) tocar('selecionar'); };
   let acoes = null;
   const emSessao = modo.value === 'sessao';
-  if (emSessao && a.colecao === 'props' && m.props[a.id]?.interaction && m.props[a.id]!.interaction!.kind !== 'clue') {
+  if (emSessao && a.colecao === 'props' && m.props[a.id]?.interaction) {
     const o = m.props[a.id]!;
     acoes = <button type="button" class="cartao-texto" onClick={() => usarObjeto(o.id)} data-testid="cartao-usar">{acaoDoInterativo(o)}</button>;
+  } else if (emSessao && a.colecao === 'tokens') {
+    // Peça ligada a uma ficha: PV e PD (da Ficha, pelo barramento) e o atalho para abri-la.
+    const ref = refDaFicha(m.tokens[a.id]!.refs); if (!ref) return null;
+    const rec = recursosDasFichas.value[chaveDaRef(ref)];
+    acoes = (<>
+      <span class="cartao-texto" data-testid="cartao-recursos">{rec ? `PV ${rec.pv}/${rec.pvMax} · PD ${rec.pd}/${rec.pdMax}` : 'Sem dados da ficha'}</span>
+      <button type="button" class="cartao-texto" data-testid="cartao-abrir-ficha" onClick={() => void abrirFicha(servicos.peek()?.barramento, ref)}>Abrir ficha</button>
+    </>);
   } else if (emSessao && a.colecao !== 'openings') return null;       // na sessão o cartão só tem ações de porta (a 7.6a acrescenta as dos interativos)
   else if (emSessao) {
     const o = m.openings[a.id]!, porta = o.kind === 'door' || o.kind === 'secret';

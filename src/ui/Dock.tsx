@@ -11,9 +11,12 @@ import { tocar } from '../fx/som.ts';
 import { tentar } from './campos.tsx';
 import { FaixaDeIniciativa } from './FaixaDeIniciativa.tsx';
 import { amostraDoClima } from './Inspetor.tsx';
+import { Personagens } from './Personagens.tsx';
+import { Pistas } from './Pistas.tsx';
+import { definirMostrarPvNoProjetor, mostrarPvNoProjetor } from '../app/fichas.ts';
 
 /** Quais seções do dock estão abertas. */
-const abertas = signal<Record<string, boolean>>({ clima: true, cena: true, presenca: false, iniciativa: false, projetor: false });
+const abertas = signal<Record<string, boolean>>({ clima: true, cena: true, presenca: false, iniciativa: false, personagens: false, pistas: false, projetor: false });
 /** Os valores digitados antes de começar a iniciativa, por peça. */
 const valoresIniciais = signal<Record<string, string>>({});
 
@@ -118,6 +121,9 @@ function SecaoDoProjetor() {
       <button type="button" class={`dock-pilula ${seguirJogadores.value ? 'ativa' : ''}`} aria-pressed={seguirJogadores.value} data-testid="dock-projetor-seguir" onClick={() => { seguirJogadores.value = !seguirJogadores.value; }}>Seguir os jogadores</button>
       <button type="button" class={`dock-pilula ${mostrarQuadroDoProjetor.value ? 'ativa' : ''}`} aria-pressed={mostrarQuadroDoProjetor.value} data-testid="dock-projetor-quadro" onClick={() => { mostrarQuadroDoProjetor.value = !mostrarQuadroDoProjetor.value; }}>Mostrar o quadro</button>
     </div>
+    <div class="dock-linha">
+      <button type="button" class={`dock-pilula ${mostrarPvNoProjetor.value ? 'ativa' : ''}`} aria-pressed={mostrarPvNoProjetor.value} data-testid="dock-projetor-pv" title="Mostrar PV e PD das peças aos jogadores" onClick={() => definirMostrarPvNoProjetor(!mostrarPvNoProjetor.value)}>Mostrar PV no projetor</button>
+    </div>
     {conectado && caixaDoProjetor.value && <p class="dock-dica">Arraste o quadro azul no mapa (a borda move, os cantos redimensionam).</p>}
   </>);
 }
@@ -130,6 +136,8 @@ export function Dock({ s }: { s: SessaoDeEdicao }) {
       <Secao id="cena" titulo="Cena"><SecaoDeCena /></Secao>
       <Secao id="presenca" titulo="Presença"><SecaoDePresenca s={s} /></Secao>
       <Secao id="iniciativa" titulo="Iniciativa"><SecaoDeIniciativa s={s} /></Secao>
+      <Secao id="personagens" titulo="Personagens"><Personagens s={s} /></Secao>
+      <Secao id="pistas" titulo="Pistas"><Pistas s={s} /></Secao>
       <Secao id="projetor" titulo="Projetor"><SecaoDoProjetor /></Secao>
     </div>
   );

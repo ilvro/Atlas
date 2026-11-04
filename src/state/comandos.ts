@@ -33,6 +33,8 @@ export type Comando =
   | { tipo: 'clima.salvar'; nome: string; id?: string }
   | { tipo: 'clima.esquecer'; id: string }
   | { tipo: 'clima.audio'; id: string; ref: Ref | null }
+  /** A cena sonora do mapa (toca ao abrir o mapa na sessão); `null` tira. */
+  | { tipo: 'mapa.audio'; ref: Ref | null }
   | { tipo: 'acabamento.atualizar'; patch: ParcialProfundo<Acabamento> }
   | { tipo: 'fundo.atualizar'; patch: ParcialProfundo<Fundo> }
   | { tipo: 'memoria.atualizar'; patch: ParcialProfundo<Memoria> }
@@ -131,6 +133,7 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       m.customClimates[id] = { id, name: nome, climate: clima, finish: acab };
       break;
     }
+    case 'mapa.audio': m.audioCue = c.ref === null ? null : clonar(c.ref); break;
     case 'clima.audio': {
       if (!presetDeClima(c.id) && !m.customClimates[c.id]) nao('Esse clima não existe.');
       const id = presetDeClima(c.id)?.id ?? c.id;
@@ -266,7 +269,7 @@ export function aplicarComando(mapa: MapaAtlas, comando: Comando): MapaAtlas {
 export const ROTULOS: Record<Comando['tipo'], string> = {
   ...ROTULOS_CONSTRUIR,
   'mapa.renomear': 'Renomear mapa', 'mapa.notas': 'Editar notas', 'mapa.campanha': 'Ligar à campanha', 'grade.atualizar': 'Ajustar grade',
-  'limites.atualizar': 'Redimensionar mapa', 'estilo.atualizar': 'Mudar estilo', 'clima.aplicar': 'Mudar clima', 'clima.predefinir': 'Aplicar clima', 'clima.salvar': 'Salvar clima', 'clima.esquecer': 'Esquecer clima', 'clima.audio': 'Som do clima', 'acabamento.atualizar': 'Ajustar acabamento',
+  'limites.atualizar': 'Redimensionar mapa', 'estilo.atualizar': 'Mudar estilo', 'mapa.audio': 'Som do mapa', 'clima.aplicar': 'Mudar clima', 'clima.predefinir': 'Aplicar clima', 'clima.salvar': 'Salvar clima', 'clima.esquecer': 'Esquecer clima', 'clima.audio': 'Som do clima', 'acabamento.atualizar': 'Ajustar acabamento',
   'fundo.atualizar': 'Ajustar fundo', 'memoria.atualizar': 'Ajustar memória', 'item.adicionar': 'Adicionar', 'item.atualizar': 'Editar',
   'item.remover': 'Remover', 'selecao.mover': 'Mover', 'peca.mover': 'Mover peça', 'peca.virar': 'Virar a lanterna', 'sessao.esquecer': 'Recomeçar a exploração', 'sessao.revelar': 'Revelar', 'sessao.ocultar': 'Esconder cômodos', 'sessao.explorar': 'Explorar', 'interagir': 'Usar', 'iniciativa.iniciar': 'Começar a iniciativa', 'iniciativa.passo': 'Passar a vez', 'iniciativa.valor': 'Valor de iniciativa', 'iniciativa.encerrar': 'Encerrar a iniciativa', 'proposta.aceitar': 'Aceitar sugestão',
 };

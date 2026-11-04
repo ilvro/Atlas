@@ -1,3 +1,4 @@
+import { Aprender, aprenderAberto } from './Aprender.tsx';
 import { useEffect, useRef } from 'preact/hooks';
 import { useSignal } from '@preact/signals';
 import { campanhaAtiva, campanhas, criarCampanha, escolherCampanha } from '../app/campanha.ts';
@@ -79,11 +80,13 @@ export function Galeria() {
         <h1 id="titulo-galeria" class="faixa grande">Mapas</h1>
         <div class="galeria-acoes">
           <button type="button" class="botao-pilula destaque" data-testid="novo-mapa" onClick={() => void criarMapaNovo()}><Icone nome="novo" tamanho={15} />Novo mapa</button>
+          <button type="button" class="botao-pilula" data-testid="aprender" aria-expanded={aprenderAberto.value} onClick={() => { aprenderAberto.value = !aprenderAberto.value; }}><Icone nome="ajuda" tamanho={15} />Aprender</button>
           <button type="button" class="botao-pilula" onClick={escolherArquivoParaImportar} data-testid="importar"><Icone nome="importar" tamanho={15} />Importar</button>
           <button type="button" class="botao-pilula" onClick={() => void exportar([])} disabled={!lista.length} data-testid="exportar-tudo"><Icone nome="exportar" tamanho={15} />Exportar tudo</button>
         </div>
       </div>
       <BarraDeCampanha />
+      <Aprender />
       {mapaAusente.value && <p class="aviso" role="alert" data-testid="mapa-ausente"><Icone nome="aviso" tamanho={16} /> O mapa “{mapaAusente.value}” não existe neste navegador. Ele pode estar em outro computador: importe a cópia de segurança.</p>}
       {lista.length
         ? <div class="cartoes" data-testid="lista-mapas">{lista.map(r => <Cartao key={r.id} r={r} />)}</div>

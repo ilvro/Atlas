@@ -1,5 +1,6 @@
 import { Container, Graphics, Rectangle, Sprite, Text, Texture } from 'pixi.js';
 import { aparenciaDoEstado } from '../domain/figuras.ts';
+import { pipsCheios, type Recursos } from '../domain/fichas.ts';
 import type { Peca, Ponto } from '../domain/mapa.ts';
 import { corDoNome, hexParaNumero } from './cores.ts';
 
@@ -7,13 +8,13 @@ import { corDoNome, hexParaNumero } from './cores.ts';
 export interface PecaVisual {
   readonly c: Container;
   /** Refaz o desenho com os dados da peça; `tex` é o retrato (ou `null`). */
-  atualizar(t: Peca, tamanhoDaCelula: number, acento: number, tex: Texture | null, animar?: boolean, sprite?: { folha: Texture | null; pixel: boolean }): void;
+  atualizar(t: Peca, tamanhoDaCelula: number, acento: number, tex: Texture | null, animar?: boolean, sprite?: { folha: Texture | null; pixel: boolean }, recursos?: Recursos | null): void;
   /** Animação do pulso, do tremor, do deslize e da trilha; `ms` é o relógio. Parada com `efeitos` desligados. */
   quadro(ms: number, efeitos: boolean): void;
   /** É a vez desta peça na iniciativa? Ganha um anel pulsante por fora. */
   definirVez(vez: boolean): void;
   /** Para os testes e o diagnóstico. */
-  estado(): { vez: boolean; retrato: boolean; deitada: boolean; raio: number; deslizando: boolean; trilha: number; /** O quadro do sprite agora (linha: baixo, esquerda, direita, cima), ou `null` sem sprite. */ quadro: { linha: number; coluna: number } | null };
+  estado(): { vez: boolean; retrato: boolean; deitada: boolean; raio: number; deslizando: boolean; trilha: number; /** O quadro do sprite agora (linha: baixo, esquerda, direita, cima), ou `null` sem sprite. */ quadro: { linha: number; coluna: number } | null; /** Os PV e PD que os pips mostram, ou `null`. */ pips: Recursos | null; /** O estado de aparência desta peça agora (pode ser "ferido" só na tela, por PV baixo). */ estadoVisto: string };
 }
 
 const MS_POR_CELULA = 160, MS_MAXIMO = 600, MS_DA_TRILHA = 2000;
@@ -22,18 +23,21 @@ const [QW, QH] = [16, 24], LINHA_DO_LADO = { down: 0, left: 1, right: 2, up: 3 }
 const MS_PARADO = 500, MS_ANDANDO = 125;
 
 export function criarPeca(): PecaVisual {
-  const c = new Container(), trilha = new Graphics(), corpo = new Container(), anel = new Graphics(), marca = new Graphics(), vezG = new Graphics();
-  c.addChild(trilha, vezG, corpo, anel, marca);
+  const c = new Container(), trilha = new Graphics(), corpo = new Container(), anel = new Graphics(), marca = new Graphics(), vezG = new Graphics(), pips = new Graphics();
+  c.addChild(trilha, vezG, corpo, anel, marca, pips);
+  // Os pips de PV (vermelho) e PD (azul): piscam por um instante quando o valor cai.
+  let ultimoRecursos: Recursos | null = null, piscaAte = 0;
   let vez = false;
   let desliza: { de: Ponto; para: Ponto; t0: number; dur: number } | null = null, rastro: { de: Ponto; para: Ponto; t0: number }[] = [], alvo: Ponto | null = null, cor0 = 0xffffff, grade0 = 1;
   let pulso = 0, tremor = 0, raio = 0.5, tem = false, deitada = false, semente = Math.random() * 100;
   // O sprite: a folha (96 × 96) fatiada em quadros, o sprite que mostra o quadro e a linha do lado para onde a peça olha.
-  let pxDoSprite = 1, tintaNum = 0xffffff, folhaAtual: Texture | null = null, quadros: Texture[][] = [], spriteRef: Sprite | null = null, ladoParado = 0, corrente: { linha: number; coluna: number } | null = null;
+  let estadoVisto = 'normal', pxDoSprite = 1, tintaNum = 0xffffff, folhaAtual: Texture | null = null, quadros: Texture[][] = [], spriteRef: Sprite | null = null, ladoParado = 0, corrente: { linha: number; coluna: number } | null = null;
   const fatiar = (folha: Texture): Texture[][] => Array.from({ length: 4 }, (_, l) => Array.from({ length: 6 }, (_, k) => new Texture({ source: folha.source, frame: new Rectangle(k * QW, l * QH, QW, QH) })));
 
   return {
     c,
-    atualizar(t, grade, acento, tex, animar = false, comSprite = { folha: null, pixel: false }) {
+    atualizar(t, grade, acento, tex, animar = false, comSprite = { folha: null, pixel: false }, recursos = null) {
+      estadoVisto = t.figure.state;
       const ap = aparenciaDoEstado(t.figure.state), r = (t.size * grade * 0.9) / 2;
       raio = r; deitada = ap.deitado; pulso = ap.pulso; tremor = ap.tremor;
       for (const f of corpo.removeChildren()) f.destroy({ children: true });
@@ -73,6 +77,17 @@ export function criarPeca(): PecaVisual {
       else anel.clear().circle(0, 0, r).stroke({ width: 0.07, color: cor }).circle(0, 0, r * 0.82).stroke({ width: 0.02, color: 0xffffff, alpha: 0.35 });
       marca.clear();
       if (ap.marca === 'x') { const k = r * 0.55; marca.moveTo(-k, -k).lineTo(k, k).moveTo(k, -k).lineTo(-k, k).stroke({ width: 0.09, color: 0x120a0a, alpha: 0.85, cap: 'round' }).moveTo(-k, -k).lineTo(k, k).moveTo(k, -k).lineTo(-k, k).stroke({ width: 0.045, color: 0xe0342c, cap: 'round' }); }
+      pips.clear();
+      if (recursos) {
+        const N = 10, passo = Math.min((2 * r) / N, grade * 0.12), lado = passo * 0.78, largura = passo * N, y0 = (usaSprite ? 0.21 * grade * t.size + 0.18 * grade * t.size : r) + grade * 0.12;
+        const fileira = (valor: number, maximo: number, cheio: number, linha: number) => {
+          const n = pipsCheios(valor, maximo, N);
+          for (let i = 0; i < N; i++) pips.rect(-largura / 2 + i * passo, y0 + linha * (lado + grade * 0.04), lado, lado).fill({ color: i < n ? cheio : 0x1a1a22, alpha: i < n ? 1 : 0.75 }).stroke({ width: 0.012, color: 0x000000, alpha: 0.8 });
+        };
+        fileira(recursos.pv, recursos.pvMax, 0xe0342c, 0); fileira(recursos.pd, recursos.pdMax, 0x3e8fe0, 1);
+        if (ultimoRecursos && (recursos.pv < ultimoRecursos.pv || recursos.pd < ultimoRecursos.pd)) piscaAte = performance.now() + 1200;
+      }
+      ultimoRecursos = recursos; pips.visible = !!recursos;
       cor0 = acento; grade0 = grade;
       const novo: Ponto = [t.position[0], t.position[1]];
       if (alvo && animar && (Math.abs(novo[0] - alvo[0]) > 1e-6 || Math.abs(novo[1] - alvo[1]) > 1e-6)) {
@@ -84,6 +99,7 @@ export function criarPeca(): PecaVisual {
       alvo = novo;
     },
     quadro(ms, efeitos) {
+      if (pips.visible) pips.alpha = efeitos && ms < piscaAte ? (Math.floor(ms / 120) % 2 ? 0.25 : 1) : 1;
       if (spriteRef) {
         // Parado alterna 2 quadros; deslizando anda na direção do movimento (a linha vem do vetor, e `facing` vale quando para).
         let linha = ladoParado, coluna = efeitos ? Math.floor(ms / MS_PARADO) % 2 : 0;
@@ -116,7 +132,7 @@ export function criarPeca(): PecaVisual {
       if (tremor) corpo.position.set(...(spriteRef ? [Math.round(Math.sin(t * 47 + semente)) * pxDoSprite, Math.round(Math.cos(t * 53 + semente * 1.7)) * pxDoSprite] as const : [Math.sin(t * 47 + semente) * 0.035 * tremor * (raio / 0.5), Math.cos(t * 53 + semente * 1.7) * 0.035 * tremor * (raio / 0.5)] as const));
     },
     definirVez(v) { vez = v; if (!v) vezG.clear(); },
-    estado: () => ({ retrato: tem, vez, deitada, raio, deslizando: !!desliza, trilha: rastro.length, quadro: spriteRef ? corrente : null }),
+    estado: () => ({ retrato: tem, vez, deitada, raio, deslizando: !!desliza, trilha: rastro.length, quadro: spriteRef ? corrente : null, pips: pips.visible ? ultimoRecursos : null, estadoVisto }),
   };
 }
 

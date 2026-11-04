@@ -107,7 +107,7 @@ Testes: na Ficha, um teste do módulo `mesa.js` com um barramento falso; e2e no 
 Pronto quando: rolagens e recursos saem da Ficha pelo barramento e a ficha aparece como personagem na Mesa.
 Commit (Ficha): join the table contract
 
-### 9.2b — Ficha → peça; cartão com PV e PD  ⬜
+### 9.2b — Ficha → peça; cartão com PV e PD  ✅
 Objetivo: arrastar um personagem da campanha para o mapa cria a peça ligada à ficha; a peça mostra PV e PD em pips.
 Depende de: 9.2a (para dados reais; dá para desenvolver com um barramento falso); (depois da 7) peças de jogador.
 Ler: `src/app/campanha.ts`; `src/render/pecas.ts`; `src/ui/Dock.tsx`; `mesa-core` (`listarEntidades`).
@@ -120,9 +120,10 @@ Como:
 Não fazer: escrever na Ficha.
 Testes: unitário de `fichas.ts` com barramento falso; e2e: um `ficha.recursos` falso atualiza os pips da peça ligada.
 Pronto quando: os testes passam.
+Nota: feito contra um barramento falso (a Ficha ainda não fala o contrato, 9.2a 🔒). `domain/fichas.ts` (pips, estado crítico), `app/fichas.ts` (memória por Ref, `ficha.recursos`, `adicionarPersonagem`, `abrirFicha`), `ui/Personagens.tsx` (dock e aba Mapa; arrastar ou "Pôr no mapa"), pips em `render/pecas.ts` (piscam quando o valor cai), cartão e inspetor com PV e PD, e "Mostrar PV no projetor" (preferência local; o mestre manda os valores por peça pelo canal do projetor). O estado "ferido" por PV ≤ 25% é só da tela. A biblioteca de peças em Construir não existe, então a lista vive na aba Mapa.
 Commit: sheet tokens with health pips
 
-### 9.2c — Rolagem sobre a peça  ⬜
+### 9.2c — Rolagem sobre a peça  ✅
 Objetivo: quando o personagem rola na Ficha, o resultado flutua sobre a peça dele no mapa e no projetor.
 Depende de: 9.2b
 Ler: `src/fx/fx.ts` (número flutuante, faíscas); `src/app/fichas.ts`; `src/app/projetor.ts` (7.5b).
@@ -134,9 +135,10 @@ Como:
 Não fazer: histórico de rolagens (é o registro da 9.5b).
 Testes: e2e com barramento falso: a rolagem aparece sobre a peça certa e no projetor.
 Pronto quando: o teste passa.
+Nota: `fx.flutuarRolagem` (número grande, título embaixo, faíscas no acento; aparece mesmo com os efeitos desligados), o projetor recebe a mensagem `rolagem` e desenha igual quando a peça está na projeção; sem peça no mapa, aviso "Rolagem: título total". O tom (alto a partir de 19 no dado sem o modificador, baixo até 2) é só cor: o Atlas não decide sucesso.
 Commit: roll results over tokens
 
-### 9.3a — Pistas do Ateliê no mapa  ⬜
+### 9.3a — Pistas do Ateliê no mapa  ✅
 Objetivo: os documentos entregues pelo Ateliê aparecem numa lista e viram pistas no mapa.
 Depende de: (depois da 7) `interaction.clue`.
 Ler: `Atelie/docs/plano/CONTRATO-TABLETOP.md` inteiro (banco `mesa-handouts-v1`, `Summary`, `bakes`, canal `mesa:handout`); `src/ui/Biblioteca.tsx`.
@@ -149,9 +151,10 @@ Como:
 Não fazer: mudar o Ateliê; inspeção (9.3b).
 Testes: unitário de `pistas.ts` com `fake-indexeddb` (já é dependência de desenvolvimento) seguindo o formato do contrato; e2e: gravar um handout falso no banco e ele aparecer na lista e virar pista.
 Pronto quando: os testes passam.
+Nota: `data/pistas.ts` lê `mesa-handouts-v1` só se o banco já existe (abrir um banco inexistente o criaria vazio e o Ateliê nunca faria o upgrade), escuta `mesa:handout`; `app/pistas.ts` põe o objeto "papéis soltos" com `interaction.clue = mesa:atelie/documento/<id>` e liga `esta-em` ao cômodo; lista em Construir (biblioteca de objetos) e no dock; o inspetor escolhe o documento e avisa "documento não encontrado". Testado com `fake-indexeddb` no formato do contrato v1.
 Commit: Atelie handouts as clues
 
-### 9.3b — Inspeção com luz UV, no projetor  ⬜
+### 9.3b — Inspeção com luz UV, no projetor  ✅
 Objetivo: na sessão, abrir a pista mostra o documento grande, com a luz UV quando houver, e o mestre pode mostrar aos jogadores.
 Depende de: 9.3a, (depois da 7) projetor.
 Ler: `Tabletop/src/ui/inspection-overlay.js` e a parte de inspeção de `presentation-window.js` (como o projetor segue a inspeção); `src/data/pistas.ts`.
@@ -163,6 +166,7 @@ Como:
 Não fazer: anotar sobre o documento.
 Testes: e2e com handout falso com UV: abrir, ligar UV, mostrar aos jogadores e o projetor receber.
 Pronto quando: o teste passa e a lanterna UV é fluida.
+Nota: `domain/inspecao.ts` (matemática de zoom, arrasto e lanterna em frações da imagem), `ui/VisorDeDocumento.tsx` (o visor, no mestre e no projetor), `ui/Inspecao.tsx`, mensagens `inspecao`, `inspecao-estado` e `inspecao-fim` pelo canal do projetor (a lanterna do projetor é suavizada). Clicar na pista (ou Enter com a peça ao lado, que agora alcança pistas) abre; "Mostrar aos jogadores" revela o objeto-pista (`session.revealed` e `atlas.revelado`). "Editar no Ateliê" pede `atelie.abrir` e, sem resposta, abre `<source>?handout=<id>` numa aba.
 Commit: clue inspection with UV light
 
 ### 9.3c — 🔒 Ateliê: manifesto e `atelie.abrir`  ⬜
@@ -190,7 +194,7 @@ Testes: e2e no Atlas sob o `mesa-dev` com o Jukebox: trocar o clima no Atlas toc
 Pronto quando: o pedido do Atlas toca a cena no Jukebox.
 Commit (Jukebox): join the table contract
 
-### 9.4b — Cena sonora por mapa, região e clima  ⬜
+### 9.4b — Cena sonora por mapa, região e clima  ✅
 Objetivo: escolher a cena do Jukebox para o mapa, para cada região de áudio e para cada clima, a partir das cenas da campanha.
 Depende de: 9.4a (para dados reais).
 Ler: `src/app/audio-do-clima.ts` e o campo "Som deste clima" (4.7a); `src/domain/mapa.ts` (`audioCue`, `climateAudio`, `Regiao.kind === 'audio'`, `refs`); `src/ui/Inspetor.tsx`.
@@ -201,9 +205,10 @@ Como:
 Não fazer: entrar em região (9.4c).
 Testes: e2e com barramento falso: escolher uma cena para "Noite" e trocar para Noite pede aquela cena.
 Pronto quando: o teste passa e o campo provisório sumiu.
+Nota: `ui/EscolherCena.tsx` (busca, "Ouvir", "Nenhuma") substituiu o campo provisório; serve ao clima, ao mapa (comando novo `mapa.audio`, aba Mapa → Som) e à região de áudio. Abrir o mapa na sessão pede a cena do mapa. As cenas vêm das entidades `cena` da campanha (a 9.4a, 🔒, é quem as publica).
 Commit: pick sound scenes from the campaign
 
-### 9.4c — Entrar numa região  ⬜
+### 9.4c — Entrar numa região  ✅
 Objetivo: quando uma peça de jogador entra numa região, o Atlas avisa e, se for região de áudio, pede a cena.
 Depende de: 9.4b; (depois da 7) movimento e peças de jogador.
 Ler: `src/state/comandos.ts` (`peca.mover`); `src/render/selecao.ts` (`pontoNoPoligono`); `mesa-core` (`atlas.regiao-entrou`).
@@ -215,6 +220,7 @@ Como:
 Não fazer: regiões que disparam efeitos de cena (pode ser pendência).
 Testes: unitários de `regioesEntradas` (entrar, já estar dentro, peça que não é de jogador); e2e com barramento falso.
 Pronto quando: os testes passam.
+Nota: `domain/regioes.ts` (`regioesEntradas`, `regioesOcupadas`), `app/regioes.ts` (`reagirAoMovimento`): emite `atlas.regiao-entrou`, a região de áudio pede a cena, o gatilho mostra o texto (campo novo "Texto do gatilho"), e sair da última região de áudio volta à cena do clima (ou do mapa).
 Commit: region enter events
 
 ### 9.4d — 🔒 Efeitos avulsos do Jukebox nos interagíveis  ⬜
@@ -256,7 +262,7 @@ Testes: unitário de `registro.ts` (fato → texto) por tabela; e2e: três fatos
 Pronto quando: os testes passam.
 Commit (Mesa): session script and log
 
-### 9.6a — Motor de tutoriais  ⬜
+### 9.6a — Motor de tutoriais  ✅
 Objetivo: um tutor que aponta, espera a pessoa fazer e confere o resultado, sobre a interface real do Atlas.
 Depende de: —
 Ler: `Tabletop/src/tutorial/tutor.js` e `conditions.js` inteiros; `Tabletop/src/tutorial/lessons.js` (duas lições, para ver o formato); `src/app/sessao.ts`; `src/ui/App.tsx`.
@@ -269,9 +275,10 @@ Como:
 Não fazer: as lições (9.6b).
 Testes: unitários das condições; e2e com uma lição de dois passos de teste.
 Pronto quando: a lição de teste completa só com cliques reais.
+Nota: `tutorial/condicoes.ts` (verificações puras sobre o resultado, `e`, `selecionadoEm`, "quase lá"), `tutorial/tutor.ts` (controlador com progresso e registro em `atlas-tutoriais-v1`, ajuda em degraus, voltar e pular), `ui/Tutor.tsx` (anel, marcas no mapa, cartão que se afasta do alvo e dos pontos a clicar, cartão final), `app/tutoriais.ts` (mapa de treino criado pela lição, sugestões caladas fora da lição do assistente) e "Aprender" na galeria. Exportar o relatório está na galeria e na paleta. Os campos do inspetor ganharam `data-campo` para o tutor apontar.
 Commit: tutorial engine
 
-### 9.6b — Lições  ⬜
+### 9.6b — Lições  ✅
 Objetivo: cinco lições que terminam num resultado bonito e ensinam o Atlas de verdade.
 Depende de: 9.6a
 Ler: `src/tutorial/`; a decisão sobre tutoriais no topo deste arquivo; as capturas das validações das fases 5 a 8.
@@ -284,9 +291,10 @@ Como:
 Não fazer: lições de integração com outros aplicativos.
 Testes: e2e que percorre cada lição fazendo os passos pela interface e compara a captura final com a alvo (diferença média baixa).
 Pronto quando: as cinco lições passam no e2e e a captura final de cada uma fica bonita.
+Nota: cinco lições (`tutorial/licoes.ts`): Primeira casa, O assistente, Espalhar e terreno, Climas e Sessão, cada uma com os valores escolhidos e o resultado conferido. O e2e (`tests/e2e/tutoriais.test.ts`) monta o gabarito com os mesmos gestos, percorre cada lição com o tutor, confere que nenhum passo avança antes da hora e compara o mapa final com o gabarito (`test-results/licao-*-alvo.png` e `-final.png`). O cartão final mostra `public/tutoriais/<id>.jpg` (gerado com `ATUALIZAR_ALVOS=1`). O "gabarito" é montado pela interface, não por comandos: o resultado é o mesmo, sem escrever os dados duas vezes.
 Commit: tutorial lessons
 
-### 9.7 — Validação da fase  ⬜
+### 9.7 — Validação da fase  🟡
 Objetivo: provar o critério de pronto (confirmado com o usuário no começo da fase) e registrar o relatório.
 Depende de: todas as que foram autorizadas.
 Ler: os e2e das fases 7 e 8.
@@ -298,4 +306,5 @@ Como:
 Não fazer: consertar outro projeto sem autorização.
 Testes: os acima, mais os testes de cada projeto tocado.
 Pronto quando: tudo passa e o relatório está no progress.md.
+Nota: só a parte do Atlas foi feita, com Ficha, Ateliê e Jukebox falsos no barramento (`fase 9 (parte do Atlas…)` em `tests/e2e/fase9.test.ts`): a ficha vira peça, a rolagem aparece sobre ela e no projetor, a pista é inspecionada com UV no projetor, o clima e a região trocam a cena. Falta tudo o que depende de outro projeto (🔒): a Mesa, o registro da sessão e os testes contra os aplicativos de verdade.
 Commit: validate phase 9

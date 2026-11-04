@@ -22,5 +22,5 @@ export function alvosDoInterruptor(m: MapaAtlas, o: Objeto): string[] {
 /** O que o objeto interativo é agora, em palavras ("Apagar as luzes", "Abrir a gaveta"). */
 export function acaoDoInterativo(o: Objeto): string {
   const i = o.interaction; if (!i) return '';
-  return i.kind === 'switch' ? (i.on ? 'Apagar as luzes' : 'Acender as luzes') : i.kind === 'drawer' ? (i.on ? 'Fechar a gaveta' : 'Abrir a gaveta') : 'Pista';
+  return i.kind === 'switch' ? (i.on ? 'Apagar as luzes' : 'Acender as luzes') : i.kind === 'drawer' ? (i.on ? 'Fechar a gaveta' : 'Abrir a gaveta') : 'Inspecionar a pista';
 }

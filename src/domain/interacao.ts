@@ -33,7 +33,7 @@ export function interagiveisPerto(m: Pick<MapaAtlas, 'walls' | 'openings'> & Par
   }
   // Objetos interativos (interruptor, gaveta): alcançados pelo ponto onde estão.
   for (const o of Object.values(m.props ?? {})) {
-    if (!o.interaction || o.interaction.kind === 'clue') continue;
+    if (!o.interaction) continue;
     const dx = o.position[0] - p[0], dy = o.position[1] - p[1], distancia = Math.hypot(dx, dy);
     if (distancia > alcance + (o.elevation === 'wall' ? 0.3 : 0.5)) continue;
     saida.push({ tipo: 'objeto', id: o.id, distancia, aFrente: distancia < 1e-6 || (dx * olhar[0] + dy * olhar[1]) / distancia > 0.5 });

@@ -1,3 +1,4 @@
+import { Pistas } from './Pistas.tsx';
 import { useEffect, useRef } from 'preact/hooks';
 import { useSignal } from '@preact/signals';
 import { modo } from '../app/modo.ts';
@@ -134,7 +135,7 @@ export function Biblioteca({ s }: { s: SessaoDeEdicao }) {
     <aside class="biblioteca" aria-label={`Biblioteca: ${TITULOS[f]}`} data-testid="biblioteca">
       <div class="biblioteca-topo"><h3 class="faixa pequena">{TITULOS[f]}</h3><button type="button" class="botao-icone" aria-label="Fechar a biblioteca" title="Fechar (B)" onClick={() => { s.biblioteca.value = false; }}><Icone nome="fechar" tamanho={16} /></button></div>
       <div class="biblioteca-corpo">
-        {f === 'comodo' && <Comodos s={s} />}{f === 'objeto' && <Objetos s={s} />}{f === 'luz' && <Luzes s={s} />}
+        {f === 'comodo' && <Comodos s={s} />}{f === 'objeto' && <><Objetos s={s} /><h3 class="faixa pequena">Pistas do Ateliê</h3><Pistas s={s} /></>}{f === 'luz' && <Luzes s={s} />}
         {f === 'abertura' && <Aberturas s={s} />}{f === 'parede' && <Paredes s={s} />}{f === 'terreno' && <Terreno s={s} />}{f === 'presenca' && <Presenca s={s} />}{f === 'espalhar' && <Espalhar s={s} />}
       </div>
     </aside>

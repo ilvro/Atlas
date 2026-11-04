@@ -313,9 +313,25 @@ Nada disso é erro de lógica: é densidade e acabamento do acervo, que cresce c
 - **Pendente da fase (pendências reais):** nenhum item da coleção tem `pixelArquivo` nem há achados (a 6.2b espera a curadoria), então a derivação de imagens só foi testada com imagens sintéticas; objetos e aberturas nas faces das paredes viram formas chapadas pequenas (sem o detalhe do Ilustrado); o título e a moldura do projetor são HTML (fora da paleta); mapas muito grandes no Pixel perdem resolução (teto de 8192 px por lado); a moldura e o título do projetor só trocam de estilo quando o documento projetado troca.
 
 
+## Fase 9 — Plataforma e tutoriais (parte do Atlas)
+
+Feitas as tarefas que só mexem no Atlas, contra aplicativos falsos no barramento; as 🔒 (que mudam Mesa, Ficha, Ateliê e Jukebox) esperam a autorização do usuário.
+
+- **9.2b Ficha → peça** — `fichas.ts`, `Personagens.tsx`: o personagem da campanha com ficha vira peça de jogador ligada ao Ref; pips de PV (vermelho) e PD (azul) que piscam ao cair, "ferido" só na tela com PV ≤ 25%, cartão e inspetor com PV e PD, "Abrir ficha" (`ficha.abrir`), "Mostrar PV no projetor". Commit: `sheet tokens with health pips`.
+- **9.2c Rolagem sobre a peça** — o resultado da Ficha flutua sobre a peça no mapa e no projetor, com faíscas; sem peça vira aviso. Commit: `roll results over tokens`.
+- **9.3a Pistas do Ateliê** — leitura do `mesa-handouts-v1` (só se o banco já existe), lista ao vivo, objeto-pista com `clue`, ligação `esta-em`, aviso de documento ausente. Commit: `Atelie handouts as clues`.
+- **9.3b Inspeção com UV** — documento em tela grande com zoom, arrasto e lanterna UV; "Mostrar aos jogadores" leva ao projetor (lanterna suavizada) e revela a pista. Commit: `clue inspection with UV light`.
+- **9.4b Cena sonora** — `EscolherCena` para mapa, clima e região de áudio; abrir a sessão pede a cena do mapa; comando `mapa.audio`. Commit: `pick sound scenes from the campaign`.
+- **9.4c Entrar numa região** — `atlas.regiao-entrou`, região de áudio pede a cena, gatilho mostra o texto, sair volta ao fundo. Commit: `region enter events`.
+- **9.6a Motor de tutoriais** — condições puras, controlador com progresso e registro locais, tutor com anel, marcas no mapa e ajuda em degraus, mapa de treino, "Aprender" na galeria, relatório. Commit: `tutorial engine`.
+- **9.6b Lições** — Primeira casa, O assistente, Espalhar e terreno, Climas e Sessão, com resultado comparado ao gabarito e captura-alvo no cartão final. Commit: `tutorial lessons`.
+- **9.7 (parcial)** — e2e `fase 9 (parte do Atlas…)`: ficha → peça, rolagem sobre a peça e no projetor, pista com UV no projetor, clima e região trocando a cena.
+- **Validação:** `tsc` limpo, 494 unitários; e2e: fases 2 a 5 (42), 6 a 9 (48) e tutoriais (7), todos passando.
+- **Pendente (🔒, esperam autorização):** 9.1a a 9.1c (Mesa e `mesa-dev` com todos), 9.2a (Ficha no contrato), 9.3c (Ateliê: manifesto e `atelie.abrir`), 9.4a (Jukebox no contrato), 9.4d (efeitos avulsos do Jukebox ou biblioteca própria, 👤), 9.5a e 9.5b (Mesa em modo sessão e registro) e o resto da 9.7. Sem esses projetos, as integrações só foram testadas com aplicativos falsos.
+
 ## Próximo
 
-A Fase 8 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os achados), que espera a sua decisão sobre [docs/curadoria.md](docs/curadoria.md). Próximo: Fase 9 ([docs/plano/fase-9.md](docs/plano/fase-9.md)); o Opus confere as fichas contra o código antes de começar. Da Fase 3 só resta a P3c ([docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md)).
+A Fase 8 está concluída e a Fase 9 está pela metade (o que é só do Atlas); as tarefas 🔒 da Fase 9 esperam autorização. A Fase 6 está concluída, menos a 6.2b (importar os achados), que espera a sua decisão sobre [docs/curadoria.md](docs/curadoria.md). Próximo: Fase 9 ([docs/plano/fase-9.md](docs/plano/fase-9.md)); o Opus confere as fichas contra o código antes de começar. Da Fase 3 só resta a P3c ([docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md)).
 
 ## Pendências
 

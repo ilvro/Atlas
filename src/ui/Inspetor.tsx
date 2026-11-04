@@ -14,7 +14,7 @@ import { ROTULOS_DE_ESTADO } from '../domain/figuras.ts';
 import { ESTADOS_FIGURA, type Abertura, type Acabamento, type Clima, type Comodo, type Estilo, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Presenca, type Regiao } from '../domain/mapa.ts';
 import { GENEROS, generoDe, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
 import { acabamentoLigado, aplicarClima, definirAcabamentoLigado } from '../app/app.ts';
-import { definirRegraDaRegua, modo, regraDaRegua } from '../app/modo.ts';
+import { abaDoInspetor, definirRegraDaRegua, modo, regraDaRegua } from '../app/modo.ts';
 import { ROTULO_DA_REGRA, type RegraDeDiagonal } from '../domain/regua.ts';
 import { definirSugestoesLigadas, sugestoesLigadas } from '../app/sugestoes.ts';
 import { COLECAO } from '../procedural/colecao.ts';
@@ -27,6 +27,12 @@ import type { ParcialProfundo } from '../state/comandos.ts';
 import type { Gesto } from '../state/store.ts';
 import { useGestoDeCor } from './gesto-de-cor.ts';
 import { PainelDoSprite } from './PainelDoSprite.tsx';
+import { Personagens } from './Personagens.tsx';
+import { EscolherCena } from './EscolherCena.tsx';
+import { pistas, pistasCarregadas } from '../app/pistas.ts';
+import { idDaPista, refDaPista } from '../data/pistas.ts';
+import { abrirFicha, recursosDasFichas } from '../app/fichas.ts';
+import { refDaFicha } from '../domain/fichas.ts';
 import { CampoCaixa, CampoCor, Linha, CampoNumero, CampoOpcoes, CampoTexto, tentar } from './campos.tsx';
 import { Icone } from './Icone.tsx';
 
@@ -83,6 +89,10 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
       <CampoCaixa rotulo="Mostrar" valor={m.grid.visible} aoMudar={v => tentar(() => st.executar({ tipo: 'grade.atualizar', patch: { visible: v } }, { rotulo: v ? 'Mostrar a grade' : 'Esconder a grade' }))} />
       <CampoNumero id="grade-tamanho" rotulo="Célula" unidade="m" valor={m.grid.size} min={0.25} max={10} passo={0.25} aoConfirmar={v => tentar(() => st.executar({ tipo: 'grade.atualizar', patch: { size: v } }, { rotulo: 'Tamanho da célula' }))} />
       <EstiloDoMapa s={s} />
+      <h3 class="faixa pequena">Personagens</h3>
+      <Personagens s={s} />
+      <h3 class="faixa pequena">Som</h3>
+      <SomDoMapa s={s} />
       <h3 class="faixa pequena">Tamanho</h3>
       <CampoNumero id="largura-mapa" rotulo="Largura" unidade="m" valor={m.bounds.width} min={3} max={600} passo={1.5} aoConfirmar={v => tentar(() => st.executar({ tipo: 'limites.atualizar', largura: v, altura: m.bounds.height }))} />
       <CampoNumero id="altura-mapa" rotulo="Altura" unidade="m" valor={m.bounds.height} min={3} max={600} passo={1.5} aoConfirmar={v => tentar(() => st.executar({ tipo: 'limites.atualizar', largura: m.bounds.width, altura: v }))} />
@@ -131,21 +141,16 @@ export function amostraDoClima(c: Omit<Clima, 'preset'>, f: Omit<Acabamento, 'pr
 }
 
 /** Escolher o clima: predefinições e os salvos pelo mestre, mais os ajustes finos do momento. */
-/** A cena do Jukebox que toca neste clima. Provisório: a escolha de verdade vem com a Fase 9. */
+/** A cena do Jukebox que toca neste clima (a escolha é do `EscolherCena`). */
 function SomDoClima({ s, clima }: { s: SessaoDeEdicao; clima: string }) {
-  const m = s.doc.value, entidades = useSignal<Entidade[]>([]), atual = m.climateAudio[clima] ?? null;
-  useEffect(() => {
-    let vivo = true; entidades.value = [];
-    const repo = servicos.value?.campanhas;
-    if (repo && m.campanhaId) void repo.listarEntidades(m.campanhaId).then(l => { if (vivo) entidades.value = l.filter(e => e.refs.some(r => r.app === 'jukebox')); }).catch(() => undefined);
-    return () => { vivo = false; };
-  }, [m.campanhaId]);
-  if (!m.campanhaId) return <p class="dica">O som do clima vem de uma cena do Jukebox da campanha: ligue este mapa a uma campanha para escolher.</p>;
-  const jukebox = (e: Entidade) => e.refs.find(r => r.app === 'jukebox')!;
-  const opcoes: (readonly [string, string])[] = [['', 'Nenhum'], ...entidades.value.map(e => [chaveDaRef(jukebox(e)), e.nome] as const)];
-  if (atual && !opcoes.some(([k]) => k === chaveDaRef(atual))) opcoes.push([chaveDaRef(atual), `Outra (${atual.id})`]);
-  return <CampoOpcoes rotulo="Som deste clima" dica="Ao trocar para este clima, o Atlas pede ao Jukebox que toque esta cena." valor={atual ? chaveDaRef(atual) : ''} opcoes={opcoes}
-    aoMudar={v => { const ref = v ? entidades.value.map(jukebox).find(r => chaveDaRef(r) === v) ?? null : null; tentar(() => s.store.executar({ tipo: 'clima.audio', id: clima, ref }, { rotulo: 'Som do clima' })); }} />;
+  return <EscolherCena s={s} id="som-do-clima" rotulo="Som deste clima" dica="Ao trocar para este clima, o Atlas pede ao Jukebox que toque esta cena." valor={s.doc.value.climateAudio[clima] ?? null}
+    aoEscolher={ref => tentar(() => s.store.executar({ tipo: 'clima.audio', id: clima, ref }, { rotulo: 'Som do clima' }))} />;
+}
+
+/** A cena do Jukebox que toca ao abrir este mapa na sessão. */
+function SomDoMapa({ s }: { s: SessaoDeEdicao }) {
+  return <EscolherCena s={s} id="som-do-mapa" rotulo="Som do mapa" dica="Ao abrir este mapa na sessão, o Atlas pede ao Jukebox que toque esta cena." valor={s.doc.value.audioCue}
+    aoEscolher={ref => tentar(() => s.store.executar({ tipo: 'mapa.audio', ref }, { rotulo: 'Som do mapa' }))} />;
 }
 
 function SeletorDeClima({ s }: { s: SessaoDeEdicao }) {
@@ -254,6 +259,18 @@ async function reduzirParaRetrato(arquivo: File): Promise<Blob> {
 const LANTERNAS_DA_PECA = ['lanterna', 'lamparina', 'vela'];
 const DIRECAO_DO_LADO: Record<Peca['facing'], number> = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 };
 
+/** Se a peça é de uma ficha: PV e PD (vindos da Ficha pelo barramento, nunca gravados no mapa) e o atalho para abri-la. */
+function FichaDaPeca({ t }: { t: Peca }) {
+  const ref = refDaFicha(t.refs); if (!ref) return null;
+  const rec = recursosDasFichas.value[chaveDaRef(ref)];
+  return (
+    <Linha rotulo="Ficha" dica={formatarRef(ref)}>
+      <span data-testid="inspetor-recursos">{rec ? `PV ${rec.pv}/${rec.pvMax} · PD ${rec.pd}/${rec.pdMax}` : 'Sem dados da ficha'}</span>
+      <button type="button" class="botao-pilula" data-testid="inspetor-abrir-ficha" onClick={() => void abrirFicha(servicos.value?.barramento, ref)}>Abrir ficha</button>
+    </Linha>
+  );
+}
+
 function CamposDaPeca({ s, t }: { s: SessaoDeEdicao; t: Peca }) {
   const editar = (patch: Record<string, unknown>, rotulo?: string) => tentar(() => s.store.executar({ tipo: 'item.atualizar', colecao: 'tokens', id: t.id, patch }, rotulo ? { rotulo } : {}));
   const enviar = async (arquivo: File | undefined) => {
@@ -283,6 +300,7 @@ function CamposDaPeca({ s, t }: { s: SessaoDeEdicao; t: Peca }) {
       {t.portrait && <button type="button" class="botao-pilula" onClick={() => editar({ portrait: null }, 'Tirar o retrato')} data-testid="retrato-remover">Tirar</button>}
     </Linha>
     <PainelDoSprite s={s} t={t} />
+    <FichaDaPeca t={t} />
     <CampoCaixa rotulo="Jogador" dica="A névoa e a visão da sessão vêm das peças de jogador." valor={t.player} aoMudar={v => editar({ player: v }, v ? 'Peça de jogador' : 'Peça do mestre')} />
     <CampoNumero rotulo="Tamanho" unidade="células" valor={t.size} min={0.5} max={4} passo={0.5} aoConfirmar={v => editar({ size: v }, 'Tamanho da peça')} />
     <CampoNumero rotulo="Visão" unidade="m" valor={t.vision.radius} min={0} max={200} passo={1} aoConfirmar={v => editar({ vision: { radius: v } }, 'Visão da peça')} />
@@ -292,15 +310,26 @@ function CamposDaPeca({ s, t }: { s: SessaoDeEdicao; t: Peca }) {
 }
 
 /** O que o mestre pode acionar no objeto durante a sessão: um interruptor (acende e apaga luzes) ou uma gaveta (abre e fecha). */
+/** Qual documento do Ateliê este objeto mostra; se o documento sumiu do banco, o objeto fica e o aviso aparece. */
+function PistaDoObjeto({ i, aoEscolher }: { i: NonNullable<Objeto['interaction']>; aoEscolher: (ref: Ref | null) => void }) {
+  const id = idDaPista(i.clue), lista = pistas.value, achou = !!id && lista.some(p => p.id === id), sumiu = !!id && pistasCarregadas.value && !achou;
+  return (<>
+    <CampoOpcoes rotulo="Documento" dica="Um documento entregue pelo Ateliê (Compartilhar com o Tabletop)." valor={id ?? ''} opcoes={[['', 'Escolha…'], ...lista.map(p => [p.id, p.name] as const), ...(id && !achou ? [[id, '(documento ausente)'] as const] : [])]}
+      aoMudar={v => aoEscolher(v ? refDaPista(v) : null)} />
+    {sumiu && <p class="dica aviso" data-testid="pista-ausente">Documento não encontrado no banco do Ateliê. O objeto continua aqui; entregue o documento de novo pelo Ateliê.</p>}
+  </>);
+}
+
 function InteracaoDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
   const m = s.doc.value, i = o.interaction;
   const editar = (interaction: Objeto['interaction'] | undefined, rotulo: string) => tentar(() => s.store.executar({ tipo: 'item.atualizar', colecao: 'props', id: o.id, patch: { interaction: interaction as never } }, { rotulo }));
   const efetivas = i?.kind === 'switch' ? alvosDoInterruptor(m, o) : [];
   const trocar = (id: string, marcar: boolean) => editar({ ...i!, targets: marcar ? [...new Set([...efetivas, id])] : efetivas.filter(x => x !== id) }, 'Luzes do interruptor');
   return (<>
-    <CampoOpcoes rotulo="Interação" dica="O que o mestre aciona na sessão, clicando no objeto ou com Enter ao lado de uma peça." valor={i?.kind === 'switch' || i?.kind === 'drawer' ? i.kind : ''}
-      opcoes={[['', 'Nenhuma'], ['switch', 'Interruptor'], ['drawer', 'Gaveta']] as never}
-      aoMudar={v => editar(v ? { kind: v as 'switch' | 'drawer', on: i?.on ?? true, targets: [], sound: i?.sound ?? null, clue: null } : null, 'Interação do objeto')} />
+    <CampoOpcoes rotulo="Interação" dica="O que o mestre aciona na sessão, clicando no objeto ou com Enter ao lado de uma peça." valor={i?.kind ?? ''}
+      opcoes={[['', 'Nenhuma'], ['switch', 'Interruptor'], ['drawer', 'Gaveta'], ['clue', 'Pista do Ateliê']] as never}
+      aoMudar={v => editar(v ? { kind: v as 'switch' | 'drawer' | 'clue', on: v === 'clue' ? false : i?.on ?? true, targets: [], sound: i?.sound ?? null, clue: v === 'clue' ? i?.clue ?? null : null } : null, 'Interação do objeto')} />
+    {i?.kind === 'clue' && <PistaDoObjeto i={i} aoEscolher={ref => editar({ ...i, clue: ref }, 'Pista do objeto')} />}
     {i?.kind === 'switch' && (<div data-testid="luzes-do-interruptor">
       <p class="dica">{i.targets.length ? 'Controla as luzes marcadas.' : 'Sem escolha, controla as luzes de rede deste cômodo (as de fogo ficam de fora).'}</p>
       {Object.values(m.lights).map(l => <CampoCaixa key={l.id} rotulo={nomeDoAlvo('lights', l)} valor={efetivas.includes(l.id)} aoMudar={v => trocar(l.id, v)} />)}
@@ -331,6 +360,9 @@ function CamposDaRegiao({ s, r }: { s: SessaoDeEdicao; r: Regiao }) {
   return (<>
     <CampoOpcoes rotulo="Tipo" valor={r.kind} opcoes={[['note', 'Anotação'], ['trigger', 'Gatilho'], ['reveal', 'Revelação'], ['audio', 'Áudio']]} aoMudar={v => editar({ kind: v }, 'Tipo da região')} />
     <CampoCaixa rotulo="Só o mestre vê" valor={r.gmOnly} aoMudar={v => editar({ gmOnly: v })} />
+    {r.kind === 'trigger' && <CampoTexto rotulo="Texto do gatilho" dica="Aparece para o mestre quando uma peça de jogador entra na região." valor={typeof r.payload.texto === 'string' ? r.payload.texto : ''} aoConfirmar={v => editar({ payload: { texto: v.trim() } }, 'Texto do gatilho')} maximo={400} />}
+    {r.kind === 'audio' && <EscolherCena s={s} id="som-da-regiao" rotulo="Cena da região" dica="Quando uma peça de jogador entra na região, o Atlas pede ao Jukebox que toque esta cena." valor={r.refs.find(x => x.app === 'jukebox') ?? null}
+      aoEscolher={ref => editar({ refs: [...r.refs.filter(x => x.app !== 'jukebox'), ...(ref ? [ref] : [])] }, 'Cena da região')} />}
   </>);
 }
 
@@ -454,7 +486,7 @@ function PainelDoHistorico({ s }: { s: SessaoDeEdicao }) {
 const ABAS = [['mapa', 'Mapa'], ['selecao', 'Seleção'], ['historico', 'Histórico']] as const;
 
 export function Inspetor() {
-  const s = sessao.value, aba = useSignal<(typeof ABAS)[number][0]>('selecao');
+  const s = sessao.value, aba = abaDoInspetor;
   if (!s) return null;
   const n = s.selecao.value.length;
   return (

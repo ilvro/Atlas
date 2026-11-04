@@ -7,7 +7,8 @@ import { misturar, type EstadoDeClima, type MisturaDeClima } from '../domain/cli
 import { conjuntoDeEspalhar, espalhar } from '../authoring/espalhar.ts';
 import { copiasDe, novaLuz, novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
 import { comprimentoDaParede, contornoDoComodo, encaixarNaParede, encaixarObjetoDeParede, indiceDeCelulas, pontoNaParede, salaDaCelula } from '../domain/geometria.ts';
-import type { Abertura, MapaAtlas, Ponto } from '../domain/mapa.ts';
+import type { Abertura, MapaAtlas, Peca, Ponto } from '../domain/mapa.ts';
+import type { Recursos } from '../domain/fichas.ts';
 import { TIPOS_DE_COMODO, camposDoPreset, pincelDePresenca, presetDeLuz, tipoDeComodo } from '../domain/presets.ts';
 import { fxAtivo } from '../fx/fx.ts';
 import { criarBaker, type Baker } from '../procedural/baker.ts';
@@ -53,6 +54,8 @@ export interface PonteViewport {
   acabamento(): boolean;
   /** Lê a imagem guardada de um retrato (pelo id do asset). */
   lerRetrato?(id: string): Promise<Blob | null>;
+  /** PV e PD da ficha ligada a uma peça, para os pips; sem a função (ou `null`) não há pips. */
+  recursosDaPeca?(t: Peca): Recursos | null;
   /** Na sessão, arrastar uma peça a leva de célula em célula e as outras coisas só se selecionam. */
   emSessao?(): boolean;
   /** Pelos olhos de quem se vê o mapa agora (o mestre em Construir vê sempre tudo). */
@@ -87,8 +90,12 @@ export interface Viewport {
   zoomPor(fator: number): void;
   /** Posição na tela do navegador (px de `client`) de um ponto do mundo, para ancorar efeitos DOM e o cartão contextual. */
   clientDe(mundo: Ponto): Ponto;
+  /** O ponto do mundo sob uma posição da tela do navegador (soltar um personagem arrastado). */
+  mundoDe(clientX: number, clientY: number): Ponto;
   /** Refaz tudo (mudou o tema, por exemplo). */
   redesenhar(): void;
+  /** Refaz só as peças (chegaram PV e PD novos). */
+  redesenharPecas(): void;
   /** Só a seleção, o fantasma e a grade: a seleção, a ferramenta ou o pincel mudaram fora do viewport. */
   atualizarSobreposicoes(): void;
   /** Dispara um relâmpago (e o trovão, se o som estiver ligado). Só vale com a atmosfera visível. */
@@ -175,7 +182,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     // Chegou um retrato: redesenha as peças (só as peças, sem refazer o resto).
     if (destruido) return; const m = doc(); cena.sincronizar(m, { completo: false, colecoes: { tokens: Object.keys(m.tokens) }, campos: [] }, false, visaoDoClima(m)); camadaSuja = true;
   });
-  const cena: Cena = criarCena({ baker, renderer: app.renderer, acento, efeitos: fxAtivo, aoPintar: () => { camadaSuja = true; }, retrato: (id, pixel) => retratos.obter(id, pixel) });
+  const cena: Cena = criarCena({ baker, renderer: app.renderer, acento, efeitos: fxAtivo, aoPintar: () => { camadaSuja = true; }, retrato: (id, pixel) => retratos.obter(id, pixel), recursos: t => ponte.recursosDaPeca?.(t) ?? null });
   const acabamento = criarFiltroAcabamento();
   const pixelizacao = criarPixelizacao(app.renderer);
   let pixelAtivo = false, zoomLivre = camera.zoom;
@@ -819,8 +826,10 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       const alvo = calcularEnquadre({ x: c.x0, y: c.y0, largura: Math.max(c.x1 - c.x0, 1), altura: Math.max(c.y1 - c.y0, 1) }, tela(), 0);
       if (!suave || movimentoReduzido()) { camAnim = null; definirCamera(alvo); } else camAnim = { de: camera, para: alvo, t0: performance.now() };
     },
+    mundoDe: (x, y) => { const r = retangulo(); return telaParaMundo(camera, [x - r.left, y - r.top]); },
     clientDe: m => { const r = retangulo(), [x, y] = mundoParaTela(camera, m); return [r.left + x, r.top + y]; },
     redesenhar: () => { redesenharTudo(); },
+    redesenharPecas: () => { cena.redesenharPecas(); camadaSuja = true; },
     diagnosticoDosTelhados: () => cena.diagnosticoDosTelhados(),
     atualizarSobreposicoes: () => { camadaSuja = true; cena.definirVista(ponte.vista?.() ?? 'construir'); aplicarAcabamento(); },
     relampagoAgora: () => cena.relampagoAgora(),

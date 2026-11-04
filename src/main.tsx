@@ -6,6 +6,7 @@ import '@fontsource/pixelify-sans/700.css';
 import './ui/estilo.css';
 import { render } from 'preact';
 import { sessao, servicos, viewport } from './app/app.ts';
+import { tutor } from './app/tutoriais.ts';
 import { App } from './ui/App.tsx';
 
 render(<App />, document.getElementById('raiz')!);
@@ -26,5 +27,5 @@ function fps(ms: number): Promise<{ media: number; p5: number; quadros: number }
 
 // Gancho de diagnóstico para os testes e para a depuração: só em desenvolvimento ou com `?diagnostico` na endereço.
 if (import.meta.env.DEV || new URLSearchParams(location.search).has('diagnostico')) {
-  Object.defineProperty(window, '__atlas', { value: Object.freeze({ sessao: () => sessao.value, servicos: () => servicos.value, viewport: () => viewport.atual, fps }), configurable: true });
+  Object.defineProperty(window, '__atlas', { value: Object.freeze({ sessao: () => sessao.value, servicos: () => servicos.value, viewport: () => viewport.atual, tutor, fps }), configurable: true });
 }

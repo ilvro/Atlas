@@ -1,3 +1,4 @@
+import { Tutor } from './Tutor.tsx';
 import { useEffect } from 'preact/hooks';
 import { tratarTecla } from '../app/acoes.ts';
 import { carregando, erroInicial, iniciar, rota, servicos, sessao } from '../app/app.ts';
@@ -29,7 +30,7 @@ export function App() {
         : sessao.value && rota.value.tipo === 'mapa' ? <Editor />
         : rota.value.tipo === 'mapa' && carregando.value ? <main class="carregando" aria-busy="true">Abrindo o mapa…</main>
         : <Galeria />}
-      <Paleta /><MenuRadial /><Ajuda /><Toasts />
+      <Paleta /><MenuRadial /><Ajuda /><Toasts /><Tutor />
       <div id="transicao" class="transicao" aria-hidden="true"><i /><i /><i /></div>
     </>
   );

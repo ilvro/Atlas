@@ -1,5 +1,8 @@
 import { effect, signal } from '@preact/signals';
+import type { Recursos } from '../domain/fichas.ts';
+import type { Vista } from '../domain/inspecao.ts';
 import type { MapaAtlas } from '../domain/mapa.ts';
+import { mostrarPvNoProjetor, recursosDaPeca, recursosDasFichas } from './fichas.ts';
 import { projetarParaJogadores } from '../domain/projecao.ts';
 import type { EventoDeCena } from '../render/eventos-de-cena.ts';
 import type { Caixa } from '../render/selecao.ts';
@@ -16,7 +19,15 @@ export type MensagemDoMestre =
   | { tipo: 'camera'; caixa: Caixa }
   | { tipo: 'evento'; nome: EventoDeCena }
   | { tipo: 'relampago' }
-  | { tipo: 'retrato'; id: string; blob: Blob };
+  | { tipo: 'retrato'; id: string; blob: Blob }
+  /** PV e PD por peça (só quando o mestre quer mostrá-los no projetor; vazio esconde). */
+  | { tipo: 'recursos'; por: Record<string, Recursos> }
+  /** Uma rolagem da Ficha sobre a peça. */
+  /** A inspeção de um documento aberta para os jogadores (os dois assados), a vista e a lanterna UV (frações da imagem), e o fim. */
+  | { tipo: 'inspecao'; nome: string; normal: Blob; uv: Blob | null }
+  | { tipo: 'inspecao-estado'; vista: Vista; lanterna: { x: number; y: number } | null }
+  | { tipo: 'inspecao-fim' }
+  | { tipo: 'rolagem'; peca: string; titulo: string; total: number; tom: 'alto' | 'baixo' | 'normal' };
 export type MensagemDoProjetor =
   | { tipo: 'ola'; largura: number; altura: number }
   | { tipo: 'tamanho'; largura: number; altura: number }
@@ -48,13 +59,17 @@ export function caixaDosJogadores(m: MapaAtlas, asp: number, margem = 5): Caixa 
 export interface Publicador {
   evento(nome: EventoDeCena): void;
   relampago(): void;
+  rolagem(peca: string, titulo: string, total: number, tom: 'alto' | 'baixo' | 'normal'): void;
+  /** Abre (ou, com `null`, fecha) a inspeção de um documento no projetor. */
+  inspecao(d: { nome: string; normal: Blob; uv: Blob | null } | null): void;
+  inspecaoEstado(vista: Vista, lanterna: { x: number; y: number } | null): void;
   parar(): void;
 }
 
 /** Começa a publicar o mapa aberto para um projetor que apareça. Não faz nada pesado enquanto nenhum projetor estiver ligado. */
 export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => Promise<Blob | null>): Publicador {
   const id = s.store.documento.id;
-  if (typeof BroadcastChannel !== 'function') return { evento() {}, relampago() {}, parar() {} };
+  if (typeof BroadcastChannel !== 'function') return { evento() {}, relampago() {}, rolagem() {}, inspecao() {}, inspecaoEstado() {}, parar() {} };
   const canal = new BroadcastChannel(nomeDoCanalDoProjetor(id));
   const enviar = (m: MensagemDoMestre) => canal.postMessage(m);
   let retratosEnviados = new Set<string>(), temporizador: ReturnType<typeof setTimeout> | null = null, parado = false;
@@ -67,11 +82,19 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
       void lerAsset(rid).then(blob => { if (blob && !parado) enviar({ tipo: 'retrato', id: rid, blob }); else retratosEnviados.delete(rid); }).catch(() => retratosEnviados.delete(rid));
     }
   };
+  /** PV e PD por peça, ou nada se o mestre não quer mostrá-los. */
+  const enviarRecursos = () => {
+    if (!projetorConectado.peek() || parado) return;
+    const por: Record<string, Recursos> = {};
+    if (mostrarPvNoProjetor.peek()) for (const t of Object.values(s.store.documento.tokens)) { const r = recursosDaPeca(t); if (r) por[t.id] = r; }
+    enviar({ tipo: 'recursos', por });
+  };
   const enviarEstado = () => {
     if (!projetorConectado.peek() || parado) return;
     const m = s.store.documento;
     enviarRetratos(m);
     enviar({ tipo: 'estado', doc: projetarParaJogadores(m), versao: s.store.versaoEdicao });
+    enviarRecursos();
   };
   const agendar = () => { if (temporizador) return; temporizador = setTimeout(() => { temporizador = null; enviarEstado(); }, 100); };
 
@@ -93,12 +116,16 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
   });
   // Ligar "seguir os jogadores" enquadra na hora; a caixa publicada segue qualquer mudança (arrastar o quadro, seguir).
   const parar1 = effect(() => { if (seguirJogadores.value && projetorConectado.peek()) caixaDoProjetor.value = caixaDosJogadores(s.store.documento, aspectoDoProjetor.peek()); });
+  const parar3 = effect(() => { void recursosDasFichas.value; void mostrarPvNoProjetor.value; enviarRecursos(); });
   const parar2 = effect(() => { const c = caixaDoProjetor.value; if (c && projetorConectado.peek()) enviar({ tipo: 'camera', caixa: c }); });
 
   return {
     evento: nome => { if (projetorConectado.peek()) enviar({ tipo: 'evento', nome }); },
     relampago: () => { if (projetorConectado.peek()) enviar({ tipo: 'relampago' }); },
-    parar() { parado = true; sair(); parar1(); parar2(); if (temporizador) clearTimeout(temporizador); canal.close(); caixaDoProjetor.value = null; projetorConectado.value = false; },
+    rolagem: (peca, titulo, total, tom) => { if (projetorConectado.peek()) enviar({ tipo: 'rolagem', peca, titulo, total, tom }); },
+    inspecao: d => { if (projetorConectado.peek()) enviar(d ? { tipo: 'inspecao', nome: d.nome, normal: d.normal, uv: d.uv } : { tipo: 'inspecao-fim' }); },
+    inspecaoEstado: (vista, lanterna) => { if (projetorConectado.peek()) enviar({ tipo: 'inspecao-estado', vista, lanterna }); },
+    parar() { parado = true; sair(); parar1(); parar2(); parar3(); if (temporizador) clearTimeout(temporizador); canal.close(); caixaDoProjetor.value = null; projetorConectado.value = false; },
   };
 }
 

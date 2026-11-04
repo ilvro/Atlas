@@ -17,6 +17,7 @@ import { criarNeblina } from './neblina.ts';
 import { criarParticulas } from './particulas.ts';
 import { criarTelhados } from './telhados.ts';
 import { criarPeca, type PecaVisual } from './pecas.ts';
+import { emEstadoCritico, type Recursos } from '../domain/fichas.ts';
 import type { RetratoNoPixel } from './retratos.ts';
 import { paletaDe } from '../domain/paletas.ts';
 import { criarPresenca } from './presenca.ts';
@@ -32,6 +33,8 @@ export interface OpcoesDaCena {
   aoPintar?(): void;
   /** O retrato de uma peça (pelo id do asset), ou `null` se ainda não chegou. */
   retrato?(id: string | null | undefined, pixel?: RetratoNoPixel): Texture | null;
+  /** PV e PD da ficha ligada a uma peça (só do mestre, ou do projetor se ele quiser). */
+  recursos?(t: Peca): Recursos | null;
 }
 
 export interface Cena {
@@ -55,9 +58,11 @@ export interface Cena {
   /** Pelos olhos de quem se vê o mapa: Construir e mestre veem tudo; os jogadores só o que as suas peças enxergam, com os telhados fechados. */
   definirVista(v: Vista): void;
   /** Para os testes: como cada peça está desenhada agora (retrato, deitada, raio). */
-  diagnosticoDasPecas(): { id: string; vez: boolean; retrato: boolean; deitada: boolean; raio: number; quadro: { linha: number; coluna: number } | null }[];
+  diagnosticoDasPecas(): { id: string; vez: boolean; retrato: boolean; deitada: boolean; raio: number; quadro: { linha: number; coluna: number } | null; pips: Recursos | null; estadoVisto: string }[];
   /** Quantos objetos de piso já têm a textura pintada (sem o marcador). */
   objetosPintados(): number;
+  /** Refaz o desenho de todas as peças (chegaram PV e PD novos, por exemplo). */
+  redesenharPecas(): void;
   /** Quantas presenças estão desenhadas agora. */
   contagemDePresencas(): number;
   /** Quantas partículas de cada tipo existem agora. */
@@ -266,7 +271,8 @@ export function criarCena(op: OpcoesDaCena): Cena {
     const folha = folhaDe(t, () => { if (!destruida && !c.destroyed && mapa?.tokens[t.id]) desenharPeca(c, mapa.tokens[t.id]!, mapa); });
     const pixel = m.style.renderer === 'pixel', px = m.style.pixel;
     const noPixel: RetratoNoPixel | undefined = pixel ? { chave: `${m.style.palette}|${px.pixelsPerCell}|${t.size}|${px.dither}|${px.outline}`, lado: Math.max(8, Math.round(t.size * px.pixelsPerCell * 0.9)), paleta: paletaDe(m.style.palette).cores, dither: px.dither === 'bayer4', contorno: px.outline } : undefined;
-    v.atualizar(t, m.grid.size, op.acento(), op.retrato?.(t.portrait?.id, noPixel) ?? null, op.efeitos(), { folha, pixel });
+    const rec = op.recursos?.(t) ?? null, aparente = rec && emEstadoCritico(rec) && t.figure.state === 'normal' ? { ...t, figure: { state: 'hurt' as const } } : t;      // PV baixo: "ferida" só na tela
+    v.atualizar(aparente, m.grid.size, op.acento(), op.retrato?.(t.portrait?.id, noPixel) ?? null, op.efeitos(), { folha, pixel }, rec);
   }
 
   function desenharRegiao(c: Container, r: Regiao): void {
@@ -355,9 +361,10 @@ export function criarCena(op: OpcoesDaCena): Cena {
     definirEfeitosDeLuz: (luzes, ambiente) => luz.definirEfeitos(luzes, ambiente),
     definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); if (v !== vistaDaCena) { vistaDaCena = v; if (mapa) desenharParedes(mapa); } marcasVisiveis(); },
     diagnosticoDosTelhados: () => telhados.diagnostico(),
+    redesenharPecas() { if (mapa) sincronizarSimples(pecas, pecasC, mapa.tokens, null, (c, t) => desenharPeca(c, t, mapa!), false); },
     contagemDeParticulas: () => particulas.contagem(),
     contagemDePresencas: () => presenca.contagem(),
-    diagnosticoDasPecas: () => [...pecas.entries()].map(([id, c]) => ({ id, ...(visuais.get(c)?.estado() ?? { vez: false, retrato: false, deitada: false, raio: 0, deslizando: false, trilha: 0, quadro: null }) })),
+    diagnosticoDasPecas: () => [...pecas.entries()].map(([id, c]) => ({ id, ...(visuais.get(c)?.estado() ?? { vez: false, retrato: false, deitada: false, raio: 0, deslizando: false, trilha: 0, quadro: null, pips: null, estadoVisto: 'normal' }) })),
     objetosPintados: () => [...objetos.values()].filter(e => e.sprite !== null && !e.placeholder.visible).length,
     quadro(agora) {
       luz.quadro(agora); nevoa.quadro(agora); telhados.quadro(agora);

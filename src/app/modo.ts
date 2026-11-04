@@ -8,6 +8,8 @@ import type { Ferramenta } from '../render/pincel.ts';
  */
 export type Modo = 'construir' | 'sessao';
 export const modo = signal<Modo>('construir');
+/** A aba aberta no inspetor (o tutor confere e abre). */
+export const abaDoInspetor = signal<'mapa' | 'selecao' | 'historico'>('selecao');
 export const emSessao = (): boolean => modo.value === 'sessao';
 
 /** As ferramentas que existem na Sessão. */

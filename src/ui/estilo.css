@@ -349,3 +349,67 @@ body.projetor { overflow: hidden; background: #000; }
 /* Sprite da peça: a prévia animada e o painel. */
 .painel-sprite { display: flex; flex-direction: column; gap: 6px; padding: 4px 0 6px; }
 .previa-sprite { image-rendering: pixelated; display: block; margin: 4px auto; background: color-mix(in srgb, var(--fundo, #0b0a10) 70%, #fff 6%); border-radius: 6px; }
+
+/* Personagens da campanha (fichas) para pôr no mapa. */
+.personagens { display: flex; flex-direction: column; gap: 6px; padding: 2px 0; }
+.personagem { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border: 1px solid var(--linha); border-radius: 8px; background: rgba(255, 255, 255, 0.03); cursor: grab; }
+.personagem-nome { font: 700 12px var(--corpo); flex: 1; }
+.personagem-recursos { font: 600 11px var(--corpo); color: var(--apagado); }
+
+/* O resultado de uma rolagem da Ficha, flutuando sobre a peça (no mapa e no projetor). */
+.fx-rolagem { position: absolute; display: flex; flex-direction: column; align-items: center; pointer-events: none; text-shadow: 0 2px 10px #000, 0 0 2px #000; white-space: nowrap; }
+.fx-rolagem b { font: 900 34px var(--corpo); line-height: 1; }
+.fx-rolagem small { font: 700 11px var(--corpo); letter-spacing: 0.04em; color: #fff; opacity: 0.92; margin-top: 2px; }
+
+/* Pistas do Ateliê. */
+.pistas { display: flex; flex-direction: column; gap: 6px; padding: 2px 0; }
+.pista { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border: 1px solid var(--linha); border-radius: 8px; background: rgba(255, 255, 255, 0.03); cursor: grab; }
+.pista-miniatura { width: 34px; height: 44px; object-fit: cover; border-radius: 3px; background: #1a1a22; flex: none; }
+.pista-miniatura.vazia { display: grid; place-items: center; font-size: 18px; }
+.pista-nome { font: 700 12px var(--corpo); flex: 1; }
+.pista-uv { color: #b79adb; font-weight: 800; }
+
+/* Inspeção de pistas: o documento em tela grande (mestre e projetor). */
+.inspecao { position: absolute; inset: 0; z-index: 60; display: flex; flex-direction: column; background: rgba(6, 5, 12, 0.93); }
+.inspecao-barra { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--linha); }
+.inspecao-barra .espaco { flex: 1; }
+.inspecao-nome { font: 700 15px var(--titulo); margin-right: 8px; }
+.inspecao-area { position: relative; flex: 1; min-height: 0; cursor: grab; touch-action: none; }
+.inspecao-area:active { cursor: grabbing; }
+.visor-de-documento { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.inspecao-dica { margin: 0; padding: 6px 14px; font: 600 11px var(--corpo); color: var(--apagado); text-align: center; }
+.projetor-inspecao { position: absolute; inset: 0; z-index: 40; background: rgba(4, 3, 9, 0.95); }
+.projetor-inspecao h2 { position: absolute; left: 28px; top: 18px; margin: 0; font: 700 clamp(14px, 2vw, 24px) var(--titulo); z-index: 1; pointer-events: none; }
+
+/* O tutor: anel no alvo, marcas no mapa e o cartão do passo, sobre a interface de verdade. */
+.tutor { position: fixed; inset: 0; z-index: 90; pointer-events: none; }
+.tutor-anel { position: fixed; border: 2px solid var(--acento); border-radius: 10px; box-shadow: 0 0 0 4px color-mix(in srgb, var(--acento) 25%, transparent), 0 0 24px color-mix(in srgb, var(--acento) 55%, transparent); transition: left 0.18s, top 0.18s, width 0.18s, height 0.18s; }
+.tutor-anel.insiste { animation: tutor-pulso 1s ease-in-out infinite; }
+@keyframes tutor-pulso { 50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--acento) 40%, transparent), 0 0 34px var(--acento); } }
+.tutor-ponto { position: fixed; width: 0; height: 0; }
+.tutor-ponto i { position: absolute; left: -15px; top: -15px; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--acento); background: color-mix(in srgb, var(--acento) 25%, transparent); animation: tutor-pulso 1.4s ease-in-out infinite; }
+.tutor-ponto::after { content: attr(data-ordem); position: absolute; left: 18px; top: -26px; font: 800 12px var(--corpo); color: #fff; text-shadow: 0 1px 4px #000; }
+.tutor-cartao { position: fixed; width: min(340px, calc(100vw - 24px)); padding: 12px 14px; background: var(--painel, #15151d); border: 1px solid var(--linha); border-radius: 12px; box-shadow: 0 14px 44px rgba(0, 0, 0, 0.55); pointer-events: auto; display: flex; flex-direction: column; gap: 7px; left: 24px; top: 24px; }
+.tutor-cartao header, .tutor-cartao footer { display: flex; align-items: center; gap: 8px; }
+.tutor-cartao header .eyebrow { flex: 1; font: 800 10px var(--corpo); letter-spacing: 0.1em; text-transform: uppercase; color: var(--apagado); }
+.tutor-cartao footer { justify-content: flex-end; flex-wrap: wrap; }
+.tutor-cartao .quieto { background: none; border: 0; color: var(--apagado); font: 700 12px var(--corpo); cursor: pointer; padding: 4px 6px; }
+.tutor-cartao .quieto:hover { color: #fff; } .tutor-cartao .quieto:disabled { opacity: 0.35; cursor: default; }
+.tutor-progresso { height: 3px; background: rgba(255, 255, 255, 0.1); border-radius: 2px; overflow: hidden; } .tutor-progresso i { display: block; height: 100%; background: var(--acento); transition: width 0.25s; }
+.tutor-etapa, .tutor-sozinho { margin: 0; font: 800 10px var(--corpo); letter-spacing: 0.1em; text-transform: uppercase; color: var(--acento); }
+.tutor-diga { margin: 0; font: 600 14px/1.45 var(--corpo); } .tutor-porque { margin: 0; font: 500 12px/1.45 var(--corpo); color: var(--apagado); }
+.tutor-valores { margin: 0; padding: 6px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.06); font: 600 12px/1.5 var(--corpo); }
+.tutor-perto { display: flex; flex-direction: column; gap: 3px; font: 600 11px var(--corpo); color: var(--apagado); } .tutor-perto[hidden], .tutor-perdido[hidden] { display: none; }
+.tutor-perto i { display: block; height: 4px; background: rgba(255, 255, 255, 0.1); border-radius: 2px; overflow: hidden; } .tutor-perto b { display: block; height: 100%; width: 0; background: #7fb06a; transition: width 0.2s; }
+.tutor-perdido { margin: 0; font: 600 12px var(--corpo); color: #e0a45c; }
+.tutor-ajuda { display: flex; gap: 6px; }
+.tutor-aprendeu { margin: 0; padding-left: 18px; font: 500 12px/1.6 var(--corpo); } .tutor-aprendeu kbd { font: 700 11px var(--corpo); padding: 1px 5px; border: 1px solid var(--linha); border-radius: 4px; }
+
+/* A lista de tutoriais na galeria. */
+.aprender { margin: 8px 0 18px; padding: 14px 16px; border: 1px solid var(--linha); border-radius: 12px; background: rgba(255, 255, 255, 0.025); display: flex; flex-direction: column; gap: 8px; }
+.aprender-pasta { display: flex; flex-direction: column; gap: 6px; }
+.aprender-licao { padding: 8px 10px; border: 1px solid var(--linha); border-radius: 10px; }
+.aprender-licao h4 { margin: 0 0 4px; font: 700 14px var(--titulo); } .aprender-licao small { font: 600 11px var(--corpo); color: var(--apagado); } .aprender-feita { color: #7fb06a; font: 700 11px var(--corpo); }
+.aprender-acoes { display: flex; gap: 8px; }
+.tutor-alvo { margin: 0; display: flex; flex-direction: column; gap: 4px; } .tutor-alvo[hidden] { display: none; }
+.tutor-alvo img { width: 100%; border-radius: 8px; border: 1px solid var(--linha); display: block; } .tutor-alvo figcaption { font: 600 11px var(--corpo); color: var(--apagado); }

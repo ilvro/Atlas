@@ -83,3 +83,28 @@ export function voar(de: Retangulo | null, para: Retangulo | null, { quantidade 
     }
   });
 }
+
+/** A cor do número de uma rolagem: destaque só visual, o Atlas não decide sucesso. */
+export const COR_DA_ROLAGEM = { alto: '#ffd23f', baixo: '#e0645c', normal: '#ffffff' } as const;
+
+/**
+ * O resultado de uma rolagem sobre uma peça: o total grande, o título pequeno embaixo, e faíscas no acento. Aparece mesmo com os efeitos
+ * desligados (é informação, não enfeite); nesse caso só some depois de um tempo, sem se mover.
+ */
+export function flutuarRolagem(onde: Retangulo | null, total: number, titulo: string, tom: keyof typeof COR_DA_ROLAGEM, acento = '#e91d25'): HTMLElement {
+  const el = document.createElement('div');
+  el.className = 'fx-rolagem'; el.setAttribute('data-testid', 'rolagem-flutuante'); el.dataset.tom = tom; el.style.color = COR_DA_ROLAGEM[tom];
+  el.style.left = `${onde ? onde.left + onde.width / 2 : innerWidth / 2}px`; el.style.top = `${onde ? onde.top : innerHeight / 2}px`;
+  const n = document.createElement('b'), t = document.createElement('small'); n.textContent = String(total); t.textContent = titulo; el.append(n, t);
+  camadaDeFx().appendChild(el);
+  if (fxAtivo()) {
+    el.animate([
+      { transform: 'translate(-50%, -100%) scale(0.6)', opacity: 0 },
+      { transform: 'translate(-50%, -130%) scale(1.25)', opacity: 1, offset: 0.18 },
+      { transform: 'translate(-50%, -150%) scale(1)', opacity: 1, offset: 0.75 },
+      { transform: 'translate(-50%, -175%) scale(1)', opacity: 0 },
+    ], { duration: 2600, easing: 'ease-out', fill: 'forwards' }).onfinish = () => el.remove();
+    faiscar(onde, { cor: tom === 'normal' ? acento : COR_DA_ROLAGEM[tom], quantidade: tom === 'normal' ? 10 : 18, alcance: 56 });
+  } else { el.style.transform = 'translate(-50%, -140%)'; setTimeout(() => el.remove(), 2600); }
+  return el;
+}

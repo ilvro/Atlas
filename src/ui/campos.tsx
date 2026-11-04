@@ -5,7 +5,7 @@ import { tocar } from '../fx/som.ts';
 
 /** Um campo do inspetor: rótulo à esquerda, controle à direita. */
 export const Linha = ({ rotulo, dica, children }: { rotulo: string; dica?: string; children: ComponentChildren }) => (
-  <label class="linha" title={dica}><span class="linha-rotulo">{rotulo}</span><span class="linha-controle">{children}</span></label>
+  <label class="linha" title={dica} data-campo={rotulo}><span class="linha-rotulo">{rotulo}</span><span class="linha-controle">{children}</span></label>
 );
 
 /** Rodar uma edição: se o comando for recusado, mostra o motivo e o campo volta ao valor do mapa. */
