@@ -18,6 +18,12 @@ let regraInicial: RegraDeDiagonal = 'simples';
 try { if (localStorage.getItem(CHAVE_REGUA) === 'alternada') regraInicial = 'alternada'; } catch { /* sem armazenamento: padrão simples */ }
 export const regraDaRegua = signal<RegraDeDiagonal>(regraInicial);
 export function definirRegraDaRegua(r: RegraDeDiagonal): void { regraDaRegua.value = r; try { localStorage.setItem(CHAVE_REGUA, r); } catch { /* ignora */ } }
+/** Preferência local: quanto dura a transição entre dois climas, em ms (`null` = o padrão do viewport). */
+const CHAVE_DURACAO = 'atlas:duracao-do-clima';
+let duracaoInicial: number | null = null;
+try { const v = Number(localStorage.getItem(CHAVE_DURACAO)); if (Number.isFinite(v) && v > 0) duracaoInicial = v; } catch { /* sem armazenamento: padrão */ }
+export const duracaoDoClima = signal<number | null>(duracaoInicial);
+export function definirDuracaoDoClima(ms: number): void { duracaoDoClima.value = ms; try { localStorage.setItem(CHAVE_DURACAO, String(ms)); } catch { /* ignora */ } }
 export const ROTULO_DO_MODO: Record<Modo, string> = { construir: 'Construir', sessao: 'Sessão' };
 
 /** Na Sessão, ver o mapa como os jogadores veem (névoa). Em Construir o mestre vê sempre tudo. */

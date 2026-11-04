@@ -421,3 +421,74 @@ test('portas secretas: parecem parede na vista de jogador mesmo abertas, até o 
   assert.equal(await page.evaluate(() => (window as unknown as { __atlas: { sessao(): { rotuloDesfazer: { value: string } } } }).__atlas.sessao().rotuloDesfazer.value), 'Revelar aos jogadores');
   assert.deepEqual(erros, []); await ctx.close();
 });
+
+const historico = (p: Page) => sessao(p, '(s) => s.store.historico.length') as Promise<number>;
+const eventosDiag = (p: Page) => p.evaluate(() => (window as unknown as { __atlas: { viewport(): { diagnosticoDosEventos(): { ativos: string[]; ambiente: number; luzes: number; clarao: number } } } }).__atlas.viewport().diagnosticoDosEventos());
+
+test('dock: o clima ao vivo muda com a transição escolhida (o meio de 3 s fica entre os dois brilhos)', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await sessao(page, '(s) => s.store.executar({ tipo: "terreno.base", material: "grama" })'); await page.waitForTimeout(500);
+  assert.equal(await page.locator('[data-testid="dock"]').count(), 0, 'o dock só existe na Sessão');
+  await page.click('[data-testid="modo-sessao"]'); await page.locator('[data-testid="dock"]').waitFor();
+  const area: [[number, number], [number, number]] = [[3, 3], [12, 12]];
+  await page.click('[data-testid="dock-clima-tarde"]'); await page.waitForTimeout(2500);
+  const dia = await brilho(page, ...area);
+  await page.click('[data-testid="dock-duracao-3"]'); assert.equal(await page.locator('[data-testid="dock-duracao-3"]').getAttribute('aria-pressed'), 'true');
+  await page.click('[data-testid="dock-clima-noite"]'); await page.waitForTimeout(1500);
+  assert.equal((await documento(page)).climate.preset, 'noite');
+  const meio = await brilho(page, ...area); await page.waitForTimeout(3200);
+  const noite = await brilho(page, ...area);
+  console.log(`# brilho dia/meio/noite: ${dia.toFixed(1)} / ${meio.toFixed(1)} / ${noite.toFixed(1)}`);
+  assert.ok(noite < meio - 3 && meio < dia - 3, `o meio da transição fica entre os dois (${dia} > ${meio} > ${noite})`);
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('dock: eventos de cena não mudam o documento; arrastar a intensidade de uma presença é uma entrada de histórico', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await sessao(page, '(s) => s.store.executar({ tipo: "item.adicionar", colecao: "presence", item: { id: "pr1", brush: "musgo", cells: [[4, 4, 6]], intensity: 0, seed: 3, gmOnly: false } })');
+  await page.click('[data-testid="modo-sessao"]'); await page.locator('[data-testid="dock"]').waitFor();
+  const antes = JSON.stringify(await documento(page)), n0 = await historico(page);
+  for (const e of ['tremor', 'piscar', 'escurecer', 'clarao']) {
+    await page.click(`[data-testid="dock-evento-${e}"]`); await page.waitForTimeout(60);
+    assert.ok((await eventosDiag(page)).ativos.includes(e), `${e} está rodando`);
+  }
+  const d = await eventosDiag(page); assert.ok(d.ambiente < 1 || d.luzes < 1 || d.clarao > 0, 'os eventos têm efeito');
+  assert.equal(JSON.stringify(await documento(page)), antes, 'eventos de cena não mudam o documento'); assert.equal(await historico(page), n0);
+  // Presença: arrastar de 0 a 1.
+  await page.click('[data-testid="dock-titulo-presenca"]');
+  const slider = page.locator('[data-testid="dock-presenca-pr1"]'), caixa = (await slider.boundingBox())!;
+  await page.mouse.move(caixa.x + 3, caixa.y + caixa.height / 2); await page.mouse.down();
+  await page.mouse.move(caixa.x + caixa.width / 2, caixa.y + caixa.height / 2, { steps: 6 }); await page.waitForTimeout(100);
+  const meio = (await documento(page)).presence.pr1!.intensity; assert.ok(meio > 0.2 && meio < 0.8, `ao vivo, no meio do arrasto (${meio})`);
+  await page.mouse.move(caixa.x + caixa.width + 20, caixa.y + caixa.height / 2, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(200);
+  assert.ok((await documento(page)).presence.pr1!.intensity > 0.95, 'chegou a 1');
+  assert.equal(await historico(page), n0 + 1, 'o arrasto inteiro é UMA entrada de histórico');
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('dock: iniciativa com duas peças — a faixa segue a ordem, passar a vez duas vezes sobe a rodada, a peça da vez ganha o anel e encerrar limpa', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await sessao(page, `(s, a) => { s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.a }); s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.b }); }`, { a: peca('a', 'Ana', 5.25, 5.25), b: peca('b', 'Beto', 9.75, 5.25) });
+  await page.click('[data-testid="modo-sessao"]'); await page.locator('[data-testid="dock"]').waitFor();
+  await page.click('[data-testid="dock-titulo-iniciativa"]');
+  await page.locator('[data-testid="dock-iniciativa-valor-a"]').fill('10'); await page.locator('[data-testid="dock-iniciativa-valor-b"]').fill('15');
+  await page.click('[data-testid="dock-iniciativa-comecar"]'); await page.locator('[data-testid="faixa-iniciativa"]').waitFor();
+  const ini = async () => (await documento(page)).session.initiative!;
+  assert.deepEqual((await ini()).order.map(x => x.tokenId), ['b', 'a']);
+  const vez = async () => (await diag(page)).filter(x => (x as unknown as { vez: boolean }).vez).map(x => x.id);
+  await page.waitForTimeout(200); assert.deepEqual(await vez(), ['b'], 'o anel está na peça da vez');
+  assert.equal(await page.locator('[data-testid="iniciativa-entrada-b"]').getAttribute('data-atual'), 'true');
+  await page.click('[data-testid="iniciativa-proxima"]'); await page.waitForTimeout(200); assert.deepEqual(await vez(), ['a']); assert.equal((await ini()).round, 1);
+  await page.click('[data-testid="iniciativa-proxima"]'); await page.waitForTimeout(200);
+  assert.equal((await ini()).round, 2); assert.equal((await ini()).current, 0); assert.match((await page.locator('[data-testid="iniciativa-rodada"]').textContent()) ?? '', /Rodada 2/);
+  await page.click('[data-testid="iniciativa-anterior"]'); await page.waitForTimeout(150); assert.equal((await ini()).round, 1, 'voltar desce a rodada');
+  await page.locator('[data-testid="iniciativa-valor-a"]').fill('99'); await page.locator('[data-testid="iniciativa-valor-a"]').press('Tab'); await page.waitForTimeout(150);
+  assert.deepEqual((await ini()).order.map(x => x.tokenId), ['a', 'b'], 'editar o valor reordena');
+  await page.click('[data-testid="iniciativa-encerrar"]'); await page.waitForTimeout(200);
+  assert.equal((await documento(page)).session.initiative, null); assert.equal(await page.locator('[data-testid="faixa-iniciativa"]').count(), 0);
+  assert.deepEqual(await vez(), [], 'sem anel depois de encerrar');
+  assert.deepEqual(erros, []); await ctx.close();
+});

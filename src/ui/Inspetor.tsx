@@ -99,7 +99,7 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 const canais = (hex: string) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
 /** Uma amostra do clima: o matiz do ambiente, tingido pelo acabamento, mais escuro quanto menos luz houver. */
-function amostraDoClima(c: Omit<Clima, 'preset'>, f: Omit<Acabamento, 'preset'>): string {
+export function amostraDoClima(c: Omit<Clima, 'preset'>, f: Omit<Acabamento, 'preset'>): string {
   const a = canais(c.ambient.color), t = canais(f.tint), cor = (v: number[]) => `rgb(${v.map(x => Math.round(clamp01(x) * 255)).join(',')})`;
   const base = a.map((x, i) => x * t[i]! * (0.3 + 0.7 * clamp01(c.ambient.intensity))), brilho = c.sun ? canais(c.sun.color).map(x => x * (0.35 + 0.65 * clamp01(c.sun!.intensity))) : base;
   return `linear-gradient(135deg, ${cor(base)} 0%, ${cor(base)} 55%, ${cor(brilho)} 100%)`;

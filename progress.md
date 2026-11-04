@@ -259,7 +259,7 @@ Nada disso é erro de lógica: é densidade e acabamento do acervo, que cresce c
 - Os enfeites de mesa são postos em posição sorteada sobre o móvel: não há ainda arrumação (alinhados, em bandeja) nem se sabe a altura do móvel.
 - O estilo Pixel (Fase 8) ainda não rasteriza as descrições dos geradores pesados.
 
-## Fase 7 — Sessão (em andamento: 7.0, 7.1, 7.2 e 7.3 feitas, a pedido; o resto da fase não foi começado)
+## Fase 7 — Sessão (em andamento: 7.0 a 7.4 feitas, a pedido; o resto da fase não foi começado)
 
 - **7.0b Documento v5** — `Peca.player`, `Objeto.interaction`, `Sessao.explored` (células + resolução); migração `de4para5`, validação (luz inexistente em `targets`, `res` 0,25–2) e `assetsDoMapa` sem o explorado. Commit: `document v5 for session`.
 - **7.0a Modos Construir e Sessão** — `app/modo.ts`, chave no cabeçalho, atalho `M`, faixa "SESSÃO"; na sessão somem biblioteca, pílula, fantasma e ferramentas de construir, e a paleta só oferece o que vale. Abrir outro mapa volta a Construir. Commit: `build and session modes`.
@@ -272,13 +272,16 @@ Nada disso é erro de lógica: é densidade e acabamento do acervo, que cresce c
 - **7.3a Portas na sessão** — clicar numa porta a abre/fecha (Shift+clique só seleciona); trancada avisa "Trancada"; cartão da porta na sessão (abrir/fechar, trancar/destrancar, "Revelar aos jogadores" nas secretas); `Enter` com uma peça selecionada interage com a porta ao alcance (1,2 m do vão, a da frente primeiro). Comandos `sessao.explorar` e `sessao.revelar` para aberturas; secreta não revelada é parede na vista de jogador e para a visão; revelar emite `atlas.revelado`. Commit: `doors in session`.
 - **7.3b Régua em quadrados** — `domain/regua.ts` (`distanciaEmQuadrados`, regra simples/alternada, `pontosDaRegua`); ferramenta `regua` (tecla `R` só na Sessão, nas duas vistas): arrastar mede, clique faz dobra, Esc limpa, "6 quadrados · 9 m"; preferência "Diagonal" na aba Mapa. Não mexe no documento. Commit: `ruler in squares`.
 - **7.3c Iniciativa** — `domain/iniciativa.ts` (`ordenar`, `iniciar`, `passo`, `definirValor`, `podar`, portado do Tabletop) e comandos `iniciativa.iniciar/passo/valor/encerrar`. Sem interface (7.4c). Commit: `initiative`.
+- **7.4a Dock: clima ao vivo** — `ui/Dock.tsx` (só na Sessão, pílulas no pé do mapa, seções que recolhem): climas predefinidos e salvos, "Relâmpago" e duração da transição (1, 3, 8, 20 s; preferência local). `viewport.definirDuracaoDaTransicao`. Commit: `session dock with live climate`.
+- **7.4b Dock: eventos de cena e presença** — tremor, luzes piscam, escurecer e clarão (`render/eventos-de-cena.ts`, nada vai ao documento; movimento reduzido troca o tremor por clarão); controle de intensidade por presença, o arrasto é uma entrada de histórico e a presença reage ao vivo. Commit: `scene events and live presence`.
+- **7.4c Dock: iniciativa** — montar com as peças selecionadas (ou todas) e valores, `FaixaDeIniciativa` com retratos, rodada, ‹ ›, editar valor e encerrar; anel pulsante na peça da vez. Commit: `initiative in the dock`.
 - **Validação:** `tsc` limpo; testes unitários `figuras`, `movimento` (10), `nevoa` (7) e `dominio`; e2e `fase7` (modos ×2, retrato/estado, movimento com parede, porta fechada, porta aberta e Alt, lanterna, visão, memória, telhado, revelação; capturas em `test-results/fase7-*.png`).
 - **Desvios:** a névoa fica **sob** as partículas só em parte (a chuva e a neblina ficam sob a névoa, para não vazar o que não se vê); o telhado é desenhado **sobre** a névoa e só aparece se algum pedaço do cômodo, ou o lado de fora das paredes, está à vista ou explorado (senão um telhado revelaria casas nunca vistas); a borda "tinta escorrendo" da subida não foi feita; na sessão só as peças se movem e ajustam (o resto só se seleciona); `FERRAMENTAS_DA_SESSAO` ainda sem a régua (feita na 7.3b).
-- **Pendente da fase:** 7.4 em diante (dock, projetor, interagíveis, validação 7.7). Validação da 7.3: `tsc` limpo, 429 unitários e 61 e2e passando (novos: `regua`, `iniciativa`, `interacao`; e2e de régua, portas, Enter e secretas). Medido no e2e (Chromium headless): 60,5 quadros por segundo na vista de jogador com 2 peças e 10 luzes.
+- **Pendente da fase:** 7.5 em diante (projeção filtrada, projetor, interagíveis, validação 7.7). Validação da 7.4: `tsc` limpo, 429 unitários e 64 e2e passando (novos: clima ao vivo com transição de 3 s, eventos e presença, iniciativa). Validação da 7.3: `tsc` limpo, 429 unitários e 61 e2e passando (novos: `regua`, `iniciativa`, `interacao`; e2e de régua, portas, Enter e secretas). Medido no e2e (Chromium headless): 60,5 quadros por segundo na vista de jogador com 2 peças e 10 luzes.
 
 ## Próximo
 
-A Fase 7 está em andamento (7.0 a 7.3 feitas; próximas: 7.4 ou 7.5a). A Fase 6 está concluída, menos a 6.2b (importar os achados), que espera a sua decisão sobre [docs/curadoria.md](docs/curadoria.md). Próximo: Fase 7 ([docs/plano/fase-7.md](docs/plano/fase-7.md)); detalhar com o Opus antes de começar. Da Fase 3 só resta a P3c ([docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md)).
+A Fase 7 está em andamento (7.0 a 7.4 feitas; próximas: 7.5a). A Fase 6 está concluída, menos a 6.2b (importar os achados), que espera a sua decisão sobre [docs/curadoria.md](docs/curadoria.md). Próximo: Fase 7 ([docs/plano/fase-7.md](docs/plano/fase-7.md)); detalhar com o Opus antes de começar. Da Fase 3 só resta a P3c ([docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md)).
 
 ## Pendências
 

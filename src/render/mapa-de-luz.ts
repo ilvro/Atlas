@@ -22,6 +22,8 @@ export interface MapaDeLuz {
   definirLigado(ligado: boolean): void;
   /** Dispara um relâmpago agora (e o trovão, se o som estiver ligado). */
   relampagoAgora(): void;
+  /** Eventos de cena: multiplicam a intensidade de todas as luzes (piscar) e a do ambiente (escurecer). 1 = sem efeito. */
+  definirEfeitos(luzes: number, ambiente: number): void;
   destruir(): void;
 }
 
@@ -46,7 +48,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
   let sujo = true, ligado = true, destruido = false, contador = 0;
   // O estado do momento (clima): o mapa atual, se é noite, a queda de energia, o relâmpago e os trovões a caminho.
   let mapa: MapaAtlas | null = null, noite = false, redeAnterior: boolean | null = null, queda = 0, volta = 0;
-  let flash = 0, forcaDoRaio = 0, proximoRaio = Infinity, ultimoQuadro = -1, claraoAtual = 0;
+  let efLuzes = 1, efAmbiente = 1, flash = 0, forcaDoRaio = 0, proximoRaio = Infinity, ultimoQuadro = -1, claraoAtual = 0;
   const trovoes: number[] = [];
 
   function dimensionar(m: MapaAtlas): void {
@@ -88,7 +90,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
   function renderizar(): void {
     if (!brutaRT || !finalRT) return;
     renderer.render({ container: raiz, target: brutaRT, clear: true, clearColor: [0, 0, 0, 0] });
-    const brilho = claraoAtual * 0.35, amb: [number, number, number, number] = [Math.min(1, ambiente[0] + brilho), Math.min(1, ambiente[1] + brilho), Math.min(1, ambiente[2] + brilho), 1];
+    const brilho = claraoAtual * 0.35, amb: [number, number, number, number] = [Math.min(1, ambiente[0] * efAmbiente + brilho), Math.min(1, ambiente[1] * efAmbiente + brilho), Math.min(1, ambiente[2] * efAmbiente + brilho), 1];
     renderer.render({ container: composicao, target: finalRT, clear: true, clearColor: amb });
     sujo = false;
   }
@@ -137,7 +139,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
         const nivel = nivelDaLuz(l, mapa, queda > 0 ? { redeLigada: true, noite } : { noite });
         const piscar = !daRede ? 1 : queda > 0 ? piscarDaQueda(queda) : volta > 0 ? piscarDaVolta(volta) : 1;
         const janela = l.id.startsWith('janela:');          // só a luz do céu pelas janelas leva o clarão
-        let k = nivel * piscar * Math.min(1, l.intensity);
+        let k = nivel * piscar * efLuzes * Math.min(1, l.intensity);
         if (k > 0 && l.flicker > 0) k *= 1 - l.flicker * 0.7 * ((ruido(t * 9 + g.semente, g.semente) + 0.5 * ruido(t * 23, g.semente + 9)) / 1.5);
         if (janela) k = Math.min(1, k + clarao * 1.2);
         if (Math.abs(k - g.alfa) > 1e-3) { g.alfa = k; g.s.alpha = k; g.c.visible = k > 0.01; sujo = true; }
@@ -146,6 +148,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       if (sujo) renderizar();
     },
     relampagoAgora: disparar,
+    definirEfeitos(luzes, ambiente) { if (luzes === efLuzes && ambiente === efAmbiente) return; efLuzes = luzes; efAmbiente = ambiente; sujo = true; },
     definirLigado(v) { ligado = v; sprite.visible = v; if (v) sujo = true; },
     destruir() {
       destruido = true; for (const g of luzes.values()) g.c.destroy({ children: true }); luzes.clear();

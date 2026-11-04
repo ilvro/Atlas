@@ -225,7 +225,7 @@ Pronto quando: testes passam.
 Commit: initiative
 Nota: `remover` (comandos.ts) passou a usar `podar`, que devolve `null` quando ninguém sobra.
 
-### 7.4a — Dock: clima ao vivo  ⬜
+### 7.4a — Dock: clima ao vivo  ✅
 Objetivo: na sessão, trocar o clima, ajustar quanto dura a transição e soltar um relâmpago sem abrir o inspetor.
 Depende de: 7.0a
 Ler: `src/ui/Inspetor.tsx` (`SeletorDeClima`); `src/app/app.ts` (`aplicarClima`); `src/render/viewport.ts` (`DURACAO_DA_TRANSICAO`, `relampagoAgora`); `docs/INTERFACE.md` (dock flutuante).
@@ -238,8 +238,9 @@ Não fazer: eventos de cena; iniciativa.
 Testes: e2e: na sessão, clicar "Noite" no dock muda o clima com a transição escolhida (o meio da transição de 3 s fica entre os dois brilhos).
 Pronto quando: o teste passa.
 Commit: session dock with live climate
+Nota: a duração da transição começa sem escolha (padrão de 1,6 s do viewport); só vira preferência local (`atlas:duracao-do-clima`) quando se clica 1, 3, 8 ou 20 s. As seções do dock recolhem (clima e cena abertas por padrão).
 
-### 7.4b — Dock: eventos de cena e presença  ⬜
+### 7.4b — Dock: eventos de cena e presença  ✅
 Objetivo: efeitos curtos de cena (tremor, piscar das luzes, escurecer, clarão) e a intensidade das presenças, ao vivo.
 Depende de: 7.4a
 Ler: `src/render/viewport.ts` (câmera, `relampagoAgora`); `src/render/mapa-de-luz.ts` (piscar do apagão, 4.3a); `src/render/presenca.ts`; `src/ui/Inspetor.tsx` (seção Presença).
@@ -252,8 +253,9 @@ Não fazer: eventos com som (o Jukebox é da 9.4).
 Testes: e2e: arrastar a intensidade de uma presença de 0 a 1 é uma entrada de histórico; `tremor` não muda o documento.
 Pronto quando: os testes passam.
 Commit: scene events and live presence
+Nota: os eventos vivem em `render/eventos-de-cena.ts`; piscar e escurecer entram em `mapa-de-luz.ts` por `definirEfeitos`, o clarão é um branco sobre o palco e o tremor desloca o `mundo`. O arrasto do controle de presença é um gesto único.
 
-### 7.4c — Dock: iniciativa  ⬜
+### 7.4c — Dock: iniciativa  ✅
 Objetivo: montar e conduzir a iniciativa pelo dock, com a faixa de retratos.
 Depende de: 7.3c, 7.4a, 7.1a
 Ler: `src/domain/iniciativa.ts`; `Tabletop/src/ui/initiative-panel.js` (`initiativeStrip`).
@@ -266,6 +268,7 @@ Não fazer: rolar dados.
 Testes: e2e: começar com duas peças, passar a vez duas vezes sobe a rodada; encerrar limpa.
 Pronto quando: o teste passa.
 Commit: initiative in the dock
+Nota: `FaixaDeIniciativa` recebe os dados por props (`ini`, `pecas`, `lerRetrato`) e só edita valores se receber `aoEditarValor`, para o projetor (7.5b) reusá-la. O anel da vez é `definirVez` em `render/pecas.ts`.
 
 ### 7.5a — Projeção filtrada  ⬜
 Objetivo: dado o mapa, o mapa que os jogadores podem ver, sem nada do mestre.

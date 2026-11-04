@@ -46,12 +46,14 @@ export interface Cena {
   definirAtmosfera(ligada: boolean): void;
   /** Um relâmpago agora (com trovão, se o som estiver ligado). */
   relampagoAgora(): void;
+  /** Eventos de cena: multiplicadores da intensidade das luzes e do ambiente. */
+  definirEfeitosDeLuz(luzes: number, ambiente: number): void;
   /** Para os testes: a opacidade de cada telhado. */
   diagnosticoDosTelhados(): ReturnType<ReturnType<typeof criarTelhados>['diagnostico']>;
   /** Pelos olhos de quem se vê o mapa: Construir e mestre veem tudo; os jogadores só o que as suas peças enxergam, com os telhados fechados. */
   definirVista(v: Vista): void;
   /** Para os testes: como cada peça está desenhada agora (retrato, deitada, raio). */
-  diagnosticoDasPecas(): { id: string; retrato: boolean; deitada: boolean; raio: number }[];
+  diagnosticoDasPecas(): { id: string; vez: boolean; retrato: boolean; deitada: boolean; raio: number }[];
   /** Quantos objetos de piso já têm a textura pintada (sem o marcador). */
   objetosPintados(): number;
   /** Quantas presenças estão desenhadas agora. */
@@ -294,6 +296,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       // Os marcadores das luzes também refletem o clima (apagada pela rede ou pelo dia), então refazem quando ele muda.
       if (tudo || colecao('lights') || campos('climate')) sincronizarSimples(luzes, luzesC, m.lights, tudo || campos('climate') ? null : mud!.colecoes.lights ?? null, (c, l) => desenharLuz(c, l, m), comPop);
       if (tudo || colecao('tokens') || campos('grid')) sincronizarSimples(pecas, pecasC, m.tokens, tudo || campos('grid') ? null : mud!.colecoes.tokens ?? null, (c, t) => desenharPeca(c, t, m), comPop);
+      { const vezDe = m.session.initiative?.order[m.session.initiative.current]?.tokenId; for (const [id, c] of pecas) visuais.get(c)?.definirVez(id === vezDe); }
       if (tudo || colecao('regions')) sincronizarSimples(regioes, regioesC, m.regions, tudo ? null : mud!.colecoes.regions ?? null, desenharRegiao, comPop);
       if (tudo || campos('backdrop', 'bounds')) sincronizarTitulo(m);
       op.baker.coletar(chavesEmUso());
@@ -304,11 +307,12 @@ export function criarCena(op: OpcoesDaCena): Cena {
     },
     definirAtmosfera: ligada => { luz.definirLigado(ligada); neblina.definirLigado(ligada); particulas.definirLigado(ligada); },
     relampagoAgora: () => luz.relampagoAgora(),
+    definirEfeitosDeLuz: (luzes, ambiente) => luz.definirEfeitos(luzes, ambiente),
     definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); if (v !== vistaDaCena) { vistaDaCena = v; if (mapa) desenharParedes(mapa); } },
     diagnosticoDosTelhados: () => telhados.diagnostico(),
     contagemDeParticulas: () => particulas.contagem(),
     contagemDePresencas: () => presenca.contagem(),
-    diagnosticoDasPecas: () => [...pecas.entries()].map(([id, c]) => ({ id, ...(visuais.get(c)?.estado() ?? { retrato: false, deitada: false, raio: 0, deslizando: false, trilha: 0 }) })),
+    diagnosticoDasPecas: () => [...pecas.entries()].map(([id, c]) => ({ id, ...(visuais.get(c)?.estado() ?? { vez: false, retrato: false, deitada: false, raio: 0, deslizando: false, trilha: 0 }) })),
     objetosPintados: () => [...objetos.values()].filter(e => e.sprite !== null && !e.placeholder.visible).length,
     quadro(agora) {
       luz.quadro(agora); nevoa.quadro(agora); telhados.quadro(agora);

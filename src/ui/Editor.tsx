@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'preact/hooks';
 import { signal, useSignalEffect } from '@preact/signals';
 import { acaoPorId, executarAcao } from '../app/acoes.ts';
-import { FERRAMENTAS_DA_SESSAO, modo, regraDaRegua, vistaAtual } from '../app/modo.ts';
+import { FERRAMENTAS_DA_SESSAO, duracaoDoClima, modo, regraDaRegua, vistaAtual } from '../app/modo.ts';
 import { acabamentoLigado, adicionarEm, alternarPorta, aoColocar, focarNoComodo, menuRadial, servicos, sessao, viewport as viewportAtual } from '../app/app.ts';
 import { mostrarAtalho } from '../app/atalhos.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
@@ -14,6 +14,7 @@ import { criarViewport, type PonteViewport, type Viewport } from '../render/view
 import { Biblioteca } from './Biblioteca.tsx';
 import { CartaoContextual } from './CartaoContextual.tsx';
 import { Icone } from './Icone.tsx';
+import { Dock } from './Dock.tsx';
 import { Inspetor } from './Inspetor.tsx';
 import { PilulaDeSugestao } from './PilulaDeSugestao.tsx';
 
@@ -64,6 +65,7 @@ function ponteDa(s: SessaoDeEdicao): PonteViewport {
     emSessao: () => modo.value === 'sessao',
     vista: vistaAtual,
     regraDaRegua: () => regraDaRegua.peek(),
+    duracaoDaTransicao: () => duracaoDoClima.peek(),
     aoInteragir: alvo => { if (alvo.colecao === 'openings') alternarPorta(alvo.id); },
     lerRetrato: async id => (await servicos.peek()?.repo.obterAsset(id))?.blob ?? null,
   };
@@ -81,6 +83,7 @@ function AreaDoMapa({ s }: { s: SessaoDeEdicao }) {
   }, [s]);
   // A seleção, a ferramenta e o pincel vivem em signals; o viewport só precisa saber que deve redesenhar as sobreposições.
   useSignalEffect(() => { s.selecao.value; s.ferramenta.value; s.pincel.value; acabamentoLigado.value; vistaAtual(); regraDaRegua.value; viewportAtual.atual?.atualizarSobreposicoes(); });
+  useSignalEffect(() => { const d = duracaoDoClima.value; if (d) viewportAtual.atual?.definirDuracaoDaTransicao(d); });
   useSignalEffect(() => { tema.value; requestAnimationFrame(() => viewportAtual.atual?.redesenhar()); });
   useEffect(() => {
     let quadro = 0;
@@ -119,7 +122,7 @@ export function Editor() {
     <div class="editor" data-testid="editor">
       <Ferramentas s={s} />
       <Biblioteca s={s} />
-      <div class="area-com-cartao"><AreaDoMapa s={s} /><CartaoContextual s={s} />{modo.value === 'construir' && <PilulaDeSugestao s={s} />}</div>
+      <div class="area-com-cartao"><AreaDoMapa s={s} /><CartaoContextual s={s} />{modo.value === 'sessao' && <Dock s={s} />}{modo.value === 'construir' && <PilulaDeSugestao s={s} />}</div>
       <Inspetor />
       <BarraDeEstado s={s} />
     </div>

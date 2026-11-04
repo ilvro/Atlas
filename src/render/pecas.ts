@@ -10,15 +10,18 @@ export interface PecaVisual {
   atualizar(t: Peca, tamanhoDaCelula: number, acento: number, tex: Texture | null, animar?: boolean): void;
   /** Animação do pulso, do tremor, do deslize e da trilha; `ms` é o relógio. Parada com `efeitos` desligados. */
   quadro(ms: number, efeitos: boolean): void;
+  /** É a vez desta peça na iniciativa? Ganha um anel pulsante por fora. */
+  definirVez(vez: boolean): void;
   /** Para os testes e o diagnóstico. */
-  estado(): { retrato: boolean; deitada: boolean; raio: number; deslizando: boolean; trilha: number };
+  estado(): { vez: boolean; retrato: boolean; deitada: boolean; raio: number; deslizando: boolean; trilha: number };
 }
 
 const MS_POR_CELULA = 160, MS_MAXIMO = 600, MS_DA_TRILHA = 2000;
 
 export function criarPeca(): PecaVisual {
-  const c = new Container(), trilha = new Graphics(), corpo = new Container(), anel = new Graphics(), marca = new Graphics();
-  c.addChild(trilha, corpo, anel, marca);
+  const c = new Container(), trilha = new Graphics(), corpo = new Container(), anel = new Graphics(), marca = new Graphics(), vezG = new Graphics();
+  c.addChild(trilha, vezG, corpo, anel, marca);
+  let vez = false;
   let desliza: { de: Ponto; para: Ponto; t0: number; dur: number } | null = null, rastro: { de: Ponto; para: Ponto; t0: number }[] = [], alvo: Ponto | null = null, cor0 = 0xffffff, grade0 = 1;
   let pulso = 0, tremor = 0, raio = 0.5, tem = false, deitada = false, semente = Math.random() * 100;
 
@@ -61,6 +64,10 @@ export function criarPeca(): PecaVisual {
         c.position.set(desliza.de[0] + (desliza.para[0] - desliza.de[0]) * e, desliza.de[1] + (desliza.para[1] - desliza.de[1]) * e);
         if (k >= 1) desliza = null;
       }
+      if (vez) {
+        const f = efeitos ? 0.5 + 0.5 * Math.sin((ms / 1000) * Math.PI * 2) : 0.5;
+        vezG.clear().circle(0, 0, raio * (1.18 + 0.16 * f)).stroke({ width: 0.09, color: 0xffd23f, alpha: 0.95 - 0.5 * f });
+      }
       rastro = rastro.filter(r => ms - r.t0 < MS_DA_TRILHA);
       trilha.clear();
       for (const r of rastro) {
@@ -75,7 +82,8 @@ export function criarPeca(): PecaVisual {
       if (pulso) { const f = 0.5 + 0.5 * Math.sin(t * Math.PI * 2.4); anel.alpha = 0.45 + 0.55 * f; anel.scale.set(1 + 0.1 * f * pulso); }
       if (tremor) corpo.position.set(Math.sin(t * 47 + semente) * 0.035 * tremor * (raio / 0.5), Math.cos(t * 53 + semente * 1.7) * 0.035 * tremor * (raio / 0.5));
     },
-    estado: () => ({ retrato: tem, deitada, raio, deslizando: !!desliza, trilha: rastro.length }),
+    definirVez(v) { vez = v; if (!v) vezG.clear(); },
+    estado: () => ({ retrato: tem, vez, deitada, raio, deslizando: !!desliza, trilha: rastro.length }),
   };
 }
 

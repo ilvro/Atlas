@@ -1,4 +1,6 @@
 import { Application, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
+import { criarEventosDeCena, type EventoDeCena, type EstadoDosEventos } from './eventos-de-cena.ts';
+import { movimentoReduzido } from '../fx/fx.ts';
 import { distanciaDoPercurso, pontosDaRegua, textoDaRegua, type RegraDeDiagonal } from '../domain/regua.ts';
 import { celulasDoDisco, celulasEntre, decodificar } from '../domain/celulas.ts';
 import { misturar, type EstadoDeClima, type MisturaDeClima } from '../domain/clima.ts';
@@ -54,14 +56,16 @@ export interface PonteViewport {
   emSessao?(): boolean;
   /** Pelos olhos de quem se vê o mapa agora (o mestre em Construir vê sempre tudo). */
   vista?(): Vista;
+  /** Quanto dura a transição entre dois climas, em ms (preferência local); sem a função vale o padrão. */
+  duracaoDaTransicao?(): number | null;
   /** Na sessão, clicar numa porta a abre ou fecha. */
   aoInteragir?(alvo: Alvo): void;
   /** Como a régua conta as diagonais (preferência local). */
   regraDaRegua?(): RegraDeDiagonal;
 }
 
-/** Quanto dura a transição entre dois climas, em milissegundos. */
-const DURACAO_DA_TRANSICAO = 1600;
+/** Quanto dura a transição entre dois climas, em milissegundos, se ninguém escolheu outra. */
+const DURACAO_PADRAO_DA_TRANSICAO = 1600;
 
 export interface Viewport {
   readonly camera: Camera;
@@ -81,6 +85,12 @@ export interface Viewport {
   atualizarSobreposicoes(): void;
   /** Dispara um relâmpago (e o trovão, se o som estiver ligado). Só vale com a atmosfera visível. */
   relampagoAgora(): void;
+  /** Quanto dura, daqui em diante, a transição entre dois climas. */
+  definirDuracaoDaTransicao(ms: number): void;
+  /** Um evento de cena (tremor, piscar, escurecer, clarão): do render, não muda o documento. */
+  dispararEvento(e: EventoDeCena): void;
+  /** Para os testes: os eventos rodando agora e o que fazem. */
+  diagnosticoDosEventos(): EstadoDosEventos;
   /** Quantas partículas de cada tipo existem agora (diagnóstico e testes). */
   contagemDeParticulas(): ReturnType<Cena['contagemDeParticulas']>;
   contagemDePresencas(): number;
@@ -136,6 +146,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   app.canvas.setAttribute('data-testid', 'mapa');
   host.appendChild(app.canvas);
 
+  const clarao = new Graphics(); clarao.visible = false;
   const store = ponte.store, baker: Baker = criarBaker();
   const mundo = new Container(), area_ = new Graphics(), grade = new Graphics(), selecaoG = new Graphics(), fantasmaC = new Container(), fantasmaG = new Graphics(), laco = new Graphics();
   let camera: Camera = { x: 0, y: 0, zoom: 20 };
@@ -156,10 +167,13 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   fantasmaC.addChild(fantasmaG);
   const fantasmaDaProposta = criarFantasmaDeProposta({ baker, acento, efeitos: fxAtivo });
   mundo.addChild(area_, cena.raiz, grade, selecaoG, fantasmaC, fantasmaDaProposta.raiz, laco, reguaTexto);
-  app.stage.addChild(mundo);
+  app.stage.addChild(mundo, clarao);
 
   // ---------- Transição de clima ----------
-  // O documento muda na hora; o que a cena exibe (luz, partículas, neblina, acabamento) caminha até ele em DURACAO_DA_TRANSICAO.
+  // O documento muda na hora; o que a cena exibe (luz, partículas, neblina, acabamento) caminha até ele em `duracaoDaTransicao`.
+  let duracaoDaTransicao = ponte.duracaoDaTransicao?.() ?? DURACAO_PADRAO_DA_TRANSICAO;
+  const eventos = criarEventosDeCena(movimentoReduzido);
+  let tremorAtual: [number, number] = [0, 0];
   let transicao: { de: EstadoDeClima; alvo: EstadoDeClima; inicio: number } | null = null;
   let exibido: MisturaDeClima | null = null;      // o estado misturado agora; null quando o exibido é o próprio documento
   const estadoDoDoc = (m: MapaAtlas): EstadoDeClima => ({ climate: m.climate, finish: m.finish });
@@ -184,7 +198,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   }
   function passoDaTransicao(agora: number): void {
     if (!transicao) return;
-    const t = Math.min(1, (agora - transicao.inicio) / DURACAO_DA_TRANSICAO), m = doc();
+    const t = Math.min(1, (agora - transicao.inicio) / duracaoDaTransicao), m = doc();
     if (t >= 1) { pararTransicao(); cena.atualizarAtmosfera(m); aplicarAcabamento(); return; }
     exibido = misturar(transicao.de, transicao.alvo, suave(t));
     cena.atualizarAtmosfera(visaoDoClima(m)); aplicarAcabamento();
@@ -348,7 +362,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     fantasmaG.roundRect(p[0] - w / 2, p[1] - h / 2, w, h, 0.05).stroke({ width: px(1.2), color: cor, alpha: fantasmaSprite ? 0.35 : 0.9 });
   }
 
-  function aplicarCamera(): void { mundo.position.set(camera.x, camera.y); mundo.scale.set(camera.zoom); camadaSuja = true; ponte.aoCamera?.(camera); }
+  function aplicarCamera(): void { mundo.position.set(camera.x + tremorAtual[0], camera.y + tremorAtual[1]); mundo.scale.set(camera.zoom); camadaSuja = true; ponte.aoCamera?.(camera); }
   function definirCamera(c: Camera): void { camera = c; aplicarCamera(); }
 
   function redesenharTudo(): void {
@@ -682,6 +696,11 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   // ---------- Laço do desenho ----------
   const aoQuadro = () => {
+    // Eventos de cena: sacodem a câmera, piscam as luzes, escurecem o ambiente ou cobrem tudo de branco.
+    { const agora = performance.now(), ev = eventos.estado(agora);
+      if (ev.tremor[0] !== tremorAtual[0] || ev.tremor[1] !== tremorAtual[1]) { tremorAtual = ev.tremor; mundo.position.set(camera.x + tremorAtual[0], camera.y + tremorAtual[1]); }
+      cena.definirEfeitosDeLuz(ev.luzes, ev.ambiente);
+      if (ev.clarao > 0.001) { clarao.clear().rect(0, 0, app.screen.width, app.screen.height).fill({ color: 0xffffff, alpha: ev.clarao }); clarao.visible = true; } else if (clarao.visible) { clarao.clear(); clarao.visible = false; } }
     cena.quadro(performance.now()); fantasmaDaProposta.quadro(performance.now());
     if (transicao) passoDaTransicao(performance.now());
     else if (doc().finish.grain > 0 && cena.raiz.filters?.length) acabamento.aplicar(doc().finish, performance.now() / 1000);
@@ -709,6 +728,9 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     diagnosticoDosTelhados: () => cena.diagnosticoDosTelhados(),
     atualizarSobreposicoes: () => { camadaSuja = true; cena.definirVista(ponte.vista?.() ?? 'construir'); aplicarAcabamento(); },
     relampagoAgora: () => cena.relampagoAgora(),
+    definirDuracaoDaTransicao: ms => { duracaoDaTransicao = Math.max(0, ms); },
+    dispararEvento: e => { eventos.disparar(e, performance.now()); },
+    diagnosticoDosEventos: () => eventos.estado(performance.now()),
     contagemDeParticulas: () => cena.contagemDeParticulas(),
     contagemDePresencas: () => cena.contagemDePresencas(),
     objetosPintados: () => cena.objetosPintados(),
