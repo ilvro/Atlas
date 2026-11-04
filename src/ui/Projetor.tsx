@@ -69,7 +69,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
   const m = doc.value;
   const pecas = m?.tokens ?? {};
   return (
-    <main class="projetor" data-testid="projetor">
+    <main class={`projetor${m?.style.renderer === 'pixel' ? ' projetor-pixel' : ''}`} data-testid="projetor">
       <div class="projetor-mapa" ref={ref} />
       <div class="projetor-moldura" aria-hidden="true"><i /><i /></div>
       {m ? <h1 class="projetor-titulo faixa" data-testid="projetor-titulo">{m.name}</h1> : <p class="projetor-espera" data-testid="projetor-espera">Aguardando o mestre…</p>}

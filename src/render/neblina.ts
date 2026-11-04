@@ -38,11 +38,19 @@ uniform highp vec2 uTamanho;
 uniform highp vec2 uDeslocamento;
 uniform highp float uTempo;
 uniform vec3 uCor;
+uniform float uPixel;
+uniform float uPpm;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
+float bayer(vec2 p) { return bayer2(0.5 * p) * 0.25 + bayer2(p) - 0.47; }
 float ruido(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
 void main() {
   vec2 uv = vTextureCoord * uInputSize.xy / uOutputFrame.zw;
-  vec2 p = uv * uTamanho * 0.16;
+  // No Pixel o ruído é medido em blocos de 2 × 2 pixels do Pixel e a densidade cai em 3 níveis, com limiar de Bayer 4 × 4.
+  bool pixel = uPixel > 0.5;
+  vec2 mundo = uv * uTamanho;
+  if (pixel) mundo = (floor(mundo * uPpm / 2.0) * 2.0 + 1.0) / uPpm;
+  vec2 p = mundo * 0.16;
   // Cada oitava gira o domínio: o ruído de valor é alinhado à grade, e sem isso a névoa sai quadriculada.
   mat2 giro = mat2(0.8, -0.6, 0.6, 0.8);
   vec2 q = giro * p * 2.1 - uDeslocamento * 0.3 + vec2(7.3, 1.9) + vec2(uTempo * 0.012);
@@ -50,6 +58,7 @@ void main() {
   float n = ruido(p + uDeslocamento * 0.18) * 0.5 + ruido(q) * 0.3 + ruido(r) * 0.2;
   float densidade = smoothstep(0.22, 0.82, n);
   float a = 0.18 + 0.82 * densidade;
+  if (pixel) a = clamp(floor(densidade * 3.0 + bayer(floor(gl_FragCoord.xy)) + 0.5) / 3.0, 0.0, 1.0);
   finalColor = vec4(uCor * a, a);
 }`;
 
@@ -60,7 +69,7 @@ void main() {
 export function criarNeblina(): Neblina {
   const grupo = new UniformGroup({
     uTamanho: { value: new Float32Array([1, 1]), type: 'vec2<f32>' }, uDeslocamento: { value: new Float32Array([0, 0]), type: 'vec2<f32>' },
-    uTempo: { value: 0, type: 'f32' }, uCor: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
+    uTempo: { value: 0, type: 'f32' }, uPixel: { value: 0, type: 'f32' }, uPpm: { value: 1, type: 'f32' }, uCor: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
   });
   const programa = GlProgram.from({ vertex, fragment, name: 'atlas-neblina' });
   const veu = () => { const s = new Sprite(Texture.WHITE); s.filters = [new Filter({ glProgram: programa, resources: { neblina: grupo } })]; return s; };
@@ -78,6 +87,7 @@ export function criarNeblina(): Neblina {
       if (destruido) return;
       const tudo = !mud || mud.completo, col = (c: string) => tudo || !!(mud!.colecoes as Record<string, unknown>)[c], campo = (...c: string[]) => tudo || c.some(x => mud!.campos.includes(x));
       mapa = m;
+      { const u = grupo.uniforms as Record<string, unknown>; u.uPixel = m.style.renderer === 'pixel' ? 1 : 0; u.uPpm = m.style.pixel.pixelsPerCell / m.grid.size; }
       if (campo('bounds')) { for (const s of [veuFora, veuDentro]) { s.width = m.bounds.width; s.height = m.bounds.height; } (grupo.uniforms as Record<string, unknown>).uTamanho = new Float32Array([m.bounds.width, m.bounds.height]); }
       if (col('rooms') || campo('grid')) { desenharComodos(mascaraFora, m); desenharComodos(mascaraDentro, m); }
       if (campo('climate')) {

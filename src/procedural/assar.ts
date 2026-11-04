@@ -8,6 +8,7 @@ import { materialDe, tom } from './materiais.ts';
 import { fbm, valueNoise2D } from './ruido.ts';
 import { partesParaFace } from './raster.ts';
 import type { EstiloDeRaster, OpcoesDoPixel } from './estilos/index.ts';
+import { pintarFacePixel } from './estilos/faces-pixel.ts';
 import { descreverReceita } from './receitas/index.ts';
 
 export interface Assado { tela: Tela; /** Canto superior esquerdo da tela, em metros (no espaço local do objeto, ou do mundo para cômodos e terreno). */ origem: Ponto; res: number }
@@ -58,27 +59,36 @@ function ao_longo(seg: SegmentoDeContorno, p: Ponto): number | null {
   return perp <= 0.08 && u >= -0.01 && u <= c + 0.01 ? Math.max(0, Math.min(c, u)) : null;
 }
 
-function desenharAbertura(ctx: Contexto, a: AberturaNaFace, u: number, H: number, res: number, estilo: EstiloDeRaster): void {
+/** As partes (na face: u ao longo da parede, altura do chão para cima) que enfeitam uma abertura: o batente da porta, a janela com cortina. */
+function partesDaAbertura(a: AberturaNaFace, u: number, H: number): Parte[] {
   const w = a.largura, mad = a.material || 'madeira.media';
-  if (a.tipo === 'door' || a.tipo === 'arch') {
-    ctx.fillStyle = '#0a080b'; ctx.beginPath();
-    if (a.tipo === 'arch') { ctx.rect(u - w / 2 + 0.08, H - 1.7, w - 0.16, 1.7); ctx.moveTo(u - w / 2 + 0.08, H - 1.7); ctx.arc(u, H - 1.7, w / 2 - 0.08, Math.PI, 0); } else ctx.rect(u - w / 2 + 0.08, H - 2.15, w - 0.16, 2.15);
-    ctx.fill();
-    if (a.tipo === 'door') estilo.desenharPartes(ctx, partesParaFace([
-      { forma: 'ret', x: -w / 2 + 0.08, y: 1.08, w: 0.1, h: 2.16, mat: mad, z: 0.1 }, { forma: 'ret', x: w / 2 - 0.08, y: 1.08, w: 0.1, h: 2.16, mat: mad, z: 0.1 },
-      { forma: 'ret', x: 0, y: 2.18, w: w - 0.06, h: 0.1, mat: mad, z: 0.1 },
-    ], u, H), { res, seed: 1, sombras: false });
-  } else if (a.tipo === 'window') {
+  if (a.tipo === 'door') return partesParaFace([
+    { forma: 'ret', x: -w / 2 + 0.08, y: 1.08, w: 0.1, h: 2.16, mat: mad, z: 0.1 }, { forma: 'ret', x: w / 2 - 0.08, y: 1.08, w: 0.1, h: 2.16, mat: mad, z: 0.1 },
+    { forma: 'ret', x: 0, y: 2.18, w: w - 0.06, h: 0.1, mat: mad, z: 0.1 },
+  ], u, H);
+  if (a.tipo === 'window') {
     const l = w, cortina = 'cortina.vinho';
-    estilo.desenharPartes(ctx, partesParaFace([
+    return partesParaFace([
       { forma: 'ret', x: 0, y: 1.55, w: l * 0.82, h: 1.3, mat: mad, z: 0.04 }, { forma: 'ret', x: 0, y: 1.55, w: l * 0.68, h: 1.16, mat: 'vidro', z: 0.05, vidro: true },
       { forma: 'ret', x: 0, y: 1.55, w: 0.04, h: 1.16, mat: mad, z: 0.06 }, { forma: 'ret', x: 0, y: 1.55, w: l * 0.68, h: 0.04, mat: mad, z: 0.06 },
       { forma: 'ret', x: -l * 0.4, y: 1.5, w: 0.22, h: 1.5, mat: cortina, z: 0.08 }, { forma: 'ret', x: l * 0.4, y: 1.5, w: 0.22, h: 1.5, mat: cortina, z: 0.08 },
       { forma: 'ret', x: 0, y: 0.88, w: l * 0.9, h: 0.07, mat: 'madeira.escura', z: 0.09 },
-    ], u, H), { res, seed: 1, sombras: false });
+    ], u, H);
   }
+  return [];
+}
+
+function desenharAbertura(ctx: Contexto, a: AberturaNaFace, u: number, H: number, res: number, estilo: EstiloDeRaster): void {
+  const w = a.largura;
+  if (a.tipo === 'door' || a.tipo === 'arch') {
+    ctx.fillStyle = '#0a080b'; ctx.beginPath();
+    if (a.tipo === 'arch') { ctx.rect(u - w / 2 + 0.08, H - 1.7, w - 0.16, 1.7); ctx.moveTo(u - w / 2 + 0.08, H - 1.7); ctx.arc(u, H - 1.7, w / 2 - 0.08, Math.PI, 0); } else ctx.rect(u - w / 2 + 0.08, H - 2.15, w - 0.16, 2.15);
+    ctx.fill();
+  }
+  const partes = partesDaAbertura(a, u, H);
+  if (partes.length) estilo.desenharPartes(ctx, partes, { res, seed: 1, sombras: false });
   // Porta secreta: parece parede; só uma fresta quase invisível.
-  else { ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 0.01; ctx.strokeRect(u - w / 2, H - 2.1, w, 2.1); }
+  if (a.tipo === 'secret') { ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 0.01; ctx.strokeRect(u - w / 2, H - 2.1, w, 2.1); }
 }
 
 /** O cômodo inteiro numa tela: piso, sombra de contato com as paredes e, no estilo caixa, as quatro faces internas. */
@@ -109,6 +119,12 @@ export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRas
     const H = e.altura, prof = profundidadeDaFace(H), k = prof / H, papel = e.papel ?? { material: 'papel.liso-claro', seed: 1 };
     for (const laco of lacos) for (const f of facesDoContorno(laco, prof)) {
       const s = f.segmento, comp = Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1]), dx = (s.b[0] - s.a[0]) / comp, dy = (s.b[1] - s.a[1]) / comp;
+      if (pixel) {
+        const objetos = e.objetos.flatMap(o => { const u = ao_longo(s, o.centro); if (u === null) return []; const d = descreverReceita(o.receita, { seed: o.seed, params: o.params }); return d.tipo === 'parede' ? [{ partes: partesParaFace(d.face, u, H) }] : []; });
+        const aberturas = e.aberturas.flatMap(a => { const u = ao_longo(s, a.centro); return u === null ? [] : [{ tipo: a.tipo, u, largura: a.largura, material: a.material, partes: partesDaAbertura(a, u, H) }]; });
+        pintarFacePixel(ctx, { segmento: s, quad: f.quad, H, prof, papel, aberturas, objetos }, res, [x0, y0]);
+        continue;
+      }
       ctx.save(); base();
       ctx.beginPath(); ctx.moveTo(f.quad[0][0], f.quad[0][1]); for (const q of f.quad.slice(1)) ctx.lineTo(q[0], q[1]); ctx.closePath(); ctx.clip();
       ctx.transform(dx, dy, s.n[0] * k, s.n[1] * k, s.a[0], s.a[1]);

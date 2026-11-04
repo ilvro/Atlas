@@ -17,6 +17,8 @@ import { criarNeblina } from './neblina.ts';
 import { criarParticulas } from './particulas.ts';
 import { criarTelhados } from './telhados.ts';
 import { criarPeca, type PecaVisual } from './pecas.ts';
+import type { RetratoNoPixel } from './retratos.ts';
+import { paletaDe } from '../domain/paletas.ts';
 import { criarPresenca } from './presenca.ts';
 
 export interface OpcoesDaCena {
@@ -29,7 +31,7 @@ export interface OpcoesDaCena {
   /** Uma textura nova chegou do worker: o viewport precisa redesenhar. */
   aoPintar?(): void;
   /** O retrato de uma peça (pelo id do asset), ou `null` se ainda não chegou. */
-  retrato?(id: string | null | undefined): Texture | null;
+  retrato?(id: string | null | undefined, pixel?: RetratoNoPixel): Texture | null;
 }
 
 export interface Cena {
@@ -53,7 +55,7 @@ export interface Cena {
   /** Pelos olhos de quem se vê o mapa: Construir e mestre veem tudo; os jogadores só o que as suas peças enxergam, com os telhados fechados. */
   definirVista(v: Vista): void;
   /** Para os testes: como cada peça está desenhada agora (retrato, deitada, raio). */
-  diagnosticoDasPecas(): { id: string; vez: boolean; retrato: boolean; deitada: boolean; raio: number }[];
+  diagnosticoDasPecas(): { id: string; vez: boolean; retrato: boolean; deitada: boolean; raio: number; quadro: { linha: number; coluna: number } | null }[];
   /** Quantos objetos de piso já têm a textura pintada (sem o marcador). */
   objetosPintados(): number;
   /** Quantas presenças estão desenhadas agora. */
@@ -137,6 +139,9 @@ export function criarCena(op: OpcoesDaCena): Cena {
 
   // ---------- Paredes, aberturas e marcas de objetos de parede ----------
   const COR_TOPO = 0x15131a, COR_TOPO_CLARO = 0x2b2833;
+  /** No Pixel (px por metro > 0) os traços têm largura ímpar em pixels e o desenho anda meio pixel: o traço de 3 px cobre 3 pixels inteiros e o fio claro do meio é de 1 px. */
+  let pixelRes = 0;
+  const lw = (w: number): number => (pixelRes ? Math.max(1, 2 * Math.round((w * pixelRes - 1) / 2) + 1) / pixelRes : w);
   function pontoEm(p: Pick<Parede, 'path'>, dist: number): Ponto { return pontoNaParede(p, dist).ponto; }
 
   /** Na vista de jogador, uma porta secreta já revelada é uma porta como as outras; a que não foi revelada é só parede (não se desenha nada). */
@@ -148,20 +153,20 @@ export function criarCena(op: OpcoesDaCena): Cena {
     const c = a.at * comprimentoDaParede(p), { ponto, tangente } = pontoNaParede(p, c), nx = -tangente[1], ny = tangente[0], meia = a.width / 2;
     const ini = pontoEm(p, c - meia), fim = pontoEm(p, c + meia);
     if (a.kind === 'window') {
-      g.moveTo(ini[0], ini[1]).lineTo(fim[0], fim[1]).stroke({ width: p.thickness * 0.5, color: 0x9bc3dc, alpha: 0.95, cap: 'butt' });
-      g.moveTo(ini[0], ini[1]).lineTo(fim[0], fim[1]).stroke({ width: p.thickness * 0.14, color: 0xe6f3fb, alpha: 0.9, cap: 'butt' });
+      g.moveTo(ini[0], ini[1]).lineTo(fim[0], fim[1]).stroke({ width: lw(p.thickness * 0.5), color: 0x9bc3dc, alpha: 0.95, cap: 'butt' });
+      g.moveTo(ini[0], ini[1]).lineTo(fim[0], fim[1]).stroke({ width: lw(p.thickness * 0.14), color: 0xe6f3fb, alpha: 0.9, cap: 'butt' });
       return;
     }
-    if (a.kind === 'secret') { g.moveTo(ini[0], ini[1]).lineTo(fim[0], fim[1]).stroke({ width: p.thickness * 0.2, color: 0xd9a23b, alpha: 0.4, cap: 'butt' }); return; }
+    if (a.kind === 'secret') { g.moveTo(ini[0], ini[1]).lineTo(fim[0], fim[1]).stroke({ width: lw(p.thickness * 0.2), color: 0xd9a23b, alpha: pixelRes ? 1 : 0.4, cap: 'butt' }); return; }
     // Porta e arco abrem um vão: a parede é desenhada fora dele (ver `desenharParede`). A folha da porta fica por cima.
     const folha = 0x8a5226, lado = a.swing === 'a' ? 1 : -1;
     if (a.kind === 'arch') { for (const q of [ini, fim]) g.circle(q[0], q[1], p.thickness * 0.55).fill({ color: COR_TOPO_CLARO }); return; }
     if (a.state === 'open') {
       const hx = ini[0], hy = ini[1], fx = hx + nx * lado * a.width, fy = hy + ny * lado * a.width;
       g.moveTo(hx, hy).arc(hx, hy, a.width, Math.atan2(fim[1] - ini[1], fim[0] - ini[0]), Math.atan2(ny * lado, nx * lado), lado < 0).stroke({ width: 0.02, color: 0xffffff, alpha: 0.22 });
-      g.moveTo(hx, hy).lineTo(fx, fy).stroke({ width: 0.09, color: folha, cap: 'round' });
+      g.moveTo(hx, hy).lineTo(fx, fy).stroke({ width: lw(0.09), color: folha, cap: pixelRes ? 'butt' : 'round' });
     } else {
-      g.moveTo(ini[0], ini[1]).lineTo(fim[0], fim[1]).stroke({ width: 0.09, color: folha, cap: 'butt' });
+      g.moveTo(ini[0], ini[1]).lineTo(fim[0], fim[1]).stroke({ width: lw(0.09), color: folha, cap: 'butt' });
       if (a.state === 'locked') g.circle(ponto[0], ponto[1], 0.11).fill(0xe91d25).stroke({ width: 0.03, color: 0x000000, alpha: 0.7 });
     }
   }
@@ -181,15 +186,17 @@ export function criarCena(op: OpcoesDaCena): Cena {
     for (const [a, b] of vaos) { trecho(pos, Math.max(pos, a)); pos = b; }
     trecho(pos, comp);
     const baixa = p.kind === 'low' || p.kind === 'fence';
-    g.stroke({ width: p.thickness * (baixa ? 0.7 : 1), color: baixa ? 0x4a4658 : COR_TOPO, alpha: p.kind === 'fence' ? 0.8 : 1, join: 'miter', cap: 'butt' });
+    g.stroke({ width: lw(p.thickness * (baixa ? 0.7 : 1)), color: baixa ? 0x4a4658 : COR_TOPO, alpha: p.kind === 'fence' ? 0.8 : 1, join: 'miter', cap: 'butt' });
   }
 
   function desenharParedes(m: MapaAtlas): void {
     paredesG.clear();
+    pixelRes = m.style.renderer === 'pixel' ? m.style.pixel.pixelsPerCell / m.grid.size : 0;
+    paredesG.position.set(pixelRes ? 0.5 / pixelRes : 0, pixelRes ? 0.5 / pixelRes : 0);
     for (const p of Object.values(m.walls)) {
       desenharParede(paredesG, m, p);
       // Um fio claro no meio do topo dá volume à faixa escura.
-      if (p.kind === 'wall') { paredesG.moveTo(p.path[0]![0], p.path[0]![1]); for (const q of p.path.slice(1)) paredesG.lineTo(q[0], q[1]); paredesG.stroke({ width: p.thickness * 0.14, color: COR_TOPO_CLARO, alpha: 0.9, cap: 'butt' }); }
+      if (p.kind === 'wall') { paredesG.moveTo(p.path[0]![0], p.path[0]![1]); for (const q of p.path.slice(1)) paredesG.lineTo(q[0], q[1]); paredesG.stroke({ width: lw(p.thickness * 0.14), color: COR_TOPO_CLARO, alpha: pixelRes ? 1 : 0.9, cap: 'butt' }); }
     }
     for (const a of Object.values(m.openings)) { const p = m.walls[a.wallId]; if (p) desenharAbertura(paredesG, p, a, m); }
     // Objetos de parede aparecem na faixa da parede como uma marca, e inteiros na face do cômodo.
@@ -197,7 +204,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (!o.wall) continue; const p = m.walls[o.wall.wallId]; if (!p) continue;
       const c = o.wall.at * comprimentoDaParede(p), { tangente } = pontoNaParede(p, c), meia = (o.source.kind === 'recipe' && typeof o.source.params.largura === 'number' ? (o.source.params.largura as number) : 0.8) / 2;
       const a = pontoEm(p, Math.max(0, c - meia)), b = pontoEm(p, Math.min(comprimentoDaParede(p), c + meia));
-      paredesG.moveTo(a[0], a[1]).lineTo(b[0], b[1]).stroke({ width: p.thickness * 0.34, color: 0xd9a75e, alpha: 0.9, cap: 'butt' }); void tangente;
+      paredesG.moveTo(a[0], a[1]).lineTo(b[0], b[1]).stroke({ width: lw(p.thickness * 0.34), color: 0xd9a75e, alpha: pixelRes ? 1 : 0.9, cap: 'butt' }); void tangente;
     }
   }
 
@@ -239,9 +246,27 @@ export function criarCena(op: OpcoesDaCena): Cena {
   }
 
   const visuais = new WeakMap<Container, PecaVisual>();
+  // As folhas de sprite das peças: pedidas ao baker, com a chave do spec; a antiga fica até a nova chegar.
+  const folhaDaPeca = new Map<string, string>();
+  const chaveDoSprite = (t: Peca): string | null => (t.sprite ? `pixel|sprite|${JSON.stringify(t.sprite)}` : null);
+  function folhaDe(t: Peca, redesenhar: () => void): Texture | null {
+    const chave = chaveDoSprite(t), atual = folhaDaPeca.get(t.id) ?? null;
+    if (!chave) { if (atual) { soltar(atual); folhaDaPeca.delete(t.id); } return null; }
+    if (chave !== atual) {
+      const spec = t.sprite!;
+      op.baker.pedir(chave, { tipo: 'sprite', spec }).then(r => {
+        if (destruida || chaveDoSprite(mapa?.tokens[t.id] ?? ({ sprite: null } as Peca)) !== chave) return;
+        const antes = folhaDaPeca.get(t.id) ?? null; adquirir(chave, r); folhaDaPeca.set(t.id, chave); soltar(antes); redesenhar();
+      }).catch(erro => console.warn('Atlas: falha ao pintar o sprite', erro));
+    }
+    const pronta = folhaDaPeca.get(t.id); return pronta ? texturas.get(pronta)?.tex ?? null : null;
+  }
   function desenharPeca(c: Container, t: Peca, m: MapaAtlas): void {
     let v = visuais.get(c); if (!v) { v = criarPeca(); visuais.set(c, v); c.addChild(v.c); }
-    v.atualizar(t, m.grid.size, op.acento(), op.retrato?.(t.portrait?.id) ?? null, op.efeitos());
+    const folha = folhaDe(t, () => { if (!destruida && !c.destroyed && mapa?.tokens[t.id]) desenharPeca(c, mapa.tokens[t.id]!, mapa); });
+    const pixel = m.style.renderer === 'pixel', px = m.style.pixel;
+    const noPixel: RetratoNoPixel | undefined = pixel ? { chave: `${m.style.palette}|${px.pixelsPerCell}|${t.size}|${px.dither}|${px.outline}`, lado: Math.max(8, Math.round(t.size * px.pixelsPerCell * 0.9)), paleta: paletaDe(m.style.palette).cores, dither: px.dither === 'bayer4', contorno: px.outline } : undefined;
+    v.atualizar(t, m.grid.size, op.acento(), op.retrato?.(t.portrait?.id, noPixel) ?? null, op.efeitos(), { folha, pixel });
   }
 
   function desenharRegiao(c: Container, r: Regiao): void {
@@ -276,15 +301,17 @@ export function criarCena(op: OpcoesDaCena): Cena {
   // ---------- Cartela de título ----------
   let chaveDoTitulo = '';
   function sincronizarTitulo(m: MapaAtlas): void {
-    const t = m.backdrop.title, chave = JSON.stringify([t, op.acento()]);
+    const t = m.backdrop.title, pixel = m.style.renderer === 'pixel', ppm = m.style.pixel.pixelsPerCell / m.grid.size, chave = JSON.stringify([t, op.acento(), pixel ? ppm : 0]);
     if (chave === chaveDoTitulo) return; chaveDoTitulo = chave;
     for (const f of tituloC.removeChildren()) f.destroy({ children: true });
     if (!t) return;
     // Uma faixa rasgada, como os rótulos da Ficha: fica pequena e legível mesmo bem afastada.
-    const texto = new Text({ text: t.text.toUpperCase(), style: { fontFamily: `${t.font}, Georgia, serif`, fontSize: 64, fontWeight: '700', fill: 0xffffff, letterSpacing: 2 } });
-    const escala = 0.62 / 64, larg = texto.width * escala + 1.0, alt = 1.1, g = new Graphics();
+    // No Pixel o texto usa a fonte pixel em tamanho inteiro (em pixels do Pixel), resolução 1 e `nearest`, e anda de pixel em pixel.
+    const tamanho = pixel ? Math.max(12, Math.round(0.85 * ppm)) : 64;
+    const texto = new Text({ text: t.text.toUpperCase(), resolution: pixel ? 1 : undefined, textureStyle: pixel ? { scaleMode: 'nearest' } : undefined, style: { fontFamily: pixel ? 'Pixelify Sans, monospace' : `${t.font}, Georgia, serif`, fontSize: tamanho, fontWeight: '700', fill: 0xffffff, letterSpacing: pixel ? 0 : 2 } });
+    const escala = pixel ? 1 / ppm : 0.62 / 64, larg = texto.width * escala + 1.0, alt = 1.1, g = new Graphics();
     g.poly([-0.2, -0.45, larg - 0.2, -0.5, larg, -0.2, larg - 0.15, 0.4, 0.1, 0.5, -0.15, 0.2]).fill(op.acento());
-    texto.scale.set(escala); texto.position.set(0.3, -0.31); texto.alpha = 0.97;
+    texto.scale.set(escala); texto.position.set(0.3, pixel ? -(tamanho * escala) / 2 - 0.02 : -0.31); texto.alpha = pixel ? 1 : 0.97;
     tituloC.addChild(g, texto); tituloC.position.set(t.position[0], t.position[1] + alt / 2);
   }
 
@@ -303,7 +330,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       const tudo = !mud || mud.completo, campos = (...c: string[]) => tudo || c.some(x => mud!.campos.includes(x)), colecao = (c: string) => tudo || !!(mud!.colecoes as Record<string, unknown>)[c];
       if (campos('terrain', 'bounds', 'grid', 'backdrop', 'style')) sincronizarTerreno(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid')) sincronizarComodos(m);
-      if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid', 'session')) desenharParedes(m);
+      if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid', 'session', 'style')) desenharParedes(m);
       if (tudo || colecao('props') || campos('style')) sincronizarObjetos(m, tudo || campos('style') ? null : mud!.colecoes.props ?? null, comPop);
       if (tudo || colecao('props')) desenharMarcas(m);
       presenca.sincronizar(m, mud); nevoa.sincronizar(m, mud); telhados.sincronizar(m, mud);
@@ -311,10 +338,11 @@ export function criarCena(op: OpcoesDaCena): Cena {
       luz.sincronizar(v, mud); neblina.sincronizar(v, mud); particulas.sincronizar(v, mud);
       // Os marcadores das luzes também refletem o clima (apagada pela rede ou pelo dia), então refazem quando ele muda.
       if (tudo || colecao('lights') || campos('climate')) sincronizarSimples(luzes, luzesC, m.lights, tudo || campos('climate') ? null : mud!.colecoes.lights ?? null, (c, l) => desenharLuz(c, l, m), comPop);
-      if (tudo || colecao('tokens') || campos('grid')) sincronizarSimples(pecas, pecasC, m.tokens, tudo || campos('grid') ? null : mud!.colecoes.tokens ?? null, (c, t) => desenharPeca(c, t, m), comPop);
+      if (tudo || colecao('tokens') || campos('grid', 'style')) sincronizarSimples(pecas, pecasC, m.tokens, tudo || campos('grid', 'style') ? null : mud!.colecoes.tokens ?? null, (c, t) => desenharPeca(c, t, m), comPop);
+      for (const id of [...folhaDaPeca.keys()]) if (!m.tokens[id]) { soltar(folhaDaPeca.get(id)!); folhaDaPeca.delete(id); }
       { const vezDe = m.session.initiative?.order[m.session.initiative.current]?.tokenId; for (const [id, c] of pecas) visuais.get(c)?.definirVez(id === vezDe); }
       if (tudo || colecao('regions')) sincronizarSimples(regioes, regioesC, m.regions, tudo ? null : mud!.colecoes.regions ?? null, desenharRegiao, comPop);
-      if (tudo || campos('backdrop', 'bounds')) sincronizarTitulo(m);
+      if (tudo || campos('backdrop', 'bounds', 'style', 'grid')) sincronizarTitulo(m);
       op.baker.coletar(chavesEmUso());
     },
     atualizarAtmosfera(visao) {
@@ -329,7 +357,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     diagnosticoDosTelhados: () => telhados.diagnostico(),
     contagemDeParticulas: () => particulas.contagem(),
     contagemDePresencas: () => presenca.contagem(),
-    diagnosticoDasPecas: () => [...pecas.entries()].map(([id, c]) => ({ id, ...(visuais.get(c)?.estado() ?? { vez: false, retrato: false, deitada: false, raio: 0, deslizando: false, trilha: 0 }) })),
+    diagnosticoDasPecas: () => [...pecas.entries()].map(([id, c]) => ({ id, ...(visuais.get(c)?.estado() ?? { vez: false, retrato: false, deitada: false, raio: 0, deslizando: false, trilha: 0, quadro: null }) })),
     objetosPintados: () => [...objetos.values()].filter(e => e.sprite !== null && !e.placeholder.visible).length,
     quadro(agora) {
       luz.quadro(agora); nevoa.quadro(agora); telhados.quadro(agora);

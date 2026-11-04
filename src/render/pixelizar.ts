@@ -41,6 +41,28 @@ void main() {
 
 const DITHER_BAYER4 = 0.018;
 
+// Dithering do alfa: a borda suave de uma máscara vira um padrão Bayer 4×4 de tudo ou nada (a névoa e a memória no Pixel).
+const fragmentoDeAlfa = `in vec2 vTextureCoord;
+out vec4 finalColor;
+uniform sampler2D uTexture;
+uniform float uRevelado;
+float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
+float bayer(vec2 p) { return bayer2(0.5 * p) * 0.25 + bayer2(p) - 0.47; }
+void main() {
+  vec4 c = texture(uTexture, vTextureCoord);
+  float limiar = bayer(floor(gl_FragCoord.xy)) + 0.5;
+  float a = step(limiar, c.a * uRevelado);
+  vec3 cor = c.a > 0.0 ? c.rgb / c.a : c.rgb;
+  finalColor = vec4(cor * a, a);
+}`;
+
+/** O filtro de dithering do alfa. `uRevelado` (0 a 1) escala o alfa antes do limiar: é como a revelação em dithering dissolve (8.4b). */
+export function criarFiltroDeDitherDeAlfa(): { filtro: Filter; definirRevelado(v: number): void } {
+  const grupo = new UniformGroup({ uRevelado: { value: 1, type: 'f32' } });
+  const filtro = new Filter({ glProgram: GlProgram.from({ vertex, fragment: fragmentoDeAlfa, name: 'atlas-dither-alfa' }), resources: { ditherAlfa: grupo } });
+  return { filtro, definirRevelado: v => { (grupo.uniforms as Record<string, unknown>).uRevelado = v; } };
+}
+
 /** O filtro de paleta: troca as cores pelas da paleta, com ou sem dithering. */
 export function criarFiltroDePaleta(): { filtro: Filter; definir(cores: readonly string[], dither: 'none' | 'bayer4'): void } {
   const canvas = document.createElement('canvas'); canvas.width = CORES_DA_PALETA; canvas.height = 1;

@@ -175,7 +175,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     // Chegou um retrato: redesenha as peças (só as peças, sem refazer o resto).
     if (destruido) return; const m = doc(); cena.sincronizar(m, { completo: false, colecoes: { tokens: Object.keys(m.tokens) }, campos: [] }, false, visaoDoClima(m)); camadaSuja = true;
   });
-  const cena: Cena = criarCena({ baker, renderer: app.renderer, acento, efeitos: fxAtivo, aoPintar: () => { camadaSuja = true; }, retrato: id => retratos.obter(id) });
+  const cena: Cena = criarCena({ baker, renderer: app.renderer, acento, efeitos: fxAtivo, aoPintar: () => { camadaSuja = true; }, retrato: (id, pixel) => retratos.obter(id, pixel) });
   const acabamento = criarFiltroAcabamento();
   const pixelizacao = criarPixelizacao(app.renderer);
   let pixelAtivo = false, zoomLivre = camera.zoom;

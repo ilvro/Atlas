@@ -47,5 +47,5 @@ Commit: mensagem curta em inglês
 | [fase-5.md](fase-5.md) | Detalhado — concluída |
 | [fase-6.md](fase-6.md) | Detalhado — **próximo** |
 | [fase-7.md](fase-7.md) | Detalhado antes da hora — o Opus confere ao começar |
-| [fase-8.md](fase-8.md) | Detalhado antes da hora — o Opus confere ao começar |
+| [fase-8.md](fase-8.md) | Detalhado — concluída |
 | [fase-9.md](fase-9.md) | Detalhado antes da hora — o Opus confere ao começar |

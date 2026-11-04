@@ -43,11 +43,11 @@ function sombrearBordas(d: Uint8ClampedArray, w: number, h: number, claro: [numb
 }
 
 /** Contorno de 1 px de tinta em volta do que é sólido (também por cima da sombra de contato). */
-export function contornarPixels(d: Uint8ClampedArray, w: number, h: number): void {
+export function contornarPixels(d: Uint8ClampedArray, w: number, h: number, tinta: readonly [number, number, number] = TINTA): void {
   const sol = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && d[(y * w + x) * 4 + 3]! >= 200;
   const novos: number[] = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!sol(x, y) && (sol(x - 1, y) || sol(x + 1, y) || sol(x, y - 1) || sol(x, y + 1))) novos.push(y * w + x);
-  for (const i of novos) pintarPixelDe(d, i, TINTA as unknown as [number, number, number]);
+  for (const i of novos) pintarPixelDe(d, i, tinta as unknown as [number, number, number]);
 }
 
 /**

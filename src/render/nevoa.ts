@@ -4,7 +4,8 @@ import { movimentoReduzido } from '../fx/fx.ts';
 import { RES_NEVOA, celulasExploradas, poligonosDeVisao } from '../domain/nevoa.ts';
 import type { Mudancas } from '../state/mudancas.ts';
 import { hexParaNumero } from './cores.ts';
-import { RES_MEMORIA, criarMemoria } from './memoria.ts';
+import { criarMemoria, resDaMemoria } from './memoria.ts';
+import { criarFiltroDeDitherDeAlfa } from './pixelizar.ts';
 
 /** Pelos olhos de quem se vê o mapa: Construir (tudo, sem telhado), o mestre na sessão (tudo, telhado esmaecido) ou os jogadores (névoa e telhado). */
 export type Vista = 'construir' | 'mestre' | 'jogador';
@@ -34,7 +35,7 @@ function borrada(forca: number, entrada: Sprite): Container {
  * Todas as bordas são suaves, e nada disso é refeito na vista do mestre.
  */
 export function criarNevoa(renderer: Renderer): Nevoa {
-  const sprite = new Sprite(), memoria = criarMemoria(renderer);
+  const sprite = new Sprite(), memoria = criarMemoria(renderer), ditherDeAlfa = criarFiltroDeDitherDeAlfa();
   // 1. visível
   const visRaiz = new Container(), visG = new Graphics(), visBruta = new Sprite(), visBorrada = borrada(5, visBruta); visRaiz.addChild(visG);
   // 2. explorado
@@ -50,18 +51,22 @@ export function criarNevoa(renderer: Renderer): Nevoa {
   const uniaoC = new Container(), uniaoU = new Sprite(), uniaoD = new Sprite(); uniaoD.blendMode = 'screen'; uniaoC.addChild(uniaoU, uniaoD);
   sprite.visible = false;
   const rts: (RenderTexture | null)[] = [], rt = (i: number) => rts[i]!;
-  let largura = 0, altura = 0, pw = 0, ph = 0, mapa: MapaAtlas | null = null, vista: Vista = 'mestre', sujo = true, destruido = false;
+  let largura = 0, altura = 0, resAtual = 0, pixel = false, pw = 0, ph = 0, mapa: MapaAtlas | null = null, vista: Vista = 'mestre', sujo = true, destruido = false;
   let mudouEm = 0, animando = false, assentar = true, ultimo = -1, u = 7, d = 9;     // `u` e `d`: o índice da textura atual de cada média (a outra do par é o destino)
 
   function dimensionar(m: MapaAtlas): void {
-    const w = m.bounds.width, h = m.bounds.height;
-    if (rts.length && w === largura && h === altura) return;
-    largura = w; altura = h;
-    const res = Math.min(RES_MEMORIA, TEXTURA_MAX / Math.max(w, h)); pw = Math.max(1, Math.round(w * res)); ph = Math.max(1, Math.round(h * res));
+    const w = m.bounds.width, h = m.bounds.height, r0 = resDaMemoria(m);
+    if (rts.length && w === largura && h === altura && r0 === resAtual) return;
+    largura = w; altura = h; resAtual = r0; pixel = m.style.renderer === 'pixel';
+    const res = Math.min(r0, TEXTURA_MAX / Math.max(w, h)); pw = Math.max(1, Math.round(w * res)); ph = Math.max(1, Math.round(h * res));
     const antigas = rts.splice(0);
-    for (let i = 0; i < 12; i++) rts.push(RenderTexture.create({ width: pw, height: ph }));
+    for (let i = 0; i < 12; i++) rts.push(RenderTexture.create({ width: pw, height: ph, scaleMode: pixel ? 'nearest' : 'linear' }));
     // 0 vis bruta · 1 visível · 2 exp bruta · 3 explorado · 4 inverso · 5 memória · 6 cobertura · 7-8 média que sobe · 9-10 média que desce · 11 visível exibido
     visBruta.texture = rt(0); fimVis.texture = rt(1); expBruta.texture = rt(2); invExp.texture = rt(3); fimExp.texture = rt(3); memInv.texture = rt(4); fimMem.texture = rt(5); sprite.texture = rt(6); u = 7; d = 9;
+    // No Pixel as bordas das máscaras só se espalham um pouco, e o filtro de dithering do alfa as transforma em blocos de tudo ou nada.
+    (visBorrada.filters![0] as BlurFilter).strength = pixel ? 2 : 5; (expBorrada.filters![0] as BlurFilter).strength = pixel ? 2 : 8;
+    sprite.filters = pixel ? [ditherDeAlfa.filtro] : [];
+    memEsboco.scale.set(pw / Math.max(1, memoria.textura?.width ?? pw), ph / Math.max(1, memoria.textura?.height ?? ph));
     sprite.scale.set(w / pw, h / ph); visRaiz.scale.set(pw / w, ph / h); expRaiz.scale.set(pw / w, ph / h);
     for (const t of antigas) t?.destroy(true);
     sujo = true;
@@ -111,7 +116,7 @@ export function criarNevoa(renderer: Renderer): Nevoa {
       const tudo = !mud || mud.completo, col = (c: string) => tudo || !!(mud!.colecoes as Record<string, unknown>)[c], campo = (...c: string[]) => tudo || c.some(x => mud!.campos.includes(x));
       mapa = m;
       memoria.sincronizar(m, mud);
-      if (campo('bounds') || !rts.length) dimensionar(m);
+      if (campo('bounds', 'style', 'grid') || !rts.length) dimensionar(m);
       if (tudo || col('tokens') || col('walls') || col('openings') || col('rooms') || campo('backdrop', 'session', 'memory', 'grid')) sujo = true;
       if (tudo) assentar = true;
     },

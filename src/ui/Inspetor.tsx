@@ -25,6 +25,8 @@ import { tocar } from '../fx/som.ts';
 import { chaveDoAlvo, type Alvo } from '../render/selecao.ts';
 import type { ParcialProfundo } from '../state/comandos.ts';
 import type { Gesto } from '../state/store.ts';
+import { useGestoDeCor } from './gesto-de-cor.ts';
+import { PainelDoSprite } from './PainelDoSprite.tsx';
 import { CampoCaixa, CampoCor, Linha, CampoNumero, CampoOpcoes, CampoTexto, tentar } from './campos.tsx';
 import { Icone } from './Icone.tsx';
 
@@ -184,14 +186,6 @@ function SeletorDeClima({ s }: { s: SessaoDeEdicao }) {
 }
 
 /** Cor com prévia: arrastar o seletor muda o fundo na hora e vira UM item de histórico. */
-function useGestoDeCor(s: SessaoDeEdicao, rotulo: string) {
-  const gesto = useSignal<Gesto | null>(null);
-  return {
-    previa: (aplicar: (g: Gesto) => void) => { if (!gesto.value) { if (s.store.emGesto) return; gesto.value = s.store.iniciarGesto(rotulo); } tentar(() => aplicar(gesto.value!)); },
-    confirmar: () => { gesto.value?.concluir(); gesto.value = null; },
-  };
-}
-
 function CorDoFundo({ s }: { s: SessaoDeEdicao }) {
   const g = useGestoDeCor(s, 'Cor do fundo');
   return <CampoCor rotulo="Cor" valor={s.doc.value.backdrop.color} aoPrevia={v => g.previa(x => x.aplicar({ tipo: 'fundo.atualizar', patch: { color: v } }))} aoConfirmar={g.confirmar} />;
@@ -288,6 +282,7 @@ function CamposDaPeca({ s, t }: { s: SessaoDeEdicao; t: Peca }) {
       <label class="botao-pilula" data-testid="retrato-enviar"><Icone nome="novo" tamanho={14} />{t.portrait ? 'Trocar…' : 'Enviar…'}<input type="file" accept="image/*" hidden data-testid="retrato-arquivo" onChange={e => { const campo = e.target as HTMLInputElement; void enviar(campo.files?.[0]); campo.value = ''; }} /></label>
       {t.portrait && <button type="button" class="botao-pilula" onClick={() => editar({ portrait: null }, 'Tirar o retrato')} data-testid="retrato-remover">Tirar</button>}
     </Linha>
+    <PainelDoSprite s={s} t={t} />
     <CampoCaixa rotulo="Jogador" dica="A névoa e a visão da sessão vêm das peças de jogador." valor={t.player} aoMudar={v => editar({ player: v }, v ? 'Peça de jogador' : 'Peça do mestre')} />
     <CampoNumero rotulo="Tamanho" unidade="células" valor={t.size} min={0.5} max={4} passo={0.5} aoConfirmar={v => editar({ size: v }, 'Tamanho da peça')} />
     <CampoNumero rotulo="Visão" unidade="m" valor={t.vision.radius} min={0} max={200} passo={1} aoConfirmar={v => editar({ vision: { radius: v } }, 'Visão da peça')} />

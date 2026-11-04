@@ -9,6 +9,8 @@ import { hexParaNumero } from './cores.ts';
 
 /** Pixels por metro da memória: o traço precisa de mais resolução do que as máscaras. */
 export const RES_MEMORIA = 16;
+/** Pixels por metro da memória e das máscaras da névoa: no Pixel, os do próprio Pixel (o esboço tem de cair na grade dele). */
+export const resDaMemoria = (m: Pick<MapaAtlas, 'style' | 'grid'>): number => (m.style.renderer === 'pixel' ? m.style.pixel.pixelsPerCell / m.grid.size : RES_MEMORIA);
 const TEXTURA_MAX = 4096, ESPERA = 300;
 const PAPEIS: Record<string, string> = { 'papel-claro': '#e6dcc3', 'papel-velho': '#d3bf96', 'papel-pardo': '#c9b48a' };
 
@@ -31,19 +33,25 @@ export interface Memoria {
 export function criarMemoria(renderer: Renderer): Memoria {
   const raiz = new Container(), g = new Graphics(), ruido = valueNoise2D(11);
   raiz.addChild(g);
-  let rt: RenderTexture | null = null, largura = 0, altura = 0, mapa: MapaAtlas | null = null, pendente = false, desde = 0, destruido = false;
+  let rt: RenderTexture | null = null, largura = 0, altura = 0, resAtual = 0, pixel = false, mapa: MapaAtlas | null = null, pendente = false, desde = 0, destruido = false;
 
   function dimensionar(m: MapaAtlas): void {
-    const w = m.bounds.width, h = m.bounds.height;
-    if (rt && w === largura && h === altura) return;
-    largura = w; altura = h;
-    const res = Math.min(RES_MEMORIA, TEXTURA_MAX / Math.max(w, h)), antiga = rt;
-    rt = RenderTexture.create({ width: Math.max(1, Math.round(w * res)), height: Math.max(1, Math.round(h * res)) }); raiz.scale.set(rt.width / w, rt.height / h);
+    const w = m.bounds.width, h = m.bounds.height, r0 = resDaMemoria(m);
+    if (rt && w === largura && h === altura && r0 === resAtual) return;
+    largura = w; altura = h; resAtual = r0; pixel = m.style.renderer === 'pixel';
+    const res = Math.min(r0, TEXTURA_MAX / Math.max(w, h)), antiga = rt;
+    rt = RenderTexture.create({ width: Math.max(1, Math.round(w * res)), height: Math.max(1, Math.round(h * res)), scaleMode: pixel ? 'nearest' : 'linear' }); raiz.scale.set(rt.width / w, rt.height / h);
     antiga?.destroy(true);
   }
 
   /** Um traço à mão: pedaços curtos com a posição e a largura variando um pouco. */
   function tracar(pts: readonly Ponto[], largura0: number, cor: number, alfa = 0.92): void {
+    if (pixel) {
+      // No Pixel: tinta chapada, linha reta de 1 px (2 px nas paredes grossas), sem tremor nem transparência.
+      const px = 1 / (rt!.width / largura);
+      for (let i = 0; i + 1 < pts.length; i++) g.moveTo(pts[i]![0], pts[i]![1]).lineTo(pts[i + 1]![0], pts[i + 1]![1]).stroke({ width: Math.max(1, Math.round(largura0 / px / 1.5)) * px, color: cor, alpha: 1, cap: 'butt', join: 'miter' });
+      return;
+    }
     for (let i = 0; i + 1 < pts.length; i++) {
       const [x0, y0] = pts[i]!, [x1, y1] = pts[i + 1]!, comp = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.ceil(comp / 0.5));
       let ax = x0, ay = y0;
@@ -60,7 +68,7 @@ export function criarMemoria(renderer: Renderer): Memoria {
     const papel = corDoPapel(m.memory.paper), tinta = hexParaNumero(m.memory.ink);
     g.clear().rect(0, 0, m.bounds.width, m.bounds.height).fill(papel);
     // Fibras do papel: manchas suaves de ruído, só para o fundo não ficar chapado.
-    for (let y = 0; y < m.bounds.height; y += 0.3) for (let x = 0; x < m.bounds.width; x += 0.3) { const n = ruido(x * 1.1, y * 1.1) - 0.5; if (Math.abs(n) > 0.2) g.rect(x, y, 0.3, 0.3).fill({ color: n > 0 ? 0xffffff : 0x8a7a5a, alpha: Math.min(0.14, (Math.abs(n) - 0.2) * 0.5) }); }
+    if (!pixel) for (let y = 0; y < m.bounds.height; y += 0.3) for (let x = 0; x < m.bounds.width; x += 0.3) { const n = ruido(x * 1.1, y * 1.1) - 0.5; if (Math.abs(n) > 0.2) g.rect(x, y, 0.3, 0.3).fill({ color: n > 0 ? 0xffffff : 0x8a7a5a, alpha: Math.min(0.14, (Math.abs(n) - 0.2) * 0.5) }); }
     for (const c of Object.values(m.rooms)) for (const laco of contornoDoComodo(m, decodificar(c.cells))) tracar([laco[0]!.a, ...laco.map(s => s.b)], 0.05, tinta, 0.75);
     for (const p of Object.values(m.walls)) tracar(p.path as Ponto[], Math.max(0.1, p.thickness * (p.kind === 'wall' ? 0.8 : 0.5)), tinta);
     // As aberturas apagam o traço da parede (vão) e deixam só a folha da porta ou o vidro da janela.
@@ -88,8 +96,8 @@ export function criarMemoria(renderer: Renderer): Memoria {
       if (destruido) return;
       const tudo = !mud || mud.completo, col = (c: string) => !!(mud!.colecoes as Record<string, unknown>)[c], campo = (...c: string[]) => c.some(x => mud!.campos.includes(x));
       mapa = m;
-      if (tudo || campo('bounds') || !rt) dimensionar(m);
-      if (tudo || col('rooms') || col('walls') || col('openings') || col('props') || campo('grid', 'memory', 'bounds')) { pendente = true; desde = performance.now(); if (tudo || !rt) desde = 0; }
+      if (tudo || campo('bounds', 'style', 'grid') || !rt) dimensionar(m);
+      if (tudo || col('rooms') || col('walls') || col('openings') || col('props') || campo('grid', 'memory', 'bounds', 'style')) { pendente = true; desde = performance.now(); if (tudo || !rt) desde = 0; }
     },
     quadro(agora) {
       if (destruido || !pendente || agora - desde < ESPERA) return false;

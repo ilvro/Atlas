@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { ErroDeValidacao } from '../../src/domain/esquema.ts';
-import { COLECAO, validarColecao, type ItemDaColecao } from '../../src/procedural/colecao.ts';
+import { COLECAO, fonteDoPixel, validarColecao, type ItemDaColecao } from '../../src/procedural/colecao.ts';
 
 const RAIZ = join(import.meta.dirname, '../../public/colecao'), LICENCAS = readFileSync(join(import.meta.dirname, '../../docs/LICENCAS.md'), 'utf8');
 const KB = 1024, MB = 1024 * 1024;
@@ -39,13 +39,14 @@ function arquivosDe(dir: string): string[] { return readdirSync(dir).flatMap(n =
 test('a coleção da casa: ids únicos com prefixo, todo arquivo existe e todo arquivo está no catálogo', () => {
   assert.equal(new Set(COLECAO.map(i => i.id)).size, COLECAO.length);
   for (const i of COLECAO) { assert.match(i.id, /^casa:/); assert.ok(statSync(join(RAIZ, i.arquivo), { throwIfNoEntry: false })?.isFile(), `falta ${i.arquivo}`); assert.ok(i.pegada[0] > 0 && i.pegada[1] > 0); }
-  const noDisco = arquivosDe(RAIZ).map(p => relative(RAIZ, p)).filter(p => p !== 'colecao.json').sort(), noCatalogo = COLECAO.map(i => i.arquivo).sort();
+  const noDisco = arquivosDe(RAIZ).map(p => relative(RAIZ, p)).filter(p => p !== 'colecao.json').sort(), noCatalogo = COLECAO.flatMap(i => i.pixelArquivo ? [i.arquivo, i.pixelArquivo] : [i.arquivo]).sort();
   assert.deepEqual(noDisco, noCatalogo, 'cada arquivo de public/colecao/ (fora o JSON) está no catálogo, e vice-versa');
 });
 
 test('todo item da coleção aparece em LICENCAS.md, e todo achado tem licença aceita', () => {
   for (const i of COLECAO) {
     assert.ok(LICENCAS.includes(i.arquivo), `${i.arquivo} não está em docs/LICENCAS.md`);
+    if (i.pixelArquivo) assert.ok(LICENCAS.includes(i.pixelArquivo), `${i.pixelArquivo} (versão Pixel manual) não está em docs/LICENCAS.md`);
     if (i.origem.tipo === 'achado') { assert.ok(['CC0-1.0', 'CC-BY-4.0'].includes(i.origem.licenca)); assert.ok(LICENCAS.includes(i.origem.autor), `${i.arquivo}: o autor não está em LICENCAS.md`); }
   }
 });
@@ -54,4 +55,19 @@ test('tamanhos: cada arquivo até 400 KB e a coleção inteira até 15 MB', () =
   let total = 0;
   for (const p of arquivosDe(RAIZ)) { const t = statSync(p).size; total += t; if (p.endsWith('colecao.json')) continue; assert.ok(t <= 400 * KB, `${relative(RAIZ, p)} tem ${(t / KB).toFixed(0)} KB (o limite é 400)`); }
   assert.ok(total <= 15 * MB, `public/colecao/ tem ${(total / MB).toFixed(1)} MB (o limite é 15)`);
+});
+
+test('pixelArquivo: aceito com um .png relativo, recusado em outros formatos ou fora da pasta; sem ele o item é igual', () => {
+  assert.equal(validarColecao(catalogo(gerado('casa:a', { pixelArquivo: 'pixel/a.png' }), gerado('casa:b'))).length, 2);
+  recusa([gerado('casa:a', { pixelArquivo: 'pixel/a.webp' })], /pixelArquivo/);
+  recusa([gerado('casa:a', { pixelArquivo: '../a.png' })], /pixelArquivo/);
+  recusa([gerado('casa:a', { pixelArquivo: 3 as never })], /pixelArquivo/);
+});
+
+test('fonteDoPixel: o arquivo manual vence quando o pixelsPerCell é múltiplo inteiro de 16; senão a imagem é derivada; sem arquivo, sempre derivada', () => {
+  const manual = { pixelArquivo: 'pixel/a.png' };
+  assert.deepEqual(fonteDoPixel(manual, 16), { tipo: 'manual', arquivo: 'pixel/a.png', escala: 1 });
+  assert.deepEqual(fonteDoPixel(manual, 32), { tipo: 'manual', arquivo: 'pixel/a.png', escala: 2 });
+  for (const ppc of [12, 24, 8, 20]) assert.deepEqual(fonteDoPixel(manual, ppc), { tipo: 'derivada' }, `ppc ${ppc}`);
+  assert.deepEqual(fonteDoPixel({}, 16), { tipo: 'derivada' });
 });

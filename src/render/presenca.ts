@@ -47,23 +47,37 @@ uniform float uEscala;
 uniform float uSemente;
 uniform float uBrilha;
 uniform float uGm;
+uniform float uPixel;
+uniform float uPpm;
 uniform vec3 uCor;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float ruido(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
 float massa(vec2 uv) { return texture(uTexture, uv).a; }
+// Bayer 4×4 sem arrays (o Pixi compila também para GLSL ES 1.00).
+float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
+float bayer(vec2 p) { return bayer2(0.5 * p) * 0.25 + bayer2(p) - 0.47; }
 void main() {
+  bool pixel = uPixel > 0.5;
+  // No Pixel tudo é medido em pixels do Pixel: a coordenada do mundo é arredondada ao pixel antes do ruído e da máscara.
+  vec2 pos = pixel ? (floor((uOrigem + vUV * uTamanho) * uPpm) + 0.5) / uPpm : uOrigem + vUV * uTamanho;
+  vec2 uv = (pos - uOrigem) / uTamanho;
+  float b = pixel ? bayer(floor(pos * uPpm)) : 0.0;
   vec2 d = uCelula * 0.75;
-  float m = (massa(vUV) * 2.0 + massa(vUV + vec2(d.x, 0.0)) + massa(vUV - vec2(d.x, 0.0)) + massa(vUV + vec2(0.0, d.y)) + massa(vUV - vec2(0.0, d.y))) / 6.0;
-  vec2 mundo = uOrigem + vUV * uTamanho;
+  float m = (massa(uv) * 2.0 + massa(uv + vec2(d.x, 0.0)) + massa(uv - vec2(d.x, 0.0)) + massa(uv + vec2(0.0, d.y)) + massa(uv - vec2(0.0, d.y))) / 6.0;
+  vec2 mundo = pos;
   vec2 p = mundo * (1.4 / uEscala) + vec2(uSemente * 0.37, uSemente * 0.11);
   mat2 giro = mat2(0.8, -0.6, 0.6, 0.8);
   float n = ruido(p) * 0.55 + ruido(giro * p * 2.3 + uTempo * 0.05) * 0.3 + ruido(giro * giro * p * 5.1) * 0.15;
   float limiar = mix(0.95, 0.12, uIntensidade);
   float campo = m + (n - 0.5) * 0.9;
-  float a = smoothstep(limiar, limiar + 0.16, campo) * smoothstep(0.0, 0.3, m);
-  float pulsa = 1.0 + uPulso * 0.35 * sin(uTempo * uPulso * 2.4 + n * 6.2831);
-  vec3 cor = uCor * (0.62 + 0.55 * ruido(p * 3.7 + 11.0)) * pulsa;
-  float brilho = uBrilha * 0.3 * smoothstep(0.0, 0.5, m) * (1.0 - a) * pulsa * uIntensidade;
+  float a = pixel ? step(limiar + 0.08 + b * 0.16, campo) * step(0.12 + b * 0.2, m) : smoothstep(limiar, limiar + 0.16, campo) * smoothstep(0.0, 0.3, m);
+  // No Pixel a pulsação anda em degraus e o tom da mancha em três níveis.
+  float fase = uTempo * uPulso * 2.4;
+  float pulsa = 1.0 + uPulso * 0.35 * sin((pixel ? floor(fase * 2.0) / 2.0 : fase) + n * 6.2831);
+  float tom = ruido(p * 3.7 + 11.0);
+  vec3 cor = uCor * (0.62 + 0.55 * (pixel ? floor(tom * 3.0) / 3.0 : tom)) * pulsa;
+  float halo = pixel ? step(0.5 + b * 0.5, smoothstep(0.0, 0.5, m) * 0.9) * 0.5 : smoothstep(0.0, 0.5, m);
+  float brilho = uBrilha * 0.3 * halo * (1.0 - a) * pulsa * uIntensidade;
   float alfa = clamp(a * 0.92 + brilho, 0.0, 1.0);
   // Só o mestre vê: metade da força e hachuras.
   float risca = 0.55 + 0.45 * step(0.5, fract((mundo.x + mundo.y) * 3.0));
@@ -100,7 +114,7 @@ export function criarPresenca(): RenderDePresenca {
     const grupo = new UniformGroup({
       uOrigem: { value: new Float32Array([wx0, wy0]), type: 'vec2<f32>' }, uTamanho: { value: new Float32Array([wx1 - wx0, wy1 - wy0]), type: 'vec2<f32>' },
       uCelula: { value: new Float32Array([1 / w, 1 / h]), type: 'vec2<f32>' }, uTempo: { value: 0, type: 'f32' }, uIntensidade: { value: 0.6, type: 'f32' },
-      uPulso: { value: 0, type: 'f32' }, uEscala: { value: 1, type: 'f32' }, uSemente: { value: 0, type: 'f32' }, uBrilha: { value: 0, type: 'f32' }, uGm: { value: 0, type: 'f32' },
+      uPulso: { value: 0, type: 'f32' }, uPixel: { value: 0, type: 'f32' }, uPpm: { value: 1, type: 'f32' }, uEscala: { value: 1, type: 'f32' }, uSemente: { value: 0, type: 'f32' }, uBrilha: { value: 0, type: 'f32' }, uGm: { value: 0, type: 'f32' },
       uCor: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
     });
     prog ??= programa();
@@ -111,10 +125,12 @@ export function criarPresenca(): RenderDePresenca {
     return { mesh, grupo, textura, celulas: p.cells, resolucao: res, brilha };
   }
 
-  function atualizarUniformes(d: Desenho, p: Presenca): void {
+  function atualizarUniformes(d: Desenho, p: Presenca, m: MapaAtlas): void {
     const b = pincelDePresenca(p.brush), n = hexParaNumero(b?.cor ?? '#ffffff'), u = d.grupo.uniforms as Record<string, unknown>;
     u.uCor = new Float32Array([((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]);
     u.uIntensidade = p.intensity; u.uPulso = b?.pulso ?? 0; u.uEscala = b?.escala ?? 1; u.uBrilha = b?.brilho ? 1 : 0; u.uSemente = p.seed % 1000; u.uGm = p.gmOnly ? 1 : 0;
+    const pixel = m.style.renderer === 'pixel'; u.uPixel = pixel ? 1 : 0; u.uPpm = m.style.pixel.pixelsPerCell / m.grid.size;
+    const modo = pixel ? 'nearest' : 'linear'; if (d.textura.source.scaleMode !== modo) d.textura.source.scaleMode = modo;
   }
 
   return {
@@ -128,7 +144,7 @@ export function criarPresenca(): RenderDePresenca {
         const brilha = pincelDePresenca(p.brush)?.brilho ?? false;
         if (d && (d.celulas !== p.cells || d.resolucao !== res || d.brilha !== brilha)) { apagar(d); desenhos.delete(p.id); d = undefined; }
         if (!d) { if (!p.cells.length) continue; d = criar(p, res, cols, lins); desenhos.set(p.id, d); }
-        atualizarUniformes(d, p);
+        atualizarUniformes(d, p, m);
       }
     },
     quadro(dt) {

@@ -6,7 +6,7 @@ import { PIXEL } from './pixel.ts';
 
 export type IdDoEstilo = 'illustrated' | 'pixel';
 /** O que o Pixel precisa saber além do estilo: pixels por célula (corta o detalhe que não cabe) e se há contorno. */
-export interface OpcoesDoPixel { ppc: number; contorno: boolean }
+export interface OpcoesDoPixel { ppc: number; contorno: boolean; /** Id da paleta e dithering: só as imagens derivadas usam. */ paleta: string; dither: 'none' | 'bayer4' }
 export type TipoDeAssado = 'objeto' | 'comodo' | 'terreno';
 
 /**

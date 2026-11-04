@@ -3,7 +3,7 @@ import type { Comodo, MapaAtlas, Objeto } from '../domain/mapa.ts';
 import { generoDe } from '../domain/presets.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import type { EntradaDeTerreno, EntradaDoComodo } from '../procedural/assar.ts';
-import { COLECAO, RES_DA_COLECAO, type ItemDaColecao } from '../procedural/colecao.ts';
+import { COLECAO, PPC_DO_PIXEL_ARQUIVO, RES_DA_COLECAO, fonteDoPixel, type ItemDaColecao } from '../procedural/colecao.ts';
 import { estiloDe, type IdDoEstilo, type OpcoesDoPixel, type TipoDeAssado } from '../procedural/estilos/index.ts';
 import type { PedidoDeBake } from '../procedural/executar.ts';
 import { urlDoItem } from './url-da-colecao.ts';
@@ -47,13 +47,24 @@ export const resolucaoDe = (m: Pick<MapaAtlas, 'style' | 'grid'>, tipo: TipoDeAs
   estiloDe(m.style.renderer).resolucao(tipo, { ppc: m.style.pixel.pixelsPerCell, celula: m.grid.size });
 
 /** As opções do Pixel de um mapa (pixels por célula e contorno); `undefined` no Ilustrado, que não as usa. */
-export const opcoesDoPixel = (m: Pick<MapaAtlas, 'style'>): OpcoesDoPixel | undefined => (m.style.renderer === 'pixel' ? { ppc: m.style.pixel.pixelsPerCell, contorno: m.style.pixel.outline } : undefined);
+export const opcoesDoPixel = (m: Pick<MapaAtlas, 'style'>): OpcoesDoPixel | undefined => (m.style.renderer === 'pixel' ? { ppc: m.style.pixel.pixelsPerCell, contorno: m.style.pixel.outline, paleta: m.style.palette, dither: m.style.pixel.dither } : undefined);
 const sufixoDoPixel = (px?: OpcoesDoPixel): string => (px ? `|c${px.contorno ? 1 : 0}` : '');
+/** A imagem derivada também depende da paleta e do dithering. */
+const sufixoDaImagemNoPixel = (px?: OpcoesDoPixel): string => (px ? `${sufixoDoPixel(px)}|${px.paleta}|${px.dither}` : '');
+
+/** A chave do cache de um item da coleção. No Pixel ela diz de onde vem o desenho: o arquivo manual (com a escala), o gerador ou a imagem derivada. */
+export function chaveDoItem(assetId: string, item: ItemDaColecao, harmonizado: boolean, res: number, genero: string, estilo: IdDoEstilo, pixel?: OpcoesDoPixel): string {
+  const base = `${estilo}|a|${res}|${assetId}|${harmonizado ? `h:${generoDe(genero).id}` : '-'}`;
+  if (estilo !== 'pixel') return base;
+  const fonte = pixel ? fonteDoPixel(item, pixel.ppc) : { tipo: 'derivada' as const };
+  if (fonte.tipo === 'manual') return `${base}|manual:${fonte.arquivo}:${fonte.escala}`;
+  return base + (item.origem.tipo === 'gerado' ? sufixoDoPixel(pixel) : sufixoDaImagemNoPixel(pixel));
+}
 
 /** Toda chave começa pelo estilo de raster: o mesmo objeto nos dois estilos são dois desenhos, e o do outro estilo fica em cache até a troca terminar. */
 export function chaveDoObjeto(o: Objeto, res: number, genero = 'investigacao', estilo: IdDoEstilo = 'illustrated', pixel?: OpcoesDoPixel): string | null {
   if (o.elevation === 'wall') return null;
-  if (o.source.kind === 'asset') { const item = itemDaColecao(o.source.assetId); return item ? `${estilo}|a|${res}|${o.source.assetId}|${harmoniza(o, item) ? `h:${generoDe(genero).id}` : '-'}${geradoNoPixel(item, estilo) ? sufixoDoPixel(pixel) : ''}` : null; }     // asset desconhecido: o marcador fica, sem erro
+  if (o.source.kind === 'asset') { const item = itemDaColecao(o.source.assetId); return item ? chaveDoItem(o.source.assetId, item, harmoniza(o, item), res, genero, estilo, pixel) : null; }     // asset desconhecido: o marcador fica, sem erro
   return `${estilo}|o|${res}|${o.source.recipe}|${o.source.seed}|${JSON.stringify(o.source.params)}${sufixoDoPixel(pixel)}`;
 }
 
@@ -64,13 +75,22 @@ const porId = new Map(COLECAO.map(i => [i.id, i]));
 const harmoniza = (o: Objeto, item: ItemDaColecao): boolean => o.harmonize && item.origem.tipo === 'achado';
 export const itemDaColecao = (assetId: string) => porId.get(assetId);
 
+/**
+ * O pedido de pintura de um item da coleção. No Pixel: o arquivo manual, se há e cabe; senão o item gerado é assado da descrição; senão a imagem é derivada.
+ * No Ilustrado, a imagem já assada (harmonizada se for achada).
+ */
+export function pedidoDoItem(item: ItemDaColecao, pegada: [number, number], harmonizado: boolean, res: number, genero: string, estilo: IdDoEstilo, pixel?: OpcoesDoPixel): PedidoDeBake {
+  const fonte = estilo === 'pixel' && pixel ? fonteDoPixel(item, pixel.ppc) : null;
+  if (fonte?.tipo === 'manual') return { tipo: 'imagem', url: urlDoItem({ arquivo: fonte.arquivo }), pegada, res, resImagem: PPC_DO_PIXEL_ARQUIVO / 1.5, harmonizar: false, alvo: null, estilo, pixel, pixelManual: { escala: fonte.escala } };
+  if (geradoNoPixel(item, estilo) && item.origem.tipo === 'gerado') return { tipo: 'gerado', gerador: item.origem.gerador, params: item.origem.params, seed: item.origem.seed, res, estilo, pixel };
+  return { tipo: 'imagem', url: urlDoItem(item), pegada, res, resImagem: item.res ?? RES_DA_COLECAO, harmonizar: harmonizado, alvo: harmonizado ? generoDe(genero).alvoDeCor : null, estilo, pixel };
+}
+
 /** O pedido de pintura de um objeto de piso, de receita ou da coleção; `null` se não há o que pintar (asset desconhecido). */
 export function pedidoDoObjeto(o: Objeto, res: number, genero = 'investigacao', estilo: IdDoEstilo = 'illustrated', pixel?: OpcoesDoPixel): PedidoDeBake | null {
   if (o.source.kind === 'recipe') return { tipo: 'objeto', receita: o.source.recipe, params: o.source.params, seed: o.source.seed, res, estilo, pixel };
   const item = itemDaColecao(o.source.assetId); if (!item) return null;
-  // No Pixel os itens gerados são assados da descrição do gerador (o Ilustrado usa a imagem já assada); os achados seguem como imagem.
-  if (geradoNoPixel(item, estilo) && item.origem.tipo === 'gerado') return { tipo: 'gerado', gerador: item.origem.gerador, params: item.origem.params, seed: item.origem.seed, res, estilo, pixel };
-  return { tipo: 'imagem', url: urlDoItem(item), pegada: ACERVO.pegadaDaFonte(o.source), res, resImagem: item.res ?? RES_DA_COLECAO, harmonizar: harmoniza(o, item), alvo: harmoniza(o, item) ? generoDe(genero).alvoDeCor : null };
+  return pedidoDoItem(item, ACERVO.pegadaDaFonte(o.source), harmoniza(o, item), res, genero, estilo, pixel);
 }
 export const chaveDoComodo = (e: EntradaDoComodo, res: number, estilo: IdDoEstilo = 'illustrated'): string => `${estilo}|c|${res}|${JSON.stringify(e)}`;
 export const chaveDoTerreno = (e: EntradaDeTerreno, res: number, estilo: IdDoEstilo = 'illustrated'): string => `${estilo}|t|${res}|${JSON.stringify(e)}`;

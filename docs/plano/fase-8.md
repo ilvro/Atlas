@@ -116,7 +116,7 @@ Pronto quando: mesas, camas, estantes e o sofá capitonê são reconhecíveis no
 Nota: o desenho das partes está em `estilos/partes-pixel.ts` (`desenharPartesPixel`, `finalizarPixel`); `ppc` e `contorno` chegam ao worker em `PedidoDeBake.pixel` (`OpcoesDoPixel`) e entram na chave de cache. O item gerado vai por um pedido novo `gerado` (import dinâmico de `pesados/` no worker); achados continuam como imagem até a 8.3a. Com 16 px por célula os `detalhe 3` (botões do capitonê, folhinhas) somem, então o capitonê aparece como estofado liso com braços; ele ganha os botões a partir de 24. A sombra de contato é um tom único (alfa 115) e o contorno de tinta cobre também a borda da sombra. A captura é `test-results/fase8-objetos.png`.
 Commit: pixel objects
 
-### 8.1e — Pixel: paredes caixa e sólidas  ⬜
+### 8.1e — Pixel: paredes caixa e sólidas  ✅
 Objetivo: as faces internas das paredes caixa, as faixas sólidas, portas, janelas e objetos de parede no Pixel.
 Depende de: 8.1d
 Ler: `src/procedural/assar.ts` (`assarComodo`, `facesDoContorno`, `profundidadeDaFace`, objetos na face); `src/render/cena.ts` (`desenharParede`, `desenharAbertura`); `docs/referencias/` (as faces da mansão).
@@ -128,9 +128,10 @@ Como:
 Não fazer: telhados (já são da 7.2c; no Pixel, só quantizados pela pixelização).
 Testes: captura `test-results/fase8-paredes.png` (cômodo em L com porta, janela, quadro e estante; caixa e sólido); o e2e de Pixel não tem linhas com antialias nas paredes (contagem de cores na faixa do topo).
 Pronto quando: as faces se leem como as do protótipo.
+Nota: `estilos/faces-pixel.ts`: a face é pintada num rascunho em pixels do dispositivo e copiada em fileiras de 1 px de profundidade (a meia-esquadria dos cantos vira degraus); topo e base escurecem em 2 degraus, o rodapé tem 1 px claro; portas, janelas e objetos de parede viram formas chapadas mapeadas da face. Na cena, os traços de parede têm largura ímpar em pixels e o desenho anda meio pixel (o fio claro do topo tem 1 px). `desenharAbertura` foi dividido em `partesDaAbertura` e o desenho. Capturas `fase8-paredes.png` e `fase8-paredes-solidas.png`.
 Commit: pixel walls
 
-### 8.1f — Pixel: presença e memória em blocos  ⬜
+### 8.1f — Pixel: presença e memória em blocos  ✅
 Objetivo: presença e névoa com memória com cara de pixel: blocos e dithering, sem gradiente liso.
 Depende de: 8.1b; (depois da 7) a memória em esboço e a névoa.
 Ler: `src/render/presenca.ts` (shader); `src/render/memoria.ts`, `nevoa.ts` (7.2a e 7.2b); `spikes/estilos/src/filtros.js` (Bayer).
@@ -142,9 +143,10 @@ Como:
 Não fazer: transição de revelação (8.4b).
 Testes: e2e: presença no Pixel numa amostra tem só cores da paleta (já garantido pela 8.1b) e não tem meio-tons fora do dithering; captura `test-results/fase8-presenca.png` e `fase8-memoria.png`.
 Pronto quando: as capturas mostram blocos e dithering, sem borrão.
+Nota: o shader da presença ganhou `uPixel` e `uPpm` (coordenada arredondada ao pixel, limiar com Bayer, pulsação em degraus e tom em 3 níveis); a memória e as máscaras da névoa passam a ter a resolução do Pixel (`resDaMemoria`), o esboço é papel e tinta com traço reto de 1 px, e a cobertura da névoa leva o filtro de dithering do alfa (`criarFiltroDeDitherDeAlfa`, em `pixelizar.ts`, que a 8.4b reaproveita).
 Commit: pixel presence and memory
 
-### 8.2a — Gerador de sprites  ⬜
+### 8.2a — Gerador de sprites  ✅
 Objetivo: a folha de quadros de um personagem a partir de `Peca.sprite`, em 4 direções, parado e andando.
 Depende de: —
 Ler: `spikes/estilos/src/sprite.js` inteiro; `src/domain/mapa.ts` (`Peca.sprite`: `body`, `hair`, `outfit`, `accessories`, `colors`, `seed`); `src/procedural/canvas.ts`.
@@ -156,9 +158,10 @@ Como:
 Não fazer: interface; estados.
 Testes: unitários de `domain/sprite.ts` (todo id do `spriteAleatorio` existe nos catálogos; mesma semente, mesmo sprite). Por e2e (`page.evaluate` importando o módulo): a folha tem 96 × 96 px e cada quadro tem pixels opacos.
 Pronto quando: testes passam.
+Nota: `domain/sprite.ts` (catálogos, `spriteAleatorio`, `corDoSprite`) e `procedural/sprite.ts` (`folhaDoSprite`, 96 × 96 px, contorno de 1 px; o desenho desce 1 px no quadro para o contorno caber). O corpo (padrão, esguio, robusto), o cabelo (curto, longo, coque, careca) e a roupa (casaco, vestido, armadura, manto) mudam o desenho; os seis acessórios foram feitos. Pedido de bake `sprite`. Captura `fase8-sprites.png`.
 Commit: parametric sprite generator
 
-### 8.2b — Sprite na peça e painel do sprite  ⬜
+### 8.2b — Sprite na peça e painel do sprite  ✅
 Objetivo: a peça usa o sprite (no Pixel por padrão; no Ilustrado, como opção), anda com a animação e se edita num painel com prévia animada.
 Depende de: 8.2a; (depois da 7) peças com retrato (7.1a) e movimento (7.1b).
 Ler: `src/render/pecas.ts`; `src/ui/Inspetor.tsx` (`CamposDaPeca`); `src/ui/campos.tsx`.
@@ -170,9 +173,10 @@ Como:
 Não fazer: cores pelo retrato (8.2c).
 Testes: e2e: criar um sprite pelo painel, ver a peça desenhada com ele no Pixel, mover a peça e conferir que a linha de quadros mudou com a direção (exponha o quadro atual para teste).
 Pronto quando: o teste passa.
+Nota: a folha é pedida ao baker com a chave `pixel|sprite|<spec>` e fatiada em quadros; `PecaVisual.estado()` expõe o `quadro` (linha e coluna). `ui/PainelDoSprite.tsx` e `ui/gesto-de-cor.ts` (o gesto de cor saiu do inspetor para ser compartilhado). No Pixel o sprite vence o retrato; no Ilustrado só aparece sem retrato.
 Commit: token sprites and sprite panel
 
-### 8.2c — Cores pelo retrato e estados no sprite  ⬜
+### 8.2c — Cores pelo retrato e estados no sprite  ✅
 Objetivo: sugerir as cores do sprite a partir do retrato, e mostrar os estados da Ficha no sprite.
 Depende de: 8.2b
 Ler: `src/domain/figuras.ts` (7.1a: `aparenciaDoEstado`); `src/procedural/sprite.ts`.
@@ -184,9 +188,10 @@ Como:
 Não fazer: ler cores da Ficha (9.2b, se a Ficha publicar).
 Testes: `coresDominantes` numa imagem de 4 blocos de cor devolve as 4; a sugestão põe a cor de pele no campo de pele.
 Pronto quando: um retrato vira um sprite com as mesmas cores, e os estados se distinguem a 16 px por célula.
+Nota: `procedural/cores-do-retrato.ts` (k-médias com semente fixa, `sugerirCoresDoSprite`) e o botão "Cores do retrato" no painel. Os estados são aplicados na peça, sobre o mesmo sprite (a folha continua 96 × 96, sem a linha "deitado"): ferido com 2 pixels vermelhos, morrendo pisca, inconsciente e morto deitam sem sombra, morto com X de 5 pixels, enlouquecendo treme 1 px com tinta roxa. Capturas `fase8-estado-*.png`.
 Commit: sprite colors from portrait and figure states
 
-### 8.3a — Derivação automática de imagens  ⬜
+### 8.3a — Derivação automática de imagens  ✅
 Objetivo: imagens (achados da coleção, retratos, importações futuras) ganham versão Pixel automática.
 Depende de: 8.1d; (depois da 6) achados da coleção e a harmonização (6.3).
 Ler: `src/procedural/harmonizar.ts` (6.3a, funções sobre `ImageData`); `src/procedural/executar.ts` (pedido `imagem`); `src/domain/paletas.ts`.
@@ -198,9 +203,10 @@ Como:
 Não fazer: `pixelArquivo` (8.3b).
 Testes: unitários com imagens pequenas: um tabuleiro 2×2 reduzido mantém 2 cores; borda dura continua dura; toda cor de saída está na paleta.
 Pronto quando: um achado aparece no Pixel coerente com os objetos procedurais ao lado.
+Nota: `procedural/derivar-pixel.ts` (`derivarPixel`: moda por bloco, alfa binário, paleta com Bayer opcional, contorno e sombra) e o pedido `imagem` com `estilo: 'pixel'` (desenha a 4× e deriva para o tamanho da pegada). O retrato da peça no Pixel também passa por ela (`render/retratos.ts`, recortado em círculo). Ainda não há achados na coleção (6.2b), então a imagem é testada sintética.
 Commit: automatic pixel derivation for images
 
-### 8.3b — `pixelArquivo` manual  ⬜
+### 8.3b — `pixelArquivo` manual  ✅
 Objetivo: um item da coleção pode ter uma versão Pixel feita à mão, que tem prioridade sobre a derivada.
 Depende de: 8.3a
 Ler: `src/procedural/colecao.ts` (`ItemDaColecao`, `validarColecao`); `tests/unit/colecao.test.ts`.
@@ -211,9 +217,10 @@ Como:
 Não fazer: editor de pixel.
 Testes: validação da coleção com e sem `pixelArquivo`; unitário da escolha de fonte (manual > derivada).
 Pronto quando: um item com versão manual usa a manual no Pixel.
+Nota: `ItemDaColecao.pixelArquivo`, `fonteDoPixel` (manual só se `pixelsPerCell` é múltiplo inteiro de 16) e `pedidoDoItem` / `chaveDoItem` em `render/entradas.ts` (o manual vence a gerada e a derivada); o pedido `imagem` ganhou `pixelManual: { escala }`. Hoje nenhum item tem versão manual; o teste de coleção já exige existência, catálogo e `LICENCAS.md`.
 Commit: manual pixel art override
 
-### 8.4a — Luz em faixas  ⬜
+### 8.4a — Luz em faixas  ✅
 Objetivo: no Pixel, a luz cai em degraus de borda dura, mantendo a cor.
 Depende de: 8.1b
 Ler: `spikes/estilos/src/filtros.js` (`filtroFaixas`); `spikes/estilos/src/main.js` (`luzFaixasRT`); `src/render/mapa-de-luz.ts` (render targets, desfoque, `RES_LUZ`).
@@ -225,9 +232,10 @@ Como:
 Não fazer: sombras diferentes das do Ilustrado.
 Testes: e2e: no Pixel, a intensidade da luz numa linha do centro de uma lamparina para fora tem no máximo 6 valores distintos.
 Pronto quando: a lamparina no Pixel tem anéis nítidos e a cor quente se mantém.
+Nota: `render/faixas.ts` (`criarFiltroDeFaixas`, 5 degraus) e `mapa-de-luz.ts`: no Pixel o mapa de luz tem a resolução do Pixel, sem desfoque, e passa pelas faixas antes de multiplicar a cena; a tremulação das chamas muda o raio em passos de 1 pixel. A preferência de 3 a 8 degraus **não** entrou no documento (seria um campo novo em `style.pixel`): ficou a constante `DEGRAUS_DA_LUZ = 5`. O relâmpago e as janelas passam pelo mesmo caminho. Captura `fase8-luz-faixas.png`.
 Commit: banded light for pixel style
 
-### 8.4b — Revelação em dithering e fonte pixel  ⬜
+### 8.4b — Revelação em dithering e fonte pixel  ✅
 Objetivo: no Pixel, o que entra na vista aparece por dissolução em dithering, e os textos do mapa e do projetor usam uma fonte pixel.
 Depende de: 8.1f; (depois da 7) revelação animada (7.2c) e projetor (7.5b).
 Ler: `src/render/nevoa.ts` (transição da 7.2c); `src/render/cena.ts` (cartela de título); `src/ui/Projetor.tsx`; `package.json` (fontes `@fontsource`).
@@ -238,9 +246,10 @@ Como:
 Não fazer: fonte pixel na interface do editor (só no mapa e no projetor).
 Testes: e2e: revelar no Pixel tem um quadro intermediário com dithering (contagem de pixels parcialmente revelados num bloco); captura do título em pixel.
 Pronto quando: revelar no Pixel dissolve em vez de esmaecer, e o título se lê com acentos.
+Nota: a revelação em dithering é o `criarFiltroDeDitherDeAlfa` da 8.1f sobre a cobertura da névoa: a média móvel do visível (7.2c, mesma duração) vira alfa e o filtro a transforma em pontos de Bayer, então o que entra se dissolve em vez de esmaecer. Fonte: Pixelify Sans (`@fontsource/pixelify-sans`, OFL, em `LICENCAS.md`), nos títulos do mapa (tamanho inteiro, resolução 1, `nearest`) e na janela do projetor (`.projetor-pixel`, com a moldura de bordas duras no lugar da vinheta suave). Captura `fase8-titulo-pixel.png`.
 Commit: dithered reveal and pixel font
 
-### 8.4c — Partículas, neblina e transição de clima no Pixel  ⬜
+### 8.4c — Partículas, neblina e transição de clima no Pixel  ✅
 Objetivo: chuva, neve, poeira, brasas, folhas, neblina e a mistura de climas com cara de Pixel (pendência da Fase 4).
 Depende de: 8.1b, 8.4a
 Ler: `src/render/particulas.ts`, `particulas-config.ts`, `neblina.ts`; `spikes/estilos/src/main.js` (`criarChuva` no Pixel: gotas de 1 × 3 px); `src/render/viewport.ts` (transição de clima).
@@ -252,9 +261,10 @@ Como:
 Não fazer: tipos de partícula novos.
 Testes: e2e: tempestade no Pixel conta partículas como no Ilustrado (mesma quantidade) e a amostra só tem cores da paleta; quadros por segundo em 60 com tempestade.
 Pronto quando: os climas da Fase 4 funcionam no Pixel sem nada liso fora de lugar.
+Nota: `particulas.ts`: texturas de pixels inteiros em `nearest` (gota 1 × 3, floco 1 × 1 ou 2 × 2, poeira e brasa 1 × 1, folha 2 × 2), sem rotação, opacidade em 3 níveis; elas entram no render target e caem na grade sozinhas. `neblina.ts`: ruído em blocos de 2 px com 3 níveis e limiar de Bayer. A mistura de clima não mudou. Captura `fase8-tempestade-pixel.png`.
 Commit: pixel particles and fog
 
-### 8.5 — Validação da fase  ⬜
+### 8.5 — Validação da fase  ✅
 Objetivo: provar o critério de pronto e registrar o relatório.
 Depende de: todas
 Ler: `tests/e2e/fase7.test.ts` (a sessão no projetor).
@@ -266,4 +276,5 @@ Como:
 Não fazer: consertar desenho aqui além de ajuste de número; o resto vira pendência.
 Testes: os acima, mais `npm run typecheck`, `npm test`, `npm run test:e2e`.
 Pronto quando: tudo passa e o relatório está no progress.md.
+Nota: o teste `fase 8: a casa no Pixel` (em `tests/e2e/fase8.test.ts`) usa o roteiro da 7.7 (porta, duas peças com um sprite, tempestade, porta secreta, cômodo revelado, interruptor) e troca o estilo 19 vezes ao vivo, medindo o tempo; as capturas lado a lado são `test-results/fase8-{inicio,porta,tempestade,fim}-{ilustrado,pixel}.png` e os números ficam em `test-results/fase8-relatorio.json`. A iniciativa ficou de fora do roteiro (não muda o desenho).
 Commit: validate phase 8

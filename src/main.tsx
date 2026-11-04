@@ -2,6 +2,7 @@ import '@fontsource-variable/hanken-grotesk';
 import '@fontsource/cinzel/600.css';
 import '@fontsource/cinzel/700.css';
 import '@fontsource/special-elite';
+import '@fontsource/pixelify-sans/700.css';
 import './ui/estilo.css';
 import { render } from 'preact';
 import { sessao, servicos, viewport } from './app/app.ts';

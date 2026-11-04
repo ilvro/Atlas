@@ -4,6 +4,10 @@ Tudo o que o Atlas distribui (código, receitas, imagens da coleção, fontes) t
 
 Só entram **CC0** e **CC-BY 4.0** (esta com crédito aqui e na tela de ajuda). Nada de NC, ND, "uso pessoal" ou licença ambígua. Importações do mestre ficam em `data-private/` ou no IndexedDB, nunca no git, em `public/` ou em `dist/`.
 
+## Versão Pixel manual (`pixelArquivo`)
+
+Um item da coleção pode ter uma versão Pixel feita à mão (`pixelArquivo`, um PNG em `public/colecao/`, a 16 px por célula). Ela segue a regra do item: se o item é achado, o arquivo manual é um derivado do achado e herda a licença e o crédito dele; se o item é gerado ou feito para o Atlas, vale a licença do projeto. O teste de coleção exige que todo `pixelArquivo` esteja listado neste arquivo, como os demais. Hoje nenhum item tem versão manual.
+
 ## Coleção da casa: itens gerados
 
 Imagens assadas pelo próprio Atlas (`npm run assar`) a partir de geradores em `src/procedural/pesados/`, sob a mesma licença do projeto. Os parâmetros, a semente e a versão de cada uma estão em `public/colecao/colecao.json`, para regenerar.
@@ -60,3 +64,4 @@ Imagens assadas pelo próprio Atlas (`npm run assar`) a partir de geradores em `
 | Cinzel | `@fontsource/cinzel` | SIL Open Font License 1.1 |
 | Special Elite | `@fontsource/special-elite` | Apache License 2.0 |
 | Hanken Grotesk | `@fontsource-variable/hanken-grotesk` | SIL Open Font License 1.1 |
+| Pixelify Sans (títulos do estilo Pixel: cartela do mapa e janela do projetor) | `@fontsource/pixelify-sans` | SIL Open Font License 1.1 |
