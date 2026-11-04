@@ -5,6 +5,8 @@ const CHAVE_SOM = 'atlas:som';
 let ligado = true;
 try { ligado = localStorage.getItem(CHAVE_SOM) !== '0'; } catch { /* padrão ligado */ }
 export const somPreferido = (): boolean => ligado;
+/** Cala o som só nesta janela, sem mexer na preferência gravada (o projetor não toca nada). */
+export function silenciarNestaJanela(): void { ligado = false; }
 export function definirSom(valor: boolean): void { ligado = valor; try { localStorage.setItem(CHAVE_SOM, valor ? '1' : '0'); } catch { /* ignora */ } }
 
 let contexto: AudioContext | null = null;

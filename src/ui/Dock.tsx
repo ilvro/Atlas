@@ -1,6 +1,7 @@
 import { signal } from '@preact/signals';
 import { useRef } from 'preact/hooks';
-import { aplicarClima, servicos, viewport } from '../app/app.ts';
+import { abrirProjetor, aplicarClima, dispararEventoDeCena, servicos } from '../app/app.ts';
+import { caixaDoProjetor, mostrarQuadroDoProjetor, projetorConectado, seguirJogadores } from '../app/projetor.ts';
 import { acaoPorId, executarAcao } from '../app/acoes.ts';
 import { definirDuracaoDoClima, duracaoDoClima } from '../app/modo.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
@@ -12,7 +13,7 @@ import { FaixaDeIniciativa } from './FaixaDeIniciativa.tsx';
 import { amostraDoClima } from './Inspetor.tsx';
 
 /** Quais seções do dock estão abertas. */
-const abertas = signal<Record<string, boolean>>({ clima: true, cena: true, presenca: false, iniciativa: false });
+const abertas = signal<Record<string, boolean>>({ clima: true, cena: true, presenca: false, iniciativa: false, projetor: false });
 /** Os valores digitados antes de começar a iniciativa, por peça. */
 const valoresIniciais = signal<Record<string, string>>({});
 
@@ -50,7 +51,7 @@ function SecaoDeClima({ s }: { s: SessaoDeEdicao }) {
 function SecaoDeCena() {
   return (
     <div class="dock-linha">
-      {EVENTOS_DE_CENA.map(e => <button type="button" key={e} class="dock-pilula" data-testid={`dock-evento-${e}`} onClick={() => viewport.atual?.dispararEvento(e)}>{ROTULO_DO_EVENTO[e]}</button>)}
+      {EVENTOS_DE_CENA.map(e => <button type="button" key={e} class="dock-pilula" data-testid={`dock-evento-${e}`} onClick={() => dispararEventoDeCena(e)}>{ROTULO_DO_EVENTO[e]}</button>)}
     </div>
   );
 }
@@ -106,6 +107,21 @@ function SecaoDeIniciativa({ s }: { s: SessaoDeEdicao }) {
   </>);
 }
 
+function SecaoDoProjetor() {
+  const conectado = projetorConectado.value;
+  return (<>
+    <div class="dock-linha">
+      <button type="button" class="dock-pilula destaque" data-testid="dock-projetor-abrir" onClick={abrirProjetor}>Abrir o projetor</button>
+      <span class="dock-rotulo" data-testid="dock-projetor-estado">{conectado ? 'Conectado' : 'Nenhum projetor aberto'}</span>
+    </div>
+    <div class="dock-linha">
+      <button type="button" class={`dock-pilula ${seguirJogadores.value ? 'ativa' : ''}`} aria-pressed={seguirJogadores.value} data-testid="dock-projetor-seguir" onClick={() => { seguirJogadores.value = !seguirJogadores.value; }}>Seguir os jogadores</button>
+      <button type="button" class={`dock-pilula ${mostrarQuadroDoProjetor.value ? 'ativa' : ''}`} aria-pressed={mostrarQuadroDoProjetor.value} data-testid="dock-projetor-quadro" onClick={() => { mostrarQuadroDoProjetor.value = !mostrarQuadroDoProjetor.value; }}>Mostrar o quadro</button>
+    </div>
+    {conectado && caixaDoProjetor.value && <p class="dock-dica">Arraste o quadro azul no mapa (a borda move, os cantos redimensionam).</p>}
+  </>);
+}
+
 /** O dock da sessão: pílulas flutuantes no pé do mapa, em seções que recolhem. Só existe no modo Sessão. */
 export function Dock({ s }: { s: SessaoDeEdicao }) {
   return (
@@ -114,6 +130,7 @@ export function Dock({ s }: { s: SessaoDeEdicao }) {
       <Secao id="cena" titulo="Cena"><SecaoDeCena /></Secao>
       <Secao id="presenca" titulo="Presença"><SecaoDePresenca s={s} /></Secao>
       <Secao id="iniciativa" titulo="Iniciativa"><SecaoDeIniciativa s={s} /></Secao>
+      <Secao id="projetor" titulo="Projetor"><SecaoDoProjetor /></Secao>
     </div>
   );
 }

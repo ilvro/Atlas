@@ -8,7 +8,7 @@ export interface PecaDaFaixa { name: string; portrait: RefAsset | null }
 const retratos = new Map<string, Promise<string | null>>();
 function urlDoRetrato(id: string, ler: (id: string) => Promise<Blob | null>): Promise<string | null> {
   let p = retratos.get(id);
-  if (!p) { p = ler(id).then(b => (b ? URL.createObjectURL(b) : null)).catch(() => null); retratos.set(id, p); }
+  if (!p) { p = ler(id).then(b => { if (!b) retratos.delete(id); return b ? URL.createObjectURL(b) : null; }).catch(() => { retratos.delete(id); return null; }); retratos.set(id, p); }
   return p;
 }
 

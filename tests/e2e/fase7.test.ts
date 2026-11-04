@@ -492,3 +492,52 @@ test('dock: iniciativa com duas peças — a faixa segue a ordem, passar a vez d
   assert.deepEqual(await vez(), [], 'sem anel depois de encerrar');
   assert.deepEqual(erros, []); await ctx.close();
 });
+
+test('projetor: recebe só a projeção (sem notas, região do mestre, porta secreta nem inimigo escondido), acompanha peça, clima e revelação, e não tem editor', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  const mapaId = await criarMapaPelaInterface(page);
+  await cenarioDaVisao(page, 'closed', 'secret');
+  await sessao(page, `(s, a) => {
+    s.store.executar({ tipo: "mapa.notas", texto: "NOTA-DO-MESTRE" });
+    s.store.executar({ tipo: "item.adicionar", colecao: "regions", item: a.regiao });
+    s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.inimigo });
+  }`, {
+    regiao: { id: 'rg1', polygon: [[1, 1], [3, 1], [3, 3]], kind: 'trigger', gmOnly: true, payload: { x: 'REGIAO-SECRETA' }, refs: [] },
+    inimigo: peca('orc', 'ORC-ESCONDIDO', 40.5, 27.75),
+  });
+  await page.click('[data-testid="modo-sessao"]'); await page.locator('[data-testid="dock"]').waitFor();
+  await page.click('[data-testid="dock-titulo-projetor"]');
+  assert.equal(await page.locator('[data-testid="dock-projetor-estado"]').textContent(), 'Nenhum projetor aberto');
+
+  const proj = await ctx.newPage(), errosProj: string[] = [];
+  proj.on('pageerror', e => errosProj.push(e.message)); proj.on('console', m => { if (m.type() === 'error') errosProj.push(m.text()); });
+  await proj.goto(`${amb.url}#/projetor/${mapaId}`);
+  await proj.waitForFunction(() => (window as unknown as { __projetor?: { doc(): unknown } }).__projetor?.doc() != null, null, { timeout: 20_000 });
+  await page.getByText('Conectado', { exact: true }).waitFor({ timeout: 5000 });
+  const docP = () => proj.evaluate(() => structuredClone((window as unknown as { __projetor: { doc(): import('../../src/domain/mapa.ts').MapaAtlas } }).__projetor.doc()));
+  const recebido = await docP(), json = JSON.stringify(recebido);
+  for (const segredo of ['NOTA-DO-MESTRE', 'REGIAO-SECRETA', 'ORC-ESCONDIDO', 'rg1']) assert.ok(!json.includes(segredo), `vazou para o projetor: ${segredo}`);
+  assert.equal(recebido.openings.o1, undefined, 'a porta secreta não foi enviada'); assert.ok(recebido.tokens.hugo);
+  assert.equal(await proj.locator('[data-testid="biblioteca"]').count(), 0); assert.equal(await proj.locator('[data-testid="inspetor"], .inspetor').count(), 0); assert.equal(await proj.locator('[data-testid="ferramenta-selecionar"]').count(), 0);
+  await proj.locator('[data-testid="projetor-titulo"]').waitFor();
+  // O quadro do projetor aparece no mapa do mestre e o projetor enquadrou a câmera publicada.
+  assert.ok(await page.evaluate(() => (window as unknown as { __atlas: { viewport(): unknown } }).__atlas.viewport() != null));
+  assert.ok((await proj.evaluate(() => (window as unknown as { __projetor: { viewport(): { camera: { zoom: number } } } }).__projetor.viewport().camera.zoom)) > 4);
+  // Mover a peça de jogador e trocar o clima: o projetor acompanha.
+  await sessao(page, '(s) => s.store.executar({ tipo: "peca.mover", id: "hugo", para: [9.75, 6.75] })');
+  await proj.waitForFunction(() => (window as unknown as { __projetor: { doc(): { tokens: Record<string, { position: number[] }> } } }).__projetor.doc().tokens.hugo!.position[1] === 6.75, null, { timeout: 5000 });
+  await page.click('[data-testid="dock-clima-noite"]');
+  await proj.waitForFunction(() => (window as unknown as { __projetor: { doc(): { climate: { preset: string } } } }).__projetor.doc().climate.preset === 'noite', null, { timeout: 5000 });
+  // Revelar a porta secreta: ela passa a existir no projetor.
+  await sessao(page, '(s) => s.store.executar({ tipo: "sessao.revelar", ids: ["o1"] })');
+  await proj.waitForFunction(() => !!(window as unknown as { __projetor: { doc(): { openings: Record<string, unknown> } } }).__projetor.doc().openings.o1, null, { timeout: 5000 });
+  // Um evento de cena do dock chega ao projetor.
+  await page.click('[data-testid="dock-evento-tremor"]');
+  await proj.waitForFunction(() => (window as unknown as { __projetor: { viewport(): { diagnosticoDosEventos(): { ativos: string[] } } } }).__projetor.viewport().diagnosticoDosEventos().ativos.includes('tremor'), null, { timeout: 2000 });
+  // Com o projetor aberto, o editor segue fluido.
+  await page.bringToFront();
+  const fps = await page.evaluate(() => new Promise<number>(ok => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 >= 2000) ok(n / 2); else requestAnimationFrame(f); }; requestAnimationFrame(f); }));
+  console.log(`# quadros por segundo no editor com o projetor aberto: ${fps.toFixed(1)}`); assert.ok(fps > 25, `${fps} quadros por segundo`);
+  await proj.close(); await page.waitForFunction(() => document.querySelector('[data-testid="dock-projetor-estado"]')?.textContent === 'Nenhum projetor aberto', null, { timeout: 5000 });
+  assert.deepEqual(errosProj, []); assert.deepEqual(erros, []); await ctx.close();
+});

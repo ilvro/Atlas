@@ -17,6 +17,8 @@ import { campanhaAtiva, carregarCampanhas, desvincularMapa, refDoMapa, revincula
 import { pedirSomDoClima } from './audio-do-clima.ts';
 import { modo, vistaDeJogador } from './modo.ts';
 import { iniciarSugestoes } from './sugestoes.ts';
+import { abrirJanelaDoProjetor, iniciarPublicacao, type Publicador } from './projetor.ts';
+import type { EventoDeCena } from '../render/eventos-de-cena.ts';
 import { lerRota, formatarRota, type Rota } from './rotas.ts';
 import { iniciarServicos, type Servicos } from './servicos.ts';
 import { criarSessao, type SessaoDeEdicao } from './sessao.ts';
@@ -117,9 +119,15 @@ export function alternarModo(): void {
 }
 
 let pararSugestoes: (() => void) | null = null;
+/** Quem publica o mapa aberto para a janela do projetor. */
+let publicador: Publicador | null = null;
+/** Um evento de cena (tremor, piscar…) no mapa do mestre e, junto, no projetor. */
+export function dispararEventoDeCena(e: EventoDeCena): void { viewport.atual?.dispararEvento(e); publicador?.evento(e); }
+export function relampagoNoProjetor(): void { publicador?.relampago(); }
+export function abrirProjetor(): void { const s = sessao.value; if (s) abrirJanelaDoProjetor(s.doc.value.id); }
 export function fecharSessao(): void {
   const atual = sessao.value; if (!atual) return;
-  pararSugestoes?.(); pararSugestoes = null; modo.value = 'construir'; vistaDeJogador.value = false;
+  pararSugestoes?.(); pararSugestoes = null; publicador?.parar(); publicador = null; modo.value = 'construir'; vistaDeJogador.value = false;
   void atual.auto.descarregar().finally(() => atual.fechar());
   viewport.atual = null; sessao.value = null;
 }
@@ -135,6 +143,7 @@ async function abrirMapa(id: string, comodo?: string): Promise<void> {
       fecharSessao();
       const nova = criarSessao(mapa, s.repo, { salvo: true });
       modo.value = 'construir'; vistaDeJogador.value = false; pararSugestoes = iniciarSugestoes(nova, viewport);
+      publicador = iniciarPublicacao(nova, async id => (await s.repo.obterAsset(id))?.blob ?? null);
       batch(() => { sessao.value = nova; focoPendente.value = comodo ?? null; });
     });
     tocar('abrir');

@@ -270,7 +270,7 @@ Pronto quando: o teste passa.
 Commit: initiative in the dock
 Nota: `FaixaDeIniciativa` recebe os dados por props (`ini`, `pecas`, `lerRetrato`) e só edita valores se receber `aoEditarValor`, para o projetor (7.5b) reusá-la. O anel da vez é `definirVez` em `render/pecas.ts`.
 
-### 7.5a — Projeção filtrada  ⬜
+### 7.5a — Projeção filtrada  ✅
 Objetivo: dado o mapa, o mapa que os jogadores podem ver, sem nada do mestre.
 Depende de: 7.0b
 Ler: `src/domain/mapa.ts` inteiro; `src/domain/nevoa.ts` (se já existir; senão, só o `session`).
@@ -288,8 +288,9 @@ Não fazer: render; canal.
 Testes: com `mapaCompleto()` mais uma região `gmOnly`, uma porta secreta, uma presença `gmOnly` e um inimigo fora da vista: nada disso aparece no JSON da projeção (procure as strings), e o resultado valida. A porta secreta revelada aparece.
 Pronto quando: testes passam.
 Commit: filtered player projection
+Nota: a projeção também tira as luzes das peças escondidas, a vez delas na iniciativa, o `campanhaId` e o `payload` das regiões; `sessao.revelar` passou a aceitar o id de um objeto (para revelar a pista). `CAMPOS_DO_MESTRE` está no topo de `domain/projecao.ts`.
 
-### 7.5b — Janela de projetor  ⬜
+### 7.5b — Janela de projetor  ✅
 Objetivo: uma segunda janela, para a TV ou o projetor, mostra só a projeção, com a câmera que o mestre publica e a moldura do tema.
 Depende de: 7.5a, 7.2b, 7.4c
 Ler: `Tabletop/src/app/presentation-window.js` (estrutura, mensagens, tela cheia); `src/app/rotas.ts`; `src/render/viewport.ts` (`criarViewport`, `PonteViewport`); `src/app/tema.ts`.
@@ -304,6 +305,7 @@ Não fazer: régua do mestre no projetor; vários projetores.
 Testes: e2e com duas páginas no mesmo contexto: abrir o projetor, conferir que o documento recebido não contém notas, região `gmOnly` nem a porta secreta; mover uma peça de jogador e o projetor revelar; trocar o clima e o projetor acompanhar; o projetor não tem `[data-testid="biblioteca"]` nem inspetor.
 Pronto quando: os testes passam e o projetor fica em 60 quadros por segundo junto com o editor aberto.
 Commit: projector window
+Nota: o projetor não abre o banco, então os retratos vão pelo canal (mensagem `retrato` com o blob). O store ganhou `projetar(mapa)`, que troca o documento avisando só o que mudou (`compartilhar` em `state/imutavel.ts`), para o projetor não redesenhar tudo a cada estado. O quadro da câmera do projetor aparece em azul no mapa do mestre (a borda move, os cantos redimensionam mantendo a proporção da tela do projetor); "Seguir os jogadores" o recalcula pelas peças de jogador. Eventos de cena e relâmpago chegam ao projetor; o áudio fica mudo nessa janela (`silenciarNestaJanela`). `mesa.json` não mudou (a rota do projetor não é uma Ref).
 
 ### 7.6a — Interagíveis: interruptor e gaveta  ⬜
 Objetivo: um interruptor acende e apaga as luzes do cômodo; uma gaveta abre e fecha.

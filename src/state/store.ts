@@ -1,7 +1,7 @@
 import { conteudo, type MapaAtlas } from '../domain/mapa.ts';
 import { validarMapa } from '../domain/validacao.ts';
 import { aplicarComando, ROTULOS, type Comando } from './comandos.ts';
-import { congelar } from './imutavel.ts';
+import { compartilhar, congelar } from './imutavel.ts';
 import { MUDANCA_COMPLETA, diferencas, type Mudancas } from './mudancas.ts';
 
 export type TipoEvento = 'executar' | 'desfazer' | 'refazer' | 'gesto' | 'concluir' | 'cancelar' | 'substituir' | 'salvo';
@@ -39,6 +39,8 @@ export interface Store {
   assinar(ouvinte: (evento: EventoStore) => void): () => void;
   executar(comando: Comando, opcoes?: { rotulo?: string; versaoEsperada?: number }): MapaAtlas;
   iniciarGesto(rotulo: string): Gesto;
+  /** Troca o documento por outra versão do MESMO mapa (a projeção recebida pelo projetor), avisando só o que mudou. Sem histórico. */
+  projetar(mapa: MapaAtlas): MapaAtlas;
   /** Vários comandos como uma só entrada de histórico; se `corpo` lançar, nada do que fez fica. */
   transacao<T>(rotulo: string, corpo: (gesto: Gesto) => T): T;
   desfazer(): MapaAtlas;
@@ -157,6 +159,16 @@ export function criarStore(inicial: MapaAtlas, opcoes: { salvo?: boolean } = {})
       const antes = documento;
       documento = restaurar(entrada.depois); desfazer.push(entrada); versao++;
       avisar('refazer', antes, entrada.rotulo);
+      return documento;
+    },
+
+    projetar(mapa) {
+      validarMapa(mapa);
+      if (mapa.id !== documento.id) return store.substituir(mapa);
+      const antes = documento, proximo = congelar(compartilhar(antes, mapa));
+      if (proximo === antes) return antes;
+      documento = proximo; versao++;
+      avisar('executar', antes, 'Projeção');
       return documento;
     },
 

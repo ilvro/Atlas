@@ -97,3 +97,21 @@ export function produzir<T extends object>(base: T, fn: (rascunho: T) => void): 
   fn(r);
   return congelar(finalizar(r));
 }
+
+/**
+ * Devolve `novo` reaproveitando de `velho` tudo o que for igual por valor (a mesma referência), para que quem compara
+ * referências (as `diferencas` do store) veja só o que de fato mudou. Os dois são JSON.
+ */
+export function compartilhar<T>(velho: unknown, novo: T): T {
+  if (Object.is(velho, novo) || !ehObjeto(velho) || !ehObjeto(novo)) return novo;
+  if (Array.isArray(novo)) {
+    if (!Array.isArray(velho)) return novo;
+    const r = novo.map((x, i) => compartilhar(velho[i], x));
+    return (r.length === velho.length && r.every((x, i) => x === velho[i]) ? velho : r) as T;
+  }
+  if (Array.isArray(velho)) return novo;
+  const chaves = Object.keys(novo), r: Record<string, unknown> = {};
+  for (const k of chaves) r[k] = compartilhar((velho as Record<string, unknown>)[k], (novo as Record<string, unknown>)[k]);
+  const mesmo = chaves.length === Object.keys(velho).length && chaves.every(k => r[k] === (velho as Record<string, unknown>)[k]);
+  return (mesmo ? velho : r) as T;
+}

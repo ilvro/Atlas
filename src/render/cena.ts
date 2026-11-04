@@ -48,6 +48,8 @@ export interface Cena {
   relampagoAgora(): void;
   /** Eventos de cena: multiplicadores da intensidade das luzes e do ambiente. */
   definirEfeitosDeLuz(luzes: number, ambiente: number): void;
+  /** No projetor: sem marcadores de luz nem regiões (são do mestre). */
+  definirModoProjetor(ligado: boolean): void;
   /** Para os testes: a opacidade de cada telhado. */
   diagnosticoDosTelhados(): ReturnType<ReturnType<typeof criarTelhados>['diagnostico']>;
   /** Pelos olhos de quem se vê o mapa: Construir e mestre veem tudo; os jogadores só o que as suas peças enxergam, com os telhados fechados. */
@@ -307,6 +309,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     },
     definirAtmosfera: ligada => { luz.definirLigado(ligada); neblina.definirLigado(ligada); particulas.definirLigado(ligada); },
     relampagoAgora: () => luz.relampagoAgora(),
+    definirModoProjetor: ligado => { luzesC.visible = !ligado; regioesC.visible = !ligado; },
     definirEfeitosDeLuz: (luzes, ambiente) => luz.definirEfeitos(luzes, ambiente),
     definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); if (v !== vistaDaCena) { vistaDaCena = v; if (mapa) desenharParedes(mapa); } },
     diagnosticoDosTelhados: () => telhados.diagnostico(),

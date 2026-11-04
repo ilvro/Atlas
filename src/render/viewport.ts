@@ -58,6 +58,13 @@ export interface PonteViewport {
   vista?(): Vista;
   /** Quanto dura a transição entre dois climas, em ms (preferência local); sem a função vale o padrão. */
   duracaoDaTransicao?(): number | null;
+  /** O projetor não edita nem seleciona nada: só mostra. */
+  somenteLeitura?: boolean;
+  /** O retângulo que o projetor enquadra, mostrado no mapa do mestre (na Sessão); `null` esconde. */
+  caixaDoProjetor?(): Caixa | null;
+  /** Proporção (largura / altura) da tela do projetor, para o retângulo ter a forma certa. */
+  aspectoDoProjetor?(): number;
+  aoMudarCaixaDoProjetor?(c: Caixa): void;
   /** Na sessão, clicar numa porta a abre ou fecha. */
   aoInteragir?(alvo: Alvo): void;
   /** Como a régua conta as diagonais (preferência local). */
@@ -87,6 +94,8 @@ export interface Viewport {
   relampagoAgora(): void;
   /** Quanto dura, daqui em diante, a transição entre dois climas. */
   definirDuracaoDaTransicao(ms: number): void;
+  /** Enquadra `caixa` (em metros) na tela inteira; `suave` anima a câmera (o projetor). */
+  enquadrarCaixa(caixa: Caixa, suave: boolean): void;
   /** Um evento de cena (tremor, piscar, escurecer, clarão): do render, não muda o documento. */
   dispararEvento(e: EventoDeCena): void;
   /** Para os testes: os eventos rodando agora e o que fazem. */
@@ -121,6 +130,7 @@ type Interacao =
   | { tipo: 'terreno'; apagar: boolean; gesto: Gesto; ultimo: Ponto; presenca: boolean }
   | { tipo: 'espalhar'; apagar: boolean; gesto: Gesto; ultimo: Ponto; semente: number }
   | { tipo: 'parede'; ini: Ponto; fim: Ponto }
+  | { tipo: 'projetor'; modo: 'mover' | 'canto'; origem: Ponto; caixa0: Caixa; fixo: Ponto }
   | { tipo: 'regua'; ini: Ponto; x0: number; y0: number; moveu: boolean };
 
 /** A régua: os pontos já fixados (centros de célula) e, enquanto se espera o próximo clique, o ponto sob o ponteiro. Não é do documento. */
@@ -146,7 +156,9 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   app.canvas.setAttribute('data-testid', 'mapa');
   host.appendChild(app.canvas);
 
+  const somenteLeitura = ponte.somenteLeitura === true;
   const clarao = new Graphics(); clarao.visible = false;
+  let camAnim: { de: Camera; para: Camera; t0: number } | null = null;
   const store = ponte.store, baker: Baker = criarBaker();
   const mundo = new Container(), area_ = new Graphics(), grade = new Graphics(), selecaoG = new Graphics(), fantasmaC = new Container(), fantasmaG = new Graphics(), laco = new Graphics();
   let camera: Camera = { x: 0, y: 0, zoom: 20 };
@@ -205,12 +217,14 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   }
 
   function desenharBase(m: MapaAtlas): void {
+    area_.visible = !somenteLeitura;
     app.renderer.background.color = hexParaNumero(m.backdrop.color);
     area_.clear().rect(0, 0, m.bounds.width, m.bounds.height).fill({ color: 0xffffff, alpha: 0.03 }).stroke({ width: px(1.5), color: 0xffffff, alpha: 0.14 });
   }
 
   function desenharGrade(): void {
     const m = doc(); grade.clear();
+    if (somenteLeitura) return;
     if (!m.grid.visible) return;
     const l = linhasDaGrade(camera, tela(), m.grid, m.bounds);
     const traco = (xs: number[], vertical: boolean, alpha: number) => {
@@ -223,6 +237,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   }
 
   function desenharSelecao(): void {
+    if (somenteLeitura) return;
     const m = doc(), cor = acento(), alvos = ponte.selecao().filter(a => caixaDe(m, a));
     selecaoG.clear();
     const pad = px(5);
@@ -272,9 +287,19 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     }
   }
 
+  /** O quadro que o projetor enquadra, no mapa do mestre: contorno, cantos para redimensionar e o nome. */
+  function desenharCaixaDoProjetor(cor: number): void {
+    const c = ponte.emSessao?.() ? ponte.caixaDoProjetor?.() : null; if (!c) return;
+    laco.rect(c.x0, c.y0, c.x1 - c.x0, c.y1 - c.y0).fill({ color: 0x4fc3f7, alpha: 0.05 }).stroke({ width: px(2), color: 0x4fc3f7, alpha: 0.95 });
+    for (const [x, y] of [[c.x0, c.y0], [c.x1, c.y0], [c.x0, c.y1], [c.x1, c.y1]] as const) laco.rect(x - px(5), y - px(5), px(10), px(10)).fill(0xffffff).stroke({ width: px(1.5), color: 0x4fc3f7 });
+    void cor;
+  }
+
   function desenharLaco(): void {
     laco.clear();
+    if (somenteLeitura) return;
     const cor = acento(), m = doc();
+    desenharCaixaDoProjetor(cor);
     desenharRegua(cor);
     if (interacao?.tipo === 'retangulo' && interacao.moveu) {
       const { ini, atual } = interacao;
@@ -306,6 +331,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   }
 
   function desenharFantasma(): void {
+    if (somenteLeitura) return;
     fantasmaG.clear();
     const f = ponte.ferramenta(), m = doc(), cor = acento(), pincel = ponte.pincel(), receita = ACERVO.item(pincel.objeto.item);
     const comSprite = f === 'objeto' && receita?.tipo === 'piso';
@@ -409,7 +435,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   canvas.addEventListener('contextmenu', e => e.preventDefault());
   canvas.addEventListener('wheel', e => {
-    e.preventDefault();
+    e.preventDefault(); if (somenteLeitura) return;
     const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
     definirCamera(zoomEm(camera, telaDe(e), Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015))));
   }, { passive: false });
@@ -522,13 +548,25 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (colecao) ponte.adicionar(colecao, alvo);
   }
 
+  /** Na Sessão, pegar o quadro do projetor pelo canto (redimensiona) ou pela borda (move). */
+  function pegarCaixaDoProjetor(p: Ponto): Interacao | null {
+    const c = ponte.emSessao?.() ? ponte.caixaDoProjetor?.() : null; if (!c) return null;
+    const r = px(9);
+    for (const [x, y, fx, fy] of [[c.x0, c.y0, c.x1, c.y1], [c.x1, c.y0, c.x0, c.y1], [c.x0, c.y1, c.x1, c.y0], [c.x1, c.y1, c.x0, c.y0]] as const)
+      if (Math.abs(p[0] - x) <= r && Math.abs(p[1] - y) <= r) return { tipo: 'projetor', modo: 'canto', origem: p, caixa0: c, fixo: [fx, fy] };
+    const dentro = p[0] >= c.x0 - r && p[0] <= c.x1 + r && p[1] >= c.y0 - r && p[1] <= c.y1 + r, miolo = p[0] > c.x0 + r && p[0] < c.x1 - r && p[1] > c.y0 + r && p[1] < c.y1 - r;
+    return dentro && !miolo ? { tipo: 'projetor', modo: 'mover', origem: p, caixa0: c, fixo: [0, 0] } : null;
+  }
+
   canvas.addEventListener('pointerdown', e => {
-    if (interacao) return;
+    if (interacao || somenteLeitura) return;
     canvas.setPointerCapture(e.pointerId);
     const [tx, ty] = telaDe(e), m = doc(), f = ponte.ferramenta();
     if (e.button === 1 || e.button === 2 || (e.button === 0 && (f === 'mao' || espaco))) { interacao = { tipo: 'pan', botao: e.button, x0: tx, y0: ty, camera0: camera, moveu: false }; cursor(); return; }
     if (e.button !== 0) return;
     const p = mundoDe(e);
+    const doProjetor = f === 'selecionar' ? pegarCaixaDoProjetor(p) : null;
+    if (doProjetor) { interacao = doProjetor; cursor(); return; }
     if (f === 'regua') { interacao = { tipo: 'regua', ini: centroDaCelula(m, p), x0: tx, y0: ty, moveu: false }; camadaSuja = true; return; }
     if (f !== 'selecionar') { colocar(e, p); cursor(); camadaSuja = true; return; }
     const hit = alvoEm(m, p, px(8)), sel = ponte.selecao();
@@ -596,6 +634,14 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       const a = m.openings[i.id]; if (!a) return;
       const enc = encaixarNaParede(m, ponteiro, a.width, 1.2);
       if (enc && (enc.parede.id !== a.wallId || Math.abs(enc.at - a.at) > 1e-6)) { try { i.gesto.aplicar({ tipo: 'abertura.atualizar', id: i.id, patch: { wallId: enc.parede.id, at: enc.at } }); } catch { /* ali não cabe: fica onde estava */ } }
+    } else if (i.tipo === 'projetor') {
+      const c0 = i.caixa0;
+      if (i.modo === 'mover') { const dx = ponteiro[0] - i.origem[0], dy = ponteiro[1] - i.origem[1]; ponte.aoMudarCaixaDoProjetor?.({ x0: c0.x0 + dx, y0: c0.y0 + dy, x1: c0.x1 + dx, y1: c0.y1 + dy }); }
+      else {
+        const asp = ponte.aspectoDoProjetor?.() ?? 16 / 9, [fx, fy] = i.fixo, sx = ponteiro[0] >= fx ? 1 : -1, sy = ponteiro[1] >= fy ? 1 : -1;
+        const w = Math.max(3, Math.abs(ponteiro[0] - fx)), h = w / asp, x = fx + sx * w, y = fy + sy * h;
+        ponte.aoMudarCaixaDoProjetor?.({ x0: Math.min(fx, x), y0: Math.min(fy, y), x1: Math.max(fx, x), y1: Math.max(fy, y) });
+      }
     } else if (i.tipo === 'regua') {
       // Arrastar começa uma régua nova, do ponto onde se apertou; um clique sem arrastar só acrescenta um ponto (ao soltar).
       if (!i.moveu && Math.hypot(tx - i.x0, ty - i.y0) > LIMIAR_ARRASTO) i.moveu = true;
@@ -654,6 +700,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         const ultimo = regua.pontos.at(-1)!;
         if (Math.hypot(i.ini[0] - ultimo[0], i.ini[1] - ultimo[1]) > 1e-6) regua = { pontos: [...regua.pontos, i.ini], atual: null };
       }
+    } else if (i.tipo === 'projetor') { /* o quadro já foi atualizado durante o arrasto */
     } else if (i.tipo === 'deslizar') { if (i.gesto) { if (cancelado) i.gesto.cancelar(); else i.gesto.concluir(); } }
     else if (i.tipo === 'retangulo') {
       if (cancelado) { /* nada */ } else if (!i.moveu) { if (i.modo === 'trocar' && sel.length) ponte.definirSelecao([]); }
@@ -696,6 +743,11 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   // ---------- Laço do desenho ----------
   const aoQuadro = () => {
+    if (camAnim) {
+      const k = Math.min(1, (performance.now() - camAnim.t0) / 700), e = 1 - (1 - k) ** 3, { de, para } = camAnim;
+      definirCamera({ x: de.x + (para.x - de.x) * e, y: de.y + (para.y - de.y) * e, zoom: de.zoom * (para.zoom / de.zoom) ** e });
+      if (k >= 1) camAnim = null;
+    }
     // Eventos de cena: sacodem a câmera, piscam as luzes, escurecem o ambiente ou cobrem tudo de branco.
     { const agora = performance.now(), ev = eventos.estado(agora);
       if (ev.tremor[0] !== tremorAtual[0] || ev.tremor[1] !== tremorAtual[1]) { tremorAtual = ev.tremor; mundo.position.set(camera.x + tremorAtual[0], camera.y + tremorAtual[1]); }
@@ -713,6 +765,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const observador = new ResizeObserver(() => { camadaSuja = true; });
   observador.observe(host);
 
+  cena.definirModoProjetor(somenteLeitura);
   redesenharTudo();
   enquadrarMapa();
 
@@ -723,6 +776,10 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     ponteiro: () => ponteiro,
     centro: () => telaParaMundo(camera, [app.screen.width / 2, app.screen.height / 2]),
     enquadrar: enquadrarMapa, focarEm, zoomPor,
+    enquadrarCaixa(c, suave) {
+      const alvo = calcularEnquadre({ x: c.x0, y: c.y0, largura: Math.max(c.x1 - c.x0, 1), altura: Math.max(c.y1 - c.y0, 1) }, tela(), 0);
+      if (!suave || movimentoReduzido()) { camAnim = null; definirCamera(alvo); } else camAnim = { de: camera, para: alvo, t0: performance.now() };
+    },
     clientDe: m => { const r = retangulo(), [x, y] = mundoParaTela(camera, m); return [r.left + x, r.top + y]; },
     redesenhar: () => { redesenharTudo(); },
     diagnosticoDosTelhados: () => cena.diagnosticoDosTelhados(),

@@ -194,7 +194,7 @@ function aplicar(m: MapaAtlas, c: Comando): void {
     }
     case 'sessao.esquecer': m.session.explored = null; break;
     case 'sessao.revelar': {
-      for (const id of c.ids) if (!m.rooms[id] && !m.openings[id]) nao(`“${id}” não é um cômodo nem uma abertura deste mapa.`);
+      for (const id of c.ids) if (!m.rooms[id] && !m.openings[id] && !m.props[id]) nao(`“${id}” não é um cômodo, uma abertura nem um objeto deste mapa.`);
       m.session.revealed = [...new Set([...m.session.revealed, ...c.ids])];
       break;
     }
