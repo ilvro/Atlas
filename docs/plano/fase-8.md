@@ -101,7 +101,7 @@ Pronto quando: a captura mostra todos os materiais legíveis a 16 px por célula
 Nota: o pintor é `estilos/materiais-pixel.ts` (tudo em `fillRect` e ladrilhos de pixels alinhados à grade do dispositivo, lida de `ctx.getTransform()`; `dir` só em múltiplos de 90°). No Pixel o cômodo começa na grade de pixels e a sombra de contato é uma faixa dura de 2 px (3 no sólido); as faces das paredes ainda usam o desenho de antes, com o papel no Pixel (8.1e). O terreno é tudo ou nada com aro de 1 px. A captura cobre pisos, papéis, telhados e terrenos; o teste de 6 cores amostra o miolo do piso, longe das faces.
 Commit: pixel materials
 
-### 8.1d — Pixel: objetos e coleção  ⬜
+### 8.1d — Pixel: objetos e coleção  ✅
 Objetivo: os objetos das receitas e os gerados da coleção desenhados no Pixel, com contorno de 1 px e sem o detalhe que não cabe.
 Depende de: 8.1c; (depois da 6) o catálogo da coleção com `origem.tipo === 'gerado'`.
 Ler: `spikes/estilos/src/raster.js` (partes no Pixel, `contornar`); `src/procedural/raster.ts`; `src/procedural/descricao.ts` (`detalhe`); `src/procedural/colecao.ts`, `pesados/` (6.1b).
@@ -113,6 +113,7 @@ Como:
 Não fazer: imagens achadas; faces de parede.
 Testes: unitário puro da escolha das partes por `detalhe` e `ppc`; e2e: a casa da Fase 5 no Pixel não tem nenhum objeto como marcador (todos pintados).
 Pronto quando: mesas, camas, estantes e o sofá capitonê são reconhecíveis no Pixel a 16 px por célula.
+Nota: o desenho das partes está em `estilos/partes-pixel.ts` (`desenharPartesPixel`, `finalizarPixel`); `ppc` e `contorno` chegam ao worker em `PedidoDeBake.pixel` (`OpcoesDoPixel`) e entram na chave de cache. O item gerado vai por um pedido novo `gerado` (import dinâmico de `pesados/` no worker); achados continuam como imagem até a 8.3a. Com 16 px por célula os `detalhe 3` (botões do capitonê, folhinhas) somem, então o capitonê aparece como estofado liso com braços; ele ganha os botões a partir de 24. A sombra de contato é um tom único (alfa 115) e o contorno de tinta cobre também a borda da sombra. A captura é `test-results/fase8-objetos.png`.
 Commit: pixel objects
 
 ### 8.1e — Pixel: paredes caixa e sólidas  ⬜

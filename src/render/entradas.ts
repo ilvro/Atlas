@@ -4,7 +4,7 @@ import { generoDe } from '../domain/presets.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import type { EntradaDeTerreno, EntradaDoComodo } from '../procedural/assar.ts';
 import { COLECAO, RES_DA_COLECAO, type ItemDaColecao } from '../procedural/colecao.ts';
-import { estiloDe, type IdDoEstilo, type TipoDeAssado } from '../procedural/estilos/index.ts';
+import { estiloDe, type IdDoEstilo, type OpcoesDoPixel, type TipoDeAssado } from '../procedural/estilos/index.ts';
 import type { PedidoDeBake } from '../procedural/executar.ts';
 import { urlDoItem } from './url-da-colecao.ts';
 
@@ -46,22 +46,30 @@ export function entradaDoTerreno(m: MapaAtlas): EntradaDeTerreno {
 export const resolucaoDe = (m: Pick<MapaAtlas, 'style' | 'grid'>, tipo: TipoDeAssado): number =>
   estiloDe(m.style.renderer).resolucao(tipo, { ppc: m.style.pixel.pixelsPerCell, celula: m.grid.size });
 
+/** As opções do Pixel de um mapa (pixels por célula e contorno); `undefined` no Ilustrado, que não as usa. */
+export const opcoesDoPixel = (m: Pick<MapaAtlas, 'style'>): OpcoesDoPixel | undefined => (m.style.renderer === 'pixel' ? { ppc: m.style.pixel.pixelsPerCell, contorno: m.style.pixel.outline } : undefined);
+const sufixoDoPixel = (px?: OpcoesDoPixel): string => (px ? `|c${px.contorno ? 1 : 0}` : '');
+
 /** Toda chave começa pelo estilo de raster: o mesmo objeto nos dois estilos são dois desenhos, e o do outro estilo fica em cache até a troca terminar. */
-export function chaveDoObjeto(o: Objeto, res: number, genero = 'investigacao', estilo: IdDoEstilo = 'illustrated'): string | null {
+export function chaveDoObjeto(o: Objeto, res: number, genero = 'investigacao', estilo: IdDoEstilo = 'illustrated', pixel?: OpcoesDoPixel): string | null {
   if (o.elevation === 'wall') return null;
-  if (o.source.kind === 'asset') { const item = itemDaColecao(o.source.assetId); return item ? `${estilo}|a|${res}|${o.source.assetId}|${harmoniza(o, item) ? `h:${generoDe(genero).id}` : '-'}` : null; }     // asset desconhecido: o marcador fica, sem erro
-  return `${estilo}|o|${res}|${o.source.recipe}|${o.source.seed}|${JSON.stringify(o.source.params)}`;
+  if (o.source.kind === 'asset') { const item = itemDaColecao(o.source.assetId); return item ? `${estilo}|a|${res}|${o.source.assetId}|${harmoniza(o, item) ? `h:${generoDe(genero).id}` : '-'}${geradoNoPixel(item, estilo) ? sufixoDoPixel(pixel) : ''}` : null; }     // asset desconhecido: o marcador fica, sem erro
+  return `${estilo}|o|${res}|${o.source.recipe}|${o.source.seed}|${JSON.stringify(o.source.params)}${sufixoDoPixel(pixel)}`;
 }
 
+/** Item gerado desenhado no estilo Pixel: vai pela descrição, não pela imagem. */
+const geradoNoPixel = (item: ItemDaColecao, estilo: IdDoEstilo): boolean => estilo === 'pixel' && item.origem.tipo === 'gerado';
 const porId = new Map(COLECAO.map(i => [i.id, i]));
 /** Só as imagens achadas passam pela harmonização (as geradas já nascem no traço da casa, com contorno e sombra), e o mestre pode desligar por objeto (`harmonize`). */
 const harmoniza = (o: Objeto, item: ItemDaColecao): boolean => o.harmonize && item.origem.tipo === 'achado';
 export const itemDaColecao = (assetId: string) => porId.get(assetId);
 
 /** O pedido de pintura de um objeto de piso, de receita ou da coleção; `null` se não há o que pintar (asset desconhecido). */
-export function pedidoDoObjeto(o: Objeto, res: number, genero = 'investigacao', estilo: IdDoEstilo = 'illustrated'): PedidoDeBake | null {
-  if (o.source.kind === 'recipe') return { tipo: 'objeto', receita: o.source.recipe, params: o.source.params, seed: o.source.seed, res, estilo };
+export function pedidoDoObjeto(o: Objeto, res: number, genero = 'investigacao', estilo: IdDoEstilo = 'illustrated', pixel?: OpcoesDoPixel): PedidoDeBake | null {
+  if (o.source.kind === 'recipe') return { tipo: 'objeto', receita: o.source.recipe, params: o.source.params, seed: o.source.seed, res, estilo, pixel };
   const item = itemDaColecao(o.source.assetId); if (!item) return null;
+  // No Pixel os itens gerados são assados da descrição do gerador (o Ilustrado usa a imagem já assada); os achados seguem como imagem.
+  if (geradoNoPixel(item, estilo) && item.origem.tipo === 'gerado') return { tipo: 'gerado', gerador: item.origem.gerador, params: item.origem.params, seed: item.origem.seed, res, estilo, pixel };
   return { tipo: 'imagem', url: urlDoItem(item), pegada: ACERVO.pegadaDaFonte(o.source), res, resImagem: item.res ?? RES_DA_COLECAO, harmonizar: harmoniza(o, item), alvo: harmoniza(o, item) ? generoDe(genero).alvoDeCor : null };
 }
 export const chaveDoComodo = (e: EntradaDoComodo, res: number, estilo: IdDoEstilo = 'illustrated'): string => `${estilo}|c|${res}|${JSON.stringify(e)}`;

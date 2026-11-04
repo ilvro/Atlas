@@ -8,7 +8,7 @@ import type { Baker } from '../procedural/baker.ts';
 import type { PedidoDeBake, ResultadoDeBake } from '../procedural/executar.ts';
 import type { Mudancas } from '../state/mudancas.ts';
 import { corDoNome, hexParaNumero } from './cores.ts';
-import { chaveDoComodo, chaveDoObjeto, chaveDoTerreno, pedidoDoObjeto, contextoDeEntradas, entradaDoComodo, entradaDoTerreno, resolucaoDe } from './entradas.ts';
+import { chaveDoComodo, chaveDoObjeto, chaveDoTerreno, pedidoDoObjeto, contextoDeEntradas, entradaDoComodo, entradaDoTerreno, opcoesDoPixel, resolucaoDe } from './entradas.ts';
 import { nivelDaLuz } from '../domain/clima.ts';
 import { criarMapaDeLuz } from './mapa-de-luz.ts';
 import { criarNevoa, type Vista } from './nevoa.ts';
@@ -210,7 +210,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
   function sincronizarObjetos(m: MapaAtlas, ids: readonly string[] | null, comPop: boolean): void {
     for (const id of ids ?? [...new Set([...objetos.keys(), ...Object.keys(m.props)])]) {
       const o = m.props[id] as Objeto | undefined, e = objetos.get(id);
-      const res = resolucaoDe(m, 'objeto'), chave = o ? chaveDoObjeto(o, res, m.style.genre, m.style.renderer) : null;
+      const res = resolucaoDe(m, 'objeto'), chave = o ? chaveDoObjeto(o, res, m.style.genre, m.style.renderer, opcoesDoPixel(m)) : null;
       if (!o || chave === null) { if (e) { removerEntrada(e); objetos.delete(id); } continue; }
       let entrada = e;
       if (!entrada) {
@@ -219,7 +219,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       }
       entrada.c.position.set(o.position[0], o.position[1]); entrada.c.rotation = o.rotation;
       if (!animacoes.some(a => a.alvo === entrada!.c)) entrada.c.scale.set(o.scale);
-      const pedido = pedidoDoObjeto(o, res, m.style.genre, m.style.renderer);
+      const pedido = pedidoDoObjeto(o, res, m.style.genre, m.style.renderer, opcoesDoPixel(m));
       if (pedido) pintar(entrada, chave, pedido, (sp, r) => { sp.position.set(r.origem[0], r.origem[1]); sp.scale.set(1 / r.res); });
     }
   }

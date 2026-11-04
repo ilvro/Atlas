@@ -5,7 +5,7 @@ import type { Abertura, Luz, MapaAtlas, Objeto } from '../domain/mapa.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import type { Baker } from '../procedural/baker.ts';
 import { hexParaNumero } from './cores.ts';
-import { chaveDoObjeto, pedidoDoObjeto, resolucaoDe } from './entradas.ts';
+import { chaveDoObjeto, opcoesDoPixel, pedidoDoObjeto, resolucaoDe } from './entradas.ts';
 import { texturaPropria } from './textura-propria.ts';
 
 export interface FantasmaDeProposta {
@@ -48,7 +48,7 @@ export function criarFantasmaDeProposta(op: { baker: Baker; acento(): number; ef
     const c = novo(), cor = op.acento(), [w, h] = ACERVO.pegadaDaFonte(o.source);
     c.position.set(o.position[0], o.position[1]); c.rotation = o.rotation; c.scale.set(o.scale);
     c.addChild(contornoTracejado(w, h, cor));
-    const res = resolucaoDe(m, 'objeto'), chave = chaveDoObjeto(o, res, m.style.genre, m.style.renderer), pedido = pedidoDoObjeto(o, res, m.style.genre, m.style.renderer); if (!chave || !pedido) return;
+    const res = resolucaoDe(m, 'objeto'), chave = chaveDoObjeto(o, res, m.style.genre, m.style.renderer, opcoesDoPixel(m)), pedido = pedidoDoObjeto(o, res, m.style.genre, m.style.renderer, opcoesDoPixel(m)); if (!chave || !pedido) return;
     op.baker.pedir(chave, pedido).then(r => {
       if (destruido || geracao !== minha || c.destroyed) return;
       const tex = texturaPropria(r.bitmap); texturas.push(tex);

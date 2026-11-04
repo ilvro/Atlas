@@ -137,3 +137,49 @@ test('Pixel: captura de cada piso, papel e terreno a 16 px por célula', async (
   assert.equal(t.alfaMin, 255); assert.ok(t.cores <= 14, `terreno com ${t.cores} cores`);
   assert.deepEqual(erros, []); await ctx.close();
 });
+
+const objeto = (id: string, fonte: Record<string, unknown>, x: number, y: number) => ({ id, source: fonte, position: [x, y], rotation: 0, scale: 1, elevation: 'floor', wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true, interaction: null });
+const receita = (recipe: string, seed = 5, params: Record<string, unknown> = {}) => ({ kind: 'recipe', recipe, seed, params });
+
+test('Pixel: um objeto assado tem alfa binário (mais a sombra dura), contorno de tinta de 1 px e poucas cores', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  const medir = (contorno: boolean) => page.evaluate(async ([contorno, ppc]) => {
+    const caminho = '/src/procedural/executar.ts', { executarBake } = await import(/* @vite-ignore */ caminho);
+    const r = await executarBake({ tipo: 'objeto', receita: 'sofa', params: {}, seed: 5, res: ppc / 1.5, estilo: 'pixel', pixel: { ppc, contorno } });
+    const t = document.createElement('canvas'); t.width = r.bitmap.width; t.height = r.bitmap.height; const g = t.getContext('2d', { willReadFrequently: true })!; g.drawImage(r.bitmap, 0, 0);
+    const d = g.getImageData(0, 0, t.width, t.height).data, alfas = new Set<number>(), cores = new Set<string>(); let tinta = 0;
+    for (let i = 0; i < d.length; i += 4) { alfas.add(d[i + 3]!); if (d[i + 3] === 255) { cores.add(`${d[i]},${d[i + 1]},${d[i + 2]}`); if (d[i] === 11 && d[i + 1] === 10 && d[i + 2] === 16) tinta++; } }
+    return { alfas: [...alfas].sort((a, b) => a - b), cores: cores.size, tinta, largura: t.width, altura: t.height, origem: r.origem };
+  }, [contorno, 16] as const);
+  const com = await medir(true), sem = await medir(false);
+  assert.ok(com.alfas.every(a => a === 0 || a === 115 || a === 255), `meios-tons no objeto: ${com.alfas}`);
+  assert.ok(com.tinta > 20, `contorno de tinta: ${com.tinta} pixels`); assert.ok(sem.tinta < com.tinta / 2, 'sem a opção, sem o contorno');
+  assert.ok(com.cores <= 24, `${com.cores} cores sólidas no sofá`);
+  const res = 16 / 1.5; assert.ok(Math.abs(com.origem[0] * res - Math.round(com.origem[0] * res)) < 1e-6, 'a origem fica na grade de pixels');
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('Pixel: a casa de móveis no Pixel não tem nenhum objeto como marcador (receitas e itens gerados da coleção, todos pintados)', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await ferramenta(page, 'comodo'); await retangulo(page, [3.75, 3.75], [14.25, 12.75]);
+  const itens = [
+    objeto('o1', receita('sofa', 5), 5.5, 5.5), objeto('o2', receita('mesa.retangular', 5), 9, 7.5), objeto('o3', receita('cama.casal', 5), 12.2, 10.5), objeto('o4', receita('estante.piso', 5), 5.2, 11.2),
+    objeto('o5', receita('cadeira', 5), 8, 8.8), objeto('o6', receita('tapete.persa', 5), 8.5, 11), objeto('o7', receita('vaso.planta', 5), 13, 5),
+    objeto('o8', { kind: 'asset', assetId: 'casa:chesterfield-vinho' }, 10.5, 5.2), objeto('o9', { kind: 'asset', assetId: 'casa:arbusto-verde' }, 4.5, 8.5),
+  ];
+  for (const o of itens) await sessao(page, '(s, o) => s.store.executar({ tipo: "item.adicionar", colecao: "props", item: o })', o);
+  await sessao(page, '(s) => s.store.executar({ tipo: "grade.atualizar", patch: { visible: false } })');
+  await ferramenta(page, 'selecionar'); await clicar(page, [35, 25]);
+  await page.click('[data-testid="aba-mapa"]'); await page.getByLabel('Ver atmosfera no editor').uncheck();
+  await page.getByLabel('Renderizador').selectOption('pixel');
+  await page.waitForFunction(() => { const v = (window as unknown as { __atlas: { viewport(): { pintando: number; objetosPintados(): number } | null } }).__atlas.viewport(); return v !== null && v.pintando === 0 && v.objetosPintados() === 9; }, null, { timeout: 20_000 });
+  assert.equal(await page.evaluate(() => (window as unknown as { __atlas: { viewport(): { objetosPintados(): number } } }).__atlas.viewport().objetosPintados()), 9, 'todos pintados, nenhum marcador');
+  await page.waitForTimeout(300);
+  const cores = await coresEm(page, [4, 4], [14, 12.5]); assert.ok(cores.size <= 32, `${cores.size} cores na cena`);
+  await page.screenshot({ path: 'test-results/fase8-objetos.png', clip: await (async () => { const [x0, y0] = await clientDe(page, [3.5, 3.5]), [x1, y1] = await clientDe(page, [14.5, 13]); return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 }; })() });
+  // De volta ao Ilustrado os objetos continuam pintados (a textura do outro estilo fica até a nova chegar).
+  await page.getByLabel('Renderizador').selectOption('illustrated');
+  await page.waitForFunction(() => { const v = (window as unknown as { __atlas: { viewport(): { pintando: number; objetosPintados(): number } | null } }).__atlas.viewport(); return v !== null && v.pintando === 0 && v.objetosPintados() === 9; }, null, { timeout: 20_000 });
+  assert.deepEqual(erros, []); await ctx.close();
+});

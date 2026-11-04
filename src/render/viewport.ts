@@ -20,7 +20,7 @@ import { criarPixelizacao } from './pixelizar.ts';
 import { criarCena, type Cena } from './cena.ts';
 import { bloqueioNoCaminho, centroDaCelula } from '../domain/movimento.ts';
 import { hexParaNumero } from './cores.ts';
-import { chaveDoObjeto, pedidoDoObjeto, resolucaoDe } from './entradas.ts';
+import { chaveDoObjeto, opcoesDoPixel, pedidoDoObjeto, resolucaoDe } from './entradas.ts';
 import { texturaPropria } from './textura-propria.ts';
 import { criarFantasmaDeProposta } from './fantasma-proposta.ts';
 import type { Vista } from './nevoa.ts';
@@ -379,7 +379,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     }
     // Objeto de piso: o desenho de verdade, pela mesma fila de pintura dos objetos postos.
     const falso = { id: 'f', source: ACERVO.fonte(receita.id, sementeAtual(), pincel.objeto.params), position: p, rotation: 0, scale: 1, elevation: 'floor' as const, wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true, interaction: null };
-    const res = resolucaoDe(m, 'objeto'), chave = chaveDoObjeto(falso, res, m.style.genre, m.style.renderer), pedido = pedidoDoObjeto(falso, res, m.style.genre, m.style.renderer);
+    const res = resolucaoDe(m, 'objeto'), chave = chaveDoObjeto(falso, res, m.style.genre, m.style.renderer, opcoesDoPixel(m)), pedido = pedidoDoObjeto(falso, res, m.style.genre, m.style.renderer, opcoesDoPixel(m));
     if (chave && pedido && chave !== fantasmaChave) {
       fantasmaChave = chave;
       baker.pedir(chave, pedido).then(r => {

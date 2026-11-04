@@ -5,6 +5,8 @@ import { ILUSTRADO } from './ilustrado.ts';
 import { PIXEL } from './pixel.ts';
 
 export type IdDoEstilo = 'illustrated' | 'pixel';
+/** O que o Pixel precisa saber além do estilo: pixels por célula (corta o detalhe que não cabe) e se há contorno. */
+export interface OpcoesDoPixel { ppc: number; contorno: boolean }
 export type TipoDeAssado = 'objeto' | 'comodo' | 'terreno';
 
 /**
@@ -15,10 +17,10 @@ export interface EstiloDeRaster {
   id: IdDoEstilo;
   /** px por metro para objetos, cômodos e terreno, dados o pixelsPerCell e o tamanho da célula. */
   resolucao(tipo: TipoDeAssado, o: { ppc: number; celula: number }): number;
-  desenharPartes(ctx: Contexto, partes: readonly Parte[], o: { res: number; seed: number; sombras: boolean }): void;
+  desenharPartes(ctx: Contexto, partes: readonly Parte[], o: { res: number; seed: number; sombras: boolean; ppc?: number }): void;
   pintarMaterial(ctx: Contexto, id: string, area: Area, seed: number, o?: { dir?: number; res?: number }): void;
   /** Passo final da tela assada (contorno de 1 px do Pixel; nada no Ilustrado). */
-  finalizar?(ctx: Contexto, largura: number, altura: number): void;
+  finalizar?(ctx: Contexto, largura: number, altura: number, o: { contorno: boolean }): void;
 }
 
 /** O estilo de raster de um id. */

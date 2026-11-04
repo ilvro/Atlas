@@ -2,12 +2,12 @@ import type { Contexto } from './canvas.ts';
 import { caixaDasPartes, type Parte } from './descricao.ts';
 import { pintarMaterial, tom, materialDe } from './materiais.ts';
 
-function caixaDe(p: Parte): { x: number; y: number; w: number; h: number } {
+export function caixaDe(p: Parte): { x: number; y: number; w: number; h: number } {
   if (p.forma === 'poli') { const pts = p.pts ?? [], xs = pts.filter((_, i) => i % 2 === 0), ys = pts.filter((_, i) => i % 2 === 1); const x0 = Math.min(...xs), y0 = Math.min(...ys); return { x: x0, y: y0, w: Math.max(...xs) - x0, h: Math.max(...ys) - y0 }; }
   return { x: p.x! - p.w! / 2, y: p.y! - p.h! / 2, w: p.w!, h: p.h! };
 }
 
-function caminho(ctx: Contexto, p: Parte): void {
+export function caminho(ctx: Contexto, p: Parte): void {
   ctx.beginPath();
   if (p.forma === 'elipse') ctx.ellipse(p.x!, p.y!, p.w! / 2, p.h! / 2, 0, 0, Math.PI * 2);
   else if (p.forma === 'poli') { const pts = p.pts!; ctx.moveTo(pts[0]!, pts[1]!); for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i]!, pts[i + 1]!); ctx.closePath(); }

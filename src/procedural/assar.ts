@@ -7,7 +7,7 @@ import { caixaDasPartes, type Descricao, type Parte } from './descricao.ts';
 import { materialDe, tom } from './materiais.ts';
 import { fbm, valueNoise2D } from './ruido.ts';
 import { partesParaFace } from './raster.ts';
-import type { EstiloDeRaster } from './estilos/index.ts';
+import type { EstiloDeRaster, OpcoesDoPixel } from './estilos/index.ts';
 import { descreverReceita } from './receitas/index.ts';
 
 export interface Assado { tela: Tela; /** Canto superior esquerdo da tela, em metros (no espaço local do objeto, ou do mundo para cômodos e terreno). */ origem: Ponto; res: number }
@@ -16,19 +16,20 @@ export interface Assado { tela: Tela; /** Canto superior esquerdo da tela, em me
 export const MARGEM_SOMBRA = 0.3;
 
 /** Uma descrição pronta (de receita ou de gerador pesado) inteira, com partes e sombras, numa tela com o centro do objeto em (0, 0) do espaço local. */
-export function assarDescricao(d: Descricao, seed: number, res: number, estilo: EstiloDeRaster): Assado {
+export function assarDescricao(d: Descricao, seed: number, res: number, estilo: EstiloDeRaster, pixel?: OpcoesDoPixel): Assado {
   const partes = d.tipo === 'piso' ? d.partes : [...d.face.map(p => ({ ...p })), ...d.topo];
-  const c = caixaDasPartes(partes), x0 = c.x0 - MARGEM_SOMBRA, y0 = c.y0 - MARGEM_SOMBRA;
-  const tela = criarTela((c.x1 - c.x0 + 2 * MARGEM_SOMBRA) * res, (c.y1 - c.y0 + 2 * MARGEM_SOMBRA) * res), ctx = contextoDe(tela);
+  const c = caixaDasPartes(partes), encaixe = (v: number) => (estilo.id === 'pixel' ? Math.floor(v * res) / res : v);      // no Pixel a tela começa na grade de pixels
+  const x0 = encaixe(c.x0 - MARGEM_SOMBRA), y0 = encaixe(c.y0 - MARGEM_SOMBRA);
+  const tela = criarTela((c.x1 + MARGEM_SOMBRA - x0) * res, (c.y1 + MARGEM_SOMBRA - y0) * res), ctx = contextoDe(tela, { willReadFrequently: estilo.id === 'pixel' });
   ctx.setTransform(res, 0, 0, res, -x0 * res, -y0 * res);
-  estilo.desenharPartes(ctx, d.tipo === 'piso' ? d.partes : d.face, { res, seed, sombras: true });
-  estilo.finalizar?.(ctx, tela.width, tela.height);
+  estilo.desenharPartes(ctx, d.tipo === 'piso' ? d.partes : d.face, { res, seed, sombras: true, ppc: pixel?.ppc });
+  estilo.finalizar?.(ctx, tela.width, tela.height, { contorno: pixel?.contorno ?? false });
   return { tela, origem: [x0, y0], res };
 }
 
 /** Um objeto de piso de receita inteiro (partes + sombras) numa tela, com o centro do objeto em (0, 0) do espaço local. */
-export function assarObjeto(receita: string, params: Record<string, unknown>, seed: number, res: number, estilo: EstiloDeRaster): Assado {
-  return assarDescricao(descreverReceita(receita, { seed, params }), seed, res, estilo);
+export function assarObjeto(receita: string, params: Record<string, unknown>, seed: number, res: number, estilo: EstiloDeRaster, pixel?: OpcoesDoPixel): Assado {
+  return assarDescricao(descreverReceita(receita, { seed, params }), seed, res, estilo, pixel);
 }
 
 // ---------- Cômodos ----------
