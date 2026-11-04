@@ -199,7 +199,7 @@ test('objetos de parede entram no cômodo da face; objetos de piso têm chave po
   m.props.t = { id: 't', source: { kind: 'recipe', recipe: 'tapete.persa', seed: 2, params: {} }, position: [4.5, 4.5], elevation: 'floor', wall: null, roomId: 'a', ...base };
   const e = entradaDoComodo(m, m.rooms.a!);
   assert.deepEqual(e.objetos, [{ receita: 'quadro', params: { largura: 1.2 }, seed: 4, centro: [4.5, 3] }]);
-  assert.equal(chaveDoObjeto(m.props.q!, 96), null); assert.match(chaveDoObjeto(m.props.t!, 96)!, /^o\|96\|tapete\.persa\|2\|\{\}$/);
+  assert.equal(chaveDoObjeto(m.props.q!, 96), null); assert.match(chaveDoObjeto(m.props.t!, 96)!, /^illustrated\|o\|96\|tapete\.persa\|2\|\{\}$/);
   assert.notEqual(chaveDoObjeto(m.props.t!, 96), chaveDoObjeto({ ...m.props.t!, source: { kind: 'recipe', recipe: 'tapete.persa', seed: 2, params: { largura: 4 } } }, 96));
   assert.equal(chaveDoObjeto({ ...m.props.t!, position: [9, 9], rotation: 1 }, 96), chaveDoObjeto(m.props.t!, 96), 'posição e rotação não mudam o desenho');
   assert.equal(entradaDoTerreno(m).camadas.length, 0);

@@ -107,7 +107,7 @@ function ruido(seed: number, celulas: number) {
   return t;
 }
 
-interface Area { x: number; y: number; w: number; h: number }
+export interface Area { x: number; y: number; w: number; h: number }
 
 function camadaDeRuido(ctx: Contexto, area: Area, seed: number, metros: number, alpha: number, modo: GlobalCompositeOperation = 'multiply', celulas = 8): void {
   const padrao = ctx.createPattern(ruido(seed, celulas), 'repeat'); if (!padrao) return;

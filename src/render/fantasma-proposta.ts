@@ -4,9 +4,8 @@ import { centroDaAbertura, comprimentoDaParede, contornoDoComodo, pontoNaParede 
 import type { Abertura, Luz, MapaAtlas, Objeto } from '../domain/mapa.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import type { Baker } from '../procedural/baker.ts';
-import { RES_OBJETO } from './cena.ts';
 import { hexParaNumero } from './cores.ts';
-import { chaveDoObjeto, pedidoDoObjeto } from './entradas.ts';
+import { chaveDoObjeto, pedidoDoObjeto, resolucaoDe } from './entradas.ts';
 import { texturaPropria } from './textura-propria.ts';
 
 export interface FantasmaDeProposta {
@@ -45,11 +44,11 @@ export function criarFantasmaDeProposta(op: { baker: Baker; acento(): number; ef
     return g.stroke({ width: 0.035, color: cor, alpha: 0.95 });
   }
 
-  function objetoDePiso(o: Objeto, minha: number, genero: string): void {
+  function objetoDePiso(o: Objeto, minha: number, m: MapaAtlas): void {
     const c = novo(), cor = op.acento(), [w, h] = ACERVO.pegadaDaFonte(o.source);
     c.position.set(o.position[0], o.position[1]); c.rotation = o.rotation; c.scale.set(o.scale);
     c.addChild(contornoTracejado(w, h, cor));
-    const chave = chaveDoObjeto(o, RES_OBJETO, genero), pedido = pedidoDoObjeto(o, RES_OBJETO, genero); if (!chave || !pedido) return;
+    const res = resolucaoDe(m, 'objeto'), chave = chaveDoObjeto(o, res, m.style.genre, m.style.renderer), pedido = pedidoDoObjeto(o, res, m.style.genre, m.style.renderer); if (!chave || !pedido) return;
     op.baker.pedir(chave, pedido).then(r => {
       if (destruido || geracao !== minha || c.destroyed) return;
       const tex = texturaPropria(r.bitmap); texturas.push(tex);
@@ -95,7 +94,7 @@ export function criarFantasmaDeProposta(op: { baker: Baker; acento(): number; ef
       for (const o of Object.values(previa.props)) {
         if (atual.props[o.id]) continue;
         const item = ACERVO.item(ACERVO.idDaFonte(o.source));
-        if (o.elevation === 'wall' || item?.tipo === 'parede') objetoDeParede(previa, o); else objetoDePiso(o, minha, previa.style.genre);
+        if (o.elevation === 'wall' || item?.tipo === 'parede') objetoDeParede(previa, o); else objetoDePiso(o, minha, previa);
       }
       for (const l of Object.values(previa.lights)) if (!atual.lights[l.id]) luzNova(l);
       for (const a of Object.values(previa.openings)) if (!atual.openings[a.id]) aberturaNova(previa, a);

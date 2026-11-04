@@ -286,6 +286,11 @@ Nada disso é erro de lógica: é densidade e acabamento do acervo, que cresce c
 - **Medido (Chromium headless, 60 quadros por segundo de teto):** vista de jogador com 2 peças e 10 luzes 60,5; editor com o projetor aberto 60,5; tempestade com as peças andando, mestre 60,3 e projetor 60,3.
 - **Validação da fase:** `tsc` limpo, 439 unitários e 67 e2e passando.
 
+## Fase 8 — Renderizador Pixel (em andamento)
+
+- **8.1a Estilo de raster** — `procedural/estilos/` (`EstiloDeRaster`, `estiloDe`, `ILUSTRADO`): `assarObjeto/Comodo/Terreno/Descricao` pintam por ele; `PedidoDeBake` leva `estilo`; as chaves de cache começam pelo estilo; as resoluções vêm de `resolucaoDe`. Nada visível mudou (o Pixel ainda devolve o Ilustrado). Commit: `raster style interface`.
+- **8.1b Cena pixelizada** — `domain/paletas.ts` (3 paletas de 32 cores), `render/pixelizar.ts` (render target `colunas × ppc`, filtro de paleta com Bayer 4×4, `nearest`); o viewport troca a raiz da cena pelo sprite pixelizado, põe o acabamento por cima e prende zoom (múltiplo do passo) e posição à grade de pixels; aba Mapa ganhou "Estilo" (renderizador, pixels por célula, paleta, dithering, contorno), tudo "Estilo do mapa" no histórico. e2e `fase8`: amostra com ≤ 32 cores todas da paleta, outra paleta, câmera na grade, desfazer volta ao Ilustrado. Commit: `pixelated scene with palette`.
+
 ## Próximo
 
 A Fase 7 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os achados), que espera a sua decisão sobre [docs/curadoria.md](docs/curadoria.md). Próximo: Fase 8 ([docs/plano/fase-8.md](docs/plano/fase-8.md)); o Opus confere as fichas contra o código antes de começar. Da Fase 3 só resta a P3c ([docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md)).

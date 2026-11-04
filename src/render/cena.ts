@@ -8,7 +8,7 @@ import type { Baker } from '../procedural/baker.ts';
 import type { PedidoDeBake, ResultadoDeBake } from '../procedural/executar.ts';
 import type { Mudancas } from '../state/mudancas.ts';
 import { corDoNome, hexParaNumero } from './cores.ts';
-import { chaveDoComodo, chaveDoObjeto, chaveDoTerreno, pedidoDoObjeto, contextoDeEntradas, entradaDoComodo, entradaDoTerreno } from './entradas.ts';
+import { chaveDoComodo, chaveDoObjeto, chaveDoTerreno, pedidoDoObjeto, contextoDeEntradas, entradaDoComodo, entradaDoTerreno, resolucaoDe } from './entradas.ts';
 import { nivelDaLuz } from '../domain/clima.ts';
 import { criarMapaDeLuz } from './mapa-de-luz.ts';
 import { criarNevoa, type Vista } from './nevoa.ts';
@@ -18,8 +18,6 @@ import { criarParticulas } from './particulas.ts';
 import { criarTelhados } from './telhados.ts';
 import { criarPeca, type PecaVisual } from './pecas.ts';
 import { criarPresenca } from './presenca.ts';
-
-export const RES_OBJETO = 96, RES_COMODO = 64, RES_TERRENO = 24;
 
 export interface OpcoesDaCena {
   baker: Baker;
@@ -110,12 +108,12 @@ export function criarCena(op: OpcoesDaCena): Cena {
     const e = entradaDoTerreno(m), temAlgo = e.base !== 'vazio' || e.camadas.length > 0;
     if (!temAlgo) { if (terreno) { removerEntrada(terreno); terreno = null; } return; }
     terreno ??= novaEntrada(terrenoC);
-    const chave = chaveDoTerreno(e, RES_TERRENO);
+    const estilo = m.style.renderer, res = resolucaoDe(m, 'terreno'), chave = chaveDoTerreno(e, res, estilo);
     if (terreno.chave === chave) return;
     const alvo = terreno;
     // Durante a pincelada o terreno muda a cada movimento: espera uma pausa antes de pedir a pintura.
     if (terrenoTimer) clearTimeout(terrenoTimer);
-    terrenoTimer = setTimeout(() => { terrenoTimer = null; if (!destruida && terreno === alvo) pintar(alvo, chave, { tipo: 'terreno', entrada: e, res: RES_TERRENO }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); }); }, 140);
+    terrenoTimer = setTimeout(() => { terrenoTimer = null; if (!destruida && terreno === alvo) pintar(alvo, chave, { tipo: 'terreno', entrada: e, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); }); }, 140);
   }
 
   // ---------- Cômodos ----------
@@ -132,7 +130,8 @@ export function criarCena(op: OpcoesDaCena): Cena {
         e.placeholder.fill({ color: hexParaNumero(materialDe(sala.floor.material).base), alpha: 0.95 });
       }
       const entrada = entradaDoComodo(m, sala, ctx);
-      pintar(e, chaveDoComodo(entrada, RES_COMODO), { tipo: 'comodo', entrada, res: RES_COMODO }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); });
+      const estilo = m.style.renderer, res = resolucaoDe(m, 'comodo');
+      pintar(e, chaveDoComodo(entrada, res, estilo), { tipo: 'comodo', entrada, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); });
     }
   }
 
@@ -211,7 +210,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
   function sincronizarObjetos(m: MapaAtlas, ids: readonly string[] | null, comPop: boolean): void {
     for (const id of ids ?? [...new Set([...objetos.keys(), ...Object.keys(m.props)])]) {
       const o = m.props[id] as Objeto | undefined, e = objetos.get(id);
-      const chave = o ? chaveDoObjeto(o, RES_OBJETO, m.style.genre) : null;
+      const res = resolucaoDe(m, 'objeto'), chave = o ? chaveDoObjeto(o, res, m.style.genre, m.style.renderer) : null;
       if (!o || chave === null) { if (e) { removerEntrada(e); objetos.delete(id); } continue; }
       let entrada = e;
       if (!entrada) {
@@ -220,7 +219,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       }
       entrada.c.position.set(o.position[0], o.position[1]); entrada.c.rotation = o.rotation;
       if (!animacoes.some(a => a.alvo === entrada!.c)) entrada.c.scale.set(o.scale);
-      const pedido = pedidoDoObjeto(o, RES_OBJETO, m.style.genre);
+      const pedido = pedidoDoObjeto(o, res, m.style.genre, m.style.renderer);
       if (pedido) pintar(entrada, chave, pedido, (sp, r) => { sp.position.set(r.origem[0], r.origem[1]); sp.scale.set(1 / r.res); });
     }
   }
@@ -302,7 +301,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     sincronizar(m, mud, comPop, visaoDoClima) {
       mapa = m;
       const tudo = !mud || mud.completo, campos = (...c: string[]) => tudo || c.some(x => mud!.campos.includes(x)), colecao = (c: string) => tudo || !!(mud!.colecoes as Record<string, unknown>)[c];
-      if (campos('terrain', 'bounds', 'grid', 'backdrop')) sincronizarTerreno(m);
+      if (campos('terrain', 'bounds', 'grid', 'backdrop', 'style')) sincronizarTerreno(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid')) sincronizarComodos(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid', 'session')) desenharParedes(m);
       if (tudo || colecao('props') || campos('style')) sincronizarObjetos(m, tudo || campos('style') ? null : mud!.colecoes.props ?? null, comPop);

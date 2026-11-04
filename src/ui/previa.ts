@@ -13,7 +13,7 @@ export function pedirPrevia(receita: string, params: Record<string, unknown> = {
   let p = previas.get(chave);
   if (!p) {
     const item = ACERVO.item(receita), arquivo = item?.fonte === 'colecao' ? COLECAO.find(i => i.id === receita) : undefined;
-    p = baker.pedir(chave, arquivo ? { tipo: 'imagem', url: urlDoItem(arquivo), pegada: arquivo.pegada, res: 72, resImagem: arquivo.res ?? RES_DA_COLECAO, harmonizar: false, alvo: null } : { tipo: 'objeto', receita, params, seed, res: 72 });
+    p = baker.pedir(chave, arquivo ? { tipo: 'imagem', url: urlDoItem(arquivo), pegada: arquivo.pegada, res: 72, resImagem: arquivo.res ?? RES_DA_COLECAO, harmonizar: false, alvo: null } : { tipo: 'objeto', receita, params, seed, res: 72, estilo: 'illustrated' });
     previas.set(chave, p);
   }
   return p;

@@ -7,10 +7,11 @@ import { avisar } from '../app/toasts.ts';
 import { NOMES_COLECAO, desfazer, duplicarSelecao, refazer, removerSelecao, sessao } from '../app/app.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { area } from '../domain/celulas.ts';
+import { PALETAS_PIXEL } from '../domain/paletas.ts';
 import { nomeDoAlvo, novaLuz } from '../domain/fabrica.ts';
 import { alvosDoInterruptor } from '../domain/interagiveis.ts';
 import { ROTULOS_DE_ESTADO } from '../domain/figuras.ts';
-import { ESTADOS_FIGURA, type Abertura, type Acabamento, type Clima, type Comodo, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Presenca, type Regiao } from '../domain/mapa.ts';
+import { ESTADOS_FIGURA, type Abertura, type Acabamento, type Clima, type Comodo, type Estilo, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Presenca, type Regiao } from '../domain/mapa.ts';
 import { GENEROS, generoDe, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
 import { acabamentoLigado, aplicarClima, definirAcabamentoLigado } from '../app/app.ts';
 import { definirRegraDaRegua, modo, regraDaRegua } from '../app/modo.ts';
@@ -22,6 +23,7 @@ import { materiaisDo } from '../procedural/materiais.ts';
 import { Amostra } from './campos-material.tsx';
 import { tocar } from '../fx/som.ts';
 import { chaveDoAlvo, type Alvo } from '../render/selecao.ts';
+import type { ParcialProfundo } from '../state/comandos.ts';
 import type { Gesto } from '../state/store.ts';
 import { CampoCaixa, CampoCor, Linha, CampoNumero, CampoOpcoes, CampoTexto, tentar } from './campos.tsx';
 import { Icone } from './Icone.tsx';
@@ -38,6 +40,25 @@ function ExploracaoDoMapa({ s }: { s: SessaoDeEdicao }) {
     {confirmando.value
       ? <div class="acoes-selecao"><button type="button" class="botao-pilula perigo" data-testid="exploracao-confirmar" onClick={() => { confirmando.value = false; tentar(() => s.store.executar({ tipo: 'sessao.esquecer' })); }}>Apagar a memória</button><button type="button" class="botao-pilula" onClick={() => { confirmando.value = false; }}>Cancelar</button></div>
       : <div class="acoes-selecao"><button type="button" class="botao-pilula" disabled={!e} data-testid="exploracao-recomecar" onClick={() => { confirmando.value = true; }}>Recomeçar a exploração</button></div>}
+  </>);
+}
+
+const PIXELS_POR_CELULA = [12, 16, 24, 32];
+
+/** Ilustrado ou Pixel, e os ajustes do Pixel. Trocar é um passo de histórico: desfazer volta ao estilo anterior. */
+function EstiloDoMapa({ s }: { s: SessaoDeEdicao }) {
+  const st = s.store, e = s.doc.value.style, pixel = e.renderer === 'pixel';
+  const atualizar = (patch: ParcialProfundo<Estilo>) => tentar(() => st.executar({ tipo: 'estilo.atualizar', patch }, { rotulo: 'Estilo do mapa' }));
+  const tamanhos = PIXELS_POR_CELULA.includes(e.pixel.pixelsPerCell) ? PIXELS_POR_CELULA : [...PIXELS_POR_CELULA, e.pixel.pixelsPerCell].sort((a, b) => a - b);
+  return (<>
+    <h3 class="faixa pequena">Estilo</h3>
+    <CampoOpcoes rotulo="Renderizador" dica="O mesmo mapa em outro estilo de desenho; nada no mapa muda." valor={e.renderer} opcoes={[['illustrated', 'Ilustrado'], ['pixel', 'Pixel']]} aoMudar={v => atualizar({ renderer: v })} />
+    {pixel && <>
+      <CampoOpcoes rotulo="Pixels por célula" valor={String(e.pixel.pixelsPerCell)} opcoes={tamanhos.map(n => [String(n), String(n)] as const)} aoMudar={v => atualizar({ pixel: { pixelsPerCell: Number(v) } })} />
+      <CampoOpcoes rotulo="Paleta" valor={PALETAS_PIXEL.some(p => p.id === e.palette) ? e.palette : PALETAS_PIXEL[0]!.id} opcoes={PALETAS_PIXEL.map(p => [p.id, p.nome] as const)} aoMudar={v => atualizar({ palette: v })} />
+      <CampoOpcoes rotulo="Dithering" valor={e.pixel.dither} opcoes={[['bayer4', 'Bayer 4×4'], ['none', 'Nenhum']]} aoMudar={v => atualizar({ pixel: { dither: v } })} />
+      <CampoCaixa rotulo="Contorno" dica="Um pixel de tinta em volta dos objetos." valor={e.pixel.outline} aoMudar={v => atualizar({ pixel: { outline: v } })} />
+    </>}
   </>);
 }
 
@@ -59,6 +80,7 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
       <h3 class="faixa pequena">Grade</h3>
       <CampoCaixa rotulo="Mostrar" valor={m.grid.visible} aoMudar={v => tentar(() => st.executar({ tipo: 'grade.atualizar', patch: { visible: v } }, { rotulo: v ? 'Mostrar a grade' : 'Esconder a grade' }))} />
       <CampoNumero id="grade-tamanho" rotulo="Célula" unidade="m" valor={m.grid.size} min={0.25} max={10} passo={0.25} aoConfirmar={v => tentar(() => st.executar({ tipo: 'grade.atualizar', patch: { size: v } }, { rotulo: 'Tamanho da célula' }))} />
+      <EstiloDoMapa s={s} />
       <h3 class="faixa pequena">Tamanho</h3>
       <CampoNumero id="largura-mapa" rotulo="Largura" unidade="m" valor={m.bounds.width} min={3} max={600} passo={1.5} aoConfirmar={v => tentar(() => st.executar({ tipo: 'limites.atualizar', largura: v, altura: m.bounds.height }))} />
       <CampoNumero id="altura-mapa" rotulo="Altura" unidade="m" valor={m.bounds.height} min={3} max={600} passo={1.5} aoConfirmar={v => tentar(() => st.executar({ tipo: 'limites.atualizar', largura: m.bounds.width, altura: v }))} />

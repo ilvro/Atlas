@@ -42,7 +42,7 @@ Detalhado em 3 de novembro de 2026, **antes das Fases 6 e 7**, contra o código 
 
 ---
 
-### 8.1a — Estilo de raster e o Ilustrado atrás dele  ⬜
+### 8.1a — Estilo de raster e o Ilustrado atrás dele  ✅
 Objetivo: o código de pintura passa a perguntar "em que estilo?", e o Ilustrado vira a primeira implementação, sem mudar um pixel.
 Depende de: —
 Ler: `src/procedural/raster.ts`, `materiais.ts` (`pintarMaterial`), `assar.ts`, `executar.ts`, `baker.ts`; `src/render/entradas.ts` (chaves); `docs/ARQUITETURA.md` §5.4.
@@ -67,9 +67,10 @@ Como:
 Não fazer: nada visível de Pixel.
 Testes: os unitários e e2e passam sem mudar nenhuma captura; unitário de que as chaves de estilos diferentes diferem.
 Pronto quando: tudo passa.
+Nota: `raster.ts` não mudou (virou a implementação do Ilustrado, chamada por `estilos/ilustrado.ts`); as resoluções saem de `resolucaoDe(m, tipo)` em `render/entradas.ts` (no lugar das constantes `RES_*` de `cena.ts`); `chaveDoObjeto/Comodo/Terreno` ganharam o estilo como último parâmetro (padrão `illustrated`) e a chave começa por ele (`illustrated|o|96|…`); o pedido `imagem` ainda não leva estilo (8.3a); `style` agora também ressincroniza o terreno.
 Commit: raster style interface
 
-### 8.1b — Cena pixelizada, paleta e seletor de estilo  ⬜
+### 8.1b — Cena pixelizada, paleta e seletor de estilo  ✅
 Objetivo: escolher Pixel na aba Mapa já pixeliza a cena inteira na paleta, mesmo antes dos materiais próprios.
 Depende de: 8.1a
 Ler: `spikes/estilos/src/main.js` (render target do mundo, `scaleMode`, arredondar o zoom); `spikes/estilos/src/filtros.js` (`filtroPaleta`, `PALETA`); `src/render/viewport.ts` (acabamento, câmera); `src/render/cena.ts` (`raiz`).
@@ -82,6 +83,7 @@ Como:
 Não fazer: materiais e objetos no Pixel (as tarefas seguintes); a luz em faixas (8.4a).
 Testes: unitário: toda paleta tem 32 cores hex válidas e `paletaDe('xyz')` cai na primeira. e2e: trocar para Pixel conta no máximo 32 cores distintas numa amostra da cena (sem acabamento); desfazer volta ao Ilustrado.
 Pronto quando: o e2e passa e a câmera não treme ao arrastar no Pixel.
+Nota: o teste está em `tests/e2e/fase8.test.ts` (a 8.5 continua nele). A paleta roda dentro do render target (filtro na raiz interna) e o acabamento vai no sprite pixelizado. Se o render target passasse de 8192 px por lado, a resolução é reduzida (mapas enormes). Zoom e posição seguem a grade de pixels do dispositivo; a roda guarda o zoom contínuo para não travar. A seção "Estilo" mostra pixels por célula, paleta, dithering e contorno só no Pixel (o contorno só vale a partir da 8.1d).
 Commit: pixelated scene with palette
 
 ### 8.1c — Pixel: materiais, pisos e terreno  ⬜

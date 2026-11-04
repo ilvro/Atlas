@@ -15,11 +15,12 @@ import { ACERVO } from '../procedural/acervo.ts';
 import type { ColecaoLivre } from '../state/comandos.ts';
 import type { EventoStore, Gesto, Store } from '../state/store.ts';
 import { criarFiltroAcabamento } from './acabamento.ts';
-import { enquadrar as calcularEnquadre, mundoParaTela, panear, telaParaMundo, zoomEm, type Camera, type Tela } from './camera.ts';
-import { RES_OBJETO, criarCena, type Cena } from './cena.ts';
+import { enquadrar as calcularEnquadre, limitarZoom, mundoParaTela, panear, telaParaMundo, zoomEm, type Camera, type Tela } from './camera.ts';
+import { criarPixelizacao } from './pixelizar.ts';
+import { criarCena, type Cena } from './cena.ts';
 import { bloqueioNoCaminho, centroDaCelula } from '../domain/movimento.ts';
 import { hexParaNumero } from './cores.ts';
-import { chaveDoObjeto, pedidoDoObjeto } from './entradas.ts';
+import { chaveDoObjeto, pedidoDoObjeto, resolucaoDe } from './entradas.ts';
 import { texturaPropria } from './textura-propria.ts';
 import { criarFantasmaDeProposta } from './fantasma-proposta.ts';
 import type { Vista } from './nevoa.ts';
@@ -176,9 +177,11 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   });
   const cena: Cena = criarCena({ baker, renderer: app.renderer, acento, efeitos: fxAtivo, aoPintar: () => { camadaSuja = true; }, retrato: id => retratos.obter(id) });
   const acabamento = criarFiltroAcabamento();
+  const pixelizacao = criarPixelizacao(app.renderer);
+  let pixelAtivo = false, zoomLivre = camera.zoom;
   fantasmaC.addChild(fantasmaG);
   const fantasmaDaProposta = criarFantasmaDeProposta({ baker, acento, efeitos: fxAtivo });
-  mundo.addChild(area_, cena.raiz, grade, selecaoG, fantasmaC, fantasmaDaProposta.raiz, laco, reguaTexto);
+  mundo.addChild(area_, cena.raiz, pixelizacao.sprite, grade, selecaoG, fantasmaC, fantasmaDaProposta.raiz, laco, reguaTexto);
   app.stage.addChild(mundo, clarao);
 
   // ---------- Transição de clima ----------
@@ -196,10 +199,14 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const visaoDoClima = (m: MapaAtlas): MapaAtlas => exibido ? { ...m, ...estadoExibido() } : m;
   const suave = (t: number) => t * t * (3 - 2 * t);
 
+  const alvoDoAcabamento = () => (pixelAtivo ? pixelizacao.sprite : cena.raiz);
+
   function aplicarAcabamento(): void {
     const m = doc(), finish = (exibido ?? m).finish, ligado = ponte.acabamento() && (finish.preset !== 'nenhum' || exibido !== null);
     cena.definirAtmosfera(ponte.acabamento());
-    cena.raiz.filters = ligado ? [acabamento.filtro] : [];
+    // No Pixel o acabamento vai sobre o sprite pixelizado (o filtro de paleta já rodou dentro dele); no Ilustrado, direto na raiz da cena.
+    const alvo = alvoDoAcabamento(), outro = pixelAtivo ? cena.raiz : pixelizacao.sprite;
+    outro.filters = []; alvo.filters = ligado ? [acabamento.filtro] : [];
     if (ligado) acabamento.aplicar(finish, performance.now() / 1000);
   }
 
@@ -372,7 +379,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     }
     // Objeto de piso: o desenho de verdade, pela mesma fila de pintura dos objetos postos.
     const falso = { id: 'f', source: ACERVO.fonte(receita.id, sementeAtual(), pincel.objeto.params), position: p, rotation: 0, scale: 1, elevation: 'floor' as const, wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true, interaction: null };
-    const chave = chaveDoObjeto(falso, RES_OBJETO, m.style.genre), pedido = pedidoDoObjeto(falso, RES_OBJETO, m.style.genre);
+    const res = resolucaoDe(m, 'objeto'), chave = chaveDoObjeto(falso, res, m.style.genre, m.style.renderer), pedido = pedidoDoObjeto(falso, res, m.style.genre, m.style.renderer);
     if (chave && pedido && chave !== fantasmaChave) {
       fantasmaChave = chave;
       baker.pedir(chave, pedido).then(r => {
@@ -388,13 +395,42 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     fantasmaG.roundRect(p[0] - w / 2, p[1] - h / 2, w, h, 0.05).stroke({ width: px(1.2), color: cor, alpha: fantasmaSprite ? 0.35 : 0.9 });
   }
 
-  function aplicarCamera(): void { mundo.position.set(camera.x + tremorAtual[0], camera.y + tremorAtual[1]); mundo.scale.set(camera.zoom); camadaSuja = true; ponte.aoCamera?.(camera); }
-  function definirCamera(c: Camera): void { camera = c; aplicarCamera(); }
+  /** No Pixel a posição do mundo cai na grade de pixels do dispositivo, para os pixels do Pixel não tremerem nem ficarem de tamanhos diferentes. */
+  const naGrade = (v: number): number => (pixelAtivo ? Math.round(v * app.renderer.resolution) / app.renderer.resolution : v);
+  const posicaoDoMundo = (): void => { mundo.position.set(naGrade(camera.x + tremorAtual[0]), naGrade(camera.y + tremorAtual[1])); };
+  function aplicarCamera(): void { posicaoDoMundo(); mundo.scale.set(camera.zoom); camadaSuja = true; ponte.aoCamera?.(camera); }
+  /** No Pixel o zoom é múltiplo inteiro de pixels do dispositivo por pixel do Pixel; `zoomPedido` guarda o zoom contínuo (senão a roda travaria em passos pequenos). */
+  function encaixarNoPixel(c: Camera): Camera {
+    if (!pixelAtivo) return c;
+    const passo = pixelizacao.res / app.renderer.resolution, zoom = Math.max(passo, Math.round(c.zoom / passo) * passo);
+    if (zoom === c.zoom) return { ...c, x: naGrade(c.x), y: naGrade(c.y) };
+    const [mx, my] = telaParaMundo(c, [app.screen.width / 2, app.screen.height / 2]);      // o centro da tela fica no mesmo ponto do mundo
+    return { x: naGrade(app.screen.width / 2 - mx * zoom), y: naGrade(app.screen.height / 2 - my * zoom), zoom };
+  }
+  function definirCamera(c: Camera, zoomPedido = c.zoom): void { camera = encaixarNoPixel(c); zoomLivre = zoomPedido; aplicarCamera(); }
+  function zoomarEm(foco: Ponto, fator: number): void {
+    if (!pixelAtivo) { definirCamera(zoomEm(camera, foco, fator)); return; }
+    const pedido = limitarZoom(zoomLivre * fator), [mx, my] = telaParaMundo(camera, foco), passo = pixelizacao.res / app.renderer.resolution;
+    const zoom = Math.max(passo, Math.round(pedido / passo) * passo);
+    definirCamera({ x: foco[0] - mx * zoom, y: foco[1] - my * zoom, zoom }, pedido);
+  }
+
+  /** O estilo do documento (Ilustrado ou Pixel) mudou, ou o tamanho do mapa: refaz a pixelização e o lugar da raiz da cena. */
+  function aplicarEstilo(): void {
+    const m = doc(), pixel = m.style.renderer === 'pixel';
+    pixelizacao.definir(m, pixel);
+    if (pixel !== pixelAtivo) {
+      pixelAtivo = pixel;
+      if (pixel) pixelizacao.renderizar(cena.raiz);       // a raiz sai do palco e passa a viver dentro da pixelização
+      else mundo.addChildAt(cena.raiz, mundo.getChildIndex(pixelizacao.sprite));
+    }
+    aplicarAcabamento(); definirCamera(camera, pixelAtivo ? zoomLivre : camera.zoom);
+  }
 
   function redesenharTudo(): void {
     const m = doc();
     pararTransicao(); vistoDoDoc = estadoDoDoc(m);
-    desenharBase(m); desenharGrade(); desenharSelecao(); desenharLaco(); desenharFantasma(); aplicarAcabamento();
+    desenharBase(m); desenharGrade(); desenharSelecao(); desenharLaco(); desenharFantasma(); aplicarEstilo();
     cena.sincronizar(m, null, false);
   }
 
@@ -403,6 +439,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (e.mudancas.completo) { redesenharTudo(); if (e.tipo === 'substituir') enquadrarMapa(); return; }
     const mud = e.mudancas;
     if (mud.campos.some(c => ['backdrop', 'bounds', 'grid'].includes(c))) desenharBase(e.documento);
+    if (mud.campos.some(c => ['backdrop', 'bounds', 'grid', 'style'].includes(c))) aplicarEstilo();
     if (mud.campos.includes('climate') || mud.campos.includes('finish')) {
       // Só troca de clima (ou desfazer e refazer) anima; arrastar um controle fino do inspetor acompanha na hora.
       const antes = estadoExibido(), trocou = antes.climate.preset !== e.documento.climate.preset || e.tipo === 'desfazer' || e.tipo === 'refazer';
@@ -419,7 +456,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   // ---------- Câmera ----------
   function enquadrarMapa(): void { const m = doc(); definirCamera(calcularEnquadre({ x: 0, y: 0, largura: m.bounds.width, altura: m.bounds.height }, tela(), 56)); }
   function focarEm(c: Caixa): void { definirCamera(calcularEnquadre({ x: c.x0, y: c.y0, largura: Math.max(c.x1 - c.x0, 3), altura: Math.max(c.y1 - c.y0, 3) }, tela(), 120)); }
-  function zoomPor(fator: number): void { definirCamera(zoomEm(camera, [app.screen.width / 2, app.screen.height / 2], fator)); }
+  function zoomPor(fator: number): void { zoomarEm([app.screen.width / 2, app.screen.height / 2], fator); }
 
   // ---------- Entrada ----------
   const canvas = app.canvas;
@@ -437,7 +474,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   canvas.addEventListener('wheel', e => {
     e.preventDefault(); if (somenteLeitura) return;
     const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
-    definirCamera(zoomEm(camera, telaDe(e), Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015))));
+    zoomarEm(telaDe(e), Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015)));
   }, { passive: false });
 
   // Pincelada de cômodo ou de borracha.
@@ -750,12 +787,13 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     }
     // Eventos de cena: sacodem a câmera, piscam as luzes, escurecem o ambiente ou cobrem tudo de branco.
     { const agora = performance.now(), ev = eventos.estado(agora);
-      if (ev.tremor[0] !== tremorAtual[0] || ev.tremor[1] !== tremorAtual[1]) { tremorAtual = ev.tremor; mundo.position.set(camera.x + tremorAtual[0], camera.y + tremorAtual[1]); }
+      if (ev.tremor[0] !== tremorAtual[0] || ev.tremor[1] !== tremorAtual[1]) { tremorAtual = ev.tremor; posicaoDoMundo(); }
       cena.definirEfeitosDeLuz(ev.luzes, ev.ambiente);
       if (ev.clarao > 0.001) { clarao.clear().rect(0, 0, app.screen.width, app.screen.height).fill({ color: 0xffffff, alpha: ev.clarao }); clarao.visible = true; } else if (clarao.visible) { clarao.clear(); clarao.visible = false; } }
     cena.quadro(performance.now()); fantasmaDaProposta.quadro(performance.now());
+    if (pixelAtivo) pixelizacao.renderizar(cena.raiz);
     if (transicao) passoDaTransicao(performance.now());
-    else if (doc().finish.grain > 0 && cena.raiz.filters?.length) acabamento.aplicar(doc().finish, performance.now() / 1000);
+    else if (doc().finish.grain > 0 && alvoDoAcabamento().filters?.length) acabamento.aplicar(doc().finish, performance.now() / 1000);
     if (regua && ponte.ferramenta() !== 'regua') { regua = null; camadaSuja = true; }   // trocar de ferramenta limpa a régua
     if (!camadaSuja) return;
     camadaSuja = false;
@@ -799,7 +837,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     destruir() {
       destruido = true; cancelarAssinatura(); observador.disconnect();
       window.removeEventListener('keydown', aoTeclar, true); window.removeEventListener('keyup', aoSoltar);
-      app.ticker.remove(aoQuadro); limparFantasmaSprite(); fantasmaDaProposta.destruir(); retratos.limpar(); cena.destruir(); baker.encerrar(); app.destroy(true, { children: true });
+      app.ticker.remove(aoQuadro); limparFantasmaSprite(); fantasmaDaProposta.destruir(); retratos.limpar(); cena.destruir(); baker.encerrar(); pixelizacao.destruir(); app.destroy(true, { children: true });
     },
   };
 }

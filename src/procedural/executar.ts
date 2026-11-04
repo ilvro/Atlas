@@ -1,20 +1,22 @@
 import { MARGEM_SOMBRA, assarComodo, assarObjeto, assarTerreno, type Assado, type EntradaDeTerreno, type EntradaDoComodo } from './assar.ts';
 import { contextoDe, criarTela } from './canvas.ts';
+import { estiloDe, type IdDoEstilo } from './estilos/index.ts';
 import { SOMBRA_DE_CONTATO, caixaDoConteudo, contorno, puxarCor, sobrepor, sombraDeContato, type AlvoDeCor } from './harmonizar.ts';
 
 export type PedidoDeBake =
-  | { tipo: 'objeto'; receita: string; params: Record<string, unknown>; seed: number; res: number }
+  | { tipo: 'objeto'; receita: string; params: Record<string, unknown>; seed: number; res: number; estilo: IdDoEstilo }
   /** Uma imagem da coleção, já assada com a sombra: `resImagem` px/m, desenhada a `res` px/m, centrada no objeto. */
   | { tipo: 'imagem'; url: string; pegada: [number, number]; res: number; resImagem: number; /** Recorta o vazio, encaixa na pegada e põe contorno e sombra de contato (imagens achadas). */ harmonizar: boolean; /** Para onde puxar a cor (o gênero do mapa); `null` não mexe na cor. */ alvo: AlvoDeCor | null }
-  | { tipo: 'comodo'; entrada: EntradaDoComodo; res: number }
-  | { tipo: 'terreno'; entrada: EntradaDeTerreno; res: number };
+  | { tipo: 'comodo'; entrada: EntradaDoComodo; res: number; estilo: IdDoEstilo }
+  | { tipo: 'terreno'; entrada: EntradaDeTerreno; res: number; estilo: IdDoEstilo };
 
 export interface ResultadoDeBake { bitmap: ImageBitmap; origem: [number, number]; res: number }
 
 /** O trabalho pesado: pinta numa tela e devolve um `ImageBitmap`. Roda no worker, ou na página se o navegador não tiver worker. */
 export async function executarBake(p: PedidoDeBake): Promise<ResultadoDeBake> {
   if (p.tipo === 'imagem') return assarImagem(p);
-  const a: Assado = p.tipo === 'objeto' ? assarObjeto(p.receita, p.params, p.seed, p.res) : p.tipo === 'comodo' ? assarComodo(p.entrada, p.res) : assarTerreno(p.entrada, p.res);
+  const estilo = estiloDe(p.estilo);
+  const a: Assado = p.tipo === 'objeto' ? assarObjeto(p.receita, p.params, p.seed, p.res, estilo) : p.tipo === 'comodo' ? assarComodo(p.entrada, p.res, estilo) : assarTerreno(p.entrada, p.res, estilo);
   const bitmap = 'transferToImageBitmap' in a.tela ? a.tela.transferToImageBitmap() : await createImageBitmap(a.tela);
   return { bitmap, origem: a.origem, res: a.res };
 }
