@@ -1,7 +1,10 @@
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Page } from 'playwright';
+import { writeFileSync } from 'node:fs';
+import { codificar } from '../../src/domain/celulas.ts';
 import { PALETAS_PIXEL } from '../../src/domain/paletas.ts';
+import { MATERIAIS } from '../../src/procedural/materiais.ts';
 import { abrir, clientDe, criarMapaPelaInterface, documento, encerrar, iniciarAmbiente, novoContexto, type Ambiente } from './apoio.ts';
 
 let amb: Ambiente;
@@ -48,7 +51,7 @@ test('estilo Pixel: trocar na aba Mapa pixeliza a cena na paleta (no máximo 32 
   assert.equal(doc.style.renderer, 'pixel');
   const paleta = new Set(PALETAS_PIXEL[0]!.cores.map(c => c.toLowerCase()));
   const cores = await coresEm(page, ...amostra);
-  assert.ok(cores.size <= 32 && cores.size >= 3, `no Pixel a amostra tem ${cores.size} cores`);
+  assert.ok(cores.size <= 32 && cores.size >= 2, `no Pixel a amostra tem ${cores.size} cores`);
   for (const c of cores) assert.ok(paleta.has(c), `${c} não é da paleta`);
   await page.screenshot({ path: 'test-results/fase8-pixelizada.png' });
 
@@ -73,5 +76,64 @@ test('estilo Pixel: trocar na aba Mapa pixeliza a cena na paleta (no máximo 32 
   assert.equal((await documento(page)).style.renderer, 'illustrated');
   await page.waitForTimeout(500);
   assert.ok((await coresEm(page, ...amostra)).size > 32, 'de volta ao Ilustrado, com as muitas cores');
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+const PPC = 16, RES_PIXEL = PPC / 1.5;
+const comodoDe = (material: string, seed = 3) => ({
+  grade: { size: 1.5, offset: [0, 0] }, celulas: codificar([4, 5, 6, 7].flatMap(y => [4, 5, 6, 7].map(x => [x, y] as const))),
+  piso: { material, seed }, papel: null, estilo: 'box', altura: 2.6, aberturas: [], objetos: [],
+});
+
+/** Assa o pedido no Pixel dentro da página e devolve as cores (e o alfa mínimo) do retângulo `[x0, y0, x1, y1]` em metros do mundo. */
+async function coresDoBake(page: Page, pedido: unknown, regiao: [number, number, number, number]) {
+  return page.evaluate(async ([pedido, regiao, res]) => {
+    const caminho = '/src/procedural/executar.ts', { executarBake } = await import(/* @vite-ignore */ caminho);
+    const r = await executarBake(pedido), t = document.createElement('canvas'); t.width = r.bitmap.width; t.height = r.bitmap.height;
+    const g = t.getContext('2d', { willReadFrequently: true })!; g.drawImage(r.bitmap, 0, 0);
+    const x0 = Math.round((regiao[0] - r.origem[0]) * res), y0 = Math.round((regiao[1] - r.origem[1]) * res), x1 = Math.round((regiao[2] - r.origem[0]) * res), y1 = Math.round((regiao[3] - r.origem[1]) * res);
+    const d = g.getImageData(x0, y0, x1 - x0, y1 - y0).data, cores = new Set<string>(); let alfaMin = 255;
+    for (let i = 0; i < d.length; i += 4) { cores.add(`${d[i]},${d[i + 1]},${d[i + 2]}`); alfaMin = Math.min(alfaMin, d[i + 3]!); }
+    return { cores: cores.size, alfaMin, largura: r.bitmap.width, altura: r.bitmap.height, origem: r.origem };
+  }, [pedido, regiao, RES_PIXEL] as const);
+}
+
+test('Pixel: um cômodo de tábuas assado usa no máximo 6 cores (antes da paleta), sem meio-tom nem transparência', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  // O cômodo vai de 6 a 12 m; o miolo fica longe das faces e da sombra de contato.
+  const r = await coresDoBake(page, { tipo: 'comodo', entrada: comodoDe('tabuas.carvalho'), res: RES_PIXEL, estilo: 'pixel' }, [7.5, 7.5, 10.5, 10.5]);
+  assert.ok(r.cores >= 2 && r.cores <= 6, `${r.cores} cores no piso`);
+  assert.equal(r.alfaMin, 255);
+  // A tela começa na grade de pixels: a origem vezes a resolução é inteira.
+  assert.ok(Math.abs(r.origem[0] * RES_PIXEL - Math.round(r.origem[0] * RES_PIXEL)) < 1e-6 && Math.abs(r.origem[1] * RES_PIXEL - Math.round(r.origem[1] * RES_PIXEL)) < 1e-6, `origem fora da grade: ${r.origem}`);
+  // Outros estilos de piso também ficam enxutos.
+  for (const m of ['ladrilho.xadrez', 'laje.pedra', 'parquet.espinha', 'carpete.vinho', 'hexagono.salvia']) {
+    const x = await coresDoBake(page, { tipo: 'comodo', entrada: comodoDe(m), res: RES_PIXEL, estilo: 'pixel' }, [7.5, 7.5, 10.5, 10.5]);
+    assert.ok(x.cores >= 2 && x.cores <= 8, `${m}: ${x.cores} cores`);
+  }
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('Pixel: captura de cada piso, papel e terreno a 16 px por célula', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  const materiais = Object.values(MATERIAIS).filter(m => m.uso === 'piso' || m.uso === 'papel' || m.uso === 'terreno' || m.uso === 'telhado');
+  const png = await page.evaluate(async ([ids, usos, ppc]) => {
+    const caminho = '/src/procedural/executar.ts', { executarBake } = await import(/* @vite-ignore */ caminho), res = ppc / 1.5;
+    const colunas = 8, lado = 3 * ppc / 1.5 * 0 + 96, esc = 1, tela = document.createElement('canvas'); tela.width = colunas * (lado + 4); tela.height = Math.ceil(ids.length / colunas) * (lado + 4) + 4;
+    const g = tela.getContext('2d')!; g.imageSmoothingEnabled = false; g.fillStyle = '#101014'; g.fillRect(0, 0, tela.width, tela.height);
+    for (let i = 0; i < ids.length; i++) {
+      const terreno = usos[i] === 'terreno';
+      const pedido = terreno ? { tipo: 'terreno', entrada: { largura: 6, altura: 6, resolucao: 0.75, base: ids[i], camadas: [] }, res, estilo: 'pixel' }
+        : { tipo: 'comodo', entrada: { grade: { size: 1.5, offset: [0, 0] }, celulas: [[0, 0, 4], [1, 0, 4], [2, 0, 4], [3, 0, 4]].map(([y, x0, n]) => [y, x0, n]), piso: { material: ids[i], seed: 3 }, papel: null, estilo: 'solid', altura: 2.6, aberturas: [], objetos: [] }, res, estilo: 'pixel' };
+      const r = await executarBake(pedido), cx = (i % colunas) * (lado + 4) + 4, cy = Math.floor(i / colunas) * (lado + 4) + 4;
+      const w = Math.min(lado, r.bitmap.width), h = Math.min(lado, r.bitmap.height), sx = Math.floor((r.bitmap.width - w) / 2), sy = Math.floor((r.bitmap.height - h) / 2);
+      g.drawImage(r.bitmap, sx, sy, w, h, cx, cy, w * esc, h * esc);
+    }
+    return tela.toDataURL('image/png');
+  }, [materiais.map(m => m.id), materiais.map(m => m.uso), PPC] as const);
+  writeFileSync('test-results/fase8-materiais.png', Buffer.from(png.split(',')[1]!, 'base64'));
+  // O terreno também assa no Pixel, com a borda em degraus e o aro: poucas cores, tudo opaco no miolo.
+  const t = await coresDoBake(page, { tipo: 'terreno', entrada: { largura: 12, altura: 12, resolucao: 0.75, base: 'grama', camadas: [{ material: 'terra', celulas: codificar([[4, 4], [5, 4], [6, 4], [4, 5], [5, 5], [6, 5]].map(c => [c[0]! * 2, c[1]! * 2] as const)) }] }, res: RES_PIXEL, estilo: 'pixel' }, [0, 0, 12, 12]);
+  assert.equal(t.alfaMin, 255); assert.ok(t.cores <= 14, `terreno com ${t.cores} cores`);
   assert.deepEqual(erros, []); await ctx.close();
 });

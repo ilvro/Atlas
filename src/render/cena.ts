@@ -83,7 +83,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
   // Texturas compartilhadas por chave, com contagem de uso: quando ninguém mais usa, saem da GPU.
   const texturas = new Map<string, { tex: Texture; usos: number }>();
   const adquirir = (chave: string, r: ResultadoDeBake): Texture => {
-    let t = texturas.get(chave); if (!t) { t = { tex: Texture.from(r.bitmap), usos: 0 }; texturas.set(chave, t); }
+    let t = texturas.get(chave); if (!t) { t = { tex: Texture.from(r.bitmap), usos: 0 }; if (chave.startsWith('pixel|')) t.tex.source.scaleMode = 'nearest'; texturas.set(chave, t); }
     t.usos++; return t.tex;
   };
   const soltar = (chave: string | null) => { if (!chave) return; const t = texturas.get(chave); if (t && --t.usos <= 0) { t.tex.destroy(true); texturas.delete(chave); } };

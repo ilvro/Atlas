@@ -2,6 +2,7 @@ import type { Contexto } from '../canvas.ts';
 import type { Parte } from '../descricao.ts';
 import type { Area } from '../materiais.ts';
 import { ILUSTRADO } from './ilustrado.ts';
+import { PIXEL } from './pixel.ts';
 
 export type IdDoEstilo = 'illustrated' | 'pixel';
 export type TipoDeAssado = 'objeto' | 'comodo' | 'terreno';
@@ -20,10 +21,10 @@ export interface EstiloDeRaster {
   finalizar?(ctx: Contexto, largura: number, altura: number): void;
 }
 
-/** O estilo de raster de um id. O Pixel ainda devolve o Ilustrado: as tarefas 8.1c em diante o preenchem. */
+/** O estilo de raster de um id. */
 export function estiloDe(id: IdDoEstilo): EstiloDeRaster {
   switch (id) {
-    case 'pixel': return ILUSTRADO;
+    case 'pixel': return PIXEL;
     default: return ILUSTRADO;
   }
 }

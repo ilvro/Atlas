@@ -86,7 +86,7 @@ Pronto quando: o e2e passa e a câmera não treme ao arrastar no Pixel.
 Nota: o teste está em `tests/e2e/fase8.test.ts` (a 8.5 continua nele). A paleta roda dentro do render target (filtro na raiz interna) e o acabamento vai no sprite pixelizado. Se o render target passasse de 8192 px por lado, a resolução é reduzida (mapas enormes). Zoom e posição seguem a grade de pixels do dispositivo; a roda guarda o zoom contínuo para não travar. A seção "Estilo" mostra pixels por célula, paleta, dithering e contorno só no Pixel (o contorno só vale a partir da 8.1d).
 Commit: pixelated scene with palette
 
-### 8.1c — Pixel: materiais, pisos e terreno  ⬜
+### 8.1c — Pixel: materiais, pisos e terreno  ✅
 Objetivo: pisos, papéis e terrenos pintados como pixel art, não como a textura ilustrada encolhida.
 Depende de: 8.1b
 Ler: `spikes/estilos/src/materiais.js` (`pintarPixel`, todos os padrões); `src/procedural/materiais.ts` (`Material`, todos os `Padrao` de hoje, que são mais que os do protótipo); `src/procedural/assar.ts` (`assarComodo`, `assarTerreno`).
@@ -98,6 +98,7 @@ Como:
 Não fazer: objetos (8.1d); faces (8.1e).
 Testes: unitário com um `OffscreenCanvas` falso não cabe; teste por e2e: com o Pixel, assar um cômodo de tábuas usa no máximo 6 cores distintas antes da paleta. Captura `test-results/fase8-materiais.png` com uma faixa de cada material de piso e de terreno.
 Pronto quando: a captura mostra todos os materiais legíveis a 16 px por célula.
+Nota: o pintor é `estilos/materiais-pixel.ts` (tudo em `fillRect` e ladrilhos de pixels alinhados à grade do dispositivo, lida de `ctx.getTransform()`; `dir` só em múltiplos de 90°). No Pixel o cômodo começa na grade de pixels e a sombra de contato é uma faixa dura de 2 px (3 no sólido); as faces das paredes ainda usam o desenho de antes, com o papel no Pixel (8.1e). O terreno é tudo ou nada com aro de 1 px. A captura cobre pisos, papéis, telhados e terrenos; o teste de 6 cores amostra o miolo do piso, longe das faces.
 Commit: pixel materials
 
 ### 8.1d — Pixel: objetos e coleção  ⬜
