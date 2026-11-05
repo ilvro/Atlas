@@ -2,10 +2,9 @@
  * mesa-dev — todos os aplicativos da mesa numa origem só, com um comando (`npm run mesa-dev`).
  *
  * Cada projeto sobe do jeito que se comporta sob um prefixo (`/Atlas/`, `/Ficha/`…):
- *  - com Vite de desenvolvimento e `base` própria (Atlas, Ficha, Mesa): `npm run dev:mesa` do projeto;
- *  - estático, como no GitHub Pages (Ateliê e Tabletop: o `dev` deles precisa de um servidor de API, que não existe atrás do proxy;
- *    a versão `--mode pages` guarda tudo no navegador e usa caminhos relativos) e o Jukebox (arquivos soltos, sem build).
- * Nenhum arquivo de outro projeto é alterado: só se gera o `dist-pages/` (ignorado pelo git) quando falta ou está velho.
+ *  - com Vite de desenvolvimento e `base` própria (Atlas, Mesa, Ficha, Ateliê, Tabletop): `npm run dev:mesa` do projeto. Ateliê e Tabletop
+ *    guardam no navegador, como no GitHub Pages (atrás do proxy não há servidor de API);
+ *  - estático, o Jukebox (arquivos soltos, sem build). Uma pasta com `construir` (build do Pages) ainda é suportada, mas nenhum projeto a usa hoje.
  */
 import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
@@ -18,13 +17,12 @@ export type PlanoDoProjeto = ProjetoVite | ProjetoEstatico;
 
 /** Os aplicativos da mesa e como cada um sobe. `raiz` é a pasta que contém os projetos (`Projects/`). */
 export function planoDosProjetos(raiz: string): PlanoDoProjeto[] {
-  const fontesDeBuild = ['src', 'public', 'index.html', 'package.json', 'vite.config.js', 'vendor'];
   return [
     { tipo: 'vite', nome: 'Atlas', pasta: path.join(raiz, 'Atlas'), porta: 5190 },
     { tipo: 'vite', nome: 'Mesa', pasta: path.join(raiz, 'Mesa'), porta: 5195 },
     { tipo: 'vite', nome: 'Ficha', pasta: path.join(raiz, 'Ficha teste - Ordem II'), porta: 5173 },
-    { tipo: 'estatico', nome: 'Atelie', pasta: path.join(raiz, 'Atelie'), servir: 'dist-pages', construir: { args: ['vite', 'build', '--mode', 'pages'], fontes: fontesDeBuild } },
-    { tipo: 'estatico', nome: 'Tabletop', pasta: path.join(raiz, 'Tabletop'), servir: 'dist-pages', construir: { args: ['vite', 'build', '--mode', 'pages'], fontes: fontesDeBuild } },
+    { tipo: 'vite', nome: 'Atelie', pasta: path.join(raiz, 'Atelie'), porta: 5174 },
+    { tipo: 'vite', nome: 'Tabletop', pasta: path.join(raiz, 'Tabletop'), porta: 5177 },
     { tipo: 'estatico', nome: 'Jukebox', pasta: path.join(raiz, 'Jukebox'), servir: '.' },
   ];
 }

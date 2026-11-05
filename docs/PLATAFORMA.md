@@ -20,7 +20,7 @@ Todos os projetos estão em `https://ilvro.github.io/<repositório>/`. A origem 
 | Situação | Como fica |
 | --- | --- |
 | GitHub Pages (uso principal) | Mesma origem. Tudo funciona direto. |
-| Desenvolvimento local | Um **servidor de desenvolvimento único** (`mesa-dev`, em `Atlas/scripts/mesa-dev.ts`) serve cada projeto num caminho da mesma porta (`http://127.0.0.1:5100/Atlas/`, `/Ficha/`…), repassando para o Vite de cada um. Reproduz o Pages. ✅ Implementado: cada projeto roda o Vite com `base: '/Nome/'` (no Atlas, `npm run dev:mesa`) e o proxy repassa o caminho inteiro, WebSocket do recarregamento ao vivo incluído; um projeto que serve na raiz entra como `Nome=porta@raiz`. `npm run mesa-dev` (sem argumentos) sobe Atlas, Mesa e Ficha com o Vite sob o prefixo e serve **Ateliê, Tabletop e Jukebox como arquivos estáticos**, como o Pages (`Nome=estatico:pasta`): o `dev` do Ateliê e do Tabletop depende de um servidor de API, e a versão `--mode pages` guarda tudo no navegador e usa caminhos relativos. Gera o `dist-pages/` deles quando falta ou está velho; nenhum arquivo de outro projeto muda. ✅ Implementado (9.1c). |
+| Desenvolvimento local | Um **servidor de desenvolvimento único** (`mesa-dev`, em `Atlas/scripts/mesa-dev.ts`) serve cada projeto num caminho da mesma porta (`http://127.0.0.1:5100/Atlas/`, `/Ficha/`…), repassando para o Vite de cada um. Reproduz o Pages. ✅ Implementado: cada projeto roda o Vite com `base: '/Nome/'` (no Atlas, `npm run dev:mesa`) e o proxy repassa o caminho inteiro, WebSocket do recarregamento ao vivo incluído; um projeto que serve na raiz entra como `Nome=porta@raiz`. `npm run mesa-dev` (sem argumentos) sobe Atlas, Mesa, Ficha, Ateliê e Tabletop com o Vite sob o prefixo (`npm run dev:mesa` de cada um; Ateliê e Tabletop guardam no navegador, como o Pages, porque atrás do proxy não há servidor de API) e serve o **Jukebox como arquivos estáticos** (`Nome=estatico:pasta`). ✅ Implementado (9.1c). |
 | Outra origem (domínio próprio, outra conta, Tabletop com servidor local) | Caminho B do contrato do Ateliê: janela + `postMessage`, com `nonce` e verificação de origem. Recursos reduzidos. |
 
 **Exceção:** o Jukebox depende de um servidor para baixar e editar áudio. O player participa da plataforma no Pages; ações que precisam do servidor continuam no servidor.
@@ -49,7 +49,7 @@ Banco IndexedDB **sem escopo de caminho**, ponto de encontro de todos: `mesa-cam
 | `campanhas` | `id` | Nome, sistema (Ordem Paranormal, outro), tema, capa |
 | `entidades` | `id` | Personagem, lugar, pista, cena, sessão, facção, nota. Cada uma com `campanhaId`, `nome`, `tipo`, `refs: Ref[]` (o que a representa em cada aplicativo), `tags`, `notas` |
 | `ligacoes` | `id` | `{ de: Ref, para: Ref, tipo: 'aparece-em' \| 'esta-em' \| 'revela' \| 'toca-em' \| ... }` |
-| `sessoes` | `id` | Data, roteiro (lista de Refs: mapas, cenas sonoras, documentos), registro do que aconteceu |
+| `sessoes` | `id` | Data, roteiro (lista de Refs: mapas, cenas sonoras, documentos), notas do roteiro (`roteiroNotas`, opcional, por chave de Ref), registro do que aconteceu |
 
 Exemplos:
 

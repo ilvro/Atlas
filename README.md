@@ -33,7 +33,7 @@ npm run mesa-dev -- --so Atlas,Mesa    # só alguns
 node scripts/mesa-dev.ts Atlas=5190 Ficha=5173@raiz    # só o proxy, para o que você já subiu
 ```
 
-Na mesma origem os aplicativos compartilham tema, campanha e eventos. Atlas, Mesa e Ficha rodam com o Vite de desenvolvimento sob o prefixo (`npm run dev:mesa`); Ateliê, Tabletop e Jukebox são servidos como arquivos estáticos, como no GitHub Pages (o `mesa-dev` gera o `dist-pages/` do Ateliê e do Tabletop quando falta ou está velho; nada em outro projeto é alterado). `Nome=porta@raiz` serve para projetos que rodam sem `base`, e `Nome=estatico:pasta` para uma pasta de arquivos.
+Na mesma origem os aplicativos compartilham tema, campanha e eventos. Atlas, Mesa, Ficha, Ateliê e Tabletop rodam com o Vite de desenvolvimento sob o prefixo (`npm run dev:mesa` de cada um; Ateliê e Tabletop guardam no navegador, como no GitHub Pages, porque atrás do proxy não há servidor de API); o Jukebox é servido como arquivos estáticos. `Nome=porta@raiz` serve para projetos que rodam sem `base`, e `Nome=estatico:pasta` para uma pasta de arquivos.
 
 ## Mapa do código
 

@@ -4,3 +4,6 @@
  * a um botão. O mapa vem do endereço (`#/mapa/<id>`) ou de um pedido `atlas.focar`. Lido uma vez, ao carregar a página.
  */
 export const embutido: boolean = (() => { try { return new URLSearchParams(location.search).get('embutido') === '1'; } catch { return false; } })();
+
+/** Marca a página para o CSS (`[data-embutido]`) ajustar o que aperta num painel estreito: a coluna do inspetor, por exemplo. */
+if (embutido && typeof document !== 'undefined') document.documentElement.dataset.embutido = '1';

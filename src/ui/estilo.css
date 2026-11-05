@@ -420,3 +420,5 @@ body.projetor { overflow: hidden; background: #000; }
 .nome-do-mapa-fixo { font: 700 15px var(--titulo); letter-spacing: 0.02em; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vazio-embutido { flex: 1; display: grid; place-content: center; text-align: center; gap: 8px; color: var(--apagado); padding: 24px; }
 .vazio-embutido .faixa { justify-self: center; }
+
+[data-embutido] .editor { grid-template-columns: 56px auto minmax(0, 1fr) 248px; }

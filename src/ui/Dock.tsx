@@ -13,10 +13,12 @@ import { FaixaDeIniciativa } from './FaixaDeIniciativa.tsx';
 import { amostraDoClima } from './Inspetor.tsx';
 import { Personagens } from './Personagens.tsx';
 import { Pistas } from './Pistas.tsx';
+import { embutido } from '../app/embutido.ts';
 import { definirMostrarPvNoProjetor, mostrarPvNoProjetor } from '../app/fichas.ts';
 
 /** Quais seções do dock estão abertas. */
-const abertas = signal<Record<string, boolean>>({ clima: true, cena: true, presenca: false, iniciativa: false, personagens: false, pistas: false, projetor: false });
+// Embutido na Mesa o espaço é curto: o dock começa com as seções recolhidas, para não cobrir o mapa.
+const abertas = signal<Record<string, boolean>>({ clima: !embutido, cena: !embutido, presenca: false, iniciativa: false, personagens: false, pistas: false, projetor: false });
 /** Os valores digitados antes de começar a iniciativa, por peça. */
 const valoresIniciais = signal<Record<string, string>>({});
 

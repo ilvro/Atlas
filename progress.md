@@ -336,15 +336,18 @@ Concluída. O Atlas fala o contrato da mesa com todos os aplicativos (Ficha, Ate
 - **9.5b Roteiro e registro da sessão** — painel Diário: iniciar sessão (avisa `mesa.sessao-iniciada`), registro automático dos fatos da mesa com hora, anotações do mestre, roteiro de Refs que abre cada item no aplicativo dono e exportação em Markdown; sobrevive a recarregar. O Atlas passou a mandar `nome` (e `peca`) opcionais em `atlas.revelado` e `atlas.regiao-entrou`. A nota de cada item do roteiro fica no navegador (o contrato só guarda Refs). Commit (Mesa): `session script and log`.
 - **9.7 Validação** — e2e encadeado com os aplicativos de verdade numa origem só (`Mesa/tests/e2e/fase9.test.ts`): a Ficha vira peça, a rolagem aparece sobre ela e no projetor, a pista do Ateliê é inspecionada com UV no projetor, o clima e a região trocam a música no Jukebox real, e o diário da Mesa registra tudo. Mais o e2e do Atlas com aplicativos falsos (`fase 9 (parte do Atlas…)`). Commit (Mesa): `add chained phase 9 e2e with all real apps`.
 - **Validação da fase:** Atlas: `tsc` limpo, 502 unitários e 100 e2e (suíte completa). Mesa: `tsc` limpo, 84 unitários e 7 e2e (hub, notas, inventário, modo sessão, diário e o encadeado). Ateliê: 275 unitários e os e2e de troca, janela, shell e abas. Os e2e da Ficha e do Jukebox rodam no Atlas, com os aplicativos de verdade.
+- **Ajustes depois da validação (a pedido do usuário):**
+  - **Notas do roteiro no banco:** `Sessao.roteiroNotas?` (campo opcional, aditivo; contrato segue v1) no `mesa-core`, com validação e teste, e a cópia em `vendor/mesa-core/` da Mesa, da Ficha, do Ateliê e do Jukebox atualizada. A Mesa passa a gravar as notas na sessão e migra, ao abrir uma sessão antiga, as que estavam no `localStorage`.
+  - **Tabletop:** `public/mesa.json` (só identidade: oferece, atende e emite nada, porque ele ainda não fala o barramento); agora todos os seis aplicativos têm manifesto.
+  - **Painéis apertados no modo sessão:** a Mesa desenha o Atlas (900 px) e o Jukebox (520 px) numa largura lógica mínima e reduz a escala para caber (nunca abaixo de 0,5; a Ficha se adapta sozinha); o Atlas embutido começa com o dock recolhido e a coluna do inspetor mais estreita.
+  - **Ateliê e Tabletop sob o `mesa-dev`** agora rodam com o Vite de desenvolvimento e `base` própria (`npm run dev:mesa` em cada um, portas 5174 e 5177), com recarregamento ao vivo e armazenamento no navegador. Só configuração e scripts: no Ateliê, um plugin do Vite injeta `window.__ATELIE_STORAGE` (o `define` não vale no `dev`); no Tabletop, o `define` passou a respeitar `VITE_TABLETOP_STORAGE=browser`. Só o Jukebox segue como arquivos estáticos.
+  - **Git:** a Ficha teve `node_modules` tirado do índice (1499 arquivos; o `.gitignore` já tinha a regra) e a Mesa ganhou `.gitignore`.
 - **Pendências reais da fase:**
-  - A **nota de cada item do roteiro** fica no navegador: o contrato só guarda os Refs da sessão. Para ir ao banco, o `mesa-core` precisa de um campo opcional novo em `Sessao`, copiado nos quatro `vendor/` (decisão do usuário).
-  - O **Tabletop** segue sem `mesa.json` (aparece "sem manifesto" no inventário): não há tarefa para ele no plano.
-  - **Renomear uma entidade** não reescreve as notas que a citam por nome (as ligações por Ref seguem).
-  - O Atlas e o Jukebox ficam **apertados em painel estreito** no modo sessão (use o preset "Mapa grande" ou a tela cheia); o Atlas embutido registra "Mapa aberto" toda vez que abre o mapa.
+  - **Renomear uma entidade** não reescreve as notas que a citam por nome (as ligações por Ref seguem): `[[Casa dos Salgueiros]]` deixa de achar o lugar se ele passar a se chamar "Casa Velha".
+  - O **Tabletop** tem manifesto, mas ainda não fala o barramento (não emite nem atende nada).
   - Da 9.2a: a Ficha não avisa `ficha.recursos` ao trocar de ficha sem salvar, e as ameaças não são publicadas como `npc`.
-  - O `dev` do Vite do **Ateliê e do Tabletop** não aplica `VITE_*_STORAGE`: sob o `mesa-dev` eles são servidos como o Pages (`dist-pages`), não com recarregamento ao vivo.
   - No layout cinemático da Ficha, o primeiro botão de rolagem fica sob o retrato (visto pelo e2e; a conferir com o mouse).
-  - Higiene dos repositórios: a Mesa tinha `node_modules` no commit (falta `git rm -r --cached node_modules`), e a Ficha versiona `node_modules`.
+  - O Atlas embutido registra "Mapa aberto" toda vez que abre o mapa; o e2e de modo sessão teve uma falha pontual (a Ficha embutida demorou a mostrar os botões) logo depois de reiniciar os servidores.
 
 ## Próximo
 

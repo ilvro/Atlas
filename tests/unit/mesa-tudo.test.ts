@@ -14,13 +14,12 @@ function escrever(p: string, texto: string, mtimeS?: number): void { fs.mkdirSyn
 test('plano: os seis aplicativos, cada um do jeito que se comporta sob um prefixo', () => {
   const plano = planoDosProjetos('/raiz');
   assert.deepEqual(plano.map(p => p.nome), ['Atlas', 'Mesa', 'Ficha', 'Atelie', 'Tabletop', 'Jukebox']);
-  const vites = plano.filter(p => p.tipo === 'vite');
-  assert.deepEqual(vites.map(p => `${p.nome}:${p.tipo === 'vite' ? p.porta : 0}`), ['Atlas:5190', 'Mesa:5195', 'Ficha:5173']);
-  assert.equal(new Set(vites.map(p => p.tipo === 'vite' && p.porta)).size, 3, 'portas diferentes');
+  const vites = plano.filter((p): p is Extract<typeof p, { tipo: 'vite' }> => p.tipo === 'vite');
+  assert.deepEqual(vites.map(p => `${p.nome}:${p.porta}`), ['Atlas:5190', 'Mesa:5195', 'Ficha:5173', 'Atelie:5174', 'Tabletop:5177']);
+  assert.equal(new Set(vites.map(p => p.porta)).size, vites.length, 'portas diferentes');
   const est = plano.filter((p): p is ProjetoEstatico => p.tipo === 'estatico');
-  assert.deepEqual(est.map(p => p.nome), ['Atelie', 'Tabletop', 'Jukebox']);
-  assert.ok(est.find(p => p.nome === 'Atelie')!.construir!.args.includes('pages'), 'Ateliê serve o build do Pages');
-  assert.equal(est.find(p => p.nome === 'Jukebox')!.construir, undefined, 'Jukebox são arquivos soltos, sem build');
+  assert.deepEqual(est.map(p => p.nome), ['Jukebox']);
+  assert.equal(est[0]!.construir, undefined, 'Jukebox são arquivos soltos, sem build');
   assert.equal(plano.find(p => p.nome === 'Ficha')!.pasta, path.join('/raiz', 'Ficha teste - Ordem II'));
 });
 
