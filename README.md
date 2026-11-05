@@ -28,11 +28,12 @@ npm run test:e2e     # Playwright (Chromium com WebGL): cenários que cobrem os 
 ## Todos os projetos numa origem só (como no GitHub Pages)
 
 ```bash
-npm run dev:mesa                                       # Atlas com base /Atlas/
-node scripts/mesa-dev.ts Atlas=5190 Ficha=5173@raiz    # http://127.0.0.1:5100/Atlas/ e /Ficha/
+npm run mesa-dev                       # sobe Atlas, Mesa, Ficha, Ateliê, Tabletop e Jukebox: http://127.0.0.1:5100/Mesa/
+npm run mesa-dev -- --so Atlas,Mesa    # só alguns
+node scripts/mesa-dev.ts Atlas=5190 Ficha=5173@raiz    # só o proxy, para o que você já subiu
 ```
 
-Na mesma origem os aplicativos compartilham tema, campanha e eventos. `Nome=porta@raiz` serve para projetos que rodam sem `base`.
+Na mesma origem os aplicativos compartilham tema, campanha e eventos. Atlas, Mesa e Ficha rodam com o Vite de desenvolvimento sob o prefixo (`npm run dev:mesa`); Ateliê, Tabletop e Jukebox são servidos como arquivos estáticos, como no GitHub Pages (o `mesa-dev` gera o `dist-pages/` do Ateliê e do Tabletop quando falta ou está velho; nada em outro projeto é alterado). `Nome=porta@raiz` serve para projetos que rodam sem `base`, e `Nome=estatico:pasta` para uma pasta de arquivos.
 
 ## Mapa do código
 
@@ -45,5 +46,5 @@ Na mesma origem os aplicativos compartilham tema, campanha e eventos. `Nome=port
 | `src/ui`, `src/app` | Componentes Preact com signals, ações (paleta, atalhos, menu radial), rotas, tema, campanha |
 | `src/fx` | Efeitos e sons, adaptados da Ficha |
 | `mesa-core` | O contrato da plataforma: referências, eventos, banco da campanha, manifesto, tema |
-| `scripts/mesa-dev.ts` | O servidor de desenvolvimento único |
+| `scripts/mesa-dev.ts`, `mesa-tudo.ts`, `mesa-estatico.ts` | O servidor de desenvolvimento único, o que sobe cada projeto e o servidor de arquivos estáticos |
 | `spikes/estilos` | O protótipo descartável da Fase 1 |

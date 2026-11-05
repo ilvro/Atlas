@@ -413,3 +413,10 @@ body.projetor { overflow: hidden; background: #000; }
 .aprender-acoes { display: flex; gap: 8px; }
 .tutor-alvo { margin: 0; display: flex; flex-direction: column; gap: 4px; } .tutor-alvo[hidden] { display: none; }
 .tutor-alvo img { width: 100%; border-radius: 8px; border: 1px solid var(--linha); display: block; } .tutor-alvo figcaption { font: 600 11px var(--corpo); color: var(--apagado); }
+
+/* Embutido (dentro do modo sessão da Mesa) */
+.cabecalho.compacto { height: 40px; padding: 0 10px; gap: 8px; }
+.cabecalho.compacto .marca { font-size: 11px; }
+.nome-do-mapa-fixo { font: 700 15px var(--titulo); letter-spacing: 0.02em; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vazio-embutido { flex: 1; display: grid; place-content: center; text-align: center; gap: 8px; color: var(--apagado); padding: 24px; }
+.vazio-embutido .faixa { justify-self: center; }

@@ -1,6 +1,7 @@
 import { mostrarAtalho } from '../app/atalhos.ts';
+import { embutido } from '../app/embutido.ts';
 import { acaoPorId, executarAcao, fxLigado, somLigado } from '../app/acoes.ts';
-import { ajudaAberta, navegar, paletaAberta, renomearMapaAberto, rota, sessao } from '../app/app.ts';
+import { abrirProjetor, ajudaAberta, navegar, paletaAberta, renomearMapaAberto, rota, sessao } from '../app/app.ts';
 import { ROTULO_DO_MODO, modo, vistaDeJogador, type Modo } from '../app/modo.ts';
 import { tituloDoEstado } from '../app/sessao.ts';
 import { tema, trocarTema } from '../app/tema.ts';
@@ -10,7 +11,24 @@ import { Icone } from './Icone.tsx';
 const executar = (id: string) => () => { const a = acaoPorId(id); if (a) executarAcao(a); };
 const dica = (nome: string, id: string) => { const t = acaoPorId(id)?.atalhos?.[0]; return t ? `${nome} (${mostrarAtalho(t)})` : nome; };
 
+/** O cabeçalho dentro da Mesa (`?embutido=1`): só o nome do mapa, a vista de jogador, o projetor e os sons. */
+function CabecalhoEmbutido() {
+  const s = sessao.value, noEditor = rota.value.tipo === 'mapa' && s;
+  return (
+    <header class="cabecalho compacto em-sessao" data-testid="cabecalho-embutido" data-modo={noEditor ? 'sessao' : undefined}>
+      <span class="marca" aria-label="Atlas"><span class="marca-escudo" aria-hidden="true">◈</span> ATLAS</span>
+      {noEditor && s ? <span class="nome-do-mapa-fixo" data-testid="nome-do-mapa-embutido">{s.doc.value.name}</span> : <span class="meta">sem mapa</span>}
+      <span class="espaco" />
+      {noEditor ? <button type="button" class="botao-pilula botao-vista" aria-pressed={vistaDeJogador.value} title={dica('Ver como jogador', 'vista-jogador')} onClick={executar('vista-jogador')} data-testid="vista-jogador">Jogador</button> : null}
+      {noEditor ? <button type="button" class="botao-pilula" title="Abrir a janela do projetor para os jogadores" onClick={abrirProjetor} data-testid="embutido-projetor">Projetor</button> : null}
+      <button type="button" class={`botao-icone ${fxLigado.value ? 'ligado' : ''}`} title="Animações" aria-pressed={fxLigado.value} onClick={executar('fx')} data-testid="alternar-fx"><Icone nome="anim" /></button>
+      <button type="button" class={`botao-icone ${somLigado.value ? 'ligado' : ''}`} title="Sons" aria-pressed={somLigado.value} onClick={executar('som')} data-testid="alternar-som"><Icone nome={somLigado.value ? 'som' : 'mudo'} /></button>
+    </header>
+  );
+}
+
 export function Cabecalho() {
+  if (embutido) return <CabecalhoEmbutido />;
   const s = sessao.value, noEditor = rota.value.tipo === 'mapa' && s;
   return (
     <header class={`cabecalho ${noEditor && modo.value === 'sessao' ? 'em-sessao' : ''}`} data-modo={noEditor ? modo.value : undefined}>

@@ -7,6 +7,13 @@ import type { SessaoDeEdicao } from './sessao.ts';
 /** O que reagir a um movimento precisa de fora: emitir o fato, pedir a cena e avisar o mestre. Injetado para testar sem barramento. */
 export interface SaidasDeRegiao { emitir(tipo: string, dados: unknown): void; pedirCena(ref: Ref | null): void; avisar(texto: string): void }
 
+/** O nome de uma região para quem lê o registro: o que o mestre deu a ela (`nome` no payload), senão o tipo. */
+export function nomeDaRegiao(r: Pick<MapaAtlas['regions'][string], 'kind' | 'payload'>): string {
+  const n = r.payload.nome ?? r.payload.name;
+  if (typeof n === 'string' && n.trim()) return n.trim();
+  return { reveal: 'Região de revelação', trigger: 'Região de gatilho', note: 'Região de nota', audio: 'Região de áudio' }[r.kind];
+}
+
 /** O texto de um gatilho (o que o mestre escreveu na região), ou `null`. */
 export function textoDoGatilho(payload: Record<string, unknown>): string | null {
   const t = payload.texto ?? payload.text; return typeof t === 'string' && t.trim() ? t.trim() : null;
@@ -18,9 +25,10 @@ export function textoDoGatilho(payload: Record<string, unknown>): string | null 
  */
 export function reagirAoMovimento(antes: MapaAtlas, depois: MapaAtlas, saidas: SaidasDeRegiao): void {
   let cena: Ref | null = null;
-  for (const { regiao } of regioesEntradas(antes, depois)) {
-    const r = depois.regions[regiao]!;
-    saidas.emitir('atlas.regiao-entrou', { mapa: criarRef('atlas', 'mapa', depois.id), regiao: criarRef('atlas', 'regiao', `${depois.id}/${regiao}`) });
+  for (const { regiao, peca } of regioesEntradas(antes, depois)) {
+    const r = depois.regions[regiao]!, nome = nomeDaRegiao(r), quem = depois.tokens[peca]?.name;
+    // `nome` e `peca` são acréscimos opcionais ao fato (o catálogo só exige `mapa` e `regiao`): é o que o registro da sessão da Mesa mostra.
+    saidas.emitir('atlas.regiao-entrou', { mapa: criarRef('atlas', 'mapa', depois.id), regiao: criarRef('atlas', 'regiao', `${depois.id}/${regiao}`), nome, ...(quem ? { peca: quem } : {}) });
     if (r.kind === 'audio') cena = cenaDaRegiao(r) ?? cena;
     if (r.kind === 'trigger') { const t = textoDoGatilho(r.payload); if (t) saidas.avisar(t); }
   }

@@ -131,6 +131,6 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
 
 /** Abre (ou traz à frente) a janela do projetor deste mapa. */
 export function abrirJanelaDoProjetor(mapaId: string): void {
-  const url = new URL(location.href); url.hash = `#/projetor/${encodeURIComponent(mapaId)}`;
+  const url = new URL(location.href); url.searchParams.delete('embutido'); url.hash = `#/projetor/${encodeURIComponent(mapaId)}`;
   window.open(url.href, `atlas-projetor-${mapaId}`, 'popup,width=1280,height=720');
 }

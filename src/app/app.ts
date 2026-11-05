@@ -19,6 +19,7 @@ import { tocar } from '../fx/som.ts';
 import { todosOsAlvos, caixaDe, caixaDaSelecao, ehMovel, type Alvo, type ColecaoSelecionavel } from '../render/selecao.ts';
 import type { Viewport } from '../render/viewport.ts';
 import type { ColecaoLivre, Comando } from '../state/comandos.ts';
+import { embutido } from './embutido.ts';
 import { campanhaAtiva, carregarCampanhas, desvincularMapa, refDoMapa, revincularMapa, sincronizarMapaComCampanha } from './campanha.ts';
 import { pedirCena, pedirSomDoClima, pedirSomDoMapa, tocarSomEscolhido } from './audio-do-clima.ts';
 import { iniciarRegioes } from './regioes.ts';
@@ -121,7 +122,7 @@ export async function atualizarLista(): Promise<void> {
 // ---------- Abrir e fechar mapas ----------
 /** Troca entre Construir e Sessão: ao entrar na Sessão, a ferramenta volta a selecionar e a biblioteca fecha. */
 export function alternarModo(): void {
-  const s = sessao.value; if (!s) return;
+  const s = sessao.value; if (!s || embutido) return;          // embutido: só Sessão
   const novo = modo.value === 'construir' ? 'sessao' : 'construir';
   batch(() => { modo.value = novo; if (novo === 'sessao' || s.ferramenta.value === 'regua') { s.ferramenta.value = 'selecionar'; s.biblioteca.value = false; } });
   tocar('selecionar'); avisar(novo === 'sessao' ? 'Modo Sessão' : 'Modo Construir', { duracao: 1200 });
@@ -151,10 +152,10 @@ async function abrirMapa(id: string, comodo?: string): Promise<void> {
     await comTransicao(() => {
       fecharSessao();
       const nova = criarSessao(mapa, s.repo, { salvo: true });
-      modo.value = 'construir'; vistaDeJogador.value = false; pararSugestoes = iniciarSugestoes(nova, viewport);
+      modo.value = embutido ? 'sessao' : 'construir'; vistaDeJogador.value = false; pararSugestoes = iniciarSugestoes(nova, viewport);
       publicador = iniciarPublicacao(nova, async id => (await s.repo.obterAsset(id))?.blob ?? null);
       pararRegioes = iniciarRegioes(nova, () => modo.peek() === 'sessao', { emitir: (tipo, dados) => { try { s.barramento?.emitir(tipo, dados); } catch (erro) { console.warn('Atlas: não consegui emitir', tipo, erro); } }, pedirCena: ref => { pedirCena(s.barramento, ref); }, avisar: texto => avisar(texto, { duracao: 4200 }) });
-      batch(() => { sessao.value = nova; focoPendente.value = comodo ?? null; });
+      batch(() => { sessao.value = nova; focoPendente.value = comodo ?? null; if (embutido) { nova.ferramenta.value = 'selecionar'; nova.biblioteca.value = false; } });
     });
     tocar('abrir');
     s.barramento?.emitir('atlas.cena-aberta', { mapa: refDoMapa(mapa) });
@@ -396,10 +397,13 @@ export function virarLanterna(graus: number): void {
 }
 
 // ---------- Portas na sessão ----------
+const ROTULO_DA_ABERTURA: Record<string, string> = { door: 'Porta', window: 'Janela', arch: 'Arco', secret: 'Porta secreta' };
 /** Avisa os outros aplicativos da mesa que algo foi mostrado aos jogadores. Falhar aqui nunca atrapalha a sessão. */
 function emitirRevelado(id: string, tipo = 'abertura'): void {
   const s = sessao.value, b = servicos.value?.barramento; if (!s || !b) return;
-  try { b.emitir('atlas.revelado', { mapa: refDoMapa(s.doc.value), alvo: criarRef('atlas', tipo, `${s.doc.value.id}/${id}`) }); } catch (erro) { console.warn('Atlas: não consegui emitir atlas.revelado', erro); }
+  const m = s.doc.value, nome = tipo === 'abertura' ? ROTULO_DA_ABERTURA[m.openings[id]?.kind ?? 'door'] : tipo === 'objeto' ? (m.props[id]?.interaction?.kind === 'clue' ? 'Pista' : 'Objeto') : undefined;
+  // `nome` é um acréscimo opcional ao fato (o catálogo só exige `mapa` e `alvo`): é o que o registro da sessão da Mesa mostra.
+  try { b.emitir('atlas.revelado', { mapa: refDoMapa(m), alvo: criarRef('atlas', tipo, `${m.id}/${id}`), ...(nome ? { nome } : {}) }); } catch (erro) { console.warn('Atlas: não consegui emitir atlas.revelado', erro); }
 }
 
 /** Abre ou fecha uma porta na sessão (e soma ao explorado o que ela passa a mostrar). Trancada não abre. Uma secreta que se abre é revelada junto. */

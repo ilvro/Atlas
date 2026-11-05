@@ -1,4 +1,5 @@
 import { Tutor } from './Tutor.tsx';
+import { embutido } from '../app/embutido.ts';
 import { useEffect } from 'preact/hooks';
 import { tratarTecla } from '../app/acoes.ts';
 import { carregando, erroInicial, iniciar, rota, servicos, sessao } from '../app/app.ts';
@@ -29,6 +30,7 @@ export function App() {
       {!servicos.value ? <main class="carregando" aria-busy="true">Abrindo…</main>
         : sessao.value && rota.value.tipo === 'mapa' ? <Editor />
         : rota.value.tipo === 'mapa' && carregando.value ? <main class="carregando" aria-busy="true">Abrindo o mapa…</main>
+        : embutido ? <main class="vazio-embutido" data-testid="vazio-embutido"><h2 class="faixa grande">Sem mapa</h2><p>Escolha um mapa na Mesa: ele abre aqui, direto em Sessão.</p></main>
         : <Galeria />}
       <Paleta /><MenuRadial /><Ajuda /><Toasts /><Tutor />
       <div id="transicao" class="transicao" aria-hidden="true"><i /><i /><i /></div>
