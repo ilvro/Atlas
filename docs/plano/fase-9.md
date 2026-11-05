@@ -48,7 +48,7 @@ Detalhado em 3 de novembro de 2026, **antes das Fases 6 a 8**. **Ao começar a f
 
 ---
 
-### 9.1a — 🔒 Mesa: projeto, campanhas e entidades  ⬜
+### 9.1a — 🔒 Mesa: projeto, campanhas e entidades  ✅
 Objetivo: o hub existe, abre no `mesa-dev` e cria campanhas e entidades no banco comum.
 Depende de: autorização para criar `Projects/Mesa`.
 Ler: `Atlas/docs/PLATAFORMA.md` inteiro; `Atlas/mesa-core/src/campanha.ts` (`abrirRepositorioCampanha`, `Entidade`, `TIPOS_ENTIDADE`); `Atlas/package.json`, `vite.config.ts`, `src/app/tema.ts`, `src/ui/estilo.css` (pilha e identidade); `Atlas/scripts/mesa-dev.ts`.
@@ -61,6 +61,7 @@ Como:
 Não fazer: notas ricas (9.1b); modo sessão (9.5a).
 Testes: unitários do que for puro (filtros, ordenação); e2e com o Atlas sob o `mesa-dev`: criar uma campanha na Mesa e ver a campanha no Atlas (aba Mapa → campanha), e o "lugar" que o Atlas cria aparecer na Mesa.
 Pronto quando: a Mesa abre em `/Mesa/` sob o `mesa-dev` e compartilha a campanha com o Atlas.
+Nota: autorizada pelo usuário ("sim, pode seguir"). A pergunta da fonte do `mesa-core` ficou sem resposta explícita: seguiu a sugestão de **manter a fonte no Atlas**; `Mesa/vendor/mesa-core/` é cópia de `Atlas/mesa-core/dist` (atualizar com `cp -r`). Criado `Projects/Mesa` (pilha do Atlas; `base: './'` com `MESA_DEV_PREFIX` para o `mesa-dev`, como o Atlas, em vez de `/Mesa/` fixo, para servir também no Pages): `dominio/entidades.ts` (busca sem acento, filtros, contagem, regra de dono, etiquetas), `app/campanha.ts` (campanhas e entidades pelo `mesa-core`, relê ao focar a aba e a cada 3 s porque os outros apps escrevem por fora), telas Campanhas e Entidades. Cada entidade mostra os `refs` com o nome do aplicativo e um "Abrir" que já usa o manifesto do aplicativo (`../<App>/mesa.json`); sem manifesto aparece "sem link" (o inventário completo é da 9.1c). Escolher uma campanha com tema próprio veste a mesa inteira com ele. Entidades de outros aplicativos são só leitura. Testes: 7 unitários e 2 e2e com Mesa e Atlas de verdade sob o proxy do `mesa-dev` (campanha criada na Mesa aparece no Atlas; o lugar criado pelo Atlas aparece na Mesa; tema propaga). O e2e achou um bug real (`currentTarget` nulo depois de um `await`), já corrigido.
 Commit (no repositório da Mesa): first hub with campaigns and entities
 
 ### 9.1b — 🔒 Mesa: notas com `[[ligações]]`  ⬜
@@ -177,7 +178,7 @@ Pronto quando: o teste passa e a lanterna UV é fluida.
 Nota: `domain/inspecao.ts` (matemática de zoom, arrasto e lanterna em frações da imagem), `ui/VisorDeDocumento.tsx` (o visor, no mestre e no projetor), `ui/Inspecao.tsx`, mensagens `inspecao`, `inspecao-estado` e `inspecao-fim` pelo canal do projetor (a lanterna do projetor é suavizada). Clicar na pista (ou Enter com a peça ao lado, que agora alcança pistas) abre; "Mostrar aos jogadores" revela o objeto-pista (`session.revealed` e `atlas.revelado`). "Editar no Ateliê" pede `atelie.abrir` e, sem resposta, abre `<source>?handout=<id>` numa aba.
 Commit: clue inspection with UV light
 
-### 9.3c — 🔒 Ateliê: manifesto e `atelie.abrir`  ⬜
+### 9.3c — 🔒 Ateliê: manifesto e `atelie.abrir`  ✅
 Objetivo: o Ateliê se anuncia e abre um documento quando pedido.
 Depende de: 9.1c; autorização para mudar o Ateliê.
 Ler: `Atelie/AGENTS.md`, `Atelie/docs/plano/CONTRATO-TABLETOP.md`, `etapa-28-integracao-tabletop.md`; as rotas do Ateliê.
@@ -186,6 +187,7 @@ Como: primeiro, relatório de como o Ateliê abre um documento por id. Depois: m
 Não fazer: mudar o banco `mesa-handouts-v1`.
 Testes: no Ateliê, teste do módulo com barramento falso; e2e no Atlas sob o `mesa-dev`: "Editar no Ateliê" abre o documento.
 Pronto quando: o pedido é atendido.
+Nota: autorizada pelo usuário ("pode seguir"). Relatório do primeiro passo: o Ateliê já tinha `openDocumentById(id)` no editor (ativa a aba se já aberta; senão lê `api.handouts.read` e abre) e abre `?handout=<id>` na partida; o id é um uuid estável; faltava só o barramento. Feito no Ateliê: `vendor/mesa-core/` (cópia compilada), `public/mesa.json` (rota `./?handout={id}`), `src/mesa.js` (atende `atelie.abrir` e emite `atelie.documento-salvo` com `revisao` opcional ao arquivar, mesmo sem "Compartilhar com o Tabletop"), `onArchived` em `createEditor` e a ligação em `main.js`. O contrato v1 com o Tabletop e o banco `mesa-handouts-v1` não mudaram. Testes: 7 unitários no Ateliê (275 no total) e e2e do Ateliê (`exchange`, `handoff`, `shell`, `document-tabs`) sem regressão; no Atlas, `tests/e2e/atelie.test.ts` com o Ateliê de verdade sob o `mesa-dev`. Achado para a 9.1c: o Vite de desenvolvimento do Ateliê não aplica `VITE_ATELIE_STORAGE` (precisa de `?storage=browser` ou `window.__ATELIE_STORAGE`), então não há `dev:mesa` simples para ele ainda.
 Commit (Ateliê): join the table contract
 
 ### 9.4a — 🔒 Jukebox no contrato  ✅

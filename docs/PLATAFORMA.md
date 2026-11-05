@@ -133,7 +133,7 @@ A implementação de referência é o `mesa-core` (`Atlas/mesa-core/`, TypeScrip
 | 1 | Atlas (Fase 2) | Implementação de referência: `mesa-core` v1, Refs, banco da campanha, barramento, manifesto, tema. O Atlas nasce na plataforma. |
 | 2 | Mesa | Hub mínimo: campanhas, entidades, notas com ligações, abrir aplicativos. `mesa-dev` para desenvolvimento local. |
 | 3 | Ficha ✅ | Emitir `ficha.rolagem` e `ficha.recursos`; atender `ficha.abrir`; manifesto; publica as personagens (não as ameaças) com o retrato. |
-| 4 | Ateliê | Manifesto e `atelie.abrir`; o contrato v1 continua como está. Só com autorização. |
+| 4 | Ateliê ✅ | Manifesto, `atelie.abrir` e `atelie.documento-salvo`; o contrato v1 continua como está. |
 | 5 | Jukebox | Atender `jukebox.tocar` e emitir `jukebox.tocando` no player. Só com autorização. |
 | 6 | Tabletop | Manifesto, Refs e barramento, reaproveitando as integrações que já tem. Só com autorização. |
 | 7 | Mesa | Modo sessão com os aplicativos lado a lado. |
