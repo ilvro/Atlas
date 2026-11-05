@@ -6,6 +6,7 @@ import { contextoDe, criarTela, type Contexto, type Tela } from './canvas.ts';
 import { caixaDasPartes, type Descricao, type Parte } from './descricao.ts';
 import { materialDe, tom } from './materiais.ts';
 import { fbm, valueNoise2D } from './ruido.ts';
+import { sombrearMacico } from './macico.ts';
 import { partesParaFace } from './raster.ts';
 import type { EstiloDeRaster, OpcoesDoPixel } from './estilos/index.ts';
 import { pintarFacePixel } from './estilos/faces-pixel.ts';
@@ -168,12 +169,23 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
     const macia = criarTela(W, Hh), mac = contextoDe(macia);
     mac.filter = `blur(${Math.max(1, 0.5 * res)}px)`; mac.drawImage(mascara as CanvasImageSource, 0, 0);
     const fonte = mac.getImageData(0, 0, W, Hh).data, ruido = valueNoise2D(1000 + idx * 17);
-    const corpo = new ImageData(W, Hh), aro = new ImageData(W, Hh), binaria = new Uint8Array(pixel ? W * Hh : 0);
+    const material = materialDe(camada.material), macico = material.uso === 'macico';
+    const corpo = new ImageData(W, Hh), aro = new ImageData(W, Hh), binaria = new Uint8Array(pixel || macico ? W * Hh : 0), cobertura = new Uint8Array(macico && !pixel ? W * Hh : 0), ruidoFino = valueNoise2D(3000 + idx * 31);
     for (let k = 0, px = 0; k < fonte.length; k += 4, px++) {
       const b = fonte[k + 3]! / 255; if (b < 0.04) continue;
-      const v = b + (fbm(ruido, (px % W) / res * 1.3, Math.floor(px / W) / res * 1.3, 3) - 0.5) * 0.5;
-      if (pixel) binaria[px] = v >= 0.5 ? 1 : 0;
+      const mx = (px % W) / res, my = Math.floor(px / W) / res;
+      let v = b + (fbm(ruido, mx * 1.3, my * 1.3, 3) - 0.5) * 0.5;
+      if (macico) v += pixel ? (fbm(ruidoFino, mx * 3.5, my * 3.5, 3) - 0.5) * 0.35 : (fbm(ruidoFino, mx * 1.5, my * 1.5, 2) - 0.5) * 0.5 + (fbm(ruidoFino, mx * 6 + 9, my * 6, 1) - 0.5) * 0.06;      // borda de rocha: lóbulos grandes e arredondados (Ilustrado), degraus no Pixel
+      if (macico) { binaria[px] = v >= 0.5 ? 1 : 0; if (!pixel) cobertura[px] = suave(0.47, 0.53, v) * 255; }
+      else if (pixel) binaria[px] = v >= 0.5 ? 1 : 0;
       else { corpo.data[k + 3] = suave(0.47, 0.53, v) * 255; aro.data[k + 3] = suave(0.3, 0.47, v) * 255; }
+    }
+    if (macico) {
+      // Maciço: volume próprio (patamares, estrias, sombra de contato) e nenhum aro escuro das camadas comuns.
+      const r = sombrearMacico({ dentro: binaria, alfa: pixel ? null : cobertura, largura: W, altura: Hh, res, seed: 11 + idx * 5, cores: material, pixel });
+      const poe = (dados: Uint8ClampedArray) => { const t = criarTela(W, Hh), c = contextoDe(t); c.putImageData(new ImageData(dados as Uint8ClampedArray<ArrayBuffer>, W, Hh), 0, 0); ctx.drawImage(t as CanvasImageSource, 0, 0); };
+      ctx.setTransform(1, 0, 0, 1, 0, 0); poe(r.sombra); poe(r.rgba); ctx.setTransform(res, 0, 0, res, 0, 0);
+      return;
     }
     if (pixel) {
       // Borda em degraus de pixel: a camada é tudo ou nada, e o aro escuro é a vizinhança de 1 pixel dela.
@@ -188,7 +200,6 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
       if (cor) { c.globalCompositeOperation = 'source-in'; c.fillStyle = cor; c.fillRect(0, 0, W, Hh); }
       return t;
     };
-    const material = materialDe(camada.material);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = pixel ? 1 : 0.5; ctx.drawImage(comAlfa(aro, material.escuro) as CanvasImageSource, 0, 0); ctx.globalAlpha = 1;
     const pintada = criarTela(W, Hh), pc = contextoDe(pintada);

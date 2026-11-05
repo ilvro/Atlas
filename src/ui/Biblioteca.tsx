@@ -98,7 +98,7 @@ function Terreno({ s }: { s: SessaoDeEdicao }) {
   const p = s.pincel.value.terreno;
   return (<>
     <p class="dica">Pinte o chão ao ar livre. As bordas se misturam sozinhas. <kbd>Alt</kbd> apaga; <kbd>[</kbd> e <kbd>]</kbd> mudam o pincel.</p>
-    <div class="lista-cartas">{materiaisDo('terreno').map(m => <button type="button" key={m.id} class={`carta ${p.material === m.id ? 'ativa' : ''}`} onClick={() => mudar(s, { terreno: { ...p, material: m.id } })} data-testid={`terreno-${m.id}`}><span class="carta-amostras"><Amostra id={m.id} tamanho={26} /></span><span class="carta-nome">{m.nome}</span></button>)}</div>
+    <div class="lista-cartas">{[...materiaisDo('terreno'), ...materiaisDo('macico')].map(m => <button type="button" key={m.id} class={`carta ${p.material === m.id ? 'ativa' : ''}`} onClick={() => mudar(s, { terreno: { ...p, material: m.id } })} data-testid={`terreno-${m.id}`}><span class="carta-amostras"><Amostra id={m.id} tamanho={26} /></span><span class="carta-nome">{m.nome}</span></button>)}</div>
     <CampoNumero rotulo="Pincel" unidade="m" valor={p.raio} min={0.25} max={12} passo={0.5} aoConfirmar={v => { mudar(s, { terreno: { ...p, raio: v } }); }} />
     <CampoMaterial rotulo="Base do mapa" dica="Cobre o mapa todo, por baixo de tudo" uso="terreno" valor={s.doc.value.terrain.base === 'vazio' ? null : s.doc.value.terrain.base} comNenhum="Nenhuma (fundo escuro)" aoMudar={v => { s.store.executar({ tipo: 'terreno.base', material: v ?? 'vazio' }); }} />
   </>);

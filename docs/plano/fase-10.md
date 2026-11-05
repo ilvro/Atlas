@@ -173,7 +173,7 @@ Commit: water currents and caustics
 Escopo: `elevation: 'underwater'` desenha o objeto entre o leito e a superfície (com a cor da água por cima, pela profundidade no ponto); objetos `floor` dentro da água ganham anel de espuma (máscara de objetos na textura da água); o inspetor oferece "Submerso" quando o objeto está sobre água. Pincel de terreno com "suavizar margem" opcional para a água (borda mais redonda que a das outras camadas).
 Commit: underwater props and foam rings
 
-### 10.2a — Maciço: material de relevo e assar com volume  ⬜
+### 10.2a — Maciço: material de relevo e assar com volume  ✅
 Objetivo: pintar rocha de maciço dá uma massa de pedra com volume, estrias e sombra no chão, nos dois estilos.
 Depende de: 10.0a
 Ler: `src/procedural/assar.ts` (`assarTerreno`), `src/procedural/ruido.ts` (`fbm`, `valueNoise2D`), `src/procedural/materiais.ts`, `docs/referencias/exemplos/covil-na-caverna.png`, `desfiladeiro-nevado.png`, `gruta-dos-contrabandistas.png`.
@@ -186,6 +186,7 @@ Não fazer: bloquear visão (10.2b); sombra longa do sol (10.3).
 Testes: unitário de que o maciço não ganha o aro escuro das camadas comuns e que a chave do terreno muda com o material.
 Pronto quando: um anel de `rocha.caverna` em volta de `rocha.rachada` (ou `pedregulho` antes da 10.4a) parece uma caverna vista de cima (captura).
 Commit: rock massifs with volume
+Nota: o relevo vive em `src/procedural/macico.ts` (puro, testável sem canvas) e o `assarTerreno` só o liga; `profundidade.ts` foi criado aqui (`distanciaAMargem(mascara, w, h, res, maximo)`, fora da imagem conta como dentro). Os maciços entram na lista do pincel de terreno (`Biblioteca.tsx`). Revisão: sem rede de rachaduras (só poucas fendas, Voronoi de 1,6 m torcido); borda e quebras em lóbulos grandes (ruído de ~0,7 m, sem serrilhado fino); a neve de `rocha.nevada` segue o relevo (patamares altos e faces ao sol, sombra `#b8c8dc`, rocha aparecendo em estrias); o pé da parede escurece até quase negro e a sombra de contato é suave nos dois lados, de 0,6 m (`SOMBRA_DE_CONTATO`). As estrias vêm de ruído borrado ao longo da encosta, sem coordenada tangente. O Pixel só mudou de leve (os patamares passaram a seguir lóbulos). A captura (anel de `rocha.caverna` sobre `rocha.rachada` com vazio além, `rocha.nevada` sobre `neve.funda`, `rocha.arenito` sobre `grama`, Ilustrado e Pixel) sai de `tests/e2e/fase10-macico.test.ts`.
 
 ### 10.2b — Maciço: contorno vira escarpa que bloqueia  ⬜
 Objetivo: o maciço bloqueia movimento e visão por paredes comuns, geradas do contorno e editáveis.
@@ -207,6 +208,7 @@ Como:
 2. `escarpa.ts` (procedural, sem Pixi): `descreverEscarpa(path, drop, altura, material, seed)` → uma tela assada como a do terreno: a **face** é uma faixa do lado `drop` com largura `0,35 × altura` (mín. 0,4 m), quebrada em 3 patamares com borda de ruído, estrias perpendiculares ao caminho, aresta clara no topo e traço de nanquim; uma **sombra de contato** de 0,5 m no pé da face. Material `rocha.nevada` põe neve na aresta. Pixel: 2 faixas da paleta + contorno de 1 px.
 3. A cena assa as escarpas como entradas próprias (chave = estilo + caminho + drop + altura + material + seed) num container logo acima do terreno (abaixo dos cômodos); a linha de parede comum deixa de ser desenhada para `cliff` com `source: null`. As de `source: { terrainLayerId }` (10.2b) seguem invisíveis.
 4. Visão: `oclusores` já respeita `blocks.sight`; conferir que `cliff` com `sight: false` não corta a visão nem a luz (`light: false`).
+5. Ajuste herdado da revisão da 10.2a: o pé escuro da face e a sombra de contato do maciço passam a ser por material (campo opcional `pe` em `Material`, de 0 a 1): forte em `rocha.caverna` (como hoje), leve em `rocha.cinza`, `rocha.nevada` e `rocha.arenito` (hoje o arenito sobre grama ganha um halo escuro pesado demais).
 Não fazer: sombra longa do sol (10.3); "subir" e "descer" com regras de altura para peças.
 Testes: unitário de que a face fica do lado certo (`drop: 'a'` e `'b'` num segmento horizontal: a caixa da tela fica acima ou abaixo); chave muda com `drop`. e2e: desenhar uma escarpa com o pincel, trocar o lado no inspetor e ver a face mudar de lado (captura); uma peça não atravessa, mas a névoa revela do outro lado.
 Pronto quando: a crista em "C" do Desfiladeiro pode ser feita com três escarpas e parece rocha, não uma linha.
