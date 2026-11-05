@@ -203,11 +203,12 @@ type Rascunho = MapaAtlas;
 export function recalcularParedes(m: Rascunho): void {
   const antigas = new Map<string, Pick<Parede, 'path'>>();
   for (const p of Object.values(m.walls)) antigas.set(p.id, { path: p.path.map(q => [q[0], q[1]] as Ponto) });
-  const antesDerivadas = new Map(Object.values(m.walls).filter(p => p.source).map(p => [p.id, p]));
+  const derivada = (p: Parede) => !!p.source && 'roomId' in p.source;      // as do maciço (terrainLayerId) não são dos cômodos: ficam
+  const antesDerivadas = new Map(Object.values(m.walls).filter(derivada).map(p => [p.id, p]));
 
   const cobertas = new Set<string>();
   for (const p of Object.values(m.walls)) if (!p.source) for (const k of arestasCobertas(m, p)) cobertas.add(k);
-  for (const id of Object.keys(m.walls)) if (m.walls[id]!.source) delete m.walls[id];
+  for (const id of Object.keys(m.walls)) if (derivada(m.walls[id]!)) delete m.walls[id];
   for (const d of paredesDerivadas(m, cobertas)) {
     const anterior = antesDerivadas.get(d.id);
     m.walls[d.id] = anterior ? { ...d, height: anterior.height, thickness: anterior.thickness, material: anterior.material, kind: anterior.kind, blocks: { ...anterior.blocks } } : d;

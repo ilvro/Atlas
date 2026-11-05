@@ -199,6 +199,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     pixelRes = m.style.renderer === 'pixel' ? m.style.pixel.pixelsPerCell / m.grid.size : 0;
     paredesG.position.set(pixelRes ? 0.5 / pixelRes : 0, pixelRes ? 0.5 / pixelRes : 0);
     for (const p of Object.values(m.walls)) {
+      if (p.source && 'terrainLayerId' in p.source) continue;      // contorno do maciço: o assar já mostra a rocha (a seleção traça a parede)
       desenharParede(paredesG, m, p);
       // Um fio claro no meio do topo dá volume à faixa escura.
       if (p.kind === 'wall') { paredesG.moveTo(p.path[0]![0], p.path[0]![1]); for (const q of p.path.slice(1)) paredesG.lineTo(q[0], q[1]); paredesG.stroke({ width: lw(p.thickness * 0.14), color: COR_TOPO_CLARO, alpha: pixelRes ? 1 : 0.9, cap: 'butt' }); }

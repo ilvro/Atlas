@@ -66,8 +66,8 @@ A fase é entregue em três lotes; cada um termina com exemplos prontos e mostra
 | Lote | Tarefas | Exemplos que fecham |
 | --- | --- | --- |
 | **A — Rocha, neve e sombra** | 10.0a–b, 10.2a–c, 10.3, 10.4a, 10.5a, 10.5e, 10.6a–b, 10.7a, 10.7b | 1 Desfiladeiro nevado, 6 Covil na caverna |
-| **B — Água** | 10.1a–d, 10.4b, 10.5b, 10.5f, 10.6c, 10.7c–e | 2 Ruína à beira-mar, 5 Entreposto do rio, 7 Gruta dos contrabandistas |
-| **C — Cachoeira e cidade** | 10.5c–d, 10.6d, 10.7f–g, 10.8 | 3 Ravina noturna, 4 Porto à noite |
+| **B — Água** | 10.1a–d, 10.4b, 10.5b, 10.5c, 10.5d, 10.5f, 10.6c, 10.7c–e | 2 Ruína à beira-mar, 5 Entreposto do rio, 7 Gruta dos contrabandistas |
+| **C — Cachoeira e cidade** | 10.6d, 10.7f–g, 10.8 | 3 Ravina noturna, 4 Porto à noite |
 
 ## Tarefas
 
@@ -87,8 +87,8 @@ A fase é entregue em três lotes; cada um termina com exemplos prontos e mostra
 | 10.4b | Materiais: paralelepípedo, lajes com grama, terra com sulcos, areia molhada | procedural | B |
 | 10.5a | Acervo: inverno e rocha | receitas + coleção | A |
 | 10.5b | Acervo: mata, ruína e margem | receitas + coleção | B |
-| 10.5c | Acervo: porto e cidade | receitas | C |
-| 10.5d | Acervo: estrada e estábulo | receitas | C |
+| 10.5c | Acervo: porto e cidade | receitas | B |
+| 10.5d | Acervo: estrada e estábulo | receitas | B |
 | 10.5e | Acervo: caverna | receitas | A |
 | 10.5f | Acervo: fundo da água e barcos pequenos | receitas | B |
 | 10.6a | Bordas do mapa: nuvens, escuro, neblina | render + interface | A |
@@ -188,7 +188,7 @@ Pronto quando: um anel de `rocha.caverna` em volta de `rocha.rachada` (ou `pedre
 Commit: rock massifs with volume
 Nota: o relevo vive em `src/procedural/macico.ts` (puro, testável sem canvas) e o `assarTerreno` só o liga; `profundidade.ts` foi criado aqui (`distanciaAMargem(mascara, w, h, res, maximo)`, fora da imagem conta como dentro). Os maciços entram na lista do pincel de terreno (`Biblioteca.tsx`). Revisão: sem rede de rachaduras (só poucas fendas, Voronoi de 1,6 m torcido); borda e quebras em lóbulos grandes (ruído de ~0,7 m, sem serrilhado fino); a neve de `rocha.nevada` segue o relevo (patamares altos e faces ao sol, sombra `#b8c8dc`, rocha aparecendo em estrias); o pé da parede escurece até quase negro e a sombra de contato é suave nos dois lados, de 0,6 m (`SOMBRA_DE_CONTATO`). As estrias vêm de ruído borrado ao longo da encosta, sem coordenada tangente. O Pixel só mudou de leve (os patamares passaram a seguir lóbulos). A captura (anel de `rocha.caverna` sobre `rocha.rachada` com vazio além, `rocha.nevada` sobre `neve.funda`, `rocha.arenito` sobre `grama`, Ilustrado e Pixel) sai de `tests/e2e/fase10-macico.test.ts`.
 
-### 10.2b — Maciço: contorno vira escarpa que bloqueia  ⬜
+### 10.2b — Maciço: contorno vira escarpa que bloqueia  ✅
 Objetivo: o maciço bloqueia movimento e visão por paredes comuns, geradas do contorno e editáveis.
 Depende de: 10.2a
 Ler: `src/domain/geometria.ts`, `src/domain/visibilidade.ts`, `src/state/comandos-construir.ts` (`terreno.pintar`, `parede.adicionar`), `src/authoring/malha.ts`.
@@ -197,6 +197,7 @@ Como: `contornar(faixas, res): Ponto[][]` por marching squares + Douglas-Peucker
 Não fazer: escarpa avulsa (10.2c).
 Testes: contorno de um anel dá dois polígonos; desfazer a pincelada desfaz as paredes; a visão de uma peça dentro da caverna para no maciço.
 Commit: massifs block sight
+Nota: `contornar(faixas, res, { tolerancia, limite, recuo })` ganhou opções: o contorno é traçado 1 célula (0,25 m) para dentro da rocha (medi a borda visível do assar em discos: ela oscila entre -0,46 e +0,48 m do contorno cru, mediana 0, p5 -0,24 m; com o recuo a parede fica dentro da rocha em ~95% da borda e no máximo ~0,7 m dentro nas saliências), e a rocha que encosta no limite do mapa gera linha aberta, sem parede em volta do mapa. A função de domínio é `atualizarEscarpasDoMacico(m, camadas?)` (`src/domain/contorno.ts`), chamada por `terreno.pintar`/`terreno.apagar` só nas camadas cujas células mudaram (e pelo `Kit.construir`, que cobre os exemplos); paredes de camadas que sumiram saem com as aberturas e objetos presos a elas. `recalcularParedes` deixou de apagar as paredes `terrainLayerId` (só as `roomId`). As escarpas geradas têm altura 3 m, espessura 0,2 m e o material da camada; `parede.remover` nelas pede desanexar antes (mensagem própria). Aberturas postas numa escarpa gerada se perdem quando a pincelada refaz o contorno (ids novos). Não há comando de trocar o material de uma camada: pintar outro material por cima já passa pelo mesmo recálculo. Recálculo medido: ~4–6 ms num maciço de borda irregular em volta de 60 × 40 m (0,25 m).
 
 ### 10.2c — Escarpa avulsa com lado baixo  ⬜
 Objetivo: desenhar uma escarpa com a ferramenta de parede dá uma face de rocha do lado baixo, que bloqueia o passo e deixa ver de cima.

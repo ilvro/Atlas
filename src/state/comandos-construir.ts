@@ -1,5 +1,6 @@
 import type { Ref } from '#mesa';
 import { codificar, decodificar, subtrair, unir, type Celula } from '../domain/celulas.ts';
+import { atualizarEscarpasDoMacico, mesmasFaixas } from '../domain/contorno.ts';
 import { atualizarSalasDosObjetos, limparOrfaos, motivoDeNaoCaber, recalcularParedes } from '../domain/geometria.ts';
 import type { Abertura, Comodo, MapaAtlas, Parede } from '../domain/mapa.ts';
 import { clonar } from './imutavel.ts';
@@ -80,6 +81,14 @@ const idDaPresenca = (brush: string) => `p_${brush.replace(/[^A-Za-z0-9_-]/g, '_
 const sementeDe = (texto: string) => { let h = 2166136261; for (const ch of texto) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return (h >>> 0) % 2 ** 31; };
 const idDaCamada = (material: string) => `t_${material.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 60)}`;
 
+/** As células de cada camada antes de um comando de terreno; depois dele, `camadasMudadas` diz quais camadas (e quais sumiram) foram mexidas. */
+const guardarCamadas = (m: MapaAtlas) => new Map(Object.values(m.terrain.layers).map(l => [l.id, l.cells] as const));
+function camadasMudadas(m: MapaAtlas, antes: ReadonlyMap<string, MapaAtlas['terrain']['layers'][string]['cells']>): Set<string> {
+  const mudadas = new Set<string>();
+  for (const l of Object.values(m.terrain.layers)) { const a = antes.get(l.id); if (!a || !mesmasFaixas(a, l.cells)) mudadas.add(l.id); }
+  return mudadas;
+}
+
 export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
   switch (c.tipo) {
     case 'comodo.criar': {
@@ -120,7 +129,7 @@ export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
     case 'parede.atualizar': { const p = m.walls[c.id] ?? nao(`A parede “${c.id}” não existe.`); mesclar(p, c.patch as Record<string, unknown>); break; }
     case 'parede.remover': {
       const p = m.walls[c.id] ?? nao(`A parede “${c.id}” não existe.`);
-      if (p.source) nao('Esta parede segue o cômodo. Desanexe-a antes, ou mude o cômodo.');
+      if (p.source) nao('terrainLayerId' in p.source ? 'Esta parede segue o maciço. Desanexe-a antes, ou mude o terreno.' : 'Esta parede segue o cômodo. Desanexe-a antes, ou mude o cômodo.');
       delete m.walls[c.id]; for (const a of Object.values(m.openings)) if (a.wallId === c.id) delete m.openings[a.id];
       for (const o of Object.values(m.props)) if (o.wall?.wallId === c.id) delete m.props[o.id];
       recalcularParedes(m); break;
@@ -145,17 +154,19 @@ export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
     case 'abertura.remover': { if (!m.openings[c.id]) nao(`A abertura “${c.id}” não existe.`); delete m.openings[c.id]; m.session.revealed = m.session.revealed.filter(x => x !== c.id); break; }
 
     case 'terreno.pintar': {
+      const antes = guardarCamadas(m);
       const cel = normais(c.celulas), novas = codificar(cel), id = idDaCamada(c.material);
       m.terrain.layers[id] ??= { id, material: c.material, cells: [], order: Object.keys(m.terrain.layers).length, flow: null };
       for (const camada of Object.values(m.terrain.layers)) if (camada.id !== id) camada.cells = subtrair(camada.cells, novas);
       m.terrain.layers[id]!.cells = unir(m.terrain.layers[id]!.cells, novas);
       for (const camada of Object.values(m.terrain.layers)) if (!camada.cells.length) delete m.terrain.layers[camada.id];
-      break;
+      atualizarEscarpasDoMacico(m, camadasMudadas(m, antes)); break;
     }
     case 'terreno.apagar': {
+      const antes = guardarCamadas(m);
       const tirar = codificar(normais(c.celulas));
       for (const camada of Object.values(m.terrain.layers)) { camada.cells = subtrair(camada.cells, tirar); if (!camada.cells.length) delete m.terrain.layers[camada.id]; }
-      break;
+      atualizarEscarpasDoMacico(m, camadasMudadas(m, antes)); break;
     }
     case 'terreno.base': m.terrain.base = c.material; break;
     case 'presenca.pintar': {

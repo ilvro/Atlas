@@ -24,6 +24,7 @@
 import { ACERVO } from '../../src/procedural/acervo.ts';
 import { espalhar as espalharConjunto, conjuntoDeEspalhar } from '../../src/authoring/espalhar.ts';
 import { codificar } from '../../src/domain/celulas.ts';
+import { atualizarEscarpasDoMacico } from '../../src/domain/contorno.ts';
 import { ceuNoHorario } from '../../src/domain/clima.ts';
 import { novaLuz, novaPeca, novoObjeto } from '../../src/domain/fabrica.ts';
 import { PAREDE_PADRAO, atualizarSalasDosObjetos, encaixarNaParede, motivoDeNaoCaber, recalcularParedes } from '../../src/domain/geometria.ts';
@@ -305,6 +306,7 @@ export class Kit {
       const id = `p_${pincel.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 60)}`;
       m.presence[id] = { id, brush: pincel, cells: codificar([...chaves].map(k => [k % 65_536, Math.floor(k / 65_536)] as const)), intensity: 0.6, seed: Math.floor(this.semente * 977 + pincel.length), gmOnly: false };
     }
+    atualizarEscarpasDoMacico(m);      // o maciço pintado por aqui também bloqueia, igual ao pintado no editor
     atualizarSalasDosObjetos(m); m.createdAt = m.updatedAt = CARIMBO_DOS_EXEMPLOS;
     return m;
   }
