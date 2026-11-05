@@ -13,7 +13,7 @@ export interface Campanha {
   nome: string;
   /** Ex.: 'ordem-paranormal'. Texto livre. */
   sistema: string;
-  tema: 'ordem' | 'prata' | 'neutro' | null;
+  tema: 'atlas' | 'ordem' | 'vigilia' | 'neutro' | 'prata' | null;
   capa: string | null;
   criadaEm: number;
   atualizadaEm: number;
@@ -79,7 +79,7 @@ export function validarCampanha(v: unknown): asserts v is Campanha {
   falha(typeof v.id === 'string' && v.id.length > 0, 'Identificador ausente.', 'campanha.id');
   texto(v.nome, 'campanha.nome'); falha(String(v.nome).trim().length > 0, 'Dê um nome à campanha.', 'campanha.nome');
   texto(v.sistema, 'campanha.sistema', 80);
-  falha(v.tema === null || ['ordem', 'prata', 'neutro'].includes(String(v.tema)), 'Tema inválido.', 'campanha.tema');
+  falha(v.tema === null || ['atlas', 'ordem', 'vigilia', 'neutro', 'prata'].includes(String(v.tema)), 'Tema inválido.', 'campanha.tema');
   falha(v.capa === null || typeof v.capa === 'string', 'Capa inválida.', 'campanha.capa');
   tempo(v.criadaEm, 'campanha.criadaEm'); tempo(v.atualizadaEm, 'campanha.atualizadaEm');
 }

@@ -1,8 +1,8 @@
 /**
  * mesa-dev — todos os aplicativos da mesa numa origem só, com um comando (`npm run mesa-dev`).
  *
- * Cada projeto sobe do jeito que se comporta sob um prefixo (`/Atlas/`, `/Ficha/`…):
- *  - com Vite de desenvolvimento e `base` própria (Atlas, Mesa, Ficha, Ateliê, Tabletop): `npm run dev:mesa` do projeto. Ateliê e Tabletop
+ * Cada projeto sobe do jeito que se comporta sob um prefixo (`/Atlas/`, `/Dossie/`…):
+ *  - com Vite de desenvolvimento e `base` própria (Atlas, Mesa, Dossiê, Ateliê, Tabletop): `npm run dev:mesa` do projeto. Ateliê e Tabletop
  *    guardam no navegador, como no GitHub Pages (atrás do proxy não há servidor de API);
  *  - estático, o Jukebox (arquivos soltos, sem build). Uma pasta com `construir` (build do Pages) ainda é suportada, mas nenhum projeto a usa hoje.
  */
@@ -20,7 +20,7 @@ export function planoDosProjetos(raiz: string): PlanoDoProjeto[] {
   return [
     { tipo: 'vite', nome: 'Atlas', pasta: path.join(raiz, 'Atlas'), porta: 5190 },
     { tipo: 'vite', nome: 'Mesa', pasta: path.join(raiz, 'Mesa'), porta: 5195 },
-    { tipo: 'vite', nome: 'Ficha', pasta: path.join(raiz, 'Ficha teste - Ordem II'), porta: 5173 },
+    { tipo: 'vite', nome: 'Dossie', pasta: path.join(raiz, 'Dossie'), porta: 5173 },
     { tipo: 'vite', nome: 'Atelie', pasta: path.join(raiz, 'Atelie'), porta: 5174 },
     { tipo: 'vite', nome: 'Tabletop', pasta: path.join(raiz, 'Tabletop'), porta: 5177 },
     { tipo: 'estatico', nome: 'Jukebox', pasta: path.join(raiz, 'Jukebox'), servir: '.' },

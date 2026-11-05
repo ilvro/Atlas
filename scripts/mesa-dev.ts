@@ -5,9 +5,9 @@
  * localStorage e BroadcastChannel. Cada `npm run dev` tem a sua porta, então localmente eles ficariam em origens
  * diferentes. Este proxy os põe de volta na mesma origem.
  *
- *   npm run mesa-dev                    → sobe Atlas, Mesa, Ficha, Ateliê, Tabletop e Jukebox e serve tudo em http://127.0.0.1:5100/
- *   npm run mesa-dev -- --so Atlas,Mesa → só esses (nomes: Atlas, Mesa, Ficha, Atelie, Tabletop, Jukebox)
- *   node scripts/mesa-dev.ts Atlas=5190 Ficha=5173@raiz Jukebox=estatico:../Jukebox --porta 5100
+ *   npm run mesa-dev                    → sobe Atlas, Mesa, Dossiê, Ateliê, Tabletop e Jukebox e serve tudo em http://127.0.0.1:5100/
+ *   npm run mesa-dev -- --so Atlas,Mesa → só esses (nomes: Atlas, Mesa, Dossie, Atelie, Tabletop, Jukebox)
+ *   node scripts/mesa-dev.ts Atlas=5190 Dossie=5173@raiz Jukebox=estatico:../Jukebox --porta 5100
  *                                       → só o proxy, para projetos que você já subiu
  *
  * Por padrão o caminho segue inteiro (`/Atlas/x` chega ao projeto como `/Atlas/x`): é o que o Vite faz quando roda com

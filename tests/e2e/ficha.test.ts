@@ -7,16 +7,16 @@ let amb: Ambiente;
 before(async () => { amb = await iniciarAmbiente(); });
 after(async () => { await encerrar(amb); });
 
-const RAIZ_DA_FICHA = fileURLToPath(new URL('../../../Ficha teste - Ordem II/', import.meta.url));
+const RAIZ_DA_FICHA = fileURLToPath(new URL('../../../Dossie/', import.meta.url));
 
 test('Ficha no contrato (9.2a), com a Ficha de verdade sob o mesa-dev: publica as personagens com retrato, rola e avisa recursos, abre a ficha pedida', async () => {
   const { criarProxy, lerProjeto } = await import('../../scripts/mesa-dev.ts'), { createServer } = await import('vite');
-  const fichaVite = await createServer({ root: RAIZ_DA_FICHA, configFile: `${RAIZ_DA_FICHA}vite.config.js`, base: '/Ficha/', logLevel: 'error', server: { port: 0, strictPort: false, host: '127.0.0.1' } });
+  const fichaVite = await createServer({ root: RAIZ_DA_FICHA, configFile: `${RAIZ_DA_FICHA}vite.config.js`, base: '/Dossie/', logLevel: 'error', server: { port: 0, strictPort: false, host: '127.0.0.1' } });
   await fichaVite.listen();
   const atlasVite = await createServer({ configFile: new URL('../../vite.config.ts', import.meta.url).pathname, base: '/Atlas/', logLevel: 'error', server: { port: 0, strictPort: false, host: '127.0.0.1' } });
   await atlasVite.listen();
   const porta = (v: typeof atlasVite) => (v.httpServer!.address() as { port: number }).port;
-  const proxy = criarProxy([lerProjeto(`Atlas=${porta(atlasVite)}`), lerProjeto(`Ficha=${porta(fichaVite)}`)]);
+  const proxy = criarProxy([lerProjeto(`Atlas=${porta(atlasVite)}`), lerProjeto(`Dossie=${porta(fichaVite)}`)]);
   await new Promise<void>(ok => proxy.listen(0, '127.0.0.1', ok));
   const origem = `http://127.0.0.1:${(proxy.address() as { port: number }).port}`, ctx = await novoContexto(amb, { viewport: { width: 1500, height: 900 } });
   try {
@@ -28,7 +28,7 @@ test('Ficha no contrato (9.2a), com a Ficha de verdade sob o mesa-dev: publica a
 
     const errosDaFicha: string[] = [], f = await ctx.newPage();
     f.on('pageerror', e => errosDaFicha.push(String(e))); f.on('console', m => { if (m.type() === 'error') errosDaFicha.push(m.text()); });
-    await f.goto(`${origem}/Ficha/`);
+    await f.goto(`${origem}/Dossie/`);
     const entidades = () => a.evaluate(async id => { const s = (window as unknown as { __atlas: { servicos(): { campanhas: { listarEntidades(c: string): Promise<{ id: string; tipo: string; nome: string; criadaPor: string; refs: { app: string; tipo: string; id: string }[]; retrato?: Blob }[]> } } } }).__atlas.servicos(); return (await s.campanhas.listarEntidades(id)).map(e => ({ id: e.id, tipo: e.tipo, nome: e.nome, criadaPor: e.criadaPor, refs: e.refs, retrato: e.retrato ? e.retrato.size : 0 })); }, campanhaId);
     for (let i = 0; i < 80 && !(await entidades()).some(e => e.tipo === 'personagem'); i++) await a.waitForTimeout(250);
     await a.waitForTimeout(2500);

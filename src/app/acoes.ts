@@ -151,8 +151,9 @@ export const ACOES: readonly Acao[] = [
     s.store.executar({ tipo: 'grade.atualizar', patch: { visible: !s.doc.value.grid.visible } }, { rotulo: s.doc.value.grid.visible ? 'Esconder a grade' : 'Mostrar a grade' }); tocar('selecionar');
   } },
 
+  { id: 'tema-atlas', nome: 'Tema Atlas', grupo: 'Aparência', palavras: 'turquesa padrao', executar: () => trocarTema({ id: 'atlas' }) },
   { id: 'tema-ordem', nome: 'Tema Ordem', grupo: 'Aparência', palavras: 'vermelho', executar: () => trocarTema({ id: 'ordem' }) },
-  { id: 'tema-prata', nome: 'Tema Prata', grupo: 'Aparência', palavras: 'cinza vigilia', executar: () => trocarTema({ id: 'prata' }) },
+  { id: 'tema-vigilia', nome: 'Tema Vigília', grupo: 'Aparência', palavras: 'prata cinza ornamentado', executar: () => trocarTema({ id: 'vigilia' }) },
   { id: 'tema-neutro', nome: 'Tema Neutro', grupo: 'Aparência', palavras: 'ambar', executar: () => trocarTema({ id: 'neutro' }) },
   { id: 'fx', nome: 'Ligar ou desligar as animações', grupo: 'Aparência', palavras: 'efeitos movimento', executar: () => { fxLigado.value = !fxLigado.value; definirFx(fxLigado.value); avisar(fxLigado.value ? 'Animações ligadas.' : 'Animações desligadas.'); } },
   { id: 'som', nome: 'Ligar ou desligar os sons', grupo: 'Aparência', executar: () => { somLigado.value = !somLigado.value; definirSom(somLigado.value); tocar('pop'); avisar(somLigado.value ? 'Sons ligados.' : 'Sons desligados.'); } },

@@ -73,15 +73,15 @@ export function adicionarPersonagem(s: SessaoDeEdicao, e: Entidade, onde?: Ponto
   return peca;
 }
 
-/** Pede à Ficha que abra a ficha; sem resposta, tenta abrir a Ficha pelo manifesto numa aba nova. */
+/** Pede ao Dossiê (o aplicativo das fichas) que abra a ficha; sem resposta, tenta abri-lo pelo manifesto numa aba nova. */
 export async function abrirFicha(b: Pick<Barramento, 'pedir'> | null | undefined, ref: Ref): Promise<'aberta' | 'aba' | 'falhou'> {
   const r = b ? await b.pedir('ficha.abrir', { ref }).catch(() => null) : null;
   if (r?.ok) return 'aberta';
   try {
-    const base = new URL('../Ficha/', location.href), manifesto = await descobrir(base), url = manifesto ? enderecoDaRef(manifesto, ref, base) : null;
-    if (url) { window.open(url, '_blank'); avisar('A Ficha não estava aberta: abri numa aba nova.', { duracao: 2600 }); return 'aba'; }
+    const base = new URL('../Dossie/', location.href), manifesto = await descobrir(base), url = manifesto ? enderecoDaRef(manifesto, ref, base) : null;
+    if (url) { window.open(url, '_blank'); avisar('O Dossiê não estava aberto: abri numa aba nova.', { duracao: 2600 }); return 'aba'; }
   } catch { /* cai no aviso */ }
-  avisar('A Ficha não respondeu. Abra a Ficha da campanha e tente de novo.', { tipo: 'erro', duracao: 3200 });
+  avisar('O Dossiê não respondeu. Abra o Dossiê da campanha e tente de novo.', { tipo: 'erro', duracao: 3200 });
   return 'falhou';
 }
 

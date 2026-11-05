@@ -3,7 +3,7 @@ import { ehApp, partesDoId, type AppId, type Ref } from './refs.ts';
 
 /**
  * `mesa.json`, na raiz de cada aplicativo: quem é, que links profundos aceita e o que emite e atende.
- * Os outros aplicativos o descobrem com `fetch('../Ficha/mesa.json')`.
+ * Os outros aplicativos o descobrem com `fetch('../Dossie/mesa.json')`.
  */
 export interface Manifesto {
   app: AppId;

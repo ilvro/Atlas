@@ -24,10 +24,11 @@ Observado nas telas da Ficha (visões Vigília e Ordem 2 cinematográfica) e no 
 
 ## 2. Temas
 
-Um tema define cor de destaque, tipografia de títulos, forma das faixas, moldura e transição. Começam três:
+Um tema define cor de destaque, superfícies, tipografia de títulos, forma das faixas, moldura e transição. Começam quatro; **Vigília é o padrão** (preto-esverdeado com névoa, verde bebê `#9fe0b6`, sóbrio e adulto). As faixas rasgadas e os cantos cortados ficam só no tema Ordem; nos outros, rótulos em versalete com um fio do acento.
 
 | Tema | Destaque | Títulos | Faixas e moldura | Transição |
 | --- | --- | --- | --- | --- |
+| **Vigília** (padrão) | Verde bebê `#9fe0b6` | Cinzel, versalete espaçado | Fio fino e losango do acento, sem recortes | Tinta |
 | **Ordem** | Vermelho `#e91d25` | Serifa pesada, caixa alta | Rasgadas, retas, cantos em L | Glitch |
 | **Prata** (como a Vigília) | Prata e branco | Cinzel / Cinzel Decorative | Moldura ornamentada, divisória celta própria | Tinta |
 | **Neutro** | Âmbar | Serifa clássica | Discretas | Fade |

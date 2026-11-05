@@ -47,7 +47,9 @@ test('descobrir busca mesa.json ao lado e ignora respostas ruins', async () => {
 test('tema: tokens, contraste e destaque próprio', () => {
   const ordem = tokensDoTema({ id: 'ordem' });
   assert.equal(ordem['--acento'], '#e91d25'); assert.equal(ordem['--acento-texto'], '#ffffff');
-  const prata = tokensDoTema({ id: 'prata' });
+  const atlas = tokensDoTema({ id: 'atlas' });
+  assert.equal(atlas['--acento'], '#14b3ae'); assert.equal(atlas['--acento-texto'], '#0b0c10'); assert.equal(atlas['--superficie'], '#101817');
+  const prata = tokensDoTema({ id: 'vigilia' });
   assert.equal(prata['--acento-texto'], '#0b0c10');
   assert.equal(tokensDoTema({ id: 'neutro', acento: '#2E8B57' })['--acento'], '#2e8b57');
   assert.equal(tokensDoTema({ id: 'neutro', acento: 'verde' })['--acento'], '#d9a23b');
@@ -59,19 +61,19 @@ test('tema: tokens, contraste e destaque próprio', () => {
 test('tema: leitura tolerante e gravação', () => {
   const guardado = new Map<string, string>();
   const armazenamento = { getItem: (k: string) => guardado.get(k) ?? null, setItem: (k: string, v: string) => { guardado.set(k, v); } };
-  assert.deepEqual(lerTema(armazenamento), { id: 'ordem' });
-  gravarTema(armazenamento, { id: 'prata', acento: '#aabbcc' });
-  assert.deepEqual(lerTema(armazenamento), { id: 'prata', acento: '#aabbcc' });
-  guardado.set(CHAVE_TEMA, '{lixo'); assert.deepEqual(lerTema(armazenamento), { id: 'ordem' });
-  guardado.set(CHAVE_TEMA, JSON.stringify({ id: 'inexistente' })); assert.deepEqual(lerTema(armazenamento), { id: 'ordem' });
+  assert.deepEqual(lerTema(armazenamento), { id: 'atlas' });
+  gravarTema(armazenamento, { id: 'vigilia', acento: '#aabbcc' });
+  assert.deepEqual(lerTema(armazenamento), { id: 'vigilia', acento: '#aabbcc' });
+  guardado.set(CHAVE_TEMA, '{lixo'); assert.deepEqual(lerTema(armazenamento), { id: 'atlas' });
+  guardado.set(CHAVE_TEMA, JSON.stringify({ id: 'inexistente' })); assert.deepEqual(lerTema(armazenamento), { id: 'atlas' });
   guardado.set(CHAVE_TEMA, JSON.stringify({ id: 'neutro', acento: 'x' })); assert.deepEqual(lerTema(armazenamento), { id: 'neutro' });
   assert.doesNotThrow(() => gravarTema({ setItem: () => { throw new Error('cheio'); } }, { id: 'ordem' }));
 });
 
 test('tema: aplicar escreve tokens e atributos; observar reage ao evento storage de outra aba', () => {
   const props = new Map<string, string>(), alvo = { style: { setProperty: (n: string, v: string) => { props.set(n, v); } }, dataset: {} as Record<string, string | undefined> };
-  aplicarTema(alvo, { id: 'prata' });
-  assert.equal(props.get('--acento'), '#d8dbe2'); assert.equal(alvo.dataset.tema, 'prata'); assert.equal(alvo.dataset.transicao, 'tinta');
+  aplicarTema(alvo, { id: 'vigilia' });
+  assert.equal(props.get('--acento'), '#cfd8d3'); assert.equal(alvo.dataset.tema, 'vigilia'); assert.equal(alvo.dataset.transicao, 'tinta');
 
   const guardado = new Map<string, string>([[CHAVE_TEMA, JSON.stringify({ id: 'neutro' })]]);
   const armazenamento = { getItem: (k: string) => guardado.get(k) ?? null };

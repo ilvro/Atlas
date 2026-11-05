@@ -13,14 +13,14 @@ function escrever(p: string, texto: string, mtimeS?: number): void { fs.mkdirSyn
 
 test('plano: os seis aplicativos, cada um do jeito que se comporta sob um prefixo', () => {
   const plano = planoDosProjetos('/raiz');
-  assert.deepEqual(plano.map(p => p.nome), ['Atlas', 'Mesa', 'Ficha', 'Atelie', 'Tabletop', 'Jukebox']);
+  assert.deepEqual(plano.map(p => p.nome), ['Atlas', 'Mesa', 'Dossie', 'Atelie', 'Tabletop', 'Jukebox']);
   const vites = plano.filter((p): p is Extract<typeof p, { tipo: 'vite' }> => p.tipo === 'vite');
   assert.deepEqual(vites.map(p => `${p.nome}:${p.porta}`), ['Atlas:5190', 'Mesa:5195', 'Ficha:5173', 'Atelie:5174', 'Tabletop:5177']);
   assert.equal(new Set(vites.map(p => p.porta)).size, vites.length, 'portas diferentes');
   const est = plano.filter((p): p is ProjetoEstatico => p.tipo === 'estatico');
   assert.deepEqual(est.map(p => p.nome), ['Jukebox']);
   assert.equal(est[0]!.construir, undefined, 'Jukebox são arquivos soltos, sem build');
-  assert.equal(plano.find(p => p.nome === 'Ficha')!.pasta, path.join('/raiz', 'Ficha teste - Ordem II'));
+  assert.equal(plano.find(p => p.nome === 'Dossie')!.pasta, path.join('/raiz', 'Dossie'));
 });
 
 test('precisaConstruir: falta o build, ou alguma fonte é mais nova que ele', () => {

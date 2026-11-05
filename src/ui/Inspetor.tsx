@@ -453,7 +453,20 @@ function PainelDaSelecao({ s }: { s: SessaoDeEdicao }) {
   const m = s.doc.value, alvos = s.selecao.value;
   if (!alvos.length) {
     const total = Object.keys(m.props).length + Object.keys(m.lights).length + Object.keys(m.tokens).length + Object.keys(m.regions).length;
-    return <div class="painel-corpo" data-testid="painel-selecao"><p class="dica">{total ? 'Clique em algo no mapa para ver e ajustar. Arraste no vazio para selecionar vários.' : 'O mapa está vazio. Use L, O, T ou R para adicionar uma luz, um objeto, uma peça ou uma região, ou clique com o botão direito.'}</p></div>;
+    if (total) return <div class="painel-corpo" data-testid="painel-selecao"><p class="dica">Clique em algo no mapa para ver e ajustar. Arraste no vazio para selecionar vários.</p></div>;
+    return (
+      <div class="painel-corpo" data-testid="painel-selecao">
+        <h3 class="faixa pequena">Primeiros passos</h3>
+        <ol class="passos-iniciais">
+          <li><kbd>C</kbd><span><b>Pinte um cômodo</b><small>Arraste na grade; o piso e as paredes vêm juntos.</small></span></li>
+          <li><kbd>W</kbd><span><b>Ajuste as paredes</b><small>Desenhe, ou apague onde sobrou.</small></span></li>
+          <li><kbd>D</kbd><span><b>Abra portas e janelas</b><small>Clique numa parede para pôr a abertura.</small></span></li>
+          <li><kbd>O</kbd><span><b>Mobilie</b><small>Objetos da biblioteca, com o estilo do mapa.</small></span></li>
+          <li><kbd>L</kbd><span><b>Acenda as luzes</b><small>Depois troque o clima e veja a cena mudar.</small></span></li>
+        </ol>
+        <p class="dica">Clique com o botão direito para o menu radial, ou <kbd>Ctrl</kbd> <kbd>K</kbd> para buscar qualquer ação.</p>
+      </div>
+    );
   }
   const unico = alvos.length === 1 ? alvos[0]! : null;
   return (

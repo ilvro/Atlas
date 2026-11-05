@@ -89,10 +89,10 @@ test('trocar o tema muda a interface e as outras abas, ao vivo', async () => {
   const ctx = await novoContexto(amb), um = await abrir(ctx, amb.url), dois = await abrir(ctx, amb.url);
   const acento = (p: Page) => p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--acento').trim());
   assert.equal(await um.page.evaluate(() => document.documentElement.dataset.tema), 'ordem'); assert.equal(await acento(um.page), '#e91d25');
-  await um.page.click('[data-testid="tema-prata"]');
-  assert.equal(await um.page.evaluate(() => document.documentElement.dataset.tema), 'prata'); assert.equal(await acento(um.page), '#d8dbe2');
-  await dois.page.waitForFunction(() => document.documentElement.dataset.tema === 'prata');
-  assert.equal(await acento(dois.page), '#d8dbe2');
+  await um.page.click('[data-testid="tema-vigilia"]');
+  assert.equal(await um.page.evaluate(() => document.documentElement.dataset.tema), 'vigilia'); assert.equal(await acento(um.page), '#cfd8d3');
+  await dois.page.waitForFunction(() => document.documentElement.dataset.tema === 'vigilia');
+  assert.equal(await acento(dois.page), '#cfd8d3');
   assert.equal(await dois.page.evaluate(() => document.documentElement.dataset.transicao), 'tinta');
   await dois.page.click('[data-testid="tema-neutro"]');
   await um.page.waitForFunction(() => document.documentElement.dataset.tema === 'neutro');
@@ -374,11 +374,11 @@ test('mesa-dev: dois aplicativos sob a mesma origem compartilham tema e campanha
     await atlas.page.click('[data-testid="nova-campanha"]'); await atlas.page.fill('[data-testid="nova-campanha-nome"]', 'A Ilha'); await atlas.page.press('[data-testid="nova-campanha-nome"]', 'Enter');
     await toast(atlas.page, /Campanha “A Ilha” criada/).waitFor();
     await criarMapaPelaInterface(atlas.page);
-    await atlas.page.click('[data-testid="tema-prata"]');
+    await atlas.page.click('[data-testid="tema-vigilia"]');
 
     const outra = await ctx.newPage(); await outra.goto(`${origem}/Ficha/`);
     assert.equal(new URL(outra.url()).origin, new URL(atlas.page.url()).origin, 'a mesma origem');
-    assert.equal(await outra.evaluate(() => JSON.parse(localStorage.getItem('mesa:tema')!).id), 'prata', 'o tema é um só para os dois');
+    assert.equal(await outra.evaluate(() => JSON.parse(localStorage.getItem('mesa:tema')!).id), 'vigilia', 'o tema é um só para os dois');
     // O banco da campanha é visto do outro aplicativo, com o "lugar" criado pelo Atlas.
     const vistas = await outra.evaluate(() => new Promise<{ campanhas: string[]; entidades: { nome: string; criadaPor: string }[] }>((ok, ruim) => {
       const p = indexedDB.open('mesa-campanha-v1'); p.onerror = () => ruim(p.error);
