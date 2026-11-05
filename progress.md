@@ -313,9 +313,9 @@ Nada disso é erro de lógica: é densidade e acabamento do acervo, que cresce c
 - **Pendente da fase (pendências reais):** nenhum item da coleção tem `pixelArquivo` nem há achados (a 6.2b espera a curadoria), então a derivação de imagens só foi testada com imagens sintéticas; objetos e aberturas nas faces das paredes viram formas chapadas pequenas (sem o detalhe do Ilustrado); o título e a moldura do projetor são HTML (fora da paleta); mapas muito grandes no Pixel perdem resolução (teto de 8192 px por lado); a moldura e o título do projetor só trocam de estilo quando o documento projetado troca.
 
 
-## Fase 9 — Plataforma e tutoriais (parte do Atlas)
+## Fase 9 — Plataforma e tutoriais ✅
 
-Feitas as tarefas que só mexem no Atlas, contra aplicativos falsos no barramento; as 🔒 (que mudam Mesa, Ficha, Ateliê e Jukebox) esperam a autorização do usuário.
+Concluída. O Atlas fala o contrato da mesa com todos os aplicativos (Ficha, Ateliê, Jukebox) e com a Mesa, o novo hub (`Projects/Mesa`): campanhas, entidades, notas com ligações, inventário de aplicativos, modo sessão e diário. Os tutoriais do Atlas (motor e cinco lições) estão prontos.
 
 - **9.2b Ficha → peça** — `fichas.ts`, `Personagens.tsx`: o personagem da campanha com ficha vira peça de jogador ligada ao Ref; pips de PV (vermelho) e PD (azul) que piscam ao cair, "ferido" só na tela com PV ≤ 25%, cartão e inspetor com PV e PD, "Abrir ficha" (`ficha.abrir`), "Mostrar PV no projetor". Commit: `sheet tokens with health pips`.
 - **9.2c Rolagem sobre a peça** — o resultado da Ficha flutua sobre a peça no mapa e no projetor, com faíscas; sem peça vira aviso. Commit: `roll results over tokens`.
@@ -334,13 +334,21 @@ Feitas as tarefas que só mexem no Atlas, contra aplicativos falsos no barrament
 - **9.1c Mesa: inventário e `mesa-dev` com todos** — `npm run mesa-dev` sobe Atlas, Mesa e Ficha (Vite sob o prefixo) e serve Ateliê, Tabletop (`dist-pages`, gerado quando falta ou está velho) e Jukebox como arquivos estáticos, numa origem só; nenhum arquivo de outro projeto mudou, e os seis carregam sem erro. A Mesa ganha a aba Aplicativos (achado, sem manifesto, fora do ar, pelo `mesa.json`). Commits: (Atlas) `run all apps under mesa-dev`; (Mesa) `app inventory`.
 - **9.5a Mesa em modo sessão** — a aba Sessão da Mesa mostra Atlas (embutido), fichas em abas e Jukebox lado a lado, em `iframe`s de mesma origem, com divisores arrastáveis, presets, painéis que se escondem e tela cheia por painel; o Atlas ganhou `?embutido=1` (sem galeria, cabeçalho compacto, abre direto em Sessão). Uma rolagem na Ficha embutida chega ao Atlas embutido (e2e com a Ficha de verdade). Commits: (Mesa) `session mode`; (Atlas) `embedded mode`.
 - **9.5b Roteiro e registro da sessão** — painel Diário: iniciar sessão (avisa `mesa.sessao-iniciada`), registro automático dos fatos da mesa com hora, anotações do mestre, roteiro de Refs que abre cada item no aplicativo dono e exportação em Markdown; sobrevive a recarregar. O Atlas passou a mandar `nome` (e `peca`) opcionais em `atlas.revelado` e `atlas.regiao-entrou`. A nota de cada item do roteiro fica no navegador (o contrato só guarda Refs). Commit (Mesa): `session script and log`.
-- **9.7 (parcial)** — e2e `fase 9 (parte do Atlas…)`: ficha → peça, rolagem sobre a peça e no projetor, pista com UV no projetor, clima e região trocando a cena.
-- **Validação:** `tsc` limpo, 494 unitários; e2e: fases 2 a 5 (42), 6 a 9 (48) e tutoriais (7), todos passando.
-- **Pendente (🔒, esperam autorização):** o resto da 9.7 (o e2e único com todos os aplicativos de verdade e o relatório final).
+- **9.7 Validação** — e2e encadeado com os aplicativos de verdade numa origem só (`Mesa/tests/e2e/fase9.test.ts`): a Ficha vira peça, a rolagem aparece sobre ela e no projetor, a pista do Ateliê é inspecionada com UV no projetor, o clima e a região trocam a música no Jukebox real, e o diário da Mesa registra tudo. Mais o e2e do Atlas com aplicativos falsos (`fase 9 (parte do Atlas…)`). Commit (Mesa): `add chained phase 9 e2e with all real apps`.
+- **Validação da fase:** Atlas: `tsc` limpo, 502 unitários e 100 e2e (suíte completa). Mesa: `tsc` limpo, 84 unitários e 7 e2e (hub, notas, inventário, modo sessão, diário e o encadeado). Ateliê: 275 unitários e os e2e de troca, janela, shell e abas. Os e2e da Ficha e do Jukebox rodam no Atlas, com os aplicativos de verdade.
+- **Pendências reais da fase:**
+  - A **nota de cada item do roteiro** fica no navegador: o contrato só guarda os Refs da sessão. Para ir ao banco, o `mesa-core` precisa de um campo opcional novo em `Sessao`, copiado nos quatro `vendor/` (decisão do usuário).
+  - O **Tabletop** segue sem `mesa.json` (aparece "sem manifesto" no inventário): não há tarefa para ele no plano.
+  - **Renomear uma entidade** não reescreve as notas que a citam por nome (as ligações por Ref seguem).
+  - O Atlas e o Jukebox ficam **apertados em painel estreito** no modo sessão (use o preset "Mapa grande" ou a tela cheia); o Atlas embutido registra "Mapa aberto" toda vez que abre o mapa.
+  - Da 9.2a: a Ficha não avisa `ficha.recursos` ao trocar de ficha sem salvar, e as ameaças não são publicadas como `npc`.
+  - O `dev` do Vite do **Ateliê e do Tabletop** não aplica `VITE_*_STORAGE`: sob o `mesa-dev` eles são servidos como o Pages (`dist-pages`), não com recarregamento ao vivo.
+  - No layout cinemático da Ficha, o primeiro botão de rolagem fica sob o retrato (visto pelo e2e; a conferir com o mouse).
+  - Higiene dos repositórios: a Mesa tinha `node_modules` no commit (falta `git rm -r --cached node_modules`), e a Ficha versiona `node_modules`.
 
 ## Próximo
 
-A Fase 8 está concluída e a Fase 9 está pela metade (o que é só do Atlas); as tarefas 🔒 da Fase 9 esperam autorização. A Fase 6 está concluída, menos a 6.2b (importar os achados), que espera a sua decisão sobre [docs/curadoria.md](docs/curadoria.md). Próximo: Fase 9 ([docs/plano/fase-9.md](docs/plano/fase-9.md)); o Opus confere as fichas contra o código antes de começar. Da Fase 3 só resta a P3c ([docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md)).
+A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os achados), que espera a sua decisão sobre [docs/curadoria.md](docs/curadoria.md). Da Fase 3 só resta a P3c ([docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md)). O ROADMAP não tem fase depois da 9: a próxima é decidir com o usuário.
 
 ## Pendências
 

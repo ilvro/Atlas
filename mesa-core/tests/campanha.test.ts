@@ -147,3 +147,15 @@ test('uma entidade pode levar um retrato pequeno, e só pequeno', async () => {
   assert.ok((await repo.obterEntidade(e.id))?.retrato instanceof Blob);
   await assert.rejects(repo.criarEntidade({ campanhaId: c.id, tipo: 'personagem', nome: 'Grande', retrato: new Blob([new Uint8Array(600 * 1024)]) }), ErroCampanha);
 });
+
+test('sessão: notas do roteiro são opcionais, por chave de Ref, e validadas (formato, tamanho e quantidade)', async () => {
+  const repo = await abrirRepositorioCampanha({ app: 'mesa', idb: new IDBFactory() });
+  const c = await repo.criarCampanha({ nome: 'Notas' });
+  const base = { id: 's1', campanhaId: c.id, nome: 'S', data: 1, roteiro: [], registro: '', criadaEm: 1, atualizadaEm: 1 };
+  await repo.salvarSessao(base);                                                                           // sessão antiga, sem o campo
+  await repo.salvarSessao({ ...base, roteiroNotas: { 'atlas/mapa/m1': 'Começar pela chuva' } });
+  assert.deepEqual((await repo.listarSessoes(c.id))[0]!.roteiroNotas, { 'atlas/mapa/m1': 'Começar pela chuva' });
+  const ruins: unknown[] = ['texto', ['a'], { 'atlas/mapa/m1': 3 }, { '': 'x' }, { 'atlas/mapa/m1': 'x'.repeat(301) }, Object.fromEntries(Array.from({ length: 65 }, (_, i) => [`a/b/${i}`, 'x']))];
+  for (const ruim of ruins) await assert.rejects(async () => repo.salvarSessao({ ...base, roteiroNotas: ruim } as never), /roteiroNotas/);
+  repo.fechar();
+});

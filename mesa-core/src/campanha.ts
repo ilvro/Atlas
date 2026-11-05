@@ -54,6 +54,8 @@ export interface Sessao {
   data: number;
   /** Mapas, cenas sonoras, documentos… na ordem em que devem acontecer. */
   roteiro: Ref[];
+  /** Uma nota por item do roteiro, pela chave do Ref (`app/tipo/id`, a de `chaveDaRef`). Opcional; sessões antigas não têm. */
+  roteiroNotas?: Record<string, string>;
   registro: string;
   criadaEm: number;
   atualizadaEm: number;
@@ -104,9 +106,15 @@ export function validarLigacao(v: unknown): asserts v is Ligacao {
 }
 
 export function validarSessao(v: unknown): asserts v is Sessao {
-  objeto(v, 'sessao'); soCampos(v, ['id', 'campanhaId', 'nome', 'data', 'roteiro', 'registro', 'criadaEm', 'atualizadaEm'], 'sessao');
+  objeto(v, 'sessao'); soCampos(v, ['id', 'campanhaId', 'nome', 'data', 'roteiro', 'roteiroNotas', 'registro', 'criadaEm', 'atualizadaEm'], 'sessao');
   falha(typeof v.id === 'string' && v.id.length > 0 && typeof v.campanhaId === 'string' && v.campanhaId.length > 0, 'Identificador ausente.', 'sessao.id');
   texto(v.nome, 'sessao.nome'); tempo(v.data, 'sessao.data'); refs(v.roteiro, 'sessao.roteiro'); texto(v.registro, 'sessao.registro', 200_000);
+  if (v.roteiroNotas !== undefined) {
+    objeto(v.roteiroNotas, 'sessao.roteiroNotas');
+    const notas = Object.entries(v.roteiroNotas);
+    falha(notas.length <= 64, 'Notas demais no roteiro.', 'sessao.roteiroNotas');
+    for (const [chave, nota] of notas) { falha(chave.length > 0 && chave.length <= 400, 'Chave de nota inválida.', `sessao.roteiroNotas.${chave}`); texto(nota, `sessao.roteiroNotas.${chave}`, 300); }
+  }
   tempo(v.criadaEm, 'sessao.criadaEm'); tempo(v.atualizadaEm, 'sessao.atualizadaEm');
 }
 
