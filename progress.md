@@ -355,6 +355,7 @@ Concluída. O Atlas fala o contrato da mesa com todos os aplicativos (Ficha, Ate
 ## Fase 10 — Mundo lá fora: mapas de exemplo
 
 - **10.0a Documento v6** — `VERSAO_MAPA = 6` com migração 5 → 6 (camadas `flow: null`, paredes `drop: null` e `source` aceitando `terrainLayerId`, `Objeto.elevation: 'underwater'`, `finish.edges`/`finish.glow` neutros também nos climas salvos, luzes `rays: false`); validação dos campos novos; nada os lê ainda. Commit: `document v6`.
+- **10.0b Exemplos: formato, construtor e galeria** — `scripts/exemplos/kit.ts` (construtor fluente com semente fixa: `pintar`/`apagar` com disco, polígono, faixa, retângulo e células, borda `irregular`, `comodo`, `parede`, `porta`, `objeto`, `espalhar`, `luz`, `clima`, `acabamento`), `gerar.ts` (`npm run exemplos`: JSON validado, `indice.json` e miniatura webp em `public/exemplos/`) e a Clareira como exemplo-semente; a galeria ganhou a seção **Exemplos** e o atalho "Começar de um exemplo", e `usarExemplo` grava uma cópia com id novo. Commit: `example maps in the gallery`.
 
 ## Próximo
 

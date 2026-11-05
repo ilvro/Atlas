@@ -121,7 +121,7 @@ Pronto quando: `tsc` limpo, unitários e e2e passando sem mudar captura nenhuma.
 Commit: document v6
 Nota: `drop` fora de uma escarpa é aceito sem aviso (o validador não tem canal de avisos; o render o ignora). `misturar` (clima.ts) e `PAREDE_PADRAO` também ganharam os campos novos para os tipos fecharem; `parede.adicionar` passou a exigir `drop`. A migração também cobre o `finish` dos climas salvos (`customClimates`).
 
-### 10.0b — Exemplos: formato, construtor e galeria  ⬜
+### 10.0b — Exemplos: formato, construtor e galeria  ✅
 Objetivo: um exemplo gerado por script aparece na galeria e vira um mapa do mestre com um clique.
 Depende de: 10.0a
 Ler: `src/ui/Galeria.tsx` (`ATALHOS_DE_INICIO`), `src/app/app.ts` (`criarMapaNovo`, `navegar`), `src/app/tutoriais.ts` (`iniciarLicao`, para o padrão de criar e abrir), `src/domain/mapa.ts` (`duplicarParaNovaSessao`), `src/authoring/espalhar.ts`, `src/domain/celulas.ts`, `scripts/assar-colecao.ts` (Playwright).
@@ -136,6 +136,7 @@ Não fazer: os exemplos reais (10.7); mudar o repositório.
 Testes: unitário do kit (o mesmo script gera o mesmo JSON duas vezes; `pintar` com disco cobre as células certas; tudo valida). e2e: a galeria mostra a Clareira; "Usar" abre um mapa novo com as árvores e a fogueira; o exemplo publicado não muda.
 Pronto quando: `npm run exemplos` gera a Clareira e ela abre pela galeria.
 Commit: example maps in the gallery
+Nota: a miniatura sai do servidor de desenvolvimento do Vite (como `npm run assar`), não do `vite preview` com `?exemplo=<id>`: o script grava o mapa no repositório do navegador de teste e abre `#/mapa/<id>`, sem rota nova no app. `espalhar` (authoring) ganhou o campo opcional `densidade` no pedido, para o kit trocar a densidade do conjunto. O kit também ganhou `presenca`, `peca`, `porta`, `estilo`, `fundo`, `notas`, `montarExemplo` e o tipo `Exemplo` (com tamanho e semente); a lista dos exemplos fica em `gerar.ts` (`EXEMPLOS`). `npm run exemplos -- --sem-miniatura` gera só os JSON.
 
 ### 10.1a — Água: materiais, profundidade e leito  ⬜
 Objetivo: pintar água no terreno dá um leito que escurece com a profundidade, nos dois estilos.

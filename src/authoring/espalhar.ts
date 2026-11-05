@@ -39,7 +39,7 @@ export const CONJUNTOS_EXTERIORES: readonly ConjuntoDeEspalhar[] = [
 export const TODOS_OS_CONJUNTOS: readonly ConjuntoDeEspalhar[] = [...CONJUNTOS_DE_ESPALHAR, ...CONJUNTOS_EXTERIORES];
 export const conjuntoDeEspalhar = (id: string): ConjuntoDeEspalhar | undefined => TODOS_OS_CONJUNTOS.find(c => c.id === id);
 
-export interface PedidoDeEspalhar { centro: Ponto; raio: number; conjunto: string; semente: number; gerarId?: (prefixo: string) => string }
+export interface PedidoDeEspalhar { centro: Ponto; raio: number; conjunto: string; semente: number; gerarId?: (prefixo: string) => string; /** Itens por m² no centro; ausente, vale a do conjunto (usado pelos scripts de exemplo). */ densidade?: number }
 
 const ESP = PAREDE_PADRAO.thickness, DISTANCIA_DA_PAREDE = 0.6, DISTANCIA_DA_MESA = 0.8;
 const distancia = (a: Ponto, b: Ponto) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -62,7 +62,7 @@ export function espalhar(m: MapaAtlas, o: PedidoDeEspalhar): Objeto[] {
   const lado = (id: string, escala = 1) => Math.max(...ACERVO.pegadaDaFonte(ACERVO.fonte(id, 1))) * escala, maior = Math.max(...conjunto.itens.map(i => lado(i.receita))), ehArvore = (id: string) => ACERVO.item(id)?.tags.includes('arvore') ?? false;
   const existentes = Object.values(m.props).filter(p => receitas.has(ACERVO.idDaFonte(p.source)) && distancia(p.position, o.centro) <= o.raio + maior);
   const noCirculo = existentes.filter(p => distancia(p.position, o.centro) <= o.raio).length;
-  const alvo = Math.max(0, Math.round(conjunto.densidade * Math.PI * o.raio * o.raio) - noCirculo);
+  const alvo = Math.max(0, Math.round((o.densidade ?? conjunto.densidade) * Math.PI * o.raio * o.raio) - noCirculo);
   if (!alvo) return [];
 
   const indice = indiceDeCelulas(m), salas = new Map<string, Sala>();

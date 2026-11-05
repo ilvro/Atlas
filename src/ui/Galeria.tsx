@@ -8,6 +8,7 @@ import { desenharMiniatura } from '../render/miniatura.ts';
 import { avisar } from '../app/toasts.ts';
 import { Icone } from './Icone.tsx';
 import { tema } from '../app/tema.ts';
+import { carregarIndiceDeExemplos, exemplos, urlDoExemplo, usarExemplo } from '../app/exemplos.ts';
 
 function Miniatura({ r }: { r: ResumoMapa }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -95,19 +96,46 @@ function Lateral({ total }: { total: number }) {
 const ATALHOS_DE_INICIO = [
   { id: 'em-branco', icone: 'novo', titulo: 'Mapa em branco', texto: 'Comece do zero: cômodos, paredes, luzes e peças.' },
   { id: 'tutorial', icone: 'ajuda', titulo: 'Aprender fazendo', texto: 'Tutoriais guiados em um mapa de treino.' },
+  { id: 'exemplos', icone: 'terreno', titulo: 'Começar de um exemplo', texto: 'Mapas prontos para usar e editar.' },
   { id: 'cartas', icone: 'importar', titulo: 'Importar cópia', texto: 'Traga mapas de uma cópia de segurança.' },
 ] as const;
 
 function Comecar() {
-  const agir = (id: (typeof ATALHOS_DE_INICIO)[number]['id']) => { if (id === 'em-branco') void criarMapaNovo(); else if (id === 'tutorial') aprenderAberto.value = true; else escolherArquivoParaImportar(); };
+  const agir = (id: (typeof ATALHOS_DE_INICIO)[number]['id']) => {
+    if (id === 'em-branco') void criarMapaNovo(); else if (id === 'tutorial') aprenderAberto.value = true;
+    else if (id === 'exemplos') document.getElementById('exemplos')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    else escolherArquivoParaImportar();
+  };
+  const temExemplos = !!exemplos.value?.length;
   return (
     <section class="comecar" aria-label="Começar">
-      {ATALHOS_DE_INICIO.map(a => (
+      {ATALHOS_DE_INICIO.filter(a => a.id !== 'exemplos' || temExemplos).map(a => (
         <button type="button" key={a.id} class="comecar-cartao" data-testid={`comecar-${a.id}`} onClick={() => agir(a.id)}>
           <span class="comecar-icone"><Icone nome={a.icone} tamanho={20} /></span>
           <span class="comecar-texto"><b>{a.titulo}</b><small>{a.texto}</small></span>
         </button>
       ))}
+    </section>
+  );
+}
+
+function Exemplos() {
+  const lista = exemplos.value;
+  if (!lista?.length) return null;
+  return (
+    <section class="exemplos" id="exemplos" aria-labelledby="titulo-exemplos" data-testid="exemplos">
+      <h2 class="faixa pequena" id="titulo-exemplos">Exemplos</h2>
+      <div class="cartoes">
+        {lista.map(e => (
+          <article class="cartao" key={e.id} data-testid={`exemplo-${e.id}`}>
+            <img class="miniatura" style={{ objectFit: 'cover' }} src={urlDoExemplo(e.miniatura)} width={320} height={180} alt="" loading="lazy" onError={ev => { (ev.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }} />
+            <div class="cartao-corpo">
+              <h3>{e.nome}</h3><p class="meta">{e.tamanho[0]} × {e.tamanho[1]} m</p><p class="meta">{e.descricao}</p>
+              <button type="button" class="botao-pilula destaque exemplo-usar" data-testid={`usar-${e.id}`} onClick={() => void usarExemplo(e.id)}>Usar este exemplo</button>
+            </div>
+          </article>
+        ))}
+      </div>
     </section>
   );
 }
@@ -150,6 +178,7 @@ function Vazio() {
 }
 
 export function Galeria() {
+  useEffect(() => { void carregarIndiceDeExemplos(); }, []);
   const lista = resumos.value, busca = useSignal(''), q = busca.value.trim().toLowerCase();
   const recente = lista.filter(r => !r.erro).reduce<ResumoMapa | null>((m, r) => (!m || r.atualizadoEm > m.atualizadoEm ? r : m), null);
   const visiveis = q ? lista.filter(r => r.nome.toLowerCase().includes(q)) : lista;
@@ -182,6 +211,7 @@ export function Galeria() {
           <h2 class="faixa pequena">Começar</h2>
           <Comecar />
         </>) : (<><Vazio /><Comecar /></>)}
+        <Exemplos />
       </main>
     </div>
   );

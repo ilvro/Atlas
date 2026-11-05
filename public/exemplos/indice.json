@@ -1,0 +1,12 @@
+[
+  {
+    "id": "clareira",
+    "nome": "Clareira",
+    "descricao": "Uma clareira com trilha de terra, seis árvores e uma fogueira.",
+    "tamanho": [
+      30,
+      20
+    ],
+    "miniatura": "clareira.webp"
+  }
+]

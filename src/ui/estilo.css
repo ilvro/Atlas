@@ -502,6 +502,8 @@ body.projetor { overflow: hidden; background: #000; }
 .vazio-desenho { width: 240px; max-width: 70%; margin-bottom: 8px; color: var(--acento); }
 .vazio .botao-pilula { margin-top: 6px; }
 .galeria > .comecar { max-width: 880px; margin-inline: auto; }
+.galeria > .exemplos { margin-top: 28px; }
+.exemplo-usar { margin-top: 12px; }
 
 /* Cartões de mapa: fio fino, cantos retos nos cantos do desenho, sem salto */
 .cartao { border-radius: 10px; }
