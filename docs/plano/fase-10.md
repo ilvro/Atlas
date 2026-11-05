@@ -228,7 +228,7 @@ Testes: `sol.test.ts`: 12h30 curta (`porMetro` ≤ 0,5), 8h longa (≥ 2), 23h `
 Pronto quando: os pinheiros do Desfiladeiro às 9h têm sombras longas e azuladas, todas para o mesmo lado.
 Commit: sun shadows outdoors
 
-### 10.4a — Materiais: gelo, neve com dunas, rocha rachada, cascalho  ⬜
+### 10.4a — Materiais: gelo, neve com dunas, rocha rachada, cascalho  ✅
 Objetivo: quatro materiais de terreno que as cenas de inverno e de caverna pedem, nos dois estilos.
 Depende de: —
 Ler: `src/procedural/materiais.ts` (`Padrao`, `MATERIAIS`, `pintarMaterial` e os casos `neve`, `pedra`, `laje`), `src/procedural/ruido.ts`, `src/procedural/estilos/materiais-pixel.ts`, `tests/unit/materiais-pixel.test.ts`; recortes de `docs/referencias/exemplos/desfiladeiro-nevado.png` (lago à direita, neve no centro) e `covil-na-caverna.png` (chão).
@@ -245,6 +245,7 @@ Não fazer: água (10.1); mudar os materiais que existem.
 Testes: `voronoi.test.ts` (mesma semente, mesmo resultado; F2 − F1 ≥ 0); os testes que percorrem `MATERIAIS` passam; no Pixel, cada material novo tem no máximo 6 cores numa amostra de 64 × 64.
 Pronto quando: uma captura com os quatro lado a lado, a 64 px/m, mostra gelo com rachaduras, neve com dunas, chão de caverna rachado e cascalho (anexar em `test-results/fase10-materiais-a.png`).
 Commit: ice, deep snow and cracked rock
+Nota: os padrões Ilustrados são pintados pixel a pixel (`porPixel`, com `voronoi.ts` e ruído) em vez de formas soltas, para dar volume e caber em áreas grandes; as rachaduras do gelo são polilinhas por cima. A contagem de cores do Pixel (≤ 6) e a captura estão num e2e novo (`tests/e2e/fase10-materiais.test.ts`), pois o teste unitário não tem canvas. Cascalho: semieixos de 3 a 6,5 cm. `ladrilhoDeRuido` (ruido.ts) agora é periódico de verdade (cada oitava dá a volta na própria grade): o antigo deixava emendas quadradas visíveis em `neve` e nos outros materiais que usam `camadaDeRuido`; o visual muda só por isso.
 
 ### 10.4b — Materiais: paralelepípedo, lajes com grama, terra com sulcos, areia molhada  ⬜
 Escopo: `paralelepipedo` (pedras arredondadas irregulares, Voronoi, rejunte escuro), `lajes.gramadas` (lajes grandes com grama e musgo nas juntas, algumas faltando), `terra.sulcos` (estrada com duas trilhas de roda; os sulcos seguem a orientação dominante da camada), `areia.molhada`.

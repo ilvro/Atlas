@@ -1,6 +1,6 @@
 import { contextoDe, criarTela, type Contexto, type Tela } from '../canvas.ts';
 import { materialDe, type Area, type Material, type Padrao } from '../materiais.ts';
-import { mulberry32 } from '../ruido.ts';
+import { hash2D, mulberry32 } from '../ruido.ts';
 
 /**
  * Materiais no estilo Pixel: a mesma descrição (`Material`) pintada em blocos de cor sólida na grade de pixels, sem gradiente,
@@ -110,6 +110,81 @@ function persa(p: P): void {
   ret(p, cx - px, cy - px, 2 * px, 2 * px, borda);
 }
 
+
+/** Ruído de valor periódico `w × h` (emenda nas bordas, para ladrilhos), em [0, 1]; três oitavas a partir de `celulas` por lado. */
+function ruidoPeriodico(w: number, h: number, celulas: number, seed: number): Float32Array {
+  const out = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let soma = 0, amp = 1, total = 0;
+    for (let o = 0; o < 3; o++) {
+      const c = celulas * 2 ** o, u = (x / w) * c, v = (y / h) * c, xi = Math.floor(u), yi = Math.floor(v), xf = u - xi, yf = v - yi, a = xf * xf * (3 - 2 * xf), b = yf * yf * (3 - 2 * yf);
+      const g = (i: number, j: number) => hash2D(((i % c) + c) % c, ((j % c) + c) % c, seed + o * 31);
+      soma += amp * ((g(xi, yi) * (1 - a) + g(xi + 1, yi) * a) * (1 - b) + (g(xi, yi + 1) * (1 - a) + g(xi + 1, yi + 1) * a) * b); total += amp; amp *= 0.5;
+    }
+    out[y * w + x] = soma / total;
+  }
+  return out;
+}
+
+/** Um passeio de pixels que dá a volta no ladrilho (rachaduras de gelo): `ramos` ramificações a partir dele. */
+function passeio(idx: Int16Array, w: number, h: number, r: () => number, x: number, y: number, ang: number, comp: number, cor: number, marca: Uint8Array, ramos: number): void {
+  for (let d = 0; d < comp; d++) {
+    ang += (r() - 0.5) * 0.7; x += Math.cos(ang); y += Math.sin(ang);
+    const px = ((Math.round(x) % w) + w) % w, py = ((Math.round(y) % h) + h) % h; idx[py * w + px] = cor; marca[py * w + px] = 1;
+    if (ramos > 0 && r() < 0.04) passeio(idx, w, h, r, x, y, ang + (r() < 0.5 ? -1 : 1) * (0.6 + r() * 0.7), (comp - d) * 0.6, cor, marca, ramos - 1);
+  }
+}
+
+const gelo = (p: P): void => ladrilhar(p, ladrilho(chaveDe(p, 'gelo'), 64, 64, [p.t.B, p.t.c1, p.t.C, p.t.e1, p.t.e2], (idx, w, h, r) => {
+  const n = ruidoPeriodico(w, h, 3, p.seed * 7 + 1), nuvem = ruidoPeriodico(w, h, 5, p.seed * 7 + 2), marca = new Uint8Array(w * h);
+  for (let i = 0; i < idx.length; i++) idx[i] = n[i]! > 0.6 ? 3 : nuvem[i]! > 0.62 ? 1 : 0;
+  for (let k = 0; k < 7; k++) passeio(idx, w, h, r, r() * w, r() * h, r() * 6.283, 14 + r() * 26, 2, marca, 1);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (marca[y * w + x]) { const k = ((y + 1) % h) * w + ((x + 1) % w); if (!marca[k]) idx[k] = 4; }
+  for (let k = 0; k < 18; k++) { const x = Math.floor(r() * w), y = Math.floor(r() * h), c = 1 + Math.floor(r() * 3); for (let d = 0; d < c; d++) { const i = ((y + d) % h) * w + ((x + d) % w); if (!marca[i]) idx[i] = 1; } }
+}));
+
+const dunasPixel = (p: P): void => {
+  ruidoPixel(p, 'neve', 0.03, 0.05);
+  ladrilhar(p, ladrilho(chaveDe(p, 'dunas'), 96, 48, [p.t.e1, p.t.C], (idx, w, h) => {
+    const amp = ruidoPeriodico(w, h, 3, p.seed * 5 + 3);
+    for (let x = 0; x < w; x++) for (let k = 0; k < 2; k++) {
+      if (amp[((k * 24) % h) * w + x]! < 0.42) continue;
+      const y0 = Math.round(k * 24 + x * 0.25 + 3.5 * Math.sin((x / w) * 6.283 * 2 + k));
+      idx[(((y0 - 1) % h) + h) % h * w + x] = 1; idx[((y0 % h) + h) % h * w + x] = 0; idx[(((y0 + 1) % h) + h) % h * w + x] = 0;
+    }
+  }));
+};
+
+const rachadoPixel = (p: P): void => {
+  const cel = Math.max(4, Math.round(0.6 * p.res)), n = 10, T = cel * n;
+  ladrilhar(p, ladrilho(chaveDe(p, `rachado${cel}`), T, T, [p.t.B, p.t.c1, p.t.c2, p.t.e1, p.t.E], (idx, w, h) => {
+    const s = p.seed * 3 + 1, sitio = (i: number, j: number): [number, number, number] => { const a = ((i % n) + n) % n, b = ((j % n) + n) % n; return [(i + 0.15 + 0.7 * hash2D(a, b, s)) * cel, (j + 0.15 + 0.7 * hash2D(a, b, s + 9)) * cel, hash2D(a, b, s + 17)]; };
+    const placa = new Int8Array(w * h), crack = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let d1 = 1e9, d2 = 1e9, tom = 0; const ci = Math.floor(x / cel), cj = Math.floor(y / cel);
+      for (let j = cj - 1; j <= cj + 1; j++) for (let i = ci - 1; i <= ci + 1; i++) { const q = sitio(i, j), d = Math.hypot(q[0] - x - 0.5, q[1] - y - 0.5); if (d < d1) { d2 = d1; d1 = d; tom = q[2]; } else if (d < d2) d2 = d; }
+      crack[y * w + x] = d2 - d1 < 1.1 ? 1 : 0; placa[y * w + x] = tom < 0.34 ? 0 : tom < 0.7 ? 1 : 2;
+    }
+    const em = (x: number, y: number) => crack[(((y % h) + h) % h) * w + (((x % w) + w) % w)]!;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x; if (crack[i]) { idx[i] = 4; continue; }
+      idx[i] = em(x - 1, y) || em(x, y - 1) ? 2 : em(x + 1, y) || em(x, y + 1) ? 3 : placa[i]!;
+    }
+  }));
+};
+
+const cascalhoPixel = (p: P): void => ladrilhar(p, ladrilho(chaveDe(p, 'cascalho'), 50, 50, [p.t.E, p.t.e1, p.t.B, p.t.c1, p.t.c2], (idx, w, h, r) => {
+  idx.fill(0); const cel = 5;
+  for (let j = 0; j < h / cel; j++) for (let i = 0; i < w / cel; i++) {
+    if (r() < 0.12) continue;
+    const x = i * cel + Math.floor(r() * 3), y = j * cel + Math.floor(r() * 3), tam = r() < 0.4 ? 3 : 2, cor = r() < 0.5 ? 2 : 3, put = (dx: number, dy: number, c: number) => { idx[((y + dy) % h) * w + ((x + dx) % w)] = c; };
+    for (let dy = 0; dy < tam; dy++) for (let dx = 0; dx < tam; dx++) put(dx, dy, cor);
+    put(0, 0, 4); if (tam === 3) { put(1, 0, 4); put(0, 1, 4); }
+    for (let k = 0; k < tam; k++) { put(tam, k + 1, 1); put(k + 1, tam, 1); } put(tam, tam, 1);
+  }
+  for (let k = 0; k < 40; k++) { const i = Math.floor(r() * w * h); if (idx[i] === 0) idx[i] = 1; }
+}));
+
 const PINTORES: Record<Padrao, (p: P) => void> = {
   tabuas: p => {
     const alt = Math.max(3, Math.round((p.m.largura ?? 0.2) * p.res) + 1) / p.res;      // pelo menos 3 pixels de altura
@@ -140,6 +215,7 @@ const PINTORES: Record<Padrao, (p: P) => void> = {
   lama: p => ruidoPixel(p, 'lama', 0.06, 0.16, true),
   areia: p => ruidoPixel(p, 'areia', 0.09, 0.07),
   neve: p => ruidoPixel(p, 'neve', 0.03, 0.05),
+  gelo, dunas: dunasPixel, rachado: rachadoPixel, cascalho: cascalhoPixel,
   pedra: p => ladrilhar(p, ladrilho(chaveDe(p, 'pedra'), 64, 64, [p.t.c2, p.t.e1, p.t.E], (idx, w, h, r) => {
     for (let i = 0; i < 70; i++) { const x = Math.floor(r() * w), y = Math.floor(r() * h), bw = 2 + Math.floor(r() * 2); for (let k = 0; k < bw; k++) { idx[(y % h) * w + ((x + k) % w)] = r() < 0.5 ? 0 : 1; idx[((y + 1) % h) * w + ((x + k) % w)] = 2; } }
   })),

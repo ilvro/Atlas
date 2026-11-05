@@ -27,14 +27,20 @@ export function fbm(ruido: (x: number, y: number) => number, x: number, y: numbe
   return soma / total;
 }
 
-/** Ladrilho de ruído fbm em tons de cinza, contínuo nas bordas, para usar como padrão. */
+/** Ruído de valor com a grade dando a volta a cada `periodo` células: emenda perfeita nas bordas. */
+function ruidoPeriodico(x: number, y: number, periodo: number, seed: number): number {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const m = (i: number) => ((i % periodo) + periodo) % periodo, g = (i: number, j: number) => hash2D(m(i), m(j), seed);
+  return (g(xi, yi) * (1 - u) + g(xi + 1, yi) * u) * (1 - v) + (g(xi, yi + 1) * (1 - u) + g(xi + 1, yi + 1) * u) * v;
+}
+
+/** Ladrilho de ruído fbm em tons de cinza, contínuo nas bordas (cada oitava dá a volta na sua própria grade), para usar como padrão. */
 export function ladrilhoDeRuido(tamanho: number, seed: number, celulas = 8, oitavas = 4): Tela {
-  const tela = criarTela(tamanho, tamanho), ctx = contextoDe(tela), img = ctx.createImageData(tamanho, tamanho), ruido = valueNoise2D(seed);
-  const amostra = (x: number, y: number) => fbm((u, v) => ruido(((u % celulas) + celulas) % celulas + 100, ((v % celulas) + celulas) % celulas + 100), x, y, oitavas);
+  const tela = criarTela(tamanho, tamanho), ctx = contextoDe(tela), img = ctx.createImageData(tamanho, tamanho), s = Math.floor(seed) || 0;
   for (let y = 0; y < tamanho; y++) for (let x = 0; x < tamanho; x++) {
-    const u = (x / tamanho) * celulas, v = (y / tamanho) * celulas, fx = u / celulas, fy = v / celulas;
-    const n = amostra(u, v) * (1 - fx) * (1 - fy) + amostra(u - celulas, v) * fx * (1 - fy) + amostra(u, v - celulas) * (1 - fx) * fy + amostra(u - celulas, v - celulas) * fx * fy;
-    const c = Math.max(0, Math.min(255, Math.round(n * 255))), i = (y * tamanho + x) * 4;
+    let soma = 0, amp = 1, total = 0;
+    for (let o = 0; o < oitavas; o++) { const c = celulas * 2 ** o; soma += amp * ruidoPeriodico((x / tamanho) * c, (y / tamanho) * c, c, s + 100 + o * 53); total += amp; amp *= 0.5; }
+    const c = Math.max(0, Math.min(255, Math.round((soma / total) * 255))), i = (y * tamanho + x) * 4;
     img.data[i] = img.data[i + 1] = img.data[i + 2] = c; img.data[i + 3] = 255;
   }
   ctx.putImageData(img, 0, 0);

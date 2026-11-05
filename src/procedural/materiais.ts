@@ -1,7 +1,8 @@
-import type { Contexto } from './canvas.ts';
-import { ladrilhoDeRuido, mulberry32 } from './ruido.ts';
+import { contextoDe, criarTela, type Contexto } from './canvas.ts';
+import { fbm, hash2D, ladrilhoDeRuido, mulberry32, valueNoise2D } from './ruido.ts';
+import { celulasDeVoronoi, type Consulta } from './voronoi.ts';
 
-export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri';
+export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho';
 export interface Material {
   id: string; nome: string; /** Para onde o material vai: piso, papel de parede, objeto ou terreno. */ uso: 'piso' | 'papel' | 'objeto' | 'terreno' | 'telhado';
   base: string; escuro: string; claro: string; padrao: Padrao; largura?: number; lado?: number; ouro?: string; borda?: string; meio?: string;
@@ -81,6 +82,10 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('lama', 'Lama', 'terreno', '#4a3a28', '#2a1f14', '#6a5640', 'lama'),
   m('neve', 'Neve', 'terreno', '#e6ecf2', '#aab8c8', '#ffffff', 'neve'),
   m('calcada', 'Calçada', 'terreno', '#7d7b78', '#45433f', '#a8a5a0', 'laje'),
+  m('gelo', 'Gelo', 'terreno', '#9cc7e0', '#5d93b8', '#e8f6ff', 'gelo'),
+  m('neve.funda', 'Neve funda', 'terreno', '#eef3f8', '#b9c8da', '#ffffff', 'dunas'),
+  m('rocha.rachada', 'Rocha rachada', 'terreno', '#5f6872', '#2b3138', '#8d98a3', 'rachado'),
+  m('cascalho', 'Cascalho', 'terreno', '#7a756c', '#3f3b36', '#b0aaa0', 'cascalho'),
 ].map(([id, mat]) => [id as string, mat as Material])) as Record<string, Material>;
 
 export const materialDe = (id: string): Material => {
@@ -264,10 +269,143 @@ export function pintarMaterial(ctx: Contexto, id: string, area: Area, seed = 1, 
       for (let i = 0; i < Math.min(900, A.w * A.h * 3); i++) { const cx = A.x + r() * A.w, cy = A.y + r() * A.h, rr = 0.04 + r() * 0.12; ctx.fillStyle = misturar(mat.escuro, mat.claro, r()); ctx.globalAlpha = 0.55; ctx.beginPath(); ctx.ellipse(cx, cy, rr, rr * (0.6 + r() * 0.4), r() * 3, 0, 7); ctx.fill(); }
       ctx.globalAlpha = 1; break;
     }
+    case 'gelo': pintarGelo(ctx, mat, A, seed, r, pxDe(ctx)); break;
+    case 'dunas': camadaDeRuido(ctx, A, seed, 2.5, 0.16, 'multiply', 6); camadaDeRuido(ctx, A, seed + 1, 0.7, 0.2, 'soft-light', 10); pintarDunas(ctx, mat, A, seed); break;
+    case 'rachado': pintarRachado(ctx, mat, A, seed, pxDe(ctx)); break;
+    case 'cascalho': pintarCascalho(ctx, mat, A, seed); break;
     case 'neve': camadaDeRuido(ctx, A, seed, 2.5, 0.35, 'multiply', 6); camadaDeRuido(ctx, A, seed + 1, 0.7, 0.2, 'soft-light', 10); break;
     default: camadaDeRuido(ctx, A, seed, 2, 0.15);
   }
   ctx.restore();
+}
+
+// ---------- Materiais de natureza: pintados pixel a pixel (sombreamento de verdade), em metros ----------
+const rgbHex = (h: string): [number, number, number] => { const q = parseInt(h.slice(1), 16); return [(q >> 16) & 255, (q >> 8) & 255, q & 255]; };
+const passo = (a: number, b: number, x: number): number => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+/** Tamanho de um pixel do dispositivo, em metros locais. */
+const pxDe = (ctx: Contexto): number => 1 / (Math.hypot(ctx.getTransform().a, ctx.getTransform().b) || 1);
+type Cor3 = [number, number, number];
+/** `o` ← a mistura de `a` e `b` (t = 0 dá `a`). */
+const mez = (o: number[], a: Cor3, b: Cor3, t: number): void => { o[0] = a[0] + (b[0] - a[0]) * t; o[1] = a[1] + (b[1] - a[1]) * t; o[2] = a[2] + (b[2] - a[2]) * t; };
+/** `o` ← a cor `c` escurecida (k < 1) ou clareada (k > 1). */
+const tomDe = (o: number[], c: Cor3, k: number): void => { o[0] = c[0] * k; o[1] = c[1] * k; o[2] = c[2] * k; };
+
+/**
+ * Pinta `A` pixel a pixel numa tela do tamanho do dispositivo e a desenha. `fn(x, y, o)` recebe o ponto em metros e escreve
+ * `o = [r, g, b, a]` (alfa começa em 255). A resolução segue a matriz do contexto, com um teto de ~9 milhões de pixels.
+ */
+function porPixel(ctx: Contexto, A: Area, fn: (x: number, y: number, o: number[]) => void): void {
+  let s = pxDe(ctx) ** -1;
+  if (A.w * A.h * s * s > 9e6) s = Math.sqrt(9e6 / (A.w * A.h));
+  const W = Math.max(1, Math.ceil(A.w * s)), H = Math.max(1, Math.ceil(A.h * s)), tela = criarTela(W, H), c = contextoDe(tela), img = c.createImageData(W, H), d = img.data, o = [0, 0, 0, 255];
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    o[3] = 255; fn(A.x + (i + 0.5) / s, A.y + (j + 0.5) / s, o);
+    const k = (j * W + i) * 4; d[k] = o[0]!; d[k + 1] = o[1]!; d[k + 2] = o[2]!; d[k + 3] = o[3]!;
+  }
+  c.putImageData(img, 0, 0);
+  ctx.save(); ctx.imageSmoothingEnabled = true; ctx.drawImage(tela as CanvasImageSource, A.x, A.y, W / s, H / s); ctx.restore();
+}
+
+const novaConsulta = (): Consulta => ({ f1: 0, f2: 0, borda: 0, sitio: { x: 0, y: 0, i: 0, j: 0, azar: 0 } });
+
+/** Rocha rachada: placas de Voronoi (0,45 m) com tom próprio, bisel claro do lado da luz, sombra de oclusão e fendas escuras; fendas maiores por cima. */
+function pintarRachado(ctx: Contexto, mat: Material, A: Area, seed: number, px: number): void {
+  const rn = valueNoise2D(seed * 31 + 5), V1 = celulasDeVoronoi(A, 0.55, seed * 13 + 1), V2 = celulasDeVoronoi(A, 1.9, seed * 13 + 2), q1 = novaConsulta(), q2 = novaConsulta();
+  const E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), w = Math.max(0.016, px * 1.25), tmp = [0, 0, 0];
+  porPixel(ctx, A, (x, y, o) => {
+    const xx = x + (fbm(rn, x * 2.4, y * 2.4, 2) - 0.5) * 0.17, yy = y + (fbm(rn, x * 2.4 + 37, y * 2.4 + 11, 2) - 0.5) * 0.17;
+    V1.consultar(xx, yy, q1);
+    const lado = (q1.sitio.x - xx) + (q1.sitio.y - yy);            // > 0: o ponto está acima e à esquerda do centro da placa (de frente para a luz)
+    let t = 0.38 + 0.2 * q1.sitio.azar + lado / 0.55 * 0.08 - q1.f1 / 0.55 * 0.1;
+    t += (fbm(rn, x * 3.1, y * 3.1, 4) - 0.5) * 0.5 + (fbm(rn, x * 0.5 + 90, y * 0.5, 3) - 0.5) * 0.75 + (hash2D(Math.floor(x / px), Math.floor(y / px), 3) - 0.5) * 0.05;
+    if (t < 0.5) mez(o, E, B, Math.max(0, t) * 2); else mez(o, B, C, Math.min(1, (t - 0.5) * 2));
+    const b = q1.borda, frente = passo(-0.04, 0.12, lado);
+    const ao = (1 - passo(w, w * 7, b)) * (0.18 + 0.22 * (1 - frente));
+    const bisel = passo(w * 0.5, w * 1.2, b) * (1 - passo(w * 1.2, w * 4.5, b)) * frente * 0.4;
+    o[0] = o[0]! * (1 - ao) + (C[0] - o[0]!) * bisel; o[1] = o[1]! * (1 - ao) + (C[1] - o[1]!) * bisel; o[2] = o[2]! * (1 - ao) + (C[2] - o[2]!) * bisel;
+    tomDe(tmp, E, 0.55); const ck = (1 - passo(w * 0.3, w, b)) * 0.78;
+    o[0] = o[0]! + (tmp[0]! - o[0]!) * ck; o[1] = o[1]! + (tmp[1]! - o[1]!) * ck; o[2] = o[2]! + (tmp[2]! - o[2]!) * ck;
+    V2.consultar(x + (fbm(rn, x * 1.1 + 5, y * 1.1, 2) - 0.5) * 0.5, y + (fbm(rn, x * 1.1, y * 1.1 + 5, 2) - 0.5) * 0.5, q2);
+    const g = (1 - passo(w * 0.4, w * 1.4, q2.borda)) * 0.8, aog = (1 - passo(w * 1.4, w * 8, q2.borda)) * 0.2;
+    tomDe(tmp, E, 0.35); o[0] = (o[0]! * (1 - aog)) + (tmp[0]! - o[0]! * (1 - aog)) * g; o[1] = (o[1]! * (1 - aog)) + (tmp[1]! - o[1]! * (1 - aog)) * g; o[2] = (o[2]! * (1 - aog)) + (tmp[2]! - o[2]! * (1 - aog)) * g;
+  });
+}
+
+/** Gelo: manchas largas de azul fundo e claro com bordas macias, geada difusa em faixas, poucas rachaduras quebradas que ramificam (traço claro com fio escuro ao lado). */
+function pintarGelo(ctx: Contexto, mat: Material, A: Area, seed: number, r: () => number, px: number): void {
+  const rn = valueNoise2D(seed * 17 + 3), E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), fundo: Cor3 = [E[0] * 0.78, E[1] * 0.82, E[2] * 0.95], tmp = [0, 0, 0];
+  porPixel(ctx, A, (x, y, o) => {
+    const n1 = fbm(rn, x * 0.3, y * 0.3, 4), n2 = fbm(rn, x * 0.8 + 50, y * 0.8 + 9, 4), n3 = fbm(rn, x * 7, y * 7, 2);
+    mez(o, B, E, 0.62 * passo(0.3, 0.68, n1)); mez(tmp, [o[0]!, o[1]!, o[2]!], fundo, 0.45 * passo(0.6, 0.88, n1));
+    mez(o, [tmp[0]!, tmp[1]!, tmp[2]!], C, 0.8 * passo(0.4, 0.8, 1 - n1) * passo(0.35, 0.8, n2) + (n3 - 0.5) * 0.08);
+    const a = (x - y) * 0.7071, b = (x + y) * 0.7071;
+    const geada = passo(0.55, 0.88, fbm(rn, a * 3.2 + 300, b * 1.1, 3)) * 0.26 * (0.5 + 0.5 * passo(0.3, 0.7, n2)) + passo(0.8, 0.97, fbm(rn, a * 14 + 90, b * 0.6, 2)) * 0.12;
+    mez(tmp, [o[0]!, o[1]!, o[2]!], C, Math.min(0.8, geada)); o[0] = tmp[0]!; o[1] = tmp[1]!; o[2] = tmp[2]!;
+    if (hash2D(Math.floor(x / (px * 1.2)), Math.floor(y / (px * 1.2)), 11) > 0.998) mez(o, [o[0]!, o[1]!, o[2]!], [255, 255, 255], 0.85);
+  });
+  const trilhas: { pts: [number, number][]; prof: number }[] = [];
+  const crescer = (x: number, y: number, ang: number, comp: number, prof: number): void => {
+    const pts: [number, number][] = [[x, y]]; let a = ang;
+    for (let d = 0; d < comp;) {
+      const st = 0.18 + r() * 0.4; a += (r() - 0.5) * 0.18 + (r() < 0.28 ? (r() < 0.5 ? -1 : 1) * (0.45 + r() * 0.7) : 0); x += Math.cos(a) * st; y += Math.sin(a) * st; d += st; pts.push([x, y]);
+      if (prof < 2 && r() < 0.16) crescer(x, y, a + (r() < 0.5 ? -1 : 1) * (0.6 + r() * 0.9), (comp - d) * 0.65, prof + 1);
+    }
+    trilhas.push({ pts, prof });
+  };
+  for (let i = 0, n = Math.min(260, Math.round((A.w * A.h) / 7)); i < n; i++) crescer(A.x + r() * A.w, A.y + r() * A.h, r() * 6.283, 1 + r() * 2.8, 0);
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  // Cada segmento tem espessura própria (afina nas pontas e nos ramos); passada escura deslocada e passada clara por cima.
+  const tracar = (cor: string, alfa: number, larg: number, dx: number) => {
+    ctx.strokeStyle = cor; ctx.globalAlpha = alfa;
+    for (const t of trilhas) for (let k = 1; k < t.pts.length; k++) {
+      const f = Math.sin((k / t.pts.length) * Math.PI) ** 0.6, v = 0.6 + 0.9 * hash2D(Math.round(t.pts[k]![0] * 50), Math.round(t.pts[k]![1] * 50), 4);
+      ctx.lineWidth = Math.max(px * 0.6, larg * v * f * (t.prof === 0 ? 1 : 0.65)); ctx.beginPath(); ctx.moveTo(t.pts[k - 1]![0] + dx, t.pts[k - 1]![1] + dx); ctx.lineTo(t.pts[k]![0] + dx, t.pts[k]![1] + dx); ctx.stroke();
+    }
+  };
+  tracar(mat.escuro, 0.45, px * 1.3, px * 1.5); tracar(mat.claro, 0.85, px * 2.1, 0);
+  ctx.restore();
+}
+
+/** Neve funda: por cima da neve de sempre, cristas de vento (subida suave clara, queda curta em sombra azul) em faixas de 2 a 4 m, mais marolas finas. */
+function pintarDunas(ctx: Contexto, mat: Material, A: Area, seed: number): void {
+  const rn = valueNoise2D(seed * 19 + 1), E = rgbHex(mat.escuro), C = rgbHex(mat.claro), ang = 0.35 + (seed % 7) * 0.09, ux = Math.cos(ang), uy = Math.sin(ang);
+  porPixel(ctx, A, (x, y, o) => {
+    const grande = fbm(rn, x * 0.15, y * 0.15, 3), amp = 0.55 + 0.45 * passo(0.35, 0.58, fbm(rn, x * 0.18 + 90, y * 0.18 + 20, 2)), amp2 = 0.4 + 0.6 * passo(0.3, 0.6, fbm(rn, x * 0.3 + 11, y * 0.3 + 70, 2));
+    const warp = (fbm(rn, x * 0.22 + 40, y * 0.22, 3) - 0.5) * 4.5, per = 1.9 + (grande - 0.5) * 1.2;
+    let sc = (x * ux + y * uy + warp) / per; sc -= Math.floor(sc);
+    let v = sc < 0.8 ? (sc / 0.8) ** 2 * 0.32 : sc < 0.88 ? 0.32 - ((sc - 0.8) / 0.08) * 0.72 : -0.4 * (1 - (sc - 0.88) / 0.12) ** 1.5;
+    v *= amp;
+    let m2 = (x * ux + y * uy + warp * 0.3) / 0.36; m2 -= Math.floor(m2);
+    v += (m2 < 0.75 ? m2 / 0.75 * 0.5 - 0.1 : (1 - m2) / 0.25 * -0.5 + 0.4) * 0.1 * amp2;
+    v += (fbm(rn, x * 1.7, y * 1.7, 2) - 0.5) * 0.14 * amp2;
+    // trilhas finas de vento: linhas de nível de um ruído largo, quebradas e suaves
+    const lv = fbm(rn, x * 0.28 + 200, y * 0.28 + 60, 3) * 9, tr = Math.abs(lv - Math.round(lv)), quebra = passo(0.4, 0.6, fbm(rn, x * 0.9 + 33, y * 0.9, 2));
+    v -= (1 - passo(0.015, 0.07, tr)) * quebra * 0.3;
+    // sombra azul de um lado (escura), luz do outro (clara): alfa proporcional à intensidade
+    if (v < 0) { o[0] = E[0]; o[1] = E[1]; o[2] = E[2]; o[3] = Math.min(255, -v * 1.25 * 255); } else { o[0] = C[0]; o[1] = C[1]; o[2] = C[2]; o[3] = Math.min(255, v * 1.5 * 255); }
+  });
+}
+
+/** Cascalho: pedrinhas elípticas (2 a 6 cm de semieixo) sobre terra escura, cada uma com volume (luz do alto à esquerda), sombra de contato e sombra lançada. */
+function pintarCascalho(ctx: Contexto, mat: Material, A: Area, seed: number): void {
+  const rn = valueNoise2D(seed * 23 + 7), V = celulasDeVoronoi(A, 0.15, seed * 13 + 3), q = novaConsulta(), E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), tmp = [0, 0, 0];
+  const L = [-0.5, -0.55, 0.67], ln = Math.hypot(L[0]!, L[1]!, L[2]!);
+  porPixel(ctx, A, (x, y, o) => {
+    V.consultar(x, y, q); const s = q.sitio, i = s.i, j = s.j, ang = s.azar * 6.283, asp = 0.62 + 0.3 * hash2D(i, j, 77), R = (0.03 + 0.034 * hash2D(i, j, 91)) * passo(0.3, 0.5, fbm(rn, s.x * 1.4 + 20, s.y * 1.4, 3)) + 0.004, co = Math.cos(ang), si = Math.sin(ang);
+    const dx = x - s.x, dy = y - s.y, u = (dx * co + dy * si) / R, v = (-dx * si + dy * co) / (R * asp), d = Math.hypot(u, v) * (1 + (rn(x * 40, y * 40) - 0.5) * 0.14);
+    // terra
+    mez(tmp, E, B, 0.2 + 0.32 * fbm(rn, x * 6, y * 6, 3)); tomDe(o, [tmp[0]!, tmp[1]!, tmp[2]!] as Cor3, 0.62 + (rn(x * 70 + 5, y * 70) - 0.5) * 0.25);
+    if (d < 1) {
+      const h = Math.sqrt(1 - d * d), nx = (u * co - v * si) * 0.75, ny = (u * si + v * co) * 0.75, nl = Math.hypot(nx, ny, h);
+      const lam = Math.max(0, (nx * L[0]! + ny * L[1]! + h * L[2]!) / (nl * ln)), tinta = 0.15 + 0.85 * hash2D(i, j, 5);
+      const baseP: Cor3 = [0, 0, 0]; mez(baseP, E, B, 0.55 + 0.3 * tinta); mez(tmp, baseP, hash2D(i, j, 6) < 0.35 ? [190, 160, 120] : C, tinta * 0.6);
+      const k = 0.3 + lam * 1.0 - passo(0.78, 1, d) * 0.25, brilho = Math.max(0, lam - 0.85) * 1.6;
+      o[0] = Math.min(255, tmp[0]! * k + brilho * 90); o[1] = Math.min(255, tmp[1]! * k + brilho * 90); o[2] = Math.min(255, tmp[2]! * k + brilho * 90);
+    } else {
+      const sombra = (1 - passo(1, 1.5, d)) * 0.5 + (Math.hypot(u - 0.5 / asp * 0.5, v - 0.55) < 1.05 ? 0.22 : 0);
+      const k = 1 - Math.min(0.75, sombra); o[0] = o[0]! * k; o[1] = o[1]! * k; o[2] = o[2]! * k;
+    }
+  });
 }
 
 function pintarPersa(ctx: Contexto, mat: Material, a: Area, r: () => number): void {
