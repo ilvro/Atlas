@@ -354,7 +354,7 @@ Concluída. O Atlas fala o contrato da mesa com todos os aplicativos (Ficha, Ate
 
 ## Próximo
 
-A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os achados), que espera a sua decisão sobre [docs/curadoria.md](docs/curadoria.md). Da Fase 3 só resta a P3c ([docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md)). O ROADMAP não tem fase depois da 9: a próxima é decidir com o usuário.
+A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os achados), que espera a sua decisão sobre [docs/curadoria.md](docs/curadoria.md). Da Fase 3 só resta a P3c ([docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md)). A próxima é a **Fase 10 — Mundo lá fora: mapas de exemplo** ([docs/plano/fase-10.md](docs/plano/fase-10.md)), planejada em 5/11 a partir de sete mapas do Inkarnate trazidos pelo usuário; lote A (rocha, neve e sombra) primeiro.
 
 ## Pendências
 

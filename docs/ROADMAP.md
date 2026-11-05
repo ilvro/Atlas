@@ -158,6 +158,21 @@ Cada etapa que muda outro projeto só começa com autorização do usuário. A o
 | 9.5 | Mesa em modo sessão: Atlas, fichas e Jukebox lado a lado; roteiro e registro da sessão |
 | 9.6 | Tutoriais interativos das ferramentas principais |
 
+## Fase 10 — Mundo lá fora: mapas de exemplo
+
+Tarefas: [plano/fase-10.md](plano/fase-10.md). Sete exemplos na galeria, inspirados em mapas do Inkarnate trazidos pelo usuário (referências em `docs/referencias/exemplos/`, fora do git). Em três lotes, cada um fechando exemplos prontos.
+
+| Etapa | Entrega |
+| --- | --- |
+| 10.0 | Documento v6; exemplos gerados por script e "Começar de um exemplo" na galeria |
+| 10.1 | Água: leito por profundidade, superfície animada, espuma, correnteza, cáusticas, objetos submersos |
+| 10.2 | Relevo: maciço de rocha com volume que bloqueia visão; escarpa com lado baixo |
+| 10.3 | Sombra do sol nos exteriores |
+| 10.4 | Materiais: gelo, neve com dunas, rocha rachada, paralelepípedo, lajes com grama, terra com sulcos |
+| 10.5 | Acervo: inverno, mata, ruína, porto, estrada, caverna, fundo da água |
+| 10.6 | Ambientação: bordas do mapa, halo das luzes, raios no cone, presenças novas, cachoeira |
+| 10.7 | Os sete exemplos |
+
 ## Depois
 
 - Importação opcional de pacotes do mestre (privada, com harmonização e substituto procedural).
