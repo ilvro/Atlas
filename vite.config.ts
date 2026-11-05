@@ -11,5 +11,6 @@ export default defineConfig({
   base: prefixo ?? './',
   plugins: [preact()],
   build: { target: 'es2023', sourcemap: true },
+  worker: { format: 'es' },
   server: { host: '127.0.0.1', port: 5190, strictPort: true },
 });
