@@ -349,6 +349,12 @@ function CamposDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
     {o.source.kind === 'asset' && <CampoCaixa rotulo="Harmonizar com o mapa" dica="Recorta o vazio, põe contorno e sombra e puxa a cor para a do gênero do mapa. Vale para imagens achadas; as geradas já nascem no traço da casa." valor={o.harmonize} aoMudar={v => editar({ harmonize: v }, 'Harmonizar objeto')} />}
     {o.source.kind === 'recipe' && <Linha rotulo={receita?.nome ?? o.source.recipe}><button type="button" class="botao-pilula" data-testid="variar" onClick={() => editar({ source: { seed: (o.source.kind === 'recipe' ? o.source.seed : 0) + 1 } }, 'Variar o objeto')}>Variar</button></Linha>}
     <CampoNumero rotulo="Rotação" unidade="°" valor={graus(o.rotation)} min={-360} max={360} passo={15} aoConfirmar={v => editar({ rotation: radianos(v) }, 'Girar')} />
+    <Linha rotulo="Camada"><div class="acoes-selecao" data-testid="camadas">
+      <button type="button" class="botao-pilula" data-testid="camada-tras" title="Enviar para trás (Ctrl+Shift+[)" onClick={() => tentar(() => s.store.executar({ tipo: 'objeto.camada', ids: [o.id], modo: 'tras' }, { rotulo: 'Enviar para trás' }))}>Para trás</button>
+      <button type="button" class="botao-pilula" data-testid="camada-descer" title="Descer uma camada (Ctrl+[)" onClick={() => tentar(() => s.store.executar({ tipo: 'objeto.camada', ids: [o.id], modo: 'descer' }, { rotulo: 'Descer uma camada' }))}>↓</button>
+      <button type="button" class="botao-pilula" data-testid="camada-subir" title="Subir uma camada (Ctrl+])" onClick={() => tentar(() => s.store.executar({ tipo: 'objeto.camada', ids: [o.id], modo: 'subir' }, { rotulo: 'Subir uma camada' }))}>↑</button>
+      <button type="button" class="botao-pilula" data-testid="camada-frente" title="Trazer para a frente (Ctrl+Shift+])" onClick={() => tentar(() => s.store.executar({ tipo: 'objeto.camada', ids: [o.id], modo: 'frente' }, { rotulo: 'Trazer para a frente' }))}>Para frente</button>
+    </div></Linha>
     <CampoNumero rotulo="Escala" valor={o.scale} min={0.05} max={50} passo={0.1} aoConfirmar={v => editar({ scale: v }, 'Escala do objeto')} />
     <InteracaoDoObjeto s={s} o={o} />
     <CampoCaixa rotulo="Bloqueia o movimento" valor={o.blocks.move} aoMudar={v => editar({ blocks: { move: v } })} />

@@ -221,3 +221,15 @@ test('o documento do store continua um MapaAtlas válido em qualquer estado do h
   while (s.podeRefazer) estados.push(s.refazer());
   assert.equal(estados.length, 9);
 });
+
+test('objeto.camada põe um objeto atrás ou na frente dos outros e desfaz', async () => {
+  const { criarMapa } = await import('../../src/domain/mapa.ts');
+  const { novoObjeto } = await import('../../src/domain/fabrica.ts');
+  const { aplicarComando } = await import('../../src/state/comandos.ts');
+  const m = criarMapa(), cama = novoObjeto([2, 2], { id: 'cama' }), tapete = novoObjeto([2, 2], { id: 'tapete' });
+  m.props.cama = cama; m.props.tapete = tapete;
+  const atras = aplicarComando(m, { tipo: 'objeto.camada', ids: ['tapete'], modo: 'tras' });
+  assert.ok((atras.props.tapete!.layer ?? 0) < (atras.props.cama!.layer ?? 0));
+  const frente = aplicarComando(atras, { tipo: 'objeto.camada', ids: ['tapete'], modo: 'frente' });
+  assert.ok((frente.props.tapete!.layer ?? 0) > (frente.props.cama!.layer ?? 0));
+});

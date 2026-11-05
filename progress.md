@@ -341,6 +341,7 @@ Concluída. O Atlas fala o contrato da mesa com todos os aplicativos (Ficha, Ate
   - **Tabletop:** `public/mesa.json` (só identidade: oferece, atende e emite nada, porque ele ainda não fala o barramento); agora todos os seis aplicativos têm manifesto.
   - **Painéis apertados no modo sessão:** a Mesa desenha o Atlas (900 px) e o Jukebox (520 px) numa largura lógica mínima e reduz a escala para caber (nunca abaixo de 0,5; a Ficha se adapta sozinha); o Atlas embutido começa com o dock recolhido e a coluna do inspetor mais estreita.
   - **Ateliê e Tabletop sob o `mesa-dev`** agora rodam com o Vite de desenvolvimento e `base` própria (`npm run dev:mesa` em cada um, portas 5174 e 5177), com recarregamento ao vivo e armazenamento no navegador. Só configuração e scripts: no Ateliê, um plugin do Vite injeta `window.__ATELIE_STORAGE` (o `define` não vale no `dev`); no Tabletop, o `define` passou a respeitar `VITE_TABLETOP_STORAGE=browser`. Só o Jukebox segue como arquivos estáticos.
+  - **A Ficha virou Dossiê:** pasta e repositório `Dossie` (o id do aplicativo no contrato segue `ficha`). Atualizados o `mesa-dev` (`/Dossie/`, porta 5173), o que o Atlas e a Mesa procuram (`../Dossie/`), as mensagens, o `dev:mesa` e o `mesa.json` (nome "Dossiê") e os caminhos dos e2e.
   - **Git:** a Ficha teve `node_modules` tirado do índice (1499 arquivos; o `.gitignore` já tinha a regra) e a Mesa ganhou `.gitignore`.
   - **Fichas de ameaça ligadas às peças:** tipo novo `ameaca` no contrato (aditivo, copiado nos quatro `vendor/`); a Ficha publica as 98 fichas de ameaça (65 com retrato) com PV (PD zero), só relê o que mudou (assinaturas por campanha) e remove da campanha as fichas apagadas; o Atlas lista as ameaças com busca e põe uma peça de inimigo ligada à ficha, só com PV e sem mandar a vida do inimigo ao projetor; a Mesa mostra "Ameaça". e2e com a Ficha de verdade.
 - **Pendências reais da fase:**
@@ -358,3 +359,5 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 ## Pendências
 
 - As "ainda em aberto" da Fase 3; nenhuma bloqueia a Fase 4.
+
+- Camadas de objetos: `layer` opcional no objeto, comando `objeto.camada`, botões no Inspetor e atalhos Ctrl+[ / Ctrl+] (com Shift: frente/trás).

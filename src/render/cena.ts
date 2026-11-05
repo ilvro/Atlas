@@ -75,7 +75,7 @@ export interface Cena {
 interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; chave: string; chaveTextura: string | null }
 
 export function criarCena(op: OpcoesDaCena): Cena {
-  const raiz = new Container(), terrenoC = new Container(), comodosC = new Container(), objetosC = new Container(), paredesG = new Graphics();
+  const raiz = new Container(), terrenoC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics();
   const marcasG = new Graphics(), regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), tituloC = new Container();
   const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados(), neblina = criarNeblina(), particulas = criarParticulas(), presenca = criarPresenca();
   // A luz multiplica tudo o que está embaixo (piso, objetos, paredes); marcadores, regiões e peças ficam por cima, sempre legíveis.
@@ -229,7 +229,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
         entrada = novaEntrada(objetosC); objetos.set(id, entrada); desenharMarcadorDeObjeto(entrada, o);
         if (comPop && op.efeitos()) { entrada.c.scale.set(0.6); animacoes.push({ alvo: entrada.c, t0: performance.now(), dur: 180, final: o.scale }); }
       }
-      entrada.c.position.set(o.position[0], o.position[1]); entrada.c.rotation = o.rotation;
+      entrada.c.position.set(o.position[0], o.position[1]); entrada.c.rotation = o.rotation; entrada.c.zIndex = o.layer ?? 0;
       if (!animacoes.some(a => a.alvo === entrada!.c)) entrada.c.scale.set(o.scale);
       const pedido = pedidoDoObjeto(o, res, m.style.genre, m.style.renderer, opcoesDoPixel(m));
       if (pedido) pintar(entrada, chave, pedido, (sp, r) => { sp.position.set(r.origem[0], r.origem[1]); sp.scale.set(1 / r.res); });

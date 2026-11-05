@@ -42,6 +42,7 @@ const objeto = e.obj({
   elevation: e.um('floor', 'table', 'wall', 'ceiling'),
   wall: e.nulo(e.obj({ wallId: id, at: unidade, face: e.um('inner', 'outer') })),
   roomId: idOuNulo, blocks: e.obj({ move: e.bool(), sight: e.bool() }), castsShadow: e.bool(), harmonize: e.bool(),
+  layer: e.opt(e.num({ inteiro: true, min: -100000, max: 100000 })),
   interaction: e.nulo(e.obj({ kind: e.um('switch', 'drawer', 'clue'), on: e.bool(), targets: e.lista(id, { max: 200 }), sound: e.nulo(ref), clue: e.nulo(ref) })),
 });
 const luz = e.obj({

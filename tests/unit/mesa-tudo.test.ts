@@ -15,7 +15,7 @@ test('plano: os seis aplicativos, cada um do jeito que se comporta sob um prefix
   const plano = planoDosProjetos('/raiz');
   assert.deepEqual(plano.map(p => p.nome), ['Atlas', 'Mesa', 'Dossie', 'Atelie', 'Tabletop', 'Jukebox']);
   const vites = plano.filter((p): p is Extract<typeof p, { tipo: 'vite' }> => p.tipo === 'vite');
-  assert.deepEqual(vites.map(p => `${p.nome}:${p.porta}`), ['Atlas:5190', 'Mesa:5195', 'Ficha:5173', 'Atelie:5174', 'Tabletop:5177']);
+  assert.deepEqual(vites.map(p => `${p.nome}:${p.porta}`), ['Atlas:5190', 'Mesa:5195', 'Dossie:5173', 'Atelie:5174', 'Tabletop:5177']);
   assert.equal(new Set(vites.map(p => p.porta)).size, vites.length, 'portas diferentes');
   const est = plano.filter((p): p is ProjetoEstatico => p.tipo === 'estatico');
   assert.deepEqual(est.map(p => p.nome), ['Jukebox']);

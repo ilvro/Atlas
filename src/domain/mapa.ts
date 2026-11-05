@@ -63,6 +63,8 @@ export interface Objeto {
   roomId: string | null; blocks: { move: boolean; sight: boolean }; castsShadow: boolean; harmonize: boolean;
   /** O que o mestre pode acionar na sessão (interruptor, gaveta, pista); `null` é um objeto comum. */
   interaction: Interacao | null;
+  /** Ordem de empilhamento entre objetos: maior fica por cima; ausente vale 0. Empates seguem a ordem de criação. */
+  layer?: number;
 }
 /** `targets` vazio num interruptor = as luzes `power: 'grid'` do cômodo do objeto. `clue` só vai ao jogador depois de revelada. */
 export interface Interacao { kind: 'switch' | 'drawer' | 'clue'; on: boolean; targets: string[]; sound: Ref | null; clue: Ref | null }

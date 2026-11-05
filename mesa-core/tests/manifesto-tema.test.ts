@@ -49,6 +49,9 @@ test('tema: tokens, contraste e destaque próprio', () => {
   assert.equal(ordem['--acento'], '#e91d25'); assert.equal(ordem['--acento-texto'], '#ffffff');
   const atlas = tokensDoTema({ id: 'atlas' });
   assert.equal(atlas['--acento'], '#14b3ae'); assert.equal(atlas['--acento-texto'], '#0b0c10'); assert.equal(atlas['--superficie'], '#101817');
+  const mesa = tokensDoTema({ id: 'mesa' });
+  assert.equal(mesa['--acento'], '#a58de0'); assert.equal(mesa['--acento-texto'], '#0b0c10');
+  assert.equal(tokensDoTema({ id: 'prata' as never })['--acento'], '#cfd8d3', 'o id antigo Prata vale como Vigília');
   const prata = tokensDoTema({ id: 'vigilia' });
   assert.equal(prata['--acento-texto'], '#0b0c10');
   assert.equal(tokensDoTema({ id: 'neutro', acento: '#2E8B57' })['--acento'], '#2e8b57');
@@ -62,6 +65,7 @@ test('tema: leitura tolerante e gravação', () => {
   const guardado = new Map<string, string>();
   const armazenamento = { getItem: (k: string) => guardado.get(k) ?? null, setItem: (k: string, v: string) => { guardado.set(k, v); } };
   assert.deepEqual(lerTema(armazenamento), { id: 'atlas' });
+  assert.deepEqual(lerTema(armazenamento, { id: 'mesa' }), { id: 'mesa' });
   gravarTema(armazenamento, { id: 'vigilia', acento: '#aabbcc' });
   assert.deepEqual(lerTema(armazenamento), { id: 'vigilia', acento: '#aabbcc' });
   guardado.set(CHAVE_TEMA, '{lixo'); assert.deepEqual(lerTema(armazenamento), { id: 'atlas' });

@@ -88,7 +88,7 @@ test('importar o arquivo exportado em outro navegador recria o mapa idêntico', 
 test('trocar o tema muda a interface e as outras abas, ao vivo', async () => {
   const ctx = await novoContexto(amb), um = await abrir(ctx, amb.url), dois = await abrir(ctx, amb.url);
   const acento = (p: Page) => p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--acento').trim());
-  assert.equal(await um.page.evaluate(() => document.documentElement.dataset.tema), 'ordem'); assert.equal(await acento(um.page), '#e91d25');
+  assert.equal(await um.page.evaluate(() => document.documentElement.dataset.tema), 'atlas'); assert.equal(await acento(um.page), '#14b3ae');
   await um.page.click('[data-testid="tema-vigilia"]');
   assert.equal(await um.page.evaluate(() => document.documentElement.dataset.tema), 'vigilia'); assert.equal(await acento(um.page), '#cfd8d3');
   await dois.page.waitForFunction(() => document.documentElement.dataset.tema === 'vigilia');

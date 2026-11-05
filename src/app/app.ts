@@ -364,6 +364,15 @@ export function alternarLuzes(): void {
   tocar('pop'); avisar(ligar ? 'Luz acesa.' : 'Luz apagada.');
 }
 
+/** Muda a camada dos objetos selecionados (um tapete atrás da cama, uma xícara sobre a mesa). */
+export function camadaDaSelecao(modo: 'frente' | 'tras' | 'subir' | 'descer'): void {
+  const s = sessao.value; if (!s) return;
+  const ids = s.selecao.value.filter(a => a.colecao === 'props').map(a => a.id);
+  if (!ids.length) { avisar('Selecione um objeto primeiro.'); return; }
+  const rotulo = { frente: 'Trazer para a frente', tras: 'Enviar para trás', subir: 'Subir uma camada', descer: 'Descer uma camada' }[modo];
+  try { s.store.executar({ tipo: 'objeto.camada', ids, modo }, { rotulo }); } catch (erro) { avisar(erro instanceof Error ? erro.message : String(erro)); }
+}
+
 export function moverSelecao(dx: number, dy: number): void {
   const s = sessao.value; if (!s || !s.selecao.value.length) return;
   if (modo.value === 'sessao') {

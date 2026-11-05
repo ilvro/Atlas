@@ -4,7 +4,9 @@ Data: 2 de novembro de 2026. Proposta, versão 1. Nada aqui está implementado f
 
 ## 1. Objetivo
 
-Fazer Atlas, Ficha, Ateliê, Jukebox e Tabletop parecerem **uma plataforma para a campanha**, não cinco sites. A inspiração é o Atlas VTT para Obsidian: tudo da sessão à mão e ligado entre si, com descrição dos lugares, preparação, fichas, documentos e música.
+Fazer Atlas, Dossiê, Ateliê, Jukebox e Tabletop parecerem **uma plataforma para a campanha**, não cinco sites. A inspiração é o Atlas VTT para Obsidian: tudo da sessão à mão e ligado entre si, com descrição dos lugares, preparação, fichas, documentos e música.
+
+**Nome:** o aplicativo das fichas se chamava Ficha e agora se chama **Dossiê** (pasta e repositório `Dossie`). O identificador do aplicativo no contrato continua `ficha` (está nas referências já guardadas, como `mesa:ficha/ficha/<id>`, e nos eventos `ficha.*`): é um id estável, não um nome de exibição.
 
 Princípios:
 
@@ -20,7 +22,7 @@ Todos os projetos estão em `https://ilvro.github.io/<repositório>/`. A origem 
 | Situação | Como fica |
 | --- | --- |
 | GitHub Pages (uso principal) | Mesma origem. Tudo funciona direto. |
-| Desenvolvimento local | Um **servidor de desenvolvimento único** (`mesa-dev`, em `Atlas/scripts/mesa-dev.ts`) serve cada projeto num caminho da mesma porta (`http://127.0.0.1:5100/Atlas/`, `/Ficha/`…), repassando para o Vite de cada um. Reproduz o Pages. ✅ Implementado: cada projeto roda o Vite com `base: '/Nome/'` (no Atlas, `npm run dev:mesa`) e o proxy repassa o caminho inteiro, WebSocket do recarregamento ao vivo incluído; um projeto que serve na raiz entra como `Nome=porta@raiz`. `npm run mesa-dev` (sem argumentos) sobe Atlas, Mesa, Ficha, Ateliê e Tabletop com o Vite sob o prefixo (`npm run dev:mesa` de cada um; Ateliê e Tabletop guardam no navegador, como o Pages, porque atrás do proxy não há servidor de API) e serve o **Jukebox como arquivos estáticos** (`Nome=estatico:pasta`). ✅ Implementado (9.1c). |
+| Desenvolvimento local | Um **servidor de desenvolvimento único** (`mesa-dev`, em `Atlas/scripts/mesa-dev.ts`) serve cada projeto num caminho da mesma porta (`http://127.0.0.1:5100/Atlas/`, `/Ficha/`…), repassando para o Vite de cada um. Reproduz o Pages. ✅ Implementado: cada projeto roda o Vite com `base: '/Nome/'` (no Atlas, `npm run dev:mesa`) e o proxy repassa o caminho inteiro, WebSocket do recarregamento ao vivo incluído; um projeto que serve na raiz entra como `Nome=porta@raiz`. `npm run mesa-dev` (sem argumentos) sobe Atlas, Mesa, Dossiê, Ateliê e Tabletop com o Vite sob o prefixo (`npm run dev:mesa` de cada um; Ateliê e Tabletop guardam no navegador, como o Pages, porque atrás do proxy não há servidor de API) e serve o **Jukebox como arquivos estáticos** (`Nome=estatico:pasta`). ✅ Implementado (9.1c). |
 | Outra origem (domínio próprio, outra conta, Tabletop com servidor local) | Caminho B do contrato do Ateliê: janela + `postMessage`, com `nonce` e verificação de origem. Recursos reduzidos. |
 
 **Exceção:** o Jukebox depende de um servidor para baixar e editar áudio. O player participa da plataforma no Pages; ações que precisam do servidor continuam no servidor.

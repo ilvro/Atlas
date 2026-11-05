@@ -41,6 +41,8 @@ export type Comando =
   | { tipo: 'item.adicionar'; colecao: ColecaoLivre; item: { id: string } & Record<string, unknown> }
   | { tipo: 'item.atualizar'; colecao: ColecaoLivre; id: string; patch: Record<string, unknown> }
   | { tipo: 'item.remover'; colecao: ColecaoLivre; id: string }
+  /** Muda a camada dos objetos: `frente`/`tras` passam por cima/por baixo de todos; `subir`/`descer` andam uma camada. */
+  | { tipo: 'objeto.camada'; ids: string[]; modo: 'frente' | 'tras' | 'subir' | 'descer' }
   /** Uma sugestão do assistente aceita: vários comandos como UMA entrada de histórico. Não aninha. */
   | { tipo: 'proposta.aceitar'; rotulo: string; comandos: Comando[] }
   | { tipo: 'selecao.mover'; alvos: AlvoMovel[]; delta: Ponto }
@@ -162,6 +164,14 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       break;
     }
     case 'item.remover': remover(m, c.colecao, c.id); break;
+    case 'objeto.camada': {
+      const alvos = c.ids.map(id => m.props[id] ?? nao(`Não existe “${id}” em props.`));
+      const outras = Object.values(m.props).filter(o => !c.ids.includes(o.id)).map(o => o.layer ?? 0);
+      if (c.modo === 'frente') { const topo = Math.max(0, ...outras) + 1; for (const o of alvos) o.layer = topo; }
+      else if (c.modo === 'tras') { const base = Math.min(0, ...outras) - 1; for (const o of alvos) o.layer = base; }
+      else for (const o of alvos) o.layer = (o.layer ?? 0) + (c.modo === 'subir' ? 1 : -1);
+      break;
+    }
     case 'selecao.mover': {
       const [dx, dy] = c.delta;
       if (!Number.isFinite(dx) || !Number.isFinite(dy)) nao('Deslocamento inválido.');
@@ -271,7 +281,7 @@ export const ROTULOS: Record<Comando['tipo'], string> = {
   'mapa.renomear': 'Renomear mapa', 'mapa.notas': 'Editar notas', 'mapa.campanha': 'Ligar à campanha', 'grade.atualizar': 'Ajustar grade',
   'limites.atualizar': 'Redimensionar mapa', 'estilo.atualizar': 'Mudar estilo', 'mapa.audio': 'Som do mapa', 'clima.aplicar': 'Mudar clima', 'clima.predefinir': 'Aplicar clima', 'clima.salvar': 'Salvar clima', 'clima.esquecer': 'Esquecer clima', 'clima.audio': 'Som do clima', 'acabamento.atualizar': 'Ajustar acabamento',
   'fundo.atualizar': 'Ajustar fundo', 'memoria.atualizar': 'Ajustar memória', 'item.adicionar': 'Adicionar', 'item.atualizar': 'Editar',
-  'item.remover': 'Remover', 'selecao.mover': 'Mover', 'peca.mover': 'Mover peça', 'peca.virar': 'Virar a lanterna', 'sessao.esquecer': 'Recomeçar a exploração', 'sessao.revelar': 'Revelar', 'sessao.ocultar': 'Esconder cômodos', 'sessao.explorar': 'Explorar', 'interagir': 'Usar', 'iniciativa.iniciar': 'Começar a iniciativa', 'iniciativa.passo': 'Passar a vez', 'iniciativa.valor': 'Valor de iniciativa', 'iniciativa.encerrar': 'Encerrar a iniciativa', 'proposta.aceitar': 'Aceitar sugestão',
+  'item.remover': 'Remover', 'objeto.camada': 'Mudar a camada', 'selecao.mover': 'Mover', 'peca.mover': 'Mover peça', 'peca.virar': 'Virar a lanterna', 'sessao.esquecer': 'Recomeçar a exploração', 'sessao.revelar': 'Revelar', 'sessao.ocultar': 'Esconder cômodos', 'sessao.explorar': 'Explorar', 'interagir': 'Usar', 'iniciativa.iniciar': 'Começar a iniciativa', 'iniciativa.passo': 'Passar a vez', 'iniciativa.valor': 'Valor de iniciativa', 'iniciativa.encerrar': 'Encerrar a iniciativa', 'proposta.aceitar': 'Aceitar sugestão',
 };
 
 export type { NomeColecao };

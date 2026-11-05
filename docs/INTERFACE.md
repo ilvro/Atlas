@@ -24,13 +24,14 @@ Observado nas telas da Ficha (visões Vigília e Ordem 2 cinematográfica) e no 
 
 ## 2. Temas
 
-Um tema define cor de destaque, superfícies, tipografia de títulos, forma das faixas, moldura e transição. Começam quatro; **Vigília é o padrão** (preto-esverdeado com névoa, verde bebê `#9fe0b6`, sóbrio e adulto). As faixas rasgadas e os cantos cortados ficam só no tema Ordem; nos outros, rótulos em versalete com um fio do acento.
+Um tema define cor de destaque, superfícies, tipografia de títulos, forma das faixas, moldura e transição. Começam cinco; cada aplicativo tem a sua cor de partida (`lerTema(armazenamento, padrao)`): Atlas turquesa, Mesa violeta. Sóbrio e adulto, sem brilhos nem degradês. As faixas rasgadas e os cantos cortados ficam só no tema Ordem; nos outros, rótulos em versalete com um fio do acento.
 
 | Tema | Destaque | Títulos | Faixas e moldura | Transição |
 | --- | --- | --- | --- | --- |
-| **Vigília** (padrão) | Verde bebê `#9fe0b6` | Cinzel, versalete espaçado | Fio fino e losango do acento, sem recortes | Tinta |
+| **Atlas** (padrão do Atlas) | Turquesa `#14b3ae` | Cinzel, versalete espaçado | Fio fino e losango do acento, sem recortes nem brilho | Fade |
+| **Vigília** (ex-Prata) | Prata de névoa `#cfd8d3` | Cinzel, versalete espaçado | Linha dupla, divisória com losango, cantos em L nos painéis | Tinta |
+| **Mesa** (padrão da Mesa) | Violeta `#a58de0` | Cinzel, versalete espaçado | Igual ao Atlas: fio e losango do acento | Fade |
 | **Ordem** | Vermelho `#e91d25` | Serifa pesada, caixa alta | Rasgadas, retas, cantos em L | Glitch |
-| **Prata** (como a Vigília) | Prata e branco | Cinzel / Cinzel Decorative | Moldura ornamentada, divisória celta própria | Tinta |
 | **Neutro** | Âmbar | Serifa clássica | Discretas | Fade |
 
 O usuário pode criar temas a partir de uma cor e de uma textura de fundo.

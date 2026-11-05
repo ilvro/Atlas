@@ -4,7 +4,7 @@
  */
 
 export const CHAVE_TEMA = 'mesa:tema';
-export const TEMAS_BASE = ['atlas', 'ordem', 'vigilia', 'neutro'] as const;
+export const TEMAS_BASE = ['atlas', 'mesa', 'ordem', 'vigilia', 'neutro'] as const;
 export type TemaId = (typeof TEMAS_BASE)[number];
 export type Transicao = 'glitch' | 'tinta' | 'fade';
 
@@ -23,11 +23,17 @@ const AZUL_NOITE: Superficies = { fundo: '#0a0a10', superficie: '#12121b', super
 export const TEMAS: Readonly<Record<TemaId, Base>> = {
   // Atlas: o padrão. Preto-azulado liso e um turquesa só, sem brilho nem degradê.
   atlas: { nome: 'Atlas', acento: '#14b3ae', painel: 'rgba(12, 18, 18, 0.94)', titulo: "'Cinzel', Georgia, serif", transicao: 'fade', fundo: '#080d0d', superficies: { fundo: '#0a1010', superficie: '#101817', superficie2: '#172221', linha: '#25332f' } },
+  // Mesa: o padrão da Mesa. Preto arroxeado liso e um violeta de ametista só.
+  mesa: { nome: 'Mesa', acento: '#a58de0', painel: 'rgba(15, 13, 21, 0.94)', titulo: "'Cinzel', Georgia, serif", transicao: 'fade', fundo: '#0a0810', superficies: { fundo: '#0c0a12', superficie: '#131019', superficie2: '#1b1724', linha: '#2e2940' } },
   ordem: { nome: 'Ordem', acento: '#e91d25', painel: 'rgba(13, 13, 20, 0.86)', titulo: "'Cinzel', Georgia, serif", transicao: 'glitch', fundo: '#07080b', superficies: AZUL_NOITE },
   // Vigília: o tema da ficha de Vigília. Verde-musgo quase preto, prata de névoa, molduras ornamentadas.
   vigilia: { nome: 'Vigília', acento: '#cfd8d3', painel: 'rgba(8, 12, 11, 0.94)', titulo: "'Cinzel', Georgia, serif", transicao: 'tinta', fundo: '#060a09', superficies: { fundo: '#070b0a', superficie: '#0d1312', superficie2: '#141c1a', linha: '#2a3733' } },
   neutro: { nome: 'Neutro', acento: '#d9a23b', painel: 'rgba(16, 14, 12, 0.88)', titulo: "Georgia, 'Times New Roman', serif", transicao: 'fade', fundo: '#0b0a09', superficies: { fundo: '#0b0a09', superficie: '#151311', superficie2: '#201d19', linha: '#33302a' } },
 };
+
+/** Ids que já existiram: o tema Prata virou Vigília. Campanhas antigas continuam abrindo. */
+const ID_LEGADO: Readonly<Record<string, TemaId>> = { prata: 'vigilia' };
+export const idDoTema = (id: string): TemaId => ((TEMAS_BASE as readonly string[]).includes(id) ? (id as TemaId) : ID_LEGADO[id] ?? TEMA_PADRAO.id);
 
 export const TEMA_PADRAO: Tema = { id: 'atlas' };
 
@@ -49,7 +55,7 @@ export type Tokens = Record<`--${string}`, string>;
 
 /** Os tokens CSS de um tema. Puro: serve ao runtime, aos testes e a quem não tem DOM. */
 export function tokensDoTema(tema: Tema): Tokens {
-  const base = TEMAS[tema.id], acento = tema.acento && ehHex(tema.acento) ? tema.acento.toLowerCase() : base.acento;
+  const base = TEMAS[idDoTema(tema.id)], acento = tema.acento && ehHex(tema.acento) ? tema.acento.toLowerCase() : base.acento;
   return {
     '--acento': acento, '--acento-escuro': escurecer(acento, 0.3), '--acento-texto': textoSobre(acento),
     '--painel': base.painel, '--titulo': base.titulo, '--fundo-mapa': base.fundo,
@@ -57,14 +63,15 @@ export function tokensDoTema(tema: Tema): Tokens {
   };
 }
 
-export function lerTema(armazenamento: Pick<Storage, 'getItem'>): Tema {
+/** `padrao` vale quando nada foi escolhido ainda: cada aplicativo pode ter a sua cor de partida (o Atlas, turquesa; a Mesa, violeta). */
+export function lerTema(armazenamento: Pick<Storage, 'getItem'>, padrao: Tema = TEMA_PADRAO): Tema {
   try {
     const bruto = armazenamento.getItem(CHAVE_TEMA);
-    if (!bruto) return { ...TEMA_PADRAO };
+    if (!bruto) return { ...padrao };
     const v = JSON.parse(bruto) as Record<string, unknown>;
-    if (!v || typeof v !== 'object' || !(TEMAS_BASE as readonly string[]).includes(String(v.id))) return { ...TEMA_PADRAO };
+    if (!v || typeof v !== 'object' || !(TEMAS_BASE as readonly string[]).includes(String(v.id))) return { ...padrao };
     return ehHex(v.acento) ? { id: v.id as TemaId, acento: v.acento } : { id: v.id as TemaId };
-  } catch { return { ...TEMA_PADRAO }; }
+  } catch { return { ...padrao }; }
 }
 
 export function gravarTema(armazenamento: Pick<Storage, 'setItem'>, tema: Tema): void {
@@ -75,8 +82,9 @@ export interface AlvoDeTema { style: { setProperty(nome: string, valor: string):
 
 export function aplicarTema(alvo: AlvoDeTema, tema: Tema): void {
   for (const [nome, valor] of Object.entries(tokensDoTema(tema))) alvo.style.setProperty(nome, valor);
-  alvo.dataset.tema = tema.id;
-  alvo.dataset.transicao = TEMAS[tema.id].transicao;
+  const id = idDoTema(tema.id);
+  alvo.dataset.tema = id;
+  alvo.dataset.transicao = TEMAS[id].transicao;
 }
 
 /** Chama `aoMudar` quando outra aba troca o tema. Devolve a função que cancela. */
