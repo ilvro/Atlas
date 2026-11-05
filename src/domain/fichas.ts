@@ -1,4 +1,5 @@
 import type { Ref } from '../../mesa-core/src/refs.ts';
+import type { Peca } from './mapa.ts';
 
 /** PV e PD de uma ficha, como a Ficha os publica em `ficha.recursos`. Vivem na memória da sessão: o documento do mapa só guarda o `Ref`. */
 export interface Recursos { pv: number; pvMax: number; pd: number; pdMax: number }
@@ -20,4 +21,21 @@ export type TomDaRolagem = 'alto' | 'baixo' | 'normal';
 export function tomDaRolagem(total: number, modificador = 0): TomDaRolagem {
   const bruto = total - modificador;
   return bruto >= 19 ? 'alto' : bruto <= 2 ? 'baixo' : 'normal';
+}
+
+/** Esta ficha tem PD? Uma ameaça (monstro) só tem PV: a Ficha manda PD zero. */
+export const temPd = (r: Pick<Recursos, 'pdMax'>): boolean => r.pdMax > 0;
+
+/** O texto dos recursos: `PV 8/10 · PD 3/6`, ou só `PV 45/45` para quem não tem PD. */
+export const textoDeRecursos = (r: Recursos): string => `PV ${r.pv}/${r.pvMax}${temPd(r) ? ` · PD ${r.pd}/${r.pdMax}` : ''}`;
+
+/**
+ * Os recursos que vão ao projetor: só das peças de jogador, e só se o mestre quer mostrá-los. Os de um inimigo nunca saem: a vida de um monstro
+ * é segredo do mestre, mesmo com "Mostrar PV no projetor" ligado.
+ */
+export function recursosParaOProjetor(pecas: Readonly<Record<string, Pick<Peca, 'id' | 'player' | 'refs'>>>, recursosDa: (p: Pick<Peca, 'refs'>) => Recursos | null, mostrar: boolean): Record<string, Recursos> {
+  const por: Record<string, Recursos> = {};
+  if (!mostrar) return por;
+  for (const t of Object.values(pecas)) { if (!t.player) continue; const r = recursosDa(t); if (r) por[t.id] = r; }
+  return por;
 }

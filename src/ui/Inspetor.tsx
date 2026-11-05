@@ -32,7 +32,7 @@ import { EscolherCena } from './EscolherCena.tsx';
 import { pistas, pistasCarregadas } from '../app/pistas.ts';
 import { idDaPista, refDaPista } from '../data/pistas.ts';
 import { abrirFicha, recursosDasFichas } from '../app/fichas.ts';
-import { refDaFicha } from '../domain/fichas.ts';
+import { refDaFicha, textoDeRecursos } from '../domain/fichas.ts';
 import { CampoCaixa, CampoCor, Linha, CampoNumero, CampoOpcoes, CampoTexto, tentar } from './campos.tsx';
 import { Icone } from './Icone.tsx';
 
@@ -265,7 +265,7 @@ function FichaDaPeca({ t }: { t: Peca }) {
   const rec = recursosDasFichas.value[chaveDaRef(ref)];
   return (
     <Linha rotulo="Ficha" dica={formatarRef(ref)}>
-      <span data-testid="inspetor-recursos">{rec ? `PV ${rec.pv}/${rec.pvMax} · PD ${rec.pd}/${rec.pdMax}` : 'Sem dados da ficha'}</span>
+      <span data-testid="inspetor-recursos">{rec ? textoDeRecursos(rec) : 'Sem dados da ficha'}</span>
       <button type="button" class="botao-pilula" data-testid="inspetor-abrir-ficha" onClick={() => void abrirFicha(servicos.value?.barramento, ref)}>Abrir ficha</button>
     </Linha>
   );

@@ -4,7 +4,7 @@ import { acaoDoInterativo } from '../domain/interagiveis.ts';
 import { alternarLuzes, alternarPorta, usarObjeto, desfazer, revelarPorta, trancarPorta, duplicarSelecao, removerSelecao, viewport, servicos } from '../app/app.ts';
 import { modo } from '../app/modo.ts';
 import { abrirFicha, recursosDasFichas } from '../app/fichas.ts';
-import { refDaFicha } from '../domain/fichas.ts';
+import { refDaFicha, textoDeRecursos } from '../domain/fichas.ts';
 import { chaveDaRef } from '#mesa';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { avisar } from '../app/toasts.ts';
@@ -60,7 +60,7 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
     const ref = refDaFicha(m.tokens[a.id]!.refs); if (!ref) return null;
     const rec = recursosDasFichas.value[chaveDaRef(ref)];
     acoes = (<>
-      <span class="cartao-texto" data-testid="cartao-recursos">{rec ? `PV ${rec.pv}/${rec.pvMax} · PD ${rec.pd}/${rec.pdMax}` : 'Sem dados da ficha'}</span>
+      <span class="cartao-texto" data-testid="cartao-recursos">{rec ? textoDeRecursos(rec) : 'Sem dados da ficha'}</span>
       <button type="button" class="cartao-texto" data-testid="cartao-abrir-ficha" onClick={() => void abrirFicha(servicos.peek()?.barramento, ref)}>Abrir ficha</button>
     </>);
   } else if (emSessao && a.colecao !== 'openings') return null;       // na sessão o cartão só tem ações de porta (a 7.6a acrescenta as dos interativos)

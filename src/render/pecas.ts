@@ -1,6 +1,6 @@
 import { Container, Graphics, Rectangle, Sprite, Text, Texture } from 'pixi.js';
 import { aparenciaDoEstado } from '../domain/figuras.ts';
-import { pipsCheios, type Recursos } from '../domain/fichas.ts';
+import { pipsCheios, temPd, type Recursos } from '../domain/fichas.ts';
 import type { Peca, Ponto } from '../domain/mapa.ts';
 import { corDoNome, hexParaNumero } from './cores.ts';
 
@@ -84,7 +84,7 @@ export function criarPeca(): PecaVisual {
           const n = pipsCheios(valor, maximo, N);
           for (let i = 0; i < N; i++) pips.rect(-largura / 2 + i * passo, y0 + linha * (lado + grade * 0.04), lado, lado).fill({ color: i < n ? cheio : 0x1a1a22, alpha: i < n ? 1 : 0.75 }).stroke({ width: 0.012, color: 0x000000, alpha: 0.8 });
         };
-        fileira(recursos.pv, recursos.pvMax, 0xe0342c, 0); fileira(recursos.pd, recursos.pdMax, 0x3e8fe0, 1);
+        fileira(recursos.pv, recursos.pvMax, 0xe0342c, 0); if (temPd(recursos)) fileira(recursos.pd, recursos.pdMax, 0x3e8fe0, 1);
         if (ultimoRecursos && (recursos.pv < ultimoRecursos.pv || recursos.pd < ultimoRecursos.pd)) piscaAte = performance.now() + 1200;
       }
       ultimoRecursos = recursos; pips.visible = !!recursos;

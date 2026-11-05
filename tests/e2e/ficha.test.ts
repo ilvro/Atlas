@@ -59,6 +59,33 @@ test('Ficha no contrato (9.2a), com a Ficha de verdade sob o mesa-dev: publica a
     assert.equal(resposta.ok, true, resposta.detalhe);
     const inexistente = await a.evaluate(async () => (await (window as unknown as { __atlas: { servicos(): { barramento: { pedir(t: string, d: unknown): Promise<{ ok: boolean; detalhe?: string }> } } } }).__atlas.servicos().barramento.pedir('ficha.abrir', { ref: { app: 'ficha', tipo: 'ficha', id: 'nao-existe' } })));
     assert.equal(inexistente.ok, false); assert.match(inexistente.detalhe ?? '', /não existe/);
+
+    // Ameaças (monstros): a Ficha as publica como entidades `ameaca` (separadas dos personagens), com os retratos que tiverem.
+    for (let i = 0; i < 120 && (await entidades()).filter(e => e.tipo === 'ameaca').length < 50; i++) await a.waitForTimeout(250);
+    const todasAsEntidades = await entidades(), ameacas = todasAsEntidades.filter(e => e.tipo === 'ameaca');
+    console.log('# ameaças publicadas:', ameacas.length, '| com retrato:', ameacas.filter(e => e.retrato > 0).length);
+    assert.ok(ameacas.length >= 50, 'a Ficha publicou as fichas de ameaça');
+    assert.ok(ameacas.every(e => e.criadaPor === 'ficha' && e.refs[0]!.app === 'ficha' && e.refs[0]!.tipo === 'ficha'));
+    assert.ok(ameacas.every(e => !lista.some(p => p.id === e.id)), 'ameaça e personagem são entidades diferentes');
+    assert.equal(todasAsEntidades.filter(e => e.tipo === 'personagem').length, lista.length, 'publicar as ameaças não mudou os personagens');
+
+    // No Atlas: a lista de ameaças tem busca; pôr no mapa cria uma peça de inimigo (não de jogador) ligada à ficha.
+    const zumbi = ameacas.find(e => /zumbi/i.test(e.nome)) ?? ameacas[0]!;
+    await a.locator('[data-testid="ameacas"]').waitFor({ timeout: 10_000 });
+    await a.click('[data-testid="personagens-atualizar"]');
+    await a.fill('[data-testid="ameacas-busca"]', zumbi.nome.slice(0, 5).toLowerCase());
+    const porAmeaca = a.locator(`[data-testid="ameaca-por-${zumbi.id}"]`); await porAmeaca.waitFor({ timeout: 8000 }); await porAmeaca.click();
+    await a.waitForFunction(id => Object.values((window as unknown as { __atlas: { sessao(): { store: { documento: { tokens: Record<string, { refs: { id: string }[] }> } } } } }).__atlas.sessao().store.documento.tokens).some(t => t.refs.some(r => r.id === id)), zumbi.refs[0]!.id, { timeout: 8000 });
+    const inimigo = await a.evaluate(id => Object.values((window as unknown as { __atlas: { sessao(): { store: { documento: { tokens: Record<string, { name: string; player: boolean; refs: unknown[] }> } } } } }).__atlas.sessao().store.documento.tokens).find(t => (t.refs as { id: string }[]).some(r => r.id === id))!, zumbi.refs[0]!.id);
+    assert.equal(inimigo.name, zumbi.nome); assert.equal(inimigo.player, false, 'ameaça é peça de inimigo'); assert.deepEqual(inimigo.refs, [zumbi.refs[0]]);
+    // A vida da ameaça chega pela Ficha: só PV, sem barra nem texto de PD.
+    await a.waitForFunction(() => (window as unknown as { __atlas: { viewport(): { diagnosticoDasPecas(): { pips: { pv: number; pvMax: number; pdMax: number } | null }[] } } }).__atlas.viewport().diagnosticoDasPecas().some(p => p.pips && p.pips.pdMax === 0 && p.pips.pvMax > 0), null, { timeout: 15_000 });
+    await a.locator(`[data-testid="ameaca-recursos-${zumbi.id}"]`).waitFor({ timeout: 5000 });
+    assert.doesNotMatch(await a.locator(`[data-testid="ameaca-recursos-${zumbi.id}"]`).textContent() ?? '', /PD/, 'ameaça não tem PD');
+    assert.match(await a.locator(`[data-testid="ameaca-recursos-${zumbi.id}"]`).textContent() ?? '', /^PV \d+\/\d+$/);
+    // A Ficha abre a ficha da ameaça pedida pelo Atlas.
+    const abriuAmeaca = await a.evaluate(async ref => (await (window as unknown as { __atlas: { servicos(): { barramento: { pedir(t: string, d: unknown): Promise<{ ok: boolean; detalhe?: string }> } } } }).__atlas.servicos().barramento.pedir('ficha.abrir', { ref })), zumbi.refs[0]);
+    assert.equal(abriuAmeaca.ok, true, abriuAmeaca.detalhe);
     assert.deepEqual(errosDaFicha.filter(e => !/service|sw\.js|favicon|manifest/i.test(e)), []);
   } finally { await ctx.close(); await atlasVite.close(); await fichaVite.close(); await new Promise<void>(ok => { proxy.close(() => ok()); proxy.closeAllConnections(); }); }
 });

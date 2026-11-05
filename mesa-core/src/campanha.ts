@@ -4,7 +4,8 @@ import { ehApp, ehRef, mesmaRef, type AppId, type Ref } from './refs.ts';
 export const BANCO_CAMPANHA = 'mesa-campanha-v1';
 export const VERSAO_BANCO_CAMPANHA = 1;
 
-export const TIPOS_ENTIDADE = ['personagem', 'lugar', 'pista', 'cena', 'efeito', 'sessao', 'faccao', 'nota'] as const;
+/** `ameaca`: um monstro ou inimigo (a ficha de ameaça da Ficha); diferente de `personagem`, que é de jogador. */
+export const TIPOS_ENTIDADE = ['personagem', 'ameaca', 'lugar', 'pista', 'cena', 'efeito', 'sessao', 'faccao', 'nota'] as const;
 export type TipoEntidade = (typeof TIPOS_ENTIDADE)[number];
 
 export interface Campanha {

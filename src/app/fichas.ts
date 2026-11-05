@@ -52,17 +52,20 @@ export const pecaDaFicha = (m: Pick<MapaAtlas, 'tokens'>, ref: Ref): Peca | unde
 
 /** Os personagens da campanha que têm ficha (entidades `personagem` com um Ref do aplicativo `ficha`). */
 export const personagensComFicha = (lista: readonly Entidade[]): Entidade[] => lista.filter(e => e.tipo === 'personagem' && refDaFicha(e.refs));
+/** As ameaças (monstros) da campanha que têm ficha: entidades `ameaca` com um Ref do aplicativo `ficha`. Em ordem alfabética, sem acento atrapalhar. */
+export const ameacasComFicha = (lista: readonly Entidade[]): Entidade[] => lista.filter(e => e.tipo === 'ameaca' && refDaFicha(e.refs)).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
 /**
- * Põe o personagem no mapa como peça de jogador ligada à ficha (no centro da célula de `onde`, ou do centro do mapa). Se já há uma peça
- * dessa ficha, só a seleciona. Devolve a peça.
+ * Põe o personagem ou a ameaça no mapa como peça ligada à ficha (no centro da célula de `onde`, ou do centro do mapa). Personagem vira peça de
+ * jogador; ameaça vira peça de inimigo (`player: false`: não dá visão nem explorado, e some do projetor fora da vista dos jogadores). Há uma peça
+ * por ficha: pôr de novo só a seleciona (a vida vem da ficha, então dois monstros iguais pedem duas fichas: duplique a ficha na Ficha). Devolve a peça.
  */
 export function adicionarPersonagem(s: SessaoDeEdicao, e: Entidade, onde?: Ponto, repo?: Pick<RepositorioMapas, 'salvarAsset'> | null): Peca | null {
-  const ref = refDaFicha(e.refs); if (!ref) return null;
+  const ref = refDaFicha(e.refs); if (!ref || (e.tipo !== 'personagem' && e.tipo !== 'ameaca')) return null;
   const m = s.store.documento, existente = pecaDaFicha(m, ref);
   if (existente) { s.selecao.value = [{ colecao: 'tokens', id: existente.id }]; avisar(`${e.nome} já está no mapa.`, { duracao: 1800 }); return existente; }
   const centro = centroDaCelula(m, onde ?? [m.bounds.width / 2, m.bounds.height / 2]);
-  const peca = novaPeca(centro, e.nome, { player: true, refs: [ref] });
+  const peca = novaPeca(centro, e.nome, { player: e.tipo === 'personagem', refs: [ref] });
   s.store.executar({ tipo: 'item.adicionar', colecao: 'tokens', item: peca as never }, { rotulo: `Pôr ${e.nome} no mapa` });
   s.selecao.value = [{ colecao: 'tokens', id: peca.id }];
   // O retrato que a Ficha publicou vira o retrato da peça (a imagem fica no banco de assets; o documento guarda só a referência).

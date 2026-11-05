@@ -159,3 +159,13 @@ test('sessão: notas do roteiro são opcionais, por chave de Ref, e validadas (f
   for (const ruim of ruins) await assert.rejects(async () => repo.salvarSessao({ ...base, roteiroNotas: ruim } as never), /roteiroNotas/);
   repo.fechar();
 });
+
+test('entidade: o tipo `ameaca` (monstro) é válido e fica separado de `personagem`', async () => {
+  const repo = await abrirRepositorioCampanha({ app: 'ficha', idb: new IDBFactory() });
+  const c = await repo.criarCampanha({ nome: 'Ameaças' });
+  const e = await repo.criarEntidade({ campanhaId: c.id, tipo: 'ameaca', nome: 'Zumbi de Sangue', refs: [criarRef('ficha', 'ficha', 'threat-1')] });
+  assert.equal(e.tipo, 'ameaca');
+  assert.deepEqual((await repo.listarEntidades(c.id, { tipo: 'ameaca' })).map(x => x.nome), ['Zumbi de Sangue']);
+  assert.deepEqual(await repo.listarEntidades(c.id, { tipo: 'personagem' }), []);
+  repo.fechar();
+});

@@ -422,3 +422,9 @@ body.projetor { overflow: hidden; background: #000; }
 .vazio-embutido .faixa { justify-self: center; }
 
 [data-embutido] .editor { grid-template-columns: 56px auto minmax(0, 1fr) 248px; }
+
+/* Ameaças (monstros) na lista de personagens */
+.ameacas { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.dock-subtitulo { margin: 4px 0 0; font: 700 11px var(--titulo); letter-spacing: 0.08em; text-transform: uppercase; color: var(--apagado); }
+.busca-ameacas { width: 100%; }
+.personagem.ameaca .personagem-nome { color: #ff9a8f; }

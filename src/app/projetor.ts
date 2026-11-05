@@ -3,6 +3,7 @@ import type { Recursos } from '../domain/fichas.ts';
 import type { Vista } from '../domain/inspecao.ts';
 import type { MapaAtlas } from '../domain/mapa.ts';
 import { mostrarPvNoProjetor, recursosDaPeca, recursosDasFichas } from './fichas.ts';
+import { recursosParaOProjetor } from '../domain/fichas.ts';
 import { projetarParaJogadores } from '../domain/projecao.ts';
 import type { EventoDeCena } from '../render/eventos-de-cena.ts';
 import type { Caixa } from '../render/selecao.ts';
@@ -82,12 +83,10 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
       void lerAsset(rid).then(blob => { if (blob && !parado) enviar({ tipo: 'retrato', id: rid, blob }); else retratosEnviados.delete(rid); }).catch(() => retratosEnviados.delete(rid));
     }
   };
-  /** PV e PD por peça, ou nada se o mestre não quer mostrá-los. */
+  /** PV e PD por peça de jogador, ou nada se o mestre não quer mostrá-los. */
   const enviarRecursos = () => {
     if (!projetorConectado.peek() || parado) return;
-    const por: Record<string, Recursos> = {};
-    if (mostrarPvNoProjetor.peek()) for (const t of Object.values(s.store.documento.tokens)) { const r = recursosDaPeca(t); if (r) por[t.id] = r; }
-    enviar({ tipo: 'recursos', por });
+    enviar({ tipo: 'recursos', por: recursosParaOProjetor(s.store.documento.tokens, recursosDaPeca, mostrarPvNoProjetor.peek()) });
   };
   const enviarEstado = () => {
     if (!projetorConectado.peek() || parado) return;
