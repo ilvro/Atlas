@@ -32,6 +32,8 @@ export const CATALOGO: Readonly<Record<string, Entrada>> = {
   'atelie.documento-salvo': { natureza: 'fato', dono: 'atelie', validar: ref('documento') },
   'jukebox.tocando': { natureza: 'fato', dono: 'jukebox', validar: refOuNulo('cena') },
   'jukebox.tocar': { natureza: 'pedido', dono: 'jukebox', validar: ref('ref') },
+  /** Toca uma vez, por cima da música, um efeito do Jukebox (uma faixa de gênero `sfx`): `mesa:jukebox/efeito/<titulo-em-minusculas-sem-acento>`. */
+  'jukebox.efeito': { natureza: 'pedido', dono: 'jukebox', validar: ref('ref') },
   'atlas.focar': { natureza: 'pedido', dono: 'atlas', validar: ref('ref') },
   'ficha.abrir': { natureza: 'pedido', dono: 'ficha', validar: ref('ref') },
   'atelie.abrir': { natureza: 'pedido', dono: 'atelie', validar: ref('ref') },

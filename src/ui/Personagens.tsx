@@ -33,7 +33,7 @@ export function Personagens({ s }: { s: SessaoDeEdicao }) {
             onDragStart={ev => { ev.dataTransfer?.setData(TIPO_ARRASTE, e.id); ev.dataTransfer?.setData('text/plain', e.nome); }}>
             <span class="personagem-nome">{e.nome}</span>
             {rec && <span class="personagem-recursos" data-testid={`personagem-recursos-${e.id}`}>PV {rec.pv}/{rec.pvMax} · PD {rec.pd}/{rec.pdMax}</span>}
-            <button type="button" class="botao-pilula" data-testid={`personagem-por-${e.id}`} onClick={() => tentar(() => { adicionarPersonagem(s, e, viewport.atual?.centro()); })}>{noMapa ? 'Selecionar' : 'Pôr no mapa'}</button>
+            <button type="button" class="botao-pilula" data-testid={`personagem-por-${e.id}`} onClick={() => tentar(() => { adicionarPersonagem(s, e, viewport.atual?.centro(), servicos.value?.repo); })}>{noMapa ? 'Selecionar' : 'Pôr no mapa'}</button>
           </div>
         );
       })}
@@ -47,5 +47,5 @@ export function soltarPersonagem(s: SessaoDeEdicao, evento: DragEvent): void {
   const id = evento.dataTransfer?.getData(TIPO_ARRASTE); if (!id) return;
   evento.preventDefault();
   const e = lista.peek().find(x => x.id === id), mundo = viewport.atual?.mundoDe(evento.clientX, evento.clientY);
-  if (e) tentar(() => { adicionarPersonagem(s, e, mundo); });
+  if (e) tentar(() => { adicionarPersonagem(s, e, mundo, servicos.value?.repo); });
 }

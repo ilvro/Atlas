@@ -91,7 +91,7 @@ Testes: e2e na Mesa: o inventário mostra Atlas e Mesa como "achado" e os outros
 Pronto quando: `npm run mesa-dev` sobe os cinco projetos e a Mesa numa origem.
 Commit (Atlas): run all apps under mesa-dev; (Mesa): app inventory
 
-### 9.2a — 🔒 Ficha no contrato  ⬜
+### 9.2a — Ficha no contrato  ✅
 Objetivo: a Ficha emite rolagens e recursos, atende `ficha.abrir` e se anuncia por manifesto.
 Depende de: 9.1c; autorização para mudar a Ficha.
 Ler: na Ficha, `src/app.js` (estado, `defaults`, onde PV e PD mudam, onde as rolagens terminam), `src/dice3d.js` (`rollDice3d`), `vite.config.js`, `package.json`; `Tabletop/docs/INTEGRACAO_FICHA.md`; `Atlas/mesa-core/src/eventos.ts` (`ficha.rolagem`, `ficha.recursos`, `ficha.abrir`).
@@ -106,6 +106,14 @@ Não fazer: a Ficha ler nada do Atlas.
 Testes: na Ficha, um teste do módulo `mesa.js` com um barramento falso; e2e no Atlas sob o `mesa-dev`: rolar na Ficha chega como `ficha.rolagem` no Atlas.
 Pronto quando: rolagens e recursos saem da Ficha pelo barramento e a ficha aparece como personagem na Mesa.
 Commit (Ficha): join the table contract
+
+Nota: autorizada pelo usuário ("pode seguir com ficha"). Feita na Ficha: `src/mesa.js` (módulo sem DOM, testável), `vendor/mesa-core/` (cópia de `mesa-core/dist`), `public/mesa.json` (rota `./?ficha={id}`), `tests/mesa.test.mjs`, script `dev:mesa` (Vite com `--base /Ficha/`, porque o `index.html` usa `/src/…` absoluto e o proxy não o alcançaria na raiz) e quatro ganchos em `app.js` (import, `roll()` antes de `addRollLogEntry`, `save()`, inicialização depois do `render()` final; `?ficha=<id>` abre a ficha).
+- Ids: cada ficha tem `id` estável (`sheet.id`); o Ref é `mesa:ficha/ficha/<id>`.
+- Só as fichas de personagem (`systemMode` ≠ `threat`) viram entidades `personagem` (16 de 114); as 98 ameaças não são publicadas.
+- PV/PD por modo: Ordem 2 usa `pd/maxPd`; Ordem 1 usa Sanidade (ou PE com a regra opcional de PD). `ficha.recursos` só sai quando os valores mudam (e para todas as personagens ao sincronizar).
+- Retrato: campo opcional `retrato?: Blob` na entidade (aditivo, contrato continua v1, até 512 KB, validado no `mesa-core`); a Ficha reduz para 256 px (WebP) se passar do limite. No Atlas, `adicionarPersonagem` guarda o retrato como asset e o põe em `portrait` da peça.
+- Teste e2e `tests/e2e/ficha.test.ts` com a Ficha de verdade sob o `mesa-dev`: publica as personagens com retrato, o retrato chega à peça, rolar na Ficha chega como `ficha.rolagem`, `ficha.abrir` atende (e recusa ficha inexistente).
+- Ainda não fiz: avisar `ficha.recursos` ao trocar de ficha sem salvar (só ao salvar/sincronizar) e a publicação de ameaças como entidades `npc`.
 
 ### 9.2b — Ficha → peça; cartão com PV e PD  ✅
 Objetivo: arrastar um personagem da campanha para o mapa cria a peça ligada à ficha; a peça mostra PV e PD em pips.
@@ -180,7 +188,7 @@ Testes: no Ateliê, teste do módulo com barramento falso; e2e no Atlas sob o `m
 Pronto quando: o pedido é atendido.
 Commit (Ateliê): join the table contract
 
-### 9.4a — 🔒 Jukebox no contrato  ⬜
+### 9.4a — 🔒 Jukebox no contrato  ✅
 Objetivo: o Jukebox publica as cenas na campanha, toca uma cena quando pedido e avisa o que está tocando.
 Depende de: 9.1c; autorização para mudar o Jukebox.
 Ler: `Jukebox/index.html`, `scenes.js` (`loadScenes`, ids das cenas, aplicar uma cena), `player.js`, `README.md`.
@@ -192,6 +200,7 @@ Como:
 Não fazer: efeitos avulsos (9.4d).
 Testes: e2e no Atlas sob o `mesa-dev` com o Jukebox: trocar o clima no Atlas toca a cena escolhida (confere `jukebox.tocando`). É a primeira vez que a 4.7a roda contra o Jukebox de verdade.
 Pronto quando: o pedido do Atlas toca a cena no Jukebox.
+Nota: autorizado pelo usuário em 4 de novembro de 2026 (só o Jukebox). No Jukebox: `mesa.json`, `mesa.js`, `vendor/mesa-core/` (cópia compilada), duas exportações em `scenes.js` (`activateSceneById`, `getActiveSceneId`) e o evento `sceneActivated`. Cada cena vira uma entidade `cena` (`mesa:jukebox/cena-sonora/<id>`), `jukebox.tocar` ativa a cena sem alternar (se faltam faixas, as que existem tocam e a resposta é `ok: false` com o motivo) e `jukebox.tocando` avisa a cena ativa. Testado contra o Jukebox de verdade sob o `mesa-dev` (`tests/e2e/jukebox.test.ts`): é a primeira vez que a 4.7a roda contra ele.
 Commit (Jukebox): join the table contract
 
 ### 9.4b — Cena sonora por mapa, região e clima  ✅
@@ -223,7 +232,7 @@ Pronto quando: os testes passam.
 Nota: `domain/regioes.ts` (`regioesEntradas`, `regioesOcupadas`), `app/regioes.ts` (`reagirAoMovimento`): emite `atlas.regiao-entrou`, a região de áudio pede a cena, o gatilho mostra o texto (campo novo "Texto do gatilho"), e sair da última região de áudio volta à cena do clima (ou do mapa).
 Commit: region enter events
 
-### 9.4d — 🔒 Efeitos avulsos do Jukebox nos interagíveis  ⬜
+### 9.4d — 🔒 Efeitos avulsos do Jukebox nos interagíveis  ✅
 Objetivo: portas e interagíveis podem tocar um efeito da biblioteca do Jukebox no lugar do som sintetizado.
 Depende de: 9.4a, 7.6b; autorização; **só se o Jukebox tiver ou ganhar efeitos avulsos** (hoje os "efeitos" dele são filtros sobre trechos de música).
 Ler: ARQUITETURA §8.1; o Jukebox inteiro, de novo.
@@ -232,6 +241,7 @@ Como: 👤 Primeiro, mostrar ao usuário o que seria preciso no Jukebox e decidi
 Não fazer: nada antes da decisão.
 Testes: definidos depois da decisão.
 Pronto quando: a decisão está tomada e implementada.
+Nota: decisão do usuário: o Atlas usa só os efeitos que estão no Jukebox. No Jukebox um efeito avulso é uma faixa com o gênero `sfx`; ele os publica como entidades `efeito` (`mesa:jukebox/efeito/<título sem acento>`, id estável porque os ids das faixas mudam a cada carga do preset) e atende `jukebox.efeito` (toca uma vez por cima da música; pedido de novo, recomeça). No `mesa-core`: pedido novo `jukebox.efeito` e tipo de entidade `efeito` (sem subir o contrato). No Atlas: `EscolherCena` com `tipo="efeito"` na porta (`som`) e nos interagíveis (`sound`); `tocarSomEscolhido` pede o efeito e, se o Jukebox não atende em 0,4 s, toca o sintetizado (a reserva).
 Commit: (conforme a decisão)
 
 ### 9.5a — 🔒 Mesa em modo sessão  ⬜

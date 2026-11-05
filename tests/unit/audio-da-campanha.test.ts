@@ -28,3 +28,21 @@ test('cenaDaRegiao só vale para região de áudio com Ref do Jukebox; cenaDeFun
   assert.deepEqual(cenaDeFundo(m), taverna);
   m.climate.preset = 'tempestade'; m.climateAudio.tempestade = chuva; assert.deepEqual(cenaDeFundo(m), chuva);
 });
+
+import { tocarSomEscolhido, ehEfeitoDoJukebox } from '../../src/app/audio-do-clima.ts';
+const efeito = criarRef('jukebox', 'efeito', 'porta-rangendo');
+
+test('tocarSomEscolhido: o efeito do Jukebox toca no lugar do sintetizado; se o Jukebox não atende, o sintetizado toca (uma vez); sem escolha, só o sintetizado', async () => {
+  let sintetizados = 0; const som = () => { sintetizados++; };
+  const atende = { pedir: async (tipo: string) => { assert.equal(tipo, 'jukebox.efeito'); return { ok: true as const, resposta: { ok: true } }; } };
+  assert.equal(await tocarSomEscolhido(atende, efeito, som), 'efeito'); assert.equal(sintetizados, 0);
+  const recusa = { pedir: async () => ({ ok: false as const, motivo: 'recusado' as const, detalhe: 'Este efeito não está carregado.' }) };
+  assert.equal(await tocarSomEscolhido(recusa, efeito, som), 'sintetizado'); assert.equal(sintetizados, 1);
+  const semResposta = { pedir: async () => ({ ok: false as const, motivo: 'sem-resposta' as const }) };
+  assert.equal(await tocarSomEscolhido(semResposta, efeito, som), 'sintetizado'); assert.equal(sintetizados, 2);
+  const quebra = { pedir: () => Promise.reject(new Error('canal fechado')) };
+  assert.equal(await tocarSomEscolhido(quebra, efeito, som), 'sintetizado'); assert.equal(sintetizados, 3);
+  assert.equal(await tocarSomEscolhido(atende, null, som), 'sintetizado'); assert.equal(await tocarSomEscolhido(null, efeito, som), 'sintetizado'); assert.equal(sintetizados, 5);
+  assert.equal(await tocarSomEscolhido(atende, chuva, som), 'sintetizado', 'uma cena não é um efeito'); assert.equal(sintetizados, 6);
+  assert.equal(ehEfeitoDoJukebox(efeito), true); assert.equal(ehEfeitoDoJukebox(chuva), false); assert.equal(ehEfeitoDoJukebox(undefined), false);
+});

@@ -329,6 +329,7 @@ function InteracaoDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
     <CampoOpcoes rotulo="Interação" dica="O que o mestre aciona na sessão, clicando no objeto ou com Enter ao lado de uma peça." valor={i?.kind ?? ''}
       opcoes={[['', 'Nenhuma'], ['switch', 'Interruptor'], ['drawer', 'Gaveta'], ['clue', 'Pista do Ateliê']] as never}
       aoMudar={v => editar(v ? { kind: v as 'switch' | 'drawer' | 'clue', on: v === 'clue' ? false : i?.on ?? true, targets: [], sound: i?.sound ?? null, clue: v === 'clue' ? i?.clue ?? null : null } : null, 'Interação do objeto')} />
+    {(i?.kind === 'switch' || i?.kind === 'drawer') && <EscolherCena s={s} tipo="efeito" id="som-do-objeto" rotulo="Som" dica="Um efeito do Jukebox toca ao usar. Sem escolha (ou com o Jukebox fechado), vale o som do Atlas." valor={i.sound} aoEscolher={ref => editar({ ...i, sound: ref }, 'Som do objeto')} />}
     {i?.kind === 'clue' && <PistaDoObjeto i={i} aoEscolher={ref => editar({ ...i, clue: ref }, 'Pista do objeto')} />}
     {i?.kind === 'switch' && (<div data-testid="luzes-do-interruptor">
       <p class="dica">{i.targets.length ? 'Controla as luzes marcadas.' : 'Sem escolha, controla as luzes de rede deste cômodo (as de fogo ficam de fora).'}</p>
@@ -433,6 +434,7 @@ function CamposDaAbertura({ s, o }: { s: SessaoDeEdicao; o: Abertura }) {
     {porta && <CampoOpcoes rotulo="Estado" valor={o.state} opcoes={[['closed', 'Fechada'], ['open', 'Aberta'], ['locked', 'Trancada']] as never} aoMudar={v => editar({ state: v }, 'Estado da porta')} />}
     {o.kind === 'door' && <CampoOpcoes rotulo="Abre para" valor={o.swing} opcoes={[['a', 'Um lado'], ['b', 'O outro lado']] as never} aoMudar={v => editar({ swing: v }, 'Lado da porta')} />}
     <CampoNumero rotulo="Largura" unidade="m" valor={o.width} min={0.4} max={6} passo={0.1} aoConfirmar={v => editar({ width: v }, 'Largura da abertura')} />
+    {porta && <EscolherCena s={s} tipo="efeito" id="som-da-porta" rotulo="Som da porta" dica="Um efeito do Jukebox toca ao abrir e ao fechar. Sem escolha (ou com o Jukebox fechado), vale o som do Atlas." valor={o.som} aoEscolher={ref => editar({ som: ref }, 'Som da porta')} />}
   </>);
 }
 

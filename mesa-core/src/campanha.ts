@@ -4,7 +4,7 @@ import { ehApp, ehRef, mesmaRef, type AppId, type Ref } from './refs.ts';
 export const BANCO_CAMPANHA = 'mesa-campanha-v1';
 export const VERSAO_BANCO_CAMPANHA = 1;
 
-export const TIPOS_ENTIDADE = ['personagem', 'lugar', 'pista', 'cena', 'sessao', 'faccao', 'nota'] as const;
+export const TIPOS_ENTIDADE = ['personagem', 'lugar', 'pista', 'cena', 'efeito', 'sessao', 'faccao', 'nota'] as const;
 export type TipoEntidade = (typeof TIPOS_ENTIDADE)[number];
 
 export interface Campanha {
@@ -27,6 +27,8 @@ export interface Entidade {
   refs: Ref[];
   tags: string[];
   notas: string;
+  /** O retrato (uma imagem pequena, de até 512 KB), publicado por quem criou a entidade; os outros aplicativos só leem. Opcional. */
+  retrato?: Blob;
   criadaPor: AppId;
   criadaEm: number;
   atualizadaEm: number;
@@ -80,7 +82,8 @@ export function validarCampanha(v: unknown): asserts v is Campanha {
 }
 
 export function validarEntidade(v: unknown): asserts v is Entidade {
-  objeto(v, 'entidade'); soCampos(v, ['id', 'campanhaId', 'tipo', 'nome', 'refs', 'tags', 'notas', 'criadaPor', 'criadaEm', 'atualizadaEm'], 'entidade');
+  objeto(v, 'entidade'); soCampos(v, ['id', 'campanhaId', 'tipo', 'nome', 'refs', 'tags', 'notas', 'retrato', 'criadaPor', 'criadaEm', 'atualizadaEm'], 'entidade');
+  falha(v.retrato === undefined || (typeof Blob !== 'undefined' && v.retrato instanceof Blob && v.retrato.size <= 512 * 1024), 'O retrato deve ser uma imagem de até 512 KB.', 'entidade.retrato');
   falha(typeof v.id === 'string' && v.id.length > 0 && typeof v.campanhaId === 'string' && v.campanhaId.length > 0, 'Identificador ausente.', 'entidade.id');
   falha((TIPOS_ENTIDADE as readonly string[]).includes(String(v.tipo)), 'Tipo de entidade inválido.', 'entidade.tipo');
   texto(v.nome, 'entidade.nome'); falha(String(v.nome).trim().length > 0, 'Dê um nome.', 'entidade.nome');
@@ -125,7 +128,7 @@ export interface RepositorioCampanha {
 
   listarEntidades(campanhaId: string, filtro?: { tipo?: TipoEntidade; ref?: Ref }): Promise<Entidade[]>;
   obterEntidade(id: string): Promise<Entidade | undefined>;
-  criarEntidade(dados: { campanhaId: string; tipo: TipoEntidade; nome: string; refs?: Ref[]; tags?: string[]; notas?: string }): Promise<Entidade>;
+  criarEntidade(dados: { campanhaId: string; tipo: TipoEntidade; nome: string; refs?: Ref[]; tags?: string[]; notas?: string; retrato?: Blob }): Promise<Entidade>;
   /**
    * Quem criou a entidade altera tudo. Os demais aplicativos só mexem nas referências do próprio aplicativo
    * (acrescentar, trocar, tirar); qualquer outra diferença é recusada.
@@ -179,8 +182,8 @@ export async function abrirRepositorioCampanha(opcoes: OpcoesRepositorio): Promi
       return lista.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     }),
     obterEntidade: id => transacao(banco, ['entidades'], 'readonly', tx => promessa(tx.objectStore('entidades').get(id)) as Promise<Entidade | undefined>),
-    async criarEntidade({ campanhaId, tipo, nome, refs = [], tags = [], notas = '' }) {
-      const t = agora(), entidade: Entidade = { id: novoId(), campanhaId, tipo, nome, refs, tags, notas, criadaPor: opcoes.app, criadaEm: t, atualizadaEm: t };
+    async criarEntidade({ campanhaId, tipo, nome, refs = [], tags = [], notas = '', retrato }) {
+      const t = agora(), entidade: Entidade = { id: novoId(), campanhaId, tipo, nome, refs, tags, notas, ...(retrato ? { retrato } : {}), criadaPor: opcoes.app, criadaEm: t, atualizadaEm: t };
       validarEntidade(entidade);
       await transacao(banco, ['campanhas', 'entidades'], 'readwrite', async tx => {
         falha(await promessa(tx.objectStore('campanhas').getKey(campanhaId)) !== undefined, 'A campanha não existe.', 'entidade.campanhaId');

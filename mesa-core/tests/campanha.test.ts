@@ -139,3 +139,11 @@ test('validarEntidade recusa campos desconhecidos e textos longos demais', () =>
 });
 
 test.after(() => { for (const r of abertos) r.fechar(); });
+
+test('uma entidade pode levar um retrato pequeno, e só pequeno', async () => {
+  const repo = await abrir('ficha', new IDBFactory());
+  const c = await repo.criarCampanha({ nome: 'Ilha' });
+  const e = await repo.criarEntidade({ campanhaId: c.id, tipo: 'personagem', nome: 'Ana', retrato: new Blob(['x'], { type: 'image/png' }) });
+  assert.ok((await repo.obterEntidade(e.id))?.retrato instanceof Blob);
+  await assert.rejects(repo.criarEntidade({ campanhaId: c.id, tipo: 'personagem', nome: 'Grande', retrato: new Blob([new Uint8Array(600 * 1024)]) }), ErroCampanha);
+});

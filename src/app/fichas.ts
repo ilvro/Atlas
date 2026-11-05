@@ -6,6 +6,7 @@ import type { MapaAtlas, Peca, Ponto } from '../domain/mapa.ts';
 import { centroDaCelula } from '../domain/movimento.ts';
 import type { SessaoDeEdicao } from './sessao.ts';
 import { avisar } from './toasts.ts';
+import type { RepositorioMapas } from '../data/repositorio.ts';
 
 /** O último `ficha.recursos` recebido, por Ref da ficha (memória da sessão, não documento). */
 export const recursosDasFichas = signal<Record<string, Recursos>>({});
@@ -56,7 +57,7 @@ export const personagensComFicha = (lista: readonly Entidade[]): Entidade[] => l
  * Põe o personagem no mapa como peça de jogador ligada à ficha (no centro da célula de `onde`, ou do centro do mapa). Se já há uma peça
  * dessa ficha, só a seleciona. Devolve a peça.
  */
-export function adicionarPersonagem(s: SessaoDeEdicao, e: Entidade, onde?: Ponto): Peca | null {
+export function adicionarPersonagem(s: SessaoDeEdicao, e: Entidade, onde?: Ponto, repo?: Pick<RepositorioMapas, 'salvarAsset'> | null): Peca | null {
   const ref = refDaFicha(e.refs); if (!ref) return null;
   const m = s.store.documento, existente = pecaDaFicha(m, ref);
   if (existente) { s.selecao.value = [{ colecao: 'tokens', id: existente.id }]; avisar(`${e.nome} já está no mapa.`, { duracao: 1800 }); return existente; }
@@ -64,6 +65,8 @@ export function adicionarPersonagem(s: SessaoDeEdicao, e: Entidade, onde?: Ponto
   const peca = novaPeca(centro, e.nome, { player: true, refs: [ref] });
   s.store.executar({ tipo: 'item.adicionar', colecao: 'tokens', item: peca as never }, { rotulo: `Pôr ${e.nome} no mapa` });
   s.selecao.value = [{ colecao: 'tokens', id: peca.id }];
+  // O retrato que a Ficha publicou vira o retrato da peça (a imagem fica no banco de assets; o documento guarda só a referência).
+  if (e.retrato && repo) void repo.salvarAsset(e.retrato).then(portrait => { if (s.store.documento.tokens[peca.id]) s.store.executar({ tipo: 'item.atualizar', colecao: 'tokens', id: peca.id, patch: { portrait } }, { rotulo: `Retrato de ${e.nome}` }); }).catch(erro => console.warn('Atlas: não consegui guardar o retrato', erro));
   return peca;
 }
 

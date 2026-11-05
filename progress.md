@@ -325,9 +325,12 @@ Feitas as tarefas que só mexem no Atlas, contra aplicativos falsos no barrament
 - **9.4c Entrar numa região** — `atlas.regiao-entrou`, região de áudio pede a cena, gatilho mostra o texto, sair volta ao fundo. Commit: `region enter events`.
 - **9.6a Motor de tutoriais** — condições puras, controlador com progresso e registro locais, tutor com anel, marcas no mapa e ajuda em degraus, mapa de treino, "Aprender" na galeria, relatório. Commit: `tutorial engine`.
 - **9.6b Lições** — Primeira casa, O assistente, Espalhar e terreno, Climas e Sessão, com resultado comparado ao gabarito e captura-alvo no cartão final. Commit: `tutorial lessons`.
+- **9.4a Jukebox no contrato** (autorizado só para o Jukebox) — `mesa.js` no Jukebox publica cenas e efeitos na campanha ativa, atende `jukebox.tocar` e `jukebox.efeito`, e avisa `jukebox.tocando`; testado contra o Jukebox de verdade sob o `mesa-dev`. Commit (Jukebox): `join the table contract`.
+- **9.4d Efeitos do Jukebox nas portas e interagíveis** — decisão: só os efeitos do Jukebox (faixas `sfx`); o som da porta e do interagível se escolhe no inspetor e toca por `jukebox.efeito`, com o sintetizado de reserva. Commit: `jukebox effects for doors and switches`.
+- **9.2a Ficha no contrato** (autorizada só para a Ficha) — `src/mesa.js` na Ficha publica as 16 personagens (não as ameaças) com retrato, emite `ficha.rolagem` e `ficha.recursos`, atende `ficha.abrir`; `retrato?: Blob` opcional na entidade do `mesa-core`; o Atlas põe o retrato na peça. Commits: `join the table contract` (Ficha), `character portraits on the table` (Atlas).
 - **9.7 (parcial)** — e2e `fase 9 (parte do Atlas…)`: ficha → peça, rolagem sobre a peça e no projetor, pista com UV no projetor, clima e região trocando a cena.
 - **Validação:** `tsc` limpo, 494 unitários; e2e: fases 2 a 5 (42), 6 a 9 (48) e tutoriais (7), todos passando.
-- **Pendente (🔒, esperam autorização):** 9.1a a 9.1c (Mesa e `mesa-dev` com todos), 9.2a (Ficha no contrato), 9.3c (Ateliê: manifesto e `atelie.abrir`), 9.4a (Jukebox no contrato), 9.4d (efeitos avulsos do Jukebox ou biblioteca própria, 👤), 9.5a e 9.5b (Mesa em modo sessão e registro) e o resto da 9.7. Sem esses projetos, as integrações só foram testadas com aplicativos falsos.
+- **Pendente (🔒, esperam autorização):** 9.1a a 9.1c (Mesa e `mesa-dev` com todos), 9.3c (Ateliê: manifesto e `atelie.abrir`), 9.5a e 9.5b (Mesa em modo sessão e registro) e o resto da 9.7. Sem esses projetos, as integrações só foram testadas com aplicativos falsos.
 
 ## Próximo
 

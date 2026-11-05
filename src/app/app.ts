@@ -20,7 +20,7 @@ import { todosOsAlvos, caixaDe, caixaDaSelecao, ehMovel, type Alvo, type Colecao
 import type { Viewport } from '../render/viewport.ts';
 import type { ColecaoLivre, Comando } from '../state/comandos.ts';
 import { campanhaAtiva, carregarCampanhas, desvincularMapa, refDoMapa, revincularMapa, sincronizarMapaComCampanha } from './campanha.ts';
-import { pedirCena, pedirSomDoClima, pedirSomDoMapa } from './audio-do-clima.ts';
+import { pedirCena, pedirSomDoClima, pedirSomDoMapa, tocarSomEscolhido } from './audio-do-clima.ts';
 import { iniciarRegioes } from './regioes.ts';
 import { modo, vistaDeJogador } from './modo.ts';
 import { iniciarSugestoes } from './sugestoes.ts';
@@ -406,7 +406,7 @@ function emitirRevelado(id: string, tipo = 'abertura'): void {
 export function alternarPorta(id: string): void {
   const s = sessao.value; if (!s) return;
   const o = s.doc.value.openings[id]; if (!o || (o.kind !== 'door' && o.kind !== 'secret')) return;
-  // O `som` guardado na abertura (um Ref do Jukebox) ainda não toca: fica para a 9.4d. Por ora, os sons sintetizados.
+  // O `som` da abertura (um efeito do Jukebox) toca no lugar do sintetizado, que fica de reserva (`tocarSomEscolhido`).
   if (o.state === 'locked') { avisar('Trancada', { duracao: 1600 }); tocar('trancada'); return; }
   const abrir = o.state !== 'open', revelarJunto = abrir && secretaOculta(s.doc.value, o);
   try {
@@ -416,7 +416,7 @@ export function alternarPorta(id: string): void {
       g.aplicar({ tipo: 'sessao.explorar' });
     });
   } catch (erro) { avisar(erro instanceof Error ? erro.message : String(erro), { tipo: 'erro' }); tocar('erro'); return; }
-  tocar(abrir ? 'porta-abrir' : 'porta-fechar');
+  void tocarSomEscolhido(servicos.peek()?.barramento, o.som, () => tocar(abrir ? 'porta-abrir' : 'porta-fechar'));
   if (revelarJunto) emitirRevelado(id);
 }
 
@@ -457,9 +457,10 @@ export function usarObjeto(id: string): void {
   const s = sessao.value; if (!s) return;
   const o = s.doc.value.props[id]; if (!o?.interaction) return;
   if (o.interaction.kind === 'clue') { void abrirInspecao(o.interaction.clue, o.id); return; }
-  // O `sound` guardado no objeto (um Ref do Jukebox) também fica para a 9.4d.
+  // O `sound` do objeto (um efeito do Jukebox) também toca no lugar do sintetizado.
   try { s.store.executar({ tipo: 'interagir', id }, { rotulo: ROTULO_DA_INTERACAO[o.interaction.kind] }); } catch (erro) { avisar(erro instanceof Error ? erro.message : String(erro), { tipo: 'erro' }); tocar('erro'); return; }
-  tocar(o.interaction.kind === 'switch' ? 'interruptor' : 'gaveta');
+  const dele = o.interaction;
+  void tocarSomEscolhido(servicos.peek()?.barramento, dele.sound, () => tocar(dele.kind === 'switch' ? 'interruptor' : 'gaveta'));
 }
 
 /** Enter com uma peça selecionada: interage com a porta mais perto (a que está à frente dela, se houver duas). */
