@@ -1,6 +1,8 @@
 import { arestasDeParede, comprimentoDaParede, pontoNaParede, salasDaAbertura, type ArestaUnitaria } from '../domain/geometria.ts';
-import type { Comodo, MapaAtlas, Objeto } from '../domain/mapa.ts';
+import type { Comodo, MapaAtlas, Objeto, Parede } from '../domain/mapa.ts';
 import { generoDe } from '../domain/presets.ts';
+import type { EntradaDeEscarpa } from '../procedural/escarpa.ts';
+import { materialDe } from '../procedural/materiais.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import type { EntradaDeTerreno, EntradaDoComodo } from '../procedural/assar.ts';
 import { COLECAO, PPC_DO_PIXEL_ARQUIVO, RES_DA_COLECAO, fonteDoPixel, type ItemDaColecao } from '../procedural/colecao.ts';
@@ -94,3 +96,14 @@ export function pedidoDoObjeto(o: Objeto, res: number, genero = 'investigacao', 
 }
 export const chaveDoComodo = (e: EntradaDoComodo, res: number, estilo: IdDoEstilo = 'illustrated'): string => `${estilo}|c|${res}|${JSON.stringify(e)}`;
 export const chaveDoTerreno = (e: EntradaDeTerreno, res: number, estilo: IdDoEstilo = 'illustrated'): string => `${estilo}|t|${res}|${JSON.stringify(e)}`;
+
+/** Semente estável de uma escarpa, a partir do id da parede. */
+const sementeDoId = (id: string): number => { let h = 2166136261; for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619); return (h >>> 0) % 100000 + 1; };
+/** A escarpa avulsa (parede `cliff` sem origem) como dado de desenho; o caminho é relativo ao primeiro ponto. Sem lado definido (documentos antigos) o lado baixo é o `b`; um material que não é de rocha vira `rocha.cinza`. */
+export function entradaDaEscarpa(p: Parede): EntradaDeEscarpa {
+  const [ox, oy] = p.path[0]!;
+  return { path: p.path.map(q => [r3(q[0] - ox), r3(q[1] - oy)] as [number, number]), drop: p.drop ?? 'b', altura: p.height, material: materialDe(p.material).uso === 'macico' ? p.material : 'rocha.cinza', seed: sementeDoId(p.id) };
+}
+export const chaveDaEscarpa = (e: EntradaDeEscarpa, res: number, estilo: IdDoEstilo = 'illustrated'): string => `${estilo}|e|${res}|${JSON.stringify(e)}`;
+/** Parede `cliff` desenhada como face de rocha (as do contorno do maciço, com `source`, ficam invisíveis). */
+export const ehEscarpaAvulsa = (p: Parede): boolean => p.kind === 'cliff' && !p.source;

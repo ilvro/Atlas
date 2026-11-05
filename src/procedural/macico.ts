@@ -14,7 +14,7 @@ export const PATAMARES_ILUSTRADO = 5;
 export const PATAMARES_PIXEL = 3;
 export const TRACO = '#070a0e';
 
-export interface CoresDoMacico { base: string; escuro: string; claro: string; topo?: string }
+export interface CoresDoMacico { base: string; escuro: string; claro: string; topo?: string; /** Peso do pé escuro e da sombra de contato (0 a 1; ausente vale 1). */ pe?: number }
 export interface EntradaDoMacico {
   /** Máscara binária (1 = rocha), `largura × altura`. */
   dentro: Uint8Array;
@@ -48,7 +48,7 @@ function desfocar(a: Float32Array, W: number, H: number, r: number): Float32Arra
 }
 
 export function sombrearMacico(e: EntradaDoMacico): SaidaDoMacico {
-  const { dentro, alfa, largura: W, altura: H, res, pixel } = e, n = W * H, N = pixel ? PATAMARES_PIXEL : PATAMARES_ILUSTRADO;
+  const { dentro, alfa, largura: W, altura: H, res, pixel } = e, pe = limitar(e.cores.pe ?? 1, 0, 1), n = W * H, N = pixel ? PATAMARES_PIXEL : PATAMARES_ILUSTRADO;
   const rgba = new Uint8ClampedArray(n * 4), sombra = new Uint8ClampedArray(n * 4);
   const cBase = rgb(e.cores.base), cEsc = rgb(e.cores.escuro), cCla = rgb(e.cores.claro), cTopo = e.cores.topo ? rgb(e.cores.topo) : null, tinta = rgb(TRACO);
   const cNeveSombra: Cor = [184, 200, 220], cNeveSombraPixel: Cor = [150, 168, 196], escuridao: Cor = [7, 10, 14];
@@ -131,21 +131,21 @@ export function sombrearMacico(e: EntradaDoMacico): SaidaDoMacico {
       if (m > 0) { misturar(cor, neve, m, cor); tinto *= 1 - m * (pixel ? 0.75 : 0.6); }
     }
     if (tinto > 0) misturar(cor, tinta, tinto, tmp), (cor[0] = tmp[0], cor[1] = tmp[1], cor[2] = tmp[2]);
-    if (!pixel) misturar(cor, escuridao, (1 - suave(0, 0.7, d)) * 0.82, cor);      // pé da parede: a face escurece quase ao negro do vão
+    if (!pixel) misturar(cor, escuridao, (1 - suave(0, 0.7, d)) * 0.82 * pe, cor);      // pé da parede: a face escurece quase ao negro do vão
     const o = i * 4;
     rgba[o] = cor[0]; rgba[o + 1] = cor[1]; rgba[o + 2] = cor[2]; rgba[o + 3] = alfa ? alfa[i]! : 255;
   }
 
   // 2. Sombra de contato: a rocha escurece o que está embaixo, 0,4 m para fora, empurrada para sudeste (a luz vem de noroeste).
   const fora = new Uint8Array(n); for (let i = 0; i < n; i++) fora[i] = dentro[i] ? 0 : 1;
-  const alcance = pixel ? Math.max(2.01 / res, 0.15) : SOMBRA_DE_CONTATO, dFora = distanciaAMargem(fora, W, H, res, alcance + 0.01), desl = pixel ? 1 : Math.max(1, Math.round(0.1 * res));
+  const alcance = pixel ? (pe < 0.5 ? 1.01 / res : Math.max(2.01 / res, 0.15)) : SOMBRA_DE_CONTATO, pesoSombra = 0.35 + 0.65 * pe, dFora = distanciaAMargem(fora, W, H, res, alcance + 0.01), desl = pixel ? 1 : Math.max(1, Math.round(0.1 * res));
   const sombraPixel = rgb('#0b0e12');
   for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++) {
     if (dentro[i]) continue;
     const dd = dFora[py(y - desl) * W + px(x - desl)]!, o = i * 4;
     if (dd >= alcance && (pixel || dFora[i]! >= alcance)) continue;
     if (pixel) { sombra[o] = sombraPixel[0]; sombra[o + 1] = sombraPixel[1]; sombra[o + 2] = sombraPixel[2]; sombra[o + 3] = 255; }
-    else { const ao = Math.pow(Math.max(0, 1 - dFora[i]! / alcance), 1.8) * 0.62, sudeste = Math.pow(1 - dd / alcance, 1.6) * 0.74; sombra[o] = 4; sombra[o + 1] = 6; sombra[o + 2] = 10; sombra[o + 3] = Math.max(ao, sudeste) * 255; }
+    else { const ao = Math.pow(Math.max(0, 1 - dFora[i]! / alcance), 1.8) * 0.62 * pesoSombra, sudeste = Math.pow(1 - dd / alcance, 1.6) * 0.74 * pesoSombra; sombra[o] = 4; sombra[o + 1] = 6; sombra[o + 2] = 10; sombra[o + 3] = Math.max(ao, sudeste) * 255; }
   }
   return { rgba, sombra };
 }

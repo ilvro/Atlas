@@ -19,7 +19,7 @@ import { ROTULO_DA_REGRA, type RegraDeDiagonal } from '../domain/regua.ts';
 import { definirSugestoesLigadas, sugestoesLigadas } from '../app/sugestoes.ts';
 import { COLECAO } from '../procedural/colecao.ts';
 import { receitaDe } from '../procedural/receitas/index.ts';
-import { materiaisDo } from '../procedural/materiais.ts';
+import { materialDe, materiaisDo } from '../procedural/materiais.ts';
 import { Amostra } from './campos-material.tsx';
 import { tocar } from '../fx/som.ts';
 import { chaveDoAlvo, type Alvo } from '../render/selecao.ts';
@@ -421,10 +421,14 @@ function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
 }
 
 function CamposDaParede({ s, w }: { s: SessaoDeEdicao; w: Parede }) {
+  const avulsa = w.kind === 'cliff' && !w.source;
   const st = s.store, editar = (patch: Record<string, unknown>, rotulo?: string) => tentar(() => st.executar({ tipo: 'parede.atualizar', id: w.id, patch: patch as never }, rotulo ? { rotulo } : {}));
   return (<>
-    <CampoOpcoes rotulo="Tipo" valor={w.kind} opcoes={[['wall', 'Parede'], ['low', 'Muro baixo'], ['fence', 'Cerca'], ['cliff', 'Penhasco']] as never} aoMudar={v => editar({ kind: v }, 'Tipo da parede')} />
-    <CampoNumero rotulo="Altura" unidade="m" valor={w.height} min={0.1} max={20} passo={0.1} aoConfirmar={v => editar({ height: v }, 'Altura da parede')} />
+    <CampoOpcoes rotulo="Tipo" valor={w.kind} opcoes={[['wall', 'Parede'], ['low', 'Muro baixo'], ['fence', 'Cerca'], ['cliff', 'Escarpa']] as never}
+      aoMudar={v => editar(v === 'cliff' ? { kind: v, drop: w.drop ?? 'b', material: materialDe(w.material).uso === 'macico' ? w.material : 'rocha.cinza', blocks: { sight: false, light: false } } : { kind: v }, 'Tipo da parede')} />
+    {avulsa && <p class="dica">Lado baixo: a seta no mapa. <button type="button" class="botao-pilula" data-testid="escarpa-lado" onClick={() => editar({ drop: (w.drop ?? 'b') === 'a' ? 'b' : 'a' }, 'Lado baixo da escarpa')}>Trocar o lado</button></p>}
+    <CampoNumero rotulo="Altura" unidade="m" valor={w.height} min={avulsa ? 0.5 : 0.1} max={avulsa ? 12 : 20} passo={avulsa ? 0.5 : 0.1} aoConfirmar={v => editar({ height: v }, 'Altura da parede')} />
+    {avulsa && <CampoOpcoes rotulo="Rocha" valor={materialDe(w.material).uso === 'macico' ? w.material : 'rocha.cinza'} opcoes={materiaisDo('macico').map(x => [x.id, x.nome] as const)} aoMudar={v => editar({ material: v }, 'Rocha da escarpa')} />}
     <CampoNumero rotulo="Espessura" unidade="m" valor={w.thickness} min={0.02} max={2} passo={0.02} aoConfirmar={v => editar({ thickness: v }, 'Espessura da parede')} />
     <CampoCaixa rotulo="Bloqueia a visão" valor={w.blocks.sight} aoMudar={v => editar({ blocks: { sight: v } })} />
     <CampoCaixa rotulo="Bloqueia a luz" valor={w.blocks.light} aoMudar={v => editar({ blocks: { light: v } })} />

@@ -87,7 +87,7 @@ function Aberturas({ s }: { s: SessaoDeEdicao }) {
 }
 
 function Paredes({ s }: { s: SessaoDeEdicao }) {
-  const tipos: { tipo: Pincel['parede']['tipo']; nome: string; desc: string }[] = [{ tipo: 'wall', nome: 'Parede', desc: 'Bloqueia movimento, visão e luz' }, { tipo: 'low', nome: 'Muro baixo', desc: 'Bloqueia o movimento; dá para ver por cima' }, { tipo: 'fence', nome: 'Cerca', desc: 'Bloqueia o movimento; vê-se através' }];
+  const tipos: { tipo: Pincel['parede']['tipo']; nome: string; desc: string }[] = [{ tipo: 'wall', nome: 'Parede', desc: 'Bloqueia movimento, visão e luz' }, { tipo: 'low', nome: 'Muro baixo', desc: 'Bloqueia o movimento; dá para ver por cima' }, { tipo: 'fence', nome: 'Cerca', desc: 'Bloqueia o movimento; vê-se através' }, { tipo: 'cliff', nome: 'Escarpa', desc: 'Rocha em degrau: bloqueia o passo; de cima se vê embaixo' }];
   return (<>
     <p class="dica">Arraste de um canto a outro (as paredes seguem a grade). As paredes dos cômodos já nascem sozinhas; use esta ferramenta para muros, cercas e divisórias.</p>
     <div class="lista-cartas">{tipos.map(t => <button type="button" key={t.tipo} class={`carta ${s.pincel.value.parede.tipo === t.tipo ? 'ativa' : ''}`} onClick={() => mudar(s, { parede: { tipo: t.tipo } })} data-testid={`parede-${t.tipo}`}><span class="carta-amostras"><Icone nome="parede" tamanho={22} /></span><span class="carta-nome">{t.nome}</span><span class="carta-desc">{t.desc}</span></button>)}</div>

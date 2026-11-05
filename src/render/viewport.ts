@@ -1,3 +1,4 @@
+import { ladoBaixo } from '../procedural/escarpa.ts';
 import { Application, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
 import { criarEventosDeCena, type EventoDeCena, type EstadoDosEventos } from './eventos-de-cena.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
@@ -260,7 +261,13 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         for (const lc of contornoDoComodo(m, decodificar(m.rooms[a.id]!.cells))) { selecaoG.moveTo(lc[0]!.a[0], lc[0]!.a[1]); for (const s of lc) selecaoG.lineTo(s.b[0], s.b[1]); selecaoG.closePath(); }
         selecaoG.stroke({ width: px(2.5), color: cor, alpha: 0.95 }); continue;
       }
-      if (a.colecao === 'walls') { const p = m.walls[a.id]!; selecaoG.moveTo(p.path[0]![0], p.path[0]![1]); for (const q of p.path.slice(1)) selecaoG.lineTo(q[0], q[1]); selecaoG.stroke({ width: p.thickness + px(6), color: cor, alpha: 0.55, cap: 'round', join: 'round' }); continue; }
+      if (a.colecao === 'walls') { const p = m.walls[a.id]!; selecaoG.moveTo(p.path[0]![0], p.path[0]![1]); for (const q of p.path.slice(1)) selecaoG.lineTo(q[0], q[1]); selecaoG.stroke({ width: p.thickness + px(6), color: cor, alpha: 0.55, cap: 'round', join: 'round' });
+        if (p.kind === 'cliff' && !p.source) {      // seta para o lado baixo, a partir do meio do trecho mais longo
+          let b = 0, bc = 0; for (let k = 0; k + 1 < p.path.length; k++) { const c = Math.hypot(p.path[k + 1]![0] - p.path[k]![0], p.path[k + 1]![1] - p.path[k]![1]); if (c > bc) { bc = c; b = k; } }
+          const A = p.path[b]!, B = p.path[b + 1]!, n = ladoBaixo(A, B, p.drop ?? 'b'), mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2, L = px(34), ax = mx + n[0] * L, ay = my + n[1] * L, h = px(8);
+          selecaoG.moveTo(mx, my).lineTo(ax, ay).moveTo(ax - n[0] * h - n[1] * h * 0.7, ay - n[1] * h + n[0] * h * 0.7).lineTo(ax, ay).lineTo(ax - n[0] * h + n[1] * h * 0.7, ay - n[1] * h - n[0] * h * 0.7).stroke({ width: px(2.5), color: cor, alpha: 0.95, cap: 'round', join: 'round' });
+        }
+        continue; }
       const c = caixaDe(m, a)!;
       selecaoG.roundRect(c.x0 - pad, c.y0 - pad, c.x1 - c.x0 + 2 * pad, c.y1 - c.y0 + 2 * pad, px(3)).stroke({ width: px(2), color: cor });
     }
@@ -758,7 +765,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     else if (i.tipo === 'parede' && !cancelado) {
       if (Math.hypot(i.fim[0] - i.ini[0], i.fim[1] - i.ini[1]) >= 0.25) {
         const tipo = ponte.pincel().parede.tipo, id = novoIdEntidade('w');
-        if (tentar(() => store.executar({ tipo: 'parede.adicionar', parede: { id, path: [i.ini, i.fim], height: tipo === 'wall' ? 2.6 : 1.1, thickness: tipo === 'wall' ? 0.2 : 0.14, material: 'parede.topo', kind: tipo, blocks: { move: true, sight: tipo === 'wall', light: tipo === 'wall' }, drop: null } }, { rotulo: 'Desenhar parede' }))) { ponte.definirSelecao([{ colecao: 'walls', id }]); ponte.aoColocar('Parede', i.fim); }
+        if (tentar(() => store.executar({ tipo: 'parede.adicionar', parede: { id, path: [i.ini, i.fim], height: tipo === 'wall' ? 2.6 : tipo === 'cliff' ? 3 : 1.1, thickness: tipo === 'wall' ? 0.2 : tipo === 'cliff' ? 0.4 : 0.14, material: tipo === 'cliff' ? 'rocha.cinza' : 'parede.topo', kind: tipo, blocks: { move: true, sight: tipo === 'wall', light: tipo === 'wall' }, drop: tipo === 'cliff' ? 'b' : null } }, { rotulo: 'Desenhar parede' }))) { ponte.definirSelecao([{ colecao: 'walls', id }]); ponte.aoColocar('Parede', i.fim); }
       }
     }
     camadaSuja = true; cursor();

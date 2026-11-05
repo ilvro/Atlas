@@ -1,5 +1,6 @@
 import { MARGEM_SOMBRA, assarComodo, assarDescricao, assarObjeto, assarTerreno, type Assado, type EntradaDeTerreno, type EntradaDoComodo } from './assar.ts';
 import { contextoDe, criarTela } from './canvas.ts';
+import { assarEscarpa, type EntradaDeEscarpa } from './escarpa.ts';
 import type { SpriteDaPeca } from '../domain/sprite.ts';
 import { estiloDe, type IdDoEstilo, type OpcoesDoPixel } from './estilos/index.ts';
 import { SOMBRA_DE_CONTATO, caixaDoConteudo, contorno, puxarCor, sobrepor, sombraDeContato, type AlvoDeCor } from './harmonizar.ts';
@@ -13,7 +14,9 @@ export type PedidoDeBake =
   /** A folha de quadros de um personagem (96 × 96 px, `res` 1). */
   | { tipo: 'sprite'; spec: SpriteDaPeca }
   | { tipo: 'comodo'; entrada: EntradaDoComodo; res: number; estilo: IdDoEstilo }
-  | { tipo: 'terreno'; entrada: EntradaDeTerreno; res: number; estilo: IdDoEstilo };
+  | { tipo: 'terreno'; entrada: EntradaDeTerreno; res: number; estilo: IdDoEstilo }
+  /** Uma escarpa avulsa (parede `cliff` sem origem): a face de rocha do lado baixo. */
+  | { tipo: 'escarpa'; entrada: EntradaDeEscarpa; res: number; estilo: IdDoEstilo };
 
 export interface ResultadoDeBake { bitmap: ImageBitmap; origem: [number, number]; res: number }
 
@@ -23,7 +26,7 @@ export async function executarBake(p: PedidoDeBake): Promise<ResultadoDeBake> {
   if (p.tipo === 'sprite') { const { folhaDoSprite } = await import('./sprite.ts'); return paraBitmap({ tela: folhaDoSprite(p.spec), origem: [0, 0], res: 1 }); }
   const estilo = estiloDe(p.estilo);
   if (p.tipo === 'gerado') return paraBitmap(await assarGerado(p, estilo));
-  const a: Assado = p.tipo === 'objeto' ? assarObjeto(p.receita, p.params, p.seed, p.res, estilo, p.pixel) : p.tipo === 'comodo' ? assarComodo(p.entrada, p.res, estilo) : assarTerreno(p.entrada, p.res, estilo);
+  const a: Assado = p.tipo === 'objeto' ? assarObjeto(p.receita, p.params, p.seed, p.res, estilo, p.pixel) : p.tipo === 'comodo' ? assarComodo(p.entrada, p.res, estilo) : p.tipo === 'escarpa' ? assarEscarpa(p.entrada, p.res, estilo) : assarTerreno(p.entrada, p.res, estilo);
   return paraBitmap(a);
 }
 

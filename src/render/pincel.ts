@@ -9,7 +9,7 @@ export interface Pincel {
   objeto: { item: string; params: Record<string, unknown>; semente: number | null; rotacao: number };
   luz: { preset: string; /** Direção do facho, em radianos. */ direcao: number };
   abertura: { tipo: 'door' | 'window' | 'arch' | 'secret' };
-  parede: { tipo: 'wall' | 'low' | 'fence' };
+  parede: { tipo: 'wall' | 'low' | 'fence' | 'cliff' };
   terreno: { material: string; /** Raio do pincel, em metros. */ raio: number };
   presenca: { brush: string; raio: number };
   espalhar: { conjunto: string; raio: number };

@@ -8,7 +8,7 @@ import type { Baker } from '../procedural/baker.ts';
 import type { PedidoDeBake, ResultadoDeBake } from '../procedural/executar.ts';
 import type { Mudancas } from '../state/mudancas.ts';
 import { corDoNome, hexParaNumero } from './cores.ts';
-import { chaveDoComodo, chaveDoObjeto, chaveDoTerreno, pedidoDoObjeto, contextoDeEntradas, entradaDoComodo, entradaDoTerreno, opcoesDoPixel, resolucaoDe } from './entradas.ts';
+import { chaveDaEscarpa, chaveDoComodo, chaveDoObjeto, ehEscarpaAvulsa, entradaDaEscarpa, chaveDoTerreno, pedidoDoObjeto, contextoDeEntradas, entradaDoComodo, entradaDoTerreno, opcoesDoPixel, resolucaoDe } from './entradas.ts';
 import { nivelDaLuz } from '../domain/clima.ts';
 import { criarMapaDeLuz } from './mapa-de-luz.ts';
 import { criarNevoa, type Vista } from './nevoa.ts';
@@ -75,11 +75,11 @@ export interface Cena {
 interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; chave: string; chaveTextura: string | null }
 
 export function criarCena(op: OpcoesDaCena): Cena {
-  const raiz = new Container(), terrenoC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics();
+  const raiz = new Container(), terrenoC = new Container(), escarpasC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics();
   const marcasG = new Graphics(), regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), tituloC = new Container();
   const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados(), neblina = criarNeblina(), particulas = criarParticulas(), presenca = criarPresenca();
   // A luz multiplica tudo o que está embaixo (piso, objetos, paredes); marcadores, regiões e peças ficam por cima, sempre legíveis.
-  raiz.addChild(terrenoC, comodosC, objetosC, paredesG, presenca.abaixo, luz.sprite, presenca.acima, neblina.raiz, particulas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
+  raiz.addChild(terrenoC, escarpasC, comodosC, objetosC, paredesG, presenca.abaixo, luz.sprite, presenca.acima, neblina.raiz, particulas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
 
   let mapa: MapaAtlas | null = null, vistaDaCena: Vista = 'construir', destruida = false, pintandoAgora = 0, ultimoQuadro = -1;
   const salas = new Map<string, Entrada>(), objetos = new Map<string, Entrada>();
@@ -121,6 +121,20 @@ export function criarCena(op: OpcoesDaCena): Cena {
     // Durante a pincelada o terreno muda a cada movimento: espera uma pausa antes de pedir a pintura.
     if (terrenoTimer) clearTimeout(terrenoTimer);
     terrenoTimer = setTimeout(() => { terrenoTimer = null; if (!destruida && terreno === alvo) pintar(alvo, chave, { tipo: 'terreno', entrada: e, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); }); }, 140);
+  }
+
+  // ---------- Escarpas avulsas ----------
+  const escarpas = new Map<string, Entrada>();
+  function sincronizarEscarpas(m: MapaAtlas): void {
+    const vivas = new Set(Object.values(m.walls).filter(ehEscarpaAvulsa).map(p => p.id));
+    for (const [id, e] of escarpas) if (!vivas.has(id)) { removerEntrada(e); escarpas.delete(id); }
+    const estilo = m.style.renderer, res = resolucaoDe(m, 'terreno');
+    for (const id of vivas) {
+      const p = m.walls[id]!, entrada = entradaDaEscarpa(p), origem = p.path[0]!;
+      let e = escarpas.get(id); if (!e) { e = novaEntrada(escarpasC); escarpas.set(id, e); }
+      e.c.position.set(origem[0], origem[1]);
+      pintar(e, chaveDaEscarpa(entrada, res, estilo), { tipo: 'escarpa', entrada, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); });
+    }
   }
 
   // ---------- Cômodos ----------
@@ -200,6 +214,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     paredesG.position.set(pixelRes ? 0.5 / pixelRes : 0, pixelRes ? 0.5 / pixelRes : 0);
     for (const p of Object.values(m.walls)) {
       if (p.source && 'terrainLayerId' in p.source) continue;      // contorno do maciço: o assar já mostra a rocha (a seleção traça a parede)
+      if (ehEscarpaAvulsa(p)) continue;                              // escarpa avulsa: a face de rocha é assada à parte (`sincronizarEscarpas`)
       desenharParede(paredesG, m, p);
       // Um fio claro no meio do topo dá volume à faixa escura.
       if (p.kind === 'wall') { paredesG.moveTo(p.path[0]![0], p.path[0]![1]); for (const q of p.path.slice(1)) paredesG.lineTo(q[0], q[1]); paredesG.stroke({ width: lw(p.thickness * 0.14), color: COR_TOPO_CLARO, alpha: pixelRes ? 1 : 0.9, cap: 'butt' }); }
@@ -336,6 +351,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       mapa = m;
       const tudo = !mud || mud.completo, campos = (...c: string[]) => tudo || c.some(x => mud!.campos.includes(x)), colecao = (c: string) => tudo || !!(mud!.colecoes as Record<string, unknown>)[c];
       if (campos('terrain', 'bounds', 'grid', 'backdrop', 'style')) sincronizarTerreno(m);
+      if (tudo || colecao('walls') || campos('style')) sincronizarEscarpas(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid')) sincronizarComodos(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid', 'session', 'style')) desenharParedes(m);
       if (tudo || colecao('props') || campos('style')) sincronizarObjetos(m, tudo || campos('style') ? null : mud!.colecoes.props ?? null, comPop);
