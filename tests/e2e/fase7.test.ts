@@ -50,7 +50,7 @@ test('modos: abrir outro mapa volta a Construir', async () => {
   await page.keyboard.press('Alt+g'); await page.waitForTimeout(600);
   await criarMapaPelaInterface(page); await page.waitForTimeout(300);
   assert.equal(await page.locator('[data-testid="modo-construir"]').getAttribute('aria-checked'), 'true', 'o mapa novo abre em Construir');
-  assert.equal((await documento(page)).version, 5);
+  assert.equal((await documento(page)).version, 6);
   assert.deepEqual(erros, []); await ctx.close();
 });
 
@@ -94,7 +94,7 @@ test('movimento: na sessão a peça anda de célula em célula, a parede e a por
     s.store.executar({ tipo: "abertura.adicionar", abertura: a.porta });
     s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.peca });
   }`, {
-    parede: { id: 'w1', path: [[12, 0], [12, 30]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, source: null },
+    parede: { id: 'w1', path: [[12, 0], [12, 30]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, drop: null, source: null },
     porta: { id: 'o1', wallId: 'w1', at: 0.5, width: 2, kind: 'door', state: 'closed', material: 'madeira.media', som: null, swing: 'a' },
     peca: peca('hugo', 'Hugo', 11.25, 14.25),
   });
@@ -184,7 +184,7 @@ async function cenarioDaVisao(p: Page, estadoDaPorta: string, tipoDaPorta = 'doo
     s.store.executar({ tipo: "parede.adicionar", parede: a.parede }); s.store.executar({ tipo: "abertura.adicionar", abertura: a.porta });
     s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.peca });
   }`, {
-    parede: { id: 'w1', path: [[12.75, 0], [12.75, 30]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, source: null },
+    parede: { id: 'w1', path: [[12.75, 0], [12.75, 30]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, drop: null, source: null },
     porta: { id: 'o1', wallId: 'w1', at: 0.3, width: 2, kind: tipoDaPorta, state: estadoDaPorta, material: 'madeira.media', som: null, swing: 'a' },
     peca: peca('hugo', 'Hugo', 9.75, 9.75, { player: true, vision: { radius: 14, dark: false } }),
   });
@@ -311,7 +311,7 @@ test('desempenho: a vista de jogador com 2 peças e 10 luzes não derruba os qua
   await cenarioDaVisao(page, 'open');
   await sessao(page, `(s, a) => {
     s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.p2 });
-    for (let i = 0; i < 10; i++) s.store.executar({ tipo: "item.adicionar", colecao: "lights", item: { id: "luz" + i, position: [4 + i * 3.5, 5 + (i % 3) * 8], radius: 8, color: "#ffb36b", intensity: 1, flicker: 0.2, cone: null, ownerId: null, power: "fire", on: true, nightOnly: false, preset: null } });
+    for (let i = 0; i < 10; i++) s.store.executar({ tipo: "item.adicionar", colecao: "lights", item: { id: "luz" + i, position: [4 + i * 3.5, 5 + (i % 3) * 8], radius: 8, color: "#ffb36b", intensity: 1, flicker: 0.2, cone: null, ownerId: null, power: "fire", on: true, nightOnly: false, preset: null, rays: false } });
   }`, { p2: peca('ana', 'Ana', 24.75, 9.75, { player: true, vision: { radius: 14, dark: false } }) });
   await page.click('[data-testid="modo-sessao"]'); await page.waitForTimeout(400); await page.click('[data-testid="vista-jogador"]'); await page.waitForTimeout(1000);
   const fps = await page.evaluate(() => new Promise<number>(ok => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 >= 2000) ok(n / 2); else requestAnimationFrame(f); }; requestAnimationFrame(f); }));
@@ -386,7 +386,7 @@ test('portas na sessão: Enter com a peça ao lado interage com a porta; longe, 
     s.store.executar({ tipo: "parede.adicionar", parede: a.parede }); s.store.executar({ tipo: "abertura.adicionar", abertura: a.porta });
     s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.perto }); s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.longe });
   }`, {
-    parede: { id: 'w1', path: [[12, 0], [12, 30]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, source: null },
+    parede: { id: 'w1', path: [[12, 0], [12, 30]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, drop: null, source: null },
     porta: { id: 'o1', wallId: 'w1', at: 0.3, width: 2, kind: 'door', state: 'closed', material: 'madeira.media', som: null, swing: 'a' },
     perto: peca('perto', 'Perto', 11.25, 9.75, { facing: 'right' }), longe: peca('longe', 'Longe', 5.25, 9.75, { facing: 'right' }),
   });
@@ -554,7 +554,7 @@ test('interativos: na sessão, clicar no interruptor apaga a luz de rede da sala
     s.store.executar({ tipo: "item.adicionar", colecao: "props", item: a.gaveta });
     s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.peca });
   }`, {
-    rede: { id: 'rede', position: [9.75, 7.5], radius: 7, color: '#ffe2b0', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'grid', on: true, nightOnly: false, preset: null },
+    rede: { id: 'rede', position: [9.75, 7.5], radius: 7, color: '#ffe2b0', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'grid', on: true, nightOnly: false, preset: null, rays: false },
     interruptor: { id: 'sw', source: { kind: 'recipe', recipe: 'caixa', seed: 1, params: {} }, position: [4.5, 4.5], rotation: 0, scale: 0.5, elevation: 'floor', wall: null, roomId: 'sala', blocks: { move: false, sight: false }, castsShadow: false, harmonize: true, interaction: { kind: 'switch', on: true, targets: [], sound: null, clue: null } },
     gaveta: { id: 'gv', source: { kind: 'recipe', recipe: 'caixa', seed: 2, params: {} }, position: [15, 12], rotation: 0, scale: 0.5, elevation: 'floor', wall: null, roomId: null, blocks: { move: false, sight: false }, castsShadow: false, harmonize: true, interaction: { kind: 'drawer', on: false, targets: [], sound: null, clue: null } },
     peca: peca('p', 'Pri', 14.25, 12.75, { facing: 'up' }),
@@ -598,7 +598,7 @@ const fpsDe = (p: Page, ms: number) => p.evaluate((t: number) => new Promise<num
 test('fase 7: jogar a casa no projetor — portas, clima, revelação, interruptor e iniciativa, sem nada do mestre vazar', async () => {
   const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
   const mapaId = await criarMapaPelaInterface(page);
-  const parede = (id: string, x: number) => ({ id, path: [[x, 3], [x, 9]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, source: null });
+  const parede = (id: string, x: number) => ({ id, path: [[x, 3], [x, 9]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, drop: null, source: null });
   await sessao(page, `(s, a) => {
     const sala = [], cozinha = [], despensa = [];
     for (let y = 2; y < 6; y++) { for (let x = 2; x < 8; x++) sala.push([x, y]); for (let x = 8; x < 14; x++) cozinha.push([x, y]); for (let x = 14; x < 20; x++) despensa.push([x, y]); }
@@ -618,7 +618,7 @@ test('fase 7: jogar a casa no projetor — portas, clima, revelação, interrupt
     porta: { id: 'porta', wallId: 'v1', at: 0.5, width: 1.5, kind: 'door', state: 'closed', material: 'madeira.media', som: null, swing: 'a' },
     cofre: { id: 'cofre', wallId: 'v2', at: 0.5, width: 1.5, kind: 'secret', state: 'closed', material: 'madeira.media', som: null, swing: 'a' },
     regiao: { id: 'armadilha', polygon: [[22, 4], [27, 4], [27, 8]], kind: 'trigger', gmOnly: true, payload: { x: 'REGIAO-SECRETA-FASE7' }, refs: [] },
-    rede: { id: 'rede', position: [7.5, 6], radius: 7, color: '#ffe2b0', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'grid', on: true, nightOnly: false, preset: null },
+    rede: { id: 'rede', position: [7.5, 6], radius: 7, color: '#ffe2b0', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'grid', on: true, nightOnly: false, preset: null, rays: false },
     interruptor: { id: 'sw', source: { kind: 'recipe', recipe: 'caixa', seed: 1, params: {} }, position: [4.5, 4.5], rotation: 0, scale: 0.5, elevation: 'floor', wall: null, roomId: 'sala', blocks: { move: false, sight: false }, castsShadow: false, harmonize: true, interaction: { kind: 'switch', on: true, targets: [], sound: null, clue: null } },
     ana: peca('ana', 'Ana', 9.75, 5.25, { player: true, vision: { radius: 8, dark: false } }),
     beto: peca('beto', 'Beto', 9.75, 6.75, { player: true, vision: { radius: 8, dark: false } }),

@@ -28,7 +28,7 @@ export function entradaDoComodo(m: MapaAtlas, sala: Comodo, ctx: ContextoDeEntra
     objetos.push({ receita: o.source.recipe, params: o.source.params, seed: o.source.seed, centro: [r3(ponto[0]), r3(ponto[1])] });
   }
   aberturas.sort((a, b) => a.centro[0] - b.centro[0] || a.centro[1] - b.centro[1]); objetos.sort((a, b) => a.centro[0] - b.centro[0] || a.centro[1] - b.centro[1]);
-  const alturas = Object.values(m.walls).filter(p => p.source?.roomId === sala.id).map(p => p.height);
+  const alturas = Object.values(m.walls).filter(p => p.source && 'roomId' in p.source && p.source.roomId === sala.id).map(p => p.height);
   return {
     grade: { size: m.grid.size, offset: [m.grid.offset[0], m.grid.offset[1]] }, celulas: sala.cells, piso: sala.floor, papel: sala.wallpaper,
     estilo: sala.wallStyle ?? m.style.walls, altura: alturas.length ? Math.max(...alturas) : 2.6, aberturas, objetos,

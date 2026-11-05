@@ -6,7 +6,7 @@ import type { ColecaoLivre } from '../state/comandos.ts';
 export const novoIdEntidade = (prefixo = 'x'): string => `${prefixo}${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;
 
 export const novaLuz = (position: Ponto, extra: Partial<Luz> = {}): Luz => ({
-  id: novoIdEntidade('l'), position, radius: 5, color: '#ffb36b', intensity: 1, flicker: 0.1, cone: null, ownerId: null, power: 'fire', on: true, nightOnly: false, preset: null, ...extra,
+  id: novoIdEntidade('l'), position, radius: 5, color: '#ffb36b', intensity: 1, flicker: 0.1, cone: null, ownerId: null, power: 'fire', on: true, nightOnly: false, preset: null, rays: false, ...extra,
 });
 
 export const novoObjeto = (position: Ponto, extra: Partial<Objeto> = {}): Objeto => ({

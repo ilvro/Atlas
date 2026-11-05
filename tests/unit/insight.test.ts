@@ -40,7 +40,7 @@ test('objetos do cômodo entram, inclusive os de parede, com a caixa já girada;
   const quadro = novoObjeto([1, 0.05], { id: 'o2', source: { kind: 'recipe', recipe: 'quadro', seed: 1, params: {} }, roomId: 'a', elevation: 'wall' });
   const fora = novoObjeto([20, 20], { id: 'o3', source: { kind: 'recipe', recipe: 'caixa', seed: 1, params: {} }, roomId: null });
   m.props = { o1: mesa, o2: quadro, o3: fora };
-  m.lights.l1 = { id: 'l1', position: [1, 1], radius: 4, color: '#fff', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'fire', on: true, nightOnly: false, preset: null };
+  m.lights.l1 = { id: 'l1', position: [1, 1], radius: 4, color: '#fff', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'fire', on: true, nightOnly: false, preset: null, rays: false };
   m.lights.l2 = { ...m.lights.l1, id: 'l2', position: [30, 30] };
   const i = insightDoComodo(m, 'a')!;
   assert.deepEqual(i.objetos.map(o => o.id).sort(), ['o1', 'o2']); assert.deepEqual(i.luzes, ['l1']);

@@ -49,4 +49,4 @@ Commit: mensagem curta em inglês
 | [fase-7.md](fase-7.md) | Detalhado antes da hora — o Opus confere ao começar |
 | [fase-8.md](fase-8.md) | Detalhado — concluída |
 | [fase-9.md](fase-9.md) | Concluída (Mesa, Ficha, Ateliê e Jukebox integrados; pendências reais no progress.md) |
-| [fase-10.md](fase-10.md) | Detalhado de 10.0 a 10.2; o resto detalhado ao começar cada lote — **próximo** |
+| [fase-10.md](fase-10.md) | Lote A e água (10.1a–b) detalhados; o resto ao começar cada lote — **em andamento** |

@@ -57,7 +57,7 @@ export function segmentoDaAresta(m: Pick<MapaAtlas, 'grid'>, a: Pick<ArestaUnita
   return [p, q];
 }
 
-export const PAREDE_PADRAO = { height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall' as const, blocks: { move: true, sight: true, light: true } };
+export const PAREDE_PADRAO = { height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall' as const, blocks: { move: true, sight: true, light: true }, drop: null as 'a' | 'b' | null };
 const IDENT_PAREDE = (orient: Orientacao, linha: number, ini: number, fim: number) => `d${orient}${linha}_${ini}_${fim}`;
 
 export interface ParedeDerivada extends Parede { source: { roomId: string } }

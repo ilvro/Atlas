@@ -10,7 +10,7 @@ import { contem } from '../../src/domain/celulas.ts';
 /** Uma parede vertical em x = 6 e duas portas nela: uma em y = 3 e outra em y = 9 (cada uma com 1 m de vão). */
 function mapa(extra: Partial<Abertura> = {}): MapaAtlas {
   const m = criarMapa();
-  m.walls.p = { id: 'p', path: [[6, 0], [6, 12]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, source: null };
+  m.walls.p = { id: 'p', path: [[6, 0], [6, 12]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, drop: null, source: null };
   const porta = (id: string, y: number): Abertura => ({ id, wallId: 'p', at: y / 12, width: 1, kind: 'door', state: 'closed', material: 'madeira.media', som: null, swing: 'a', ...extra });
   m.openings.a = porta('a', 3); m.openings.b = porta('b', 9);
   return m;

@@ -26,7 +26,11 @@ const comodo = e.obj({
 const parede = e.obj({
   id, path: e.lista(ponto, { min: 2, max: 5_000 }), height: e.num({ min: 0.1, max: 30 }), thickness: e.num({ min: 0.02, max: 5 }), material,
   kind: e.um('wall', 'low', 'fence', 'cliff'), blocks: e.obj({ move: e.bool(), sight: e.bool(), light: e.bool() }),
-  source: e.nulo(e.obj({ roomId: id })),
+  drop: e.nulo(e.um('a', 'b')),
+  source: e.nulo(e.proprio((v, c) => {
+    // Origem da parede: um cômodo ou uma camada de terreno (o maciço que gerou o contorno).
+    if (v && typeof v === 'object' && 'terrainLayerId' in v) e.obj({ terrainLayerId: id }).verificar(v, c); else e.obj({ roomId: id }).verificar(v, c);
+  })),
 });
 const abertura = e.obj({
   id, wallId: id, at: unidade, width: e.num({ min: 0.2, max: 10 }), kind: e.um('door', 'window', 'arch', 'secret'),
@@ -39,7 +43,7 @@ const objeto = e.obj({
     asset: e.obj({ kind: e.um('asset'), assetId: e.texto({ min: 1, max: 100 }) }),
   }),
   position: ponto, rotation: e.num({ min: -1000, max: 1000 }), scale: e.num({ min: 0.05, max: 50 }),
-  elevation: e.um('floor', 'table', 'wall', 'ceiling'),
+  elevation: e.um('floor', 'table', 'wall', 'ceiling', 'underwater'),
   wall: e.nulo(e.obj({ wallId: id, at: unidade, face: e.um('inner', 'outer') })),
   roomId: idOuNulo, blocks: e.obj({ move: e.bool(), sight: e.bool() }), castsShadow: e.bool(), harmonize: e.bool(),
   layer: e.opt(e.num({ inteiro: true, min: -100000, max: 100000 })),
@@ -48,7 +52,7 @@ const objeto = e.obj({
 const luz = e.obj({
   id, position: ponto, radius: e.num({ min: 0.1, max: 200 }), color: hex, intensity: e.num({ min: 0, max: 3 }), flicker: unidade,
   cone: e.nulo(e.obj({ angle: e.num({ min: 0.05, max: Math.PI * 2 }), direction: e.num({ min: -1000, max: 1000 }) })),
-  ownerId: idOuNulo, power: e.um('grid', 'fire', 'battery', 'magic'), on: e.bool(), nightOnly: e.bool(), preset: e.nulo(e.texto({ min: 1, max: 40 })),
+  ownerId: idOuNulo, power: e.um('grid', 'fire', 'battery', 'magic'), on: e.bool(), nightOnly: e.bool(), preset: e.nulo(e.texto({ min: 1, max: 40 })), rays: e.bool(),
 });
 const regiao = e.obj({
   id, polygon: e.lista(ponto, { min: 3, max: 2_000 }), kind: e.um('reveal', 'trigger', 'note', 'audio'), gmOnly: e.bool(), payload: e.json(), refs,
@@ -73,6 +77,7 @@ const CAMPOS_DO_CLIMA = {
 const CAMPOS_DO_ACABAMENTO = {
   texture: unidade, vignette: unidade, saturation: e.num({ min: 0, max: 2 }), grain: unidade, tint: hex,
   grade: e.obj({ lift: e.num({ min: -1, max: 1 }), gamma: e.num({ min: 0.1, max: 4 }), gain: e.num({ min: 0, max: 4 }) }),
+  edges: e.obj({ kind: e.um('none', 'clouds', 'dark', 'fog'), amount: unidade }), glow: unidade,
 };
 
 export const ESQUEMA_MAPA: Esq = e.obj({
@@ -94,7 +99,7 @@ export const ESQUEMA_MAPA: Esq = e.obj({
   }),
   terrain: e.obj({
     resolution: e.num({ min: 0.05, max: 2 }), base: material,
-    layers: e.porId(e.obj({ id, material, cells: faixas, order: e.num({ inteiro: true, min: 0, max: 10_000 }) })),
+    layers: e.porId(e.obj({ id, material, cells: faixas, order: e.num({ inteiro: true, min: 0, max: 10_000 }), flow: e.nulo(e.obj({ angle: e.num({ min: -1000, max: 1000 }), speed: e.num({ min: 0, max: 3 }) })) })),
   }),
   rooms: e.porId(comodo), walls: e.porId(parede), openings: e.porId(abertura), props: e.porId(objeto), lights: e.porId(luz),
   regions: e.porId(regiao), presence: e.porId(presenca), tokens: e.porId(peca),
@@ -132,7 +137,9 @@ export function validarMapa(valor: unknown): asserts valor is MapaAtlas {
     for (const [y, x0, n] of c.cells) if (y >= lins || x0 + n > cols) falha('Células fora dos limites do mapa.', `rooms.${rid}.cells`);
   }
   for (const [wid, p] of Object.entries(m.walls)) {
-    if (p.source && !m.rooms[p.source.roomId]) falha('Cômodo de origem inexistente.', `walls.${wid}.source.roomId`);
+    if (p.source && 'roomId' in p.source && !m.rooms[p.source.roomId]) falha('Cômodo de origem inexistente.', `walls.${wid}.source.roomId`);
+    if (p.source && 'terrainLayerId' in p.source && !m.terrain.layers[p.source.terrainLayerId]) falha('Camada de terreno de origem inexistente.', `walls.${wid}.source.terrainLayerId`);
+    // `drop` fora de uma escarpa não tem efeito; o validador não tem canal de aviso, então aceita (e o render ignora).
   }
   for (const [oid, a] of Object.entries(m.openings)) if (!m.walls[a.wallId]) falha('Parede inexistente.', `openings.${oid}.wallId`);
   for (const [pid, o] of Object.entries(m.props)) {

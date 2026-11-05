@@ -10,7 +10,7 @@ import { aplicarComando } from '../../src/state/comandos.ts';
 /** Uma parede vertical em x = 6 (de y = 0 a 12) e uma peça à esquerda, no centro de uma célula (grade de 1,5). */
 function mapaComParede(abertura?: Partial<Abertura>): MapaAtlas {
   let m = criarMapa();
-  m.walls.p = { id: 'p', path: [[6, 0], [6, 12]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, source: null };
+  m.walls.p = { id: 'p', path: [[6, 0], [6, 12]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, drop: null, source: null };
   if (abertura) m.openings.a = { id: 'a', wallId: 'p', at: 0.5, width: 1, kind: 'door', state: 'closed', material: 'madeira.media', som: null, swing: 'a', ...abertura };
   m = aplicarComando(m, { tipo: 'item.adicionar', colecao: 'tokens', item: { ...novaPeca([2.25, 6.75]), id: 't', name: 'Muirenn' } as never });
   return m;

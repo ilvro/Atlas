@@ -15,7 +15,7 @@ test('um cômodo vira quatro paredes, uma por lado, com as pontas na grade', () 
   const m = mapaCom(sala('a', retangulo(2, 2, 4, 4)));
   assert.equal(Object.keys(m.walls).length, 4);
   assert.deepEqual(caminhos(m), ['3,3→3,6', '3,3→6,3', '3,6→6,6', '6,3→6,6']);   // células de 1,5 m: x e y de 3 a 6
-  for (const p of Object.values(m.walls)) { assert.equal(p.source?.roomId, 'a'); assert.match(p.id, /^d[hv]\d+_\d+_\d+$/); assert.equal(comprimentoDaParede(p), 3); }
+  for (const p of Object.values(m.walls)) { assert.equal(dono(p), 'a'); assert.match(p.id, /^d[hv]\d+_\d+_\d+$/); assert.equal(comprimentoDaParede(p), 3); }
   validarMapa(m);
 });
 
@@ -30,7 +30,7 @@ test('cômodos vizinhos dividem uma parede só', () => {
   // A: topo, base, esquerda; B: topo, base, direita; e uma parede no meio.
   assert.equal(Object.keys(m.walls).length, 7);
   const meio = Object.values(m.walls).filter(p => p.path[0]![0] === 6 && p.path[1]![0] === 6);
-  assert.equal(meio.length, 1); assert.equal(meio[0]!.source?.roomId, 'a');     // o dono é o primeiro em ordem alfabética
+  assert.equal(meio.length, 1); assert.equal(dono(meio[0]!), 'a');     // o dono é o primeiro em ordem alfabética
   assert.equal(comprimentoDaParede(meio[0]!), 3);
   assert.equal(arestasDeParede(m).get('v:4:2')!.salas.join('|'), 'a|b');
   validarMapa(m);
@@ -83,7 +83,7 @@ test('uma porta entre dois cômodos some se um deles é apagado e a parede deixa
   m.openings.porta = porta(meio.id, 0.5);
   delete m.rooms.b; recalcularParedes(m);
   // A parede do meio agora é só da sala A: a porta continua (a parede ainda existe).
-  assert.equal(Object.keys(m.openings).length, 1); assert.equal(m.walls[m.openings.porta!.wallId]!.source?.roomId, 'a');
+  assert.equal(Object.keys(m.openings).length, 1); assert.equal(dono(m.walls[m.openings.porta!.wallId]!), 'a');
   delete m.rooms.a; recalcularParedes(m);
   assert.deepEqual(Object.keys(m.openings), []);
 });
@@ -107,7 +107,7 @@ test('o cômodo de um objeto de chão acompanha a posição; luzes e peças órf
   recalcularParedes(m);
   assert.equal(m.props.mesa!.roomId, 'a');
   m.props.mesa!.position = [20, 20]; recalcularParedes(m); assert.equal(m.props.mesa!.roomId, null);
-  m.lights.l = { id: 'l', position: [0, 0], radius: 3, color: '#ffffff', intensity: 1, flicker: 0, cone: null, ownerId: 'fantasma', power: 'fire', on: true, nightOnly: false, preset: null };
+  m.lights.l = { id: 'l', position: [0, 0], radius: 3, color: '#ffffff', intensity: 1, flicker: 0, cone: null, ownerId: 'fantasma', power: 'fire', on: true, nightOnly: false, preset: null, rays: false };
   recalcularParedes(m); assert.equal(m.lights.l, undefined);
 });
 
@@ -169,7 +169,7 @@ import { salasDaAbertura } from '../../src/domain/geometria.ts';
 test('uma porta numa parede compartilhada aparece nos dois cômodos; numa parede de fora, só no dono', () => {
   const m = mapaCom(sala('a', retangulo(2, 2, 4, 4)), sala('b', retangulo(4, 2, 6, 4)));
   const meio = Object.values(m.walls).find(p => p.path[0]![0] === 6 && p.path[1]![0] === 6)!;
-  const topoA = Object.values(m.walls).find(p => p.path[0]![1] === 3 && p.path[1]![1] === 3 && p.source?.roomId === 'a')!;
+  const topoA = Object.values(m.walls).find(p => p.path[0]![1] === 3 && p.path[1]![1] === 3 && dono(p) === 'a')!;
   m.openings.pm = porta(meio.id, 0.5, { id: 'pm' }); m.openings.pa = porta(topoA.id, 0.5, { id: 'pa', kind: 'window', width: 0.6 });
   assert.deepEqual(salasDaAbertura(m, m.openings.pm!).sort(), ['a', 'b']); assert.deepEqual(salasDaAbertura(m, m.openings.pa!), ['a']);
   const ctx = contextoDeEntradas(m), ea = entradaDoComodo(m, m.rooms.a!, ctx), eb = entradaDoComodo(m, m.rooms.b!, ctx);
@@ -186,8 +186,8 @@ test('a chave do cache muda só quando algo que aparece no cômodo muda', () => 
   assert.equal(chaveDe(outro, 'a'), antes, 'mexer em outro cômodo não rebaixa este');
   assert.notEqual(chaveDe(outro, 'b'), chaveDe(m, 'b'));
   const lado = structuredClone(m); lado.rooms.a!.wallStyle = 'solid'; assert.notEqual(chaveDe(lado, 'a'), antes);
-  const luz = structuredClone(m); luz.lights.x = { id: 'x', position: [3, 4], radius: 3, color: '#ffffff', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'fire', on: true, nightOnly: false, preset: null }; assert.equal(chaveDe(luz, 'a'), antes, 'luz não entra no piso');
-  const topo = Object.values(m.walls).find(p => p.path[0]![1] === 3 && p.path[1]![1] === 3 && p.source?.roomId === 'a')!;
+  const luz = structuredClone(m); luz.lights.x = { id: 'x', position: [3, 4], radius: 3, color: '#ffffff', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'fire', on: true, nightOnly: false, preset: null, rays: false }; assert.equal(chaveDe(luz, 'a'), antes, 'luz não entra no piso');
+  const topo = Object.values(m.walls).find(p => p.path[0]![1] === 3 && p.path[1]![1] === 3 && dono(p) === 'a')!;
   const comJanela = structuredClone(m); comJanela.openings.j = porta(topo.id, 0.5, { id: 'j', kind: 'window' }); assert.notEqual(chaveDe(comJanela, 'a'), antes);
 });
 
@@ -232,7 +232,7 @@ test('encaixar um objeto de parede: na face do cômodo que está do lado do pont
 test('copiar itens: ids novos, deslocamento, e nada de dono ou luz compartilhados', () => {
   const base = mapaCom(sala('a', retangulo(2, 2, 4, 4)));
   base.props.mesa = { id: 'mesa', source: { kind: 'recipe', recipe: 'mesa.redonda', seed: 1, params: {} }, position: [4.5, 4.5], rotation: 0, scale: 1, elevation: 'floor', wall: null, roomId: 'a', blocks: { move: true, sight: false }, castsShadow: true, harmonize: true, interaction: null };
-  base.lights.l = { id: 'l', position: [4.5, 4.5], radius: 3, color: '#ffffff', intensity: 1, flicker: 0, cone: null, ownerId: 'mesa', power: 'fire', on: true, nightOnly: false, preset: 'vela' };
+  base.lights.l = { id: 'l', position: [4.5, 4.5], radius: 3, color: '#ffffff', intensity: 1, flicker: 0, cone: null, ownerId: 'mesa', power: 'fire', on: true, nightOnly: false, preset: 'vela', rays: false };
   base.tokens.t = { id: 't', name: 'Arthur', portrait: null, sprite: null, facing: 'down', position: [3, 3], size: 1, player: false, vision: { radius: 8, dark: false }, lightId: 'l', figure: { state: 'normal' }, refs: [] };
   const { comandos, alvos } = copiasDe(base, [{ colecao: 'props', id: 'mesa' }, { colecao: 'lights', id: 'l' }, { colecao: 'tokens', id: 't' }, { colecao: 'rooms', id: 'a' }, { colecao: 'props', id: 'fantasma' }], [0.75, 0]);
   assert.equal(comandos.length, 3); assert.equal(alvos.length, 3);                       // o cômodo e o que não existe ficam de fora
@@ -243,3 +243,4 @@ test('copiar itens: ids novos, deslocamento, e nada de dono ou luz compartilhado
 });
 
 import { aplicarComando as aplicarComandoParaTeste } from '../../src/state/comandos.ts';
+const dono = (p: { source: unknown }) => (p.source as { roomId?: string } | null)?.roomId;

@@ -81,7 +81,7 @@ test('abertura: cabe, não sobrepõe, e acompanha a parede quando o cômodo cres
 
 test('parede manual: desenhar, desanexar a derivada, remover só a que é sua', () => {
   let m = comAs(criarMapa(), criar('a', retangulo(2, 2, 4, 4)));
-  const nova = { id: 'm1', path: [[10, 10], [13, 10]] as [number, number][], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall' as const, blocks: { move: true, sight: true, light: true } };
+  const nova = { id: 'm1', path: [[10, 10], [13, 10]] as [number, number][], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall' as const, blocks: { move: true, sight: true, light: true }, drop: null as null };
   m = aplicarComando(m, { tipo: 'parede.adicionar', parede: nova });
   assert.equal(m.walls.m1!.source, null); assert.equal(Object.keys(m.walls).length, 5);
   assert.throws(() => aplicarComando(m, { tipo: 'parede.adicionar', parede: { ...nova, id: 'm2', path: [[1, 1], [1, 1]] } }), /dois pontos diferentes/);
@@ -98,7 +98,7 @@ test('parede manual: desenhar, desanexar a derivada, remover só a que é sua', 
 });
 
 test('remover uma parede manual leva as aberturas dela', () => {
-  let m = comAs(criarMapa(), { tipo: 'parede.adicionar', parede: { id: 'm1', path: [[3, 3], [9, 3]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true } } });
+  let m = comAs(criarMapa(), { tipo: 'parede.adicionar', parede: { id: 'm1', path: [[3, 3], [9, 3]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, drop: null } });
   m = aplicarComando(m, { tipo: 'abertura.adicionar', abertura: porta('m1', 0.5) });
   assert.deepEqual(Object.keys(aplicarComando(m, { tipo: 'parede.remover', id: 'm1' }).openings), []);
 });

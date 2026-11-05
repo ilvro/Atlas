@@ -9,7 +9,7 @@ import { aplicarComando } from '../../src/state/comandos.ts';
 /** Dois cômodos lado a lado separados por uma parede em x = 6 (de y = 0 a 12); uma peça de jogador em (3, 6). */
 function dois(abertura?: Partial<Abertura>, jogadores: [number, number][] = [[3, 6]]): MapaAtlas {
   let m = criarMapa();
-  m.walls.p = { id: 'p', path: [[6, 0], [6, 12]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, source: null };
+  m.walls.p = { id: 'p', path: [[6, 0], [6, 12]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, drop: null, source: null };
   if (abertura) m.openings.a = { id: 'a', wallId: 'p', at: 0.5, width: 1.2, kind: 'door', state: 'closed', material: 'madeira.media', som: null, swing: 'a', ...abertura };
   jogadores.forEach(([x, y], i) => { m = aplicarComando(m, { tipo: 'item.adicionar', colecao: 'tokens', item: { ...novaPeca([x, y]), id: `t${i}`, name: `P${i}`, player: true, vision: { radius: 20, dark: false } } as never }); });
   return m;

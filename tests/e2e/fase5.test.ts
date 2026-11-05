@@ -26,7 +26,7 @@ test('fantasma da proposta: o que a prévia acrescenta aparece (2 objetos e 1 lu
     const previa = structuredClone(w.__atlas.sessao().doc.value);
     const obj = (id: string, recipe: string, x: number) => ({ id, source: { kind: 'recipe', recipe, seed: 3, params: {} }, position: [x, 9], rotation: 0, scale: 1, elevation: 'floor', wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true, interaction: null });
     previa.props = { n1: obj('n1', 'cama.solteiro', 8.5), n2: obj('n2', 'mesinha', 10.5) };
-    previa.lights = { l1: { id: 'l1', position: [12, 9], radius: 5, color: '#ffb36b', intensity: 1, flicker: 0.1, cone: null, ownerId: null, power: 'fire', on: true, nightOnly: false, preset: null } };
+    previa.lights = { l1: { id: 'l1', position: [12, 9], radius: 5, color: '#ffb36b', intensity: 1, flicker: 0.1, cone: null, ownerId: null, power: 'fire', on: true, nightOnly: false, preset: null, rays: false } };
     w.__atlas.viewport().mostrarProposta(previa);
   });
   await page.waitForTimeout(500);

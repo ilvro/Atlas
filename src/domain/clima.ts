@@ -98,7 +98,7 @@ export function luzesDerivadas(m: MapaAtlas): Luz[] {
     const direcao = Math.atan2(para[1], para[0]);
     if (sun) saida.push({
       id: `janela:${a.id}`, position: [ponto[0] + para[0] * 0.3, ponto[1] + para[1] * 0.3], radius: JANELA_ALCANCE, color: sun.color, intensity: sun.intensity, flicker: 0,
-      cone: { angle: JANELA_ABERTURA, direction: direcao }, ownerId: a.id, power: 'magic', on: true, nightOnly: false, preset: null,
+      cone: { angle: JANELA_ABERTURA, direction: direcao }, ownerId: a.id, power: 'magic', on: true, nightOnly: false, preset: null, rays: false,
     });
     // À noite, a janela de um cômodo com luz acesa brilha para fora, na cor média das luzes de dentro.
     const cores = acesas.get(salas[0]!);
@@ -106,7 +106,7 @@ export function luzesDerivadas(m: MapaAtlas): Luz[] {
       const media = hex(cores.reduce<Cor>((acc, c) => [acc[0] + c[0] / cores.length, acc[1] + c[1] / cores.length, acc[2] + c[2] / cores.length], [0, 0, 0]));
       saida.push({
         id: `janela-fora:${a.id}`, position: [ponto[0] - para[0] * 0.3, ponto[1] - para[1] * 0.3], radius: JANELA_FORA_ALCANCE, color: media, intensity: 0.6, flicker: 0,
-        cone: { angle: JANELA_ABERTURA, direction: Math.atan2(-para[1], -para[0]) }, ownerId: a.id, power: 'magic', on: true, nightOnly: false, preset: null,
+        cone: { angle: JANELA_ABERTURA, direction: Math.atan2(-para[1], -para[0]) }, ownerId: a.id, power: 'magic', on: true, nightOnly: false, preset: null, rays: false,
       });
     }
   }
@@ -140,6 +140,7 @@ export function misturar(a: EstadoDeClima, b: EstadoDeClima, t: number): Mistura
     finish: {
       preset: fb.preset, texture: lerp(fa.texture, fb.texture, t), vignette: lerp(fa.vignette, fb.vignette, t), saturation: lerp(fa.saturation, fb.saturation, t), grain: lerp(fa.grain, fb.grain, t),
       tint: corMisturada(fa.tint, fb.tint, t), grade: { lift: lerp(fa.grade.lift, fb.grade.lift, t), gamma: lerp(fa.grade.gamma, fb.grade.gamma, t), gain: lerp(fa.grade.gain, fb.grade.gain, t) },
+      edges: { kind: fb.edges.kind, amount: lerp(fa.edges.amount, fb.edges.amount, t) }, glow: lerp(fa.glow, fb.glow, t),
     },
   };
 }

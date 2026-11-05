@@ -2,7 +2,7 @@ import type { Ref } from '#mesa';
 import type { Faixa } from './celulas.ts';
 
 export const SCHEMA_MAPA = 'atlas.map';
-export const VERSAO_MAPA = 5;
+export const VERSAO_MAPA = 6;
 
 /** Unidade de mundo: metro. Coordenadas [x, y] com origem no canto superior esquerdo e y para baixo. */
 export type Ponto = [x: number, y: number];
@@ -30,13 +30,15 @@ export interface Clima {
   /** A rede elétrica está ligada? Desligada (apagão), as luzes `power: 'grid'` apagam. */
   gridPower: boolean;
 }
-export interface Acabamento { preset: string; texture: number; vignette: number; saturation: number; grain: number; /** Cor que tinge a cena; #ffffff não tinge. */ tint: string; grade: { lift: number; gamma: number; gain: number } }
+export interface Acabamento { preset: string; texture: number; vignette: number; saturation: number; grain: number; /** Cor que tinge a cena; #ffffff não tinge. */ tint: string; grade: { lift: number; gamma: number; gain: number };
+  /** Bordas do mapa: nuvens, escuro ou neblina (`amount` de 0 a 1). */ edges: { kind: 'none' | 'clouds' | 'dark' | 'fog'; amount: number };
+  /** Halo das luzes, de 0 a 1. */ glow: number }
 /** Um clima do usuário: o clima e o acabamento de um momento, guardados com nome para voltar a eles. */
 export interface ClimaSalvo { id: string; name: string; climate: Omit<Clima, 'preset'>; finish: Omit<Acabamento, 'preset'> }
 export interface Memoria { sketch: boolean; paper: string; ink: string }
 export interface Fundo { kind: 'solid' | 'texture'; color: string; material: string | null; title: null | { text: string; font: string; position: Ponto } }
 /** Camadas de terreno pintadas por células de `resolution` metros (em RLE). `base: 'vazio'` deixa ver o fundo do mapa. */
-export interface Terreno { resolution: number; base: string; layers: Record<string, { id: string; material: string; cells: Faixa[]; order: number }> }
+export interface Terreno { resolution: number; base: string; layers: Record<string, { id: string; material: string; cells: Faixa[]; order: number; /** Correnteza da camada de água (`angle` em rad); `null` é água parada. */ flow: null | { angle: number; speed: number } }> }
 
 export interface Comodo {
   id: string; name: string; function: string | null; cells: Faixa[];
@@ -47,7 +49,9 @@ export interface Comodo {
 export interface Parede {
   id: string; path: Ponto[]; height: number; thickness: number; material: string;
   kind: 'wall' | 'low' | 'fence' | 'cliff'; blocks: { move: boolean; sight: boolean; light: boolean };
-  source: null | { roomId: string };
+  /** De que lado a escarpa desce; só vale para `kind: 'cliff'`. */
+  drop: 'a' | 'b' | null;
+  source: null | { roomId: string } | { terrainLayerId: string };
 }
 export interface Abertura {
   id: string; wallId: string; at: number; width: number; kind: 'door' | 'window' | 'arch' | 'secret';
@@ -58,7 +62,7 @@ export interface Abertura {
 export type FonteObjeto = { kind: 'recipe'; recipe: string; seed: number; params: Record<string, unknown> } | { kind: 'asset'; assetId: string };
 export interface Objeto {
   id: string; source: FonteObjeto; position: Ponto; rotation: number; scale: number;
-  elevation: 'floor' | 'table' | 'wall' | 'ceiling';
+  elevation: 'floor' | 'table' | 'wall' | 'ceiling' | 'underwater';
   wall: null | { wallId: string; at: number; face: 'inner' | 'outer' };
   roomId: string | null; blocks: { move: boolean; sight: boolean }; castsShadow: boolean; harmonize: boolean;
   /** O que o mestre pode acionar na sessão (interruptor, gaveta, pista); `null` é um objeto comum. */
@@ -74,6 +78,8 @@ export interface Luz {
   power: 'grid' | 'fire' | 'battery' | 'magic'; on: boolean; nightOnly: boolean;
   /** A predefinição que originou a luz (vela, lanterna…), só para a interface; os valores é que valem. */
   preset: string | null;
+  /** Raios visíveis no cone. */
+  rays: boolean;
 }
 export interface Regiao {
   id: string; polygon: Ponto[]; kind: 'reveal' | 'trigger' | 'note' | 'audio'; gmOnly: boolean;
@@ -138,7 +144,7 @@ export function criarMapa(o: OpcoesNovoMapa = {}): MapaAtlas {
     bounds: { width: o.largura ?? 45, height: o.altura ?? 30 },
     style: { renderer: 'illustrated', palette: 'investigacao-sepia', walls: 'box', genre: 'investigacao', pixel: { pixelsPerCell: 16, dither: 'bayer4', outline: true } },
     climate: { preset: 'dia', ambient: { color: '#d1ccc0', intensity: 0.82 }, sun: { angle: 0.6, color: '#fff2d6', intensity: 1 }, time: '14:30', weather: { rain: 0, snow: 0, fog: 0, wind: 0, dust: 0, embers: 0, leaves: 0, lightning: 0 }, gridPower: true },
-    finish: { preset: 'neutro', texture: 0.2, vignette: 0.28, saturation: 1, grain: 0.03, tint: '#ffffff', grade: { lift: 0, gamma: 1, gain: 1 } },
+    finish: { preset: 'neutro', texture: 0.2, vignette: 0.28, saturation: 1, grain: 0.03, tint: '#ffffff', grade: { lift: 0, gamma: 1, gain: 1 }, edges: { kind: 'none', amount: 0 }, glow: 0 },
     memory: { sketch: true, paper: 'papel-claro', ink: '#241b14' },
     backdrop: { kind: 'solid', color: '#07080b', material: null, title: null },
     terrain: { resolution: 0.25, base: 'vazio', layers: {} },

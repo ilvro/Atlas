@@ -43,7 +43,7 @@ test('janela deixa passar a luz, mas não a visão', () => {
 
 test('o vão recorta a parede em dois pedaços, também numa parede dobrada', () => {
   const m = criarMapa({ id: 'm', agora: 1 });
-  m.walls.w = { id: 'w', path: [[0, 0], [4, 0], [4, 4]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, source: null };
+  m.walls.w = { id: 'w', path: [[0, 0], [4, 0], [4, 4]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, drop: null, source: null };
   assert.equal(oclusores(m, 'luz').length, 2);
   abertura(m, 'w', { kind: 'arch', at: 0.25, width: 2 });                 // centro a 2 m: de 1 a 3 m
   const s = oclusores(m, 'luz'); assert.equal(s.length, 3);

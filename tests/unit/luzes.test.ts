@@ -45,6 +45,6 @@ test('sem função, sem luz a sugerir e fora da fila quando já há luz; a luz �
   assert.equal(propostaDeLuzes(ctx(mapaCom(sala('x', 0, 0, 4, 3, { name: 'Cômodo' }))), 'x'), null);
   const m = escritorio(), sem = new Set(['porta:e', 'mobiliar:e']);      // o único cômodo também sugere a porta de entrada
   assert.equal(proximaSugestao(ctx(m), 'e', sem)?.tipo, 'luz');
-  m.lights.l = { id: 'l', position: [1, 1], radius: 4, color: '#fff', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'fire', on: true, nightOnly: false, preset: null };
+  m.lights.l = { id: 'l', position: [1, 1], radius: 4, color: '#fff', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'fire', on: true, nightOnly: false, preset: null, rays: false };
   assert.equal(proximaSugestao(ctx(m), 'e', sem), null);
 });

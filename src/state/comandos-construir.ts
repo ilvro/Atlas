@@ -146,7 +146,7 @@ export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
 
     case 'terreno.pintar': {
       const cel = normais(c.celulas), novas = codificar(cel), id = idDaCamada(c.material);
-      m.terrain.layers[id] ??= { id, material: c.material, cells: [], order: Object.keys(m.terrain.layers).length };
+      m.terrain.layers[id] ??= { id, material: c.material, cells: [], order: Object.keys(m.terrain.layers).length, flow: null };
       for (const camada of Object.values(m.terrain.layers)) if (camada.id !== id) camada.cells = subtrair(camada.cells, novas);
       m.terrain.layers[id]!.cells = unir(m.terrain.layers[id]!.cells, novas);
       for (const camada of Object.values(m.terrain.layers)) if (!camada.cells.length) delete m.terrain.layers[camada.id];

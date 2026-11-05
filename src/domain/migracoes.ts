@@ -60,7 +60,22 @@ const de4para5: Migracao = doc => {
   return d;
 };
 
-export const MIGRACOES: TabelaDeMigracoes = { 1: de1para2, 2: de2para3, 3: de3para4, 4: de4para5 };
+/**
+ * 5 → 6 (Fase 10): camadas de terreno ganham `flow: null`; paredes, `drop: null`; luzes, `rays: false`; o acabamento (e o de cada
+ * clima salvo) ganha `edges` sem borda e `glow` 0. Só acrescenta, com padrões neutros.
+ */
+const de5para6: Migracao = doc => {
+  const d = doc as Record<string, any>;
+  if (d.terrain && typeof d.terrain === 'object') for (const c of porValor(d.terrain.layers)) c.flow ??= null;
+  for (const p of porValor(d.walls)) p.drop ??= null;
+  for (const l of porValor(d.lights)) l.rays ??= false;
+  const acabamento = (f: unknown) => { if (f && typeof f === 'object') { const x = f as Record<string, unknown>; x.edges ??= { kind: 'none', amount: 0 }; x.glow ??= 0; } };
+  acabamento(d.finish);
+  for (const c of porValor(d.customClimates)) acabamento(c.finish);
+  return d;
+};
+
+export const MIGRACOES: TabelaDeMigracoes = { 1: de1para2, 2: de2para3, 3: de3para4, 4: de4para5, 5: de5para6 };
 
 /** Aplica a cadeia de migrações até `alvo`. Separada para ser testada com tabelas de mentira. */
 export function aplicarMigracoes(bruto: unknown, tabela: TabelaDeMigracoes, alvo: number): Record<string, unknown> {

@@ -114,7 +114,7 @@ test('Jukebox no contrato (9.4a e 9.4d), com o Jukebox de verdade sob o mesa-dev
       const s = (window as unknown as { __atlas: { sessao(): { store: { executar(c: unknown): void } } } }).__atlas.sessao();
       const cel = (x: number, y: number) => [x, y] as const, celulas = [] as (readonly [number, number])[]; for (let y = 2; y < 6; y++) for (let x = 2; x < 8; x++) celulas.push(cel(x, y));
       s.store.executar({ tipo: 'comodo.criar', id: 'sala', nome: 'Sala', funcao: 'sala', piso: { material: 'tabuas.carvalho', seed: 1 }, papel: null, celulas });
-      s.store.executar({ tipo: 'parede.adicionar', parede: { id: 'p1', path: [[9, 3], [9, 9]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, source: null } });
+      s.store.executar({ tipo: 'parede.adicionar', parede: { id: 'p1', path: [[9, 3], [9, 9]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, drop: null, source: null } });
       s.store.executar({ tipo: 'abertura.adicionar', abertura: { id: 'porta', wallId: 'p1', at: 0.5, width: 1.5, kind: 'door', state: 'closed', material: 'madeira.media', som: ref, swing: 'a' } });
     }, efeito);
     await a.click('[data-testid="modo-sessao"]'); await a.waitForTimeout(500);

@@ -11,7 +11,7 @@ import type { MapaAtlas } from '../../src/domain/mapa.ts';
 /** A casa com um mestre cheio de segredos: nota, região gmOnly, secreta, presença gmOnly, inimigo fora da vista (com lanterna) e uma pista. */
 function mapaComSegredos(): MapaAtlas {
   let m = mapaCompleto();
-  m.walls.p2 = { id: 'p2', path: [[20, 0], [20, 12]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, source: null };
+  m.walls.p2 = { id: 'p2', path: [[20, 0], [20, 12]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, drop: null, source: null };
   m.openings.cofre = { id: 'cofre', wallId: 'p2', at: 0.5, width: 0.9, kind: 'secret', state: 'closed', material: 'madeira.media', som: null, swing: 'a' };
   m.regions.armadilha = { id: 'armadilha', polygon: [[1, 1], [2, 1], [2, 2]], kind: 'trigger', gmOnly: true, payload: { segredo: 'SEGREDO-REGIAO' }, refs: [] };
   m.presence.sangue = { id: 'sangue', brush: 'sangue', cells: [[9, 9, 3]], intensity: 1, seed: 1, gmOnly: true };

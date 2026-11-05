@@ -519,7 +519,7 @@ const semEstilo = (d: import('../../src/domain/mapa.ts').MapaAtlas): string => {
 test('fase 8: a casa no Pixel — o mapa da Fase 7 sem mudar o documento, jogado no projetor e trocado ao vivo com o Ilustrado', async () => {
   const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
   const mapaId = await criarMapaPelaInterface(page);
-  const parede = (id: string, x: number) => ({ id, path: [[x, 3], [x, 9]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, source: null });
+  const parede = (id: string, x: number) => ({ id, path: [[x, 3], [x, 9]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, drop: null, source: null });
   await sessao(page, `(s, a) => {
     const sala = [], cozinha = [], despensa = [];
     for (let y = 2; y < 6; y++) { for (let x = 2; x < 8; x++) sala.push([x, y]); for (let x = 8; x < 14; x++) cozinha.push([x, y]); for (let x = 14; x < 20; x++) despensa.push([x, y]); }
@@ -537,7 +537,7 @@ test('fase 8: a casa no Pixel — o mapa da Fase 7 sem mudar o documento, jogado
     v1: parede('v1', 12), v2: parede('v2', 21),
     porta: { id: 'porta', wallId: 'v1', at: 0.5, width: 1.5, kind: 'door', state: 'closed', material: 'madeira.media', som: null, swing: 'a' },
     cofre: { id: 'cofre', wallId: 'v2', at: 0.5, width: 1.5, kind: 'secret', state: 'closed', material: 'madeira.media', som: null, swing: 'a' },
-    rede: { id: 'rede', position: [7.5, 6], radius: 7, color: '#ffe2b0', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'grid', on: true, nightOnly: false, preset: null },
+    rede: { id: 'rede', position: [7.5, 6], radius: 7, color: '#ffe2b0', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'grid', on: true, nightOnly: false, preset: null, rays: false },
     interruptor: { ...objeto('sw', receita('caixa', 1), 4.5, 4.5), scale: 0.5, roomId: 'sala', blocks: { move: false, sight: false }, castsShadow: false, interaction: { kind: 'switch', on: true, targets: [], sound: null, clue: null } },
     mesa: objeto('mesa', receita('mesa.retangular', 2), 15, 6), sofa: objeto('sofa', receita('sofa', 3), 5, 9.2), cama: objeto('cama', receita('cama.casal', 4), 22.5, 5.5),
     ana: { ...pecaDeJogador('ana', 9.75, 5.25) }, beto: { ...pecaDeJogador('beto', 9.75, 6.75), sprite: { body: 'padrao', hair: 'longo', outfit: 'vestido', accessories: ['lanterna'], colors: {}, seed: 3 } },

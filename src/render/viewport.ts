@@ -758,7 +758,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     else if (i.tipo === 'parede' && !cancelado) {
       if (Math.hypot(i.fim[0] - i.ini[0], i.fim[1] - i.ini[1]) >= 0.25) {
         const tipo = ponte.pincel().parede.tipo, id = novoIdEntidade('w');
-        if (tentar(() => store.executar({ tipo: 'parede.adicionar', parede: { id, path: [i.ini, i.fim], height: tipo === 'wall' ? 2.6 : 1.1, thickness: tipo === 'wall' ? 0.2 : 0.14, material: 'parede.topo', kind: tipo, blocks: { move: true, sight: tipo === 'wall', light: tipo === 'wall' } } }, { rotulo: 'Desenhar parede' }))) { ponte.definirSelecao([{ colecao: 'walls', id }]); ponte.aoColocar('Parede', i.fim); }
+        if (tentar(() => store.executar({ tipo: 'parede.adicionar', parede: { id, path: [i.ini, i.fim], height: tipo === 'wall' ? 2.6 : 1.1, thickness: tipo === 'wall' ? 0.2 : 0.14, material: 'parede.topo', kind: tipo, blocks: { move: true, sight: tipo === 'wall', light: tipo === 'wall' }, drop: null } }, { rotulo: 'Desenhar parede' }))) { ponte.definirSelecao([{ colecao: 'walls', id }]); ponte.aoColocar('Parede', i.fim); }
       }
     }
     camadaSuja = true; cursor();

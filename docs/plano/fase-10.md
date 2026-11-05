@@ -4,7 +4,7 @@
 
 Critério de pronto da fase: os sete exemplos abrem pela galeria ("Começar de um exemplo"), funcionam em Construir e em Sessão, nos dois estilos (Ilustrado e Pixel), com climas próprios; a captura de cada um, lado a lado com a referência, mostra a mesma composição, a mesma ambientação e o mesmo nível de acabamento.
 
-Planejado em 5 de novembro de 2026 contra o código do fim da Fase 9. As fichas de 10.0 a 10.2 estão detalhadas; as de 10.3 em diante têm escopo fechado e são **detalhadas ao começar o lote** (o código dos lotes anteriores muda o que elas tocam).
+Planejado em 5 de novembro de 2026 contra o código do fim da Fase 9. As fichas do lote A e as de 10.1a–b estão detalhadas; as outras têm escopo fechado e são **detalhadas ao começar o lote** (o código dos lotes anteriores muda o que elas tocam).
 
 ## Os sete exemplos
 
@@ -54,6 +54,11 @@ Não falta: andares, grid hexagonal ou mapa de região (nenhum exemplo pede).
 - **Usar um exemplo** cria uma cópia no repositório (`duplicarParaNovaSessao`, id novo); o exemplo publicado nunca é alterado.
 - **Referências** ficam em `docs/referencias/exemplos/` (ignoradas pelo git: arte de terceiros, 56 MB). As capturas lado a lado vão para `test-results/fase10-*.png`.
 
+## Quem faz
+
+- **Sonnet:** as features e o acervo (10.0 a 10.6), uma ficha por sessão, como nas fases anteriores.
+- **Opus:** os sete exemplos (10.7a a 10.7g) e a validação (10.8). Ao começar cada lote, o Opus também detalha as fichas do lote contra o código do momento.
+
 ## Lotes
 
 A fase é entregue em três lotes; cada um termina com exemplos prontos e mostrados ao usuário antes do seguinte.
@@ -101,7 +106,7 @@ A fase é entregue em três lotes; cada um termina com exemplos prontos e mostra
 
 ---
 
-### 10.0a — Documento v6  ⬜
+### 10.0a — Documento v6  ✅
 Objetivo: o documento aceita tudo o que a fase precisa, e os mapas antigos abrem iguais.
 Depende de: —
 Ler: `src/domain/mapa.ts`, `src/domain/migracoes.ts` (a 4 → 5 como modelo), `src/domain/validacao.ts`.
@@ -114,6 +119,7 @@ Não fazer: nada que leia os campos novos (render e interface ficam para as tare
 Testes: migração de um v5 completo (o da 7.7) para v6 com os padrões; ida e volta sem perder nada; validação rejeita `edges.kind` desconhecido e `glow` 2.
 Pronto quando: `tsc` limpo, unitários e e2e passando sem mudar captura nenhuma.
 Commit: document v6
+Nota: `drop` fora de uma escarpa é aceito sem aviso (o validador não tem canal de avisos; o render o ignora). `misturar` (clima.ts) e `PAREDE_PADRAO` também ganharam os campos novos para os tipos fecharem; `parede.adicionar` passou a exigir `drop`. A migração também cobre o `finish` dos climas salvos (`customClimates`).
 
 ### 10.0b — Exemplos: formato, construtor e galeria  ⬜
 Objetivo: um exemplo gerado por script aparece na galeria e vira um mapa do mestre com um clique.
@@ -191,15 +197,52 @@ Testes: contorno de um anel dá dois polígonos; desfazer a pincelada desfaz as 
 Commit: massifs block sight
 
 ### 10.2c — Escarpa avulsa com lado baixo  ⬜
-Escopo: a ferramenta de parede ganha o tipo "Escarpa"; `kind: 'cliff'` com `drop` desenha uma face de rocha (faixa de largura proporcional a `height`, estrias, patamares) do lado baixo, com sombra de contato; o inspetor troca o lado com um botão; a escarpa bloqueia movimento e não bloqueia visão de quem está em cima (decidir ao detalhar: `blocks.sight` editável, padrão `false`). Pixel: face em 2 faixas. Serve à crista do Desfiladeiro e aos patamares da Ravina.
+Objetivo: desenhar uma escarpa com a ferramenta de parede dá uma face de rocha do lado baixo, que bloqueia o passo e deixa ver de cima.
+Depende de: 10.0a, 10.2a (reaproveita o desenho de rocha)
+Ler: `src/render/cena.ts` (`desenharParede`, linhas ~180–205, e como `low`/`fence` são desenhadas), `src/ui/Biblioteca.tsx` (os `tipos` do pincel de parede, linha ~90), `src/ui/Inspetor.tsx` (campo "Tipo" da parede, linha ~426, que já tem "Penhasco"), `src/domain/visibilidade.ts` (`oclusores`), `src/procedural/assar.ts` (o maciço da 10.2a).
+Arquivos: criar `src/procedural/escarpa.ts`, `tests/unit/escarpa.test.ts`; mudar `cena.ts`, `Biblioteca.tsx`, `Inspetor.tsx`, `visibilidade.ts` (se preciso), `src/procedural/executar.ts` e `src/render/entradas.ts` (pedido de bake novo).
+Como:
+1. Pincel de parede: quarto tipo `{ tipo: 'cliff', nome: 'Escarpa', desc: 'Rocha em degrau: bloqueia o passo; de cima se vê embaixo' }`. Parede nova de tipo `cliff` nasce com `drop: 'b'`, `height: 3`, `thickness: 0.4`, `blocks: { move: true, sight: false, light: false }`, material `rocha.cinza`. No Inspetor, "Penhasco" vira "Escarpa"; com `cliff` aparecem "Lado baixo" (botão que troca `a`/`b`, com seta no mapa enquanto a parede está selecionada), "Altura" (0,5 a 12 m) e "Rocha" (materiais de uso `macico`).
+2. `escarpa.ts` (procedural, sem Pixi): `descreverEscarpa(path, drop, altura, material, seed)` → uma tela assada como a do terreno: a **face** é uma faixa do lado `drop` com largura `0,35 × altura` (mín. 0,4 m), quebrada em 3 patamares com borda de ruído, estrias perpendiculares ao caminho, aresta clara no topo e traço de nanquim; uma **sombra de contato** de 0,5 m no pé da face. Material `rocha.nevada` põe neve na aresta. Pixel: 2 faixas da paleta + contorno de 1 px.
+3. A cena assa as escarpas como entradas próprias (chave = estilo + caminho + drop + altura + material + seed) num container logo acima do terreno (abaixo dos cômodos); a linha de parede comum deixa de ser desenhada para `cliff` com `source: null`. As de `source: { terrainLayerId }` (10.2b) seguem invisíveis.
+4. Visão: `oclusores` já respeita `blocks.sight`; conferir que `cliff` com `sight: false` não corta a visão nem a luz (`light: false`).
+Não fazer: sombra longa do sol (10.3); "subir" e "descer" com regras de altura para peças.
+Testes: unitário de que a face fica do lado certo (`drop: 'a'` e `'b'` num segmento horizontal: a caixa da tela fica acima ou abaixo); chave muda com `drop`. e2e: desenhar uma escarpa com o pincel, trocar o lado no inspetor e ver a face mudar de lado (captura); uma peça não atravessa, mas a névoa revela do outro lado.
+Pronto quando: a crista em "C" do Desfiladeiro pode ser feita com três escarpas e parece rocha, não uma linha.
 Commit: cliff walls with a low side
 
 ### 10.3 — Sombra do sol nos exteriores  ⬜
-Escopo: função pura `sombraDoSol(clima) → { direcao, comprimentoPorMetro, cor, alfa }` (hora → elevação, `sun.angle` → direção; noite: sem sombra de sol); camada de sombras entre terreno/água e objetos que desenha, para cada objeto `castsShadow` fora de cômodo com telhado, a silhueta da textura assada, escurecida e esticada na direção do sol pela altura (o maior `z` da descrição, ou `altura` da receita/coleção quando houver); mesma coisa para maciços (pela altura do patamar) e escarpas (`height`). Cor azulada na neve (cor do ambiente). Pixel: silhueta em bloco, 1 faixa. Teste puro de `sombraDoSol` (meio-dia curta, 8h longa, 23h nenhuma).
+Objetivo: de dia, árvores, rochas e escarpas lançam sombra longa na direção oposta ao sol, que encurta ao meio-dia e some à noite.
+Depende de: 10.0a, 10.2a, 10.2c
+Ler: `src/domain/clima.ts` (`ehNoite`, hora), `src/domain/mapa.ts` (`Clima.sun`, `Objeto.castsShadow`), `src/render/cena.ts` (`sincronizarObjetos`, como cada objeto vira sprite a partir da textura assada), `src/render/telhados.ts` (cômodo com telhado), `src/procedural/descricao.ts` (`Parte.z`), `src/procedural/colecao.ts` (`ItemDaColecao`), `src/procedural/receitas/comum.ts` (`Receita`).
+Arquivos: criar `src/domain/sol.ts`, `src/render/sombras-do-sol.ts`, `tests/unit/sol.test.ts`; mudar `cena.ts`, `comum.ts` (`altura?`), `colecao.ts` (`altura?`), `scripts/assar-colecao.ts` (grava `altura` = maior `z`).
+Como:
+1. `sol.ts` (puro): `sombraDoSol(clima: Clima): null | { dir: Ponto; porMetro: number; alfa: number; cor: string }`. Elevação pela hora (`time`): 0 antes das 6h e depois das 18h30 (devolve `null`), máxima às 12h30; `porMetro = clamp(1 / tan(elevacao), 0.25, 4)`; `dir` = vetor unitário oposto a `sun.angle` (radianos, 0 = sol vindo do leste; conferir a convenção que `sun.angle` já usa no código e documentá-la); `alfa = 0,45 × sun.intensity × (1 − fog)`; `cor` = a cor do ambiente escurecida a 35% (na neve fica azulada sozinha, porque o ambiente do preset `neve` é azul-claro). `sun: null` → `null`.
+2. Altura de cada coisa: `Receita.altura?` e `ItemDaColecao.altura?` (m); sem elas, o maior `z` das partes, saturado em 12. O script de assar grava `altura` nos itens gerados (rodar `npm run assar` só para preencher, sem mudar imagens).
+3. `sombras-do-sol.ts`: um `Container` logo acima do terreno (e da água, quando existir) e abaixo dos objetos. Para cada objeto com `castsShadow` e `elevation: 'floor'`, fora de cômodo com telhado visível: um `Sprite` com a **mesma textura** do objeto, `tint` na cor da sombra, `alpha` da sombra, com a transformação de cisalhamento que estica a silhueta na direção `dir` por `altura × porMetro` (base fixa no pé do objeto; aproximação: escala no eixo do sol + deslocamento de metade do comprimento) e um `BlurFilter` leve compartilhado. Escarpas: polígono da face estendido `height × porMetro` para o lado baixo. Maciços: a tela de sombra do maciço (silhueta deslocada `1,5 m × porMetro`) feita no mesmo assar da 10.2a como camada à parte.
+4. Atualiza quando muda `climate`, `props` ou a textura do objeto chega; nada por quadro.
+5. Pixel: sem blur, `alpha` 1 com a cor da faixa mais escura do ambiente, silhueta arredondada ao pixel do Pixel.
+Não fazer: sombra das paredes dos cômodos (as caixas já têm a delas); sombra dentro de casa.
+Testes: `sol.test.ts`: 12h30 curta (`porMetro` ≤ 0,5), 8h longa (≥ 2), 23h `null`, `sun: null` `null`; direção oposta ao sol. e2e: árvore da coleção no mapa às 8h e às 12h30: a área escura em volta é maior às 8h (contagem de pixels escuros na captura).
+Pronto quando: os pinheiros do Desfiladeiro às 9h têm sombras longas e azuladas, todas para o mesmo lado.
 Commit: sun shadows outdoors
 
 ### 10.4a — Materiais: gelo, neve com dunas, rocha rachada, cascalho  ⬜
-Escopo: padrões novos em `materiais.ts` e no Pixel: `gelo` (azul translúcido, rachaduras em rede, reflexo branco em faixas), `neve.funda` (dunas de vento: linhas onduladas com sombra azul de um lado, sulcos de trilha), `rocha.rachada` (piso de caverna: placas de Voronoi com fendas escuras e manchas), `cascalho`. Captura de cada um ao lado do recorte da referência.
+Objetivo: quatro materiais de terreno que as cenas de inverno e de caverna pedem, nos dois estilos.
+Depende de: —
+Ler: `src/procedural/materiais.ts` (`Padrao`, `MATERIAIS`, `pintarMaterial` e os casos `neve`, `pedra`, `laje`), `src/procedural/ruido.ts`, `src/procedural/estilos/materiais-pixel.ts`, `tests/unit/materiais-pixel.test.ts`; recortes de `docs/referencias/exemplos/desfiladeiro-nevado.png` (lago à direita, neve no centro) e `covil-na-caverna.png` (chão).
+Arquivos: mudar `materiais.ts`, `estilos/materiais-pixel.ts`; criar `src/procedural/voronoi.ts`, `tests/unit/voronoi.test.ts`.
+Como:
+1. `voronoi.ts` (puro): `celulasDeVoronoi(area, tamanhoMedio, seed)` → sítios com jitter numa grade (determinístico) e, para um ponto, a distância à borda mais próxima (F2 − F1). Usado pela rocha rachada agora e pelo paralelepípedo na 10.4b.
+2. Padrões novos (`Padrao`): `gelo`, `dunas`, `rachado`, `cascalho`. Materiais (uso `terreno`):
+   - `gelo` (base `#9cc7e0`, escuro `#5d93b8`, claro `#e8f6ff`): manchas grandes de ruído entre base e escuro (o "fundo" visto pelo gelo), rachaduras longas (polilinhas aleatórias que se ramificam, traço claro de 1,5 px com um fio escuro ao lado), estrias brancas finas em diagonal e pontos de reflexo.
+   - `neve.funda` (padrão `dunas`; base `#eef3f8`, escuro `#b9c8da`, claro `#ffffff`): a neve de hoje mais linhas onduladas longas (ruído em uma direção) com sombra azul de um lado e luz do outro, a cada 2 a 4 m.
+   - `rocha.rachada` (padrão `rachado`; base `#5f6872`, escuro `#2b3138`, claro `#8d98a3`): placas de Voronoi de 0,3 a 0,6 m com fendas escuras (F2 − F1 pequeno), cada placa com tom levemente diferente e manchas de ruído.
+   - `cascalho` (base `#7a756c`): muitas pedrinhas (elipses de 2 a 6 cm) com luz e sombra sobre terra escura.
+3. Pixel: `gelo` em 3 tons com rachaduras de 1 px; `dunas` em faixas de 2 tons; `rachado` com fendas de 1 px; `cascalho` em pontos de 1 px.
+Não fazer: água (10.1); mudar os materiais que existem.
+Testes: `voronoi.test.ts` (mesma semente, mesmo resultado; F2 − F1 ≥ 0); os testes que percorrem `MATERIAIS` passam; no Pixel, cada material novo tem no máximo 6 cores numa amostra de 64 × 64.
+Pronto quando: uma captura com os quatro lado a lado, a 64 px/m, mostra gelo com rachaduras, neve com dunas, chão de caverna rachado e cascalho (anexar em `test-results/fase10-materiais-a.png`).
 Commit: ice, deep snow and cracked rock
 
 ### 10.4b — Materiais: paralelepípedo, lajes com grama, terra com sulcos, areia molhada  ⬜
@@ -207,7 +250,24 @@ Escopo: `paralelepipedo` (pedras arredondadas irregulares, Voronoi, rejunte escu
 Commit: cobbles, grassy flagstones and rutted dirt
 
 ### 10.5a — Acervo: inverno e rocha  ⬜
-Escopo: geradores pesados `pinheiro-nevado` (3 e 4 m) e `arvore-nevada` (copa redonda coberta: pompons brancos com sombra azul, como as referências), `arbusto-seco` (galhos finos ramificados, inverno), `rochedo` (receita com tamanho 1,5 a 4 m, facetado, variantes com musgo e com neve), `seixos` (aglomerado), `trenó`, `galho-seco`. Entram na coleção (`npm run assar`) os de gerador pesado; na Biblioteca, as tags `inverno` e `rocha`.
+Objetivo: os objetos de inverno e as rochas grandes que o Desfiladeiro e as costas pedem.
+Depende de: — (o `altura` da 10.3 é opcional aqui)
+Ler: `src/procedural/pesados/plantas.ts` (`copaRedonda`, `pinheiro`, `arbusto`, o formato das variantes), `src/procedural/pesados/index.ts`, `src/procedural/receitas/exterior.ts` (`pedra`), `src/procedural/receitas/index.ts`, `scripts/assar-colecao.ts`, `tests/unit/pesados.test.ts`, `tests/unit/kit-exterior.test.ts`; recortes de `desfiladeiro-nevado.png`.
+Arquivos: mudar `pesados/plantas.ts`; criar `src/procedural/receitas/ermos.ts`, `tests/unit/kit-ermos.test.ts`; mudar `receitas/index.ts`; rodar `npm run assar` (gera os WebP e atualiza `public/colecao/colecao.json`).
+Como:
+1. Geradores pesados (categoria `exterior`, kit `exterior`, `res: 64`):
+   - `arvore-nevada` (3, 5 m): a copa vista de cima como **pompons de neve** — 5 a 9 bolas brancas sobrepostas (`#f4f8fc` com sombra `#b8c8dc` do lado oposto à luz e brilho `#ffffff`), cada uma com textura de "algodão" (muitas elipses pequenas de 3 tons), contorno leve azul-acinzentado; quase nada de verde visível (só frestas `#4a6a5a`).
+   - `pinheiro-nevado` (3, 4,5 m): a forma do `pinheiro` com camadas brancas por cima das verdes em anel, verde aparecendo só nas pontas.
+   - `arbusto-seco` (1,2 e 2 m): galhos finos ramificados do centro para fora (3 níveis de ramificação, traço de 1 a 3 cm, `#3a2c22` e `#5b4636`), sem folhas, com um pouco de neve opcional (`neve: true`).
+2. Receitas em `ermos.ts` (`kit: 'ermos'`, categoria `exterior`, tags `inverno`/`rocha`/`natureza`):
+   - `rochedo` (campos `tamanho` 1,5–5 m e `cobertura`: `nenhuma`/`musgo`/`neve`): polígono de 14 a 20 vértices com bordas quebradas, 3 a 4 faces facetadas em tons de cinza (luz a noroeste), rachaduras, e a cobertura por cima (manchas de musgo nas faces de cima ou um tampo de neve irregular).
+   - `seixos` (aglomerado de 5 a 12 pedrinhas numa pegada de 1 × 0,8 m).
+   - `galho-seco` (galho caído com ramificações, 1,5 m).
+   - `treno` (trenó de madeira com dois esquis de ferro e ripas, 1,4 × 0,6 m).
+3. `npm run assar` gera os itens novos (`casa:arvore-nevada-3m` etc.); nenhum item antigo muda de versão.
+Não fazer: sombra longa (10.3); mexer nas árvores que existem.
+Testes: `kit-ermos.test.ts` (cada receita gera descrição válida com a pegada dentro da caixa; semente diferente, forma diferente; `cobertura` muda as partes); `pesados.test.ts` cobre os geradores novos.
+Pronto quando: uma captura com os itens novos sobre `neve.funda` (ou `neve`), no Ilustrado e no Pixel, parece o recorte do Desfiladeiro (`test-results/fase10-inverno.png`).
 Commit: winter trees and boulders
 
 ### 10.5b — Acervo: mata, ruína e margem  ⬜
@@ -223,7 +283,21 @@ Escopo: `carroca` (vazia e carregada, com varais), `cavalo` (pardo, branco, pret
 Commit: road and stable kit
 
 ### 10.5e — Acervo: caverna  ⬜
-Escopo: `ossada` (esqueleto de quadrúpede deitado, variantes), `cranio-animal`, `pilha-de-ossos`, `pilha-de-peles` (peles com manchas e listras sobrepostas), `buraco` (fosso escuro com borda quebrada; bloqueia movimento), `estalagmite`, `arvore-morta-caida` (tronco com galhos secos).
+Objetivo: os restos e as feições do Covil na caverna.
+Depende de: —
+Ler: `src/procedural/receitas/ermos.ts` (da 10.5a; se ainda não existe, criar aqui com o mesmo formato), `src/procedural/receitas/exterior.ts` (`pedra`, `tronco.caido`), `src/procedural/descricao.ts`; recortes de `covil-na-caverna.png`.
+Arquivos: mudar `receitas/ermos.ts` (ou criar `receitas/caverna.ts` no mesmo formato), `receitas/index.ts`; testes em `tests/unit/kit-ermos.test.ts`.
+Como (kit `ermos`, categoria `exterior`, tags `caverna`/`ossos`/`masmorra`; ossos em `#d9d2c0`, sombra `#8f8775`, contorno de nanquim):
+- `ossada` (variantes por `seed`; 1,6 × 0,9 m): esqueleto de quadrúpede deitado de lado — coluna curva de vértebras, caixa torácica (8 a 12 costelas em arco), crânio alongado, ossos das pernas em ângulos; peças soltas pela semente.
+- `cranio-animal` (0,4 × 0,25 m, com chifres opcionais `chifres: true`).
+- `pilha-de-ossos` (1,5 m): ossos longos cruzados, costelas, dois crânios, sobre uma mancha escura.
+- `pilha-de-peles` (2 × 1,6 m): 5 a 7 peles sobrepostas com contorno de pele de animal (quatro patas e cauda), cores marrom, creme, preto e uma listrada, pelos em traços curtos.
+- `buraco` (campos `largura` 0,8–3 m): fosso preto com borda de pedra quebrada e um degradê para dentro; `blocks.move` padrão `true` (ver como os objetos marcam isso em `fabrica.ts`).
+- `estalagmite` (0,4–0,8 m): cone visto de cima, anéis concêntricos com ponta clara.
+- `arvore-morta-caida` (3 m): tronco cinza-escuro com galhos secos ramificados e raízes na ponta.
+Não fazer: presença de sangue seco (10.6c).
+Testes: cada receita gera descrição válida; `buraco` nasce bloqueando o movimento.
+Pronto quando: uma captura com os itens sobre `rocha.rachada`, com pouca luz, lembra o recorte do covil (`test-results/fase10-caverna.png`).
 Commit: cave kit
 
 ### 10.5f — Acervo: fundo da água e barcos pequenos  ⬜
@@ -231,11 +305,35 @@ Escopo: `coral` (couve-flor rosada e lilás), `ourico`, `anemona`, `alga`, `roch
 Commit: seabed and small boats
 
 ### 10.6a — Bordas do mapa: nuvens, escuro, neblina  ⬜
-Escopo: `finish.edges` desenhado pela neblina (`neblina.ts`): `clouds` (nuvens brancas volumosas que avançam das bordas e derivam com o vento, como no Desfiladeiro), `dark` (vazio negro com borda de ruído, para cavernas), `fog` (neblina cinza); `amount` = quanto entra. Controle no inspetor do acabamento. Pixel: blocos de 2 px.
+Objetivo: o mapa pode se fechar nas bordas com nuvens, escuridão ou neblina, que se mexem de leve.
+Depende de: 10.0a
+Ler: `src/render/neblina.ts` (inteiro: o shader de ruído e o padrão de uniformes), `src/render/viewport.ts` (onde a neblina é criada, recebe `quadro` e fica na ordem), `src/ui/Inspetor.tsx` (bloco do acabamento, linha ~120), `src/state/comandos*.ts` (`acabamento.atualizar`).
+Arquivos: criar `src/render/bordas.ts`; mudar `viewport.ts` ou `cena.ts` (onde a neblina entra), `Inspetor.tsx`, `src/domain/presets.ts` (presets de acabamento continuam neutros).
+Como:
+1. `bordas.ts`, no formato de `criarNeblina` (sprite do tamanho do mapa com filtro): `alfa = (1 − smoothstep(0, largura, distânciaÀBorda + ruído)) `, com `largura = amount × 0,25 × min(w, h)` e o ruído (fbm do shader da neblina, escala maior) deformando a frente; desloca com o vento e o tempo.
+2. Tipos: `clouds` — cor branca iluminada pelo ambiente, com sombreado interno (o ruído em duas escalas dá volume: mais claro no "topo" da nuvem, cinza-azulado embaixo) e sombra suave projetada para dentro do mapa; `dark` — preto, frente quebrada (sem movimento); `fog` — a cor da neblina atual, macia.
+3. Ordem: acima das partículas e abaixo das peças, da névoa de jogador e das marcas do editor (as bordas fazem parte do mundo; no projetor aparecem igual).
+4. Inspetor (aba Mapa → acabamento): "Bordas" (Nenhuma, Nuvens, Escuro, Neblina) e "Quanto entra" (0 a 1) por `acabamento.atualizar`.
+5. Pixel: ruído medido em blocos de 2 px e alfa em 3 níveis com Bayer, como a neblina.
+Não fazer: halo (10.6b).
+Testes: e2e: `edges = clouds, 0,6` deixa os cantos claros e o centro igual (capturas); `dark` deixa as bordas pretas; movimento reduzido desacelera.
+Pronto quando: o Desfiladeiro pode ter nuvens nas bordas como a referência e o Covil, o negro em volta.
 Commit: map edge clouds and darkness
 
 ### 10.6b — Halo das luzes e raios no cone  ⬜
-Escopo: `finish.glow` acrescenta um halo aditivo suave em volta das luzes acesas (tochas, postes), acima das peças e abaixo da névoa; `Luz.rays` desenha raios animados de leve dentro do cone (feixe da caverna, boca da gruta). Inspetor: "Halo" no acabamento, "Raios visíveis" na luz com cone. Pixel: halo em 2 faixas, raios em listras de 1 px.
+Objetivo: tochas e postes brilham de verdade na escuridão, e o feixe da caverna mostra raios.
+Depende de: 10.0a
+Ler: `src/render/mapa-de-luz.ts` (as luzes, o flicker, `texturaDeBrilho` de `luzes.ts`, `luzesDerivadas`), `src/render/cena.ts` (ordem de `raiz`), `src/ui/Inspetor.tsx` (bloco da luz com cone e o do acabamento), `src/render/faixas.ts`.
+Arquivos: criar `src/render/halos.ts`; mudar `cena.ts`, `mapa-de-luz.ts` (expor a intensidade atual por luz, com o flicker, para o halo acompanhar), `Inspetor.tsx`.
+Como:
+1. Halo: para cada luz acesa (as mesmas que o mapa de luz desenha, incluindo as derivadas), um sprite aditivo com `texturaDeBrilho`, na cor da luz, raio `0,35 × radius`, alfa `finish.glow × intensidade atual` (pisca junto com o flicker). Fica **acima** do mapa de luz multiplicado e das presenças, abaixo da névoa e das peças. Não é recortado pelas paredes (é o brilho no ar); dentro de cômodo com telhado visível não aparece.
+2. Raios: luz com `cone` e `rays: true` ganha um sprite com shader: listras radiais a partir da origem, dentro do ângulo do cone, com ruído que anda devagar no ângulo, alfa caindo com a distância, aditivo, `0,25 × intensidade`; recortado pelo mesmo polígono de visão da luz (a máscara que o mapa de luz já calcula).
+3. Inspetor: "Halo das luzes" (0 a 1) no acabamento; "Raios visíveis" (alternar) na luz com cone.
+4. Pixel: halo em 2 faixas de borda dura; raios em listras de 1 px, sem animação contínua (troca a cada 0,5 s).
+5. Movimento reduzido: raios parados.
+Não fazer: bloom de tela inteira.
+Testes: e2e: noite com uma tocha, `glow` 0 e 0,8: a captura em volta da tocha fica mais clara com 0,8 e igual longe dela; luz com cone e `rays` muda entre dois quadros e para com movimento reduzido.
+Pronto quando: o Porto à noite e a Ravina podem ter as poças e halos quentes das referências, e o Covil, o feixe de luz.
 Commit: light glow and visible rays
 
 ### 10.6c — Presenças novas: sangue seco, fuligem, sulcos, algas  ⬜

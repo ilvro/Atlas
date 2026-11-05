@@ -80,7 +80,7 @@ test('janela entre dois cômodos, fora de cômodos, ou sem sol, não gera luz', 
   const m = casa(sala('a', 2, 2, 4, 4), sala('b', 4, 2, 6, 4));
   janela(m, parede(m, p => p.every(q => q[0] === 6) && p[0]![1] === 3).id);
   assert.equal(luzesDerivadas(m).length, 0, 'entre dois cômodos');
-  const solta = criarMapa({ id: 's', agora: 1 }); solta.walls.w = { id: 'w', path: [[0, 0], [4, 0]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, source: null };
+  const solta = criarMapa({ id: 's', agora: 1 }); solta.walls.w = { id: 'w', path: [[0, 0], [4, 0]], height: 2.6, thickness: 0.2, material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, drop: null, source: null };
   janela(solta, 'w'); assert.equal(luzesDerivadas(solta).length, 0, 'sem cômodo');
   const externa = casa(sala('a', 2, 2, 4, 4)); janela(externa, parede(externa, p => p.every(q => q[1] === 3)).id); externa.climate.sun = null;
   assert.equal(luzesDerivadas(externa).length, 0, 'sun: null');
@@ -93,7 +93,7 @@ test('a cor da luz da janela acompanha o clima: sol de dia, lua à noite', () =>
 });
 
 // ---- luzes que reagem ao clima ----
-const lamp = (extra: Partial<Luz> = {}): Luz => ({ id: 'l', position: [4.5, 4.5], radius: 5, color: '#ffa85c', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'fire', on: true, nightOnly: false, preset: null, ...extra });
+const lamp = (extra: Partial<Luz> = {}): Luz => ({ id: 'l', position: [4.5, 4.5], radius: 5, color: '#ffa85c', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'fire', on: true, nightOnly: false, preset: null, rays: false, ...extra });
 const comClima = (gridPower: boolean, time: string) => { const m = criarMapa({ id: 'c', agora: 1 }); m.climate.gridPower = gridPower; m.climate.time = time; return m; };
 
 test('nivelDaLuz: tabela de apagada × rede × noite × só-noturna × fogo/rede', () => {

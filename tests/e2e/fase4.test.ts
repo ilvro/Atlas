@@ -132,7 +132,7 @@ test('seletor de clima: chips, paleta, Alt+número, ajustes finos, clima salvo e
   await page.click('[data-testid="gravar"]');
   await page.waitForFunction(() => document.querySelector('[data-testid="estado-gravacao"]')?.getAttribute('data-sujo') === 'false');
   await page.reload(); await page.waitForSelector('[data-testid="ferramenta-selecionar"]'); await page.click('[data-testid="aba-mapa"]');
-  assert.equal((await documento(page)).version, 5); assert.equal((await documento(page)).climate.preset, salvo!.id);
+  assert.equal((await documento(page)).version, 6); assert.equal((await documento(page)).climate.preset, salvo!.id);
   await page.click(`[data-testid="esquecer-${salvo!.id}"]`);
   assert.equal(Object.keys((await documento(page)).customClimates).length, 0);
   assert.deepEqual(erros.filter(e => !/Failed to load resource/.test(e)), []); await ctx.close();
@@ -141,7 +141,7 @@ test('seletor de clima: chips, paleta, Alt+número, ajustes finos, clima salvo e
 // ---- 4.3: luzes que reagem ao clima, relâmpago e janelas acesas ----
 /** Aplica o clima e espera a transição (1,6 s) terminar, para as medidas partirem do estado final. */
 const aplicarClimaPor = async (p: Page, id: string) => { await sessao(p, `(s, id) => s.store.executar({ tipo: "clima.predefinir", id })`, id); await p.waitForTimeout(1800); };
-const poluirLuz = (p: Page, itens: { id: string; x: number; y: number; power: string; color: string; radius?: number }[]) => sessao(p, `(s, itens) => { for (const i of itens) s.store.executar({ tipo: "item.adicionar", colecao: "lights", item: { id: i.id, position: [i.x, i.y], radius: i.radius ?? 7, color: i.color, intensity: 1, flicker: 0, cone: null, ownerId: null, power: i.power, on: true, nightOnly: false, preset: null } }); }`, itens);
+const poluirLuz = (p: Page, itens: { id: string; x: number; y: number; power: string; color: string; radius?: number }[]) => sessao(p, `(s, itens) => { for (const i of itens) s.store.executar({ tipo: "item.adicionar", colecao: "lights", item: { id: i.id, position: [i.x, i.y], radius: i.radius ?? 7, color: i.color, intensity: 1, flicker: 0, cone: null, ownerId: null, power: i.power, on: true, nightOnly: false, preset: null, rays: false } }); }`, itens);
 
 test('apagão: as lâmpadas de rede piscam e apagam; a vela continua acesa; voltar a energia religa', async () => {
   const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
@@ -279,7 +279,7 @@ test('cada controle liga o seu tipo: neve, folhas, poeira só dentro dos cômodo
   assert.ok(c.poeira > 0 && c.poeira < 200, `a poeira conta só a área da casa, não a do mapa (${c.poeira})`);
   await tempoDe(page, { embers: 1 }); await page.waitForTimeout(300);
   assert.equal((await contagem(page)).brasa, Math.ceil(0.04 * 45 * 30), 'sem luz de fogo, brasas soltas pelo mapa');
-  await sessao(page, '(s) => s.store.executar({ tipo: "item.adicionar", colecao: "lights", item: { id: "tocha", position: [10, 9], radius: 6, color: "#ffb36b", intensity: 1, flicker: 0.2, cone: null, ownerId: null, power: "fire", on: true, nightOnly: false, preset: "tocha" } })');
+  await sessao(page, '(s) => s.store.executar({ tipo: "item.adicionar", colecao: "lights", item: { id: "tocha", position: [10, 9], radius: 6, color: "#ffb36b", intensity: 1, flicker: 0.2, cone: null, ownerId: null, power: "fire", on: true, nightOnly: false, preset: "tocha", rays: false } })');
   await page.waitForTimeout(300);
   assert.equal((await contagem(page)).brasa, 24, 'com uma luz de fogo, as brasas nascem dela');
   await tempoDe(page, {}); await page.waitForTimeout(300);

@@ -51,13 +51,14 @@ export const posicaoDeTitulo = (largura: number, altura: number, onde: 'inferior
 /** Predefinições do acabamento final da cena. */
 export interface PresetDeAcabamento { id: string; nome: string; valores: Omit<Acabamento, 'preset'> }
 const grade = (lift = 0, gamma = 1, gain = 1) => ({ lift, gamma, gain });
+const SEM_BORDA = { edges: { kind: 'none', amount: 0 }, glow: 0 } as const;
 export const PRESETS_DE_ACABAMENTO: readonly PresetDeAcabamento[] = [
-  { id: 'nenhum', nome: 'Nenhum', valores: { texture: 0, vignette: 0, saturation: 1, grain: 0, tint: '#ffffff', grade: grade() } },
-  { id: 'neutro', nome: 'Neutro', valores: { texture: 0.2, vignette: 0.28, saturation: 1, grain: 0.03, tint: '#ffffff', grade: grade() } },
-  { id: 'sujo', nome: 'Sujo e gasto', valores: { texture: 0.55, vignette: 0.5, saturation: 0.78, grain: 0.1, tint: '#f1e6d4', grade: grade(0, 1.05, 1) } },
-  { id: 'sepia', nome: 'Sépia de investigação', valores: { texture: 0.35, vignette: 0.45, saturation: 0.45, grain: 0.07, tint: '#ffe2b8', grade: grade() } },
-  { id: 'frio', nome: 'Frio e pálido', valores: { texture: 0.25, vignette: 0.4, saturation: 0.7, grain: 0.05, tint: '#cfe0ff', grade: grade(0, 1, 1) } },
-  { id: 'quente', nome: 'Quente e vivo', valores: { texture: 0.15, vignette: 0.25, saturation: 1.25, grain: 0.02, tint: '#fff0d8', grade: grade() } },
+  { id: 'nenhum', nome: 'Nenhum', valores: { texture: 0, vignette: 0, saturation: 1, grain: 0, tint: '#ffffff', grade: grade(), ...SEM_BORDA } },
+  { id: 'neutro', nome: 'Neutro', valores: { texture: 0.2, vignette: 0.28, saturation: 1, grain: 0.03, tint: '#ffffff', grade: grade(), ...SEM_BORDA } },
+  { id: 'sujo', nome: 'Sujo e gasto', valores: { texture: 0.55, vignette: 0.5, saturation: 0.78, grain: 0.1, tint: '#f1e6d4', grade: grade(0, 1.05, 1), ...SEM_BORDA } },
+  { id: 'sepia', nome: 'Sépia de investigação', valores: { texture: 0.35, vignette: 0.45, saturation: 0.45, grain: 0.07, tint: '#ffe2b8', grade: grade(), ...SEM_BORDA } },
+  { id: 'frio', nome: 'Frio e pálido', valores: { texture: 0.25, vignette: 0.4, saturation: 0.7, grain: 0.05, tint: '#cfe0ff', grade: grade(0, 1, 1), ...SEM_BORDA } },
+  { id: 'quente', nome: 'Quente e vivo', valores: { texture: 0.15, vignette: 0.25, saturation: 1.25, grain: 0.02, tint: '#fff0d8', grade: grade(), ...SEM_BORDA } },
 ];
 export const presetDeAcabamento = (id: string): PresetDeAcabamento | undefined => PRESETS_DE_ACABAMENTO.find(p => p.id === id);
 
@@ -82,18 +83,18 @@ export const PRESETS_DE_CLIMA: readonly PresetDeClima[] = [
   { id: 'manha', nome: 'Manhã', descricao: 'Sol baixo e dourado entrando pelas janelas', climate: { ...ceu('08:00'), weather: SEM_TEMPO, gridPower: true }, finish: acabDe('quente') },
   { id: 'tarde', nome: 'Tarde', descricao: 'Luz clara e neutra do meio do dia', climate: { ...ceu('14:30'), weather: SEM_TEMPO, gridPower: true }, finish: acabDe('neutro') },
   { id: 'entardecer', nome: 'Entardecer', descricao: 'Sol laranja, quase no horizonte', climate: { ...ceu('17:30', { sol: 0.9 }), weather: { ...SEM_TEMPO, dust: 0.25 }, gridPower: true },
-    finish: acab('personalizado', { texture: 0.2, vignette: 0.4, saturation: 1.15, grain: 0.03, tint: '#ffd9b0', grade: grade(0, 1.05, 1) }) },
+    finish: acab('personalizado', { texture: 0.2, vignette: 0.4, saturation: 1.15, grain: 0.03, tint: '#ffd9b0', grade: grade(0, 1.05, 1), ...SEM_BORDA }) },
   { id: 'noite', nome: 'Noite', descricao: 'Luar azulado; só as luzes do mapa iluminam de verdade', climate: { ...ceu('23:00'), weather: SEM_TEMPO, gridPower: true }, finish: acabDe('frio') },
   { id: 'tempestade', nome: 'Tempestade', descricao: 'Chuva forte, vento e relâmpagos pelas janelas', climate: { ...ceu('16:00', { sol: 0.5, corDoSol: '#8c9fc7', ambiente: [0.22, 0.25, 0.31] }), weather: { ...SEM_TEMPO, rain: 1, wind: 0.5, lightning: 0.7, fog: 0.15 }, gridPower: true },
-    finish: acab('personalizado', { texture: 0.3, vignette: 0.5, saturation: 0.6, grain: 0.06, tint: '#e3eeff', grade: grade(0, 1.05, 1) }) },
+    finish: acab('personalizado', { texture: 0.3, vignette: 0.5, saturation: 0.6, grain: 0.06, tint: '#e3eeff', grade: grade(0, 1.05, 1), ...SEM_BORDA }) },
   { id: 'neblina', nome: 'Neblina', descricao: 'Manhã de névoa espessa, sem sombras duras', climate: { ...ceu('07:30', { sol: 0.35, ambiente: [0.46, 0.5, 0.52] }), weather: { ...SEM_TEMPO, fog: 0.85, wind: 0.1 }, gridPower: true },
-    finish: acab('personalizado', { texture: 0.25, vignette: 0.45, saturation: 0.55, grain: 0.05, tint: '#dde4e8', grade: grade() }) },
+    finish: acab('personalizado', { texture: 0.25, vignette: 0.45, saturation: 0.55, grain: 0.05, tint: '#dde4e8', grade: grade(), ...SEM_BORDA }) },
   { id: 'neve', nome: 'Neve', descricao: 'Dia claro e frio com neve caindo', climate: { ...ceu('11:00', { sol: 0.6, corDoSol: '#e6efff', ambiente: [0.72, 0.77, 0.85] }), weather: { ...SEM_TEMPO, snow: 0.8, wind: 0.2 }, gridPower: true },
-    finish: acab('personalizado', { texture: 0.2, vignette: 0.3, saturation: 0.7, grain: 0.03, tint: '#e8f0ff', grade: grade() }) },
+    finish: acab('personalizado', { texture: 0.2, vignette: 0.3, saturation: 0.7, grain: 0.03, tint: '#e8f0ff', grade: grade(), ...SEM_BORDA }) },
   { id: 'apagao', nome: 'Apagão', descricao: 'A rede elétrica caiu: só fogo, pilha e luar', climate: { ...ceu('23:30', { sol: 0.85, ambiente: [0.022, 0.022, 0.035] }), weather: SEM_TEMPO, gridPower: false },
-    finish: acab('personalizado', { texture: 0.35, vignette: 0.65, saturation: 0.7, grain: 0.09, tint: '#ffe6e6', grade: grade(0, 1.1, 1) }) },
+    finish: acab('personalizado', { texture: 0.35, vignette: 0.65, saturation: 0.7, grain: 0.09, tint: '#ffe6e6', grade: grade(0, 1.1, 1), ...SEM_BORDA }) },
   { id: 'neon', nome: 'Neon', descricao: 'Noite molhada e saturada, de letreiros magenta e ciano', climate: { ...ceu('23:00', { sol: 0.8, ambiente: [0.07, 0.05, 0.13] }), weather: { ...SEM_TEMPO, rain: 0.3 }, gridPower: true },
-    finish: acab('personalizado', { texture: 0.15, vignette: 0.45, saturation: 1.45, grain: 0.04, tint: '#d6a8ff', grade: grade(0, 1, 1.1) }) },
+    finish: acab('personalizado', { texture: 0.15, vignette: 0.45, saturation: 1.45, grain: 0.04, tint: '#d6a8ff', grade: grade(0, 1, 1.1), ...SEM_BORDA }) },
 ];
 
 /** Mapas antigos chamam a tarde de "dia". */

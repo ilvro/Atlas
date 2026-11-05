@@ -352,6 +352,10 @@ Concluída. O Atlas fala o contrato da mesa com todos os aplicativos (Ficha, Ate
   - No layout cinemático da Ficha, o primeiro botão de rolagem fica sob o retrato (visto pelo e2e; a conferir com o mouse).
   - O Atlas embutido registra "Mapa aberto" toda vez que abre o mapa; o e2e de modo sessão teve uma falha pontual (a Ficha embutida demorou a mostrar os botões) logo depois de reiniciar os servidores.
 
+## Fase 10 — Mundo lá fora: mapas de exemplo
+
+- **10.0a Documento v6** — `VERSAO_MAPA = 6` com migração 5 → 6 (camadas `flow: null`, paredes `drop: null` e `source` aceitando `terrainLayerId`, `Objeto.elevation: 'underwater'`, `finish.edges`/`finish.glow` neutros também nos climas salvos, luzes `rays: false`); validação dos campos novos; nada os lê ainda. Commit: `document v6`.
+
 ## Próximo
 
 A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os achados), que espera a sua decisão sobre [docs/curadoria.md](docs/curadoria.md). Da Fase 3 só resta a P3c ([docs/plano/fase-3-pendencias.md](docs/plano/fase-3-pendencias.md)). A próxima é a **Fase 10 — Mundo lá fora: mapas de exemplo** ([docs/plano/fase-10.md](docs/plano/fase-10.md)), planejada em 5/11 a partir de sete mapas do Inkarnate trazidos pelo usuário; lote A (rocha, neve e sombra) primeiro.
