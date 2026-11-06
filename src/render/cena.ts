@@ -21,6 +21,7 @@ import { emEstadoCritico, type Recursos } from '../domain/fichas.ts';
 import type { RetratoNoPixel } from './retratos.ts';
 import { paletaDe } from '../domain/paletas.ts';
 import { criarPresenca } from './presenca.ts';
+import { criarSombrasDoSol } from './sombras-do-sol.ts';
 
 export interface OpcoesDaCena {
   baker: Baker;
@@ -77,9 +78,9 @@ interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; 
 export function criarCena(op: OpcoesDaCena): Cena {
   const raiz = new Container(), terrenoC = new Container(), escarpasC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics();
   const marcasG = new Graphics(), regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), tituloC = new Container();
-  const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados(), neblina = criarNeblina(), particulas = criarParticulas(), presenca = criarPresenca();
+  const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados(), neblina = criarNeblina(), particulas = criarParticulas(), presenca = criarPresenca(), sombras = criarSombrasDoSol();
   // A luz multiplica tudo o que está embaixo (piso, objetos, paredes); marcadores, regiões e peças ficam por cima, sempre legíveis.
-  raiz.addChild(terrenoC, escarpasC, comodosC, objetosC, paredesG, presenca.abaixo, luz.sprite, presenca.acima, neblina.raiz, particulas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
+  raiz.addChild(terrenoC, escarpasC, sombras.raiz, comodosC, objetosC, paredesG, presenca.abaixo, luz.sprite, presenca.acima, neblina.raiz, particulas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
 
   let mapa: MapaAtlas | null = null, vistaDaCena: Vista = 'construir', destruida = false, pintandoAgora = 0, ultimoQuadro = -1;
   const salas = new Map<string, Entrada>(), objetos = new Map<string, Entrada>();
@@ -103,10 +104,11 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (destruida || e.chave !== chave || e.c.destroyed) return;
       const tex = adquirir(chave, r), antiga = e.chaveTextura;
       if (!e.sprite) { e.sprite = new Sprite(tex); e.c.addChild(e.sprite); } else e.sprite.texture = tex;
-      aplicar(e.sprite, r); e.chaveTextura = chave; e.placeholder.visible = false; soltar(antiga); op.aoPintar?.();
+      aplicar(e.sprite, r); e.chaveTextura = chave; e.placeholder.visible = false; soltar(antiga); if (mapa && !e.c.destroyed) sombras.atualizar(mapa, objetos, pixelRes0(mapa)); op.aoPintar?.();
     }).catch(erro => console.warn('Atlas: falha ao pintar', erro)).finally(() => { pintandoAgora--; });
   }
 
+  const pixelRes0 = (m: MapaAtlas): boolean => m.style.renderer === 'pixel';
   const novaEntrada = (pai: Container): Entrada => { const c = new Container(), placeholder = new Graphics(); c.addChild(placeholder); pai.addChild(c); return { c, placeholder, sprite: null, chave: '', chaveTextura: null }; };
   const removerEntrada = (e: Entrada) => { soltar(e.chaveTextura); e.c.destroy({ children: true }); };
 
@@ -355,6 +357,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid')) sincronizarComodos(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid', 'session', 'style')) desenharParedes(m);
       if (tudo || colecao('props') || campos('style')) sincronizarObjetos(m, tudo || campos('style') ? null : mud!.colecoes.props ?? null, comPop);
+      if (tudo || colecao('props') || colecao('walls') || campos('climate', 'terrain', 'bounds', 'style')) sombras.atualizar(m, objetos, pixelRes0(m));
       if (tudo || colecao('props')) desenharMarcas(m);
       presenca.sincronizar(m, mud); nevoa.sincronizar(m, mud); telhados.sincronizar(m, mud);
       const v = visaoDoClima ?? m;
@@ -372,7 +375,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       const mud: Mudancas = { completo: false, colecoes: {}, campos: ['climate'] };
       luz.sincronizar(visao, mud); neblina.sincronizar(visao, mud); particulas.sincronizar(visao, mud);
     },
-    definirAtmosfera: ligada => { luz.definirLigado(ligada); neblina.definirLigado(ligada); particulas.definirLigado(ligada); },
+    definirAtmosfera: ligada => { sombras.definirLigado(ligada); if (ligada && mapa) sombras.atualizar(mapa, objetos, pixelRes0(mapa)); luz.definirLigado(ligada); neblina.definirLigado(ligada); particulas.definirLigado(ligada); },
     relampagoAgora: () => luz.relampagoAgora(),
     definirModoProjetor: ligado => { modoDoProjetor = ligado; marcasVisiveis(); luzesC.visible = !ligado; regioesC.visible = !ligado; },
     definirEfeitosDeLuz: (luzes, ambiente) => luz.definirEfeitos(luzes, ambiente),
@@ -398,7 +401,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       destruida = true; if (terrenoTimer) clearTimeout(terrenoTimer);
       for (const e of [...salas.values(), ...objetos.values(), ...(terreno ? [terreno] : [])]) soltar(e.chaveTextura);
       for (const t of texturas.values()) t.tex.destroy(true); texturas.clear();
-      luz.destruir(); nevoa.destruir(); telhados.destruir(); neblina.destruir(); particulas.destruir(); presenca.destruir(); raiz.destroy({ children: true });
+      sombras.destruir(); luz.destruir(); nevoa.destruir(); telhados.destruir(); neblina.destruir(); particulas.destruir(); presenca.destruir(); raiz.destroy({ children: true });
     },
   };
 }

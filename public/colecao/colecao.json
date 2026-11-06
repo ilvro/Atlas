@@ -20,6 +20,7 @@
       ],
       "generos": [],
       "kit": "exterior",
+      "altura": 0.8,
       "origem": {
         "tipo": "gerado",
         "gerador": "arbusto",
@@ -50,6 +51,7 @@
       ],
       "generos": [],
       "kit": "exterior",
+      "altura": 1.1,
       "origem": {
         "tipo": "gerado",
         "gerador": "arbusto",
@@ -79,6 +81,7 @@
       ],
       "generos": [],
       "kit": "exterior",
+      "altura": 0.7,
       "origem": {
         "tipo": "gerado",
         "gerador": "arbusto",
@@ -109,6 +112,7 @@
       ],
       "generos": [],
       "kit": "exterior",
+      "altura": 4.8,
       "res": 64,
       "origem": {
         "tipo": "gerado",
@@ -140,6 +144,7 @@
       ],
       "generos": [],
       "kit": "exterior",
+      "altura": 8,
       "res": 64,
       "origem": {
         "tipo": "gerado",
@@ -171,6 +176,7 @@
       ],
       "generos": [],
       "kit": "exterior",
+      "altura": 11.2,
       "res": 64,
       "origem": {
         "tipo": "gerado",
@@ -208,6 +214,7 @@
         "fantasia"
       ],
       "kit": "investigacao",
+      "altura": 1,
       "origem": {
         "tipo": "gerado",
         "gerador": "chesterfield",
@@ -244,6 +251,7 @@
         "fantasia"
       ],
       "kit": "investigacao",
+      "altura": 1,
       "origem": {
         "tipo": "gerado",
         "gerador": "chesterfield",
@@ -280,6 +288,7 @@
         "fantasia"
       ],
       "kit": "investigacao",
+      "altura": 1,
       "origem": {
         "tipo": "gerado",
         "gerador": "chesterfield",
@@ -313,6 +322,7 @@
       ],
       "generos": [],
       "kit": null,
+      "altura": 1.16,
       "origem": {
         "tipo": "gerado",
         "gerador": "costela-de-adao",
@@ -346,6 +356,7 @@
       ],
       "generos": [],
       "kit": null,
+      "altura": 1.16,
       "origem": {
         "tipo": "gerado",
         "gerador": "costela-de-adao",
@@ -381,6 +392,7 @@
         "investigacao"
       ],
       "kit": "investigacao",
+      "altura": 1,
       "origem": {
         "tipo": "gerado",
         "gerador": "diva",
@@ -416,6 +428,7 @@
         "investigacao"
       ],
       "kit": "investigacao",
+      "altura": 1,
       "origem": {
         "tipo": "gerado",
         "gerador": "diva",
@@ -451,6 +464,7 @@
         "investigacao"
       ],
       "kit": "investigacao",
+      "altura": 1,
       "origem": {
         "tipo": "gerado",
         "gerador": "diva",
@@ -484,6 +498,7 @@
       ],
       "generos": [],
       "kit": null,
+      "altura": 1.4,
       "origem": {
         "tipo": "gerado",
         "gerador": "palmeira",
@@ -517,6 +532,7 @@
       ],
       "generos": [],
       "kit": null,
+      "altura": 1.4,
       "origem": {
         "tipo": "gerado",
         "gerador": "palmeira",
@@ -549,6 +565,7 @@
         "fantasia"
       ],
       "kit": "investigacao",
+      "altura": 0.1,
       "origem": {
         "tipo": "gerado",
         "gerador": "passadeira",
@@ -581,6 +598,7 @@
         "fantasia"
       ],
       "kit": "investigacao",
+      "altura": 0.1,
       "origem": {
         "tipo": "gerado",
         "gerador": "passadeira",
@@ -613,6 +631,7 @@
         "fantasia"
       ],
       "kit": "investigacao",
+      "altura": 0.1,
       "origem": {
         "tipo": "gerado",
         "gerador": "passadeira",
@@ -643,6 +662,7 @@
       ],
       "generos": [],
       "kit": "exterior",
+      "altura": 6,
       "res": 64,
       "origem": {
         "tipo": "gerado",
@@ -674,6 +694,7 @@
       ],
       "generos": [],
       "kit": "exterior",
+      "altura": 9,
       "res": 64,
       "origem": {
         "tipo": "gerado",
@@ -710,6 +731,7 @@
         "fantasia"
       ],
       "kit": "investigacao",
+      "altura": 1,
       "origem": {
         "tipo": "gerado",
         "gerador": "poltrona-capitone",
@@ -745,6 +767,7 @@
         "fantasia"
       ],
       "kit": "investigacao",
+      "altura": 1,
       "origem": {
         "tipo": "gerado",
         "gerador": "poltrona-capitone",
@@ -780,6 +803,7 @@
         "fantasia"
       ],
       "kit": "investigacao",
+      "altura": 1,
       "origem": {
         "tipo": "gerado",
         "gerador": "poltrona-capitone",
@@ -815,6 +839,7 @@
         "fantasia"
       ],
       "kit": null,
+      "altura": 1.23,
       "origem": {
         "tipo": "gerado",
         "gerador": "samambaia",
@@ -848,6 +873,7 @@
         "fantasia"
       ],
       "kit": null,
+      "altura": 1.23,
       "origem": {
         "tipo": "gerado",
         "gerador": "samambaia",
@@ -879,6 +905,7 @@
         "fantasia"
       ],
       "kit": "investigacao",
+      "altura": 0.1,
       "origem": {
         "tipo": "gerado",
         "gerador": "tapete-oval",
@@ -912,6 +939,7 @@
         "fantasia"
       ],
       "kit": "investigacao",
+      "altura": 0.1,
       "origem": {
         "tipo": "gerado",
         "gerador": "tapete-oval",
@@ -945,6 +973,7 @@
         "fantasia"
       ],
       "kit": "investigacao",
+      "altura": 0.1,
       "origem": {
         "tipo": "gerado",
         "gerador": "tapete-oval",
@@ -978,6 +1007,7 @@
         "fantasia"
       ],
       "kit": "investigacao",
+      "altura": 0.1,
       "origem": {
         "tipo": "gerado",
         "gerador": "tapete-persa-g",
@@ -1011,6 +1041,7 @@
         "fantasia"
       ],
       "kit": "investigacao",
+      "altura": 0.1,
       "origem": {
         "tipo": "gerado",
         "gerador": "tapete-persa-g",
@@ -1044,6 +1075,7 @@
         "fantasia"
       ],
       "kit": "investigacao",
+      "altura": 0.1,
       "origem": {
         "tipo": "gerado",
         "gerador": "tapete-persa-g",
@@ -1079,6 +1111,7 @@
         "fantasia"
       ],
       "kit": "investigacao",
+      "altura": 0.1,
       "origem": {
         "tipo": "gerado",
         "gerador": "tapete-persa-p",
@@ -1114,6 +1147,7 @@
         "fantasia"
       ],
       "kit": "investigacao",
+      "altura": 0.1,
       "origem": {
         "tipo": "gerado",
         "gerador": "tapete-persa-p",
@@ -1149,6 +1183,7 @@
         "fantasia"
       ],
       "kit": "investigacao",
+      "altura": 0.1,
       "origem": {
         "tipo": "gerado",
         "gerador": "tapete-persa-p",

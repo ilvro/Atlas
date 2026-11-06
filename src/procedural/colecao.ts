@@ -19,6 +19,8 @@ export interface ItemDaColecao {
   funcoes: string[]; tags: string[]; generos: string[]; kit: string | null;
   /** Pixels por metro em que a imagem foi assada (padrão 128). */
   res?: number;
+  /** Altura (m) para a sombra do sol; ausente vale o maior lado da pegada. Os itens gerados a trazem (o maior `z` da descrição). */
+  altura?: number;
   /** Versão Pixel feita à mão (PNG relativo a `public/colecao/`, em escala 1:1 do Pixel a 16 px por célula). Vale mais que a derivada e que a gerada. */
   pixelArquivo?: string;
   origem: OrigemDoItem;

@@ -37,6 +37,7 @@ try {
       }
       itens.set(id, {
         id, nome: `${g.nome} (${v.nome})`, arquivo, categoria: g.categoria, pegada: [Math.round(d.pegada[0] * 100) / 100, Math.round(d.pegada[1] * 100) / 100], funcoes: g.funcoes, tags: g.tags, generos: g.generos, kit: g.kit,
+        altura: Math.round(Math.min(12, g.altura ? g.altura(d.pegada) : d.partes.reduce((m, p) => Math.max(m, p.z), 0.1)) * 100) / 100,
         ...(res !== RES_DA_COLECAO ? { res } : {}), origem: { tipo: 'gerado', gerador: g.id, params: v.params, seed: v.seed, versao: g.versao },
       });
       tabela.push({ id, partes, ms, kb: Math.round(statSync(caminho).size / 1024), estado });

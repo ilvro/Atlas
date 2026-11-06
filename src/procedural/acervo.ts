@@ -1,6 +1,6 @@
 import type { FonteObjeto } from '../domain/mapa.ts';
 import { COLECAO } from './colecao.ts';
-import { listaDeReceitas, pegadaDaReceita, type CampoDeReceita, type Categoria, type Receita } from './receitas/index.ts';
+import { listaDeReceitas, descreverReceita, pegadaDaReceita, type CampoDeReceita, type Categoria, type Receita } from './receitas/index.ts';
 
 /**
  * O acervo: um lugar só que sabe o que é cada objeto, que tamanho tem e para que serve, venha ele de uma receita leve (desenhada em tempo real)
@@ -20,6 +20,7 @@ export interface ItemDoAcervo {
 
 /** O que o acervo precisa saber de um item da coleção (o catálogo completo, com arquivo e origem, está em `colecao.ts`). */
 export interface ItemParaOAcervo {
+  altura?: number;
   id: string; nome: string; categoria: Categoria; pegada: [number, number];
   funcoes: string[]; tags: string[]; generos: string[]; kit: string | null;
 }
@@ -29,6 +30,8 @@ export interface Acervo {
   lista(): ItemDoAcervo[];
   /** Pegada de um objeto do mapa, com os parâmetros dele (a escala é de quem chama). Objeto desconhecido: [0,8, 0,8]. */
   pegadaDaFonte(f: FonteObjeto): [number, number];
+  /** Altura (m) de um objeto do mapa, para a sombra do sol: a declarada, ou o maior `z` das partes, ou o maior lado da pegada; no máximo 12. */
+  alturaDaFonte(f: FonteObjeto): number;
   /** O id do acervo de um objeto do mapa (a receita, ou o assetId). */
   idDaFonte(f: FonteObjeto): string;
   /** A fonte para pôr um item no mapa. */
@@ -37,6 +40,8 @@ export interface Acervo {
 
 const doReceita = (r: Receita): ItemDoAcervo => ({ id: r.id, fonte: 'receita', nome: r.nome, categoria: r.categoria, tipo: r.tipo, funcoes: r.funcoes, tags: r.tags, generos: r.generos ?? [], kit: r.kit ?? null, pegada: r.pegada, campos: r.campos ?? [] });
 const daColecao = (c: ItemParaOAcervo): ItemDoAcervo => ({ id: c.id, fonte: 'colecao', nome: c.nome, categoria: c.categoria, tipo: 'piso', funcoes: c.funcoes, tags: c.tags, generos: c.generos, kit: c.kit, pegada: c.pegada, campos: [] });
+
+const ALTURA_MAXIMA = 12;
 
 export function criarAcervo(receitas: readonly Receita[], colecao: readonly ItemParaOAcervo[]): Acervo {
   const itens = [...receitas.map(doReceita), ...colecao.map(daColecao)], porId = new Map(itens.map(i => [i.id, i]));
@@ -47,6 +52,13 @@ export function criarAcervo(receitas: readonly Receita[], colecao: readonly Item
     pegadaDaFonte(f) {
       if (f.kind === 'recipe') { const r = receitaPorId.get(f.recipe); return r ? pegadaDaReceita(f.recipe, f.params) : [0.8, 0.8]; }
       return porId.get(f.assetId)?.pegada ?? [0.8, 0.8];
+    },
+    alturaDaFonte(f) {
+      if (f.kind === 'asset') { const c = colecao.find(i => i.id === f.assetId); return Math.min(ALTURA_MAXIMA, c ? c.altura ?? Math.max(...c.pegada) : 0.8); }
+      const r = receitaPorId.get(f.recipe); if (!r) return 0.8;
+      if (r.altura !== undefined) return Math.min(ALTURA_MAXIMA, r.altura);
+      const d = descreverReceita(f.recipe, { seed: f.seed, params: f.params }), partes = d.tipo === 'piso' ? d.partes : [...d.face, ...d.topo];
+      return Math.min(ALTURA_MAXIMA, partes.reduce((m, p) => Math.max(m, p.z), 0.1));
     },
     idDaFonte: f => (f.kind === 'recipe' ? f.recipe : f.assetId),
     fonte(id, seed, params = {}) { return porId.get(id)?.fonte === 'colecao' ? { kind: 'asset', assetId: id } : { kind: 'recipe', recipe: id, seed, params }; },

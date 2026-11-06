@@ -17,6 +17,8 @@ export interface GeradorPesado {
   /** Pixels por metro em que se assa; padrão 128. */
   res?: number;
   variantes: { nome: string; sufixo: string; params: Record<string, unknown>; seed: number }[];
+  /** Altura real (m) a partir da pegada, quando o `z` das partes (ordem de desenho) não a diz: árvores e arbustos. */
+  altura?(pegada: [number, number]): number;
   gerar(p: PedidoDeReceita): DescricaoDePiso;
 }
 

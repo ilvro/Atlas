@@ -16,6 +16,8 @@ export interface Receita {
   kit?: string;
   /** Tamanho padrão (m): largura × profundidade; para objetos de parede, largura × espessura. */
   pegada: [number, number];
+  /** Altura (m) para a sombra do sol; ausente vale o maior `z` das partes (no máximo 12). */
+  altura?: number;
   campos?: CampoDeReceita[];
   gerar(p: PedidoDeReceita): Descricao;
 }
