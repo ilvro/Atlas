@@ -138,7 +138,7 @@ Pronto quando: `npm run exemplos` gera a Clareira e ela abre pela galeria.
 Commit: example maps in the gallery
 Nota: a miniatura sai do servidor de desenvolvimento do Vite (como `npm run assar`), não do `vite preview` com `?exemplo=<id>`: o script grava o mapa no repositório do navegador de teste e abre `#/mapa/<id>`, sem rota nova no app. `espalhar` (authoring) ganhou o campo opcional `densidade` no pedido, para o kit trocar a densidade do conjunto. O kit também ganhou `presenca`, `peca`, `porta`, `estilo`, `fundo`, `notas`, `montarExemplo` e o tipo `Exemplo` (com tamanho e semente); a lista dos exemplos fica em `gerar.ts` (`EXEMPLOS`). `npm run exemplos -- --sem-miniatura` gera só os JSON.
 
-### 10.1a — Água: materiais, profundidade e leito  ⬜
+### 10.1a — Água: materiais, profundidade e leito  ✅
 Objetivo: pintar água no terreno dá um leito que escurece com a profundidade, nos dois estilos.
 Depende de: 10.0a
 Ler: `src/procedural/materiais.ts` (`Material.uso`, `pintarMaterial`), `src/procedural/assar.ts` (`assarTerreno`), `src/procedural/estilos/materiais-pixel.ts`, `src/render/entradas.ts` (`chaveDoTerreno`).
@@ -153,8 +153,9 @@ Não fazer: animação (10.1b); interface nova (o pincel de terreno já lista os
 Testes: distância de um quadrado 10 × 10 (centro = 5 células, borda = 1); `assarTerreno` com água devolve `agua` com as dimensões certas; chave muda ao mudar o `flow`.
 Pronto quando: pintar `agua.lago` sobre `areia` mostra o fundo arenoso perto da margem e azul escuro no meio (captura no e2e).
 Commit: water beds by depth
+Nota: o leito vive em `src/procedural/agua.ts` (puro: `leitoDaAgua`, `texturaDeAgua`); `assarTerreno` só o liga. Cores `raso`/`fundo`/`espuma`/`transparencia` nos cinco materiais (`agua.gruta` 0,85). Ilustrado: tinge o que está embaixo de `raso` a `fundo` (alfa de 0,14 até `1 − transparencia` pela profundidade, com ruído) e escurece 0,3 m de terra em volta (areia molhada); Pixel: três faixas (0,5 m e 1,5 m), a mais rasa vazada em xadrez, e margem de 2 px. `Assado.agua` (e `ResultadoDeBake.agua`, transferido pelo worker) é a textura de 2 px/m: R profundidade (0 a 3 m), G margem (1 na borda, rampa até 0,6 m), B índice da camada de água (`(i+1)×50`, até 4 camadas). A chave do terreno inclui o `flow`. Os cinco materiais aparecem no pincel de terreno. Testes: `tests/unit/agua.test.ts` e `tests/e2e/fase10-agua.test.ts` (captura em `test-results/fase10-agua.png`).
 
-### 10.1b — Água: superfície animada e espuma  ⬜
+### 10.1b — Água: superfície animada e espuma  ✅
 Objetivo: a água se mexe: ondulação, brilho e espuma na margem.
 Depende de: 10.1a
 Ler: `src/render/cena.ts` (ordem de `raiz`), `src/render/presenca.ts` (shader com tempo, como modelo), `src/render/mapa-de-luz.ts`, `src/render/particulas.ts` (`FATOR_DE_MOVIMENTO_REDUZIDO`).
@@ -164,14 +165,17 @@ Não fazer: correnteza e cáusticas (10.1c), Pixel (10.1c).
 Testes: e2e com o lago da 10.1a: duas capturas com 1 s de diferença diferem na água e são iguais fora dela; com movimento reduzido a diferença cai.
 Pronto quando: o lago ondula e a espuma bate na margem a 60 quadros por segundo num mapa de 50 × 35 m.
 Commit: animated water surface
+Nota: `render/agua.ts` é uma malha própria (como a presença) com o shader lendo a textura `agua`, num container entre o terreno e as escarpas; `cena.aguaAtiva()`/`viewport.aguaAtiva()` servem aos testes. Ondas = duas camadas de ruído com normais por diferença finita, brilho especular na direção do sol do clima, sombras de ondulação, espuma em faixas que avançam e recuam na zona da margem (~5 s). Movimento reduzido usa o mesmo fator das partículas (0,35). Os 60 quadros por segundo não foram medidos (só a diferença entre capturas).
 
-### 10.1c — Água: correnteza, cáusticas e Pixel  ⬜
+### 10.1c — Água: correnteza, cáusticas e Pixel  ✅
 Escopo (detalhar ao começar): `flow` desloca as normais e a espuma na direção e velocidade da camada; inspetor da camada de água com ângulo (gesto de seta no mapa) e velocidade; `agua.gruta` ganha cáusticas (rede de luz animada sobre o leito, mais forte no raso); Pixel: superfície em 4 quadros com faixas da paleta e espuma em pixels inteiros. Teste: espuma de um rio com `flow` anda no sentido certo.
 Commit: water currents and caustics
+Nota: comando novo `terreno.correnteza` (material, `flow` ou `null`; valida 0 a 3 m/s e só água), no painel do pincel de terreno quando o material é água: velocidade, direção em graus (0° leste, horário) e oito setas. **Desvio da ficha:** não há o gesto de seta no mapa (só campos e botões). A camada de água é uma por material (`t_<material>`): dois corpos d'água do mesmo material compartilham a correnteza. No shader, `flow` desloca o domínio das normais, da espuma da margem e de fiapos de espuma esticados no sentido da corrente; `agua.gruta` (`causticas: true` no material) ganha a rede de luz, mais forte no raso. Pixel: coordenada arredondada ao pixel do Pixel, 4 quadros por ciclo de ~1,2 s, espuma/brilho/rede em cor chapada e alfa 0 ou 1 (a paleta do mapa faz o resto). Teste de direção: deslocamento dos pixels claros entre duas capturas (+ para 0 rad, − para π rad).
 
-### 10.1d — Água: objetos submersos e pincel de margem  ⬜
+### 10.1d — Água: objetos submersos e pincel de margem  ✅
 Escopo: `elevation: 'underwater'` desenha o objeto entre o leito e a superfície (com a cor da água por cima, pela profundidade no ponto); objetos `floor` dentro da água ganham anel de espuma (máscara de objetos na textura da água); o inspetor oferece "Submerso" quando o objeto está sobre água. Pincel de terreno com "suavizar margem" opcional para a água (borda mais redonda que a das outras camadas).
 Commit: underwater props and foam rings
+Nota: objetos `underwater` vão para um container entre o leito e a superfície e são tingidos pela cor do fundo e esmaecidos pela profundidade no ponto (lida de uma cópia da textura `agua` na CPU; no Pixel, três degraus e sem alfa); o Inspetor mostra "Submerso" quando o objeto de piso está sobre água (`domain/agua.ts`: `aguaEm`) e ao submergir tira a sombra. O anel de espuma vem de uma máscara de objetos de piso fora de cômodos (elipse da pegada, na grade de 2 px/m), refeita quando os objetos mudam. "Suavizar a margem" (pincel de terreno, só água) é `suavizar: true` no `terreno.pintar`: média numa janela de 3 células na caixa da pincelada, mantida onde passa de 50% (as células viram o dado; nada novo no documento).
 
 ### 10.2a — Maciço: material de relevo e assar com volume  ✅
 Objetivo: pintar rocha de maciço dá uma massa de pedra com volume, estrias e sombra no chão, nos dois estilos.

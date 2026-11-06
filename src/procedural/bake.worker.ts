@@ -7,6 +7,6 @@ self.onmessage = async (e: MessageEvent<Mensagem>) => {
   const { id, pedido } = e.data;
   try {
     const r = await executarBake(pedido);
-    (self as unknown as Worker).postMessage({ id, ok: true, resultado: r }, [r.bitmap]);
+    (self as unknown as Worker).postMessage({ id, ok: true, resultado: r }, r.agua ? [r.bitmap, r.agua.bitmap] : [r.bitmap]);
   } catch (erro) { (self as unknown as Worker).postMessage({ id, ok: false, erro: erro instanceof Error ? erro.message : String(erro) }); }
 };

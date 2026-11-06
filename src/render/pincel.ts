@@ -10,7 +10,7 @@ export interface Pincel {
   luz: { preset: string; /** Direção do facho, em radianos. */ direcao: number };
   abertura: { tipo: 'door' | 'window' | 'arch' | 'secret' };
   parede: { tipo: 'wall' | 'low' | 'fence' | 'cliff' };
-  terreno: { material: string; /** Raio do pincel, em metros. */ raio: number };
+  terreno: { material: string; /** Raio do pincel, em metros. */ raio: number; /** Água: arredonda a borda onde a pincelada passou. */ suavizar?: boolean };
   presenca: { brush: string; raio: number };
   espalhar: { conjunto: string; raio: number };
 }

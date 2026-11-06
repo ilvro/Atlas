@@ -10,9 +10,10 @@ import { sombrearMacico } from './macico.ts';
 import { partesParaFace } from './raster.ts';
 import type { EstiloDeRaster, OpcoesDoPixel } from './estilos/index.ts';
 import { pintarFacePixel } from './estilos/faces-pixel.ts';
+import { RES_DA_TEXTURA_DE_AGUA, leitoDaAgua, texturaDeAgua } from './agua.ts';
 import { descreverReceita } from './receitas/index.ts';
 
-export interface Assado { tela: Tela; /** Canto superior esquerdo da tela, em metros (no espaço local do objeto, ou do mundo para cômodos e terreno). */ origem: Ponto; res: number }
+export interface Assado { tela: Tela; /** Canto superior esquerdo da tela, em metros (no espaço local do objeto, ou do mundo para cômodos e terreno). */ origem: Ponto; res: number; /** Terreno com água: profundidade (R) e margem (G) das camadas de água, a `res` px/m, do mesmo tamanho do mapa. */ agua?: { tela: Tela; res: number } }
 
 // ---------- Objetos de piso ----------
 export const MARGEM_SOMBRA = 0.3;
@@ -151,7 +152,7 @@ export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRas
 // ---------- Terreno ----------
 export interface EntradaDeTerreno {
   largura: number; altura: number; resolucao: number; base: string;
-  camadas: { material: string; celulas: Faixa[] }[];
+  camadas: { material: string; celulas: Faixa[]; /** Correnteza (só em camadas de água). */ flow?: { angle: number; speed: number } | null }[];
 }
 
 const suave = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -161,6 +162,7 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
   const pixel = estilo.id === 'pixel', W = Math.ceil(e.largura * res), Hh = Math.ceil(e.altura * res), tela = criarTela(W, Hh), ctx = contextoDe(tela);
   ctx.setTransform(res, 0, 0, res, 0, 0);
   if (e.base !== 'vazio') estilo.pintarMaterial(ctx, e.base, { x: 0, y: 0, w: e.largura, h: e.altura }, 7, { res });
+  const aguas: { profundidade: Float32Array; binaria: Uint8Array }[] = [];
   e.camadas.forEach((camada, idx) => {
     if (!camada.celulas.length) return;
     const mascara = criarTela(W, Hh), mc = contextoDe(mascara);
@@ -169,16 +171,25 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
     const macia = criarTela(W, Hh), mac = contextoDe(macia);
     mac.filter = `blur(${Math.max(1, 0.5 * res)}px)`; mac.drawImage(mascara as CanvasImageSource, 0, 0);
     const fonte = mac.getImageData(0, 0, W, Hh).data, ruido = valueNoise2D(1000 + idx * 17);
-    const material = materialDe(camada.material), macico = material.uso === 'macico';
-    const corpo = new ImageData(W, Hh), aro = new ImageData(W, Hh), binaria = new Uint8Array(pixel || macico ? W * Hh : 0), cobertura = new Uint8Array(macico && !pixel ? W * Hh : 0), ruidoFino = valueNoise2D(3000 + idx * 31);
+    const material = materialDe(camada.material), macico = material.uso === 'macico', agua = material.uso === 'agua';
+    const corpo = new ImageData(W, Hh), aro = new ImageData(W, Hh), binaria = new Uint8Array(pixel || macico || agua ? W * Hh : 0), cobertura = new Uint8Array((macico || agua) && !pixel ? W * Hh : 0), ruidoFino = valueNoise2D(3000 + idx * 31);
     for (let k = 0, px = 0; k < fonte.length; k += 4, px++) {
       const b = fonte[k + 3]! / 255; if (b < 0.04) continue;
       const mx = (px % W) / res, my = Math.floor(px / W) / res;
       let v = b + (fbm(ruido, mx * 1.3, my * 1.3, 3) - 0.5) * 0.5;
       if (macico) v += pixel ? (fbm(ruidoFino, mx * 3.5, my * 3.5, 3) - 0.5) * 0.35 : (fbm(ruidoFino, mx * 1.5, my * 1.5, 2) - 0.5) * 0.5 + (fbm(ruidoFino, mx * 6 + 9, my * 6, 1) - 0.5) * 0.06;      // borda de rocha: lóbulos grandes e arredondados (Ilustrado), degraus no Pixel
-      if (macico) { binaria[px] = v >= 0.5 ? 1 : 0; if (!pixel) cobertura[px] = suave(0.47, 0.53, v) * 255; }
+      if (agua) { binaria[px] = v >= 0.5 ? 1 : 0; if (!pixel) cobertura[px] = suave(0.47, 0.53, v) * 255; }
+      else if (macico) { binaria[px] = v >= 0.5 ? 1 : 0; if (!pixel) cobertura[px] = suave(0.47, 0.53, v) * 255; }
       else if (pixel) binaria[px] = v >= 0.5 ? 1 : 0;
       else { corpo.data[k + 3] = suave(0.47, 0.53, v) * 255; aro.data[k + 3] = suave(0.3, 0.47, v) * 255; }
+    }
+    if (agua) {
+      // Água: o que está embaixo continua à vista e ganha a cor do leito pela profundidade; a margem é uma faixa de areia molhada.
+      const r = leitoDaAgua({ binaria, cobertura: pixel ? null : cobertura, largura: W, altura: Hh, res, seed: 13 + idx * 5, material, pixel });
+      const poe = (dados: Uint8ClampedArray) => { const t = criarTela(W, Hh), c = contextoDe(t); c.putImageData(new ImageData(dados as Uint8ClampedArray<ArrayBuffer>, W, Hh), 0, 0); ctx.drawImage(t as CanvasImageSource, 0, 0); };
+      ctx.setTransform(1, 0, 0, 1, 0, 0); poe(r.margem); poe(r.leito); ctx.setTransform(res, 0, 0, res, 0, 0);
+      aguas.push({ profundidade: r.profundidade, binaria });
+      return;
     }
     if (macico) {
       // Maciço: volume próprio (patamares, estrias, sombra de contato) e nenhum aro escuro das camadas comuns.
@@ -207,6 +218,8 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
     pc.setTransform(1, 0, 0, 1, 0, 0); pc.globalCompositeOperation = 'destination-in'; pc.drawImage(comAlfa(corpo, null) as CanvasImageSource, 0, 0);
     ctx.drawImage(pintada as CanvasImageSource, 0, 0); ctx.setTransform(res, 0, 0, res, 0, 0);
   });
+  const dadosDaAgua = texturaDeAgua(aguas, W, Hh, res, e.largura, e.altura);
+  if (dadosDaAgua) { const ta = criarTela(dadosDaAgua.width, dadosDaAgua.height); contextoDe(ta).putImageData(dadosDaAgua, 0, 0); return { tela, origem: [0, 0], res, agua: { tela: ta, res: RES_DA_TEXTURA_DE_AGUA } }; }
   return { tela, origem: [0, 0], res };
 }
 

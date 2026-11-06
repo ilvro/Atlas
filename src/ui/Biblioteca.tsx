@@ -10,7 +10,7 @@ import { materialDe, materiaisDo } from '../procedural/materiais.ts';
 import { ACERVO, type ItemDoAcervo } from '../procedural/acervo.ts';
 import { CATEGORIAS } from '../procedural/receitas/index.ts';
 import { filtrar } from '../app/busca.ts';
-import { CampoNumero } from './campos.tsx';
+import { CampoCaixa, CampoNumero } from './campos.tsx';
 import { TODOS_OS_CONJUNTOS } from '../authoring/espalhar.ts';
 import { Amostra, CampoMaterial } from './campos-material.tsx';
 import { Icone } from './Icone.tsx';
@@ -94,12 +94,29 @@ function Paredes({ s }: { s: SessaoDeEdicao }) {
   </>);
 }
 
+const SETAS: { nome: string; graus: number; seta: string }[] = [{ nome: 'leste', graus: 0, seta: '→' }, { nome: 'sudeste', graus: 45, seta: '↘' }, { nome: 'sul', graus: 90, seta: '↓' }, { nome: 'sudoeste', graus: 135, seta: '↙' }, { nome: 'oeste', graus: 180, seta: '←' }, { nome: 'noroeste', graus: 225, seta: '↖' }, { nome: 'norte', graus: 270, seta: '↑' }, { nome: 'nordeste', graus: 315, seta: '↗' }];
+
+/** Correnteza da água do pincel: a direção (0° = leste, cresce no sentido horário, como o mapa) e a velocidade da camada desse material. */
+function Correnteza({ s, material }: { s: SessaoDeEdicao; material: string }) {
+  const camada = Object.values(s.doc.value.terrain.layers).find(c => c.material === material);
+  if (!camada) return <p class="dica">Pinte um pouco de água para ajustar a correnteza dela.</p>;
+  const f = camada.flow, graus = f ? ((Math.round(f.angle * 180 / Math.PI) % 360) + 360) % 360 : 0, vel = f?.speed ?? 0;
+  const aplicar = (g: number, v: number) => { s.store.executar({ tipo: 'terreno.correnteza', material, flow: v > 0 ? { angle: g * Math.PI / 180, speed: v } : null }); };
+  return (<>
+    <CampoNumero rotulo="Correnteza" dica="0 = água parada" unidade="m/s" valor={vel} min={0} max={3} passo={0.1} aoConfirmar={v => { aplicar(graus, Math.min(3, Math.max(0, v))); }} />
+    <CampoNumero rotulo="Direção" dica="0° leste, 90° sul" unidade="°" valor={graus} min={0} max={359} passo={15} aoConfirmar={v => { aplicar(((v % 360) + 360) % 360, vel || 0.8); }} />
+    <div class="lista-cartas" data-testid="correnteza-setas">{SETAS.map(a => <button type="button" key={a.graus} class={`carta ${f && graus === a.graus ? 'ativa' : ''}`} title={`Correnteza para ${a.nome}`} onClick={() => aplicar(a.graus, vel || 0.8)} data-testid={`correnteza-${a.nome}`}><span class="carta-nome">{a.seta}</span></button>)}</div>
+  </>);
+}
+
 function Terreno({ s }: { s: SessaoDeEdicao }) {
   const p = s.pincel.value.terreno;
   return (<>
     <p class="dica">Pinte o chão ao ar livre. As bordas se misturam sozinhas. <kbd>Alt</kbd> apaga; <kbd>[</kbd> e <kbd>]</kbd> mudam o pincel.</p>
-    <div class="lista-cartas">{[...materiaisDo('terreno'), ...materiaisDo('macico')].map(m => <button type="button" key={m.id} class={`carta ${p.material === m.id ? 'ativa' : ''}`} onClick={() => mudar(s, { terreno: { ...p, material: m.id } })} data-testid={`terreno-${m.id}`}><span class="carta-amostras"><Amostra id={m.id} tamanho={26} /></span><span class="carta-nome">{m.nome}</span></button>)}</div>
+    <div class="lista-cartas">{[...materiaisDo('terreno'), ...materiaisDo('macico'), ...materiaisDo('agua')].map(m => <button type="button" key={m.id} class={`carta ${p.material === m.id ? 'ativa' : ''}`} onClick={() => mudar(s, { terreno: { ...p, material: m.id } })} data-testid={`terreno-${m.id}`}><span class="carta-amostras"><Amostra id={m.id} tamanho={26} /></span><span class="carta-nome">{m.nome}</span></button>)}</div>
     <CampoNumero rotulo="Pincel" unidade="m" valor={p.raio} min={0.25} max={12} passo={0.5} aoConfirmar={v => { mudar(s, { terreno: { ...p, raio: v } }); }} />
+    {materialDe(p.material).uso === 'agua' && <CampoCaixa rotulo="Suavizar a margem" dica="Arredonda a borda da água onde você pintar: lagos e poças mais redondos." valor={p.suavizar === true} aoMudar={v => { mudar(s, { terreno: { ...p, suavizar: v } }); }} />}
+    {materialDe(p.material).uso === 'agua' && <Correnteza s={s} material={p.material} />}
     <CampoMaterial rotulo="Base do mapa" dica="Cobre o mapa todo, por baixo de tudo" uso="terreno" valor={s.doc.value.terrain.base === 'vazio' ? null : s.doc.value.terrain.base} comNenhum="Nenhuma (fundo escuro)" aoMudar={v => { s.store.executar({ tipo: 'terreno.base', material: v ?? 'vazio' }); }} />
   </>);
 }

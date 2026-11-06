@@ -6,6 +6,7 @@ import { servicos } from '../app/app.ts';
 import { avisar } from '../app/toasts.ts';
 import { NOMES_COLECAO, desfazer, duplicarSelecao, refazer, removerSelecao, sessao } from '../app/app.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
+import { aguaEm } from '../domain/agua.ts';
 import { area } from '../domain/celulas.ts';
 import { PALETAS_PIXEL } from '../domain/paletas.ts';
 import { nomeDoAlvo, novaLuz } from '../domain/fabrica.ts';
@@ -359,6 +360,7 @@ function CamposDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
     <InteracaoDoObjeto s={s} o={o} />
     <CampoCaixa rotulo="Bloqueia o movimento" valor={o.blocks.move} aoMudar={v => editar({ blocks: { move: v } })} />
     <CampoCaixa rotulo="Projeta sombra" valor={o.castsShadow} aoMudar={v => editar({ castsShadow: v })} />
+    {(o.elevation === 'underwater' || (o.elevation === 'floor' && aguaEm(s.doc.value, o.position))) && <CampoCaixa rotulo="Submerso" dica="Fica sob a água: tingido pela cor do fundo e mais apagado quanto mais fundo; não projeta sombra." valor={o.elevation === 'underwater'} aoMudar={v => editar({ elevation: v ? 'underwater' : 'floor', castsShadow: v ? false : o.castsShadow }, v ? 'Submergir objeto' : 'Emergir objeto')} />}
   </>);
 }
 

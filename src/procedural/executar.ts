@@ -18,7 +18,7 @@ export type PedidoDeBake =
   /** Uma escarpa avulsa (parede `cliff` sem origem): a face de rocha do lado baixo. */
   | { tipo: 'escarpa'; entrada: EntradaDeEscarpa; res: number; estilo: IdDoEstilo };
 
-export interface ResultadoDeBake { bitmap: ImageBitmap; origem: [number, number]; res: number }
+export interface ResultadoDeBake { bitmap: ImageBitmap; origem: [number, number]; res: number; /** Terreno com água: textura de profundidade (R) e margem (G), `res` px/m. */ agua?: { bitmap: ImageBitmap; res: number } }
 
 /** O trabalho pesado: pinta numa tela e devolve um `ImageBitmap`. Roda no worker, ou na página se o navegador não tiver worker. */
 export async function executarBake(p: PedidoDeBake): Promise<ResultadoDeBake> {
@@ -32,7 +32,8 @@ export async function executarBake(p: PedidoDeBake): Promise<ResultadoDeBake> {
 
 async function paraBitmap(a: Assado): Promise<ResultadoDeBake> {
   const bitmap = 'transferToImageBitmap' in a.tela ? a.tela.transferToImageBitmap() : await createImageBitmap(a.tela);
-  return { bitmap, origem: a.origem, res: a.res };
+  const agua = a.agua ? { bitmap: 'transferToImageBitmap' in a.agua.tela ? a.agua.tela.transferToImageBitmap() : await createImageBitmap(a.agua.tela), res: a.agua.res } : undefined;
+  return { bitmap, origem: a.origem, res: a.res, ...(agua ? { agua } : {}) };
 }
 
 /** A descrição do gerador pesado, assada no estilo pedido. O import é dinâmico: os geradores só carregam quando um item gerado é pedido no Pixel. */

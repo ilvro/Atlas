@@ -112,6 +112,8 @@ export interface Viewport {
   /** Quantas partículas de cada tipo existem agora (diagnóstico e testes). */
   contagemDeParticulas(): ReturnType<Cena['contagemDeParticulas']>;
   contagemDePresencas(): number;
+  /** Se a superfície animada da água está desenhada (para os testes). */
+  aguaAtiva(): boolean;
   /** Quantos objetos de piso já têm a textura pintada (para os testes). */
   objetosPintados(): number;
   /** Para os testes: como cada peça está desenhada. */
@@ -543,7 +545,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (!unicas.size) return;
     const celulas = [...unicas.values()];
     const comando = i.presenca ? (i.apagar ? { tipo: 'presenca.apagar' as const, brush: null, celulas } : { tipo: 'presenca.pintar' as const, brush: pincel.presenca.brush, celulas })
-      : i.apagar ? { tipo: 'terreno.apagar' as const, celulas } : { tipo: 'terreno.pintar' as const, material: pincel.terreno.material, celulas };
+      : i.apagar ? { tipo: 'terreno.apagar' as const, celulas } : { tipo: 'terreno.pintar' as const, material: pincel.terreno.material, celulas, ...(pincel.terreno.suavizar ? { suavizar: true } : {}) };
     if (!tentar(() => i.gesto.aplicar(comando))) { i.gesto.cancelar(); interacao = null; }
   }
 
@@ -845,6 +847,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     diagnosticoDosEventos: () => eventos.estado(performance.now()),
     contagemDeParticulas: () => cena.contagemDeParticulas(),
     contagemDePresencas: () => cena.contagemDePresencas(),
+    aguaAtiva: () => cena.aguaAtiva(),
     objetosPintados: () => cena.objetosPintados(),
     diagnosticoDasPecas: () => cena.diagnosticoDasPecas(),
     mostrarProposta: previa => { fantasmaDaProposta.mostrar(doc(), previa); camadaSuja = true; },

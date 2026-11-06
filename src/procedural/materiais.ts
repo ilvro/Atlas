@@ -4,8 +4,9 @@ import { celulasDeVoronoi, type Consulta } from './voronoi.ts';
 
 export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho';
 export interface Material {
-  id: string; nome: string; /** Para onde o material vai: piso, papel de parede, objeto ou terreno. */ uso: 'piso' | 'papel' | 'objeto' | 'terreno' | 'macico' | 'telhado';
+  id: string; nome: string; /** Para onde o material vai: piso, papel de parede, objeto ou terreno. */ uso: 'piso' | 'papel' | 'objeto' | 'terreno' | 'macico' | 'agua' | 'telhado';
   base: string; escuro: string; claro: string; padrao: Padrao; largura?: number; lado?: number; ouro?: string; borda?: string; meio?: string; /** Maciço: cor do topo (neve), onde a rocha passa de 70% da altura. */ topo?: string; /** Maciço e escarpa: quanto o pé da face escurece e quanto pesa a sombra de contato (0 a 1; ausente vale 1). */ pe?: number;
+  /** Água: cor perto da margem e no fundo, cor da espuma e quanto se enxerga o leito (0 a 1) no fundo. */ raso?: string; fundo?: string; espuma?: string; transparencia?: number; /** Água: rede de luz animada sobre o leito (cáusticas). */ causticas?: boolean;
 }
 
 const m = (id: string, nome: string, uso: Material['uso'], base: string, escuro: string, claro: string, padrao: Padrao, extra: Partial<Material> = {}): [string, Material] => [id, { id, nome, uso, base, escuro, claro, padrao, ...extra }];
@@ -90,6 +91,12 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('rocha.caverna', 'Rocha de caverna', 'macico', '#566069', '#1b2128', '#8fa1ad', 'pedra', { pe: 1 }),
   m('rocha.nevada', 'Rocha nevada', 'macico', '#77808a', '#2d343c', '#b4bec8', 'pedra', { topo: '#f1f6fa', pe: 0.35 }),
   m('rocha.arenito', 'Arenito', 'macico', '#b49a72', '#5e4a30', '#e0c9a0', 'pedra', { pe: 0.25 }),
+  // Água: o assar pinta o leito pela distância à margem (raso → fundo); o padrão serve de amostra
+  m('agua.mar', 'Mar', 'agua', '#2f6f86', '#0d2f45', '#8fd0e0', 'liso', { raso: '#58a8b8', fundo: '#0f3a54', espuma: '#f2fbff', transparencia: 0.12 }),
+  m('agua.lago', 'Lago', 'agua', '#2f7a78', '#0f3438', '#8fd8cc', 'liso', { raso: '#5fae9c', fundo: '#12404a', espuma: '#e6f6f0', transparencia: 0.18 }),
+  m('agua.rio', 'Rio', 'agua', '#5aa0b0', '#1f5468', '#b4e4ec', 'liso', { raso: '#8cc8c8', fundo: '#2a6a80', espuma: '#f4fdff', transparencia: 0.25 }),
+  m('agua.gruta', 'Água de gruta', 'agua', '#2aa8a0', '#0c4a52', '#9af0e0', 'liso', { raso: '#58d0c0', fundo: '#106068', espuma: '#d8fff4', transparencia: 0.85, causticas: true }),
+  m('agua.pantano', 'Pântano', 'agua', '#5a6a38', '#222a14', '#98a468', 'liso', { raso: '#7a8444', fundo: '#2c3418', espuma: '#c4c88c', transparencia: 0.2 }),
   m('cascalho', 'Cascalho', 'terreno', '#7a756c', '#3f3b36', '#b0aaa0', 'cascalho'),
 ].map(([id, mat]) => [id as string, mat as Material])) as Record<string, Material>;
 

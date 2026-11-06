@@ -21,6 +21,7 @@ import { emEstadoCritico, type Recursos } from '../domain/fichas.ts';
 import type { RetratoNoPixel } from './retratos.ts';
 import { paletaDe } from '../domain/paletas.ts';
 import { criarPresenca } from './presenca.ts';
+import { criarAgua } from './agua.ts';
 import { criarSombrasDoSol } from './sombras-do-sol.ts';
 
 export interface OpcoesDaCena {
@@ -66,6 +67,8 @@ export interface Cena {
   redesenharPecas(): void;
   /** Quantas presenças estão desenhadas agora. */
   contagemDePresencas(): number;
+  /** Se a superfície animada da água está desenhada (para testes). */
+  aguaAtiva(): boolean;
   /** Quantas partículas de cada tipo existem agora. */
   contagemDeParticulas(): ReturnType<ReturnType<typeof criarParticulas>['contagem']>;
   /** Quantos desenhos ainda estão sendo pintados no worker. */
@@ -76,11 +79,11 @@ export interface Cena {
 interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; chave: string; chaveTextura: string | null }
 
 export function criarCena(op: OpcoesDaCena): Cena {
-  const raiz = new Container(), terrenoC = new Container(), escarpasC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics();
+  const raiz = new Container(), terrenoC = new Container(), submersosC = new Container(), escarpasC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics();
   const marcasG = new Graphics(), regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), tituloC = new Container();
-  const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados(), neblina = criarNeblina(), particulas = criarParticulas(), presenca = criarPresenca(), sombras = criarSombrasDoSol();
+  const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados(), neblina = criarNeblina(), particulas = criarParticulas(), presenca = criarPresenca(), agua = criarAgua(), sombras = criarSombrasDoSol();
   // A luz multiplica tudo o que está embaixo (piso, objetos, paredes); marcadores, regiões e peças ficam por cima, sempre legíveis.
-  raiz.addChild(terrenoC, escarpasC, sombras.raiz, comodosC, objetosC, paredesG, presenca.abaixo, luz.sprite, presenca.acima, neblina.raiz, particulas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
+  raiz.addChild(terrenoC, submersosC, agua.raiz, escarpasC, sombras.raiz, comodosC, objetosC, paredesG, presenca.abaixo, luz.sprite, presenca.acima, neblina.raiz, particulas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
 
   let mapa: MapaAtlas | null = null, vistaDaCena: Vista = 'construir', destruida = false, pintandoAgora = 0, ultimoQuadro = -1;
   const salas = new Map<string, Entrada>(), objetos = new Map<string, Entrada>();
@@ -115,14 +118,14 @@ export function criarCena(op: OpcoesDaCena): Cena {
   // ---------- Terreno ----------
   function sincronizarTerreno(m: MapaAtlas): void {
     const e = entradaDoTerreno(m), temAlgo = e.base !== 'vazio' || e.camadas.length > 0;
-    if (!temAlgo) { if (terreno) { removerEntrada(terreno); terreno = null; } return; }
+    if (!temAlgo) { if (terreno) { removerEntrada(terreno); terreno = null; } agua.aplicar(undefined, m); return; }
     terreno ??= novaEntrada(terrenoC);
     const estilo = m.style.renderer, res = resolucaoDe(m, 'terreno'), chave = chaveDoTerreno(e, res, estilo);
     if (terreno.chave === chave) return;
     const alvo = terreno;
     // Durante a pincelada o terreno muda a cada movimento: espera uma pausa antes de pedir a pintura.
     if (terrenoTimer) clearTimeout(terrenoTimer);
-    terrenoTimer = setTimeout(() => { terrenoTimer = null; if (!destruida && terreno === alvo) pintar(alvo, chave, { tipo: 'terreno', entrada: e, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); }); }, 140);
+    terrenoTimer = setTimeout(() => { terrenoTimer = null; if (!destruida && terreno === alvo) pintar(alvo, chave, { tipo: 'terreno', entrada: e, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); if (mapa) { agua.aplicar(r.agua, mapa); reaplicarSubmersos(mapa); } }); }, 140);
   }
 
   // ---------- Escarpas avulsas ----------
@@ -237,6 +240,16 @@ export function criarCena(op: OpcoesDaCena): Cena {
     e.placeholder.clear().roundRect(-w / 2, -h / 2, w, h, 0.08).fill({ color: corDoNome(o.source.kind === 'recipe' ? o.source.recipe : o.source.assetId, 0.35, 0.34), alpha: 0.7 });
   }
 
+  /** Objeto submerso: tingido pela cor do fundo e esmaecido pela profundidade no ponto dele (no Pixel, em três degraus e sem transparência). Os outros voltam ao normal. */
+  function aplicarSubmersao(c: Container, o: Objeto, m: MapaAtlas): void {
+    const sub = o.elevation === 'underwater' ? agua.submersao(o.position[0], o.position[1]) : null;
+    if (!sub) { if (o.elevation === 'underwater') { c.tint = 0xb4c8d0; c.alpha = m.style.renderer === 'pixel' ? 1 : 0.8; } else { c.tint = 0xffffff; c.alpha = 1; } return; }
+    const pixel = m.style.renderer === 'pixel', t = pixel ? (sub.profundidade < 0.17 ? 0.25 : sub.profundidade < 0.5 ? 0.6 : 1) : Math.min(1, 0.25 + sub.profundidade * 0.9);
+    const canal = (sh: number) => Math.round(255 - (255 - Math.min(255, ((sub.cor >> sh) & 255) * 1.8 + 40)) * 0.8 * t);
+    c.tint = (canal(16) << 16) | (canal(8) << 8) | canal(0); c.alpha = pixel ? 1 : 1 - 0.45 * t;
+  }
+  function reaplicarSubmersos(m: MapaAtlas): void { for (const [id, e] of objetos) { const o = m.props[id] as Objeto | undefined; if (o?.elevation === 'underwater') aplicarSubmersao(e.c, o, m); } }
+
   function sincronizarObjetos(m: MapaAtlas, ids: readonly string[] | null, comPop: boolean): void {
     for (const id of ids ?? [...new Set([...objetos.keys(), ...Object.keys(m.props)])]) {
       const o = m.props[id] as Objeto | undefined, e = objetos.get(id);
@@ -247,7 +260,10 @@ export function criarCena(op: OpcoesDaCena): Cena {
         entrada = novaEntrada(objetosC); objetos.set(id, entrada); desenharMarcadorDeObjeto(entrada, o);
         if (comPop && op.efeitos()) { entrada.c.scale.set(0.6); animacoes.push({ alvo: entrada.c, t0: performance.now(), dur: 180, final: o.scale }); }
       }
+      const pai = o.elevation === 'underwater' ? submersosC : objetosC;      // o que está sob a água fica entre o leito e a superfície
+      if (entrada.c.parent !== pai) pai.addChild(entrada.c);
       entrada.c.position.set(o.position[0], o.position[1]); entrada.c.rotation = o.rotation; entrada.c.zIndex = o.layer ?? 0;
+      aplicarSubmersao(entrada.c, o, m);
       if (!animacoes.some(a => a.alvo === entrada!.c)) entrada.c.scale.set(o.scale);
       const pedido = pedidoDoObjeto(o, res, m.style.genre, m.style.renderer, opcoesDoPixel(m));
       if (pedido) pintar(entrada, chave, pedido, (sp, r) => { sp.position.set(r.origem[0], r.origem[1]); sp.scale.set(1 / r.res); });
@@ -359,6 +375,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (tudo || colecao('props') || campos('style')) sincronizarObjetos(m, tudo || campos('style') ? null : mud!.colecoes.props ?? null, comPop);
       if (tudo || colecao('props') || colecao('walls') || campos('climate', 'terrain', 'bounds', 'style')) sombras.atualizar(m, objetos, pixelRes0(m));
       if (tudo || colecao('props')) desenharMarcas(m);
+      agua.sincronizar(m); if (tudo || colecao('props') || campos('style')) agua.objetos(m);
       presenca.sincronizar(m, mud); nevoa.sincronizar(m, mud); telhados.sincronizar(m, mud);
       const v = visaoDoClima ?? m;
       luz.sincronizar(v, mud); neblina.sincronizar(v, mud); particulas.sincronizar(v, mud);
@@ -384,12 +401,13 @@ export function criarCena(op: OpcoesDaCena): Cena {
     redesenharPecas() { if (mapa) sincronizarSimples(pecas, pecasC, mapa.tokens, null, (c, t) => desenharPeca(c, t, mapa!), false); },
     contagemDeParticulas: () => particulas.contagem(),
     contagemDePresencas: () => presenca.contagem(),
+    aguaAtiva: () => agua.ativa(),
     diagnosticoDasPecas: () => [...pecas.entries()].map(([id, c]) => ({ id, ...(visuais.get(c)?.estado() ?? { vez: false, retrato: false, deitada: false, raio: 0, deslizando: false, trilha: 0, quadro: null, pips: null, estadoVisto: 'normal' }) })),
     objetosPintados: () => [...objetos.values()].filter(e => e.sprite !== null && !e.placeholder.visible).length,
     quadro(agora) {
       luz.quadro(agora); nevoa.quadro(agora); telhados.quadro(agora);
       for (const c of pecas.values()) visuais.get(c)?.quadro(agora, op.efeitos());
-      const dt = ultimoQuadro < 0 ? 0 : (agora - ultimoQuadro) / 1000; ultimoQuadro = agora; neblina.quadro(dt); particulas.quadro(dt); presenca.quadro(dt);
+      const dt = ultimoQuadro < 0 ? 0 : (agora - ultimoQuadro) / 1000; ultimoQuadro = agora; neblina.quadro(dt); particulas.quadro(dt); presenca.quadro(dt); agua.quadro(dt);
       for (let i = animacoes.length - 1; i >= 0; i--) {
         const a = animacoes[i]!, t = Math.min(1, (agora - a.t0) / a.dur), e = 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2;   // easeOutBack
         if (a.alvo.destroyed) { animacoes.splice(i, 1); continue; }
@@ -401,7 +419,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       destruida = true; if (terrenoTimer) clearTimeout(terrenoTimer);
       for (const e of [...salas.values(), ...objetos.values(), ...(terreno ? [terreno] : [])]) soltar(e.chaveTextura);
       for (const t of texturas.values()) t.tex.destroy(true); texturas.clear();
-      sombras.destruir(); luz.destruir(); nevoa.destruir(); telhados.destruir(); neblina.destruir(); particulas.destruir(); presenca.destruir(); raiz.destroy({ children: true });
+      sombras.destruir(); luz.destruir(); nevoa.destruir(); telhados.destruir(); neblina.destruir(); particulas.destruir(); presenca.destruir(); agua.destruir(); raiz.destroy({ children: true });
     },
   };
 }
