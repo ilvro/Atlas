@@ -4,6 +4,7 @@ import { RECEITAS_DE_INVESTIGACAO } from './investigacao.ts';
 import { RECEITAS_DE_ENFEITES } from './enfeites.ts';
 import { RECEITAS_ERMOS } from './ermos.ts';
 import { RECEITAS_MATA } from './mata.ts';
+import { RECEITAS_PORTO } from './porto.ts';
 import { RECEITAS_EXTERIORES } from './exterior.ts';
 import { RECEITAS_DE_PAREDE } from './parede.ts';
 import { RECEITAS_DE_FANTASIA } from './fantasia.ts';
@@ -13,7 +14,7 @@ import type { PedidoDeReceita, Receita } from './comum.ts';
 export { CATEGORIAS, type CampoDeReceita, type Categoria, type PedidoDeReceita, type Receita } from './comum.ts';
 
 /** Todas as receitas, juntando as listas de cada kit. Os ids são únicos entre os arquivos (um teste confere). */
-const lista: Receita[] = [...RECEITAS_DA_CASA, ...RECEITAS_DE_INVESTIGACAO, ...RECEITAS_MODERNAS, ...RECEITAS_DE_FANTASIA, ...RECEITAS_EXTERIORES, ...RECEITAS_ERMOS, ...RECEITAS_MATA, ...RECEITAS_DE_PAREDE, ...RECEITAS_DE_ENFEITES];
+const lista: Receita[] = [...RECEITAS_DA_CASA, ...RECEITAS_DE_INVESTIGACAO, ...RECEITAS_MODERNAS, ...RECEITAS_DE_FANTASIA, ...RECEITAS_EXTERIORES, ...RECEITAS_ERMOS, ...RECEITAS_MATA, ...RECEITAS_PORTO, ...RECEITAS_DE_PAREDE, ...RECEITAS_DE_ENFEITES];
 
 /** O catálogo de receitas. */
 export const RECEITAS: Readonly<Record<string, Receita>> = Object.fromEntries(lista.map(r => [r.id, r]));

@@ -287,9 +287,10 @@ Escopo: `carvalho-grande` (copa densa de folhas recortadas, 6 a 8 m), `folhagem-
 Commit: woodland and ruin kit
 Nota: dois geradores pesados novos (`carvalho-grande` 6, 7 e 8 m com lóbulos recortados; `folhagem-tropical` 1,6 e 2,4 m), kit `mata`, e 11 receitas em `receitas/mata.ts` (`mata`: `tufo-de-grama`, `junco`, `vitoria-regia` com `flor`, `raiz-exposta`; `ruina`: `mureta-de-pedra` com `largura` e `falha`, `coluna-arruinada` com esfera, `coluna-caida`, `circulo-runico` com `raio` e `raios`, `escombros`, `viga-partida`, `tabua-solta`). Os campos de 0/1 seguem o padrão da 10.5a. Nenhuma receita marca `blocks`: o padrão do objeto (bloqueia o passo) vale; ajustar mureta e coluna no inspetor se preciso. Capturas: `test-results/fase10-mata.png` e `fase10-mata-pixel.png`.
 
-### 10.5c — Acervo: porto e cidade  ⬜
+### 10.5c — Acervo: porto e cidade  ✅
 Escopo: `navio` (casco de cima com proa, convés de tábuas, 2 ou 3 mastros, escotilha, gradil; comprimento 14 a 30 m), `barcaca`, `guindaste-de-cais`, `cais-segmento` (passarela de tábuas com estacas; comprimento e largura), `estaca`, `barraca-de-feira` (toldo listrado em 4 cores), `caixote`, `pilha-de-caixotes`, `barril`, `pilha-de-barris`, `sacos`, `rede-de-pesca`, `ancora`, `rolo-de-corda`, `lanterna-de-poste`.
 Commit: harbor kit
+Nota: 15 receitas em `receitas/porto.ts` (kit `porto`, categoria `exterior`; `lanterna-de-poste` em `lareira-e-luz`). `navio` tem `comprimento` (14–30) e `mastros` (2 ou 3), com largura de 28% do comprimento; `cais-segmento` tem `comprimento` e `largura`; `barraca-de-feira` tem `paleta` (0–3) para as 4 cores do toldo. `lanterna-de-poste` só desenha o brilho: a luz de verdade é posta à parte. Nenhuma receita marca `blocks` (padrão do objeto). Capturas: `test-results/fase10-porto.png` e `fase10-porto-pixel.png`. No Pixel a âncora e o guindaste ficam finos.
 
 ### 10.5d — Acervo: estrada e estábulo  ⬜
 Escopo: `carroca` (vazia e carregada, com varais), `cavalo` (pardo, branco, preto, malhado; de pé, de cima, com crina e cauda), `fardo-de-feno`, `bebedouro`, `carrinho-de-mao`, `carrinho-de-carga` (o do deque).
