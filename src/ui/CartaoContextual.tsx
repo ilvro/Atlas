@@ -4,6 +4,7 @@ import { acaoDoInterativo } from '../domain/interagiveis.ts';
 import { alternarLuzes, alternarPorta, usarObjeto, desfazer, revelarPorta, trancarPorta, duplicarSelecao, removerSelecao, viewport, servicos } from '../app/app.ts';
 import { modo } from '../app/modo.ts';
 import { abrirFicha, ajustarRecursos, recursosDasFichas } from '../app/fichas.ts';
+import { previaDaFichaAberta } from './PreviaDaFicha.tsx';
 import { emEstadoCritico, fracao, interpretarAjusteDeRecurso, refDaFicha, temPd, textoDeRecursos, type Recursos } from '../domain/fichas.ts';
 import type { Ref } from '#mesa';
 import { chaveDaRef } from '#mesa';
@@ -230,6 +231,19 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
       ) : (
         <span class="cartao-texto" data-testid="cartao-recursos">Sem dados da ficha</span>
       )}
+      <button
+        type="button"
+        class={`cartao-texto cartao-espiar-btn ${previaDaFichaAberta.value ? 'ativo' : ''}`}
+        data-testid="cartao-espiar-ficha"
+        aria-pressed={previaDaFichaAberta.value}
+        title="Espiar ficha ao lado do token"
+        onClick={() => {
+          previaDaFichaAberta.value = !previaDaFichaAberta.value;
+          tocar('pop');
+        }}
+      >
+        ▸ Ficha
+      </button>
       <button type="button" class="cartao-texto" data-testid="cartao-abrir-ficha" onClick={() => void abrirFicha(servicos.peek()?.barramento, ref)}>Abrir ficha</button>
     </>);
   } else if (emSessao && a.colecao !== 'openings') return null;       // na sessão o cartão só tem ações de porta (a 7.6a acrescenta as dos interativos)
@@ -262,6 +276,26 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
     acoes = (<>
       {w.source && <button type="button" class="cartao-texto" title="A parede deixa de seguir o cômodo e passa a ser sua" onClick={() => editar(() => st.executar({ tipo: 'parede.desanexar', id: w.id }))} data-testid="cartao-desanexar">Desanexar</button>}
       {!w.source && <Acao icone="lixeira" rotulo="Remover a parede" aoClicar={removerSelecao} perigo id="cartao-remover" />}
+    </>);
+  } else if (a.colecao === 'tokens') {
+    const ref = refDaFicha(m.tokens[a.id]!.refs);
+    acoes = (<>
+      {ref && (
+        <button
+          type="button"
+          class={`cartao-texto cartao-espiar-btn ${previaDaFichaAberta.value ? 'ativo' : ''}`}
+          data-testid="cartao-espiar-ficha"
+          aria-pressed={previaDaFichaAberta.value}
+          title="Espiar ficha ao lado do token"
+          onClick={() => {
+            previaDaFichaAberta.value = !previaDaFichaAberta.value;
+            tocar('pop');
+          }}
+        >
+          ▸ Ficha
+        </button>
+      )}
+      <Acao icone="duplicar" rotulo="Duplicar" aoClicar={duplicarSelecao} /><Acao icone="lixeira" rotulo="Remover" aoClicar={removerSelecao} perigo id="cartao-remover" />
     </>);
   } else if (a.colecao === 'props') {
     acoes = (<>

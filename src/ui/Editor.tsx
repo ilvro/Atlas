@@ -25,6 +25,7 @@ import { Inspetor } from './Inspetor.tsx';
 import { PilulaDeSugestao } from './PilulaDeSugestao.tsx';
 import { BarraInferior } from './BarraInferior.tsx';
 import { WidgetsDeTopo } from './WidgetsDeTopo.tsx';
+import { PreviaDaFicha } from './PreviaDaFicha.tsx';
 
 const zoomPct = signal(100), cursorMundo = signal<[number, number] | null>(null), pintando = signal(0);
 
@@ -118,6 +119,7 @@ export function Editor() {
         <AreaDoMapa s={s} />
         <WidgetsDeTopo s={s} />
         <CartaoContextual s={s} />
+        <PreviaDaFicha s={s} />
         <BarraInferior s={s} />
         {modo.value === 'sessao' && <Dock s={s} />}
         {modo.value === 'sessao' && <Inspecao />}

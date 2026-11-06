@@ -106,7 +106,7 @@ Testes: unitários de `interpretarAjusteDeRecurso` e atualização otimista em `
 Pronto quando: clicar num token na sessão exibe a barra de PV/PD com botões `-`/`+` e input rápido que atualizam os pips do token e a ficha no Dossiê.
 Commit: feat(atlas): add inline HP/PD bar and quick delta controls on token card
 
-### 11.2c — Gaveta flutuante de prévia da ficha (`PreviaDaFicha.tsx`) colada ao token  ⬜
+### 11.2c — Gaveta flutuante de prévia da ficha (`PreviaDaFicha.tsx`) colada ao token  ✅
 Objetivo: abrir um card flutuante ao lado do token selecionado mostrando a página compacta da ficha no Dossiê, permitindo consultar stats e clicar em rolagens sem sair do mapa.
 Depende de: 11.2b
 Ler: `src/ui/CartaoContextual.tsx`, `src/ui/Editor.tsx`, `src/app/fichas.ts`, `src/ui/estilo.css`.

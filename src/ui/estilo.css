@@ -300,6 +300,135 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
   outline: none;
 }
 
+.cartao-espiar-btn.ativo {
+  background: var(--acento-suave);
+  color: var(--acento);
+  border-color: var(--acento);
+  font-weight: 700;
+}
+
+/* ---- Gaveta flutuante de Prévia da Ficha ---- */
+.previa-da-ficha {
+  position: fixed;
+  z-index: 25;
+  width: 380px;
+  height: 500px;
+  background: var(--painel);
+  border: 1px solid var(--linha-forte);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: previa-entra 0.15s ease-out;
+  pointer-events: auto;
+}
+
+.previa-da-ficha.fixada {
+  position: absolute;
+  top: 52px;
+  right: 16px;
+  left: auto !important;
+  bottom: auto !important;
+}
+
+@keyframes previa-entra {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.previa-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--linha);
+  background: var(--superficie-1);
+}
+
+.previa-info-token {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.previa-nome-token {
+  font: 700 13px var(--corpo);
+  color: var(--texto);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.previa-recursos-resumo {
+  font: 600 11px var(--mono);
+  color: var(--apagado);
+}
+
+.previa-acoes {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.previa-botao-acao {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  border: 1px solid var(--linha);
+  background: var(--superficie-2);
+  color: var(--texto);
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.12s;
+}
+
+.previa-botao-acao:hover {
+  background: var(--acento-suave);
+  color: var(--acento);
+  border-color: var(--acento);
+}
+
+.previa-botao-acao.ativa {
+  background: var(--acento);
+  color: var(--acento-texto);
+  border-color: var(--acento);
+}
+
+.previa-botao-acao.fechar {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.previa-corpo {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #0c0d12;
+}
+
+.iframe-previa-ficha {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+}
+
 /* ---- Inspetor ---- */
 .inspetor { grid-row: 1; grid-column: 3; display: flex; flex-direction: column; background: var(--painel); border-left: 1px solid var(--linha); min-height: 0; }
 .abas { display: flex; border-bottom: 1px solid var(--linha); flex: none; }
