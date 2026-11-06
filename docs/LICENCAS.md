@@ -17,10 +17,15 @@ Imagens assadas pelo próprio Atlas (`npm run assar`) a partir de geradores em `
 | --- | --- | --- |
 | gerados/arbusto-florido.webp | arbusto | Arbusto (florido) |
 | gerados/arbusto-grande.webp | arbusto | Arbusto (grande) |
+| gerados/arbusto-seco-1m.webp | arbusto-seco | Arbusto seco (1,2 m) |
+| gerados/arbusto-seco-2m.webp | arbusto-seco | Arbusto seco (2 m) |
+| gerados/arbusto-seco-2m-neve.webp | arbusto-seco | Arbusto seco (2 m com neve) |
 | gerados/arbusto-verde.webp | arbusto | Arbusto (verde) |
 | gerados/arvore-3m.webp | arvore | Árvore (3 m) |
 | gerados/arvore-5m.webp | arvore | Árvore (5 m) |
 | gerados/arvore-7m.webp | arvore | Árvore (7 m) |
+| gerados/arvore-nevada-3m.webp | arvore-nevada | Árvore nevada (3 m) |
+| gerados/arvore-nevada-5m.webp | arvore-nevada | Árvore nevada (5 m) |
 | gerados/chesterfield-couro.webp | chesterfield | Sofá chesterfield (couro) |
 | gerados/chesterfield-verde.webp | chesterfield | Sofá chesterfield (verde-garrafa) |
 | gerados/chesterfield-vinho.webp | chesterfield | Sofá chesterfield (vinho) |
@@ -36,6 +41,8 @@ Imagens assadas pelo próprio Atlas (`npm run assar`) a partir de geradores em `
 | gerados/passadeira-vinho.webp | passadeira | Passadeira de corredor (vinho e azul-marinho) |
 | gerados/pinheiro-3m.webp | pinheiro | Pinheiro (3 m) |
 | gerados/pinheiro-4m.webp | pinheiro | Pinheiro (4,5 m) |
+| gerados/pinheiro-nevado-3m.webp | pinheiro-nevado | Pinheiro nevado (3 m) |
+| gerados/pinheiro-nevado-4m.webp | pinheiro-nevado | Pinheiro nevado (4,5 m) |
 | gerados/poltrona-capitone-couro.webp | poltrona-capitone | Poltrona capitonê (couro) |
 | gerados/poltrona-capitone-verde.webp | poltrona-capitone | Poltrona capitonê (verde-garrafa) |
 | gerados/poltrona-capitone-vinho.webp | poltrona-capitone | Poltrona capitonê (vinho) |

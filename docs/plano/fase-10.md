@@ -256,7 +256,7 @@ Nota: os padrões Ilustrados são pintados pixel a pixel (`porPixel`, com `voron
 Escopo: `paralelepipedo` (pedras arredondadas irregulares, Voronoi, rejunte escuro), `lajes.gramadas` (lajes grandes com grama e musgo nas juntas, algumas faltando), `terra.sulcos` (estrada com duas trilhas de roda; os sulcos seguem a orientação dominante da camada), `areia.molhada`.
 Commit: cobbles, grassy flagstones and rutted dirt
 
-### 10.5a — Acervo: inverno e rocha  ⬜
+### 10.5a — Acervo: inverno e rocha  ✅
 Objetivo: os objetos de inverno e as rochas grandes que o Desfiladeiro e as costas pedem.
 Depende de: — (o `altura` da 10.3 é opcional aqui)
 Ler: `src/procedural/pesados/plantas.ts` (`copaRedonda`, `pinheiro`, `arbusto`, o formato das variantes), `src/procedural/pesados/index.ts`, `src/procedural/receitas/exterior.ts` (`pedra`), `src/procedural/receitas/index.ts`, `scripts/assar-colecao.ts`, `tests/unit/pesados.test.ts`, `tests/unit/kit-exterior.test.ts`; recortes de `desfiladeiro-nevado.png`.
@@ -276,6 +276,7 @@ Não fazer: sombra longa (10.3); mexer nas árvores que existem.
 Testes: `kit-ermos.test.ts` (cada receita gera descrição válida com a pegada dentro da caixa; semente diferente, forma diferente; `cobertura` muda as partes); `pesados.test.ts` cobre os geradores novos.
 Pronto quando: uma captura com os itens novos sobre `neve.funda` (ou `neve`), no Ilustrado e no Pixel, parece o recorte do Desfiladeiro (`test-results/fase10-inverno.png`).
 Commit: winter trees and boulders
+Nota: `cobertura` do rochedo é um campo numérico 0/1/2 (nenhuma/musgo/neve), pois `CampoDeReceita` não tem seleção. `rochedo` é um polígono de 14 a 20 vértices com 4 faces em torno de uma cumeeira deslocada para a luz, rachaduras curtas e musgo ou tampo de neve por cima; a pegada é `tamanho × 0,8·tamanho`. Geradores novos com `kit: 'ermos'`: `arvore-nevada` (3 e 5 m, pompons), `pinheiro-nevado` (3 e 4,5 m), `arbusto-seco` (1,2, 2 e 2 m com neve); 7 itens novos no catálogo, nenhum antigo regravado. Capturas: `test-results/fase10-inverno.png` (Ilustrado) e `fase10-inverno-pixel.png` (`tests/e2e/fase10-inverno.test.ts`). No Pixel os galhos finos do arbusto seco ficam esparsos.
 
 ### 10.5b — Acervo: mata, ruína e margem  ⬜
 Escopo: `carvalho-grande` (copa densa de folhas recortadas, 6 a 8 m), `folhagem-tropical` (arbusto de folhas largas, escuro), `tufo-de-grama`, `junco`, `vitoria-regia` (e flor), `raiz-exposta`; ruína: `mureta-de-pedra` (receita com largura, blocos irregulares, pode faltar pedaço), `coluna-arruinada` (com esfera), `coluna-caida`, `circulo-runico` (entalhe no chão, raios param.), `escombros` (pedras e pó escuro), `viga-partida`, `tabua-solta`.

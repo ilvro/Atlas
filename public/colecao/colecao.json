@@ -63,6 +63,106 @@
       }
     },
     {
+      "id": "casa:arbusto-seco-1m",
+      "nome": "Arbusto seco (1,2 m)",
+      "arquivo": "gerados/arbusto-seco-1m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        1.2,
+        1.2
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arbusto",
+        "planta",
+        "exterior",
+        "inverno",
+        "seco"
+      ],
+      "generos": [],
+      "kit": "ermos",
+      "altura": 0.48,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arbusto-seco",
+        "params": {
+          "diametro": 1.2
+        },
+        "seed": 81,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:arbusto-seco-2m",
+      "nome": "Arbusto seco (2 m)",
+      "arquivo": "gerados/arbusto-seco-2m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        2,
+        2
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arbusto",
+        "planta",
+        "exterior",
+        "inverno",
+        "seco"
+      ],
+      "generos": [],
+      "kit": "ermos",
+      "altura": 0.8,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arbusto-seco",
+        "params": {
+          "diametro": 2
+        },
+        "seed": 82,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:arbusto-seco-2m-neve",
+      "nome": "Arbusto seco (2 m com neve)",
+      "arquivo": "gerados/arbusto-seco-2m-neve.webp",
+      "categoria": "exterior",
+      "pegada": [
+        2,
+        2
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arbusto",
+        "planta",
+        "exterior",
+        "inverno",
+        "seco"
+      ],
+      "generos": [],
+      "kit": "ermos",
+      "altura": 0.8,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arbusto-seco",
+        "params": {
+          "diametro": 2,
+          "neve": true
+        },
+        "seed": 83,
+        "versao": 2
+      }
+    },
+    {
       "id": "casa:arbusto-verde",
       "nome": "Arbusto (verde)",
       "arquivo": "gerados/arbusto-verde.webp",
@@ -185,6 +285,74 @@
           "diametro": 7
         },
         "seed": 33,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:arvore-nevada-3m",
+      "nome": "Árvore nevada (3 m)",
+      "arquivo": "gerados/arvore-nevada-3m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        3,
+        3
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "planta",
+        "copa",
+        "exterior",
+        "inverno",
+        "neve"
+      ],
+      "generos": [],
+      "kit": "ermos",
+      "altura": 4.8,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arvore-nevada",
+        "params": {
+          "diametro": 3
+        },
+        "seed": 61,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:arvore-nevada-5m",
+      "nome": "Árvore nevada (5 m)",
+      "arquivo": "gerados/arvore-nevada-5m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        5,
+        5
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "planta",
+        "copa",
+        "exterior",
+        "inverno",
+        "neve"
+      ],
+      "generos": [],
+      "kit": "ermos",
+      "altura": 8,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arvore-nevada",
+        "params": {
+          "diametro": 5
+        },
+        "seed": 62,
         "versao": 2
       }
     },
@@ -703,6 +871,74 @@
           "diametro": 4.5
         },
         "seed": 42,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:pinheiro-nevado-3m",
+      "nome": "Pinheiro nevado (3 m)",
+      "arquivo": "gerados/pinheiro-nevado-3m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        3,
+        3
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "pinheiro",
+        "conifera",
+        "exterior",
+        "inverno",
+        "neve"
+      ],
+      "generos": [],
+      "kit": "ermos",
+      "altura": 6,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "pinheiro-nevado",
+        "params": {
+          "diametro": 3
+        },
+        "seed": 71,
+        "versao": 2
+      }
+    },
+    {
+      "id": "casa:pinheiro-nevado-4m",
+      "nome": "Pinheiro nevado (4,5 m)",
+      "arquivo": "gerados/pinheiro-nevado-4m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        4.5,
+        4.5
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "pinheiro",
+        "conifera",
+        "exterior",
+        "inverno",
+        "neve"
+      ],
+      "generos": [],
+      "kit": "ermos",
+      "altura": 9,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "pinheiro-nevado",
+        "params": {
+          "diametro": 4.5
+        },
+        "seed": 72,
         "versao": 2
       }
     },
