@@ -28,7 +28,7 @@ import { texturaPropria } from './textura-propria.ts';
 import { criarFantasmaDeProposta } from './fantasma-proposta.ts';
 import type { Vista } from './nevoa.ts';
 import { criarRetratos } from './retratos.ts';
-import { deltaEncaixado, encaixar, linhasDaGrade } from './grade.ts';
+import { ajustarGradePorAlinhamento, celulasHexagonaisVisiveis, deltaEncaixado, encaixar, intersecoesDaGrade, linhasDaGrade, segmentosTracejados } from './grade.ts';
 import { LARGURA_DA_ABERTURA, type Ferramenta, type Pincel } from './pincel.ts';
 import { alvoEm, alvosNaCaixa, alvosNoLaco, caixaDaSelecao, caixaDe, combinarSelecao, ehMovel, mesmoAlvo, type Alvo, type Caixa } from './selecao.ts';
 
@@ -68,6 +68,8 @@ export interface PonteViewport {
   somenteLeitura?: boolean;
   /** O retângulo que o projetor enquadra, mostrado no mapa do mestre (na Sessão); `null` esconde. */
   caixaDoProjetor?(): Caixa | null;
+  /** Modo de Alinhamento da grade: desenha gabarito 3x3 para calibrar offset e escala. */
+  alinhandoGrade?(): boolean;
   /** Proporção (largura / altura) da tela do projetor, para o retângulo ter a forma certa. */
   aspectoDoProjetor?(): number;
   aoMudarCaixaDoProjetor?(c: Caixa): void;
@@ -150,6 +152,7 @@ type Interacao =
   | { tipo: 'espalhar'; apagar: boolean; gesto: Gesto; ultimo: Ponto; semente: number }
   | { tipo: 'parede'; ini: Ponto; fim: Ponto }
   | { tipo: 'projetor'; modo: 'mover' | 'canto'; origem: Ponto; caixa0: Caixa; fixo: Ponto }
+  | { tipo: 'alinhamento-grade'; modo: 'offset' | 'escala'; origem: Ponto; grade0: { size: number; offset: [number, number] }; gesto: Gesto }
   | { tipo: 'regua'; ini: Ponto; x0: number; y0: number; moveu: boolean };
 
 /** A régua: os pontos já fixados (centros de célula) e, enquanto se espera o próximo clique, o ponto sob o ponteiro. Não é do documento. */
@@ -250,15 +253,111 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   function desenharGrade(): void {
     const m = doc(); grade.clear();
     if (somenteLeitura) return;
-    if (!m.grid.visible) return;
-    const l = linhasDaGrade(camera, tela(), m.grid, m.bounds);
-    const traco = (xs: number[], vertical: boolean, alpha: number) => {
-      for (const v of xs) vertical ? grade.moveTo(v, 0).lineTo(v, m.bounds.height) : grade.moveTo(0, v).lineTo(m.bounds.width, v);
-      grade.stroke({ width: px(1), color: 0xffffff, alpha });
+    const alinhando = ponte.alinhandoGrade?.() ?? false;
+    if (!m.grid.visible && !alinhando) return;
+
+    const kind = m.grid.kind ?? 'square';
+    const lineStyle = m.grid.lineStyle ?? 'solid';
+    const lineWidth = px(m.grid.lineWidth ?? 1);
+    const baseOpacity = m.grid.opacity ?? 0.5;
+    const isAutoColor = m.grid.color === 'auto';
+    const customColor = isAutoColor ? 0xffffff : hexParaNumero(m.grid.color);
+
+    const desenharComEstilo = (desenharGeometria: (alpha: number, isShadow: boolean) => void) => {
+      if (isAutoColor) {
+        desenharGeometria(baseOpacity * 0.7, true);
+        desenharGeometria(baseOpacity, false);
+      } else {
+        desenharGeometria(baseOpacity, false);
+      }
     };
-    const maior = (v: number, o: number) => Math.abs(Math.round((v - o) / (m.grid.size * l.passo * 5)) * (m.grid.size * l.passo * 5) - (v - o)) < 1e-6;
-    traco(l.verticais.filter(v => !maior(v, m.grid.offset[0])), true, 0.06); traco(l.horizontais.filter(v => !maior(v, m.grid.offset[1])), false, 0.06);
-    traco(l.verticais.filter(v => maior(v, m.grid.offset[0])), true, 0.14); traco(l.horizontais.filter(v => maior(v, m.grid.offset[1])), false, 0.14);
+
+    if (m.grid.visible) {
+      if (kind === 'hex') {
+        const hexes = celulasHexagonaisVisiveis(camera, tela(), m.grid, m.bounds);
+        desenharComEstilo((alpha, isShadow) => {
+          for (const h of hexes) {
+            grade.moveTo(h.vertices[0]![0], h.vertices[0]![1]);
+            for (let k = 1; k < h.vertices.length; k++) {
+              grade.lineTo(h.vertices[k]![0], h.vertices[k]![1]);
+            }
+            grade.closePath();
+          }
+          const cor = isShadow ? 0x07080b : customColor;
+          const w = isShadow ? lineWidth + px(1) : lineWidth;
+          grade.stroke({ width: w, color: cor, alpha });
+        });
+      } else {
+        const l = linhasDaGrade(camera, tela(), m.grid, m.bounds);
+        if (lineStyle === 'corners') {
+          const inters = intersecoesDaGrade(l);
+          const arm = Math.min(m.grid.size * 0.18, 0.25);
+          desenharComEstilo((alpha, isShadow) => {
+            for (const [x, y] of inters) {
+              grade.moveTo(x - arm, y).lineTo(x + arm, y);
+              grade.moveTo(x, y - arm).lineTo(x, y + arm);
+            }
+            const cor = isShadow ? 0x07080b : customColor;
+            const w = isShadow ? lineWidth + px(1) : lineWidth;
+            grade.stroke({ width: w, color: cor, alpha });
+          });
+        } else if (lineStyle === 'dashed' || lineStyle === 'dotted') {
+          const comp = lineStyle === 'dotted' ? Math.max(px(2) / camera.zoom, 0.04) : m.grid.size * 0.2;
+          const espaco = lineStyle === 'dotted' ? m.grid.size * 0.15 : m.grid.size * 0.15;
+          desenharComEstilo((alpha, isShadow) => {
+            for (const x of l.verticais) {
+              const segs = segmentosTracejados(0, m.bounds.height, comp, espaco);
+              for (const [y0, y1] of segs) grade.moveTo(x, y0).lineTo(x, y1);
+            }
+            for (const y of l.horizontais) {
+              const segs = segmentosTracejados(0, m.bounds.width, comp, espaco);
+              for (const [x0, x1] of segs) grade.moveTo(x0, y).lineTo(x1, y);
+            }
+            const cor = isShadow ? 0x07080b : customColor;
+            const w = isShadow ? lineWidth + px(1) : lineWidth;
+            grade.stroke({ width: w, color: cor, alpha });
+          });
+        } else {
+          // 'solid'
+          desenharComEstilo((alpha, isShadow) => {
+            for (const v of l.verticais) grade.moveTo(v, 0).lineTo(v, m.bounds.height);
+            for (const v of l.horizontais) grade.moveTo(0, v).lineTo(m.bounds.width, v);
+            const cor = isShadow ? 0x07080b : customColor;
+            const w = isShadow ? lineWidth + px(1) : lineWidth;
+            grade.stroke({ width: w, color: cor, alpha });
+          });
+        }
+      }
+    }
+
+    if (alinhando) {
+      const centroTela = [tela().largura / 2, tela().altura / 2] as [number, number];
+      const centroMundo = telaParaMundo(camera, centroTela);
+      const celulas = 3;
+      const tamTotal = m.grid.size * celulas;
+      const cx0 = Math.floor((centroMundo[0] - m.grid.offset[0] - tamTotal / 2) / m.grid.size) * m.grid.size + m.grid.offset[0];
+      const cy0 = Math.floor((centroMundo[1] - m.grid.offset[1] - tamTotal / 2) / m.grid.size) * m.grid.size + m.grid.offset[1];
+      const cx1 = cx0 + tamTotal;
+      const cy1 = cy0 + tamTotal;
+
+      // Fundo e contorno do gabarito 3x3
+      grade.rect(cx0, cy0, tamTotal, tamTotal).fill({ color: 0x00e5ff, alpha: 0.12 }).stroke({ width: px(2.5), color: 0x00e5ff, alpha: 0.9 });
+
+      // Linhas internas da grade 3x3
+      for (let k = 1; k < celulas; k++) {
+        grade.moveTo(cx0 + k * m.grid.size, cy0).lineTo(cx0 + k * m.grid.size, cy1);
+        grade.moveTo(cx0, cy0 + k * m.grid.size).lineTo(cx1, cy0 + k * m.grid.size);
+      }
+      grade.stroke({ width: px(1.5), color: 0x00e5ff, alpha: 0.5 });
+
+      // Alça de escala no canto inferior direito
+      const tamAlca = px(12);
+      grade.rect(cx1 - tamAlca / 2, cy1 - tamAlca / 2, tamAlca, tamAlca).fill({ color: 0xffffff }).stroke({ width: px(2), color: 0x00e5ff });
+
+      // Ponto no centro para arrastar offset
+      const meioX = (cx0 + cx1) / 2, meioY = (cy0 + cy1) / 2;
+      grade.circle(meioX, meioY, px(8)).fill({ color: 0x00e5ff, alpha: 0.8 }).stroke({ width: px(1.5), color: 0xffffff });
+    }
   }
 
   function desenharSelecao(): void {
@@ -495,7 +594,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const posicaoDe = (m: MapaAtlas, a: Alvo): Ponto => a.colecao === 'regions' ? m.regions[a.id]!.polygon[0]! : (m[a.colecao as ColecaoLivre] as Record<string, { position: Ponto }>)[a.id]!.position;
   const cursor = () => {
     const f = ponte.ferramenta();
-    canvas.style.cursor = interacao?.tipo === 'pan' ? 'grabbing' : (f === 'mao' || espaco) ? 'grab' : f === 'selecionar' ? (interacao?.tipo === 'mover' || interacao?.tipo === 'peca' || interacao?.tipo === 'deslizar' ? 'move' : 'default') : 'crosshair';
+    canvas.style.cursor = interacao?.tipo === 'pan' ? 'grabbing' : (f === 'mao' || espaco) ? 'grab' : interacao?.tipo === 'alinhamento-grade' ? (interacao.modo === 'escala' ? 'nwse-resize' : 'move') : f === 'selecionar' ? (interacao?.tipo === 'mover' || interacao?.tipo === 'peca' || interacao?.tipo === 'deslizar' ? 'move' : 'default') : 'crosshair';
   };
   const tentar = (fazer: () => void): boolean => { try { fazer(); return true; } catch (erro) { ponte.aviso(erro instanceof Error ? erro.message.replace(/^O comando deixaria o mapa inválido — /, '') : String(erro)); return false; } };
 
@@ -633,6 +732,39 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (e.button === 1 || e.button === 2 || (e.button === 0 && (f === 'mao' || espaco))) { interacao = { tipo: 'pan', botao: e.button, x0: tx, y0: ty, camera0: camera, moveu: false }; cursor(); return; }
     if (e.button !== 0) return;
     const p = mundoDe(e);
+    if (ponte.alinhandoGrade?.()) {
+      const centroTela = [tela().largura / 2, tela().altura / 2] as [number, number];
+      const centroMundo = telaParaMundo(camera, centroTela);
+      const celulas = 3;
+      const tamTotal = m.grid.size * celulas;
+      const cx0 = Math.floor((centroMundo[0] - m.grid.offset[0] - tamTotal / 2) / m.grid.size) * m.grid.size + m.grid.offset[0];
+      const cy0 = Math.floor((centroMundo[1] - m.grid.offset[1] - tamTotal / 2) / m.grid.size) * m.grid.size + m.grid.offset[1];
+      const cx1 = cx0 + tamTotal, cy1 = cy0 + tamTotal;
+      const distCanto = Math.hypot(p[0] - cx1, p[1] - cy1);
+      const tamAlca = px(16);
+      if (distCanto <= tamAlca) {
+        interacao = {
+          tipo: 'alinhamento-grade',
+          modo: 'escala',
+          origem: [cx0, cy0],
+          grade0: { size: m.grid.size, offset: [m.grid.offset[0], m.grid.offset[1]] },
+          gesto: store.iniciarGesto('Calibrar tamanho da grade'),
+        };
+        cursor();
+        return;
+      }
+      if (p[0] >= cx0 && p[0] <= cx1 && p[1] >= cy0 && p[1] <= cy1) {
+        interacao = {
+          tipo: 'alinhamento-grade',
+          modo: 'offset',
+          origem: p,
+          grade0: { size: m.grid.size, offset: [m.grid.offset[0], m.grid.offset[1]] },
+          gesto: store.iniciarGesto('Alinhar grade'),
+        };
+        cursor();
+        return;
+      }
+    }
     const doProjetor = f === 'selecionar' ? pegarCaixaDoProjetor(p) : null;
     if (doProjetor) { interacao = doProjetor; cursor(); return; }
     if (f === 'regua') { interacao = { tipo: 'regua', ini: centroDaCelula(m, p), x0: tx, y0: ty, moveu: false }; camadaSuja = true; return; }
@@ -726,6 +858,14 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     } else if (i.tipo === 'terreno') { const antes = i.ultimo; i.ultimo = ponteiro; pintarTerreno(ponteiro, antes); }
     else if (i.tipo === 'espalhar') { if (Math.hypot(ponteiro[0] - i.ultimo[0], ponteiro[1] - i.ultimo[1]) >= ponte.pincel().espalhar.raio / 2) { i.ultimo = ponteiro; espalharAqui(ponteiro); } }
     else if (i.tipo === 'parede') i.fim = pontoDeParede(m, ponteiro, i.ini, !m.grid.snap || e.altKey);
+    else if (i.tipo === 'alinhamento-grade') {
+      const ajustado = ajustarGradePorAlinhamento(i.grade0, i.origem, ponteiro, i.modo, 3);
+      if (i.modo === 'offset') {
+        i.gesto.aplicar({ tipo: 'grade.atualizar', patch: { offset: ajustado.offset } });
+      } else {
+        i.gesto.aplicar({ tipo: 'grade.atualizar', patch: { size: ajustado.size } });
+      }
+    }
     camadaSuja = true;
   });
 
@@ -780,6 +920,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       if (cancelado) i.gesto.cancelar();
       else { if (i.retangulo) { interacao = i; pintarCelulas(retanguloDeCelulas(m, i.ini, i.atual)); interacao = null; } if (i.gesto.ativo) i.gesto.concluir(); }
       if (!cancelado && !i.apagar) { const sala = doc().rooms[i.sala]; if (sala) { ponte.definirSelecao([{ colecao: 'rooms', id: i.sala }]); const c = caixaDe(doc(), { colecao: 'rooms', id: i.sala }); if (c) ponte.aoColocar(sala.name, [(c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2]); } }
+    } else if (i.tipo === 'alinhamento-grade') {
+      if (cancelado) i.gesto.cancelar(); else i.gesto.concluir();
     } else if (i.tipo === 'terreno' || i.tipo === 'espalhar') { if (cancelado) i.gesto.cancelar(); else i.gesto.concluir(); }
     else if (i.tipo === 'parede' && !cancelado) {
       if (Math.hypot(i.fim[0] - i.ini[0], i.fim[1] - i.ini[1]) >= 0.25) {
@@ -803,7 +945,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (e.key === 'Escape' && interacao) {
       e.stopImmediatePropagation();
       const i = interacao; interacao = null;
-      if ((i.tipo === 'mover' || i.tipo === 'deslizar') && i.gesto) i.gesto.cancelar();
+      if ((i.tipo === 'mover' || i.tipo === 'deslizar' || i.tipo === 'alinhamento-grade') && i.gesto) i.gesto.cancelar();
       else if (i.tipo === 'cômodo' || i.tipo === 'terreno' || i.tipo === 'espalhar') i.gesto.cancelar();
       camadaSuja = true; cursor();
     }

@@ -5,7 +5,7 @@ import { TIPO_ARRASTE_PISTA, soltarPista } from './Pistas.tsx';
 import { useEffect, useRef } from 'preact/hooks';
 import { signal, useSignalEffect } from '@preact/signals';
 import { acaoPorId, executarAcao } from '../app/acoes.ts';
-import { FERRAMENTAS_DA_SESSAO, duracaoDoClima, modo, regraDaRegua, vistaAtual } from '../app/modo.ts';
+import { FERRAMENTAS_DA_SESSAO, alinhandoGrade, duracaoDoClima, modo, regraDaRegua, vistaAtual } from '../app/modo.ts';
 import { acabamentoLigado, adicionarEm, alternarPorta, usarObjeto, aoColocar, focarNoComodo, focoPendente, menuRadial, servicos, sessao, viewport as viewportAtual } from '../app/app.ts';
 import { obterCameraDaAba } from '../app/abas.ts';
 import { mostrarAtalho } from '../app/atalhos.ts';
@@ -60,6 +60,7 @@ function ponteDa(s: SessaoDeEdicao): PonteViewport {
     aoInteragir: alvo => { if (alvo.colecao === 'openings') alternarPorta(alvo.id); else if (alvo.colecao === 'props') usarObjeto(alvo.id); },
     lerRetrato: async id => (await servicos.peek()?.repo.obterAsset(id))?.blob ?? null,
     recursosDaPeca: t => recursosDaPeca(t),
+    alinhandoGrade: () => alinhandoGrade.value,
   };
 }
 
@@ -74,7 +75,7 @@ function AreaDoMapa({ s }: { s: SessaoDeEdicao }) {
     return () => { morto = true; vp?.destruir(); if (viewportAtual.atual === vp) viewportAtual.atual = null; };
   }, [s]);
   // A seleção, a ferramenta e o pincel vivem em signals; o viewport só precisa saber que deve redesenhar as sobreposições.
-  useSignalEffect(() => { s.selecao.value; s.ferramenta.value; s.pincel.value; acabamentoLigado.value; vistaAtual(); regraDaRegua.value; caixaDoProjetor.value; projetorConectado.value; mostrarQuadroDoProjetor.value; viewportAtual.atual?.atualizarSobreposicoes(); });
+  useSignalEffect(() => { s.selecao.value; s.ferramenta.value; s.pincel.value; acabamentoLigado.value; vistaAtual(); regraDaRegua.value; caixaDoProjetor.value; projetorConectado.value; mostrarQuadroDoProjetor.value; alinhandoGrade.value; viewportAtual.atual?.atualizarSobreposicoes(); });
   useSignalEffect(() => { const d = duracaoDoClima.value; if (d) viewportAtual.atual?.definirDuracaoDaTransicao(d); });
   useSignalEffect(() => { tema.value; requestAnimationFrame(() => viewportAtual.atual?.redesenhar()); });
   useEffect(() => {

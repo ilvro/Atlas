@@ -185,7 +185,7 @@ Testes: migração `v6 → v7` em `tests/unit/migracoes.test.ts` e validação d
 Pronto quando: `npm run typecheck` e `npm test` passam com o documento na versão 7.
 Commit: feat(domain): upgrade atlas.map to v7 with rich grid customization fields
 
-### 11.4b — Renderização PixiJS da grade (estilos, cor auto-contraste, espessura) e Modo de Alinhamento  ⬜
+### 11.4b — Renderização PixiJS da grade (estilos, cor auto-contraste, espessura) e Modo de Alinhamento  ✅
 Objetivo: desenhar no `viewport.ts` todos os estilos de grade (`solid`, `dashed`, `dotted`, `corners`, `hex`), a cor de auto-contraste Preto/Branco, opacidade e espessura, além do Modo de Alinhamento Visual da grade.
 Depende de: 11.4a
 Ler: `src/render/grade.ts`, `src/render/viewport.ts` (`desenharGrade`, `Interacao`).

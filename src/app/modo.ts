@@ -34,3 +34,6 @@ export const ROTULO_DO_MODO: Record<Modo, string> = { construir: 'Construir', se
 /** Na Sessão, ver o mapa como os jogadores veem (névoa). Em Construir o mestre vê sempre tudo. */
 export const vistaDeJogador = signal(false);
 export const vistaAtual = (): 'construir' | 'mestre' | 'jogador' => (modo.value !== 'sessao' ? 'construir' : vistaDeJogador.value ? 'jogador' : 'mestre');
+
+/** Modo de Alinhamento Visual da Grade (desenha gabarito 3×3 para ajustar offset e size pelo mouse). */
+export const alinhandoGrade = signal(false);
