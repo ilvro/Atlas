@@ -219,6 +219,15 @@ test('encaixar uma porta: no meio da célula mais próxima, inteira dentro da pa
   assert.equal(encaixarNaParede(m, [4, 3], 3.5), null, 'não cabe numa parede de 3 m');
   const larga = encaixarNaParede(m, [3.1, 2.8], 2.0)!;                     // 2 m numa parede de 3 m: não pode sair da ponta
   assert.ok(Math.abs(larga.at - 1 / 3) < 1e-5); assert.ok(larga.at * 3 - 1 >= -1e-5);
+
+  // Com a grade desligada (visible: false ou desligado: true), a porta não se prende ao meio da célula
+  const livre = encaixarNaParede(m, [3.7, 2.7], 0.9, 0.75, true)!;
+  assert.equal(livre.ponto[0], 3.7);
+  assert.ok(Math.abs(livre.at - 0.7 / 3) < 1e-5);
+
+  m.grid.visible = false;
+  const livreAuto = encaixarNaParede(m, [3.7, 2.7], 0.9)!;
+  assert.equal(livreAuto.ponto[0], 3.7);
 });
 
 test('encaixar um objeto de parede: na face do cômodo que está do lado do ponteiro', () => {
@@ -227,6 +236,13 @@ test('encaixar um objeto de parede: na face do cômodo que está do lado do pont
   assert.equal(naA.roomId, 'a'); assert.equal(naB.roomId, 'b'); assert.equal(naA.parede.id, naB.parede.id);
   assert.equal(encaixarObjetoDeParede(m, [3, 2.6], 1), null, 'do lado de fora da casa não há cômodo');
   assert.equal(encaixarObjetoDeParede(m, [4.5, 3.3], 1)!.roomId, 'a', 'de dentro da sala, a face é a dela');
+
+  // Objeto de parede livre sem encaixe na grade
+  const livreObj = encaixarObjetoDeParede(m, [5.7, 4.3], 1, true)!;
+  assert.equal(livreObj.ponto[1], 4.3);
+  m.grid.visible = false;
+  const livreObjAuto = encaixarObjetoDeParede(m, [5.7, 4.3], 1)!;
+  assert.equal(livreObjAuto.ponto[1], 4.3);
 });
 
 test('copiar itens: ids novos, deslocamento, e nada de dono ou luz compartilhados', () => {

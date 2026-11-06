@@ -64,7 +64,7 @@ export function adicionarPersonagem(s: SessaoDeEdicao, e: Entidade, onde?: Ponto
   const ref = refDaFicha(e.refs); if (!ref || (e.tipo !== 'personagem' && e.tipo !== 'ameaca')) return null;
   const m = s.store.documento, existente = pecaDaFicha(m, ref);
   if (existente) { s.selecao.value = [{ colecao: 'tokens', id: existente.id }]; avisar(`${e.nome} já está no mapa.`, { duracao: 1800 }); return existente; }
-  const centro = centroDaCelula(m, onde ?? [m.bounds.width / 2, m.bounds.height / 2]);
+  const centro = (!m.grid.visible && onde) ? onde : centroDaCelula(m, onde ?? [m.bounds.width / 2, m.bounds.height / 2]);
   const peca = novaPeca(centro, e.nome, { player: e.tipo === 'personagem', refs: [ref] });
   s.store.executar({ tipo: 'item.adicionar', colecao: 'tokens', item: peca as never }, { rotulo: `Pôr ${e.nome} no mapa` });
   s.selecao.value = [{ colecao: 'tokens', id: peca.id }];

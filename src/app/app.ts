@@ -304,7 +304,7 @@ export function adicionarEm(colecao: ColecaoLivre, mundo: Ponto): void {
 export function pontoDeAdicionar(base?: Ponto): Ponto {
   const v = viewport.atual, s = sessao.value;
   const p = base ?? v?.ponteiro() ?? v?.centro() ?? [0, 0] as Ponto, g = s?.doc.value.grid;
-  if (!g) return p;
+  if (!g || !g.visible) return p;
   const passo = g.size / 2;
   return [Math.round((p[0] - g.offset[0]) / passo) * passo + g.offset[0], Math.round((p[1] - g.offset[1]) / passo) * passo + g.offset[1]];
 }

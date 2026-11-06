@@ -177,7 +177,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const store = ponte.store, baker: Baker = criarBaker();
   const mundo = new Container(), area_ = new Graphics(), grade = new Graphics(), selecaoG = new Graphics(), fantasmaC = new Container(), fantasmaG = new Graphics(), laco = new Graphics();
   let camera: Camera = { x: 0, y: 0, zoom: 20 };
-  let ponteiro: Ponto | null = null, interacao: Interacao | null = null, espaco = false, camadaSuja = true, destruido = false, regua: Regua | null = null;
+  let ponteiro: Ponto | null = null, interacao: Interacao | null = null, espaco = false, camadaSuja = true, destruido = false, regua: Regua | null = null, altPressionado = false;
   const reguaTexto = new Text({ text: '', style: { fontFamily: 'system-ui, sans-serif', fontSize: 14, fontWeight: '600', fill: 0xffffff, stroke: { color: 0x07080b, width: 4 } } });
   reguaTexto.visible = false;
   const doc = (): MapaAtlas => store.documento;
@@ -365,7 +365,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (!comSprite && fantasmaSprite) limparFantasmaSprite();
     const objetoFantasma = fantasmaC.getChildByLabel('fantasma-objeto');
     if (!ponteiro || interacao || !['objeto', 'luz', 'peca', 'regiao', 'abertura', 'comodo', 'borracha', 'terreno', 'presenca', 'espalhar'].includes(f)) { if (objetoFantasma) objetoFantasma.visible = false; return; }
-    const p: Ponto = [encaixar(ponteiro[0], m.grid, 0), encaixar(ponteiro[1], m.grid, 1)];
+    const livre = !m.grid.visible || altPressionado;
+    const p: Ponto = [encaixar(ponteiro[0], m.grid, 0, 0.5, livre), encaixar(ponteiro[1], m.grid, 1, 0.5, livre)];
     if (f === 'comodo' || f === 'borracha') {
       const [x, y] = celulaDe(m, ponteiro), t = m.grid.size, c = f === 'borracha' ? 0xff6b6b : cor;
       if (dentroDoMapa(m, [x, y])) fantasmaG.rect(m.grid.offset[0] + x * t, m.grid.offset[1] + y * t, t, t).fill({ color: c, alpha: 0.28 }).stroke({ width: px(1.5), color: c, alpha: 0.9 });
@@ -387,13 +388,13 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (f === 'peca') { fantasmaG.circle(p[0], p[1], m.grid.size * 0.45).fill({ color: cor, alpha: 0.35 }).stroke({ width: px(1.5), color: cor, alpha: 0.8 }); return; }
     if (f === 'regiao') { fantasmaG.rect(p[0] - 1.5, p[1] - 1.5, 3, 3).fill({ color: cor, alpha: 0.12 }).stroke({ width: px(1.5), color: cor, alpha: 0.8 }); return; }
     if (f === 'abertura') {
-      const l = LARGURA_DA_ABERTURA[pincel.abertura.tipo], e = encaixarNaParede(m, ponteiro, l);
+      const l = LARGURA_DA_ABERTURA[pincel.abertura.tipo], e = encaixarNaParede(m, ponteiro, l, 0.75, livre);
       if (e) { const c = e.at * comprimentoDaParede(e.parede), a = pontoNaParede(e.parede, c - l / 2).ponto, b = pontoNaParede(e.parede, c + l / 2).ponto; fantasmaG.moveTo(a[0], a[1]).lineTo(b[0], b[1]).stroke({ width: e.parede.thickness + 0.12, color: cor, alpha: 0.85, cap: 'butt' }); }
       return;
     }
     if (!receita) return;
     if (receita.tipo === 'parede') {
-      const l = typeof pincel.objeto.params.largura === 'number' ? pincel.objeto.params.largura : receita.pegada[0], e = encaixarObjetoDeParede(m, ponteiro, l);
+      const l = typeof pincel.objeto.params.largura === 'number' ? pincel.objeto.params.largura : receita.pegada[0], e = encaixarObjetoDeParede(m, ponteiro, l, livre);
       if (e) { const c = e.at * comprimentoDaParede(e.parede), a = pontoNaParede(e.parede, Math.max(0, c - l / 2)).ponto, b = pontoNaParede(e.parede, Math.min(comprimentoDaParede(e.parede), c + l / 2)).ponto; fantasmaG.moveTo(a[0], a[1]).lineTo(b[0], b[1]).stroke({ width: e.parede.thickness + 0.14, color: 0xd9a75e, alpha: 0.9, cap: 'butt' }); }
       return;
     }
@@ -554,15 +555,16 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   }
 
   /** O ponto encaixado nos vértices da grade e, se `ini` existe, preso ao eixo mais próximo: paredes são retas na grade. */
-  function pontoDeParede(m: MapaAtlas, p: Ponto, ini?: Ponto): Ponto {
-    const q: Ponto = [encaixar(p[0], m.grid, 0, 1), encaixar(p[1], m.grid, 1, 1)];
+  function pontoDeParede(m: MapaAtlas, p: Ponto, ini?: Ponto, desligado = !m.grid.visible): Ponto {
+    const q: Ponto = [encaixar(p[0], m.grid, 0, 1, desligado), encaixar(p[1], m.grid, 1, 1, desligado)];
     if (!ini) return q;
     return Math.abs(q[0] - ini[0]) >= Math.abs(q[1] - ini[1]) ? [q[0], ini[1]] : [ini[0], q[1]];
   }
 
   function colocar(e: PointerEvent, p: Ponto): void {
     const m = doc(), f = ponte.ferramenta(), pincel = ponte.pincel();
-    const alvo: Ponto = [encaixar(p[0], m.grid, 0, 0.5, e.altKey), encaixar(p[1], m.grid, 1, 0.5, e.altKey)];
+    const livre = !m.grid.visible || e.altKey;
+    const alvo: Ponto = [encaixar(p[0], m.grid, 0, 0.5, livre), encaixar(p[1], m.grid, 1, 0.5, livre)];
     if (f === 'comodo' || f === 'borracha') { comecarComodo(e, p, f === 'borracha'); return; }
     if (f === 'espalhar') {
       interacao = { tipo: 'espalhar', apagar: e.altKey, gesto: store.iniciarGesto(e.altKey ? 'Apagar espalhados' : 'Espalhar'), ultimo: p, semente: Math.floor(Math.random() * 1e6) };
@@ -572,9 +574,9 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       const presenca = f === 'presenca', nome = presenca ? 'presença' : 'terreno';
       interacao = { tipo: 'terreno', presenca, apagar: e.altKey, gesto: store.iniciarGesto(e.altKey ? `Apagar ${nome}` : `Pintar ${nome}`), ultimo: p }; pintarTerreno(p, null); return;
     }
-    if (f === 'parede') { const q = pontoDeParede(m, p); interacao = { tipo: 'parede', ini: q, fim: q }; return; }
+    if (f === 'parede') { const q = pontoDeParede(m, p, undefined, livre); interacao = { tipo: 'parede', ini: q, fim: q }; return; }
     if (f === 'abertura') {
-      const largura = LARGURA_DA_ABERTURA[pincel.abertura.tipo], enc = encaixarNaParede(m, p, largura);
+      const largura = LARGURA_DA_ABERTURA[pincel.abertura.tipo], enc = encaixarNaParede(m, p, largura, 0.75, livre);
       if (!enc) { ponte.aviso('Chegue mais perto de uma parede.'); return; }
       const abertura: Abertura = { id: novoIdEntidade('a'), wallId: enc.parede.id, at: enc.at, width: largura, kind: pincel.abertura.tipo, state: 'closed', material: 'madeira.media', som: null, swing: enc.lado === 1 ? 'a' : 'b' };
       const nome = { door: 'Porta', window: 'Janela', arch: 'Arco', secret: 'Porta secreta' }[abertura.kind];
@@ -585,7 +587,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       const receita = ACERVO.item(pincel.objeto.item); if (!receita) { ponte.aviso('Escolha um objeto na biblioteca.'); return; }
       const sementeDoObjeto = sementeAtual(), fonte = ACERVO.fonte(receita.id, sementeDoObjeto, pincel.objeto.params);
       if (receita.tipo === 'parede') {
-        const l = typeof pincel.objeto.params.largura === 'number' ? pincel.objeto.params.largura : receita.pegada[0], enc = encaixarObjetoDeParede(m, p, l);
+        const l = typeof pincel.objeto.params.largura === 'number' ? pincel.objeto.params.largura : receita.pegada[0], enc = encaixarObjetoDeParede(m, p, l, livre);
         if (!enc) { ponte.aviso('Objetos de parede vão na face de um cômodo: aproxime-se de uma parede por dentro.'); return; }
         const item = novoObjeto(enc.ponto, { source: fonte, elevation: 'wall', wall: { wallId: enc.parede.id, at: enc.at, face: 'inner' }, roomId: enc.roomId, blocks: { move: false, sight: false }, castsShadow: false });
         if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item: item as never }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, enc.ponto); novaSemente(); }
@@ -616,6 +618,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   }
 
   canvas.addEventListener('pointerdown', e => {
+    altPressionado = e.altKey;
     if (interacao || somenteLeitura) return;
     canvas.setPointerCapture(e.pointerId);
     const [tx, ty] = telaDe(e), m = doc(), f = ponte.ferramenta();
@@ -658,7 +661,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   });
 
   canvas.addEventListener('pointermove', e => {
-    ponteiro = mundoDe(e);
+    ponteiro = mundoDe(e); altPressionado = e.altKey;
     const [tx, ty] = telaDe(e), m = doc();
     if (!interacao) {
       // Com um ponto só fixado, a régua acompanha o ponteiro até o próximo clique.
@@ -680,16 +683,18 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
           i.alvos = alvos; ponte.definirSelecao(alvos);
         }
       }
-      const d = deltaEncaixado(i.ref, [ponteiro[0] - i.origem[0], ponteiro[1] - i.origem[1]], doc().grid, 0.5, e.altKey), passo: Ponto = [d[0] - i.aplicado[0], d[1] - i.aplicado[1]];
+      const livre = !doc().grid.visible || e.altKey;
+      const d = deltaEncaixado(i.ref, [ponteiro[0] - i.origem[0], ponteiro[1] - i.origem[1]], doc().grid, 0.5, livre), passo: Ponto = [d[0] - i.aplicado[0], d[1] - i.aplicado[1]];
       if (Math.abs(passo[0]) > 1e-9 || Math.abs(passo[1]) > 1e-9) { i.gesto.aplicar({ tipo: 'selecao.mover', alvos: i.alvos as never, delta: passo }); i.aplicado = d; }
     } else if (i.tipo === 'peca') {
       if (Math.hypot(tx - i.x0, ty - i.y0) > LIMIAR_ARRASTO) i.moveu = true;
-      i.livre = e.altKey; i.para = centroDaCelula(m, ponteiro);
+      i.livre = !m.grid.visible || e.altKey; i.para = i.livre ? ponteiro : centroDaCelula(m, ponteiro);
       i.motivo = i.livre ? null : bloqueioNoCaminho(m, i.de, i.para);
     } else if (i.tipo === 'deslizar') {
       if (!i.gesto) { if (Math.hypot(tx - i.x0, ty - i.y0) <= LIMIAR_ARRASTO) return; i.gesto = store.iniciarGesto('Mover abertura'); }
       const a = m.openings[i.id]; if (!a) return;
-      const enc = encaixarNaParede(m, ponteiro, a.width, 1.2);
+      const livre = !m.grid.visible || e.altKey;
+      const enc = encaixarNaParede(m, ponteiro, a.width, 1.2, livre);
       if (enc && (enc.parede.id !== a.wallId || Math.abs(enc.at - a.at) > 1e-6)) { try { i.gesto.aplicar({ tipo: 'abertura.atualizar', id: i.id, patch: { wallId: enc.parede.id, at: enc.at } }); } catch { /* ali não cabe: fica onde estava */ } }
     } else if (i.tipo === 'projetor') {
       const c0 = i.caixa0;
@@ -712,7 +717,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       if (i.retangulo) i.atual = c; else { pintarCelulas(celulasEntre(i.atual, c).filter(x => dentroDoMapa(m, x))); i.atual = c; }
     } else if (i.tipo === 'terreno') { const antes = i.ultimo; i.ultimo = ponteiro; pintarTerreno(ponteiro, antes); }
     else if (i.tipo === 'espalhar') { if (Math.hypot(ponteiro[0] - i.ultimo[0], ponteiro[1] - i.ultimo[1]) >= ponte.pincel().espalhar.raio / 2) { i.ultimo = ponteiro; espalharAqui(ponteiro); } }
-    else if (i.tipo === 'parede') i.fim = pontoDeParede(m, ponteiro, i.ini);
+    else if (i.tipo === 'parede') i.fim = pontoDeParede(m, ponteiro, i.ini, !m.grid.visible || e.altKey);
     camadaSuja = true;
   });
 
@@ -776,13 +781,14 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     }
     camadaSuja = true; cursor();
   }
-  canvas.addEventListener('pointerup', e => terminar(e, false));
+  canvas.addEventListener('pointerup', e => { altPressionado = e.altKey; terminar(e, false); });
   canvas.addEventListener('pointercancel', e => terminar(e, true));
   canvas.addEventListener('pointerleave', () => { ponteiro = null; camadaSuja = true; });
 
   const aoTeclar = (e: KeyboardEvent) => {
     const emCampo = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable="true"]');
     if (e.key === ' ' && !emCampo) { if (!e.repeat) { espaco = true; cursor(); } e.preventDefault(); return; }
+    if (e.key === 'Alt' && !altPressionado) { altPressionado = true; camadaSuja = true; }
     // Esc limpa a régua (e só isso: o próximo Esc volta à ferramenta de selecionar).
     if (e.key === 'Escape' && regua) { e.stopImmediatePropagation(); regua = null; if (interacao?.tipo === 'regua') interacao = null; camadaSuja = true; return; }
     // Esc durante um arrasto ou uma pincelada cancela só isso, antes de qualquer outro atalho.
@@ -794,7 +800,10 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       camadaSuja = true; cursor();
     }
   };
-  const aoSoltar = (e: KeyboardEvent) => { if (e.key === ' ') { espaco = false; cursor(); } };
+  const aoSoltar = (e: KeyboardEvent) => {
+    if (e.key === ' ') { espaco = false; cursor(); }
+    if (e.key === 'Alt') { altPressionado = false; camadaSuja = true; }
+  };
   window.addEventListener('keydown', aoTeclar, true);
   window.addEventListener('keyup', aoSoltar);
 
