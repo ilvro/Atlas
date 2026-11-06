@@ -10,6 +10,20 @@ export interface RefAsset { id: string; hash: string }
 
 export const TIPOS_DE_GRADE = ['square', 'hex'] as const;
 export const ESTILOS_DE_LINHA_DA_GRADE = ['solid', 'dashed', 'dotted', 'corners'] as const;
+export const CORES_DE_GRADE = [
+  'auto',
+  '#ffffff',
+  '#000000',
+  '#ff1f1f',
+  '#1fff1f',
+  '#1f3bff',
+  '#ffff00',
+  '#ff00ff',
+  '#808080',
+  '#ffa500',
+  '#800080',
+  '#ffc0cb',
+] as const;
 export interface Grade {
   kind: (typeof TIPOS_DE_GRADE)[number];
   size: number;

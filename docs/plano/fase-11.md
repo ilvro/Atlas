@@ -206,7 +206,7 @@ Testes: unitários em `tests/unit/grade.test.ts` cobrindo segmentos tracejados, 
 Pronto quando: a grade muda de estilo, cor, opacidade e espessura em tempo real no canvas e o Modo de Alinhamento calibra `offset` e `size` pelo mouse.
 Commit: feat(render): support custom grid styles, auto-contrast color, hex grid and visual alignment mode
 
-### 11.4c — Popover `ConfiguracaoDeGrade.tsx` ("Grid Settings") na barra inferior  ⬜
+### 11.4c — Popover `ConfiguracaoDeGrade.tsx` ("Grid Settings") na barra inferior  ✅
 Objetivo: criar o popover flutuante de configuração da grade ("Grid Settings"), aberto pelo botão de grade na barra inferior.
 Depende de: 11.3a, 11.4b
 Ler: `src/ui/BarraInferior.tsx`, `src/ui/Inspetor.tsx`, `src/ui/campos.tsx`, `src/ui/estilo.css`.

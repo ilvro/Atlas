@@ -19,6 +19,7 @@ import {
 import { definirMostrarPvNoProjetor, mostrarPvNoProjetor } from '../app/fichas.ts';
 import { abrirSecaoNoDock } from '../app/dock.ts';
 import { Icone } from './Icone.tsx';
+import { ConfiguracaoDeGrade } from './ConfiguracaoDeGrade.tsx';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 
 const FERRAMENTAS: { id: Ferramenta; icone: string }[] = [
@@ -97,26 +98,7 @@ export function BarraInferior({ s }: { s: SessaoDeEdicao }) {
       )}
 
       {menuAberto === 'grade' && (
-        <div class="popover-barra-inferior popover-grade" role="menu" data-testid="popover-grade">
-          <div class="popover-titulo">Opções da Grade</div>
-          <button
-            type="button"
-            class={`popover-item ${s.doc.value.grid.visible ? 'ativo' : ''}`}
-            role="menuitemcheckbox"
-            aria-checked={s.doc.value.grid.visible}
-            data-testid="opcao-grade-visivel"
-            onClick={() => {
-              executar('grade');
-            }}
-          >
-            <span>Mostrar grade no mapa</span>
-            {s.doc.value.grid.visible && <span aria-hidden="true">✓</span>}
-          </button>
-          <div class="popover-item info">
-            <span>Tamanho da célula:</span>
-            <b>{s.doc.value.grid.size} m</b>
-          </div>
-        </div>
+        <ConfiguracaoDeGrade s={s} aoFechar={() => setMenuAberto(null)} />
       )}
 
       {menuAberto === 'projetor' && (

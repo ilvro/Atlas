@@ -15,7 +15,7 @@ import { ROTULOS_DE_ESTADO } from '../domain/figuras.ts';
 import { ESTADOS_FIGURA, type Abertura, type Acabamento, type Clima, type Comodo, type Estilo, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Presenca, type Regiao } from '../domain/mapa.ts';
 import { GENEROS, generoDe, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
 import { acabamentoLigado, aplicarClima, definirAcabamentoLigado } from '../app/app.ts';
-import { abaDoInspetor, definirRegraDaRegua, modo, regraDaRegua } from '../app/modo.ts';
+import { abaDoInspetor, alinhandoGrade, definirRegraDaRegua, modo, regraDaRegua } from '../app/modo.ts';
 import { ROTULO_DA_REGRA, type RegraDeDiagonal } from '../domain/regua.ts';
 import { definirSugestoesLigadas, sugestoesLigadas } from '../app/sugestoes.ts';
 import { COLECAO } from '../procedural/colecao.ts';
@@ -88,7 +88,11 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
       {!m.campanhaId && campanhaAtiva.value && <p class="dica">Este mapa não está em nenhuma campanha. A ativa é “{campanhaAtiva.value.nome}”.</p>}
       <h3 class="faixa pequena">Grade</h3>
       <CampoCaixa rotulo="Mostrar" valor={m.grid.visible} aoMudar={v => tentar(() => st.executar({ tipo: 'grade.atualizar', patch: { visible: v } }, { rotulo: v ? 'Mostrar a grade' : 'Esconder a grade' }))} />
+      <CampoCaixa rotulo="Encaixar" valor={m.grid.snap} aoMudar={v => tentar(() => st.executar({ tipo: 'grade.atualizar', patch: { snap: v } }, { rotulo: v ? 'Encaixar na grade' : 'Desencaixar da grade' }))} />
       <CampoNumero id="grade-tamanho" rotulo="Célula" unidade="m" valor={m.grid.size} min={0.25} max={10} passo={0.25} aoConfirmar={v => tentar(() => st.executar({ tipo: 'grade.atualizar', patch: { size: v } }, { rotulo: 'Tamanho da célula' }))} />
+      <CampoOpcoes rotulo="Tipo" valor={m.grid.kind} opcoes={[['square', 'Quadrada'], ['hex', 'Hexagonal']]} aoMudar={v => tentar(() => st.executar({ tipo: 'grade.atualizar', patch: { kind: v } }, { rotulo: 'Tipo de grade' }))} />
+      <CampoOpcoes rotulo="Estilo" valor={m.grid.lineStyle} opcoes={[['solid', 'Sólida'], ['dashed', 'Tracejada'], ['dotted', 'Pontilhada'], ['corners', 'Cantos']]} aoMudar={v => tentar(() => st.executar({ tipo: 'grade.atualizar', patch: { lineStyle: v } }, { rotulo: 'Estilo da grade' }))} />
+      <button type="button" class={`botao-alinhamento-inspetor ${alinhandoGrade.value ? 'ativo' : ''}`} onClick={() => { alinhandoGrade.value = !alinhandoGrade.value; tocar('pop'); }}>{alinhandoGrade.value ? 'Sair do Alinhamento' : '✥ Modo de Alinhamento'}</button>
       <EstiloDoMapa s={s} />
       <h3 class="faixa pequena">Personagens</h3>
       <Personagens s={s} />
