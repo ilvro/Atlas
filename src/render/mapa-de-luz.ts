@@ -1,6 +1,6 @@
 import { BlurFilter, Container, Graphics, RenderTexture, Sprite, type Renderer } from 'pixi.js';
 import { DURACAO_DA_QUEDA, DURACAO_DA_VOLTA, curvaDoClarao, ehNoite, intervaloDoRelampago, luzesDerivadas, nivelDaLuz, piscarDaQueda, piscarDaVolta } from '../domain/clima.ts';
-import type { Luz, MapaAtlas } from '../domain/mapa.ts';
+import type { Luz, MapaAtlas, Ponto } from '../domain/mapa.ts';
 import { IndiceDeSegmentos, oclusores, poligonoIluminado } from '../domain/visibilidade.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import { somPreferido, trovao } from '../fx/som.ts';
@@ -25,10 +25,16 @@ export interface MapaDeLuz {
   relampagoAgora(): void;
   /** Eventos de cena: multiplicam a intensidade de todas as luzes (piscar) e a do ambiente (escurecer). 1 = sem efeito. */
   definirEfeitos(luzes: number, ambiente: number): void;
+  /** Intensidade atual da luz (inclui flicker, queda de rede, relâmpago, etc.). */
+  intensidade(id: string): number;
+  /** Polígono de visão iluminado recortado pelas paredes (para a máscara de raios). */
+  poligono(id: string): readonly number[] | null;
+  /** Todas as luzes ativas (do mapa e derivadas). */
+  todasAsLuzes(): readonly Luz[];
   destruir(): void;
 }
 
-interface LuzNaGPU { c: Container; s: Sprite; m: Graphics; luz: Luz; raio: number; chaveGeo: string; versaoGeo: number; semente: number; alfa: number; clarao: number }
+interface LuzNaGPU { c: Container; s: Sprite; m: Graphics; luz: Luz; raio: number; chaveGeo: string; versaoGeo: number; semente: number; alfa: number; clarao: number; poligono: number[] }
 
 const somarCor = (cor: number, v: number): number => { const c = (n: number) => Math.min(255, Math.round(n * 255 + v * 255)); return (c(((cor >> 16) & 255) / 255) << 16) | (c(((cor >> 8) & 255) / 255) << 8) | c((cor & 255) / 255); };
 const rgb01 = (hex: string): [number, number, number] => { const n = hexParaNumero(hex); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
@@ -54,6 +60,8 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
   let efLuzes = 1, efAmbiente = 1, flash = 0, forcaDoRaio = 0, proximoRaio = Infinity, ultimoQuadro = -1, claraoAtual = 0;
   const trovoes: number[] = [];
 
+  let todasLuzes: Luz[] = [];
+
   function dimensionar(m: MapaAtlas): void {
     const w = m.bounds.width, h = m.bounds.height, ehPixel = m.style.renderer === 'pixel', r0 = ehPixel ? m.style.pixel.pixelsPerCell / m.grid.size : RES_LUZ;
     if (brutaRT && w === largura && h === altura && r0 === resAtual) return;
@@ -72,7 +80,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
   function criar(l: Luz): LuzNaGPU {
     const c = new Container(), s = new Sprite(texturaDeBrilho()), m = new Graphics();
     s.anchor.set(0.5); s.blendMode = 'add'; s.mask = m; c.addChild(s, m); raiz.addChild(c);
-    return { c, s, m, luz: l, raio: l.radius, chaveGeo: '', versaoGeo: -1, semente: ++contador * 13.7, alfa: -1, clarao: -1 };
+    return { c, s, m, luz: l, raio: l.radius, chaveGeo: '', versaoGeo: -1, semente: ++contador * 13.7, alfa: -1, clarao: -1, poligono: [] };
   }
 
   function atualizar(g: LuzNaGPU, l: Luz): void {
@@ -81,10 +89,17 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     if (geo !== g.chaveGeo || g.versaoGeo !== versaoGeo) {
       g.chaveGeo = geo; g.versaoGeo = versaoGeo;
       const pts = poligonoIluminado(l.position, indice!.perto(l.position, l.radius), l.radius, l.cone);
+      g.poligono = pts;
       g.m.clear(); if (pts.length >= 6) g.m.poly(pts).fill(0xffffff);
       g.s.position.set(l.position[0], l.position[1]); g.s.width = g.s.height = l.radius * 2; g.raio = l.radius;
     }
-    g.s.tint = hexParaNumero(l.color); g.alfa = -1;     // a opacidade é recalculada no próximo quadro
+    g.s.tint = hexParaNumero(l.color);
+    if (g.alfa < 0 && mapa) {
+      const daRede = l.power === 'grid';
+      const nivel = nivelDaLuz(l, mapa, queda > 0 ? { redeLigada: true, noite } : { noite });
+      const piscar = !daRede ? 1 : queda > 0 ? piscarDaQueda(queda) : volta > 0 ? piscarDaVolta(volta) : 1;
+      g.alfa = nivel * piscar * efLuzes * Math.min(1, l.intensity);
+    }
   }
 
   /** Um relâmpago: o clarão entra pelas janelas e, um instante depois, o trovão (se o som estiver ligado). */
@@ -123,8 +138,9 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       if (geoMudou) { indice = new IndiceDeSegmentos(oclusores(m, 'luz')); versaoGeo++; }
       if (geoMudou || col('lights') || campo('climate')) derivadas = luzesDerivadas(m);
       if (campo('climate')) { const a = m.climate.ambient, [r, g, b] = rgb01(a.color); ambiente = [Math.min(1, r * a.intensity), Math.min(1, g * a.intensity), Math.min(1, b * a.intensity)]; }
+      todasLuzes = [...Object.values(m.lights), ...derivadas];
       const vivos = new Set<string>();
-      for (const l of [...Object.values(m.lights), ...derivadas]) { vivos.add(l.id); let g = luzes.get(l.id); if (!g) { g = criar(l); luzes.set(l.id, g); } atualizar(g, l); }
+      for (const l of todasLuzes) { vivos.add(l.id); let g = luzes.get(l.id); if (!g) { g = criar(l); luzes.set(l.id, g); } atualizar(g, l); }
       for (const [id, g] of luzes) if (!vivos.has(id)) { g.c.destroy({ children: true }); luzes.delete(id); }
       sujo = true;
     },
@@ -165,6 +181,9 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     relampagoAgora: disparar,
     definirEfeitos(luzes, ambiente) { if (luzes === efLuzes && ambiente === efAmbiente) return; efLuzes = luzes; efAmbiente = ambiente; sujo = true; },
     definirLigado(v) { ligado = v; sprite.visible = v; if (v) sujo = true; },
+    intensidade: (id: string) => { const g = luzes.get(id); return g ? Math.max(0, g.alfa) : 0; },
+    poligono: (id: string) => { const g = luzes.get(id); return g?.poligono && g.poligono.length >= 6 ? g.poligono : null; },
+    todasAsLuzes: () => todasLuzes,
     destruir() {
       destruido = true; for (const g of luzes.values()) g.c.destroy({ children: true }); luzes.clear();
       brutaRT?.destroy(true); finalRT?.destroy(true); faixasRT?.destroy(true); passadaFaixas.destroy({ children: false }); faixasS.destroy(); sprite.destroy(); composicao.destroy({ children: false }); raiz.destroy({ children: true });

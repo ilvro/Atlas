@@ -22,6 +22,8 @@ export interface Telhados {
   quadro(agora: number): void;
   /** Para os testes: a opacidade de cada telhado agora. */
   diagnostico(): { id: string; alfa: number; alvo: number; dentro: boolean; conhecido: boolean }[];
+  /** Se o telhado do cômodo está visível e cobrindo a sala agora. */
+  visivel(salaId: string): boolean;
   destruir(): void;
 }
 
@@ -99,6 +101,7 @@ export function criarTelhados(): Telhados {
       }
     },
     diagnostico: () => [...telhas.entries()].map(([id, r]) => ({ id, alfa: r.alfa, alvo: r.alvo, dentro: r.dentro, conhecido: r.conhecido })),
+    visivel: (salaId: string) => { const r = telhas.get(salaId); return !!r && r.c.visible && r.alfa > 0.3; },
     destruir() { destruido = true; raiz.destroy({ children: true }); },
   };
 }

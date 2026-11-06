@@ -339,7 +339,7 @@ Pronto quando: o Desfiladeiro pode ter nuvens nas bordas como a referência e o 
 Commit: map edge clouds and darkness
 Nota: `render/bordas.ts` (`criarBordas`, no formato da neblina): um véu do tamanho do mapa com `finish.edges`; largura `amount × 0,25 × min(w, h)` (`larguraDaBorda`), frente deformada por fbm de 3 oitavas. Nuvens: topo claro e base cinza-azulada (a diferença entre o ruído e ele mesmo deslocado para a luz de noroeste) mais uma sombra suave para dentro; escuro: preto, ruído parado e borda mais seca; neblina: a cor do ambiente, macia. A cor vem do ambiente (de noite a nuvem escurece). Entra na cena logo acima das partículas (antes de regiões, luzes, peças e névoa), lê a `visao` do clima (então a transição de clima interpola `amount`; o `kind` troca no fim) e respeita `definirAtmosfera` e o movimento reduzido. Pixel: ruído em blocos de 2 px e alfa em 3 níveis com Bayer. Inspetor (Mapa → Acabamento): "Bordas" e "Quanto entra" (ao escolher um tipo com quantidade 0, vai para 0,5). Testes e capturas em `tests/e2e/fase10-bordas.test.ts` (`test-results/fase10-bordas-nuvens|escuro|neblina|pixel.png`).
 
-### 10.6b — Halo das luzes e raios no cone  ⬜
+### 10.6b — Halo das luzes e raios no cone  ✅
 Objetivo: tochas e postes brilham de verdade na escuridão, e o feixe da caverna mostra raios.
 Depende de: 10.0a
 Ler: `src/render/mapa-de-luz.ts` (as luzes, o flicker, `texturaDeBrilho` de `luzes.ts`, `luzesDerivadas`), `src/render/cena.ts` (ordem de `raiz`), `src/ui/Inspetor.tsx` (bloco da luz com cone e o do acabamento), `src/render/faixas.ts`.
@@ -354,6 +354,7 @@ Não fazer: bloom de tela inteira.
 Testes: e2e: noite com uma tocha, `glow` 0 e 0,8: a captura em volta da tocha fica mais clara com 0,8 e igual longe dela; luz com cone e `rays` muda entre dois quadros e para com movimento reduzido.
 Pronto quando: o Porto à noite e a Ravina podem ter as poças e halos quentes das referências, e o Covil, o feixe de luz.
 Commit: light glow and visible rays
+Nota: `render/halos.ts` (`criarHalos`): halos aditivos com raio `0,35 × radius` e opacidade `finish.glow × intensidade` (acompanhando o flicker de `mapaDeLuz.intensidade`); `texturaDeBrilhoPixel` em `luzes.ts` (2 faixas concêntricas de borda dura); raios volumétricos nos cones com `rays: true` recortados pelo polígono de visão iluminado (`mapaDeLuz.poligono`), listras radiais de ruído móvel (1 px e troca a 0,5 s no Pixel; estático com movimento reduzido); halos e raios ocultos dentro de salas com telhado visível (`telhados.visivel`). Inspetor com "Halo das luzes" no Acabamento e "Raios visíveis" no Facho. Testes em `tests/e2e/fase10-halos.test.ts`.
 
 ### 10.6c — Presenças novas: sangue seco, fuligem, sulcos, algas  ⬜
 Escopo: pincéis no pacote `natural`: `sangue-seco` (marrom-avermelhado, sem brilho, em manchas arrastadas), `fuligem` (preto queimado), `sulcos` (trilhas paralelas, para estrada e neve), `algas` (verde no fundo da água; desenhado sob a superfície). O `escala` e a forma do ruído por pincel (arrastado ou manchado) entram no shader de presença.
