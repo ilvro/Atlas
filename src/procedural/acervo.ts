@@ -16,6 +16,8 @@ export interface ItemDoAcervo {
   pegada: [number, number];
   /** Parâmetros editáveis; vazio para a coleção (imagem pronta). */
   campos: CampoDeReceita[];
+  /** Nasce submerso (fundo da água). */
+  submerso?: boolean;
 }
 
 /** O que o acervo precisa saber de um item da coleção (o catálogo completo, com arquivo e origem, está em `colecao.ts`). */
@@ -38,7 +40,7 @@ export interface Acervo {
   fonte(id: string, seed: number, params?: Record<string, unknown>): FonteObjeto;
 }
 
-const doReceita = (r: Receita): ItemDoAcervo => ({ id: r.id, fonte: 'receita', nome: r.nome, categoria: r.categoria, tipo: r.tipo, funcoes: r.funcoes, tags: r.tags, generos: r.generos ?? [], kit: r.kit ?? null, pegada: r.pegada, campos: r.campos ?? [] });
+const doReceita = (r: Receita): ItemDoAcervo => ({ id: r.id, fonte: 'receita', nome: r.nome, categoria: r.categoria, tipo: r.tipo, funcoes: r.funcoes, tags: r.tags, generos: r.generos ?? [], kit: r.kit ?? null, pegada: r.pegada, campos: r.campos ?? [], ...(r.submerso ? { submerso: true } : {}) });
 const daColecao = (c: ItemParaOAcervo): ItemDoAcervo => ({ id: c.id, fonte: 'colecao', nome: c.nome, categoria: c.categoria, tipo: 'piso', funcoes: c.funcoes, tags: c.tags, generos: c.generos, kit: c.kit, pegada: c.pegada, campos: [] });
 
 const ALTURA_MAXIMA = 12;

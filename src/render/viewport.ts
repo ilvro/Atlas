@@ -587,7 +587,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item: item as never }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, enc.ponto); novaSemente(); }
         return;
       }
-      const item = novoObjeto(alvo, { source: fonte, rotation: pincel.objeto.rotacao });
+      const item = novoObjeto(alvo, { source: fonte, rotation: pincel.objeto.rotacao, ...(receita.submerso ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : {}) });
       if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item: item as never }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, alvo); novaSemente(); }
       return;
     }

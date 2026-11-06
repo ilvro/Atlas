@@ -18,6 +18,8 @@ export interface Receita {
   pegada: [number, number];
   /** Altura (m) para a sombra do sol; ausente vale o maior `z` das partes (no máximo 12). */
   altura?: number;
+  /** Objeto de fundo de água: ao pôr no mapa nasce `elevation: 'underwater'`, sem sombra e sem bloquear. */
+  submerso?: boolean;
   campos?: CampoDeReceita[];
   gerar(p: PedidoDeReceita): Descricao;
 }
