@@ -34,7 +34,7 @@ export interface MapaDeLuz {
   destruir(): void;
 }
 
-interface LuzNaGPU { c: Container; s: Sprite; m: Graphics; luz: Luz; raio: number; chaveGeo: string; versaoGeo: number; semente: number; alfa: number; clarao: number; poligono: number[] }
+interface LuzNaGPU { c: Container; s: Sprite; s2: Sprite; s3: Sprite; m: Graphics; luz: Luz; raio: number; chaveGeo: string; versaoGeo: number; semente: number; alfa: number; clarao: number; poligono: number[] }
 
 const somarCor = (cor: number, v: number): number => { const c = (n: number) => Math.min(255, Math.round(n * 255 + v * 255)); return (c(((cor >> 16) & 255) / 255) << 16) | (c(((cor >> 8) & 255) / 255) << 8) | c((cor & 255) / 255); };
 const rgb01 = (hex: string): [number, number, number] => { const n = hexParaNumero(hex); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
@@ -77,10 +77,28 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     sujo = true;
   }
 
+  function aplicarAlfa(g: LuzNaGPU, k: number): void {
+    g.alfa = k;
+    g.c.visible = k > 0.01;
+    g.s.alpha = Math.min(1, k);
+    g.s.visible = k > 0.01;
+    g.s2.alpha = Math.min(1, Math.max(0, k - 1));
+    g.s2.visible = k > 1.001;
+    g.s3.alpha = Math.min(1, Math.max(0, k - 2));
+    g.s3.visible = k > 2.001;
+  }
+
   function criar(l: Luz): LuzNaGPU {
-    const c = new Container(), s = new Sprite(texturaDeBrilho()), m = new Graphics();
-    s.anchor.set(0.5); s.blendMode = 'add'; s.mask = m; c.addChild(s, m); raiz.addChild(c);
-    return { c, s, m, luz: l, raio: l.radius, chaveGeo: '', versaoGeo: -1, semente: ++contador * 13.7, alfa: -1, clarao: -1, poligono: [] };
+    const c = new Container(), m = new Graphics();
+    const novoS = () => {
+      const s = new Sprite(texturaDeBrilho());
+      s.anchor.set(0.5); s.blendMode = 'add'; s.mask = m; s.visible = false;
+      c.addChild(s);
+      return s;
+    };
+    const s = novoS(), s2 = novoS(), s3 = novoS();
+    c.addChild(m); raiz.addChild(c);
+    return { c, s, s2, s3, m, luz: l, raio: l.radius, chaveGeo: '', versaoGeo: -1, semente: ++contador * 13.7, alfa: -1, clarao: -1, poligono: [] };
   }
 
   function atualizar(g: LuzNaGPU, l: Luz): void {
@@ -91,14 +109,16 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       const pts = poligonoIluminado(l.position, indice!.perto(l.position, l.radius), l.radius, l.cone);
       g.poligono = pts;
       g.m.clear(); if (pts.length >= 6) g.m.poly(pts).fill(0xffffff);
-      g.s.position.set(l.position[0], l.position[1]); g.s.width = g.s.height = l.radius * 2; g.raio = l.radius;
+      for (const s of [g.s, g.s2, g.s3]) { s.position.set(l.position[0], l.position[1]); s.width = s.height = l.radius * 2; }
+      g.raio = l.radius;
     }
-    g.s.tint = hexParaNumero(l.color);
+    const cor = hexParaNumero(l.color);
+    for (const s of [g.s, g.s2, g.s3]) s.tint = cor;
     if (g.alfa < 0 && mapa) {
       const daRede = l.power === 'grid';
       const nivel = nivelDaLuz(l, mapa, queda > 0 ? { redeLigada: true, noite } : { noite });
       const piscar = !daRede ? 1 : queda > 0 ? piscarDaQueda(queda) : volta > 0 ? piscarDaVolta(volta) : 1;
-      g.alfa = nivel * piscar * efLuzes * Math.min(1, l.intensity);
+      aplicarAlfa(g, nivel * piscar * efLuzes * Math.min(3, Math.max(0, l.intensity)));
     }
   }
 
@@ -162,19 +182,19 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
         const nivel = nivelDaLuz(l, mapa, queda > 0 ? { redeLigada: true, noite } : { noite });
         const piscar = !daRede ? 1 : queda > 0 ? piscarDaQueda(queda) : volta > 0 ? piscarDaVolta(volta) : 1;
         const janela = l.id.startsWith('janela:');          // só a luz do céu pelas janelas leva o clarão
-        let k = nivel * piscar * efLuzes * Math.min(1, l.intensity);
+        let k = nivel * piscar * efLuzes * Math.min(3, Math.max(0, l.intensity));
         if (k > 0 && l.flicker > 0) {
           const f = (ruido(t * 9 + g.semente, g.semente) + 0.5 * ruido(t * 23, g.semente + 9)) / 1.5;
           if (!pixel) k *= 1 - l.flicker * 0.7 * f;
           else {
             // No Pixel a chama treme no raio, em passos de 1 pixel (a intensidade contínua faria as faixas cintilarem).
             const raio = Math.round(l.radius * (1 - l.flicker * 0.3 * f) * pxPorMetro) / pxPorMetro;
-            if (raio !== g.raio) { g.raio = raio; g.s.width = g.s.height = raio * 2; sujo = true; }
+            if (raio !== g.raio) { g.raio = raio; for (const s of [g.s, g.s2, g.s3]) s.width = s.height = raio * 2; sujo = true; }
           }
-        } else if (pixel && g.raio !== l.radius) { g.raio = l.radius; g.s.width = g.s.height = l.radius * 2; sujo = true; }
-        if (janela) k = Math.min(1, k + clarao * 1.2);
-        if (Math.abs(k - g.alfa) > 1e-3) { g.alfa = k; g.s.alpha = k; g.c.visible = k > 0.01; sujo = true; }
-        if (janela && clarao !== g.clarao) { g.clarao = clarao; g.s.tint = clarao > 0 ? somarCor(hexParaNumero(l.color), clarao * 0.6) : hexParaNumero(l.color); }
+        } else if (pixel && g.raio !== l.radius) { g.raio = l.radius; for (const s of [g.s, g.s2, g.s3]) s.width = s.height = l.radius * 2; sujo = true; }
+        if (janela) k = Math.min(3, k + clarao * 1.2);
+        if (Math.abs(k - g.alfa) > 1e-3) { aplicarAlfa(g, k); sujo = true; }
+        if (janela && clarao !== g.clarao) { g.clarao = clarao; const tint = clarao > 0 ? somarCor(hexParaNumero(l.color), clarao * 0.6) : hexParaNumero(l.color); for (const s of [g.s, g.s2, g.s3]) s.tint = tint; }
       }
       if (sujo) renderizar();
     },
