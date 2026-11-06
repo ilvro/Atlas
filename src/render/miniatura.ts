@@ -1,4 +1,5 @@
 import type { MapaAtlas } from '../domain/mapa.ts';
+import { camadaDoObjeto } from '../domain/camadas.ts';
 import { corDoNome, hexParaNumero } from './cores.ts';
 
 const css = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
@@ -17,6 +18,6 @@ export function desenharMiniatura(canvas: HTMLCanvasElement, m: MapaAtlas, acent
   ctx.strokeStyle = '#16141a'; ctx.lineCap = 'round';
   for (const p of Object.values(m.walls)) { ctx.lineWidth = Math.max(1.5, p.thickness * esc); ctx.beginPath(); p.path.forEach(([x, y], i) => i ? ctx.lineTo(ox + x * esc, oy + y * esc) : ctx.moveTo(ox + x * esc, oy + y * esc)); ctx.stroke(); }
   for (const l of Object.values(m.lights)) { const g = ctx.createRadialGradient(ox + l.position[0] * esc, oy + l.position[1] * esc, 0, ox + l.position[0] * esc, oy + l.position[1] * esc, Math.max(6, Math.min(l.radius, 4) * esc)); g.addColorStop(0, `${l.color}aa`); g.addColorStop(1, `${l.color}00`); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); }
-  for (const o of Object.values(m.props)) { ctx.fillStyle = css(corDoNome(o.source.kind === 'recipe' ? o.source.recipe : o.source.assetId, 0.35, 0.38)); ctx.fillRect(ox + o.position[0] * esc - 2, oy + o.position[1] * esc - 2, 4, 4); }
+  for (const o of Object.values(m.props).sort((a, b) => camadaDoObjeto(a) - camadaDoObjeto(b))) { ctx.fillStyle = css(corDoNome(o.source.kind === 'recipe' ? o.source.recipe : o.source.assetId, 0.35, 0.38)); ctx.fillRect(ox + o.position[0] * esc - 2, oy + o.position[1] * esc - 2, 4, 4); }
   for (const p of Object.values(m.tokens)) { ctx.fillStyle = css(hexParaNumero(acento)); ctx.beginPath(); ctx.arc(ox + p.position[0] * esc, oy + p.position[1] * esc, 3.5, 0, 7); ctx.fill(); }
 }

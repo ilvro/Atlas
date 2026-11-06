@@ -1,4 +1,5 @@
 import { PAREDE_PADRAO, comodoEm, contornoDoComodo, indiceDeCelulas } from '../domain/geometria.ts';
+import { ehArvore } from '../domain/camadas.ts';
 import { decodificar } from '../domain/celulas.ts';
 import { novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
 import type { MapaAtlas, Objeto, Ponto } from '../domain/mapa.ts';
@@ -59,7 +60,7 @@ export function espalhar(m: MapaAtlas, o: PedidoDeEspalhar): Objeto[] {
   const conjunto = conjuntoDeEspalhar(o.conjunto); if (!conjunto || !(o.raio > 0)) return [];
   const rng = mulberry32(Math.imul(Math.floor(o.semente * 1000) | 0, 2654435761) ^ Math.floor(o.centro[0] * 37 + o.centro[1] * 91)), gerarId = o.gerarId ?? novoIdEntidade;
   const receitas = new Set(conjunto.itens.map(i => i.receita));
-  const lado = (id: string, escala = 1) => Math.max(...ACERVO.pegadaDaFonte(ACERVO.fonte(id, 1))) * escala, maior = Math.max(...conjunto.itens.map(i => lado(i.receita))), ehArvore = (id: string) => ACERVO.item(id)?.tags.includes('arvore') ?? false;
+  const lado = (id: string, escala = 1) => Math.max(...ACERVO.pegadaDaFonte(ACERVO.fonte(id, 1))) * escala, maior = Math.max(...conjunto.itens.map(i => lado(i.receita)));
   const existentes = Object.values(m.props).filter(p => receitas.has(ACERVO.idDaFonte(p.source)) && distancia(p.position, o.centro) <= o.raio + maior);
   const noCirculo = existentes.filter(p => distancia(p.position, o.centro) <= o.raio).length;
   const alvo = Math.max(0, Math.round((o.densidade ?? conjunto.densidade) * Math.PI * o.raio * o.raio) - noCirculo);

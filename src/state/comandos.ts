@@ -1,5 +1,6 @@
 import type { Ref } from '#mesa';
 import { ceuNoHorario } from '../domain/clima.ts';
+import { camadaDoObjeto } from '../domain/camadas.ts';
 import { ErroDeValidacao } from '../domain/esquema.ts';
 import { clonar, produzir } from './imutavel.ts';
 import type { Acabamento, Clima, Estilo, Fundo, Grade, Memoria, MapaAtlas, NomeColecao, Ponto } from '../domain/mapa.ts';
@@ -166,10 +167,10 @@ function aplicar(m: MapaAtlas, c: Comando): void {
     case 'item.remover': remover(m, c.colecao, c.id); break;
     case 'objeto.camada': {
       const alvos = c.ids.map(id => m.props[id] ?? nao(`Não existe “${id}” em props.`));
-      const outras = Object.values(m.props).filter(o => !c.ids.includes(o.id)).map(o => o.layer ?? 0);
+      const outras = Object.values(m.props).filter(o => !c.ids.includes(o.id)).map(camadaDoObjeto);
       if (c.modo === 'frente') { const topo = Math.max(0, ...outras) + 1; for (const o of alvos) o.layer = topo; }
       else if (c.modo === 'tras') { const base = Math.min(0, ...outras) - 1; for (const o of alvos) o.layer = base; }
-      else for (const o of alvos) o.layer = (o.layer ?? 0) + (c.modo === 'subir' ? 1 : -1);
+      else for (const o of alvos) o.layer = camadaDoObjeto(o) + (c.modo === 'subir' ? 1 : -1);
       break;
     }
     case 'selecao.mover': {

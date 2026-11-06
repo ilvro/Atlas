@@ -2,6 +2,7 @@ import { decodificar } from '../domain/celulas.ts';
 import { caixaDasCelulas, comprimentoDaParede, pontoNaParede, projetarNaParede } from '../domain/geometria.ts';
 import type { MapaAtlas, Objeto, Ponto } from '../domain/mapa.ts';
 import { ACERVO } from '../procedural/acervo.ts';
+import { camadaDoObjeto } from '../domain/camadas.ts';
 import { COLECOES_LIVRES, type AlvoMovel, type ColecaoLivre } from '../state/comandos.ts';
 
 /** O que o mestre pode selecionar: itens soltos (que também se movem) e a construção (cômodos, paredes, aberturas). */
@@ -69,7 +70,10 @@ function pontoNoObjeto(o: Objeto, p: Ponto, tolerancia: number): boolean {
 export function alvoEm(mapa: MapaAtlas, ponto: Ponto, tolerancia = 0): Alvo | null {
   for (let i = ORDEM.length - 1; i >= 0; i--) {
     const colecao = ORDEM[i]!;
-    for (const id of Object.keys(mapa[colecao]).reverse()) {
+    const ids = colecao === 'props'
+      ? Object.entries(mapa.props).map(([id, o], idx) => ({ id, camada: camadaDoObjeto(o), idx })).sort((a, b) => b.camada - a.camada || b.idx - a.idx).map(x => x.id)
+      : Object.keys(mapa[colecao]).reverse();
+    for (const id of ids) {
       const alvo: Alvo = { colecao, id };
       if (colecao === 'rooms') { const r = mapa.rooms[id]!, t = mapa.grid.size; if (decodificar(r.cells).some(([x, y]) => ponto[0] >= mapa.grid.offset[0] + x * t && ponto[0] < mapa.grid.offset[0] + (x + 1) * t && ponto[1] >= mapa.grid.offset[1] + y * t && ponto[1] < mapa.grid.offset[1] + (y + 1) * t)) return alvo; continue; }
       if (colecao === 'regions') { if (pontoNoPoligono(ponto, mapa.regions[id]!.polygon)) return alvo; continue; }
