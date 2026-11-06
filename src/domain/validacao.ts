@@ -1,7 +1,7 @@
 import { ehRef } from '#mesa';
 import { ehCanonica } from './celulas.ts';
 import { ErroDeValidacao, HEX, IDENT, e, type Esq } from './esquema.ts';
-import { COLECOES, ESTADOS_FIGURA, SCHEMA_MAPA, VERSAO_MAPA, colunas, linhas, type MapaAtlas } from './mapa.ts';
+import { COLECOES, ESTADOS_FIGURA, ESTILOS_DE_LINHA_DA_GRADE, SCHEMA_MAPA, TIPOS_DE_GRADE, VERSAO_MAPA, colunas, linhas, type MapaAtlas } from './mapa.ts';
 
 const ponto = e.tupla(e.num({ min: -10_000, max: 10_000 }), e.num({ min: -10_000, max: 10_000 }));
 const id = e.texto({ min: 1, max: 64, padrao: IDENT });
@@ -84,7 +84,17 @@ export const ESQUEMA_MAPA: Esq = e.obj({
   schema: e.um(SCHEMA_MAPA), version: e.num({ inteiro: true, min: 1, max: 1_000 }),
   id, name: nome, revision: e.num({ inteiro: true, min: 0, max: 2 ** 31 }), createdAt: e.num({ min: 0 }), updatedAt: e.num({ min: 0 }),
   campanhaId: idOuNulo,
-  grid: e.obj({ kind: e.um('square'), size: e.num({ min: 0.25, max: 10 }), offset: ponto, visible: e.bool() }),
+  grid: e.obj({
+    kind: e.um(...TIPOS_DE_GRADE),
+    size: e.num({ min: 0.25, max: 10 }),
+    offset: ponto,
+    visible: e.bool(),
+    snap: e.bool(),
+    lineStyle: e.um(...ESTILOS_DE_LINHA_DA_GRADE),
+    color: e.proprio((v, c) => { if (v !== 'auto') hex.verificar(v, c); }),
+    opacity: e.num({ min: 0.05, max: 1 }),
+    lineWidth: e.num({ min: 0.5, max: 5 }),
+  }),
   bounds: e.obj({ width: e.num({ min: 3, max: 600 }), height: e.num({ min: 3, max: 600 }) }),
   style: e.obj({
     renderer: e.um('illustrated', 'pixel'), palette: e.texto({ min: 1, max: 60 }), walls: e.um('box', 'solid'), genre: e.texto({ min: 1, max: 40 }),

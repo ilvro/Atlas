@@ -2,13 +2,25 @@ import type { Ref } from '#mesa';
 import type { Faixa } from './celulas.ts';
 
 export const SCHEMA_MAPA = 'atlas.map';
-export const VERSAO_MAPA = 6;
+export const VERSAO_MAPA = 7;
 
 /** Unidade de mundo: metro. Coordenadas [x, y] com origem no canto superior esquerdo e y para baixo. */
 export type Ponto = [x: number, y: number];
 export interface RefAsset { id: string; hash: string }
 
-export interface Grade { kind: 'square'; size: number; offset: Ponto; visible: boolean }
+export const TIPOS_DE_GRADE = ['square', 'hex'] as const;
+export const ESTILOS_DE_LINHA_DA_GRADE = ['solid', 'dashed', 'dotted', 'corners'] as const;
+export interface Grade {
+  kind: (typeof TIPOS_DE_GRADE)[number];
+  size: number;
+  offset: Ponto;
+  visible: boolean;
+  snap: boolean;
+  lineStyle: (typeof ESTILOS_DE_LINHA_DA_GRADE)[number];
+  color: 'auto' | string;
+  opacity: number;
+  lineWidth: number;
+}
 export interface Estilo {
   renderer: 'illustrated' | 'pixel';
   palette: string;
@@ -140,7 +152,7 @@ export function criarMapa(o: OpcoesNovoMapa = {}): MapaAtlas {
     schema: SCHEMA_MAPA, version: VERSAO_MAPA,
     id: o.id ?? novoId(), name: o.nome ?? 'Mapa sem nome', revision: 0, createdAt: t, updatedAt: t,
     campanhaId: o.campanhaId ?? null,
-    grid: { kind: 'square', size: celula, offset: [0, 0], visible: true },
+    grid: { kind: 'square', size: celula, offset: [0, 0], visible: true, snap: true, lineStyle: 'solid', color: 'auto', opacity: 0.5, lineWidth: 1 },
     bounds: { width: o.largura ?? 45, height: o.altura ?? 30 },
     style: { renderer: 'illustrated', palette: 'investigacao-sepia', walls: 'box', genre: 'investigacao', pixel: { pixelsPerCell: 16, dither: 'bayer4', outline: true } },
     climate: { preset: 'dia', ambient: { color: '#d1ccc0', intensity: 0.82 }, sun: { angle: 0.6, color: '#fff2d6', intensity: 1 }, time: '14:30', weather: { rain: 0, snow: 0, fog: 0, wind: 0, dust: 0, embers: 0, leaves: 0, lightning: 0 }, gridPower: true },

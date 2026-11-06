@@ -75,7 +75,23 @@ const de5para6: Migracao = doc => {
   return d;
 };
 
-export const MIGRACOES: TabelaDeMigracoes = { 1: de1para2, 2: de2para3, 3: de3para4, 4: de4para5, 5: de5para6 };
+/**
+ * 6 → 7 (Fase 11): a grade ganha personalização visual e desacoplamento do encaixe:
+ * `snap: true`, `lineStyle: 'solid'`, `color: 'auto'`, `opacity: 0.5`, `lineWidth: 1`.
+ */
+const de6para7: Migracao = doc => {
+  const d = doc as Record<string, any>;
+  if (d.grid && typeof d.grid === 'object') {
+    d.grid.snap ??= true;
+    d.grid.lineStyle ??= 'solid';
+    d.grid.color ??= 'auto';
+    d.grid.opacity ??= 0.5;
+    d.grid.lineWidth ??= 1;
+  }
+  return d;
+};
+
+export const MIGRACOES: TabelaDeMigracoes = { 1: de1para2, 2: de2para3, 3: de3para4, 4: de4para5, 5: de5para6, 6: de6para7 };
 
 /** Aplica a cadeia de migrações até `alvo`. Separada para ser testada com tabelas de mentira. */
 export function aplicarMigracoes(bruto: unknown, tabela: TabelaDeMigracoes, alvo: number): Record<string, unknown> {

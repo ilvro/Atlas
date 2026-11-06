@@ -96,7 +96,7 @@ function BarraDeEstado({ s }: { s: SessaoDeEdicao }) {
   const celula = p ? `${Math.floor((p[0] - m.grid.offset[0]) / m.grid.size)}, ${Math.floor((p[1] - m.grid.offset[1]) / m.grid.size)}` : '—';
   return (
     <footer class="barra-de-estado" data-testid="barra-de-estado">
-      <span>{p ? `${encaixar(p[0], m.grid, 0, 0.5, !m.grid.visible).toFixed(2)} m, ${encaixar(p[1], m.grid, 1, 0.5, !m.grid.visible).toFixed(2)} m` : '— m'}</span>
+      <span>{p ? `${encaixar(p[0], m.grid, 0, 0.5, !m.grid.snap).toFixed(2)} m, ${encaixar(p[1], m.grid, 1, 0.5, !m.grid.snap).toFixed(2)} m` : '— m'}</span>
       <span>célula {celula}</span>
       <span>{m.grid.size} m por célula · {m.bounds.width}×{m.bounds.height} m</span>
       <span class="espaco" />

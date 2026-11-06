@@ -147,7 +147,7 @@ test('importar com id repetido: copia, substitui ou pula', async () => {
 });
 
 test('um mapa ruim no pacote não derruba os outros e a mensagem diz qual é', async () => {
-  const r = await repo(), bom = mapaCompleto(), ruim = { ...criarMapa({ id: 'ruim', nome: 'Quebrado' }), grid: { kind: 'square', size: -3, offset: [0, 0], visible: true } };
+  const r = await repo(), bom = mapaCompleto(), ruim = { ...criarMapa({ id: 'ruim', nome: 'Quebrado' }), grid: { ...criarMapa().grid, size: -3 } };
   const rel = await importarBackup(r, lerPacote(JSON.stringify({ formato: 'atlas.backup', versao: 1, criadoEm: 1, mapas: [bom, ruim, 42], assets: [{ id: 'x', hash: 'y', tipo: 'a/b', base64: btoa('oi'), criadoEm: 1 }] })));
   assert.deepEqual(rel.importados.map(x => x.id), ['casa']);
   assert.equal(rel.erros.length, 3);

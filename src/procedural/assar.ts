@@ -1,7 +1,7 @@
 import { contornoDoComodo, facesDoContorno, caixaDasCelulas, type SegmentoDeContorno } from '../domain/geometria.ts';
 import type { Faixa } from '../domain/celulas.ts';
 import { decodificar } from '../domain/celulas.ts';
-import type { Ponto } from '../domain/mapa.ts';
+import type { Grade, Ponto } from '../domain/mapa.ts';
 import { contextoDe, criarTela, type Contexto, type Tela } from './canvas.ts';
 import { caixaDasPartes, type Descricao, type Parte } from './descricao.ts';
 import { materialDe, tom } from './materiais.ts';
@@ -96,14 +96,15 @@ function desenharAbertura(ctx: Contexto, a: AberturaNaFace, u: number, H: number
 
 /** O cômodo inteiro numa tela: piso, sombra de contato com as paredes e, no estilo caixa, as quatro faces internas. */
 export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRaster): Assado {
-  const cells = decodificar(e.celulas), caixa = caixaDasCelulas({ grid: { size: e.grade.size, offset: e.grade.offset, kind: 'square', visible: true } }, cells);
+  const grade: Grade = { size: e.grade.size, offset: e.grade.offset, kind: 'square', visible: true, snap: true, lineStyle: 'solid', color: 'auto', opacity: 0.5, lineWidth: 1 };
+  const cells = decodificar(e.celulas), caixa = caixaDasCelulas({ grid: grade }, cells);
   if (!caixa) return { tela: criarTela(1, 1), origem: [0, 0], res };
   const pixel = estilo.id === 'pixel', encaixe = (v: number) => (pixel ? Math.floor(v * res) / res : v);      // no Pixel a tela começa na grade de pixels
   const x0 = encaixe(caixa.x0 - MARGEM_COMODO), y0 = encaixe(caixa.y0 - MARGEM_COMODO);
   const tela = criarTela((caixa.x1 - x0 + MARGEM_COMODO) * res, (caixa.y1 - y0 + MARGEM_COMODO) * res), ctx = contextoDe(tela);
   const base = () => ctx.setTransform(res, 0, 0, res, -x0 * res, -y0 * res);
   base();
-  const lacos = contornoDoComodo({ grid: { size: e.grade.size, offset: e.grade.offset, kind: 'square', visible: true } }, cells);
+  const lacos = contornoDoComodo({ grid: grade }, cells);
   const tracar = () => { ctx.beginPath(); for (const laco of lacos) { ctx.moveTo(laco[0]!.a[0], laco[0]!.a[1]); for (const s of laco) ctx.lineTo(s.b[0], s.b[1]); ctx.closePath(); } };
 
   ctx.save(); tracar(); ctx.clip();

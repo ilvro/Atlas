@@ -369,7 +369,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (!comSprite && fantasmaSprite) limparFantasmaSprite();
     const objetoFantasma = fantasmaC.getChildByLabel('fantasma-objeto');
     if (!ponteiro || interacao || !['objeto', 'luz', 'peca', 'regiao', 'abertura', 'comodo', 'borracha', 'terreno', 'presenca', 'espalhar'].includes(f)) { if (objetoFantasma) objetoFantasma.visible = false; return; }
-    const livre = !m.grid.visible || altPressionado;
+    const livre = !m.grid.snap || altPressionado;
     const p: Ponto = [encaixar(ponteiro[0], m.grid, 0, 0.5, livre), encaixar(ponteiro[1], m.grid, 1, 0.5, livre)];
     if (f === 'comodo' || f === 'borracha') {
       const [x, y] = celulaDe(m, ponteiro), t = m.grid.size, c = f === 'borracha' ? 0xff6b6b : cor;
@@ -563,7 +563,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   }
 
   /** O ponto encaixado nos vértices da grade e, se `ini` existe, preso ao eixo mais próximo: paredes são retas na grade. */
-  function pontoDeParede(m: MapaAtlas, p: Ponto, ini?: Ponto, desligado = !m.grid.visible): Ponto {
+  function pontoDeParede(m: MapaAtlas, p: Ponto, ini?: Ponto, desligado = !m.grid.snap): Ponto {
     const q: Ponto = [encaixar(p[0], m.grid, 0, 1, desligado), encaixar(p[1], m.grid, 1, 1, desligado)];
     if (!ini) return q;
     return Math.abs(q[0] - ini[0]) >= Math.abs(q[1] - ini[1]) ? [q[0], ini[1]] : [ini[0], q[1]];
@@ -571,7 +571,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   function colocar(e: PointerEvent, p: Ponto): void {
     const m = doc(), f = ponte.ferramenta(), pincel = ponte.pincel();
-    const livre = !m.grid.visible || e.altKey;
+    const livre = !m.grid.snap || e.altKey;
     const alvo: Ponto = [encaixar(p[0], m.grid, 0, 0.5, livre), encaixar(p[1], m.grid, 1, 0.5, livre)];
     if (f === 'comodo' || f === 'borracha') { comecarComodo(e, p, f === 'borracha'); return; }
     if (f === 'espalhar') {
@@ -691,17 +691,17 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
           i.alvos = alvos; ponte.definirSelecao(alvos);
         }
       }
-      const livre = !doc().grid.visible || e.altKey;
+      const livre = !doc().grid.snap || e.altKey;
       const d = deltaEncaixado(i.ref, [ponteiro[0] - i.origem[0], ponteiro[1] - i.origem[1]], doc().grid, 0.5, livre), passo: Ponto = [d[0] - i.aplicado[0], d[1] - i.aplicado[1]];
       if (Math.abs(passo[0]) > 1e-9 || Math.abs(passo[1]) > 1e-9) { i.gesto.aplicar({ tipo: 'selecao.mover', alvos: i.alvos as never, delta: passo }); i.aplicado = d; }
     } else if (i.tipo === 'peca') {
       if (Math.hypot(tx - i.x0, ty - i.y0) > LIMIAR_ARRASTO) i.moveu = true;
-      i.livre = !m.grid.visible || e.altKey; i.para = i.livre ? ponteiro : centroDaCelula(m, ponteiro);
+      i.livre = !m.grid.snap || e.altKey; i.para = i.livre ? ponteiro : centroDaCelula(m, ponteiro);
       i.motivo = i.livre ? null : bloqueioNoCaminho(m, i.de, i.para);
     } else if (i.tipo === 'deslizar') {
       if (!i.gesto) { if (Math.hypot(tx - i.x0, ty - i.y0) <= LIMIAR_ARRASTO) return; i.gesto = store.iniciarGesto('Mover abertura'); }
       const a = m.openings[i.id]; if (!a) return;
-      const livre = !m.grid.visible || e.altKey;
+      const livre = !m.grid.snap || e.altKey;
       const enc = encaixarNaParede(m, ponteiro, a.width, 1.2, livre);
       if (enc && (enc.parede.id !== a.wallId || Math.abs(enc.at - a.at) > 1e-6)) { try { i.gesto.aplicar({ tipo: 'abertura.atualizar', id: i.id, patch: { wallId: enc.parede.id, at: enc.at } }); } catch { /* ali não cabe: fica onde estava */ } }
     } else if (i.tipo === 'projetor') {
@@ -725,7 +725,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       if (i.retangulo) i.atual = c; else { pintarCelulas(celulasEntre(i.atual, c).filter(x => dentroDoMapa(m, x))); i.atual = c; }
     } else if (i.tipo === 'terreno') { const antes = i.ultimo; i.ultimo = ponteiro; pintarTerreno(ponteiro, antes); }
     else if (i.tipo === 'espalhar') { if (Math.hypot(ponteiro[0] - i.ultimo[0], ponteiro[1] - i.ultimo[1]) >= ponte.pincel().espalhar.raio / 2) { i.ultimo = ponteiro; espalharAqui(ponteiro); } }
-    else if (i.tipo === 'parede') i.fim = pontoDeParede(m, ponteiro, i.ini, !m.grid.visible || e.altKey);
+    else if (i.tipo === 'parede') i.fim = pontoDeParede(m, ponteiro, i.ini, !m.grid.snap || e.altKey);
     camadaSuja = true;
   });
 

@@ -225,7 +225,7 @@ test('encaixar uma porta: no meio da célula mais próxima, inteira dentro da pa
   assert.equal(livre.ponto[0], 3.7);
   assert.ok(Math.abs(livre.at - 0.7 / 3) < 1e-5);
 
-  m.grid.visible = false;
+  m.grid.snap = false;
   const livreAuto = encaixarNaParede(m, [3.7, 2.7], 0.9)!;
   assert.equal(livreAuto.ponto[0], 3.7);
 });
@@ -240,7 +240,7 @@ test('encaixar um objeto de parede: na face do cômodo que está do lado do pont
   // Objeto de parede livre sem encaixe na grade
   const livreObj = encaixarObjetoDeParede(m, [5.7, 4.3], 1, true)!;
   assert.equal(livreObj.ponto[1], 4.3);
-  m.grid.visible = false;
+  m.grid.snap = false;
   const livreObjAuto = encaixarObjetoDeParede(m, [5.7, 4.3], 1)!;
   assert.equal(livreObjAuto.ponto[1], 4.3);
 });

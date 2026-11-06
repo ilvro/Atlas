@@ -25,7 +25,7 @@ export function iniciarPistas(): () => void { void recarregarPistas(); return es
  * Se há campanha, registra a ligação `esta-em` (pista → cômodo) no banco da campanha.
  */
 export function adicionarPista(s: SessaoDeEdicao, p: Pista, servicos: Servicos | null, onde?: Ponto): Objeto {
-  const m = s.store.documento, pos = (!m.grid.visible && onde) ? onde : centroDaCelula(m, onde ?? [m.bounds.width / 2, m.bounds.height / 2]), ref = refDaPista(p.id);
+  const m = s.store.documento, pos = (m.grid.snap === false && onde) ? onde : centroDaCelula(m, onde ?? [m.bounds.width / 2, m.bounds.height / 2]), ref = refDaPista(p.id);
   const objeto = novoObjeto(pos, {
     source: ACERVO.fonte('papeis', Math.floor(Math.random() * 2 ** 31)), roomId: comodoEm(m, pos), blocks: { move: false, sight: false }, castsShadow: false,
     interaction: { kind: 'clue', on: false, targets: [], sound: null, clue: ref },

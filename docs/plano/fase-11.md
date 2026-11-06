@@ -155,7 +155,7 @@ Testes: unitários da formatação do cronômetro e cálculo de avanço de `HH:M
 Pronto quando: as duas pílulas aparecem no canto superior direito do mapa, contando o tempo da sessão ou avançando a hora do mapa.
 Commit: feat(atlas): add top-right dramatic counter and session timer widgets
 
-### 11.4a — Documento `atlas.map` v7: propriedades visuais da grade e `snap` independente  ⬜
+### 11.4a — Documento `atlas.map` v7: propriedades visuais da grade e `snap` independente  ✅
 Objetivo: expandir `Grade` no documento para suportar `snap` separado de `visible`, tipo (`square` | `hex`), estilo de linha (`solid` | `dashed` | `dotted` | `corners`), cor (`auto` ou `#rrggbb`), opacidade e espessura.
 Depende de: —
 Ler: `src/domain/mapa.ts`, `src/domain/validacao.ts`, `src/domain/migracoes.ts`, `src/render/grade.ts`, `src/ui/Editor.tsx`.

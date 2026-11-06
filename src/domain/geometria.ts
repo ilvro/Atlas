@@ -169,7 +169,7 @@ export function motivoDeNaoCaber(m: Pick<MapaAtlas, 'walls' | 'openings'>, a: Pi
 export interface EncaixeNaParede { parede: Parede; /** Fração ao longo da parede (0 a 1). */ at: number; /** Lado em que o ponto está: 1 à direita de quem anda do início ao fim, -1 à esquerda. */ lado: 1 | -1; /** Distância do ponto à parede. */ distancia: number; /** Ponto da parede onde a abertura fica. */ ponto: Ponto }
 
 /** A parede mais próxima de `ponto`, e onde a abertura de `largura` metros ficaria nela: no centro de uma célula, e sempre inteira dentro da parede. */
-export function encaixarNaParede(m: Pick<MapaAtlas, 'walls' | 'grid'>, ponto: Ponto, largura: number, tolerancia = 0.75, desligado = !m.grid?.visible): EncaixeNaParede | null {
+export function encaixarNaParede(m: Pick<MapaAtlas, 'walls' | 'grid'>, ponto: Ponto, largura: number, tolerancia = 0.75, desligado = m.grid?.snap !== undefined ? !m.grid.snap : !m.grid?.visible): EncaixeNaParede | null {
   let melhor: { parede: Parede; dist: number; distancia: number; lado: 1 | -1 } | null = null;
   for (const p of Object.values(m.walls)) { const r = projetarNaParede(p, ponto); if (r.distancia <= tolerancia && (!melhor || r.distancia < melhor.distancia)) melhor = { parede: p, ...r }; }
   if (!melhor) return null;
@@ -187,7 +187,7 @@ export function encaixarNaParede(m: Pick<MapaAtlas, 'walls' | 'grid'>, ponto: Po
 }
 
 /** Onde pôr um objeto de parede (um quadro, uma estante): na face do cômodo que está do lado do ponteiro. `null` se desse lado não há cômodo. */
-export function encaixarObjetoDeParede(m: Pick<MapaAtlas, 'walls' | 'grid' | 'rooms'>, ponto: Ponto, largura: number, desligado = !m.grid?.visible): (EncaixeNaParede & { roomId: string }) | null {
+export function encaixarObjetoDeParede(m: Pick<MapaAtlas, 'walls' | 'grid' | 'rooms'>, ponto: Ponto, largura: number, desligado = m.grid?.snap !== undefined ? !m.grid.snap : !m.grid?.visible): (EncaixeNaParede & { roomId: string }) | null {
   const e = encaixarNaParede(m, ponto, largura, 1.0, desligado); if (!e) return null;
   const { tangente } = pontoNaParede(e.parede, e.at * comprimentoDaParede(e.parede)), n: Ponto = [-tangente[1] * e.lado, tangente[0] * e.lado];
   const sala = comodoEm(m, [e.ponto[0] + n[0] * 0.3, e.ponto[1] + n[1] * 0.3]);

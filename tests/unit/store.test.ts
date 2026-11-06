@@ -194,7 +194,7 @@ test('substituir troca o mapa, zera o histórico e avisa que mudou tudo', () => 
 });
 
 test('o mapa inicial inválido não entra no store', () => {
-  assert.throws(() => criarStore({ ...criarMapa(), grid: { kind: 'square', size: -1, offset: [0, 0], visible: true } }), /grid\.size/);
+  assert.throws(() => criarStore({ ...criarMapa(), grid: { ...criarMapa().grid, size: -1 } }), /grid\.size/);
 });
 
 test('conteúdo do mapa gravado e do atual coincidem depois de uma ida e volta', () => {
