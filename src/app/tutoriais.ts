@@ -3,7 +3,7 @@ import { criarMapa, type MapaAtlas } from '../domain/mapa.ts';
 import type { EstadoDoTutor } from '../tutorial/condicoes.ts';
 import { LICOES } from '../tutorial/licoes.ts';
 import { criarTutor } from '../tutorial/tutor.ts';
-import { atualizarLista, navegar, removerMapa, servicos, sessao } from './app.ts';
+import { atualizarLista, navegar, removerMapa, servicos, sessao, viewport } from './app.ts';
 import { abaDoInspetor, modo, vistaDeJogador } from './modo.ts';
 import { projetorConectado } from './projetor.ts';
 import { definirSugestoesLigadas, sugestoesLigadas } from './sugestoes.ts';
@@ -44,6 +44,7 @@ export async function iniciarLicao(id: string, de = 0): Promise<boolean> {
   modo.value = 'construir'; abaDoInspetor.value = 'mapa';
   if (sugestoesAntes === null) sugestoesAntes = sugestoesLigadas.peek();
   definirSugestoesLigadas(!!licao.assistente);
+  setTimeout(() => { viewport.atual?.enquadrar(); }, 120);
   return tutor.iniciar(id, de);
 }
 

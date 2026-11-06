@@ -117,7 +117,7 @@ test('trocar de clima pede ao Jukebox a cena daquele clima; sem cena, outro mapa
     const store = criarStore(novo()); store.executar({ tipo: 'clima.audio', id: 'tempestade', ref: chuva });
     const antes = store.documento; store.executar({ tipo: 'clima.predefinir', id: 'tempestade' });
     assert.equal(pedirSomDoClima(antes, store.documento, atlas as Barramento), true);
-    await new Promise(r => setTimeout(r, 60));
+    for (let i = 0; i < 20 && pedidos.length === 0; i++) await new Promise(r => setTimeout(r, 20));
     assert.equal(pedidos.length, 1); assert.deepEqual((pedidos[0]!.dados as { ref: unknown }).ref, chuva);
     const noite = store.documento; store.executar({ tipo: 'clima.predefinir', id: 'noite' });
     assert.equal(pedirSomDoClima(noite, store.documento, atlas), false, 'noite não tem cena');

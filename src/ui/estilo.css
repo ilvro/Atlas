@@ -566,18 +566,20 @@ body.projetor { overflow: hidden; background: #000; }
 
 /* O tutor: anel no alvo, marcas no mapa e o cartão do passo, sobre a interface de verdade. */
 .tutor { position: fixed; inset: 0; z-index: 90; pointer-events: none; }
-.tutor-anel { position: fixed; border: 2px solid var(--acento); border-radius: 10px; box-shadow: 0 0 0 4px color-mix(in srgb, var(--acento) 25%, transparent), 0 0 24px color-mix(in srgb, var(--acento) 55%, transparent); transition: left 0.18s, top 0.18s, width 0.18s, height 0.18s; }
+.tutor-anel { position: fixed; z-index: 91; border: 2px solid var(--acento); border-radius: 10px; box-shadow: 0 0 0 4px color-mix(in srgb, var(--acento) 25%, transparent), 0 0 24px color-mix(in srgb, var(--acento) 55%, transparent); transition: left 0.18s, top 0.18s, width 0.18s, height 0.18s; }
 .tutor-anel.insiste { animation: tutor-pulso 1s ease-in-out infinite; }
 @keyframes tutor-pulso { 50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--acento) 40%, transparent), 0 0 34px var(--acento); } }
-.tutor-ponto { position: fixed; width: 0; height: 0; }
+.tutor-ponto { position: fixed; width: 0; height: 0; z-index: 95; pointer-events: none; }
 .tutor-ponto i { position: absolute; left: -15px; top: -15px; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--acento); background: color-mix(in srgb, var(--acento) 25%, transparent); animation: tutor-pulso 1.4s ease-in-out infinite; }
 .tutor-ponto::after { content: attr(data-ordem); position: absolute; left: 18px; top: -26px; font: 800 12px var(--corpo); color: #fff; text-shadow: 0 1px 4px #000; }
-.tutor-cartao { position: fixed; width: min(340px, calc(100vw - 24px)); padding: 12px 14px; background: var(--painel, #15151d); border: 1px solid var(--linha); border-radius: 12px; box-shadow: 0 14px 44px rgba(0, 0, 0, 0.55); pointer-events: auto; display: flex; flex-direction: column; gap: 7px; left: 24px; top: 24px; }
+.tutor-cartao { position: fixed; z-index: 92; width: min(340px, calc(100vw - 24px)); padding: 12px 14px; background: var(--painel, #15151d); border: 1px solid var(--linha); border-radius: 12px; box-shadow: 0 14px 44px rgba(0, 0, 0, 0.55); pointer-events: auto; display: flex; flex-direction: column; gap: 7px; left: 24px; top: 24px; }
 .tutor-cartao header, .tutor-cartao footer { display: flex; align-items: center; gap: 8px; }
 .tutor-cartao header .eyebrow { flex: 1; font: 800 10px var(--corpo); letter-spacing: 0.1em; text-transform: uppercase; color: var(--apagado); }
 .tutor-cartao footer { justify-content: flex-end; flex-wrap: wrap; }
 .tutor-cartao .quieto { background: none; border: 0; color: var(--apagado); font: 700 12px var(--corpo); cursor: pointer; padding: 4px 6px; }
 .tutor-cartao .quieto:hover { color: #fff; } .tutor-cartao .quieto:disabled { opacity: 0.35; cursor: default; }
+.tutor-focar-pontos { align-self: flex-start; color: var(--acento) !important; font: 700 12px var(--corpo); padding: 4px 0 !important; cursor: pointer; }
+.tutor-focar-pontos[hidden] { display: none; }
 .tutor-progresso { height: 3px; background: rgba(255, 255, 255, 0.1); border-radius: 2px; overflow: hidden; } .tutor-progresso i { display: block; height: 100%; background: var(--acento); transition: width 0.25s; }
 .tutor-etapa, .tutor-sozinho { margin: 0; font: 800 10px var(--corpo); letter-spacing: 0.1em; text-transform: uppercase; color: var(--acento); }
 .tutor-diga { margin: 0; font: 600 14px/1.45 var(--corpo); } .tutor-porque { margin: 0; font: 500 12px/1.45 var(--corpo); color: var(--apagado); }

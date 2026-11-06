@@ -35,7 +35,22 @@ export function Tutor() {
     const laco = () => {
       quadro = requestAnimationFrame(laco);
       const p = tutor.passo(); if (!p) return;
-      if (tutor.info()!.indice !== ultimo) { ultimo = tutor.info()!.indice; perdido = 0; gauge.current.inicial = 0; }
+      if (tutor.info()!.indice !== ultimo) {
+        ultimo = tutor.info()!.indice;
+        perdido = 0;
+        gauge.current.inicial = 0;
+        const pts = pontosDe(p);
+        if (pts.length > 0 && viewport.atual) {
+          const area = document.querySelector('[data-testid="area-do-mapa"]')?.getBoundingClientRect();
+          const todosVisiveis = area && pts.every(pt => {
+            const lugar = viewport.atual?.clientDe([pt[0], pt[1]]);
+            return lugar && lugar[0] >= area.left + 50 && lugar[0] <= area.right - 50 && lugar[1] >= area.top + 50 && lugar[1] <= area.bottom - 50;
+          });
+          if (!todosVisiveis) {
+            viewport.atual.enquadrar();
+          }
+        }
+      }
       if (tutor.tique()) return;
       const sozinho = !!p.tentar && !tutor.ajuda().mostrouOnde;
       if (p.aba && abaDoInspetor.peek() !== p.aba) abaDoInspetor.value = p.aba as 'mapa' | 'selecao' | 'historico';
@@ -55,12 +70,16 @@ export function Tutor() {
       c?.querySelector<HTMLElement>('.tutor-perdido')?.toggleAttribute('hidden', perdido < 90);
       // Onde clicar no mapa: uma marca em cada ponto, seguida enquanto a câmera anda; vários são numerados.
       const lista = sozinho ? [] : pontosDe(p), v = viewport.atual;
+      const areaMapa = document.querySelector('[data-testid="area-do-mapa"]')?.getBoundingClientRect();
+      let algumFora = false;
       marcas.current?.querySelectorAll<HTMLElement>('.tutor-ponto').forEach((el, i) => {
-        const pt = lista[i], lugar = pt && v ? v.clientDe([pt[0], pt[1]]) : null, area = document.querySelector('[data-testid="area-do-mapa"]')?.getBoundingClientRect();
-        const dentro = !!lugar && !!area && lugar[0] >= area.left && lugar[0] <= area.right && lugar[1] >= area.top && lugar[1] <= area.bottom;
+        const pt = lista[i], lugar = pt && v ? v.clientDe([pt[0], pt[1]]) : null;
+        const dentro = !!lugar && !!areaMapa && lugar[0] >= areaMapa.left && lugar[0] <= areaMapa.right && lugar[1] >= areaMapa.top && lugar[1] <= areaMapa.bottom;
+        if (!dentro && pt) algumFora = true;
         el.hidden = !dentro; el.dataset.ordem = lista.length > 1 ? String(i + 1) : '';
         if (dentro && lugar) { el.style.left = `${Math.round(lugar[0])}px`; el.style.top = `${Math.round(lugar[1])}px`; }
       });
+      c?.querySelector<HTMLElement>('.tutor-focar-pontos')?.toggleAttribute('hidden', !algumFora || lista.length === 0);
       // “Quase lá”: quanto falta num passo de valor.
       const l = medir(p.feito, estadoDoTutor()), perto = c?.querySelector<HTMLElement>('.tutor-perto');
       if (perto) {
@@ -70,14 +89,54 @@ export function Tutor() {
       // O cartão procura um lugar que não cubra nem o alvo nem os pontos do mapa a clicar (senão atrapalharia o próprio passo).
       if (c) {
         const w = c.offsetWidth, h = c.offsetHeight, folga = 16, M = 12;
-        const livres: { left: number; top: number; right: number; bottom: number }[] = [];
-        if (visivel && caixa) livres.push({ left: caixa.left - 8, top: caixa.top - 8, right: caixa.right + 8, bottom: caixa.bottom + 8 });
-        marcas.current?.querySelectorAll<HTMLElement>('.tutor-ponto:not([hidden])').forEach(el => { const x = parseFloat(el.style.left), y = parseFloat(el.style.top); if (Number.isFinite(x) && Number.isFinite(y)) livres.push({ left: x - 34, top: y - 40, right: x + 60, bottom: y + 34 }); });
+        const alvosLivres: { left: number; top: number; right: number; bottom: number }[] = [];
+        if (visivel && caixa) alvosLivres.push({ left: caixa.left - 8, top: caixa.top - 8, right: caixa.right + 8, bottom: caixa.bottom + 8 });
+
+        const pontosLivres: { left: number; top: number; right: number; bottom: number }[] = [];
+        for (const pt of lista) {
+          const lugar = v ? v.clientDe([pt[0], pt[1]]) : null;
+          if (lugar && areaMapa && lugar[0] >= areaMapa.left && lugar[0] <= areaMapa.right && lugar[1] >= areaMapa.top && lugar[1] <= areaMapa.bottom) {
+            pontosLivres.push({ left: lugar[0] - 32, top: lugar[1] - 32, right: lugar[0] + 56, bottom: lugar[1] + 32 });
+          }
+        }
+
         const candidatos: [number, number][] = [];
-        if (visivel && caixa) candidatos.push([caixa.right + folga, caixa.top], [caixa.left - folga - w, caixa.top], [caixa.left, caixa.bottom + folga], [caixa.left, caixa.top - folga - h]);
-        candidatos.push([innerWidth - w - 24, innerHeight - h - 60], [innerWidth - w - 24, 70], [24, innerHeight - h - 60], [24, 70], [innerWidth / 2 - w / 2, innerHeight - h - 60], [innerWidth / 2 - w / 2, 70]);
-        const cabe = ([x, y]: [number, number]) => x >= M && y >= M && x + w <= innerWidth - M && y + h <= innerHeight - M && !livres.some(r => x < r.right && x + w > r.left && y < r.bottom && y + h > r.top);
-        const [esq, topo] = candidatos.find(cabe) ?? candidatos.find(([x, y]) => x >= M && y >= M && x + w <= innerWidth - M && y + h <= innerHeight - M) ?? [innerWidth - w - 24, innerHeight - h - 60];
+        if (visivel && caixa) {
+          candidatos.push([caixa.right + folga, caixa.top]);
+          candidatos.push([caixa.right + folga, innerHeight - h - 60]);
+          candidatos.push([caixa.left, caixa.bottom + folga]);
+          candidatos.push([caixa.left - folga - w, caixa.top]);
+          candidatos.push([caixa.left, caixa.top - folga - h]);
+        }
+        candidatos.push(
+          [innerWidth - w - 24, innerHeight - h - 60],
+          [innerWidth - w - 320, innerHeight - h - 60],
+          [innerWidth - w - 24, 70],
+          [innerWidth - w - 320, 70],
+          [innerWidth / 2 - w / 2, innerHeight - h - 60],
+          [24, innerHeight - h - 60],
+          [innerWidth / 2 - w / 2, 70],
+          [24, 70]
+        );
+
+        const cabeTudo = ([x, y]: [number, number]) =>
+          x >= M && y >= M && x + w <= innerWidth - M && y + h <= innerHeight - M &&
+          !alvosLivres.some(r => x < r.right && x + w > r.left && y < r.bottom && y + h > r.top) &&
+          !pontosLivres.some(r => x < r.right && x + w > r.left && y < r.bottom && y + h > r.top);
+
+        const cabePontos = ([x, y]: [number, number]) =>
+          x >= M && y >= M && x + w <= innerWidth - M && y + h <= innerHeight - M &&
+          !pontosLivres.some(r => x < r.right && x + w > r.left && y < r.bottom && y + h > r.top);
+
+        const cabeTela = ([x, y]: [number, number]) =>
+          x >= M && y >= M && x + w <= innerWidth - M && y + h <= innerHeight - M;
+
+        const [esq, topo] =
+          candidatos.find(cabeTudo) ??
+          candidatos.find(cabePontos) ??
+          candidatos.find(cabeTela) ??
+          [innerWidth - w - 24, innerHeight - h - 60];
+
         c.style.left = `${Math.round(esq)}px`; c.style.top = `${Math.round(topo)}px`;
       }
     };
@@ -123,6 +182,7 @@ export function Tutor() {
         {passo.porque && <p class="tutor-porque" dangerouslySetInnerHTML={{ __html: passo.porque }} />}
         <div class="tutor-perto" hidden><span /><i><b /></i></div>
         {valores && <p class="tutor-valores" data-testid="tutor-valores" dangerouslySetInnerHTML={{ __html: valores }} />}
+        <button type="button" class="quieto tutor-focar-pontos" hidden data-testid="tutor-focar" onClick={() => viewport.atual?.enquadrar()} title="Enquadrar o mapa (F)">📍 Focar nos pontos do mapa (F)</button>
         <p class="tutor-perdido" hidden>Não encontrei este controle na tela. Siga a instrução acima; se não der, pule o passo.</p>
         {ajuda.oferecer && <div class="tutor-ajuda">
           {passo.tentar && passo.alvo && !ajuda.mostrouOnde && <button type="button" class="quieto" data-testid="tutor-onde" onClick={() => tutor.mostrarOnde()}>Mostrar onde</button>}
