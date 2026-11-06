@@ -141,7 +141,7 @@ Testes: rodar `npm test` e conferir que todos os atalhos e seletores de ferramen
 Pronto quando: a barra inferior flutua organizada no pé do mapa com histórico, ferramentas, opções rápidas e o botão de olho da vista de jogador.
 Commit: feat(atlas): unify bottom floating utility toolbar with submenus and player view toggle
 
-### 11.3b — Relógio/cronômetro de sessão e contadores dramáticos no canto superior direito  ⬜
+### 11.3b — Relógio/cronômetro de sessão e contadores dramáticos no canto superior direito  ✅
 Objetivo: adicionar os widgets flutuantes no canto superior direito do mapa (contador dramático e cronômetro/relógio de cena).
 Depende de: 11.3a
 Ler: `src/ui/Editor.tsx`, `src/domain/mapa.ts` (`Clima`), `src/ui/estilo.css`.

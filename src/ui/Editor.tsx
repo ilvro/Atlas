@@ -24,6 +24,7 @@ import { aspectoDoProjetor, caixaDoProjetor, mostrarQuadroDoProjetor, projetorCo
 import { Inspetor } from './Inspetor.tsx';
 import { PilulaDeSugestao } from './PilulaDeSugestao.tsx';
 import { BarraInferior } from './BarraInferior.tsx';
+import { WidgetsDeTopo } from './WidgetsDeTopo.tsx';
 
 const zoomPct = signal(100), cursorMundo = signal<[number, number] | null>(null), pintando = signal(0);
 
@@ -114,6 +115,7 @@ export function Editor() {
       <Biblioteca s={s} />
       <div class="area-com-cartao">
         <AreaDoMapa s={s} />
+        <WidgetsDeTopo s={s} />
         <CartaoContextual s={s} />
         <BarraInferior s={s} />
         {modo.value === 'sessao' && <Dock s={s} />}
