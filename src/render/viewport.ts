@@ -113,6 +113,7 @@ export interface Viewport {
   contagemDeParticulas(): ReturnType<Cena['contagemDeParticulas']>;
   contagemDePresencas(): number;
   contagemDePresencasSubmersas(): number;
+  contagemDeCachoeiras(): number;
   /** Se a superfície animada da água está desenhada (para os testes). */
   aguaAtiva(): boolean;
   /** Quantos objetos de piso já têm a textura pintada (para os testes). */
@@ -849,6 +850,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     contagemDeParticulas: () => cena.contagemDeParticulas(),
     contagemDePresencas: () => cena.contagemDePresencas(),
     contagemDePresencasSubmersas: () => cena.contagemDePresencasSubmersas(),
+    contagemDeCachoeiras: () => cena.contagemDeCachoeiras(),
     aguaAtiva: () => cena.aguaAtiva(),
     objetosPintados: () => cena.objetosPintados(),
     diagnosticoDasPecas: () => cena.diagnosticoDasPecas(),

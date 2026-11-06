@@ -24,6 +24,8 @@ test('as receitas do kit exterior desenham sem erro, com pegada estável e parte
     const c = caixaDasPartes(d.tipo === 'piso' ? d.partes : []); assert.ok(c.x1 - c.x0 <= r.pegada[0] + 0.2 && c.y1 - c.y0 <= r.pegada[1] + 0.2, `${r.id}: partes passam da pegada`);
   }
   assert.ok(pegadaDaReceita('cerca', { largura: 4 })[0] > pegadaDaReceita('cerca', { largura: 1 })[0], 'a cerca tem trecho com largura');
+  assert.deepEqual(pegadaDaReceita('cachoeira', { largura: 5, queda: 7 }), [5, 7], 'cachoeira responde a largura e queda');
+  assert.equal(ACERVO.item('cachoeira')?.animacao, 'cachoeira');
   assert.equal(RECEITAS_EXTERIORES.filter(r => r.id.startsWith('pedra.')).length, 3);
 });
 

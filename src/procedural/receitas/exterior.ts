@@ -51,4 +51,47 @@ export const RECEITAS_EXTERIORES: Receita[] = [
     gerar: p => { const r = mulberry32(p.seed); return piso([0.6, 0.6], [ret(0, 0, 0.6, 0.6, '#b6b2a8', 0.5, { raio: 0.03, contorno: 'leve' }), elipse(0, 0, 0.5, 0.5, '#c9c5bb', 0.9, { contorno: 'leve', detalhe: 2 }), elipse(0, 0, 0.4, 0.4, '#2a1b12', 0.95, { contorno: false, semSombra: true, detalhe: 3 }), ...Array.from({ length: 10 }, () => elipse((r() - 0.5) * 0.3, (r() - 0.5) * 0.3, 0.2, 0.14, '#3f7a3c', 1.2 + r() * 0.1, { contorno: false, sombraLeve: true, detalhe: 2 }))]); } },
   { id: 'pilar', nome: 'Pilar', ...G, funcoes: ['varanda', 'jardim', 'sala', 'capela'], tags: ['pilar', 'coluna', 'pedra'], pegada: [0.5, 0.5],
     gerar: () => piso([0.5, 0.5], [ret(0, 0, 0.5, 0.5, '#b6b2a8', 1.5, { raio: 0.03, contorno: 'leve' }), ret(0, 0, 0.38, 0.38, '#d2cec4', 1.7, { raio: 0.02, contorno: 'leve', detalhe: 2 }), ret(0, 0, 0.26, 0.26, '#c4c0b6', 1.8, { contorno: false, semSombra: true, detalhe: 3 })]) },
+  { id: 'cachoeira', nome: 'Cachoeira', ...G, funcoes: ['jardim', 'agua'], tags: ['cachoeira', 'agua', 'rio', 'rocha', 'queda', 'natureza'], pegada: [3, 4], altura: 0.4, animacao: 'cachoeira',
+    campos: [
+      { id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 3, min: 1.5, max: 8, passo: 0.5 },
+      { id: 'queda', rotulo: 'Queda', tipo: 'numero', padrao: 4, min: 2, max: 10, passo: 0.5 },
+    ],
+    gerar: p => {
+      const r = mulberry32(p.seed), W = num(p, 'largura', 3, 1.5, 8), H = num(p, 'queda', 4, 2, 10);
+      const partes: Parte[] = [
+        // Leito molhado de rocha escura e canal da queda
+        ret(0, 0, W * 0.88, H * 0.92, '#2d3d47', 0.35, { raio: Math.min(W, H) * 0.08, contorno: 'leve', sombraLeve: true }),
+        ret(0, H * 0.02, W * 0.66, H * 0.86, '#3e6a7e', 0.4, { raio: Math.min(W, H) * 0.06, contorno: false, semSombra: true, detalhe: 2 }),
+        ret(0, H * 0.03, W * 0.52, H * 0.8, '#5a8ea3', 0.42, { raio: Math.min(W, H) * 0.05, contorno: false, semSombra: true, detalhe: 2 }),
+        // Borda/soleira rochosa no topo e crista de espuma
+        ret(0, -H * 0.41, W * 0.82, H * 0.12, '#48505a', 0.48, { raio: 0.05, contorno: 'leve', detalhe: 2 }),
+        elipse(0, -H * 0.38, W * 0.62, Math.min(0.45, H * 0.14), '#cdecf5', 0.52, { contorno: false, semSombra: true, detalhe: 2 }),
+        elipse(0, -H * 0.39, W * 0.48, Math.min(0.28, H * 0.09), '#eefaff', 0.54, { contorno: false, semSombra: true, detalhe: 3 }),
+        // Espuma de base no pé da queda (para miniatura e base sob o shader)
+        elipse(0, H * 0.36, W * 0.64, Math.min(0.55, H * 0.18), '#9ecad8', 0.49, { contorno: false, semSombra: true, detalhe: 2 }),
+        elipse(0, H * 0.35, W * 0.46, Math.min(0.36, H * 0.12), '#dcf4fa', 0.51, { contorno: false, semSombra: true, detalhe: 3 }),
+      ];
+      // Fios verticais de água na base assada
+      for (let i = 0; i < 5; i++) {
+        const fx = ((i - 2) / 2.5) * W * 0.24 + (r() - 0.5) * W * 0.04;
+        partes.push(ret(fx, -H * 0.02, Math.max(0.08, W * 0.05), H * 0.68, i % 2 ? '#8cc2d4' : '#bce6f2', 0.45 + i * 0.005, { raio: 0.03, contorno: false, semSombra: true, detalhe: 3 }));
+      }
+      // Paredões e pedras molhadas nas bordas esquerda e direita da queda
+      const nPedras = Math.max(4, Math.round(H * 1.4));
+      for (const lado of [-1, 1] as const) {
+        for (let i = 0; i < nPedras; i++) {
+          const t = (i + 0.5) / nPedras;
+          const pw = Math.min(W * 0.22, 0.28 + r() * 0.18), ph = Math.min(H / nPedras * 1.35, 0.32 + r() * 0.22);
+          const cx = lado * (W * 0.36 + (r() - 0.5) * W * 0.04), cy = -H * 0.4 + t * H * 0.78;
+          const cor = PEDRA[i % PEDRA.length]!, z = 0.6 + i * 0.02 + (lado > 0 ? 0.01 : 0);
+          partes.push(
+            elipse(cx + 0.02, cy + 0.02, pw, ph, '#353840', z, { contorno: 'leve', sombraLeve: true }),
+            elipse(cx, cy, pw * 0.88, ph * 0.88, cor, z + 0.005, { contorno: false, semSombra: true, detalhe: 2 }),
+            elipse(cx - pw * 0.14, cy - ph * 0.14, pw * 0.42, ph * 0.36, '#9699a3', z + 0.01, { contorno: false, semSombra: true, detalhe: 3 }),
+          );
+          if (r() < 0.35) partes.push(elipse(cx + lado * pw * 0.1, cy, pw * 0.38, ph * 0.28, '#4f7a3a', z + 0.012, { contorno: false, semSombra: true, detalhe: 3 }));
+        }
+      }
+      return piso([W, H], partes);
+    } },
 ];

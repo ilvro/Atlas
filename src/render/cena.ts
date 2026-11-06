@@ -24,6 +24,7 @@ import type { RetratoNoPixel } from './retratos.ts';
 import { paletaDe } from '../domain/paletas.ts';
 import { criarPresenca } from './presenca.ts';
 import { criarAgua } from './agua.ts';
+import { criarCachoeiras } from './cachoeiras.ts';
 import { criarSombrasDoSol } from './sombras-do-sol.ts';
 
 export interface OpcoesDaCena {
@@ -71,6 +72,8 @@ export interface Cena {
   contagemDePresencas(): number;
   /** Quantas presenças submersas estão desenhadas agora. */
   contagemDePresencasSubmersas(): number;
+  /** Quantas cachoeiras animadas estão desenhadas agora. */
+  contagemDeCachoeiras(): number;
   /** Se a superfície animada da água está desenhada (para testes). */
   aguaAtiva(): boolean;
   /** Quantas partículas de cada tipo existem agora. */
@@ -85,10 +88,10 @@ interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; 
 export function criarCena(op: OpcoesDaCena): Cena {
   const raiz = new Container(), terrenoC = new Container(), submersosC = new Container(), escarpasC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics();
   const marcasG = new Graphics(), regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), tituloC = new Container();
-  const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados(), neblina = criarNeblina(), bordas = criarBordas(), particulas = criarParticulas(), presenca = criarPresenca(), agua = criarAgua(), sombras = criarSombrasDoSol();
+  const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados(), neblina = criarNeblina(), bordas = criarBordas(), particulas = criarParticulas(), presenca = criarPresenca(), agua = criarAgua(), cachoeiras = criarCachoeiras(), sombras = criarSombrasDoSol();
   const halos = criarHalos(luz, telhados);
   // A luz multiplica tudo o que está embaixo (piso, objetos, paredes); marcadores, regiões e peças ficam por cima, sempre legíveis.
-  raiz.addChild(terrenoC, presenca.submerso, submersosC, agua.raiz, escarpasC, sombras.raiz, comodosC, objetosC, paredesG, presenca.abaixo, luz.sprite, presenca.acima, halos.raiz, neblina.raiz, particulas.raiz, bordas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
+  raiz.addChild(terrenoC, presenca.submerso, submersosC, agua.raiz, escarpasC, sombras.raiz, comodosC, objetosC, cachoeiras.raiz, paredesG, presenca.abaixo, luz.sprite, presenca.acima, halos.raiz, neblina.raiz, particulas.raiz, bordas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
 
   let mapa: MapaAtlas | null = null, vistaDaCena: Vista = 'construir', destruida = false, pintandoAgora = 0, ultimoQuadro = -1;
   const salas = new Map<string, Entrada>(), objetos = new Map<string, Entrada>();
@@ -378,6 +381,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid')) sincronizarComodos(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid', 'session', 'style')) desenharParedes(m);
       if (tudo || colecao('props') || campos('style')) sincronizarObjetos(m, tudo || campos('style') ? null : mud!.colecoes.props ?? null, comPop);
+      if (tudo || colecao('props') || campos('style', 'grid')) cachoeiras.sincronizar(m);
       if (tudo || colecao('props') || colecao('walls') || campos('climate', 'terrain', 'bounds', 'style')) sombras.atualizar(m, objetos, pixelRes0(m));
       if (tudo || colecao('props')) desenharMarcas(m);
       agua.sincronizar(m); if (tudo || colecao('props') || campos('style')) agua.objetos(m);
@@ -407,13 +411,14 @@ export function criarCena(op: OpcoesDaCena): Cena {
     contagemDeParticulas: () => particulas.contagem(),
     contagemDePresencas: () => presenca.contagem(),
     contagemDePresencasSubmersas: () => presenca.contagemSubmersas(),
+    contagemDeCachoeiras: () => cachoeiras.contagem(),
     aguaAtiva: () => agua.ativa(),
     diagnosticoDasPecas: () => [...pecas.entries()].map(([id, c]) => ({ id, ...(visuais.get(c)?.estado() ?? { vez: false, retrato: false, deitada: false, raio: 0, deslizando: false, trilha: 0, quadro: null, pips: null, estadoVisto: 'normal' }) })),
     objetosPintados: () => [...objetos.values()].filter(e => e.sprite !== null && !e.placeholder.visible).length,
     quadro(agora) {
       luz.quadro(agora); nevoa.quadro(agora); telhados.quadro(agora);
       for (const c of pecas.values()) visuais.get(c)?.quadro(agora, op.efeitos());
-      const dt = ultimoQuadro < 0 ? 0 : (agora - ultimoQuadro) / 1000; ultimoQuadro = agora; neblina.quadro(dt); bordas.quadro(dt); particulas.quadro(dt); presenca.quadro(dt); agua.quadro(dt); halos.quadro(agora, dt);
+      const dt = ultimoQuadro < 0 ? 0 : (agora - ultimoQuadro) / 1000; ultimoQuadro = agora; neblina.quadro(dt); bordas.quadro(dt); particulas.quadro(dt); presenca.quadro(dt); agua.quadro(dt); cachoeiras.quadro(dt); halos.quadro(agora, dt);
       for (let i = animacoes.length - 1; i >= 0; i--) {
         const a = animacoes[i]!, t = Math.min(1, (agora - a.t0) / a.dur), e = 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2;   // easeOutBack
         if (a.alvo.destroyed) { animacoes.splice(i, 1); continue; }
@@ -425,7 +430,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       destruida = true; if (terrenoTimer) clearTimeout(terrenoTimer);
       for (const e of [...salas.values(), ...objetos.values(), ...(terreno ? [terreno] : [])]) soltar(e.chaveTextura);
       for (const t of texturas.values()) t.tex.destroy(true); texturas.clear();
-      sombras.destruir(); luz.destruir(); halos.destruir(); nevoa.destruir(); telhados.destruir(); neblina.destruir(); bordas.destruir(); particulas.destruir(); presenca.destruir(); agua.destruir(); raiz.destroy({ children: true });
+      sombras.destruir(); luz.destruir(); halos.destruir(); nevoa.destruir(); telhados.destruir(); neblina.destruir(); bordas.destruir(); particulas.destruir(); presenca.destruir(); agua.destruir(); cachoeiras.destruir(); raiz.destroy({ children: true });
     },
   };
 }

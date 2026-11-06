@@ -20,6 +20,8 @@ export interface Receita {
   altura?: number;
   /** Objeto de fundo de água: ao pôr no mapa nasce `elevation: 'underwater'`, sem sombra e sem bloquear. */
   submerso?: boolean;
+  /** Animação própria acrescentada pela cena por cima da parte assada. */
+  animacao?: 'cachoeira';
   campos?: CampoDeReceita[];
   gerar(p: PedidoDeReceita): Descricao;
 }
