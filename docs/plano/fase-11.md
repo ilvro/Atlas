@@ -29,7 +29,7 @@ Esta fase do **Atlas** é **100% independente** do desenvolvimento da interface 
 
 ---
 
-### 11.1a — Estado de abas de mapas abertos e barra de abas no topo  ⬜
+### 11.1a — Estado de abas de mapas abertos e barra de abas no topo  ✅
 Objetivo: permitir manter vários mapas abertos em abas no topo do Atlas, abrindo novos mapas pelo botão `+` e alternando entre eles sem precisar voltar à Galeria.
 Depende de: —
 Ler: `src/app/app.ts` (`abrirMapa`, `fecharSessao`, `resumos`, `navegar`, `renomearMapaAberto`), `src/ui/Cabecalho.tsx`, `src/ui/estilo.css`.

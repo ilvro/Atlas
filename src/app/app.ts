@@ -33,6 +33,7 @@ import { criarSessao, type SessaoDeEdicao } from './sessao.ts';
 import { iniciarTema } from './tema.ts';
 import { avisar } from './toasts.ts';
 import { comTransicao } from './transicao.ts';
+import { abasAbertas, atualizarNomeDaAba, fecharAba, lembrarCameraDaAba, registrarAbaAberta } from './abas.ts';
 
 // ---------- Estado global da interface ----------
 export const servicos = signal<Servicos | null>(null);
@@ -137,6 +138,9 @@ export function relampagoNoProjetor(): void { publicador?.relampago(); }
 export function abrirProjetor(): void { const s = sessao.value; if (s) abrirJanelaDoProjetor(s.doc.value.id); }
 export function fecharSessao(): void {
   const atual = sessao.value; if (!atual) return;
+  if (viewport.atual?.camera) {
+    lembrarCameraDaAba(atual.doc.value.id, { ...viewport.atual.camera });
+  }
   pararSugestoes?.(); pararSugestoes = null; pararRegioes?.(); pararRegioes = null; publicador?.parar(); publicador = null; modo.value = 'construir'; vistaDeJogador.value = false;
   void atual.auto.descarregar().finally(() => atual.fechar());
   viewport.atual = null; sessao.value = null;
@@ -150,7 +154,11 @@ async function abrirMapa(id: string, comodo?: string): Promise<void> {
     const mapa = await s.repo.obter(id);
     if (!mapa) { await comTransicao(fecharSessao); mapaAusente.value = id; return; }
     await comTransicao(() => {
+      if (sessao.value && viewport.atual?.camera) {
+        lembrarCameraDaAba(sessao.value.doc.value.id, { ...viewport.atual.camera });
+      }
       fecharSessao();
+      registrarAbaAberta(mapa.id, mapa.name);
       const nova = criarSessao(mapa, s.repo, { salvo: true });
       modo.value = embutido ? 'sessao' : 'construir'; vistaDeJogador.value = false; pararSugestoes = iniciarSugestoes(nova, viewport);
       publicador = iniciarPublicacao(nova, async id => (await s.repo.obterAsset(id))?.blob ?? null);
@@ -208,6 +216,7 @@ export async function removerMapa(id: string): Promise<void> {
   const s = servicos.value; if (!s) return;
   const mapa = await s.repo.obter(id); if (!mapa) return;
   await s.repo.remover(id);
+  fecharAba(id);
   const lugar = await desvincularMapa(s, mapa);
   await atualizarLista(); tocar('remover');
   avisar(`“${mapa.name}” removido.`, { duracao: 8000, acao: { rotulo: 'Desfazer', fazer: () => { void (async () => { await s.repo.restaurar(mapa); await revincularMapa(s, mapa, lugar); await atualizarLista(); tocar('refazer'); avisar('Mapa restaurado.'); })(); } } });
@@ -218,6 +227,7 @@ export async function renomearMapaAberto(nome: string): Promise<void> {
   const limpo = nome.trim().slice(0, 120);
   if (!limpo || limpo === s.doc.value.name) return;
   s.store.executar({ tipo: 'mapa.renomear', nome: limpo });
+  atualizarNomeDaAba(s.doc.value.id, limpo);
 }
 
 // ---------- Gravar, exportar, importar ----------
@@ -522,6 +532,14 @@ aoRolar(r => {
 
 // PV e PD novos vindos da Ficha: as peças ligadas refazem os pips (só elas).
 effect(() => { void recursosDasFichas.value; viewport.atual?.redesenharPecas(); });
+
+// Mantém o nome da aba sincronizado com as mudanças do documento (ex.: desfazer/refazer).
+effect(() => {
+  const s = sessao.value;
+  if (s) {
+    atualizarNomeDaAba(s.doc.value.id, s.doc.value.name);
+  }
+});
 
 // Abrir o mapa na sessão pede ao Jukebox a cena do mapa (uma vez por mapa e por entrada na sessão).
 let mapaDoSom: string | null = null;

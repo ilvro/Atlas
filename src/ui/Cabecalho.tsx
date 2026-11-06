@@ -1,12 +1,12 @@
 import { mostrarAtalho } from '../app/atalhos.ts';
 import { embutido } from '../app/embutido.ts';
 import { acaoPorId, executarAcao, fxLigado, somLigado } from '../app/acoes.ts';
-import { abrirProjetor, ajudaAberta, navegar, paletaAberta, renomearMapaAberto, rota, sessao } from '../app/app.ts';
+import { abrirProjetor, ajudaAberta, navegar, paletaAberta, rota, sessao } from '../app/app.ts';
 import { ROTULO_DO_MODO, modo, vistaDeJogador, type Modo } from '../app/modo.ts';
-import { tituloDoEstado } from '../app/sessao.ts';
 import { tema, trocarTema } from '../app/tema.ts';
 import { TEMAS, type TemaId } from '#mesa';
 import { Icone } from './Icone.tsx';
+import { AbasDeMapas } from './AbasDeMapas.tsx';
 
 const executar = (id: string) => () => { const a = acaoPorId(id); if (a) executarAcao(a); };
 const dica = (nome: string, id: string) => { const t = acaoPorId(id)?.atalhos?.[0]; return t ? `${nome} (${mostrarAtalho(t)})` : nome; };
@@ -33,16 +33,7 @@ export function Cabecalho() {
   return (
     <header class={`cabecalho ${noEditor && modo.value === 'sessao' ? 'em-sessao' : ''}`} data-modo={noEditor ? modo.value : undefined}>
       <a class="marca" href="#/" onClick={e => { e.preventDefault(); navegar({ tipo: 'galeria' }); }} aria-label="Atlas: ir para a galeria"><span class="marca-escudo" aria-hidden="true">◈</span> ATLAS</a>
-      {noEditor && s ? (<>
-        <span class="separador" aria-hidden="true">/</span>
-        <input id="nome-do-mapa" class="nome-do-mapa" key={s.doc.value.id + s.doc.value.name} defaultValue={s.doc.value.name} aria-label="Nome do mapa" maxLength={120} spellcheck={false}
-          onFocus={e => (e.target as HTMLInputElement).select()}
-          onChange={e => { const v = (e.target as HTMLInputElement).value; if (!v.trim()) (e.target as HTMLInputElement).value = s.doc.value.name; else void renomearMapaAberto(v); }}
-          onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
-        <span class={`estado ${s.gravacao.value}${s.sujo.value ? ' sujo' : ''}`} data-testid="estado-gravacao" data-estado={s.gravacao.value} data-sujo={String(s.sujo.value)} role="status" title={tituloDoEstado(s.gravacao.value, s.sujo.value)}>
-          <i aria-hidden="true" />{tituloDoEstado(s.gravacao.value, s.sujo.value)}
-        </span>
-      </>) : null}
+      {noEditor && s ? <AbasDeMapas /> : null}
       {noEditor && modo.value === 'sessao' ? <span class="faixa-sessao" data-testid="faixa-sessao">SESSÃO</span> : null}
       {noEditor && modo.value === 'sessao' ? <button type="button" class="botao-pilula botao-vista" aria-pressed={vistaDeJogador.value} title={dica('Ver como jogador', 'vista-jogador')} onClick={executar('vista-jogador')} data-testid="vista-jogador"><Icone nome="olho" tamanho={14} />Ver como jogador</button> : null}
       <span class="espaco" />

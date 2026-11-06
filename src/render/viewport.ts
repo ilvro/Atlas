@@ -75,6 +75,8 @@ export interface PonteViewport {
   aoInteragir?(alvo: Alvo): void;
   /** Como a régua conta as diagonais (preferência local). */
   regraDaRegua?(): RegraDeDiagonal;
+  /** Câmera salva para restaurar ao abrir o mapa (em vez de enquadrar do zero). */
+  cameraInicial?: Camera;
 }
 
 /** Quanto dura a transição entre dois climas, em milissegundos, se ninguém escolheu outra. */
@@ -88,6 +90,7 @@ export interface Viewport {
   ponteiro(): Ponto | null;
   centro(): Ponto;
   enquadrar(): void;
+  definirCamera(camera: Camera): void;
   focarEm(caixa: Caixa): void;
   zoomPor(fator: number): void;
   /** Posição na tela do navegador (px de `client`) de um ponto do mundo, para ancorar efeitos DOM e o cartão contextual. */
@@ -840,7 +843,11 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   cena.definirModoProjetor(somenteLeitura);
   cena.definirVista(ponte.vista?.() ?? 'construir');      // o projetor já nasce na vista de jogador
   redesenharTudo();
-  enquadrarMapa();
+  if (ponte.cameraInicial) {
+    definirCamera(ponte.cameraInicial);
+  } else {
+    enquadrarMapa();
+  }
 
   return {
     get camera() { return camera; },
@@ -849,6 +856,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     ponteiro: () => ponteiro,
     centro: () => telaParaMundo(camera, [app.screen.width / 2, app.screen.height / 2]),
     enquadrar: enquadrarMapa, focarEm, zoomPor,
+    definirCamera: (c: Camera) => definirCamera(c),
     enquadrarCaixa(c, suave) {
       const alvo = calcularEnquadre({ x: c.x0, y: c.y0, largura: Math.max(c.x1 - c.x0, 1), altura: Math.max(c.y1 - c.y0, 1) }, tela(), 0);
       if (!suave || movimentoReduzido()) { camAnim = null; definirCamera(alvo); } else camAnim = { de: camera, para: alvo, t0: performance.now() };

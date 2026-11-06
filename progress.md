@@ -382,3 +382,7 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 - Camadas de objetos: `layer` opcional no objeto, comando `objeto.camada`, botões no Inspetor e atalhos Ctrl+[ / Ctrl+] (com Shift: frente/trás).
 
 - Fase 10.4b: paralelepípedo, lajes com grama, terra com sulcos (seguem a orientação da camada) e areia molhada, nos dois estilos.
+
+## Fase 11 — Abas de Mapas, Prévia do Dossiê, Barra Inferior e Grade Avançada
+
+- **11.1a Estado de abas de mapas abertos e barra de abas no topo** — estado persistido em `localStorage['atlas:abas-abertas']` (`src/app/abas.ts`), memorização e restauração da câmera por aba ao trocar de mapa sem foco pendente, barra de abas no topo com nome editável, estado de gravação e botão fechar por aba, botão `+` com popover de busca rápida e criação de mapa (`src/ui/AbasDeMapas.tsx`). Testes unitários em `tests/unit/abas.test.ts`. Commit: `feat(atlas): add multi-map tabs bar with camera memory`.

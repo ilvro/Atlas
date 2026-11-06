@@ -6,7 +6,8 @@ import { useEffect, useRef } from 'preact/hooks';
 import { signal, useSignalEffect } from '@preact/signals';
 import { acaoPorId, executarAcao } from '../app/acoes.ts';
 import { FERRAMENTAS_DA_SESSAO, duracaoDoClima, modo, regraDaRegua, vistaAtual } from '../app/modo.ts';
-import { acabamentoLigado, adicionarEm, alternarPorta, usarObjeto, aoColocar, focarNoComodo, menuRadial, servicos, sessao, viewport as viewportAtual } from '../app/app.ts';
+import { acabamentoLigado, adicionarEm, alternarPorta, usarObjeto, aoColocar, focarNoComodo, focoPendente, menuRadial, servicos, sessao, viewport as viewportAtual } from '../app/app.ts';
+import { obterCameraDaAba } from '../app/abas.ts';
 import { mostrarAtalho } from '../app/atalhos.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { tema } from '../app/tema.ts';
@@ -48,8 +49,10 @@ function Ferramentas({ s }: { s: SessaoDeEdicao }) {
 }
 
 function ponteDa(s: SessaoDeEdicao): PonteViewport {
+  const camSalva = !focoPendente.peek() ? obterCameraDaAba(s.doc.value.id) : undefined;
   return {
     store: s.store,
+    cameraInicial: camSalva,
     selecao: () => s.selecao.peek(),
     definirSelecao: alvos => { s.selecao.value = alvos; tocar('selecionar'); },
     ferramenta: () => s.ferramenta.peek(),

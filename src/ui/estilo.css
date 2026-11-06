@@ -72,6 +72,35 @@ kbd { font: 700 10px var(--corpo); padding: 1px 5px; border: 1px solid currentCo
 .estado.gravando i { background: #5aa9e6; animation: pulso 0.9s infinite; }
 .estado.conflito i, .estado.erro i { background: var(--perigo); }
 @keyframes pulso { 50% { opacity: 0.3; } }
+
+/* ---- Barra de Abas de Mapas ---- */
+.abas-de-mapas { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.abas-lista { display: flex; align-items: center; gap: 4px; max-width: 44vw; overflow-x: auto; scrollbar-width: none; }
+.abas-lista::-webkit-scrollbar { display: none; }
+.aba-mapa { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 8px; border-radius: var(--raio); background: rgba(255, 255, 255, 0.03); border: 1px solid var(--linha); color: var(--apagado); transition: background 0.15s, border-color 0.15s, color 0.15s; cursor: pointer; flex-shrink: 0; max-width: 260px; user-select: none; }
+.aba-mapa:hover { background: var(--superficie-2); border-color: var(--linha-forte); color: var(--texto); }
+.aba-mapa.ativa { background: var(--superficie-2); border-color: var(--acento); color: var(--texto); cursor: default; box-shadow: 0 0 0 1px var(--acento-suave); }
+.aba-rotulo { font: 700 13px var(--titulo); letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+.aba-mapa .nome-do-mapa { font-size: 13.5px; padding: 2px 4px; min-width: 80px; max-width: 160px; height: 26px; }
+.aba-mapa .estado { font-size: 11px; gap: 5px; flex-shrink: 0; }
+.botao-fechar-aba { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 3px; color: var(--apagado); opacity: 0.65; transition: opacity 0.15s, background 0.15s, color 0.15s; flex-shrink: 0; padding: 0; }
+.botao-fechar-aba:hover { opacity: 1; color: var(--perigo); background: rgba(255, 107, 107, 0.15); }
+.aba-mais-container { position: relative; flex-shrink: 0; }
+.aba-mais { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: var(--raio); border: 1px dashed var(--linha); color: var(--apagado); transition: border-color 0.15s, color 0.15s, background 0.15s; }
+.aba-mais:hover, .aba-mais[aria-expanded='true'] { border-color: var(--acento); color: var(--acento); background: var(--acento-suave); }
+
+/* Popover Nova Aba */
+.popover-nova-aba { position: absolute; top: calc(100% + 6px); left: 0; width: 280px; max-height: 360px; background: var(--painel); border: 1px solid var(--linha-forte); border-radius: 8px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55); backdrop-filter: blur(12px); padding: 8px; z-index: 100; display: flex; flex-direction: column; gap: 8px; animation: popover-entra 0.12s ease-out; }
+@keyframes popover-entra { from { opacity: 0; transform: translateY(-4px); } }
+.popover-nova-aba .busca-nova-aba { width: 100%; height: 32px; padding: 4px 8px; font-size: 13px; background: var(--superficie-2); border: 1px solid var(--linha); border-radius: 6px; color: var(--texto); }
+.popover-nova-aba .item-criar-novo { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 10px; border-radius: 5px; background: var(--acento-suave); border: 1px solid var(--acento-media); color: var(--acento); font-weight: 600; font-size: 12.5px; text-align: left; cursor: pointer; transition: background 0.15s; }
+.popover-nova-aba .item-criar-novo:hover { background: color-mix(in srgb, var(--acento), transparent 75%); }
+.popover-nova-aba .lista-mapas-aba { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; max-height: 220px; }
+.popover-nova-aba .item-mapa-aba { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 6px 8px; border-radius: 4px; font-size: 13px; text-align: left; color: var(--texto); background: transparent; cursor: pointer; transition: background 0.12s; }
+.popover-nova-aba .item-mapa-aba:hover { background: var(--superficie-2); color: var(--acento); }
+.popover-nova-aba .item-mapa-nome { font-family: var(--titulo); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.popover-nova-aba .item-mapa-campanha { font-size: 10.5px; color: var(--apagado); margin-left: 8px; flex-shrink: 0; }
+.popover-nova-aba .popover-vazio { padding: 12px 8px; text-align: center; color: var(--apagado); font-size: 12px; }
 .grupo { display: flex; align-items: center; gap: 6px; }
 .botao-icone { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: var(--raio); color: var(--apagado); transition: background 0.15s, color 0.15s; }
 .botao-icone:hover:not(:disabled) { background: var(--superficie-2); color: var(--texto); }
