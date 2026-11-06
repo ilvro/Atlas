@@ -103,14 +103,29 @@ export const presetDeClima = (id: string): PresetDeClima | undefined => PRESETS_
 
 // ---------- Presença ----------
 export type PacoteDePresenca = 'natural' | 'sobrenatural' | 'ordem';
+export type FormaDePresenca = 'mancha' | 'arrastado' | 'sulcos';
 /** Um pincel de presença: o que ele pinta e como parece (cor, se brilha acima da luz, ritmo da pulsação e escala do ruído). */
-export interface PincelDePresenca { id: string; nome: string; pacote: PacoteDePresenca; cor: string; brilho: boolean; pulso: number; escala: number }
+export interface PincelDePresenca {
+  id: string;
+  nome: string;
+  pacote: PacoteDePresenca;
+  cor: string;
+  brilho: boolean;
+  pulso: number;
+  escala: number;
+  forma?: FormaDePresenca;
+  submerso?: boolean;
+}
 export const PACOTES_DE_PRESENCA: readonly { id: PacoteDePresenca; nome: string }[] = [{ id: 'natural', nome: 'Natural' }, { id: 'sobrenatural', nome: 'Sobrenatural' }, { id: 'ordem', nome: 'Ordem Paranormal' }];
 // As cores dos cinco elementos são as da Ficha (ELEMENT_COLORS).
 export const PINCEIS_DE_PRESENCA: readonly PincelDePresenca[] = [
   { id: 'musgo', nome: 'Musgo', pacote: 'natural', cor: '#4f7a34', brilho: false, pulso: 0, escala: 1 },
   { id: 'mofo', nome: 'Mofo', pacote: 'natural', cor: '#5b6a4a', brilho: false, pulso: 0, escala: 1.6 },
   { id: 'poca', nome: 'Poça', pacote: 'natural', cor: '#3a5a78', brilho: false, pulso: 0, escala: 0.6 },
+  { id: 'sangue-seco', nome: 'Sangue seco', pacote: 'natural', cor: '#5c1f18', brilho: false, pulso: 0, escala: 0.9, forma: 'arrastado' },
+  { id: 'fuligem', nome: 'Fuligem', pacote: 'natural', cor: '#1f1b18', brilho: false, pulso: 0, escala: 1.1, forma: 'mancha' },
+  { id: 'sulcos', nome: 'Sulcos', pacote: 'natural', cor: '#3c3024', brilho: false, pulso: 0, escala: 1, forma: 'sulcos' },
+  { id: 'algas', nome: 'Algas', pacote: 'natural', cor: '#234a2e', brilho: false, pulso: 0, escala: 1.2, forma: 'mancha', submerso: true },
   { id: 'corrupcao', nome: 'Corrupção', pacote: 'sobrenatural', cor: '#7a2a8a', brilho: true, pulso: 0.5, escala: 1.2 },
   { id: 'sombra', nome: 'Sombra', pacote: 'sobrenatural', cor: '#0a0710', brilho: false, pulso: 0.25, escala: 0.8 },
   { id: 'ordem.sangue', nome: 'Sangue', pacote: 'ordem', cor: '#e0150d', brilho: true, pulso: 0.7, escala: 1 },

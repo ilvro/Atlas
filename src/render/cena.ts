@@ -69,6 +69,8 @@ export interface Cena {
   redesenharPecas(): void;
   /** Quantas presenças estão desenhadas agora. */
   contagemDePresencas(): number;
+  /** Quantas presenças submersas estão desenhadas agora. */
+  contagemDePresencasSubmersas(): number;
   /** Se a superfície animada da água está desenhada (para testes). */
   aguaAtiva(): boolean;
   /** Quantas partículas de cada tipo existem agora. */
@@ -86,7 +88,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
   const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados(), neblina = criarNeblina(), bordas = criarBordas(), particulas = criarParticulas(), presenca = criarPresenca(), agua = criarAgua(), sombras = criarSombrasDoSol();
   const halos = criarHalos(luz, telhados);
   // A luz multiplica tudo o que está embaixo (piso, objetos, paredes); marcadores, regiões e peças ficam por cima, sempre legíveis.
-  raiz.addChild(terrenoC, submersosC, agua.raiz, escarpasC, sombras.raiz, comodosC, objetosC, paredesG, presenca.abaixo, luz.sprite, presenca.acima, halos.raiz, neblina.raiz, particulas.raiz, bordas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
+  raiz.addChild(terrenoC, presenca.submerso, submersosC, agua.raiz, escarpasC, sombras.raiz, comodosC, objetosC, paredesG, presenca.abaixo, luz.sprite, presenca.acima, halos.raiz, neblina.raiz, particulas.raiz, bordas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
 
   let mapa: MapaAtlas | null = null, vistaDaCena: Vista = 'construir', destruida = false, pintandoAgora = 0, ultimoQuadro = -1;
   const salas = new Map<string, Entrada>(), objetos = new Map<string, Entrada>();
@@ -404,6 +406,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     redesenharPecas() { if (mapa) sincronizarSimples(pecas, pecasC, mapa.tokens, null, (c, t) => desenharPeca(c, t, mapa!), false); },
     contagemDeParticulas: () => particulas.contagem(),
     contagemDePresencas: () => presenca.contagem(),
+    contagemDePresencasSubmersas: () => presenca.contagemSubmersas(),
     aguaAtiva: () => agua.ativa(),
     diagnosticoDasPecas: () => [...pecas.entries()].map(([id, c]) => ({ id, ...(visuais.get(c)?.estado() ?? { vez: false, retrato: false, deitada: false, raio: 0, deslizando: false, trilha: 0, quadro: null, pips: null, estadoVisto: 'normal' }) })),
     objetosPintados: () => [...objetos.values()].filter(e => e.sprite !== null && !e.placeholder.visible).length,

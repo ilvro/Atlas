@@ -203,12 +203,33 @@ test('celulasDoDisco devolve as células cujo centro cabe no círculo e respeita
   assert.deepEqual(celulasDoDisco([50, 50], 1, 1, 20, 20), []);
 });
 
-test('pincéis de presença: ids únicos, cores hex válidas, dez no total, e a validação aceita cada um', async () => {
-  const { PINCEIS_DE_PRESENCA, PACOTES_DE_PRESENCA } = await import('../../src/domain/presets.ts');
-  assert.equal(PINCEIS_DE_PRESENCA.length, 10);
+test('pincéis de presença: ids únicos, cores hex válidas, quatorze no total, presenças novas e validação', async () => {
+  const { PINCEIS_DE_PRESENCA, PACOTES_DE_PRESENCA, pincelDePresenca } = await import('../../src/domain/presets.ts');
+  assert.equal(PINCEIS_DE_PRESENCA.length, 14);
   assert.equal(new Set(PINCEIS_DE_PRESENCA.map(p => p.id)).size, PINCEIS_DE_PRESENCA.length);
   for (const p of PINCEIS_DE_PRESENCA) { assert.match(p.cor, /^#[0-9a-f]{6}$/i, p.id); assert.ok(PACOTES_DE_PRESENCA.some(k => k.id === p.pacote)); assert.ok(p.escala > 0 && p.pulso >= 0); }
   assert.deepEqual(PINCEIS_DE_PRESENCA.filter(p => p.pacote === 'ordem').map(p => p.id).sort(), ['ordem.conhecimento', 'ordem.energia', 'ordem.medo', 'ordem.morte', 'ordem.sangue']);
+
+  // Presenças novas da 10.6c
+  const sangueSeco = pincelDePresenca('sangue-seco')!;
+  assert.equal(sangueSeco.pacote, 'natural');
+  assert.equal(sangueSeco.forma, 'arrastado');
+  assert.equal(sangueSeco.brilho, false);
+
+  const fuligem = pincelDePresenca('fuligem')!;
+  assert.equal(fuligem.pacote, 'natural');
+  assert.equal(fuligem.brilho, false);
+
+  const sulcos = pincelDePresenca('sulcos')!;
+  assert.equal(sulcos.pacote, 'natural');
+  assert.equal(sulcos.forma, 'sulcos');
+  assert.equal(sulcos.brilho, false);
+
+  const algas = pincelDePresenca('algas')!;
+  assert.equal(algas.pacote, 'natural');
+  assert.equal(algas.submerso, true);
+  assert.equal(algas.brilho, false);
+
   const m = comAs(criarMapa(), ...PINCEIS_DE_PRESENCA.map((p, i) => ({ tipo: 'presenca.pintar', brush: p.id, celulas: [[i, 0]] }) as Comando));
-  validarMapa(m); assert.equal(Object.keys(m.presence).length, 10);
+  validarMapa(m); assert.equal(Object.keys(m.presence).length, 14);
 });
