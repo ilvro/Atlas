@@ -322,7 +322,7 @@ Escopo: `coral` (couve-flor rosada e lilás), `ourico`, `anemona`, `alga`, `roch
 Commit: seabed and small boats
 Nota: `receitas/fundo.ts` com 8 receitas: kit `fundo` (`coral` com `cor` 0 rosado/1 lilás, `ourico`, `anemona`, `alga`, `rocha-submersa`) e kit `barcos` (`barco-a-remo` com remos, `barco-de-vela` com flutuador e vela recolhida, `bote-com-carga`). Campo novo `submerso?: boolean` em `Receita` e `ItemDoAcervo`: o pincel de objeto (`viewport.ts`) põe os cinco do fundo com `elevation: 'underwater'`, sem sombra e sem bloquear; os barcos nascem `floor`. Pegadas: `alga` 1,1 × 1,2 e `barco-a-remo` 3,2 × 1,8 (remos para fora). Captura: `test-results/fase10-fundo.png` (+ `-pixel`) (`tests/e2e/fase10-fundo.test.ts`).
 
-### 10.6a — Bordas do mapa: nuvens, escuro, neblina  ⬜
+### 10.6a — Bordas do mapa: nuvens, escuro, neblina  ✅
 Objetivo: o mapa pode se fechar nas bordas com nuvens, escuridão ou neblina, que se mexem de leve.
 Depende de: 10.0a
 Ler: `src/render/neblina.ts` (inteiro: o shader de ruído e o padrão de uniformes), `src/render/viewport.ts` (onde a neblina é criada, recebe `quadro` e fica na ordem), `src/ui/Inspetor.tsx` (bloco do acabamento, linha ~120), `src/state/comandos*.ts` (`acabamento.atualizar`).
@@ -337,6 +337,7 @@ Não fazer: halo (10.6b).
 Testes: e2e: `edges = clouds, 0,6` deixa os cantos claros e o centro igual (capturas); `dark` deixa as bordas pretas; movimento reduzido desacelera.
 Pronto quando: o Desfiladeiro pode ter nuvens nas bordas como a referência e o Covil, o negro em volta.
 Commit: map edge clouds and darkness
+Nota: `render/bordas.ts` (`criarBordas`, no formato da neblina): um véu do tamanho do mapa com `finish.edges`; largura `amount × 0,25 × min(w, h)` (`larguraDaBorda`), frente deformada por fbm de 3 oitavas. Nuvens: topo claro e base cinza-azulada (a diferença entre o ruído e ele mesmo deslocado para a luz de noroeste) mais uma sombra suave para dentro; escuro: preto, ruído parado e borda mais seca; neblina: a cor do ambiente, macia. A cor vem do ambiente (de noite a nuvem escurece). Entra na cena logo acima das partículas (antes de regiões, luzes, peças e névoa), lê a `visao` do clima (então a transição de clima interpola `amount`; o `kind` troca no fim) e respeita `definirAtmosfera` e o movimento reduzido. Pixel: ruído em blocos de 2 px e alfa em 3 níveis com Bayer. Inspetor (Mapa → Acabamento): "Bordas" e "Quanto entra" (ao escolher um tipo com quantidade 0, vai para 0,5). Testes e capturas em `tests/e2e/fase10-bordas.test.ts` (`test-results/fase10-bordas-nuvens|escuro|neblina|pixel.png`).
 
 ### 10.6b — Halo das luzes e raios no cone  ⬜
 Objetivo: tochas e postes brilham de verdade na escuridão, e o feixe da caverna mostra raios.

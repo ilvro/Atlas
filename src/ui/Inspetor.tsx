@@ -120,6 +120,9 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
       <CampoOpcoes rotulo="Estilo" valor={m.finish.preset} opcoes={[...PRESETS_DE_ACABAMENTO.map(p => [p.id, p.nome] as const), ...(PRESETS_DE_ACABAMENTO.some(p => p.id === m.finish.preset) ? [] : [[m.finish.preset, 'Personalizado'] as const])]} aoMudar={v => { const p = presetDeAcabamento(v); if (p) tentar(() => st.executar({ tipo: 'acabamento.atualizar', patch: { preset: v, ...p.valores } }, { rotulo: 'Acabamento' })); }} />
       <CampoNumero rotulo="Vinheta" valor={m.finish.vignette} min={0} max={1} passo={0.05} aoConfirmar={v => tentar(() => st.executar({ tipo: 'acabamento.atualizar', patch: { vignette: v } }))} />
       <CampoNumero rotulo="Grão" valor={m.finish.grain} min={0} max={1} passo={0.05} aoConfirmar={v => tentar(() => st.executar({ tipo: 'acabamento.atualizar', patch: { grain: v } }))} />
+      <CampoOpcoes rotulo="Bordas" dica="Fecha as beiradas do mapa com nuvens, escuridão ou neblina." valor={m.finish.edges.kind} opcoes={[['none', 'Nenhuma'], ['clouds', 'Nuvens'], ['dark', 'Escuro'], ['fog', 'Neblina']]}
+        aoMudar={v => tentar(() => st.executar({ tipo: 'acabamento.atualizar', patch: { edges: { kind: v as Acabamento['edges']['kind'], amount: v !== 'none' && m.finish.edges.amount <= 0 ? 0.5 : m.finish.edges.amount } } }, { rotulo: 'Bordas do mapa' }))} />
+      {m.finish.edges.kind !== 'none' && <CampoNumero rotulo="Quanto entra" valor={m.finish.edges.amount} min={0} max={1} passo={0.05} aoConfirmar={v => tentar(() => st.executar({ tipo: 'acabamento.atualizar', patch: { edges: { kind: m.finish.edges.kind, amount: v } } }, { rotulo: 'Bordas do mapa' }))} />}
       {Object.keys(m.presence).length > 0 && <>
         <h3 class="faixa pequena">Presença</h3>
         {Object.values(m.presence).map(p => <CamposDaPresenca key={p.id} s={s} p={p} />)}

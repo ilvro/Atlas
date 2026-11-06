@@ -14,6 +14,7 @@ import { criarMapaDeLuz } from './mapa-de-luz.ts';
 import { criarNevoa, type Vista } from './nevoa.ts';
 import { secretaOculta } from '../domain/nevoa.ts';
 import { criarNeblina } from './neblina.ts';
+import { criarBordas } from './bordas.ts';
 import { criarParticulas } from './particulas.ts';
 import { criarTelhados } from './telhados.ts';
 import { criarPeca, type PecaVisual } from './pecas.ts';
@@ -81,9 +82,9 @@ interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; 
 export function criarCena(op: OpcoesDaCena): Cena {
   const raiz = new Container(), terrenoC = new Container(), submersosC = new Container(), escarpasC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics();
   const marcasG = new Graphics(), regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), tituloC = new Container();
-  const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados(), neblina = criarNeblina(), particulas = criarParticulas(), presenca = criarPresenca(), agua = criarAgua(), sombras = criarSombrasDoSol();
+  const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados(), neblina = criarNeblina(), bordas = criarBordas(), particulas = criarParticulas(), presenca = criarPresenca(), agua = criarAgua(), sombras = criarSombrasDoSol();
   // A luz multiplica tudo o que está embaixo (piso, objetos, paredes); marcadores, regiões e peças ficam por cima, sempre legíveis.
-  raiz.addChild(terrenoC, submersosC, agua.raiz, escarpasC, sombras.raiz, comodosC, objetosC, paredesG, presenca.abaixo, luz.sprite, presenca.acima, neblina.raiz, particulas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
+  raiz.addChild(terrenoC, submersosC, agua.raiz, escarpasC, sombras.raiz, comodosC, objetosC, paredesG, presenca.abaixo, luz.sprite, presenca.acima, neblina.raiz, particulas.raiz, bordas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
 
   let mapa: MapaAtlas | null = null, vistaDaCena: Vista = 'construir', destruida = false, pintandoAgora = 0, ultimoQuadro = -1;
   const salas = new Map<string, Entrada>(), objetos = new Map<string, Entrada>();
@@ -378,7 +379,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       agua.sincronizar(m); if (tudo || colecao('props') || campos('style')) agua.objetos(m);
       presenca.sincronizar(m, mud); nevoa.sincronizar(m, mud); telhados.sincronizar(m, mud);
       const v = visaoDoClima ?? m;
-      luz.sincronizar(v, mud); neblina.sincronizar(v, mud); particulas.sincronizar(v, mud);
+      luz.sincronizar(v, mud); neblina.sincronizar(v, mud); bordas.sincronizar(v, mud); particulas.sincronizar(v, mud);
       // Os marcadores das luzes também refletem o clima (apagada pela rede ou pelo dia), então refazem quando ele muda.
       if (tudo || colecao('lights') || campos('climate')) sincronizarSimples(luzes, luzesC, m.lights, tudo || campos('climate') ? null : mud!.colecoes.lights ?? null, (c, l) => desenharLuz(c, l, m), comPop);
       if (tudo || colecao('tokens') || campos('grid', 'style')) sincronizarSimples(pecas, pecasC, m.tokens, tudo || campos('grid', 'style') ? null : mud!.colecoes.tokens ?? null, (c, t) => desenharPeca(c, t, m), comPop);
@@ -390,9 +391,9 @@ export function criarCena(op: OpcoesDaCena): Cena {
     },
     atualizarAtmosfera(visao) {
       const mud: Mudancas = { completo: false, colecoes: {}, campos: ['climate'] };
-      luz.sincronizar(visao, mud); neblina.sincronizar(visao, mud); particulas.sincronizar(visao, mud);
+      luz.sincronizar(visao, mud); neblina.sincronizar(visao, mud); bordas.sincronizar(visao, mud); particulas.sincronizar(visao, mud);
     },
-    definirAtmosfera: ligada => { sombras.definirLigado(ligada); if (ligada && mapa) sombras.atualizar(mapa, objetos, pixelRes0(mapa)); luz.definirLigado(ligada); neblina.definirLigado(ligada); particulas.definirLigado(ligada); },
+    definirAtmosfera: ligada => { sombras.definirLigado(ligada); if (ligada && mapa) sombras.atualizar(mapa, objetos, pixelRes0(mapa)); luz.definirLigado(ligada); neblina.definirLigado(ligada); bordas.definirLigado(ligada); particulas.definirLigado(ligada); },
     relampagoAgora: () => luz.relampagoAgora(),
     definirModoProjetor: ligado => { modoDoProjetor = ligado; marcasVisiveis(); luzesC.visible = !ligado; regioesC.visible = !ligado; },
     definirEfeitosDeLuz: (luzes, ambiente) => luz.definirEfeitos(luzes, ambiente),
@@ -407,7 +408,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     quadro(agora) {
       luz.quadro(agora); nevoa.quadro(agora); telhados.quadro(agora);
       for (const c of pecas.values()) visuais.get(c)?.quadro(agora, op.efeitos());
-      const dt = ultimoQuadro < 0 ? 0 : (agora - ultimoQuadro) / 1000; ultimoQuadro = agora; neblina.quadro(dt); particulas.quadro(dt); presenca.quadro(dt); agua.quadro(dt);
+      const dt = ultimoQuadro < 0 ? 0 : (agora - ultimoQuadro) / 1000; ultimoQuadro = agora; neblina.quadro(dt); bordas.quadro(dt); particulas.quadro(dt); presenca.quadro(dt); agua.quadro(dt);
       for (let i = animacoes.length - 1; i >= 0; i--) {
         const a = animacoes[i]!, t = Math.min(1, (agora - a.t0) / a.dur), e = 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2;   // easeOutBack
         if (a.alvo.destroyed) { animacoes.splice(i, 1); continue; }
@@ -419,7 +420,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       destruida = true; if (terrenoTimer) clearTimeout(terrenoTimer);
       for (const e of [...salas.values(), ...objetos.values(), ...(terreno ? [terreno] : [])]) soltar(e.chaveTextura);
       for (const t of texturas.values()) t.tex.destroy(true); texturas.clear();
-      sombras.destruir(); luz.destruir(); nevoa.destruir(); telhados.destruir(); neblina.destruir(); particulas.destruir(); presenca.destruir(); agua.destruir(); raiz.destroy({ children: true });
+      sombras.destruir(); luz.destruir(); nevoa.destruir(); telhados.destruir(); neblina.destruir(); bordas.destruir(); particulas.destruir(); presenca.destruir(); agua.destruir(); raiz.destroy({ children: true });
     },
   };
 }
