@@ -48,7 +48,7 @@ Testes: unitários em `tests/unit/abas.test.ts` (registrar, não duplicar, atual
 Pronto quando: o mestre abre 3 mapas em abas no topo, alterna entre eles com 1 clique mantendo o zoom/posição de cada um, e abre outro mapa pelo `+`.
 Commit: feat(atlas): add multi-map tabs bar with camera memory
 
-### 11.1b — Cache rápido entre abas e "Olho do Projetor" independente por aba  ⬜
+### 11.1b — Cache rápido entre abas e "Olho do Projetor" independente por aba  ✅
 Objetivo: permitir que o mestre escolha qual aba está sendo exibida no Projetor pelo ícone de "olho" na aba, podendo editar ou consultar outro mapa sem tirar o projetor da cena dos jogadores.
 Depende de: 11.1a
 Ler: `src/app/projetor.ts` (`iniciarPublicacao`, `abrirJanelaDoProjetor`, `nomeDoCanalDoProjetor`), `src/ui/Projetor.tsx`, `src/app/abas.ts`, `src/ui/AbasDeMapas.tsx`, `src/app/app.ts`.

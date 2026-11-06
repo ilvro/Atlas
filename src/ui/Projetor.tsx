@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'preact/hooks';
 import { signal } from '@preact/signals';
 import { iniciarTema } from '../app/tema.ts';
-import { nomeDoCanalDoProjetor, type MensagemDoMestre, type MensagemDoProjetor } from '../app/projetor.ts';
+import { CANAL_PROJETOR_GLOBAL, nomeDoCanalDoProjetor, type MensagemDoMestre, type MensagemDoProjetor } from '../app/projetor.ts';
 import type { Recursos } from '../domain/fichas.ts';
 import { criarMapa, type MapaAtlas } from '../domain/mapa.ts';
 import { flutuarRolagem, ponto } from '../fx/fx.ts';
@@ -44,9 +44,15 @@ export function Projetor({ mapaId }: { mapaId: string }) {
     const sairTema = iniciarTema();
     document.body.classList.add('projetor');
     retratos.clear(); recursosLocais.clear(); fecharInspecaoNoProjetor();
-    const canal = new BroadcastChannel(nomeDoCanalDoProjetor(mapaId));
+    const canalEspecifico = new BroadcastChannel(nomeDoCanalDoProjetor(mapaId));
+    const canalGlobal = new BroadcastChannel(CANAL_PROJETOR_GLOBAL);
     let vp: Viewport | null = null, store: Store | null = null, morto = false, caixa: Parameters<Viewport['enquadrarCaixa']>[0] | null = null, primeira = true;
-    const dizer = (m: MensagemDoProjetor) => canal.postMessage(m);
+    let seqProjetor = 0;
+    const dizer = (m: MensagemDoProjetor) => {
+      const comSeq = { ...m, _seq: ++seqProjetor };
+      try { canalEspecifico.postMessage(comSeq); } catch { /* ignora */ }
+      try { canalGlobal.postMessage(comSeq); } catch { /* ignora */ }
+    };
     const tamanho = () => ({ largura: ref.current?.clientWidth ?? innerWidth, altura: ref.current?.clientHeight ?? innerHeight });
     const ola = () => dizer({ tipo: 'ola', ...tamanho() });
 
@@ -63,8 +69,13 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       ola();
     });
 
-    canal.onmessage = (e: MessageEvent<MensagemDoMestre>) => {
-      const msg = e.data;
+    let ultimoSeqMestre = -1;
+    const tratarMensagem = (msg: MensagemDoMestre & { _seq?: number }) => {
+      if (morto) return;
+      if (msg._seq !== undefined) {
+        if (msg._seq === ultimoSeqMestre) return;
+        ultimoSeqMestre = msg._seq;
+      }
       if (msg.tipo === 'estado') { doc.value = msg.doc; store!.projetar(msg.doc); }
       else if (msg.tipo === 'camera') { caixa = msg.caixa; vp?.enquadrarCaixa(msg.caixa, !primeira); primeira = false; }
       else if (msg.tipo === 'evento') vp?.dispararEvento(msg.nome);
@@ -76,6 +87,9 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       else if (msg.tipo === 'rolagem') { const t = doc.value?.tokens[msg.peca]; if (t && vp) { const [x, y] = vp.clientDe([t.position[0], t.position[1] - t.size * (doc.value?.grid.size ?? 1.5) / 2]); flutuarRolagem(ponto(x, y), msg.total, msg.titulo, msg.tom); } }
       else if (msg.tipo === 'retrato') { retratos.set(msg.id, msg.blob); if (doc.value) store!.projetar({ ...doc.value }); }
     };
+    canalEspecifico.onmessage = (e: MessageEvent<MensagemDoMestre>) => tratarMensagem(e.data);
+    canalGlobal.onmessage = (e: MessageEvent<MensagemDoMestre>) => tratarMensagem(e.data);
+
     // Enquanto o mestre não responde, pergunta de novo (ele pode abrir o mapa depois).
     const insistir = setInterval(() => { if (!doc.value) ola(); }, 1500);
     const aoRedimensionar = () => { dizer({ tipo: 'tamanho', ...tamanho() }); if (caixa) vp?.enquadrarCaixa(caixa, false); };
@@ -87,7 +101,9 @@ export function Projetor({ mapaId }: { mapaId: string }) {
     const mexeu = () => { botaoVisivel.value = true; clearTimeout(sumir); sumir = setTimeout(() => { botaoVisivel.value = false; }, 3000); };
     window.addEventListener('pointermove', mexeu); mexeu();
     return () => {
-      morto = true; clearInterval(insistir); clearTimeout(sumir); aoSair(); canal.close(); sairTema(); vp?.destruir(); store?.dispor();
+      morto = true; clearInterval(insistir); clearTimeout(sumir); aoSair();
+      canalEspecifico.close(); canalGlobal.close();
+      sairTema(); vp?.destruir(); store?.dispor();
       window.removeEventListener('resize', aoRedimensionar); window.removeEventListener('pagehide', aoSair); window.removeEventListener('pointermove', mexeu);
       document.body.classList.remove('projetor');
     };

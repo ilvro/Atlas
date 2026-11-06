@@ -1,4 +1,5 @@
 import { signal } from '@preact/signals';
+export { mapaNoProjetorId } from './projetor.ts';
 
 export interface AbaMapa {
   id: string;

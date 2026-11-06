@@ -25,7 +25,7 @@ import { pedirCena, pedirSomDoClima, pedirSomDoMapa, tocarSomEscolhido } from '.
 import { iniciarRegioes } from './regioes.ts';
 import { modo, vistaDeJogador } from './modo.ts';
 import { iniciarSugestoes } from './sugestoes.ts';
-import { abrirJanelaDoProjetor, iniciarPublicacao, type Publicador } from './projetor.ts';
+import { abrirJanelaDoProjetor, iniciarPublicacao, mapaNoProjetorId, projetorConectado, type Publicador } from './projetor.ts';
 import type { EventoDeCena } from '../render/eventos-de-cena.ts';
 import { lerRota, formatarRota, type Rota } from './rotas.ts';
 import { iniciarServicos, type Servicos } from './servicos.ts';
@@ -38,7 +38,7 @@ import { abasAbertas, atualizarNomeDaAba, fecharAba, lembrarCameraDaAba, registr
 // ---------- Estado global da interface ----------
 export const servicos = signal<Servicos | null>(null);
 export const erroInicial = signal<string | null>(null);
-export const rota = signal<Rota>(lerRota(location.hash));
+export const rota = signal<Rota>(lerRota(typeof location !== 'undefined' ? location.hash : ''));
 export const sessao = signal<SessaoDeEdicao | null>(null);
 export const mapaAusente = signal<string | null>(null);
 export const carregando = signal(false);
@@ -53,9 +53,9 @@ export const viewport: { atual: Viewport | null } = { atual: null };
 
 /** Mostrar o acabamento da cena (vinheta, tinta…) no editor? Preferência de quem edita, não do mapa. */
 const CHAVE_ACABAMENTO = 'atlas:acabamento';
-let acabamentoInicial = true; try { acabamentoInicial = localStorage.getItem(CHAVE_ACABAMENTO) !== '0'; } catch { /* padrão ligado */ }
+let acabamentoInicial = true; try { acabamentoInicial = (typeof localStorage !== 'undefined' ? localStorage.getItem(CHAVE_ACABAMENTO) : null) !== '0'; } catch { /* padrão ligado */ }
 export const acabamentoLigado = signal(acabamentoInicial);
-export function definirAcabamentoLigado(v: boolean): void { acabamentoLigado.value = v; try { localStorage.setItem(CHAVE_ACABAMENTO, v ? '1' : '0'); } catch { /* ignora */ } }
+export function definirAcabamentoLigado(v: boolean): void { acabamentoLigado.value = v; try { if (typeof localStorage !== 'undefined') localStorage.setItem(CHAVE_ACABAMENTO, v ? '1' : '0'); } catch { /* ignora */ } }
 
 const SINGULAR: Record<ColecaoSelecionavel, string> = { lights: 'luz', props: 'objeto', tokens: 'peça', regions: 'região', presence: 'presença', rooms: 'cômodo', walls: 'parede', openings: 'abertura' };
 const PLURAL: Record<ColecaoSelecionavel, string> = { lights: 'luzes', props: 'objetos', tokens: 'peças', regions: 'regiões', presence: 'presenças', rooms: 'cômodos', walls: 'paredes', openings: 'aberturas' };
@@ -90,6 +90,7 @@ export async function iniciar(): Promise<void> {
 
 export function navegar(r: Rota): void {
   const alvo = formatarRota(r);
+  if (typeof location === 'undefined') { rota.value = r; void sincronizarRota(); return; }
   if (location.hash === alvo || (alvo === '#/' && (location.hash === '' || location.hash === '#'))) { rota.value = r; void sincronizarRota(); return; }
   location.hash = alvo;
 }
@@ -132,18 +133,138 @@ export function alternarModo(): void {
 let pararSugestoes: (() => void) | null = null;
 /** Quem publica o mapa aberto para a janela do projetor. */
 let publicador: Publicador | null = null, pararRegioes: (() => void) | null = null;
+let mapaPublicadoId: string | null = null;
+
+/** Cache em memória de até 3 sessões de edição abertas nas abas. */
+export const cacheDeSessoes = new Map<string, SessaoDeEdicao>();
+
+function adicionarAoCache(id: string, s: SessaoDeEdicao): void {
+  if (cacheDeSessoes.has(id)) {
+    cacheDeSessoes.delete(id);
+    cacheDeSessoes.set(id, s);
+    return;
+  }
+  while (cacheDeSessoes.size >= 3) {
+    let candidatoId: string | null = null;
+    for (const chave of cacheDeSessoes.keys()) {
+      if (chave !== sessao.value?.doc.value.id && chave !== mapaNoProjetorId.value) {
+        candidatoId = chave;
+        break;
+      }
+    }
+    if (!candidatoId) {
+      for (const chave of cacheDeSessoes.keys()) {
+        if (chave !== id) {
+          candidatoId = chave;
+          break;
+        }
+      }
+    }
+    if (candidatoId) {
+      const despejado = cacheDeSessoes.get(candidatoId);
+      cacheDeSessoes.delete(candidatoId);
+      if (despejado) {
+        void despejado.auto.descarregar().finally(() => despejado.fechar());
+      }
+    } else {
+      break;
+    }
+  }
+  cacheDeSessoes.set(id, s);
+}
+
+export function obterSessaoParaProjetor(): SessaoDeEdicao | null {
+  const alvoId = mapaNoProjetorId.value ?? sessao.value?.doc.value.id ?? null;
+  if (!alvoId) return null;
+  if (sessao.value?.doc.value.id === alvoId) return sessao.value;
+  return cacheDeSessoes.get(alvoId) ?? null;
+}
+
+export function sincronizarPublicador(): void {
+  const s = servicos.value;
+  const sessaoAlvo = obterSessaoParaProjetor();
+  if (!sessaoAlvo) {
+    publicador?.parar();
+    publicador = null;
+    mapaPublicadoId = null;
+    return;
+  }
+  const alvoId = sessaoAlvo.doc.value.id;
+  if (publicador && mapaPublicadoId === alvoId) {
+    return;
+  }
+  publicador?.parar();
+  publicador = null;
+  mapaPublicadoId = alvoId;
+  publicador = iniciarPublicacao(sessaoAlvo, async assetId => (await s?.repo.obterAsset(assetId))?.blob ?? null);
+}
+
+export async function projetarAba(id: string): Promise<void> {
+  const s = servicos.value;
+  mapaNoProjetorId.value = id;
+  let sessaoAlvo = sessao.value?.doc.value.id === id ? sessao.value : cacheDeSessoes.get(id);
+  if (!sessaoAlvo && s) {
+    const mapa = await s.repo.obter(id);
+    if (mapa) {
+      sessaoAlvo = criarSessao(mapa, s.repo, { salvo: true });
+      adicionarAoCache(id, sessaoAlvo);
+    }
+  }
+  sincronizarPublicador();
+  if (!projetorConectado.peek()) {
+    abrirJanelaDoProjetor(id);
+  }
+}
+
+export function fecharAbaComSessao(id: string): string | null {
+  if (mapaNoProjetorId.value === id) {
+    publicador?.parar();
+    publicador = null;
+    mapaPublicadoId = null;
+    mapaNoProjetorId.value = null;
+  }
+  const s = cacheDeSessoes.get(id);
+  if (s) {
+    cacheDeSessoes.delete(id);
+    void s.auto.descarregar().finally(() => s.fechar());
+  }
+  return fecharAba(id);
+}
+
+// Sincroniza publicador sempre que o alvo de projeção mudar
+effect(() => {
+  const projId = mapaNoProjetorId.value;
+  void projId;
+  sincronizarPublicador();
+});
+
 /** Um evento de cena (tremor, piscar…) no mapa do mestre e, junto, no projetor. */
 export function dispararEventoDeCena(e: EventoDeCena): void { viewport.atual?.dispararEvento(e); publicador?.evento(e); }
 export function relampagoNoProjetor(): void { publicador?.relampago(); }
-export function abrirProjetor(): void { const s = sessao.value; if (s) abrirJanelaDoProjetor(s.doc.value.id); }
+export function abrirProjetor(): void {
+  const ativo = sessao.value?.doc.value.id ?? null;
+  if (mapaNoProjetorId.value === null && ativo) {
+    mapaNoProjetorId.value = ativo;
+  }
+  const idParaAbrir = mapaNoProjetorId.value ?? ativo;
+  if (idParaAbrir) {
+    sincronizarPublicador();
+    abrirJanelaDoProjetor(idParaAbrir);
+  }
+}
+
 export function fecharSessao(): void {
   const atual = sessao.value; if (!atual) return;
   if (viewport.atual?.camera) {
     lembrarCameraDaAba(atual.doc.value.id, { ...viewport.atual.camera });
   }
-  pararSugestoes?.(); pararSugestoes = null; pararRegioes?.(); pararRegioes = null; publicador?.parar(); publicador = null; modo.value = 'construir'; vistaDeJogador.value = false;
-  void atual.auto.descarregar().finally(() => atual.fechar());
+  pararSugestoes?.(); pararSugestoes = null; pararRegioes?.(); pararRegioes = null;
+  modo.value = 'construir'; vistaDeJogador.value = false;
+  if (!cacheDeSessoes.has(atual.doc.value.id)) {
+    void atual.auto.descarregar().finally(() => atual.fechar());
+  }
   viewport.atual = null; sessao.value = null;
+  sincronizarPublicador();
 }
 
 async function abrirMapa(id: string, comodo?: string): Promise<void> {
@@ -151,22 +272,35 @@ async function abrirMapa(id: string, comodo?: string): Promise<void> {
   if (sessao.value?.doc.value.id === id) { focoPendente.value = comodo ?? null; focarNoComodo(); return; }
   carregando.value = true; mapaAusente.value = null;
   try {
-    const mapa = await s.repo.obter(id);
-    if (!mapa) { await comTransicao(fecharSessao); mapaAusente.value = id; return; }
+    let nova = cacheDeSessoes.get(id);
+    if (!nova) {
+      const mapa = await s.repo.obter(id);
+      if (!mapa) { await comTransicao(fecharSessao); mapaAusente.value = id; return; }
+      nova = criarSessao(mapa, s.repo, { salvo: true });
+    }
     await comTransicao(() => {
       if (sessao.value && viewport.atual?.camera) {
         lembrarCameraDaAba(sessao.value.doc.value.id, { ...viewport.atual.camera });
       }
       fecharSessao();
-      registrarAbaAberta(mapa.id, mapa.name);
-      const nova = criarSessao(mapa, s.repo, { salvo: true });
-      modo.value = embutido ? 'sessao' : 'construir'; vistaDeJogador.value = false; pararSugestoes = iniciarSugestoes(nova, viewport);
-      publicador = iniciarPublicacao(nova, async id => (await s.repo.obterAsset(id))?.blob ?? null);
-      pararRegioes = iniciarRegioes(nova, () => modo.peek() === 'sessao', { emitir: (tipo, dados) => { try { s.barramento?.emitir(tipo, dados); } catch (erro) { console.warn('Atlas: não consegui emitir', tipo, erro); } }, pedirCena: ref => { pedirCena(s.barramento, ref); }, avisar: texto => avisar(texto, { duracao: 4200 }) });
-      batch(() => { sessao.value = nova; focoPendente.value = comodo ?? null; if (embutido) { nova.ferramenta.value = 'selecionar'; nova.biblioteca.value = false; } });
+      adicionarAoCache(id, nova!);
+      registrarAbaAberta(nova!.doc.value.id, nova!.doc.value.name);
+      modo.value = embutido ? 'sessao' : 'construir'; vistaDeJogador.value = false;
+      pararSugestoes = iniciarSugestoes(nova!, viewport);
+      pararRegioes = iniciarRegioes(nova!, () => modo.peek() === 'sessao', {
+        emitir: (tipo, dados) => { try { s.barramento?.emitir(tipo, dados); } catch (erro) { console.warn('Atlas: não consegui emitir', tipo, erro); } },
+        pedirCena: ref => { pedirCena(s.barramento, ref); },
+        avisar: texto => avisar(texto, { duracao: 4200 })
+      });
+      batch(() => {
+        sessao.value = nova!;
+        focoPendente.value = comodo ?? null;
+        if (embutido) { nova!.ferramenta.value = 'selecionar'; nova!.biblioteca.value = false; }
+      });
+      sincronizarPublicador();
     });
     tocar('abrir');
-    s.barramento?.emitir('atlas.cena-aberta', { mapa: refDoMapa(mapa) });
+    s.barramento?.emitir('atlas.cena-aberta', { mapa: refDoMapa(nova.doc.value) });
     const rascunho = await sessao.value?.auto.rascunhoParaRecuperar();
     if (rascunho && sessao.value) {
       const quando = new Date(rascunho.rascunho.salvoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });

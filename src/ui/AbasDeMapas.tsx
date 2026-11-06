@@ -1,6 +1,16 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
-import { abasAbertas, fecharAba } from '../app/abas.ts';
-import { criarMapaNovo, navegar, renomearMapaAberto, resumos, sessao, atualizarLista } from '../app/app.ts';
+import { abasAbertas } from '../app/abas.ts';
+import { mapaNoProjetorId } from '../app/projetor.ts';
+import {
+  criarMapaNovo,
+  navegar,
+  renomearMapaAberto,
+  resumos,
+  sessao,
+  atualizarLista,
+  projetarAba,
+  fecharAbaComSessao,
+} from '../app/app.ts';
 import { tituloDoEstado } from '../app/sessao.ts';
 import { filtrar } from '../app/busca.ts';
 import { Icone } from './Icone.tsx';
@@ -40,7 +50,7 @@ export function AbasDeMapas() {
   }, [popoverAberto]);
 
   const aoFecharAba = (id: string) => {
-    const proximoId = fecharAba(id);
+    const proximoId = fecharAbaComSessao(id);
     if (id === ativoId) {
       if (proximoId) {
         navegar({ tipo: 'mapa', id: proximoId });
@@ -103,6 +113,20 @@ export function AbasDeMapas() {
                 </span>
                 <button
                   type="button"
+                  class={`botao-aba-projetor ${mapaNoProjetorId.value === aba.id ? 'projetando' : ''}`}
+                  title={`Mostrar ${aba.nome} na visão dos jogadores`}
+                  aria-label={`Mostrar ${aba.nome} na visão dos jogadores`}
+                  aria-pressed={mapaNoProjetorId.value === aba.id}
+                  data-testid={`aba-projetor-${aba.id}`}
+                  onClick={e => {
+                    e.stopPropagation();
+                    void projetarAba(aba.id);
+                  }}
+                >
+                  <Icone nome="olho" tamanho={13} />
+                </button>
+                <button
+                  type="button"
                   class="botao-fechar-aba"
                   title={`Fechar aba “${s.doc.value.name}”`}
                   aria-label={`Fechar aba “${s.doc.value.name}”`}
@@ -128,6 +152,20 @@ export function AbasDeMapas() {
               title={`Ir para ${aba.nome}`}
             >
               <span class="aba-rotulo">{aba.nome}</span>
+              <button
+                type="button"
+                class={`botao-aba-projetor ${mapaNoProjetorId.value === aba.id ? 'projetando' : ''}`}
+                title={`Mostrar ${aba.nome} na visão dos jogadores`}
+                aria-label={`Mostrar ${aba.nome} na visão dos jogadores`}
+                aria-pressed={mapaNoProjetorId.value === aba.id}
+                data-testid={`aba-projetor-${aba.id}`}
+                onClick={e => {
+                  e.stopPropagation();
+                  void projetarAba(aba.id);
+                }}
+              >
+                <Icone nome="olho" tamanho={13} />
+              </button>
               <button
                 type="button"
                 class="botao-fechar-aba"

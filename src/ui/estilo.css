@@ -83,6 +83,9 @@ kbd { font: 700 10px var(--corpo); padding: 1px 5px; border: 1px solid currentCo
 .aba-rotulo { font: 700 13px var(--titulo); letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
 .aba-mapa .nome-do-mapa { font-size: 13.5px; padding: 2px 4px; min-width: 80px; max-width: 160px; height: 26px; }
 .aba-mapa .estado { font-size: 11px; gap: 5px; flex-shrink: 0; }
+.botao-aba-projetor { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 3px; color: var(--apagado); opacity: 0.55; transition: opacity 0.15s, color 0.15s, background 0.15s; flex-shrink: 0; padding: 0; }
+.botao-aba-projetor:hover { opacity: 1; color: var(--texto); background: var(--superficie); }
+.botao-aba-projetor.projetando, .botao-aba-projetor[aria-pressed='true'] { opacity: 1; color: var(--acento); background: var(--acento-suave); }
 .botao-fechar-aba { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 3px; color: var(--apagado); opacity: 0.65; transition: opacity 0.15s, background 0.15s, color 0.15s; flex-shrink: 0; padding: 0; }
 .botao-fechar-aba:hover { opacity: 1; color: var(--perigo); background: rgba(255, 107, 107, 0.15); }
 .aba-mais-container { position: relative; flex-shrink: 0; }

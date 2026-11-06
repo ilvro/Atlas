@@ -13,7 +13,11 @@ import type { SessaoDeEdicao } from './sessao.ts';
  * O projetor é uma segunda janela do próprio Atlas (`#/projetor/{mapaId}`) que só recebe: o mestre publica a projeção do mapa
  * (`projetarParaJogadores`), a câmera, os eventos de cena e os retratos por um BroadcastChannel; o projetor não abre o banco.
  */
+export const CANAL_PROJETOR_GLOBAL = 'atlas:projetor:ativo';
 export const nomeDoCanalDoProjetor = (mapaId: string): string => `atlas:projetor:${mapaId}`;
+
+/** ID do mapa que o projetor está exibindo (desacoplado da aba ativa no editor). */
+export const mapaNoProjetorId = signal<string | null>(null);
 
 export type MensagemDoMestre =
   | { tipo: 'estado'; doc: MapaAtlas; versao: number }
@@ -71,8 +75,14 @@ export interface Publicador {
 export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => Promise<Blob | null>): Publicador {
   const id = s.store.documento.id;
   if (typeof BroadcastChannel !== 'function') return { evento() {}, relampago() {}, rolagem() {}, inspecao() {}, inspecaoEstado() {}, parar() {} };
-  const canal = new BroadcastChannel(nomeDoCanalDoProjetor(id));
-  const enviar = (m: MensagemDoMestre) => canal.postMessage(m);
+  const canalEspecifico = new BroadcastChannel(nomeDoCanalDoProjetor(id));
+  const canalGlobal = new BroadcastChannel(CANAL_PROJETOR_GLOBAL);
+  let seqMestre = 0;
+  const enviar = (m: MensagemDoMestre) => {
+    const comSeq = { ...m, _seq: ++seqMestre };
+    try { canalEspecifico.postMessage(comSeq); } catch { /* ignora */ }
+    try { canalGlobal.postMessage(comSeq); } catch { /* ignora */ }
+  };
   let retratosEnviados = new Set<string>(), temporizador: ReturnType<typeof setTimeout> | null = null, parado = false;
   caixaDoProjetor.value = null; projetorConectado.value = false;
 
@@ -97,8 +107,14 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
   };
   const agendar = () => { if (temporizador) return; temporizador = setTimeout(() => { temporizador = null; enviarEstado(); }, 100); };
 
-  canal.onmessage = (e: MessageEvent<MensagemDoProjetor>) => {
+  let ultimoSeqProjetor = -1;
+  const aoMensagem = (e: MessageEvent<MensagemDoProjetor & { _seq?: number }>) => {
+    if (parado) return;
     const msg = e.data;
+    if (msg._seq !== undefined) {
+      if (msg._seq === ultimoSeqProjetor) return;
+      ultimoSeqProjetor = msg._seq;
+    }
     if (msg.tipo === 'ola' || msg.tipo === 'tamanho') {
       if (msg.largura > 0 && msg.altura > 0) aspectoDoProjetor.value = msg.largura / msg.altura;
       if (msg.tipo === 'ola') { retratosEnviados = new Set(); projetorConectado.value = true; }
@@ -108,6 +124,8 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
       if (caixaDoProjetor.peek()) enviar({ tipo: 'camera', caixa: caixaDoProjetor.peek()! });
     } else if (msg.tipo === 'tchau') { projetorConectado.value = false; caixaDoProjetor.value = null; }
   };
+  canalEspecifico.onmessage = aoMensagem;
+  canalGlobal.onmessage = aoMensagem;
 
   const sair = s.store.assinar(e => {
     agendar();
@@ -124,12 +142,20 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
     rolagem: (peca, titulo, total, tom) => { if (projetorConectado.peek()) enviar({ tipo: 'rolagem', peca, titulo, total, tom }); },
     inspecao: d => { if (projetorConectado.peek()) enviar(d ? { tipo: 'inspecao', nome: d.nome, normal: d.normal, uv: d.uv } : { tipo: 'inspecao-fim' }); },
     inspecaoEstado: (vista, lanterna) => { if (projetorConectado.peek()) enviar({ tipo: 'inspecao-estado', vista, lanterna }); },
-    parar() { parado = true; sair(); parar1(); parar2(); parar3(); if (temporizador) clearTimeout(temporizador); canal.close(); caixaDoProjetor.value = null; projetorConectado.value = false; },
+    parar() {
+      parado = true; sair(); parar1(); parar2(); parar3();
+      if (temporizador) clearTimeout(temporizador);
+      canalEspecifico.close();
+      canalGlobal.close();
+      caixaDoProjetor.value = null;
+      projetorConectado.value = false;
+    },
   };
 }
 
 /** Abre (ou traz à frente) a janela do projetor deste mapa. */
 export function abrirJanelaDoProjetor(mapaId: string): void {
+  mapaNoProjetorId.value = mapaId;
   const url = new URL(location.href); url.searchParams.delete('embutido'); url.hash = `#/projetor/${encodeURIComponent(mapaId)}`;
-  window.open(url.href, `atlas-projetor-${mapaId}`, 'popup,width=1280,height=720');
+  window.open(url.href, 'atlas-projetor', 'popup,width=1280,height=720');
 }
