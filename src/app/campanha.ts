@@ -2,6 +2,7 @@ import { signal } from '@preact/signals';
 import { criarRef, mesmaRef, type Campanha, type Entidade, type Ref } from '#mesa';
 import type { MapaAtlas } from '../domain/mapa.ts';
 import type { Servicos } from './servicos.ts';
+import { gerarMiniaturaDoMapa } from '../ui/previa.ts';
 
 /** A campanha em que o mestre está trabalhando. Chave compartilhada com os outros aplicativos da mesa. */
 export const CHAVE_CAMPANHA_ATIVA = 'mesa:campanha-ativa';
@@ -41,13 +42,35 @@ export async function entidadeDoMapa(s: Servicos, mapa: MapaAtlas): Promise<Enti
 }
 
 /** Garante a entidade "lugar" do mapa e mantém o nome em dia. Falhas da plataforma nunca atrapalham o mapa. */
-export async function sincronizarMapaComCampanha(s: Servicos, mapa: MapaAtlas): Promise<void> {
+export async function sincronizarMapaComCampanha(
+  s: Servicos,
+  mapa: MapaAtlas,
+  gerarRetrato: (m: MapaAtlas) => Promise<Blob | undefined> = gerarMiniaturaDoMapa
+): Promise<void> {
   if (!s.campanhas || !mapa.campanhaId) return;
   try {
     if (!await s.campanhas.obterCampanha(mapa.campanhaId)) return;
     const existente = await entidadeDoMapa(s, mapa);
-    if (!existente) await s.campanhas.criarEntidade({ campanhaId: mapa.campanhaId, tipo: 'lugar', nome: mapa.name, refs: [refDoMapa(mapa)] });
-    else if (existente.nome !== mapa.name) await s.campanhas.salvarEntidade({ ...existente, nome: mapa.name });
+    const retrato = await gerarRetrato(mapa).catch(() => undefined);
+    if (!existente) {
+      await s.campanhas.criarEntidade({
+        campanhaId: mapa.campanhaId,
+        tipo: 'lugar',
+        nome: mapa.name,
+        refs: [refDoMapa(mapa)],
+        ...(retrato ? { retrato } : {}),
+      });
+    } else if (existente.criadaPor === 'atlas') {
+      const mudouNome = existente.nome !== mapa.name;
+      const mudouRetrato = !!retrato;
+      if (mudouNome || mudouRetrato) {
+        await s.campanhas.salvarEntidade({
+          ...existente,
+          nome: mapa.name,
+          ...(retrato ? { retrato } : (existente.retrato ? { retrato: existente.retrato } : {})),
+        });
+      }
+    }
   } catch (erro) { console.warn('Atlas: não consegui sincronizar o mapa com a campanha', erro); }
 }
 

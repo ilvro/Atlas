@@ -221,7 +221,7 @@ Testes: teste de interface abrindo o popover, trocando cor para vermelho, estilo
 Pronto quando: o popover abre sobre a barra inferior com o layout das duas colunas, altera todos os parâmetros da grade ao vivo e aciona o Modo de Alinhamento.
 Commit: feat(atlas): add Grid Settings popover with color swatches, sliders and alignment toggle
 
-### 11.5a — Publicar miniatura WebP do mapa na entidade `lugar` da campanha  ⬜
+### 11.5a — Publicar miniatura WebP do mapa na entidade `lugar` da campanha  ✅
 Objetivo: gravar uma miniatura visual (`retrato: Blob`) na entidade `lugar` do banco `mesa-campanha-v1` sempre que o mapa for sincronizado com a campanha, para que a coleção da Mesa exiba os cartões ilustrados dos mapas.
 Depende de: —
 Ler: `src/app/campanha.ts` (`sincronizarMapaComCampanha`), `src/ui/previa.ts` (`desenharPrevia`), `mesa-core/src/campanha.ts` (`Entidade.retrato`).

@@ -5,7 +5,7 @@ import { corDoNome, hexParaNumero } from './cores.ts';
 const css = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 
 /** Prévia do mapa para a galeria, em Canvas 2D: fundo, cômodos, paredes, luzes e peças. Os mesmos dados que o viewport usa. */
-export function desenharMiniatura(canvas: HTMLCanvasElement, m: MapaAtlas, acento = '#e91d25'): void {
+export function desenharMiniatura(canvas: HTMLCanvasElement | OffscreenCanvas, m: MapaAtlas, acento = '#e91d25'): void {
   const ctx = canvas.getContext('2d'); if (!ctx) return;
   const w = canvas.width, h = canvas.height, margem = 10, esc = Math.min((w - 2 * margem) / m.bounds.width, (h - 2 * margem) / m.bounds.height);
   const ox = (w - m.bounds.width * esc) / 2, oy = (h - m.bounds.height * esc) / 2;
