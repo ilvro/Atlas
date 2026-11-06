@@ -8,7 +8,7 @@ const LUZ = Math.atan2(-1, -1);   // a luz vem do noroeste (−x, −y)
 const CINZA = '#7d838b';
 
 /** Um galho: lente fina da base (x, y) para `ang`, com `len` de comprimento e `w` de largura. */
-function galho(x: number, y: number, ang: number, len: number, w: number, mat: string, z: number): Parte {
+export function galho(x: number, y: number, ang: number, len: number, w: number, mat: string, z: number): Parte {
   const c = Math.cos(ang), s = Math.sin(ang), local = [0, 0, len * 0.3, w / 2, len * 0.7, w / 3, len, 0, len * 0.7, -w / 3, len * 0.3, -w / 2], pts: number[] = [];
   for (let i = 0; i < local.length; i += 2) pts.push(x + local[i]! * c - local[i + 1]! * s, y + local[i]! * s + local[i + 1]! * c);
   return poli(pts, mat, z, { contorno: 'leve', detalhe: 2 });

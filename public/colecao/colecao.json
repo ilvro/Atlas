@@ -357,6 +357,108 @@
       }
     },
     {
+      "id": "casa:carvalho-grande-6m",
+      "nome": "Carvalho grande (6 m)",
+      "arquivo": "gerados/carvalho-grande-6m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        6,
+        6
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "carvalho",
+        "planta",
+        "copa",
+        "exterior",
+        "mata"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 9.6,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "carvalho-grande",
+        "params": {
+          "diametro": 6
+        },
+        "seed": 91,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:carvalho-grande-7m",
+      "nome": "Carvalho grande (7 m)",
+      "arquivo": "gerados/carvalho-grande-7m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        7,
+        7
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "carvalho",
+        "planta",
+        "copa",
+        "exterior",
+        "mata"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 11.2,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "carvalho-grande",
+        "params": {
+          "diametro": 7
+        },
+        "seed": 92,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:carvalho-grande-8m",
+      "nome": "Carvalho grande (8 m)",
+      "arquivo": "gerados/carvalho-grande-8m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        8,
+        8
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "carvalho",
+        "planta",
+        "copa",
+        "exterior",
+        "mata"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 12,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "carvalho-grande",
+        "params": {
+          "diametro": 8
+        },
+        "seed": 93,
+        "versao": 1
+      }
+    },
+    {
       "id": "casa:chesterfield-couro",
       "nome": "Sofá chesterfield (couro)",
       "arquivo": "gerados/chesterfield-couro.webp",
@@ -640,6 +742,74 @@
           "estofado": "tecido.veludo-vinho"
         },
         "seed": 11,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:folhagem-tropical-1m",
+      "nome": "Folhagem tropical (1,6 m)",
+      "arquivo": "gerados/folhagem-tropical-1m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        1.6,
+        1.6
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arbusto",
+        "planta",
+        "folhagem",
+        "tropical",
+        "exterior",
+        "mata"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 0.8,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "folhagem-tropical",
+        "params": {
+          "diametro": 1.6
+        },
+        "seed": 101,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:folhagem-tropical-2m",
+      "nome": "Folhagem tropical (2,4 m)",
+      "arquivo": "gerados/folhagem-tropical-2m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        2.4,
+        2.4
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arbusto",
+        "planta",
+        "folhagem",
+        "tropical",
+        "exterior",
+        "mata"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 1.2,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "folhagem-tropical",
+        "params": {
+          "diametro": 2.4
+        },
+        "seed": 102,
         "versao": 1
       }
     },

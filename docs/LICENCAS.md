@@ -26,6 +26,9 @@ Imagens assadas pelo próprio Atlas (`npm run assar`) a partir de geradores em `
 | gerados/arvore-7m.webp | arvore | Árvore (7 m) |
 | gerados/arvore-nevada-3m.webp | arvore-nevada | Árvore nevada (3 m) |
 | gerados/arvore-nevada-5m.webp | arvore-nevada | Árvore nevada (5 m) |
+| gerados/carvalho-grande-6m.webp | carvalho-grande | Carvalho grande (6 m) |
+| gerados/carvalho-grande-7m.webp | carvalho-grande | Carvalho grande (7 m) |
+| gerados/carvalho-grande-8m.webp | carvalho-grande | Carvalho grande (8 m) |
 | gerados/chesterfield-couro.webp | chesterfield | Sofá chesterfield (couro) |
 | gerados/chesterfield-verde.webp | chesterfield | Sofá chesterfield (verde-garrafa) |
 | gerados/chesterfield-vinho.webp | chesterfield | Sofá chesterfield (vinho) |
@@ -34,6 +37,8 @@ Imagens assadas pelo próprio Atlas (`npm run assar`) a partir de geradores em `
 | gerados/diva-couro.webp | diva | Divã capitonê (couro) |
 | gerados/diva-verde.webp | diva | Divã capitonê (verde-garrafa) |
 | gerados/diva-vinho.webp | diva | Divã capitonê (vinho) |
+| gerados/folhagem-tropical-1m.webp | folhagem-tropical | Folhagem tropical (1,6 m) |
+| gerados/folhagem-tropical-2m.webp | folhagem-tropical | Folhagem tropical (2,4 m) |
 | gerados/palmeira-madeira.webp | palmeira | Palmeira em vaso (madeira) |
 | gerados/palmeira-pedra.webp | palmeira | Palmeira em vaso (pedra) |
 | gerados/passadeira-creme.webp | passadeira | Passadeira de corredor (creme e terracota) |

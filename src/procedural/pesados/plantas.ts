@@ -96,6 +96,41 @@ function arbustoSeco(diametro: number, seed: number, neve: boolean): DescricaoDe
   return { tipo: 'piso', pegada: [diametro, diametro], partes };
 }
 
+/** Carvalho: copa densa de folhas recortadas (lóbulos) em anéis do escuro de fora ao claro do meio, com frestas escuras e uns galhos à mostra. */
+function carvalhoGrande(diametro: number, seed: number): DescricaoDePiso {
+  const r = mulberry32(seed), R = diametro / 2, partes: Parte[] = [], tons = ['#16331c', '#20452a', '#2d5c35', '#3d7440', '#4f8a4a', '#68a255'];
+  partes.push(elipse(0.03 * R, 0.05 * R, diametro * 0.98, diametro * 0.98, '#0d1f12', 1, { sombraLeve: true, contorno: 'leve', detalhe: 1 }));
+  const lobulo = (x: number, y: number, tam: number, cor: string, z: number): void => {
+    const pts: number[] = [], pontas = 7, giro = r() * Math.PI * 2;
+    for (let i = 0; i < pontas * 2; i++) { const a = giro + (i / (pontas * 2)) * Math.PI * 2, k = i % 2 ? 0.55 : 1; pts.push(x + Math.cos(a) * tam * k, y + Math.sin(a) * tam * k * 0.92); }
+    partes.push(poli(pts, cor, z, { contorno: false, sombraLeve: true, detalhe: 2 }));
+  };
+  for (let c = 0; c < tons.length; c++) {
+    const anel = R * (1 - c * 0.15), n = Math.round((10 + c * 2) * (R / 3 + 0.5)), tam = R * (0.22 - c * 0.012);
+    for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2 + r() * 0.5, d = Math.max(0, anel - tam) * (0.7 + r() * 0.3); lobulo(Math.cos(a) * d, Math.sin(a) * d, tam, tons[c]!, 1.2 + c * 0.8 + r() * 0.1); }
+  }
+  const brilho = Math.round(30 + R * 12);
+  for (let i = 0; i < brilho; i++) { const a = Math.atan2(-1, -1) + (r() - 0.5) * 2.6, d = R * 0.7 * Math.sqrt(r()); partes.push(folha(Math.cos(a) * d, Math.sin(a) * d, r() * Math.PI * 2, R * 0.16, R * 0.07, tom('#7fbf60', (r() - 0.5) * 0.2), 6.5 + r() * 0.2, { detalhe: 3, semSombra: true })); }
+  for (let i = 0; i < 4; i++) { const a = r() * Math.PI * 2; partes.push(folha(0, 0, a, R * 0.3, 0.12, '#3a2c22', 6.4, { detalhe: 3, semSombra: true })); }
+  return { tipo: 'piso', pegada: [diametro, diametro], partes };
+}
+
+/** Folhagem tropical: folhas largas e escuras saindo do centro, com nervura clara e recortes, em duas voltas. */
+function folhagemTropical(diametro: number, seed: number): DescricaoDePiso {
+  const r = mulberry32(seed), R = diametro / 2, partes: Parte[] = [], voltas = [['#12301c', '#1a4527'], ['#1f5a30', '#2b7040'], ['#2f7a45', '#3f9355']];
+  for (let v = 0; v < voltas.length; v++) {
+    const n = 6 + v * 2, len = R * (1 - v * 0.22);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + v * 0.4 + r() * 0.3, c = voltas[v]![i % 2]!, z = 1 + v * 0.8 + i * 0.02;
+      partes.push(folha(0, 0, a, len, len * 0.5, tom(c, -0.3), z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), folha(0, 0, a, len * 0.94, len * 0.4, c, z + 0.1, { detalhe: 2, semSombra: true }));
+      partes.push(folha(0, 0, a, len * 0.9, 0.025, tom(c, 0.45), z + 0.2, { detalhe: 3, semSombra: true }));
+      for (const lado of [-1, 1]) for (let k = 1; k <= 3; k++) { const t = k / 4; partes.push(folha(Math.cos(a) * len * t, Math.sin(a) * len * t, a + lado * 0.9, len * 0.2, 0.015, tom(c, 0.3), z + 0.25, { detalhe: 3, semSombra: true })); }
+    }
+  }
+  partes.push(elipse(0, 0, R * 0.2, R * 0.2, '#0f2a17', 4, { contorno: false, semSombra: true }));
+  return { tipo: 'piso', pegada: [diametro, diametro], partes };
+}
+
 function arbusto(diametro: number, seed: number, flores: string | null): DescricaoDePiso {
   const g = copaRedonda(diametro, seed, ['#22472a', '#2f5f36', '#417a47', '#5a9650']), r = mulberry32(seed + 5), partes = g.partes.slice(2);   // sem tronco
   if (flores) for (let i = 0; i < 26; i++) { const a = r() * Math.PI * 2, d = (diametro / 2) * Math.sqrt(r()) * 0.85; partes.push(elipse(Math.cos(a) * d, Math.sin(a) * d, 0.07, 0.07, flores, 5.5 + r() * 0.2, { contorno: false, semSombra: true, detalhe: 3 })); }
@@ -166,4 +201,8 @@ export const PLANTAS: GeradorPesado[] = [
   { id: 'arbusto-seco', altura: ([w]) => w * 0.4, nome: 'Arbusto seco', categoria: 'exterior', funcoes: ['jardim'], tags: ['arbusto', 'planta', 'exterior', 'inverno', 'seco'], generos: [], kit: 'ermos', versao: 2, res: 64,
     variantes: [{ nome: '1,2 m', sufixo: '1m', params: { diametro: 1.2 }, seed: 81 }, { nome: '2 m', sufixo: '2m', params: { diametro: 2 }, seed: 82 }, { nome: '2 m com neve', sufixo: '2m-neve', params: { diametro: 2, neve: true }, seed: 83 }],
     gerar: p => arbustoSeco(num(p.params.diametro, 1.5, 0.8, 4), p.seed, p.params.neve === true) },
+  { id: 'carvalho-grande', altura: ([w]) => w * 1.6, nome: 'Carvalho grande', categoria: 'exterior', funcoes: ['jardim'], tags: ['arvore', 'carvalho', 'planta', 'copa', 'exterior', 'mata'], generos: [], kit: 'mata', versao: 1, res: 64,
+    variantes: [{ nome: '6 m', sufixo: '6m', params: { diametro: 6 }, seed: 91 }, { nome: '7 m', sufixo: '7m', params: { diametro: 7 }, seed: 92 }, { nome: '8 m', sufixo: '8m', params: { diametro: 8 }, seed: 93 }], gerar: p => carvalhoGrande(num(p.params.diametro, 7, 5, 10), p.seed) },
+  { id: 'folhagem-tropical', altura: ([w]) => w * 0.5, nome: 'Folhagem tropical', categoria: 'exterior', funcoes: ['jardim'], tags: ['arbusto', 'planta', 'folhagem', 'tropical', 'exterior', 'mata'], generos: [], kit: 'mata', versao: 1, res: 64,
+    variantes: [{ nome: '1,6 m', sufixo: '1m', params: { diametro: 1.6 }, seed: 101 }, { nome: '2,4 m', sufixo: '2m', params: { diametro: 2.4 }, seed: 102 }], gerar: p => folhagemTropical(num(p.params.diametro, 2, 1, 4), p.seed) },
 ];
