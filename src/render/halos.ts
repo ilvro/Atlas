@@ -1,6 +1,6 @@
-import { Container, Filter, GlProgram, Graphics, Sprite, Texture, UniformGroup } from 'pixi.js';
+import { Container, Geometry, GlProgram, Graphics, Mesh, Shader, Sprite, UniformGroup } from 'pixi.js';
 import { comodoEm, indiceDeCelulas } from '../domain/geometria.ts';
-import type { Luz, MapaAtlas, Ponto } from '../domain/mapa.ts';
+import type { Luz, MapaAtlas } from '../domain/mapa.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import type { Mudancas } from '../state/mudancas.ts';
 import { hexParaNumero } from './cores.ts';
@@ -17,25 +17,20 @@ export interface Halos {
   destruir(): void;
 }
 
-const vertex = `in vec2 aPosition;
-out vec2 vTextureCoord;
-uniform vec4 uInputSize;
-uniform vec4 uOutputFrame;
-uniform vec4 uOutputTexture;
-vec4 filterVertexPosition(void) {
-  vec2 position = aPosition * uOutputFrame.zw + uOutputFrame.xy;
-  position.x = position.x * (2.0 / uOutputTexture.x) - 1.0;
-  position.y = position.y * (2.0 * uOutputTexture.z / uOutputTexture.y) - uOutputTexture.z;
-  return vec4(position, 0.0, 1.0);
-}
-vec2 filterTextureCoord(void) { return aPosition * (uOutputFrame.zw * uInputSize.zw); }
-void main(void) { gl_Position = filterVertexPosition(); vTextureCoord = filterTextureCoord(); }`;
+const vertexRaios = `in vec2 aPosition;
+in vec2 aUV;
+out vec2 vUV;
+uniform mat3 uProjectionMatrix;
+uniform mat3 uWorldTransformMatrix;
+uniform mat3 uTransformMatrix;
+void main(void) {
+  mat3 mvp = uProjectionMatrix * uWorldTransformMatrix * uTransformMatrix;
+  gl_Position = vec4((mvp * vec3(aPosition, 1.0)).xy, 0.0, 1.0);
+  vUV = aUV;
+}`;
 
-const fragmentRaios = `in vec2 vTextureCoord;
+const fragmentRaios = `in vec2 vUV;
 out vec4 finalColor;
-uniform sampler2D uTexture;
-uniform highp vec4 uInputSize;
-uniform highp vec4 uOutputFrame;
 uniform highp float uDirecao;
 uniform highp float uAbertura;
 uniform highp float uRaio;
@@ -53,8 +48,7 @@ float ruido1D(float x) {
 }
 
 void main() {
-  vec2 uv = vTextureCoord * uInputSize.xy / uOutputFrame.zw;
-  vec2 p = (uv - vec2(0.5)) * 2.0;
+  vec2 p = vUV;
   bool pixel = uPixel > 0.5;
 
   if (pixel) {
@@ -107,12 +101,22 @@ interface HaloGPU {
 
 interface RaiosGPU {
   c: Container;
-  s: Sprite;
+  mesh: Mesh<Geometry, Shader>;
   m: Graphics;
   grupo: UniformGroup;
   luz: Luz;
   chaveGeo: string;
   pts: readonly number[] | null;
+  raio: number;
+}
+
+function geometriaQuad(raio: number): Geometry {
+  const coords = new Float32Array([-raio, -raio, raio, -raio, raio, raio, -raio, raio]);
+  const uvs = new Float32Array([-1, -1, 1, -1, 1, 1, -1, 1]);
+  return new Geometry({
+    attributes: { aPosition: coords, aUV: uvs },
+    indexBuffer: new Uint16Array([0, 1, 2, 0, 2, 3]),
+  });
 }
 
 /**
@@ -129,7 +133,7 @@ export function criarHalos(mapaDeLuz: MapaDeLuz, telhados: Telhados): Halos {
   let ligado = true, destruido = false, pixel = false, ppm = 1;
 
   function obterPrograma(): GlProgram {
-    programaRaios ??= GlProgram.from({ vertex, fragment: fragmentRaios, name: 'atlas-raios' });
+    programaRaios ??= GlProgram.from({ vertex: vertexRaios, fragment: fragmentRaios, name: 'atlas-raios' });
     return programaRaios;
   }
 
@@ -166,51 +170,56 @@ export function criarHalos(mapaDeLuz: MapaDeLuz, telhados: Telhados): Halos {
       }
       for (const [id, h] of halos) if (!idsVivas.has(id)) { h.s.destroy(); halos.delete(id); }
 
-      // Raios: luz com cone e rays: true ganha sprite com shader de listras radiais
+      // Raios: luz com cone e rays: true ganha mesh em coordenadas de mundo com shader de listras radiais
       for (const l of vivas) {
         const querRaios = l.cone !== null && l.rays;
         let r = raios.get(l.id);
         if (!querRaios) {
-          if (r) { r.c.destroy({ children: true }); raios.delete(l.id); }
+          if (r) { r.mesh.geometry.destroy(); r.c.destroy({ children: true }); raios.delete(l.id); }
           continue;
         }
         if (!r) {
-          const c = new Container(), s = new Sprite(Texture.WHITE), mGraf = new Graphics();
-          s.anchor.set(0.5); s.blendMode = 'add';
-          c.addChild(s, mGraf); c.mask = mGraf;
+          const c = new Container(), mGraf = new Graphics();
           const grupo = new UniformGroup({
             uDirecao: { value: 0, type: 'f32' }, uAbertura: { value: 0, type: 'f32' },
             uRaio: { value: 1, type: 'f32' }, uIntensidade: { value: 0, type: 'f32' },
             uCor: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
             uTempo: { value: 0, type: 'f32' }, uPixel: { value: 0, type: 'f32' }, uPpm: { value: 1, type: 'f32' },
           });
-          const filtro = new Filter({ glProgram: obterPrograma(), resources: { raios: grupo } });
-          filtro.blendMode = 'add';
-          s.filters = [filtro];
+          const shader = new Shader({ glProgram: obterPrograma(), resources: { raios: grupo } });
+          const mesh = new Mesh<Geometry, Shader>({ geometry: geometriaQuad(l.radius), shader });
+          mesh.blendMode = 'add';
+          mesh.mask = mGraf;
+          c.addChild(mesh, mGraf);
           raiosC.addChild(c);
-          r = { c, s, m: mGraf, grupo, luz: l, chaveGeo: '', pts: null };
+          r = { c, mesh, m: mGraf, grupo, luz: l, chaveGeo: '', pts: null, raio: l.radius };
           raios.set(l.id, r);
         }
-        r.luz = l;
-        const u = r.grupo.uniforms as Record<string, unknown>;
+        const item = r;
+        item.luz = l;
+        if (item.raio !== l.radius) {
+          item.raio = l.radius;
+          item.mesh.geometry.destroy();
+          item.mesh.geometry = geometriaQuad(l.radius);
+        }
+        const u = item.grupo.uniforms as Record<string, unknown>;
         u.uDirecao = l.cone!.direction;
         u.uAbertura = l.cone!.angle;
         u.uRaio = l.radius;
         u.uCor = new Float32Array(rgb01(l.color));
         u.uPixel = pixel ? 1 : 0;
         u.uPpm = ppm;
-        r.s.position.set(l.position[0], l.position[1]);
-        r.s.width = r.s.height = l.radius * 2;
+        item.mesh.position.set(l.position[0], l.position[1]);
 
         const chave = JSON.stringify([l.position, l.radius, l.cone]);
-        if (chave !== r.chaveGeo) {
-          r.chaveGeo = chave;
+        if (chave !== item.chaveGeo) {
+          item.chaveGeo = chave;
           const pts = mapaDeLuz.poligono(l.id);
-          r.pts = pts;
-          r.m.clear(); if (pts && pts.length >= 6) r.m.poly(pts as number[]).fill(0xffffff);
+          item.pts = pts;
+          item.m.clear(); if (pts && pts.length >= 6) item.m.poly(pts as number[]).fill(0xffffff);
         }
       }
-      for (const [id, r] of raios) if (!idsVivas.has(id)) { r.c.destroy({ children: true }); raios.delete(id); }
+      for (const [id, r] of raios) if (!idsVivas.has(id)) { r.mesh.geometry.destroy(); r.c.destroy({ children: true }); raios.delete(id); }
     },
     quadro(agora) {
       if (destruido || !mapa) return;
@@ -254,7 +263,7 @@ export function criarHalos(mapaDeLuz: MapaDeLuz, telhados: Telhados): Halos {
     destruir() {
       destruido = true;
       for (const h of halos.values()) h.s.destroy(); halos.clear();
-      for (const r of raios.values()) r.c.destroy({ children: true }); raios.clear();
+      for (const r of raios.values()) { r.mesh.geometry.destroy(); r.c.destroy({ children: true }); } raios.clear();
       raiz.destroy({ children: true });
     },
   };
