@@ -1,13 +1,18 @@
 import { celulasEntre } from './celulas.ts';
 import type { Grade, Ponto } from './mapa.ts';
 
-/** Como a régua conta as diagonais: todas valem 1 (como o rei no xadrez) ou alternam 1, 2, 1, 2… */
-export type RegraDeDiagonal = 'simples' | 'alternada';
-export const ROTULO_DA_REGRA: Record<RegraDeDiagonal, string> = { simples: 'Simples (todas valem 1)', alternada: 'Alternada (1, 2, 1, 2…)' };
+/** Como a régua conta as diagonais: todas valem 1, alternam 1, 2, 1, 2… (5-10-5) ou euclidiana (distância euclidiana). */
+export type RegraDeDiagonal = 'simples' | 'alternada' | 'euclidiana';
+export const ROTULO_DA_REGRA: Record<RegraDeDiagonal, string> = {
+  simples: 'Simples (todas valem 1)',
+  alternada: '5-10-5 (Alternada)',
+  euclidiana: 'Euclidiana (linha reta)',
+};
 
 /** Distância entre dois pontos do mapa, em quadrados inteiros de `tamanho` metros. */
 export function distanciaEmQuadrados(de: Ponto, para: Ponto, tamanho: number, regra: RegraDeDiagonal = 'simples'): number {
   const dx = Math.round(Math.abs(para[0] - de[0]) / tamanho), dy = Math.round(Math.abs(para[1] - de[1]) / tamanho);
+  if (regra === 'euclidiana') return Math.round(Math.hypot(dx, dy));
   const diagonais = Math.min(dx, dy), retas = Math.max(dx, dy) - diagonais;
   return regra === 'alternada' ? retas + diagonais + Math.floor(diagonais / 2) : retas + diagonais;
 }

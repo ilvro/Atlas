@@ -21,6 +21,13 @@ test('regra alternada: diagonais valem 1, 2, 1, 2…', () => {
   assert.equal(distanciaEmQuadrados([0, 0], [6, 3], T, 'alternada'), 2 + 2 + 1, '2 diagonais (3) e 2 retas');
 });
 
+test('regra euclidiana: mede a hipotenusa arredondada em quadrados', () => {
+  // Triângulo 3-4-5: dx = 3 * T, dy = 4 * T -> 5 quadrados
+  assert.equal(distanciaEmQuadrados([0, 0], [3 * T, 4 * T], T, 'euclidiana'), 5);
+  // Diagonal pura 3x3: sqrt(9+9) = sqrt(18) = 4.24 -> arredonda para 4
+  assert.equal(distanciaEmQuadrados([0, 0], [3 * T, 3 * T], T, 'euclidiana'), 4);
+});
+
 test('o percurso com dobras soma os trechos', () => {
   assert.equal(distanciaDoPercurso([[0.75, 0.75], [4.75 - 0.25, 0.75], [4.5, 6.75]], T), 3 + 4);
   assert.equal(distanciaDoPercurso([[0, 0]], T), 0);

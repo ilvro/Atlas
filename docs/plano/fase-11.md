@@ -124,7 +124,7 @@ Testes: teste verificando que clicar em `cartao-espiar-ficha` abre o painel `Pre
 Pronto quando: clicar na seta do token abre o statblock real do Dossiê colado ao token (como na referência do Atlas VTT) e rolagens feitas ali flutuam sobre a peça no mapa.
 Commit: feat(atlas): add live floating Dossie sheet preview popover anchored to tokens
 
-### 11.3a — Barra de utilidades inferior unificada com submenus e Olho da Vista de Jogador  ⬜
+### 11.3a — Barra de utilidades inferior unificada com submenus e Olho da Vista de Jogador  ✅
 Objetivo: organizar as ferramentas e utilidades numa barra inferior flutuante moderna, com histórico à esquerda, ferramentas agrupadas com submenus ao centro e o botão de Olho (`Vista de Jogador`) destacado à direita.
 Depende de: —
 Ler: `src/ui/Editor.tsx`, `src/ui/Dock.tsx`, `src/ui/Cabecalho.tsx`, `src/app/acoes.ts`, `src/ui/estilo.css`.

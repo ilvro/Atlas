@@ -156,21 +156,21 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
 .erro-inicial { max-width: 640px; margin: 10vh auto; }
 
 /* ---- Editor ---- */
-.editor { flex: 1; min-height: 0; display: grid; grid-template-columns: 56px auto minmax(0, 1fr) 312px; grid-template-rows: minmax(0, 1fr) 30px; background: var(--fundo-mapa); }
-.ferramentas { grid-column: 1; grid-row: 1 / 3; overflow: auto; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0; background: var(--superficie); border-right: 1px solid var(--linha); }
-.ferramenta { position: relative; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 9px; color: var(--apagado); }
+.editor { flex: 1; min-height: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) 312px; grid-template-rows: minmax(0, 1fr) 30px; background: var(--fundo-mapa); }
+.ferramentas { display: flex; align-items: center; gap: 3px; }
+.ferramenta { position: relative; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; color: var(--apagado); transition: background 0.15s, color 0.15s; cursor: pointer; padding: 0; border: none; background: transparent; }
 .ferramenta:hover { background: var(--superficie-2); color: #fff; }
 .ferramenta.ativa { background: var(--acento-suave); color: var(--acento); box-shadow: inset 0 0 0 1px var(--acento-media); }
-.ferramenta.ativa::before { content: ''; position: absolute; left: -7px; width: 4px; height: 26px; background: var(--acento); border-radius: 0 4px 4px 0; }
-.numero-ferramenta { position: absolute; right: 3px; bottom: 1px; font-size: 9px; opacity: 0.55; }
-.area-com-cartao { grid-column: 3; grid-row: 1; position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.ferramenta.ativa::before { content: ''; position: absolute; bottom: -3px; left: 50%; transform: translateX(-50%); width: 16px; height: 3px; background: var(--acento); border-radius: 2px 2px 0 0; }
+.numero-ferramenta { position: absolute; right: 3px; bottom: 1px; font-size: 8.5px; opacity: 0.55; }
+.area-com-cartao { grid-column: 2; grid-row: 1; position: relative; min-width: 0; min-height: 0; overflow: hidden; }
 .area-do-mapa { position: absolute; inset: 0; min-width: 0; min-height: 0; overflow: hidden; }
 .area-do-mapa canvas { display: block; touch-action: none; }
 .area-do-mapa[data-ferramenta='luz'], .area-do-mapa[data-ferramenta='objeto'], .area-do-mapa[data-ferramenta='peca'], .area-do-mapa[data-ferramenta='regiao'], .area-do-mapa[data-ferramenta='comodo'], .area-do-mapa[data-ferramenta='parede'], .area-do-mapa[data-ferramenta='abertura'], .area-do-mapa[data-ferramenta='terreno'], .area-do-mapa[data-ferramenta='borracha'] { outline: 1px dashed color-mix(in srgb, var(--acento), transparent 50%); outline-offset: -3px; }
-.barra-de-estado { grid-column: 2 / 5; display: flex; align-items: center; gap: 18px; padding: 0 14px; background: var(--superficie); border-top: 1px solid var(--linha); color: var(--apagado); font-size: 12px; font-variant-numeric: tabular-nums; }
+.barra-de-estado { grid-column: 1 / 4; display: flex; align-items: center; gap: 18px; padding: 0 14px; background: var(--superficie); border-top: 1px solid var(--linha); color: var(--apagado); font-size: 12px; font-variant-numeric: tabular-nums; }
 
 /* ---- Biblioteca (a gaveta da ferramenta ativa) ---- */
-.biblioteca { grid-column: 2; grid-row: 1; width: 272px; display: flex; flex-direction: column; min-height: 0; background: var(--painel); border-right: 1px solid var(--linha); animation: gaveta-entra 0.16s ease-out; }
+.biblioteca { grid-column: 1; grid-row: 1; width: 272px; display: flex; flex-direction: column; min-height: 0; background: var(--painel); border-right: 1px solid var(--linha); animation: gaveta-entra 0.16s ease-out; }
 @keyframes gaveta-entra { from { opacity: 0; transform: translateX(-12px); } }
 .biblioteca-topo { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px 0 14px; flex: none; }
 .biblioteca-topo .faixa { margin: 0; }
@@ -215,7 +215,7 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
 .pintando i { width: 7px; height: 7px; border-radius: 50%; background: #e5b13a; animation: pulso 0.9s infinite; }
 
 /* ---- Inspetor ---- */
-.inspetor { grid-row: 1; grid-column: 4; display: flex; flex-direction: column; background: var(--painel); border-left: 1px solid var(--linha); min-height: 0; }
+.inspetor { grid-row: 1; grid-column: 3; display: flex; flex-direction: column; background: var(--painel); border-left: 1px solid var(--linha); min-height: 0; }
 .abas { display: flex; border-bottom: 1px solid var(--linha); flex: none; }
 .abas button { flex: 1; padding: 11px 6px; color: var(--apagado); font: 700 12px var(--corpo); letter-spacing: 0.06em; text-transform: uppercase; border-bottom: 2px solid transparent; }
 .abas button:hover { color: #fff; }
@@ -367,7 +367,7 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
 .dock-barra {
   position: absolute;
   left: 50%;
-  bottom: 12px;
+  bottom: 58px;
   transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
@@ -381,6 +381,232 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   pointer-events: auto;
   z-index: 25;
+}
+
+/* ---- Barra Inferior Flutuante ---- */
+.barra-inferior-container {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 26;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.barra-inferior {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(14, 15, 23, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--linha-forte);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
+  user-select: none;
+}
+
+.barra-inferior-bloco {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.barra-inferior-botao {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  color: var(--apagado);
+  background: transparent;
+  transition: background 0.12s, color 0.12s;
+  cursor: pointer;
+  padding: 0;
+  border: none;
+}
+.barra-inferior-botao:hover:not(:disabled) {
+  background: var(--superficie-2);
+  color: #fff;
+}
+.barra-inferior-botao:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.barra-inferior-divisor {
+  width: 1px;
+  height: 22px;
+  background: var(--linha);
+  margin: 0 2px;
+}
+
+.barra-inferior-separador {
+  width: 1px;
+  height: 18px;
+  background: var(--linha);
+  margin: 0 2px;
+}
+
+.item-ferramenta-grupo {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.submenu-gatilho {
+  width: 12px;
+  height: 36px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  margin-left: -2px;
+  font-size: 8.5px;
+  color: var(--apagado);
+  background: transparent;
+  border: none;
+  border-radius: 0 6px 6px 0;
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s;
+}
+.submenu-gatilho:hover, .submenu-gatilho.aberto {
+  color: #fff;
+  background: var(--superficie-2);
+}
+
+.grupo-vista-jogador {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--acento), transparent 85%);
+  border: 1px solid var(--acento-media);
+  transition: border-color 0.15s, background 0.15s;
+}
+.grupo-vista-jogador:hover {
+  border-color: var(--acento);
+  background: color-mix(in srgb, var(--acento), transparent 75%);
+}
+
+.botao-vista-jogador {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  font: 700 11.5px var(--corpo);
+  letter-spacing: 0.04em;
+  color: var(--acento);
+  background: transparent;
+  cursor: pointer;
+  border: none;
+  border-radius: 7px 0 0 7px;
+}
+.botao-vista-jogador.ativa {
+  color: #fff;
+  background: var(--acento);
+}
+
+.botao-chevron-projetor {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 28px;
+  padding: 0;
+  font-size: 8.5px;
+  color: var(--acento);
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--acento-media);
+  cursor: pointer;
+  border-radius: 0 7px 7px 0;
+}
+.botao-chevron-projetor:hover, .botao-chevron-projetor.aberto {
+  background: var(--acento-suave);
+  color: #fff;
+}
+
+/* Submenus flutuantes (popovers) da barra inferior */
+.popover-barra-inferior {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  background: var(--painel);
+  border: 1px solid var(--linha-forte);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding: 6px;
+  z-index: 100;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  animation: popover-entra 0.12s ease-out;
+  pointer-events: auto;
+}
+
+.popover-barra-inferior .popover-titulo {
+  font: 700 10px var(--corpo);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--apagado);
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--linha);
+  margin-bottom: 2px;
+}
+
+.popover-barra-inferior .popover-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  color: var(--texto);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  transition: background 0.12s, color 0.12s;
+}
+.popover-barra-inferior .popover-item:hover {
+  background: var(--superficie-2);
+  color: var(--acento);
+}
+.popover-barra-inferior .popover-item.ativo {
+  background: var(--acento-suave);
+  color: var(--acento);
+  font-weight: 600;
+}
+.popover-barra-inferior .popover-item.destaque {
+  background: var(--acento);
+  color: var(--acento-texto);
+  font-weight: 700;
+}
+.popover-barra-inferior .popover-item.destaque:hover {
+  background: var(--acento-escuro, var(--acento));
+  color: var(--acento-texto);
+}
+.popover-barra-inferior .popover-item.info {
+  cursor: default;
+  color: var(--apagado);
+  font-size: 11.5px;
+}
+.popover-barra-inferior .status-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--apagado);
+}
+.popover-barra-inferior .status-badge.conectado {
+  background: var(--acento-suave);
+  color: var(--acento);
 }
 
 .dock-aba {

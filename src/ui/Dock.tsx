@@ -17,9 +17,9 @@ import { embutido } from '../app/embutido.ts';
 import { definirMostrarPvNoProjetor, mostrarPvNoProjetor } from '../app/fichas.ts';
 import { Icone } from './Icone.tsx';
 
-/** Quais seções do dock estão abertas. */
-// Embutido na Mesa o espaço é curto: o dock começa com as seções recolhidas, para não cobrir o mapa.
-const abertas = signal<Record<string, boolean>>({ clima: !embutido, cena: !embutido, presenca: false, iniciativa: false, personagens: false, pistas: false, projetor: false });
+import { secoesAbertasNoDock, abrirSecaoNoDock, alternarSecaoNoDock } from '../app/dock.ts';
+export { secoesAbertasNoDock, abrirSecaoNoDock, alternarSecaoNoDock };
+const abertas = secoesAbertasNoDock;
 /** Os valores digitados antes de começar a iniciativa, por peça. */
 const valoresIniciais = signal<Record<string, string>>({});
 

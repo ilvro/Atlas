@@ -17,7 +17,10 @@ export const FERRAMENTAS_DA_SESSAO: readonly Ferramenta[] = ['selecionar', 'mao'
 /** Preferência local (não vai no mapa): como a régua conta as diagonais. */
 const CHAVE_REGUA = 'atlas:regua-diagonal';
 let regraInicial: RegraDeDiagonal = 'simples';
-try { if (localStorage.getItem(CHAVE_REGUA) === 'alternada') regraInicial = 'alternada'; } catch { /* sem armazenamento: padrão simples */ }
+try {
+  const r = localStorage.getItem(CHAVE_REGUA);
+  if (r === 'alternada' || r === 'euclidiana') regraInicial = r;
+} catch { /* sem armazenamento: padrão simples */ }
 export const regraDaRegua = signal<RegraDeDiagonal>(regraInicial);
 export function definirRegraDaRegua(r: RegraDeDiagonal): void { regraDaRegua.value = r; try { localStorage.setItem(CHAVE_REGUA, r); } catch { /* ignora */ } }
 /** Preferência local: quanto dura a transição entre dois climas, em ms (`null` = o padrão do viewport). */

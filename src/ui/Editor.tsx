@@ -23,30 +23,9 @@ import { Dock } from './Dock.tsx';
 import { aspectoDoProjetor, caixaDoProjetor, mostrarQuadroDoProjetor, projetorConectado, seguirJogadores } from '../app/projetor.ts';
 import { Inspetor } from './Inspetor.tsx';
 import { PilulaDeSugestao } from './PilulaDeSugestao.tsx';
-
-const FERRAMENTAS: { id: Ferramenta; icone: string }[] = [
-  { id: 'selecionar', icone: 'selecionar' }, { id: 'mao', icone: 'mao' }, { id: 'comodo', icone: 'comodo' }, { id: 'borracha', icone: 'borracha' }, { id: 'parede', icone: 'parede' },
-  { id: 'abertura', icone: 'porta' }, { id: 'objeto', icone: 'objeto' }, { id: 'luz', icone: 'luz' }, { id: 'peca', icone: 'peca' }, { id: 'regiao', icone: 'regiao' }, { id: 'terreno', icone: 'terreno' }, { id: 'presenca', icone: 'presenca' }, { id: 'espalhar', icone: 'espalhar' },
-  { id: 'regua', icone: 'regua' },
-];
+import { BarraInferior } from './BarraInferior.tsx';
 
 const zoomPct = signal(100), cursorMundo = signal<[number, number] | null>(null), pintando = signal(0);
-
-function Ferramentas({ s }: { s: SessaoDeEdicao }) {
-  return (
-    <nav class="ferramentas" aria-label="Ferramentas">
-      {FERRAMENTAS.filter(f => modo.value === 'construir' || FERRAMENTAS_DA_SESSAO.includes(f.id)).map((f, i) => {
-        const atalhos = acaoPorId(`ferr-${f.id}`)?.atalhos ?? [], letra = atalhos[0];
-        return <button type="button" key={f.id} class={`ferramenta ${s.ferramenta.value === f.id ? 'ativa' : ''}`} aria-pressed={s.ferramenta.value === f.id} title={`${ROTULO_DA_FERRAMENTA[f.id]}${letra ? ` (${atalhos.map(mostrarAtalho).join(' ou ')})` : ''}`} data-testid={`ferramenta-${f.id}`}
-          onClick={() => { const a = acaoPorId(`ferr-${f.id}`); if (a) executarAcao(a); }}><Icone nome={f.icone} tamanho={20} />{i < 9 && f.id !== 'regua' && <span class="numero-ferramenta">{i + 1}</span>}</button>;
-      })}
-      <span class="espaco" />
-      {modo.value === 'construir' && <button type="button" class={`ferramenta ${s.biblioteca.value ? 'ativa' : ''}`} aria-pressed={s.biblioteca.value} title="Biblioteca (B)" onClick={() => { s.biblioteca.value = !s.biblioteca.value; }} data-testid="alternar-biblioteca"><Icone nome="gaveta" tamanho={20} /></button>}
-      <button type="button" class="ferramenta" title="Enquadrar o mapa (F)" onClick={() => { const a = acaoPorId('enquadrar'); if (a) executarAcao(a); }} data-testid="enquadrar"><Icone nome="enquadrar" tamanho={20} /></button>
-      {modo.value === 'construir' && <button type="button" class={`ferramenta ${s.doc.value.grid.visible ? 'ativa' : ''}`} aria-pressed={s.doc.value.grid.visible} title="Grade (G)" onClick={() => { const a = acaoPorId('grade'); if (a) executarAcao(a); }} data-testid="alternar-grade"><Icone nome="grade" tamanho={20} /></button>}
-    </nav>
-  );
-}
 
 function ponteDa(s: SessaoDeEdicao): PonteViewport {
   const camSalva = !focoPendente.peek() ? obterCameraDaAba(s.doc.value.id) : undefined;
@@ -132,9 +111,15 @@ export function Editor() {
   if (!s) return null;
   return (
     <div class="editor" data-testid="editor">
-      <Ferramentas s={s} />
       <Biblioteca s={s} />
-      <div class="area-com-cartao"><AreaDoMapa s={s} /><CartaoContextual s={s} />{modo.value === 'sessao' && <Dock s={s} />}{modo.value === 'sessao' && <Inspecao />}{modo.value === 'construir' && <PilulaDeSugestao s={s} />}</div>
+      <div class="area-com-cartao">
+        <AreaDoMapa s={s} />
+        <CartaoContextual s={s} />
+        <BarraInferior s={s} />
+        {modo.value === 'sessao' && <Dock s={s} />}
+        {modo.value === 'sessao' && <Inspecao />}
+        {modo.value === 'construir' && <PilulaDeSugestao s={s} />}
+      </div>
       <Inspetor />
       <BarraDeEstado s={s} />
     </div>
