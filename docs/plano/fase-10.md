@@ -256,9 +256,10 @@ Pronto quando: uma captura com os quatro lado a lado, a 64 px/m, mostra gelo com
 Commit: ice, deep snow and cracked rock
 Nota: os padrões Ilustrados são pintados pixel a pixel (`porPixel`, com `voronoi.ts` e ruído) em vez de formas soltas, para dar volume e caber em áreas grandes; as rachaduras do gelo são polilinhas por cima. A contagem de cores do Pixel (≤ 6) e a captura estão num e2e novo (`tests/e2e/fase10-materiais.test.ts`), pois o teste unitário não tem canvas. Cascalho: semieixos de 3 a 6,5 cm. `ladrilhoDeRuido` (ruido.ts) agora é periódico de verdade (cada oitava dá a volta na própria grade): o antigo deixava emendas quadradas visíveis em `neve` e nos outros materiais que usam `camadaDeRuido`; o visual muda só por isso.
 
-### 10.4b — Materiais: paralelepípedo, lajes com grama, terra com sulcos, areia molhada  ⬜
+### 10.4b — Materiais: paralelepípedo, lajes com grama, terra com sulcos, areia molhada  ✅
 Escopo: `paralelepipedo` (pedras arredondadas irregulares, Voronoi, rejunte escuro), `lajes.gramadas` (lajes grandes com grama e musgo nas juntas, algumas faltando), `terra.sulcos` (estrada com duas trilhas de roda; os sulcos seguem a orientação dominante da camada), `areia.molhada`.
 Commit: cobbles, grassy flagstones and rutted dirt
+Nota: padrões novos `paralelepipedo` (Voronoi de 21 cm, cada pedra um domo iluminado a noroeste, rejunte escuro e sujo), `lajegrama` (lajes de ~1,15 × 0,85 m em fileiras desencontradas, 10% faltando, musgo, rachaduras e grama nas juntas), `sulcos` (duas trilhas paralelas ao eixo x do contexto, com banco claro, fundo escuro e capim na crista) e `molhada` (areia escurecida, marolas, poças de brilho). Os sulcos seguem a camada: `src/procedural/orientacao.ts` (`orientacaoDominante`, análise de componentes principais das células, 0 para forma quase redonda) e o assar passa `dir` só para o padrão `sulcos` (no Pixel gira em múltiplos de 90°). No Pixel as lajes usam as duas cores de verde fixas (`#4f7a35`, `#7fa650`), com 6 cores no total. Captura: `test-results/fase10-materiais-b.png` (`tests/e2e/fase10-materiais.test.ts`).
 
 ### 10.5a — Acervo: inverno e rocha  ✅
 Objetivo: os objetos de inverno e as rochas grandes que o Desfiladeiro e as costas pedem.

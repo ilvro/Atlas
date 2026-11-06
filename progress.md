@@ -378,3 +378,5 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 - As "ainda em aberto" da Fase 3; nenhuma bloqueia a Fase 4.
 
 - Camadas de objetos: `layer` opcional no objeto, comando `objeto.camada`, botões no Inspetor e atalhos Ctrl+[ / Ctrl+] (com Shift: frente/trás).
+
+- Fase 10.4b: paralelepípedo, lajes com grama, terra com sulcos (seguem a orientação da camada) e areia molhada, nos dois estilos.

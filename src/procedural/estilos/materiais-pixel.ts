@@ -185,6 +185,74 @@ const cascalhoPixel = (p: P): void => ladrilhar(p, ladrilho(chaveDe(p, 'cascalho
   for (let k = 0; k < 40; k++) { const i = Math.floor(r() * w * h); if (idx[i] === 0) idx[i] = 1; }
 }));
 
+const VERDE_PX = ['#4f7a35', '#7fa650'];
+const paralelepipedoPixel = (p: P): void => {
+  const cel = Math.max(5, Math.round(0.3 * p.res)), n = 8, T = cel * n;
+  ladrilhar(p, ladrilho(chaveDe(p, `paralelepipedo${cel}`), T, T, [p.t.B, p.t.c1, p.t.c2, p.t.e1, p.t.E], (idx, w, h) => {
+    const s = p.seed * 3 + 2, sitio = (i: number, j: number): [number, number, number] => { const a = ((i % n) + n) % n, b = ((j % n) + n) % n; return [(i + 0.2 + 0.6 * hash2D(a, b, s)) * cel, (j + 0.2 + 0.6 * hash2D(a, b, s + 9)) * cel, hash2D(a, b, s + 17)]; };
+    const placa = new Int8Array(w * h), junta = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let d1 = 1e9, d2 = 1e9, tom = 0; const ci = Math.floor(x / cel), cj = Math.floor(y / cel);
+      for (let j = cj - 1; j <= cj + 1; j++) for (let i = ci - 1; i <= ci + 1; i++) { const q = sitio(i, j), d = Math.hypot(q[0] - x - 0.5, q[1] - y - 0.5); if (d < d1) { d2 = d1; d1 = d; tom = q[2]; } else if (d < d2) d2 = d; }
+      junta[y * w + x] = d2 - d1 < 1.3 ? 1 : 0; placa[y * w + x] = tom < 0.4 ? 0 : 1;
+    }
+    const em = (x: number, y: number) => junta[(((y % h) + h) % h) * w + (((x % w) + w) % w)]!;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x; if (junta[i]) { idx[i] = 4; continue; }
+      idx[i] = em(x - 1, y) || em(x, y - 1) ? 2 : em(x + 1, y) || em(x, y + 1) ? 3 : placa[i]!;
+    }
+  }));
+};
+
+const lajeGramadaPixel = (p: P): void => {
+  const rh = Math.max(7, Math.round(0.85 * p.res)), lw = Math.round(rh * 1.4), n = 4, W = lw * n, H = rh * 4;
+  ladrilhar(p, ladrilho(chaveDe(p, `lajegrama${rh}`), W, H, [p.t.B, p.t.c1, p.t.e1, p.t.E, VERDE_PX[0]!, VERDE_PX[1]!], (idx, w, h, r) => {
+    const s = p.seed * 5 + 1;
+    for (let j = 0; j < 4; j++) {
+      const off = Math.floor(hash2D(j, 0, s) * lw), borda = (i: number) => off + i * lw + Math.round((hash2D(((i % n) + n) % n, j, s + 9) - 0.5) * lw * 0.3);
+      for (let i = 0; i < n + 1; i++) {
+        const x0 = borda(i), x1 = borda(i + 1), falta = hash2D(((i % n) + n) % n, j, s + 21) < 0.1, tom = hash2D(((i % n) + n) % n, j, s + 3) < 0.5 ? 0 : 1;
+        for (let y = j * rh; y < (j + 1) * rh; y++) for (let x = x0; x < x1; x++) {
+          const yy = y - j * rh, xx = x - x0, junta = yy === 0 || xx === 0 || y === (j + 1) * rh - 1 || x === x1 - 1;
+          let c = falta ? 2 : junta ? 3 : (yy === 1 || xx === 1) ? 1 : (y === (j + 1) * rh - 2 || x === x1 - 2) ? 2 : tom;
+          if (junta || falta) { if (r() < (falta ? 0.55 : 0.38)) c = r() < 0.4 ? 5 : 4; }
+          else if (r() < 0.015) c = 4;
+          idx[(y % h) * w + (((x % w) + w) % w)] = c;
+        }
+      }
+    }
+  }));
+};
+
+const sulcosPixel = (p: P): void => {
+  const P2 = Math.max(12, Math.round(2.1 * p.res)), hw = Math.max(1, Math.round(0.13 * p.res)), W = 64;
+  ladrilhar(p, ladrilho(chaveDe(p, `sulcos${P2}`), W, P2, [p.t.c1, p.t.e1, p.t.E, p.t.C, VERDE_PX[0]!], (idx, w, h, r) => {
+    pontilhar(idx, r, 1, 0.12); pontilhar(idx, r, 0, 0.1); idx.forEach((v, i) => { if (v < 0) idx[i] = 0; });
+    const fase = r() * 6.283, quebra = ruidoPeriodico(w, 1, 3, p.seed * 3 + 1);
+    for (const c of [Math.round(h * 0.24), Math.round(h * 0.76)]) for (let x = 0; x < w; x++) {
+      if (quebra[x]! < 0.2) continue;
+      const cy = c + Math.round(1.3 * Math.sin((x / w) * 6.283 * 2 + fase + c));
+      for (let d = -hw - 1; d <= hw + 1; d++) idx[(((cy + d) % h) + h) % h * w + x] = d === -hw - 1 ? 1 : d === hw + 1 ? 0 : 2;
+    }
+    const cr = Math.round(h * 0.5);
+    for (let x = 0; x < w; x++) if (hash2D(x, 1, p.seed) > 0.55) idx[(cr + Math.floor(r() * 3) - 1) * w + x] = 4;
+    for (let k = 0; k < 6; k++) idx[Math.floor(r() * w * h)] = 3;
+  }));
+};
+
+const molhadaPixel = (p: P): void => {
+  ladrilhar(p, ladrilho(chaveDe(p, 'molhada'), 96, 48, [p.t.c1, p.t.e1, p.t.C, p.t.E], (idx, w, h, r) => {
+    pontilhar(idx, r, 1, 0.06);
+    const forca = ruidoPeriodico(w, h, 3, p.seed * 5 + 7);
+    for (let x = 0; x < w; x++) for (let k = 0; k < 4; k++) {
+      if (forca[((k * 12) % h) * w + x]! < 0.4) continue;
+      const y0 = Math.round(k * 12 + x * 0.25 + 1.8 * Math.sin((x / w) * 6.283 * 2 + k));
+      idx[(((y0 - 1) % h) + h) % h * w + x] = 0; idx[((y0 % h) + h) % h * w + x] = 2; idx[(((y0 + 1) % h) + h) % h * w + x] = 3;
+    }
+    for (let k = 0; k < 5; k++) idx[Math.floor(r() * w * h)] = 2;
+  }));
+};
+
 const PINTORES: Record<Padrao, (p: P) => void> = {
   tabuas: p => {
     const alt = Math.max(3, Math.round((p.m.largura ?? 0.2) * p.res) + 1) / p.res;      // pelo menos 3 pixels de altura
@@ -216,6 +284,7 @@ const PINTORES: Record<Padrao, (p: P) => void> = {
   areia: p => ruidoPixel(p, 'areia', 0.09, 0.07),
   neve: p => ruidoPixel(p, 'neve', 0.03, 0.05),
   gelo, dunas: dunasPixel, rachado: rachadoPixel, cascalho: cascalhoPixel,
+  paralelepipedo: paralelepipedoPixel, lajegrama: lajeGramadaPixel, sulcos: sulcosPixel, molhada: molhadaPixel,
   pedra: p => ladrilhar(p, ladrilho(chaveDe(p, 'pedra'), 64, 64, [p.t.c2, p.t.e1, p.t.E], (idx, w, h, r) => {
     for (let i = 0; i < 70; i++) { const x = Math.floor(r() * w), y = Math.floor(r() * h), bw = 2 + Math.floor(r() * 2); for (let k = 0; k < bw; k++) { idx[(y % h) * w + ((x + k) % w)] = r() < 0.5 ? 0 : 1; idx[((y + 1) % h) * w + ((x + k) % w)] = 2; } }
   })),

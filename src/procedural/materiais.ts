@@ -2,7 +2,7 @@ import { contextoDe, criarTela, type Contexto } from './canvas.ts';
 import { fbm, hash2D, ladrilhoDeRuido, mulberry32, valueNoise2D } from './ruido.ts';
 import { celulasDeVoronoi, type Consulta } from './voronoi.ts';
 
-export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho';
+export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho' | 'paralelepipedo' | 'lajegrama' | 'sulcos' | 'molhada';
 export interface Material {
   id: string; nome: string; /** Para onde o material vai: piso, papel de parede, objeto ou terreno. */ uso: 'piso' | 'papel' | 'objeto' | 'terreno' | 'macico' | 'agua' | 'telhado';
   base: string; escuro: string; claro: string; padrao: Padrao; largura?: number; lado?: number; ouro?: string; borda?: string; meio?: string; /** Maciço: cor do topo (neve), onde a rocha passa de 70% da altura. */ topo?: string; /** Maciço e escarpa: quanto o pé da face escurece e quanto pesa a sombra de contato (0 a 1; ausente vale 1). */ pe?: number;
@@ -98,6 +98,10 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('agua.gruta', 'Água de gruta', 'agua', '#2aa8a0', '#0c4a52', '#9af0e0', 'liso', { raso: '#58d0c0', fundo: '#106068', espuma: '#d8fff4', transparencia: 0.85, causticas: true }),
   m('agua.pantano', 'Pântano', 'agua', '#5a6a38', '#222a14', '#98a468', 'liso', { raso: '#7a8444', fundo: '#2c3418', espuma: '#c4c88c', transparencia: 0.2 }),
   m('cascalho', 'Cascalho', 'terreno', '#7a756c', '#3f3b36', '#b0aaa0', 'cascalho'),
+  m('paralelepipedo', 'Paralelepípedo', 'terreno', '#7b7873', '#34322f', '#aaa69f', 'paralelepipedo'),
+  m('lajes.gramadas', 'Lajes com grama', 'terreno', '#8a877f', '#3a3631', '#b9b5aa', 'lajegrama'),
+  m('terra.sulcos', 'Terra com sulcos', 'terreno', '#7a5a3a', '#3b2a1a', '#a1805a', 'sulcos'),
+  m('areia.molhada', 'Areia molhada', 'terreno', '#9c855a', '#5a4a2c', '#d8c690', 'molhada'),
 ].map(([id, mat]) => [id as string, mat as Material])) as Record<string, Material>;
 
 export const materialDe = (id: string): Material => {
@@ -285,6 +289,10 @@ export function pintarMaterial(ctx: Contexto, id: string, area: Area, seed = 1, 
     case 'dunas': camadaDeRuido(ctx, A, seed, 2.5, 0.16, 'multiply', 6); camadaDeRuido(ctx, A, seed + 1, 0.7, 0.2, 'soft-light', 10); pintarDunas(ctx, mat, A, seed); break;
     case 'rachado': pintarRachado(ctx, mat, A, seed, pxDe(ctx)); break;
     case 'cascalho': pintarCascalho(ctx, mat, A, seed); break;
+    case 'paralelepipedo': pintarParalelepipedo(ctx, mat, A, seed, pxDe(ctx)); break;
+    case 'lajegrama': pintarLajesGramadas(ctx, mat, A, seed, pxDe(ctx)); break;
+    case 'sulcos': pintarSulcos(ctx, mat, A, seed, pxDe(ctx)); break;
+    case 'molhada': pintarAreiaMolhada(ctx, mat, A, seed, pxDe(ctx)); break;
     case 'neve': camadaDeRuido(ctx, A, seed, 2.5, 0.35, 'multiply', 6); camadaDeRuido(ctx, A, seed + 1, 0.7, 0.2, 'soft-light', 10); break;
     default: camadaDeRuido(ctx, A, seed, 2, 0.15);
   }
@@ -417,6 +425,94 @@ function pintarCascalho(ctx: Contexto, mat: Material, A: Area, seed: number): vo
       const sombra = (1 - passo(1, 1.5, d)) * 0.5 + (Math.hypot(u - 0.5 / asp * 0.5, v - 0.55) < 1.05 ? 0.22 : 0);
       const k = 1 - Math.min(0.75, sombra); o[0] = o[0]! * k; o[1] = o[1]! * k; o[2] = o[2]! * k;
     }
+  });
+}
+
+/** `o` ← `o` empurrada para `b` (t = 0 não muda). */
+const rumo = (o: number[], b: ArrayLike<number>, t: number): void => { o[0] = o[0]! + (b[0]! - o[0]!) * t; o[1] = o[1]! + (b[1]! - o[1]!) * t; o[2] = o[2]! + (b[2]! - o[2]!) * t; };
+const VERDE: Cor3 = [58, 96, 40], VERDE_CLARO: Cor3 = [118, 156, 66], MUSGO: Cor3 = [78, 108, 56];
+
+/** Paralelepípedo: pedras arredondadas de ~20 cm (Voronoi), cada uma um domo iluminado de noroeste, com rejunte escuro e sujo entre elas. */
+function pintarParalelepipedo(ctx: Contexto, mat: Material, A: Area, seed: number, px: number): void {
+  const rn = valueNoise2D(seed * 29 + 3), V = celulasDeVoronoi(A, 0.21, seed * 13 + 4), q = novaConsulta();
+  const E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), w = Math.max(0.012, px * 1.3), rejunte: Cor3 = [E[0] * 0.6, E[1] * 0.55, E[2] * 0.5];
+  porPixel(ctx, A, (x, y, o) => {
+    const xx = x + (fbm(rn, x * 6, y * 6, 2) - 0.5) * 0.035, yy = y + (fbm(rn, x * 6 + 31, y * 6 + 7, 2) - 0.5) * 0.035;
+    V.consultar(xx, yy, q);
+    const s = q.sitio, lado = ((s.x - xx) + (s.y - yy)) / 0.21, domo = passo(w, 0.075, q.borda);
+    let t = 0.26 + 0.4 * s.azar + lado * 0.2 * domo + (fbm(rn, x * 10, y * 10, 3) - 0.5) * 0.24 + (hash2D(Math.floor(x / px), Math.floor(y / px), 5) - 0.5) * 0.06;
+    if (hash2D(s.i, s.j, 33) < 0.3) t -= 0.1;      // algumas pedras mais escuras e úmidas
+    if (t < 0.5) mez(o, E, B, Math.max(0, t) * 2); else mez(o, B, C, Math.min(1, (t - 0.5) * 2));
+    const k = 1 - (1 - domo) * 0.42; o[0] = o[0]! * k; o[1] = o[1]! * k; o[2] = o[2]! * k;
+    rumo(o, rejunte, (1 - passo(w * 0.3, w * 1.7, q.borda)) * 0.96 * (0.85 + 0.15 * fbm(rn, x * 14, y * 14, 2)));
+  });
+}
+
+/** Lajes grandes (~1,1 × 0,85 m, juntas desencontradas) com grama e musgo nas juntas, rachaduras de tempo e algumas lajes faltando. */
+function pintarLajesGramadas(ctx: Contexto, mat: Material, A: Area, seed: number, px: number): void {
+  const rn = valueNoise2D(seed * 31 + 9), E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), RH = 0.85, LW = 1.15, gw = 0.05, terra: Cor3 = [E[0] * 1.05, E[1] * 0.95, E[2] * 0.85];
+  porPixel(ctx, A, (x, y, o) => {
+    const j = Math.floor(y / RH), off = hash2D(j, 0, seed + 5) * LW, jit = (i: number) => (hash2D(i, j, seed + 9) - 0.5) * 0.4;
+    let i = Math.floor((x - off) / LW), e0 = i * LW + off + jit(i), e1 = (i + 1) * LW + off + jit(i + 1);
+    if (x < e0) { i--; e1 = e0; e0 = i * LW + off + jit(i); } else if (x >= e1) { i++; e0 = e1; e1 = (i + 1) * LW + off + jit(i + 1); }
+    const yt = j * RH, yb = yt + RH, d = Math.min(x - e0, e1 - x, y - yt, yb - y), falta = hash2D(i, j, seed + 21) < 0.1, sobre = d - gw * 0.5;
+    const ruido = fbm(rn, x * 7, y * 7, 3), relva = fbm(rn, x * 5 + 40, y * 5, 3);
+    let gr = 0;
+    if (falta || sobre < 0) {
+      tomDe(o, terra, 0.85 + 0.3 * ruido); gr = falta ? 0.35 + 0.6 * passo(0.38, 0.6, relva) : 0.5 + 0.5 * passo(0.3, 0.55, relva);
+    } else {
+      let t = 0.3 + 0.32 * hash2D(i, j, seed + 3) + (fbm(rn, x * 2.2, y * 2.2, 4) - 0.5) * 0.3 + (hash2D(Math.floor(x / px), Math.floor(y / px), 6) - 0.5) * 0.06;
+      const bisel = 1 - passo(gw * 0.5, gw * 0.5 + 0.07, sobre), luz = (x - e0) + (y - yt) < (e1 - x) + (yb - y) ? 1 : -1;
+      t += bisel * 0.18 * luz;
+      if (t < 0.5) mez(o, E, B, Math.max(0, t) * 2); else mez(o, B, C, Math.min(1, (t - 0.5) * 2));
+      const rach = Math.abs(fbm(rn, x * 3 + 70 * (i & 3), y * 3 + 11 * (j & 3), 3) - 0.5) < 0.012 && hash2D(i, j, seed + 40) < 0.5;
+      if (rach) rumo(o, E, 0.6);
+      rumo(o, MUSGO, passo(0.6, 0.8, fbm(rn, x * 2.1 + 9, y * 2.1, 3)) * (0.3 + 0.7 * (1 - passo(0, 0.45, sobre))) * 0.8);
+      gr = (1 - passo(0.01, 0.17, sobre)) * passo(0.4, 0.62, relva);
+    }
+    if (gr > 0.02) {
+      const folha = hash2D(Math.floor(x / (px * 1.5)), Math.floor(y / (px * 1.5)), 8);
+      rumo(o, folha > 0.72 ? VERDE_CLARO : VERDE, Math.min(0.96, gr * (folha > 0.4 ? 1 : 0.8)));
+    }
+    if (d < gw + 0.02 && !falta && sobre >= 0) { const k = 1 - (1 - passo(0, 0.05, sobre)) * 0.35; o[0] = o[0]! * k; o[1] = o[1]! * k; o[2] = o[2]! * k; }
+  });
+}
+
+/** Estrada de terra: duas trilhas de roda paralelas ao eixo x do contexto (o assar gira o padrão pela orientação dominante da camada), com banco claro, lama escura no fundo e capim na crista entre as trilhas. */
+function pintarSulcos(ctx: Contexto, mat: Material, A: Area, seed: number, px: number): void {
+  const rn = valueNoise2D(seed * 37 + 2), E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), P = 2.1, hw = 0.13, tmp = [0, 0, 0];
+  porPixel(ctx, A, (x, y, o) => {
+    const grao = fbm(rn, x * 2.2, y * 2.2, 4), fino = hash2D(Math.floor(x / px), Math.floor(y / px), 4);
+    mez(tmp, E, B, 0.35 + 0.5 * grao + (fino - 0.5) * 0.1); mez(o, tmp as unknown as Cor3, C, passo(0.62, 0.85, fbm(rn, x * 7 + 20, y * 7, 2)) * 0.3);
+    const per = Math.floor(y / P), ph = y - per * P + (fbm(rn, x * 0.35 + per * 9, 0.5, 3) - 0.5) * 0.5;
+    const gasto = 0.55 + 0.45 * passo(0.25, 0.55, fbm(rn, x * 0.4 + 60, per * 3.1, 2));
+    let sulco = 0;
+    for (const c of [0.5, 1.6]) {
+      const dy = ph - c, a = Math.abs(dy), prof = (1 - passo(0, hw, a)) * gasto;
+      sulco = Math.max(sulco, prof);
+      const banco = passo(hw * 0.8, hw * 1.35, a) * (1 - passo(hw * 1.35, hw * 2.4, a));
+      if (banco > 0) rumo(o, dy > 0 ? C : E, banco * (dy > 0 ? 0.35 : 0.3) * gasto);
+    }
+    if (sulco > 0) { rumo(o, E, sulco * 0.62); if (fbm(rn, x * 5, y * 5, 2) > 0.62) rumo(o, [E[0] * 1.5, E[1] * 1.6, E[2] * 1.8], sulco * 0.3); }
+    const crista = (1 - passo(0.12, 0.34, Math.abs(ph - 1.05))) * passo(0.5, 0.7, fbm(rn, x * 9 + 5, y * 9, 2));
+    if (crista > 0.05) rumo(o, hash2D(Math.floor(x / px), Math.floor(y / px), 9) > 0.7 ? VERDE_CLARO : VERDE, crista * 0.85);
+    if (hash2D(Math.floor(x / (px * 1.5)), Math.floor(y / (px * 1.5)), 12) > 0.992) rumo(o, C, 0.7);
+  });
+}
+
+/** Areia molhada: areia escurecida pelo encharcado, marolas largas com luz de um lado, poças de brilho e algumas conchinhas. */
+function pintarAreiaMolhada(ctx: Contexto, mat: Material, A: Area, seed: number, px: number): void {
+  const rn = valueNoise2D(seed * 41 + 6), E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), ang = 0.25 + (seed % 5) * 0.12, ux = Math.cos(ang), uy = Math.sin(ang), tmp = [0, 0, 0];
+  porPixel(ctx, A, (x, y, o) => {
+    const umido = passo(0.3, 0.7, fbm(rn, x * 0.5, y * 0.5, 3)), grao = fbm(rn, x * 8, y * 8, 2);
+    mez(tmp, B, E, 0.25 + 0.35 * umido); tomDe(o, tmp as unknown as Cor3, 0.9 + (grao - 0.5) * 0.25 + (hash2D(Math.floor(x / px), Math.floor(y / px), 3) - 0.5) * 0.06);
+    const warp = (fbm(rn, x * 0.3 + 70, y * 0.3, 3) - 0.5) * 3.2;
+    let sc = (x * ux + y * uy + warp) / 0.62; sc -= Math.floor(sc);
+    const onda = sc < 0.7 ? sc / 0.7 * 0.5 : (1 - sc) / 0.3 * 0.5, forca = passo(0.3, 0.6, fbm(rn, x * 0.6 + 12, y * 0.6 + 30, 2));
+    rumo(o, onda > 0.38 ? C : E, Math.abs(onda - 0.38) * 1.15 * forca);
+    const poca = passo(0.64, 0.76, fbm(rn, x * 1.3 + 90, y * 1.3 + 4, 3));
+    if (poca > 0) { rumo(o, C, poca * 0.3 * (0.7 + 0.3 * grao)); if (hash2D(Math.floor(x / px), Math.floor(y / px), 15) > 0.985) rumo(o, [255, 255, 255], 0.55 * poca); }
+    if (hash2D(Math.floor(x / (px * 1.5)), Math.floor(y / (px * 1.5)), 17) > 0.9965) rumo(o, E, 0.7);
   });
 }
 

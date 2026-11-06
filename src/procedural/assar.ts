@@ -11,6 +11,7 @@ import { partesParaFace } from './raster.ts';
 import type { EstiloDeRaster, OpcoesDoPixel } from './estilos/index.ts';
 import { pintarFacePixel } from './estilos/faces-pixel.ts';
 import { RES_DA_TEXTURA_DE_AGUA, leitoDaAgua, texturaDeAgua } from './agua.ts';
+import { orientacaoDominante } from './orientacao.ts';
 import { descreverReceita } from './receitas/index.ts';
 
 export interface Assado { tela: Tela; /** Canto superior esquerdo da tela, em metros (no espaço local do objeto, ou do mundo para cômodos e terreno). */ origem: Ponto; res: number; /** Terreno com água: profundidade (R) e margem (G) das camadas de água, a `res` px/m, do mesmo tamanho do mapa. */ agua?: { tela: Tela; res: number } }
@@ -214,7 +215,7 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = pixel ? 1 : 0.5; ctx.drawImage(comAlfa(aro, material.escuro) as CanvasImageSource, 0, 0); ctx.globalAlpha = 1;
     const pintada = criarTela(W, Hh), pc = contextoDe(pintada);
-    pc.setTransform(res, 0, 0, res, 0, 0); estilo.pintarMaterial(pc, camada.material, { x: 0, y: 0, w: e.largura, h: e.altura }, 11 + idx * 5, { res });
+    pc.setTransform(res, 0, 0, res, 0, 0); estilo.pintarMaterial(pc, camada.material, { x: 0, y: 0, w: e.largura, h: e.altura }, 11 + idx * 5, { res, dir: material.padrao === 'sulcos' ? orientacaoDominante(camada.celulas) : 0 });
     pc.setTransform(1, 0, 0, 1, 0, 0); pc.globalCompositeOperation = 'destination-in'; pc.drawImage(comAlfa(corpo, null) as CanvasImageSource, 0, 0);
     ctx.drawImage(pintada as CanvasImageSource, 0, 0); ctx.setTransform(res, 0, 0, res, 0, 0);
   });
