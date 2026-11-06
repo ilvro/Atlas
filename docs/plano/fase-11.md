@@ -66,7 +66,7 @@ Testes: unitários em `tests/unit/projetor.test.ts` garantindo que navegar para 
 Pronto quando: com dois mapas abertos em abas, o mestre navega para o segundo mapa sem alterar a tela do projetor, e ao clicar no olho da segunda aba o projetor passa a exibi-la na hora.
 Commit: feat(atlas): decouple active editor tab from projector target tab via eye toggle
 
-### 11.2a — 🔒 Modo `?compacto=1` no Dossiê e pedido `ficha.ajustar-recursos` no `mesa-core`  ⬜
+### 11.2a — 🔒 Modo `?compacto=1` no Dossiê e pedido `ficha.ajustar-recursos` no `mesa-core`  ✅
 Objetivo: permitir que o Atlas ajuste PV/PD de uma ficha pelo barramento e embuta qualquer ficha ou ameaça do Dossiê num card compacto sem a sidebar lateral.
 Depende de: autorização do usuário para alterar `Projects/Dossie` (🔒).
 Ler: `mesa-core/src/eventos.ts`, `../Dossie/src/mesa.js`, `../Dossie/src/app.js`, `../Dossie/src/styles.css`.
@@ -87,7 +87,7 @@ Testes: unitários do catálogo em `tests/unit/mesa-core.test.ts` e do handler `
 Pronto quando: `/Dossie/?ficha=<id>&compacto=1` mostra só a ficha limpa e `ficha.ajustar-recursos` altera PV/PD e republica `ficha.recursos`.
 Commit: feat(ficha,mesa-core): add compact embed mode and ficha.ajustar-recursos request
 
-### 11.2b — Ajuste rápido de PV/PD (`-`/`+`) e barra de vida no cartão do token  ⬜
+### 11.2b — Ajuste rápido de PV/PD (`-`/`+`) e barra de vida no cartão do token  ✅
 Objetivo: permitir ajustar PV e PD diretamente no cartão contextual do token selecionado no modo Sessão.
 Depende de: 11.2a
 Ler: `src/ui/CartaoContextual.tsx`, `src/app/fichas.ts`, `src/domain/fichas.ts`, `src/ui/estilo.css`.

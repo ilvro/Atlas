@@ -35,7 +35,9 @@ export const CATALOGO: Readonly<Record<string, Entrada>> = {
   /** Toca uma vez, por cima da música, um efeito do Jukebox (uma faixa de gênero `sfx`): `mesa:jukebox/efeito/<titulo-em-minusculas-sem-acento>`. */
   'jukebox.efeito': { natureza: 'pedido', dono: 'jukebox', validar: ref('ref') },
   'atlas.focar': { natureza: 'pedido', dono: 'atlas', validar: ref('ref') },
+  'atlas.preparar-cena': { natureza: 'pedido', dono: 'atlas', validar: todos(refOuNulo('mapa'), texto('comodo', true), texto('clima', true)) },
   'ficha.abrir': { natureza: 'pedido', dono: 'ficha', validar: ref('ref') },
+  'ficha.ajustar-recursos': { natureza: 'pedido', dono: 'ficha', validar: todos(ref('ficha'), num('deltaPv', true), num('deltaPd', true), num('pv', true), num('pd', true)) },
   'atelie.abrir': { natureza: 'pedido', dono: 'atelie', validar: ref('ref') },
 };
 

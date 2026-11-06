@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chaveDaRef, criarBarramento, criarRef, type CanalLike, type Entidade } from '#mesa';
-import { emEstadoCritico, fracao, pipsCheios, recursosParaOProjetor, refDaFicha, temPd, textoDeRecursos, tomDaRolagem, type Recursos } from '../../src/domain/fichas.ts';
+import { emEstadoCritico, fracao, interpretarAjusteDeRecurso, pipsCheios, recursosParaOProjetor, refDaFicha, temPd, textoDeRecursos, tomDaRolagem, type Recursos } from '../../src/domain/fichas.ts';
 import { signal } from '@preact/signals';
-import { adicionarPersonagem, ameacasComFicha, iniciarFichas, aoRolar, pecaDaFicha, personagensComFicha, recursosDaPeca, recursosDasFichas } from '../../src/app/fichas.ts';
+import { adicionarPersonagem, ajustarRecursos, ameacasComFicha, iniciarFichas, aoRolar, pecaDaFicha, personagensComFicha, recursosDaPeca, recursosDasFichas } from '../../src/app/fichas.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { novaPeca } from '../../src/domain/fabrica.ts';
 
@@ -84,4 +84,49 @@ test('adicionarPersonagem com uma ameaça: vira peça de inimigo ligada à ficha
   assert.equal(adicionarPersonagem(s, { ...zumbi, tipo: 'lugar' } as unknown as Entidade), null, 'só personagem e ameaça viram peça');
   assert.equal(adicionarPersonagem(s, { ...zumbi, refs: [] } as unknown as Entidade), null, 'sem ficha, nada');
   assert.deepEqual(comandos, ['item.adicionar', 'item.adicionar']);
+});
+
+test('interpretarAjusteDeRecurso: interpreta deltas com sinal e números absolutos', () => {
+  assert.deepEqual(interpretarAjusteDeRecurso('-5'), { delta: -5 });
+  assert.deepEqual(interpretarAjusteDeRecurso('+3'), { delta: 3 });
+  assert.deepEqual(interpretarAjusteDeRecurso('18'), { absoluto: 18 });
+  assert.deepEqual(interpretarAjusteDeRecurso('  +10  '), { delta: 10 });
+  assert.deepEqual(interpretarAjusteDeRecurso('0'), { absoluto: 0 });
+  assert.equal(interpretarAjusteDeRecurso(''), null);
+  assert.equal(interpretarAjusteDeRecurso('abc'), null);
+});
+
+test('ajustarRecursos: aplica atualização otimista imediata limitando a [0, max] e envia pedido', async () => {
+  const ref = criarRef('ficha', 'ficha', 'sheet-ajuste');
+  const chave = chaveDaRef(ref);
+  recursosDasFichas.value = { [chave]: { pv: 20, pvMax: 30, pd: 5, pdMax: 10 } };
+
+  const pedidos: unknown[] = [];
+  const barramentoFalso = {
+    pedir: async (tipo: string, dados: unknown) => {
+      pedidos.push({ tipo, dados });
+      return { ok: true, resposta: { ok: true } } as any;
+    },
+  };
+
+  // Delta PV positivo
+  ajustarRecursos(barramentoFalso, ref, { deltaPv: 5 });
+  assert.equal(recursosDasFichas.value[chave]!.pv, 25);
+
+  // Delta PV que ultrapassa o máximo
+  ajustarRecursos(barramentoFalso, ref, { deltaPv: 20 });
+  assert.equal(recursosDasFichas.value[chave]!.pv, 30);
+
+  // Delta PV negativo que cai abaixo de zero
+  ajustarRecursos(barramentoFalso, ref, { deltaPv: -50 });
+  assert.equal(recursosDasFichas.value[chave]!.pv, 0);
+
+  // Valor absoluto de PV e PD
+  ajustarRecursos(barramentoFalso, ref, { pv: 15, pd: 8 });
+  assert.equal(recursosDasFichas.value[chave]!.pv, 15);
+  assert.equal(recursosDasFichas.value[chave]!.pd, 8);
+
+  assert.equal(pedidos.length, 4);
+  assert.deepEqual((pedidos[0] as any).tipo, 'ficha.ajustar-recursos');
+  assert.deepEqual((pedidos[0] as any).dados, { ficha: ref, deltaPv: 5 });
 });

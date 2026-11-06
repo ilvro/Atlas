@@ -39,3 +39,16 @@ export function recursosParaOProjetor(pecas: Readonly<Record<string, Pick<Peca, 
   for (const t of Object.values(pecas)) { if (!t.player) continue; const r = recursosDa(t); if (r) por[t.id] = r; }
   return por;
 }
+
+/**
+ * Interpreta um ajuste de recurso digitado (ex.: "+5", "-8", "24").
+ * Valores começando com "+" ou "-" são deltas; números puros são absolutos.
+ */
+export function interpretarAjusteDeRecurso(entrada: string): { delta?: number; absoluto?: number } | null {
+  const limpo = entrada.trim();
+  if (!limpo) return null;
+  const ehDelta = limpo.startsWith('+') || limpo.startsWith('-');
+  const n = Number(limpo);
+  if (!Number.isFinite(n)) return null;
+  return ehDelta ? { delta: Math.round(n) } : { absoluto: Math.max(0, Math.round(n)) };
+}

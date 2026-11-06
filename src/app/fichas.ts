@@ -85,4 +85,50 @@ export async function abrirFicha(b: Pick<Barramento, 'pedir'> | null | undefined
   return 'falhou';
 }
 
+export interface AjusteRecursoPatch {
+  deltaPv?: number;
+  deltaPd?: number;
+  pv?: number;
+  pd?: number;
+}
+
+/**
+ * Ajusta PV e/ou PD de uma ficha: aplica atualização otimista imediata em `recursosDasFichas`
+ * e despacha o pedido `ficha.ajustar-recursos` ao Dossiê pelo barramento.
+ */
+export function ajustarRecursos(
+  b: Pick<Barramento, 'pedir'> | null | undefined,
+  ref: Ref,
+  patch: AjusteRecursoPatch,
+): void {
+  const chave = chaveDaRef(ref);
+  const atual = recursosDasFichas.peek()[chave];
+  if (atual) {
+    let novoPv = atual.pv;
+    let novoPd = atual.pd;
+
+    if (patch.pv !== undefined) novoPv = patch.pv;
+    else if (patch.deltaPv !== undefined) novoPv = atual.pv + patch.deltaPv;
+
+    if (patch.pd !== undefined) novoPd = patch.pd;
+    else if (patch.deltaPd !== undefined) novoPd = atual.pd + patch.deltaPd;
+
+    novoPv = Math.max(0, Math.min(atual.pvMax, novoPv));
+    novoPd = Math.max(0, Math.min(atual.pdMax, novoPd));
+
+    recursosDasFichas.value = {
+      ...recursosDasFichas.peek(),
+      [chave]: {
+        ...atual,
+        pv: novoPv,
+        pd: novoPd,
+      },
+    };
+  }
+
+  void b?.pedir('ficha.ajustar-recursos', { ficha: ref, ...patch }).catch(() => {
+    /* falha silenciosa se não atendido */
+  });
+}
+
 export { criarRef };

@@ -1,10 +1,11 @@
-import { useEffect } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { signal } from '@preact/signals';
 import { acaoDoInterativo } from '../domain/interagiveis.ts';
 import { alternarLuzes, alternarPorta, usarObjeto, desfazer, revelarPorta, trancarPorta, duplicarSelecao, removerSelecao, viewport, servicos } from '../app/app.ts';
 import { modo } from '../app/modo.ts';
-import { abrirFicha, recursosDasFichas } from '../app/fichas.ts';
-import { refDaFicha, textoDeRecursos } from '../domain/fichas.ts';
+import { abrirFicha, ajustarRecursos, recursosDasFichas } from '../app/fichas.ts';
+import { emEstadoCritico, fracao, interpretarAjusteDeRecurso, refDaFicha, temPd, textoDeRecursos, type Recursos } from '../domain/fichas.ts';
+import type { Ref } from '#mesa';
 import { chaveDaRef } from '#mesa';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { avisar } from '../app/toasts.ts';
@@ -38,6 +39,170 @@ function useSeguirSelecao(s: SessaoDeEdicao): void {
   }, [s]);
 }
 
+function ControlesDeRecursosToken({ refFicha, rec }: { refFicha: Ref; rec: Recursos }) {
+  const [editandoPv, setEditandoPv] = useState(false);
+  const [editandoPd, setEditandoPd] = useState(false);
+  const b = servicos.peek()?.barramento;
+
+  const aplicarPv = (str: string) => {
+    const res = interpretarAjusteDeRecurso(str);
+    if (res) {
+      ajustarRecursos(b, refFicha, res.delta !== undefined ? { deltaPv: res.delta } : { pv: res.absoluto });
+      tocar('pop');
+    }
+    setEditandoPv(false);
+  };
+
+  const aplicarPd = (str: string) => {
+    const res = interpretarAjusteDeRecurso(str);
+    if (res) {
+      ajustarRecursos(b, refFicha, res.delta !== undefined ? { deltaPd: res.delta } : { pd: res.absoluto });
+      tocar('pop');
+    }
+    setEditandoPd(false);
+  };
+
+  const pctPv = Math.round(fracao(rec.pv, rec.pvMax) * 100);
+  const critico = emEstadoCritico(rec);
+
+  return (
+    <div class="cartao-recursos-bloco" data-testid="cartao-recursos">
+      <span class="cartao-recursos-resumo-oculto" style={{ display: 'none' }}>
+        {textoDeRecursos(rec)}
+      </span>
+      {/* Linha de PV */}
+      <div class="cartao-recurso-linha pv">
+        <button
+          type="button"
+          class="cartao-btn-delta"
+          title="Diminuir PV (-1, Shift: -5)"
+          aria-label="Diminuir PV"
+          data-testid="cartao-pv-menos"
+          onClick={e => {
+            e.stopPropagation();
+            ajustarRecursos(b, refFicha, { deltaPv: e.shiftKey ? -5 : -1 });
+            tocar('pop');
+          }}
+        >
+          −
+        </button>
+        <div class="cartao-barra-trilho" title={`PV: ${rec.pv}/${rec.pvMax}`}>
+          <div
+            class={`cartao-barra-preenchimento pv ${critico ? 'critico' : ''}`}
+            style={{ width: `${pctPv}%` }}
+          />
+          {editandoPv ? (
+            <input
+              type="text"
+              class="cartao-input-recurso"
+              data-testid="cartao-pv-input"
+              autoFocus
+              defaultValue={`${rec.pv}`}
+              onClick={e => e.stopPropagation()}
+              onKeyDown={e => {
+                if (e.key === 'Enter') aplicarPv((e.target as HTMLInputElement).value);
+                else if (e.key === 'Escape') setEditandoPv(false);
+              }}
+              onBlur={e => aplicarPv((e.target as HTMLInputElement).value)}
+            />
+          ) : (
+            <span
+              class="cartao-barra-rotulo"
+              onClick={e => {
+                e.stopPropagation();
+                setEditandoPv(true);
+              }}
+              title="Clique para ajustar PV (ex.: -5, +3 ou 18)"
+            >
+              PV {rec.pv}/{rec.pvMax}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          class="cartao-btn-delta"
+          title="Aumentar PV (+1, Shift: +5)"
+          aria-label="Aumentar PV"
+          data-testid="cartao-pv-mais"
+          onClick={e => {
+            e.stopPropagation();
+            ajustarRecursos(b, refFicha, { deltaPv: e.shiftKey ? 5 : 1 });
+            tocar('pop');
+          }}
+        >
+          +
+        </button>
+      </div>
+
+      {/* Linha de PD (se houver) */}
+      {temPd(rec) && (
+        <div class="cartao-recurso-linha pd">
+          <button
+            type="button"
+            class="cartao-btn-delta"
+            title="Diminuir PD (-1, Shift: -5)"
+            aria-label="Diminuir PD"
+            data-testid="cartao-pd-menos"
+            onClick={e => {
+              e.stopPropagation();
+              ajustarRecursos(b, refFicha, { deltaPd: e.shiftKey ? -5 : -1 });
+              tocar('pop');
+            }}
+          >
+            −
+          </button>
+          <div class="cartao-barra-trilho" title={`PD: ${rec.pd}/${rec.pdMax}`}>
+            <div
+              class="cartao-barra-preenchimento pd"
+              style={{ width: `${Math.round(fracao(rec.pd, rec.pdMax) * 100)}%` }}
+            />
+            {editandoPd ? (
+              <input
+                type="text"
+                class="cartao-input-recurso"
+                data-testid="cartao-pd-input"
+                autoFocus
+                defaultValue={`${rec.pd}`}
+                onClick={e => e.stopPropagation()}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') aplicarPd((e.target as HTMLInputElement).value);
+                  else if (e.key === 'Escape') setEditandoPd(false);
+                }}
+                onBlur={e => aplicarPd((e.target as HTMLInputElement).value)}
+              />
+            ) : (
+              <span
+                class="cartao-barra-rotulo"
+                onClick={e => {
+                  e.stopPropagation();
+                  setEditandoPd(true);
+                }}
+                title="Clique para ajustar PD (ex.: -2, +3 ou 10)"
+              >
+                PD {rec.pd}/{rec.pdMax}
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            class="cartao-btn-delta"
+            title="Aumentar PD (+1, Shift: +5)"
+            aria-label="Aumentar PD"
+            data-testid="cartao-pd-mais"
+            onClick={e => {
+              e.stopPropagation();
+              ajustarRecursos(b, refFicha, { deltaPd: e.shiftKey ? 5 : 1 });
+              tocar('pop');
+            }}
+          >
+            +
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const Acao = ({ icone, rotulo, aoClicar, perigo, id }: { icone: string; rotulo: string; aoClicar: () => void; perigo?: boolean; id?: string }) => (
   <button type="button" class={`cartao-acao ${perigo ? 'perigo' : ''}`} title={rotulo} aria-label={rotulo} onClick={aoClicar} data-testid={id}><Icone nome={icone} tamanho={16} /></button>
 );
@@ -60,7 +225,11 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
     const ref = refDaFicha(m.tokens[a.id]!.refs); if (!ref) return null;
     const rec = recursosDasFichas.value[chaveDaRef(ref)];
     acoes = (<>
-      <span class="cartao-texto" data-testid="cartao-recursos">{rec ? textoDeRecursos(rec) : 'Sem dados da ficha'}</span>
+      {rec ? (
+        <ControlesDeRecursosToken refFicha={ref} rec={rec} />
+      ) : (
+        <span class="cartao-texto" data-testid="cartao-recursos">Sem dados da ficha</span>
+      )}
       <button type="button" class="cartao-texto" data-testid="cartao-abrir-ficha" onClick={() => void abrirFicha(servicos.peek()?.barramento, ref)}>Abrir ficha</button>
     </>);
   } else if (emSessao && a.colecao !== 'openings') return null;       // na sessão o cartão só tem ações de porta (a 7.6a acrescenta as dos interativos)

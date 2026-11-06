@@ -110,4 +110,50 @@ test('o campanhaId do barramento vai no envelope', () => {
   assert.equal(visto?.campanhaId, 'c1');
 });
 
+test('validação de ficha.ajustar-recursos e atlas.preparar-cena', () => {
+  // ficha.ajustar-recursos
+  assert.equal(
+    validarEvento(base({
+      app: 'atlas',
+      tipo: 'ficha.ajustar-recursos',
+      dados: { ficha, deltaPv: -5, deltaPd: 2 },
+    })).ok,
+    true
+  );
+  assert.equal(
+    validarEvento(base({
+      app: 'atlas',
+      tipo: 'ficha.ajustar-recursos',
+      dados: { ficha, pv: 20 },
+    })).ok,
+    true
+  );
+  assert.equal(
+    validarEvento(base({
+      app: 'atlas',
+      tipo: 'ficha.ajustar-recursos',
+      dados: { deltaPv: -5 },
+    })).ok,
+    false
+  );
+
+  // atlas.preparar-cena
+  assert.equal(
+    validarEvento(base({
+      app: 'mesa',
+      tipo: 'atlas.preparar-cena',
+      dados: { mapa, comodo: 'Taverna', clima: 'chuva' },
+    })).ok,
+    true
+  );
+  assert.equal(
+    validarEvento(base({
+      app: 'mesa',
+      tipo: 'atlas.preparar-cena',
+      dados: { mapa: null },
+    })).ok,
+    true
+  );
+});
+
 test.after(() => { for (const b of abertos) b.fechar(); });
