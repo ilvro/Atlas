@@ -292,11 +292,12 @@ Escopo: `navio` (casco de cima com proa, convés de tábuas, 2 ou 3 mastros, esc
 Commit: harbor kit
 Nota: 15 receitas em `receitas/porto.ts` (kit `porto`, categoria `exterior`; `lanterna-de-poste` em `lareira-e-luz`). `navio` tem `comprimento` (14–30) e `mastros` (2 ou 3), com largura de 28% do comprimento; `cais-segmento` tem `comprimento` e `largura`; `barraca-de-feira` tem `paleta` (0–3) para as 4 cores do toldo. `lanterna-de-poste` só desenha o brilho: a luz de verdade é posta à parte. Nenhuma receita marca `blocks` (padrão do objeto). Capturas: `test-results/fase10-porto.png` e `fase10-porto-pixel.png`. No Pixel a âncora e o guindaste ficam finos.
 
-### 10.5d — Acervo: estrada e estábulo  ⬜
+### 10.5d — Acervo: estrada e estábulo  ✅
 Escopo: `carroca` (vazia e carregada, com varais), `cavalo` (pardo, branco, preto, malhado; de pé, de cima, com crina e cauda), `fardo-de-feno`, `bebedouro`, `carrinho-de-mao`, `carrinho-de-carga` (o do deque).
 Commit: road and stable kit
+Nota: 6 receitas em `receitas/estrada.ts` (kit `estrada`, categoria `exterior`): `carroca` (campo `carga` 0/1: vazia com banco e tábuas, ou carregada com lona amarrada e cordas; varais e quatro rodas), `cavalo` (campo `pelagem` 0 pardo, 1 branco, 2 preto, 3 malhado; visto de cima, pescoço e cabeça girados um pouco pela semente, crina, cauda), `fardo-de-feno`, `bebedouro`, `carrinho-de-mao` (1,9 m com os varais) e `carrinho-de-carga` (campo `carga` 0/1, com dois caixotes). `faixa` e `rot` passaram a ser exportados de `porto.ts`. Nenhuma receita marca `blocks` (padrão do objeto). Capturas: `test-results/fase10-estrada.png` e `-pixel.png` (`tests/e2e/fase10-estrada.test.ts`).
 
-### 10.5e — Acervo: caverna  ⬜
+### 10.5e — Acervo: caverna  ✅
 Objetivo: os restos e as feições do Covil na caverna.
 Depende de: —
 Ler: `src/procedural/receitas/ermos.ts` (da 10.5a; se ainda não existe, criar aqui com o mesmo formato), `src/procedural/receitas/exterior.ts` (`pedra`, `tronco.caido`), `src/procedural/descricao.ts`; recortes de `covil-na-caverna.png`.
@@ -313,10 +314,12 @@ Não fazer: presença de sangue seco (10.6c).
 Testes: cada receita gera descrição válida; `buraco` nasce bloqueando o movimento.
 Pronto quando: uma captura com os itens sobre `rocha.rachada`, com pouca luz, lembra o recorte do covil (`test-results/fase10-caverna.png`).
 Commit: cave kit
+Nota: criado `receitas/caverna.ts` (kit `ermos`, categoria `exterior`, tags `caverna`/`ossos`/`masmorra`) com 7 receitas: `ossada` (1,9 × 0,9 m; coluna, 9 a 11 costelas, crânio, ossos soltos), `cranio-animal` (`chifres` 0/1), `pilha-de-ossos`, `pilha-de-peles` (5 a 7 peles; uma listrada), `buraco` (`largura` 0,8–3 m, degradê para dentro), `estalagmite` (`tamanho` 0,4–0,8) e `arvore-morta-caida` (3,4 m com as raízes). Pegadas de `ossada` e da árvore passam um pouco dos valores da ficha por causa dos ossos soltos e das raízes. `buraco` bloqueia o passo pelo padrão do objeto (`novoObjeto`, `blocks.move: true`; o teste confere). Captura: `test-results/fase10-caverna.png` (+ `-pixel`), sobre `rocha.rachada` escurecida (`tests/e2e/fase10-caverna.test.ts`).
 
-### 10.5f — Acervo: fundo da água e barcos pequenos  ⬜
+### 10.5f — Acervo: fundo da água e barcos pequenos  ✅
 Escopo: `coral` (couve-flor rosada e lilás), `ourico`, `anemona`, `alga`, `rocha-submersa`, `barco-a-remo`, `barco-de-vela` (com flutuador, vela recolhida), `bote-com-carga`. Todos com `elevation` padrão certo (o fundo é `underwater`).
 Commit: seabed and small boats
+Nota: `receitas/fundo.ts` com 8 receitas: kit `fundo` (`coral` com `cor` 0 rosado/1 lilás, `ourico`, `anemona`, `alga`, `rocha-submersa`) e kit `barcos` (`barco-a-remo` com remos, `barco-de-vela` com flutuador e vela recolhida, `bote-com-carga`). Campo novo `submerso?: boolean` em `Receita` e `ItemDoAcervo`: o pincel de objeto (`viewport.ts`) põe os cinco do fundo com `elevation: 'underwater'`, sem sombra e sem bloquear; os barcos nascem `floor`. Pegadas: `alga` 1,1 × 1,2 e `barco-a-remo` 3,2 × 1,8 (remos para fora). Captura: `test-results/fase10-fundo.png` (+ `-pixel`) (`tests/e2e/fase10-fundo.test.ts`).
 
 ### 10.6a — Bordas do mapa: nuvens, escuro, neblina  ⬜
 Objetivo: o mapa pode se fechar nas bordas com nuvens, escuridão ou neblina, que se mexem de leve.
