@@ -1,5 +1,5 @@
 import { elipse, poli, ret, type Parte } from '../descricao.ts';
-import { tom } from '../materiais.ts';
+import { materialDe, tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
 import { num, piso, type Receita } from './comum.ts';
 import { galho } from './ermos.ts';
@@ -33,8 +33,11 @@ function anel(partes: Parte[], r0: number, r1: number, mat: string, z: number, p
 /** O kit da mata (beira de rio e sub-bosque) e da ruína. */
 export const RECEITAS_MATA: Receita[] = [
   { id: 'tufo-de-grama', nome: 'Tufo de grama', ...MATA, tags: ['grama', 'planta', 'natureza', 'mata'], pegada: [0.6, 0.6], altura: 0.25,
+    campos: [{ id: 'material', rotulo: 'Grama', tipo: 'material', padrao: 'grama', uso: 'terreno' }],
     gerar: p => {
-      const r = mulberry32(p.seed), partes: Parte[] = [], n = 12 + Math.floor(r() * 9), verdes = ['#3a6a2a', '#6a9a3a', '#9bc45a', '#c4dc7a'];
+      const matId = typeof p.params?.material === 'string' ? p.params.material : 'grama';
+      const m = materialDe(matId);
+      const r = mulberry32(p.seed), partes: Parte[] = [], n = 12 + Math.floor(r() * 9), verdes = [m.escuro, m.base, m.claro, tom(m.claro, 0.25)];
       for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2 + r() * 0.5, len = 0.24 + r() * 0.06; partes.push(lamina(Math.cos(a) * 0.03, Math.sin(a) * 0.03, a, len, 0.07, verdes[Math.floor(r() * 4)]!, 0.5 + r() * 0.3, (r() - 0.5) * 0.08)); }
       return piso([0.6, 0.6], partes);
     } },

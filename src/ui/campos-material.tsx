@@ -8,12 +8,15 @@ export function Amostra({ id, tamanho = 18 }: { id: string; tamanho?: number }) 
 }
 
 export function CampoMaterial({ rotulo, dica, valor, uso, aoMudar, comNenhum }: { rotulo: string; dica?: string; valor: string | null; uso: Material['uso']; aoMudar: (v: string | null) => void; comNenhum?: string }) {
+  const lista = materiaisDo(uso);
+  const temValor = valor ? lista.some(m => m.id === valor) : false;
   return (
     <Linha rotulo={rotulo} dica={dica}>
       {valor && <Amostra id={valor} />}
       <select value={valor ?? ''} onChange={e => aoMudar((e.target as HTMLSelectElement).value || null)}>
         {comNenhum && <option value="">{comNenhum}</option>}
-        {materiaisDo(uso).map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
+        {valor && !temValor && <option value={valor}>{materialDe(valor).nome}</option>}
+        {lista.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
       </select>
     </Linha>
   );

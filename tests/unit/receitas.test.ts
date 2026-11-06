@@ -112,3 +112,22 @@ test('os ids de receita são únicos entre os arquivos de kit, e as categorias n
   assert.equal(new Set(todos).size, todos.length); assert.ok(RECEITAS_DA_CASA.length <= todos.length);
   const ids = CATEGORIAS.map(c => c[0]); for (const nova of ['banheiro', 'lareira-e-luz', 'exterior']) assert.ok(ids.includes(nova as never), nova);
 });
+
+test('variantes de grama e grama personalizada resolvem e adaptam receitas', () => {
+  assert.equal(MATERIAIS['grama']?.uso, 'terreno');
+  assert.equal(MATERIAIS['grama.acinzentada']?.uso, 'terreno');
+  assert.equal(MATERIAIS['grama.seca']?.uso, 'terreno');
+  assert.equal(MATERIAIS['grama.escura']?.uso, 'terreno');
+
+  // Resolução dinâmica por materialDe com cor hex
+  const personalizada = materialDe('grama#556353');
+  assert.equal(personalizada.uso, 'terreno');
+  assert.equal(personalizada.padrao, 'grama');
+  assert.equal(personalizada.base, '#556353');
+  assert.equal(personalizada.escuro, tom('#556353', -0.45));
+
+  // Tufo de grama aceita o material e usa tons derivados
+  const tufoVerde = todasAsPartes('tufo-de-grama', { material: 'grama' }, 10);
+  const tufoCinza = todasAsPartes('tufo-de-grama', { material: 'grama.acinzentada' }, 10);
+  assert.notDeepEqual(tufoVerde, tufoCinza);
+});

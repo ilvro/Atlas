@@ -77,6 +77,9 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('pedra.escura', 'Pedra escura', 'objeto', '#1b1d22', '#0c0d10', '#2b2f37', 'liso'),
   // Terreno
   m('grama', 'Grama', 'terreno', '#3f6b34', '#234a1f', '#6a9a4a', 'grama'),
+  m('grama.acinzentada', 'Grama acinzentada', 'terreno', '#556353', '#323c31', '#7e8f7c', 'grama'),
+  m('grama.seca', 'Grama seca', 'terreno', '#7d7547', '#4e4827', '#a39b68', 'grama'),
+  m('grama.escura', 'Grama escura', 'terreno', '#284825', '#142912', '#496d44', 'grama'),
   m('terra', 'Terra', 'terreno', '#6a4d33', '#3b2a1a', '#8d6c49', 'terra'),
   m('areia', 'Areia', 'terreno', '#c8b27c', '#9a8650', '#e6d6a4', 'areia'),
   m('pedregulho', 'Pedregulho', 'terreno', '#6f6c66', '#3a3834', '#a09c94', 'pedra'),
@@ -106,6 +109,11 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
 
 export const materialDe = (id: string): Material => {
   if (id.startsWith('#')) return { id, nome: id, uso: 'objeto', base: id, escuro: tom(id, -0.45), claro: tom(id, 0.3), padrao: 'liso' };
+  if (id.startsWith('grama#') || id.startsWith('grama:')) {
+    const raw = id.includes('#') ? id.slice(id.indexOf('#')) : '#' + id.slice(6);
+    const hex = raw.startsWith('#') ? raw : `#${raw}`;
+    return { id, nome: 'Grama personalizada', uso: 'terreno', base: hex, escuro: tom(hex, -0.45), claro: tom(hex, 0.35), padrao: 'grama' };
+  }
   return MATERIAIS[id] ?? MATERIAIS['pedra.escura']!;
 };
 export const materiaisDo = (uso: Material['uso']): Material[] => Object.values(MATERIAIS).filter(x => x.uso === uso);

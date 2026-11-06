@@ -10,7 +10,7 @@ import { materialDe, materiaisDo } from '../procedural/materiais.ts';
 import { ACERVO, type ItemDoAcervo } from '../procedural/acervo.ts';
 import { CATEGORIAS } from '../procedural/receitas/index.ts';
 import { filtrar } from '../app/busca.ts';
-import { CampoCaixa, CampoNumero } from './campos.tsx';
+import { CampoCaixa, CampoCor, CampoNumero } from './campos.tsx';
 import { TODOS_OS_CONJUNTOS } from '../authoring/espalhar.ts';
 import { Amostra, CampoMaterial } from './campos-material.tsx';
 import { Icone } from './Icone.tsx';
@@ -111,13 +111,18 @@ function Correnteza({ s, material }: { s: SessaoDeEdicao; material: string }) {
 
 function Terreno({ s }: { s: SessaoDeEdicao }) {
   const p = s.pincel.value.terreno;
+  const matPincel = materialDe(p.material);
+  const baseAtual = s.doc.value.terrain.base;
+  const matBase = baseAtual !== 'vazio' ? materialDe(baseAtual) : null;
   return (<>
     <p class="dica">Pinte o chão ao ar livre. As bordas se misturam sozinhas. <kbd>Alt</kbd> apaga; <kbd>[</kbd> e <kbd>]</kbd> mudam o pincel.</p>
     <div class="lista-cartas">{[...materiaisDo('terreno'), ...materiaisDo('macico'), ...materiaisDo('agua')].map(m => <button type="button" key={m.id} class={`carta ${p.material === m.id ? 'ativa' : ''}`} onClick={() => mudar(s, { terreno: { ...p, material: m.id } })} data-testid={`terreno-${m.id}`}><span class="carta-amostras"><Amostra id={m.id} tamanho={26} /></span><span class="carta-nome">{m.nome}</span></button>)}</div>
+    {matPincel.padrao === 'grama' && <CampoCor rotulo="Tom da grama" dica="Personalize o tom de cor da grama do pincel" valor={matPincel.base} aoPrevia={cor => { mudar(s, { terreno: { ...p, material: `grama#${cor.replace('#', '')}` } }); }} aoConfirmar={() => {}} />}
     <CampoNumero rotulo="Pincel" unidade="m" valor={p.raio} min={0.25} max={12} passo={0.5} aoConfirmar={v => { mudar(s, { terreno: { ...p, raio: v } }); }} />
     {materialDe(p.material).uso === 'agua' && <CampoCaixa rotulo="Suavizar a margem" dica="Arredonda a borda da água onde você pintar: lagos e poças mais redondos." valor={p.suavizar === true} aoMudar={v => { mudar(s, { terreno: { ...p, suavizar: v } }); }} />}
     {materialDe(p.material).uso === 'agua' && <Correnteza s={s} material={p.material} />}
     <CampoMaterial rotulo="Base do mapa" dica="Cobre o mapa todo, por baixo de tudo" uso="terreno" valor={s.doc.value.terrain.base === 'vazio' ? null : s.doc.value.terrain.base} comNenhum="Nenhuma (fundo escuro)" aoMudar={v => { s.store.executar({ tipo: 'terreno.base', material: v ?? 'vazio' }); }} />
+    {matBase?.padrao === 'grama' && <CampoCor rotulo="Tom da base" dica="Personalize o tom de cor da grama da base do mapa" valor={matBase.base} aoPrevia={cor => { s.store.executar({ tipo: 'terreno.base', material: `grama#${cor.replace('#', '')}` }); }} aoConfirmar={() => {}} />}
   </>);
 }
 

@@ -14,6 +14,7 @@ import { TIPOS_DE_COMODO, camposDoPreset, pincelDePresenca, presetDeLuz, tipoDeC
 import { fxAtivo } from '../fx/fx.ts';
 import { criarBaker, type Baker } from '../procedural/baker.ts';
 import { ACERVO } from '../procedural/acervo.ts';
+import { materialDe } from '../procedural/materiais.ts';
 import type { ColecaoLivre } from '../state/comandos.ts';
 import type { EventoStore, Gesto, Store } from '../state/store.ts';
 import { criarFiltroAcabamento } from './acabamento.ts';
@@ -374,7 +375,11 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     }
     if (f === 'espalhar') { fantasmaG.circle(ponteiro[0], ponteiro[1], pincel.espalhar.raio).fill({ color: cor, alpha: 0.1 }).stroke({ width: px(1.5), color: cor, alpha: 0.9 }); return; }
     if (f === 'presenca') { const cp = hexParaNumero(pincelDePresenca(pincel.presenca.brush)?.cor ?? '#ffffff'); fantasmaG.circle(ponteiro[0], ponteiro[1], pincel.presenca.raio).fill({ color: cp, alpha: 0.2 }).stroke({ width: px(1.5), color: cp, alpha: 0.9 }); return; }
-    if (f === 'terreno') { fantasmaG.circle(ponteiro[0], ponteiro[1], pincel.terreno.raio).fill({ color: 0x6a9a4a, alpha: 0.18 }).stroke({ width: px(1.5), color: cor, alpha: 0.9 }); return; }
+    if (f === 'terreno') {
+      const c = hexParaNumero(materialDe(pincel.terreno.material).claro);
+      fantasmaG.circle(ponteiro[0], ponteiro[1], pincel.terreno.raio).fill({ color: c, alpha: 0.18 }).stroke({ width: px(1.5), color: cor, alpha: 0.9 });
+      return;
+    }
     if (f === 'luz') {
       const preset = presetDeLuz(pincel.luz.preset);
       if (preset) {

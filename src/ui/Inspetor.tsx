@@ -105,7 +105,18 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
       {m.backdrop.kind === 'texture' && m.terrain.base !== 'vazio' && <p class="dica">O terreno base cobre a textura: ponha a base em “Vazio” para vê-la.</p>}
       <CartelaDeTitulo s={s} />
       <h3 class="faixa pequena">Terreno</h3>
-      <CampoOpcoes rotulo="Base" valor={m.terrain.base} opcoes={[['vazio', 'Vazio (o fundo)'], ...materiaisDo('terreno').map(x => [x.id, x.nome] as const)]} aoMudar={v => tentar(() => st.executar({ tipo: 'terreno.base', material: v }))} />
+      <CampoOpcoes rotulo="Base" valor={m.terrain.base} opcoes={[['vazio', 'Vazio (o fundo)'], ...(m.terrain.base !== 'vazio' && !materiaisDo('terreno').some(x => x.id === m.terrain.base) ? [[m.terrain.base, materialDe(m.terrain.base).nome] as const] : []), ...materiaisDo('terreno').map(x => [x.id, x.nome] as const)]} aoMudar={v => tentar(() => st.executar({ tipo: 'terreno.base', material: v }))} />
+      {m.terrain.base !== 'vazio' && materialDe(m.terrain.base).padrao === 'grama' && (
+        <CampoCor
+          rotulo="Tom da base"
+          dica="Personalize a cor da grama da base do mapa"
+          valor={materialDe(m.terrain.base).base}
+          aoPrevia={cor => {
+            st.executar({ tipo: 'terreno.base', material: `grama#${cor.replace('#', '')}` });
+          }}
+          aoConfirmar={() => {}}
+        />
+      )}
       </>}
       {modo.value === 'sessao' && <>
         <h3 class="faixa pequena">Régua</h3>
