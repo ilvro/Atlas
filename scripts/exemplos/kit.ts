@@ -21,6 +21,7 @@
  *   k.clima('entardecer'); k.acabamento('quente');
  *   const mapa = k.construir();                                            // MapaAtlas pronto (ainda sem validar)
  */
+import { criarRef } from '#mesa';
 import { ACERVO } from '../../src/procedural/acervo.ts';
 import { espalhar as espalharConjunto, conjuntoDeEspalhar } from '../../src/authoring/espalhar.ts';
 import { codificar } from '../../src/domain/celulas.ts';
@@ -28,7 +29,7 @@ import { atualizarEscarpasDoMacico } from '../../src/domain/contorno.ts';
 import { ceuNoHorario } from '../../src/domain/clima.ts';
 import { novaLuz, novaPeca, novoObjeto } from '../../src/domain/fabrica.ts';
 import { PAREDE_PADRAO, atualizarSalasDosObjetos, encaixarNaParede, motivoDeNaoCaber, recalcularParedes } from '../../src/domain/geometria.ts';
-import { criarMapa, type Abertura, type Acabamento, type Comodo, type Estilo, type Fundo, type MapaAtlas, type Objeto, type Parede, type Peca, type Ponto, type Tempo } from '../../src/domain/mapa.ts';
+import { criarMapa, type Abertura, type Acabamento, type Comodo, type Estilo, type Fundo, type MapaAtlas, type Objeto, type Parede, type Peca, type Ponto, type Regiao, type Tempo } from '../../src/domain/mapa.ts';
 import { camposDoPreset, presetDeAcabamento, presetDeClima, presetDeLuz, pincelDePresenca, tipoDeComodo, TIPOS_DE_COMODO } from '../../src/domain/presets.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
 import { fbm, mulberry32, valueNoise2D } from '../../src/procedural/ruido.ts';
@@ -105,6 +106,7 @@ export class Kit {
   /** Terreno: chave da célula → material. `ordem` guarda a ordem em que cada material apareceu. */
   private readonly terreno = new Map<number, string>();
   private readonly ordem: string[] = [];
+  private readonly correntezas = new Map<string, { angle: number; speed: number }>();
   private readonly presencas = new Map<string, Set<number>>();
   private readonly colunasT: number;
   private readonly linhasT: number;
@@ -176,6 +178,12 @@ export class Kit {
     return this;
   }
 
+  /** Define a correnteza (`angle` em rad, `speed` de 0 a 3 m/s) de uma camada de água. */
+  correnteza(material: string, angle: number, speed: number): this {
+    this.correntezas.set(material, { angle, speed });
+    return this;
+  }
+
   /** Apaga o terreno pintado na forma (volta ao terreno base). */
   apagar(forma: Forma): this { for (const k of this.chavesDe(forma)) this.terreno.delete(k); return this; }
 
@@ -222,10 +230,19 @@ export class Kit {
   }
 
   // ---------- Objetos, peças e luzes ----------
-  /** Um objeto: receita (`'pedra.media'`) ou item da coleção (`'casa:arvore-5m'`). `extra` sobrescreve rotação, escala, bloqueios, `harmonize`… */
-  objeto(item: string, pos: Ponto, extra: Partial<Objeto> = {}): string {
-    if (!ACERVO.item(item)) throw new Error(`Kit: item desconhecido “${item}”.`);
-    const o = novoObjeto([pos[0], pos[1]], { id: this.id('o'), source: ACERVO.fonte(item, Math.floor(this.rng() * 2 ** 31)), rotation: this.rng() * Math.PI * 2, ...extra });
+  /** Um objeto: receita (`'pedra.media'`) ou item da coleção (`'casa:arvore-5m'`). `extra` sobrescreve rotação, escala, bloqueios, `params`, `harmonize`… */
+  objeto(item: string, pos: Ponto, extra: Partial<Objeto> & { params?: Record<string, unknown> } = {}): string {
+    const info = ACERVO.item(item);
+    if (!info) throw new Error(`Kit: item desconhecido “${item}”.`);
+    const { params, ...resto } = extra;
+    const submerso = info.submerso ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : {};
+    const o = novoObjeto([pos[0], pos[1]], {
+      id: this.id('o'),
+      source: ACERVO.fonte(item, Math.floor(this.rng() * 2 ** 31), params),
+      rotation: this.rng() * Math.PI * 2,
+      ...submerso,
+      ...resto,
+    });
     this.m.props[o.id] = o; return o.id;
   }
 
@@ -261,12 +278,63 @@ export class Kit {
 
   // ---------- Atmosfera ----------
   /** Aplica um clima pronto (`PRESETS_DE_CLIMA`: manha, tarde, entardecer, noite, tempestade, neblina, neve…). `time` ("HH:MM") move o sol; `tempo` ajusta o tempo. */
-  clima(preset: string, ajuste: { time?: string; tempo?: Partial<Tempo>; gridPower?: boolean } = {}): this {
+  clima(preset: string, ajuste: { time?: string; tempo?: Partial<Tempo>; gridPower?: boolean; ambient?: { color: string; intensity: number }; sun?: null | { angle: number; color: string; intensity: number } } = {}): this {
     const p = presetDeClima(preset); if (!p) throw new Error(`Kit: clima desconhecido “${preset}”.`);
     this.m.climate = { preset: p.id, ...structuredClone(p.climate) }; this.m.finish = structuredClone(p.finish);
     if (ajuste.time) { const ceu = ceuNoHorario(ajuste.time); Object.assign(this.m.climate, { time: ajuste.time, sun: ceu.sun, ambient: ceu.ambient }); }
+    if (ajuste.ambient) this.m.climate.ambient = { ...ajuste.ambient };
+    if (ajuste.sun !== undefined) this.m.climate.sun = ajuste.sun ? { ...ajuste.sun } : null;
     if (ajuste.tempo) Object.assign(this.m.climate.weather, ajuste.tempo);
     if (ajuste.gridPower !== undefined) this.m.climate.gridPower = ajuste.gridPower;
+    return this;
+  }
+
+  /** Guarda um clima nomeado em `customClimates` (a partir de um `preset` + ajustes, ou do clima/acabamento atuais se `preset` for omitido). */
+  guardarClima(id: string, nome: string, preset?: string, ajuste: { time?: string; tempo?: Partial<Tempo>; gridPower?: boolean; ambient?: { color: string; intensity: number }; sun?: null | { angle: number; color: string; intensity: number }; finish?: Partial<Omit<Acabamento, 'preset'>> } = {}): this {
+    let baseClima: Omit<MapaAtlas['climate'], 'preset'>;
+    let baseAcab: Omit<Acabamento, 'preset'>;
+    if (preset) {
+      const p = presetDeClima(preset); if (!p) throw new Error(`Kit: clima desconhecido “${preset}”.`);
+      baseClima = structuredClone(p.climate);
+      const { preset: _fp, ...fResto } = structuredClone(p.finish);
+      baseAcab = fResto;
+    } else {
+      const { preset: _cp, ...cResto } = structuredClone(this.m.climate);
+      const { preset: _fp, ...fResto } = structuredClone(this.m.finish);
+      baseClima = cResto;
+      baseAcab = fResto;
+    }
+    if (ajuste.time) { const ceu = ceuNoHorario(ajuste.time); Object.assign(baseClima, { time: ajuste.time, sun: ceu.sun, ambient: ceu.ambient }); }
+    if (ajuste.ambient) baseClima.ambient = { ...ajuste.ambient };
+    if (ajuste.sun !== undefined) baseClima.sun = ajuste.sun ? { ...ajuste.sun } : null;
+    if (ajuste.tempo) Object.assign(baseClima.weather, ajuste.tempo);
+    if (ajuste.gridPower !== undefined) baseClima.gridPower = ajuste.gridPower;
+    if (ajuste.finish) Object.assign(baseAcab, structuredClone(ajuste.finish));
+    this.m.customClimates[id] = { id, name: nome, climate: baseClima, finish: baseAcab };
+    return this;
+  }
+
+  /** Cria uma região (`reveal`, `audio`, `trigger`, `note`) no mapa. */
+  regiao(polygon: readonly Ponto[], kind: Regiao['kind'], extra: { id?: string; nome?: string; texto?: string; gmOnly?: boolean; cenaJukebox?: string } = {}): string {
+    if (polygon.length < 3) throw new Error('Kit: uma região precisa de ao menos 3 pontos.');
+    const id = extra.id ?? this.id('r');
+    const payload: Record<string, unknown> = {};
+    if (extra.nome) payload.nome = extra.nome;
+    if (extra.texto) payload.texto = extra.texto;
+    this.m.regions[id] = {
+      id,
+      polygon: polygon.map(p => [p[0], p[1]] as Ponto),
+      kind,
+      gmOnly: extra.gmOnly ?? true,
+      payload,
+      refs: extra.cenaJukebox ? [criarRef('jukebox', 'cena', extra.cenaJukebox)] : [],
+    };
+    return id;
+  }
+
+  /** Notas de um cômodo (texto de leitura em voz alta e notas do mestre). */
+  notaDeComodo(id: string, nota: { leitura?: string; notasMestre?: string }): this {
+    this.m.comodosExtra[id] = { id, leitura: nota.leitura ?? '', notasMestre: nota.notasMestre ?? '', refs: [] };
     return this;
   }
 
@@ -298,7 +366,8 @@ export class Kit {
     camadas.forEach(([mat, chaves], ordem) => {
       if (!chaves.length) return;
       const id = `t_${mat.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 60)}`;
-      m.terrain.layers[id] = { id, material: mat, cells: codificar(chaves.map(k => [k % 65_536, Math.floor(k / 65_536)] as const)), order: ordem, flow: null };
+      const flow = this.correntezas.get(mat) ?? null;
+      m.terrain.layers[id] = { id, material: mat, cells: codificar(chaves.map(k => [k % 65_536, Math.floor(k / 65_536)] as const)), order: ordem, flow };
     });
     m.presence = {};
     for (const [pincel, chaves] of this.presencas) {

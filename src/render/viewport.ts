@@ -126,6 +126,8 @@ export interface Viewport {
   contagemDoFantasma(): number;
   /** Para os testes: o que a régua mede agora (ou `null` sem régua ou com um ponto só). */
   diagnosticoDaRegua(): { quadrados: number; texto: string; pontos: number } | null;
+  /** Esconde ou mostra os marcadores de editor (grade, contorno da área, pinos de luz e regiões). */
+  definirModoProjetor(ligado: boolean): void;
   destruir(): void;
 }
 
@@ -857,6 +859,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     mostrarProposta: previa => { fantasmaDaProposta.mostrar(doc(), previa); camadaSuja = true; },
     contagemDoFantasma: () => fantasmaDaProposta.contagem(),
     diagnosticoDaRegua: medidaDaRegua,
+    definirModoProjetor: ligado => { cena.definirModoProjetor(ligado); grade.visible = !ligado; area_.visible = !ligado; selecaoG.visible = !ligado; },
     destruir() {
       destruido = true; cancelarAssinatura(); observador.disconnect();
       window.removeEventListener('keydown', aoTeclar, true); window.removeEventListener('keyup', aoSoltar);

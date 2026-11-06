@@ -1,5 +1,75 @@
 [
   {
+    "id": "desfiladeiro-nevado",
+    "nome": "Desfiladeiro nevado",
+    "descricao": "Crista de rocha em arco sobre neve funda com dunas de vento, árvores cobertas de neve, lago congelado à direita e nuvens nas bordas.",
+    "tamanho": [
+      48,
+      27
+    ],
+    "miniatura": "desfiladeiro-nevado.webp"
+  },
+  {
+    "id": "ruina-costeira",
+    "nome": "Ruína à beira-mar",
+    "descricao": "Plataforma octogonal com círculo rúnico sobre falésia de arenito, passarela destroçada por fuligem e escombros, carvalhos antigos e mar batendo nas rochas.",
+    "tamanho": [
+      50,
+      37
+    ],
+    "miniatura": "ruina-costeira.webp"
+  },
+  {
+    "id": "ravina-noturna",
+    "nome": "Ravina noturna",
+    "descricao": "Platôs de lajes antigas entre escarpas em degraus, fenda cortada por rio com duas cachoeiras animadas, ponte de tábuas e tochas na noite azulada.",
+    "tamanho": [
+      50,
+      33
+    ],
+    "miniatura": "ravina-noturna.webp"
+  },
+  {
+    "id": "porto-noturno",
+    "nome": "Porto à noite",
+    "descricao": "Cidade portuária calçada em paralelepípedos, praça com fonte, barracas de feira, estalagem, oficina, armazém, guindastes e quatro navios sob lanternas e neblina.",
+    "tamanho": [
+      60,
+      36
+    ],
+    "miniatura": "porto-noturno.webp"
+  },
+  {
+    "id": "entreposto-do-rio",
+    "nome": "Entreposto do rio",
+    "descricao": "Estrada barrenta com carroça e cavalos, armazém portuário com depósito e escritório, deque de madeira e píer com barcaça sobre águas rasas.",
+    "tamanho": [
+      58,
+      36
+    ],
+    "miniatura": "entreposto-do-rio.webp"
+  },
+  {
+    "id": "covil-na-caverna",
+    "nome": "Covil na caverna",
+    "descricao": "Garganta subterrânea cercada de rocha viva, rastro de sangue seco sob um feixe de luz fria, ossadas e ninho de peles no escuro.",
+    "tamanho": [
+      45,
+      34
+    ],
+    "miniatura": "covil-na-caverna.webp"
+  },
+  {
+    "id": "gruta-dos-contrabandistas",
+    "nome": "Gruta dos contrabandistas",
+    "descricao": "Enseada subterrânea de água cristalina com cáusticas, corais e rochas submersas, passarelas de madeira, barcos com flutuador, navio e duas cabanas.",
+    "tamanho": [
+      32,
+      42
+    ],
+    "miniatura": "gruta-dos-contrabandistas.webp"
+  },
+  {
     "id": "clareira",
     "nome": "Clareira",
     "descricao": "Uma clareira com trilha de terra, seis árvores e uma fogueira.",
