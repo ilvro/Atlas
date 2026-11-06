@@ -9,7 +9,7 @@ const FINO: Partial<Parte> = { contorno: false, semSombra: true, detalhe: 3 };
 const CORDA = '#c8bca0';
 
 /** Faixa de largura `w` ao longo de uma polilinha (cordas, gradis, aros). */
-function faixa(pts: number[], w: number, mat: string, z: number, extra: Partial<Parte> = { contorno: false, semSombra: true, detalhe: 2 }): Parte[] {
+export function faixa(pts: number[], w: number, mat: string, z: number, extra: Partial<Parte> = { contorno: false, semSombra: true, detalhe: 2 }): Parte[] {
   const saida: Parte[] = [];
   for (let i = 0; i + 3 < pts.length; i += 2) {
     const x0 = pts[i]!, y0 = pts[i + 1]!, x1 = pts[i + 2]!, y1 = pts[i + 3]!, a = Math.atan2(y1 - y0, x1 - x0), nx = -Math.sin(a) * w / 2, ny = Math.cos(a) * w / 2;
@@ -19,7 +19,7 @@ function faixa(pts: number[], w: number, mat: string, z: number, extra: Partial<
 }
 
 /** Um retângulo `w × h` centrado em (x, y) e girado `ang`, como pontos de polígono. */
-const rot = (x: number, y: number, w: number, h: number, ang: number): number[] => {
+export const rot = (x: number, y: number, w: number, h: number, ang: number): number[] => {
   const c = Math.cos(ang), s = Math.sin(ang);
   return [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]].flatMap(([u, v]) => [x + u! * c - v! * s, y + u! * s + v! * c]);
 };
