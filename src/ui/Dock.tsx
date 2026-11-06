@@ -15,6 +15,7 @@ import { Personagens } from './Personagens.tsx';
 import { Pistas } from './Pistas.tsx';
 import { embutido } from '../app/embutido.ts';
 import { definirMostrarPvNoProjetor, mostrarPvNoProjetor } from '../app/fichas.ts';
+import { Icone } from './Icone.tsx';
 
 /** Quais seções do dock estão abertas. */
 // Embutido na Mesa o espaço é curto: o dock começa com as seções recolhidas, para não cobrir o mapa.
@@ -24,14 +25,106 @@ const valoresIniciais = signal<Record<string, string>>({});
 
 const DURACOES = [1, 3, 8, 20];
 
-function Secao({ id, titulo, children }: { id: string; titulo: string; children: preact.ComponentChildren }) {
-  const aberta = abertas.value[id] ?? false;
-  return (
-    <section class={`dock-secao ${aberta ? 'aberta' : ''}`} data-testid={`dock-secao-${id}`}>
-      <button type="button" class="dock-titulo" aria-expanded={aberta} data-testid={`dock-titulo-${id}`} onClick={() => { abertas.value = { ...abertas.value, [id]: !aberta }; }}>{aberta ? '▾' : '▸'} {titulo}</button>
-      {aberta && <div class="dock-corpo">{children}</div>}
-    </section>
-  );
+const CHAVE_POSICOES = 'atlas:dock:posicoes';
+function carregarPosicoes(): Record<string, { x: number; y: number }> {
+  try {
+    const s = localStorage.getItem(CHAVE_POSICOES);
+    return s ? JSON.parse(s) : {};
+  } catch {
+    return {};
+  }
+}
+function salvarPosicoes(p: Record<string, { x: number; y: number }>) {
+  try {
+    localStorage.setItem(CHAVE_POSICOES, JSON.stringify(p));
+  } catch { /* ignora */ }
+}
+
+const posicoes = signal<Record<string, { x: number; y: number }>>(carregarPosicoes());
+const zIndices = signal<Record<string, number>>({});
+let topoZ = 25;
+
+function trazerParaFrente(id: string) {
+  topoZ += 1;
+  zIndices.value = { ...zIndices.value, [id]: topoZ };
+}
+
+function redefinirPosicao(id: string) {
+  const p = { ...posicoes.value };
+  delete p[id];
+  posicoes.value = p;
+  salvarPosicoes(p);
+  tocar('pop');
+}
+
+function obterDimensoesDoPai(): { largura: number; altura: number } {
+  const dock = typeof document !== 'undefined' ? document.querySelector('.dock') : null;
+  const ret = dock?.getBoundingClientRect();
+  return {
+    largura: ret?.width || (typeof window !== 'undefined' ? window.innerWidth - 370 : 800),
+    altura: ret?.height || (typeof window !== 'undefined' ? window.innerHeight - 80 : 600),
+  };
+}
+
+function posicaoPadrao(id: string): { x: number; y: number } {
+  const { largura, altura } = obterDimensoesDoPai();
+  switch (id) {
+    case 'clima':
+      return { x: Math.max(16, Math.round((largura - 680) / 2)), y: Math.max(16, altura - 230) };
+    case 'cena':
+      return { x: Math.max(16, Math.round((largura - 680) / 2) + 380), y: Math.max(16, altura - 150) };
+    case 'presenca':
+      return { x: 20, y: Math.max(16, altura - 250) };
+    case 'iniciativa':
+      return { x: Math.max(16, largura - 380), y: 20 };
+    case 'personagens':
+      return { x: Math.max(16, largura - 320), y: 140 };
+    case 'pistas':
+      return { x: 20, y: 30 };
+    case 'projetor':
+      return { x: Math.max(16, largura - 320), y: Math.max(16, altura - 220) };
+    default:
+      return { x: Math.max(16, Math.round((largura - 320) / 2)), y: Math.max(16, altura - 250) };
+  }
+}
+
+function iniciarArrasto(id: string, ev: PointerEvent) {
+  if ((ev.target as HTMLElement).closest('button, input, select, textarea, .dock-fechar')) return;
+  ev.preventDefault();
+  const alvo = ev.currentTarget as HTMLElement;
+  const painel = alvo.closest('.dock-painel') as HTMLElement;
+  if (!painel) return;
+
+  trazerParaFrente(id);
+
+  const dock = painel.closest('.dock') as HTMLElement;
+  const retDock = dock ? dock.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+  const retPainel = painel.getBoundingClientRect();
+
+  const deslX = ev.clientX - retPainel.left;
+  const deslY = ev.clientY - retPainel.top;
+
+  painel.classList.add('arrastando');
+
+  const aoMover = (e: PointerEvent) => {
+    const maxX = Math.max(10, retDock.width - retPainel.width - 10);
+    const maxY = Math.max(10, retDock.height - retPainel.height - 10);
+    const x = Math.max(10, Math.min(maxX, e.clientX - retDock.left - deslX));
+    const y = Math.max(10, Math.min(maxY, e.clientY - retDock.top - deslY));
+    posicoes.value = { ...posicoes.value, [id]: { x: Math.round(x), y: Math.round(y) } };
+    salvarPosicoes(posicoes.value);
+  };
+
+  const aoSoltar = () => {
+    painel.classList.remove('arrastando');
+    window.removeEventListener('pointermove', aoMover);
+    window.removeEventListener('pointerup', aoSoltar);
+    window.removeEventListener('pointercancel', aoSoltar);
+  };
+
+  window.addEventListener('pointermove', aoMover);
+  window.addEventListener('pointerup', aoSoltar);
+  window.addEventListener('pointercancel', aoSoltar);
 }
 
 function SecaoDeClima({ s }: { s: SessaoDeEdicao }) {
@@ -130,17 +223,148 @@ function SecaoDoProjetor() {
   </>);
 }
 
-/** O dock da sessão: pílulas flutuantes no pé do mapa, em seções que recolhem. Só existe no modo Sessão. */
+const SECOES = [
+  { id: 'clima', titulo: 'Clima', icone: 'luz' },
+  { id: 'cena', titulo: 'Cena', icone: 'anim' },
+  { id: 'presenca', titulo: 'Presença', icone: 'presenca' },
+  { id: 'iniciativa', titulo: 'Iniciativa', icone: 'alvo' },
+  { id: 'personagens', titulo: 'Personagens', icone: 'peca' },
+  { id: 'pistas', titulo: 'Pistas', icone: 'olho' },
+  { id: 'projetor', titulo: 'Projetor', icone: 'enquadrar' },
+] as const;
+
+function PainelFlutuante({
+  id,
+  titulo,
+  icone,
+  onFechar,
+  children,
+}: {
+  id: string;
+  titulo: string;
+  icone: string;
+  onFechar: () => void;
+  children: preact.ComponentChildren;
+}) {
+  const pos = posicoes.value[id] ?? posicaoPadrao(id);
+  const z = zIndices.value[id] ?? 20;
+
+  return (
+    <section
+      class={`dock-painel dock-painel-${id} dock-secao aberta`}
+      data-testid={`dock-secao-${id}`}
+      style={{ left: `${pos.x}px`, top: `${pos.y}px`, zIndex: z }}
+      onPointerDown={() => trazerParaFrente(id)}
+    >
+      <header
+        class="dock-painel-cabecalho"
+        onPointerDown={e => iniciarArrasto(id, e)}
+        onDblClick={() => redefinirPosicao(id)}
+        title="Arraste pelo cabeçalho para mover pelo mapa · Clique duplo restaura posição inicial"
+      >
+        <div class="dock-painel-titulo-grupo">
+          <span class="dock-alca" aria-hidden="true">⠿</span>
+          <Icone nome={icone} tamanho={13} />
+          <span>{titulo}</span>
+        </div>
+        <div class="dock-painel-acoes">
+          <button
+            type="button"
+            class="dock-painel-botao"
+            title="Restaurar posição padrão"
+            aria-label="Restaurar posição padrão"
+            onClick={e => { e.stopPropagation(); redefinirPosicao(id); }}
+          >
+            ↺
+          </button>
+          <button
+            type="button"
+            class="dock-painel-botao dock-fechar"
+            title="Fechar painel"
+            aria-label={`Fechar ${titulo}`}
+            onClick={e => { e.stopPropagation(); onFechar(); }}
+          >
+            <Icone nome="fechar" tamanho={12} />
+          </button>
+        </div>
+      </header>
+      <div class="dock-corpo">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+/** O dock da sessão: barra de navegação no pé do mapa com painéis flutuantes móveis. Só existe no modo Sessão. */
 export function Dock({ s }: { s: SessaoDeEdicao }) {
+  const algumaAberta = Object.values(abertas.value).some(Boolean);
+
+  const recolherTodos = () => {
+    const fechadas: Record<string, boolean> = {};
+    for (const k of Object.keys(abertas.value)) fechadas[k] = false;
+    abertas.value = fechadas;
+    tocar('pop');
+  };
+
+  const alternar = (id: string) => {
+    const aberta = abertas.value[id] ?? false;
+    abertas.value = { ...abertas.value, [id]: !aberta };
+    if (!aberta) trazerParaFrente(id);
+    tocar('selecionar');
+  };
+
   return (
     <div class="dock" data-testid="dock" role="region" aria-label="Controles da sessão">
-      <Secao id="clima" titulo="Clima"><SecaoDeClima s={s} /></Secao>
-      <Secao id="cena" titulo="Cena"><SecaoDeCena /></Secao>
-      <Secao id="presenca" titulo="Presença"><SecaoDePresenca s={s} /></Secao>
-      <Secao id="iniciativa" titulo="Iniciativa"><SecaoDeIniciativa s={s} /></Secao>
-      <Secao id="personagens" titulo="Personagens"><Personagens s={s} /></Secao>
-      <Secao id="pistas" titulo="Pistas"><Pistas s={s} /></Secao>
-      <Secao id="projetor" titulo="Projetor"><SecaoDoProjetor /></Secao>
+      {/* Barra de controle inferior (Dock Bar) */}
+      <nav class="dock-barra" aria-label="Painéis da sessão">
+        {SECOES.map(({ id, titulo, icone }) => {
+          const aberta = abertas.value[id] ?? false;
+          return (
+            <button
+              type="button"
+              key={id}
+              class={`dock-aba ${aberta ? 'ativa' : ''}`}
+              aria-expanded={aberta}
+              aria-pressed={aberta}
+              title={`${titulo} (clique para abrir/fechar; arraste pelo cabeçalho)`}
+              data-testid={`dock-titulo-${id}`}
+              onClick={() => alternar(id)}
+            >
+              <Icone nome={icone} tamanho={14} />
+              <span>{titulo}</span>
+            </button>
+          );
+        })}
+        {algumaAberta && (
+          <button
+            type="button"
+            class="dock-aba dock-aba-recolher"
+            title="Recolher todos os painéis abertos"
+            aria-label="Recolher todos os painéis"
+            onClick={recolherTodos}
+          >
+            <Icone nome="fechar" tamanho={12} />
+            <span>Recolher</span>
+          </button>
+        )}
+      </nav>
+
+      {/* Painéis flutuantes móveis e independentes */}
+      {SECOES.map(({ id, titulo, icone }) => {
+        const aberta = abertas.value[id] ?? false;
+        if (!aberta) return null;
+        return (
+          <PainelFlutuante key={id} id={id} titulo={titulo} icone={icone} onFechar={() => alternar(id)}>
+            {id === 'clima' && <SecaoDeClima s={s} />}
+            {id === 'cena' && <SecaoDeCena />}
+            {id === 'presenca' && <SecaoDePresenca s={s} />}
+            {id === 'iniciativa' && <SecaoDeIniciativa s={s} />}
+            {id === 'personagens' && <Personagens s={s} />}
+            {id === 'pistas' && <Pistas s={s} />}
+            {id === 'projetor' && <SecaoDoProjetor />}
+          </PainelFlutuante>
+        );
+      })}
     </div>
   );
 }
