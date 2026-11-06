@@ -431,10 +431,14 @@ function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
     <CampoOpcoes rotulo="Telhado" dica="Na vista dos jogadores, cobre o cômodo até alguém entrar nele." valor={c.roof.material ?? ''} opcoes={[['', 'Nenhum'], ...materiaisDo('telhado').map(x => [x.id, x.nome] as const)]} aoMudar={v => editar({ roof: { material: v || null } }, 'Telhado')} />
     <CampoCaixa rotulo="Telhado visível" valor={c.roof.visible} aoMudar={v => editar({ roof: { visible: v } }, 'Telhado')} />
     <h3 class="faixa pequena">Texto de leitura</h3>
-    <textarea class="notas" aria-label="Texto de leitura do cômodo" rows={3} placeholder="O que os jogadores percebem ao entrar…" key={`l:${extra?.leitura ?? ''}`} defaultValue={extra?.leitura ?? ''} onBlur={e => { const v = (e.target as HTMLTextAreaElement).value; if (v !== (extra?.leitura ?? '')) notas({ leitura: v }); }} />
+    <textarea class="notas" aria-label="Texto de leitura do cômodo" rows={3} placeholder="O que os jogadores percebem ao entrar…" key={`l:${extra?.leitura ?? ''}`} defaultValue={extra?.leitura ?? ''}
+      onChange={e => { const v = (e.target as HTMLTextAreaElement).value; if (v !== (extra?.leitura ?? '')) notas({ leitura: v }); }}
+      onBlur={e => { const v = (e.target as HTMLTextAreaElement).value; if (v !== (extra?.leitura ?? '')) notas({ leitura: v }); }} />
     <LigacoesDoComodo s={s} c={c} />
     <h3 class="faixa pequena">Notas do mestre</h3>
-    <textarea class="notas" aria-label="Notas do mestre do cômodo" rows={3} placeholder="Só você vê…" key={`n:${extra?.notasMestre ?? ''}`} defaultValue={extra?.notasMestre ?? ''} onBlur={e => { const v = (e.target as HTMLTextAreaElement).value; if (v !== (extra?.notasMestre ?? '')) notas({ notasMestre: v }); }} />
+    <textarea class="notas" aria-label="Notas do mestre do cômodo" rows={3} placeholder="Só você vê…" key={`n:${extra?.notasMestre ?? ''}`} defaultValue={extra?.notasMestre ?? ''}
+      onChange={e => { const v = (e.target as HTMLTextAreaElement).value; if (v !== (extra?.notasMestre ?? '')) notas({ notasMestre: v }); }}
+      onBlur={e => { const v = (e.target as HTMLTextAreaElement).value; if (v !== (extra?.notasMestre ?? '')) notas({ notasMestre: v }); }} />
   </>);
 }
 

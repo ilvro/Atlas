@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { criarTutor, INSISTIR, OFERECER, porPasta, type Licao, type ArmazenamentoSimples } from '../../src/tutorial/tutor.ts';
+import { LICOES, PASTAS_DE_LICOES } from '../../src/tutorial/licoes.ts';
+import { CONDICOES } from '../../src/tutorial/condicoes.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import type { EstadoDoTutor } from '../../src/tutorial/condicoes.ts';
 
@@ -64,3 +66,25 @@ test('porPasta: agrupa na ordem das pastas, esconde as ocultas e junta o resto e
   const grupos = porPasta([l('a', 'x'), l('b', 'y'), l('c'), l('d', 'x', true), l('e', 'x')], [{ id: 'x', nome: 'X', sobre: '' }, { id: 'y', nome: 'Y', sobre: '' }, { id: 'z', nome: 'Z', sobre: '' }]);
   assert.deepEqual(grupos.map(g => [g.pasta.nome, g.licoes.map(x => x.id)]), [['X', ['a', 'e']], ['Y', ['b']], ['Outros', ['c']]]);
 });
+
+test('catálogo de lições: todas têm id, título, passos válidos com condições registradas e pastas conhecidas', () => {
+  const pastasConhecidas = new Set(PASTAS_DE_LICOES.map(p => p.id));
+  const ids = new Set(LICOES.map(l => l.id));
+  assert.equal(ids.size, LICOES.length, 'não há lições com id duplicado');
+
+  for (const l of LICOES) {
+    assert.ok(l.id.trim().length > 0);
+    assert.ok(l.titulo.trim().length > 0);
+    assert.ok(l.minutos > 0);
+    assert.ok(l.passos.length > 0, `lição ${l.id} precisa ter passos`);
+    if (l.pasta) assert.ok(pastasConhecidas.has(l.pasta), `pasta da lição ${l.id} deve existir em PASTAS_DE_LICOES`);
+    if (l.proxima) assert.ok(ids.has(l.proxima), `proxima lição ${l.proxima} deve existir em LICOES`);
+
+    for (const [i, p] of l.passos.entries()) {
+      assert.ok(p.diga.trim().length > 0, `passo ${i + 1} da lição ${l.id} precisa de texto`);
+      const cond = p.feito[0];
+      assert.ok(cond in CONDICOES, `condição "${cond}" no passo ${i + 1} da lição ${l.id} precisa estar em CONDICOES`);
+    }
+  }
+});
+

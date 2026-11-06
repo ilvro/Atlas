@@ -1,5 +1,6 @@
 import { contem } from '../domain/celulas.ts';
 import type { MapaAtlas, Ponto } from '../domain/mapa.ts';
+import { regioesOcupadas } from '../domain/regioes.ts';
 
 /**
  * Verificações nomeadas que um passo de lição espera. Cada uma lê o estado do mapa e do editor, nunca qual botão foi apertado: o passo termina
@@ -96,6 +97,9 @@ export const CONDICOES: Record<string, (e: EstadoDoTutor, ...a: never[]) => bool
   terrenoBase: (e, material: string) => e.doc.terrain.base === material,
   terrenoCom: (e, material: string, n = 1) => lista(e.doc.terrain.layers).filter(c => c.material === material).length >= n,
   presencas: (e, n: number) => lista(e.doc.presence).length >= n,
+  regioes: (e, n: number) => lista(e.doc.regions).length >= n,
+  regiaoOcupada: (e, kind?: string) => regioesOcupadas(e.doc, kind as never).length > 0,
+  comodoComLeitura: e => Object.values(e.doc.comodosExtra).some(extra => typeof extra.leitura === 'string' && extra.leitura.trim().length > 0),
   /** Um valor do documento num caminho (`lights.*.radius`), igual ao desejado (números a ~2%). */
   valor: (e, caminho: string, desejado: unknown) => valoresEm(e.doc, caminho).some(v => igual(v, desejado)),
   /** Uma cor do documento num caminho, do mesmo tipo da desejada. */

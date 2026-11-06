@@ -29,6 +29,13 @@ test('as condições leem o resultado: cômodos, aberturas, luzes, peças, clima
   e.doc.lights.l = { ...novaLuz([1, 1]), id: 'l', preset: 'lamparina', radius: 7 };
   assert.equal(atendida(['luzComPreset', 'lamparina'], e), true); assert.equal(atendida(['valor', 'lights.*.radius', 7], e), true); assert.equal(atendida(['valor', 'lights.*.radius', 9], e), false);
   const t = novaPeca([1, 1], 'Ana', { player: true }); e.doc.tokens[t.id] = t; assert.equal(atendida(['pecasDeJogador', 1], e), true); assert.equal(atendida(['pecasDeJogador', 2], e), false);
+  assert.equal(atendida(['regioes', 1], e), false);
+  e.doc.regions.reg = { id: 'reg', polygon: [[0, 0], [3, 0], [3, 3], [0, 3]], kind: 'trigger', gmOnly: true, payload: { texto: 'Armadilha' }, refs: [] };
+  assert.equal(atendida(['regioes', 1], e), true);
+  assert.equal(atendida(['regiaoOcupada', 'trigger'], e), true);
+  assert.equal(atendida(['comodoComLeitura'], e), false);
+  e.doc.comodosExtra.r = { id: 'r', leitura: 'Poeira e livros', notasMestre: '', refs: [] };
+  assert.equal(atendida(['comodoComLeitura'], e), true);
   assert.equal(atendida(['climaE', e.doc.climate.preset], e), true); assert.equal(atendida(['modo', 'sessao'], e), false); assert.equal(atendida(['modo', 'sessao'], { ...e, modo: 'sessao' }), true);
   assert.equal(atendida(['ferramenta', 'comodo'], { ...e, ferramenta: 'comodo' }), true); assert.equal(atendida(['selecionado', 'tokens'], { ...e, selecao: [{ colecao: 'tokens', id: t.id }] }), true);
   assert.equal(atendida(['ler'], e), false, '“ler” só termina com Continuar');
