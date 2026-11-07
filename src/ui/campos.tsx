@@ -17,9 +17,9 @@ export function tentar(fn: () => void): boolean {
 
 interface BaseCampo { rotulo: string; dica?: string; id?: string }
 
-export function CampoTexto({ rotulo, dica, id, valor, aoConfirmar, maximo = 120 }: BaseCampo & { valor: string; aoConfirmar: (v: string) => boolean | void; maximo?: number }) {
+export function CampoTexto({ rotulo, dica, id, valor, placeholder, aoConfirmar, maximo = 120 }: BaseCampo & { valor: string; placeholder?: string; aoConfirmar: (v: string) => boolean | void; maximo?: number }) {
   const sal = useSignal(0);
-  return <Linha rotulo={rotulo} dica={dica}><input id={id} key={`${valor}:${sal.value}`} type="text" maxLength={maximo} defaultValue={valor}
+  return <Linha rotulo={rotulo} dica={dica}><input id={id} data-testid={id} key={`${valor}:${sal.value}`} type="text" maxLength={maximo} defaultValue={valor} placeholder={placeholder}
     onChange={e => { if (aoConfirmar((e.target as HTMLInputElement).value) === false) sal.value++; }} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} /></Linha>;
 }
 

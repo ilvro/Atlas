@@ -1581,8 +1581,90 @@ body.projetor { overflow: hidden; background: #000; }
 /* Ameaças (monstros) na lista de personagens */
 .ameacas { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
 .dock-subtitulo { margin: 4px 0 0; font: 700 11px var(--titulo); letter-spacing: 0.08em; text-transform: uppercase; color: var(--apagado); }
-.busca-ameacas { width: 100%; }
+.busca-personagens, .busca-ameacas { width: 100%; }
 .personagem.ameaca .personagem-nome { color: #ff9a8f; }
+
+/* Modal de nota / descrição de objeto */
+.modal-nota-objeto-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 180;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+}
+.modal-nota-objeto {
+  position: relative;
+  width: min(520px, 92vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--superficie);
+  border: 1px solid var(--linha-forte);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  animation: radial-entra 0.15s ease-out both;
+}
+.modal-nota-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--linha);
+  background: rgba(255, 255, 255, 0.02);
+}
+.modal-nota-titulo-linha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.modal-nota-titulo {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--texto);
+}
+.selo-mestre {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(230, 80, 80, 0.18);
+  color: #ff7b72;
+  border: 1px solid rgba(230, 80, 80, 0.35);
+}
+.modal-nota-fechar {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: var(--apagado);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.modal-nota-fechar:hover {
+  color: var(--texto);
+  background: var(--vidro);
+}
+.modal-nota-corpo {
+  padding: 16px 18px;
+  overflow-y: auto;
+  max-height: calc(80vh - 65px);
+}
+.modal-nota-texto {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--texto);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 
 /* ---- Plataforma: a galeria com barra lateral, resumo e atalhos (a mesma estrutura serve à Mesa) ---- */
 .plataforma { flex: 1; min-height: 0; display: grid; grid-template-columns: 236px minmax(0, 1fr); }

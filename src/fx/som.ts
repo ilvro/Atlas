@@ -1,5 +1,5 @@
 /** Sons sintetizados e discretos (Web Audio), como na Ficha. Opcionais: qualquer falha é ignorada. */
-type SomSimples = 'pop' | 'remover' | 'desfazer' | 'refazer' | 'selecionar' | 'erro' | 'abrir' | 'salvar';
+type SomSimples = 'pop' | 'remover' | 'desfazer' | 'refazer' | 'selecionar' | 'erro' | 'abrir' | 'salvar' | 'papel';
 /** Sons das ações de sessão, sintetizados à parte (rangido, batida, cliques e atrito de ruído). */
 export const SONS_DE_INTERACAO = ['porta-abrir', 'porta-fechar', 'trancada', 'interruptor', 'gaveta'] as const;
 export type SomDeInteracao = (typeof SONS_DE_INTERACAO)[number];
@@ -25,6 +25,7 @@ const SONS: Record<SomSimples, Nota[]> = {
   erro: [{ f0: 180, dur: 0.12, tipo: 'sawtooth', ganho: 0.04 }, { f0: 150, dur: 0.12, tipo: 'sawtooth', ganho: 0.04, atraso: 0.1 }],
   abrir: [{ f0: 392, dur: 0.07, ganho: 0.04 }, { f0: 523, dur: 0.1, ganho: 0.04, atraso: 0.07 }],
   salvar: [{ f0: 660, dur: 0.06, ganho: 0.04 }, { f0: 880, dur: 0.1, ganho: 0.04, atraso: 0.06 }],
+  papel: [{ f0: 440, f1: 320, dur: 0.08, tipo: 'triangle', ganho: 0.03 }],
 };
 
 /** Pequena variação a cada toque (altura ±5%), para não cansar. */

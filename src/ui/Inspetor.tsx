@@ -402,10 +402,35 @@ function InteracaoDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
   const trocar = (id: string, marcar: boolean) => editar({ ...i!, targets: marcar ? [...new Set([...efetivas, id])] : efetivas.filter(x => x !== id) }, 'Luzes do interruptor');
   return (<>
     <CampoOpcoes rotulo="Interação" dica="O que o mestre aciona na sessão, clicando no objeto ou com Enter ao lado de uma peça." valor={i?.kind ?? ''}
-      opcoes={[['', 'Nenhuma'], ['switch', 'Interruptor'], ['drawer', 'Gaveta'], ['clue', 'Pista do Ateliê']] as never}
-      aoMudar={v => editar(v ? { kind: v as 'switch' | 'drawer' | 'clue', on: v === 'clue' ? false : i?.on ?? true, targets: [], sound: i?.sound ?? null, clue: v === 'clue' ? i?.clue ?? null : null } : null, 'Interação do objeto')} />
+      opcoes={[['', 'Nenhuma'], ['switch', 'Interruptor'], ['drawer', 'Gaveta'], ['clue', 'Pista do Ateliê'], ['note', 'Nota / Descrição']] as never}
+      aoMudar={v => editar(v ? {
+        kind: v as 'switch' | 'drawer' | 'clue' | 'note',
+        on: (v === 'clue' || v === 'note') ? false : i?.on ?? true,
+        targets: [],
+        sound: i?.sound ?? null,
+        clue: v === 'clue' ? i?.clue ?? null : null,
+        note: v === 'note' ? i?.note ?? '' : undefined,
+        noteTitle: v === 'note' ? i?.noteTitle ?? '' : undefined,
+        gmOnly: v === 'note' ? i?.gmOnly ?? false : undefined,
+      } : null, 'Interação do objeto')} />
     {(i?.kind === 'switch' || i?.kind === 'drawer') && <EscolherCena s={s} tipo="efeito" id="som-do-objeto" rotulo="Som" dica="Um efeito do Jukebox toca ao usar. Sem escolha (ou com o Jukebox fechado), vale o som do Atlas." valor={i.sound} aoEscolher={ref => editar({ ...i, sound: ref }, 'Som do objeto')} />}
     {i?.kind === 'clue' && <PistaDoObjeto i={i} aoEscolher={ref => editar({ ...i, clue: ref }, 'Pista do objeto')} />}
+    {i?.kind === 'note' && (<>
+      <CampoTexto rotulo="Título da nota" placeholder={nomeDoAlvo('props', o) || 'Nota'} valor={i.noteTitle ?? ''} aoConfirmar={v => editar({ ...i, noteTitle: v }, 'Título da nota')} />
+      <label class="campo" data-campo="Texto da nota">
+        <span class="campo-rotulo">Texto da nota</span>
+        <textarea
+          class="campo-entrada"
+          rows={4}
+          data-testid="objeto-nota-texto"
+          placeholder="O que há escrito, escondido ou perceptível neste objeto…"
+          value={i.note ?? ''}
+          onInput={e => editar({ ...i, note: (e.target as HTMLTextAreaElement).value }, 'Texto da nota')}
+        />
+      </label>
+      <CampoCaixa rotulo="Só o mestre vê" dica="Se marcado, a nota não é enviada aos jogadores nem avisada na sessão." valor={i.gmOnly ?? false} aoMudar={v => editar({ ...i, gmOnly: v }, 'Visibilidade da nota')} />
+      <EscolherCena s={s} tipo="efeito" id="som-da-nota" rotulo="Som ao ler" dica="Um efeito sonoro ao ler a nota." valor={i.sound} aoEscolher={ref => editar({ ...i, sound: ref }, 'Som ao ler a nota')} />
+    </>)}
     {i?.kind === 'switch' && (<div data-testid="luzes-do-interruptor">
       <p class="dica">{i.targets.length ? 'Controla as luzes marcadas.' : 'Sem escolha, controla as luzes de rede deste cômodo (as de fogo ficam de fora).'}</p>
       {Object.values(m.lights).map(l => <CampoCaixa key={l.id} rotulo={nomeDoAlvo('lights', l)} valor={efetivas.includes(l.id)} aoMudar={v => trocar(l.id, v)} />)}

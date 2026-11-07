@@ -6,7 +6,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { signal, useSignalEffect } from '@preact/signals';
 import { acaoPorId, executarAcao } from '../app/acoes.ts';
 import { FERRAMENTAS_DA_SESSAO, alinhandoGrade, duracaoDoClima, modo, regraDaRegua, vistaAtual } from '../app/modo.ts';
-import { acabamentoLigado, adicionarEm, alternarPorta, usarObjeto, aoColocar, focarNoComodo, focoPendente, menuRadial, servicos, sessao, viewport as viewportAtual } from '../app/app.ts';
+import { acabamentoLigado, adicionarEm, alternarPorta, usarObjeto, aoColocar, focarNoComodo, focoPendente, menuRadial, notaDeObjetoAberta, servicos, sessao, viewport as viewportAtual } from '../app/app.ts';
 import { obterCameraDaAba } from '../app/abas.ts';
 import { mostrarAtalho } from '../app/atalhos.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
@@ -109,6 +109,51 @@ function BarraDeEstado({ s }: { s: SessaoDeEdicao }) {
   );
 }
 
+function ModalNotaDeObjeto() {
+  const nota = notaDeObjetoAberta.value;
+  useEffect(() => {
+    if (!nota) return;
+    const aoTecla = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        notaDeObjetoAberta.value = null;
+      }
+    };
+    window.addEventListener('keydown', aoTecla, true);
+    return () => window.removeEventListener('keydown', aoTecla, true);
+  }, [nota]);
+
+  if (!nota) return null;
+  return (
+    <div class="modal-nota-objeto-fundo" onClick={() => { notaDeObjetoAberta.value = null; }}>
+      <div
+        class="modal-nota-objeto"
+        data-testid="modal-nota-objeto"
+        onClick={e => e.stopPropagation()}
+      >
+        <header class="modal-nota-cabecalho">
+          <div class="modal-nota-titulo-linha">
+            <h3 class="modal-nota-titulo">{nota.titulo}</h3>
+            {nota.gmOnly && <span class="selo-mestre" data-testid="selo-mestre">Só o mestre vê</span>}
+          </div>
+          <button
+            type="button"
+            class="modal-nota-fechar"
+            data-testid="modal-nota-fechar"
+            title="Fechar (Esc)"
+            onClick={() => { notaDeObjetoAberta.value = null; }}
+          >
+            ✕
+          </button>
+        </header>
+        <div class="modal-nota-corpo">
+          <p class="modal-nota-texto">{nota.texto}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Editor() {
   const s = sessao.value;
   if (!s) return null;
@@ -124,6 +169,7 @@ export function Editor() {
         {modo.value === 'sessao' && <Dock s={s} />}
         {modo.value === 'sessao' && <Inspecao />}
         {modo.value === 'construir' && <PilulaDeSugestao s={s} />}
+        <ModalNotaDeObjeto />
       </div>
       <Inspetor />
       <BarraDeEstado s={s} />

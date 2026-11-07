@@ -194,7 +194,7 @@ Esta fase aborda os refinamentos visuais, de usabilidade e de imersão no **Atla
 
 ## Onda 4 — Busca de Personagens no Modo Sessão e Notas Interativas em Objetos
 
-### Cartão `12.4a` — Barra de Pesquisa de Personagens no Modo Sessão (`Atlas`)
+### Cartão `12.4a` (Concluído) — Barra de Pesquisa de Personagens no Modo Sessão (`Atlas`)
 
 - **Objetivo:** Adicionar uma barra de pesquisa por nome para os **Personagens** no painel `Personagens` do Modo Sessão no `Atlas` (atualmente só a seção de Ameaças possui busca). *(O equivalente na `Mesa` será feito no Cartão `M3.1a`).*
 - **Arquivos a modificar:**
@@ -210,7 +210,7 @@ Esta fase aborda os refinamentos visuais, de usabilidade e de imersão no **Atla
 
 ---
 
-### Cartão `12.5a` — Interação de Nota / Descrição em Objetos Específicos (`Atlas`)
+### Cartão `12.5a` (Concluído) — Interação de Nota / Descrição em Objetos Específicos (`Atlas`)
 
 - **Objetivo:** Permitir que o mestre adicione uma **Nota / Descrição inspecionável** a qualquer objeto do mapa (similar às interações de interruptor de luz, gaveta ou pista do Ateliê), para que clicar/interagir com aquele objeto exiba uma nota detalhada (com opção de ser secreta do mestre ou revelável aos jogadores no projetor).
 - **Arquivos a modificar:**

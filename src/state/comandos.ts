@@ -224,7 +224,9 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       const o = m.props[c.id] ?? nao(`O objeto “${c.id}” não existe.`), i = o.interaction;
       if (!i) nao('Este objeto não é interativo.');
       else if (i.kind === 'clue') nao('As pistas chegam com a Fase 9.');
-      else {
+      else if (i.kind === 'note') {
+        // Uma nota não altera o documento do mapa
+      } else {
         i.on = !i.on;
         if (i.kind === 'switch') for (const id of alvosDoInterruptor(m, o)) { const l = m.lights[id]; if (l) l.on = i.on; }
       }
