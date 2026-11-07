@@ -97,7 +97,16 @@ export interface Objeto {
   layer?: number;
 }
 /** `targets` vazio num interruptor = as luzes `power: 'grid'` do cômodo do objeto. `clue` só vai ao jogador depois de revelada. */
-export interface Interacao { kind: 'switch' | 'drawer' | 'clue'; on: boolean; targets: string[]; sound: Ref | null; clue: Ref | null }
+export interface Interacao {
+  kind: 'switch' | 'drawer' | 'clue' | 'note';
+  on: boolean;
+  targets: string[];
+  sound: Ref | null;
+  clue: Ref | null;
+  note?: string;
+  noteTitle?: string;
+  gmOnly?: boolean;
+}
 export interface Luz {
   id: string; position: Ponto; radius: number; color: string; intensity: number; flicker: number;
   cone: null | { angle: number; direction: number }; ownerId: string | null;

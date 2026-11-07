@@ -47,7 +47,16 @@ const objeto = e.obj({
   wall: e.nulo(e.obj({ wallId: id, at: unidade, face: e.um('inner', 'outer') })),
   roomId: idOuNulo, blocks: e.obj({ move: e.bool(), sight: e.bool() }), castsShadow: e.bool(), harmonize: e.bool(),
   layer: e.opt(e.num({ inteiro: true, min: -100000, max: 100000 })),
-  interaction: e.nulo(e.obj({ kind: e.um('switch', 'drawer', 'clue'), on: e.bool(), targets: e.lista(id, { max: 200 }), sound: e.nulo(ref), clue: e.nulo(ref) })),
+  interaction: e.nulo(e.obj({
+    kind: e.um('switch', 'drawer', 'clue', 'note'),
+    on: e.bool(),
+    targets: e.lista(id, { max: 200 }),
+    sound: e.nulo(ref),
+    clue: e.nulo(ref),
+    note: e.opt(e.texto({ max: 50_000 })),
+    noteTitle: e.opt(e.texto({ max: 200 })),
+    gmOnly: e.opt(e.bool()),
+  })),
 });
 const luz = e.obj({
   id, position: ponto, radius: e.num({ min: 0.1, max: 200 }), color: hex, intensity: e.num({ min: 0, max: 3 }), flicker: unidade,

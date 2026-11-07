@@ -85,3 +85,31 @@ test('validação de token: tokenStyle e portraitScale', () => {
     t.portraitScale = 3.5;
   })), `tokens.${Object.keys(mapaCompleto().tokens)[0]}.portraitScale`);
 });
+
+test('validação de objeto: interação de nota com título, texto e gmOnly', () => {
+  const chaveObjeto = Object.keys(mapaCompleto().props)[0];
+  assert.equal(caminhoDoErro(mexer(x => {
+    const o = Object.values(x.props)[0] as any;
+    o.interaction = {
+      kind: 'note',
+      on: false,
+      targets: [],
+      sound: null,
+      clue: null,
+      note: 'Um bilhete misterioso',
+      noteTitle: 'Bilhete',
+      gmOnly: true,
+    };
+  })), null);
+
+  assert.equal(caminhoDoErro(mexer(x => {
+    const o = Object.values(x.props)[0] as any;
+    o.interaction = {
+      kind: 'invalido',
+      on: false,
+      targets: [],
+      sound: null,
+      clue: null,
+    };
+  })), `props.${chaveObjeto}.interaction.kind`);
+});

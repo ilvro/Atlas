@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { alvosDoInterruptor } from '../../src/domain/interagiveis.ts';
+import { alvosDoInterruptor, acaoDoInterativo, ROTULO_DA_INTERACAO } from '../../src/domain/interagiveis.ts';
 import { interagiveisPerto } from '../../src/domain/interacao.ts';
 import { nivelDaLuz } from '../../src/domain/clima.ts';
 import type { MapaAtlas } from '../../src/domain/mapa.ts';
@@ -66,4 +66,12 @@ test('cada som novo existe e tocar não lança sem AudioContext', () => {
   assert.deepEqual([...SONS_DE_INTERACAO], ['porta-abrir', 'porta-fechar', 'trancada', 'interruptor', 'gaveta']);
   for (const nome of SONS_DE_INTERACAO) assert.doesNotThrow(() => tocar(nome));
   assert.doesNotThrow(() => tocar('pop'));
+});
+
+test('objeto com nota: rótulo e ação retornam "Nota" e "Ler nota"', () => {
+  const m = casa({ interaction: { kind: 'note', on: false, targets: [], sound: null, clue: null, note: 'Diário secreto', noteTitle: 'Diário', gmOnly: true } });
+  assert.equal(ROTULO_DA_INTERACAO[m.props.interruptor!.interaction!.kind], 'Nota');
+  assert.equal(acaoDoInterativo(m.props.interruptor!), 'Ler nota');
+  const r = aplicarComando(m, { tipo: 'interagir', id: 'interruptor' });
+  assert.equal(r.props.interruptor!.interaction!.kind, 'note');
 });

@@ -9,7 +9,7 @@ import { exportarBackup, importarBackup, lerPacote, nomeDoArquivo, type Relatori
 import { ErroDeBackup } from '../data/backup.ts';
 import { ErroDeConflito, type ResumoMapa } from '../data/repositorio.ts';
 import { duplicarParaNovaSessao, criarMapa, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
-import { copiasDe, novaLuz, novaPeca, novaRegiao, novoObjeto } from '../domain/fabrica.ts';
+import { copiasDe, nomeDoAlvo, novaLuz, novaPeca, novaRegiao, novoObjeto } from '../domain/fabrica.ts';
 import { interagiveisPerto } from '../domain/interacao.ts';
 import { ROTULO_DA_INTERACAO } from '../domain/interagiveis.ts';
 import { secretaOculta } from '../domain/nevoa.ts';
@@ -45,6 +45,7 @@ export const carregando = signal(false);
 export const resumos = signal<ResumoMapa[]>([]);
 export const paletaAberta = signal(false);
 export const ajudaAberta = signal(false);
+export const notaDeObjetoAberta = signal<{ id: string; titulo: string; texto: string; gmOnly: boolean } | null>(null);
 export const menuRadial = signal<{ x: number; y: number; mundo: Ponto; alvo: Alvo | null; aberto: number } | null>(null);
 /** Cômodo a enquadrar assim que o viewport estiver pronto (link profundo). */
 export const focoPendente = signal<string | null>(null);
@@ -723,11 +724,20 @@ export function mostrarInspecaoAosJogadores(vista: Vista, lanterna: { x: number;
 export function pararDeMostrarInspecao(): void { if (mostrandoAosJogadores.peek()) publicador?.inspecao(null); mostrandoAosJogadores.value = false; }
 export function fecharInspecaoDoMestre(): void { pararDeMostrarInspecao(); fecharInspecao(); }
 
-/** Usa um objeto interativo (interruptor ou gaveta) na sessão; é UMA entrada de histórico. */
+/** Usa um objeto interativo (interruptor, gaveta ou nota) na sessão; é UMA entrada de histórico. */
 export function usarObjeto(id: string): void {
   const s = sessao.value; if (!s) return;
   const o = s.doc.value.props[id]; if (!o?.interaction) return;
   if (o.interaction.kind === 'clue') { void abrirInspecao(o.interaction.clue, o.id); return; }
+  if (o.interaction.kind === 'note') {
+    const inter = o.interaction;
+    const titulo = inter.noteTitle?.trim() || nomeDoAlvo('props', o) || 'Nota';
+    const texto = inter.note?.trim() || 'Sem anotações.';
+    notaDeObjetoAberta.value = { id, titulo, texto, gmOnly: inter.gmOnly ?? false };
+    void tocarSomEscolhido(servicos.peek()?.barramento, inter.sound, () => tocar('papel'));
+    if (!inter.gmOnly) avisar(`Nota: ${titulo}`, { duracao: 2500 });
+    return;
+  }
   // O `sound` do objeto (um efeito do Jukebox) também toca no lugar do sintetizado.
   try { s.store.executar({ tipo: 'interagir', id }, { rotulo: ROTULO_DA_INTERACAO[o.interaction.kind] }); } catch (erro) { avisar(erro instanceof Error ? erro.message : String(erro), { tipo: 'erro' }); tocar('erro'); return; }
   const dele = o.interaction;

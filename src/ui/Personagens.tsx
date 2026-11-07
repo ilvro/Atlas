@@ -12,6 +12,7 @@ import { tentar } from './campos.tsx';
 const lista = signal<Entidade[]>([]);
 const ameacas = signal<Entidade[]>([]);
 const busca = signal('');
+const buscaPersonagem = signal('');
 /** Quantas ameaças a lista mostra de uma vez: a campanha pode ter centenas (a Ficha traz as dela e as que você criar). A busca acha as outras. */
 const LIMITE_DE_AMEACAS = 40;
 const semAcento = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt-BR');
@@ -61,6 +62,7 @@ export function Personagens({ s }: { s: SessaoDeEdicao }) {
   const campanha = campanhaAtiva.value, pecas = s.doc.value.tokens;
   if (!campanha) return <p class="dock-dica" data-testid="personagens-vazio">Escolha uma campanha na aba Mapa para ver os personagens.</p>;
   const termo = semAcento(busca.value).trim(), achadas = ameacas.value.filter(e => !termo || semAcento(e.nome).includes(termo)), mostradas = achadas.slice(0, LIMITE_DE_AMEACAS);
+  const termoP = semAcento(buscaPersonagem.value).trim(), achadosPersonagens = lista.value.filter(p => !termoP || semAcento(p.nome).includes(termoP));
   const vazio = lista.value.length === 0 && ameacas.value.length === 0;
 
   const aoCarregarIframe = () => {
@@ -93,7 +95,21 @@ export function Personagens({ s }: { s: SessaoDeEdicao }) {
       ) : (
         lista.value.length === 0 && <p class="dock-dica" data-testid="personagens-vazio">Nenhum personagem com ficha nesta campanha ainda.</p>
       )}
-      {lista.value.map(e => <Item key={e.id} s={s} e={e} pecas={pecas} />)}
+      {lista.value.length > 0 && (
+        <input
+          type="search"
+          class="busca-personagens"
+          data-testid="busca-personagens"
+          placeholder="Buscar personagem…"
+          aria-label="Buscar personagem"
+          value={buscaPersonagem.value}
+          onInput={ev => { buscaPersonagem.value = (ev.target as HTMLInputElement).value; }}
+        />
+      )}
+      {achadosPersonagens.map(e => <Item key={e.id} s={s} e={e} pecas={pecas} />)}
+      {lista.value.length > 0 && achadosPersonagens.length === 0 && (
+        <p class="dock-dica" data-testid="personagens-nenhum">Nenhum personagem com “{buscaPersonagem.value}”.</p>
+      )}
       {ameacas.value.length > 0 && (
         <section class="ameacas" data-testid="ameacas">
           <h4 class="dock-subtitulo">Ameaças <span class="meta">({ameacas.value.length})</span></h4>
