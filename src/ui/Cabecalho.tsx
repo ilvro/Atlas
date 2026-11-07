@@ -23,6 +23,7 @@ function CabecalhoEmbutido() {
       {noEditor ? <button type="button" class="botao-pilula" title="Abrir a janela do projetor para os jogadores" onClick={abrirProjetor} data-testid="embutido-projetor">Projetor</button> : null}
       <button type="button" class={`botao-icone ${fxLigado.value ? 'ligado' : ''}`} title="Animações" aria-pressed={fxLigado.value} onClick={executar('fx')} data-testid="alternar-fx"><Icone nome="anim" /></button>
       <button type="button" class={`botao-icone ${somLigado.value ? 'ligado' : ''}`} title="Sons" aria-pressed={somLigado.value} onClick={executar('som')} data-testid="alternar-som"><Icone nome={somLigado.value ? 'som' : 'mudo'} /></button>
+      <button type="button" class="botao-icone" title={dica('Atalhos', 'ajuda')} aria-pressed={ajudaAberta.value} onClick={executar('ajuda')} data-testid="ajuda-botao"><Icone nome="ajuda" /></button>
     </header>
   );
 }

@@ -97,6 +97,8 @@ export const CONDICOES: Record<string, (e: EstadoDoTutor, ...a: never[]) => bool
   terrenoBase: (e, material: string) => e.doc.terrain.base === material,
   terrenoCom: (e, material: string, n = 1) => lista(e.doc.terrain.layers).filter(c => c.material === material).length >= n,
   presencas: (e, n: number) => lista(e.doc.presence).length >= n,
+  presencaPintada: (e, pincel?: string) => lista(e.doc.presence).some(p => !pincel || p.brush === pincel),
+  climaSalvo: (e, n = 1) => Object.keys(e.doc.customClimates).length >= (typeof n === 'number' ? n : 1),
   regioes: (e, n: number) => lista(e.doc.regions).length >= n,
   regiaoOcupada: (e, kind?: string) => regioesOcupadas(e.doc, kind as never).length > 0,
   comodoComLeitura: e => Object.values(e.doc.comodosExtra).some(extra => typeof extra.leitura === 'string' && extra.leitura.trim().length > 0),

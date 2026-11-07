@@ -515,11 +515,14 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
 @keyframes radial-entra { from { opacity: 0; scale: 0.3; } }
 
 /* ---- Ajuda ---- */
-.ajuda-fundo { position: fixed; inset: 0; z-index: 48; display: grid; place-items: center; background: rgba(0, 0, 0, 0.5); }
+.ajuda-fundo { position: fixed; inset: 0; z-index: 220; display: grid; place-items: center; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(2px); }
 .ajuda { position: relative; width: min(980px, 94vw); max-height: 86vh; overflow: auto; padding: 22px 26px; background: var(--superficie); border: 1px solid var(--linha); border-radius: 12px; }
+.ajuda-cabecalho { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 12px; }
 .ajuda h3 { margin: 14px 0 6px; font: 700 12px var(--corpo); text-transform: uppercase; letter-spacing: 0.1em; color: var(--acento); }
 .ajuda ul { list-style: none; margin: 0; padding: 0; }
 .ajuda li { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; font-size: 13px; }
+.ajuda-item-clicavel { cursor: pointer; border-radius: 4px; padding: 3px 6px !important; transition: background 0.12s; }
+.ajuda-item-clicavel:hover { background: var(--vidro); }
 .ajuda-teclas { display: inline-flex; gap: 4px; flex: none; }
 .ajuda-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 4px 36px; }
 .ajuda-fechar { position: absolute; top: 12px; right: 16px; font-size: 24px; color: var(--apagado); }

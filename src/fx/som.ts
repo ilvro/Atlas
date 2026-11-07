@@ -82,73 +82,200 @@ export function tocar(nome: NomeDeSom): void {
   } catch { /* o som é opcional */ }
 }
 
-/** Um trovão realista sintetizado (~4.2s) com estalo inicial e ondas de estrondo grave. Respeita o interruptor de som. */
-export function trovao(): void {
+let impulsoReverb: AudioBuffer | null = null;
+function obterImpulsoReverb(ctx: AudioContext): AudioBuffer {
+  if (impulsoReverb && impulsoReverb.sampleRate === ctx.sampleRate) return impulsoReverb;
+  const dur = 3.2, taxa = ctx.sampleRate, total = Math.floor(taxa * dur);
+  const buf = ctx.createBuffer(2, total, taxa);
+  const ch0 = buf.getChannelData(0), ch1 = buf.getChannelData(1);
+  let ult0 = 0, ult1 = 0;
+  for (let i = 0; i < total; i++) {
+    const t = i / taxa;
+    const decaimento = Math.pow(Math.max(0, 1 - i / total), 2.6);
+    const inicial = t < 0.18 ? 1.5 : 1.0;
+    const r0 = (Math.random() * 2 - 1) * decaimento * inicial;
+    const r1 = (Math.random() * 2 - 1) * decaimento * inicial;
+    ult0 = ult0 * 0.7 + r0 * 0.3;
+    ult1 = ult1 * 0.7 + r1 * 0.3;
+    ch0[i] = ult0;
+    ch1[i] = ult1;
+  }
+  impulsoReverb = buf;
+  return buf;
+}
+
+/** Um trovão estéreo realista com reverberação convolutiva, onda de choque sub-grave e ecos nas nuvens. */
+export function trovao(intensidade = 1): void {
   if (!ligado) return;
   try {
     if (typeof AudioContext === 'undefined' && typeof (window as unknown as { AudioContext?: unknown })?.AudioContext === 'undefined') return;
     contexto ??= new AudioContext();
     if (contexto.state === 'suspended') void contexto.resume();
-    const t0 = contexto.currentTime;
-    const dur = 4.2;
-    const taxa = contexto.sampleRate;
-    const totalAmostras = Math.floor(taxa * dur);
+    const ctx = contexto;
+    const t0 = ctx.currentTime;
+    const taxa = ctx.sampleRate;
+    const dur = 3.6;
 
-    // 1. Buffer de ruído com ondas secundárias (rumble rolando no espaço)
-    const buf = contexto.createBuffer(1, totalAmostras, taxa);
-    const d = buf.getChannelData(0);
-    let marrom = 0;
-    for (let i = 0; i < totalAmostras; i++) {
-      const t = i / taxa;
-      // Ondas secundárias que aumentam o ganho em picos (estalo em 0s, ecos aos ~0.45s, ~1.1s, ~1.9s)
-      const onda0 = Math.exp(-t * 8);
-      const onda1 = Math.exp(-((t - 0.45) ** 2) / 0.04);
-      const onda2 = 0.7 * Math.exp(-((t - 1.1) ** 2) / 0.12);
-      const onda3 = 0.4 * Math.exp(-((t - 1.9) ** 2) / 0.25);
-      const decaimentoGeral = Math.max(0, (1 - t / dur) ** 1.8);
-      const envelope = (onda0 * 1.2 + onda1 * 0.9 + onda2 + onda3 + 0.15) * decaimentoGeral;
-
-      // Mistura ruído branco e marrom para corpo grave e textura
-      const branco = Math.random() * 2 - 1;
-      marrom = marrom * 0.92 + branco * 0.18;
-      d[i] = (marrom * 0.75 + branco * 0.25) * envelope;
+    // Master chain com compressor para conter picos sem distorção indesejada
+    let saida: AudioNode = ctx.destination;
+    if (typeof ctx.createDynamicsCompressor === 'function') {
+      try {
+        const comp = ctx.createDynamicsCompressor();
+        comp.threshold.setValueAtTime(-14, t0);
+        comp.knee.setValueAtTime(8, t0);
+        comp.ratio.setValueAtTime(4, t0);
+        comp.attack.setValueAtTime(0.003, t0);
+        comp.release.setValueAtTime(0.25, t0);
+        comp.connect(ctx.destination);
+        saida = comp;
+      } catch {
+        saida = ctx.destination;
+      }
     }
 
-    // 2. Rota do estalo inicial (crack de impacto cortante: 800 Hz -> 220 Hz nos primeiros 250ms)
-    const crackSrc = contexto.createBufferSource();
-    crackSrc.buffer = buf;
-    const crackFiltro = contexto.createBiquadFilter();
-    crackFiltro.type = 'bandpass';
-    crackFiltro.frequency.setValueAtTime(800, t0);
-    crackFiltro.frequency.exponentialRampToValueAtTime(220, t0 + 0.25);
-    crackFiltro.Q.value = 2.5;
+    // Barramento de saída direta (dry) e reverberada (wet)
+    const ganhoDry = ctx.createGain();
+    ganhoDry.gain.setValueAtTime(0.55 * Math.max(0.1, intensidade), t0);
+    ganhoDry.connect(saida);
 
-    const crackGain = contexto.createGain();
-    crackGain.gain.setValueAtTime(0.55, t0);
-    crackGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.35);
+    let entradaReverb: AudioNode = ganhoDry;
+    if (typeof ctx.createConvolver === 'function') {
+      try {
+        const conv = ctx.createConvolver();
+        conv.buffer = obterImpulsoReverb(ctx);
+        const ganhoWet = ctx.createGain();
+        ganhoWet.gain.setValueAtTime(0.65 * Math.max(0.1, intensidade), t0);
+        conv.connect(ganhoWet);
+        ganhoWet.connect(saida);
+        entradaReverb = conv;
+      } catch {
+        entradaReverb = ganhoDry;
+      }
+    }
 
-    crackSrc.connect(crackFiltro).connect(crackGain).connect(contexto.destination);
+    // Camada 1: Estalo elétrico e rasgo atmosférico (0 a 0.22s)
+    const durCrack = 0.22;
+    const amCrack = Math.floor(taxa * durCrack);
+    const bufCrack = ctx.createBuffer(1, Math.max(1, amCrack), taxa);
+    const dCrack = bufCrack.getChannelData(0);
+    for (let i = 0; i < amCrack; i++) {
+      const t = i / taxa;
+      dCrack[i] = (Math.random() * 2 - 1) * Math.exp(-t * 18);
+    }
+    const crackSrc = ctx.createBufferSource();
+    crackSrc.buffer = bufCrack;
+    const crackFil = ctx.createBiquadFilter();
+    crackFil.type = 'bandpass';
+    crackFil.frequency.setValueAtTime(900, t0);
+    crackFil.frequency.exponentialRampToValueAtTime(220, t0 + durCrack);
+    crackFil.Q.value = 0.9;
+
+    let crackNoSaturado: AudioNode = crackFil;
+    if (typeof ctx.createWaveShaper === 'function') {
+      try {
+        const shaper = ctx.createWaveShaper();
+        const nCurva = 256;
+        const curva = new Float32Array(nCurva);
+        for (let i = 0; i < nCurva; i++) {
+          const x = (i / (nCurva - 1)) * 2 - 1;
+          curva[i] = Math.tanh(x * 2.5);
+        }
+        shaper.curve = curva;
+        crackFil.connect(shaper);
+        crackNoSaturado = shaper;
+      } catch {
+        crackNoSaturado = crackFil;
+      }
+    }
+
+    let crackPanned: AudioNode = crackNoSaturado;
+    if (typeof (ctx as any).createStereoPanner === 'function') {
+      try {
+        const panner = (ctx as any).createStereoPanner();
+        panner.pan.setValueAtTime(Math.random() * 0.6 - 0.3, t0);
+        crackNoSaturado.connect(panner);
+        crackPanned = panner;
+      } catch {
+        crackPanned = crackNoSaturado;
+      }
+    }
+
+    const crackGain = ctx.createGain();
+    crackGain.gain.setValueAtTime(0.6 * intensidade, t0);
+    crackGain.gain.exponentialRampToValueAtTime(0.001, t0 + durCrack);
+    crackPanned.connect(crackGain);
+    crackGain.connect(ganhoDry);
+    if (entradaReverb !== ganhoDry) crackGain.connect(entradaReverb);
+    crackSrc.connect(crackFil);
     crackSrc.start(t0);
-    crackSrc.stop(t0 + 0.4);
+    crackSrc.stop(t0 + durCrack + 0.05);
 
-    // 3. Rota do estrondo / rumble grave (passa-baixas dinâmico: 480 Hz -> 55 Hz até 4.2s)
-    const rumbleSrc = contexto.createBufferSource();
-    rumbleSrc.buffer = buf;
-    const rumbleFiltro = contexto.createBiquadFilter();
-    rumbleFiltro.type = 'lowpass';
-    rumbleFiltro.frequency.setValueAtTime(480, t0);
-    rumbleFiltro.frequency.exponentialRampToValueAtTime(55, t0 + dur);
-    rumbleFiltro.Q.value = 3.5;
+    // Camada 2: Onda de choque sub-grave (0.02 a 0.95s, 88 Hz -> 26 Hz)
+    const durSub = 0.95;
+    const oscSubSine = ctx.createOscillator();
+    const oscSubTri = ctx.createOscillator();
+    oscSubSine.type = 'sine';
+    oscSubTri.type = 'triangle';
+    oscSubSine.frequency.setValueAtTime(88, t0 + 0.02);
+    oscSubSine.frequency.exponentialRampToValueAtTime(26, t0 + durSub);
+    oscSubTri.frequency.setValueAtTime(88, t0 + 0.02);
+    oscSubTri.frequency.exponentialRampToValueAtTime(26, t0 + durSub);
 
-    const rumbleGain = contexto.createGain();
+    const subGain = ctx.createGain();
+    subGain.gain.setValueAtTime(0.0001, t0);
+    subGain.gain.linearRampToValueAtTime(0.75 * intensidade, t0 + 0.05);
+    subGain.gain.exponentialRampToValueAtTime(0.0001, t0 + durSub);
+
+    oscSubSine.connect(subGain);
+    oscSubTri.connect(subGain);
+    subGain.connect(ganhoDry);
+    oscSubSine.start(t0 + 0.02);
+    oscSubTri.start(t0 + 0.02);
+    oscSubSine.stop(t0 + durSub + 0.02);
+    oscSubTri.stop(t0 + durSub + 0.02);
+
+    // Camada 3: Rolamento estéreo nas nuvens (0.05 a 3.6s, 2 canais ruído marrom, Q=0.85, swells em 0.12s, 0.55s, 1.25s)
+    const totalAmostras = Math.floor(taxa * dur);
+    const bufBrown = ctx.createBuffer(2, Math.max(1, totalAmostras), taxa);
+    const chL = bufBrown.getChannelData(0);
+    const chR = bufBrown.getChannelData(1);
+    let brownL = 0, brownR = 0;
+    for (let i = 0; i < totalAmostras; i++) {
+      const t = i / taxa;
+      const s0 = 1.1 * Math.exp(-((t - 0.12) ** 2) / 0.03);
+      const s1 = 0.9 * Math.exp(-((t - 0.55) ** 2) / 0.08);
+      const s2 = 0.65 * Math.exp(-((t - 1.25) ** 2) / 0.22);
+      const decaimento = Math.max(0, (1 - t / dur) ** 1.9);
+      const env = (s0 + s1 + s2 + 0.08) * decaimento;
+
+      const whiteL = Math.random() * 2 - 1;
+      const whiteR = Math.random() * 2 - 1;
+      brownL = brownL * 0.94 + whiteL * 0.12;
+      brownR = brownR * 0.94 + whiteR * 0.12;
+      chL[i] = brownL * env;
+      chR[i] = brownR * env;
+    }
+
+    const rumbleSrc = ctx.createBufferSource();
+    rumbleSrc.buffer = bufBrown;
+    const rumbleFil = ctx.createBiquadFilter();
+    rumbleFil.type = 'lowpass';
+    rumbleFil.frequency.setValueAtTime(210, t0);
+    rumbleFil.frequency.exponentialRampToValueAtTime(38, t0 + dur);
+    rumbleFil.Q.value = 0.85;
+
+    const rumbleGain = ctx.createGain();
     rumbleGain.gain.setValueAtTime(0.01, t0);
-    rumbleGain.gain.linearRampToValueAtTime(0.7, t0 + 0.05);
+    rumbleGain.gain.linearRampToValueAtTime(0.85 * intensidade, t0 + 0.08);
     rumbleGain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
 
-    rumbleSrc.connect(rumbleFiltro).connect(rumbleGain).connect(contexto.destination);
-    rumbleSrc.start(t0);
+    rumbleSrc.connect(rumbleFil);
+    rumbleFil.connect(rumbleGain);
+    rumbleGain.connect(ganhoDry);
+    if (entradaReverb !== ganhoDry) rumbleGain.connect(entradaReverb);
+    rumbleSrc.start(t0 + 0.05);
     rumbleSrc.stop(t0 + dur + 0.05);
   } catch {
-    /* o som é opcional */
+    /* som opcional */
   }
 }

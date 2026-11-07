@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { criarTutor, INSISTIR, OFERECER, porPasta, type Licao, type ArmazenamentoSimples } from '../../src/tutorial/tutor.ts';
 import { LICOES, PASTAS_DE_LICOES } from '../../src/tutorial/licoes.ts';
-import { CONDICOES } from '../../src/tutorial/condicoes.ts';
+import { atendida, CONDICOES } from '../../src/tutorial/condicoes.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import type { EstadoDoTutor } from '../../src/tutorial/condicoes.ts';
 
@@ -86,5 +86,17 @@ test('catálogo de lições: todas têm id, título, passos válidos com condiç
       assert.ok(cond in CONDICOES, `condição "${cond}" no passo ${i + 1} da lição ${l.id} precisa estar em CONDICOES`);
     }
   }
+});
+
+test('condições do tutor: presencaPintada e climaSalvo', () => {
+  const e = base();
+  assert.equal(atendida(['presencaPintada', 'corrupcao'], e), false);
+  e.doc.presence.p1 = { id: 'p1', brush: 'corrupcao', cells: [], intensity: 1, seed: 1, gmOnly: false };
+  assert.equal(atendida(['presencaPintada', 'corrupcao'], e), true);
+  assert.equal(atendida(['presencaPintada', 'mofo'], e), false);
+
+  assert.equal(atendida(['climaSalvo', 1], e), false);
+  e.doc.customClimates.c1 = { id: 'c1', name: 'Névoa Carmesim', climate: e.doc.climate, finish: e.doc.finish };
+  assert.equal(atendida(['climaSalvo', 1], e), true);
 });
 

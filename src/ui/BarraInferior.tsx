@@ -337,6 +337,16 @@ export function BarraInferior({ s }: { s: SessaoDeEdicao }) {
               ▾
             </button>
           </div>
+          <button
+            type="button"
+            class="ferramenta"
+            title="Atalhos do teclado (?)"
+            aria-label="Atalhos do teclado"
+            data-testid="barra-atalhos"
+            onClick={() => executar('ajuda')}
+          >
+            <Icone nome="ajuda" tamanho={16} />
+          </button>
         </div>
       </div>
     </div>

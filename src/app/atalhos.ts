@@ -18,6 +18,10 @@ export function lerAtalho(texto: string): Combinacao {
 
 export function combina(atalho: string, e: EventoDeTecla): boolean {
   const c = lerAtalho(atalho), tecla = e.key.toLowerCase();
+  // Teclados ABNT2 (AltGr + W gera '?' com ctrlKey/altKey):
+  if (c.tecla === '?' && (tecla === '?' || e.key === '?')) {
+    if (!c.ctrl && !c.alt) return true;
+  }
   if (tecla !== c.tecla || (e.ctrlKey || e.metaKey) !== c.ctrl || e.altKey !== c.alt) return false;
   // Shift só conta para letras e dígitos; em símbolos (`?`, `+`) ele já está embutido na própria tecla.
   const simbolo = tecla.length === 1 && !/[a-z0-9]/.test(tecla);
