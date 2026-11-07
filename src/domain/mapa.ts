@@ -114,6 +114,8 @@ export interface Regiao {
 /** Presença pintada (musgo, sangue, mofo…) em células de `terrain.resolution` metros, em RLE: como o terreno, sem imagem. */
 export interface Presenca { id: string; brush: string; cells: Faixa[]; intensity: number; seed: number; gmOnly: boolean }
 export const ESTADOS_FIGURA = ['normal', 'hurt', 'dying', 'unconscious', 'dead', 'maddened'] as const;
+export const ESTILOS_DE_TOKEN = ['coin', 'immersive'] as const;
+export type EstiloDeToken = (typeof ESTILOS_DE_TOKEN)[number];
 export interface Peca {
   id: string; name: string; portrait: RefAsset | null;
   sprite: null | { body: string; hair: string; outfit: string; accessories: string[]; colors: Record<string, string>; seed: number };
@@ -124,6 +126,10 @@ export interface Peca {
   figure: { state: (typeof ESTADOS_FIGURA)[number] }; refs: Ref[];
   /** HP independente da peça (ex.: instâncias de ameaça numeradas 1, 2, 3 com vidas separadas). */
   hp?: { pv: number; pvMax: number } | null;
+  /** Modo de exibição da peça: 'coin' (moeda circular) ou 'immersive' (retrato/standee completo em pé). */
+  tokenStyle?: EstiloDeToken;
+  /** Escala visual da arte do token (0.5 a 3.0, padrão 1.0). */
+  portraitScale?: number;
 }
 export interface NotaDeComodo { id: string; leitura: string; notasMestre: string; refs: Ref[] }
 export interface Sessao {

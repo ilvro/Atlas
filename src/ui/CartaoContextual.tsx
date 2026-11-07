@@ -235,6 +235,18 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
       )}
       <button
         type="button"
+        class="cartao-texto"
+        data-testid="cartao-alternar-estilo-token"
+        title="Alternar estilo do token (Moeda / Imersivo)"
+        onClick={() => {
+          const estilo = (token.tokenStyle ?? 'coin') === 'coin' ? 'immersive' : 'coin';
+          editar(() => st.executar({ tipo: 'item.atualizar', colecao: 'tokens', id: token.id, patch: { tokenStyle: estilo } }, { rotulo: `Estilo do token: ${estilo}` }));
+        }}
+      >
+        {(token.tokenStyle ?? 'coin') === 'coin' ? '◯' : '🧍'}
+      </button>
+      <button
+        type="button"
         class={`cartao-texto cartao-espiar-btn ${previaDaFichaAberta.value ? 'ativo' : ''}`}
         data-testid="cartao-espiar-ficha"
         aria-pressed={previaDaFichaAberta.value}
@@ -280,8 +292,21 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
       {!w.source && <Acao icone="lixeira" rotulo="Remover a parede" aoClicar={removerSelecao} perigo id="cartao-remover" />}
     </>);
   } else if (a.colecao === 'tokens') {
-    const ref = refDaFicha(m.tokens[a.id]!.refs);
+    const token = m.tokens[a.id]!;
+    const ref = refDaFicha(token.refs);
     acoes = (<>
+      <button
+        type="button"
+        class="cartao-texto"
+        data-testid="cartao-alternar-estilo-token"
+        title="Alternar estilo do token (Moeda / Imersivo)"
+        onClick={() => {
+          const estilo = (token.tokenStyle ?? 'coin') === 'coin' ? 'immersive' : 'coin';
+          editar(() => st.executar({ tipo: 'item.atualizar', colecao: 'tokens', id: token.id, patch: { tokenStyle: estilo } }, { rotulo: `Estilo do token: ${estilo}` }));
+        }}
+      >
+        {(token.tokenStyle ?? 'coin') === 'coin' ? '◯' : '🧍'}
+      </button>
       {ref && (
         <button
           type="button"
