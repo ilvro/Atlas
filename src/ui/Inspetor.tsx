@@ -229,6 +229,28 @@ function SeletorDeClima({ s }: { s: SessaoDeEdicao }) {
     <CampoNumero rotulo="Neblina" valor={m.climate.weather.fog} min={0} max={1} passo={0.05} aoConfirmar={v => ajustar({ weather: { fog: v } }, 'Neblina')} />
     <CampoNumero rotulo="Vento" dica="De −1 (para a esquerda) a 1 (para a direita)." valor={m.climate.weather.wind} min={-1} max={1} passo={0.1} aoConfirmar={v => ajustar({ weather: { wind: v } }, 'Vento')} />
     <CampoNumero rotulo="Relâmpagos" valor={m.climate.weather.lightning} min={0} max={1} passo={0.05} aoConfirmar={v => ajustar({ weather: { lightning: v } }, 'Relâmpagos')} />
+    <div class="linha" style={{ justifyContent: 'flex-end', gap: '4px', marginTop: '-4px', marginBottom: '8px' }}>
+      {[
+        { rotulo: 'Off', v: 0 },
+        { rotulo: 'Raro', v: 0.25 },
+        { rotulo: 'Médio', v: 0.55 },
+        { rotulo: 'Intenso', v: 1.0 },
+      ].map(opt => {
+        const ativo = Math.abs(m.climate.weather.lightning - opt.v) < 0.1;
+        return (
+          <button
+            type="button"
+            key={opt.v}
+            class={`dock-pilula ${ativo ? 'ativa' : ''}`}
+            aria-pressed={ativo}
+            data-testid={`inspetor-frequencia-relampago-${opt.v}`}
+            onClick={() => ajustar({ weather: { lightning: opt.v } }, `Relâmpagos: ${opt.rotulo}`)}
+          >
+            {opt.rotulo}
+          </button>
+        );
+      })}
+    </div>
     <CampoCaixa rotulo="Energia da rede" dica="Desligada, as luzes de rede elétrica apagam (apagão)." valor={m.climate.gridPower} aoMudar={v => ajustar({ gridPower: v }, v ? 'Religar a rede' : 'Cortar a rede')} />
     <SomDoClima s={s} clima={ativo} />
   </>);

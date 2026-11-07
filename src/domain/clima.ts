@@ -63,8 +63,8 @@ export function nivelDaLuz(l: Pick<Luz, 'on' | 'power' | 'nightOnly'>, m: Pick<M
 }
 
 // ---------- Relâmpago ----------
-/** Segundos até o próximo relâmpago: de 4 a 11 s, mais curto quanto mais forte a tempestade; `Infinity` sem relâmpagos. `sorteio` é um número de 0 a 1. */
-export const intervaloDoRelampago = (lightning: number, sorteio: number): number => (lightning > 0 ? 4 + (sorteio * 7) / lightning : Infinity);
+/** Segundos até o próximo relâmpago: mais curto quanto mais forte a tempestade; `Infinity` sem relâmpagos. `sorteio` é um número de 0 a 1. */
+export const intervaloDoRelampago = (lightning: number, sorteio: number): number => (lightning > 0 ? 12 + (sorteio * 24) / Math.max(0.1, lightning) : Infinity);
 /** A força do clarão (0 a 1) quando o relâmpago está em `f` (1 no estouro, decaindo a 0): pisca duas ou três vezes. `reduzido`: metade da força e sem tremer. */
 export const curvaDoClarao = (f: number, reduzido = false): number => (f <= 0 ? 0 : reduzido ? 0.5 * Math.min(1, f) : Math.max(0, Math.sin(f * Math.PI * 3)) * Math.min(1, f));
 /** Como a queda de energia pisca: de 1,1 s até 0, a luz tremula e, no último quarto de segundo, apaga. Devolve o fator de 0 a 1 das luzes de rede. */

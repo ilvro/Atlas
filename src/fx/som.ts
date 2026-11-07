@@ -81,15 +81,73 @@ export function tocar(nome: NomeDeSom): void {
   } catch { /* o som é opcional */ }
 }
 
-/** Um trovão: ruído marrom filtrado em graves, que decai em ~2,6 s. Respeita o interruptor de som. */
+/** Um trovão realista sintetizado (~4.2s) com estalo inicial e ondas de estrondo grave. Respeita o interruptor de som. */
 export function trovao(): void {
   if (!ligado) return;
   try {
+    if (typeof AudioContext === 'undefined' && typeof (window as unknown as { AudioContext?: unknown })?.AudioContext === 'undefined') return;
     contexto ??= new AudioContext();
     if (contexto.state === 'suspended') void contexto.resume();
-    const dur = 2.6, buf = contexto.createBuffer(1, Math.floor(contexto.sampleRate * dur), contexto.sampleRate), d = buf.getChannelData(0);
-    let v = 0; for (let i = 0; i < d.length; i++) { v = v * 0.985 + (Math.random() * 2 - 1) * 0.15; d[i] = v * (1 - i / d.length) ** 2; }
-    const src = contexto.createBufferSource(), lp = contexto.createBiquadFilter(), g = contexto.createGain();
-    lp.type = 'lowpass'; lp.frequency.value = 180; g.gain.value = 0.5; src.buffer = buf; src.connect(lp).connect(g).connect(contexto.destination); src.start();
-  } catch { /* o som é opcional */ }
+    const t0 = contexto.currentTime;
+    const dur = 4.2;
+    const taxa = contexto.sampleRate;
+    const totalAmostras = Math.floor(taxa * dur);
+
+    // 1. Buffer de ruído com ondas secundárias (rumble rolando no espaço)
+    const buf = contexto.createBuffer(1, totalAmostras, taxa);
+    const d = buf.getChannelData(0);
+    let marrom = 0;
+    for (let i = 0; i < totalAmostras; i++) {
+      const t = i / taxa;
+      // Ondas secundárias que aumentam o ganho em picos (estalo em 0s, ecos aos ~0.45s, ~1.1s, ~1.9s)
+      const onda0 = Math.exp(-t * 8);
+      const onda1 = Math.exp(-((t - 0.45) ** 2) / 0.04);
+      const onda2 = 0.7 * Math.exp(-((t - 1.1) ** 2) / 0.12);
+      const onda3 = 0.4 * Math.exp(-((t - 1.9) ** 2) / 0.25);
+      const decaimentoGeral = Math.max(0, (1 - t / dur) ** 1.8);
+      const envelope = (onda0 * 1.2 + onda1 * 0.9 + onda2 + onda3 + 0.15) * decaimentoGeral;
+
+      // Mistura ruído branco e marrom para corpo grave e textura
+      const branco = Math.random() * 2 - 1;
+      marrom = marrom * 0.92 + branco * 0.18;
+      d[i] = (marrom * 0.75 + branco * 0.25) * envelope;
+    }
+
+    // 2. Rota do estalo inicial (crack de impacto cortante: 800 Hz -> 220 Hz nos primeiros 250ms)
+    const crackSrc = contexto.createBufferSource();
+    crackSrc.buffer = buf;
+    const crackFiltro = contexto.createBiquadFilter();
+    crackFiltro.type = 'bandpass';
+    crackFiltro.frequency.setValueAtTime(800, t0);
+    crackFiltro.frequency.exponentialRampToValueAtTime(220, t0 + 0.25);
+    crackFiltro.Q.value = 2.5;
+
+    const crackGain = contexto.createGain();
+    crackGain.gain.setValueAtTime(0.55, t0);
+    crackGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.35);
+
+    crackSrc.connect(crackFiltro).connect(crackGain).connect(contexto.destination);
+    crackSrc.start(t0);
+    crackSrc.stop(t0 + 0.4);
+
+    // 3. Rota do estrondo / rumble grave (passa-baixas dinâmico: 480 Hz -> 55 Hz até 4.2s)
+    const rumbleSrc = contexto.createBufferSource();
+    rumbleSrc.buffer = buf;
+    const rumbleFiltro = contexto.createBiquadFilter();
+    rumbleFiltro.type = 'lowpass';
+    rumbleFiltro.frequency.setValueAtTime(480, t0);
+    rumbleFiltro.frequency.exponentialRampToValueAtTime(55, t0 + dur);
+    rumbleFiltro.Q.value = 3.5;
+
+    const rumbleGain = contexto.createGain();
+    rumbleGain.gain.setValueAtTime(0.01, t0);
+    rumbleGain.gain.linearRampToValueAtTime(0.7, t0 + 0.05);
+    rumbleGain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+
+    rumbleSrc.connect(rumbleFiltro).connect(rumbleGain).connect(contexto.destination);
+    rumbleSrc.start(t0);
+    rumbleSrc.stop(t0 + dur + 0.05);
+  } catch {
+    /* o som é opcional */
+  }
 }

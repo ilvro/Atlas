@@ -117,9 +117,9 @@ test('apagão apaga as lâmpadas e deixa velas e lanternas', () => {
 
 test('o relâmpago: sem força nunca dispara; com mais força, vem mais rápido', () => {
   for (const sorteio of [0, 0.3, 0.999]) assert.equal(intervaloDoRelampago(0, sorteio), Infinity);
-  for (const sorteio of [0, 0.5, 1]) { const i = intervaloDoRelampago(1, sorteio); assert.ok(i >= 4 && i <= 11, `${i}`); }
+  for (const sorteio of [0, 0.5, 1]) { const i = intervaloDoRelampago(1, sorteio); assert.ok(i >= 12 && i <= 36, `${i}`); }
   assert.ok(intervaloDoRelampago(1, 0.5) < intervaloDoRelampago(0.25, 0.5));
-  assert.equal(intervaloDoRelampago(0.5, 0), 4);
+  assert.equal(intervaloDoRelampago(0.5, 0), 12);
 });
 
 test('o clarão pisca e some; com movimento reduzido tem metade da força e não treme', () => {
