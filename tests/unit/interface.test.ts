@@ -155,6 +155,7 @@ test('atalhos: letras, modificadores e nomes em português', () => {
   assert.equal(combina('G', tecla('g', { shiftKey: true })), false);
   assert.equal(combina('Alt+1', tecla('1', { altKey: true })), true);
   assert.equal(combina('?', tecla('?', { shiftKey: true })), true);                       // símbolo: o Shift já vem embutido
+  assert.equal(combina('?', tecla('?', { altKey: true, ctrlKey: true })), true);          // ABNT2 AltGr+W
   assert.equal(combina('Ctrl++', tecla('+', { ctrlKey: true, shiftKey: true })), true);
   assert.deepEqual(lerAtalho('Ctrl+Shift+Z'), { tecla: 'z', ctrl: true, shift: true, alt: false });
   assert.equal(mostrarAtalho('Ctrl+Shift+Z'), 'Ctrl+Shift+Z'); assert.equal(mostrarAtalho('Del'), 'Del'); assert.equal(mostrarAtalho('ArrowUp'), '↑'); assert.equal(mostrarAtalho('v'), 'V');

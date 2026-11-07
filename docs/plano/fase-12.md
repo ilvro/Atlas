@@ -263,7 +263,7 @@ Esta fase aborda os refinamentos visuais, de usabilidade e de imersão no **Atla
 
 ## Onda 5 — Som de Trovão Realista, Botão de Atalhos e Novos Tutoriais
 
-### Cartão `12.6a` — Síntese de Trovão com Reverberação Estéreo (`ConvolverNode`) e Sub-Grave
+### Cartão `12.6a` (Concluído) — Síntese de Trovão com Reverberação Estéreo (`ConvolverNode`) e Sub-Grave
 
 - **Objetivo:** Substituir a síntese seca de ruído mono em `trovao()` (`Atlas/src/fx/som.ts`) por um trovão atmosférico estéreo com **reverberação acústica real (`ConvolverNode`)**, onda de impacto sub-grave (`30–90 Hz`), saturação elétrica (`WaveShaperNode`) e ecos secundários no céu.
 - **Arquivos a modificar:**
@@ -282,7 +282,7 @@ Esta fase aborda os refinamentos visuais, de usabilidade e de imersão no **Atla
 
 ---
 
-### Cartão `12.7a` — Correção do Botão e Tecla de Atalhos (`?`) em Todos os Modos
+### Cartão `12.7a` (Concluído) — Correção do Botão e Tecla de Atalhos (`?`) em Todos os Modos
 
 - **Objetivo:** Garantir que o botão e a tecla de **Atalhos (`?`)** funcionem sempre (no cabeçalho normal, no cabeçalho embutido da Mesa, na barra inferior de ferramentas e pelo teclado inclusive em layouts ABNT2), que o modal apareça acima de todos os painéis (`z-index: 220`), feche com `Esc` e permita clicar em qualquer atalho para executá-lo.
 - **Arquivos a modificar:**
@@ -308,7 +308,7 @@ Esta fase aborda os refinamentos visuais, de usabilidade e de imersão no **Atla
 
 ---
 
-### Cartão `12.8a` — Tutoriais Interativos: "Presença e Corrupção" e "Climas Próprios"
+### Cartão `12.8a` (Concluído) — Tutoriais Interativos: "Presença e Corrupção" e "Climas Próprios"
 
 - **Objetivo:** Adicionar dois novos tutoriais guiados passo a passo na seção **Aprender** (`Atlas/src/tutorial/licoes.ts`):
   1. **`presenca` ("Presença e corrupção"):** ensina o que é a ferramenta **Presença (`P`)**, como pintar manchas dinâmicas no chão (sangue, mofo, corrupção paranormal), como ocultá-las dos jogadores (*Só o mestre vê*) e como aumentar/diminuir sua **Intensidade (`0%`–`100%`) ao vivo durante a Sessão** para fazer a corrupção crescer na frente dos jogadores.

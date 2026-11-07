@@ -95,7 +95,7 @@ const TERRENO_E_ESPALHAR: Licao = {
 };
 
 const CLIMAS: Licao = {
-  id: 'climas', titulo: 'Climas', minutos: 6, pasta: 'cena', proxima: 'sessao',
+  id: 'climas', titulo: 'Climas', minutos: 6, pasta: 'cena', proxima: 'presenca',
   resumo: 'Atmosfera, luz dinâmica, clima com partículas e acabamento cinematográfico.',
   passos: [
     { ...ferramenta('comodo', 'Pegue a ferramenta <b>Cômodo</b>.', 'Vamos preparar um cenário para entender como luzes e clima trabalham juntos.', ['C', 'cômodo']), etapa: 'A casa' },
@@ -117,6 +117,47 @@ const CLIMAS: Licao = {
 };
 
 function clicar_campo(rotulo: string): Acao { return ['clicar', campo(rotulo)]; }
+
+const PRESENCA: Licao = {
+  id: 'presenca', titulo: 'Presença e corrupção', minutos: 4, pasta: 'cena', proxima: 'climas-proprios',
+  resumo: 'Camadas procedurais no chão: sangue, mofo e corrupção cuja intensidade de 0% a 100% pode crescer ao vivo na sessão.',
+  passos: [
+    ler('Presença e corrupção: o que é a ferramenta Presença.', 'Camadas procedurais como sangue, mofo, teias ou membrana paranormal cuja intensidade de 0% a 100% pode crescer ao vivo na sessão na frente dos jogadores.'),
+    { ...ferramenta('comodo', 'Pegue a ferramenta <b>Cômodo</b>.', 'Vamos preparar uma sala para pintar a presença no chão.', ['C', 'cômodo']), etapa: 'A sala' },
+    comodo('sala', 'sala', SALA, 'Pinte uma <b>Sala</b> entre os pontos marcados.', 'A presença pode ser pintada tanto dentro de cômodos quanto em áreas abertas do terreno.'),
+    { ...ferramenta('presenca', 'Pegue a ferramenta <b>Presença</b>.', 'A ferramenta Presença aplica manchas dinâmicas com aspecto biológico ou paranormal.', ['P', 'presença']), etapa: 'Pintando presença' },
+    {
+      diga: 'Escolha <b>Corrupção</b> (ou Sangue) e arraste dentro da sala.',
+      alvo: tid('presenca-corrupcao'),
+      ponto: [[4.5, 4.5], [7.5, 7.5]],
+      feito: ['presencaPintada', 'corrupcao'],
+      acao: [clicar('presenca-corrupcao'), ['arrastar', [4.5, 4.5], [7.5, 7.5]]],
+      porque: 'A mancha se espalha pelas células com bordas orgânicas e animação sutil procedural.',
+    },
+    {
+      diga: 'Entre na <b>Sessão</b>.',
+      alvo: tid('modo-sessao'),
+      feito: ['modo', 'sessao'],
+      acao: clicar('modo-sessao'),
+      etapa: 'Intensidade ao vivo',
+      porque: 'Na Sessão, você abre o painel Presença no Dock para controlar a intensidade ao vivo.',
+    },
+    ler('No painel Presença do Dock, você pode aumentar ou diminuir a intensidade (0% a 100%) da corrupção em tempo real durante a partida, simulando o avanço de uma entidade ou maldição enquanto os investigadores exploram a cena.'),
+  ],
+};
+
+const CLIMAS_PROPRIOS: Licao = {
+  id: 'climas-proprios', titulo: 'Criando seu próprio clima', minutos: 4, pasta: 'cena', proxima: 'sessao',
+  resumo: 'Atmosferas personalizadas: ajuste parâmetros de clima e acabamento e salve predefinições no mapa.',
+  passos: [
+    { diga: 'Abra a aba <b>Mapa</b> para ver os climas.', alvo: tid('aba-mapa'), feito: ['aba', 'mapa'], acao: clicar('aba-mapa'), etapa: 'Ajuste da atmosfera' },
+    { diga: 'Escolha o clima <b>Noite</b>.', alvo: tid('clima-noite'), feito: ['climaE', 'noite'], acao: clicar('clima-noite'), porque: 'Partir de um clima existente poupa tempo no ajuste inicial da iluminação.' },
+    { diga: 'Ajuste a <b>Neblina</b> para <b>0,6</b>.', alvo: campo('Neblina'), feito: ['valor', 'climate.weather.fog', 0.6], acao: ['preencher', campo('Neblina'), '0.6'], valores: '<b>Neblina</b>: 0,6', porque: 'Neblina densa reduz o campo de visão dos personagens e acentua cones de lanterna.' },
+    { diga: 'Ponha a <b>Chuva</b> em <b>0,4</b>.', alvo: campo('Chuva'), feito: ['valor', 'climate.weather.rain', 0.4], acao: ['preencher', campo('Chuva'), '0.4'], valores: '<b>Chuva</b>: 0,4', porque: 'Chuva fina adiciona partículas e sensação de umidade ao ambiente.' },
+    { diga: 'Clique em <b>+ Salvar este clima…</b>, digite o nome e confirme.', alvo: tid('salvar-clima'), feito: ['climaSalvo', 1], acao: [clicar('salvar-clima'), ['preencher', tid('nome-do-clima'), 'Névoa Carmesim'], clicar('confirmar-salvar-clima')], etapa: 'Salvar clima', porque: 'Salvar um clima guarda todos os seus parâmetros visuais e sonoros no mapa, permitindo trocas rápidas com um clique.' },
+    ler('Seu clima salvo agora aparece tanto no Inspetor quanto no painel Clima do Dock da Sessão. Você pode associá-lo a uma trilha sonora do Jukebox para transições completas com um único clique.'),
+  ],
+};
 
 const SESSAO: Licao = {
   id: 'sessao', titulo: 'Sessão', minutos: 6, pasta: 'mesa', proxima: 'regioes',
@@ -184,4 +225,4 @@ const CAMPANHA: Licao = {
   ],
 };
 
-export const LICOES: readonly Licao[] = [TESTE, PRIMEIRA_CASA, ASSISTENTE, TERRENO_E_ESPALHAR, CLIMAS, SESSAO, REGIOES, CAMPANHA];
+export const LICOES: readonly Licao[] = [TESTE, PRIMEIRA_CASA, ASSISTENTE, TERRENO_E_ESPALHAR, CLIMAS, PRESENCA, CLIMAS_PROPRIOS, SESSAO, REGIOES, CAMPANHA];

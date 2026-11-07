@@ -219,9 +219,9 @@ function SeletorDeClima({ s }: { s: SessaoDeEdicao }) {
         <button type="button" class="botao-icone chip-esquecer" aria-label={`Esquecer o clima ${c.name}`} title="Esquecer" data-testid={`esquecer-${c.id}`} onClick={() => { if (tentar(() => st.executar({ tipo: 'clima.esquecer', id: c.id }, { rotulo: `Esquecer clima: ${c.name}` }))) avisar(`Clima “${c.name}” esquecido.`); }}><Icone nome="fechar" tamanho={12} /></button>))}
     </div>
     {nomeando.value
-      ? <div class="linha-salvar-clima"><input type="text" aria-label="Nome do clima" placeholder="Nome do clima…" maxLength={60} value={nome.value} autoFocus data-testid="nome-do-clima" onInput={e => { nome.value = (e.target as HTMLInputElement).value; }}
+      ? <div class="linha-salvar-clima"><input type="text" aria-label="Nome do clima" placeholder="Nome do clima…" maxLength={60} value={nome.value} autoFocus data-testid="nome-do-clima" id="nome-clima" onInput={e => { nome.value = (e.target as HTMLInputElement).value; }}
           onKeyDown={e => { if (e.key === 'Enter') guardar(); else if (e.key === 'Escape') { e.stopPropagation(); nomeando.value = false; } }} />
-          <button type="button" class="botao-pilula destaque" onClick={guardar} data-testid="confirmar-clima">Salvar</button></div>
+          <button type="button" class="botao-pilula destaque" onClick={guardar} data-testid="confirmar-salvar-clima" id="confirmar-clima">Salvar</button></div>
       : <button type="button" class="botao-pilula" onClick={() => { nomeando.value = true; }} data-testid="salvar-clima"><Icone nome="novo" tamanho={14} />Salvar este clima…</button>}
     <CampoTexto id="horario-do-clima" rotulo="Horário" dica="HH:MM. Muda a luz do sol ou da lua." valor={m.climate.time} maximo={5} aoConfirmar={v => ajustar({ time: v.trim() }, 'Horário')} />
     <CampoNumero rotulo="Chuva" valor={m.climate.weather.rain} min={0} max={1} passo={0.05} aoConfirmar={v => ajustar({ weather: { rain: v } }, 'Chuva')} />
