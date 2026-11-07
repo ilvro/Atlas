@@ -1,7 +1,7 @@
 import { useEffect } from 'preact/hooks';
 import { useSignal } from '@preact/signals';
 import { chaveDaRef, formatarRef, lerRef, type Entidade, type Ref } from '#mesa';
-import { campanhaAtiva, campanhas, refDoComodo } from '../app/campanha.ts';
+import { campanhaAtiva, campanhas, criarCampanha, escolherCampanha, refDoComodo } from '../app/campanha.ts';
 import { servicos } from '../app/app.ts';
 import { avisar } from '../app/toasts.ts';
 import { NOMES_COLECAO, desfazer, duplicarSelecao, refazer, removerSelecao, sessao } from '../app/app.ts';
@@ -80,11 +80,35 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
       <CampoTexto rotulo="Nome" valor={m.name} aoConfirmar={v => v.trim() ? tentar(() => st.executar({ tipo: 'mapa.renomear', nome: v.trim() })) : false} />
       <CampoOpcoes rotulo="Gênero" dica={generoDe(m.style.genre).descricao} valor={generoDe(m.style.genre).id} opcoes={GENEROS.map(g => [g.id, g.nome] as const)} aoMudar={v => tentar(() => st.executar({ tipo: 'estilo.atualizar', patch: { genre: v } }, { rotulo: 'Gênero do mapa' }))} />
       <label class="linha"><span class="linha-rotulo">Campanha</span><span class="linha-controle">
-        <select data-testid="campanha-do-mapa" value={m.campanhaId ?? ''} onChange={e => { const v = (e.target as HTMLSelectElement).value || null; tentar(() => st.executar({ tipo: 'mapa.campanha', campanhaId: v }, { rotulo: 'Ligar à campanha' })); }}>
+        <select
+          data-testid="campanha-do-mapa"
+          value={m.campanhaId ?? ''}
+          onChange={e => {
+            const v = (e.target as HTMLSelectElement).value || null;
+            tentar(() => st.executar({ tipo: 'mapa.campanha', campanhaId: v }, { rotulo: 'Ligar à campanha' }));
+            escolherCampanha(v, servicos.value ?? undefined);
+          }}
+        >
           <option value="">Nenhuma</option>
           {campanhas.value.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
           {m.campanhaId && !campanhas.value.some(c => c.id === m.campanhaId) && <option value={m.campanhaId}>(campanha ausente)</option>}
         </select></span></label>
+      {campanhas.value.length === 0 && (
+        <button
+          type="button"
+          class="botao-pilula"
+          data-testid="criar-campanha-rapida"
+          onClick={async () => {
+            const nome = prompt('Nome da nova campanha:', 'Minha Campanha');
+            if (nome && servicos.value) {
+              const c = await criarCampanha(servicos.value, nome.trim());
+              st.executar({ tipo: 'mapa.campanha', campanhaId: c.id }, { rotulo: 'Ligar à nova campanha' });
+            }
+          }}
+        >
+          + Criar campanha
+        </button>
+      )}
       {!m.campanhaId && campanhaAtiva.value && <p class="dica">Este mapa não está em nenhuma campanha. A ativa é “{campanhaAtiva.value.nome}”.</p>}
       <h3 class="faixa pequena">Grade</h3>
       <CampoCaixa rotulo="Mostrar" valor={m.grid.visible} aoMudar={v => tentar(() => st.executar({ tipo: 'grade.atualizar', patch: { visible: v } }, { rotulo: v ? 'Mostrar a grade' : 'Esconder a grade' }))} />

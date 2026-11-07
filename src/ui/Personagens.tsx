@@ -1,7 +1,7 @@
 import { useEffect } from 'preact/hooks';
 import { signal } from '@preact/signals';
 import type { Entidade } from '#mesa';
-import { campanhaAtiva } from '../app/campanha.ts';
+import { campanhaAtiva, escolherCampanha } from '../app/campanha.ts';
 import { servicos, viewport } from '../app/app.ts';
 import { adicionarPersonagem, ameacasComFicha, personagensComFicha, recursosDasFichas } from '../app/fichas.ts';
 import { refDaFicha, textoDeRecursos } from '../domain/fichas.ts';
@@ -51,13 +51,48 @@ function Item({ s, e, pecas }: { s: SessaoDeEdicao; e: Entidade; pecas: SessaoDe
  * ligada à ficha. Tudo vem da campanha, ou seja, das fichas que existem na Ficha agora, inclusive as que você criar depois.
  */
 export function Personagens({ s }: { s: SessaoDeEdicao }) {
+  useEffect(() => {
+    if (s.doc.value.campanhaId && s.doc.value.campanhaId !== campanhaAtiva.value?.id) {
+      escolherCampanha(s.doc.value.campanhaId, servicos.value ?? undefined);
+    }
+  }, [s.doc.value.campanhaId]);
+
   useEffect(() => { void carregar(); }, [campanhaAtiva.value?.id]);
   const campanha = campanhaAtiva.value, pecas = s.doc.value.tokens;
   if (!campanha) return <p class="dock-dica" data-testid="personagens-vazio">Escolha uma campanha na aba Mapa para ver os personagens.</p>;
   const termo = semAcento(busca.value).trim(), achadas = ameacas.value.filter(e => !termo || semAcento(e.nome).includes(termo)), mostradas = achadas.slice(0, LIMITE_DE_AMEACAS);
+  const vazio = lista.value.length === 0 && ameacas.value.length === 0;
+
+  const aoCarregarIframe = () => {
+    const t1 = setTimeout(() => void carregar(), 600);
+    const t2 = setTimeout(() => void carregar(), 1500);
+    if (typeof t1 === 'object' && t1 && 'unref' in t1) (t1 as any).unref();
+    if (typeof t2 === 'object' && t2 && 'unref' in t2) (t2 as any).unref();
+  };
+
   return (
     <div class="personagens" data-testid="personagens">
-      {lista.value.length === 0 && <p class="dock-dica" data-testid="personagens-vazio">Nenhum personagem com ficha nesta campanha ainda.</p>}
+      {vazio ? (
+        <>
+          <p class="dock-dica" data-testid="personagens-vazio">Nenhum personagem com ficha nesta campanha ainda.</p>
+          <iframe
+            src="../Dossie/?compacto=1"
+            title="Sincronização em segundo plano"
+            style={{ display: 'none', width: 0, height: 0, border: 'none' }}
+            onLoad={aoCarregarIframe}
+          />
+          <button
+            type="button"
+            class="botao-pilula"
+            data-testid="abrir-dossie-btn"
+            onClick={() => window.open('../Dossie/', '_blank')}
+          >
+            Abrir Dossiê
+          </button>
+        </>
+      ) : (
+        lista.value.length === 0 && <p class="dock-dica" data-testid="personagens-vazio">Nenhum personagem com ficha nesta campanha ainda.</p>
+      )}
       {lista.value.map(e => <Item key={e.id} s={s} e={e} pecas={pecas} />)}
       {ameacas.value.length > 0 && (
         <section class="ameacas" data-testid="ameacas">
