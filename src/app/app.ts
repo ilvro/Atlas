@@ -1,10 +1,10 @@
 import { iniciarPistas } from './pistas.ts';
 import { abrirInspecao, fecharInspecao, inspecao, mostrandoAosJogadores } from './inspecao.ts';
 import type { Vista } from '../domain/inspecao.ts';
-import { aoRolar, iniciarFichas, pecaDaFicha, recursosDasFichas } from './fichas.ts';
+import { aoRolar, iniciarFichas, pecaDaFicha, recursosDasFichas, adicionarPersonagem } from './fichas.ts';
 import { flutuarRolagem, ponto as pontoDaTela } from '../fx/fx.ts';
 import { batch, effect, signal } from '@preact/signals';
-import { criarRef } from '#mesa';
+import { criarRef, mesmaRef, type Ref } from '#mesa';
 import { exportarBackup, importarBackup, lerPacote, nomeDoArquivo, type RelatorioImportacao } from '../data/backup.ts';
 import { ErroDeBackup } from '../data/backup.ts';
 import { ErroDeConflito, type ResumoMapa } from '../data/repositorio.ts';
@@ -20,7 +20,7 @@ import { todosOsAlvos, caixaDe, caixaDaSelecao, ehMovel, type Alvo, type Colecao
 import type { Viewport } from '../render/viewport.ts';
 import type { ColecaoLivre, Comando } from '../state/comandos.ts';
 import { embutido } from './embutido.ts';
-import { campanhaAtiva, carregarCampanhas, desvincularMapa, refDoMapa, revincularMapa, sincronizarMapaComCampanha } from './campanha.ts';
+import { campanhaAtiva, carregarCampanhas, desvincularMapa, entidadesDaCampanha, refDoMapa, revincularMapa, sincronizarMapaComCampanha } from './campanha.ts';
 import { pedirCena, pedirSomDoClima, pedirSomDoMapa, tocarSomEscolhido } from './audio-do-clima.ts';
 import { iniciarRegioes } from './regioes.ts';
 import { modo, vistaDeJogador } from './modo.ts';
@@ -77,6 +77,9 @@ export async function iniciar(): Promise<void> {
       if (ref.tipo === 'mapa') { navegar({ tipo: 'mapa', id: ref.id }); return { ok: true }; }
       if (ref.tipo === 'comodo') { const i = ref.id.indexOf('/'); if (i > 0) { navegar({ tipo: 'mapa', id: ref.id.slice(0, i), comodo: ref.id.slice(i + 1) }); return { ok: true }; } }
       return { ok: false, motivo: `O Atlas não abre ${ref.tipo}.` };
+    });
+    s.barramento?.atender('atlas.preparar-cena', dados => {
+      return prepararCenaNoAtlas(s, dados as DadosPrepararCena);
     });
   } catch (erro) {
     erroInicial.value = erro instanceof Error ? erro.message : String(erro);
@@ -267,7 +270,7 @@ export function fecharSessao(): void {
   sincronizarPublicador();
 }
 
-async function abrirMapa(id: string, comodo?: string): Promise<void> {
+export async function abrirMapa(id: string, comodo?: string): Promise<void> {
   const s = servicos.value; if (!s) return;
   if (sessao.value?.doc.value.id === id) { focoPendente.value = comodo ?? null; focarNoComodo(); return; }
   carregando.value = true; mapaAusente.value = null;
@@ -320,12 +323,123 @@ export function focarNoComodo(): void {
   const id = focoPendente.value, v = viewport.atual, s = sessao.value;
   if (!id || !v || !s) return;
   focoPendente.value = null;
-  const sala = s.doc.value.rooms[id];
+  const sala = s.doc.value.rooms[id] ?? Object.values(s.doc.value.rooms).find(r => r.name.toLowerCase() === id.toLowerCase());
   if (!sala) { avisar(`O cômodo “${id}” não existe neste mapa.`, { tipo: 'erro' }); return; }
   const t = s.doc.value.grid.size;
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const [y, fx, n] of sala.cells) { x0 = Math.min(x0, fx * t); x1 = Math.max(x1, (fx + n) * t); y0 = Math.min(y0, y * t); y1 = Math.max(y1, (y + 1) * t); }
   v.focarEm({ x0, y0, x1, y1 });
+}
+
+export interface DadosPrepararCena {
+  mapa?: Ref | null;
+  comodo?: string;
+  clima?: string;
+  fichas?: Ref[];
+}
+
+/** Prepara uma cena completa no Atlas a pedido da Mesa: abre o mapa, ajusta clima, foca cômodo e posiciona as fichas. */
+export async function prepararCenaNoAtlas(
+  s: Servicos,
+  dados: DadosPrepararCena
+): Promise<{ ok: boolean; motivo?: string }> {
+  // 1. Abrir mapa ou focar cômodo
+  if (dados.mapa) {
+    let mapaId: string;
+    let comodoId: string | undefined = dados.comodo;
+    if (dados.mapa.tipo === 'comodo') {
+      const i = dados.mapa.id.indexOf('/');
+      if (i > 0) {
+        mapaId = dados.mapa.id.slice(0, i);
+        comodoId = dados.mapa.id.slice(i + 1);
+      } else {
+        mapaId = dados.mapa.id;
+      }
+    } else {
+      mapaId = dados.mapa.id;
+    }
+    await abrirMapa(mapaId, comodoId);
+  } else if (dados.comodo && sessao.value) {
+    focoPendente.value = dados.comodo;
+    focarNoComodo();
+  }
+
+  // 2. Aplicar clima
+  if (dados.clima && sessao.value) {
+    const temPreset = !!presetDeClima(dados.clima);
+    const temCustom = !!sessao.value.doc.value.customClimates[dados.clima];
+    if (temPreset || temCustom) {
+      aplicarClima(dados.clima);
+    }
+  }
+
+  // 3. Posicionar fichas
+  if (Array.isArray(dados.fichas) && dados.fichas.length > 0 && sessao.value) {
+    const sessaoAtual = sessao.value;
+    const doc = sessaoAtual.store.documento;
+    const t = doc.grid.size;
+
+    let basePos: Ponto = [doc.bounds.width / 2, doc.bounds.height / 2];
+    const comodoNome = dados.comodo;
+    const targetRoom = comodoNome
+      ? (doc.rooms[comodoNome] ?? Object.values(doc.rooms).find(r => r.name.toLowerCase() === comodoNome.toLowerCase()))
+      : undefined;
+    if (targetRoom && targetRoom.cells.length > 0) {
+      let rx0 = Infinity, ry0 = Infinity, rx1 = -Infinity, ry1 = -Infinity;
+      for (const [y, fx, n] of targetRoom.cells) {
+        rx0 = Math.min(rx0, fx * t);
+        rx1 = Math.max(rx1, (fx + n) * t);
+        ry0 = Math.min(ry0, y * t);
+        ry1 = Math.max(ry1, (y + 1) * t);
+      }
+      basePos = [(rx0 + rx1) / 2, (ry0 + ry1) / 2];
+    }
+
+    const cid = doc.campanhaId ?? campanhaAtiva.value?.id;
+    if (cid && s.campanhas && entidadesDaCampanha.peek().length === 0) {
+      try {
+        entidadesDaCampanha.value = await s.campanhas.listarEntidades(cid);
+      } catch {
+        /* ignora */
+      }
+    }
+
+    let countPlaced = 0;
+    for (const fichaRef of dados.fichas) {
+      const jaNoMapa = pecaDaFicha(sessaoAtual.store.documento, fichaRef);
+      if (jaNoMapa) continue;
+
+      let entidade = entidadesDaCampanha.peek().find(e =>
+        e.refs.some(r => mesmaRef(r, fichaRef)) || e.id === fichaRef.id
+      );
+      if (!entidade && s.campanhas && cid) {
+        entidade = await s.campanhas.entidadeDaRef(cid, fichaRef).catch(() => undefined)
+          ?? await s.campanhas.obterEntidade(fichaRef.id).catch(() => undefined);
+      }
+
+      const entFinal = entidade ?? {
+        id: fichaRef.id,
+        campanhaId: cid ?? '',
+        tipo: 'personagem' as const,
+        nome: fichaRef.id,
+        refs: [fichaRef],
+        tags: [],
+        notas: '',
+        criadaPor: fichaRef.app,
+        criadaEm: Date.now(),
+        atualizadaEm: Date.now(),
+      };
+
+      const pos: Ponto = [
+        basePos[0] + (countPlaced % 3) * t,
+        basePos[1] + Math.floor(countPlaced / 3) * t,
+      ];
+      adicionarPersonagem(sessaoAtual, entFinal, pos, s.repo);
+      countPlaced++;
+    }
+  }
+
+  return { ok: true };
 }
 
 // ---------- Mapas ----------

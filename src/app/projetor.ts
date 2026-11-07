@@ -105,7 +105,11 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
     enviar({ tipo: 'estado', doc: projetarParaJogadores(m), versao: s.store.versaoEdicao });
     enviarRecursos();
   };
-  const agendar = () => { if (temporizador) return; temporizador = setTimeout(() => { temporizador = null; enviarEstado(); }, 100); };
+  const agendar = () => {
+    if (temporizador) return;
+    temporizador = setTimeout(() => { temporizador = null; enviarEstado(); }, 100);
+    if (typeof temporizador?.unref === 'function') temporizador.unref();
+  };
 
   let ultimoSeqProjetor = -1;
   const aoMensagem = (e: MessageEvent<MensagemDoProjetor & { _seq?: number }>) => {

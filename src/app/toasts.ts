@@ -19,7 +19,9 @@ export function fecharToast(id: number): void {
 
 function agendar(id: number, ms: number): void {
   const antigo = relogios.get(id); if (antigo) clearTimeout(antigo);
-  relogios.set(id, setTimeout(() => fecharToast(id), ms));
+  const timer = setTimeout(() => fecharToast(id), ms);
+  if (typeof timer.unref === 'function') timer.unref();
+  relogios.set(id, timer);
 }
 
 /** Mensagem curta. Com `acao` (ex.: Desfazer), fica mais tempo na tela. */

@@ -58,7 +58,11 @@ export function iniciarSugestoes(s: SessaoDeEdicao, viewport: { atual: Viewport 
     if (!p && !atual) return;
     sugestao.value = p;
   }
-  const agendar = () => { clearTimeout(relogio); relogio = setTimeout(recalcular, ATRASO); };
+  const agendar = () => {
+    clearTimeout(relogio);
+    relogio = setTimeout(recalcular, ATRASO);
+    if (typeof relogio?.unref === 'function') relogio.unref();
+  };
   recalcularAgora = () => { clearTimeout(relogio); recalcular(); };
 
   const sairStore = s.store.assinar((e: EventoStore) => {

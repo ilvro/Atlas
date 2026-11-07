@@ -14,6 +14,7 @@ const refOuNulo = (campo: string): Validador => d => ehObj(d) && (d[campo] === n
 const todos = (...vs: Validador[]): Validador => d => { for (const v of vs) { const e = v(d); if (e) return e; } return null; };
 const num = (campo: string, opcional = false): Validador => d => ehObj(d) && ((opcional && d[campo] === undefined) || Number.isFinite(d[campo])) ? null : `“${campo}” deve ser número.`;
 const texto = (campo: string, opcional = false): Validador => d => ehObj(d) && ((opcional && d[campo] === undefined) || typeof d[campo] === 'string') ? null : `“${campo}” deve ser texto.`;
+const listaDeRefs = (campo: string, opcional = false): Validador => d => ehObj(d) && ((opcional && d[campo] === undefined) || (Array.isArray(d[campo]) && d[campo].every(ehRef))) ? null : `“${campo}” deve ser lista de referências.`;
 
 interface Entrada { natureza: Natureza; dono: AppId; validar: Validador }
 
@@ -35,7 +36,7 @@ export const CATALOGO: Readonly<Record<string, Entrada>> = {
   /** Toca uma vez, por cima da música, um efeito do Jukebox (uma faixa de gênero `sfx`): `mesa:jukebox/efeito/<titulo-em-minusculas-sem-acento>`. */
   'jukebox.efeito': { natureza: 'pedido', dono: 'jukebox', validar: ref('ref') },
   'atlas.focar': { natureza: 'pedido', dono: 'atlas', validar: ref('ref') },
-  'atlas.preparar-cena': { natureza: 'pedido', dono: 'atlas', validar: todos(refOuNulo('mapa'), texto('comodo', true), texto('clima', true)) },
+  'atlas.preparar-cena': { natureza: 'pedido', dono: 'atlas', validar: todos(refOuNulo('mapa'), texto('comodo', true), texto('clima', true), listaDeRefs('fichas', true)) },
   'ficha.abrir': { natureza: 'pedido', dono: 'ficha', validar: ref('ref') },
   'ficha.ajustar-recursos': { natureza: 'pedido', dono: 'ficha', validar: todos(ref('ficha'), num('deltaPv', true), num('deltaPd', true), num('pv', true), num('pd', true)) },
   'atelie.abrir': { natureza: 'pedido', dono: 'atelie', validar: ref('ref') },

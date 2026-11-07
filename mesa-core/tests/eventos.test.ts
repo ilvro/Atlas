@@ -142,9 +142,17 @@ test('validação de ficha.ajustar-recursos e atlas.preparar-cena', () => {
     validarEvento(base({
       app: 'mesa',
       tipo: 'atlas.preparar-cena',
-      dados: { mapa, comodo: 'Taverna', clima: 'chuva' },
+      dados: { mapa, comodo: 'Taverna', clima: 'chuva', fichas: [ficha] },
     })).ok,
     true
+  );
+  assert.equal(
+    validarEvento(base({
+      app: 'mesa',
+      tipo: 'atlas.preparar-cena',
+      dados: { mapa, fichas: ['invalido' as never] },
+    })).ok,
+    false
   );
   assert.equal(
     validarEvento(base({

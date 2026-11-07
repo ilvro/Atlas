@@ -9,22 +9,40 @@ export const CHAVE_CAMPANHA_ATIVA = 'mesa:campanha-ativa';
 
 export const campanhaAtiva = signal<Campanha | null>(null);
 export const campanhas = signal<Campanha[]>([]);
+export const entidadesDaCampanha = signal<Entidade[]>([]);
 
 export const refDoMapa = (mapa: Pick<MapaAtlas, 'id'>): Ref => criarRef('atlas', 'mapa', mapa.id);
 export const refDoComodo = (mapa: Pick<MapaAtlas, 'id'>, comodoId: string): Ref => criarRef('atlas', 'comodo', `${mapa.id}/${comodoId}`);
 
+export async function carregarEntidadesDaCampanha(s: Servicos, campanhaId: string): Promise<void> {
+  if (!s.campanhas) { entidadesDaCampanha.value = []; return; }
+  try {
+    entidadesDaCampanha.value = await s.campanhas.listarEntidades(campanhaId);
+  } catch {
+    entidadesDaCampanha.value = [];
+  }
+}
+
 export async function carregarCampanhas(s: Servicos): Promise<void> {
-  if (!s.campanhas) { campanhas.value = []; campanhaAtiva.value = null; return; }
+  if (!s.campanhas) { campanhas.value = []; campanhaAtiva.value = null; entidadesDaCampanha.value = []; return; }
   const lista = await s.campanhas.listarCampanhas();
   campanhas.value = lista;
   let id: string | null = null;
   try { id = localStorage.getItem(CHAVE_CAMPANHA_ATIVA); } catch { /* sem armazenamento */ }
   campanhaAtiva.value = lista.find(c => c.id === id) ?? null;
+  if (campanhaAtiva.value) {
+    await carregarEntidadesDaCampanha(s, campanhaAtiva.value.id);
+  } else {
+    entidadesDaCampanha.value = [];
+  }
 }
 
-export function escolherCampanha(id: string | null): void {
+export function escolherCampanha(id: string | null, s?: Servicos): void {
   campanhaAtiva.value = campanhas.value.find(c => c.id === id) ?? null;
   try { if (id) localStorage.setItem(CHAVE_CAMPANHA_ATIVA, id); else localStorage.removeItem(CHAVE_CAMPANHA_ATIVA); } catch { /* ignora */ }
+  if (s && campanhaAtiva.value) {
+    void carregarEntidadesDaCampanha(s, campanhaAtiva.value.id);
+  }
 }
 
 export async function criarCampanha(s: Servicos, nome: string): Promise<Campanha> {

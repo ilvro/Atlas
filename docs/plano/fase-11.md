@@ -235,7 +235,7 @@ Testes: unitário em `tests/unit/campanha.test.ts` injetando um gerador de minia
 Pronto quando: mapas ligados a uma campanha publicam sua miniatura no `mesa-campanha-v1`.
 Commit: feat(atlas): publish WebP map thumbnails to campaign place entities
 
-### 11.5b — Atender pedido `atlas.preparar-cena` (lançar cena/encontro vindo da Mesa)  ⬜
+### 11.5b — Atender pedido `atlas.preparar-cena` (lançar cena/encontro vindo da Mesa)  ✅
 Objetivo: permitir que a Mesa peça ao Atlas para preparar uma cena inteira (abrir mapa numa aba, aplicar clima, focar cômodo e posicionar as peças do encontro).
 Depende de: 11.1a
 Ler: `mesa-core/src/eventos.ts`, `src/app/app.ts` (`iniciar`), `src/app/fichas.ts` (`adicionarPersonagem`), `src/app/campanha.ts`.
