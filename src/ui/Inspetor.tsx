@@ -314,11 +314,17 @@ function CamposDaLuz({ s, l }: { s: SessaoDeEdicao; l: Luz }) {
   </>);
 }
 
-/** Reduz uma imagem para um retrato de até 256 px (WebP), recortada ao quadrado pelo centro: o banco guarda retratos leves. */
+/** Reduz uma imagem para um retrato de até 512 px (WebP), preservando a proporção original. */
 async function reduzirParaRetrato(arquivo: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(arquivo), lado = Math.min(bitmap.width, bitmap.height), alvo = Math.min(256, lado);
-  const tela = document.createElement('canvas'); tela.width = tela.height = alvo;
-  tela.getContext('2d')!.drawImage(bitmap, (bitmap.width - lado) / 2, (bitmap.height - lado) / 2, lado, lado, 0, 0, alvo, alvo); bitmap.close();
+  const bitmap = await createImageBitmap(arquivo);
+  const escala = Math.min(1, 512 / Math.max(bitmap.width, bitmap.height));
+  const w = Math.max(1, Math.round(bitmap.width * escala));
+  const h = Math.max(1, Math.round(bitmap.height * escala));
+  const tela = document.createElement('canvas');
+  tela.width = w;
+  tela.height = h;
+  tela.getContext('2d')!.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height, 0, 0, w, h);
+  bitmap.close();
   return new Promise((ok, falha) => tela.toBlob(b => (b ? ok(b) : falha(new Error('Não consegui converter a imagem.'))), 'image/webp', 0.9));
 }
 
@@ -368,6 +374,8 @@ function CamposDaPeca({ s, t }: { s: SessaoDeEdicao; t: Peca }) {
     </Linha>
     <PainelDoSprite s={s} t={t} />
     <FichaDaPeca t={t} />
+    <CampoOpcoes id="peca-estilo-token" rotulo="Modo do token" valor={t.tokenStyle ?? 'coin'} opcoes={[['coin', 'Moeda (Círculo)'], ['immersive', 'Token Imersivo (Retrato)']] as const} aoMudar={v => editar({ tokenStyle: v }, 'Modo do token')} />
+    <CampoNumero id="peca-escala-visual" rotulo="Escala visual" valor={t.portraitScale ?? 1} min={0.5} max={3} passo={0.1} aoConfirmar={v => editar({ portraitScale: v }, 'Escala visual')} />
     <CampoCaixa rotulo="Jogador" dica="A névoa e a visão da sessão vêm das peças de jogador." valor={t.player} aoMudar={v => editar({ player: v }, v ? 'Peça de jogador' : 'Peça do mestre')} />
     <CampoNumero rotulo="Tamanho" unidade="células" valor={t.size} min={0.5} max={4} passo={0.5} aoConfirmar={v => editar({ size: v }, 'Tamanho da peça')} />
     <CampoNumero rotulo="Visão" unidade="m" valor={t.vision.radius} min={0} max={200} passo={1} aoConfirmar={v => editar({ vision: { radius: v } }, 'Visão da peça')} />

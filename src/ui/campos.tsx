@@ -26,18 +26,18 @@ export function CampoTexto({ rotulo, dica, id, valor, aoConfirmar, maximo = 120 
 export function CampoNumero({ rotulo, dica, id, valor, aoConfirmar, min, max, passo = 1, unidade }: BaseCampo & { valor: number; aoConfirmar: (v: number) => boolean | void; min?: number; max?: number; passo?: number; unidade?: string }) {
   const sal = useSignal(0);
   return <Linha rotulo={rotulo} dica={dica}>
-    <input id={id} key={`${valor}:${sal.value}`} type="number" step={passo} {...(min !== undefined ? { min } : {})} {...(max !== undefined ? { max } : {})} defaultValue={Math.round(valor * 1000) / 1000}
+    <input id={id} data-testid={id} key={`${valor}:${sal.value}`} type="number" step={passo} {...(min !== undefined ? { min } : {})} {...(max !== undefined ? { max } : {})} defaultValue={Math.round(valor * 1000) / 1000}
       onChange={e => { const v = Number((e.target as HTMLInputElement).value); if (!Number.isFinite(v) || aoConfirmar(v) === false) sal.value++; }} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
     {unidade && <span class="unidade">{unidade}</span>}
   </Linha>;
 }
 
-export function CampoCaixa({ rotulo, dica, valor, aoMudar }: BaseCampo & { valor: boolean; aoMudar: (v: boolean) => void }) {
-  return <Linha rotulo={rotulo} dica={dica}><input type="checkbox" checked={valor} onChange={e => aoMudar((e.target as HTMLInputElement).checked)} /></Linha>;
+export function CampoCaixa({ rotulo, dica, id, valor, aoMudar }: BaseCampo & { valor: boolean; aoMudar: (v: boolean) => void }) {
+  return <Linha rotulo={rotulo} dica={dica}><input id={id} data-testid={id} type="checkbox" checked={valor} onChange={e => aoMudar((e.target as HTMLInputElement).checked)} /></Linha>;
 }
 
-export function CampoOpcoes<T extends string>({ rotulo, dica, valor, opcoes, aoMudar }: BaseCampo & { valor: T; opcoes: readonly (readonly [T, string])[]; aoMudar: (v: T) => void }) {
-  return <Linha rotulo={rotulo} dica={dica}><select value={valor} onChange={e => aoMudar((e.target as HTMLSelectElement).value as T)}>{opcoes.map(([v, nome]) => <option key={v} value={v}>{nome}</option>)}</select></Linha>;
+export function CampoOpcoes<T extends string>({ rotulo, dica, id, valor, opcoes, aoMudar }: BaseCampo & { valor: T; opcoes: readonly (readonly [T, string])[]; aoMudar: (v: T) => void }) {
+  return <Linha rotulo={rotulo} dica={dica}><select id={id} data-testid={id} value={valor} onChange={e => aoMudar((e.target as HTMLSelectElement).value as T)}>{opcoes.map(([v, nome]) => <option key={v} value={v}>{nome}</option>)}</select></Linha>;
 }
 
 /** Cor com prévia ao vivo: o arrastar do seletor vira UM item de histórico. */

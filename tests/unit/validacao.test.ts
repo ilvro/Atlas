@@ -56,3 +56,32 @@ test('v7: validação dos campos de personalização e tipo da grade', () => {
   assert.equal(caminhoDoErro(mexer(x => { x.grid.lineWidth = 0.4; })), 'grid.lineWidth');
   assert.equal(caminhoDoErro(mexer(x => { x.grid.lineWidth = 5.1; })), 'grid.lineWidth');
 });
+
+test('validação de token: tokenStyle e portraitScale', () => {
+  assert.equal(caminhoDoErro(mexer(x => {
+    const t = Object.values(x.tokens)[0] as any;
+    t.tokenStyle = 'coin';
+    t.portraitScale = 1.5;
+  })), null);
+
+  assert.equal(caminhoDoErro(mexer(x => {
+    const t = Object.values(x.tokens)[0] as any;
+    t.tokenStyle = 'immersive';
+    t.portraitScale = 0.5;
+  })), null);
+
+  assert.equal(caminhoDoErro(mexer(x => {
+    const t = Object.values(x.tokens)[0] as any;
+    t.tokenStyle = 'invalido';
+  })), `tokens.${Object.keys(mapaCompleto().tokens)[0]}.tokenStyle`);
+
+  assert.equal(caminhoDoErro(mexer(x => {
+    const t = Object.values(x.tokens)[0] as any;
+    t.portraitScale = 0.4;
+  })), `tokens.${Object.keys(mapaCompleto().tokens)[0]}.portraitScale`);
+
+  assert.equal(caminhoDoErro(mexer(x => {
+    const t = Object.values(x.tokens)[0] as any;
+    t.portraitScale = 3.5;
+  })), `tokens.${Object.keys(mapaCompleto().tokens)[0]}.portraitScale`);
+});
