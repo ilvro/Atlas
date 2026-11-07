@@ -353,6 +353,18 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
   padding: 8px 12px;
   border-bottom: 1px solid var(--linha);
   background: var(--superficie-1);
+  cursor: grab;
+  user-select: none;
+}
+
+.previa-da-ficha.arrastando .previa-cabecalho {
+  cursor: grabbing;
+}
+
+.previa-da-ficha.arrastando .iframe-previa-ficha,
+.previa-da-ficha.arrastando .previa-corpo {
+  pointer-events: none;
+  user-select: none;
 }
 
 .previa-info-token {

@@ -50,8 +50,33 @@ export function recursosDaPeca(p: Pick<Peca, 'refs'> & { hp?: { pv: number; pvMa
   const ref = refDaFicha(p.refs); return ref ? recursosDasFichas.peek()[chaveDaRef(ref)] ?? null : null;
 }
 
-/** A peça do mapa que representa uma ficha, se houver. */
-export const pecaDaFicha = (m: Pick<MapaAtlas, 'tokens'>, ref: Ref): Peca | undefined => Object.values(m.tokens).find(t => t.refs.some(r => chaveDaRef(r) === chaveDaRef(ref)));
+/**
+ * A peça do mapa que representa uma ficha, se houver.
+ * Se `preferidasIds` for passado, prioriza qualquer peça correspondente que esteja nessa lista (ex.: tokens selecionados).
+ * Se houver iniciativa ativa com turno corrente, prioriza a peça do turno caso corresponda à ficha.
+ */
+export function pecaDaFicha(
+  m: Pick<MapaAtlas, 'tokens'> & { session?: MapaAtlas['session'] },
+  ref: Ref,
+  preferidasIds?: readonly string[],
+): Peca | undefined {
+  const chave = chaveDaRef(ref);
+  if (preferidasIds?.length) {
+    for (const id of preferidasIds) {
+      const t = m.tokens[id];
+      if (t && t.refs.some(r => chaveDaRef(r) === chave)) return t;
+    }
+  }
+  const ini = m.session?.initiative;
+  if (ini && ini.order.length > 0) {
+    const turnoTokenId = ini.order[ini.current]?.tokenId;
+    if (turnoTokenId) {
+      const t = m.tokens[turnoTokenId];
+      if (t && t.refs.some(r => chaveDaRef(r) === chave)) return t;
+    }
+  }
+  return Object.values(m.tokens).find(t => t.refs.some(r => chaveDaRef(r) === chave));
+}
 
 /** Os personagens da campanha que têm ficha (entidades `personagem` com um Ref do aplicativo `ficha`). */
 export const personagensComFicha = (lista: readonly Entidade[]): Entidade[] => lista.filter(e => e.tipo === 'personagem' && refDaFicha(e.refs));
