@@ -140,6 +140,29 @@ function SecaoDeClima({ s }: { s: SessaoDeEdicao }) {
     </div>
     <div class="dock-linha">
       <button type="button" class="dock-pilula" data-testid="dock-relampago" onClick={() => { const a = acaoPorId('relampago'); if (a) executarAcao(a); }}>⚡ Relâmpago</button>
+      <span class="dock-rotulo">Frequência</span>
+      {[
+        { rotulo: 'Off', v: 0 },
+        { rotulo: 'Raro', v: 0.25 },
+        { rotulo: 'Médio', v: 0.55 },
+        { rotulo: 'Intenso', v: 1.0 },
+      ].map(opt => {
+        const ativo = Math.abs(m.climate.weather.lightning - opt.v) < 0.1;
+        return (
+          <button
+            type="button"
+            key={opt.v}
+            class={`dock-pilula ${ativo ? 'ativa' : ''}`}
+            aria-pressed={ativo}
+            data-testid={`dock-frequencia-relampago-${opt.v}`}
+            onClick={() => s.store.executar({ tipo: 'clima.aplicar', patch: { weather: { lightning: opt.v } } }, { rotulo: `Relâmpagos: ${opt.rotulo}` })}
+          >
+            {opt.rotulo}
+          </button>
+        );
+      })}
+    </div>
+    <div class="dock-linha">
       <span class="dock-rotulo">Transição</span>
       {DURACOES.map(d => <button type="button" key={d} class={`dock-pilula ${duracao === d * 1000 ? 'ativa' : ''}`} aria-pressed={duracao === d * 1000} data-testid={`dock-duracao-${d}`} onClick={() => definirDuracaoDoClima(d * 1000)}>{d} s</button>)}
     </div>
