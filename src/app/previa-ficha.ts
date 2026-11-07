@@ -6,6 +6,12 @@ export const previaDaFichaAberta = signal<boolean>(false);
 /** Quando fixada, a prévia fica ancorada no canto superior da tela em vez de seguir o token no mapa. */
 export const previaFixada = signal<boolean>(false);
 
+/** Posição manual definida pelo usuário ao arrastar a janela de prévia pela tela. */
+export const posicaoManualPrevia = signal<{ x: number; y: number } | null>(null);
+
+/** Indica se a janela de prévia está sendo ativamente arrastada pelo usuário. */
+export const arrastandoPrevia = signal<boolean>(false);
+
 /**
  * Calcula a posição em pixels na tela da gaveta da ficha em relação à caixa do token selecionado.
  */

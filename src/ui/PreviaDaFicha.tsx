@@ -10,11 +10,20 @@ import { tocar } from '../fx/som.ts';
 import {
   previaDaFichaAberta,
   previaFixada,
+  posicaoManualPrevia,
+  arrastandoPrevia,
   calcularPosicaoDaPrevia,
   urlDaPreviaDaFicha,
 } from '../app/previa-ficha.ts';
 
-export { previaDaFichaAberta, previaFixada, calcularPosicaoDaPrevia, urlDaPreviaDaFicha };
+export {
+  previaDaFichaAberta,
+  previaFixada,
+  posicaoManualPrevia,
+  arrastandoPrevia,
+  calcularPosicaoDaPrevia,
+  urlDaPreviaDaFicha,
+};
 
 export function PreviaDaFicha({ s }: { s: SessaoDeEdicao }) {
   const aberta = previaDaFichaAberta.value;
@@ -69,24 +78,64 @@ export function PreviaDaFicha({ s }: { s: SessaoDeEdicao }) {
   const b = servicos.peek()?.barramento;
 
   const fechar = () => {
+    arrastandoPrevia.value = false;
     previaDaFichaAberta.value = false;
     tocar('pop');
   };
 
   const alternarFixacao = () => {
+    posicaoManualPrevia.value = null;
     previaFixada.value = !previaFixada.value;
     tocar('pop');
   };
 
-  const estiloPosicao = fixada
-    ? undefined
-    : posicao
-      ? { left: `${posicao.x}px`, top: `${posicao.y}px` }
-      : { display: 'none' };
+  const aoDuploClique = () => {
+    posicaoManualPrevia.value = null;
+    tocar('pop');
+  };
+
+  const iniciarArrasto = (e: PointerEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return;
+    e.preventDefault();
+    const el = document.querySelector('.previa-da-ficha') as HTMLElement | null;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const offsetY = e.clientY - rect.top;
+    arrastandoPrevia.value = true;
+
+    const aoMover = (ev: PointerEvent) => {
+      const largura = rect.width || 380;
+      const altura = rect.height || 500;
+      const x = Math.max(10, Math.min(window.innerWidth - largura - 10, ev.clientX - offsetX));
+      const y = Math.max(52, Math.min(window.innerHeight - 60, ev.clientY - offsetY));
+      posicaoManualPrevia.value = { x: Math.round(x), y: Math.round(y) };
+    };
+
+    const aoSoltar = () => {
+      arrastandoPrevia.value = false;
+      window.removeEventListener('pointermove', aoMover);
+      window.removeEventListener('pointerup', aoSoltar);
+      window.removeEventListener('pointercancel', aoSoltar);
+    };
+
+    window.addEventListener('pointermove', aoMover);
+    window.addEventListener('pointerup', aoSoltar);
+    window.addEventListener('pointercancel', aoSoltar);
+  };
+
+  const posManual = posicaoManualPrevia.value;
+  const estiloPosicao = posManual
+    ? { left: `${posManual.x}px`, top: `${posManual.y}px`, position: 'fixed' as const }
+    : fixada
+      ? undefined
+      : posicao
+        ? { left: `${posicao.x}px`, top: `${posicao.y}px` }
+        : { display: 'none' };
 
   return (
     <div
-      class={`previa-da-ficha ${fixada ? 'fixada' : ''}`}
+      class={`previa-da-ficha ${fixada && !posManual ? 'fixada' : ''} ${arrastandoPrevia.value ? 'arrastando' : ''}`}
       style={estiloPosicao}
       role="region"
       aria-label={`Ficha de ${token.name}`}
@@ -94,9 +143,10 @@ export function PreviaDaFicha({ s }: { s: SessaoDeEdicao }) {
       onClick={e => e.stopPropagation()}
     >
       {/* Cabeçalho da gaveta */}
-      <div class="previa-cabecalho">
+      <div class="previa-cabecalho" onPointerDown={iniciarArrasto} onDblClick={aoDuploClique}>
         <div class="previa-info-token">
           <span class="previa-nome-token" title={token.name}>
+            <span class="dock-alca" aria-hidden="true" style={{ cursor: 'grab', marginRight: '6px' }}>⠿</span>
             {token.name}
           </span>
           {rec && (

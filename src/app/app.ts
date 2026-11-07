@@ -771,7 +771,8 @@ export const NOMES_COLECAO = { singular: SINGULAR, plural: PLURAL };
 // Uma rolagem da Ficha: o resultado flutua sobre a peça ligada (no mapa e no projetor). Quem não tem peça no mapa vira um aviso discreto.
 aoRolar(r => {
   const s = sessao.value, v = viewport.atual; if (!s) return;
-  const peca = pecaDaFicha(s.doc.value, r.ficha);
+  const selecionadas = s.selecao.peek().filter(a => a.colecao === 'tokens').map(a => a.id);
+  const peca = pecaDaFicha(s.doc.value, r.ficha, selecionadas);
   if (!peca || !v) { avisar(`Rolagem: ${r.titulo} ${r.total}`, { duracao: 2200 }); return; }
   const [x, y] = v.clientDe([peca.position[0], peca.position[1] - (peca.size * s.doc.value.grid.size) / 2]);
   flutuarRolagem(pontoDaTela(x, y), r.total, r.titulo, r.tom, getComputedStyle(document.documentElement).getPropertyValue('--acento').trim() || undefined);

@@ -50,6 +50,39 @@ test('pecaDaFicha e personagensComFicha', () => {
   assert.deepEqual(lista.map(e => e.id), ['1']);
 });
 
+test('pecaDaFicha com múltiplas criaturas da mesma ficha: respeita preferência e iniciativa', () => {
+  const m = criarMapa({ id: 'm', agora: 1 });
+  const t1 = novaPeca([2, 2], 'Zumbi 1', { refs: [ficha] });
+  const t2 = novaPeca([4, 4], 'Zumbi 2', { refs: [ficha] });
+  m.tokens[t1.id] = t1;
+  m.tokens[t2.id] = t2;
+
+  // Sem preferência, retorna o primeiro achado
+  assert.equal(pecaDaFicha(m, ficha)?.id, t1.id);
+
+  // Com preferência no token 2, retorna token 2
+  assert.equal(pecaDaFicha(m, ficha, [t2.id])?.id, t2.id);
+
+  // Com iniciativa no token 2 e sem preferência, prioriza o turno da iniciativa
+  m.session = {
+    explored: null,
+    initiative: {
+      order: [
+        { tokenId: t1.id, value: 10 },
+        { tokenId: t2.id, value: 15 },
+      ],
+      current: 1, // vez do t2
+      round: 1,
+    },
+    revealed: [],
+    event: null,
+  };
+  assert.equal(pecaDaFicha(m, ficha)?.id, t2.id);
+
+  // Mas seleção explícita tem prioridade sobre iniciativa
+  assert.equal(pecaDaFicha(m, ficha, [t1.id])?.id, t1.id);
+});
+
 test('textoDeRecursos e temPd: ameaça (PD zero) mostra só PV; personagem mostra PV e PD', () => {
   assert.equal(textoDeRecursos({ pv: 8, pvMax: 10, pd: 3, pdMax: 6 }), 'PV 8/10 · PD 3/6');
   assert.equal(textoDeRecursos({ pv: 45, pvMax: 45, pd: 0, pdMax: 0 }), 'PV 45/45');
