@@ -1,12 +1,14 @@
 import { signal } from '@preact/signals';
-import { chaveDaRef, criarRef, descobrir, enderecoDaRef, type Barramento, type Entidade, type Ref } from '#mesa';
+import { chaveDaRef, criarRef, descobrir, enderecoDaRef, mesmaRef, type Barramento, type Entidade, type Ref } from '#mesa';
 import { novaPeca } from '../domain/fabrica.ts';
-import { refDaFicha, type Recursos, type TomDaRolagem, tomDaRolagem } from '../domain/fichas.ts';
+import { extrairNumeroDoToken, proximoNomeDeAmeaca, refDaFicha, type Recursos, type TomDaRolagem, tomDaRolagem } from '../domain/fichas.ts';
 import type { MapaAtlas, Peca, Ponto } from '../domain/mapa.ts';
 import { centroDaCelula } from '../domain/movimento.ts';
 import type { SessaoDeEdicao } from './sessao.ts';
 import { avisar } from './toasts.ts';
 import type { RepositorioMapas } from '../data/repositorio.ts';
+
+export { extrairNumeroDoToken, proximoNomeDeAmeaca };
 
 /** O último `ficha.recursos` recebido, por Ref da ficha (memória da sessão, não documento). */
 export const recursosDasFichas = signal<Record<string, Recursos>>({});
@@ -43,7 +45,8 @@ export function iniciarFichas(b: Pick<Barramento, 'ouvir'>): () => void {
 }
 
 /** Os recursos da ficha ligada a uma peça, ou `null`. */
-export function recursosDaPeca(p: Pick<Peca, 'refs'>): Recursos | null {
+export function recursosDaPeca(p: Pick<Peca, 'refs'> & { hp?: { pv: number; pvMax: number } | null }): Recursos | null {
+  if (p.hp) return { pv: p.hp.pv, pvMax: p.hp.pvMax, pd: 0, pdMax: 0 };
   const ref = refDaFicha(p.refs); return ref ? recursosDasFichas.peek()[chaveDaRef(ref)] ?? null : null;
 }
 
@@ -56,20 +59,57 @@ export const personagensComFicha = (lista: readonly Entidade[]): Entidade[] => l
 export const ameacasComFicha = (lista: readonly Entidade[]): Entidade[] => lista.filter(e => e.tipo === 'ameaca' && refDaFicha(e.refs)).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
 /**
- * Põe o personagem ou a ameaça no mapa como peça ligada à ficha (no centro da célula de `onde`, ou do centro do mapa). Personagem vira peça de
- * jogador; ameaça vira peça de inimigo (`player: false`: não dá visão nem explorado, e some do projetor fora da vista dos jogadores). Há uma peça
- * por ficha: pôr de novo só a seleciona (a vida vem da ficha, então dois monstros iguais pedem duas fichas: duplique a ficha na Ficha). Devolve a peça.
+ * Põe o personagem ou a ameaça no mapa como peça ligada à ficha.
+ * Para personagens de jogador (`personagem`): 1 peça por personagem (adicionar de novo apenas seleciona a existente).
+ * Para ameaças (`ameaca`): sempre adiciona uma nova peça numerada (ex.: Zumbi 1, Zumbi 2) com HP independente.
  */
 export function adicionarPersonagem(s: SessaoDeEdicao, e: Entidade, onde?: Ponto, repo?: Pick<RepositorioMapas, 'salvarAsset'> | null): Peca | null {
   const ref = refDaFicha(e.refs); if (!ref || (e.tipo !== 'personagem' && e.tipo !== 'ameaca')) return null;
   const m = s.store.documento, existente = pecaDaFicha(m, ref);
-  if (existente) { s.selecao.value = [{ colecao: 'tokens', id: existente.id }]; avisar(`${e.nome} já está no mapa.`, { duracao: 1800 }); return existente; }
-  const centro = (m.grid.snap === false && onde) ? onde : centroDaCelula(m, onde ?? [m.bounds.width / 2, m.bounds.height / 2]);
-  const peca = novaPeca(centro, e.nome, { player: e.tipo === 'personagem', refs: [ref] });
-  s.store.executar({ tipo: 'item.adicionar', colecao: 'tokens', item: peca as never }, { rotulo: `Pôr ${e.nome} no mapa` });
+
+  if (e.tipo === 'personagem') {
+    if (existente) { s.selecao.value = [{ colecao: 'tokens', id: existente.id }]; avisar(`${e.nome} já está no mapa.`, { duracao: 1800 }); return existente; }
+    const centro = (m.grid.snap === false && onde) ? onde : centroDaCelula(m, onde ?? [m.bounds.width / 2, m.bounds.height / 2]);
+    const peca = novaPeca(centro, e.nome, { player: true, refs: [ref] });
+    s.store.executar({ tipo: 'item.adicionar', colecao: 'tokens', item: peca as never }, { rotulo: `Pôr ${e.nome} no mapa` });
+    s.selecao.value = [{ colecao: 'tokens', id: peca.id }];
+    if (e.retrato && repo) void repo.salvarAsset(e.retrato).then(portrait => { if (s.store.documento.tokens[peca.id]) s.store.executar({ tipo: 'item.atualizar', colecao: 'tokens', id: peca.id, patch: { portrait } }, { rotulo: `Retrato de ${e.nome}` }); }).catch(erro => console.warn('Atlas: não consegui guardar o retrato', erro));
+    return peca;
+  }
+
+  // Ameaça: sempre permite adicionar mais uma peça numerada com HP independente
+  const pecasExistentes = Object.values(m.tokens);
+  const infoNome = proximoNomeDeAmeaca(e.nome, pecasExistentes, ref);
+
+  // Se agora é o número 2 e a primeira ainda se chamava só nomeBase, renomeia a primeira para "<nomeBase> 1"
+  if (infoNome.numero === 2) {
+    const primeira = pecasExistentes.find(p => p.refs.some(r => mesmaRef(r, ref)));
+    if (primeira && primeira.name === e.nome) {
+      s.store.executar(
+        { tipo: 'item.atualizar', colecao: 'tokens', id: primeira.id, patch: { name: `${e.nome} 1` } },
+        { rotulo: `Numerar ${e.nome} 1` }
+      );
+    }
+  }
+
+  const rec = recursosDasFichas.peek()[chaveDaRef(ref)];
+  const maxPv = (rec && rec.pvMax > 0) ? rec.pvMax : 20;
+  const hp = { pv: maxPv, pvMax: maxPv };
+
+  // Posição: se houver mais de uma peça da mesma ameaça e onde foi fornecido, distribui nas células livres vizinhas
+  const pecasIguais = pecasExistentes.filter(p => p.refs.some(r => mesmaRef(r, ref)));
+  let baseCentro = (m.grid.snap === false && onde) ? onde : centroDaCelula(m, onde ?? [m.bounds.width / 2, m.bounds.height / 2]);
+  if (pecasIguais.length > 0 && onde) {
+    baseCentro = [
+      baseCentro[0] + (pecasIguais.length % 3) * m.grid.size,
+      baseCentro[1] + Math.floor(pecasIguais.length / 3) * m.grid.size,
+    ];
+  }
+
+  const peca = novaPeca(baseCentro, infoNome.nome, { player: false, refs: [ref], hp });
+  s.store.executar({ tipo: 'item.adicionar', colecao: 'tokens', item: peca as never }, { rotulo: `Pôr ${infoNome.nome} no mapa` });
   s.selecao.value = [{ colecao: 'tokens', id: peca.id }];
-  // O retrato que a Ficha publicou vira o retrato da peça (a imagem fica no banco de assets; o documento guarda só a referência).
-  if (e.retrato && repo) void repo.salvarAsset(e.retrato).then(portrait => { if (s.store.documento.tokens[peca.id]) s.store.executar({ tipo: 'item.atualizar', colecao: 'tokens', id: peca.id, patch: { portrait } }, { rotulo: `Retrato de ${e.nome}` }); }).catch(erro => console.warn('Atlas: não consegui guardar o retrato', erro));
+  if (e.retrato && repo) void repo.salvarAsset(e.retrato).then(portrait => { if (s.store.documento.tokens[peca.id]) s.store.executar({ tipo: 'item.atualizar', colecao: 'tokens', id: peca.id, patch: { portrait } }, { rotulo: `Retrato de ${infoNome.nome}` }); }).catch(erro => console.warn('Atlas: não consegui guardar o retrato', erro));
   return peca;
 }
 
@@ -129,6 +169,37 @@ export function ajustarRecursos(
   void b?.pedir('ficha.ajustar-recursos', { ficha: ref, ...patch }).catch(() => {
     /* falha silenciosa se não atendido */
   });
+}
+
+/**
+ * Ajusta os recursos de uma peça: se a peça possui HP independente no mapa (ou é ameaça com ref),
+ * altera diretamente o `hp` da peça no store do documento Atlas; se for personagem de jogador ligado
+ * à ficha, envia o ajuste ao Dossiê via `ajustarRecursos`.
+ */
+export function ajustarRecursosDaPeca(
+  s: SessaoDeEdicao,
+  peca: Peca,
+  patch: AjusteRecursoPatch,
+  b?: Pick<Barramento, 'pedir'> | null,
+): void {
+  const ref = refDaFicha(peca.refs);
+  if ((peca.hp !== undefined && peca.hp !== null) || (!peca.player && ref)) {
+    const recFicha = ref ? recursosDasFichas.peek()[chaveDaRef(ref)] : undefined;
+    const curHp = peca.hp ?? { pv: recFicha?.pv ?? 20, pvMax: recFicha?.pvMax ?? 20 };
+    let novoPv = curHp.pv;
+    if (patch.pv !== undefined) novoPv = patch.pv;
+    else if (patch.deltaPv !== undefined) novoPv = curHp.pv + patch.deltaPv;
+    novoPv = Math.max(0, Math.min(curHp.pvMax, novoPv));
+    const novoHp = { pv: novoPv, pvMax: curHp.pvMax };
+    s.store.executar(
+      { tipo: 'item.atualizar', colecao: 'tokens', id: peca.id, patch: { hp: novoHp } },
+      { rotulo: `PV de ${peca.name}: ${novoPv}/${curHp.pvMax}` },
+    );
+    return;
+  }
+  if (ref) {
+    ajustarRecursos(b, ref, patch);
+  }
 }
 
 export { criarRef };

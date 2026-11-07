@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { chaveDaRef, criarBarramento, criarRef, type CanalLike, type Entidade } from '#mesa';
 import { emEstadoCritico, fracao, interpretarAjusteDeRecurso, pipsCheios, recursosParaOProjetor, refDaFicha, temPd, textoDeRecursos, tomDaRolagem, type Recursos } from '../../src/domain/fichas.ts';
 import { signal } from '@preact/signals';
-import { adicionarPersonagem, ajustarRecursos, ameacasComFicha, iniciarFichas, aoRolar, pecaDaFicha, personagensComFicha, recursosDaPeca, recursosDasFichas } from '../../src/app/fichas.ts';
+import { adicionarPersonagem, ajustarRecursos, ajustarRecursosDaPeca, ameacasComFicha, extrairNumeroDoToken, iniciarFichas, aoRolar, pecaDaFicha, personagensComFicha, proximoNomeDeAmeaca, recursosDaPeca, recursosDasFichas } from '../../src/app/fichas.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { novaPeca } from '../../src/domain/fabrica.ts';
 
@@ -71,19 +71,74 @@ test('ameacasComFicha: só entidades `ameaca` com Ref da Ficha, em ordem alfabé
   assert.deepEqual(lista.map(e => e.nome), ['Álamo', 'Ariranha', 'Zumbi']);
 });
 
-test('adicionarPersonagem com uma ameaça: vira peça de inimigo ligada à ficha (uma por ficha); personagem segue sendo peça de jogador', () => {
+test('extrairNumeroDoToken e proximoNomeDeAmeaca', () => {
+  assert.equal(extrairNumeroDoToken('Esqueleto 2'), '2');
+  assert.equal(extrairNumeroDoToken('Esqueleto #4'), '4');
+  assert.equal(extrairNumeroDoToken('Zumbi'), null);
+  assert.equal(extrairNumeroDoToken('Monstro 12'), '12');
+
+  const ref = criarRef('ficha', 'ficha', 'ameaca-1');
+  const pecas: { name: string; refs: any[] }[] = [];
+  const p1 = proximoNomeDeAmeaca('Esqueleto', pecas, ref);
+  assert.deepEqual(p1, { nome: 'Esqueleto', numero: null });
+
+  pecas.push({ name: 'Esqueleto', refs: [ref] });
+  const p2 = proximoNomeDeAmeaca('Esqueleto', pecas, ref);
+  assert.deepEqual(p2, { nome: 'Esqueleto 2', numero: 2 });
+
+  pecas.push({ name: 'Esqueleto 2', refs: [ref] });
+  const p3 = proximoNomeDeAmeaca('Esqueleto', pecas, ref);
+  assert.deepEqual(p3, { nome: 'Esqueleto 3', numero: 3 });
+});
+
+test('adicionarPersonagem: ameaça permite múltiplos tokens numerados com HP independente; personagem tem apenas 1 peça', () => {
   const doc = criarMapa({ nome: 'T', campanhaId: null }), comandos: string[] = [];
-  const s = { store: { documento: doc, executar: (c: { tipo: string; item?: { id: string } }) => { comandos.push(c.tipo); if (c.tipo === 'item.adicionar') (doc.tokens as Record<string, unknown>)[c.item!.id] = c.item; } }, selecao: signal<unknown[]>([]) } as never;
-  const zumbi = { ...baseE, id: 'e-t1', tipo: 'ameaca', nome: 'Zumbi de Sangue', refs: [criarRef('ficha', 'ficha', 'threat-1')] } as unknown as Entidade;
+  const s = {
+    store: {
+      documento: doc,
+      executar: (c: { tipo: string; item?: { id: string }; patch?: Record<string, unknown>; id?: string }) => {
+        comandos.push(c.tipo);
+        if (c.tipo === 'item.adicionar') (doc.tokens as Record<string, unknown>)[c.item!.id] = c.item;
+        if (c.tipo === 'item.atualizar' && c.id && c.patch) {
+          Object.assign(doc.tokens[c.id]!, c.patch);
+        }
+      },
+    },
+    selecao: signal<unknown[]>([]),
+  } as never;
+
+  const zumbiRef = criarRef('ficha', 'ficha', 'threat-1');
+  recursosDasFichas.value = { [chaveDaRef(zumbiRef)]: { pv: 24, pvMax: 24, pd: 0, pdMax: 0 } };
+
+  const zumbi = { ...baseE, id: 'e-t1', tipo: 'ameaca', nome: 'Zumbi de Sangue', refs: [zumbiRef] } as unknown as Entidade;
   const muirenn = { ...baseE, id: 'e-p1', tipo: 'personagem', nome: 'Muirenn', refs: [criarRef('ficha', 'ficha', 'sheet-1')] } as unknown as Entidade;
-  const a = adicionarPersonagem(s, zumbi, [4.5, 4.5])!, b = adicionarPersonagem(s, muirenn, [6.5, 4.5])!;
-  assert.equal(a.player, false, 'ameaça é inimigo: não dá visão nem explorado'); assert.equal(a.name, 'Zumbi de Sangue'); assert.deepEqual(a.refs, [criarRef('ficha', 'ficha', 'threat-1')]);
+
+  const a = adicionarPersonagem(s, zumbi, [4.5, 4.5])!;
+  const b = adicionarPersonagem(s, muirenn, [6.5, 4.5])!;
+  assert.equal(a.player, false, 'ameaça é inimigo: não dá visão nem explorado');
+  assert.equal(a.name, 'Zumbi de Sangue');
+  assert.deepEqual(a.hp, { pv: 24, pvMax: 24 });
   assert.equal(b.player, true);
-  const de = adicionarPersonagem(s, zumbi, [8.5, 4.5])!;
-  assert.equal(de.id, a.id, 'pôr de novo só seleciona a peça que já existe'); assert.equal(Object.keys(doc.tokens).length, 2);
+
+  // Segunda adição de ameaça cria segundo token com HP independente e renomeia o primeiro para "... 1"
+  const a2 = adicionarPersonagem(s, zumbi, [8.5, 4.5])!;
+  assert.notEqual(a2.id, a.id, 'adicionar ameaça novamente cria nova peça');
+  assert.equal(a2.name, 'Zumbi de Sangue 2');
+  assert.equal(doc.tokens[a.id]!.name, 'Zumbi de Sangue 1');
+  assert.deepEqual(a2.hp, { pv: 24, pvMax: 24 });
+
+  // Adição repetida de personagem de jogador apenas seleciona
+  const bRepetido = adicionarPersonagem(s, muirenn, [10.5, 4.5])!;
+  assert.equal(bRepetido.id, b.id, 'personagem de jogador não duplica');
+
+  // Ajuste de recursos de ameaça afeta apenas o token local
+  ajustarRecursosDaPeca(s, a2, { deltaPv: -10 });
+  assert.equal(doc.tokens[a2.id]!.hp?.pv, 14);
+  assert.equal(doc.tokens[a.id]!.hp?.pv, 24, 'outro token da mesma ameaça mantém PV intacto');
+  assert.equal(recursosDaPeca(doc.tokens[a2.id]!)?.pv, 14);
+
   assert.equal(adicionarPersonagem(s, { ...zumbi, tipo: 'lugar' } as unknown as Entidade), null, 'só personagem e ameaça viram peça');
   assert.equal(adicionarPersonagem(s, { ...zumbi, refs: [] } as unknown as Entidade), null, 'sem ficha, nada');
-  assert.deepEqual(comandos, ['item.adicionar', 'item.adicionar']);
 });
 
 test('interpretarAjusteDeRecurso: interpreta deltas com sinal e números absolutos', () => {

@@ -64,6 +64,7 @@ const peca = e.obj({
   facing: e.um('down', 'left', 'right', 'up'), position: ponto, size: e.num({ min: 0.5, max: 12 }), player: e.bool(),
   vision: e.obj({ radius: e.num({ min: 0, max: 200 }), dark: e.bool() }), lightId: idOuNulo,
   figure: e.obj({ state: e.um(...ESTADOS_FIGURA) }), refs,
+  hp: e.opt(e.nulo(e.obj({ pv: e.num({ min: 0 }), pvMax: e.num({ min: 1 }) }))),
 });
 
 // Os campos do clima e do acabamento sem o `preset`: o mapa os guarda com ele, o clima salvo sem.

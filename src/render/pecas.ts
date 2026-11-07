@@ -1,6 +1,6 @@
 import { Container, Graphics, Rectangle, Sprite, Text, Texture } from 'pixi.js';
 import { aparenciaDoEstado } from '../domain/figuras.ts';
-import { pipsCheios, temPd, type Recursos } from '../domain/fichas.ts';
+import { extrairNumeroDoToken, pipsCheios, temPd, type Recursos } from '../domain/fichas.ts';
 import type { Peca, Ponto } from '../domain/mapa.ts';
 import { corDoNome, hexParaNumero } from './cores.ts';
 
@@ -23,8 +23,8 @@ const [QW, QH] = [16, 24], LINHA_DO_LADO = { down: 0, left: 1, right: 2, up: 3 }
 const MS_PARADO = 500, MS_ANDANDO = 125;
 
 export function criarPeca(): PecaVisual {
-  const c = new Container(), trilha = new Graphics(), corpo = new Container(), anel = new Graphics(), marca = new Graphics(), vezG = new Graphics(), pips = new Graphics();
-  c.addChild(trilha, vezG, corpo, anel, marca, pips);
+  const c = new Container(), trilha = new Graphics(), corpo = new Container(), anel = new Graphics(), marca = new Graphics(), vezG = new Graphics(), pips = new Graphics(), badge = new Container();
+  c.addChild(trilha, vezG, corpo, anel, marca, pips, badge);
   // Os pips de PV (vermelho) e PD (azul): piscam por um instante quando o valor cai.
   let ultimoRecursos: Recursos | null = null, piscaAte = 0;
   let vez = false;
@@ -41,6 +41,7 @@ export function criarPeca(): PecaVisual {
       const ap = aparenciaDoEstado(t.figure.state), r = (t.size * grade * 0.9) / 2;
       raio = r; deitada = ap.deitado; pulso = ap.pulso; tremor = ap.tremor;
       for (const f of corpo.removeChildren()) f.destroy({ children: true });
+      for (const f of badge.removeChildren()) f.destroy({ children: true });
       const tinta = ap.tinta ? hexParaNumero(ap.tinta) : 0xffffff;
       const fundo = new Graphics().circle(0, 0, r).fill(ap.tinta ? tingir(corDoNome(t.name, 0.5, 0.4), tinta) : corDoNome(t.name, 0.5, 0.4));
       // O Pixel usa o sprite quando há; o Ilustrado só quando a peça não tem retrato.
@@ -77,6 +78,25 @@ export function criarPeca(): PecaVisual {
       else anel.clear().circle(0, 0, r).stroke({ width: 0.07, color: cor }).circle(0, 0, r * 0.82).stroke({ width: 0.02, color: 0xffffff, alpha: 0.35 });
       marca.clear();
       if (ap.marca === 'x') { const k = r * 0.55; marca.moveTo(-k, -k).lineTo(k, k).moveTo(k, -k).lineTo(-k, k).stroke({ width: 0.09, color: 0x120a0a, alpha: 0.85, cap: 'round' }).moveTo(-k, -k).lineTo(k, k).moveTo(k, -k).lineTo(-k, k).stroke({ width: 0.045, color: 0xe0342c, cap: 'round' }); }
+      const numBadge = extrairNumeroDoToken(t.name);
+      if (numBadge) {
+        const bx = r * 0.68, by = -r * 0.68;
+        const br = Math.max(0.12 * grade, r * 0.34);
+        const bg = new Graphics().circle(bx, by, br).fill(0x1a1a24).stroke({ width: Math.max(0.02 * grade, br * 0.15), color: 0xffffff, alpha: 0.85 });
+        const rotulo = new Text({
+          text: numBadge,
+          style: {
+            fontFamily: 'Hanken Grotesk Variable, Hanken Grotesk, sans-serif',
+            fontSize: 48,
+            fontWeight: '800',
+            fill: 0xffffff,
+          },
+        });
+        rotulo.anchor.set(0.5);
+        rotulo.scale.set((br * 1.3) / 48);
+        rotulo.position.set(bx, by);
+        badge.addChild(bg, rotulo);
+      }
       pips.clear();
       if (recursos) {
         const N = 10, passo = Math.min((2 * r) / N, grade * 0.12), lado = passo * 0.78, largura = passo * N, y0 = (usaSprite ? 0.21 * grade * t.size + 0.18 * grade * t.size : r) + grade * 0.12;

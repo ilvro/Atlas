@@ -122,6 +122,8 @@ export interface Peca {
   player: boolean;
   vision: { radius: number; dark: boolean }; lightId: string | null;
   figure: { state: (typeof ESTADOS_FIGURA)[number] }; refs: Ref[];
+  /** HP independente da peça (ex.: instâncias de ameaça numeradas 1, 2, 3 com vidas separadas). */
+  hp?: { pv: number; pvMax: number } | null;
 }
 export interface NotaDeComodo { id: string; leitura: string; notasMestre: string; refs: Ref[] }
 export interface Sessao {

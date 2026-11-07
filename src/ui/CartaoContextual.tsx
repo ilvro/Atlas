@@ -3,12 +3,13 @@ import { signal } from '@preact/signals';
 import { acaoDoInterativo } from '../domain/interagiveis.ts';
 import { alternarLuzes, alternarPorta, usarObjeto, desfazer, revelarPorta, trancarPorta, duplicarSelecao, removerSelecao, viewport, servicos } from '../app/app.ts';
 import { modo } from '../app/modo.ts';
-import { abrirFicha, ajustarRecursos, recursosDasFichas } from '../app/fichas.ts';
+import { abrirFicha, ajustarRecursos, ajustarRecursosDaPeca, recursosDaPeca, recursosDasFichas } from '../app/fichas.ts';
 import { previaDaFichaAberta } from './PreviaDaFicha.tsx';
 import { emEstadoCritico, fracao, interpretarAjusteDeRecurso, refDaFicha, temPd, textoDeRecursos, type Recursos } from '../domain/fichas.ts';
 import type { Ref } from '#mesa';
 import { chaveDaRef } from '#mesa';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
+import type { Peca } from '../domain/mapa.ts';
 import { avisar } from '../app/toasts.ts';
 import { tocar } from '../fx/som.ts';
 import { caixaDe } from '../render/selecao.ts';
@@ -40,7 +41,7 @@ function useSeguirSelecao(s: SessaoDeEdicao): void {
   }, [s]);
 }
 
-function ControlesDeRecursosToken({ refFicha, rec }: { refFicha: Ref; rec: Recursos }) {
+function ControlesDeRecursosToken({ s, peca, refFicha, rec }: { s: SessaoDeEdicao; peca: Peca; refFicha: Ref; rec: Recursos }) {
   const [editandoPv, setEditandoPv] = useState(false);
   const [editandoPd, setEditandoPd] = useState(false);
   const b = servicos.peek()?.barramento;
@@ -48,7 +49,7 @@ function ControlesDeRecursosToken({ refFicha, rec }: { refFicha: Ref; rec: Recur
   const aplicarPv = (str: string) => {
     const res = interpretarAjusteDeRecurso(str);
     if (res) {
-      ajustarRecursos(b, refFicha, res.delta !== undefined ? { deltaPv: res.delta } : { pv: res.absoluto });
+      ajustarRecursosDaPeca(s, peca, res.delta !== undefined ? { deltaPv: res.delta } : { pv: res.absoluto }, b);
       tocar('pop');
     }
     setEditandoPv(false);
@@ -81,7 +82,7 @@ function ControlesDeRecursosToken({ refFicha, rec }: { refFicha: Ref; rec: Recur
           data-testid="cartao-pv-menos"
           onClick={e => {
             e.stopPropagation();
-            ajustarRecursos(b, refFicha, { deltaPv: e.shiftKey ? -5 : -1 });
+            ajustarRecursosDaPeca(s, peca, { deltaPv: e.shiftKey ? -5 : -1 }, b);
             tocar('pop');
           }}
         >
@@ -127,7 +128,7 @@ function ControlesDeRecursosToken({ refFicha, rec }: { refFicha: Ref; rec: Recur
           data-testid="cartao-pv-mais"
           onClick={e => {
             e.stopPropagation();
-            ajustarRecursos(b, refFicha, { deltaPv: e.shiftKey ? 5 : 1 });
+            ajustarRecursosDaPeca(s, peca, { deltaPv: e.shiftKey ? 5 : 1 }, b);
             tocar('pop');
           }}
         >
@@ -222,12 +223,13 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
     const o = m.props[a.id]!;
     acoes = <button type="button" class="cartao-texto" onClick={() => usarObjeto(o.id)} data-testid="cartao-usar">{acaoDoInterativo(o)}</button>;
   } else if (emSessao && a.colecao === 'tokens') {
-    // Peça ligada a uma ficha: PV e PD (da Ficha, pelo barramento) e o atalho para abri-la.
-    const ref = refDaFicha(m.tokens[a.id]!.refs); if (!ref) return null;
-    const rec = recursosDasFichas.value[chaveDaRef(ref)];
+    // Peça ligada a uma ficha: PV e PD (da Ficha, pelo barramento ou local na peça) e o atalho para abri-la.
+    const token = m.tokens[a.id]!;
+    const ref = refDaFicha(token.refs); if (!ref) return null;
+    const rec = recursosDaPeca(token);
     acoes = (<>
       {rec ? (
-        <ControlesDeRecursosToken refFicha={ref} rec={rec} />
+        <ControlesDeRecursosToken s={s} peca={token} refFicha={ref} rec={rec} />
       ) : (
         <span class="cartao-texto" data-testid="cartao-recursos">Sem dados da ficha</span>
       )}

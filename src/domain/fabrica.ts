@@ -15,7 +15,7 @@ export const novoObjeto = (position: Ponto, extra: Partial<Objeto> = {}): Objeto
 });
 
 export const novaPeca = (position: Ponto, name = 'Peça', extra: Partial<Peca> = {}): Peca => ({
-  id: novoIdEntidade('t'), name, portrait: null, sprite: null, facing: 'down', position, size: 1, player: false, vision: { radius: 8, dark: false }, lightId: null, figure: { state: 'normal' }, refs: [], ...extra,
+  id: novoIdEntidade('t'), name, portrait: null, sprite: null, facing: 'down', position, size: 1, player: false, vision: { radius: 8, dark: false }, lightId: null, figure: { state: 'normal' }, refs: [], hp: null, ...extra,
 });
 
 export const novaRegiao = (centro: Ponto, lado = 3, extra: Partial<Regiao> = {}): Regiao => ({

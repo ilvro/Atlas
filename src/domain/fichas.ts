@@ -1,8 +1,39 @@
-import type { Ref } from '../../mesa-core/src/refs.ts';
+import { chaveDaRef, type Ref } from '../../mesa-core/src/refs.ts';
 import type { Peca } from './mapa.ts';
 
 /** PV e PD de uma ficha, como a Ficha os publica em `ficha.recursos`. Vivem na memória da sessão: o documento do mapa só guarda o `Ref`. */
 export interface Recursos { pv: number; pvMax: number; pd: number; pdMax: number }
+
+/** Extrai o sufixo numérico final do nome de um token (ex.: "Esqueleto 2" → "2", "Zumbi" → null). */
+export function extrairNumeroDoToken(nome: string): string | null {
+  const m = nome.trim().match(/(?:^|\s|#)(\d+)$/);
+  return m && m[1] ? m[1] : null;
+}
+
+/**
+ * Calcula o próximo nome numerado para uma nova instância de ameaça no mapa.
+ * Se já houver outra peça com a mesma ficha de ameaça, numera como `<nomeBase> 2`, `<nomeBase> 3`...
+ */
+export function proximoNomeDeAmeaca(
+  nomeBase: string,
+  pecasExistentes: readonly Pick<Peca, 'name' | 'refs'>[],
+  refFicha: Ref
+): { nome: string; numero: number | null } {
+  const chave = chaveDaRef(refFicha);
+  const iguais = pecasExistentes.filter(p => p.refs.some(r => chaveDaRef(r) === chave));
+  if (iguais.length === 0) {
+    return { nome: nomeBase, numero: null };
+  }
+  const numeros = iguais
+    .map(p => {
+      const numStr = extrairNumeroDoToken(p.name);
+      return numStr ? parseInt(numStr, 10) : null;
+    })
+    .filter((n): n is number => n !== null && Number.isFinite(n));
+
+  const proximo = numeros.length > 0 ? Math.max(...numeros, iguais.length) + 1 : iguais.length + 1;
+  return { nome: `${nomeBase} ${proximo}`, numero: proximo };
+}
 
 /** O Ref da ficha de uma peça (a primeira referência do aplicativo `ficha`), ou `null` se a peça não é de uma ficha. */
 export const refDaFicha = (refs: readonly Ref[]): Ref | null => refs.find(r => r.app === 'ficha' && r.tipo === 'ficha') ?? null;
