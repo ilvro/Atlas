@@ -600,7 +600,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   canvas.addEventListener('contextmenu', e => e.preventDefault());
   canvas.addEventListener('wheel', e => {
-    e.preventDefault(); if (somenteLeitura) return;
+    e.preventDefault();
     const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
     zoomarEm(telaDe(e), Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015)));
   }, { passive: false });
@@ -726,7 +726,16 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   canvas.addEventListener('pointerdown', e => {
     altPressionado = e.altKey;
-    if (interacao || somenteLeitura) return;
+    if (interacao) return;
+    if (somenteLeitura) {
+      if (e.button === 0 || e.button === 1 || e.button === 2) {
+        canvas.setPointerCapture(e.pointerId);
+        const [tx, ty] = telaDe(e);
+        interacao = { tipo: 'pan', botao: e.button, x0: tx, y0: ty, camera0: camera, moveu: false };
+        cursor();
+      }
+      return;
+    }
     canvas.setPointerCapture(e.pointerId);
     const [tx, ty] = telaDe(e), m = doc(), f = ponte.ferramenta();
     if (e.button === 1 || e.button === 2 || (e.button === 0 && (f === 'mao' || espaco))) { interacao = { tipo: 'pan', botao: e.button, x0: tx, y0: ty, camera0: camera, moveu: false }; cursor(); return; }
