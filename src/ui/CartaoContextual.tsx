@@ -41,15 +41,18 @@ function useSeguirSelecao(s: SessaoDeEdicao): void {
   }, [s]);
 }
 
-function ControlesDeRecursosToken({ s, peca, refFicha, rec }: { s: SessaoDeEdicao; peca: Peca; refFicha: Ref; rec: Recursos }) {
+function ControlesDeRecursosToken({ s, peca, refFicha }: { s: SessaoDeEdicao; peca: Peca; refFicha: Ref }) {
   const [editandoPv, setEditandoPv] = useState(false);
   const [editandoPd, setEditandoPd] = useState(false);
   const b = servicos.peek()?.barramento;
+  const tokenAtual = s.doc.value.tokens[peca.id] ?? peca;
+  const rec = recursosDaPeca(tokenAtual);
+  if (!rec) return null;
 
   const aplicarPv = (str: string) => {
     const res = interpretarAjusteDeRecurso(str);
     if (res) {
-      ajustarRecursosDaPeca(s, peca, res.delta !== undefined ? { deltaPv: res.delta } : { pv: res.absoluto }, b);
+      ajustarRecursosDaPeca(s, tokenAtual, res.delta !== undefined ? { deltaPv: res.delta } : { pv: res.absoluto }, b);
       tocar('pop');
     }
     setEditandoPv(false);
@@ -82,7 +85,7 @@ function ControlesDeRecursosToken({ s, peca, refFicha, rec }: { s: SessaoDeEdica
           data-testid="cartao-pv-menos"
           onClick={e => {
             e.stopPropagation();
-            ajustarRecursosDaPeca(s, peca, { deltaPv: e.shiftKey ? -5 : -1 }, b);
+            ajustarRecursosDaPeca(s, tokenAtual, { deltaPv: e.shiftKey ? -5 : -1 }, b);
             tocar('pop');
           }}
         >
@@ -128,7 +131,7 @@ function ControlesDeRecursosToken({ s, peca, refFicha, rec }: { s: SessaoDeEdica
           data-testid="cartao-pv-mais"
           onClick={e => {
             e.stopPropagation();
-            ajustarRecursosDaPeca(s, peca, { deltaPv: e.shiftKey ? 5 : 1 }, b);
+            ajustarRecursosDaPeca(s, tokenAtual, { deltaPv: e.shiftKey ? 5 : 1 }, b);
             tocar('pop');
           }}
         >
@@ -229,7 +232,7 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
     const rec = recursosDaPeca(token);
     acoes = (<>
       {rec ? (
-        <ControlesDeRecursosToken s={s} peca={token} refFicha={ref} rec={rec} />
+        <ControlesDeRecursosToken s={s} peca={token} refFicha={ref} />
       ) : (
         <span class="cartao-texto" data-testid="cartao-recursos">Sem dados da ficha</span>
       )}

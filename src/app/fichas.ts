@@ -47,7 +47,7 @@ export function iniciarFichas(b: Pick<Barramento, 'ouvir'>): () => void {
 /** Os recursos da ficha ligada a uma peça, ou `null`. */
 export function recursosDaPeca(p: Pick<Peca, 'refs'> & { hp?: { pv: number; pvMax: number } | null }): Recursos | null {
   if (p.hp) return { pv: p.hp.pv, pvMax: p.hp.pvMax, pd: 0, pdMax: 0 };
-  const ref = refDaFicha(p.refs); return ref ? recursosDasFichas.peek()[chaveDaRef(ref)] ?? null : null;
+  const ref = refDaFicha(p.refs); return ref ? recursosDasFichas.value[chaveDaRef(ref)] ?? null : null;
 }
 
 /**
