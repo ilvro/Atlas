@@ -468,7 +468,39 @@ function CamposDaRegiao({ s, r }: { s: SessaoDeEdicao; r: Regiao }) {
   return (<>
     <CampoOpcoes rotulo="Tipo" valor={r.kind} opcoes={[['note', 'Anotação'], ['trigger', 'Gatilho'], ['reveal', 'Revelação'], ['audio', 'Áudio']]} aoMudar={v => editar({ kind: v }, 'Tipo da região')} />
     <CampoCaixa rotulo="Só o mestre vê" valor={r.gmOnly} aoMudar={v => editar({ gmOnly: v })} />
-    {r.kind === 'trigger' && <CampoTexto rotulo="Texto do gatilho" dica="Aparece para o mestre quando uma peça de jogador entra na região." valor={typeof r.payload.texto === 'string' ? r.payload.texto : ''} aoConfirmar={v => editar({ payload: { texto: v.trim() } }, 'Texto do gatilho')} maximo={400} />}
+    {r.kind === 'trigger' && (<>
+      <CampoTexto rotulo="Texto do gatilho" dica="Aparece para o mestre quando uma peça de jogador entra na região." valor={typeof r.payload.texto === 'string' ? r.payload.texto : ''} aoConfirmar={v => editar({ payload: { ...r.payload, texto: v.trim() } }, 'Texto do gatilho')} maximo={400} />
+      <CampoOpcoes
+        rotulo="Mudar clima"
+        dica="Ao entrar na região, troca o clima e a iluminação do mapa automaticamente."
+        valor={typeof r.payload.clima === 'string' ? r.payload.clima : ''}
+        opcoes={[
+          ['', 'Não mudar clima'],
+          ...PRESETS_DE_CLIMA.map(p => [p.id, p.nome] as const),
+          ...Object.entries(s.doc.value.customClimates).map(([id, c]) => [id, c.name] as const),
+        ]}
+        aoMudar={v => editar({ payload: { ...r.payload, clima: v || undefined } }, 'Clima do gatilho')}
+      />
+      <EscolherCena
+        s={s}
+        id="som-do-gatilho"
+        rotulo="Cena sonora (Jukebox)"
+        dica="Ao entrar na região, dispara esta cena sonora no Jukebox."
+        valor={r.refs.find(x => x.app === 'jukebox') ?? null}
+        aoEscolher={ref => editar({ refs: [...r.refs.filter(x => x.app !== 'jukebox'), ...(ref ? [ref] : [])] }, 'Cena do gatilho')}
+      />
+      <CampoOpcoes
+        rotulo="Efeito na cena"
+        dica="Dispara um choque ambiental ao entrar na região."
+        valor={typeof r.payload.efeito === 'string' ? r.payload.efeito : ''}
+        opcoes={[
+          ['', 'Nenhum'],
+          ['relampago', 'Relâmpago e trovão'],
+          ['tremor', 'Tremor de terra'],
+        ]}
+        aoMudar={v => editar({ payload: { ...r.payload, efeito: v || undefined } }, 'Efeito do gatilho')}
+      />
+    </>)}
     {r.kind === 'audio' && <EscolherCena s={s} id="som-da-regiao" rotulo="Cena da região" dica="Quando uma peça de jogador entra na região, o Atlas pede ao Jukebox que toque esta cena." valor={r.refs.find(x => x.app === 'jukebox') ?? null}
       aoEscolher={ref => editar({ refs: [...r.refs.filter(x => x.app !== 'jukebox'), ...(ref ? [ref] : [])] }, 'Cena da região')} />}
   </>);

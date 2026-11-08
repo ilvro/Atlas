@@ -51,4 +51,25 @@ test('reagirAoMovimento: com duas peças, a região só deixa de valer quando a 
   const muda = regiao('vazia', 'audio', 0, 0, 5, 5), c = saidas(); reagirAoMovimento(mapa([['ana', 8, 8, true]], [muda]), mapa([['ana', 2, 2, true]], [muda]), c.s);
   assert.deepEqual(c.feitos, ['emitir atlas.regiao-entrou m/vazia']);
   assert.equal(textoDoGatilho({ texto: ' oi ' }), 'oi'); assert.equal(textoDoGatilho({ text: 'hi' }), 'hi'); assert.equal(textoDoGatilho({ texto: '  ' }), null); assert.equal(textoDoGatilho({ x: 1 }), null);
+
+  // Gatilho com clima, cena do Jukebox e efeito
+  const feitosGatilho: string[] = [];
+  const saidasRicas: SaidasDeRegiao = {
+    ...saidas().s,
+    pedirCena: ref => feitosGatilho.push(`cena ${ref?.id}`),
+    avisar: t => feitosGatilho.push(`aviso ${t}`),
+    trocarClima: c => feitosGatilho.push(`clima ${c}`),
+    dispararEfeito: e => feitosGatilho.push(`efeito ${e}`),
+  };
+  const Grich = regiao('emboscada', 'trigger', 0, 0, 5, 5, {
+    payload: { texto: 'Uma armadilha dispara!', clima: 'tempestade', efeito: 'relampago' },
+    refs: [cena('suspense')],
+  });
+  reagirAoMovimento(mapa([['ana', 8, 8, true]], [Grich]), mapa([['ana', 2, 2, true]], [Grich]), saidasRicas);
+  assert.deepEqual(feitosGatilho, [
+    'aviso Uma armadilha dispara!',
+    'clima tempestade',
+    'efeito relampago',
+    'cena suspense',
+  ]);
 });
