@@ -121,11 +121,10 @@ export function criarPeca(): PecaVisual {
       }
       corpo.rotation = ap.deitado ? Math.PI / 2 : 0;
       const cor = ap.anel ? hexParaNumero(ap.anel) : acento;
-      if (usaSprite && ap.deitado) anel.clear();
+      if (eImersivo) anel.clear();
+      else if (usaSprite && ap.deitado) anel.clear();
       else if (usaSprite) anel.clear().ellipse(0, 0.21 * grade * t.size, 0.4 * grade * t.size, 0.17 * grade * t.size).stroke({ width: 0.05, color: cor });
-      else if (eImersivo) {
-        anel.clear().ellipse(0, rBase * 0.65, rBase * 0.88, rBase * 0.34).stroke({ color: vez ? 0xffd24a : cor, width: (vez ? 0.07 : 0.035) * grade, alpha: vez ? 0.95 : 0.55 });
-      } else {
+      else {
         anel.clear().circle(0, 0, r).stroke({ width: 0.07, color: cor }).circle(0, 0, r * 0.92).stroke({ width: 0.02, color: 0xffffff, alpha: 0.35 });
       }
       marca.clear();
