@@ -96,6 +96,15 @@ export function Projetor({ mapaId }: { mapaId: string }) {
     window.addEventListener('resize', aoRedimensionar);
     const aoSair = () => dizer({ tipo: 'tchau' });
     window.addEventListener('pagehide', aoSair);
+    // O mestre pode mudar o zoom na janela do projetor se desejar.
+    const aoRolarJanela = (e: WheelEvent) => {
+      if ((e.target as HTMLElement)?.closest?.('.projetor-inspecao')) return;
+      if ((e.target as HTMLElement)?.tagName === 'CANVAS') return;
+      e.preventDefault();
+      const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      vp?.zoomPor(Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015)));
+    };
+    window.addEventListener('wheel', aoRolarJanela, { passive: false });
     // O botão de tela cheia some depois de 3 s sem mexer o mouse.
     let sumir: ReturnType<typeof setTimeout>;
     const mexeu = () => { botaoVisivel.value = true; clearTimeout(sumir); sumir = setTimeout(() => { botaoVisivel.value = false; }, 3000); };
@@ -105,6 +114,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       canalEspecifico.close(); canalGlobal.close();
       sairTema(); vp?.destruir(); store?.dispor();
       window.removeEventListener('resize', aoRedimensionar); window.removeEventListener('pagehide', aoSair); window.removeEventListener('pointermove', mexeu);
+      window.removeEventListener('wheel', aoRolarJanela);
       document.body.classList.remove('projetor');
     };
   }, [mapaId]);
