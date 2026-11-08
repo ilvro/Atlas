@@ -9,6 +9,7 @@ interface Combinacao { tecla: string; ctrl: boolean; shift: boolean; alt: boolea
 const NOMES: Record<string, string> = { esc: 'escape', del: 'delete', espaco: ' ', 'espaço': ' ', space: ' ', mais: '+', plus: '+', menos: '-' };
 
 export function lerAtalho(texto: string): Combinacao {
+  if (texto === '+') return { tecla: '+', ctrl: false, shift: false, alt: false };
   const partes = texto.split('+').map(p => p.trim()).filter(Boolean);
   // "Ctrl++" termina em "+": a tecla é o próprio sinal de mais.
   const tecla = texto.endsWith('++') ? '+' : (partes.at(-1) ?? '');
@@ -33,5 +34,7 @@ const SIMBOLOS: Record<string, string> = { escape: 'Esc', delete: 'Del', ' ': 'E
 /** Como mostrar o atalho ao usuário. */
 export function mostrarAtalho(atalho: string): string {
   const c = lerAtalho(atalho);
-  return [c.ctrl ? 'Ctrl' : '', c.alt ? 'Alt' : '', c.shift ? 'Shift' : '', SIMBOLOS[c.tecla] ?? (c.tecla.length === 1 ? c.tecla.toUpperCase() : c.tecla[0]!.toUpperCase() + c.tecla.slice(1))].filter(Boolean).join('+');
+  if (!c.tecla) return atalho;
+  const nome = SIMBOLOS[c.tecla] ?? (c.tecla.length === 1 ? c.tecla.toUpperCase() : c.tecla[0]!.toUpperCase() + c.tecla.slice(1));
+  return [c.ctrl ? 'Ctrl' : '', c.alt ? 'Alt' : '', c.shift ? 'Shift' : '', nome].filter(Boolean).join('+');
 }
