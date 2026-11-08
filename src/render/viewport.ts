@@ -780,7 +780,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       }
       if (hit) {
         ponte.definirSelecao(e.shiftKey ? combinarSelecao(sel, [hit], 'alternar') : [hit]);
-        if ((hit.colecao === 'openings' || (hit.colecao === 'props' && m.props[hit.id]?.interaction)) && !e.shiftKey) ponte.aoInteragir?.(hit);   // clicar numa porta a abre ou fecha; Shift+clique só a seleciona
+        const interacaoImediata = hit.colecao === 'openings' || (hit.colecao === 'props' && m.props[hit.id]?.interaction && m.props[hit.id]!.interaction!.kind !== 'clue' && m.props[hit.id]!.interaction!.kind !== 'note');
+        if (interacaoImediata && !e.shiftKey) ponte.aoInteragir?.(hit);   // clicar numa porta a abre ou fecha; Shift+clique só a seleciona
         return;
       }
       if (sel.length) ponte.definirSelecao([]);

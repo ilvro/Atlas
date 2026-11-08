@@ -182,11 +182,11 @@ test('inspeção de pista: clicar abre o documento grande, a luz UV revela o ass
   await page.getByText('Conectado', { exact: true }).waitFor({ timeout: 5000 });
   await page.click('[data-testid="dock-titulo-projetor"]');       // recolhe a seção para o dock não cobrir a pista
 
-  // Clicar na pista abre a inspeção; Esc fecha; abrir de novo.
-  await clicar(page, obj.position as [number, number]); await page.waitForTimeout(800);
+  // Clicar na pista a seleciona e abre o cartão; o botão inspeciona o documento; Esc fecha; abrir de novo.
+  await clicar(page, obj.position as [number, number]); await page.click('[data-testid="cartao-usar"]');
   await page.locator('[data-testid="inspecao"]').waitFor({ timeout: 6000 });
   await page.keyboard.press('Escape'); await page.locator('[data-testid="inspecao"]').waitFor({ state: 'detached', timeout: 3000 });
-  await clicar(page, obj.position as [number, number]); await page.locator('[data-testid="inspecao"]').waitFor({ timeout: 6000 });
+  await clicar(page, obj.position as [number, number]); await page.click('[data-testid="cartao-usar"]'); await page.locator('[data-testid="inspecao"]').waitFor({ timeout: 6000 });
   const visor = page.locator('[data-testid="inspecao-visor"]'), caixa = (await visor.boundingBox())!;
   assert.equal(await visor.getAttribute('data-uv'), '0', 'sem a luz UV não há lanterna');
   // Zoom com a roda.
@@ -312,8 +312,8 @@ test('fase 9 (parte do Atlas, com Ficha, Ateliê e Jukebox falsos no barramento)
   await page.waitForFunction(() => (window as unknown as { __atlas: { viewport(): { diagnosticoDasPecas(): { pips: { pv: number } | null }[] } } }).__atlas.viewport().diagnosticoDasPecas()[0]?.pips?.pv === 14, null, { timeout: 5000 });
   await ficha.emitir('ficha.rolagem', { ficha: REF_FICHA, titulo: 'Investigação', total: 19, modificador: 4 });
   await page.locator('[data-testid="rolagem-flutuante"]').first().waitFor({ timeout: 4000 }); await proj.locator('[data-testid="rolagem-flutuante"]').first().waitFor({ timeout: 4000 });
-  // 2. A pista inspecionada com a luz UV, no projetor.
-  await clicar(page, pista.position as [number, number]); await page.locator('[data-testid="inspecao"]').waitFor({ timeout: 6000 });
+  // 2. A pista selecionada, inspecionada com a luz UV, no projetor.
+  await clicar(page, pista.position as [number, number]); await page.click('[data-testid="cartao-usar"]'); await page.locator('[data-testid="inspecao"]').waitFor({ timeout: 6000 });
   await page.click('[data-testid="inspecao-uv"]'); await page.click('[data-testid="inspecao-mostrar"]');
   const caixa = (await page.locator('[data-testid="inspecao-visor"]').boundingBox())!; await page.mouse.move(caixa.x + caixa.width * 0.45, caixa.y + caixa.height * 0.5, { steps: 6 });
   await proj.locator('[data-testid="projetor-inspecao"]').waitFor({ timeout: 5000 });
