@@ -259,7 +259,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     const kind = m.grid.kind ?? 'square';
     const lineStyle = m.grid.lineStyle ?? 'solid';
     const lineWidth = px(m.grid.lineWidth ?? 1);
-    const baseOpacity = m.grid.opacity ?? 0.5;
+    const baseOpacity = m.grid.opacity ?? 0.1;
     const isAutoColor = m.grid.color === 'auto';
     const customColor = isAutoColor ? 0xffffff : hexParaNumero(m.grid.color);
 

@@ -85,7 +85,7 @@ const de6para7: Migracao = doc => {
     d.grid.snap ??= true;
     d.grid.lineStyle ??= 'solid';
     d.grid.color ??= 'auto';
-    d.grid.opacity ??= 0.5;
+    d.grid.opacity ??= 0.1;
     d.grid.lineWidth ??= 1;
   }
   return d;
