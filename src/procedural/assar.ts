@@ -96,7 +96,7 @@ function desenharAbertura(ctx: Contexto, a: AberturaNaFace, u: number, H: number
 
 /** O cômodo inteiro numa tela: piso, sombra de contato com as paredes e, no estilo caixa, as quatro faces internas. */
 export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRaster): Assado {
-  const grade: Grade = { size: e.grade.size, offset: e.grade.offset, kind: 'square', visible: true, snap: true, lineStyle: 'solid', color: 'auto', opacity: 0.5, lineWidth: 1 };
+  const grade: Grade = { size: e.grade.size, offset: e.grade.offset, kind: 'square', visible: false, snap: true, lineStyle: 'solid', color: 'auto', opacity: 0.1, lineWidth: 1 };
   const cells = decodificar(e.celulas), caixa = caixaDasCelulas({ grid: grade }, cells);
   if (!caixa) return { tela: criarTela(1, 1), origem: [0, 0], res };
   const pixel = estilo.id === 'pixel', encaixe = (v: number) => (pixel ? Math.floor(v * res) / res : v);      // no Pixel a tela começa na grade de pixels

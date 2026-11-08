@@ -183,7 +183,7 @@ export function criarMapa(o: OpcoesNovoMapa = {}): MapaAtlas {
     schema: SCHEMA_MAPA, version: VERSAO_MAPA,
     id: o.id ?? novoId(), name: o.nome ?? 'Mapa sem nome', revision: 0, createdAt: t, updatedAt: t,
     campanhaId: o.campanhaId ?? null,
-    grid: { kind: 'square', size: celula, offset: [0, 0], visible: true, snap: true, lineStyle: 'solid', color: 'auto', opacity: 0.5, lineWidth: 1 },
+    grid: { kind: 'square', size: celula, offset: [0, 0], visible: false, snap: true, lineStyle: 'solid', color: 'auto', opacity: 0.1, lineWidth: 1 },
     bounds: { width: o.largura ?? 45, height: o.altura ?? 30 },
     style: { renderer: 'illustrated', palette: 'investigacao-sepia', walls: 'box', genre: 'investigacao', pixel: { pixelsPerCell: 16, dither: 'bayer4', outline: true } },
     climate: { preset: 'dia', ambient: { color: '#d1ccc0', intensity: 0.82 }, sun: { angle: 0.6, color: '#fff2d6', intensity: 1 }, time: '14:30', weather: { rain: 0, snow: 0, fog: 0, wind: 0, dust: 0, embers: 0, leaves: 0, lightning: 0 }, gridPower: true },

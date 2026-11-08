@@ -18,7 +18,7 @@ test('migração 6→7: a grade ganha personalização visual e desacoplamento d
   assert.equal(lido.grid.snap, true);
   assert.equal(lido.grid.lineStyle, 'solid');
   assert.equal(lido.grid.color, 'auto');
-  assert.equal(lido.grid.opacity, 0.5);
+  assert.equal(lido.grid.opacity, 0.1);
   assert.equal(lido.grid.lineWidth, 1);
   assert.deepEqual(lido, atual, 'a migração restaura todos os novos campos no padrão');
   assert.equal(v6.version, 6, 'o original não é tocado');

@@ -61,7 +61,7 @@ test('configuracao-grade: ajuste continuo por gesto (sliders de opacidade e espe
   // Histórico tem 1 única entrada do gesto
   assert.equal(st.historico.length, 1);
   st.desfazer();
-  assert.equal(st.documento.grid.opacity, 0.5);
+  assert.equal(st.documento.grid.opacity, 0.1);
 
   // Gesto de espessura
   const g2 = st.iniciarGesto('Espessura da grade');
