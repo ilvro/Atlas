@@ -77,7 +77,7 @@ export const ACOES: readonly Acao[] = [
   ...ACOES_DE_CLIMA,
   { id: 'relampago', nome: 'Clima: relâmpago agora', grupo: 'Clima', palavras: 'raio trovao tempestade clarao', habilitada: noEditor, executar: () => { if (!app.acabamentoLigado.value) avisar('Ligue “Ver atmosfera no editor” para ver o relâmpago.'); app.viewport.atual?.relampagoAgora(); app.relampagoNoProjetor(); } },
   { id: 'paleta', nome: 'Abrir a paleta de comandos', grupo: 'Geral', atalhos: ['Ctrl+K'], executar: () => { app.paletaAberta.value = !app.paletaAberta.value; } },
-  { id: 'ajuda', nome: 'Mostrar os atalhos', grupo: 'Geral', atalhos: ['?'], executar: () => { app.ajudaAberta.value = !app.ajudaAberta.value; } },
+  { id: 'ajuda', nome: 'Mostrar os atalhos', grupo: 'Geral', atalhos: ['?', 'F1'], executar: () => { app.ajudaAberta.value = !app.ajudaAberta.value; } },
   { id: 'tutorial-relatorio', nome: 'Exportar o relatório dos tutoriais', grupo: 'Geral', palavras: 'aprender licoes progresso ajuda', executar: () => exportarRelatorioDosTutoriais() },
   { id: 'galeria', nome: 'Ir para a galeria de mapas', grupo: 'Geral', palavras: 'inicio voltar mapas', atalhos: ['Alt+G'], habilitada: noEditor, executar: () => app.navegar({ tipo: 'galeria' }) },
   { id: 'novo-mapa', nome: 'Novo mapa', grupo: 'Geral', atalhos: ['Alt+N'], executar: () => app.criarMapaNovo() },
