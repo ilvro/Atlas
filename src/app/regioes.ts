@@ -5,7 +5,13 @@ import { cenaDaRegiao, cenaDeFundo } from './audio-do-clima.ts';
 import type { SessaoDeEdicao } from './sessao.ts';
 
 /** O que reagir a um movimento precisa de fora: emitir o fato, pedir a cena e avisar o mestre. Injetado para testar sem barramento. */
-export interface SaidasDeRegiao { emitir(tipo: string, dados: unknown): void; pedirCena(ref: Ref | null): void; avisar(texto: string): void }
+export interface SaidasDeRegiao {
+  emitir(tipo: string, dados: unknown): void;
+  pedirCena(ref: Ref | null): void;
+  avisar(texto: string): void;
+  trocarClima?(climaId: string): void;
+  dispararEfeito?(efeito: 'relampago' | 'tremor'): void;
+}
 
 /** O nome de uma região para quem lê o registro: o que o mestre deu a ela (`nome` no payload), senão o tipo. */
 export function nomeDaRegiao(r: Pick<MapaAtlas['regions'][string], 'kind' | 'payload'>): string {
@@ -30,7 +36,16 @@ export function reagirAoMovimento(antes: MapaAtlas, depois: MapaAtlas, saidas: S
     // `nome` e `peca` são acréscimos opcionais ao fato (o catálogo só exige `mapa` e `regiao`): é o que o registro da sessão da Mesa mostra.
     saidas.emitir('atlas.regiao-entrou', { mapa: criarRef('atlas', 'mapa', depois.id), regiao: criarRef('atlas', 'regiao', `${depois.id}/${regiao}`), nome, ...(quem ? { peca: quem } : {}) });
     if (r.kind === 'audio') cena = cenaDaRegiao(r) ?? cena;
-    if (r.kind === 'trigger') { const t = textoDoGatilho(r.payload); if (t) saidas.avisar(t); }
+    if (r.kind === 'trigger') {
+      const t = textoDoGatilho(r.payload);
+      if (t) saidas.avisar(t);
+      const climaId = typeof r.payload.clima === 'string' && r.payload.clima ? r.payload.clima : null;
+      if (climaId && saidas.trocarClima) saidas.trocarClima(climaId);
+      const efeito = r.payload.efeito;
+      if ((efeito === 'relampago' || efeito === 'tremor') && saidas.dispararEfeito) saidas.dispararEfeito(efeito);
+      const cJukebox = cenaDaRegiao(r);
+      if (cJukebox) cena = cJukebox;
+    }
   }
   if (cena) { saidas.pedirCena(cena); return; }
   if (regioesOcupadas(antes, 'audio').length && !regioesOcupadas(depois, 'audio').length) saidas.pedirCena(cenaDeFundo(depois));

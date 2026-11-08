@@ -15,7 +15,7 @@ import { ROTULO_DA_INTERACAO } from '../domain/interagiveis.ts';
 import { secretaOculta } from '../domain/nevoa.ts';
 import { presetDeClima } from '../domain/presets.ts';
 import { faiscar, flutuar, ponto } from '../fx/fx.ts';
-import { tocar } from '../fx/som.ts';
+import { tocar, trovao } from '../fx/som.ts';
 import { todosOsAlvos, caixaDe, caixaDaSelecao, ehMovel, type Alvo, type ColecaoSelecionavel } from '../render/selecao.ts';
 import type { Viewport } from '../render/viewport.ts';
 import type { ColecaoLivre, Comando } from '../state/comandos.ts';
@@ -294,7 +294,17 @@ export async function abrirMapa(id: string, comodo?: string): Promise<void> {
       pararRegioes = iniciarRegioes(nova!, () => modo.peek() === 'sessao', {
         emitir: (tipo, dados) => { try { s.barramento?.emitir(tipo, dados); } catch (erro) { console.warn('Atlas: não consegui emitir', tipo, erro); } },
         pedirCena: ref => { pedirCena(s.barramento, ref); },
-        avisar: texto => avisar(texto, { duracao: 4200 })
+        avisar: texto => avisar(texto, { duracao: 4200 }),
+        trocarClima: climaId => { aplicarClima(climaId); },
+        dispararEfeito: efeito => {
+          if (efeito === 'relampago') {
+            viewport.atual?.relampagoAgora();
+            relampagoNoProjetor();
+          } else if (efeito === 'tremor') {
+            viewport.atual?.dispararEvento('tremor');
+            trovao(1.2);
+          }
+        },
       });
       batch(() => {
         sessao.value = nova!;
