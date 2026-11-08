@@ -43,7 +43,7 @@ export function reagirAoMovimento(antes: MapaAtlas, depois: MapaAtlas, saidas: S
       if (climaId && saidas.trocarClima) saidas.trocarClima(climaId);
       const efeito = r.payload.efeito;
       if ((efeito === 'relampago' || efeito === 'tremor') && saidas.dispararEfeito) saidas.dispararEfeito(efeito);
-      const cJukebox = cenaDaRegiao(r);
+      const cJukebox = r.refs?.find(x => x.app === 'jukebox') ?? null;
       if (cJukebox) cena = cJukebox;
     }
   }
