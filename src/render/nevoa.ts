@@ -1,7 +1,8 @@
 import { BlurFilter, Container, Graphics, RenderTexture, Sprite, type Renderer } from 'pixi.js';
+import { subtrair, unir } from '../domain/celulas.ts';
 import type { MapaAtlas } from '../domain/mapa.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
-import { RES_NEVOA, celulasExploradas, poligonosDeVisao } from '../domain/nevoa.ts';
+import { RES_NEVOA, celulasDosComodos, celulasDosPoligonos, celulasExploradas, poligonosDeVisao } from '../domain/nevoa.ts';
 import type { Mudancas } from '../state/mudancas.ts';
 import { hexParaNumero } from './cores.ts';
 import { criarMemoria, resDaMemoria } from './memoria.ts';
@@ -37,13 +38,13 @@ function borrada(forca: number, entrada: Sprite): Container {
 export function criarNevoa(renderer: Renderer): Nevoa {
   const sprite = new Sprite(), memoria = criarMemoria(renderer), ditherDeAlfa = criarFiltroDeDitherDeAlfa();
   // 1. visível
-  const visRaiz = new Container(), visG = new Graphics(), visBruta = new Sprite(), visBorrada = borrada(5, visBruta); visRaiz.addChild(visG);
+  const visRaiz = new Container(), visG = new Graphics(), visBruta = new Sprite(), visBorrada = borrada(2, visBruta); visRaiz.addChild(visG);
   // 2. explorado
-  const expRaiz = new Container(), expG = new Graphics(), expBruta = new Sprite(), expBorrada = borrada(8, expBruta); expRaiz.addChild(expG);
+  const expRaiz = new Container(), expG = new Graphics(), expBruta = new Sprite(), expBorrada = borrada(2, expBruta); expRaiz.addChild(expG);
   // 3. o contrário do explorado (branco onde nunca foi visto)
   const invC = new Container(), invFundo = new Graphics(), invExp = new Sprite(); invExp.blendMode = 'erase'; invC.addChild(invFundo, invExp);
-  // 4. a memória só onde há explorado
-  const memC = new Container(), memEsboco = new Sprite(), memEscuro = new Graphics(), memInv = new Sprite(); memInv.blendMode = 'erase'; memC.addChild(memEsboco, memEscuro, memInv);
+  // 4. a memória só onde há explorado (e fora da borda imediata da visão atual, para o papel claro não vazar como halo nas paredes)
+  const memC = new Container(), memEsboco = new Sprite(), memEscuro = new Graphics(), memInv = new Sprite(), memVis = new Sprite(); memInv.blendMode = 'erase'; memVis.blendMode = 'erase'; memC.addChild(memEsboco, memEscuro, memInv, memVis);
   // 5. a cobertura
   const fim = new Container(), fundoG = new Graphics(), fimExp = new Sprite(), fimMem = new Sprite(), fimVis = new Sprite(); fimExp.blendMode = 'erase'; fimVis.blendMode = 'erase'; fim.addChild(fundoG, fimExp, fimMem, fimVis);
   // 6. o visível suavizado no tempo: uma média que sobe depressa (U) e outra que desce devagar (D); a exibida é a união das duas (tela)
@@ -62,9 +63,9 @@ export function criarNevoa(renderer: Renderer): Nevoa {
     const antigas = rts.splice(0);
     for (let i = 0; i < 12; i++) rts.push(RenderTexture.create({ width: pw, height: ph, scaleMode: pixel ? 'nearest' : 'linear' }));
     // 0 vis bruta · 1 visível · 2 exp bruta · 3 explorado · 4 inverso · 5 memória · 6 cobertura · 7-8 média que sobe · 9-10 média que desce · 11 visível exibido
-    visBruta.texture = rt(0); fimVis.texture = rt(1); expBruta.texture = rt(2); invExp.texture = rt(3); fimExp.texture = rt(3); memInv.texture = rt(4); fimMem.texture = rt(5); sprite.texture = rt(6); u = 7; d = 9;
+    visBruta.texture = rt(0); fimVis.texture = rt(1); expBruta.texture = rt(2); invExp.texture = rt(3); fimExp.texture = rt(3); memInv.texture = rt(4); memVis.texture = rt(2); fimMem.texture = rt(5); sprite.texture = rt(6); u = 7; d = 9;
     // No Pixel as bordas das máscaras só se espalham um pouco, e o filtro de dithering do alfa as transforma em blocos de tudo ou nada.
-    (visBorrada.filters![0] as BlurFilter).strength = pixel ? 2 : 5; (expBorrada.filters![0] as BlurFilter).strength = pixel ? 2 : 8;
+    (visBorrada.filters![0] as BlurFilter).strength = 2; (expBorrada.filters![0] as BlurFilter).strength = 2;
     sprite.filters = pixel ? [ditherDeAlfa.filtro] : [];
     memEsboco.scale.set(pw / Math.max(1, memoria.textura?.width ?? pw), ph / Math.max(1, memoria.textura?.height ?? ph));
     sprite.scale.set(w / pw, h / ph); visRaiz.scale.set(pw / w, ph / h); expRaiz.scale.set(pw / w, ph / h);
@@ -77,16 +78,24 @@ export function criarNevoa(renderer: Renderer): Nevoa {
   /** As máscaras que só mudam quando o mundo muda: visível (alvo), explorado, e a memória onde há explorado. */
   function renderizarMascaras(): void {
     const m = mapa; if (!m || !rts.length) return;
-    visG.clear(); for (const pts of poligonosDeVisao(m)) visG.poly(pts).fill(0xffffff);
+    const poligonos = poligonosDeVisao(m);
+    visG.clear(); for (const pts of poligonos) visG.poly(pts).fill(0xffffff);
     desenhar(visRaiz, rt(0)); desenhar(visBorrada, rt(1));
     const res = m.session.explored?.res ?? RES_NEVOA;
-    expG.clear(); for (const [y, x0, n] of celulasExploradas(m)) expG.rect(x0 * res, y * res, n * res + 0.02, res + 0.02);
+    const esboco = m.memory.sketch && memoria.textura !== null;
+    const faixasExp = esboco
+      ? unir(subtrair(m.session.explored?.cells ?? [], celulasDosPoligonos(m, poligonos, res)), celulasDosComodos(m, m.session.revealed.filter(id => m.rooms[id]), res))
+      : celulasExploradas(m);
+    expG.clear(); for (const [y, x0, n] of faixasExp) expG.rect(x0 * res, y * res, n * res + 0.02, res + 0.02);
     expG.fill(0xffffff);
     desenhar(expRaiz, rt(2)); desenhar(expBorrada, rt(3));
     invFundo.clear().rect(0, 0, pw, ph).fill(0xffffff); desenhar(invC, rt(4));
     // Memória: o esboço, ou a cena escurecida (um véu preto) quando o mestre desliga o esboço.
-    const esboco = m.memory.sketch && memoria.textura !== null;
-    memEsboco.visible = esboco; memEscuro.visible = !esboco;
+    if (esboco) {
+      visG.clear(); for (const pts of poligonos) visG.poly(pts).fill(0xffffff).stroke({ width: 0.35, color: 0xffffff, join: 'round', cap: 'round' });
+      desenhar(visRaiz, rt(0)); desenhar(visBorrada, rt(2));
+    }
+    memEsboco.visible = esboco; memEscuro.visible = !esboco; memVis.visible = esboco;
     if (esboco) memEsboco.texture = memoria.textura!; else memEscuro.clear().rect(0, 0, pw, ph).fill({ color: 0x000000, alpha: 0.65 });
     desenhar(memC, rt(5)); fimExp.visible = !esboco;
     fundoG.clear().rect(0, 0, pw, ph).fill(hexParaNumero(m.backdrop.color));
