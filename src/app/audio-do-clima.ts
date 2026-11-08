@@ -33,7 +33,7 @@ export function pedirEfeito(barramento: Pick<Barramento, 'pedir'> | null | undef
 export const pedirSomDoMapa = (mapa: Pick<MapaAtlas, 'audioCue'>, barramento: Pick<Barramento, 'pedir'> | null | undefined): boolean => pedirCena(barramento, mapa.audioCue);
 
 /** A cena do Jukebox de uma região de áudio (a primeira referência do Jukebox), ou `null`. */
-export const cenaDaRegiao = (r: Pick<Regiao, 'kind' | 'refs'>): Ref | null => ((r.kind === 'audio' || r.kind === 'trigger') ? r.refs.find(x => x.app === 'jukebox') ?? null : null);
+export const cenaDaRegiao = (r: Pick<Regiao, 'kind' | 'refs'>): Ref | null => (r.kind === 'audio' ? r.refs.find(x => x.app === 'jukebox') ?? null : null);
 
 /** A cena de fundo do mapa agora: a do clima, se há; senão a do mapa. É a que volta quando se sai de uma região de áudio. */
 export function cenaDeFundo(m: Pick<MapaAtlas, 'climate' | 'climateAudio' | 'audioCue'>): Ref | null {
