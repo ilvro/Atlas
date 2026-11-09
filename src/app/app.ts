@@ -25,7 +25,7 @@ import { pedirCena, pedirEfeito, pedirSomDoClima, pedirSomDoMapa, tocarSomEscolh
 import { gatilhoJaDisparou, iniciarRegioes, marcarGatilhoDisparado } from './regioes.ts';
 import { modo, vistaDeJogador } from './modo.ts';
 import { iniciarSugestoes } from './sugestoes.ts';
-import { abrirJanelaDoProjetor, ajustarAoAspecto, aspectoDoProjetor, caixaDoProjetor, iniciarPublicacao, mapaNoProjetorId, projetorConectado, seguirJogadores, type Publicador } from './projetor.ts';
+import { abrirJanelaDoProjetor, ajustarAoAspecto, aspectoDoProjetor, caixaDoProjetor, iniciarPublicacao, mapaNoProjetorId, projetorConectado, seguirJogadores, telaEscura, type Publicador } from './projetor.ts';
 import type { EventoDeCena } from '../render/eventos-de-cena.ts';
 import type { EfeitoDeCena, PassoDeMomento } from '../domain/momentos.ts';
 import { executarPasso, momentoEmCurso, pararMomento, tocarMomento, type SaidasDeMomento } from './momentos.ts';
@@ -834,7 +834,7 @@ effect(() => {
 });
 
 // ---------- Momentos ----------
-export { momentoEmCurso, pararMomento };
+export { momentoEmCurso, pararMomento, telaEscura };
 
 export function saidasDeMomento(s: Servicos | null): SaidasDeMomento {
   return {
@@ -849,12 +849,10 @@ export function saidasDeMomento(s: Servicos | null): SaidasDeMomento {
       aplicarClima(id);
     },
     tela: (acao, ms) => {
-      // 13.2a
-      console.debug('tela', acao, ms);
+      publicador?.tela(acao, ms);
     },
     letreiro: l => {
-      // 13.2a
-      console.debug('letreiro', l);
+      publicador?.letreiro(l);
     },
     camera: alvo => {
       const doc = sessao.value?.doc.value;

@@ -106,7 +106,7 @@ Commit: `moment player with cancel`
 
 ---
 
-### 13.2a — Projetor: cortina preta e letreiro de apresentação  ⬜
+### 13.2a — Projetor: cortina preta e letreiro de apresentação  ✅
 Objetivo: os dois passos visuais que só existem no projetor: o corte para o preto e a apresentação de personagem.
 Depende de: 13.1b.
 Ler: `src/app/projetor.ts` (`MensagemDoMestre`, `Publicador`, `iniciarPublicacao`, envio de retratos); `src/ui/Projetor.tsx` (`tratarMensagem`, `retratos`, overlays como a inspeção e `flutuarRolagem`); `docs/INTERFACE.md` (tema Vigília, tokens de cor e tipografia); `src/ui/estilo.css` (seção do projetor).

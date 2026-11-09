@@ -1504,6 +1504,189 @@ body.projetor { overflow: hidden; background: #000; }
 .projetor-pixel .projetor-moldura i { height: 4px; background: var(--acento); opacity: 1; }
 .projetor-pixel .projetor-titulo { font-family: 'Pixelify Sans', var(--titulo); font-weight: 700; font-size: 24px; letter-spacing: 0; image-rendering: pixelated; text-rendering: optimizeSpeed; -webkit-font-smoothing: none; font-smooth: never; left: 32px; top: 24px; }
 
+/* Cortina preta para transições e cortes dramáticos */
+.projetor-cortina {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* Letreiros do projetor: apresentação de personagem e título de capítulo */
+.projetor-letreiro {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.letreiro-apresentacao {
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  animation: letreiro-fade-in 180ms ease-out both;
+}
+
+.letreiro-apresentacao .letreiro-apresentacao-conteudo {
+  display: flex;
+  align-items: center;
+  gap: clamp(28px, 4.5vw, 72px);
+  max-width: 88vw;
+  animation: letreiro-glitch-apresentacao 180ms steps(4) both;
+}
+
+.letreiro-apresentacao-retrato-moldura {
+  position: relative;
+  width: clamp(220px, 25vw, 420px);
+  aspect-ratio: 3 / 4;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9);
+  border: 1px solid var(--linha-forte);
+  flex-shrink: 0;
+}
+
+.letreiro-apresentacao-retrato {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.letreiro-apresentacao-vinheta {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.8);
+  background: radial-gradient(circle, transparent 40%, rgba(0, 0, 0, 0.6) 100%);
+}
+
+.letreiro-apresentacao-vinheta::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.12;
+  background-image: radial-gradient(#fff 1px, transparent 1px);
+  background-size: 3px 3px;
+}
+
+.letreiro-apresentacao-textos {
+  display: flex;
+  flex-direction: column;
+}
+
+.letreiro-apresentacao-traco {
+  width: 54px;
+  height: 3px;
+  background: var(--acento);
+  margin-bottom: 14px;
+}
+
+.letreiro-apresentacao-titulo {
+  margin: 0;
+  font: 700 clamp(36px, 6.2vw, 80px) var(--titulo);
+  text-transform: uppercase;
+  color: var(--texto);
+  line-height: 1.05;
+  letter-spacing: 0.06em;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.95);
+}
+
+.letreiro-apresentacao-subtitulo {
+  margin: 10px 0 0;
+  font: 600 clamp(15px, 2vw, 26px) var(--corpo);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--apagado);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+}
+
+.letreiro-capitulo {
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(6px);
+  animation: letreiro-fade-in 300ms ease-out both;
+}
+
+.letreiro-capitulo-conteudo {
+  text-align: center;
+  max-width: 82vw;
+  padding: 32px;
+}
+
+.letreiro-capitulo-titulo {
+  margin: 0;
+  font: 700 clamp(38px, 6.5vw, 84px) var(--titulo);
+  text-transform: uppercase;
+  color: var(--texto);
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  text-shadow: 0 4px 28px rgba(0, 0, 0, 0.95);
+}
+
+.letreiro-capitulo-subtitulo {
+  margin: 18px 0 0;
+  font: 600 clamp(16px, 2.2vw, 30px) var(--corpo);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--apagado);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
+}
+
+@keyframes letreiro-glitch-apresentacao {
+  0% {
+    opacity: 0.7;
+    transform: translate(-10px, 0);
+    clip-path: inset(15% 0 45% 0);
+    filter: drop-shadow(4px 0 0 rgba(255, 60, 100, 0.7)) drop-shadow(-4px 0 0 var(--acento));
+  }
+  25% {
+    opacity: 0.9;
+    transform: translate(8px, 0);
+    clip-path: inset(50% 0 10% 0);
+    filter: drop-shadow(-4px 0 0 rgba(255, 60, 100, 0.7)) drop-shadow(4px 0 0 var(--acento));
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-3px, 0);
+    clip-path: inset(5% 0 80% 0);
+    filter: drop-shadow(2px 0 0 var(--acento));
+  }
+  75% {
+    opacity: 1;
+    transform: translate(2px, 0);
+    clip-path: inset(0 0 0 0);
+    filter: none;
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0);
+    clip-path: inset(0 0 0 0);
+    filter: none;
+  }
+}
+
+@keyframes letreiro-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.letreiro-saindo {
+  opacity: 0 !important;
+  transition: opacity 300ms ease-out !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .letreiro-apresentacao .letreiro-apresentacao-conteudo {
+    animation: none;
+  }
+  .letreiro-apresentacao {
+    animation: letreiro-fade-in 200ms ease-out both;
+  }
+}
+
 /* Sprite da peça: a prévia animada e o painel. */
 .painel-sprite { display: flex; flex-direction: column; gap: 6px; padding: 4px 0 6px; }
 .previa-sprite { image-rendering: pixelated; display: block; margin: 4px auto; background: color-mix(in srgb, var(--fundo, #0b0a10) 70%, #fff 6%); border-radius: 6px; }
