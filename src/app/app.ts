@@ -310,6 +310,7 @@ export async function abrirMapa(id: string, comodo?: string): Promise<void> {
         dispararEfeito: efeito => {
           dispararEfeitoDeCenaOuRelampago(efeito);
         },
+        tocarMomento: momentoId => { void tocarMomentoDoMapa(momentoId); },
         jaDisparou: regiaoId => gatilhoJaDisparou(id, regiaoId),
         marcarDisparo: regiaoId => { marcarGatilhoDisparado(id, regiaoId); },
       });

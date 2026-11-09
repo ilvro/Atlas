@@ -141,7 +141,7 @@ Commit: `moments panel and step editor`
 
 ---
 
-### 13.3b — Região de gatilho dispara um momento  ⬜
+### 13.3b — Região de gatilho dispara um momento  ✅
 Objetivo: entrar numa região toca um momento inteiro.
 Depende de: 13.3a.
 Ler: `src/app/regioes.ts` (depois da 12.11: modos de disparo, `SaidasDeRegiao`); `src/ui/Inspetor.tsx` (`CamposDaRegiao`).

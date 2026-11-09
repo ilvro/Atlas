@@ -46,6 +46,7 @@ export interface SaidasDeRegiao {
   avisar(texto: string): void;
   trocarClima?(climaId: string): void;
   dispararEfeito?(efeito: 'relampago' | EventoDeCena): void;
+  tocarMomento?(id: string): void;
   /** Só para o modo 'uma-vez': já disparou (e o mestre não rearmou)? */
   jaDisparou?(regiaoId: string): boolean;
   marcarDisparo?(regiaoId: string): void;
@@ -70,6 +71,7 @@ export function textoDoGatilho(payload: Record<string, unknown>): string | null 
 export function reagirAoMovimento(antes: MapaAtlas, depois: MapaAtlas, saidas: SaidasDeRegiao): void {
   let cena: Ref | null = null;
   const disparados = new Set<string>(); // cada gatilho dispara as ações no máximo uma vez por movimento
+  const momentos: string[] = [];
   for (const { regiao, peca } of regioesEntradas(antes, depois)) {
     const r = depois.regions[regiao]!, nome = nomeDaRegiao(r), quem = depois.tokens[peca]?.name;
     // `nome` e `peca` são acréscimos opcionais ao fato (o catálogo só exige `mapa` e `regiao`): é o que o registro da sessão da Mesa mostra.
@@ -88,10 +90,20 @@ export function reagirAoMovimento(antes: MapaAtlas, depois: MapaAtlas, saidas: S
       if ((efeito === 'relampago' || (EVENTOS_DE_CENA as readonly unknown[]).includes(efeito)) && saidas.dispararEfeito) saidas.dispararEfeito(efeito as 'relampago' | EventoDeCena);
       const cJukebox = r.refs?.find(x => x.app === 'jukebox') ?? null;
       if (cJukebox) cena = cJukebox;
+      const momentoId = typeof r.payload.momento === 'string' && r.payload.momento.trim() ? r.payload.momento.trim() : null;
+      if (momentoId && (!depois.moments || depois.moments[momentoId])) {
+        momentos.push(momentoId);
+      }
     }
   }
-  if (cena) { saidas.pedirCena(cena); return; }
-  if (regioesOcupadas(antes, 'audio').length && !regioesOcupadas(depois, 'audio').length) saidas.pedirCena(cenaDeFundo(depois));
+  if (cena) {
+    saidas.pedirCena(cena);
+  } else if (regioesOcupadas(antes, 'audio').length && !regioesOcupadas(depois, 'audio').length) {
+    saidas.pedirCena(cenaDeFundo(depois));
+  }
+  for (const mId of momentos) {
+    saidas.tocarMomento?.(mId);
+  }
 }
 
 /**
