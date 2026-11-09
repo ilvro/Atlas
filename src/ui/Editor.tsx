@@ -24,6 +24,7 @@ import { aspectoDoProjetor, caixaDoProjetor, mostrarQuadroDoProjetor, projetorCo
 import { Inspetor } from './Inspetor.tsx';
 import { PilulaDeSugestao } from './PilulaDeSugestao.tsx';
 import { BarraInferior } from './BarraInferior.tsx';
+import { BarraDeEfeitos } from './BarraDeEfeitos.tsx';
 import { WidgetsDeTopo } from './WidgetsDeTopo.tsx';
 import { PreviaDaFicha } from './PreviaDaFicha.tsx';
 import { EditorDeMomento, momentoEmEdicao } from './Momentos.tsx';
@@ -167,6 +168,7 @@ export function Editor() {
         <CartaoContextual s={s} />
         <PreviaDaFicha s={s} />
         <BarraInferior s={s} />
+        {modo.value === 'sessao' && <BarraDeEfeitos s={s} />}
         {modo.value === 'sessao' && <Dock s={s} />}
         {modo.value === 'sessao' && <Inspecao />}
         {modo.value === 'construir' && <PilulaDeSugestao s={s} />}

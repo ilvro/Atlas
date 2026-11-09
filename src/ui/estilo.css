@@ -839,6 +839,294 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
   color: var(--acento);
 }
 
+/* ---- Barra de Efeitos (Hotbar 1-9) ---- */
+.barra-efeitos-container {
+  position: absolute;
+  left: 50%;
+  bottom: 56px;
+  transform: translateX(-50%);
+  z-index: 26;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.barra-efeitos-container.recolhida {
+  bottom: 54px;
+}
+
+.barra-efeitos-handle-recolhida {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  font: 500 11px var(--corpo);
+  color: var(--apagado);
+  background: rgba(14, 15, 23, 0.88);
+  border: 1px solid var(--linha-fraca);
+  border-radius: 999px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.barra-efeitos-handle-recolhida:hover {
+  color: #fff;
+  background: rgba(26, 29, 45, 0.95);
+  border-color: var(--linha-forte);
+}
+
+.barra-efeitos-grade {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(14, 15, 23, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--linha-forte);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.barra-efeitos-botao {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 2px 2px 3px 2px;
+  background: rgba(22, 24, 35, 0.8);
+  border: 1px solid var(--linha-fraca);
+  border-radius: 6px;
+  color: var(--texto);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, transform 0.08s;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.barra-efeitos-botao:hover {
+  background: var(--superficie-2);
+  border-color: var(--linha-forte);
+}
+.barra-efeitos-botao:active {
+  transform: scale(0.96);
+}
+.barra-efeitos-botao.vazio {
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.18);
+  background: transparent;
+  color: var(--apagado);
+}
+.barra-efeitos-botao.vazio:hover {
+  border-color: var(--linha-forte);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+}
+.barra-efeitos-botao.arrastando-sobre {
+  outline: 2px solid var(--destaque, #ffd23f);
+  outline-offset: 1px;
+}
+
+@keyframes flash-disparo {
+  0% {
+    background: #ffd23f;
+    border-color: #ffe680;
+    color: #12131a;
+    box-shadow: 0 0 16px rgba(255, 210, 63, 0.85);
+  }
+  100% {
+    background: rgba(22, 24, 35, 0.8);
+  }
+}
+.barra-efeitos-botao.disparado {
+  animation: flash-disparo 0.4s ease-out;
+}
+
+.barra-efeitos-botao.em-curso {
+  border-color: #ffd23f;
+  box-shadow: 0 0 8px rgba(255, 210, 63, 0.35);
+}
+
+.barra-efeitos-num {
+  position: absolute;
+  top: 1px;
+  left: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--apagado);
+  pointer-events: none;
+}
+
+.barra-efeitos-rotulo {
+  font-size: 8.5px;
+  font-weight: 500;
+  line-height: 1.1;
+  max-width: 36px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  color: var(--apagado);
+  margin-top: 1px;
+}
+.barra-efeitos-botao:hover .barra-efeitos-rotulo {
+  color: var(--texto);
+}
+
+.barra-efeitos-mais {
+  font-size: 16px;
+  font-weight: 300;
+  line-height: 1;
+  color: var(--apagado);
+}
+
+.barra-efeitos-lapis {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  display: none;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.65);
+  color: var(--apagado);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+.barra-efeitos-botao:hover .barra-efeitos-lapis {
+  display: flex;
+}
+.barra-efeitos-lapis:hover {
+  background: var(--superficie-2);
+  color: #fff;
+}
+
+.barra-efeitos-progresso {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: #ffd23f;
+  transition: width 0.15s linear;
+}
+
+.barra-efeitos-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 40px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--apagado);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.12s, color 0.12s;
+}
+.barra-efeitos-toggle:hover {
+  background: var(--superficie-2);
+  color: #fff;
+}
+
+/* Popover de configuração de espaço */
+.popover-barra-efeitos {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 340px;
+  max-height: 440px;
+  overflow-y: auto;
+  background: rgba(14, 15, 23, 0.96);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--linha-forte);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+  padding: 12px 14px;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--texto);
+  animation: popover-entra 0.12s ease-out;
+}
+
+.popover-espaco-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--linha);
+  padding-bottom: 6px;
+}
+
+.popover-espaco-titulo {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font: 700 13px var(--corpo);
+  color: #fff;
+}
+
+.popover-espaco-sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--apagado);
+}
+
+.popover-espaco-fechar {
+  background: transparent;
+  border: none;
+  color: var(--apagado);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+}
+.popover-espaco-fechar:hover {
+  color: #fff;
+  background: var(--superficie-2);
+}
+
+.popover-espaco-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--linha);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
+.popover-espaco-acoes-dir {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.botao-limpar-espaco {
+  background: transparent;
+  border: 1px solid rgba(255, 123, 114, 0.3);
+  color: #ff7b72;
+  font-size: 11.5px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.botao-limpar-espaco:hover {
+  background: rgba(255, 123, 114, 0.15);
+  border-color: #ff7b72;
+}
+
 /* Popover de Configurações da Grade */
 .popover-configuracao-grade {
   min-width: 480px;

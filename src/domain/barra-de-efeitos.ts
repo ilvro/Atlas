@@ -79,3 +79,29 @@ export function lerBarra(bruto: unknown): BarraDeEfeitos {
 
   return resultado;
 }
+
+/** Retorna o identificador do ícone para visualização do espaço. */
+export function obterIconeDoEspaco(espaco: EspacoDaBarra): string {
+  if (espaco.acao.tipo === 'momento') return 'play';
+  const p = espaco.acao.passo;
+  switch (p.tipo) {
+    case 'efeito':
+      if (p.efeito === 'relampago') return 'anim';
+      if (p.efeito === 'tremor') return 'tremor';
+      if (p.efeito === 'piscar') return 'luz';
+      if (p.efeito === 'clarao') return 'sol';
+      return 'anim';
+    case 'som':
+      return 'som';
+    case 'clima':
+      return 'sol';
+    case 'tela':
+      return 'olho';
+    case 'letreiro':
+      return 'texto';
+    case 'nota':
+      return 'nota';
+    default:
+      return 'anim';
+  }
+}
