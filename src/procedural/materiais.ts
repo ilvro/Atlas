@@ -6,7 +6,7 @@ export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'tra
 export interface Material {
   id: string; nome: string; /** Para onde o material vai: piso, papel de parede, objeto ou terreno. */ uso: 'piso' | 'papel' | 'objeto' | 'terreno' | 'macico' | 'agua' | 'telhado';
   base: string; escuro: string; claro: string; padrao: Padrao; largura?: number; lado?: number; ouro?: string; borda?: string; meio?: string; /** Maciço: cor do topo (neve), onde a rocha passa de 70% da altura. */ topo?: string; /** Maciço e escarpa: quanto o pé da face escurece e quanto pesa a sombra de contato (0 a 1; ausente vale 1). */ pe?: number;
-  /** Água: cor perto da margem e no fundo, cor da espuma e quanto se enxerga o leito (0 a 1) no fundo. */ raso?: string; fundo?: string; espuma?: string; transparencia?: number; /** Água: rede de luz animada sobre o leito (cáusticas). */ causticas?: boolean;
+  /** Água: cor perto da margem e no fundo, cor da espuma e quanto se enxerga o leito (0 a 1) no fundo. */ raso?: string; fundo?: string; espuma?: string; transparencia?: number; /** Água: rede de luz animada sobre o leito (cáusticas). */ causticas?: boolean; /** Água: quanto de espuma na margem e em volta dos objetos (0 a 1, padrão 1); água parada de gruta quase não tem. */ espumaForca?: number;
 }
 
 const m = (id: string, nome: string, uso: Material['uso'], base: string, escuro: string, claro: string, padrao: Padrao, extra: Partial<Material> = {}): [string, Material] => [id, { id, nome, uso, base, escuro, claro, padrao, ...extra }];
@@ -98,11 +98,12 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('agua.mar', 'Mar', 'agua', '#2f6f86', '#0d2f45', '#8fd0e0', 'liso', { raso: '#58a8b8', fundo: '#0f3a54', espuma: '#f2fbff', transparencia: 0.12 }),
   m('agua.lago', 'Lago', 'agua', '#2f7a78', '#0f3438', '#8fd8cc', 'liso', { raso: '#5fae9c', fundo: '#12404a', espuma: '#e6f6f0', transparencia: 0.18 }),
   m('agua.rio', 'Rio', 'agua', '#5aa0b0', '#1f5468', '#b4e4ec', 'liso', { raso: '#8cc8c8', fundo: '#2a6a80', espuma: '#f4fdff', transparencia: 0.25 }),
-  m('agua.gruta', 'Água de gruta', 'agua', '#2aa8a0', '#0c4a52', '#9af0e0', 'liso', { raso: '#58d0c0', fundo: '#106068', espuma: '#d8fff4', transparencia: 0.85, causticas: true }),
+  m('agua.gruta', 'Água de gruta', 'agua', '#2aa8a0', '#0c4a52', '#9af0e0', 'liso', { raso: '#58d0c0', fundo: '#106068', espuma: '#d8fff4', transparencia: 0.85, causticas: true, espumaForca: 0.12 }),
   m('agua.pantano', 'Pântano', 'agua', '#5a6a38', '#222a14', '#98a468', 'liso', { raso: '#7a8444', fundo: '#2c3418', espuma: '#c4c88c', transparencia: 0.2 }),
   m('cascalho', 'Cascalho', 'terreno', '#7a756c', '#3f3b36', '#b0aaa0', 'cascalho'),
   m('paralelepipedo', 'Paralelepípedo', 'terreno', '#7b7873', '#34322f', '#aaa69f', 'paralelepipedo'),
-  m('lajes.gramadas', 'Lajes com grama', 'terreno', '#8a877f', '#3a3631', '#b9b5aa', 'lajegrama'),
+  m('lajes.gramadas', 'Lajes com grama', 'terreno', '#8c8475', '#3b342b', '#bcb2a0', 'lajegrama'),
+  m('lajes.antigas', 'Lajes antigas', 'terreno', '#b3a487', '#5c5040', '#dccfb6', 'laje'),
   m('terra.sulcos', 'Terra com sulcos', 'terreno', '#7a5a3a', '#3b2a1a', '#a1805a', 'sulcos'),
   m('areia.molhada', 'Areia molhada', 'terreno', '#9c855a', '#5a4a2c', '#d8c690', 'molhada'),
 ].map(([id, mat]) => [id as string, mat as Material])) as Record<string, Material>;
@@ -338,13 +339,13 @@ const novaConsulta = (): Consulta => ({ f1: 0, f2: 0, borda: 0, sitio: { x: 0, y
 
 /** Rocha rachada: placas de Voronoi (0,45 m) com tom próprio, bisel claro do lado da luz, sombra de oclusão e fendas escuras; fendas maiores por cima. */
 function pintarRachado(ctx: Contexto, mat: Material, A: Area, seed: number, px: number): void {
-  const rn = valueNoise2D(seed * 31 + 5), V1 = celulasDeVoronoi(A, 0.55, seed * 13 + 1), V2 = celulasDeVoronoi(A, 1.9, seed * 13 + 2), q1 = novaConsulta(), q2 = novaConsulta();
+  const rn = valueNoise2D(seed * 31 + 5), V1 = celulasDeVoronoi(A, 0.9, seed * 13 + 1), V2 = celulasDeVoronoi(A, 1.9, seed * 13 + 2), q1 = novaConsulta(), q2 = novaConsulta();
   const E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), w = Math.max(0.016, px * 1.25), tmp = [0, 0, 0];
   porPixel(ctx, A, (x, y, o) => {
     const xx = x + (fbm(rn, x * 2.4, y * 2.4, 2) - 0.5) * 0.17, yy = y + (fbm(rn, x * 2.4 + 37, y * 2.4 + 11, 2) - 0.5) * 0.17;
     V1.consultar(xx, yy, q1);
     const lado = (q1.sitio.x - xx) + (q1.sitio.y - yy);            // > 0: o ponto está acima e à esquerda do centro da placa (de frente para a luz)
-    let t = 0.38 + 0.2 * q1.sitio.azar + lado / 0.55 * 0.08 - q1.f1 / 0.55 * 0.1;
+    let t = 0.38 + 0.2 * q1.sitio.azar + lado / 0.9 * 0.08 - q1.f1 / 0.9 * 0.1;
     t += (fbm(rn, x * 3.1, y * 3.1, 4) - 0.5) * 0.5 + (fbm(rn, x * 0.5 + 90, y * 0.5, 3) - 0.5) * 0.75 + (hash2D(Math.floor(x / px), Math.floor(y / px), 3) - 0.5) * 0.05;
     if (t < 0.5) mez(o, E, B, Math.max(0, t) * 2); else mez(o, B, C, Math.min(1, (t - 0.5) * 2));
     const b = q1.borda, frente = passo(-0.04, 0.12, lado);
@@ -458,7 +459,7 @@ function pintarParalelepipedo(ctx: Contexto, mat: Material, A: Area, seed: numbe
 
 /** Lajes grandes (~1,1 × 0,85 m, juntas desencontradas) com grama e musgo nas juntas, rachaduras de tempo e algumas lajes faltando. */
 function pintarLajesGramadas(ctx: Contexto, mat: Material, A: Area, seed: number, px: number): void {
-  const rn = valueNoise2D(seed * 31 + 9), E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), RH = 0.85, LW = 1.15, gw = 0.05, terra: Cor3 = [E[0] * 1.05, E[1] * 0.95, E[2] * 0.85];
+  const rn = valueNoise2D(seed * 31 + 9), E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), RH = 1.25, LW = 1.7, gw = 0.06, terra: Cor3 = [E[0] * 1.05, E[1] * 0.95, E[2] * 0.85];
   porPixel(ctx, A, (x, y, o) => {
     const j = Math.floor(y / RH), off = hash2D(j, 0, seed + 5) * LW, jit = (i: number) => (hash2D(i, j, seed + 9) - 0.5) * 0.4;
     let i = Math.floor((x - off) / LW), e0 = i * LW + off + jit(i), e1 = (i + 1) * LW + off + jit(i + 1);

@@ -92,7 +92,10 @@ if (!semMiniatura) {
         return vp != null && vp.pintando === 0;
       }, null, { timeout: 30_000 });
       await pagina.waitForTimeout(900);
+      // Só o canvas do mapa: barras, contadores e painéis do editor ficam fora da foto.
+      const css = await pagina.addStyleTag({ content: 'body * { visibility: hidden !important; } [data-testid="area-do-mapa"] canvas { visibility: visible !important; }' });
       const png = await pagina.screenshot({ type: 'png', clip });
+      await css.evaluate(n => (n as Element).remove());
       const b64Atlas = `data:image/png;base64,${png.toString('base64')}`;
       const webp = await pagina.evaluate(async dados => {
         const img = new Image(); img.src = dados; await img.decode();

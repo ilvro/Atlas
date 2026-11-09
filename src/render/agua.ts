@@ -36,6 +36,7 @@ uniform vec2 uFlow1;
 uniform vec2 uFlow2;
 uniform vec2 uFlow3;
 uniform vec4 uCaustica;
+uniform vec4 uForcaEspuma;
 uniform float uPixel;
 uniform float uPpm;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -58,6 +59,7 @@ void main() {
   float idx = floor(d.b * 255.0 / 50.0 + 0.5);
   vec2 v = idx < 1.5 ? uFlow0 : idx < 2.5 ? uFlow1 : idx < 3.5 ? uFlow2 : uFlow3;
   float rede = idx < 1.5 ? uCaustica.x : idx < 2.5 ? uCaustica.y : idx < 3.5 ? uCaustica.z : uCaustica.w;
+  float forcaDaEspuma = idx < 1.5 ? uForcaEspuma.x : idx < 2.5 ? uForcaEspuma.y : idx < 3.5 ? uForcaEspuma.z : uForcaEspuma.w;
   float t = pixel ? floor(uTempo * 3.3) / 3.3 : uTempo;       // no Pixel a superfície tem 4 quadros por ciclo de ~1,2 s
   float vel = length(v);
   float e = 0.12;
@@ -78,6 +80,7 @@ void main() {
   viz /= 8.0;
   float anel = (1.0 - smoothstep(0.2, 0.6, c0)) * smoothstep(0.02, 0.3, viz);
   espuma = max(espuma, smoothstep(0.34, 0.56, anel * (0.6 + 0.4 * onda) + (ruido(p * 3.0 + t * 0.2 - v * t * 0.8) - 0.5) * 0.8) * 0.9 * dentro);
+  espuma *= forcaDaEspuma;
   // Rio: fiapos de espuma esticados no sentido da corrente, mais fortes onde a água é rasa.
   if (vel > 0.01) {
     vec2 dir = v / vel, perp = vec2(-dir.y, dir.x);
@@ -144,6 +147,7 @@ export function criarAgua(): RenderDeAgua {
     const vel = (i: number) => { const f = camadas[i]?.flow; return f ? new Float32Array([Math.cos(f.angle) * f.speed, Math.sin(f.angle) * f.speed]) : new Float32Array([0, 0]); };
     u.uFlow0 = vel(0); u.uFlow1 = vel(1); u.uFlow2 = vel(2); u.uFlow3 = vel(3);
     u.uCaustica = new Float32Array([0, 1, 2, 3].map(i => (camadas[i] && materialDe(camadas[i]!.material).causticas ? 1 : 0)));
+    u.uForcaEspuma = new Float32Array([0, 1, 2, 3].map(i => (camadas[i] ? materialDe(camadas[i]!.material).espumaForca ?? 1 : 1)));
     const modo = pixel ? 'nearest' : 'linear'; if (desenho.textura.source.scaleMode !== modo) desenho.textura.source.scaleMode = modo;
   }
 
@@ -185,7 +189,7 @@ export function criarAgua(): RenderDeAgua {
         uTamanho: { value: new Float32Array([w, h]), type: 'vec2<f32>' }, uTempo: { value: tempo, type: 'f32' }, uSol: { value: new Float32Array([-0.5, -0.7]), type: 'vec2<f32>' },
         uLuz: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' }, uEspuma: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
         uFlow0: { value: new Float32Array(2), type: 'vec2<f32>' }, uFlow1: { value: new Float32Array(2), type: 'vec2<f32>' }, uFlow2: { value: new Float32Array(2), type: 'vec2<f32>' }, uFlow3: { value: new Float32Array(2), type: 'vec2<f32>' },
-        uCaustica: { value: new Float32Array(4), type: 'vec4<f32>' }, uPixel: { value: 0, type: 'f32' }, uPpm: { value: 1, type: 'f32' },
+        uCaustica: { value: new Float32Array(4), type: 'vec4<f32>' }, uForcaEspuma: { value: new Float32Array([1, 1, 1, 1]), type: 'vec4<f32>' }, uPixel: { value: 0, type: 'f32' }, uPpm: { value: 1, type: 'f32' },
       });
       prog ??= GlProgram.from({ vertex, fragment, name: 'atlas-agua' });
       // A cópia na CPU da profundidade (R) e do índice da camada (B), para os objetos submersos; e a máscara dos objetos, na mesma grade.

@@ -108,6 +108,8 @@ export class Kit {
   private readonly ordem: string[] = [];
   private readonly correntezas = new Map<string, { angle: number; speed: number }>();
   private readonly presencas = new Map<string, Set<number>>();
+  /** Intensidade de cada pincel de presença (padrão 0,6). */
+  private readonly intensidades = new Map<string, number>();
   private readonly colunasT: number;
   private readonly linhasT: number;
 
@@ -188,8 +190,9 @@ export class Kit {
   apagar(forma: Forma): this { for (const k of this.chavesDe(forma)) this.terreno.delete(k); return this; }
 
   /** Pinta uma presença (musgo, sangue, mofo…; ver `PINCEIS_DE_PRESENCA`) na forma. */
-  presenca(pincel: string, forma: Forma): this {
+  presenca(pincel: string, forma: Forma, intensidade?: number): this {
     if (!pincelDePresenca(pincel)) throw new Error(`Kit: pincel de presença desconhecido: “${pincel}”.`);
+    if (intensidade !== undefined) this.intensidades.set(pincel, Math.max(0, Math.min(1, intensidade)));
     const s = this.presencas.get(pincel) ?? new Set<number>(); for (const k of this.chavesDe(forma)) s.add(k); this.presencas.set(pincel, s);
     return this;
   }
@@ -373,7 +376,7 @@ export class Kit {
     for (const [pincel, chaves] of this.presencas) {
       if (!chaves.size) continue;
       const id = `p_${pincel.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 60)}`;
-      m.presence[id] = { id, brush: pincel, cells: codificar([...chaves].map(k => [k % 65_536, Math.floor(k / 65_536)] as const)), intensity: 0.6, seed: Math.floor(this.semente * 977 + pincel.length), gmOnly: false };
+      m.presence[id] = { id, brush: pincel, cells: codificar([...chaves].map(k => [k % 65_536, Math.floor(k / 65_536)] as const)), intensity: this.intensidades.get(pincel) ?? 0.6, seed: Math.floor(this.semente * 977 + pincel.length), gmOnly: false };
     }
     atualizarEscarpasDoMacico(m);      // o maciço pintado por aqui também bloqueia, igual ao pintado no editor
     atualizarSalasDosObjetos(m); m.createdAt = m.updatedAt = CARIMBO_DOS_EXEMPLOS;

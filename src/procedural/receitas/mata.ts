@@ -141,15 +141,16 @@ export const RECEITAS_MATA: Receita[] = [
       return piso([R * 2, R * 2], partes);
     } },
   { id: 'escombros', nome: 'Escombros', ...RUINA, tags: ['escombros', 'pedra', 'ruina', 'entulho'], pegada: [2, 1.6], altura: 0.4,
+    campos: [{ id: 'queimado', rotulo: 'Queimado (0 não, 1 sim)', tipo: 'numero', padrao: 0, min: 0, max: 1, passo: 1 }],
     gerar: p => {
-      const r = mulberry32(p.seed), partes: Parte[] = [], monte = bolha(0, 0, 0.82, 0.62, 16, 0.15, r);
-      sombraNoChao(partes, monte, 0.05, '#0d0a08', 0.4); sombraNoChao(partes, monte.map(v => v * 0.85), 0.07, '#6b665c', 0.9, [0, 0]);
-      for (let i = 0; i < 40; i++) { const a = r() * Math.PI * 2, d = Math.sqrt(r()), t = 0.03 + r() * 0.04; partes.push(poli(bolha(Math.cos(a) * d * 0.85, Math.sin(a) * d * 0.62, t, t * 0.8, 5, 0.3, r), tom(PEDRA, (r() - 0.5) * 0.4), 0.1, { contorno: false, semSombra: true, suave: true, detalhe: 3 })); }
+      const r = mulberry32(p.seed), queimado = Math.round(num(p, 'queimado', 0, 0, 1)) === 1, PED = queimado ? '#3b3632' : PEDRA, partes: Parte[] = [], monte = bolha(0, 0, 0.82, 0.62, 16, 0.15, r);
+      sombraNoChao(partes, monte, 0.05, '#0d0a08', 0.4); sombraNoChao(partes, monte.map(v => v * 0.85), 0.07, queimado ? '#1a1612' : '#6b665c', 0.9, [0, 0]);
+      for (let i = 0; i < 40; i++) { const a = r() * Math.PI * 2, d = Math.sqrt(r()), t = 0.03 + r() * 0.04; partes.push(poli(bolha(Math.cos(a) * d * 0.85, Math.sin(a) * d * 0.62, t, t * 0.8, 5, 0.3, r), tom(PED, (r() - 0.5) * 0.4), 0.1, { contorno: false, semSombra: true, suave: true, detalhe: 3 })); }
       // Blocos quebrados: do maior (no meio, alto) aos lascados da borda; topo claro, face lateral escura para o sudeste.
       const n = 18 + Math.floor(r() * 6);
       for (let i = 0; i < n; i++) {
         const t = i / n, w = 0.14 + (1 - t) * (0.24 + r() * 0.26), a = r() * Math.PI * 2, d = (0.25 + t * 0.7) * Math.sqrt(0.3 + r() * 0.7), x = Math.cos(a) * d * (0.95 - w / 2), y = Math.sin(a) * d * (0.7 - w / 2);
-        bloco(partes, r, x, y, w, w * (0.55 + r() * 0.35), r() * Math.PI, tom(PEDRA, (r() - 0.5) * 0.3), 0.7 - t * 0.4, r() < 0.12);
+        bloco(partes, r, x, y, w, w * (0.55 + r() * 0.35), r() * Math.PI, tom(PED, (r() - 0.5) * 0.3), 0.7 - t * 0.4, r() < 0.12);
       }
       return piso([2, 1.6], partes);
     } },

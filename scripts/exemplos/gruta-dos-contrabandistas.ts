@@ -11,7 +11,7 @@ export const grutaDosContrabandistas: Exemplo = {
   construir(k) {
     k.estilo({ genre: 'fantasia', palette: 'fantasia-pedra' });
     k.fundo({ kind: 'solid', color: '#070a0e' });
-    k.base('areia');
+    k.base('cascalho');   // o leito sob a água: cascalho cinza-esverdeado, que a água tinge de verde-azulado
 
     // Chão seco de rocha rachada no terraço norte (deixando a areia clara como leito sob a água da gruta)
     k.pintar('rocha.rachada', {
@@ -58,7 +58,7 @@ export const grutaDosContrabandistas: Exemplo = {
     });
 
     // Presença submersa de algas no fundo da água
-    k.presenca('algas', { disco: [14.5, 36.5], raio: 3.5, irregular: 0.6 });
+    k.presenca('algas', { disco: [14.5, 36.5], raio: 3.5, irregular: 0.6 }, 0.3);
     k.presenca('algas', { disco: [10.5, 27.5], raio: 2.8, irregular: 0.5 });
 
     // Duas cabanas de pedra com telhado visível no terraço norte
@@ -200,10 +200,10 @@ export const grutaDosContrabandistas: Exemplo = {
     k.luz('lamparina', [11.0, 5.8], { radius: 5.5, color: '#ffb044', intensity: 1.1, flicker: 0.18 });
     k.luz('tocha', [23.8, 10.9], { radius: 6.5, color: '#ffb84d', intensity: 1.25, flicker: 0.22 });
     k.luz('lamparina', [20.4, 5.2], { radius: 5.5, color: '#ffb044', intensity: 1.1, flicker: 0.18 });
-    k.luz('farol', [16.5, 40.2], {
-      radius: 26,
-      color: '#f2fca8',
-      intensity: 1.45,
+    k.luz('farol', [16.5, 44], {
+      radius: 30,
+      color: '#f0eeb4',
+      intensity: 1.1,
       flicker: 0,
       power: 'magic',
       direcao: -Math.PI / 2 - 0.08,
