@@ -127,7 +127,7 @@ Pronto quando: `npm run build:core` gera `dist/ponte.js` e os testes passam.
 Commit: bridge client and campaign tools in mesa-core
 Nota: `tsconfig.build.json` não precisou mudar (`include: ["src"]` já emite `dist/ponte.js`). `ferramentasDaCampanha(obterRepositorio)` recebe como abrir o repositório (o app passa o dele). `conectarPonte` aceita `url`, `criarSocket`, `agendar` e `cancelar` opcionais (para testes). Os tipos do protocolo são redeclarados em `ponte.ts` (o `mesa-core` não importa de `scripts/`). `campanha_entidade_ler` inclui as ligações da entidade; `campanha_sessao_ler` procura a sessão em todas as campanhas. `dist/` é ignorado pelo git.
 
-### 14.1c — Servidor MCP e registro no app do Claude  ⬜
+### 14.1c — Servidor MCP e registro no app do Claude  ✅
 Objetivo: o app do Claude (e, opcionalmente, o Claude Code) enxerga as ferramentas das abas abertas.
 Depende de: 14.1a
 Ler: `scripts/ponte/protocolo.ts`, `scripts/ponte/servidor.ts`; a documentação do `@modelcontextprotocol/sdk` (servidor stdio, `setRequestHandler` de `tools/list` e `tools/call`, notificação de lista alterada).
@@ -145,6 +145,7 @@ Não fazer: ferramentas próprias além de `ponte_estado`.
 Testes: com uma ponte de teste e uma aba falsa: `tools/list` reflete a aba; `tools/call` devolve texto e imagem; sem ponte, só `ponte_estado`, com a explicação.
 Pronto quando: no app do Claude, o servidor `mesa` aparece nas ferramentas da conversa e `ponte_estado` responde com e sem o `mesa-dev`.
 Commit: mcp server for the assistant bridge
+Nota: `@modelcontextprotocol/sdk` 1.32.2 (versão exata). A lógica fica em funções exportadas de `mcp.ts` (`conectarNaPonte`, `criarServidorMcp`, `chamarFerramenta`, `listarFerramentas`, `converterConteudo`); o `main` só roda com `import.meta.main`. O token vem de `.ponte/token` relativo à raiz do Atlas (`import.meta.dirname`), reconexão 1/2/5/10 s. Testes de ponta a ponta com `Client` + `InMemoryTransport` e uma ponte real. O registro no app do Claude só foi documentado (`scripts/ponte/LEIAME.md`), não feito; o "Pronto quando" no app depende do mestre registrar.
 
 ### 14.1d — Atlas na ponte: mapas e catálogo  ⬜
 Objetivo: o Claude sabe o que o Atlas tem e o que ele sabe fazer.
