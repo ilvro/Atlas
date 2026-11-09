@@ -18,6 +18,10 @@ export interface Parte {
   dir?: number;
   contorno?: false | 'leve';
   semSombra?: boolean; sombraLeve?: boolean; vidro?: boolean;
+  /** Pincelada: sem o traço interno nem o degradê de volume (tufos de folhagem, neve, pelo, manchas). */
+  suave?: boolean;
+  /** Opacidade de 0 a 1 (veladuras de sombra e luz). O Pixel não desenha o que fica abaixo de 0,5. */
+  alfa?: number;
   /** Nível de detalhe: o renderizador Pixel descarta o que não cabe na resolução. */
   detalhe?: 1 | 2 | 3;
 }

@@ -1,6 +1,7 @@
 import { elipse, poli, ret, type Parte } from '../descricao.ts';
 import { materialDe, tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
+import { bolha, sombraNoChao } from '../organico.ts';
 import { num, piso, type Receita } from './comum.ts';
 import { galho } from './ermos.ts';
 
@@ -17,6 +18,18 @@ function lamina(x: number, y: number, ang: number, len: number, w: number, mat: 
 }
 
 /** Uma pedra facetada de uso geral: sombra, corpo, faceta clara a noroeste. */
+/** Um bloco de pedra quebrado: polígono de 5 a 7 lados com uma quina partida, face lateral escura (sudeste) e topo claro com uma lasca. */
+function bloco(partes: Parte[], r: () => number, x: number, y: number, w: number, h: number, ang: number, cor: string, z: number, musgo: boolean): void {
+  const n = 5 + Math.floor(r() * 3), c = Math.cos(ang), s = Math.sin(ang), topo: number[] = [];
+  for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2 + (r() - 0.5) * 0.5, k = 0.8 + r() * 0.25, u = Math.cos(a) * (w / 2) * k, v = Math.sin(a) * (h / 2) * k; topo.push(x + u * c - v * s, y + u * s + v * c); }
+  const alto = Math.min(w, h) * 0.22;
+  partes.push(poli(topo.map((v, i) => v + alto * (i % 2 ? 0.9 : 0.6)), tom(cor, -0.42), z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
+  partes.push(poli(topo, cor, z + 0.01, { contorno: 'leve', semSombra: true, detalhe: 1 }));
+  partes.push(poli(topo.map((v, i) => (i % 2 ? y + (v - y) * 0.55 - h * 0.08 : x + (v - x) * 0.55 - w * 0.08)), tom(cor, 0.18), z + 0.02, { contorno: false, semSombra: true, suave: true, detalhe: 2 }));
+  if (r() < 0.6) { const i0 = Math.floor(r() * n) * 2, i1 = (i0 + 2) % (n * 2); partes.push(poli([topo[i0]!, topo[i0 + 1]!, topo[i1]!, topo[i1 + 1]!, x + (topo[i0]! + topo[i1]! - 2 * x) * 0.3, y + (topo[i0 + 1]! + topo[i1 + 1]! - 2 * y) * 0.3], tom(cor, -0.18), z + 0.025, { contorno: false, semSombra: true, suave: true, detalhe: 3 })); }
+  if (musgo) partes.push(poli(bolha(x - w * 0.1, y - h * 0.1, w * 0.22, h * 0.18, 8, 0.25, r), MUSGO[0]!, z + 0.03, { contorno: false, semSombra: true, suave: true, detalhe: 3 }));
+}
+
 function pedra(partes: Parte[], x: number, y: number, w: number, h: number, base: string, z: number, musgo = false): void {
   partes.push(elipse(x + w * 0.06, y + h * 0.08, w, h, tom(base, -0.45), z, { contorno: 'leve', sombraLeve: true }), elipse(x, y, w * 0.92, h * 0.9, base, z + 0.01, { contorno: false, semSombra: true, detalhe: 2 }), elipse(x - w * 0.15, y - h * 0.16, w * 0.45, h * 0.35, tom(base, 0.3), z + 0.02, { contorno: false, semSombra: true, detalhe: 3 }));
   if (musgo) partes.push(elipse(x + w * 0.1, y - h * 0.1, w * 0.4, h * 0.3, MUSGO[0]!, z + 0.03, { contorno: false, semSombra: true, detalhe: 3 }));
@@ -129,10 +142,15 @@ export const RECEITAS_MATA: Receita[] = [
     } },
   { id: 'escombros', nome: 'Escombros', ...RUINA, tags: ['escombros', 'pedra', 'ruina', 'entulho'], pegada: [2, 1.6], altura: 0.4,
     gerar: p => {
-      const r = mulberry32(p.seed), partes: Parte[] = [];
-      for (let i = 0; i < 5; i++) partes.push(elipse((r() - 0.5) * 1.4, (r() - 0.5) * 1.0, 0.5 + r() * 0.4, 0.3 + r() * 0.25, '#2b2a28', 0.4 + i * 0.01, { contorno: false, semSombra: true, detalhe: 2 }));
-      const n = 9 + Math.floor(r() * 6);
-      for (let i = 0; i < n; i++) { const w = 0.14 + r() * r() * 0.5, h = w * (0.65 + r() * 0.3); pedra(partes, (r() - 0.5) * (1.9 - w), (r() - 0.5) * (1.5 - h), w, h, tom(PEDRA, (r() - 0.5) * 0.35), 0.6 + i * 0.03, r() < 0.15); }
+      const r = mulberry32(p.seed), partes: Parte[] = [], monte = bolha(0, 0, 0.82, 0.62, 16, 0.15, r);
+      sombraNoChao(partes, monte, 0.05, '#0d0a08', 0.4); sombraNoChao(partes, monte.map(v => v * 0.85), 0.07, '#6b665c', 0.9, [0, 0]);
+      for (let i = 0; i < 40; i++) { const a = r() * Math.PI * 2, d = Math.sqrt(r()), t = 0.03 + r() * 0.04; partes.push(poli(bolha(Math.cos(a) * d * 0.85, Math.sin(a) * d * 0.62, t, t * 0.8, 5, 0.3, r), tom(PEDRA, (r() - 0.5) * 0.4), 0.1, { contorno: false, semSombra: true, suave: true, detalhe: 3 })); }
+      // Blocos quebrados: do maior (no meio, alto) aos lascados da borda; topo claro, face lateral escura para o sudeste.
+      const n = 18 + Math.floor(r() * 6);
+      for (let i = 0; i < n; i++) {
+        const t = i / n, w = 0.14 + (1 - t) * (0.24 + r() * 0.26), a = r() * Math.PI * 2, d = (0.25 + t * 0.7) * Math.sqrt(0.3 + r() * 0.7), x = Math.cos(a) * d * (0.95 - w / 2), y = Math.sin(a) * d * (0.7 - w / 2);
+        bloco(partes, r, x, y, w, w * (0.55 + r() * 0.35), r() * Math.PI, tom(PEDRA, (r() - 0.5) * 0.3), 0.7 - t * 0.4, r() < 0.12);
+      }
       return piso([2, 1.6], partes);
     } },
   { id: 'viga-partida', nome: 'Viga partida', ...RUINA, funcoes: ['jardim', 'ruina', 'estabulo'], tags: ['viga', 'madeira', 'ruina', 'entulho'], pegada: [2.4, 0.5], altura: 0.3,
