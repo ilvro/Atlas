@@ -244,7 +244,7 @@ Commit: shared construction helpers that emit commands
 
 Nota: `formas.ts` também exporta `medirForma`, `chavesDaForma` e `sementeDaForma` (o kit e `espalhar` precisam da medida); `celulasDaForma` recebe `semente` como semente direta do ruído. Cada função tem `semente = 1` e `gerarId = novoIdEntidade` opcionais. `portas` encaixa sobre o mapa recebido (cada abertura vê as anteriores); para cômodos da mesma chamada use `aplicarEmCopia(mapa, comodos(...).comandos)`.
 
-### 14.2b — Ferramentas de escrita do mapa: criar, terreno, cômodos, paredes, portas  ⬜
+### 14.2b — Ferramentas de escrita do mapa: criar, terreno, cômodos, paredes, portas  ✅
 Objetivo: o Claude cria um mapa e levanta a estrutura dele, e cada chamada é um passo de desfazer.
 Depende de: 14.1d, 14.2a
 Ler: `src/app/ponte.ts`, `src/app/ponte-leitura.ts`, `src/state/store.ts` (`transacao`), `src/app/app.ts` (`criarMapaNovo`, `navegar`), `src/app/exemplos.ts` (`usarExemplo`, o padrão de criar e abrir), `src/domain/mapa.ts` (`criarMapa`), `src/app/campanha.ts` (o mapa com `campanhaId` vira entidade sozinho), `src/authoring/construcao.ts`.
@@ -270,6 +270,8 @@ Testes: com um store de verdade e serviços falsos (o padrão de `tests/unit/` q
 - `atlas_mapa_criar` grava no repositório com o `campanhaId`.
 Pronto quando: no app do Claude, "crie um mapa 20 × 15 de grama com uma trilha de terra e uma cabana de 3 × 3 células com porta" funciona, e cada chamada se desfaz com um Ctrl+Z.
 Commit: assistant tools to create maps and build structure
+
+Nota: contexto injetável `ContextoDeEscrita { store, repo, sincronizarCampanha?, abrirMapa, campanhaAtiva? }`; `ferramentasDeEscrita(ctx)` exporta as 5 ferramentas, além de `escrever`, `criadosPeloAssistente`, `esquemaDaForma` e `esquemaDoRetanguloDeCelulas` (o esquema da forma nasceu em `ponte-escrita.ts`, não em `formas.ts`). `atlas_mapa_criar` sem `campanhaId` usa a campanha ativa do app (como o "novo mapa") e abre pela rota (`navegar` e espera a sessão). Todas aceitam `semente` opcional (aleatória se omitida) e até 100 itens por lista. `correnteza.angulo` em radianos. Se a lista não gera comando algum, a ferramenta responde "nada mudou" sem entrada de histórico. Ids de camada de água seguem o material (`agua.rio`, não `agua`).
 
 ### 14.2c — Ferramentas de escrita do mapa: objetos, espalhar, luzes, ambiente, regiões, presença, notas  ⬜
 Objetivo: o Claude mobilia, ilumina e ambienta o mapa.
