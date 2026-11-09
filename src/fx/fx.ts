@@ -99,12 +99,12 @@ export function flutuarRolagem(onde: Retangulo | null, total: number, titulo: st
   camadaDeFx().appendChild(el);
   if (fxAtivo()) {
     el.animate([
-      { transform: 'translate(-50%, -80%) scale(0.6)', opacity: 0 },
-      { transform: 'translate(-50%, -120%) scale(1.15)', opacity: 1, offset: 0.16 },
-      { transform: 'translate(-50%, -135%) scale(1)', opacity: 1, offset: 0.82 },
-      { transform: 'translate(-50%, -160%) scale(0.95)', opacity: 0 },
-    ], { duration: 3200, easing: 'ease-out', fill: 'forwards' }).onfinish = () => el.remove();
-    faiscar(onde, { cor: tom === 'normal' ? acento : COR_DA_ROLAGEM[tom], quantidade: tom === 'normal' ? 12 : 22, alcance: 64 });
-  } else { el.style.transform = 'translate(-50%, -125%)'; setTimeout(() => el.remove(), 3200); }
+      { transform: 'translate(-50%, -100%) scale(0.6)', opacity: 0 },
+      { transform: 'translate(-50%, -130%) scale(1.25)', opacity: 1, offset: 0.18 },
+      { transform: 'translate(-50%, -150%) scale(1)', opacity: 1, offset: 0.75 },
+      { transform: 'translate(-50%, -175%) scale(1)', opacity: 0 },
+    ], { duration: 2600, easing: 'ease-out', fill: 'forwards' }).onfinish = () => el.remove();
+    faiscar(onde, { cor: tom === 'normal' ? acento : COR_DA_ROLAGEM[tom], quantidade: tom === 'normal' ? 10 : 18, alcance: 56 });
+  } else { el.style.transform = 'translate(-50%, -140%)'; setTimeout(() => el.remove(), 2600); }
   return el;
 }

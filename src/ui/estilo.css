@@ -2066,47 +2066,20 @@ body.projetor { overflow: hidden; background: #000; }
   flex-direction: column;
   align-items: center;
   pointer-events: none;
+  text-shadow: 0 2px 10px #000, 0 0 2px #000;
   white-space: nowrap;
-  padding: 6px 18px 8px;
-  border-radius: 14px;
-  background: rgba(12, 13, 19, 0.9);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.8), 0 0 14px rgba(0, 0, 0, 0.5);
   z-index: 100;
 }
 .fx-rolagem b {
-  font: 900 50px var(--corpo);
+  font: 900 34px var(--corpo);
   line-height: 1;
-  font-variant-numeric: tabular-nums;
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.8));
 }
 .fx-rolagem small {
-  font: 700 13px var(--corpo);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #f0f4fc;
-  opacity: 0.95;
-  margin-top: 3px;
-  max-width: 260px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
-}
-.fx-rolagem[data-tom="alto"] {
-  border-color: rgba(255, 210, 63, 0.75);
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.8), 0 0 24px rgba(255, 210, 63, 0.35);
-}
-.fx-rolagem[data-tom="alto"] b {
-  text-shadow: 0 0 20px rgba(255, 210, 63, 0.6);
-}
-.fx-rolagem[data-tom="baixo"] {
-  border-color: rgba(224, 100, 92, 0.75);
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.8), 0 0 24px rgba(224, 100, 92, 0.35);
-}
-.fx-rolagem[data-tom="baixo"] b {
-  text-shadow: 0 0 20px rgba(224, 100, 92, 0.6);
+  font: 700 11px var(--corpo);
+  letter-spacing: 0.04em;
+  color: #fff;
+  opacity: 0.92;
+  margin-top: 2px;
 }
 
 /* Pistas do Ateliê. */
