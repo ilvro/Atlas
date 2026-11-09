@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { criarRef } from '#mesa';
-import { cenaDaRegiao, cenaDeFundo, pedirCena, pedirSomDoMapa } from '../../src/app/audio-do-clima.ts';
+import { cenaDaRegiao, cenaDeFundo, pedirCena, pedirSilencio, pedirSomDoMapa } from '../../src/app/audio-do-clima.ts';
 import { aplicarComando } from '../../src/state/comandos.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 
@@ -13,6 +13,15 @@ test('pedirCena e pedirSomDoMapa: pedem jukebox.tocar com o Ref, e não pedem na
   assert.equal(pedirCena(b, chuva), true); assert.deepEqual(b.pedidos, [{ tipo: 'jukebox.tocar', dados: { ref: chuva } }]);
   assert.equal(pedirCena(b, null), false); assert.equal(pedirCena(null, chuva), false);
   assert.equal(pedirSomDoMapa({ audioCue: taverna }, b), true); assert.equal(pedirSomDoMapa({ audioCue: null }, b), false); assert.equal(b.pedidos.length, 2);
+});
+
+test('pedirSilencio: pede jukebox.parar com ms ou vazio, e não pede sem barramento', () => {
+  const b = falso();
+  assert.equal(pedirSilencio(b, 1500), true);
+  assert.deepEqual(b.pedidos[0], { tipo: 'jukebox.parar', dados: { ms: 1500 } });
+  assert.equal(pedirSilencio(b), true);
+  assert.deepEqual(b.pedidos[1], { tipo: 'jukebox.parar', dados: {} });
+  assert.equal(pedirSilencio(null, 1500), false);
 });
 
 test('mapa.audio grava e tira a cena do mapa, e desfaz com o documento', () => {

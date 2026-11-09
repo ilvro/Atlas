@@ -273,6 +273,45 @@ export function CamposDoPasso({
       );
     }
 
+    case 'silencio': {
+      const atalhosMs = [0, 500, 1000, 2000, 5000];
+      return (
+        <div class="campos-passo campos-silencio">
+          <div class="campos-passo-linha">
+            <span class="dock-rotulo">Fade:</span>
+            {atalhosMs.map(ms => (
+              <button
+                type="button"
+                key={ms}
+                class={`dock-pilula ${passo.ms === ms ? 'ativa' : ''}`}
+                onClick={() => aoAtualizar({ ...passo, ms })}
+              >
+                {ms === 0 ? 'Instantâneo' : `${ms / 1000} s`}
+              </button>
+            ))}
+          </div>
+          <div class="campos-passo-linha">
+            <label class="dock-rotulo">
+              Duração do fade (segundos):
+              <input
+                type="number"
+                min={0}
+                max={30}
+                step={0.1}
+                value={(passo.ms / 1000).toString()}
+                class="campo-numero"
+                onChange={e => {
+                  const seg = Number((e.target as HTMLInputElement).value);
+                  const ms = Math.max(0, Math.min(30000, Math.round(seg * 1000)));
+                  aoAtualizar({ ...passo, ms });
+                }}
+              />
+            </label>
+          </div>
+        </div>
+      );
+    }
+
     case 'efeito': {
       const opcoes: EfeitoDeCena[] = ['relampago', ...EVENTOS_DE_CENA];
       return (
@@ -950,6 +989,14 @@ export function EditorDeMomento({
                   onClick={() => adicionarNovoPasso({ tipo: 'som', ref: criarRef('jukebox', 'efeito', 'padrao') })}
                 >
                   Efeito do Jukebox
+                </button>
+                <button
+                  type="button"
+                  class="menu-opcao"
+                  data-testid="menu-add-silencio"
+                  onClick={() => adicionarNovoPasso({ tipo: 'silencio', ms: 1000 })}
+                >
+                  Silêncio (fade)
                 </button>
               </div>
 

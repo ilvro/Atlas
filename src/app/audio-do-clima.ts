@@ -29,6 +29,13 @@ export function pedirEfeito(barramento: Pick<Barramento, 'pedir'> | null | undef
   return true;
 }
 
+/** Pede ao Jukebox que pare todas as faixas que estão tocando com fade de `ms` milissegundos (padrão: 1000). */
+export function pedirSilencio(barramento: Pick<Barramento, 'pedir'> | null | undefined, ms?: number): boolean {
+  if (!barramento) return false;
+  void barramento.pedir('jukebox.parar', ms !== undefined ? { ms } : {}).catch(() => undefined);
+  return true;
+}
+
 /** Abriu o mapa na sessão e ele tem uma cena sonora? Pede para tocá-la. */
 export const pedirSomDoMapa = (mapa: Pick<MapaAtlas, 'audioCue'>, barramento: Pick<Barramento, 'pedir'> | null | undefined): boolean => pedirCena(barramento, mapa.audioCue);
 

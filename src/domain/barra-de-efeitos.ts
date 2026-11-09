@@ -93,6 +93,8 @@ export function obterIconeDoEspaco(espaco: EspacoDaBarra): string {
       return 'anim';
     case 'som':
       return 'som';
+    case 'silencio':
+      return 'mudo';
     case 'clima':
       return 'sol';
     case 'tela':

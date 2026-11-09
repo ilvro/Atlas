@@ -10,6 +10,7 @@ export type AlvoDeCamera = { colecao: 'rooms' | 'regions' | 'tokens'; id: string
 export type PassoDeMomento =
   | { tipo: 'esperar'; ms: number }                                   // 100..120000
   | { tipo: 'som'; ref: Ref }                                         // jukebox cena-sonora ou efeito
+  | { tipo: 'silencio'; ms: number }                                  // fade do som no Jukebox, 0..30000
   | { tipo: 'efeito'; efeito: EfeitoDeCena }
   | { tipo: 'clima'; clima: string }                                  // id de predefinição ou de customClimates
   | { tipo: 'tela'; acao: 'escurecer' | 'clarear'; ms: number }      // fade da cortina preta no projetor, 0..10000
@@ -42,7 +43,7 @@ export function duracaoEstimada(m: Momento): number {
     if (p.tipo === 'esperar') {
       tempoAtual += p.ms;
       fim = Math.max(fim, tempoAtual);
-    } else if (p.tipo === 'letreiro' || p.tipo === 'tela') {
+    } else if (p.tipo === 'letreiro' || p.tipo === 'tela' || p.tipo === 'silencio') {
       fim = Math.max(fim, tempoAtual + p.ms);
     }
   }
@@ -61,6 +62,10 @@ export function descreverPasso(p: PassoDeMomento, mapa?: MapaAtlas): string {
     }
     case 'som':
       return `Som: ${p.ref.id}`;
+    case 'silencio': {
+      const s = (p.ms / 1000).toString().replace('.', ',');
+      return `Silêncio (${s} s)`;
+    }
     case 'efeito': {
       const nome = p.efeito === 'relampago' ? 'Relâmpago' : (ROTULO_DO_EVENTO[p.efeito] ?? p.efeito);
       return `Efeito: ${nome}`;
@@ -147,6 +152,12 @@ export function passoValido(p: unknown): string | null {
       }
       if (passo.ref.app !== 'jukebox' || (passo.ref.tipo !== 'cena-sonora' && passo.ref.tipo !== 'efeito')) {
         return 'O som deve ser uma referência a cena sonora ou efeito do Jukebox.';
+      }
+      return null;
+    }
+    case 'silencio': {
+      if (typeof passo.ms !== 'number' || !Number.isFinite(passo.ms) || passo.ms < 0 || passo.ms > 30_000) {
+        return 'Duração do silêncio deve ser entre 0 e 30.000 ms.';
       }
       return null;
     }

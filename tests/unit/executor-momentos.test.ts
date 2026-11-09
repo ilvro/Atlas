@@ -15,6 +15,7 @@ function criarSaidas() {
   const chamadas: Array<{ tipo: string; args: any[] }> = [];
   const saidas: SaidasDeMomento = {
     som: ref => chamadas.push({ tipo: 'som', args: [ref] }),
+    silencio: ms => chamadas.push({ tipo: 'silencio', args: [ms] }),
     efeito: e => chamadas.push({ tipo: 'efeito', args: [e] }),
     clima: id => chamadas.push({ tipo: 'clima', args: [id] }),
     tela: (acao, ms) => chamadas.push({ tipo: 'tela', args: [acao, ms] }),
@@ -285,6 +286,9 @@ test('executarPasso despacha cada tipo instantâneo e ignora esperar', () => {
 
   executarPasso({ tipo: 'som', ref: refSom }, saidas);
   assert.deepEqual(chamadas.pop(), { tipo: 'som', args: [refSom] });
+
+  executarPasso({ tipo: 'silencio', ms: 1200 }, saidas);
+  assert.deepEqual(chamadas.pop(), { tipo: 'silencio', args: [1200] });
 
   executarPasso({ tipo: 'efeito', efeito: 'relampago' }, saidas);
   assert.deepEqual(chamadas.pop(), { tipo: 'efeito', args: ['relampago'] });

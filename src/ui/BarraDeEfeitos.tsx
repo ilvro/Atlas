@@ -15,11 +15,12 @@ import { Icone } from './Icone.tsx';
 import { avisar } from '../app/toasts.ts';
 import { criarRef } from '#mesa';
 
-export type TipoDeEspaco = 'efeito' | 'som' | 'clima' | 'tela' | 'letreiro' | 'nota' | 'momento';
+export type TipoDeEspaco = 'efeito' | 'som' | 'silencio' | 'clima' | 'tela' | 'letreiro' | 'nota' | 'momento';
 
 const TIPOS_DE_ESPACO: { id: TipoDeEspaco; rotulo: string }[] = [
   { id: 'efeito', rotulo: 'Efeito de cena' },
   { id: 'som', rotulo: 'Som do Jukebox' },
+  { id: 'silencio', rotulo: 'Silêncio (fade)' },
   { id: 'clima', rotulo: 'Clima' },
   { id: 'tela', rotulo: 'Cortina' },
   { id: 'letreiro', rotulo: 'Letreiro' },
@@ -33,6 +34,8 @@ function criarPassoPadrao(tipo: TipoDeEspaco): PassoDeMomento {
       return { tipo: 'efeito', efeito: 'relampago' };
     case 'som':
       return { tipo: 'som', ref: criarRef('jukebox', 'efeito', 'grito') };
+    case 'silencio':
+      return { tipo: 'silencio', ms: 1000 };
     case 'clima':
       return { tipo: 'clima', clima: 'noite' };
     case 'tela':
@@ -60,6 +63,8 @@ function sugerirRotulo(tipo: TipoDeEspaco, passo: PassoDeMomento, momentoId: str
       return passo.efeito.slice(0, 14);
     case 'som':
       return passo.ref.id.slice(0, 14);
+    case 'silencio':
+      return 'Silêncio';
     case 'clima':
       return passo.clima.slice(0, 14);
     case 'tela':

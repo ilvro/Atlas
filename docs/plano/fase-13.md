@@ -202,7 +202,7 @@ Commit: `moments tutorial`
 
 ---
 
-### 13.6 — 🔒 `jukebox.parar` (silêncio com fade)  ⬜
+### 13.6 — 🔒 `jukebox.parar` (silêncio com fade)  ✅
 **Precisa de autorização do usuário** (muda o Jukebox e o contrato do `mesa-core`).
 Objetivo: um passo "Silêncio" que abaixa a música até parar em N ms, para o silêncio antes do susto.
 Como (resumo, detalhar ao autorizar): pedido `jukebox.parar` `{ ms?: number }` no catálogo do `mesa-core` (aditivo; `npm run build:core` e cópia para os `vendor/`); o Jukebox atende com fade de volume de todas as faixas tocando e pausa ao fim; manifesto do Jukebox com `atende`; no Atlas, passo `{ tipo: 'silencio'; ms }` (documento continua v8: o tipo de passo é aditivo na validação).

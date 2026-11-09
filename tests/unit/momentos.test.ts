@@ -41,6 +41,7 @@ test('validação aceita um momento com todos os tipos de passo', () => {
       { tipo: 'tela', acao: 'escurecer', ms: 800 },
       { tipo: 'esperar', ms: 1000 },
       { tipo: 'som', ref: criarRef('jukebox', 'cena-sonora', 'chuva') },
+      { tipo: 'silencio', ms: 1500 },
       { tipo: 'efeito', efeito: 'tremor' },
       { tipo: 'efeito', efeito: 'relampago' },
       { tipo: 'clima', clima: 'tempestade' },
@@ -84,6 +85,14 @@ test('validação recusa ms fora da faixa, tipo desconhecido, título vazio no l
   assert.match(passoValido({ tipo: 'som', ref: criarRef('jukebox', 'trilha' as any, 'musica') }) ?? '', /jukebox/i);
   assert.equal(passoValido({ tipo: 'som', ref: criarRef('jukebox', 'efeito', 'tiro') }), null);
   assert.equal(passoValido({ tipo: 'som', ref: criarRef('jukebox', 'cena-sonora', 'festa') }), null);
+
+  // silencio: ms 0..30000
+  assert.match(passoValido({ tipo: 'silencio', ms: -100 }) ?? '', /silêncio|silencio/i);
+  assert.match(passoValido({ tipo: 'silencio', ms: 35_000 }) ?? '', /silêncio|silencio/i);
+  assert.match(passoValido({ tipo: 'silencio', ms: '1000' as any }) ?? '', /silêncio|silencio/i);
+  assert.equal(passoValido({ tipo: 'silencio', ms: 0 }), null);
+  assert.equal(passoValido({ tipo: 'silencio', ms: 1500 }), null);
+  assert.equal(passoValido({ tipo: 'silencio', ms: 30_000 }), null);
 
   // tipo desconhecido
   assert.match(passoValido({ tipo: 'efeito-magico' }) ?? '', /desconhecido/i);
@@ -170,6 +179,7 @@ test('descreverPasso gera resumo em português e aponta quando alvo sumiu', () =
 
   assert.equal(descreverPasso({ tipo: 'esperar', ms: 1500 }), 'Esperar 1,5 s');
   assert.equal(descreverPasso({ tipo: 'som', ref: criarRef('jukebox', 'efeito', 'trovao') }), 'Som: trovao');
+  assert.equal(descreverPasso({ tipo: 'silencio', ms: 1500 }), 'Silêncio (1,5 s)');
   assert.equal(descreverPasso({ tipo: 'efeito', efeito: 'tremor' }), 'Efeito: Tremor');
   assert.equal(descreverPasso({ tipo: 'efeito', efeito: 'relampago' }), 'Efeito: Relâmpago');
   assert.equal(descreverPasso({ tipo: 'clima', clima: 'tempestade' }), 'Clima: tempestade');
