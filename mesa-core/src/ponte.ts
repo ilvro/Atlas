@@ -44,9 +44,26 @@ export interface OpcoesPonte {
   /** Para testes: substitui `setTimeout`/`clearTimeout`. */
   agendar?: (fn: () => void, ms: number) => unknown;
   cancelar?: (id: unknown) => void;
+  /** Para testes: substitui `Date.now`. */
+  agora?: () => number;
+}
+
+export type ConexaoDaPonte = 'desligada' | 'conectando' | 'conectada';
+export interface EstadoDaPonte {
+  conexao: ConexaoDaPonte;
+  /** Há alguma chamada de ferramenta em curso. */
+  ocupada: boolean;
+  /** Milissegundos desde 1970 do início da última chamada, ou `null`. */
+  ultimaChamadaEm: number | null;
+  /** Quantas ferramentas a aba oferece. */
+  ferramentas: number;
 }
 
 export interface ClienteDaPonte {
+  /** O estado agora (um instantâneo novo a cada mudança). */
+  estado(): EstadoDaPonte;
+  /** Chama `fn` a cada mudança de estado; devolve a função que cancela. */
+  aoMudarEstado(fn: (estado: EstadoDaPonte) => void): () => void;
   atualizar(ferramentas: FerramentaDaPonte[]): void;
   fechar(): void;
 }
@@ -58,6 +75,16 @@ export function conectarPonte(opcoes: OpcoesPonte): ClienteDaPonte {
   let ferramentas = opcoes.ferramentas, socket: SocketMinimo | null = null, fechado = false, tentativas = 0, temporizador: unknown = null, avisou = false;
   const agendar = opcoes.agendar ?? ((fn, ms) => setTimeout(fn, ms)), cancelar = opcoes.cancelar ?? (id => clearTimeout(id as ReturnType<typeof setTimeout>));
   const endereco = () => opcoes.url ?? `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/__ponte`;
+  let conexao: ConexaoDaPonte = 'conectando', emCurso = 0, ultimaChamadaEm: number | null = null, instantaneo: EstadoDaPonte;
+  const ouvintes = new Set<(e: EstadoDaPonte) => void>(), agora = opcoes.agora ?? Date.now;
+  const fotografar = (): EstadoDaPonte => ({ conexao, ocupada: emCurso > 0, ultimaChamadaEm, ferramentas: ferramentas.length });
+  instantaneo = fotografar();
+  const mudou = () => {
+    const novo = fotografar();
+    if (novo.conexao === instantaneo.conexao && novo.ocupada === instantaneo.ocupada && novo.ultimaChamadaEm === instantaneo.ultimaChamadaEm && novo.ferramentas === instantaneo.ferramentas) return;
+    instantaneo = novo;
+    for (const fn of [...ouvintes]) { try { fn(novo); } catch { /* ouvinte com defeito não derruba a ponte */ } }
+  };
   const enviar = (m: unknown) => { try { socket?.send(JSON.stringify(m)); } catch { /* socket caiu: a reconexão cuida */ } };
   const registrar = () => enviar({ tipo: 'registrar', app: opcoes.app, titulo: opcoes.titulo, ferramentas: ferramentas.map(({ nome, descricao, esquema }) => ({ nome, descricao, esquema })) });
   const foco = () => { if (socket) enviar({ tipo: 'foco' }); };
@@ -65,6 +92,11 @@ export function conectarPonte(opcoes: OpcoesPonte): ClienteDaPonte {
 
   async function atender(id: string, nome: string, args: Record<string, unknown>) {
     const f = ferramentas.find(x => x.nome === nome);
+    ultimaChamadaEm = agora(); emCurso++; mudou();
+    try { await executarChamada(id, f, nome, args); } finally { emCurso--; mudou(); }
+  }
+
+  async function executarChamada(id: string, f: FerramentaDaPonte | undefined, nome: string, args: Record<string, unknown>) {
     if (!f) { enviar({ tipo: 'resultado', id, ok: false, erro: `Ferramenta desconhecida: ${nome}` }); return; }
     try { enviar({ tipo: 'resultado', id, ok: true, conteudo: await f.executar(args) }); }
     catch (e) { enviar({ tipo: 'resultado', id, ok: false, erro: e instanceof Error ? e.message : String(e) }); }
@@ -75,8 +107,8 @@ export function conectarPonte(opcoes: OpcoesPonte): ClienteDaPonte {
     let s: SocketMinimo;
     try { s = (opcoes.criarSocket ?? (u => new WebSocket(u) as unknown as SocketMinimo))(endereco()); }
     catch { reconectar(); return; }
-    socket = s;
-    s.onopen = () => { tentativas = 0; avisou = false; registrar(); if (typeof document === 'undefined' || document.hasFocus?.() !== false) foco(); };
+    socket = s; conexao = 'conectando'; mudou();
+    s.onopen = () => { tentativas = 0; avisou = false; conexao = 'conectada'; mudou(); registrar(); if (typeof document === 'undefined' || document.hasFocus?.() !== false) foco(); };
     s.onmessage = ev => {
       let m: unknown;
       try { m = JSON.parse(String(ev.data)); } catch { return; }
@@ -88,7 +120,7 @@ export function conectarPonte(opcoes: OpcoesPonte): ClienteDaPonte {
     };
     s.onerror = () => { /* o onclose vem em seguida */ };
     s.onclose = () => {
-      if (socket === s) socket = null;
+      if (socket === s) { socket = null; conexao = 'desligada'; mudou(); }
       if (!avisou) { avisou = true; console.info(`[ponte] sem ponte do assistente (${opcoes.app}); tentando de novo em segundo plano.`); }
       reconectar();
     };
@@ -106,9 +138,11 @@ export function conectarPonte(opcoes: OpcoesPonte): ClienteDaPonte {
   conectar();
 
   return {
-    atualizar(novas) { ferramentas = novas; if (socket) registrar(); },
+    estado: () => instantaneo,
+    aoMudarEstado(fn) { ouvintes.add(fn); return () => { ouvintes.delete(fn); }; },
+    atualizar(novas) { ferramentas = novas; if (socket) registrar(); mudou(); },
     fechar() {
-      fechado = true;
+      fechado = true; conexao = 'desligada'; mudou();
       if (temporizador !== null) { cancelar(temporizador); temporizador = null; }
       if (typeof removeEventListener === 'function') removeEventListener('focus', foco);
       if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', aoVisibilidade);

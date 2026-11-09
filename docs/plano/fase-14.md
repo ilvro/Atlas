@@ -198,7 +198,7 @@ Pronto quando: `npm run ponte:verificar` passa e, com só a Mesa aberta no `mesa
 Commit: mesa on the assistant bridge and build check
 Nota: o Mesa ganhou o alias `#mesa/ponte` (`imports` do package.json, como no Atlas) e `ponte:verificar` aceita `--mesa <caminho>`/`MESA_DIR`; a busca usa nomes reais (`__ponte`, `conectarPonte`, `ponte_estado`, `atlas_mapa_ler`, `atlas_ver_mapa`, `campanha_ler`, `mesa_campanha_atual`) em vez de `ponte_` solto, para evitar falso positivo.
 
-### 14.1g — Presença do assistente na aba: selo e "o que estou vendo"  ⬜
+### 14.1g — Presença do assistente na aba: selo e "o que estou vendo"  ✅
 Objetivo: o mestre sabe que o assistente está conectado e pode se referir ao que tem na tela ("este cômodo", "esta sessão").
 Depende de: 14.1d, 14.1f
 Ler: `mesa-core/src/ponte.ts`, `src/app/ponte.ts`, `src/app/sessao.ts` (`selecao`), `src/ui/` (o cabeçalho do editor), `../Mesa/src/ui/Cabecalho.tsx`, `docs/INTERFACE.md`.
@@ -216,6 +216,7 @@ Não fazer: painel de atividade (14.2e).
 Testes: `atlas_o_que_vejo` com seleção de um cômodo e de dois objetos devolve os ids e nomes certos.
 Pronto quando: com o app do Claude conectado, o selo aparece nas duas abas; "o que eu selecionei?" responde certo.
 Commit: assistant presence badge and what-i-see tools
+Nota: o cliente expõe `estado()` (`conexao`, `ocupada`, `ultimaChamadaEm`, `ferramentas`) e `aoMudarEstado(fn)`. O selo entra por um signal `seloDoAssistente` (`src/app/assistente-slot.ts`, nos dois apps) que o cabeçalho lê e só o `ponte.ts` (dev) preenche; `SeloDoAssistente.tsx` leva o próprio CSS num `<style>` e a marca `selo-assistente` foi para `verificar-build.ts`. `oQueVejo` ficou em `ponte-leitura.ts` (Atlas) e em `src/app/o-que-vejo.ts` (Mesa, com teste em `tests/unit/o-que-vejo.test.ts`); a ficha não citava este arquivo da Mesa.
 
 ---
 
