@@ -1,6 +1,6 @@
 import { iniciarPistas } from './pistas.ts';
 import { abrirInspecao, fecharInspecao, inspecao, mostrandoAosJogadores } from './inspecao.ts';
-import type { Vista } from '../domain/inspecao.ts';
+import { VISTA_INICIAL, type Vista } from '../domain/inspecao.ts';
 import { aoRolar, iniciarFichas, pecaDaFicha, recursosDasFichas, adicionarPersonagem } from './fichas.ts';
 import { flutuarRolagem, ponto as pontoDaTela } from '../fx/fx.ts';
 import { batch, effect, signal } from '@preact/signals';
@@ -16,17 +16,19 @@ import { secretaOculta } from '../domain/nevoa.ts';
 import { presetDeClima } from '../domain/presets.ts';
 import { faiscar, flutuar, ponto } from '../fx/fx.ts';
 import { tocar, trovao } from '../fx/som.ts';
-import { todosOsAlvos, caixaDe, caixaDaSelecao, ehMovel, type Alvo, type ColecaoSelecionavel } from '../render/selecao.ts';
+import { todosOsAlvos, caixaDe, caixaDaSelecao, ehMovel, type Alvo, type Caixa, type ColecaoSelecionavel } from '../render/selecao.ts';
 import type { Viewport } from '../render/viewport.ts';
 import type { ColecaoLivre, Comando } from '../state/comandos.ts';
 import { embutido } from './embutido.ts';
 import { campanhaAtiva, carregarCampanhas, desvincularMapa, entidadesDaCampanha, refDoMapa, revincularMapa, sincronizarMapaComCampanha } from './campanha.ts';
-import { pedirCena, pedirSomDoClima, pedirSomDoMapa, tocarSomEscolhido } from './audio-do-clima.ts';
+import { pedirCena, pedirEfeito, pedirSomDoClima, pedirSomDoMapa, tocarSomEscolhido } from './audio-do-clima.ts';
 import { gatilhoJaDisparou, iniciarRegioes, marcarGatilhoDisparado } from './regioes.ts';
 import { modo, vistaDeJogador } from './modo.ts';
 import { iniciarSugestoes } from './sugestoes.ts';
-import { abrirJanelaDoProjetor, iniciarPublicacao, mapaNoProjetorId, projetorConectado, type Publicador } from './projetor.ts';
+import { abrirJanelaDoProjetor, ajustarAoAspecto, aspectoDoProjetor, caixaDoProjetor, iniciarPublicacao, mapaNoProjetorId, projetorConectado, seguirJogadores, type Publicador } from './projetor.ts';
 import type { EventoDeCena } from '../render/eventos-de-cena.ts';
+import type { EfeitoDeCena, PassoDeMomento } from '../domain/momentos.ts';
+import { executarPasso, momentoEmCurso, pararMomento, tocarMomento, type SaidasDeMomento } from './momentos.ts';
 import { lerRota, formatarRota, type Rota } from './rotas.ts';
 import { iniciarServicos, type Servicos } from './servicos.ts';
 import { criarSessao, type SessaoDeEdicao } from './sessao.ts';
@@ -245,6 +247,15 @@ effect(() => {
 /** Um evento de cena (tremor, piscar…) no mapa do mestre e, junto, no projetor. */
 export function dispararEventoDeCena(e: EventoDeCena): void { viewport.atual?.dispararEvento(e); publicador?.evento(e); }
 export function relampagoNoProjetor(): void { publicador?.relampago(); }
+export function dispararEfeitoDeCenaOuRelampago(efeito: EfeitoDeCena): void {
+  if (efeito === 'relampago') {
+    viewport.atual?.relampagoAgora();
+    relampagoNoProjetor();
+  } else {
+    dispararEventoDeCena(efeito);
+    if (efeito === 'tremor') trovao(1.2);
+  }
+}
 export function abrirProjetor(): void {
   const ativo = sessao.value?.doc.value.id ?? null;
   if (mapaNoProjetorId.value === null && ativo) {
@@ -297,13 +308,7 @@ export async function abrirMapa(id: string, comodo?: string): Promise<void> {
         avisar: texto => avisar(texto, { duracao: 4200 }),
         trocarClima: climaId => { aplicarClima(climaId); },
         dispararEfeito: efeito => {
-          if (efeito === 'relampago') {
-            viewport.atual?.relampagoAgora();
-            relampagoNoProjetor();
-          } else {
-            dispararEventoDeCena(efeito);
-            if (efeito === 'tremor') trovao(1.2);
-          }
+          dispararEfeitoDeCenaOuRelampago(efeito);
         },
         jaDisparou: regiaoId => gatilhoJaDisparou(id, regiaoId),
         marcarDisparo: regiaoId => { marcarGatilhoDisparado(id, regiaoId); },
@@ -827,3 +832,121 @@ effect(() => {
   if (mapaVisto && doc) pedirSomDoClima(mapaVisto, doc, servicos.peek()?.barramento);
   mapaVisto = doc;
 });
+
+// ---------- Momentos ----------
+export { momentoEmCurso, pararMomento };
+
+export function saidasDeMomento(s: Servicos | null): SaidasDeMomento {
+  return {
+    som: ref => {
+      if (ref.tipo === 'cena-sonora') pedirCena(s?.barramento, ref);
+      else if (ref.tipo === 'efeito') pedirEfeito(s?.barramento, ref);
+    },
+    efeito: e => {
+      dispararEfeitoDeCenaOuRelampago(e);
+    },
+    clima: id => {
+      aplicarClima(id);
+    },
+    tela: (acao, ms) => {
+      // 13.2a
+      console.debug('tela', acao, ms);
+    },
+    letreiro: l => {
+      // 13.2a
+      console.debug('letreiro', l);
+    },
+    camera: alvo => {
+      const doc = sessao.value?.doc.value;
+      if (!doc) return;
+      let caixa: Caixa | null = null;
+      if (alvo.colecao === 'rooms') {
+        const room = doc.rooms[alvo.id];
+        if (room && room.cells.length > 0) {
+          const t = doc.grid.size;
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          for (const [y, x0, n] of room.cells) {
+            minX = Math.min(minX, x0 * t);
+            maxX = Math.max(maxX, (x0 + n) * t);
+            minY = Math.min(minY, y * t);
+            maxY = Math.max(maxY, (y + 1) * t);
+          }
+          caixa = { x0: minX, y0: minY, x1: maxX, y1: maxY };
+        }
+      } else if (alvo.colecao === 'regions') {
+        const reg = doc.regions[alvo.id];
+        if (reg && reg.polygon.length > 0) {
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          for (const [x, y] of reg.polygon) {
+            minX = Math.min(minX, x);
+            maxX = Math.max(maxX, x);
+            minY = Math.min(minY, y);
+            maxY = Math.max(maxY, y);
+          }
+          caixa = { x0: minX, y0: minY, x1: maxX, y1: maxY };
+        }
+      } else if (alvo.colecao === 'tokens') {
+        const token = doc.tokens[alvo.id];
+        if (token) {
+          const raio = 3 * doc.grid.size;
+          caixa = {
+            x0: token.position[0] - raio,
+            y0: token.position[1] - raio,
+            x1: token.position[0] + raio,
+            y1: token.position[1] + raio,
+          };
+        }
+      }
+      if (caixa) {
+        seguirJogadores.value = false;
+        caixaDoProjetor.value = ajustarAoAspecto(caixa, aspectoDoProjetor.peek());
+      }
+    },
+    revelar: ids => {
+      const s = sessao.value;
+      if (!s) return;
+      const doc = s.doc.value;
+      const existentes = ids.filter(id => doc.rooms[id] || doc.openings[id] || doc.props[id]);
+      if (existentes.length > 0) {
+        s.store.executar({ tipo: 'sessao.revelar', ids: existentes });
+      }
+    },
+    interagir: id => {
+      const s = sessao.value;
+      if (!s) return;
+      const doc = s.doc.value;
+      if (doc.props[id]) {
+        s.store.executar({ tipo: 'interagir', id });
+      } else if (doc.openings[id]) {
+        alternarPorta(id);
+      }
+    },
+    pista: (ref, mostrar) => {
+      void abrirInspecao(ref).then(abriu => {
+        if (abriu && mostrar) {
+          mostrarInspecaoAosJogadores(VISTA_INICIAL, null);
+        }
+      });
+    },
+    nota: texto => {
+      avisar(texto, { duracao: 5000 });
+    },
+  };
+}
+
+export function tocarMomentoDoMapa(id: string): Promise<'fim' | 'cancelado'> {
+  const s = sessao.value;
+  if (!s) return Promise.resolve('cancelado');
+  const momento = s.doc.value.moments[id];
+  if (!momento) {
+    avisar('Momento não encontrado neste mapa.', { tipo: 'erro' });
+    return Promise.resolve('cancelado');
+  }
+  const saidas = saidasDeMomento(servicos.peek());
+  return tocarMomento(s.doc.value.id, momento, saidas);
+}
+
+export function executarPassoAvulso(p: PassoDeMomento): void {
+  const saidas = saidasDeMomento(servicos.peek());
+  executarPasso(p, saidas);
+}

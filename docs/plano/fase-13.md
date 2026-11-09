@@ -74,7 +74,7 @@ Commit: `moments in the map document`
 
 ---
 
-### 13.1b — Executor de momentos e saídas no app  ⬜
+### 13.1b — Executor de momentos e saídas no app  ✅
 Objetivo: tocar um momento passo a passo, com cancelamento, e ligar cada passo ao que o Atlas já sabe fazer.
 Depende de: 13.1a.
 Ler: `src/app/regioes.ts` (`SaidasDeRegiao`: o modelo de saídas injetadas); em `src/app/app.ts`: `iniciarRegioes(...)` com as saídas (~l. 294), `aplicarClima`, `dispararEventoDeCena`, `relampagoNoProjetor`; `src/app/audio-do-clima.ts` (`pedirCena`, pedido `jukebox.efeito`); `src/app/inspecao.ts` (`abrirInspecao`, `mostrandoAosJogadores`); `src/app/projetor.ts` (`caixaDoProjetor`, `ajustarAoAspecto`, `aspectoDoProjetor`, `seguirJogadores`); `src/fx/som.ts` (`trovao`).
