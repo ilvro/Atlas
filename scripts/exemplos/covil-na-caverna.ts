@@ -13,144 +13,64 @@ export const covilNaCaverna: Exemplo = {
     k.fundo({ kind: 'solid', color: '#050608' });
     k.base('vazio');
 
-    // Massa externa de rocha de caverna (deixando o vazio negro nas bordas externas)
-    k.pintar('rocha.caverna', {
-      poligono: [
-        [1.5, 0], [43.5, 0], [44.5, 8], [44, 26], [42.5, 33.2],
-        [3, 33.5], [1, 27], [0.8, 12],
-      ],
-      irregular: 0.7,
-    });
+    // Rocha viva cobrindo tudo, com mordidas do vazio nas bordas esquerda e direita.
+    k.pintar('rocha.caverna', { retangulo: [0.9, 0, 44.2, 34], irregular: 0.9 });
+    k.apagar({ disco: [21.6, 1.8], raio: 1.3, irregular: 0.5 });   // poço negro no alto do promontório
 
-    // Salão principal e corredor de entrada a noroeste escavados em rocha rachada
+    // O salão: entrada clara a noroeste, o promontório descendo do alto até y ≈ 14, o fundo escuro a leste.
     k.pintar('rocha.rachada', {
       poligono: [
-        [4.5, 0], [10.5, 0], [14.5, 5.5], [18.5, 8.5],
-        [20.5, 11.5], [27.5, 12.2], [31.5, 7.5], [37.5, 7.2],
-        [39.5, 14.5], [39.0, 25.5], [35.0, 29.0], [20.0, 28.8],
-        [16.5, 22.5], [7.5, 19.5], [5.5, 12.5], [4.0, 5.0],
+        [5.2, 0], [14.2, 0], [15.2, 3.2], [17.6, 5.6], [17.8, 9.5], [17.2, 12.4], [18.6, 14.8], [22.2, 14.6], [24.6, 12], [25.6, 7.2],
+        [27.6, 4.6], [33, 4.2], [38.6, 4.8], [39.8, 9], [39.4, 15], [40, 21], [39.6, 27], [36.5, 29.2], [29, 29.6], [20, 29.2],
+        [17.6, 28.8], [5.8, 29.2], [4.6, 24], [4.6, 18], [5.4, 12.5], [4.4, 6], [4.8, 2],
       ],
-      irregular: 0.55,
+      irregular: 0.6,
     });
+    // Patamar de pedras ao sul do salão (rochas soltas em faixa), com o ninho de esqueletos atrás dele.
+    for (const [c, r] of [[[5.6, 20.6], 1.7], [[8.4, 20.2], 1.5], [[10.8, 21.2], 1.2], [[13.2, 21.0], 1.5], [[15.4, 22], 1.3], [[17.4, 23.2], 1.1]] as const) k.pintar('rocha.caverna', { disco: [c[0], c[1]], raio: r, irregular: 0.6 });
+    k.pintar('rocha.caverna', { disco: [35.5, 9.8], raio: 1.6, irregular: 0.5 });
+    k.pintar('rocha.caverna', { disco: [37.2, 15.6], raio: 1.3, irregular: 0.5 });
 
-    // Recesso de ossos no canto sudoeste
-    k.pintar('rocha.rachada', {
-      poligono: [
-        [6.5, 22.0], [16.0, 22.5], [17.0, 29.2], [6.0, 29.0],
-      ],
-      irregular: 0.45,
-    });
+    // Dois rastros finos e paralelos de sangue seco: algo foi arrastado da entrada até as peles.
+    k.presenca('sangue-seco', { faixa: [[6, 0.6], [6.4, 5], [8, 9], [11, 12], [14.2, 14.4], [18, 16.4], [22, 17.2], [26, 18], [29, 19.2]], largura: 0.5, irregular: 0.2 }, 0.42);
+    k.presenca('sangue-seco', { faixa: [[7.6, 0.6], [8, 4.4], [9.6, 8], [12.6, 10.8], [15.6, 13], [19.2, 15.3], [23.2, 16.3], [27, 17.4], [29.6, 18.6]], largura: 0.4, irregular: 0.15 });
+    k.presenca('sangue-seco', { disco: [29.6, 19.4], raio: 0.7, irregular: 0.5 });
+    k.presenca('sangue-seco', { disco: [11.2, 7.6], raio: 0.55, irregular: 0.4 });
+    k.presenca('sangue-seco', { disco: [6.2, 21], raio: 0.7, irregular: 0.5 });
 
-    // Saliência maciça de rocha no centro-norte (o grande promontório da referência)
-    k.pintar('rocha.caverna', {
-      poligono: [
-        [18.0, 0], [32.0, 0], [30.5, 8.5], [27.5, 12.2],
-        [21.5, 12.0], [18.2, 8.5],
-      ],
-      irregular: 0.5,
-    });
+    // Árvore morta caída na boca da caverna, seixos e pedras soltas.
+    k.objeto('arvore-morta-caida', [10.6, 2.6], { rotation: 0.42, scale: 1.25 });
+    for (const [pos, esc] of [[[2.9, 2.6], 1.2], [[16.2, 8], 1.1], [[21.4, 14.2], 1], [[23.6, 15.3], 1.1], [[11.2, 20.4], 1], [[34.2, 7.4], 0.9], [[25.6, 21.8], 0.8]] as const) k.objeto('seixos', [pos[0], pos[1]], { scale: esc });
+    k.objeto('pedra.grande', [3.2, 4.4], { rotation: 0.4 });
+    k.objeto('rochedo', [16.6, 22.2], { params: { tamanho: 2.2 }, rotation: 0.6 });
+    k.objeto('rochedo', [9.4, 22.4], { params: { tamanho: 1.6 }, rotation: 2.1 });
 
-    // Fenda escura no topo do promontório
-    k.apagar({ poligono: [[21.2, 0], [24.8, 0], [24.2, 5.8], [21.5, 4.5]], irregular: 0.3 });
+    // Os dois buracos: na ponta do promontório e no chão a sudeste.
+    k.objeto('buraco', [19.6, 13.6], { params: { largura: 1.9 }, rotation: 0.3 });
+    k.objeto('buraco', [30.8, 26.8], { params: { largura: 1.3 }, rotation: -0.5 });
 
-    // Manchas de cascalho junto às paredes e ao fosso central
-    k.pintar('cascalho', { disco: [6.8, 5.2], raio: 2.2, irregular: 0.4 });
-    k.pintar('cascalho', { disco: [23.5, 14.0], raio: 2.4, irregular: 0.5 });
-    k.pintar('cascalho', { disco: [35.5, 23.5], raio: 2.6, irregular: 0.5 });
-    k.pintar('cascalho', { disco: [11.5, 21.0], raio: 2.0, irregular: 0.4 });
+    // O ninho: peles e ossos no fundo à direita.
+    k.objeto('pilha-de-peles', [31.8, 20.6], { rotation: 0.3, scale: 2.3 });
+    k.objeto('pilha-de-peles', [33.8, 22.4], { rotation: 1.9, scale: 1.7 });
+    k.objeto('pilha-de-ossos', [34.6, 19.2], { rotation: 0.8, scale: 1.5 });
 
-    // Escarpa interna separando o terraço de ossadas a sudoeste
-    k.parede([[6.0, 20.5], [12.5, 20.2], [16.8, 22.8], [17.2, 28.5]], {
-      kind: 'cliff',
-      height: 2.4,
-      thickness: 0.45,
-      material: 'rocha.caverna',
-      drop: 'a',
-      blocks: { move: true, sight: false, light: false },
-    });
-
-    // Rastro de sangue seco vindo da entrada até a pilha de peles e as ossadas
-    k.presenca('sangue-seco', {
-      faixa: [[6.5, 2.0], [9.5, 8.5], [15.0, 15.0], [22.5, 18.0], [29.5, 19.5]],
-      largura: 2.2,
-      irregular: 0.5,
-    });
-    k.presenca('sangue-seco', { disco: [31.0, 20.5], raio: 3.2, irregular: 0.6 });
-    k.presenca('sangue-seco', { disco: [10.5, 26.0], raio: 2.5, irregular: 0.5 });
-    k.presenca('fuligem', { disco: [34.5, 12.5], raio: 2.8, irregular: 0.5 });
-
-    // Árvore morta caída na entrada iluminada
-    k.objeto('arvore-morta-caida', [11.2, 4.2], { rotation: 0.58, scale: 1.15 });
-
-    // Dois buracos no chão da caverna
-    k.objeto('buraco', [19.8, 13.6], { params: { largura: 2.4 }, rotation: 0.3 });
-    k.objeto('buraco', [30.8, 27.2], { params: { largura: 1.6 }, rotation: -0.4 });
-
-    // Ninho de peles no covil à direita
-    k.objeto('pilha-de-peles', [30.2, 19.6], { rotation: 0.25, scale: 1.35 });
-    k.objeto('pilha-de-peles', [32.0, 21.0], { rotation: 1.85, scale: 1.15 });
-
-    // Ossadas e pilhas de ossos no terraço sudoeste e pelo chão
-    k.objeto('pilha-de-ossos', [8.8, 26.2], { rotation: 0.4, scale: 1.25 });
-    k.objeto('pilha-de-ossos', [11.2, 27.4], { rotation: 2.1, scale: 1.15 });
-    k.objeto('ossada', [10.2, 24.6], { rotation: -0.35, scale: 1.1 });
-    k.objeto('ossada', [13.0, 26.8], { rotation: 1.2, scale: 1.05 });
-    k.objeto('ossada', [21.2, 25.4], { rotation: 2.65, scale: 1.1 });
-    k.objeto('ossada', [27.0, 25.2], { rotation: -1.1, scale: 1.15 });
-    k.objeto('ossada', [28.8, 12.2], { rotation: 0.95, scale: 1.0 });
-    k.objeto('ossada', [34.2, 22.8], { rotation: -0.7, scale: 0.95 });
-
-    // Crânios espalhados
-    k.objeto('cranio-animal', [8.1, 16.8], { params: { chifres: 1 }, rotation: 0.7, scale: 1.2 });
-    k.objeto('cranio-animal', [13.9, 7.8], { params: { chifres: 0 }, rotation: 2.1, scale: 1.1 });
-    k.objeto('cranio-animal', [25.2, 23.0], { params: { chifres: 1 }, rotation: -0.8, scale: 1.15 });
-    k.objeto('cranio-animal', [33.5, 17.5], { params: { chifres: 0 }, rotation: 1.4, scale: 1.1 });
-
-    // Estalagmites, rochedos e seixos junto às paredes
-    for (const [pos, tam] of [
-      [[3.8, 4.2], 0.75], [[3.5, 6.2], 0.6], [[15.8, 7.8], 0.7],
-      [[17.0, 24.5], 0.65], [[37.2, 9.8], 0.75], [[38.0, 17.2], 0.6],
-    ] as const) {
-      k.objeto('estalagmite', [pos[0], pos[1]], { params: { tamanho: tam } });
-    }
-    for (const [pos, esc] of [
-      [[4.5, 2.2], 1.0], [[12.0, 19.2], 1.1], [[23.2, 13.8], 1.2],
-      [[36.0, 8.8], 1.0], [[35.8, 27.2], 1.1], [[15.2, 24.2], 0.9],
-    ] as const) {
-      k.objeto('seixos', [pos[0], pos[1]], { scale: esc });
-    }
-    k.objeto('pedra.grande', [15.5, 5.2], { rotation: 0.4 });
-    k.objeto('pedra.media', [14.2, 23.2], { rotation: 1.1 });
-    k.objeto('pedra.media', [37.5, 13.5], { rotation: 2.3 });
+    // Esqueletos atrás do patamar ao sul, pelo chão e no escuro a leste.
+    for (const [pos, rot, esc] of [
+      [[8.2, 25.4], 1.4, 1.2], [[11, 26.8], 0.3, 1.15], [[7.2, 27.8], -0.4, 1.1], [[13.4, 25.2], 2.0, 1.1],
+      [[22.2, 25], -0.6, 1.2], [[27.6, 25.6], 1.9, 1.2], [[30.6, 9.2], 1.3, 0.85], [[27.4, 12.6], 2.5, 0.8],
+    ] as const) k.objeto('ossada', [pos[0], pos[1]], { rotation: rot, scale: esc * 1.35 });
+    k.objeto('pilha-de-ossos', [9.8, 28], { rotation: 1.1, scale: 1.8 });
+    for (const [pos, chifres, rot] of [[[8, 16.4], 0, 0.7], [[12.6, 23.6], 1, 2.1], [[36.2, 25], 0, -0.8], [[29, 16], 1, 1.4]] as const) k.objeto('cranio-animal', [pos[0], pos[1]], { params: { chifres }, rotation: rot, scale: 1.8 });
 
     // Luz: feixe frio entrando pela boca da caverna a noroeste, o resto na penumbra
-    k.luz('farol', [7.5, 2.5], {
-      radius: 26,
-      color: '#e8f2ff',
-      intensity: 1.4,
-      flicker: 0,
-      power: 'magic',
-      direcao: 0.85,
-      cone: { angle: 0.95, direction: 0.85 },
-      rays: true,
-    });
-    k.luz('luar', [11.5, 9.5], {
-      radius: 16,
-      color: '#dceaff',
-      intensity: 0.85,
-      flicker: 0,
-    });
-    k.luz('luar', [18.5, 16.5], {
-      radius: 14,
-      color: '#bcd2ec',
-      intensity: 0.55,
-      flicker: 0,
-    });
+    k.luz('farol', [5.5, -0.5], { radius: 26, color: '#e8f2ff', intensity: 1.5, flicker: 0, power: 'magic', cone: { angle: 0.85, direction: 1.0 }, rays: true });
+    k.luz('luar', [10, 8.5], { radius: 14, color: '#dceaff', intensity: 0.8, flicker: 0 });
+    k.luz('luar', [22, 20], { radius: 16, color: '#9fb6d2', intensity: 0.35, flicker: 0 });
 
     // Clima e acabamento: penumbra subterrânea azulada com bordas negras e halo no feixe
     k.clima('noite', {
       time: '00:00',
-      ambient: { color: '#9ab0c7', intensity: 0.62 },
+      ambient: { color: '#9ab0c7', intensity: 0.72 },
       sun: null,
       tempo: { fog: 0, dust: 0.15 },
     });

@@ -13,51 +13,24 @@ export const ruinaCosteira: Exemplo = {
     k.fundo({ kind: 'solid', color: '#0c2436' });
     k.base('areia.molhada');
 
-    // Calçamento antigo de lajes com grama na parte oeste e central
-    k.pintar('lajes.gramadas', { retangulo: [-3, -3, 39.5, 40], irregular: 0.25 });
+    // Calçamento antigo de lajes grandes com grama, gasto: manchas de terra e grama seca entre as lajes.
+    k.pintar('lajes.gramadas', { retangulo: [-3, -3, 40, 40], irregular: 0.25 });
+    for (const [c, r] of [[[17, 3.5], 2.6], [[3.5, 29.5], 1.8], [[10.5, 9], 1.4]] as const) k.pintar('terra', { disco: [c[0], c[1]], raio: r, irregular: 1.4 });
+    // O planalto de pedra clara em volta da ruína (a falésia o sustenta) e a passarela oeste.
+    k.pintar('lajes.antigas', { poligono: [[17, 9.5], [21.5, 6.5], [31, 6], [35, 9.5], [36.5, 15], [37, 23], [35, 29.5], [30, 31.5], [22.5, 31], [18.5, 27.5], [17, 22.6], [17, 15.4]], irregular: 0.5 });
+    k.pintar('calcada', { retangulo: [-2, 16.0, 17.2, 22.0], irregular: 0.08 });
 
-    // Clareiras de terra junto aos tocos de árvore cortados
-    k.pintar('terra', { disco: [15.5, 5.5], raio: 4.5, irregular: 0.8 });
-    k.pintar('terra', { disco: [3.5, 28.5], raio: 3.2, irregular: 0.6 });
+    // A falésia: rocha de arenito do planalto até o mar, coberta de rochedos (abaixo).
+    k.pintar('rocha.arenito', { poligono: [[32.5, -3], [39.5, -3], [41, 6], [40.2, 14], [41.2, 22], [40, 30], [41, 40], [30, 40], [33.5, 31], [36.6, 25.5], [37.6, 18], [36.2, 11], [33, 6]], irregular: 0.7 });
 
-    // Mar agitado na costa leste (estendendo além da borda direita para não criar espuma de margem ali)
-    k.pintar('agua.mar', {
-      poligono: [
-        [37.5, -3], [53, -3], [53, 40], [37.0, 40],
-        [38.5, 30.0], [41.5, 23.0], [42.0, 15.0], [39.0, 7.0],
-      ],
-      irregular: 0.65,
-    });
+    // Mar largo e agitado a leste, com duas ilhotas de rocha.
+    k.pintar('agua.mar', { poligono: [[40.2, -3], [53, -3], [53, 40], [40.4, 40], [39.6, 31], [40.8, 22], [39.6, 14], [40.4, 6]], irregular: 0.8 });
     k.correnteza('agua.mar', Math.PI, 0.95);
+    k.pintar('rocha.arenito', { disco: [44.4, 4.4], raio: 4.4, irregular: 0.7 });
+    k.pintar('rocha.arenito', { disco: [43.4, 33.4], raio: 3, irregular: 0.6 });
 
-    // Falésia costeira de arenito sustentando a plataforma e duas ilhotas no mar
-    k.pintar('rocha.arenito', {
-      poligono: [
-        [27.0, -3], [38.5, -3], [40.5, 8.5], [43.0, 16.5],
-        [42.2, 23.5], [39.5, 31.0], [38.0, 40.0], [26.5, 40.0],
-        [22.0, 30.0], [16.5, 24.0], [16.5, 13.5], [23.0, 7.5],
-      ],
-      irregular: 0.6,
-    });
-    // Ilhota norte e ilhota sul no mar
-    k.pintar('rocha.arenito', { disco: [44.2, 5.5], raio: 4.2, irregular: 0.55 });
-    k.pintar('rocha.arenito', { disco: [43.2, 32.2], raio: 3.2, irregular: 0.45 });
-
-    // Plataforma octogonal de lajes claras e passarela oeste
-    k.pintar('calcada', {
-      poligono: [
-        [20.5, 15.2], [25.2, 11.2], [31.8, 11.2], [36.2, 15.2],
-        [36.2, 22.8], [31.8, 26.8], [25.2, 26.8], [20.5, 22.8],
-      ],
-      irregular: 0.08,
-    });
-    k.pintar('calcada', { retangulo: [-2, 16.0, 21.0, 22.0], irregular: 0.1 });
-    // Terraços norte e sul da ruína
-    k.pintar('calcada', { retangulo: [22.0, 8.2, 31.5, 12.0], irregular: 0.12 });
-    k.pintar('calcada', { retangulo: [21.5, 26.0, 31.5, 31.2], irregular: 0.12 });
-
-    // Fuligem leve onde a passarela oeste foi destruída
-    k.presenca('fuligem', { disco: [8.8, 19.0], raio: 2.2, irregular: 0.65 });
+    // Escombros queimados na passarela destruída.
+    k.presenca('fuligem', { faixa: [[3.5, 19], [8, 18.8], [13.5, 19.4]], largura: 3.4, irregular: 0.9 }, 0.35);
 
     // Círculo rúnico entalhado no centro da plataforma octogonal
     k.objeto('circulo-runico', [28.5, 19.0], {
@@ -105,38 +78,29 @@ export const ruinaCosteira: Exemplo = {
     k.objeto('viga-partida', [10.6, 19.0], { rotation: 0.24, scale: 1.45, layer: 4 });
     k.objeto('viga-partida', [34.4, 18.4], { rotation: 0.02, scale: 1.4, layer: 4 });
 
-    // Trilha de escombros na passarela quebrada
-    for (const [pos, rot, esc] of [
-      [[5.8, 18.2], 0.3, 1.35],
-      [[7.5, 19.8], 1.4, 1.45],
-      [[9.2, 18.5], 2.2, 1.4],
-      [[10.8, 20.2], 0.8, 1.3],
-      [[12.6, 17.8], 1.9, 1.25],
-      [[8.2, 16.5], 0.5, 1.15],
-      [[8.5, 21.6], 2.6, 1.15],
-    ] as const) {
-      k.objeto('escombros', [pos[0], pos[1]], { rotation: rot, scale: esc });
+    // Trilha de escombros na passarela quebrada.
+    for (let n = 0; n < 22; n++) {
+      const x = 3 + (n / 21) * 11.5 + Math.sin(n * 2.3) * 0.8, y = 16.8 + ((n * 0.618) % 1) * 4.6;
+      k.objeto('escombros', [x, y], { params: { queimado: 1 }, rotation: n * 1.7, scale: 1.3 + ((n * 0.37) % 0.6), layer: 3 });
     }
 
-    // Rochedos com musgo nas falésias e nas ilhotas
-    for (const [pos, tam, cob, rot] of [
-      [[31.5, 7.2], 3.8, 1, 0.3],
-      [[35.5, 15.5], 3.2, 1, 1.1],
-      [[34.2, 24.5], 3.6, 1, -0.6],
-      [[26.8, 31.8], 3.4, 1, 0.8],
-      [[18.2, 11.2], 2.8, 1, -0.4],
-      [[44.2, 5.5], 4.2, 1, 0.5],
-      [[43.2, 32.2], 3.0, 1, 1.4],
-    ] as const) {
-      k.objeto('rochedo', [pos[0], pos[1]], { params: { tamanho: tam, cobertura: cob }, rotation: rot });
-    }
+    // Rochedos de arenito com musgo empilhados ao longo da falésia, em volta do planalto e nas ilhotas.
+    for (const [pos, tam, rot] of [
+      [[33.8, 3.2], 4.2, 0.3], [[37.4, 8.4], 4.6, 1.1], [[34.2, 9.8], 3.4, 2.2], [[38.6, 14.6], 4.4, 0.6], [[37.2, 20.8], 4.2, 1.6], [[38.8, 26.2], 4.8, 0.2],
+      [[35.2, 25.6], 3.6, 2.6], [[36.2, 31.6], 4.4, 1.2], [[32.4, 34.4], 4.2, 0.4], [[27.2, 33.2], 3.8, 2], [[38.8, 35.8], 3.6, 0.9], [[39.6, 2.6], 4, 2.4], [[40, 19.4], 3.6, 0.3], [[36.4, 14.2], 3, 1.8], [[33.6, 29.4], 3.2, 2.9],
+      [[20.4, 10.6], 2.8, -0.4], [[24.2, 7.4], 2.4, 0.8], [[30.6, 4.6], 3.2, 1.9], [[21.2, 27.4], 2.6, 0.5],
+      [[44.4, 4.4], 4.4, 0.5], [[46.4, 7.2], 3, 2.1], [[43.4, 33.4], 3.4, 1.4],
+    ] as const) k.objeto('rochedo', [pos[0], pos[1]], { params: { tamanho: Math.min(5, tam * 1.15), cobertura: 1, tom: 1 }, rotation: rot, scale: 1.35 });
+    for (const [pos, esc] of [[[17.5, 7.6], 1.2], [[22.6, 12.4], 1], [[19, 25.5], 1.1], [[12.8, 2.6], 1]] as const) k.objeto('seixos', [pos[0], pos[1]], { scale: esc });
 
     // Copas densas de carvalho grande, raízes expostas, tocos e tufos de grama
     for (const [item, pos, esc] of [
       ['casa:carvalho-grande-8m', [25.0, 3.8], 1.05],
       ['casa:carvalho-grande-7m', [15.2, 28.2], 1.0],
       ['casa:carvalho-grande-8m', [20.5, 33.2], 1.05],
-      ['casa:carvalho-grande-6m', [1.8, 7.2], 1.0],
+      ['casa:carvalho-grande-6m', [0.6, 7.6], 1.1],
+      ['casa:carvalho-grande-6m', [11.4, 31.2], 1.0],
+      ['casa:carvalho-grande-7m', [24.6, 35.8], 0.95],
     ] as const) {
       k.objeto(item, [pos[0], pos[1]], { scale: esc });
     }
