@@ -220,7 +220,7 @@ Nota: o cliente expõe `estado()` (`conexao`, `ocupada`, `ultimaChamadaEm`, `fer
 
 ---
 
-### 14.2a — Construção em comandos: módulo puro compartilhado  ⬜
+### 14.2a — Construção em comandos: módulo puro compartilhado  ✅
 Objetivo: as operações do kit dos exemplos (formas, cômodos, portas, objetos, luzes) viram funções puras que **devolvem comandos**, para as ferramentas da ponte usarem sem duplicar a lógica do kit.
 Depende de: —
 Ler: `scripts/exemplos/kit.ts` (`medir`, `chavesDe`, `comodo`, `parede`, `porta`, `objeto`, `luz`, `espalhar`, `regiao`), `src/state/comandos.ts` e `src/state/comandos-construir.ts` (os tipos `Comando`), `src/domain/fabrica.ts` (`novoObjeto`, `novaLuz`, `novoIdEntidade`), `src/domain/geometria.ts` (`encaixarNaParede`, `motivoDeNaoCaber`), `src/procedural/acervo.ts`, `src/domain/presets.ts`.
@@ -241,6 +241,8 @@ Não fazer: as ferramentas (14.2b); mudar o kit além de importar `formas.ts`.
 Testes: cada função num mapa vazio gera os comandos esperados e, aplicados com `aplicarComando`, dão um mapa que passa em `validarMapa`. Porta logo depois de um cômodo na mesma lista encaixa. Erros trazem a lista de opções. `npm run exemplos -- --sem-miniatura` não muda nenhum `public/exemplos/*.atlas.json` (`git diff --stat` vazio).
 Pronto quando: os testes passam e os exemplos continuam idênticos.
 Commit: shared construction helpers that emit commands
+
+Nota: `formas.ts` também exporta `medirForma`, `chavesDaForma` e `sementeDaForma` (o kit e `espalhar` precisam da medida); `celulasDaForma` recebe `semente` como semente direta do ruído. Cada função tem `semente = 1` e `gerarId = novoIdEntidade` opcionais. `portas` encaixa sobre o mapa recebido (cada abertura vê as anteriores); para cômodos da mesma chamada use `aplicarEmCopia(mapa, comodos(...).comandos)`.
 
 ### 14.2b — Ferramentas de escrita do mapa: criar, terreno, cômodos, paredes, portas  ⬜
 Objetivo: o Claude cria um mapa e levanta a estrutura dele, e cada chamada é um passo de desfazer.
