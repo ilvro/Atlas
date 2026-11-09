@@ -178,7 +178,7 @@ Commit: `effects hotbar keys`
 
 ---
 
-### 13.4b — Barra de Efeitos: a barra na tela e a configuração dos espaços  ⬜
+### 13.4b — Barra de Efeitos: a barra na tela e a configuração dos espaços  ✅
 Objetivo: ver, disparar e configurar os nove espaços com o mouse.
 Depende de: 13.4a, 13.3a (reaproveita os campos de passo do editor).
 Ler: `src/ui/BarraInferior.tsx` (posição e estilo da barra flutuante do pé do mapa); `src/ui/Momentos.tsx` (campos por tipo de passo).

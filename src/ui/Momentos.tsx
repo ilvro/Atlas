@@ -170,7 +170,7 @@ export function SecaoDeMomentos({ s }: { s: SessaoDeEdicao }) {
 }
 
 /** Formulário para editar campos específicos de um passo. */
-function CamposDoPasso({
+export function CamposDoPasso({
   s,
   passo,
   aoAtualizar,
@@ -253,6 +253,22 @@ function CamposDoPasso({
               if (ref) aoAtualizar({ ...passo, ref });
             }}
           />
+          <div class="campos-passo-linha">
+            <label class="dock-rotulo" style={{ flex: 1 }}>
+              Ou ID do áudio:
+              <input
+                type="text"
+                class="campo-texto"
+                data-testid="passo-som-id"
+                placeholder="ex: grito, trovao, porta…"
+                value={passo.ref.id}
+                onInput={e => {
+                  const id = (e.target as HTMLInputElement).value.trim();
+                  if (id) aoAtualizar({ ...passo, ref: criarRef('jukebox', tipoSom.value, id) });
+                }}
+              />
+            </label>
+          </div>
         </div>
       );
     }

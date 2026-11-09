@@ -39,6 +39,14 @@ const CAMINHOS: Record<string, string> = {
   gaveta: 'M4 5h16v14H4zM4 9h16M10 13h4',
   copiar: 'M9 9h11v11H9zM5 15V4h11',
   fechar: 'M6 6l12 12M18 6L6 18',
+  play: 'M5 3l14 9-14 9V3z',
+  lapis: 'M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z',
+  sol: 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z',
+  'chevron-baixo': 'M19 9l-7 7-7-7',
+  'chevron-cima': 'M5 15l7-7 7 7',
+  texto: 'M4 7V4h16v3M9 20h6M12 4v16',
+  nota: 'M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z',
+  tremor: 'M2 12l3-6 4 12 4-12 4 12 3-6',
 };
 
 export function Icone({ nome, tamanho = 18 }: { nome: string; tamanho?: number }) {
