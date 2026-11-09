@@ -165,7 +165,7 @@ Pronto quando: no app do Claude, "liste os mapas e descreva o aberto" responde c
 Commit: atlas read tools for the assistant
 Nota: `package.json` ganhou o alias `#mesa/ponte` (`mesa-core/src/ponte.ts`), pois a ponte não está no `index.ts`. `ferramentasDeLeitura` recebe um contexto mínimo (`repo`, `mapaAberto`, `abrirMapa`) em vez dos `servicos` inteiros. `atlas_catalogo` sem `parte` devolve um índice com contagens (receitas e coleção são grandes); a parte `climas` inclui também acabamentos, gêneros e tipos de cômodo. O resumo do covil tem 3.006 caracteres. Build de produção sem traço da ponte (grep vazio).
 
-### 14.1e — Atlas: ver o mapa  ⬜
+### 14.1e — Atlas: ver o mapa  ✅
 Objetivo: o Claude enxerga o mapa como o mestre vê, para conferir o que montou.
 Depende de: 14.1d
 Ler: `scripts/exemplos/gerar.ts` (como a captura prepara a vista: `definirModoProjetor`, `enquadrarCaixa`, esperar `pintando === 0`), `src/render/viewport.ts`, `src/render/cena.ts`.
@@ -182,6 +182,7 @@ Não fazer: comparação com referência (a skill da 14.2f ensina).
 Testes: e2e: num exemplo, a captura tem o tamanho esperado, não é vazia (variância de pixels) e a câmera volta ao lugar.
 Pronto quando: no app do Claude, "olhe o mapa aberto" mostra a imagem e o Claude a descreve.
 Commit: map snapshot tool
+Nota: `capturar` devolve `{ dataUrl, largura, altura, pxPorMetro, caixa }` (a caixa é recortada ao mapa) e recorta a imagem à própria caixa, não à tela; usa `renderer.extract.canvas` sobre a stage, com `resolution` calculada para o maior lado caber em `ladoMaximo`. O parâmetro `estilo` ficou de fora (trocar o estilo re-assaria tudo e mexeria no documento); `atlas_ver_mapa` só aceita `caixa`. O contexto da ponte ganhou `capturar` (opcional). Captura do covil (45 × 34 m) com `ladoMaximo` 800: 800 × 604 px, 17,77 px/m.
 
 ### 14.1f — Mesa na ponte e verificação do build  ⬜
 Objetivo: com só a Mesa aberta, o Claude já lê a campanha; e fica provado que nada disso vai para o Pages.
