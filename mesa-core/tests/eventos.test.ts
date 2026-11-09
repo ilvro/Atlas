@@ -162,6 +162,32 @@ test('validação de ficha.ajustar-recursos e atlas.preparar-cena', () => {
     })).ok,
     true
   );
+
+  // jukebox.parar
+  assert.equal(
+    validarEvento(base({
+      app: 'atlas',
+      tipo: 'jukebox.parar',
+      dados: { ms: 800 },
+    })).ok,
+    true
+  );
+  assert.equal(
+    validarEvento(base({
+      app: 'atlas',
+      tipo: 'jukebox.parar',
+      dados: {},
+    })).ok,
+    true
+  );
+  assert.equal(
+    validarEvento(base({
+      app: 'atlas',
+      tipo: 'jukebox.parar',
+      dados: { ms: 'rapido' },
+    })).ok,
+    false
+  );
 });
 
 test.after(() => { for (const b of abertos) b.fechar(); });

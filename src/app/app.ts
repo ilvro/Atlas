@@ -21,7 +21,7 @@ import type { Viewport } from '../render/viewport.ts';
 import type { ColecaoLivre, Comando } from '../state/comandos.ts';
 import { embutido } from './embutido.ts';
 import { campanhaAtiva, carregarCampanhas, desvincularMapa, entidadesDaCampanha, refDoMapa, revincularMapa, sincronizarMapaComCampanha } from './campanha.ts';
-import { pedirCena, pedirEfeito, pedirSomDoClima, pedirSomDoMapa, tocarSomEscolhido } from './audio-do-clima.ts';
+import { pedirCena, pedirEfeito, pedirSilencio, pedirSomDoClima, pedirSomDoMapa, tocarSomEscolhido } from './audio-do-clima.ts';
 import { gatilhoJaDisparou, iniciarRegioes, marcarGatilhoDisparado } from './regioes.ts';
 import { modo, vistaDeJogador } from './modo.ts';
 import { iniciarSugestoes } from './sugestoes.ts';
@@ -835,13 +835,16 @@ effect(() => {
 });
 
 // ---------- Momentos ----------
-export { momentoEmCurso, pararMomento, telaEscura };
+export { momentoEmCurso, pararMomento, telaEscura, pedirSilencio };
 
 export function saidasDeMomento(s: Servicos | null): SaidasDeMomento {
   return {
     som: ref => {
       if (ref.tipo === 'cena-sonora') pedirCena(s?.barramento, ref);
       else if (ref.tipo === 'efeito') pedirEfeito(s?.barramento, ref);
+    },
+    silencio: ms => {
+      pedirSilencio(s?.barramento, ms);
     },
     efeito: e => {
       dispararEfeitoDeCenaOuRelampago(e);

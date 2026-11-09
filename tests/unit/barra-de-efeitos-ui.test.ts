@@ -50,6 +50,12 @@ test('obterIconeDoEspaco: devolve o ícone correspondente a cada tipo de ação'
   };
   assert.equal(obterIconeDoEspaco(espacoSom), 'som');
 
+  const espacoSilencio: EspacoDaBarra = {
+    rotulo: 'Silêncio',
+    acao: { tipo: 'passo', passo: { tipo: 'silencio', ms: 1000 } },
+  };
+  assert.equal(obterIconeDoEspaco(espacoSilencio), 'mudo');
+
   const espacoClima: EspacoDaBarra = {
     rotulo: 'Apagão',
     acao: { tipo: 'passo', passo: { tipo: 'clima', clima: 'apagao' } },
