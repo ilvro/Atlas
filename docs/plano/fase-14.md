@@ -106,7 +106,7 @@ Pronto quando: os testes passam e `npm run mesa-dev` sobe com a ponte (sem mudar
 Commit: assistant bridge in mesa-dev
 Nota: `criarPonte` ganhou `abas()` (para a linha do índice) e `tempoDaChamadaMs` opcional (para testar o prazo); `criarProxy(projetos, ponte?)` recebe a ponte, criada em `principal` com a origem `http://127.0.0.1:<porta>`. Cliente MCP = conexão sem header `Origin` (autentica com o token); navegador sempre manda `Origin`, então é tratado como aba. `ws` 8.22.2 e `@types/ws` 8.18.2 em versão exata.
 
-### 14.1b — Cliente da ponte e ferramentas da campanha no `mesa-core`  ⬜
+### 14.1b — Cliente da ponte e ferramentas da campanha no `mesa-core`  ✅
 Objetivo: um app registra ferramentas na ponte com uma chamada; toda aba já oferece a leitura da campanha.
 Depende de: 14.1a (protocolo)
 Ler: `mesa-core/src/campanha.ts`, `mesa-core/src/idb.ts`, `mesa-core/src/index.ts`, `mesa-core/tsconfig.build.json`, `scripts/ponte/protocolo.ts`.
@@ -125,6 +125,7 @@ Não fazer: escrita na campanha (etapa 3).
 Testes: com um WebSocket falso: registra ao abrir, responde `chamar` com o resultado e com o erro, reconecta depois de cair; as ferramentas da campanha sobre um banco em memória (`fake-indexeddb`, como os testes atuais do `mesa-core`) devolvem o esperado e omitem blobs.
 Pronto quando: `npm run build:core` gera `dist/ponte.js` e os testes passam.
 Commit: bridge client and campaign tools in mesa-core
+Nota: `tsconfig.build.json` não precisou mudar (`include: ["src"]` já emite `dist/ponte.js`). `ferramentasDaCampanha(obterRepositorio)` recebe como abrir o repositório (o app passa o dele). `conectarPonte` aceita `url`, `criarSocket`, `agendar` e `cancelar` opcionais (para testes). Os tipos do protocolo são redeclarados em `ponte.ts` (o `mesa-core` não importa de `scripts/`). `campanha_entidade_ler` inclui as ligações da entidade; `campanha_sessao_ler` procura a sessão em todas as campanhas. `dist/` é ignorado pelo git.
 
 ### 14.1c — Servidor MCP e registro no app do Claude  ⬜
 Objetivo: o app do Claude (e, opcionalmente, o Claude Code) enxerga as ferramentas das abas abertas.
