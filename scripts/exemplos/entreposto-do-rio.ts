@@ -11,55 +11,32 @@ export const entrepostoDoRio: Exemplo = {
   construir(k) {
     k.estilo({ genre: 'fantasia', palette: 'fantasia-pedra' });
     k.fundo({ kind: 'solid', color: '#0c2430' });
-    k.base('areia');
+    k.base('terra');
 
-    // Floresta e margens de grama ao norte e sudoeste
-    k.pintar('grama', { retangulo: [-3, -3, 6.0, 12.0], irregular: 0.65 });
-    k.pintar('grama', { retangulo: [13.5, -3, 30.5, 9.8], irregular: 0.65 });
-    k.pintar('grama', { retangulo: [-3, 29.5, 6.5, 39.0], irregular: 0.65 });
-    k.pintar('grama', { retangulo: [33.5, 30.0, 40.5, 39.0], irregular: 0.55 });
+    // Mata ao norte e manchas de grama nas bordas oeste e sul; o resto é terra batida.
+    k.pintar('grama.escura', { poligono: [[13, -3], [31, -3], [31.5, 6], [29, 9.2], [24, 9.6], [19, 8.6], [14.5, 6.5]], irregular: 0.9 });
+    k.pintar('grama', { retangulo: [-3, -3, 3.6, 12.0], irregular: 0.9 });
+    k.pintar('grama', { retangulo: [-3, 27, 5, 39], irregular: 0.9 });
+    k.pintar('grama.seca', { disco: [3, 20], raio: 2.6, irregular: 1.2 });
+    k.pintar('grama.seca', { disco: [8.6, 3.4], raio: 2.2, irregular: 1.2 });
 
-    // Estrada de terra com sulcos de roda a oeste
-    k.pintar('terra.sulcos', {
-      faixa: [[8.5, -2.0], [7.8, 9.0], [6.5, 20.0], [5.8, 38.0]],
-      largura: 4.6,
-      irregular: 0.35,
-    });
-    k.presenca('sulcos', {
-      faixa: [[8.5, 0.5], [7.8, 10.0], [6.5, 22.0], [5.8, 35.0]],
-      largura: 2.0,
-      irregular: 0.2,
-    });
+    // Sulcos das rodas: a carroça veio do norte pela terra e fez a curva até o deque.
+    k.presenca('sulcos', { faixa: [[7.8, -1], [7, 8], [6.6, 14], [8.2, 18], [12, 18.4]], largura: 2.0, irregular: 0.3 }, 0.55);
+    k.presenca('sulcos', { faixa: [[10.6, 6], [14.6, 9.6], [19.4, 11.6], [21.6, 13.6]], largura: 1.8, irregular: 0.3 });
 
-    // Faixa de areia molhada na beira do rio
-    k.pintar('areia.molhada', {
-      faixa: [[31.5, -2.0], [34.5, 12.0], [37.5, 23.0], [40.5, 38.0]],
-      largura: 3.0,
-      irregular: 0.45,
-    });
+    // Praia de areia molhada na beira da água, sob o deque e ao sul dele.
+    k.pintar('areia', { poligono: [[34.6, 17.6], [37.6, 18.4], [39.6, 23], [40.6, 29], [38, 29.6], [35.4, 25], [34.6, 20]], irregular: 0.5 });
+    k.pintar('areia.molhada', { faixa: [[37.2, 18.6], [38.8, 23], [40, 28.6]], largura: 1.6, irregular: 0.4 });
 
-    // Rio / lago largo a leste (estendendo além da borda direita/superior/inferior)
-    k.pintar('agua.lago', {
-      poligono: [
-        [31.5, -3], [61, -3], [61, 39], [41.0, 39],
-        [39.5, 29.0], [38.2, 22.5], [36.2, 18.0],
-        [36.0, 9.5], [31.5, 6.5],
-      ],
-      irregular: 0.55,
-    });
-    k.correnteza('agua.lago', Math.PI / 2, 0.45);
-    k.presenca('algas', { disco: [35.5, 4.5], raio: 3.5, irregular: 0.6 });
+    // Lago largo a leste; as margens norte e sul têm mato.
+    k.pintar('agua.lago', { poligono: [[31.5, -3], [61, -3], [61, 39], [41, 39], [41.4, 30], [40.6, 24], [38.8, 19.4], [36, 18], [35.6, 9.5], [32, 6.5]], irregular: 0.55 });
+    k.correnteza('agua.lago', Math.PI / 2, 0.12);
+    k.pintar('grama.escura', { poligono: [[34.6, 29.6], [40.8, 29.4], [41.6, 33], [42.6, 39], [34, 39]], irregular: 0.8 });
+    k.presenca('algas', { disco: [35.5, 4.5], raio: 3.5, irregular: 0.6 }, 0.35);
     k.presenca('algas', { disco: [42.0, 31.5], raio: 3.2, irregular: 0.6 });
 
-    // Deque de carga (cômodo aberto de tábuas escuras ao norte do armazém)
-    k.comodo([15, 7, 24, 13], 'varanda', {
-      id: 'deque-carga',
-      nome: 'Deque de carga',
-      piso: 'tabuas.escuras',
-      papel: null,
-      telhado: null,
-      telhadoVisivel: false,
-    });
+    // Deque de carga aberto ao norte do armazém: tábuas lado a lado, sem paredes.
+    for (const [y, w] of [[10.9, 2.8], [13.6, 2.8], [16.3, 2.8]] as const) for (const [x, c] of [[24.8, 7.4], [32, 7.2]] as const) k.objeto('cais-segmento', [x, y], { params: { comprimento: c, largura: w }, rotation: 0, blocks: { move: false, sight: false }, castsShadow: false });
 
     // Cômodos do armazém (telhados abertos para mostrar o interior detalhado como na referência)
     const quartoId = k.comodo([9, 14, 15, 17], 'quarto', {
@@ -112,7 +89,6 @@ export const entrepostoDoRio: Exemplo = {
     });
 
     // Portas e aberturas do armazém
-    k.porta([22.5, 16.0], 'arch', { state: 'open', width: 1.4 });
     k.porta([27.75, 19.5], 'arch', { state: 'open', width: 1.6 });
     k.porta([20.25, 25.5], 'door', { state: 'closed' });
     k.porta([18.0, 27.75], 'door', { state: 'open' });
@@ -188,26 +164,26 @@ export const entrepostoDoRio: Exemplo = {
     k.objeto('escrivaninha.verde', [15.5, 34.5], { rotation: 0.35 });
     k.objeto('poltrona', [18.8, 34.5], { rotation: -2.4 });
 
-    // Interior do Galpão de Mercadorias (corredores de caixotes, barris, sacos e carrinho de mão)
-    k.objeto('carrinho-de-mao', [27.0, 22.5], { rotation: 1.35, scale: 1.1 });
-    for (const [item, pos, rot] of [
-      ['pilha-de-caixotes', [24.2, 26.2], 0.05],
-      ['pilha-de-caixotes', [24.2, 29.5], -0.08],
-      ['pilha-de-caixotes', [24.2, 33.2], 0.12],
-      ['pilha-de-caixotes', [28.2, 26.5], -0.15],
-      ['pilha-de-caixotes', [28.2, 30.5], 0.22],
-      ['pilha-de-caixotes', [32.2, 23.0], 0.04],
-      ['pilha-de-caixotes', [32.5, 27.5], -0.1],
-      ['pilha-de-caixotes', [32.5, 31.8], 0.08],
-      ['pilha-de-barris', [30.2, 22.2], 0.5],
-      ['pilha-de-barris', [30.2, 34.2], 1.2],
-      ['sacos', [26.2, 34.2], -0.3],
-      ['sacos', [29.8, 28.5], 0.4],
-      ['caixote', [26.5, 25.0], 0.3],
-      ['barril', [33.2, 20.2], 0],
-    ] as const) {
-      k.objeto(item, [pos[0], pos[1]], { rotation: rot });
+    // Interior do Galpão de Mercadorias: fileiras de caixotes, barris e sacas com corredores entre elas.
+    k.objeto('carrinho-de-mao', [27.0, 21.4], { rotation: 1.35, scale: 1.1 });
+    const PILHAS = ['pilha-de-caixotes', 'pilha-de-caixotes', 'caixote', 'pilha-de-barris', 'sacos', 'caixote', 'barril'] as const;
+    let n = 0;
+    for (const x of [24.2, 26.4, 29.6, 31.8, 33.6]) for (let y = 23.2; y <= 34.6; y += 1.9) {
+      if ((x === 29.6 && y > 30) || (x === 26.4 && y < 25)) continue;
+      const item = PILHAS[(n * 5 + Math.round(y * 3)) % PILHAS.length]!;
+      k.objeto(item, [x + ((n * 0.37) % 0.4) - 0.2, y], { rotation: ((n * 1.3) % 0.6) - 0.3, scale: item === 'barril' ? 1 : 0.9 });
+      n++;
     }
+    for (const [item, pos, rot] of [
+      ['sacos', [23.4, 20.8], 0.2], ['caixote', [33.6, 20.6], 0.1], ['barril', [34, 21.8], 0], ['pilha-de-caixotes', [16.6, 26.8], 0.1], ['caixote', [14.6, 29.4], 0.4],
+      ['sacos', [14.4, 30.8], -0.2], ['pilha-de-barris', [21.2, 33.8], 0.6], ['caixote', [19.6, 21.6], 0.3], ['pilha-de-caixotes', [14.6, 21.4], -0.1], ['barril', [16.4, 31.8], 0],
+    ] as const) k.objeto(item, [pos[0], pos[1]], { rotation: rot });
+
+    // Caixotes e barris pelo deque e encostados no armazém por fora.
+    for (const [item, pos, rot] of [
+      ['pilha-de-caixotes', [17.4, 18.4], 0.1], ['pilha-de-caixotes', [19.4, 18.2], -0.1], ['caixote', [21, 18.6], 0.3], ['pilha-de-caixotes', [30.4, 16.4], 0.05],
+      ['pilha-de-caixotes', [32.4, 16.6], -0.05], ['pilha-de-barris', [31.4, 13.2], 0.4], ['barril', [33.8, 12.2], 0], ['barril', [34.4, 13.2], 0], ['caixote', [26, 10.4], 0.2], ['sacos', [28.8, 10.6], 0.5],
+    ] as const) k.objeto(item, [pos[0], pos[1]], { rotation: rot });
 
     // Margem do rio: rochedo, vitórias-régias, juncos e tronco caído
     k.objeto('rochedo', [28.8, 8.2], { params: { tamanho: 3.4, cobertura: 1 }, rotation: 0.25 });
@@ -240,6 +216,9 @@ export const entrepostoDoRio: Exemplo = {
       ['casa:arvore-5m', [1.5, 7.5], 0.95],
       ['casa:arvore-7m', [3.2, 33.2], 1.0],
       ['casa:arvore-5m', [7.2, 34.5], 0.9],
+      ['casa:carvalho-grande-6m', [28.4, 3.4], 0.9],
+      ['casa:arvore-5m', [15.6, 2.4], 1.0],
+      ['casa:arvore-3m', [30.4, 7.2], 1.0],
       ['casa:arbusto-grande', [14.5, 5.2], 1.0],
       ['casa:arbusto-verde', [22.8, 9.2], 1.0],
       ['casa:arbusto-verde', [25.2, 9.2], 1.0],

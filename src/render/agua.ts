@@ -151,13 +151,13 @@ export function criarAgua(): RenderDeAgua {
     const modo = pixel ? 'nearest' : 'linear'; if (desenho.textura.source.scaleMode !== modo) desenho.textura.source.scaleMode = modo;
   }
 
-  /** Pinta a pegada dos objetos de piso (fora de cômodos) na máscara. */
+  /** Pinta a pegada dos objetos de piso que barram o passo (fora de cômodos) na máscara. */
   function objetos(m: MapaAtlas): void {
     if (!desenho) return;
     const g = desenho.mascara.getContext('2d')!, r = desenho.res;
     g.clearRect(0, 0, desenho.mascara.width, desenho.mascara.height); g.fillStyle = '#fff';
     for (const o of Object.values(m.props)) {
-      if (o.elevation !== 'floor' || o.roomId !== null) continue;
+      if (o.elevation !== 'floor' || o.roomId !== null || !o.blocks.move) continue;   // o que flutua ou não barra o passo (vitórias-régias, barcos atracados) não quebra onda
       const [w, h] = tamanhoDoObjeto(o);
       g.save(); g.translate(o.position[0] * r, o.position[1] * r); g.rotate(o.rotation); g.beginPath(); g.ellipse(0, 0, Math.max(0.5, w * r / 2), Math.max(0.5, h * r / 2), 0, 0, Math.PI * 2); g.fill(); g.restore();
     }

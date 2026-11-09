@@ -13,130 +13,54 @@ export const desfiladeiroNevado: Exemplo = {
     k.fundo({ kind: 'solid', color: '#cfe0f0' });
     k.base('neve.funda');
 
-    // Faixas suaves de neve batida pelo vento ao longo do vale central
-    k.pintar('neve', {
-      faixa: [[20, -2], [26, 7], [29, 14], [27, 21], [23, 29]],
-      largura: 6.5,
-      irregular: 0.7,
-    });
-    k.pintar('neve', {
-      faixa: [[16.5, 16.8], [22.0, 18.2], [29.0, 16.5], [33.5, 10.5], [38.0, 6.0]],
-      largura: 2.2,
-      irregular: 0.35,
-    });
+    // Lago congelado arredondado, encaixado nas rochas do canto leste.
+    k.pintar('gelo', { poligono: [[33.8, -1], [40.2, -1], [41, 3], [39.8, 7], [42.4, 10.2], [44.8, 12.8], [45.2, 17], [43, 20.6], [38.6, 21.6], [35.4, 19.2], [34, 14], [33.4, 6]], irregular: 0.6 });
 
-    // Lago congelado à direita com rachaduras no gelo
-    k.pintar('gelo', {
-      poligono: [
-        [34.5, -2.0], [45.5, -2.0], [46.0, 9.0], [46.5, 19.5],
-        [43.5, 25.5], [38.0, 23.5], [35.5, 16.5], [34.0, 7.5],
-      ],
-      irregular: 0.55,
-    });
+    // A crista: barra no alto, braço descendo à direita até y ≈ 15,5 e tronco descendo à esquerda até a borda sul.
+    k.pintar('rocha.nevada', { poligono: [[3, 0.4], [10, 0.2], [14, 0.8], [16.6, 2], [18.6, 5], [19.6, 9], [19.6, 13], [18.6, 15.8], [16.8, 15.6], [16.2, 12], [15.8, 8], [14.6, 4.6], [11, 4], [7.6, 4.6], [4, 4]], irregular: 0.45 });
+    k.pintar('rocha.nevada', { poligono: [[7.4, 3.8], [10, 6], [11.6, 9.6], [12.6, 13], [14.6, 16.6], [14.8, 19], [13.2, 22], [12.6, 27.6], [7, 27.6], [8.2, 23], [10, 19], [9.6, 15], [8.4, 10], [7.4, 7]], irregular: 0.45 });
 
-    // Crista de rocha nevada em "C" à esquerda
-    k.pintar('rocha.nevada', {
-      poligono: [
-        [2.5, 1.5], [11.5, 1.8], [16.8, 5.5], [19.8, 10.8],
-        [18.8, 16.0], [16.2, 15.5], [15.5, 10.5], [11.2, 7.2],
-        [9.8, 11.5], [12.0, 17.2], [14.5, 20.5], [13.5, 29.0],
-        [6.8, 29.0], [7.8, 18.5], [7.2, 10.5], [2.8, 5.0],
-      ],
-      irregular: 0.45,
-    });
+    // Paredão de rocha nevada no canto leste: bloco no alto, parede à direita do lago e rochas ao sul dele.
+    k.pintar('rocha.nevada', { poligono: [[40.6, -1], [49, -1], [49, 28], [36.4, 28], [37, 23.6], [40.6, 22.2], [44.2, 20.8], [45.8, 17], [46, 11.6], [43.6, 9.4], [41.8, 8], [40.6, 4.6]], irregular: 0.55 });
 
-    // Paredão rochoso nevado fechando a margem leste do lago congelado
-    k.pintar('rocha.nevada', {
-      poligono: [
-        [36.5, -3.0], [51.0, -3.0], [51.0, 30.0], [38.0, 30.0],
-        [42.5, 23.0], [45.2, 18.0], [44.8, 10.0], [41.5, 5.5], [39.5, 2.0],
-      ],
-      irregular: 0.45,
-    });
+    // Trenó deixado na margem do gelo.
+    k.objeto('treno', [39, 5.8], { rotation: 1.4, scale: 1.1 });
 
-    // Escarpa suplementar na encosta do arco rochoso para reforçar a sombra longa do sol
-    k.parede([[10.5, 2.5], [16.5, 6.2], [19.0, 11.2], [17.8, 15.8]], {
-      kind: 'cliff',
-      height: 4.5,
-      thickness: 0.4,
-      material: 'rocha.nevada',
-      drop: 'a',
-      blocks: { move: true, sight: false, light: false },
-    });
-
-    // Trenó deixado na borda do lago congelado
-    k.objeto('treno', [39.4, 5.6], { rotation: 1.32, scale: 1.1 });
-
-    // Rochedos com neve (cobertura 2) e rocha limpa (cobertura 0) nas encostas e na margem do gelo
+    // Rochedos: no alto à esquerda, ao pé da crista, na margem do lago e ao sul.
     for (const [pos, tam, cob, rot] of [
-      [[15.8, 4.2], 2.4, 0, 0.4],
-      [[9.2, 12.2], 2.2, 2, 1.1],
-      [[11.2, 19.2], 2.8, 2, -0.5],
-      [[17.8, 25.2], 3.2, 2, 0.2],
-      [[41.0, 3.8], 2.0, 0, 0.8],
-      [[42.5, 8.8], 2.6, 2, -0.4],
-      [[40.2, 22.2], 2.8, 2, 1.5],
-      [[37.2, 25.0], 2.2, 0, 0.3],
-    ] as const) {
-      k.objeto('rochedo', [pos[0], pos[1]], { params: { tamanho: tam, cobertura: cob }, rotation: rot });
-    }
+      [[3.6, 2.6], 2.4, 2, 0.4], [[13.4, 14.4], 1.6, 2, 1.1], [[14.6, 21.8], 2, 2, -0.5], [[17.6, 25.6], 3, 2, 0.2], [[16.4, 4.6], 1.6, 0, 0.6],
+      [[39.4, 4], 1.6, 0, 0.8], [[42.6, 8.8], 2.8, 2, -0.4], [[38.4, 22.4], 2.6, 2, 1.5], [[41.8, 23.6], 3, 2, 0.4], [[38.8, 25.6], 2.2, 0, 0.3], [[32.6, 26.2], 1.8, 2, 2],
+    ] as const) k.objeto('rochedo', [pos[0], pos[1]], { params: { tamanho: tam, cobertura: cob }, rotation: rot });
 
-    // Árvores nevadas (pompons brancos em vários tamanhos) com sombra longa
+    // Árvores nevadas em três manchas: no alto junto à crista, no meio do vale e espalhadas ao sul; e as do lado oeste.
     for (const [item, pos, esc] of [
-      ['casa:arvore-nevada-5m', [18.0, 1.8], 0.95],
-      ['casa:arvore-nevada-5m', [21.8, 4.2], 1.0],
-      ['casa:arvore-nevada-5m', [20.5, 6.2], 1.05],
-      ['casa:arvore-nevada-3m', [25.5, 2.2], 1.0],
-      ['casa:arvore-nevada-5m', [27.2, 8.8], 0.95],
-      ['casa:arvore-nevada-3m', [28.8, 9.8], 0.65],
-      ['casa:arvore-nevada-3m', [26.8, 6.8], 0.85],
-      ['casa:arvore-nevada-3m', [22.8, 14.2], 0.95],
-      ['casa:arvore-nevada-5m', [21.5, 16.0], 0.9],
-      ['casa:arvore-nevada-3m', [24.0, 16.2], 0.9],
-      ['casa:arvore-nevada-3m', [26.8, 14.2], 0.95],
-      ['casa:arvore-nevada-3m', [28.8, 19.5], 0.65],
-      ['casa:arvore-nevada-3m', [29.8, 21.2], 0.55],
-      ['casa:arvore-nevada-3m', [25.5, 23.8], 0.9],
-      ['casa:arvore-nevada-3m', [22.5, 25.2], 0.95],
-      ['casa:arvore-nevada-3m', [15.0, 24.5], 0.9],
-      ['casa:arvore-nevada-3m', [6.5, 17.8], 0.95],
-      ['casa:arvore-nevada-3m', [6.2, 20.8], 0.9],
-      ['casa:arvore-nevada-3m', [2.2, 21.8], 0.85],
-    ] as const) {
-      k.objeto(item, [pos[0], pos[1]], { scale: esc });
-    }
+      ['casa:arvore-nevada-3m', [18, 1.4], 1], ['casa:arvore-nevada-3m', [21.2, 3.6], 0.9], ['casa:arvore-nevada-3m', [20.6, 6], 0.95], ['casa:arvore-nevada-3m', [24.6, 1.6], 0.6],
+      ['casa:arvore-nevada-3m', [25.6, 2.6], 0.55], ['casa:arvore-nevada-3m', [26.6, 6.6], 0.5], ['casa:arvore-nevada-3m', [27.4, 8.4], 0.85], ['casa:arvore-nevada-3m', [26.2, 9.4], 0.65],
+      ['casa:arvore-nevada-3m', [28.4, 9.6], 0.6], ['casa:arvore-nevada-3m', [27.4, 11.4], 0.55], ['casa:arvore-nevada-3m', [28.6, 12.4], 0.5],
+      ['casa:arvore-nevada-3m', [22.6, 13.8], 0.6], ['casa:arvore-nevada-3m', [21.8, 15.6], 0.85], ['casa:arvore-nevada-3m', [24, 16.4], 0.7], ['casa:arvore-nevada-3m', [26.4, 13.6], 0.75], ['casa:arvore-nevada-3m', [28, 14.2], 0.5],
+      ['casa:arvore-nevada-3m', [29, 19.6], 0.45], ['casa:arvore-nevada-3m', [27.6, 20.8], 0.55], ['casa:arvore-nevada-3m', [26.4, 22.8], 0.5], ['casa:arvore-nevada-3m', [25.8, 24.4], 0.45], ['casa:arvore-nevada-3m', [27.2, 25], 0.4],
+      ['casa:arvore-nevada-3m', [6.8, 18], 0.75], ['casa:arvore-nevada-3m', [6.4, 21.2], 0.65], ['casa:arvore-nevada-3m', [1, 21.4], 0.6], ['casa:arvore-nevada-3m', [14.6, 25.4], 0.5],
+    ] as const) k.objeto(item, [pos[0], pos[1]], { scale: esc });
 
-    // Arbustos secos, galhos caídos e seixos na neve
+    // Arbustos secos, galhos caídos e seixos na neve.
     for (const [item, pos, rot] of [
-      ['casa:arbusto-seco-2m-neve', [12.8, 1.5], 0.3],
-      ['casa:arbusto-seco-2m', [8.5, 22.8], 1.2],
-      ['casa:arbusto-seco-1m', [9.0, 20.5], 2.1],
-      ['casa:arbusto-seco-2m-neve', [21.5, 25.8], 0.8],
-      ['casa:arbusto-seco-1m', [37.8, 23.5], 1.7],
-      ['galho-seco', [24.8, 1.5], 1.8],
-      ['galho-seco', [14.2, 25.8], 0.6],
-    ] as const) {
-      k.objeto(item, [pos[0], pos[1]], { rotation: rot });
-    }
-    for (const pos of [
-      [13.2, 15.2], [15.5, 20.8], [20.2, 25.5], [32.0, 25.8],
-      [40.8, 6.8], [43.2, 11.2], [35.5, 24.8],
-    ] as const) {
-      k.objeto('seixos', [pos[0], pos[1]]);
-    }
+      ['casa:arbusto-seco-2m-neve', [12.6, 1.2], 0.3], ['casa:arbusto-seco-2m', [8.8, 21.6], 1.2], ['casa:arbusto-seco-1m', [7.2, 23.4], 2.1], ['casa:arbusto-seco-2m-neve', [21.6, 25.6], 0.8],
+      ['casa:arbusto-seco-1m', [37.6, 23.4], 1.7], ['casa:arbusto-seco-1m', [35.6, 23.2], 0.4], ['casa:arbusto-seco-1m', [21, 8.6], 2.6], ['galho-seco', [24.6, 1.4], 1.8], ['galho-seco', [14.2, 25.8], 0.6],
+    ] as const) k.objeto(item, [pos[0], pos[1]], { rotation: rot });
+    for (const pos of [[13.6, 16.8], [15.8, 20.6], [20.2, 25.4], [31.6, 25.8], [40.8, 7.6], [43.4, 11.2], [35.6, 24.6], [3.6, 5.4], [14.6, 10.6], [20.4, 9.6]] as const) k.objeto('seixos', [pos[0], pos[1]]);
 
     // Clima: manhã fria e ensolarada de inverno (sol a noroeste projetando sombras longas azuladas para sudeste)
     k.clima('neve', {
       time: '09:30',
-      ambient: { color: '#ffffff', intensity: 1.0 },
-      sun: { angle: 0.72, color: '#f5f9ff', intensity: 1.15 },
+      ambient: { color: '#e4eeff', intensity: 1 },
+      sun: { angle: 0.72, color: '#fbfdff', intensity: 1.15 },
       tempo: { snow: 0.45, wind: 0.25, fog: 0 },
     });
     k.acabamento('frio', {
-      tint: '#ffffff',
-      saturation: 0.96,
+      tint: '#eef5ff',
+      saturation: 1.12,
       vignette: 0.1,
-      edges: { kind: 'clouds', amount: 0.36 },
+      edges: { kind: 'clouds', amount: 0.2 },
       glow: 0.35,
     });
 
