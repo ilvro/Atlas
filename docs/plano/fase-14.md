@@ -273,7 +273,7 @@ Commit: assistant tools to create maps and build structure
 
 Nota: contexto injetável `ContextoDeEscrita { store, repo, sincronizarCampanha?, abrirMapa, campanhaAtiva? }`; `ferramentasDeEscrita(ctx)` exporta as 5 ferramentas, além de `escrever`, `criadosPeloAssistente`, `esquemaDaForma` e `esquemaDoRetanguloDeCelulas` (o esquema da forma nasceu em `ponte-escrita.ts`, não em `formas.ts`). `atlas_mapa_criar` sem `campanhaId` usa a campanha ativa do app (como o "novo mapa") e abre pela rota (`navegar` e espera a sessão). Todas aceitam `semente` opcional (aleatória se omitida) e até 100 itens por lista. `correnteza.angulo` em radianos. Se a lista não gera comando algum, a ferramenta responde "nada mudou" sem entrada de histórico. Ids de camada de água seguem o material (`agua.rio`, não `agua`).
 
-### 14.2c — Ferramentas de escrita do mapa: objetos, espalhar, luzes, ambiente, regiões, presença, notas  ⬜
+### 14.2c — Ferramentas de escrita do mapa: objetos, espalhar, luzes, ambiente, regiões, presença, notas  ✅
 Objetivo: o Claude mobilia, ilumina e ambienta o mapa.
 Depende de: 14.2b
 Ler: `src/app/ponte-escrita.ts`, `src/authoring/construcao.ts`, `src/domain/presets.ts` (climas, acabamentos, luzes, pincéis), `src/state/comandos.ts` (`clima.predefinir`, `clima.aplicar`, `clima.salvar`, `acabamento.atualizar`, `presenca.pintar`, `comodo.notas`, `mapa.notas`).
@@ -291,6 +291,8 @@ Não fazer: remover ou mover o que já existe (14.2e).
 Testes: cada ferramenta aplicada num mapa de teste gera o que o catálogo diz; 200 objetos numa chamada são uma entrada de histórico; item desconhecido sugere os parecidos.
 Pronto quando: no app do Claude, o mapa da 14.2b ganha móveis na cabana, árvores espalhadas, uma fogueira com luz e o clima de entardecer, e o Claude confere com `atlas_ver_mapa`.
 Commit: assistant tools to furnish, light and set the mood
+
+Nota: `atlas_ambiente.clima` aceita `preset` (pronto ou clima salvo do mapa), `horario`, `tempo`, `ambiente`, `sol` (ou `null`) e `redeLigada`; `acabamento` aceita `preset` e ajustes (com ajustes o preset vira `personalizado`); faixas validadas antes dos comandos, com erro legível. `atlas_presenca` ganhou `intensidade` opcional (comando `item.atualizar` em `presence`). `atlas_notas` substitui o texto do campo. Ids desconhecidos (conjunto, preset de luz/clima/acabamento, pincel) sugerem os parecidos por id e nome; o item do acervo usa a sugestão (id, nome, tags) de `construcao.ts`. Só `atlas_objetos` aceita 200 itens; as outras listas, 100.
 
 ### 14.2d — Ferramentas de momentos  ⬜
 Objetivo: o Claude monta momentos (sequências de cena) no mapa aberto.

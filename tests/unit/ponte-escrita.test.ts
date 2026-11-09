@@ -29,7 +29,7 @@ const terra = { acao: 'pintar', material: 'terra', forma: { faixa: [[0, 5], [10,
 
 test('as ferramentas têm nome, descrição com unidades e esquema de objeto', () => {
   const { f } = montar();
-  assert.deepEqual(Object.keys(f), ['atlas_mapa_criar', 'atlas_terreno', 'atlas_comodos', 'atlas_paredes', 'atlas_portas']);
+  assert.deepEqual(Object.keys(f), ['atlas_mapa_criar', 'atlas_terreno', 'atlas_comodos', 'atlas_paredes', 'atlas_portas', 'atlas_objetos', 'atlas_espalhar', 'atlas_luzes', 'atlas_ambiente', 'atlas_regioes', 'atlas_presenca', 'atlas_notas']);
   for (const x of Object.values(f)) { assert.ok(x.descricao.length > 60); assert.equal(x.esquema.type, 'object'); }
   assert.match(f.atlas_comodos!.descricao, /CÉLULAS/);
   assert.match(f.atlas_terreno!.descricao, /METROS/);
@@ -129,4 +129,103 @@ test('atlas_mapa_criar valida tamanho, gênero e base antes de gravar', async ()
   await assert.rejects(chamar('atlas_mapa_criar', { nome: 'X', largura: 10, altura: 10, genero: 'ficcao' }), /gêneros:/);
   await assert.rejects(chamar('atlas_mapa_criar', { nome: 'X', largura: 10, altura: 10, base: 'queijo' }), /bases:/);
   assert.equal(gravados.length, 0);
+});
+
+test('atlas_objetos: 200 objetos são uma entrada de histórico; item desconhecido sugere parecidos e não aplica nada', async () => {
+  const { store, chamar } = montar();
+  const antes = store.documento;
+  const lote = Array.from({ length: 200 }, (_, i) => ({ item: 'lapide', pos: [1 + (i % 20), 1 + Math.floor(i / 20)] }));
+  await chamar('atlas_objetos', { objetos: lote });
+  assert.equal(Object.keys(store.documento.props).length, 200);
+  assert.equal(store.historico.length, 1);
+  validarMapa(store.documento);
+  store.desfazer();
+  assert.equal(Object.keys(store.documento.props).length, 0);
+  await assert.rejects(chamar('atlas_objetos', { objetos: [...lote.slice(0, 2), { item: 'lapid', pos: [2, 2] }] }), /lapid.*não existe.*parecidos: .*lapide/);
+  assert.deepEqual(store.documento, antes);
+  await assert.rejects(chamar('atlas_objetos', { objetos: [...lote, lote[0]!, lote[0]!].slice(0, 201) }), /até 200/);
+});
+
+test('atlas_espalhar gera objetos de um conjunto na forma; conjunto desconhecido sugere', async () => {
+  const { store, chamar } = montar();
+  await chamar('atlas_espalhar', { conjunto: 'mata', forma: { retangulo: [2, 2, 20, 15] }, semente: 3 });
+  const n = Object.keys(store.documento.props).length;
+  assert.ok(n > 3, `esperava vários objetos, vieram ${n}`);
+  assert.equal(store.historico.length, 1);
+  validarMapa(store.documento);
+  await assert.rejects(chamar('atlas_espalhar', { conjunto: 'mat', forma: { disco: [5, 5], raio: 2 } }), /parecidos: .*mata/);
+});
+
+test('atlas_luzes acende luzes do preset; preset desconhecido sugere', async () => {
+  const { store, chamar } = montar();
+  await chamar('atlas_luzes', { luzes: [{ preset: 'fogueira', pos: [10, 10] }, { preset: 'lanterna', pos: [5, 5], direcao: 1, raio: 12, cor: '#ffffff' }] });
+  const ls = Object.values(store.documento.lights);
+  assert.equal(ls.length, 2);
+  assert.equal(ls.find(l => l.preset === 'fogueira')!.radius, 8);
+  assert.equal(ls.find(l => l.preset === 'lanterna')!.radius, 12);
+  assert.equal(store.historico.length, 1);
+  await assert.rejects(chamar('atlas_luzes', { luzes: [{ preset: 'tocha2', pos: [1, 1] }] }), /parecidos: tocha/);
+  await assert.rejects(chamar('atlas_luzes', { luzes: [{ preset: 'tocha', pos: [1, 1], cor: 'vermelho' }] }), /#rrggbb/);
+});
+
+test('atlas_ambiente: clima + horário + acabamento + guardar numa entrada só', async () => {
+  const { store, chamar } = montar();
+  await chamar('atlas_ambiente', {
+    clima: { preset: 'entardecer', horario: '18:15', tempo: { fog: 0.3 } },
+    acabamento: { preset: 'sepia', vignette: 0.6 },
+    guardarClima: { id: 'fim-de-tarde', nome: 'Fim de tarde' },
+  });
+  const m = store.documento;
+  assert.equal(store.historico.length, 1);
+  assert.equal(m.climate.preset, 'entardecer');
+  assert.equal(m.climate.time, '18:15');
+  assert.equal(m.climate.weather.fog, 0.3);
+  assert.equal(m.climate.weather.dust, 0.25);
+  assert.equal(m.finish.vignette, 0.6);
+  assert.equal(m.finish.preset, 'personalizado');
+  assert.equal(m.finish.saturation, 0.45);
+  assert.equal(m.customClimates['fim-de-tarde']!.name, 'Fim de tarde');
+  validarMapa(m);
+});
+
+test('atlas_ambiente: erros legíveis para valores fora da faixa e ids desconhecidos', async () => {
+  const { store, chamar } = montar();
+  const antes = store.documento;
+  await assert.rejects(chamar('atlas_ambiente', { clima: { ambiente: { color: '#ffffff', intensity: 2 } } }), /clima\.ambiente\.intensity.*entre 0 e 1/);
+  await assert.rejects(chamar('atlas_ambiente', { clima: { horario: '25:00' } }), /HH:MM/);
+  await assert.rejects(chamar('atlas_ambiente', { clima: { preset: 'entardec' } }), /parecidos: .*entardecer/);
+  await assert.rejects(chamar('atlas_ambiente', { acabamento: { preset: 'quent' } }), /parecidos: quente/);
+  await assert.rejects(chamar('atlas_ambiente', { acabamento: { vignette: 3 } }), /vignette/);
+  await assert.rejects(chamar('atlas_ambiente', { guardarClima: { id: 'noite', nome: 'x' } }), /Já existe/);
+  await assert.rejects(chamar('atlas_ambiente', {}), /Passe/);
+  assert.deepEqual(store.documento, antes);
+  await chamar('atlas_ambiente', { clima: { preset: 'noite', sol: null } });
+  assert.equal(store.documento.climate.sun, null);
+});
+
+test('atlas_regioes cria regiões; atlas_presenca pinta e ajusta a intensidade', async () => {
+  const { store, chamar } = montar();
+  await chamar('atlas_regioes', { regioes: [{ poligono: [[1, 1], [5, 1], [5, 5]], tipo: 'reveal', nome: 'Entrada', texto: 'Cheiro de mofo', somenteMestre: false }] });
+  const r = Object.values(store.documento.regions)[0]!;
+  assert.equal(r.kind, 'reveal'); assert.equal(r.gmOnly, false); assert.equal(r.payload.nome, 'Entrada');
+  await assert.rejects(chamar('atlas_regioes', { regioes: [{ poligono: [[1, 1], [5, 1]], tipo: 'reveal' }] }), /3 pontos/);
+  await chamar('atlas_presenca', { pincel: 'musgo', forma: { disco: [10, 10], raio: 3 }, intensidade: 0.9 });
+  const p = Object.values(store.documento.presence);
+  assert.equal(p.length, 1); assert.equal(p[0]!.brush, 'musgo'); assert.equal(p[0]!.intensity, 0.9); assert.ok(area(p[0]!.cells) > 0);
+  assert.equal(store.historico.length, 2);
+  validarMapa(store.documento);
+  await assert.rejects(chamar('atlas_presenca', { pincel: 'mus', forma: { disco: [10, 10], raio: 3 } }), /parecidos: musgo/);
+});
+
+test('atlas_notas escreve a nota do mapa e dos cômodos; cômodo inexistente é erro', async () => {
+  const { store, chamar } = montar();
+  await chamar('atlas_comodos', { comodos: [{ rets: [[2, 2, 5, 5]], tipo: 'sala' }] });
+  const id = Object.keys(store.documento.rooms)[0]!;
+  await chamar('atlas_notas', { mapa: 'Ponto de partida', comodos: [{ id, leitura: 'Uma sala fria.', notasMestre: 'Alçapão sob o tapete.' }] });
+  assert.equal(store.documento.notes, 'Ponto de partida');
+  assert.equal(store.documento.comodosExtra[id]!.leitura, 'Uma sala fria.');
+  assert.equal(store.documento.comodosExtra[id]!.notasMestre, 'Alçapão sob o tapete.');
+  assert.equal(store.historico.length, 2);
+  await assert.rejects(chamar('atlas_notas', { comodos: [{ id: 'c_x', leitura: 'a' }] }), /não existe/);
+  await assert.rejects(chamar('atlas_notas', {}), /Passe/);
 });
