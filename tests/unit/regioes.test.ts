@@ -5,6 +5,7 @@ import { pontoNoPoligono, regiaoOcupada, regioesEntradas, regioesOcupadas } from
 import { reagirAoMovimento, iniciarRegioes, textoDoGatilho, type SaidasDeRegiao } from '../../src/app/regioes.ts';
 import { criarMapa, type MapaAtlas, type Regiao } from '../../src/domain/mapa.ts';
 import { novaPeca } from '../../src/domain/fabrica.ts';
+import { novoMomento } from '../../src/domain/momentos.ts';
 import { criarStore } from '../../src/state/store.ts';
 
 const cena = (id: string): Ref => criarRef('jukebox', 'cena-sonora', id);
@@ -136,4 +137,62 @@ test('iniciarRegioes: reage a executar e ao concluir de um gesto (com o antes de
   store.executar(mover(50, 50)); const g2 = store.iniciarGesto('Mover'); g2.aplicar(mover(2, 2)); g2.aplicar(mover(60, 60)); g2.cancelar();
   store.executar(mover(2, 2)); assert.equal(avisos(a.feitos), 2, 'executar volta a reagir, com o antes correto após cancelar');
   void um;
+});
+
+test('gatilho com momento chama tocarMomento uma vez por disparo, na ordem certa; momento inexistente não quebra', () => {
+  const feitosGatilho: string[] = [];
+  const saidasMomento: SaidasDeRegiao = {
+    emitir: () => {},
+    pedirCena: ref => feitosGatilho.push(`cena ${ref?.id}`),
+    avisar: t => feitosGatilho.push(`aviso ${t}`),
+    trocarClima: c => feitosGatilho.push(`clima ${c}`),
+    dispararEfeito: e => feitosGatilho.push(`efeito ${e}`),
+    tocarMomento: id => feitosGatilho.push(`momento ${id}`),
+  };
+
+  const Gmomento = regiao('armadilha-com-momento', 'trigger', 0, 0, 5, 5, {
+    payload: {
+      texto: 'Armadilha dramática!',
+      clima: 'noite',
+      efeito: 'tremor',
+      momento: 'm-susto',
+    },
+    refs: [cena('tenso')],
+  });
+
+  const mAntes = mapa([['ana', 10, 10, true]], [Gmomento]);
+  const mDepois = mapa([['ana', 2, 2, true]], [Gmomento]);
+  mDepois.moments['m-susto'] = novoMomento('m-susto', 'Susto da Criatura');
+
+  reagirAoMovimento(mAntes, mDepois, saidasMomento);
+
+  // Ordem estrita: aviso -> clima -> efeito -> cena -> momento
+  assert.deepEqual(feitosGatilho, [
+    'aviso Armadilha dramática!',
+    'clima noite',
+    'efeito tremor',
+    'cena tenso',
+    'momento m-susto',
+  ]);
+
+  // Se o momento foi apagado (não existe em depois.moments), ignora e não quebra
+  const feitosSemMomento: string[] = [];
+  const saidasSemMomento: SaidasDeRegiao = {
+    emitir: () => {},
+    pedirCena: ref => feitosSemMomento.push(`cena ${ref?.id}`),
+    avisar: t => feitosSemMomento.push(`aviso ${t}`),
+    tocarMomento: id => feitosSemMomento.push(`momento ${id}`),
+  };
+  const Gremovido = regiao('armadilha-removida', 'trigger', 0, 0, 5, 5, {
+    payload: {
+      texto: 'Algo deveria acontecer...',
+      momento: 'm-inexistente',
+    },
+  });
+  const mDepoisSemMomento = mapa([['ana', 2, 2, true]], [Gremovido]);
+  // mDepoisSemMomento.moments não tem 'm-inexistente'
+  reagirAoMovimento(mAntes, mDepoisSemMomento, saidasSemMomento);
+  assert.deepEqual(feitosSemMomento, [
+    'aviso Algo deveria acontecer...',
+  ], 'momento inexistente não chama tocarMomento nem quebra');
 });

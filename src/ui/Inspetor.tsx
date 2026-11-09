@@ -14,7 +14,7 @@ import { alvosDoInterruptor } from '../domain/interagiveis.ts';
 import { ROTULOS_DE_ESTADO } from '../domain/figuras.ts';
 import { ESTADOS_FIGURA, type Abertura, type Acabamento, type Clima, type Comodo, type Estilo, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Presenca, type Regiao } from '../domain/mapa.ts';
 import { GENEROS, generoDe, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
-import { acabamentoLigado, aplicarClima, definirAcabamentoLigado } from '../app/app.ts';
+import { acabamentoLigado, aplicarClima, definirAcabamentoLigado, tocarMomentoDoMapa } from '../app/app.ts';
 import { abaDoInspetor, alinhandoGrade, definirRegraDaRegua, modo, regraDaRegua } from '../app/modo.ts';
 import { ROTULO_DA_REGRA, type RegraDeDiagonal } from '../domain/regua.ts';
 import { definirSugestoesLigadas, sugestoesLigadas } from '../app/sugestoes.ts';
@@ -503,6 +503,48 @@ function CamposDaRegiao({ s, r }: { s: SessaoDeEdicao; r: Regiao }) {
         ]}
         aoMudar={v => editar({ payload: { ...r.payload, efeito: v || undefined } }, 'Efeito do gatilho')}
       />
+      {(() => {
+        const momentoId = typeof r.payload.momento === 'string' ? r.payload.momento : '';
+        const momentosDoMapa = Object.values(s.doc.value.moments ?? {});
+        const momentoExiste = momentosDoMapa.some(m => m.id === momentoId);
+        const opcoesMomento: [string, string][] = [
+          ['', 'Nenhum'],
+          ...momentosDoMapa.map(m => [m.id, m.nome] as [string, string]),
+        ];
+        if (momentoId && !momentoExiste) {
+          opcoesMomento.push([momentoId, '(momento removido)']);
+        }
+        return (
+          <Linha rotulo="Momento" dica="Toca um momento completo quando uma peça entra na região.">
+            <select
+              data-testid="gatilho-momento"
+              value={momentoId}
+              onChange={e => {
+                const v = (e.target as HTMLSelectElement).value;
+                editar({ payload: { ...r.payload, momento: v || undefined } }, 'Momento do gatilho');
+              }}
+            >
+              {opcoesMomento.map(([val, nome]) => (
+                <option key={val} value={val}>{nome}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              class="botao-pilula"
+              data-testid="gatilho-testar-momento"
+              title="Testar este momento"
+              disabled={!momentoId || !momentoExiste}
+              onClick={() => {
+                if (momentoId && momentoExiste) {
+                  void tocarMomentoDoMapa(momentoId);
+                }
+              }}
+            >
+              ▶
+            </button>
+          </Linha>
+        );
+      })()}
       <CampoOpcoes
         rotulo="Disparar"
         dica="Quando o grupo entra: uma vez a cada vez que a região passa de vazia a ocupada. Só uma vez: depois de disparar, fica quieto até você rearmar. A cada jogador: dispara para cada peça que entra."
