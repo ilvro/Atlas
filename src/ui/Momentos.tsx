@@ -124,7 +124,7 @@ export function SecaoDeMomentos({ s }: { s: SessaoDeEdicao }) {
                       <button
                         type="button"
                         class="dock-pilula dock-momento-tocar"
-                        data-testid={`dock-momento-tocar-${m.id}`}
+                        data-testid="dock-momento-tocar"
                         title="Tocar momento"
                         aria-label={`Tocar ${m.nome}`}
                         onClick={() => void tocarMomentoDoMapa(m.id)}
@@ -926,6 +926,7 @@ export function EditorDeMomento({
                 <button
                   type="button"
                   class="menu-opcao"
+                  data-testid="menu-add-esperar"
                   onClick={() => adicionarNovoPasso({ tipo: 'esperar', ms: 1000 })}
                 >
                   Esperar
@@ -937,6 +938,7 @@ export function EditorDeMomento({
                 <button
                   type="button"
                   class="menu-opcao"
+                  data-testid="menu-add-som-cena"
                   onClick={() => adicionarNovoPasso({ tipo: 'som', ref: criarRef('jukebox', 'cena', 'padrao') })}
                 >
                   Cena do Jukebox
@@ -944,6 +946,7 @@ export function EditorDeMomento({
                 <button
                   type="button"
                   class="menu-opcao"
+                  data-testid="menu-add-som-efeito"
                   onClick={() => adicionarNovoPasso({ tipo: 'som', ref: criarRef('jukebox', 'efeito', 'padrao') })}
                 >
                   Efeito do Jukebox
@@ -955,6 +958,7 @@ export function EditorDeMomento({
                 <button
                   type="button"
                   class="menu-opcao"
+                  data-testid="menu-add-efeito"
                   onClick={() => adicionarNovoPasso({ tipo: 'efeito', efeito: 'relampago' })}
                 >
                   Efeito de cena
@@ -962,6 +966,7 @@ export function EditorDeMomento({
                 <button
                   type="button"
                   class="menu-opcao"
+                  data-testid="menu-add-clima"
                   onClick={() => adicionarNovoPasso({ tipo: 'clima', clima: 'noite' })}
                 >
                   Clima
@@ -969,6 +974,7 @@ export function EditorDeMomento({
                 <button
                   type="button"
                   class="menu-opcao"
+                  data-testid="menu-add-camera"
                   onClick={() => {
                     const salaId = Object.keys(s.doc.value.rooms)[0] ?? '';
                     adicionarNovoPasso({ tipo: 'camera', alvo: { colecao: 'rooms', id: salaId } });
@@ -979,6 +985,7 @@ export function EditorDeMomento({
                 <button
                   type="button"
                   class="menu-opcao"
+                  data-testid="menu-add-revelar"
                   onClick={() => adicionarNovoPasso({ tipo: 'revelar', ids: Object.keys(s.doc.value.rooms).slice(0, 1) })}
                 >
                   Revelar cômodo
@@ -986,6 +993,7 @@ export function EditorDeMomento({
                 <button
                   type="button"
                   class="menu-opcao"
+                  data-testid="menu-add-interagir"
                   onClick={() => {
                     const id = Object.keys(s.doc.value.openings)[0] ?? Object.keys(s.doc.value.props)[0] ?? '';
                     adicionarNovoPasso({ tipo: 'interagir', id });
@@ -1000,6 +1008,7 @@ export function EditorDeMomento({
                 <button
                   type="button"
                   class="menu-opcao"
+                  data-testid="menu-add-tela"
                   onClick={() => adicionarNovoPasso({ tipo: 'tela', acao: 'escurecer', ms: 800 })}
                 >
                   Cortina (tela preta)
@@ -1007,7 +1016,8 @@ export function EditorDeMomento({
                 <button
                   type="button"
                   class="menu-opcao"
-                  onClick={() => adicionarNovoPasso({ tipo: 'letreiro', titulo: '', subtitulo: '', peca: null, estilo: 'apresentacao', ms: 4000 })}
+                  data-testid="menu-add-letreiro"
+                  onClick={() => adicionarNovoPasso({ tipo: 'letreiro', titulo: 'Capítulo', subtitulo: '', peca: null, estilo: 'capitulo', ms: 4000 })}
                 >
                   Letreiro
                 </button>

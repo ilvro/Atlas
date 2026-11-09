@@ -590,7 +590,7 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 15;
+  z-index: 25;
   overflow: hidden;
 }
 
@@ -843,7 +843,7 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
 .barra-efeitos-container {
   position: absolute;
   left: 50%;
-  bottom: 56px;
+  bottom: 104px;
   transform: translateX(-50%);
   z-index: 26;
   pointer-events: auto;
@@ -851,7 +851,7 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
 }
 
 .barra-efeitos-container.recolhida {
-  bottom: 54px;
+  bottom: 102px;
 }
 
 .barra-efeitos-handle-recolhida {
@@ -1684,7 +1684,7 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
 .dock-painel-personagens { width: 310px; }
 .dock-painel-pistas { width: 340px; }
 .dock-painel-momentos { width: 340px; }
-.dock-painel-editor-momento { width: 440px; max-width: min(520px, calc(100vw - 32px)); max-height: min(720px, calc(100vh - 80px)); }
+.dock-painel-editor-momento { width: 440px; max-width: min(520px, calc(100vw - 32px)); max-height: min(720px, calc(100vh - 80px)); z-index: 80 !important; }
 
 .dock-painel-cabecalho {
   display: flex;

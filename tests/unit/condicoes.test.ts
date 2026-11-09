@@ -43,6 +43,38 @@ test('as condições leem o resultado: cômodos, aberturas, luzes, peças, clima
   assert.ok(Object.keys(CONDICOES).length > 25);
 });
 
+test('condições de momentos e barra de efeitos', () => {
+  const e = estado();
+  assert.equal(atendida(['momentoCriado', 'O porão acorda'], e), false);
+  e.doc.moments.m1 = {
+    id: 'm1',
+    nome: 'O porão acorda',
+    cor: null,
+    passos: [{ tipo: 'efeito', efeito: 'tremor' }],
+  };
+  assert.equal(atendida(['momentoCriado', 'O porão acorda'], e), true);
+  assert.equal(atendida(['momentoCriado', 'Outro'], e), false);
+
+  assert.equal(atendida(['momentoTocado'], e), false);
+  e.ultimoMomentoTocadoId = 'm1';
+  assert.equal(atendida(['momentoTocado'], e), true);
+
+  assert.equal(atendida(['regiaoComMomento'], e), false);
+  e.doc.regions.r1 = {
+    id: 'r1',
+    polygon: [[0, 0], [3, 0], [3, 3], [0, 3]],
+    kind: 'trigger',
+    gmOnly: true,
+    payload: { momento: 'm1' },
+    refs: [],
+  };
+  assert.equal(atendida(['regiaoComMomento'], e), true);
+
+  assert.equal(atendida(['espacoDisparado', 3], e), false);
+  e.ultimoDisparo = { i: 2, quando: 1000 };
+  assert.equal(atendida(['espacoDisparado', 3], e), true);
+});
+
 test('medir: "quase lá" para valores numéricos; nada para o resto', () => {
   const e = estado(); e.doc.lights.l = { ...novaLuz([1, 1]), id: 'l', radius: 5 };
   assert.deepEqual(medir(['valor', 'lights.*.radius', 8], e), { texto: 'Agora 5, falta chegar a 8', falta: 3 });

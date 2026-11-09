@@ -83,7 +83,7 @@ function posicaoPadrao(id: string): { x: number; y: number } {
     case 'pistas':
       return { x: 20, y: 30 };
     case 'momentos':
-      return { x: Math.max(16, Math.round((largura - 680) / 2) + 200), y: Math.max(16, altura - 260) };
+      return { x: 24, y: Math.max(20, altura - 380) };
     case 'editor-momento':
       return { x: Math.max(16, Math.round((largura - 460) / 2)), y: 40 };
     case 'projetor':
@@ -276,7 +276,8 @@ export function PainelFlutuante({
   children: preact.ComponentChildren;
 }) {
   const pos = posicoes.value[id] ?? posicaoPadrao(id);
-  const z = zIndices.value[id] ?? 20;
+  const padraoZ = id === 'editor-momento' ? 40 : 20;
+  const z = zIndices.value[id] ?? padraoZ;
 
   return (
     <section

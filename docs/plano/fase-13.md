@@ -191,7 +191,7 @@ Commit: `effects hotbar ui`
 
 ---
 
-### 13.5 — Tutorial "Momentos e improviso"  ⬜
+### 13.5 — Tutorial "Momentos e improviso"  ✅
 Objetivo: uma lição na pasta **Na mesa** que ensina a montar e disparar um momento e a usar a barra.
 Depende de: 13.3b, 13.4b.
 Ler: `src/tutorial/licoes.ts` (`regioes` como modelo), `src/tutorial/condicoes.ts`, `src/tutorial/tutor.ts`.
