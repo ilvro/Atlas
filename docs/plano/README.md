@@ -50,3 +50,6 @@ Commit: mensagem curta em inglês
 | [fase-8.md](fase-8.md) | Detalhado — concluída |
 | [fase-9.md](fase-9.md) | Concluída (Mesa, Ficha, Ateliê e Jukebox integrados; pendências reais no progress.md) |
 | [fase-10.md](fase-10.md) | Lote A e água (10.1a–b) detalhados; o resto ao começar cada lote — **em andamento** |
+| [fase-11.md](fase-11.md) | Concluída (abas, prévia do Dossiê, barra inferior, grade) |
+| [fase-12.md](fase-12.md) | Peças, fichas flutuantes, gatilhos e tutoriais; 12.11 corrigiu os gatilhos |
+| [fase-13.md](fase-13.md) | Detalhado — Momentos e Barra de Efeitos — **próximo** |

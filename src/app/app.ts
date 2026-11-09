@@ -22,7 +22,7 @@ import type { ColecaoLivre, Comando } from '../state/comandos.ts';
 import { embutido } from './embutido.ts';
 import { campanhaAtiva, carregarCampanhas, desvincularMapa, entidadesDaCampanha, refDoMapa, revincularMapa, sincronizarMapaComCampanha } from './campanha.ts';
 import { pedirCena, pedirSomDoClima, pedirSomDoMapa, tocarSomEscolhido } from './audio-do-clima.ts';
-import { iniciarRegioes } from './regioes.ts';
+import { gatilhoJaDisparou, iniciarRegioes, marcarGatilhoDisparado } from './regioes.ts';
 import { modo, vistaDeJogador } from './modo.ts';
 import { iniciarSugestoes } from './sugestoes.ts';
 import { abrirJanelaDoProjetor, iniciarPublicacao, mapaNoProjetorId, projetorConectado, type Publicador } from './projetor.ts';
@@ -300,11 +300,13 @@ export async function abrirMapa(id: string, comodo?: string): Promise<void> {
           if (efeito === 'relampago') {
             viewport.atual?.relampagoAgora();
             relampagoNoProjetor();
-          } else if (efeito === 'tremor') {
-            viewport.atual?.dispararEvento('tremor');
-            trovao(1.2);
+          } else {
+            dispararEventoDeCena(efeito);
+            if (efeito === 'tremor') trovao(1.2);
           }
         },
+        jaDisparou: regiaoId => gatilhoJaDisparou(id, regiaoId),
+        marcarDisparo: regiaoId => { marcarGatilhoDisparado(id, regiaoId); },
       });
       batch(() => {
         sessao.value = nova!;

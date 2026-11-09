@@ -15,6 +15,9 @@ import { VisorDeDocumento, suavizarEstado, type EstadoDoVisor } from './VisorDeD
 
 const doc = signal<MapaAtlas | null>(null);
 const botaoVisivel = signal(true);
+/** Enquanto segue o mestre, a câmera dele enquadra o projetor; zoom ou arrasto aqui soltam o projetor até "Seguir o mestre". */
+const seguindo = signal(true);
+let caixaDoMestre: Parameters<Viewport['enquadrarCaixa']>[0] | null = null, vpAtual: Viewport | null = null;
 /** Os retratos que o mestre enviou, por id de asset. */
 const retratos = new Map<string, Blob>();
 /** A inspeção de um documento que o mestre abriu para os jogadores. O alvo chega em saltos; a vista exibida o alcança suavemente. */
@@ -43,6 +46,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
     silenciarNestaJanela();                                   // o áudio não toca no projetor
     const sairTema = iniciarTema();
     document.body.classList.add('projetor');
+    seguindo.value = true; caixaDoMestre = null;
     retratos.clear(); recursosLocais.clear(); fecharInspecaoNoProjetor();
     const canalEspecifico = new BroadcastChannel(nomeDoCanalDoProjetor(mapaId));
     const canalGlobal = new BroadcastChannel(CANAL_PROJETOR_GLOBAL);
@@ -64,7 +68,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       recursosDaPeca: t => recursosLocais.get(t.id) ?? null,
     }).then(v => {
       if (morto) { v.destruir(); return; }
-      vp = v;
+      vp = v; vpAtual = v;
       Object.defineProperty(window, '__projetor', { value: Object.freeze({ doc: () => doc.value, viewport: () => vp, retratos: () => [...retratos.keys()] }), configurable: true });
       ola();
     });
@@ -77,7 +81,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
         ultimoSeqMestre = msg._seq;
       }
       if (msg.tipo === 'estado') { doc.value = msg.doc; store!.projetar(msg.doc); }
-      else if (msg.tipo === 'camera') { caixa = msg.caixa; vp?.enquadrarCaixa(msg.caixa, !primeira); primeira = false; }
+      else if (msg.tipo === 'camera') { caixa = caixaDoMestre = msg.caixa; if (seguindo.peek()) { vp?.enquadrarCaixa(msg.caixa, !primeira); primeira = false; } }
       else if (msg.tipo === 'evento') vp?.dispararEvento(msg.nome);
       else if (msg.tipo === 'relampago') vp?.relampagoAgora();
       else if (msg.tipo === 'recursos') { recursosLocais.clear(); for (const [id, r] of Object.entries(msg.por)) recursosLocais.set(id, r); vp?.redesenharPecas(); }
@@ -92,7 +96,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
 
     // Enquanto o mestre não responde, pergunta de novo (ele pode abrir o mapa depois).
     const insistir = setInterval(() => { if (!doc.value) ola(); }, 1500);
-    const aoRedimensionar = () => { dizer({ tipo: 'tamanho', ...tamanho() }); if (caixa) vp?.enquadrarCaixa(caixa, false); };
+    const aoRedimensionar = () => { dizer({ tipo: 'tamanho', ...tamanho() }); if (caixa && seguindo.peek()) vp?.enquadrarCaixa(caixa, false); };
     window.addEventListener('resize', aoRedimensionar);
     const aoSair = () => dizer({ tipo: 'tchau' });
     window.addEventListener('pagehide', aoSair);
@@ -105,6 +109,15 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       vp?.zoomPor(Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015)));
     };
     window.addEventListener('wheel', aoRolarJanela, { passive: false });
+    // Zoom (roda, inclusive sobre o canvas) ou arrasto de mais de 4 px soltam o projetor da câmera do mestre.
+    const soltar = (e: WheelEvent) => { if (!(e.target as HTMLElement)?.closest?.('.projetor-inspecao')) seguindo.value = false; };
+    window.addEventListener('wheel', soltar, { capture: true, passive: true });
+    let apertado: { x: number; y: number } | null = null;
+    const aoApertar = (e: PointerEvent) => { apertado = { x: e.clientX, y: e.clientY }; };
+    const aoArrastar = (e: PointerEvent) => { if (apertado && Math.hypot(e.clientX - apertado.x, e.clientY - apertado.y) > 4) { seguindo.value = false; apertado = null; } };
+    const aoSoltar = () => { apertado = null; };
+    const hospedeiro = ref.current;
+    hospedeiro?.addEventListener('pointerdown', aoApertar); window.addEventListener('pointermove', aoArrastar); window.addEventListener('pointerup', aoSoltar); window.addEventListener('pointercancel', aoSoltar);
     // O botão de tela cheia some depois de 3 s sem mexer o mouse.
     let sumir: ReturnType<typeof setTimeout>;
     const mexeu = () => { botaoVisivel.value = true; clearTimeout(sumir); sumir = setTimeout(() => { botaoVisivel.value = false; }, 3000); };
@@ -114,7 +127,9 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       canalEspecifico.close(); canalGlobal.close();
       sairTema(); vp?.destruir(); store?.dispor();
       window.removeEventListener('resize', aoRedimensionar); window.removeEventListener('pagehide', aoSair); window.removeEventListener('pointermove', mexeu);
-      window.removeEventListener('wheel', aoRolarJanela);
+      window.removeEventListener('wheel', aoRolarJanela); window.removeEventListener('wheel', soltar, { capture: true });
+      hospedeiro?.removeEventListener('pointerdown', aoApertar); window.removeEventListener('pointermove', aoArrastar); window.removeEventListener('pointerup', aoSoltar); window.removeEventListener('pointercancel', aoSoltar);
+      vpAtual = null;
       document.body.classList.remove('projetor');
     };
   }, [mapaId]);
@@ -128,6 +143,8 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       {documentoDoProjetor.value && <div class="projetor-inspecao" data-testid="projetor-inspecao"><h2>{documentoDoProjetor.value.nome}</h2><VisorDeDocumento normal={documentoDoProjetor.value.normal} uv={documentoDoProjetor.value.uv} estado={estadoDaInspecao} testid="projetor-visor" /></div>}
       {m ? <h1 class="projetor-titulo faixa" data-testid="projetor-titulo">{m.name}</h1> : <p class="projetor-espera" data-testid="projetor-espera">Aguardando o mestre…</p>}
       {m?.session.initiative && <div class="projetor-iniciativa"><FaixaDeIniciativa ini={m.session.initiative} pecas={pecas} lerRetrato={lerRetratoLocal} /></div>}
+      {!seguindo.value && <button type="button" class={`projetor-seguir ${botaoVisivel.value ? '' : 'oculto'}`} data-testid="projetor-seguir"
+        onClick={() => { seguindo.value = true; if (caixaDoMestre) vpAtual?.enquadrarCaixa(caixaDoMestre, true); }}>Seguir o mestre</button>}
       <button type="button" class={`projetor-tela-cheia ${botaoVisivel.value ? '' : 'oculto'}`} aria-label="Tela cheia" title="Tela cheia" data-testid="projetor-tela-cheia"
         onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void document.documentElement.requestFullscreen?.(); }}><Icone nome="enquadrar" tamanho={20} /></button>
     </main>
