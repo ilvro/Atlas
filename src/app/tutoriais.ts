@@ -6,6 +6,8 @@ import { criarTutor } from '../tutorial/tutor.ts';
 import { atualizarLista, navegar, removerMapa, servicos, sessao, viewport } from './app.ts';
 import { abaDoInspetor, modo, vistaDeJogador } from './modo.ts';
 import { projetorConectado } from './projetor.ts';
+import { momentoEmCurso, ultimoMomentoTocadoId } from './momentos.ts';
+import { ultimoDisparo } from './barra-de-efeitos.ts';
 import { definirSugestoesLigadas, sugestoesLigadas } from './sugestoes.ts';
 import { avisar } from './toasts.ts';
 import { effect } from '@preact/signals';
@@ -15,7 +17,20 @@ const vazio = criarMapa({ id: 'tutor-sem-mapa', agora: 0 });
 /** O estado que as condições leem: o mapa aberto (ou um vazio, antes de abrir) e o do editor. */
 export function estadoDoTutor(): EstadoDoTutor {
   const s = sessao.peek();
-  return { doc: s?.doc.value ?? vazio, modo: modo.value, aba: abaDoInspetor.value, ferramenta: s?.ferramenta.value ?? 'selecionar', selecao: s?.selecao.value ?? [], projetor: projetorConectado.value, vistaDeJogador: vistaDeJogador.value, sujo: s?.sujo.value ?? false, espalhar: s ? { conjunto: s.pincel.value.espalhar.conjunto, raio: s.pincel.value.espalhar.raio } : undefined };
+  return {
+    doc: s?.doc.value ?? vazio,
+    modo: modo.value,
+    aba: abaDoInspetor.value,
+    ferramenta: s?.ferramenta.value ?? 'selecionar',
+    selecao: s?.selecao.value ?? [],
+    projetor: projetorConectado.value,
+    vistaDeJogador: vistaDeJogador.value,
+    sujo: s?.sujo.value ?? false,
+    espalhar: s ? { conjunto: s.pincel.value.espalhar.conjunto, raio: s.pincel.value.espalhar.raio } : undefined,
+    momentoEmCurso: momentoEmCurso.value,
+    ultimoMomentoTocadoId: ultimoMomentoTocadoId.value,
+    ultimoDisparo: ultimoDisparo.value,
+  };
 }
 
 export const tutor = criarTutor({ licoes: LICOES, estado: estadoDoTutor });

@@ -20,6 +20,12 @@ export interface EstadoDoTutor {
   sujo: boolean;
   /** O conjunto e o pincel da ferramenta Espalhar. */
   espalhar?: { conjunto: string; raio: number };
+  /** O momento em execução atualmente, se houver. */
+  momentoEmCurso?: { id: string; passo: number; total: number } | null;
+  /** O ID do último momento tocado. */
+  ultimoMomentoTocadoId?: string | null;
+  /** O último espaço disparado na barra de efeitos. */
+  ultimoDisparo?: { i: number; quando: number } | null;
 }
 /** `['nome', ...argumentos]`. */
 export type Condicao = readonly [string, ...unknown[]];
@@ -102,6 +108,10 @@ export const CONDICOES: Record<string, (e: EstadoDoTutor, ...a: never[]) => bool
   regioes: (e, n: number) => lista(e.doc.regions).length >= n,
   regiaoOcupada: (e, kind?: string) => regioesOcupadas(e.doc, kind as never).length > 0,
   comodoComLeitura: e => Object.values(e.doc.comodosExtra).some(extra => typeof extra.leitura === 'string' && extra.leitura.trim().length > 0),
+  momentoCriado: (e, nome?: string, passosQtd = 1) => lista(e.doc.moments).some(m => (!nome || m.nome.trim().toLowerCase() === nome.toLowerCase()) && m.passos.length >= passosQtd),
+  momentoTocado: (e, id?: string) => e.momentoEmCurso != null || (id ? e.ultimoMomentoTocadoId === id : !!e.ultimoMomentoTocadoId),
+  regiaoComMomento: (e, momentoId?: string) => lista(e.doc.regions).some(r => r.kind === 'trigger' && !!r.payload?.momento && (!momentoId || r.payload.momento === momentoId)),
+  espacoDisparado: (e, n: number) => e.ultimoDisparo?.i === (n - 1),
   /** Um valor do documento num caminho (`lights.*.radius`), igual ao desejado (números a ~2%). */
   valor: (e, caminho: string, desejado: unknown) => valoresEm(e.doc, caminho).some(v => igual(v, desejado)),
   /** Uma cor do documento num caminho, do mesmo tipo da desejada. */

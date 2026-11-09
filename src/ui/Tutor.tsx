@@ -91,6 +91,12 @@ export function Tutor() {
         const w = c.offsetWidth, h = c.offsetHeight, folga = 16, M = 12;
         const alvosLivres: { left: number; top: number; right: number; bottom: number }[] = [];
         if (visivel && caixa) alvosLivres.push({ left: caixa.left - 8, top: caixa.top - 8, right: caixa.right + 8, bottom: caixa.bottom + 8 });
+        for (const painel of document.querySelectorAll<HTMLElement>('.dock-painel, .editor-momento')) {
+          const r = painel.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) {
+            alvosLivres.push({ left: r.left - 8, top: r.top - 8, right: r.right + 8, bottom: r.bottom + 8 });
+          }
+        }
 
         const pontosLivres: { left: number; top: number; right: number; bottom: number }[] = [];
         for (const pt of lista) {

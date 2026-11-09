@@ -27,6 +27,8 @@ export const momentoEmCurso = signal<{
   total: number;
 } | null>(null);
 
+export const ultimoMomentoTocadoId = signal<string | null>(null);
+
 const relogioPadrao: Relogio = {
   esperar(ms, sinal) {
     if (sinal.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
@@ -116,6 +118,7 @@ export async function tocarMomento(
   const sinal = ctx.abortController.signal;
 
   const total = m.passos.length;
+  ultimoMomentoTocadoId.value = m.id;
 
   for (let i = 0; i < total; i++) {
     if (sinal.aborted) {

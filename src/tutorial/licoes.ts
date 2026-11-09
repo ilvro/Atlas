@@ -16,6 +16,9 @@ export const SALA: Retangulo = [[3.75, 3.75], [8.25, 8.25]], COZINHA: Retangulo 
 export const PAREDE_SALA_COZINHA: Ponto = [9, 6], PAREDE_SALA_QUARTO: Ponto = [6, 9];
 /** A casa das lições de terreno e clima, no meio do mapa de 45 × 30 m. */
 export const CASA: Retangulo = [[18.75, 11.25], [26.25, 17.25]];
+/** Corredor e porão para a lição de momentos. */
+export const CORREDOR: Retangulo = [[3.75, 4.5], [8.25, 7.5]], PORAO: Retangulo = [[9.75, 3.75], [15.75, 11.25]];
+export const PAREDE_CORREDOR_PORAO: Ponto = [9, 5.25], PONTO_ESCADA: Ponto = [11.25, 5.25];
 
 const tid = (id: string) => `[data-testid="${id}"]`;
 const campo = (rotulo: string, tipo = 'input') => `[data-campo="${rotulo}"] ${tipo}`;
@@ -182,7 +185,7 @@ const SESSAO: Licao = {
 };
 
 const REGIOES: Licao = {
-  id: 'regioes', titulo: 'Regiões e gatilhos', minutos: 5, pasta: 'mesa', proxima: 'campanha',
+  id: 'regioes', titulo: 'Regiões e gatilhos', minutos: 5, pasta: 'mesa', proxima: 'momentos',
   mapa: { largura: 18, altura: 15 },
   resumo: 'Zonas interativas: crie gatilhos de armadilha com avisos ao mestre e áreas sonoras que disparam o Jukebox.',
   passos: [
@@ -208,6 +211,34 @@ const REGIOES: Licao = {
   ],
 };
 
+const MOMENTOS: Licao = {
+  id: 'momentos', titulo: 'Momentos e improviso', minutos: 5, pasta: 'mesa', proxima: 'campanha',
+  mapa: { largura: 18, altura: 15 },
+  resumo: 'Transições cinematográficas com iluminação e sons pré-programados, gatilhos automáticos e a barra de efeitos 1–9.',
+  passos: [
+    { ...ferramenta('comodo', 'Pegue a ferramenta <b>Cômodo</b>.', 'Vamos preparar um corredor e um porão para montar uma transição dramática.', ['C', 'cômodo']), etapa: 'O cenário' },
+    comodo('sala', 'sala', CORREDOR, 'Pinte o <b>Corredor</b> (Shift + arrasto) entre os pontos marcados.', 'O corredor será o ponto de partida do investigador.'),
+    comodo('quarto', 'quarto', PORAO, 'E o <b>Porão</b> ao lado.', 'No porão criaremos o evento dramático.'),
+    { ...ferramenta('abertura', 'Pegue a ferramenta <b>Abertura</b>.', 'Portas separam os ambientes e bloqueiam visão e iluminação.') },
+    porta('o corredor e o porão', PAREDE_CORREDOR_PORAO, 1),
+    { ...ferramenta('peca', 'Pegue a ferramenta <b>Peça</b>.', 'Vamos posicionar o investigador no corredor.', ['P', 'peça']), etapa: 'O investigador' },
+    { diga: 'Clique no meio do corredor, no ponto marcado: é o investigador.', ponto: [6, 5.25], feito: ['pecas', 1], acao: [['mapa', [6, 5.25]]] },
+    { ...ferramenta('selecionar', 'Selecione o investigador que você acabou de colocar.'), feito: ['e', ['ferramenta', 'selecionar'], ['selecionadoEm', 'tokens', [6, 5.25]]], acao: [clicar('ferramenta-selecionar'), ['mapa', [6, 5.25]]], ponto: [6, 5.25] },
+    { diga: 'Na aba <b>Seleção</b>, marque <b>Jogador</b>.', alvo: campo('Jogador'), feito: ['pecasDeJogador', 1], aba: 'selecao', acao: [clicar('aba-selecao'), ['clicar', campo('Jogador')]], porque: 'Apenas peças de jogador acionam gatilhos de movimento.' },
+    { ...ferramenta('regiao', 'Pegue a ferramenta <b>Região</b>.', 'Vamos criar uma zona de gatilho na descida da escada.', ['R', 'região']), etapa: 'Gatilho na escada' },
+    { diga: 'Clique logo após a porta, no ponto marcado da escada.', alvo: tid('ferramenta-regiao'), ponto: PONTO_ESCADA, feito: ['regioes', 1], acao: ['mapa', PONTO_ESCADA], porque: 'Uma região nessa passagem detectará quando o grupo descer ao porão.' },
+    { ...ferramenta('selecionar', 'Selecione a região recém-criada.'), feito: ['e', ['ferramenta', 'selecionar'], ['selecionado', 'regions']], acao: [clicar('ferramenta-selecionar'), ['mapa', PONTO_ESCADA]], ponto: PONTO_ESCADA },
+    { diga: 'Na aba <b>Seleção</b>, troque o <b>Tipo</b> para <b>Gatilho</b>.', alvo: campo('Tipo', 'select'), feito: ['valor', 'regions.*.kind', 'trigger'], aba: 'selecao', acao: [clicar('aba-selecao'), ['escolher', campo('Tipo', 'select'), 'trigger']] },
+    { diga: 'Entre na <b>Sessão</b>.', alvo: tid('modo-sessao'), feito: ['modo', 'sessao'], acao: clicar('modo-sessao'), etapa: 'Criando o momento', porque: 'Na Sessão, você acessa o painel Momentos no Dock e a Barra de Efeitos.' },
+    { diga: 'No Dock, abra <b>Momentos</b>, clique em <b>+ Novo momento</b>, chame de <b>O porão acorda</b>, adicione os passos e clique em <b>Salvar</b>.', alvo: tid('dock-titulo-momentos'), feito: ['momentoCriado', 'O porão acorda'], acao: [clicar('dock-titulo-momentos'), clicar('dock-novo-momento'), ['preencher', tid('editor-momento-nome'), 'O porão acorda'], clicar('editor-momento-add-passo'), clicar('menu-add-tela'), clicar('editor-momento-add-passo'), clicar('menu-add-esperar'), clicar('editor-momento-add-passo'), clicar('menu-add-efeito'), clicar('editor-momento-add-passo'), clicar('menu-add-clima'), clicar('editor-momento-add-passo'), clicar('menu-add-letreiro'), clicar('editor-momento-add-passo'), clicar('menu-add-tela'), clicar('editor-momento-salvar')], porque: 'O momento orquestra cortina preta (600 ms), espera (1 s), tremor, clima de apagão, letreiro e clarear.' },
+    { diga: 'Clique em <b>▶</b> (Testar) para assistir à transição cinematográfica ao vivo.', alvo: tid('dock-momento-tocar'), feito: ['momentoTocado'], acao: clicar('dock-momento-tocar'), etapa: 'Testando o momento', porque: 'Você assiste à sequência exatamente como ela se apresentará aos jogadores no projetor.' },
+    { diga: 'Volte ao modo <b>Construir</b>, selecione a região na escada e, no seletor <b>Momento</b>, escolha <b>O porão acorda</b>.', alvo: tid('gatilho-momento'), feito: ['regiaoComMomento'], acao: [clicar('modo-construir'), clicar('ferramenta-selecionar'), ['mapa', PONTO_ESCADA], clicar('aba-selecao'), ['escolher', tid('gatilho-momento'), 'O porão acorda']], etapa: 'Armando a cena', porque: 'Agora a região disparará o momento completo assim que o investigador pisar na escada.' },
+    { diga: 'Entre na <b>Sessão</b>, abra a porta e arraste o investigador para a escada do porão.', alvo: tid('modo-sessao'), ponto: [[6, 5.25], PONTO_ESCADA], feito: ['regiaoOcupada', 'trigger'], acao: [clicar('modo-sessao'), ['mapa', PAREDE_CORREDOR_PORAO], ['arrastar', [6, 5.25], PONTO_ESCADA]], etapa: 'Gatilho disparado', porque: 'Ao pisar na escada, o gatilho detecta o investigador e aciona o momento "O porão acorda" sozinho!' },
+    { diga: 'A qualquer momento da partida, use a <b>Barra de Efeitos</b>: aperte a tecla <b>3</b> (ou clique no botão 3) para fazer as luzes piscarem.', alvo: tid('barra-espaco-3'), feito: ['espacoDisparado', 3], acao: ['tecla', '3'], etapa: 'Improviso com a Barra', porque: 'A barra de efeitos 1–9 permite improvisar sustos, tremores e apagões instantaneamente sem abrir menus.', aprendeu: ['1…9', 'dispara efeitos rápidos na Sessão'] },
+    ler('Excelente! Você dominou os momentos e a barra de efeitos: crie transições pré-programadas para revelações cruciais, arme regiões de gatilho no cenário e tenha a barra de efeitos rápida sempre à mão para improvisar.'),
+  ],
+};
+
 const CAMPANHA: Licao = {
   id: 'campanha', titulo: 'Atlas na campanha', minutos: 5, pasta: 'mesa',
   mapa: { largura: 18, altura: 15 },
@@ -225,4 +256,4 @@ const CAMPANHA: Licao = {
   ],
 };
 
-export const LICOES: readonly Licao[] = [TESTE, PRIMEIRA_CASA, ASSISTENTE, TERRENO_E_ESPALHAR, CLIMAS, PRESENCA, CLIMAS_PROPRIOS, SESSAO, REGIOES, CAMPANHA];
+export const LICOES: readonly Licao[] = [TESTE, PRIMEIRA_CASA, ASSISTENTE, TERRENO_E_ESPALHAR, CLIMAS, PRESENCA, CLIMAS_PROPRIOS, SESSAO, REGIOES, MOMENTOS, CAMPANHA];
