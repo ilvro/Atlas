@@ -7,6 +7,7 @@ import { GENEROS, PACOTES_DE_PRESENCA, PINCEIS_DE_PRESENCA, PRESETS_DE_ACABAMENT
 import { COLECAO } from '../procedural/colecao.ts';
 import { materiaisDo } from '../procedural/materiais.ts';
 import { listaDeReceitas } from '../procedural/receitas/index.ts';
+import { caixaDe, type Alvo, type Caixa } from '../render/selecao.ts';
 import type { RepositorioMapas } from '../data/repositorio.ts';
 
 /** O que as ferramentas de leitura precisam do Atlas; o app liga isto aos signals (sem DOM, dá para testar com um banco em memória). */
@@ -15,6 +16,12 @@ export interface ContextoDeLeitura {
   /** O mapa aberto agora, ou `null`. */
   mapaAberto: () => MapaAtlas | null;
   abrirMapa: (id: string) => Promise<void>;
+  /** O modo do editor agora (`construir` ou `sessao`). */
+  modo?: () => 'construir' | 'sessao';
+  /** A seleção atual do editor. */
+  selecao?: () => readonly Alvo[];
+  /** O que a câmera mostra agora, em metros; `null` quando não há editor na tela. */
+  caixaVisivel?: () => Caixa | null;
   /** Fotografa o mapa aberto (o viewport); ausente ou `null` quando não há editor na tela. */
   capturar?: (opcoes: { caixa?: { x0: number; y0: number; x1: number; y1: number } }) => Promise<{ dataUrl: string; largura: number; altura: number; pxPorMetro: number; caixa: { x0: number; y0: number; x1: number; y1: number } }> | null;
 }
@@ -98,6 +105,38 @@ export function catalogo(parte?: string): unknown {
   }
 }
 
+const ROTULO_DO_MODO = { construir: 'Construir', sessao: 'Sessão' } as const;
+const TIPO_DO_ALVO: Record<Alvo['colecao'], string> = { rooms: 'comodo', walls: 'parede', openings: 'abertura', regions: 'regiao', presence: 'presenca', props: 'objeto', lights: 'luz', tokens: 'peca' };
+
+/** O que o mestre tem na tela: mapa aberto, modo, caixa visível da câmera e a seleção (ids, tipo, nome, posição). */
+export function oQueVejo(ctx: ContextoDeLeitura): Record<string, unknown> {
+  const m = ctx.mapaAberto();
+  if (!m) return { mapa: null, dica: 'Nenhum mapa aberto no Atlas (veja atlas_mapas_listar e atlas_abrir).' };
+  const nomeDe = (a: Alvo): string | null => {
+    switch (a.colecao) {
+      case 'rooms': return m.rooms[a.id]?.name ?? null;
+      case 'tokens': return m.tokens[a.id]?.name ?? null;
+      case 'props': { const o = m.props[a.id]; if (!o) return null; const id = o.source.kind === 'recipe' ? o.source.recipe : o.source.assetId; return listaDeReceitas().find(r => r.id === id)?.nome ?? id; }
+      case 'lights': return m.lights[a.id]?.preset ?? null;
+      case 'regions': { const g = m.regions[a.id]; return g ? (typeof g.payload.nome === 'string' ? g.payload.nome : g.kind) : null; }
+      case 'openings': return m.openings[a.id]?.kind ?? null;
+      default: return null;
+    }
+  };
+  const selecao = (ctx.selecao?.() ?? []).flatMap(a => {
+    const c = caixaDe(m, a);
+    if (!c) return [];
+    return [{ id: a.id, colecao: a.colecao, tipo: TIPO_DO_ALVO[a.colecao], nome: nomeDe(a), posicao: pt([(c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2]) }];
+  });
+  const v = ctx.caixaVisivel?.() ?? null, modo = ctx.modo?.() ?? null;
+  return {
+    mapa: { id: m.id, nome: m.name },
+    modo: modo ? ROTULO_DO_MODO[modo] : null,
+    camera: v ? { caixa: [r1(v.x0), r1(v.y0), r1(v.x1), r1(v.y1)], unidade: 'm', dica: '[x0, y0, x1, y1] em metros, origem no canto superior esquerdo' } : null,
+    selecao,
+  };
+}
+
 const vazio = { type: 'object', properties: {}, required: [], additionalProperties: false };
 
 export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[] {
@@ -112,6 +151,12 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
     return m;
   };
   return [
+    {
+      nome: 'atlas_o_que_vejo',
+      descricao: 'O que o mestre tem na tela agora: o mapa aberto (id e nome), o modo (Construir ou Sessão), a caixa visível da câmera em metros e a seleção (ids, tipo, nome e posição em metros). Use para entender "este cômodo", "esses objetos".',
+      esquema: vazio,
+      async executar() { return [json(oQueVejo(ctx))]; },
+    },
     {
       nome: 'atlas_mapas_listar',
       descricao: 'Lista os mapas salvos no Atlas: id, nome, tamanho em células, contagens de cômodos, objetos, luzes e peças, campanha e datas de criação e alteração (milissegundos desde 1970). Diz também qual mapa está aberto.',

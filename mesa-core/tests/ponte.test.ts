@@ -122,3 +122,33 @@ test('ferramentas da campanha: esquemas válidos, leitura e sem blobs', async ()
   await assert.rejects(f.campanha_sessao_ler!.executar({ id: 'x' }), /não encontrada/);
   repo.fechar();
 });
+
+test('estado da conexão: conectando, conectada, desligada, e aviso a quem assina', () => {
+  const { sockets, agenda, cliente } = montar();
+  const vistos: string[] = [];
+  const cancelar = cliente.aoMudarEstado(e => vistos.push(e.conexao));
+  assert.equal(cliente.estado().conexao, 'conectando'); assert.equal(cliente.estado().ferramentas, 2);
+  sockets[0]!.abrir(); assert.equal(cliente.estado().conexao, 'conectada');
+  sockets[0]!.cair(); assert.equal(cliente.estado().conexao, 'desligada');
+  agenda[0]!.fn(); assert.equal(cliente.estado().conexao, 'conectando');
+  sockets[1]!.abrir();
+  assert.deepEqual(vistos, ['conectada', 'desligada', 'conectando', 'conectada']);
+  cancelar(); sockets[1]!.cair();
+  assert.deepEqual(vistos, ['conectada', 'desligada', 'conectando', 'conectada']);
+  cliente.fechar();
+});
+
+test('estado: chamada em curso e horário da última chamada', async () => {
+  let solta: () => void = () => {};
+  const lenta: FerramentaDaPonte = { nome: 'lenta', descricao: 'espera', esquema, executar: () => new Promise(r => { solta = () => r([texto('ok')]); }) };
+  const sockets: SocketFalso[] = [];
+  const cliente = conectarPonte({ app: 't', titulo: 'T', ferramentas: [lenta], url: 'ws://x', criarSocket: u => { const s = new SocketFalso(u); sockets.push(s); return s; }, agendar: () => 0, cancelar: () => {}, agora: () => 1234 });
+  const s = sockets[0]!; s.abrir();
+  assert.equal(cliente.estado().ocupada, false); assert.equal(cliente.estado().ultimaChamadaEm, null);
+  s.receber({ tipo: 'chamar', id: '1', ferramenta: 'lenta', args: {} });
+  assert.equal(cliente.estado().ocupada, true); assert.equal(cliente.estado().ultimaChamadaEm, 1234);
+  solta(); await tick();
+  assert.equal(cliente.estado().ocupada, false); assert.equal(cliente.estado().ultimaChamadaEm, 1234);
+  assert.equal(s.enviadas.at(-1)?.ok, true);
+  cliente.fechar(); assert.equal(cliente.estado().conexao, 'desligada');
+});

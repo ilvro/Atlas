@@ -7,6 +7,7 @@ import { criarMapa } from '../../src/domain/mapa.ts';
 import { listaDeReceitas } from '../../src/procedural/receitas/index.ts';
 import { PRESETS_DE_CLIMA } from '../../src/domain/presets.ts';
 
+const entreposto = lerMapa(JSON.parse(readFileSync('public/exemplos/entreposto-do-rio.atlas.json', 'utf8')));
 const covil = lerMapa(JSON.parse(readFileSync('public/exemplos/covil-na-caverna.atlas.json', 'utf8')));
 const outro = criarMapa({ id: 'outro', nome: 'Outro' });
 
@@ -31,7 +32,7 @@ function montar(aberto: typeof covil | null) {
 
 test('as ferramentas têm nome, descrição e esquema de objeto', () => {
   const { f } = montar(null);
-  assert.deepEqual(Object.keys(f), ['atlas_mapas_listar', 'atlas_mapa_ler', 'atlas_catalogo', 'atlas_abrir', 'atlas_ver_mapa']);
+  assert.deepEqual(Object.keys(f), ['atlas_o_que_vejo', 'atlas_mapas_listar', 'atlas_mapa_ler', 'atlas_catalogo', 'atlas_abrir', 'atlas_ver_mapa']);
   for (const x of Object.values(f)) { assert.ok(x.descricao.length > 20); assert.equal(x.esquema.type, 'object'); }
 });
 
@@ -94,4 +95,28 @@ test('atlas_abrir navega até o mapa e recusa id que não existe', async () => {
   assert.deepEqual(abertos, ['outro']);
   await assert.rejects(chamar('atlas_abrir', { id: 'x' }), /Não existe mapa/);
   await assert.rejects(chamar('atlas_abrir', {}), /Falta/);
+});
+
+test('atlas_o_que_vejo: mapa, modo, câmera e seleção de um cômodo e dois objetos', async () => {
+  const comodo = Object.values(entreposto.rooms)[0]!, objetos = Object.values(entreposto.props).slice(0, 2);
+  assert.equal(objetos.length, 2);
+  const ctx: ContextoDeLeitura = {
+    repo: () => null, mapaAberto: () => entreposto, abrirMapa: async () => {},
+    modo: () => 'sessao', caixaVisivel: () => ({ x0: 1.04, y0: 2, x1: 31.5, y1: 20 }),
+    selecao: () => [{ colecao: 'rooms', id: comodo.id }, ...objetos.map(o => ({ colecao: 'props' as const, id: o.id })), { colecao: 'props', id: 'fantasma' }],
+  };
+  const f = ferramentasDeLeitura(ctx).find(x => x.nome === 'atlas_o_que_vejo')!;
+  const r = JSON.parse(((await f.executar({}))[0] as { texto: string }).texto);
+  assert.deepEqual(r.mapa, { id: entreposto.id, nome: entreposto.name });
+  assert.equal(r.modo, 'Sessão');
+  assert.deepEqual(r.camera.caixa, [1, 2, 31.5, 20]);
+  assert.deepEqual(r.selecao.map((s: { id: string }) => s.id), [comodo.id, ...objetos.map(o => o.id)]);
+  assert.equal(r.selecao[0].tipo, 'comodo'); assert.equal(r.selecao[0].nome, comodo.name);
+  assert.equal(r.selecao[1].tipo, 'objeto'); assert.equal(typeof r.selecao[1].nome, 'string');
+  assert.equal(r.selecao[1].posicao.length, 2);
+});
+
+test('atlas_o_que_vejo sem mapa aberto', async () => {
+  const { chamar } = montar(null);
+  assert.equal(JSON.parse(await chamar('atlas_o_que_vejo')).mapa, null);
 });
