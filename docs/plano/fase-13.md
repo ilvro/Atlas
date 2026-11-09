@@ -154,7 +154,7 @@ Commit: `trigger regions play moments`
 
 ---
 
-### 13.4a — Barra de Efeitos: modelo, persistência e teclas 1–9  ⬜
+### 13.4a — Barra de Efeitos: modelo, persistência e teclas 1–9  ✅
 Objetivo: nove espaços configuráveis disparados pelo teclado na sessão.
 Depende de: 13.1b.
 Ler: `src/app/acoes.ts` (atalhos `1`–`9` das ferramentas, `noEditor`, `executarAcao`, tratamento de teclas); `src/app/modo.ts`; `src/domain/relogio.ts` (persistência em `localStorage` com `try/catch`).

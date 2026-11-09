@@ -14,6 +14,7 @@ import { PRESETS_DE_CLIMA } from '../domain/presets.ts';
 import { FERRAMENTAS_DA_SESSAO, modo, vistaDeJogador } from './modo.ts';
 import { aceitarSugestao, definirSugestoesLigadas, dispensarSugestao, outraSugestao, sugestao, sugestoesLigadas } from './sugestoes.ts';
 import { momentoEmCurso, pararMomento } from './momentos.ts';
+import { dispararEspaco } from './barra-de-efeitos.ts';
 import type { Alvo } from '../render/selecao.ts';
 import type { Ponto } from '../domain/mapa.ts';
 
@@ -133,6 +134,7 @@ export const ACOES: readonly Acao[] = [
   { id: 'biblioteca', nome: 'Abrir ou fechar a biblioteca', grupo: 'Construir', palavras: 'gaveta itens catalogo', atalhos: ['B'], habilitada: noEditor, executar: () => { const s = app.sessao.value; if (s) s.biblioteca.value = !s.biblioteca.value; } },
   { id: 'vista-jogador', nome: 'Ver como jogador (névoa) / ver tudo', grupo: 'Sessão', palavras: 'visao nevoa mestre jogadores', atalhos: ['J'], habilitada: () => modo.value === 'sessao', executar: () => { vistaDeJogador.value = !vistaDeJogador.value; avisar(vistaDeJogador.value ? 'Vista dos jogadores.' : 'Vista do mestre.', { duracao: 1400 }); } },
   { id: 'ferr-regua', nome: 'Ferramenta: régua (medir em quadrados)', grupo: 'Sessão', palavras: 'medir distancia metros quadrados', atalhos: ['R'], habilitada: () => modo.value === 'sessao', executar: () => usarFerramenta('regua') },
+  { id: 'barra-efeitos', nome: 'Barra de efeitos: espaços 1 a 9', grupo: 'Sessão', palavras: 'barra efeitos momentos hotbar atalhos teclas', atalhos: ['1…9'], habilitada: () => modo.value === 'sessao', executar: () => {} },
   { id: 'interagir', nome: 'Interagir (abrir ou fechar a porta ao lado da peça)', grupo: 'Sessão', palavras: 'porta abrir fechar usar peca', atalhos: ['Enter'], habilitada: () => modo.value === 'sessao' && (app.sessao.value?.selecao.value.some(a => a.colecao === 'tokens') ?? false), executar: () => app.interagirComPerto() },
   { id: 'virar-lanterna-esq', nome: 'Virar a lanterna para a esquerda (45°)', grupo: 'Sessão', palavras: 'facho cone luz peça', atalhos: ['Q'], habilitada: () => modo.value === 'sessao' && app.comLanterna(), executar: () => app.virarLanterna(-45) },
   { id: 'virar-lanterna-dir', nome: 'Virar a lanterna para a direita (45°)', grupo: 'Sessão', palavras: 'facho cone luz peça', atalhos: ['E'], habilitada: () => modo.value === 'sessao' && app.comLanterna(), executar: () => app.virarLanterna(45) },
@@ -184,6 +186,20 @@ export const acaoPorId = (id: string): Acao | undefined => {
       };
     }
   }
+  if (id.startsWith('barra-espaco-')) {
+    const num = Number(id.replace('barra-espaco-', ''));
+    if (num >= 1 && num <= 9) {
+      return {
+        id,
+        nome: `Barra de efeitos: espaço ${num}`,
+        grupo: 'Sessão',
+        palavras: 'barra efeito momento hotbar atalho',
+        atalhos: [`${num}`],
+        habilitada: () => modo.value === 'sessao',
+        executar: () => { dispararEspaco(num - 1); },
+      };
+    }
+  }
   return ACOES.find(a => a.id === id);
 };
 
@@ -210,6 +226,19 @@ export function buscarAcoes(consulta: string): Acao[] {
       });
     }
   }
+  if (modo.value === 'sessao') {
+    for (let i = 1; i <= 9; i++) {
+      base.push({
+        id: `barra-espaco-${i}`,
+        nome: `Barra de efeitos: espaço ${i}`,
+        grupo: 'Sessão',
+        palavras: 'barra efeito momento hotbar atalho',
+        atalhos: [`${i}`],
+        habilitada: () => true,
+        executar: () => { dispararEspaco(i - 1); },
+      });
+    }
+  }
   return filtrar(base, consulta, a => `${a.nome} ${a.grupo} ${a.palavras ?? ''}`);
 }
 
@@ -233,6 +262,14 @@ export function tratarTecla(e: KeyboardEvent): boolean {
   // Dentro de um campo de texto só valem os atalhos com Ctrl (e Esc), para não roubar a digitação.
   if (emCampo && !(e.ctrlKey || e.metaKey) && k !== 'escape') return false;
   if (app.paletaAberta.value && k !== 'escape' && !(e.ctrlKey && k === 'k')) return false;
+
+  if (modo.value === 'sessao' && !e.ctrlKey && !e.altKey && !e.metaKey && /^[1-9]$/.test(e.key)) {
+    const indice = Number(e.key) - 1;
+    e.preventDefault();
+    dispararEspaco(indice);
+    return true;
+  }
+
   for (const a of ACOES) {
     if (!a.atalhos?.some(t => combina(t, e))) continue;
     if (!HABILITADA(a)) continue;
