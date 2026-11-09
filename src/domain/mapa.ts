@@ -1,8 +1,9 @@
 import type { Ref } from '#mesa';
 import type { Faixa } from './celulas.ts';
+import type { Momento } from './momentos.ts';
 
 export const SCHEMA_MAPA = 'atlas.map';
-export const VERSAO_MAPA = 7;
+export const VERSAO_MAPA = 8;
 
 /** Unidade de mundo: metro. Coordenadas [x, y] com origem no canto superior esquerdo e y para baixo. */
 export type Ponto = [x: number, y: number];
@@ -163,6 +164,7 @@ export interface MapaAtlas {
   /** Que cena do Jukebox toca em cada clima (id da predefinição ou do clima salvo). */
   climateAudio: Record<string, Ref>;
   customClimates: Record<string, ClimaSalvo>;
+  moments: Record<string, Momento>;
 }
 
 /** Coleções de entidades por identificador: as que o editor seleciona, move e remove. */
@@ -195,6 +197,7 @@ export function criarMapa(o: OpcoesNovoMapa = {}): MapaAtlas {
     comodosExtra: {},
     session: { explored: null, initiative: null, revealed: [], event: null },
     audioCue: null, notes: '', climateAudio: {}, customClimates: {},
+    moments: {},
   };
 }
 

@@ -50,7 +50,7 @@ test('modos: abrir outro mapa volta a Construir', async () => {
   await page.keyboard.press('Alt+g'); await page.waitForTimeout(600);
   await criarMapaPelaInterface(page); await page.waitForTimeout(300);
   assert.equal(await page.locator('[data-testid="modo-construir"]').getAttribute('aria-checked'), 'true', 'o mapa novo abre em Construir');
-  assert.equal((await documento(page)).version, 6);
+  assert.equal((await documento(page)).version, 8);
   assert.deepEqual(erros, []); await ctx.close();
 });
 

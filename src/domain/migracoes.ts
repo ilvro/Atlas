@@ -91,7 +91,16 @@ const de6para7: Migracao = doc => {
   return d;
 };
 
-export const MIGRACOES: TabelaDeMigracoes = { 1: de1para2, 2: de2para3, 3: de3para4, 4: de4para5, 5: de5para6, 6: de6para7 };
+/**
+ * 7 → 8 (Fase 13): momentos no mapa (`moments: {}`).
+ */
+const de7para8: Migracao = doc => {
+  const d = doc as Record<string, any>;
+  d.moments ??= {};
+  return d;
+};
+
+export const MIGRACOES: TabelaDeMigracoes = { 1: de1para2, 2: de2para3, 3: de3para4, 4: de4para5, 5: de5para6, 6: de6para7, 7: de7para8 };
 
 /** Aplica a cadeia de migrações até `alvo`. Separada para ser testada com tabelas de mentira. */
 export function aplicarMigracoes(bruto: unknown, tabela: TabelaDeMigracoes, alvo: number): Record<string, unknown> {

@@ -2,6 +2,7 @@ import { ehRef } from '#mesa';
 import { ehCanonica } from './celulas.ts';
 import { ErroDeValidacao, HEX, IDENT, e, type Esq } from './esquema.ts';
 import { COLECOES, ESTADOS_FIGURA, ESTILOS_DE_LINHA_DA_GRADE, SCHEMA_MAPA, TIPOS_DE_GRADE, VERSAO_MAPA, colunas, linhas, type MapaAtlas } from './mapa.ts';
+import { momentoValido, type Momento } from './momentos.ts';
 
 const ponto = e.tupla(e.num({ min: -10_000, max: 10_000 }), e.num({ min: -10_000, max: 10_000 }));
 const id = e.texto({ min: 1, max: 64, padrao: IDENT });
@@ -142,6 +143,14 @@ export const ESQUEMA_MAPA: Esq = e.obj({
     for (const [k, r] of Object.entries(v)) { id.verificar(k, `${c}.${k}`); ref.verificar(r, `${c}.${k}`); }
   }),
   customClimates: e.porId(e.obj({ id, name: nome, climate: e.obj(CAMPOS_DO_CLIMA), finish: e.obj(CAMPOS_DO_ACABAMENTO) })),
+  moments: e.proprio((v, c) => {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) throw new ErroDeValidacao('Deve ser um dicionário.', c);
+    for (const [k, mto] of Object.entries(v)) {
+      const erro = momentoValido(mto);
+      if (erro) throw new ErroDeValidacao(erro, `${c}.${k}`);
+      if ((mto as Momento).id !== k) throw new ErroDeValidacao('Identificador diferente da chave.', `${c}.${k}.id`);
+    }
+  }),
 });
 
 /**
@@ -173,6 +182,11 @@ export function validarMapa(valor: unknown): asserts valor is MapaAtlas {
   for (const [lid, l] of Object.entries(m.lights)) if (l.ownerId && !m.props[l.ownerId] && !m.tokens[l.ownerId]) falha('Dono inexistente (objeto ou token).', `lights.${lid}.ownerId`);
   for (const [tid, t] of Object.entries(m.tokens)) if (t.lightId && !m.lights[t.lightId]) falha('Luz inexistente.', `tokens.${tid}.lightId`);
   for (const [cid, c] of Object.entries(m.customClimates)) if (c.id !== cid) falha('Identificador diferente da chave.', `customClimates.${cid}.id`);
+  for (const [mid, mto] of Object.entries(m.moments)) {
+    const erro = momentoValido(mto);
+    if (erro) falha(erro, `moments.${mid}`);
+    if (mto.id !== mid) falha('Identificador diferente da chave.', `moments.${mid}.id`);
+  }
   for (const rid of Object.keys(m.comodosExtra)) if (!m.rooms[rid]) falha('Cômodo inexistente.', `comodosExtra.${rid}`);
   const ini = m.session.initiative;
   if (ini) {

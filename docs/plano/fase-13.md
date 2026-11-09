@@ -38,7 +38,7 @@ Pré-requisito: a **12.11** (correções dos gatilhos e do projetor) aplicada, p
 
 ---
 
-### 13.1a — Domínio: tipo `Momento`, documento v8 e comandos  ⬜
+### 13.1a — Domínio: tipo `Momento`, documento v8 e comandos  ✅
 Objetivo: o mapa guarda momentos validados e editáveis por comando, com migração 7 → 8.
 Depende de: 12.11.
 Ler: `src/domain/mapa.ts` (`MapaAtlas`, `criarMapa`, `ClimaSalvo` como modelo de coleção por id); `src/domain/migracoes.ts` (a migração 6 → 7 como modelo); `src/domain/validacao.ts`; `src/state/comandos.ts` (`clima.salvar`/`clima.esquecer` como modelo, `ROTULOS`); `src/render/eventos-de-cena.ts`; `src/domain/projecao.ts` (`projetarParaJogadores`).

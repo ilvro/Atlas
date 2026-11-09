@@ -11,6 +11,7 @@ import { celulasVisiveis, exploradoAgora, RES_NEVOA } from '../domain/nevoa.ts';
 import { anguloDoMovimento, bloqueioNoCaminho, centroDaCelula, ladoDoMovimento } from '../domain/movimento.ts';
 import { presetDeClima } from '../domain/presets.ts';
 import { validarMapa } from '../domain/validacao.ts';
+import { momentoValido, type Momento } from '../domain/momentos.ts';
 import { aplicarConstrucao, ehComandoDeConstrucao, ErroDeComando, ROTULOS_CONSTRUIR, type ComandoConstruir, type ParcialProfundo } from './comandos-construir.ts';
 
 /** Coleções que os comandos genéricos manipulam. Cômodos, paredes e aberturas têm comandos próprios (Fase 3). */
@@ -33,6 +34,8 @@ export type Comando =
   | { tipo: 'clima.predefinir'; id: string }
   | { tipo: 'clima.salvar'; nome: string; id?: string }
   | { tipo: 'clima.esquecer'; id: string }
+  | { tipo: 'momento.salvar'; momento: Momento }
+  | { tipo: 'momento.remover'; id: string }
   | { tipo: 'clima.audio'; id: string; ref: Ref | null }
   /** A cena sonora do mapa (toca ao abrir o mapa na sessão); `null` tira. */
   | { tipo: 'mapa.audio'; ref: Ref | null }
@@ -145,6 +148,17 @@ function aplicar(m: MapaAtlas, c: Comando): void {
     case 'clima.esquecer': {
       if (!m.customClimates[c.id]) nao('Esse clima salvo não existe.');
       delete m.customClimates[c.id]; delete m.climateAudio[c.id]; break;
+    }
+    case 'momento.salvar': {
+      const erro = momentoValido(c.momento);
+      if (erro) nao(erro);
+      m.moments[c.momento.id] = clonar(c.momento);
+      break;
+    }
+    case 'momento.remover': {
+      if (!m.moments[c.id]) nao('Esse momento não existe.');
+      delete m.moments[c.id];
+      break;
     }
     case 'acabamento.atualizar': mesclar(m.finish, c.patch); break;
     case 'fundo.atualizar': mesclar(m.backdrop, c.patch); break;
@@ -282,7 +296,7 @@ export function aplicarComando(mapa: MapaAtlas, comando: Comando): MapaAtlas {
 export const ROTULOS: Record<Comando['tipo'], string> = {
   ...ROTULOS_CONSTRUIR,
   'mapa.renomear': 'Renomear mapa', 'mapa.notas': 'Editar notas', 'mapa.campanha': 'Ligar à campanha', 'grade.atualizar': 'Ajustar grade',
-  'limites.atualizar': 'Redimensionar mapa', 'estilo.atualizar': 'Mudar estilo', 'mapa.audio': 'Som do mapa', 'clima.aplicar': 'Mudar clima', 'clima.predefinir': 'Aplicar clima', 'clima.salvar': 'Salvar clima', 'clima.esquecer': 'Esquecer clima', 'clima.audio': 'Som do clima', 'acabamento.atualizar': 'Ajustar acabamento',
+  'limites.atualizar': 'Redimensionar mapa', 'estilo.atualizar': 'Mudar estilo', 'mapa.audio': 'Som do mapa', 'clima.aplicar': 'Mudar clima', 'clima.predefinir': 'Aplicar clima', 'clima.salvar': 'Salvar clima', 'clima.esquecer': 'Esquecer clima', 'clima.audio': 'Som do clima', 'momento.salvar': 'Salvar momento', 'momento.remover': 'Remover momento', 'acabamento.atualizar': 'Ajustar acabamento',
   'fundo.atualizar': 'Ajustar fundo', 'memoria.atualizar': 'Ajustar memória', 'item.adicionar': 'Adicionar', 'item.atualizar': 'Editar',
   'item.remover': 'Remover', 'objeto.camada': 'Mudar a camada', 'selecao.mover': 'Mover', 'peca.mover': 'Mover peça', 'peca.virar': 'Virar a lanterna', 'sessao.esquecer': 'Recomeçar a exploração', 'sessao.revelar': 'Revelar', 'sessao.ocultar': 'Esconder cômodos', 'sessao.explorar': 'Explorar', 'interagir': 'Usar', 'iniciativa.iniciar': 'Começar a iniciativa', 'iniciativa.passo': 'Passar a vez', 'iniciativa.valor': 'Valor de iniciativa', 'iniciativa.encerrar': 'Encerrar a iniciativa', 'proposta.aceitar': 'Aceitar sugestão',
 };
