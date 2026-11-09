@@ -147,7 +147,7 @@ Pronto quando: no app do Claude, o servidor `mesa` aparece nas ferramentas da co
 Commit: mcp server for the assistant bridge
 Nota: `@modelcontextprotocol/sdk` 1.32.2 (versão exata). A lógica fica em funções exportadas de `mcp.ts` (`conectarNaPonte`, `criarServidorMcp`, `chamarFerramenta`, `listarFerramentas`, `converterConteudo`); o `main` só roda com `import.meta.main`. O token vem de `.ponte/token` relativo à raiz do Atlas (`import.meta.dirname`), reconexão 1/2/5/10 s. Testes de ponta a ponta com `Client` + `InMemoryTransport` e uma ponte real. O registro no app do Claude só foi documentado (`scripts/ponte/LEIAME.md`), não feito; o "Pronto quando" no app depende do mestre registrar.
 
-### 14.1d — Atlas na ponte: mapas e catálogo  ⬜
+### 14.1d — Atlas na ponte: mapas e catálogo  ✅
 Objetivo: o Claude sabe o que o Atlas tem e o que ele sabe fazer.
 Depende de: 14.1b, 14.1c
 Ler: `src/main.tsx` (o `__atlas` exposto), `src/app/servicos.ts` (repositório), `src/app/sessao.ts`, `src/procedural/receitas/index.ts` (receitas e campos), `src/procedural/materiais.ts` (`materiaisDo`), `src/procedural/colecao.ts`, `src/domain/presets.ts` (climas, acabamentos, luzes, pincéis de presença), `src/domain/momentos.ts`.
@@ -163,6 +163,7 @@ Não fazer: escrita (etapa 2); ver o mapa (14.1e).
 Testes: `atlas_mapa_ler` de um exemplo (`public/exemplos/covil-na-caverna.atlas.json`) devolve as contagens certas e cabe em ~8 mil caracteres; `atlas_catalogo` lista todas as receitas do `ACERVO` com os campos.
 Pronto quando: no app do Claude, "liste os mapas e descreva o aberto" responde com dados reais; no `npm run build`, o chunk da ponte não aparece.
 Commit: atlas read tools for the assistant
+Nota: `package.json` ganhou o alias `#mesa/ponte` (`mesa-core/src/ponte.ts`), pois a ponte não está no `index.ts`. `ferramentasDeLeitura` recebe um contexto mínimo (`repo`, `mapaAberto`, `abrirMapa`) em vez dos `servicos` inteiros. `atlas_catalogo` sem `parte` devolve um índice com contagens (receitas e coleção são grandes); a parte `climas` inclui também acabamentos, gêneros e tipos de cômodo. O resumo do covil tem 3.006 caracteres. Build de produção sem traço da ponte (grep vazio).
 
 ### 14.1e — Atlas: ver o mapa  ⬜
 Objetivo: o Claude enxerga o mapa como o mestre vê, para conferir o que montou.
