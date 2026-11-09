@@ -22,7 +22,7 @@ export const degrauDeAltura = (z: number): 0 | 1 | 2 => (z < 0.5 ? 0 : z < 1.5 ?
 
 /** Escolhe e ordena (por altura) as partes que o Pixel desenha. */
 export function partesDoPixel(partes: readonly Parte[], ppc: number | undefined, res: number): Parte[] {
-  return [...partes].filter(p => { const b = caixaDe(p); return parteVisivel({ detalhe: p.detalhe, maiorLado: Math.max(b.w, b.h) }, ppc, res); }).sort((a, b) => a.z - b.z);
+  return [...partes].filter(p => { if ((p.alfa ?? 1) < 0.5) return false; const b = caixaDe(p); return parteVisivel({ detalhe: p.detalhe, maiorLado: Math.max(b.w, b.h) }, ppc, res); }).sort((a, b) => a.z - b.z);
 }
 
 /** Alfa binário: nada de meio pixel. */

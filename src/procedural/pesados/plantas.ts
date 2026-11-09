@@ -1,6 +1,7 @@
 import { elipse, poli, type DescricaoDePiso, type Parte } from '../descricao.ts';
 import { tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
+import { LUZ_X, LUZ_Y, bolha, lente, silhuetaDeDiscos, tonsComLuz, tufo, type Disco, type Tons } from '../organico.ts';
 import type { GeradorPesado } from './index.ts';
 
 const num = (v: unknown, padrao: number, min: number, max: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : padrao);
@@ -14,70 +15,76 @@ function folha(x: number, y: number, ang: number, len: number, w: number, mat: s
 /** Uma estrela de `pontas` pontas (copa de pinheiro): raio externo `re`, interno `ri`. */
 const estrela = (cx: number, cy: number, pontas: number, re: number, ri: number, giro: number): number[] => { const pts: number[] = []; for (let i = 0; i < pontas * 2; i++) { const a = giro + (i / (pontas * 2)) * Math.PI * 2, r = i % 2 ? ri : re; pts.push(cx + Math.cos(a) * r, cy + Math.sin(a) * r); } return pts; };
 
-/** Copa redonda em anéis de touceiras, do escuro de fora ao claro do meio (a luz lê o volume pelos `z`); folhas pequenas por cima. */
-function copaRedonda(diametro: number, seed: number, verde = ['#1d3d24', '#2a5530', '#3a6f3f', '#52894a', '#6fa65a']): DescricaoDePiso {
-  const r = mulberry32(seed), R = diametro / 2, partes: Parte[] = [];
-  // O tronco só aparece na borda: um pedaço de galho e tronco para o lado da frente.
-  partes.push(elipse(R * 0.12, R * 0.78, R * 0.1, R * 0.16, 'madeira.escura', 0.3, { sombraLeve: true }), elipse(R * 0.08, R * 0.9, R * 0.07, R * 0.07, 'madeira.media', 0.32, { contorno: false, semSombra: true }));
-  const aneis = verde.length;
-  for (let a = 0; a < aneis; a++) {
-    const raioDoAnel = R * (1 - a * (0.78 / aneis)) * (a === 0 ? 0.86 : 1), n = Math.round(10 + (aneis - a) * 5 + R * 3), tam = R * (0.46 - a * 0.045);
+/** Os tons das copas: verde de mata, verde-claro de jardim e neve (com o verde-escuro só nas frestas). */
+const VERDE: Tons = { fundo: '#122a18', base: '#24492b', meio: '#35643a', luz: '#4f8547', brilho: '#79a95c' };
+const VERDE_CLARO: Tons = { fundo: '#173520', base: '#2c5a31', meio: '#417a42', luz: '#5f9a51', brilho: '#8dbf6b' };
+const NEVE: Tons = { fundo: '#36504c', base: '#b0c2d8', meio: '#d9e4f0', luz: '#f0f5fa', brilho: '#ffffff' };
+
+/**
+ * Copa vista de cima, como nas copas ilustradas: uma silhueta lobada (a única parte com contorno e sombra) e, por cima, tufos em três anéis,
+ * de fora para dentro, cada um pintado do escuro à luz para o noroeste. `miudo` (0 a 1) troca poucos tufos grandes por muitos pequenos.
+ */
+function copaDeTufos(diametro: number, seed: number, tons: Tons, { miudo = 0.3, folhas = 4, tronco = true, recorte = 10 }: { miudo?: number; folhas?: number; tronco?: boolean; recorte?: number } = {}): DescricaoDePiso {
+  const r = mulberry32(seed), R = diametro / 2, partes: Parte[] = [], discos: (Disco & { z: number })[] = [];
+  const anel = (n: number, dist: number, raio: number, z: number): void => {
+    const giro = r() * Math.PI * 2;
     for (let i = 0; i < n; i++) {
-      const ang = (i / n) * Math.PI * 2 + r() * 0.5, d = raioDoAnel * 0.84 * (0.78 + r() * 0.22) * (a === aneis - 1 ? 0.5 : 1), t = tam * (0.8 + r() * 0.5);
-      partes.push(elipse(Math.cos(ang) * d, Math.sin(ang) * d, t, t * (0.85 + r() * 0.2), verde[a]!, 2 + a * 0.5 + r() * 0.15, { sombraLeve: true, contorno: a === 0 ? 'leve' : false, detalhe: 1 }));
+      const a = giro + (i / n) * Math.PI * 2 + (r() - 0.5) * 0.35, rr = raio * (0.85 + r() * 0.3), d = Math.min(dist * (0.92 + r() * 0.12), R - rr);
+      discos.push({ x: Math.cos(a) * d, y: Math.sin(a) * d, r: rr, z: z + r() * 0.05 });
+    }
+  };
+  const k = 1 - miudo * 0.35, ext = 0.34 * k, med = 0.31 * k;
+  anel(Math.round((7 + R * 1.2) / k), R * (1 - ext), R * ext, 2.2);
+  anel(Math.round((4 + R * 0.6) / k), R * 0.42, R * med, 2.6);
+  anel(Math.round(2 + miudo * 3), R * 0.14, R * med, 3);
+  if (tronco) partes.push(elipse(R * 0.05, R * 0.08, R * 0.2, R * 0.2, 'madeira.escura', 1.2, { contorno: false, semSombra: true, detalhe: 3 }));
+  partes.push(poli(silhuetaDeDiscos(discos, 120), tons.fundo, 2, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
+  for (const d of discos.sort((a, b) => a.z - b.z)) {
+    const lado = (d.x * LUZ_X + d.y * LUZ_Y) / R;   // 1: virado para a luz; −1: o lado da sombra
+    tufo(partes, r, d.x, d.y, d.r, tonsComLuz(tons, lado * 0.12 - (d.z < 2.5 ? 0.04 : 0)), d.z, folhas, 18, recorte);
+  }
+  return { tipo: 'piso', pegada: [diametro, diametro], partes };
+}
+
+const copaRedonda = (diametro: number, seed: number): DescricaoDePiso => copaDeTufos(diametro, seed, VERDE_CLARO, { miudo: 0.15, folhas: 9 });
+
+/**
+ * Conífera vista de cima: silhueta de muitas pontas irregulares e, por cima, cinco camadas de ramos em lente fina, do escuro de fora ao claro
+ * do topo, com agulhas nas bordas; os ramos virados para a luz clareiam. Com `neve`, a neve cobre o meio de cada ramo (branca na luz, azulada
+ * na sombra) e o verde só aparece nas pontas e nas frestas.
+ */
+function conifera(diametro: number, seed: number, neve: boolean): DescricaoDePiso {
+  const r = mulberry32(seed), R = diametro / 2, partes: Parte[] = [], pontas = Math.round(22 + R * 4), luz = Math.atan2(LUZ_Y, LUZ_X);
+  const verdes = neve ? ['#143426', '#1b422f', '#235139', '#2d6043', '#386e4d'] : ['#173f2c', '#1f5036', '#296141', '#34734c', '#418559'];
+  const borda: number[] = []; for (let i = 0; i < pontas * 2; i++) { const a = (i / (pontas * 2)) * Math.PI * 2, rr = i % 2 ? R * (0.72 + r() * 0.08) : R * (0.86 + r() * 0.14); borda.push(Math.cos(a) * rr, Math.sin(a) * rr); }
+  partes.push(poli(borda, '#0f241a', 2, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
+  const o = { contorno: false as const, semSombra: true, suave: true };
+  for (let c = 0; c < verdes.length; c++) {
+    const raio = R * (0.96 - c * 0.17), n = Math.round(pontas * (1 - c * 0.12)), giro = r() * Math.PI, z = 2.1 + c * 0.3;
+    for (let i = 0; i < n; i++) {
+      const a = giro + (i / n) * Math.PI * 2 + (r() - 0.5) * 0.2, f = Math.cos(a - luz), len = raio * (0.72 + r() * 0.28), w = raio * 0.26, x0 = Math.cos(a) * raio * 0.08, y0 = Math.sin(a) * raio * 0.08;
+      const cor = tom(verdes[c]!, f * 0.1);
+      partes.push(lente(x0, y0, a, len, w, cor, z, { ...o, detalhe: 1 }));
+      for (let k = 1; k <= 3; k++) for (const lado of [-1, 1]) partes.push(lente(x0 + Math.cos(a) * len * (0.25 + k * 0.18), y0 + Math.sin(a) * len * (0.25 + k * 0.18), a + lado * 0.55, len * 0.22, w * 0.14, tom(cor, lado * f > 0 ? 0.14 : -0.2), z + 0.005, { ...o, detalhe: 3 }));
+      if (neve) {
+        const ox = LUZ_X * w * 0.12, oy = LUZ_Y * w * 0.12;
+        partes.push(lente(x0 + ox, y0 + oy, a, len * 0.9, w * 1.05, f > -0.15 ? '#dfe8f3' : '#b3c4da', z + 0.02, { ...o, detalhe: 1 }));
+        if (f > -0.5) partes.push(lente(x0 + ox * 2, y0 + oy * 2, a, len * 0.72, w * 0.62, f > 0.3 ? '#ffffff' : '#eef3f9', z + 0.025, { ...o, detalhe: 2 }));
+      } else partes.push(lente(x0, y0, a + 0.05 * Math.sign(f || 1), len * 0.75, w * 0.35, tom(cor, 0.1 + Math.max(0, f) * 0.15), z + 0.01, { ...o, detalhe: 2 }));
     }
   }
-  const folhas = Math.round(40 + R * 14);
-  for (let i = 0; i < folhas; i++) { const ang = r() * Math.PI * 2, d = R * Math.sqrt(r()) * 0.92; partes.push(folha(Math.cos(ang) * d, Math.sin(ang) * d, r() * Math.PI * 2, 0.22 + r() * 0.1, 0.1, r() < 0.5 ? verde[Math.min(aneis - 1, 3)]! : tom(verde[aneis - 1]!, 0.15), 3 + aneis * 0.5 + r() * 0.3, { detalhe: 3, semSombra: true })); }
+  if (neve) partes.push(poli(bolha(R * 0.03, R * 0.03, R * 0.2, R * 0.2, 14, 0.2, r), '#c3d1e2', 3.5, { ...o, detalhe: 1 }), poli(bolha(LUZ_X * R * 0.04, LUZ_Y * R * 0.04, R * 0.16, R * 0.16, 14, 0.2, r), '#eef3f9', 3.55, { ...o, detalhe: 1 }));
+  partes.push(poli(bolha(LUZ_X * R * 0.05, LUZ_Y * R * 0.05, R * 0.12, R * 0.12, 10, 0.2, r), neve ? '#ffffff' : '#4f9363', 3.6, { ...o, detalhe: 2 }));
   return { tipo: 'piso', pegada: [diametro, diametro], partes };
 }
 
-function pinheiro(diametro: number, seed: number): DescricaoDePiso {
-  const r = mulberry32(seed), R = diametro / 2, partes: Parte[] = [], camadas = 7, tons = ['#24573a', '#2d6a47', '#377d54', '#439063', '#52a574', '#65ba86', '#82cf9c'];
-  for (let c = 0; c < camadas; c++) {
-    const raio = R * (1 - c * 0.13), pontas = 12 + Math.round(R * 2) + c;
-    partes.push(poli(estrela(0, 0, pontas, raio, raio * 0.52, r() * 0.6), tons[c]!, 1.5 + c * 0.6, { sombraLeve: true, contorno: c === 0 ? 'leve' : false, detalhe: 1 }));
-    for (let i = 0; i < pontas; i++) { const a = (i / pontas) * Math.PI * 2 + r() * 0.2; partes.push(folha(Math.cos(a) * raio * 0.28, Math.sin(a) * raio * 0.28, a, raio * 0.62, 0.07, tom(tons[c]!, 0.22), 1.55 + c * 0.6, { detalhe: 3, semSombra: true })); }
-  }
-  partes.push(elipse(0, 0, R * 0.18, R * 0.18, 'madeira.media', 6, { contorno: false, semSombra: true }));
-  return { tipo: 'piso', pegada: [diametro, diametro], partes };
-}
-
-/** Um pompom de neve: bola branca com sombra do lado oposto à luz (noroeste), "algodão" de elipses em 3 tons e brilho. `frestas` mostra um pouco de verde por baixo. */
-function pompom(partes: Parte[], r: () => number, cx: number, cy: number, raio: number, z: number): void {
-  const D = raio * 2;
-  partes.push(elipse(cx + raio * 0.1, cy + raio * 0.12, D, D, '#b8c8dc', z, { sombraLeve: true, contorno: 'leve', detalhe: 1 }), elipse(cx - raio * 0.06, cy - raio * 0.07, D * 0.88, D * 0.88, '#f4f8fc', z + 0.05, { contorno: false, semSombra: true, detalhe: 1 }));
-  const cores = ['#ffffff', '#eaf1f9', '#d3e0ee'], n = Math.round(10 + raio * 16);
-  for (let i = 0; i < n; i++) {
-    const a = r() * Math.PI * 2, d = raio * Math.sqrt(r()) * 0.78, t = raio * (0.2 + r() * 0.18), lado = (Math.cos(a) + Math.sin(a)) * 0.5;   // lado > 0: virado para a sombra
-    partes.push(elipse(cx + Math.cos(a) * d, cy + Math.sin(a) * d, t, t * 0.9, cores[lado > 0.35 ? 2 : lado > -0.15 ? 1 : 0]!, z + 0.1 + r() * 0.04, { contorno: false, semSombra: true, detalhe: 3 }));
-  }
-  partes.push(elipse(cx - raio * 0.3, cy - raio * 0.32, raio * 0.6, raio * 0.5, '#ffffff', z + 0.2, { contorno: false, semSombra: true, detalhe: 3 }));
-}
-
-/** Árvore vista de cima coberta de neve: 5 a 9 pompons sobrepostos, quase nenhum verde (só frestas entre as bolas). */
-function arvoreNevada(diametro: number, seed: number): DescricaoDePiso {
-  const r = mulberry32(seed), R = diametro / 2, partes: Parte[] = [], n = 5 + Math.floor(r() * 5);
-  partes.push(elipse(0, 0, diametro * 0.7, diametro * 0.7, '#4a6a5a', 1, { contorno: false, sombraLeve: true, detalhe: 1 }));
-  for (let i = 0; i < n; i++) {
-    const raio = R * (0.36 + r() * 0.12), a = (i / n) * Math.PI * 2 + r() * 0.6, d = i === 0 ? 0 : (R - raio) * (0.55 + r() * 0.45);
-    pompom(partes, r, Math.cos(a) * d, Math.sin(a) * d, raio, 2 + i * 0.5);
-  }
-  return { tipo: 'piso', pegada: [diametro, diametro], partes };
-}
-
-/** Pinheiro de neve: a forma do pinheiro com um anel branco sobre cada camada; o verde só aparece nas pontas. */
-function pinheiroNevado(diametro: number, seed: number): DescricaoDePiso {
-  const r = mulberry32(seed), R = diametro / 2, partes: Parte[] = [], camadas = 7, tons = ['#24573a', '#2d6a47', '#377d54', '#439063', '#52a574', '#65ba86', '#7fcf9a'], brancos = ['#c3d2e4', '#cfdbea', '#dce6f1', '#e6eef6', '#eef4fa', '#f6f9fd', '#ffffff'];
-  for (let c = 0; c < camadas; c++) {
-    const raio = R * (1 - c * 0.13), pontas = 12 + Math.round(R * 2) + c, giro = r() * 0.6, z = 1.5 + c * 0.6;
-    partes.push(poli(estrela(0, 0, pontas, raio, raio * 0.52, giro), tons[c]!, z, { sombraLeve: true, contorno: c === 0 ? 'leve' : false, detalhe: 1 }));
-    partes.push(poli(estrela(-raio * 0.03, -raio * 0.03, pontas, raio * 0.92, raio * 0.5, giro + 0.05), brancos[c]!, z + 0.2, { contorno: false, semSombra: true, detalhe: 1 }));
-    for (let i = 0; i < pontas; i++) { const a = (i / pontas) * Math.PI * 2 + giro; partes.push(folha(Math.cos(a) * raio * 0.28, Math.sin(a) * raio * 0.28, a, raio * 0.5, 0.06, '#ffffff', z + 0.25, { detalhe: 3, semSombra: true })); }
-  }
-  partes.push(elipse(0, 0, R * 0.3, R * 0.3, '#ffffff', 6, { contorno: false, semSombra: true }));
-  return { tipo: 'piso', pegada: [diametro, diametro], partes };
-}
+const pinheiro = (diametro: number, seed: number): DescricaoDePiso => conifera(diametro, seed, false);
+/** Árvore vista de cima coberta de neve: copa de tufos brancos sombreados de azul, o verde só nas frestas. */
+const arvoreNevada = (diametro: number, seed: number): DescricaoDePiso => copaDeTufos(diametro, seed, NEVE, { miudo: 0.2, folhas: 0, tronco: false, recorte: 0 });
+/** Pinheiro de neve: a conífera com neve sobre cada ramo, do lado da luz. */
+const pinheiroNevado = (diametro: number, seed: number): DescricaoDePiso => conifera(diametro, seed, true);
+/** Carvalho: copa densa de muitos tufos pequenos, com folhas pintadas. */
+const carvalhoGrande = (diametro: number, seed: number): DescricaoDePiso => copaDeTufos(diametro, seed, VERDE, { miudo: 0.85, folhas: 7 });
 
 /** Arbusto sem folhas: galhos finos que se ramificam do centro (3 níveis), de 1 a 3 cm; com `neve`, tufos brancos nos nós. */
 function arbustoSeco(diametro: number, seed: number, neve: boolean): DescricaoDePiso {
@@ -93,25 +100,6 @@ function arbustoSeco(diametro: number, seed: number, neve: boolean): DescricaoDe
   const base = 5 + Math.floor(r() * 3);
   for (let i = 0; i < base; i++) galho(0, 0, (i / base) * Math.PI * 2 + r() * 0.5, R * (0.4 + r() * 0.15), 0);
   partes.push(elipse(0, 0, 0.1, 0.1, '#3a2c22', 0.9, { contorno: false, semSombra: true }));
-  return { tipo: 'piso', pegada: [diametro, diametro], partes };
-}
-
-/** Carvalho: copa densa de folhas recortadas (lóbulos) em anéis do escuro de fora ao claro do meio, com frestas escuras e uns galhos à mostra. */
-function carvalhoGrande(diametro: number, seed: number): DescricaoDePiso {
-  const r = mulberry32(seed), R = diametro / 2, partes: Parte[] = [], tons = ['#16331c', '#20452a', '#2d5c35', '#3d7440', '#4f8a4a', '#68a255'];
-  partes.push(elipse(0.03 * R, 0.05 * R, diametro * 0.98, diametro * 0.98, '#0d1f12', 1, { sombraLeve: true, contorno: 'leve', detalhe: 1 }));
-  const lobulo = (x: number, y: number, tam: number, cor: string, z: number): void => {
-    const pts: number[] = [], pontas = 7, giro = r() * Math.PI * 2;
-    for (let i = 0; i < pontas * 2; i++) { const a = giro + (i / (pontas * 2)) * Math.PI * 2, k = i % 2 ? 0.55 : 1; pts.push(x + Math.cos(a) * tam * k, y + Math.sin(a) * tam * k * 0.92); }
-    partes.push(poli(pts, cor, z, { contorno: false, sombraLeve: true, detalhe: 2 }));
-  };
-  for (let c = 0; c < tons.length; c++) {
-    const anel = R * (1 - c * 0.15), n = Math.round((10 + c * 2) * (R / 3 + 0.5)), tam = R * (0.22 - c * 0.012);
-    for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2 + r() * 0.5, d = Math.max(0, anel - tam) * (0.7 + r() * 0.3); lobulo(Math.cos(a) * d, Math.sin(a) * d, tam, tons[c]!, 1.2 + c * 0.8 + r() * 0.1); }
-  }
-  const brilho = Math.round(30 + R * 12);
-  for (let i = 0; i < brilho; i++) { const a = Math.atan2(-1, -1) + (r() - 0.5) * 2.6, d = R * 0.7 * Math.sqrt(r()); partes.push(folha(Math.cos(a) * d, Math.sin(a) * d, r() * Math.PI * 2, R * 0.16, R * 0.07, tom('#7fbf60', (r() - 0.5) * 0.2), 6.5 + r() * 0.2, { detalhe: 3, semSombra: true })); }
-  for (let i = 0; i < 4; i++) { const a = r() * Math.PI * 2; partes.push(folha(0, 0, a, R * 0.3, 0.12, '#3a2c22', 6.4, { detalhe: 3, semSombra: true })); }
   return { tipo: 'piso', pegada: [diametro, diametro], partes };
 }
 
@@ -132,7 +120,7 @@ function folhagemTropical(diametro: number, seed: number): DescricaoDePiso {
 }
 
 function arbusto(diametro: number, seed: number, flores: string | null): DescricaoDePiso {
-  const g = copaRedonda(diametro, seed, ['#22472a', '#2f5f36', '#417a47', '#5a9650']), r = mulberry32(seed + 5), partes = g.partes.slice(2);   // sem tronco
+  const g = copaDeTufos(diametro, seed, VERDE_CLARO, { miudo: 0.4, folhas: 3, tronco: false }), r = mulberry32(seed + 5), partes = g.partes;
   if (flores) for (let i = 0; i < 26; i++) { const a = r() * Math.PI * 2, d = (diametro / 2) * Math.sqrt(r()) * 0.85; partes.push(elipse(Math.cos(a) * d, Math.sin(a) * d, 0.07, 0.07, flores, 5.5 + r() * 0.2, { contorno: false, semSombra: true, detalhe: 3 })); }
   return { tipo: 'piso', pegada: g.pegada, partes };
 }
@@ -186,22 +174,22 @@ export const PLANTAS: GeradorPesado[] = [
     variantes: DUAS('a', {}, 'b', {}), gerar: p => samambaia(p.seed) },
   { id: 'costela-de-adao', nome: 'Costela-de-adão', categoria: 'decoracao', funcoes: ['sala', 'quarto', 'escritorio', 'corredor'], tags: ['planta', 'monstera', 'vaso', 'folhagem'], generos: [], kit: null, versao: 1,
     variantes: DUAS('madeira', { vaso: 'madeira.escura' }, 'pedra', { vaso: 'pedra.escura' }), gerar: p => monstera(p.seed, String(p.params.vaso ?? 'madeira.escura')) },
-  { id: 'arvore', altura: ([w]) => w * 1.6, nome: 'Árvore', categoria: 'exterior', funcoes: ['jardim'], tags: ['arvore', 'planta', 'copa', 'exterior'], generos: [], kit: 'exterior', versao: 2, res: 64,
+  { id: 'arvore', altura: ([w]) => w * 1.6, nome: 'Árvore', categoria: 'exterior', funcoes: ['jardim'], tags: ['arvore', 'planta', 'copa', 'exterior'], generos: [], kit: 'exterior', versao: 3, res: 64,
     variantes: [{ nome: '3 m', sufixo: '3m', params: { diametro: 3 }, seed: 31 }, { nome: '5 m', sufixo: '5m', params: { diametro: 5 }, seed: 32 }, { nome: '7 m', sufixo: '7m', params: { diametro: 7 }, seed: 33 }],
     gerar: p => copaRedonda(num(p.params.diametro, 5, 2, 10), p.seed) },
-  { id: 'pinheiro', altura: ([w]) => w * 2, nome: 'Pinheiro', categoria: 'exterior', funcoes: ['jardim'], tags: ['arvore', 'pinheiro', 'conifera', 'exterior'], generos: [], kit: 'exterior', versao: 2, res: 64,
+  { id: 'pinheiro', altura: ([w]) => w * 2, nome: 'Pinheiro', categoria: 'exterior', funcoes: ['jardim'], tags: ['arvore', 'pinheiro', 'conifera', 'exterior'], generos: [], kit: 'exterior', versao: 3, res: 64,
     variantes: [{ nome: '3 m', sufixo: '3m', params: { diametro: 3 }, seed: 41 }, { nome: '4,5 m', sufixo: '4m', params: { diametro: 4.5 }, seed: 42 }], gerar: p => pinheiro(num(p.params.diametro, 3, 2, 8), p.seed) },
-  { id: 'arbusto', altura: ([w]) => w * 0.5, nome: 'Arbusto', categoria: 'exterior', funcoes: ['jardim'], tags: ['arbusto', 'planta', 'exterior'], generos: [], kit: 'exterior', versao: 2,
+  { id: 'arbusto', altura: ([w]) => w * 0.5, nome: 'Arbusto', categoria: 'exterior', funcoes: ['jardim'], tags: ['arbusto', 'planta', 'exterior'], generos: [], kit: 'exterior', versao: 3,
     variantes: [{ nome: 'verde', sufixo: 'verde', params: { diametro: 1.4 }, seed: 51 }, { nome: 'florido', sufixo: 'florido', params: { diametro: 1.6, flores: '#d94a6a' }, seed: 52 }, { nome: 'grande', sufixo: 'grande', params: { diametro: 2.2 }, seed: 53 }],
     gerar: p => arbusto(num(p.params.diametro, 1.5, 0.8, 4), p.seed, typeof p.params.flores === 'string' ? p.params.flores : null) },
-  { id: 'arvore-nevada', altura: ([w]) => w * 1.6, nome: 'Árvore nevada', categoria: 'exterior', funcoes: ['jardim'], tags: ['arvore', 'planta', 'copa', 'exterior', 'inverno', 'neve'], generos: [], kit: 'ermos', versao: 2, res: 64,
+  { id: 'arvore-nevada', altura: ([w]) => w * 1.6, nome: 'Árvore nevada', categoria: 'exterior', funcoes: ['jardim'], tags: ['arvore', 'planta', 'copa', 'exterior', 'inverno', 'neve'], generos: [], kit: 'ermos', versao: 3, res: 64,
     variantes: [{ nome: '3 m', sufixo: '3m', params: { diametro: 3 }, seed: 61 }, { nome: '5 m', sufixo: '5m', params: { diametro: 5 }, seed: 62 }], gerar: p => arvoreNevada(num(p.params.diametro, 4, 2, 8), p.seed) },
-  { id: 'pinheiro-nevado', altura: ([w]) => w * 2, nome: 'Pinheiro nevado', categoria: 'exterior', funcoes: ['jardim'], tags: ['arvore', 'pinheiro', 'conifera', 'exterior', 'inverno', 'neve'], generos: [], kit: 'ermos', versao: 2, res: 64,
+  { id: 'pinheiro-nevado', altura: ([w]) => w * 2, nome: 'Pinheiro nevado', categoria: 'exterior', funcoes: ['jardim'], tags: ['arvore', 'pinheiro', 'conifera', 'exterior', 'inverno', 'neve'], generos: [], kit: 'ermos', versao: 3, res: 64,
     variantes: [{ nome: '3 m', sufixo: '3m', params: { diametro: 3 }, seed: 71 }, { nome: '4,5 m', sufixo: '4m', params: { diametro: 4.5 }, seed: 72 }], gerar: p => pinheiroNevado(num(p.params.diametro, 3, 2, 8), p.seed) },
   { id: 'arbusto-seco', altura: ([w]) => w * 0.4, nome: 'Arbusto seco', categoria: 'exterior', funcoes: ['jardim'], tags: ['arbusto', 'planta', 'exterior', 'inverno', 'seco'], generos: [], kit: 'ermos', versao: 2, res: 64,
     variantes: [{ nome: '1,2 m', sufixo: '1m', params: { diametro: 1.2 }, seed: 81 }, { nome: '2 m', sufixo: '2m', params: { diametro: 2 }, seed: 82 }, { nome: '2 m com neve', sufixo: '2m-neve', params: { diametro: 2, neve: true }, seed: 83 }],
     gerar: p => arbustoSeco(num(p.params.diametro, 1.5, 0.8, 4), p.seed, p.params.neve === true) },
-  { id: 'carvalho-grande', altura: ([w]) => w * 1.6, nome: 'Carvalho grande', categoria: 'exterior', funcoes: ['jardim'], tags: ['arvore', 'carvalho', 'planta', 'copa', 'exterior', 'mata'], generos: [], kit: 'mata', versao: 1, res: 64,
+  { id: 'carvalho-grande', altura: ([w]) => w * 1.6, nome: 'Carvalho grande', categoria: 'exterior', funcoes: ['jardim'], tags: ['arvore', 'carvalho', 'planta', 'copa', 'exterior', 'mata'], generos: [], kit: 'mata', versao: 2, res: 64,
     variantes: [{ nome: '6 m', sufixo: '6m', params: { diametro: 6 }, seed: 91 }, { nome: '7 m', sufixo: '7m', params: { diametro: 7 }, seed: 92 }, { nome: '8 m', sufixo: '8m', params: { diametro: 8 }, seed: 93 }], gerar: p => carvalhoGrande(num(p.params.diametro, 7, 5, 10), p.seed) },
   { id: 'folhagem-tropical', altura: ([w]) => w * 0.5, nome: 'Folhagem tropical', categoria: 'exterior', funcoes: ['jardim'], tags: ['arbusto', 'planta', 'folhagem', 'tropical', 'exterior', 'mata'], generos: [], kit: 'mata', versao: 1, res: 64,
     variantes: [{ nome: '1,6 m', sufixo: '1m', params: { diametro: 1.6 }, seed: 101 }, { nome: '2,4 m', sufixo: '2m', params: { diametro: 2.4 }, seed: 102 }], gerar: p => folhagemTropical(num(p.params.diametro, 2, 1, 4), p.seed) },

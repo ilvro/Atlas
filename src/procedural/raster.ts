@@ -22,13 +22,15 @@ export function caminho(ctx: Contexto, p: Parte): void {
 export function desenharPartes(ctx: Contexto, partes: readonly Parte[], { res, seed = 1, sombras = true }: { res: number; seed?: number; sombras?: boolean }): void {
   [...partes].sort((a, b) => a.z - b.z).forEach((p, i) => {
     const b = caixaDe(p), s = seed * 31 + i;
+    const alfa = p.alfa ?? 1;
     if (sombras && !p.semSombra && p.z > 0.03) {
       const leve = p.sombraLeve ? 0.35 : 1;
-      ctx.save(); ctx.shadowColor = `rgba(0,0,0,${0.55 * leve})`; ctx.shadowBlur = (0.04 + p.z * 0.08) * res; ctx.shadowOffsetX = ctx.shadowOffsetY = (0.015 + p.z * 0.045) * res * leve;
+      ctx.save(); ctx.globalAlpha = alfa; ctx.shadowColor = `rgba(0,0,0,${0.55 * leve})`; ctx.shadowBlur = (0.04 + p.z * 0.08) * res; ctx.shadowOffsetX = ctx.shadowOffsetY = (0.015 + p.z * 0.045) * res * leve;
       ctx.fillStyle = '#000'; caminho(ctx, p); ctx.fill(); ctx.restore();
     }
-    ctx.save(); caminho(ctx, p); ctx.clip();
+    ctx.save(); caminho(ctx, p); ctx.clip(); ctx.globalAlpha = alfa;
     pintarMaterial(ctx, p.mat, b, s, { dir: p.dir ?? 0 });
+    if (p.suave) { ctx.restore(); return; }
     const g = ctx.createLinearGradient(b.x, b.y, b.x + b.w, b.y + b.h);
     g.addColorStop(0, 'rgba(255,236,210,0.16)'); g.addColorStop(0.5, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.3)');
     ctx.fillStyle = g; ctx.fillRect(b.x, b.y, b.w, b.h);
