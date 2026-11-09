@@ -10,13 +10,17 @@ import {
 } from '#mesa';
 import {
   prepararCenaNoAtlas,
+  tocarMomentoRemoto,
   abrirMapa,
   fecharSessao,
   cacheDeSessoes,
   sessao,
   servicos,
   type DadosPrepararCena,
+  type DadosAtlasMomento,
 } from '../../src/app/app.ts';
+import { momentoEmCurso } from '../../src/app/momentos.ts';
+import { novoMomento } from '../../src/domain/momentos.ts';
 import { entidadesDaCampanha } from '../../src/app/campanha.ts';
 import { abasAbertas } from '../../src/app/abas.ts';
 import { criarMapa, type MapaAtlas } from '../../src/domain/mapa.ts';
@@ -195,6 +199,63 @@ test('atendimento de atlas.preparar-cena via barramento', async () => {
   assert.equal(sessao.value.doc.value.id, mapa.id);
   assert.equal(sessao.value.doc.value.climate.preset, 'neblina');
   assert.equal(Object.values(sessao.value.doc.value.tokens).length, 1);
+
+  barramentoAtlas.fechar();
+  barramentoMesa.fechar();
+});
+
+test('atendimento de atlas.momento via barramento: abre mapa e dispara momento', async () => {
+  const mapa = criarMapa({ id: 'mapa-com-momento', agora: 1 });
+  const momento = novoMomento('susto-1', 'O Pavor');
+  momento.passos.push({ tipo: 'efeito', efeito: 'tremor' });
+  mapa.moments[momento.id] = momento;
+
+  const repo = criarRepoMock({ [mapa.id]: mapa });
+  const canalNome = 'teste-atlas-momento';
+
+  const barramentoAtlas = criarBarramento({
+    app: 'atlas',
+    criarCanal: () => new CanalEmMemoria(canalNome) as never,
+  });
+  const barramentoMesa = criarBarramento({
+    app: 'mesa',
+    criarCanal: () => new CanalEmMemoria(canalNome) as never,
+  });
+
+  const fakeServicos: Servicos = {
+    repo,
+    campanhas: null,
+    barramento: barramentoAtlas,
+  };
+  servicos.value = fakeServicos;
+
+  barramentoAtlas.atender('atlas.momento', dados => {
+    return tocarMomentoRemoto(fakeServicos, dados as DadosAtlasMomento);
+  });
+
+  // 1. Pede momento por ID
+  const resultado = await barramentoMesa.pedir('atlas.momento', {
+    mapa: criarRef('atlas', 'mapa', mapa.id),
+    momento: 'susto-1',
+  });
+
+  assert.equal(resultado.ok, true);
+  assert.ok(sessao.value);
+  assert.equal(sessao.value.doc.value.id, mapa.id);
+
+  // 2. Pede momento por Nome
+  const resultadoNome = await barramentoMesa.pedir('atlas.momento', {
+    mapa: criarRef('atlas', 'mapa', mapa.id),
+    momento: 'o pavor',
+  });
+  assert.equal(resultadoNome.ok, true);
+
+  // 3. Momento inexistente é recusado
+  const resultadoInexistente = await barramentoMesa.pedir('atlas.momento', {
+    mapa: criarRef('atlas', 'mapa', mapa.id),
+    momento: 'fantasma',
+  });
+  assert.equal(resultadoInexistente.ok, false);
 
   barramentoAtlas.fechar();
   barramentoMesa.fechar();

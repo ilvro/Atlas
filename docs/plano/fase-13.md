@@ -210,5 +210,30 @@ Commit: `jukebox fade to silence`
 
 ---
 
-### 13.7 — Mesa: a cena da campanha dispara um momento  ⬜ (só lista)
-A cena/encontro da Mesa ganha um "Momento de abertura": pedido `atlas.momento` `{ mapa: Ref, momento: string }` atendido pelo Atlas (abre o mapa se preciso e toca). Detalhar depois da 13.3a, contra o código da Mesa.
+### 13.7 — Mesa: a cena da campanha dispara um momento (`atlas.momento`)  ✅
+Objetivo: permitir que a ativação de uma cena ou encontro na Mesa comande o Atlas a disparar um "Momento de abertura" através do pedido `atlas.momento` `{ mapa: Ref, momento: string }`.
+Depende de: 13.3a, 13.1b.
+Ler: `mesa-core/src/eventos.ts`, `src/app/app.ts`, `Mesa/src/dominio/cenas.ts`, `Mesa/src/app/sessao.ts`, `Mesa/src/ui/EditorDeCena.tsx`.
+Arquivos:
+  - `mesa-core/src/eventos.ts`, `mesa-core/tests/eventos.test.ts` (adicionar `atlas.momento`, `build:core` e cópia para os `vendor/`);
+  - `public/mesa.json` (declarar `atlas.momento` no `atende`);
+  - `src/app/app.ts` (atender `atlas.momento` abrindo o mapa se necessário e tocando o momento);
+  - `tests/unit/preparar-cena.test.ts` (testar atendimento de `atlas.momento`);
+  - `../Mesa/src/dominio/cenas.ts`, `../Mesa/src/app/campanha.ts`, `../Mesa/src/ui/EditorDeCena.tsx`, `../Mesa/tests/unit/cenas.test.ts` (configuração do momento de abertura e inclusão no plano de ativação).
+Como:
+1. No `mesa-core`, adicionar ao `CATALOGO`:
+   `'atlas.momento': { natureza: 'pedido', dono: 'atlas', validar: todos(ref('mapa'), texto('momento')) }`.
+   Testar e compilar (`npm run build:core`), copiando para `vendor/mesa-core/` de Mesa, Dossie, Atelie e Jukebox.
+2. No Atlas, adicionar `"atlas.momento"` ao `"atende"` em `public/mesa.json`.
+3. No Atlas (`src/app/app.ts`), registrar atendimento de `'atlas.momento'`:
+   - se `mapa.id` for diferente do mapa aberto, abre o mapa;
+   - localiza o momento por id ou nome (sem diferenciar maiúsculas/minúsculas);
+   - chama `tocarMomento` com as saídas ativas e responde `{ ok: true }` (ou motivo de recusa caso não encontre).
+4. Na Mesa (`Mesa/src/dominio/cenas.ts`):
+   - extrair `momento` da tag `momento:<nome-ou-id>` no pacote da cena;
+   - em `planejarAtivacaoDeCena`, incluir pedido `atlas.momento` quando houver mapa e momento;
+   - em `Mesa/src/app/campanha.ts`, função `definirMomentoDaCena(cena, momento)`;
+   - em `Mesa/src/ui/EditorDeCena.tsx`, campo no pacote da cena para definir o momento de abertura.
+Testes: unitários do contrato em `mesa-core/tests/eventos.test.ts`, do atendimento em `Atlas/tests/unit/preparar-cena.test.ts`, e do plano de ativação em `Mesa/tests/unit/cenas.test.ts`.
+Pronto quando: ao ativar uma cena na Mesa com mapa e momento configurados, o Atlas abre o mapa e toca o momento.
+Commit: `campaign scene plays opening moment`
