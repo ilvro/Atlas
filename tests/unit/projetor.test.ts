@@ -35,6 +35,7 @@ import {
   CANAL_PROJETOR_GLOBAL,
   nomeDoCanalDoProjetor,
   projetorConectado,
+  telaEscura,
   type MensagemDoMestre,
 } from '../../src/app/projetor.ts';
 import {
@@ -220,4 +221,130 @@ test('fecharAbaComSessao descarrega a sessão do cache e limpa mapaNoProjetorId 
   assert.equal(cacheDeSessoes.has(mapa.id), false);
   assert.equal(mapaNoProjetorId.value, null);
   assert.equal(abasAbertas.value.some(a => a.id === mapa.id), false);
+});
+
+test('publicador: tela e letreiro só enviam com projetor conectado; ola reenvia cortina escura', async () => {
+  const mapa = criarMapa({ id: 'mapa-pub-tela', nome: 'Sala do Trono' });
+  const repo = criarRepoMock({ [mapa.id]: mapa });
+  const sess = criarSessao(mapa, repo, { salvo: true });
+  const pub = iniciarPublicacao(sess, async () => null);
+
+  const canalEsp = new BroadcastChannel(nomeDoCanalDoProjetor(mapa.id));
+  const msgsEsp: (MensagemDoMestre & { _seq?: number })[] = [];
+  canalEsp.onmessage = e => msgsEsp.push(e.data);
+
+  try {
+    // 1. Desconectado: tela e letreiro não transmitem, mas telaEscura acompanha
+    assert.equal(projetorConectado.value, false);
+    assert.equal(telaEscura.value, false);
+
+    pub.tela('escurecer', 800);
+    assert.equal(telaEscura.value, true);
+    pub.letreiro({
+      tipo: 'letreiro',
+      titulo: 'Kian',
+      subtitulo: 'O Primeiro',
+      peca: null,
+      estilo: 'apresentacao',
+      ms: 4000,
+    });
+    pub.letreiro(null);
+
+    await esperar(30);
+    assert.equal(msgsEsp.length, 0, 'nenhuma mensagem deve ser enviada sem projetor conectado');
+
+    // 2. Projetor conecta com 'ola': deve receber estado, câmera E a cortina escura reenviada
+    canalEsp.postMessage({ tipo: 'ola', largura: 1920, altura: 1080, _seq: 1 });
+    await esperar(60);
+
+    assert.equal(projetorConectado.value, true);
+    const msgTela = msgsEsp.find(m => m.tipo === 'tela');
+    assert.ok(msgTela, 'deve ter reenviado a cortina escura no ola');
+    assert.equal(msgTela.tipo, 'tela');
+    assert.equal((msgTela as any).acao, 'escurecer');
+    assert.equal((msgTela as any).ms, 800);
+
+    // 3. Conectado: tela clarear envia mensagem e atualiza telaEscura
+    msgsEsp.length = 0;
+    pub.tela('clarear', 300);
+    await esperar(30);
+
+    assert.equal(telaEscura.value, false);
+    assert.equal(msgsEsp.some(m => m.tipo === 'tela' && (m as any).acao === 'clarear'), true);
+
+    // 4. letreiro-fim quando l === null
+    msgsEsp.length = 0;
+    pub.letreiro(null);
+    await esperar(30);
+    assert.equal(msgsEsp.some(m => m.tipo === 'letreiro-fim'), true);
+  } finally {
+    pub.parar();
+    canalEsp.close();
+    sess.fechar();
+    assert.equal(telaEscura.value, false);
+  }
+});
+
+test('publicador: retrato é enviado antes do letreiro quando a peça tem portrait', async () => {
+  const mapa = criarMapa({ id: 'mapa-pub-letreiro', nome: 'Sala do Trono' });
+  const assetRetrato = new Blob(['imagem-de-teste'], { type: 'image/png' });
+  const repo = criarRepoMock({ [mapa.id]: mapa });
+  const sess = criarSessao(mapa, repo, { salvo: true });
+  const pub = iniciarPublicacao(sess, async id => (id === 'asset-retrato-1' ? assetRetrato : null));
+
+  const canalEsp = new BroadcastChannel(nomeDoCanalDoProjetor(mapa.id));
+  const msgsEsp: (MensagemDoMestre & { _seq?: number })[] = [];
+  canalEsp.onmessage = e => msgsEsp.push(e.data);
+
+  try {
+    // Conecta projetor
+    canalEsp.postMessage({ tipo: 'ola', largura: 1920, altura: 1080, _seq: 1 });
+    await esperar(60);
+
+    msgsEsp.length = 0;
+
+    // Adiciona peça com portrait que ainda não teve o retrato enviado
+    sess.store.executar({
+      tipo: 'item.adicionar',
+      colecao: 'tokens',
+      item: {
+        id: 'token-vilao',
+        name: 'Vilão',
+        position: [5, 5],
+        size: 1,
+        facing: 'down',
+        sprite: null,
+        player: false,
+        vision: { radius: 0, dark: false },
+        lightId: null,
+        figure: { state: 'normal' },
+        refs: [],
+        portrait: { id: 'asset-retrato-1', hash: 'hash-12345678' },
+      },
+    });
+
+    // Dispara letreiro apontando para a peça com retrato
+    pub.letreiro({
+      tipo: 'letreiro',
+      titulo: 'O Inimigo',
+      subtitulo: 'Ameaça Suprema',
+      peca: 'token-vilao',
+      estilo: 'apresentacao',
+      ms: 5000,
+    });
+
+    await esperar(60);
+
+    const idxRetrato = msgsEsp.findIndex(m => m.tipo === 'retrato' && (m as any).id === 'asset-retrato-1');
+    const idxLetreiro = msgsEsp.findIndex(m => m.tipo === 'letreiro' && (m as any).titulo === 'O Inimigo');
+
+    assert.ok(idxRetrato !== -1, 'deve ter enviado o retrato');
+    assert.ok(idxLetreiro !== -1, 'deve ter enviado o letreiro');
+    assert.ok(idxRetrato < idxLetreiro, 'o retrato DEVE ser enviado antes do letreiro');
+    assert.equal((msgsEsp[idxLetreiro] as any).retrato, 'asset-retrato-1');
+  } finally {
+    pub.parar();
+    canalEsp.close();
+    sess.fechar();
+  }
 });

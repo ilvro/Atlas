@@ -2,6 +2,7 @@ import { effect, signal } from '@preact/signals';
 import type { Recursos } from '../domain/fichas.ts';
 import type { Vista } from '../domain/inspecao.ts';
 import type { MapaAtlas } from '../domain/mapa.ts';
+import type { PassoDeMomento } from '../domain/momentos.ts';
 import { mostrarPvNoProjetor, recursosDaPeca, recursosDasFichas } from './fichas.ts';
 import { recursosParaOProjetor } from '../domain/fichas.ts';
 import { projetarParaJogadores } from '../domain/projecao.ts';
@@ -25,6 +26,10 @@ export type MensagemDoMestre =
   | { tipo: 'evento'; nome: EventoDeCena }
   | { tipo: 'relampago' }
   | { tipo: 'retrato'; id: string; blob: Blob }
+  /** Cortina preta e letreiros para momentos de cena */
+  | { tipo: 'tela'; acao: 'escurecer' | 'clarear'; ms: number }
+  | { tipo: 'letreiro'; titulo: string; subtitulo: string; estilo: 'apresentacao' | 'capitulo'; retrato: string | null; ms: number }
+  | { tipo: 'letreiro-fim' }
   /** PV e PD por peça (só quando o mestre quer mostrá-los no projetor; vazio esconde). */
   | { tipo: 'recursos'; por: Record<string, Recursos> }
   /** Uma rolagem da Ficha sobre a peça. */
@@ -41,6 +46,8 @@ export type MensagemDoProjetor =
 /** O retângulo do mapa que o projetor mostra (null até haver projetor). Mexer nele move a câmera do projetor, não a do mestre. */
 export const caixaDoProjetor = signal<Caixa | null>(null);
 export const projetorConectado = signal(false);
+/** Indica se a tela do projetor está escurecida pela cortina preta (visível no Dock para o mestre). */
+export const telaEscura = signal(false);
 /** Enquadrar sempre as peças de jogador. */
 export const seguirJogadores = signal(false);
 export const aspectoDoProjetor = signal(16 / 9);
@@ -68,16 +75,24 @@ export interface Publicador {
   /** Abre (ou, com `null`, fecha) a inspeção de um documento no projetor. */
   inspecao(d: { nome: string; normal: Blob; uv: Blob | null } | null): void;
   inspecaoEstado(vista: Vista, lanterna: { x: number; y: number } | null): void;
+  tela(acao: 'escurecer' | 'clarear', ms: number): void;
+  letreiro(l: Extract<PassoDeMomento, { tipo: 'letreiro' }> | null): void;
   parar(): void;
 }
 
 /** Começa a publicar o mapa aberto para um projetor que apareça. Não faz nada pesado enquanto nenhum projetor estiver ligado. */
 export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => Promise<Blob | null>): Publicador {
   const id = s.store.documento.id;
-  if (typeof BroadcastChannel !== 'function') return { evento() {}, relampago() {}, rolagem() {}, inspecao() {}, inspecaoEstado() {}, parar() {} };
+  if (typeof BroadcastChannel !== 'function') {
+    return {
+      evento() {}, relampago() {}, rolagem() {}, inspecao() {}, inspecaoEstado() {},
+      tela() {}, letreiro() {}, parar() {},
+    };
+  }
   const canalEspecifico = new BroadcastChannel(nomeDoCanalDoProjetor(id));
   const canalGlobal = new BroadcastChannel(CANAL_PROJETOR_GLOBAL);
   let seqMestre = 0;
+  let ultimoEstadoTela: { acao: 'escurecer' | 'clarear'; ms: number } | null = null;
   const enviar = (m: MensagemDoMestre) => {
     const comSeq = { ...m, _seq: ++seqMestre };
     try { canalEspecifico.postMessage(comSeq); } catch { /* ignora */ }
@@ -126,6 +141,9 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
       caixaDoProjetor.value = atual ? ajustarAoAspecto(atual, asp) : caixaDosJogadores(s.store.documento, asp);
       enviarEstado();
       if (caixaDoProjetor.peek()) enviar({ tipo: 'camera', caixa: caixaDoProjetor.peek()! });
+      if (msg.tipo === 'ola' && ultimoEstadoTela?.acao === 'escurecer') {
+        enviar({ tipo: 'tela', acao: 'escurecer', ms: ultimoEstadoTela.ms });
+      }
     } else if (msg.tipo === 'tchau') { projetorConectado.value = false; caixaDoProjetor.value = null; }
   };
   canalEspecifico.onmessage = aoMensagem;
@@ -146,6 +164,58 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
     rolagem: (peca, titulo, total, tom) => { if (projetorConectado.peek()) enviar({ tipo: 'rolagem', peca, titulo, total, tom }); },
     inspecao: d => { if (projetorConectado.peek()) enviar(d ? { tipo: 'inspecao', nome: d.nome, normal: d.normal, uv: d.uv } : { tipo: 'inspecao-fim' }); },
     inspecaoEstado: (vista, lanterna) => { if (projetorConectado.peek()) enviar({ tipo: 'inspecao-estado', vista, lanterna }); },
+    tela: (acao, ms) => {
+      ultimoEstadoTela = { acao, ms };
+      telaEscura.value = (acao === 'escurecer');
+      if (projetorConectado.peek()) enviar({ tipo: 'tela', acao, ms });
+    },
+    letreiro: l => {
+      if (!l) {
+        if (projetorConectado.peek()) enviar({ tipo: 'letreiro-fim' });
+        return;
+      }
+      if (!projetorConectado.peek()) return;
+      const peca = l.peca ? s.store.documento.tokens[l.peca] : null;
+      const rid = peca?.portrait?.id ?? null;
+      if (rid && !retratosEnviados.has(rid)) {
+        retratosEnviados.add(rid);
+        void lerAsset(rid).then(blob => {
+          if (blob && !parado) enviar({ tipo: 'retrato', id: rid, blob });
+          else retratosEnviados.delete(rid);
+          if (!parado && projetorConectado.peek()) {
+            enviar({
+              tipo: 'letreiro',
+              titulo: l.titulo,
+              subtitulo: l.subtitulo,
+              estilo: l.estilo,
+              retrato: rid,
+              ms: l.ms,
+            });
+          }
+        }).catch(() => {
+          retratosEnviados.delete(rid);
+          if (!parado && projetorConectado.peek()) {
+            enviar({
+              tipo: 'letreiro',
+              titulo: l.titulo,
+              subtitulo: l.subtitulo,
+              estilo: l.estilo,
+              retrato: null,
+              ms: l.ms,
+            });
+          }
+        });
+      } else {
+        enviar({
+          tipo: 'letreiro',
+          titulo: l.titulo,
+          subtitulo: l.subtitulo,
+          estilo: l.estilo,
+          retrato: rid,
+          ms: l.ms,
+        });
+      }
+    },
     parar() {
       parado = true; sair(); parar1(); parar2(); parar3();
       if (temporizador) clearTimeout(temporizador);
@@ -153,6 +223,8 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
       canalGlobal.close();
       caixaDoProjetor.value = null;
       projetorConectado.value = false;
+      telaEscura.value = false;
+      ultimoEstadoTela = null;
     },
   };
 }

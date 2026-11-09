@@ -12,9 +12,14 @@ import { FaixaDeIniciativa } from './FaixaDeIniciativa.tsx';
 import { Icone } from './Icone.tsx';
 import { VISTA_INICIAL } from '../domain/inspecao.ts';
 import { VisorDeDocumento, suavizarEstado, type EstadoDoVisor } from './VisorDeDocumento.tsx';
+import { LetreiroDoProjetor, type DadosDoLetreiro } from './LetreiroDoProjetor.tsx';
 
 const doc = signal<MapaAtlas | null>(null);
 const botaoVisivel = signal(true);
+/** Cortina preta para transições de cena. */
+const cortina = signal<{ escurecer: boolean; ms: number }>({ escurecer: false, ms: 0 });
+/** Letreiro de apresentação ou capítulo em exibição no projetor. */
+const letreiroDoProjetor = signal<DadosDoLetreiro | null>(null);
 /** Enquanto segue o mestre, a câmera dele enquadra o projetor; zoom ou arrasto aqui soltam o projetor até "Seguir o mestre". */
 const seguindo = signal(true);
 let caixaDoMestre: Parameters<Viewport['enquadrarCaixa']>[0] | null = null, vpAtual: Viewport | null = null;
@@ -48,6 +53,8 @@ export function Projetor({ mapaId }: { mapaId: string }) {
     document.body.classList.add('projetor');
     seguindo.value = true; caixaDoMestre = null;
     retratos.clear(); recursosLocais.clear(); fecharInspecaoNoProjetor();
+    cortina.value = { escurecer: false, ms: 0 };
+    letreiroDoProjetor.value = null;
     const canalEspecifico = new BroadcastChannel(nomeDoCanalDoProjetor(mapaId));
     const canalGlobal = new BroadcastChannel(CANAL_PROJETOR_GLOBAL);
     let vp: Viewport | null = null, store: Store | null = null, morto = false, caixa: Parameters<Viewport['enquadrarCaixa']>[0] | null = null, primeira = true;
@@ -69,7 +76,16 @@ export function Projetor({ mapaId }: { mapaId: string }) {
     }).then(v => {
       if (morto) { v.destruir(); return; }
       vp = v; vpAtual = v;
-      Object.defineProperty(window, '__projetor', { value: Object.freeze({ doc: () => doc.value, viewport: () => vp, retratos: () => [...retratos.keys()] }), configurable: true });
+      Object.defineProperty(window, '__projetor', {
+        value: Object.freeze({
+          doc: () => doc.value,
+          viewport: () => vp,
+          retratos: () => [...retratos.keys()],
+          cortina: () => cortina.value,
+          letreiro: () => letreiroDoProjetor.value,
+        }),
+        configurable: true,
+      });
       ola();
     });
 
@@ -84,6 +100,9 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       else if (msg.tipo === 'camera') { caixa = caixaDoMestre = msg.caixa; if (seguindo.peek()) { vp?.enquadrarCaixa(msg.caixa, !primeira); primeira = false; } }
       else if (msg.tipo === 'evento') vp?.dispararEvento(msg.nome);
       else if (msg.tipo === 'relampago') vp?.relampagoAgora();
+      else if (msg.tipo === 'tela') { cortina.value = { escurecer: msg.acao === 'escurecer', ms: msg.ms }; }
+      else if (msg.tipo === 'letreiro') { letreiroDoProjetor.value = { titulo: msg.titulo, subtitulo: msg.subtitulo, estilo: msg.estilo, retrato: msg.retrato, ms: msg.ms }; }
+      else if (msg.tipo === 'letreiro-fim') { letreiroDoProjetor.value = null; }
       else if (msg.tipo === 'recursos') { recursosLocais.clear(); for (const [id, r] of Object.entries(msg.por)) recursosLocais.set(id, r); vp?.redesenharPecas(); }
       else if (msg.tipo === 'inspecao') void abrirInspecaoNoProjetor(msg.nome, msg.normal, msg.uv);
       else if (msg.tipo === 'inspecao-estado') alvoDaInspecao = { vista: msg.vista, lanterna: msg.lanterna };
@@ -130,6 +149,8 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       window.removeEventListener('wheel', aoRolarJanela); window.removeEventListener('wheel', soltar, { capture: true });
       hospedeiro?.removeEventListener('pointerdown', aoApertar); window.removeEventListener('pointermove', aoArrastar); window.removeEventListener('pointerup', aoSoltar); window.removeEventListener('pointercancel', aoSoltar);
       vpAtual = null;
+      cortina.value = { escurecer: false, ms: 0 };
+      letreiroDoProjetor.value = null;
       document.body.classList.remove('projetor');
     };
   }, [mapaId]);
@@ -143,6 +164,22 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       {documentoDoProjetor.value && <div class="projetor-inspecao" data-testid="projetor-inspecao"><h2>{documentoDoProjetor.value.nome}</h2><VisorDeDocumento normal={documentoDoProjetor.value.normal} uv={documentoDoProjetor.value.uv} estado={estadoDaInspecao} testid="projetor-visor" /></div>}
       {m ? <h1 class="projetor-titulo faixa" data-testid="projetor-titulo">{m.name}</h1> : <p class="projetor-espera" data-testid="projetor-espera">Aguardando o mestre…</p>}
       {m?.session.initiative && <div class="projetor-iniciativa"><FaixaDeIniciativa ini={m.session.initiative} pecas={pecas} lerRetrato={lerRetratoLocal} /></div>}
+      <div
+        class="projetor-cortina"
+        data-testid="projetor-cortina"
+        style={{
+          opacity: cortina.value.escurecer ? 1 : 0,
+          transition: cortina.value.ms > 0 ? `opacity ${cortina.value.ms}ms ease-in-out` : 'none',
+        }}
+        aria-hidden="true"
+      />
+      {letreiroDoProjetor.value && (
+        <LetreiroDoProjetor
+          dados={letreiroDoProjetor.value}
+          lerRetrato={lerRetratoLocal}
+          aoTerminar={() => { letreiroDoProjetor.value = null; }}
+        />
+      )}
       {!seguindo.value && <button type="button" class={`projetor-seguir ${botaoVisivel.value ? '' : 'oculto'}`} data-testid="projetor-seguir"
         onClick={() => { seguindo.value = true; if (caixaDoMestre) vpAtual?.enquadrarCaixa(caixaDoMestre, true); }}>Seguir o mestre</button>}
       <button type="button" class={`projetor-tela-cheia ${botaoVisivel.value ? '' : 'oculto'}`} aria-label="Tela cheia" title="Tela cheia" data-testid="projetor-tela-cheia"
