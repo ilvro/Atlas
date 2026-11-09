@@ -13,6 +13,7 @@ import { campanhaAtiva } from './campanha.ts';
 import { PRESETS_DE_CLIMA } from '../domain/presets.ts';
 import { FERRAMENTAS_DA_SESSAO, modo, vistaDeJogador } from './modo.ts';
 import { aceitarSugestao, definirSugestoesLigadas, dispensarSugestao, outraSugestao, sugestao, sugestoesLigadas } from './sugestoes.ts';
+import { momentoEmCurso, pararMomento } from './momentos.ts';
 import type { Alvo } from '../render/selecao.ts';
 import type { Ponto } from '../domain/mapa.ts';
 
@@ -190,8 +191,13 @@ export function recebeTexto(el: Element | null): boolean {
 
 /** Trata uma tecla: acha a ação do atalho e a executa. Devolve se tratou. */
 export function tratarTecla(e: KeyboardEvent): boolean {
-  const emCampo = recebeTexto(e.target as HTMLElement | null);
   const k = e.key.toLowerCase();
+  if (k === 'escape' && modo.value === 'sessao' && momentoEmCurso.value !== null) {
+    e.preventDefault();
+    pararMomento();
+    return true;
+  }
+  const emCampo = recebeTexto(e.target as HTMLElement | null);
   // Dentro de um campo de texto só valem os atalhos com Ctrl (e Esc), para não roubar a digitação.
   if (emCampo && !(e.ctrlKey || e.metaKey) && k !== 'escape') return false;
   if (app.paletaAberta.value && k !== 'escape' && !(e.ctrlKey && k === 'k')) return false;
