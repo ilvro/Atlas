@@ -1,6 +1,6 @@
 // Só em desenvolvimento: importado por `main.tsx` dentro de `if (import.meta.env.DEV)`; o Vite elimina o chunk do build.
 import { conectarPonte, ferramentasDaCampanha } from '#mesa/ponte';
-import { abrirMapa, servicos, sessao } from './app.ts';
+import { abrirMapa, servicos, sessao, viewport } from './app.ts';
 import { ferramentasDeLeitura } from './ponte-leitura.ts';
 
 const obterRepositorio = async () => {
@@ -13,6 +13,6 @@ conectarPonte({
   app: 'atlas', titulo: 'Atlas',
   ferramentas: [
     ...ferramentasDaCampanha(obterRepositorio),
-    ...ferramentasDeLeitura({ repo: () => servicos.value?.repo ?? null, mapaAberto: () => sessao.value?.doc.value ?? null, abrirMapa }),
+    ...ferramentasDeLeitura({ repo: () => servicos.value?.repo ?? null, mapaAberto: () => sessao.value?.doc.value ?? null, abrirMapa, capturar: o => viewport.atual?.capturar(o) ?? null }),
   ],
 });

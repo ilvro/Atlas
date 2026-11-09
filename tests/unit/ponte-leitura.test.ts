@@ -31,7 +31,7 @@ function montar(aberto: typeof covil | null) {
 
 test('as ferramentas têm nome, descrição e esquema de objeto', () => {
   const { f } = montar(null);
-  assert.deepEqual(Object.keys(f), ['atlas_mapas_listar', 'atlas_mapa_ler', 'atlas_catalogo', 'atlas_abrir']);
+  assert.deepEqual(Object.keys(f), ['atlas_mapas_listar', 'atlas_mapa_ler', 'atlas_catalogo', 'atlas_abrir', 'atlas_ver_mapa']);
   for (const x of Object.values(f)) { assert.ok(x.descricao.length > 20); assert.equal(x.esquema.type, 'object'); }
 });
 
