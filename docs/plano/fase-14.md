@@ -184,7 +184,7 @@ Pronto quando: no app do Claude, "olhe o mapa aberto" mostra a imagem e o Claude
 Commit: map snapshot tool
 Nota: `capturar` devolve `{ dataUrl, largura, altura, pxPorMetro, caixa }` (a caixa é recortada ao mapa) e recorta a imagem à própria caixa, não à tela; usa `renderer.extract.canvas` sobre a stage, com `resolution` calculada para o maior lado caber em `ladoMaximo`. O parâmetro `estilo` ficou de fora (trocar o estilo re-assaria tudo e mexeria no documento); `atlas_ver_mapa` só aceita `caixa`. O contexto da ponte ganhou `capturar` (opcional). Captura do covil (45 × 34 m) com `ladoMaximo` 800: 800 × 604 px, 17,77 px/m.
 
-### 14.1f — Mesa na ponte e verificação do build  ⬜
+### 14.1f — Mesa na ponte e verificação do build  ✅
 Objetivo: com só a Mesa aberta, o Claude já lê a campanha; e fica provado que nada disso vai para o Pages.
 Depende de: 14.1b
 Ler: `../Mesa/src/main.tsx`, `../Mesa/AGENTS.md` (como atualizar o `vendor/mesa-core`), `../Mesa/vite.config.ts`.
@@ -196,6 +196,7 @@ Não fazer: ferramentas de escrita da Mesa (etapa 3).
 Testes: o próprio `ponte:verificar` passa; o typecheck e os testes do Mesa passam.
 Pronto quando: `npm run ponte:verificar` passa e, com só a Mesa aberta no `mesa-dev`, `campanha_ler` responde no app do Claude.
 Commit: mesa on the assistant bridge and build check
+Nota: o Mesa ganhou o alias `#mesa/ponte` (`imports` do package.json, como no Atlas) e `ponte:verificar` aceita `--mesa <caminho>`/`MESA_DIR`; a busca usa nomes reais (`__ponte`, `conectarPonte`, `ponte_estado`, `atlas_mapa_ler`, `atlas_ver_mapa`, `campanha_ler`, `mesa_campanha_atual`) em vez de `ponte_` solto, para evitar falso positivo.
 
 ### 14.1g — Presença do assistente na aba: selo e "o que estou vendo"  ⬜
 Objetivo: o mestre sabe que o assistente está conectado e pode se referir ao que tem na tela ("este cômodo", "esta sessão").
