@@ -124,7 +124,7 @@ Commit: `projector blackout and title cards`
 
 ---
 
-### 13.3a — Painel Momentos no Dock e editor de passos  ⬜
+### 13.3a — Painel Momentos no Dock e editor de passos  ✅
 Objetivo: o mestre cria, edita, testa e dispara momentos sem sair do mapa.
 Depende de: 13.1b, 13.2a.
 Ler: `src/ui/Dock.tsx` (seções `SecaoDeCena`, `SecaoDoProjetor`, `PainelFlutuante`); `src/ui/Inspetor.tsx` (`CampoOpcoes`, `CampoTexto`, `CamposDaRegiao` como modelo de campos); `src/ui/EscolherCena.tsx` (com `tipo='efeito'` para efeitos avulsos); `src/app/dock.ts`.

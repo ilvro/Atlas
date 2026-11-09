@@ -9,7 +9,7 @@ after(async () => { await encerrar(amb); });
 test('fase 13: projetor exibe cortina preta com transição e letreiro de apresentação', async () => {
   const ctx = await novoContexto(amb);
   const { page, erros } = await abrir(ctx, amb.url);
-  await criarMapaPelaInterface(page, 'Mansão do Horror');
+  await criarMapaPelaInterface(page);
   const doc = await documento(page);
 
   const proj = await ctx.newPage();
