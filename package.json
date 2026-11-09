@@ -19,6 +19,7 @@
     "test:e2e": "node --test --test-concurrency=1 \"tests/e2e/*.test.ts\"",
     "build:core": "tsc -p mesa-core/tsconfig.build.json",
     "mesa-dev": "node scripts/mesa-dev.ts",
+    "ponte:mcp": "node scripts/ponte/mcp.ts",
     "dev:mesa": "MESA_DEV_PREFIX=/Atlas/ vite --host 127.0.0.1 --port 5190 --strictPort"
   },
   "dependencies": {
@@ -31,6 +32,7 @@
     "preact": "11.0.1"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@preact/preset-vite": "2.10.6",
     "@types/node": "22.20.5",
     "@types/ws": "8.18.2",
