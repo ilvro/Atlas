@@ -9,5 +9,5 @@
   },
   "oferece": ["mapa", "comodo"],
   "emite": ["atlas.cena-aberta", "atlas.revelado"],
-  "atende": ["atlas.focar", "atlas.preparar-cena"]
+  "atende": ["atlas.focar", "atlas.preparar-cena", "atlas.momento"]
 }

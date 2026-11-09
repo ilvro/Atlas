@@ -84,6 +84,9 @@ export async function iniciar(): Promise<void> {
     s.barramento?.atender('atlas.preparar-cena', dados => {
       return prepararCenaNoAtlas(s, dados as DadosPrepararCena);
     });
+    s.barramento?.atender('atlas.momento', dados => {
+      return tocarMomentoRemoto(s, dados as DadosAtlasMomento);
+    });
   } catch (erro) {
     erroInicial.value = erro instanceof Error ? erro.message : String(erro);
     return;
@@ -458,6 +461,46 @@ export async function prepararCenaNoAtlas(
     }
   }
 
+  return { ok: true };
+}
+
+export interface DadosAtlasMomento {
+  mapa: Ref;
+  momento: string;
+}
+
+/** Atende o pedido `atlas.momento` vindo da Mesa ou de outro aplicativo: abre o mapa se necessário e toca o momento. */
+export async function tocarMomentoRemoto(
+  s: Servicos,
+  dados: DadosAtlasMomento
+): Promise<{ ok: boolean; motivo?: string }> {
+  if (!dados || !dados.mapa || !dados.mapa.id || !dados.momento) {
+    return { ok: false, motivo: 'Mapa e momento são obrigatórios.' };
+  }
+  let mapaId = dados.mapa.id;
+  if (dados.mapa.tipo === 'comodo') {
+    const i = mapaId.indexOf('/');
+    if (i > 0) mapaId = mapaId.slice(0, i);
+  }
+  if (sessao.value?.doc.value.id !== mapaId) {
+    await abrirMapa(mapaId);
+  }
+  const sessaoAtual = sessao.value;
+  if (!sessaoAtual) {
+    return { ok: false, motivo: 'Não foi possível abrir o mapa solicitado.' };
+  }
+  const termo = dados.momento.trim().toLowerCase();
+  const momento =
+    sessaoAtual.doc.value.moments[dados.momento] ??
+    Object.values(sessaoAtual.doc.value.moments).find(m => m.id.toLowerCase() === termo || m.nome.toLowerCase() === termo);
+
+  if (!momento) {
+    avisar('Momento não encontrado neste mapa.', { tipo: 'erro' });
+    return { ok: false, motivo: `Momento "${dados.momento}" não encontrado no mapa.` };
+  }
+
+  const saidas = saidasDeMomento(s);
+  void tocarMomento(sessaoAtual.doc.value.id, momento, saidas);
   return { ok: true };
 }
 
