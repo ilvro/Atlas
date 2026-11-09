@@ -9,3 +9,4 @@ spikes/*/node_modules/
 spikes/*/dist/
 mesa-core/dist/
 docs/referencias/exemplos/
+.ponte/
