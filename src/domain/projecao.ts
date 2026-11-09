@@ -14,12 +14,12 @@ import { celulasVisiveis, RES_NEVOA, secretaOculta } from './nevoa.ts';
  * - peças que não são de jogador e estão fora do visível, com a luz que carregam e a vez na iniciativa
  * - a pista (`clue`) de um interagível que não foi revelado
  */
-export const CAMPOS_DO_MESTRE = ['notes', 'comodosExtra', 'campanhaId', 'audioCue', 'climateAudio', 'customClimates', 'regions.gmOnly', 'regions.payload', 'regions.refs', 'presence.gmOnly', 'openings.secret', 'tokens.foraDaVista', 'props.interaction.clue'] as const;
+export const CAMPOS_DO_MESTRE = ['notes', 'comodosExtra', 'campanhaId', 'audioCue', 'climateAudio', 'customClimates', 'moments', 'regions.gmOnly', 'regions.payload', 'regions.refs', 'presence.gmOnly', 'openings.secret', 'tokens.foraDaVista', 'props.interaction.clue'] as const;
 
 /** O mapa que os jogadores podem ver. Pura: não muda `m`. */
 export function projetarParaJogadores(m: MapaAtlas): MapaAtlas {
   const p = structuredClone(m);
-  p.notes = ''; p.comodosExtra = {}; p.campanhaId = null; p.audioCue = null; p.climateAudio = {}; p.customClimates = {};
+  p.notes = ''; p.comodosExtra = {}; p.campanhaId = null; p.audioCue = null; p.climateAudio = {}; p.customClimates = {}; p.moments = {};
   for (const [id, r] of Object.entries(p.regions)) { if (r.gmOnly) delete p.regions[id]; else { r.payload = {}; r.refs = []; } }
   for (const [id, x] of Object.entries(p.presence)) if (x.gmOnly) delete p.presence[id];
   for (const [id, a] of Object.entries(p.openings)) if (secretaOculta(m, a)) delete p.openings[id];

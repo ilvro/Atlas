@@ -1,7 +1,8 @@
-/** Efeitos curtos de cena, do render e não do documento: o mestre os dispara ao vivo e nada fica gravado. */
-export const EVENTOS_DE_CENA = ['tremor', 'piscar', 'escurecer', 'clarao'] as const;
-export type EventoDeCena = (typeof EVENTOS_DE_CENA)[number];
-export const ROTULO_DO_EVENTO: Record<EventoDeCena, string> = { tremor: 'Tremor', piscar: 'Luzes piscam', escurecer: 'Escurecer', clarao: 'Clarão' };
+import { EVENTOS_DE_CENA, type EventoDeCena, ROTULO_DO_EVENTO } from '../domain/eventos-de-cena.ts';
+
+export { EVENTOS_DE_CENA, ROTULO_DO_EVENTO };
+export type { EventoDeCena };
+
 export const DURACAO_DO_EVENTO_MS: Record<EventoDeCena, number> = { tremor: 800, piscar: 1500, escurecer: 4000, clarao: 350 };
 
 export interface EstadoDosEventos {

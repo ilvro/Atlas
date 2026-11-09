@@ -14,7 +14,7 @@ const mexer = (fn: (m: MapaAtlas) => void) => { const m = structuredClone(mapaCo
 test('um mapa novo é válido, vazio e no padrão de 1,5 m', () => {
   const m = criarMapa({ id: 'a', agora: 5 });
   validarMapa(m);
-  assert.equal(m.schema, 'atlas.map'); assert.equal(m.version, 7); assert.equal(m.revision, 0);
+  assert.equal(m.schema, 'atlas.map'); assert.equal(m.version, 8); assert.equal(m.revision, 0);
   assert.equal(m.grid.size, 1.5); assert.equal(colunas(m), 30); assert.equal(linhas(m), 20);
   assert.deepEqual(Object.keys(m.rooms), []);
 });
@@ -110,10 +110,10 @@ test('lerMapa recusa o que não é mapa e devolve cópias independentes do que l
   assert.throws(() => lerMapa(null), /não é um mapa/);
   assert.throws(() => lerMapa({ schema: 'outra.coisa', version: 1 }), /atlas\.map/);
   assert.throws(() => lerMapa({ schema: 'atlas.map', version: 'x' }), /Versão inválida/);
-  assert.throws(() => lerMapa({ ...criarMapa(), version: 8 }), /mais nova/);
+  assert.throws(() => lerMapa({ ...criarMapa(), version: 9 }), /mais nova/);
   const original = mapaCompleto(), lido = lerMapa(original);
   assert.deepEqual(lido, original); assert.notEqual(lido, original);
-  assert.deepEqual(Object.keys(MIGRACOES), ['1', '2', '3', '4', '5', '6']);
+  assert.deepEqual(Object.keys(MIGRACOES), ['1', '2', '3', '4', '5', '6', '7']);
 });
 
 test('conteúdo ignora revisão e carimbos de tempo, e só eles', () => {
@@ -138,7 +138,7 @@ test('migração 1→2: mapas da Fase 2 abrem no formato novo, sem perder nada',
   for (const l of Object.values(v1.lights) as Record<string, unknown>[]) delete l.preset;
   for (const a of Object.values(v1.openings) as Record<string, unknown>[]) delete a.swing;
   const lido = lerMapa(v1);
-  assert.equal(lido.version, 7); assert.equal(lido.terrain.base, 'vazio');
+  assert.equal(lido.version, 8); assert.equal(lido.terrain.base, 'vazio');
   assert.equal(lido.lights.lampiao!.preset, null); assert.equal(lido.openings.porta!.swing, 'a');
   assert.deepEqual(lido.rooms, atual.rooms); assert.deepEqual(lido.props, atual.props);
   assert.equal(v1.version, 1, 'o original não é tocado');
@@ -160,7 +160,7 @@ test('migração 2→3: o mapa da Fase 3 abre no formato novo, com clima, tempo 
   v2.version = 2; delete v2.climateAudio; delete v2.customClimates; delete v2.climate.weather; delete v2.climate.gridPower;
   v2.presence.musgo = { id: 'musgo', brush: 'musgo', mask: { id: 'mask-1', hash: 'abcdef012345' }, intensity: 0.6, seed: 4, gmOnly: false };
   const lido = lerMapa(v2);
-  assert.equal(lido.version, 7);
+  assert.equal(lido.version, 8);
   assert.deepEqual(lido.climate.weather, { rain: 0, snow: 0, fog: 0, wind: 0, dust: 0, embers: 0, leaves: 0, lightning: 0 });
   assert.equal(lido.climate.gridPower, true); assert.deepEqual(lido.climateAudio, {}); assert.deepEqual(lido.customClimates, {});
   assert.deepEqual(lido.presence.musgo!.cells, []); assert.ok(!('mask' in lido.presence.musgo!));
@@ -170,7 +170,7 @@ test('migração 2→3: o mapa da Fase 3 abre no formato novo, com clima, tempo 
   const v1 = structuredClone(v2); v1.version = 1; v1.terrain = { resolution: 0.25, base: 'terra', layers: {} };
   for (const l of Object.values(v1.lights) as Record<string, unknown>[]) delete l.preset;
   for (const a of Object.values(v1.openings) as Record<string, unknown>[]) delete a.swing;
-  assert.equal(lerMapa(v1).version, 7);
+  assert.equal(lerMapa(v1).version, 8);
 });
 
 test('tempo e clima: limites e campos desconhecidos são recusados com o caminho', () => {
@@ -195,7 +195,7 @@ test('migração 3→4: o mapa da Fase 4 ganha o gênero "investigacao" e o rest
   const atual = mapaCompleto(), v3 = structuredClone(atual) as unknown as Record<string, any>;
   v3.version = 3; delete v3.style.genre;
   const lido = lerMapa(v3);
-  assert.equal(lido.version, 7); assert.equal(lido.style.genre, 'investigacao');
+  assert.equal(lido.version, 8); assert.equal(lido.style.genre, 'investigacao');
   assert.deepEqual(lido.rooms, atual.rooms); assert.deepEqual(lido.climate, atual.climate);
   assert.equal(v3.version, 3, 'o original não é tocado');
   const moderno = structuredClone(atual); moderno.style.genre = 'moderno'; assert.equal(lerMapa(moderno).style.genre, 'moderno');
@@ -215,7 +215,7 @@ test('migração 4→5: o mapa da Fase 6 ganha `player: false`, `interaction: nu
   for (const k of Object.values(v4.tokens) as Record<string, unknown>[]) delete k.player;
   v4.session.explored = { id: 'antigo', hash: 'abcdef012345' };          // como um mapa antigo poderia ter guardado
   const lido = lerMapa(v4);
-  assert.equal(lido.version, 7);
+  assert.equal(lido.version, 8);
   assert.ok(Object.values(lido.props).every(o => o.interaction === null)); assert.ok(Object.values(lido.tokens).every(k => k.player === false));
   assert.equal(lido.session.explored, null);
   assert.deepEqual(lido.rooms, atual.rooms); assert.deepEqual(lido.climate, atual.climate);
@@ -246,7 +246,7 @@ test('migração 5→6: o mapa da Fase 9 ganha os campos neutros da Fase 10, sem
   delete v5.finish.edges; delete v5.finish.glow;
   delete v5.customClimates.vela.finish.edges; delete v5.customClimates.vela.finish.glow;
   const lido = lerMapa(v5);
-  assert.equal(lido.version, 7);
+  assert.equal(lido.version, 8);
   assert.ok(Object.values(lido.terrain.layers).every(c => c.flow === null));
   assert.ok(Object.values(lido.walls).every(p => p.drop === null));
   assert.ok(Object.values(lido.lights).every(l => l.rays === false));
