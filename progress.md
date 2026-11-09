@@ -421,3 +421,7 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 ## Acervo para refazer os exemplos da Fase 10
 
 - **Árvores e pilhas refeitas** — `Parte` ganhou `suave` (sem traço interno nem degradê) e `alfa` (o Pixel ignora o que fica abaixo de 0,5); formas orgânicas em `src/procedural/organico.ts` (`tira`, `silhuetaDeDiscos`, `bolha`, `tufo`, `sombraNoChao`). Copas (`arvore`, `carvalho-grande`, `arbusto`, `arvore-nevada`) viraram uma silhueta única com tufos pintados para a luz; `pinheiro` e `pinheiro-nevado` viraram ramos em camadas com agulhas e neve; geradores com versão nova e reassados. `ossada`, `pilha-de-ossos`, `cranio-animal`, `pilha-de-peles` e `escombros` refeitos (ossos em fita, crânio com focinho e órbitas, peles com pelo, blocos quebrados, sombra macia no chão). Exemplos regerados.
+
+## Fase 14 — Assistente
+
+- **14.1a — Ponte no `mesa-dev`** — `scripts/ponte/protocolo.ts` (tipos e `lerMensagem`) e `scripts/ponte/servidor.ts` (`criarPonte` sobre `ws` em `noServer`: abas só com a `Origin` do mesa-dev, MCP com token em `.ponte/token`, ferramentas por app da aba com foco mais recente, chamadas com prazo de 60 s e falha ao fechar a aba); ligada ao `upgrade` de `/__ponte` e com a linha "ponte do assistente: N abas" no índice. Testes em `tests/unit/ponte.test.ts`.

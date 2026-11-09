@@ -82,7 +82,7 @@ Planejado em 9 de novembro de 2026 contra o código do fim da Fase 13 em andamen
 
 ---
 
-### 14.1a — Protocolo e servidor da ponte no `mesa-dev`  ⬜
+### 14.1a — Protocolo e servidor da ponte no `mesa-dev`  ✅
 Objetivo: o `mesa-dev` aceita abas e um cliente MCP num WebSocket em `/__ponte` e repassa chamadas de ferramenta entre eles.
 Depende de: —
 Ler: `scripts/mesa-dev.ts` (`criarProxy`, o `servidor.on('upgrade')` que repassa o WebSocket do Vite), `scripts/mesa-tudo.ts`, `docs/PLATAFORMA.md` §2.
@@ -104,6 +104,7 @@ Não fazer: o MCP (14.1c), cliente nas abas (14.1b).
 Testes: `lerMensagem` aceita as formas válidas e recusa lixo; com a ponte num servidor HTTP de teste e clientes `ws`: aba com `Origin` errado é recusada; MCP sem token é recusado; uma chamada vai à aba do app certo e o resultado volta ao MCP; foco troca a aba escolhida; aba que fecha falha a chamada pendente.
 Pronto quando: os testes passam e `npm run mesa-dev` sobe com a ponte (sem mudar nada para quem não a usa).
 Commit: assistant bridge in mesa-dev
+Nota: `criarPonte` ganhou `abas()` (para a linha do índice) e `tempoDaChamadaMs` opcional (para testar o prazo); `criarProxy(projetos, ponte?)` recebe a ponte, criada em `principal` com a origem `http://127.0.0.1:<porta>`. Cliente MCP = conexão sem header `Origin` (autentica com o token); navegador sempre manda `Origin`, então é tratado como aba. `ws` 8.22.2 e `@types/ws` 8.18.2 em versão exata.
 
 ### 14.1b — Cliente da ponte e ferramentas da campanha no `mesa-core`  ⬜
 Objetivo: um app registra ferramentas na ponte com uma chamada; toda aba já oferece a leitura da campanha.

@@ -21,6 +21,7 @@ import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { servirArquivo } from './mesa-estatico.ts';
 import { subirProjetos } from './mesa-tudo.ts';
+import { criarPonte, CAMINHO_DA_PONTE, type Ponte } from './ponte/servidor.ts';
 
 export interface Projeto { nome: string; alvo: string; /** O projeto serve na raiz: o prefixo `/Nome` é tirado do caminho. */ tirarPrefixo: boolean; /** Pasta de arquivos estáticos servida pelo próprio mesa-dev (como o GitHub Pages), em vez de repassar a um servidor. */ estatico?: string }
 
@@ -49,12 +50,12 @@ export function achar(projetos: readonly Projeto[], url: string): { projeto: Pro
   return { projeto, caminho: projeto.tirarPrefixo ? `${m[2] ?? '/'}${m[3] ?? ''}` : url };
 }
 
-export function criarProxy(projetos: readonly Projeto[]): http.Server {
+export function criarProxy(projetos: readonly Projeto[], ponte?: Ponte): http.Server {
   const servidor = http.createServer((req, res) => {
     const url = req.url ?? '/';
     if (url === '/' || url.startsWith('/?')) {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-      res.end(`<!doctype html><meta charset="utf-8"><title>mesa-dev</title><body style="font:16px system-ui;background:#0a0a10;color:#ececf1;padding:2rem"><h1>mesa-dev</h1><p>Todos na mesma origem, como no GitHub Pages.</p><ul>${projetos.map(p => `<li><a style="color:#e91d25" href="/${escapar(p.nome)}/">${escapar(p.nome)}</a> <small>→ ${escapar(p.alvo)}</small></li>`).join('')}</ul>`);
+      res.end(`<!doctype html><meta charset="utf-8"><title>mesa-dev</title><body style="font:16px system-ui;background:#0a0a10;color:#ececf1;padding:2rem"><h1>mesa-dev</h1><p>Todos na mesma origem, como no GitHub Pages.</p><ul>${projetos.map(p => `<li><a style="color:#e91d25" href="/${escapar(p.nome)}/">${escapar(p.nome)}</a> <small>→ ${escapar(p.alvo)}</small></li>`).join('')}</ul>${ponte ? `<p id="ponte">ponte do assistente: ${ponte.abas()} ${ponte.abas() === 1 ? 'aba' : 'abas'}</p>` : ''}`);
       return;
     }
     const achado = achar(projetos, url);
@@ -75,6 +76,7 @@ export function criarProxy(projetos: readonly Projeto[]): http.Server {
 
   // WebSocket (recarregamento ao vivo do Vite): túnel direto até o projeto.
   servidor.on('upgrade', (req, socket, cabeca) => {
+    if (ponte && (req.url ?? '').split('?')[0] === CAMINHO_DA_PONTE) { ponte.aceitar(req, socket, cabeca); return; }
     const achado = achar(projetos, req.url ?? '/');
     if (!achado || achado.projeto.estatico) { socket.destroy(); return; }
     const alvo = new URL(achado.projeto.alvo);
@@ -107,9 +109,12 @@ async function principal(): Promise<void> {
   }
   const parar = () => { filhos.forEach(f => f.kill()); process.exit(0); };
   process.on('SIGINT', parar); process.on('SIGTERM', parar);
-  criarProxy(projetos).listen(porta, '127.0.0.1', () => {
+  const raizAtlas = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+  const ponte = criarPonte({ origem: `http://127.0.0.1:${porta}`, pastaDoToken: path.join(raizAtlas, '.ponte') });
+  criarProxy(projetos, ponte).listen(porta, '127.0.0.1', () => {
     console.log(`\nmesa-dev em http://127.0.0.1:${porta}/ — mesma origem para todos:`);
     for (const p of projetos) console.log(`  http://127.0.0.1:${porta}/${p.nome}/  →  ${p.estatico ? `arquivos de ${p.estatico}` : p.alvo}`);
+    console.log(`  ponte do assistente em ws://127.0.0.1:${porta}${CAMINHO_DA_PONTE} (token em Atlas/.ponte/token)`);
     console.log(`\nComece pela Mesa: http://127.0.0.1:${porta}/Mesa/   (Ctrl+C encerra tudo)`);
   });
 }
