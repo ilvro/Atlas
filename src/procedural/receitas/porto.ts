@@ -123,14 +123,21 @@ export const RECEITAS_PORTO: Receita[] = [
     campos: [{ id: 'paleta', rotulo: 'Cores do toldo (0 a 3)', tipo: 'numero', padrao: 0, min: 0, max: 3, passo: 1 }],
     gerar: p => {
       const PALETAS = [['#b8322e', '#f1e6cc', '#2f5f8a', '#f1e6cc'], ['#2f6a46', '#f1e6cc', '#c9972e', '#f1e6cc'], ['#6b3a86', '#f1e6cc', '#c9622e', '#f1e6cc'], ['#2f5f8a', '#e3b84a', '#b8322e', '#2f6a46']], cores = PALETAS[Math.round(num(p, 'paleta', 0, 0, 3))]!, partes: Parte[] = [];
-      const n = 8, w = 3 / n;
-      partes.push(ret(0.07, 0.09, 3, 2.2, '#2a1c10', 0.5, { contorno: false, sombraLeve: true }), ret(0, 0.05, 2.7, 1.9, 'madeira.media', 0.55, { contorno: 'leve', detalhe: 2 }));
+      // Toldo de duas águas visto de cima: a cumeeira em y = −0,1, a água norte na luz e a sul na sombra, listras correndo da cumeeira
+      // para as bordas, franja ondulada na frente; o balcão com a mercadoria aparece por baixo da franja.
+      const n = 8, w = 2.9 / n, S: Partial<Parte> = { contorno: false, semSombra: true, suave: true };
+      partes.push(ret(0, 1.02, 2.6, 0.3, 'madeira.media', 0.9, { contorno: 'leve', sombraLeve: true, detalhe: 2 }));
+      for (let i = 0; i < 9; i++) { const x = -1.15 + i * 0.29; partes.push(i % 3 === 2 ? ret(x, 1.02, 0.2, 0.2, 'madeira.clara', 0.95, { contorno: 'leve', semSombra: true, detalhe: 3 }) : elipse(x, 1.02, 0.14, 0.14, ['#c8452e', '#e0a838', '#6f9a3a', '#8a3f6a'][i % 4]!, 0.95, { contorno: 'leve', semSombra: true, detalhe: 3 })); }
+      partes.push(ret(0, -0.1, 3, 2.04, tom(cores[0]!, -0.45), 2, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
       for (let i = 0; i < n; i++) {
-        const c = cores[i % 4]!, x = -1.5 + (i + 0.5) * w;
-        partes.push(ret(x, -0.1, w, 2.0, c, 1.6, { contorno: false, detalhe: 1 }), ret(x - w * 0.18, -0.1, w * 0.4, 2.0, tom(c, 0.16), 1.62, FINO), elipse(x, 0.9, w, 0.3, c, 1.64, { contorno: 'leve', semSombra: true, detalhe: 2 }));
+        const c = cores[i % 4]!, x0 = -1.45 + i * w, x1 = x0 + w;
+        partes.push(poli([x0, -1.08, x1, -1.08, x1, -0.1, x0, -0.1], tom(c, 0.1), 2.05, { ...S, detalhe: 1 }));
+        partes.push(poli([x0, -0.1, x1, -0.1, x1, 0.86, x0, 0.86], tom(c, -0.16), 2.05, { ...S, detalhe: 1 }));
+        partes.push(elipse(x0 + w / 2, 0.86, w * 0.96, 0.24, tom(c, -0.24), 2.04, { ...S, detalhe: 2 }));
+        partes.push(poli([x0 + w * 0.15, -1.0, x0 + w * 0.35, -1.0, x0 + w * 0.35, -0.2, x0 + w * 0.15, -0.2], tom(c, 0.28), 2.06, { ...S, detalhe: 3, alfa: 0.6 }));
       }
-      partes.push(ret(0, -0.1, 3, 0.07, tom('#f1e6cc', 0.05), 1.7, FINO), ret(0, -1.1, 3, 0.1, tom(cores[0]!, -0.35), 1.65, { contorno: false, semSombra: true, detalhe: 2 }));
-      for (const [x, y] of [[-1.42, -1.02], [1.42, -1.02], [-1.42, 0.82], [1.42, 0.82]] as const) partes.push(elipse(x, y, 0.1, 0.1, 'madeira.escura', 1.8, FINO));
+      partes.push(ret(0, -0.1, 3, 0.06, tom(cores[0]!, -0.5), 2.08, { ...S, detalhe: 2 }));
+      for (const [x, y] of [[-1.42, -1.04], [1.42, -1.04], [-1.42, 0.82], [1.42, 0.82]] as const) partes.push(elipse(x, y, 0.09, 0.09, 'madeira.escura', 2.1, FINO));
       return piso([3, 2.4], partes);
     } },
   { id: 'caixote', nome: 'Caixote', ...P, tags: ['caixote', 'caixa', 'carga', 'madeira', 'porto'], pegada: [0.8, 0.8], altura: 0.7,

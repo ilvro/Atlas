@@ -6,7 +6,7 @@ export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'tra
 export interface Material {
   id: string; nome: string; /** Para onde o material vai: piso, papel de parede, objeto ou terreno. */ uso: 'piso' | 'papel' | 'objeto' | 'terreno' | 'macico' | 'agua' | 'telhado';
   base: string; escuro: string; claro: string; padrao: Padrao; largura?: number; lado?: number; ouro?: string; borda?: string; meio?: string; /** Maciço: cor do topo (neve), onde a rocha passa de 70% da altura. */ topo?: string; /** Maciço e escarpa: quanto o pé da face escurece e quanto pesa a sombra de contato (0 a 1; ausente vale 1). */ pe?: number;
-  /** Água: cor perto da margem e no fundo, cor da espuma e quanto se enxerga o leito (0 a 1) no fundo. */ raso?: string; fundo?: string; espuma?: string; transparencia?: number; /** Água: rede de luz animada sobre o leito (cáusticas). */ causticas?: boolean; /** Água: quanto de espuma na margem e em volta dos objetos (0 a 1, padrão 1); água parada de gruta quase não tem. */ espumaForca?: number;
+  /** Água: cor perto da margem e no fundo, cor da espuma e quanto se enxerga o leito (0 a 1) no fundo. */ raso?: string; fundo?: string; espuma?: string; transparencia?: number; /** Água: rede de luz animada sobre o leito (cáusticas). */ causticas?: boolean; /** Água: quanto de espuma na margem e em volta dos objetos (0 a 1, padrão 1); água parada de gruta quase não tem. */ espumaForca?: number; /** Água: rebentação, cristas de onda brancas que correm para a margem (0 a 1; só o mar). */ ondas?: number;
 }
 
 const m = (id: string, nome: string, uso: Material['uso'], base: string, escuro: string, claro: string, padrao: Padrao, extra: Partial<Material> = {}): [string, Material] => [id, { id, nome, uso, base, escuro, claro, padrao, ...extra }];
@@ -88,20 +88,20 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('calcada', 'Calçada', 'terreno', '#7d7b78', '#45433f', '#a8a5a0', 'laje'),
   m('gelo', 'Gelo', 'terreno', '#9cc7e0', '#5d93b8', '#e8f6ff', 'gelo'),
   m('neve.funda', 'Neve funda', 'terreno', '#eef3f8', '#b9c8da', '#ffffff', 'dunas'),
-  m('rocha.rachada', 'Rocha rachada', 'terreno', '#5f6872', '#2b3138', '#8d98a3', 'rachado'),
+  m('rocha.rachada', 'Rocha rachada', 'terreno', '#67717b', '#2e353c', '#9ba6b0', 'rachado'),
   // Maciço: rocha com volume (o assar do terreno dá relevo, estrias e sombra de contato; o padrão serve de amostra)
   m('rocha.cinza', 'Rocha cinza', 'macico', '#6b6f75', '#25282d', '#a4a9ae', 'pedra', { pe: 0.35 }),
   m('rocha.caverna', 'Rocha de caverna', 'macico', '#566069', '#1b2128', '#8fa1ad', 'pedra', { pe: 1 }),
   m('rocha.nevada', 'Rocha nevada', 'macico', '#77808a', '#2d343c', '#b4bec8', 'pedra', { topo: '#f1f6fa', pe: 0.35 }),
   m('rocha.arenito', 'Arenito', 'macico', '#b49a72', '#5e4a30', '#e0c9a0', 'pedra', { pe: 0.25 }),
   // Água: o assar pinta o leito pela distância à margem (raso → fundo); o padrão serve de amostra
-  m('agua.mar', 'Mar', 'agua', '#2f6f86', '#0d2f45', '#8fd0e0', 'liso', { raso: '#58a8b8', fundo: '#0f3a54', espuma: '#f2fbff', transparencia: 0.12 }),
+  m('agua.mar', 'Mar', 'agua', '#2f6f86', '#0d2f45', '#8fd0e0', 'liso', { raso: '#58a8b8', fundo: '#0f3a54', espuma: '#f2fbff', transparencia: 0.12, ondas: 1 }),
   m('agua.lago', 'Lago', 'agua', '#2f7a78', '#0f3438', '#8fd8cc', 'liso', { raso: '#5fae9c', fundo: '#12404a', espuma: '#e6f6f0', transparencia: 0.18 }),
   m('agua.rio', 'Rio', 'agua', '#5aa0b0', '#1f5468', '#b4e4ec', 'liso', { raso: '#8cc8c8', fundo: '#2a6a80', espuma: '#f4fdff', transparencia: 0.25 }),
   m('agua.gruta', 'Água de gruta', 'agua', '#2aa8a0', '#0c4a52', '#9af0e0', 'liso', { raso: '#58d0c0', fundo: '#106068', espuma: '#d8fff4', transparencia: 0.85, causticas: true, espumaForca: 0.12 }),
   m('agua.pantano', 'Pântano', 'agua', '#5a6a38', '#222a14', '#98a468', 'liso', { raso: '#7a8444', fundo: '#2c3418', espuma: '#c4c88c', transparencia: 0.2 }),
   m('cascalho', 'Cascalho', 'terreno', '#7a756c', '#3f3b36', '#b0aaa0', 'cascalho'),
-  m('paralelepipedo', 'Paralelepípedo', 'terreno', '#7b7873', '#34322f', '#aaa69f', 'paralelepipedo'),
+  m('paralelepipedo', 'Paralelepípedo', 'terreno', '#85878a', '#393c40', '#b8babc', 'paralelepipedo'),
   m('lajes.gramadas', 'Lajes com grama', 'terreno', '#8c8475', '#3b342b', '#bcb2a0', 'lajegrama'),
   m('lajes.antigas', 'Lajes antigas', 'terreno', '#b3a487', '#5c5040', '#dccfb6', 'laje'),
   m('terra.sulcos', 'Terra com sulcos', 'terreno', '#7a5a3a', '#3b2a1a', '#a1805a', 'sulcos'),
@@ -349,13 +349,13 @@ function pintarRachado(ctx: Contexto, mat: Material, A: Area, seed: number, px: 
     t += (fbm(rn, x * 3.1, y * 3.1, 4) - 0.5) * 0.5 + (fbm(rn, x * 0.5 + 90, y * 0.5, 3) - 0.5) * 0.75 + (hash2D(Math.floor(x / px), Math.floor(y / px), 3) - 0.5) * 0.05;
     if (t < 0.5) mez(o, E, B, Math.max(0, t) * 2); else mez(o, B, C, Math.min(1, (t - 0.5) * 2));
     const b = q1.borda, frente = passo(-0.04, 0.12, lado);
-    const ao = (1 - passo(w, w * 7, b)) * (0.18 + 0.22 * (1 - frente));
+    const ao = (1 - passo(w, w * 5, b)) * (0.12 + 0.16 * (1 - frente));
     const bisel = passo(w * 0.5, w * 1.2, b) * (1 - passo(w * 1.2, w * 4.5, b)) * frente * 0.4;
     o[0] = o[0]! * (1 - ao) + (C[0] - o[0]!) * bisel; o[1] = o[1]! * (1 - ao) + (C[1] - o[1]!) * bisel; o[2] = o[2]! * (1 - ao) + (C[2] - o[2]!) * bisel;
-    tomDe(tmp, E, 0.55); const ck = (1 - passo(w * 0.3, w, b)) * 0.78;
+    tomDe(tmp, E, 0.55); const ck = (1 - passo(w * 0.3, w, b)) * 0.55;
     o[0] = o[0]! + (tmp[0]! - o[0]!) * ck; o[1] = o[1]! + (tmp[1]! - o[1]!) * ck; o[2] = o[2]! + (tmp[2]! - o[2]!) * ck;
     V2.consultar(x + (fbm(rn, x * 1.1 + 5, y * 1.1, 2) - 0.5) * 0.5, y + (fbm(rn, x * 1.1, y * 1.1 + 5, 2) - 0.5) * 0.5, q2);
-    const g = (1 - passo(w * 0.4, w * 1.4, q2.borda)) * 0.8, aog = (1 - passo(w * 1.4, w * 8, q2.borda)) * 0.2;
+    const g = (1 - passo(w * 0.3, w * 1.1, q2.borda)) * 0.4, aog = (1 - passo(w * 1.1, w * 6, q2.borda)) * 0.1;
     tomDe(tmp, E, 0.35); o[0] = (o[0]! * (1 - aog)) + (tmp[0]! - o[0]! * (1 - aog)) * g; o[1] = (o[1]! * (1 - aog)) + (tmp[1]! - o[1]! * (1 - aog)) * g; o[2] = (o[2]! * (1 - aog)) + (tmp[2]! - o[2]! * (1 - aog)) * g;
   });
 }
@@ -443,13 +443,13 @@ const VERDE: Cor3 = [58, 96, 40], VERDE_CLARO: Cor3 = [118, 156, 66], MUSGO: Cor
 
 /** Paralelepípedo: pedras arredondadas de ~20 cm (Voronoi), cada uma um domo iluminado de noroeste, com rejunte escuro e sujo entre elas. */
 function pintarParalelepipedo(ctx: Contexto, mat: Material, A: Area, seed: number, px: number): void {
-  const rn = valueNoise2D(seed * 29 + 3), V = celulasDeVoronoi(A, 0.21, seed * 13 + 4), q = novaConsulta();
+  const rn = valueNoise2D(seed * 29 + 3), V = celulasDeVoronoi(A, 0.25, seed * 13 + 4), q = novaConsulta();
   const E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), w = Math.max(0.012, px * 1.3), rejunte: Cor3 = [E[0] * 0.6, E[1] * 0.55, E[2] * 0.5];
   porPixel(ctx, A, (x, y, o) => {
     const xx = x + (fbm(rn, x * 6, y * 6, 2) - 0.5) * 0.035, yy = y + (fbm(rn, x * 6 + 31, y * 6 + 7, 2) - 0.5) * 0.035;
     V.consultar(xx, yy, q);
-    const s = q.sitio, lado = ((s.x - xx) + (s.y - yy)) / 0.21, domo = passo(w, 0.075, q.borda);
-    let t = 0.26 + 0.4 * s.azar + lado * 0.2 * domo + (fbm(rn, x * 10, y * 10, 3) - 0.5) * 0.24 + (hash2D(Math.floor(x / px), Math.floor(y / px), 5) - 0.5) * 0.06;
+    const s = q.sitio, lado = ((s.x - xx) + (s.y - yy)) / 0.25, domo = passo(w, 0.075, q.borda);
+    let t = 0.32 + 0.4 * s.azar + lado * 0.2 * domo + (fbm(rn, x * 10, y * 10, 3) - 0.5) * 0.24 + (hash2D(Math.floor(x / px), Math.floor(y / px), 5) - 0.5) * 0.06;
     if (hash2D(s.i, s.j, 33) < 0.3) t -= 0.1;      // algumas pedras mais escuras e úmidas
     if (t < 0.5) mez(o, E, B, Math.max(0, t) * 2); else mez(o, B, C, Math.min(1, (t - 0.5) * 2));
     const k = 1 - (1 - domo) * 0.42; o[0] = o[0]! * k; o[1] = o[1]! * k; o[2] = o[2]! * k;
