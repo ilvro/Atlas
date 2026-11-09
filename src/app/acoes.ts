@@ -168,7 +168,24 @@ export const ACOES: readonly Acao[] = [
 const GRUPOS_SO_DE_CONSTRUIR = new Set(['Construir', 'Adicionar', 'Assistente']), IDS_SO_DE_CONSTRUIR = new Set(['remover', 'duplicar', 'luz-acesa', 'grade']);
 const soEmConstruir = (a: Acao) => GRUPOS_SO_DE_CONSTRUIR.has(a.grupo) || IDS_SO_DE_CONSTRUIR.has(a.id);
 const HABILITADA = (a: Acao) => (modo.value === 'sessao' && soEmConstruir(a) ? false : a.habilitada ? a.habilitada() : true);
-export const acaoPorId = (id: string): Acao | undefined => ACOES.find(a => a.id === id);
+export const acaoPorId = (id: string): Acao | undefined => {
+  if (id.startsWith('momento-')) {
+    const s = app.sessao.value;
+    const mId = id.slice('momento-'.length);
+    const m = s?.doc.value.moments?.[mId];
+    if (m) {
+      return {
+        id,
+        nome: `Tocar momento: ${m.nome}`,
+        grupo: 'Momentos',
+        palavras: 'momento cena efeito audio acao',
+        habilitada: () => true,
+        executar: () => { void app.tocarMomentoDoMapa(m.id); },
+      };
+    }
+  }
+  return ACOES.find(a => a.id === id);
+};
 
 export function executarAcao(a: Acao): void {
   if (!HABILITADA(a)) { avisar('Isso não está disponível agora.', { duracao: 1400 }); return; }
@@ -178,7 +195,22 @@ export function executarAcao(a: Acao): void {
 
 /** Ações da paleta que casam com a consulta e estão disponíveis, mais úteis primeiro. */
 export function buscarAcoes(consulta: string): Acao[] {
-  return filtrar(ACOES.filter(HABILITADA), consulta, a => `${a.nome} ${a.grupo} ${a.palavras ?? ''}`);
+  const base = ACOES.filter(HABILITADA);
+  const s = app.sessao.value;
+  if (s) {
+    const momentos = Object.values(s.doc.value.moments ?? {});
+    for (const m of momentos) {
+      base.push({
+        id: `momento-${m.id}`,
+        nome: `Tocar momento: ${m.nome}`,
+        grupo: 'Momentos',
+        palavras: 'momento cena efeito audio acao',
+        habilitada: () => true,
+        executar: () => { void app.tocarMomentoDoMapa(m.id); },
+      });
+    }
+  }
+  return filtrar(base, consulta, a => `${a.nome} ${a.grupo} ${a.palavras ?? ''}`);
 }
 
 const TIPOS_SEM_TEXTO = new Set(['checkbox', 'radio', 'button', 'color', 'range', 'submit', 'reset', 'file']);

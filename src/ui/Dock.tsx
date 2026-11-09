@@ -13,6 +13,7 @@ import { FaixaDeIniciativa } from './FaixaDeIniciativa.tsx';
 import { amostraDoClima } from './Inspetor.tsx';
 import { Personagens } from './Personagens.tsx';
 import { Pistas } from './Pistas.tsx';
+import { SecaoDeMomentos } from './Momentos.tsx';
 import { embutido } from '../app/embutido.ts';
 import { definirMostrarPvNoProjetor, mostrarPvNoProjetor } from '../app/fichas.ts';
 import { Icone } from './Icone.tsx';
@@ -81,6 +82,10 @@ function posicaoPadrao(id: string): { x: number; y: number } {
       return { x: Math.max(16, largura - 320), y: 140 };
     case 'pistas':
       return { x: 20, y: 30 };
+    case 'momentos':
+      return { x: Math.max(16, Math.round((largura - 680) / 2) + 200), y: Math.max(16, altura - 260) };
+    case 'editor-momento':
+      return { x: Math.max(16, Math.round((largura - 460) / 2)), y: 40 };
     case 'projetor':
       return { x: Math.max(16, largura - 320), y: Math.max(16, altura - 220) };
     default:
@@ -250,13 +255,14 @@ const SECOES = [
   { id: 'clima', titulo: 'Clima', icone: 'luz' },
   { id: 'cena', titulo: 'Cena', icone: 'anim' },
   { id: 'presenca', titulo: 'Presença', icone: 'presenca' },
+  { id: 'momentos', titulo: 'Momentos', icone: 'anim' },
   { id: 'iniciativa', titulo: 'Iniciativa', icone: 'alvo' },
   { id: 'personagens', titulo: 'Personagens', icone: 'peca' },
   { id: 'pistas', titulo: 'Pistas', icone: 'olho' },
   { id: 'projetor', titulo: 'Projetor', icone: 'enquadrar' },
 ] as const;
 
-function PainelFlutuante({
+export function PainelFlutuante({
   id,
   titulo,
   icone,
@@ -381,6 +387,7 @@ export function Dock({ s }: { s: SessaoDeEdicao }) {
             {id === 'clima' && <SecaoDeClima s={s} />}
             {id === 'cena' && <SecaoDeCena />}
             {id === 'presenca' && <SecaoDePresenca s={s} />}
+            {id === 'momentos' && <SecaoDeMomentos s={s} />}
             {id === 'iniciativa' && <SecaoDeIniciativa s={s} />}
             {id === 'personagens' && <Personagens s={s} />}
             {id === 'pistas' && <Pistas s={s} />}

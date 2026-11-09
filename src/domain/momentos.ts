@@ -270,3 +270,50 @@ export function momentoValido(m: unknown): string | null {
   }
   return null;
 }
+
+// ---------- Funções puras de edição ----------
+
+/** Move um passo de uma posição para outra, ajustando aos limites da lista. */
+export function moverPasso(m: Momento, de: number, para: number): Momento {
+  if (de < 0 || de >= m.passos.length) return m;
+  const destino = Math.max(0, Math.min(m.passos.length - 1, para));
+  if (de === destino) return m;
+  const novos = [...m.passos];
+  const [removido] = novos.splice(de, 1);
+  if (!removido) return m;
+  novos.splice(destino, 0, removido);
+  return { ...m, passos: novos };
+}
+
+/** Duplica o passo na posição indicada, inserindo a cópia logo após ele (até 60 passos). */
+export function duplicarPasso(m: Momento, indice: number): Momento {
+  if (indice < 0 || indice >= m.passos.length || m.passos.length >= 60) return m;
+  const novos = [...m.passos];
+  const original = m.passos[indice]!;
+  novos.splice(indice + 1, 0, structuredClone(original));
+  return { ...m, passos: novos };
+}
+
+/** Remove o passo na posição indicada. */
+export function removerPasso(m: Momento, indice: number): Momento {
+  if (indice < 0 || indice >= m.passos.length) return m;
+  const novos = m.passos.filter((_, i) => i !== indice);
+  return { ...m, passos: novos };
+}
+
+/** Adiciona um novo passo ao momento no índice especificado (ou ao final se omitido), até o limite de 60. */
+export function adicionarPasso(m: Momento, passo: PassoDeMomento, indice?: number): Momento {
+  if (m.passos.length >= 60) return m;
+  const novos = [...m.passos];
+  const pos = indice === undefined ? novos.length : Math.max(0, Math.min(novos.length, indice));
+  novos.splice(pos, 0, structuredClone(passo));
+  return { ...m, passos: novos };
+}
+
+/** Substitui o passo no índice informado. */
+export function atualizarPasso(m: Momento, indice: number, passo: PassoDeMomento): Momento {
+  if (indice < 0 || indice >= m.passos.length) return m;
+  const novos = [...m.passos];
+  novos[indice] = structuredClone(passo);
+  return { ...m, passos: novos };
+}

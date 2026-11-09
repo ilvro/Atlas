@@ -27,7 +27,7 @@ import { modo, vistaDeJogador } from './modo.ts';
 import { iniciarSugestoes } from './sugestoes.ts';
 import { abrirJanelaDoProjetor, ajustarAoAspecto, aspectoDoProjetor, caixaDoProjetor, iniciarPublicacao, mapaNoProjetorId, projetorConectado, seguirJogadores, telaEscura, type Publicador } from './projetor.ts';
 import type { EventoDeCena } from '../render/eventos-de-cena.ts';
-import type { EfeitoDeCena, PassoDeMomento } from '../domain/momentos.ts';
+import type { EfeitoDeCena, Momento, PassoDeMomento } from '../domain/momentos.ts';
 import { executarPasso, momentoEmCurso, pararMomento, tocarMomento, type SaidasDeMomento } from './momentos.ts';
 import { lerRota, formatarRota, type Rota } from './rotas.ts';
 import { iniciarServicos, type Servicos } from './servicos.ts';
@@ -942,6 +942,17 @@ export function tocarMomentoDoMapa(id: string): Promise<'fim' | 'cancelado'> {
   }
   const saidas = saidasDeMomento(servicos.peek());
   return tocarMomento(s.doc.value.id, momento, saidas);
+}
+
+export function tocarMomentoLocal(momento: Momento): Promise<'fim' | 'cancelado'> {
+  const s = sessao.value;
+  if (!s) return Promise.resolve('cancelado');
+  const saidas = saidasDeMomento(servicos.peek());
+  return tocarMomento(s.doc.value.id, momento, saidas);
+}
+
+export function clarearTela(ms = 300): void {
+  publicador?.tela('clarear', ms);
 }
 
 export function executarPassoAvulso(p: PassoDeMomento): void {

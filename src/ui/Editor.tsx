@@ -26,6 +26,7 @@ import { PilulaDeSugestao } from './PilulaDeSugestao.tsx';
 import { BarraInferior } from './BarraInferior.tsx';
 import { WidgetsDeTopo } from './WidgetsDeTopo.tsx';
 import { PreviaDaFicha } from './PreviaDaFicha.tsx';
+import { EditorDeMomento, momentoEmEdicao } from './Momentos.tsx';
 
 const zoomPct = signal(100), cursorMundo = signal<[number, number] | null>(null), pintando = signal(0);
 
@@ -170,6 +171,13 @@ export function Editor() {
         {modo.value === 'sessao' && <Inspecao />}
         {modo.value === 'construir' && <PilulaDeSugestao s={s} />}
         <ModalNotaDeObjeto />
+        {momentoEmEdicao.value && (
+          <EditorDeMomento
+            s={s}
+            momento={momentoEmEdicao.value}
+            aoFechar={() => { momentoEmEdicao.value = null; }}
+          />
+        )}
       </div>
       <Inspetor />
       <BarraDeEstado s={s} />

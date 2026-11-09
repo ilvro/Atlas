@@ -8,6 +8,7 @@ export const secoesAbertasNoDock = signal<Record<string, boolean>>({
   clima: !embutido,
   cena: !embutido,
   presenca: false,
+  momentos: false,
   iniciativa: false,
   personagens: false,
   pistas: false,
