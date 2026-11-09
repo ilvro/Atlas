@@ -53,3 +53,4 @@ Commit: mensagem curta em inglês
 | [fase-11.md](fase-11.md) | Concluída (abas, prévia do Dossiê, barra inferior, grade) |
 | [fase-12.md](fase-12.md) | Peças, fichas flutuantes, gatilhos e tutoriais; 12.11 corrigiu os gatilhos |
 | [fase-13.md](fase-13.md) | Detalhado — Momentos e Barra de Efeitos — **próximo** |
+| [fase-14.md](fase-14.md) | Assistente (app do Claude via MCP), só em desenvolvimento — etapas 1 a 3 detalhadas |
