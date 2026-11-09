@@ -220,22 +220,12 @@ export const portoNoturno: Exemplo = {
     k.objeto('escada.externa', [25.4, 11.2], { params: { largura: 3.0 }, rotation: 0, blocks: { move: false, sight: false } });
     k.objeto('escada.externa', [34.2, 11.2], { params: { largura: 3.0 }, rotation: 0, blocks: { move: false, sight: false } });
 
-    // Barracas de feira com toldos listrados nas 4 paletas
+    // Barracas de feira com toldos listrados: poucas, nos cantos da praça, na rua do cais e no canto leste.
     for (const [pos, pal, rot] of [
-      [[24.4, 3.8], 0, 1.35],
-      [[35.2, 3.8], 1, -1.35],
-      [[24.2, 8.2], 2, 1.15],
-      [[35.4, 8.2], 3, -1.15],
-      [[27.6, 13.8], 1, 0.18],
-      [[31.4, 13.8], 0, -0.18],
-      [[37.5, 14.5], 3, 0],
-      [[51.4, 13.4], 1, -0.75],
-      [[49.8, 15.6], 0, -1.2],
-      [[49.2, 18.2], 2, 0.2],
-      [[49.6, 20.6], 1, 1.35],
-      [[2.5, 11.8], 1, 1.1],
+      [[24.2, 3.6], 0, 1.35], [[35.4, 4.6], 1, -1.2], [[27.6, 13.6], 1, 0.12], [[32, 13.6], 0, -0.12], [[37.6, 14.2], 3, 0.05],
+      [[51, 13.4], 2, -0.75], [[49.2, 17.6], 0, 0.3], [[49.6, 20.6], 1, 1.35], [[3.2, 11.2], 1, 1.1],
     ] as const) {
-      k.objeto('barraca-de-feira', [pos[0], pos[1]], { params: { paleta: pal }, rotation: rot });
+      k.objeto('barraca-de-feira', [pos[0], pos[1]], { params: { paleta: pal }, rotation: rot, scale: 0.78 });
     }
 
     // Passarelas e píeres de madeira ao longo da bacia portuária
@@ -335,9 +325,9 @@ export const portoNoturno: Exemplo = {
     // Clima e acabamento: noite portuária com halos quentes e bruma suave nas bordas
     k.clima('noite', {
       time: '23:00',
-      ambient: { color: '#7892b5', intensity: 0.65 },
+      ambient: { color: '#7892b5', intensity: 0.74 },
       sun: { angle: 0.8, color: '#adc8f0', intensity: 0.45 },
-      tempo: { fog: 0, wind: 0.15 },
+      tempo: { fog: 0.3, wind: 0.15 },
     });
     k.acabamento('quente', {
       tint: '#f8f0e4',

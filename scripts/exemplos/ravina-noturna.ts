@@ -13,81 +13,18 @@ export const ravinaNoturna: Exemplo = {
     k.fundo({ kind: 'solid', color: '#141c2c' });
     k.base('rocha.rachada');
 
-    // Manchas de grama e lajes antigas nos terraços
-    k.pintar('lajes.gramadas', { disco: [20.5, 13.5], raio: 6.5, irregular: 0.8 });
-    k.pintar('lajes.gramadas', { disco: [38.5, 17.5], raio: 5.5, irregular: 0.8 });
-    k.pintar('grama', { disco: [4.5, 6.5], raio: 4.0, irregular: 0.7 });
-    k.pintar('grama', { disco: [16.5, 16.5], raio: 4.8, irregular: 0.8 });
-    k.pintar('grama', { disco: [39.5, 22.5], raio: 4.2, irregular: 0.7 });
+    // Manchas de grama escura sobre as lajes rachadas do patamar.
+    for (const [c, r] of [[[16.5, 15.5], 4.2], [[22, 17], 2.4], [[38, 22.5], 3.6], [[44, 16.8], 2], [[3.5, 12], 2.6]] as const) k.pintar('grama.escura', { disco: [c[0], c[1]], raio: r, irregular: 1.1 });
 
-    // Paredões de rocha ao norte e ao sul formando os patamares da ravina
-    k.pintar('rocha.caverna', {
-      poligono: [
-        [16.0, -3], [53, -3], [53, 14.5], [44.5, 11.5],
-        [41.0, 9.5], [34.5, 8.5], [30.0, 4.5], [20.0, 3.5],
-      ],
-      irregular: 0.55,
-    });
-    k.pintar('rocha.caverna', {
-      poligono: [
-        [-3, 24.5], [10.5, 25.0], [18.5, 28.0], [53, 28.5],
-        [53, 36], [-3, 36],
-      ],
-      irregular: 0.55,
-    });
+    // Paredões de rocha cobertos de mata: ao norte (descendo em patamar no canto oeste) e ao sul; o rio passa por uma fenda nos dois.
+    k.pintar('rocha.caverna', { poligono: [[-3, -3], [53, -3], [53, 14], [47.6, 12.6], [46, 9], [41, 8.6], [39.6, 6.4], [36, 6.6], [33.4, 9], [27, 8.4], [21, 9.4], [15, 9.8], [10, 9], [6, 7.6], [0, 8.4], [-3, 8.6]], irregular: 0.7 });
+    k.pintar('rocha.caverna', { poligono: [[-3, 16.4], [3, 15.6], [6.4, 18.4], [9, 21], [16, 21.6], [22, 23], [26, 23.6], [27.4, 26], [26, 36], [-3, 36]], irregular: 0.7 });
+    k.pintar('rocha.caverna', { poligono: [[31.2, 25.4], [33.4, 23.6], [38, 25.8], [44, 27.2], [47.6, 24.6], [53, 22], [53, 36], [29.6, 36]], irregular: 0.7 });
+    k.apagar({ poligono: [[34.6, -3], [39.2, -3], [38.6, 7.4], [35.4, 7.6]], irregular: 0.4 });
 
-    // Rio cortando a ravina de nordeste para o sul-centro
-    k.pintar('agua.rio', {
-      poligono: [
-        [36.5, -3], [41.5, -3], [39.8, 9.5], [40.8, 12.2],
-        [34.5, 14.2], [31.2, 16.8], [30.5, 23.5], [29.2, 36.0],
-        [25.2, 36.0], [26.8, 22.5], [28.0, 15.0], [32.0, 10.2], [35.0, 6.5],
-      ],
-      irregular: 0.35,
-    });
-    k.correnteza('agua.rio', 1.85, 1.45);
-
-    // Escarpas em degraus acompanhando os terraços e a fenda do rio
-    k.parede([[8.5, 13.5], [13.5, 7.2], [20.5, 3.8], [31.5, 4.8]], {
-      kind: 'cliff',
-      height: 3.8,
-      thickness: 0.45,
-      material: 'rocha.caverna',
-      drop: 'a',
-      blocks: { move: true, sight: false, light: false },
-    });
-    k.parede([[1.0, 24.2], [11.0, 24.8], [19.0, 27.8], [25.5, 28.2]], {
-      kind: 'cliff',
-      height: 4.0,
-      thickness: 0.45,
-      material: 'rocha.caverna',
-      drop: 'a',
-      blocks: { move: true, sight: false, light: false },
-    });
-    k.parede([[30.5, 28.2], [41.0, 28.0], [49.0, 28.5]], {
-      kind: 'cliff',
-      height: 4.0,
-      thickness: 0.45,
-      material: 'rocha.caverna',
-      drop: 'a',
-      blocks: { move: true, sight: false, light: false },
-    });
-    k.parede([[31.8, 9.8], [28.2, 14.2], [26.8, 22.5], [25.8, 28.0]], {
-      kind: 'cliff',
-      height: 2.8,
-      thickness: 0.38,
-      material: 'rocha.caverna',
-      drop: 'a',
-      blocks: { move: true, sight: false, light: false },
-    });
-    k.parede([[40.5, 12.2], [34.2, 14.5], [31.2, 17.5], [30.2, 26.5]], {
-      kind: 'cliff',
-      height: 2.8,
-      thickness: 0.38,
-      material: 'rocha.caverna',
-      drop: 'b',
-      blocks: { move: true, sight: false, light: false },
-    });
+    // O rio: cai da fenda norte num poço, desce em diagonal sob a ponte e cai de novo pela fenda sul.
+    k.pintar('agua.rio', { poligono: [[34.8, -3], [39, -3], [39.6, 6.6], [40.8, 9.6], [39.4, 12.4], [34, 13.4], [31.2, 15.4], [30, 20.4], [29.6, 25], [28.8, 36], [25.8, 36], [26.6, 25], [27.4, 19.4], [28.6, 14.4], [30.4, 11], [33.6, 8.4]], irregular: 0.35 });
+    k.correnteza('agua.rio', 1.95, 1.2);
 
     // Duas cachoeiras animadas: a grande no alto à direita e a segunda caindo no abismo ao sul
     k.objeto('cachoeira', [37.4, 5.2], {
@@ -133,30 +70,21 @@ export const ravinaNoturna: Exemplo = {
       k.objeto('seixos', [pos[0], pos[1]]);
     }
 
-    // Mata densa e escura: carvalhos grandes, folhagem tropical e arbustos
-    for (const [item, pos, esc] of [
-      ['casa:carvalho-grande-7m', [21.0, 5.8], 1.0],
-      ['casa:carvalho-grande-8m', [5.2, 18.8], 1.0],
-      ['casa:carvalho-grande-7m', [47.2, 21.5], 1.0],
-      ['casa:carvalho-grande-6m', [46.5, 4.2], 0.95],
-      ['casa:arvore-5m', [18.5, 29.8], 0.95],
-      ['casa:arvore-5m', [2.2, 2.5], 0.9],
-      ['casa:folhagem-tropical-2m', [16.0, 2.2], 1.0],
-      ['casa:folhagem-tropical-2m', [10.8, 1.8], 0.95],
-      ['casa:folhagem-tropical-2m', [23.8, 22.2], 1.1],
-      ['casa:folhagem-tropical-2m', [12.5, 21.5], 0.95],
-      ['casa:folhagem-tropical-2m', [1.8, 9.2], 1.0],
-      ['casa:folhagem-tropical-2m', [40.2, 26.8], 1.0],
-      ['casa:folhagem-tropical-1m', [32.8, 24.5], 1.0],
-      ['casa:folhagem-tropical-1m', [30.2, 8.2], 0.95],
-      ['casa:folhagem-tropical-1m', [25.2, 9.5], 0.95],
-      ['casa:arbusto-grande', [14.2, 16.5], 1.0],
-      ['casa:arbusto-grande', [17.2, 17.5], 1.0],
-      ['casa:arbusto-verde', [39.2, 21.8], 1.0],
-      ['casa:arbusto-verde', [34.2, 21.5], 0.95],
-    ] as const) {
-      k.objeto(item, [pos[0], pos[1]], { scale: esc });
-    }
+    // Mata densa e escura sobre os paredões: muita folhagem tropical, poucas copas grandes.
+    const MATA: [number, number, number][] = [
+      [2, 2, 1], [5.6, 4.6, 0.9], [9.4, 2.4, 1], [12.4, 5.6, 0.8], [16, 2, 1], [19.4, 5.8, 0.9], [23, 2.6, 1], [26.6, 6, 0.85], [29.4, 3, 1], [32.4, 6.4, 0.8],
+      [42, 2.4, 1], [45.4, 5.6, 0.9], [48.6, 2.6, 1], [44, 9.6, 0.7], [48.8, 9.4, 0.85],
+      [1.6, 19.6, 1], [4.4, 23.8, 1], [8.6, 26, 0.9], [12.6, 24, 1], [16.4, 27.4, 1], [20.6, 24.8, 0.9], [23.2, 29.6, 0.9], [2.6, 29.4, 1], [10.4, 30.6, 0.9],
+      [34.6, 27.6, 0.9], [38.2, 30.2, 1], [42.4, 28.6, 0.9], [46.2, 26.6, 1], [49, 30.4, 0.9], [33.6, 31.6, 0.8], [47.4, 21.4, 0.9],
+      [14.6, 18.2, 0.7], [18.6, 19.4, 0.8], [21.4, 20.6, 0.75], [36.4, 21.6, 0.7], [40.6, 22.6, 0.75],
+    ];
+    MATA.forEach(([x, y, e], i) => {
+      if (i % 2 === 0) k.objeto('casa:carvalho-grande-6m', [x, y], { scale: e * 0.62, rotation: i * 1.7 });
+      else k.objeto('casa:folhagem-tropical-2m', [x, y], { scale: e * 1.9, rotation: i * 1.7 });
+      // Uma folhagem menor ao lado de cada touceira, para a mata não ter vãos.
+      k.objeto('casa:folhagem-tropical-1m', [x + ((i * 1.37) % 2.4) - 1.2, y + ((i * 2.11) % 2.4) - 1.2], { scale: 1.5, rotation: i * 2.3 });
+    });
+    for (const [item, pos, esc] of [['casa:carvalho-grande-6m', [5, 3.4], 0.8], ['casa:carvalho-grande-6m', [46.6, 3.4], 0.85], ['casa:carvalho-grande-7m', [6, 27.6], 0.8], ['casa:carvalho-grande-6m', [44.6, 30.4], 0.8]] as const) k.objeto(item, [pos[0], pos[1]], { scale: esc });
 
     // Sete tochas em estaca criando poças de luz quente sobre as lajes na noite azulada
     for (const pos of [
@@ -170,9 +98,9 @@ export const ravinaNoturna: Exemplo = {
     ] as const) {
       k.objeto('poste.luz', [pos[0], pos[1]]);
       k.luz('tocha', [pos[0], pos[1]], {
-        radius: 7.5,
+        radius: 5.5,
         color: '#ffa842',
-        intensity: 1.3,
+        intensity: 1.05,
         flicker: 0.28,
       });
     }

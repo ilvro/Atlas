@@ -170,9 +170,15 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
     const mascara = criarTela(W, Hh), mc = contextoDe(mascara);
     mc.setTransform(res, 0, 0, res, 0, 0); mc.fillStyle = '#fff';
     for (const [y, x0, n] of camada.celulas) mc.fillRect(x0 * e.resolucao, y * e.resolucao, n * e.resolucao, e.resolucao);
-    const macia = criarTela(W, Hh), mac = contextoDe(macia);
-    mac.filter = `blur(${Math.max(1, 0.5 * res)}px)`; mac.drawImage(mascara as CanvasImageSource, 0, 0);
-    const fonte = mac.getImageData(0, 0, W, Hh).data, ruido = valueNoise2D(1000 + idx * 17);
+    // O desfoque arredonda a borda; a máscara é estendida além da tela (a última linha e coluna repetidas) para a camada que encosta
+    // na borda do mapa não perder cobertura ali (senão a água ganharia margem e espuma na borda do mapa).
+    const blur = Math.max(1, 0.5 * res), P = Math.ceil(blur * 3), estendida = criarTela(W + 2 * P, Hh + 2 * P), ec = contextoDe(estendida), M = mascara as CanvasImageSource;
+    ec.drawImage(M, P, P);
+    ec.drawImage(M, 0, 0, 1, Hh, 0, P, P, Hh); ec.drawImage(M, W - 1, 0, 1, Hh, P + W, P, P, Hh);
+    ec.drawImage(estendida as CanvasImageSource, 0, P, W + 2 * P, 1, 0, 0, W + 2 * P, P); ec.drawImage(estendida as CanvasImageSource, 0, P + Hh - 1, W + 2 * P, 1, 0, P + Hh, W + 2 * P, P);
+    const macia = criarTela(W + 2 * P, Hh + 2 * P), mac = contextoDe(macia);
+    mac.filter = `blur(${blur}px)`; mac.drawImage(estendida as CanvasImageSource, 0, 0);
+    const fonte = mac.getImageData(P, P, W, Hh).data, ruido = valueNoise2D(1000 + idx * 17);
     const material = materialDe(camada.material), macico = material.uso === 'macico', agua = material.uso === 'agua';
     const corpo = new ImageData(W, Hh), aro = new ImageData(W, Hh), binaria = new Uint8Array(pixel || macico || agua ? W * Hh : 0), cobertura = new Uint8Array((macico || agua) && !pixel ? W * Hh : 0), ruidoFino = valueNoise2D(3000 + idx * 31);
     for (let k = 0, px = 0; k < fonte.length; k += 4, px++) {
