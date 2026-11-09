@@ -122,7 +122,7 @@ export const PINCEIS_DE_PRESENCA: readonly PincelDePresenca[] = [
   { id: 'musgo', nome: 'Musgo', pacote: 'natural', cor: '#4f7a34', brilho: false, pulso: 0, escala: 1 },
   { id: 'mofo', nome: 'Mofo', pacote: 'natural', cor: '#5b6a4a', brilho: false, pulso: 0, escala: 1.6 },
   { id: 'poca', nome: 'Poça', pacote: 'natural', cor: '#3a5a78', brilho: false, pulso: 0, escala: 0.6 },
-  { id: 'sangue-seco', nome: 'Sangue seco', pacote: 'natural', cor: '#5c1f18', brilho: false, pulso: 0, escala: 0.9, forma: 'arrastado' },
+  { id: 'sangue-seco', nome: 'Sangue seco', pacote: 'natural', cor: '#4a221a', brilho: false, pulso: 0, escala: 0.9, forma: 'arrastado' },
   { id: 'fuligem', nome: 'Fuligem', pacote: 'natural', cor: '#1f1b18', brilho: false, pulso: 0, escala: 1.1, forma: 'mancha' },
   { id: 'sulcos', nome: 'Sulcos', pacote: 'natural', cor: '#3c3024', brilho: false, pulso: 0, escala: 1, forma: 'sulcos' },
   { id: 'algas', nome: 'Algas', pacote: 'natural', cor: '#234a2e', brilho: false, pulso: 0, escala: 1.2, forma: 'mancha', submerso: true },
