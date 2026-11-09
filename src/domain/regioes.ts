@@ -32,3 +32,9 @@ export function regioesEntradas(antes: Pick<MapaAtlas, 'regions' | 'tokens'>, de
   }
   return saida;
 }
+
+/** Há alguma peça de jogador dentro desta região agora? Região que não existe não está ocupada. */
+export function regiaoOcupada(m: Pick<MapaAtlas, 'regions' | 'tokens'>, regiaoId: string): boolean {
+  const r = m.regions[regiaoId];
+  return !!r && Object.values(m.tokens).some(t => t.player && pontoNoPoligono([t.position[0], t.position[1]], r.polygon));
+}

@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { criarRef, type Ref } from '#mesa';
-import { pontoNoPoligono, regioesEntradas, regioesOcupadas } from '../../src/domain/regioes.ts';
-import { reagirAoMovimento, textoDoGatilho, type SaidasDeRegiao } from '../../src/app/regioes.ts';
+import { pontoNoPoligono, regiaoOcupada, regioesEntradas, regioesOcupadas } from '../../src/domain/regioes.ts';
+import { reagirAoMovimento, iniciarRegioes, textoDoGatilho, type SaidasDeRegiao } from '../../src/app/regioes.ts';
 import { criarMapa, type MapaAtlas, type Regiao } from '../../src/domain/mapa.ts';
 import { novaPeca } from '../../src/domain/fabrica.ts';
+import { criarStore } from '../../src/state/store.ts';
 
 const cena = (id: string): Ref => criarRef('jukebox', 'cena-sonora', id);
 const regiao = (id: string, kind: Regiao['kind'], x0: number, y0: number, x1: number, y1: number, extra: Partial<Regiao> = {}): Regiao => ({ id, polygon: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], kind, gmOnly: false, payload: {}, refs: [], ...extra });
@@ -72,4 +73,67 @@ test('reagirAoMovimento: com duas peças, a região só deixa de valer quando a 
     'efeito relampago',
     'cena suspense',
   ]);
+});
+
+test('regiaoOcupada: só peça de jogador dentro conta; região inexistente não', () => {
+  const m = mapa([['ana', 15, 15, true], ['ogro', 12, 12, false]], [R]);
+  assert.equal(regiaoOcupada(m, 'cripta'), true);
+  assert.equal(regiaoOcupada(mapa([['ogro', 12, 12, false], ['ana', 5, 5, true]], [R]), 'cripta'), false);
+  assert.equal(regiaoOcupada(m, 'nada'), false);
+});
+
+function gatilho(disparo?: string, efeito?: string) {
+  const G = regiao('g', 'trigger', 0, 0, 10, 10, { payload: { texto: 'Boo', ...(disparo ? { disparo } : {}), ...(efeito ? { efeito } : {}) } });
+  const fora = mapa([['ana', 50, 50, true], ['beto', 50, 50, true]], [G]);
+  const um = mapa([['ana', 2, 2, true], ['beto', 50, 50, true]], [G]), dois = mapa([['ana', 2, 2, true], ['beto', 3, 3, true]], [G]);
+  return { fora, um, dois };
+}
+function saidasComEstado() {
+  const feitos: string[] = [], disparados = new Set<string>();
+  const s: SaidasDeRegiao = { emitir: tipo => feitos.push(tipo), pedirCena() {}, avisar: t => feitos.push(`aviso ${t}`), dispararEfeito: e => feitos.push(`efeito ${e}`), jaDisparou: id => disparados.has(id), marcarDisparo: id => { disparados.add(id); } };
+  return { feitos, s };
+}
+const avisos = (f: string[]) => f.filter(x => x.startsWith('aviso')).length;
+
+test('gatilho "ao-ocupar" (padrão): dois jogadores entrando em sequência disparam uma vez; esvaziar e reentrar dispara de novo; o fato sai por jogador', () => {
+  const { fora, um, dois } = gatilho(undefined, 'clarao'), a = saidasComEstado();
+  reagirAoMovimento(fora, um, a.s); reagirAoMovimento(um, dois, a.s);
+  assert.equal(avisos(a.feitos), 1); assert.deepEqual(a.feitos.filter(x => x.startsWith('efeito')), ['efeito clarao']);
+  assert.equal(a.feitos.filter(x => x === 'atlas.regiao-entrou').length, 2, 'o fato é por jogador');
+  reagirAoMovimento(dois, fora, a.s); reagirAoMovimento(fora, um, a.s);
+  assert.equal(avisos(a.feitos), 2, 'região esvaziou e foi ocupada de novo');
+  const b = saidasComEstado(); reagirAoMovimento(fora, dois, b.s);
+  assert.equal(avisos(b.feitos), 1, 'dois entrando no mesmo movimento: uma vez'); assert.equal(b.feitos.filter(x => x === 'atlas.regiao-entrou').length, 2);
+});
+
+test('gatilho "uma-vez": dispara uma vez e não de novo ao reentrar, até rearmar', () => {
+  const { fora, um } = gatilho('uma-vez'), a = saidasComEstado();
+  reagirAoMovimento(fora, um, a.s); reagirAoMovimento(um, fora, a.s); reagirAoMovimento(fora, um, a.s);
+  assert.equal(avisos(a.feitos), 1);
+  assert.equal(a.s.jaDisparou!('g'), true);
+});
+
+test('gatilho "cada-jogador": dispara a cada entrada', () => {
+  const { fora, um, dois } = gatilho('cada-jogador'), a = saidasComEstado();
+  reagirAoMovimento(fora, um, a.s); reagirAoMovimento(um, dois, a.s);
+  assert.equal(avisos(a.feitos), 2);
+});
+
+test('gatilho: aceita os eventos de cena no efeito e ignora valores desconhecidos', () => {
+  for (const e of ['tremor', 'piscar', 'escurecer', 'clarao', 'relampago']) { const { fora, um } = gatilho(undefined, e), a = saidasComEstado(); reagirAoMovimento(fora, um, a.s); assert.ok(a.feitos.includes(`efeito ${e}`), e); }
+  const { fora, um } = gatilho(undefined, 'xis'), a = saidasComEstado(); reagirAoMovimento(fora, um, a.s); assert.ok(!a.feitos.some(x => x.startsWith('efeito')));
+});
+
+test('iniciarRegioes: reage a executar e ao concluir de um gesto (com o antes de antes do gesto), mas não ao refazer nem ao gesto em andamento', () => {
+  const { fora, um } = gatilho('cada-jogador'), store = criarStore(fora, { salvo: true }), a = saidasComEstado();
+  iniciarRegioes({ store }, () => true, a.s);
+  const mover = (x: number, y: number) => ({ tipo: 'item.atualizar', colecao: 'tokens', id: 'ana', patch: { position: [x, y] } }) as never;
+  const g = store.iniciarGesto('Mover');
+  g.aplicar(mover(30, 30)); g.aplicar(mover(2, 2));
+  assert.equal(avisos(a.feitos), 0, 'durante o gesto nada dispara');
+  g.concluir(); assert.equal(avisos(a.feitos), 1, 'ao concluir, comparado ao estado de antes do gesto');
+  store.desfazer(); store.refazer(); assert.equal(avisos(a.feitos), 1, 'refazer não dispara de novo');
+  store.executar(mover(50, 50)); const g2 = store.iniciarGesto('Mover'); g2.aplicar(mover(2, 2)); g2.aplicar(mover(60, 60)); g2.cancelar();
+  store.executar(mover(2, 2)); assert.equal(avisos(a.feitos), 2, 'executar volta a reagir, com o antes correto após cancelar');
+  void um;
 });

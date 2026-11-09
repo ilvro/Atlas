@@ -36,6 +36,8 @@ import { abrirFicha, recursosDasFichas } from '../app/fichas.ts';
 import { refDaFicha, textoDeRecursos } from '../domain/fichas.ts';
 import { CampoCaixa, CampoCor, Linha, CampoNumero, CampoOpcoes, CampoTexto, tentar } from './campos.tsx';
 import { Icone } from './Icone.tsx';
+import { gatilhosDisparados, modoDeDisparo, rearmarGatilho } from '../app/regioes.ts';
+import { EVENTOS_DE_CENA, ROTULO_DO_EVENTO } from '../render/eventos-de-cena.ts';
 
 const graus = (rad: number) => Math.round((rad * 180) / Math.PI * 10) / 10;
 const radianos = (g: number) => (g * Math.PI) / 180;
@@ -497,9 +499,20 @@ function CamposDaRegiao({ s, r }: { s: SessaoDeEdicao; r: Regiao }) {
           ['', 'Nenhum'],
           ['relampago', 'Relâmpago e trovão'],
           ['tremor', 'Tremor de terra'],
+          ...EVENTOS_DE_CENA.filter(e => e !== 'tremor').map(e => [e, ROTULO_DO_EVENTO[e]] as const),
         ]}
         aoMudar={v => editar({ payload: { ...r.payload, efeito: v || undefined } }, 'Efeito do gatilho')}
       />
+      <CampoOpcoes
+        rotulo="Disparar"
+        dica="Quando o grupo entra: uma vez a cada vez que a região passa de vazia a ocupada. Só uma vez: depois de disparar, fica quieto até você rearmar. A cada jogador: dispara para cada peça que entra."
+        valor={modoDeDisparo(r.payload)}
+        opcoes={[['ao-ocupar', 'Quando o grupo entra'], ['uma-vez', 'Só uma vez'], ['cada-jogador', 'A cada jogador']]}
+        aoMudar={v => editar({ payload: { ...r.payload, disparo: v } }, 'Disparo do gatilho')}
+      />
+      {modoDeDisparo(r.payload) === 'uma-vez' && gatilhosDisparados.value[s.doc.value.id]?.includes(r.id) && (
+        <div class="acoes-selecao"><span>Já disparou</span><button type="button" class="botao-pilula" data-testid="gatilho-rearmar" onClick={() => { rearmarGatilho(s.doc.value.id, r.id); }}>Rearmar</button></div>
+      )}
     </>)}
     {r.kind === 'audio' && <EscolherCena s={s} id="som-da-regiao" rotulo="Cena da região" dica="Quando uma peça de jogador entra na região, o Atlas pede ao Jukebox que toque esta cena." valor={r.refs.find(x => x.app === 'jukebox') ?? null}
       aoEscolher={ref => editar({ refs: [...r.refs.filter(x => x.app !== 'jukebox'), ...(ref ? [ref] : [])] }, 'Cena da região')} />}

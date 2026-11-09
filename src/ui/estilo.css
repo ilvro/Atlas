@@ -1496,6 +1496,8 @@ body.projetor { overflow: hidden; background: #000; }
 .projetor-iniciativa { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); max-width: calc(100% - 40px); padding: 6px 14px; background: rgba(12, 12, 18, 0.88); border: 1px solid var(--linha); border-radius: 12px; }
 .projetor-tela-cheia { position: absolute; right: 18px; top: 18px; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: rgba(12, 12, 18, 0.85); border: 1px solid var(--linha); color: #fff; transition: opacity 0.4s; }
 .projetor-tela-cheia.oculto { opacity: 0; pointer-events: none; }
+.projetor-seguir { position: absolute; right: 70px; top: 18px; height: 40px; padding: 0 16px; border-radius: 20px; background: rgba(12, 12, 18, 0.85); border: 1px solid var(--linha); color: #fff; font: 700 13px var(--corpo); transition: opacity 0.4s; }
+.projetor-seguir.oculto { opacity: 0; pointer-events: none; }
 
 /* Estilo Pixel na janela do projetor: moldura de bordas duras e título em fonte pixel, em tamanho inteiro e sem suavização. */
 .projetor-pixel .projetor-moldura { box-shadow: none; border: 6px solid #0b0a10; outline: 2px solid var(--acento); outline-offset: -8px; }
