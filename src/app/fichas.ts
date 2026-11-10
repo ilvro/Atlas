@@ -1,5 +1,5 @@
 import { signal } from '@preact/signals';
-import { chaveDaRef, criarRef, descobrir, enderecoDaRef, mesmaRef, type Barramento, type Entidade, type Ref } from '#mesa';
+import { chaveDaRef, criarRef, descobrir, enderecoDaRef, mesmaRef, type Barramento, type Campanha, type Entidade, type Ref } from '#mesa';
 import { novaPeca } from '../domain/fabrica.ts';
 import { extrairNumeroDoToken, proximoNomeDeAmeaca, refDaFicha, type Recursos, type TomDaRolagem, tomDaRolagem } from '../domain/fichas.ts';
 import type { MapaAtlas, Peca, Ponto } from '../domain/mapa.ts';
@@ -80,6 +80,47 @@ export function pecaDaFicha(
 
 /** Os personagens da campanha que têm ficha (entidades `personagem` com um Ref do aplicativo `ficha`). */
 export const personagensComFicha = (lista: readonly Entidade[]): Entidade[] => lista.filter(e => e.tipo === 'personagem' && refDaFicha(e.refs));
+
+/**
+ * Os personagens a exibir no painel do Atlas:
+ * - Com `campanha.elenco` definido (mesmo vazio `[]`), devolve apenas os personagens do elenco que têm ficha, na ordem do elenco (IDs órfãos são ignorados).
+ * - Sem `campanha.elenco` (`undefined`), devolve todos os personagens com ficha, como hoje.
+ */
+export function personagensDoElenco(
+  entidades: readonly Entidade[],
+  campanha?: Pick<Campanha, 'elenco'> | null,
+): Entidade[] {
+  const comFicha = personagensComFicha(entidades);
+  const elenco = campanha?.elenco;
+  if (elenco === undefined) return comFicha;
+  const porId = new Map(comFicha.map(e => [e.id, e]));
+  const resultado: Entidade[] = [];
+  const vistos = new Set<string>();
+  for (const id of elenco) {
+    const e = porId.get(id);
+    if (e && !vistos.has(id)) {
+      vistos.add(id);
+      resultado.push(e);
+    }
+  }
+  return resultado;
+}
+
+/** Abre a Mesa pelo manifesto na tela de campanhas para escolher o elenco. */
+export async function abrirMesa(): Promise<'aba' | 'falhou'> {
+  try {
+    const base = new URL('../Mesa/', location.href);
+    const manifesto = await descobrir(base);
+    if (manifesto?.app === 'mesa') {
+      const url = new URL('#/campanhas', base).href;
+      window.open(url, '_blank');
+      return 'aba';
+    }
+  } catch { /* cai no aviso */ }
+  avisar('A Mesa não foi encontrada ao lado do Atlas. Abra a Mesa da campanha.', { tipo: 'erro', duracao: 3200 });
+  return 'falhou';
+}
+
 /** As ameaças (monstros) da campanha que têm ficha: entidades `ameaca` com um Ref do aplicativo `ficha`. Em ordem alfabética, sem acento atrapalhar. */
 export const ameacasComFicha = (lista: readonly Entidade[]): Entidade[] => lista.filter(e => e.tipo === 'ameaca' && refDaFicha(e.refs)).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 

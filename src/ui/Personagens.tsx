@@ -3,7 +3,7 @@ import { signal } from '@preact/signals';
 import type { Entidade } from '#mesa';
 import { campanhaAtiva, escolherCampanha } from '../app/campanha.ts';
 import { servicos, viewport } from '../app/app.ts';
-import { adicionarPersonagem, ameacasComFicha, personagensComFicha, recursosDasFichas } from '../app/fichas.ts';
+import { adicionarPersonagem, abrirMesa, ameacasComFicha, personagensDoElenco, recursosDasFichas } from '../app/fichas.ts';
 import { refDaFicha, textoDeRecursos } from '../domain/fichas.ts';
 import { chaveDaRef } from '#mesa';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
@@ -22,7 +22,11 @@ async function carregar(): Promise<void> {
   const c = campanhaAtiva.peek(), r = servicos.peek()?.campanhas;
   if (!c || !r) { lista.value = []; ameacas.value = []; return; }
   try {
-    lista.value = personagensComFicha(await r.listarEntidades(c.id, { tipo: 'personagem' }));
+    const fresca = (await r.obterCampanha?.(c.id)) ?? c;
+    if (fresca.atualizadaEm !== c.atualizadaEm || JSON.stringify(fresca.elenco) !== JSON.stringify(c.elenco)) {
+      campanhaAtiva.value = fresca;
+    }
+    lista.value = personagensDoElenco(await r.listarEntidades(c.id, { tipo: 'personagem' }), fresca);
     ameacas.value = ameacasComFicha(await r.listarEntidades(c.id, { tipo: 'ameaca' }));
   } catch (erro) { console.warn('Atlas: não consegui listar os personagens', erro); lista.value = []; ameacas.value = []; }
 }
@@ -58,7 +62,22 @@ export function Personagens({ s }: { s: SessaoDeEdicao }) {
     }
   }, [s.doc.value.campanhaId]);
 
-  useEffect(() => { void carregar(); }, [campanhaAtiva.value?.id]);
+  useEffect(() => { void carregar(); }, [campanhaAtiva.value?.id, JSON.stringify(campanhaAtiva.value?.elenco)]);
+  useEffect(() => {
+    const aoFocar = () => { void carregar(); };
+    const aoVisibilidade = () => { if (document.visibilityState === 'visible') void carregar(); };
+    const aoStorage = (e: StorageEvent) => {
+      if (e.key === 'mesa:campanha-ativa' || e.key === 'mesa:campanha-atualizada') void carregar();
+    };
+    window.addEventListener('focus', aoFocar);
+    document.addEventListener('visibilitychange', aoVisibilidade);
+    window.addEventListener('storage', aoStorage);
+    return () => {
+      window.removeEventListener('focus', aoFocar);
+      document.removeEventListener('visibilitychange', aoVisibilidade);
+      window.removeEventListener('storage', aoStorage);
+    };
+  }, []);
   const campanha = campanhaAtiva.value, pecas = s.doc.value.tokens;
   if (!campanha) return <p class="dock-dica" data-testid="personagens-vazio">Escolha uma campanha na aba Mapa para ver os personagens.</p>;
   const termo = semAcento(busca.value).trim(), achadas = ameacas.value.filter(e => !termo || semAcento(e.nome).includes(termo)), mostradas = achadas.slice(0, LIMITE_DE_AMEACAS);
@@ -74,9 +93,25 @@ export function Personagens({ s }: { s: SessaoDeEdicao }) {
 
   return (
     <div class="personagens" data-testid="personagens">
+      {campanha.elenco === undefined && (
+        <p class="dock-dica" data-testid="aviso-elenco-indefinido">
+          <button
+            type="button"
+            class="link-discreto"
+            data-testid="escolher-elenco-mesa"
+            onClick={() => void abrirMesa()}
+          >
+            Escolha o elenco na Mesa
+          </button>
+        </p>
+      )}
       {vazio ? (
         <>
-          <p class="dock-dica" data-testid="personagens-vazio">Nenhum personagem com ficha nesta campanha ainda.</p>
+          <p class="dock-dica" data-testid="personagens-vazio">
+            {campanha.elenco !== undefined
+              ? 'Nenhum personagem no elenco desta campanha.'
+              : 'Nenhum personagem com ficha nesta campanha ainda.'}
+          </p>
           <iframe
             src="../Dossie/?compacto=1"
             title="Sincronização em segundo plano"
@@ -93,7 +128,13 @@ export function Personagens({ s }: { s: SessaoDeEdicao }) {
           </button>
         </>
       ) : (
-        lista.value.length === 0 && <p class="dock-dica" data-testid="personagens-vazio">Nenhum personagem com ficha nesta campanha ainda.</p>
+        lista.value.length === 0 && (
+          <p class="dock-dica" data-testid="personagens-vazio">
+            {campanha.elenco !== undefined
+              ? 'Nenhum personagem no elenco desta campanha.'
+              : 'Nenhum personagem com ficha nesta campanha ainda.'}
+          </p>
+        )
       )}
       {lista.value.length > 0 && (
         <input

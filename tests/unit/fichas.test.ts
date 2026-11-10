@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { chaveDaRef, criarBarramento, criarRef, type CanalLike, type Entidade } from '#mesa';
 import { emEstadoCritico, fracao, interpretarAjusteDeRecurso, pipsCheios, recursosParaOProjetor, refDaFicha, temPd, textoDeRecursos, tomDaRolagem, type Recursos } from '../../src/domain/fichas.ts';
 import { signal } from '@preact/signals';
-import { adicionarPersonagem, ajustarRecursos, ajustarRecursosDaPeca, ameacasComFicha, extrairNumeroDoToken, iniciarFichas, aoRolar, pecaDaFicha, personagensComFicha, proximoNomeDeAmeaca, recursosDaPeca, recursosDasFichas } from '../../src/app/fichas.ts';
+import { adicionarPersonagem, ajustarRecursos, ajustarRecursosDaPeca, ameacasComFicha, extrairNumeroDoToken, iniciarFichas, aoRolar, pecaDaFicha, personagensComFicha, personagensDoElenco, proximoNomeDeAmeaca, recursosDaPeca, recursosDasFichas } from '../../src/app/fichas.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { novaPeca } from '../../src/domain/fabrica.ts';
 
@@ -217,4 +217,34 @@ test('ajustarRecursos: aplica atualização otimista imediata limitando a [0, ma
   assert.equal(pedidos.length, 4);
   assert.deepEqual((pedidos[0] as any).tipo, 'ficha.ajustar-recursos');
   assert.deepEqual((pedidos[0] as any).dados, { ficha: ref, deltaPv: 5 });
+});
+
+test('personagensDoElenco: com elenco, sem elenco, com ID órfão e na ordem do elenco', () => {
+  const mk = (id: string, nome: string, temFicha = true, tipo: Entidade['tipo'] = 'personagem'): Entidade => ({
+    ...baseE,
+    id,
+    tipo,
+    nome,
+    refs: temFicha ? [criarRef('ficha', 'ficha', `f-${id}`)] : [],
+  });
+  const p1 = mk('p1', 'Áurea');
+  const p2 = mk('p2', 'Dante');
+  const p3 = mk('p3', 'Vendedor');
+  const semFicha = mk('p4', 'Figurante', false);
+  const ameaca = mk('a1', 'Zumbi', true, 'ameaca');
+  const todas = [p1, p2, p3, semFicha, ameaca];
+
+  // Sem elenco (undefined ou campanha nula): todos os personagens com ficha entram
+  assert.deepEqual(personagensDoElenco(todas, undefined).map(e => e.id), ['p1', 'p2', 'p3']);
+  assert.deepEqual(personagensDoElenco(todas, {}).map(e => e.id), ['p1', 'p2', 'p3']);
+  assert.deepEqual(personagensDoElenco(todas, null).map(e => e.id), ['p1', 'p2', 'p3']);
+
+  // Com elenco vazio []: nenhum personagem aparece
+  assert.deepEqual(personagensDoElenco(todas, { elenco: [] }), []);
+
+  // Com elenco: preserva a ordem do elenco e ignora IDs órfãos, entidades sem ficha ou não-personagens
+  assert.deepEqual(
+    personagensDoElenco(todas, { elenco: ['p2', 'orfao', 'p4', 'a1', 'p1', 'p2'] }).map(e => e.id),
+    ['p2', 'p1'],
+  );
 });
