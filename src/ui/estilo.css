@@ -2086,7 +2086,11 @@ body.projetor { overflow: hidden; background: #000; }
 
 /* Pistas do Ateliê. */
 .pistas { display: flex; flex-direction: column; gap: 6px; padding: 2px 0; }
+.pistas-abas { display: flex; gap: 6px; margin-bottom: 6px; }
 .pista { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border: 1px solid var(--linha); border-radius: 8px; background: rgba(255, 255, 255, 0.03); cursor: grab; }
+.pista-pendente { cursor: default; opacity: .8; border-style: dashed; }
+.pista-pendente small { display: block; font: 500 11px var(--corpo); opacity: .7; }
+.pista-na-campanha { font: 700 10px var(--corpo); letter-spacing: .04em; text-transform: uppercase; opacity: .75; }
 .pista-miniatura { width: 34px; height: 44px; object-fit: cover; border-radius: 3px; background: #1a1a22; flex: none; }
 .pista-miniatura.vazia { display: grid; place-items: center; font-size: 18px; }
 .pista-nome { font: 700 12px var(--corpo); flex: 1; }

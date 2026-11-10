@@ -258,7 +258,7 @@ const SECOES = [
   { id: 'momentos', titulo: 'Momentos', icone: 'anim' },
   { id: 'iniciativa', titulo: 'Iniciativa', icone: 'alvo' },
   { id: 'personagens', titulo: 'Personagens', icone: 'peca' },
-  { id: 'pistas', titulo: 'Pistas', icone: 'olho' },
+  { id: 'pistas', titulo: 'Documentos', icone: 'olho' },
   { id: 'projetor', titulo: 'Projetor', icone: 'enquadrar' },
 ] as const;
 
