@@ -7,8 +7,9 @@ A ponte de cada app só carrega em desenvolvimento: Atlas, Mesa, Ateliê e Dossi
 ## Passo a passo
 
 1. **Registrar o servidor MCP `mesa`** no app do Claude: siga [`scripts/ponte/LEIAME.md`](../../scripts/ponte/LEIAME.md).
-2. **Subir o `mesa-dev`**, no Atlas: `npm run mesa-dev`.
-3. **Abrir a plataforma** em http://127.0.0.1:5100/ (Atlas ou Mesa). O selo "Assistente" no cabeçalho indica a conexão; `ponte_estado` confirma pelo lado do Claude.
+2. **Subir a plataforma.** Com o atalho do app de desktop aberto (sem o `mesa-dev`), a ponte já funciona: o atalho hospeda a ponte na porta 5100 e o app se identifica ao MCP como "app da Mesa". Para desenvolver, o `mesa-dev` continua valendo (`npm run mesa-dev`, no Atlas): se ele estiver rodando, o atalho só abre a janela e a ponte é a dele.
+3. **Abrir a plataforma** no app de desktop ou em http://127.0.0.1:5100/ (Atlas ou Mesa). O selo "Assistente" no cabeçalho indica a conexão; `ponte_estado` confirma pelo lado do Claude.
+   Depois de alterar o código da ponte, **reinicie o app do Claude** (o servidor MCP é um processo de longa vida e não recarrega sozinho) e rode `npm run desktop:prep` na Mesa para refazer o `dist-desktop`.
 4. **Colar as instruções:** crie um projeto no app do Claude e cole o conteúdo de [`instrucoes.md`](instrucoes.md) no campo de instruções dele. As notas da campanha podem ir no conhecimento do projeto.
 5. **Modelo:** use o Opus para o trabalho criativo (compor mapas e momentos).
 

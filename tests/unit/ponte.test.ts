@@ -8,12 +8,15 @@ import type { AddressInfo } from 'node:net';
 import { WebSocket } from 'ws';
 import { lerMensagem } from '../../scripts/ponte/protocolo.ts';
 import { criarPonte, rotuloDoLugar } from '../../scripts/ponte/servidor.ts';
+// @ts-ignore: módulo .mjs da Mesa, sem declarações de tipos
+import { iniciarServidorComPonte } from '../../../Mesa/scripts/launch-desktop.mjs';
 
 test('rotuloDoLugar reconhece Firefox, Chrome, WebKitGTK e outros', () => {
   assert.equal(rotuloDoLugar('Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0'), 'Firefox');
   assert.equal(rotuloDoLugar('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'), 'Chrome');
   assert.equal(rotuloDoLugar('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15 WebKitGTK/2.44.0'), 'app da Mesa (WebKit)');
   assert.equal(rotuloDoLugar('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15'), 'outro navegador');
+  assert.equal(rotuloDoLugar('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15 WebKitGTK/2.44.0 MesaVTT/1'), 'app da Mesa');
   assert.equal(rotuloDoLugar(''), 'outro navegador');
   assert.equal(rotuloDoLugar(null), 'outro navegador');
   assert.equal(rotuloDoLugar(undefined), 'outro navegador');
@@ -45,13 +48,13 @@ test('lerMensagem recusa lixo', () => {
     assert.equal(lerMensagem(t), null, t);
 });
 
-async function subir(tempoDaChamadaMs?: number) {
+async function subir(tempoDaChamadaMs?: number, tempoDeAberturaMs?: number) {
   const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'ponte-'));
   const servidor = http.createServer((_q, s) => s.end('ok'));
   await new Promise<void>(r => servidor.listen(0, '127.0.0.1', r));
   const porta = (servidor.address() as AddressInfo).port;
   const origem = `http://127.0.0.1:${porta}`;
-  const ponte = criarPonte({ origem, pastaDoToken: pasta, tempoDaChamadaMs });
+  const ponte = criarPonte({ origem, pastaDoToken: pasta, tempoDaChamadaMs, tempoDeAberturaMs });
   servidor.on('upgrade', (req, socket, cabeca) => { if (!ponte.aceitar(req, socket, cabeca)) socket.destroy(); });
   const abertos: WebSocket[] = [];
   const url = `ws://127.0.0.1:${porta}/__ponte`;
@@ -202,4 +205,108 @@ test('ponte associa User-Agent ao rótulo e repassa armazenamento e onde ao MCP'
     assert.equal(fAtlas?.armazenamento, 'arm-atlas');
     assert.equal(fAtlas?.onde, 'app da Mesa (WebKit)');
   } finally { await s.encerrar(); }
+});
+
+const txt = (t: unknown) => [{ tipo: 'texto', texto: JSON.stringify(t) }];
+
+test('app fechado com Mesa aberta: pede mesa_abrir_apps, espera o registro e executa', async () => {
+  const s = await subir(undefined, 2000);
+  try {
+    const mesa = await s.aba('mesa', ['mesa_abrir_apps']);
+    const c = await s.mcp();
+    await pausa(); await c.proxima();
+    c.ws.send(JSON.stringify({ tipo: 'chamar', id: 'x', ferramenta: 'atlas_mapa_ler', args: { n: 1 } }));
+    const abrir = await mesa.proxima();
+    assert.equal(abrir.ferramenta, 'mesa_abrir_apps'); assert.deepEqual(abrir.args, { apps: ['atlas'] });
+    mesa.ws.send(JSON.stringify({ tipo: 'resultado', id: abrir.id, ok: true, conteudo: txt({ apps: { atlas: 'aberto' } }) }));
+    await pausa();
+    const atlas = await s.aba('atlas', ['atlas_mapa_ler']);
+    const pedido = await atlas.proxima();
+    assert.equal(pedido.ferramenta, 'atlas_mapa_ler'); assert.deepEqual(pedido.args, { n: 1 });
+    atlas.ws.send(JSON.stringify({ tipo: 'resultado', id: pedido.id, ok: true, conteudo: [{ tipo: 'texto', texto: 'feito' }] }));
+    let r = await c.proxima();
+    while (r.tipo === 'ferramentas') r = await c.proxima();
+    assert.deepEqual(r, { tipo: 'resultado', id: 'x', ok: true, conteudo: [{ tipo: 'texto', texto: 'feito' }] });
+  } finally { await s.encerrar(); }
+});
+
+test('app fechado sem Mesa: erro com o motivo', async () => {
+  const s = await subir(undefined, 500);
+  try {
+    const c = await s.mcp();
+    await pausa(); await c.proxima();
+    c.ws.send(JSON.stringify({ tipo: 'chamar', id: 'x', ferramenta: 'atlas_mapa_ler', args: {} }));
+    const r = await c.proxima();
+    assert.equal(r.ok, false); assert.equal(r.fechado, true); assert.match(r.erro, /Mesa/);
+  } finally { await s.encerrar(); }
+});
+
+test('duas chamadas ao mesmo app fechado abrem uma vez só', async () => {
+  const s = await subir(undefined, 2000);
+  try {
+    const mesa = await s.aba('mesa', ['mesa_abrir_apps']);
+    const c = await s.mcp();
+    await pausa(); await c.proxima();
+    for (const id of ['a', 'b']) c.ws.send(JSON.stringify({ tipo: 'chamar', id, ferramenta: 'atlas_mapa_ler', args: {} }));
+    const abrir = await mesa.proxima();
+    mesa.ws.send(JSON.stringify({ tipo: 'resultado', id: abrir.id, ok: true, conteudo: txt({ apps: { atlas: 'aberto' } }) }));
+    await pausa();
+    const atlas = await s.aba('atlas', ['atlas_mapa_ler']);
+    for (let i = 0; i < 2; i++) {
+      const p = await atlas.proxima();
+      atlas.ws.send(JSON.stringify({ tipo: 'resultado', id: p.id, ok: true, conteudo: [{ tipo: 'texto', texto: 'ok' }] }));
+    }
+    const ids = new Set<string>();
+    while (ids.size < 2) { const r = await c.proxima(); if (r.tipo === 'resultado') { assert.equal(r.ok, true); ids.add(r.id); } }
+    // nenhuma segunda abertura chegou à Mesa
+    const extra = await Promise.race([mesa.proxima(), pausa(100).then(() => 'nada')]);
+    assert.equal(extra, 'nada');
+  } finally { await s.encerrar(); }
+});
+
+test('app que não se registra a tempo: erro de tempo esgotado', async () => {
+  const s = await subir(undefined, 150);
+  try {
+    const mesa = await s.aba('mesa', ['mesa_abrir_apps']);
+    const c = await s.mcp();
+    await pausa(); await c.proxima();
+    c.ws.send(JSON.stringify({ tipo: 'chamar', id: 'x', ferramenta: 'jukebox_tocar', args: {} }));
+    const abrir = await mesa.proxima();
+    assert.deepEqual(abrir.args, { apps: ['jukebox'] });
+    mesa.ws.send(JSON.stringify({ tipo: 'resultado', id: abrir.id, ok: true, conteudo: txt({ apps: { jukebox: 'bloqueado' }, aviso: 'bloqueou' }) }));
+    const r = await c.proxima();
+    assert.equal(r.ok, false); assert.equal(r.fechado, true); assert.match(r.erro, /não se registrou.*bloqueou/);
+  } finally { await s.encerrar(); }
+});
+
+test('o servidor do atalho da Mesa hospeda a ponte: aba com Origin e MCP com token', async () => {
+  const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'ponte-atalho-'));
+  const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'dist-atalho-'));
+  const h = await iniciarServidorComPonte({ rootDir: dist, port: 0, host: '127.0.0.1', pastaDoToken: pasta });
+  const abertos: WebSocket[] = [];
+  try {
+    assert.ok(h.ponte, 'a ponte deveria carregar do Atlas');
+    const url = `ws://127.0.0.1:${h.porta}/__ponte`;
+    const abrir = (origin?: string) => new Promise<WebSocket>((res, rej) => {
+      const ws = new WebSocket(url, origin ? { origin } : {});
+      abertos.push(ws);
+      ws.once('open', () => res(ws)); ws.once('error', rej);
+    });
+    const aba = await abrir(`http://127.0.0.1:${h.porta}`);
+    aba.send(JSON.stringify({ tipo: 'registrar', app: 'mesa', titulo: 'Mesa', ferramentas: [{ nome: 'mesa_teste', descricao: 'd', esquema: { type: 'object' } }] }));
+    await pausa();
+    const mcp = await abrir();
+    const lista = new Promise<any>(r => mcp.on('message', d => { const m = JSON.parse(String(d)); if (m.tipo === 'ferramentas') r(m); }));
+    mcp.send(JSON.stringify({ tipo: 'ola', token: fs.readFileSync(path.join(pasta, 'token'), 'utf8') }));
+    const m = await lista;
+    assert.deepEqual(m.lista.map((f: any) => f.nome), ['mesa_teste']);
+    assert.equal(m.lista[0].app, 'mesa');
+    // Outros caminhos de upgrade são derrubados.
+    await assert.rejects(new Promise((res, rej) => { const w = new WebSocket(`ws://127.0.0.1:${h.porta}/outro`); abertos.push(w); w.once('open', res); w.once('error', rej); }));
+  } finally {
+    abertos.forEach(w => w.terminate());
+    h.fechar();
+    fs.rmSync(pasta, { recursive: true, force: true });
+    fs.rmSync(dist, { recursive: true, force: true });
+  }
 });

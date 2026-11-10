@@ -10,3 +10,5 @@ spikes/*/dist/
 mesa-core/dist/
 docs/referencias/exemplos/
 .ponte/
+
+dist-desktop-app/

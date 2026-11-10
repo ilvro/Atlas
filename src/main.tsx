@@ -30,5 +30,5 @@ if (import.meta.env.DEV || new URLSearchParams(location.search).has('diagnostico
   Object.defineProperty(window, '__atlas', { value: Object.freeze({ sessao: () => sessao.value, servicos: () => servicos.value, viewport: () => viewport.atual, tutor, fps }), configurable: true });
 }
 
-// Ponte do assistente (só em desenvolvimento; não existe no build).
-if (import.meta.env.DEV) void import('./app/ponte.ts');
+// Ponte do assistente (em desenvolvimento e no app de desktop; não existe no build do Pages).
+if (import.meta.env.DEV || import.meta.env.VITE_PONTE === '1') void import('./app/ponte.ts');
