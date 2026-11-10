@@ -358,7 +358,7 @@ Pronto quando: com as instruções coladas num projeto, um pedido de mapa curto 
 Commit: assistant instructions for maps and moments
 Nota: `instrucoes.md` (cerca de 1,4 mil palavras) acrescenta um exemplo de pedido curto em blocos e recomenda ler antes de `atlas_notas` (que substitui o texto); `LEIAME.md` aponta para `scripts/ponte/LEIAME.md` em vez de repetir o registro. Todos os nomes de ferramenta citados foram conferidos por grep nos arquivos de ferramentas.
 
-### 14.3a — Mesa: sessões planejadas e roteiro  ⬜
+### 14.3a — Mesa: sessões planejadas e roteiro  ✅
 Objetivo: o Claude cria a sessão da próxima mesa, sem começar a gravar, e monta o roteiro dela.
 Depende de: 14.1f
 Ler: `../Mesa/src/app/registro.ts` (`iniciarSessao`, `alterarSessao`, `adicionarAoRoteiro`, `definirNotaDoItem`, `carregarSessoes`), `../Mesa/src/dominio/roteiro.ts` (`adicionar`, `mover`, `MAXIMO_DO_ROTEIRO`, `ehAbrivel`), `../Atlas/mesa-core/src/campanha.ts` (`Sessao`, `salvarSessao`), `../Mesa/src/app/ponte.ts`.
@@ -376,6 +376,7 @@ Não fazer: entidades e cenas (14.3b, 14.3c).
 Testes: `planejarSessao` não liga a gravação; editar o roteiro respeita limite e repetição; nota de item que saiu do roteiro é podada.
 Pronto quando: "crie a sessão 'Sessão 12' com o mapa X e a cena Y no roteiro" aparece no Diário da Mesa sem gravar.
 Commit: assistant tools for planned sessions in mesa
+Nota: `alterarSessaoPorId` aceita também `data` e devolve a sessão nova (async). `mesa_sessao_editar` aplica remover, acrescentar, ordem e notas, nesta ordem; o que não coube (repetido, roteiro cheio, ref fora do roteiro) volta em `ignorados`. `ordem` põe os itens listados no começo e deixa os demais depois. `data` é "AAAA-MM-DD" (meio-dia local). O contexto injetável é `ContextoDeSessoes`; `mesa_sessao_criar` entrou nas marcas de `verificar-build.ts`.
 
 ### 14.3b — Mesa: entidades, ligações e notas  ⬜
 Objetivo: o Claude registra NPCs, lugares, pistas, facções e notas na campanha e as liga entre si.
