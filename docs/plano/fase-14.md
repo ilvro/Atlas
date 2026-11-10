@@ -522,3 +522,19 @@ Não fazer: bloquear chamadas (o aviso basta) nem tentar sincronizar dados entre
 Testes: dois registros com o mesmo id não avisam; Mesa e Atlas com ids diferentes geram o aviso no `ponte_estado` e no resultado; cliente sem `armazenamento` é tratado como lugar desconhecido, sem aviso falso; o rótulo sai certo para UAs de Firefox, Chrome e WebKitGTK.
 Pronto quando: com a Mesa aberta no Firefox e o Atlas no app de desktop, a primeira resposta de qualquer ferramenta traz o aviso com os dois lugares, e o Claude pede para fechar um deles.
 Commit: warn when bridge tabs use different storage
+
+### 14.5b — Ponte: catálogo de ferramentas estável  ✅
+Objetivo: o app do Claude vê sempre a mesma lista de ferramentas, para que o "sempre permitir" de cada uma valha de vez. Caso real (10/11): o servidor `mesa` mandou 19 `tools/list_changed` num dia (cada aba que abre, fecha ou recarrega some e reaparece na lista), e o app voltou a pedir permissão para ferramentas já liberadas.
+Depende de: 14.1c
+Ler: `scripts/ponte/mcp.ts` (`criarServidorMcp`, `listarFerramentas`, `chamarFerramenta`, `aoMudar`), `scripts/ponte/servidor.ts` (`lista`, `avisarMcps`), `scripts/ponte/protocolo.ts`.
+Arquivos: mudar `scripts/ponte/mcp.ts` e os testes; criar o cache `Atlas/.ponte/ferramentas.json` (fora do git, como o token).
+Como:
+- **Catálogo que só cresce:** o MCP guarda num cache em disco toda ferramenta que alguma aba já registrou (nome, descrição, esquema, app). O `tools/list` devolve o catálogo inteiro (o cache mais o que está registrado agora), com a versão mais nova de cada ferramenta.
+- **Ferramenta sem aba aberta:** a chamada volta erro com o que fazer: "O Atlas não está aberto. Abra-o em http://127.0.0.1:5100/Atlas/ (ou peça mesa_abrir_apps) e tente de novo."
+- **`list_changed` só quando o catálogo muda de fato:** ferramenta nova, ou descrição ou esquema diferente. Abrir, fechar ou recarregar abas não notifica.
+- **Anotações MCP:** `readOnlyHint: true` nas ferramentas de leitura (as que terminam em `_ler`, `_listar`, `_o_que_vejo`, `_ver_mapa`, `campanha_*`, `ponte_estado`, `mesa_campanha_atual`) e `destructiveHint: false` nas de criar. Os apps que agrupam permissões por tipo passam a separar leitura de escrita.
+- **Ferramenta removida do código:** sai do cache quando o app dela se registra sem ela.
+Não fazer: mudar o protocolo das abas.
+Testes: abrir e fechar a aba do Atlas não muda o `tools/list` nem notifica; uma ferramenta nova notifica uma vez; chamar uma ferramenta de app fechado devolve o erro com o endereço; o cache sobrevive a reiniciar o MCP; ferramenta que o app deixou de registrar sai.
+Pronto quando: depois de liberar as ferramentas uma vez, fechar e reabrir as abas (e reiniciar o `mesa-dev`) não faz o app do Claude pedir permissão de novo.
+Commit: stable tool catalog for the mcp server
