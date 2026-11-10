@@ -10,7 +10,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { criarPonte } from '../../scripts/ponte/servidor.ts';
-import { criarServidorMcp, converterConteudo, SEM_PONTE } from '../../scripts/ponte/mcp.ts';
+import { criarServidorMcp, converterConteudo, anotacoesDaFerramenta, SEM_PONTE } from '../../scripts/ponte/mcp.ts';
 
 const esperar = async (cond: () => boolean, ms = 3000) => {
   const fim = Date.now() + ms;
@@ -28,14 +28,15 @@ async function subirPonte() {
   return { pasta, origem, porta, ponte, servidor, url: `ws://127.0.0.1:${porta}/__ponte` };
 }
 
-async function clienteMcp(url: string, lerToken: () => string) {
-  const { server, fechar } = criarServidorMcp({ url, lerToken, atrasosMs: [20] });
+async function clienteMcp(url: string, lerToken: () => string, arquivoDoCache?: string) {
+  const cache = arquivoDoCache ?? path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-test-')), 'ferramentas.json');
+  const { server, ponta, fechar } = criarServidorMcp({ url, lerToken, arquivoDoCache: cache, atrasosMs: [20] });
   const client = new Client({ name: 't', version: '0' });
   let mudancas = 0;
   client.setNotificationHandler(ToolListChangedNotificationSchema, () => { mudancas++; });
   const [a, b] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(a), client.connect(b)]);
-  return { client, mudancas: () => mudancas, fechar: async () => { await fechar(); await client.close(); } };
+  return { client, ponta, mudancas: () => mudancas, fechar: async () => { await fechar(); await client.close(); } };
 }
 
 const textoDe = (r: any) => r.content.map((c: any) => c.text ?? '').join('');
@@ -43,6 +44,23 @@ const textoDe = (r: any) => r.content.map((c: any) => c.text ?? '').join('');
 test('converterConteudo converte texto e imagem', () => {
   assert.deepEqual(converterConteudo({ tipo: 'texto', texto: 'oi' }), { type: 'text', text: 'oi' });
   assert.deepEqual(converterConteudo({ tipo: 'imagem', dados: 'AA', mime: 'image/png' }), { type: 'image', data: 'AA', mimeType: 'image/png' });
+});
+
+test('anotações MCP: readOnlyHint nas de leitura e destructiveHint: false nas de criar', () => {
+  assert.deepEqual(anotacoesDaFerramenta('ponte_estado'), { readOnlyHint: true });
+  assert.deepEqual(anotacoesDaFerramenta('mesa_campanha_atual'), { readOnlyHint: true });
+  assert.deepEqual(anotacoesDaFerramenta('campanha_listar'), { readOnlyHint: true });
+  assert.deepEqual(anotacoesDaFerramenta('campanha_ler'), { readOnlyHint: true });
+  assert.deepEqual(anotacoesDaFerramenta('campanha_entidade_ler'), { readOnlyHint: true });
+  assert.deepEqual(anotacoesDaFerramenta('campanha_sessao_ler'), { readOnlyHint: true });
+  assert.deepEqual(anotacoesDaFerramenta('atlas_mapas_listar'), { readOnlyHint: true });
+  assert.deepEqual(anotacoesDaFerramenta('atlas_mapa_ler'), { readOnlyHint: true });
+  assert.deepEqual(anotacoesDaFerramenta('atlas_o_que_vejo'), { readOnlyHint: true });
+  assert.deepEqual(anotacoesDaFerramenta('atlas_ver_mapa'), { readOnlyHint: true });
+  assert.deepEqual(anotacoesDaFerramenta('atlas_mapa_criar'), { destructiveHint: false });
+  assert.deepEqual(anotacoesDaFerramenta('mesa_entidade_criar'), { destructiveHint: false });
+  assert.deepEqual(anotacoesDaFerramenta('atlas_terreno'), {});
+  assert.deepEqual(anotacoesDaFerramenta('atlas_comodos'), {});
 });
 
 test('sem ponte: só ponte_estado, com a explicação', async () => {
@@ -58,47 +76,99 @@ test('sem ponte: só ponte_estado, com a explicação', async () => {
   } finally { await mcp.fechar(); }
 });
 
-test('com ponte e aba falsa: lista, chama, converte e avisa mudanças', async () => {
+test('catálogo estável: abrir e fechar aba não muda tools/list nem notifica; erro com endereço; ferramenta removida sai', async () => {
   const p = await subirPonte();
   const token = () => fs.readFileSync(path.join(p.pasta, 'token'), 'utf8').trim();
-  const mcp = await clienteMcp(p.url, token);
-  const aba = new WebSocket(p.url, { origin: p.origem });
+  const cache = path.join(p.pasta, 'ferramentas.json');
+  const mcp = await clienteMcp(p.url, token, cache);
+  let aba = new WebSocket(p.url, { origin: p.origem });
   aba.on('error', () => {});
   aba.on('message', d => {
     const m = JSON.parse(String(d));
     if (m.tipo !== 'chamar') return;
-    if (m.ferramenta === 'atlas_ver') aba.send(JSON.stringify({ tipo: 'resultado', id: m.id, ok: true, conteudo: [{ tipo: 'texto', texto: 'oi' }, { tipo: 'imagem', dados: 'AA==', mime: 'image/png' }] }));
+    if (m.ferramenta === 'atlas_ver_mapa') aba.send(JSON.stringify({ tipo: 'resultado', id: m.id, ok: true, conteudo: [{ tipo: 'texto', texto: 'oi' }, { tipo: 'imagem', dados: 'AA==', mime: 'image/png' }] }));
+    else if (m.ferramenta === 'atlas_mapa_criar') aba.send(JSON.stringify({ tipo: 'resultado', id: m.id, ok: true, conteudo: [{ tipo: 'texto', texto: 'criado' }] }));
     else aba.send(JSON.stringify({ tipo: 'resultado', id: m.id, ok: false, erro: 'deu ruim' }));
   });
   try {
     await new Promise<void>(r => aba.once('open', () => r()));
     aba.send(JSON.stringify({ tipo: 'registrar', app: 'atlas', titulo: 'Atlas', ferramentas: [
-      { nome: 'atlas_ver', descricao: 'vê', esquema: { type: 'object', properties: {} } },
-      { nome: 'atlas_falha', descricao: 'falha', esquema: { type: 'object' } },
+      { nome: 'atlas_ver_mapa', descricao: 'vê', esquema: { type: 'object', properties: {} } },
+      { nome: 'atlas_mapa_criar', descricao: 'cria', esquema: { type: 'object' } },
     ] }));
-    await esperar(() => mcp.mudancas() > 0);
+    await esperar(() => mcp.mudancas() === 1);
     const { tools } = await mcp.client.listTools();
-    assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'atlas_ver', 'atlas_falha']);
+    assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'atlas_ver_mapa', 'atlas_mapa_criar']);
+    assert.equal(tools.find(t => t.name === 'atlas_ver_mapa')?.annotations?.readOnlyHint, true);
+    assert.equal(tools.find(t => t.name === 'atlas_mapa_criar')?.annotations?.destructiveHint, false);
     assert.match(textoDe(await mcp.client.callTool({ name: 'ponte_estado', arguments: {} })), /atlas \(2 ferramentas\)/);
 
-    const ok: any = await mcp.client.callTool({ name: 'atlas_ver', arguments: {} });
+    // Chama com sucesso
+    const ok: any = await mcp.client.callTool({ name: 'atlas_ver_mapa', arguments: {} });
     assert.deepEqual(ok.content, [{ type: 'text', text: 'oi' }, { type: 'image', data: 'AA==', mimeType: 'image/png' }]);
-    const erro: any = await mcp.client.callTool({ name: 'atlas_falha', arguments: {} });
-    assert.equal(erro.isError, true);
-    assert.equal(textoDe(erro), 'deu ruim');
-    const some: any = await mcp.client.callTool({ name: 'atlas_nada', arguments: {} });
-    assert.equal(some.isError, true);
 
-    const antes = mcp.mudancas();
+    // Fecha a aba do Atlas: listTools não muda nem notifica!
+    const mudancasAntes = mcp.mudancas();
     aba.close();
-    await esperar(() => mcp.mudancas() > antes);
-    assert.deepEqual((await mcp.client.listTools()).tools.map(t => t.name), ['ponte_estado']);
+    await new Promise(r => setTimeout(r, 60));
+    assert.equal(mcp.mudancas(), mudancasAntes);
+    const toolsDepoisDeFechar = (await mcp.client.listTools()).tools;
+    assert.deepEqual(toolsDepoisDeFechar.map(t => t.name), ['ponte_estado', 'atlas_ver_mapa', 'atlas_mapa_criar']);
+
+    // Chamar ferramenta de app fechado devolve erro com endereço
+    const erroFechado: any = await mcp.client.callTool({ name: 'atlas_ver_mapa', arguments: {} });
+    assert.equal(erroFechado.isError, true);
+    assert.equal(textoDe(erroFechado), `O Atlas não está aberto. Abra-o em http://127.0.0.1:${p.porta}/Atlas/ (ou peça mesa_abrir_apps) e tente de novo.`);
+
+    // Reabre a aba com ferramenta nova: notifica uma vez
+    aba = new WebSocket(p.url, { origin: p.origem });
+    aba.on('error', () => {});
+    await new Promise<void>(r => aba.once('open', () => r()));
+    aba.send(JSON.stringify({ tipo: 'registrar', app: 'atlas', titulo: 'Atlas', ferramentas: [
+      { nome: 'atlas_ver_mapa', descricao: 'vê', esquema: { type: 'object', properties: {} } },
+      { nome: 'atlas_mapa_criar', descricao: 'cria', esquema: { type: 'object' } },
+      { nome: 'atlas_novo', descricao: 'novo', esquema: { type: 'object' } },
+    ] }));
+    await esperar(() => mcp.mudancas() === 2);
+    assert.deepEqual((await mcp.client.listTools()).tools.map(t => t.name), ['ponte_estado', 'atlas_ver_mapa', 'atlas_mapa_criar', 'atlas_novo']);
+
+    // Registrar as mesmas ferramentas de novo (ex.: recarregar ou focar aba) não notifica
+    aba.send(JSON.stringify({ tipo: 'registrar', app: 'atlas', titulo: 'Atlas', ferramentas: [
+      { nome: 'atlas_ver_mapa', descricao: 'vê', esquema: { type: 'object', properties: {} } },
+      { nome: 'atlas_mapa_criar', descricao: 'cria', esquema: { type: 'object' } },
+      { nome: 'atlas_novo', descricao: 'novo', esquema: { type: 'object' } },
+    ] }));
+    await new Promise(r => setTimeout(r, 60));
+    assert.equal(mcp.mudancas(), 2);
+
+    // Ferramenta removida do código: sai do cache quando o app dela se registra sem ela
+    aba.send(JSON.stringify({ tipo: 'registrar', app: 'atlas', titulo: 'Atlas', ferramentas: [
+      { nome: 'atlas_ver_mapa', descricao: 'vê', esquema: { type: 'object', properties: {} } },
+    ] }));
+    await esperar(() => mcp.mudancas() === 3);
+    assert.deepEqual((await mcp.client.listTools()).tools.map(t => t.name), ['ponte_estado', 'atlas_ver_mapa']);
   } finally {
     aba.terminate();
     await mcp.fechar();
     p.ponte.fechar();
     p.servidor.closeAllConnections();
     p.servidor.close();
+  }
+});
+
+test('o cache sobrevive a reiniciar o MCP', async () => {
+  const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'ponte-mcp-cache-'));
+  const cache = path.join(pasta, 'ferramentas.json');
+  fs.writeFileSync(cache, JSON.stringify([
+    { nome: 'atlas_guardada', descricao: 'persistida', esquema: { type: 'object' }, app: 'atlas' },
+  ], null, 2));
+
+  const mcp = await clienteMcp('ws://127.0.0.1:1/__ponte', () => { throw new Error('sem token'); }, cache);
+  try {
+    const { tools } = await mcp.client.listTools();
+    assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'atlas_guardada']);
+  } finally {
+    await mcp.fechar();
   }
 });
 
@@ -110,7 +180,7 @@ test('reconecta relendo o token quando a ponte reinicia', async () => {
   const pasta = p1.pasta;
   const mcp2 = await clienteMcp(p1.url, () => fs.readFileSync(path.join(pasta, 'token'), 'utf8').trim());
   try {
-    await esperar(() => mcp2.mudancas() > 0);
+    await esperar(() => mcp2.ponta.conectada());
     p1.ponte.fechar();
     p1.servidor.closeAllConnections();
     await new Promise<void>(r => p1.servidor.close(() => r()));

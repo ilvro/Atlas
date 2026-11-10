@@ -13,27 +13,131 @@ import type { Conteudo, FerramentaDoApp, Resultado } from './protocolo.ts';
 
 export const ATRASOS_MS = [1000, 2000, 5000, 10000];
 
+/** Raiz do Atlas, a partir deste arquivo (o app do Claude lança o processo de qualquer pasta). */
+const raiz = path.resolve(import.meta.dirname, '..', '..');
+export const CAMINHO_CACHE_PADRAO = path.join(raiz, '.ponte', 'ferramentas.json');
+
 export interface PontaOpcoes {
   url: string;
   /** Lê o token atual (muda a cada partida do mesa-dev); pode lançar se o arquivo não existe. */
   lerToken: () => string;
+  arquivoDoCache?: string;
   aoMudar?: () => void;
   atrasosMs?: number[];
 }
 
 export interface Ponta {
   conectada: () => boolean;
+  /** Ferramentas ativas nas abas abertas agora. */
+  ativas: () => FerramentaDoApp[];
+  /** Catálogo persistente completo (cache mais o que está registrado agora). */
+  catalogo: () => FerramentaDoApp[];
+  /** Alias para `ativas()` (compatibilidade). */
   ferramentas: () => FerramentaDoApp[];
+  origemHttp: () => string;
   chamar: (ferramenta: string, args: Record<string, unknown>) => Promise<Resultado>;
   fechar: () => void;
+}
+
+export function carregarCache(caminho?: string): Map<string, FerramentaDoApp> {
+  const mapa = new Map<string, FerramentaDoApp>();
+  if (!caminho) return mapa;
+  try {
+    if (fs.existsSync(caminho)) {
+      const conteudo = fs.readFileSync(caminho, 'utf8');
+      const dados = JSON.parse(conteudo);
+      if (Array.isArray(dados)) {
+        for (const item of dados) {
+          if (item && typeof item.nome === 'string' && typeof item.app === 'string') {
+            mapa.set(item.nome, item as FerramentaDoApp);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[mesa-mcp] aviso: erro ao ler cache de ferramentas:', e);
+  }
+  return mapa;
+}
+
+export function salvarCache(caminho: string | undefined, mapa: Map<string, FerramentaDoApp>): void {
+  if (!caminho) return;
+  try {
+    fs.mkdirSync(path.dirname(caminho), { recursive: true });
+    fs.writeFileSync(caminho, JSON.stringify([...mapa.values()], null, 2), 'utf8');
+  } catch (e) {
+    console.error('[mesa-mcp] aviso: erro ao salvar cache de ferramentas:', e);
+  }
+}
+
+export function assinaturaDoCatalogo(catalogo: Map<string, FerramentaDoApp>): string {
+  const chaves = [...catalogo.keys()].sort();
+  const obj = chaves.map(k => {
+    const f = catalogo.get(k)!;
+    return { nome: f.nome, descricao: f.descricao, esquema: f.esquema, app: f.app };
+  });
+  return JSON.stringify(obj);
+}
+
+export function extrairOrigemHttp(urlWs: string): string {
+  try {
+    const u = new URL(urlWs);
+    const proto = u.protocol === 'wss:' ? 'https:' : 'http:';
+    return `${proto}//${u.host}`;
+  } catch {
+    return 'http://127.0.0.1:5100';
+  }
+}
+
+export function erroAppFechado(app: string, origem = 'http://127.0.0.1:5100'): string {
+  const info: Record<string, { rotulo: string; caminho: string; artigo: string; temAbrirApps?: boolean }> = {
+    atlas: { rotulo: 'Atlas', caminho: 'Atlas', artigo: 'O', temAbrirApps: true },
+    mesa: { rotulo: 'Mesa', caminho: 'Mesa', artigo: 'A', temAbrirApps: false },
+    atelie: { rotulo: 'Ateliê', caminho: 'Atelie', artigo: 'O', temAbrirApps: true },
+    dossie: { rotulo: 'Dossiê', caminho: 'Dossie', artigo: 'O', temAbrirApps: true },
+    jukebox: { rotulo: 'Jukebox', caminho: 'Jukebox', artigo: 'O', temAbrirApps: true },
+    tabletop: { rotulo: 'Tabletop', caminho: 'Tabletop', artigo: 'O', temAbrirApps: true },
+  };
+  const dados = info[app] ?? { rotulo: app, caminho: app, artigo: 'O', temAbrirApps: true };
+  const base = origem.replace(/\/+$/, '');
+  const url = `${base}/${dados.caminho}/`;
+  const sufixoAbrir = dados.temAbrirApps ? ' (ou peça mesa_abrir_apps)' : '';
+  const verbo = dados.artigo === 'A' ? 'Abra-a' : 'Abra-o';
+  return `${dados.artigo} ${dados.rotulo} não está abert${dados.artigo === 'A' ? 'a' : 'o'}. ${verbo} em ${url}${sufixoAbrir} e tente de novo.`;
+}
+
+export function ehLeitura(nome: string): boolean {
+  return (
+    nome === 'ponte_estado' ||
+    nome === 'mesa_campanha_atual' ||
+    nome.startsWith('campanha_') ||
+    nome.endsWith('_ler') ||
+    nome.endsWith('_listar') ||
+    nome.endsWith('_o_que_vejo') ||
+    nome.endsWith('_ver_mapa')
+  );
+}
+
+export function ehCriacao(nome: string): boolean {
+  return nome.endsWith('_criar');
+}
+
+export function anotacoesDaFerramenta(nome: string): { readOnlyHint?: boolean; destructiveHint?: boolean } {
+  if (ehLeitura(nome)) return { readOnlyHint: true };
+  if (ehCriacao(nome)) return { destructiveHint: false };
+  return {};
 }
 
 /** Conexão com a ponte: reconecta em silêncio, relendo o token a cada tentativa. */
 export function conectarNaPonte(op: PontaOpcoes): Ponta {
   const atrasos = op.atrasosMs ?? ATRASOS_MS;
+  const caminhoCache = op.arquivoDoCache ?? CAMINHO_CACHE_PADRAO;
+  const catalogo = carregarCache(caminhoCache);
+  let ultimaAssinatura = assinaturaDoCatalogo(catalogo);
+
   let ws: WebSocket | null = null;
   let aberta = false;
-  let lista: FerramentaDoApp[] = [];
+  let ativas: FerramentaDoApp[] = [];
   let tentativa = 0;
   let parado = false;
   let temporizador: ReturnType<typeof setTimeout> | null = null;
@@ -61,10 +165,28 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
       const m = lerMensagem(String(dados));
       if (!m) return;
       if (m.tipo === 'ferramentas') {
-        const antes = JSON.stringify(lista);
-        const primeira = !aberta;
-        aberta = true; tentativa = 0; lista = m.lista;
-        if (primeira || antes !== JSON.stringify(lista)) op.aoMudar?.();
+        aberta = true;
+        tentativa = 0;
+        ativas = m.lista;
+
+        // Ferramenta removida do código: sai do cache quando o app dela se registra sem ela.
+        const appsAtivos = new Set(m.lista.map(f => f.app));
+        for (const [nome, f] of catalogo) {
+          if (appsAtivos.has(f.app) && !m.lista.some(nova => nova.nome === nome)) {
+            catalogo.delete(nome);
+          }
+        }
+        // Incorpora / atualiza as ferramentas registradas no catálogo.
+        for (const f of m.lista) {
+          catalogo.set(f.nome, f);
+        }
+
+        const novaAssinatura = assinaturaDoCatalogo(catalogo);
+        if (novaAssinatura !== ultimaAssinatura) {
+          ultimaAssinatura = novaAssinatura;
+          salvarCache(caminhoCache, catalogo);
+          op.aoMudar?.();
+        }
       } else if (m.tipo === 'resultado') {
         const r = pendentes.get(m.id);
         if (r) { pendentes.delete(m.id); r(m); }
@@ -73,20 +195,23 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
     socket.on('error', () => {});
     socket.on('close', () => {
       if (ws !== socket) return;
-      const eraAberta = aberta;
-      ws = null; aberta = false;
-      const tinha = lista.length > 0;
-      lista = [];
+      ws = null;
+      aberta = false;
+      ativas = [];
       falharPendentes('A ponte caiu durante a chamada. Confira se o `npm run mesa-dev` ainda está rodando e tente de novo.');
-      if (eraAberta || tinha) op.aoMudar?.();
       reagendar();
     });
   }
   abrir();
 
+  const origemHttp = () => extrairOrigemHttp(op.url);
+
   return {
     conectada: () => aberta,
-    ferramentas: () => lista,
+    ativas: () => ativas,
+    catalogo: () => [...catalogo.values()],
+    ferramentas: () => ativas,
+    origemHttp,
     chamar: (ferramenta, args) => new Promise<Resultado>(resolver => {
       if (!ws || !aberta) { resolver({ tipo: 'resultado', id: '', ok: false, erro: SEM_PONTE }); return; }
       const id = `m${++seq}`;
@@ -108,6 +233,8 @@ export const FERRAMENTA_ESTADO = {
   name: 'ponte_estado',
   description: 'Diz se a ponte com a plataforma está conectada e quais apps (abas abertas) e ferramentas estão disponíveis.',
   inputSchema: { type: 'object' as const, properties: {} },
+  annotations: { readOnlyHint: true },
+  readOnlyHint: true,
 };
 
 export function textoDoEstado(conectada: boolean, ferramentas: FerramentaDoApp[]): string {
@@ -119,11 +246,20 @@ export function textoDoEstado(conectada: boolean, ferramentas: FerramentaDoApp[]
   return `Ponte conectada. Apps com aba aberta: ${apps}.`;
 }
 
-/** Ferramentas para o `tools/list`: `ponte_estado` sempre, depois as das abas. */
-export function listarFerramentas(ferramentas: FerramentaDoApp[]) {
+/** Ferramentas para o `tools/list`: `ponte_estado` sempre, depois as do catálogo. */
+export function listarFerramentas(catalogo: FerramentaDoApp[]) {
   return [
     FERRAMENTA_ESTADO,
-    ...ferramentas.map(f => ({ name: f.nome, description: f.descricao, inputSchema: f.esquema as { type: 'object'; [k: string]: unknown } })),
+    ...catalogo.map(f => {
+      const anotacoes = anotacoesDaFerramenta(f.nome);
+      return {
+        name: f.nome,
+        description: f.descricao,
+        inputSchema: (f.esquema ?? { type: 'object', properties: {} }) as { type: 'object'; [k: string]: unknown },
+        ...(Object.keys(anotacoes).length > 0 ? { annotations: anotacoes } : {}),
+        ...anotacoes,
+      };
+    }),
   ];
 }
 
@@ -133,16 +269,28 @@ export function converterConteudo(c: Conteudo) {
 
 /** `tools/call`: roteia para `ponte_estado` ou para a ponte e converte o resultado. */
 export async function chamarFerramenta(ponta: Ponta, nome: string, args: Record<string, unknown>) {
-  if (nome === FERRAMENTA_ESTADO.name) return { content: [{ type: 'text' as const, text: textoDoEstado(ponta.conectada(), ponta.ferramentas()) }] };
+  const ativas = ponta.ativas ? ponta.ativas() : ponta.ferramentas();
+  if (nome === FERRAMENTA_ESTADO.name) return { content: [{ type: 'text' as const, text: textoDoEstado(ponta.conectada(), ativas) }] };
   if (!ponta.conectada()) return { isError: true, content: [{ type: 'text' as const, text: SEM_PONTE }] };
-  if (!ponta.ferramentas().some(f => f.nome === nome))
-    return { isError: true, content: [{ type: 'text' as const, text: `A ferramenta "${nome}" não está disponível (a aba do app foi fechada?). Rode \`ponte_estado\` para ver o que está conectado.` }] };
+  const catalogo = ponta.catalogo ? ponta.catalogo() : ativas;
+  const ferramenta = catalogo.find(f => f.nome === nome);
+  if (!ferramenta)
+    return { isError: true, content: [{ type: 'text' as const, text: `A ferramenta "${nome}" não está disponível. Rode \`ponte_estado\` para ver o que está conectado.` }] };
+  if (!ativas.some(f => f.nome === nome)) {
+    const origem = ponta.origemHttp ? ponta.origemHttp() : 'http://127.0.0.1:5100';
+    return { isError: true, content: [{ type: 'text' as const, text: erroAppFechado(ferramenta.app, origem) }] };
+  }
   const r = await ponta.chamar(nome, args);
   if (!r.ok) return { isError: true, content: [{ type: 'text' as const, text: r.erro }] };
   return { content: r.conteudo.map(converterConteudo) };
 }
 
-export interface McpOpcoes { url: string; lerToken: () => string; atrasosMs?: number[] }
+export interface McpOpcoes {
+  url: string;
+  lerToken: () => string;
+  arquivoDoCache?: string;
+  atrasosMs?: number[];
+}
 
 /** Monta o servidor MCP `mesa` (sem transporte) sobre uma conexão com a ponte. */
 export function criarServidorMcp(op: McpOpcoes) {
@@ -152,14 +300,11 @@ export function criarServidorMcp(op: McpOpcoes) {
     ...op,
     aoMudar: () => { if (pronto) server.sendToolListChanged().catch(() => {}); },
   });
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: listarFerramentas(ponta.ferramentas()) }));
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: listarFerramentas(ponta.catalogo()) }));
   server.setRequestHandler(CallToolRequestSchema, async req => chamarFerramenta(ponta, req.params.name, (req.params.arguments ?? {}) as Record<string, unknown>));
   server.oninitialized = () => { pronto = true; };
   return { server, ponta, fechar: () => { ponta.fechar(); return server.close(); } };
 }
-
-/** Raiz do Atlas, a partir deste arquivo (o app do Claude lança o processo de qualquer pasta). */
-const raiz = path.resolve(import.meta.dirname, '..', '..');
 
 async function principal() {
   const porta = process.env.MESA_PORTA ?? '5100';
@@ -167,6 +312,7 @@ async function principal() {
   const { server } = criarServidorMcp({
     url: `ws://127.0.0.1:${porta}/__ponte`,
     lerToken: () => fs.readFileSync(arquivoDoToken, 'utf8').trim(),
+    arquivoDoCache: CAMINHO_CACHE_PADRAO,
   });
   await server.connect(new StdioServerTransport());
   console.error(`[mesa-mcp] pronto; ponte em ws://127.0.0.1:${porta}/__ponte`);

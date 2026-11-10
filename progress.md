@@ -447,6 +447,7 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 - **14.4b — Dossiê na ponte** — `../Dossie/src/ponte.js` (só DEV): `dossie_fichas_listar`, `dossie_ficha_ler`, `dossie_ameaca_criar` (tabela de `getBalance` + `aplicarEscolhas` do wizard), `dossie_ficha_criar`, `dossie_ficha_editar`; clique de nova ficha extraído para `criarFichaNova`; correção das salvaguardas de bônus 0 no wizard. 7 testes.
 - **14.4c — Jukebox na ponte** — `../Jukebox/ponte.js` (só em 127.0.0.1/localhost): `jukebox_listar`, `jukebox_tocar`, `jukebox_efeito`, `jukebox_parar`; autoplay bloqueado inferido e avisado. 6 testes.
 - **14.4d — Build e instruções** — `ponte:verificar` cobre Atlas, Mesa, Ateliê e Dossiê; instruções e LEIAME com documentos, fichas e trilha. **Fase 14 concluída**; falta o teste da etapa 4 no navegador.
+- **14.5b — Ponte: catálogo de ferramentas estável** — `scripts/ponte/mcp.ts` (catálogo persistido em `.ponte/ferramentas.json`; `tools/list` devolve catálogo completo; `list_changed` emitido só quando há adição, remoção ou mudança de ferramentas; erro detalhado com endereço ao chamar ferramenta de app fechado; anotações MCP com `readOnlyHint: true` para leitura e `destructiveHint: false` para criação). Testes em `tests/unit/ponte-mcp.test.ts`.
 
 ## Acervo medieval
 
