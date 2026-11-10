@@ -1,5 +1,5 @@
 import { signal } from '@preact/signals';
-import { mesmaRef, type Entidade } from '#mesa';
+import { descobrir, enderecoDaRef, mesmaRef, type Barramento, type Entidade, type Ref } from '#mesa';
 import { novoObjeto } from '../domain/fabrica.ts';
 import { comodoEm } from '../domain/geometria.ts';
 import type { MapaAtlas, Objeto, Ponto } from '../domain/mapa.ts';
@@ -9,6 +9,7 @@ import { ACERVO } from '../procedural/acervo.ts';
 import { campanhaAtiva, refDoComodo } from './campanha.ts';
 import type { Servicos } from './servicos.ts';
 import type { SessaoDeEdicao } from './sessao.ts';
+import { avisar } from './toasts.ts';
 
 /** Um documento da campanha: a entidade e, se o Ateliê já o entregou ao Atlas, o resumo do banco de troca. */
 export interface DocumentoDaCampanha { entidade: Entidade; idDoDocumento: string; pista: Pista | null }
@@ -98,7 +99,57 @@ export function adicionarPista(s: SessaoDeEdicao, p: Pista, servicos: Servicos |
   s.store.executar({ tipo: 'item.adicionar', colecao: 'props', item: objeto as never }, { rotulo: `Pôr a pista “${p.name}”` });
   s.selecao.value = [{ colecao: 'props', id: objeto.id }];
   void ligarPistaAoComodo(m, objeto, servicos);
+  void acrescentarDocumentoNaCampanha(servicos, p, m.campanhaId ?? undefined);
   return objeto;
+}
+
+/** Torna o documento parte da campanha: cria a entidade `pista` (criadaPor 'atlas') se ainda não há uma com esse Ref. Devolve a entidade (nova ou a que já existia). */
+export async function acrescentarDocumentoNaCampanha(
+  servicos: Servicos | null,
+  p: Pick<Pista, 'id' | 'name'>,
+  campanhaId?: string,
+): Promise<Entidade | null> {
+  const cid = campanhaId ?? campanhaAtiva.peek()?.id;
+  if (!servicos?.campanhas || !cid) return null;
+  try {
+    const ref = refDaPista(p.id);
+    const existente = await servicos.campanhas.entidadeDaRef(cid, ref);
+    if (existente) return existente;
+    const criada = await servicos.campanhas.criarEntidade({
+      campanhaId: cid,
+      tipo: 'pista',
+      nome: p.name,
+      refs: [ref],
+    });
+    await recarregarDocumentosDaCampanha(servicos);
+    return criada;
+  } catch (erro) {
+    console.warn('Atlas: não consegui acrescentar o documento à campanha', erro);
+    return null;
+  }
+}
+
+/** Pede ao Ateliê que abra o documento; sem resposta, tenta abri-lo pelo manifesto ou pelo endereço padrão numa aba nova. */
+export async function abrirDocumentoNoAtelie(
+  b: Pick<Barramento, 'pedir'> | null | undefined,
+  ref: Ref,
+): Promise<'aberto' | 'aba' | 'falhou'> {
+  const r = b ? await b.pedir('atelie.abrir', { ref }).catch(() => null) : null;
+  if (r?.ok) return 'aberto';
+  try {
+    const origem = typeof location !== 'undefined' ? location.href : 'http://localhost/';
+    const base = new URL('../Atelie/', origem);
+    const manifesto = await descobrir(base);
+    const url = (manifesto && enderecoDaRef(manifesto, ref, base))
+      ?? new URL(`?handout=${encodeURIComponent(ref.id)}`, base).href;
+    if (url && typeof window !== 'undefined' && typeof window.open === 'function') {
+      window.open(url, '_blank');
+      avisar('O Ateliê não estava aberto: abri numa aba nova.', { duracao: 2600 });
+      return 'aba';
+    }
+  } catch { /* cai no aviso */ }
+  avisar('O Ateliê não respondeu. Abra o Ateliê da campanha e tente de novo.', { tipo: 'erro', duracao: 3200 });
+  return 'falhou';
 }
 
 /** `esta-em`: o documento (pista) está no cômodo. Falhas da plataforma nunca atrapalham o mapa. */

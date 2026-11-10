@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { criarRef, type Entidade } from '#mesa';
 import type { Pista } from '../../src/data/pistas.ts';
 import {
+  abrirDocumentoNoAtelie,
+  acrescentarDocumentoNaCampanha,
   documentosDaCampanha,
   documentosDaCampanhaAtiva,
   idsNaCampanha,
@@ -141,4 +143,91 @@ test('recarregarDocumentosDaCampanha: atualiza signal com e sem campanha ativa',
   campanhaAtiva.value = null;
   await recarregarDocumentosDaCampanha(servicosFalsos);
   assert.deepEqual(documentosDaCampanhaAtiva.value, []);
+});
+
+test('acrescentarDocumentoNaCampanha: cria entidade pista, não duplica e respeita ausência de campanha', async () => {
+  const entidadesCriadas: unknown[] = [];
+  const entidadesExistentes: Map<string, Entidade> = new Map();
+
+  const servicosFalsos = {
+    campanhas: {
+      entidadeDaRef: async (_campanhaId: string, ref: { id: string }) => {
+        return entidadesExistentes.get(ref.id) ?? undefined;
+      },
+      criarEntidade: async (dados: { campanhaId: string; tipo: string; nome: string; refs: any[] }) => {
+        const criada: Entidade = {
+          ...baseEntidade,
+          id: `criada-${entidadesCriadas.length + 1}`,
+          campanhaId: dados.campanhaId,
+          tipo: dados.tipo as any,
+          nome: dados.nome,
+          refs: dados.refs,
+        };
+        entidadesCriadas.push(criada);
+        entidadesExistentes.set(dados.refs[0]!.id, criada);
+        return criada;
+      },
+      listarEntidades: async () => Array.from(entidadesExistentes.values()),
+    },
+  } as unknown as Servicos;
+
+  // Sem campanha ativa
+  campanhaAtiva.value = null;
+  const semCampanha = await acrescentarDocumentoNaCampanha(servicosFalsos, { id: 'doc-x', name: 'Doc X' });
+  assert.equal(semCampanha, null);
+  assert.equal(entidadesCriadas.length, 0);
+
+  // Com campanha ativa: cria
+  campanhaAtiva.value = { id: 'c1', nome: 'Campanha 1', sistema: 'ordem', tema: null, capa: null, criadaEm: 1, atualizadaEm: 1 };
+  const criada = await acrescentarDocumentoNaCampanha(servicosFalsos, { id: 'doc-1', name: 'Relatório Policial' });
+  assert.notEqual(criada, null);
+  assert.equal(criada?.tipo, 'pista');
+  assert.equal(criada?.nome, 'Relatório Policial');
+  assert.equal(criada?.refs[0]?.id, 'doc-1');
+  assert.equal(entidadesCriadas.length, 1);
+
+  // Segunda chamada com mesmo ID não duplica e retorna existente
+  const segunda = await acrescentarDocumentoNaCampanha(servicosFalsos, { id: 'doc-1', name: 'Relatório Policial' });
+  assert.equal(segunda?.id, criada?.id);
+  assert.equal(entidadesCriadas.length, 1);
+});
+
+test('abrirDocumentoNoAtelie: barramento responde aberto; fallback tenta abrir janela', async () => {
+  const ref = criarRef('atelie', 'documento', 'doc-123');
+
+  // Caso 1: Barramento atende com ok: true
+  const barramentoAtende = {
+    pedir: async (tipo: string, dados: unknown) => {
+      assert.equal(tipo, 'atelie.abrir');
+      assert.deepEqual(dados, { ref });
+      return { ok: true as const, resposta: { ok: true } };
+    },
+  };
+  const resp1 = await abrirDocumentoNoAtelie(barramentoAtende, ref);
+  assert.equal(resp1, 'aberto');
+
+  // Caso 2: Barramento não atende / recusa; fallback abre janela
+  const janelasAbertas: string[] = [];
+  const originalOpen = globalThis.window?.open;
+  (globalThis as any).window = {
+    ...(globalThis.window ?? {}),
+    open: (url: string) => {
+      janelasAbertas.push(url);
+      return null;
+    },
+  };
+
+  try {
+    const barramentoRecusa = {
+      pedir: async () => {
+        throw new Error('sem resposta');
+      },
+    };
+    const resp2 = await abrirDocumentoNoAtelie(barramentoRecusa, ref);
+    assert.equal(resp2, 'aba');
+    assert.equal(janelasAbertas.length, 1);
+    assert.ok(janelasAbertas[0]!.includes('handout=doc-123'));
+  } finally {
+    if (originalOpen) (globalThis as any).window.open = originalOpen;
+  }
 });
