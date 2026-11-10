@@ -7,7 +7,8 @@
     "node": ">=22.18.0"
   },
   "imports": {
-    "#mesa": "./mesa-core/src/index.ts"
+    "#mesa": "./mesa-core/src/index.ts",
+    "#mesa/ponte": "./mesa-core/src/ponte.ts"
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5190 --strictPort",
@@ -19,6 +20,8 @@
     "test:e2e": "node --test --test-concurrency=1 \"tests/e2e/*.test.ts\"",
     "build:core": "tsc -p mesa-core/tsconfig.build.json",
     "mesa-dev": "node scripts/mesa-dev.ts",
+    "ponte:mcp": "node scripts/ponte/mcp.ts",
+    "ponte:verificar": "node scripts/ponte/verificar-build.ts",
     "dev:mesa": "MESA_DEV_PREFIX=/Atlas/ vite --host 127.0.0.1 --port 5190 --strictPort"
   },
   "dependencies": {
@@ -31,11 +34,14 @@
     "preact": "11.0.1"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@preact/preset-vite": "2.10.6",
     "@types/node": "22.20.5",
+    "@types/ws": "8.18.2",
     "fake-indexeddb": "6.2.6",
     "playwright": "1.58.2",
     "typescript": "7.0.2",
-    "vite": "7.3.6"
+    "vite": "7.3.6",
+    "ws": "8.22.2"
   }
 }

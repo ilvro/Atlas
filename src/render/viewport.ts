@@ -1,5 +1,5 @@
 import { ladoBaixo } from '../procedural/escarpa.ts';
-import { Application, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
+import { Application, Container, Graphics, Rectangle, Sprite, Text, Texture } from 'pixi.js';
 import { criarEventosDeCena, type EventoDeCena, type EstadoDosEventos } from './eventos-de-cena.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import { distanciaDoPercurso, pontosDaRegua, textoDaRegua, type RegraDeDiagonal } from '../domain/regua.ts';
@@ -84,6 +84,9 @@ export interface PonteViewport {
 /** Quanto dura a transição entre dois climas, em milissegundos, se ninguém escolheu outra. */
 const DURACAO_PADRAO_DA_TRANSICAO = 1600;
 
+/** O resultado de `capturar`: a imagem e como ler coordenadas nela (a origem da caixa é o canto superior esquerdo da imagem). */
+export interface Captura { dataUrl: string; largura: number; altura: number; pxPorMetro: number; caixa: Caixa }
+
 export interface Viewport {
   readonly camera: Camera;
   readonly tela: Tela;
@@ -134,6 +137,11 @@ export interface Viewport {
   diagnosticoDaRegua(): { quadrados: number; texto: string; pontos: number } | null;
   /** Esconde ou mostra os marcadores de editor (grade, contorno da área, pinos de luz e regiões). */
   definirModoProjetor(ligado: boolean): void;
+  /**
+   * Fotografa o mapa como o mestre o vê, sem marcadores nem interface: guarda a câmera e o modo, liga o projetor, enquadra `caixa` (padrão: o mapa todo),
+   * espera o assar terminar, extrai a cena e restaura tudo. Devolve um PNG (dataURL) cujo maior lado cabe em `ladoMaximo`, mais a escala e a caixa efetivas.
+   */
+  capturar(opcoes?: { caixa?: Caixa; ladoMaximo?: number }): Promise<Captura>;
   destruir(): void;
 }
 
@@ -1001,6 +1009,35 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     enquadrarMapa();
   }
 
+  let modoProjetor = somenteLeitura;
+  async function capturar(opcoes: { caixa?: Caixa; ladoMaximo?: number } = {}): Promise<Captura> {
+    const m = doc(), pedida = opcoes.caixa ?? { x0: 0, y0: 0, x1: m.bounds.width, y1: m.bounds.height };
+    const caixa = { x0: Math.max(0, Math.min(pedida.x0, pedida.x1)), y0: Math.max(0, Math.min(pedida.y0, pedida.y1)), x1: Math.min(m.bounds.width, Math.max(pedida.x0, pedida.x1)), y1: Math.min(m.bounds.height, Math.max(pedida.y0, pedida.y1)) };
+    if (caixa.x1 - caixa.x0 < 0.5 || caixa.y1 - caixa.y0 < 0.5) throw new Error('A caixa está fora do mapa ou é pequena demais.');
+    const ladoMaximo = Math.max(64, Math.round(opcoes.ladoMaximo ?? 1568));
+    const camera0 = camera, modo0 = modoProjetor;
+    try {
+      camAnim = null;
+      projetor(true);
+      definirCamera(calcularEnquadre({ x: caixa.x0, y: caixa.y0, largura: caixa.x1 - caixa.x0, altura: caixa.y1 - caixa.y0 }, tela(), 0));
+      const limite = performance.now() + 20_000;
+      let calmos = 0;
+      while (performance.now() < limite && calmos < 3) { await new Promise<void>(r => requestAnimationFrame(() => r())); calmos = cena.pintando === 0 ? calmos + 1 : 0; }
+      await new Promise<void>(r => setTimeout(r, 250));
+      app.renderer.render(app.stage);
+      const [ax, ay] = mundoParaTela(camera, [caixa.x0, caixa.y0]), [bx, by] = mundoParaTela(camera, [caixa.x1, caixa.y1]);
+      const x = Math.max(0, Math.floor(ax)), y = Math.max(0, Math.floor(ay)), w = Math.max(1, Math.min(app.screen.width, Math.ceil(bx)) - x), h = Math.max(1, Math.min(app.screen.height, Math.ceil(by)) - y);
+      const resolucao = Math.min(2, ladoMaximo / Math.max(w, h));
+      const tela_ = app.renderer.extract.canvas({ target: app.stage, frame: new Rectangle(x, y, w, h), resolution: resolucao, clearColor: app.renderer.background.color });
+      const dataUrl = (tela_ as HTMLCanvasElement).toDataURL('image/png');
+      return { dataUrl, largura: tela_.width, altura: tela_.height, pxPorMetro: Math.round(camera.zoom * resolucao * 100) / 100, caixa };
+    } finally {
+      projetor(modo0);
+      definirCamera(camera0);
+    }
+  }
+  function projetor(ligado: boolean): void { modoProjetor = ligado; cena.definirModoProjetor(ligado); grade.visible = !ligado; area_.visible = !ligado; selecaoG.visible = !ligado; }
+
   return {
     get camera() { return camera; },
     get tela() { return tela(); },
@@ -1033,7 +1070,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     mostrarProposta: previa => { fantasmaDaProposta.mostrar(doc(), previa); camadaSuja = true; },
     contagemDoFantasma: () => fantasmaDaProposta.contagem(),
     diagnosticoDaRegua: medidaDaRegua,
-    definirModoProjetor: ligado => { cena.definirModoProjetor(ligado); grade.visible = !ligado; area_.visible = !ligado; selecaoG.visible = !ligado; },
+    definirModoProjetor: projetor,
+    capturar,
     destruir() {
       destruido = true; cancelarAssinatura(); observador.disconnect();
       window.removeEventListener('keydown', aoTeclar, true); window.removeEventListener('keyup', aoSoltar);
