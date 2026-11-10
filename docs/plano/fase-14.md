@@ -394,7 +394,7 @@ Pronto quando: "registre o NPC Var Hoyde, ferreiro, ligado à Forja" aparece na 
 Commit: assistant tools for campaign entities and links
 Nota: contexto injetável `ContextoDeEntidades`; `criar` usa `criarEntidade(..., false)` e depois `alterar` aplica tags e notas (que já sincroniza as `[[ligações]]`). `mesa_entidade_editar` checa o dono antes (`podeEditar`) e diz o app ("é do Dossiê"); `id` aceita também `mesa:mesa/entidade/<id>`. Novo `ligarRefs` em `src/app/campanha.ts` (dá o Ref da Mesa às entidades das pontas, como `sincronizar`). Respostas trazem o `ref` `mesa:mesa/entidade/<id>`. `mesa_entidade_criar` entrou nas marcas de `verificar-build.ts`.
 
-### 14.3c — Mesa: montar cenas  ⬜
+### 14.3c — Mesa: montar cenas  ✅
 Objetivo: o Claude monta a cena de jogo: mapa ou cômodo, trilha sonora, participantes, pistas e o momento que a abre.
 Depende de: 14.3b
 Ler: `../Mesa/src/app/campanha.ts` (`vincularMapaNaCena`, `vincularTrilhaNaCena`, `vincularParticipanteNaCena`, `vincularPistaNaCena`, `desvincularDaCena`, `alternarEncontroDaCena`, `definirMomentoDaCena`), `../Mesa/src/dominio/cenas.ts` (`extrairPacoteDeCena`), `../Mesa/src/ui/EditorDeCena.tsx`.
@@ -407,6 +407,7 @@ Não fazer: criar o mapa ou o momento (são do Atlas, etapa 2).
 Testes: montar uma cena com mapa, trilha e dois participantes cria as ligações certas; `mesa_cena_ler` devolve o pacote com nomes.
 Pronto quando: "monte a cena 'Emboscada na ponte' com o mapa da ravina, a trilha de tensão e os dois bandidos" aparece pronta no Modo Sessão da Mesa.
 Commit: assistant tools to assemble scenes
+Nota: tudo em `src/app/ponte-escrita.ts` (`ferramentasDeCena`, contexto `ContextoDeCenas`; sem `ponte-leitura.ts`). Os ids aceitam id da entidade, `mesa:mesa/entidade/<id>` ou qualquer ref da entidade. Tudo é conferido (cena, mapa = lugar/ref do Atlas, trilha = Jukebox, participantes = personagem/ameaça, pistas = pista/Ateliê) antes de gravar; as funções `vincular…` seguem usando `avisar` e devolvendo `false` (o erro vira "veja o aviso na Mesa"). `momento` é o NOME (ou id) de um momento do mapa vinculado à cena, texto livre (vira a etiqueta `momento:<texto>`; o Atlas casa por id ou nome, sem diferenciar maiúsculas, e só toca com mapa vinculado); vazio remove. `encontro` é booleano. `avisar` ganhou o parâmetro `acao` (botão no aviso, 30 s). `abrirAplicativo` (em `aplicativos.ts`) abre a raiz do app pelo manifesto e NÃO usa `noopener` (ele faz `window.open` devolver sempre `null`); zera `opener` depois. `mesa_cena_montar` entrou nas marcas de `verificar-build.ts`.
 
 ### 14.3d — Instruções do assistente: planejar uma sessão  ⬜
 Objetivo: as instruções ganham o fluxo completo de preparar uma sessão.
