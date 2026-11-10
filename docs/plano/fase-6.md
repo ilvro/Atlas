@@ -179,7 +179,8 @@ Testes: o teste de coleção passa; cada variante fica abaixo de 400 KB (árvore
 Pronto quando: imagens geradas; uma árvore de 7 m posta num terreno de grama tem cara de árvore vista de cima.
 Commit: baked plants and trees
 
-### 6.1e — Lote pesado: tapetes ornamentados  ⬜
+### 6.1e — Lote pesado: tapetes ornamentados  ✅
+Nota: implementada com os geradores pesados (commit b1935a5: `src/procedural/pesados/tapetes.ts`, imagens assadas em `public/colecao/gerados/`, catálogo `colecao.json`, `pesoNaPaleta` em `src/authoring/mobiliar.ts` e regras de mobília em `src/authoring/regras-mobilia.ts`; testes em `pesados.test.ts` e `mobiliar.test.ts`).
 Objetivo: tapetes com medalhão, bordas e franja, como os da referência.
 Depende de: 6.1c
 Ler: `src/procedural/materiais.ts` (padrão `persa`); `src/procedural/receitas/casa.ts` (`tapete.persa`).

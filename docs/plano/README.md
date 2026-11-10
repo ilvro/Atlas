@@ -45,12 +45,12 @@ Commit: mensagem curta em inglês
 | [fase-3-pendencias.md](fase-3-pendencias.md) | Detalhado — só a P3c aberta (independente) |
 | [fase-4.md](fase-4.md) | Detalhado — concluída |
 | [fase-5.md](fase-5.md) | Detalhado — concluída |
-| [fase-6.md](fase-6.md) | Detalhado — **próximo** |
-| [fase-7.md](fase-7.md) | Detalhado antes da hora — o Opus confere ao começar |
+| [fase-6.md](fase-6.md) | Concluída, menos 6.2b (espera aprovação da curadoria) |
+| [fase-7.md](fase-7.md) | Concluída (Sessão, visão, névoa, portas, projetor, interagíveis) |
 | [fase-8.md](fase-8.md) | Detalhado — concluída |
 | [fase-9.md](fase-9.md) | Concluída (Mesa, Ficha, Ateliê e Jukebox integrados; pendências reais no progress.md) |
-| [fase-10.md](fase-10.md) | Lote A e água (10.1a–b) detalhados; o resto ao começar cada lote — **em andamento** |
+| [fase-10.md](fase-10.md) | Concluída, menos a validação 10.8 (lotes de exemplos e acervo gerados) |
 | [fase-11.md](fase-11.md) | Concluída (abas, prévia do Dossiê, barra inferior, grade) |
 | [fase-12.md](fase-12.md) | Peças, fichas flutuantes, gatilhos e tutoriais; 12.11 corrigiu os gatilhos |
-| [fase-13.md](fase-13.md) | Detalhado — Momentos e Barra de Efeitos — **próximo** |
-| [fase-14.md](fase-14.md) | Assistente (app do Claude via MCP), só em desenvolvimento — etapas 1 a 3 detalhadas |
+| [fase-13.md](fase-13.md) | Concluída (Momentos, projetor, painel, gatilhos, barra de efeitos) |
+| [fase-14.md](fase-14.md) | Concluída (ponte MCP, leitura, escrita, momentos, Mesa, Ateliê, Dossiê, Jukebox) |
