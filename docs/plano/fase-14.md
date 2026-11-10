@@ -378,7 +378,7 @@ Pronto quando: "crie a sessão 'Sessão 12' com o mapa X e a cena Y no roteiro" 
 Commit: assistant tools for planned sessions in mesa
 Nota: `alterarSessaoPorId` aceita também `data` e devolve a sessão nova (async). `mesa_sessao_editar` aplica remover, acrescentar, ordem e notas, nesta ordem; o que não coube (repetido, roteiro cheio, ref fora do roteiro) volta em `ignorados`. `ordem` põe os itens listados no começo e deixa os demais depois. `data` é "AAAA-MM-DD" (meio-dia local). O contexto injetável é `ContextoDeSessoes`; `mesa_sessao_criar` entrou nas marcas de `verificar-build.ts`.
 
-### 14.3b — Mesa: entidades, ligações e notas  ⬜
+### 14.3b — Mesa: entidades, ligações e notas  ✅
 Objetivo: o Claude registra NPCs, lugares, pistas, facções e notas na campanha e as liga entre si.
 Depende de: 14.3a
 Ler: `../Mesa/src/app/campanha.ts` (`criarEntidade`, `alterarEntidade`, `sincronizarLigacoes`), `../Mesa/src/dominio/entidades.ts` (`TIPOS_CRIAVEIS`), `../Mesa/src/dominio/notas.ts` (as `[[ligações]]` no texto), `../Atlas/mesa-core/src/campanha.ts` (regra de dono em `salvarEntidade`, `ligar`, `TIPOS_LIGACAO`).
@@ -392,6 +392,7 @@ Não fazer: remover entidades (fica com o mestre na interface).
 Testes: criar personagem com `[[Lugar]]` nas notas gera a ligação; editar entidade de outro app volta erro claro; ligar com tipo inválido volta a lista de tipos.
 Pronto quando: "registre o NPC Var Hoyde, ferreiro, ligado à Forja" aparece na coleção da Mesa com a ligação.
 Commit: assistant tools for campaign entities and links
+Nota: contexto injetável `ContextoDeEntidades`; `criar` usa `criarEntidade(..., false)` e depois `alterar` aplica tags e notas (que já sincroniza as `[[ligações]]`). `mesa_entidade_editar` checa o dono antes (`podeEditar`) e diz o app ("é do Dossiê"); `id` aceita também `mesa:mesa/entidade/<id>`. Novo `ligarRefs` em `src/app/campanha.ts` (dá o Ref da Mesa às entidades das pontas, como `sincronizar`). Respostas trazem o `ref` `mesa:mesa/entidade/<id>`. `mesa_entidade_criar` entrou nas marcas de `verificar-build.ts`.
 
 ### 14.3c — Mesa: montar cenas  ⬜
 Objetivo: o Claude monta a cena de jogo: mapa ou cômodo, trilha sonora, participantes, pistas e o momento que a abre.
