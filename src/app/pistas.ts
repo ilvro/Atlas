@@ -1,21 +1,86 @@
 import { signal } from '@preact/signals';
-import { mesmaRef } from '#mesa';
+import { mesmaRef, type Entidade } from '#mesa';
 import { novoObjeto } from '../domain/fabrica.ts';
 import { comodoEm } from '../domain/geometria.ts';
 import type { MapaAtlas, Objeto, Ponto } from '../domain/mapa.ts';
 import { centroDaCelula } from '../domain/movimento.ts';
-import { escutarPistas, listarPistas, refDaPista, type Pista } from '../data/pistas.ts';
+import { escutarPistas, idDaPista, listarPistas, refDaPista, type Pista } from '../data/pistas.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { campanhaAtiva, refDoComodo } from './campanha.ts';
 import type { Servicos } from './servicos.ts';
 import type { SessaoDeEdicao } from './sessao.ts';
+
+/** Um documento da campanha: a entidade e, se o Ateliê já o entregou ao Atlas, o resumo do banco de troca. */
+export interface DocumentoDaCampanha { entidade: Entidade; idDoDocumento: string; pista: Pista | null }
+
+/** As entidades da campanha que apontam para um documento do Ateliê, cruzadas com as pistas entregues. Ordem: nome (pt-BR, sem acento atrapalhar). Uma entidade com dois Refs de documento vale pelo primeiro. Duas entidades do mesmo documento: fica a primeira. */
+export function documentosDaCampanha(entidades: readonly Entidade[], entregues: readonly Pista[]): DocumentoDaCampanha[] {
+  const porId = new Map<string, Pista>(entregues.map(p => [p.id, p]));
+  const vistos = new Set<string>();
+  const docs: DocumentoDaCampanha[] = [];
+
+  for (const entidade of entidades) {
+    let idDoDocumento: string | null = null;
+    for (const ref of entidade.refs) {
+      const id = idDaPista(ref);
+      if (id) {
+        idDoDocumento = id;
+        break;
+      }
+    }
+    if (!idDoDocumento || vistos.has(idDoDocumento)) continue;
+    vistos.add(idDoDocumento);
+    docs.push({
+      entidade,
+      idDoDocumento,
+      pista: porId.get(idDoDocumento) ?? null,
+    });
+  }
+
+  return docs.sort((a, b) => (
+    a.entidade.nome.localeCompare(b.entidade.nome, 'pt-BR', { sensitivity: 'base' }) ||
+    a.entidade.nome.localeCompare(b.entidade.nome, 'pt-BR') ||
+    a.entidade.id.localeCompare(b.entidade.id)
+  ));
+}
+
+/** Os ids de documento que já são da campanha (para o selo "Na campanha" na aba Todos). */
+export function idsNaCampanha(docs: readonly DocumentoDaCampanha[]): Set<string> {
+  return new Set(docs.map(d => d.idDoDocumento));
+}
 
 /** Os documentos que o Ateliê entregou neste navegador (lidos do banco de troca; o Atlas nunca escreve ali). */
 export const pistas = signal<Pista[]>([]);
 /** Já olhou o banco ao menos uma vez? (Sem isso, “documento não encontrado” apareceria antes da hora.) */
 export const pistasCarregadas = signal(false);
 
-export async function recarregarPistas(): Promise<void> { pistas.value = await listarPistas(); pistasCarregadas.value = true; }
+/** Os documentos da campanha ativa (recarregados ao trocar de campanha, ao acrescentar e quando o Ateliê avisa). */
+export const documentosDaCampanhaAtiva = signal<DocumentoDaCampanha[]>([]);
+
+let ultimasEntidades: Entidade[] = [];
+
+export async function recarregarPistas(): Promise<void> {
+  pistas.value = await listarPistas();
+  pistasCarregadas.value = true;
+  documentosDaCampanhaAtiva.value = documentosDaCampanha(ultimasEntidades, pistas.peek());
+}
+
+export async function recarregarDocumentosDaCampanha(servicos: Servicos | null): Promise<void> {
+  const c = campanhaAtiva.peek();
+  if (!c || !servicos?.campanhas) {
+    ultimasEntidades = [];
+    documentosDaCampanhaAtiva.value = [];
+    return;
+  }
+  try {
+    ultimasEntidades = await servicos.campanhas.listarEntidades(c.id);
+    documentosDaCampanhaAtiva.value = documentosDaCampanha(ultimasEntidades, pistas.peek());
+  } catch (erro) {
+    console.warn('Atlas: não consegui listar os documentos da campanha', erro);
+    ultimasEntidades = [];
+    documentosDaCampanhaAtiva.value = [];
+  }
+}
 
 /** Começa a acompanhar o Ateliê: lê o banco agora e de novo a cada aviso do canal. Devolve o cancelamento. */
 export function iniciarPistas(): () => void { void recarregarPistas(); return escutarPistas(() => void recarregarPistas()); }
