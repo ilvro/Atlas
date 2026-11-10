@@ -502,3 +502,23 @@ Commit: build check and instructions for atelie, dossie and jukebox
 Nota: `verificar-build.ts` constrói também Ateliê e Dossiê (só `vite build`, `vite.config.ts` ou `.js`; `--atelie`/`ATELIE_DIR`, `--dossie`/`DOSSIE_DIR`; ausentes são pulados com aviso) e ganhou as marcas `atelie_documento_criar`, `atelie_modelos_listar`, `dossie_ameaca_criar`, `dossie_ficha_criar`, `jukebox_tocar`. A Jukebox (sem build) fica de fora, com a regra do hostname no LEIAME. Instruções: "Planejar uma sessão" manda pistas ao Ateliê, NPCs e ameaças ao Dossiê e a trilha de `jukebox_listar`; seção nova "Documentos, fichas e trilha" depois do resumo.
 
 **Fase 14 concluída** em 10 de novembro de 2026 (falta o teste da etapa 4 no navegador com o app do Claude).
+
+## Depois da fase
+
+### 14.5a — Ponte: avisar quando os apps estão em armazenamentos diferentes  ⬜
+Objetivo: o Claude percebe quando a Mesa e o Atlas (ou outros apps) estão abertos em lugares com dados separados (o navegador e o app de desktop, dois navegadores, dois perfis) e avisa o mestre em vez de seguir. Caso real (10/11): o Atlas do app de desktop criou o mapa na campanha "Teste", e a Mesa do Firefox, com o banco vazio, não achou a campanha.
+Depende de: 14.1a, 14.1b, 14.1c
+Ler: `scripts/ponte/protocolo.ts` (`registrar`, `FerramentaDoApp`, `lerMensagem`), `scripts/ponte/servidor.ts` (registro das abas, "vale a última que teve foco", `aceitar`), `scripts/ponte/mcp.ts` (`textoDoEstado`, `listarFerramentas`, como repassa os resultados), `mesa-core/src/ponte.ts` (`registrar`).
+Arquivos: mudar `mesa-core/src/ponte.ts`, `scripts/ponte/protocolo.ts`, `scripts/ponte/servidor.ts`, `scripts/ponte/mcp.ts`, `docs/assistente/instrucoes.md`, e os testes de cada um; copiar o `mesa-core` novo (`npm run build:core`) para o `vendor/` de Mesa, Ateliê, Dossiê e Jukebox.
+Como:
+- **Identidade do armazenamento:** o cliente da ponte lê do `localStorage` uma chave `mesa:ponte-armazenamento` (cria um id aleatório se não houver) e a manda no `registrar` como `armazenamento`. Abas que compartilham dados compartilham o id; navegador e app de desktop, ou dois perfis, têm ids diferentes. Sem `localStorage`: id novo a cada carga (vale como diferente).
+- **Rótulo legível:** o servidor guarda, por aba, o `User-Agent` da conexão (`aceitar`) e o traduz para "Firefox", "Chrome", "app da Mesa (WebKit)" ou "outro navegador".
+- **Protocolo:** `registrar` ganha `armazenamento?: string` (opcional, para clientes antigos). A lista que vai ao MCP ganha, por app, `{ armazenamento, onde }`, da aba que vale (a última com foco).
+- **MCP:**
+  - `ponte_estado` lista os apps com o lugar de cada um ("mesa: Firefox; atlas: app da Mesa") e, se há mais de um armazenamento entre os apps que valem, diz claramente: "Mesa e Atlas estão em lugares com dados separados: …; feche um deles".
+  - Todo resultado de ferramenta ganha, no início, a mesma linha de aviso enquanto os armazenamentos estiverem misturados. O Claude pode não chamar `ponte_estado`, então o aviso vai junto do resultado.
+- **Instruções:** em "Antes de construir", chamar `ponte_estado` no começo da conversa e, diante do aviso, parar e pedir ao mestre para usar um lugar só, dizendo qual app está em qual lugar.
+Não fazer: bloquear chamadas (o aviso basta) nem tentar sincronizar dados entre lugares.
+Testes: dois registros com o mesmo id não avisam; Mesa e Atlas com ids diferentes geram o aviso no `ponte_estado` e no resultado; cliente sem `armazenamento` é tratado como lugar desconhecido, sem aviso falso; o rótulo sai certo para UAs de Firefox, Chrome e WebKitGTK.
+Pronto quando: com a Mesa aberta no Firefox e o Atlas no app de desktop, a primeira resposta de qualquer ferramenta traz o aviso com os dois lugares, e o Claude pede para fechar um deles.
+Commit: warn when bridge tabs use different storage
