@@ -38,23 +38,36 @@ const campoLargura = (padrao: number, min: number, max: number) => [{ id: 'largu
 export const RECEITAS_DE_ARMAS: Receita[] = [
   piso1('suporte-de-armas', 'Suporte de armas', 'armazenamento', ['forja', 'porao', 'corredor'], ['arma', 'armas', 'espada', 'machado', 'maca', 'suporte', 'arsenal', 'cavalete'], [1.6, 0.5], { campos: campoLargura(1.6, 1, 3) },
     p => {
-      const w = num(p, 'largura', 1.6, 1, 3), r = mulberry32(p.seed), n = Math.floor((w - 0.3) / 0.34) + 1, x0 = -((n - 1) * 0.34) / 2, partes: Parte[] = [ret(0, 0, w, 0.5, 'madeira.escura', 0.5, { raio: 0.02 }), ret(0, -0.15, w - 0.04, 0.07, 'madeira.media', 0.9, VOL), ret(0, 0.15, w - 0.04, 0.07, 'madeira.media', 0.9, VOL), ...[-1, 1].map(s => ret(s * (w / 2 - 0.04), 0, 0.08, 0.5, 'madeira.escura', 0.95, VOL))];
+      const w = num(p, 'largura', 1.6, 1, 3), r = mulberry32(p.seed), n = Math.floor((w - 0.3) / 0.34) + 1, x0 = -((n - 1) * 0.34) / 2;
+      const partes: Parte[] = [ret(0, -0.2, w, 0.07, 'madeira.media', 0.5), ret(0, 0.05, w, 0.07, 'madeira.media', 0.5), ...[-1, 1].map(s => ret(s * (w / 2 - 0.04), -0.075, 0.08, 0.34, 'madeira.escura', 0.45, VOL))];
+      const tipos = [0, 0, 1, 2]; // 2 espadas, machado, maça
+      for (let i = tipos.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [tipos[i], tipos[j]] = [tipos[j]!, tipos[i]!]; }
       for (let i = 0; i < n; i++) {
-        const x = x0 + i * 0.34, k = Math.floor(r() * 3);
-        if (k === 0) partes.push(ret(x, 0, 0.22, 0.04, 'latao', 1.1, VOL), elipse(x, 0, 0.07, 0.07, 'latao', 1.3, MIUDO)); // espada: guarda e pomo
-        else if (k === 1) partes.push(elipse(x, 0, 0.26, 0.07, ACO, 1.15, VOL), elipse(x, 0, 0.045, 0.045, 'madeira.media', 1.3, MIUDO)); // machado: cabeça e cabo
-        else partes.push(elipse(x, 0, 0.13, 0.13, 'ferro', 1.2, VOL), ...[0, 1, 2, 3].map(j => elipse(x + Math.cos(j * Math.PI / 2) * 0.07, Math.sin(j * Math.PI / 2) * 0.07, 0.035, 0.035, ACO_C, 1.25, MIUDO))); // maça
+        const k = tipos[i % 4]!, x = x0 + i * 0.34, a = Math.PI / 2 + (r() - 0.5) * 0.3, len = k === 0 ? 0.62 : 0.56, cx = x + Math.cos(a) * len / 2, cy = -0.2 + Math.sin(a) * len / 2, tx = x + Math.cos(a) * (len - 0.1), ty = -0.2 + Math.sin(a) * (len - 0.1);
+        if (k === 0) partes.push(...espada(cx, cy, a, len, 1.0 + i * 0.01));
+        else if (k === 1) partes.push(...machado(cx, cy, a, len, 1.0 + i * 0.01, r() < 0.5 ? 1 : -1));
+        else partes.push(seg(cx, cy, a, -len / 2, len / 2 - 0.08, 0.04, 'madeira.media', 1.0 + i * 0.01), P(tx, ty, a, Array.from({ length: 24 }, (_, j) => (j % 2 ? Math.sin : Math.cos)(Math.floor(j / 2) * Math.PI / 6) * (Math.floor(j / 2) % 2 ? 0.075 : 0.14)), 'ferro', 1.03 + i * 0.01, MIUDO), elipse(tx, ty, 0.15, 0.15, 'ferro', 1.04 + i * 0.01, VOL), elipse(tx, ty, 0.06, 0.06, ACO_C, 1.05 + i * 0.01, MIUDO));
       }
       return piso([w, 0.5], partes);
     }),
   piso1('suporte-de-lancas', 'Suporte de lanças', 'armazenamento', ['forja', 'porao', 'corredor'], ['lanca', 'lancas', 'haste', 'pique', 'suporte', 'arsenal'], [1.2, 0.4], {},
     p => {
-      const r = mulberry32(p.seed), n = 5 + Math.floor(r() * 3), passo = 0.96 / (n - 1), partes: Parte[] = [ret(0, 0, 1.2, 0.4, 'madeira.escura', 0.5, { raio: 0.02 }), ret(0, -0.1, 1.16, 0.08, 'madeira.media', 1.0, VOL), ret(0, 0.1, 1.16, 0.08, 'madeira.media', 1.0, VOL), ...[-1, 1].map(s => ret(s * 0.56, 0, 0.08, 0.4, 'madeira.escura', 1.05, VOL))];
-      for (let i = 0; i < n; i++) { const x = -0.48 + i * passo, y = (r() - 0.5) * 0.14; partes.push(elipse(x, y, 0.05, 0.05, 'madeira.clara', 1.7, VOL), poli([x - 0.035, y, x, y - 0.05, x + 0.035, y, x, y + 0.05], ACO, 2.0, { contorno: 'leve', detalhe: 3 })); }
+      const r = mulberry32(p.seed), n = 5 + Math.floor(r() * 3), partes: Parte[] = [ret(0, -0.155, 1.16, 0.09, 'madeira.escura', 0.5, { raio: 0.02 }), ...[-1, 1].map(s => ret(s * 0.54, -0.16, 0.12, 0.18, 'madeira.escura', 0.55, VOL))];
+      for (let i = 0; i < n; i++) {
+        const t = i / (n - 1) - 0.5, x = t * 0.84, a = Math.PI / 2 - t * 0.7 + (r() - 0.5) * 0.06, len = 0.4 + r() * 0.02, z = 1.0 + i * 0.01;
+        partes.push(seg(x, -0.14, a, 0, len - 0.12, 0.045, 'madeira.clara', z, VOL), P(x, -0.14, a, [len - 0.15, 0, len - 0.09, -0.05, len + 0.02, 0, len - 0.09, 0.05], ACO, z + 0.5, { ...VOL, detalhe: 3 }));
+      }
+      partes.push(ret(0, -0.11, 1.0, 0.035, 'couro.marrom', 1.3, VOL));
       return piso([1.2, 0.4], partes);
     }),
   piso1('manequim-de-armadura', 'Armadura em suporte', 'decoracao', ['forja', 'corredor', 'sala', 'quarto'], ['armadura', 'manequim', 'elmo', 'cavaleiro', 'peitoral', 'suporte'], [0.7, 0.6], {},
-    () => piso([0.7, 0.6], [ret(0, 0, 0.7, 0.08, 'madeira.escura', 0.1, { raio: 0.02 }), ret(0, 0, 0.08, 0.6, 'madeira.escura', 0.11, { raio: 0.02 }), elipse(0, 0.02, 0.36, 0.22, ACO, 1.3, VOL), ...[-1, 1].map(s => elipse(s * 0.21, 0, 0.18, 0.2, ACO, 1.4, VOL)), ...[-1, 1].map(s => elipse(s * 0.21, 0, 0.12, 0.13, ACO_C, 1.42, MIUDO)), ret(0, 0.03, 0.03, 0.2, ACO_C, 1.33, MIUDO), ...elmo(0, -0.02, 0.22, 1.7, VOL), ret(0, -0.02, 0.04, 0.24, VINHO, 1.8, MIUDO)])),
+    p => {
+      const r = mulberry32(p.seed), pano = r() < 0.5 ? VINHO : '#2a3f6b', crista = r() < 0.5 ? '#b02a2a' : '#e8e2d0', MALHA = '#7d828c';
+      return piso([0.7, 0.6], [ret(0, 0, 0.7, 0.08, 'madeira.escura', 0.1, { raio: 0.02 }), ret(0, 0, 0.08, 0.6, 'madeira.escura', 0.11, { raio: 0.02 }),
+        ...[-1, 1].map(s => elipse(s * 0.33, 0.08, 0.14, 0.4, MALHA, 1.2, VOL)), elipse(0, 0.08, 0.5, 0.42, ACO, 1.3, VOL), ret(0, 0.08, 0.05, 0.38, ACO_C, 1.33, MIUDO), ret(0, 0.14, 0.17, 0.34, pano, 1.36, { ...VOL, raio: 0.02 }),
+        ...[-1, 1].map(s => elipse(s * 0.26, -0.04, 0.22, 0.22, ACO_C, 1.45, { detalhe: 2 })), ...[-1, 1].map(s => elipse(s * 0.26, -0.04, 0.12, 0.12, ACO, 1.46, MIUDO)),
+        ...elmo(0, -0.04, 0.25, 1.7, VOL), ret(0, -0.06, 0.05, 0.3, crista, 1.82, VOL), ret(0, 0.05, 0.14, 0.03, '#0e0a08', 1.83, MIUDO)]);
+    }),
   piso1('mesa-de-armas', 'Mesa do armeiro', 'mesas', ['forja', 'porao'], ['mesa', 'armeiro', 'bancada', 'espada', 'elmo', 'adaga', 'rustica'], [1.8, 0.8], {},
     p => {
       const r = mulberry32(p.seed), ex = { sombraLeve: true };
@@ -64,8 +77,12 @@ export const RECEITAS_DE_ARMAS: Receita[] = [
     }),
   piso1('barril-de-flechas', 'Barril de flechas', 'armazenamento', ['forja', 'porao'], ['barril', 'flecha', 'flechas', 'arqueiro', 'aljava', 'penas'], [0.6, 0.6], {},
     p => {
-      const r = mulberry32(p.seed), cores = ['#7a1f24', '#d9d2c0', '#2a3f6b', '#b97d3d', '#2f4a32'], partes: Parte[] = [elipse(0, 0, 0.6, 0.6, 'madeira.escura', 0.8, { contorno: 'leve' }), elipse(0, 0, 0.5, 0.5, '#2a1a10', 0.82, VOL), elipse(0, 0, 0.55, 0.55, 'ferro', 0.81, { contorno: false, semSombra: true, detalhe: 2 })];
-      for (let i = 0; i < 8; i++) { const a = r() * Math.PI * 2, d = Math.sqrt(r()) * 0.17, x = Math.cos(a) * d, y = Math.sin(a) * d, z = 0.9 + r() * 0.1; partes.push(elipse(x, y, 0.025, 0.025, 'madeira.clara', z, MIUDO), elipse(x + 0.02, y - 0.02, 0.06, 0.07, cores[Math.floor(r() * cores.length)]!, z + 0.003, MIUDO)); }
+      const r = mulberry32(p.seed), cores = ['#f2efe6', '#c8302a', '#2f5fc0', '#3f9a4a'], n = 10 + Math.floor(r() * 3), a0 = r() * Math.PI,
+        partes: Parte[] = [elipse(0, 0, 0.6, 0.6, 'ferro', 0.8), elipse(0, 0, 0.54, 0.54, 'madeira.clara', 0.81, VOL), elipse(0, 0, 0.42, 0.42, 'ferro', 0.82, VOL), elipse(0, 0, 0.38, 0.38, '#2a1a10', 0.83, MIUDO)];
+      for (let i = 0; i < n; i++) {
+        const a = a0 + (i + (r() - 0.5) * 0.5) * Math.PI * 2 / n, z = 0.9 + (i % 3) * 0.02, c = cores[Math.floor(r() * cores.length)]!;
+        partes.push(seg(0, 0, a, 0.17, 0.3, 0.028, 'madeira.clara', z, MIUDO), P(0, 0, a, [0.23, 0, 0.375, -0.065, 0.33, 0, 0.375, 0.065], c, z + 0.01, { contorno: 'leve', semSombra: true, detalhe: 3 }));
+      }
       return piso([0.6, 0.6], partes);
     }),
   piso1('escudos-empilhados', 'Escudos encostados', 'decoracao', ['forja', 'porao', 'corredor'], ['escudo', 'escudos', 'broquel', 'brasao', 'heraldica', 'pilha'], [1.0, 0.7], {},

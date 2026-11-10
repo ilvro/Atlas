@@ -133,3 +133,48 @@ Acampamento (categoria `exterior`, função `jardim`):
 Testes: todos os ids existem com o tipo certo; `fogueira` e `tear` variam com a semente e são determinísticos; `tenda` e `estandarte` usam o material pedido; `tocha.parede` e `grilhoes.parede` são de parede com `topo` não vazio.
 Pronto quando: 17 receitas no arquivo, `typecheck` e `npm test` verdes.
 Commit: `fire, crafts, dungeon and camp recipes`
+
+---
+
+## Segunda rodada (revisão das pranchas)
+
+Conferência visual: `node <scratchpad>/prancha.ts <pasta-de-saída> armas` assa as receitas de um arquivo no Ilustrado e grava `<pasta>/armas.png` (o caminho do script vai no pedido; ele não entra no repositório).
+
+### M5 — Redesenhar quatro armamentos fracos  ✅
+Objetivo: quatro receitas de `armas.ts` não se leem de cima na prancha; refazer o desenho sem mudar id, nome, pegada, categoria, funções nem campos.
+Arquivos: mudar `src/procedural/receitas/armas.ts` (só as quatro receitas abaixo e, se preciso, ajudantes novos no topo do arquivo); ajustar `tests/unit/acervo-armas.test.ts` só se o teto de partes atrapalhar.
+O que está errado e o que se espera:
+- `barril-de-flechas`: hoje é um disco escuro com pontinhos. Quero aro de madeira clara e ferro bem marcados, interior escuro só no fundo, e 10 a 14 flechas **de pé e inclinadas para fora**: cada uma é uma haste curta que passa da borda do barril e termina numa pena em V (dois triângulos claros: branco, vermelho, azul, verde, pela semente). As penas são o que se vê de cima e precisam ser claras e grandes (≈ 6–8 cm). Para caber no teto de partes, a pena pode ser um único `poli` em V.
+- `suporte-de-armas`: hoje é uma caixa com pontinhos. Um cavalete visto de cima são duas travessas finas paralelas (frente e trás) com as armas **encostadas e inclinadas para +y**, cada uma longa e reconhecível: 2 espadas (lâmina clara de 0,7 m a 0,9 m com guarda), 1 machado (cabeça de aço em crescente), 1 maça (cabeça redonda com cravos); a ordem varia pela semente. As armas saem um pouco da pegada para a frente (dentro da folga de 25%).
+- `suporte-de-lancas`: travessa com 5 a 7 lanças **em leque**, hastes de madeira clara longas que se abrem para +y e terminam em pontas de aço em folha bem visíveis; base pesada atrás.
+- `manequim-de-armadura`: hoje miúdo. Ocupar a pegada: ombreiras grandes e claras (`#c8ccd4` com contorno), peitoral (elipse larga de aço, com faixa central e, pela semente, tabardo vinho ou azul por cima), elmo redondo grande no centro com fenda da viseira escura voltada para +y e crista (vermelha ou pluma), braços de malha pendentes dos lados, base em cruz de madeira só nas pontas.
+Não fazer: mudar outras receitas; mudar a pegada; mexer em outros arquivos.
+Testes: os de `acervo-armas.test.ts` e `receitas.test.ts` seguem verdes (se uma das quatro passar de 25 partes, o teto do teste pode ir a 30 só para ela).
+Verificar: `npm run typecheck`, `npm test` e a prancha de `armas`, olhando a imagem e conferindo que as quatro se reconhecem.
+Pronto quando: as quatro se leem na prancha; typecheck e testes verdes.
+Commit: `clearer weapon rack, spear rack, arrow barrel and armor stand`
+
+### M6 — Mobiliar automático usa o acervo medieval  ✅
+Objetivo: cômodos mobiliados no gênero fantasia passam a receber as receitas novas.
+Ler: `src/authoring/regras-mobilia.ts` inteiro (`REGRAS_DE_MOBILIA`, `VARIACOES_DE_GENERO`, `regrasPara`), `src/authoring/layout.ts` (como `lugar`, `quantos`, `junto` e `sobre` são usados), `tests/unit/regras-mobilia.test.ts`, `tests/unit/kit-moderno.test.ts`, `tests/unit/kit-detalhes.test.ts`, `tests/unit/kit-investigacao.test.ts`.
+Arquivos: mudar `src/authoring/regras-mobilia.ts`; criar `tests/unit/mobilia-medieval.test.ts`.
+Como (o mecanismo já existe): `regrasPara` tira das alternativas, para cada gênero, as receitas cujo `generos` não o inclui, e um item sem alternativa some (com quem dependia dele). Logo:
+- **Itens novos** entram em `REGRAS_DE_MOBILIA` com receitas só de fantasia: aparecem na fantasia e somem sozinhos no moderno e na investigação. Os de igreja (`generos: ['fantasia', 'investigacao']`) aparecem também na investigação, o que é desejado.
+- **Trocas** de algo que já existe vão em `VARIACOES_DE_GENERO.fantasia.trocar`.
+- Todo item novo com `quantos` mínimo 0, exceto onde dito. Prioridades depois das existentes da função (use decimais), para não tirar lugar do que já entra hoje.
+Itens novos por função (id do item — receitas — lugar — quantos — extra):
+- capela: `pulpito` — pulpito — canto — [0,1] — areaMinima 16; `pia-batismal` — pia-batismal — canto — [0,1] — areaMinima 14; `tocheiro` — tocheiro — junto de `altar`, ao-lado — [1,2]; `velas` — velas-votivas — parede — [0,1]; `confessionario` — confessionario — parede — [0,1] — areaMinima 24, alto; `imagem` — imagem-de-santo — canto — [0,2] — areaMinima 12; `orgao` — orgao-de-tubos — parede — [0,1] — areaMinima 30, alto; na-parede: `vitral` — vitral — [1,2]; `crucifixo` — crucifixo, icone.parede — [0,2]; `agua-benta` — pia-de-agua-benta — [0,1].
+- forja: `amolar` — pedra-de-amolar — parede — [0,1]; `tina` — tina-de-agua — junto de `bigorna`, ao-lado — [0,1]; `suporte-armas` — suporte-de-armas, suporte-de-lancas — parede — [0,1] — alto; `mesa-armas` — mesa-de-armas, bancada.trabalho — parede — [0,1] — areaMinima 14; `armadura` — manequim-de-armadura — canto — [0,1] — areaMinima 12; `flechas` — barril-de-flechas — canto — [0,1]; na-parede: `tocha` — tocha.parede — [1,2]; `armas-parede` — escudo.parede, machados.cruzados, lancas.parede — [0,2]. Troca na fantasia: `forja:lareira` → fornalha.
+- taverna: na-parede `tocha` — tocha.parede — [0,2]; item existente `espadas` passa a ter as alternativas espadas.cruzadas, machados.cruzados, escudo.parede, arco.parede (todas de fantasia; a investigação já não recebia espadas.cruzadas); `espeto` — espeto-de-assar — parede — [0,1] — areaMinima 20. Trocas na fantasia: `taverna:mesa` → mesa.taverna, mesa.redonda-rustica; `taverna:cadeira` → banco, banqueta.
+- cozinha: `caldeirao` — caldeirao — canto — [0,1]; `espeto` — espeto-de-assar — parede — [0,1] — areaMinima 14; `tina` — tina-de-agua — canto — [0,1]. Trocas na fantasia: `cozinha:mesa` → mesa.taverna, mesa.cavalete; `cozinha:cadeira` → banco, banqueta.
+- quarto: `roca` — roca-de-fiar — canto — [0,1] — areaMinima 10; `tear` — tear — parede — [0,1] — areaMinima 14. Trocas na fantasia: `quarto:cama` → catre, enxergao; `quarto:cama.casal` → cama.dossel.
+- sala: `estandarte` — estandarte — canto — [0,2] — areaMinima 16; `armadura` — manequim-de-armadura — canto — [0,1] — areaMinima 16; `tocheiro` — tocheiro — canto — [0,1].
+- sala-de-jantar: trocas na fantasia `sala-de-jantar:mesa` → mesa.cavalete, mesa.banquete; `sala-de-jantar:cadeira` → cadeira.espaldar.
+- corredor: na-parede `tocha` — tocha.parede — [0,2]; `armadura` — manequim-de-armadura — canto — [0,1]; `estandarte` — estandarte — canto — [0,1]; na-parede `armas-parede` — escudo.parede, lancas.parede — [0,1].
+- porao: `escada` — escada.madeira, escada.pedra — parede — [0,1] — areaMinima 10, alto; na-parede `tocha` — tocha.parede — [0,2].
+- hospital: troca na fantasia `hospital:cama` → catre, enxergao.
+Não fazer: masmorra (gaiola, potro, tronco, grilhões), sarcófago, caixão, armas de cerco e acampamento **não** entram no automático (não há função de cômodo para eles e não cabem num porão qualquer); não criar funções de cômodo; não mexer em `layout.ts`, receitas, exemplos (`public/exemplos/`) nem no assistente. Se um teste existente que fixa o resultado do mobiliar mudar para investigação ou moderno, pare e reporte em vez de atualizar o esperado (exceto capela na investigação, que pode mudar por causa dos itens de igreja).
+Testes (`mobilia-medieval.test.ts`): toda receita citada nas regras e nas trocas existe no acervo; `regrasPara('forja', 'fantasia')` tem fornalha e tocha.parede; `regrasPara('capela', 'investigacao')` tem vitral e púlpito; `regrasPara(f, 'moderno')` não tem nenhuma receita do kit fantasia para todas as funções; mobiliar (pela mesma função que os testes de layout já usam) uma capela, uma forja e uma taverna de 6×5 m na fantasia dá objetos sem sobreposição bloqueante (use o critério que os testes de layout existentes usam) e com pelo menos uma receita nova cada.
+Verificar: `npm run typecheck` e `npm test`.
+Pronto quando: os testes novos e todos os existentes verdes.
+Commit: `auto-furnish uses medieval recipes in fantasy rooms`
