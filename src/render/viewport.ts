@@ -85,7 +85,7 @@ export interface PonteViewport {
 const DURACAO_PADRAO_DA_TRANSICAO = 1600;
 
 /** O resultado de `capturar`: a imagem e como ler coordenadas nela (a origem da caixa é o canto superior esquerdo da imagem). */
-export interface Captura { dataUrl: string; largura: number; altura: number; pxPorMetro: number; caixa: Caixa }
+export interface Captura { dataUrl: string; largura: number; altura: number; pxPorMetro: number; caixa: Caixa; /** Tamanho do JPEG em bytes. */ bytes: number; /** Qualidade JPEG usada (0 a 1). */ qualidade: number }
 
 export interface Viewport {
   readonly camera: Camera;
@@ -1014,7 +1014,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     const m = doc(), pedida = opcoes.caixa ?? { x0: 0, y0: 0, x1: m.bounds.width, y1: m.bounds.height };
     const caixa = { x0: Math.max(0, Math.min(pedida.x0, pedida.x1)), y0: Math.max(0, Math.min(pedida.y0, pedida.y1)), x1: Math.min(m.bounds.width, Math.max(pedida.x0, pedida.x1)), y1: Math.min(m.bounds.height, Math.max(pedida.y0, pedida.y1)) };
     if (caixa.x1 - caixa.x0 < 0.5 || caixa.y1 - caixa.y0 < 0.5) throw new Error('A caixa está fora do mapa ou é pequena demais.');
-    const ladoMaximo = Math.max(64, Math.round(opcoes.ladoMaximo ?? 1568));
+    const ladoMaximo = Math.max(64, Math.round(opcoes.ladoMaximo ?? 1280));
     const camera0 = camera, modo0 = modoProjetor;
     try {
       camAnim = null;
@@ -1029,8 +1029,24 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       const x = Math.max(0, Math.floor(ax)), y = Math.max(0, Math.floor(ay)), w = Math.max(1, Math.min(app.screen.width, Math.ceil(bx)) - x), h = Math.max(1, Math.min(app.screen.height, Math.ceil(by)) - y);
       const resolucao = Math.min(2, ladoMaximo / Math.max(w, h));
       const tela_ = app.renderer.extract.canvas({ target: app.stage, frame: new Rectangle(x, y, w, h), resolution: resolucao, clearColor: app.renderer.background.color });
-      const dataUrl = (tela_ as HTMLCanvasElement).toDataURL('image/png');
-      return { dataUrl, largura: tela_.width, altura: tela_.height, pxPorMetro: Math.round(camera.zoom * resolucao * 100) / 100, caixa };
+      // JPEG com teto de tamanho (o app do Claude recusa resultados grandes): baixa a qualidade e depois o lado.
+      const LIMITE_BASE64 = 700_000;
+      let fonte = tela_ as HTMLCanvasElement, lado = Math.max(fonte.width, fonte.height), dataUrl = '', qualidade = 0.85;
+      for (;;) {
+        for (const q of [0.85, 0.75, 0.65]) {
+          qualidade = q; dataUrl = fonte.toDataURL('image/jpeg', q);
+          if (dataUrl.length - dataUrl.indexOf(',') - 1 <= LIMITE_BASE64) break;
+        }
+        if (dataUrl.length - dataUrl.indexOf(',') - 1 <= LIMITE_BASE64 || lado <= 512) break;
+        lado = Math.max(512, Math.round(lado * 0.8));
+        const f = lado / Math.max(fonte.width, fonte.height), menor = document.createElement('canvas');
+        menor.width = Math.max(1, Math.round(fonte.width * f)); menor.height = Math.max(1, Math.round(fonte.height * f));
+        const g = menor.getContext('2d')!; g.imageSmoothingQuality = 'high'; g.drawImage(fonte, 0, 0, menor.width, menor.height);
+        fonte = menor;
+      }
+      const b64 = dataUrl.length - dataUrl.indexOf(',') - 1, bytes = Math.floor(b64 * 3 / 4) - (dataUrl.endsWith('==') ? 2 : dataUrl.endsWith('=') ? 1 : 0);
+      const reducao = fonte.width / tela_.width;
+      return { dataUrl, largura: fonte.width, altura: fonte.height, pxPorMetro: Math.round(camera.zoom * resolucao * reducao * 100) / 100, caixa, bytes, qualidade };
     } finally {
       projetor(modo0);
       definirCamera(camera0);
