@@ -64,3 +64,27 @@ test('capturar: o mapa grande (porto-noturno) sai em JPEG com base64 até 700 00
     assert.deepEqual(erros, []);
   } finally { await ctx.close(); }
 });
+
+test('capturar: o modo projetor esconde os fantasmas (ferramenta, proposta, laço) e os devolve ao sair', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  try {
+    const mapa = JSON.parse(readFileSync(new URL('../../public/exemplos/covil-na-caverna.atlas.json', import.meta.url), 'utf8'));
+    await page.evaluate(async m => { await (window as unknown as { __atlas: { servicos(): { repo: { salvar(m: unknown, o?: unknown): Promise<unknown> } } } }).__atlas.servicos().repo.salvar(m, { forcar: true }); }, mapa);
+    await page.evaluate(id => { location.hash = `#/mapa/${encodeURIComponent(id)}`; }, mapa.id);
+    await esperarEditor(page);
+    const r = await page.evaluate(async () => {
+      type V = { definirModoProjetor(l: boolean): void; fantasmasVisiveis(): { ferramenta: boolean; proposta: boolean; laco: boolean }; capturar(o?: unknown): Promise<unknown> };
+      const v = (window as unknown as { __atlas: { viewport(): V } }).__atlas.viewport();
+      const antes = v.fantasmasVisiveis();
+      v.definirModoProjetor(true); const projetor = v.fantasmasVisiveis();
+      v.definirModoProjetor(false); const depois = v.fantasmasVisiveis();
+      await v.capturar({ ladoMaximo: 400 }); const aposCaptura = v.fantasmasVisiveis();
+      return { antes, projetor, depois, aposCaptura };
+    });
+    assert.deepEqual(r.antes, { ferramenta: true, proposta: true, laco: true });
+    assert.deepEqual(r.projetor, { ferramenta: false, proposta: false, laco: false });
+    assert.deepEqual(r.depois, r.antes);
+    assert.deepEqual(r.aposCaptura, r.antes);
+    assert.deepEqual(erros, []);
+  } finally { await ctx.close(); }
+});
