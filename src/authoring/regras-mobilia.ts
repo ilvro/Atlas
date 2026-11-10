@@ -45,6 +45,9 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('enfeite-mesinha', ['abajur.mesa', 'relogio.mesa', 'vaso.flores', 'livro.aberto', 'notebook'], 'sobre', [1, 2], 11, { junto: { de: 'mesinha', modo: 'ao-lado' } }),
     item('cesto', ['cesto.roupa'], 'canto', [0, 1], 12),
     item('sapatos', ['sapatos'], 'parede', [0, 1], 13),
+    item('roca', ['roca-de-fiar'], 'canto', [0, 1], 14, { areaMinima: 10 }),
+    item('tear', ['tear'], 'parede', [0, 1], 15, { areaMinima: 14 }),
+
   ],
   sala: [
     item('lareira', ['lareira.marmore'], 'parede', [1, 1], 1, { alto: true, areaMinima: 12 }),
@@ -67,6 +70,9 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('luminaria', ['luminaria.chao'], 'canto', [0, 1], 13),
     item('enfeite-mesinha', ['vaso.flores', 'castical.mesa', 'abajur.mesa', 'relogio.mesa', 'bule.xicaras'], 'sobre', [1, 2], 14, { junto: { de: 'mesinha', modo: 'ao-lado' } }),
     item('enfeite-aparador', ['castical.mesa', 'vaso.flores', 'relogio.mesa', 'garrafa.tacas', 'tabuleiro.xadrez'], 'sobre', [1, 2], 15, { junto: { de: 'aparador', modo: 'ao-lado' } }),
+    item('estandarte', ['estandarte'], 'canto', [0, 2], 16, { areaMinima: 16 }),
+    item('armadura', ['manequim-de-armadura'], 'canto', [0, 1], 17, { areaMinima: 16 }),
+    item('tocheiro', ['tocheiro'], 'canto', [0, 1], 18),
   ],
   cozinha: [
     item('balcao', ['balcao'], 'parede', [1, 2], 1, { params: { largura: 2.6 } }),
@@ -81,6 +87,9 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('relogio-parede', ['relogio.parede'], 'na-parede', [0, 1], 9.5),
     item('painel', ['painel.azulejo'], 'na-parede', [0, 1], 9.6),
     item('servico', ['fruteira', 'bule.xicaras', 'pratos.servico', 'garrafa.tacas'], 'sobre', [1, 3], 10, { junto: { de: 'mesa', modo: 'ao-redor' } }),
+    item('caldeirao', ['caldeirao'], 'canto', [0, 1], 11),
+    item('espeto', ['espeto-de-assar'], 'parede', [0, 1], 12, { areaMinima: 14 }),
+    item('tina', ['tina-de-agua'], 'canto', [0, 1], 13),
   ],
   biblioteca: [
     item('estante', ['estante'], 'na-parede', [2, 3], 1),
@@ -132,6 +141,10 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('espelho', ['espelho', 'espelho.grande'], 'na-parede', [0, 1], 3.6),
     item('relogio-parede', ['relogio.parede'], 'na-parede', [0, 1], 3.7),
     item('enfeite-aparador', ['vaso.flores', 'castical.mesa', 'relogio.mesa', 'telefone.antigo'], 'sobre', [1, 2], 7, { junto: { de: 'aparador', modo: 'ao-lado' } }),
+    item('tocha', ['tocha.parede'], 'na-parede', [0, 2], 8),
+    item('armadura', ['manequim-de-armadura'], 'canto', [0, 1], 9),
+    item('estandarte', ['estandarte'], 'canto', [0, 1], 10),
+    item('armas-parede', ['escudo.parede', 'lancas.parede'], 'na-parede', [0, 1], 11),
   ],
   'sala-de-jantar': [
     item('mesa', ['mesa.oval'], 'centro', [1, 1], 1, { areaMinima: 10 }),
@@ -145,6 +158,7 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('cortina', ['cortina.janela'], 'na-parede', [0, 1], 7.6, { areaMinima: 10 }),
     item('relogio-parede', ['relogio.parede'], 'na-parede', [0, 1], 7.7),
     item('servico', ['bule.xicaras', 'candelabro', 'castical.mesa', 'fruteira', 'garrafa.tacas', 'pratos.servico'], 'sobre', [2, 4], 8, { junto: { de: 'mesa', modo: 'ao-redor' } }),
+
   ],
   'sala-de-jogos': [
     item('bilhar', ['mesa.bilhar'], 'centro', [1, 1], 1, { areaMinima: 14 }),
@@ -166,6 +180,16 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('arandela', ['arandela'], 'na-parede', [2, 4], 6),
     item('brasao', ['brasao'], 'na-parede', [0, 1], 7),
     item('altar-velas', ['candelabro', 'castical.mesa'], 'sobre', [1, 2], 8, { junto: { de: 'altar', modo: 'ao-lado' } }),
+    item('pulpito', ['pulpito'], 'canto', [0, 1], 9, { areaMinima: 16 }),
+    item('pia-batismal', ['pia-batismal'], 'canto', [0, 1], 10, { areaMinima: 14 }),
+    item('tocheiro', ['tocheiro'], 'junto', [1, 2], 11, { junto: { de: 'altar', modo: 'ao-lado' } }),
+    item('velas', ['velas-votivas'], 'parede', [0, 1], 12),
+    item('confessionario', ['confessionario'], 'parede', [0, 1], 13, { areaMinima: 24, alto: true }),
+    item('imagem', ['imagem-de-santo'], 'canto', [0, 2], 14, { areaMinima: 12 }),
+    item('orgao', ['orgao-de-tubos'], 'parede', [0, 1], 15, { areaMinima: 30, alto: true }),
+    item('vitral', ['vitral'], 'na-parede', [1, 2], 16),
+    item('crucifixo', ['crucifixo', 'icone.parede'], 'na-parede', [0, 2], 17),
+    item('agua-benta', ['pia-de-agua-benta'], 'na-parede', [0, 1], 18),
   ],
   forja: [
     item('bigorna', ['bigorna'], 'centro', [1, 1], 1, { areaMinima: 8 }),
@@ -173,6 +197,14 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('barril', ['barril.em-pe', 'barril.deitado'], 'canto', [1, 3], 3),
     item('prateleira', ['prateleira.pocoes'], 'parede', [0, 1], 4, { alto: true }),
     item('bau', ['bau'], 'parede', [0, 1], 5),
+    item('amolar', ['pedra-de-amolar'], 'parede', [0, 1], 6),
+    item('tina', ['tina-de-agua'], 'junto', [0, 1], 7, { junto: { de: 'bigorna', modo: 'ao-lado' } }),
+    item('suporte-armas', ['suporte-de-armas', 'suporte-de-lancas'], 'parede', [0, 1], 8, { alto: true }),
+    item('mesa-armas', ['mesa-de-armas', 'bancada.trabalho'], 'parede', [0, 1], 9, { areaMinima: 14 }),
+    item('armadura', ['manequim-de-armadura'], 'canto', [0, 1], 10, { areaMinima: 12 }),
+    item('flechas', ['barril-de-flechas'], 'canto', [0, 1], 11),
+    item('tocha', ['tocha.parede'], 'na-parede', [1, 2], 12),
+    item('armas-parede', ['escudo.parede', 'machados.cruzados', 'lancas.parede'], 'na-parede', [0, 2], 13),
   ],
   varanda: [
     item('escada', ['escada.externa'], 'parede', [1, 1], 1, { areaMinima: 8 }),
@@ -199,14 +231,18 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('lareira', ['lareira.pedra'], 'parede', [0, 1], 6, { alto: true, areaMinima: 14 }),
     item('trofeu', ['trofeu.cervo'], 'na-parede', [0, 1], 7),
     item('tapecaria', ['tapecaria'], 'na-parede', [0, 2], 7.5),
-    item('espadas', ['espadas.cruzadas'], 'na-parede', [0, 1], 7.6),
+    item('espadas', ['espadas.cruzadas', 'machados.cruzados', 'escudo.parede', 'arco.parede'], 'na-parede', [0, 1], 7.6),
     item('brasao', ['brasao'], 'na-parede', [0, 1], 7.7),
     item('arandela', ['arandela'], 'na-parede', [1, 3], 7.8),
     item('servico', ['garrafa.tacas', 'castical.mesa', 'pratos.servico', 'candelabro'], 'sobre', [2, 4], 8, { junto: { de: 'mesa', modo: 'ao-redor' } }),
+    item('tocha', ['tocha.parede'], 'na-parede', [0, 2], 9),
+    item('espeto', ['espeto-de-assar'], 'parede', [0, 1], 10, { areaMinima: 20 }),
   ],
   porao: [
     item('caixote-canto', ['caixa'], 'canto', [2, 4], 1),
     item('caixote-parede', ['caixa'], 'parede', [2, 5], 2),
+    item('escada', ['escada.madeira', 'escada.pedra'], 'parede', [0, 1], 3, { areaMinima: 10, alto: true }),
+    item('tocha', ['tocha.parede'], 'na-parede', [0, 2], 4),
   ],
 };
 
@@ -226,8 +262,9 @@ export const VARIACOES_DE_GENERO: Readonly<Record<string, { trocar?: Record<stri
   fantasia: {
     sem: ['cozinha:balcao'],
     trocar: {
-      'taverna:cadeira': ['banco'], 'cozinha:cadeira': ['banco'], 'sala:sofa': ['banco'], 'taverna:mesa': ['mesa.taverna'], 'taverna:banco': ['banco.longo'], 'cozinha:mesa': ['mesa.taverna'],
-      'quarto:cama': ['catre'], 'quarto:cama.casal': ['catre'], 'quarto:armario': ['bau'], 'quarto:comoda': ['bau'], 'porao:caixote-canto': ['barril.em-pe'], 'porao:caixote-parede': ['barril.deitado', 'caixa'], 'sala:lareira': ['lareira.pedra'],
+      'taverna:cadeira': ['banco', 'banqueta'], 'cozinha:cadeira': ['banco', 'banqueta'], 'sala:sofa': ['banco'], 'taverna:mesa': ['mesa.taverna', 'mesa.redonda-rustica'], 'taverna:banco': ['banco.longo'], 'cozinha:mesa': ['mesa.taverna', 'mesa.cavalete'],
+      'quarto:cama': ['catre', 'enxergao'], 'quarto:cama.casal': ['cama.dossel'], 'quarto:armario': ['bau'], 'quarto:comoda': ['bau'], 'porao:caixote-canto': ['barril.em-pe'], 'porao:caixote-parede': ['barril.deitado', 'caixa'], 'sala:lareira': ['lareira.pedra'],
+      'forja:lareira': ['fornalha'], 'sala-de-jantar:mesa': ['mesa.cavalete', 'mesa.banquete'], 'sala-de-jantar:cadeira': ['cadeira.espaldar'], 'hospital:cama': ['catre', 'enxergao'],
     },
   },
 };

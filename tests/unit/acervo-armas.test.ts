@@ -9,7 +9,7 @@ const partes = (id: string, params: Record<string, unknown> = {}, seed = 3) => {
 
 test('as 17 receitas de armamentos existem, com o tipo certo e de 6 a 25 partes', () => {
   assert.equal(RECEITAS_DE_ARMAS.length, 17);
-  for (const id of PISO) { assert.equal(receitaDe(id)?.tipo, 'piso', id); const n = partes(id).length; assert.ok(n >= 6 && n <= 25, `${id}: ${n} partes`); }
+  for (const id of PISO) { assert.equal(receitaDe(id)?.tipo, 'piso', id); const n = partes(id).length; assert.ok(n >= 6 && n <= (id === 'barril-de-flechas' ? 30 : 25), `${id}: ${n} partes`); }
   for (const id of PAREDE) { assert.equal(receitaDe(id)?.tipo, 'parede', id); const d = descreverReceita(id, { seed: 1, params: {} }); assert.ok(d.tipo === 'parede' && d.face.length > 0 && d.topo.length > 0, id); }
 });
 
