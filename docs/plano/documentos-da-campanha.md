@@ -1,4 +1,4 @@
-# Documentos da campanha (painel do Atlas)
+# Documentos da campanha (painel do Atlas) ✅
 
 Plano técnico para execução por um agente de código. Escrito em 10/11/2026 contra o código do Atlas desse dia. Siga na ordem, um passo por vez. Rode as verificações do fim antes de dizer que terminou.
 
@@ -151,3 +151,5 @@ As duas precisam passar sem erros. Depois, confira à mão com `npm run mesa-dev
 - Em `progress.md`, acrescente uma linha curta, no estilo das outras, numa seção "Documentos da campanha" no fim do arquivo.
 - Neste arquivo, marque o título com ✅ e acrescente uma "Nota:" curta sobre o que divergiu do plano.
 - Sugira a mensagem de commit: `campaign documents in the atlas documents panel`.
+
+Nota: nenhuma divergência em relação às especificações do plano. Passos 1 a 7 implementados e testados integralmente.
