@@ -1,6 +1,6 @@
 # Assistente do Atlas e da Mesa
 
-Em desenvolvimento, o app de desktop do Claude pode operar a plataforma: ler a campanha, ver o mapa aberto, construir mapas e momentos no Atlas. A conversa fica no app do Claude; o Atlas e a Mesa mostram o trabalho (selo "Assistente" e painel de atividade). Nada disso existe no build de produção.
+Em desenvolvimento, o app de desktop do Claude pode operar a plataforma: ler a campanha, ver o mapa aberto, construir mapas e momentos no Atlas e preparar sessões na Mesa (entidades, cenas, roteiro). A conversa fica no app do Claude; o Atlas e a Mesa mostram o trabalho (selo "Assistente" e painel de atividade). Nada disso existe no build de produção.
 
 ## Passo a passo
 
@@ -12,4 +12,4 @@ Em desenvolvimento, o app de desktop do Claude pode operar a plataforma: ler a c
 
 ## Conteúdo
 
-- [`instrucoes.md`](instrucoes.md): papel do assistente, o que ler antes de construir, como compor um mapa em blocos conferidos com `atlas_ver_mapa`, as regras aprendidas na Fase 10, momentos e o respeito ao que é do mestre. Genérico para qualquer campanha. A parte da Mesa (planejar sessões) entra na ficha 14.3d.
+- [`instrucoes.md`](instrucoes.md): papel do assistente, o que ler antes de construir, como compor um mapa em blocos conferidos com `atlas_ver_mapa`, as regras aprendidas na Fase 10, momentos e o respeito ao que é do mestre. Genérico para qualquer campanha. Inclui o fluxo de planejar uma sessão (ler a campanha e a última sessão, combinar o plano com o mestre, registrar entidades, criar mapas e momentos, montar cenas e criar a sessão com roteiro e notas, terminando com um resumo), com `mesa_abrir_apps` e a regra de dono.
