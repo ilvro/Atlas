@@ -2055,6 +2055,8 @@ body.projetor { overflow: hidden; background: #000; }
 
 /* Personagens da campanha (fichas) para pôr no mapa. */
 .personagens { display: flex; flex-direction: column; gap: 6px; padding: 2px 0; }
+.personagens .link-discreto { padding: 0; border: 0; background: none; color: var(--apagado); font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.personagens .link-discreto:hover { color: var(--acento, var(--texto)); }
 .personagem { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border: 1px solid var(--linha); border-radius: 8px; background: rgba(255, 255, 255, 0.03); cursor: grab; }
 .personagem-nome { font: 700 12px var(--corpo); flex: 1; }
 .personagem-recursos { font: 600 11px var(--corpo); color: var(--apagado); }

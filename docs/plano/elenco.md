@@ -31,7 +31,7 @@ Como:
 Testes: o contrato aceita `elenco` e recusa ids repetidos ou que não são texto; entrar e sair do elenco; podar ids sem entidade; `mesa_elenco` por nome.
 Commit: campaign cast chosen in mesa
 
-### E2 — Atlas: o painel mostra o elenco  ⬜
+### E2 — Atlas: o painel mostra o elenco  ✅
 Objetivo: Mapa > Personagens mostra só os personagens do elenco da campanha ativa.
 Depende de: E1
 Ler: `src/ui/Personagens.tsx` (`carregar`, a lista), `src/app/fichas.ts` (`personagensComFicha`), `src/app/campanha.ts` (como lê a campanha ativa e quando atualiza).
