@@ -23,7 +23,7 @@ export interface ContextoDeLeitura {
   /** O que a câmera mostra agora, em metros; `null` quando não há editor na tela. */
   caixaVisivel?: () => Caixa | null;
   /** Fotografa o mapa aberto (o viewport); ausente ou `null` quando não há editor na tela. */
-  capturar?: (opcoes: { caixa?: { x0: number; y0: number; x1: number; y1: number } }) => Promise<{ dataUrl: string; largura: number; altura: number; pxPorMetro: number; caixa: { x0: number; y0: number; x1: number; y1: number } }> | null;
+  capturar?: (opcoes: { caixa?: { x0: number; y0: number; x1: number; y1: number }; ladoMaximo?: number }) => Promise<{ dataUrl: string; largura: number; altura: number; pxPorMetro: number; bytes: number; qualidade: number; caixa: { x0: number; y0: number; x1: number; y1: number } }> | null;
 }
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -192,18 +192,20 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
     },
     {
       nome: 'atlas_ver_mapa',
-      descricao: 'Devolve uma imagem do mapa aberto como o mestre o vê (sem grade, pinos nem interface), para conferir o que foi montado. Sem "caixa", mostra o mapa inteiro; com ela, só o retângulo [x0, y0, x1, y1] em metros (origem no canto superior esquerdo, y para baixo). O texto traz a escala (px por metro) e a caixa: metros = caixa[x0, y0] + pixel / escala.',
-      esquema: { type: 'object', properties: { caixa: { type: 'array', items: { type: 'number' }, minItems: 4, maxItems: 4, description: '[x0, y0, x1, y1] em metros. Omitida: o mapa inteiro.' } }, required: [], additionalProperties: false },
+      descricao: 'Devolve uma imagem do mapa aberto como o mestre o vê (sem grade, pinos nem interface), para conferir o que foi montado. Sem "caixa", mostra o mapa inteiro; com ela, só o retângulo [x0, y0, x1, y1] em metros (origem no canto superior esquerdo, y para baixo). O texto traz a escala (px por metro) e a caixa: metros = caixa[x0, y0] + pixel / escala. A imagem é JPEG de até cerca de 500 KB; para mais detalhe, use "caixa" em vez de ladoMaximo.',
+      esquema: { type: 'object', properties: { caixa: { type: 'array', items: { type: 'number' }, minItems: 4, maxItems: 4, description: '[x0, y0, x1, y1] em metros. Omitida: o mapa inteiro.' }, ladoMaximo: { type: 'number', minimum: 256, maximum: 1600, description: 'Maior lado da imagem em pixels (256 a 1600; padrão 1280). A imagem pode sair menor para caber no limite de tamanho.' } }, required: [], additionalProperties: false },
       async executar(args) {
         const c = args.caixa;
         if (c !== undefined && !(Array.isArray(c) && c.length === 4 && c.every(n => typeof n === 'number' && Number.isFinite(n)))) throw new Error('"caixa" deve ser [x0, y0, x1, y1] em metros.');
         if (!ctx.mapaAberto()) throw new Error('Não há mapa aberto: use atlas_abrir.');
-        const p = ctx.capturar?.({ ...(c ? { caixa: { x0: c[0] as number, y0: c[1] as number, x1: c[2] as number, y1: c[3] as number } } : {}) });
+        const lm = args.ladoMaximo;
+        if (lm !== undefined && !(typeof lm === 'number' && Number.isFinite(lm) && lm >= 256 && lm <= 1600)) throw new Error('"ladoMaximo" deve ser um número de 256 a 1600.');
+        const p = ctx.capturar?.({ ...(lm !== undefined ? { ladoMaximo: lm } : {}), ...(c ? { caixa: { x0: c[0] as number, y0: c[1] as number, x1: c[2] as number, y1: c[3] as number } } : {}) });
         if (!p) throw new Error('O editor não está na tela: abra o mapa no Atlas (atlas_abrir).');
         const r = await p, k = r.caixa;
         return [
           imagem(r.dataUrl),
-          { tipo: 'texto', texto: `Imagem ${r.largura}×${r.altura} px. Escala: ${r.pxPorMetro} px por metro. Caixa em metros: [${r1(k.x0)}, ${r1(k.y0)}, ${r1(k.x1)}, ${r1(k.y1)}] (o pixel 0,0 é o ponto x0,y0).` },
+          { tipo: 'texto', texto: `Imagem ${r.largura}×${r.altura} px. Escala: ${r.pxPorMetro} px por metro. JPEG de ${Math.round(r.bytes / 1024)} KB (qualidade ${r.qualidade}). Caixa em metros: [${r1(k.x0)}, ${r1(k.y0)}, ${r1(k.x1)}, ${r1(k.y1)}] (o pixel 0,0 é o ponto x0,y0).` },
         ];
       },
     },

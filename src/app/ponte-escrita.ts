@@ -181,7 +181,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_comodos',
-      descricao: `Cria cômodos no mapa aberto (um passo de desfazer); as paredes de cada cômodo nascem sozinhas. ATENÇÃO: aqui as coordenadas são em CÉLULAS do grid de 1,5 m, não em metros: "rets" é uma lista de retângulos [x0, y0, x1, y1] com x1 e y1 EXCLUSIVOS (uma cabana de 3 × 3 células em [2, 3] é [2, 3, 5, 6] e mede 4,5 × 4,5 m). Vários retângulos formam um cômodo em L. "tipo" (obrigatório): ${TIPOS_DE_COMODO.map(t => t.id).join(', ')}. "nome", "piso", "papel" (parede interna) e "telhado" (material, ou null para sem telhado) são opcionais; os padrões vêm do tipo. "telhadoVisivel" mostra ou esconde o telhado.`,
+      descricao: `É o jeito de fazer construções e salas (casa, cabana, loja, salão, cela): cria piso, paredes e telhado em um passo de desfazer, e as paredes de cada cômodo nascem sozinhas (não use atlas_paredes para isso). Depois de criar, abra as passagens com atlas_portas. ATENÇÃO: aqui as coordenadas são em CÉLULAS do grid de 1,5 m, não em metros: "rets" é uma lista de retângulos [x0, y0, x1, y1] com x1 e y1 EXCLUSIVOS (uma cabana de 3 × 3 células em [2, 3] é [2, 3, 5, 6] e mede 4,5 × 4,5 m). Vários retângulos formam um cômodo em L. "tipo" (obrigatório) define piso e papel; os tipos com função e padrões estão em atlas_catalogo { parte: "climas" } (campo tiposDeComodo): ${TIPOS_DE_COMODO.map(t => t.id).join(', ')}. "nome", "piso", "papel" (parede interna) e "telhado" (material, ou null para sem telhado) são opcionais; os padrões vêm do tipo. "telhadoVisivel" mostra ou esconde o telhado.`,
       esquema: { type: 'object', properties: {
         comodos: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
           rets: { type: 'array', minItems: 1, items: esquemaDoRetanguloDeCelulas }, tipo: { type: 'string', enum: TIPOS_DE_COMODO.map(t => t.id) }, nome: { type: 'string' },
@@ -201,7 +201,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_paredes',
-      descricao: `Cria paredes avulsas no mapa aberto (um passo de desfazer): muros, cercas, muretas. As paredes dos cômodos já nascem com atlas_comodos; rocha e escarpa são maciço de terreno (atlas_terreno), não paredes. ${unidades} Cada parede: { path: [[x, y], …] (mínimo 2 pontos, em metros), kind?: "wall" | "low" | "fence" | "cliff", altura? (m), espessura? (m), material? }.`,
+      descricao: `Cria paredes avulsas no mapa aberto (um passo de desfazer), só para muros, cercas, muretas e divisórias soltas ao ar livre. Qualquer construção com interior (casa, cabana, loja, salão) é atlas_comodos, que cria piso, paredes e telhado; um contorno de paredes sem cômodo fica só com o chão do terreno por dentro. As paredes dos cômodos já nascem com atlas_comodos; rocha e escarpa são maciço de terreno (atlas_terreno), não paredes. ${unidades} Cada parede: { path: [[x, y], …] (mínimo 2 pontos, em metros), kind?: "wall" | "low" | "fence" | "cliff", altura? (m), espessura? (m), material? }.`,
       esquema: { type: 'object', properties: {
         paredes: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
           path: { type: 'array', items: ponto, minItems: 2 }, kind: { type: 'string', enum: ['wall', 'low', 'fence', 'cliff'], description: 'wall = parede; low = mureta; fence = cerca; cliff = penhasco.' },
