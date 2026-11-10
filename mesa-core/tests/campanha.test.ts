@@ -169,3 +169,19 @@ test('entidade: o tipo `ameaca` (monstro) é válido e fica separado de `persona
   assert.deepEqual(await repo.listarEntidades(c.id, { tipo: 'personagem' }), []);
   repo.fechar();
 });
+
+test('campanha: aceita elenco opcional (inclusive vazio) e recusa ids repetidos ou que não são texto', async () => {
+  const repo = await abrirRepositorioCampanha({ app: 'mesa', idb: new IDBFactory() });
+  const c = await repo.criarCampanha({ nome: 'Elenco' });
+  assert.equal((await repo.obterCampanha(c.id))?.elenco, undefined);
+  await repo.salvarCampanha({ ...c, elenco: [] });
+  assert.deepEqual((await repo.obterCampanha(c.id))?.elenco, []);
+  await repo.salvarCampanha({ ...c, elenco: ['p1', 'p2'] });
+  assert.deepEqual((await repo.obterCampanha(c.id))?.elenco, ['p1', 'p2']);
+
+  await assert.rejects(repo.salvarCampanha({ ...c, elenco: ['p1', 'p1'] }), /repetido no elenco/);
+  await assert.rejects(repo.salvarCampanha({ ...c, elenco: [123 as never] }), /campanha\.elenco/);
+  await assert.rejects(repo.salvarCampanha({ ...c, elenco: ['   '] }), /campanha\.elenco/);
+  await assert.rejects(repo.salvarCampanha({ ...c, elenco: 'p1' as never }), /campanha\.elenco/);
+  repo.fechar();
+});

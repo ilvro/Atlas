@@ -48,7 +48,7 @@ Banco IndexedDB **sem escopo de caminho**, ponto de encontro de todos: `mesa-cam
 
 | Store | Chave | Conteúdo |
 | --- | --- | --- |
-| `campanhas` | `id` | Nome, sistema (Ordem Paranormal, outro), tema, capa |
+| `campanhas` | `id` | Nome, sistema (Ordem Paranormal, outro), tema, capa, `elenco` (opcional: lista de ids de entidades `personagem` que fazem parte da campanha) |
 | `entidades` | `id` | Personagem, lugar, pista, cena, sessão, facção, nota. Cada uma com `campanhaId`, `nome`, `tipo`, `refs: Ref[]` (o que a representa em cada aplicativo), `tags`, `notas` |
 | `ligacoes` | `id` | `{ de: Ref, para: Ref, tipo: 'aparece-em' \| 'esta-em' \| 'revela' \| 'toca-em' \| ... }` |
 | `sessoes` | `id` | Data, roteiro (lista de Refs: mapas, cenas sonoras, documentos), notas do roteiro (`roteiroNotas`, opcional, por chave de Ref), registro do que aconteceu |
