@@ -8,10 +8,19 @@ import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { lerMensagem, type Ferramenta, type FerramentaDoApp, type Resultado } from './protocolo.ts';
+import { lerMensagem, type Ferramenta, type FerramentaDoApp, type Resultado, type AppConectado } from './protocolo.ts';
 
 export const CAMINHO_DA_PONTE = '/__ponte';
 export const TEMPO_DA_CHAMADA_MS = 60_000;
+
+/** Traduz o User-Agent em um rótulo legível ("Firefox", "Chrome", "app da Mesa (WebKit)" ou "outro navegador"). */
+export function rotuloDoLugar(userAgent?: string | null): string {
+  if (!userAgent) return 'outro navegador';
+  if (/WebKitGTK/i.test(userAgent)) return 'app da Mesa (WebKit)';
+  if (/Firefox/i.test(userAgent)) return 'Firefox';
+  if (/Chrome|Chromium/i.test(userAgent)) return 'Chrome';
+  return 'outro navegador';
+}
 
 export interface OpcoesDaPonte {
   /** Única origem aceita para abas, ex.: `http://127.0.0.1:5100`. */
@@ -29,7 +38,15 @@ export interface Ponte {
   fechar(): void;
 }
 
-interface Aba { ws: WebSocket; app: string; titulo: string; ferramentas: Ferramenta[]; foco: number }
+interface Aba {
+  ws: WebSocket;
+  app: string;
+  titulo: string;
+  ferramentas: Ferramenta[];
+  armazenamento?: string;
+  onde: string;
+  foco: number;
+}
 interface Pendente { mcp: WebSocket; aba: Aba; id: string; timer: NodeJS.Timeout }
 
 export function criarPonte(opcoes: OpcoesDaPonte): Ponte {
@@ -50,11 +67,34 @@ export function criarPonte(opcoes: OpcoesDaPonte): Ponte {
   const abaDoApp = (app: string): Aba | undefined =>
     [...abas].filter(a => a.app === app).sort((x, y) => y.foco - x.foco)[0];
 
+  function appsInfo(): Record<string, AppConectado> {
+    const apps = [...new Set([...abas].map(a => a.app))];
+    const res: Record<string, AppConectado> = {};
+    for (const app of apps) {
+      const a = abaDoApp(app);
+      if (a) res[app] = { ...(a.armazenamento ? { armazenamento: a.armazenamento } : {}), onde: a.onde };
+    }
+    return res;
+  }
+
   function lista(): FerramentaDoApp[] {
     const apps = [...new Set([...abas].map(a => a.app))];
-    return apps.flatMap(app => abaDoApp(app)!.ferramentas.map(f => ({ ...f, app })));
+    return apps.flatMap(app => {
+      const a = abaDoApp(app)!;
+      return a.ferramentas.map(f => ({
+        ...f,
+        app,
+        ...(a.armazenamento ? { armazenamento: a.armazenamento } : {}),
+        onde: a.onde,
+      }));
+    });
   }
-  const avisarMcps = () => { const l = lista(); for (const m of mcps) enviar(m, { tipo: 'ferramentas', lista: l }); };
+
+  const avisarMcps = () => {
+    const l = lista();
+    const info = appsInfo();
+    for (const m of mcps) enviar(m, { tipo: 'ferramentas', lista: l, apps: info });
+  };
 
   function responder(id: string, r: Resultado | { ok: false; erro: string }) {
     const p = pendentes.get(id);
@@ -74,16 +114,23 @@ export function criarPonte(opcoes: OpcoesDaPonte): Ponte {
     enviar(aba.ws, { tipo: 'chamar', id: chave, ferramenta, args });
   }
 
-  function ligarAba(ws: WebSocket) {
-    const aba: Aba = { ws, app: '', titulo: '', ferramentas: [], foco: ++relogio };
+  function ligarAba(ws: WebSocket, userAgent?: string) {
+    const onde = rotuloDoLugar(userAgent);
+    const aba: Aba = { ws, app: '', titulo: '', ferramentas: [], onde, foco: ++relogio };
     ws.on('message', dados => {
       const m = lerMensagem(String(dados));
       if (!m) return;
       if (m.tipo === 'registrar') {
-        aba.app = m.app; aba.titulo = m.titulo; aba.ferramentas = m.ferramentas; aba.foco = ++relogio;
-        abas.add(aba); avisarMcps();
+        aba.app = m.app;
+        aba.titulo = m.titulo;
+        aba.ferramentas = m.ferramentas;
+        aba.armazenamento = m.armazenamento;
+        aba.foco = ++relogio;
+        abas.add(aba);
+        avisarMcps();
       } else if (m.tipo === 'foco' && abas.has(aba)) {
-        aba.foco = ++relogio; avisarMcps();
+        aba.foco = ++relogio;
+        avisarMcps();
       } else if (m.tipo === 'resultado') {
         const p = pendentes.get(m.id);
         if (p && p.aba === aba) responder(m.id, m);
@@ -101,8 +148,13 @@ export function criarPonte(opcoes: OpcoesDaPonte): Ponte {
     ws.on('message', dados => {
       const m = lerMensagem(String(dados));
       if (!autenticado) {
-        if (m?.tipo === 'ola' && m.token === token) { autenticado = true; mcps.add(ws); enviar(ws, { tipo: 'ferramentas', lista: lista() }); }
-        else ws.close(4401, 'token inválido');
+        if (m?.tipo === 'ola' && m.token === token) {
+          autenticado = true;
+          mcps.add(ws);
+          enviar(ws, { tipo: 'ferramentas', lista: lista(), apps: appsInfo() });
+        } else {
+          ws.close(4401, 'token inválido');
+        }
         return;
       }
       if (m?.tipo === 'chamar') chamar(ws, m.id, m.ferramenta, m.args);
@@ -117,12 +169,13 @@ export function criarPonte(opcoes: OpcoesDaPonte): Ponte {
     aceitar(req, socket, cabeca) {
       if ((req.url ?? '').split('?')[0] !== CAMINHO_DA_PONTE) return false;
       const origem = req.headers.origin;
+      const userAgent = req.headers['user-agent'];
       // Navegadores sempre mandam Origin: só a nossa passa. Sem Origin é o cliente MCP (Node), que prova quem é com o token.
       if (origem !== undefined && origem !== opcoes.origem) {
         socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n'); socket.destroy();
         return true;
       }
-      wss.handleUpgrade(req, socket, cabeca, ws => (origem === undefined ? ligarMcp : ligarAba)(ws));
+      wss.handleUpgrade(req, socket, cabeca, ws => (origem === undefined ? ligarMcp : (s: WebSocket) => ligarAba(s, userAgent))(ws));
       return true;
     },
     abas: () => abas.size,

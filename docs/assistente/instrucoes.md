@@ -10,7 +10,7 @@ Você trabalha por ferramentas: lê a plataforma, vê o mapa renderizado e escre
 
 ## Antes de construir
 
-1. `ponte_estado`: confirma que a ponte está conectada e quais apps estão abertos. Se não estiver, diga ao mestre para subir o `mesa-dev` e abrir o Atlas.
+1. `ponte_estado`: confirma que a ponte está conectada e quais apps estão abertos. Se não estiver, diga ao mestre para subir o `mesa-dev` e abrir o Atlas. Se a resposta trouxer o aviso de dados separados (ex.: Mesa no Firefox e Atlas no app de desktop), pare imediatamente e peça ao mestre para usar um lugar só, dizendo qual app está em qual lugar.
 2. `atlas_o_que_vejo` (no Atlas) e `mesa_o_que_vejo` (na Mesa): o que o mestre tem na tela. No Atlas, o mapa aberto, o modo, a área visível e a seleção; na Mesa, a campanha, a tela e o item aberto. É o que dá sentido a "este cômodo", "esses objetos" ou "esta sessão".
 3. `campanha_ler` (com `campanha_listar` para achar o `campanhaId`): entidades, sessões e o que já existe. Use `campanha_entidade_ler` e `campanha_sessao_ler` para aprofundar.
 4. `atlas_mapas_listar` e `atlas_mapa_ler`: o que já há no Atlas e o que tem dentro do mapa aberto (cômodos, objetos, luzes, regiões, momentos, notas).

@@ -9,7 +9,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { lerMensagem } from './protocolo.ts';
-import type { Conteudo, FerramentaDoApp, Resultado } from './protocolo.ts';
+import type { AppConectado, Conteudo, FerramentaDoApp, Resultado } from './protocolo.ts';
 
 export const ATRASOS_MS = [1000, 2000, 5000, 10000];
 
@@ -30,6 +30,10 @@ export interface Ponta {
   conectada: () => boolean;
   /** Ferramentas ativas nas abas abertas agora. */
   ativas: () => FerramentaDoApp[];
+  /** Informações dos apps conectados agora ({ armazenamento, onde }). */
+  apps: () => Record<string, AppConectado>;
+  /** Aviso de armazenamentos diferentes entre os apps abertos, ou `null`. */
+  avisoArmazenamento: () => string | null;
   /** Catálogo persistente completo (cache mais o que está registrado agora). */
   catalogo: () => FerramentaDoApp[];
   /** Alias para `ativas()` (compatibilidade). */
@@ -89,6 +93,46 @@ export function extrairOrigemHttp(urlWs: string): string {
   }
 }
 
+export function nomeLegivelDoApp(app: string): string {
+  const nomes: Record<string, string> = {
+    atlas: 'Atlas',
+    mesa: 'Mesa',
+    atelie: 'Ateliê',
+    dossie: 'Dossiê',
+    jukebox: 'Jukebox',
+    tabletop: 'Tabletop',
+  };
+  return nomes[app] ?? (app.charAt(0).toUpperCase() + app.slice(1));
+}
+
+function formatarNomesEmPortugues(nomes: string[]): string {
+  if (nomes.length === 0) return '';
+  if (nomes.length === 1) return nomes[0]!;
+  if (nomes.length === 2) return `${nomes[0]} e ${nomes[1]}`;
+  return `${nomes.slice(0, -1).join(', ')} e ${nomes[nomes.length - 1]}`;
+}
+
+/**
+ * Se houver mais de um armazenamento diferente entre os apps abertos, gera o aviso para Claude e o mestre.
+ * Apps sem armazenamento declarado são tratados como lugar desconhecido, sem disparar aviso falso.
+ */
+export function gerarAvisoArmazenamento(
+  apps: Record<string, AppConectado>,
+  appsAbertos?: Iterable<string>,
+): string | null {
+  const chaves = appsAbertos ? [...appsAbertos] : Object.keys(apps);
+  const entradas = chaves
+    .map(app => ({ app, info: apps[app] }))
+    .filter((x): x is { app: string; info: AppConectado } => Boolean(x.info && typeof x.info.armazenamento === 'string' && x.info.armazenamento.trim() !== ''));
+
+  const ids = new Set(entradas.map(x => x.info.armazenamento));
+  if (ids.size <= 1) return null;
+
+  const nomes = formatarNomesEmPortugues(entradas.map(x => nomeLegivelDoApp(x.app)));
+  const detalhes = entradas.map(x => `${x.app}: ${x.info.onde ?? 'outro navegador'}`).join('; ');
+  return `${nomes} estão em lugares com dados separados: ${detalhes}; feche um deles.`;
+}
+
 export function erroAppFechado(app: string, origem = 'http://127.0.0.1:5100'): string {
   const info: Record<string, { rotulo: string; caminho: string; artigo: string; temAbrirApps?: boolean }> = {
     atlas: { rotulo: 'Atlas', caminho: 'Atlas', artigo: 'O', temAbrirApps: true },
@@ -138,6 +182,7 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
   let ws: WebSocket | null = null;
   let aberta = false;
   let ativas: FerramentaDoApp[] = [];
+  let appsConectados: Record<string, AppConectado> = {};
   let tentativa = 0;
   let parado = false;
   let temporizador: ReturnType<typeof setTimeout> | null = null;
@@ -169,6 +214,20 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
         tentativa = 0;
         ativas = m.lista;
 
+        if (m.apps) {
+          appsConectados = m.apps;
+        } else {
+          appsConectados = {};
+          for (const f of m.lista) {
+            if (!appsConectados[f.app]) {
+              appsConectados[f.app] = {
+                ...(f.armazenamento ? { armazenamento: f.armazenamento } : {}),
+                onde: f.onde ?? 'outro navegador',
+              };
+            }
+          }
+        }
+
         // Ferramenta removida do código: sai do cache quando o app dela se registra sem ela.
         const appsAtivos = new Set(m.lista.map(f => f.app));
         for (const [nome, f] of catalogo) {
@@ -198,6 +257,7 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
       ws = null;
       aberta = false;
       ativas = [];
+      appsConectados = {};
       falharPendentes('A ponte caiu durante a chamada. Confira se o `npm run mesa-dev` ainda está rodando e tente de novo.');
       reagendar();
     });
@@ -209,6 +269,8 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
   return {
     conectada: () => aberta,
     ativas: () => ativas,
+    apps: () => appsConectados,
+    avisoArmazenamento: () => gerarAvisoArmazenamento(appsConectados),
     catalogo: () => [...catalogo.values()],
     ferramentas: () => ativas,
     origemHttp,
@@ -237,13 +299,39 @@ export const FERRAMENTA_ESTADO = {
   readOnlyHint: true,
 };
 
-export function textoDoEstado(conectada: boolean, ferramentas: FerramentaDoApp[]): string {
+export function textoDoEstado(
+  conectada: boolean,
+  ferramentas: FerramentaDoApp[],
+  appsInfo?: Record<string, AppConectado>,
+): string {
   if (!conectada) return SEM_PONTE;
   const porApp = new Map<string, number>();
   for (const f of ferramentas) porApp.set(f.app, (porApp.get(f.app) ?? 0) + 1);
   if (porApp.size === 0) return 'Ponte conectada, mas nenhuma aba está aberta. Abra a Mesa ou o Atlas em http://127.0.0.1:5100/.';
-  const apps = [...porApp].map(([app, n]) => `${app} (${n} ferramentas)`).join(', ');
-  return `Ponte conectada. Apps com aba aberta: ${apps}.`;
+
+  const infoDe = (app: string) => {
+    if (appsInfo?.[app]) return appsInfo[app];
+    const f = ferramentas.find(x => x.app === app);
+    return f ? { onde: f.onde, armazenamento: f.armazenamento } : undefined;
+  };
+
+  const apps = [...porApp].map(([app, n]) => {
+    const info = infoDe(app);
+    const onde = info?.onde ? `: ${info.onde}` : '';
+    return `${app}${onde} (${n} ferramentas)`;
+  }).join('; ');
+
+  let texto = `Ponte conectada. Apps com aba aberta: ${apps}.`;
+
+  const mapaAbertos: Record<string, AppConectado> = {};
+  for (const app of porApp.keys()) {
+    const info = infoDe(app);
+    if (info) mapaAbertos[app] = info;
+  }
+  const aviso = gerarAvisoArmazenamento(mapaAbertos);
+  if (aviso) texto += `\n${aviso}`;
+
+  return texto;
 }
 
 /** Ferramentas para o `tools/list`: `ponte_estado` sempre, depois as do catálogo. */
@@ -267,10 +355,32 @@ export function converterConteudo(c: Conteudo) {
   return c.tipo === 'texto' ? { type: 'text' as const, text: c.texto } : { type: 'image' as const, data: c.dados, mimeType: c.mime };
 }
 
+export function acrescentarAviso<T extends { content: Array<{ type: 'text'; text: string } | { type: 'image'; data: string; mimeType: string }> }>(
+  resultado: T,
+  aviso: string | null,
+): T {
+  if (!aviso) return resultado;
+  const primeiro = resultado.content[0];
+  if (primeiro && primeiro.type === 'text') {
+    return {
+      ...resultado,
+      content: [
+        { type: 'text' as const, text: `${aviso}\n\n${primeiro.text}` },
+        ...resultado.content.slice(1),
+      ],
+    };
+  }
+  return {
+    ...resultado,
+    content: [{ type: 'text' as const, text: aviso }, ...resultado.content],
+  };
+}
+
 /** `tools/call`: roteia para `ponte_estado` ou para a ponte e converte o resultado. */
 export async function chamarFerramenta(ponta: Ponta, nome: string, args: Record<string, unknown>) {
   const ativas = ponta.ativas ? ponta.ativas() : ponta.ferramentas();
-  if (nome === FERRAMENTA_ESTADO.name) return { content: [{ type: 'text' as const, text: textoDoEstado(ponta.conectada(), ativas) }] };
+  const apps = ponta.apps ? ponta.apps() : undefined;
+  if (nome === FERRAMENTA_ESTADO.name) return { content: [{ type: 'text' as const, text: textoDoEstado(ponta.conectada(), ativas, apps) }] };
   if (!ponta.conectada()) return { isError: true, content: [{ type: 'text' as const, text: SEM_PONTE }] };
   const catalogo = ponta.catalogo ? ponta.catalogo() : ativas;
   const ferramenta = catalogo.find(f => f.nome === nome);
@@ -281,8 +391,9 @@ export async function chamarFerramenta(ponta: Ponta, nome: string, args: Record<
     return { isError: true, content: [{ type: 'text' as const, text: erroAppFechado(ferramenta.app, origem) }] };
   }
   const r = await ponta.chamar(nome, args);
-  if (!r.ok) return { isError: true, content: [{ type: 'text' as const, text: r.erro }] };
-  return { content: r.conteudo.map(converterConteudo) };
+  const aviso = ponta.avisoArmazenamento ? ponta.avisoArmazenamento() : (apps ? gerarAvisoArmazenamento(apps) : null);
+  if (!r.ok) return acrescentarAviso({ isError: true, content: [{ type: 'text' as const, text: r.erro }] }, aviso);
+  return acrescentarAviso({ content: r.conteudo.map(converterConteudo) }, aviso);
 }
 
 export interface McpOpcoes {
