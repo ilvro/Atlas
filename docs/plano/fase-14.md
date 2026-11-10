@@ -331,7 +331,7 @@ Pronto quando: no navegador, o painel mostra as chamadas, destaca o que cada uma
 Commit: assistant activity panel with undo and confirmation
 Nota: o "topo do histórico" é decidido pela `versaoEdicao` do store guardada logo após a chamada (qualquer edição, desfazer ou refazer depois a muda; conservador: desfazer a edição do mestre não devolve o botão). O destaque no hover reaproveita a seleção do mapa (guarda a seleção do mestre e a devolve ao sair), sem mexer no viewport; o clique usa `enquadrarCaixa`. Recusa, silêncio (5 min) ou id inexistente não aplicam nada, nem a parte do assistente. `atlas_remover` aceita também momentos; `atlas_mover` só objetos, luzes, peças e regiões. Presença de pedido pendente abre o painel sozinho. `Geracao` ganhou `afetados` (ids só mexidos, sem virarem "do assistente"). O selo virou um botão.
 
-### 14.2f — Instruções do assistente: compor mapas e momentos  ⬜
+### 14.2f — Instruções do assistente: compor mapas e momentos  ✅
 Objetivo: um texto genérico de instruções para colar no projeto de qualquer campanha no app do Claude, que faz o assistente usar bem as ferramentas.
 Depende de: 14.2c, 14.2d
 Ler: `scripts/exemplos/*.ts` e o histórico de ajustes da Fase 10 (`docs/plano/fase-10.md`, notas das 10.7), `src/app/ponte-escrita.ts`.
@@ -355,6 +355,7 @@ Não fazer: instruções da Mesa (14.3d).
 Testes: — (documentação). Conferir que todos os nomes de ferramenta citados existem.
 Pronto quando: com as instruções coladas num projeto, um pedido de mapa curto sai composto em blocos e conferido com captura.
 Commit: assistant instructions for maps and moments
+Nota: `instrucoes.md` (cerca de 1,4 mil palavras) acrescenta um exemplo de pedido curto em blocos e recomenda ler antes de `atlas_notas` (que substitui o texto); `LEIAME.md` aponta para `scripts/ponte/LEIAME.md` em vez de repetir o registro. Todos os nomes de ferramenta citados foram conferidos por grep nos arquivos de ferramentas.
 
 ### 14.3a — Mesa: sessões planejadas e roteiro  ⬜
 Objetivo: o Claude cria a sessão da próxima mesa, sem começar a gravar, e monta o roteiro dela.
