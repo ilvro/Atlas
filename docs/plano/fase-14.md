@@ -82,7 +82,7 @@ Planejado em 9 de novembro de 2026 contra o código do fim da Fase 13 em andamen
 
 ---
 
-### 14.1a — Protocolo e servidor da ponte no `mesa-dev`  ⬜
+### 14.1a — Protocolo e servidor da ponte no `mesa-dev`  ✅
 Objetivo: o `mesa-dev` aceita abas e um cliente MCP num WebSocket em `/__ponte` e repassa chamadas de ferramenta entre eles.
 Depende de: —
 Ler: `scripts/mesa-dev.ts` (`criarProxy`, o `servidor.on('upgrade')` que repassa o WebSocket do Vite), `scripts/mesa-tudo.ts`, `docs/PLATAFORMA.md` §2.
@@ -104,8 +104,9 @@ Não fazer: o MCP (14.1c), cliente nas abas (14.1b).
 Testes: `lerMensagem` aceita as formas válidas e recusa lixo; com a ponte num servidor HTTP de teste e clientes `ws`: aba com `Origin` errado é recusada; MCP sem token é recusado; uma chamada vai à aba do app certo e o resultado volta ao MCP; foco troca a aba escolhida; aba que fecha falha a chamada pendente.
 Pronto quando: os testes passam e `npm run mesa-dev` sobe com a ponte (sem mudar nada para quem não a usa).
 Commit: assistant bridge in mesa-dev
+Nota: `criarPonte` ganhou `abas()` (para a linha do índice) e `tempoDaChamadaMs` opcional (para testar o prazo); `criarProxy(projetos, ponte?)` recebe a ponte, criada em `principal` com a origem `http://127.0.0.1:<porta>`. Cliente MCP = conexão sem header `Origin` (autentica com o token); navegador sempre manda `Origin`, então é tratado como aba. `ws` 8.22.2 e `@types/ws` 8.18.2 em versão exata.
 
-### 14.1b — Cliente da ponte e ferramentas da campanha no `mesa-core`  ⬜
+### 14.1b — Cliente da ponte e ferramentas da campanha no `mesa-core`  ✅
 Objetivo: um app registra ferramentas na ponte com uma chamada; toda aba já oferece a leitura da campanha.
 Depende de: 14.1a (protocolo)
 Ler: `mesa-core/src/campanha.ts`, `mesa-core/src/idb.ts`, `mesa-core/src/index.ts`, `mesa-core/tsconfig.build.json`, `scripts/ponte/protocolo.ts`.
@@ -124,8 +125,9 @@ Não fazer: escrita na campanha (etapa 3).
 Testes: com um WebSocket falso: registra ao abrir, responde `chamar` com o resultado e com o erro, reconecta depois de cair; as ferramentas da campanha sobre um banco em memória (`fake-indexeddb`, como os testes atuais do `mesa-core`) devolvem o esperado e omitem blobs.
 Pronto quando: `npm run build:core` gera `dist/ponte.js` e os testes passam.
 Commit: bridge client and campaign tools in mesa-core
+Nota: `tsconfig.build.json` não precisou mudar (`include: ["src"]` já emite `dist/ponte.js`). `ferramentasDaCampanha(obterRepositorio)` recebe como abrir o repositório (o app passa o dele). `conectarPonte` aceita `url`, `criarSocket`, `agendar` e `cancelar` opcionais (para testes). Os tipos do protocolo são redeclarados em `ponte.ts` (o `mesa-core` não importa de `scripts/`). `campanha_entidade_ler` inclui as ligações da entidade; `campanha_sessao_ler` procura a sessão em todas as campanhas. `dist/` é ignorado pelo git.
 
-### 14.1c — Servidor MCP e registro no app do Claude  ⬜
+### 14.1c — Servidor MCP e registro no app do Claude  ✅
 Objetivo: o app do Claude (e, opcionalmente, o Claude Code) enxerga as ferramentas das abas abertas.
 Depende de: 14.1a
 Ler: `scripts/ponte/protocolo.ts`, `scripts/ponte/servidor.ts`; a documentação do `@modelcontextprotocol/sdk` (servidor stdio, `setRequestHandler` de `tools/list` e `tools/call`, notificação de lista alterada).
@@ -143,8 +145,9 @@ Não fazer: ferramentas próprias além de `ponte_estado`.
 Testes: com uma ponte de teste e uma aba falsa: `tools/list` reflete a aba; `tools/call` devolve texto e imagem; sem ponte, só `ponte_estado`, com a explicação.
 Pronto quando: no app do Claude, o servidor `mesa` aparece nas ferramentas da conversa e `ponte_estado` responde com e sem o `mesa-dev`.
 Commit: mcp server for the assistant bridge
+Nota: `@modelcontextprotocol/sdk` 1.32.2 (versão exata). A lógica fica em funções exportadas de `mcp.ts` (`conectarNaPonte`, `criarServidorMcp`, `chamarFerramenta`, `listarFerramentas`, `converterConteudo`); o `main` só roda com `import.meta.main`. O token vem de `.ponte/token` relativo à raiz do Atlas (`import.meta.dirname`), reconexão 1/2/5/10 s. Testes de ponta a ponta com `Client` + `InMemoryTransport` e uma ponte real. O registro no app do Claude só foi documentado (`scripts/ponte/LEIAME.md`), não feito; o "Pronto quando" no app depende do mestre registrar.
 
-### 14.1d — Atlas na ponte: mapas e catálogo  ⬜
+### 14.1d — Atlas na ponte: mapas e catálogo  ✅
 Objetivo: o Claude sabe o que o Atlas tem e o que ele sabe fazer.
 Depende de: 14.1b, 14.1c
 Ler: `src/main.tsx` (o `__atlas` exposto), `src/app/servicos.ts` (repositório), `src/app/sessao.ts`, `src/procedural/receitas/index.ts` (receitas e campos), `src/procedural/materiais.ts` (`materiaisDo`), `src/procedural/colecao.ts`, `src/domain/presets.ts` (climas, acabamentos, luzes, pincéis de presença), `src/domain/momentos.ts`.
@@ -160,8 +163,9 @@ Não fazer: escrita (etapa 2); ver o mapa (14.1e).
 Testes: `atlas_mapa_ler` de um exemplo (`public/exemplos/covil-na-caverna.atlas.json`) devolve as contagens certas e cabe em ~8 mil caracteres; `atlas_catalogo` lista todas as receitas do `ACERVO` com os campos.
 Pronto quando: no app do Claude, "liste os mapas e descreva o aberto" responde com dados reais; no `npm run build`, o chunk da ponte não aparece.
 Commit: atlas read tools for the assistant
+Nota: `package.json` ganhou o alias `#mesa/ponte` (`mesa-core/src/ponte.ts`), pois a ponte não está no `index.ts`. `ferramentasDeLeitura` recebe um contexto mínimo (`repo`, `mapaAberto`, `abrirMapa`) em vez dos `servicos` inteiros. `atlas_catalogo` sem `parte` devolve um índice com contagens (receitas e coleção são grandes); a parte `climas` inclui também acabamentos, gêneros e tipos de cômodo. O resumo do covil tem 3.006 caracteres. Build de produção sem traço da ponte (grep vazio).
 
-### 14.1e — Atlas: ver o mapa  ⬜
+### 14.1e — Atlas: ver o mapa  ✅
 Objetivo: o Claude enxerga o mapa como o mestre vê, para conferir o que montou.
 Depende de: 14.1d
 Ler: `scripts/exemplos/gerar.ts` (como a captura prepara a vista: `definirModoProjetor`, `enquadrarCaixa`, esperar `pintando === 0`), `src/render/viewport.ts`, `src/render/cena.ts`.
@@ -178,8 +182,9 @@ Não fazer: comparação com referência (a skill da 14.2f ensina).
 Testes: e2e: num exemplo, a captura tem o tamanho esperado, não é vazia (variância de pixels) e a câmera volta ao lugar.
 Pronto quando: no app do Claude, "olhe o mapa aberto" mostra a imagem e o Claude a descreve.
 Commit: map snapshot tool
+Nota: `capturar` devolve `{ dataUrl, largura, altura, pxPorMetro, caixa }` (a caixa é recortada ao mapa) e recorta a imagem à própria caixa, não à tela; usa `renderer.extract.canvas` sobre a stage, com `resolution` calculada para o maior lado caber em `ladoMaximo`. O parâmetro `estilo` ficou de fora (trocar o estilo re-assaria tudo e mexeria no documento); `atlas_ver_mapa` só aceita `caixa`. O contexto da ponte ganhou `capturar` (opcional). Captura do covil (45 × 34 m) com `ladoMaximo` 800: 800 × 604 px, 17,77 px/m.
 
-### 14.1f — Mesa na ponte e verificação do build  ⬜
+### 14.1f — Mesa na ponte e verificação do build  ✅
 Objetivo: com só a Mesa aberta, o Claude já lê a campanha; e fica provado que nada disso vai para o Pages.
 Depende de: 14.1b
 Ler: `../Mesa/src/main.tsx`, `../Mesa/AGENTS.md` (como atualizar o `vendor/mesa-core`), `../Mesa/vite.config.ts`.
@@ -191,8 +196,9 @@ Não fazer: ferramentas de escrita da Mesa (etapa 3).
 Testes: o próprio `ponte:verificar` passa; o typecheck e os testes do Mesa passam.
 Pronto quando: `npm run ponte:verificar` passa e, com só a Mesa aberta no `mesa-dev`, `campanha_ler` responde no app do Claude.
 Commit: mesa on the assistant bridge and build check
+Nota: o Mesa ganhou o alias `#mesa/ponte` (`imports` do package.json, como no Atlas) e `ponte:verificar` aceita `--mesa <caminho>`/`MESA_DIR`; a busca usa nomes reais (`__ponte`, `conectarPonte`, `ponte_estado`, `atlas_mapa_ler`, `atlas_ver_mapa`, `campanha_ler`, `mesa_campanha_atual`) em vez de `ponte_` solto, para evitar falso positivo.
 
-### 14.1g — Presença do assistente na aba: selo e "o que estou vendo"  ⬜
+### 14.1g — Presença do assistente na aba: selo e "o que estou vendo"  ✅
 Objetivo: o mestre sabe que o assistente está conectado e pode se referir ao que tem na tela ("este cômodo", "esta sessão").
 Depende de: 14.1d, 14.1f
 Ler: `mesa-core/src/ponte.ts`, `src/app/ponte.ts`, `src/app/sessao.ts` (`selecao`), `src/ui/` (o cabeçalho do editor), `../Mesa/src/ui/Cabecalho.tsx`, `docs/INTERFACE.md`.
@@ -210,10 +216,11 @@ Não fazer: painel de atividade (14.2e).
 Testes: `atlas_o_que_vejo` com seleção de um cômodo e de dois objetos devolve os ids e nomes certos.
 Pronto quando: com o app do Claude conectado, o selo aparece nas duas abas; "o que eu selecionei?" responde certo.
 Commit: assistant presence badge and what-i-see tools
+Nota: o cliente expõe `estado()` (`conexao`, `ocupada`, `ultimaChamadaEm`, `ferramentas`) e `aoMudarEstado(fn)`. O selo entra por um signal `seloDoAssistente` (`src/app/assistente-slot.ts`, nos dois apps) que o cabeçalho lê e só o `ponte.ts` (dev) preenche; `SeloDoAssistente.tsx` leva o próprio CSS num `<style>` e a marca `selo-assistente` foi para `verificar-build.ts`. `oQueVejo` ficou em `ponte-leitura.ts` (Atlas) e em `src/app/o-que-vejo.ts` (Mesa, com teste em `tests/unit/o-que-vejo.test.ts`); a ficha não citava este arquivo da Mesa.
 
 ---
 
-### 14.2a — Construção em comandos: módulo puro compartilhado  ⬜
+### 14.2a — Construção em comandos: módulo puro compartilhado  ✅
 Objetivo: as operações do kit dos exemplos (formas, cômodos, portas, objetos, luzes) viram funções puras que **devolvem comandos**, para as ferramentas da ponte usarem sem duplicar a lógica do kit.
 Depende de: —
 Ler: `scripts/exemplos/kit.ts` (`medir`, `chavesDe`, `comodo`, `parede`, `porta`, `objeto`, `luz`, `espalhar`, `regiao`), `src/state/comandos.ts` e `src/state/comandos-construir.ts` (os tipos `Comando`), `src/domain/fabrica.ts` (`novoObjeto`, `novaLuz`, `novoIdEntidade`), `src/domain/geometria.ts` (`encaixarNaParede`, `motivoDeNaoCaber`), `src/procedural/acervo.ts`, `src/domain/presets.ts`.
@@ -235,7 +242,9 @@ Testes: cada função num mapa vazio gera os comandos esperados e, aplicados com
 Pronto quando: os testes passam e os exemplos continuam idênticos.
 Commit: shared construction helpers that emit commands
 
-### 14.2b — Ferramentas de escrita do mapa: criar, terreno, cômodos, paredes, portas  ⬜
+Nota: `formas.ts` também exporta `medirForma`, `chavesDaForma` e `sementeDaForma` (o kit e `espalhar` precisam da medida); `celulasDaForma` recebe `semente` como semente direta do ruído. Cada função tem `semente = 1` e `gerarId = novoIdEntidade` opcionais. `portas` encaixa sobre o mapa recebido (cada abertura vê as anteriores); para cômodos da mesma chamada use `aplicarEmCopia(mapa, comodos(...).comandos)`.
+
+### 14.2b — Ferramentas de escrita do mapa: criar, terreno, cômodos, paredes, portas  ✅
 Objetivo: o Claude cria um mapa e levanta a estrutura dele, e cada chamada é um passo de desfazer.
 Depende de: 14.1d, 14.2a
 Ler: `src/app/ponte.ts`, `src/app/ponte-leitura.ts`, `src/state/store.ts` (`transacao`), `src/app/app.ts` (`criarMapaNovo`, `navegar`), `src/app/exemplos.ts` (`usarExemplo`, o padrão de criar e abrir), `src/domain/mapa.ts` (`criarMapa`), `src/app/campanha.ts` (o mapa com `campanhaId` vira entidade sozinho), `src/authoring/construcao.ts`.
@@ -262,7 +271,9 @@ Testes: com um store de verdade e serviços falsos (o padrão de `tests/unit/` q
 Pronto quando: no app do Claude, "crie um mapa 20 × 15 de grama com uma trilha de terra e uma cabana de 3 × 3 células com porta" funciona, e cada chamada se desfaz com um Ctrl+Z.
 Commit: assistant tools to create maps and build structure
 
-### 14.2c — Ferramentas de escrita do mapa: objetos, espalhar, luzes, ambiente, regiões, presença, notas  ⬜
+Nota: contexto injetável `ContextoDeEscrita { store, repo, sincronizarCampanha?, abrirMapa, campanhaAtiva? }`; `ferramentasDeEscrita(ctx)` exporta as 5 ferramentas, além de `escrever`, `criadosPeloAssistente`, `esquemaDaForma` e `esquemaDoRetanguloDeCelulas` (o esquema da forma nasceu em `ponte-escrita.ts`, não em `formas.ts`). `atlas_mapa_criar` sem `campanhaId` usa a campanha ativa do app (como o "novo mapa") e abre pela rota (`navegar` e espera a sessão). Todas aceitam `semente` opcional (aleatória se omitida) e até 100 itens por lista. `correnteza.angulo` em radianos. Se a lista não gera comando algum, a ferramenta responde "nada mudou" sem entrada de histórico. Ids de camada de água seguem o material (`agua.rio`, não `agua`).
+
+### 14.2c — Ferramentas de escrita do mapa: objetos, espalhar, luzes, ambiente, regiões, presença, notas  ✅
 Objetivo: o Claude mobilia, ilumina e ambienta o mapa.
 Depende de: 14.2b
 Ler: `src/app/ponte-escrita.ts`, `src/authoring/construcao.ts`, `src/domain/presets.ts` (climas, acabamentos, luzes, pincéis), `src/state/comandos.ts` (`clima.predefinir`, `clima.aplicar`, `clima.salvar`, `acabamento.atualizar`, `presenca.pintar`, `comodo.notas`, `mapa.notas`).
@@ -281,7 +292,9 @@ Testes: cada ferramenta aplicada num mapa de teste gera o que o catálogo diz; 2
 Pronto quando: no app do Claude, o mapa da 14.2b ganha móveis na cabana, árvores espalhadas, uma fogueira com luz e o clima de entardecer, e o Claude confere com `atlas_ver_mapa`.
 Commit: assistant tools to furnish, light and set the mood
 
-### 14.2d — Ferramentas de momentos  ⬜
+Nota: `atlas_ambiente.clima` aceita `preset` (pronto ou clima salvo do mapa), `horario`, `tempo`, `ambiente`, `sol` (ou `null`) e `redeLigada`; `acabamento` aceita `preset` e ajustes (com ajustes o preset vira `personalizado`); faixas validadas antes dos comandos, com erro legível. `atlas_presenca` ganhou `intensidade` opcional (comando `item.atualizar` em `presence`). `atlas_notas` substitui o texto do campo. Ids desconhecidos (conjunto, preset de luz/clima/acabamento, pincel) sugerem os parecidos por id e nome; o item do acervo usa a sugestão (id, nome, tags) de `construcao.ts`. Só `atlas_objetos` aceita 200 itens; as outras listas, 100.
+
+### 14.2d — Ferramentas de momentos  ✅
 Objetivo: o Claude monta momentos (sequências de cena) no mapa aberto.
 Depende de: 14.2b
 Ler: `src/domain/momentos.ts` (`PassoDeMomento`, `momentoValido`, `passoValido`, `descreverPasso`), `src/state/comandos.ts` (`momento.salvar`), `src/app/momentos.ts` (o executor, para a ferramenta de testar).
@@ -294,8 +307,9 @@ Não fazer: apagar momento que o mestre criou (14.2e).
 Testes: momento válido vira um `momento.salvar`; clima inexistente e cômodo inexistente voltam como erro claro; substituir só vale para ids criados pelo assistente.
 Pronto quando: "faça um momento de chegada: escurece a tela, letreiro com o nome do lugar, clima de neblina e câmera no salão" funciona e toca com `atlas_momento_testar`.
 Commit: assistant tools for moments
+Nota: as duas ferramentas ficaram em `ferramentasDeEscrita` (`ponte-leitura.ts` não mudou). `ContextoDeEscrita` ganhou `tocarMomento(id)` e `pararMomento()` opcionais (o `ponte.ts` liga `tocarMomentoDoMapa` e `pararMomento`; os testes injetam falsos). `atlas_momento_testar` devolve a descrição de todos os passos do momento com o resultado (`fim`, `cancelado` ou `tempo esgotado`, parando o momento); o executor não informa passo a passo. O esquema vem de `esquemaDoPasso()` e a lista de tipos de `TIPOS_DE_PASSO_ESQUEMA`, ambos em `ponte-escrita.ts`; o catálogo continua com a sua própria lista e um teste confere que tipos e campos batem. `interagir` aceita porta/porta secreta ou objeto com interruptor/gaveta (janela, arco, pista e nota são recusados, pois o comando `interagir` não os aciona). `revelar` confere só cômodos (a ficha pede). Com `id` de momento inexistente a ferramenta recusa e pede para omitir o `id`.
 
-### 14.2e — Painel de atividade: histórico, desfazer, destaque e confirmação  ⬜
+### 14.2e — Painel de atividade: histórico, desfazer, destaque e confirmação  ✅
 Objetivo: o mestre vê e controla o que o assistente faz no mapa.
 Depende de: 14.1g, 14.2b
 Ler: `src/ui/SeloDoAssistente.tsx`, `src/app/ponte-escrita.ts` (`criadosPeloAssistente`), `src/state/store.ts` (histórico, `podeDesfazer`), `src/render/viewport.ts` (enquadrar, destaque de seleção), `docs/INTERFACE.md` (painéis flutuantes, cores, tipografia).
@@ -315,8 +329,9 @@ Não fazer: histórico entre recargas da aba (a lista é da sessão da aba).
 Testes: a lista registra sucesso e erro; Desfazer só aparece no topo; um pedido de remoção de algo do mestre fica pendente até a resposta, e a recusa vira erro.
 Pronto quando: no navegador, o painel mostra as chamadas, destaca o que cada uma criou e segura a remoção de um cômodo do mestre até Permitir.
 Commit: assistant activity panel with undo and confirmation
+Nota: o "topo do histórico" é decidido pela `versaoEdicao` do store guardada logo após a chamada (qualquer edição, desfazer ou refazer depois a muda; conservador: desfazer a edição do mestre não devolve o botão). O destaque no hover reaproveita a seleção do mapa (guarda a seleção do mestre e a devolve ao sair), sem mexer no viewport; o clique usa `enquadrarCaixa`. Recusa, silêncio (5 min) ou id inexistente não aplicam nada, nem a parte do assistente. `atlas_remover` aceita também momentos; `atlas_mover` só objetos, luzes, peças e regiões. Presença de pedido pendente abre o painel sozinho. `Geracao` ganhou `afetados` (ids só mexidos, sem virarem "do assistente"). O selo virou um botão.
 
-### 14.2f — Instruções do assistente: compor mapas e momentos  ⬜
+### 14.2f — Instruções do assistente: compor mapas e momentos  ✅
 Objetivo: um texto genérico de instruções para colar no projeto de qualquer campanha no app do Claude, que faz o assistente usar bem as ferramentas.
 Depende de: 14.2c, 14.2d
 Ler: `scripts/exemplos/*.ts` e o histórico de ajustes da Fase 10 (`docs/plano/fase-10.md`, notas das 10.7), `src/app/ponte-escrita.ts`.
@@ -340,6 +355,7 @@ Não fazer: instruções da Mesa (14.3d).
 Testes: — (documentação). Conferir que todos os nomes de ferramenta citados existem.
 Pronto quando: com as instruções coladas num projeto, um pedido de mapa curto sai composto em blocos e conferido com captura.
 Commit: assistant instructions for maps and moments
+Nota: `instrucoes.md` (cerca de 1,4 mil palavras) acrescenta um exemplo de pedido curto em blocos e recomenda ler antes de `atlas_notas` (que substitui o texto); `LEIAME.md` aponta para `scripts/ponte/LEIAME.md` em vez de repetir o registro. Todos os nomes de ferramenta citados foram conferidos por grep nos arquivos de ferramentas.
 
 ### 14.3a — Mesa: sessões planejadas e roteiro  ⬜
 Objetivo: o Claude cria a sessão da próxima mesa, sem começar a gravar, e monta o roteiro dela.
