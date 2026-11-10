@@ -133,6 +133,8 @@ export interface Viewport {
   /** Mostra, translúcido, o que `previa` acrescenta ao documento; `null` limpa. Quem chamou recalcula se o documento mudar. */
   mostrarProposta(previa: MapaAtlas | null): void;
   contagemDoFantasma(): number;
+  /** Visibilidade das prévias (ferramenta, sugestão, laço); todas somem no modo projetor. */
+  fantasmasVisiveis(): { ferramenta: boolean; proposta: boolean; laco: boolean };
   /** Para os testes: o que a régua mede agora (ou `null` sem régua ou com um ponto só). */
   diagnosticoDaRegua(): { quadrados: number; texto: string; pontos: number } | null;
   /** Esconde ou mostra os marcadores de editor (grade, contorno da área, pinos de luz e regiões). */
@@ -1052,7 +1054,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       definirCamera(camera0);
     }
   }
-  function projetor(ligado: boolean): void { modoProjetor = ligado; cena.definirModoProjetor(ligado); grade.visible = !ligado; area_.visible = !ligado; selecaoG.visible = !ligado; }
+  function projetor(ligado: boolean): void { modoProjetor = ligado; cena.definirModoProjetor(ligado); grade.visible = !ligado; area_.visible = !ligado; selecaoG.visible = !ligado; fantasmaC.visible = !ligado; fantasmaDaProposta.raiz.visible = !ligado; laco.visible = !ligado; }
 
   return {
     get camera() { return camera; },
@@ -1085,6 +1087,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     diagnosticoDasPecas: () => cena.diagnosticoDasPecas(),
     mostrarProposta: previa => { fantasmaDaProposta.mostrar(doc(), previa); camadaSuja = true; },
     contagemDoFantasma: () => fantasmaDaProposta.contagem(),
+    fantasmasVisiveis: () => ({ ferramenta: fantasmaC.visible, proposta: fantasmaDaProposta.raiz.visible, laco: laco.visible }),
     diagnosticoDaRegua: medidaDaRegua,
     definirModoProjetor: projetor,
     capturar,
