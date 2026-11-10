@@ -429,10 +429,76 @@ Pronto quando: com as instruções, "prepare a próxima sessão a partir das not
 Commit: assistant instructions for session planning
 Nota: seção "Planejar uma sessão" em `instrucoes.md` (título do documento passou a "mapas, momentos e sessões"); `mesa_o_que_vejo` entrou em "Antes de construir". Nomes e parâmetros conferidos por grep nos arquivos de ferramentas.
 
-### 14.4a a 14.4c — Documentos e fichas  ⬜
-Escopo (detalhar ao começar, **com autorização do usuário para cada projeto**): Ateliê, Dossiê e Jukebox importam `vendor/mesa-core/ponte.js` no trecho de desenvolvimento e registram as suas ferramentas.
-- **Ateliê:** criar documento ou pista (texto, estilo, camada UV), listar e ler.
-- **Dossiê:** criar e editar ficha e ameaça, ler fichas.
-- **Jukebox:** listar cenas sonoras e efeitos, e pedir `jukebox.tocar`.
+### Etapa 4 — regras comuns (valem para 14.4a–d)
+Detalhada em 10 de novembro de 2026, contra o código do fim da etapa 3. Autorização do usuário para Ateliê, Dossiê e Jukebox dada no mesmo dia.
+- **`mesa-core` com a ponte nos três:** `npm run build:core` no Atlas e copiar `mesa-core/dist/.` para `vendor/mesa-core/` do app (a cópia de hoje não tem `ponte.js`). Cada ficha copia para o seu app.
+- **Só em desenvolvimento:** Ateliê e Dossiê (Vite) carregam a ponte por `if (import.meta.env.DEV) import('./ponte.js')`. A Jukebox não tem build: ela carrega a ponte só quando `location.hostname` é `127.0.0.1` ou `localhost`, e no Pages o código não roda.
+- **Um módulo `ponte.js` por app**, com as ferramentas como funções que recebem um contexto injetável (como `ponte-escrita.ts` da Mesa) e testes com `node --test` sobre esse contexto, sem navegador.
+- **Nome com prefixo do app:** `atelie_…`, `dossie_…`, `jukebox_…`. O id do app na ponte é o do contrato: `atelie`, `ficha` (Dossiê) e `jukebox`.
+- **Regra de dono:** criar é livre. Mudar o que o assistente não criou pede confirmação na aba, e uma recusa volta como erro "o mestre recusou". Os ids criados pelo assistente ficam numa lista no `localStorage` (`<app>:ponte-criados`), só em desenvolvimento.
+- **Campanha:** o que o app já publica na campanha sozinho (Dossiê, Jukebox) continua por esse caminho. A ferramenta só dispara a sincronização. O Ateliê, que não publica, passa a registrar como `pista` os documentos criados pelo assistente.
+- **Sem commit:** o usuário revisa e commita. Cada ficha termina com a mensagem sugerida.
 
-Cada app que cria algo também registra a entidade e a `Ref` na campanha, como já faz pela interface.
+### 14.4a — Ateliê na ponte: documentos e pistas  ✅
+Objetivo: o Claude cria um documento a partir de um modelo do Ateliê, preenche o texto (e o texto escondido sob luz UV), salva, publica para o Atlas e o Tabletop e registra a pista na campanha.
+Depende de: 14.3d
+Ler: `../Atelie/AGENTS.md`, `../Atelie/src/main.js`, `../Atelie/src/mesa.js`, `../Atelie/src/editor/editor.js` (`instantiateTemplate`, `archiveDocument`, a API devolvida no fim), `../Atelie/src/domain/handouts.js` (`textLayer`, `fillFields`, `setField`, `layer.light`), `../Atelie/src/data/api.js` (`handouts.list/read`, `library`), `../Atelie/src/editor/templates-drawer.js` (categorias, era, tom), um modelo em `../Atelie/public/colecao/modelos/`, `../Mesa/src/app/ponte-escrita.ts` (padrão de contexto e erros).
+Arquivos: no Ateliê, copiar o `vendor/mesa-core/` novo, criar `src/ponte.js` e `tests/ponte.test.js`, e mudar `src/main.js` (carregar a ponte só em DEV) e `src/mesa.js` (função para registrar a pista na campanha).
+Como:
+- `atelie_modelos_listar { busca?, categoria?, era?, tom? }`: id, nome, categoria, era, tom e os **campos** de cada modelo (os rótulos que `fillFields` aceita). No máximo 40 por resposta, com o total.
+- `atelie_documento_criar { modelo, nome, campos?: { [rotulo]: texto }, textoUV?: string, categoria?, tags? }`: instancia o modelo, preenche os campos, acrescenta uma camada de texto com `light: 'uv'` quando há `textoUV` (com estilo herdado de `inheritedTextStyle`) e arquiva pelo mesmo caminho do botão (`editor.archive`), que assa, publica no `mesa-handouts-v1` e avisa `atelie.documento-salvo`. O documento abre numa aba do editor. Depois registra a entidade `pista` com o Ref `mesa:atelie/documento/<id>` na campanha ativa (`abrirRepositorioCampanha({ app: 'atelie' })`, sem duplicar se já existe). Devolve id, ref, nome e campos que não existiam no modelo (ignorados).
+- `atelie_documento_editar { id, nome?, campos?, textoUV? }`: os mesmos passos sobre um documento existente. Pede confirmação se o documento não foi criado pelo assistente.
+- `atelie_documentos_listar { busca? }` e `atelie_documento_ler { id }` (nome, categoria, tags, os campos com o texto atual, se tem UV, revisão).
+Não fazer: desenhar camadas livres, imagens ou efeitos, nem apagar documentos.
+Testes: listar modelos filtra por categoria e devolve os campos; criar preenche os campos e acrescenta a camada UV; campo desconhecido volta em ignorados; editar documento alheio sem confirmação volta "o mestre recusou".
+Pronto quando: "crie a carta do informante ameaçando a família, com o endereço escondido em UV" aparece no Ateliê arquivada, na coleção da Mesa como pista e na lista de pistas do Atlas.
+Commit: assistant tools for atelie documents
+Nota: `src/ponte.js` (`ferramentasDoAtelie(ctx)`, contexto injetável); `main.js` o carrega só em DEV. Criar e editar passam pelo histórico do editor (`state.edit`) e arquivam por `editor.archive()` (assa, publica, avisa `atelie.documento-salvo`); como o `archive` engole erros, a ferramenta relê e falha se a revisão não subiu. Modelo e documento abrem em aba nova (`newTab`), para não trocar o que o mestre tem aberto. O verso de modelos com `backTemplate` é criado pelo próprio `instantiateTemplate`, sem campos. `textoUV` vira a camada "Texto UV" (`light:'uv'`, estilo herdado, no rodapé); `""` a remove. Editar sem mudança nenhuma é erro ("Nada a alterar"). `registrarPista` em `src/mesa.js` (ambiente injetável) cria a `pista` sem duplicar; sem campanha ativa a resposta diz isso. Confirmação por `window.confirm`. 15 testes em `tests/ponte.test.js`.
+
+### 14.4b — Dossiê na ponte: fichas e ameaças  ✅
+Objetivo: o Claude cria e ajusta fichas de personagem e de ameaça no Dossiê, que já as publica na campanha.
+Depende de: 14.4a (pelo `vendor` e pelo padrão)
+Ler: `../Dossie/src/mesa.js` (`iniciarMesa`, `sincronizar`, `ehAmeaca`, `recursosDaFicha`), `../Dossie/src/app.js` (o clique em `[data-create-system]`, `normalizeSheet`, `save`, `switchToSheet`, `render`, a chamada a `iniciarMesa` no fim), `../Dossie/src/systems/threat/threat-data.js` (`DEFAULT_THREAT_SHEET`, elementos, tamanhos, tipos), `../Dossie/src/systems/threat/threat-balance.js` (`getBalance`, `applyPreset`) e o wizard de ameaça, que usa os dois.
+Arquivos: no Dossiê, copiar o `vendor/mesa-core/` novo, criar `src/ponte.js` e `tests/ponte.test.mjs`, e mudar `src/app.js` (montar o adaptador e carregar a ponte só em DEV).
+Como:
+- O `app.js` monta um adaptador (`fichas`, `aberta`, `criar(dados)` com o mesmo caminho do clique de nova ficha, `salvar`, `abrir`, `sincronizar` da mesa) e o passa a `ponte.js`. Nada da lógica das ferramentas fica no `app.js`.
+- `dossie_fichas_listar { tipo?: 'personagem' | 'ameaca', busca? }` e `dossie_ficha_ler { id }` (resumo legível: nome, sistema, atributos, PV/PD, para ameaça VD, elementos, defesa, ações).
+- `dossie_ameaca_criar { nome, vd, elementos, categoria?, tipo?, tamanho?, preset?, descricao?, acoes?: { nome, tipoAcao, texto, dano? }[] }`: números de defesa, PV, salvaguardas e dano tirados de `getBalance(vd, preset)`, como o wizard faz; valores fora das listas do `threat-data.js` voltam como erro com as opções.
+- `dossie_ficha_criar { nome, sistema: 'ordem2' | 'original', classe?, nex?, atributos?, conceito? }`: o mínimo coerente pelo caminho normal de criação.
+- `dossie_ficha_editar { id, nome?, campos? }`: só campos de texto e números simples listados no esquema. Pede confirmação se a ficha não foi criada pelo assistente.
+- Depois de criar ou editar: `salvar`, `sincronizar` (a entidade `personagem` ou `ameaca` entra na campanha pelo caminho de sempre) e a ficha nova abre na tela.
+Não fazer: apagar fichas, mexer em retrato, licença do bestiário ou pastas.
+Testes: ameaça VD 60 com `preset` sai com os números da tabela; elemento inválido volta as opções; editar ficha alheia sem confirmação volta "o mestre recusou"; criar dispara `sincronizar`.
+Pronto quando: "crie a ameaça Carniçal de Sangue, VD 40, com uma mordida" aparece no Dossiê e na coleção da Mesa como ameaça.
+Commit: assistant tools for dossie sheets and threats
+Nota: `src/ponte.js` (`ferramentasDoDossie(ctx)`); `app.js` só monta o adaptador em DEV. O corpo do clique de nova ficha virou `criarFichaNova(mode, { raw, semAssistente })`, usado pelos dois; pela ponte a ficha nasce sem tutorial nem wizard. A ameaça reaproveita `aplicarEscolhas` e `ARQUETIPOS` do wizard (agora exportados) sobre `getBalance(vd, preset)`; parâmetro novo `arquetipo` (`tank`, `predador`, `mental`, `boss`); sem ele, PV e Defesa saem exatamente da tabela. Correção no wizard: `bonus || padrão` trocava salvaguarda de bônus 0 pelo padrão (`??` agora). `dossie_ficha_editar` aceita uma lista fixa de campos por tipo; `vd` editado só muda o rótulo. Editar ficha alheia pede `confirm()`. 7 testes em `tests/ponte.test.mjs`.
+
+### 14.4c — Jukebox na ponte: cenas sonoras e efeitos  ✅
+Objetivo: o Claude sabe quais cenas sonoras e efeitos existem e pode tocar, disparar e parar.
+Depende de: 14.4a (pelo `vendor`)
+Ler: `../Jukebox/mesa.js` (`pedidoDeCena`, `pedidoDeEfeito`, `pedidoDeParar`, `efeitosDisponiveis`, `slugDoTitulo`), `../Jukebox/scenes.js` (`getScenesSnapshot`, `getActiveSceneId`, `activateSceneById`), `../Jukebox/index.html` (como os scripts entram), `../Atlas/scripts/mesa-tudo.ts` (Jukebox servida como estática).
+Arquivos: na Jukebox, copiar o `vendor/mesa-core/` novo, criar `ponte.js`, mudar `mesa.js` (exportar as três funções de pedido e o que listar, e carregar `ponte.js` só em 127.0.0.1/localhost); testes em `tests/ponte.test.mjs` com `node --test` (a Jukebox não tem `package.json`: rodar `node --test tests/`).
+Como:
+- `jukebox_listar`: cenas sonoras (id, nome, ref `mesa:jukebox/cena-sonora/<id>`, se é a ativa) e efeitos (slug, título, ref `mesa:jukebox/efeito/<slug>`, se o áudio carregou).
+- `jukebox_tocar { cena }`, `jukebox_efeito { efeito }` e `jukebox_parar { ms? }`: chamam as mesmas funções do barramento. Cena e efeito aceitam id/slug, ref em texto ou nome (sem diferenciar maiúsculas e acentos).
+- Se o navegador bloquear o áudio por falta de gesto do mestre, a resposta diz isso ("clique na aba da Jukebox uma vez").
+Não fazer: criar ou editar cenas sonoras, subir músicas, mexer no mixer.
+Testes: achar cena por nome sem acento; efeito desconhecido volta a lista de efeitos; `jukebox_parar` usa 1000 ms por padrão.
+Pronto quando: "toque a trilha de tensão" muda a cena na Jukebox, e o Registro da Mesa mostra "Tocando: …".
+Commit: assistant tools for jukebox scenes and effects
+Nota: `ponte.js` sem DOM, com contexto montado por `contextoDaPonte()` em `mesa.js` (reaproveita `pedidoDeCena`, `pedidoDeEfeito`, `pedidoDeParar`, agora exportadas); carregada no início de `iniciar()` só em 127.0.0.1/localhost. O player engole a rejeição do `play()`, então o autoplay bloqueado é inferido 400 ms depois (nada tocando). Cena com parte das faixas faltando toca o que tem e volta sucesso com `aviso`. Testes: `node --test` na pasta (não `node --test tests/`).
+
+### 14.4d — Verificação do build e instruções  ✅
+Objetivo: a trava 3 cobre Ateliê e Dossiê, e as instruções do assistente sabem usar os três apps.
+Depende de: 14.4a–c
+Ler: `scripts/ponte/verificar-build.ts`, `docs/assistente/instrucoes.md`, `docs/assistente/LEIAME.md`, as ferramentas novas.
+Arquivos: mudar `scripts/ponte/verificar-build.ts`, `docs/assistente/instrucoes.md`, `docs/assistente/LEIAME.md`, `progress.md`.
+Como:
+- `verificar-build.ts` passa a construir também Ateliê (`vite build`) e Dossiê (`vite build`, sem o `gen-default-sheets`), aceitando `vite.config.js`, com as marcas novas (`atelie_documento_criar`, `dossie_ameaca_criar`, `jukebox_tocar` só por garantia nos dois). A Jukebox fica de fora (sem build), e a regra da 14.4c fica documentada no LEIAME.
+- Instruções: em "Planejar uma sessão", as pistas viram documentos no Ateliê, os NPCs e as ameaças viram fichas no Dossiê e a trilha da cena vem de `jukebox_listar`. Uma seção curta sobre documentos: escolher modelo por era e tom, preencher só os campos do modelo e usar UV para o segredo.
+Testes: `npm run ponte:verificar` passa com os quatro builds.
+Pronto quando: a verificação passa e as instruções citam só ferramentas que existem.
+Commit: build check and instructions for atelie, dossie and jukebox
+Nota: `verificar-build.ts` constrói também Ateliê e Dossiê (só `vite build`, `vite.config.ts` ou `.js`; `--atelie`/`ATELIE_DIR`, `--dossie`/`DOSSIE_DIR`; ausentes são pulados com aviso) e ganhou as marcas `atelie_documento_criar`, `atelie_modelos_listar`, `dossie_ameaca_criar`, `dossie_ficha_criar`, `jukebox_tocar`. A Jukebox (sem build) fica de fora, com a regra do hostname no LEIAME. Instruções: "Planejar uma sessão" manda pistas ao Ateliê, NPCs e ameaças ao Dossiê e a trilha de `jukebox_listar`; seção nova "Documentos, fichas e trilha" depois do resumo.
+
+**Fase 14 concluída** em 10 de novembro de 2026 (falta o teste da etapa 4 no navegador com o app do Claude).
