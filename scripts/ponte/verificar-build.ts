@@ -2,6 +2,7 @@
  * Prova que a ponte do assistente não vai para o build de produção (o que o Pages publica).
  * Roda `vite build` do Atlas, da Mesa, do Ateliê e do Dossiê em pastas temporárias e procura marcas da ponte nos arquivos gerados.
  * (No Dossiê é só `vite build`, nunca `npm run build`, que gera fichas.) A Jukebox não tem build e fica de fora.
+ * Checagem inversa só no Atlas: o build `--mode desktop` (o do app de desktop) TEM `conectarPonte`; se não tiver, a trava sumiu sem querer.
  * Uso: `npm run ponte:verificar [-- --mesa <caminho> --atelie <caminho> --dossie <caminho>]`
  * (ou env `MESA_DIR`, `ATELIE_DIR`, `DOSSIE_DIR`; padrões: `../Mesa`, `../Atelie`, `../Dossie`).
  * Ateliê e Dossiê ausentes são avisados e pulados; Atlas e Mesa são obrigatórios.
@@ -52,6 +53,16 @@ try {
       total++;
       const conteudo = fs.readFileSync(arq, 'latin1');
       for (const m of MARCAS) if (conteudo.includes(m)) achados.push(`${path.relative(saida, arq)}: ${m}`);
+    }
+    if (nome === 'Atlas') {
+      const saidaDesktop = fs.mkdtempSync(path.join(os.tmpdir(), 'ponte-build-atlas-desktop-'));
+      temporarias.push(saidaDesktop);
+      const d = spawnSync('npx', ['vite', 'build', '--mode', 'desktop', '--outDir', saidaDesktop, '--emptyOutDir'], { cwd: raiz, encoding: 'utf8', env: { ...process.env, NODE_ENV: 'production' } });
+      if (d.status !== 0) { console.error(`Atlas (desktop): o build falhou.\n${d.stdout}${d.stderr}`); falhou = true; }
+      else if (![...arquivos(saidaDesktop)].some(arq => fs.readFileSync(arq, 'latin1').includes('conectarPonte'))) {
+        falhou = true;
+        console.error('Atlas (desktop): o build `--mode desktop` NÃO contém `conectarPonte`. Confira a trava `VITE_PONTE` em src/main.tsx e o `.env.desktop`; sem ela o app de desktop fica sem a ponte.');
+      } else console.log('Atlas (desktop): ok (o build desktop contém a ponte)');
     }
     if (achados.length) { falhou = true; console.error(`${nome}: a ponte vazou para o build:\n${achados.map(a => `  ${a}`).join('\n')}`); }
     else console.log(`${nome}: ok (${total} arquivos sem a ponte)`);

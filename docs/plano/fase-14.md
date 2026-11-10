@@ -550,7 +550,7 @@ Commit: stable tool catalog for the mcp server
 
 **Decisão nova (revoga em parte a "só em desenvolvimento"):** a ponte também existe no **build de desktop**, nunca no build do Pages. A trava 3 (`ponte:verificar`) continua valendo para o build padrão.
 
-### 14.6a — Builds de desktop com a ponte  ⬜
+### 14.6a — Builds de desktop com a ponte  ✅
 Objetivo: Atlas, Mesa, Ateliê e Dossiê ganham um modo de build `desktop` que inclui a ponte; o `dist-desktop` é montado com ele.
 Ler: `src/main.tsx` (Atlas e Mesa), `../Atelie/src/main.js`, `../Dossie/src/app.js` (fim), `../Mesa/scripts/build-desktop.ts`, `scripts/ponte/verificar-build.ts`.
 Como:
@@ -559,8 +559,9 @@ Como:
 - `verificar-build.ts` continua construindo o modo padrão e ganha uma checagem inversa: o modo `desktop` do Atlas **tem** `conectarPonte` (para a trava não sumir sem querer).
 Testes: `ponte:verificar` passa; o build `desktop` contém a ponte.
 Commit: desktop builds include the assistant bridge
+Nota: `.env.desktop` (`VITE_PONTE=1`) em Atlas, Mesa, Ateliê e Dossiê; build `vite build --mode desktop --outDir dist-desktop-app` (no `.gitignore`). `Mesa/scripts/build-desktop.ts` roda esse build em cada app (Dossiê depois do `gen-default-sheets.js`) e copia para `dist-desktop/<Nome>`; o plano continua puro e o executor é injetável. O `base` é `./` em todos; no Ateliê o modo `desktop` conta como `pages` para o armazenamento no navegador (senão cairia em `server`). `ponte:verificar` confere também que o build desktop do Atlas tem a ponte. No Dossiê minificado a marca é `__ponte` (o nome `conectarPonte` some).
 
-### 14.6b — O app de desktop hospeda a ponte  ⬜
+### 14.6b — O app de desktop hospeda a ponte  ✅
 Objetivo: abrir o atalho basta; o MCP do app do Claude conecta nele como conectava no `mesa-dev`.
 Depende de: 14.6a
 Ler: `../Mesa/scripts/launch-desktop.mjs`, `scripts/ponte/servidor.ts` (`criarPonte`, `CAMINHO_DA_PONTE`, `aceitar`), `scripts/mesa-dev.ts` (como liga a ponte no `upgrade`).
@@ -571,18 +572,21 @@ Como:
 Testes: script que sobe o servidor do atalho sem janela e conecta como MCP e como aba (com `Origin`).
 Pronto quando: sem `mesa-dev`, com só o atalho aberto, `ponte_estado` mostra a Mesa no "app da Mesa".
 Commit: desktop app hosts the assistant bridge
+Nota: `launch-desktop.mjs` exporta `iniciarServidorComPonte` (cria a ponte depois de saber a porta real) e só executa atrás do guard de `main`. O `upgrade` em `/__ponte` vai para `ponte.aceitar`; outros caminhos são derrubados. Sem Atlas ou `node_modules`, abre sem ponte e avisa no stderr. O WebKit manda `MesaVTT/1` no user agent e `rotuloDoLugar` o mostra como "app da Mesa". O teste de integração fica no Atlas (`tests/unit/ponte.test.ts`, onde está o `ws`) e importa o `.mjs` da Mesa por caminho relativo.
 
-### 14.6c — App fechado: a ponte abre e espera  ⬜
+### 14.6c — App fechado: a ponte abre e espera  ✅
 Objetivo: chamar uma ferramenta do Atlas, do Dossiê, do Ateliê ou da Jukebox sem a aba aberta abre a aba sozinha e executa.
 Depende de: 14.5b
 Ler: `scripts/ponte/servidor.ts` (`chamar`), `scripts/ponte/mcp.ts` (catálogo e erro de app fechado), `../Mesa/src/app/ponte-escrita.ts` (`mesa_abrir_apps`).
 Como: no servidor, se a ferramenta é de um app sem aba e há uma aba da Mesa, chama `mesa_abrir_apps { apps: [app] }` nela, espera o app se registrar (até 20 s) e então repassa a chamada. Sem Mesa aberta, ou se o tempo acabar, o erro de hoje. Duas chamadas seguidas ao mesmo app fechado esperam a mesma abertura (não abrem duas abas).
 Testes: chamada a app fechado com Mesa aberta abre, espera e executa; sem Mesa, erro; duas chamadas abrem uma vez.
 Commit: bridge opens closed apps on demand
+Nota: o MCP repassa toda ferramenta do catálogo; o servidor acha o app pelo prefixo (`atlas_`, `mesa_`, `dossie_`→ficha, `atelie_`, `jukebox_`), pede `mesa_abrir_apps` à aba da Mesa (chamada interna, `Pendente` com `mcp: null`), espera o registro (`tempoDeAberturaMs`, 20 s) e repassa. Aberturas simultâneas do mesmo app compartilham uma `Promise`. Falhas voltam com `fechado: true` e o motivo. `APPS_ABRIVEIS` e o mapa de prefixos estão duplicados no servidor: app novo entra nos dois lugares. `campanha_*` sem aba nenhuma continua "desconhecida".
 
-### 14.6d — Ferramentas da Mesa leem o banco  ⬜
+### 14.6d — Ferramentas da Mesa leem o banco  ✅
 Objetivo: o que a Mesa responde ao Claude não depende do estado da interface (campanha selecionada, signals recarregados).
 Ler: `../Mesa/src/app/ponte-escrita.ts` (`ContextoDeSessoes`, `ContextoDeEntidades`, `ContextoDeCenas`), `../Mesa/src/app/ponte.ts`, `../Mesa/src/app/registro.ts` (`carregarSessoes`), `../Mesa/src/app/campanha.ts`.
 Como: os contextos passam a ler sessões, entidades e ligações do repositório (`obterRepositorio()`) pela campanha ativa, na hora da chamada; os signals só são atualizados depois de escrever (para a tela acompanhar). Investigar e registrar na nota por que `sessoes.value` ficou vazio depois da reconexão.
 Testes: com o signal vazio e a sessão no banco, `mesa_sessoes_listar` a devolve; editar a sessão atualiza o signal.
 Commit: mesa bridge tools read from the campaign database
+Nota: causa: `sessoes` só era carregado pelo `useEffect` do `ModoSessao.tsx`; `atualizar()` carrega campanha, entidades e ligações, mas não sessões, então depois de recarregar ou reconectar as ferramentas viam `[]` (e `alterarSessaoPorId` devolvia `null`). Agora os contextos são assíncronos e leem o repositório na hora da chamada; sem campanha na tela, `atualizar()` valida a do `localStorage`. As escritas seguem pela interface, com `carregarSessoes` antes de editar e depois de escrever.

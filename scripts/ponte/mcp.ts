@@ -139,6 +139,7 @@ export function erroAppFechado(app: string, origem = 'http://127.0.0.1:5100'): s
     mesa: { rotulo: 'Mesa', caminho: 'Mesa', artigo: 'A', temAbrirApps: false },
     atelie: { rotulo: 'Ateliê', caminho: 'Atelie', artigo: 'O', temAbrirApps: true },
     dossie: { rotulo: 'Dossiê', caminho: 'Dossie', artigo: 'O', temAbrirApps: true },
+    ficha: { rotulo: 'Dossiê', caminho: 'Dossie', artigo: 'O', temAbrirApps: true },
     jukebox: { rotulo: 'Jukebox', caminho: 'Jukebox', artigo: 'O', temAbrirApps: true },
     tabletop: { rotulo: 'Tabletop', caminho: 'Tabletop', artigo: 'O', temAbrirApps: true },
   };
@@ -386,11 +387,12 @@ export async function chamarFerramenta(ponta: Ponta, nome: string, args: Record<
   const ferramenta = catalogo.find(f => f.nome === nome);
   if (!ferramenta)
     return { isError: true, content: [{ type: 'text' as const, text: `A ferramenta "${nome}" não está disponível. Rode \`ponte_estado\` para ver o que está conectado.` }] };
-  if (!ativas.some(f => f.nome === nome)) {
-    const origem = ponta.origemHttp ? ponta.origemHttp() : 'http://127.0.0.1:5100';
-    return { isError: true, content: [{ type: 'text' as const, text: erroAppFechado(ferramenta.app, origem) }] };
-  }
+  // App fechado: repassa mesmo assim; o servidor da ponte tenta abri-lo pela Mesa e, se não der, devolve o motivo.
   const r = await ponta.chamar(nome, args);
+  if (!r.ok && r.fechado) {
+    const origem = ponta.origemHttp ? ponta.origemHttp() : 'http://127.0.0.1:5100';
+    return { isError: true, content: [{ type: 'text' as const, text: `${erroAppFechado(ferramenta.app, origem)} (${r.erro})` }] };
+  }
   const aviso = ponta.avisoArmazenamento ? ponta.avisoArmazenamento() : (apps ? gerarAvisoArmazenamento(apps) : null);
   if (!r.ok) return acrescentarAviso({ isError: true, content: [{ type: 'text' as const, text: r.erro }] }, aviso);
   return acrescentarAviso({ content: r.conteudo.map(converterConteudo) }, aviso);

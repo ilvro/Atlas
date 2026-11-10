@@ -199,7 +199,7 @@ test('catálogo estável: abrir e fechar aba não muda tools/list nem notifica; 
     // Chamar ferramenta de app fechado devolve erro com endereço
     const erroFechado: any = await mcp.client.callTool({ name: 'atlas_ver_mapa', arguments: {} });
     assert.equal(erroFechado.isError, true);
-    assert.equal(textoDe(erroFechado), `O Atlas não está aberto. Abra-o em http://127.0.0.1:${p.porta}/Atlas/ (ou peça mesa_abrir_apps) e tente de novo.`);
+    assert.equal(textoDe(erroFechado), `O Atlas não está aberto. Abra-o em http://127.0.0.1:${p.porta}/Atlas/ (ou peça mesa_abrir_apps) e tente de novo. (não há aba da Mesa aberta para abri-lo)`);
 
     // Reabre a aba com ferramenta nova: notifica uma vez
     aba = new WebSocket(p.url, { origin: p.origem });

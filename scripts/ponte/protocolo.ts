@@ -8,7 +8,8 @@ export type FerramentaDoApp = Ferramenta & {
 };
 export type Conteudo = { tipo: 'texto'; texto: string } | { tipo: 'imagem'; dados: string; mime: string };
 
-export type Resultado = { tipo: 'resultado'; id: string; ok: true; conteudo: Conteudo[] } | { tipo: 'resultado'; id: string; ok: false; erro: string };
+export type Resultado = { tipo: 'resultado'; id: string; ok: true; conteudo: Conteudo[] } | { tipo: 'resultado'; id: string; ok: false; erro: string; fechado?: true };
+/* `fechado`: a ponte não conseguiu abrir o app (o erro traz o motivo); o MCP completa a mensagem com o endereço. */
 
 /** Informações da aba ativa de um aplicativo conectado à ponte. */
 export interface AppConectado {
@@ -76,7 +77,7 @@ export function lerMensagem(entrada: string): Mensagem | null {
     case 'resultado':
       if (!texto(m.id)) return null;
       if (m.ok === true) return Array.isArray(m.conteudo) && m.conteudo.every(conteudoValido) ? { tipo: 'resultado', id: m.id, ok: true, conteudo: m.conteudo as Conteudo[] } : null;
-      if (m.ok === false) return texto(m.erro) ? { tipo: 'resultado', id: m.id, ok: false, erro: m.erro } : null;
+      if (m.ok === false) return texto(m.erro) ? { tipo: 'resultado', id: m.id, ok: false, erro: m.erro, ...(m.fechado === true ? { fechado: true as const } : {}) } : null;
       return null;
     default:
       return null;

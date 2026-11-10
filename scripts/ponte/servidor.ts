@@ -12,10 +12,17 @@ import { lerMensagem, type Ferramenta, type FerramentaDoApp, type Resultado, typ
 
 export const CAMINHO_DA_PONTE = '/__ponte';
 export const TEMPO_DA_CHAMADA_MS = 60_000;
+export const TEMPO_DE_ABERTURA_MS = 20_000;
+/** Apps que `mesa_abrir_apps` sabe abrir (ids da ponte) e o prefixo das ferramentas de cada um. */
+const APPS_ABRIVEIS = ['atlas', 'ficha', 'atelie', 'jukebox'];
+const PREFIXOS: Record<string, string> = { atlas_: 'atlas', mesa_: 'mesa', dossie_: 'ficha', atelie_: 'atelie', jukebox_: 'jukebox' };
+const appDoPrefixo = (ferramenta: string): string | undefined =>
+  Object.entries(PREFIXOS).find(([p]) => ferramenta.startsWith(p))?.[1];
 
-/** Traduz o User-Agent em um rótulo legível ("Firefox", "Chrome", "app da Mesa (WebKit)" ou "outro navegador"). */
+/** Traduz o User-Agent em um rótulo legível ("Firefox", "Chrome", "app da Mesa", "app da Mesa (WebKit)" ou "outro navegador"). */
 export function rotuloDoLugar(userAgent?: string | null): string {
   if (!userAgent) return 'outro navegador';
+  if (/MesaVTT/.test(userAgent)) return 'app da Mesa';
   if (/WebKitGTK/i.test(userAgent)) return 'app da Mesa (WebKit)';
   if (/Firefox/i.test(userAgent)) return 'Firefox';
   if (/Chrome|Chromium/i.test(userAgent)) return 'Chrome';
@@ -29,6 +36,8 @@ export interface OpcoesDaPonte {
   pastaDoToken: string;
   /** Só para testes. */
   tempoDaChamadaMs?: number;
+  /** Quanto esperar um app fechado se registrar depois de pedir à Mesa para abri-lo (padrão 20 s). Só para testes. */
+  tempoDeAberturaMs?: number;
 }
 export interface Ponte {
   /** Entrega o `upgrade` à ponte se o caminho for `/__ponte` (devolve `true`); senão não toca no socket. */
@@ -47,7 +56,7 @@ interface Aba {
   onde: string;
   foco: number;
 }
-interface Pendente { mcp: WebSocket; aba: Aba; id: string; timer: NodeJS.Timeout }
+interface Pendente { mcp: WebSocket | null; aba: Aba; id: string; timer: NodeJS.Timeout; interno?: (r: Resultado | { ok: false; erro: string }) => void }
 
 export function criarPonte(opcoes: OpcoesDaPonte): Ponte {
   const token = randomBytes(32).toString('hex');
@@ -60,6 +69,9 @@ export function criarPonte(opcoes: OpcoesDaPonte): Ponte {
   const pendentes = new Map<string, Pendente>();
   let relogio = 0, proximo = 0;
   const limite = opcoes.tempoDaChamadaMs ?? TEMPO_DA_CHAMADA_MS;
+  const limiteAbertura = opcoes.tempoDeAberturaMs ?? TEMPO_DE_ABERTURA_MS;
+  const aberturas = new Map<string, Promise<string | null>>();
+  const aoRegistrar = new Set<() => void>();
 
   const enviar = (ws: WebSocket, m: unknown) => { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(m)); };
 
@@ -100,14 +112,58 @@ export function criarPonte(opcoes: OpcoesDaPonte): Ponte {
     const p = pendentes.get(id);
     if (!p) return;
     clearTimeout(p.timer); pendentes.delete(id);
-    enviar(p.mcp, { ...r, tipo: 'resultado', id: p.id });
+    if (p.interno) p.interno(r as Resultado);
+    else if (p.mcp) enviar(p.mcp, { ...r, tipo: 'resultado', id: p.id });
   }
 
-  function chamar(mcp: WebSocket, id: string, ferramenta: string, args: Record<string, unknown>) {
-    const falha = (erro: string) => enviar(mcp, { tipo: 'resultado', id, ok: false, erro });
-    const alvo = lista().find(f => f.nome === ferramenta);
-    const aba = alvo && abaDoApp(alvo.app);
-    if (!alvo || !aba) return falha(`Ferramenta desconhecida: ${ferramenta}. Abra o app correspondente no navegador.`);
+  /** Pede à aba da Mesa para abrir o app e espera ele se registrar. `null` = abriu; senão, o motivo da falha. Uma abertura por app. */
+  function abrirApp(app: string): Promise<string | null> {
+    const em = aberturas.get(app);
+    if (em) return em;
+    const p = (async (): Promise<string | null> => {
+      if (!APPS_ABRIVEIS.includes(app)) return 'esse app não pode ser aberto pela Mesa';
+      const mesa = abaDoApp('mesa');
+      if (!mesa) return 'não há aba da Mesa aberta para abri-lo';
+      const chave = `${relogio++}`;
+      const aviso = new Promise<string | null>(resolver => {
+        const timer = setTimeout(() => { pendentes.delete(chave); resolver('a Mesa não respondeu ao pedido de abertura'); }, limite);
+        pendentes.set(chave, { mcp: null, aba: mesa, id: chave, timer, interno: r => {
+          if (!r.ok) return resolver(`a Mesa não conseguiu abrir (${r.erro})`);
+          const t = r.conteudo.find(c => c.tipo === 'texto');
+          let aviso = '';
+          try { aviso = (JSON.parse(t?.tipo === 'texto' ? t.texto : '{}') as { aviso?: string }).aviso ?? ''; } catch { /* sem aviso */ }
+          resolver(aviso ? `__aviso__${aviso}` : null);
+        } });
+      });
+      enviar(mesa.ws, { tipo: 'chamar', id: chave, ferramenta: 'mesa_abrir_apps', args: { apps: [app] } });
+      const resposta = await aviso;
+      if (resposta !== null && !resposta.startsWith('__aviso__')) return resposta;
+      if (abaDoApp(app)) return null;
+      const dica = resposta ? ` ${resposta.slice(9)}` : '';
+      return await new Promise<string | null>(resolver => {
+        const feito = (r: string | null) => { clearTimeout(timer); aoRegistrar.delete(ver); resolver(r); };
+        const ver = () => { if (abaDoApp(app)) feito(null); };
+        const timer = setTimeout(() => feito(`o app não se registrou em ${Math.round(limiteAbertura / 1000)} s.${dica}`), limiteAbertura);
+        aoRegistrar.add(ver);
+      });
+    })().finally(() => aberturas.delete(app));
+    aberturas.set(app, p);
+    return p;
+  }
+
+  async function chamar(mcp: WebSocket, id: string, ferramenta: string, args: Record<string, unknown>) {
+    const falha = (erro: string, fechado = false) => enviar(mcp, { tipo: 'resultado', id, ok: false, erro, ...(fechado ? { fechado: true } : {}) });
+    const achar = () => { const alvo = lista().find(f => f.nome === ferramenta); return alvo && abaDoApp(alvo.app); };
+    let aba = achar();
+    if (!aba) {
+      const app = appDoPrefixo(ferramenta);
+      if (!app || abaDoApp(app)) return falha(`Ferramenta desconhecida: ${ferramenta}. Abra o app correspondente no navegador.`);
+      const motivo = await abrirApp(app);
+      if (motivo) return falha(motivo, true);
+      aba = achar();
+      if (!aba) return falha(`Ferramenta desconhecida: ${ferramenta}. Abra o app correspondente no navegador.`);
+    }
+    if (mcp.readyState !== mcp.OPEN) return;
     const chave = `${relogio++}`; // id interno único, para não colidir entre clientes MCP
     const timer = setTimeout(() => responder(chave, { ok: false, erro: 'a aba não respondeu' }), limite);
     pendentes.set(chave, { mcp, aba, id, timer });
@@ -128,6 +184,7 @@ export function criarPonte(opcoes: OpcoesDaPonte): Ponte {
         aba.foco = ++relogio;
         abas.add(aba);
         avisarMcps();
+        for (const f of [...aoRegistrar]) f();
       } else if (m.tipo === 'foco' && abas.has(aba)) {
         aba.foco = ++relogio;
         avisarMcps();
