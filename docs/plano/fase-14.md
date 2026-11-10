@@ -309,7 +309,7 @@ Pronto quando: "faça um momento de chegada: escurece a tela, letreiro com o nom
 Commit: assistant tools for moments
 Nota: as duas ferramentas ficaram em `ferramentasDeEscrita` (`ponte-leitura.ts` não mudou). `ContextoDeEscrita` ganhou `tocarMomento(id)` e `pararMomento()` opcionais (o `ponte.ts` liga `tocarMomentoDoMapa` e `pararMomento`; os testes injetam falsos). `atlas_momento_testar` devolve a descrição de todos os passos do momento com o resultado (`fim`, `cancelado` ou `tempo esgotado`, parando o momento); o executor não informa passo a passo. O esquema vem de `esquemaDoPasso()` e a lista de tipos de `TIPOS_DE_PASSO_ESQUEMA`, ambos em `ponte-escrita.ts`; o catálogo continua com a sua própria lista e um teste confere que tipos e campos batem. `interagir` aceita porta/porta secreta ou objeto com interruptor/gaveta (janela, arco, pista e nota são recusados, pois o comando `interagir` não os aciona). `revelar` confere só cômodos (a ficha pede). Com `id` de momento inexistente a ferramenta recusa e pede para omitir o `id`.
 
-### 14.2e — Painel de atividade: histórico, desfazer, destaque e confirmação  ⬜
+### 14.2e — Painel de atividade: histórico, desfazer, destaque e confirmação  ✅
 Objetivo: o mestre vê e controla o que o assistente faz no mapa.
 Depende de: 14.1g, 14.2b
 Ler: `src/ui/SeloDoAssistente.tsx`, `src/app/ponte-escrita.ts` (`criadosPeloAssistente`), `src/state/store.ts` (histórico, `podeDesfazer`), `src/render/viewport.ts` (enquadrar, destaque de seleção), `docs/INTERFACE.md` (painéis flutuantes, cores, tipografia).
@@ -329,6 +329,7 @@ Não fazer: histórico entre recargas da aba (a lista é da sessão da aba).
 Testes: a lista registra sucesso e erro; Desfazer só aparece no topo; um pedido de remoção de algo do mestre fica pendente até a resposta, e a recusa vira erro.
 Pronto quando: no navegador, o painel mostra as chamadas, destaca o que cada uma criou e segura a remoção de um cômodo do mestre até Permitir.
 Commit: assistant activity panel with undo and confirmation
+Nota: o "topo do histórico" é decidido pela `versaoEdicao` do store guardada logo após a chamada (qualquer edição, desfazer ou refazer depois a muda; conservador: desfazer a edição do mestre não devolve o botão). O destaque no hover reaproveita a seleção do mapa (guarda a seleção do mestre e a devolve ao sair), sem mexer no viewport; o clique usa `enquadrarCaixa`. Recusa, silêncio (5 min) ou id inexistente não aplicam nada, nem a parte do assistente. `atlas_remover` aceita também momentos; `atlas_mover` só objetos, luzes, peças e regiões. Presença de pedido pendente abre o painel sozinho. `Geracao` ganhou `afetados` (ids só mexidos, sem virarem "do assistente"). O selo virou um botão.
 
 ### 14.2f — Instruções do assistente: compor mapas e momentos  ⬜
 Objetivo: um texto genérico de instruções para colar no projeto de qualquer campanha no app do Claude, que faz o assistente usar bem as ferramentas.
