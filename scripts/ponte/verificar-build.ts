@@ -9,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // `ponte_` solto casaria com palavras como "ponte_" em dados; por isso os nomes reais das ferramentas e o `ponte_estado` do MCP.
-const MARCAS = ['__ponte', 'conectarPonte', 'ponte_estado', 'atlas_mapa_ler', 'atlas_ver_mapa', 'campanha_ler', 'mesa_campanha_atual', 'atlas_o_que_vejo', 'atlas_mapa_criar', 'atlas_terreno', 'atlas_comodos', 'atlas_paredes', 'atlas_portas', 'atlas_objetos', 'atlas_espalhar', 'atlas_luzes', 'atlas_ambiente', 'atlas_regioes', 'atlas_presenca', 'atlas_notas', 'atlas_momento', 'atlas_momento_testar', 'atlas_remover', 'atlas_mover', 'painel-assistente', 'o mestre recusou', 'mesa_o_que_vejo', 'mesa_sessao_criar', 'selo-assistente'];
+const MARCAS = ['__ponte', 'conectarPonte', 'ponte_estado', 'atlas_mapa_ler', 'atlas_ver_mapa', 'campanha_ler', 'mesa_campanha_atual', 'atlas_o_que_vejo', 'atlas_mapa_criar', 'atlas_terreno', 'atlas_comodos', 'atlas_paredes', 'atlas_portas', 'atlas_objetos', 'atlas_espalhar', 'atlas_luzes', 'atlas_ambiente', 'atlas_regioes', 'atlas_presenca', 'atlas_notas', 'atlas_momento', 'atlas_momento_testar', 'atlas_remover', 'atlas_mover', 'painel-assistente', 'o mestre recusou', 'mesa_o_que_vejo', 'mesa_sessao_criar', 'mesa_entidade_criar', 'selo-assistente'];
 
 const raizAtlas = path.resolve(import.meta.dirname, '..', '..');
 const i = process.argv.indexOf('--mesa');
