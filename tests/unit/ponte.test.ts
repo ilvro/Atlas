@@ -7,18 +7,34 @@ import path from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { WebSocket } from 'ws';
 import { lerMensagem } from '../../scripts/ponte/protocolo.ts';
-import { criarPonte } from '../../scripts/ponte/servidor.ts';
+import { criarPonte, rotuloDoLugar } from '../../scripts/ponte/servidor.ts';
+
+test('rotuloDoLugar reconhece Firefox, Chrome, WebKitGTK e outros', () => {
+  assert.equal(rotuloDoLugar('Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0'), 'Firefox');
+  assert.equal(rotuloDoLugar('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'), 'Chrome');
+  assert.equal(rotuloDoLugar('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15 WebKitGTK/2.44.0'), 'app da Mesa (WebKit)');
+  assert.equal(rotuloDoLugar('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15'), 'outro navegador');
+  assert.equal(rotuloDoLugar(''), 'outro navegador');
+  assert.equal(rotuloDoLugar(null), 'outro navegador');
+  assert.equal(rotuloDoLugar(undefined), 'outro navegador');
+});
 
 test('lerMensagem aceita as formas válidas', () => {
   const f = { nome: 'atlas_x', descricao: 'd', esquema: { type: 'object' } };
-  assert.deepEqual(lerMensagem(JSON.stringify({ tipo: 'registrar', app: 'atlas', titulo: 'T', ferramentas: [f] })), { tipo: 'registrar', app: 'atlas', titulo: 'T', ferramentas: [f] });
+  assert.deepEqual(lerMensagem(JSON.stringify({ tipo: 'registrar', app: 'atlas', titulo: 'T', ferramentas: [f], armazenamento: 'arm-1' })), { tipo: 'registrar', app: 'atlas', titulo: 'T', ferramentas: [f], armazenamento: 'arm-1' });
   assert.deepEqual(lerMensagem('{"tipo":"foco"}'), { tipo: 'foco' });
   assert.deepEqual(lerMensagem('{"tipo":"ola","token":"abc"}'), { tipo: 'ola', token: 'abc' });
   assert.deepEqual(lerMensagem('{"tipo":"chamar","id":"1","ferramenta":"atlas_x","args":{"a":1}}'), { tipo: 'chamar', id: '1', ferramenta: 'atlas_x', args: { a: 1 } });
   assert.deepEqual(lerMensagem('{"tipo":"resultado","id":"1","ok":true,"conteudo":[{"tipo":"texto","texto":"oi"},{"tipo":"imagem","dados":"AA","mime":"image/png"}]}'),
     { tipo: 'resultado', id: '1', ok: true, conteudo: [{ tipo: 'texto', texto: 'oi' }, { tipo: 'imagem', dados: 'AA', mime: 'image/png' }] });
   assert.deepEqual(lerMensagem('{"tipo":"resultado","id":"1","ok":false,"erro":"x"}'), { tipo: 'resultado', id: '1', ok: false, erro: 'x' });
-  assert.equal(lerMensagem(JSON.stringify({ tipo: 'ferramentas', lista: [{ ...f, app: 'atlas' }] }))?.tipo, 'ferramentas');
+  const msgFerramentas = lerMensagem(JSON.stringify({ tipo: 'ferramentas', lista: [{ ...f, app: 'atlas', onde: 'Firefox', armazenamento: 'arm-1' }], apps: { atlas: { onde: 'Firefox', armazenamento: 'arm-1' } } }));
+  assert.equal(msgFerramentas?.tipo, 'ferramentas');
+  if (msgFerramentas?.tipo === 'ferramentas') {
+    assert.deepEqual(msgFerramentas.apps, { atlas: { onde: 'Firefox', armazenamento: 'arm-1' } });
+    assert.equal(msgFerramentas.lista[0]?.armazenamento, 'arm-1');
+    assert.equal(msgFerramentas.lista[0]?.onde, 'Firefox');
+  }
 });
 
 test('lerMensagem recusa lixo', () => {
@@ -39,8 +55,11 @@ async function subir(tempoDaChamadaMs?: number) {
   servidor.on('upgrade', (req, socket, cabeca) => { if (!ponte.aceitar(req, socket, cabeca)) socket.destroy(); });
   const abertos: WebSocket[] = [];
   const url = `ws://127.0.0.1:${porta}/__ponte`;
-  const conectar = async (origemDoCliente?: string) => {
-    const ws = new WebSocket(url, origemDoCliente ? { origin: origemDoCliente } : {});
+  const conectar = async (origemDoCliente?: string, userAgent?: string) => {
+    const ws = new WebSocket(url, {
+      ...(origemDoCliente ? { origin: origemDoCliente } : {}),
+      ...(userAgent ? { headers: { 'user-agent': userAgent } } : {}),
+    });
     abertos.push(ws);
     const fila: any[] = [], espera: ((m: any) => void)[] = [];
     ws.on('message', d => { const m = JSON.parse(String(d)); const e = espera.shift(); if (e) e(m); else fila.push(m); });
@@ -48,9 +67,15 @@ async function subir(tempoDaChamadaMs?: number) {
     await new Promise<void>((res, rej) => { ws.once('open', () => res()); ws.once('error', rej); });
     return { ws, proxima: () => new Promise<any>(r => { const m = fila.shift(); if (m) r(m); else espera.push(r); }) };
   };
-  const aba = async (app: string, nomes: string[]) => {
-    const c = await conectar(origem);
-    c.ws.send(JSON.stringify({ tipo: 'registrar', app, titulo: app, ferramentas: nomes.map(nome => ({ nome, descricao: nome, esquema: { type: 'object' } })) }));
+  const aba = async (app: string, nomes: string[], userAgent?: string, armazenamento?: string) => {
+    const c = await conectar(origem, userAgent);
+    c.ws.send(JSON.stringify({
+      tipo: 'registrar',
+      app,
+      titulo: app,
+      ferramentas: nomes.map(nome => ({ nome, descricao: nome, esquema: { type: 'object' } })),
+      ...(armazenamento ? { armazenamento } : {}),
+    }));
     return c;
   };
   const mcp = async () => {
@@ -152,5 +177,29 @@ test('chamada sem resposta expira', async () => {
     c.ws.send(JSON.stringify({ tipo: 'chamar', id: '1', ferramenta: 'atlas_a', args: {} }));
     const r = await c.proxima();
     assert.deepEqual(r, { tipo: 'resultado', id: '1', ok: false, erro: 'a aba não respondeu' });
+  } finally { await s.encerrar(); }
+});
+
+test('ponte associa User-Agent ao rótulo e repassa armazenamento e onde ao MCP', async () => {
+  const s = await subir();
+  try {
+    const uaFirefox = 'Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0';
+    const uaWebkit = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15 WebKitGTK/2.44.0';
+    await s.aba('mesa', ['mesa_a'], uaFirefox, 'arm-mesa');
+    await s.aba('atlas', ['atlas_b'], uaWebkit, 'arm-atlas');
+    const c = await s.mcp();
+    await pausa();
+    const msg = await c.proxima();
+    assert.equal(msg.tipo, 'ferramentas');
+    assert.deepEqual(msg.apps, {
+      mesa: { armazenamento: 'arm-mesa', onde: 'Firefox' },
+      atlas: { armazenamento: 'arm-atlas', onde: 'app da Mesa (WebKit)' },
+    });
+    const fMesa = msg.lista.find((f: any) => f.app === 'mesa');
+    assert.equal(fMesa?.armazenamento, 'arm-mesa');
+    assert.equal(fMesa?.onde, 'Firefox');
+    const fAtlas = msg.lista.find((f: any) => f.app === 'atlas');
+    assert.equal(fAtlas?.armazenamento, 'arm-atlas');
+    assert.equal(fAtlas?.onde, 'app da Mesa (WebKit)');
   } finally { await s.encerrar(); }
 });

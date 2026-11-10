@@ -505,7 +505,7 @@ Nota: `verificar-build.ts` constrói também Ateliê e Dossiê (só `vite build`
 
 ## Depois da fase
 
-### 14.5a — Ponte: avisar quando os apps estão em armazenamentos diferentes  ⬜
+### 14.5a — Ponte: avisar quando os apps estão em armazenamentos diferentes  ✅
 Objetivo: o Claude percebe quando a Mesa e o Atlas (ou outros apps) estão abertos em lugares com dados separados (o navegador e o app de desktop, dois navegadores, dois perfis) e avisa o mestre em vez de seguir. Caso real (10/11): o Atlas do app de desktop criou o mapa na campanha "Teste", e a Mesa do Firefox, com o banco vazio, não achou a campanha.
 Depende de: 14.1a, 14.1b, 14.1c
 Ler: `scripts/ponte/protocolo.ts` (`registrar`, `FerramentaDoApp`, `lerMensagem`), `scripts/ponte/servidor.ts` (registro das abas, "vale a última que teve foco", `aceitar`), `scripts/ponte/mcp.ts` (`textoDoEstado`, `listarFerramentas`, como repassa os resultados), `mesa-core/src/ponte.ts` (`registrar`).

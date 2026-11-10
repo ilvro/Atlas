@@ -12,9 +12,9 @@ import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/typ
 import { criarPonte } from '../../scripts/ponte/servidor.ts';
 import { criarServidorMcp, converterConteudo, anotacoesDaFerramenta, SEM_PONTE } from '../../scripts/ponte/mcp.ts';
 
-const esperar = async (cond: () => boolean, ms = 3000) => {
+const esperar = async (cond: () => boolean | Promise<boolean>, ms = 3000) => {
   const fim = Date.now() + ms;
-  while (!cond()) { if (Date.now() > fim) throw new Error('tempo esgotado'); await new Promise(r => setTimeout(r, 10)); }
+  while (!(await cond())) { if (Date.now() > fim) throw new Error('tempo esgotado'); await new Promise(r => setTimeout(r, 10)); }
 };
 
 async function subirPonte() {
@@ -63,6 +63,87 @@ test('anotações MCP: readOnlyHint nas de leitura e destructiveHint: false nas 
   assert.deepEqual(anotacoesDaFerramenta('atlas_comodos'), {});
 });
 
+test('aviso de armazenamentos diferentes: mesmo id não avisa; ids diferentes avisam em ponte_estado e no resultado; sem armazenamento não avisa falso', async () => {
+  const p = await subirPonte();
+  const token = () => fs.readFileSync(path.join(p.pasta, 'token'), 'utf8').trim();
+  const mcp = await clienteMcp(p.url, token);
+
+  const uaFirefox = 'Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0';
+  const uaWebkit = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15 WebKitGTK/2.44.0';
+
+  // Caso 1: Dois registros com o mesmo id não avisam
+  const abaMesa = new WebSocket(p.url, { origin: p.origem, headers: { 'user-agent': uaFirefox } });
+  const abaAtlas = new WebSocket(p.url, { origin: p.origem, headers: { 'user-agent': uaWebkit } });
+  const responder = (ws: WebSocket, resposta: string) => {
+    ws.on('message', d => {
+      const m = JSON.parse(String(d));
+      if (m.tipo === 'chamar') ws.send(JSON.stringify({ tipo: 'resultado', id: m.id, ok: true, conteudo: [{ tipo: 'texto', texto: resposta }] }));
+    });
+  };
+  responder(abaMesa, 'mesa ok');
+  responder(abaAtlas, 'atlas ok');
+
+  try {
+    await Promise.all([
+      new Promise<void>(r => abaMesa.once('open', () => r())),
+      new Promise<void>(r => abaAtlas.once('open', () => r())),
+    ]);
+
+    abaMesa.send(JSON.stringify({
+      tipo: 'registrar', app: 'mesa', titulo: 'Mesa',
+      armazenamento: 'mesmo-id',
+      ferramentas: [{ nome: 'mesa_ver', descricao: 'ver', esquema: { type: 'object' } }],
+    }));
+    abaAtlas.send(JSON.stringify({
+      tipo: 'registrar', app: 'atlas', titulo: 'Atlas',
+      armazenamento: 'mesmo-id',
+      ferramentas: [{ nome: 'atlas_ver', descricao: 'ver', esquema: { type: 'object' } }],
+    }));
+
+    await esperar(() => mcp.ponta.ativas().length === 2);
+    const estadoMesmoId = textoDe(await mcp.client.callTool({ name: 'ponte_estado', arguments: {} }));
+    assert.match(estadoMesmoId, /mesa: Firefox/);
+    assert.match(estadoMesmoId, /atlas: app da Mesa \(WebKit\)/);
+    assert.doesNotMatch(estadoMesmoId, /lugares com dados separados/);
+
+    const resMesmoId = await mcp.client.callTool({ name: 'atlas_ver', arguments: {} });
+    assert.equal(textoDe(resMesmoId), 'atlas ok');
+
+    // Caso 2: Mesa e Atlas com ids diferentes geram o aviso no ponte_estado e no resultado
+    abaAtlas.send(JSON.stringify({
+      tipo: 'registrar', app: 'atlas', titulo: 'Atlas',
+      armazenamento: 'outro-id',
+      ferramentas: [{ nome: 'atlas_ver', descricao: 'ver', esquema: { type: 'object' } }],
+    }));
+
+    await esperar(async () => /lugares com dados separados/.test(textoDe(await mcp.client.callTool({ name: 'ponte_estado', arguments: {} }))));
+    const estadoSeparado = textoDe(await mcp.client.callTool({ name: 'ponte_estado', arguments: {} }));
+    assert.match(estadoSeparado, /Mesa e Atlas estão em lugares com dados separados: mesa: Firefox; atlas: app da Mesa \(WebKit\); feche um deles\./);
+
+    const resSeparado = await mcp.client.callTool({ name: 'atlas_ver', arguments: {} });
+    assert.match(textoDe(resSeparado), /^Mesa e Atlas estão em lugares com dados separados: mesa: Firefox; atlas: app da Mesa \(WebKit\); feche um deles\.\n\natlas ok$/);
+
+    // Caso 3: Cliente sem armazenamento é tratado como lugar desconhecido, sem aviso falso
+    abaMesa.send(JSON.stringify({
+      tipo: 'registrar', app: 'mesa', titulo: 'Mesa',
+      ferramentas: [{ nome: 'mesa_ver', descricao: 'ver', esquema: { type: 'object' } }],
+    }));
+
+    await esperar(async () => !/lugares com dados separados/.test(textoDe(await mcp.client.callTool({ name: 'ponte_estado', arguments: {} }))));
+    const estadoSemArm = textoDe(await mcp.client.callTool({ name: 'ponte_estado', arguments: {} }));
+    assert.doesNotMatch(estadoSemArm, /lugares com dados separados/);
+    const resSemArm = await mcp.client.callTool({ name: 'atlas_ver', arguments: {} });
+    assert.equal(textoDe(resSemArm), 'atlas ok');
+  } finally {
+    abaMesa.terminate();
+    abaAtlas.terminate();
+    await mcp.fechar();
+    p.ponte.fechar();
+    p.servidor.closeAllConnections();
+    p.servidor.close();
+  }
+});
+
 test('sem ponte: só ponte_estado, com a explicação', async () => {
   const mcp = await clienteMcp('ws://127.0.0.1:1/__ponte', () => { throw new Error('sem token'); });
   try {
@@ -101,7 +182,7 @@ test('catálogo estável: abrir e fechar aba não muda tools/list nem notifica; 
     assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'atlas_ver_mapa', 'atlas_mapa_criar']);
     assert.equal(tools.find(t => t.name === 'atlas_ver_mapa')?.annotations?.readOnlyHint, true);
     assert.equal(tools.find(t => t.name === 'atlas_mapa_criar')?.annotations?.destructiveHint, false);
-    assert.match(textoDe(await mcp.client.callTool({ name: 'ponte_estado', arguments: {} })), /atlas \(2 ferramentas\)/);
+    assert.match(textoDe(await mcp.client.callTool({ name: 'ponte_estado', arguments: {} })), /atlas.*\(2 ferramentas\)/);
 
     // Chama com sucesso
     const ok: any = await mcp.client.callTool({ name: 'atlas_ver_mapa', arguments: {} });

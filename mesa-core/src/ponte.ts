@@ -34,10 +34,30 @@ export interface SocketMinimo {
   close(): void;
 }
 
+export const CHAVE_ARMAZENAMENTO = 'mesa:ponte-armazenamento';
+
+export function obterIdArmazenamento(storage?: Pick<Storage, 'getItem' | 'setItem'> | null): string {
+  try {
+    const s = storage !== undefined ? storage : (typeof localStorage !== 'undefined' ? localStorage : null);
+    if (!s) return `id-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+    const atual = s.getItem(CHAVE_ARMAZENAMENTO);
+    if (atual && typeof atual === 'string' && atual.trim() !== '') return atual.trim();
+    const novo = `id-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+    s.setItem(CHAVE_ARMAZENAMENTO, novo);
+    return novo;
+  } catch {
+    return `id-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+  }
+}
+
 export interface OpcoesPonte {
   app: string;
   titulo: string;
   ferramentas: FerramentaDaPonte[];
+  /** Id do armazenamento compartilhado (ex.: do localStorage); por padrão usa `obterIdArmazenamento()`. */
+  armazenamento?: string | (() => string);
+  /** Para testes: substitui localStorage para obter o armazenamento. */
+  storage?: Pick<Storage, 'getItem' | 'setItem'> | null;
   /** Para testes: endereço completo; padrão `ws(s)://${location.host}/__ponte`. */
   url?: string;
   criarSocket?: (url: string) => SocketMinimo;
@@ -86,7 +106,21 @@ export function conectarPonte(opcoes: OpcoesPonte): ClienteDaPonte {
     for (const fn of [...ouvintes]) { try { fn(novo); } catch { /* ouvinte com defeito não derruba a ponte */ } }
   };
   const enviar = (m: unknown) => { try { socket?.send(JSON.stringify(m)); } catch { /* socket caiu: a reconexão cuida */ } };
-  const registrar = () => enviar({ tipo: 'registrar', app: opcoes.app, titulo: opcoes.titulo, ferramentas: ferramentas.map(({ nome, descricao, esquema }) => ({ nome, descricao, esquema })) });
+  const resolverArmazenamento = (): string | undefined => {
+    if (typeof opcoes.armazenamento === 'function') return opcoes.armazenamento();
+    if (typeof opcoes.armazenamento === 'string') return opcoes.armazenamento;
+    return obterIdArmazenamento(opcoes.storage);
+  };
+  const registrar = () => {
+    const arm = resolverArmazenamento();
+    enviar({
+      tipo: 'registrar',
+      app: opcoes.app,
+      titulo: opcoes.titulo,
+      ferramentas: ferramentas.map(({ nome, descricao, esquema }) => ({ nome, descricao, esquema })),
+      ...(arm ? { armazenamento: arm } : {}),
+    });
+  };
   const foco = () => { if (socket) enviar({ tipo: 'foco' }); };
   const aoVisibilidade = () => { if (typeof document !== 'undefined' && document.visibilityState === 'visible') foco(); };
 

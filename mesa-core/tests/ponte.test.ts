@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { IDBFactory } from 'fake-indexeddb';
 import { abrirRepositorioCampanha, criarRef } from '../src/index.ts';
-import { conectarPonte, ferramentasDaCampanha, texto, json, imagem, type SocketMinimo, type FerramentaDaPonte } from '../src/ponte.ts';
+import { conectarPonte, ferramentasDaCampanha, texto, json, imagem, obterIdArmazenamento, CHAVE_ARMAZENAMENTO, type SocketMinimo, type FerramentaDaPonte } from '../src/ponte.ts';
 
 class SocketFalso implements SocketMinimo {
   onopen: SocketMinimo['onopen'] = null; onmessage: SocketMinimo['onmessage'] = null; onclose: SocketMinimo['onclose'] = null; onerror: SocketMinimo['onerror'] = null;
@@ -38,12 +38,33 @@ test('ajudantes de conteúdo', () => {
   assert.throws(() => imagem('nada'));
 });
 
+test('identidade do armazenamento: lê do storage ou gera novo', () => {
+  const dados = new Map<string, string>();
+  const storageFalso = {
+    getItem: (k: string) => dados.get(k) ?? null,
+    setItem: (k: string, v: string) => { dados.set(k, v); },
+  };
+  const id1 = obterIdArmazenamento(storageFalso);
+  assert.ok(id1.startsWith('id-'));
+  assert.equal(dados.get(CHAVE_ARMAZENAMENTO), id1);
+
+  // Segunda leitura: devolve o mesmo id
+  const id2 = obterIdArmazenamento(storageFalso);
+  assert.equal(id2, id1);
+
+  // Sem storage: gera ids distintos
+  const s1 = obterIdArmazenamento(null);
+  const s2 = obterIdArmazenamento(null);
+  assert.notEqual(s1, s2);
+});
+
 test('registra ao abrir, sem expor executar', () => {
   const { sockets, cliente } = montar();
   assert.equal(sockets[0]!.url, 'ws://x/__ponte');
   sockets[0]!.abrir();
-  const reg = sockets[0]!.enviadas[0] as { tipo: string; app: string; ferramentas: Record<string, unknown>[] };
+  const reg = sockets[0]!.enviadas[0] as { tipo: string; app: string; ferramentas: Record<string, unknown>[]; armazenamento?: string };
   assert.equal(reg.tipo, 'registrar'); assert.equal(reg.app, 'teste');
+  assert.ok(typeof reg.armazenamento === 'string' && reg.armazenamento.length > 0);
   assert.deepEqual(reg.ferramentas.map(f => Object.keys(f).sort()), [['descricao', 'esquema', 'nome'], ['descricao', 'esquema', 'nome']]);
   cliente.fechar();
 });

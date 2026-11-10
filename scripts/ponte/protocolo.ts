@@ -1,14 +1,24 @@
 /** Protocolo da ponte do assistente (só desenvolvimento). Puro: tipos e validação das mensagens trocadas em /__ponte. */
 
 export interface Ferramenta { nome: string; descricao: string; esquema: Record<string, unknown> }
-export type FerramentaDoApp = Ferramenta & { app: string };
+export type FerramentaDoApp = Ferramenta & {
+  app: string;
+  armazenamento?: string;
+  onde?: string;
+};
 export type Conteudo = { tipo: 'texto'; texto: string } | { tipo: 'imagem'; dados: string; mime: string };
 
 export type Resultado = { tipo: 'resultado'; id: string; ok: true; conteudo: Conteudo[] } | { tipo: 'resultado'; id: string; ok: false; erro: string };
 
+/** Informações da aba ativa de um aplicativo conectado à ponte. */
+export interface AppConectado {
+  armazenamento?: string;
+  onde?: string;
+}
+
 /** Aba → ponte. */
 export type DaAba =
-  | { tipo: 'registrar'; app: string; titulo: string; ferramentas: Ferramenta[] }
+  | { tipo: 'registrar'; app: string; titulo: string; ferramentas: Ferramenta[]; armazenamento?: string }
   | { tipo: 'foco' }
   | Resultado;
 /** Ponte → aba, e MCP → ponte. */
@@ -16,7 +26,7 @@ export interface Chamar { tipo: 'chamar'; id: string; ferramenta: string; args: 
 /** MCP → ponte. */
 export type DoMcp = { tipo: 'ola'; token: string } | Chamar;
 /** Ponte → MCP. */
-export type ParaMcp = { tipo: 'ferramentas'; lista: FerramentaDoApp[] } | Resultado;
+export type ParaMcp = { tipo: 'ferramentas'; lista: FerramentaDoApp[]; apps?: Record<string, AppConectado> } | Resultado;
 
 export type Mensagem = DaAba | DoMcp | ParaMcp;
 
@@ -39,7 +49,8 @@ export function lerMensagem(entrada: string): Mensagem | null {
   switch (m.tipo) {
     case 'registrar':
       if (!texto(m.app) || m.app === '' || !texto(m.titulo) || !Array.isArray(m.ferramentas) || !m.ferramentas.every(ferramentaValida)) return null;
-      return { tipo: 'registrar', app: m.app, titulo: m.titulo, ferramentas: m.ferramentas as Ferramenta[] };
+      const arm = texto(m.armazenamento) && m.armazenamento !== '' ? m.armazenamento : undefined;
+      return { tipo: 'registrar', app: m.app, titulo: m.titulo, ferramentas: m.ferramentas as Ferramenta[], ...(arm ? { armazenamento: arm } : {}) };
     case 'foco':
       return { tipo: 'foco' };
     case 'ola':
@@ -49,7 +60,19 @@ export function lerMensagem(entrada: string): Mensagem | null {
       return { tipo: 'chamar', id: m.id, ferramenta: m.ferramenta, args: (m.args as Record<string, unknown> | undefined) ?? {} };
     case 'ferramentas':
       if (!Array.isArray(m.lista) || !m.lista.every(f => ferramentaValida(f) && texto((f as unknown as Record<string, unknown>).app))) return null;
-      return { tipo: 'ferramentas', lista: m.lista as FerramentaDoApp[] };
+      let apps: Record<string, AppConectado> | undefined;
+      if (objeto(m.apps)) {
+        apps = {};
+        for (const [k, v] of Object.entries(m.apps)) {
+          if (objeto(v)) {
+            apps[k] = {
+              ...(texto(v.armazenamento) ? { armazenamento: v.armazenamento } : {}),
+              ...(texto(v.onde) ? { onde: v.onde } : {}),
+            };
+          }
+        }
+      }
+      return { tipo: 'ferramentas', lista: m.lista as FerramentaDoApp[], ...(apps ? { apps } : {}) };
     case 'resultado':
       if (!texto(m.id)) return null;
       if (m.ok === true) return Array.isArray(m.conteudo) && m.conteudo.every(conteudoValido) ? { tipo: 'resultado', id: m.id, ok: true, conteudo: m.conteudo as Conteudo[] } : null;
