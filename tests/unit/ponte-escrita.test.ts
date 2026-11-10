@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { criadosPeloAssistente, ferramentasDeEscrita, type ContextoDeEscrita } from '../../src/app/ponte-escrita.ts';
+import { catalogo } from '../../src/app/ponte-leitura.ts';
+import { criadosPeloAssistente, esquemaDoPasso, TIPOS_DE_PASSO_ESQUEMA, ferramentasDeEscrita, type ContextoDeEscrita } from '../../src/app/ponte-escrita.ts';
 import { area } from '../../src/domain/celulas.ts';
 import { criarMapa, type MapaAtlas } from '../../src/domain/mapa.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
 import { criarStore } from '../../src/state/store.ts';
 
-function montar(comMapa = true) {
+function montar(comMapa = true, extra: Partial<ContextoDeEscrita> = {}) {
   const store = criarStore(criarMapa({ id: 'teste', nome: 'Teste', agora: 1, largura: 30, altura: 20 }));
   const gravados: MapaAtlas[] = [], abertos: string[] = [], sincronizados: string[] = [];
   const ctx: ContextoDeEscrita = {
@@ -14,6 +15,7 @@ function montar(comMapa = true) {
     repo: () => ({ salvar: async m => { gravados.push(m); return m; } }),
     sincronizarCampanha: async m => { sincronizados.push(m.id); },
     abrirMapa: async id => { abertos.push(id); },
+    ...extra,
   };
   const f = Object.fromEntries(ferramentasDeEscrita(ctx).map(x => [x.nome, x]));
   const chamar = async (nome: string, args: Record<string, unknown>) => {
@@ -29,7 +31,7 @@ const terra = { acao: 'pintar', material: 'terra', forma: { faixa: [[0, 5], [10,
 
 test('as ferramentas têm nome, descrição com unidades e esquema de objeto', () => {
   const { f } = montar();
-  assert.deepEqual(Object.keys(f), ['atlas_mapa_criar', 'atlas_terreno', 'atlas_comodos', 'atlas_paredes', 'atlas_portas', 'atlas_objetos', 'atlas_espalhar', 'atlas_luzes', 'atlas_ambiente', 'atlas_regioes', 'atlas_presenca', 'atlas_notas']);
+  assert.deepEqual(Object.keys(f), ['atlas_mapa_criar', 'atlas_terreno', 'atlas_comodos', 'atlas_paredes', 'atlas_portas', 'atlas_objetos', 'atlas_espalhar', 'atlas_luzes', 'atlas_ambiente', 'atlas_regioes', 'atlas_presenca', 'atlas_notas', 'atlas_momento', 'atlas_momento_testar']);
   for (const x of Object.values(f)) { assert.ok(x.descricao.length > 60); assert.equal(x.esquema.type, 'object'); }
   assert.match(f.atlas_comodos!.descricao, /CÉLULAS/);
   assert.match(f.atlas_terreno!.descricao, /METROS/);
@@ -228,4 +230,96 @@ test('atlas_notas escreve a nota do mapa e dos cômodos; cômodo inexistente é 
   assert.equal(store.historico.length, 2);
   await assert.rejects(chamar('atlas_notas', { comodos: [{ id: 'c_x', leitura: 'a' }] }), /não existe/);
   await assert.rejects(chamar('atlas_notas', {}), /Passe/);
+});
+
+// ---------- momentos ----------
+const chegada = (comodo: string) => [
+  { tipo: 'tela', acao: 'escurecer', ms: 800 },
+  { tipo: 'letreiro', titulo: 'Porto Velho', subtitulo: '', peca: null, estilo: 'apresentacao', ms: 4000 },
+  { tipo: 'clima', clima: 'neblina' },
+  { tipo: 'camera', alvo: { colecao: 'rooms', id: comodo } },
+  { tipo: 'tela', acao: 'clarear', ms: 800 },
+];
+
+async function comSala() {
+  const m = montar();
+  await m.chamar('atlas_comodos', { comodos: [{ rets: [[2, 2, 5, 5]], tipo: 'sala' }] });
+  return { ...m, sala: Object.keys(m.store.documento.rooms)[0]! };
+}
+
+test('atlas_momento válido vira um momento.salvar, um passo de desfazer, e o id é do assistente', async () => {
+  const { store, chamar, sala } = await comSala();
+  const antes = store.historico.length;
+  const r = await chamar('atlas_momento', { nome: 'Chegada', cor: '#44aa88', passos: chegada(sala) });
+  assert.equal(store.historico.length, antes + 1);
+  assert.equal(store.rotuloDesfazer, 'IA: momento');
+  const [id, m] = Object.entries(store.documento.moments)[0]!;
+  assert.match(r, new RegExp(id));
+  assert.equal(m.nome, 'Chegada');
+  assert.equal(m.passos.length, 5);
+  assert.ok(criadosPeloAssistente.has(id));
+  store.desfazer();
+  assert.deepEqual(store.documento.moments, {});
+});
+
+test('atlas_momento: clima, cômodo, peça e interagir inexistentes voltam com o índice do passo', async () => {
+  const { store, chamar, sala } = await comSala();
+  const antes = store.documento;
+  await assert.rejects(chamar('atlas_momento', { nome: 'x', passos: [{ tipo: 'esperar', ms: 500 }, { tipo: 'clima', clima: 'nevoa-roxa' }] }), /Passo 2 \(clima\): o clima “nevoa-roxa” não existe/);
+  await assert.rejects(chamar('atlas_momento', { nome: 'x', passos: [{ tipo: 'revelar', ids: [sala, 'c_fantasma'] }] }), /Passo 1 \(revelar\): o cômodo “c_fantasma” não existe/);
+  await assert.rejects(chamar('atlas_momento', { nome: 'x', passos: [{ tipo: 'camera', alvo: { colecao: 'rooms', id: 'c_fantasma' } }] }), /Passo 1 \(camera\).*c_fantasma/);
+  await assert.rejects(chamar('atlas_momento', { nome: 'x', passos: [{ tipo: 'letreiro', titulo: 'A', subtitulo: '', peca: 'p_sumiu', estilo: 'capitulo', ms: 2000 }] }), /peça “p_sumiu”/);
+  await assert.rejects(chamar('atlas_momento', { nome: 'x', passos: [{ tipo: 'interagir', id: 'o_nada' }] }), /Passo 1 \(interagir\)/);
+  await assert.rejects(chamar('atlas_momento', { nome: 'x', passos: [{ tipo: 'esperar', ms: 5 }] }), /Passo 1: Tempo de espera/);
+  assert.deepEqual(store.documento, antes);
+});
+
+test('atlas_momento: clima salvo do mapa vale; refs de som só têm o formato conferido', async () => {
+  const { store, chamar } = await comSala();
+  await chamar('atlas_ambiente', { clima: { preset: 'neblina' }, guardarClima: { id: 'meu-clima', nome: 'Meu clima' } });
+  await chamar('atlas_momento', { nome: 'Som', passos: [{ tipo: 'clima', clima: 'meu-clima' }, { tipo: 'som', ref: { app: 'jukebox', tipo: 'cena-sonora', id: 'qualquer-coisa' } }] });
+  assert.equal(Object.keys(store.documento.moments).length, 1);
+  await assert.rejects(chamar('atlas_momento', { nome: 'Som', passos: [{ tipo: 'som', ref: { app: 'atelie', tipo: 'documento', id: 'a' } }] }), /Passo 1: .*Jukebox/);
+});
+
+test('atlas_momento: substituir só vale para ids criados pelo assistente', async () => {
+  const { store, chamar } = await comSala();
+  store.transacao('mestre', g => g.aplicar({ tipo: 'momento.salvar', momento: { id: 'do-mestre', nome: 'Meu', cor: null, passos: [] } }));
+  await assert.rejects(chamar('atlas_momento', { id: 'do-mestre', nome: 'Troca', passos: [] }), /é do mestre; crie outro/);
+  assert.equal(store.documento.moments['do-mestre']!.nome, 'Meu');
+  await chamar('atlas_momento', { nome: 'Novo', passos: [{ tipo: 'esperar', ms: 1000 }] });
+  const id = Object.keys(store.documento.moments).find(k => k !== 'do-mestre')!;
+  await chamar('atlas_momento', { id, nome: 'Refeito', passos: [{ tipo: 'nota', texto: 'oi' }] });
+  assert.equal(store.documento.moments[id]!.nome, 'Refeito');
+  assert.equal(Object.keys(store.documento.moments).length, 2);
+});
+
+test('atlas_momento_testar: resultado e descrições; sem executor ou momento é erro', async () => {
+  const tocados: string[] = []; let parou = false;
+  const m = montar(true, { tocarMomento: async id => { tocados.push(id); return 'fim'; }, pararMomento: () => { parou = true; } });
+  await m.chamar('atlas_comodos', { comodos: [{ rets: [[2, 2, 5, 5]], tipo: 'sala' }] });
+  const sala = Object.keys(m.store.documento.rooms)[0]!;
+  await m.chamar('atlas_momento', { nome: 'Chegada', passos: chegada(sala) });
+  const id = Object.keys(m.store.documento.moments)[0]!;
+  const r = JSON.parse(await m.chamar('atlas_momento_testar', { id }));
+  assert.deepEqual(tocados, [id]);
+  assert.equal(r.resultado, 'fim');
+  assert.equal(r.passos.length, 5);
+  assert.match(r.passos[1], /Letreiro: Porto Velho/);
+  assert.equal(parou, false);
+  await assert.rejects(m.chamar('atlas_momento_testar', { id: 'nao-existe' }), /não existe/);
+  const sem = montar(true);
+  await sem.chamar('atlas_momento', { nome: 'M', passos: [] });
+  await assert.rejects(sem.chamar('atlas_momento_testar', { id: Object.keys(sem.store.documento.moments)[0]! }), /não consegue tocar/);
+});
+
+test('o esquema dos passos bate com o catálogo de momentos', () => {
+  const cat = catalogo('momentos') as { tiposDePasso: { tipo: string; campos: Record<string, unknown> }[] };
+  const esquema = esquemaDoPasso().oneOf as { properties: Record<string, any> }[];
+  assert.deepEqual(cat.tiposDePasso.map(t => t.tipo), [...TIPOS_DE_PASSO_ESQUEMA]);
+  assert.deepEqual(esquema.map(e => e.properties.tipo.const), [...TIPOS_DE_PASSO_ESQUEMA]);
+  for (const t of cat.tiposDePasso) {
+    const props = esquema.find(e => e.properties.tipo.const === t.tipo)!.properties;
+    assert.deepEqual(Object.keys(props).filter(k => k !== 'tipo').sort(), Object.keys(t.campos).sort(), t.tipo);
+  }
 });

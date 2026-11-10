@@ -3,7 +3,9 @@ import { comodos, ErroDeConstrucao, espalhar, luzes, objetos, paredes, portas, r
 import { TODOS_OS_CONJUNTOS } from '../authoring/espalhar.ts';
 import { celulasDaForma, sementeDaForma, type Forma } from '../authoring/formas.ts';
 import { ceuNoHorario } from '../domain/clima.ts';
+import { EVENTOS_DE_CENA } from '../domain/eventos-de-cena.ts';
 import { criarMapa, type MapaAtlas } from '../domain/mapa.ts';
+import { descreverPasso, duracaoEstimada, momentoValido, type Momento, type PassoDeMomento } from '../domain/momentos.ts';
 import { GENEROS, PINCEIS_DE_PRESENCA, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
 import { validarMapa } from '../domain/validacao.ts';
 import { materiaisDo } from '../procedural/materiais.ts';
@@ -25,6 +27,10 @@ export interface ContextoDeEscrita {
   abrirMapa: (id: string) => Promise<void>;
   /** A campanha ativa do app, usada quando `atlas_mapa_criar` não recebe `campanhaId`. */
   campanhaAtiva?: () => string | null;
+  /** Toca o momento do mapa aberto pelo mesmo executor do painel (o app liga `tocarMomentoDoMapa`); resolve ao terminar. */
+  tocarMomento?: (id: string) => Promise<'fim' | 'cancelado'>;
+  /** Para o momento em curso (o app liga `pararMomento`); usado quando o teste estoura o tempo. */
+  pararMomento?: () => void;
 }
 
 export interface Geracao { comandos: readonly Comando[]; ids: readonly string[] }
@@ -359,7 +365,126 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         }))];
       },
     },
+    {
+      nome: 'atlas_momento',
+      descricao: `Cria (ou refaz) um momento do mapa aberto: uma sequência curta de passos de cena que o mestre toca na sessão (um passo de desfazer). "nome" 1 a 60 caracteres; "cor" "#rrggbb" opcional; "passos" até 60, na ordem. Sem "id" cria um momento novo e devolve o id; com "id" só substitui momentos que o assistente criou (momento do mestre não é alterado: crie outro). Cada passo tem "tipo": ${TIPOS_DE_PASSO_ESQUEMA.join(', ')}. Os passos que não são "esperar" disparam na hora; use "esperar" entre eles para dar ritmo (um letreiro, uma tela ou um silêncio duram "ms" em paralelo ao próximo passo). Climas: ${PRESETS_DE_CLIMA.map(c => c.id).join(', ')} ou um clima salvo do mapa (atlas_catalogo { parte: "climas" }). Câmera, revelar, interagir e a peça do letreiro usam ids de atlas_mapa_ler; "interagir" aceita porta, porta secreta, interruptor ou gaveta. Os ids de som (Jukebox) e pista (Ateliê) vêm de outros apps e só têm o formato conferido. Teste com atlas_momento_testar.`,
+      esquema: { type: 'object', properties: {
+        id: { type: 'string', description: 'Só para refazer um momento que o assistente criou; omita para criar um novo.' },
+        nome: { type: 'string', minLength: 1, maxLength: 60 },
+        cor: { type: 'string', description: 'Cor "#rrggbb" do momento (opcional).' },
+        passos: { type: 'array', maxItems: 60, items: esquemaDoPasso(), description: 'Os passos, em ordem (até 60).' },
+      }, required: ['nome', 'passos'], additionalProperties: false },
+      async executar(args) {
+        const nome = textoOpcional(args.nome, 'nome', 60)?.trim();
+        if (!nome) throw new Error('Falta o argumento "nome" (1 a 60 caracteres).');
+        const cor = args.cor === undefined || args.cor === null ? null : args.cor as string;
+        if (!Array.isArray(args.passos)) throw new Error('Falta "passos": uma lista de passos (pode ser vazia).');
+        const idPedido = textoOpcional(args.id, 'id', 64);
+        return [texto(escrever(ctx, 'momento', mapa => {
+          let id: string;
+          if (idPedido) {
+            if (mapa.moments[idPedido] && !criadosPeloAssistente.has(idPedido)) throw new Error(`O momento “${idPedido}” é do mestre; crie outro (omita "id").`);
+            if (!mapa.moments[idPedido]) throw new Error(`O momento “${idPedido}” não existe; omita "id" para criar um novo.`);
+            id = idPedido;
+          } else {
+            do id = `ia${Math.random().toString(36).slice(2, 10)}`; while (mapa.moments[id]);
+          }
+          const momento: Momento = { id, nome, cor, passos: args.passos as PassoDeMomento[] };
+          const erro = momentoValido(momento);
+          if (erro) throw new Error(erro);
+          const refs = referenciasDosPassos(mapa, momento.passos);
+          if (refs) throw new Error(refs);
+          return { comandos: [{ tipo: 'momento.salvar', momento }], ids: [id] };
+        }))];
+      },
+    },
+    {
+      nome: 'atlas_momento_testar',
+      descricao: 'Toca na aba, agora, um momento do mapa aberto (o mesmo executor do painel de momentos: luz, tela, câmera e sons acontecem de verdade) e espera terminar. Devolve a lista dos passos executados, com a descrição de cada um, e o resultado ("fim", "cancelado" ou "tempo esgotado"). Espera no máximo a duração estimada + 5 s (teto de 2 min).',
+      esquema: { type: 'object', properties: { id: { type: 'string', description: 'Id do momento (atlas_mapa_ler ou o devolvido por atlas_momento).' } }, required: ['id'], additionalProperties: false },
+      async executar(args) {
+        const store = ctx.store();
+        if (!store) throw new Error(SEM_MAPA);
+        const id = textoOpcional(args.id, 'id', 64);
+        if (!id) throw new Error('Falta o argumento "id".');
+        const mapa = store.documento, momento = mapa.moments[id];
+        if (!momento) throw new Error(`O momento “${id}” não existe; momentos do mapa: ${Object.keys(mapa.moments).join(', ') || '(nenhum)'}.`);
+        if (!ctx.tocarMomento) throw new Error('Esta aba não consegue tocar momentos.');
+        const limite = Math.min(120_000, duracaoEstimada(momento) + 5_000);
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const estouro = new Promise<'tempo esgotado'>(r => { timer = setTimeout(() => r('tempo esgotado'), limite); });
+        let resultado: 'fim' | 'cancelado' | 'tempo esgotado';
+        try { resultado = await Promise.race([ctx.tocarMomento(id), estouro]); } finally { clearTimeout(timer); }
+        if (resultado === 'tempo esgotado') ctx.pararMomento?.();
+        return [json({ id, nome: momento.nome, resultado, passos: momento.passos.map((p, i) => `${i + 1}. ${descreverPasso(p, mapa)}`) })];
+      },
+    },
   ];
+}
+
+// ---------- Momentos ----------
+/** Os tipos de passo (a mesma lista de `atlas_catalogo { parte: "momentos" }`; um teste confere). */
+export const TIPOS_DE_PASSO_ESQUEMA = ['esperar', 'som', 'silencio', 'efeito', 'clima', 'tela', 'letreiro', 'camera', 'revelar', 'interagir', 'pista', 'nota'] as const;
+
+const refEsquema = (descricao: string) => ({ type: 'object', properties: { app: { type: 'string' }, tipo: { type: 'string' }, id: { type: 'string' } }, required: ['app', 'tipo', 'id'], additionalProperties: false, description: descricao });
+const msEsquema = (min: number, max: number, descricao: string) => ({ type: 'number', minimum: min, maximum: max, description: descricao });
+const passo = (tipo: string, descricao: string, props: Record<string, unknown>, obrigatorios: string[]) => ({ type: 'object', properties: { tipo: { const: tipo }, ...props }, required: ['tipo', ...obrigatorios], additionalProperties: false, description: descricao });
+
+/** O esquema JSON de UM passo de momento: `oneOf` por `tipo`, com os limites de `domain/momentos.ts`. */
+export function esquemaDoPasso(): Record<string, unknown> {
+  return {
+    description: 'Um passo do momento: exatamente um destes tipos.',
+    oneOf: [
+      passo('esperar', 'Espera antes do próximo passo.', { ms: msEsquema(100, 120_000, 'Milissegundos (100 a 120000).') }, ['ms']),
+      passo('som', 'Toca uma cena sonora ou efeito do Jukebox.', { ref: refEsquema('Ref { app: "jukebox", tipo: "cena-sonora" | "efeito", id } vinda do Jukebox.') }, ['ref']),
+      passo('silencio', 'Apaga o som do Jukebox com fade.', { ms: msEsquema(0, 30_000, 'Duração do fade em ms (0 a 30000).') }, ['ms']),
+      passo('efeito', 'Efeito curto de cena.', { efeito: { enum: [...EVENTOS_DE_CENA, 'relampago'] } }, ['efeito']),
+      passo('clima', 'Troca o clima do mapa.', { clima: { type: 'string', maxLength: 60, description: 'Id de um clima pronto ou salvo do mapa (atlas_catalogo { parte: "climas" }).' } }, ['clima']),
+      passo('tela', 'Cortina preta no projetor.', { acao: { enum: ['escurecer', 'clarear'] }, ms: msEsquema(0, 10_000, 'Duração do fade em ms (0 a 10000).') }, ['acao', 'ms']),
+      passo('letreiro', 'Letreiro sobre o mapa (título e subtítulo).', { titulo: { type: 'string', minLength: 1, maxLength: 120 }, subtitulo: { type: 'string', maxLength: 200, description: 'Pode ser "".' }, peca: { type: ['string', 'null'], description: 'Id de uma peça (atlas_mapa_ler) ou null.' }, estilo: { enum: ['apresentacao', 'capitulo'] }, ms: msEsquema(1_000, 20_000, 'Quanto tempo fica na tela, em ms (1000 a 20000).') }, ['titulo', 'subtitulo', 'peca', 'estilo', 'ms']),
+      passo('camera', 'Enquadra um cômodo, região ou peça no projetor.', { alvo: { type: 'object', properties: { colecao: { enum: ['rooms', 'regions', 'tokens'] }, id: { type: 'string' } }, required: ['colecao', 'id'], additionalProperties: false } }, ['alvo']),
+      passo('revelar', 'Revela cômodos aos jogadores.', { ids: { type: 'array', items: { type: 'string' }, maxItems: 100, description: 'Ids de cômodos do mapa.' } }, ['ids']),
+      passo('interagir', 'Aciona uma porta, porta secreta, interruptor ou gaveta.', { id: { type: 'string', description: 'Id da abertura ou do objeto interativo.' } }, ['id']),
+      passo('pista', 'Abre uma pista (documento do Ateliê).', { ref: refEsquema('Ref { app: "atelie", tipo: "documento", id }.'), mostrar: { type: 'boolean', description: 'true já projeta aos jogadores.' } }, ['ref', 'mostrar']),
+      passo('nota', 'Aviso só para o mestre.', { texto: { type: 'string', maxLength: 400 } }, ['texto']),
+    ],
+  };
+}
+
+/** Confere os passos contra o mapa aberto. Devolve a mensagem do primeiro problema (com o número do passo) ou `null`. */
+function referenciasDosPassos(mapa: MapaAtlas, passos: readonly PassoDeMomento[]): string | null {
+  const lista = (o: Record<string, unknown>) => Object.keys(o).join(', ') || '(nenhum)';
+  for (let i = 0; i < passos.length; i++) {
+    const p = passos[i]!, erro = (m: string) => `Passo ${i + 1} (${p.tipo}): ${m}`;
+    switch (p.tipo) {
+      case 'clima':
+        if (!presetDeClima(p.clima) && !mapa.customClimates[p.clima]) {
+          const todos = [...PRESETS_DE_CLIMA.map(c => ({ id: c.id, nome: c.nome })), ...Object.values(mapa.customClimates).map(c => ({ id: c.id, nome: c.name }))];
+          return erro(`o clima “${p.clima}” não existe; ${sugerir(p.clima, todos)}.`);
+        }
+        break;
+      case 'camera': {
+        const { colecao, id } = p.alvo, colecaoDoMapa = mapa[colecao] as Record<string, unknown>;
+        if (!colecaoDoMapa[id]) return erro(`${colecao === 'rooms' ? 'o cômodo' : colecao === 'regions' ? 'a região' : 'a peça'} “${id}” não existe; existentes: ${lista(colecaoDoMapa)}.`);
+        break;
+      }
+      case 'revelar':
+        for (const id of p.ids) if (!mapa.rooms[id]) return erro(`o cômodo “${id}” não existe; cômodos do mapa: ${lista(mapa.rooms)}.`);
+        break;
+      case 'interagir': {
+        const o = mapa.props[p.id], a = mapa.openings[p.id];
+        if (a) { if (a.kind !== 'door' && a.kind !== 'secret') return erro(`a abertura “${p.id}” é ${a.kind === 'window' ? 'uma janela' : 'um arco'}; só portas e portas secretas se acionam.`); }
+        else if (o) { if (o.interaction?.kind !== 'switch' && o.interaction?.kind !== 'drawer') return erro(`o objeto “${p.id}” ${o.interaction ? 'é uma pista ou nota (não se aciona por momento)' : 'não é interativo'}; use interruptor ou gaveta.`); }
+        else return erro(`“${p.id}” não é uma porta nem um objeto interativo do mapa; portas: ${lista(mapa.openings)}.`);
+        break;
+      }
+      case 'letreiro':
+        if (p.peca !== null && !mapa.tokens[p.peca]) return erro(`a peça “${p.peca}” não existe; peças: ${lista(mapa.tokens)}.`);
+        break;
+      default: break;
+    }
+  }
+  return null;
 }
 
 const unidadeEsq = { type: 'number', minimum: 0, maximum: 1 };

@@ -294,7 +294,7 @@ Commit: assistant tools to furnish, light and set the mood
 
 Nota: `atlas_ambiente.clima` aceita `preset` (pronto ou clima salvo do mapa), `horario`, `tempo`, `ambiente`, `sol` (ou `null`) e `redeLigada`; `acabamento` aceita `preset` e ajustes (com ajustes o preset vira `personalizado`); faixas validadas antes dos comandos, com erro legível. `atlas_presenca` ganhou `intensidade` opcional (comando `item.atualizar` em `presence`). `atlas_notas` substitui o texto do campo. Ids desconhecidos (conjunto, preset de luz/clima/acabamento, pincel) sugerem os parecidos por id e nome; o item do acervo usa a sugestão (id, nome, tags) de `construcao.ts`. Só `atlas_objetos` aceita 200 itens; as outras listas, 100.
 
-### 14.2d — Ferramentas de momentos  ⬜
+### 14.2d — Ferramentas de momentos  ✅
 Objetivo: o Claude monta momentos (sequências de cena) no mapa aberto.
 Depende de: 14.2b
 Ler: `src/domain/momentos.ts` (`PassoDeMomento`, `momentoValido`, `passoValido`, `descreverPasso`), `src/state/comandos.ts` (`momento.salvar`), `src/app/momentos.ts` (o executor, para a ferramenta de testar).
@@ -307,6 +307,7 @@ Não fazer: apagar momento que o mestre criou (14.2e).
 Testes: momento válido vira um `momento.salvar`; clima inexistente e cômodo inexistente voltam como erro claro; substituir só vale para ids criados pelo assistente.
 Pronto quando: "faça um momento de chegada: escurece a tela, letreiro com o nome do lugar, clima de neblina e câmera no salão" funciona e toca com `atlas_momento_testar`.
 Commit: assistant tools for moments
+Nota: as duas ferramentas ficaram em `ferramentasDeEscrita` (`ponte-leitura.ts` não mudou). `ContextoDeEscrita` ganhou `tocarMomento(id)` e `pararMomento()` opcionais (o `ponte.ts` liga `tocarMomentoDoMapa` e `pararMomento`; os testes injetam falsos). `atlas_momento_testar` devolve a descrição de todos os passos do momento com o resultado (`fim`, `cancelado` ou `tempo esgotado`, parando o momento); o executor não informa passo a passo. O esquema vem de `esquemaDoPasso()` e a lista de tipos de `TIPOS_DE_PASSO_ESQUEMA`, ambos em `ponte-escrita.ts`; o catálogo continua com a sua própria lista e um teste confere que tipos e campos batem. `interagir` aceita porta/porta secreta ou objeto com interruptor/gaveta (janela, arco, pista e nota são recusados, pois o comando `interagir` não os aciona). `revelar` confere só cômodos (a ficha pede). Com `id` de momento inexistente a ferramenta recusa e pede para omitir o `id`.
 
 ### 14.2e — Painel de atividade: histórico, desfazer, destaque e confirmação  ⬜
 Objetivo: o mestre vê e controla o que o assistente faz no mapa.
