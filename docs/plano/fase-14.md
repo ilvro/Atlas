@@ -409,7 +409,7 @@ Pronto quando: "monte a cena 'Emboscada na ponte' com o mapa da ravina, a trilha
 Commit: assistant tools to assemble scenes
 Nota: tudo em `src/app/ponte-escrita.ts` (`ferramentasDeCena`, contexto `ContextoDeCenas`; sem `ponte-leitura.ts`). Os ids aceitam id da entidade, `mesa:mesa/entidade/<id>` ou qualquer ref da entidade. Tudo é conferido (cena, mapa = lugar/ref do Atlas, trilha = Jukebox, participantes = personagem/ameaça, pistas = pista/Ateliê) antes de gravar; as funções `vincular…` seguem usando `avisar` e devolvendo `false` (o erro vira "veja o aviso na Mesa"). `momento` é o NOME (ou id) de um momento do mapa vinculado à cena, texto livre (vira a etiqueta `momento:<texto>`; o Atlas casa por id ou nome, sem diferenciar maiúsculas, e só toca com mapa vinculado); vazio remove. `encontro` é booleano. `avisar` ganhou o parâmetro `acao` (botão no aviso, 30 s). `abrirAplicativo` (em `aplicativos.ts`) abre a raiz do app pelo manifesto e NÃO usa `noopener` (ele faz `window.open` devolver sempre `null`); zera `opener` depois. `mesa_cena_montar` entrou nas marcas de `verificar-build.ts`.
 
-### 14.3d — Instruções do assistente: planejar uma sessão  ⬜
+### 14.3d — Instruções do assistente: planejar uma sessão  ✅
 Objetivo: as instruções ganham o fluxo completo de preparar uma sessão.
 Depende de: 14.2f, 14.3c
 Ler: `docs/assistente/instrucoes.md`, as ferramentas da Mesa.
@@ -427,6 +427,7 @@ Mais: abrir os apps que faltam com `mesa_abrir_apps`, e o que fazer quando uma f
 Testes: — (documentação). Conferir os nomes das ferramentas.
 Pronto quando: com as instruções, "prepare a próxima sessão a partir das notas da anterior" produz cenas, mapas, momentos e a sessão ligados, com um resumo final.
 Commit: assistant instructions for session planning
+Nota: seção "Planejar uma sessão" em `instrucoes.md` (título do documento passou a "mapas, momentos e sessões"); `mesa_o_que_vejo` entrou em "Antes de construir". Nomes e parâmetros conferidos por grep nos arquivos de ferramentas.
 
 ### 14.4a a 14.4c — Documentos e fichas  ⬜
 Escopo (detalhar ao começar, **com autorização do usuário para cada projeto**): Ateliê, Dossiê e Jukebox importam `vendor/mesa-core/ponte.js` no trecho de desenvolvimento e registram as suas ferramentas.
