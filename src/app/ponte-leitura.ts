@@ -86,6 +86,7 @@ const TIPOS_DE_PASSO = [
   { tipo: 'interagir', campos: { id: 'id de objeto interagível ou porta' }, descricao: 'Aciona um interruptor, gaveta ou porta.' },
   { tipo: 'luz', campos: { ids: 'ids de luzes ou de objetos (com tocha/lampião), até 100', acao: ['ligar', 'desligar', 'alternar'] }, descricao: 'Liga, desliga ou alterna luzes.' },
   { tipo: 'objeto', campos: { ids: 'ids de objetos, até 100', acao: ['mostrar', 'esconder'] }, descricao: 'Mostra ou esconde objetos.' },
+  { tipo: 'agua', campos: { etapas: 'opcional, número de etapas (padrão 6)', material: 'material de água (ex: agua, agua.pantano)', ms: 'número, 100 a 120000', poligono: 'pontos [x, y] em metros (mínimo 3)' }, descricao: 'Sobe a água gradualmente em anéis.' },
   { tipo: 'pista', campos: { ref: 'Ref de um documento do Ateliê', mostrar: 'booleano (true já projeta)' }, descricao: 'Revela uma pista.' },
   { tipo: 'nota', campos: { texto: 'até 400 caracteres' }, descricao: 'Aviso só para o mestre.' },
 ];

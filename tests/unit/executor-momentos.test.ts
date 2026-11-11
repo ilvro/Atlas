@@ -1,6 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { criarRef } from '#mesa';
+import { criarMapa } from '../../src/domain/mapa.ts';
+import { criarStore } from '../../src/state/store.ts';
+import { decodificar } from '../../src/domain/celulas.ts';
+import { etapasDaAgua } from '../../src/domain/agua.ts';
 import {
   executarPasso,
   momentoEmCurso,
@@ -25,6 +29,7 @@ function criarSaidas() {
     interagir: id => chamadas.push({ tipo: 'interagir', args: [id] }),
     luz: (ids, acao) => chamadas.push({ tipo: 'luz', args: [ids, acao] }),
     objeto: (ids, acao) => chamadas.push({ tipo: 'objeto', args: [ids, acao] }),
+    agua: (p, _rel, _sinal) => { chamadas.push({ tipo: 'agua', args: [p] }); return Promise.resolve(); },
     pista: (ref, mostrar) => chamadas.push({ tipo: 'pista', args: [ref, mostrar] }),
     nota: texto => chamadas.push({ tipo: 'nota', args: [texto] }),
   };
@@ -320,9 +325,72 @@ test('executarPasso despacha cada tipo instantâneo e ignora esperar', () => {
   executarPasso({ tipo: 'objeto', ids: ['obj-1'], acao: 'esconder' }, saidas);
   assert.deepEqual(chamadas.pop(), { tipo: 'objeto', args: [['obj-1'], 'esconder'] });
 
+  const passoAgua = { tipo: 'agua' as const, poligono: [[0, 0], [5, 0], [5, 5]] as [number, number][], material: 'agua', ms: 3000 };
+  executarPasso(passoAgua, saidas);
+  assert.deepEqual(chamadas.pop(), { tipo: 'agua', args: [passoAgua] });
+
   executarPasso({ tipo: 'pista', ref: refPista, mostrar: true }, saidas);
   assert.deepEqual(chamadas.pop(), { tipo: 'pista', args: [refPista, true] });
 
   executarPasso({ tipo: 'nota', texto: 'Lembrar de rolar sanidade' }, saidas);
   assert.deepEqual(chamadas.pop(), { tipo: 'nota', args: ['Lembrar de rolar sanidade'] });
+});
+
+test('passo de água que sobe: ms dividido nas etapas, última etapa cobre o polígono e desfazer volta o terreno', async () => {
+  const store = criarStore(criarMapa());
+  const antes = store.documento;
+  const poligono: [number, number][] = [[10, 10], [20, 10], [20, 20], [10, 20]];
+  const passo = { tipo: 'agua' as const, poligono, material: 'agua.pantano', ms: 3000, etapas: 6 };
+
+  const { relogio, esperas } = criarRelogioFalso();
+  const sinal = new AbortController().signal;
+
+  const executarAgua = async () => {
+    const res = store.documento.terrain.resolution;
+    const totalEtapas = passo.etapas ?? 6;
+    const etapas = etapasDaAgua(passo.poligono, res, totalEtapas);
+    const intervalo = Math.round(passo.ms / totalEtapas);
+    const gesto = store.iniciarGesto('Água que sobe');
+    try {
+      for (let i = 0; i < etapas.length; i++) {
+        const celulas = etapas[i]!;
+        if (celulas.length > 0) {
+          gesto.aplicar({
+            tipo: 'terreno.pintar',
+            material: passo.material,
+            celulas,
+            suavizar: true,
+          });
+        }
+        await relogio.esperar(intervalo, sinal);
+      }
+      gesto.concluir();
+    } catch (e) {
+      gesto.cancelar();
+      throw e;
+    }
+  };
+
+  await executarAgua();
+
+  // 1. ms dividido nas etapas
+  assert.equal(esperas.length, 6);
+  assert.deepEqual(esperas, [500, 500, 500, 500, 500, 500]);
+
+  // 2. A última etapa cobre o polígono
+  const camada = Object.values(store.documento.terrain.layers).find(l => l.material === 'agua.pantano');
+  assert.ok(camada, 'camada de água existe');
+  const celulasPintadas = new Set(decodificar(camada.cells).map(([x, y]) => `${x},${y}`));
+  for (let y = 12; y <= 18; y++) {
+    for (let x = 12; x <= 18; x++) {
+      const cx = Math.floor(x / store.documento.terrain.resolution);
+      const cy = Math.floor(y / store.documento.terrain.resolution);
+      assert.ok(celulasPintadas.has(`${cx},${cy}`), `célula ${cx},${cy} está coberta`);
+    }
+  }
+
+  // 3. O desfazer volta o terreno inteiro de uma vez
+  assert.equal(store.historico.length, 1);
+  store.desfazer();
+  assert.deepEqual(store.documento.terrain, antes.terrain);
 });

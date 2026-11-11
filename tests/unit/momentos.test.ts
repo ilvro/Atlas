@@ -240,6 +240,16 @@ test('validação de passos de luz e objeto', () => {
   assert.equal(passoValido({ tipo: 'objeto', ids: ['o1'], acao: 'esconder' }), null);
   assert.match(passoValido({ tipo: 'objeto', ids: ['o1'], acao: 'apagar' }) ?? '', /Ação de objeto/);
   assert.match(passoValido({ tipo: 'objeto', ids: 'o1', acao: 'mostrar' }) ?? '', /Lista de identificadores/);
+
+  // agua
+  assert.equal(passoValido({ tipo: 'agua', poligono: [[0, 0], [5, 0], [5, 5]], material: 'agua', ms: 3000 }), null);
+  assert.equal(passoValido({ tipo: 'agua', poligono: [[0, 0], [5, 0], [5, 5]], material: 'agua', ms: 3000, etapas: 6 }), null);
+  assert.match(passoValido({ tipo: 'agua', poligono: [[0, 0], [5, 0]], material: 'agua', ms: 3000 }) ?? '', /pelo menos 3 pontos/);
+  assert.match(passoValido({ tipo: 'agua', poligono: [[0, 0], [5, 0], [5, 5]], material: '', ms: 3000 }) ?? '', /Material/);
+  assert.match(passoValido({ tipo: 'agua', poligono: [[0, 0], [5, 0], [5, 5]], material: 'agua', ms: 10 }) ?? '', /Duração/);
+  assert.match(passoValido({ tipo: 'agua', poligono: [[0, 0], [5, 0], [5, 5]], material: 'agua', ms: 3000, etapas: 0 }) ?? '', /etapas/);
+
+  assert.equal(descreverPasso({ tipo: 'agua', poligono: [[0, 0], [5, 0], [5, 5]], material: 'agua', ms: 3000 }), 'Água subindo (3 s)');
 });
 
 test('projeção para jogadores esvazia moments e lista em CAMPOS_DO_MESTRE', () => {

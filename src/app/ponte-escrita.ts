@@ -8,7 +8,7 @@ import { criarMapa, type MapaAtlas } from '../domain/mapa.ts';
 import { descreverPasso, duracaoEstimada, momentoValido, type Momento, type PassoDeMomento } from '../domain/momentos.ts';
 import { GENEROS, PINCEIS_DE_PRESENCA, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
 import { validarMapa } from '../domain/validacao.ts';
-import { materiaisDo } from '../procedural/materiais.ts';
+import { materialDe, materiaisDo } from '../procedural/materiais.ts';
 import type { RepositorioMapas } from '../data/repositorio.ts';
 import type { Comando } from '../state/comandos.ts';
 import type { Store } from '../state/store.ts';
@@ -471,7 +471,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
 
 // ---------- Momentos ----------
 /** Os tipos de passo (a mesma lista de `atlas_catalogo { parte: "momentos" }`; um teste confere). */
-export const TIPOS_DE_PASSO_ESQUEMA = ['esperar', 'som', 'silencio', 'efeito', 'clima', 'tela', 'letreiro', 'camera', 'revelar', 'interagir', 'luz', 'objeto', 'pista', 'nota'] as const;
+export const TIPOS_DE_PASSO_ESQUEMA = ['esperar', 'som', 'silencio', 'efeito', 'clima', 'tela', 'letreiro', 'camera', 'revelar', 'interagir', 'luz', 'objeto', 'agua', 'pista', 'nota'] as const;
 
 const refEsquema = () => ({ type: 'object', properties: { app: { type: 'string' }, tipo: { type: 'string' }, id: { type: 'string' } }, required: ['app', 'tipo', 'id'] });
 const msEsquema = (min: number, max: number) => ({ type: 'number', minimum: min, maximum: max });
@@ -494,6 +494,7 @@ export function esquemaDoPasso(): Record<string, unknown> {
       passo('interagir', { id: { type: 'string' } }, ['id']),
       passo('luz', { ids: { type: 'array', items: { type: 'string' }, maxItems: 100 }, acao: { enum: ['ligar', 'desligar', 'alternar'] } }, ['ids', 'acao']),
       passo('objeto', { ids: { type: 'array', items: { type: 'string' }, maxItems: 100 }, acao: { enum: ['mostrar', 'esconder'] } }, ['ids', 'acao']),
+      passo('agua', { etapas: { type: 'integer', minimum: 1, maximum: 60 }, material: { type: 'string' }, ms: msEsquema(100, 120_000), poligono: { type: 'array', items: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 }, minItems: 3 } }, ['material', 'ms', 'poligono']),
       passo('pista', { ref: refEsquema(), mostrar: { type: 'boolean' } }, ['ref', 'mostrar']),
       passo('nota', { texto: { type: 'string', maxLength: 400 } }, ['texto']),
     ],
@@ -538,6 +539,12 @@ function referenciasDosPassos(mapa: MapaAtlas, passos: readonly PassoDeMomento[]
           if (!mapa.props[id]) return erro(`o objeto “${id}” não existe no mapa; objetos: ${lista(mapa.props)}.`);
         }
         break;
+      case 'agua': {
+        let mat;
+        try { mat = materialDe(p.material); } catch { return erro(`o material “${p.material}” não existe.`); }
+        if (mat.uso !== 'agua') return erro(`o material “${p.material}” não é de água (uso: ${mat.uso}); use materiais de água (ex: agua, agua.pantano).`);
+        break;
+      }
       case 'interagir': {
         const o = mapa.props[p.id], a = mapa.openings[p.id];
         if (a) { if (a.kind !== 'door' && a.kind !== 'secret') return erro(`a abertura “${p.id}” é ${a.kind === 'window' ? 'uma janela' : 'um arco'}; só portas e portas secretas se acionam.`); }

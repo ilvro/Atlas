@@ -22,6 +22,7 @@ import type { ColecaoLivre, Comando } from '../state/comandos.ts';
 import { embutido } from './embutido.ts';
 import { campanhaAtiva, carregarCampanhas, desvincularMapa, entidadesDaCampanha, refDoMapa, revincularMapa, sincronizarMapaComCampanha } from './campanha.ts';
 import { pedirCena, pedirEfeito, pedirSilencio, pedirSomDoClima, pedirSomDoMapa, tocarSomEscolhido } from './audio-do-clima.ts';
+import { etapasDaAgua } from '../domain/agua.ts';
 import { gatilhoJaDisparou, iniciarRegioes, marcarGatilhoDisparado } from './regioes.ts';
 import { modo, vistaDeJogador } from './modo.ts';
 import { iniciarSugestoes } from './sugestoes.ts';
@@ -980,6 +981,41 @@ export function saidasDeMomento(s: Servicos | null): SaidasDeMomento {
       if (!s) return;
       const m = momentoEmCurso.peek();
       s.store.executar({ tipo: 'objeto.visibilidade', ids, acao }, m ? { rotulo: `Momento: ${m.nome}` } : {});
+    },
+    agua: async (p, rel, sinal) => {
+      const s = sessao.value;
+      if (!s) return;
+      const doc = s.doc.value;
+      const res = doc.terrain.resolution;
+      const totalEtapas = p.etapas ?? 6;
+      const etapas = etapasDaAgua(p.poligono, res, totalEtapas);
+      const intervalo = Math.round(p.ms / totalEtapas);
+      const m = momentoEmCurso.peek();
+      const rotulo = m ? `Momento: ${m.nome}` : 'Água que sobe';
+
+      const gesto = s.store.iniciarGesto(rotulo);
+      try {
+        for (let i = 0; i < etapas.length; i++) {
+          if (sinal.aborted) {
+            gesto.cancelar();
+            return;
+          }
+          const celulas = etapas[i]!;
+          if (celulas.length > 0) {
+            gesto.aplicar({
+              tipo: 'terreno.pintar',
+              material: p.material,
+              celulas,
+              suavizar: true,
+            });
+          }
+          await rel.esperar(intervalo, sinal);
+        }
+        gesto.concluir();
+      } catch (erro) {
+        gesto.cancelar();
+        throw erro;
+      }
     },
     pista: (ref, mostrar) => {
       void abrirInspecao(ref).then(abriu => {

@@ -67,7 +67,7 @@ test('terreno.correnteza muda só a camada de água desse material, valida e se 
 });
 
 import { decodificar } from '../../src/domain/celulas.ts';
-import { aguaEm, suavizarMargem } from '../../src/domain/agua.ts';
+import { aguaEm, etapasDaAgua, suavizarMargem } from '../../src/domain/agua.ts';
 
 test('aguaEm acha o material da água sob um ponto e nada fora dela', () => {
   const ret = (x0: number, y0: number, x1: number, y1: number): [number, number][] => { const c: [number, number][] = []; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) c.push([x, y]); return c; };
@@ -93,4 +93,31 @@ test('terreno.pintar com suavizar só mexe em água', () => {
   const agua = aplicarComando(criarMapa(), { tipo: 'terreno.pintar', material: 'agua.lago', celulas: cel, suavizar: true }), grama = aplicarComando(criarMapa(), { tipo: 'terreno.pintar', material: 'grama', celulas: cel, suavizar: true });
   assert.ok(!decodificar(agua.terrain.layers['t_agua_lago']!.cells).some(([x, y]) => x === 44 && y === 24));
   assert.ok(decodificar(grama.terrain.layers['t_grama']!.cells).some(([x, y]) => x === 44 && y === 24));
+});
+
+test('etapasDaAgua divide o polígono em anéis do centro para a borda e cobre o polígono', () => {
+  const poligono: [number, number][] = [[10, 10], [30, 10], [30, 30], [10, 30]];
+  const res = 0.5;
+  const etapas = etapasDaAgua(poligono, res, 6);
+  assert.equal(etapas.length, 6);
+
+  // Cada etapa tem células
+  for (const e of etapas) {
+    assert.ok(e.length > 0, 'etapa tem células');
+  }
+
+  // A distância média cresce da primeira etapa até a última
+  const centro = [20, 20];
+  const distMedia = (celulas: readonly (readonly [number, number])[]) =>
+    celulas.reduce((s, [cx, cy]) => s + Math.hypot((cx + 0.5) * res - centro[0]!, (cy + 0.5) * res - centro[1]!), 0) / celulas.length;
+
+  for (let i = 0; i < etapas.length - 1; i++) {
+    assert.ok(distMedia(etapas[i]!) <= distMedia(etapas[i + 1]!), `etapa ${i} está mais perto do centro que ${i + 1}`);
+  }
+
+  // A união cobre o total de células
+  const todas = new Set(etapas.flatMap(e => e.map(([x, y]) => `${x},${y}`)));
+  const totalCelulas = etapas.reduce((s, e) => s + e.length, 0);
+  assert.equal(todas.size, totalCelulas, 'não há repetição entre etapas');
+  assert.ok(todas.size > 1000, 'polígono de 20x20 m a 0.5 m tem ~1600 células');
 });

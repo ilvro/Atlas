@@ -1,5 +1,6 @@
 import { signal, useSignal } from '@preact/signals';
 import { criarRef, type Ref } from '#mesa';
+import type { Ponto } from '../domain/mapa.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import {
   type Momento,
@@ -17,6 +18,7 @@ import {
 } from '../domain/momentos.ts';
 import { EVENTOS_DE_CENA, ROTULO_DO_EVENTO } from '../render/eventos-de-cena.ts';
 import { PRESETS_DE_CLIMA } from '../domain/presets.ts';
+import { materiaisDo } from '../procedural/materiais.ts';
 import { pistas } from '../app/pistas.ts';
 import { idDaPista, refDaPista } from '../data/pistas.ts';
 import { EscolherCena } from './EscolherCena.tsx';
@@ -792,6 +794,100 @@ export function CamposDoPasso({
       );
     }
 
+    case 'agua': {
+      const materiaisDeAgua = materiaisDo('agua');
+      const selReg = s.selecao.value.find(item => item.colecao === 'regions');
+      const regiao = selReg ? doc.regions[selReg.id] : null;
+      const atalhosS = [1, 2, 3, 5, 8];
+
+      return (
+        <div class="campos-passo campos-agua">
+          <div class="campos-passo-linha">
+            <label class="dock-rotulo" style={{ flex: 1 }}>
+              Material de água:
+              <select
+                class="campo-select"
+                value={passo.material}
+                onChange={e => {
+                  aoAtualizar({ ...passo, material: (e.target as HTMLSelectElement).value });
+                }}
+              >
+                {materiaisDeAgua.map(m => (
+                  <option key={m.id} value={m.id}>
+                    {m.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div class="campos-passo-linha">
+            <span class="dock-rotulo">Duração:</span>
+            {atalhosS.map(seg => (
+              <button
+                type="button"
+                key={seg}
+                class={`dock-pilula ${passo.ms === seg * 1000 ? 'ativa' : ''}`}
+                onClick={() => aoAtualizar({ ...passo, ms: seg * 1000 })}
+              >
+                {seg} s
+              </button>
+            ))}
+          </div>
+
+          <div class="campos-passo-linha">
+            <label class="dock-rotulo" style={{ flex: 1 }}>
+              Duração (segundos):
+              <input
+                type="number"
+                min={0.1}
+                max={120}
+                step={0.5}
+                value={(passo.ms / 1000).toString()}
+                class="campo-numero"
+                onChange={e => {
+                  const ms = Math.max(100, Math.min(120_000, Math.round(Number((e.target as HTMLInputElement).value) * 1000)));
+                  aoAtualizar({ ...passo, ms });
+                }}
+              />
+            </label>
+            <label class="dock-rotulo" style={{ flex: 1 }}>
+              Etapas (anéis):
+              <input
+                type="number"
+                min={1}
+                max={60}
+                step={1}
+                value={passo.etapas ?? 6}
+                class="campo-numero"
+                onChange={e => {
+                  const etapas = Math.max(1, Math.min(60, Math.round(Number((e.target as HTMLInputElement).value))));
+                  aoAtualizar({ ...passo, etapas });
+                }}
+              />
+            </label>
+          </div>
+
+          <div class="campos-passo-linha">
+            <span class="dock-rotulo">Polígono: {passo.poligono.length} pontos</span>
+            <button
+              type="button"
+              class="dock-pilula"
+              disabled={!regiao || regiao.polygon.length < 3}
+              title="Copia os pontos da região selecionada no mapa"
+              onClick={() => {
+                if (regiao && regiao.polygon.length >= 3) {
+                  aoAtualizar({ ...passo, poligono: structuredClone(regiao.polygon) });
+                }
+              }}
+            >
+              Usar região selecionada
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     case 'pista': {
       const listaPistas = pistas.value;
       const pid = idDaPista(passo.ref);
@@ -1200,6 +1296,21 @@ export function EditorDeMomento({
                   onClick={() => adicionarNovoPasso({ tipo: 'objeto', ids: Object.keys(s.doc.value.props).slice(0, 1), acao: 'mostrar' })}
                 >
                   Objeto (mostrar / esconder)
+                </button>
+                <button
+                  type="button"
+                  class="menu-opcao"
+                  data-testid="menu-add-agua"
+                  onClick={() => {
+                    const selReg = s.selecao.value.find(item => item.colecao === 'regions');
+                    const reg = selReg ? s.doc.value.regions[selReg.id] : null;
+                    const poligono: Ponto[] = reg && reg.polygon.length >= 3
+                      ? reg.polygon.map(p => [p[0], p[1]] as Ponto)
+                      : [[0, 0], [5, 0], [5, 5], [0, 5]];
+                    adicionarNovoPasso({ tipo: 'agua', poligono, material: 'agua', ms: 3000, etapas: 6 });
+                  }}
+                >
+                  Água que sobe
                 </button>
               </div>
 

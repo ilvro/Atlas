@@ -14,6 +14,7 @@ export interface SaidasDeMomento {
   interagir(id: string): void;
   luz(ids: string[], acao: 'ligar' | 'desligar' | 'alternar'): void;
   objeto(ids: string[], acao: 'mostrar' | 'esconder'): void;
+  agua(p: Extract<PassoDeMomento, { tipo: 'agua' }>, rel: Relogio, sinal: AbortSignal): Promise<void>;
   pista(ref: Ref, mostrar: boolean): void;
   nota(texto: string): void;
 }
@@ -96,6 +97,9 @@ export function executarPasso(p: PassoDeMomento, saidas: SaidasDeMomento): void 
     case 'objeto':
       saidas.objeto(p.ids, p.acao);
       break;
+    case 'agua':
+      void saidas.agua(p, relogioPadrao, new AbortController().signal);
+      break;
     case 'pista':
       saidas.pista(p.ref, p.mostrar);
       break;
@@ -155,6 +159,16 @@ export async function tocarMomento(
           if (contextoAtual === ctx) pararMomento();
           return 'cancelado';
         }
+      }
+    } else if (passo.tipo === 'agua') {
+      try {
+        await saidas.agua(passo, rel, sinal);
+      } catch (erro) {
+        if (sinal.aborted) {
+          if (contextoAtual === ctx) pararMomento();
+          return 'cancelado';
+        }
+        console.warn('Atlas: erro ao executar água que sobe', erro);
       }
     } else {
       if (passo.tipo === 'tela') {
