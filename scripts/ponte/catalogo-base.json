@@ -149,7 +149,11 @@
       ],
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": false,
+      "idempotente": true
+    }
   },
   {
     "nome": "atlas_ambiente",
@@ -372,7 +376,10 @@
       },
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": true
+    }
   },
   {
     "nome": "atlas_catalogo",
@@ -397,7 +404,10 @@
       "required": [],
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "leitura": true
+    }
   },
   {
     "nome": "atlas_comodos",
@@ -484,7 +494,10 @@
       ],
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": true
+    }
   },
   {
     "nome": "atlas_espalhar",
@@ -664,7 +677,10 @@
       ],
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": false
+    }
   },
   {
     "nome": "atlas_luzes",
@@ -736,7 +752,10 @@
       ],
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": false
+    }
   },
   {
     "nome": "atlas_mapa_criar",
@@ -791,7 +810,10 @@
       ],
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": false
+    }
   },
   {
     "nome": "atlas_mapa_ler",
@@ -807,7 +829,10 @@
       "required": [],
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "leitura": true
+    }
   },
   {
     "nome": "atlas_mapas_listar",
@@ -818,7 +843,10 @@
       "required": [],
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "leitura": true
+    }
   },
   {
     "nome": "atlas_momento",
@@ -1179,7 +1207,10 @@
       ],
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": false
+    }
   },
   {
     "nome": "atlas_momento_testar",
@@ -1197,7 +1228,11 @@
       ],
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": false,
+      "idempotente": true
+    }
   },
   {
     "nome": "atlas_mover",
@@ -1229,7 +1264,10 @@
       ],
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": false
+    }
   },
   {
     "nome": "atlas_notas",
@@ -1267,7 +1305,10 @@
       },
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": false
+    }
   },
   {
     "nome": "atlas_o_que_vejo",
@@ -1278,7 +1319,10 @@
       "required": [],
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "leitura": true
+    }
   },
   {
     "nome": "atlas_objetos",
@@ -1352,7 +1396,10 @@
       ],
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": false
+    }
   },
   {
     "nome": "atlas_paredes",
@@ -1414,7 +1461,10 @@
       ],
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": true
+    }
   },
   {
     "nome": "atlas_portas",
@@ -1472,7 +1522,10 @@
       ],
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": true
+    }
   },
   {
     "nome": "atlas_presenca",
@@ -1655,7 +1708,10 @@
       ],
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": false
+    }
   },
   {
     "nome": "atlas_regioes",
@@ -1716,7 +1772,10 @@
       ],
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": false
+    }
   },
   {
     "nome": "atlas_remover",
@@ -1738,7 +1797,10 @@
       ],
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": true
+    }
   },
   {
     "nome": "atlas_terreno",
@@ -1947,7 +2009,10 @@
       },
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": true
+    }
   },
   {
     "nome": "atlas_ver_mapa",
@@ -1974,7 +2039,10 @@
       "required": [],
       "additionalProperties": false
     },
-    "app": "atlas"
+    "app": "atlas",
+    "anotacoes": {
+      "leitura": true
+    }
   },
   {
     "nome": "campanha_entidade_ler",
@@ -1992,7 +2060,10 @@
       ],
       "additionalProperties": false
     },
-    "app": "mesa"
+    "app": "mesa",
+    "anotacoes": {
+      "leitura": true
+    }
   },
   {
     "nome": "campanha_ler",
@@ -2010,7 +2081,10 @@
       ],
       "additionalProperties": false
     },
-    "app": "mesa"
+    "app": "mesa",
+    "anotacoes": {
+      "leitura": true
+    }
   },
   {
     "nome": "campanha_listar",
@@ -2021,7 +2095,10 @@
       "required": [],
       "additionalProperties": false
     },
-    "app": "mesa"
+    "app": "mesa",
+    "anotacoes": {
+      "leitura": true
+    }
   },
   {
     "nome": "campanha_sessao_ler",
@@ -2039,7 +2116,10 @@
       ],
       "additionalProperties": false
     },
-    "app": "mesa"
+    "app": "mesa",
+    "anotacoes": {
+      "leitura": true
+    }
   },
   {
     "nome": "dossie_ameaca_criar",
@@ -2452,7 +2532,11 @@
         }
       }
     },
-    "app": "mesa"
+    "app": "mesa",
+    "anotacoes": {
+      "destrutiva": false,
+      "idempotente": true
+    }
   },
   {
     "nome": "mesa_campanha_atual",
@@ -2463,7 +2547,10 @@
       "required": [],
       "additionalProperties": false
     },
-    "app": "mesa"
+    "app": "mesa",
+    "anotacoes": {
+      "leitura": true
+    }
   },
   {
     "nome": "mesa_cena_ler",
@@ -2481,7 +2568,10 @@
         }
       }
     },
-    "app": "mesa"
+    "app": "mesa",
+    "anotacoes": {
+      "leitura": true
+    }
   },
   {
     "nome": "mesa_cena_montar",
@@ -2529,7 +2619,10 @@
         }
       }
     },
-    "app": "mesa"
+    "app": "mesa",
+    "anotacoes": {
+      "destrutiva": false
+    }
   },
   {
     "nome": "mesa_elenco",
@@ -2555,7 +2648,10 @@
         }
       }
     },
-    "app": "mesa"
+    "app": "mesa",
+    "anotacoes": {
+      "destrutiva": true
+    }
   },
   {
     "nome": "mesa_elenco_ler",
@@ -2566,7 +2662,10 @@
       "required": [],
       "additionalProperties": false
     },
-    "app": "mesa"
+    "app": "mesa",
+    "anotacoes": {
+      "leitura": true
+    }
   },
   {
     "nome": "mesa_entidade_criar",
@@ -2608,7 +2707,10 @@
         }
       }
     },
-    "app": "mesa"
+    "app": "mesa",
+    "anotacoes": {
+      "destrutiva": false
+    }
   },
   {
     "nome": "mesa_entidade_editar",
@@ -2644,7 +2746,10 @@
         }
       }
     },
-    "app": "mesa"
+    "app": "mesa",
+    "anotacoes": {
+      "destrutiva": true
+    }
   },
   {
     "nome": "mesa_ligar",
@@ -2725,7 +2830,10 @@
         }
       }
     },
-    "app": "mesa"
+    "app": "mesa",
+    "anotacoes": {
+      "destrutiva": false
+    }
   },
   {
     "nome": "mesa_o_que_vejo",
@@ -2736,7 +2844,10 @@
       "required": [],
       "additionalProperties": false
     },
-    "app": "mesa"
+    "app": "mesa",
+    "anotacoes": {
+      "leitura": true
+    }
   },
   {
     "nome": "mesa_sessao_criar",
@@ -2758,7 +2869,10 @@
       ],
       "additionalProperties": false
     },
-    "app": "mesa"
+    "app": "mesa",
+    "anotacoes": {
+      "destrutiva": false
+    }
   },
   {
     "nome": "mesa_sessao_editar",
@@ -2921,7 +3035,10 @@
         }
       }
     },
-    "app": "mesa"
+    "app": "mesa",
+    "anotacoes": {
+      "destrutiva": true
+    }
   },
   {
     "nome": "mesa_sessoes_listar",
@@ -2932,6 +3049,9 @@
       "required": [],
       "additionalProperties": false
     },
-    "app": "mesa"
+    "app": "mesa",
+    "anotacoes": {
+      "leitura": true
+    }
   }
 ]

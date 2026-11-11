@@ -69,6 +69,21 @@ test('registra ao abrir, sem expor executar', () => {
   cliente.fechar();
 });
 
+test('registrar envia anotacoes quando declaradas', () => {
+  const fComAnotacao: FerramentaDaPonte = {
+    nome: 'com_anotacao',
+    descricao: 'com',
+    esquema: { type: 'object' },
+    anotacoes: { leitura: true, idempotente: true },
+    executar: async () => [],
+  };
+  const { sockets, cliente } = montar([fComAnotacao]);
+  sockets[0]!.abrir();
+  const reg = sockets[0]!.enviadas[0] as { ferramentas: Record<string, unknown>[] };
+  assert.deepEqual(reg.ferramentas[0]?.anotacoes, { leitura: true, idempotente: true });
+  cliente.fechar();
+});
+
 test('responde chamar com resultado e com erro', async () => {
   const { sockets, cliente } = montar();
   const s = sockets[0]!; s.abrir();

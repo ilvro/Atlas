@@ -592,3 +592,70 @@ test('com .ponte apagado, tools/list traz as 4 jukebox_* e mesa_elenco do catalo
   }
 });
 
+test('anotações declaradas vencem o palpite por nome', () => {
+  // Sem declarada, atlas_terreno cai no palpite {}
+  assert.deepEqual(anotacoesDaFerramenta('atlas_terreno'), {});
+  // Com declarada destrutiva: true, vira destructiveHint: true
+  assert.deepEqual(anotacoesDaFerramenta('atlas_terreno', { destrutiva: true }), { destructiveHint: true });
+  // Leitura declarada
+  assert.deepEqual(anotacoesDaFerramenta('minha_leitura', { leitura: true }), { readOnlyHint: true });
+  // Abertura / idempotente declarada
+  assert.deepEqual(anotacoesDaFerramenta('minha_abrir', { destrutiva: false, idempotente: true }), { destructiveHint: false, idempotentHint: true });
+});
+
+test('todas as ferramentas do Atlas e da Mesa declaram anotacoes e trazem annotations no tools/list', async () => {
+  const { ferramentasDeLeitura } = await import('../../src/app/ponte-leitura.ts');
+  const { ferramentasDeEscrita } = await import('../../src/app/ponte-escrita.ts');
+  const { ferramentasDaCampanha } = await import('../../mesa-core/src/ponte.ts');
+  // @ts-ignore
+  const { ferramentasDeCena, ferramentasDeElenco, ferramentasDeEntidade, ferramentasDeSessao } = await import('../../../Mesa/src/app/ponte-escrita.ts');
+
+  const fakeCtxAtlasLeitura = { repo: () => null, mapaAberto: () => null, abrirMapa: async () => {} };
+  const fakeCtxAtlasEscrita = { repo: () => null, store: () => null, abrirMapa: async () => {} };
+  const atlasTools = [
+    ...ferramentasDaCampanha(async () => null as any),
+    ...ferramentasDeLeitura(fakeCtxAtlasLeitura),
+    ...ferramentasDeEscrita(fakeCtxAtlasEscrita),
+  ];
+
+  const fakeCtxMesa: any = { campanha: async () => null, entidades: async () => [], ligacoes: async () => [], sessoes: async () => [] };
+  const mesaTools = [
+    ...ferramentasDeSessao(fakeCtxMesa),
+    ...ferramentasDeEntidade(fakeCtxMesa),
+    ...ferramentasDeCena(fakeCtxMesa),
+    ...ferramentasDeElenco(fakeCtxMesa),
+    { nome: 'mesa_campanha_atual', anotacoes: { leitura: true } },
+    { nome: 'mesa_o_que_vejo', anotacoes: { leitura: true } },
+  ];
+
+  for (const t of atlasTools) {
+    assert.ok(t.anotacoes, `Ferramenta do Atlas "${t.nome}" deve declarar anotacoes`);
+  }
+  for (const t of mesaTools) {
+    assert.ok(t.anotacoes, `Ferramenta da Mesa "${t.nome}" deve declarar anotacoes`);
+  }
+
+  // Verifica no tools/list a partir do catalogo-base
+  const { server, fechar } = criarServidorMcp({
+    url: 'ws://127.0.0.1:1/__ponte',
+    lerToken: () => { throw new Error('sem token'); },
+    arquivoDoCache: path.join(os.tmpdir(), `vazio-${Date.now()}`, 'ferramentas.json'),
+    arquivoDoCatalogoBase: CAMINHO_CATALOGO_BASE_PADRAO,
+  });
+  const client = new Client({ name: 't', version: '0' });
+  const [a, b] = InMemoryTransport.createLinkedPair();
+  await Promise.all([server.connect(a), client.connect(b)]);
+  try {
+    const { tools } = await client.listTools();
+    const atlasENomes = [...atlasTools.map(t => t.nome), ...mesaTools.map(t => t.nome)];
+    for (const nome of atlasENomes) {
+      const tool = tools.find(t => t.name === nome);
+      assert.ok(tool, `Ferramenta "${nome}" deve estar no catálogo`);
+      assert.ok(tool.annotations, `Ferramenta "${nome}" deve trazer annotations no tools/list`);
+    }
+  } finally {
+    await fechar();
+    await client.close();
+  }
+});
+

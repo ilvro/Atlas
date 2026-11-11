@@ -141,3 +141,31 @@ A implementação de referência é o `mesa-core` (`Atlas/mesa-core/`, TypeScrip
 | 7 | Mesa | Modo sessão com os aplicativos lado a lado. |
 
 Nenhum contrato existente muda sem mudar os dois lados.
+
+## 12. Ponte do assistente (desenvolvimento)
+
+Em desenvolvimento local (`npm run mesa-dev`), o servidor da ponte (`/__ponte`) conecta os aplicativos ao Claude Desktop / Claude Code via MCP (`scripts/ponte/mcp.ts`).
+
+### 12.1. Declaração de ferramentas e anotações
+
+Cada aplicativo conecta e envia a mensagem `registrar` com suas ferramentas:
+
+```typescript
+export interface AnotacoesDaFerramenta {
+  leitura?: boolean;      // mapeado para readOnlyHint
+  destrutiva?: boolean;   // mapeado para destructiveHint
+  idempotente?: boolean;  // mapeado para idempotentHint
+}
+
+export interface FerramentaDaPonte {
+  nome: string;
+  descricao: string;
+  esquema: Record<string, unknown>;
+  anotacoes?: AnotacoesDaFerramenta;
+  executar(args: Record<string, unknown>): Promise<Conteudo[]>;
+}
+```
+
+- **Anotações declaradas:** quando informadas pela ferramenta, o servidor MCP repassa fielmente em `annotations` para o cliente MCP.
+- **Tolerância:** se `anotacoes` contiver chaves desconhecidas ou tipos inválidos, o protocolo as descarta sem invalidar o registro da ferramenta.
+- **Retrocompatibilidade:** ferramentas de aplicativos que não declaram o campo opcional recebem anotações inferidas pelo nome.

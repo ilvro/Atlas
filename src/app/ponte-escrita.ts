@@ -127,6 +127,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         base: { type: 'string', description: 'Terreno de fundo: "vazio" ou um material de terreno (ex.: "grama").' }, genero: { type: 'string', enum: GENEROS.map(g => g.id) },
         estilo: { type: 'string', enum: ['ilustrado', 'pixel'] }, campanhaId: { type: 'string', description: 'Id da campanha (campanha_listar); omita para usar a campanha ativa do app.' }, notas: { type: 'string', description: 'Notas do mestre sobre o mapa.' },
       }, required: ['nome', 'largura', 'altura'], additionalProperties: false },
+      anotacoes: { destrutiva: false },
       async executar(args) {
         const nome = textoOpcional(args.nome, 'nome', 120);
         if (!nome) throw new Error('Falta o argumento "nome".');
@@ -163,6 +164,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         correnteza: { type: 'object', properties: { material: { type: 'string', description: 'Material de água já pintado, ex. "agua.rio".' }, angulo: { type: 'number', description: 'Direção em radianos (0 = para a direita, π/2 = para baixo).' }, velocidade: { type: 'number', minimum: 0, maximum: 3, description: 'm/s; 0 deixa a água parada.' } }, required: ['material', 'angulo', 'velocidade'], additionalProperties: false },
         semente,
       }, additionalProperties: false },
+      anotacoes: { destrutiva: true },
       async executar(args) {
         if (args.base === undefined && args.operacoes === undefined && args.correnteza === undefined) throw new Error('Passe "base", "operacoes" e/ou "correnteza".');
         const ops = args.operacoes === undefined ? [] : itens(args, 'operacoes');
@@ -190,6 +192,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         }, required: ['rets', 'tipo'], additionalProperties: false } },
         semente,
       }, required: ['comodos'], additionalProperties: false },
+      anotacoes: { destrutiva: true },
       async executar(args) {
         const pedidos = itens(args, 'comodos').map((c, i) => ({
           rets: retangulos(c.rets, `comodos[${i}].rets`), tipo: String(c.tipo ?? ''), nome: textoOpcional(c.nome, 'nome', 120), piso: textoOpcional(c.piso, 'piso', 80), papel: textoOpcional(c.papel, 'papel', 80),
@@ -208,6 +211,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           altura: { type: 'number', description: 'Altura em metros.' }, espessura: { type: 'number', description: 'Espessura em metros.' }, material: { type: 'string' },
         }, required: ['path'], additionalProperties: false } },
       }, required: ['paredes'], additionalProperties: false },
+      anotacoes: { destrutiva: true },
       async executar(args) {
         const pedidos = itens(args, 'paredes').map((p, i) => ({
           path: pontos(p.path, `paredes[${i}].path`), ...(p.kind !== undefined ? { kind: p.kind as 'wall' } : {}),
@@ -225,6 +229,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           perto: ponto, tipo: { type: 'string', enum: ['door', 'window', 'arch', 'secret'] }, estado: { type: 'string', enum: ['closed', 'open', 'locked'] }, largura: { type: 'number', description: 'Largura em metros (padrão 0,9).' },
         }, required: ['perto'], additionalProperties: false } },
       }, required: ['portas'], additionalProperties: false },
+      anotacoes: { destrutiva: true },
       async executar(args) {
         const pedidos = itens(args, 'portas').map((p, i) => ({
           perto: pontos([p.perto], `portas[${i}].perto`)[0]!, ...(p.tipo !== undefined ? { tipo: p.tipo as 'door' } : {}), ...(p.estado !== undefined ? { estado: p.estado as 'open' } : {}),
@@ -245,6 +250,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         }, required: ['item', 'pos'], additionalProperties: false } },
         semente,
       }, required: ['objetos'], additionalProperties: false },
+      anotacoes: { destrutiva: false },
       async executar(args) {
         const pedidos = itens(args, 'objetos', MAX_OBJETOS).map((o, i) => ({
           item: textoOpcional(o.item, 'item', 120) ?? '', pos: pontos([o.pos], `objetos[${i}].pos`)[0]!,
@@ -263,6 +269,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         conjunto: { type: 'string', enum: TODOS_OS_CONJUNTOS.map(c => c.id), description: 'Id do conjunto.' }, forma: esquemaDaForma(),
         densidade: { type: 'number', exclusiveMinimum: 0, maximum: 20, description: 'Itens por m² (opcional).' }, semente,
       }, required: ['conjunto', 'forma'], additionalProperties: false },
+      anotacoes: { destrutiva: false },
       async executar(args) {
         const conjunto = verificarId('conjunto', args.conjunto, TODOS_OS_CONJUNTOS.map(c => ({ id: c.id, nome: c.id })));
         const forma = validarForma(args.forma);
@@ -280,6 +287,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           raio: { type: 'number', minimum: 0.1, maximum: 200, description: 'Raio em metros.' }, cor: { type: 'string', description: '"#rrggbb".' }, intensidade: { type: 'number', minimum: 0, maximum: 3 },
         }, required: ['preset', 'pos'], additionalProperties: false } },
       }, required: ['luzes'], additionalProperties: false },
+      anotacoes: { destrutiva: false },
       async executar(args) {
         const pedidos = itens(args, 'luzes').map((l, i) => ({
           preset: verificarId('preset de luz', l.preset, PRESETS_DE_LUZ), pos: pontos([l.pos], `luzes[${i}].pos`)[0]!,
@@ -307,6 +315,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         }, additionalProperties: false },
         guardarClima: { type: 'object', properties: { id: { type: 'string', description: 'Identificador curto (letras, números, - e _).' }, nome: { type: 'string' } }, required: ['id', 'nome'], additionalProperties: false },
       }, additionalProperties: false },
+      anotacoes: { destrutiva: true },
       async executar(args) {
         if (args.clima === undefined && args.acabamento === undefined && args.guardarClima === undefined) throw new Error('Passe "clima", "acabamento" e/ou "guardarClima".');
         return [texto(escrever(ctx, 'ambiente', mapa => ({ comandos: comandosDeAmbiente(mapa, args), ids: [] })))];
@@ -321,6 +330,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           nome: { type: 'string' }, texto: { type: 'string' }, somenteMestre: { type: 'boolean', description: 'Só o mestre vê (padrão true).' },
         }, required: ['poligono', 'tipo'], additionalProperties: false } },
       }, required: ['regioes'], additionalProperties: false },
+      anotacoes: { destrutiva: false },
       async executar(args) {
         const pedidos = itens(args, 'regioes').map((r, i) => ({
           poligono: pontos(r.poligono, `regioes[${i}].poligono`), tipo: String(r.tipo ?? '') as 'reveal',
@@ -336,6 +346,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
       esquema: { type: 'object', properties: {
         pincel: { type: 'string', enum: PINCEIS_DE_PRESENCA.map(p => p.id) }, forma: esquemaDaForma(), intensidade: unidadeEsq, semente,
       }, required: ['pincel', 'forma'], additionalProperties: false },
+      anotacoes: { destrutiva: false },
       async executar(args) {
         const pincel = verificarId('pincel de presença', args.pincel, PINCEIS_DE_PRESENCA);
         const forma = validarForma(args.forma);
@@ -357,6 +368,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         mapa: { type: 'string', description: 'Nota geral do mapa (até 5000 caracteres).' },
         comodos: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: { id: { type: 'string' }, leitura: { type: 'string' }, notasMestre: { type: 'string' } }, required: ['id'], additionalProperties: false } },
       }, additionalProperties: false },
+      anotacoes: { destrutiva: false },
       async executar(args) {
         if (args.mapa === undefined && args.comodos === undefined) throw new Error('Passe "mapa" e/ou "comodos".');
         const nota = args.mapa === undefined ? undefined : textoOpcional(args.mapa, 'mapa', 5000) ?? '';
@@ -384,6 +396,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         cor: { type: 'string', description: 'Cor "#rrggbb" do momento (opcional).' },
         passos: { type: 'array', maxItems: 60, items: esquemaDoPasso(), description: 'Os passos, em ordem (até 60).' },
       }, required: ['nome', 'passos'], additionalProperties: false },
+      anotacoes: { destrutiva: false },
       async executar(args) {
         const nome = textoOpcional(args.nome, 'nome', 60)?.trim();
         if (!nome) throw new Error('Falta o argumento "nome" (1 a 60 caracteres).');
@@ -412,6 +425,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
       nome: 'atlas_momento_testar',
       descricao: 'Toca na aba, agora, um momento do mapa aberto (o mesmo executor do painel de momentos: luz, tela, câmera e sons acontecem de verdade) e espera terminar. Devolve a lista dos passos executados, com a descrição de cada um, e o resultado ("fim", "cancelado" ou "tempo esgotado"). Espera no máximo a duração estimada + 5 s (teto de 2 min).',
       esquema: { type: 'object', properties: { id: { type: 'string', description: 'Id do momento (atlas_mapa_ler ou o devolvido por atlas_momento).' } }, required: ['id'], additionalProperties: false },
+      anotacoes: { destrutiva: false, idempotente: true },
       async executar(args) {
         const store = ctx.store();
         if (!store) throw new Error(SEM_MAPA);
@@ -433,6 +447,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
       nome: 'atlas_remover',
       descricao: 'Remove do mapa aberto cômodos, paredes, aberturas (portas, janelas), objetos, luzes, peças, regiões, presenças e momentos, pelos ids (atlas_mapa_ler). O que você criou nesta aba é removido na hora; o que é do mestre fica esperando a permissão dele no painel do assistente (até 5 minutos). Se o mestre recusar ou não responder, nada é removido e a chamada volta como erro. Tudo vira um passo de desfazer.',
       esquema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1, description: 'Ids a remover (qualquer coleção do mapa).' } }, required: ['ids'], additionalProperties: false },
+      anotacoes: { destrutiva: true },
       async executar(args) {
         const ids = listaDeIds(args);
         await liberar(ctx, 'remover', ids, mapa => `Remover ${resumoDosIds(mapa, ids.filter(i => !criadosPeloAssistente.has(i)))}`);
@@ -443,6 +458,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
       nome: 'atlas_mover',
       descricao: 'Move objetos, luzes, peças e regiões do mapa aberto por um deslocamento [dx, dy] em METROS (x para a direita, y para baixo). Cômodos, paredes e aberturas não se movem (apague e recrie). O que você criou nesta aba move na hora; o que é do mestre espera a permissão dele no painel do assistente (até 5 minutos); recusa ou silêncio voltam como erro e nada se move.',
       esquema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1, description: 'Ids de objetos, luzes, peças ou regiões.' }, delta: { ...ponto, description: '[dx, dy] em metros.' } }, required: ['ids', 'delta'], additionalProperties: false },
+      anotacoes: { destrutiva: false },
       async executar(args) {
         const ids = listaDeIds(args);
         const d = Array.isArray(args.delta) ? args.delta : [];
