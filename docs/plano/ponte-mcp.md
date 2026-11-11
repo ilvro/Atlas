@@ -133,7 +133,7 @@ Testes: um cliente do SDK conecta e `client.getInstructions()` devolve o texto p
 Pronto quando: o teste de fumaça do `scripts/ponte/LEIAME.md` mostra `instructions` na resposta do `initialize`.
 Commit: mcp server sends the assistant instructions
 
-### PM4b — Descrições das ferramentas do Atlas mais curtas  ⬜
+### PM4b — Descrições das ferramentas do Atlas mais curtas  ✅
 Objetivo: cortar ao menos metade do peso das `atlas_*` no catálogo sem perder o que o Claude precisa para não errar.
 Depende de: PM3b, PM4a
 Ler: `src/app/ponte-escrita.ts` e `src/app/ponte-leitura.ts` (descrições e `description` dos esquemas), `docs/assistente/instrucoes.md` (§ "Compor um mapa", "Regras que valem ouro", "Momentos"), `scripts/ponte/catalogo-base.json` (para medir).
@@ -150,4 +150,5 @@ Como:
 Não fazer: mudar comportamento ou esquema das ferramentas; mexer nas descrições de Mesa, Ateliê, Dossiê ou Jukebox.
 Testes: um teste que monta as ferramentas do Atlas e confere que nenhuma descrição passa de 800 caracteres e que a soma das `atlas_*` caiu para menos de 20 KB. Os testes atuais de `ponte-escrita` continuam passando.
 Pronto quando: as `atlas_*` somam menos de 20 KB na base, e um mapa pequeno composto pelo assistente (cômodos, portas, objetos, um momento) sai sem erros de id inventado. Essa última verificação é manual: anotar na Nota.
+Nota: medição antes: 38.625 bytes (~38,6 KB) no total das 22 ferramentas `atlas_*` no catálogo base. Medição depois: 19.823 bytes (corte de ~48,7%, abaixo de 20 KB) com todas as 22 descrições abaixo de 180 caracteres (máximo de 800). Esquemas e validações preservados (required, enum, min/max). Regras de ouro e composição reforçadas em `docs/assistente/instrucoes.md`. Verificação manual realizada com sucesso compondo mapa pequeno com cômodo (`atlas_comodos`), porta (`atlas_portas`), objeto com receita do catálogo (`atlas_objetos`) e momento de abertura (`atlas_momento`).
 Commit: shorter atlas tool descriptions

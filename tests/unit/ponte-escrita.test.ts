@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { catalogo } from '../../src/app/ponte-leitura.ts';
+import { catalogo, ferramentasDeLeitura } from '../../src/app/ponte-leitura.ts';
 import { criadosPeloAssistente, esquemaDoPasso, TIPOS_DE_PASSO_ESQUEMA, ferramentasDeEscrita, type ContextoDeEscrita } from '../../src/app/ponte-escrita.ts';
 import { area } from '../../src/domain/celulas.ts';
 import { criarMapa, type MapaAtlas } from '../../src/domain/mapa.ts';
@@ -323,3 +323,17 @@ test('o esquema dos passos bate com o catálogo de momentos', () => {
     assert.deepEqual(Object.keys(props).filter(k => k !== 'tipo').sort(), Object.keys(t.campos).sort(), t.tipo);
   }
 });
+
+test('as ferramentas do Atlas têm descrições curtas e somam menos de 20 KB', () => {
+  const ctxL = { repo: () => null, mapaAberto: () => null, abrirMapa: async () => {} };
+  const ctxE = { store: () => null, repo: () => null, abrirMapa: async () => {} };
+  const todas = [...ferramentasDeLeitura(ctxL), ...ferramentasDeEscrita(ctxE)];
+  assert.equal(todas.length, 22);
+  for (const f of todas) {
+    assert.ok(f.descricao.length <= 800, `${f.nome} passou de 800 caracteres: ${f.descricao.length}`);
+    assert.ok(f.descricao.length >= 40, `${f.nome} descrição muito curta: ${f.descricao.length}`);
+  }
+  const bytes = Buffer.byteLength(JSON.stringify(todas));
+  assert.ok(bytes < 20_000, `Esperava soma das atlas_* menor que 20 KB (20000 bytes), obteve ${bytes}`);
+});
+
