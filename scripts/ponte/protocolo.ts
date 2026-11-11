@@ -1,6 +1,17 @@
 /** Protocolo da ponte do assistente (só desenvolvimento). Puro: tipos e validação das mensagens trocadas em /__ponte. */
 
-export interface Ferramenta { nome: string; descricao: string; esquema: Record<string, unknown> }
+export interface AnotacoesDaFerramenta {
+  leitura?: boolean;
+  destrutiva?: boolean;
+  idempotente?: boolean;
+}
+
+export interface Ferramenta {
+  nome: string;
+  descricao: string;
+  esquema: Record<string, unknown>;
+  anotacoes?: AnotacoesDaFerramenta;
+}
 export type FerramentaDoApp = Ferramenta & {
   app: string;
   armazenamento?: string;
@@ -46,6 +57,26 @@ export type Mensagem = DaAba | DoMcp | ParaMcp;
 const objeto = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const texto = (v: unknown): v is string => typeof v === 'string';
 
+function sanitizarAnotacoes(v: unknown): AnotacoesDaFerramenta | undefined {
+  if (!objeto(v)) return undefined;
+  const res: AnotacoesDaFerramenta = {};
+  if (typeof v.leitura === 'boolean') res.leitura = v.leitura;
+  if (typeof v.destrutiva === 'boolean') res.destrutiva = v.destrutiva;
+  if (typeof v.idempotente === 'boolean') res.idempotente = v.idempotente;
+  return Object.keys(res).length > 0 ? res : undefined;
+}
+
+function sanitizarFerramenta(raw: Record<string, unknown>): Ferramenta {
+  const res: Ferramenta = {
+    nome: raw.nome as string,
+    descricao: raw.descricao as string,
+    esquema: raw.esquema as Record<string, unknown>,
+  };
+  const anotacoes = sanitizarAnotacoes(raw.anotacoes);
+  if (anotacoes) res.anotacoes = anotacoes;
+  return res;
+}
+
 function ferramentaValida(v: unknown): v is Ferramenta {
   return objeto(v) && texto(v.nome) && v.nome !== '' && texto(v.descricao) && objeto(v.esquema);
 }
@@ -63,7 +94,13 @@ export function lerMensagem(entrada: string): Mensagem | null {
     case 'registrar':
       if (!texto(m.app) || m.app === '' || !texto(m.titulo) || !Array.isArray(m.ferramentas) || !m.ferramentas.every(ferramentaValida)) return null;
       const arm = texto(m.armazenamento) && m.armazenamento !== '' ? m.armazenamento : undefined;
-      return { tipo: 'registrar', app: m.app, titulo: m.titulo, ferramentas: m.ferramentas as Ferramenta[], ...(arm ? { armazenamento: arm } : {}) };
+      return {
+        tipo: 'registrar',
+        app: m.app,
+        titulo: m.titulo,
+        ferramentas: (m.ferramentas as unknown as Record<string, unknown>[]).map(sanitizarFerramenta),
+        ...(arm ? { armazenamento: arm } : {}),
+      };
     case 'foco':
       return { tipo: 'foco' };
     case 'ola':
@@ -85,7 +122,20 @@ export function lerMensagem(entrada: string): Mensagem | null {
           }
         }
       }
-      return { tipo: 'ferramentas', lista: m.lista as FerramentaDoApp[], ...(apps ? { apps } : {}) };
+      return {
+        tipo: 'ferramentas',
+        lista: (m.lista as (Record<string, unknown> & { app: string; armazenamento?: string; onde?: string })[]).map(f => {
+          const sf = sanitizarFerramenta(f);
+          const res: FerramentaDoApp = {
+            ...sf,
+            app: f.app,
+            ...(texto(f.armazenamento) ? { armazenamento: f.armazenamento } : {}),
+            ...(texto(f.onde) ? { onde: f.onde } : {}),
+          };
+          return res;
+        }),
+        ...(apps ? { apps } : {}),
+      };
     case 'resultado':
       if (!texto(m.id)) return null;
       if (m.ok === true) return Array.isArray(m.conteudo) && m.conteudo.every(conteudoValido) ? { tipo: 'resultado', id: m.id, ok: true, conteudo: m.conteudo as Conteudo[] } : null;

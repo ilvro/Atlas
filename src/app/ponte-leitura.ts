@@ -155,12 +155,14 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
       nome: 'atlas_o_que_vejo',
       descricao: 'O que o mestre tem na tela agora: o mapa aberto (id e nome), o modo (Construir ou Sessão), a caixa visível da câmera em metros e a seleção (ids, tipo, nome e posição em metros). Use para entender "este cômodo", "esses objetos".',
       esquema: vazio,
+      anotacoes: { leitura: true },
       async executar() { return [json(oQueVejo(ctx))]; },
     },
     {
       nome: 'atlas_mapas_listar',
       descricao: 'Lista os mapas salvos no Atlas: id, nome, tamanho em células, contagens de cômodos, objetos, luzes e peças, campanha e datas de criação e alteração (milissegundos desde 1970). Diz também qual mapa está aberto.',
       esquema: vazio,
+      anotacoes: { leitura: true },
       async executar() {
         const aberto = ctx.mapaAberto();
         const lista = await repo().listar();
@@ -171,18 +173,21 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
       nome: 'atlas_mapa_ler',
       descricao: 'Resume um mapa do Atlas sem as células cruas: tamanho e grade, estilo e gênero, terreno (base e camadas com material e nº de células), cômodos (nome, função, retângulo x,y,largura,altura em metros), objetos agrupados por receita ou asset (quantidade e posições), luzes, regiões, peças, clima, acabamento, momentos (nome e passos) e notas. Sem "id", lê o mapa aberto. Coordenadas em metros, origem no canto superior esquerdo, y para baixo.',
       esquema: { type: 'object', properties: { id: { type: 'string', description: 'Id do mapa (veja atlas_mapas_listar). Omitido: o mapa aberto.' } }, required: [], additionalProperties: false },
+      anotacoes: { leitura: true },
       async executar(args) { return [json(resumirMapa(await carregar(args.id)))]; },
     },
     {
       nome: 'atlas_catalogo',
       descricao: 'O que o Atlas sabe fazer, para você não inventar ids. Partes: "receitas" (objetos gerados: id, nome, categoria, funções, tags, pegada em metros e campos com mínimo, máximo e padrão), "colecao" (itens prontos), "materiais" (por uso: piso, papel, objeto, terreno...), "climas" (climas, acabamentos, gêneros e tipos de cômodo), "luzes", "presenca" (musgo, sangue...) e "momentos" (tipos de passo e limites). Sem "parte", devolve só as contagens de cada uma.',
       esquema: { type: 'object', properties: { parte: { type: 'string', enum: [...PARTES], description: 'Qual parte do catálogo. Omitida: um índice com contagens.' } }, required: [], additionalProperties: false },
+      anotacoes: { leitura: true },
       async executar(args) { return [json(catalogo(typeof args.parte === 'string' ? args.parte : undefined))]; },
     },
     {
       nome: 'atlas_abrir',
       descricao: 'Abre um mapa no Atlas (a aba navega até ele), para o mestre ver e para as próximas ferramentas atuarem sobre ele.',
       esquema: { type: 'object', properties: { id: { type: 'string', description: 'Id do mapa (veja atlas_mapas_listar).' } }, required: ['id'], additionalProperties: false },
+      anotacoes: { destrutiva: false, idempotente: true },
       async executar(args) {
         if (typeof args.id !== 'string' || !args.id) throw new Error('Falta o argumento "id".');
         const m = await carregar(args.id);
@@ -194,6 +199,7 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
       nome: 'atlas_ver_mapa',
       descricao: 'Devolve uma imagem do mapa aberto como o mestre o vê (sem grade, pinos nem interface), para conferir o que foi montado. Sem "caixa", mostra o mapa inteiro; com ela, só o retângulo [x0, y0, x1, y1] em metros (origem no canto superior esquerdo, y para baixo). O texto traz a escala (px por metro) e a caixa: metros = caixa[x0, y0] + pixel / escala. A imagem é JPEG de até cerca de 500 KB; para mais detalhe, use "caixa" em vez de ladoMaximo.',
       esquema: { type: 'object', properties: { caixa: { type: 'array', items: { type: 'number' }, minItems: 4, maxItems: 4, description: '[x0, y0, x1, y1] em metros. Omitida: o mapa inteiro.' }, ladoMaximo: { type: 'number', minimum: 256, maximum: 1600, description: 'Maior lado da imagem em pixels (256 a 1600; padrão 1280). A imagem pode sair menor para caber no limite de tamanho.' } }, required: [], additionalProperties: false },
+      anotacoes: { leitura: true },
       async executar(args) {
         const c = args.caixa;
         if (c !== undefined && !(Array.isArray(c) && c.length === 4 && c.every(n => typeof n === 'number' && Number.isFinite(n)))) throw new Error('"caixa" deve ser [x0, y0, x1, y1] em metros.');

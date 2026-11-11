@@ -90,7 +90,7 @@ Testes:
 Pronto quando: com `.ponte/` apagado, `tools/list` traz as 4 `jukebox_*` e `mesa_elenco`.
 Commit: versioned base catalog for the mcp server
 
-### PM3b — Anotações declaradas pelo app  ⬜
+### PM3b — Anotações declaradas pelo app  ✅
 Objetivo: cada ferramenta diz se lê, altera ou destrói, em vez de o MCP adivinhar pelo nome.
 Depende de: PM3a
 Ler: `mesa-core/src/ponte.ts` (`FerramentaDaPonte`, `registrar`), `scripts/ponte/protocolo.ts` (`Ferramenta`, `ferramentaValida`), `scripts/ponte/mcp.ts` (`anotacoesDaFerramenta`, `listarFerramentas`, `assinaturaDoCatalogo`), `src/app/ponte.ts`, `src/app/ponte-leitura.ts`, `src/app/ponte-escrita.ts`, `../Mesa/src/app/ponte.ts`, `../Mesa/src/app/ponte-escrita.ts`, `docs/PLATAFORMA.md` (seção da ponte, se houver).

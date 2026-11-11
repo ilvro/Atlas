@@ -9,7 +9,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { lerMensagem, appDoPrefixo } from './protocolo.ts';
-import type { AppConectado, Conteudo, FerramentaDoApp, Resultado } from './protocolo.ts';
+import type { AppConectado, Conteudo, FerramentaDoApp, Resultado, AnotacoesDaFerramenta } from './protocolo.ts';
 
 export const ATRASOS_MS = [1000, 2000, 5000, 10000];
 export const PRAZO_DA_CHAMADA_MS = 50_000;
@@ -90,7 +90,7 @@ export function assinaturaDoCatalogo(catalogo: Map<string, FerramentaDoApp>): st
   const chaves = [...catalogo.keys()].sort();
   const obj = chaves.map(k => {
     const f = catalogo.get(k)!;
-    return { nome: f.nome, descricao: f.descricao, esquema: f.esquema, app: f.app };
+    return { nome: f.nome, descricao: f.descricao, esquema: f.esquema, app: f.app, anotacoes: f.anotacoes };
   });
   return JSON.stringify(obj);
 }
@@ -180,7 +180,14 @@ export function ehCriacao(nome: string): boolean {
   return nome.endsWith('_criar');
 }
 
-export function anotacoesDaFerramenta(nome: string): { readOnlyHint?: boolean; destructiveHint?: boolean } {
+export function anotacoesDaFerramenta(nome: string, declaradas?: AnotacoesDaFerramenta): { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean } {
+  if (declaradas) {
+    const res: { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean } = {};
+    if (typeof declaradas.leitura === 'boolean') res.readOnlyHint = declaradas.leitura;
+    if (typeof declaradas.destrutiva === 'boolean') res.destructiveHint = declaradas.destrutiva;
+    if (typeof declaradas.idempotente === 'boolean') res.idempotentHint = declaradas.idempotente;
+    return res;
+  }
   if (nome === 'atlas_remover') return { destructiveHint: true };
   if (nome === 'atlas_abrir' || nome === 'mesa_abrir_apps' || nome === 'atlas_momento_testar') {
     return { readOnlyHint: false, destructiveHint: false };
@@ -443,7 +450,7 @@ export function listarFerramentas(catalogo: FerramentaDoApp[]) {
   return [
     FERRAMENTA_ESTADO,
     ...catalogo.map(f => {
-      const anotacoes = anotacoesDaFerramenta(f.nome);
+      const anotacoes = anotacoesDaFerramenta(f.nome, f.anotacoes);
       return {
         name: f.nome,
         description: f.descricao,

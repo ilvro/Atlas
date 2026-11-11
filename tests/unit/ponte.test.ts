@@ -48,6 +48,39 @@ test('lerMensagem recusa lixo', () => {
     assert.equal(lerMensagem(t), null, t);
 });
 
+test('protocolo: aceita anotacoes, descarta chaves estranhas e recusa tipo errado mantendo a ferramenta válida', () => {
+  // Anotações válidas passam
+  const msg1 = lerMensagem(JSON.stringify({
+    tipo: 'registrar', app: 'atlas', titulo: 'T',
+    ferramentas: [{ nome: 'f1', descricao: 'd', esquema: {}, anotacoes: { leitura: true, destrutiva: false, idempotente: true } }],
+  }));
+  assert.equal(msg1?.tipo, 'registrar');
+  if (msg1?.tipo === 'registrar') {
+    assert.deepEqual(msg1.ferramentas[0]?.anotacoes, { leitura: true, destrutiva: false, idempotente: true });
+  }
+
+  // Chaves estranhas e campos não-booleanos são descartados
+  const msg2 = lerMensagem(JSON.stringify({
+    tipo: 'registrar', app: 'atlas', titulo: 'T',
+    ferramentas: [{ nome: 'f2', descricao: 'd', esquema: {}, anotacoes: { leitura: true, estranho: 'x', destrutiva: 'nao-booleano' } }],
+  }));
+  assert.equal(msg2?.tipo, 'registrar');
+  if (msg2?.tipo === 'registrar') {
+    assert.deepEqual(msg2.ferramentas[0]?.anotacoes, { leitura: true });
+  }
+
+  // Tipo errado em anotacoes (string, número) mantém a ferramenta válida sem anotacoes
+  const msg3 = lerMensagem(JSON.stringify({
+    tipo: 'registrar', app: 'atlas', titulo: 'T',
+    ferramentas: [{ nome: 'f3', descricao: 'd', esquema: {}, anotacoes: 'tipo-invalido' }],
+  }));
+  assert.equal(msg3?.tipo, 'registrar');
+  if (msg3?.tipo === 'registrar') {
+    assert.equal(msg3.ferramentas[0]?.nome, 'f3');
+    assert.equal(msg3.ferramentas[0]?.anotacoes, undefined);
+  }
+});
+
 async function subir(tempoDaChamadaMs?: number, tempoDeAberturaMs?: number) {
   const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'ponte-'));
   const servidor = http.createServer((_q, s) => s.end('ok'));
