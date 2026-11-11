@@ -71,7 +71,7 @@ const irregular = { type: 'number', minimum: 0 };
 /** O esquema JSON de uma `Forma` do terreno (metros). Reaproveitado por `atlas_terreno` e, depois, por `atlas_espalhar` e `atlas_presenca`. */
 export function esquemaDaForma(): Record<string, unknown> {
   return {
-    description: 'Forma em metros: disco, poligono, faixa, retangulo ou celulas. irregular opcional (m).',
+    description: 'Forma em metros.',
     oneOf: [
       { type: 'object', properties: { disco: coord, raio: { type: 'number', exclusiveMinimum: 0 }, irregular }, required: ['disco', 'raio'] },
       { type: 'object', properties: { poligono: { type: 'array', items: coord, minItems: 3 }, irregular }, required: ['poligono'] },
@@ -122,7 +122,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
   return [
     {
       nome: 'atlas_mapa_criar',
-      descricao: 'Cria e abre mapa novo em metros (padrão 45×30; grid 1,5 m). "base": atlas_catalogo { parte: "materiais" }. Gênero e estilo: atlas_catalogo { parte: "climas" }.',
+      descricao: 'Cria e abre mapa novo em metros (padrão 45×30; grid 1,5 m). Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         nome: { type: 'string' }, largura: { type: 'number' }, altura: { type: 'number' },
         base: { type: 'string' }, genero: { type: 'string', enum: GENEROS.map(g => g.id) },
@@ -158,7 +158,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_terreno',
-      descricao: 'Pinta ou apaga terreno no mapa aberto (um passo de desfazer), em METROS. Operações: { acao, material, forma }. Materiais: atlas_catalogo { parte: "materiais" }.',
+      descricao: 'Pinta ou apaga terreno do mapa aberto, em METROS. Materiais: atlas_catalogo materiais. Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         base: { type: 'string' },
         operacoes: { type: 'array', maxItems: MAX_ITENS, items: { type: 'object', properties: { acao: { type: 'string', enum: ['pintar', 'apagar'] }, material: { type: 'string' }, forma: esquemaDaForma() }, required: ['acao', 'forma'] } },
@@ -184,7 +184,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_comodos',
-      descricao: 'Cria cômodos (piso, paredes e telhado; um passo de desfazer). ATENÇÃO: rets em CÉLULAS do grid de 1,5 m com x1 e y1 exclusivos (ex.: [2,3,5,6] = 3×3 células). Tipo: atlas_catalogo.',
+      descricao: 'Cria cômodos (piso, paredes, telhado). ATENÇÃO: rets em CÉLULAS de 1,5 m, x1 e y1 exclusivos. Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         comodos: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
           rets: { type: 'array', minItems: 1, items: esquemaDoRetanguloDeCelulas }, tipo: { type: 'string', enum: TIPOS_DE_COMODO.map(t => t.id) }, nome: { type: 'string' },
@@ -204,7 +204,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_paredes',
-      descricao: 'Cria paredes, muros ou cercas avulsos em metros (um passo de desfazer). Para salas use atlas_comodos. Rocha é maciço de terreno (atlas_terreno).',
+      descricao: 'Cria paredes, muros ou cercas avulsos em metros. Para salas use atlas_comodos. Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         paredes: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
           path: { type: 'array', items: ponto, minItems: 2 }, kind: { type: 'string', enum: ['wall', 'low', 'fence', 'cliff'] },
@@ -223,7 +223,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_portas',
-      descricao: 'Abre portas, janelas, arcos ou passagens secretas na parede mais próxima (metros, até ~0,75 m da parede; um passo de desfazer). Crie cômodo/parede antes.',
+      descricao: 'Abre portas, janelas, arcos ou passagens secretas na parede mais próxima (em metros). Crie cômodo/parede antes. Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         portas: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
           perto: ponto, tipo: { type: 'string', enum: ['door', 'window', 'arch', 'secret'] }, estado: { type: 'string', enum: ['closed', 'open', 'locked'] }, largura: { type: 'number' },
@@ -240,7 +240,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_objetos',
-      descricao: 'Coloca até 200 objetos no mapa aberto em metros (um passo de desfazer). "item": receita (atlas_catalogo { parte: "receitas" }) ou colecao.',
+      descricao: 'Coloca até 200 objetos no mapa aberto, em metros. "item": receita ou colecao (atlas_catalogo). Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         objetos: { type: 'array', minItems: 1, maxItems: MAX_OBJETOS, items: { type: 'object', properties: {
           item: { type: 'string' }, pos: ponto, rotacao: { type: 'number' }, escala: { type: 'number', minimum: 0.05, maximum: 50 },
@@ -262,7 +262,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_espalhar',
-      descricao: 'Espalha conjunto de objetos numa região em metros (um passo de desfazer). Conjuntos em atlas_catalogo { parte: "receitas" }. Objetos ficam comuns e editáveis.',
+      descricao: 'Espalha um conjunto de objetos numa região em metros. Conjuntos: atlas_catalogo receitas. Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         conjunto: { type: 'string', enum: TODOS_OS_CONJUNTOS.map(c => c.id) }, forma: esquemaDaForma(),
         densidade: { type: 'number', exclusiveMinimum: 0, maximum: 20 }, semente,
@@ -278,7 +278,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_luzes',
-      descricao: 'Acende luzes no mapa aberto em metros (um passo de desfazer). Presets em atlas_catalogo { parte: "luzes" }. Luzes aparecem em clima escuro (atlas_ambiente).',
+      descricao: 'Acende luzes no mapa aberto, em metros. Presets: atlas_catalogo luzes. Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         luzes: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
           preset: { type: 'string', enum: PRESETS_DE_LUZ.map(l => l.id) }, pos: ponto, direcao: { type: 'number' },
@@ -297,7 +297,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_ambiente',
-      descricao: 'Ajusta clima e acabamento do mapa aberto (um passo de desfazer). Presets em atlas_catalogo { parte: "climas" }. "guardarClima" { id, nome } salva no mapa.',
+      descricao: 'Ajusta clima e acabamento do mapa aberto. Presets: atlas_catalogo climas. Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         clima: { type: 'object', properties: {
           preset: { type: 'string' }, horario: { type: 'string' },
@@ -321,7 +321,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_regioes',
-      descricao: 'Cria regiões funcionais no mapa aberto em metros (um passo de desfazer): reveal, trigger, audio ou note.',
+      descricao: 'Cria regiões funcionais (reveal, trigger, audio, note) no mapa aberto, em metros.',
       esquema: { type: 'object', properties: {
         regioes: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
           poligono: { type: 'array', items: ponto, minItems: 3 }, tipo: { type: 'string', enum: ['reveal', 'trigger', 'audio', 'note'] },
@@ -340,7 +340,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_presenca',
-      descricao: 'Pinta presença (musgo, sangue, mofo, fuligem...) em metros (um passo de desfazer). Pincéis em atlas_catalogo { parte: "presenca" }.',
+      descricao: 'Pinta presença (musgo, sangue, mofo...) em metros. Pincéis: atlas_catalogo presenca. Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         pincel: { type: 'string', enum: PINCEIS_DE_PRESENCA.map(p => p.id) }, forma: esquemaDaForma(), intensidade: unidadeEsq, semente,
       }, required: ['pincel', 'forma'], additionalProperties: false },
@@ -361,7 +361,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_notas',
-      descricao: 'Escreve notas no mapa aberto (um passo de desfazer), substituindo o campo anterior. "mapa": nota geral. "comodos": notas por cômodo (atlas_mapa_ler).',
+      descricao: 'Escreve notas no mapa aberto (geral e por cômodo), substituindo as anteriores. Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         mapa: { type: 'string' },
         comodos: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: { id: { type: 'string' }, leitura: { type: 'string' }, notasMestre: { type: 'string' } }, required: ['id'] } },
@@ -387,7 +387,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_momento',
-      descricao: 'Cria ou refaz momento no mapa aberto (um passo de desfazer). Sem "id" cria novo; com "id" só altera o seu. Tipos de passo em atlas_catalogo { parte: "momentos" }.',
+      descricao: 'Cria ou refaz um momento no mapa aberto (sem "id" cria; com "id" altera). Tipos de passo: atlas_catalogo momentos. Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         id: { type: 'string' },
         nome: { type: 'string', minLength: 1, maxLength: 60 },
@@ -421,7 +421,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_momento_testar',
-      descricao: 'Toca na aba um momento do mapa aberto e espera terminar. Devolve passos e resultado ("fim", "cancelado", "tempo esgotado"). Máximo 2 min.',
+      descricao: 'Toca um momento do mapa aberto e espera terminar (máx. 2 min). Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false },
       anotacoes: { destrutiva: false, idempotente: true },
       async executar(args) {
@@ -443,7 +443,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_remover',
-      descricao: 'Remove entidades do mapa aberto pelos ids (atlas_mapa_ler). O que é do mestre pede confirmação no painel. Um passo de desfazer.',
+      descricao: 'Remove entidades do mapa aberto pelos ids (atlas_mapa_ler). O que é do mestre pede confirmação. Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1 } }, required: ['ids'], additionalProperties: false },
       anotacoes: { destrutiva: true },
       async executar(args) {
@@ -454,7 +454,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_mover',
-      descricao: 'Move objetos, luzes, peças e regiões por [dx, dy] em metros (um passo de desfazer). O que é do mestre pede confirmação no painel.',
+      descricao: 'Move objetos, luzes, peças e regiões por [dx, dy] em metros. O que é do mestre pede confirmação. Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1 }, delta: ponto }, required: ['ids', 'delta'], additionalProperties: false },
       anotacoes: { destrutiva: false },
       async executar(args) {
@@ -480,7 +480,7 @@ const passo = (tipo: string, props: Record<string, unknown>, obrigatorios: strin
 /** O esquema JSON de UM passo de momento: `oneOf` por `tipo`, com os limites de `domain/momentos.ts`. */
 export function esquemaDoPasso(): Record<string, unknown> {
   return {
-    description: 'Passo do momento. Tipos em atlas_catalogo { parte: "momentos" }.',
+    description: 'Passo do momento (tipos: atlas_catalogo momentos).',
     oneOf: [
       passo('esperar', { ms: msEsquema(100, 120_000) }, ['ms']),
       passo('som', { ref: refEsquema() }, ['ref']),

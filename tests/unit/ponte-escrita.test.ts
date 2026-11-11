@@ -337,3 +337,9 @@ test('as ferramentas do Atlas têm descrições curtas e somam menos de 20 KB', 
   assert.ok(bytes < 20_000, `Esperava soma das atlas_* menor que 20 KB (20000 bytes), obteve ${bytes}`);
 });
 
+
+test('orçamento: descrições até 400 caracteres e campos até 80', () => {
+  const { f } = montar();
+  const varrer = (o: unknown, limite: number): string[] => !o || typeof o !== 'object' ? [] : [...(typeof (o as { description?: unknown }).description === 'string' && ((o as { description: string }).description.length > limite) ? [(o as { description: string }).description] : []), ...Object.values(o).flatMap(v => varrer(v, limite))];
+  for (const x of Object.values(f)) { assert.ok(x.descricao.length <= 400, x.nome); assert.deepEqual(varrer(x.esquema, 80), [], x.nome); }
+});
