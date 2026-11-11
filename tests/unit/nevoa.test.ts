@@ -87,6 +87,25 @@ test('peça do mestre não explora; "esquecer" zera; revelar faz o cômodo conta
 
 import { comodosConhecidos } from '../../src/domain/nevoa.ts';
 
+test('revelar região do tipo "reveal" faz a área dela contar como explorado', () => {
+  let m = dois();
+  m = aplicarComando(m, {
+    tipo: 'item.adicionar',
+    colecao: 'regions',
+    item: {
+      id: 'reg_revelar',
+      polygon: [[10, 10], [20, 10], [20, 20], [10, 20]],
+      kind: 'reveal',
+      gmOnly: false,
+      payload: {},
+      refs: [],
+    },
+  });
+  assert.ok(!contemFaixa(celulasExploradas(m), Math.floor(15 / RES_NEVOA), Math.floor(15 / RES_NEVOA)));
+  const rev = aplicarComando(m, { tipo: 'sessao.revelar', ids: ['reg_revelar'] });
+  assert.ok(contemFaixa(celulasExploradas(rev), Math.floor(15 / RES_NEVOA), Math.floor(15 / RES_NEVOA)));
+});
+
 test('um cômodo é conhecido se algum pedaço dele (ou o lado de fora das suas paredes) está à vista ou explorado', () => {
   let m = dois({ state: 'closed' }, [[3, 6]]);
   const sala = (id: string, cels: number[][]) => ({ tipo: 'comodo.criar', id, nome: id, funcao: null, piso: { material: 'tabuas.carvalho', seed: 1 }, papel: null, celulas: cels }) as never;

@@ -951,20 +951,35 @@ export function saidasDeMomento(s: Servicos | null): SaidasDeMomento {
       const s = sessao.value;
       if (!s) return;
       const doc = s.doc.value;
-      const existentes = ids.filter(id => doc.rooms[id] || doc.openings[id] || doc.props[id]);
+      const existentes = ids.filter(id => doc.rooms[id] || doc.openings[id] || doc.props[id] || doc.regions[id]);
       if (existentes.length > 0) {
-        s.store.executar({ tipo: 'sessao.revelar', ids: existentes });
+        const m = momentoEmCurso.peek();
+        s.store.executar({ tipo: 'sessao.revelar', ids: existentes }, m ? { rotulo: `Momento: ${m.nome}` } : {});
       }
     },
     interagir: id => {
       const s = sessao.value;
       if (!s) return;
       const doc = s.doc.value;
+      const m = momentoEmCurso.peek();
+      const extra = m ? { rotulo: `Momento: ${m.nome}` } : {};
       if (doc.props[id]) {
-        s.store.executar({ tipo: 'interagir', id });
+        s.store.executar({ tipo: 'interagir', id }, extra);
       } else if (doc.openings[id]) {
         alternarPorta(id);
       }
+    },
+    luz: (ids, acao) => {
+      const s = sessao.value;
+      if (!s) return;
+      const m = momentoEmCurso.peek();
+      s.store.executar({ tipo: 'luz.estado', ids, acao }, m ? { rotulo: `Momento: ${m.nome}` } : {});
+    },
+    objeto: (ids, acao) => {
+      const s = sessao.value;
+      if (!s) return;
+      const m = momentoEmCurso.peek();
+      s.store.executar({ tipo: 'objeto.visibilidade', ids, acao }, m ? { rotulo: `Momento: ${m.nome}` } : {});
     },
     pista: (ref, mostrar) => {
       void abrirInspecao(ref).then(abriu => {

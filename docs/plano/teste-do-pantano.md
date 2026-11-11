@@ -45,7 +45,7 @@ Commit: jukebox reachable from the desktop app
 
 ### Etapa B — Passos novos nos momentos
 
-#### B1 — Passos de luz, objeto e região  ⬜
+#### B1 — Passos de luz, objeto e região  ✅
 Ler: `src/domain/momentos.ts` (`PassoDeMomento`, `descreverPasso`, validação), `src/app/momentos.ts` (`executarPasso`, `saidas`), `src/app/app.ts` (como `revelar` e `interagir` viram comandos da sessão), `src/ui/Momentos.tsx` (o editor de passos), `src/app/ponte-escrita.ts` (`TIPOS_DE_PASSO_ESQUEMA`, `passo(...)`), `src/domain/mapa.ts` (`Luz.on`, `Objeto`, `Regiao.kind`).
 Passos novos (domínio, execução, editor de momentos e esquema do MCP):
 - `{ tipo: 'luz'; ids: string[]; acao: 'ligar' | 'desligar' | 'alternar' }`, com ids de luzes **ou** de objetos. Um id de objeto vale pelas luzes cujo `ownerId` é aquele objeto (a tocha ou o lampião).

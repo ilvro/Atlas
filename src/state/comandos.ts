@@ -3,7 +3,7 @@ import { ceuNoHorario } from '../domain/clima.ts';
 import { camadaDoObjeto } from '../domain/camadas.ts';
 import { ErroDeValidacao } from '../domain/esquema.ts';
 import { clonar, produzir } from './imutavel.ts';
-import type { Acabamento, Clima, Estilo, Fundo, Grade, Memoria, MapaAtlas, NomeColecao, Ponto } from '../domain/mapa.ts';
+import type { Acabamento, Clima, Estilo, Fundo, Grade, Luz, Memoria, MapaAtlas, NomeColecao, Ponto } from '../domain/mapa.ts';
 import { atualizarSalasDosObjetos } from '../domain/geometria.ts';
 import { alvosDoInterruptor } from '../domain/interagiveis.ts';
 import { definirValor, iniciar, passo, podar } from '../domain/iniciativa.ts';
@@ -47,6 +47,10 @@ export type Comando =
   | { tipo: 'item.remover'; colecao: ColecaoLivre; id: string }
   /** Muda a camada dos objetos: `frente`/`tras` passam por cima/por baixo de todos; `subir`/`descer` andam uma camada. */
   | { tipo: 'objeto.camada'; ids: string[]; modo: 'frente' | 'tras' | 'subir' | 'descer' }
+  /** Liga, desliga ou alterna luzes diretamente ou pelos objetos donos (tochas, lampiões). */
+  | { tipo: 'luz.estado'; ids: string[]; acao: 'ligar' | 'desligar' | 'alternar' }
+  /** Mostra ou esconde objetos (escondido dos jogadores no projetor). */
+  | { tipo: 'objeto.visibilidade'; ids: string[]; acao: 'mostrar' | 'esconder' }
   /** Uma sugestão do assistente aceita: vários comandos como UMA entrada de histórico. Não aninha. */
   | { tipo: 'proposta.aceitar'; rotulo: string; comandos: Comando[] }
   | { tipo: 'selecao.mover'; alvos: AlvoMovel[]; delta: Ponto }
@@ -225,8 +229,32 @@ function aplicar(m: MapaAtlas, c: Comando): void {
     }
     case 'sessao.esquecer': m.session.explored = null; break;
     case 'sessao.revelar': {
-      for (const id of c.ids) if (!m.rooms[id] && !m.openings[id] && !m.props[id]) nao(`“${id}” não é um cômodo, uma abertura nem um objeto deste mapa.`);
+      for (const id of c.ids) if (!m.rooms[id] && !m.openings[id] && !m.props[id] && !m.regions[id]) nao(`“${id}” não é um cômodo, uma abertura, um objeto nem uma região deste mapa.`);
       m.session.revealed = [...new Set([...m.session.revealed, ...c.ids])];
+      break;
+    }
+    case 'luz.estado': {
+      const luzesParaAlterar = new Set<Luz>();
+      for (const id of c.ids) {
+        let achou = false;
+        if (m.lights[id]) { luzesParaAlterar.add(m.lights[id]); achou = true; }
+        for (const l of Object.values(m.lights)) {
+          if (l.ownerId === id) { luzesParaAlterar.add(l); achou = true; }
+        }
+        if (!achou && !m.props[id]) nao(`“${id}” não é uma luz nem um objeto deste mapa.`);
+      }
+      for (const l of luzesParaAlterar) {
+        if (c.acao === 'ligar') l.on = true;
+        else if (c.acao === 'desligar') l.on = false;
+        else if (c.acao === 'alternar') l.on = !l.on;
+      }
+      break;
+    }
+    case 'objeto.visibilidade': {
+      for (const id of c.ids) {
+        const o = m.props[id] ?? nao(`O objeto “${id}” não existe.`);
+        o.oculto = c.acao === 'esconder';
+      }
       break;
     }
     case 'sessao.explorar': {
@@ -298,7 +326,7 @@ export const ROTULOS: Record<Comando['tipo'], string> = {
   'mapa.renomear': 'Renomear mapa', 'mapa.notas': 'Editar notas', 'mapa.campanha': 'Ligar à campanha', 'grade.atualizar': 'Ajustar grade',
   'limites.atualizar': 'Redimensionar mapa', 'estilo.atualizar': 'Mudar estilo', 'mapa.audio': 'Som do mapa', 'clima.aplicar': 'Mudar clima', 'clima.predefinir': 'Aplicar clima', 'clima.salvar': 'Salvar clima', 'clima.esquecer': 'Esquecer clima', 'clima.audio': 'Som do clima', 'momento.salvar': 'Salvar momento', 'momento.remover': 'Remover momento', 'acabamento.atualizar': 'Ajustar acabamento',
   'fundo.atualizar': 'Ajustar fundo', 'memoria.atualizar': 'Ajustar memória', 'item.adicionar': 'Adicionar', 'item.atualizar': 'Editar',
-  'item.remover': 'Remover', 'objeto.camada': 'Mudar a camada', 'selecao.mover': 'Mover', 'peca.mover': 'Mover peça', 'peca.virar': 'Virar a lanterna', 'sessao.esquecer': 'Recomeçar a exploração', 'sessao.revelar': 'Revelar', 'sessao.ocultar': 'Esconder cômodos', 'sessao.explorar': 'Explorar', 'interagir': 'Usar', 'iniciativa.iniciar': 'Começar a iniciativa', 'iniciativa.passo': 'Passar a vez', 'iniciativa.valor': 'Valor de iniciativa', 'iniciativa.encerrar': 'Encerrar a iniciativa', 'proposta.aceitar': 'Aceitar sugestão',
+  'item.remover': 'Remover', 'objeto.camada': 'Mudar a camada', 'luz.estado': 'Luzes', 'objeto.visibilidade': 'Visibilidade de objetos', 'selecao.mover': 'Mover', 'peca.mover': 'Mover peça', 'peca.virar': 'Virar a lanterna', 'sessao.esquecer': 'Recomeçar a exploração', 'sessao.revelar': 'Revelar', 'sessao.ocultar': 'Esconder cômodos', 'sessao.explorar': 'Explorar', 'interagir': 'Usar', 'iniciativa.iniciar': 'Começar a iniciativa', 'iniciativa.passo': 'Passar a vez', 'iniciativa.valor': 'Valor de iniciativa', 'iniciativa.encerrar': 'Encerrar a iniciativa', 'proposta.aceitar': 'Aceitar sugestão',
 };
 
 export type { NomeColecao };

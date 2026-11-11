@@ -82,8 +82,10 @@ const TIPOS_DE_PASSO = [
   { tipo: 'tela', campos: { acao: ['escurecer', 'clarear'], ms: 'número, 0 a 10000' }, descricao: 'Cortina preta no projetor.' },
   { tipo: 'letreiro', campos: { titulo: 'texto, até 120', subtitulo: 'texto, até 200', peca: 'id de peça ou null', estilo: ['apresentacao', 'capitulo'], ms: 'número, 1000 a 20000' }, descricao: 'Letreiro sobre o mapa.' },
   { tipo: 'camera', campos: { alvo: '{ colecao: "rooms" | "regions" | "tokens", id }' }, descricao: 'Enquadra um cômodo, região ou peça.' },
-  { tipo: 'revelar', campos: { ids: 'ids de cômodos/aberturas, até 100' }, descricao: 'Revela cômodos aos jogadores.' },
+  { tipo: 'revelar', campos: { ids: 'ids de cômodos, aberturas ou regiões, até 100' }, descricao: 'Revela cômodos ou regiões aos jogadores.' },
   { tipo: 'interagir', campos: { id: 'id de objeto interagível ou porta' }, descricao: 'Aciona um interruptor, gaveta ou porta.' },
+  { tipo: 'luz', campos: { ids: 'ids de luzes ou de objetos (com tocha/lampião), até 100', acao: ['ligar', 'desligar', 'alternar'] }, descricao: 'Liga, desliga ou alterna luzes.' },
+  { tipo: 'objeto', campos: { ids: 'ids de objetos, até 100', acao: ['mostrar', 'esconder'] }, descricao: 'Mostra ou esconde objetos.' },
   { tipo: 'pista', campos: { ref: 'Ref de um documento do Ateliê', mostrar: 'booleano (true já projeta)' }, descricao: 'Revela uma pista.' },
   { tipo: 'nota', campos: { texto: 'até 400 caracteres' }, descricao: 'Aviso só para o mestre.' },
 ];

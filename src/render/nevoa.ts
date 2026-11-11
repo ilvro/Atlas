@@ -2,7 +2,7 @@ import { BlurFilter, Container, Graphics, RenderTexture, Sprite, type Renderer }
 import { subtrair, unir } from '../domain/celulas.ts';
 import type { MapaAtlas } from '../domain/mapa.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
-import { RES_NEVOA, celulasDosComodos, celulasDosPoligonos, celulasExploradas, poligonosDeVisao } from '../domain/nevoa.ts';
+import { RES_NEVOA, celulasDosComodos, celulasDasRegioes, celulasDosPoligonos, celulasExploradas, poligonosDeVisao } from '../domain/nevoa.ts';
 import type { Mudancas } from '../state/mudancas.ts';
 import { hexParaNumero } from './cores.ts';
 import { criarMemoria, resDaMemoria } from './memoria.ts';
@@ -84,7 +84,7 @@ export function criarNevoa(renderer: Renderer): Nevoa {
     const res = m.session.explored?.res ?? RES_NEVOA;
     const esboco = m.memory.sketch && memoria.textura !== null;
     const faixasExp = esboco
-      ? unir(subtrair(m.session.explored?.cells ?? [], celulasDosPoligonos(m, poligonos, res)), celulasDosComodos(m, m.session.revealed.filter(id => m.rooms[id]), res))
+      ? unir(unir(subtrair(m.session.explored?.cells ?? [], celulasDosPoligonos(m, poligonos, res)), celulasDosComodos(m, m.session.revealed.filter(id => m.rooms[id]), res)), celulasDasRegioes(m, m.session.revealed.filter(id => m.regions[id]), res))
       : celulasExploradas(m);
     expG.clear(); for (const [y, x0, n] of faixasExp) expG.rect(x0 * res, y * res, n * res + 0.02, res + 0.02);
     expG.fill(0xffffff);

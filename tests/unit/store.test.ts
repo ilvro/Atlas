@@ -68,6 +68,33 @@ test('remover um objeto leva a luz que era dele; remover a luz solta o token', (
   assert.equal(semLanterna.tokens.muirenn!.lightId, null);
 });
 
+test('luz.estado altera luz diretamente e resolve luz por ownerId de objeto', () => {
+  const m = mapaCompleto();
+  // lampiao tem ownerId === 'mesa', inicialmente on: true
+  assert.equal(m.lights.lampiao!.on, true);
+  // Desligar pelo id do objeto dono
+  const desligada = aplicarComando(m, { tipo: 'luz.estado', ids: ['mesa'], acao: 'desligar' });
+  assert.equal(desligada.lights.lampiao!.on, false);
+  // Alternar pelo id da própria luz
+  const alternada = aplicarComando(desligada, { tipo: 'luz.estado', ids: ['lampiao'], acao: 'alternar' });
+  assert.equal(alternada.lights.lampiao!.on, true);
+  // Ligar explicitamente
+  const ligada = aplicarComando(alternada, { tipo: 'luz.estado', ids: ['lampiao'], acao: 'ligar' });
+  assert.equal(ligada.lights.lampiao!.on, true);
+  // Erro com id inexistente
+  assert.throws(() => aplicarComando(m, { tipo: 'luz.estado', ids: ['nao-existe'], acao: 'alternar' }), /não é uma luz nem um objeto/);
+});
+
+test('objeto.visibilidade mostra e esconde objetos', () => {
+  const m = mapaCompleto();
+  assert.equal(m.props.mesa!.oculto, undefined);
+  const escondido = aplicarComando(m, { tipo: 'objeto.visibilidade', ids: ['mesa'], acao: 'esconder' });
+  assert.equal(escondido.props.mesa!.oculto, true);
+  const mostrado = aplicarComando(escondido, { tipo: 'objeto.visibilidade', ids: ['mesa'], acao: 'mostrar' });
+  assert.equal(mostrado.props.mesa!.oculto, false);
+  assert.throws(() => aplicarComando(m, { tipo: 'objeto.visibilidade', ids: ['nao-existe'], acao: 'esconder' }), /não existe/);
+});
+
 test('mover a seleção desloca objetos, luzes, peças e regiões', () => {
   const m = mapaCompleto(), d = aplicarComando(m, { tipo: 'selecao.mover', delta: [1, -2], alvos: [
     { colecao: 'props', id: 'mesa' }, { colecao: 'lights', id: 'lampiao' }, { colecao: 'tokens', id: 'muirenn' }, { colecao: 'regions', id: 'entrada' }] });

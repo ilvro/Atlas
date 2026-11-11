@@ -84,7 +84,7 @@ test('atlas_catalogo: demais partes, índice e parte inválida', async () => {
   assert.ok(JSON.parse(await chamar('atlas_catalogo', { parte: 'presenca' })).pincéis.length > 0);
   const mo = JSON.parse(await chamar('atlas_catalogo', { parte: 'momentos' }));
   assert.equal(mo.limites.passosPorMomento, 60);
-  assert.equal(mo.tiposDePasso.length, 12);
+  assert.equal(mo.tiposDePasso.length, 14);
   assert.ok(JSON.parse(await chamar('atlas_catalogo')).partes.receitas > 0);
   await assert.rejects(chamar('atlas_catalogo', { parte: 'xyz' }), /Parte desconhecida/);
 });
