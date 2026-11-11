@@ -23,6 +23,8 @@ function criarSaidas() {
     camera: alvo => chamadas.push({ tipo: 'camera', args: [alvo] }),
     revelar: ids => chamadas.push({ tipo: 'revelar', args: [ids] }),
     interagir: id => chamadas.push({ tipo: 'interagir', args: [id] }),
+    luz: (ids, acao) => chamadas.push({ tipo: 'luz', args: [ids, acao] }),
+    objeto: (ids, acao) => chamadas.push({ tipo: 'objeto', args: [ids, acao] }),
     pista: (ref, mostrar) => chamadas.push({ tipo: 'pista', args: [ref, mostrar] }),
     nota: texto => chamadas.push({ tipo: 'nota', args: [texto] }),
   };
@@ -311,6 +313,12 @@ test('executarPasso despacha cada tipo instantâneo e ignora esperar', () => {
 
   executarPasso({ tipo: 'interagir', id: 'porta-1' }, saidas);
   assert.deepEqual(chamadas.pop(), { tipo: 'interagir', args: ['porta-1'] });
+
+  executarPasso({ tipo: 'luz', ids: ['luz-1'], acao: 'alternar' }, saidas);
+  assert.deepEqual(chamadas.pop(), { tipo: 'luz', args: [['luz-1'], 'alternar'] });
+
+  executarPasso({ tipo: 'objeto', ids: ['obj-1'], acao: 'esconder' }, saidas);
+  assert.deepEqual(chamadas.pop(), { tipo: 'objeto', args: [['obj-1'], 'esconder'] });
 
   executarPasso({ tipo: 'pista', ref: refPista, mostrar: true }, saidas);
   assert.deepEqual(chamadas.pop(), { tipo: 'pista', args: [refPista, true] });

@@ -66,10 +66,27 @@ export function celulasDosComodos(m: Pick<MapaAtlas, 'grid' | 'rooms' | 'bounds'
   return codificar(celulas);
 }
 
-/** O explorado de verdade: o que as peças já viram mais os cômodos que o mestre revelou. */
+/** As células do explorado (de lado `res`) que cobrem as regiões reveladas (kind === 'reveal'). */
+export function celulasDasRegioes(m: Pick<MapaAtlas, 'regions' | 'bounds'>, ids: readonly string[], res = RES_NEVOA): Faixa[] {
+  const poligonos: number[][] = [];
+  for (const id of ids) {
+    const r = m.regions[id];
+    if (r && r.kind === 'reveal' && r.polygon.length >= 3) {
+      poligonos.push(r.polygon.flatMap(([x, y]) => [x, y]));
+    }
+  }
+  return poligonos.length ? celulasDosPoligonos(m, poligonos, res) : [];
+}
+
+/** O explorado de verdade: o que as peças já viram mais os cômodos e as regiões que o mestre revelou. */
 export function celulasExploradas(m: MapaAtlas): Faixa[] {
-  const res = m.session.explored?.res ?? RES_NEVOA, vistas = m.session.explored?.cells ?? [], reveladas = m.session.revealed.filter(id => m.rooms[id]);
-  return reveladas.length ? unir(vistas, celulasDosComodos(m, reveladas, res)) : [...vistas];
+  const res = m.session.explored?.res ?? RES_NEVOA, vistas = m.session.explored?.cells ?? [];
+  const salas = m.session.revealed.filter(id => m.rooms[id]);
+  const regioes = m.session.revealed.filter(id => m.regions[id]);
+  let resultado = vistas;
+  if (salas.length) resultado = unir(resultado, celulasDosComodos(m, salas, res));
+  if (regioes.length) resultado = unir(resultado, celulasDasRegioes(m, regioes, res));
+  return resultado === vistas ? [...vistas] : resultado;
 }
 
 /** O explorado depois de somar o que as peças de jogador veem em `m` (e, se dado, o que viam antes). Nunca encolhe. */

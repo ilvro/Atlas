@@ -274,6 +274,29 @@ test('atlas_momento: clima, cômodo, peça e interagir inexistentes voltam com o
   assert.deepEqual(store.documento, antes);
 });
 
+test('atlas_momento: luz, objeto e região de revelar', async () => {
+  const { store, chamar, sala } = await comSala();
+  await chamar('atlas_objetos', { objetos: [{ pos: [3, 3], item: 'caixa' }] });
+  const objId = Object.keys(store.documento.props)[0]!;
+  await chamar('atlas_luzes', { luzes: [{ pos: [3, 3], preset: 'tocha', dono: objId }] });
+  const luzId = Object.keys(store.documento.lights)[0]!;
+  await chamar('atlas_regioes', { regioes: [{ poligono: [[1, 1], [4, 1], [4, 4], [1, 4]], tipo: 'reveal' }] });
+  const regId = Object.keys(store.documento.regions)[0]!;
+
+  await chamar('atlas_momento', {
+    nome: 'Cena Nova',
+    passos: [
+      { tipo: 'luz', ids: [luzId, objId], acao: 'alternar' },
+      { tipo: 'objeto', ids: [objId], acao: 'esconder' },
+      { tipo: 'revelar', ids: [sala, regId] },
+    ],
+  });
+  assert.equal(Object.keys(store.documento.moments).length, 1);
+
+  await assert.rejects(chamar('atlas_momento', { nome: 'x', passos: [{ tipo: 'luz', ids: ['luz_fantasma'], acao: 'ligar' }] }), /Passo 1 \(luz\): a luz ou objeto “luz_fantasma” não existe/);
+  await assert.rejects(chamar('atlas_momento', { nome: 'x', passos: [{ tipo: 'objeto', ids: ['obj_fantasma'], acao: 'mostrar' }] }), /Passo 1 \(objeto\): o objeto “obj_fantasma” não existe/);
+});
+
 test('atlas_momento: clima salvo do mapa vale; refs de som só têm o formato conferido', async () => {
   const { store, chamar } = await comSala();
   await chamar('atlas_ambiente', { clima: { preset: 'neblina' }, guardarClima: { id: 'meu-clima', nome: 'Meu clima' } });

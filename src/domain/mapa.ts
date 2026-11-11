@@ -96,6 +96,8 @@ export interface Objeto {
   interaction: Interacao | null;
   /** Ordem de empilhamento entre objetos: maior fica por cima; ausente segue a camada padrão do tipo (tapetes -1, piso 0, mesa 1, árvores 2, teto 3). Empates seguem a ordem de criação. */
   layer?: number;
+  /** Escondido dos jogadores no projetor; visível em meia opacidade no editor para o mestre. */
+  oculto?: boolean;
 }
 /** `targets` vazio num interruptor = as luzes `power: 'grid'` do cômodo do objeto. `clue` só vai ao jogador depois de revelada. */
 export interface Interacao {

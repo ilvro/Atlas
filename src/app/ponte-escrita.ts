@@ -471,7 +471,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
 
 // ---------- Momentos ----------
 /** Os tipos de passo (a mesma lista de `atlas_catalogo { parte: "momentos" }`; um teste confere). */
-export const TIPOS_DE_PASSO_ESQUEMA = ['esperar', 'som', 'silencio', 'efeito', 'clima', 'tela', 'letreiro', 'camera', 'revelar', 'interagir', 'pista', 'nota'] as const;
+export const TIPOS_DE_PASSO_ESQUEMA = ['esperar', 'som', 'silencio', 'efeito', 'clima', 'tela', 'letreiro', 'camera', 'revelar', 'interagir', 'luz', 'objeto', 'pista', 'nota'] as const;
 
 const refEsquema = () => ({ type: 'object', properties: { app: { type: 'string' }, tipo: { type: 'string' }, id: { type: 'string' } }, required: ['app', 'tipo', 'id'] });
 const msEsquema = (min: number, max: number) => ({ type: 'number', minimum: min, maximum: max });
@@ -492,6 +492,8 @@ export function esquemaDoPasso(): Record<string, unknown> {
       passo('camera', { alvo: { type: 'object', properties: { colecao: { enum: ['rooms', 'regions', 'tokens'] }, id: { type: 'string' } }, required: ['colecao', 'id'] } }, ['alvo']),
       passo('revelar', { ids: { type: 'array', items: { type: 'string' }, maxItems: 100 } }, ['ids']),
       passo('interagir', { id: { type: 'string' } }, ['id']),
+      passo('luz', { ids: { type: 'array', items: { type: 'string' }, maxItems: 100 }, acao: { enum: ['ligar', 'desligar', 'alternar'] } }, ['ids', 'acao']),
+      passo('objeto', { ids: { type: 'array', items: { type: 'string' }, maxItems: 100 }, acao: { enum: ['mostrar', 'esconder'] } }, ['ids', 'acao']),
       passo('pista', { ref: refEsquema(), mostrar: { type: 'boolean' } }, ['ref', 'mostrar']),
       passo('nota', { texto: { type: 'string', maxLength: 400 } }, ['texto']),
     ],
@@ -516,7 +518,25 @@ function referenciasDosPassos(mapa: MapaAtlas, passos: readonly PassoDeMomento[]
         break;
       }
       case 'revelar':
-        for (const id of p.ids) if (!mapa.rooms[id]) return erro(`o cômodo “${id}” não existe; cômodos do mapa: ${lista(mapa.rooms)}.`);
+        for (const id of p.ids) {
+          if (mapa.rooms[id] || mapa.openings[id]) continue;
+          if (mapa.regions[id]) {
+            if (mapa.regions[id].kind !== 'reveal') return erro(`a região “${id}” não é do tipo "reveal" (é ${mapa.regions[id].kind}).`);
+            continue;
+          }
+          return erro(`o cômodo “${id}” não existe; cômodos do mapa: ${lista(mapa.rooms)}.`);
+        }
+        break;
+      case 'luz':
+        for (const id of p.ids) {
+          const temLuz = !!mapa.lights[id] || Object.values(mapa.lights).some(l => l.ownerId === id);
+          if (!temLuz && !mapa.props[id]) return erro(`a luz ou objeto “${id}” não existe no mapa; luzes: ${lista(mapa.lights)}.`);
+        }
+        break;
+      case 'objeto':
+        for (const id of p.ids) {
+          if (!mapa.props[id]) return erro(`o objeto “${id}” não existe no mapa; objetos: ${lista(mapa.props)}.`);
+        }
         break;
       case 'interagir': {
         const o = mapa.props[p.id], a = mapa.openings[p.id];

@@ -12,6 +12,8 @@ export interface SaidasDeMomento {
   camera(alvo: AlvoDeCamera): void;
   revelar(ids: string[]): void;
   interagir(id: string): void;
+  luz(ids: string[], acao: 'ligar' | 'desligar' | 'alternar'): void;
+  objeto(ids: string[], acao: 'mostrar' | 'esconder'): void;
   pista(ref: Ref, mostrar: boolean): void;
   nota(texto: string): void;
 }
@@ -87,6 +89,12 @@ export function executarPasso(p: PassoDeMomento, saidas: SaidasDeMomento): void 
       break;
     case 'interagir':
       saidas.interagir(p.id);
+      break;
+    case 'luz':
+      saidas.luz(p.ids, p.acao);
+      break;
+    case 'objeto':
+      saidas.objeto(p.ids, p.acao);
       break;
     case 'pista':
       saidas.pista(p.ref, p.mostrar);

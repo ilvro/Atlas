@@ -49,6 +49,8 @@ test('validação aceita um momento com todos os tipos de passo', () => {
       { tipo: 'letreiro', titulo: 'Kian', subtitulo: 'O Sacerdote', peca: 'muirenn', estilo: 'apresentacao', ms: 4000 },
       { tipo: 'revelar', ids: ['sala'] },
       { tipo: 'interagir', id: 'porta' },
+      { tipo: 'luz', ids: ['lampiao'], acao: 'alternar' },
+      { tipo: 'objeto', ids: ['mesa'], acao: 'esconder' },
       { tipo: 'pista', ref: criarRef('atelie', 'documento', 'pista-1'), mostrar: true },
       { tipo: 'nota', texto: 'Avisar o mestre para preparar os dados.' },
       { tipo: 'tela', acao: 'clarear', ms: 1200 },
@@ -212,6 +214,32 @@ test('descreverPasso gera resumo em português e aponta quando alvo sumiu', () =
   assert.equal(descreverPasso({ tipo: 'interagir', id: 'mesa' }, m), 'Interagir: mesa.redonda');
   assert.equal(descreverPasso({ tipo: 'interagir', id: 'porta' }, m), 'Interagir: Porta');
   assert.equal(descreverPasso({ tipo: 'interagir', id: 'sumiu' }, m), 'Interagir: (sumiu)');
+
+  // Luz
+  assert.equal(descreverPasso({ tipo: 'luz', ids: ['lampiao'], acao: 'ligar' }, m), 'Ligar luz: Luz (lamparina)');
+  assert.equal(descreverPasso({ tipo: 'luz', ids: ['mesa'], acao: 'desligar' }, m), 'Desligar luz: mesa.redonda');
+  assert.equal(descreverPasso({ tipo: 'luz', ids: ['sumiu'], acao: 'alternar' }, m), 'Alternar luz: (sumiu)');
+
+  // Objeto
+  assert.equal(descreverPasso({ tipo: 'objeto', ids: ['mesa'], acao: 'esconder' }, m), 'Esconder objeto: mesa.redonda');
+  assert.equal(descreverPasso({ tipo: 'objeto', ids: ['mesa'], acao: 'mostrar' }, m), 'Mostrar objeto: mesa.redonda');
+  assert.equal(descreverPasso({ tipo: 'objeto', ids: ['sumiu'], acao: 'esconder' }, m), 'Esconder objeto: (sumiu)');
+
+  // Revelar com região
+  assert.equal(descreverPasso({ tipo: 'revelar', ids: ['entrada'] }, m), 'Revelar: Região entrada');
+});
+
+test('validação de passos de luz e objeto', () => {
+  assert.equal(passoValido({ tipo: 'luz', ids: ['l1', 'o1'], acao: 'alternar' }), null);
+  assert.equal(passoValido({ tipo: 'luz', ids: ['l1'], acao: 'ligar' }), null);
+  assert.equal(passoValido({ tipo: 'luz', ids: ['l1'], acao: 'desligar' }), null);
+  assert.match(passoValido({ tipo: 'luz', ids: ['l1'], acao: 'piscar' }) ?? '', /Ação de luz/);
+  assert.match(passoValido({ tipo: 'luz', ids: 'l1', acao: 'ligar' }) ?? '', /Lista de identificadores/);
+
+  assert.equal(passoValido({ tipo: 'objeto', ids: ['o1'], acao: 'mostrar' }), null);
+  assert.equal(passoValido({ tipo: 'objeto', ids: ['o1'], acao: 'esconder' }), null);
+  assert.match(passoValido({ tipo: 'objeto', ids: ['o1'], acao: 'apagar' }) ?? '', /Ação de objeto/);
+  assert.match(passoValido({ tipo: 'objeto', ids: 'o1', acao: 'mostrar' }) ?? '', /Lista de identificadores/);
 });
 
 test('projeção para jogadores esvazia moments e lista em CAMPOS_DO_MESTRE', () => {

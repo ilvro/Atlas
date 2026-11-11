@@ -16,8 +16,10 @@ export type PassoDeMomento =
   | { tipo: 'tela'; acao: 'escurecer' | 'clarear'; ms: number }      // fade da cortina preta no projetor, 0..10000
   | { tipo: 'letreiro'; titulo: string; subtitulo: string; peca: string | null; estilo: 'apresentacao' | 'capitulo'; ms: number } // ms 1000..20000
   | { tipo: 'camera'; alvo: AlvoDeCamera }
-  | { tipo: 'revelar'; ids: string[] }                                // ids de cômodos (comando sessao.revelar)
+  | { tipo: 'revelar'; ids: string[] }                                // ids de cômodos ou regiões (comando sessao.revelar)
   | { tipo: 'interagir'; id: string }                                 // porta/interagível (comando interagir)
+  | { tipo: 'luz'; ids: string[]; acao: 'ligar' | 'desligar' | 'alternar' } // ids de luzes ou de objetos (comando luz.estado)
+  | { tipo: 'objeto'; ids: string[]; acao: 'mostrar' | 'esconder' }   // ids de objetos (comando objeto.visibilidade)
   | { tipo: 'pista'; ref: Ref; mostrar: boolean }                     // documento do Ateliê; mostrar = já projeta
   | { tipo: 'nota'; texto: string };                                  // aviso só para o mestre, ≤ 400
 
@@ -110,9 +112,33 @@ export function descreverPasso(p: PassoDeMomento, mapa?: MapaAtlas): string {
       const nomes = p.ids.map(id => {
         if (mapa.rooms[id]) return mapa.rooms[id].name;
         if (mapa.openings[id]) return 'Porta';
+        if (mapa.regions[id]) return `Região ${id}`;
         return '(sumiu)';
       });
       return `Revelar: ${nomes.join(', ') || 'nenhum'}`;
+    }
+    case 'luz': {
+      const acaoRotulo = p.acao === 'ligar' ? 'Ligar' : p.acao === 'desligar' ? 'Desligar' : 'Alternar';
+      if (!mapa) return `${acaoRotulo} luz: ${p.ids.join(', ') || 'nenhuma'}`;
+      const nomes = p.ids.map(id => {
+        if (mapa.lights[id]) return mapa.lights[id].preset ? `Luz (${mapa.lights[id].preset})` : 'Luz';
+        if (mapa.props[id]) {
+          const o = mapa.props[id];
+          return o.source.kind === 'recipe' ? o.source.recipe : 'Objeto';
+        }
+        return '(sumiu)';
+      });
+      return `${acaoRotulo} luz: ${nomes.join(', ') || 'nenhuma'}`;
+    }
+    case 'objeto': {
+      const acaoRotulo = p.acao === 'mostrar' ? 'Mostrar' : 'Esconder';
+      if (!mapa) return `${acaoRotulo} objeto: ${p.ids.join(', ') || 'nenhum'}`;
+      const nomes = p.ids.map(id => {
+        const o = mapa.props[id];
+        if (o) return o.source.kind === 'recipe' ? o.source.recipe : o.source.assetId;
+        return '(sumiu)';
+      });
+      return `${acaoRotulo} objeto: ${nomes.join(', ') || 'nenhum'}`;
     }
     case 'interagir': {
       if (!mapa) return `Interagir: ${p.id}`;
@@ -230,6 +256,36 @@ export function passoValido(p: unknown): string | null {
     case 'interagir': {
       if (typeof passo.id !== 'string' || !passo.id.trim() || passo.id.length > 64) {
         return 'Identificador do alvo de interação inválido.';
+      }
+      return null;
+    }
+    case 'luz': {
+      if (passo.acao !== 'ligar' && passo.acao !== 'desligar' && passo.acao !== 'alternar') {
+        return 'Ação de luz deve ser "ligar", "desligar" ou "alternar".';
+      }
+      if (!Array.isArray(passo.ids)) {
+        return 'Lista de identificadores de luz inválida.';
+      }
+      if (passo.ids.length > 100) {
+        return 'Muitas luzes para alterar (máximo 100).';
+      }
+      if (!passo.ids.every((id: unknown) => typeof id === 'string' && id.trim().length > 0 && id.length <= 64)) {
+        return 'Identificador inválido na lista de luzes.';
+      }
+      return null;
+    }
+    case 'objeto': {
+      if (passo.acao !== 'mostrar' && passo.acao !== 'esconder') {
+        return 'Ação de objeto deve ser "mostrar" ou "esconder".';
+      }
+      if (!Array.isArray(passo.ids)) {
+        return 'Lista de identificadores de objeto inválida.';
+      }
+      if (passo.ids.length > 100) {
+        return 'Muitos objetos para alterar (máximo 100).';
+      }
+      if (!passo.ids.every((id: unknown) => typeof id === 'string' && id.trim().length > 0 && id.length <= 64)) {
+        return 'Identificador inválido na lista de objetos.';
       }
       return null;
     }

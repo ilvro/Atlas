@@ -568,10 +568,12 @@ export function CamposDoPasso({
     }
 
     case 'revelar': {
-      const salas = Object.values(doc.rooms);
-      const comodosSel = s.selecao.value.filter(item => item.colecao === 'rooms').map(item => item.id);
+      const salas = Object.values(doc.rooms).map(r => ({ id: r.id, nome: r.name }));
+      const regioes = Object.values(doc.regions).filter(r => r.kind === 'reveal').map(r => ({ id: r.id, nome: `Região ${r.id}` }));
+      const alvos = [...salas, ...regioes];
+      const sel = s.selecao.value.filter(item => item.colecao === 'rooms' || (item.colecao === 'regions' && doc.regions[item.id]?.kind === 'reveal')).map(item => item.id);
 
-      const alternarSala = (id: string) => {
+      const alternarId = (id: string) => {
         const novos = passo.ids.includes(id)
           ? passo.ids.filter(x => x !== id)
           : [...passo.ids, id];
@@ -581,31 +583,31 @@ export function CamposDoPasso({
       return (
         <div class="campos-passo campos-revelar">
           <div class="campos-passo-linha">
-            <span class="dock-rotulo">Cômodos a revelar:</span>
+            <span class="dock-rotulo">Cômodos e regiões a revelar:</span>
             <button
               type="button"
               class="dock-pilula"
-              disabled={comodosSel.length === 0}
+              disabled={sel.length === 0}
               onClick={() => {
-                const uniao = Array.from(new Set([...passo.ids, ...comodosSel]));
+                const uniao = Array.from(new Set([...passo.ids, ...sel]));
                 aoAtualizar({ ...passo, ids: uniao });
               }}
             >
-              Usar cômodos selecionados
+              Usar seleção atual
             </button>
           </div>
           <div class="lista-comodos-revelar">
-            {salas.length === 0 ? (
-              <p class="dock-dica">Nenhum cômodo definido no mapa.</p>
+            {alvos.length === 0 ? (
+              <p class="dock-dica">Nenhum cômodo nem região de revelação no mapa.</p>
             ) : (
-              salas.map(r => (
-                <label key={r.id} class="item-checkbox-revelar">
+              alvos.map(item => (
+                <label key={item.id} class="item-checkbox-revelar">
                   <input
                     type="checkbox"
-                    checked={passo.ids.includes(r.id)}
-                    onChange={() => alternarSala(r.id)}
+                    checked={passo.ids.includes(item.id)}
+                    onChange={() => alternarId(item.id)}
                   />
-                  <span>{r.name}</span>
+                  <span>{item.nome}</span>
                 </label>
               ))
             )}
@@ -615,8 +617,8 @@ export function CamposDoPasso({
     }
 
     case 'interagir': {
-      const portas = Object.values(doc.openings).map(o => ({ id: o.id, nome: `Porta ${o.id} (${o.kind})` }));
-      const props = Object.values(doc.props).map(pr => ({ id: pr.id, nome: `Objeto ${pr.id}` }));
+      const portas = Object.values(doc.openings).map(o => ({ id: o.id, nome: o.kind === 'secret' ? 'Porta secreta' : o.kind === 'door' ? 'Porta' : `Abertura (${o.kind})` }));
+      const props = Object.values(doc.props).map(pr => ({ id: pr.id, nome: pr.source.kind === 'recipe' ? pr.source.recipe : pr.source.assetId }));
       const alvos = [...portas, ...props];
       const sel = s.selecao.value[0];
       const podeUsar = sel && (sel.colecao === 'openings' || sel.colecao === 'props');
@@ -650,6 +652,141 @@ export function CamposDoPasso({
             >
               Usar seleção atual
             </button>
+          </div>
+        </div>
+      );
+    }
+
+    case 'luz': {
+      const acoes: Array<'ligar' | 'desligar' | 'alternar'> = ['ligar', 'desligar', 'alternar'];
+      const rotulosAcao = { ligar: 'Ligar', desligar: 'Desligar', alternar: 'Alternar' };
+      const luzesDoMapa = Object.values(doc.lights).map(l => ({
+        id: l.id,
+        nome: l.preset ? `Luz: ${l.preset}` : 'Luz',
+      }));
+      const objetosComLuz = Object.values(doc.props).map(pr => ({
+        id: pr.id,
+        nome: `Objeto: ${pr.source.kind === 'recipe' ? pr.source.recipe : pr.source.assetId}`,
+      }));
+      const alvosLuz = [...luzesDoMapa, ...objetosComLuz];
+      const selLuzes = s.selecao.value.filter(item => item.colecao === 'lights' || item.colecao === 'props').map(item => item.id);
+
+      const alternarId = (id: string) => {
+        const novos = passo.ids.includes(id)
+          ? passo.ids.filter(x => x !== id)
+          : [...passo.ids, id];
+        aoAtualizar({ ...passo, ids: novos });
+      };
+
+      return (
+        <div class="campos-passo campos-luz">
+          <div class="campos-passo-linha">
+            <span class="dock-rotulo">Ação:</span>
+            {acoes.map(a => (
+              <button
+                type="button"
+                key={a}
+                class={`dock-pilula ${passo.acao === a ? 'ativa' : ''}`}
+                onClick={() => aoAtualizar({ ...passo, acao: a })}
+              >
+                {rotulosAcao[a]}
+              </button>
+            ))}
+          </div>
+          <div class="campos-passo-linha">
+            <span class="dock-rotulo">Luzes / tochas:</span>
+            <button
+              type="button"
+              class="dock-pilula"
+              disabled={selLuzes.length === 0}
+              onClick={() => {
+                const uniao = Array.from(new Set([...passo.ids, ...selLuzes]));
+                aoAtualizar({ ...passo, ids: uniao });
+              }}
+            >
+              Usar seleção atual
+            </button>
+          </div>
+          <div class="lista-comodos-revelar">
+            {alvosLuz.length === 0 ? (
+              <p class="dock-dica">Nenhuma luz nem objeto no mapa.</p>
+            ) : (
+              alvosLuz.map(item => (
+                <label key={item.id} class="item-checkbox-revelar">
+                  <input
+                    type="checkbox"
+                    checked={passo.ids.includes(item.id)}
+                    onChange={() => alternarId(item.id)}
+                  />
+                  <span>{item.nome}</span>
+                </label>
+              ))
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    case 'objeto': {
+      const acoes: Array<'mostrar' | 'esconder'> = ['mostrar', 'esconder'];
+      const rotulosAcao = { mostrar: 'Mostrar', esconder: 'Esconder' };
+      const objetosDoMapa = Object.values(doc.props).map(pr => ({
+        id: pr.id,
+        nome: pr.source.kind === 'recipe' ? pr.source.recipe : pr.source.assetId,
+      }));
+      const selObjetos = s.selecao.value.filter(item => item.colecao === 'props').map(item => item.id);
+
+      const alternarId = (id: string) => {
+        const novos = passo.ids.includes(id)
+          ? passo.ids.filter(x => x !== id)
+          : [...passo.ids, id];
+        aoAtualizar({ ...passo, ids: novos });
+      };
+
+      return (
+        <div class="campos-passo campos-objeto">
+          <div class="campos-passo-linha">
+            <span class="dock-rotulo">Ação:</span>
+            {acoes.map(a => (
+              <button
+                type="button"
+                key={a}
+                class={`dock-pilula ${passo.acao === a ? 'ativa' : ''}`}
+                onClick={() => aoAtualizar({ ...passo, acao: a })}
+              >
+                {rotulosAcao[a]}
+              </button>
+            ))}
+          </div>
+          <div class="campos-passo-linha">
+            <span class="dock-rotulo">Objetos:</span>
+            <button
+              type="button"
+              class="dock-pilula"
+              disabled={selObjetos.length === 0}
+              onClick={() => {
+                const uniao = Array.from(new Set([...passo.ids, ...selObjetos]));
+                aoAtualizar({ ...passo, ids: uniao });
+              }}
+            >
+              Usar objetos selecionados
+            </button>
+          </div>
+          <div class="lista-comodos-revelar">
+            {objetosDoMapa.length === 0 ? (
+              <p class="dock-dica">Nenhum objeto no mapa.</p>
+            ) : (
+              objetosDoMapa.map(item => (
+                <label key={item.id} class="item-checkbox-revelar">
+                  <input
+                    type="checkbox"
+                    checked={passo.ids.includes(item.id)}
+                    onChange={() => alternarId(item.id)}
+                  />
+                  <span>{item.nome}</span>
+                </label>
+              ))
+            )}
           </div>
         </div>
       );
@@ -1047,6 +1184,22 @@ export function EditorDeMomento({
                   }}
                 >
                   Interagir (porta / objeto)
+                </button>
+                <button
+                  type="button"
+                  class="menu-opcao"
+                  data-testid="menu-add-luz"
+                  onClick={() => adicionarNovoPasso({ tipo: 'luz', ids: Object.keys(s.doc.value.lights).slice(0, 1), acao: 'alternar' })}
+                >
+                  Luz (ligar / desligar)
+                </button>
+                <button
+                  type="button"
+                  class="menu-opcao"
+                  data-testid="menu-add-objeto"
+                  onClick={() => adicionarNovoPasso({ tipo: 'objeto', ids: Object.keys(s.doc.value.props).slice(0, 1), acao: 'mostrar' })}
+                >
+                  Objeto (mostrar / esconder)
                 </button>
               </div>
 

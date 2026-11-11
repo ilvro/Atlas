@@ -48,6 +48,7 @@ const objeto = e.obj({
   wall: e.nulo(e.obj({ wallId: id, at: unidade, face: e.um('inner', 'outer') })),
   roomId: idOuNulo, blocks: e.obj({ move: e.bool(), sight: e.bool() }), castsShadow: e.bool(), harmonize: e.bool(),
   layer: e.opt(e.num({ inteiro: true, min: -100000, max: 100000 })),
+  oculto: e.opt(e.bool()),
   interaction: e.nulo(e.obj({
     kind: e.um('switch', 'drawer', 'clue', 'note'),
     on: e.bool(),
