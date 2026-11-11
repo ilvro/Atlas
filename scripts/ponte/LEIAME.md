@@ -55,4 +55,4 @@ Quando uma ferramenta for criada, removida ou tiver sua descrição ou esquema a
 printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}\n{"jsonrpc":"2.0","method":"notifications/initialized"}\n{"jsonrpc":"2.0","id":2,"method":"tools/list"}\n' | timeout 5 node scripts/ponte/mcp.ts
 ```
 
-Stdout só leva o protocolo; os logs vão para stderr.
+Stdout só leva o protocolo; os logs vão para stderr. A resposta de `initialize` traz `instructions` enviadas pelo servidor.

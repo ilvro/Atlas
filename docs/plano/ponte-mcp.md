@@ -119,7 +119,7 @@ Testes:
 Pronto quando: no `tools/list`, todas as ferramentas do Atlas e da Mesa trazem `annotations` vindas da declaração, e os testes de Mesa, Ateliê, Dossiê e Jukebox passam com o `vendor/` novo.
 Commit: tools declare their own mcp annotations
 
-### PM4a — Instruções enviadas pelo servidor  ⬜
+### PM4a — Instruções enviadas pelo servidor  ✅
 Objetivo: o Claude recebe as instruções da plataforma ao conectar, sem colar nada num projeto.
 Depende de: PM1
 Ler: `scripts/ponte/mcp.ts` (`criarServidorMcp`, `principal`), `docs/assistente/instrucoes.md`, `docs/assistente/LEIAME.md`, `scripts/ponte/LEIAME.md`.

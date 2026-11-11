@@ -518,11 +518,18 @@ export interface McpOpcoes {
   atrasosMs?: number[];
   prazoMs?: number;
   intervaloDeProgressoMs?: number;
+  instrucoes?: string;
 }
 
 /** Monta o servidor MCP `mesa` (sem transporte) sobre uma conexão com a ponte. */
 export function criarServidorMcp(op: McpOpcoes) {
-  const server = new Server({ name: 'mesa', version: '0.2.0' }, { capabilities: { tools: { listChanged: true } } });
+  const server = new Server(
+    { name: 'mesa', version: '0.2.0' },
+    {
+      capabilities: { tools: { listChanged: true } },
+      ...(op.instrucoes !== undefined ? { instructions: op.instrucoes } : {}),
+    },
+  );
   let pronto = false;
   const ponta = conectarNaPonte({
     ...op,
@@ -556,11 +563,24 @@ export function criarServidorMcp(op: McpOpcoes) {
 async function principal() {
   const porta = process.env.MESA_PORTA ?? '5100';
   const arquivoDoToken = path.join(raiz, '.ponte', 'token');
+  const caminhoInstrucoes = path.join(raiz, 'docs', 'assistente', 'instrucoes.md');
+  let instrucoes: string | undefined;
+  try {
+    if (fs.existsSync(caminhoInstrucoes)) {
+      instrucoes = fs.readFileSync(caminhoInstrucoes, 'utf8');
+    } else {
+      console.error(`[mesa-mcp] aviso: arquivo de instruções não encontrado em ${caminhoInstrucoes}`);
+    }
+  } catch (e) {
+    console.error('[mesa-mcp] aviso: erro ao ler instruções:', e);
+  }
+
   const { server } = criarServidorMcp({
     url: `ws://127.0.0.1:${porta}/__ponte`,
     lerToken: () => fs.readFileSync(arquivoDoToken, 'utf8').trim(),
     arquivoDoCache: CAMINHO_CACHE_PADRAO,
     arquivoDoCatalogoBase: CAMINHO_CATALOGO_BASE_PADRAO,
+    instrucoes,
   });
   await server.connect(new StdioServerTransport());
   console.error(`[mesa-mcp] pronto; ponte em ws://127.0.0.1:${porta}/__ponte`);
