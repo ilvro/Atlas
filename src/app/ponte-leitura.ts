@@ -23,7 +23,7 @@ export interface ContextoDeLeitura {
   /** O que a câmera mostra agora, em metros; `null` quando não há editor na tela. */
   caixaVisivel?: () => Caixa | null;
   /** Fotografa o mapa aberto (o viewport); ausente ou `null` quando não há editor na tela. */
-  capturar?: (opcoes: { caixa?: { x0: number; y0: number; x1: number; y1: number }; ladoMaximo?: number }) => Promise<{ dataUrl: string; largura: number; altura: number; pxPorMetro: number; bytes: number; qualidade: number; caixa: { x0: number; y0: number; x1: number; y1: number } }> | null;
+  capturar?: (opcoes: { caixa?: { x0: number; y0: number; x1: number; y1: number }; ladoMaximo?: number }) => Promise<{ dataUrl: string; largura: number; altura: number; pxPorMetro: number; bytes: number; qualidade: number; caixa: { x0: number; y0: number; x1: number; y1: number }; aviso?: string }> | null;
 }
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -208,10 +208,18 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
         if (lm !== undefined && !(typeof lm === 'number' && Number.isFinite(lm) && lm >= 256 && lm <= 1600)) throw new Error('"ladoMaximo" deve ser um número de 256 a 1600.');
         const p = ctx.capturar?.({ ...(lm !== undefined ? { ladoMaximo: lm } : {}), ...(c ? { caixa: { x0: c[0] as number, y0: c[1] as number, x1: c[2] as number, y1: c[3] as number } } : {}) });
         if (!p) throw new Error('O editor não está na tela: abra o mapa no Atlas (atlas_abrir).');
-        const r = await p, k = r.caixa;
+        let r: { dataUrl: string; largura: number; altura: number; pxPorMetro: number; bytes: number; qualidade: number; caixa: { x0: number; y0: number; x1: number; y1: number }; aviso?: string };
+        try {
+          r = await p;
+        } catch (erro) {
+          const msg = erro instanceof Error ? erro.message : String(erro);
+          return [{ tipo: 'texto', texto: `não consegui capturar: ${msg}` }];
+        }
+        const k = r.caixa;
+        const textoAviso = r.aviso ? ` Aviso: ${r.aviso}.` : '';
         return [
           imagem(r.dataUrl),
-          { tipo: 'texto', texto: `Imagem ${r.largura}×${r.altura} px. Escala: ${r.pxPorMetro} px por metro. JPEG de ${Math.round(r.bytes / 1024)} KB (qualidade ${r.qualidade}). Caixa em metros: [${r1(k.x0)}, ${r1(k.y0)}, ${r1(k.x1)}, ${r1(k.y1)}] (o pixel 0,0 é o ponto x0,y0).` },
+          { tipo: 'texto', texto: `Imagem ${r.largura}×${r.altura} px. Escala: ${r.pxPorMetro} px por metro. JPEG de ${Math.round(r.bytes / 1024)} KB (qualidade ${r.qualidade}). Caixa em metros: [${r1(k.x0)}, ${r1(k.y0)}, ${r1(k.x1)}, ${r1(k.y1)}] (o pixel 0,0 é o ponto x0,y0).${textoAviso}` },
         ];
       },
     },

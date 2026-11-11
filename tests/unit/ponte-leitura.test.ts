@@ -120,3 +120,44 @@ test('atlas_o_que_vejo sem mapa aberto', async () => {
   const { chamar } = montar(null);
   assert.equal(JSON.parse(await chamar('atlas_o_que_vejo')).mapa, null);
 });
+
+test('atlas_ver_mapa: captura com sucesso, com aviso, e trata erro como texto', async () => {
+  const ctx: ContextoDeLeitura = {
+    repo: () => null,
+    mapaAberto: () => covil,
+    abrirMapa: async () => {},
+    capturar: async (opcoes) => {
+      if (opcoes.ladoMaximo === 666) throw new Error('simulação de falha');
+      return {
+        dataUrl: 'data:image/jpeg;base64,1234',
+        largura: 800,
+        altura: 600,
+        pxPorMetro: 40,
+        bytes: 12345,
+        qualidade: 0.85,
+        caixa: { x0: 0, y0: 0, x1: 20, y1: 15 },
+        ...(opcoes.ladoMaximo === 999 ? { aviso: 'a cena ainda estava pintando; a imagem pode estar incompleta' } : {}),
+      };
+    },
+  };
+  const f = ferramentasDeLeitura(ctx).find(x => x.nome === 'atlas_ver_mapa')!;
+
+  // Sucesso normal
+  const r1 = await f.executar({});
+  assert.equal(r1.length, 2);
+  assert.equal(r1[0]!.tipo, 'imagem');
+  assert.equal(r1[1]!.tipo, 'texto');
+  assert.match((r1[1] as { texto: string }).texto, /800×600 px/);
+  assert.ok(!(r1[1] as { texto: string }).texto.includes('Aviso:'));
+
+  // Com aviso
+  const r2 = await f.executar({ ladoMaximo: 999 });
+  assert.equal(r2.length, 2);
+  assert.match((r2[1] as { texto: string }).texto, /Aviso: a cena ainda estava pintando/);
+
+  // Com erro lançado
+  const r3 = await f.executar({ ladoMaximo: 666 });
+  assert.equal(r3.length, 1);
+  assert.equal(r3[0]!.tipo, 'texto');
+  assert.equal((r3[0] as { texto: string }).texto, 'não consegui capturar: simulação de falha');
+});
