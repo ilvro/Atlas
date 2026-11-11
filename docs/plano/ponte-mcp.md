@@ -69,7 +69,7 @@ Testes:
 Pronto quando: uma chamada que exige abrir o app e demora mais de 50 s devolve o erro explicativo em 50 s, em vez de o cliente cortar sem aviso.
 Commit: single deadline and progress for bridge calls
 
-### PM3a — Catálogo base versionado  ⬜
+### PM3a — Catálogo base versionado  ✅
 Objetivo: numa instalação nova o Claude já vê todas as ferramentas, Jukebox incluída, sem abrir cada app antes.
 Depende de: PM1
 Ler: `scripts/ponte/mcp.ts` (`carregarCache`, `salvarCache`, `conectarNaPonte`), `scripts/ponte/LEIAME.md`, `package.json` (scripts `ponte:*`), `.gitignore`.

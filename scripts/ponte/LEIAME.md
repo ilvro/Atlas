@@ -40,6 +40,15 @@ Um `.mcp.json` na pasta onde o Claude Code roda, com a mesma entrada:
 }
 ```
 
+## Catálogo base
+
+O catálogo base (`scripts/ponte/catalogo-base.json`) permite que o Claude enxergue as ferramentas de todos os aplicativos da plataforma assim que conecta, mesmo antes de cada aba ser aberta.
+
+Quando uma ferramenta for criada, removida ou tiver sua descrição ou esquema alterados em qualquer aplicativo:
+1. Abra a plataforma (`npm run mesa-dev`) e acesse os cinco aplicativos (Atlas, Mesa, Dossiê/Ficha, Ateliê e Jukebox) para que suas ferramentas fiquem salvas no cache `.ponte/ferramentas.json`.
+2. Rode `npm run ponte:catalogo` para regenerar `scripts/ponte/catalogo-base.json`.
+3. Faça commit do arquivo gerado.
+
 ## Teste de fumaça
 
 ```

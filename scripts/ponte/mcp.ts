@@ -26,12 +26,14 @@ export function erroDePrazo(ferramenta: string, prazoMs: number): string {
 /** Raiz do Atlas, a partir deste arquivo (o app do Claude lança o processo de qualquer pasta). */
 const raiz = path.resolve(import.meta.dirname, '..', '..');
 export const CAMINHO_CACHE_PADRAO = path.join(raiz, '.ponte', 'ferramentas.json');
+export const CAMINHO_CATALOGO_BASE_PADRAO = path.join(raiz, 'scripts', 'ponte', 'catalogo-base.json');
 
 export interface PontaOpcoes {
   url: string;
   /** Lê o token atual (muda a cada partida do mesa-dev); pode lançar se o arquivo não existe. */
   lerToken: () => string;
   arquivoDoCache?: string;
+  arquivoDoCatalogoBase?: string;
   aoMudar?: () => void;
   atrasosMs?: number[];
   prazoMs?: number;
@@ -191,8 +193,13 @@ export function anotacoesDaFerramenta(nome: string): { readOnlyHint?: boolean; d
 /** Conexão com a ponte: reconecta em silêncio, relendo o token a cada tentativa. */
 export function conectarNaPonte(op: PontaOpcoes): Ponta {
   const atrasos = op.atrasosMs ?? ATRASOS_MS;
+  const caminhoBase = op.arquivoDoCatalogoBase ?? CAMINHO_CATALOGO_BASE_PADRAO;
+  const base = carregarCache(caminhoBase);
   const caminhoCache = op.arquivoDoCache ?? CAMINHO_CACHE_PADRAO;
-  const catalogo = carregarCache(caminhoCache);
+  const cache = carregarCache(caminhoCache);
+  const catalogo = new Map<string, FerramentaDoApp>();
+  for (const [k, v] of base) catalogo.set(k, v);
+  for (const [k, v] of cache) catalogo.set(k, v);
   let ultimaAssinatura = assinaturaDoCatalogo(catalogo);
 
   let ws: WebSocket | null = null;
@@ -500,6 +507,7 @@ export interface McpOpcoes {
   url: string;
   lerToken: () => string;
   arquivoDoCache?: string;
+  arquivoDoCatalogoBase?: string;
   atrasosMs?: number[];
   prazoMs?: number;
   intervaloDeProgressoMs?: number;
@@ -545,6 +553,7 @@ async function principal() {
     url: `ws://127.0.0.1:${porta}/__ponte`,
     lerToken: () => fs.readFileSync(arquivoDoToken, 'utf8').trim(),
     arquivoDoCache: CAMINHO_CACHE_PADRAO,
+    arquivoDoCatalogoBase: CAMINHO_CATALOGO_BASE_PADRAO,
   });
   await server.connect(new StdioServerTransport());
   console.error(`[mesa-mcp] pronto; ponte em ws://127.0.0.1:${porta}/__ponte`);
