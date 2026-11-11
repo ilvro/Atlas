@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { CHAVE_TEMA, aplicarTema, criarRef, descobrir, enderecoDaRef, gravarTema, lerTema, luminancia, observarTema, resolverRota, textoSobre, tokensDoTema, validarManifesto, type Manifesto } from '../src/index.ts';
 
 const atlas: Manifesto = {
@@ -89,4 +90,24 @@ test('tema: aplicar escreve tokens e atributos; observar reage ao evento storage
   for (const f of ouvintes) f({ key: CHAVE_TEMA } as unknown as Event);
   assert.deepEqual(vistos, ['neutro']);
   parar(); assert.equal(ouvintes.size, 0);
+});
+
+test('manifesto dos aplicativos irmãos: validarManifesto aceita cada um que existir', () => {
+  const candidatos = [
+    'public/mesa.json',
+    '../Mesa/public/mesa.json',
+    '../Jukebox/mesa.json',
+    '../Dossie/public/mesa.json',
+    '../Atelie/public/mesa.json',
+    '../Tabletop/public/mesa.json',
+  ];
+  let testados = 0;
+  for (const caminho of candidatos) {
+    if (!fs.existsSync(caminho)) continue;
+    const conteudo = JSON.parse(fs.readFileSync(caminho, 'utf8'));
+    const r = validarManifesto(conteudo);
+    assert.equal(r.ok, true, `Manifesto em ${caminho} deve ser válido: ${r.ok ? '' : (r as { erro: string }).erro}`);
+    testados++;
+  }
+  assert.ok(testados >= 4, `esperava pelo menos 4 manifestos encontrados, achou ${testados}`);
 });

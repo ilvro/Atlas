@@ -32,7 +32,7 @@ Testes: com `requestAnimationFrame` que nunca dispara (simulado) e `visibilitySt
 Pronto quando: com o Atlas numa aba de fundo do app e o clima noturno, `atlas_ver_mapa` devolve a imagem.
 Commit: map capture works in background tabs
 
-#### A2 — Jukebox na ponte do app de desktop  ⬜
+#### A2 — Jukebox na ponte do app de desktop  ✅
 Ler: `mesa-core/src/eventos.ts` (`CATALOGO`), `mesa-core/src/manifesto.ts` (`validarManifesto`), `../Jukebox/mesa.json`, `../Mesa/scripts/build-desktop.ts` (`JUKEBOX_ESSENCIAIS`), `../Mesa/scripts/launch-desktop.mjs` (`iniciarServidorEstatico`, o fallback SPA).
 Como:
 1. Ponha `jukebox.prontidao` no `CATALOGO` (natureza `pedido`, dono `jukebox`, com os dados `{ ref }`), igual aos outros pedidos da Jukebox. Rode `npm run build:core` e copie para o `vendor/mesa-core/` de Mesa, Ateliê, Dossiê e Jukebox.
