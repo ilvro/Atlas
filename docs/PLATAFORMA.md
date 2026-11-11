@@ -72,7 +72,7 @@ Quem escreve: qualquer aplicativo, sempre por transação e pela biblioteca comu
 ```
 
 - **Fatos** (aconteceu): `ficha.rolagem`, `ficha.recursos`, `atlas.cena-aberta`, `atlas.regiao-entrou`, `atlas.revelado`, `atelie.documento-salvo`, `jukebox.tocando`, `mesa.sessao-iniciada`.
-- **Pedidos** (faça, se puder): `jukebox.tocar` `{ ref }` (uma cena sonora), `jukebox.efeito` `{ ref }` (um efeito avulso, uma faixa `sfx`, `mesa:jukebox/efeito/<titulo>`), `atlas.focar` `{ ref }`, `ficha.abrir` `{ ref }`, `atelie.abrir` `{ ref }`. Quem atende responde com um fato; sem resposta em 1,5 s, quem pediu avisa que o aplicativo não está aberto e oferece abri-lo.
+- **Pedidos** (faça, se puder): `jukebox.tocar` `{ ref }` (uma cena sonora), `jukebox.efeito` `{ ref }` (um efeito avulso, uma faixa `sfx`, `mesa:jukebox/efeito/<titulo>`), `jukebox.prontidao` `{ ref }` (responde se a cena sonora tem todas as faixas carregadas: `{ ok, total, faltando, nome }`), `atlas.focar` `{ ref }`, `ficha.abrir` `{ ref }`, `atelie.abrir` `{ ref }`. Quem atende responde com um fato; sem resposta em 1,5 s, quem pediu avisa que o aplicativo não está aberto e oferece abri-lo.
 - Catálogo versionado em `mesa-core`; quem recebe tipo ou versão desconhecida ignora e avisa uma vez no console.
 - O canal `mesa:handout` e o banco `mesa-handouts-v1` do contrato do Ateliê **continuam valendo** e passam a fazer parte do contrato da mesa, sem mudança.
 
