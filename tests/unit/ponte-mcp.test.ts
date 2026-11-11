@@ -10,7 +10,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { criarPonte } from '../../scripts/ponte/servidor.ts';
-import { criarServidorMcp, converterConteudo, anotacoesDaFerramenta, SEM_PONTE, CAMINHO_CATALOGO_BASE_PADRAO, type McpOpcoes } from '../../scripts/ponte/mcp.ts';
+import { criarServidorMcp, lerGuia, converterConteudo, anotacoesDaFerramenta, SEM_PONTE, CAMINHO_CATALOGO_BASE_PADRAO, type McpOpcoes } from '../../scripts/ponte/mcp.ts';
 import { gerarCatalogoBase } from '../../scripts/ponte/catalogo.ts';
 
 const esperar = async (cond: () => boolean | Promise<boolean>, ms = 3000) => {
@@ -162,7 +162,7 @@ test('sem ponte: só ponte_estado, com a explicação', async () => {
   const mcp = await clienteMcp('ws://127.0.0.1:1/__ponte', () => { throw new Error('sem token'); });
   try {
     const { tools } = await mcp.client.listTools();
-    assert.deepEqual(tools.map(t => t.name), ['ponte_estado']);
+    assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'plataforma_guia']);
     const r = await mcp.client.callTool({ name: 'ponte_estado', arguments: {} });
     assert.match(textoDe(r), /npm run mesa-dev/);
     assert.equal(textoDe(r), SEM_PONTE);
@@ -193,7 +193,7 @@ test('catálogo estável: abrir e fechar aba não muda tools/list nem notifica; 
     ] }));
     await esperar(() => mcp.mudancas() === 1);
     const { tools } = await mcp.client.listTools();
-    assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'atlas_ver_mapa', 'atlas_mapa_criar']);
+    assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'plataforma_guia', 'atlas_ver_mapa', 'atlas_mapa_criar']);
     assert.equal(tools.find(t => t.name === 'atlas_ver_mapa')?.annotations?.readOnlyHint, true);
     assert.equal(tools.find(t => t.name === 'atlas_mapa_criar')?.annotations?.destructiveHint, false);
     assert.match(textoDe(await mcp.client.callTool({ name: 'ponte_estado', arguments: {} })), /atlas.*\(2 ferramentas\)/);
@@ -208,7 +208,7 @@ test('catálogo estável: abrir e fechar aba não muda tools/list nem notifica; 
     await new Promise(r => setTimeout(r, 60));
     assert.equal(mcp.mudancas(), mudancasAntes);
     const toolsDepoisDeFechar = (await mcp.client.listTools()).tools;
-    assert.deepEqual(toolsDepoisDeFechar.map(t => t.name), ['ponte_estado', 'atlas_ver_mapa', 'atlas_mapa_criar']);
+    assert.deepEqual(toolsDepoisDeFechar.map(t => t.name), ['ponte_estado', 'plataforma_guia', 'atlas_ver_mapa', 'atlas_mapa_criar']);
 
     // Chamar ferramenta de app fechado devolve erro com endereço
     const erroFechado: any = await mcp.client.callTool({ name: 'atlas_ver_mapa', arguments: {} });
@@ -225,7 +225,7 @@ test('catálogo estável: abrir e fechar aba não muda tools/list nem notifica; 
       { nome: 'atlas_novo', descricao: 'novo', esquema: { type: 'object' } },
     ] }));
     await esperar(() => mcp.mudancas() === 2);
-    assert.deepEqual((await mcp.client.listTools()).tools.map(t => t.name), ['ponte_estado', 'atlas_ver_mapa', 'atlas_mapa_criar', 'atlas_novo']);
+    assert.deepEqual((await mcp.client.listTools()).tools.map(t => t.name), ['ponte_estado', 'plataforma_guia', 'atlas_ver_mapa', 'atlas_mapa_criar', 'atlas_novo']);
 
     // Registrar as mesmas ferramentas de novo (ex.: recarregar ou focar aba) não notifica
     aba.send(JSON.stringify({ tipo: 'registrar', app: 'atlas', titulo: 'Atlas', ferramentas: [
@@ -241,7 +241,7 @@ test('catálogo estável: abrir e fechar aba não muda tools/list nem notifica; 
       { nome: 'atlas_ver_mapa', descricao: 'vê', esquema: { type: 'object', properties: {} } },
     ] }));
     await esperar(() => mcp.mudancas() === 3);
-    assert.deepEqual((await mcp.client.listTools()).tools.map(t => t.name), ['ponte_estado', 'atlas_ver_mapa']);
+    assert.deepEqual((await mcp.client.listTools()).tools.map(t => t.name), ['ponte_estado', 'plataforma_guia', 'atlas_ver_mapa']);
   } finally {
     aba.terminate();
     await mcp.fechar();
@@ -261,7 +261,7 @@ test('o cache sobrevive a reiniciar o MCP', async () => {
   const mcp = await clienteMcp('ws://127.0.0.1:1/__ponte', () => { throw new Error('sem token'); }, cache);
   try {
     const { tools } = await mcp.client.listTools();
-    assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'atlas_guardada']);
+    assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'plataforma_guia', 'atlas_guardada']);
   } finally {
     await mcp.fechar();
   }
@@ -483,7 +483,7 @@ test('catálogo base: base com jukebox_listar e cache vazio traz a ferramenta se
   });
   try {
     const { tools } = await mcp.client.listTools();
-    assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'jukebox_listar']);
+    assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'plataforma_guia', 'jukebox_listar']);
   } finally {
     await mcp.fechar();
   }
@@ -537,7 +537,7 @@ test('catálogo base: aba do Atlas registrando sem uma ferramenta da base faz el
     }));
     await esperar(() => mcp.mudancas() === 1);
     const { tools } = await mcp.client.listTools();
-    assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'atlas_continua']);
+    assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'plataforma_guia', 'atlas_continua']);
   } finally {
     aba.terminate();
     await mcp.fechar();
@@ -679,3 +679,94 @@ test('instruções do servidor: client.getInstructions() devolve o texto configu
   }
 });
 
+
+const TITULOS_DO_INSTRUCOES_ANTIGO = [
+  'Seu papel', 'Antes de construir', 'Compor um mapa', 'Decida a composição antes do detalhe', 'Ordem de construção',
+  'Confira com os olhos depois de cada bloco', 'Regras que valem ouro', 'Momentos', 'Planejar uma sessão',
+  '1. Leia antes de propor', '2. Converse e escreva o plano, sem construir nada', '3. Com o plano aprovado, construa nesta ordem',
+  '4. Termine com um resumo', 'Documentos, fichas e trilha', 'Abrir os apps que faltam', 'Quando uma ferramenta falha',
+  'De quem é cada coisa', 'Respeito ao que é do mestre', 'Um pedido curto, em blocos',
+];
+
+test('plataforma_guia: enum das seções, índice com resumos, texto da seção e erro com a lista', async () => {
+  const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'guia-test-'));
+  fs.writeFileSync(path.join(pasta, 'b-segunda.md'), '> resumo: a segunda\n\nTexto da segunda.\n');
+  fs.writeFileSync(path.join(pasta, 'a-primeira.md'), '> resumo: a primeira\n\nTexto da primeira.\n');
+  fs.writeFileSync(path.join(pasta, 'ignorado.txt'), 'não é seção');
+  const mcp = await clienteMcp('ws://127.0.0.1:1/__ponte', () => { throw new Error('sem token'); }, undefined, { pastaDoGuia: pasta });
+  try {
+    const { tools } = await mcp.client.listTools();
+    const guia = tools.find(t => t.name === 'plataforma_guia')!;
+    assert.deepEqual((guia.inputSchema.properties as any).secao.enum, ['a-primeira', 'b-segunda']);
+    assert.deepEqual(guia.annotations, { readOnlyHint: true, idempotentHint: true });
+    const indice = textoDe(await mcp.client.callTool({ name: 'plataforma_guia', arguments: {} }));
+    assert.match(indice, /a-primeira: a primeira/);
+    assert.match(indice, /b-segunda: a segunda/);
+    assert.match(textoDe(await mcp.client.callTool({ name: 'plataforma_guia', arguments: { secao: 'b-segunda' } })), /Texto da segunda/);
+    const erro: any = await mcp.client.callTool({ name: 'plataforma_guia', arguments: { secao: 'nada' } });
+    assert.equal(erro.isError, true);
+    assert.match(textoDe(erro), /a-primeira, b-segunda/);
+  } finally {
+    await mcp.fechar();
+  }
+});
+
+test('núcleo e guia reais: núcleo com menos de 6 KB e nenhum título do instrucoes.md antigo se perde', () => {
+  const pasta = path.resolve(import.meta.dirname, '..', '..', 'docs', 'assistente');
+  const nucleo = fs.readFileSync(path.join(pasta, 'nucleo.md'), 'utf8');
+  assert.ok(Buffer.byteLength(nucleo) < 6144, 'nucleo.md deve ter menos de 6 KB');
+  const guia = lerGuia(path.join(pasta, 'guia'));
+  assert.ok(guia.length >= 5);
+  for (const s of guia) assert.match(s.texto.split('\n', 1)[0]!, /^> resumo: .+/, `${s.nome} sem resumo`);
+  const tudo = [nucleo, ...guia.map(s => s.texto)].join('\n');
+  const titulos = new Set(tudo.split('\n').filter(l => /^#{2,3} /.test(l)).map(l => l.replace(/^#+ /, '').trim()));
+  for (const t of TITULOS_DO_INSTRUCOES_ANTIGO) assert.ok(titulos.has(t), `título perdido: ${t}`);
+});
+
+test('instruções do servidor: com o núcleo real, getInstructions() devolve o núcleo', async () => {
+  const nucleo = fs.readFileSync(path.resolve(import.meta.dirname, '..', '..', 'docs', 'assistente', 'nucleo.md'), 'utf8');
+  const mcp = await clienteMcp('ws://127.0.0.1:1/__ponte', () => { throw new Error('sem token'); }, undefined, { instrucoes: nucleo });
+  try {
+    assert.equal(mcp.client.getInstructions(), nucleo);
+    assert.ok(Buffer.byteLength(mcp.client.getInstructions()!) < 6144);
+  } finally {
+    await mcp.fechar();
+  }
+});
+
+// Orçamento do catálogo (PM5b). A meta da ficha era 25 KB, mas só o esquema (sem texto) já passa disso: o teto vale o que se alcançou encurtando textos.
+const ORCAMENTO_DA_BASE_BYTES = 34_000;
+const raizDoAtlas = path.resolve(import.meta.dirname, '..', '..');
+
+test('catálogo base: soma dentro do orçamento, descrições até 400 caracteres e campos até 80', () => {
+  const base = JSON.parse(fs.readFileSync(CAMINHO_CATALOGO_BASE_PADRAO, 'utf8')) as { nome: string; descricao: string; esquema: unknown }[];
+  const soma = base.reduce((a, t) => a + Buffer.byteLength(JSON.stringify({ nome: t.nome, descricao: t.descricao, esquema: t.esquema })), 0);
+  assert.ok(soma < ORCAMENTO_DA_BASE_BYTES, `base com ${soma} bytes`);
+  const longos: string[] = [];
+  const varrer = (o: unknown, nome: string) => {
+    if (!o || typeof o !== 'object') return;
+    const d = (o as { description?: unknown }).description;
+    if (typeof d === 'string' && d.length > 80) longos.push(`${nome}: ${d.length}`);
+    for (const v of Object.values(o)) varrer(v, nome);
+  };
+  for (const t of base) {
+    assert.ok(t.descricao.length <= 400, `${t.nome}: descrição com ${t.descricao.length} caracteres`);
+    varrer(t.esquema, t.nome);
+  }
+  assert.deepEqual(longos, []);
+});
+
+test('catálogo base: toda citação de "plataforma_guia ferramentas-X" tem o arquivo e a seção da ferramenta', () => {
+  const base = JSON.parse(fs.readFileSync(CAMINHO_CATALOGO_BASE_PADRAO, 'utf8')) as { nome: string; descricao: string }[];
+  let citadas = 0;
+  for (const t of base) {
+    const m = /plataforma_guia ferramentas-([a-z]+)/.exec(t.descricao);
+    if (!m) continue;
+    citadas++;
+    const arquivo = path.join(raizDoAtlas, 'docs', 'assistente', 'guia', `ferramentas-${m[1]}.md`);
+    assert.ok(fs.existsSync(arquivo), `falta ${arquivo}`);
+    const secoes = fs.readFileSync(arquivo, 'utf8').split('\n').filter(l => l.startsWith('## ')).map(l => l.slice(3).trim());
+    assert.ok(secoes.includes(t.nome), `${t.nome} não tem seção em ferramentas-${m[1]}.md`);
+  }
+  assert.ok(citadas > 20);
+});

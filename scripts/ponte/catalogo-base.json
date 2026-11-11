@@ -1,7 +1,7 @@
 [
   {
     "nome": "atelie_documento_criar",
-    "descricao": "Cria um documento (pista) a partir de um modelo do Ateliê: preenche os campos, acrescenta um texto que só aparece sob a luz UV (textoUV), arquiva (publica para o Atlas e o Tabletop) e registra a pista na campanha ativa da Mesa. O documento abre numa aba do Ateliê. Use atelie_modelos_listar para achar o modelo e os rótulos dos campos; campos que o modelo não tem voltam em \"ignorados\".",
+    "descricao": "Cria um documento (pista) de um modelo: preenche campos, texto UV opcional, arquiva e registra na campanha. Modelo e rótulos vêm de atelie_modelos_listar. Detalhes: plataforma_guia ferramentas-atelie.",
     "esquema": {
       "type": "object",
       "required": [
@@ -12,22 +12,22 @@
       "properties": {
         "modelo": {
           "type": "string",
-          "description": "Id do modelo (de atelie_modelos_listar)."
+          "description": "De atelie_modelos_listar."
         },
         "nome": {
           "type": "string",
-          "description": "Nome do documento, ex.: \"Carta do informante\"."
+          "description": "Nome do documento."
         },
         "campos": {
           "type": "object",
           "additionalProperties": {
             "type": "string"
           },
-          "description": "Texto por campo: { \"<rótulo do campo>\": \"texto\" }. Os rótulos vêm de atelie_modelos_listar (ou de atelie_documento_ler)."
+          "description": "Texto por rótulo de campo."
         },
         "textoUV": {
           "type": "string",
-          "description": "Texto escondido, visível só sob a luz UV (o segredo do documento)."
+          "description": "Visível só sob a luz UV."
         },
         "categoria": {
           "type": "string"
@@ -44,7 +44,7 @@
   },
   {
     "nome": "atelie_documento_editar",
-    "descricao": "Edita um documento existente: renomeia, troca o texto dos campos e/ou o texto UV, e arquiva de novo. Se o documento não foi criado pelo assistente, o mestre precisa confirmar na aba do Ateliê (uma recusa volta como erro; não insista). Textos omitidos não mudam; textoUV vazio remove o texto UV.",
+    "descricao": "Edita um documento: nome, campos e/ou texto UV; arquiva de novo. O mestre confirma se não é do assistente (recusa: não insista). Detalhes: plataforma_guia ferramentas-atelie.",
     "esquema": {
       "type": "object",
       "required": [
@@ -54,7 +54,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Id do documento (de atelie_documentos_listar)."
+          "description": "De atelie_documentos_listar."
         },
         "nome": {
           "type": "string"
@@ -64,11 +64,11 @@
           "additionalProperties": {
             "type": "string"
           },
-          "description": "Texto por campo: { \"<rótulo do campo>\": \"texto\" }. Os rótulos vêm de atelie_modelos_listar (ou de atelie_documento_ler)."
+          "description": "Texto por rótulo de campo."
         },
         "textoUV": {
           "type": "string",
-          "description": "Texto visível só sob a luz UV; \"\" remove o texto UV."
+          "description": "\"\" remove."
         }
       }
     },
@@ -76,7 +76,7 @@
   },
   {
     "nome": "atelie_documento_ler",
-    "descricao": "Lê um documento: nome, categoria, tags, os campos com o texto atual, o texto UV (se houver) e a revisão.",
+    "descricao": "Lê um documento: campos com o texto atual, texto UV e revisão.",
     "esquema": {
       "type": "object",
       "required": [
@@ -93,14 +93,14 @@
   },
   {
     "nome": "atelie_documentos_listar",
-    "descricao": "Lista os documentos arquivados no Ateliê (mais recentes primeiro): id, nome, categoria, tags, se tem texto UV, revisão e se foi criado pelo assistente.",
+    "descricao": "Lista os documentos arquivados (recentes primeiro): id, nome, categoria, tags, UV, revisão.",
     "esquema": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "busca": {
           "type": "string",
-          "description": "Filtra por nome, categoria ou tag."
+          "description": "Nome, categoria ou tag."
         }
       }
     },
@@ -108,14 +108,14 @@
   },
   {
     "nome": "atelie_modelos_listar",
-    "descricao": "Lista os modelos de documento do Ateliê (cartas, bilhetes, jornais…) com id, nome, categoria, época, tom e os CAMPOS que cada um aceita (os rótulos para atelie_documento_criar). No máximo 40 por resposta; \"total\" diz quantos casaram. Filtre por busca, categoria, era ou tom.",
+    "descricao": "Lista modelos de documento (id, nome, categoria, época, tom e os CAMPOS que aceitam), no máximo 40. Filtra por busca, categoria, era, tom. Detalhes: plataforma_guia ferramentas-atelie.",
     "esquema": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "busca": {
           "type": "string",
-          "description": "Texto livre (nome, categoria, campos, tags, época, tom), sem diferenciar maiúsculas e acentos."
+          "description": "Texto livre."
         },
         "categoria": {
           "type": "string",
@@ -123,11 +123,11 @@
         },
         "era": {
           "type": "string",
-          "description": "Uma de: 1890 (Anos 1890), 1920 (Anos 1920), 1950 (Anos 1950), 1980 (Anos 1980), medieval (Medieval), hoje (Hoje)."
+          "description": "Época (valores no guia)."
         },
         "tom": {
           "type": "string",
-          "description": "Um de: investigação (Investigação), horror (Horror), fantasia (Fantasia), cotidiano (Cotidiano), sci-fi (Ficção científica)."
+          "description": "Tom (valores no guia)."
         }
       }
     },
@@ -156,7 +156,7 @@
   },
   {
     "nome": "atlas_ambiente",
-    "descricao": "Ajusta clima e acabamento do mapa aberto (um passo de desfazer). Presets em atlas_catalogo { parte: \"climas\" }. \"guardarClima\" { id, nome } salva no mapa.",
+    "descricao": "Ajusta clima e acabamento do mapa aberto. Presets: atlas_catalogo climas. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -372,7 +372,7 @@
   },
   {
     "nome": "atlas_catalogo",
-    "descricao": "Catálogo de opções: receitas, colecao, materiais, climas, luzes, presenca ou momentos. Sem parte, traz contagens. Use para não inventar ids.",
+    "descricao": "Catálogo de opções (receitas, colecao, materiais, climas, luzes, presenca, momentos). Use para não inventar ids.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -399,7 +399,7 @@
   },
   {
     "nome": "atlas_comodos",
-    "descricao": "Cria cômodos (piso, paredes e telhado; um passo de desfazer). ATENÇÃO: rets em CÉLULAS do grid de 1,5 m com x1 e y1 exclusivos (ex.: [2,3,5,6] = 3×3 células). Tipo: atlas_catalogo.",
+    "descricao": "Cria cômodos (piso, paredes, telhado). ATENÇÃO: rets em CÉLULAS de 1,5 m, x1 e y1 exclusivos. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -484,7 +484,7 @@
   },
   {
     "nome": "atlas_espalhar",
-    "descricao": "Espalha conjunto de objetos numa região em metros (um passo de desfazer). Conjuntos em atlas_catalogo { parte: \"receitas\" }. Objetos ficam comuns e editáveis.",
+    "descricao": "Espalha um conjunto de objetos numa região em metros. Conjuntos: atlas_catalogo receitas. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -503,7 +503,7 @@
           ]
         },
         "forma": {
-          "description": "Forma em metros: disco, poligono, faixa, retangulo ou celulas. irregular opcional (m).",
+          "description": "Forma em metros.",
           "oneOf": [
             {
               "type": "object",
@@ -646,7 +646,7 @@
   },
   {
     "nome": "atlas_luzes",
-    "descricao": "Acende luzes no mapa aberto em metros (um passo de desfazer). Presets em atlas_catalogo { parte: \"luzes\" }. Luzes aparecem em clima escuro (atlas_ambiente).",
+    "descricao": "Acende luzes no mapa aberto, em metros. Presets: atlas_catalogo luzes. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -717,7 +717,7 @@
   },
   {
     "nome": "atlas_mapa_criar",
-    "descricao": "Cria e abre mapa novo em metros (padrão 45×30; grid 1,5 m). \"base\": atlas_catalogo { parte: \"materiais\" }. Gênero e estilo: atlas_catalogo { parte: \"climas\" }.",
+    "descricao": "Cria e abre mapa novo em metros (padrão 45×30; grid 1,5 m). Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -769,7 +769,7 @@
   },
   {
     "nome": "atlas_mapa_ler",
-    "descricao": "Resume o mapa (aberto ou por id): tamanho, terreno, cômodos (rets em m), objetos, luzes, regiões, peças, clima, acabamento, momentos e notas.",
+    "descricao": "Resume o mapa (aberto ou por id): terreno, cômodos, objetos, luzes, regiões, peças, clima, momentos e notas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -801,7 +801,7 @@
   },
   {
     "nome": "atlas_momento",
-    "descricao": "Cria ou refaz momento no mapa aberto (um passo de desfazer). Sem \"id\" cria novo; com \"id\" só altera o seu. Tipos de passo em atlas_catalogo { parte: \"momentos\" }.",
+    "descricao": "Cria ou refaz um momento no mapa aberto (sem \"id\" cria; com \"id\" altera). Tipos de passo: atlas_catalogo momentos. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -820,7 +820,7 @@
           "type": "array",
           "maxItems": 60,
           "items": {
-            "description": "Passo do momento. Tipos em atlas_catalogo { parte: \"momentos\" }.",
+            "description": "Passo do momento (tipos: atlas_catalogo momentos).",
             "oneOf": [
               {
                 "type": "object",
@@ -1123,7 +1123,7 @@
   },
   {
     "nome": "atlas_momento_testar",
-    "descricao": "Toca na aba um momento do mapa aberto e espera terminar. Devolve passos e resultado (\"fim\", \"cancelado\", \"tempo esgotado\"). Máximo 2 min.",
+    "descricao": "Toca um momento do mapa aberto e espera terminar (máx. 2 min). Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1144,7 +1144,7 @@
   },
   {
     "nome": "atlas_mover",
-    "descricao": "Move objetos, luzes, peças e regiões por [dx, dy] em metros (um passo de desfazer). O que é do mestre pede confirmação no painel.",
+    "descricao": "Move objetos, luzes, peças e regiões por [dx, dy] em metros. O que é do mestre pede confirmação. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1178,7 +1178,7 @@
   },
   {
     "nome": "atlas_notas",
-    "descricao": "Escreve notas no mapa aberto (um passo de desfazer), substituindo o campo anterior. \"mapa\": nota geral. \"comodos\": notas por cômodo (atlas_mapa_ler).",
+    "descricao": "Escreve notas no mapa aberto (geral e por cômodo), substituindo as anteriores. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1231,7 +1231,7 @@
   },
   {
     "nome": "atlas_objetos",
-    "descricao": "Coloca até 200 objetos no mapa aberto em metros (um passo de desfazer). \"item\": receita (atlas_catalogo { parte: \"receitas\" }) ou colecao.",
+    "descricao": "Coloca até 200 objetos no mapa aberto, em metros. \"item\": receita ou colecao (atlas_catalogo). Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1301,7 +1301,7 @@
   },
   {
     "nome": "atlas_paredes",
-    "descricao": "Cria paredes, muros ou cercas avulsos em metros (um passo de desfazer). Para salas use atlas_comodos. Rocha é maciço de terreno (atlas_terreno).",
+    "descricao": "Cria paredes, muros ou cercas avulsos em metros. Para salas use atlas_comodos. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1362,7 +1362,7 @@
   },
   {
     "nome": "atlas_portas",
-    "descricao": "Abre portas, janelas, arcos ou passagens secretas na parede mais próxima (metros, até ~0,75 m da parede; um passo de desfazer). Crie cômodo/parede antes.",
+    "descricao": "Abre portas, janelas, arcos ou passagens secretas na parede mais próxima (em metros). Crie cômodo/parede antes. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1421,7 +1421,7 @@
   },
   {
     "nome": "atlas_presenca",
-    "descricao": "Pinta presença (musgo, sangue, mofo, fuligem...) em metros (um passo de desfazer). Pincéis em atlas_catalogo { parte: \"presenca\" }.",
+    "descricao": "Pinta presença (musgo, sangue, mofo...) em metros. Pincéis: atlas_catalogo presenca. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1445,7 +1445,7 @@
           ]
         },
         "forma": {
-          "description": "Forma em metros: disco, poligono, faixa, retangulo ou celulas. irregular opcional (m).",
+          "description": "Forma em metros.",
           "oneOf": [
             {
               "type": "object",
@@ -1588,7 +1588,7 @@
   },
   {
     "nome": "atlas_regioes",
-    "descricao": "Cria regiões funcionais no mapa aberto em metros (um passo de desfazer): reveal, trigger, audio ou note.",
+    "descricao": "Cria regiões funcionais (reveal, trigger, audio, note) no mapa aberto, em metros.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1650,7 +1650,7 @@
   },
   {
     "nome": "atlas_remover",
-    "descricao": "Remove entidades do mapa aberto pelos ids (atlas_mapa_ler). O que é do mestre pede confirmação no painel. Um passo de desfazer.",
+    "descricao": "Remove entidades do mapa aberto pelos ids (atlas_mapa_ler). O que é do mestre pede confirmação. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1674,7 +1674,7 @@
   },
   {
     "nome": "atlas_terreno",
-    "descricao": "Pinta ou apaga terreno no mapa aberto (um passo de desfazer), em METROS. Operações: { acao, material, forma }. Materiais: atlas_catalogo { parte: \"materiais\" }.",
+    "descricao": "Pinta ou apaga terreno do mapa aberto, em METROS. Materiais: atlas_catalogo materiais. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1698,7 +1698,7 @@
                 "type": "string"
               },
               "forma": {
-                "description": "Forma em metros: disco, poligono, faixa, retangulo ou celulas. irregular opcional (m).",
+                "description": "Forma em metros.",
                 "oneOf": [
                   {
                     "type": "object",
@@ -1860,7 +1860,7 @@
   },
   {
     "nome": "atlas_ver_mapa",
-    "descricao": "Captura imagem JPEG do mapa aberto. Sem caixa, mostra o mapa todo; com caixa [x0,y0,x1,y1] em metros, mostra recorte. Retorna escala e caixa.",
+    "descricao": "Captura imagem JPEG do mapa aberto (todo, ou recorte com caixa [x0,y0,x1,y1] em metros). Retorna escala e caixa.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1965,7 +1965,7 @@
   },
   {
     "nome": "dossie_ameaca_criar",
-    "descricao": "Cria uma ficha de ameaça (monstro) no Dossiê com os números do VD, como o wizard: defesa, PV, salvaguardas, presença e dano vêm da tabela de balanceamento. A ficha abre na tela e entra na campanha como \"ameaca\". Devolve o id.",
+    "descricao": "Cria uma ficha de ameaça com os números do VD, como o wizard. Devolve o id. Detalhes: plataforma_guia ferramentas-dossie.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1976,7 +1976,7 @@
           "type": "integer",
           "minimum": 10,
           "maximum": 400,
-          "description": "Valor de Desafio (20, 40, 60, 80, 100... até 400)."
+          "description": "Valor de Desafio."
         },
         "elementos": {
           "type": "array",
@@ -1990,7 +1990,7 @@
               "medo"
             ]
           },
-          "description": "Obrigatório se paranormal; o primeiro é o principal."
+          "description": "Obrigatório se paranormal."
         },
         "categoria": {
           "type": "string",
@@ -1998,11 +1998,11 @@
             "paranormal",
             "mundana"
           ],
-          "description": "Padrão: paranormal."
+          "description": "Padrão paranormal."
         },
         "tipo": {
           "type": "string",
-          "description": "Paranormal: Criatura, Relíquia. Mundana: Humano, Animal, Veículo."
+          "description": "Tipos por categoria: ver guia."
         },
         "tamanho": {
           "type": "string",
@@ -2014,7 +2014,7 @@
             "Enorme",
             "Colossal"
           ],
-          "description": "Padrão: Médio."
+          "description": "Padrão Médio."
         },
         "preset": {
           "type": "string",
@@ -2023,7 +2023,7 @@
             "editora",
             "leve"
           ],
-          "description": "Dureza dos números: editora (tabela do livro), equilibrada (padrão) ou leve."
+          "description": "Dureza dos números."
         },
         "arquetipo": {
           "type": "string",
@@ -2033,18 +2033,18 @@
             "mental",
             "boss"
           ],
-          "description": "Opcional: ajusta atributos, PV e Defesa como no wizard. Sem ele, PV e Defesa saem exatamente da tabela."
+          "description": "Opcional, como no wizard."
         },
         "subtitulo": {
           "type": "string"
         },
         "descricao": {
           "type": "string",
-          "description": "Vai para as notas do mestre da ficha."
+          "description": "Notas do mestre."
         },
         "acoes": {
           "type": "array",
-          "description": "Substitui a ação padrão (\"Agredir\"). Com \"dano\", a ação leva um ataque com o teste da tabela.",
+          "description": "Substitui a ação padrão.",
           "items": {
             "type": "object",
             "properties": {
@@ -2119,7 +2119,7 @@
   },
   {
     "nome": "dossie_ficha_criar",
-    "descricao": "Cria uma ficha de personagem mínima e coerente (os números derivados vêm das regras do sistema) e a abre na tela. Devolve o id. Ameaças usam dossie_ameaca_criar.",
+    "descricao": "Cria uma ficha de personagem mínima e a abre na tela. Devolve o id. Ameaças: dossie_ameaca_criar. Detalhes: plataforma_guia ferramentas-dossie.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -2141,24 +2141,24 @@
             "ocultista",
             "sobrevivente"
           ],
-          "description": "Só \"original\". Padrão: combatente."
+          "description": "Só \"original\"."
         },
         "nex": {
           "type": "integer",
           "minimum": 0,
           "maximum": 99,
-          "description": "Só \"original\". Padrão: 5 (sobrevivente: estágio 1)."
+          "description": "Só \"original\"."
         },
         "atributos": {
           "type": "object",
-          "description": "original: for, agi, vig, int, pre (0 a 7; padrão 1). ordem2: Físico, Mente, Emoção.",
+          "description": "Chaves por sistema: ver guia.",
           "additionalProperties": {
             "type": "integer"
           }
         },
         "conceito": {
           "type": "string",
-          "description": "Vai para a história da ficha."
+          "description": "Vai para a história."
         }
       },
       "required": [
@@ -2171,7 +2171,7 @@
   },
   {
     "nome": "dossie_ficha_editar",
-    "descricao": "Edita campos simples de uma ficha (texto e números; veja a lista em \"campos\"). Se a ficha não foi criada pelo assistente, o mestre confirma na aba do Dossiê. Não apaga fichas nem mexe em retrato, licença do bestiário ou pastas.",
+    "descricao": "Edita campos simples de uma ficha (texto e números). O mestre confirma se a ficha não é do assistente. Detalhes: plataforma_guia ferramentas-dossie.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -2184,56 +2184,24 @@
         },
         "campos": {
           "type": "object",
-          "description": "Campos por tipo de ficha. Ameaça: nome, subtitulo, vd, pv, pvMax, defesa, tipo, tamanho, notas. ordem2: nome, ocupacao, historia, pv, pvMax, pd, pdMax. original: nome, jogador, historia, pv, pe, san.",
+          "description": "Campos por tipo de ficha: ver guia.",
           "properties": {
-            "nome": {
-              "description": "Nome da ameaça."
-            },
-            "subtitulo": {
-              "description": "Subtítulo (ex.: \"SANGUE\")."
-            },
-            "vd": {
-              "description": "Valor de Desafio (só o rótulo; não recalcula os números)."
-            },
-            "pv": {
-              "description": "PV atuais."
-            },
-            "pvMax": {
-              "description": "PV máximos."
-            },
-            "defesa": {
-              "description": "Defesa."
-            },
-            "tipo": {
-              "description": "Tipo da criatura (Criatura, Relíquia, Humano, Animal, Veículo)."
-            },
-            "tamanho": {
-              "description": "Tamanho: Minúsculo, Pequeno, Médio, Grande, Enorme, Colossal."
-            },
-            "notas": {
-              "description": "Notas do mestre (texto livre)."
-            },
-            "ocupacao": {
-              "description": "Ocupação."
-            },
-            "historia": {
-              "description": "História / anotações."
-            },
-            "pd": {
-              "description": "PD (Pontos de Determinação) atuais."
-            },
-            "pdMax": {
-              "description": "PD máximos."
-            },
-            "jogador": {
-              "description": "Nome do jogador."
-            },
-            "pe": {
-              "description": "PE atuais."
-            },
-            "san": {
-              "description": "Sanidade atual."
-            }
+            "nome": {},
+            "subtitulo": {},
+            "vd": {},
+            "pv": {},
+            "pvMax": {},
+            "defesa": {},
+            "tipo": {},
+            "tamanho": {},
+            "notas": {},
+            "ocupacao": {},
+            "historia": {},
+            "pd": {},
+            "pdMax": {},
+            "jogador": {},
+            "pe": {},
+            "san": {}
           },
           "additionalProperties": true
         }
@@ -2247,13 +2215,13 @@
   },
   {
     "nome": "dossie_ficha_ler",
-    "descricao": "Lê uma ficha em resumo legível: nome, sistema, atributos, PV/PD e, para ameaça, VD, elementos, defesa, salvaguardas e ações.",
+    "descricao": "Lê o resumo de uma ficha (atributos, PV/PD; ameaça: VD, defesa, ações).",
     "esquema": {
       "type": "object",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Id da ficha (de dossie_fichas_listar)."
+          "description": "De dossie_fichas_listar."
         }
       },
       "required": [
@@ -2265,7 +2233,7 @@
   },
   {
     "nome": "dossie_fichas_listar",
-    "descricao": "Lista as fichas do Dossiê (personagens e ameaças): id, ref, nome, tipo, sistema. Filtre por tipo ou por parte do nome.",
+    "descricao": "Lista as fichas do Dossiê (personagens e ameaças) com id, ref, nome, tipo e sistema.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -2278,7 +2246,7 @@
         },
         "busca": {
           "type": "string",
-          "description": "Parte do nome, sem diferenciar maiúsculas e acentos."
+          "description": "Parte do nome."
         }
       },
       "required": [],
@@ -2288,13 +2256,13 @@
   },
   {
     "nome": "jukebox_efeito",
-    "descricao": "Dispara um efeito sonoro avulso da Jukebox, por cima da música. Aceita o slug, o ref (mesa:jukebox/efeito/<slug>) ou o título, sem diferenciar maiúsculas e acentos. Pedido de novo, recomeça.",
+    "descricao": "Dispara um efeito avulso por cima da música, por slug, ref ou título. Detalhes: plataforma_guia ferramentas-jukebox.",
     "esquema": {
       "type": "object",
       "properties": {
         "efeito": {
           "type": "string",
-          "description": "Slug, ref ou título do efeito."
+          "description": "Slug, ref ou título."
         }
       },
       "required": [
@@ -2306,7 +2274,7 @@
   },
   {
     "nome": "jukebox_listar",
-    "descricao": "Lista as cenas sonoras (trilhas) e os efeitos avulsos carregados na Jukebox, com o ref de cada um e qual cena está tocando.",
+    "descricao": "Lista cenas sonoras e efeitos da Jukebox, com ref, e qual cena toca.",
     "esquema": {
       "type": "object",
       "properties": {},
@@ -2317,14 +2285,14 @@
   },
   {
     "nome": "jukebox_parar",
-    "descricao": "Para tudo o que toca na Jukebox (cena e efeitos) com um fade out. Padrão: 1000 ms.",
+    "descricao": "Para cena e efeitos com fade out. Detalhes: plataforma_guia ferramentas-jukebox.",
     "esquema": {
       "type": "object",
       "properties": {
         "ms": {
           "type": "number",
           "minimum": 0,
-          "description": "Duração do fade out em milissegundos (padrão 1000)."
+          "description": "Fade out em ms (padrão 1000)."
         }
       },
       "required": [],
@@ -2334,13 +2302,13 @@
   },
   {
     "nome": "jukebox_tocar",
-    "descricao": "Toca uma cena sonora da Jukebox (a trilha de uma cena). Aceita o id, o ref (mesa:jukebox/cena-sonora/<id>) ou o nome, sem diferenciar maiúsculas e acentos. Pedir a cena que já toca não a desliga.",
+    "descricao": "Toca uma cena sonora da Jukebox, por id, ref ou nome. Detalhes: plataforma_guia ferramentas-jukebox.",
     "esquema": {
       "type": "object",
       "properties": {
         "cena": {
           "type": "string",
-          "description": "Id, ref ou nome da cena sonora."
+          "description": "Id, ref ou nome."
         }
       },
       "required": [
@@ -2352,7 +2320,7 @@
   },
   {
     "nome": "mesa_abrir_apps",
-    "descricao": "Abre outros aplicativos da plataforma em abas novas (pelo manifesto de cada um, ao lado da Mesa). O navegador pode bloquear a aba quando o mestre não clicou; nesse caso a Mesa mostra um aviso com o botão \"Abrir\" e a resposta diz que ficou pendente do clique do mestre.",
+    "descricao": "Abre outros apps da plataforma em abas novas; o navegador pode bloquear e ficar pendente do clique do mestre. Detalhes: plataforma_guia ferramentas-mesa.",
     "esquema": {
       "type": "object",
       "required": [
@@ -2396,7 +2364,7 @@
   },
   {
     "nome": "mesa_cena_ler",
-    "descricao": "Lê o que está montado numa cena: mapa, trilha, participantes (personagens e ameaças), pistas, momento de abertura e se é encontro, com os nomes.",
+    "descricao": "Lê o que está montado numa cena (mapa, trilha, participantes, pistas, momento, encontro), com nomes.",
     "esquema": {
       "type": "object",
       "required": [
@@ -2406,7 +2374,7 @@
       "properties": {
         "cenaId": {
           "type": "string",
-          "description": "Id da entidade cena."
+          "description": "Entidade cena."
         }
       }
     },
@@ -2417,7 +2385,7 @@
   },
   {
     "nome": "mesa_cena_montar",
-    "descricao": "Monta uma cena da campanha (entidade do tipo \"cena\"): mapa, trilha sonora, participantes, pistas, momento de abertura e marca de encontro. Todos os ids são de ENTIDADES da campanha (campanha_ler lista as entidades; mapas e cômodos do Atlas aparecem como \"lugar\", cenas sonoras do Jukebox como cena/efeito do Jukebox, fichas como personagem/ameaça, documentos do Ateliê como pista). \"mapa\" e \"trilha\" trocam o anterior; participantes e pistas acrescentam. Tudo é conferido antes de gravar. Devolve o pacote resultante com nomes. O ativar da cena (Modo Sessão) usa esse pacote.",
+    "descricao": "Monta uma cena: mapa, trilha, participantes, pistas, momento e encontro, tudo por ids de ENTIDADES (de campanha_ler). Detalhes: plataforma_guia ferramentas-mesa.",
     "esquema": {
       "type": "object",
       "required": [
@@ -2427,37 +2395,37 @@
       "properties": {
         "cenaId": {
           "type": "string",
-          "description": "Id da entidade cena."
+          "description": "Entidade cena."
         },
         "mapa": {
           "type": "string",
-          "description": "Id da entidade lugar (mapa ou cômodo do Atlas)."
+          "description": "Entidade lugar."
         },
         "trilha": {
           "type": "string",
-          "description": "Id da entidade da cena sonora/efeito do Jukebox."
+          "description": "Entidade do Jukebox."
         },
         "participantes": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Ids de personagens e ameaças."
+          "description": "Ids de entidades."
         },
         "pistas": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Ids de pistas (documentos do Ateliê)."
+          "description": "Ids de entidades."
         },
         "momento": {
           "type": "string",
-          "description": "Nome (ou id) de um momento do mapa da cena, criado no Atlas (atlas_momento). Vira a etiqueta \"momento:<texto>\"; ao ativar a cena a Mesa pede ao Atlas que toque esse momento NO MAPA vinculado (o Atlas procura por id ou nome, sem diferenciar maiúsculas). Só funciona com mapa vinculado. Texto vazio remove o momento."
+          "description": "Nome ou id de momento do mapa; vazio remove."
         },
         "encontro": {
           "type": "boolean",
-          "description": "true marca a cena como encontro de combate (etiqueta \"encontro\"); false desmarca."
+          "description": "true marca como encontro."
         }
       }
     },
@@ -2468,7 +2436,7 @@
   },
   {
     "nome": "mesa_elenco",
-    "descricao": "Escolhe quem faz parte do elenco recorrente da campanha (os PJs e NPCs que aparecem no painel Personagens do Atlas). Aceita IDs de entidades da Mesa, Refs (ex.: \"mesa:ficha/ficha/...\") ou nomes de personagens. Se ambos acrescentar e remover forem omitidos, define o elenco vazio []. Devolve o elenco com nomes e quem ficou de fora.",
+    "descricao": "Define o elenco recorrente da campanha (painel Personagens do Atlas), por ids, Refs ou nomes. Detalhes: plataforma_guia ferramentas-mesa.",
     "esquema": {
       "type": "object",
       "required": [],
@@ -2479,14 +2447,14 @@
           "items": {
             "type": "string"
           },
-          "description": "IDs de entidades, Refs ou nomes de personagens a incluir no elenco (na ordem informada)."
+          "description": "Ids, Refs ou nomes a incluir."
         },
         "remover": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "IDs de entidades, Refs ou nomes de personagens a tirar do elenco."
+          "description": "Ids, Refs ou nomes a tirar."
         }
       }
     },
@@ -2511,7 +2479,7 @@
   },
   {
     "nome": "mesa_entidade_criar",
-    "descricao": "Cria uma entidade na campanha ativa (aparece na coleção da Mesa, sem mudar o que o mestre está vendo). Tipos: personagem, lugar, pista, faccao, sessao, nota, cena, ameaca. As notas aceitam [[Nome]] para citar outra entidade (cria a ligação \"menciona\"; o nome tem de existir). As entidades da Mesa têm a referência \"mesa:mesa/entidade/<id>\" (o id vem de mesa_entidade_criar, de campanha_ler (que lista as entidades) ou de campanha_entidade_ler).",
+    "descricao": "Cria uma entidade na campanha ativa. Tipos: personagem, lugar, pista, faccao, sessao, nota, cena, ameaca. Notas aceitam [[Nome]]. Detalhes: plataforma_guia ferramentas-mesa.",
     "esquema": {
       "type": "object",
       "required": [
@@ -2541,11 +2509,11 @@
           "items": {
             "type": "string"
           },
-          "description": "Etiquetas sem \"#\" (ex.: [\"ferreiro\"]). Use \"encontro\" em cenas de combate."
+          "description": "Sem \"#\"."
         },
         "notas": {
           "type": "string",
-          "description": "Texto livre; [[Nome]] liga a outra entidade."
+          "description": "[[Nome]] liga a outra entidade."
         }
       }
     },
@@ -2556,7 +2524,7 @@
   },
   {
     "nome": "mesa_entidade_editar",
-    "descricao": "Edita uma entidade criada pela Mesa (nome, tags, notas). As de outros aplicativos (ex.: fichas do Dossiê) são recusadas. \"notas\" troca o texto; \"acrescentarNotas\" soma ao fim (se os dois vierem, troca e depois soma). As [[ligações]] das notas são refeitas. Não remove entidades. As entidades da Mesa têm a referência \"mesa:mesa/entidade/<id>\" (o id vem de mesa_entidade_criar, de campanha_ler (que lista as entidades) ou de campanha_entidade_ler).",
+    "descricao": "Edita uma entidade criada pela Mesa (nome, tags, notas); as de outros apps são recusadas. Não remove. Detalhes: plataforma_guia ferramentas-mesa.",
     "esquema": {
       "type": "object",
       "required": [
@@ -2566,7 +2534,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Id da entidade (sem o prefixo \"mesa:mesa/entidade/\")."
+          "description": "Sem o prefixo \"mesa:mesa/entidade/\"."
         },
         "nome": {
           "type": "string"
@@ -2576,15 +2544,15 @@
           "items": {
             "type": "string"
           },
-          "description": "Troca todas as etiquetas."
+          "description": "Troca todas."
         },
         "notas": {
           "type": "string",
-          "description": "Troca o texto das notas."
+          "description": "Troca o texto."
         },
         "acrescentarNotas": {
           "type": "string",
-          "description": "Texto somado ao fim das notas."
+          "description": "Soma ao fim."
         }
       }
     },
@@ -2595,7 +2563,7 @@
   },
   {
     "nome": "mesa_ligar",
-    "descricao": "Liga duas coisas da campanha (ex.: um NPC a um lugar). \"de\" e \"para\" são referências: objeto {app, tipo, id} ou texto \"mesa:app/tipo/id\". As entidades da Mesa têm a referência \"mesa:mesa/entidade/<id>\" (o id vem de mesa_entidade_criar, de campanha_ler (que lista as entidades) ou de campanha_entidade_ler). Tipos de ligação: aparece-em, esta-em, revela, toca-em, pertence-a, menciona. Ex.: personagem \"esta-em\" lugar; pista \"revela\" personagem.",
+    "descricao": "Liga duas referências da campanha (de, para, tipo: aparece-em, esta-em, revela, toca-em, pertence-a, menciona). Detalhes: plataforma_guia ferramentas-mesa.",
     "esquema": {
       "type": "object",
       "required": [
@@ -2606,7 +2574,7 @@
       "additionalProperties": false,
       "properties": {
         "de": {
-          "description": "Referência: objeto {app, tipo, id} ou texto \"mesa:app/tipo/id\" (ex.: \"mesa:atlas/mapa/abc123\").",
+          "description": "Ref: {app, tipo, id} ou \"mesa:app/tipo/id\".",
           "anyOf": [
             {
               "type": "string"
@@ -2633,7 +2601,7 @@
           ]
         },
         "para": {
-          "description": "Referência: objeto {app, tipo, id} ou texto \"mesa:app/tipo/id\" (ex.: \"mesa:atlas/mapa/abc123\").",
+          "description": "Ref: {app, tipo, id} ou \"mesa:app/tipo/id\".",
           "anyOf": [
             {
               "type": "string"
@@ -2679,7 +2647,7 @@
   },
   {
     "nome": "mesa_o_que_vejo",
-    "descricao": "O que o mestre tem na tela da Mesa agora: a campanha, a tela atual (coleção, sessão, campanhas, aplicativos) e o item aberto (a entidade selecionada). Use para entender \"esta sessão\", \"este personagem\".",
+    "descricao": "O que o mestre tem na tela da Mesa: campanha, tela atual e item aberto. Use para entender \"esta sessão\", \"este personagem\".",
     "esquema": {
       "type": "object",
       "properties": {},
@@ -2693,17 +2661,16 @@
   },
   {
     "nome": "mesa_sessao_criar",
-    "descricao": "Planeja uma sessão da campanha ativa para a próxima mesa. NÃO abre nem começa a gravar o registro; ela aparece no Diário da Mesa. Devolve o id para usar em mesa_sessao_editar.",
+    "descricao": "Planeja uma sessão da campanha ativa (não abre nem grava registro). Devolve o id para mesa_sessao_editar. Detalhes: plataforma_guia ferramentas-mesa.",
     "esquema": {
       "type": "object",
       "properties": {
         "nome": {
-          "type": "string",
-          "description": "Ex.: \"Sessão 12\"."
+          "type": "string"
         },
         "data": {
           "type": "string",
-          "description": "Data prevista, \"AAAA-MM-DD\". Omitida, vale hoje."
+          "description": "\"AAAA-MM-DD\"; padrão hoje."
         }
       },
       "required": [
@@ -2718,7 +2685,7 @@
   },
   {
     "nome": "mesa_sessao_editar",
-    "descricao": "Edita uma sessão (qualquer uma, aberta ou não): renomeia, monta o roteiro e anota itens. Ordem de aplicação: remover, acrescentar, ordem, notas. O roteiro tem no máximo 64 itens e não repete; o que não coube vem em \"ignorados\". Nota de item que não está no roteiro é ignorada; texto vazio apaga a nota.",
+    "descricao": "Edita uma sessão: renomeia, monta o roteiro (máx. 64 itens) e anota itens. Aplica remover, acrescentar, ordem, notas. Detalhes: plataforma_guia ferramentas-mesa.",
     "esquema": {
       "type": "object",
       "required": [
@@ -2728,7 +2695,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Id da sessão (de mesa_sessoes_listar ou mesa_sessao_criar)."
+          "description": "De mesa_sessoes_listar."
         },
         "nome": {
           "type": "string"
@@ -2739,9 +2706,9 @@
           "properties": {
             "acrescentar": {
               "type": "array",
-              "description": "Itens a pôr no fim do roteiro (mapas, cenas sonoras, documentos, fichas).",
+              "description": "Itens a pôr no fim.",
               "items": {
-                "description": "Referência: objeto {app, tipo, id} ou texto \"mesa:app/tipo/id\" (ex.: \"mesa:atlas/mapa/abc123\").",
+                "description": "Ref: {app, tipo, id} ou \"mesa:app/tipo/id\".",
                 "anyOf": [
                   {
                     "type": "string"
@@ -2770,9 +2737,9 @@
             },
             "remover": {
               "type": "array",
-              "description": "Itens a tirar (a nota deles sai junto).",
+              "description": "Itens a tirar.",
               "items": {
-                "description": "Referência: objeto {app, tipo, id} ou texto \"mesa:app/tipo/id\" (ex.: \"mesa:atlas/mapa/abc123\").",
+                "description": "Ref: {app, tipo, id} ou \"mesa:app/tipo/id\".",
                 "anyOf": [
                   {
                     "type": "string"
@@ -2801,9 +2768,9 @@
             },
             "ordem": {
               "type": "array",
-              "description": "Nova ordem: estes itens vão para o começo, nesta ordem; os demais ficam depois.",
+              "description": "Estes vão para o começo, nesta ordem.",
               "items": {
-                "description": "Referência: objeto {app, tipo, id} ou texto \"mesa:app/tipo/id\" (ex.: \"mesa:atlas/mapa/abc123\").",
+                "description": "Ref: {app, tipo, id} ou \"mesa:app/tipo/id\".",
                 "anyOf": [
                   {
                     "type": "string"
@@ -2843,7 +2810,7 @@
             ],
             "properties": {
               "ref": {
-                "description": "Referência: objeto {app, tipo, id} ou texto \"mesa:app/tipo/id\" (ex.: \"mesa:atlas/mapa/abc123\").",
+                "description": "Ref: {app, tipo, id} ou \"mesa:app/tipo/id\".",
                 "anyOf": [
                   {
                     "type": "string"

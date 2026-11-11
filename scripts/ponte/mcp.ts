@@ -166,6 +166,7 @@ export function erroAppFechado(app: string, origem = 'http://127.0.0.1:5100'): s
 export function ehLeitura(nome: string): boolean {
   return (
     nome === 'ponte_estado' ||
+    nome === 'plataforma_guia' ||
     nome === 'mesa_campanha_atual' ||
     nome === 'atlas_catalogo' ||
     nome.startsWith('campanha_') ||
@@ -445,10 +446,54 @@ export function textoDoEstado(
   return texto;
 }
 
-/** Ferramentas para o `tools/list`: `ponte_estado` sempre, depois as do catálogo. */
-export function listarFerramentas(catalogo: FerramentaDoApp[]) {
+export const CAMINHO_GUIA_PADRAO = path.join(raiz, 'docs', 'assistente', 'guia');
+
+export interface SecaoDoGuia { nome: string; resumo: string; texto: string }
+
+/** Lê os `*.md` da pasta do guia (ordem alfabética). O resumo é a linha `> resumo: …` do começo do arquivo. */
+export function lerGuia(pasta: string): SecaoDoGuia[] {
+  let arquivos: string[];
+  try {
+    arquivos = fs.readdirSync(pasta).filter(a => a.endsWith('.md')).sort();
+  } catch {
+    return [];
+  }
+  return arquivos.map(a => {
+    const texto = fs.readFileSync(path.join(pasta, a), 'utf8');
+    const primeira = texto.split('\n', 1)[0] ?? '';
+    const m = /^>\s*resumo:\s*(.*)$/i.exec(primeira);
+    return { nome: a.slice(0, -3), resumo: m ? m[1]!.trim() : primeira.replace(/^[#>\s]+/, '').trim(), texto };
+  });
+}
+
+export function ferramentaGuia(secoes: SecaoDoGuia[]) {
+  return {
+    name: 'plataforma_guia',
+    description: 'Guia de como usar a plataforma. Sem `secao`, lista as seções; com `secao`, devolve o texto. Consulte antes de compor um mapa, criar um momento, planejar uma sessão ou criar documentos e fichas.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: { secao: { type: 'string', enum: secoes.map(s => s.nome), description: 'Nome da seção; omita para ver o índice.' } },
+    },
+    annotations: { readOnlyHint: true, idempotentHint: true },
+  };
+}
+
+export function textoDoGuia(secoes: SecaoDoGuia[], secao?: unknown) {
+  const lista = secoes.map(s => s.nome).join(', ');
+  if (secao === undefined || secao === null || secao === '') {
+    if (secoes.length === 0) return { content: [{ type: 'text' as const, text: 'O guia está vazio.' }] };
+    return { content: [{ type: 'text' as const, text: `Seções do guia (chame plataforma_guia com a seção):\n${secoes.map(s => `- ${s.nome}: ${s.resumo}`).join('\n')}` }] };
+  }
+  const achada = typeof secao === 'string' ? secoes.find(s => s.nome === secao) : undefined;
+  if (!achada) return { isError: true, content: [{ type: 'text' as const, text: `Seção "${String(secao)}" não existe. Seções: ${lista || '(nenhuma)'}.` }] };
+  return { content: [{ type: 'text' as const, text: achada.texto }] };
+}
+
+/** Ferramentas para o `tools/list`: `ponte_estado` e `plataforma_guia` sempre, depois as do catálogo. */
+export function listarFerramentas(catalogo: FerramentaDoApp[], guia: SecaoDoGuia[] = []) {
   return [
     FERRAMENTA_ESTADO,
+    ferramentaGuia(guia),
     ...catalogo.map(f => {
       const anotacoes = anotacoesDaFerramenta(f.nome, f.anotacoes);
       return {
@@ -487,7 +532,8 @@ export function acrescentarAviso<T extends { content: Array<{ type: 'text'; text
 }
 
 /** `tools/call`: roteia para `ponte_estado` ou para a ponte e converte o resultado. */
-export async function chamarFerramenta(ponta: Ponta, nome: string, args: Record<string, unknown>, prazoMs?: number) {
+export async function chamarFerramenta(ponta: Ponta, nome: string, args: Record<string, unknown>, prazoMs?: number, guia: SecaoDoGuia[] = []) {
+  if (nome === 'plataforma_guia') return textoDoGuia(guia, args.secao);
   const ativas = ponta.ativas();
   const apps = ponta.apps();
   if (nome === FERRAMENTA_ESTADO.name) return { content: [{ type: 'text' as const, text: textoDoEstado(ponta.conectada(), ativas, apps, ponta.motivo()) }] };
@@ -519,6 +565,8 @@ export interface McpOpcoes {
   prazoMs?: number;
   intervaloDeProgressoMs?: number;
   instrucoes?: string;
+  /** Pasta dos `*.md` do guia; lida uma vez na partida. */
+  pastaDoGuia?: string;
 }
 
 /** Monta o servidor MCP `mesa` (sem transporte) sobre uma conexão com a ponte. */
@@ -530,12 +578,13 @@ export function criarServidorMcp(op: McpOpcoes) {
       ...(op.instrucoes !== undefined ? { instructions: op.instrucoes } : {}),
     },
   );
+  const guia = lerGuia(op.pastaDoGuia ?? CAMINHO_GUIA_PADRAO);
   let pronto = false;
   const ponta = conectarNaPonte({
     ...op,
     aoMudar: () => { if (pronto) server.sendToolListChanged().catch(() => {}); },
   });
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: listarFerramentas(ponta.catalogo()) }));
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: listarFerramentas(ponta.catalogo(), guia) }));
   server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
     const progressToken = req.params._meta?.progressToken;
     let timerProgresso: NodeJS.Timeout | null = null;
@@ -551,7 +600,7 @@ export function criarServidorMcp(op: McpOpcoes) {
       }, intervalo);
     }
     try {
-      return await chamarFerramenta(ponta, req.params.name, (req.params.arguments ?? {}) as Record<string, unknown>, op.prazoMs);
+      return await chamarFerramenta(ponta, req.params.name, (req.params.arguments ?? {}) as Record<string, unknown>, op.prazoMs, guia);
     } finally {
       if (timerProgresso) clearInterval(timerProgresso);
     }
@@ -563,7 +612,7 @@ export function criarServidorMcp(op: McpOpcoes) {
 async function principal() {
   const porta = process.env.MESA_PORTA ?? '5100';
   const arquivoDoToken = path.join(raiz, '.ponte', 'token');
-  const caminhoInstrucoes = path.join(raiz, 'docs', 'assistente', 'instrucoes.md');
+  const caminhoInstrucoes = path.join(raiz, 'docs', 'assistente', 'nucleo.md');
   let instrucoes: string | undefined;
   try {
     if (fs.existsSync(caminhoInstrucoes)) {

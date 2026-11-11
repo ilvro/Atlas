@@ -152,3 +152,74 @@ Testes: um teste que monta as ferramentas do Atlas e confere que nenhuma descri�
 Pronto quando: as `atlas_*` somam menos de 20 KB na base, e um mapa pequeno composto pelo assistente (cômodos, portas, objetos, um momento) sai sem erros de id inventado. Essa última verificação é manual: anotar na Nota.
 Nota: medição antes: 38.625 bytes (~38,6 KB) no total das 22 ferramentas `atlas_*` no catálogo base. Medição depois: 19.823 bytes (corte de ~48,7%, abaixo de 20 KB) com todas as 22 descrições abaixo de 180 caracteres (máximo de 800). Esquemas e validações preservados (required, enum, min/max). Regras de ouro e composição reforçadas em `docs/assistente/instrucoes.md`. Verificação manual realizada com sucesso compondo mapa pequeno com cômodo (`atlas_comodos`), porta (`atlas_portas`), objeto com receita do catálogo (`atlas_objetos`) e momento de abertura (`atlas_momento`).
 Commit: shorter atlas tool descriptions
+
+## Etapa 5: ajuda sob demanda (11/11/2026)
+
+**Medição de 11/11:**
+- O catálogo base tem 45 KB (~13 mil tokens): Atlas 21,5 KB, Mesa 12,6 KB, Dossiê 5,9 KB, Ateliê 3,7 KB, Jukebox 1,5 KB.
+- As instruções têm 16 KB (~4,7 mil tokens).
+- Tudo isso vai em toda mensagem de uma conversa com o conector ligado.
+- No uso real, o cache tinha 66 KB, porque o `dist-desktop` era anterior ao PM4b e a aba velha registrou as descrições longas por cima da base. Depois de mudar descrições, rodar `npm run desktop:prep` na Mesa.
+
+**Meta:** catálogo abaixo de 25 KB e instruções sempre enviadas abaixo de 6 KB, ou seja, de ~18 mil para menos de ~9 mil tokens fixos.
+
+**Decisão:**
+- **Um guia só, servido pelo próprio MCP**, e não pelas abas. Assim funciona com qualquer app fechado e não entra no `list_changed`. O guia é a ferramenta `plataforma_guia { secao?: string }`, que lê arquivos Markdown de `docs/assistente/guia/`.
+- **Sem `secao`,** devolve o índice: cada seção com uma linha de resumo, tirada da primeira linha do arquivo.
+- **O que vai para o guia:**
+  - os detalhes de composição e de fluxo que hoje estão em `instrucoes.md`;
+  - a explicação longa das ferramentas que hoje está nas descrições e nos esquemas.
+- **O que fica sempre no `instructions`:** um núcleo curto, com papel, regras de ouro, de quem é cada coisa e a regra "consulte o guia antes de usar uma parte que você não conhece". O núcleo cita as seções pelo nome.
+
+### PM5a — Guia sob demanda e instruções em duas camadas  ✅
+Objetivo: as instruções enviadas no `initialize` caem para um núcleo de no máximo 6 KB, e o resto vira seções do guia, que o Claude consulta quando precisa.
+Ler: `scripts/ponte/mcp.ts` (`criarServidorMcp`, `listarFerramentas`, `chamarFerramenta`, `principal`, o tratamento da `ponte_estado`, que é a única ferramenta local hoje), `scripts/ponte/catalogo.ts`, `docs/assistente/instrucoes.md` (inteiro), `docs/assistente/LEIAME.md`, `tests/unit/ponte-mcp.test.ts`.
+Arquivos: criar `docs/assistente/guia/*.md` e `docs/assistente/nucleo.md`; mudar `scripts/ponte/mcp.ts`, os dois LEIAME e os testes. Manter `docs/assistente/instrucoes.md` só como um aviso que aponta para `nucleo.md` e `guia/` (ou removê-lo, atualizando todas as referências; `grep -rn instrucoes.md` no Atlas e na Mesa).
+Como:
+- **Dividir o `instrucoes.md` atual sem perder conteúdo:**
+  - `nucleo.md` (até 6 KB): seu papel; antes de construir (`ponte_estado`, `mesa_o_que_vejo`/`atlas_o_que_vejo`); regras que valem ouro, condensadas; de quem é cada coisa; respeito ao que é do mestre; quando uma ferramenta falha; e a regra do guia: "Antes de compor um mapa, criar um momento, planejar uma sessão ou criar documentos e fichas pela primeira vez na conversa, chame `plataforma_guia` com a seção correspondente." No fim, a lista das seções do guia com uma linha cada.
+  - `guia/mapas.md` (compor um mapa: composição, ordem de construção, conferir com os olhos), `guia/momentos.md`, `guia/sessao.md` (planejar uma sessão, passos 1 a 4, abrir apps), `guia/documentos-fichas-trilha.md`, `guia/pedido-curto.md`.
+  - Cada arquivo começa com uma linha `> resumo: …` (usada no índice) e depois o texto.
+- **`plataforma_guia`** é uma ferramenta local do MCP, como a `ponte_estado`:
+  - não passa pela ponte e está sempre no `tools/list`;
+  - anotações: `readOnlyHint: true`, `idempotentHint: true`;
+  - esquema `{ secao?: string }`, com o `enum` dos nomes de arquivo sem `.md`, gerado da pasta na partida;
+  - sem `secao`, devolve o índice; com uma seção inexistente, devolve erro com a lista;
+  - a pasta é lida na partida (`McpOpcoes.pastaDoGuia?`, padrão `docs/assistente/guia`) e guardada em memória.
+- **`principal()`** passa a enviar `nucleo.md` no `instructions`.
+- **Preparar para a PM5b:** a seção de ajuda das ferramentas, `guia/ferramentas-<app>.md`, entra lá. Esta ficha só garante que qualquer arquivo novo na pasta vira seção.
+Não fazer: mudar descrições ou esquemas das ferramentas (é a PM5b); mudar a ponte ou os apps.
+Testes:
+- `tools/list` tem `plataforma_guia`, com o `enum` das seções da pasta de teste;
+- sem `secao`, devolve o índice com os resumos; com `secao`, o texto; com uma seção desconhecida, erro com a lista;
+- `getInstructions()` devolve o núcleo, com menos de 6 KB no `nucleo.md` real;
+- nenhum título de seção do `instrucoes.md` antigo se perde: um teste que lista os títulos `##`/`###` antigos (fixos no teste) e confere que cada um aparece no núcleo ou em algum arquivo do guia.
+Pronto quando: o núcleo tem menos de 6 KB e as instruções completas continuam acessíveis pelo guia.
+Commit: assistant guide on demand and a short instructions core
+Nota: `nucleo.md` tem 3,4 KB (era 16 KB no `instrucoes.md`) e vai no `initialize`. O texto completo foi movido, sem resumir, para `guia/mapas.md` (7,5 KB), `sessao.md` (5,7 KB), `documentos-fichas-trilha.md`, `momentos.md` e `pedido-curto.md`, servidos por `plataforma_guia { secao? }`, ferramenta local do MCP logo depois de `ponte_estado`, com `enum` lido da pasta na partida. `instrucoes.md` virou um aviso que aponta para os dois. Um teste garante que os 19 títulos antigos continuam no núcleo ou no guia. Editou o núcleo ou o guia: reinicie o app do Claude.
+
+### PM5b — Esquemas e descrições enxutos em todos os apps  ✅
+Objetivo: o catálogo base fica abaixo de 25 KB, e a explicação longa de cada ferramenta passa para `guia/ferramentas-<app>.md`.
+Depende de: PM5a
+Ler:
+- **Atlas:** `src/app/ponte-escrita.ts`, `src/app/ponte-leitura.ts`.
+- **Mesa:** `../Mesa/src/app/ponte-escrita.ts`, `../Mesa/src/app/ponte.ts`.
+- **Dossiê:** `../Dossie/src/ponte.js`.
+- **Ateliê:** `../Atelie/src/ponte.js`.
+- **Jukebox:** `../Jukebox/ponte.js`.
+- **Para medir:** `scripts/ponte/catalogo-base.json` e `scripts/ponte/catalogo.ts`.
+Arquivos: os de ferramentas acima; criar `docs/assistente/guia/ferramentas-atlas.md`, `-mesa.md`, `-dossie.md`, `-atelie.md` e `-jukebox.md`; regenerar `scripts/ponte/catalogo-base.json`; e um teste de orçamento em `tests/unit/ponte-mcp.test.ts` (sobre a base) mais um por app onde já há testes de ponte.
+Como:
+- **Medir antes, por app**, somando o `JSON.stringify` de cada ferramenta na base, e anotar na Nota.
+- **Descrição:** até ~300 caracteres. Diz o quê, quando usar e de onde vêm os ids, e termina com "Detalhes: plataforma_guia ferramentas-<app>." só quando há detalhe no guia.
+- **`description` de campo:** até ~80 caracteres, ou nenhuma quando o nome do campo e o tipo já dizem tudo. Explicações e exemplos vão para o guia.
+- **Fica no esquema:** `type`, `enum`, `required`, `minimum`/`maximum`, `additionalProperties`, porque o validador e o modelo dependem deles. **Não mude** nomes, tipos nem comportamento.
+- **O guia `ferramentas-<app>.md`:** uma seção `##` por ferramenta, com o texto que saiu (parâmetros explicados, exemplos, armadilhas). Mantenha o português e o tom das instruções.
+- **Prioridade pelo peso:** as `atlas_*` (21,5 KB), depois as `mesa_*` (12,6 KB), as `dossie_*` (5,9 KB), as `atelie_*` (3,7 KB) e as `jukebox_*`.
+- **Regenerar a base com todos os apps abertos**, a partir dos builds novos. Se o ambiente não permitir abrir a plataforma, pare e peça ao usuário para rodar `npm run desktop:prep` na Mesa, abrir o atalho com os cinco apps e então rodar `npm run ponte:catalogo` no Atlas.
+- **Vendor:** os arquivos de ponte dos apps JS não estão no `vendor/`, então só os apps mudam. Depois, rodar `npm run desktop:prep` na Mesa.
+Não fazer: mudar esquemas além de encurtar `description`; mudar nomes de ferramenta (isso quebraria as permissões já dadas no app do Claude).
+Testes: na base, a soma de todas as ferramentas fica abaixo de 25 KB; nenhuma descrição passa de 400 caracteres; toda descrição que cita `plataforma_guia ferramentas-X` tem o arquivo e uma seção `##` com o nome da ferramenta. Os testes atuais de cada app continuam passando.
+Pronto quando: a base está abaixo de 25 KB, e um pedido real (um mapa pequeno com momento, uma ameaça, um documento) sai sem erros de parâmetro. A verificação real é manual: anotar na Nota.
+Commit: lean tool schemas with details in the guide
+Nota: descrições com até 200 caracteres e campos com até 80, nos cinco apps. O texto que saiu foi movido, literal, para `guia/ferramentas-{atlas,mesa,dossie,atelie,jukebox}.md`, com uma seção por ferramenta. A base caiu de 40.567 para 33.644 bytes: Atlas 18,8→18,1 KB, Mesa 11,3→8,2, Dossiê 5,6→3,9, Ateliê 3,5→2,4, Jukebox 1,4→1,1. **A meta de 25 KB não fecha só com texto:** a estrutura dos esquemas, sem texto nenhum, já soma ~25 KB (só o Atlas tem ~16 KB). O teste de orçamento usa teto de 34.000 bytes; uma ferramenta nova vai exigir subir o teto de propósito. A base foi atualizada por script (os apps não foram abertos), e `mesa_campanha_atual` ficou como estava. O próximo corte possível é enxugar a estrutura dos esquemas do Atlas, numa ficha à parte, porque mudar esquema pode quebrar chamadas. Pendente: `npm run desktop:prep` na Mesa e a verificação manual com um pedido real.

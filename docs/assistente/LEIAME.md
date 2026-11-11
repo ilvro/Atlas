@@ -10,9 +10,16 @@ A ponte de cada app só carrega em desenvolvimento: Atlas, Mesa, Ateliê e Dossi
 2. **Subir a plataforma.** Com o atalho do app de desktop aberto (sem o `mesa-dev`), a ponte já funciona: o atalho hospeda a ponte na porta 5100 e o app se identifica ao MCP como "app da Mesa". Para desenvolver, o `mesa-dev` continua valendo (`npm run mesa-dev`, no Atlas): se ele estiver rodando, o atalho só abre a janela e a ponte é a dele.
 3. **Abrir a plataforma** no app de desktop ou em http://127.0.0.1:5100/ (Atlas ou Mesa). O selo "Assistente" no cabeçalho indica a conexão; `ponte_estado` confirma pelo lado do Claude.
    Depois de alterar o código da ponte, **reinicie o app do Claude** (o servidor MCP é um processo de longa vida e não recarrega sozinho) e rode `npm run desktop:prep` na Mesa para refazer o `dist-desktop`.
-4. **Colar as instruções (opcional):** o servidor MCP `mesa` já envia as instruções de [`instrucoes.md`](instrucoes.md) automaticamente ao conectar. Se quiser criar um projeto no app do Claude, use-o para o conhecimento da campanha (ou para instruções personalizadas). Depois de editar `instrucoes.md`, **reinicie o app do Claude** para que o servidor releia o arquivo.
+4. **Instruções em duas camadas (nada a colar):** o servidor MCP `mesa` envia [`nucleo.md`](nucleo.md) (até 6 KB) ao conectar e serve o resto sob demanda pela ferramenta `plataforma_guia`, que lê as seções de [`guia/`](guia/). Depois de editar o núcleo ou o guia, **reinicie o app do Claude** para o servidor reler os arquivos. Um projeto no app do Claude serve só para o conhecimento da campanha.
 5. **Modelo:** use o Opus para o trabalho criativo (compor mapas e momentos).
 
 ## Conteúdo
 
-- [`instrucoes.md`](instrucoes.md): papel do assistente, o que ler antes de construir, como compor um mapa em blocos conferidos com `atlas_ver_mapa`, as regras aprendidas na Fase 10, momentos e o respeito ao que é do mestre. Genérico para qualquer campanha. Inclui o fluxo de planejar uma sessão (ler a campanha e a última sessão, combinar o plano com o mestre, registrar entidades, criar mapas e momentos, montar cenas e criar a sessão com roteiro e notas, terminando com um resumo), com `mesa_abrir_apps` e a regra de dono. Documentos, fichas e trilha: `atelie_*` (modelos, documentos), `dossie_*` (fichas e ameaças pelo VD) e `jukebox_*` (listar, tocar, efeito, parar), com os apps abertos.
+- [`nucleo.md`](nucleo.md): o que vai sempre nas instruções: papel, o que ler antes de construir, regras de ouro condensadas, de quem é cada coisa, respeito ao que é do mestre e a regra de consultar o guia.
+- [`guia/`](guia/): seções lidas sob demanda por `plataforma_guia` (qualquer `.md` novo na pasta vira seção; a primeira linha é `> resumo: …`):
+  - `mapas`: o que ler antes, como compor um mapa em blocos conferidos com `atlas_ver_mapa`, as regras aprendidas na Fase 10 e o respeito ao que é do mestre.
+  - `momentos`: criar e testar momentos.
+  - `sessao`: planejar uma sessão (ler a campanha e a última sessão, plano aprovado, entidades, mapas e momentos, cenas, sessão com roteiro e notas, resumo), `mesa_abrir_apps`, falhas e regra de dono.
+  - `documentos-fichas-trilha`: `atelie_*`, `dossie_*` (ameaças pelo VD) e `jukebox_*`, com os apps abertos.
+  - `pedido-curto`: o ritmo de um pedido curto, em blocos.
+- [`instrucoes.md`](instrucoes.md): aviso curto que aponta para o núcleo e o guia (o texto antigo foi dividido entre eles).

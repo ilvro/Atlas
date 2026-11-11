@@ -171,14 +171,14 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
     },
     {
       nome: 'atlas_mapa_ler',
-      descricao: 'Resume o mapa (aberto ou por id): tamanho, terreno, cômodos (rets em m), objetos, luzes, regiões, peças, clima, acabamento, momentos e notas.',
+      descricao: 'Resume o mapa (aberto ou por id): terreno, cômodos, objetos, luzes, regiões, peças, clima, momentos e notas.',
       esquema: { type: 'object', properties: { id: { type: 'string' } }, required: [], additionalProperties: false },
       anotacoes: { leitura: true },
       async executar(args) { return [json(resumirMapa(await carregar(args.id)))]; },
     },
     {
       nome: 'atlas_catalogo',
-      descricao: 'Catálogo de opções: receitas, colecao, materiais, climas, luzes, presenca ou momentos. Sem parte, traz contagens. Use para não inventar ids.',
+      descricao: 'Catálogo de opções (receitas, colecao, materiais, climas, luzes, presenca, momentos). Use para não inventar ids.',
       esquema: { type: 'object', properties: { parte: { type: 'string', enum: [...PARTES] } }, required: [], additionalProperties: false },
       anotacoes: { leitura: true },
       async executar(args) { return [json(catalogo(typeof args.parte === 'string' ? args.parte : undefined))]; },
@@ -197,7 +197,7 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
     },
     {
       nome: 'atlas_ver_mapa',
-      descricao: 'Captura imagem JPEG do mapa aberto. Sem caixa, mostra o mapa todo; com caixa [x0,y0,x1,y1] em metros, mostra recorte. Retorna escala e caixa.',
+      descricao: 'Captura imagem JPEG do mapa aberto (todo, ou recorte com caixa [x0,y0,x1,y1] em metros). Retorna escala e caixa.',
       esquema: { type: 'object', properties: { caixa: { type: 'array', items: { type: 'number' }, minItems: 4, maxItems: 4 }, ladoMaximo: { type: 'number', minimum: 256, maximum: 1600 } }, required: [], additionalProperties: false },
       anotacoes: { leitura: true },
       async executar(args) {
