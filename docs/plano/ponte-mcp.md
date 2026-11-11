@@ -50,7 +50,7 @@ Testes:
 Pronto quando: abrir e fechar Atlas e Mesa em qualquer ordem não regrava `.ponte/ferramentas.json` nem notifica, e os 55 testes atuais continuam passando.
 Commit: stable mcp catalog and clearer bridge errors
 
-### PM2 — Prazo único e progresso  ⬜
+### PM2 — Prazo único e progresso  ✅
 Objetivo: nenhuma chamada passa do prazo do cliente sem dizer que a escrita pode ter acontecido.
 Depende de: PM1
 Ler: `scripts/ponte/mcp.ts` (`Ponta.chamar`, `chamarFerramenta`, `criarServidorMcp`), `scripts/ponte/servidor.ts` (`chamar`, `abrirApp`, `TEMPO_DA_CHAMADA_MS`), o tipo `RequestHandlerExtra` em `node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.d.ts`.
