@@ -1,6 +1,9 @@
 import { elipse, poli, ret, type Parte } from '../descricao.ts';
+import { tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
 import { mat, num, piso, type Receita } from './comum.ts';
+import { galho } from './ermos.ts';
+import { faixa } from './porto.ts';
 
 const G = { categoria: 'exterior' as const, tipo: 'piso' as const, funcoes: ['jardim'], kit: 'exterior' };
 const PEDRA = ['#7d7f86', '#6a6c73', '#8c8e94', '#5f6168'];
@@ -93,5 +96,125 @@ export const RECEITAS_EXTERIORES: Receita[] = [
         }
       }
       return piso([W, H], partes);
+    } },
+  { id: 'arvore-morta', nome: 'Árvore morta', ...G, funcoes: ['jardim', 'cemiterio'], tags: ['arvore', 'morta', 'seca', 'tronco', 'natureza', 'pantano'], pegada: [4, 4], altura: 3.5,
+    campos: [{ id: 'tamanho', rotulo: 'Tamanho (m)', tipo: 'numero', padrao: 4, min: 3, max: 6, passo: 0.5 }],
+    gerar: p => {
+      const r = mulberry32(p.seed), t = num(p, 'tamanho', 4, 3, 6), partes: Parte[] = [];
+      const CASCA_ESCURA = '#261f18', CASCA_MEDIA = '#362d24', CASCA_CLARA = '#483c30';
+
+      partes.push(elipse(0.04 * t, 0.05 * t, t * 0.32, t * 0.3, '#140f0b', 0.5, { contorno: false, sombraLeve: true }));
+
+      const nRaizes = 3 + Math.floor(r() * 2);
+      for (let i = 0; i < nRaizes; i++) {
+        const ang = (i / nRaizes) * Math.PI * 2 + (r() - 0.5) * 0.35, len = t * (0.12 + r() * 0.04);
+        partes.push(galho(0, 0, ang, len, t * 0.04, '#1e1813', 0.55));
+      }
+
+      partes.push(elipse(0, 0, t * 0.2, t * 0.2, CASCA_ESCURA, 0.9, { contorno: 'leve', detalhe: 1 }));
+      partes.push(elipse(-0.02 * t, -0.02 * t, t * 0.14, t * 0.14, CASCA_MEDIA, 0.95, { contorno: false, semSombra: true, detalhe: 2 }));
+      partes.push(elipse(-0.04 * t, -0.04 * t, t * 0.08, t * 0.08, CASCA_CLARA, 1.0, { contorno: false, semSombra: true, detalhe: 3 }));
+
+      const nGalhos = 5 + Math.floor(r() * 2);
+      for (let i = 0; i < nGalhos; i++) {
+        const aPrincipal = (i / nGalhos) * Math.PI * 2 + (r() - 0.5) * 0.25;
+        const len1 = t * (0.22 + r() * 0.05);
+        const w1 = t * (0.038 + r() * 0.012);
+        const z1 = 1.3 + (i / nGalhos) * 0.6;
+        const gx0 = Math.cos(aPrincipal) * (t * 0.05), gy0 = Math.sin(aPrincipal) * (t * 0.05);
+        partes.push(galho(gx0, gy0, aPrincipal, len1, w1, CASCA_ESCURA, z1));
+
+        const frac = 0.55 + (r() - 0.5) * 0.1;
+        const gx = gx0 + Math.cos(aPrincipal) * len1 * frac;
+        const gy = gy0 + Math.sin(aPrincipal) * len1 * frac;
+        const lado = (i % 2 === 0 ? 1 : -1) * (0.4 + r() * 0.15);
+        const aSub = aPrincipal + lado;
+        const lenSub = len1 * (0.35 + r() * 0.1);
+        partes.push(galho(gx, gy, aSub, lenSub, w1 * 0.55, CASCA_MEDIA, z1 + 0.3));
+      }
+      return piso([t, t], partes);
+    } },
+  { id: 'laje-de-pedra', nome: 'Laje de pedra', ...G, funcoes: ['jardim', 'cemiterio', 'porao'], tags: ['laje', 'pedra', 'rocha', 'ruina', 'natureza', 'pantano'], pegada: [3, 2], altura: 0.3,
+    campos: [
+      { id: 'largura', rotulo: 'Largura (m)', tipo: 'numero', padrao: 3, min: 2, max: 4, passo: 0.25 },
+      { id: 'comprimento', rotulo: 'Comprimento (m)', tipo: 'numero', padrao: 2, min: 1.5, max: 3.5, passo: 0.25 },
+      { id: 'musgo', rotulo: 'Musgo de borda (0 sem, 1 com)', tipo: 'numero', padrao: 1, min: 0, max: 1, passo: 1 },
+    ],
+    gerar: p => {
+      const r = mulberry32(p.seed);
+      const w = num(p, 'largura', 3, 2, 4);
+      const h = num(p, 'comprimento', 2, 1.5, 3.5);
+      const comMusgo = Math.round(num(p, 'musgo', 1, 0, 1)) === 1;
+      const partes: Parte[] = [];
+
+      partes.push(ret(0.04, 0.05, w * 0.98, h * 0.98, '#1b1d22', 0.45, { raio: 0.08, contorno: false, sombraLeve: true }));
+
+      const c1 = 0.12 + r() * 0.1, c2 = 0.12 + r() * 0.1, c3 = 0.12 + r() * 0.1, c4 = 0.12 + r() * 0.1;
+      const ptsBase = [
+        -w / 2 + c1, -h / 2,
+        w / 2 - c2, -h / 2,
+        w / 2, -h / 2 + c2,
+        w / 2, h / 2 - c3,
+        w / 2 - c3, h / 2,
+        -w / 2 + c4, h / 2,
+        -w / 2, h / 2 - c4,
+        -w / 2, -h / 2 + c1,
+      ];
+      partes.push(poli(ptsBase, '#555860', 0.5, { contorno: 'leve', detalhe: 1 }));
+
+      const k = 0.94;
+      const ptsTopo = ptsBase.map(v => v * k);
+      partes.push(poli(ptsTopo, 'laje.pedra', 0.55, { contorno: 'leve', semSombra: true, detalhe: 1 }));
+
+      const ptsLuz = [
+        -w / 2 * k, -h / 2 * k + c1 * k,
+        -w / 2 * k + c1 * k, -h / 2 * k,
+        w / 2 * k - c2 * k, -h / 2 * k,
+        w / 2 * k - c2 * k - 0.15, -h / 2 * k + 0.12,
+        -w / 2 * k + c1 * k + 0.08, -h / 2 * k + 0.12,
+        -w / 2 * k + 0.12, h / 2 * k - c4 * k - 0.15,
+        -w / 2 * k, h / 2 * k - c4 * k,
+      ];
+      partes.push(poli(ptsLuz, tom('#8c9098', 0.15), 0.58, { contorno: false, semSombra: true, detalhe: 2 }));
+
+      const ptsRach1 = [
+        -w * 0.35, -h * 0.42,
+        -w * 0.18 + (r() - 0.5) * 0.08, -h * 0.2 + (r() - 0.5) * 0.08,
+        -w * 0.05 + (r() - 0.5) * 0.06, 0.05 + (r() - 0.5) * 0.06,
+        w * 0.15 + (r() - 0.5) * 0.08, 0.18 + (r() - 0.5) * 0.08,
+        w * 0.38, h * 0.4,
+      ];
+      partes.push(...faixa(ptsRach1, 0.025, '#2e3036', 0.62, { contorno: false, semSombra: true, detalhe: 2 }));
+
+      const ram1 = [
+        -w * 0.05 + (r() - 0.5) * 0.06, 0.05 + (r() - 0.5) * 0.06,
+        0.08 + (r() - 0.5) * 0.08, -h * 0.12 + (r() - 0.5) * 0.08,
+        w * 0.25, -h * 0.32,
+      ];
+      partes.push(...faixa(ram1, 0.018, '#2e3036', 0.63, { contorno: false, semSombra: true, detalhe: 3 }));
+
+      const ptsRach2 = [
+        -w * 0.42, h * 0.15,
+        -w * 0.28 + (r() - 0.5) * 0.06, h * 0.22 + (r() - 0.5) * 0.06,
+        -w * 0.15, h * 0.38,
+      ];
+      partes.push(...faixa(ptsRach2, 0.02, '#2e3036', 0.62, { contorno: false, semSombra: true, detalhe: 3 }));
+
+      if (comMusgo) {
+        const MUSGO_BASE = '#3d6128', MUSGO_LUZ = '#5c8a38';
+        const manchas = [
+          [-w * 0.45, -h * 0.38, 0.45, 0.32],
+          [w * 0.38, -h * 0.4, 0.38, 0.28],
+          [w * 0.42, h * 0.35, 0.42, 0.3],
+          [-w * 0.38, h * 0.42, 0.5, 0.35],
+          [-w * 0.05, 0.05, 0.28, 0.2],
+        ] as const;
+        for (const [mx, my, mw, mh] of manchas) {
+          partes.push(elipse(mx, my, mw, mh, MUSGO_BASE, 0.66, { contorno: false, semSombra: true, detalhe: 2 }));
+          partes.push(elipse(mx - mw * 0.1, my - mh * 0.1, mw * 0.6, mh * 0.55, MUSGO_LUZ, 0.68, { contorno: false, semSombra: true, detalhe: 3 }));
+        }
+      }
+
+      return piso([w, h], partes);
     } },
 ];

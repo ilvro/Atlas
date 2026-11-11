@@ -6,10 +6,10 @@ import { descreverReceita, pegadaDaReceita } from '../../src/procedural/receitas
 import { RECEITAS_ESTRADA } from '../../src/procedural/receitas/estrada.ts';
 
 const partesDe = (id: string, seed: number, params: Record<string, unknown> = {}): Parte[] => { const d = descreverReceita(id, { seed, params }); assert.equal(d.tipo, 'piso'); return d.tipo === 'piso' ? d.partes : []; };
-const VARIACOES: Record<string, Record<string, unknown>[]> = { carroca: [{}, { carga: 1 }], cavalo: [{}, { pelagem: 1 }, { pelagem: 2 }, { pelagem: 3 }], 'carrinho-de-carga': [{}, { carga: 0 }] };
+const VARIACOES: Record<string, Record<string, unknown>[]> = { carroca: [{}, { carga: 1 }], 'carroca-tombada': [{}, { carga: 0 }], cavalo: [{}, { pelagem: 1 }, { pelagem: 2 }, { pelagem: 3 }], 'carrinho-de-carga': [{}, { carga: 0 }] };
 
 test('as receitas da estrada desenham sem erro, com pegada declarada e partes dentro dela', () => {
-  assert.deepEqual(RECEITAS_ESTRADA.map(r => r.id), ['carroca', 'cavalo', 'fardo-de-feno', 'bebedouro', 'carrinho-de-mao', 'carrinho-de-carga']);
+  assert.deepEqual(RECEITAS_ESTRADA.map(r => r.id), ['carroca', 'carroca-tombada', 'cavalo', 'fardo-de-feno', 'bebedouro', 'carrinho-de-mao', 'carrinho-de-carga']);
   for (const r of RECEITAS_ESTRADA) {
     assert.equal(r.kit, 'estrada'); assert.ok(r.tags.length >= 3);
     for (const params of VARIACOES[r.id] ?? [{}]) for (const seed of [1, 2, 3]) {
@@ -24,8 +24,9 @@ test('as receitas da estrada desenham sem erro, com pegada declarada e partes de
 
 test('a carga e a pelagem mudam o desenho; a semente muda a forma', () => {
   assert.notDeepEqual(partesDe('carroca', 1, { carga: 0 }), partesDe('carroca', 1, { carga: 1 }));
+  assert.notDeepEqual(partesDe('carroca-tombada', 1, { carga: 0 }), partesDe('carroca-tombada', 1, { carga: 1 }));
   assert.notDeepEqual(partesDe('carrinho-de-carga', 1, { carga: 0 }), partesDe('carrinho-de-carga', 1, { carga: 1 }));
   for (const k of [1, 2, 3]) assert.notDeepEqual(partesDe('cavalo', 1, { pelagem: 0 }), partesDe('cavalo', 1, { pelagem: k }));
   assert.ok(partesDe('cavalo', 1, { pelagem: 3 }).length > partesDe('cavalo', 1, { pelagem: 0 }).length);
-  for (const id of ['carroca', 'cavalo', 'fardo-de-feno', 'bebedouro', 'carrinho-de-mao']) assert.notDeepEqual(partesDe(id, 1), partesDe(id, 2), id);
+  for (const id of ['carroca', 'carroca-tombada', 'cavalo', 'fardo-de-feno', 'bebedouro', 'carrinho-de-mao']) assert.notDeepEqual(partesDe(id, 1), partesDe(id, 2), id);
 });
