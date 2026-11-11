@@ -465,3 +465,9 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 ## Documentos da campanha
 
 - **Painel Documentos com abas da campanha e todos** — painel `src/ui/Pistas.tsx` renomeado no `src/ui/Dock.tsx` para Documentos com abas "Da campanha" e "Todos"; funções puras `documentosDaCampanha` e `idsNaCampanha` em `src/app/pistas.ts`; acréscimo automático à campanha em `adicionarPista` e pelo botão "+ Campanha"; botão "Abrir no Ateliê" para documentos pendentes via barramento ou aba nova (`abrirDocumentoNoAtelie`). Testes em `tests/unit/documentos-da-campanha.test.ts`. Sem pendências.
+
+## Melhorias da ponte MCP
+
+- **PM1 — Catálogo estável e mensagens certas** — catálogo persistido sem sobrescrever ferramentas por ordem de foco ou recarregamento; desempate pelo dono do prefixo (`appDoPrefixo`), mensagens de erro de conexão diferenciadas entre falta de servidor e token recusado com tempo constante (`timingSafeEqual`), versão `0.2.0` no MCP. Testes em `tests/unit/ponte.test.ts` e `tests/unit/ponte-mcp.test.ts`.
+- **PM2 — Prazo único e progresso** — prazo único de 50 s por chamada (`atlas_momento_testar` com 120 s), com erro explicativo se estourar alertando conferência em ferramentas de escrita; descarte de respostas tardias sem erros; notificações periódicas de progresso MCP quando o cliente envia `progressToken`. Testes em `tests/unit/ponte-mcp.test.ts`.
+

@@ -12,6 +12,16 @@ import { lerMensagem, appDoPrefixo } from './protocolo.ts';
 import type { AppConectado, Conteudo, FerramentaDoApp, Resultado } from './protocolo.ts';
 
 export const ATRASOS_MS = [1000, 2000, 5000, 10000];
+export const PRAZO_DA_CHAMADA_MS = 50_000;
+export const PRAZOS_ESPECIAIS_MS: Record<string, number> = { atlas_momento_testar: 120_000 };
+
+export function erroDePrazo(ferramenta: string, prazoMs: number): string {
+  const s = Math.round(prazoMs / 1000);
+  if (ehLeitura(ferramenta)) {
+    return `"${ferramenta}" não respondeu em ${s} s; tente de novo.`;
+  }
+  return `"${ferramenta}" não respondeu em ${s} s. A operação pode ter sido feita mesmo assim: confira com a ferramenta de leitura (ex.: atlas_mapa_ler, campanha_ler) antes de repetir.`;
+}
 
 /** Raiz do Atlas, a partir deste arquivo (o app do Claude lança o processo de qualquer pasta). */
 const raiz = path.resolve(import.meta.dirname, '..', '..');
@@ -24,6 +34,7 @@ export interface PontaOpcoes {
   arquivoDoCache?: string;
   aoMudar?: () => void;
   atrasosMs?: number[];
+  prazoMs?: number;
 }
 
 export interface Ponta {
@@ -38,7 +49,7 @@ export interface Ponta {
   /** Catálogo persistente completo (cache mais o que está registrado agora). */
   catalogo: () => FerramentaDoApp[];
   origemHttp: () => string;
-  chamar: (ferramenta: string, args: Record<string, unknown>) => Promise<Resultado>;
+  chamar: (ferramenta: string, args: Record<string, unknown>, prazoMs?: number) => Promise<Resultado>;
   fechar: () => void;
 }
 
@@ -194,10 +205,17 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
   let parado = false;
   let temporizador: ReturnType<typeof setTimeout> | null = null;
   let seq = 0;
-  const pendentes = new Map<string, (r: Resultado) => void>();
+  interface PendenteMcp {
+    resolver: (r: Resultado) => void;
+    timer: NodeJS.Timeout;
+  }
+  const pendentes = new Map<string, PendenteMcp>();
 
   const falharPendentes = (erro: string) => {
-    for (const [id, r] of pendentes) r({ tipo: 'resultado', id, ok: false, erro });
+    for (const [id, p] of pendentes) {
+      clearTimeout(p.timer);
+      p.resolver({ tipo: 'resultado', id, ok: false, erro });
+    }
     pendentes.clear();
   };
   const reagendar = () => {
@@ -286,8 +304,12 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
           op.aoMudar?.();
         }
       } else if (m.tipo === 'resultado') {
-        const r = pendentes.get(m.id);
-        if (r) { pendentes.delete(m.id); r(m); }
+        const p = pendentes.get(m.id);
+        if (p) {
+          clearTimeout(p.timer);
+          pendentes.delete(m.id);
+          p.resolver(m);
+        }
       }
     });
     socket.on('error', () => {
@@ -328,14 +350,30 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
     avisoArmazenamento: () => gerarAvisoArmazenamento(appsConectados),
     catalogo: () => [...catalogo.values()],
     origemHttp,
-    chamar: (ferramenta, args) => new Promise<Resultado>(resolver => {
+    chamar: (ferramenta, args, prazoMs) => new Promise<Resultado>(resolver => {
       if (!ws || !aberta) {
         const erro = motivo === 'token-invalido' ? TOKEN_INVALIDO : SEM_PONTE;
         resolver({ tipo: 'resultado', id: '', ok: false, erro });
         return;
       }
       const id = `m${++seq}`;
-      pendentes.set(id, resolver);
+      const prazo = prazoMs ?? op.prazoMs ?? PRAZOS_ESPECIAIS_MS[ferramenta] ?? PRAZO_DA_CHAMADA_MS;
+      const timer = setTimeout(() => {
+        if (pendentes.has(id)) {
+          pendentes.delete(id);
+          resolver({
+            tipo: 'resultado',
+            id,
+            ok: false,
+            erro: erroDePrazo(ferramenta, prazo),
+          });
+        }
+      }, prazo);
+
+      pendentes.set(id, {
+        resolver,
+        timer,
+      });
       ws.send(JSON.stringify({ tipo: 'chamar', id, ferramenta, args }));
     }),
     fechar: () => {
@@ -435,7 +473,7 @@ export function acrescentarAviso<T extends { content: Array<{ type: 'text'; text
 }
 
 /** `tools/call`: roteia para `ponte_estado` ou para a ponte e converte o resultado. */
-export async function chamarFerramenta(ponta: Ponta, nome: string, args: Record<string, unknown>) {
+export async function chamarFerramenta(ponta: Ponta, nome: string, args: Record<string, unknown>, prazoMs?: number) {
   const ativas = ponta.ativas();
   const apps = ponta.apps();
   if (nome === FERRAMENTA_ESTADO.name) return { content: [{ type: 'text' as const, text: textoDoEstado(ponta.conectada(), ativas, apps, ponta.motivo()) }] };
@@ -448,7 +486,7 @@ export async function chamarFerramenta(ponta: Ponta, nome: string, args: Record<
   if (!ferramenta)
     return { isError: true, content: [{ type: 'text' as const, text: `A ferramenta "${nome}" não está disponível. Rode \`ponte_estado\` para ver o que está conectado.` }] };
   // App fechado: repassa mesmo assim; o servidor da ponte tenta abri-lo pela Mesa e, se não der, devolve o motivo.
-  const r = await ponta.chamar(nome, args);
+  const r = await ponta.chamar(nome, args, prazoMs);
   if (!r.ok && r.fechado) {
     const origem = ponta.origemHttp();
     return { isError: true, content: [{ type: 'text' as const, text: `${erroAppFechado(ferramenta.app, origem)} (${r.erro})` }] };
@@ -463,6 +501,8 @@ export interface McpOpcoes {
   lerToken: () => string;
   arquivoDoCache?: string;
   atrasosMs?: number[];
+  prazoMs?: number;
+  intervaloDeProgressoMs?: number;
 }
 
 /** Monta o servidor MCP `mesa` (sem transporte) sobre uma conexão com a ponte. */
@@ -474,7 +514,26 @@ export function criarServidorMcp(op: McpOpcoes) {
     aoMudar: () => { if (pronto) server.sendToolListChanged().catch(() => {}); },
   });
   server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: listarFerramentas(ponta.catalogo()) }));
-  server.setRequestHandler(CallToolRequestSchema, async req => chamarFerramenta(ponta, req.params.name, (req.params.arguments ?? {}) as Record<string, unknown>));
+  server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
+    const progressToken = req.params._meta?.progressToken;
+    let timerProgresso: NodeJS.Timeout | null = null;
+    let progressoN = 0;
+    if (progressToken !== undefined && extra?.sendNotification) {
+      const intervalo = op.intervaloDeProgressoMs ?? 5000;
+      timerProgresso = setInterval(() => {
+        progressoN++;
+        extra.sendNotification({
+          method: 'notifications/progress',
+          params: { progressToken, progress: progressoN, message: 'esperando a aba…' },
+        }).catch(() => {});
+      }, intervalo);
+    }
+    try {
+      return await chamarFerramenta(ponta, req.params.name, (req.params.arguments ?? {}) as Record<string, unknown>, op.prazoMs);
+    } finally {
+      if (timerProgresso) clearInterval(timerProgresso);
+    }
+  });
   server.oninitialized = () => { pronto = true; };
   return { server, ponta, fechar: () => { ponta.fechar(); return server.close(); } };
 }

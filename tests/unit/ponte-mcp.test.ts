@@ -10,7 +10,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { criarPonte } from '../../scripts/ponte/servidor.ts';
-import { criarServidorMcp, converterConteudo, anotacoesDaFerramenta, SEM_PONTE } from '../../scripts/ponte/mcp.ts';
+import { criarServidorMcp, converterConteudo, anotacoesDaFerramenta, SEM_PONTE, type McpOpcoes } from '../../scripts/ponte/mcp.ts';
 
 const esperar = async (cond: () => boolean | Promise<boolean>, ms = 3000) => {
   const fim = Date.now() + ms;
@@ -28,9 +28,9 @@ async function subirPonte() {
   return { pasta, origem, porta, ponte, servidor, url: `ws://127.0.0.1:${porta}/__ponte` };
 }
 
-async function clienteMcp(url: string, lerToken: () => string, arquivoDoCache?: string) {
+async function clienteMcp(url: string, lerToken: () => string, arquivoDoCache?: string, extras?: Partial<McpOpcoes>) {
   const cache = arquivoDoCache ?? path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-test-')), 'ferramentas.json');
-  const { server, ponta, fechar } = criarServidorMcp({ url, lerToken, arquivoDoCache: cache, atrasosMs: [20] });
+  const { server, ponta, fechar } = criarServidorMcp({ url, lerToken, arquivoDoCache: cache, atrasosMs: [20], ...extras });
   const client = new Client({ name: 't', version: '0' });
   let mudancas = 0;
   client.setNotificationHandler(ToolListChangedNotificationSchema, () => { mudancas++; });
@@ -368,6 +368,98 @@ test('erros de conexão: token errado cita o token e sem servidor cita o atalho 
     assert.match(textoDe(r2), /atalho do app de desktop/);
   } finally {
     await mcpSemServidor.fechar();
+  }
+});
+
+test('prazo de chamada: escrita avisa que a operação pode ter sido feita; leitura recebe mensagem curta; resposta tardia é ignorada', async () => {
+  const p = await subirPonte();
+  const token = () => fs.readFileSync(path.join(p.pasta, 'token'), 'utf8').trim();
+  const mcp = await clienteMcp(p.url, token, undefined, { prazoMs: 40 });
+  const aba = new WebSocket(p.url, { origin: p.origem });
+  aba.on('error', () => {});
+  aba.on('message', d => {
+    const m = JSON.parse(String(d));
+    if (m.tipo === 'chamar' && m.ferramenta === 'atlas_mapa_criar') {
+      setTimeout(() => {
+        aba.send(JSON.stringify({ tipo: 'resultado', id: m.id, ok: true, conteudo: [{ tipo: 'texto', texto: 'criado atrasado' }] }));
+      }, 80);
+    }
+  });
+  try {
+    await new Promise<void>(r => aba.once('open', () => r()));
+    aba.send(JSON.stringify({
+      tipo: 'registrar',
+      app: 'atlas',
+      titulo: 'Atlas',
+      ferramentas: [
+        { nome: 'atlas_mapa_criar', descricao: 'cria', esquema: { type: 'object' } },
+        { nome: 'atlas_mapa_ler', descricao: 'lê', esquema: { type: 'object' } },
+      ],
+    }));
+    await esperar(() => mcp.ponta.ativas().some(f => f.nome === 'atlas_mapa_criar'));
+
+    // Chamada de escrita estoura o prazo
+    const rEscrita: any = await mcp.client.callTool({ name: 'atlas_mapa_criar', arguments: {} });
+    assert.equal(rEscrita.isError, true);
+    assert.match(textoDe(rEscrita), /"atlas_mapa_criar" não respondeu em 0 s\. A operação pode ter sido feita mesmo assim: confira com a ferramenta de leitura/);
+
+    // Espera a resposta tardia chegar na aba e garante que nada quebrou (resposta tardia foi ignorada sem lançar erro)
+    await new Promise(r => setTimeout(r, 100));
+
+    // Chamada de leitura estoura o prazo
+    const rLeitura: any = await mcp.client.callTool({ name: 'atlas_mapa_ler', arguments: {} });
+    assert.equal(rLeitura.isError, true);
+    assert.match(textoDe(rLeitura), /"atlas_mapa_ler" não respondeu em 0 s; tente de novo\./);
+  } finally {
+    aba.terminate();
+    await mcp.fechar();
+    p.ponte.fechar();
+    p.servidor.closeAllConnections();
+    p.servidor.close();
+  }
+});
+
+test('notificação de progresso: cliente com progressToken recebe avisos a cada intervalo', async () => {
+  const p = await subirPonte();
+  const token = () => fs.readFileSync(path.join(p.pasta, 'token'), 'utf8').trim();
+  const mcp = await clienteMcp(p.url, token, undefined, { intervaloDeProgressoMs: 25, prazoMs: 250 });
+  const aba = new WebSocket(p.url, { origin: p.origem });
+  aba.on('error', () => {});
+  aba.on('message', d => {
+    const m = JSON.parse(String(d));
+    if (m.tipo === 'chamar') {
+      setTimeout(() => {
+        aba.send(JSON.stringify({ tipo: 'resultado', id: m.id, ok: true, conteudo: [{ tipo: 'texto', texto: 'sucesso' }] }));
+      }, 70);
+    }
+  });
+  try {
+    await new Promise<void>(r => aba.once('open', () => r()));
+    aba.send(JSON.stringify({
+      tipo: 'registrar',
+      app: 'atlas',
+      titulo: 'Atlas',
+      ferramentas: [{ nome: 'atlas_mapa_criar', descricao: 'cria', esquema: { type: 'object' } }],
+    }));
+    await esperar(() => mcp.ponta.ativas().some(f => f.nome === 'atlas_mapa_criar'));
+
+    const notificacoes: any[] = [];
+    const r: any = await mcp.client.callTool(
+      { name: 'atlas_mapa_criar', arguments: {} },
+      undefined,
+      { onprogress: p => notificacoes.push(p) },
+    );
+    assert.equal(r.isError, undefined);
+    assert.equal(textoDe(r), 'sucesso');
+    assert.ok(notificacoes.length >= 2, `esperava >= 2 notificações, recebeu ${notificacoes.length}`);
+    assert.equal(notificacoes[0].message, 'esperando a aba…');
+    assert.equal(notificacoes[0].progress, 1);
+  } finally {
+    aba.terminate();
+    await mcp.fechar();
+    p.ponte.fechar();
+    p.servidor.closeAllConnections();
+    p.servidor.close();
   }
 });
 
