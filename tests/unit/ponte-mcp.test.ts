@@ -659,3 +659,23 @@ test('todas as ferramentas do Atlas e da Mesa declaram anotacoes e trazem annota
   }
 });
 
+test('instruções do servidor: client.getInstructions() devolve o texto configurado ou undefined', async () => {
+  // Com instruções
+  const mcpCom = await clienteMcp('ws://127.0.0.1:1/__ponte', () => { throw new Error('sem token'); }, undefined, {
+    instrucoes: 'instruções de teste da plataforma',
+  });
+  try {
+    assert.equal(mcpCom.client.getInstructions(), 'instruções de teste da plataforma');
+  } finally {
+    await mcpCom.fechar();
+  }
+
+  // Sem instruções
+  const mcpSem = await clienteMcp('ws://127.0.0.1:1/__ponte', () => { throw new Error('sem token'); });
+  try {
+    assert.equal(mcpSem.client.getInstructions(), undefined);
+  } finally {
+    await mcpSem.fechar();
+  }
+});
+
