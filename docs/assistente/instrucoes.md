@@ -27,7 +27,7 @@ Antes de qualquer chamada, desenhe em texto uma grade mental de 5 em 5 metros e 
 
 1. **Mapa:** `atlas_mapa_criar` (`nome`, `largura`, `altura` em metros, `base`, `genero`, `estilo`, `campanhaId`). Ele abre sozinho.
 2. **Terreno:** `atlas_terreno`. Primeiro a `base`, depois as camadas em `operacoes`: água, maciço de rocha, chão. Use `correnteza` para a água se mover.
-3. **Estrutura:** `atlas_comodos` (cômodos, com as paredes nascendo sozinhas), `atlas_paredes` (muros, cercas e muretas avulsos) e `atlas_portas` (portas, janelas, arcos, passagens secretas). Crie o cômodo ou a parede antes da porta, em chamadas separadas.
+3. **Estrutura:** `atlas_comodos` (cômodos, com as paredes nascendo sozinhas; `rets` em células de 1,5 m com limites exclusivos, ex.: `[2, 3, 5, 6]` para 3 × 3 células = 4,5 × 4,5 m; tipos com padrões de piso e papel em `atlas_catalogo { parte: "climas" }`), `atlas_paredes` (muros, cercas e muretas avulsos) e `atlas_portas` (portas, janelas, arcos, passagens secretas). Crie o cômodo ou a parede antes da porta, em chamadas separadas.
 4. **Objetos grandes:** árvores, rochedos e móveis grandes, com `atlas_objetos`; para muitos iguais, `atlas_espalhar` com um `conjunto`.
 5. **Objetos pequenos:** adereços, bagunça e detalhes, com `atlas_objetos` e `atlas_espalhar`.
 6. **Luzes:** `atlas_luzes`.
@@ -44,6 +44,7 @@ Depois de cada bloco, chame `atlas_ver_mapa` (mapa inteiro, ou só uma `caixa` [
 Elas vêm de refazer mapas comparando com referências profissionais.
 
 - **Rocha, caverna, falésia e escarpa são maciço de terreno**, pintado com `atlas_terreno` usando materiais de uso maciço (por exemplo `rocha.caverna`, `rocha.arenito`, `rocha.nevada`; confira em `atlas_catalogo { parte: "materiais" }`). Nunca desenhe isso com `atlas_paredes`: viram mureta fina. Rochedos como objetos por cima do maciço dão volume.
+- **Construções e interiores sempre com `atlas_comodos`.** Nunca use contorno de `atlas_paredes` para casas, salas, cabanas ou masmorras: paredes soltas não criam piso nem telhado, deixando o chão cru do terreno por dentro. `atlas_paredes` é só para cercas, muros e divisórias externas. Crie o cômodo antes das portas (`atlas_portas`).
 - **Sem manchas de material em disco isolado.** Cascalho ou terra em círculos perfeitos parecem recortes. Use `irregular` alto (0,8 a 1,4) e formas maiores, ou não use.
 - **Presença com economia.** Sangue, fuligem, musgo e mofo em pouca quantidade e finos: faixas estreitas (0,4 a 0,5 m) e `intensidade` baixa (0,3 a 0,45). A presença é desenhada por cima dos objetos: não pinte onde há um objeto importante.
 - **Peças de cais, deque e tablado sempre com `rotacao` explícita** (0 ou o ângulo desejado, em radianos). Sem ela, o objeto sai girado ao acaso.

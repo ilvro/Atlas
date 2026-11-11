@@ -64,27 +64,28 @@ export function escrever(ctx: ContextoDeEscrita, rotulo: string, gerar: (mapa: M
 }
 
 // ---------- Esquemas JSON ----------
-const ponto = { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2, description: '[x, y] em metros (origem no canto superior esquerdo, y para baixo).' };
-const irregular = { type: 'number', minimum: 0, description: 'Amplitude (m) de uma borda irregular natural; 0,3 a 0,8 para bordas orgânicas. Omita para borda lisa.' };
+const coord = { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 };
+const ponto = { ...coord, description: '[x, y] em metros.' };
+const irregular = { type: 'number', minimum: 0 };
 
 /** O esquema JSON de uma `Forma` do terreno (metros). Reaproveitado por `atlas_terreno` e, depois, por `atlas_espalhar` e `atlas_presenca`. */
 export function esquemaDaForma(): Record<string, unknown> {
   return {
-    description: 'Uma região do mapa em METROS. Use exatamente UMA destas formas.',
+    description: 'Forma em metros: disco, poligono, faixa, retangulo ou celulas. irregular opcional (m).',
     oneOf: [
-      { type: 'object', properties: { disco: ponto, raio: { type: 'number', exclusiveMinimum: 0 }, irregular }, required: ['disco', 'raio'], additionalProperties: false, description: 'Círculo: centro e raio em metros.' },
-      { type: 'object', properties: { poligono: { type: 'array', items: ponto, minItems: 3 }, irregular }, required: ['poligono'], additionalProperties: false, description: 'Polígono fechado (mínimo 3 pontos).' },
-      { type: 'object', properties: { faixa: { type: 'array', items: ponto, minItems: 1 }, largura: { type: 'number', exclusiveMinimum: 0 }, irregular }, required: ['faixa', 'largura'], additionalProperties: false, description: 'Faixa de largura (m) ao longo de uma polilinha: trilha, rio, muro de rocha.' },
-      { type: 'object', properties: { retangulo: { type: 'array', items: { type: 'number' }, minItems: 4, maxItems: 4, description: '[x0, y0, x1, y1] em metros.' }, irregular }, required: ['retangulo'], additionalProperties: false, description: 'Retângulo em metros.' },
-      { type: 'object', properties: { celulas: { type: 'array', items: { type: 'array', items: { type: 'integer' }, minItems: 2, maxItems: 2 } } }, required: ['celulas'], additionalProperties: false, description: 'Células exatas do terreno [i, j] (cada uma tem 0,25 m).' },
+      { type: 'object', properties: { disco: coord, raio: { type: 'number', exclusiveMinimum: 0 }, irregular }, required: ['disco', 'raio'] },
+      { type: 'object', properties: { poligono: { type: 'array', items: coord, minItems: 3 }, irregular }, required: ['poligono'] },
+      { type: 'object', properties: { faixa: { type: 'array', items: coord, minItems: 1 }, largura: { type: 'number', exclusiveMinimum: 0 }, irregular }, required: ['faixa', 'largura'] },
+      { type: 'object', properties: { retangulo: { type: 'array', items: { type: 'number' }, minItems: 4, maxItems: 4 }, irregular }, required: ['retangulo'] },
+      { type: 'object', properties: { celulas: { type: 'array', items: { type: 'array', items: { type: 'integer' }, minItems: 2, maxItems: 2 } } }, required: ['celulas'] },
     ],
   };
 }
 
 /** O esquema de um retângulo de células do grid: `[x0, y0, x1, y1]`, fim exclusivo. */
-export const esquemaDoRetanguloDeCelulas = { type: 'array', items: { type: 'integer' }, minItems: 4, maxItems: 4, description: '[x0, y0, x1, y1] em CÉLULAS do grid (1,5 m cada); x1 e y1 são exclusivos. Ex.: [2, 3, 5, 6] é um cômodo de 3 × 3 células (4,5 × 4,5 m).' };
+export const esquemaDoRetanguloDeCelulas = { type: 'array', items: { type: 'integer' }, minItems: 4, maxItems: 4, description: '[x0, y0, x1, y1] em células de 1,5 m (x1, y1 exclusivos).' };
 
-const semente = { type: 'number', description: 'Semente opcional para o acaso (bordas irregulares, pisos). Mesma semente, mesmo resultado.' };
+const semente = { type: 'number' };
 
 // ---------- Validação de argumentos ----------
 type Args = Record<string, unknown>;
@@ -121,11 +122,11 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
   return [
     {
       nome: 'atlas_mapa_criar',
-      descricao: `Cria um mapa novo (vazio), grava e abre na aba; as próximas ferramentas de escrita atuam sobre ele. "largura" e "altura" em METROS (3 a 600; o padrão do app é 45 × 30; o grid tem células de 1,5 m). "base" é o terreno de fundo (ex.: "grama", "vazio"). "genero": ${GENEROS.map(g => g.id).join(', ')}. "estilo": "ilustrado" ou "pixel". Com "campanhaId" (veja campanha_listar) o mapa entra na campanha como um lugar. Devolve o id.`,
+      descricao: 'Cria e abre mapa novo em metros (padrão 45×30; grid 1,5 m). "base": atlas_catalogo { parte: "materiais" }. Gênero e estilo: atlas_catalogo { parte: "climas" }.',
       esquema: { type: 'object', properties: {
-        nome: { type: 'string', description: 'Nome do mapa.' }, largura: { type: 'number', description: 'Largura em metros (3 a 600).' }, altura: { type: 'number', description: 'Altura em metros (3 a 600).' },
-        base: { type: 'string', description: 'Terreno de fundo: "vazio" ou um material de terreno (ex.: "grama").' }, genero: { type: 'string', enum: GENEROS.map(g => g.id) },
-        estilo: { type: 'string', enum: ['ilustrado', 'pixel'] }, campanhaId: { type: 'string', description: 'Id da campanha (campanha_listar); omita para usar a campanha ativa do app.' }, notas: { type: 'string', description: 'Notas do mestre sobre o mapa.' },
+        nome: { type: 'string' }, largura: { type: 'number' }, altura: { type: 'number' },
+        base: { type: 'string' }, genero: { type: 'string', enum: GENEROS.map(g => g.id) },
+        estilo: { type: 'string', enum: ['ilustrado', 'pixel'] }, campanhaId: { type: 'string' }, notas: { type: 'string' },
       }, required: ['nome', 'largura', 'altura'], additionalProperties: false },
       anotacoes: { destrutiva: false },
       async executar(args) {
@@ -157,11 +158,11 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_terreno',
-      descricao: `Pinta ou apaga terreno no mapa aberto, tudo como UM passo de desfazer. ${unidades} "base" troca o terreno de fundo. "operacoes" é uma lista aplicada em ordem: { acao: "pintar" | "apagar", material, forma }. "material" (só em pintar) é de terreno (grama, terra, areia…), maciço (rocha, escarpa) ou água; ids inválidos voltam com a lista. "forma" é UMA de: disco { disco: [x, y], raio }, poligono { poligono: [[x, y]…] }, faixa { faixa: [[x, y]…], largura } (trilha, rio), retangulo { retangulo: [x0, y0, x1, y1] } ou celulas; "irregular" (m) deixa a borda orgânica. Rocha e escarpa são maciço de terreno, não paredes. "correnteza" { material, angulo (radianos), velocidade (0 a 3 m/s) } move a água desse material (ela precisa existir depois das operações).`,
+      descricao: 'Pinta ou apaga terreno no mapa aberto (um passo de desfazer), em METROS. Operações: { acao, material, forma }. Materiais: atlas_catalogo { parte: "materiais" }.',
       esquema: { type: 'object', properties: {
-        base: { type: 'string', description: 'Terreno de fundo: "vazio" ou um material de terreno.' },
-        operacoes: { type: 'array', maxItems: MAX_ITENS, items: { type: 'object', properties: { acao: { type: 'string', enum: ['pintar', 'apagar'] }, material: { type: 'string', description: 'Material de terreno, maciço ou água (obrigatório em pintar).' }, forma: esquemaDaForma() }, required: ['acao', 'forma'], additionalProperties: false } },
-        correnteza: { type: 'object', properties: { material: { type: 'string', description: 'Material de água já pintado, ex. "agua.rio".' }, angulo: { type: 'number', description: 'Direção em radianos (0 = para a direita, π/2 = para baixo).' }, velocidade: { type: 'number', minimum: 0, maximum: 3, description: 'm/s; 0 deixa a água parada.' } }, required: ['material', 'angulo', 'velocidade'], additionalProperties: false },
+        base: { type: 'string' },
+        operacoes: { type: 'array', maxItems: MAX_ITENS, items: { type: 'object', properties: { acao: { type: 'string', enum: ['pintar', 'apagar'] }, material: { type: 'string' }, forma: esquemaDaForma() }, required: ['acao', 'forma'] } },
+        correnteza: { type: 'object', properties: { material: { type: 'string' }, angulo: { type: 'number' }, velocidade: { type: 'number', minimum: 0, maximum: 3 } }, required: ['material', 'angulo', 'velocidade'] },
         semente,
       }, additionalProperties: false },
       anotacoes: { destrutiva: true },
@@ -183,13 +184,12 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_comodos',
-      descricao: `É o jeito de fazer construções e salas (casa, cabana, loja, salão, cela): cria piso, paredes e telhado em um passo de desfazer, e as paredes de cada cômodo nascem sozinhas (não use atlas_paredes para isso). Depois de criar, abra as passagens com atlas_portas. ATENÇÃO: aqui as coordenadas são em CÉLULAS do grid de 1,5 m, não em metros: "rets" é uma lista de retângulos [x0, y0, x1, y1] com x1 e y1 EXCLUSIVOS (uma cabana de 3 × 3 células em [2, 3] é [2, 3, 5, 6] e mede 4,5 × 4,5 m). Vários retângulos formam um cômodo em L. "tipo" (obrigatório) define piso e papel; os tipos com função e padrões estão em atlas_catalogo { parte: "climas" } (campo tiposDeComodo): ${TIPOS_DE_COMODO.map(t => t.id).join(', ')}. "nome", "piso", "papel" (parede interna) e "telhado" (material, ou null para sem telhado) são opcionais; os padrões vêm do tipo. "telhadoVisivel" mostra ou esconde o telhado.`,
+      descricao: 'Cria cômodos (piso, paredes e telhado; um passo de desfazer). ATENÇÃO: rets em CÉLULAS do grid de 1,5 m com x1 e y1 exclusivos (ex.: [2,3,5,6] = 3×3 células). Tipo: atlas_catalogo.',
       esquema: { type: 'object', properties: {
         comodos: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
           rets: { type: 'array', minItems: 1, items: esquemaDoRetanguloDeCelulas }, tipo: { type: 'string', enum: TIPOS_DE_COMODO.map(t => t.id) }, nome: { type: 'string' },
-          piso: { type: 'string', description: 'Material de piso (ex. "madeira.media"); o padrão vem do tipo.' }, papel: { type: 'string', description: 'Material do papel de parede.' },
-          telhado: { type: ['string', 'null'], description: 'Material do telhado; null para nenhum.' }, telhadoVisivel: { type: 'boolean' },
-        }, required: ['rets', 'tipo'], additionalProperties: false } },
+          piso: { type: 'string' }, papel: { type: 'string' }, telhado: { type: ['string', 'null'] }, telhadoVisivel: { type: 'boolean' },
+        }, required: ['rets', 'tipo'] } },
         semente,
       }, required: ['comodos'], additionalProperties: false },
       anotacoes: { destrutiva: true },
@@ -204,12 +204,12 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_paredes',
-      descricao: `Cria paredes avulsas no mapa aberto (um passo de desfazer), só para muros, cercas, muretas e divisórias soltas ao ar livre. Qualquer construção com interior (casa, cabana, loja, salão) é atlas_comodos, que cria piso, paredes e telhado; um contorno de paredes sem cômodo fica só com o chão do terreno por dentro. As paredes dos cômodos já nascem com atlas_comodos; rocha e escarpa são maciço de terreno (atlas_terreno), não paredes. ${unidades} Cada parede: { path: [[x, y], …] (mínimo 2 pontos, em metros), kind?: "wall" | "low" | "fence" | "cliff", altura? (m), espessura? (m), material? }.`,
+      descricao: 'Cria paredes, muros ou cercas avulsos em metros (um passo de desfazer). Para salas use atlas_comodos. Rocha é maciço de terreno (atlas_terreno).',
       esquema: { type: 'object', properties: {
         paredes: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
-          path: { type: 'array', items: ponto, minItems: 2 }, kind: { type: 'string', enum: ['wall', 'low', 'fence', 'cliff'], description: 'wall = parede; low = mureta; fence = cerca; cliff = penhasco.' },
-          altura: { type: 'number', description: 'Altura em metros.' }, espessura: { type: 'number', description: 'Espessura em metros.' }, material: { type: 'string' },
-        }, required: ['path'], additionalProperties: false } },
+          path: { type: 'array', items: ponto, minItems: 2 }, kind: { type: 'string', enum: ['wall', 'low', 'fence', 'cliff'] },
+          altura: { type: 'number' }, espessura: { type: 'number' }, material: { type: 'string' },
+        }, required: ['path'] } },
       }, required: ['paredes'], additionalProperties: false },
       anotacoes: { destrutiva: true },
       async executar(args) {
@@ -223,11 +223,11 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_portas',
-      descricao: `Abre portas, janelas, arcos ou passagens secretas na parede mais próxima de cada ponto, no mapa aberto (um passo de desfazer). Crie o cômodo ou a parede ANTES (em outra chamada). ${unidades} Cada porta: { perto: [x, y] (metros, a até ~0,75 m da parede; encaixa no centro de uma célula), tipo?: "door" | "window" | "arch" | "secret" (padrão door), estado?: "closed" | "open" | "locked" (padrão closed), largura? (m, padrão 0,9) }.`,
+      descricao: 'Abre portas, janelas, arcos ou passagens secretas na parede mais próxima (metros, até ~0,75 m da parede; um passo de desfazer). Crie cômodo/parede antes.',
       esquema: { type: 'object', properties: {
         portas: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
-          perto: ponto, tipo: { type: 'string', enum: ['door', 'window', 'arch', 'secret'] }, estado: { type: 'string', enum: ['closed', 'open', 'locked'] }, largura: { type: 'number', description: 'Largura em metros (padrão 0,9).' },
-        }, required: ['perto'], additionalProperties: false } },
+          perto: ponto, tipo: { type: 'string', enum: ['door', 'window', 'arch', 'secret'] }, estado: { type: 'string', enum: ['closed', 'open', 'locked'] }, largura: { type: 'number' },
+        }, required: ['perto'] } },
       }, required: ['portas'], additionalProperties: false },
       anotacoes: { destrutiva: true },
       async executar(args) {
@@ -240,14 +240,12 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_objetos',
-      descricao: `Coloca objetos do acervo (móveis, árvores, adereços) no mapa aberto, até ${MAX_OBJETOS} por chamada, tudo como UM passo de desfazer. ${unidades} Cada objeto: { item, pos: [x, y] em metros, rotacao? (radianos; omita para sortear), escala? (0,05 a 50; padrão 1), camada? ("floor" | "table" | "wall" | "ceiling" | "underwater"), submerso?, params? }. "item" é o id de uma receita (atlas_catalogo { parte: "receitas" }) ou "casa:<nome>" da coleção (atlas_catalogo { parte: "colecao" }); id desconhecido volta com os mais parecidos. Objetos dentro de um cômodo entram nele sozinhos. Para muitos iguais (mata, jardim, bagunça) prefira atlas_espalhar.`,
+      descricao: 'Coloca até 200 objetos no mapa aberto em metros (um passo de desfazer). "item": receita (atlas_catalogo { parte: "receitas" }) ou colecao.',
       esquema: { type: 'object', properties: {
         objetos: { type: 'array', minItems: 1, maxItems: MAX_OBJETOS, items: { type: 'object', properties: {
-          item: { type: 'string', description: 'Id da receita ou "casa:<nome>" (veja atlas_catalogo).' }, pos: ponto,
-          rotacao: { type: 'number', description: 'Rotação em radianos (omita para sortear).' }, escala: { type: 'number', minimum: 0.05, maximum: 50, description: 'Multiplicador de tamanho (padrão 1).' },
-          camada: { type: 'string', enum: ['floor', 'table', 'wall', 'ceiling', 'underwater'], description: 'floor = chão (padrão); table = sobre mesa; wall = na parede; ceiling = teto.' },
-          submerso: { type: 'boolean' }, params: { type: 'object', description: 'Parâmetros da receita, se ela tiver.' },
-        }, required: ['item', 'pos'], additionalProperties: false } },
+          item: { type: 'string' }, pos: ponto, rotacao: { type: 'number' }, escala: { type: 'number', minimum: 0.05, maximum: 50 },
+          camada: { type: 'string', enum: ['floor', 'table', 'wall', 'ceiling', 'underwater'] }, submerso: { type: 'boolean' }, params: { type: 'object' },
+        }, required: ['item', 'pos'] } },
         semente,
       }, required: ['objetos'], additionalProperties: false },
       anotacoes: { destrutiva: false },
@@ -264,10 +262,10 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_espalhar',
-      descricao: `Espalha um conjunto de objetos (mata, jardim, cemitério, bagunça…) dentro de uma região do mapa aberto, como UM passo de desfazer; os objetos são comuns e editáveis depois. ${unidades} "conjunto" é um destes: ${TODOS_OS_CONJUNTOS.map(c => c.id).join(', ')}; id desconhecido volta com os mais parecidos. "forma" é UMA de disco { disco: [x, y], raio }, poligono, faixa { faixa, largura }, retangulo ou celulas (tudo em metros). "densidade" (itens por m² no centro) é opcional; omita para usar a do conjunto. O resultado é aproximado: confira com atlas_ver_mapa.`,
+      descricao: 'Espalha conjunto de objetos numa região em metros (um passo de desfazer). Conjuntos em atlas_catalogo { parte: "receitas" }. Objetos ficam comuns e editáveis.',
       esquema: { type: 'object', properties: {
-        conjunto: { type: 'string', enum: TODOS_OS_CONJUNTOS.map(c => c.id), description: 'Id do conjunto.' }, forma: esquemaDaForma(),
-        densidade: { type: 'number', exclusiveMinimum: 0, maximum: 20, description: 'Itens por m² (opcional).' }, semente,
+        conjunto: { type: 'string', enum: TODOS_OS_CONJUNTOS.map(c => c.id) }, forma: esquemaDaForma(),
+        densidade: { type: 'number', exclusiveMinimum: 0, maximum: 20 }, semente,
       }, required: ['conjunto', 'forma'], additionalProperties: false },
       anotacoes: { destrutiva: false },
       async executar(args) {
@@ -280,12 +278,12 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_luzes',
-      descricao: `Acende luzes no mapa aberto (um passo de desfazer). ${unidades} Cada luz: { preset, pos: [x, y] em metros, direcao? (radianos, só para cones), raio? (m, 0,1 a 200), cor? ("#rrggbb"), intensidade? (0 a 3) }. "preset" (atlas_catalogo { parte: "luzes" }): ${PRESETS_DE_LUZ.map(l => l.id).join(', ')}; "raio", "cor" e "intensidade" sobrescrevem o preset. Luzes só aparecem de verdade em clima escuro (veja atlas_ambiente).`,
+      descricao: 'Acende luzes no mapa aberto em metros (um passo de desfazer). Presets em atlas_catalogo { parte: "luzes" }. Luzes aparecem em clima escuro (atlas_ambiente).',
       esquema: { type: 'object', properties: {
         luzes: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
-          preset: { type: 'string', enum: PRESETS_DE_LUZ.map(l => l.id) }, pos: ponto, direcao: { type: 'number', description: 'Direção do cone em radianos (0 = para a direita).' },
-          raio: { type: 'number', minimum: 0.1, maximum: 200, description: 'Raio em metros.' }, cor: { type: 'string', description: '"#rrggbb".' }, intensidade: { type: 'number', minimum: 0, maximum: 3 },
-        }, required: ['preset', 'pos'], additionalProperties: false } },
+          preset: { type: 'string', enum: PRESETS_DE_LUZ.map(l => l.id) }, pos: ponto, direcao: { type: 'number' },
+          raio: { type: 'number', minimum: 0.1, maximum: 200 }, cor: { type: 'string' }, intensidade: { type: 'number', minimum: 0, maximum: 3 },
+        }, required: ['preset', 'pos'] } },
       }, required: ['luzes'], additionalProperties: false },
       anotacoes: { destrutiva: false },
       async executar(args) {
@@ -299,21 +297,21 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_ambiente',
-      descricao: `Ajusta o clima e o acabamento (cor final) do mapa aberto, como UM passo de desfazer. "clima" { preset?, horario?, tempo?, ambiente?, sol?, redeLigada? }: "preset" é um clima pronto (${PRESETS_DE_CLIMA.map(c => c.id).join(', ')}) ou um clima salvo do mapa (atlas_catalogo { parte: "climas" }); "horario" "HH:MM" move o sol e o ambiente; "tempo" são níveis de 0 a 1 de rain, snow, fog, dust, embers, leaves, lightning e wind (-1 a 1); "ambiente" { color: "#rrggbb", intensity: 0 a 1 } é a luz de base; "sol" { angle (radianos), color, intensity (0 a 3) } ou null para sem sol; "redeLigada" false apaga as luzes de rede (apagão). "acabamento" { preset?, texture, vignette, grain, glow (0 a 1), saturation (0 a 2), tint ("#rrggbb"), grade { lift (-1 a 1), gamma (0,1 a 4), gain (0 a 4) }, edges { kind: none | clouds | dark | fog, amount 0 a 1 } }: "preset" é um de ${PRESETS_DE_ACABAMENTO.map(a => a.id).join(', ')}; os ajustes valem por cima dele. "guardarClima" { id, nome } guarda o clima e o acabamento resultantes para voltar a eles depois. Aplicar um clima pronto troca também o acabamento dele.`,
+      descricao: 'Ajusta clima e acabamento do mapa aberto (um passo de desfazer). Presets em atlas_catalogo { parte: "climas" }. "guardarClima" { id, nome } salva no mapa.',
       esquema: { type: 'object', properties: {
         clima: { type: 'object', properties: {
-          preset: { type: 'string' }, horario: { type: 'string', description: '"HH:MM", 00:00 a 23:59.' },
-          tempo: { type: 'object', properties: { rain: unidadeEsq, snow: unidadeEsq, fog: unidadeEsq, dust: unidadeEsq, embers: unidadeEsq, leaves: unidadeEsq, lightning: unidadeEsq, wind: { type: 'number', minimum: -1, maximum: 1 } }, additionalProperties: false },
-          ambiente: { type: 'object', properties: { color: { type: 'string' }, intensity: unidadeEsq }, required: ['color', 'intensity'], additionalProperties: false },
-          sol: { type: ['object', 'null'], properties: { angle: { type: 'number' }, color: { type: 'string' }, intensity: { type: 'number', minimum: 0, maximum: 3 } }, required: ['angle', 'color', 'intensity'], additionalProperties: false },
+          preset: { type: 'string' }, horario: { type: 'string' },
+          tempo: { type: 'object', properties: { rain: unidadeEsq, snow: unidadeEsq, fog: unidadeEsq, dust: unidadeEsq, embers: unidadeEsq, leaves: unidadeEsq, lightning: unidadeEsq, wind: { type: 'number', minimum: -1, maximum: 1 } } },
+          ambiente: { type: 'object', properties: { color: { type: 'string' }, intensity: unidadeEsq }, required: ['color', 'intensity'] },
+          sol: { type: ['object', 'null'], properties: { angle: { type: 'number' }, color: { type: 'string' }, intensity: { type: 'number', minimum: 0, maximum: 3 } }, required: ['angle', 'color', 'intensity'] },
           redeLigada: { type: 'boolean' },
-        }, additionalProperties: false },
+        } },
         acabamento: { type: 'object', properties: {
           preset: { type: 'string', enum: PRESETS_DE_ACABAMENTO.map(a => a.id) }, texture: unidadeEsq, vignette: unidadeEsq, grain: unidadeEsq, glow: unidadeEsq, saturation: { type: 'number', minimum: 0, maximum: 2 }, tint: { type: 'string' },
-          grade: { type: 'object', properties: { lift: { type: 'number', minimum: -1, maximum: 1 }, gamma: { type: 'number', minimum: 0.1, maximum: 4 }, gain: { type: 'number', minimum: 0, maximum: 4 } }, additionalProperties: false },
-          edges: { type: 'object', properties: { kind: { type: 'string', enum: ['none', 'clouds', 'dark', 'fog'] }, amount: unidadeEsq }, required: ['kind', 'amount'], additionalProperties: false },
-        }, additionalProperties: false },
-        guardarClima: { type: 'object', properties: { id: { type: 'string', description: 'Identificador curto (letras, números, - e _).' }, nome: { type: 'string' } }, required: ['id', 'nome'], additionalProperties: false },
+          grade: { type: 'object', properties: { lift: { type: 'number', minimum: -1, maximum: 1 }, gamma: { type: 'number', minimum: 0.1, maximum: 4 }, gain: { type: 'number', minimum: 0, maximum: 4 } } },
+          edges: { type: 'object', properties: { kind: { type: 'string', enum: ['none', 'clouds', 'dark', 'fog'] }, amount: unidadeEsq }, required: ['kind', 'amount'] },
+        } },
+        guardarClima: { type: 'object', properties: { id: { type: 'string' }, nome: { type: 'string' } }, required: ['id', 'nome'] },
       }, additionalProperties: false },
       anotacoes: { destrutiva: true },
       async executar(args) {
@@ -323,12 +321,12 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_regioes',
-      descricao: `Cria regiões no mapa aberto (um passo de desfazer): áreas com função para a sessão. ${unidades} Cada região: { poligono: [[x, y], …] (mínimo 3 pontos, em metros), tipo: "reveal" (revela o que há dentro) | "trigger" (gatilho) | "audio" (som) | "note" (anotação), nome?, texto?, somenteMestre? (padrão true) }.`,
+      descricao: 'Cria regiões funcionais no mapa aberto em metros (um passo de desfazer): reveal, trigger, audio ou note.',
       esquema: { type: 'object', properties: {
         regioes: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
           poligono: { type: 'array', items: ponto, minItems: 3 }, tipo: { type: 'string', enum: ['reveal', 'trigger', 'audio', 'note'] },
-          nome: { type: 'string' }, texto: { type: 'string' }, somenteMestre: { type: 'boolean', description: 'Só o mestre vê (padrão true).' },
-        }, required: ['poligono', 'tipo'], additionalProperties: false } },
+          nome: { type: 'string' }, texto: { type: 'string' }, somenteMestre: { type: 'boolean' },
+        }, required: ['poligono', 'tipo'] } },
       }, required: ['regioes'], additionalProperties: false },
       anotacoes: { destrutiva: false },
       async executar(args) {
@@ -342,7 +340,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_presenca',
-      descricao: `Pinta presença (musgo, sangue, mofo, corrupção…) numa região do mapa aberto, como UM passo de desfazer. ${unidades} "pincel" (atlas_catalogo { parte: "presenca" }): ${PINCEIS_DE_PRESENCA.map(p => p.id).join(', ')}; id desconhecido volta com os mais parecidos. "forma" é UMA de disco, poligono, faixa, retangulo ou celulas (em metros). "intensidade" (0 a 1, padrão 0,6) ajusta a presença desse pincel no mapa.`,
+      descricao: 'Pinta presença (musgo, sangue, mofo, fuligem...) em metros (um passo de desfazer). Pincéis em atlas_catalogo { parte: "presenca" }.',
       esquema: { type: 'object', properties: {
         pincel: { type: 'string', enum: PINCEIS_DE_PRESENCA.map(p => p.id) }, forma: esquemaDaForma(), intensidade: unidadeEsq, semente,
       }, required: ['pincel', 'forma'], additionalProperties: false },
@@ -363,10 +361,10 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_notas',
-      descricao: `Escreve notas no mapa aberto (um passo de desfazer), SUBSTITUINDO o texto anterior do campo. "mapa" é a nota geral do mestre sobre o mapa. "comodos" é uma lista { id, leitura?, notasMestre? } (ids de atlas_mapa_ler): "leitura" é o texto para ler em voz alta aos jogadores e "notasMestre" é só para o mestre. Texto vazio apaga.`,
+      descricao: 'Escreve notas no mapa aberto (um passo de desfazer), substituindo o campo anterior. "mapa": nota geral. "comodos": notas por cômodo (atlas_mapa_ler).',
       esquema: { type: 'object', properties: {
-        mapa: { type: 'string', description: 'Nota geral do mapa (até 5000 caracteres).' },
-        comodos: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: { id: { type: 'string' }, leitura: { type: 'string' }, notasMestre: { type: 'string' } }, required: ['id'], additionalProperties: false } },
+        mapa: { type: 'string' },
+        comodos: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: { id: { type: 'string' }, leitura: { type: 'string' }, notasMestre: { type: 'string' } }, required: ['id'] } },
       }, additionalProperties: false },
       anotacoes: { destrutiva: false },
       async executar(args) {
@@ -389,12 +387,12 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_momento',
-      descricao: `Cria (ou refaz) um momento do mapa aberto: uma sequência curta de passos de cena que o mestre toca na sessão (um passo de desfazer). "nome" 1 a 60 caracteres; "cor" "#rrggbb" opcional; "passos" até 60, na ordem. Sem "id" cria um momento novo e devolve o id; com "id" só substitui momentos que o assistente criou (momento do mestre não é alterado: crie outro). Cada passo tem "tipo": ${TIPOS_DE_PASSO_ESQUEMA.join(', ')}. Os passos que não são "esperar" disparam na hora; use "esperar" entre eles para dar ritmo (um letreiro, uma tela ou um silêncio duram "ms" em paralelo ao próximo passo). Climas: ${PRESETS_DE_CLIMA.map(c => c.id).join(', ')} ou um clima salvo do mapa (atlas_catalogo { parte: "climas" }). Câmera, revelar, interagir e a peça do letreiro usam ids de atlas_mapa_ler; "interagir" aceita porta, porta secreta, interruptor ou gaveta. Os ids de som (Jukebox) e pista (Ateliê) vêm de outros apps e só têm o formato conferido. Teste com atlas_momento_testar.`,
+      descricao: 'Cria ou refaz momento no mapa aberto (um passo de desfazer). Sem "id" cria novo; com "id" só altera o seu. Tipos de passo em atlas_catalogo { parte: "momentos" }.',
       esquema: { type: 'object', properties: {
-        id: { type: 'string', description: 'Só para refazer um momento que o assistente criou; omita para criar um novo.' },
+        id: { type: 'string' },
         nome: { type: 'string', minLength: 1, maxLength: 60 },
-        cor: { type: 'string', description: 'Cor "#rrggbb" do momento (opcional).' },
-        passos: { type: 'array', maxItems: 60, items: esquemaDoPasso(), description: 'Os passos, em ordem (até 60).' },
+        cor: { type: 'string' },
+        passos: { type: 'array', maxItems: 60, items: esquemaDoPasso() },
       }, required: ['nome', 'passos'], additionalProperties: false },
       anotacoes: { destrutiva: false },
       async executar(args) {
@@ -423,8 +421,8 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_momento_testar',
-      descricao: 'Toca na aba, agora, um momento do mapa aberto (o mesmo executor do painel de momentos: luz, tela, câmera e sons acontecem de verdade) e espera terminar. Devolve a lista dos passos executados, com a descrição de cada um, e o resultado ("fim", "cancelado" ou "tempo esgotado"). Espera no máximo a duração estimada + 5 s (teto de 2 min).',
-      esquema: { type: 'object', properties: { id: { type: 'string', description: 'Id do momento (atlas_mapa_ler ou o devolvido por atlas_momento).' } }, required: ['id'], additionalProperties: false },
+      descricao: 'Toca na aba um momento do mapa aberto e espera terminar. Devolve passos e resultado ("fim", "cancelado", "tempo esgotado"). Máximo 2 min.',
+      esquema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false },
       anotacoes: { destrutiva: false, idempotente: true },
       async executar(args) {
         const store = ctx.store();
@@ -445,8 +443,8 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_remover',
-      descricao: 'Remove do mapa aberto cômodos, paredes, aberturas (portas, janelas), objetos, luzes, peças, regiões, presenças e momentos, pelos ids (atlas_mapa_ler). O que você criou nesta aba é removido na hora; o que é do mestre fica esperando a permissão dele no painel do assistente (até 5 minutos). Se o mestre recusar ou não responder, nada é removido e a chamada volta como erro. Tudo vira um passo de desfazer.',
-      esquema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1, description: 'Ids a remover (qualquer coleção do mapa).' } }, required: ['ids'], additionalProperties: false },
+      descricao: 'Remove entidades do mapa aberto pelos ids (atlas_mapa_ler). O que é do mestre pede confirmação no painel. Um passo de desfazer.',
+      esquema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1 } }, required: ['ids'], additionalProperties: false },
       anotacoes: { destrutiva: true },
       async executar(args) {
         const ids = listaDeIds(args);
@@ -456,8 +454,8 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_mover',
-      descricao: 'Move objetos, luzes, peças e regiões do mapa aberto por um deslocamento [dx, dy] em METROS (x para a direita, y para baixo). Cômodos, paredes e aberturas não se movem (apague e recrie). O que você criou nesta aba move na hora; o que é do mestre espera a permissão dele no painel do assistente (até 5 minutos); recusa ou silêncio voltam como erro e nada se move.',
-      esquema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1, description: 'Ids de objetos, luzes, peças ou regiões.' }, delta: { ...ponto, description: '[dx, dy] em metros.' } }, required: ['ids', 'delta'], additionalProperties: false },
+      descricao: 'Move objetos, luzes, peças e regiões por [dx, dy] em metros (um passo de desfazer). O que é do mestre pede confirmação no painel.',
+      esquema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1 }, delta: ponto }, required: ['ids', 'delta'], additionalProperties: false },
       anotacoes: { destrutiva: false },
       async executar(args) {
         const ids = listaDeIds(args);
@@ -475,27 +473,27 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
 /** Os tipos de passo (a mesma lista de `atlas_catalogo { parte: "momentos" }`; um teste confere). */
 export const TIPOS_DE_PASSO_ESQUEMA = ['esperar', 'som', 'silencio', 'efeito', 'clima', 'tela', 'letreiro', 'camera', 'revelar', 'interagir', 'pista', 'nota'] as const;
 
-const refEsquema = (descricao: string) => ({ type: 'object', properties: { app: { type: 'string' }, tipo: { type: 'string' }, id: { type: 'string' } }, required: ['app', 'tipo', 'id'], additionalProperties: false, description: descricao });
-const msEsquema = (min: number, max: number, descricao: string) => ({ type: 'number', minimum: min, maximum: max, description: descricao });
-const passo = (tipo: string, descricao: string, props: Record<string, unknown>, obrigatorios: string[]) => ({ type: 'object', properties: { tipo: { const: tipo }, ...props }, required: ['tipo', ...obrigatorios], additionalProperties: false, description: descricao });
+const refEsquema = () => ({ type: 'object', properties: { app: { type: 'string' }, tipo: { type: 'string' }, id: { type: 'string' } }, required: ['app', 'tipo', 'id'] });
+const msEsquema = (min: number, max: number) => ({ type: 'number', minimum: min, maximum: max });
+const passo = (tipo: string, props: Record<string, unknown>, obrigatorios: string[]) => ({ type: 'object', properties: { tipo: { const: tipo }, ...props }, required: ['tipo', ...obrigatorios] });
 
 /** O esquema JSON de UM passo de momento: `oneOf` por `tipo`, com os limites de `domain/momentos.ts`. */
 export function esquemaDoPasso(): Record<string, unknown> {
   return {
-    description: 'Um passo do momento: exatamente um destes tipos.',
+    description: 'Passo do momento. Tipos em atlas_catalogo { parte: "momentos" }.',
     oneOf: [
-      passo('esperar', 'Espera antes do próximo passo.', { ms: msEsquema(100, 120_000, 'Milissegundos (100 a 120000).') }, ['ms']),
-      passo('som', 'Toca uma cena sonora ou efeito do Jukebox.', { ref: refEsquema('Ref { app: "jukebox", tipo: "cena-sonora" | "efeito", id } vinda do Jukebox.') }, ['ref']),
-      passo('silencio', 'Apaga o som do Jukebox com fade.', { ms: msEsquema(0, 30_000, 'Duração do fade em ms (0 a 30000).') }, ['ms']),
-      passo('efeito', 'Efeito curto de cena.', { efeito: { enum: [...EVENTOS_DE_CENA, 'relampago'] } }, ['efeito']),
-      passo('clima', 'Troca o clima do mapa.', { clima: { type: 'string', maxLength: 60, description: 'Id de um clima pronto ou salvo do mapa (atlas_catalogo { parte: "climas" }).' } }, ['clima']),
-      passo('tela', 'Cortina preta no projetor.', { acao: { enum: ['escurecer', 'clarear'] }, ms: msEsquema(0, 10_000, 'Duração do fade em ms (0 a 10000).') }, ['acao', 'ms']),
-      passo('letreiro', 'Letreiro sobre o mapa (título e subtítulo).', { titulo: { type: 'string', minLength: 1, maxLength: 120 }, subtitulo: { type: 'string', maxLength: 200, description: 'Pode ser "".' }, peca: { type: ['string', 'null'], description: 'Id de uma peça (atlas_mapa_ler) ou null.' }, estilo: { enum: ['apresentacao', 'capitulo'] }, ms: msEsquema(1_000, 20_000, 'Quanto tempo fica na tela, em ms (1000 a 20000).') }, ['titulo', 'subtitulo', 'peca', 'estilo', 'ms']),
-      passo('camera', 'Enquadra um cômodo, região ou peça no projetor.', { alvo: { type: 'object', properties: { colecao: { enum: ['rooms', 'regions', 'tokens'] }, id: { type: 'string' } }, required: ['colecao', 'id'], additionalProperties: false } }, ['alvo']),
-      passo('revelar', 'Revela cômodos aos jogadores.', { ids: { type: 'array', items: { type: 'string' }, maxItems: 100, description: 'Ids de cômodos do mapa.' } }, ['ids']),
-      passo('interagir', 'Aciona uma porta, porta secreta, interruptor ou gaveta.', { id: { type: 'string', description: 'Id da abertura ou do objeto interativo.' } }, ['id']),
-      passo('pista', 'Abre uma pista (documento do Ateliê).', { ref: refEsquema('Ref { app: "atelie", tipo: "documento", id }.'), mostrar: { type: 'boolean', description: 'true já projeta aos jogadores.' } }, ['ref', 'mostrar']),
-      passo('nota', 'Aviso só para o mestre.', { texto: { type: 'string', maxLength: 400 } }, ['texto']),
+      passo('esperar', { ms: msEsquema(100, 120_000) }, ['ms']),
+      passo('som', { ref: refEsquema() }, ['ref']),
+      passo('silencio', { ms: msEsquema(0, 30_000) }, ['ms']),
+      passo('efeito', { efeito: { enum: [...EVENTOS_DE_CENA, 'relampago'] } }, ['efeito']),
+      passo('clima', { clima: { type: 'string', maxLength: 60 } }, ['clima']),
+      passo('tela', { acao: { enum: ['escurecer', 'clarear'] }, ms: msEsquema(0, 10_000) }, ['acao', 'ms']),
+      passo('letreiro', { titulo: { type: 'string', minLength: 1, maxLength: 120 }, subtitulo: { type: 'string', maxLength: 200 }, peca: { type: ['string', 'null'] }, estilo: { enum: ['apresentacao', 'capitulo'] }, ms: msEsquema(1_000, 20_000) }, ['titulo', 'subtitulo', 'peca', 'estilo', 'ms']),
+      passo('camera', { alvo: { type: 'object', properties: { colecao: { enum: ['rooms', 'regions', 'tokens'] }, id: { type: 'string' } }, required: ['colecao', 'id'] } }, ['alvo']),
+      passo('revelar', { ids: { type: 'array', items: { type: 'string' }, maxItems: 100 } }, ['ids']),
+      passo('interagir', { id: { type: 'string' } }, ['id']),
+      passo('pista', { ref: refEsquema(), mostrar: { type: 'boolean' } }, ['ref', 'mostrar']),
+      passo('nota', { texto: { type: 'string', maxLength: 400 } }, ['texto']),
     ],
   };
 }

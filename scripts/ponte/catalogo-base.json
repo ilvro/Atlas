@@ -135,13 +135,12 @@
   },
   {
     "nome": "atlas_abrir",
-    "descricao": "Abre um mapa no Atlas (a aba navega até ele), para o mestre ver e para as próximas ferramentas atuarem sobre ele.",
+    "descricao": "Abre um mapa no Atlas para visualização e edição.",
     "esquema": {
       "type": "object",
       "properties": {
         "id": {
-          "type": "string",
-          "description": "Id do mapa (veja atlas_mapas_listar)."
+          "type": "string"
         }
       },
       "required": [
@@ -157,7 +156,7 @@
   },
   {
     "nome": "atlas_ambiente",
-    "descricao": "Ajusta o clima e o acabamento (cor final) do mapa aberto, como UM passo de desfazer. \"clima\" { preset?, horario?, tempo?, ambiente?, sol?, redeLigada? }: \"preset\" é um clima pronto (manha, tarde, entardecer, noite, tempestade, neblina, neve, apagao, neon) ou um clima salvo do mapa (atlas_catalogo { parte: \"climas\" }); \"horario\" \"HH:MM\" move o sol e o ambiente; \"tempo\" são níveis de 0 a 1 de rain, snow, fog, dust, embers, leaves, lightning e wind (-1 a 1); \"ambiente\" { color: \"#rrggbb\", intensity: 0 a 1 } é a luz de base; \"sol\" { angle (radianos), color, intensity (0 a 3) } ou null para sem sol; \"redeLigada\" false apaga as luzes de rede (apagão). \"acabamento\" { preset?, texture, vignette, grain, glow (0 a 1), saturation (0 a 2), tint (\"#rrggbb\"), grade { lift (-1 a 1), gamma (0,1 a 4), gain (0 a 4) }, edges { kind: none | clouds | dark | fog, amount 0 a 1 } }: \"preset\" é um de nenhum, neutro, sujo, sepia, frio, quente; os ajustes valem por cima dele. \"guardarClima\" { id, nome } guarda o clima e o acabamento resultantes para voltar a eles depois. Aplicar um clima pronto troca também o acabamento dele.",
+    "descricao": "Ajusta clima e acabamento do mapa aberto (um passo de desfazer). Presets em atlas_catalogo { parte: \"climas\" }. \"guardarClima\" { id, nome } salva no mapa.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -168,8 +167,7 @@
               "type": "string"
             },
             "horario": {
-              "type": "string",
-              "description": "\"HH:MM\", 00:00 a 23:59."
+              "type": "string"
             },
             "tempo": {
               "type": "object",
@@ -214,8 +212,7 @@
                   "minimum": -1,
                   "maximum": 1
                 }
-              },
-              "additionalProperties": false
+              }
             },
             "ambiente": {
               "type": "object",
@@ -232,8 +229,7 @@
               "required": [
                 "color",
                 "intensity"
-              ],
-              "additionalProperties": false
+              ]
             },
             "sol": {
               "type": [
@@ -257,14 +253,12 @@
                 "angle",
                 "color",
                 "intensity"
-              ],
-              "additionalProperties": false
+              ]
             },
             "redeLigada": {
               "type": "boolean"
             }
-          },
-          "additionalProperties": false
+          }
         },
         "acabamento": {
           "type": "object",
@@ -326,8 +320,7 @@
                   "minimum": 0,
                   "maximum": 4
                 }
-              },
-              "additionalProperties": false
+              }
             },
             "edges": {
               "type": "object",
@@ -350,18 +343,15 @@
               "required": [
                 "kind",
                 "amount"
-              ],
-              "additionalProperties": false
+              ]
             }
-          },
-          "additionalProperties": false
+          }
         },
         "guardarClima": {
           "type": "object",
           "properties": {
             "id": {
-              "type": "string",
-              "description": "Identificador curto (letras, números, - e _)."
+              "type": "string"
             },
             "nome": {
               "type": "string"
@@ -370,8 +360,7 @@
           "required": [
             "id",
             "nome"
-          ],
-          "additionalProperties": false
+          ]
         }
       },
       "additionalProperties": false
@@ -383,7 +372,7 @@
   },
   {
     "nome": "atlas_catalogo",
-    "descricao": "O que o Atlas sabe fazer, para você não inventar ids. Partes: \"receitas\" (objetos gerados: id, nome, categoria, funções, tags, pegada em metros e campos com mínimo, máximo e padrão), \"colecao\" (itens prontos), \"materiais\" (por uso: piso, papel, objeto, terreno...), \"climas\" (climas, acabamentos, gêneros e tipos de cômodo), \"luzes\", \"presenca\" (musgo, sangue...) e \"momentos\" (tipos de passo e limites). Sem \"parte\", devolve só as contagens de cada uma.",
+    "descricao": "Catálogo de opções: receitas, colecao, materiais, climas, luzes, presenca ou momentos. Sem parte, traz contagens. Use para não inventar ids.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -397,8 +386,7 @@
             "luzes",
             "presenca",
             "momentos"
-          ],
-          "description": "Qual parte do catálogo. Omitida: um índice com contagens."
+          ]
         }
       },
       "required": [],
@@ -411,7 +399,7 @@
   },
   {
     "nome": "atlas_comodos",
-    "descricao": "É o jeito de fazer construções e salas (casa, cabana, loja, salão, cela): cria piso, paredes e telhado em um passo de desfazer, e as paredes de cada cômodo nascem sozinhas (não use atlas_paredes para isso). Depois de criar, abra as passagens com atlas_portas. ATENÇÃO: aqui as coordenadas são em CÉLULAS do grid de 1,5 m, não em metros: \"rets\" é uma lista de retângulos [x0, y0, x1, y1] com x1 e y1 EXCLUSIVOS (uma cabana de 3 × 3 células em [2, 3] é [2, 3, 5, 6] e mede 4,5 × 4,5 m). Vários retângulos formam um cômodo em L. \"tipo\" (obrigatório) define piso e papel; os tipos com função e padrões estão em atlas_catalogo { parte: \"climas\" } (campo tiposDeComodo): sala, cozinha, quarto, biblioteca, escritorio, banheiro, corredor, enfermaria, taverna, sala-de-jantar, sala-de-jogos, capela, forja, varanda, porao. \"nome\", \"piso\", \"papel\" (parede interna) e \"telhado\" (material, ou null para sem telhado) são opcionais; os padrões vêm do tipo. \"telhadoVisivel\" mostra ou esconde o telhado.",
+    "descricao": "Cria cômodos (piso, paredes e telhado; um passo de desfazer). ATENÇÃO: rets em CÉLULAS do grid de 1,5 m com x1 e y1 exclusivos (ex.: [2,3,5,6] = 3×3 células). Tipo: atlas_catalogo.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -432,7 +420,7 @@
                   },
                   "minItems": 4,
                   "maxItems": 4,
-                  "description": "[x0, y0, x1, y1] em CÉLULAS do grid (1,5 m cada); x1 e y1 são exclusivos. Ex.: [2, 3, 5, 6] é um cômodo de 3 × 3 células (4,5 × 4,5 m)."
+                  "description": "[x0, y0, x1, y1] em células de 1,5 m (x1, y1 exclusivos)."
                 }
               },
               "tipo": {
@@ -459,19 +447,16 @@
                 "type": "string"
               },
               "piso": {
-                "type": "string",
-                "description": "Material de piso (ex. \"madeira.media\"); o padrão vem do tipo."
+                "type": "string"
               },
               "papel": {
-                "type": "string",
-                "description": "Material do papel de parede."
+                "type": "string"
               },
               "telhado": {
                 "type": [
                   "string",
                   "null"
-                ],
-                "description": "Material do telhado; null para nenhum."
+                ]
               },
               "telhadoVisivel": {
                 "type": "boolean"
@@ -480,13 +465,11 @@
             "required": [
               "rets",
               "tipo"
-            ],
-            "additionalProperties": false
+            ]
           }
         },
         "semente": {
-          "type": "number",
-          "description": "Semente opcional para o acaso (bordas irregulares, pisos). Mesma semente, mesmo resultado."
+          "type": "number"
         }
       },
       "required": [
@@ -501,7 +484,7 @@
   },
   {
     "nome": "atlas_espalhar",
-    "descricao": "Espalha um conjunto de objetos (mata, jardim, cemitério, bagunça…) dentro de uma região do mapa aberto, como UM passo de desfazer; os objetos são comuns e editáveis depois. UNIDADES: coordenadas em METROS (origem no canto superior esquerdo, y para baixo), exceto \"comodos\", em células do grid de 1,5 m. \"conjunto\" é um destes: papelada, caixotes, bibelos, refeicao, bagunca, plantas, mata, jardim, cemiterio; id desconhecido volta com os mais parecidos. \"forma\" é UMA de disco { disco: [x, y], raio }, poligono, faixa { faixa, largura }, retangulo ou celulas (tudo em metros). \"densidade\" (itens por m² no centro) é opcional; omita para usar a do conjunto. O resultado é aproximado: confira com atlas_ver_mapa.",
+    "descricao": "Espalha conjunto de objetos numa região em metros (um passo de desfazer). Conjuntos em atlas_catalogo { parte: \"receitas\" }. Objetos ficam comuns e editáveis.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -517,11 +500,10 @@
             "mata",
             "jardim",
             "cemiterio"
-          ],
-          "description": "Id do conjunto."
+          ]
         },
         "forma": {
-          "description": "Uma região do mapa em METROS. Use exatamente UMA destas formas.",
+          "description": "Forma em metros: disco, poligono, faixa, retangulo ou celulas. irregular opcional (m).",
           "oneOf": [
             {
               "type": "object",
@@ -532,8 +514,7 @@
                     "type": "number"
                   },
                   "minItems": 2,
-                  "maxItems": 2,
-                  "description": "[x, y] em metros (origem no canto superior esquerdo, y para baixo)."
+                  "maxItems": 2
                 },
                 "raio": {
                   "type": "number",
@@ -541,16 +522,13 @@
                 },
                 "irregular": {
                   "type": "number",
-                  "minimum": 0,
-                  "description": "Amplitude (m) de uma borda irregular natural; 0,3 a 0,8 para bordas orgânicas. Omita para borda lisa."
+                  "minimum": 0
                 }
               },
               "required": [
                 "disco",
                 "raio"
-              ],
-              "additionalProperties": false,
-              "description": "Círculo: centro e raio em metros."
+              ]
             },
             {
               "type": "object",
@@ -563,22 +541,18 @@
                       "type": "number"
                     },
                     "minItems": 2,
-                    "maxItems": 2,
-                    "description": "[x, y] em metros (origem no canto superior esquerdo, y para baixo)."
+                    "maxItems": 2
                   },
                   "minItems": 3
                 },
                 "irregular": {
                   "type": "number",
-                  "minimum": 0,
-                  "description": "Amplitude (m) de uma borda irregular natural; 0,3 a 0,8 para bordas orgânicas. Omita para borda lisa."
+                  "minimum": 0
                 }
               },
               "required": [
                 "poligono"
-              ],
-              "additionalProperties": false,
-              "description": "Polígono fechado (mínimo 3 pontos)."
+              ]
             },
             {
               "type": "object",
@@ -591,8 +565,7 @@
                       "type": "number"
                     },
                     "minItems": 2,
-                    "maxItems": 2,
-                    "description": "[x, y] em metros (origem no canto superior esquerdo, y para baixo)."
+                    "maxItems": 2
                   },
                   "minItems": 1
                 },
@@ -602,16 +575,13 @@
                 },
                 "irregular": {
                   "type": "number",
-                  "minimum": 0,
-                  "description": "Amplitude (m) de uma borda irregular natural; 0,3 a 0,8 para bordas orgânicas. Omita para borda lisa."
+                  "minimum": 0
                 }
               },
               "required": [
                 "faixa",
                 "largura"
-              ],
-              "additionalProperties": false,
-              "description": "Faixa de largura (m) ao longo de uma polilinha: trilha, rio, muro de rocha."
+              ]
             },
             {
               "type": "object",
@@ -622,20 +592,16 @@
                     "type": "number"
                   },
                   "minItems": 4,
-                  "maxItems": 4,
-                  "description": "[x0, y0, x1, y1] em metros."
+                  "maxItems": 4
                 },
                 "irregular": {
                   "type": "number",
-                  "minimum": 0,
-                  "description": "Amplitude (m) de uma borda irregular natural; 0,3 a 0,8 para bordas orgânicas. Omita para borda lisa."
+                  "minimum": 0
                 }
               },
               "required": [
                 "retangulo"
-              ],
-              "additionalProperties": false,
-              "description": "Retângulo em metros."
+              ]
             },
             {
               "type": "object",
@@ -654,21 +620,17 @@
               },
               "required": [
                 "celulas"
-              ],
-              "additionalProperties": false,
-              "description": "Células exatas do terreno [i, j] (cada uma tem 0,25 m)."
+              ]
             }
           ]
         },
         "densidade": {
           "type": "number",
           "exclusiveMinimum": 0,
-          "maximum": 20,
-          "description": "Itens por m² (opcional)."
+          "maximum": 20
         },
         "semente": {
-          "type": "number",
-          "description": "Semente opcional para o acaso (bordas irregulares, pisos). Mesma semente, mesmo resultado."
+          "type": "number"
         }
       },
       "required": [
@@ -684,7 +646,7 @@
   },
   {
     "nome": "atlas_luzes",
-    "descricao": "Acende luzes no mapa aberto (um passo de desfazer). UNIDADES: coordenadas em METROS (origem no canto superior esquerdo, y para baixo), exceto \"comodos\", em células do grid de 1,5 m. Cada luz: { preset, pos: [x, y] em metros, direcao? (radianos, só para cones), raio? (m, 0,1 a 200), cor? (\"#rrggbb\"), intensidade? (0 a 3) }. \"preset\" (atlas_catalogo { parte: \"luzes\" }): vela, lamparina, tocha, fogueira, lampada, neon, luar, lanterna, holofote, farol; \"raio\", \"cor\" e \"intensidade\" sobrescrevem o preset. Luzes só aparecem de verdade em clima escuro (veja atlas_ambiente).",
+    "descricao": "Acende luzes no mapa aberto em metros (um passo de desfazer). Presets em atlas_catalogo { parte: \"luzes\" }. Luzes aparecem em clima escuro (atlas_ambiente).",
     "esquema": {
       "type": "object",
       "properties": {
@@ -717,21 +679,18 @@
                 },
                 "minItems": 2,
                 "maxItems": 2,
-                "description": "[x, y] em metros (origem no canto superior esquerdo, y para baixo)."
+                "description": "[x, y] em metros."
               },
               "direcao": {
-                "type": "number",
-                "description": "Direção do cone em radianos (0 = para a direita)."
+                "type": "number"
               },
               "raio": {
                 "type": "number",
                 "minimum": 0.1,
-                "maximum": 200,
-                "description": "Raio em metros."
+                "maximum": 200
               },
               "cor": {
-                "type": "string",
-                "description": "\"#rrggbb\"."
+                "type": "string"
               },
               "intensidade": {
                 "type": "number",
@@ -742,8 +701,7 @@
             "required": [
               "preset",
               "pos"
-            ],
-            "additionalProperties": false
+            ]
           }
         }
       },
@@ -759,25 +717,21 @@
   },
   {
     "nome": "atlas_mapa_criar",
-    "descricao": "Cria um mapa novo (vazio), grava e abre na aba; as próximas ferramentas de escrita atuam sobre ele. \"largura\" e \"altura\" em METROS (3 a 600; o padrão do app é 45 × 30; o grid tem células de 1,5 m). \"base\" é o terreno de fundo (ex.: \"grama\", \"vazio\"). \"genero\": investigacao, moderno, fantasia. \"estilo\": \"ilustrado\" ou \"pixel\". Com \"campanhaId\" (veja campanha_listar) o mapa entra na campanha como um lugar. Devolve o id.",
+    "descricao": "Cria e abre mapa novo em metros (padrão 45×30; grid 1,5 m). \"base\": atlas_catalogo { parte: \"materiais\" }. Gênero e estilo: atlas_catalogo { parte: \"climas\" }.",
     "esquema": {
       "type": "object",
       "properties": {
         "nome": {
-          "type": "string",
-          "description": "Nome do mapa."
+          "type": "string"
         },
         "largura": {
-          "type": "number",
-          "description": "Largura em metros (3 a 600)."
+          "type": "number"
         },
         "altura": {
-          "type": "number",
-          "description": "Altura em metros (3 a 600)."
+          "type": "number"
         },
         "base": {
-          "type": "string",
-          "description": "Terreno de fundo: \"vazio\" ou um material de terreno (ex.: \"grama\")."
+          "type": "string"
         },
         "genero": {
           "type": "string",
@@ -795,12 +749,10 @@
           ]
         },
         "campanhaId": {
-          "type": "string",
-          "description": "Id da campanha (campanha_listar); omita para usar a campanha ativa do app."
+          "type": "string"
         },
         "notas": {
-          "type": "string",
-          "description": "Notas do mestre sobre o mapa."
+          "type": "string"
         }
       },
       "required": [
@@ -817,13 +769,12 @@
   },
   {
     "nome": "atlas_mapa_ler",
-    "descricao": "Resume um mapa do Atlas sem as células cruas: tamanho e grade, estilo e gênero, terreno (base e camadas com material e nº de células), cômodos (nome, função, retângulo x,y,largura,altura em metros), objetos agrupados por receita ou asset (quantidade e posições), luzes, regiões, peças, clima, acabamento, momentos (nome e passos) e notas. Sem \"id\", lê o mapa aberto. Coordenadas em metros, origem no canto superior esquerdo, y para baixo.",
+    "descricao": "Resume o mapa (aberto ou por id): tamanho, terreno, cômodos (rets em m), objetos, luzes, regiões, peças, clima, acabamento, momentos e notas.",
     "esquema": {
       "type": "object",
       "properties": {
         "id": {
-          "type": "string",
-          "description": "Id do mapa (veja atlas_mapas_listar). Omitido: o mapa aberto."
+          "type": "string"
         }
       },
       "required": [],
@@ -836,7 +787,7 @@
   },
   {
     "nome": "atlas_mapas_listar",
-    "descricao": "Lista os mapas salvos no Atlas: id, nome, tamanho em células, contagens de cômodos, objetos, luzes e peças, campanha e datas de criação e alteração (milissegundos desde 1970). Diz também qual mapa está aberto.",
+    "descricao": "Lista mapas salvos no Atlas (id, nome, tamanho, contagens, campanha e datas). Diz qual mapa está aberto.",
     "esquema": {
       "type": "object",
       "properties": {},
@@ -850,13 +801,12 @@
   },
   {
     "nome": "atlas_momento",
-    "descricao": "Cria (ou refaz) um momento do mapa aberto: uma sequência curta de passos de cena que o mestre toca na sessão (um passo de desfazer). \"nome\" 1 a 60 caracteres; \"cor\" \"#rrggbb\" opcional; \"passos\" até 60, na ordem. Sem \"id\" cria um momento novo e devolve o id; com \"id\" só substitui momentos que o assistente criou (momento do mestre não é alterado: crie outro). Cada passo tem \"tipo\": esperar, som, silencio, efeito, clima, tela, letreiro, camera, revelar, interagir, pista, nota. Os passos que não são \"esperar\" disparam na hora; use \"esperar\" entre eles para dar ritmo (um letreiro, uma tela ou um silêncio duram \"ms\" em paralelo ao próximo passo). Climas: manha, tarde, entardecer, noite, tempestade, neblina, neve, apagao, neon ou um clima salvo do mapa (atlas_catalogo { parte: \"climas\" }). Câmera, revelar, interagir e a peça do letreiro usam ids de atlas_mapa_ler; \"interagir\" aceita porta, porta secreta, interruptor ou gaveta. Os ids de som (Jukebox) e pista (Ateliê) vêm de outros apps e só têm o formato conferido. Teste com atlas_momento_testar.",
+    "descricao": "Cria ou refaz momento no mapa aberto (um passo de desfazer). Sem \"id\" cria novo; com \"id\" só altera o seu. Tipos de passo em atlas_catalogo { parte: \"momentos\" }.",
     "esquema": {
       "type": "object",
       "properties": {
         "id": {
-          "type": "string",
-          "description": "Só para refazer um momento que o assistente criou; omita para criar um novo."
+          "type": "string"
         },
         "nome": {
           "type": "string",
@@ -864,14 +814,13 @@
           "maxLength": 60
         },
         "cor": {
-          "type": "string",
-          "description": "Cor \"#rrggbb\" do momento (opcional)."
+          "type": "string"
         },
         "passos": {
           "type": "array",
           "maxItems": 60,
           "items": {
-            "description": "Um passo do momento: exatamente um destes tipos.",
+            "description": "Passo do momento. Tipos em atlas_catalogo { parte: \"momentos\" }.",
             "oneOf": [
               {
                 "type": "object",
@@ -882,16 +831,13 @@
                   "ms": {
                     "type": "number",
                     "minimum": 100,
-                    "maximum": 120000,
-                    "description": "Milissegundos (100 a 120000)."
+                    "maximum": 120000
                   }
                 },
                 "required": [
                   "tipo",
                   "ms"
-                ],
-                "additionalProperties": false,
-                "description": "Espera antes do próximo passo."
+                ]
               },
               {
                 "type": "object",
@@ -916,17 +862,13 @@
                       "app",
                       "tipo",
                       "id"
-                    ],
-                    "additionalProperties": false,
-                    "description": "Ref { app: \"jukebox\", tipo: \"cena-sonora\" | \"efeito\", id } vinda do Jukebox."
+                    ]
                   }
                 },
                 "required": [
                   "tipo",
                   "ref"
-                ],
-                "additionalProperties": false,
-                "description": "Toca uma cena sonora ou efeito do Jukebox."
+                ]
               },
               {
                 "type": "object",
@@ -937,16 +879,13 @@
                   "ms": {
                     "type": "number",
                     "minimum": 0,
-                    "maximum": 30000,
-                    "description": "Duração do fade em ms (0 a 30000)."
+                    "maximum": 30000
                   }
                 },
                 "required": [
                   "tipo",
                   "ms"
-                ],
-                "additionalProperties": false,
-                "description": "Apaga o som do Jukebox com fade."
+                ]
               },
               {
                 "type": "object",
@@ -967,9 +906,7 @@
                 "required": [
                   "tipo",
                   "efeito"
-                ],
-                "additionalProperties": false,
-                "description": "Efeito curto de cena."
+                ]
               },
               {
                 "type": "object",
@@ -979,16 +916,13 @@
                   },
                   "clima": {
                     "type": "string",
-                    "maxLength": 60,
-                    "description": "Id de um clima pronto ou salvo do mapa (atlas_catalogo { parte: \"climas\" })."
+                    "maxLength": 60
                   }
                 },
                 "required": [
                   "tipo",
                   "clima"
-                ],
-                "additionalProperties": false,
-                "description": "Troca o clima do mapa."
+                ]
               },
               {
                 "type": "object",
@@ -1005,17 +939,14 @@
                   "ms": {
                     "type": "number",
                     "minimum": 0,
-                    "maximum": 10000,
-                    "description": "Duração do fade em ms (0 a 10000)."
+                    "maximum": 10000
                   }
                 },
                 "required": [
                   "tipo",
                   "acao",
                   "ms"
-                ],
-                "additionalProperties": false,
-                "description": "Cortina preta no projetor."
+                ]
               },
               {
                 "type": "object",
@@ -1030,15 +961,13 @@
                   },
                   "subtitulo": {
                     "type": "string",
-                    "maxLength": 200,
-                    "description": "Pode ser \"\"."
+                    "maxLength": 200
                   },
                   "peca": {
                     "type": [
                       "string",
                       "null"
-                    ],
-                    "description": "Id de uma peça (atlas_mapa_ler) ou null."
+                    ]
                   },
                   "estilo": {
                     "enum": [
@@ -1049,8 +978,7 @@
                   "ms": {
                     "type": "number",
                     "minimum": 1000,
-                    "maximum": 20000,
-                    "description": "Quanto tempo fica na tela, em ms (1000 a 20000)."
+                    "maximum": 20000
                   }
                 },
                 "required": [
@@ -1060,9 +988,7 @@
                   "peca",
                   "estilo",
                   "ms"
-                ],
-                "additionalProperties": false,
-                "description": "Letreiro sobre o mapa (título e subtítulo)."
+                ]
               },
               {
                 "type": "object",
@@ -1087,16 +1013,13 @@
                     "required": [
                       "colecao",
                       "id"
-                    ],
-                    "additionalProperties": false
+                    ]
                   }
                 },
                 "required": [
                   "tipo",
                   "alvo"
-                ],
-                "additionalProperties": false,
-                "description": "Enquadra um cômodo, região ou peça no projetor."
+                ]
               },
               {
                 "type": "object",
@@ -1109,16 +1032,13 @@
                     "items": {
                       "type": "string"
                     },
-                    "maxItems": 100,
-                    "description": "Ids de cômodos do mapa."
+                    "maxItems": 100
                   }
                 },
                 "required": [
                   "tipo",
                   "ids"
-                ],
-                "additionalProperties": false,
-                "description": "Revela cômodos aos jogadores."
+                ]
               },
               {
                 "type": "object",
@@ -1127,16 +1047,13 @@
                     "const": "interagir"
                   },
                   "id": {
-                    "type": "string",
-                    "description": "Id da abertura ou do objeto interativo."
+                    "type": "string"
                   }
                 },
                 "required": [
                   "tipo",
                   "id"
-                ],
-                "additionalProperties": false,
-                "description": "Aciona uma porta, porta secreta, interruptor ou gaveta."
+                ]
               },
               {
                 "type": "object",
@@ -1161,22 +1078,17 @@
                       "app",
                       "tipo",
                       "id"
-                    ],
-                    "additionalProperties": false,
-                    "description": "Ref { app: \"atelie\", tipo: \"documento\", id }."
+                    ]
                   },
                   "mostrar": {
-                    "type": "boolean",
-                    "description": "true já projeta aos jogadores."
+                    "type": "boolean"
                   }
                 },
                 "required": [
                   "tipo",
                   "ref",
                   "mostrar"
-                ],
-                "additionalProperties": false,
-                "description": "Abre uma pista (documento do Ateliê)."
+                ]
               },
               {
                 "type": "object",
@@ -1192,13 +1104,10 @@
                 "required": [
                   "tipo",
                   "texto"
-                ],
-                "additionalProperties": false,
-                "description": "Aviso só para o mestre."
+                ]
               }
             ]
-          },
-          "description": "Os passos, em ordem (até 60)."
+          }
         }
       },
       "required": [
@@ -1214,13 +1123,12 @@
   },
   {
     "nome": "atlas_momento_testar",
-    "descricao": "Toca na aba, agora, um momento do mapa aberto (o mesmo executor do painel de momentos: luz, tela, câmera e sons acontecem de verdade) e espera terminar. Devolve a lista dos passos executados, com a descrição de cada um, e o resultado (\"fim\", \"cancelado\" ou \"tempo esgotado\"). Espera no máximo a duração estimada + 5 s (teto de 2 min).",
+    "descricao": "Toca na aba um momento do mapa aberto e espera terminar. Devolve passos e resultado (\"fim\", \"cancelado\", \"tempo esgotado\"). Máximo 2 min.",
     "esquema": {
       "type": "object",
       "properties": {
         "id": {
-          "type": "string",
-          "description": "Id do momento (atlas_mapa_ler ou o devolvido por atlas_momento)."
+          "type": "string"
         }
       },
       "required": [
@@ -1236,7 +1144,7 @@
   },
   {
     "nome": "atlas_mover",
-    "descricao": "Move objetos, luzes, peças e regiões do mapa aberto por um deslocamento [dx, dy] em METROS (x para a direita, y para baixo). Cômodos, paredes e aberturas não se movem (apague e recrie). O que você criou nesta aba move na hora; o que é do mestre espera a permissão dele no painel do assistente (até 5 minutos); recusa ou silêncio voltam como erro e nada se move.",
+    "descricao": "Move objetos, luzes, peças e regiões por [dx, dy] em metros (um passo de desfazer). O que é do mestre pede confirmação no painel.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1245,8 +1153,7 @@
           "items": {
             "type": "string"
           },
-          "minItems": 1,
-          "description": "Ids de objetos, luzes, peças ou regiões."
+          "minItems": 1
         },
         "delta": {
           "type": "array",
@@ -1255,7 +1162,7 @@
           },
           "minItems": 2,
           "maxItems": 2,
-          "description": "[dx, dy] em metros."
+          "description": "[x, y] em metros."
         }
       },
       "required": [
@@ -1271,13 +1178,12 @@
   },
   {
     "nome": "atlas_notas",
-    "descricao": "Escreve notas no mapa aberto (um passo de desfazer), SUBSTITUINDO o texto anterior do campo. \"mapa\" é a nota geral do mestre sobre o mapa. \"comodos\" é uma lista { id, leitura?, notasMestre? } (ids de atlas_mapa_ler): \"leitura\" é o texto para ler em voz alta aos jogadores e \"notasMestre\" é só para o mestre. Texto vazio apaga.",
+    "descricao": "Escreve notas no mapa aberto (um passo de desfazer), substituindo o campo anterior. \"mapa\": nota geral. \"comodos\": notas por cômodo (atlas_mapa_ler).",
     "esquema": {
       "type": "object",
       "properties": {
         "mapa": {
-          "type": "string",
-          "description": "Nota geral do mapa (até 5000 caracteres)."
+          "type": "string"
         },
         "comodos": {
           "type": "array",
@@ -1298,8 +1204,7 @@
             },
             "required": [
               "id"
-            ],
-            "additionalProperties": false
+            ]
           }
         }
       },
@@ -1312,7 +1217,7 @@
   },
   {
     "nome": "atlas_o_que_vejo",
-    "descricao": "O que o mestre tem na tela agora: o mapa aberto (id e nome), o modo (Construir ou Sessão), a caixa visível da câmera em metros e a seleção (ids, tipo, nome e posição em metros). Use para entender \"este cômodo\", \"esses objetos\".",
+    "descricao": "O que o mestre vê na tela: mapa aberto, modo, câmera e seleção (ids, tipo, nome e posição em metros).",
     "esquema": {
       "type": "object",
       "properties": {},
@@ -1326,7 +1231,7 @@
   },
   {
     "nome": "atlas_objetos",
-    "descricao": "Coloca objetos do acervo (móveis, árvores, adereços) no mapa aberto, até 200 por chamada, tudo como UM passo de desfazer. UNIDADES: coordenadas em METROS (origem no canto superior esquerdo, y para baixo), exceto \"comodos\", em células do grid de 1,5 m. Cada objeto: { item, pos: [x, y] em metros, rotacao? (radianos; omita para sortear), escala? (0,05 a 50; padrão 1), camada? (\"floor\" | \"table\" | \"wall\" | \"ceiling\" | \"underwater\"), submerso?, params? }. \"item\" é o id de uma receita (atlas_catalogo { parte: \"receitas\" }) ou \"casa:<nome>\" da coleção (atlas_catalogo { parte: \"colecao\" }); id desconhecido volta com os mais parecidos. Objetos dentro de um cômodo entram nele sozinhos. Para muitos iguais (mata, jardim, bagunça) prefira atlas_espalhar.",
+    "descricao": "Coloca até 200 objetos no mapa aberto em metros (um passo de desfazer). \"item\": receita (atlas_catalogo { parte: \"receitas\" }) ou colecao.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1338,8 +1243,7 @@
             "type": "object",
             "properties": {
               "item": {
-                "type": "string",
-                "description": "Id da receita ou \"casa:<nome>\" (veja atlas_catalogo)."
+                "type": "string"
               },
               "pos": {
                 "type": "array",
@@ -1348,17 +1252,15 @@
                 },
                 "minItems": 2,
                 "maxItems": 2,
-                "description": "[x, y] em metros (origem no canto superior esquerdo, y para baixo)."
+                "description": "[x, y] em metros."
               },
               "rotacao": {
-                "type": "number",
-                "description": "Rotação em radianos (omita para sortear)."
+                "type": "number"
               },
               "escala": {
                 "type": "number",
                 "minimum": 0.05,
-                "maximum": 50,
-                "description": "Multiplicador de tamanho (padrão 1)."
+                "maximum": 50
               },
               "camada": {
                 "type": "string",
@@ -1368,27 +1270,23 @@
                   "wall",
                   "ceiling",
                   "underwater"
-                ],
-                "description": "floor = chão (padrão); table = sobre mesa; wall = na parede; ceiling = teto."
+                ]
               },
               "submerso": {
                 "type": "boolean"
               },
               "params": {
-                "type": "object",
-                "description": "Parâmetros da receita, se ela tiver."
+                "type": "object"
               }
             },
             "required": [
               "item",
               "pos"
-            ],
-            "additionalProperties": false
+            ]
           }
         },
         "semente": {
-          "type": "number",
-          "description": "Semente opcional para o acaso (bordas irregulares, pisos). Mesma semente, mesmo resultado."
+          "type": "number"
         }
       },
       "required": [
@@ -1403,7 +1301,7 @@
   },
   {
     "nome": "atlas_paredes",
-    "descricao": "Cria paredes avulsas no mapa aberto (um passo de desfazer), só para muros, cercas, muretas e divisórias soltas ao ar livre. Qualquer construção com interior (casa, cabana, loja, salão) é atlas_comodos, que cria piso, paredes e telhado; um contorno de paredes sem cômodo fica só com o chão do terreno por dentro. As paredes dos cômodos já nascem com atlas_comodos; rocha e escarpa são maciço de terreno (atlas_terreno), não paredes. UNIDADES: coordenadas em METROS (origem no canto superior esquerdo, y para baixo), exceto \"comodos\", em células do grid de 1,5 m. Cada parede: { path: [[x, y], …] (mínimo 2 pontos, em metros), kind?: \"wall\" | \"low\" | \"fence\" | \"cliff\", altura? (m), espessura? (m), material? }.",
+    "descricao": "Cria paredes, muros ou cercas avulsos em metros (um passo de desfazer). Para salas use atlas_comodos. Rocha é maciço de terreno (atlas_terreno).",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1423,7 +1321,7 @@
                   },
                   "minItems": 2,
                   "maxItems": 2,
-                  "description": "[x, y] em metros (origem no canto superior esquerdo, y para baixo)."
+                  "description": "[x, y] em metros."
                 },
                 "minItems": 2
               },
@@ -1434,16 +1332,13 @@
                   "low",
                   "fence",
                   "cliff"
-                ],
-                "description": "wall = parede; low = mureta; fence = cerca; cliff = penhasco."
+                ]
               },
               "altura": {
-                "type": "number",
-                "description": "Altura em metros."
+                "type": "number"
               },
               "espessura": {
-                "type": "number",
-                "description": "Espessura em metros."
+                "type": "number"
               },
               "material": {
                 "type": "string"
@@ -1451,8 +1346,7 @@
             },
             "required": [
               "path"
-            ],
-            "additionalProperties": false
+            ]
           }
         }
       },
@@ -1468,7 +1362,7 @@
   },
   {
     "nome": "atlas_portas",
-    "descricao": "Abre portas, janelas, arcos ou passagens secretas na parede mais próxima de cada ponto, no mapa aberto (um passo de desfazer). Crie o cômodo ou a parede ANTES (em outra chamada). UNIDADES: coordenadas em METROS (origem no canto superior esquerdo, y para baixo), exceto \"comodos\", em células do grid de 1,5 m. Cada porta: { perto: [x, y] (metros, a até ~0,75 m da parede; encaixa no centro de uma célula), tipo?: \"door\" | \"window\" | \"arch\" | \"secret\" (padrão door), estado?: \"closed\" | \"open\" | \"locked\" (padrão closed), largura? (m, padrão 0,9) }.",
+    "descricao": "Abre portas, janelas, arcos ou passagens secretas na parede mais próxima (metros, até ~0,75 m da parede; um passo de desfazer). Crie cômodo/parede antes.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1486,7 +1380,7 @@
                 },
                 "minItems": 2,
                 "maxItems": 2,
-                "description": "[x, y] em metros (origem no canto superior esquerdo, y para baixo)."
+                "description": "[x, y] em metros."
               },
               "tipo": {
                 "type": "string",
@@ -1506,14 +1400,12 @@
                 ]
               },
               "largura": {
-                "type": "number",
-                "description": "Largura em metros (padrão 0,9)."
+                "type": "number"
               }
             },
             "required": [
               "perto"
-            ],
-            "additionalProperties": false
+            ]
           }
         }
       },
@@ -1529,7 +1421,7 @@
   },
   {
     "nome": "atlas_presenca",
-    "descricao": "Pinta presença (musgo, sangue, mofo, corrupção…) numa região do mapa aberto, como UM passo de desfazer. UNIDADES: coordenadas em METROS (origem no canto superior esquerdo, y para baixo), exceto \"comodos\", em células do grid de 1,5 m. \"pincel\" (atlas_catalogo { parte: \"presenca\" }): musgo, mofo, poca, sangue-seco, fuligem, sulcos, algas, corrupcao, sombra, ordem.sangue, ordem.morte, ordem.conhecimento, ordem.energia, ordem.medo; id desconhecido volta com os mais parecidos. \"forma\" é UMA de disco, poligono, faixa, retangulo ou celulas (em metros). \"intensidade\" (0 a 1, padrão 0,6) ajusta a presença desse pincel no mapa.",
+    "descricao": "Pinta presença (musgo, sangue, mofo, fuligem...) em metros (um passo de desfazer). Pincéis em atlas_catalogo { parte: \"presenca\" }.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1553,7 +1445,7 @@
           ]
         },
         "forma": {
-          "description": "Uma região do mapa em METROS. Use exatamente UMA destas formas.",
+          "description": "Forma em metros: disco, poligono, faixa, retangulo ou celulas. irregular opcional (m).",
           "oneOf": [
             {
               "type": "object",
@@ -1564,8 +1456,7 @@
                     "type": "number"
                   },
                   "minItems": 2,
-                  "maxItems": 2,
-                  "description": "[x, y] em metros (origem no canto superior esquerdo, y para baixo)."
+                  "maxItems": 2
                 },
                 "raio": {
                   "type": "number",
@@ -1573,16 +1464,13 @@
                 },
                 "irregular": {
                   "type": "number",
-                  "minimum": 0,
-                  "description": "Amplitude (m) de uma borda irregular natural; 0,3 a 0,8 para bordas orgânicas. Omita para borda lisa."
+                  "minimum": 0
                 }
               },
               "required": [
                 "disco",
                 "raio"
-              ],
-              "additionalProperties": false,
-              "description": "Círculo: centro e raio em metros."
+              ]
             },
             {
               "type": "object",
@@ -1595,22 +1483,18 @@
                       "type": "number"
                     },
                     "minItems": 2,
-                    "maxItems": 2,
-                    "description": "[x, y] em metros (origem no canto superior esquerdo, y para baixo)."
+                    "maxItems": 2
                   },
                   "minItems": 3
                 },
                 "irregular": {
                   "type": "number",
-                  "minimum": 0,
-                  "description": "Amplitude (m) de uma borda irregular natural; 0,3 a 0,8 para bordas orgânicas. Omita para borda lisa."
+                  "minimum": 0
                 }
               },
               "required": [
                 "poligono"
-              ],
-              "additionalProperties": false,
-              "description": "Polígono fechado (mínimo 3 pontos)."
+              ]
             },
             {
               "type": "object",
@@ -1623,8 +1507,7 @@
                       "type": "number"
                     },
                     "minItems": 2,
-                    "maxItems": 2,
-                    "description": "[x, y] em metros (origem no canto superior esquerdo, y para baixo)."
+                    "maxItems": 2
                   },
                   "minItems": 1
                 },
@@ -1634,16 +1517,13 @@
                 },
                 "irregular": {
                   "type": "number",
-                  "minimum": 0,
-                  "description": "Amplitude (m) de uma borda irregular natural; 0,3 a 0,8 para bordas orgânicas. Omita para borda lisa."
+                  "minimum": 0
                 }
               },
               "required": [
                 "faixa",
                 "largura"
-              ],
-              "additionalProperties": false,
-              "description": "Faixa de largura (m) ao longo de uma polilinha: trilha, rio, muro de rocha."
+              ]
             },
             {
               "type": "object",
@@ -1654,20 +1534,16 @@
                     "type": "number"
                   },
                   "minItems": 4,
-                  "maxItems": 4,
-                  "description": "[x0, y0, x1, y1] em metros."
+                  "maxItems": 4
                 },
                 "irregular": {
                   "type": "number",
-                  "minimum": 0,
-                  "description": "Amplitude (m) de uma borda irregular natural; 0,3 a 0,8 para bordas orgânicas. Omita para borda lisa."
+                  "minimum": 0
                 }
               },
               "required": [
                 "retangulo"
-              ],
-              "additionalProperties": false,
-              "description": "Retângulo em metros."
+              ]
             },
             {
               "type": "object",
@@ -1686,9 +1562,7 @@
               },
               "required": [
                 "celulas"
-              ],
-              "additionalProperties": false,
-              "description": "Células exatas do terreno [i, j] (cada uma tem 0,25 m)."
+              ]
             }
           ]
         },
@@ -1698,8 +1572,7 @@
           "maximum": 1
         },
         "semente": {
-          "type": "number",
-          "description": "Semente opcional para o acaso (bordas irregulares, pisos). Mesma semente, mesmo resultado."
+          "type": "number"
         }
       },
       "required": [
@@ -1715,7 +1588,7 @@
   },
   {
     "nome": "atlas_regioes",
-    "descricao": "Cria regiões no mapa aberto (um passo de desfazer): áreas com função para a sessão. UNIDADES: coordenadas em METROS (origem no canto superior esquerdo, y para baixo), exceto \"comodos\", em células do grid de 1,5 m. Cada região: { poligono: [[x, y], …] (mínimo 3 pontos, em metros), tipo: \"reveal\" (revela o que há dentro) | \"trigger\" (gatilho) | \"audio\" (som) | \"note\" (anotação), nome?, texto?, somenteMestre? (padrão true) }.",
+    "descricao": "Cria regiões funcionais no mapa aberto em metros (um passo de desfazer): reveal, trigger, audio ou note.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1735,7 +1608,7 @@
                   },
                   "minItems": 2,
                   "maxItems": 2,
-                  "description": "[x, y] em metros (origem no canto superior esquerdo, y para baixo)."
+                  "description": "[x, y] em metros."
                 },
                 "minItems": 3
               },
@@ -1755,15 +1628,13 @@
                 "type": "string"
               },
               "somenteMestre": {
-                "type": "boolean",
-                "description": "Só o mestre vê (padrão true)."
+                "type": "boolean"
               }
             },
             "required": [
               "poligono",
               "tipo"
-            ],
-            "additionalProperties": false
+            ]
           }
         }
       },
@@ -1779,7 +1650,7 @@
   },
   {
     "nome": "atlas_remover",
-    "descricao": "Remove do mapa aberto cômodos, paredes, aberturas (portas, janelas), objetos, luzes, peças, regiões, presenças e momentos, pelos ids (atlas_mapa_ler). O que você criou nesta aba é removido na hora; o que é do mestre fica esperando a permissão dele no painel do assistente (até 5 minutos). Se o mestre recusar ou não responder, nada é removido e a chamada volta como erro. Tudo vira um passo de desfazer.",
+    "descricao": "Remove entidades do mapa aberto pelos ids (atlas_mapa_ler). O que é do mestre pede confirmação no painel. Um passo de desfazer.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1788,8 +1659,7 @@
           "items": {
             "type": "string"
           },
-          "minItems": 1,
-          "description": "Ids a remover (qualquer coleção do mapa)."
+          "minItems": 1
         }
       },
       "required": [
@@ -1804,13 +1674,12 @@
   },
   {
     "nome": "atlas_terreno",
-    "descricao": "Pinta ou apaga terreno no mapa aberto, tudo como UM passo de desfazer. UNIDADES: coordenadas em METROS (origem no canto superior esquerdo, y para baixo), exceto \"comodos\", em células do grid de 1,5 m. \"base\" troca o terreno de fundo. \"operacoes\" é uma lista aplicada em ordem: { acao: \"pintar\" | \"apagar\", material, forma }. \"material\" (só em pintar) é de terreno (grama, terra, areia…), maciço (rocha, escarpa) ou água; ids inválidos voltam com a lista. \"forma\" é UMA de: disco { disco: [x, y], raio }, poligono { poligono: [[x, y]…] }, faixa { faixa: [[x, y]…], largura } (trilha, rio), retangulo { retangulo: [x0, y0, x1, y1] } ou celulas; \"irregular\" (m) deixa a borda orgânica. Rocha e escarpa são maciço de terreno, não paredes. \"correnteza\" { material, angulo (radianos), velocidade (0 a 3 m/s) } move a água desse material (ela precisa existir depois das operações).",
+    "descricao": "Pinta ou apaga terreno no mapa aberto (um passo de desfazer), em METROS. Operações: { acao, material, forma }. Materiais: atlas_catalogo { parte: \"materiais\" }.",
     "esquema": {
       "type": "object",
       "properties": {
         "base": {
-          "type": "string",
-          "description": "Terreno de fundo: \"vazio\" ou um material de terreno."
+          "type": "string"
         },
         "operacoes": {
           "type": "array",
@@ -1826,11 +1695,10 @@
                 ]
               },
               "material": {
-                "type": "string",
-                "description": "Material de terreno, maciço ou água (obrigatório em pintar)."
+                "type": "string"
               },
               "forma": {
-                "description": "Uma região do mapa em METROS. Use exatamente UMA destas formas.",
+                "description": "Forma em metros: disco, poligono, faixa, retangulo ou celulas. irregular opcional (m).",
                 "oneOf": [
                   {
                     "type": "object",
@@ -1841,8 +1709,7 @@
                           "type": "number"
                         },
                         "minItems": 2,
-                        "maxItems": 2,
-                        "description": "[x, y] em metros (origem no canto superior esquerdo, y para baixo)."
+                        "maxItems": 2
                       },
                       "raio": {
                         "type": "number",
@@ -1850,16 +1717,13 @@
                       },
                       "irregular": {
                         "type": "number",
-                        "minimum": 0,
-                        "description": "Amplitude (m) de uma borda irregular natural; 0,3 a 0,8 para bordas orgânicas. Omita para borda lisa."
+                        "minimum": 0
                       }
                     },
                     "required": [
                       "disco",
                       "raio"
-                    ],
-                    "additionalProperties": false,
-                    "description": "Círculo: centro e raio em metros."
+                    ]
                   },
                   {
                     "type": "object",
@@ -1872,22 +1736,18 @@
                             "type": "number"
                           },
                           "minItems": 2,
-                          "maxItems": 2,
-                          "description": "[x, y] em metros (origem no canto superior esquerdo, y para baixo)."
+                          "maxItems": 2
                         },
                         "minItems": 3
                       },
                       "irregular": {
                         "type": "number",
-                        "minimum": 0,
-                        "description": "Amplitude (m) de uma borda irregular natural; 0,3 a 0,8 para bordas orgânicas. Omita para borda lisa."
+                        "minimum": 0
                       }
                     },
                     "required": [
                       "poligono"
-                    ],
-                    "additionalProperties": false,
-                    "description": "Polígono fechado (mínimo 3 pontos)."
+                    ]
                   },
                   {
                     "type": "object",
@@ -1900,8 +1760,7 @@
                             "type": "number"
                           },
                           "minItems": 2,
-                          "maxItems": 2,
-                          "description": "[x, y] em metros (origem no canto superior esquerdo, y para baixo)."
+                          "maxItems": 2
                         },
                         "minItems": 1
                       },
@@ -1911,16 +1770,13 @@
                       },
                       "irregular": {
                         "type": "number",
-                        "minimum": 0,
-                        "description": "Amplitude (m) de uma borda irregular natural; 0,3 a 0,8 para bordas orgânicas. Omita para borda lisa."
+                        "minimum": 0
                       }
                     },
                     "required": [
                       "faixa",
                       "largura"
-                    ],
-                    "additionalProperties": false,
-                    "description": "Faixa de largura (m) ao longo de uma polilinha: trilha, rio, muro de rocha."
+                    ]
                   },
                   {
                     "type": "object",
@@ -1931,20 +1787,16 @@
                           "type": "number"
                         },
                         "minItems": 4,
-                        "maxItems": 4,
-                        "description": "[x0, y0, x1, y1] em metros."
+                        "maxItems": 4
                       },
                       "irregular": {
                         "type": "number",
-                        "minimum": 0,
-                        "description": "Amplitude (m) de uma borda irregular natural; 0,3 a 0,8 para bordas orgânicas. Omita para borda lisa."
+                        "minimum": 0
                       }
                     },
                     "required": [
                       "retangulo"
-                    ],
-                    "additionalProperties": false,
-                    "description": "Retângulo em metros."
+                    ]
                   },
                   {
                     "type": "object",
@@ -1963,9 +1815,7 @@
                     },
                     "required": [
                       "celulas"
-                    ],
-                    "additionalProperties": false,
-                    "description": "Células exatas do terreno [i, j] (cada uma tem 0,25 m)."
+                    ]
                   }
                 ]
               }
@@ -1973,38 +1823,32 @@
             "required": [
               "acao",
               "forma"
-            ],
-            "additionalProperties": false
+            ]
           }
         },
         "correnteza": {
           "type": "object",
           "properties": {
             "material": {
-              "type": "string",
-              "description": "Material de água já pintado, ex. \"agua.rio\"."
+              "type": "string"
             },
             "angulo": {
-              "type": "number",
-              "description": "Direção em radianos (0 = para a direita, π/2 = para baixo)."
+              "type": "number"
             },
             "velocidade": {
               "type": "number",
               "minimum": 0,
-              "maximum": 3,
-              "description": "m/s; 0 deixa a água parada."
+              "maximum": 3
             }
           },
           "required": [
             "material",
             "angulo",
             "velocidade"
-          ],
-          "additionalProperties": false
+          ]
         },
         "semente": {
-          "type": "number",
-          "description": "Semente opcional para o acaso (bordas irregulares, pisos). Mesma semente, mesmo resultado."
+          "type": "number"
         }
       },
       "additionalProperties": false
@@ -2016,7 +1860,7 @@
   },
   {
     "nome": "atlas_ver_mapa",
-    "descricao": "Devolve uma imagem do mapa aberto como o mestre o vê (sem grade, pinos nem interface), para conferir o que foi montado. Sem \"caixa\", mostra o mapa inteiro; com ela, só o retângulo [x0, y0, x1, y1] em metros (origem no canto superior esquerdo, y para baixo). O texto traz a escala (px por metro) e a caixa: metros = caixa[x0, y0] + pixel / escala. A imagem é JPEG de até cerca de 500 KB; para mais detalhe, use \"caixa\" em vez de ladoMaximo.",
+    "descricao": "Captura imagem JPEG do mapa aberto. Sem caixa, mostra o mapa todo; com caixa [x0,y0,x1,y1] em metros, mostra recorte. Retorna escala e caixa.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -2026,14 +1870,12 @@
             "type": "number"
           },
           "minItems": 4,
-          "maxItems": 4,
-          "description": "[x0, y0, x1, y1] em metros. Omitida: o mapa inteiro."
+          "maxItems": 4
         },
         "ladoMaximo": {
           "type": "number",
           "minimum": 256,
-          "maximum": 1600,
-          "description": "Maior lado da imagem em pixels (256 a 1600; padrão 1280). A imagem pode sair menor para caber no limite de tamanho."
+          "maximum": 1600
         }
       },
       "required": [],
