@@ -49,6 +49,7 @@ test('converterConteudo converte texto e imagem', () => {
 test('anotações MCP: readOnlyHint nas de leitura e destructiveHint: false nas de criar', () => {
   assert.deepEqual(anotacoesDaFerramenta('ponte_estado'), { readOnlyHint: true });
   assert.deepEqual(anotacoesDaFerramenta('mesa_campanha_atual'), { readOnlyHint: true });
+  assert.deepEqual(anotacoesDaFerramenta('atlas_catalogo'), { readOnlyHint: true });
   assert.deepEqual(anotacoesDaFerramenta('campanha_listar'), { readOnlyHint: true });
   assert.deepEqual(anotacoesDaFerramenta('campanha_ler'), { readOnlyHint: true });
   assert.deepEqual(anotacoesDaFerramenta('campanha_entidade_ler'), { readOnlyHint: true });
@@ -57,6 +58,10 @@ test('anotações MCP: readOnlyHint nas de leitura e destructiveHint: false nas 
   assert.deepEqual(anotacoesDaFerramenta('atlas_mapa_ler'), { readOnlyHint: true });
   assert.deepEqual(anotacoesDaFerramenta('atlas_o_que_vejo'), { readOnlyHint: true });
   assert.deepEqual(anotacoesDaFerramenta('atlas_ver_mapa'), { readOnlyHint: true });
+  assert.deepEqual(anotacoesDaFerramenta('atlas_remover'), { destructiveHint: true });
+  assert.deepEqual(anotacoesDaFerramenta('atlas_abrir'), { readOnlyHint: false, destructiveHint: false });
+  assert.deepEqual(anotacoesDaFerramenta('mesa_abrir_apps'), { readOnlyHint: false, destructiveHint: false });
+  assert.deepEqual(anotacoesDaFerramenta('atlas_momento_testar'), { readOnlyHint: false, destructiveHint: false });
   assert.deepEqual(anotacoesDaFerramenta('atlas_mapa_criar'), { destructiveHint: false });
   assert.deepEqual(anotacoesDaFerramenta('mesa_entidade_criar'), { destructiveHint: false });
   assert.deepEqual(anotacoesDaFerramenta('atlas_terreno'), {});
@@ -280,3 +285,89 @@ test('reconecta relendo o token quando a ponte reinicia', async () => {
     } finally { ponte2.fechar(); servidor2.closeAllConnections(); servidor2.close(); }
   } finally { await mcp2.fechar(); }
 });
+
+test('dono estável: Atlas e Mesa registram campanha_listar em ordens diferentes, o dono é sempre mesa e não sai list_changed', async () => {
+  const p = await subirPonte();
+  const token = () => fs.readFileSync(path.join(p.pasta, 'token'), 'utf8').trim();
+  const cache = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-estavel-')), 'ferramentas.json');
+  const mcp = await clienteMcp(p.url, token, cache);
+
+  const abrirAba = (app: string) => {
+    const ws = new WebSocket(p.url, { origin: p.origem });
+    return new Promise<WebSocket>((res) => {
+      ws.once('open', () => {
+        ws.send(JSON.stringify({
+          tipo: 'registrar', app, titulo: app,
+          ferramentas: [{ nome: 'campanha_listar', descricao: 'listar campanhas', esquema: { type: 'object' } }],
+        }));
+        res(ws);
+      });
+    });
+  };
+
+  try {
+    await esperar(() => mcp.ponta.conectada());
+    // Abre ambas as abas: Atlas primeiro, depois Mesa
+    const abaAtlas = await abrirAba('atlas');
+    const abaMesa = await abrirAba('mesa');
+
+    await esperar(() => mcp.ponta.apps()['atlas'] !== undefined && mcp.ponta.apps()['mesa'] !== undefined);
+
+    const ferramentas1 = (await mcp.client.listTools()).tools;
+    const dono1 = mcp.ponta.catalogo().find(f => f.nome === 'campanha_listar')?.app;
+    assert.equal(dono1, 'mesa');
+    assert.equal(ferramentas1.find(t => t.name === 'campanha_listar')?.description, 'listar campanhas');
+
+    const mudancasAntes = mcp.mudancas();
+
+    // Inverte a ordem de foco entre Atlas e Mesa (o que antes fazia oscilar a ordem no m.lista)
+    abaAtlas.send(JSON.stringify({ tipo: 'foco' }));
+    await new Promise(r => setTimeout(r, 60));
+
+    const dono2 = mcp.ponta.catalogo().find(f => f.nome === 'campanha_listar')?.app;
+    assert.equal(dono2, 'mesa');
+    // Não emitiu list_changed pois o catálogo permaneceu idêntico e estável
+    assert.equal(mcp.mudancas(), mudancasAntes);
+
+    abaMesa.send(JSON.stringify({ tipo: 'foco' }));
+    await new Promise(r => setTimeout(r, 60));
+
+    const dono3 = mcp.ponta.catalogo().find(f => f.nome === 'campanha_listar')?.app;
+    assert.equal(dono3, 'mesa');
+    assert.equal(mcp.mudancas(), mudancasAntes);
+
+    abaAtlas.terminate();
+    abaMesa.terminate();
+  } finally {
+    await mcp.fechar();
+    p.ponte.fechar();
+    p.servidor.closeAllConnections();
+    p.servidor.close();
+  }
+});
+
+test('erros de conexão: token errado cita o token e sem servidor cita o atalho do desktop', async () => {
+  const p = await subirPonte();
+  // Token errado
+  const mcpTokenErrado = await clienteMcp(p.url, () => 'token-invalido-errado');
+  try {
+    await esperar(() => mcpTokenErrado.ponta.motivo() === 'token-invalido');
+    const r1 = await mcpTokenErrado.client.callTool({ name: 'ponte_estado', arguments: {} });
+    assert.match(textoDe(r1), /recusou o token/);
+  } finally {
+    await mcpTokenErrado.fechar();
+    p.ponte.fechar();
+    p.servidor.closeAllConnections();
+    p.servidor.close();
+  }
+
+  // Sem servidor
+  const mcpSemServidor = await clienteMcp('ws://127.0.0.1:1/__ponte', () => 'qualquer-token');
+  try {
+    const r2 = await mcpSemServidor.client.callTool({ name: 'ponte_estado', arguments: {} });
+    assert.match(textoDe(r2), /atalho do app de desktop/);
+  } finally {
+    await mcpSemServidor.fechar();
+  }
+});
+

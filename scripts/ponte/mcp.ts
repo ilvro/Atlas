@@ -8,7 +8,7 @@ import { WebSocket } from 'ws';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { lerMensagem } from './protocolo.ts';
+import { lerMensagem, appDoPrefixo } from './protocolo.ts';
 import type { AppConectado, Conteudo, FerramentaDoApp, Resultado } from './protocolo.ts';
 
 export const ATRASOS_MS = [1000, 2000, 5000, 10000];
@@ -28,6 +28,7 @@ export interface PontaOpcoes {
 
 export interface Ponta {
   conectada: () => boolean;
+  motivo: () => 'sem-servidor' | 'token-invalido' | null;
   /** Ferramentas ativas nas abas abertas agora. */
   ativas: () => FerramentaDoApp[];
   /** Informações dos apps conectados agora ({ armazenamento, onde }). */
@@ -36,8 +37,6 @@ export interface Ponta {
   avisoArmazenamento: () => string | null;
   /** Catálogo persistente completo (cache mais o que está registrado agora). */
   catalogo: () => FerramentaDoApp[];
-  /** Alias para `ativas()` (compatibilidade). */
-  ferramentas: () => FerramentaDoApp[];
   origemHttp: () => string;
   chamar: (ferramenta: string, args: Record<string, unknown>) => Promise<Resultado>;
   fechar: () => void;
@@ -155,6 +154,7 @@ export function ehLeitura(nome: string): boolean {
   return (
     nome === 'ponte_estado' ||
     nome === 'mesa_campanha_atual' ||
+    nome === 'atlas_catalogo' ||
     nome.startsWith('campanha_') ||
     nome.endsWith('_ler') ||
     nome.endsWith('_listar') ||
@@ -168,6 +168,10 @@ export function ehCriacao(nome: string): boolean {
 }
 
 export function anotacoesDaFerramenta(nome: string): { readOnlyHint?: boolean; destructiveHint?: boolean } {
+  if (nome === 'atlas_remover') return { destructiveHint: true };
+  if (nome === 'atlas_abrir' || nome === 'mesa_abrir_apps' || nome === 'atlas_momento_testar') {
+    return { readOnlyHint: false, destructiveHint: false };
+  }
   if (ehLeitura(nome)) return { readOnlyHint: true };
   if (ehCriacao(nome)) return { destructiveHint: false };
   return {};
@@ -182,6 +186,8 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
 
   let ws: WebSocket | null = null;
   let aberta = false;
+  let motivo: 'sem-servidor' | 'token-invalido' | null = 'sem-servidor';
+  let estadoLog: 'conectado' | 'token-recusado' | 'desconectado' | null = null;
   let ativas: FerramentaDoApp[] = [];
   let appsConectados: Record<string, AppConectado> = {};
   let tentativa = 0;
@@ -203,7 +209,13 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
   function abrir() {
     if (parado) return;
     let token: string;
-    try { token = op.lerToken(); } catch { reagendar(); return; }
+    try {
+      token = op.lerToken();
+    } catch {
+      motivo = 'sem-servidor';
+      reagendar();
+      return;
+    }
     const socket = new WebSocket(op.url);
     ws = socket;
     socket.on('open', () => { socket.send(JSON.stringify({ tipo: 'ola', token })); });
@@ -212,6 +224,7 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
       if (!m) return;
       if (m.tipo === 'ferramentas') {
         aberta = true;
+        motivo = null;
         tentativa = 0;
         ativas = m.lista;
 
@@ -236,9 +249,34 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
             catalogo.delete(nome);
           }
         }
-        // Incorpora / atualiza as ferramentas registradas no catálogo.
+
+        // Incorpora / atualiza as ferramentas registradas no catálogo com dono estável.
+        const porNome = new Map<string, FerramentaDoApp[]>();
         for (const f of m.lista) {
-          catalogo.set(f.nome, f);
+          const lista = porNome.get(f.nome);
+          if (lista) lista.push(f);
+          else porNome.set(f.nome, [f]);
+        }
+
+        for (const [nome, grupo] of porNome) {
+          if (grupo.length === 1) {
+            catalogo.set(nome, grupo[0]!);
+          } else {
+            const donoPrefixo = appDoPrefixo(nome);
+            const porPrefixo = donoPrefixo ? grupo.find(f => f.app === donoPrefixo) : undefined;
+            if (porPrefixo) {
+              catalogo.set(nome, porPrefixo);
+            } else {
+              const atual = catalogo.get(nome);
+              const noGrupo = atual ? grupo.find(f => f.app === atual.app) : undefined;
+              catalogo.set(nome, noGrupo ?? grupo[0]!);
+            }
+          }
+        }
+
+        if (estadoLog !== 'conectado') {
+          estadoLog = 'conectado';
+          console.error(`[mesa-mcp] conectado à ponte (${appsAtivos.size} ${appsAtivos.size === 1 ? 'app' : 'apps'})`);
         }
 
         const novaAssinatura = assinaturaDoCatalogo(catalogo);
@@ -252,13 +290,28 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
         if (r) { pendentes.delete(m.id); r(m); }
       }
     });
-    socket.on('error', () => {});
-    socket.on('close', () => {
+    socket.on('error', () => {
+      motivo = 'sem-servidor';
+    });
+    socket.on('close', (code: number) => {
       if (ws !== socket) return;
       ws = null;
       aberta = false;
       ativas = [];
       appsConectados = {};
+      if (code === 4401) {
+        motivo = 'token-invalido';
+        if (estadoLog !== 'token-recusado') {
+          estadoLog = 'token-recusado';
+          console.error('[mesa-mcp] token recusado pela ponte');
+        }
+      } else {
+        motivo = 'sem-servidor';
+        if (estadoLog !== 'desconectado') {
+          estadoLog = 'desconectado';
+          console.error('[mesa-mcp] desconectado da ponte');
+        }
+      }
       falharPendentes('A ponte caiu durante a chamada. Confira se o `npm run mesa-dev` ainda está rodando e tente de novo.');
       reagendar();
     });
@@ -269,14 +322,18 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
 
   return {
     conectada: () => aberta,
+    motivo: () => motivo,
     ativas: () => ativas,
     apps: () => appsConectados,
     avisoArmazenamento: () => gerarAvisoArmazenamento(appsConectados),
     catalogo: () => [...catalogo.values()],
-    ferramentas: () => ativas,
     origemHttp,
     chamar: (ferramenta, args) => new Promise<Resultado>(resolver => {
-      if (!ws || !aberta) { resolver({ tipo: 'resultado', id: '', ok: false, erro: SEM_PONTE }); return; }
+      if (!ws || !aberta) {
+        const erro = motivo === 'token-invalido' ? TOKEN_INVALIDO : SEM_PONTE;
+        resolver({ tipo: 'resultado', id: '', ok: false, erro });
+        return;
+      }
       const id = `m${++seq}`;
       pendentes.set(id, resolver);
       ws.send(JSON.stringify({ tipo: 'chamar', id, ferramenta, args }));
@@ -290,22 +347,23 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
   };
 }
 
-export const SEM_PONTE = 'A ponte não está conectada. Rode `npm run mesa-dev` no Atlas e abra a Mesa ou o Atlas em http://127.0.0.1:5100/.';
+export const SEM_PONTE = 'A ponte não está conectada. Abra a Mesa pelo atalho do app de desktop, ou rode `npm run mesa-dev` no Atlas e abra http://127.0.0.1:5100/.';
+export const TOKEN_INVALIDO = 'A ponte respondeu, mas recusou o token: outro `mesa-dev` ou outro atalho do desktop está rodando, ou o token mudou. Feche as cópias extras e reinicie o app do Claude se persistir.';
 
 export const FERRAMENTA_ESTADO = {
   name: 'ponte_estado',
   description: 'Diz se a ponte com a plataforma está conectada e quais apps (abas abertas) e ferramentas estão disponíveis.',
   inputSchema: { type: 'object' as const, properties: {} },
   annotations: { readOnlyHint: true },
-  readOnlyHint: true,
 };
 
 export function textoDoEstado(
   conectada: boolean,
   ferramentas: FerramentaDoApp[],
   appsInfo?: Record<string, AppConectado>,
+  motivo?: 'sem-servidor' | 'token-invalido' | null,
 ): string {
-  if (!conectada) return SEM_PONTE;
+  if (!conectada) return motivo === 'token-invalido' ? TOKEN_INVALIDO : SEM_PONTE;
   const porApp = new Map<string, number>();
   for (const f of ferramentas) porApp.set(f.app, (porApp.get(f.app) ?? 0) + 1);
   if (porApp.size === 0) return 'Ponte conectada, mas nenhuma aba está aberta. Abra a Mesa ou o Atlas em http://127.0.0.1:5100/.';
@@ -346,7 +404,6 @@ export function listarFerramentas(catalogo: FerramentaDoApp[]) {
         description: f.descricao,
         inputSchema: (f.esquema ?? { type: 'object', properties: {} }) as { type: 'object'; [k: string]: unknown },
         ...(Object.keys(anotacoes).length > 0 ? { annotations: anotacoes } : {}),
-        ...anotacoes,
       };
     }),
   ];
@@ -379,21 +436,24 @@ export function acrescentarAviso<T extends { content: Array<{ type: 'text'; text
 
 /** `tools/call`: roteia para `ponte_estado` ou para a ponte e converte o resultado. */
 export async function chamarFerramenta(ponta: Ponta, nome: string, args: Record<string, unknown>) {
-  const ativas = ponta.ativas ? ponta.ativas() : ponta.ferramentas();
-  const apps = ponta.apps ? ponta.apps() : undefined;
-  if (nome === FERRAMENTA_ESTADO.name) return { content: [{ type: 'text' as const, text: textoDoEstado(ponta.conectada(), ativas, apps) }] };
-  if (!ponta.conectada()) return { isError: true, content: [{ type: 'text' as const, text: SEM_PONTE }] };
-  const catalogo = ponta.catalogo ? ponta.catalogo() : ativas;
+  const ativas = ponta.ativas();
+  const apps = ponta.apps();
+  if (nome === FERRAMENTA_ESTADO.name) return { content: [{ type: 'text' as const, text: textoDoEstado(ponta.conectada(), ativas, apps, ponta.motivo()) }] };
+  if (!ponta.conectada()) {
+    const erro = ponta.motivo() === 'token-invalido' ? TOKEN_INVALIDO : SEM_PONTE;
+    return { isError: true, content: [{ type: 'text' as const, text: erro }] };
+  }
+  const catalogo = ponta.catalogo();
   const ferramenta = catalogo.find(f => f.nome === nome);
   if (!ferramenta)
     return { isError: true, content: [{ type: 'text' as const, text: `A ferramenta "${nome}" não está disponível. Rode \`ponte_estado\` para ver o que está conectado.` }] };
   // App fechado: repassa mesmo assim; o servidor da ponte tenta abri-lo pela Mesa e, se não der, devolve o motivo.
   const r = await ponta.chamar(nome, args);
   if (!r.ok && r.fechado) {
-    const origem = ponta.origemHttp ? ponta.origemHttp() : 'http://127.0.0.1:5100';
+    const origem = ponta.origemHttp();
     return { isError: true, content: [{ type: 'text' as const, text: `${erroAppFechado(ferramenta.app, origem)} (${r.erro})` }] };
   }
-  const aviso = ponta.avisoArmazenamento ? ponta.avisoArmazenamento() : (apps ? gerarAvisoArmazenamento(apps) : null);
+  const aviso = ponta.avisoArmazenamento();
   if (!r.ok) return acrescentarAviso({ isError: true, content: [{ type: 'text' as const, text: r.erro }] }, aviso);
   return acrescentarAviso({ content: r.conteudo.map(converterConteudo) }, aviso);
 }
@@ -407,7 +467,7 @@ export interface McpOpcoes {
 
 /** Monta o servidor MCP `mesa` (sem transporte) sobre uma conexão com a ponte. */
 export function criarServidorMcp(op: McpOpcoes) {
-  const server = new Server({ name: 'mesa', version: '0.1.0' }, { capabilities: { tools: { listChanged: true } } });
+  const server = new Server({ name: 'mesa', version: '0.2.0' }, { capabilities: { tools: { listChanged: true } } });
   let pronto = false;
   const ponta = conectarNaPonte({
     ...op,

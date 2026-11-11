@@ -4,20 +4,17 @@
  */
 import type http from 'node:http';
 import type { Duplex } from 'node:stream';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { lerMensagem, type Ferramenta, type FerramentaDoApp, type Resultado, type AppConectado } from './protocolo.ts';
+import { lerMensagem, type Ferramenta, type FerramentaDoApp, type Resultado, type AppConectado, appDoPrefixo } from './protocolo.ts';
 
 export const CAMINHO_DA_PONTE = '/__ponte';
 export const TEMPO_DA_CHAMADA_MS = 60_000;
 export const TEMPO_DE_ABERTURA_MS = 20_000;
-/** Apps que `mesa_abrir_apps` sabe abrir (ids da ponte) e o prefixo das ferramentas de cada um. */
+/** Apps que `mesa_abrir_apps` sabe abrir (ids da ponte). */
 const APPS_ABRIVEIS = ['atlas', 'ficha', 'atelie', 'jukebox'];
-const PREFIXOS: Record<string, string> = { atlas_: 'atlas', mesa_: 'mesa', dossie_: 'ficha', atelie_: 'atelie', jukebox_: 'jukebox' };
-const appDoPrefixo = (ferramenta: string): string | undefined =>
-  Object.entries(PREFIXOS).find(([p]) => ferramenta.startsWith(p))?.[1];
 
 /** Traduz o User-Agent em um rótulo legível ("Firefox", "Chrome", "app da Mesa", "app da Mesa (WebKit)" ou "outro navegador"). */
 export function rotuloDoLugar(userAgent?: string | null): string {
@@ -200,12 +197,20 @@ export function criarPonte(opcoes: OpcoesDaPonte): Ponte {
     });
   }
 
+  function conferirToken(recebido: unknown, esperado: string): boolean {
+    if (typeof recebido !== 'string') return false;
+    const a = Buffer.from(recebido);
+    const b = Buffer.from(esperado);
+    if (a.length !== b.length) return false;
+    return timingSafeEqual(a, b);
+  }
+
   function ligarMcp(ws: WebSocket) {
     let autenticado = false;
     ws.on('message', dados => {
       const m = lerMensagem(String(dados));
       if (!autenticado) {
-        if (m?.tipo === 'ola' && m.token === token) {
+        if (m?.tipo === 'ola' && conferirToken(m.token, token)) {
           autenticado = true;
           mcps.add(ws);
           enviar(ws, { tipo: 'ferramentas', lista: lista(), apps: appsInfo() });

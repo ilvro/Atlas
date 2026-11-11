@@ -8,6 +8,18 @@ export type FerramentaDoApp = Ferramenta & {
 };
 export type Conteudo = { tipo: 'texto'; texto: string } | { tipo: 'imagem'; dados: string; mime: string };
 
+export const PREFIXOS: Record<string, string> = {
+  atlas_: 'atlas',
+  mesa_: 'mesa',
+  campanha_: 'mesa',
+  dossie_: 'ficha',
+  atelie_: 'atelie',
+  jukebox_: 'jukebox',
+};
+
+export const appDoPrefixo = (ferramenta: string): string | undefined =>
+  Object.entries(PREFIXOS).find(([p]) => ferramenta.startsWith(p))?.[1];
+
 export type Resultado = { tipo: 'resultado'; id: string; ok: true; conteudo: Conteudo[] } | { tipo: 'resultado'; id: string; ok: false; erro: string; fechado?: true };
 /* `fechado`: a ponte não conseguiu abrir o app (o erro traz o motivo); o MCP completa a mensagem com o endereço. */
 
