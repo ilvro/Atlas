@@ -10,7 +10,8 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { criarPonte } from '../../scripts/ponte/servidor.ts';
-import { criarServidorMcp, converterConteudo, anotacoesDaFerramenta, SEM_PONTE, type McpOpcoes } from '../../scripts/ponte/mcp.ts';
+import { criarServidorMcp, converterConteudo, anotacoesDaFerramenta, SEM_PONTE, CAMINHO_CATALOGO_BASE_PADRAO, type McpOpcoes } from '../../scripts/ponte/mcp.ts';
+import { gerarCatalogoBase } from '../../scripts/ponte/catalogo.ts';
 
 const esperar = async (cond: () => boolean | Promise<boolean>, ms = 3000) => {
   const fim = Date.now() + ms;
@@ -30,7 +31,15 @@ async function subirPonte() {
 
 async function clienteMcp(url: string, lerToken: () => string, arquivoDoCache?: string, extras?: Partial<McpOpcoes>) {
   const cache = arquivoDoCache ?? path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-test-')), 'ferramentas.json');
-  const { server, ponta, fechar } = criarServidorMcp({ url, lerToken, arquivoDoCache: cache, atrasosMs: [20], ...extras });
+  const basePadraoVazia = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-test-base-')), 'catalogo-base.json');
+  const { server, ponta, fechar } = criarServidorMcp({
+    url,
+    lerToken,
+    arquivoDoCache: cache,
+    arquivoDoCatalogoBase: extras?.arquivoDoCatalogoBase ?? basePadraoVazia,
+    atrasosMs: [20],
+    ...extras,
+  });
   const client = new Client({ name: 't', version: '0' });
   let mudancas = 0;
   client.setNotificationHandler(ToolListChangedNotificationSchema, () => { mudancas++; });
@@ -460,6 +469,126 @@ test('notificação de progresso: cliente com progressToken recebe avisos a cada
     p.ponte.fechar();
     p.servidor.closeAllConnections();
     p.servidor.close();
+  }
+});
+
+test('catálogo base: base com jukebox_listar e cache vazio traz a ferramenta sem aba aberta', async () => {
+  const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'ponte-mcp-base-'));
+  const arquivoBase = path.join(pasta, 'catalogo-base.json');
+  fs.writeFileSync(arquivoBase, JSON.stringify([
+    { nome: 'jukebox_listar', descricao: 'lista', esquema: { type: 'object' }, app: 'jukebox' },
+  ]));
+  const mcp = await clienteMcp('ws://127.0.0.1:1/__ponte', () => { throw new Error('sem token'); }, undefined, {
+    arquivoDoCatalogoBase: arquivoBase,
+  });
+  try {
+    const { tools } = await mcp.client.listTools();
+    assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'jukebox_listar']);
+  } finally {
+    await mcp.fechar();
+  }
+});
+
+test('catálogo base: cache com descrição nova vence a base', async () => {
+  const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'ponte-mcp-base-'));
+  const arquivoBase = path.join(pasta, 'catalogo-base.json');
+  const arquivoCache = path.join(pasta, 'ferramentas.json');
+  fs.writeFileSync(arquivoBase, JSON.stringify([
+    { nome: 'jukebox_listar', descricao: 'descrição velha', esquema: { type: 'object' }, app: 'jukebox' },
+  ]));
+  fs.writeFileSync(arquivoCache, JSON.stringify([
+    { nome: 'jukebox_listar', descricao: 'descrição nova do cache', esquema: { type: 'object' }, app: 'jukebox' },
+  ]));
+  const mcp = await clienteMcp('ws://127.0.0.1:1/__ponte', () => { throw new Error('sem token'); }, arquivoCache, {
+    arquivoDoCatalogoBase: arquivoBase,
+  });
+  try {
+    const { tools } = await mcp.client.listTools();
+    const jb = tools.find(t => t.name === 'jukebox_listar');
+    assert.equal(jb?.description, 'descrição nova do cache');
+  } finally {
+    await mcp.fechar();
+  }
+});
+
+test('catálogo base: aba do Atlas registrando sem uma ferramenta da base faz ela sair', async () => {
+  const p = await subirPonte();
+  const token = () => fs.readFileSync(path.join(p.pasta, 'token'), 'utf8').trim();
+  const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'ponte-mcp-base-'));
+  const arquivoBase = path.join(pasta, 'catalogo-base.json');
+  const arquivoCache = path.join(pasta, 'ferramentas.json');
+  fs.writeFileSync(arquivoBase, JSON.stringify([
+    { nome: 'atlas_antiga', descricao: 'antiga', esquema: { type: 'object' }, app: 'atlas' },
+    { nome: 'atlas_continua', descricao: 'continua', esquema: { type: 'object' }, app: 'atlas' },
+  ]));
+  const mcp = await clienteMcp(p.url, token, arquivoCache, { arquivoDoCatalogoBase: arquivoBase });
+  const aba = new WebSocket(p.url, { origin: p.origem });
+  aba.on('error', () => {});
+  try {
+    await new Promise<void>(r => aba.once('open', () => r()));
+    // Aba do Atlas se registra apenas com 'atlas_continua'
+    aba.send(JSON.stringify({
+      tipo: 'registrar',
+      app: 'atlas',
+      titulo: 'Atlas',
+      ferramentas: [
+        { nome: 'atlas_continua', descricao: 'continua', esquema: { type: 'object' } },
+      ],
+    }));
+    await esperar(() => mcp.mudancas() === 1);
+    const { tools } = await mcp.client.listTools();
+    assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'atlas_continua']);
+  } finally {
+    aba.terminate();
+    await mcp.fechar();
+    p.ponte.fechar();
+    p.servidor.closeAllConnections();
+    p.servidor.close();
+  }
+});
+
+test('gerarCatalogoBase sobre cache de teste gera JSON ordenado, descarta campos de rede e avisa de apps faltantes', () => {
+  const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'ponte-mcp-gerar-'));
+  const cache = path.join(pasta, 'ferramentas.json');
+  const destino = path.join(pasta, 'catalogo-base.json');
+  fs.writeFileSync(cache, JSON.stringify([
+    { nome: 'z_ferramenta', descricao: 'z', esquema: {}, app: 'atlas', armazenamento: 'id1', onde: 'Firefox' },
+    { nome: 'a_ferramenta', descricao: 'a', esquema: {}, app: 'mesa', armazenamento: 'id2' },
+  ]));
+  const r = gerarCatalogoBase(cache, destino);
+  assert.equal(r.total, 2);
+  assert.deepEqual(r.faltantes.sort(), ['atelie', 'ficha', 'jukebox']);
+  const gerado = JSON.parse(fs.readFileSync(destino, 'utf8'));
+  assert.equal(gerado.length, 2);
+  assert.equal(gerado[0].nome, 'a_ferramenta');
+  assert.equal(gerado[1].nome, 'z_ferramenta');
+  assert.equal(gerado[0].armazenamento, undefined);
+  assert.equal(gerado[0].onde, undefined);
+});
+
+test('com .ponte apagado, tools/list traz as 4 jukebox_* e mesa_elenco do catalogo-base padrão', async () => {
+  const cacheInexistente = path.join(os.tmpdir(), `inexistente-${Date.now()}`, 'ferramentas.json');
+  const { server, fechar } = criarServidorMcp({
+    url: 'ws://127.0.0.1:1/__ponte',
+    lerToken: () => { throw new Error('sem token'); },
+    arquivoDoCache: cacheInexistente,
+    arquivoDoCatalogoBase: CAMINHO_CATALOGO_BASE_PADRAO,
+  });
+  const client = new Client({ name: 't', version: '0' });
+  const [a, b] = InMemoryTransport.createLinkedPair();
+  await Promise.all([server.connect(a), client.connect(b)]);
+  try {
+    const { tools } = await client.listTools();
+    const nomes = tools.map(t => t.name);
+    assert.ok(nomes.includes('jukebox_listar'));
+    assert.ok(nomes.includes('jukebox_tocar'));
+    assert.ok(nomes.includes('jukebox_efeito'));
+    assert.ok(nomes.includes('jukebox_parar'));
+    assert.ok(nomes.includes('mesa_elenco'));
+    assert.ok(nomes.includes('mesa_elenco_ler'));
+  } finally {
+    await fechar();
+    await client.close();
   }
 });
 
