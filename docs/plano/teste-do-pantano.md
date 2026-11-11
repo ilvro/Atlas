@@ -69,10 +69,11 @@ Ler: `docs/plano/acervo-medieval.md` (como foram feitas M1 a M6), `src/procedura
 Receitas: `arvore-morta` (em pé: tronco escuro sem folhas, galhos secos em leque, 3 a 6 m), `carroca-tombada` (carroça de lado com uma roda solta e carga espalhada) e `laje-de-pedra` (laje grande solta, 2 a 4 m, com rachaduras e musgo de borda opcional). Ilustrado e Pixel, conferidas na prancha ao lado das receitas vizinhas. Ponha as três no `atlas_catalogo` e nas regras de espalhar do pântano e do campo, se houver.
 Commit: dead tree, overturned cart and stone slab recipes
 
-#### C2 — Borda suave entre materiais de chão  ⬜
+#### C2 — Borda suave entre materiais de chão  ✅
 Ler: `src/procedural/assar.ts` (como maciço e água ganham `cobertura` e borda com ruído), `src/domain/agua.ts`.
 Como: estenda aos materiais de chão (`uso` diferente de maciço e água) uma faixa de transição de ~0,5 a 1 m na borda entre materiais, com ruído, como já é feito para maciço e água: o material de cima se mistura ao de baixo em vez de cortar na célula. Só no estilo Ilustrado; o Pixel mantém a borda dura. Compare antes e depois na mesma cena (`atlas_ver_mapa`, ou captura manual) e anote na Nota.
 Cuidado: a ordem das camadas e o custo do assado; meça o tempo de assar um mapa grande antes e depois.
+Nota: transição estendida com `suave(0.22, 0.78, v)` no corpo e `suave(0.12, 0.45, v)` no aro para materiais de chão no estilo Ilustrado; Pixel permanece binário e com contorno de 1 px. Custo de bake mantido idêntico por usar a mesma passagem aritmética (medido em mapa 30×30 m com múltiplas camadas: Ilustrado ~487 ms, Pixel ~61 ms em `tests/e2e/teste-pantano-terreno.test.ts`).
 Commit: soft edges between ground materials
 
 #### C3 — Escarpa no guia  ⬜

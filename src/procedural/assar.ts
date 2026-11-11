@@ -182,14 +182,14 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
     const material = materialDe(camada.material), macico = material.uso === 'macico', agua = material.uso === 'agua';
     const corpo = new ImageData(W, Hh), aro = new ImageData(W, Hh), binaria = new Uint8Array(pixel || macico || agua ? W * Hh : 0), cobertura = new Uint8Array((macico || agua) && !pixel ? W * Hh : 0), ruidoFino = valueNoise2D(3000 + idx * 31);
     for (let k = 0, px = 0; k < fonte.length; k += 4, px++) {
-      const b = fonte[k + 3]! / 255; if (b < 0.04) continue;
+      const b = fonte[k + 3]! / 255; if (b < 0.02) continue;
       const mx = (px % W) / res, my = Math.floor(px / W) / res;
       let v = b + (fbm(ruido, mx * 1.3, my * 1.3, 3) - 0.5) * 0.5;
       if (macico) v += pixel ? (fbm(ruidoFino, mx * 3.5, my * 3.5, 3) - 0.5) * 0.35 : (fbm(ruidoFino, mx * 1.5, my * 1.5, 2) - 0.5) * 0.5 + (fbm(ruidoFino, mx * 6 + 9, my * 6, 1) - 0.5) * 0.06;      // borda de rocha: lóbulos grandes e arredondados (Ilustrado), degraus no Pixel
       if (agua) { binaria[px] = v >= 0.5 ? 1 : 0; if (!pixel) cobertura[px] = suave(0.47, 0.53, v) * 255; }
       else if (macico) { binaria[px] = v >= 0.5 ? 1 : 0; if (!pixel) cobertura[px] = suave(0.47, 0.53, v) * 255; }
       else if (pixel) binaria[px] = v >= 0.5 ? 1 : 0;
-      else { corpo.data[k + 3] = suave(0.47, 0.53, v) * 255; aro.data[k + 3] = suave(0.3, 0.47, v) * 255; }
+      else { corpo.data[k + 3] = suave(0.22, 0.78, v) * 255; aro.data[k + 3] = suave(0.12, 0.45, v) * 255; }
     }
     if (agua) {
       // Água: o que está embaixo continua à vista e ganha a cor do leito pela profundidade; a margem é uma faixa de areia molhada.
