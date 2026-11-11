@@ -53,6 +53,54 @@ export const RECEITAS_ESTRADA: Receita[] = [
       }
       return piso([3.6, 1.8], partes);
     } },
+  { id: 'carroca-tombada', nome: 'Carroça tombada', ...P, tags: ['carroca', 'veiculo', 'tombada', 'madeira', 'estrada', 'pantano', 'ruina'], pegada: [3.6, 2.4], altura: 1.2,
+    campos: [{ id: 'carga', rotulo: 'Carga espalhada (0 vazia, 1 caixotes e sacos)', tipo: 'numero', padrao: 1, min: 0, max: 1, passo: 1 }],
+    gerar: p => {
+      const r = mulberry32(p.seed), carga = Math.round(num(p, 'carga', 1, 0, 1)) === 1, partes: Parte[] = [];
+      // Sombra geral no chão
+      partes.push(ret(-0.15, -0.05, 2.7, 1.7, tom(SOMBRA, -0.3), 0.5, { contorno: false, sombraLeve: true }));
+
+      // Chassi e piso inclinado visto em perspectiva
+      partes.push(ret(-0.2, -0.15, 2.4, 0.76, 'madeira.media', 0.58, { contorno: 'leve', detalhe: 1 }));
+      for (const x of [-0.8, -0.2, 0.4]) {
+        partes.push(ret(x, -0.15, 0.02, 0.74, 'madeira.escura', 0.6, FINO));
+      }
+
+      // Trilhos / laterais da carroça
+      partes.push(ret(-0.2, -0.55, 2.4, 0.1, 'madeira.escura', 0.62, { contorno: 'leve', detalhe: 1 }));
+      partes.push(ret(-0.2, 0.25, 2.4, 0.1, 'madeira.clara', 0.95, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
+      for (const x of [-1.1, 0.7]) {
+        partes.push(ret(x, -0.15, 0.07, 0.74, 'madeira.escura', 0.96, { contorno: 'leve', semSombra: true, detalhe: 2 }));
+      }
+
+      // Varais frontais partidos
+      partes.push(...faixa([1.0, -0.22, 1.45, -0.32, 1.65, -0.2], 0.08, 'madeira.media', 0.58, { contorno: 'leve', sombraLeve: true, detalhe: 2 }));
+      partes.push(ret(1.3, 0.18, 0.6, 0.08, 'madeira.media', 0.58, { dir: 0.18, contorno: 'leve', detalhe: 2 }));
+
+      // Roda ainda suspensa no eixo traseiro
+      partes.push(poli(rot(-0.7, 0.48, 0.85, 0.16, (r() - 0.5) * 0.15), 'ferro', 1.05, { contorno: 'leve', detalhe: 1 }));
+      partes.push(elipse(-0.7, 0.48, 0.16, 0.16, 'madeira.escura', 1.1, { contorno: 'leve', detalhe: 2 }));
+
+      // Eixo partido do lado que perdeu a roda
+      partes.push(ret(0.48, -0.4, 0.1, 0.32, 'madeira.escura', 0.68, { contorno: 'leve', detalhe: 2 }));
+
+      // Roda solta deitada no chão (círculo com aro de ferro e raios)
+      const rx = 0.45, ry = -0.75, rd = 0.86;
+      partes.push(elipse(rx, ry, rd, rd, 'ferro', 0.55, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
+      partes.push(elipse(rx, ry, rd * 0.86, rd * 0.86, 'madeira.media', 0.58, { contorno: 'leve', detalhe: 2 }));
+      partes.push(elipse(rx, ry, rd * 0.68, rd * 0.68, '#2a1a10', 0.6, { contorno: false, semSombra: true, detalhe: 3 }));
+      partes.push(ret(rx, ry, rd * 0.64, 0.04, 'madeira.clara', 0.62, FINO));
+      partes.push(ret(rx, ry, 0.04, rd * 0.64, 'madeira.clara', 0.62, FINO));
+      partes.push(elipse(rx, ry, 0.2, 0.2, 'madeira.escura', 0.65, { contorno: 'leve', detalhe: 2 }));
+
+      if (carga) {
+        // Carga espalhada pelo tombo
+        partes.push(poli(rot(-0.2, 0.78, 0.52, 0.52, 0.32), 'madeira.media', 0.8, { contorno: 'leve', sombraLeve: true, detalhe: 2 }));
+        partes.push(elipse(-0.82, -0.72, 0.44, 0.3, 'tecido.linho', 0.68, { contorno: 'leve', sombraLeve: true, detalhe: 2 }));
+        partes.push(ret(0.2, 0.65, 0.6, 0.1, 'madeira.clara', 0.75, { dir: 0.35, contorno: 'leve', detalhe: 3 }));
+      }
+      return piso([3.6, 2.4], partes);
+    } },
   { id: 'cavalo', nome: 'Cavalo', ...P, tags: ['cavalo', 'animal', 'montaria', 'estabulo', 'estrada'], pegada: [2.5, 1.0], altura: 1.6,
     campos: [{ id: 'pelagem', rotulo: 'Pelagem (0 pardo, 1 branco, 2 preto, 3 malhado)', tipo: 'numero', padrao: 0, min: 0, max: 3, passo: 1 }],
     gerar: p => {

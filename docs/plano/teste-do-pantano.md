@@ -64,7 +64,7 @@ Commit: rising water step in moments
 
 ### Etapa C — Acervo e terreno
 
-#### C1 — Três receitas novas  ⬜
+#### C1 — Três receitas novas  ✅
 Ler: `docs/plano/acervo-medieval.md` (como foram feitas M1 a M6), `src/procedural/receitas/` (o padrão das receitas e as de árvore, carroça e pedra que já existem), a prancha de conferência usada no acervo medieval.
 Receitas: `arvore-morta` (em pé: tronco escuro sem folhas, galhos secos em leque, 3 a 6 m), `carroca-tombada` (carroça de lado com uma roda solta e carga espalhada) e `laje-de-pedra` (laje grande solta, 2 a 4 m, com rachaduras e musgo de borda opcional). Ilustrado e Pixel, conferidas na prancha ao lado das receitas vizinhas. Ponha as três no `atlas_catalogo` e nas regras de espalhar do pântano e do campo, se houver.
 Commit: dead tree, overturned cart and stone slab recipes
