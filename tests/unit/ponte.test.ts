@@ -241,6 +241,24 @@ test('app fechado sem Mesa: erro com o motivo', async () => {
   } finally { await s.encerrar(); }
 });
 
+test('chamar campanha_ler sem abas abertas devolve fechado', async () => {
+  const s = await subir();
+  try {
+    const c = await s.mcp();
+    await pausa(); await c.proxima();
+    c.ws.send(JSON.stringify({ tipo: 'chamar', id: '1', ferramenta: 'campanha_ler', args: {} }));
+    const r = await c.proxima();
+    assert.equal(r.tipo, 'resultado');
+    if (r.tipo === 'resultado') {
+      assert.equal(r.ok, false);
+      assert.equal(r.fechado, true);
+    }
+  } finally {
+    await s.encerrar();
+  }
+});
+
+
 test('duas chamadas ao mesmo app fechado abrem uma vez só', async () => {
   const s = await subir(undefined, 2000);
   try {
