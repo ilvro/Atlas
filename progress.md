@@ -475,3 +475,7 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 - **PM4a — Instruções enviadas pelo servidor** — o servidor MCP `mesa` carrega e envia `docs/assistente/instrucoes.md` diretamente no `initialize` via `instructions`, dispensando colagem manual nas configurações do Claude; documentação atualizada em LEIAMEs. Testes em `tests/unit/ponte-mcp.test.ts`.
 - **PM4b — Descrições das ferramentas do Atlas mais curtas** — descrições das 22 ferramentas `atlas_*` encurtadas (máximo 180 caracteres) e esquemas compactados; peso das `atlas_*` no catálogo base reduzido de 38.625 para 19.823 bytes (< 20 KB); regras de composição e ordem consolidadas em `docs/assistente/instrucoes.md`; novo teste de tamanho e limites em `tests/unit/ponte-escrita.test.ts`.
 
+## Teste do Pântano
+
+- **A1 — Captura sem depender de aba visível** — `esperarQuadro()` com corrida entre `requestAnimationFrame` e `setTimeout(50ms)`, avanço de `app.ticker.update()` quando a aba está oculta (`visibilityState !== 'visible'`), limite de 8 s devolvendo captura com `aviso`, e retorno amigável de erro em `atlas_ver_mapa`. Testes em `tests/unit/ponte-leitura.test.ts` e `tests/e2e/ponte-captura.test.ts`.
+

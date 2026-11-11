@@ -85,7 +85,7 @@ export interface PonteViewport {
 const DURACAO_PADRAO_DA_TRANSICAO = 1600;
 
 /** O resultado de `capturar`: a imagem e como ler coordenadas nela (a origem da caixa é o canto superior esquerdo da imagem). */
-export interface Captura { dataUrl: string; largura: number; altura: number; pxPorMetro: number; caixa: Caixa; /** Tamanho do JPEG em bytes. */ bytes: number; /** Qualidade JPEG usada (0 a 1). */ qualidade: number }
+export interface Captura { dataUrl: string; largura: number; altura: number; pxPorMetro: number; caixa: Caixa; /** Tamanho do JPEG em bytes. */ bytes: number; /** Qualidade JPEG usada (0 a 1). */ qualidade: number; /** Aviso se a cena não acalmou a tempo. */ aviso?: string; }
 
 export interface Viewport {
   readonly camera: Camera;
@@ -139,6 +139,8 @@ export interface Viewport {
   diagnosticoDaRegua(): { quadrados: number; texto: string; pontos: number } | null;
   /** Esconde ou mostra os marcadores de editor (grade, contorno da área, pinos de luz e regiões). */
   definirModoProjetor(ligado: boolean): void;
+  /** Para os testes: simula um valor de pintando (> 0 ou null para desligar). */
+  simularPintando?(n: number | null): void;
   /**
    * Fotografa o mapa como o mestre o vê, sem marcadores nem interface: guarda a câmera e o modo, liga o projetor, enquadra `caixa` (padrão: o mapa todo),
    * espera o assar terminar, extrai a cena e restaura tudo. Devolve um PNG (dataURL) cujo maior lado cabe em `ladoMaximo`, mais a escala e a caixa efetivas.
@@ -1012,6 +1014,26 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   }
 
   let modoProjetor = somenteLeitura;
+  let pintandoSimulado: number | null = null;
+  function esperarQuadro(): Promise<void> {
+    return new Promise<void>(resolve => {
+      let resolvido = false;
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      let raf: number | null = null;
+      const concluir = () => {
+        if (resolvido) return;
+        resolvido = true;
+        if (timer !== null) clearTimeout(timer);
+        if (raf !== null && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf);
+        resolve();
+      };
+      if (typeof requestAnimationFrame === 'function') {
+        raf = requestAnimationFrame(concluir);
+      }
+      timer = setTimeout(concluir, 50);
+    });
+  }
+
   async function capturar(opcoes: { caixa?: Caixa; ladoMaximo?: number } = {}): Promise<Captura> {
     const m = doc(), pedida = opcoes.caixa ?? { x0: 0, y0: 0, x1: m.bounds.width, y1: m.bounds.height };
     const caixa = { x0: Math.max(0, Math.min(pedida.x0, pedida.x1)), y0: Math.max(0, Math.min(pedida.y0, pedida.y1)), x1: Math.min(m.bounds.width, Math.max(pedida.x0, pedida.x1)), y1: Math.min(m.bounds.height, Math.max(pedida.y0, pedida.y1)) };
@@ -1022,10 +1044,24 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       camAnim = null;
       projetor(true);
       definirCamera(calcularEnquadre({ x: caixa.x0, y: caixa.y0, largura: caixa.x1 - caixa.x0, altura: caixa.y1 - caixa.y0 }, tela(), 0));
-      const limite = performance.now() + 20_000;
+      const limite = performance.now() + 8_000;
       let calmos = 0;
-      while (performance.now() < limite && calmos < 3) { await new Promise<void>(r => requestAnimationFrame(() => r())); calmos = cena.pintando === 0 ? calmos + 1 : 0; }
+      let aviso: string | undefined;
+      while (calmos < 3) {
+        if (performance.now() >= limite) {
+          aviso = 'a cena ainda estava pintando; a imagem pode estar incompleta';
+          break;
+        }
+        await esperarQuadro();
+        if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+          app.ticker.update();
+        }
+        calmos = (pintandoSimulado ?? cena.pintando) === 0 ? calmos + 1 : 0;
+      }
       await new Promise<void>(r => setTimeout(r, 250));
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+        app.ticker.update();
+      }
       app.renderer.render(app.stage);
       const [ax, ay] = mundoParaTela(camera, [caixa.x0, caixa.y0]), [bx, by] = mundoParaTela(camera, [caixa.x1, caixa.y1]);
       const x = Math.max(0, Math.floor(ax)), y = Math.max(0, Math.floor(ay)), w = Math.max(1, Math.min(app.screen.width, Math.ceil(bx)) - x), h = Math.max(1, Math.min(app.screen.height, Math.ceil(by)) - y);
@@ -1048,7 +1084,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       }
       const b64 = dataUrl.length - dataUrl.indexOf(',') - 1, bytes = Math.floor(b64 * 3 / 4) - (dataUrl.endsWith('==') ? 2 : dataUrl.endsWith('=') ? 1 : 0);
       const reducao = fonte.width / tela_.width;
-      return { dataUrl, largura: fonte.width, altura: fonte.height, pxPorMetro: Math.round(camera.zoom * resolucao * reducao * 100) / 100, caixa, bytes, qualidade };
+      return { dataUrl, largura: fonte.width, altura: fonte.height, pxPorMetro: Math.round(camera.zoom * resolucao * reducao * 100) / 100, caixa, bytes, qualidade, ...(aviso ? { aviso } : {}) };
     } finally {
       projetor(modo0);
       definirCamera(camera0);
@@ -1090,6 +1126,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     fantasmasVisiveis: () => ({ ferramenta: fantasmaC.visible, proposta: fantasmaDaProposta.raiz.visible, laco: laco.visible }),
     diagnosticoDaRegua: medidaDaRegua,
     definirModoProjetor: projetor,
+    simularPintando: (n: number | null) => { pintandoSimulado = n; },
     capturar,
     destruir() {
       destruido = true; cancelarAssinatura(); observador.disconnect();

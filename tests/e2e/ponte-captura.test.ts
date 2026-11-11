@@ -88,3 +88,49 @@ test('capturar: o modo projetor esconde os fantasmas (ferramenta, proposta, laç
     assert.deepEqual(erros, []);
   } finally { await ctx.close(); }
 });
+
+test('capturar: com requestAnimationFrame simulado que nunca dispara e visibilityState = hidden, termina em menos de 10 s', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  try {
+    const mapa = JSON.parse(readFileSync(new URL('../../public/exemplos/covil-na-caverna.atlas.json', import.meta.url), 'utf8'));
+    await page.evaluate(async m => { await (window as unknown as { __atlas: { servicos(): { repo: { salvar(m: unknown, o?: unknown): Promise<unknown> } } } }).__atlas.servicos().repo.salvar(m, { forcar: true }); }, mapa);
+    await page.evaluate(id => { location.hash = `#/mapa/${encodeURIComponent(id)}`; }, mapa.id);
+    await esperarEditor(page);
+    const r = await page.evaluate(async () => {
+      window.requestAnimationFrame = () => 0;
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+      const t0 = performance.now();
+      const v = (window as unknown as { __atlas: { viewport(): VP } }).__atlas.viewport();
+      const c = await v.capturar({ ladoMaximo: 400 });
+      const duracao = performance.now() - t0;
+      return { duracao, w: c.largura, h: c.altura, prefixo: c.dataUrl.slice(0, 23) };
+    });
+    assert.ok(r.duracao < 10_000, `terminou em ${r.duracao}ms (deve ser < 10s)`);
+    assert.equal(r.prefixo, 'data:image/jpeg;base64,');
+    assert.deepEqual(erros, []);
+  } finally { await ctx.close(); }
+});
+
+test('capturar: com pintando sempre acima de 0, termina com aviso', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  try {
+    const mapa = JSON.parse(readFileSync(new URL('../../public/exemplos/covil-na-caverna.atlas.json', import.meta.url), 'utf8'));
+    await page.evaluate(async m => { await (window as unknown as { __atlas: { servicos(): { repo: { salvar(m: unknown, o?: unknown): Promise<unknown> } } } }).__atlas.servicos().repo.salvar(m, { forcar: true }); }, mapa);
+    await page.evaluate(id => { location.hash = `#/mapa/${encodeURIComponent(id)}`; }, mapa.id);
+    await esperarEditor(page);
+    const r = await page.evaluate(async () => {
+      type VPComSim = VP & { simularPintando(n: number | null): void };
+      const v = (window as unknown as { __atlas: { viewport(): VPComSim } }).__atlas.viewport();
+      v.simularPintando(5);
+      try {
+        const c = await (v.capturar({ ladoMaximo: 400 }) as Promise<Cap & { aviso?: string }>);
+        return { aviso: c.aviso, prefixo: c.dataUrl.slice(0, 23) };
+      } finally {
+        v.simularPintando(null);
+      }
+    });
+    assert.equal(r.aviso, 'a cena ainda estava pintando; a imagem pode estar incompleta');
+    assert.equal(r.prefixo, 'data:image/jpeg;base64,');
+    assert.deepEqual(erros, []);
+  } finally { await ctx.close(); }
+});
