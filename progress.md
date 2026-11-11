@@ -478,4 +478,5 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 ## Teste do Pântano
 
 - **A1 — Captura sem depender de aba visível** — `esperarQuadro()` com corrida entre `requestAnimationFrame` e `setTimeout(50ms)`, avanço de `app.ticker.update()` quando a aba está oculta (`visibilityState !== 'visible'`), limite de 8 s devolvendo captura com `aviso`, e retorno amigável de erro em `atlas_ver_mapa`. Testes em `tests/unit/ponte-leitura.test.ts` e `tests/e2e/ponte-captura.test.ts`.
+- **A2 — Jukebox acessível no app desktop** — `jukebox.prontidao` no `CATALOGO` do `mesa-core`, teste de contrato validando manifestos de todos os apps irmãos, cópia do Jukebox no desktop sem lista fixa incluindo `ponte.js` e mantendo `sample` usado em produção, e fallback SPA no servidor desktop restrito a rotas sem extensão (404 para arquivos inexistentes). Testes em `mesa-core/tests/manifesto-tema.test.ts` e `../Mesa/tests/unit/desktop.test.ts`.
 
