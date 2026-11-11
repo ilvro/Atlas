@@ -56,7 +56,7 @@ Passos novos (domínio, execução, editor de momentos e esquema do MCP):
 Testes: cada passo no domínio (validação e descrição), na execução (comandos certos) e no esquema do MCP; o id de objeto para luz acha as luzes por `ownerId`.
 Commit: light, object and region steps in moments
 
-#### B2 — Água que sobe  ⬜
+#### B2 — Água que sobe  ✅
 Depende de: B1
 Como: `{ tipo: 'agua'; poligono: Ponto[]; material: string; ms: number; etapas?: number }` (padrão de 6 etapas). Durante `ms`, pinta o material de água em anéis do centro do polígono para a borda (ou da borda mais próxima da água que já existe, se for fácil), um comando por etapa, usando a mesma rotina do pincel com `suavizar: true` (`src/render/pincel.ts`, `domain/agua.ts`: `suavizarMargem`). O passo inteiro se desfaz de uma vez.
 Testes: `ms` dividido nas etapas; a última etapa cobre o polígono; o desfazer volta o terreno.

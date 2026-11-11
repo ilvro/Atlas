@@ -1,7 +1,7 @@
 import { ehRef, type Ref } from '#mesa';
 import { HEX, IDENT } from './esquema.ts';
 import { EVENTOS_DE_CENA, ROTULO_DO_EVENTO, type EventoDeCena } from './eventos-de-cena.ts';
-import type { MapaAtlas } from './mapa.ts';
+import type { MapaAtlas, Ponto } from './mapa.ts';
 
 export type EfeitoDeCena = EventoDeCena | 'relampago';
 
@@ -20,6 +20,7 @@ export type PassoDeMomento =
   | { tipo: 'interagir'; id: string }                                 // porta/interagível (comando interagir)
   | { tipo: 'luz'; ids: string[]; acao: 'ligar' | 'desligar' | 'alternar' } // ids de luzes ou de objetos (comando luz.estado)
   | { tipo: 'objeto'; ids: string[]; acao: 'mostrar' | 'esconder' }   // ids de objetos (comando objeto.visibilidade)
+  | { tipo: 'agua'; poligono: Ponto[]; material: string; ms: number; etapas?: number } // sobe a água em anéis durante ms
   | { tipo: 'pista'; ref: Ref; mostrar: boolean }                     // documento do Ateliê; mostrar = já projeta
   | { tipo: 'nota'; texto: string };                                  // aviso só para o mestre, ≤ 400
 
@@ -42,7 +43,7 @@ export function duracaoEstimada(m: Momento): number {
   let tempoAtual = 0;
   let fim = 0;
   for (const p of m.passos) {
-    if (p.tipo === 'esperar') {
+    if (p.tipo === 'esperar' || p.tipo === 'agua') {
       tempoAtual += p.ms;
       fim = Math.max(fim, tempoAtual);
     } else if (p.tipo === 'letreiro' || p.tipo === 'tela' || p.tipo === 'silencio') {
@@ -139,6 +140,10 @@ export function descreverPasso(p: PassoDeMomento, mapa?: MapaAtlas): string {
         return '(sumiu)';
       });
       return `${acaoRotulo} objeto: ${nomes.join(', ') || 'nenhum'}`;
+    }
+    case 'agua': {
+      const s = (p.ms / 1000).toString().replace('.', ',');
+      return `Água subindo (${s} s)`;
     }
     case 'interagir': {
       if (!mapa) return `Interagir: ${p.id}`;
@@ -286,6 +291,24 @@ export function passoValido(p: unknown): string | null {
       }
       if (!passo.ids.every((id: unknown) => typeof id === 'string' && id.trim().length > 0 && id.length <= 64)) {
         return 'Identificador inválido na lista de objetos.';
+      }
+      return null;
+    }
+    case 'agua': {
+      if (!Array.isArray(passo.poligono) || passo.poligono.length < 3) {
+        return 'Polígono de água deve ter pelo menos 3 pontos.';
+      }
+      if (!passo.poligono.every((pt: unknown) => Array.isArray(pt) && pt.length === 2 && typeof pt[0] === 'number' && Number.isFinite(pt[0]) && typeof pt[1] === 'number' && Number.isFinite(pt[1]))) {
+        return 'Pontos do polígono de água inválidos.';
+      }
+      if (typeof passo.material !== 'string' || !passo.material.trim() || passo.material.length > 60) {
+        return 'Material de água inválido.';
+      }
+      if (typeof passo.ms !== 'number' || !Number.isFinite(passo.ms) || passo.ms < 100 || passo.ms > 120_000) {
+        return 'Duração da água deve ser entre 100 e 120.000 ms.';
+      }
+      if (passo.etapas !== undefined && (typeof passo.etapas !== 'number' || !Number.isInteger(passo.etapas) || passo.etapas < 1 || passo.etapas > 60)) {
+        return 'Número de etapas de água deve ser inteiro entre 1 e 60.';
       }
       return null;
     }
