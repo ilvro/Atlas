@@ -95,7 +95,7 @@ Decidido em 11/11: o MCP escreve em **qualquer pasta de preset que o mestre indi
 
 Ordem: D1 (proteção na Jukebox) antes de tudo, depois D2, D3 e D4. D1 e D3 mexem na Jukebox, com autorização do usuário em 11/11. Os commits da Jukebox vão para o repositório dela.
 
-#### D1 — Jukebox: salvar sem perder o que entrou por fora  ⬜
+#### D1 — Jukebox: salvar sem perder o que entrou por fora  ✅
 Ler: `Jukebox/upload-song.js` (`savePreset`, `savePresetBrowserFallback`, `populatePresetFromFileHandles`, `loadSamplePreset`, `deletedSongs`, `loadedPresetFileNames`), `Jukebox/tests/`.
 Como:
 - Novo módulo puro `Jukebox/preset-mescla.js` com `mesclarMetadados({ noDisco, daTela, apagadas, tituloNaAbertura })`. Ele devolve a lista da tela mais, no fim e na ordem do disco, cada item do disco que **não está na tela**, **não foi apagado** nesta sessão e **não existia quando o preset foi aberto** (`tituloNaAbertura`: conjunto de `currentTitle` guardado ao carregar). Só esses itens entraram por fora.
@@ -105,7 +105,7 @@ Como:
 Testes (`node --test`, em `Jukebox/tests/preset-mescla.test.mjs`): item de fora preservado; item apagado não volta; item que existia na abertura e saiu da tela não volta; ordem estável; título renomeado na tela não duplica o antigo.
 Commit (Jukebox): keep externally added songs when saving a preset
 
-#### D2 — MCP: ler e adicionar ao preset  ⬜
+#### D2 — MCP: ler e adicionar ao preset  ✅
 Depende de: D1
 Ler: `scripts/ponte/mcp.ts` (como `ponte_estado` e `plataforma_guia` são ferramentas locais, `tools/list`, anotações), `scripts/ponte/catalogo.ts` e `catalogo-base.json`, `Jukebox/images/page_icon.jpg`.
 Como:
