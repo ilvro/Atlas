@@ -889,6 +889,8 @@ effect(() => {
 // ---------- Momentos ----------
 export { momentoEmCurso, pararMomento, telaEscura, pedirSilencio };
 
+let contadorDeAgua = 0;
+
 export function saidasDeMomento(s: Servicos | null): SaidasDeMomento {
   return {
     som: ref => {
@@ -1002,6 +1004,8 @@ export function saidasDeMomento(s: Servicos | null): SaidasDeMomento {
       const rotulo = m ? `Momento: ${m.nome}` : 'Água que sobe';
       const maxCols = Math.ceil(doc.bounds.width / res);
       const maxRows = Math.ceil(doc.bounds.height / res);
+      // Uma chave por execução do passo: todas as etapas viram uma só entrada de histórico (um Ctrl+Z).
+      const fusao = `agua:${++contadorDeAgua}`;
 
       for (let i = 0; i < etapas.length; i++) {
         if (sinal.aborted) return;
@@ -1012,7 +1016,7 @@ export function saidasDeMomento(s: Servicos | null): SaidasDeMomento {
             material: p.material,
             celulas,
             suavizar: true,
-          }, { rotulo });
+          }, { rotulo, fusao });
         }
         await rel.esperar(intervalo, sinal);
       }
