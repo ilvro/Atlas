@@ -18,6 +18,8 @@ export interface ContextoDeLeitura {
   abrirMapa: (id: string) => Promise<void>;
   /** O mapa aberto tem edições não gravadas? (o app liga ao `sujo` do store); ausente vale `false`. */
   naoSalvo?: () => boolean;
+  /** Um mapa que está numa aba em segundo plano (cache de sessões): o documento vivo e se tem edições não gravadas; `null` se não está em cache. */
+  sessaoEmCache?: (id: string) => { mapa: MapaAtlas; naoSalvo: boolean } | null;
   /** O modo do editor agora (`construir` ou `sessao`). */
   modo?: () => 'construir' | 'sessao';
   /** A seleção atual do editor. */
@@ -163,15 +165,19 @@ const vazio = { type: 'object', properties: {}, required: [], additionalProperti
 
 export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[] {
   const repo = () => { const r = ctx.repo(); if (!r) throw new Error('O Atlas ainda não terminou de iniciar.'); return r; };
-  const carregar = async (id: unknown): Promise<MapaAtlas> => {
-    if (id === undefined || id === '') { const a = ctx.mapaAberto(); if (!a) throw new Error('Não há mapa aberto: passe o "id" (veja atlas_mapas_listar).'); return a; }
+  /** O mapa pedido e se ele é o documento vivo (com `naoSalvo`): o aberto, depois uma aba em segundo plano, por fim o disco. */
+  const carregarComEstado = async (id: unknown): Promise<{ mapa: MapaAtlas; naoSalvo: boolean }> => {
+    if (id === undefined || id === '') { const a = ctx.mapaAberto(); if (!a) throw new Error('Não há mapa aberto: passe o "id" (veja atlas_mapas_listar).'); return { mapa: a, naoSalvo: ctx.naoSalvo?.() ?? false }; }
     if (typeof id !== 'string') throw new Error('O "id" deve ser texto.');
     const aberto = ctx.mapaAberto();
-    if (aberto?.id === id) return aberto;
+    if (aberto?.id === id) return { mapa: aberto, naoSalvo: ctx.naoSalvo?.() ?? false };
+    const emAba = ctx.sessaoEmCache?.(id);
+    if (emAba) return emAba;
     const m = await repo().obter(id);
     if (!m) throw new Error(`Não existe mapa com id "${id}".`);
-    return m;
+    return { mapa: m, naoSalvo: false };
   };
+  const carregar = async (id: unknown): Promise<MapaAtlas> => (await carregarComEstado(id)).mapa;
   return [
     {
       nome: 'atlas_o_que_vejo',
@@ -191,19 +197,18 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
       async executar() {
         const aberto = ctx.mapaAberto();
         const lista = await repo().listar();
-        return [json({ aberto: aberto?.id ?? null, mapas: lista.map(m => ({ id: m.id, nome: m.nome, ...(m.id === aberto?.id && ctx.naoSalvo?.() ? { naoSalvo: true } : {}), celulas: m.celulas, comodos: m.comodos, objetos: m.objetos, luzes: m.luzes, pecas: m.pecas, campanhaId: m.campanhaId, criadoEm: m.criadoEm, atualizadoEm: m.atualizadoEm, ...(m.erro ? { erro: m.erro } : {}) })) })];
+        return [json({ aberto: aberto?.id ?? null, mapas: lista.map(m => ({ id: m.id, nome: m.nome, ...((m.id === aberto?.id ? ctx.naoSalvo?.() : ctx.sessaoEmCache?.(m.id)?.naoSalvo) ? { naoSalvo: true } : {}), celulas: m.celulas, comodos: m.comodos, objetos: m.objetos, luzes: m.luzes, pecas: m.pecas, campanhaId: m.campanhaId, criadoEm: m.criadoEm, atualizadoEm: m.atualizadoEm, ...(m.erro ? { erro: m.erro } : {}) })) })];
       },
     },
     {
       nome: 'atlas_mapa_ler',
-      descricao: 'Resume o mapa (aberto ou por id): terreno, cômodos, objetos, luzes, regiões, peças, clima, momentos e notas. O aberto vem ao vivo, com naoSalvo.',
+      descricao: 'Resume o mapa (aberto ou por id): terreno, cômodos, objetos, luzes, regiões, peças, clima, momentos e notas. O aberto e os de abas em segundo plano vêm ao vivo, com naoSalvo.',
       esquema: { type: 'object', properties: { id: { type: 'string' } }, required: [], additionalProperties: false },
       anotacoes: { leitura: true },
       async executar(args) {
-        const m = await carregar(args.id);
-        // O aberto é o documento vivo (com as edições ainda não gravadas); qualquer outro vem do disco.
-        const vivo = ctx.mapaAberto()?.id === m.id;
-        return [json({ ...resumirMapa(m), naoSalvo: vivo ? (ctx.naoSalvo?.() ?? false) : false })];
+        // O aberto e os de abas em segundo plano são documentos vivos (com as edições ainda não gravadas); os demais vêm do disco.
+        const { mapa, naoSalvo } = await carregarComEstado(args.id);
+        return [json({ ...resumirMapa(mapa), naoSalvo })];
       },
     },
     {

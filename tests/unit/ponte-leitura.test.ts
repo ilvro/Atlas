@@ -232,3 +232,19 @@ test('atlas_o_que_vejo espera o editor (até 5 s) para trazer a câmera', async 
   const { chamar } = montar(covil, { dormir: async ms => { await r.dormir(ms); viewportExiste = r.editorPronto(); }, editorPronto: () => viewportExiste, caixaVisivel: () => viewportExiste ? { x0: 0, y0: 0, x1: 10, y1: 10 } : null });
   assert.deepEqual(JSON.parse(await chamar('atlas_o_que_vejo')).camera.caixa, [0, 0, 10, 10]);
 });
+
+test('mapa em aba de segundo plano: ler devolve o documento vivo e naoSalvo; listar marca', async () => {
+  const emAba = { ...covil, id: 'outro', name: 'Outro editado' };
+  const { chamar } = montar(covil, { sessaoEmCache: id => id === 'outro' ? { mapa: emAba, naoSalvo: true } : null });
+  const r = JSON.parse(await chamar('atlas_mapa_ler', { id: 'outro' }));
+  assert.equal(r.nome, 'Outro editado'); assert.equal(r.naoSalvo, true);
+  const lista = JSON.parse(await chamar('atlas_mapas_listar'));
+  assert.equal(lista.mapas.find((m: { id: string }) => m.id === 'outro').naoSalvo, true);
+  assert.equal('naoSalvo' in lista.mapas.find((m: { id: string }) => m.id === covil.id), false);
+});
+
+test('mapa em aba de segundo plano sem edições: naoSalvo false e fora da marca da lista', async () => {
+  const { chamar } = montar(covil, { sessaoEmCache: id => id === 'outro' ? { mapa: { ...covil, id: 'outro' }, naoSalvo: false } : null });
+  assert.equal(JSON.parse(await chamar('atlas_mapa_ler', { id: 'outro' })).naoSalvo, false);
+  assert.equal('naoSalvo' in JSON.parse(await chamar('atlas_mapas_listar')).mapas[1], false);
+});
