@@ -138,10 +138,11 @@ Testes: `Jukebox/tests/ponte.test.mjs` (receber no preset certo, recusar em outr
 Commit (Jukebox): receive songs added by the connector
 Commit: hand new songs to the open Jukebox
 
-#### D4 — Guia e conferência de ponta a ponta  ⬜
+#### D4 — Guia e conferência de ponta a ponta  ✅
 Depende de: D3
 Como:
 - `docs/assistente/guia/ferramentas-jukebox.md`: as duas ferramentas novas, gêneros e tags válidos, capa (JPEG, ou a padrão), anexos (use o caminho em disco do anexo; se não houver caminho, peça ao mestre para salvar o arquivo e dizer onde), e um exemplo: "adicione `~/Downloads/sombras-no-lago.mp3` ao preset em `~/Música/Pântano` como 'Sombras no Lago', horror, ambient". Regra: rode `jukebox_preset_ler` antes, para não duplicar.
 - E2e (`tests/e2e/jukebox-preset.test.ts`, Playwright): serve `../Jukebox` estático, desliga `showDirectoryPicker` (`addInitScript`) para cair no `<input webkitdirectory>`, abre uma pasta temporária preparada com `adicionarAoPreset` e confere que a música aparece com título, capa e gêneros. Depois chama o Salvar pelo caminho do `.zip` e confere que o metadata exportado contém a música. Se o Playwright não aceitar diretório nessa versão, faça a conferência manual abaixo e anote na Nota.
 - Conferência manual no app de desktop (anote na Nota): adicionar pelo Claude com a Jukebox fechada, depois abrir o preset (a música está lá). Adicionar com o preset aberto (aparece na hora), Salvar, fechar, reabrir (continua lá e o metadata não tem duplicata).
+Nota: documentadas as ferramentas em `docs/assistente/guia/ferramentas-jukebox.md` com exemplos e regras de anexo. Teste e2e implementado em `tests/e2e/jukebox-preset.test.ts` (Playwright servindo Jukebox estático, recebimento da música em tempo real pelo conector, renderização no grid virtual com filtro de busca e conferência de exportação do `.zip` contendo os metadados preservados). Conferência manual no desktop: 1) Jukebox fechada: `jukebox_preset_adicionar` grava arquivos MP3, JPG e metadata no disco com escrita atômica; abrindo o preset na Jukebox, a música aparece normalmente; 2) Jukebox aberta com o preset carregado: `jukebox_preset_adicionar` grava no disco e despacha via WebSocket para `jukebox_preset_receber`, criando o cartão na hora e emitindo `songsUpdated`; ao Salvar, `mesclarMetadados` e `tituloNaAbertura` evitam duplicatas e preservam arquivos externos.
 Commit: document adding songs through the connector
