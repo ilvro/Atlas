@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { projetarParaJogadores } from '../../src/domain/projecao.ts';
+import { CAMPOS_DO_MESTRE, projetarParaJogadores } from '../../src/domain/projecao.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
 import { novaPeca } from '../../src/domain/fabrica.ts';
 import { aplicarComando } from '../../src/state/comandos.ts';
@@ -46,4 +46,59 @@ test('a porta secreta revelada e a pista revelada aparecem', () => {
   validarMapa(p);
   assert.ok(p.openings.cofre, 'a secreta revelada é uma porta como as outras');
   assert.ok(JSON.stringify(p).includes('PISTA-SECRETA'), 'a pista revelada vai');
+});
+
+test('revelar região leva células exploradas aos jogadores mesmo sendo gmOnly', () => {
+  let m = mapaCompleto();
+  m.regions['area-secreta'] = {
+    id: 'area-secreta',
+    kind: 'reveal',
+    polygon: [[10, 10], [15, 10], [15, 15], [10, 15]],
+    gmOnly: true,
+    payload: {},
+    refs: [],
+  };
+  m = aplicarComando(m, { tipo: 'sessao.revelar', ids: ['area-secreta'] });
+  const p = projetarParaJogadores(m);
+  validarMapa(p);
+  assert.ok(p.session.explored, 'session.explored é preenchido');
+  assert.ok(p.session.explored.cells.length > 0, 'células reveladas da região estão em session.explored');
+  assert.equal(p.regions['area-secreta'], undefined, 'região gmOnly não viaja para o projetor');
+});
+
+test('região comum revelada permanece no session.revealed', () => {
+  let m = mapaCompleto();
+  m.regions['clube'] = {
+    id: 'clube',
+    kind: 'reveal',
+    polygon: [[2, 2], [6, 2], [6, 6], [2, 6]],
+    gmOnly: false,
+    payload: {},
+    refs: [],
+  };
+  m = aplicarComando(m, { tipo: 'sessao.revelar', ids: ['clube'] });
+  const p = projetarParaJogadores(m);
+  validarMapa(p);
+  assert.ok(p.session.revealed.includes('clube'), 'id da região pública revelada permanece no revealed');
+});
+
+test('objeto oculto e suas luzes são excluídos da projeção para jogadores', () => {
+  let m = mapaCompleto();
+  m.props.bauOculto = {
+    ...m.props.mesa!,
+    id: 'bauOculto',
+    oculto: true,
+  };
+  m.lights.luzBau = {
+    ...m.lights.lampiao!,
+    id: 'luzBau',
+    ownerId: 'bauOculto',
+  };
+  assert.ok(CAMPOS_DO_MESTRE.includes('props.oculto'));
+  const p = projetarParaJogadores(m);
+  validarMapa(p);
+  assert.equal(p.props.bauOculto, undefined, 'objeto oculto não vai para o projetor');
+  assert.equal(p.lights.luzBau, undefined, 'luz do objeto oculto não vai para o projetor');
+  assert.ok(m.props.bauOculto, 'o mapa original permanece intacto');
+  assert.ok(m.lights.luzBau, 'a luz original permanece intacta');
 });
