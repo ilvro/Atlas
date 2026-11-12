@@ -23,3 +23,13 @@ test('a máscara ganha resolução acima da célula, sem estourar o tamanho da t
   assert.equal(ampliacaoDaMascara(1000, 500), 2);
   assert.equal(ampliacaoDaMascara(5000, 10), 1);
 });
+
+test('na cena, a tinta do chão fica sobre os cômodos, sob as escarpas e sob os objetos de piso', async () => {
+  const { readFileSync } = await import('node:fs');
+  const fonte = readFileSync(new URL('../../src/render/cena.ts', import.meta.url), 'utf8');
+  const linha = fonte.split('\n').find(l => l.includes('raiz.addChild('))!;
+  const pos = (nome: string) => linha.indexOf(nome);
+  const ordem = ['agua.raiz', 'comodosC', 'presenca.chao', 'escarpasC', 'objetosC', 'presenca.abaixo', 'luz.sprite', 'presenca.acima'].map(pos);
+  assert.ok(ordem.every(p => p >= 0));
+  assert.deepEqual([...ordem].sort((a, b) => a - b), ordem);
+});
