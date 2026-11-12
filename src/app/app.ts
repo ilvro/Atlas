@@ -542,12 +542,20 @@ export async function renomearMapaAberto(nome: string): Promise<void> {
 }
 
 // ---------- Gravar, exportar, importar ----------
+/** Grava o mapa aberto (o caminho do botão Gravar): salva, avisa, sincroniza a campanha e atualiza a lista. Falhas sobem. */
+export async function gravarMapa(): Promise<MapaAtlas> {
+  const atual = sessao.value, s = servicos.value;
+  if (!atual || !s) throw new Error('Não há mapa aberto.');
+  const confirmado = await atual.auto.salvarAgora();
+  tocar('salvar'); avisar('Mapa gravado.');
+  await sincronizarMapaComCampanha(s, confirmado); await atualizarLista();
+  return confirmado;
+}
+
 export async function salvar(): Promise<void> {
-  const atual = sessao.value, s = servicos.value; if (!atual || !s) return;
+  const atual = sessao.value; if (!atual || !servicos.value) return;
   try {
-    const confirmado = await atual.auto.salvarAgora();
-    tocar('salvar'); avisar('Mapa gravado.');
-    await sincronizarMapaComCampanha(s, confirmado); await atualizarLista();
+    await gravarMapa();
   } catch (erro) {
     tocar('erro');
     if (erro instanceof ErroDeConflito) {

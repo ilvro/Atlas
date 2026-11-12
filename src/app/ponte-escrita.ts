@@ -17,7 +17,7 @@ import { registrarChamada } from './atividade-do-assistente.ts';
 /** O que as ferramentas de escrita precisam do Atlas; o app liga isto aos signals (sem DOM, dá para testar com store e repositório falsos). */
 export interface ContextoDeEscrita {
   /** O store do mapa aberto, ou `null` quando não há mapa aberto. */
-  store: () => Pick<Store, 'documento' | 'transacao' | 'versaoEdicao' | 'desfazer'> | null;
+  store: () => Pick<Store, 'documento' | 'transacao' | 'versaoEdicao' | 'desfazer' | 'podeDesfazer' | 'rotuloDesfazer' | 'sujo'> | null;
   repo: () => Pick<RepositorioMapas, 'salvar'> | null;
   /** Mantém a entidade "lugar" da campanha em dia depois de gravar um mapa novo. */
   sincronizarCampanha?: (mapa: MapaAtlas) => Promise<void>;
@@ -25,6 +25,8 @@ export interface ContextoDeEscrita {
   abrirMapa: (id: string) => Promise<void>;
   /** A campanha ativa do app, usada quando `atlas_mapa_criar` não recebe `campanhaId`. */
   campanhaAtiva?: () => string | null;
+  /** Grava o mapa aberto pelo mesmo caminho do botão Gravar (o app liga `gravarMapa`); resolve com a revisão gravada. Conflito e falhas sobem como erro. */
+  salvar?: () => Promise<{ revisao: number }>;
   /** Toca o momento do mapa aberto pelo mesmo executor do painel (o app liga `tocarMomentoDoMapa`); resolve ao terminar. */
   tocarMomento?: (id: string) => Promise<'fim' | 'cancelado'>;
   /** Para o momento em curso (o app liga `pararMomento`); usado quando o teste estoura o tempo. */
@@ -35,6 +37,7 @@ export interface ContextoDeEscrita {
 export interface Geracao { comandos: readonly Comando[]; ids: readonly string[]; afetados?: readonly string[]; /** O que foi mexido, em texto (aparece na resposta). */ resumo?: string }
 
 const SEM_MAPA = 'Não há mapa aberto: abra um com atlas_abrir ou crie com atlas_mapa_criar.';
+const AVISO_NAO_GRAVADO = 'Não gravado: use atlas_salvar quando terminar.';
 const MAX_ITENS = 100;
 const MAX_OBJETOS = 200;
 
@@ -50,7 +53,7 @@ export function escrever(ctx: ContextoDeEscrita, rotulo: string, gerar: (mapa: M
     if (!comandos.length) { registrarChamada({ rotulo, ids: [], ok: true }); return `${rotulo}: nada mudou (nenhum comando gerado). Confira as coordenadas com atlas_ver_mapa.`; }
     store.transacao(`IA: ${rotulo}`, g => { for (const c of comandos) g.aplicar(c); });
     registrarChamada({ rotulo, ids: afetados ?? ids, ok: true, ref: { store, versao: store.versaoEdicao } });
-    return `${rotulo}: ${comandos.length} comando(s) aplicados como um passo de desfazer.${resumo ? ` ${resumo}.` : ''}${ids.length ? ` Ids criados: ${ids.join(', ')}.` : ''} Confira com atlas_ver_mapa.`;
+    return `${rotulo}: ${comandos.length} comando(s) aplicados como um passo de desfazer.${resumo ? ` ${resumo}.` : ''}${ids.length ? ` Ids criados: ${ids.join(', ')}.` : ''} Confira com atlas_ver_mapa. ${AVISO_NAO_GRAVADO}`;
   } catch (erro) {
     registrarChamada({ rotulo, ids: [], ok: false, erro: erro instanceof Error ? erro.message : String(erro) });
     throw erro;
@@ -458,6 +461,38 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         if (d.length !== 2) throw new Error('"delta" deve ser [dx, dy] em metros.');
         const delta: [number, number] = [numero(d[0], 'delta[0]', -1000, 1000), numero(d[1], 'delta[1]', -1000, 1000)];
         return [texto(escrever(ctx, 'mover', mapa => moverIds(mapa, ids, delta)))];
+      },
+    },
+    {
+      nome: 'atlas_salvar',
+      descricao: 'Grava o mapa aberto (o botão Gravar). Use ao fim de uma leva de mudanças; sem isso, elas ficam só como rascunho.',
+      esquema: { type: 'object', properties: {}, additionalProperties: false },
+      anotacoes: { destrutiva: false, idempotente: true },
+      async executar() {
+        const store = ctx.store();
+        if (!store) throw new Error(SEM_MAPA);
+        if (!ctx.salvar) throw new Error('Esta aba não consegue gravar o mapa.');
+        if (!store.sujo) return [json({ salvo: false, motivo: 'Não havia nada a gravar: o mapa já está gravado.', revisao: store.documento.revision })];
+        const { revisao } = await ctx.salvar();
+        registrarChamada({ rotulo: 'salvar', ids: [], ok: true });
+        return [json({ salvo: true, revisao })];
+      },
+    },
+    {
+      nome: 'atlas_desfazer',
+      descricao: 'Desfaz as últimas entradas do histórico do mapa aberto (passos 1 a 20, padrão 1) e devolve os rótulos desfeitos.',
+      esquema: { type: 'object', properties: { passos: { type: 'integer', minimum: 1, maximum: 20 } }, additionalProperties: false },
+      anotacoes: { destrutiva: true },
+      async executar(args) {
+        const store = ctx.store();
+        if (!store) throw new Error(SEM_MAPA);
+        const passos = args.passos === undefined ? 1 : numero(args.passos, 'passos', 1, 20);
+        if (!Number.isInteger(passos)) throw new Error('"passos" deve ser um inteiro entre 1 e 20.');
+        if (!store.podeDesfazer) throw new Error('Não há nada para desfazer: o histórico do mapa aberto está vazio.');
+        const desfeitos: string[] = [];
+        for (let i = 0; i < passos && store.podeDesfazer; i++) { desfeitos.push(store.rotuloDesfazer); store.desfazer(); }
+        registrarChamada({ rotulo: `desfazer ${desfeitos.length}`, ids: [], ok: true });
+        return [json({ desfeitos, restantes: store.podeDesfazer, aviso: AVISO_NAO_GRAVADO })];
       },
     },
   ];

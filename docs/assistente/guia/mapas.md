@@ -25,7 +25,8 @@ Antes de qualquer chamada, desenhe em texto uma grade mental de 5 em 5 metros e 
 6. **Luzes:** `atlas_luzes`.
 7. **Ambiente:** `atlas_ambiente` (clima, horário, tempo, acabamento) e, se couber, `atlas_presenca`.
 8. **Regiões e notas:** `atlas_regioes` (revelar, gatilho, som, anotação) e `atlas_notas` (nota geral, leitura em voz alta e notas do mestre por cômodo).
-9. **Momentos:** só no fim, quando o mapa já está de pé.
+9. **Momentos:** só no fim, quando o mapa já está de pé. Momentos que alteram o mapa (água que sobe, luzes, objetos) mudam o documento ao tocar: teste com `atlas_momento_testar` e volte ao estado anterior com `atlas_desfazer`.
+10. **Gravar:** ao fim de uma leva de mudanças (e antes de pedir ao mestre para conferir ou de ler o mapa por outro caminho), `atlas_salvar`. Toda escrita termina com o lembrete "Não gravado" até você gravar.
 
 ### Confira com os olhos depois de cada bloco
 
