@@ -204,11 +204,12 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_paredes',
-      descricao: 'Cria paredes, muros ou cercas avulsos em metros. Para salas use atlas_comodos. Detalhes: plataforma_guia ferramentas-atlas.',
+      descricao: 'Cria paredes, muros, cercas ou escarpas avulsas em metros. Para salas use atlas_comodos. Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         paredes: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
           path: { type: 'array', items: ponto, minItems: 2 }, kind: { type: 'string', enum: ['wall', 'low', 'fence', 'cliff'] },
           altura: { type: 'number' }, espessura: { type: 'number' }, material: { type: 'string' },
+          drop: { type: 'string', enum: ['a', 'b'] },
         }, required: ['path'] } },
       }, required: ['paredes'], additionalProperties: false },
       anotacoes: { destrutiva: true },
@@ -217,6 +218,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           path: pontos(p.path, `paredes[${i}].path`), ...(p.kind !== undefined ? { kind: p.kind as 'wall' } : {}),
           ...(p.altura !== undefined ? { altura: numero(p.altura, 'altura', 0.05, 20) } : {}), ...(p.espessura !== undefined ? { espessura: numero(p.espessura, 'espessura', 0.02, 5) } : {}),
           ...(p.material !== undefined ? { material: textoOpcional(p.material, 'material', 80) } : {}),
+          ...(p.drop !== undefined ? { drop: p.drop as 'a' | 'b' } : {}),
         }));
         return [texto(escrever(ctx, `${pedidos.length} parede(s)`, mapa => geracao(paredes(mapa, pedidos))))];
       },

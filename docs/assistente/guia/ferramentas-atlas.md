@@ -62,7 +62,31 @@ Coloca até 200 objetos no mapa aberto em metros (um passo de desfazer). "item":
 
 ## atlas_paredes
 
-Cria paredes, muros ou cercas avulsos em metros (um passo de desfazer). Para salas use atlas_comodos. Rocha é maciço de terreno (atlas_terreno).
+Cria paredes, muros, cercas ou escarpas avulsas em metros (um passo de desfazer). Para salas e interiores use `atlas_comodos`.
+
+Parâmetros de cada parede:
+- `path`: lista de pontos `[x, y]` em metros (mínimo 2 pontos).
+- `kind`: `'wall'` (parede cheia que bloqueia movimento, visão e luz), `'low'` (muro baixo: bloqueia passo, visão livre), `'fence'` (cerca) ou `'cliff'` (escarpa / barranco).
+- `drop`: `'a' | 'b'` (qual lado desce na escarpa; `'a'` = lado esquerdo do sentido do traçado, `'b'` = lado direito).
+- `altura`, `espessura`, `material`: opcionais. Na escarpa o material padrão é `rocha.cinza` (aceita qualquer material de uso `macico`).
+
+**Escarpa vs. maciço de terreno:**
+- Use `atlas_terreno` com materiais de uso `macico` (`rocha.caverna`, `rocha.arenito`, etc.) para massas volumétricas de pedra, montanhas, platôs ou interiores de cavernas que cobrem uma área.
+- Use `atlas_paredes` com `kind: 'cliff'` para desníveis lineares: barrancos, margens altas de rios/lagos e degraus de relevo. A escarpa bloqueia o passo (`move: true`), mas não a visão nem a luz, e assa a face de rocha descendo para o lado baixo indicado por `drop`.
+
+Exemplo:
+```json
+{
+  "paredes": [
+    {
+      "path": [[5, 10], [25, 10]],
+      "kind": "cliff",
+      "drop": "b",
+      "material": "rocha.cinza"
+    }
+  ]
+}
+```
 
 ## atlas_portas
 

@@ -52,11 +52,19 @@ test('comodos: todos os tipos têm piso e papel válidos; tipo inválido lista a
   erro(() => comodos(vazio(), [{ rets: [[3, 3, 1, 1]], tipo: 'sala' }]), /retângulo inválido/);
 });
 
-test('paredes: adiciona com o padrão e sobrescreve campos', () => {
-  const c = paredes(vazio(), [{ path: [[2, 2], [8, 2]], kind: 'fence', altura: 1.1 }, { path: [[2, 4], [8, 4]] }], 1, contador());
+test('paredes: adiciona com o padrão e sobrescreve campos; escarpa com drop e defaults', () => {
+  const c = paredes(vazio(), [
+    { path: [[2, 2], [8, 2]], kind: 'fence', altura: 1.1 },
+    { path: [[2, 4], [8, 4]] },
+    { path: [[10, 5], [10, 15]], kind: 'cliff', drop: 'a' },
+  ], 1, contador());
   const m = aplicar(c);
   assert.equal(m.walls.w001!.kind, 'fence'); assert.equal(m.walls.w001!.height, 1.1);
   assert.equal(m.walls.w002!.thickness, 0.2);
+  assert.equal(m.walls.w003!.kind, 'cliff');
+  assert.equal(m.walls.w003!.drop, 'a');
+  assert.equal(m.walls.w003!.material, 'rocha.cinza');
+  assert.equal(m.walls.w003!.blocks.sight, false);
   erro(() => paredes(vazio(), [{ path: [[1, 1]] }]), /ao menos 2 pontos/);
   erro(() => paredes(vazio(), [{ path: [[1, 1], [2, 2]], kind: 'muralha' as never }]), /tipos: wall, low, fence, cliff/);
 });
