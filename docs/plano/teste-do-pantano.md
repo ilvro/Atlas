@@ -171,7 +171,7 @@ Como:
 Testes: `tests/unit/agua.test.ts` e `tests/unit/app-momentos.test.ts` (células fora dos limites são recortadas e não lançam erro; store livre para outros comandos durante a transição da água).
 Commit: rising water non-blocking steps clipped to map bounds
 
-#### E3 — Jukebox e presets: atomicidade, escopo de mescla e ferramentas internas
+#### E3 — Jukebox e presets: atomicidade, escopo de mescla e ferramentas internas  ✅
 Depende de: D2, D3
 Ler: `scripts/ponte/presets.ts`, `../Jukebox/upload-song.js`, `scripts/ponte/mcp.ts`, `scripts/ponte/catalogo-base.json`.
 Como:

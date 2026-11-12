@@ -283,6 +283,40 @@ test('falha simulada no metadata não deixa órfãos no disco', () => {
   }
 });
 
+test('falha simulada no metadata durante substituir restaura arquivos originais via rename sem apagá-los', () => {
+  const tmp = criarDiretorioTemporario();
+  try {
+    const audioPath = path.join(tmp, 'musica.mp3');
+    fs.writeFileSync(audioPath, MP3_MINIMO);
+
+    const pasta = path.join(tmp, 'preset');
+    fs.mkdirSync(pasta);
+    fs.writeFileSync(path.join(pasta, 'preset_metadata.json'), '[]');
+
+    // Adiciona uma música inicial
+    adicionarAoPreset({ pasta, arquivo: audioPath, titulo: 'Original', criar: false });
+    const audioOriginalConteudo = fs.readFileSync(path.join(pasta, 'Original.mp3'));
+    assert.ok(fs.existsSync(path.join(pasta, 'Original.mp3')));
+    assert.ok(fs.existsSync(path.join(pasta, 'Original.jpg')));
+
+    // Cria preset_metadata.json.tmp como diretório para forçar falha no substituir
+    const metaTmp = path.join(pasta, 'preset_metadata.json.tmp');
+    fs.mkdirSync(metaTmp);
+
+    assert.throws(
+      () => adicionarAoPreset({ pasta, arquivo: audioPath, titulo: 'Original', substituir: true }),
+      /falha ao adicionar música ao preset/,
+    );
+
+    // Os arquivos originais devem ter sido restaurados e não apagados
+    assert.ok(fs.existsSync(path.join(pasta, 'Original.mp3')), 'áudio original foi restaurado');
+    assert.ok(fs.existsSync(path.join(pasta, 'Original.jpg')), 'capa original foi restaurada');
+    assert.deepEqual(fs.readFileSync(path.join(pasta, 'Original.mp3')), audioOriginalConteudo);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('metadata gravado pela Jukebox passa por lerPreset e continua igual depois de adicionar', () => {
   const tmp = criarDiretorioTemporario();
   try {
@@ -349,6 +383,10 @@ test('MCP: jukebox_preset_ler e jukebox_preset_adicionar funcionam como ferramen
     const nomes = ferramentas.map(f => f.name);
     assert.ok(nomes.includes('jukebox_preset_ler'));
     assert.ok(nomes.includes('jukebox_preset_adicionar'));
+    assert.equal(nomes.includes('jukebox_preset_receber'), false, 'não deve expor ferramentas internas');
+
+    const comReceber = [...base, { nome: 'jukebox_preset_receber', descricao: 'interna', app: 'jukebox' }];
+    assert.equal(listarFerramentas(comReceber as any).some(f => f.name === 'jukebox_preset_receber'), false);
 
     // Chamar adicionar via MCP com ponte desconectada deve funcionar localmente
     const rAdd = await chamarFerramenta(pontaDesligada, 'jukebox_preset_adicionar', {
