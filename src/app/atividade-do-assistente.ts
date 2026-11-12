@@ -5,8 +5,6 @@ import type { Alvo } from '../render/selecao.ts';
 import type { Store } from '../state/store.ts';
 
 export const MAX_CHAMADAS = 100;
-/** Quanto a ferramenta espera o mestre responder a um pedido de confirmação. */
-export const ESPERA_DO_PEDIDO_MS = 5 * 60 * 1000;
 
 type StoreDaChamada = Pick<Store, 'versaoEdicao' | 'desfazer'>;
 
@@ -33,7 +31,7 @@ export function registrarChamada(c: Omit<ChamadaDoAssistente, 'n' | 'hora'> & { 
   return item;
 }
 
-export function limparAtividade(): void { atividade.value = []; pedidos.value = []; proximo = 1; }
+export function limparAtividade(): void { atividade.value = []; proximo = 1; }
 
 /** A chamada ainda é o topo do histórico do `atual`? (Nada foi feito, desfeito nem refeito depois dela.) */
 export function ehTopo(c: ChamadaDoAssistente, atual: StoreDaChamada | null | undefined): boolean {
@@ -60,23 +58,4 @@ export function alvosDosIds(mapa: MapaAtlas, ids: readonly string[]): Alvo[] {
     if (colecao) alvos.push({ colecao, id });
   }
   return alvos;
-}
-
-// ---------- Pedidos de confirmação ----------
-export type RespostaDoMestre = 'permitir' | 'recusar' | 'sem-resposta';
-export interface Pedido { id: number; descricao: string; responder(r: 'permitir' | 'recusar'): void }
-
-/** Pedidos esperando o mestre; o selo mostra quantos são. */
-export const pedidos = signal<readonly Pedido[]>([]);
-let proximoPedido = 1;
-
-/** Põe um pedido no painel e espera Permitir/Recusar (ou o tempo acabar). */
-export function pedirConfirmacao(descricao: string, esperaMs = ESPERA_DO_PEDIDO_MS): Promise<RespostaDoMestre> {
-  return new Promise(resolver => {
-    const id = proximoPedido++;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const fim = (r: RespostaDoMestre) => { clearTimeout(timer); pedidos.value = pedidos.value.filter(p => p.id !== id); resolver(r); };
-    timer = setTimeout(() => fim('sem-resposta'), esperaMs);
-    pedidos.value = [...pedidos.value, { id, descricao, responder: r => fim(r) }];
-  });
 }

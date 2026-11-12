@@ -1,5 +1,5 @@
 // Só em desenvolvimento: montado pelo selo (`SeloDoAssistente.tsx`), que só entra pelo módulo `app/ponte.ts`; o estilo vai num <style>, fora do build.
-import { atividade, alvosDosIds, desfazerChamada, pedidos, podeDesfazerChamada, type ChamadaDoAssistente } from '../app/atividade-do-assistente.ts';
+import { atividade, alvosDosIds, desfazerChamada, podeDesfazerChamada, type ChamadaDoAssistente } from '../app/atividade-do-assistente.ts';
 import { sessao, viewport } from '../app/app.ts';
 import { caixaDaSelecao, type Alvo } from '../render/selecao.ts';
 
@@ -8,8 +8,6 @@ const ESTILO = `
 .painel-assistente h2 { margin: 0; padding: 10px 14px; font: 700 11px var(--corpo); letter-spacing: .12em; text-transform: uppercase; color: var(--acento); border-bottom: 1px solid var(--linha); }
 .painel-assistente .corpo { overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
 .painel-assistente .vazio { padding: 14px 6px; color: var(--apagado); text-align: center; }
-.painel-assistente .pedido { padding: 9px 10px; border: 1px solid var(--acento); border-radius: var(--raio); background: var(--acento-suave); }
-.painel-assistente .pedido p { margin: 0 0 8px; }
 .painel-assistente .acoes { display: flex; gap: 6px; }
 .painel-assistente .acoes .botao-pilula { padding: 4px 10px; font-size: 10px; }
 .painel-assistente .item { padding: 7px 10px; border: 1px solid var(--linha); border-radius: var(--raio); background: var(--superficie); cursor: default; }
@@ -47,22 +45,13 @@ function enquadrar(c: ChamadaDoAssistente): void {
 }
 
 export function PainelDoAssistente() {
-  const lista = atividade.value, esperando = pedidos.value, s = sessao.value;
+  const lista = atividade.value, s = sessao.value;
   return (
     <section class="painel-assistente" data-testid="painel-assistente" aria-label="Atividade do assistente" onMouseLeave={soltar}>
       <style>{ESTILO}</style>
       <h2>Assistente</h2>
       <div class="corpo">
-        {esperando.map(p => (
-          <div class="pedido" key={p.id} data-testid="pedido-assistente">
-            <p>O assistente quer: <strong>{p.descricao}</strong></p>
-            <div class="acoes">
-              <button type="button" class="botao-pilula destaque" onClick={() => p.responder('permitir')} data-testid="pedido-permitir">Permitir</button>
-              <button type="button" class="botao-pilula perigo" onClick={() => p.responder('recusar')} data-testid="pedido-recusar">Recusar</button>
-            </div>
-          </div>
-        ))}
-        {!lista.length && !esperando.length ? <div class="vazio">Nada por aqui ainda: as chamadas do assistente nesta aba aparecem aqui.</div> : null}
+        {!lista.length ? <div class="vazio">Nada por aqui ainda: as chamadas do assistente nesta aba aparecem aqui.</div> : null}
         {lista.map((c, i) => {
           const topo = podeDesfazerChamada(c, s?.store);
           return (

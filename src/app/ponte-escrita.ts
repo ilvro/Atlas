@@ -12,10 +12,7 @@ import { materialDe, materiaisDo } from '../procedural/materiais.ts';
 import type { RepositorioMapas } from '../data/repositorio.ts';
 import type { Comando } from '../state/comandos.ts';
 import type { Store } from '../state/store.ts';
-import { registrarChamada, type RespostaDoMestre } from './atividade-do-assistente.ts';
-
-/** Os ids de tudo o que o assistente criou nesta aba (a 14.2e usa para decidir o que pede confirmação). Só vale até recarregar a aba. */
-export const criadosPeloAssistente = new Set<string>();
+import { registrarChamada } from './atividade-do-assistente.ts';
 
 /** O que as ferramentas de escrita precisam do Atlas; o app liga isto aos signals (sem DOM, dá para testar com store e repositório falsos). */
 export interface ContextoDeEscrita {
@@ -32,12 +29,10 @@ export interface ContextoDeEscrita {
   tocarMomento?: (id: string) => Promise<'fim' | 'cancelado'>;
   /** Para o momento em curso (o app liga `pararMomento`); usado quando o teste estoura o tempo. */
   pararMomento?: () => void;
-  /** Mostra um pedido ao mestre (painel do assistente) e espera a resposta; sem isto, mexer no que não é do assistente é recusado. */
-  confirmar?: (descricao: string) => Promise<RespostaDoMestre>;
 }
 
-/** `ids` são os criados (viram "do assistente"); `afetados` são os que só foram mexidos (destaque no painel). */
-export interface Geracao { comandos: readonly Comando[]; ids: readonly string[]; afetados?: readonly string[] }
+/** `ids` são os criados; `afetados` são os que só foram mexidos (destaque no painel). */
+export interface Geracao { comandos: readonly Comando[]; ids: readonly string[]; afetados?: readonly string[]; /** O que foi mexido, em texto (aparece na resposta). */ resumo?: string }
 
 const SEM_MAPA = 'Não há mapa aberto: abra um com atlas_abrir ou crie com atlas_mapa_criar.';
 const MAX_ITENS = 100;
@@ -51,12 +46,11 @@ export function escrever(ctx: ContextoDeEscrita, rotulo: string, gerar: (mapa: M
   const store = ctx.store();
   try {
     if (!store) throw new Error(SEM_MAPA);
-    const { comandos, ids, afetados } = gerar(store.documento);
+    const { comandos, ids, afetados, resumo } = gerar(store.documento);
     if (!comandos.length) { registrarChamada({ rotulo, ids: [], ok: true }); return `${rotulo}: nada mudou (nenhum comando gerado). Confira as coordenadas com atlas_ver_mapa.`; }
     store.transacao(`IA: ${rotulo}`, g => { for (const c of comandos) g.aplicar(c); });
-    for (const id of ids) criadosPeloAssistente.add(id);
     registrarChamada({ rotulo, ids: afetados ?? ids, ok: true, ref: { store, versao: store.versaoEdicao } });
-    return `${rotulo}: ${comandos.length} comando(s) aplicados como um passo de desfazer.${ids.length ? ` Ids criados: ${ids.join(', ')}.` : ''} Confira com atlas_ver_mapa.`;
+    return `${rotulo}: ${comandos.length} comando(s) aplicados como um passo de desfazer.${resumo ? ` ${resumo}.` : ''}${ids.length ? ` Ids criados: ${ids.join(', ')}.` : ''} Confira com atlas_ver_mapa.`;
   } catch (erro) {
     registrarChamada({ rotulo, ids: [], ok: false, erro: erro instanceof Error ? erro.message : String(erro) });
     throw erro;
@@ -407,7 +401,6 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         return [texto(escrever(ctx, 'momento', mapa => {
           let id: string;
           if (idPedido) {
-            if (mapa.moments[idPedido] && !criadosPeloAssistente.has(idPedido)) throw new Error(`O momento “${idPedido}” é do mestre; crie outro (omita "id").`);
             if (!mapa.moments[idPedido]) throw new Error(`O momento “${idPedido}” não existe; omita "id" para criar um novo.`);
             id = idPedido;
           } else {
@@ -446,18 +439,17 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_remover',
-      descricao: 'Remove entidades do mapa aberto pelos ids (atlas_mapa_ler). O que é do mestre pede confirmação. Detalhes: plataforma_guia ferramentas-atlas.',
+      descricao: 'Remove entidades do mapa aberto pelos ids (atlas_mapa_ler). Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1 } }, required: ['ids'], additionalProperties: false },
       anotacoes: { destrutiva: true },
       async executar(args) {
         const ids = listaDeIds(args);
-        await liberar(ctx, 'remover', ids, mapa => `Remover ${resumoDosIds(mapa, ids.filter(i => !criadosPeloAssistente.has(i)))}`);
         return [texto(escrever(ctx, 'remover', mapa => removerIds(mapa, ids)))];
       },
     },
     {
       nome: 'atlas_mover',
-      descricao: 'Move objetos, luzes, peças e regiões por [dx, dy] em metros. O que é do mestre pede confirmação. Detalhes: plataforma_guia ferramentas-atlas.',
+      descricao: 'Move objetos, luzes, peças e regiões por [dx, dy] em metros. Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'string' }, minItems: 1 }, delta: ponto }, required: ['ids', 'delta'], additionalProperties: false },
       anotacoes: { destrutiva: false },
       async executar(args) {
@@ -465,7 +457,6 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         const d = Array.isArray(args.delta) ? args.delta : [];
         if (d.length !== 2) throw new Error('"delta" deve ser [dx, dy] em metros.');
         const delta: [number, number] = [numero(d[0], 'delta[0]', -1000, 1000), numero(d[1], 'delta[1]', -1000, 1000)];
-        await liberar(ctx, 'mover', ids, mapa => { moverIds(mapa, ids, delta); return `Mover ${resumoDosIds(mapa, ids.filter(i => !criadosPeloAssistente.has(i)))} em [${delta[0]}, ${delta[1]}] m`; });
         return [texto(escrever(ctx, 'mover', mapa => moverIds(mapa, ids, delta)))];
       },
     },
@@ -717,10 +708,10 @@ function resolverIds(mapa: MapaAtlas, ids: readonly string[]): { id: string; col
   return ids.map(id => ({ id, colecao: colecaoDoId(mapa, id)! }));
 }
 
-/** "1 cômodo (“Sala”), 3 objetos": o texto do pedido ao mestre. */
-function resumoDosIds(mapa: MapaAtlas, ids: readonly string[]): string {
+/** "1 cômodo (“Sala”), 3 objetos": o que os ids são, para a resposta da ferramenta. */
+function resumoDosIds(alvos: readonly { id: string; colecao: ColecaoDeId }[], mapa: MapaAtlas): string {
   const por = new Map<ColecaoDeId, string[]>();
-  for (const { id, colecao } of resolverIds(mapa, ids)) por.set(colecao, [...(por.get(colecao) ?? []), id]);
+  for (const { id, colecao } of alvos) por.set(colecao, [...(por.get(colecao) ?? []), id]);
   return [...por].map(([k, lista]) => {
     const [um, varios] = NOME_DA_COLECAO[k];
     const nomes = lista.map(id => { const o = (mapa[k] as Record<string, { name?: string; nome?: string }>)[id]; return o?.name ?? o?.nome; }).filter(Boolean).slice(0, 3);
@@ -747,7 +738,7 @@ function removerIds(mapa: MapaAtlas, ids: readonly string[]): Geracao {
     if (colecao === 'moments') comandos.push({ tipo: 'momento.remover', id });
     else if (colecao === 'props' || colecao === 'lights' || colecao === 'tokens' || colecao === 'regions' || colecao === 'presence') comandos.push({ tipo: 'item.remover', colecao, id });
   }
-  return { comandos, ids: [] };
+  return { comandos, ids: [], resumo: `Removido: ${resumoDosIds(alvos, mapa)}` };
 }
 
 function moverIds(mapa: MapaAtlas, ids: readonly string[], delta: [number, number]): Geracao {
@@ -755,25 +746,5 @@ function moverIds(mapa: MapaAtlas, ids: readonly string[], delta: [number, numbe
   const naoMove = alvos.filter(a => a.colecao !== 'props' && a.colecao !== 'lights' && a.colecao !== 'tokens' && a.colecao !== 'regions');
   if (naoMove.length) throw new Error(`Não dá para mover ${naoMove.map(a => `${a.id} (${NOME_DA_COLECAO[a.colecao][0]})`).join(', ')}: só objetos, luzes, peças e regiões se movem. Cômodos, paredes e aberturas: apague e recrie.`);
   const movem = alvos.map(a => ({ colecao: a.colecao as 'props' | 'lights' | 'tokens' | 'regions', id: a.id }));
-  return { comandos: [{ tipo: 'selecao.mover', alvos: movem, delta }], ids: [], afetados: ids };
-}
-
-/** Confirma com o mestre o que não é do assistente. Sem nada do mestre na lista, segue direto. Erros voltam como erro da ferramenta. */
-async function liberar(ctx: ContextoDeEscrita, rotulo: string, ids: readonly string[], descrever: (mapa: MapaAtlas) => string): Promise<void> {
-  const falhar = (mensagem: string): never => { registrarChamada({ rotulo, ids: [], ok: false, erro: mensagem }); throw new Error(mensagem); };
-  const store = ctx.store();
-  if (!store) return falhar(SEM_MAPA);
-  let descricao: string;
-  try {
-    const mapa = store.documento;
-    resolverIds(mapa, ids);
-    const doMestre = ids.filter(i => !criadosPeloAssistente.has(i));
-    if (!doMestre.length) return;
-    if (rotulo === 'mover') moverIds(mapa, ids, [0, 0]);
-    descricao = descrever(mapa);
-  } catch (e) { return falhar(e instanceof Error ? e.message : String(e)); }
-  if (!ctx.confirmar) return falhar('Esta aba não tem o painel de confirmação; só dá para mexer no que o assistente criou.');
-  const r = await ctx.confirmar(descricao);
-  if (r === 'recusar') return falhar('o mestre recusou');
-  if (r === 'sem-resposta') return falhar('o mestre não respondeu');
+  return { comandos: [{ tipo: 'selecao.mover', alvos: movem, delta }], ids: [], afetados: ids, resumo: `Movido: ${resumoDosIds(alvos, mapa)} em [${delta[0]}, ${delta[1]}] m` };
 }
