@@ -819,8 +819,49 @@ export function CamposDoPasso({
       const regiao = selReg ? doc.regions[selReg.id] : null;
       const atalhosS = [1, 2, 3, 5, 8];
 
+      const baixando = passo.acao === 'baixar';
       return (
         <div class="campos-passo campos-agua">
+          <div class="campos-passo-linha">
+            <span class="dock-rotulo">Ação:</span>
+            <button
+              type="button"
+              class={`dock-pilula ${!baixando ? 'ativa' : ''}`}
+              onClick={() => { const { acao: _a, deixar: _d, ...resto } = passo; aoAtualizar({ ...resto, acao: 'subir' }); }}
+            >
+              Subir
+            </button>
+            <button
+              type="button"
+              class={`dock-pilula ${baixando ? 'ativa' : ''}`}
+              onClick={() => aoAtualizar({ ...passo, acao: 'baixar' })}
+            >
+              Baixar
+            </button>
+          </div>
+          {baixando && (
+            <div class="campos-passo-linha">
+              <label class="dock-rotulo" style={{ flex: 1 }}>
+                O que fica:
+                <select
+                  class="campo-select"
+                  value={passo.deixar ?? ''}
+                  onChange={e => {
+                    const v = (e.target as HTMLSelectElement).value;
+                    const { deixar: _d, ...resto } = passo;
+                    aoAtualizar(v ? { ...resto, deixar: v } : resto);
+                  }}
+                >
+                  <option value="">Nada (mostra a base)</option>
+                  {materiaisDo('terreno').map(m => (
+                    <option key={m.id} value={m.id}>
+                      {m.nome}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
           <div class="campos-passo-linha">
             <label class="dock-rotulo" style={{ flex: 1 }}>
               Material de água:

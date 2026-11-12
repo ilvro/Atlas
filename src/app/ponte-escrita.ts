@@ -523,7 +523,7 @@ export function esquemaDoPasso(): Record<string, unknown> {
       passo('interagir', { id: { type: 'string' } }, ['id']),
       passo('luz', { ids: { type: 'array', items: { type: 'string' }, maxItems: 100 }, acao: { enum: ['ligar', 'desligar', 'alternar'] } }, ['ids', 'acao']),
       passo('objeto', { ids: { type: 'array', items: { type: 'string' }, maxItems: 100 }, acao: { enum: ['mostrar', 'esconder'] } }, ['ids', 'acao']),
-      passo('agua', { etapas: { type: 'integer', minimum: 1, maximum: 60 }, material: { type: 'string' }, ms: msEsquema(100, 120_000), poligono: { type: 'array', items: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 }, minItems: 3 } }, ['material', 'ms', 'poligono']),
+      passo('agua', { acao: { enum: ['subir', 'baixar'] }, deixar: { type: 'string', maxLength: 60 }, etapas: { type: 'integer', minimum: 1, maximum: 60 }, material: { type: 'string' }, ms: msEsquema(100, 120_000), poligono: { type: 'array', items: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 }, minItems: 3 } }, ['material', 'ms', 'poligono']),
       passo('pista', { ref: refEsquema(), mostrar: { type: 'boolean' } }, ['ref', 'mostrar']),
       passo('nota', { texto: { type: 'string', maxLength: 400 } }, ['texto']),
     ],
@@ -572,6 +572,12 @@ function referenciasDosPassos(mapa: MapaAtlas, passos: readonly PassoDeMomento[]
         let mat;
         try { mat = materialDe(p.material); } catch { return erro(`o material “${p.material}” não existe.`); }
         if (mat.uso !== 'agua') return erro(`o material “${p.material}” não é de água (uso: ${mat.uso}); use materiais de água (ex: agua, agua.pantano).`);
+        if (p.deixar !== undefined) {
+          if (p.acao !== 'baixar') return erro('“deixar” só vale com acao “baixar”.');
+          const chao = materialDe(p.deixar);
+          if (chao.id !== p.deixar) return erro(`o material “${p.deixar}” (deixar) não existe; materiais de chão: ${materiaisDo('terreno').map(x => x.id).join(', ')}.`);
+          if (chao.uso === 'agua' || chao.uso === 'macico') return erro(`“deixar” deve ser um material de chão (uso: ${chao.uso}); ex: ${materiaisDo('terreno').slice(0, 4).map(x => x.id).join(', ')}.`);
+        }
         break;
       }
       case 'interagir': {

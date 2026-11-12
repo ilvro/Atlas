@@ -22,7 +22,7 @@ import type { ColecaoLivre, Comando } from '../state/comandos.ts';
 import { embutido } from './embutido.ts';
 import { campanhaAtiva, carregarCampanhas, desvincularMapa, entidadesDaCampanha, refDoMapa, revincularMapa, sincronizarMapaComCampanha } from './campanha.ts';
 import { pedirCena, pedirEfeito, pedirSilencio, pedirSomDoClima, pedirSomDoMapa, tocarSomEscolhido } from './audio-do-clima.ts';
-import { etapasDaAgua } from '../domain/agua.ts';
+import { comandoDaEtapaDeAgua, etapasDaAgua } from '../domain/agua.ts';
 import { gatilhoJaDisparou, iniciarRegioes, marcarGatilhoDisparado } from './regioes.ts';
 import { modo, vistaDeJogador } from './modo.ts';
 import { iniciarSugestoes } from './sugestoes.ts';
@@ -998,10 +998,11 @@ export function saidasDeMomento(s: Servicos | null): SaidasDeMomento {
       const doc = s.doc.value;
       const res = doc.terrain.resolution;
       const totalEtapas = p.etapas ?? 6;
-      const etapas = etapasDaAgua(p.poligono, res, totalEtapas, doc.bounds);
+      const baixar = p.acao === 'baixar';
+      const etapas = etapasDaAgua(p.poligono, res, totalEtapas, doc.bounds, baixar ? 'borda' : 'centro');
       const intervalo = Math.round(p.ms / totalEtapas);
       const m = momentoEmCurso.peek();
-      const rotulo = m ? `Momento: ${m.nome}` : 'Água que sobe';
+      const rotulo = m ? `Momento: ${m.nome}` : baixar ? 'Água que baixa' : 'Água que sobe';
       const maxCols = Math.ceil(doc.bounds.width / res);
       const maxRows = Math.ceil(doc.bounds.height / res);
       // Uma chave por execução do passo: todas as etapas viram uma só entrada de histórico (um Ctrl+Z).
@@ -1010,14 +1011,8 @@ export function saidasDeMomento(s: Servicos | null): SaidasDeMomento {
       for (let i = 0; i < etapas.length; i++) {
         if (sinal.aborted) return;
         const celulas = etapas[i]!.filter(([cx, cy]) => cx >= 0 && cy >= 0 && cx < maxCols && cy < maxRows);
-        if (celulas.length > 0) {
-          s.store.executar({
-            tipo: 'terreno.pintar',
-            material: p.material,
-            celulas,
-            suavizar: true,
-          }, { rotulo, fusao });
-        }
+        const comando = comandoDaEtapaDeAgua(s.store.documento, p, celulas);
+        if (comando) s.store.executar(comando, { rotulo, fusao });
         await rel.esperar(intervalo, sinal);
       }
     },

@@ -264,3 +264,14 @@ test('projeção para jogadores esvazia moments e lista em CAMPOS_DO_MESTRE', ()
   assert.ok(!('secreto' in projetado.moments));
   assert.ok(m.moments.secreto, 'o mapa do mestre não é alterado');
 });
+
+test('passo de água: ação e deixar são validados e descritos', () => {
+  const base = { tipo: 'agua', poligono: [[0, 0], [5, 0], [5, 5]], material: 'agua', ms: 3000 };
+  assert.equal(passoValido({ ...base, acao: 'baixar', deixar: 'lama' }), null);
+  assert.equal(passoValido({ ...base, acao: 'subir' }), null);
+  assert.match(passoValido({ ...base, acao: 'secar' }) ?? '', /subir ou baixar/);
+  assert.match(passoValido({ ...base, acao: 'baixar', deixar: 'x'.repeat(61) }) ?? '', /depois da água/);
+  assert.match(passoValido({ ...base, acao: 'baixar', deixar: '' }) ?? '', /depois da água/);
+  assert.equal(descreverPasso({ ...base, acao: 'baixar' } as never), 'Água baixando (3 s)');
+  assert.equal(descreverPasso({ ...base } as never), 'Água subindo (3 s)');
+});

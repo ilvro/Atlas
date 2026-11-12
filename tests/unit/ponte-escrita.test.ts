@@ -428,3 +428,17 @@ test('atlas_desfazer desfaz N entradas e devolve os rótulos; histórico vazio e
   await assert.rejects(f.atlas_desfazer!.executar({ passos: 21 }), /passos/);
   await assert.rejects(f.atlas_desfazer!.executar({ passos: 1.5 }), /passos/);
 });
+
+test('atlas_momento: água que baixa (acao e deixar) no esquema e nas referências', async () => {
+  const poligono = [[1, 1], [8, 1], [8, 8]];
+  const agua = { tipo: 'agua', poligono, material: 'agua.pantano', ms: 3000 };
+  const props = (esquemaDoPasso().oneOf as { properties: Record<string, unknown>; required: string[] }[]).find(o => (o.properties.tipo as { const: string }).const === 'agua')!.properties;
+  assert.deepEqual(props.acao, { enum: ['subir', 'baixar'] });
+  assert.ok(props.deixar);
+  const { chamar } = montar();
+  await chamar('atlas_momento', { nome: 'Enxurrada', passos: [agua, { ...agua, acao: 'baixar', deixar: 'lama' }, { ...agua, acao: 'baixar' }] });
+  await assert.rejects(chamar('atlas_momento', { nome: 'x', passos: [{ ...agua, acao: 'baixar', deixar: 'lama.inexistente' }] }), /Passo 1 \(agua\).*não existe/);
+  await assert.rejects(chamar('atlas_momento', { nome: 'x', passos: [{ ...agua, acao: 'baixar', deixar: 'agua.lago' }] }), /Passo 1 \(agua\).*material de chão/);
+  await assert.rejects(chamar('atlas_momento', { nome: 'x', passos: [{ ...agua, deixar: 'lama' }] }), /Passo 1 \(agua\).*só vale com acao/);
+  await assert.rejects(chamar('atlas_momento', { nome: 'x', passos: [{ ...agua, acao: 'secar' }] }), /Passo 1/);
+});

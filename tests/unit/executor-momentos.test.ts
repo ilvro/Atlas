@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { criarRef } from '#mesa';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { criarStore } from '../../src/state/store.ts';
+import { aplicarComando } from '../../src/state/comandos.ts';
 import { decodificar } from '../../src/domain/celulas.ts';
 import { etapasDaAgua } from '../../src/domain/agua.ts';
 import {
@@ -391,4 +392,28 @@ test('passo de água executa etapas não-bloqueantes sem travar store.executar e
       assert.ok(celulasPintadas.has(`${cx},${cy}`), `célula ${cx},${cy} está coberta`);
     }
   }
+});
+
+test('comandoDaEtapaDeAgua: baixar troca só as células dessa água por deixar, ou apaga', async () => {
+  const { comandoDaEtapaDeAgua } = await import('../../src/domain/agua.ts');
+  let mapa = criarMapa({ id: 'a', agora: 1, largura: 20, altura: 20 });
+  mapa = aplicarComando(mapa, { tipo: 'terreno.pintar', material: 'agua.pantano', celulas: [[1, 1], [2, 1]] });
+  mapa = aplicarComando(mapa, { tipo: 'terreno.pintar', material: 'grama', celulas: [[3, 1]] });
+  const celulas: [number, number][] = [[1, 1], [2, 1], [3, 1], [4, 1]];
+  const subir = comandoDaEtapaDeAgua(mapa, { material: 'agua.pantano' }, celulas);
+  assert.equal(subir?.tipo, 'terreno.pintar');
+  const troca = comandoDaEtapaDeAgua(mapa, { material: 'agua.pantano', acao: 'baixar', deixar: 'lama' }, celulas);
+  assert.deepEqual(troca, { tipo: 'terreno.pintar', material: 'lama', celulas: [[1, 1], [2, 1]] });
+  const apaga = comandoDaEtapaDeAgua(mapa, { material: 'agua.pantano', acao: 'baixar' }, celulas);
+  assert.deepEqual(apaga, { tipo: 'terreno.apagar', celulas: [[1, 1], [2, 1]] });
+  assert.equal(comandoDaEtapaDeAgua(mapa, { material: 'agua.pantano', acao: 'baixar' }, [[3, 1]]), null);
+  // aplicado: a grama fica intocada e a lama toma o lugar da água
+  const depois = aplicarComando(mapa, troca!);
+  const de = (mat: string) => Object.values(depois.terrain.layers).find(l => l.material === mat)?.cells;
+  assert.equal(de('agua.pantano'), undefined);
+  assert.equal(decodificar(de('lama')!).length, 2);
+  assert.equal(decodificar(de('grama')!).length, 1);
+  const sem = aplicarComando(mapa, apaga!);
+  assert.equal(Object.values(sem.terrain.layers).some(l => l.material === 'agua.pantano'), false);
+  assert.equal(decodificar(Object.values(sem.terrain.layers).find(l => l.material === 'grama')!.cells).length, 1);
 });

@@ -1133,6 +1133,16 @@
                   "tipo": {
                     "const": "agua"
                   },
+                  "acao": {
+                    "enum": [
+                      "subir",
+                      "baixar"
+                    ]
+                  },
+                  "deixar": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
                   "etapas": {
                     "type": "integer",
                     "minimum": 1,

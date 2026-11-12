@@ -20,7 +20,7 @@ export type PassoDeMomento =
   | { tipo: 'interagir'; id: string }                                 // porta/interagível (comando interagir)
   | { tipo: 'luz'; ids: string[]; acao: 'ligar' | 'desligar' | 'alternar' } // ids de luzes ou de objetos (comando luz.estado)
   | { tipo: 'objeto'; ids: string[]; acao: 'mostrar' | 'esconder' }   // ids de objetos (comando objeto.visibilidade)
-  | { tipo: 'agua'; poligono: Ponto[]; material: string; ms: number; etapas?: number } // sobe a água em anéis durante ms
+  | { tipo: 'agua'; poligono: Ponto[]; material: string; ms: number; etapas?: number; acao?: 'subir' | 'baixar'; deixar?: string } // sobe (do centro) ou baixa (da borda) a água em anéis durante ms; `deixar` = chão que fica ao baixar
   | { tipo: 'pista'; ref: Ref; mostrar: boolean }                     // documento do Ateliê; mostrar = já projeta
   | { tipo: 'nota'; texto: string };                                  // aviso só para o mestre, ≤ 400
 
@@ -143,7 +143,7 @@ export function descreverPasso(p: PassoDeMomento, mapa?: MapaAtlas): string {
     }
     case 'agua': {
       const s = (p.ms / 1000).toString().replace('.', ',');
-      return `Água subindo (${s} s)`;
+      return `Água ${p.acao === 'baixar' ? 'baixando' : 'subindo'} (${s} s)`;
     }
     case 'interagir': {
       if (!mapa) return `Interagir: ${p.id}`;
@@ -309,6 +309,12 @@ export function passoValido(p: unknown): string | null {
       }
       if (passo.etapas !== undefined && (typeof passo.etapas !== 'number' || !Number.isInteger(passo.etapas) || passo.etapas < 1 || passo.etapas > 60)) {
         return 'Número de etapas de água deve ser inteiro entre 1 e 60.';
+      }
+      if (passo.acao !== undefined && passo.acao !== 'subir' && passo.acao !== 'baixar') {
+        return 'Ação da água deve ser subir ou baixar.';
+      }
+      if (passo.deixar !== undefined && (typeof passo.deixar !== 'string' || !passo.deixar.trim() || passo.deixar.length > 60)) {
+        return 'Material que fica depois da água inválido.';
       }
       return null;
     }
