@@ -1,0 +1,25 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { PINCEIS_DE_PRESENCA, pincelDePresenca } from '../../src/domain/presets.ts';
+import { ampliacaoDaMascara, camadaDaPresenca, opacidadeDaPresenca } from '../../src/render/presenca-camada.ts';
+
+test('os pincéis de chão ficam sob os objetos e só o que é do ar fica acima', () => {
+  for (const id of ['musgo', 'mofo', 'poca', 'sangue-seco', 'fuligem', 'sulcos']) assert.equal(camadaDaPresenca(pincelDePresenca(id)), 'chao', id);
+  assert.equal(camadaDaPresenca(pincelDePresenca('algas')), 'submerso');
+  assert.equal(camadaDaPresenca(pincelDePresenca('sombra')), 'abaixo');
+  assert.equal(camadaDaPresenca(pincelDePresenca('ordem.morte')), 'abaixo');
+  for (const p of PINCEIS_DE_PRESENCA.filter(p => p.brilho)) assert.equal(camadaDaPresenca(p), 'acima', p.id);
+});
+
+test('a presença é translúcida: mesmo na intensidade máxima a opacidade fica bem abaixo de 1', () => {
+  assert.ok(opacidadeDaPresenca(0.45) < 0.4);
+  assert.ok(opacidadeDaPresenca(1) <= 0.6);
+  assert.ok(opacidadeDaPresenca(2) <= 0.6);
+  assert.ok(opacidadeDaPresenca(0.2) < opacidadeDaPresenca(0.8));
+});
+
+test('a máscara ganha resolução acima da célula, sem estourar o tamanho da textura', () => {
+  assert.equal(ampliacaoDaMascara(100, 80), 4);
+  assert.equal(ampliacaoDaMascara(1000, 500), 2);
+  assert.equal(ampliacaoDaMascara(5000, 10), 1);
+});
