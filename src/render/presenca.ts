@@ -2,15 +2,19 @@ import { Container, Geometry, GlProgram, Mesh, Shader, Texture, UniformGroup } f
 import type { MapaAtlas, Presenca } from '../domain/mapa.ts';
 import { pincelDePresenca } from '../domain/presets.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
+import { desfocarAlfa } from '../procedural/desfocar.ts';
 import { orientacaoDominante } from '../procedural/orientacao.ts';
 import type { Mudancas } from '../state/mudancas.ts';
 import { hexParaNumero } from './cores.ts';
+import { ampliacaoDaMascara, camadaDaPresenca, type CamadaDePresenca, opacidadeDaPresenca } from './presenca-camada.ts';
 import { FATOR_DE_MOVIMENTO_REDUZIDO } from './particulas-config.ts';
 
 export interface RenderDePresenca {
   /** Presenças sob a água (sob a superfície): entram antes da água. */
   readonly submerso: Container;
-  /** Presenças naturais: entram antes do mapa de luz, que as escurece como ao resto. */
+  /** Tinta do chão (musgo, sangue seco, sulcos...): fica sob os objetos de piso e sob a luz. */
+  readonly chao: Container;
+  /** Presenças que são aura (sombra, "ordem.*" que não brilha): entram antes do mapa de luz, que as escurece como ao resto. */
   readonly abaixo: Container;
   /** Presenças que brilham (sobrenaturais): ficam acima da luz. */
   readonly acima: Container;
@@ -37,16 +41,16 @@ void main(void) {
   vUV = aUV;
 }`;
 
-// A máscara (1 px por célula, ampliada em linear) é desfocada por quatro amostras; o ruído fbm decide até onde a mancha chegou
+// A máscara (já desfocada em CPU, vários texels por célula) dá a borda macia; o ruído fbm decide até onde a mancha chegou
 // (`uIntensidade`: 0 recolhe, 1 vai até a máscara inteira). Sem arrays constantes (GLSL ES 1.00).
 const fragment = `in vec2 vUV;
 out vec4 finalColor;
 uniform sampler2D uTexture;
 uniform highp vec2 uOrigem;
 uniform highp vec2 uTamanho;
-uniform highp vec2 uCelula;
 uniform highp float uTempo;
 uniform float uIntensidade;
+uniform float uOpaco;
 uniform float uPulso;
 uniform float uEscala;
 uniform float uSemente;
@@ -69,8 +73,7 @@ void main() {
   vec2 pos = pixel ? (floor((uOrigem + vUV * uTamanho) * uPpm) + 0.5) / uPpm : uOrigem + vUV * uTamanho;
   vec2 uv = (pos - uOrigem) / uTamanho;
   float b = pixel ? bayer(floor(pos * uPpm)) : 0.0;
-  vec2 d = uCelula * 0.75;
-  float m = (massa(uv) * 2.0 + massa(uv + vec2(d.x, 0.0)) + massa(uv - vec2(d.x, 0.0)) + massa(uv + vec2(0.0, d.y)) + massa(uv - vec2(0.0, d.y))) / 6.0;
+  float m = massa(uv);
   vec2 mundo = pos;
   float cA = cos(uAngulo), sA = sin(uAngulo);
   vec2 pRel = mundo - uOrigem;
@@ -112,8 +115,10 @@ void main() {
   }
   vec3 cor = uCor * (0.62 + 0.55 * (pixel ? floor(tom * 3.0) / 3.0 : tom)) * pulsa;
   float halo = pixel ? step(0.5 + b * 0.5, smoothstep(0.0, 0.5, m) * 0.9) * 0.5 : smoothstep(0.0, 0.5, m);
-  float brilho = uBrilha * 0.3 * halo * (1.0 - a) * pulsa * uIntensidade;
-  float alfa = clamp(a * 0.92 + brilho, 0.0, 1.0);
+  float brilho = uBrilha * 0.22 * halo * (1.0 - a) * pulsa * uIntensidade;
+  // Translúcida: o chão e os objetos embaixo continuam à vista; o ruído só varia a densidade da mancha.
+  float densidade = clamp(0.6 + 0.8 * n, 0.4, 1.2);
+  float alfa = clamp(a * uOpaco * densidade + brilho, 0.0, 1.0);
   // Só o mestre vê: metade da força e hachuras.
   float risca = 0.55 + 0.45 * step(0.5, fract((mundo.x + mundo.y) * 3.0));
   alfa *= mix(1.0, 0.5 * risca, uGm);
@@ -124,11 +129,11 @@ const programa = () => GlProgram.from({ vertex, fragment, preferredFragmentPreci
 const MARGEM = 2;     // células a mais em volta, para o desfoque e a borda irregular terem onde crescer
 
 interface Desenho {
-  mesh: Mesh<Geometry, Shader>; grupo: UniformGroup; textura: Texture; celulas: Presenca['cells']; resolucao: number; brilha: boolean; submerso: boolean;
+  mesh: Mesh<Geometry, Shader>; grupo: UniformGroup; textura: Texture; celulas: Presenca['cells']; resolucao: number; brilha: boolean; camada: CamadaDePresenca;
 }
 
 export function criarPresenca(): RenderDePresenca {
-  const submerso = new Container(), abaixo = new Container(), acima = new Container();
+  const submerso = new Container(), chao = new Container(), abaixo = new Container(), acima = new Container();
   const desenhos = new Map<string, Desenho>();
   let tempo = 0, destruido = false, prog: GlProgram | null = null;
 
@@ -140,15 +145,20 @@ export function criarPresenca(): RenderDePresenca {
     for (const [y, xa, n] of p.cells) { if (y < y0) y0 = y; if (y + 1 > y1) y1 = y + 1; if (xa < x0) x0 = xa; if (xa + n > x1) x1 = xa + n; }
     x0 = Math.max(0, x0 - MARGEM); y0 = Math.max(0, y0 - MARGEM); x1 = Math.min(cols, x1 + MARGEM); y1 = Math.min(lins, y1 + MARGEM);
     const w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
-    const c = document.createElement('canvas'); c.width = w; c.height = h;
-    const g = c.getContext('2d')!; g.fillStyle = '#fff';
-    for (const [y, xa, n] of p.cells) g.fillRect(xa - x0, y - y0, n, 1);
+    // Máscara com vários texels por célula e desfocada em CPU: a borda deixa de seguir a grade de células.
+    const k = ampliacaoDaMascara(w, h);
+    const c = document.createElement('canvas'); c.width = w * k; c.height = h * k;
+    const g = c.getContext('2d', { willReadFrequently: true })!; g.fillStyle = '#fff';
+    for (const [y, xa, n] of p.cells) g.fillRect((xa - x0) * k, (y - y0) * k, n * k, k);
+    const dados = g.getImageData(0, 0, c.width, c.height);
+    desfocarAlfa(dados.data, c.width, c.height, 0.7 * k);
+    g.putImageData(dados, 0, 0);
     const textura = Texture.from(c); textura.source.scaleMode = 'linear'; textura.source.addressMode = 'clamp-to-edge';
     const [wx0, wy0, wx1, wy1] = [x0 * res, y0 * res, x1 * res, y1 * res];
     const geometria = new Geometry({ attributes: { aPosition: new Float32Array([wx0, wy0, wx1, wy0, wx1, wy1, wx0, wy1]), aUV: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]) }, indexBuffer: new Uint16Array([0, 1, 2, 0, 2, 3]) });
     const grupo = new UniformGroup({
       uOrigem: { value: new Float32Array([wx0, wy0]), type: 'vec2<f32>' }, uTamanho: { value: new Float32Array([wx1 - wx0, wy1 - wy0]), type: 'vec2<f32>' },
-      uCelula: { value: new Float32Array([1 / w, 1 / h]), type: 'vec2<f32>' }, uTempo: { value: 0, type: 'f32' }, uIntensidade: { value: 0.6, type: 'f32' },
+      uTempo: { value: 0, type: 'f32' }, uIntensidade: { value: 0.6, type: 'f32' }, uOpaco: { value: 0.4, type: 'f32' },
       uPulso: { value: 0, type: 'f32' }, uPixel: { value: 0, type: 'f32' }, uPpm: { value: 1, type: 'f32' }, uEscala: { value: 1, type: 'f32' }, uSemente: { value: 0, type: 'f32' }, uBrilha: { value: 0, type: 'f32' }, uGm: { value: 0, type: 'f32' },
       uForma: { value: 0, type: 'f32' }, uAngulo: { value: 0, type: 'f32' },
       uCor: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
@@ -158,15 +168,15 @@ export function criarPresenca(): RenderDePresenca {
     const mesh = new Mesh({ geometry: geometria, shader });
     const pincel = pincelDePresenca(p.brush);
     const brilha = pincel?.brilho ?? false;
-    const ehSubmerso = pincel?.submerso ?? false;
-    (ehSubmerso ? submerso : brilha ? acima : abaixo).addChild(mesh);
-    return { mesh, grupo, textura, celulas: p.cells, resolucao: res, brilha, submerso: ehSubmerso };
+    const camada = camadaDaPresenca(pincel);
+    (camada === 'submerso' ? submerso : camada === 'chao' ? chao : camada === 'acima' ? acima : abaixo).addChild(mesh);
+    return { mesh, grupo, textura, celulas: p.cells, resolucao: res, brilha, camada };
   }
 
   function atualizarUniformes(d: Desenho, p: Presenca, m: MapaAtlas): void {
     const b = pincelDePresenca(p.brush), n = hexParaNumero(b?.cor ?? '#ffffff'), u = d.grupo.uniforms as Record<string, unknown>;
     u.uCor = new Float32Array([((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]);
-    u.uIntensidade = p.intensity; u.uPulso = b?.pulso ?? 0; u.uEscala = b?.escala ?? 1; u.uBrilha = b?.brilho ? 1 : 0; u.uSemente = p.seed % 1000; u.uGm = p.gmOnly ? 1 : 0;
+    u.uIntensidade = p.intensity; u.uOpaco = opacidadeDaPresenca(p.intensity); u.uPulso = b?.pulso ?? 0; u.uEscala = b?.escala ?? 1; u.uBrilha = b?.brilho ? 1 : 0; u.uSemente = p.seed % 1000; u.uGm = p.gmOnly ? 1 : 0;
     const formaId = b?.forma === 'arrastado' ? 1 : b?.forma === 'sulcos' ? 2 : 0;
     u.uForma = formaId;
     const angulo = orientacaoDominante(p.cells);
@@ -176,7 +186,7 @@ export function criarPresenca(): RenderDePresenca {
   }
 
   return {
-    submerso, abaixo, acima,
+    submerso, chao, abaixo, acima,
     sincronizar(m) {
       if (destruido) return;
       const res = m.terrain.resolution, cols = Math.ceil(m.bounds.width / res), lins = Math.ceil(m.bounds.height / res);
@@ -185,8 +195,8 @@ export function criarPresenca(): RenderDePresenca {
         let d = desenhos.get(p.id);
         const pincel = pincelDePresenca(p.brush);
         const brilha = pincel?.brilho ?? false;
-        const ehSubmerso = pincel?.submerso ?? false;
-        if (d && (d.celulas !== p.cells || d.resolucao !== res || d.brilha !== brilha || d.submerso !== ehSubmerso)) { apagar(d); desenhos.delete(p.id); d = undefined; }
+        const camada = camadaDaPresenca(pincel);
+        if (d && (d.celulas !== p.cells || d.resolucao !== res || d.brilha !== brilha || d.camada !== camada)) { apagar(d); desenhos.delete(p.id); d = undefined; }
         if (!d) { if (!p.cells.length) continue; d = criar(p, res, cols, lins); desenhos.set(p.id, d); }
         atualizarUniformes(d, p, m);
       }
@@ -203,6 +213,7 @@ export function criarPresenca(): RenderDePresenca {
       for (const d of desenhos.values()) apagar(d);
       desenhos.clear();
       submerso.destroy({ children: true });
+      chao.destroy({ children: true });
       abaixo.destroy({ children: true });
       acima.destroy({ children: true });
     },
