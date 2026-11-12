@@ -335,10 +335,10 @@ export function adicionarAoPreset(opcoes: OpcoesAdicionarAoPreset): ResultadoAdi
   let fezBackupMeta = false;
 
   try {
-    // Backup se já existiam
-    if (fs.existsSync(alvoAudio)) { fs.copyFileSync(alvoAudio, bakAudio); fezBackupAudio = true; }
-    if (fs.existsSync(alvoCapa)) { fs.copyFileSync(alvoCapa, bakCapa); fezBackupCapa = true; }
-    if (fs.existsSync(caminhoMeta)) { fs.copyFileSync(caminhoMeta, bakMeta); fezBackupMeta = true; }
+    // Backup se já existiam (rename atômico evita copiar 200 MB e falhas de disco cheio)
+    if (fs.existsSync(alvoAudio)) { fs.renameSync(alvoAudio, bakAudio); fezBackupAudio = true; }
+    if (fs.existsSync(alvoCapa)) { fs.renameSync(alvoCapa, bakCapa); fezBackupCapa = true; }
+    if (fs.existsSync(caminhoMeta)) { fs.renameSync(caminhoMeta, bakMeta); fezBackupMeta = true; }
 
     // Grava áudio via .tmp e renomeia
     fs.copyFileSync(arquivo, tmpAudio);
@@ -350,9 +350,10 @@ export function adicionarAoPreset(opcoes: OpcoesAdicionarAoPreset): ResultadoAdi
 
     // Relê metadata atual logo antes de gravar para incorporar mudanças simultâneas
     let listaAtual: ItemMetadataJukebox[] = [];
-    if (fs.existsSync(caminhoMeta)) {
+    const fonteMeta = fs.existsSync(caminhoMeta) ? caminhoMeta : (fezBackupMeta && fs.existsSync(bakMeta) ? bakMeta : null);
+    if (fonteMeta) {
       try {
-        listaAtual = JSON.parse(fs.readFileSync(caminhoMeta, 'utf8'));
+        listaAtual = JSON.parse(fs.readFileSync(fonteMeta, 'utf8'));
       } catch {
         listaAtual = metadata;
       }

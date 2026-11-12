@@ -15,7 +15,7 @@ export interface ItemCatalogoBase {
 export const FERRAMENTAS_LOCAIS_CATALOGO: ItemCatalogoBase[] = [
   {
     nome: 'jukebox_preset_adicionar',
-    descricao: 'Adiciona música MP3 a uma pasta de preset da Jukebox no disco.',
+    descricao: 'Adiciona música MP3 a uma pasta de preset da Jukebox no disco (use substituir: true para atualizar).',
     esquema: ESQUEMA_PRESET_ADICIONAR as Record<string, unknown>,
     app: 'jukebox',
     anotacoes: { destrutiva: false },

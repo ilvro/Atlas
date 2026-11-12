@@ -455,7 +455,7 @@ export const FERRAMENTA_PRESET_LER = {
 
 export const FERRAMENTA_PRESET_ADICIONAR = {
   name: 'jukebox_preset_adicionar',
-  description: 'Adiciona música MP3 a uma pasta de preset da Jukebox no disco.',
+  description: 'Adiciona música MP3 a uma pasta de preset da Jukebox no disco (use substituir: true para atualizar).',
   inputSchema: ESQUEMA_PRESET_ADICIONAR,
   annotations: { destructiveHint: false },
 };
@@ -539,20 +539,22 @@ export function textoDoGuia(secoes: SecaoDoGuia[], secao?: unknown) {
   return { content: [{ type: 'text' as const, text: achada.texto }] };
 }
 
-/** Ferramentas para o `tools/list`: `ponte_estado` e `plataforma_guia` sempre, depois as do catálogo. */
+/** Ferramentas para o `tools/list`: `ponte_estado` e `plataforma_guia` sempre, depois as do catálogo (exceto internas como `jukebox_preset_receber`). */
 export function listarFerramentas(catalogo: FerramentaDoApp[], guia: SecaoDoGuia[] = []) {
   return [
     FERRAMENTA_ESTADO,
     ferramentaGuia(guia),
-    ...catalogo.map(f => {
-      const anotacoes = anotacoesDaFerramenta(f.nome, f.anotacoes);
-      return {
-        name: f.nome,
-        description: f.descricao,
-        inputSchema: (f.esquema ?? { type: 'object', properties: {} }) as { type: 'object'; [k: string]: unknown },
-        ...(Object.keys(anotacoes).length > 0 ? { annotations: anotacoes } : {}),
-      };
-    }),
+    ...catalogo
+      .filter(f => f.nome !== 'jukebox_preset_receber')
+      .map(f => {
+        const anotacoes = anotacoesDaFerramenta(f.nome, f.anotacoes);
+        return {
+          name: f.nome,
+          description: f.descricao,
+          inputSchema: (f.esquema ?? { type: 'object', properties: {} }) as { type: 'object'; [k: string]: unknown },
+          ...(Object.keys(anotacoes).length > 0 ? { annotations: anotacoes } : {}),
+        };
+      }),
   ];
 }
 
