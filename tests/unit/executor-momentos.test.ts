@@ -8,6 +8,7 @@ import { decodificar } from '../../src/domain/celulas.ts';
 import { etapasDaAgua } from '../../src/domain/agua.ts';
 import {
   executarPasso,
+  fusaoDoMomento,
   momentoEmCurso,
   pararMomento,
   tocarMomento,
@@ -416,4 +417,44 @@ test('comandoDaEtapaDeAgua: baixar troca só as células dessa água por deixar,
   const sem = aplicarComando(mapa, apaga!);
   assert.equal(Object.values(sem.terrain.layers).some(l => l.material === 'agua.pantano'), false);
   assert.equal(decodificar(Object.values(sem.terrain.layers).find(l => l.material === 'grama')!.cells).length, 1);
+});
+
+test('um momento inteiro é uma entrada de histórico e um desfazer; dois momentos são duas', async () => {
+  const store = criarStore(criarMapa());
+  const { saidas } = criarSaidas();
+  const { relogio } = criarRelogioFalso();
+  let n = 0;
+  saidas.agua = async (p) => {
+    const x = n++;
+    store.executar({ tipo: 'terreno.pintar', material: p.material, celulas: [[x, 0]], lembrar: true }, { rotulo: 'Momento: Enchente', fusao: fusaoDoMomento() });
+  };
+  saidas.luz = () => { store.executar({ tipo: 'mapa.renomear', nome: 'Escuro' }, { rotulo: 'Momento: Enchente', fusao: fusaoDoMomento() }); };
+  const momento: Momento = { id: 'm1', nome: 'Enchente', cor: null, passos: [
+    { tipo: 'agua', poligono: [[1, 1], [2, 1], [2, 2]], material: 'agua.lago', ms: 100 },
+    { tipo: 'luz', ids: ['x'], acao: 'desligar' } as never,
+    { tipo: 'agua', poligono: [[1, 1], [2, 1], [2, 2]], material: 'agua.lago', ms: 100 },
+  ] };
+  const antes = store.documento;
+  assert.equal(await tocarMomento('a', momento, saidas, relogio), 'fim');
+  assert.equal(store.historico.length, 1);
+  assert.notEqual(store.documento, antes);
+  store.desfazer();
+  assert.equal(JSON.stringify(store.documento.terrain), JSON.stringify(antes.terrain));
+  assert.equal(store.documento.name, antes.name);
+  assert.equal(fusaoDoMomento(), undefined);
+  // dois momentos seguidos: duas entradas
+  await tocarMomento('a', momento, saidas, relogio);
+  await tocarMomento('a', momento, saidas, relogio);
+  assert.equal(store.historico.length, 2);
+});
+
+test('transacao com fusao funde na entrada do topo; outro comando no meio quebra a fusão', () => {
+  const store = criarStore(criarMapa());
+  store.transacao('a', g => { g.aplicar({ tipo: 'mapa.renomear', nome: 'A' }); }, { fusao: 'k' });
+  store.executar({ tipo: 'mapa.renomear', nome: 'B' }, { fusao: 'k' });
+  store.transacao('c', g => { g.aplicar({ tipo: 'mapa.renomear', nome: 'C' }); }, { fusao: 'k' });
+  assert.equal(store.historico.length, 1);
+  store.executar({ tipo: 'mapa.renomear', nome: 'D' });
+  store.transacao('e', g => { g.aplicar({ tipo: 'mapa.renomear', nome: 'E' }); }, { fusao: 'k' });
+  assert.equal(store.historico.length, 3);
 });

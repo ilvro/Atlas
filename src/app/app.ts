@@ -29,7 +29,7 @@ import { iniciarSugestoes } from './sugestoes.ts';
 import { abrirJanelaDoProjetor, ajustarAoAspecto, aspectoDoProjetor, caixaDoProjetor, iniciarPublicacao, mapaNoProjetorId, projetorConectado, seguirJogadores, telaEscura, type Publicador } from './projetor.ts';
 import type { EventoDeCena } from '../render/eventos-de-cena.ts';
 import type { EfeitoDeCena, Momento, PassoDeMomento } from '../domain/momentos.ts';
-import { executarPasso, momentoEmCurso, pararMomento, tocarMomento, type SaidasDeMomento } from './momentos.ts';
+import { executarPasso, fusaoDoMomento, momentoEmCurso, pararMomento, tocarMomento, type SaidasDeMomento } from './momentos.ts';
 import { lerRota, formatarRota, type Rota } from './rotas.ts';
 import { iniciarServicos, type Servicos } from './servicos.ts';
 import { criarSessao, type SessaoDeEdicao } from './sessao.ts';
@@ -745,7 +745,7 @@ function emitirRevelado(id: string, tipo = 'abertura'): void {
 }
 
 /** Abre ou fecha uma porta na sessão (e soma ao explorado o que ela passa a mostrar). Trancada não abre. Uma secreta que se abre é revelada junto. */
-export function alternarPorta(id: string): void {
+export function alternarPorta(id: string, fusao?: string): void {
   const s = sessao.value; if (!s) return;
   const o = s.doc.value.openings[id]; if (!o || (o.kind !== 'door' && o.kind !== 'secret')) return;
   // O `som` da abertura (um efeito do Jukebox) toca no lugar do sintetizado, que fica de reserva (`tocarSomEscolhido`).
@@ -756,7 +756,7 @@ export function alternarPorta(id: string): void {
       g.aplicar({ tipo: 'abertura.atualizar', id, patch: { state: abrir ? 'open' : 'closed' } });
       if (revelarJunto) g.aplicar({ tipo: 'sessao.revelar', ids: [id] });
       g.aplicar({ tipo: 'sessao.explorar' });
-    });
+    }, fusao !== undefined ? { fusao } : undefined);
   } catch (erro) { avisar(erro instanceof Error ? erro.message : String(erro), { tipo: 'erro' }); tocar('erro'); return; }
   void tocarSomEscolhido(servicos.peek()?.barramento, o.som, () => tocar(abrir ? 'porta-abrir' : 'porta-fechar'));
   if (revelarJunto) emitirRevelado(id);
@@ -889,7 +889,13 @@ effect(() => {
 // ---------- Momentos ----------
 export { momentoEmCurso, pararMomento, telaEscura, pedirSilencio };
 
-let contadorDeAgua = 0;
+let contadorDePassos = 0;
+
+/** Rótulo e chave de fusão do histórico para o que um passo de momento muda no mapa: um momento inteiro é um desfazer; um passo avulso tem chave própria. */
+function opcoesDoPasso(rotuloAvulso?: string): { rotulo?: string; fusao: string } {
+  const m = momentoEmCurso.peek(), fusao = fusaoDoMomento() ?? `passo:${++contadorDePassos}`;
+  return m ? { rotulo: `Momento: ${m.nome}`, fusao } : rotuloAvulso ? { rotulo: rotuloAvulso, fusao } : { fusao };
+}
 
 export function saidasDeMomento(s: Servicos | null): SaidasDeMomento {
   return {
@@ -963,34 +969,28 @@ export function saidasDeMomento(s: Servicos | null): SaidasDeMomento {
       if (!s) return;
       const doc = s.doc.value;
       const existentes = ids.filter(id => doc.rooms[id] || doc.openings[id] || doc.props[id] || doc.regions[id]);
-      if (existentes.length > 0) {
-        const m = momentoEmCurso.peek();
-        s.store.executar({ tipo: 'sessao.revelar', ids: existentes }, m ? { rotulo: `Momento: ${m.nome}` } : {});
-      }
+      if (existentes.length > 0) s.store.executar({ tipo: 'sessao.revelar', ids: existentes }, opcoesDoPasso());
     },
     interagir: id => {
       const s = sessao.value;
       if (!s) return;
       const doc = s.doc.value;
-      const m = momentoEmCurso.peek();
-      const extra = m ? { rotulo: `Momento: ${m.nome}` } : {};
+      const extra = opcoesDoPasso();
       if (doc.props[id]) {
         s.store.executar({ tipo: 'interagir', id }, extra);
       } else if (doc.openings[id]) {
-        alternarPorta(id);
+        alternarPorta(id, extra.fusao);
       }
     },
     luz: (ids, acao) => {
       const s = sessao.value;
       if (!s) return;
-      const m = momentoEmCurso.peek();
-      s.store.executar({ tipo: 'luz.estado', ids, acao }, m ? { rotulo: `Momento: ${m.nome}` } : {});
+      s.store.executar({ tipo: 'luz.estado', ids, acao }, opcoesDoPasso());
     },
     objeto: (ids, acao) => {
       const s = sessao.value;
       if (!s) return;
-      const m = momentoEmCurso.peek();
-      s.store.executar({ tipo: 'objeto.visibilidade', ids, acao }, m ? { rotulo: `Momento: ${m.nome}` } : {});
+      s.store.executar({ tipo: 'objeto.visibilidade', ids, acao }, opcoesDoPasso());
     },
     agua: async (p, rel, sinal) => {
       const s = sessao.value;
@@ -1001,18 +1001,16 @@ export function saidasDeMomento(s: Servicos | null): SaidasDeMomento {
       const baixar = p.acao === 'baixar';
       const etapas = etapasDaAgua(p.poligono, res, totalEtapas, doc.bounds, baixar ? 'borda' : 'centro');
       const intervalo = Math.round(p.ms / totalEtapas);
-      const m = momentoEmCurso.peek();
-      const rotulo = m ? `Momento: ${m.nome}` : baixar ? 'Água que baixa' : 'Água que sobe';
+      const opcoes = opcoesDoPasso(baixar ? 'Água que baixa' : 'Água que sobe');
       const maxCols = Math.ceil(doc.bounds.width / res);
       const maxRows = Math.ceil(doc.bounds.height / res);
-      // Uma chave por execução do passo: todas as etapas viram uma só entrada de histórico (um Ctrl+Z).
-      const fusao = `agua:${++contadorDeAgua}`;
+      // Todas as etapas viram uma só entrada de histórico (um Ctrl+Z), e o momento inteiro também.
 
       for (let i = 0; i < etapas.length; i++) {
         if (sinal.aborted) return;
         const celulas = etapas[i]!.filter(([cx, cy]) => cx >= 0 && cy >= 0 && cx < maxCols && cy < maxRows);
         const comando = comandoDaEtapaDeAgua(s.store.documento, p, celulas);
-        if (comando) s.store.executar(comando, { rotulo, fusao });
+        if (comando) s.store.executar(comando, opcoes);
         await rel.esperar(intervalo, sinal);
       }
     },
