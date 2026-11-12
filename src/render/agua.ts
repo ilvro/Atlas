@@ -203,7 +203,7 @@ export function criarAgua(): RenderDeAgua {
         uFlow0: { value: new Float32Array(2), type: 'vec2<f32>' }, uFlow1: { value: new Float32Array(2), type: 'vec2<f32>' }, uFlow2: { value: new Float32Array(2), type: 'vec2<f32>' }, uFlow3: { value: new Float32Array(2), type: 'vec2<f32>' },
         uCaustica: { value: new Float32Array(4), type: 'vec4<f32>' }, uForcaEspuma: { value: new Float32Array([1, 1, 1, 1]), type: 'vec4<f32>' }, uOndas: { value: new Float32Array(4), type: 'vec4<f32>' }, uPixel: { value: 0, type: 'f32' }, uPpm: { value: 1, type: 'f32' },
       });
-      prog ??= GlProgram.from({ vertex, fragment, name: 'atlas-agua' });
+      prog ??= GlProgram.from({ vertex, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-agua' });
       // A cópia na CPU da profundidade (R) e do índice da camada (B), para os objetos submersos; e a máscara dos objetos, na mesma grade.
       const copia = document.createElement('canvas'); copia.width = agua.bitmap.width; copia.height = agua.bitmap.height;
       const cg = copia.getContext('2d', { willReadFrequently: true })!; cg.drawImage(agua.bitmap, 0, 0);

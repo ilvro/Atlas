@@ -56,7 +56,7 @@ export function criarFiltroAcabamento(): { filtro: Filter; aplicar(a: Acabamento
     uSaturacao: { value: 1, type: 'f32' }, uTom: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' }, uVinheta: { value: 0, type: 'f32' }, uGrao: { value: 0, type: 'f32' },
     uTextura: { value: 0, type: 'f32' }, uLift: { value: 0, type: 'f32' }, uGamma: { value: 1, type: 'f32' }, uGain: { value: 1, type: 'f32' }, uTempo: { value: 0, type: 'f32' },
   });
-  const filtro = new Filter({ glProgram: GlProgram.from({ vertex, fragment, name: 'atlas-acabamento' }), resources: { acabamento: grupo } });
+  const filtro = new Filter({ glProgram: GlProgram.from({ vertex, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-acabamento' }), resources: { acabamento: grupo } });
   return {
     filtro,
     aplicar(a, tempo = 0) {

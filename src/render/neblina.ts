@@ -74,7 +74,7 @@ export function criarNeblina(): Neblina {
     uAlfa: { value: alfa, type: 'f32' },
   });
   const grupoFora = criarGrupo(0), grupoDentro = criarGrupo(0);
-  const programa = GlProgram.from({ vertex, fragment, name: 'atlas-neblina' });
+  const programa = GlProgram.from({ vertex, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-neblina' });
   const veu = (grupo: UniformGroup) => { const s = new Sprite(Texture.WHITE); s.filters = [new Filter({ glProgram: programa, resources: { neblina: grupo } })]; return s; };
   const raiz = new Container(), fora = new Container(), dentro = new Container(), veuFora = veu(grupoFora), veuDentro = veu(grupoDentro);
   const mascaraFora = new Graphics(), mascaraDentro = new Graphics();

@@ -108,7 +108,7 @@ export function criarBordas(): Bordas {
     uTempo: { value: 0, type: 'f32' }, uLargura: { value: 1, type: 'f32' }, uTipo: { value: 0, type: 'f32' },
     uPixel: { value: 0, type: 'f32' }, uPpm: { value: 1, type: 'f32' }, uCor: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
   });
-  const programa = GlProgram.from({ vertex, fragment, name: 'atlas-bordas' });
+  const programa = GlProgram.from({ vertex, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-bordas' });
   const veu = new Sprite(Texture.WHITE);
   veu.filters = [new Filter({ glProgram: programa, resources: { bordas: grupo } })];
   const raiz = new Container(); raiz.addChild(veu); raiz.visible = false;

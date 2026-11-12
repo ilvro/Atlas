@@ -120,7 +120,7 @@ void main() {
   finalColor = vec4(cor * alfa, alfa);
 }`;
 
-const programa = () => GlProgram.from({ vertex, fragment, name: 'atlas-presenca' });
+const programa = () => GlProgram.from({ vertex, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-presenca' });
 const MARGEM = 2;     // células a mais em volta, para o desfoque e a borda irregular terem onde crescer
 
 interface Desenho {
