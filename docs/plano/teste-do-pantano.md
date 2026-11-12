@@ -146,3 +146,53 @@ Como:
 - Conferência manual no app de desktop (anote na Nota): adicionar pelo Claude com a Jukebox fechada, depois abrir o preset (a música está lá). Adicionar com o preset aberto (aparece na hora), Salvar, fechar, reabrir (continua lá e o metadata não tem duplicata).
 Nota: documentadas as ferramentas em `docs/assistente/guia/ferramentas-jukebox.md` com exemplos e regras de anexo. Teste e2e implementado em `tests/e2e/jukebox-preset.test.ts` (Playwright servindo Jukebox estático, recebimento da música em tempo real pelo conector, renderização no grid virtual com filtro de busca e conferência de exportação do `.zip` contendo os metadados preservados). Conferência manual no desktop: 1) Jukebox fechada: `jukebox_preset_adicionar` grava arquivos MP3, JPG e metadata no disco com escrita atômica; abrindo o preset na Jukebox, a música aparece normalmente; 2) Jukebox aberta com o preset carregado: `jukebox_preset_adicionar` grava no disco e despacha via WebSocket para `jukebox_preset_receber`, criando o cartão na hora e emitindo `songsUpdated`; ao Salvar, `mesclarMetadados` e `tituloNaAbertura` evitam duplicatas e preservam arquivos externos.
 Commit: document adding songs through the connector
+
+### Etapa E — Lapidação e correções do Pântano (revisão fable 5.2)
+
+#### E1 — Projeção para jogadores: revelar região e ocultar objetos  ✅
+Depende de: B1
+Ler: `src/domain/projecao.ts`, `src/domain/nevoa.ts`, `src/render/cena.ts`.
+Como:
+- Em `src/domain/projecao.ts`:
+  - Calcular células exploradas antes de podar regiões: as regiões `kind === 'reveal'` (mesmo com `gmOnly: true`, que é o padrão das regiões criadas pelo MCP) devem alimentar as células reveladas na projeção (`session.explored = { res, cells: celulasExploradas(m) }`).
+  - Incluir `'regions'` no filtro de `session.revealed` para que o id da região permaneça no estado revelado.
+  - Ocultar objetos com `o.oculto === true` removendo-os de `p.props` na projeção para jogadores, bem como suas luzes correspondentes (`l.ownerId === id`).
+  - Incluir `'props.oculto'` em `CAMPOS_DO_MESTRE`.
+Testes: `tests/unit/projecao.test.ts` (células de regiões reveladas presentes em `session.explored.cells` no projetor mesmo com `gmOnly`; objetos com `oculto: true` e suas luzes excluídos da projeção para jogadores).
+Commit: project revealed regions and strip hidden props for players
+
+#### E2 — Água que sobe: não travar o store e recortar aos limites
+Depende de: B2
+Ler: `src/app/app.ts`, `src/domain/agua.ts`, `src/app/momentos.ts`.
+Como:
+- Em `src/app/app.ts`: remover o `iniciarGesto` envolvente durante a espera assíncrona (`rel.esperar`) das etapas da água. Executar cada etapa como comando do store sem bloquear o mestre de interagir com peças/portas no meio do passo.
+- Em `src/domain/agua.ts` e `src/app/app.ts`: recortar as células geradas em `etapasDaAgua` aos limites do mapa (`0 <= x < doc.size[0] / res && 0 <= y < doc.size[1] / res`) para evitar "Célula inválida" quando o polígono extrapola o mapa.
+- Em `src/app/momentos.ts`: tratar a promessa de `agua` no executor com `.catch` para evitar falha silenciosa sem log.
+Testes: `tests/unit/agua.test.ts` e `tests/unit/app-momentos.test.ts` (células fora dos limites são recortadas e não lançam erro; store livre para outros comandos durante a transição da água).
+Commit: rising water non-blocking steps clipped to map bounds
+
+#### E3 — Jukebox e presets: atomicidade, escopo de mescla e ferramentas internas
+Depende de: D2, D3
+Ler: `scripts/ponte/presets.ts`, `../Jukebox/upload-song.js`, `scripts/ponte/mcp.ts`, `scripts/ponte/catalogo-base.json`.
+Como:
+- Em `scripts/ponte/presets.ts`: no `substituir`, substituir a cópia `.bak` por `fs.renameSync(alvoAudio, bakAudio)` para evitar duplicação de arquivos de áudio de 200 MB e falha em disco cheio. No `catch`, restaurar via `fs.renameSync(bakAudio, alvoAudio)`.
+- Em `../Jukebox/upload-song.js`: na rotina de salvar preset (`savePreset`), restringir `mesclarMetadados` para aplicar apenas quando a pasta do diretório destino for a mesma do preset aberto (`directoryHandle.name === loadedPresetFolderName`).
+- Em `scripts/ponte/mcp.ts`: ocultar `jukebox_preset_receber` de `listarFerramentas` (ferramenta interna de transporte).
+- Em `scripts/ponte/catalogo-base.json` e descrições MCP: documentar explicitamente o parâmetro `substituir: true` na ferramenta `jukebox_preset_adicionar`.
+Testes: `tests/unit/ponte-presets.test.ts` e testes unitários da Jukebox (`../Jukebox/tests/`).
+Commit (Jukebox): only merge presets when saving to the same folder
+Commit: atomic replace in preset files and hide internal receive tool
+
+#### E4 — Acervo, inspetor, editor de momentos e desktop prep
+Depende de: E1, E2, E3
+Ler: `src/app/ponte-escrita.ts`, `src/authoring/construcao.ts`, `src/ui/Inspetor.tsx`, `src/ui/Momentos.tsx`, `src/domain/camadas.ts`, `docs/assistente/guia/`.
+Como:
+- Em `src/app/ponte-escrita.ts` e `src/authoring/construcao.ts`: adicionar `oculto?: boolean` no esquema de `atlas_objetos` e na criação de objetos.
+- Em `src/ui/Inspetor.tsx`: adicionar controle (checkbox) "Oculto para jogadores" no inspetor de objeto quando selecionado.
+- Em `src/ui/Momentos.tsx`: exibir nomes amigáveis para regiões (`r.payload?.nome || r.id`), filtrar alvos do passo de luz apenas para objetos que possuem luz própria, e exibir nome legível do acervo para objetos.
+- Em `src/domain/camadas.ts`: substituir verificação fixa `id === 'arvore-morta'` por tags do item (ex.: ausência de tags `caido`/`caida`).
+- Documentar `oculto` e os novos passos de momentos em `docs/assistente/guia/`.
+- Executar `npm run desktop:prep` na Mesa para consolidar os commits da Jukebox e Mesa no binário desktop.
+Testes: `tests/unit/ponte-escrita.test.ts`, `tests/unit/momentos.test.ts`, `npm run typecheck`, `npm test`.
+Commit: inspector control for hidden props and moment editor labels
+
