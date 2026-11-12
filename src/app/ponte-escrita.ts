@@ -340,22 +340,27 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_presenca',
-      descricao: 'Pinta presença (musgo, sangue, mofo...) em metros. Pincéis: atlas_catalogo presenca. Detalhes: plataforma_guia ferramentas-atlas.',
+      descricao: 'Pinta presença (musgo, sangue, mofo...) em metros; com apagar:true, apaga na forma. Pincéis: atlas_catalogo presenca. Guia: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         pincel: { type: 'string', enum: PINCEIS_DE_PRESENCA.map(p => p.id) }, forma: esquemaDaForma(), intensidade: unidadeEsq, semente,
-      }, required: ['pincel', 'forma'], additionalProperties: false },
+        apagar: { type: 'boolean', description: 'true apaga a presença na forma (sem pincel, todos os pincéis).' },
+      }, required: ['forma'], additionalProperties: false },
       anotacoes: { destrutiva: false },
       async executar(args) {
-        const pincel = verificarId('pincel de presença', args.pincel, PINCEIS_DE_PRESENCA);
+        const apagar = args.apagar === true;
+        if (!apagar && args.pincel === undefined) throw new Error('Falta o argumento "pincel" (ou passe apagar: true).');
+        const pincel = args.pincel === undefined ? null : verificarId('pincel de presença', args.pincel, PINCEIS_DE_PRESENCA);
         const forma = validarForma(args.forma);
         const intensidade = args.intensidade === undefined ? undefined : numero(args.intensidade, 'intensidade', 0, 1);
         const s = sementeDe(args);
-        return [texto(escrever(ctx, `presença ${pincel}`, mapa => {
+        return [texto(escrever(ctx, apagar ? `apagar presença${pincel ? ` ${pincel}` : ''}` : `presença ${pincel}`, mapa => {
           const celulas = celulasDaForma(forma, { resolucao: mapa.terrain.resolution, largura: mapa.bounds.width, altura: mapa.bounds.height, semente: sementeDaForma(Math.floor(s) || 1, 0) });
           if (!celulas.length) return { comandos: [], ids: [] };
-          const comandos: Comando[] = [{ tipo: 'presenca.pintar', brush: pincel, celulas }];
-          if (intensidade !== undefined) comandos.push({ tipo: 'item.atualizar', colecao: 'presence', id: `p_${pincel.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 60)}`, patch: { intensity: intensidade } });
-          return { comandos, ids: [] };
+          if (apagar) return { comandos: [{ tipo: 'presenca.apagar', brush: pincel, celulas }], ids: [] };
+          const comandos: Comando[] = [{ tipo: 'presenca.pintar', brush: pincel!, celulas, ...(intensidade !== undefined ? { intensidade } : {}) }];
+          const id = `p_${pincel!.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 60)}`;
+          const atual = intensidade ?? mapa.presence[id]?.intensity ?? 0.6;
+          return { comandos, ids: [], resumo: `Intensidade do pincel ${pincel}: ${atual}` };
         }))];
       },
     },

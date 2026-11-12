@@ -116,6 +116,9 @@ Abre portas, janelas, arcos ou passagens secretas na parede mais próxima (metro
 
 Pinta presença (musgo, sangue, mofo, fuligem...) em metros (um passo de desfazer). Pincéis em atlas_catalogo { parte: "presenca" }.
 
+- `apagar: true`: apaga a presença na forma. Sem `pincel`, apaga todos os pincéis; com `pincel`, só aquele.
+- `intensidade` (0 a 1): vale para a camada inteira daquele pincel, mesmo que ela já exista (padrão 0,6 ao criar). A resposta diz qual intensidade ficou.
+
 Parâmetros:
 
 - `forma`: Forma em metros: disco, poligono, faixa, retangulo ou celulas. irregular opcional (m).

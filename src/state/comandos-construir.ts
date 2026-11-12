@@ -31,7 +31,7 @@ export type ComandoConstruir =
   | { tipo: 'terreno.base'; material: string }
   /** Correnteza da camada de água desse material (`angle` em rad, `speed` de 0 a 3 m/s); `null` deixa a água parada. */
   | { tipo: 'terreno.correnteza'; material: string; flow: { angle: number; speed: number } | null }
-  | { tipo: 'presenca.pintar'; brush: string; celulas: readonly CelulaDoComando[] }
+  | { tipo: 'presenca.pintar'; brush: string; celulas: readonly CelulaDoComando[]; intensidade?: number }
   | { tipo: 'presenca.apagar'; brush: string | null; celulas: readonly CelulaDoComando[] };
 
 export const TIPOS_DE_CONSTRUCAO = ['comodo.criar', 'comodo.pintar', 'comodo.apagar', 'comodo.atualizar', 'comodo.remover', 'comodo.notas', 'parede.adicionar', 'parede.atualizar', 'parede.remover', 'parede.desanexar', 'abertura.adicionar', 'abertura.atualizar', 'abertura.remover', 'terreno.pintar', 'terreno.apagar', 'terreno.base', 'terreno.correnteza', 'presenca.pintar', 'presenca.apagar'] as const;
@@ -185,7 +185,9 @@ export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
       if (!c.brush) nao('Escolha um pincel de presença.');
       const id = idDaPresenca(c.brush);
       m.presence[id] ??= { id, brush: c.brush, cells: [], intensity: 0.6, seed: sementeDe(c.brush), gmOnly: false };
-      m.presence[id]!.cells = unir(m.presence[id]!.cells, codificar(normais(c.celulas))); break;
+      m.presence[id]!.cells = unir(m.presence[id]!.cells, codificar(normais(c.celulas)));
+      if (c.intensidade !== undefined) m.presence[id]!.intensity = Math.min(1, Math.max(0, c.intensidade));
+      break;
     }
     case 'presenca.apagar': {
       const tirar = codificar(normais(c.celulas));
