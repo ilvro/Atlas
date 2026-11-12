@@ -27,7 +27,7 @@ const cliente = conectarPonte({
   app: 'atlas', titulo: 'Atlas',
   ferramentas: [
     ...ferramentasDaCampanha(obterRepositorio),
-    ...ferramentasDeLeitura({ repo: () => servicos.value?.repo ?? null, mapaAberto: () => sessao.value?.doc.value ?? null, abrirMapa, capturar: o => viewport.atual?.capturar(o) ?? null,
+    ...ferramentasDeLeitura({ repo: () => servicos.value?.repo ?? null, mapaAberto: () => sessao.value?.doc.value ?? null, naoSalvo: () => sessao.value?.store.sujo ?? false, abrirMapa, capturar: o => viewport.atual?.capturar(o) ?? null,
       modo: () => modo.value, selecao: () => sessao.value?.selecao.value ?? [],
       caixaVisivel: () => { const v = viewport.atual; if (!v) return null; const [x0, y0] = telaParaMundo(v.camera, [0, 0]), [x1, y1] = telaParaMundo(v.camera, [v.tela.largura, v.tela.altura]); return { x0, y0, x1, y1 }; } }),
     ...ferramentasDeEscrita({
