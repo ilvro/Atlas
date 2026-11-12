@@ -4,6 +4,33 @@
 
 O texto abaixo saiu das descrições do catálogo para o catálogo ficar enxuto. Consulte a seção da ferramenta antes de usá-la pela primeira vez.
 
+## jukebox_cena_criar
+
+Cria uma cena sonora (trilha) na Jukebox com músicas do preset aberto. A cena entra em `jukebox_listar` e toca com `jukebox_tocar`.
+
+Parâmetros:
+
+- `nome`: Nome da cena (1 a 80 caracteres). Cena de mesmo nome (sem diferenciar maiúsculas e acentos) é recusada, salvo `substituir`.
+- `faixas`: De 1 a 12 músicas, cada uma `{ titulo, volume? }`. O `titulo` é o de uma música do preset aberto; `volume` vai de 0 a 1 (padrão: o volume atual da faixa). Título inexistente dá erro com a lista das músicas disponíveis.
+- `substituir`: Se `true`, troca a cena de mesmo nome, mantendo o id (e o ref).
+
+Sem preset aberto na Jukebox, a ferramenta dá erro: abra o preset primeiro.
+
+Ordem de uso: `jukebox_preset_adicionar` (se a música ainda não está no preset) → `jukebox_cena_criar` → `jukebox_tocar`.
+
+Exemplo de chamada:
+```json
+{
+  "nome": "Pântano à noite",
+  "faixas": [
+    { "titulo": "Sombras no Lago", "volume": 0.5 },
+    { "titulo": "Grilos" }
+  ]
+}
+```
+
+Devolve `{ criada, id, ref, nome, faixas }`; o `ref` é `mesa:jukebox/cena-sonora/<id>`.
+
 ## jukebox_efeito
 
 Dispara um efeito sonoro avulso da Jukebox, por cima da música. Aceita o slug, o ref (mesa:jukebox/efeito/<slug>) ou o título, sem diferenciar maiúsculas e acentos. Pedido de novo, recomeça.
