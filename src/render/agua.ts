@@ -2,6 +2,8 @@ import { Container, Geometry, GlProgram, Mesh, Shader, Texture, UniformGroup } f
 import type { MapaAtlas } from '../domain/mapa.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import { tamanhoDoObjeto } from './selecao.ts';
+import { ehArvore } from '../domain/camadas.ts';
+import { ACERVO } from '../procedural/acervo.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import { hexParaNumero } from './cores.ts';
 import { FATOR_DE_MOVIMENTO_REDUZIDO } from './particulas-config.ts';
@@ -171,7 +173,9 @@ export function criarAgua(): RenderDeAgua {
     for (const o of Object.values(m.props)) {
       if (o.elevation !== 'floor' || o.roomId !== null || !o.blocks.move) continue;   // o que flutua ou não barra o passo (vitórias-régias, barcos atracados) não quebra onda
       const [w, h] = tamanhoDoObjeto(o);
-      g.save(); g.translate(o.position[0] * r, o.position[1] * r); g.rotate(o.rotation); g.beginPath(); g.ellipse(0, 0, Math.max(0.5, w * r / 2), Math.max(0.5, h * r / 2), 0, 0, Math.PI * 2); g.fill(); g.restore();
+      // Árvore em pé: a espuma segue o tronco (raio de 15% da meia pegada, no mínimo 0,25 m), não a copa. O resto usa a pegada inteira.
+      const arvore = ehArvore(ACERVO.idDaFonte(o.source)), rx = arvore ? Math.max(0.25, 0.15 * w / 2) * r : w * r / 2, ry = arvore ? Math.max(0.25, 0.15 * h / 2) * r : h * r / 2;
+      g.save(); g.translate(o.position[0] * r, o.position[1] * r); g.rotate(o.rotation); g.beginPath(); g.ellipse(0, 0, Math.max(0.5, rx), Math.max(0.5, ry), 0, 0, Math.PI * 2); g.fill(); g.restore();
     }
     desenho.texMascara.source.update();
   }
