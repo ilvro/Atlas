@@ -149,7 +149,8 @@ Commit: document adding songs through the connector
 
 ### Etapa E — Lapidação e correções do Pântano (revisão fable 5.2)
 
-#### E1 — Projeção para jogadores: revelar região e ocultar objetos  ✅
+#### E1 — Projeção para jogadores: revelar região e ocultar objetos  ✅  ✅
+Feito em: f2d855d
 Depende de: B1
 Ler: `src/domain/projecao.ts`, `src/domain/nevoa.ts`, `src/render/cena.ts`.
 Como:
@@ -161,7 +162,8 @@ Como:
 Testes: `tests/unit/projecao.test.ts` (células de regiões reveladas presentes em `session.explored.cells` no projetor mesmo com `gmOnly`; objetos com `oculto: true` e suas luzes excluídos da projeção para jogadores).
 Commit: project revealed regions and strip hidden props for players
 
-#### E2 — Água que sobe: não travar o store e recortar aos limites  ✅
+#### E2 — Água que sobe: não travar o store e recortar aos limites  ✅  ✅
+Feito em: edd2816
 Depende de: B2
 Ler: `src/app/app.ts`, `src/domain/agua.ts`, `src/app/momentos.ts`.
 Como:
@@ -171,7 +173,8 @@ Como:
 Testes: `tests/unit/agua.test.ts` e `tests/unit/app-momentos.test.ts` (células fora dos limites são recortadas e não lançam erro; store livre para outros comandos durante a transição da água).
 Commit: rising water non-blocking steps clipped to map bounds
 
-#### E3 — Jukebox e presets: atomicidade, escopo de mescla e ferramentas internas  ✅
+#### E3 — Jukebox e presets: atomicidade, escopo de mescla e ferramentas internas  ✅  ✅
+Feito em: c2f3f01, b2299ef
 Depende de: D2, D3
 Ler: `scripts/ponte/presets.ts`, `../Jukebox/upload-song.js`, `scripts/ponte/mcp.ts`, `scripts/ponte/catalogo-base.json`.
 Como:
@@ -183,7 +186,8 @@ Testes: `tests/unit/ponte-presets.test.ts` e testes unitários da Jukebox (`../J
 Commit (Jukebox): only merge presets when saving to the same folder
 Commit: atomic replace in preset files and hide internal receive tool
 
-#### E4 — Acervo, inspetor, editor de momentos e desktop prep  ✅
+#### E4 — Acervo, inspetor, editor de momentos e desktop prep  ✅  ✅
+Feito em: 2e40d9d
 Depende de: E1, E2, E3
 Ler: `src/app/ponte-escrita.ts`, `src/authoring/construcao.ts`, `src/ui/Inspetor.tsx`, `src/ui/Momentos.tsx`, `src/domain/camadas.ts`, `docs/assistente/guia/`.
 Como:
@@ -236,51 +240,64 @@ Decisão: remover a confirmação dentro do Atlas. O app do Claude já controla 
 Como: `atlas_remover`, `atlas_mover` e `atlas_momento` deixam de consultar `criadosPeloAssistente` e `ctx.confirmar`. Sai o código morto: `liberar`, `confirmar`, `pedirConfirmacao`, `pedidos`, o bloco de pedidos do `PainelDoAssistente` e o contador do `SeloDoAssistente`, com os testes. O texto de retorno diz o que foi mexido. Atualize o guia (`docs/assistente/guia/`) onde ele fala de pedir ao mestre.
 Commit: assistant edits without confirmation prompts
 
-#### E5 — Salvar e desfazer pelo conector
+#### E5 — Salvar e desfazer pelo conector  ✅
+Feito em: 6825e50
 Como: `atlas_salvar {}` grava o mapa aberto pelo mesmo caminho do botão Gravar (`salvarAgora` do autosalvamento; conflito vira erro legível) e devolve `{ salvo, revisao }`. `atlas_desfazer { passos? }` (1 a 20, padrão 1) desfaz as últimas entradas do histórico e devolve os rótulos desfeitos; recusa se não há o que desfazer. As respostas de escrita ganham, no fim, "Não gravado: use atlas_salvar." Guia e catálogo.
 Testes: unitários com store e repositório falsos.
 Commit: save and undo tools for the assistant
 
-#### E6 — Ler o mapa aberto ao vivo
+#### E6 — Ler o mapa aberto ao vivo  ✅
+Feito em: f7eac0b, 507ae5a (abas em segundo plano)
 Como: `atlas_mapa_ler` com o id do mapa aberto (ou sem id) devolve o documento vivo e `naoSalvo: true|false`. `atlas_mapas_listar` e `atlas_o_que_vejo` marcam `naoSalvo` no mapa aberto.
 Commit: read the open map live and flag unsaved changes
 
-#### E7 — `atlas_abrir` espera o editor
+#### E7 — `atlas_abrir` espera o editor  ✅
+Feito em: db76c96
 Como: depois de `abrirMapa`, espera o viewport existir (até 10 s, com `setTimeout`, sem depender de quadro). `atlas_ver_mapa` espera do mesmo jeito antes de dizer que o editor não está na tela. Investigar com a aba escondida (no apoio do WebKit, `wv.hide()`), e anotar se algo mais impede o viewport de nascer.
 Commit: atlas_abrir waits for the editor
 
-#### E8 — Catálogo base em dia
+#### E8 — Catálogo base em dia  ✅
+Feito em: cd5c1b7
 Como: regenerar `catalogo-base.json` (hoje sem `drop`). Teste que monta as ferramentas do Atlas (`ferramentasDeLeitura`/`ferramentasDeEscrita` com contexto falso) e compara nome e esquema com o catálogo base: defasou, falha.
 Commit: refresh base catalog and guard it with a test
 
-#### E9 — Água que sobe sem travar
+#### E9 — Água que sobe sem travar  ✅
+Feito em: f7cf143 (antes do plano), a0b9fc4
 Depende de: E4 a E8 (mexe nos mesmos arquivos da ponte)
 Como: o store ganha fusão de histórico: `executar(comando, { rotulo, fusao })`; se a entrada do topo tem a mesma chave de `fusao`, o `depois` dela é trocado em vez de empilhar outra. A saída `agua` deixa de abrir gesto: um `executar` por etapa com a mesma chave (única por execução do passo). O mestre pode mexer no mapa durante a subida; se mexer, a fusão se quebra e sobram duas entradas (aceito). As células são recortadas aos limites do mapa em `etapasDaAgua` (passa a receber os limites) e a validação do MCP recusa polígono inteiro fora do mapa. O passo avulso trata o erro da promessa.
 Testes: store (fusão, quebra da fusão, desfazer único); `executar` de outro comando no meio da subida não lança; polígono parcialmente fora pinta só o que cabe.
 Commit: rising water no longer locks the map
 
-#### E10 — Água que baixa
+#### E10 — Água que baixa  ✅
+Feito em: 9c06bb0
 Depende de: E9
 Como: o passo `agua` ganha `acao?: 'subir' | 'baixar'` (padrão `subir`) e `deixar?: string` (material de chão). `baixar` anda da borda para o centro: em cada etapa, as células do polígono que hoje são de `material` viram `deixar` (por exemplo lama) ou, sem `deixar`, são apagadas e mostram a base. Domínio, execução, editor de momentos (pílulas Subir/Baixar e seletor do que fica), esquema do MCP, `atlas_catalogo`, guia.
 Commit: receding water step in moments
 
-#### E11 — Região revelada chega ao projetor
+#### E11 — Região revelada chega ao projetor  ✅
+Feito em: 14333f6 (antes do plano)
 Como: em `projetarParaJogadores`, as células das regiões reveladas são somadas a `session.explored` da projeção **antes** de podar regiões e ids (a região `gmOnly` continua não indo; só a área revelada vai).
 Teste: região `reveal` `gmOnly` revelada: a projeção não tem a região, mas `celulasExploradas(p)` cobre o polígono.
 Commit: revealed regions reach the projector
 
-#### E12 — Objeto oculto fora do projetor
+#### E12 — Objeto oculto fora do projetor  ✅
+Feito em: 14333f6, ade7744 (antes do plano)
 Como: `projetarParaJogadores` remove os objetos `oculto` e as luzes de que são donos; `props.oculto` entra em `CAMPOS_DO_MESTRE`. No editor, a sombra do sol de um objeto oculto não é desenhada na vista do jogador. Rótulos do editor de momentos: região pelo `payload.nome` quando houver, objetos pelo nome do acervo, e o passo de luz lista só objetos donos de luz.
 Commit: hidden objects stay out of the projector
 
-#### E13 — `substituir` sem risco de perder o original
+#### E13 — `substituir` sem risco de perder o original  ✅
+Feito em: 9382e4e (antes do plano)
 Como: em `adicionarAoPreset`, o backup passa a ser `rename` do original para `.bak` (não cópia), e a restauração só apaga o alvo quando ele foi criado nesta chamada. Teste com falha simulada no backup e na cópia: o original continua igual.
 Commit: safer backup when replacing a preset song
 
-#### E14 — Jukebox: criar cena sonora pelo conector
+#### E14 — Jukebox: criar cena sonora pelo conector  ✅
+Feito em: Jukebox b289c10; Atlas 739a3ce
 Como (repositório da Jukebox): ferramenta `jukebox_cena_criar { nome, faixas: [{ titulo, volume? }], substituir? }` que monta uma cena com as faixas do preset aberto (mesmo formato de `createScene` em `scenes.js`), grava com `saveScenes` e avisa a Mesa como as outras cenas. Erro claro se uma faixa não existe (lista as disponíveis). Guia em `Atlas/docs/assistente/guia/ferramentas-jukebox.md`.
 Commits (Jukebox): create sound scenes from the connector. (Atlas): document creating sound scenes
 
-#### E15 — Jukebox: mescla só na pasta que foi aberta
+#### E15 — Jukebox: mescla só na pasta que foi aberta  ✅
+Feito em: Jukebox 6898e30, bfd9ae9
 Como: em `savePreset`, `mesclarMetadados` só entra quando a pasta escolhida no Salvar tem o mesmo nome de `loadedPresetFolderName`; em outra pasta vale a lista da tela, como antes.
 Commit (Jukebox): merge external songs only into the opened preset folder
+
+Nota da Etapa E: conferido por captura no WebKitGTK (terreno sem degraus, bordas de névoa e nuvens orgânicas, água animando, espuma só no tronco das árvores). E7: a causa era `atlas_abrir` criar a sessão sem navegar para a rota do mapa; o editor só monta com a rota. E6: o caso real era o mapa numa aba em segundo plano (`cacheDeSessoes`) com edições não gravadas. Não conferido: `atlas_abrir` com a aba escondida no app real, `atlas_salvar` em conflito entre abas, `jukebox_cena_criar` com a Jukebox aberta, o desfoque novo dentro do worker de assado.
