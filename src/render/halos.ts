@@ -133,7 +133,7 @@ export function criarHalos(mapaDeLuz: MapaDeLuz, telhados: Telhados): Halos {
   let ligado = true, destruido = false, pixel = false, ppm = 1;
 
   function obterPrograma(): GlProgram {
-    programaRaios ??= GlProgram.from({ vertex: vertexRaios, fragment: fragmentRaios, name: 'atlas-raios' });
+    programaRaios ??= GlProgram.from({ vertex: vertexRaios, fragment: fragmentRaios, preferredFragmentPrecision: 'highp', name: 'atlas-raios' });
     return programaRaios;
   }
 

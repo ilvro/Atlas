@@ -109,7 +109,7 @@ void main() {
   finalColor = vec4(cor * alfa, alfa);
 }`;
 
-const programa = () => GlProgram.from({ vertex, fragment, name: 'atlas-cachoeira' });
+const programa = () => GlProgram.from({ vertex, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-cachoeira' });
 
 interface Desenho {
   mesh: Mesh<Geometry, Shader>;

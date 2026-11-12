@@ -32,5 +32,5 @@ export const DEGRAUS_DA_LUZ = 5;
 
 /** O filtro de faixas da luz do estilo Pixel (porte de `filtroFaixas` do protótipo). */
 export function criarFiltroDeFaixas(degraus = DEGRAUS_DA_LUZ): Filter {
-  return new Filter({ glProgram: GlProgram.from({ vertex, fragment, name: 'atlas-faixas' }), resources: { faixas: new UniformGroup({ uDegraus: { value: degraus, type: 'f32' } }) } });
+  return new Filter({ glProgram: GlProgram.from({ vertex, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-faixas' }), resources: { faixas: new UniformGroup({ uDegraus: { value: degraus, type: 'f32' } }) } });
 }

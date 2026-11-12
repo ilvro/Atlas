@@ -59,7 +59,7 @@ void main() {
 /** O filtro de dithering do alfa. `uRevelado` (0 a 1) escala o alfa antes do limiar: é como a revelação em dithering dissolve (8.4b). */
 export function criarFiltroDeDitherDeAlfa(): { filtro: Filter; definirRevelado(v: number): void } {
   const grupo = new UniformGroup({ uRevelado: { value: 1, type: 'f32' } });
-  const filtro = new Filter({ glProgram: GlProgram.from({ vertex, fragment: fragmentoDeAlfa, name: 'atlas-dither-alfa' }), resources: { ditherAlfa: grupo } });
+  const filtro = new Filter({ glProgram: GlProgram.from({ vertex, fragment: fragmentoDeAlfa, preferredFragmentPrecision: 'highp', name: 'atlas-dither-alfa' }), resources: { ditherAlfa: grupo } });
   return { filtro, definirRevelado: v => { (grupo.uniforms as Record<string, unknown>).uRevelado = v; } };
 }
 
@@ -69,7 +69,7 @@ export function criarFiltroDePaleta(): { filtro: Filter; definir(cores: readonly
   const ctx = canvas.getContext('2d')!;
   const textura = Texture.from(canvas); textura.source.scaleMode = 'nearest';
   const grupo = new UniformGroup({ uDither: { value: DITHER_BAYER4, type: 'f32' } });
-  const filtro = new Filter({ glProgram: GlProgram.from({ vertex, fragment, name: 'atlas-paleta' }), resources: { uPaleta: textura.source, paleta: grupo } });
+  const filtro = new Filter({ glProgram: GlProgram.from({ vertex, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-paleta' }), resources: { uPaleta: textura.source, paleta: grupo } });
   let atual = '';
   return {
     filtro,
