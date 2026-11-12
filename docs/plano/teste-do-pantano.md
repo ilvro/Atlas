@@ -196,3 +196,91 @@ Como:
 Testes: `tests/unit/ponte-escrita.test.ts`, `tests/unit/momentos.test.ts`, `npm run typecheck`, `npm test`.
 Commit: inspector control for hidden props and moment editor labels
 
+
+### Etapa E — Segundo teste no app de desktop (12/11)
+
+No segundo uso real apareceram defeitos que só existem no WebKitGTK do app de desktop (os testes e2e rodam em Chromium e não os pegam) e faltas no conector. Conferido contra o código de 12/11.
+
+| Relato | Causa | Onde |
+| --- | --- | --- |
+| Terreno continua em degraus de 25 cm | O assado arredonda a máscara com `ctx.filter = 'blur(...)'`. O WebKitGTK **não tem** `CanvasRenderingContext2D.filter` (`'filter' in ctx` é `false`, também no `OffscreenCanvas`): o desfoque não acontece e a máscara fica na grade. Vale para chão, água e maciço. | `src/procedural/assar.ts` (linha ~180) |
+| Bordas de névoa e nuvens em moldura retangular dura | Os shaders não declaram precisão e o Pixi usa `mediump` no fragmento. No WebKitGTK o `hash` com `sin(...) * 43758.5453` degenera e o ruído some. Com `preferredFragmentPrecision: 'highp'` a borda volta a ser orgânica (conferido com captura). | `src/render/*.ts` (todo `GlProgram.from`) |
+| Neblina escurece demais; anel de espuma grande em árvores na água | Preset `neblina` com sol 0,35 e ambiente ~0,5. A espuma em volta de objetos usa a pegada inteira (a copa) da árvore. | `src/domain/presets.ts`, `src/render/agua.ts` (`objetos`) |
+| "O assistente quer: X" toda hora; momentos "viram do mestre" | `criadosPeloAssistente` é um `Set` em memória: some ao recarregar, e daí em diante mover, remover ou editar o que o próprio assistente criou pede confirmação (ou é recusado, nos momentos). O app do Claude já pede permissão por ferramenta e toda escrita é um passo de desfazer. | `src/app/ponte-escrita.ts`, `src/app/atividade-do-assistente.ts`, `src/ui/PainelDoAssistente.tsx` |
+| Não há como salvar nem desfazer pelo conector | Não existem as ferramentas. | `src/app/ponte-escrita.ts` |
+| `atlas_mapa_ler` com id devolve a versão do disco | `carregar(id)` lê o repositório mesmo quando o mapa pedido é o aberto e tem edições não gravadas. | `src/app/ponte-leitura.ts` |
+| "O editor não está na tela" logo depois de `atlas_abrir` | `abrirMapa` resolve antes de o viewport existir (`Editor.tsx` cria o viewport num efeito assíncrono). | `src/app/ponte-leitura.ts`, `src/ui/Editor.tsx` |
+| `atlas_paredes` recusa `drop` | `scripts/ponte/catalogo-base.json` está defasado (não tem `drop`); o cliente valida contra ele. | `scripts/ponte/catalogo.ts` |
+| Água que sobe: trava o mapa, falha fora dos limites, não recua | Gesto do store aberto durante todo o passo (todo `store.executar` lança); células fora do mapa; não existe passo para baixar. | `src/app/app.ts` (`agua`), `src/domain/agua.ts`, `src/state/store.ts` |
+| Região revelada não aparece no projetor; objeto oculto deixa sombra e luz | `projetarParaJogadores` descarta ids de região de `session.revealed` e apaga regiões `gmOnly`; `oculto` só esconde o sprite. | `src/domain/projecao.ts` |
+
+Apoio para conferir no WebKit: `scripts/dev/webkit-captura.py <url> <arquivo.js> <saida.png> <segundos>` (precisa de `GDK_BACKEND=x11`). Abre a URL num WebKitGTK fora da tela, roda o JS (uma função assíncrona que devolve texto) e grava a captura.
+
+#### E1 — Shaders em precisão alta
+Como: todo `GlProgram.from({ ... })` de `src/render/` ganha `preferredFragmentPrecision: 'highp'`. Um teste unitário lê os arquivos de `src/render/` e falha se houver `GlProgram.from(` sem essa opção.
+Pronto quando: no WebKit, a borda `fog` e `clouds` sai orgânica, igual ao Chromium.
+Commit: high precision shaders for webkit
+
+#### E2 — Borda suave sem `ctx.filter`
+Como: função pura `desfocarAlfa(dados, largura, altura, sigma)` (três passadas de caixa separáveis sobre o canal alfa, aproximando a gaussiana) em módulo próprio de `src/procedural/`. Em `assarTerreno`, quando `!('filter' in ctx)`, a máscara estendida passa por ela em vez de `mac.filter`. O caminho do Chromium não muda. O assado pode rodar em worker: conferir os dois lugares.
+Testes: unitário (um degrau vira rampa monotônica; soma preservada dentro de 2%; raio compatível com o sigma); e2e que apaga `filter` do protótipo antes de assar e confere borda suave.
+Pronto quando: captura no WebKit com chão, água e maciço sem degraus. Medir o assado de 30×30 m com o caminho novo e anotar.
+Commit: soft terrain edges without canvas filter
+
+#### E3 — Neblina mais clara e espuma proporcional
+Como: (a) preset `neblina`: manhã clara e leitosa, não escura (sol ~0,5, ambiente ~[0,72, 0,76, 0,78]); conferir por captura que o mapa continua legível. (b) em `render/agua.ts`, o anel de espuma de árvores e copas usa o tronco (raio pequeno), não a copa; objetos baixos continuam como estão.
+Commits: brighter fog preset / foam ring follows the trunk of trees in water
+
+#### E4 — Sem pedidos de confirmação
+Decisão: remover a confirmação dentro do Atlas. O app do Claude já controla a permissão por ferramenta, toda escrita é um passo de desfazer e fica no painel de atividade. O conjunto `criadosPeloAssistente` não sobrevive a recarregar, então a regra punia justamente o que o assistente criou.
+Como: `atlas_remover`, `atlas_mover` e `atlas_momento` deixam de consultar `criadosPeloAssistente` e `ctx.confirmar`. Sai o código morto: `liberar`, `confirmar`, `pedirConfirmacao`, `pedidos`, o bloco de pedidos do `PainelDoAssistente` e o contador do `SeloDoAssistente`, com os testes. O texto de retorno diz o que foi mexido. Atualize o guia (`docs/assistente/guia/`) onde ele fala de pedir ao mestre.
+Commit: assistant edits without confirmation prompts
+
+#### E5 — Salvar e desfazer pelo conector
+Como: `atlas_salvar {}` grava o mapa aberto pelo mesmo caminho do botão Gravar (`salvarAgora` do autosalvamento; conflito vira erro legível) e devolve `{ salvo, revisao }`. `atlas_desfazer { passos? }` (1 a 20, padrão 1) desfaz as últimas entradas do histórico e devolve os rótulos desfeitos; recusa se não há o que desfazer. As respostas de escrita ganham, no fim, "Não gravado: use atlas_salvar." Guia e catálogo.
+Testes: unitários com store e repositório falsos.
+Commit: save and undo tools for the assistant
+
+#### E6 — Ler o mapa aberto ao vivo
+Como: `atlas_mapa_ler` com o id do mapa aberto (ou sem id) devolve o documento vivo e `naoSalvo: true|false`. `atlas_mapas_listar` e `atlas_o_que_vejo` marcam `naoSalvo` no mapa aberto.
+Commit: read the open map live and flag unsaved changes
+
+#### E7 — `atlas_abrir` espera o editor
+Como: depois de `abrirMapa`, espera o viewport existir (até 10 s, com `setTimeout`, sem depender de quadro). `atlas_ver_mapa` espera do mesmo jeito antes de dizer que o editor não está na tela. Investigar com a aba escondida (no apoio do WebKit, `wv.hide()`), e anotar se algo mais impede o viewport de nascer.
+Commit: atlas_abrir waits for the editor
+
+#### E8 — Catálogo base em dia
+Como: regenerar `catalogo-base.json` (hoje sem `drop`). Teste que monta as ferramentas do Atlas (`ferramentasDeLeitura`/`ferramentasDeEscrita` com contexto falso) e compara nome e esquema com o catálogo base: defasou, falha.
+Commit: refresh base catalog and guard it with a test
+
+#### E9 — Água que sobe sem travar
+Depende de: E4 a E8 (mexe nos mesmos arquivos da ponte)
+Como: o store ganha fusão de histórico: `executar(comando, { rotulo, fusao })`; se a entrada do topo tem a mesma chave de `fusao`, o `depois` dela é trocado em vez de empilhar outra. A saída `agua` deixa de abrir gesto: um `executar` por etapa com a mesma chave (única por execução do passo). O mestre pode mexer no mapa durante a subida; se mexer, a fusão se quebra e sobram duas entradas (aceito). As células são recortadas aos limites do mapa em `etapasDaAgua` (passa a receber os limites) e a validação do MCP recusa polígono inteiro fora do mapa. O passo avulso trata o erro da promessa.
+Testes: store (fusão, quebra da fusão, desfazer único); `executar` de outro comando no meio da subida não lança; polígono parcialmente fora pinta só o que cabe.
+Commit: rising water no longer locks the map
+
+#### E10 — Água que baixa
+Depende de: E9
+Como: o passo `agua` ganha `acao?: 'subir' | 'baixar'` (padrão `subir`) e `deixar?: string` (material de chão). `baixar` anda da borda para o centro: em cada etapa, as células do polígono que hoje são de `material` viram `deixar` (por exemplo lama) ou, sem `deixar`, são apagadas e mostram a base. Domínio, execução, editor de momentos (pílulas Subir/Baixar e seletor do que fica), esquema do MCP, `atlas_catalogo`, guia.
+Commit: receding water step in moments
+
+#### E11 — Região revelada chega ao projetor
+Como: em `projetarParaJogadores`, as células das regiões reveladas são somadas a `session.explored` da projeção **antes** de podar regiões e ids (a região `gmOnly` continua não indo; só a área revelada vai).
+Teste: região `reveal` `gmOnly` revelada: a projeção não tem a região, mas `celulasExploradas(p)` cobre o polígono.
+Commit: revealed regions reach the projector
+
+#### E12 — Objeto oculto fora do projetor
+Como: `projetarParaJogadores` remove os objetos `oculto` e as luzes de que são donos; `props.oculto` entra em `CAMPOS_DO_MESTRE`. No editor, a sombra do sol de um objeto oculto não é desenhada na vista do jogador. Rótulos do editor de momentos: região pelo `payload.nome` quando houver, objetos pelo nome do acervo, e o passo de luz lista só objetos donos de luz.
+Commit: hidden objects stay out of the projector
+
+#### E13 — `substituir` sem risco de perder o original
+Como: em `adicionarAoPreset`, o backup passa a ser `rename` do original para `.bak` (não cópia), e a restauração só apaga o alvo quando ele foi criado nesta chamada. Teste com falha simulada no backup e na cópia: o original continua igual.
+Commit: safer backup when replacing a preset song
+
+#### E14 — Jukebox: criar cena sonora pelo conector
+Como (repositório da Jukebox): ferramenta `jukebox_cena_criar { nome, faixas: [{ titulo, volume? }], substituir? }` que monta uma cena com as faixas do preset aberto (mesmo formato de `createScene` em `scenes.js`), grava com `saveScenes` e avisa a Mesa como as outras cenas. Erro claro se uma faixa não existe (lista as disponíveis). Guia em `Atlas/docs/assistente/guia/ferramentas-jukebox.md`.
+Commits (Jukebox): create sound scenes from the connector. (Atlas): document creating sound scenes
+
+#### E15 — Jukebox: mescla só na pasta que foi aberta
+Como: em `savePreset`, `mesclarMetadados` só entra quando a pasta escolhida no Salvar tem o mesmo nome de `loadedPresetFolderName`; em outra pasta vale a lista da tela, como antes.
+Commit (Jukebox): merge external songs only into the opened preset folder
