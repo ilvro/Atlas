@@ -28,6 +28,7 @@ export function projetarParaJogadores(m: MapaAtlas): MapaAtlas {
     p.session.explored = null;
   }
 
+  delete p.terrain.submerged; // o que a água cobriu é histórico de edição, não vai à vista
   p.notes = ''; p.comodosExtra = {}; p.campanhaId = null; p.audioCue = null; p.climateAudio = {}; p.customClimates = {}; p.moments = {};
   for (const [id, r] of Object.entries(p.regions)) { if (r.gmOnly) delete p.regions[id]; else { r.payload = {}; r.refs = []; } }
   for (const [id, x] of Object.entries(p.presence)) if (x.gmOnly) delete p.presence[id];

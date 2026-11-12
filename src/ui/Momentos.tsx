@@ -852,7 +852,7 @@ export function CamposDoPasso({
                     aoAtualizar(v ? { ...resto, deixar: v } : resto);
                   }}
                 >
-                  <option value="">Nada (mostra a base)</option>
+                  <option value="">O terreno de antes</option>
                   {materiaisDo('terreno').map(m => (
                     <option key={m.id} value={m.id}>
                       {m.nome}

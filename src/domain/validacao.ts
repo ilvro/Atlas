@@ -124,6 +124,13 @@ export const ESQUEMA_MAPA: Esq = e.obj({
   terrain: e.obj({
     resolution: e.num({ min: 0.05, max: 2 }), base: material,
     layers: e.porId(e.obj({ id, material, cells: faixas, order: e.num({ inteiro: true, min: 0, max: 10_000 }), flow: e.nulo(e.obj({ angle: e.num({ min: -1000, max: 1000 }), speed: e.num({ min: 0, max: 3 }) })) })),
+    submerged: e.opt(e.proprio((v, c) => {
+      if (!v || typeof v !== 'object' || Array.isArray(v)) throw new ErroDeValidacao('Deve ser um dicionário.', c);
+      for (const [k, x] of Object.entries(v)) {
+        if (!/^[A-Za-z0-9_-]{1,64}$/.test(k)) { throw new ErroDeValidacao('Identificador inválido.', `${c}.${k}`); };
+        e.obj({ material, cells: faixas, order: e.opt(e.num({ inteiro: true, min: 0, max: 10_000 })) }).verificar(x, `${c}.${k}`);
+      }
+    })),
   }),
   rooms: e.porId(comodo), walls: e.porId(parede), openings: e.porId(abertura), props: e.porId(objeto), lights: e.porId(luz),
   regions: e.porId(regiao), presence: e.porId(presenca), tokens: e.porId(peca),
