@@ -98,7 +98,9 @@ export function executarPasso(p: PassoDeMomento, saidas: SaidasDeMomento): void 
       saidas.objeto(p.ids, p.acao);
       break;
     case 'agua':
-      void saidas.agua(p, relogioPadrao, new AbortController().signal);
+      saidas.agua(p, relogioPadrao, new AbortController().signal).catch(err => {
+        console.warn('Erro ao executar passo avulso de água:', err);
+      });
       break;
     case 'pista':
       saidas.pista(p.ref, p.mostrar);

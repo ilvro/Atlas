@@ -988,33 +988,25 @@ export function saidasDeMomento(s: Servicos | null): SaidasDeMomento {
       const doc = s.doc.value;
       const res = doc.terrain.resolution;
       const totalEtapas = p.etapas ?? 6;
-      const etapas = etapasDaAgua(p.poligono, res, totalEtapas);
+      const etapas = etapasDaAgua(p.poligono, res, totalEtapas, doc.bounds);
       const intervalo = Math.round(p.ms / totalEtapas);
       const m = momentoEmCurso.peek();
       const rotulo = m ? `Momento: ${m.nome}` : 'Água que sobe';
+      const maxCols = Math.ceil(doc.bounds.width / res);
+      const maxRows = Math.ceil(doc.bounds.height / res);
 
-      const gesto = s.store.iniciarGesto(rotulo);
-      try {
-        for (let i = 0; i < etapas.length; i++) {
-          if (sinal.aborted) {
-            gesto.cancelar();
-            return;
-          }
-          const celulas = etapas[i]!;
-          if (celulas.length > 0) {
-            gesto.aplicar({
-              tipo: 'terreno.pintar',
-              material: p.material,
-              celulas,
-              suavizar: true,
-            });
-          }
-          await rel.esperar(intervalo, sinal);
+      for (let i = 0; i < etapas.length; i++) {
+        if (sinal.aborted) return;
+        const celulas = etapas[i]!.filter(([cx, cy]) => cx >= 0 && cy >= 0 && cx < maxCols && cy < maxRows);
+        if (celulas.length > 0) {
+          s.store.executar({
+            tipo: 'terreno.pintar',
+            material: p.material,
+            celulas,
+            suavizar: true,
+          }, { rotulo });
         }
-        gesto.concluir();
-      } catch (erro) {
-        gesto.cancelar();
-        throw erro;
+        await rel.esperar(intervalo, sinal);
       }
     },
     pista: (ref, mostrar) => {
