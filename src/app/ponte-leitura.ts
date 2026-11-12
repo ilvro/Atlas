@@ -16,6 +16,8 @@ export interface ContextoDeLeitura {
   /** O mapa aberto agora, ou `null`. */
   mapaAberto: () => MapaAtlas | null;
   abrirMapa: (id: string) => Promise<void>;
+  /** O mapa aberto tem edições não gravadas? (o app liga ao `sujo` do store); ausente vale `false`. */
+  naoSalvo?: () => boolean;
   /** O modo do editor agora (`construir` ou `sessao`). */
   modo?: () => 'construir' | 'sessao';
   /** A seleção atual do editor. */
@@ -133,7 +135,7 @@ export function oQueVejo(ctx: ContextoDeLeitura): Record<string, unknown> {
   });
   const v = ctx.caixaVisivel?.() ?? null, modo = ctx.modo?.() ?? null;
   return {
-    mapa: { id: m.id, nome: m.name },
+    mapa: { id: m.id, nome: m.name, ...(ctx.naoSalvo?.() ? { naoSalvo: true } : {}) },
     modo: modo ? ROTULO_DO_MODO[modo] : null,
     camera: v ? { caixa: [r1(v.x0), r1(v.y0), r1(v.x1), r1(v.y1)], unidade: 'm', dica: '[x0, y0, x1, y1] em metros, origem no canto superior esquerdo' } : null,
     selecao,
@@ -169,15 +171,20 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
       async executar() {
         const aberto = ctx.mapaAberto();
         const lista = await repo().listar();
-        return [json({ aberto: aberto?.id ?? null, mapas: lista.map(m => ({ id: m.id, nome: m.nome, celulas: m.celulas, comodos: m.comodos, objetos: m.objetos, luzes: m.luzes, pecas: m.pecas, campanhaId: m.campanhaId, criadoEm: m.criadoEm, atualizadoEm: m.atualizadoEm, ...(m.erro ? { erro: m.erro } : {}) })) })];
+        return [json({ aberto: aberto?.id ?? null, mapas: lista.map(m => ({ id: m.id, nome: m.nome, ...(m.id === aberto?.id && ctx.naoSalvo?.() ? { naoSalvo: true } : {}), celulas: m.celulas, comodos: m.comodos, objetos: m.objetos, luzes: m.luzes, pecas: m.pecas, campanhaId: m.campanhaId, criadoEm: m.criadoEm, atualizadoEm: m.atualizadoEm, ...(m.erro ? { erro: m.erro } : {}) })) })];
       },
     },
     {
       nome: 'atlas_mapa_ler',
-      descricao: 'Resume o mapa (aberto ou por id): terreno, cômodos, objetos, luzes, regiões, peças, clima, momentos e notas.',
+      descricao: 'Resume o mapa (aberto ou por id): terreno, cômodos, objetos, luzes, regiões, peças, clima, momentos e notas. O aberto vem ao vivo, com naoSalvo.',
       esquema: { type: 'object', properties: { id: { type: 'string' } }, required: [], additionalProperties: false },
       anotacoes: { leitura: true },
-      async executar(args) { return [json(resumirMapa(await carregar(args.id)))]; },
+      async executar(args) {
+        const m = await carregar(args.id);
+        // O aberto é o documento vivo (com as edições ainda não gravadas); qualquer outro vem do disco.
+        const vivo = ctx.mapaAberto()?.id === m.id;
+        return [json({ ...resumirMapa(m), naoSalvo: vivo ? (ctx.naoSalvo?.() ?? false) : false })];
+      },
     },
     {
       nome: 'atlas_catalogo',

@@ -11,7 +11,7 @@ const entreposto = lerMapa(JSON.parse(readFileSync('public/exemplos/entreposto-d
 const covil = lerMapa(JSON.parse(readFileSync('public/exemplos/covil-na-caverna.atlas.json', 'utf8')));
 const outro = criarMapa({ id: 'outro', nome: 'Outro' });
 
-function montar(aberto: typeof covil | null) {
+function montar(aberto: typeof covil | null, extra: Partial<ContextoDeLeitura> = {}) {
   const abertos: string[] = [];
   const mapas = [covil, outro];
   const ctx: ContextoDeLeitura = {
@@ -20,6 +20,7 @@ function montar(aberto: typeof covil | null) {
       obter: async id => mapas.find(m => m.id === id),
     }),
     mapaAberto: () => aberto, abrirMapa: async id => { abertos.push(id); },
+    ...extra,
   };
   const f = Object.fromEntries(ferramentasDeLeitura(ctx).map(x => [x.nome, x]));
   const chamar = async (nome: string, args: Record<string, unknown> = {}) => {
@@ -160,4 +161,24 @@ test('atlas_ver_mapa: captura com sucesso, com aviso, e trata erro como texto', 
   assert.equal(r3.length, 1);
   assert.equal(r3[0]!.tipo, 'texto');
   assert.equal((r3[0] as { texto: string }).texto, 'não consegui capturar: simulação de falha');
+});
+
+test('mapa aberto com edições não gravadas: ler devolve o documento vivo e naoSalvo; listar e o_que_vejo marcam', async () => {
+  const editado = { ...covil, name: 'Covil editado' };
+  const { chamar } = montar(editado, { naoSalvo: () => true });
+  const porId = JSON.parse(await chamar('atlas_mapa_ler', { id: covil.id })), semId = JSON.parse(await chamar('atlas_mapa_ler'));
+  assert.equal(porId.nome, 'Covil editado'); assert.equal(porId.naoSalvo, true);
+  assert.equal(semId.nome, 'Covil editado'); assert.equal(semId.naoSalvo, true);
+  assert.equal(JSON.parse(await chamar('atlas_mapa_ler', { id: 'outro' })).naoSalvo, false, 'um mapa do disco nunca está sujo');
+  const lista = JSON.parse(await chamar('atlas_mapas_listar'));
+  assert.equal(lista.mapas.find((m: { id: string }) => m.id === covil.id).naoSalvo, true);
+  assert.equal('naoSalvo' in lista.mapas.find((m: { id: string }) => m.id === 'outro'), false);
+  assert.equal(JSON.parse(await chamar('atlas_o_que_vejo')).mapa.naoSalvo, true);
+});
+
+test('mapa aberto gravado: naoSalvo é false e some da lista e do o_que_vejo', async () => {
+  const { chamar } = montar(covil, { naoSalvo: () => false });
+  assert.equal(JSON.parse(await chamar('atlas_mapa_ler')).naoSalvo, false);
+  assert.equal('naoSalvo' in JSON.parse(await chamar('atlas_mapas_listar')).mapas[0], false);
+  assert.equal('naoSalvo' in JSON.parse(await chamar('atlas_o_que_vejo')).mapa, false);
 });
