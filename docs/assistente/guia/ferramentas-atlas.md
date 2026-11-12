@@ -60,6 +60,16 @@ Escreve notas no mapa aberto (um passo de desfazer), substituindo o campo anteri
 
 Coloca até 200 objetos no mapa aberto em metros (um passo de desfazer). "item": receita (atlas_catalogo { parte: "receitas" }) ou colecao.
 
+Parâmetros de cada objeto:
+- `item`: id da receita (ex.: `"arvore-morta"`, `"carroca-tombada"`, `"laje-de-pedra"`) ou `"casa:<assetId>"`.
+- `pos`: `[x, y]` em metros.
+- `rotacao`: em radianos (opcional; sorteado pela semente se omitido).
+- `escala`: fator de escala (0.05 a 50, opcional).
+- `camada`: `'floor'` | `'table'` | `'wall'` | `'ceiling'` | `'underwater'` (opcional).
+- `submerso`: booleano (opcional; fica sob a água).
+- `oculto`: booleano (opcional; `true` esconde o objeto e suas luzes dos jogadores/projetor até ser mostrado por um momento).
+- `params`: objeto com parâmetros da receita (opcional).
+
 ## atlas_paredes
 
 Cria paredes, muros, cercas ou escarpas avulsas em metros (um passo de desfazer). Para salas e interiores use `atlas_comodos`.

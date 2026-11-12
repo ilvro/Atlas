@@ -6,3 +6,22 @@ Um momento é uma sequência curta de passos de cena que o mestre toca na sessã
 
 Teste sempre com `atlas_momento_testar` (toca na aba, de verdade) e ajuste o que ficou longo, rápido ou confuso. Diga ao mestre o que o momento faz em uma frase; ele decide se fica.
 
+### Passos de momento
+
+- `tela`: `{ tipo: "tela", acao: "escurecer" | "clarear", ms?: number }`
+- `letreiro`: `{ tipo: "letreiro", texto: string, subtitulo?: string, ms?: number }`
+- `camera`: `{ tipo: "camera", alvo: { colecao: "rooms" | "tokens" | "regions", id: string } }`
+- `revelar`: `{ tipo: "revelar", ids: string[] }` — revela cômodos e/ou regiões `kind: 'reveal'`
+- `luz`: `{ tipo: "luz", ids: string[], acao: "ligar" | "desligar" | "alternar" }` — ids de luzes ou de objetos donos de luz
+- `objeto`: `{ tipo: "objeto", ids: string[], acao: "mostrar" | "esconder" }` — revela ou esconde objetos marcados como `oculto`
+- `agua`: `{ tipo: "agua", poligono: [number, number][], material: string, ms: number, etapas?: number }` — sobe a água progressivamente em anéis concêntricos
+- `clima`: `{ tipo: "clima", clima: string }`
+- `som`: `{ tipo: "som", ref: Ref }`
+- `silencio`: `{ tipo: "silencio", ms?: number }`
+- `efeito`: `{ tipo: "efeito", efeito: string }`
+- `interagir`: `{ tipo: "interagir", id: string }`
+- `esperar`: `{ tipo: "esperar", ms: number }`
+- `pista`: `{ tipo: "pista", ref: Ref, mostrar: boolean }`
+- `nota`: `{ tipo: "nota", texto: string }`
+
+

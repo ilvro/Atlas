@@ -461,6 +461,7 @@ function CamposDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
     <InteracaoDoObjeto s={s} o={o} />
     <CampoCaixa rotulo="Bloqueia o movimento" valor={o.blocks.move} aoMudar={v => editar({ blocks: { move: v } })} />
     <CampoCaixa rotulo="Projeta sombra" valor={o.castsShadow} aoMudar={v => editar({ castsShadow: v })} />
+    <CampoCaixa rotulo="Oculto para jogadores" dica="O objeto (e luzes que carrega) não aparece no projetor até ser revelado por um momento." valor={!!o.oculto} aoMudar={v => editar({ oculto: v || undefined }, v ? 'Ocultar objeto' : 'Mostrar objeto')} />
     {(o.elevation === 'underwater' || (o.elevation === 'floor' && aguaEm(s.doc.value, o.position))) && <CampoCaixa rotulo="Submerso" dica="Fica sob a água: tingido pela cor do fundo e mais apagado quanto mais fundo; não projeta sombra." valor={o.elevation === 'underwater'} aoMudar={v => editar({ elevation: v ? 'underwater' : 'floor', castsShadow: v ? false : o.castsShadow }, v ? 'Submergir objeto' : 'Emergir objeto')} />}
   </>);
 }

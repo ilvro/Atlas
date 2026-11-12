@@ -19,6 +19,9 @@ import {
 import { EVENTOS_DE_CENA, ROTULO_DO_EVENTO } from '../render/eventos-de-cena.ts';
 import { PRESETS_DE_CLIMA } from '../domain/presets.ts';
 import { materiaisDo } from '../procedural/materiais.ts';
+import { ACERVO } from '../procedural/acervo.ts';
+import { COLECAO } from '../procedural/colecao.ts';
+import type { Objeto, Regiao } from '../domain/mapa.ts';
 import { pistas } from '../app/pistas.ts';
 import { idDaPista, refDaPista } from '../data/pistas.ts';
 import { EscolherCena } from './EscolherCena.tsx';
@@ -38,6 +41,19 @@ import { tocar } from '../fx/som.ts';
 export const CORES_TEMA = ['#9fe0b6', '#5aa9e6', '#ffd23f', '#ff7b72', '#b388ff', '#ff9e80'] as const;
 
 export const momentoEmEdicao = signal<Momento | null>(null);
+
+function nomeLegivelDoObjeto(pr: Objeto): string {
+  if (pr.source.kind === 'recipe') {
+    return ACERVO.item(pr.source.recipe)?.nome ?? pr.source.recipe;
+  }
+  const assetId = pr.source.assetId;
+  return ACERVO.item(`casa:${assetId}`)?.nome ?? COLECAO.find(i => i.id === assetId)?.nome ?? assetId;
+}
+
+function nomeRegiao(r: Regiao): string {
+  const nome = (r.payload as Record<string, unknown> | undefined)?.nome;
+  return typeof nome === 'string' && nome.trim() ? nome.trim() : `Região ${r.id}`;
+}
 
 /** Seção "Momentos" no Dock (lista de momentos, tocar/parar, criar, atalho de clarear tela). */
 export function SecaoDeMomentos({ s }: { s: SessaoDeEdicao }) {
@@ -522,7 +538,7 @@ export function CamposDoPasso({
     case 'camera': {
       const salas = Object.values(doc.rooms).map(r => ({ colecao: 'rooms' as const, id: r.id, nome: `Cômodo: ${r.name}` }));
       const pecas = Object.values(doc.tokens).map(t => ({ colecao: 'tokens' as const, id: t.id, nome: `Peça: ${t.name}` }));
-      const regioes = Object.values(doc.regions).map(r => ({ colecao: 'regions' as const, id: r.id, nome: `Região: ${r.id}` }));
+      const regioes = Object.values(doc.regions).map(r => ({ colecao: 'regions' as const, id: r.id, nome: `Região: ${nomeRegiao(r)}` }));
       const alvos = [...salas, ...pecas, ...regioes];
       const sel = s.selecao.value[0];
       const podeUsarSel = sel && (sel.colecao === 'rooms' || sel.colecao === 'tokens' || sel.colecao === 'regions');
@@ -571,7 +587,7 @@ export function CamposDoPasso({
 
     case 'revelar': {
       const salas = Object.values(doc.rooms).map(r => ({ id: r.id, nome: r.name }));
-      const regioes = Object.values(doc.regions).filter(r => r.kind === 'reveal').map(r => ({ id: r.id, nome: `Região ${r.id}` }));
+      const regioes = Object.values(doc.regions).filter(r => r.kind === 'reveal').map(r => ({ id: r.id, nome: nomeRegiao(r) }));
       const alvos = [...salas, ...regioes];
       const sel = s.selecao.value.filter(item => item.colecao === 'rooms' || (item.colecao === 'regions' && doc.regions[item.id]?.kind === 'reveal')).map(item => item.id);
 
@@ -666,12 +682,15 @@ export function CamposDoPasso({
         id: l.id,
         nome: l.preset ? `Luz: ${l.preset}` : 'Luz',
       }));
-      const objetosComLuz = Object.values(doc.props).map(pr => ({
-        id: pr.id,
-        nome: `Objeto: ${pr.source.kind === 'recipe' ? pr.source.recipe : pr.source.assetId}`,
-      }));
+      const donosDeLuz = new Set(Object.values(doc.lights).map(l => l.ownerId).filter(Boolean));
+      const objetosComLuz = Object.values(doc.props)
+        .filter(pr => donosDeLuz.has(pr.id))
+        .map(pr => ({
+          id: pr.id,
+          nome: `Objeto: ${nomeLegivelDoObjeto(pr)}`,
+        }));
       const alvosLuz = [...luzesDoMapa, ...objetosComLuz];
-      const selLuzes = s.selecao.value.filter(item => item.colecao === 'lights' || item.colecao === 'props').map(item => item.id);
+      const selLuzes = s.selecao.value.filter(item => item.colecao === 'lights' || (item.colecao === 'props' && donosDeLuz.has(item.id))).map(item => item.id);
 
       const alternarId = (id: string) => {
         const novos = passo.ids.includes(id)
@@ -734,7 +753,7 @@ export function CamposDoPasso({
       const rotulosAcao = { mostrar: 'Mostrar', esconder: 'Esconder' };
       const objetosDoMapa = Object.values(doc.props).map(pr => ({
         id: pr.id,
-        nome: pr.source.kind === 'recipe' ? pr.source.recipe : pr.source.assetId,
+        nome: nomeLegivelDoObjeto(pr),
       }));
       const selObjetos = s.selecao.value.filter(item => item.colecao === 'props').map(item => item.id);
 

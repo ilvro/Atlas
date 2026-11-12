@@ -183,7 +183,7 @@ Testes: `tests/unit/ponte-presets.test.ts` e testes unitários da Jukebox (`../J
 Commit (Jukebox): only merge presets when saving to the same folder
 Commit: atomic replace in preset files and hide internal receive tool
 
-#### E4 — Acervo, inspetor, editor de momentos e desktop prep
+#### E4 — Acervo, inspetor, editor de momentos e desktop prep  ✅
 Depende de: E1, E2, E3
 Ler: `src/app/ponte-escrita.ts`, `src/authoring/construcao.ts`, `src/ui/Inspetor.tsx`, `src/ui/Momentos.tsx`, `src/domain/camadas.ts`, `docs/assistente/guia/`.
 Como:
