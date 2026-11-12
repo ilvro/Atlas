@@ -260,3 +260,45 @@ test('objeto.camada põe um objeto atrás ou na frente dos outros e desfaz', asy
   const frente = aplicarComando(atras, { tipo: 'objeto.camada', ids: ['tapete'], modo: 'frente' });
   assert.ok((frente.props.tapete!.layer ?? 0) > (frente.props.cama!.layer ?? 0));
 });
+
+test('fusão: execuções com a mesma chave viram uma entrada e um só desfazer', () => {
+  const store = criarStore(mapaCompleto());
+  const inicio = store.documento;
+  for (const nome of ['a', 'b', 'c']) store.executar({ tipo: 'mapa.renomear', nome }, { rotulo: 'Água', fusao: 'k1' });
+  assert.equal(store.historico.length, 1);
+  assert.equal(store.documento.name, 'c');
+  store.desfazer();
+  assert.equal(store.documento.name, inicio.name);
+  assert.equal(store.podeDesfazer, false);
+  store.refazer();
+  assert.equal(store.documento.name, 'c');
+  assert.equal(store.historico.length, 1);
+});
+
+test('fusão: comando sem chave no meio quebra a fusão; chaves diferentes não se fundem', () => {
+  const store = criarStore(mapaCompleto());
+  store.executar({ tipo: 'mapa.renomear', nome: 'a' }, { fusao: 'k1' });
+  store.executar({ tipo: 'mapa.renomear', nome: 'b' }, { fusao: 'k1' });
+  store.executar({ tipo: 'mapa.renomear', nome: 'meio' });
+  store.executar({ tipo: 'mapa.renomear', nome: 'c' }, { fusao: 'k1' });
+  assert.equal(store.historico.length, 3);
+  store.executar({ tipo: 'mapa.renomear', nome: 'd' }, { fusao: 'k2' });
+  assert.equal(store.historico.length, 4);
+  store.desfazer();
+  assert.equal(store.documento.name, 'c');
+  store.desfazer();
+  assert.equal(store.documento.name, 'meio');
+  store.desfazer();
+  assert.equal(store.documento.name, 'b');
+});
+
+test('fusão: executar com chave limpa o refazer', () => {
+  const store = criarStore(mapaCompleto());
+  store.executar({ tipo: 'mapa.renomear', nome: 'a' }, { fusao: 'k1' });
+  store.executar({ tipo: 'mapa.renomear', nome: 'b' }, { fusao: 'k1' });
+  store.desfazer();
+  assert.equal(store.podeRefazer, true);
+  store.executar({ tipo: 'mapa.renomear', nome: 'x' }, { fusao: 'k1' });
+  assert.equal(store.podeRefazer, false);
+  assert.equal(store.historico.length, 1);
+});

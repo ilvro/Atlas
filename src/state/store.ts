@@ -37,7 +37,11 @@ export interface Store {
   /** Rótulos do histórico, do mais antigo ao mais novo. */
   readonly historico: readonly string[];
   assinar(ouvinte: (evento: EventoStore) => void): () => void;
-  executar(comando: Comando, opcoes?: { rotulo?: string; versaoEsperada?: number }): MapaAtlas;
+  /**
+   * `fusao`: chave de fusão. Se a entrada do topo do histórico tem a mesma chave, o comando é fundido nela (um só desfazer);
+   * qualquer outro comando no meio quebra a fusão.
+   */
+  executar(comando: Comando, opcoes?: { rotulo?: string; versaoEsperada?: number; fusao?: string }): MapaAtlas;
   iniciarGesto(rotulo: string): Gesto;
   /** Troca o documento por outra versão do MESMO mapa (a projeção recebida pelo projetor), avisando só o que mudou. Sem histórico. */
   projetar(mapa: MapaAtlas): MapaAtlas;
@@ -59,7 +63,7 @@ export class ErroDeStore extends Error {
   constructor(mensagem: string) { super(mensagem); this.name = 'ErroDeStore'; }
 }
 
-interface Entrada { antes: MapaAtlas; depois: MapaAtlas; rotulo: string }
+interface Entrada { antes: MapaAtlas; depois: MapaAtlas; rotulo: string; fusao?: string }
 const LIMITE_HISTORICO = 150;
 
 export function criarStore(inicial: MapaAtlas, opcoes: { salvo?: boolean } = {}): Store {
@@ -98,8 +102,12 @@ export function criarStore(inicial: MapaAtlas, opcoes: { salvo?: boolean } = {})
       const antes = documento, proximo = aplicarComando(antes, comando);
       if (proximo === antes) return antes;
       const rotulo = extra.rotulo ?? ROTULOS[comando.tipo];
-      desfazer.push({ antes, depois: proximo, rotulo });
-      if (desfazer.length > LIMITE_HISTORICO) desfazer.shift();
+      const topo = desfazer.at(-1);
+      if (extra.fusao !== undefined && topo && topo.fusao === extra.fusao) topo.depois = proximo;
+      else {
+        desfazer.push(extra.fusao !== undefined ? { antes, depois: proximo, rotulo, fusao: extra.fusao } : { antes, depois: proximo, rotulo });
+        if (desfazer.length > LIMITE_HISTORICO) desfazer.shift();
+      }
       refazer = []; documento = proximo; versao++;
       avisar('executar', antes, rotulo);
       return documento;
