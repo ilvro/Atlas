@@ -571,7 +571,7 @@ function referenciasDosPassos(mapa: MapaAtlas, passos: readonly PassoDeMomento[]
       case 'agua': {
         let mat;
         try { mat = materialDe(p.material); } catch { return erro(`o material “${p.material}” não existe.`); }
-        if (mat.uso !== 'agua') return erro(`o material “${p.material}” não é de água (uso: ${mat.uso}); use materiais de água (ex: agua, agua.pantano).`);
+        if (mat.uso !== 'agua') return erro(`o material “${p.material}” não é de água (uso: ${mat.uso}); use materiais de água (ex: agua.lago, agua.pantano).`);
         if (p.deixar !== undefined) {
           if (p.acao !== 'baixar') return erro('“deixar” só vale com acao “baixar”.');
           const chao = materialDe(p.deixar);

@@ -1367,7 +1367,7 @@ export function EditorDeMomento({
                     const poligono: Ponto[] = reg && reg.polygon.length >= 3
                       ? reg.polygon.map(p => [p[0], p[1]] as Ponto)
                       : [[0, 0], [5, 0], [5, 5], [0, 5]];
-                    adicionarNovoPasso({ tipo: 'agua', poligono, material: 'agua', ms: 3000, etapas: 6 });
+                    adicionarNovoPasso({ tipo: 'agua', poligono, material: 'agua.lago', ms: 3000, etapas: 6 });
                   }}
                 >
                   Água que sobe
