@@ -788,7 +788,7 @@
   },
   {
     "nome": "atlas_mapa_ler",
-    "descricao": "Resume o mapa (aberto ou por id): terreno, cômodos, objetos, luzes, regiões, peças, clima, momentos e notas. O aberto vem ao vivo, com naoSalvo.",
+    "descricao": "Resume o mapa (aberto ou por id): terreno, cômodos, objetos, luzes, regiões, peças, clima, momentos e notas. O aberto e os de abas em segundo plano vêm ao vivo, com naoSalvo.",
     "esquema": {
       "type": "object",
       "properties": {

@@ -44,7 +44,7 @@ Cria e abre mapa novo em metros (padrão 45×30; grid 1,5 m). "base": atlas_cata
 
 Resume o mapa (aberto ou por id): tamanho, terreno, cômodos (rets em m), objetos, luzes, regiões, peças, clima, acabamento, momentos e notas.
 
-O mapa aberto (com ou sem `id`) vem do documento vivo, com as edições ainda não gravadas, e traz `naoSalvo`. `atlas_mapas_listar` e `atlas_o_que_vejo` marcam `naoSalvo: true` no mapa aberto quando há edições não gravadas. Os outros mapas vêm do disco.
+O mapa aberto (com ou sem `id`) e os mapas que estão em abas de segundo plano (o Atlas guarda até 3) vêm do documento vivo, com as edições ainda não gravadas, e trazem `naoSalvo`. `atlas_mapas_listar` e `atlas_o_que_vejo` marcam `naoSalvo: true` quando há edições não gravadas. Os outros mapas vêm do disco.
 
 ## atlas_momento
 
