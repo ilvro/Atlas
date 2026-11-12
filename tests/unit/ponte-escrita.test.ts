@@ -94,10 +94,12 @@ test('cabana de 3 × 3 células com porta, cada chamada um passo, e o mapa valid
   assert.equal(Object.keys(store.documento.rooms).length, 1);
 });
 
-test('atlas_paredes cria muros avulsos; porta sem parede perto volta como erro legível', async () => {
+test('atlas_paredes cria muros avulsos e escarpas; porta sem parede perto volta como erro legível', async () => {
   const { store, chamar } = montar();
-  await chamar('atlas_paredes', { paredes: [{ path: [[1, 1], [8, 1]], kind: 'fence' }] });
-  assert.equal(Object.keys(store.documento.walls).length, 1);
+  await chamar('atlas_paredes', { paredes: [{ path: [[1, 1], [8, 1]], kind: 'fence' }, { path: [[10, 5], [10, 20]], kind: 'cliff', drop: 'b' }] });
+  assert.equal(Object.keys(store.documento.walls).length, 2);
+  const cliff = Object.values(store.documento.walls).find(w => w.kind === 'cliff');
+  assert.equal(cliff?.drop, 'b');
   await assert.rejects(chamar('atlas_portas', { portas: [{ perto: [20, 15] }] }), /não há parede perto/);
   assert.equal(store.historico.length, 1);
 });

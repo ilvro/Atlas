@@ -109,7 +109,18 @@ export function paredes(mapa: MapaAtlas, pedidos: readonly PedidoDeParede[], _se
     if (p.kind && !TIPOS_DE_PAREDE.includes(p.kind)) throw new ErroDeConstrucao(`tipo de parede “${p.kind}” não existe; tipos: ${lista(TIPOS_DE_PAREDE)}`);
     const id = gerarId('w');
     const parede: Omit<Parede, 'source'> = { ...structuredClone(PAREDE_PADRAO), id, path: p.path.map(q => [q[0], q[1]] as Ponto) };
-    if (p.kind) parede.kind = p.kind;
+    if (p.kind) {
+      parede.kind = p.kind;
+      if (p.kind === 'low' || p.kind === 'fence' || p.kind === 'cliff') {
+        parede.blocks = { move: true, sight: false, light: false };
+      }
+      if (p.kind === 'cliff') {
+        parede.drop = p.drop ?? 'b';
+        parede.height = p.altura ?? 3;
+        parede.thickness = p.espessura ?? 0.4;
+        parede.material = p.material ?? 'rocha.cinza';
+      }
+    }
     if (p.altura !== undefined) parede.height = p.altura;
     if (p.espessura !== undefined) parede.thickness = p.espessura;
     if (p.material) parede.material = p.material;

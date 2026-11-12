@@ -76,7 +76,7 @@ Cuidado: a ordem das camadas e o custo do assado; meça o tempo de assar um mapa
 Nota: transição estendida com `suave(0.22, 0.78, v)` no corpo e `suave(0.12, 0.45, v)` no aro para materiais de chão no estilo Ilustrado; Pixel permanece binário e com contorno de 1 px. Custo de bake mantido idêntico por usar a mesma passagem aritmética (medido em mapa 30×30 m com múltiplas camadas: Ilustrado ~487 ms, Pixel ~61 ms em `tests/e2e/teste-pantano-terreno.test.ts`).
 Commit: soft edges between ground materials
 
-#### C3 — Escarpa no guia  ⬜
+#### C3 — Escarpa no guia  ✅
 Como: em `docs/assistente/guia/mapas.md` e `ferramentas-atlas.md`, explique a escarpa (`atlas_paredes` com `kind: 'cliff'` e `drop`: qual lado desce), quando usá-la (barranco, margem alta, desnível) e a diferença para o maciço de `atlas_terreno`. Um exemplo de chamada.
 Commit: document cliffs in the assistant guide
 
