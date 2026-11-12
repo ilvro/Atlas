@@ -394,18 +394,18 @@ test('passo de água executa etapas não-bloqueantes sem travar store.executar e
   }
 });
 
-test('comandoDaEtapaDeAgua: baixar troca só as células dessa água por deixar, ou apaga', async () => {
+test('comandoDaEtapaDeAgua: baixar troca só as células dessa água por deixar, ou devolve o terreno', async () => {
   const { comandoDaEtapaDeAgua } = await import('../../src/domain/agua.ts');
   let mapa = criarMapa({ id: 'a', agora: 1, largura: 20, altura: 20 });
   mapa = aplicarComando(mapa, { tipo: 'terreno.pintar', material: 'agua.pantano', celulas: [[1, 1], [2, 1]] });
   mapa = aplicarComando(mapa, { tipo: 'terreno.pintar', material: 'grama', celulas: [[3, 1]] });
   const celulas: [number, number][] = [[1, 1], [2, 1], [3, 1], [4, 1]];
   const subir = comandoDaEtapaDeAgua(mapa, { material: 'agua.pantano' }, celulas);
-  assert.equal(subir?.tipo, 'terreno.pintar');
+  assert.equal(subir?.tipo, 'terreno.pintar'); assert.equal((subir as { lembrar?: boolean }).lembrar, true);
   const troca = comandoDaEtapaDeAgua(mapa, { material: 'agua.pantano', acao: 'baixar', deixar: 'lama' }, celulas);
   assert.deepEqual(troca, { tipo: 'terreno.pintar', material: 'lama', celulas: [[1, 1], [2, 1]] });
   const apaga = comandoDaEtapaDeAgua(mapa, { material: 'agua.pantano', acao: 'baixar' }, celulas);
-  assert.deepEqual(apaga, { tipo: 'terreno.apagar', celulas: [[1, 1], [2, 1]] });
+  assert.deepEqual(apaga, { tipo: 'terreno.emergir', material: 'agua.pantano', celulas: [[1, 1], [2, 1]] });
   assert.equal(comandoDaEtapaDeAgua(mapa, { material: 'agua.pantano', acao: 'baixar' }, [[3, 1]]), null);
   // aplicado: a grama fica intocada e a lama toma o lugar da água
   const depois = aplicarComando(mapa, troca!);

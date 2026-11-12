@@ -65,7 +65,9 @@ export interface ClimaSalvo { id: string; name: string; climate: Omit<Clima, 'pr
 export interface Memoria { sketch: boolean; paper: string; ink: string }
 export interface Fundo { kind: 'solid' | 'texture'; color: string; material: string | null; title: null | { text: string; font: string; position: Ponto } }
 /** Camadas de terreno pintadas por células de `resolution` metros (em RLE). `base: 'vazio'` deixa ver o fundo do mapa. */
-export interface Terreno { resolution: number; base: string; layers: Record<string, { id: string; material: string; cells: Faixa[]; order: number; /** Correnteza da camada de água (`angle` em rad); `null` é água parada. */ flow: null | { angle: number; speed: number } }> }
+export interface Terreno { resolution: number; base: string; layers: Record<string, { id: string; material: string; cells: Faixa[]; order: number; /** Correnteza da camada de água (`angle` em rad); `null` é água parada. */ flow: null | { angle: number; speed: number } }>;
+  /** O que a água cobriu (`terreno.pintar` com `lembrar`): por camada original, o material e as células que ela perdeu. A água que baixa devolve isso. */
+  submerged?: Record<string, { material: string; cells: Faixa[]; /** Posição da camada original, para recriá-la no mesmo lugar se ela sumiu. */ order?: number }> }
 
 export interface Comodo {
   id: string; name: string; function: string | null; cells: Faixa[];

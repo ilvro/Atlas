@@ -114,16 +114,16 @@ export function etapasDaAgua(
   return ordem === 'borda' ? etapas.reverse() : etapas;
 }
 
-/** O comando de UMA etapa do passo de água, ou `null` se não há o que mudar. Subir pinta o material; baixar troca por `deixar` (ou apaga) só as células que hoje são dessa água. */
+/** O comando de UMA etapa do passo de água, ou `null` se não há o que mudar. Subir pinta o material (lembrando o que cobriu); baixar troca por `deixar` ou, sem ele, devolve o terreno de antes, só nas células que hoje são dessa água. */
 export function comandoDaEtapaDeAgua(
   mapa: Pick<MapaAtlas, 'terrain'>,
   passo: { material: string; acao?: 'subir' | 'baixar'; deixar?: string },
   celulas: readonly CelulaDoComando[],
 ): ComandoConstruir | null {
   if (celulas.length === 0) return null;
-  if (passo.acao !== 'baixar') return { tipo: 'terreno.pintar', material: passo.material, celulas, suavizar: true };
+  if (passo.acao !== 'baixar') return { tipo: 'terreno.pintar', material: passo.material, celulas, suavizar: true, lembrar: true };
   const camadas = Object.values(mapa.terrain.layers).filter(c => c.material === passo.material);
   const daAgua = celulas.filter(([x, y]) => camadas.some(c => contem(c.cells, x, y)));
   if (daAgua.length === 0) return null;
-  return passo.deixar ? { tipo: 'terreno.pintar', material: passo.deixar, celulas: daAgua } : { tipo: 'terreno.apagar', celulas: daAgua };
+  return passo.deixar ? { tipo: 'terreno.pintar', material: passo.deixar, celulas: daAgua } : { tipo: 'terreno.emergir', material: passo.material, celulas: daAgua };
 }

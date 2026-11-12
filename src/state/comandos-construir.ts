@@ -1,5 +1,5 @@
 import type { Ref } from '#mesa';
-import { codificar, decodificar, subtrair, unir, type Celula } from '../domain/celulas.ts';
+import { codificar, decodificar, subtrair, unir, type Celula, type Faixa } from '../domain/celulas.ts';
 import { atualizarEscarpasDoMacico, mesmasFaixas } from '../domain/contorno.ts';
 import { atualizarSalasDosObjetos, limparOrfaos, motivoDeNaoCaber, recalcularParedes } from '../domain/geometria.ts';
 import type { Abertura, Comodo, MapaAtlas, Parede } from '../domain/mapa.ts';
@@ -26,7 +26,10 @@ export type ComandoConstruir =
   | { tipo: 'abertura.atualizar'; id: string; patch: Partial<Pick<Abertura, 'at' | 'width' | 'kind' | 'state' | 'material' | 'som' | 'swing' | 'wallId'>> }
   | { tipo: 'abertura.remover'; id: string }
   /** `suavizar` (só água): arredonda a borda da camada onde a pincelada passou. */
-  | { tipo: 'terreno.pintar'; material: string; celulas: readonly CelulaDoComando[]; suavizar?: boolean }
+  /** `lembrar` (água que sobe): guarda em `terrain.submerged` o que cada camada perdeu, para `terreno.emergir` devolver. Sem ele, pintar tira essas células do guardado. */
+  | { tipo: 'terreno.pintar'; material: string; celulas: readonly CelulaDoComando[]; suavizar?: boolean; lembrar?: boolean }
+  /** Água que baixa: nas células dessa água, devolve o terreno guardado em `submerged`; o que não tinha camada guardada some e mostra a base. */
+  | { tipo: 'terreno.emergir'; material: string; celulas: readonly CelulaDoComando[] }
   | { tipo: 'terreno.apagar'; celulas: readonly CelulaDoComando[] }
   | { tipo: 'terreno.base'; material: string }
   /** Correnteza da camada de água desse material (`angle` em rad, `speed` de 0 a 3 m/s); `null` deixa a água parada. */
@@ -34,14 +37,14 @@ export type ComandoConstruir =
   | { tipo: 'presenca.pintar'; brush: string; celulas: readonly CelulaDoComando[]; intensidade?: number }
   | { tipo: 'presenca.apagar'; brush: string | null; celulas: readonly CelulaDoComando[] };
 
-export const TIPOS_DE_CONSTRUCAO = ['comodo.criar', 'comodo.pintar', 'comodo.apagar', 'comodo.atualizar', 'comodo.remover', 'comodo.notas', 'parede.adicionar', 'parede.atualizar', 'parede.remover', 'parede.desanexar', 'abertura.adicionar', 'abertura.atualizar', 'abertura.remover', 'terreno.pintar', 'terreno.apagar', 'terreno.base', 'terreno.correnteza', 'presenca.pintar', 'presenca.apagar'] as const;
+export const TIPOS_DE_CONSTRUCAO = ['comodo.criar', 'comodo.pintar', 'comodo.apagar', 'comodo.atualizar', 'comodo.remover', 'comodo.notas', 'parede.adicionar', 'parede.atualizar', 'parede.remover', 'parede.desanexar', 'abertura.adicionar', 'abertura.atualizar', 'abertura.remover', 'terreno.pintar', 'terreno.emergir', 'terreno.apagar', 'terreno.base', 'terreno.correnteza', 'presenca.pintar', 'presenca.apagar'] as const;
 export const ehComandoDeConstrucao = (c: { tipo: string }): c is ComandoConstruir => (TIPOS_DE_CONSTRUCAO as readonly string[]).includes(c.tipo);
 
 export const ROTULOS_CONSTRUIR: Record<ComandoConstruir['tipo'], string> = {
   'comodo.criar': 'Criar cômodo', 'comodo.pintar': 'Pintar cômodo', 'comodo.apagar': 'Apagar cômodo', 'comodo.atualizar': 'Editar cômodo', 'comodo.remover': 'Remover cômodo', 'comodo.notas': 'Notas do cômodo',
   'parede.adicionar': 'Desenhar parede', 'parede.atualizar': 'Editar parede', 'parede.remover': 'Remover parede', 'parede.desanexar': 'Desanexar parede',
   'abertura.adicionar': 'Pôr abertura', 'abertura.atualizar': 'Editar abertura', 'abertura.remover': 'Remover abertura',
-  'terreno.pintar': 'Pintar terreno', 'terreno.apagar': 'Apagar terreno', 'terreno.base': 'Terreno base', 'terreno.correnteza': 'Correnteza da água',
+  'terreno.pintar': 'Pintar terreno', 'terreno.apagar': 'Apagar terreno', 'terreno.emergir': 'Água que baixa', 'terreno.base': 'Terreno base', 'terreno.correnteza': 'Correnteza da água',
   'presenca.pintar': 'Pintar presença', 'presenca.apagar': 'Apagar presença',
 };
 
@@ -84,6 +87,13 @@ function removerVazios(m: MapaAtlas): void { for (const s of Object.values(m.roo
 const idDaPresenca = (brush: string) => `p_${brush.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 60)}`;
 /** Uma semente estável por pincel: a mesma presença tem a mesma cara em qualquer cópia do mapa. */
 const sementeDe = (texto: string) => { let h = 2166136261; for (const ch of texto) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return (h >>> 0) % 2 ** 31; };
+const intersecao = (a: readonly Faixa[], b: readonly Faixa[]): Faixa[] => subtrair(a, subtrair(a, b));
+/** Tira `celulas` do que a água guardou; entradas vazias somem, e o campo some quando não sobra nada. */
+function tirarDoGuardado(m: MapaAtlas, celulas: readonly Faixa[]): void {
+  const g = m.terrain.submerged; if (!g) return;
+  for (const [id, e] of Object.entries(g)) { e.cells = subtrair(e.cells, celulas); if (!e.cells.length) delete g[id]; }
+  if (!Object.keys(g).length) delete m.terrain.submerged;
+}
 const idDaCamada = (material: string) => `t_${material.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 60)}`;
 
 /** As células de cada camada antes de um comando de terreno; depois dele, `camadasMudadas` diz quais camadas (e quais sumiram) foram mexidas. */
@@ -162,9 +172,33 @@ export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
       const antes = guardarCamadas(m);
       const cel = normais(c.celulas), novas = codificar(cel), id = idDaCamada(c.material);
       m.terrain.layers[id] ??= { id, material: c.material, cells: [], order: Object.keys(m.terrain.layers).length, flow: null };
-      for (const camada of Object.values(m.terrain.layers)) if (camada.id !== id) camada.cells = subtrair(camada.cells, novas);
+      for (const camada of Object.values(m.terrain.layers)) if (camada.id !== id) {
+        if (c.lembrar && !(materialDe(camada.material).uso === 'agua' && camada.material !== c.material)) {
+          const perdidas = intersecao(camada.cells, novas);
+          if (perdidas.length) { const g = (m.terrain.submerged ??= {}); g[camada.id] = { material: camada.material, order: camada.order, cells: unir(g[camada.id]?.cells ?? [], perdidas) }; }
+        }
+        camada.cells = subtrair(camada.cells, novas);
+      }
+      if (!c.lembrar) tirarDoGuardado(m, novas);
       m.terrain.layers[id]!.cells = unir(m.terrain.layers[id]!.cells, novas);
       if (c.suavizar && materialDe(c.material).uso === 'agua' && cel.length) { const xs = cel.map(q => q[0]), ys = cel.map(q => q[1]); m.terrain.layers[id]!.cells = suavizarMargem(m.terrain.layers[id]!.cells, { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) }); }
+      for (const camada of Object.values(m.terrain.layers)) if (!camada.cells.length) delete m.terrain.layers[camada.id];
+      atualizarEscarpasDoMacico(m, camadasMudadas(m, antes)); break;
+    }
+    case 'terreno.emergir': {
+      const antes = guardarCamadas(m);
+      const aguas = Object.values(m.terrain.layers).filter(l => l.material === c.material);
+      const pedidas = codificar(normais(c.celulas));
+      const daAgua = aguas.reduce<Faixa[]>((acc, l) => unir(acc, intersecao(l.cells, pedidas)), []);
+      if (!daAgua.length) break;
+      for (const camada of Object.values(m.terrain.layers)) camada.cells = subtrair(camada.cells, daAgua);
+      for (const [cid, g] of Object.entries(m.terrain.submerged ?? {})) {
+        const volta = intersecao(g.cells, daAgua);
+        if (!volta.length) continue;
+        m.terrain.layers[cid] ??= { id: cid, material: g.material, cells: [], order: g.order ?? Object.keys(m.terrain.layers).length, flow: null };
+        m.terrain.layers[cid]!.cells = unir(m.terrain.layers[cid]!.cells, volta);
+      }
+      tirarDoGuardado(m, daAgua);
       for (const camada of Object.values(m.terrain.layers)) if (!camada.cells.length) delete m.terrain.layers[camada.id];
       atualizarEscarpasDoMacico(m, camadasMudadas(m, antes)); break;
     }
