@@ -3,7 +3,7 @@ import { conectarPonte, ferramentasDaCampanha } from '#mesa/ponte';
 import { telaParaMundo } from '../render/camera.ts';
 import { SeloDoAssistente, estadoDaPonte } from '../ui/SeloDoAssistente.tsx';
 import { ErroDeConflito } from '../data/repositorio.ts';
-import { abrirMapa, gravarMapa, navegar, pararMomento, servicos, sessao, tocarMomentoDoMapa, viewport } from './app.ts';
+import { gravarMapa, navegar, pararMomento, servicos, sessao, tocarMomentoDoMapa, viewport } from './app.ts';
 import { campanhaAtiva, sincronizarMapaComCampanha } from './campanha.ts';
 import { seloDoAssistente } from './assistente-slot.ts';
 import { modo } from './modo.ts';
@@ -16,18 +16,18 @@ const obterRepositorio = async () => {
   return c;
 };
 
-/** Abre o mapa pelo mesmo caminho do "novo mapa" (rota) e espera a sessão dele subir. */
+/** Abre o mapa pelo mesmo caminho da galeria (rota) e espera a sessão dele subir. O editor só é montado com a rota do mapa: `abrirMapa` sozinho não basta. */
 async function abrirPelaRota(id: string): Promise<void> {
   navegar({ tipo: 'mapa', id });
   for (let i = 0; i < 100 && sessao.value?.doc.value.id !== id; i++) await new Promise(r => setTimeout(r, 50));
-  if (sessao.value?.doc.value.id !== id) throw new Error('O mapa foi criado, mas a aba não conseguiu abri-lo a tempo; use atlas_abrir.');
+  if (sessao.value?.doc.value.id !== id) throw new Error('A aba não conseguiu abrir o mapa a tempo; tente atlas_abrir.');
 }
 
 const cliente = conectarPonte({
   app: 'atlas', titulo: 'Atlas',
   ferramentas: [
     ...ferramentasDaCampanha(obterRepositorio),
-    ...ferramentasDeLeitura({ repo: () => servicos.value?.repo ?? null, mapaAberto: () => sessao.value?.doc.value ?? null, naoSalvo: () => sessao.value?.store.sujo ?? false, abrirMapa, capturar: o => viewport.atual?.capturar(o) ?? null,
+    ...ferramentasDeLeitura({ repo: () => servicos.value?.repo ?? null, mapaAberto: () => sessao.value?.doc.value ?? null, naoSalvo: () => sessao.value?.store.sujo ?? false, abrirMapa: abrirPelaRota, editorPronto: () => viewport.atual !== null, capturar: o => viewport.atual?.capturar(o) ?? null,
       modo: () => modo.value, selecao: () => sessao.value?.selecao.value ?? [],
       caixaVisivel: () => { const v = viewport.atual; if (!v) return null; const [x0, y0] = telaParaMundo(v.camera, [0, 0]), [x1, y1] = telaParaMundo(v.camera, [v.tela.largura, v.tela.altura]); return { x0, y0, x1, y1 }; } }),
     ...ferramentasDeEscrita({
