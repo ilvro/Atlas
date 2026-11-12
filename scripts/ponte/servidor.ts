@@ -60,7 +60,7 @@ export function criarPonte(opcoes: OpcoesDaPonte): Ponte {
   fs.mkdirSync(opcoes.pastaDoToken, { recursive: true });
   fs.writeFileSync(path.join(opcoes.pastaDoToken, 'token'), token, { mode: 0o600 });
 
-  const wss = new WebSocketServer({ noServer: true });
+  const wss = new WebSocketServer({ noServer: true, maxPayload: 100 * 1024 * 1024 });
   const abas = new Set<Aba>();
   const mcps = new Set<WebSocket>();
   const pendentes = new Map<string, Pendente>();
