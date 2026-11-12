@@ -55,9 +55,15 @@ interface ContextoExecucao {
   saidas: SaidasDeMomento;
   usouTelaEscura: boolean;
   usouLetreiro: boolean;
+  /** Chave de fusão do histórico: tudo o que o momento muda no mapa vira um só desfazer. */
+  fusao: string;
 }
 
 let contextoAtual: ContextoExecucao | null = null;
+let contadorDeMomentos = 0;
+
+/** A chave de fusão do momento em curso (um desfazer por execução), ou `undefined` fora de momento. */
+export function fusaoDoMomento(): string | undefined { return contextoAtual?.fusao; }
 
 /** Executa um passo instantâneo do momento; passos do tipo `esperar` são ignorados. */
 export function executarPasso(p: PassoDeMomento, saidas: SaidasDeMomento): void {
@@ -130,6 +136,7 @@ export async function tocarMomento(
     saidas,
     usouTelaEscura: false,
     usouLetreiro: false,
+    fusao: `momento:${++contadorDeMomentos}`,
   };
   contextoAtual = ctx;
   const rel = relogio ?? relogioPadrao;

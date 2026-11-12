@@ -42,11 +42,11 @@ export interface Store {
    * qualquer outro comando no meio quebra a fusão.
    */
   executar(comando: Comando, opcoes?: { rotulo?: string; versaoEsperada?: number; fusao?: string }): MapaAtlas;
-  iniciarGesto(rotulo: string): Gesto;
+  iniciarGesto(rotulo: string, opcoes?: { fusao?: string }): Gesto;
   /** Troca o documento por outra versão do MESMO mapa (a projeção recebida pelo projetor), avisando só o que mudou. Sem histórico. */
   projetar(mapa: MapaAtlas): MapaAtlas;
   /** Vários comandos como uma só entrada de histórico; se `corpo` lançar, nada do que fez fica. */
-  transacao<T>(rotulo: string, corpo: (gesto: Gesto) => T): T;
+  transacao<T>(rotulo: string, corpo: (gesto: Gesto) => T, opcoes?: { fusao?: string }): T;
   desfazer(): MapaAtlas;
   refazer(): MapaAtlas;
   /**
@@ -113,7 +113,7 @@ export function criarStore(inicial: MapaAtlas, opcoes: { salvo?: boolean } = {})
       return documento;
     },
 
-    iniciarGesto(rotulo) {
+    iniciarGesto(rotulo, opcoes = {}) {
       if (store.emGesto) throw new ErroDeStore('Já há um gesto em andamento.');
       const estado = { antes: documento, rotulo, ativo: true };
       gestoAtual = estado;
@@ -129,8 +129,12 @@ export function criarStore(inicial: MapaAtlas, opcoes: { salvo?: boolean } = {})
           if (!estado.ativo) throw new ErroDeStore('O gesto já terminou.');
           estado.ativo = false; gestoAtual = null;
           if (documento === estado.antes) return documento;
-          desfazer.push({ antes: estado.antes, depois: documento, rotulo });
-          if (desfazer.length > LIMITE_HISTORICO) desfazer.shift();
+          const topo = desfazer.at(-1), fusao = opcoes.fusao;
+          if (fusao !== undefined && topo && topo.fusao === fusao) topo.depois = documento;
+          else {
+            desfazer.push(fusao !== undefined ? { antes: estado.antes, depois: documento, rotulo, fusao } : { antes: estado.antes, depois: documento, rotulo });
+            if (desfazer.length > LIMITE_HISTORICO) desfazer.shift();
+          }
           refazer = [];
           avisar('concluir', estado.antes, rotulo);
           return documento;
@@ -145,8 +149,8 @@ export function criarStore(inicial: MapaAtlas, opcoes: { salvo?: boolean } = {})
       return gesto;
     },
 
-    transacao(rotulo, corpo) {
-      const gesto = store.iniciarGesto(rotulo);
+    transacao(rotulo, corpo, opcoes) {
+      const gesto = store.iniciarGesto(rotulo, opcoes);
       try { const resultado = corpo(gesto); gesto.concluir(); return resultado; } catch (erro) { gesto.cancelar(); throw erro; }
     },
 

@@ -22,7 +22,7 @@ Cria cômodos (piso, paredes e telhado; um passo de desfazer). ATENÇÃO: rets e
 
 ## atlas_desfazer
 
-Desfaz as últimas entradas do histórico do mapa aberto (a mesma pilha do Ctrl+Z, inclusive edições do mestre). Parâmetro opcional `passos`: de 1 a 20, padrão 1. Devolve os rótulos desfeitos; com o histórico vazio, é erro. Use para testar um momento que altera o mapa (água, luz, objetos) e voltar ao estado anterior. Desfazer não grava: depois, `atlas_salvar` se quiser fixar.
+Desfaz as últimas entradas do histórico do mapa aberto (a mesma pilha do Ctrl+Z, inclusive edições do mestre). Parâmetro opcional `passos`: de 1 a 20, padrão 1. Devolve os rótulos desfeitos; com o histórico vazio, é erro. Um momento inteiro é um passo de desfazer (todos os seus passos de água, luz, objeto, revelar e interagir se fundem), desde que ninguém faça outro comando no meio; use para testar um momento que altera o mapa e voltar ao estado anterior com `passos: 1`. Desfazer não grava: depois, `atlas_salvar` se quiser fixar.
 
 ## atlas_espalhar
 
