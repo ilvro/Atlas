@@ -11,7 +11,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { criarPonte } from '../../scripts/ponte/servidor.ts';
 import { criarServidorMcp, lerGuia, converterConteudo, anotacoesDaFerramenta, SEM_PONTE, CAMINHO_CATALOGO_BASE_PADRAO, type McpOpcoes } from '../../scripts/ponte/mcp.ts';
-import { gerarCatalogoBase } from '../../scripts/ponte/catalogo.ts';
+import { gerarCatalogoBase, ferramentasDoAtlasDoCodigo } from '../../scripts/ponte/catalogo.ts';
 
 const esperar = async (cond: () => boolean | Promise<boolean>, ms = 3000) => {
   const fim = Date.now() + ms;
@@ -564,6 +564,37 @@ test('gerarCatalogoBase sobre cache de teste gera JSON ordenado, descarta campos
   assert.equal(gerado[1].nome, 'z_ferramenta');
   assert.equal(gerado[0].armazenamento, undefined);
   assert.equal(gerado[0].onde, undefined);
+});
+
+test('catálogo base: as ferramentas atlas_* do código batem com o catálogo (nome, descrição, esquema e anotações)', () => {
+  const instrucao = 'Rode `npm run ponte:catalogo` e faça commit de scripts/ponte/catalogo-base.json.';
+  const base = JSON.parse(fs.readFileSync(CAMINHO_CATALOGO_BASE_PADRAO, 'utf8')) as { nome: string; descricao: string; esquema: unknown; app: string; anotacoes?: unknown }[];
+  const doCodigo = ferramentasDoAtlasDoCodigo();
+  assert.ok(doCodigo.length >= 24);
+  for (const f of doCodigo) {
+    const b = base.find(x => x.nome === f.nome);
+    assert.ok(b, `${f.nome} não está no catálogo base. ${instrucao}`);
+    assert.equal(b.app, 'atlas', `${f.nome}: app diferente no catálogo base. ${instrucao}`);
+    assert.equal(b.descricao, f.descricao, `${f.nome}: descrição defasada no catálogo base. ${instrucao}`);
+    assert.deepEqual(b.esquema, JSON.parse(JSON.stringify(f.esquema)), `${f.nome}: esquema defasado no catálogo base. ${instrucao}`);
+    assert.deepEqual(b.anotacoes, f.anotacoes, `${f.nome}: anotações defasadas no catálogo base. ${instrucao}`);
+  }
+  const sobrando = base.filter(b => b.app === 'atlas' && b.nome.startsWith('atlas_') && !doCodigo.some(f => f.nome === b.nome)).map(b => b.nome);
+  assert.deepEqual(sobrando, [], `ferramentas que não existem mais no Atlas. ${instrucao}`);
+});
+
+test('gerarCatalogoBase troca as atlas_* pelas do código, mantém os outros apps e, sem cache, parte do catálogo atual', () => {
+  const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'ponte-mcp-atlas-'));
+  const destino = path.join(pasta, 'catalogo-base.json');
+  fs.writeFileSync(destino, JSON.stringify([
+    { nome: 'atlas_velha', descricao: 'removida', esquema: {}, app: 'atlas' },
+    { nome: 'mesa_x', descricao: 'm', esquema: {}, app: 'mesa' },
+    { nome: 'jukebox_preset_receber', descricao: 'interna', esquema: {}, app: 'jukebox' },
+  ]));
+  const nova = { nome: 'atlas_nova', descricao: 'n', esquema: { type: 'object' }, app: 'atlas' };
+  gerarCatalogoBase(path.join(pasta, 'nao-existe.json'), destino, [], [nova]);
+  const gerado = JSON.parse(fs.readFileSync(destino, 'utf8')) as { nome: string }[];
+  assert.deepEqual(gerado.map(g => g.nome), ['atlas_nova', 'mesa_x']);
 });
 
 test('com .ponte apagado, tools/list traz as 4 jukebox_* e mesa_elenco do catalogo-base padrão', async () => {
