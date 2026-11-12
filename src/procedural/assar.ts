@@ -6,6 +6,7 @@ import { contextoDe, criarTela, type Contexto, type Tela } from './canvas.ts';
 import { caixaDasPartes, type Descricao, type Parte } from './descricao.ts';
 import { materialDe, tom } from './materiais.ts';
 import { fbm, valueNoise2D } from './ruido.ts';
+import { desfocarAlfa } from './desfocar.ts';
 import { sombrearMacico } from './macico.ts';
 import { partesParaFace } from './raster.ts';
 import type { EstiloDeRaster, OpcoesDoPixel } from './estilos/index.ts';
@@ -157,6 +158,9 @@ export interface EntradaDeTerreno {
   camadas: { material: string; celulas: Faixa[]; /** Correnteza (só em camadas de água). */ flow?: { angle: number; speed: number } | null }[];
 }
 
+/** O WebKitGTK não tem `filter` no contexto 2D (nem no OffscreenCanvas). */
+const temFiltro = (c: Contexto): boolean => 'filter' in c;
+
 const suave = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 /** O terreno todo numa tela só. Cada camada tem a borda torcida por ruído (orgânica, não um borrão) e um aro escuro por baixo: a transição automática. */
@@ -176,9 +180,17 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
     ec.drawImage(M, P, P);
     ec.drawImage(M, 0, 0, 1, Hh, 0, P, P, Hh); ec.drawImage(M, W - 1, 0, 1, Hh, P + W, P, P, Hh);
     ec.drawImage(estendida as CanvasImageSource, 0, P, W + 2 * P, 1, 0, 0, W + 2 * P, P); ec.drawImage(estendida as CanvasImageSource, 0, P + Hh - 1, W + 2 * P, 1, 0, P + Hh, W + 2 * P, P);
-    const macia = criarTela(W + 2 * P, Hh + 2 * P), mac = contextoDe(macia);
-    mac.filter = `blur(${blur}px)`; mac.drawImage(estendida as CanvasImageSource, 0, 0);
-    const fonte = mac.getImageData(P, P, W, Hh).data, ruido = valueNoise2D(1000 + idx * 17);
+    // Sem `ctx.filter` (WebKitGTK, também no OffscreenCanvas/worker) o desfoque é feito em CPU por `desfocarAlfa`; com ele o caminho é o de sempre.
+    let fonte: Uint8ClampedArray;
+    if (temFiltro(ec)) { const mac = contextoDe(criarTela(W + 2 * P, Hh + 2 * P)); mac.filter = `blur(${blur}px)`; mac.drawImage(estendida as CanvasImageSource, 0, 0); fonte = mac.getImageData(P, P, W, Hh).data; }
+    else {
+      const bruta = ec.getImageData(0, 0, W + 2 * P, Hh + 2 * P);
+      desfocarAlfa(bruta.data, bruta.width, bruta.height, blur);
+      const recorte = new Uint8ClampedArray(W * Hh * 4);
+      for (let y = 0; y < Hh; y++) recorte.set(bruta.data.subarray(((y + P) * bruta.width + P) * 4, ((y + P) * bruta.width + P + W) * 4), y * W * 4);
+      fonte = recorte;
+    }
+    const ruido = valueNoise2D(1000 + idx * 17);
     const material = materialDe(camada.material), macico = material.uso === 'macico', agua = material.uso === 'agua';
     const corpo = new ImageData(W, Hh), aro = new ImageData(W, Hh), binaria = new Uint8Array(pixel || macico || agua ? W * Hh : 0), cobertura = new Uint8Array((macico || agua) && !pixel ? W * Hh : 0), ruidoFino = valueNoise2D(3000 + idx * 31);
     for (let k = 0, px = 0; k < fonte.length; k += 4, px++) {
