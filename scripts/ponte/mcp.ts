@@ -250,7 +250,7 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
       reagendar();
       return;
     }
-    const socket = new WebSocket(op.url);
+    const socket = new WebSocket(op.url, { maxPayload: 100 * 1024 * 1024 });
     ws = socket;
     socket.on('open', () => { socket.send(JSON.stringify({ tipo: 'ola', token })); });
     socket.on('message', dados => {
@@ -620,10 +620,62 @@ export async function chamarFerramenta(ponta: Ponta, nome: string, args: Record<
         substituir: Boolean(args?.substituir),
       });
 
-      const msg = `Música “${r.titulo}” ${r.substituido ? 'substituída' : 'adicionada'} com sucesso no preset “${r.pasta}”. Arquivos gravados: ${r.arquivos.join(', ')}.`;
+      let avisoJukebox: string | null = null;
+      const TAMANHO_MAXIMO_RECEBER_BYTES = 50 * 1024 * 1024;
+      const jukeboxConectada = ponta.conectada() && (
+        ponta.apps().jukebox !== undefined ||
+        ponta.ativas().some(f => f.nome.startsWith('jukebox_'))
+      );
+
+      if (jukeboxConectada) {
+        try {
+          const caminhoAudio = path.join(r.pasta, r.arquivos[0]!);
+          const caminhoCapa = path.join(r.pasta, r.arquivos[1]!);
+          const tamanhoAudio = fs.statSync(caminhoAudio).size;
+
+          if (tamanhoAudio <= TAMANHO_MAXIMO_RECEBER_BYTES) {
+            const audioBase64 = fs.readFileSync(caminhoAudio).toString('base64');
+            const capaBase64 = fs.readFileSync(caminhoCapa).toString('base64');
+            const resp = await ponta.chamar('jukebox_preset_receber', {
+              pasta: path.basename(r.pasta),
+              item: r.item,
+              audio: audioBase64,
+              capa: capaBase64,
+            });
+
+            if (resp.ok && Array.isArray(resp.conteudo)) {
+              const textoResp = resp.conteudo.map(c => c.tipo === 'texto' ? c.texto : '').join('');
+              try {
+                const dados = JSON.parse(textoResp);
+                if (!dados.recebido) {
+                  avisoJukebox = dados.motivo ?? 'reabra o preset na Jukebox para ver a música';
+                }
+              } catch {
+                avisoJukebox = 'reabra o preset na Jukebox para ver a música';
+              }
+            } else if (!resp.ok) {
+              avisoJukebox = resp.erro ?? 'reabra o preset na Jukebox para ver a música';
+            }
+          } else {
+            avisoJukebox = 'áudio maior que 50 MB: reabra o preset na Jukebox para ver a música';
+          }
+        } catch (err) {
+          avisoJukebox = `não foi possível enviar à Jukebox aberta: ${(err as Error).message}. Reabra o preset na Jukebox para ver a música.`;
+        }
+      } else {
+        avisoJukebox = 'reabra o preset na Jukebox para ver a música';
+      }
+
+      const baseMsg = `Música “${r.titulo}” ${r.substituido ? 'substituída' : 'adicionada'} com sucesso no preset “${r.pasta}”. Arquivos gravados: ${r.arquivos.join(', ')}.`;
+      const msg = avisoJukebox ? `${baseMsg}\n\nAviso: ${avisoJukebox}` : baseMsg;
+      const resultadoJson = {
+        adicionada: true,
+        ...r,
+        ...(avisoJukebox ? { aviso: avisoJukebox } : {}),
+      };
       return {
         content: [
-          { type: 'text' as const, text: `${msg}\n\n${JSON.stringify({ adicionada: true, ...r }, null, 2)}` },
+          { type: 'text' as const, text: `${msg}\n\n${JSON.stringify(resultadoJson, null, 2)}` },
         ],
       };
     } catch (err) {

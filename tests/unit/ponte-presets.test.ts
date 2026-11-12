@@ -373,3 +373,88 @@ test('MCP: jukebox_preset_ler e jukebox_preset_adicionar funcionam como ferramen
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('MCP: chamar receber quando Jukebox conectada; sem ponte vira aviso; erro da aba não desfaz o disco', async () => {
+  const tmp = criarDiretorioTemporario();
+  try {
+    const audioPath = path.join(tmp, 'audio.mp3');
+    fs.writeFileSync(audioPath, MP3_MINIMO);
+
+    const chamadasReceber: any[] = [];
+    const pontaComJukebox = {
+      conectada: () => true,
+      motivo: () => null as 'sem-servidor' | null,
+      ativas: () => [{ nome: 'jukebox_preset_receber', descricao: '', esquema: {}, app: 'jukebox' }],
+      apps: () => ({ jukebox: { armazenamento: 'a1', onde: 'Chrome' } }),
+      avisoArmazenamento: () => null,
+      catalogo: () => [],
+      origemHttp: () => 'http://127.0.0.1:5100',
+      chamar: async (ferramenta: string, args: Record<string, unknown>) => {
+        chamadasReceber.push({ ferramenta, args });
+        return {
+          tipo: 'resultado' as const,
+          id: '1',
+          ok: true as const,
+          conteudo: [{ tipo: 'texto' as const, texto: JSON.stringify({ recebido: true, titulo: 'Tema Conectado' }) }],
+        };
+      },
+      fechar: () => {},
+    };
+
+    // 1. Quando Jukebox está conectada, chama jukebox_preset_receber e não inclui aviso
+    const rConectada = await chamarFerramenta(pontaComJukebox, 'jukebox_preset_adicionar', {
+      pasta: tmp,
+      arquivo: audioPath,
+      titulo: 'Tema Conectado',
+      generos: ['fun'],
+      criar: true,
+    });
+    assert.equal('isError' in rConectada && rConectada.isError, false);
+    const txtConectada = rConectada.content[0]?.type === 'text' ? rConectada.content[0].text : '';
+    assert.equal(chamadasReceber.length, 1);
+    assert.equal(chamadasReceber[0].ferramenta, 'jukebox_preset_receber');
+    assert.equal(chamadasReceber[0].args.item.currentTitle, 'Tema%20Conectado');
+    assert.ok(typeof chamadasReceber[0].args.audio === 'string' && chamadasReceber[0].args.audio.length > 0);
+    assert.ok(!txtConectada.includes('Aviso:'));
+
+    // 2. Com ponte desconectada, grava no disco com sucesso e adiciona aviso para reabrir
+    const pontaDesconectada = {
+      ...pontaComJukebox,
+      conectada: () => false,
+    };
+    const rSemPonte = await chamarFerramenta(pontaDesconectada, 'jukebox_preset_adicionar', {
+      pasta: tmp,
+      arquivo: audioPath,
+      titulo: 'Tema Sem Ponte',
+      generos: ['fun'],
+    });
+    assert.equal('isError' in rSemPonte && rSemPonte.isError, false);
+    const txtSemPonte = rSemPonte.content[0]?.type === 'text' ? rSemPonte.content[0].text : '';
+    assert.ok(txtSemPonte.includes('reabra o preset na Jukebox para ver a música'));
+
+    // 3. Erro na aba da Jukebox (ex.: preset diferente aberto ou falha) vira aviso e NÃO desfaz o disco
+    const pontaComErro = {
+      ...pontaComJukebox,
+      chamar: async () => ({
+        tipo: 'resultado' as const,
+        id: '2',
+        ok: true as const,
+        conteudo: [{ tipo: 'texto' as const, texto: JSON.stringify({ recebido: false, motivo: 'Preset "outro" aberto' }) }],
+      }),
+    };
+    const rErroAba = await chamarFerramenta(pontaComErro, 'jukebox_preset_adicionar', {
+      pasta: tmp,
+      arquivo: audioPath,
+      titulo: 'Tema Com Erro na Aba',
+      generos: ['fun'],
+    });
+    assert.equal('isError' in rErroAba && rErroAba.isError, false);
+    const txtErroAba = rErroAba.content[0]?.type === 'text' ? rErroAba.content[0].text : '';
+    assert.ok(txtErroAba.includes('Preset "outro" aberto'));
+    // Confere que os arquivos foram gravados no disco mesmo com o aviso da aba
+    const presetLido = lerPreset(tmp);
+    assert.ok(presetLido.musicas.some(m => m.titulo === 'Tema Com Erro na Aba'));
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});

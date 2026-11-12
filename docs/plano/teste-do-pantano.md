@@ -125,7 +125,7 @@ Como:
 Testes (`tests/unit/ponte-presets.test.ts`, pasta temporária): o item gravado tem exatamente as chaves da Jukebox; `Den of Iniquity?!` vira `Den%20of%20Iniquity%3F!.mp3/.jpg` e o mesmo `currentTitle`; capa padrão quando falta; duplicado recusado e `substituir` preserva markers/hotkey; gênero inválido lista os válidos; arquivo que não é MP3 é recusado; pasta sem metadata é recusada e `criar` só numa pasta vazia; falha simulada no metadata não deixa órfãos; um metadata gravado pela Jukebox (copie `Jukebox/sample/preset_metadata.json`) passa por `lerPreset` e continua igual depois de adicionar (só o item novo a mais).
 Commit: add songs to a Jukebox preset from the connector
 
-#### D3 — A Jukebox aberta recebe a música na hora  ⬜
+#### D3 — A Jukebox aberta recebe a música na hora  ✅
 Depende de: D2
 Ler: `Jukebox/ponte.js`, `Jukebox/mesa.js` (`contextoDaPonte`, `songsUpdated`), `Jukebox/upload-song.js` (`createPresetSongItem`, `addSongToPlayer`, `loadedPresetFolderName`, `loadedPresetFileNames`), `scripts/ponte/servidor.ts` e `mesa-core/src/ponte.ts` (tamanho máximo de mensagem do `ws`).
 Como:
@@ -133,6 +133,7 @@ Como:
 - O contexto da ponte ganha `receberMusica(...)`. O `ponte.js` continua sem DOM.
 - `jukebox_preset_adicionar`, depois de gravar com sucesso, chama `jukebox_preset_receber` pela ponte, se a Jukebox estiver conectada e o áudio tiver até 50 MB. Acima disso, ou sem a Jukebox, só avisa: "reabra o preset na Jukebox para ver a música". Uma falha aqui **nunca** desfaz o que já foi gravado no disco: vira `aviso` no resultado.
 - Confira o `maxPayload` do `ws` nos dois lados e ajuste para caber 50 MB em base64 (~70 MB). Anote o valor na Nota.
+Nota: `maxPayload` do WebSocket configurado explicitamente para 100 MB (`100 * 1024 * 1024` bytes) tanto no `WebSocketServer` (`scripts/ponte/servidor.ts`) quanto no cliente `WebSocket` do MCP (`scripts/ponte/mcp.ts`), acomodando com folga áudio de 50 MB codificado em base64 (~67 MB) mais capa e envelope JSON.
 Testes: `Jukebox/tests/ponte.test.mjs` (receber no preset certo, recusar em outro e sem preset); `tests/unit/ponte-presets.test.ts` (chama `receber` quando conectada; sem ponte vira aviso; erro da aba não desfaz o disco).
 Commit (Jukebox): receive songs added by the connector
 Commit: hand new songs to the open Jukebox
