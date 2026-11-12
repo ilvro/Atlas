@@ -4,6 +4,10 @@
 
 O texto abaixo saiu das descrições do catálogo para o catálogo ficar enxuto. Consulte a seção da ferramenta antes de usá-la pela primeira vez.
 
+## atlas_abrir
+
+Abre um mapa no Atlas (pela rota, como na galeria) e espera o editor aparecer na tela, até 10 s. Se a resposta trouxer `aviso`, o mapa abriu mas o editor ainda não está na tela (aba em segundo plano): `atlas_ver_mapa` e `atlas_o_que_vejo` esperam mais um pouco; se falharem, peça ao mestre para trazer a aba do Atlas para a frente.
+
 ## atlas_ambiente
 
 Ajusta clima e acabamento do mapa aberto (um passo de desfazer). Presets em atlas_catalogo { parte: "climas" }. "guardarClima" { id, nome } salva no mapa.

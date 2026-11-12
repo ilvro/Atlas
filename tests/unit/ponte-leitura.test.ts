@@ -182,3 +182,53 @@ test('mapa aberto gravado: naoSalvo é false e some da lista e do o_que_vejo', a
   assert.equal('naoSalvo' in JSON.parse(await chamar('atlas_mapas_listar')).mapas[0], false);
   assert.equal('naoSalvo' in JSON.parse(await chamar('atlas_o_que_vejo')).mapa, false);
 });
+
+/** Um relógio falso: cada `dormir` avança o tempo e, no instante pedido, o editor "nasce". */
+function relogio(nasceEmMs: number | null) {
+  let agora = 0, esperas = 0;
+  return { dormir: async (ms: number) => { agora += ms; esperas++; }, editorPronto: () => nasceEmMs !== null && agora >= nasceEmMs, esperas: () => esperas, agora: () => agora };
+}
+
+test('atlas_abrir espera o editor nascer (100 ms por vez) e só então responde', async () => {
+  const r = relogio(700);
+  const { chamar, abertos } = montar(null, { editorPronto: r.editorPronto, dormir: r.dormir });
+  const resposta = JSON.parse(await chamar('atlas_abrir', { id: 'outro' }));
+  assert.deepEqual(abertos, ['outro']);
+  assert.equal(resposta.aberto, 'outro'); assert.equal('aviso' in resposta, false);
+  assert.equal(r.agora(), 700); assert.equal(r.esperas(), 7);
+});
+
+test('atlas_abrir com o editor já pronto não espera; sem aparecer em 10 s responde aberto com aviso', async () => {
+  const pronto = relogio(0);
+  assert.equal('aviso' in JSON.parse(await montar(null, { editorPronto: pronto.editorPronto, dormir: pronto.dormir }).chamar('atlas_abrir', { id: 'outro' })), false);
+  assert.equal(pronto.esperas(), 0);
+  const nunca = relogio(null);
+  const { chamar } = montar(null, { editorPronto: nunca.editorPronto, dormir: nunca.dormir });
+  const r = JSON.parse(await chamar('atlas_abrir', { id: 'outro' }));
+  assert.equal(r.aberto, 'outro'); assert.match(r.aviso, /editor ainda não apareceu/);
+  assert.equal(nunca.agora(), 10_000);
+});
+
+test('atlas_ver_mapa espera o viewport até 5 s antes de dizer que o editor não está na tela', async () => {
+  let viewportExiste = false;
+  const r = relogio(300);
+  const ctx: ContextoDeLeitura = {
+    repo: () => null, mapaAberto: () => covil, abrirMapa: async () => {}, dormir: async ms => { await r.dormir(ms); viewportExiste = r.editorPronto(); }, editorPronto: () => viewportExiste,
+    capturar: () => viewportExiste ? Promise.resolve({ dataUrl: 'data:image/jpeg;base64,12', largura: 10, altura: 10, pxPorMetro: 1, bytes: 10, qualidade: 0.8, caixa: { x0: 0, y0: 0, x1: 1, y1: 1 } }) : null,
+  };
+  const f = Object.fromEntries(ferramentasDeLeitura(ctx).map(x => [x.nome, x]));
+  assert.equal((await f.atlas_ver_mapa!.executar({}))[0]!.tipo, 'imagem');
+  assert.equal(r.agora(), 300);
+
+  const nunca = relogio(null);
+  const f2 = Object.fromEntries(ferramentasDeLeitura({ ...ctx, capturar: () => null, editorPronto: nunca.editorPronto, dormir: nunca.dormir }).map(x => [x.nome, x]));
+  await assert.rejects(f2.atlas_ver_mapa!.executar({}), /editor não está na tela/);
+  assert.equal(nunca.agora(), 5_000);
+});
+
+test('atlas_o_que_vejo espera o editor (até 5 s) para trazer a câmera', async () => {
+  let viewportExiste = false;
+  const r = relogio(200);
+  const { chamar } = montar(covil, { dormir: async ms => { await r.dormir(ms); viewportExiste = r.editorPronto(); }, editorPronto: () => viewportExiste, caixaVisivel: () => viewportExiste ? { x0: 0, y0: 0, x1: 10, y1: 10 } : null });
+  assert.deepEqual(JSON.parse(await chamar('atlas_o_que_vejo')).camera.caixa, [0, 0, 10, 10]);
+});

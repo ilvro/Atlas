@@ -22,6 +22,10 @@ export interface ContextoDeLeitura {
   modo?: () => 'construir' | 'sessao';
   /** A seleção atual do editor. */
   selecao?: () => readonly Alvo[];
+  /** O editor já está na tela (existe o viewport do mapa aberto)? Ausente: as ferramentas não esperam por ele. */
+  editorPronto?: () => boolean;
+  /** Espera `ms` milissegundos (setTimeout; os testes trocam por um relógio falso). Nunca use quadro de animação: a aba pode estar em segundo plano. */
+  dormir?: (ms: number) => Promise<void>;
   /** O que a câmera mostra agora, em metros; `null` quando não há editor na tela. */
   caixaVisivel?: () => Caixa | null;
   /** Fotografa o mapa aberto (o viewport); ausente ou `null` quando não há editor na tela. */
@@ -142,6 +146,19 @@ export function oQueVejo(ctx: ContextoDeLeitura): Record<string, unknown> {
   };
 }
 
+/** Quanto `atlas_abrir` espera o editor nascer, e quanto as ferramentas que precisam do viewport esperam por ele. */
+export const ESPERA_AO_ABRIR_MS = 10_000;
+export const ESPERA_DO_EDITOR_MS = 5_000;
+const PASSO_DA_ESPERA_MS = 100;
+
+/** Espera o viewport existir, de 100 em 100 ms (com `setTimeout`, sem depender de quadro). `true` se apareceu; sem `editorPronto` no contexto, não espera. */
+export async function esperarEditor(ctx: ContextoDeLeitura, limiteMs: number): Promise<boolean> {
+  if (!ctx.editorPronto) return false;
+  const dormir = ctx.dormir ?? (ms => new Promise<void>(r => setTimeout(r, ms)));
+  for (let t = 0; t < limiteMs && !ctx.editorPronto(); t += PASSO_DA_ESPERA_MS) await dormir(PASSO_DA_ESPERA_MS);
+  return ctx.editorPronto();
+}
+
 const vazio = { type: 'object', properties: {}, required: [], additionalProperties: false };
 
 export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[] {
@@ -161,7 +178,10 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
       descricao: 'O que o mestre vê na tela: mapa aberto, modo, câmera e seleção (ids, tipo, nome e posição em metros).',
       esquema: vazio,
       anotacoes: { leitura: true },
-      async executar() { return [json(oQueVejo(ctx))]; },
+      async executar() {
+        if (ctx.mapaAberto() && ctx.editorPronto && !ctx.editorPronto()) await esperarEditor(ctx, ESPERA_DO_EDITOR_MS);
+        return [json(oQueVejo(ctx))];
+      },
     },
     {
       nome: 'atlas_mapas_listar',
@@ -202,6 +222,8 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
         if (typeof args.id !== 'string' || !args.id) throw new Error('Falta o argumento "id".');
         const m = await carregar(args.id);
         await ctx.abrirMapa(m.id);
+        // `abrirMapa` resolve antes de o viewport existir: espera o editor nascer (até 10 s) antes de responder.
+        if (ctx.editorPronto && !(await esperarEditor(ctx, ESPERA_AO_ABRIR_MS))) return [json({ aberto: m.id, nome: m.name, aviso: 'O mapa abriu, mas o editor ainda não apareceu na tela (a aba pode estar em segundo plano). atlas_ver_mapa espera mais um pouco; se falhar, peça ao mestre para trazer a aba do Atlas para a frente.' })];
         return [json({ aberto: m.id, nome: m.name })];
       },
     },
@@ -216,7 +238,9 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
         if (!ctx.mapaAberto()) throw new Error('Não há mapa aberto: use atlas_abrir.');
         const lm = args.ladoMaximo;
         if (lm !== undefined && !(typeof lm === 'number' && Number.isFinite(lm) && lm >= 256 && lm <= 1600)) throw new Error('"ladoMaximo" deve ser um número de 256 a 1600.');
-        const p = ctx.capturar?.({ ...(lm !== undefined ? { ladoMaximo: lm } : {}), ...(c ? { caixa: { x0: c[0] as number, y0: c[1] as number, x1: c[2] as number, y1: c[3] as number } } : {}) });
+        const opcoes = { ...(lm !== undefined ? { ladoMaximo: lm } : {}), ...(c ? { caixa: { x0: c[0] as number, y0: c[1] as number, x1: c[2] as number, y1: c[3] as number } } : {}) };
+        let p = ctx.capturar?.(opcoes);
+        if (!p && await esperarEditor(ctx, ESPERA_DO_EDITOR_MS)) p = ctx.capturar?.(opcoes);
         if (!p) throw new Error('O editor não está na tela: abra o mapa no Atlas (atlas_abrir).');
         let r: { dataUrl: string; largura: number; altura: number; pxPorMetro: number; bytes: number; qualidade: number; caixa: { x0: number; y0: number; x1: number; y1: number }; aviso?: string };
         try {
