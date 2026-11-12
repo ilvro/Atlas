@@ -14,7 +14,7 @@ Teste sempre com `atlas_momento_testar` (toca na aba, de verdade) e ajuste o que
 - `revelar`: `{ tipo: "revelar", ids: string[] }` — revela cômodos e/ou regiões `kind: 'reveal'`
 - `luz`: `{ tipo: "luz", ids: string[], acao: "ligar" | "desligar" | "alternar" }` — ids de luzes ou de objetos donos de luz
 - `objeto`: `{ tipo: "objeto", ids: string[], acao: "mostrar" | "esconder" }` — revela ou esconde objetos marcados como `oculto`
-- `agua`: `{ tipo: "agua", poligono: [number, number][], material: string, ms: number, etapas?: number }` — sobe a água progressivamente em anéis concêntricos
+- `agua`: `{ tipo: "agua", poligono: [number, number][], material: string, ms: number, etapas?: number, acao?: "subir" | "baixar", deixar?: string }` — sobe a água progressivamente em anéis concêntricos (do centro para a borda). Com `acao: "baixar"` ela recua da borda para o centro; `deixar` (material de chão, só em `baixar`, ex.: `lama`) é o que fica onde a água estava, e sem ele aparece a base. Só as células que hoje são dessa água mudam. Para uma enxurrada que inunda e recua: um passo `agua` subindo, um `esperar` e um `agua` baixando com o mesmo polígono e `deixar` de lama. Um passo de água é um só desfazer; `atlas_desfazer` desfaz o teste de um momento que mexe no terreno
 - `clima`: `{ tipo: "clima", clima: string }`
 - `som`: `{ tipo: "som", ref: Ref }`
 - `silencio`: `{ tipo: "silencio", ms?: number }`

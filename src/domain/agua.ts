@@ -2,7 +2,7 @@ import { contem, codificar, type Celula, type Faixa } from './celulas.ts';
 import type { MapaAtlas, Ponto } from './mapa.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import { pontoNoPoligono } from './regioes.ts';
-import type { CelulaDoComando } from '../state/comandos-construir.ts';
+import type { CelulaDoComando, ComandoConstruir } from '../state/comandos-construir.ts';
 
 /** O material da camada de água que cobre o ponto (em metros), ou `null` se ali não há água. */
 export function aguaEm(m: Pick<MapaAtlas, 'terrain'>, p: Ponto): string | null {
@@ -39,12 +39,14 @@ export function suavizarMargem(faixas: readonly Faixa[], onde: { x0: number; y0:
  * Divide as células do polígono (em metros) em anéis concêntricos do centro para a borda,
  * em `totalEtapas` fatias (padrão 6). A união de todas as fatias cobre todas as células do polígono.
  * Células fora do mapa (negativas ou além de `limites`) são recortadas.
+ * Com `ordem: 'borda'` (água que baixa), a lista sai invertida: a primeira etapa é o anel mais distante do centro.
  */
 export function etapasDaAgua(
   poligono: readonly Ponto[],
   res: number,
   totalEtapas = 6,
   limites?: { width: number; height: number } | { largura: number; altura: number } | readonly [number, number],
+  ordem: 'centro' | 'borda' = 'centro',
 ): CelulaDoComando[][] {
   if (poligono.length < 3 || totalEtapas <= 0) return [];
 
@@ -109,5 +111,19 @@ export function etapasDaAgua(
     const etapaIdx = Math.min(totalEtapas - 1, Math.floor((i / total) * totalEtapas));
     etapas[etapaIdx]!.push(celulas[i]!.c);
   }
-  return etapas;
+  return ordem === 'borda' ? etapas.reverse() : etapas;
+}
+
+/** O comando de UMA etapa do passo de água, ou `null` se não há o que mudar. Subir pinta o material; baixar troca por `deixar` (ou apaga) só as células que hoje são dessa água. */
+export function comandoDaEtapaDeAgua(
+  mapa: Pick<MapaAtlas, 'terrain'>,
+  passo: { material: string; acao?: 'subir' | 'baixar'; deixar?: string },
+  celulas: readonly CelulaDoComando[],
+): ComandoConstruir | null {
+  if (celulas.length === 0) return null;
+  if (passo.acao !== 'baixar') return { tipo: 'terreno.pintar', material: passo.material, celulas, suavizar: true };
+  const camadas = Object.values(mapa.terrain.layers).filter(c => c.material === passo.material);
+  const daAgua = celulas.filter(([x, y]) => camadas.some(c => contem(c.cells, x, y)));
+  if (daAgua.length === 0) return null;
+  return passo.deixar ? { tipo: 'terreno.pintar', material: passo.deixar, celulas: daAgua } : { tipo: 'terreno.apagar', celulas: daAgua };
 }

@@ -144,3 +144,15 @@ test('etapasDaAgua recorta células negativas e células fora dos limites do map
   const etapasFora = etapasDaAgua(poligonoFora, res, 4, limites);
   assert.equal(etapasFora.flat().length, 0, 'não gera células para polígono totalmente fora');
 });
+
+test('água que baixa: a primeira etapa é a mais distante do centro e a união cobre o polígono', async () => {
+  const { etapasDaAgua } = await import('../../src/domain/agua.ts');
+  const poligono: [number, number][] = [[2, 2], [12, 2], [12, 12], [2, 12]];
+  const sobe = etapasDaAgua(poligono, 0.25, 4), baixa = etapasDaAgua(poligono, 0.25, 4, undefined, 'borda');
+  assert.deepEqual(baixa, [...sobe].reverse());
+  const dist = (c: readonly [number, number]) => Math.hypot((c[0] + 0.5) * 0.25 - 7, (c[1] + 0.5) * 0.25 - 7);
+  const media = (e: readonly (readonly [number, number])[]) => e.reduce((s, c) => s + dist(c), 0) / e.length;
+  assert.ok(media(baixa[0]!) > media(baixa[3]!));
+  const chave = (e: readonly (readonly [number, number])[][]) => new Set(e.flat().map(c => c.join(',')));
+  assert.deepEqual(chave(baixa), chave(sobe));
+});
