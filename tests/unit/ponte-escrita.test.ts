@@ -150,6 +150,17 @@ test('atlas_objetos: 200 objetos são uma entrada de histórico; item desconheci
   await assert.rejects(chamar('atlas_objetos', { objetos: [...lote, lote[0]!, lote[0]!].slice(0, 201) }), /até 200/);
 });
 
+test('atlas_objetos aceita campo oculto: true e cria objeto oculto para jogadores', async () => {
+  const { store, chamar } = montar();
+  await chamar('atlas_objetos', {
+    objetos: [{ item: 'lapide', pos: [5, 5], oculto: true }],
+  });
+  const props = Object.values(store.documento.props);
+  assert.equal(props.length, 1);
+  assert.equal(props[0]!.oculto, true);
+  validarMapa(store.documento);
+});
+
 test('atlas_espalhar gera objetos de um conjunto na forma; conjunto desconhecido sugere', async () => {
   const { store, chamar } = montar();
   await chamar('atlas_espalhar', { conjunto: 'mata', forma: { retangulo: [2, 2, 20, 15] }, semente: 3 });

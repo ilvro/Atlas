@@ -134,7 +134,7 @@ export const RECEITAS_CAVERNA: Receita[] = [
       partes.push(elipse(-t * 0.14, -t * 0.14, t * 0.12, t * 0.1, '#e8e6e0', 1.0, FINO));
       return piso([0.8, 0.8], partes);
     } },
-  { id: 'arvore-morta-caida', nome: 'Árvore morta caída', ...G, tags: ['arvore', 'tronco', 'galhos', 'caverna', 'morta'], pegada: [3.4, 1.6], altura: 0.5,
+  { id: 'arvore-morta-caida', nome: 'Árvore morta caída', ...G, tags: ['arvore', 'tronco', 'galhos', 'caverna', 'morta', 'caida'], pegada: [3.4, 1.6], altura: 0.5,
     gerar: p => {
       const r = mulberry32(p.seed), partes: Parte[] = [], CASCA = '#4a4540', CLARA = '#6b645c';
       partes.push(poli([-1.5, -0.1, -0.9, -0.2, 0, -0.18, 0.8, -0.14, 1.2, -0.08, 1.2, 0.1, 0.8, 0.14, 0, 0.18, -0.9, 0.24, -1.5, 0.12].map((v, i) => (i % 2 ? v + 0.05 : v + 0.04)), '#17120e', 0.5, { contorno: false, sombraLeve: true }));

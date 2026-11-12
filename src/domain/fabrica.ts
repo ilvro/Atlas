@@ -33,7 +33,7 @@ export function nomeDoAlvo(colecao: string, entidade: { id: string }): string {
   if (colecao === 'tokens') return String(item.name ?? 'Peça');
   if (colecao === 'lights') return item.cone ? 'Lanterna' : 'Luz';
   if (colecao === 'props') { const s = item.source as { kind?: string; recipe?: string; assetId?: string } | undefined; const id = s?.kind === 'recipe' ? String(s.recipe) : s?.kind === 'asset' ? String(s.assetId) : null; return id ? (ACERVO.item(id)?.nome ?? id) : 'Objeto'; }
-  if (colecao === 'regions') return `Região (${String(item.kind ?? '')})`;
+  if (colecao === 'regions') { const p = item.payload as Record<string, unknown> | undefined; return (typeof p?.nome === 'string' && p.nome.trim()) ? p.nome.trim() : `Região (${String(item.kind ?? '')})`; }
   return item.id;
 }
 

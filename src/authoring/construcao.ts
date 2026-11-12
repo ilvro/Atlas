@@ -160,7 +160,7 @@ export function portas(mapa: MapaAtlas, pedidos: readonly PedidoDePorta[], _seme
 }
 
 // ---------- Objetos ----------
-export interface PedidoDeObjeto { item: string; pos: Ponto; rotacao?: number; escala?: number; params?: Record<string, unknown>; camada?: Objeto['elevation']; submerso?: boolean }
+export interface PedidoDeObjeto { item: string; pos: Ponto; rotacao?: number; escala?: number; params?: Record<string, unknown>; camada?: Objeto['elevation']; submerso?: boolean; oculto?: boolean }
 const CAMADAS: readonly Objeto['elevation'][] = ['floor', 'table', 'wall', 'ceiling', 'underwater'];
 
 function itemInvalido(item: string): ErroDeConstrucao {
@@ -182,6 +182,7 @@ export function objetos(mapa: MapaAtlas, pedidos: readonly PedidoDeObjeto[], sem
     const o = novoObjeto([p.pos[0], p.pos[1]], {
       id: gerarId('o'), source: ACERVO.fonte(p.item, seed, p.params), rotation, ...submerso,
       ...(p.escala !== undefined ? { scale: p.escala } : {}), ...(p.camada ? { elevation: p.camada } : {}),
+      ...(typeof p.oculto === 'boolean' ? { oculto: p.oculto } : {}),
     });
     comandos.push({ tipo: 'item.adicionar', colecao: 'props', item: o as unknown as { id: string } & Record<string, unknown> });
     ids.push(o.id);

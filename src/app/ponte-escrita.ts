@@ -246,7 +246,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
       esquema: { type: 'object', properties: {
         objetos: { type: 'array', minItems: 1, maxItems: MAX_OBJETOS, items: { type: 'object', properties: {
           item: { type: 'string' }, pos: ponto, rotacao: { type: 'number' }, escala: { type: 'number', minimum: 0.05, maximum: 50 },
-          camada: { type: 'string', enum: ['floor', 'table', 'wall', 'ceiling', 'underwater'] }, submerso: { type: 'boolean' }, params: { type: 'object' },
+          camada: { type: 'string', enum: ['floor', 'table', 'wall', 'ceiling', 'underwater'] }, submerso: { type: 'boolean' }, oculto: { type: 'boolean' }, params: { type: 'object' },
         }, required: ['item', 'pos'] } },
         semente,
       }, required: ['objetos'], additionalProperties: false },
@@ -256,6 +256,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           item: textoOpcional(o.item, 'item', 120) ?? '', pos: pontos([o.pos], `objetos[${i}].pos`)[0]!,
           ...(o.rotacao !== undefined ? { rotacao: numero(o.rotacao, 'rotacao', -1000, 1000) } : {}), ...(o.escala !== undefined ? { escala: numero(o.escala, 'escala', 0.05, 50) } : {}),
           ...(o.camada !== undefined ? { camada: o.camada as 'floor' } : {}), ...(typeof o.submerso === 'boolean' ? { submerso: o.submerso } : {}),
+          ...(typeof o.oculto === 'boolean' ? { oculto: o.oculto } : {}),
           ...(o.params !== undefined ? { params: objeto(o.params, 'params') } : {}),
         }));
         const s = sementeDe(args);

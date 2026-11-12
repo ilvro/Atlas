@@ -5,9 +5,8 @@ import type { Objeto } from './mapa.ts';
  * Verifica se um id do acervo representa uma árvore / copa em pé (e não um tronco caído ou árvore morta no chão).
  */
 export function ehArvore(id: string): boolean {
-  if (id === 'arvore-morta') return true;
   const item = ACERVO.item(id);
-  return !!item && item.tags.includes('arvore') && !item.tags.includes('tronco') && !item.tags.includes('morta');
+  return !!item && item.tags.includes('arvore') && !item.tags.includes('caido') && !item.tags.includes('caida') && !id.includes('caid');
 }
 
 /**
