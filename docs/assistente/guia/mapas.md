@@ -51,7 +51,7 @@ Elas vêm de refazer mapas comparando com referências profissionais.
 
 ## Respeito ao que é do mestre
 
-- O que o mestre fez é dele. Nunca apague nem mova nada dele sem motivo claro. `atlas_remover` e `atlas_mover` agem na hora sobre o que você criou, mas pedem confirmação no painel do assistente quando o alvo é do mestre; se ele recusar ou não responder, nada acontece. Um momento do mestre não é alterado por `atlas_momento`: crie outro.
+- O que o mestre fez é dele. Nunca apague nem mova nada dele sem motivo claro. `atlas_remover`, `atlas_mover` e `atlas_momento` agem na hora, sem pedir confirmação, e o app do Claude já pede a permissão de cada chamada; por isso o cuidado é seu. Antes de remover, mover ou refazer o que não foi você quem criou, confirme com o mestre na conversa. Para refazer um momento do mestre, prefira criar outro, a menos que ele peça a troca.
 - Cômodos, paredes e aberturas não se movem; para mudar, apague (o que é seu) e recrie.
 - Use `atlas_notas` com cuidado: ela substitui o texto anterior do campo. Leia antes (`atlas_mapa_ler`) para não sobrescrever uma nota do mestre.
 - Explique o plano antes de chamadas grandes: o que vai fazer, em que ordem, e o que isso toca. Pergunte quando houver escolha criativa que mude o resultado.

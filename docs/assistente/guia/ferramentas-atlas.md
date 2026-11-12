@@ -38,7 +38,7 @@ Resume o mapa (aberto ou por id): tamanho, terreno, cômodos (rets em m), objeto
 
 ## atlas_momento
 
-Cria ou refaz momento no mapa aberto (um passo de desfazer). Sem "id" cria novo; com "id" só altera o seu. Tipos de passo em atlas_catalogo { parte: "momentos" }.
+Cria ou refaz momento no mapa aberto (um passo de desfazer). Sem "id" cria novo; com "id" refaz o existente (inclusive um do mestre; prefira criar outro a menos que ele peça a troca). Tipos de passo em atlas_catalogo { parte: "momentos" }.
 
 Parâmetros:
 
@@ -50,7 +50,7 @@ Toca na aba um momento do mapa aberto e espera terminar. Devolve passos e result
 
 ## atlas_mover
 
-Move objetos, luzes, peças e regiões por [dx, dy] em metros (um passo de desfazer). O que é do mestre pede confirmação no painel.
+Move objetos, luzes, peças e regiões por [dx, dy] em metros (um passo de desfazer). Age na hora, sem confirmação.
 
 ## atlas_notas
 
@@ -116,7 +116,7 @@ Cria regiões funcionais no mapa aberto em metros (um passo de desfazer): reveal
 
 ## atlas_remover
 
-Remove entidades do mapa aberto pelos ids (atlas_mapa_ler). O que é do mestre pede confirmação no painel. Um passo de desfazer.
+Remove entidades do mapa aberto pelos ids (atlas_mapa_ler). Age na hora, sem confirmação. Um passo de desfazer.
 
 ## atlas_terreno
 

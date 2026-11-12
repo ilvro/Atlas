@@ -1,20 +1,18 @@
 import assert from 'node:assert/strict';
 import { beforeEach, test } from 'node:test';
-import { atividade, desfazerChamada, limparAtividade, pedidos, pedirConfirmacao, podeDesfazerChamada, MAX_CHAMADAS, registrarChamada } from '../../src/app/atividade-do-assistente.ts';
-import { criadosPeloAssistente, ferramentasDeEscrita, type ContextoDeEscrita } from '../../src/app/ponte-escrita.ts';
+import { atividade, desfazerChamada, limparAtividade, podeDesfazerChamada, MAX_CHAMADAS, registrarChamada } from '../../src/app/atividade-do-assistente.ts';
+import { ferramentasDeEscrita, type ContextoDeEscrita } from '../../src/app/ponte-escrita.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { criarStore } from '../../src/state/store.ts';
 
-type Resposta = 'permitir' | 'recusar' | 'sem-resposta';
-
-function montar(confirmar?: ContextoDeEscrita['confirmar']) {
+function montar() {
   const store = criarStore(criarMapa({ id: 'teste', nome: 'Teste', agora: 1, largura: 30, altura: 20 }));
-  const ctx: ContextoDeEscrita = { store: () => store, repo: () => ({ salvar: async m => m }), abrirMapa: async () => {}, confirmar };
+  const ctx: ContextoDeEscrita = { store: () => store, repo: () => ({ salvar: async m => m }), abrirMapa: async () => {} };
   const f = Object.fromEntries(ferramentasDeEscrita(ctx).map(x => [x.nome, x]));
   return { store, f, executar: (nome: string, args: Record<string, unknown>) => f[nome]!.executar(args) };
 }
 
-beforeEach(() => { limparAtividade(); criadosPeloAssistente.clear(); });
+beforeEach(() => { limparAtividade(); });
 
 
 test('a lista registra sucesso e erro, da mais nova para a mais velha, até 100', async () => {
@@ -54,50 +52,18 @@ test('desfazer a chamada no topo desfaz a transação inteira', async () => {
   assert.equal(store.documento.notes, antes);
 });
 
-test('o que o assistente criou é removido direto', async () => {
-  const { store, executar } = montar(async () => { throw new Error('não devia pedir'); });
+test('remover age direto, sem pedir confirmação, mesmo sobre o que não foi criado nesta aba', async () => {
+  const { store, executar } = montar();
   await executar('atlas_comodos', { comodos: [{ rets: [[1, 1, 4, 4]], tipo: 'sala', nome: 'Salão' }] });
   const id = Object.keys(store.documento.rooms)[0]!;
-  assert.ok(criadosPeloAssistente.has(id));
-  await executar('atlas_remover', { ids: [id] });
+  const r = (await executar('atlas_remover', { ids: [id] }))[0]!;
+  assert.match((r as { texto: string }).texto, /Removido: 1 cômodo \(“Salão”\)/);
   assert.equal(Object.keys(store.documento.rooms).length, 0);
   assert.equal(atividade.value[0]!.rotulo, 'remover');
   assert.equal(atividade.value[0]!.ok, true);
 });
 
-test('remover algo do mestre fica pendente até a resposta; permitir remove, recusar vira erro', async () => {
-  let responder!: (r: Resposta) => void, pedido = '';
-  const { store, executar } = montar(d => { pedido = d; return new Promise<Resposta>(r => { responder = r; }); });
-  await executar('atlas_comodos', { comodos: [{ rets: [[1, 1, 4, 4]], tipo: 'sala', nome: 'Salão' }] });
-  const id = Object.keys(store.documento.rooms)[0]!;
-  criadosPeloAssistente.delete(id);            // agora é "do mestre"
-  const p = executar('atlas_remover', { ids: [id] });
-  await new Promise(r => setTimeout(r, 5));
-  assert.match(pedido, /Remover 1 cômodo/);
-  assert.match(pedido, /Salão/);
-  assert.equal(Object.keys(store.documento.rooms).length, 1, 'nada some antes da resposta');
-  responder('recusar');
-  await assert.rejects(p, /o mestre recusou/);
-  assert.equal(Object.keys(store.documento.rooms).length, 1);
-  assert.equal(atividade.value[0]!.ok, false);
-  assert.equal(atividade.value[0]!.erro, 'o mestre recusou');
-
-  const p2 = executar('atlas_remover', { ids: [id] });
-  await new Promise(r => setTimeout(r, 5));
-  responder('permitir');
-  await p2;
-  assert.equal(Object.keys(store.documento.rooms).length, 0);
-});
-
-test('sem resposta do mestre a ferramenta volta com erro', async () => {
-  const { store, executar } = montar(async () => 'sem-resposta');
-  await executar('atlas_comodos', { comodos: [{ rets: [[1, 1, 4, 4]], tipo: 'sala', nome: 'Salão' }] });
-  const id = Object.keys(store.documento.rooms)[0]!;
-  criadosPeloAssistente.delete(id);
-  await assert.rejects(executar('atlas_remover', { ids: [id] }), /o mestre não respondeu/);
-});
-
-test('mover: do assistente direto, cômodo não se move, delta inválido é recusado', async () => {
+test('mover: age direto, cômodo não se move, delta inválido é recusado', async () => {
   const { store, executar } = montar();
   await executar('atlas_luzes', { luzes: [{ preset: 'vela', pos: [5, 5] }] });
   const id = Object.keys(store.documento.lights)[0]!;
@@ -107,14 +73,4 @@ test('mover: do assistente direto, cômodo não se move, delta inválido é recu
   const sala = Object.keys(store.documento.rooms)[0]!;
   await assert.rejects(executar('atlas_mover', { ids: [sala], delta: [1, 1] }), /só objetos, luzes/);
   await assert.rejects(executar('atlas_mover', { ids: [id], delta: [1] }), /delta/);
-});
-
-test('pedirConfirmacao entra em `pedidos`, responde e expira', async () => {
-  const p = pedirConfirmacao('Remover algo');
-  assert.equal(pedidos.value.length, 1);
-  pedidos.value[0]!.responder('permitir');
-  assert.equal(await p, 'permitir');
-  assert.equal(pedidos.value.length, 0);
-  assert.equal(await pedirConfirmacao('de novo', 5), 'sem-resposta');
-  assert.equal(pedidos.value.length, 0);
 });

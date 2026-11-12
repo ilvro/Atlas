@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { catalogo, ferramentasDeLeitura } from '../../src/app/ponte-leitura.ts';
-import { criadosPeloAssistente, esquemaDoPasso, TIPOS_DE_PASSO_ESQUEMA, ferramentasDeEscrita, type ContextoDeEscrita } from '../../src/app/ponte-escrita.ts';
+import { esquemaDoPasso, TIPOS_DE_PASSO_ESQUEMA, ferramentasDeEscrita, type ContextoDeEscrita } from '../../src/app/ponte-escrita.ts';
 import { area } from '../../src/domain/celulas.ts';
 import { criarMapa, type MapaAtlas } from '../../src/domain/mapa.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
@@ -77,12 +77,10 @@ test('correnteza vale sobre a água pintada na mesma chamada', async () => {
 
 test('cabana de 3 × 3 células com porta, cada chamada um passo, e o mapa valida', async () => {
   const { store, chamar } = montar();
-  criadosPeloAssistente.clear();
   const r = await chamar('atlas_comodos', { comodos: [{ rets: [[2, 2, 5, 5]], tipo: 'sala', nome: 'Cabana', telhado: null }] });
   assert.equal(Object.keys(store.documento.rooms).length, 1);
   assert.equal(area(Object.values(store.documento.rooms)[0]!.cells), 9);
   const id = Object.keys(store.documento.rooms)[0]!;
-  assert.ok(criadosPeloAssistente.has(id));
   assert.match(r, new RegExp(id));
   // A parede de baixo do cômodo fica em y = 7,5 m, entre x = 3 e 7,5 m.
   await chamar('atlas_portas', { portas: [{ perto: [5.25, 7.5] }] });
@@ -260,7 +258,7 @@ async function comSala() {
   return { ...m, sala: Object.keys(m.store.documento.rooms)[0]! };
 }
 
-test('atlas_momento válido vira um momento.salvar, um passo de desfazer, e o id é do assistente', async () => {
+test('atlas_momento válido vira um momento.salvar, um passo de desfazer', async () => {
   const { store, chamar, sala } = await comSala();
   const antes = store.historico.length;
   const r = await chamar('atlas_momento', { nome: 'Chegada', cor: '#44aa88', passos: chegada(sala) });
@@ -270,7 +268,6 @@ test('atlas_momento válido vira um momento.salvar, um passo de desfazer, e o id
   assert.match(r, new RegExp(id));
   assert.equal(m.nome, 'Chegada');
   assert.equal(m.passos.length, 5);
-  assert.ok(criadosPeloAssistente.has(id));
   store.desfazer();
   assert.deepEqual(store.documento.moments, {});
 });
@@ -318,11 +315,12 @@ test('atlas_momento: clima salvo do mapa vale; refs de som só têm o formato co
   await assert.rejects(chamar('atlas_momento', { nome: 'Som', passos: [{ tipo: 'som', ref: { app: 'atelie', tipo: 'documento', id: 'a' } }] }), /Passo 1: .*Jukebox/);
 });
 
-test('atlas_momento: substituir só vale para ids criados pelo assistente', async () => {
+test('atlas_momento: refaz também um momento do mestre pelo id', async () => {
   const { store, chamar } = await comSala();
   store.transacao('mestre', g => g.aplicar({ tipo: 'momento.salvar', momento: { id: 'do-mestre', nome: 'Meu', cor: null, passos: [] } }));
-  await assert.rejects(chamar('atlas_momento', { id: 'do-mestre', nome: 'Troca', passos: [] }), /é do mestre; crie outro/);
-  assert.equal(store.documento.moments['do-mestre']!.nome, 'Meu');
+  await chamar('atlas_momento', { id: 'do-mestre', nome: 'Troca', passos: [] });
+  assert.equal(store.documento.moments['do-mestre']!.nome, 'Troca');
+  await assert.rejects(chamar('atlas_momento', { id: 'nao-existe', nome: 'x', passos: [] }), /não existe/);
   await chamar('atlas_momento', { nome: 'Novo', passos: [{ tipo: 'esperar', ms: 1000 }] });
   const id = Object.keys(store.documento.moments).find(k => k !== 'do-mestre')!;
   await chamar('atlas_momento', { id, nome: 'Refeito', passos: [{ tipo: 'nota', texto: 'oi' }] });
