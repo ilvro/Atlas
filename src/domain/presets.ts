@@ -87,7 +87,7 @@ export const PRESETS_DE_CLIMA: readonly PresetDeClima[] = [
   { id: 'noite', nome: 'Noite', descricao: 'Luar azulado; só as luzes do mapa iluminam de verdade', climate: { ...ceu('23:00'), weather: SEM_TEMPO, gridPower: true }, finish: acabDe('frio') },
   { id: 'tempestade', nome: 'Tempestade', descricao: 'Chuva forte, vento e relâmpagos pelas janelas', climate: { ...ceu('16:00', { sol: 0.5, corDoSol: '#8c9fc7', ambiente: [0.22, 0.25, 0.31] }), weather: { ...SEM_TEMPO, rain: 1, wind: 0.5, lightning: 0.7, fog: 0.15 }, gridPower: true },
     finish: acab('personalizado', { texture: 0.3, vignette: 0.5, saturation: 0.6, grain: 0.06, tint: '#e3eeff', grade: grade(0, 1.05, 1), ...SEM_BORDA }) },
-  { id: 'neblina', nome: 'Neblina', descricao: 'Manhã de névoa espessa, sem sombras duras', climate: { ...ceu('07:30', { sol: 0.35, ambiente: [0.46, 0.5, 0.52] }), weather: { ...SEM_TEMPO, fog: 0.85, wind: 0.1 }, gridPower: true },
+  { id: 'neblina', nome: 'Neblina', descricao: 'Manhã clara e leitosa, de névoa espessa e sem sombras duras', climate: { ...ceu('07:30', { sol: 0.5, ambiente: [0.72, 0.76, 0.78] }), weather: { ...SEM_TEMPO, fog: 0.85, wind: 0.1 }, gridPower: true },
     finish: acab('personalizado', { texture: 0.25, vignette: 0.45, saturation: 0.55, grain: 0.05, tint: '#dde4e8', grade: grade(), ...SEM_BORDA }) },
   { id: 'neve', nome: 'Neve', descricao: 'Dia claro e frio com neve caindo', climate: { ...ceu('11:00', { sol: 0.6, corDoSol: '#e6efff', ambiente: [0.72, 0.77, 0.85] }), weather: { ...SEM_TEMPO, snow: 0.8, wind: 0.2 }, gridPower: true },
     finish: acab('personalizado', { texture: 0.2, vignette: 0.3, saturation: 0.7, grain: 0.03, tint: '#e8f0ff', grade: grade(), ...SEM_BORDA }) },
