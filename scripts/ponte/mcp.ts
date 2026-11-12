@@ -10,6 +10,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { lerMensagem, appDoPrefixo } from './protocolo.ts';
 import type { AppConectado, Conteudo, FerramentaDoApp, Resultado, AnotacoesDaFerramenta } from './protocolo.ts';
+import { lerPreset, adicionarAoPreset } from './presets.ts';
 
 export const ATRASOS_MS = [1000, 2000, 5000, 10000];
 export const PRAZO_DA_CHAMADA_MS = 50_000;
@@ -278,6 +279,7 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
         // Ferramenta removida do código: sai do cache quando o app dela se registra sem ela.
         const appsAtivos = new Set(m.lista.map(f => f.app));
         for (const [nome, f] of catalogo) {
+          if (nome === 'jukebox_preset_ler' || nome === 'jukebox_preset_adicionar') continue;
           if (appsAtivos.has(f.app) && !m.lista.some(nova => nova.nome === nome)) {
             catalogo.delete(nome);
           }
@@ -410,6 +412,54 @@ export const FERRAMENTA_ESTADO = {
   annotations: { readOnlyHint: true },
 };
 
+export const ESQUEMA_PRESET_LER = {
+  type: 'object' as const,
+  properties: {
+    pasta: { type: 'string', description: 'Caminho da pasta do preset no disco.' },
+  },
+  required: ['pasta'],
+  additionalProperties: false,
+};
+
+export const ESQUEMA_PRESET_ADICIONAR = {
+  type: 'object' as const,
+  properties: {
+    pasta: { type: 'string', description: 'Caminho da pasta do preset no disco.' },
+    arquivo: { type: 'string', description: 'Caminho do arquivo MP3 no disco.' },
+    titulo: { type: 'string', description: 'Título legível da música (1 a 120 caracteres).' },
+    generos: {
+      type: 'array',
+      items: { type: 'string', enum: ['fun', 'hopeful', 'mystery', 'suspense', 'horror', 'sfx'] },
+      description: 'Gêneros: fun, hopeful, mystery, suspense, horror, sfx.',
+    },
+    tags: {
+      type: 'array',
+      items: { type: 'string', enum: ['ambient', 'investigation', 'event', 'battle', 'emotional'] },
+      description: 'Tags: ambient, investigation, event, battle, emotional.',
+    },
+    grupo: { type: 'string', description: 'Nome da pasta/grupo dentro do preset (opcional).' },
+    capa: { type: 'string', description: 'Caminho de imagem JPEG para a capa (opcional; usa padrão se omitida).' },
+    criar: { type: 'boolean', description: 'Cria a pasta e o preset se não existirem (apenas em pasta vazia).' },
+    substituir: { type: 'boolean', description: 'Sobrescreve se a música já existir no preset.' },
+  },
+  required: ['pasta', 'arquivo', 'titulo'],
+  additionalProperties: false,
+};
+
+export const FERRAMENTA_PRESET_LER = {
+  name: 'jukebox_preset_ler',
+  description: 'Lê músicas e metadados de uma pasta de preset da Jukebox no disco.',
+  inputSchema: ESQUEMA_PRESET_LER,
+  annotations: { readOnlyHint: true },
+};
+
+export const FERRAMENTA_PRESET_ADICIONAR = {
+  name: 'jukebox_preset_adicionar',
+  description: 'Adiciona música MP3 a uma pasta de preset da Jukebox no disco.',
+  inputSchema: ESQUEMA_PRESET_ADICIONAR,
+  annotations: { destructiveHint: false },
+};
+
 export function textoDoEstado(
   conectada: boolean,
   ferramentas: FerramentaDoApp[],
@@ -531,12 +581,56 @@ export function acrescentarAviso<T extends { content: Array<{ type: 'text'; text
   };
 }
 
-/** `tools/call`: roteia para `ponte_estado` ou para a ponte e converte o resultado. */
+/** `tools/call`: roteia para `ponte_estado`, ferramentas locais de preset ou para a ponte e converte o resultado. */
 export async function chamarFerramenta(ponta: Ponta, nome: string, args: Record<string, unknown>, prazoMs?: number, guia: SecaoDoGuia[] = []) {
   if (nome === 'plataforma_guia') return textoDoGuia(guia, args.secao);
   const ativas = ponta.ativas();
   const apps = ponta.apps();
   if (nome === FERRAMENTA_ESTADO.name) return { content: [{ type: 'text' as const, text: textoDoEstado(ponta.conectada(), ativas, apps, ponta.motivo()) }] };
+
+  if (nome === 'jukebox_preset_ler') {
+    try {
+      const pasta = String(args?.pasta ?? '');
+      if (!pasta) throw new Error('Parâmetro "pasta" é obrigatório');
+      const resultado = lerPreset(pasta);
+      return { content: [{ type: 'text' as const, text: JSON.stringify(resultado, null, 2) }] };
+    } catch (err) {
+      return { isError: true, content: [{ type: 'text' as const, text: (err as Error).message }] };
+    }
+  }
+
+  if (nome === 'jukebox_preset_adicionar') {
+    try {
+      const pasta = String(args?.pasta ?? '');
+      const arquivo = String(args?.arquivo ?? '');
+      const titulo = String(args?.titulo ?? '');
+      if (!pasta) throw new Error('Parâmetro "pasta" é obrigatório');
+      if (!arquivo) throw new Error('Parâmetro "arquivo" é obrigatório');
+      if (!titulo) throw new Error('Parâmetro "titulo" é obrigatório');
+
+      const r = adicionarAoPreset({
+        pasta,
+        arquivo,
+        titulo,
+        generos: Array.isArray(args?.generos) ? (args.generos as string[]).map(String) : undefined,
+        tags: Array.isArray(args?.tags) ? (args.tags as string[]).map(String) : undefined,
+        grupo: typeof args?.grupo === 'string' ? args.grupo : undefined,
+        capa: typeof args?.capa === 'string' ? args.capa : undefined,
+        criar: Boolean(args?.criar),
+        substituir: Boolean(args?.substituir),
+      });
+
+      const msg = `Música “${r.titulo}” ${r.substituido ? 'substituída' : 'adicionada'} com sucesso no preset “${r.pasta}”. Arquivos gravados: ${r.arquivos.join(', ')}.`;
+      return {
+        content: [
+          { type: 'text' as const, text: `${msg}\n\n${JSON.stringify({ adicionada: true, ...r }, null, 2)}` },
+        ],
+      };
+    } catch (err) {
+      return { isError: true, content: [{ type: 'text' as const, text: (err as Error).message }] };
+    }
+  }
+
   if (!ponta.conectada()) {
     const erro = ponta.motivo() === 'token-invalido' ? TOKEN_INVALIDO : SEM_PONTE;
     return { isError: true, content: [{ type: 'text' as const, text: erro }] };

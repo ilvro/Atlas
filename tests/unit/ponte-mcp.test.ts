@@ -584,6 +584,8 @@ test('com .ponte apagado, tools/list traz as 4 jukebox_* e mesa_elenco do catalo
     assert.ok(nomes.includes('jukebox_tocar'));
     assert.ok(nomes.includes('jukebox_efeito'));
     assert.ok(nomes.includes('jukebox_parar'));
+    assert.ok(nomes.includes('jukebox_preset_ler'));
+    assert.ok(nomes.includes('jukebox_preset_adicionar'));
     assert.ok(nomes.includes('mesa_elenco'));
     assert.ok(nomes.includes('mesa_elenco_ler'));
   } finally {
@@ -734,8 +736,8 @@ test('instruções do servidor: com o núcleo real, getInstructions() devolve o 
   }
 });
 
-// Orçamento do catálogo (PM5b). A meta da ficha era 25 KB, mas só o esquema (sem texto) já passa disso: o teto vale o que se alcançou encurtando textos.
-const ORCAMENTO_DA_BASE_BYTES = 34_000;
+// Orçamento do catálogo (PM5b + etapa D). A meta da ficha era 25 KB, mas só o esquema (sem texto) já passa disso: o teto vale o que se alcançou encurtando textos.
+const ORCAMENTO_DA_BASE_BYTES = 36_000;
 const raizDoAtlas = path.resolve(import.meta.dirname, '..', '..');
 
 test('catálogo base: soma dentro do orçamento, descrições até 400 caracteres e campos até 80', () => {

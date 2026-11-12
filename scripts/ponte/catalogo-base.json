@@ -2301,6 +2301,103 @@
     "app": "jukebox"
   },
   {
+    "nome": "jukebox_preset_adicionar",
+    "descricao": "Adiciona música MP3 a uma pasta de preset da Jukebox no disco.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "pasta": {
+          "type": "string",
+          "description": "Caminho da pasta do preset no disco."
+        },
+        "arquivo": {
+          "type": "string",
+          "description": "Caminho do arquivo MP3 no disco."
+        },
+        "titulo": {
+          "type": "string",
+          "description": "Título legível da música (1 a 120 caracteres)."
+        },
+        "generos": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "fun",
+              "hopeful",
+              "mystery",
+              "suspense",
+              "horror",
+              "sfx"
+            ]
+          },
+          "description": "Gêneros: fun, hopeful, mystery, suspense, horror, sfx."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ambient",
+              "investigation",
+              "event",
+              "battle",
+              "emotional"
+            ]
+          },
+          "description": "Tags: ambient, investigation, event, battle, emotional."
+        },
+        "grupo": {
+          "type": "string",
+          "description": "Nome da pasta/grupo dentro do preset (opcional)."
+        },
+        "capa": {
+          "type": "string",
+          "description": "Caminho de JPEG para a capa (opcional; usa padrão se omitida)."
+        },
+        "criar": {
+          "type": "boolean",
+          "description": "Cria a pasta e o preset se não existirem (apenas em pasta vazia)."
+        },
+        "substituir": {
+          "type": "boolean",
+          "description": "Sobrescreve se a música já existir no preset."
+        }
+      },
+      "required": [
+        "pasta",
+        "arquivo",
+        "titulo"
+      ],
+      "additionalProperties": false
+    },
+    "app": "jukebox",
+    "anotacoes": {
+      "destrutiva": false
+    }
+  },
+  {
+    "nome": "jukebox_preset_ler",
+    "descricao": "Lê músicas e metadados de uma pasta de preset da Jukebox no disco.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "pasta": {
+          "type": "string",
+          "description": "Caminho da pasta do preset no disco."
+        }
+      },
+      "required": [
+        "pasta"
+      ],
+      "additionalProperties": false
+    },
+    "app": "jukebox",
+    "anotacoes": {
+      "leitura": true
+    }
+  },
+  {
     "nome": "jukebox_tocar",
     "descricao": "Toca uma cena sonora da Jukebox, por id, ref ou nome. Detalhes: plataforma_guia ferramentas-jukebox.",
     "esquema": {
