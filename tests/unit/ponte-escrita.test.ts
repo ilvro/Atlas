@@ -230,6 +230,21 @@ test('atlas_regioes cria regiões; atlas_presenca pinta e ajusta a intensidade',
   await assert.rejects(chamar('atlas_presenca', { pincel: 'mus', forma: { disco: [10, 10], raio: 3 } }), /parecidos: musgo/);
 });
 
+test('atlas_presenca: repintar muda a intensidade da camada e apagar respeita o pincel', async () => {
+  const { store, chamar } = montar();
+  await chamar('atlas_presenca', { pincel: 'musgo', forma: { disco: [10, 10], raio: 3 } });
+  const r = await chamar('atlas_presenca', { pincel: 'musgo', forma: { disco: [10, 10], raio: 3 }, intensidade: 0.3 });
+  assert.equal(Object.values(store.documento.presence)[0]!.intensity, 0.3);
+  assert.match(JSON.stringify(r), /Intensidade do pincel musgo: 0.3/);
+  await chamar('atlas_presenca', { pincel: 'mofo', forma: { disco: [10, 10], raio: 3 } });
+  assert.equal(Object.keys(store.documento.presence).length, 2);
+  await chamar('atlas_presenca', { pincel: 'mofo', apagar: true, forma: { disco: [10, 10], raio: 3 } });
+  assert.deepEqual(Object.values(store.documento.presence).map(p => p.brush), ['musgo']);
+  await chamar('atlas_presenca', { apagar: true, forma: { disco: [10, 10], raio: 3 } });
+  assert.equal(Object.keys(store.documento.presence).length, 0);
+  await assert.rejects(chamar('atlas_presenca', { forma: { disco: [10, 10], raio: 3 } }), /pincel/);
+});
+
 test('atlas_notas escreve a nota do mapa e dos cômodos; cômodo inexistente é erro', async () => {
   const { store, chamar } = montar();
   await chamar('atlas_comodos', { comodos: [{ rets: [[2, 2, 5, 5]], tipo: 'sala' }] });
