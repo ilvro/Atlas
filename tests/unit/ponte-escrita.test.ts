@@ -31,8 +31,8 @@ const terra = { acao: 'pintar', material: 'terra', forma: { faixa: [[0, 5], [10,
 
 test('as ferramentas têm nome, descrição com unidades e esquema de objeto', () => {
   const { f } = montar();
-  assert.deepEqual(Object.keys(f), ['atlas_mapa_criar', 'atlas_terreno', 'atlas_comodos', 'atlas_paredes', 'atlas_portas', 'atlas_objetos', 'atlas_espalhar', 'atlas_luzes', 'atlas_ambiente', 'atlas_regioes', 'atlas_presenca', 'atlas_notas', 'atlas_momento', 'atlas_momento_testar', 'atlas_remover', 'atlas_mover']);
-  for (const x of Object.values(f)) { assert.ok(x.descricao.length > 60); assert.equal(x.esquema.type, 'object'); }
+  assert.deepEqual(Object.keys(f), ['atlas_mapa_criar', 'atlas_terreno', 'atlas_comodos', 'atlas_paredes', 'atlas_portas', 'atlas_objetos', 'atlas_espalhar', 'atlas_luzes', 'atlas_ambiente', 'atlas_regioes', 'atlas_presenca', 'atlas_notas', 'atlas_momento', 'atlas_momento_testar', 'atlas_remover', 'atlas_mover', 'atlas_salvar', 'atlas_desfazer']);
+  for (const x of Object.values(f)) { assert.ok(x.descricao.length > 60 && x.descricao.length <= 180, x.nome); assert.equal(x.esquema.type, 'object'); }
   assert.match(f.atlas_comodos!.descricao, /CÉLULAS/);
   assert.match(f.atlas_terreno!.descricao, /METROS/);
 });
@@ -358,17 +358,17 @@ test('o esquema dos passos bate com o catálogo de momentos', () => {
   }
 });
 
-test('as ferramentas do Atlas têm descrições curtas e somam menos de 20 KB', () => {
+test('as ferramentas do Atlas têm descrições curtas e somam menos de 22 KB', () => {
   const ctxL = { repo: () => null, mapaAberto: () => null, abrirMapa: async () => {} };
   const ctxE = { store: () => null, repo: () => null, abrirMapa: async () => {} };
   const todas = [...ferramentasDeLeitura(ctxL), ...ferramentasDeEscrita(ctxE)];
-  assert.equal(todas.length, 22);
+  assert.equal(todas.length, 24);
   for (const f of todas) {
     assert.ok(f.descricao.length <= 800, `${f.nome} passou de 800 caracteres: ${f.descricao.length}`);
     assert.ok(f.descricao.length >= 40, `${f.nome} descrição muito curta: ${f.descricao.length}`);
   }
   const bytes = Buffer.byteLength(JSON.stringify(todas));
-  assert.ok(bytes < 20_000, `Esperava soma das atlas_* menor que 20 KB (20000 bytes), obteve ${bytes}`);
+  assert.ok(bytes < 22_000, `Esperava soma das atlas_* menor que 22 KB (22000 bytes), obteve ${bytes}`);
 });
 
 
@@ -376,4 +376,55 @@ test('orçamento: descrições até 400 caracteres e campos até 80', () => {
   const { f } = montar();
   const varrer = (o: unknown, limite: number): string[] => !o || typeof o !== 'object' ? [] : [...(typeof (o as { description?: unknown }).description === 'string' && ((o as { description: string }).description.length > limite) ? [(o as { description: string }).description] : []), ...Object.values(o).flatMap(v => varrer(v, limite))];
   for (const x of Object.values(f)) { assert.ok(x.descricao.length <= 400, x.nome); assert.deepEqual(varrer(x.esquema, 80), [], x.nome); }
+});
+
+test('as respostas de escrita avisam que não foi gravado', async () => {
+  const { chamar } = montar();
+  assert.match(await chamar('atlas_notas', { mapa: 'oi' }), /Não gravado: use atlas_salvar quando terminar\.$/);
+});
+
+function comGravacao() {
+  const m = montar(true);
+  let chamadas = 0;
+  const store = m.store;
+  const f = Object.fromEntries(ferramentasDeEscrita({
+    store: () => store, repo: () => null, abrirMapa: async () => {},
+    salvar: async () => { chamadas++; const g = { ...store.documento, revision: store.documento.revision + 1 }; store.marcarSalvo(g); return { revisao: g.revision }; },
+  }).map(x => [x.nome, x]));
+  return { ...m, f, chamadas: () => chamadas, json: async (n: string, a: Record<string, unknown> = {}) => JSON.parse(((await f[n]!.executar(a))[0] as { texto: string }).texto) };
+}
+
+test('atlas_salvar grava pelo contexto, devolve a revisão e, já gravado, diz que não havia o que gravar', async () => {
+  const { store, f, json, chamadas } = comGravacao();
+  await f.atlas_notas!.executar({ mapa: 'algo' });
+  assert.equal(store.sujo, true);
+  const r = await json('atlas_salvar');
+  assert.equal(r.salvo, true); assert.equal(r.revisao, 1);
+  assert.equal(chamadas(), 1); assert.equal(store.sujo, false);
+  const r2 = await json('atlas_salvar');
+  assert.equal(r2.salvo, false); assert.match(r2.motivo, /nada a gravar/);
+  assert.equal(chamadas(), 1);
+});
+
+test('atlas_salvar: sem mapa aberto e erro de gravação voltam como erro', async () => {
+  const sem = montar(false);
+  await assert.rejects(sem.f.atlas_salvar!.executar({}), /Não há mapa aberto/);
+  const store = criarStore(criarMapa({ id: 'x', nome: 'X', agora: 1, largura: 10, altura: 10 }), { salvo: false });
+  const f = Object.fromEntries(ferramentasDeEscrita({ store: () => store, repo: () => null, abrirMapa: async () => {}, salvar: async () => { throw new Error('o mapa foi alterado em outra aba'); } }).map(x => [x.nome, x]));
+  await assert.rejects(f.atlas_salvar!.executar({}), /outra aba/);
+});
+
+test('atlas_desfazer desfaz N entradas e devolve os rótulos; histórico vazio e passos inválidos são erro', async () => {
+  const { store, chamar, f } = montar();
+  await assert.rejects(f.atlas_desfazer!.executar({}), /nada para desfazer/);
+  await chamar('atlas_notas', { mapa: 'a' }); await chamar('atlas_notas', { mapa: 'b' }); await chamar('atlas_notas', { mapa: 'c' });
+  assert.equal(store.historico.length, 3);
+  const um = JSON.parse(((await f.atlas_desfazer!.executar({}))[0] as { texto: string }).texto);
+  assert.deepEqual(um.desfeitos, ['IA: notas']); assert.equal(store.documento.notes, 'b');
+  const dois = JSON.parse(((await f.atlas_desfazer!.executar({ passos: 5 }))[0] as { texto: string }).texto);
+  assert.equal(dois.desfeitos.length, 2); assert.equal(dois.restantes, false);
+  assert.equal(store.historico.length, 0);
+  await assert.rejects(f.atlas_desfazer!.executar({ passos: 0 }), /passos/);
+  await assert.rejects(f.atlas_desfazer!.executar({ passos: 21 }), /passos/);
+  await assert.rejects(f.atlas_desfazer!.executar({ passos: 1.5 }), /passos/);
 });

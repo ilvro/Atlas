@@ -16,6 +16,10 @@ Catálogo de opções: receitas, colecao, materiais, climas, luzes, presenca ou 
 
 Cria cômodos (piso, paredes e telhado; um passo de desfazer). ATENÇÃO: rets em CÉLULAS do grid de 1,5 m com x1 e y1 exclusivos (ex.: [2,3,5,6] = 3×3 células). Tipo: atlas_catalogo.
 
+## atlas_desfazer
+
+Desfaz as últimas entradas do histórico do mapa aberto (a mesma pilha do Ctrl+Z, inclusive edições do mestre). Parâmetro opcional `passos`: de 1 a 20, padrão 1. Devolve os rótulos desfeitos; com o histórico vazio, é erro. Use para testar um momento que altera o mapa (água, luz, objetos) e voltar ao estado anterior. Desfazer não grava: depois, `atlas_salvar` se quiser fixar.
+
 ## atlas_espalhar
 
 Espalha conjunto de objetos numa região em metros (um passo de desfazer). Conjuntos em atlas_catalogo { parte: "receitas" }. Objetos ficam comuns e editáveis.
@@ -117,6 +121,10 @@ Cria regiões funcionais no mapa aberto em metros (um passo de desfazer): reveal
 ## atlas_remover
 
 Remove entidades do mapa aberto pelos ids (atlas_mapa_ler). Age na hora, sem confirmação. Um passo de desfazer.
+
+## atlas_salvar
+
+Grava o mapa aberto, pelo mesmo caminho do botão Gravar. Sem parâmetros. Devolve `{ salvo, revisao }`; se o mapa já estava gravado, responde que não havia nada a gravar. Se o mapa foi alterado em outra aba, volta erro e nada é gravado: avise o mestre. As escritas do assistente ficam só como rascunho até esta chamada.
 
 ## atlas_terreno
 

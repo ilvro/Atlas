@@ -2,7 +2,8 @@
 import { conectarPonte, ferramentasDaCampanha } from '#mesa/ponte';
 import { telaParaMundo } from '../render/camera.ts';
 import { SeloDoAssistente, estadoDaPonte } from '../ui/SeloDoAssistente.tsx';
-import { abrirMapa, navegar, pararMomento, servicos, sessao, tocarMomentoDoMapa, viewport } from './app.ts';
+import { ErroDeConflito } from '../data/repositorio.ts';
+import { abrirMapa, gravarMapa, navegar, pararMomento, servicos, sessao, tocarMomentoDoMapa, viewport } from './app.ts';
 import { campanhaAtiva, sincronizarMapaComCampanha } from './campanha.ts';
 import { seloDoAssistente } from './assistente-slot.ts';
 import { modo } from './modo.ts';
@@ -33,6 +34,12 @@ const cliente = conectarPonte({
       store: () => sessao.value?.store ?? null, repo: () => servicos.value?.repo ?? null, abrirMapa: abrirPelaRota,
       sincronizarCampanha: async m => { const s = servicos.value; if (s) await sincronizarMapaComCampanha(s, m); },
       campanhaAtiva: () => campanhaAtiva.value?.id ?? null,
+      salvar: async () => {
+        try { return { revisao: (await gravarMapa()).revision }; } catch (erro) {
+          if (erro instanceof ErroDeConflito) throw new Error('O mapa foi alterado em outra aba: nada foi gravado. Peça ao mestre para usar o botão Gravar e escolher Sobrescrever, ou para recarregar.');
+          throw erro;
+        }
+      },
       tocarMomento: tocarMomentoDoMapa, pararMomento,
     }),
   ],

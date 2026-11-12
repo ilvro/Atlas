@@ -483,6 +483,25 @@
     }
   },
   {
+    "nome": "atlas_desfazer",
+    "descricao": "Desfaz as últimas entradas do histórico do mapa aberto (passos 1 a 20, padrão 1) e devolve os rótulos desfeitos.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "passos": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        }
+      },
+      "additionalProperties": false
+    },
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": true
+    }
+  },
+  {
     "nome": "atlas_espalhar",
     "descricao": "Espalha um conjunto de objetos numa região em metros. Conjuntos: atlas_catalogo receitas. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
@@ -1059,6 +1078,98 @@
                 "type": "object",
                 "properties": {
                   "tipo": {
+                    "const": "luz"
+                  },
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 100
+                  },
+                  "acao": {
+                    "enum": [
+                      "ligar",
+                      "desligar",
+                      "alternar"
+                    ]
+                  }
+                },
+                "required": [
+                  "tipo",
+                  "ids",
+                  "acao"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "tipo": {
+                    "const": "objeto"
+                  },
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 100
+                  },
+                  "acao": {
+                    "enum": [
+                      "mostrar",
+                      "esconder"
+                    ]
+                  }
+                },
+                "required": [
+                  "tipo",
+                  "ids",
+                  "acao"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "tipo": {
+                    "const": "agua"
+                  },
+                  "etapas": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 60
+                  },
+                  "material": {
+                    "type": "string"
+                  },
+                  "ms": {
+                    "type": "number",
+                    "minimum": 100,
+                    "maximum": 120000
+                  },
+                  "poligono": {
+                    "type": "array",
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      },
+                      "minItems": 2,
+                      "maxItems": 2
+                    },
+                    "minItems": 3
+                  }
+                },
+                "required": [
+                  "tipo",
+                  "material",
+                  "ms",
+                  "poligono"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "tipo": {
                     "const": "pista"
                   },
                   "ref": {
@@ -1144,7 +1255,7 @@
   },
   {
     "nome": "atlas_mover",
-    "descricao": "Move objetos, luzes, peças e regiões por [dx, dy] em metros. O que é do mestre pede confirmação. Detalhes: plataforma_guia ferramentas-atlas.",
+    "descricao": "Move objetos, luzes, peças e regiões por [dx, dy] em metros. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1275,6 +1386,9 @@
               "submerso": {
                 "type": "boolean"
               },
+              "oculto": {
+                "type": "boolean"
+              },
               "params": {
                 "type": "object"
               }
@@ -1301,7 +1415,7 @@
   },
   {
     "nome": "atlas_paredes",
-    "descricao": "Cria paredes, muros ou cercas avulsos em metros. Para salas use atlas_comodos. Detalhes: plataforma_guia ferramentas-atlas.",
+    "descricao": "Cria paredes, muros, cercas ou escarpas avulsas em metros. Para salas use atlas_comodos. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1342,6 +1456,13 @@
               },
               "material": {
                 "type": "string"
+              },
+              "drop": {
+                "type": "string",
+                "enum": [
+                  "a",
+                  "b"
+                ]
               }
             },
             "required": [
@@ -1650,7 +1771,7 @@
   },
   {
     "nome": "atlas_remover",
-    "descricao": "Remove entidades do mapa aberto pelos ids (atlas_mapa_ler). O que é do mestre pede confirmação. Detalhes: plataforma_guia ferramentas-atlas.",
+    "descricao": "Remove entidades do mapa aberto pelos ids (atlas_mapa_ler). Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1670,6 +1791,20 @@
     "app": "atlas",
     "anotacoes": {
       "destrutiva": true
+    }
+  },
+  {
+    "nome": "atlas_salvar",
+    "descricao": "Grava o mapa aberto (o botão Gravar). Use ao fim de uma leva de mudanças; sem isso, elas ficam só como rascunho.",
+    "esquema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": false,
+      "idempotente": true
     }
   },
   {

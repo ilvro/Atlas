@@ -737,7 +737,7 @@ test('instruções do servidor: com o núcleo real, getInstructions() devolve o 
 });
 
 // Orçamento do catálogo (PM5b + etapa D). A meta da ficha era 25 KB, mas só o esquema (sem texto) já passa disso: o teto vale o que se alcançou encurtando textos.
-const ORCAMENTO_DA_BASE_BYTES = 36_000;
+const ORCAMENTO_DA_BASE_BYTES = 38_000;
 const raizDoAtlas = path.resolve(import.meta.dirname, '..', '..');
 
 test('catálogo base: soma dentro do orçamento, descrições até 400 caracteres e campos até 80', () => {
