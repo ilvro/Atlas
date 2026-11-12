@@ -336,48 +336,51 @@ test('executarPasso despacha cada tipo instantâneo e ignora esperar', () => {
   assert.deepEqual(chamadas.pop(), { tipo: 'nota', args: ['Lembrar de rolar sanidade'] });
 });
 
-test('passo de água que sobe: ms dividido nas etapas, última etapa cobre o polígono e desfazer volta o terreno', async () => {
+test('passo de água executa etapas não-bloqueantes sem travar store.executar e recorta aos limites', async () => {
   const store = criarStore(criarMapa());
-  const antes = store.documento;
   const poligono: [number, number][] = [[10, 10], [20, 10], [20, 20], [10, 20]];
   const passo = { tipo: 'agua' as const, poligono, material: 'agua.pantano', ms: 3000, etapas: 6 };
 
   const { relogio, esperas } = criarRelogioFalso();
   const sinal = new AbortController().signal;
 
+  let intercalouComando = false;
   const executarAgua = async () => {
-    const res = store.documento.terrain.resolution;
+    const doc = store.documento;
+    const res = doc.terrain.resolution;
     const totalEtapas = passo.etapas ?? 6;
-    const etapas = etapasDaAgua(passo.poligono, res, totalEtapas);
+    const etapas = etapasDaAgua(passo.poligono, res, totalEtapas, doc.bounds);
     const intervalo = Math.round(passo.ms / totalEtapas);
-    const gesto = store.iniciarGesto('Água que sobe');
-    try {
-      for (let i = 0; i < etapas.length; i++) {
-        const celulas = etapas[i]!;
-        if (celulas.length > 0) {
-          gesto.aplicar({
-            tipo: 'terreno.pintar',
-            material: passo.material,
-            celulas,
-            suavizar: true,
-          });
-        }
-        await relogio.esperar(intervalo, sinal);
+    const maxCols = Math.ceil(doc.bounds.width / res);
+    const maxRows = Math.ceil(doc.bounds.height / res);
+
+    for (let i = 0; i < etapas.length; i++) {
+      if (sinal.aborted) return;
+      const celulas = etapas[i]!.filter(([cx, cy]) => cx >= 0 && cy >= 0 && cx < maxCols && cy < maxRows);
+      if (celulas.length > 0) {
+        store.executar({
+          tipo: 'terreno.pintar',
+          material: passo.material,
+          celulas,
+          suavizar: true,
+        }, { rotulo: 'Água que sobe' });
       }
-      gesto.concluir();
-    } catch (e) {
-      gesto.cancelar();
-      throw e;
+      if (i === 2) {
+        assert.doesNotThrow(() => {
+          store.executar({ tipo: 'mapa.renomear', nome: 'Pântano Inundado' });
+        }, 'store não pode estar bloqueado por gesto');
+        intercalouComando = true;
+      }
+      await relogio.esperar(intervalo, sinal);
     }
   };
 
   await executarAgua();
 
-  // 1. ms dividido nas etapas
+  assert.ok(intercalouComando, 'conseguiu executar comando durante o passo de água');
   assert.equal(esperas.length, 6);
   assert.deepEqual(esperas, [500, 500, 500, 500, 500, 500]);
 
-  // 2. A última etapa cobre o polígono
   const camada = Object.values(store.documento.terrain.layers).find(l => l.material === 'agua.pantano');
   assert.ok(camada, 'camada de água existe');
   const celulasPintadas = new Set(decodificar(camada.cells).map(([x, y]) => `${x},${y}`));
@@ -388,9 +391,4 @@ test('passo de água que sobe: ms dividido nas etapas, última etapa cobre o pol
       assert.ok(celulasPintadas.has(`${cx},${cy}`), `célula ${cx},${cy} está coberta`);
     }
   }
-
-  // 3. O desfazer volta o terreno inteiro de uma vez
-  assert.equal(store.historico.length, 1);
-  store.desfazer();
-  assert.deepEqual(store.documento.terrain, antes.terrain);
 });

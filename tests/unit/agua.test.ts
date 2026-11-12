@@ -121,3 +121,26 @@ test('etapasDaAgua divide o polígono em anéis do centro para a borda e cobre o
   assert.equal(todas.size, totalCelulas, 'não há repetição entre etapas');
   assert.ok(todas.size > 1000, 'polígono de 20x20 m a 0.5 m tem ~1600 células');
 });
+
+test('etapasDaAgua recorta células negativas e células fora dos limites do mapa', () => {
+  const res = 0.5;
+  // Polígono que se estende para fora do mapa em x negativo e além do mapa em y
+  const poligono: [number, number][] = [[-10, -5], [10, -5], [10, 25], [-10, 25]];
+  const limites = [20, 20] as const; // mapa de 20x20 m (40x40 células a 0.5m)
+  const etapas = etapasDaAgua(poligono, res, 4, limites);
+
+  assert.equal(etapas.length, 4);
+  const celulas = etapas.flat();
+  assert.ok(celulas.length > 0, 'gera células para a parte dentro do mapa');
+  for (const [cx, cy] of celulas) {
+    assert.ok(cx >= 0, `cx não pode ser negativo: ${cx}`);
+    assert.ok(cy >= 0, `cy não pode ser negativo: ${cy}`);
+    assert.ok(cx < 40, `cx não pode exceder limites: ${cx}`);
+    assert.ok(cy < 40, `cy não pode exceder limites: ${cy}`);
+  }
+
+  // Polígono inteiramente fora do mapa (à esquerda/negativo)
+  const poligonoFora: [number, number][] = [[-50, -50], [-20, -50], [-20, -20], [-50, -20]];
+  const etapasFora = etapasDaAgua(poligonoFora, res, 4, limites);
+  assert.equal(etapasFora.flat().length, 0, 'não gera células para polígono totalmente fora');
+});

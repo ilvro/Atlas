@@ -38,8 +38,14 @@ export function suavizarMargem(faixas: readonly Faixa[], onde: { x0: number; y0:
 /**
  * Divide as células do polígono (em metros) em anéis concêntricos do centro para a borda,
  * em `totalEtapas` fatias (padrão 6). A união de todas as fatias cobre todas as células do polígono.
+ * Células fora do mapa (negativas ou além de `limites`) são recortadas.
  */
-export function etapasDaAgua(poligono: readonly Ponto[], res: number, totalEtapas = 6): CelulaDoComando[][] {
+export function etapasDaAgua(
+  poligono: readonly Ponto[],
+  res: number,
+  totalEtapas = 6,
+  limites?: { width: number; height: number } | { largura: number; altura: number } | readonly [number, number],
+): CelulaDoComando[][] {
   if (poligono.length < 3 || totalEtapas <= 0) return [];
 
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -51,29 +57,54 @@ export function etapasDaAgua(poligono: readonly Ponto[], res: number, totalEtapa
   }
   const centroX = somaX / poligono.length, centroY = somaY / poligono.length;
 
-  const cx0 = Math.floor(minX / res), cx1 = Math.ceil(maxX / res);
-  const cy0 = Math.floor(minY / res), cy1 = Math.ceil(maxY / res);
+  let maxW: number | undefined;
+  let maxH: number | undefined;
+  if (limites) {
+    if ('width' in limites) {
+      maxW = limites.width;
+      maxH = limites.height;
+    } else if ('largura' in limites) {
+      maxW = limites.largura;
+      maxH = limites.altura;
+    } else {
+      maxW = limites[0];
+      maxH = limites[1];
+    }
+  }
+  const maxCols = maxW !== undefined ? Math.ceil(maxW / res) : undefined;
+  const maxRows = maxH !== undefined ? Math.ceil(maxH / res) : undefined;
+
+  const cx0 = Math.max(0, Math.floor(minX / res));
+  const cx1 = maxCols !== undefined ? Math.min(maxCols - 1, Math.ceil(maxX / res)) : Math.ceil(maxX / res);
+  const cy0 = Math.max(0, Math.floor(minY / res));
+  const cy1 = maxRows !== undefined ? Math.min(maxRows - 1, Math.ceil(maxY / res)) : Math.ceil(maxY / res);
 
   const celulas: { c: CelulaDoComando; d: number }[] = [];
-  for (let cy = cy0; cy <= cy1; cy++) {
-    for (let cx = cx0; cx <= cx1; cx++) {
-      const x = (cx + 0.5) * res, y = (cy + 0.5) * res;
-      if (pontoNoPoligono([x, y], poligono)) {
-        const d = Math.hypot(x - centroX, y - centroY);
-        celulas.push({ c: [cx, cy], d });
+  if (cx0 <= cx1 && cy0 <= cy1) {
+    for (let cy = cy0; cy <= cy1; cy++) {
+      for (let cx = cx0; cx <= cx1; cx++) {
+        const x = (cx + 0.5) * res, y = (cy + 0.5) * res;
+        if (pontoNoPoligono([x, y], poligono)) {
+          const d = Math.hypot(x - centroX, y - centroY);
+          celulas.push({ c: [cx, cy], d });
+        }
       }
     }
   }
 
   if (celulas.length === 0) {
-    const c: CelulaDoComando = [Math.floor(centroX / res), Math.floor(centroY / res)];
-    celulas.push({ c, d: 0 });
+    const cx = Math.floor(centroX / res), cy = Math.floor(centroY / res);
+    if (cx >= 0 && cy >= 0 && (maxCols === undefined || cx < maxCols) && (maxRows === undefined || cy < maxRows)) {
+      celulas.push({ c: [cx, cy], d: 0 });
+    }
   }
 
   celulas.sort((a, b) => a.d - b.d);
 
   const etapas: CelulaDoComando[][] = Array.from({ length: totalEtapas }, () => []);
   const total = celulas.length;
+  if (total === 0) return etapas;
+
   for (let i = 0; i < total; i++) {
     const etapaIdx = Math.min(totalEtapas - 1, Math.floor((i / total) * totalEtapas));
     etapas[etapaIdx]!.push(celulas[i]!.c);

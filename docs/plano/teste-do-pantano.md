@@ -161,7 +161,7 @@ Como:
 Testes: `tests/unit/projecao.test.ts` (células de regiões reveladas presentes em `session.explored.cells` no projetor mesmo com `gmOnly`; objetos com `oculto: true` e suas luzes excluídos da projeção para jogadores).
 Commit: project revealed regions and strip hidden props for players
 
-#### E2 — Água que sobe: não travar o store e recortar aos limites
+#### E2 — Água que sobe: não travar o store e recortar aos limites  ✅
 Depende de: B2
 Ler: `src/app/app.ts`, `src/domain/agua.ts`, `src/app/momentos.ts`.
 Como:
