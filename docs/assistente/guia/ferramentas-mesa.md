@@ -8,6 +8,20 @@ O texto abaixo saiu das descrições do catálogo para o catálogo ficar enxuto.
 
 Abre outros aplicativos da plataforma em abas novas (pelo manifesto de cada um, ao lado da Mesa). O navegador pode bloquear a aba quando o mestre não clicou; nesse caso a Mesa mostra um aviso com o botão "Abrir" e a resposta diz que ficou pendente do clique do mestre.
 
+## mesa_campanha_criar
+
+Cria uma campanha pelo mesmo caminho do botão "Criar campanha" do hub e, por padrão, a torna a campanha ativa: as outras ferramentas (mesa_entidade_criar, mesa_cena_montar etc.) passam a valer nela. Recusa nome vazio, com mais de 80 caracteres ou igual (sem diferenciar maiúsculas e acentos) ao de uma campanha existente. A campanha ainda não tem campo de descrição, então não há "descricao". Desfazer pela atividade do assistente remove a campanha só se estiver vazia. Devolve { id, nome, sistema, selecionada }.
+
+Parâmetros:
+
+- `nome`: 1 a 80 caracteres; sem repetir nome existente.
+- `sistema`: Sistema de regras, texto livre de até 80 caracteres (padrão ordem-paranormal).
+- `selecionar`: Torna a campanha a ativa do hub (padrão true). Com false, a ativa não muda.
+
+## mesa_campanhas_listar
+
+Lista as campanhas da Mesa: id, nome, sistema e qual está ativa no hub ("ativa": true). Use antes de mesa_campanha_criar para não repetir nome.
+
 ## mesa_cena_ler
 
 Lê o que está montado numa cena: mapa, trilha, participantes (personagens e ameaças), pistas, momento de abertura e se é encontro, com os nomes.
@@ -27,7 +41,7 @@ Parâmetros:
 - `trilha`: Id da entidade da cena sonora/efeito do Jukebox.
 - `participantes`: Ids de personagens e ameaças.
 - `pistas`: Ids de pistas (documentos do Ateliê).
-- `momento`: Nome (ou id) de um momento do mapa da cena, criado no Atlas (atlas_momento). Vira a etiqueta "momento:<texto>"; ao ativar a cena a Mesa pede ao Atlas que toque esse momento NO MAPA vinculado (o Atlas procura por id ou nome, sem diferenciar maiúsculas). Só funciona com mapa vinculado. Texto vazio remove o momento.
+- `momento`: Nome ou id de um momento do mapa da cena, criado no Atlas (atlas_momento). A Mesa procura o momento no mapa da cena (o do campo "mapa" ou o já vinculado) e guarda o ID dele na etiqueta "momento:<id>"; o nome vale sem diferenciar maiúsculas, acentos e espaços nas pontas. Se dois momentos tiverem o mesmo nome, o erro lista os ids (use um deles); se não existir, o erro lista os nomes do mapa; sem mapa vinculado, o erro pede o mapa. Se a Mesa não conseguir ler os momentos do mapa (Atlas em outra origem), o texto vai como veio, e por isso nomes longos (a etiqueta cabe 40 caracteres) devem ir pelo id (atlas_mapa_ler). Texto vazio remove o momento.
 - `encontro`: true marca a cena como encontro de combate (etiqueta "encontro"); false desmarca.
 
 ## mesa_elenco
