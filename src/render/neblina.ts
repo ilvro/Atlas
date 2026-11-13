@@ -1,7 +1,8 @@
-import { Container, Filter, GlProgram, Graphics, Sprite, Texture, UniformGroup } from 'pixi.js';
+import { Container, Graphics, Sprite, Texture, UniformGroup } from 'pixi.js';
 import type { MapaAtlas } from '../domain/mapa.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import type { Mudancas } from '../state/mudancas.ts';
+import { criarFiltroDeMundo } from './filtro-de-mundo.ts';
 import { desenharComodos } from './mascara-de-comodos.ts';
 import { FATOR_DE_MOVIMENTO_REDUZIDO, NEBLINA_DENTRO, alfaDaNeblina } from './particulas-config.ts';
 
@@ -14,26 +15,11 @@ export interface Neblina {
   destruir(): void;
 }
 
-const vertex = `in vec2 aPosition;
-out vec2 vTextureCoord;
-uniform vec4 uInputSize;
-uniform vec4 uOutputFrame;
-uniform vec4 uOutputTexture;
-vec4 filterVertexPosition(void) {
-  vec2 position = aPosition * uOutputFrame.zw + uOutputFrame.xy;
-  position.x = position.x * (2.0 / uOutputTexture.x) - 1.0;
-  position.y = position.y * (2.0 * uOutputTexture.z / uOutputTexture.y) - uOutputTexture.z;
-  return vec4(position, 0.0, 1.0);
-}
-vec2 filterTextureCoord(void) { return aPosition * (uOutputFrame.zw * uInputSize.zw); }
-void main(void) { gl_Position = filterVertexPosition(); vTextureCoord = filterTextureCoord(); }`;
-
 // fbm de 2 oitavas, deslocado pelo tempo e pelo vento. Sem arrays constantes (GLSL ES 1.00); uniformes compartilhados com o vértice em highp.
 const fragment = `in vec2 vTextureCoord;
+in vec2 vMundoUv;
 out vec4 finalColor;
 uniform sampler2D uTexture;
-uniform highp vec4 uInputSize;
-uniform highp vec4 uOutputFrame;
 uniform highp vec2 uTamanho;
 uniform highp vec2 uDeslocamento;
 uniform highp float uTempo;
@@ -46,10 +32,9 @@ float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75)))
 float bayer(vec2 p) { return bayer2(0.5 * p) * 0.25 + bayer2(p) - 0.47; }
 float ruido(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
 void main() {
-  vec2 uv = vTextureCoord * uInputSize.xy / uOutputFrame.zw;
   // No Pixel o ruído é medido em blocos de 2 × 2 pixels do Pixel e a densidade cai em 3 níveis, com limiar de Bayer 4 × 4.
   bool pixel = uPixel > 0.5;
-  vec2 mundo = uv * uTamanho;
+  vec2 mundo = vMundoUv * uTamanho;
   if (pixel) mundo = (floor(mundo * uPpm / 2.0) * 2.0 + 1.0) / uPpm;
   vec2 p = mundo * 0.16;
   // Cada oitava gira o domínio: o ruído de valor é alinhado à grade, e sem isso a névoa sai quadriculada.
@@ -74,8 +59,7 @@ export function criarNeblina(): Neblina {
     uAlfa: { value: alfa, type: 'f32' },
   });
   const grupoFora = criarGrupo(0), grupoDentro = criarGrupo(0);
-  const programa = GlProgram.from({ vertex, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-neblina' });
-  const veu = (grupo: UniformGroup) => { const s = new Sprite(Texture.WHITE); s.filters = [new Filter({ glProgram: programa, resources: { neblina: grupo } })]; return s; };
+  const veu = (grupo: UniformGroup) => { const s = new Sprite(Texture.WHITE); s.filters = [criarFiltroDeMundo(s, { fragment, nome: 'atlas-neblina', recursos: { neblina: grupo } })]; return s; };
   const raiz = new Container(), fora = new Container(), dentro = new Container(), veuFora = veu(grupoFora), veuDentro = veu(grupoDentro);
   const mascaraFora = new Graphics(), mascaraDentro = new Graphics();
   fora.addChild(veuFora, mascaraFora); dentro.addChild(veuDentro, mascaraDentro);
