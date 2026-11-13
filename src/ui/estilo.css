@@ -111,6 +111,8 @@ kbd { font: 700 10px var(--corpo); padding: 1px 5px; border: 1px solid currentCo
 .popover-nova-aba .item-mapa-aba:hover { background: var(--superficie-2); color: var(--acento); }
 .popover-nova-aba .item-mapa-nome { font-family: var(--titulo); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .popover-nova-aba .item-mapa-campanha { font-size: 10.5px; color: var(--apagado); margin-left: 8px; flex-shrink: 0; }
+.popover-nova-aba .item-outras-campanhas { width: 100%; padding: 6px 8px; margin-top: 4px; border-top: 1px solid var(--linha); font-size: 11.5px; text-align: left; color: var(--apagado); background: transparent; cursor: pointer; }
+.popover-nova-aba .item-outras-campanhas:hover { color: var(--acento); }
 .popover-nova-aba .popover-vazio { padding: 12px 8px; text-align: center; color: var(--apagado); font-size: 12px; }
 .grupo { display: flex; align-items: center; gap: 6px; }
 .botao-icone { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: var(--raio); color: var(--apagado); transition: background 0.15s, color 0.15s; }
@@ -2327,6 +2329,7 @@ body.projetor { overflow: hidden; background: #000; }
 .galeria-topo .faixa { margin: 0; }
 .galeria-secao { display: flex; align-items: center; gap: 16px; margin: 30px 0 14px; }
 .galeria-secao .faixa { flex: 1; margin: 0; }
+.vazio-acoes { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
 .busca-mapas { width: 220px; background: var(--superficie); }
 
 .numeros { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0 0 22px; border: 1px solid var(--linha); border-radius: 10px; background: var(--superficie); }
