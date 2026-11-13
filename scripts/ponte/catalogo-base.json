@@ -107,6 +107,37 @@
     "app": "atelie"
   },
   {
+    "nome": "atelie_imagem_definir",
+    "descricao": "Define a imagem de um campo de imagem de um documento do Ateliê a partir de um arquivo (PNG, JPEG, WebP; até 15 MB). Detalhes: plataforma_guia ferramentas-atelie.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Id do documento (atelie_documentos_listar)."
+        },
+        "campo": {
+          "type": "string",
+          "description": "Rótulo ou layerId do campo de imagem (atelie_documento_ler)."
+        },
+        "arquivo": {
+          "type": "string",
+          "description": "Caminho da imagem PNG, JPEG ou WebP no disco."
+        }
+      },
+      "required": [
+        "id",
+        "campo",
+        "arquivo"
+      ],
+      "additionalProperties": false
+    },
+    "app": "atelie",
+    "anotacoes": {
+      "destrutiva": false
+    }
+  },
+  {
     "nome": "atelie_modelos_listar",
     "descricao": "Lista modelos de documento (id, nome, categoria, época, tom e os CAMPOS que aceitam), no máximo 40. Filtra por busca, categoria, era, tom. Detalhes: plataforma_guia ferramentas-atelie.",
     "esquema": {

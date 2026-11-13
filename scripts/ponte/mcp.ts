@@ -10,6 +10,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { lerMensagem, appDoPrefixo } from './protocolo.ts';
 import type { AppConectado, Conteudo, FerramentaDoApp, Resultado, AnotacoesDaFerramenta } from './protocolo.ts';
+import { definirImagemNoAtelie } from './imagens.ts';
 import { lerPreset, adicionarAoPreset, abrirPresetNaJukebox } from './presets.ts';
 
 export const ATRASOS_MS = [1000, 2000, 5000, 10000];
@@ -279,7 +280,7 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
         // Ferramenta removida do código: sai do cache quando o app dela se registra sem ela.
         const appsAtivos = new Set(m.lista.map(f => f.app));
         for (const [nome, f] of catalogo) {
-          if (nome === 'jukebox_preset_ler' || nome === 'jukebox_preset_adicionar' || nome === 'jukebox_preset_abrir') continue;
+          if (nome === 'jukebox_preset_ler' || nome === 'jukebox_preset_adicionar' || nome === 'jukebox_preset_abrir' || nome === 'atelie_imagem_definir') continue;
           if (appsAtivos.has(f.app) && !m.lista.some(nova => nova.nome === nome)) {
             catalogo.delete(nome);
           }
@@ -465,6 +466,19 @@ export const FERRAMENTA_PRESET_ABRIR = {
   annotations: { destructiveHint: false },
 };
 
+export const ESQUEMA_IMAGEM_DEFINIR = {
+  type: 'object' as const,
+  properties: {
+    id: { type: 'string', description: 'Id do documento (atelie_documentos_listar).' },
+    campo: { type: 'string', description: 'Rótulo ou layerId do campo de imagem (atelie_documento_ler).' },
+    arquivo: { type: 'string', description: 'Caminho da imagem PNG, JPEG ou WebP no disco.' },
+  },
+  required: ['id', 'campo', 'arquivo'],
+  additionalProperties: false,
+};
+
+export const DESCRICAO_IMAGEM_DEFINIR = 'Define a imagem de um campo de imagem de um documento do Ateliê a partir de um arquivo (PNG, JPEG, WebP; até 15 MB). Detalhes: plataforma_guia ferramentas-atelie.';
+
 export const FERRAMENTA_PRESET_LER = {
   name: 'jukebox_preset_ler',
   description: 'Lê músicas e metadados de uma pasta de preset da Jukebox no disco.',
@@ -618,6 +632,21 @@ export async function chamarFerramenta(ponta: Ponta, nome: string, args: Record<
       if (!pasta) throw new Error('Parâmetro "pasta" é obrigatório');
       const resultado = lerPreset(pasta);
       return { content: [{ type: 'text' as const, text: JSON.stringify(resultado, null, 2) }] };
+    } catch (err) {
+      return { isError: true, content: [{ type: 'text' as const, text: (err as Error).message }] };
+    }
+  }
+
+  if (nome === 'atelie_imagem_definir') {
+    try {
+      const id = String(args?.id ?? '');
+      const campo = String(args?.campo ?? '');
+      const arquivo = String(args?.arquivo ?? '');
+      if (!id) throw new Error('Parâmetro "id" é obrigatório');
+      if (!campo) throw new Error('Parâmetro "campo" é obrigatório');
+      if (!arquivo) throw new Error('Parâmetro "arquivo" é obrigatório');
+      const r = await definirImagemNoAtelie(ponta, { id, campo, arquivo });
+      return { content: [{ type: 'text' as const, text: JSON.stringify(r, null, 2) }] };
     } catch (err) {
       return { isError: true, content: [{ type: 'text' as const, text: (err as Error).message }] };
     }

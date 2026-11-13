@@ -634,3 +634,105 @@ test('MCP: jukebox_preset_abrir está no tools/list sem ponte, com descrição c
   assert.deepEqual(t.annotations, { destructiveHint: false });
   assert.equal(lista.some(f => f.name === 'jukebox_preset_abrir_receber'), false);
 });
+
+// --- atelie_imagem_definir ---
+
+import { definirImagemNoAtelie, tipoDaImagem, MAX_IMAGEM_ATELIE } from '../../scripts/ponte/imagens.ts';
+
+const PNG_MINIMO = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+const WEBP_MINIMO = Buffer.concat([Buffer.from('RIFF'), Buffer.from([4, 0, 0, 0]), Buffer.from('WEBP')]);
+
+function pontaDoAtelie(opcoes: { conectada?: boolean; erro?: string } = {}) {
+  const chamadas: Array<{ ferramenta: string; args: Record<string, any> }> = [];
+  const ponta = {
+    conectada: () => opcoes.conectada !== false,
+    apps: () => (opcoes.conectada === false ? {} : { atelie: { onde: 'Chrome' } }),
+    ativas: () => [],
+    chamar: async (ferramenta: string, args: Record<string, unknown>) => {
+      chamadas.push({ ferramenta, args: args as Record<string, any> });
+      if (opcoes.erro) return { ok: false as const, erro: opcoes.erro };
+      return { ok: true as const, conteudo: [{ tipo: 'texto', texto: JSON.stringify({ definido: true, campo: args.campo }) }] };
+    },
+  };
+  return { ponta, chamadas };
+}
+
+test('tipoDaImagem reconhece PNG, JPEG e WebP pelos bytes e recusa o resto', () => {
+  assert.equal(tipoDaImagem(PNG_MINIMO), 'image/png');
+  assert.equal(tipoDaImagem(JPEG_MINIMO), 'image/jpeg');
+  assert.equal(tipoDaImagem(WEBP_MINIMO), 'image/webp');
+  assert.equal(tipoDaImagem(Buffer.from('GIF89a......')), null);
+  assert.equal(tipoDaImagem(Buffer.from([1, 2])), null);
+});
+
+test('imagem_definir: sucesso manda base64 e tipo ao Ateliê e devolve a resposta', async () => {
+  const tmp = criarDiretorioTemporario();
+  try {
+    const arq = path.join(tmp, 'retrato.dat'); // extensão não importa
+    fs.writeFileSync(arq, PNG_MINIMO);
+    const { ponta, chamadas } = pontaDoAtelie();
+    const r = await definirImagemNoAtelie(ponta, { id: 'doc-1', campo: 'Ilustração', arquivo: arq });
+    assert.deepEqual(r, { definido: true, campo: 'Ilustração' });
+    assert.equal(chamadas.length, 1);
+    assert.equal(chamadas[0]!.ferramenta, 'atelie_imagem_receber');
+    assert.deepEqual(chamadas[0]!.args, { id: 'doc-1', campo: 'Ilustração', imagem: PNG_MINIMO.toString('base64'), tipo: 'image/png' });
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('imagem_definir: formato inválido, arquivo grande, inexistente e Ateliê ausente não chamam a ponte', async () => {
+  const tmp = criarDiretorioTemporario();
+  try {
+    const ruim = path.join(tmp, 'ruim.png');
+    fs.writeFileSync(ruim, Buffer.from('não sou imagem'));
+    const grande = path.join(tmp, 'grande.png');
+    fs.writeFileSync(grande, PNG_MINIMO);
+    fs.truncateSync(grande, MAX_IMAGEM_ATELIE + 1);
+    const ok = path.join(tmp, 'ok.png');
+    fs.writeFileSync(ok, PNG_MINIMO);
+    const { ponta, chamadas } = pontaDoAtelie();
+    await assert.rejects(definirImagemNoAtelie(ponta, { id: 'd', campo: 'c', arquivo: ruim }), /não é PNG, JPEG nem WebP/);
+    await assert.rejects(definirImagemNoAtelie(ponta, { id: 'd', campo: 'c', arquivo: grande }), /limite de 15 MB/);
+    await assert.rejects(definirImagemNoAtelie(ponta, { id: 'd', campo: 'c', arquivo: path.join(tmp, 'nada.png') }), /não existe/);
+    await assert.rejects(definirImagemNoAtelie(ponta, { id: 'd', campo: 'c', arquivo: tmp }), /não é um arquivo comum/);
+    await assert.rejects(definirImagemNoAtelie(pontaDoAtelie({ conectada: false }).ponta, { id: 'd', campo: 'c', arquivo: ok }), /mesa_abrir_apps/);
+    assert.equal(chamadas.length, 0);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('imagem_definir: o erro do Ateliê (lista de campos) chega ao assistente', async () => {
+  const tmp = criarDiretorioTemporario();
+  try {
+    const ok = path.join(tmp, 'ok.png');
+    fs.writeFileSync(ok, PNG_MINIMO);
+    const { ponta } = pontaDoAtelie({ erro: 'Campos de imagem: "Mapa".' });
+    await assert.rejects(definirImagemNoAtelie(ponta, { id: 'd', campo: 'x', arquivo: ok }), /Campos de imagem: "Mapa"/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('MCP: atelie_imagem_definir está no tools/list sem ponte, sem expor a interna, e funciona via chamarFerramenta', async () => {
+  const base = JSON.parse(fs.readFileSync(CAMINHO_CATALOGO_BASE_PADRAO, 'utf8'));
+  const lista = listarFerramentas([...base, { nome: 'atelie_imagem_receber', descricao: 'i', esquema: {}, app: 'atelie' }]);
+  const t = lista.find(f => f.name === 'atelie_imagem_definir')!;
+  assert.ok(t, 'falta atelie_imagem_definir');
+  assert.ok(t.description.length <= 180 && t.description.endsWith('Detalhes: plataforma_guia ferramentas-atelie.'));
+  assert.deepEqual(t.annotations, { destructiveHint: false });
+  assert.equal(lista.some(f => f.name === 'atelie_imagem_receber'), false);
+
+  const tmp = criarDiretorioTemporario();
+  try {
+    const ok = path.join(tmp, 'ok.webp');
+    fs.writeFileSync(ok, WEBP_MINIMO);
+    const { ponta, chamadas } = pontaDoAtelie();
+    const r = await chamarFerramenta({ ...ponta, motivo: () => null, avisoArmazenamento: () => null, catalogo: () => [], origemHttp: () => '', fechar: () => {} } as never, 'atelie_imagem_definir', { id: 'd', campo: 'Mapa', arquivo: ok });
+    assert.equal('isError' in r && r.isError, false);
+    assert.equal(chamadas[0]!.args.tipo, 'image/webp');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
