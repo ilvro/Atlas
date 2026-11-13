@@ -17,7 +17,7 @@ Parâmetros:
 
 ## atelie_documento_editar
 
-Edita um documento existente: renomeia, troca o texto dos campos e/ou o texto UV, e arquiva de novo. Se o documento não foi criado pelo assistente, o mestre precisa confirmar na aba do Ateliê (uma recusa volta como erro; não insista). Textos omitidos não mudam; textoUV vazio remove o texto UV.
+Edita um documento existente: renomeia, troca o texto dos campos e/ou o texto UV, e arquiva de novo. Textos omitidos não mudam; textoUV vazio remove o texto UV.
 
 Parâmetros:
 
@@ -39,7 +39,7 @@ Parâmetros:
 
 ## atelie_imagem_definir
 
-Define a imagem de um campo de imagem (por exemplo "Ilustração" ou "Mapa") de um documento do Ateliê, a partir de um arquivo no disco, e arquiva o documento. A imagem nunca passa pelo contexto: a ferramenta lê o arquivo e o envia ao Ateliê. Se o documento não é do assistente, o mestre confirma (recusa: não insista).
+Define a imagem de um campo de imagem (por exemplo "Ilustração" ou "Mapa") de um documento do Ateliê, a partir de um arquivo no disco, e arquiva o documento. A imagem nunca passa pelo contexto: a ferramenta lê o arquivo e o envia ao Ateliê.
 
 Parâmetros:
 

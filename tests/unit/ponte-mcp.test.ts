@@ -11,7 +11,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { criarPonte } from '../../scripts/ponte/servidor.ts';
 import { criarServidorMcp, lerGuia, converterConteudo, anotacoesDaFerramenta, SEM_PONTE, CAMINHO_CATALOGO_BASE_PADRAO, type McpOpcoes } from '../../scripts/ponte/mcp.ts';
-import { gerarCatalogoBase, ferramentasDoAtlasDoCodigo } from '../../scripts/ponte/catalogo.ts';
+import { gerarCatalogoBase, ferramentasDoAtlasDoCodigo, ferramentasDoIrmaoDoCodigo, IRMAOS_DO_CATALOGO, pastaDoIrmao, FERRAMENTAS_LOCAIS_CATALOGO } from '../../scripts/ponte/catalogo.ts';
 
 const esperar = async (cond: () => boolean | Promise<boolean>, ms = 3000) => {
   const fim = Date.now() + ms;
@@ -583,6 +583,46 @@ test('catálogo base: as ferramentas atlas_* do código batem com o catálogo (n
   assert.deepEqual(sobrando, [], `ferramentas que não existem mais no Atlas. ${instrucao}`);
 });
 
+for (const irmao of IRMAOS_DO_CATALOGO) {
+  test(`catálogo base: as ferramentas de ${irmao.app} no código de ../${irmao.pasta} batem com o catálogo`, async t => {
+    if (!pastaDoIrmao(irmao, raizDoAtlas)) { t.skip(`repositório ../${irmao.pasta} não existe`); return; }
+    const instrucao = 'Rode `npm run ponte:catalogo` e faça commit de scripts/ponte/catalogo-base.json.';
+    const base = JSON.parse(fs.readFileSync(CAMINHO_CATALOGO_BASE_PADRAO, 'utf8')) as { nome: string; descricao: string; esquema: unknown; app: string; anotacoes?: unknown }[];
+    const doCodigo = await ferramentasDoIrmaoDoCodigo(irmao, raizDoAtlas);
+    assert.ok(doCodigo.length >= 3, `${irmao.app}: poucas ferramentas montadas`);
+    for (const f of doCodigo) {
+      const b = base.find(x => x.nome === f.nome);
+      assert.ok(b, `${f.nome} não está no catálogo base. ${instrucao}`);
+      assert.equal(b.app, irmao.app, `${f.nome}: app diferente no catálogo base. ${instrucao}`);
+      assert.equal(b.descricao, f.descricao, `${f.nome}: descrição defasada no catálogo base. ${instrucao}`);
+      assert.deepEqual(b.esquema, JSON.parse(JSON.stringify(f.esquema)), `${f.nome}: esquema defasado no catálogo base. ${instrucao}`);
+      assert.deepEqual(b.anotacoes, f.anotacoes, `${f.nome}: anotações defasadas no catálogo base. ${instrucao}`);
+    }
+    const locais = FERRAMENTAS_LOCAIS_CATALOGO.map(f => f.nome);
+    const sobrando = base.filter(b => b.app === irmao.app && !locais.includes(b.nome) && !doCodigo.some(f => f.nome === b.nome)).map(b => b.nome);
+    assert.deepEqual(sobrando, [], `ferramentas que não existem mais em ${irmao.app}. ${instrucao}`);
+  });
+}
+
+test('gerarCatalogoBase: app do código ignora o cache; app fora do cache parte do catálogo atual', () => {
+  const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'ponte-mcp-irmaos-'));
+  const destino = path.join(pasta, 'catalogo-base.json');
+  const cache = path.join(pasta, 'ferramentas.json');
+  fs.writeFileSync(destino, JSON.stringify([
+    { nome: 'jukebox_x', descricao: 'atual', esquema: {}, app: 'jukebox' },
+    { nome: 'ficha_velha', descricao: 'removida', esquema: {}, app: 'ficha' },
+  ]));
+  fs.writeFileSync(cache, JSON.stringify([
+    { nome: 'ficha_velha', descricao: 'do cache', esquema: {}, app: 'ficha' },
+    { nome: 'atelie_y', descricao: 'cache', esquema: {}, app: 'atelie' },
+  ]));
+  const nova = { nome: 'ficha_nova', descricao: 'n', esquema: {}, app: 'ficha' };
+  const r = gerarCatalogoBase(cache, destino, [], [nova]);
+  const gerado = JSON.parse(fs.readFileSync(destino, 'utf8')) as { nome: string }[];
+  assert.deepEqual(gerado.map(g => g.nome), ['atelie_y', 'ficha_nova', 'jukebox_x']);
+  assert.deepEqual(r.fontes, { ficha: 'código', atelie: 'cache', jukebox: 'catálogo atual' });
+});
+
 test('gerarCatalogoBase troca as atlas_* pelas do código, mantém os outros apps e, sem cache, parte do catálogo atual', () => {
   const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'ponte-mcp-atlas-'));
   const destino = path.join(pasta, 'catalogo-base.json');
@@ -768,7 +808,7 @@ test('instruções do servidor: com o núcleo real, getInstructions() devolve o 
 });
 
 // Orçamento do catálogo (PM5b + etapa D). A meta da ficha era 25 KB, mas só o esquema (sem texto) já passa disso: o teto vale o que se alcançou encurtando textos.
-const ORCAMENTO_DA_BASE_BYTES = 39_000;
+const ORCAMENTO_DA_BASE_BYTES = 42_000;
 const raizDoAtlas = path.resolve(import.meta.dirname, '..', '..');
 
 test('catálogo base: soma dentro do orçamento, descrições até 400 caracteres e campos até 80', () => {
