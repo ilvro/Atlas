@@ -27,7 +27,7 @@ Parâmetros:
 
 ## atelie_documento_ler
 
-Lê um documento: nome, categoria, tags, os campos com o texto atual, o texto UV (se houver) e a revisão.
+Lê um documento: nome, categoria, tags, os campos com o texto atual, os campos de imagem (`camposDeImagem`: `{ rotulo, layerId, temImagem }`), o texto UV (se houver) e a revisão.
 
 ## atelie_documentos_listar
 
@@ -36,6 +36,27 @@ Lista os documentos arquivados no Ateliê (mais recentes primeiro): id, nome, ca
 Parâmetros:
 
 - `busca`: Filtra por nome, categoria ou tag.
+
+## atelie_imagem_definir
+
+Define a imagem de um campo de imagem (por exemplo "Ilustração" ou "Mapa") de um documento do Ateliê, a partir de um arquivo no disco, e arquiva o documento. A imagem nunca passa pelo contexto: a ferramenta lê o arquivo e o envia ao Ateliê. Se o documento não é do assistente, o mestre confirma (recusa: não insista).
+
+Parâmetros:
+
+- `id`: Id do documento (de `atelie_documentos_listar` ou `atelie_documento_criar`).
+- `campo`: Rótulo do campo de imagem (sem diferenciar maiúsculas e acentos) ou `layerId`. Os campos de imagem vêm em `camposDeImagem` de `atelie_documento_ler`; campo inexistente dá erro com a lista.
+- `arquivo`: Caminho absoluto ou com `~` de um PNG, JPEG ou WebP de até 15 MB (o formato é conferido pelos bytes, não pela extensão).
+
+Como usar: passe o caminho de um arquivo que já está no disco, ou o de um anexo que o cliente salvou. Se não houver imagem (nem caminho local), deixe o campo vazio, termine o documento só com os textos e diga ao mestre que a imagem falta e em que campo.
+
+O Ateliê precisa estar aberto e conectado; se não estiver, abra-o pela Mesa com `mesa_abrir_apps`.
+
+Devolve `{ definido, campo, id, revisao }`.
+
+Exemplo de chamada:
+```json
+{ "id": "3f1c0b2e-0000-4000-8000-000000000000", "campo": "Ilustração", "arquivo": "~/Downloads/retrato.png" }
+```
 
 ## atelie_modelos_listar
 

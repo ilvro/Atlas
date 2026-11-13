@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ferramentasDeEscrita } from '../../src/app/ponte-escrita.ts';
 import { ferramentasDeLeitura } from '../../src/app/ponte-leitura.ts';
-import { DESCRICAO_PRESET_ABRIR, ESQUEMA_PRESET_ABRIR, ESQUEMA_PRESET_ADICIONAR, ESQUEMA_PRESET_LER } from './mcp.ts';
+import { DESCRICAO_IMAGEM_DEFINIR, DESCRICAO_PRESET_ABRIR, ESQUEMA_IMAGEM_DEFINIR, ESQUEMA_PRESET_ABRIR, ESQUEMA_PRESET_ADICIONAR, ESQUEMA_PRESET_LER } from './mcp.ts';
 
 export const APPS_CONHECIDOS = ['atlas', 'mesa', 'ficha', 'atelie', 'jukebox'];
 
@@ -23,6 +23,13 @@ export const FERRAMENTAS_LOCAIS_CATALOGO: ItemCatalogoBase[] = [
     descricao: 'Adiciona música MP3 a uma pasta de preset da Jukebox no disco (use substituir: true para atualizar).',
     esquema: ESQUEMA_PRESET_ADICIONAR as Record<string, unknown>,
     app: 'jukebox',
+    anotacoes: { destrutiva: false },
+  },
+  {
+    nome: 'atelie_imagem_definir',
+    descricao: DESCRICAO_IMAGEM_DEFINIR,
+    esquema: ESQUEMA_IMAGEM_DEFINIR as Record<string, unknown>,
+    app: 'atelie',
     anotacoes: { destrutiva: false },
   },
   {
