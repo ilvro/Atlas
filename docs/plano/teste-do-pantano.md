@@ -80,14 +80,67 @@ Commit: soft edges between ground materials
 Como: em `docs/assistente/guia/mapas.md` e `ferramentas-atlas.md`, explique a escarpa (`atlas_paredes` com `kind: 'cliff'` e `drop`: qual lado desce), quando usá-la (barranco, margem alta, desnível) e a diferença para o maciço de `atlas_terreno`. Um exemplo de chamada.
 Commit: document cliffs in the assistant guide
 
-### Etapa D — Música pelo conector (decidir antes)
+### Etapa D — Música pelo conector
 
-As músicas vivem em pastas de preset no HD (`preset_metadata.json` mais os arquivos). Importar pelo conector seria uma **ferramenta local do MCP** (que roda no seu computador e lê e escreve arquivos), e não da aba:
-- `jukebox_preset_adicionar { pasta, arquivo, titulo, generos?, capa? }` copia o arquivo para a pasta do preset e atualiza o `preset_metadata.json` no formato que `upload-song.js` grava;
-- a Jukebox recarrega o preset (pedido novo `jukebox.recarregar`, ou o mestre recarrega).
+Decidido em 11/11: o MCP escreve em **qualquer pasta de preset que o mestre indicar** (não há lista fixa: quem usa o app de desktop não tem a pasta do Atlas). A pasta vale se já tiver um `preset_metadata.json` válido, ou se estiver vazia e o pedido trouxer `criar: true`. O arquivo vem de um **caminho no disco**: um caminho que o mestre digita ou o caminho de um anexo do chat, quando o cliente salva o anexo em disco. O áudio nunca passa pelo contexto do modelo.
 
-**Decisões pendentes:**
-- Quais pastas o MCP pode escrever? Proposta: uma lista fixa num arquivo de configuração (`Atlas/.ponte/pastas-de-musica.json`), nunca qualquer caminho.
-- O arquivo vem de onde? Hoje um anexo no app do Claude não chega ao MCP. Só funciona com um caminho no seu disco ("adicione `~/Downloads/x.mp3` ao preset Vaesen").
+**O formato que a Jukebox espera** (conferido em `Jukebox/upload-song.js` em 11/11; não invente outro):
+- `preset_metadata.json` é uma lista, gravada com `JSON.stringify(lista, null, 2)`. Cada item tem a forma `{ currentTitle, genres, tags, folder, markers, hotkey, hotkeyEffects }`, e `currentTitle = encodeURIComponent(titulo.trim())`.
+- Cada música são **dois arquivos obrigatórios**: `<currentTitle>.mp3` e `<currentTitle>.jpg` (`loadPresetSongFiles`). Se faltar um deles, a música é pulada **sem aviso**.
+- `genres` ⊂ `fun, hopeful, mystery, suspense, horror, sfx` (`sfx` vira efeito avulso na mesa). `tags` ⊂ `ambient, investigation, event, battle, emotional`. Música nova vai com `markers: []`, `hotkey: null`, `hotkeyEffects: []` e `folder: null`, ou com o grupo pedido.
 
-Ficha a escrever depois dessas decisões.
+**Dois riscos que a etapa tem de fechar:**
+1. O Salvar da Jukebox (`savePreset`) regrava o metadata **só com as músicas que estão na tela** (`updatedData`). Uma música que o assistente adicionou com o preset aberto **some do metadata** no próximo Salvar, e os arquivos ficam órfãos.
+2. Com o preset aberto, a Jukebox não vê a música nova até o mestre recarregar. No app de desktop a pasta é lida por `<input webkitdirectory>` (`handleFilesFallback`), sem handle para reler.
+
+Ordem: D1 (proteção na Jukebox) antes de tudo, depois D2, D3 e D4. D1 e D3 mexem na Jukebox, com autorização do usuário em 11/11. Os commits da Jukebox vão para o repositório dela.
+
+#### D1 — Jukebox: salvar sem perder o que entrou por fora  ⬜
+Ler: `Jukebox/upload-song.js` (`savePreset`, `savePresetBrowserFallback`, `populatePresetFromFileHandles`, `loadSamplePreset`, `deletedSongs`, `loadedPresetFileNames`), `Jukebox/tests/`.
+Como:
+- Novo módulo puro `Jukebox/preset-mescla.js` com `mesclarMetadados({ noDisco, daTela, apagadas, tituloNaAbertura })`. Ele devolve a lista da tela mais, no fim e na ordem do disco, cada item do disco que **não está na tela**, **não foi apagado** nesta sessão e **não existia quando o preset foi aberto** (`tituloNaAbertura`: conjunto de `currentTitle` guardado ao carregar). Só esses itens entraram por fora.
+- Guarde `tituloNaAbertura` nos três carregamentos (picker, `handleFilesFallback` e sample) e atualize o conjunto depois de cada Salvar bem-sucedido.
+- `savePreset` (handle do navegador ou do servidor) grava `mesclarMetadados(...)` em vez de `updatedData`. Item que entrou por fora mas cujos arquivos não existem na pasta é descartado, com `console.warn`.
+- O fallback em `.zip` não tem a pasta. Não muda; documente a limitação num comentário.
+Testes (`node --test`, em `Jukebox/tests/preset-mescla.test.mjs`): item de fora preservado; item apagado não volta; item que existia na abertura e saiu da tela não volta; ordem estável; título renomeado na tela não duplica o antigo.
+Commit (Jukebox): keep externally added songs when saving a preset
+
+#### D2 — MCP: ler e adicionar ao preset  ⬜
+Depende de: D1
+Ler: `scripts/ponte/mcp.ts` (como `ponte_estado` e `plataforma_guia` são ferramentas locais, `tools/list`, anotações), `scripts/ponte/catalogo.ts` e `catalogo-base.json`, `Jukebox/images/page_icon.jpg`.
+Como:
+- Módulo `scripts/ponte/presets.ts` (Node puro, sem a ponte, testável em pasta temporária):
+  - `resolverCaminho(texto)`: expande `~` e devolve o caminho absoluto.
+  - `lerPreset(pasta)`: exige uma pasta com `preset_metadata.json` que seja uma lista de itens com `currentTitle` texto. Devolve as músicas `{ titulo, generos, tags, grupo, temAudio, temCapa }`. Erros claros: "não é uma pasta", "sem preset_metadata.json" (sugira `criar: true` se a pasta estiver vazia), "metadata inválido na posição N".
+  - `adicionarAoPreset({ pasta, arquivo, titulo, generos?, tags?, grupo?, capa?, criar?, substituir? })`:
+    - Valida título (sem espaços nas pontas, 1 a 120 caracteres), gêneros e tags contra as listas acima (o erro lista as válidas), o arquivo (arquivo comum de até 200 MB, MP3 de verdade: começa com `ID3` ou sincronia de quadro `0xFFE`) e a capa, se houver (JPEG: começa com `FF D8 FF`). Outro formato é recusado com mensagem; a conversão fica fora.
+    - Sem capa, usa `scripts/ponte/capa-padrao.jpg` (cópia de `Jukebox/images/page_icon.jpg`, do mesmo autor).
+    - Título já existente (no metadata ou como arquivo) é recusado, salvo com `substituir: true`. Nesse caso troca áudio, capa, gêneros e tags, e mantém `markers`, `hotkey`, `hotkeyEffects` e o `folder` (se `grupo` não vier).
+    - Grava na mesma ordem da Jukebox: áudio, capa e por último o metadata. Cada arquivo vai para `.tmp` e depois `rename`. O metadata é **relido logo antes** de gravar, recebe o item novo no fim e é gravado com `null, 2`. Se o metadata falhar, apaga o `.mp3` e o `.jpg` novos (no substituir, restaura os antigos de uma cópia `.bak`).
+- Duas ferramentas locais em `mcp.ts`, que funcionam sem a Jukebox aberta:
+  - `jukebox_preset_ler { pasta }`, com `leitura`.
+  - `jukebox_preset_adicionar { pasta, arquivo, titulo, generos?, tags?, grupo?, capa?, criar?, substituir? }`, com `destrutiva: false` (com `substituir`, o texto avisa).
+  - O resultado traz os arquivos gravados e o item do metadata. Descrições curtas (≤ 180 caracteres), como na PM4b.
+- As duas entram no `tools/list` mesmo sem ponte e no catálogo base (`npm run ponte:catalogo`).
+Testes (`tests/unit/ponte-presets.test.ts`, pasta temporária): o item gravado tem exatamente as chaves da Jukebox; `Den of Iniquity?!` vira `Den%20of%20Iniquity%3F!.mp3/.jpg` e o mesmo `currentTitle`; capa padrão quando falta; duplicado recusado e `substituir` preserva markers/hotkey; gênero inválido lista os válidos; arquivo que não é MP3 é recusado; pasta sem metadata é recusada e `criar` só numa pasta vazia; falha simulada no metadata não deixa órfãos; um metadata gravado pela Jukebox (copie `Jukebox/sample/preset_metadata.json`) passa por `lerPreset` e continua igual depois de adicionar (só o item novo a mais).
+Commit: add songs to a Jukebox preset from the connector
+
+#### D3 — A Jukebox aberta recebe a música na hora  ⬜
+Depende de: D2
+Ler: `Jukebox/ponte.js`, `Jukebox/mesa.js` (`contextoDaPonte`, `songsUpdated`), `Jukebox/upload-song.js` (`createPresetSongItem`, `addSongToPlayer`, `loadedPresetFolderName`, `loadedPresetFileNames`), `scripts/ponte/servidor.ts` e `mesa-core/src/ponte.ts` (tamanho máximo de mensagem do `ws`).
+Como:
+- Nova ferramenta da Jukebox `jukebox_preset_receber { pasta, item, audio, capa }` (base64; descrição: "Interna: usada por jukebox_preset_adicionar"). Se `pasta` (nome da pasta) é o preset aberto (`loadedPresetFolderName`), cria o cartão com `createPresetSongItem`/`addSongToPlayer` **como já salvo**: `presetTitle` = `fileTitle` = `currentTitle`, nomes em `loadedPresetFileNames`, `currentTitle` em `tituloNaAbertura` (D1). Assim um Salvar depois não duplica nem reexporta. Em seguida dispara `songsUpdated` (`sfx` vira efeito na mesa). Com `substituir`, troca o cartão existente. Outro preset aberto, ou nenhum: devolve `{ recebido: false, motivo }` sem mexer em nada.
+- O contexto da ponte ganha `receberMusica(...)`. O `ponte.js` continua sem DOM.
+- `jukebox_preset_adicionar`, depois de gravar com sucesso, chama `jukebox_preset_receber` pela ponte, se a Jukebox estiver conectada e o áudio tiver até 50 MB. Acima disso, ou sem a Jukebox, só avisa: "reabra o preset na Jukebox para ver a música". Uma falha aqui **nunca** desfaz o que já foi gravado no disco: vira `aviso` no resultado.
+- Confira o `maxPayload` do `ws` nos dois lados e ajuste para caber 50 MB em base64 (~70 MB). Anote o valor na Nota.
+Testes: `Jukebox/tests/ponte.test.mjs` (receber no preset certo, recusar em outro e sem preset); `tests/unit/ponte-presets.test.ts` (chama `receber` quando conectada; sem ponte vira aviso; erro da aba não desfaz o disco).
+Commit (Jukebox): receive songs added by the connector
+Commit: hand new songs to the open Jukebox
+
+#### D4 — Guia e conferência de ponta a ponta  ⬜
+Depende de: D3
+Como:
+- `docs/assistente/guia/ferramentas-jukebox.md`: as duas ferramentas novas, gêneros e tags válidos, capa (JPEG, ou a padrão), anexos (use o caminho em disco do anexo; se não houver caminho, peça ao mestre para salvar o arquivo e dizer onde), e um exemplo: "adicione `~/Downloads/sombras-no-lago.mp3` ao preset em `~/Música/Pântano` como 'Sombras no Lago', horror, ambient". Regra: rode `jukebox_preset_ler` antes, para não duplicar.
+- E2e (`tests/e2e/jukebox-preset.test.ts`, Playwright): serve `../Jukebox` estático, desliga `showDirectoryPicker` (`addInitScript`) para cair no `<input webkitdirectory>`, abre uma pasta temporária preparada com `adicionarAoPreset` e confere que a música aparece com título, capa e gêneros. Depois chama o Salvar pelo caminho do `.zip` e confere que o metadata exportado contém a música. Se o Playwright não aceitar diretório nessa versão, faça a conferência manual abaixo e anote na Nota.
+- Conferência manual no app de desktop (anote na Nota): adicionar pelo Claude com a Jukebox fechada, depois abrir o preset (a música está lá). Adicionar com o preset aberto (aparece na hora), Salvar, fechar, reabrir (continua lá e o metadata não tem duplicata).
+Commit: document adding songs through the connector
