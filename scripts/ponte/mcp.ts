@@ -10,7 +10,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { lerMensagem, appDoPrefixo } from './protocolo.ts';
 import type { AppConectado, Conteudo, FerramentaDoApp, Resultado, AnotacoesDaFerramenta } from './protocolo.ts';
-import { lerPreset, adicionarAoPreset } from './presets.ts';
+import { lerPreset, adicionarAoPreset, abrirPresetNaJukebox } from './presets.ts';
 
 export const ATRASOS_MS = [1000, 2000, 5000, 10000];
 export const PRAZO_DA_CHAMADA_MS = 50_000;
@@ -279,7 +279,7 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
         // Ferramenta removida do código: sai do cache quando o app dela se registra sem ela.
         const appsAtivos = new Set(m.lista.map(f => f.app));
         for (const [nome, f] of catalogo) {
-          if (nome === 'jukebox_preset_ler' || nome === 'jukebox_preset_adicionar') continue;
+          if (nome === 'jukebox_preset_ler' || nome === 'jukebox_preset_adicionar' || nome === 'jukebox_preset_abrir') continue;
           if (appsAtivos.has(f.app) && !m.lista.some(nova => nova.nome === nome)) {
             catalogo.delete(nome);
           }
@@ -446,6 +446,25 @@ export const ESQUEMA_PRESET_ADICIONAR = {
   additionalProperties: false,
 };
 
+export const ESQUEMA_PRESET_ABRIR = {
+  type: 'object' as const,
+  properties: {
+    pasta: { type: 'string', description: 'Caminho da pasta do preset no disco.' },
+    forcar: { type: 'boolean', description: 'Descarta músicas não salvas na Jukebox.' },
+  },
+  required: ['pasta'],
+  additionalProperties: false,
+};
+
+export const DESCRICAO_PRESET_ABRIR = 'Abre na Jukebox um preset do disco, para criar cenas com as músicas dele. Detalhes: plataforma_guia ferramentas-jukebox.';
+
+export const FERRAMENTA_PRESET_ABRIR = {
+  name: 'jukebox_preset_abrir',
+  description: DESCRICAO_PRESET_ABRIR,
+  inputSchema: ESQUEMA_PRESET_ABRIR,
+  annotations: { destructiveHint: false },
+};
+
 export const FERRAMENTA_PRESET_LER = {
   name: 'jukebox_preset_ler',
   description: 'Lê músicas e metadados de uma pasta de preset da Jukebox no disco.',
@@ -539,13 +558,16 @@ export function textoDoGuia(secoes: SecaoDoGuia[], secao?: unknown) {
   return { content: [{ type: 'text' as const, text: achada.texto }] };
 }
 
+/** Ferramentas internas: chamadas pelo próprio servidor, escondidas do `tools/list`. */
+export const FERRAMENTAS_INTERNAS_OCULTAS = ['jukebox_preset_receber', 'jukebox_preset_abrir_receber', 'atelie_imagem_receber'];
+
 /** Ferramentas para o `tools/list`: `ponte_estado` e `plataforma_guia` sempre, depois as do catálogo (exceto internas como `jukebox_preset_receber`). */
 export function listarFerramentas(catalogo: FerramentaDoApp[], guia: SecaoDoGuia[] = []) {
   return [
     FERRAMENTA_ESTADO,
     ferramentaGuia(guia),
     ...catalogo
-      .filter(f => f.nome !== 'jukebox_preset_receber')
+      .filter(f => !FERRAMENTAS_INTERNAS_OCULTAS.includes(f.nome))
       .map(f => {
         const anotacoes = anotacoesDaFerramenta(f.nome, f.anotacoes);
         return {
@@ -596,6 +618,17 @@ export async function chamarFerramenta(ponta: Ponta, nome: string, args: Record<
       if (!pasta) throw new Error('Parâmetro "pasta" é obrigatório');
       const resultado = lerPreset(pasta);
       return { content: [{ type: 'text' as const, text: JSON.stringify(resultado, null, 2) }] };
+    } catch (err) {
+      return { isError: true, content: [{ type: 'text' as const, text: (err as Error).message }] };
+    }
+  }
+
+  if (nome === 'jukebox_preset_abrir') {
+    try {
+      const pasta = String(args?.pasta ?? '');
+      if (!pasta) throw new Error('Parâmetro "pasta" é obrigatório');
+      const r = await abrirPresetNaJukebox(ponta, { pasta, forcar: args?.forcar === true });
+      return { content: [{ type: 'text' as const, text: JSON.stringify(r, null, 2) }] };
     } catch (err) {
       return { isError: true, content: [{ type: 'text' as const, text: (err as Error).message }] };
     }

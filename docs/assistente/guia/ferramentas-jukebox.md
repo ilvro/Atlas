@@ -16,7 +16,12 @@ Parâmetros:
 
 Sem preset aberto na Jukebox, a ferramenta dá erro: abra o preset primeiro.
 
-Ordem de uso: `jukebox_preset_adicionar` (se a música ainda não está no preset) → `jukebox_cena_criar` → `jukebox_tocar`.
+Ordem de uso (fluxo completo):
+
+1. `jukebox_preset_adicionar` com `criar: true` na primeira música (ou sem `criar` num preset que já existe).
+2. `jukebox_preset_abrir` para abrir esse preset na Jukebox (a cena só enxerga músicas do preset aberto).
+3. `jukebox_cena_criar` com as músicas do preset.
+4. `jukebox_tocar` na cena criada.
 
 Exemplo de chamada:
 ```json
@@ -51,9 +56,27 @@ Parâmetros:
 
 - `ms`: Duração do fade out em milissegundos (padrão 1000).
 
+## jukebox_preset_abrir
+
+Abre na Jukebox conectada um preset que está no disco, como se o mestre tivesse escolhido a pasta: o player é zerado e as músicas aparecem prontas, já salvas. Sem isso, `jukebox_cena_criar` só enxerga o preset que o mestre abriu à mão.
+
+Parâmetros:
+
+- `pasta`: Caminho absoluto ou com `~` da pasta do preset (precisa ter `preset_metadata.json`).
+- `forcar`: Se `true`, descarta músicas não salvas que estejam na tela da Jukebox. Sem ele, a ferramenta recusa e diz o motivo: avise o mestre e só use `forcar` com a concordância dele.
+
+A Jukebox precisa estar aberta e conectada; se não estiver, abra-a pela Mesa com `mesa_abrir_apps`. Limites: 60 músicas, 400 MB no total e 50 MB por música; acima disso a ferramenta dá erro e o mestre deve abrir a pasta à mão na Jukebox. Músicas sem o arquivo de áudio ou sem a capa são puladas e listadas em `puladas`.
+
+Devolve `{ aberto, pasta, musicas, puladas }`.
+
+Exemplo de chamada:
+```json
+{ "pasta": "~/Música/Pântano" }
+```
+
 ## jukebox_preset_adicionar
 
-Adiciona uma música MP3 a uma pasta de preset da Jukebox no disco. Se a pasta do preset já estiver aberta na Jukebox, a música é enviada na hora para o player.
+Adiciona uma música MP3 a uma pasta de preset da Jukebox no disco. Se a pasta do preset já estiver aberta na Jukebox, a música é enviada na hora para o player; senão, use `jukebox_preset_abrir`.
 
 Parâmetros:
 

@@ -407,3 +407,110 @@ export function adicionarAoPreset(opcoes: OpcoesAdicionarAoPreset): ResultadoAdi
     throw new Error(`falha ao adicionar música ao preset “${pasta}”: ${(err as Error).message}`);
   }
 }
+
+export const MAX_MUSICAS_ABRIR = 60;
+export const MAX_TOTAL_ABRIR = 400 * 1024 * 1024;
+export const MAX_MUSICA_ABRIR = 50 * 1024 * 1024;
+
+/** O pedaço da ponte que `abrirPresetNaJukebox` usa (`Ponta` de mcp.ts satisfaz). */
+export interface PontaParaPreset {
+  conectada: () => boolean;
+  apps: () => Record<string, unknown>;
+  ativas: () => Array<{ nome: string }>;
+  chamar: (
+    ferramenta: string,
+    args: Record<string, unknown>,
+    prazoMs?: number,
+  ) => Promise<{ ok: true; conteudo: Array<{ tipo: string; texto?: string }> } | { ok: false; erro: string }>;
+}
+
+export interface ResultadoAbrirPreset {
+  aberto: true;
+  pasta: string;
+  musicas: number;
+  puladas: string[];
+}
+
+const mb = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
+async function etapaDaAbertura(ponta: PontaParaPreset, args: Record<string, unknown>): Promise<void> {
+  const resp = await ponta.chamar('jukebox_preset_abrir_receber', args);
+  if (!resp.ok) throw new Error(resp.erro);
+  const texto = resp.conteudo.map(c => (c.tipo === 'texto' ? c.texto ?? '' : '')).join('');
+  let dados: { recebido?: boolean; motivo?: string } = {};
+  try {
+    dados = JSON.parse(texto);
+  } catch {
+    throw new Error('a Jukebox respondeu algo ilegível; ela precisa estar atualizada para abrir presets pelo conector');
+  }
+  if (!dados.recebido) throw new Error(dados.motivo ?? 'a Jukebox recusou a abertura do preset');
+}
+
+/** Abre na Jukebox conectada um preset do disco: `inicio`, uma chamada por música e `fim` (com `abortado` se algo falhar). */
+export async function abrirPresetNaJukebox(
+  ponta: PontaParaPreset,
+  opcoes: { pasta: string; forcar?: boolean },
+): Promise<ResultadoAbrirPreset> {
+  const info = lerPreset(opcoes.pasta);
+  const jukeboxConectada = ponta.conectada() && (ponta.apps().jukebox !== undefined || ponta.ativas().some(f => f.nome.startsWith('jukebox_')));
+  if (!jukeboxConectada) {
+    throw new Error('a Jukebox não está conectada à ponte: abra a Jukebox pela Mesa (mesa_abrir_apps com "jukebox") e tente de novo');
+  }
+
+  const metadados = JSON.parse(fs.readFileSync(path.join(info.pasta, 'preset_metadata.json'), 'utf8')) as ItemMetadataJukebox[];
+  const puladas: string[] = [];
+  const enviar: Array<{ item: ItemMetadataJukebox; audio: string; capa: string; titulo: string }> = [];
+  let total = 0;
+  for (let i = 0; i < metadados.length; i++) {
+    const item = metadados[i]!;
+    const musica = info.musicas[i]!;
+    if (!musica.temAudio || !musica.temCapa) {
+      puladas.push(musica.titulo);
+      continue;
+    }
+    const audio = path.join(info.pasta, `${item.currentTitle}.mp3`);
+    const capa = path.join(info.pasta, `${item.currentTitle}.jpg`);
+    const tamAudio = fs.statSync(audio).size;
+    if (tamAudio > MAX_MUSICA_ABRIR) {
+      throw new Error(`a música “${musica.titulo}” tem ${mb(tamAudio)} (limite de ${mb(MAX_MUSICA_ABRIR)} por música): o mestre deve abrir a pasta à mão na Jukebox`);
+    }
+    total += tamAudio + fs.statSync(capa).size;
+    enviar.push({ item, audio, capa, titulo: musica.titulo });
+  }
+  if (enviar.length > MAX_MUSICAS_ABRIR) {
+    throw new Error(`o preset tem ${enviar.length} músicas (limite de ${MAX_MUSICAS_ABRIR}): o mestre deve abrir a pasta à mão na Jukebox`);
+  }
+  if (total > MAX_TOTAL_ABRIR) {
+    throw new Error(`o preset tem ${mb(total)} (limite de ${mb(MAX_TOTAL_ABRIR)} no total): o mestre deve abrir a pasta à mão na Jukebox`);
+  }
+  if (enviar.length === 0) {
+    throw new Error(`o preset “${info.pasta}” não tem nenhuma música com áudio e capa`);
+  }
+
+  const pasta = path.basename(info.pasta);
+  await etapaDaAbertura(ponta, { pasta, etapa: 'inicio', metadados, ...(opcoes.forcar ? { forcar: true } : {}) });
+  try {
+    for (const m of enviar) {
+      try {
+        await etapaDaAbertura(ponta, {
+          pasta,
+          etapa: 'musica',
+          item: m.item,
+          audio: fs.readFileSync(m.audio).toString('base64'),
+          capa: fs.readFileSync(m.capa).toString('base64'),
+        });
+      } catch (err) {
+        throw new Error(`falha ao enviar “${m.titulo}” à Jukebox: ${(err as Error).message}`);
+      }
+    }
+  } catch (err) {
+    try {
+      await etapaDaAbertura(ponta, { pasta, etapa: 'fim', abortado: true });
+    } catch {
+      // a Jukebox pode ter caído; nada mais a fazer
+    }
+    throw err;
+  }
+  await etapaDaAbertura(ponta, { pasta, etapa: 'fim' });
+  return { aberto: true, pasta: info.pasta, musicas: enviar.length, puladas };
+}

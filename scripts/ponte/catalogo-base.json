@@ -2498,6 +2498,31 @@
     "app": "jukebox"
   },
   {
+    "nome": "jukebox_preset_abrir",
+    "descricao": "Abre na Jukebox um preset do disco, para criar cenas com as músicas dele. Detalhes: plataforma_guia ferramentas-jukebox.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "pasta": {
+          "type": "string",
+          "description": "Caminho da pasta do preset no disco."
+        },
+        "forcar": {
+          "type": "boolean",
+          "description": "Descarta músicas não salvas na Jukebox."
+        }
+      },
+      "required": [
+        "pasta"
+      ],
+      "additionalProperties": false
+    },
+    "app": "jukebox",
+    "anotacoes": {
+      "destrutiva": false
+    }
+  },
+  {
     "nome": "jukebox_preset_adicionar",
     "descricao": "Adiciona música MP3 a uma pasta de preset da Jukebox no disco (use substituir: true para atualizar).",
     "esquema": {

@@ -7,6 +7,8 @@ import {
   adicionarAoPreset,
   lerPreset,
   resolverCaminho,
+  abrirPresetNaJukebox,
+  MAX_MUSICAS_ABRIR,
   GENEROS_VALIDOS,
   TAGS_VALIDAS,
 } from '../../scripts/ponte/presets.ts';
@@ -495,4 +497,140 @@ test('MCP: chamar receber quando Jukebox conectada; sem ponte vira aviso; erro d
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
+});
+
+// --- jukebox_preset_abrir ---
+
+function pontaFalsa(opcoes: { conectada?: boolean; falharNaMusica?: number; recusarInicio?: string } = {}) {
+  const chamadas: Array<{ ferramenta: string; args: Record<string, any> }> = [];
+  let musicas = 0;
+  const responder = (d: object) => ({ ok: true as const, conteudo: [{ tipo: 'texto', texto: JSON.stringify(d) }] });
+  const ponta = {
+    conectada: () => opcoes.conectada !== false,
+    apps: () => (opcoes.conectada === false ? {} : { jukebox: { onde: 'Chrome' } }),
+    ativas: () => [],
+    chamar: async (ferramenta: string, args: Record<string, unknown>) => {
+      chamadas.push({ ferramenta, args: args as Record<string, any> });
+      if (args.etapa === 'inicio' && opcoes.recusarInicio) return responder({ recebido: false, motivo: opcoes.recusarInicio });
+      if (args.etapa === 'musica') {
+        musicas++;
+        if (opcoes.falharNaMusica === musicas) return { ok: false as const, erro: 'aba fechada' };
+      }
+      return responder({ recebido: true });
+    },
+  };
+  return { ponta, chamadas };
+}
+
+function presetComMusicas(tmp: string, titulos: string[], semCapa: string[] = []) {
+  const audio = path.join(tmp, '_a.mp3');
+  fs.writeFileSync(audio, MP3_MINIMO);
+  const pasta = path.join(tmp, 'Pantano');
+  titulos.forEach((t, i) => adicionarAoPreset({ pasta, arquivo: audio, titulo: t, criar: i === 0 }));
+  for (const t of semCapa) fs.unlinkSync(path.join(pasta, `${encodeURIComponent(t)}.jpg`));
+  return pasta;
+}
+
+test('abrir preset: manda inicio, cada música com áudio e capa e fim, nessa ordem', async () => {
+  const tmp = criarDiretorioTemporario();
+  try {
+    const pasta = presetComMusicas(tmp, ['Grilos', 'Lago']);
+    const { ponta, chamadas } = pontaFalsa();
+    const r = await abrirPresetNaJukebox(ponta, { pasta });
+    assert.deepEqual(chamadas.map(c => c.args.etapa), ['inicio', 'musica', 'musica', 'fim']);
+    assert.ok(chamadas.every(c => c.ferramenta === 'jukebox_preset_abrir_receber' && c.args.pasta === 'Pantano'));
+    assert.equal(chamadas[0]!.args.metadados.length, 2);
+    assert.equal(chamadas[1]!.args.item.currentTitle, 'Grilos');
+    assert.equal(Buffer.from(chamadas[1]!.args.audio, 'base64').equals(MP3_MINIMO), true);
+    assert.equal(Buffer.from(chamadas[1]!.args.capa, 'base64')[0], 0xff);
+    assert.equal(chamadas[3]!.args.abortado, undefined);
+    assert.deepEqual(r, { aberto: true, pasta, musicas: 2, puladas: [] });
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('abrir preset: pula e lista músicas sem áudio ou capa; repassa forcar', async () => {
+  const tmp = criarDiretorioTemporario();
+  try {
+    const pasta = presetComMusicas(tmp, ['Grilos', 'Lago'], ['Lago']);
+    const { ponta, chamadas } = pontaFalsa();
+    const r = await abrirPresetNaJukebox(ponta, { pasta, forcar: true });
+    assert.deepEqual(r.puladas, ['Lago']);
+    assert.equal(r.musicas, 1);
+    assert.equal(chamadas.filter(c => c.args.etapa === 'musica').length, 1);
+    assert.equal(chamadas[0]!.args.forcar, true);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('abrir preset: Jukebox ausente manda abrir pela Mesa; pasta inválida falha antes de tudo', async () => {
+  const tmp = criarDiretorioTemporario();
+  try {
+    const pasta = presetComMusicas(tmp, ['Grilos']);
+    const { ponta, chamadas } = pontaFalsa({ conectada: false });
+    await assert.rejects(abrirPresetNaJukebox(ponta, { pasta }), /mesa_abrir_apps/);
+    assert.equal(chamadas.length, 0);
+    await assert.rejects(abrirPresetNaJukebox(pontaFalsa().ponta, { pasta: path.join(tmp, 'nada') }), /não existe/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('abrir preset: limites de músicas, de tamanho por música e no total', async () => {
+  const tmp = criarDiretorioTemporario();
+  try {
+    const pasta = presetComMusicas(tmp, ['Grilos']);
+    const meta = JSON.parse(fs.readFileSync(path.join(pasta, 'preset_metadata.json'), 'utf8'));
+    // muitas músicas (arquivos reaproveitados via cópia de metadados é inviável: crie de verdade)
+    for (let i = 0; i < MAX_MUSICAS_ABRIR; i++) {
+      fs.copyFileSync(path.join(pasta, 'Grilos.mp3'), path.join(pasta, `M${i}.mp3`));
+      fs.copyFileSync(path.join(pasta, 'Grilos.jpg'), path.join(pasta, `M${i}.jpg`));
+      meta.push({ ...meta[0], currentTitle: `M${i}` });
+    }
+    fs.writeFileSync(path.join(pasta, 'preset_metadata.json'), JSON.stringify(meta));
+    const { ponta, chamadas } = pontaFalsa();
+    await assert.rejects(abrirPresetNaJukebox(ponta, { pasta }), /limite de 60.*à mão na Jukebox/);
+
+    // 51 MB numa música (arquivo esparso)
+    const pasta2 = presetComMusicas(fs.mkdtempSync(path.join(tmp, 'g-')), ['Grande']);
+    fs.truncateSync(path.join(pasta2, 'Grande.mp3'), 51 * 1024 * 1024);
+    await assert.rejects(abrirPresetNaJukebox(ponta, { pasta: pasta2 }), /por música.*à mão na Jukebox/);
+
+    // 9 x 49 MB > 400 MB
+    const pasta3 = presetComMusicas(fs.mkdtempSync(path.join(tmp, 'h-')), Array.from({ length: 9 }, (_, i) => `T${i}`));
+    for (let i = 0; i < 9; i++) fs.truncateSync(path.join(pasta3, `T${i}.mp3`), 49 * 1024 * 1024);
+    await assert.rejects(abrirPresetNaJukebox(ponta, { pasta: pasta3 }), /no total.*à mão na Jukebox/);
+    assert.equal(chamadas.length, 0);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('abrir preset: erro no meio manda fim abortado e propaga; recusa do inicio não manda fim', async () => {
+  const tmp = criarDiretorioTemporario();
+  try {
+    const pasta = presetComMusicas(tmp, ['Grilos', 'Lago', 'Vento']);
+    const { ponta, chamadas } = pontaFalsa({ falharNaMusica: 2 });
+    await assert.rejects(abrirPresetNaJukebox(ponta, { pasta }), /Lago.*aba fechada/);
+    assert.deepEqual(chamadas.map(c => c.args.etapa), ['inicio', 'musica', 'musica', 'fim']);
+    assert.equal(chamadas.at(-1)!.args.abortado, true);
+
+    const r2 = pontaFalsa({ recusarInicio: 'músicas não salvas' });
+    await assert.rejects(abrirPresetNaJukebox(r2.ponta, { pasta }), /músicas não salvas/);
+    assert.deepEqual(r2.chamadas.map(c => c.args.etapa), ['inicio']);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('MCP: jukebox_preset_abrir está no tools/list sem ponte, com descrição curta e sem expor a interna', async () => {
+  const base = JSON.parse(fs.readFileSync(CAMINHO_CATALOGO_BASE_PADRAO, 'utf8'));
+  const lista = listarFerramentas([...base, { nome: 'jukebox_preset_abrir_receber', descricao: 'i', esquema: {}, app: 'jukebox' }]);
+  const t = lista.find(f => f.name === 'jukebox_preset_abrir')!;
+  assert.ok(t, 'falta jukebox_preset_abrir');
+  assert.ok(t.description.length <= 180 && t.description.endsWith('Detalhes: plataforma_guia ferramentas-jukebox.'));
+  assert.deepEqual(t.annotations, { destructiveHint: false });
+  assert.equal(lista.some(f => f.name === 'jukebox_preset_abrir_receber'), false);
 });
