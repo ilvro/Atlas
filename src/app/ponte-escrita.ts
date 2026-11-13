@@ -21,6 +21,8 @@ export interface ContextoDeEscrita {
   repo: () => Pick<RepositorioMapas, 'salvar'> | null;
   /** Mantém a entidade "lugar" da campanha em dia depois de gravar um mapa novo. */
   sincronizarCampanha?: (mapa: MapaAtlas) => Promise<void>;
+  /** Recarrega a lista de mapas do app (galeria e menu do "+" das abas) depois de gravar um mapa direto no repositório. */
+  atualizarLista?: () => Promise<void>;
   /** Abre o mapa na aba (o mesmo caminho do "novo mapa"); resolve quando ele está aberto. */
   abrirMapa: (id: string) => Promise<void>;
   /** A campanha ativa do app, usada quando `atlas_mapa_criar` não recebe `campanhaId`. */
@@ -149,6 +151,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         if (!repo) throw new Error('O Atlas ainda não terminou de iniciar.');
         const gravado = await repo.salvar(mapa);
         await ctx.sincronizarCampanha?.(gravado);
+        await ctx.atualizarLista?.();
         await ctx.abrirMapa(gravado.id);
         return [json({ id: gravado.id, nome: gravado.name, largura, altura, unidade: 'm', campanhaId: gravado.campanhaId, dica: 'Mapa aberto. Use atlas_terreno, atlas_comodos, atlas_paredes e atlas_portas; confira com atlas_ver_mapa.' })];
       },
