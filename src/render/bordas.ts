@@ -1,7 +1,8 @@
-import { Container, Filter, GlProgram, Sprite, Texture, UniformGroup } from 'pixi.js';
+import { Container, Sprite, Texture, UniformGroup } from 'pixi.js';
 import type { MapaAtlas } from '../domain/mapa.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import type { Mudancas } from '../state/mudancas.ts';
+import { criarFiltroDeMundo } from './filtro-de-mundo.ts';
 import { FATOR_DE_MOVIMENTO_REDUZIDO } from './particulas-config.ts';
 
 export interface Bordas {
@@ -20,26 +21,11 @@ export const larguraDaBorda = (amount: number, w: number, h: number): number => 
 
 const TIPO: Record<'none' | 'clouds' | 'dark' | 'fog', number> = { none: 0, clouds: 1, dark: 2, fog: 3 };
 
-const vertex = `in vec2 aPosition;
-out vec2 vTextureCoord;
-uniform vec4 uInputSize;
-uniform vec4 uOutputFrame;
-uniform vec4 uOutputTexture;
-vec4 filterVertexPosition(void) {
-  vec2 position = aPosition * uOutputFrame.zw + uOutputFrame.xy;
-  position.x = position.x * (2.0 / uOutputTexture.x) - 1.0;
-  position.y = position.y * (2.0 * uOutputTexture.z / uOutputTexture.y) - uOutputTexture.z;
-  return vec4(position, 0.0, 1.0);
-}
-vec2 filterTextureCoord(void) { return aPosition * (uOutputFrame.zw * uInputSize.zw); }
-void main(void) { gl_Position = filterVertexPosition(); vTextureCoord = filterTextureCoord(); }`;
-
 // fbm de 3 oitavas (cada uma gira o domínio, como na neblina). `uTipo`: 1 nuvens, 2 escuro, 3 neblina.
 const fragment = `in vec2 vTextureCoord;
+in vec2 vMundoUv;
 out vec4 finalColor;
 uniform sampler2D uTexture;
-uniform highp vec4 uInputSize;
-uniform highp vec4 uOutputFrame;
 uniform highp vec2 uTamanho;
 uniform highp vec2 uDeslocamento;
 uniform highp float uTempo;
@@ -60,9 +46,8 @@ float fbm(vec2 p) {
 }
 float distanciaAoBorda(vec2 m) { return min(min(m.x, m.y), min(uTamanho.x - m.x, uTamanho.y - m.y)); }
 void main() {
-  vec2 uv = vTextureCoord * uInputSize.xy / uOutputFrame.zw;
   bool pixel = uPixel > 0.5;
-  vec2 mundo = uv * uTamanho;
+  vec2 mundo = vMundoUv * uTamanho;
   if (pixel) mundo = (floor(mundo * uPpm / 2.0) * 2.0 + 1.0) / uPpm;
   float L = max(uLargura, 0.001);
   // Escuro: frente quebrada e parada. Nuvens e neblina: o ruído anda com o vento e o tempo.
@@ -108,9 +93,8 @@ export function criarBordas(): Bordas {
     uTempo: { value: 0, type: 'f32' }, uLargura: { value: 1, type: 'f32' }, uTipo: { value: 0, type: 'f32' },
     uPixel: { value: 0, type: 'f32' }, uPpm: { value: 1, type: 'f32' }, uCor: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
   });
-  const programa = GlProgram.from({ vertex, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-bordas' });
   const veu = new Sprite(Texture.WHITE);
-  veu.filters = [new Filter({ glProgram: programa, resources: { bordas: grupo } })];
+  veu.filters = [criarFiltroDeMundo(veu, { fragment, nome: 'atlas-bordas', recursos: { bordas: grupo } })];
   const raiz = new Container(); raiz.addChild(veu); raiz.visible = false;
 
   let mapa: MapaAtlas | null = null, tempo = 0, desloc: [number, number] = [0, 0], ligado = true, ativo = false, destruido = false;
