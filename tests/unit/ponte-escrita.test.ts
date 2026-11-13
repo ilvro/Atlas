@@ -125,6 +125,17 @@ test('atlas_mapa_criar grava com o campanhaId, sincroniza e abre', async () => {
   validarMapa(m);
 });
 
+test('atlas_mapa_criar atualiza a lista de mapas do app depois de gravar', async () => {
+  const eventos: string[] = [];
+  const { chamar } = montar(false, {
+    repo: () => ({ salvar: async m => { eventos.push('gravou'); return m; } }),
+    atualizarLista: async () => { eventos.push('lista'); },
+    abrirMapa: async () => { eventos.push('abriu'); },
+  });
+  await chamar('atlas_mapa_criar', { nome: 'Vila', largura: 20, altura: 15 });
+  assert.deepEqual(eventos, ['gravou', 'lista', 'abriu']);
+});
+
 test('atlas_mapa_criar valida tamanho, gênero e base antes de gravar', async () => {
   const { chamar, gravados } = montar(false);
   await assert.rejects(chamar('atlas_mapa_criar', { nome: 'X', largura: 1000, altura: 10 }), /largura/);
