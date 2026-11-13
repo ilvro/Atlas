@@ -301,3 +301,16 @@ Como: em `savePreset`, `mesclarMetadados` só entra quando a pasta escolhida no 
 Commit (Jukebox): merge external songs only into the opened preset folder
 
 Nota da Etapa E: conferido por captura no WebKitGTK (terreno sem degraus, bordas de névoa e nuvens orgânicas, água animando, espuma só no tronco das árvores). E7: a causa era `atlas_abrir` criar a sessão sem navegar para a rota do mapa; o editor só monta com a rota. E6: o caso real era o mapa numa aba em segundo plano (`cacheDeSessoes`) com edições não gravadas. Não conferido: `atlas_abrir` com a aba escondida no app real, `atlas_salvar` em conflito entre abas, `jukebox_cena_criar` com a Jukebox aberta, o desfoque novo dentro do worker de assado.
+
+### Etapa F — Terceiro teste (12 e 13/11)
+
+Feito, conferido por captura no WebKitGTK com os mapas reais "A Ilhota" e "Travessia do Pântano":
+- Presença opaca por cima dos objetos: era defeito de desenho (o Chromium mostrava o mesmo). Opacidade máxima `0,16 + 0,44 × intensidade`, máscara desfocada em CPU, pincéis de chão numa camada nova abaixo dos objetos (`a1b9b28`).
+- Escarpas avulsas cobertas pelo musgo na Travessia: passaram a ficar acima do chão pintado (`369d118`).
+- Espuma: sem anel em plantas e coisas finas; anel fino nos objetos sólidos (`852fae6`).
+- `atlas_presenca` com `apagar` e intensidade que vale ao repintar (`1cae03a`).
+- Água que baixa devolve o terreno coberto, guardado em `terrain.submerged` (`bf89cc8`).
+- Um momento inteiro é um só desfazer (`2014cd3`).
+- Mesa: o seletor de pasta do atalho escapava mal o `%` dos nomes de arquivo da Jukebox e as músicas chegavam vazias (`758569c`, repositório da Mesa).
+
+Não conferido: estilo Pixel depois das mudanças de presença e espuma; água que devolve o terreno e desfazer único vistos no app.
