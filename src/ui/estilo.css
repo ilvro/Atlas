@@ -75,7 +75,15 @@ kbd { font: 700 10px var(--corpo); padding: 1px 5px; border: 1px solid currentCo
 
 /* ---- Barra de Abas de Mapas ---- */
 .abas-de-mapas { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.abas-lista { display: flex; align-items: center; gap: 4px; max-width: 44vw; overflow-x: auto; scrollbar-width: none; }
+.abas-rolagem { position: relative; display: flex; min-width: 0; max-width: 44vw; }
+.abas-lista { display: flex; align-items: center; gap: 4px; flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.abas-rolagem[data-esconde-esq='true'] .abas-lista { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 34px); mask-image: linear-gradient(to right, transparent 0, #000 34px); }
+.abas-rolagem[data-esconde-dir='true'] .abas-lista { -webkit-mask-image: linear-gradient(to left, transparent 0, #000 34px); mask-image: linear-gradient(to left, transparent 0, #000 34px); }
+.abas-rolagem[data-esconde-esq='true'][data-esconde-dir='true'] .abas-lista { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 34px, #000 calc(100% - 34px), transparent 100%); mask-image: linear-gradient(to right, transparent 0, #000 34px, #000 calc(100% - 34px), transparent 100%); }
+.aba-seta { position: absolute; top: 50%; transform: translateY(-50%); z-index: 1; width: 22px; height: 26px; display: grid; place-items: center; padding: 0 0 2px; font: 700 18px/1 var(--corpo); color: var(--apagado); background: var(--superficie-2); border: 1px solid var(--linha); border-radius: var(--raio); cursor: pointer; transition: color 0.15s, border-color 0.15s; }
+.aba-seta:hover { color: var(--texto); border-color: var(--acento); }
+.aba-seta.esq { left: 0; }
+.aba-seta.dir { right: 0; }
 .abas-lista::-webkit-scrollbar { display: none; }
 .aba-mapa { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 8px; border-radius: var(--raio); background: rgba(255, 255, 255, 0.03); border: 1px solid var(--linha); color: var(--apagado); transition: background 0.15s, border-color 0.15s, color 0.15s; cursor: pointer; flex-shrink: 0; max-width: 260px; user-select: none; }
 .aba-mapa:hover { background: var(--superficie-2); border-color: var(--linha-forte); color: var(--texto); }
