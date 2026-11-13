@@ -13,6 +13,8 @@ import {
 } from '../app/app.ts';
 import { tituloDoEstado } from '../app/sessao.ts';
 import { filtrar } from '../app/busca.ts';
+import { campanhaAtiva, campanhas } from '../app/campanha.ts';
+import { mapasDaCampanha, mapasDeOutrasCampanhas } from '../app/mapas-da-campanha.ts';
 import { Icone } from './Icone.tsx';
 import { movimentoReduzido } from '../fx/fx.ts';
 
@@ -23,6 +25,7 @@ export function AbasDeMapas() {
 
   const [popoverAberto, setPopoverAberto] = useState(false);
   const [busca, setBusca] = useState('');
+  const [verOutras, setVerOutras] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const botaoMaisRef = useRef<HTMLButtonElement>(null);
   const abaAtivaRef = useRef<HTMLDivElement>(null);
@@ -112,8 +115,12 @@ export function AbasDeMapas() {
     medirTransbordo();
   }, [assinaturaAbas]);
 
-  const outros = resumos.value.filter(r => !listaAbas.some(a => a.id === r.id));
+  const cid = campanhaAtiva.value?.id ?? null;
+  const fechadas = resumos.value.filter(r => !listaAbas.some(a => a.id === r.id));
+  const outros = mapasDaCampanha(fechadas, cid);
   const filtrados = filtrar(outros, busca, r => r.nome);
+  const deOutras = filtrar(mapasDeOutrasCampanhas(fechadas, cid), busca, r => r.nome);
+  const nomeDaCampanha = (id: string | null) => (id ? campanhas.value.find(c => c.id === id)?.nome : undefined) ?? 'Sem campanha';
 
   return (
     <div class="abas-de-mapas" role="tablist" aria-label="Mapas abertos">
@@ -253,6 +260,7 @@ export function AbasDeMapas() {
             if (!popoverAberto) {
               void atualizarLista();
               setBusca('');
+              setVerOutras(false);
             }
             setPopoverAberto(!popoverAberto);
           }}
@@ -302,9 +310,31 @@ export function AbasDeMapas() {
                 ))
               ) : (
                 <div class="popover-vazio">
-                  {outros.length === 0 ? 'Nenhum outro mapa salvo' : 'Nenhum mapa encontrado'}
+                  {outros.length === 0 ? (cid ? 'Nenhum outro mapa nesta campanha' : 'Nenhum outro mapa salvo') : 'Nenhum mapa encontrado'}
                 </div>
               )}
+              {deOutras.length > 0 ? (
+                <>
+                  <button type="button" class="item-outras-campanhas" data-testid="aba-outras-campanhas" aria-expanded={verOutras} onClick={() => setVerOutras(!verOutras)}>
+                    Outras campanhas ({deOutras.length}) {verOutras ? '▾' : '▸'}
+                  </button>
+                  {verOutras ? deOutras.map(r => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      class="item-mapa-aba"
+                      data-testid="item-mapa-outra-campanha"
+                      onClick={() => {
+                        setPopoverAberto(false);
+                        navegar({ tipo: 'mapa', id: r.id });
+                      }}
+                    >
+                      <span class="item-mapa-nome">{r.nome}</span>
+                      <span class="item-mapa-campanha">{nomeDaCampanha(r.campanhaId)}</span>
+                    </button>
+                  )) : null}
+                </>
+              ) : null}
             </div>
           </div>
         ) : null}

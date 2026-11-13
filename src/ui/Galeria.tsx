@@ -2,6 +2,7 @@ import { Aprender, aprenderAberto } from './Aprender.tsx';
 import { useEffect, useRef } from 'preact/hooks';
 import { useSignal } from '@preact/signals';
 import { campanhaAtiva, campanhas, criarCampanha, escolherCampanha } from '../app/campanha.ts';
+import { mapasDaCampanha } from '../app/mapas-da-campanha.ts';
 import { criarMapaNovo, duplicarMapa, escolherArquivoParaImportar, exportar, mapaAusente, navegar, removerMapa, resumos, servicos } from '../app/app.ts';
 import type { ResumoMapa } from '../data/repositorio.ts';
 import { desenharMiniatura } from '../render/miniatura.ts';
@@ -23,7 +24,8 @@ function Miniatura({ r }: { r: ResumoMapa }) {
 const quando = (t: number) => new Date(t).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 
 function Cartao({ r }: { r: ResumoMapa }) {
-  const campanha = r.campanhaId ? campanhas.value.find(c => c.id === r.campanhaId) : undefined;
+  // Na vista filtrada todos os cartões são da mesma campanha: a etiqueta só aparece na vista geral.
+  const campanha = r.campanhaId && !campanhaAtiva.value ? campanhas.value.find(c => c.id === r.campanhaId) : undefined;
   if (r.erro) return (
     <article class="cartao com-erro" data-testid="cartao-erro">
       <div class="cartao-corpo"><h3>{r.nome}</h3><p class="erro-texto"><Icone nome="aviso" tamanho={14} /> Não consegui ler este mapa.</p><p class="meta">{r.erro}</p></div>
@@ -71,7 +73,7 @@ function BlocoDeCampanha() {
   );
 }
 
-function Lateral({ total }: { total: number }) {
+function Lateral({ total, geral }: { total: number; geral: number }) {
   return (
     <aside class="lateral" aria-label="Navegação">
       <nav class="lateral-grupo">
@@ -86,7 +88,7 @@ function Lateral({ total }: { total: number }) {
       <div class="lateral-grupo">
         <h2 class="lateral-titulo">Arquivo</h2>
         <button type="button" class="lateral-item" onClick={escolherArquivoParaImportar} data-testid="importar"><Icone nome="importar" tamanho={16} />Importar</button>
-        <button type="button" class="lateral-item" onClick={() => void exportar([])} disabled={!total} data-testid="exportar-tudo"><Icone nome="exportar" tamanho={16} />Exportar tudo</button>
+        <button type="button" class="lateral-item" onClick={() => void exportar([])} disabled={!geral} data-testid="exportar-tudo"><Icone nome="exportar" tamanho={16} />Exportar tudo</button>
       </div>
       <p class="lateral-rodape"><Icone nome="gaveta" tamanho={13} /> Tudo fica guardado neste navegador. Exporte uma cópia de vez em quando.</p>
     </aside>
@@ -160,6 +162,19 @@ function Continuar({ r }: { r: ResumoMapa }) {
   );
 }
 
+function VazioDaCampanha({ nome }: { nome: string }) {
+  return (
+    <section class="vazio" data-testid="galeria-vazia-campanha">
+      <h2>Nenhum mapa nesta campanha ainda</h2>
+      <p>Os mapas que você criar com “{nome}” selecionada ficam aqui. Os outros continuam na vista geral.</p>
+      <div class="vazio-acoes">
+        <button type="button" class="botao-pilula destaque" data-testid="novo-mapa-campanha" onClick={() => void criarMapaNovo()}><Icone nome="novo" tamanho={15} />Novo mapa</button>
+        <button type="button" class="botao-pilula" data-testid="ver-todos-mapas" onClick={() => escolherCampanha(null, servicos.value ?? undefined)}>Ver todos os mapas</button>
+      </div>
+    </section>
+  );
+}
+
 function Vazio() {
   return (
     <section class="vazio" data-testid="galeria-vazia">
@@ -179,13 +194,13 @@ function Vazio() {
 
 export function Galeria() {
   useEffect(() => { void carregarIndiceDeExemplos(); }, []);
-  const lista = resumos.value, busca = useSignal(''), q = busca.value.trim().toLowerCase();
+  const geral = resumos.value, lista = mapasDaCampanha(geral, campanhaAtiva.value?.id), busca = useSignal(''), q = busca.value.trim().toLowerCase();
   const recente = lista.filter(r => !r.erro).reduce<ResumoMapa | null>((m, r) => (!m || r.atualizadoEm > m.atualizadoEm ? r : m), null);
   const visiveis = q ? lista.filter(r => r.nome.toLowerCase().includes(q)) : lista;
   const hora = new Date().getHours(), saudacao = hora < 6 ? 'Boa madrugada' : hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
   return (
     <div class="plataforma">
-      <Lateral total={lista.length} />
+      <Lateral total={lista.length} geral={geral.length} />
       <main class="galeria" aria-labelledby="titulo-galeria">
         <header class="galeria-topo">
           <div class="galeria-titulos">
@@ -202,7 +217,7 @@ export function Galeria() {
         {recente && !q ? <Continuar r={recente} /> : null}
         {lista.length ? (<>
           <div class="galeria-secao">
-            <h2 class="faixa pequena">Todos os mapas</h2>
+            <h2 class="faixa pequena">{campanhaAtiva.value ? 'Mapas da campanha' : 'Todos os mapas'}</h2>
             <input type="search" class="busca-mapas" placeholder="Buscar por nome" aria-label="Buscar mapas" value={busca.value} onInput={e => { busca.value = (e.target as HTMLInputElement).value; }} data-testid="buscar-mapas" />
           </div>
           {visiveis.length
@@ -210,7 +225,7 @@ export function Galeria() {
             : <p class="dica" data-testid="busca-sem-resultado">Nenhum mapa com “{busca.value}”.</p>}
           <h2 class="faixa pequena">Começar</h2>
           <Comecar />
-        </>) : (<><Vazio /><Comecar /></>)}
+        </>) : (<>{campanhaAtiva.value && geral.length ? <VazioDaCampanha nome={campanhaAtiva.value.nome} /> : <Vazio />}<Comecar /></>)}
         <Exemplos />
       </main>
     </div>
