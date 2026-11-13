@@ -79,10 +79,10 @@ export function calcularRespiracao(t: number, semente: number, p: ParametrosResp
   const sway = Math.sin(ts * 0.65) * 0.6 + Math.sin(ts * 1.03 + 1.7) * 0.4;
   const tremor = p.tremor * (Math.sin(ts * 37) * 0.5 + Math.sin(ts * 23.3) * 0.5);
   return {
-    lift: 0.0028 * p.amp * b,
-    expand: 0.02 * p.amp * b,
-    head: 0.0007 * p.amp * headB,
-    sway: 0.0011 * sway + 0.0005 * tremor,
+    lift: 0.026 * p.amp * b,
+    expand: 0.065 * p.amp * b,
+    head: 0.008 * p.amp * headB,
+    sway: 0.0055 * sway + 0.003 * tremor,
   };
 }
 
