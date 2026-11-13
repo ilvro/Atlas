@@ -14,6 +14,7 @@ import {
 import { tituloDoEstado } from '../app/sessao.ts';
 import { filtrar } from '../app/busca.ts';
 import { Icone } from './Icone.tsx';
+import { movimentoReduzido } from '../fx/fx.ts';
 
 export function AbasDeMapas() {
   const s = sessao.value;
@@ -26,9 +27,51 @@ export function AbasDeMapas() {
   const botaoMaisRef = useRef<HTMLButtonElement>(null);
   const abaAtivaRef = useRef<HTMLDivElement>(null);
 
+  const listaRef = useRef<HTMLDivElement>(null);
+  const [escondeEsq, setEscondeEsq] = useState(false);
+  const [escondeDir, setEscondeDir] = useState(false);
+
   useEffect(() => {
-    abaAtivaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    abaAtivaRef.current?.scrollIntoView({ behavior: movimentoReduzido() ? 'auto' : 'smooth', block: 'nearest', inline: 'nearest' });
   }, [ativoId]);
+
+  const medirTransbordo = () => {
+    const el = listaRef.current;
+    if (!el) return;
+    // Sem espaço para as setas (cabeçalho espremido), não mostra nenhuma.
+    const cabe = el.clientWidth >= 96;
+    setEscondeEsq(cabe && el.scrollLeft > 1);
+    setEscondeDir(cabe && el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  };
+
+  // Recalcula ao rolar, ao redimensionar a lista e (abaixo) quando as abas mudam.
+  useEffect(() => {
+    const el = listaRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', medirTransbordo, { passive: true });
+    const obs = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(medirTransbordo) : null;
+    obs?.observe(el);
+    // Roda vertical sobre a lista rola na horizontal; só impede a rolagem da página se a lista de fato andou.
+    const aoRolarRoda = (e: WheelEvent) => {
+      if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY) || e.deltaY === 0) return;
+      const antes = el.scrollLeft;
+      el.scrollLeft += e.deltaY;
+      if (el.scrollLeft !== antes) e.preventDefault();
+    };
+    el.addEventListener('wheel', aoRolarRoda, { passive: false });
+    medirTransbordo();
+    return () => {
+      el.removeEventListener('scroll', medirTransbordo);
+      el.removeEventListener('wheel', aoRolarRoda);
+      obs?.disconnect();
+    };
+  }, []);
+
+  const rolarAbas = (sentido: -1 | 1) => {
+    const el = listaRef.current;
+    if (!el) return;
+    el.scrollBy({ left: sentido * el.clientWidth * 0.7, behavior: movimentoReduzido() ? 'auto' : 'smooth' });
+  };
 
   useEffect(() => {
     if (!popoverAberto) return;
@@ -64,12 +107,21 @@ export function AbasDeMapas() {
     ? abas
     : (s ? [...abas, { id: s.doc.value.id, nome: s.doc.value.name }] : abas);
 
+  const assinaturaAbas = listaAbas.map(a => `${a.id}:${a.nome}`).join('|');
+  useEffect(() => {
+    medirTransbordo();
+  }, [assinaturaAbas]);
+
   const outros = resumos.value.filter(r => !listaAbas.some(a => a.id === r.id));
   const filtrados = filtrar(outros, busca, r => r.nome);
 
   return (
     <div class="abas-de-mapas" role="tablist" aria-label="Mapas abertos">
-      <div class="abas-lista">
+      <div class="abas-rolagem" data-esconde-esq={escondeEsq} data-esconde-dir={escondeDir}>
+        {escondeEsq ? (
+          <button type="button" class="aba-seta esq" aria-label="Abas anteriores" title="Abas anteriores" data-testid="abas-rolar-esquerda" onClick={() => rolarAbas(-1)}>‹</button>
+        ) : null}
+      <div class="abas-lista" ref={listaRef}>
         {listaAbas.map(aba => {
           const ehAtiva = aba.id === ativoId;
           if (ehAtiva && s) {
@@ -182,6 +234,10 @@ export function AbasDeMapas() {
             </div>
           );
         })}
+      </div>
+        {escondeDir ? (
+          <button type="button" class="aba-seta dir" aria-label="Próximas abas" title="Próximas abas" data-testid="abas-rolar-direita" onClick={() => rolarAbas(1)}>›</button>
+        ) : null}
       </div>
 
       <div class="aba-mais-container">
