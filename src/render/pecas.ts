@@ -3,6 +3,7 @@ import { aparenciaDoEstado } from '../domain/figuras.ts';
 import { emEstadoCritico, extrairNumeroDoToken, pipsCheios, temPd, type Recursos } from '../domain/fichas.ts';
 import type { Peca, Ponto } from '../domain/mapa.ts';
 import { corDoNome, hexParaNumero } from './cores.ts';
+import { criarFiltroDeRespiracao, type ParametrosRespiracao } from './respiracao.ts';
 
 /** Uma peça no mapa: retrato em círculo (ou a inicial), anel, e a cara do estado (deitada, acinzentada, pulsando, tremendo, com X). */
 export interface PecaVisual {
@@ -31,6 +32,9 @@ export function criarPeca(): PecaVisual {
   let desliza: { de: Ponto; para: Ponto; t0: number; dur: number } | null = null, rastro: { de: Ponto; para: Ponto; t0: number }[] = [], alvo: Ponto | null = null, cor0 = 0xffffff, grade0 = 1;
   let pulso = 0, tremor = 0, raio = 0.5, tem = false, deitada = false, semente = Math.random() * 100;
   let estiloToken: 'coin' | 'immersive' = 'coin', escalaVisual = 1, rBase = 0.5, eImersivo = false;
+  let respiracao: ReturnType<typeof criarFiltroDeRespiracao> | null = null;
+  let retratoImersivo: Sprite | null = null;
+  let paramsRespiracao: ParametrosRespiracao = { period: 4.2, amp: 1, tremor: 0 };
   // O sprite: a folha (96 × 96) fatiada em quadros, o sprite que mostra o quadro e a linha do lado para onde a peça olha.
   let estadoVisto = 'normal', pxDoSprite = 1, tintaNum = 0xffffff, folhaAtual: Texture | null = null, quadros: Texture[][] = [], spriteRef: Sprite | null = null, ladoParado = 0, corrente: { linha: number; coluna: number } | null = null;
   const fatiar = (folha: Texture): Texture[][] => Array.from({ length: 4 }, (_, l) => Array.from({ length: 6 }, (_, k) => new Texture({ source: folha.source, frame: new Rectangle(k * QW, l * QH, QW, QH) })));
@@ -45,6 +49,7 @@ export function criarPeca(): PecaVisual {
       const r = rBase * escalaVisual;
       const ap = aparenciaDoEstado(t.figure.state);
       raio = r; deitada = ap.deitado; pulso = ap.pulso; tremor = ap.tremor;
+      if (retratoImersivo) { retratoImersivo.filters = []; retratoImersivo = null; }
       for (const f of corpo.removeChildren()) f.destroy({ children: true });
       for (const f of badge.removeChildren()) f.destroy({ children: true });
       const tinta = ap.tinta ? hexParaNumero(ap.tinta) : 0xffffff;
@@ -103,6 +108,17 @@ export function criarPeca(): PecaVisual {
           sp.anchor.set(0.5, 0.72);
           sp.position.set(0, rBase * 0.65);
           sp.tint = tinta;
+          if (!ap.deitado) {
+            respiracao ??= criarFiltroDeRespiracao();
+            const criticoPv = t.figure.state === 'hurt' || t.figure.state === 'dying' || (recursos !== null && emEstadoCritico(recursos));
+            paramsRespiracao = criticoPv
+              ? { period: 2.4, amp: 1.7, tremor: 0 }
+              : t.figure.state === 'maddened'
+                ? { period: 3.2, amp: 0.75, tremor: 1 }
+                : { period: 4.2, amp: 1, tremor: 0 };
+            sp.filters = [respiracao.filtro];
+            retratoImersivo = sp;
+          }
           corpo.addChild(sp);
         } else {
           const sp = new Sprite(tex), cobrir = Math.max((2 * r) / tex.width, (2 * r) / tex.height);
@@ -220,6 +236,10 @@ export function criarPeca(): PecaVisual {
       }
       // Morrendo: o sprite pisca em vermelho (o anel pulsa por baixo).
       if (spriteRef && pulso) spriteRef.tint = efeitos && Math.floor(ms / 180) % 2 ? 0xff6a5a : tintaNum;
+      if (respiracao && retratoImersivo) {
+        respiracao.filtro.enabled = efeitos && !deitada;
+        if (respiracao.filtro.enabled) respiracao.atualizar(ms / 1000, semente, paramsRespiracao);
+      }
       if (!efeitos || (!pulso && !tremor)) { if (anel.alpha !== 1 || corpo.x !== 0) { anel.alpha = 1; anel.scale.set(1); corpo.position.set(0, 0); } return; }
       const t = ms / 1000;
       if (pulso) { const f = 0.5 + 0.5 * Math.sin(t * Math.PI * 2.4); anel.alpha = 0.45 + 0.55 * f; anel.scale.set(1 + 0.1 * f * pulso); }
