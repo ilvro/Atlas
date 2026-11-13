@@ -2,12 +2,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ferramentasDeEscrita } from '../../src/app/ponte-escrita.ts';
 import { ferramentasDeLeitura } from '../../src/app/ponte-leitura.ts';
-import { ESQUEMA_PRESET_ADICIONAR, ESQUEMA_PRESET_LER } from './mcp.ts';
+import { DESCRICAO_PRESET_ABRIR, ESQUEMA_PRESET_ABRIR, ESQUEMA_PRESET_ADICIONAR, ESQUEMA_PRESET_LER } from './mcp.ts';
 
 export const APPS_CONHECIDOS = ['atlas', 'mesa', 'ficha', 'atelie', 'jukebox'];
 
 /** Ferramentas internas (chamadas pelo próprio servidor MCP): nunca entram no catálogo base. */
-export const FERRAMENTAS_INTERNAS = ['jukebox_preset_receber'];
+export const FERRAMENTAS_INTERNAS = ['jukebox_preset_receber', 'jukebox_preset_abrir_receber', 'atelie_imagem_receber'];
 
 export interface ItemCatalogoBase {
   nome: string;
@@ -22,6 +22,13 @@ export const FERRAMENTAS_LOCAIS_CATALOGO: ItemCatalogoBase[] = [
     nome: 'jukebox_preset_adicionar',
     descricao: 'Adiciona música MP3 a uma pasta de preset da Jukebox no disco (use substituir: true para atualizar).',
     esquema: ESQUEMA_PRESET_ADICIONAR as Record<string, unknown>,
+    app: 'jukebox',
+    anotacoes: { destrutiva: false },
+  },
+  {
+    nome: 'jukebox_preset_abrir',
+    descricao: DESCRICAO_PRESET_ABRIR,
+    esquema: ESQUEMA_PRESET_ABRIR as Record<string, unknown>,
     app: 'jukebox',
     anotacoes: { destrutiva: false },
   },
