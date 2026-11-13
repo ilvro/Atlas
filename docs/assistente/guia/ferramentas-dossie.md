@@ -41,7 +41,7 @@ Parâmetros:
 
 ## dossie_ficha_editar
 
-Edita campos simples de uma ficha (texto e números; veja a lista em "campos"). Se a ficha não foi criada pelo assistente, o mestre confirma na aba do Dossiê. Não apaga fichas nem mexe em retrato, licença do bestiário ou pastas.
+Edita campos simples de uma ficha (texto e números; veja a lista em "campos"). Não apaga fichas nem mexe em retrato, licença do bestiário ou pastas.
 
 A ferramenta nunca responde sucesso sem o campo ter mudado: depois de salvar, ela relê a ficha, e se algum campo voltou ao valor anterior a resposta é erro, dizendo quais campos não ficaram (os demais foram gravados). Na resposta de sucesso, `gravado` mostra o valor que ficou em cada campo pedido. A ocupação (`ocupacao`) é texto livre, sem lista fixa: o que o assistente enviar é o que a ficha exibe, e não há bônus ligados a ela.
 

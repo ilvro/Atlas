@@ -44,14 +44,15 @@ Um `.mcp.json` na pasta onde o Claude Code roda, com a mesma entrada:
 
 O catálogo base (`scripts/ponte/catalogo-base.json`) permite que o Claude enxergue as ferramentas de todos os aplicativos da plataforma assim que conecta, mesmo antes de cada aba ser aberta.
 
-As ferramentas `atlas_*` são montadas direto do código (`ferramentasDeLeitura` e `ferramentasDeEscrita`, com contexto falso): não dependem do cache nem de o Atlas estar aberto. Um teste (`tests/unit/ponte-mcp.test.ts`) falha se nome, descrição, esquema ou anotações de alguma delas divergirem do catálogo base.
+Todos os apps são montados direto do código, sem depender do cache nem de o app estar aberto:
+- `atlas_*`: `ferramentasDeLeitura` e `ferramentasDeEscrita` do próprio Atlas, com contexto falso.
+- Mesa, Dossiê (`ficha`), Ateliê e Jukebox: o gerador importa o código dos repositórios irmãos em `../Mesa` (`ferramentasDaMesa`, em `src/app/ponte-ferramentas.ts`), `../Dossie` (`ferramentasDoDossie`), `../Atelie` (`ferramentasDoAtelie`) e `../Jukebox` (`ferramentasDaJukebox`), também com contexto falso (lista em `IRMAOS_DO_CATALOGO`, `catalogo.ts`).
 
-Quando uma ferramenta do **Atlas** for criada, removida ou tiver descrição, esquema ou anotações alterados: rode `npm run ponte:catalogo` e faça commit de `scripts/ponte/catalogo-base.json`.
+Se um repositório irmão não existir (ou a importação falhar), o gerador avisa no terminal e usa, para aquele app, o cache `.ponte/ferramentas.json` (gravado pelo servidor MCP quando o app conecta) e, sem ele, o catálogo base atual. Ao final, o terminal mostra a fonte de cada app (`código`, `cache` ou `catálogo atual`). As ferramentas internas (`FERRAMENTAS_INTERNAS`) nunca entram.
 
-Para os **outros apps** (Mesa, Dossiê/Ficha, Ateliê e Jukebox), o gerador lê o cache `.ponte/ferramentas.json`, que o servidor MCP grava quando cada app se conecta (sem cache, parte do catálogo atual):
-1. Abra a plataforma (`npm run mesa-dev`) e acesse os apps que mudaram, para que suas ferramentas fiquem salvas no cache.
-2. Rode `npm run ponte:catalogo`.
-3. Faça commit do arquivo gerado.
+Testes (`tests/unit/ponte-mcp.test.ts`) falham se nome, descrição, esquema ou anotações de alguma ferramenta do Atlas divergirem do catálogo base; o mesmo vale para cada app irmão, e o teste daquele app é pulado quando o repositório não existe.
+
+Quando uma ferramenta de qualquer app for criada, removida ou tiver descrição, esquema ou anotações alterados: rode `npm run ponte:catalogo` (com os repositórios irmãos ao lado do Atlas) e faça commit de `scripts/ponte/catalogo-base.json`.
 
 ## Teste de fumaça
 

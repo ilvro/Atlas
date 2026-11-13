@@ -44,7 +44,7 @@
   },
   {
     "nome": "atelie_documento_editar",
-    "descricao": "Edita um documento: nome, campos e/ou texto UV; arquiva de novo. O mestre confirma se não é do assistente (recusa: não insista). Detalhes: plataforma_guia ferramentas-atelie.",
+    "descricao": "Edita um documento: nome, campos e/ou texto UV; arquiva de novo. Detalhes: plataforma_guia ferramentas-atelie.",
     "esquema": {
       "type": "object",
       "required": [
@@ -2144,7 +2144,7 @@
   },
   {
     "nome": "dossie_ameaca_criar",
-    "descricao": "Cria uma ficha de ameaça com os números do VD, como o wizard. Devolve o id. Detalhes: plataforma_guia ferramentas-dossie.",
+    "descricao": "Cria ameaça com os números do VD; \"numeros\" substitui PV, defesa, salvaguardas etc. (outros sistemas). Devolve o id. Detalhes: plataforma_guia ferramentas-dossie.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -2220,6 +2220,119 @@
         "descricao": {
           "type": "string",
           "description": "Notas do mestre."
+        },
+        "numeros": {
+          "type": "object",
+          "description": "Números diretos; substituem os do VD (ex.: OP2). Omitidos seguem o VD.",
+          "properties": {
+            "pv": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 99999
+            },
+            "defesa": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 200
+            },
+            "fortitude": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 200,
+              "description": "Bônus."
+            },
+            "reflexos": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 200,
+              "description": "Bônus."
+            },
+            "vontade": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 200,
+              "description": "Bônus."
+            },
+            "deslocamento": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 300,
+              "description": "Metros."
+            },
+            "dtPresenca": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "atributos": {
+              "type": "object",
+              "description": "for, agi, int, pre, vig (0 a 20).",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 20
+              }
+            },
+            "pericias": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "nome": {
+                    "type": "string"
+                  },
+                  "dados": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 20
+                  },
+                  "bonus": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 200
+                  }
+                },
+                "required": [
+                  "nome"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "resistencias": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "tipo": {
+                    "type": "string"
+                  },
+                  "valor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 999
+                  }
+                },
+                "required": [
+                  "tipo",
+                  "valor"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "vulnerabilidades": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "imunidades": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
         },
         "acoes": {
           "type": "array",
@@ -2350,7 +2463,7 @@
   },
   {
     "nome": "dossie_ficha_editar",
-    "descricao": "Edita campos simples de uma ficha (texto e números). O mestre confirma se a ficha não é do assistente. Detalhes: plataforma_guia ferramentas-dossie.",
+    "descricao": "Edita campos simples de uma ficha (texto e números). Detalhes: plataforma_guia ferramentas-dossie.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -2371,6 +2484,16 @@
             "pv": {},
             "pvMax": {},
             "defesa": {},
+            "fortitude": {},
+            "reflexos": {},
+            "vontade": {},
+            "deslocamento": {},
+            "dtPresenca": {},
+            "atributos": {},
+            "pericias": {},
+            "resistencias": {},
+            "vulnerabilidades": {},
+            "imunidades": {},
             "tipo": {},
             "tamanho": {},
             "notas": {},
@@ -2606,7 +2729,7 @@
         },
         "capa": {
           "type": "string",
-          "description": "Caminho de JPEG para a capa (opcional; usa padrão se omitida)."
+          "description": "Caminho de imagem JPEG para a capa (opcional; usa padrão se omitida)."
         },
         "criar": {
           "type": "boolean",
@@ -2701,6 +2824,49 @@
   {
     "nome": "mesa_campanha_atual",
     "descricao": "A campanha selecionada no hub da Mesa (id, nome e sistema), ou \"nenhuma\".",
+    "esquema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "app": "mesa",
+    "anotacoes": {
+      "leitura": true
+    }
+  },
+  {
+    "nome": "mesa_campanha_criar",
+    "descricao": "Cria uma campanha como o botão do hub e, por padrão, a torna a ativa (as outras ferramentas passam a valer nela). Detalhes: plataforma_guia ferramentas-mesa.",
+    "esquema": {
+      "type": "object",
+      "required": [
+        "nome"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "nome": {
+          "type": "string",
+          "description": "1 a 80 caracteres; sem repetir nome existente."
+        },
+        "sistema": {
+          "type": "string",
+          "description": "Sistema de regras, até 80 caracteres (padrão ordem-paranormal)."
+        },
+        "selecionar": {
+          "type": "boolean",
+          "description": "Torna a campanha a ativa do hub (padrão true)."
+        }
+      }
+    },
+    "app": "mesa",
+    "anotacoes": {
+      "destrutiva": false
+    }
+  },
+  {
+    "nome": "mesa_campanhas_listar",
+    "descricao": "Lista as campanhas da Mesa (id, nome, sistema) e qual está ativa no hub. Detalhes: plataforma_guia ferramentas-mesa.",
     "esquema": {
       "type": "object",
       "properties": {},
