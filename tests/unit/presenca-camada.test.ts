@@ -33,3 +33,12 @@ test('na cena, a tinta do chão fica sobre os cômodos, sob as escarpas e sob os
   assert.ok(ordem.every(p => p >= 0));
   assert.deepEqual([...ordem].sort((a, b) => a - b), ordem);
 });
+
+test('a espuma não cerca plantas nem coisas finas, mas cerca pedras e troncos', async () => {
+  const { geraAnelDeEspuma, forcaDoAnel } = await import('../../src/render/espuma.ts');
+  const receita = (recipe: string) => ({ kind: 'recipe' as const, recipe, seed: 1, params: {} });
+  for (const id of ['junco', 'vitoria-regia', 'tufo-de-grama', 'galho-seco', 'raiz-exposta']) assert.equal(geraAnelDeEspuma(receita(id), [1.5, 1.5]), false, id);
+  for (const id of ['tronco.caido', 'rochedo', 'laje-de-pedra', 'coluna-caida']) assert.equal(geraAnelDeEspuma(receita(id), [2, 1]), true, id);
+  assert.ok(forcaDoAnel([0.6, 0.6]) < forcaDoAnel([3, 2]));
+  assert.ok(forcaDoAnel([9, 9]) <= 1);
+});

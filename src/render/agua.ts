@@ -3,6 +3,7 @@ import type { MapaAtlas } from '../domain/mapa.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import { tamanhoDoObjeto } from './selecao.ts';
 import { ehArvore } from '../domain/camadas.ts';
+import { forcaDoAnel, geraAnelDeEspuma } from './espuma.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import { hexParaNumero } from './cores.ts';
@@ -79,10 +80,10 @@ void main() {
   float espuma = smoothstep(0.42, 0.58, faixa) * 0.85 * dentro;
   // Anel de espuma em volta dos objetos de piso que tocam a água (pedras, cascos): a máscara deles vem de "uObjetos".
   float c0 = texture(uObjetos, uv).a, viz = 0.0;
-  for (int i = 0; i < 8; i++) { float an = float(i) * 0.7854; viz += texture(uObjetos, uv + vec2(cos(an), sin(an)) * 0.4 / uTamanho).a; }
+  for (int i = 0; i < 8; i++) { float an = float(i) * 0.7854; viz += texture(uObjetos, uv + vec2(cos(an), sin(an)) * 0.25 / uTamanho).a; }
   viz /= 8.0;
   float anel = (1.0 - smoothstep(0.2, 0.6, c0)) * smoothstep(0.02, 0.3, viz);
-  espuma = max(espuma, smoothstep(0.34, 0.56, anel * (0.6 + 0.4 * onda) + (ruido(p * 3.0 + t * 0.2 - v * t * 0.8) - 0.5) * 0.8) * 0.9 * dentro);
+  espuma = max(espuma, smoothstep(0.34, 0.56, anel * (0.6 + 0.4 * onda) + (ruido(p * 3.0 + t * 0.2 - v * t * 0.8) - 0.5) * 0.3) * 0.7 * dentro);
   espuma *= forcaDaEspuma;
   // Rebentação: cristas ao longo das curvas de profundidade, correndo para a margem e quebrando em trechos; um rastro ralo atrás de cada uma.
   float ondas = idx < 1.5 ? uOndas.x : idx < 2.5 ? uOndas.y : idx < 3.5 ? uOndas.z : uOndas.w;
@@ -173,10 +174,12 @@ export function criarAgua(): RenderDeAgua {
     for (const o of Object.values(m.props)) {
       if (o.elevation !== 'floor' || o.roomId !== null || !o.blocks.move) continue;   // o que flutua ou não barra o passo (vitórias-régias, barcos atracados) não quebra onda
       const [w, h] = tamanhoDoObjeto(o);
+      if (!geraAnelDeEspuma(o.source, [w, h])) continue;      // juncos, vitórias-régias, capim, galhos e raízes não quebram a água
       // Árvore em pé: a espuma segue o tronco (raio de 15% da meia pegada, no mínimo 0,25 m), não a copa. O resto usa a pegada inteira.
       const arvore = ehArvore(ACERVO.idDaFonte(o.source)), rx = arvore ? Math.max(0.25, 0.15 * w / 2) * r : w * r / 2, ry = arvore ? Math.max(0.25, 0.15 * h / 2) * r : h * r / 2;
-      g.save(); g.translate(o.position[0] * r, o.position[1] * r); g.rotate(o.rotation); g.beginPath(); g.ellipse(0, 0, Math.max(0.5, rx), Math.max(0.5, ry), 0, 0, Math.PI * 2); g.fill(); g.restore();
+      g.globalAlpha = forcaDoAnel([w, h]); g.save(); g.translate(o.position[0] * r, o.position[1] * r); g.rotate(o.rotation); g.beginPath(); g.ellipse(0, 0, Math.max(0.5, rx), Math.max(0.5, ry), 0, 0, Math.PI * 2); g.fill(); g.restore();
     }
+    g.globalAlpha = 1;
     desenho.texMascara.source.update();
   }
 
