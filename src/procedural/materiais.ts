@@ -1,12 +1,14 @@
 import { contextoDe, criarTela, type Contexto } from './canvas.ts';
 import { fbm, hash2D, ladrilhoDeRuido, mulberry32, valueNoise2D } from './ruido.ts';
 import { celulasDeVoronoi, type Consulta } from './voronoi.ts';
+import { ehPadraoDeCobertura, texturaDeCobertura, type PadraoDeCobertura } from './coberturas.ts';
 
-export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho' | 'paralelepipedo' | 'lajegrama' | 'sulcos' | 'molhada';
+export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho' | 'paralelepipedo' | 'lajegrama' | 'sulcos' | 'molhada' | PadraoDeCobertura;
 export interface Material {
   id: string; nome: string; /** Para onde o material vai: piso, papel de parede, objeto ou terreno. */ uso: 'piso' | 'papel' | 'objeto' | 'terreno' | 'macico' | 'agua' | 'telhado';
   base: string; escuro: string; claro: string; padrao: Padrao; largura?: number; lado?: number; ouro?: string; borda?: string; meio?: string; /** Maciço: cor do topo (neve), onde a rocha passa de 70% da altura. */ topo?: string; /** Maciço e escarpa: quanto o pé da face escurece e quanto pesa a sombra de contato (0 a 1; ausente vale 1). */ pe?: number;
   /** Água: cor perto da margem e no fundo, cor da espuma e quanto se enxerga o leito (0 a 1) no fundo. */ raso?: string; fundo?: string; espuma?: string; transparencia?: number; /** Água: rede de luz animada sobre o leito (cáusticas). */ causticas?: boolean; /** Água: quanto de espuma na margem e em volta dos objetos (0 a 1, padrão 1); água parada de gruta quase não tem. */ espumaForca?: number; /** Água: rebentação, cristas de onda brancas que correm para a margem (0 a 1; só o mar). */ ondas?: number;
+  /** Telhado: o que cresce ou corrói na cobertura (musgo, ferrugem, azinhavre) e quanto dela cobre (0 a 1). */ mancha?: { cor: string; quanto: number };
 }
 
 const m = (id: string, nome: string, uso: Material['uso'], base: string, escuro: string, claro: string, padrao: Padrao, extra: Partial<Material> = {}): [string, Material] => [id, { id, nome, uso, base, escuro, claro, padrao, ...extra }];
@@ -69,9 +71,19 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('pintura.paisagem', 'Pintura de paisagem', 'objeto', '#2a3a3a', '#131a1c', '#7a8a6a', 'pintura'),
   m('tapete.persa', 'Tapete persa', 'objeto', '#7a1f24', '#1a2440', '#e6d3a8', 'persa', { borda: '#1a2440', meio: '#b2312e' }),
   m('tapete.verde', 'Tapete persa verde', 'objeto', '#2f4a32', '#14221a', '#d9c98e', 'persa', { borda: '#14221a', meio: '#4f7346' }),
-  m('telha.barro', 'Telha de barro', 'telhado', '#8a4a32', '#5a2e20', '#b0674a', 'listras'),
-  m('telha.ardosia', 'Ardósia', 'telhado', '#3d444f', '#232830', '#5a6475', 'laje'),
-  m('telha.palha', 'Palha', 'telhado', '#a8884a', '#6e5830', '#cdae6a', 'trama'),
+  // Coberturas de telhado (o desenho de cada padrão está em coberturas.ts; a queda d'água aponta para +y)
+  m('telha.barro', 'Telha de barro', 'telhado', '#a5553a', '#4a2014', '#d4845e', 'telha-canal'),
+  m('telha.velha', 'Telha velha com musgo', 'telhado', '#8e5a44', '#3c2216', '#b9846a', 'telha-canal', { mancha: { cor: '#5f7a3a', quanto: 0.42 } }),
+  m('telha.ardosia', 'Ardósia', 'telhado', '#3d444f', '#191d24', '#66717f', 'ardosia', { mancha: { cor: '#7d8a6a', quanto: 0.08 } }),
+  m('telha.escamas', 'Escamas de ardósia', 'telhado', '#47505e', '#1b2029', '#727e90', 'escamas'),
+  m('telha.palha', 'Palha', 'telhado', '#b08f4e', '#584322', '#dcbc7a', 'palha', { mancha: { cor: '#6e7044', quanto: 0.12 } }),
+  m('telha.tabuinhas', 'Tabuinhas de madeira', 'telhado', '#7a5a3c', '#33230f', '#ad8a60', 'tabuinhas', { mancha: { cor: '#5a6a3a', quanto: 0.1 } }),
+  m('telha.pedra', 'Lajes de pedra', 'telhado', '#7c7a72', '#34332e', '#aeaba0', 'lajes-telhado', { mancha: { cor: '#5a6e36', quanto: 0.28 } }),
+  m('telha.cobre', 'Cobre com azinhavre', 'telhado', '#8e5a3c', '#3a2012', '#c08660', 'cobre', { mancha: { cor: '#5fa88c', quanto: 0.5 } }),
+  m('telha.zinco', 'Zinco ondulado', 'telhado', '#8a9096', '#43484e', '#c8cdd1', 'ondulado', { mancha: { cor: '#8a4a24', quanto: 0.3 } }),
+  m('telha.concreto', 'Laje de concreto', 'telhado', '#8c8a84', '#4a4844', '#b6b3ac', 'concreto-laje', { mancha: { cor: '#3e3c38', quanto: 0.25 } }),
+  m('telha.grama', 'Telhado de grama', 'telhado', '#4f7a36', '#1f3a16', '#84ae58', 'grama-telhado', { mancha: { cor: '#5a4430', quanto: 0.18 } }),
+  m('telha.lona', 'Lona', 'telhado', '#c8b48a', '#76664a', '#e8dab6', 'lona', { mancha: { cor: '#8a7a5a', quanto: 0.15 } }),
   m('folhagem', 'Folhagem', 'objeto', '#2f5a34', '#14301a', '#5f9a4e', 'grama'),
   m('parede.topo', 'Topo de parede', 'objeto', '#141218', '#08070a', '#2a2630', 'liso'),
   m('pedra.escura', 'Pedra escura', 'objeto', '#1b1d22', '#0c0d10', '#2b2f37', 'liso'),
@@ -303,9 +315,18 @@ export function pintarMaterial(ctx: Contexto, id: string, area: Area, seed = 1, 
     case 'sulcos': pintarSulcos(ctx, mat, A, seed, pxDe(ctx)); break;
     case 'molhada': pintarAreiaMolhada(ctx, mat, A, seed, pxDe(ctx)); break;
     case 'neve': camadaDeRuido(ctx, A, seed, 2.5, 0.35, 'multiply', 6); camadaDeRuido(ctx, A, seed + 1, 0.7, 0.2, 'soft-light', 10); break;
-    default: camadaDeRuido(ctx, A, seed, 2, 0.15);
+    default:
+      if (ehPadraoDeCobertura(mat.padrao)) { pintarCobertura(ctx, mat, A, seed); break; }
+      camadaDeRuido(ctx, A, seed, 2, 0.15);
   }
   ctx.restore();
+}
+
+/** Cobertura de telhado no Ilustrado: o ladrilho periódico de coberturas.ts como padrão, em metros. */
+function pintarCobertura(ctx: Contexto, mat: Material, A: Area, seed: number): void {
+  const { tela, metros } = texturaDeCobertura(mat, 'illustrated', seed), padrao = ctx.createPattern(tela as CanvasImageSource, 'repeat'); if (!padrao) return;
+  padrao.setTransform(new DOMMatrix().scale(metros / tela.width));
+  ctx.save(); ctx.fillStyle = padrao; ctx.fillRect(A.x, A.y, A.w, A.h); ctx.restore();
 }
 
 // ---------- Materiais de natureza: pintados pixel a pixel (sombreamento de verdade), em metros ----------
