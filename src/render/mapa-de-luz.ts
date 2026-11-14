@@ -12,6 +12,8 @@ import { texturaDeBrilho } from './luzes.ts';
 
 /** Pixels por metro do mapa de luz: baixo de propósito (a luz é suave e o desfoque esconde a resolução). */
 export const RES_LUZ = 8;
+/** Quanto da luz ambiente do céu chega ao interior de cômodos cobertos por telhado. */
+export const FATOR_DO_INTERIOR = 0.55;
 const TEXTURA_MAX = 4096;
 
 export interface MapaDeLuz {
@@ -45,7 +47,7 @@ const rgb01 = (hex: string): [number, number, number] => { const n = hexParaNume
  * luz ou as paredes mudam; a tremulação só mexe na opacidade.
  */
 export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
-  const raiz = new Container(), composicao = new Container(), brutaS = new Sprite(), sprite = new Sprite();
+  const raiz = new Container(), interior = new Graphics(), composicao = new Container(), brutaS = new Sprite(), sprite = new Sprite();
   const blur = new BlurFilter({ strength: 2, quality: 3 }); blur.blendMode = 'add';
   brutaS.blendMode = 'add'; composicao.addChild(brutaS); composicao.filters = [blur];
   sprite.blendMode = 'multiply';
@@ -54,7 +56,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
   const luzes = new Map<string, LuzNaGPU>(), ruido = valueNoise2D(7);
   let brutaRT: RenderTexture | null = null, finalRT: RenderTexture | null = null, faixasRT: RenderTexture | null = null, largura = 0, altura = 0, resAtual = 0, pixel = false, pxPorMetro = 0;
   let indice: IndiceDeSegmentos | null = null, versaoGeo = 0, derivadas: Luz[] = [], ambiente: [number, number, number] = [1, 1, 1];
-  let sujo = true, ligado = true, destruido = false, contador = 0;
+  let sujo = true, ligado = true, destruido = false, contador = 0, interiorPronto = false;
   // O estado do momento (clima): o mapa atual, se é noite, a queda de energia, o relâmpago e os trovões a caminho.
   let mapa: MapaAtlas | null = null, noite = false, redeAnterior: boolean | null = null, queda = 0, volta = 0;
   let efLuzes = 1, efAmbiente = 1, flash = 0, forcaDoRaio = 0, proximoRaio = Infinity, ultimoQuadro = -1, claraoAtual = 0;
@@ -72,7 +74,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     faixasRT = pixel ? RenderTexture.create({ width: pw, height: ph, scaleMode: 'nearest' }) : null;
     // Pixel: sem desfoque, em resolução do Pixel, e as faixas depois da composição. Ilustrado: a luz suave de sempre.
     composicao.filters = pixel ? [] : [blur]; faixasS.texture = finalRT;
-    brutaS.texture = brutaRT; sprite.texture = pixel ? faixasRT! : finalRT; sprite.scale.set(w / pw, h / ph); raiz.scale.set(pw / w, ph / h);
+    brutaS.texture = brutaRT; sprite.texture = pixel ? faixasRT! : finalRT; sprite.scale.set(w / pw, h / ph); raiz.scale.set(pw / w, ph / h); interior.scale.set(pw / w, ph / h);
     for (const t of antigas) t?.destroy(true);
     sujo = true;
   }
@@ -128,11 +130,31 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     flash = 1; if (somPreferido()) trovoes.push(0.4 + Math.random() * 1.2);
   }
 
+  function desenharInterior(m: MapaAtlas): void {
+    const t = m.grid.size, [ox, oy] = m.grid.offset;
+    interior.clear();
+    let tem = false;
+    for (const sala of Object.values(m.rooms)) {
+      if (!sala.roof.material) continue;
+      for (const [y, x0, n] of sala.cells) {
+        interior.rect(ox + x0 * t, oy + y * t, n * t, t);
+        tem = true;
+      }
+    }
+    if (tem) interior.fill(0xffffff);
+    interiorPronto = true;
+  }
+
   function renderizar(): void {
     if (!brutaRT || !finalRT) return;
     renderer.render({ container: raiz, target: brutaRT, clear: true, clearColor: [0, 0, 0, 0] });
     const brilho = claraoAtual * 0.35, amb: [number, number, number, number] = [Math.min(1, ambiente[0] * efAmbiente + brilho), Math.min(1, ambiente[1] * efAmbiente + brilho), Math.min(1, ambiente[2] * efAmbiente + brilho), 1];
-    renderer.render({ container: composicao, target: finalRT, clear: true, clearColor: amb });
+    const intR = Math.min(1, ambiente[0] * efAmbiente * FATOR_DO_INTERIOR + brilho * 0.3);
+    const intG = Math.min(1, ambiente[1] * efAmbiente * FATOR_DO_INTERIOR + brilho * 0.3);
+    const intB = Math.min(1, ambiente[2] * efAmbiente * FATOR_DO_INTERIOR + brilho * 0.3);
+    interior.tint = (Math.round(intR * 255) << 16) | (Math.round(intG * 255) << 8) | Math.round(intB * 255);
+    renderer.render({ container: interior, target: finalRT, clear: true, clearColor: amb });
+    renderer.render({ container: composicao, target: finalRT, clear: false });
     if (pixel && faixasRT) renderer.render({ container: passadaFaixas, target: faixasRT, clear: true, clearColor: [0, 0, 0, 1] });
     sujo = false;
   }
@@ -155,6 +177,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       if (campo('bounds', 'style', 'grid')) dimensionar(m);
       if (!brutaRT) dimensionar(m);
       const geoMudou = col('walls') || col('openings') || col('rooms') || campo('grid') || !indice;
+      if (col('rooms') || campo('grid') || !interiorPronto) desenharInterior(m);
       if (geoMudou) { indice = new IndiceDeSegmentos(oclusores(m, 'luz')); versaoGeo++; }
       if (geoMudou || col('lights') || campo('climate')) derivadas = luzesDerivadas(m);
       if (campo('climate')) { const a = m.climate.ambient, [r, g, b] = rgb01(a.color); ambiente = [Math.min(1, r * a.intensity), Math.min(1, g * a.intensity), Math.min(1, b * a.intensity)]; }
@@ -206,7 +229,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     todasAsLuzes: () => todasLuzes,
     destruir() {
       destruido = true; for (const g of luzes.values()) g.c.destroy({ children: true }); luzes.clear();
-      brutaRT?.destroy(true); finalRT?.destroy(true); faixasRT?.destroy(true); passadaFaixas.destroy({ children: false }); faixasS.destroy(); sprite.destroy(); composicao.destroy({ children: false }); raiz.destroy({ children: true });
+      brutaRT?.destroy(true); finalRT?.destroy(true); faixasRT?.destroy(true); passadaFaixas.destroy({ children: false }); faixasS.destroy(); interior.destroy(); sprite.destroy(); composicao.destroy({ children: false }); raiz.destroy({ children: true });
     },
   };
 }
