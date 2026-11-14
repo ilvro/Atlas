@@ -102,3 +102,10 @@ test('objeto oculto e suas luzes são excluídos da projeção para jogadores', 
   assert.ok(m.props.bauOculto, 'o mapa original permanece intacto');
   assert.ok(m.lights.luzBau, 'a luz original permanece intacta');
 });
+
+test('session.roofs chega ao projetor pela projeção', () => {
+  const m = aplicarComando(mapaCompleto(), { tipo: 'sessao.telhados', modo: 'fechados' });
+  const p = projetarParaJogadores(m);
+  validarMapa(p);
+  assert.equal(p.session.roofs, 'fechados');
+});

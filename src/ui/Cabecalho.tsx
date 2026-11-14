@@ -7,8 +7,34 @@ import { ROTULO_DO_MODO, modo, vistaDeJogador, type Modo } from '../app/modo.ts'
 import { seloDoAssistente } from '../app/assistente-slot.ts';
 import { tema, trocarTema } from '../app/tema.ts';
 import { TEMAS, type TemaId } from '#mesa';
+import { MODOS_TELHADOS_SESSAO, type ModoTelhadosSessao } from '../domain/mapa.ts';
+import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { Icone } from './Icone.tsx';
 import { AbasDeMapas } from './AbasDeMapas.tsx';
+
+const ROTULO_TELHADOS: Record<ModoTelhadosSessao, string> = {
+  auto: 'Telhados: automático',
+  fechados: 'Telhados: sempre',
+  abertos: 'Telhados: abertos',
+};
+
+function BotaoTelhadosSessao({ s }: { s: SessaoDeEdicao }) {
+  const atual: ModoTelhadosSessao = s.doc.value.session.roofs ?? 'auto';
+  const proximo = MODOS_TELHADOS_SESSAO[(MODOS_TELHADOS_SESSAO.indexOf(atual) + 1) % MODOS_TELHADOS_SESSAO.length]!;
+  return (
+    <button
+      type="button"
+      class="botao-pilula botao-vista"
+      aria-pressed={atual !== 'auto'}
+      title="Alternar telhados na sessão (automático, sempre cobertos ou todos abertos)"
+      onClick={() => s.store.executar({ tipo: 'sessao.telhados', modo: proximo })}
+      data-testid="sessao-telhados"
+      data-modo-telhados={atual}
+    >
+      <Icone nome="telhado" tamanho={14} />{ROTULO_TELHADOS[atual]}
+    </button>
+  );
+}
 
 const executar = (id: string) => () => { const a = acaoPorId(id); if (a) executarAcao(a); };
 const dica = (nome: string, id: string) => { const t = acaoPorId(id)?.atalhos?.[0]; return t ? `${nome} (${mostrarAtalho(t)})` : nome; };
@@ -23,6 +49,7 @@ function CabecalhoEmbutido({ Selo }: { Selo: ComponentType | null }) {
       <span class="espaco" />
       {Selo ? <Selo /> : null}
       {noEditor ? <button type="button" class="botao-pilula botao-vista" aria-pressed={vistaDeJogador.value} title={dica('Ver como jogador', 'vista-jogador')} onClick={executar('vista-jogador')} data-testid="vista-jogador">Jogador</button> : null}
+      {noEditor && s ? <BotaoTelhadosSessao s={s} /> : null}
       {noEditor ? <button type="button" class="botao-pilula" title="Abrir a janela do projetor para os jogadores" onClick={abrirProjetor} data-testid="embutido-projetor">Projetor</button> : null}
       <button type="button" class={`botao-icone ${fxLigado.value ? 'ligado' : ''}`} title="Animações" aria-pressed={fxLigado.value} onClick={executar('fx')} data-testid="alternar-fx"><Icone nome="anim" /></button>
       <button type="button" class={`botao-icone ${somLigado.value ? 'ligado' : ''}`} title="Sons" aria-pressed={somLigado.value} onClick={executar('som')} data-testid="alternar-som"><Icone nome={somLigado.value ? 'som' : 'mudo'} /></button>
@@ -41,6 +68,7 @@ export function Cabecalho() {
       {noEditor && s ? <AbasDeMapas /> : null}
       {noEditor && modo.value === 'sessao' ? <span class="faixa-sessao" data-testid="faixa-sessao">SESSÃO</span> : null}
       {noEditor && modo.value === 'sessao' ? <button type="button" class="botao-pilula botao-vista" aria-pressed={vistaDeJogador.value} title={dica('Ver como jogador', 'vista-jogador')} onClick={executar('vista-jogador')} data-testid="vista-jogador"><Icone nome="olho" tamanho={14} />Ver como jogador</button> : null}
+      {noEditor && s && modo.value === 'sessao' ? <BotaoTelhadosSessao s={s} /> : null}
       <span class="espaco" />
       {noEditor && s ? (<div class="grupo chave-de-modo" role="radiogroup" aria-label="Modo" data-testid="chave-de-modo">
         {(['construir', 'sessao'] as Modo[]).map(id => <button type="button" key={id} role="radio" aria-checked={modo.value === id} class={`ficha ${modo.value === id ? 'ativa' : ''}`} title={dica(`Modo ${ROTULO_DO_MODO[id]}`, 'modo')} data-testid={`modo-${id}`} onClick={() => { if (modo.value !== id) executar('modo')(); }}>{ROTULO_DO_MODO[id]}</button>)}

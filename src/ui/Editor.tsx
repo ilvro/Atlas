@@ -4,7 +4,7 @@ import { Inspecao } from './Inspecao.tsx';
 import { TIPO_ARRASTE_PISTA, soltarPista } from './Pistas.tsx';
 import { useEffect, useRef } from 'preact/hooks';
 import { signal, useSignalEffect } from '@preact/signals';
-import { acaoPorId, executarAcao } from '../app/acoes.ts';
+import { acaoPorId, executarAcao, itensDoMenuRadial } from '../app/acoes.ts';
 import { FERRAMENTAS_DA_SESSAO, alinhandoGrade, duracaoDoClima, modo, regraDaRegua, vistaAtual } from '../app/modo.ts';
 import { acabamentoLigado, adicionarEm, alternarPorta, usarObjeto, aoColocar, focarNoComodo, focoPendente, menuRadial, notaDeObjetoAberta, servicos, sessao, viewport as viewportAtual } from '../app/app.ts';
 import { obterCameraDaAba } from '../app/abas.ts';
@@ -46,7 +46,11 @@ function ponteDa(s: SessaoDeEdicao): PonteViewport {
     aoColocar: (rotulo, mundo) => aoColocar(rotulo, mundo),
     aviso: texto => { avisar(texto, { tipo: 'erro', duracao: 3200 }); tocar('erro'); },
     aoMenuContexto: ({ tela, mundo, alvo }) => {
-      if (modo.peek() === 'sessao') return;                  // o menu radial é de construir
+      if (modo.peek() === 'sessao') {
+        if (!itensDoMenuRadial(alvo, mundo).length) return;
+        menuRadial.value = { x: tela[0], y: tela[1], mundo, alvo, aberto: Date.now() };
+        return;
+      }
       // O clique direito sobre um item o seleciona (a menos que já faça parte da seleção).
       if (alvo && !s.selecao.peek().some(a => a.colecao === alvo.colecao && a.id === alvo.id)) s.selecao.value = [alvo];
       menuRadial.value = { x: tela[0], y: tela[1], mundo, alvo, aberto: Date.now() };

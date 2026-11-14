@@ -219,7 +219,7 @@ Pronto quando: as casas do entreposto ficam em penumbra de dia, e nada muda nos 
 Commit: `roofed interiors get dimmer ambient light`
 Nota para o planejamento: conferir com o usuário, pela captura, se 0,55 é o tom certo antes de fechar.
 
-### T7 — Mestre abre e fecha telhados na sessão  ⬜
+### T7 — Mestre abre e fecha telhados na sessão  ✅
 Objetivo: o mestre controla os telhados durante a sessão: todos de uma vez (como no Tabletop, em que se desliga a camada de telhados para mostrar o mapa) ou uma casa por vez.
 Depende de: T2.
 Ler: `src/render/viewport.ts` (`aoMenuContexto`), o menu de contexto e a barra da sessão em `src/ui/`, `src/app/modo.ts` (`vistaDeJogador`), `src/domain/mapa.ts` (`Sessao`), `src/render/telhados.ts` (`alvoDe`), `src/ui/Projetor.tsx` (o que chega ao projetor).

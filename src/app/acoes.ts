@@ -16,6 +16,8 @@ import { aceitarSugestao, definirSugestoesLigadas, dispensarSugestao, outraSuges
 import { momentoEmCurso, pararMomento } from './momentos.ts';
 import { dispararEspaco } from './barra-de-efeitos.ts';
 import type { Alvo } from '../render/selecao.ts';
+import { edificioDaSala } from '../domain/edificios.ts';
+import { comodoEm } from '../domain/geometria.ts';
 import type { Ponto } from '../domain/mapa.ts';
 
 /** Uma coisa que o mestre pode mandar o Atlas fazer. A paleta, os atalhos e o menu radial leem a mesma lista. */
@@ -283,6 +285,21 @@ export interface ItemRadial { id: string; rotulo: string; icone: string; atalho?
 /** As ações do clique direito: o que faz sentido sobre o item, ou sobre o espaço vazio. */
 export function itensDoMenuRadial(alvo: Alvo | null, mundo: Ponto): ItemRadial[] {
   const s = app.sessao.value; if (!s) return [];
+  if (modo.value === 'sessao') {
+    const m = s.doc.value, salaId = comodoEm(m, mundo), ed = salaId ? edificioDaSala(m, salaId) : null;
+    if (!ed) return [];
+    const visivel = ed.salas.some(id => m.rooms[id]?.roof.visible);
+    return [{
+      id: 'telhado-casa',
+      rotulo: visivel ? 'Abrir telhado da casa' : 'Fechar telhado da casa',
+      icone: 'telhado',
+      fazer: () => {
+        s.store.transacao('Telhado', g => {
+          for (const id of ed.salas) g.aplicar({ tipo: 'comodo.atualizar', id, patch: { roof: { visible: !visivel } } });
+        });
+      },
+    }];
+  }
   const item = (id: string, rotulo: string, icone: string, atalho?: string): ItemRadial => ({ id, rotulo, icone, ...(atalho ? { atalho } : {}), fazer: () => { const a = acaoPorId(id); if (a) executarAcao(a); } });
   if (alvo) {
     const luz = alvo.colecao === 'lights';

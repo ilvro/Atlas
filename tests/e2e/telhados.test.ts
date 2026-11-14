@@ -1,7 +1,7 @@
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Page } from 'playwright';
-import { abrir, clientDe, criarMapaPelaInterface, encerrar, iniciarAmbiente, novoContexto, type Ambiente } from './apoio.ts';
+import { abrir, clientDe, criarMapaPelaInterface, documento, encerrar, iniciarAmbiente, novoContexto, type Ambiente } from './apoio.ts';
 
 let amb: Ambiente;
 before(async () => { amb = await iniciarAmbiente(); });
@@ -69,5 +69,110 @@ test('penumbra dos interiores: ao meio-dia, cômodo coberto sem luz fica mais es
   const bCentroComLuz = await brilho(page, ...centro);
   assert.ok(bCentroComLuz > bCentroEscuro * 1.3, `com lamparina dentro (${bCentroComLuz.toFixed(1)}), o centro fica bem mais claro que sem luz (${bCentroEscuro.toFixed(1)})`);
   assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+const telhados = (p: Page) =>
+  p.evaluate(() => (window as unknown as { __atlas: { viewport(): { diagnosticoDosTelhados(): { id: string; edificio: string; alfa: number; alvo: number; dentro: boolean; conhecido: boolean }[] } } }).__atlas.viewport().diagnosticoDosTelhados());
+
+test('mestre controla telhados na sessão: chave geral nos três estados (chega ao projetor) e abrir/fechar por casa no menu', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  const mapaId = await criarMapaPelaInterface(page);
+  await sessao(page, `(s, a) => {
+    const cel = (x0, x1, y0, y1) => { const r = []; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) r.push([x, y]); return r; };
+    const piso = { material: "areia", seed: 1 };
+    s.store.executar({ tipo: "terreno.base", material: "areia" });
+    s.store.executar({ tipo: "comodo.criar", id: "tavA", nome: "Taverna A", funcao: "taverna", piso, papel: null, telhado: "telha.barro", celulas: cel(4, 7, 4, 8) });
+    s.store.executar({ tipo: "comodo.criar", id: "tavB", nome: "Taverna B", funcao: "cozinha", piso, papel: null, telhado: "telha.barro", celulas: cel(7, 10, 4, 8) });
+    s.store.executar({ tipo: "comodo.criar", id: "anexo", nome: "Anexo", funcao: "sala", piso, papel: null, telhado: "telha.barro", celulas: cel(12, 16, 4, 8) });
+    s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.p1 });
+    s.store.executar({ tipo: "sessao.revelar", ids: ["tavA", "tavB", "anexo"] });
+  }`, { p1: peca('p1', 'Heroi', 8.25, 8.25) });
+  await page.waitForTimeout(800);
+
+  await page.click('[data-testid="modo-sessao"]');
+  await page.locator('[data-testid="sessao-telhados"]').waitFor();
+  await page.click('[data-testid="dock-titulo-projetor"]');
+
+  const proj = await ctx.newPage(), errosProj: string[] = [];
+  proj.on('pageerror', e => errosProj.push(e.message));
+  proj.on('console', m => { if (m.type() === 'error') errosProj.push(m.text()); });
+  await proj.goto(`${amb.url}#/projetor/${mapaId}`);
+  await proj.waitForFunction(() => (window as unknown as { __projetor?: { doc(): unknown } }).__projetor?.doc() != null, null, { timeout: 20_000 });
+  await page.getByText('Conectado', { exact: true }).waitFor({ timeout: 5000 });
+
+  await page.click('[data-testid="vista-jogador"]');
+  await page.waitForTimeout(500);
+
+  const porId = (lista: { id: string; alvo: number }[]) => Object.fromEntries(lista.map(x => [x.id, x.alvo]));
+  const telhadosProj = () => proj.evaluate(() => (window as unknown as { __projetor: { viewport(): { diagnosticoDosTelhados(): { id: string; alvo: number }[] } } }).__projetor.viewport().diagnosticoDosTelhados());
+  const esperaProjRoofs = (esperado: string | undefined) =>
+    proj.waitForFunction(`(() => window.__projetor.doc().session.roofs === ${JSON.stringify(esperado)})()`, null, { timeout: 6000 });
+
+  // Estado inicial: 'auto' — taverna aberta (peça dentro), anexo fechado.
+  const botao = page.locator('[data-testid="sessao-telhados"]');
+  assert.equal(await botao.getAttribute('data-modo-telhados'), 'auto');
+  assert.deepEqual(porId(await telhados(page)), { tavA: 0, tavB: 0, anexo: 1 });
+  assert.deepEqual(porId(await telhadosProj()), { tavA: 0, tavB: 0, anexo: 1 });
+
+  // Clique 1: 'fechados' ("Telhados: sempre") — cobre tudo, até onde há peça dentro.
+  await botao.click();
+  await esperaProjRoofs('fechados');
+  await page.waitForTimeout(300);
+  assert.equal(await botao.getAttribute('data-modo-telhados'), 'fechados');
+  assert.match(await botao.innerText(), /sempre/i);
+  assert.deepEqual(porId(await telhados(page)), { tavA: 1, tavB: 1, anexo: 1 });
+  assert.deepEqual(porId(await telhadosProj()), { tavA: 1, tavB: 1, anexo: 1 });
+
+  // Clique 2: 'abertos' ("Telhados: abertos") — some com todos.
+  await botao.click();
+  await esperaProjRoofs('abertos');
+  await page.waitForTimeout(300);
+  assert.equal(await botao.getAttribute('data-modo-telhados'), 'abertos');
+  assert.match(await botao.innerText(), /abertos/i);
+  assert.deepEqual(porId(await telhados(page)), { tavA: 0, tavB: 0, anexo: 0 });
+  assert.deepEqual(porId(await telhadosProj()), { tavA: 0, tavB: 0, anexo: 0 });
+
+  // Clique 3: volta para 'auto'.
+  await botao.click();
+  await esperaProjRoofs(undefined);
+  await page.waitForTimeout(300);
+  assert.equal(await botao.getAttribute('data-modo-telhados'), 'auto');
+
+  // Tira a peça da taverna para testarmos o menu de contexto na taverna vazia.
+  await sessao(page, '(s) => s.store.executar({ tipo: "peca.mover", id: "p1", para: [2.25, 2.25] })');
+  await page.waitForTimeout(400);
+  assert.deepEqual(porId(await telhados(page)), { tavA: 1, tavB: 1, anexo: 1 });
+
+  // Clique direito sobre célula da taverna abre/fecha todas as salas do edifício num só gesto ("Telhado").
+  const [rx, ry] = await clientDe(page, [8.25, 8.25]);
+  await page.mouse.click(rx, ry, { button: 'right' });
+  const menu = page.locator('[data-testid="menu-radial"]');
+  await menu.getByRole('menuitem', { name: 'Abrir telhado da casa' }).click();
+  await page.waitForTimeout(400);
+
+  let doc = await documento(page);
+  assert.equal(doc.rooms.tavA!.roof.visible, false);
+  assert.equal(doc.rooms.tavB!.roof.visible, false);
+  assert.equal(doc.rooms.anexo!.roof.visible, true);
+  assert.deepEqual(porId(await telhados(page)), { tavA: 0, tavB: 0, anexo: 1 });
+  assert.equal(await sessao(page, '(s) => s.rotuloDesfazer.value'), 'Telhado');
+
+  // Segundo clique direito na outra sala do mesmo edifício oferece "Fechar telhado da casa".
+  const [rx2, ry2] = await clientDe(page, [12.75, 8.25]);
+  await page.mouse.click(rx2, ry2, { button: 'right' });
+  await menu.getByRole('menuitem', { name: 'Fechar telhado da casa' }).waitFor();
+  await page.keyboard.press('Escape');
+
+  // Um Ctrl+Z desfaz todas as salas da casa juntas.
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(400);
+  doc = await documento(page);
+  assert.equal(doc.rooms.tavA!.roof.visible, true);
+  assert.equal(doc.rooms.tavB!.roof.visible, true);
+  assert.deepEqual(porId(await telhados(page)), { tavA: 1, tavB: 1, anexo: 1 });
+
+  assert.deepEqual(erros, []);
+  assert.deepEqual(errosProj, []);
   await ctx.close();
 });

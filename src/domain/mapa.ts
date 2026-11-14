@@ -162,11 +162,15 @@ export interface Peca {
   portraitScale?: number;
 }
 export interface NotaDeComodo { id: string; leitura: string; notasMestre: string; refs: Ref[] }
+export const MODOS_TELHADOS_SESSAO = ['auto', 'fechados', 'abertos'] as const;
+export type ModoTelhadosSessao = (typeof MODOS_TELHADOS_SESSAO)[number];
 export interface Sessao {
   /** `res`: lado de cada célula do explorado, em metros (independe da grade do mapa); `cells` são faixas `[y, x0, n]` nessa malha. */
   explored: null | { res: number; cells: Faixa[] };
   initiative: null | { order: { tokenId: string; value: number }[]; current: number; round: number };
   revealed: string[]; event: string | null;
+  /** Chave geral da sessão para os telhados; ausente vale `'auto'`. */
+  roofs?: ModoTelhadosSessao;
 }
 
 /** O documento do mapa. Guarda significado (cômodos, paredes, receitas), nunca pixels de objetos. */

@@ -1,7 +1,7 @@
 import { ehRef } from '#mesa';
 import { ehCanonica } from './celulas.ts';
 import { ErroDeValidacao, HEX, IDENT, e, type Esq } from './esquema.ts';
-import { COLECOES, CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, ESTADOS_FIGURA, ESTILOS_DE_LINHA_DA_GRADE, FORMAS_DE_TELHADO, SCHEMA_MAPA, TIPOS_DE_GRADE, VERSAO_MAPA, colunas, linhas, type MapaAtlas } from './mapa.ts';
+import { COLECOES, CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, ESTADOS_FIGURA, ESTILOS_DE_LINHA_DA_GRADE, FORMAS_DE_TELHADO, MODOS_TELHADOS_SESSAO, SCHEMA_MAPA, TIPOS_DE_GRADE, VERSAO_MAPA, colunas, linhas, type MapaAtlas } from './mapa.ts';
 import { momentoValido, type Momento } from './momentos.ts';
 
 const ponto = e.tupla(e.num({ min: -10_000, max: 10_000 }), e.num({ min: -10_000, max: 10_000 }));
@@ -151,6 +151,7 @@ export const ESQUEMA_MAPA: Esq = e.obj({
       current: e.num({ inteiro: true, min: 0, max: 64 }), round: e.num({ inteiro: true, min: 1, max: 9999 }),
     })),
     revealed: e.lista(id, { max: 5_000 }), event: e.nulo(e.texto({ min: 1, max: 60 })),
+    roofs: e.opt(e.um(...MODOS_TELHADOS_SESSAO)),
   }),
   audioCue: e.nulo(ref), notes: e.texto({ max: 200_000 }),
   climateAudio: e.proprio((v, c) => {
