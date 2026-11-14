@@ -9,10 +9,10 @@ const CHAVE_FX = 'atlas:fx';
 let ligado = true;
 try { ligado = localStorage.getItem(CHAVE_FX) !== '0'; } catch { /* sem armazenamento: padrão ligado */ }
 
-/** Preferência do usuário (botão "Animações"). Com movimento reduzido no sistema, os efeitos ficam desligados de qualquer forma. */
+/** Preferência do usuário (botão "Animações"). Ativada por padrão, salvo se o usuário desligar explicitamente. */
 export const fxPreferido = (): boolean => ligado;
 export function definirFx(valor: boolean): void { ligado = valor; try { localStorage.setItem(CHAVE_FX, valor ? '1' : '0'); } catch { /* ignora */ } }
-export const fxAtivo = (): boolean => ligado && !movimentoReduzido();
+export const fxAtivo = (): boolean => ligado;
 
 let camada: HTMLElement | null = null;
 export function camadaDeFx(): HTMLElement {
@@ -105,14 +105,6 @@ export function flutuarRolagem(onde: Retangulo | null, total: number, titulo: st
       { transform: 'translate(-50%, -175%) scale(1)', opacity: 0 },
     ], { duration: 2600, easing: 'ease-out', fill: 'forwards' }).onfinish = () => el.remove();
     faiscar(onde, { cor: tom === 'normal' ? acento : COR_DA_ROLAGEM[tom], quantidade: tom === 'normal' ? 10 : 18, alcance: 56 });
-  } else {
-    el.style.transform = 'translate(-50%, -140%)';
-    el.animate([
-      { opacity: 0 },
-      { opacity: 1, offset: 0.12 },
-      { opacity: 1, offset: 0.78 },
-      { opacity: 0 },
-    ], { duration: 2600, easing: 'ease-out', fill: 'forwards' }).onfinish = () => el.remove();
-  }
+  } else { el.style.transform = 'translate(-50%, -140%)'; setTimeout(() => el.remove(), 2600); }
   return el;
 }
