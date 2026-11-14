@@ -65,3 +65,15 @@ test('sessao.explorar soma o que as peças de jogador veem agora ao explorado', 
   const semJogador = mapa();
   assert.equal(aplicarComando(semJogador, { tipo: 'sessao.explorar' }).session.explored, null, 'sem peça de jogador, nada a explorar');
 });
+
+test('sessao.telhados alterna a chave geral entre auto, fechados e abertos', () => {
+  let m = mapa();
+  assert.equal(m.session.roofs, undefined);
+  m = aplicarComando(m, { tipo: 'sessao.telhados', modo: 'fechados' });
+  assert.equal(m.session.roofs, 'fechados');
+  m = aplicarComando(m, { tipo: 'sessao.telhados', modo: 'abertos' });
+  assert.equal(m.session.roofs, 'abertos');
+  m = aplicarComando(m, { tipo: 'sessao.telhados', modo: 'auto' });
+  assert.equal(m.session.roofs, undefined);
+  assert.throws(() => aplicarComando(m, { tipo: 'sessao.telhados', modo: 'outro' as never }), ErroDeComando);
+});

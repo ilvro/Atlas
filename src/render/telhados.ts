@@ -59,8 +59,10 @@ export function criarTelhados(): Telhados {
   }
 
   function alvoDe(r: DoComodo): number {
-    if (vista === 'construir' || !r.sala.roof.visible) return 0;
-    return vista === 'mestre' ? ALFA_DO_MESTRE : r.dentro || !r.conhecido ? 0 : 1;
+    const modoTelhados = mapa?.session.roofs ?? 'auto';
+    if (vista === 'construir' || !r.sala.roof.visible || modoTelhados === 'abertos') return 0;
+    if (vista === 'mestre') return ALFA_DO_MESTRE;
+    return !r.conhecido || (modoTelhados !== 'fechados' && r.dentro) ? 0 : 1;
   }
 
   function reavaliar(): void {

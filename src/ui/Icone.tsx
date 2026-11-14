@@ -24,6 +24,7 @@ const CAMINHOS: Record<string, string> = {
   olho: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z',
   exportar: 'M12 15V3M7 8l5-5 5 5M4 21h16',
   casa: 'M3 11l9-8 9 8M5 10v10h14V10',
+  telhado: 'M2 14l10-9 10 9M4 14h16M15 8.5V5.5h2v4.5',
   campanha: 'M5 4h12a2 2 0 012 2v14H7a2 2 0 01-2-2zM9 4v16',
   aviso: 'M12 3l10 18H2zM12 10v5M12 18v.01',
   comodo: 'M4 4h16v16H4zM4 12h8V4M12 12v8',
