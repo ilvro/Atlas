@@ -2,6 +2,10 @@ import { MARGEM_SOMBRA, assarComodo, assarDescricao, assarObjeto, assarTerreno, 
 import { contextoDe, criarTela } from './canvas.ts';
 import { assarEscarpa, type EntradaDeEscarpa } from './escarpa.ts';
 import type { SpriteDaPeca } from '../domain/sprite.ts';
+import type { DetalheDeTelhado } from '../domain/mapa.ts';
+import { texturaDeCobertura } from './coberturas.ts';
+import { descricaoDoDetalhe } from './detalhes-de-telhado.ts';
+import { materialDe } from './materiais.ts';
 import { estiloDe, type IdDoEstilo, type OpcoesDoPixel } from './estilos/index.ts';
 import { SOMBRA_DE_CONTATO, caixaDoConteudo, contorno, puxarCor, sobrepor, sombraDeContato, type AlvoDeCor } from './harmonizar.ts';
 
@@ -16,7 +20,11 @@ export type PedidoDeBake =
   | { tipo: 'comodo'; entrada: EntradaDoComodo; res: number; estilo: IdDoEstilo }
   | { tipo: 'terreno'; entrada: EntradaDeTerreno; res: number; estilo: IdDoEstilo }
   /** Uma escarpa avulsa (parede `cliff` sem origem): a face de rocha do lado baixo. */
-  | { tipo: 'escarpa'; entrada: EntradaDeEscarpa; res: number; estilo: IdDoEstilo };
+  | { tipo: 'escarpa'; entrada: EntradaDeEscarpa; res: number; estilo: IdDoEstilo }
+  /** O ladrilho periódico de uma cobertura de telhado (2 × 2 m, queda para +y); no Pixel, a `res` do mapa. */
+  | { tipo: 'cobertura'; material: string; seed: number; res: number; estilo: IdDoEstilo }
+  /** Um detalhe de telhado (chaminé, cruz, sino…) assado como objeto, centrado em (0, 0). */
+  | { tipo: 'detalhe-de-telhado'; detalhe: DetalheDeTelhado; cobertura: string; seed: number; res: number; estilo: IdDoEstilo; pixel?: OpcoesDoPixel };
 
 export interface ResultadoDeBake { bitmap: ImageBitmap; origem: [number, number]; res: number; /** Terreno com água: textura de profundidade (R) e margem (G), `res` px/m. */ agua?: { bitmap: ImageBitmap; res: number } }
 
@@ -24,7 +32,14 @@ export interface ResultadoDeBake { bitmap: ImageBitmap; origem: [number, number]
 export async function executarBake(p: PedidoDeBake): Promise<ResultadoDeBake> {
   if (p.tipo === 'imagem') return assarImagem(p);
   if (p.tipo === 'sprite') { const { folhaDoSprite } = await import('./sprite.ts'); return paraBitmap({ tela: folhaDoSprite(p.spec), origem: [0, 0], res: 1 }); }
+  if (p.tipo === 'cobertura') {
+    // A tela do ladrilho fica em cache e `transferToImageBitmap` a esvaziaria: entrega uma cópia.
+    const { tela, metros } = texturaDeCobertura(materialDe(p.material), p.estilo === 'pixel' ? 'pixel' : 'illustrated', p.seed, p.res), copia = criarTela(tela.width, tela.height);
+    contextoDe(copia).drawImage(tela as CanvasImageSource, 0, 0);
+    return paraBitmap({ tela: copia, origem: [0, 0], res: tela.width / metros });
+  }
   const estilo = estiloDe(p.estilo);
+  if (p.tipo === 'detalhe-de-telhado') return paraBitmap(assarDescricao(descricaoDoDetalhe(p.detalhe, { cobertura: p.cobertura, semente: p.seed }), p.seed, p.res, estilo, p.pixel));
   if (p.tipo === 'gerado') return paraBitmap(await assarGerado(p, estilo));
   const a: Assado = p.tipo === 'objeto' ? assarObjeto(p.receita, p.params, p.seed, p.res, estilo, p.pixel) : p.tipo === 'comodo' ? assarComodo(p.entrada, p.res, estilo) : p.tipo === 'escarpa' ? assarEscarpa(p.entrada, p.res, estilo) : assarTerreno(p.entrada, p.res, estilo);
   return paraBitmap(a);
