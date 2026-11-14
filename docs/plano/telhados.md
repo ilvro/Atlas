@@ -203,7 +203,7 @@ Testes: as posições caem dentro do trecho e se repetem com a mesma semente; to
 Pronto quando: a igreja tem cruz e campanário com sino, e as casas de telha têm chaminé.
 Commit: `added roof details like chimneys, crosses and bells`
 
-### T6 — Penumbra dos interiores  ⬜
+### T6 — Penumbra dos interiores  ✅
 Objetivo: debaixo do telhado não chega a luz do céu; o interior fica na penumbra, a não ser pelas luzes que tem.
 Depende de: T1.
 Ler: `src/render/mapa-de-luz.ts:40-60` e `125-170` (`renderizar`, ambiente, clarão), `src/render/mascara-de-comodos.ts`.
