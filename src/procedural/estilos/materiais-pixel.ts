@@ -1,6 +1,7 @@
 import { contextoDe, criarTela, type Contexto, type Tela } from '../canvas.ts';
 import { materialDe, type Area, type Material, type Padrao } from '../materiais.ts';
 import { hash2D, mulberry32 } from '../ruido.ts';
+import { PADROES_DE_COBERTURA, texturaDeCobertura, type PadraoDeCobertura } from '../coberturas.ts';
 
 /**
  * Materiais no estilo Pixel: a mesma descrição (`Material`) pintada em blocos de cor sólida na grade de pixels, sem gradiente,
@@ -253,7 +254,12 @@ const molhadaPixel = (p: P): void => {
   }));
 };
 
+/** Coberturas de telhado: o mesmo desenho do Ilustrado, amostrado na grade do Pixel (um pixel do ladrilho por pixel do mapa). */
+const coberturaPixel = (p: P): void => ladrilhar(p, texturaDeCobertura(p.m, 'pixel', p.seed, p.res).tela);
+const COBERTURAS_PIXEL = Object.fromEntries(PADROES_DE_COBERTURA.map(c => [c, coberturaPixel])) as Record<PadraoDeCobertura, (p: P) => void>;
+
 const PINTORES: Record<Padrao, (p: P) => void> = {
+  ...COBERTURAS_PIXEL,
   tabuas: p => {
     const alt = Math.max(3, Math.round((p.m.largura ?? 0.2) * p.res) + 1) / p.res;      // pelo menos 3 pixels de altura
     fileiras(p, () => alt, () => 1.4 + p.r() * 2.2, () => (p.r() < 0.5 ? p.t.B : p.t.c1), p.t.e1);
