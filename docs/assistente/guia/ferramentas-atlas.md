@@ -20,6 +20,8 @@ Catálogo de opções: receitas, colecao, materiais, climas, luzes, presenca ou 
 
 Cria cômodos (piso, paredes e telhado; um passo de desfazer). ATENÇÃO: rets em CÉLULAS do grid de 1,5 m com x1 e y1 exclusivos (ex.: [2,3,5,6] = 3×3 células). Tipo: atlas_catalogo.
 
+- `telhado`: omitido = telhado do gênero (ou do cômodo vizinho; varandas ficam sem); `null` = sem telhado.
+
 ## atlas_desfazer
 
 Desfaz as últimas entradas do histórico do mapa aberto (a mesma pilha do Ctrl+Z, inclusive edições do mestre). Parâmetro opcional `passos`: de 1 a 20, padrão 1. Devolve os rótulos desfeitos; com o histórico vazio, é erro. Um momento inteiro é um passo de desfazer (todos os seus passos de água, luz, objeto, revelar e interagir se fundem), desde que ninguém faça outro comando no meio; use para testar um momento que altera o mapa e voltar ao estado anterior com `passos: 1`. Desfazer não grava: depois, `atlas_salvar` se quiser fixar.

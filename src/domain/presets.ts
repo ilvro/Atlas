@@ -1,5 +1,6 @@
+import { decodificar } from './celulas.ts';
 import { ambienteDaCor, ceuNoHorario } from './clima.ts';
-import type { Acabamento, Clima, Luz, Ponto, Tempo } from './mapa.ts';
+import type { Acabamento, Clima, Luz, MapaAtlas, Ponto, Tempo } from './mapa.ts';
 
 /** Um tipo de cômodo: o piso e o papel de parede que combinam, e a função que a construção inteligente (Fase 5) vai usar. */
 export interface TipoDeComodo { id: string; nome: string; funcao: string; piso: string; papel: string; descricao: string }
@@ -145,3 +146,34 @@ export const GENEROS: readonly Genero[] = [
   { id: 'fantasia', nome: 'Fantasia', descricao: 'Velas, tochas, pedra e madeira', alvoDeCor: { saturacao: 0.5, luminancia: 0.42, tinta: '#f6dcb4' } },
 ];
 export const generoDe = (id: string): Genero => GENEROS.find(g => g.id === id) ?? GENEROS[0]!;
+
+/** Funções de cômodo ao ar livre que nascem sem telhado por padrão. */
+export const FUNCOES_AO_AR_LIVRE = new Set(['varanda', 'patio', 'claustro', 'quintal']);
+
+/** Material de telhado padrão ao criar um cômodo: ar livre fica sem; senão herda do vizinho ou usa o gênero do mapa. */
+export function telhadoPadrao(
+  m: Pick<MapaAtlas, 'rooms' | 'style'>,
+  funcao: string | null,
+  celulas: readonly [number, number][],
+): string | null {
+  if (funcao && FUNCOES_AO_AR_LIVRE.has(funcao)) return null;
+  if (celulas.length) {
+    const vizinhas = new Set<string>();
+    for (const [x, y] of celulas) {
+      vizinhas.add(`${x + 1},${y}`);
+      vizinhas.add(`${x - 1},${y}`);
+      vizinhas.add(`${x},${y + 1}`);
+      vizinhas.add(`${x},${y - 1}`);
+    }
+    for (const sala of Object.values(m.rooms)) {
+      if (!sala.roof.material) continue;
+      for (const [cx, cy] of decodificar(sala.cells)) {
+        if (vizinhas.has(`${cx},${cy}`)) return sala.roof.material;
+      }
+    }
+  }
+  const genero = m.style.genre;
+  if (genero === 'fantasia') return 'telha.palha';
+  if (genero === 'moderno') return 'telha.ardosia';
+  return 'telha.barro';
+}

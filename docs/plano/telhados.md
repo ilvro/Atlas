@@ -74,7 +74,8 @@ Testes: e2e novo em `fase7.test.ts`: duas salas que se tocam, ambas com telhado,
 Pronto quando: entrar no corredor descobre a cozinha vizinha, e a porta aberta mostra o interior pela névoa.
 Commit: `roofs now open per building instead of per room`
 
-### T3 — Telhado por padrão ao criar cômodos  ⬜
+### T3 — Telhado por padrão ao criar cômodos  ✅
+Nota: a lição de Sessão (`src/tutorial/licoes.ts`) não precisou mudar porque `sala` e `cozinha` se tocam e as peças estão dentro da `sala`, então ambos os telhados abrem juntos na vista de jogador.
 Objetivo: quem desenha uma casa já a vê coberta na vista dos jogadores, sem abrir o Inspetor.
 Depende de: T1.
 Ler: `src/domain/presets.ts` (`TIPOS_DE_COMODO`, `GENEROS`), `src/state/comandos-construir.ts:105-120` (`comodo.criar`), `src/render/viewport.ts:630-645`, `src/authoring/construcao.ts:67-95`, `src/app/ponte-escrita.ts:185-200`, `docs/assistente/guia/ferramentas-atlas.md` (seção de `atlas_comodos`), `src/tutorial/licoes.ts:165-215` (lição de Sessão).

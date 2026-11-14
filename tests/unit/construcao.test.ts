@@ -52,6 +52,24 @@ test('comodos: todos os tipos têm piso e papel válidos; tipo inválido lista a
   erro(() => comodos(vazio(), [{ rets: [[3, 3, 1, 1]], tipo: 'sala' }]), /retângulo inválido/);
 });
 
+test('comodos: sem telhado usa o padrão do gênero/vizinho; null explícito deixa sem telhado', () => {
+  const inv = vazio();
+  const padrao = aplicar(comodos(inv, [{ rets: [[1, 1, 3, 3]], tipo: 'sala' }], 1, contador()), inv);
+  assert.equal(padrao.rooms.c001!.roof.material, 'telha.barro');
+
+  const varanda = aplicar(comodos(inv, [{ rets: [[1, 1, 3, 3]], tipo: 'varanda' }], 1, contador()), inv);
+  assert.equal(varanda.rooms.c001!.roof.material, null);
+
+  const sem = aplicar(comodos(inv, [{ rets: [[1, 1, 3, 3]], tipo: 'sala', telhado: null }], 1, contador()), inv);
+  assert.equal(sem.rooms.c001!.roof.material, null);
+
+  const dois = aplicar(comodos(inv, [
+    { rets: [[1, 1, 3, 3]], tipo: 'sala', telhado: 'telha.palha' },
+    { rets: [[3, 1, 5, 3]], tipo: 'cozinha' },
+  ], 1, contador()), inv);
+  assert.equal(dois.rooms.c002!.roof.material, 'telha.palha');
+});
+
 test('paredes: adiciona com o padrão e sobrescreve campos; escarpa com drop e defaults', () => {
   const c = paredes(vazio(), [
     { path: [[2, 2], [8, 2]], kind: 'fence', altura: 1.1 },

@@ -7,10 +7,11 @@
 import { ACERVO } from '../procedural/acervo.ts';
 import { MATERIAIS, materiaisDo, type Material } from '../procedural/materiais.ts';
 import { mulberry32 } from '../procedural/ruido.ts';
+import { codificar } from '../domain/celulas.ts';
 import { novaLuz, novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
 import { PAREDE_PADRAO, encaixarNaParede, motivoDeNaoCaber } from '../domain/geometria.ts';
 import type { Abertura, MapaAtlas, Objeto, Parede, Ponto, Regiao } from '../domain/mapa.ts';
-import { PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, presetDeLuz, tipoDeComodo } from '../domain/presets.ts';
+import { PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, presetDeLuz, telhadoPadrao, tipoDeComodo } from '../domain/presets.ts';
 import { aplicarComando, type Comando } from '../state/comandos.ts';
 import { TODOS_OS_CONJUNTOS, conjuntoDeEspalhar, espalhar as espalharConjunto } from './espalhar.ts';
 import { celulasDaForma, medirForma, sementeDaForma, type Forma, type Ret } from './formas.ts';
@@ -68,8 +69,8 @@ export interface PedidoDeComodo { rets: readonly Ret[]; tipo: string; nome?: str
 
 /** Cômodos em células do grid (`[x0, y0, x1, y1]`, fim exclusivo); várias `rets` fazem um cômodo em L. As paredes derivam sozinhas. */
 export function comodos(mapa: MapaAtlas, pedidos: readonly PedidoDeComodo[], semente = 1, gerarId: GeradorDeId = novoIdEntidade): Construcao {
-  void mapa;
   const rng = mulberry32(Math.floor(semente) || 1), comandos: Comando[] = [], ids: string[] = [];
+  const acumulado: Pick<MapaAtlas, 'rooms' | 'style'> = { style: mapa.style, rooms: { ...mapa.rooms } };
   for (const p of pedidos) {
     const t = tipoDeComodo(p.tipo);
     if (!t) throw new ErroDeConstrucao(`tipo de cômodo “${p.tipo}” não existe; tipos: ${lista(TIPOS_DE_COMODO.map(x => x.id))}`);
@@ -83,14 +84,21 @@ export function comodos(mapa: MapaAtlas, pedidos: readonly PedidoDeComodo[], sem
       for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) celulas.push([x, y]);
     }
     const id = gerarId('c');
+    const telhado = p.telhado === undefined ? telhadoPadrao(acumulado, t.funcao, celulas) : p.telhado;
     comandos.push({
       tipo: 'comodo.criar', id, nome: p.nome ?? t.nome, funcao: t.funcao, celulas,
       piso: { material: p.piso ?? t.piso, seed: Math.floor(rng() * 2 ** 31) },
       papel: { material: p.papel ?? t.papel, seed: Math.floor(rng() * 2 ** 31) },
+      ...(telhado !== null ? { telhado } : {}),
     });
-    if (p.telhado !== undefined || p.telhadoVisivel !== undefined) {
-      comandos.push({ tipo: 'comodo.atualizar', id, patch: { roof: { material: p.telhado ?? null, visible: p.telhadoVisivel ?? true } } });
+    if (p.telhadoVisivel !== undefined) {
+      comandos.push({ tipo: 'comodo.atualizar', id, patch: { roof: { visible: p.telhadoVisivel } } });
     }
+    acumulado.rooms[id] = {
+      id, name: p.nome ?? t.nome, function: t.funcao, cells: codificar(celulas),
+      floor: { material: p.piso ?? t.piso, seed: 0 }, wallpaper: null, wallStyle: null, palette: null,
+      roof: { material: telhado ?? null, visible: p.telhadoVisivel ?? true }, levelId: null,
+    };
     ids.push(id);
   }
   return { comandos, ids };
