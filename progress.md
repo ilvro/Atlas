@@ -496,5 +496,6 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 ## Telhados
 
 - **T1 — Edifícios: agrupar os cômodos cobertos** — `src/domain/edificios.ts` (`Edificio`, `edificiosDe`, `edificioDaSala`), agrupando cômodos com `roof.material` não nulo conectados em 4 direções por `levelId` via union-find, com `id` estável e cache em `WeakMap`. Testes em `tests/unit/edificios.test.ts`.
+- **T2 — O telhado abre por edifício** — `src/render/telhados.ts` avalia `dentro` e `conhecido` por `Edificio` (com `alguemDentro` montando o conjunto de células por edifício), acrescenta `edificio` em `diagnostico()` e mantém `roof.visible === false` contando para a casa; e2e em `tests/e2e/fase7.test.ts`.
 
 

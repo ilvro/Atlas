@@ -59,7 +59,7 @@ Testes: duas salas lado a lado formam 1 edifício; com uma célula de folga, 2; 
 Pronto quando: `npm run typecheck` e `npm test` passam.
 Commit: `added building grouping for roofed rooms`
 
-### T2 — O telhado abre por edifício  ⬜
+### T2 — O telhado abre por edifício  ✅
 Objetivo: a peça entra em qualquer cômodo da casa e o telhado da casa inteira some; a névoa cuida do resto.
 Depende de: T1.
 Ler: `src/render/telhados.ts` inteiro, `src/render/halos.ts:225-245` (`telhados.visivel`), `tests/e2e/fase7.test.ts:248-290`.
