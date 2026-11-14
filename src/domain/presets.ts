@@ -150,11 +150,12 @@ export const generoDe = (id: string): Genero => GENEROS.find(g => g.id === id) ?
 /** Funções de cômodo ao ar livre que nascem sem telhado por padrão. */
 export const FUNCOES_AO_AR_LIVRE = new Set(['varanda', 'patio', 'claustro', 'quintal']);
 
-/** Material de telhado padrão ao criar um cômodo: ar livre fica sem; senão herda do vizinho ou usa o gênero do mapa. */
+/** Material de telhado padrão ao criar um cômodo: ar livre fica sem; senão herda do vizinho (do mesmo nível) ou usa o gênero do mapa. */
 export function telhadoPadrao(
   m: Pick<MapaAtlas, 'rooms' | 'style'>,
   funcao: string | null,
   celulas: readonly [number, number][],
+  nivel: string | null = null,
 ): string | null {
   if (funcao && FUNCOES_AO_AR_LIVRE.has(funcao)) return null;
   if (celulas.length) {
@@ -166,7 +167,7 @@ export function telhadoPadrao(
       vizinhas.add(`${x},${y - 1}`);
     }
     for (const sala of Object.values(m.rooms)) {
-      if (!sala.roof.material) continue;
+      if (!sala.roof.material || (sala.levelId ?? null) !== nivel) continue;
       for (const [cx, cy] of decodificar(sala.cells)) {
         if (vizinhas.has(`${cx},${cy}`)) return sala.roof.material;
       }

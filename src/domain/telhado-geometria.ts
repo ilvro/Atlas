@@ -210,7 +210,7 @@ export function retangulosDe(celulas: readonly [number, number][]): Ret[] {
   return rets;
 }
 
-/** Calcula as faces (águas) e segmentos de cumeeira de um retângulo de células. */
+/** Calcula as faces (águas) e segmentos de cumeeira de um retângulo `[x0, y0, x1, y1]`; o beiral está na mesma unidade do retângulo (o trecho passa metros). */
 export function aguasDe(
   ret: Ret,
   roof?: Partial<Telhado>,
@@ -306,12 +306,16 @@ export function aguasDe(
   return { faces, cumeeiras: temCumeeira ? [[[cx, ty], [cx, by]]] : [] };
 }
 
-/** Junta as faces e cumeeiras de todos os retângulos que compõem um trecho. */
-export function aguasDoTrecho(trecho: Trecho, beiral = 0.25): { faces: Face[]; cumeeiras: Segmento[] } {
+/**
+ * Junta as faces e cumeeiras de todos os retângulos que compõem um trecho, em **metros** do mundo: as células passam pela grade
+ * (`size` e `offset`) antes de ganhar o beiral, que também é em metros.
+ */
+export function aguasDoTrecho(trecho: Trecho, grade: Pick<MapaAtlas['grid'], 'size' | 'offset'>, beiral = 0.25): { faces: Face[]; cumeeiras: Segmento[] } {
   const faces: Face[] = [];
   const cumeeiras: Segmento[] = [];
-  for (const ret of retangulosDe(trecho.celulas)) {
-    const a = aguasDe(ret, trecho.roof, beiral);
+  const t = grade.size, [ox, oy] = grade.offset;
+  for (const [x0, y0, x1, y1] of retangulosDe(trecho.celulas)) {
+    const a = aguasDe([ox + x0 * t, oy + y0 * t, ox + x1 * t, oy + y1 * t], trecho.roof, beiral);
     faces.push(...a.faces);
     cumeeiras.push(...a.cumeeiras);
   }
