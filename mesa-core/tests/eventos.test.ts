@@ -214,6 +214,52 @@ test('validação de ficha.ajustar-recursos e atlas.preparar-cena', () => {
     })).ok,
     false
   );
+
+  // atlas.inspecionado (fato de atlas)
+  const objAlvo = criarRef('atlas', 'objeto', 'm1/o1');
+  assert.equal(
+    validarEvento(base({
+      app: 'atlas',
+      tipo: 'atlas.inspecionado',
+      dados: { mapa, alvo: objAlvo },
+    })).ok,
+    true
+  );
+  assert.equal(
+    validarEvento(base({
+      app: 'mesa',
+      tipo: 'atlas.inspecionado',
+      dados: { mapa, alvo: objAlvo },
+    })).ok,
+    false
+  );
+  assert.equal(
+    validarEvento(base({
+      app: 'atlas',
+      tipo: 'atlas.inspecionado',
+      dados: { mapa, alvo: 'invalido' },
+    })).ok,
+    false
+  );
+
+  // mesa.focar (pedido para mesa)
+  const itemQuadro = criarRef('mesa', 'item', 'q1/it1');
+  assert.equal(
+    validarEvento(base({
+      app: 'atlas',
+      tipo: 'mesa.focar',
+      dados: { ref: itemQuadro },
+    })).ok,
+    true
+  );
+  assert.equal(
+    validarEvento(base({
+      app: 'atlas',
+      tipo: 'mesa.focar',
+      dados: { ref: 'invalido' },
+    })).ok,
+    false
+  );
 });
 
 test.after(() => { for (const b of abertos) b.fechar(); });

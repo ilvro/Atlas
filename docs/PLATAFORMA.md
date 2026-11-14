@@ -34,10 +34,10 @@ Todos os projetos estão em `https://ilvro.github.io/<repositório>/`. A origem 
 Toda coisa que pode ser ligada tem uma referência:
 
 ```js
-Ref = { app: 'atlas' | 'ficha' | 'atelie' | 'jukebox' | 'tabletop' | 'mesa', tipo: 'mapa' | 'comodo' | 'ficha' | 'documento' | 'cena-sonora' | ..., id: string, rev?: number }
+Ref = { app: 'atlas' | 'ficha' | 'atelie' | 'jukebox' | 'tabletop' | 'mesa', tipo: 'mapa' | 'comodo' | 'objeto' | 'regiao' | 'ficha' | 'documento' | 'cena-sonora' | 'quadro' | 'item' | ..., id: string, rev?: number }
 ```
 
-Forma em texto, para links e notas: `mesa:ficha/ficha/sheet-1730…`, `mesa:atlas/comodo/<mapa>/<comodo>`.
+Forma em texto, para links e notas: `mesa:ficha/ficha/sheet-1730…`, `mesa:atlas/comodo/<mapa>/<comodo>`, `mesa:atlas/objeto/<mapa>/<objeto>`, `mesa:atlas/regiao/<mapa>/<regiao>`, `mesa:mesa/quadro/<quadroId>`, `mesa:mesa/item/<quadroId>/<itemId>`.
 
 - IDs são estáveis e nunca reaproveitados. Nome nunca é vínculo (lição do Jukebox).
 - `rev` só quando importa a versão exata (como os documentos assados do Ateliê).
@@ -71,8 +71,8 @@ Quem escreve: qualquer aplicativo, sempre por transação e pela biblioteca comu
 { contrato: 1, app: 'ficha', tipo: 'ficha.rolagem', id: '<uuid>', em: 1730560000000, campanhaId, dados: { ... } }
 ```
 
-- **Fatos** (aconteceu): `ficha.rolagem`, `ficha.recursos`, `atlas.cena-aberta`, `atlas.regiao-entrou`, `atlas.revelado`, `atelie.documento-salvo`, `jukebox.tocando`, `mesa.sessao-iniciada`.
-- **Pedidos** (faça, se puder): `jukebox.tocar` `{ ref }` (uma cena sonora), `jukebox.efeito` `{ ref }` (um efeito avulso, uma faixa `sfx`, `mesa:jukebox/efeito/<titulo>`), `jukebox.prontidao` `{ ref }` (responde se a cena sonora tem todas as faixas carregadas: `{ ok, total, faltando, nome }`), `atlas.focar` `{ ref }`, `ficha.abrir` `{ ref }`, `atelie.abrir` `{ ref }`. Quem atende responde com um fato; sem resposta em 1,5 s, quem pediu avisa que o aplicativo não está aberto e oferece abri-lo.
+- **Fatos** (aconteceu): `ficha.rolagem`, `ficha.recursos`, `atlas.cena-aberta`, `atlas.regiao-entrou`, `atlas.revelado`, `atlas.inspecionado` `{ mapa, alvo }`, `atelie.documento-salvo`, `jukebox.tocando`, `mesa.sessao-iniciada`.
+- **Pedidos** (faça, se puder): `jukebox.tocar` `{ ref }` (uma cena sonora), `jukebox.efeito` `{ ref }` (um efeito avulso, uma faixa `sfx`, `mesa:jukebox/efeito/<titulo>`), `jukebox.prontidao` `{ ref }` (responde se a cena sonora tem todas as faixas carregadas: `{ ok, total, faltando, nome }`), `atlas.focar` `{ ref }`, `ficha.abrir` `{ ref }`, `atelie.abrir` `{ ref }`, `mesa.focar` `{ ref }` (abre/enquadra um quadro, item de quadro ou os cartões ancorados a um objeto/cômodo/região). Quem atende responde com um fato; sem resposta em 1,5 s, quem pediu avisa que o aplicativo não está aberto e oferece abri-lo.
 - Catálogo versionado em `mesa-core`; quem recebe tipo ou versão desconhecida ignora e avisa uma vez no console.
 - O canal `mesa:handout` e o banco `mesa-handouts-v1` do contrato do Ateliê **continuam valendo** e passam a fazer parte do contrato da mesa, sem mudança.
 
@@ -105,7 +105,8 @@ Um aplicativo leve, também no Pages (`/Mesa/`), que dá a cara de plataforma:
 
 - **Início da campanha:** personagens, lugares, pistas, sessões, com busca e ligações.
 - **Notas da campanha** com `[[ligações]]`, abrindo o que está ligado no aplicativo dono.
-- **Modo sessão:** os aplicativos lado a lado em `iframe` (mapa do Atlas, fichas da Ficha, cena sonora do Jukebox), com o roteiro da sessão e o registro do que aconteceu.
+- **Quadros (whiteboard da campanha):** tela `#/quadros` e `#/quadro/{id}` com notas, formas, setas, traços, imagens, molduras, tipos semânticos, estado do mundo e âncoras para mapas do Atlas.
+- **Modo sessão:** os aplicativos lado a lado em `iframe` (mapa do Atlas, fichas da Ficha, cena sonora do Jukebox) e o painel do Quadro (com modos Espiar e Seguir), com o roteiro da sessão e o registro do que aconteceu.
 - **Inventário de aplicativos** pelos manifestos, com link para cada um.
 
 O nome "Mesa" funciona em português e inglês, como Jukebox e Ateliê. Pode mudar.
@@ -113,7 +114,7 @@ O nome "Mesa" funciona em português e inglês, como Jukebox e Ateliê. Pode mud
 ## 10. Possibilidades em aberto (fora do plano)
 
 - **Obsidian:** exportar e importar notas e entidades como Markdown com `[[ligações]]`, se a campanha um dia for para um vault.
-- **Miro:** hoje a preparação do usuário está no Miro. Uma importação de quadros ou exportação da campanha para um quadro é possível pela API do Miro, mas exige credenciais, que não cabem num site estático sem servidor. Fica registrado, sem desenho.
+- **Miro:** importação de quadros via pacote `.miro.zip` baixado pelo script local (`npm run miro:baixar` na Mesa) com fila de revisão semântica.
 - **Vários dispositivos e jogadores:** exige servidor ou sincronização; fora do escopo.
 
 ## 10.1. Chaves e bancos compartilhados (v1, implementados no Atlas)
@@ -123,6 +124,7 @@ O nome "Mesa" funciona em português e inglês, como Jukebox e Ateliê. Pode mud
 | Tema | `localStorage['mesa:tema']` → `{ v: 1, id: 'ordem'\|'prata'\|'neutro', acento?: '#rrggbb' }`; o evento `storage` avisa as outras abas | qualquer aplicativo |
 | Campanha ativa | `localStorage['mesa:campanha-ativa']` → id da campanha | qualquer aplicativo |
 | Campanha | IndexedDB `mesa-campanha-v1` (`campanhas`, `entidades`, `ligacoes`, `sessoes`), sem escopo de caminho | quem criou a entidade altera tudo; os outros só as próprias referências (aplicado pelo repositório e testado) |
+| Quadros da Mesa | IndexedDB `mesa-quadros-v1` (`quadros`, `itens`, `imagens`, `ajustes`), próprio da Mesa | só a Mesa |
 | Eventos | `BroadcastChannel('mesa:eventos')`, envelope `{ contrato, app, tipo, id, em, campanhaId, dados, respondeA? }`; fatos só do dono, pedidos de qualquer um, resposta como `mesa.resposta` | todos |
 | Mapas do Atlas | IndexedDB `atlas-v1:<caminho>`, **com** escopo de caminho (interno ao Atlas) | só o Atlas |
 
