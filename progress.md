@@ -493,4 +493,8 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 - **E3 — Jukebox e presets: atomicidade, escopo de mescla e ferramentas internas** — substituição atômica via `rename` no backup de arquivos de preset em `scripts/ponte/presets.ts` evitando duplicação de dados e erros de disco cheio, restrição de mescla na Jukebox (`upload-song.js`) para salvar apenas na mesma pasta aberta, ocultação de `jukebox_preset_receber` em `listarFerramentas` do MCP e documentação de `substituir: true` em `jukebox_preset_adicionar`. Testes em `tests/unit/ponte-presets.test.ts` e `Jukebox/tests/`.
 - **E4 — Acervo, inspetor, editor de momentos e desktop prep** — suporte a `oculto` em `atlas_objetos` e `construcao.ts`, checkbox "Oculto para jogadores" no inspetor de objetos, rótulos humanos para regiões (`r.payload?.nome`) e objetos (via `ACERVO`) no editor de momentos com filtragem de alvos de luz restrita a donos de luz, remoção de id fixo `arvore-morta` em `camadas.ts` em favor de tags, documentação em guias e execução de `npm run desktop:prep` na Mesa. Testes em `tests/unit/ponte-escrita.test.ts`.
 
+## Telhados
+
+- **T1 — Edifícios: agrupar os cômodos cobertos** — `src/domain/edificios.ts` (`Edificio`, `edificiosDe`, `edificioDaSala`), agrupando cômodos com `roof.material` não nulo conectados em 4 direções por `levelId` via union-find, com `id` estável e cache em `WeakMap`. Testes em `tests/unit/edificios.test.ts`.
+
 
