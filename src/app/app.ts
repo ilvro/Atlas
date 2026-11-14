@@ -23,7 +23,7 @@ import { embutido } from './embutido.ts';
 import { campanhaAtiva, carregarCampanhas, desvincularMapa, entidadesDaCampanha, refDoMapa, revincularMapa, sincronizarMapaComCampanha } from './campanha.ts';
 import { pedirCena, pedirEfeito, pedirSilencio, pedirSomDoClima, pedirSomDoMapa, tocarSomEscolhido } from './audio-do-clima.ts';
 import { comandoDaEtapaDeAgua, etapasDaAgua } from '../domain/agua.ts';
-import { gatilhoJaDisparou, iniciarRegioes, marcarGatilhoDisparado } from './regioes.ts';
+import { gatilhoJaDisparou, iniciarRegioes, marcarGatilhoDisparado, nomeDaRegiao } from './regioes.ts';
 import { modo, vistaDeJogador } from './modo.ts';
 import { iniciarSugestoes } from './sugestoes.ts';
 import { abrirJanelaDoProjetor, ajustarAoAspecto, aspectoDoProjetor, caixaDoProjetor, iniciarPublicacao, mapaNoProjetorId, projetorConectado, seguirJogadores, telaEscura, type Publicador } from './projetor.ts';
@@ -50,8 +50,9 @@ export const paletaAberta = signal(false);
 export const ajudaAberta = signal(false);
 export const notaDeObjetoAberta = signal<{ id: string; titulo: string; texto: string; gmOnly: boolean } | null>(null);
 export const menuRadial = signal<{ x: number; y: number; mundo: Ponto; alvo: Alvo | null; aberto: number } | null>(null);
-/** Cômodo a enquadrar assim que o viewport estiver pronto (link profundo). */
-export const focoPendente = signal<string | null>(null);
+export type FocoPendente = string | { tipo: 'comodo' | 'objeto' | 'regiao'; id: string };
+/** Cômodo, objeto ou região a enquadrar assim que o viewport estiver pronto (link profundo). */
+export const focoPendente = signal<FocoPendente | null>(null);
 
 export const viewport: { atual: Viewport | null } = { atual: null };
 
@@ -79,7 +80,16 @@ export async function iniciar(): Promise<void> {
     s.barramento?.atender('atlas.focar', dados => {
       const ref = (dados as { ref: { tipo: string; id: string } }).ref;
       if (ref.tipo === 'mapa') { navegar({ tipo: 'mapa', id: ref.id }); return { ok: true }; }
-      if (ref.tipo === 'comodo') { const i = ref.id.indexOf('/'); if (i > 0) { navegar({ tipo: 'mapa', id: ref.id.slice(0, i), comodo: ref.id.slice(i + 1) }); return { ok: true }; } }
+      if (ref.tipo === 'comodo' || ref.tipo === 'objeto' || ref.tipo === 'regiao') {
+        const i = ref.id.indexOf('/');
+        if (i > 0) {
+          const mapaId = ref.id.slice(0, i), filho = ref.id.slice(i + 1);
+          if (ref.tipo === 'comodo') navegar({ tipo: 'mapa', id: mapaId, comodo: filho });
+          else if (ref.tipo === 'objeto') navegar({ tipo: 'mapa', id: mapaId, objeto: filho });
+          else navegar({ tipo: 'mapa', id: mapaId, regiao: filho });
+          return { ok: true };
+        }
+      }
       return { ok: false, motivo: `O Atlas não abre ${ref.tipo}.` };
     });
     s.barramento?.atender('atlas.preparar-cena', dados => {
@@ -120,7 +130,17 @@ async function sincronizarRota(): Promise<void> {
 async function sincronizarRotaAtual(): Promise<void> {
   const r = rota.value, s = servicos.value;
   if (!s) return;
-  if (r.tipo === 'mapa') { await abrirMapa(r.id, r.comodo); return; }
+  if (r.tipo === 'mapa') {
+    const foco: FocoPendente | undefined = r.comodo
+      ? { tipo: 'comodo', id: r.comodo }
+      : r.objeto
+        ? { tipo: 'objeto', id: r.objeto }
+        : r.regiao
+          ? { tipo: 'regiao', id: r.regiao }
+          : undefined;
+    await abrirMapa(r.id, foco);
+    return;
+  }
   if (sessao.value) await comTransicao(fecharSessao);
   mapaAusente.value = null;
   await atualizarLista();
@@ -286,7 +306,7 @@ export function fecharSessao(): void {
   sincronizarPublicador();
 }
 
-export async function abrirMapa(id: string, comodo?: string): Promise<void> {
+export async function abrirMapa(id: string, comodo?: FocoPendente): Promise<void> {
   const s = servicos.value; if (!s) return;
   if (sessao.value?.doc.value.id === id) { focoPendente.value = comodo ?? null; focarNoComodo(); return; }
   carregando.value = true; mapaAusente.value = null;
@@ -341,11 +361,34 @@ export async function abrirMapa(id: string, comodo?: string): Promise<void> {
   } finally { carregando.value = false; }
 }
 
-/** Enquadra o cômodo do link profundo, quando já há viewport e mapa. */
+/** Enquadra o cômodo, objeto ou região do link profundo, quando já há viewport e mapa. */
 export function focarNoComodo(): void {
-  const id = focoPendente.value, v = viewport.atual, s = sessao.value;
-  if (!id || !v || !s) return;
+  const pendente = focoPendente.value, v = viewport.atual, s = sessao.value;
+  if (!pendente || !v || !s) return;
   focoPendente.value = null;
+  const alvoFoco = typeof pendente === 'string' ? { tipo: 'comodo' as const, id: pendente } : pendente;
+  const { tipo, id } = alvoFoco;
+
+  if (tipo === 'objeto') {
+    const obj = s.doc.value.props[id];
+    if (!obj) { avisar(`O objeto “${id}” não existe neste mapa.`, { tipo: 'erro' }); return; }
+    const alvo: Alvo = { colecao: 'props', id: obj.id };
+    s.selecao.value = [alvo];
+    const caixa = caixaDaSelecao(s.doc.value, [alvo]);
+    if (caixa) v.focarEm(caixa);
+    return;
+  }
+
+  if (tipo === 'regiao') {
+    const reg = s.doc.value.regions[id] ?? Object.values(s.doc.value.regions).find(r => nomeDaRegiao(r).toLowerCase() === id.toLowerCase());
+    if (!reg) { avisar(`A região “${id}” não existe neste mapa.`, { tipo: 'erro' }); return; }
+    const alvo: Alvo = { colecao: 'regions', id: reg.id };
+    s.selecao.value = [alvo];
+    const caixa = caixaDaSelecao(s.doc.value, [alvo]);
+    if (caixa) v.focarEm(caixa);
+    return;
+  }
+
   const sala = s.doc.value.rooms[id] ?? Object.values(s.doc.value.rooms).find(r => r.name.toLowerCase() === id.toLowerCase());
   if (!sala) { avisar(`O cômodo “${id}” não existe neste mapa.`, { tipo: 'erro' }); return; }
   const t = s.doc.value.grid.size;
@@ -794,10 +837,18 @@ export function mostrarInspecaoAosJogadores(vista: Vista, lanterna: { x: number;
 export function pararDeMostrarInspecao(): void { if (mostrandoAosJogadores.peek()) publicador?.inspecao(null); mostrandoAosJogadores.value = false; }
 export function fecharInspecaoDoMestre(): void { pararDeMostrarInspecao(); fecharInspecao(); }
 
+function emitirInspecionado(id: string): void {
+  const s = sessao.value, b = servicos.value?.barramento; if (!s || !b) return;
+  const m = s.doc.value, o = m.props[id]; if (!o) return;
+  const nome = nomeDoAlvo('props', o);
+  try { b.emitir('atlas.inspecionado', { mapa: refDoMapa(m), alvo: criarRef('atlas', 'objeto', `${m.id}/${id}`), ...(nome ? { nome } : {}) }); } catch (erro) { console.warn('Atlas: não consegui emitir atlas.inspecionado', erro); }
+}
+
 /** Usa um objeto interativo (interruptor, gaveta ou nota) na sessão; é UMA entrada de histórico. */
 export function usarObjeto(id: string): void {
   const s = sessao.value; if (!s) return;
   const o = s.doc.value.props[id]; if (!o?.interaction) return;
+  emitirInspecionado(id);
   if (o.interaction.kind === 'clue') { void abrirInspecao(o.interaction.clue, o.id); return; }
   if (o.interaction.kind === 'note') {
     const inter = o.interaction;

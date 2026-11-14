@@ -5,9 +5,11 @@
   "icone": "./icone.svg",
   "rotas": {
     "mapa": "./#/mapa/{id}",
-    "comodo": "./#/mapa/{pai}/comodo/{filho}"
+    "comodo": "./#/mapa/{pai}/comodo/{filho}",
+    "objeto": "./#/mapa/{pai}/objeto/{filho}",
+    "regiao": "./#/mapa/{pai}/regiao/{filho}"
   },
-  "oferece": ["mapa", "comodo"],
-  "emite": ["atlas.cena-aberta", "atlas.revelado"],
+  "oferece": ["mapa", "comodo", "objeto", "regiao"],
+  "emite": ["atlas.cena-aberta", "atlas.revelado", "atlas.inspecionado"],
   "atende": ["atlas.focar", "atlas.preparar-cena", "atlas.momento"]
 }
