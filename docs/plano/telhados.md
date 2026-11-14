@@ -94,7 +94,7 @@ Testes: `telhadoPadrao` (gênero, vizinho, ar livre); `construcao` sem `telhado`
 Pronto quando: desenhar um cômodo com a ferramenta Cômodo e ir para a vista de jogador mostra o telhado.
 Commit: `new rooms get a default roof from genre or neighbors`
 
-### T4 — Cobrir as casas de um mapa existente  ⬜
+### T4 — Cobrir as casas de um mapa existente  ✅
 Objetivo: mapas feitos antes do T3 ganham telhado com um clique, e o clique se desfaz com Ctrl+Z.
 Depende de: T3.
 Ler: `src/ui/Inspetor.tsx:590-610` (`CamposDoComodo`) e a seção do Inspetor sem seleção (dados do mapa), `src/state/` (como `iniciarGesto` agrupa comandos num registro).

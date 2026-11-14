@@ -6,8 +6,10 @@ import { servicos } from '../app/app.ts';
 import { avisar } from '../app/toasts.ts';
 import { NOMES_COLECAO, desfazer, duplicarSelecao, refazer, removerSelecao, sessao } from '../app/app.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
+import { cobrirCasas } from '../authoring/cobrir.ts';
 import { aguaEm } from '../domain/agua.ts';
 import { area } from '../domain/celulas.ts';
+import { edificioDaSala } from '../domain/edificios.ts';
 import { PALETAS_PIXEL } from '../domain/paletas.ts';
 import { nomeDoAlvo, novaLuz } from '../domain/fabrica.ts';
 import { alvosDoInterruptor } from '../domain/interagiveis.ts';
@@ -75,6 +77,7 @@ function EstiloDoMapa({ s }: { s: SessaoDeEdicao }) {
 
 function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
   const m = s.doc.value, st = s.store;
+  const comandosCobrir = modo.value === 'construir' ? cobrirCasas(m) : [];
   return (
     <div class="painel-corpo" data-testid="painel-mapa">
       {modo.value === 'construir' && <>
@@ -120,6 +123,19 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
       <CampoOpcoes rotulo="Estilo" valor={m.grid.lineStyle} opcoes={[['solid', 'Sólida'], ['dashed', 'Tracejada'], ['dotted', 'Pontilhada'], ['corners', 'Cantos']]} aoMudar={v => tentar(() => st.executar({ tipo: 'grade.atualizar', patch: { lineStyle: v } }, { rotulo: 'Estilo da grade' }))} />
       <button type="button" class={`botao-alinhamento-inspetor ${alinhandoGrade.value ? 'ativo' : ''}`} onClick={() => { alinhandoGrade.value = !alinhandoGrade.value; tocar('pop'); }}>{alinhandoGrade.value ? 'Sair do Alinhamento' : '✥ Modo de Alinhamento'}</button>
       <EstiloDoMapa s={s} />
+      {comandosCobrir.length > 0 && <>
+        <h3 class="faixa pequena">Telhados</h3>
+        <div class="acoes-selecao">
+          <button
+            type="button"
+            class="botao-pilula"
+            data-testid="cobrir-casas"
+            onClick={() => tentar(() => st.transacao('Telhados', g => { for (const cmd of comandosCobrir) g.aplicar(cmd); }))}
+          >
+            Cobrir as casas ({comandosCobrir.length} {comandosCobrir.length === 1 ? 'cômodo sem telhado' : 'cômodos sem telhado'})
+          </button>
+        </div>
+      </>}
       <h3 class="faixa pequena">Personagens</h3>
       <Personagens s={s} />
       <h3 class="faixa pequena">Som</h3>
@@ -591,6 +607,7 @@ function LigacoesDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
 
 function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
   const st = s.store, m = s.doc.value, extra = m.comodosExtra[c.id];
+  const ed = c.roof.material ? edificioDaSala(m, c.id) : null;
   const editar = (patch: Record<string, unknown>, rotulo?: string) => tentar(() => st.executar({ tipo: 'comodo.atualizar', id: c.id, patch: patch as never }, rotulo ? { rotulo } : {}));
   const notas = (patch: { leitura?: string; notasMestre?: string }) => tentar(() => st.executar({ tipo: 'comodo.notas', id: c.id, patch }, { rotulo: 'Notas do cômodo' }));
   return (<>
@@ -600,6 +617,26 @@ function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
     <CampoOpcoes rotulo="Papel" valor={c.wallpaper?.material ?? ''} opcoes={[['', 'Sem papel'], ...materiaisDo('papel').map(x => [x.id, x.nome] as const)]} aoMudar={v => editar({ wallpaper: v ? { material: v, seed: c.wallpaper?.seed ?? 1 } : null }, 'Papel de parede')} />
     <CampoOpcoes rotulo="Paredes" valor={c.wallStyle ?? ''} opcoes={[['', 'Do mapa'], ['box', 'Caixa'], ['solid', 'Sólidas']]} aoMudar={v => editar({ wallStyle: v || null }, 'Estilo das paredes')} />
     <CampoOpcoes rotulo="Telhado" dica="Na vista dos jogadores, cobre o cômodo até alguém entrar nele." valor={c.roof.material ?? ''} opcoes={[['', 'Nenhum'], ...materiaisDo('telhado').map(x => [x.id, x.nome] as const)]} aoMudar={v => editar({ roof: { material: v || null } }, 'Telhado')} />
+    {ed && ed.salas.length > 1 && (
+      <div class="linha">
+        <span class="linha-rotulo">Casa: {ed.salas.length} cômodos</span>
+        <span class="linha-controle">
+          <button
+            type="button"
+            class="botao-pilula"
+            data-testid="telhado-casa-toda"
+            onClick={() => tentar(() => st.transacao('Telhados', g => {
+              for (const id of ed.salas) {
+                if (id === c.id) continue;
+                g.aplicar({ tipo: 'comodo.atualizar', id, patch: { roof: { ...c.roof } } as never });
+              }
+            }))}
+          >
+            Usar este telhado na casa toda
+          </button>
+        </span>
+      </div>
+    )}
     <CampoCaixa rotulo="Telhado visível" valor={c.roof.visible} aoMudar={v => editar({ roof: { visible: v } }, 'Telhado')} />
     <h3 class="faixa pequena">Texto de leitura</h3>
     <textarea class="notas" aria-label="Texto de leitura do cômodo" rows={3} placeholder="O que os jogadores percebem ao entrar…" key={`l:${extra?.leitura ?? ''}`} defaultValue={extra?.leitura ?? ''}
