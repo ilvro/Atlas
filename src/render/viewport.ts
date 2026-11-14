@@ -10,7 +10,7 @@ import { copiasDe, novaLuz, novoIdEntidade, novoObjeto } from '../domain/fabrica
 import { comprimentoDaParede, contornoDoComodo, encaixarNaParede, encaixarObjetoDeParede, indiceDeCelulas, pontoNaParede, salaDaCelula } from '../domain/geometria.ts';
 import type { Abertura, MapaAtlas, Peca, Ponto } from '../domain/mapa.ts';
 import type { Recursos } from '../domain/fichas.ts';
-import { TIPOS_DE_COMODO, camposDoPreset, pincelDePresenca, presetDeLuz, tipoDeComodo } from '../domain/presets.ts';
+import { TIPOS_DE_COMODO, camposDoPreset, pincelDePresenca, presetDeLuz, telhadoPadrao, tipoDeComodo } from '../domain/presets.ts';
 import { fxAtivo } from '../fx/fx.ts';
 import { criarBaker, type Baker } from '../procedural/baker.ts';
 import { ACERVO } from '../procedural/acervo.ts';
@@ -638,7 +638,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       if (i.apagar) i.gesto.aplicar({ tipo: 'comodo.apagar', celulas: novas });
       else if (!i.criado) {
         const mesmos = Object.values(m.rooms).filter(s => s.function === tipo.funcao).length;
-        i.gesto.aplicar({ tipo: 'comodo.criar', id: i.sala, nome: mesmos ? `${tipo.nome} ${mesmos + 1}` : tipo.nome, funcao: tipo.funcao, piso: { material: tipo.piso, seed: Math.floor(Math.random() * 1e6) }, papel: { material: tipo.papel, seed: Math.floor(Math.random() * 1e6) }, celulas: novas });
+        i.gesto.aplicar({ tipo: 'comodo.criar', id: i.sala, nome: mesmos ? `${tipo.nome} ${mesmos + 1}` : tipo.nome, funcao: tipo.funcao, piso: { material: tipo.piso, seed: Math.floor(Math.random() * 1e6) }, papel: { material: tipo.papel, seed: Math.floor(Math.random() * 1e6) }, telhado: telhadoPadrao(m, tipo.funcao, novas), celulas: novas });
         i.criado = true;
       } else i.gesto.aplicar({ tipo: 'comodo.pintar', id: i.sala, celulas: novas });
     });

@@ -12,7 +12,7 @@ export type CelulaDoComando = readonly [number, number];
 
 /** Comandos de construção: cômodos, paredes, aberturas e terreno. Cômodos e paredes refazem as paredes derivadas. */
 export type ComandoConstruir =
-  | { tipo: 'comodo.criar'; id: string; nome: string; funcao: string | null; piso: Comodo['floor']; papel: Comodo['wallpaper']; celulas: readonly CelulaDoComando[] }
+  | { tipo: 'comodo.criar'; id: string; nome: string; funcao: string | null; piso: Comodo['floor']; papel: Comodo['wallpaper']; telhado?: string | null; celulas: readonly CelulaDoComando[] }
   | { tipo: 'comodo.pintar'; id: string; celulas: readonly CelulaDoComando[] }
   | { tipo: 'comodo.apagar'; celulas: readonly CelulaDoComando[] }
   | { tipo: 'comodo.atualizar'; id: string; patch: ParcialProfundo<Omit<Comodo, 'id' | 'cells'>> }
@@ -109,7 +109,7 @@ export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
     case 'comodo.criar': {
       if (m.rooms[c.id]) nao(`Já existe o cômodo “${c.id}”.`);
       const cel = normais(c.celulas); if (!cel.length) nao('Um cômodo precisa de pelo menos uma célula.');
-      m.rooms[c.id] = { id: c.id, name: c.nome, function: c.funcao, cells: [], floor: clonar(c.piso), wallpaper: c.papel ? clonar(c.papel) : null, wallStyle: null, palette: null, roof: { material: null, visible: true }, levelId: null };
+      m.rooms[c.id] = { id: c.id, name: c.nome, function: c.funcao, cells: [], floor: clonar(c.piso), wallpaper: c.papel ? clonar(c.papel) : null, wallStyle: null, palette: null, roof: { material: c.telhado ?? null, visible: true }, levelId: null };
       darCelulas(m, c.id, cel); recalcularParedes(m); break;
     }
     case 'comodo.pintar': darCelulas(m, c.id, normais(c.celulas)); recalcularParedes(m); break;

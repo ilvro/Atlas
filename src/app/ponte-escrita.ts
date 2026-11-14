@@ -184,7 +184,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_comodos',
-      descricao: 'Cria cômodos (piso, paredes, telhado). ATENÇÃO: rets em CÉLULAS de 1,5 m, x1 e y1 exclusivos. Detalhes: plataforma_guia ferramentas-atlas.',
+      descricao: 'Cria cômodos (piso, paredes, telhado). ATENÇÃO: rets em CÉLULAS de 1,5 m, x1/y1 exclusivos. telhado omitido = do gênero; null = sem. Guia: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         comodos: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
           rets: { type: 'array', minItems: 1, items: esquemaDoRetanguloDeCelulas }, tipo: { type: 'string', enum: TIPOS_DE_COMODO.map(t => t.id) }, nome: { type: 'string' },
