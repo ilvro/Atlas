@@ -108,7 +108,7 @@ Testes: `cobrirCasas` deixa varanda de fora, herda o material do vizinho e não 
 Pronto quando: abrir um mapa antigo, clicar em "Cobrir as casas", ver os telhados na vista de jogador e desfazer tudo com um Ctrl+Z.
 Commit: `added cover houses action and roof per building in inspector`
 
-### T5a — Forma do telhado no documento e geometria das águas  ⬜
+### T5a — Forma do telhado no documento e geometria das águas  ✅
 Objetivo: o documento sabe a forma de cada telhado, e um código puro transforma a planta em faces.
 Depende de: T1.
 Ler: `src/domain/mapa.ts:70-80` (`Comodo.roof`), `src/domain/validacao.ts:25`, `src/state/comandos-construir.ts` (`comodo.atualizar` e o merge de `roof`), `src/domain/geometria.ts`, `src/domain/celulas.ts`.
