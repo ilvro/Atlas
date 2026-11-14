@@ -29,6 +29,16 @@ test('toda rota do manifesto é entendida pelo roteador do Atlas (e vice-versa)'
   assert.equal(comodo, 'https://ilvro.github.io/Atlas/#/mapa/casa-1/comodo/biblioteca');
   assert.deepEqual(lerRota(new URL(comodo).hash), { tipo: 'mapa', id: 'casa-1', comodo: 'biblioteca' });
   assert.equal(formatarRota({ tipo: 'mapa', id: 'casa-1', comodo: 'biblioteca' }), new URL(comodo).hash);
+
+  const objeto = enderecoDaRef(m.manifesto, criarRef('atlas', 'objeto', 'casa-1/escrivaninha'), base)!;
+  assert.equal(objeto, 'https://ilvro.github.io/Atlas/#/mapa/casa-1/objeto/escrivaninha');
+  assert.deepEqual(lerRota(new URL(objeto).hash), { tipo: 'mapa', id: 'casa-1', objeto: 'escrivaninha' });
+  assert.equal(formatarRota({ tipo: 'mapa', id: 'casa-1', objeto: 'escrivaninha' }), new URL(objeto).hash);
+
+  const regiao = enderecoDaRef(m.manifesto, criarRef('atlas', 'regiao', 'casa-1/armadilha'), base)!;
+  assert.equal(regiao, 'https://ilvro.github.io/Atlas/#/mapa/casa-1/regiao/armadilha');
+  assert.deepEqual(lerRota(new URL(regiao).hash), { tipo: 'mapa', id: 'casa-1', regiao: 'armadilha' });
+  assert.equal(formatarRota({ tipo: 'mapa', id: 'casa-1', regiao: 'armadilha' }), new URL(regiao).hash);
 });
 
 test('mesa-dev: ler projetos e achar o dono de um caminho', () => {

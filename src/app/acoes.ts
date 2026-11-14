@@ -1,3 +1,4 @@
+import { criarRef, formatarRef, type Ref } from '#mesa';
 import { exportarRelatorioDosTutoriais } from './tutoriais.ts';
 import { signal } from '@preact/signals';
 import { combina } from './atalhos.ts';
@@ -282,31 +283,76 @@ export function tratarTecla(e: KeyboardEvent): boolean {
 
 export interface ItemRadial { id: string; rotulo: string; icone: string; atalho?: string; fazer: () => void }
 
+function refDoAlvoParaQuadro(mapaId: string, alvo: Alvo | null): Ref | null {
+  if (!alvo) return null;
+  if (alvo.colecao === 'props') return criarRef('atlas', 'objeto', `${mapaId}/${alvo.id}`);
+  if (alvo.colecao === 'rooms') return criarRef('atlas', 'comodo', `${mapaId}/${alvo.id}`);
+  if (alvo.colecao === 'regions') return criarRef('atlas', 'regiao', `${mapaId}/${alvo.id}`);
+  return null;
+}
+
+function itensDeQuadroRadial(ref: Ref): ItemRadial[] {
+  const textoRef = formatarRef(ref);
+  return [
+    {
+      id: 'ver-no-quadro',
+      rotulo: 'Ver no quadro',
+      icone: 'campanha',
+      fazer: () => {
+        const b = app.servicos.peek()?.barramento;
+        if (!b) { avisar('Barramento indisponível.', { tipo: 'erro' }); return; }
+        void b.pedir('mesa.focar', { ref }).then(res => {
+          if (!res.ok) avisar('Abra a Mesa para ver este item no quadro.', { duracao: 2400 });
+        });
+      },
+    },
+    {
+      id: 'copiar-ref',
+      rotulo: 'Copiar referência',
+      icone: 'copiar',
+      fazer: () => {
+        void navigator.clipboard?.writeText(textoRef);
+        avisar(`Referência copiada: ${textoRef}`, { duracao: 1800 });
+      },
+    },
+  ];
+}
+
 /** As ações do clique direito: o que faz sentido sobre o item, ou sobre o espaço vazio. */
 export function itensDoMenuRadial(alvo: Alvo | null, mundo: Ponto): ItemRadial[] {
   const s = app.sessao.value; if (!s) return [];
+  const m = s.doc.value;
   if (modo.value === 'sessao') {
-    const m = s.doc.value, salaId = comodoEm(m, mundo), ed = salaId ? edificioDaSala(m, salaId) : null;
-    if (!ed) return [];
-    const visivel = ed.salas.some(id => m.rooms[id]?.roof.visible);
-    return [{
-      id: 'telhado-casa',
-      rotulo: visivel ? 'Abrir telhado da casa' : 'Fechar telhado da casa',
-      icone: 'telhado',
-      fazer: () => {
-        s.store.transacao('Telhado', g => {
-          for (const id of ed.salas) g.aplicar({ tipo: 'comodo.atualizar', id, patch: { roof: { visible: !visivel } } });
-        });
-      },
-    }];
+    const salaId = comodoEm(m, mundo), ed = salaId ? edificioDaSala(m, salaId) : null;
+    const itensSessao: ItemRadial[] = [];
+    if (ed) {
+      const visivel = ed.salas.some(id => m.rooms[id]?.roof.visible);
+      itensSessao.push({
+        id: 'telhado-casa',
+        rotulo: visivel ? 'Abrir telhado da casa' : 'Fechar telhado da casa',
+        icone: 'telhado',
+        fazer: () => {
+          s.store.transacao('Telhado', g => {
+            for (const id of ed.salas) g.aplicar({ tipo: 'comodo.atualizar', id, patch: { roof: { visible: !visivel } } });
+          });
+        },
+      });
+    }
+    const refSessao = refDoAlvoParaQuadro(m.id, alvo) ?? (salaId ? criarRef('atlas', 'comodo', `${m.id}/${salaId}`) : null);
+    if (refSessao && (alvo || !ed)) {
+      itensSessao.push(...itensDeQuadroRadial(refSessao));
+    }
+    return itensSessao;
   }
   const item = (id: string, rotulo: string, icone: string, atalho?: string): ItemRadial => ({ id, rotulo, icone, ...(atalho ? { atalho } : {}), fazer: () => { const a = acaoPorId(id); if (a) executarAcao(a); } });
   if (alvo) {
     const luz = alvo.colecao === 'lights';
+    const refQuadro = refDoAlvoParaQuadro(m.id, alvo);
     return [
       item('duplicar', 'Duplicar', 'duplicar', 'Ctrl+D'), item('remover', 'Remover', 'lixeira', 'Del'),
       ...(luz ? [item('luz-acesa', s.doc.value.lights[alvo.id]?.on ? 'Apagar' : 'Acender', 'luz', 'I')] : []),
       item('centralizar', 'Centralizar', 'alvo', 'Z'), item('desfazer', 'Desfazer', 'desfazer', 'Ctrl+Z'),
+      ...(refQuadro ? itensDeQuadroRadial(refQuadro) : []),
     ];
   }
   // "Aqui" é onde o botão direito foi clicado, não onde o ponteiro estiver quando o item for escolhido.
