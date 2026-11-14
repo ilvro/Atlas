@@ -628,7 +628,9 @@ function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
             onClick={() => tentar(() => st.transacao('Telhados', g => {
               for (const id of ed.salas) {
                 if (id === c.id) continue;
-                g.aplicar({ tipo: 'comodo.atualizar', id, patch: { roof: { ...c.roof } } as never });
+                // Todos os campos, mesmo os ausentes: `undefined` apaga no outro cômodo a forma ou os detalhes que este não tem.
+                const { material, visible, shape, ridge, steep, details } = c.roof;
+                g.aplicar({ tipo: 'comodo.atualizar', id, patch: { roof: { material, visible, shape, ridge, steep, details } } as never });
               }
             }))}
           >

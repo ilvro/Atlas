@@ -41,3 +41,14 @@ test('telhadoPadrao: herda o material de cômodo vizinho com telhado em 4 direç
   assert.equal(telhadoPadrao(m, 'cozinha', [[3, 1]]), 'telha.barro', 'afastado usa o gênero');
   assert.equal(telhadoPadrao(m, 'varanda', [[2, 1]]), null, 'varanda ao lado de casa continua sem telhado');
 });
+
+test('telhadoPadrao: vizinho de outro nível não passa o material', () => {
+  const m = criarMapa();
+  m.rooms.porao = {
+    id: 'porao', name: 'Porão', function: 'porao', cells: codificar([[1, 1]]),
+    floor: { material: 'laje.pedra', seed: 1 }, wallpaper: null, wallStyle: null, palette: null,
+    roof: { material: 'telha.ardosia', visible: true }, levelId: 'subsolo',
+  };
+  assert.equal(telhadoPadrao(m, 'sala', [[2, 1]]), 'telha.barro', 'no térreo, o porão de baixo não conta');
+  assert.equal(telhadoPadrao(m, 'sala', [[2, 1]], 'subsolo'), 'telha.ardosia');
+});

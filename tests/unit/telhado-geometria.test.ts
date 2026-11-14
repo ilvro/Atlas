@@ -112,9 +112,15 @@ test('retangulosDe decompõe L em 2 retângulos maximais e aguasDoTrecho junta a
     celulas: emL,
     roof: { material: 'telha.barro', visible: true, shape: 'duas-aguas' as const },
   };
-  const aguas = aguasDoTrecho(trecho);
+  const aguas = aguasDoTrecho(trecho, { size: 1.5, offset: [3, 0] });
   assert.equal(aguas.faces.length, 4);
   assert.equal(aguas.cumeeiras.length, 2);
+  // Em metros: o retângulo 4×2 células vira 6×3 m a partir de x = 3, e o beiral de 0,25 m vale em metros, não em células.
+  const xs = aguas.faces.flatMap(f => f.pontos.map(p => p[0])), ys = aguas.faces.flatMap(f => f.pontos.map(p => p[1]));
+  assert.ok(Math.abs(Math.min(...xs) - 2.75) < 1e-9);
+  assert.ok(Math.abs(Math.max(...xs) - 9.25) < 1e-9);
+  assert.ok(Math.abs(Math.min(...ys) + 0.25) < 1e-9);
+  assert.ok(Math.abs(Math.max(...ys) - 6.25) < 1e-9);
 });
 
 test('igreja (nave em duas águas + torre em pirâmide vizinha) dá 1 edifício e 2 trechos', () => {

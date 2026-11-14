@@ -84,7 +84,7 @@ export function cobrirCasas(m: Pick<MapaAtlas, 'rooms' | 'style'>): Comando[] {
 
       const sala = roomsDoNivel[id]!;
       const cels = celulasPorId.get(id)!;
-      const material = telhadoPadrao({ style: m.style, rooms: roomsDoNivel }, sala.function, cels);
+      const material = telhadoPadrao({ style: m.style, rooms: roomsDoNivel }, sala.function, cels, nivel);
       if (material) {
         comandos.push({
           tipo: 'comodo.atualizar',
