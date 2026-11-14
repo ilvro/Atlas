@@ -44,7 +44,7 @@ Ordem: T1 → T2 → T3 → T4; T5a → T5b → T5c → T5d → T5e depois de T2
 
 ---
 
-### T1 — Edifícios: agrupar os cômodos cobertos  ⬜
+### T1 — Edifícios: agrupar os cômodos cobertos  ✅
 Objetivo: saber quais cômodos formam uma mesma casa.
 Depende de: —.
 Ler: `src/domain/celulas.ts` (`decodificar`), `src/domain/nevoa.ts` (cache por documento no topo e `comodosConhecidos`), `src/domain/mapa.ts` (`Comodo`).
