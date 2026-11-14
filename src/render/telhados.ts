@@ -1,7 +1,8 @@
 import { Container, Graphics } from 'pixi.js';
 import { decodificar } from '../domain/celulas.ts';
+import { edificiosDe, type Edificio } from '../domain/edificios.ts';
 import { contornoDoComodo } from '../domain/geometria.ts';
-import type { Comodo, MapaAtlas } from '../domain/mapa.ts';
+import type { Comodo, MapaAtlas, Peca } from '../domain/mapa.ts';
 import { comodosConhecidos } from '../domain/nevoa.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import { materialDe } from '../procedural/materiais.ts';
@@ -21,13 +22,13 @@ export interface Telhados {
   definirVista(v: Vista): void;
   quadro(agora: number): void;
   /** Para os testes: a opacidade de cada telhado agora. */
-  diagnostico(): { id: string; alfa: number; alvo: number; dentro: boolean; conhecido: boolean }[];
+  diagnostico(): { id: string; edificio: string; alfa: number; alvo: number; dentro: boolean; conhecido: boolean }[];
   /** Se o telhado do cômodo está visível e cobrindo a sala agora. */
   visivel(salaId: string): boolean;
   destruir(): void;
 }
 
-interface DoComodo { c: Graphics; sala: Comodo; alfa: number; alvo: number; dentro: boolean; conhecido: boolean }
+interface DoComodo { c: Graphics; sala: Comodo; edificio: string; alfa: number; alvo: number; dentro: boolean; conhecido: boolean }
 
 export function criarTelhados(): Telhados {
   const raiz = new Container(), telhas = new Map<string, DoComodo>();
@@ -51,10 +52,10 @@ export function criarTelhados(): Telhados {
     g.stroke({ width: 0.14, color: escuro, join: 'round' });
   }
 
-  /** Há peça de jogador dentro do cômodo (na célula dele)? */
-  function alguemDentro(m: MapaAtlas, sala: Comodo): boolean {
-    const t = m.grid.size, [ox, oy] = m.grid.offset, celulas = new Set(decodificar(sala.cells).map(([x, y]) => `${x},${y}`));
-    return Object.values(m.tokens).some(p => p.player && celulas.has(`${Math.floor((p.position[0] - ox) / t)},${Math.floor((p.position[1] - oy) / t)}`));
+  /** Há peça de jogador dentro do edifício (em alguma célula dele)? */
+  function alguemDentro(m: MapaAtlas, ed: Edificio, jogadores: readonly Peca[]): boolean {
+    const t = m.grid.size, [ox, oy] = m.grid.offset, celulas = new Set(ed.celulas.map(([x, y]) => `${x},${y}`));
+    return jogadores.some(p => celulas.has(`${Math.floor((p.position[0] - ox) / t)},${Math.floor((p.position[1] - oy) / t)}`));
   }
 
   function alvoDe(r: DoComodo): number {
@@ -64,9 +65,26 @@ export function criarTelhados(): Telhados {
 
   function reavaliar(): void {
     const m = mapa; if (!m) return;
-    // Um telhado que ninguém viu continua escondido: só se mostra o de um cômodo de que algum pedaço está à vista ou explorado.
+    // Um telhado que ninguém viu continua escondido: só se mostra o de uma casa de que algum pedaço está à vista ou explorado.
     const conhecidos = vista === 'jogador' && telhas.size ? comodosConhecidos(m) : null;
-    for (const r of telhas.values()) { r.dentro = alguemDentro(m, r.sala); r.conhecido = !conhecidos || conhecidos.has(r.sala.id); r.alvo = alvoDe(r); if (imediato) { r.alfa = r.alvo; r.c.alpha = r.alfa; r.c.visible = r.alfa > 0.001; } }
+    const jogadores = Object.values(m.tokens).filter(p => p.player);
+    const edPorSala = new Map<string, { id: string; dentro: boolean; conhecido: boolean }>();
+    for (const ed of edificiosDe(m)) {
+      const info = {
+        id: ed.id,
+        dentro: alguemDentro(m, ed, jogadores),
+        conhecido: !conhecidos || ed.salas.some(id => conhecidos.has(id)),
+      };
+      for (const id of ed.salas) edPorSala.set(id, info);
+    }
+    for (const [id, r] of telhas) {
+      const ed = edPorSala.get(id);
+      r.edificio = ed ? ed.id : id;
+      r.dentro = ed ? ed.dentro : false;
+      r.conhecido = ed ? ed.conhecido : true;
+      r.alvo = alvoDe(r);
+      if (imediato) { r.alfa = r.alvo; r.c.alpha = r.alfa; r.c.visible = r.alfa > 0.001; }
+    }
   }
 
   return {
@@ -82,7 +100,7 @@ export function criarTelhados(): Telhados {
           if (!sala.roof.material) continue;
           vivos.add(sala.id);
           let r = telhas.get(sala.id);
-          if (!r) { r = { c: new Graphics(), sala, alfa: 0, alvo: 0, dentro: false, conhecido: false }; r.c.visible = false; raiz.addChild(r.c); telhas.set(sala.id, r); }
+          if (!r) { r = { c: new Graphics(), sala, edificio: sala.id, alfa: 0, alvo: 0, dentro: false, conhecido: false }; r.c.visible = false; raiz.addChild(r.c); telhas.set(sala.id, r); }
           r.sala = sala; desenhar(r.c, m, sala);
         }
         for (const [id, r] of telhas) if (!vivos.has(id)) { r.c.destroy(); telhas.delete(id); }
@@ -100,7 +118,7 @@ export function criarTelhados(): Telhados {
         r.c.alpha = r.alfa; r.c.visible = r.alfa > 0.001;
       }
     },
-    diagnostico: () => [...telhas.entries()].map(([id, r]) => ({ id, alfa: r.alfa, alvo: r.alvo, dentro: r.dentro, conhecido: r.conhecido })),
+    diagnostico: () => [...telhas.entries()].map(([id, r]) => ({ id, edificio: r.edificio, alfa: r.alfa, alvo: r.alvo, dentro: r.dentro, conhecido: r.conhecido })),
     visivel: (salaId: string) => { const r = telhas.get(salaId); return !!r && r.c.visible && r.alfa > 0.3; },
     destruir() { destruido = true; raiz.destroy({ children: true }); },
   };

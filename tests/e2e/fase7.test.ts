@@ -245,7 +245,7 @@ test('memória: o que a peça já viu e deixou para trás vira esboço em papel;
   assert.deepEqual(erros, []); await ctx.close();
 });
 
-const telhados = (p: Page) => p.evaluate(() => (window as unknown as { __atlas: { viewport(): { diagnosticoDosTelhados(): { id: string; alfa: number; alvo: number; dentro: boolean }[] } } }).__atlas.viewport().diagnosticoDosTelhados());
+const telhados = (p: Page) => p.evaluate(() => (window as unknown as { __atlas: { viewport(): { diagnosticoDosTelhados(): { id: string; edificio: string; alfa: number; alvo: number; dentro: boolean }[] } } }).__atlas.viewport().diagnosticoDosTelhados());
 
 test('telhado: cobre o cômodo na vista de jogador até uma peça entrar, com fade; o mestre o vê esmaecido e em Construir ele some', async () => {
   const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
@@ -281,6 +281,39 @@ test('telhado: cobre o cômodo na vista de jogador até uma peça entrar, com fa
   // Telhado "não visível" não aparece.
   await sessao(page, '(s) => s.store.executar({ tipo: "comodo.atualizar", id: "casa", patch: { roof: { visible: false } } })'); await page.waitForTimeout(800);
   assert.equal((await telhados(page))[0]!.alfa, 0);
+  assert.deepEqual(erros, []); await ctx.close();
+});
+
+test('telhado por edifício: entrar em uma sala descobre o telhado da casa inteira, e sair o fecha', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await sessao(page, `(s, p) => {
+    const corredor = []; for (let y = 4; y < 8; y++) for (let x = 4; x < 6; x++) corredor.push([x, y]);
+    const cozinha = []; for (let y = 4; y < 8; y++) for (let x = 6; x < 8; x++) cozinha.push([x, y]);
+    s.store.executar({ tipo: "terreno.base", material: "grama" });
+    s.store.executar({ tipo: "comodo.criar", id: "corredor", nome: "Corredor", funcao: null, piso: { material: "tabuas.carvalho", seed: 1 }, papel: null, celulas: corredor });
+    s.store.executar({ tipo: "comodo.atualizar", id: "corredor", patch: { roof: { material: "telha.barro", visible: true } } });
+    s.store.executar({ tipo: "comodo.criar", id: "cozinha", nome: "Cozinha", funcao: null, piso: { material: "tabuas.carvalho", seed: 2 }, papel: null, celulas: cozinha });
+    s.store.executar({ tipo: "comodo.atualizar", id: "cozinha", patch: { roof: { material: "telha.barro", visible: true } } });
+    s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: p });
+  }`, peca('hugo', 'Hugo', 3.75, 3.75, { player: true, vision: { radius: 20, dark: false } }));
+  await page.waitForTimeout(800);
+  await page.click('[data-testid="modo-sessao"]'); await page.waitForTimeout(300);
+  await page.click('[data-testid="vista-jogador"]'); await page.waitForTimeout(700);
+  let ts = await telhados(page);
+  assert.equal(ts.length, 2);
+  assert.equal(ts[0]!.edificio, ts[1]!.edificio);
+  assert.ok(ts.every(t => t.alvo === 1 && !t.dentro), 'fora da casa, ambos os telhados fechados');
+
+  await sessao(page, '(s) => s.store.executar({ tipo: "peca.mover", id: "hugo", para: [7.5, 9.0], livre: true })');
+  await page.waitForTimeout(200);
+  ts = await telhados(page);
+  assert.ok(ts.every(t => t.alvo === 0 && t.dentro), 'uma peça no corredor abre a cozinha junto');
+
+  await sessao(page, '(s) => s.store.executar({ tipo: "peca.mover", id: "hugo", para: [3.75, 3.75], livre: true })');
+  await page.waitForTimeout(200);
+  ts = await telhados(page);
+  assert.ok(ts.every(t => t.alvo === 1 && !t.dentro), 'sair fecha ambos os telhados');
   assert.deepEqual(erros, []); await ctx.close();
 });
 
