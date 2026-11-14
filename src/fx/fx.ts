@@ -105,6 +105,14 @@ export function flutuarRolagem(onde: Retangulo | null, total: number, titulo: st
       { transform: 'translate(-50%, -175%) scale(1)', opacity: 0 },
     ], { duration: 2600, easing: 'ease-out', fill: 'forwards' }).onfinish = () => el.remove();
     faiscar(onde, { cor: tom === 'normal' ? acento : COR_DA_ROLAGEM[tom], quantidade: tom === 'normal' ? 10 : 18, alcance: 56 });
-  } else { el.style.transform = 'translate(-50%, -140%)'; setTimeout(() => el.remove(), 2600); }
+  } else {
+    el.style.transform = 'translate(-50%, -140%)';
+    el.animate([
+      { opacity: 0 },
+      { opacity: 1, offset: 0.12 },
+      { opacity: 1, offset: 0.78 },
+      { opacity: 0 },
+    ], { duration: 2600, easing: 'ease-out', fill: 'forwards' }).onfinish = () => el.remove();
+  }
   return el;
 }
