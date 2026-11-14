@@ -122,13 +122,14 @@ Como:
    - `duas-aguas`: cumeeira no eixo maior, ou no eixo de `ridge` quando não for `auto`, de ponta a ponta (2 retângulos, com oitões nas pontas);
    - `plano`: uma face com `normal` nula e uma platibanda (anel de 0,2 m) como segunda face;
    - `piramide`: 4 triângulos até o centro, sem cumeeira.
-5. `aguasDoTrecho(trecho)` junta os retângulos do trecho. `ordemDoTrecho(roof)`: plano 0, águas 1, pirâmide 2.
+5. `aguasDoTrecho(trecho, grade)` junta os retângulos do trecho, em metros. `ordemDoTrecho(roof)`: plano 0, águas 1, pirâmide 2.
 Não fazer: rincão de verdade em L (a sobreposição dos retângulos basta na vista de cima); render.
 Testes: 4×2 em quatro águas dá 4 faces e uma cumeeira de 2 células; em duas águas dá 2 faces e uma cumeeira de 4; `ridge: 'v'` gira a cumeeira; pirâmide 3×3 dá 4 triângulos; L dá 2 retângulos; área das faces = área do retângulo expandido; igreja (nave em duas águas + torre em pirâmide vizinha) dá 1 edifício e 2 trechos; documento sem os campos novos passa na validação.
 Pronto quando: `npm run typecheck` e `npm test` passam, e os exemplos continuam abrindo.
 Commit: `added roof shapes and roof face geometry`
+Nota (revisão): `aguasDoTrecho` devolvia células com o beiral de 0,25 tratado como célula (0,375 m); passou a receber a grade (`size`, `offset`) e devolve metros, como a ficha pedia.
 
-### T5b — Coberturas com desenho próprio  ⬜
+### T5b — Coberturas com desenho próprio  ✅
 Objetivo: cada cobertura tem cara própria (barro não é ardósia, que não é palha) e o mesmo desenho serve ao Ilustrado e ao Pixel.
 Depende de: T5a.
 Ler: `src/procedural/materiais.ts` (`Material`, `Padrao`, os pintores de `tabuas`, `laje`, `trama` e `metal` e a ligação `padrao → pintor`), `src/procedural/canvas.ts`, `src/procedural/ruido.ts`, o pintor Pixel em `src/estilos/materiais-pixel.ts`, `docs/LICENCAS.md` (tudo procedural, nada novo a licenciar).
@@ -139,21 +140,23 @@ Como:
 3. `texturaDeCobertura(material, estilo: 'ilustrado' | 'pixel', semente): Tela`: ladrilho que se repete, desenhado com a **queda para baixo** (o render gira por face). No Pixel, as mesmas descrições, pintadas em `fillRect` com a paleta.
 Não fazer: render na cena.
 Testes: todo material `telhado` tem pintor nas duas versões; o ladrilho emenda (a primeira e a última coluna batem dentro de uma tolerância); mesma semente dá os mesmos pixels.
-Pronto quando: a prancha de materiais (ou a lista do Inspetor) mostra as 13 coberturas distintas.
+Pronto quando: a prancha de materiais (ou a lista do Inspetor) mostra as 12 coberturas distintas.
 Commit: `added distinct roof coverings with their own patterns`
+Nota: são 12 coberturas (3 antigas + 9 novas; o "13" da ficha era erro de conta). Cada padrão é uma função pura e periódica de tom e mancha em `coberturas.ts` (`amostrarPonto`, `amostrarCobertura`); o Ilustrado amostra a 80 px/m com cores contínuas e o Pixel na `res` do mapa em 5 tons + 2 da mancha. `Material.mancha` (musgo, ferrugem, azinhavre) é campo novo. A lona ganhou padrão próprio (`lona`) em vez de `pregas`. O `executarBake` aceita `{ tipo: 'cobertura' }` para o T5c pedir o ladrilho ao worker. Os pintores `pintarMaterial` e `pintarMaterialPixel` também pintam as coberturas, então qualquer amostra de material funciona.
 
 ### T5c — Desenho do telhado: trechos, águas, luz, beiral e sombra  ⬜
 Objetivo: o telhado tem cara de telhado: cada água com a textura girada na queda, luz e sombra conforme o sol, cumeeira, beiral sobre as paredes e sombra no chão.
 Depende de: T2, T5a, T5b.
-Ler: `src/render/telhados.ts`, `src/render/textura-propria.ts` (como textura procedural vira `Texture` do Pixi), `src/domain/clima.ts` (`Ceu.sun`), `src/render/sombras-do-sol.ts` (direção e cor da sombra), `fase-8.md:101` (telhado no Pixel).
-Arquivos: mudar `src/render/telhados.ts`; criar `tests/e2e/telhados.test.ts`.
+Ler: `src/render/telhados.ts`, `src/render/textura-propria.ts` (como textura procedural vira `Texture` do Pixi), `src/procedural/executar.ts` (pedidos `cobertura` e `detalhe-de-telhado`), `src/procedural/detalhes-de-telhado.ts` (`posicoesDosDetalhes`), `src/domain/clima.ts` (`Ceu.sun`), `src/render/sombras-do-sol.ts` (direção e cor da sombra), `fase-8.md:101` (telhado no Pixel).
+Arquivos: mudar `src/render/telhados.ts` e `tests/e2e/telhados.test.ts`.
 Como:
 1. Um `Container` por **edifício** (o fade continua por edifício, como no T2), com a sombra embaixo e um `Graphics` por trecho em `ordemDoTrecho`.
 2. Sombra: a silhueta expandida do edifício deslocada na direção oposta ao sol por `0,6 m` (pirâmide e íngreme: `1,2 m`), na cor da sombra do sol, alfa 0,35, com `BlurFilter` compartilhado.
 3. Cada face: `g.poly(face.pontos).fill({ texture, matrix })`, com a matriz girando o ladrilho para `face.queda` e escalando a 1 ladrilho = 1 m. Por cima, um véu da face: branco ou preto, alfa `0,18 × dot(normal, dirDoSol)` (`steep`: 0,28). Cumeeira: traço de 0,12 m em `claro`. Oitões de duas águas: borda de 0,08 m em `escuro`. Platibanda: em `escuro`, com sombra interna.
-4. Texturas em cache por `material + estilo`, destruídas no `destruir()`. Redesenho só quando `rooms`, `grid`, `climate` ou `style` mudarem. Sem `sun`: luz de cima à esquerda.
+4. Texturas pedidas ao baker (`{ tipo: 'cobertura', material, seed, res, estilo }`; no Pixel, `res` = `pixelsPerCell / grid.size`), em cache por `material + estilo`, destruídas no `destruir()`. A matriz da face usa `metros = 2` do ladrilho (`PERIODO_DA_COBERTURA`), não 1 m. Redesenho só quando `rooms`, `grid`, `climate` ou `style` mudarem. Sem `sun`: luz de cima à esquerda.
 5. `visivel(salaId)` consulta o edifício da sala.
-Não fazer: detalhes (T5e).
+6. Detalhes (vindos do T5e): para cada trecho, `posicoesDosDetalhes(trecho, m.grid, semente)` (semente = `floor.seed` da primeira sala) e, para cada posição, um `Sprite` com o bitmap de `{ tipo: 'detalhe-de-telhado', detalhe, cobertura: trecho.roof.material, seed, res, estilo, pixel }`, centrado em `(x, y)` com `origem` e girado por `ang`, por cima das faces do trecho e dentro do `Container` do edifício (somem no mesmo fade).
+Não fazer: arrastar detalhes à mão.
 Testes: e2e com captura ao meio-dia na vista de jogador: casa 4×3 em quatro águas → as águas opostas diferem em mais de 10% de brilho; duas águas com `ridge: 'v'` → a divisão de luz é vertical; o pixel logo fora da parede, do lado da sombra, é mais escuro do que sem telhado; barro e ardósia na mesma posição dão capturas diferentes.
 Pronto quando: o porto à noite e o entreposto mostram telhados com volume, e o fade continua funcionando.
 Commit: `roofs drawn per building with textured faces, light and shadow`
@@ -189,7 +192,7 @@ Testes: cada estilo passa na validação; `telhadoPadrao` dá Igreja para capela
 Pronto quando: no Inspetor, clicar em "Igreja" na nave e em "Torre" no cômodo da torre dá uma igreja com campanário na vista de jogador.
 Commit: `added roof styles and style picker in inspector`
 
-### T5e — Detalhes do telhado: chaminé, cruz, sino, cata-vento, claraboia  ⬜
+### T5e — Detalhes do telhado: chaminé, cruz, sino, cata-vento, claraboia  ✅
 Objetivo: os detalhes que fazem uma casa ser casa e uma igreja ser igreja.
 Depende de: T5c.
 Ler: `src/procedural/descricao.ts` (`Parte`, desenho de receitas), uma receita pequena em `src/procedural/receitas/` (poço, poste), `src/render/telhados.ts`, `src/domain/telhado-geometria.ts`.
@@ -202,6 +205,7 @@ Não fazer: detalhes arrastáveis à mão (a posição é automática; se o usu�
 Testes: as posições caem dentro do trecho e se repetem com a mesma semente; todo detalhe tem desenho nos dois estilos.
 Pronto quando: a igreja tem cruz e campanário com sino, e as casas de telha têm chaminé.
 Commit: `added roof details like chimneys, crosses and bells`
+Nota: como o T5c ainda não existe, o desenho na cena passou para o passo 6 do T5c; o T5e entregou as descrições (`descricaoDoDetalhe`), as posições e o pedido `{ tipo: 'detalhe-de-telhado' }` do `executarBake` (assado nos dois estilos, conferido numa prancha no navegador). A assinatura ficou `posicoesDosDetalhes(trecho, grade, semente)`: as posições saem do maior retângulo do trecho, em metros, e se afastam umas das outras. A fumaça da chaminé ficou de fora.
 
 ### T6 — Penumbra dos interiores  ✅
 Objetivo: debaixo do telhado não chega a luz do céu; o interior fica na penumbra, a não ser pelas luzes que tem.
