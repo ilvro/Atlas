@@ -1,7 +1,7 @@
 import { ehRef } from '#mesa';
 import { ehCanonica } from './celulas.ts';
 import { ErroDeValidacao, HEX, IDENT, e, type Esq } from './esquema.ts';
-import { COLECOES, ESTADOS_FIGURA, ESTILOS_DE_LINHA_DA_GRADE, SCHEMA_MAPA, TIPOS_DE_GRADE, VERSAO_MAPA, colunas, linhas, type MapaAtlas } from './mapa.ts';
+import { COLECOES, CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, ESTADOS_FIGURA, ESTILOS_DE_LINHA_DA_GRADE, FORMAS_DE_TELHADO, SCHEMA_MAPA, TIPOS_DE_GRADE, VERSAO_MAPA, colunas, linhas, type MapaAtlas } from './mapa.ts';
 import { momentoValido, type Momento } from './momentos.ts';
 
 const ponto = e.tupla(e.num({ min: -10_000, max: 10_000 }), e.num({ min: -10_000, max: 10_000 }));
@@ -22,7 +22,14 @@ const comodo = e.obj({
   floor: e.obj({ material, seed: e.num({ inteiro: true, min: 0, max: 2 ** 31 }) }),
   wallpaper: e.nulo(e.obj({ material, seed: e.num({ inteiro: true, min: 0, max: 2 ** 31 }) })),
   wallStyle: e.nulo(e.um('box', 'solid')), palette: e.nulo(e.texto({ min: 1, max: 60 })),
-  roof: e.obj({ material: e.nulo(material), visible: e.bool() }), levelId: idOuNulo,
+  roof: e.obj({
+    material: e.nulo(material),
+    visible: e.bool(),
+    shape: e.opt(e.um(...FORMAS_DE_TELHADO)),
+    ridge: e.opt(e.um(...CUMEEIRAS_DE_TELHADO)),
+    steep: e.opt(e.bool()),
+    details: e.opt(e.lista(e.um(...DETALHES_DE_TELHADO), { max: 12 })),
+  }), levelId: idOuNulo,
 });
 const parede = e.obj({
   id, path: e.lista(ponto, { min: 2, max: 5_000 }), height: e.num({ min: 0.1, max: 30 }), thickness: e.num({ min: 0.02, max: 5 }), material,

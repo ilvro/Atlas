@@ -69,11 +69,27 @@ export interface Terreno { resolution: number; base: string; layers: Record<stri
   /** O que a água cobriu (`terreno.pintar` com `lembrar`): por camada original, o material e as células que ela perdeu. A água que baixa devolve isso. */
   submerged?: Record<string, { material: string; cells: Faixa[]; /** Posição da camada original, para recriá-la no mesmo lugar se ela sumiu. */ order?: number }> }
 
+export const FORMAS_DE_TELHADO = ['quatro-aguas', 'duas-aguas', 'plano', 'piramide'] as const;
+export type FormaDeTelhado = (typeof FORMAS_DE_TELHADO)[number];
+export const DETALHES_DE_TELHADO = ['chamine', 'cruz', 'sino', 'catavento', 'claraboia', 'caixa-dagua'] as const;
+export type DetalheDeTelhado = (typeof DETALHES_DE_TELHADO)[number];
+export const CUMEEIRAS_DE_TELHADO = ['auto', 'h', 'v'] as const;
+export type CumeeiraDeTelhado = (typeof CUMEEIRAS_DE_TELHADO)[number];
+
+export interface Telhado {
+  material: string | null;
+  visible: boolean;
+  shape?: FormaDeTelhado;
+  ridge?: CumeeiraDeTelhado;
+  steep?: boolean;
+  details?: DetalheDeTelhado[];
+}
+
 export interface Comodo {
   id: string; name: string; function: string | null; cells: Faixa[];
   floor: { material: string; seed: number }; wallpaper: { material: string; seed: number } | null;
   wallStyle: null | 'box' | 'solid'; palette: string | null;
-  roof: { material: string | null; visible: boolean }; levelId: string | null;
+  roof: Telhado; levelId: string | null;
 }
 export interface Parede {
   id: string; path: Ponto[]; height: number; thickness: number; material: string;

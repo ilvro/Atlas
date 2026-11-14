@@ -113,3 +113,28 @@ test('validação de objeto: interação de nota com título, texto e gmOnly', (
     };
   })), `props.${chaveObjeto}.interaction.kind`);
 });
+
+test('validação de telhado: aceita ausência dos campos novos e recusa valores desconhecidos', () => {
+  const chaveSala = Object.keys(mapaCompleto().rooms)[0]!;
+  assert.equal(caminhoDoErro(mexer(x => {
+    const r = x.rooms[chaveSala];
+    r.roof = { material: 'telha.barro', visible: true };
+  })), null);
+
+  assert.equal(caminhoDoErro(mexer(x => {
+    const r = x.rooms[chaveSala];
+    r.roof = { material: 'telha.ardosia', visible: true, shape: 'duas-aguas', ridge: 'v', steep: true, details: ['cruz', 'chamine'] };
+  })), null);
+
+  assert.equal(caminhoDoErro(mexer(x => {
+    x.rooms[chaveSala].roof.shape = 'cupula';
+  })), `rooms.${chaveSala}.roof.shape`);
+
+  assert.equal(caminhoDoErro(mexer(x => {
+    x.rooms[chaveSala].roof.ridge = 'diagonal';
+  })), `rooms.${chaveSala}.roof.ridge`);
+
+  assert.equal(caminhoDoErro(mexer(x => {
+    x.rooms[chaveSala].roof.details = ['antena'];
+  })), `rooms.${chaveSala}.roof.details[0]`);
+});
