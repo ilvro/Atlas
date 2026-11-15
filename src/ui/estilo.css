@@ -2420,3 +2420,19 @@ body.projetor { overflow: hidden; background: #000; }
 [data-tema='vigilia'] .botao-pilula.destaque:hover:not(:disabled) { background: var(--ornamento); color: #0b0c10; }
 [data-tema='vigilia'] .abas button.ativa { border-bottom-style: double; border-bottom-width: 3px; }
 [data-tema='vigilia'] .vazio h2, [data-tema='vigilia'] .continuar-corpo h2 { letter-spacing: 0.1em; }
+
+/* ---- Seletor de estilos de telhado ---- */
+.campo-bloco { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
+.grade-telhados { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 4px 0 6px; }
+.estilo-telhado { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 4px; border-radius: 5px; border: 1px solid var(--linha); background: var(--superficie); color: var(--apagado); font: 600 10.5px/1.2 var(--corpo); text-align: center; cursor: pointer; }
+.estilo-telhado:hover { color: #fff; border-color: var(--linha-forte); }
+.estilo-telhado.ativo { color: #fff; border-color: var(--acento); box-shadow: inset 0 0 0 1px var(--acento); background: var(--superficie-2); }
+.miniatura-telhado { display: block; width: 48px; height: 48px; border-radius: 3px; }
+.miniatura-telhado.vazia { display: grid; place-items: center; background: rgba(255, 255, 255, 0.04); color: var(--apagado); font-size: 16px; }
+.estilo-telhado-nome { overflow-wrap: anywhere; }
+.ajustar-telhado { margin: 2px 0 6px; border: 1px solid var(--linha); border-radius: 5px; padding: 4px 8px; }
+.ajustar-telhado > summary { cursor: pointer; font: 700 11px var(--corpo); color: var(--apagado); user-select: none; padding: 2px 0; }
+.ajustar-telhado[open] > summary { color: #fff; margin-bottom: 6px; }
+.ajustar-telhado-corpo { display: flex; flex-direction: column; gap: 4px; }
+.chips-detalhes { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+.chip-detalhe { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--texto); cursor: pointer; }

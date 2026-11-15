@@ -84,14 +84,14 @@ export function cobrirCasas(m: Pick<MapaAtlas, 'rooms' | 'style'>): Comando[] {
 
       const sala = roomsDoNivel[id]!;
       const cels = celulasPorId.get(id)!;
-      const material = telhadoPadrao({ style: m.style, rooms: roomsDoNivel }, sala.function, cels, nivel);
-      if (material) {
+      const roof = telhadoPadrao({ style: m.style, rooms: roomsDoNivel }, sala.function, cels, nivel);
+      if (roof) {
         comandos.push({
           tipo: 'comodo.atualizar',
           id,
-          patch: { roof: { material, visible: true } },
+          patch: { roof: { ...roof, visible: true } },
         });
-        roomsDoNivel[id] = { ...sala, roof: { ...sala.roof, material, visible: true } };
+        roomsDoNivel[id] = { ...sala, roof: { ...roof, visible: true } };
       }
 
       for (const vizId of vizinhas.get(id) ?? []) {

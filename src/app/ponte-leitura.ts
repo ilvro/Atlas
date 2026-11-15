@@ -1,9 +1,9 @@
 import { imagem, json, type FerramentaDaPonte } from '#mesa/ponte';
 import { area, limites } from '../domain/celulas.ts';
 import { EVENTOS_DE_CENA } from '../domain/eventos-de-cena.ts';
-import { colunas, linhas, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
+import { CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, FORMAS_DE_TELHADO, colunas, linhas, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
 import { descreverPasso } from '../domain/momentos.ts';
-import { GENEROS, PACOTES_DE_PRESENCA, PINCEIS_DE_PRESENCA, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO } from '../domain/presets.ts';
+import { ESTILOS_DE_TELHADO, GENEROS, PACOTES_DE_PRESENCA, PINCEIS_DE_PRESENCA, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO } from '../domain/presets.ts';
 import { COLECAO } from '../procedural/colecao.ts';
 import { materiaisDo } from '../procedural/materiais.ts';
 import { listaDeReceitas } from '../procedural/receitas/index.ts';
@@ -78,8 +78,8 @@ export function resumirMapa(m: MapaAtlas): Record<string, unknown> {
   };
 }
 
-type Parte = 'receitas' | 'colecao' | 'materiais' | 'climas' | 'luzes' | 'presenca' | 'momentos';
-const PARTES: readonly Parte[] = ['receitas', 'colecao', 'materiais', 'climas', 'luzes', 'presenca', 'momentos'];
+type Parte = 'receitas' | 'colecao' | 'materiais' | 'telhado' | 'climas' | 'luzes' | 'presenca' | 'momentos';
+const PARTES: readonly Parte[] = ['receitas', 'colecao', 'materiais', 'telhado', 'climas', 'luzes', 'presenca', 'momentos'];
 
 const TIPOS_DE_PASSO = [
   { tipo: 'esperar', campos: { ms: 'número, 100 a 120000' }, descricao: 'Espera antes do próximo passo.' },
@@ -107,11 +107,18 @@ export function catalogo(parte?: string): unknown {
       const usos = ['piso', 'papel', 'objeto', 'terreno', 'macico', 'agua', 'telhado'] as const;
       return Object.fromEntries(usos.map(u => [u, materiaisDo(u).map(x => ({ id: x.id, nome: x.nome }))]));
     }
+    case 'telhado': return {
+      estilos: ESTILOS_DE_TELHADO.map(e => ({ id: e.id, nome: e.nome, cobertura: e.roof.material, forma: e.roof.shape ?? 'quatro-aguas', ingreme: !!e.roof.steep, detalhes: e.roof.details ?? [] })),
+      coberturas: materiaisDo('telhado').map(x => ({ id: x.id, nome: x.nome })),
+      formas: [...FORMAS_DE_TELHADO],
+      cumeeiras: [...CUMEEIRAS_DE_TELHADO],
+      detalhes: [...DETALHES_DE_TELHADO],
+    };
     case 'climas': return { climas: PRESETS_DE_CLIMA.map(c => ({ id: c.id, nome: c.nome, descricao: c.descricao })), acabamentos: PRESETS_DE_ACABAMENTO.map(a => ({ id: a.id, nome: a.nome })), generos: GENEROS.map(g => ({ id: g.id, nome: g.nome, descricao: g.descricao })), tiposDeComodo: TIPOS_DE_COMODO.map(t => ({ id: t.id, nome: t.nome, funcao: t.funcao, piso: t.piso, papel: t.papel })) };
     case 'luzes': return PRESETS_DE_LUZ.map(l => ({ id: l.id, nome: l.nome, descricao: l.descricao, raio: l.radius, cor: l.color, intensidade: l.intensity, tremulo: l.flicker, energia: l.power, cone: l.cone }));
     case 'presenca': return { pacotes: PACOTES_DE_PRESENCA, pincéis: PINCEIS_DE_PRESENCA.map(p => ({ id: p.id, nome: p.nome, pacote: p.pacote, cor: p.cor, brilha: p.brilho, ...(p.forma ? { forma: p.forma } : {}), ...(p.submerso ? { submerso: true } : {}) })) };
     case 'momentos': return { limites: { passosPorMomento: 60, nome: '1 a 60 caracteres' }, tiposDePasso: TIPOS_DE_PASSO };
-    case undefined: return { partes: { receitas: listaDeReceitas().length, colecao: COLECAO.length, materiais: Object.fromEntries((['piso', 'papel', 'objeto', 'terreno', 'macico', 'agua', 'telhado'] as const).map(u => [u, materiaisDo(u).length])), climas: PRESETS_DE_CLIMA.length, luzes: PRESETS_DE_LUZ.length, presenca: PINCEIS_DE_PRESENCA.length, momentos: TIPOS_DE_PASSO.length }, dica: 'Peça uma parte por vez com atlas_catalogo { parte }.' };
+    case undefined: return { partes: { receitas: listaDeReceitas().length, colecao: COLECAO.length, materiais: Object.fromEntries((['piso', 'papel', 'objeto', 'terreno', 'macico', 'agua', 'telhado'] as const).map(u => [u, materiaisDo(u).length])), telhado: ESTILOS_DE_TELHADO.length, climas: PRESETS_DE_CLIMA.length, luzes: PRESETS_DE_LUZ.length, presenca: PINCEIS_DE_PRESENCA.length, momentos: TIPOS_DE_PASSO.length }, dica: 'Peça uma parte por vez com atlas_catalogo { parte }.' };
     default: throw new Error(`Parte desconhecida: "${String(parte)}". Use: ${PARTES.join(', ')}.`);
   }
 }
@@ -213,7 +220,7 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
     },
     {
       nome: 'atlas_catalogo',
-      descricao: 'Catálogo de opções (receitas, colecao, materiais, climas, luzes, presenca, momentos). Use para não inventar ids.',
+      descricao: 'Catálogo de opções (receitas, colecao, materiais, telhado, climas, luzes, presenca, momentos). Use para não inventar ids.',
       esquema: { type: 'object', properties: { parte: { type: 'string', enum: [...PARTES] } }, required: [], additionalProperties: false },
       anotacoes: { leitura: true },
       async executar(args) { return [json(catalogo(typeof args.parte === 'string' ? args.parte : undefined))]; },

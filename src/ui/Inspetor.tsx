@@ -1,4 +1,4 @@
-import { useEffect } from 'preact/hooks';
+import { useEffect, useRef } from 'preact/hooks';
 import { useSignal } from '@preact/signals';
 import { chaveDaRef, formatarRef, lerRef, type Entidade, type Ref } from '#mesa';
 import { campanhaAtiva, campanhas, criarCampanha, escolherCampanha, refDoComodo } from '../app/campanha.ts';
@@ -14,8 +14,8 @@ import { PALETAS_PIXEL } from '../domain/paletas.ts';
 import { nomeDoAlvo, novaLuz } from '../domain/fabrica.ts';
 import { alvosDoInterruptor } from '../domain/interagiveis.ts';
 import { ROTULOS_DE_ESTADO } from '../domain/figuras.ts';
-import { ESTADOS_FIGURA, type Abertura, type Acabamento, type Clima, type Comodo, type Estilo, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Presenca, type Regiao } from '../domain/mapa.ts';
-import { GENEROS, generoDe, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
+import { DETALHES_DE_TELHADO, ESTADOS_FIGURA, type Abertura, type Acabamento, type Clima, type Comodo, type DetalheDeTelhado, type Estilo, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Presenca, type Regiao } from '../domain/mapa.ts';
+import { ESTILOS_DE_TELHADO, GENEROS, generoDe, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
 import { acabamentoLigado, aplicarClima, definirAcabamentoLigado, tocarMomentoDoMapa } from '../app/app.ts';
 import { abaDoInspetor, alinhandoGrade, definirRegraDaRegua, modo, regraDaRegua } from '../app/modo.ts';
 import { ROTULO_DA_REGRA, type RegraDeDiagonal } from '../domain/regua.ts';
@@ -24,6 +24,7 @@ import { COLECAO } from '../procedural/colecao.ts';
 import { receitaDe } from '../procedural/receitas/index.ts';
 import { materialDe, materiaisDo } from '../procedural/materiais.ts';
 import { Amostra } from './campos-material.tsx';
+import { desenharMiniaturaDoTelhado } from '../render/miniatura.ts';
 import { tocar } from '../fx/som.ts';
 import { chaveDoAlvo, type Alvo } from '../render/selecao.ts';
 import type { ParcialProfundo } from '../state/comandos.ts';
@@ -605,18 +606,108 @@ function LigacoesDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
   </>);
 }
 
+const ROTULOS_DETALHES: Record<DetalheDeTelhado, string> = {
+  chamine: 'Chaminé',
+  cruz: 'Cruz',
+  sino: 'Sino',
+  catavento: 'Cata-vento',
+  claraboia: 'Claraboia',
+  'caixa-dagua': 'Caixa-d’água',
+};
+
+function MiniaturaDeTelhado({ roof }: { roof: Omit<Comodo['roof'], 'visible'> }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const chave = `${roof.material ?? ''}|${roof.shape ?? ''}|${roof.ridge ?? ''}|${roof.steep ? 1 : 0}|${(roof.details ?? []).join(',')}`;
+  useEffect(() => {
+    if (ref.current) desenharMiniaturaDoTelhado(ref.current, roof);
+  }, [chave]);
+  return <canvas ref={ref} width={48} height={48} class="miniatura-telhado" aria-hidden="true" />;
+}
+
+const mesmoTelhado = (a: Comodo['roof'], b: Omit<Comodo['roof'], 'visible'>): boolean =>
+  a.material === b.material
+  && (a.shape ?? 'quatro-aguas') === (b.shape ?? 'quatro-aguas')
+  && !!a.steep === !!b.steep
+  && JSON.stringify([...(a.details ?? [])].sort()) === JSON.stringify([...(b.details ?? [])].sort());
+
 function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
   const st = s.store, m = s.doc.value, extra = m.comodosExtra[c.id];
   const ed = c.roof.material ? edificioDaSala(m, c.id) : null;
   const editar = (patch: Record<string, unknown>, rotulo?: string) => tentar(() => st.executar({ tipo: 'comodo.atualizar', id: c.id, patch: patch as never }, rotulo ? { rotulo } : {}));
   const notas = (patch: { leitura?: string; notasMestre?: string }) => tentar(() => st.executar({ tipo: 'comodo.notas', id: c.id, patch }, { rotulo: 'Notas do cômodo' }));
+  const detalhesAtivos = new Set(c.roof.details ?? []);
+  const alternarDetalhe = (d: DetalheDeTelhado) => {
+    const prox = detalhesAtivos.has(d) ? [...detalhesAtivos].filter(x => x !== d) : [...detalhesAtivos, d];
+    editar({ roof: { details: prox } }, 'Detalhes do telhado');
+  };
   return (<>
     <CampoTexto rotulo="Nome" valor={c.name} aoConfirmar={v => v.trim() ? editar({ name: v.trim() }, 'Renomear cômodo') : false} />
     <CampoOpcoes rotulo="Função" valor={c.function ?? ''} opcoes={[['', 'Nenhuma'], ...TIPOS_DE_COMODO.map(t => [t.funcao, t.nome] as const)]} aoMudar={v => editar({ function: v || null }, 'Função do cômodo')} />
     <CampoOpcoes rotulo="Piso" valor={c.floor.material} opcoes={materiaisDo('piso').map(x => [x.id, x.nome] as const)} aoMudar={v => editar({ floor: { material: v } }, 'Trocar o piso')} />
     <CampoOpcoes rotulo="Papel" valor={c.wallpaper?.material ?? ''} opcoes={[['', 'Sem papel'], ...materiaisDo('papel').map(x => [x.id, x.nome] as const)]} aoMudar={v => editar({ wallpaper: v ? { material: v, seed: c.wallpaper?.seed ?? 1 } : null }, 'Papel de parede')} />
     <CampoOpcoes rotulo="Paredes" valor={c.wallStyle ?? ''} opcoes={[['', 'Do mapa'], ['box', 'Caixa'], ['solid', 'Sólidas']]} aoMudar={v => editar({ wallStyle: v || null }, 'Estilo das paredes')} />
-    <CampoOpcoes rotulo="Telhado" dica="Na vista dos jogadores, cobre o cômodo até alguém entrar nele." valor={c.roof.material ?? ''} opcoes={[['', 'Nenhum'], ...materiaisDo('telhado').map(x => [x.id, x.nome] as const)]} aoMudar={v => editar({ roof: { material: v || null } }, 'Telhado')} />
+    <div class="campo-bloco">
+      <div class="linha-rotulo">Telhado</div>
+      <p class="dica">Na vista dos jogadores, cobre o cômodo até alguém entrar nele.</p>
+      <div class="grade-telhados" role="group" aria-label="Estilos de telhado" data-testid="seletor-de-telhado">
+        <button
+          type="button"
+          class={`estilo-telhado ${!c.roof.material ? 'ativo' : ''}`}
+          aria-pressed={!c.roof.material}
+          data-testid="telhado-nenhum"
+          onClick={() => editar({ roof: { material: null, shape: undefined, ridge: undefined, steep: undefined, details: undefined } }, 'Telhado')}
+        >
+          <span class="miniatura-telhado vazia" aria-hidden="true">—</span>
+          <span class="estilo-telhado-nome">Nenhum</span>
+        </button>
+        {ESTILOS_DE_TELHADO.map(e => {
+          const ativo = mesmoTelhado(c.roof, e.roof);
+          return (
+            <button
+              key={e.id}
+              type="button"
+              class={`estilo-telhado ${ativo ? 'ativo' : ''}`}
+              aria-pressed={ativo}
+              data-testid={`telhado-${e.id}`}
+              onClick={() => editar({
+                roof: {
+                  material: e.roof.material,
+                  shape: e.roof.shape,
+                  ridge: undefined,
+                  steep: e.roof.steep,
+                  details: e.roof.details ? [...e.roof.details] : undefined,
+                },
+              }, 'Telhado')}
+            >
+              <MiniaturaDeTelhado roof={e.roof} />
+              <span class="estilo-telhado-nome">{e.nome}</span>
+            </button>
+          );
+        })}
+      </div>
+      {c.roof.material && (
+        <details class="ajustar-telhado" data-testid="telhado-ajustar">
+          <summary>Ajustar</summary>
+          <div class="ajustar-telhado-corpo">
+            <CampoOpcoes rotulo="Cobertura" valor={c.roof.material} opcoes={materiaisDo('telhado').map(x => [x.id, x.nome] as const)} aoMudar={v => editar({ roof: { material: v } }, 'Cobertura do telhado')} />
+            <CampoOpcoes rotulo="Forma" valor={c.roof.shape ?? 'quatro-aguas'} opcoes={[['quatro-aguas', 'Quatro águas'], ['duas-aguas', 'Duas águas'], ['piramide', 'Pirâmide'], ['plano', 'Plano']]} aoMudar={v => editar({ roof: { shape: v } }, 'Forma do telhado')} />
+            <CampoOpcoes rotulo="Cumeeira" valor={c.roof.ridge ?? 'auto'} opcoes={[['auto', 'Automática'], ['h', 'Horizontal'], ['v', 'Vertical']]} aoMudar={v => editar({ roof: { ridge: v === 'auto' ? undefined : v } }, 'Cumeeira do telhado')} />
+            <CampoCaixa rotulo="Íngreme" valor={!!c.roof.steep} aoMudar={v => editar({ roof: { steep: v } }, 'Inclinação do telhado')} />
+            <div class="linha">
+              <span class="linha-rotulo">Detalhes</span>
+              <span class="linha-controle chips-detalhes">
+                {DETALHES_DE_TELHADO.map(d => (
+                  <label key={d} class="chip-detalhe">
+                    <input type="checkbox" checked={detalhesAtivos.has(d)} onChange={() => alternarDetalhe(d)} />
+                    <span>{ROTULOS_DETALHES[d]}</span>
+                  </label>
+                ))}
+              </span>
+            </div>
+          </div>
+        </details>
+      )}
+    </div>
     {ed && ed.salas.length > 1 && (
       <div class="linha">
         <span class="linha-rotulo">Casa: {ed.salas.length} cômodos</span>

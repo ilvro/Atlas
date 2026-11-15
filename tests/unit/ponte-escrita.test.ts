@@ -92,6 +92,21 @@ test('cabana de 3 × 3 células com porta, cada chamada um passo, e o mapa valid
   assert.equal(Object.keys(store.documento.rooms).length, 1);
 });
 
+test('atlas_comodos aceita estilo de telhado e cobertura com forma e detalhes', async () => {
+  const { store, chamar } = montar();
+  await chamar('atlas_comodos', { comodos: [
+    { rets: [[6, 2, 10, 5]], tipo: 'capela', nome: 'Nave', telhado: 'igreja' },
+    { rets: [[10, 2, 12, 5]], tipo: 'capela', nome: 'Campanário', telhado: 'telha.escamas', telhadoForma: 'piramide', telhadoDetalhes: ['sino'] },
+  ] });
+  const [nave, torre] = Object.values(store.documento.rooms);
+  assert.equal(nave!.roof.material, 'telha.ardosia');
+  assert.deepEqual(nave!.roof.details, ['cruz']);
+  assert.equal(torre!.roof.material, 'telha.escamas');
+  assert.equal(torre!.roof.shape, 'piramide');
+  assert.deepEqual(torre!.roof.details, ['sino']);
+  validarMapa(store.documento);
+});
+
 test('atlas_paredes cria muros avulsos e escarpas; porta sem parede perto volta como erro legível', async () => {
   const { store, chamar } = montar();
   await chamar('atlas_paredes', { paredes: [{ path: [[1, 1], [8, 1]], kind: 'fence' }, { path: [[10, 5], [10, 20]], kind: 'cliff', drop: 'b' }] });
@@ -104,8 +119,9 @@ test('atlas_paredes cria muros avulsos e escarpas; porta sem parede perto volta 
 
 test('argumentos inválidos e sem mapa aberto', async () => {
   const { chamar } = montar();
-  await assert.rejects(chamar('atlas_comodos', { comodos: [{ rets: [[5, 5, 2, 2]], tipo: 'sala' }] }), /retângulo inválido/);
+  assert.rejects(chamar('atlas_comodos', { comodos: [{ rets: [[5, 5, 2, 2]], tipo: 'sala' }] }), /retângulo inválido/);
   await assert.rejects(chamar('atlas_comodos', { comodos: [{ rets: [[0, 0, 2, 2]], tipo: 'castelo' }] }), /tipos:/);
+  await assert.rejects(chamar('atlas_comodos', { comodos: [{ rets: [[0, 0, 2, 2]], tipo: 'sala', telhado: 'telhado.inexistente' }] }), /estilos:.*coberturas:/);
   await assert.rejects(chamar('atlas_terreno', {}), /Passe/);
   await assert.rejects(chamar('atlas_paredes', { paredes: [] }), /Falta/);
   const vazio = montar(false);
