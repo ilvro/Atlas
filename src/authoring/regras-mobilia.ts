@@ -289,6 +289,7 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('cama', ['beliche', 'cama.solteiro'], 'parede', [2, 6], 1),
     item('bau', ['bau', 'comoda'], 'junto', [1, 3], 2, { junto: { de: 'cama', modo: 'ao-lado' } }),
     item('suporte-armas', ['suporte-de-armas'], 'parede', [0, 1], 3, { alto: true }),
+    item('assento', ['banqueta', 'banco'], 'canto', [1, 1], 4),
   ],
   refeitorio: [
     item('mesa', ['mesa.banquete', 'mesa.taverna', 'mesa.retangular'], 'centro', [1, 3], 1, { areaMinima: 9 }),

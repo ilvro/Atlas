@@ -1,5 +1,7 @@
 import { json, texto, type FerramentaDaPonte } from '#mesa/ponte';
 import { comodos, ErroDeConstrucao, espalhar, luzes, objetos, paredes, portas, regioes, terreno, type Construcao } from '../authoring/construcao.ts';
+import { construirEdificios, type PedidoDeEdificio } from '../authoring/edificio-construir.ts';
+import type { FormaDoEdificio, Frente } from '../authoring/edificio.ts';
 import { TODOS_OS_CONJUNTOS } from '../authoring/espalhar.ts';
 import { celulasDaForma, sementeDaForma, type Forma } from '../authoring/formas.ts';
 import { formatarRelatorioDeMobilia, mobiliarLote } from '../authoring/mobiliar-lote.ts';
@@ -227,6 +229,67 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         return [texto(escrever(ctx, `mobiliar ${v.length} cômodo(s)`, mapa => {
           const r = mobiliarLote(mapa, { comodos: v as string[], luzes: args.luzes as boolean | undefined, semente: s });
           return { comandos: r.comandos, ids: r.ids, resumo: formatarRelatorioDeMobilia(r.relatorio) };
+        }))];
+      },
+    },
+    {
+      nome: 'atlas_edificio',
+      descricao: 'Constrói edifícios inteiros por programa: cômodos com função e área, forma (L, T, linear…), frente, alpendre, telhado; portas, janelas, mobília e luz. Um desfazer.',
+      esquema: { type: 'object', properties: {
+        edificios: { type: 'array', minItems: 1, maxItems: 12, items: { type: 'object', properties: {
+          nome: { type: 'string' }, origem: { type: 'array', items: { type: 'integer' }, minItems: 2, maxItems: 2 },
+          lote: { type: 'array', items: { type: 'integer' }, minItems: 2, maxItems: 2 },
+          frente: { type: 'string', enum: ['n', 's', 'l', 'o'] },
+          forma: { type: 'string', enum: ['auto', 'compacta', 'L', 'T', 'U', 'linear', 'patio'] },
+          alpendre: { type: 'boolean' }, telhado: { type: ['string', 'null'] }, piso: { type: 'string' },
+          mobiliar: { type: 'boolean' }, luzes: { type: 'boolean' },
+          comodos: { type: 'array', minItems: 1, maxItems: 12, items: { type: 'object', properties: {
+            tipo: { type: 'string' }, area: { type: 'number', exclusiveMinimum: 0 }, nome: { type: 'string' }, principal: { type: 'boolean' },
+          }, required: ['tipo', 'area'] } },
+        }, required: ['nome', 'origem', 'frente', 'comodos'] } },
+        semente,
+      }, required: ['edificios'], additionalProperties: false },
+      anotacoes: { destrutiva: true },
+      async executar(args) {
+        const pedidos: PedidoDeEdificio[] = itens(args, 'edificios', 12).map((e, i) => {
+          const nome = textoOpcional(e.nome, `edificios[${i}].nome`, 80)?.trim();
+          if (!nome) throw new Error(`Falta "edificios[${i}].nome".`);
+          const orig = e.origem;
+          if (!Array.isArray(orig) || orig.length !== 2 || !orig.every(Number.isInteger)) throw new Error(`"edificios[${i}].origem" deve ser [x, y] em células.`);
+          let lote: [number, number] | undefined;
+          if (e.lote !== undefined) {
+            if (!Array.isArray(e.lote) || e.lote.length !== 2 || !e.lote.every(n => Number.isInteger(n) && n > 0)) throw new Error(`"edificios[${i}].lote" deve ser [largura, altura] em células.`);
+            lote = [e.lote[0], e.lote[1]];
+          }
+          const listaComodos = Array.isArray(e.comodos) && e.comodos.length ? e.comodos : null;
+          if (!listaComodos) throw new Error(`Falta "edificios[${i}].comodos" (1 a 12 cômodos).`);
+          const parsedComodos = listaComodos.map((c, j) => {
+            const co = objeto(c, `edificios[${i}].comodos[${j}]`);
+            return limpar({
+              tipo: String(co.tipo ?? ''),
+              area: numero(co.area, `edificios[${i}].comodos[${j}].area`, 0.5, 2000),
+              nome: textoOpcional(co.nome, `comodos[${j}].nome`, 80),
+              principal: typeof co.principal === 'boolean' ? co.principal : undefined,
+            });
+          });
+          return limpar({
+            nome,
+            origem: [orig[0], orig[1]] as [number, number],
+            lote,
+            frente: String(e.frente ?? '') as Frente,
+            forma: e.forma !== undefined ? String(e.forma) as FormaDoEdificio : undefined,
+            alpendre: typeof e.alpendre === 'boolean' ? e.alpendre : undefined,
+            telhado: e.telhado === null ? null : textoOpcional(e.telhado, `edificios[${i}].telhado`, 80),
+            piso: textoOpcional(e.piso, `edificios[${i}].piso`, 80),
+            mobiliar: typeof e.mobiliar === 'boolean' ? e.mobiliar : undefined,
+            luzes: typeof e.luzes === 'boolean' ? e.luzes : undefined,
+            comodos: parsedComodos,
+          });
+        });
+        const s = sementeDe(args);
+        return [texto(escrever(ctx, `${pedidos.length} edifício(s)`, mapa => {
+          const r = construirEdificios(mapa, pedidos, s);
+          return { comandos: r.comandos, ids: r.ids, resumo: r.descricoes.join(' | ') };
         }))];
       },
     },
