@@ -207,7 +207,8 @@ Testes: `fileiras` em retângulo de 10 × 6 m com espaçamento 1,5 × 2 gera cer
 Pronto quando: `npm test` passa e um cemitério de teste com 3 receitas variadas não dispara a regra `fileiras-mecanicas` da B5b (se ela já existir).
 Commit: `added object arrangements with controlled variation`
 
-### D4b — Ferramenta `atlas_arranjo`  ⬜
+### D4b — Ferramenta `atlas_arranjo`  ✅
+Nota: orçamentos de esquema atualizados para 28 ferramentas (`26,5 KB` em `ponte-escrita.test.ts` e `47 KB` em `ponte-mcp.test.ts`).
 Objetivo: o Claude compõe cemitérios, acampamentos, baias de carga e plateias.
 Depende de: D4a.
 Arquivos: mudar `ponte-escrita.ts`, `ferramentas-atlas.md` (exemplos: cemitério com cruzes, lápides e túmulos em quadras; tendas de acampamento em aglomerado; caixotes numa baia em fileiras com corredor; bancos de igreja em fileiras olhando o altar), `catalogo-base.json`; testes.

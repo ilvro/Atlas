@@ -12,6 +12,30 @@ Abre um mapa no Atlas (pela rota, como na galeria) e espera o editor aparecer na
 
 Ajusta clima e acabamento do mapa aberto (um passo de desfazer). Presets em atlas_catalogo { parte: "climas" }. "guardarClima" { id, nome } salva no mapa.
 
+## atlas_arranjo
+
+Dispõe até 300 objetos em padrões geométricos com variação controlada (`fileiras`, `grade-solta`, `aglomerado`, `ao-longo`, `circulo`, `bordas`), desviando de paredes, cômodos (quando fora), portas e objetos que bloqueiam (um passo de desfazer). Devolve quantos itens entraram e quantas posições não couberam.
+
+Parâmetros principais:
+- `padrao`: `'fileiras' | 'grade-solta' | 'aglomerado' | 'ao-longo' | 'circulo' | 'bordas'`. Em `'ao-longo'`, `area` deve ser `{ faixa, largura }`.
+- `itens[]`: `{ item, peso?, escala?: [min, max], params? }` (confira ids com `atlas_catalogo`).
+- `espacamento`: `[dx, dy]` em metros (ou `[passoAoLongo, afastamentoLateral]` em `ao-longo`).
+- `angulo`, `desalinho`, `giro`, `falhas` (`0..0.6`), `encarar` (`fileira | centro | caminho | livre`), `grupos` (`{ tamanho: [cols, rows], vazio }`).
+
+Exemplos:
+
+Cemitério com cruzes, lápides e túmulos em quadras:
+`atlas_arranjo { padrao: "fileiras", area: { retangulo: [8, 8, 23, 18] }, itens: [{ item: "lapide", peso: 3, escala: [0.9, 1.1] }, { item: "cruz.pedra", peso: 2 }, { item: "tumulo", peso: 1 }], espacamento: [1.6, 2.2], grupos: { tamanho: [4, 2], vazio: 1.8 } }`
+
+Tendas de acampamento em aglomerado:
+`atlas_arranjo { padrao: "aglomerado", area: { disco: [24, 18], raio: 8 }, itens: [{ item: "tenda", peso: 3 }, { item: "fogueira", peso: 1 }], espacamento: [3.2, 3.2] }`
+
+Caixotes numa baia de carga em fileiras com corredor:
+`atlas_arranjo { padrao: "fileiras", area: { retangulo: [4, 4, 14, 11] }, itens: [{ item: "caixote", peso: 2 }, { item: "pilha-de-caixotes", peso: 1 }], espacamento: [1.5, 1.5], grupos: { tamanho: [3, 2], vazio: 1.6 } }`
+
+Bancos de igreja em fileiras olhando o altar (ângulo 0):
+`atlas_arranjo { padrao: "fileiras", area: { retangulo: [7, 6, 14, 13] }, itens: [{ item: "banco.igreja" }], espacamento: [2.4, 1.4], angulo: 0, encarar: "fileira", falhas: 0.05, grupos: { tamanho: [1, 4], vazio: 1.6 } }`
+
 ## atlas_catalogo
 
 Catálogo de opções: `receitas`, `colecao`, `conjuntos`, `comodos`, `materiais`, `telhado`, `climas`, `luzes`, `presenca` ou `momentos`. Sem `parte`, traz contagens. Com `busca` (texto de até 60 caracteres), filtra por id, nome, tags e funções (sem `parte`, procura em receitas, coleção, conjuntos e materiais, até 40 de cada). Use para não inventar ids.
