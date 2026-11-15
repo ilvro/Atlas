@@ -515,6 +515,7 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 
 - **A1 — Carimbo de versão de cada app** — `Mesa/scripts/carimbo.ts` (`ENTRADAS_DO_BUILD`, `ARQUIVO_DO_CARIMBO`, `carimboDe`, `carimboDoApp`, `lerCarimboMontado`, `appsVelhos`, `deveIgnorarCaminho` e `ignorarDoApp`, excluindo `src/default-sheets.js` gerado no Dossiê e aplicando `filtroCopiaJukebox` na Jukebox). Testes em `Mesa/tests/unit/carimbo.test.ts`.
 - **A2 — Montagem seletiva e troca atômica** — `Mesa/scripts/build-desktop.ts`: filtro `opcoes.apps` em `executarMontagemDesktop`, cópia para `<App>.novo` com gravação de `.carimbo` e troca atômica via `renameSync` (mantendo o destino antigo intacto se o build falhar), `montarVelhos` e flags `--apps` / `--se-mudou`. Testes em `Mesa/tests/unit/desktop.test.ts`.
+- **A3 — O lançador remonta o que mudou ao abrir** — `Mesa/scripts/launch-desktop.mjs` (`atualizarAppsNaAbertura` chamado em `iniciarAppDesktop` quando a porta está livre, executando `node scripts/build-desktop.ts --se-mudou` com aviso via `notify-send` e seguindo com o `dist-desktop` existente se o build falhar). Testes em `Mesa/tests/unit/desktop.test.ts`.
 
 ### Frente E — Acervo ampliado (Opus)
 
