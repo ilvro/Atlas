@@ -99,7 +99,7 @@ Testes (relógio falso): três `sujar` seguidos montam uma vez; dois apps montam
 Pronto quando: com o app aberto, salvar um arquivo do Atlas gera, uns segundos depois, um build no log e uma linha `atualizado` enviada ao Python.
 Commit: `desktop app watches sources and rebuilds in background`
 
-### A5 — Aviso "atualizado — recarregar" na aba  ⬜
+### A5 — Aviso "atualizado — recarregar" na aba  ✅
 Objetivo: o mestre vê que há versão nova e recarrega quando quiser.
 Depende de: A4.
 Ler: o script Python dentro de `launch-desktop.mjs` (`todas_as_abas`, `caminho_do_app`, `principal`).
