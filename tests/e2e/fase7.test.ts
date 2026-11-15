@@ -768,3 +768,32 @@ test('projetor: retrato aparece e reflete modo moeda vs imersivo', async () => {
 
   assert.deepEqual(errosProj, []); assert.deepEqual(erros, []); await ctx.close();
 });
+
+test('projetor: seguir os jogadores sincroniza com o mestre', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  const mapaId = await criarMapaPelaInterface(page);
+  await sessao(page, '(s, p) => s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: p })', peca('lia', 'Lia', 7.5, 7.5, { player: true, vision: { radius: 8, dark: false } }));
+
+  await page.click('[data-testid="modo-sessao"]'); await page.locator('[data-testid="dock"]').waitFor();
+  await page.click('[data-testid="dock-titulo-projetor"]');
+
+  const proj = await ctx.newPage(), errosProj: string[] = [];
+  proj.on('pageerror', e => errosProj.push(e.message)); proj.on('console', m => { if (m.type() === 'error') errosProj.push(m.text()); });
+  await proj.goto(`${amb.url}#/projetor/${mapaId}`);
+  await proj.waitForFunction(() => (window as unknown as { __projetor?: { doc(): unknown } }).__projetor?.doc() != null, null, { timeout: 20_000 });
+  await page.getByText('Conectado', { exact: true }).waitFor({ timeout: 5000 });
+
+  await page.click('[data-testid="dock-projetor-seguir"]');
+  await page.locator('[data-testid="dock-projetor-seguir"][aria-pressed="true"]').waitFor({ timeout: 3000 });
+
+  await proj.mouse.move(300, 300);
+  await proj.mouse.wheel(0, 120);
+  await proj.locator('[data-testid="projetor-seguir"]').waitFor({ timeout: 3000 });
+  await page.locator('[data-testid="dock-projetor-seguir"][aria-pressed="false"]').waitFor({ timeout: 3000 });
+
+  await page.click('[data-testid="dock-projetor-seguir"]');
+  await page.locator('[data-testid="dock-projetor-seguir"][aria-pressed="true"]').waitFor({ timeout: 3000 });
+  await proj.waitForFunction(() => !document.querySelector('[data-testid="projetor-seguir"]'), null, { timeout: 3000 });
+
+  assert.deepEqual(errosProj, []); assert.deepEqual(erros, []); await ctx.close();
+});

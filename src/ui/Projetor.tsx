@@ -98,7 +98,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
         ultimoSeqMestre = msg._seq;
       }
       if (msg.tipo === 'estado') { doc.value = msg.doc; store!.projetar(msg.doc); }
-      else if (msg.tipo === 'camera') { caixa = caixaDoMestre = msg.caixa; if (seguindo.peek()) { vp?.enquadrarCaixa(msg.caixa, !primeira); primeira = false; } }
+      else if (msg.tipo === 'camera') { caixa = caixaDoMestre = msg.caixa; if (msg.seguir) seguindo.value = true; if (seguindo.peek()) { vp?.enquadrarCaixa(msg.caixa, !primeira); primeira = false; } }
       else if (msg.tipo === 'evento') vp?.dispararEvento(msg.nome);
       else if (msg.tipo === 'relampago') vp?.relampagoAgora();
       else if (msg.tipo === 'tela') { cortina.value = { escurecer: msg.acao === 'escurecer', ms: msg.ms }; }
@@ -130,11 +130,12 @@ export function Projetor({ mapaId }: { mapaId: string }) {
     };
     window.addEventListener('wheel', aoRolarJanela, { passive: false });
     // Zoom (roda, inclusive sobre o canvas) ou arrasto de mais de 4 px soltam o projetor da câmera do mestre.
-    const soltar = (e: WheelEvent) => { if (!(e.target as HTMLElement)?.closest?.('.projetor-inspecao')) seguindo.value = false; };
+    const soltarSeguimento = () => { if (!seguindo.peek()) return; seguindo.value = false; dizer({ tipo: 'soltou' }); };
+    const soltar = (e: WheelEvent) => { if (!(e.target as HTMLElement)?.closest?.('.projetor-inspecao')) soltarSeguimento(); };
     window.addEventListener('wheel', soltar, { capture: true, passive: true });
     let apertado: { x: number; y: number } | null = null;
     const aoApertar = (e: PointerEvent) => { apertado = { x: e.clientX, y: e.clientY }; };
-    const aoArrastar = (e: PointerEvent) => { if (apertado && Math.hypot(e.clientX - apertado.x, e.clientY - apertado.y) > 4) { seguindo.value = false; apertado = null; } };
+    const aoArrastar = (e: PointerEvent) => { if (apertado && Math.hypot(e.clientX - apertado.x, e.clientY - apertado.y) > 4) { soltarSeguimento(); apertado = null; } };
     const aoSoltar = () => { apertado = null; };
     const hospedeiro = ref.current;
     hospedeiro?.addEventListener('pointerdown', aoApertar); window.addEventListener('pointermove', aoArrastar); window.addEventListener('pointerup', aoSoltar); window.addEventListener('pointercancel', aoSoltar);
@@ -150,6 +151,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       window.removeEventListener('wheel', aoRolarJanela); window.removeEventListener('wheel', soltar, { capture: true });
       hospedeiro?.removeEventListener('pointerdown', aoApertar); window.removeEventListener('pointermove', aoArrastar); window.removeEventListener('pointerup', aoSoltar); window.removeEventListener('pointercancel', aoSoltar);
       vpAtual = null;
+      seguindo.value = true;
       versaoRetratos.value = 0;
       cortina.value = { escurecer: false, ms: 0 };
       letreiroDoProjetor.value = null;

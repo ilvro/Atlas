@@ -35,6 +35,8 @@ import {
   CANAL_PROJETOR_GLOBAL,
   nomeDoCanalDoProjetor,
   projetorConectado,
+  seguirJogadores,
+  caixaDoProjetor,
   telaEscura,
   type MensagemDoMestre,
 } from '../../src/app/projetor.ts';
@@ -343,6 +345,77 @@ test('publicador: retrato é enviado antes do letreiro quando a peça tem portra
     assert.ok(idxRetrato < idxLetreiro, 'o retrato DEVE ser enviado antes do letreiro');
     assert.equal((msgsEsp[idxLetreiro] as any).retrato, 'asset-retrato-1');
   } finally {
+    pub.parar();
+    canalEsp.close();
+    sess.fechar();
+  }
+});
+
+test('publicador: seguir jogadores sincroniza no ola, ao ligar depois, e solta quando o projetor avisa soltou', async () => {
+  const mapa = criarMapa({ id: 'mapa-pub-seguir', nome: 'Arena' });
+  const repo = criarRepoMock({ [mapa.id]: mapa });
+  const sess = criarSessao(mapa, repo, { salvo: true });
+  sess.store.executar({
+    tipo: 'item.adicionar',
+    colecao: 'tokens',
+    item: {
+      id: 'heroi',
+      name: 'Herói',
+      position: [4.5, 4.5],
+      size: 1,
+      facing: 'down',
+      portrait: null,
+      sprite: null,
+      player: true,
+      vision: { radius: 18, dark: false },
+      lightId: null,
+      figure: { state: 'normal' },
+      refs: [],
+      hp: null,
+    },
+  });
+
+  seguirJogadores.value = true;
+  const pub = iniciarPublicacao(sess, async () => null);
+  const canalEsp = new BroadcastChannel(nomeDoCanalDoProjetor(mapa.id));
+  const msgs: MensagemDoMestre[] = [];
+  canalEsp.onmessage = e => msgs.push(e.data);
+
+  try {
+    canalEsp.postMessage({ tipo: 'ola', largura: 1600, altura: 900, _seq: 1 });
+    await esperar(60);
+
+    const camInicial = msgs.filter((m): m is Extract<MensagemDoMestre, { tipo: 'camera' }> => m.tipo === 'camera').at(-1);
+    assert.ok(camInicial?.seguir, 'camera enviada no ola deve marcar seguir: true');
+    const caixaAntes = { ...camInicial!.caixa };
+
+    // Redimensionar com seguir ativo continua seguindo os jogadores e mantém seguir: true
+    msgs.length = 0;
+    canalEsp.postMessage({ tipo: 'tamanho', largura: 1200, altura: 900, _seq: 2 });
+    await esperar(50);
+    const camResize = msgs.filter((m): m is Extract<MensagemDoMestre, { tipo: 'camera' }> => m.tipo === 'camera').at(-1);
+    assert.equal(camResize?.seguir, true);
+
+    // Projetor solta manualmente (roda/arrasto) -> mestre desativa seguirJogadores
+    canalEsp.postMessage({ tipo: 'soltou', _seq: 3 });
+    await esperar(40);
+    assert.equal(seguirJogadores.value, false, 'soltou do projetor deve desligar seguirJogadores no mestre');
+
+    // Mestre move o jogador enquanto desligado: câmera não deve seguir
+    msgs.length = 0;
+    sess.store.executar({ tipo: 'peca.mover', id: 'heroi', para: [20.25, 14.25] });
+    await esperar(50);
+    assert.equal(msgs.some(m => m.tipo === 'camera'), false, 'não envia camera quando seguirJogadores está false');
+
+    // Mestre religa seguirJogadores: enquadra a nova posição e envia seguir: true para reatar o projetor
+    seguirJogadores.value = true;
+    await esperar(50);
+    const camReatada = msgs.filter((m): m is Extract<MensagemDoMestre, { tipo: 'camera' }> => m.tipo === 'camera').at(-1);
+    assert.equal(camReatada?.seguir, true, 'religar seguirJogadores deve enviar seguir: true');
+    assert.notDeepEqual(caixaDoProjetor.value, caixaAntes);
+    assert.ok((camReatada!.caixa.x0 + camReatada!.caixa.x1) / 2 > 15, 'câmera acompanhou a nova posição do jogador');
+  } finally {
+    seguirJogadores.value = false;
     pub.parar();
     canalEsp.close();
     sess.fechar();
