@@ -54,7 +54,7 @@ Testes (pasta temporária com `fs.mkdtempSync`): o mesmo conteúdo dá o mesmo c
 Pronto quando: `npm run typecheck` e `npm test` passam na Mesa.
 Commit: `added build stamps for desktop apps`
 
-### A2 — Montagem seletiva e troca atômica  ⬜
+### A2 — Montagem seletiva e troca atômica  ✅
 Objetivo: `npm run desktop:prep` remonta só o que mudou, e o servidor nunca vê meio build.
 Depende de: A1.
 Ler: `Mesa/scripts/build-desktop.ts` (`executarMontagemDesktop` e o bloco de execução direta no fim).
