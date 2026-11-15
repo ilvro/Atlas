@@ -3,6 +3,7 @@ import { tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
 import { mat, num, piso, type Receita } from './comum.ts';
 import { galho } from './ermos.ts';
+import { lapide } from './rural.ts';
 import { faixa } from './porto.ts';
 
 const G = { categoria: 'exterior' as const, tipo: 'piso' as const, funcoes: ['jardim'], kit: 'exterior' };
@@ -38,8 +39,9 @@ export const RECEITAS_EXTERIORES: Receita[] = [
     gerar: p => { const r = mulberry32(p.seed), cor = mat(p, 'flor', 'tecido.veludo-vinho'), cores = ['#d94a6a', '#f2c230', '#f4f1ea', '#8e6bd9', cor]; return piso([1.7, 0.85], [ret(0, 0, 1.7, 0.85, 'madeira.escura', 0.45, { raio: 0.06, contorno: 'leve' }), ret(0, 0, 1.58, 0.73, '#4a3322', 0.5, { raio: 0.04, contorno: false, semSombra: true, detalhe: 2 }), ...Array.from({ length: 16 }, () => elipse((r() - 0.5) * 1.4, (r() - 0.5) * 0.6, 0.24, 0.18, '#3f7a3c', 0.6, { contorno: false, sombraLeve: true, detalhe: 2 })), ...Array.from({ length: 26 }, () => elipse((r() - 0.5) * 1.5, (r() - 0.5) * 0.65, 0.09, 0.09, cores[Math.floor(r() * cores.length)]!, 0.7 + r() * 0.05, { contorno: false, semSombra: true, detalhe: 3 }))]); } },
   { id: 'poste.luz', nome: 'Poste de luz', ...G, funcoes: ['jardim', 'cemiterio'], tags: ['poste', 'luz', 'lampiao'], pegada: [0.3, 0.3],
     gerar: () => piso([0.3, 0.3], [elipse(0, 0, 0.28, 0.28, 'ferro', 0.3, { contorno: 'leve' }), elipse(0, 0, 0.14, 0.14, '#2a2d33', 2.4, { contorno: 'leve', detalhe: 2 }), elipse(0, 0, 0.24, 0.24, '#f4e2a8', 2.5, { contorno: 'leve', detalhe: 2 }), elipse(0, 0, 0.12, 0.12, '#fff6d6', 2.52, { contorno: false, semSombra: true, detalhe: 3 })]) },
-  { id: 'lapide', nome: 'Lápide', ...G, funcoes: ['cemiterio', 'jardim'], tags: ['lapide', 'cemiterio', 'tumulo'], pegada: [0.5, 0.2],
-    gerar: p => { const r = mulberry32(p.seed); return piso([0.5, 0.2], [ret(0, 0, 0.5, 0.2, PEDRA[0]!, 0.9, { raio: 0.06, contorno: 'leve' }), ret(0, 0, 0.42, 0.12, PEDRA[2]!, 0.95, { raio: 0.04, contorno: false, semSombra: true, detalhe: 2 }), ret(0, 0, 0.012, 0.09, PEDRA[3]!, 0.97, { contorno: false, semSombra: true, detalhe: 3 }), ret(0, -0.01, 0.07, 0.012, PEDRA[3]!, 0.97, { contorno: false, semSombra: true, detalhe: 3 }), elipse(-0.18 + r() * 0.05, 0.05, 0.08, 0.05, '#4f7a3a', 0.98, { contorno: false, semSombra: true, detalhe: 3 })]); } },
+  { id: 'lapide', nome: 'Lápide', ...G, funcoes: ['cemiterio', 'jardim'], tags: ['lapide', 'cemiterio', 'tumulo'], pegada: [0.62, 0.32], altura: 1.0,
+    campos: [{ id: 'modelo', rotulo: 'Modelo (0 sorteia; 1 reta, 2 arredondada, 3 gótica, 4 quebrada, 5 inclinada)', tipo: 'numero', padrao: 0, min: 0, max: 5, passo: 1 }],
+    gerar: p => piso([0.62, 0.32], lapide(p.seed, num(p, 'modelo', 0, 0, 5))) },
   { id: 'balaustrada', nome: 'Balaustrada', ...G, funcoes: ['varanda', 'jardim'], tags: ['balaustrada', 'varanda', 'pedra', 'terraco'], pegada: [2.0, 0.28],
     campos: [{ id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 2, min: 0.6, max: 6, passo: 0.2 }],
     gerar: p => { const w = num(p, 'largura', 2, 0.6, 6), n = Math.max(2, Math.round(w / 0.22)); return piso([w, 0.28], [ret(0, 0, w, 0.28, '#c9c5bb', 1.0, { raio: 0.02, contorno: 'leve' }), ret(0, 0, w - 0.04, 0.18, '#dcd8ce', 1.02, { contorno: false, semSombra: true, detalhe: 2 }), ...Array.from({ length: n }, (_, i) => elipse(-w / 2 + ((i + 0.5) * w) / n, 0, 0.11, 0.11, '#bdb9ae', 0.9, { contorno: 'leve', detalhe: 2 })), ...[-1, 1].map(s2 => ret(s2 * (w / 2 - 0.1), 0, 0.2, 0.3, '#c9c5bb', 1.2, { raio: 0.02, contorno: 'leve' }))]); } },

@@ -45,13 +45,14 @@ Lista:
 Pronto quando: os materiais aparecem no catálogo e na Biblioteca, nas duas estéticas, e a prancha mostra cada um ao lado de um vizinho.
 Nota: `borracha.faixas` e `grama.alta` ficaram de fora (pouco ganho sobre o que existe); entrou `concreto.placas` (piso de placas para interiores industriais). `terra.congelada` usa o padrão `terra` com pontos de geada (o `rachado` parecia laje).
 
-### E2 — Kit rural, de montanha e de cemitério  ⬜ **[Opus]**
+### E2 — Kit rural, de montanha e de cemitério  ✅ **[Opus]**
 Objetivo: cemitérios, vilas e lugares de montanha com identidade.
 Arquivos: `src/procedural/receitas/exterior.ts` (ou um kit novo, `rural.ts`, registrado em `receitas/index.ts`).
 Lista:
 - **Cemitério:** `lapide` ganha `campos.modelo` (`reta`, `arredondada`, `gotica`, `quebrada`, `inclinada`) e tamanho real (0,6 × 0,25 m); `cruz.madeira` (com o pano ou a guirlanda opcional), `cruz.pedra` (celta, com o anel), `tumulo` (laje sobre a cova, 1 × 2,2 m), `cova.aberta` (com o monte de terra), `jazigo` (mausoléu pequeno de 2,5 × 3,5 m com porta e telhadinho), `anjo` (estátua de túmulo), `grade.ferro` (`campos.largura`), `portao.ferro`.
 - **Rural e montanha:** `pas.moinho` (quatro pás com lona, `campos.raio`, camada de teto), `pilha-de-lenha` (em pé e deitada), `varal`, `galinheiro`, `espantalho`, `barril-de-chuva`, `poste-de-amarracao`, `monte-de-neve` (`campos.tamanho`), `carroca-de-feno`, `lanterna.farol` (a lente grande do topo do farol, com luz própria).
 Pronto quando: um cemitério de teste com 6 tipos de peça e um quintal rural ficam convincentes na prancha e no mapa.
+Nota: pedras e cruzes em pé mostram a face voltada para +y (como as faces das paredes no estilo caixa); sem isso, vistas de cima, viravam tracinhos. A `lanterna.farol` não acende sozinha: ponha uma luz `farol` sobre ela. O conjunto `cemiterio` (E5) ainda usa só a `lapide`.
 
 ### E3 — Kit de ficção científica  ⬜ **[Opus]**
 Objetivo: dá para montar a ponte de comando, os corredores, a enfermaria, a sala de máquinas e o alojamento de uma nave ou estação.
