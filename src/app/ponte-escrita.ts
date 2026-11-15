@@ -1,4 +1,5 @@
 import { json, texto, type FerramentaDaPonte } from '#mesa/ponte';
+import { arranjar, type Padrao, type PedidoDeArranjo } from '../authoring/arranjo.ts';
 import { comodos, ErroDeConstrucao, espalhar, luzes, objetos, paredes, portas, regioes, terreno, type Construcao } from '../authoring/construcao.ts';
 import { construirEdificios, type PedidoDeEdificio } from '../authoring/edificio-construir.ts';
 import type { FormaDoEdificio, Frente } from '../authoring/edificio.ts';
@@ -368,6 +369,72 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         const densidade = args.densidade === undefined ? undefined : numero(args.densidade, 'densidade', 0.001, 20);
         const s = sementeDe(args);
         return [texto(escrever(ctx, `espalhar ${conjunto}`, mapa => geracao(espalhar(mapa, { conjunto, forma, densidade }, s))))];
+      },
+    },
+    {
+      nome: 'atlas_arranjo',
+      descricao: 'Dispõe até 300 objetos com variação em fileiras, grade solta, aglomerado, ao longo de caminho, círculo ou bordas; evita paredes e portas. Um desfazer.',
+      esquema: { type: 'object', properties: {
+        padrao: { type: 'string', enum: ['fileiras', 'grade-solta', 'aglomerado', 'ao-longo', 'circulo', 'bordas'] },
+        area: esquemaDaForma(),
+        itens: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'object', properties: {
+          item: { type: 'string' }, peso: { type: 'number', exclusiveMinimum: 0 },
+          escala: { type: 'array', items: { type: 'number', exclusiveMinimum: 0 }, minItems: 2, maxItems: 2 },
+          params: { type: 'object' },
+        }, required: ['item'] } },
+        espacamento: { type: 'array', items: { type: 'number', exclusiveMinimum: 0.1 }, minItems: 2, maxItems: 2 },
+        angulo: { type: 'number' }, desalinho: { type: 'number', minimum: 0 }, giro: { type: 'number', minimum: 0 },
+        falhas: { type: 'number', minimum: 0, maximum: 0.6 },
+        encarar: { type: 'string', enum: ['fileira', 'centro', 'caminho', 'livre'] },
+        grupos: { type: 'object', properties: {
+          tamanho: { type: 'array', items: { type: 'integer', minimum: 1 }, minItems: 2, maxItems: 2 },
+          vazio: { type: 'number', minimum: 0 },
+        }, required: ['tamanho', 'vazio'] },
+        semente,
+      }, required: ['padrao', 'area', 'itens', 'espacamento'], additionalProperties: false },
+      anotacoes: { destrutiva: true },
+      async executar(args) {
+        const area = validarForma(args.area);
+        const itensRaw = itens(args, 'itens', 20).map((it, i) => {
+          const item = textoOpcional(it.item, `itens[${i}].item`, 120) ?? '';
+          let escala: [number, number] | undefined;
+          if (it.escala !== undefined) {
+            if (!Array.isArray(it.escala) || it.escala.length !== 2) throw new Error(`"itens[${i}].escala" deve ser [min, max].`);
+            escala = [numero(it.escala[0], 'escala[0]', 0.05, 50), numero(it.escala[1], 'escala[1]', 0.05, 50)];
+          }
+          return limpar({
+            item,
+            peso: it.peso !== undefined ? numero(it.peso, 'peso', 0.01, 1000) : undefined,
+            escala,
+            params: it.params !== undefined ? objeto(it.params, 'params') : undefined,
+          });
+        });
+        const esp = args.espacamento;
+        if (!Array.isArray(esp) || esp.length !== 2) throw new Error('"espacamento" deve ser [dx, dy] em metros.');
+        const espacamento: [number, number] = [numero(esp[0], 'espacamento[0]', 0.15, 200), numero(esp[1], 'espacamento[1]', 0.15, 200)];
+        let grupos: PedidoDeArranjo['grupos'];
+        if (args.grupos !== undefined) {
+          const g = objeto(args.grupos, 'grupos');
+          if (!Array.isArray(g.tamanho) || g.tamanho.length !== 2 || !g.tamanho.every(n => Number.isInteger(n) && n >= 1)) throw new Error('"grupos.tamanho" deve ser [cols, rows] inteiros.');
+          grupos = { tamanho: [g.tamanho[0], g.tamanho[1]], vazio: numero(g.vazio, 'grupos.vazio', 0, 100) };
+        }
+        const pedido: PedidoDeArranjo = limpar({
+          padrao: String(args.padrao ?? '') as Padrao,
+          area,
+          itens: itensRaw,
+          espacamento,
+          angulo: args.angulo !== undefined ? numero(args.angulo, 'angulo', -100, 100) : undefined,
+          desalinho: args.desalinho !== undefined ? numero(args.desalinho, 'desalinho', 0, 50) : undefined,
+          giro: args.giro !== undefined ? numero(args.giro, 'giro', 0, 6.2832) : undefined,
+          falhas: args.falhas !== undefined ? numero(args.falhas, 'falhas', 0, 0.6) : undefined,
+          encarar: args.encarar !== undefined ? String(args.encarar) as PedidoDeArranjo['encarar'] : undefined,
+          grupos,
+        });
+        const s = sementeDe(args);
+        return [texto(escrever(ctx, `arranjo ${pedido.padrao}`, mapa => {
+          const r = arranjar(mapa, pedido, s);
+          return { comandos: r.comandos, ids: r.ids, resumo: `${r.ids.length} item(ns) colocado(s); ${r.ignorados} posição(ões) ignorada(s)` };
+        }))];
       },
     },
     {

@@ -402,6 +402,250 @@
     }
   },
   {
+    "nome": "atlas_arranjo",
+    "descricao": "Dispõe até 300 objetos com variação em fileiras, grade solta, aglomerado, ao longo de caminho, círculo ou bordas; evita paredes e portas. Um desfazer.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "padrao": {
+          "type": "string",
+          "enum": [
+            "fileiras",
+            "grade-solta",
+            "aglomerado",
+            "ao-longo",
+            "circulo",
+            "bordas"
+          ]
+        },
+        "area": {
+          "description": "Forma em metros.",
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "disco": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "raio": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "irregular": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "disco",
+                "raio"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "poligono": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2
+                  },
+                  "minItems": 3
+                },
+                "irregular": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "poligono"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "faixa": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2
+                  },
+                  "minItems": 1
+                },
+                "largura": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "irregular": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "faixa",
+                "largura"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "retangulo": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 4,
+                  "maxItems": 4
+                },
+                "irregular": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "retangulo"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "celulas": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              },
+              "required": [
+                "celulas"
+              ]
+            }
+          ]
+        },
+        "itens": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "properties": {
+              "item": {
+                "type": "string"
+              },
+              "peso": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "escala": {
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "params": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "item"
+            ]
+          }
+        },
+        "espacamento": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0.1
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "angulo": {
+          "type": "number"
+        },
+        "desalinho": {
+          "type": "number",
+          "minimum": 0
+        },
+        "giro": {
+          "type": "number",
+          "minimum": 0
+        },
+        "falhas": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.6
+        },
+        "encarar": {
+          "type": "string",
+          "enum": [
+            "fileira",
+            "centro",
+            "caminho",
+            "livre"
+          ]
+        },
+        "grupos": {
+          "type": "object",
+          "properties": {
+            "tamanho": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "vazio": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "tamanho",
+            "vazio"
+          ]
+        },
+        "semente": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "padrao",
+        "area",
+        "itens",
+        "espacamento"
+      ],
+      "additionalProperties": false
+    },
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": true
+    }
+  },
+  {
     "nome": "atlas_catalogo",
     "descricao": "Catálogo de opções (receitas, colecao, conjuntos, comodos, materiais, telhado, climas, luzes, presenca, momentos). Aceita busca por palavra. Use para não inventar ids.",
     "esquema": {
