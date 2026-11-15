@@ -137,7 +137,7 @@ Testes: um caso que dispara e um que não dispara para cada regra; o grid 8×15 
 Pronto quando: `npm test` passa e os exemplos da Fase 10 dão no máximo dicas.
 Commit: `added composition map review rules`
 
-### B5c — Ferramenta `atlas_revisar`  ⬜
+### B5c — Ferramenta `atlas_revisar`  ✅
 Objetivo: o Claude roda a revisão antes de entregar.
 Depende de: B5b, B2 (para os ids fazerem sentido junto com o resumo).
 Ler: `src/app/ponte-leitura.ts` (como uma ferramenta de leitura é registrada e anotada), `tests/unit/ponte-escrita.test.ts:35` (limite de descrição), `scripts/ponte/catalogo.ts`.

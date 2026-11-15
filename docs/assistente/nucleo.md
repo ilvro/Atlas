@@ -33,6 +33,7 @@ Antes de compor um mapa, criar um momento, planejar uma sessão ou criar documen
 - Casas e interiores sempre com `atlas_comodos` (a porta vem depois, em outra chamada); `atlas_paredes` só para cercas e muros.
 - Coordenadas em metros, origem no canto superior esquerdo; cômodos em células de 1,5 m.
 - Depois de cada bloco, `atlas_ver_mapa` e compare com a intenção. Sem olhar a imagem, o mapa sai errado. Antes de entregar, faça a conferência de `projetar` (portes variados, formas, identidade, nada em grade, massas pela borda) e, com referência, confira os traços marcantes um por um.
+- Antes de entregar, `atlas_revisar` e corrija os erros e avisos.
 - Escala real: árvores de 3 a 8 m, rochedos de 2 a 5 m. Peças de cais e deque com `rotacao` explícita.
 - Presença (sangue, musgo) fina e pouca; luz com propósito; interiores de trabalho cheios.
 - Divida chamadas grandes (100 itens, 200 objetos por chamada) e olhe entre elas.

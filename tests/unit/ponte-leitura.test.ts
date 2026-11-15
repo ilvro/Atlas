@@ -34,8 +34,9 @@ function montar(aberto: typeof covil | null, extra: Partial<ContextoDeLeitura> =
 
 test('as ferramentas têm nome, descrição e esquema de objeto', () => {
   const { f } = montar(null);
-  assert.deepEqual(Object.keys(f), ['atlas_o_que_vejo', 'atlas_mapas_listar', 'atlas_mapa_ler', 'atlas_catalogo', 'atlas_abrir', 'atlas_ver_mapa']);
+  assert.deepEqual(Object.keys(f), ['atlas_o_que_vejo', 'atlas_mapas_listar', 'atlas_mapa_ler', 'atlas_catalogo', 'atlas_abrir', 'atlas_revisar', 'atlas_ver_mapa']);
   for (const x of Object.values(f)) { assert.ok(x.descricao.length > 20); assert.equal(x.esquema.type, 'object'); }
+  assert.ok(f.atlas_revisar!.descricao.length >= 60 && f.atlas_revisar!.descricao.length <= 180);
 });
 
 test('atlas_mapas_listar lista os mapas e o aberto', async () => {
@@ -376,4 +377,29 @@ test('resumirMapa: troca rets por retsResumidos quando o JSON passa de 60 KB, sa
   const detalhado = resumirMapa(m, { comodos: ['c1'] }) as { comodos: { id: string; rets?: unknown; retsResumidos?: number }[] };
   assert.equal(Array.isArray(detalhado.comodos[0]!.rets), true);
   assert.equal('retsResumidos' in detalhado.comodos[0]!, false);
+});
+
+test('atlas_revisar: devolve achados e resumo do mapa aberto (ou por id) e filtra por regras', async () => {
+  const m = criarMapa({ id: 'vila', nome: 'Vila', largura: 30, altura: 20 });
+  m.terrain.base = 'grama';
+  m.rooms = {
+    c1: criarComodoTeste('c1', 'Casa fechada', [[2, 2, 5, 5]], { material: null, visible: false }),
+  };
+  const { chamar } = montar(m);
+
+  const tudo = JSON.parse(await chamar('atlas_revisar'));
+  assert.ok(Array.isArray(tudo.achados));
+  assert.ok(tudo.achados.some((a: { regra: string }) => a.regra === 'comodo-sem-acesso'));
+  assert.ok(tudo.achados.some((a: { regra: string }) => a.regra === 'edificio-sem-telhado'));
+  assert.ok(tudo.achados.some((a: { regra: string }) => a.regra === 'interior-vazio'));
+  assert.equal(tudo.resumo.erros, 1);
+  assert.ok(tudo.resumo.avisos >= 2);
+  assert.equal(typeof tudo.resumo.dicas, 'number');
+
+  const filtrado = JSON.parse(await chamar('atlas_revisar', { regras: ['comodo-sem-acesso'] }));
+  assert.equal(filtrado.achados.length, 1);
+  assert.equal(filtrado.achados[0].regra, 'comodo-sem-acesso');
+  assert.deepEqual(filtrado.resumo, { erros: 1, avisos: 0, dicas: 0 });
+
+  await assert.rejects(chamar('atlas_revisar', { regras: [123] }), /regras/);
 });

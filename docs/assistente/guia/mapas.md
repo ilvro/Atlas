@@ -26,11 +26,12 @@ Antes de qualquer chamada, faça o projeto com `plataforma_guia projetar` (brief
 7. **Ambiente:** `atlas_ambiente` (clima, horário, tempo, acabamento) e, se couber, `atlas_presenca`.
 8. **Regiões e notas:** `atlas_regioes` (revelar, gatilho, som, anotação) e `atlas_notas` (nota geral, leitura em voz alta e notas do mestre por cômodo).
 9. **Momentos:** só no fim, quando o mapa já está de pé. Momentos que alteram o mapa (água que sobe, luzes, objetos) mudam o documento ao tocar: teste com `atlas_momento_testar` e volte ao estado anterior com `atlas_desfazer`.
-10. **Gravar:** ao fim de uma leva de mudanças (e antes de pedir ao mestre para conferir ou de ler o mapa por outro caminho), `atlas_salvar`. Toda escrita termina com o lembrete "Não gravado" até você gravar.
+10. **Revisar antes de entregar:** chame `atlas_revisar` para apontar defeitos objetivos (cômodos sem acesso, portas bloqueadas, objetos fora do mapa, edifícios sem telhado, interiores vazios, casas todas iguais, fileiras mecânicas, repetição excessiva, noite sem luz) e corrija todos os `erros` e `avisos` antes de dar o mapa por pronto.
+11. **Gravar:** ao fim de uma leva de mudanças (e antes de pedir ao mestre para conferir ou de ler o mapa por outro caminho), `atlas_salvar`. Toda escrita termina com o lembrete "Não gravado" até você gravar.
 
 ### Confira com os olhos depois de cada bloco
 
-Depois de cada bloco, chame `atlas_ver_mapa` (mapa inteiro, ou só uma `caixa` [x0, y0, x1, y1] em metros para olhar um detalhe de perto) e compare com a intenção. Corrija o que destoa antes de seguir. Mapas montados sem olhar a imagem saem errados: massas fora de lugar, objetos minúsculos, rotações trocadas. Quando uma escrita responder "nada mudou", confira as coordenadas na imagem. A captura mostra a planta (interiores), sem telhados. No fim, passe pela conferência do passo 8 de `projetar`.
+Depois de cada bloco, chame `atlas_ver_mapa` (mapa inteiro, ou só uma `caixa` [x0, y0, x1, y1] em metros para olhar um detalhe de perto) e compare com a intenção. Corrija o que destoa antes de seguir. Mapas montados sem olhar a imagem saem errados: massas fora de lugar, objetos minúsculos, rotações trocadas. Quando uma escrita responder "nada mudou", confira as coordenadas na imagem. Depois de levantar edifícios, confira tanto `vista: "planta"` (interiores) quanto `vista: "telhados"` (coberturas de fora). No fim, rode `atlas_revisar` e passe pela conferência do passo 8 de `projetar`.
 
 ## Regras que valem ouro
 
