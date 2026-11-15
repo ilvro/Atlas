@@ -279,3 +279,56 @@ test('inspetor: escolher Igreja na nave e Torre no campanário e ver na vista de
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test('capturar com vista de telhados em Construir: mostra o telhado na imagem e mantém o editor com telhados abertos', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await sessao(page, `(s) => {
+    const cel = []; for (let y = 4; y < 8; y++) for (let x = 6; x < 10; x++) cel.push([x, y]);
+    s.store.executar({ tipo: "terreno.base", material: "areia" });
+    s.store.executar({ tipo: "clima.aplicar", patch: { preset: "tarde", time: "12:00", ambient: { color: "#ffffff", intensity: 1 }, sun: { angle: 1.57, color: "#fff8e8", intensity: 1 } } });
+    s.store.executar({ tipo: "acabamento.atualizar", patch: { preset: "nenhum", texture: 0, vignette: 0, saturation: 1, grain: 0, tint: "#ffffff" } });
+    s.store.executar({ tipo: "comodo.criar", id: "casa", nome: "Casa", funcao: "sala", piso: { material: "marmore.branco", seed: 1 }, papel: null, telhado: "telha.ardosia", celulas: cel });
+    s.store.executar({ tipo: "item.adicionar", colecao: "lights", item: {
+      id: "l1", position: [12.0, 9.0], radius: 6, color: "#fffae0", intensity: 1.4,
+      flicker: 0, cone: null, ownerId: null, power: "fire", on: true, nightOnly: false, preset: "lamparina", rays: false
+    } });
+  }`);
+  await page.waitForTimeout(800);
+
+  const r = await page.evaluate(async () => {
+    type Cap = { dataUrl: string };
+    type VP = {
+      capturar(o?: { caixa?: { x0: number; y0: number; x1: number; y1: number }; vista?: 'planta' | 'telhados' }): Promise<Cap>;
+      diagnosticoDosTelhados(): { id: string; alfa: number; alvo: number }[];
+    };
+    const vp = (window as unknown as { __atlas: { viewport(): VP } }).__atlas.viewport();
+    const corMedia = async (dataUrl: string) => {
+      const img = new Image(); img.src = dataUrl; await img.decode();
+      const c = new OffscreenCanvas(img.width, img.height);
+      const g = c.getContext('2d')!; g.drawImage(img, 0, 0);
+      const x0 = Math.floor(img.width * 0.35), y0 = Math.floor(img.height * 0.35);
+      const w = Math.max(1, Math.floor(img.width * 0.3)), h = Math.max(1, Math.floor(img.height * 0.3));
+      const d = g.getImageData(x0, y0, w, h).data;
+      let r = 0, gr = 0, b = 0;
+      const n = d.length / 4;
+      for (let i = 0; i < d.length; i += 4) { r += d[i]!; gr += d[i + 1]!; b += d[i + 2]!; }
+      return [r / n, gr / n, b / n] as [number, number, number];
+    };
+    const caixa = { x0: 9, y0: 6, x1: 15, y1: 12 };
+    const capPlanta = await vp.capturar({ caixa, vista: 'planta' });
+    const capTelhados = await vp.capturar({ caixa, vista: 'telhados' });
+    const diagDepois = vp.diagnosticoDosTelhados();
+    return {
+      planta: await corMedia(capPlanta.dataUrl),
+      telhados: await corMedia(capTelhados.dataUrl),
+      diagDepois,
+    };
+  });
+
+  const dist = Math.hypot(r.planta[0] - r.telhados[0], r.planta[1] - r.telhados[1], r.planta[2] - r.telhados[2]);
+  assert.ok(dist > 30, `cor média da planta (${r.planta.map(x => x.toFixed(1)).join(',')}) deve diferir do telhado de ardósia (${r.telhados.map(x => x.toFixed(1)).join(',')}); dist=${dist.toFixed(1)}`);
+  assert.deepEqual(r.diagDepois.map(d => [d.id, d.alfa, d.alvo]), [['casa', 0, 0]], 'vista do editor permanece Construir (telhado escondido)');
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});

@@ -28,6 +28,7 @@ export interface Telhados {
   readonly raiz: Container;
   sincronizar(m: MapaAtlas, mudancas: Mudancas | null): void;
   definirVista(v: Vista): void;
+  forcar(alfa: number | null): void;
   quadro(agora: number): void;
   /** Para os testes: a opacidade de cada telhado agora. */
   diagnostico(): { id: string; edificio: string; alfa: number; alvo: number; dentro: boolean; conhecido: boolean }[];
@@ -72,7 +73,7 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
   const chavesAtivas = new Set<string>();
   const desfoque = new BlurFilter({ strength: 2, quality: 3 });
 
-  let mapa: MapaAtlas | null = null, vista: Vista = 'construir', ultimo = -1, destruido = false, imediato = true;
+  let mapa: MapaAtlas | null = null, vista: Vista = 'construir', ultimo = -1, destruido = false, imediato = true, forcado: number | null = null;
 
   function redesenharPorChave(chave: string): void {
     const m = mapa; if (!m || destruido) return;
@@ -246,6 +247,7 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
   }
 
   function alvoDe(d: DoEdificio): number {
+    if (forcado !== null) return d.visivelNoMapa ? forcado : 0;
     const modoTelhados = mapa?.session.roofs ?? 'auto';
     if (vista === 'construir' || !d.visivelNoMapa || modoTelhados === 'abertos') return 0;
     if (vista === 'mestre') return ALFA_DO_MESTRE;
@@ -262,7 +264,7 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
       d.conhecido = !conhecidos || d.ed.salas.some(id => conhecidos.has(id));
       d.visivelNoMapa = d.ed.salas.some(id => m.rooms[id]?.roof.visible);
       d.alvo = alvoDe(d);
-      if (imediato || movimentoReduzido()) { d.alfa = d.alvo; d.c.alpha = d.alfa; d.c.visible = d.alfa > 0.001; }
+      if (imediato || forcado !== null || movimentoReduzido()) { d.alfa = d.alvo; d.c.alpha = d.alfa; d.c.visible = d.alfa > 0.001; }
     }
   }
 
@@ -299,6 +301,7 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
       imediato = false;
     },
     definirVista(v) { if (v === vista) return; vista = v; imediato = true; reavaliar(); imediato = false; },
+    forcar(alfa) { forcado = alfa; imediato = true; reavaliar(); imediato = false; },
     quadro(agora) {
       if (destruido) return;
       const dt = ultimo < 0 ? 0 : Math.min(0.1, (agora - ultimo) / 1000); ultimo = agora;

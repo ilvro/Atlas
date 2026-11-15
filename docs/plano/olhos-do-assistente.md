@@ -30,7 +30,7 @@ Ordem: B1, B2, B3 e B4 em qualquer ordem; B5a → B5b → B5c.
 
 ---
 
-### B1 — `atlas_ver_mapa` com vista de telhados  ⬜
+### B1 — `atlas_ver_mapa` com vista de telhados  ✅
 Objetivo: o Claude escolhe entre ver a planta (interiores) e ver os telhados (como o mapa aparece aos jogadores por fora).
 Depende de: —.
 Ler: `src/render/viewport.ts` (`capturar`, `projetor`), `src/render/cena.ts` (como `telhados` é criado e a interface `Cena`), `src/render/telhados.ts` inteiro (`alvoDe`, `reavaliar`, `imediato`, o `return`), `src/app/ponte-leitura.ts` (`atlas_ver_mapa`, `ContextoDeLeitura.capturar`), `src/app/ponte.ts:31` (a ligação de `capturar`).

@@ -2071,7 +2071,7 @@
   },
   {
     "nome": "atlas_ver_mapa",
-    "descricao": "Captura imagem JPEG do mapa aberto (todo, ou recorte com caixa [x0,y0,x1,y1] em metros). Retorna escala e caixa.",
+    "descricao": "Captura JPEG do mapa aberto (todo ou caixa [x0,y0,x1,y1] m). vista: planta (interiores) ou telhados (como os jogadores veem de fora). Retorna escala e caixa.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -2087,6 +2087,13 @@
           "type": "number",
           "minimum": 256,
           "maximum": 1600
+        },
+        "vista": {
+          "type": "string",
+          "enum": [
+            "planta",
+            "telhados"
+          ]
         }
       },
       "required": [],

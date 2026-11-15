@@ -63,6 +63,8 @@ export interface Cena {
   diagnosticoDosTelhados(): ReturnType<ReturnType<typeof criarTelhados>['diagnostico']>;
   /** Pelos olhos de quem se vê o mapa: Construir e mestre veem tudo; os jogadores só o que as suas peças enxergam, com os telhados fechados. */
   definirVista(v: Vista): void;
+  /** Força a opacidade dos telhados visíveis no mapa (ex.: captura na vista de telhados); `null` volta ao cálculo normal. */
+  forcarTelhados(alfa: number | null): void;
   /** Para os testes: como cada peça está desenhada agora (retrato, deitada, raio). */
   diagnosticoDasPecas(): { id: string; vez: boolean; retrato: boolean; deitada: boolean; raio: number; quadro: { linha: number; coluna: number } | null; pips: Recursos | null; estadoVisto: string }[];
   /** Quantos objetos de piso já têm a textura pintada (sem o marcador). */
@@ -415,6 +417,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     definirModoProjetor: ligado => { modoDoProjetor = ligado; marcasVisiveis(); luzesC.visible = !ligado; regioesC.visible = !ligado; if (mapa) sincronizarObjetos(mapa, null, false); },
     definirEfeitosDeLuz: (luzes, ambiente) => luz.definirEfeitos(luzes, ambiente),
     definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); if (v !== vistaDaCena) { vistaDaCena = v; if (mapa) { desenharParedes(mapa); sincronizarObjetos(mapa, null, false); } } marcasVisiveis(); },
+    forcarTelhados: alfa => telhados.forcar(alfa),
     diagnosticoDosTelhados: () => telhados.diagnostico(),
     redesenharPecas() { if (mapa) sincronizarSimples(pecas, pecasC, mapa.tokens, null, (c, t) => desenharPeca(c, t, mapa!), false); },
     contagemDeParticulas: () => particulas.contagem(),

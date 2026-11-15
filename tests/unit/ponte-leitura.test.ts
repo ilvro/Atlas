@@ -122,12 +122,14 @@ test('atlas_o_que_vejo sem mapa aberto', async () => {
   assert.equal(JSON.parse(await chamar('atlas_o_que_vejo')).mapa, null);
 });
 
-test('atlas_ver_mapa: captura com sucesso, com aviso, e trata erro como texto', async () => {
+test('atlas_ver_mapa: captura com sucesso, com aviso, vista (planta/telhados) e trata erro como texto', async () => {
+  const vistasRecebidas: (string | undefined)[] = [];
   const ctx: ContextoDeLeitura = {
     repo: () => null,
     mapaAberto: () => covil,
     abrirMapa: async () => {},
     capturar: async (opcoes) => {
+      vistasRecebidas.push(opcoes.vista);
       if (opcoes.ladoMaximo === 666) throw new Error('simulação de falha');
       return {
         dataUrl: 'data:image/jpeg;base64,1234',
@@ -143,13 +145,23 @@ test('atlas_ver_mapa: captura com sucesso, com aviso, e trata erro como texto', 
   };
   const f = ferramentasDeLeitura(ctx).find(x => x.nome === 'atlas_ver_mapa')!;
 
-  // Sucesso normal
+  // Sucesso normal (padrão planta)
   const r1 = await f.executar({});
   assert.equal(r1.length, 2);
   assert.equal(r1[0]!.tipo, 'imagem');
   assert.equal(r1[1]!.tipo, 'texto');
-  assert.match((r1[1] as { texto: string }).texto, /800×600 px/);
+  assert.match((r1[1] as { texto: string }).texto, /800×600 px \(vista: planta\)/);
   assert.ok(!(r1[1] as { texto: string }).texto.includes('Aviso:'));
+  assert.equal(vistasRecebidas.at(-1), 'planta');
+
+  // Vista de telhados
+  const rTelhados = await f.executar({ vista: 'telhados' });
+  assert.equal(rTelhados.length, 2);
+  assert.match((rTelhados[1] as { texto: string }).texto, /vista: telhados/);
+  assert.equal(vistasRecebidas.at(-1), 'telhados');
+
+  // Vista inválida é recusada
+  await assert.rejects(f.executar({ vista: 'andar' }), /"vista" deve ser "planta" ou "telhados"/);
 
   // Com aviso
   const r2 = await f.executar({ ladoMaximo: 999 });

@@ -529,3 +529,7 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 ### Frente C — Guia de projeto (Opus)
 
 - **C1 e C3 — Método de projeto, referências, repertório e núcleo** — seções novas do guia em `docs/assistente/guia/`: `projetar` (brief, programa com portes típicos, circulação, massa e composição, identidade, vida, luz e a conferência final), `referencias` (tipos de imagem, o que extrair, escala, traduzir perspectiva em planta, o que o motor não faz), `lugares` (aldeia, cidade, igreja e cemitério, natureza, costa e porto, acampamento) e `interiores` (casa e mansão, taverna, masmorra e cripta, caverna, instalação moderna, nave e estação). `mapas.md` passa a mandar projetar antes e ganha duas regras de ouro (casas com forma e porte; nada em grade mecânica); `nucleo.md` lista as seções novas e manda ler `projetar` antes de compor e `referencias` ao receber imagem. Ids citados conferidos contra o catálogo; o teste de títulos em `tests/unit/ponte-mcp.test.ts` segue o título novo ("Projete antes de construir").
+
+### Frente B — Olhos do assistente
+
+- **B1 — `atlas_ver_mapa` com vista de telhados** — `forcar(alfa: number | null)` em `src/render/telhados.ts` e `forcarTelhados` em `src/render/cena.ts`, `vista?: 'planta' | 'telhados'` em `capturar` (`src/render/viewport.ts`) e na ferramenta `atlas_ver_mapa` (`src/app/ponte-leitura.ts`), `scripts/ponte/catalogo-base.json` e guia `docs/assistente/guia/ferramentas-atlas.md`. Testes em `tests/unit/ponte-leitura.test.ts` e `tests/e2e/telhados.test.ts`.
