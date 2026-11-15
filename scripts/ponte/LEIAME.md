@@ -2,7 +2,7 @@
 
 O servidor MCP `mesa` (`scripts/ponte/mcp.ts`) liga o app do Claude à ponte do `mesa-dev` (`/__ponte`). Ele conecta em `ws://127.0.0.1:${MESA_PORTA ?? 5100}/__ponte` com o token de `Atlas/.ponte/token` (relido a cada reconexão, pois muda a cada partida do `mesa-dev`) e reconecta em silêncio. As ferramentas `ponte_estado` e `plataforma_guia` (guia sob demanda, de `docs/assistente/guia/`) sempre existem; o servidor envia `docs/assistente/nucleo.md` como instruções; as demais vêm das abas abertas.
 
-Para usar: `npm run mesa-dev` no Atlas, abrir a Mesa ou o Atlas em http://127.0.0.1:5100/ e ter o servidor registrado abaixo.
+Para usar: abrir o app de desktop da Mesa (que hospeda a ponte na porta 5100 e remonta sozinho em `dist-desktop/` o que mudou ao abrir e enquanto está aberto, avisando na aba) ou rodar `npm run mesa-dev` no Atlas, abrir a Mesa ou o Atlas em http://127.0.0.1:5100/ e ter o servidor registrado abaixo. Reinício só é preciso se a ponte (`Atlas/scripts/ponte/`) ou o núcleo das instruções (`docs/assistente/nucleo.md`) mudar; o guia é relido a cada chamada e `npm run desktop:prep -- --se-mudou` continua disponível à mão na Mesa.
 
 ## Registro no app do Claude
 
