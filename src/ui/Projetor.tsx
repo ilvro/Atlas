@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { signal } from '@preact/signals';
 import { iniciarTema } from '../app/tema.ts';
 import { CANAL_PROJETOR_GLOBAL, nomeDoCanalDoProjetor, type MensagemDoMestre, type MensagemDoProjetor } from '../app/projetor.ts';
@@ -25,6 +25,7 @@ const seguindo = signal(true);
 let caixaDoMestre: Parameters<Viewport['enquadrarCaixa']>[0] | null = null, vpAtual: Viewport | null = null;
 /** Os retratos que o mestre enviou, por id de asset. */
 const retratos = new Map<string, Blob>();
+const versaoRetratos = signal(0);
 /** A inspeção de um documento que o mestre abriu para os jogadores. O alvo chega em saltos; a vista exibida o alcança suavemente. */
 const documentoDoProjetor = signal<{ nome: string; normal: ImageBitmap; uv: ImageBitmap | null } | null>(null);
 let alvoDaInspecao: EstadoDoVisor = { vista: VISTA_INICIAL, lanterna: null };
@@ -108,7 +109,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       else if (msg.tipo === 'inspecao-estado') alvoDaInspecao = { vista: msg.vista, lanterna: msg.lanterna };
       else if (msg.tipo === 'inspecao-fim') fecharInspecaoNoProjetor();
       else if (msg.tipo === 'rolagem') { const t = doc.value?.tokens[msg.peca]; if (t && vp) { const [x, y] = vp.clientDe([t.position[0], t.position[1] - t.size * (doc.value?.grid.size ?? 1.5) / 2]); flutuarRolagem(ponto(x, y), msg.total, msg.titulo, msg.tom); } }
-      else if (msg.tipo === 'retrato') { retratos.set(msg.id, msg.blob); if (doc.value) store!.projetar({ ...doc.value }); }
+      else if (msg.tipo === 'retrato') { retratos.set(msg.id, msg.blob); versaoRetratos.value++; vp?.redesenharPecas(); }
     };
     canalEspecifico.onmessage = (e: MessageEvent<MensagemDoMestre>) => tratarMensagem(e.data);
     canalGlobal.onmessage = (e: MessageEvent<MensagemDoMestre>) => tratarMensagem(e.data);
@@ -149,12 +150,14 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       window.removeEventListener('wheel', aoRolarJanela); window.removeEventListener('wheel', soltar, { capture: true });
       hospedeiro?.removeEventListener('pointerdown', aoApertar); window.removeEventListener('pointermove', aoArrastar); window.removeEventListener('pointerup', aoSoltar); window.removeEventListener('pointercancel', aoSoltar);
       vpAtual = null;
+      versaoRetratos.value = 0;
       cortina.value = { escurecer: false, ms: 0 };
       letreiroDoProjetor.value = null;
       document.body.classList.remove('projetor');
     };
   }, [mapaId]);
 
+  const lerRetrato = useMemo(() => (id: string) => lerRetratoLocal(id), [versaoRetratos.value]);
   const m = doc.value;
   const pecas = m?.tokens ?? {};
   return (
@@ -163,7 +166,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       <div class="projetor-moldura" aria-hidden="true"><i /><i /></div>
       {documentoDoProjetor.value && <div class="projetor-inspecao" data-testid="projetor-inspecao"><h2>{documentoDoProjetor.value.nome}</h2><VisorDeDocumento normal={documentoDoProjetor.value.normal} uv={documentoDoProjetor.value.uv} estado={estadoDaInspecao} testid="projetor-visor" /></div>}
       {m ? <h1 class="projetor-titulo faixa" data-testid="projetor-titulo">{m.name}</h1> : <p class="projetor-espera" data-testid="projetor-espera">Aguardando o mestre…</p>}
-      {m?.session.initiative && <div class="projetor-iniciativa"><FaixaDeIniciativa ini={m.session.initiative} pecas={pecas} lerRetrato={lerRetratoLocal} /></div>}
+      {m?.session.initiative && <div class="projetor-iniciativa"><FaixaDeIniciativa ini={m.session.initiative} pecas={pecas} lerRetrato={lerRetrato} /></div>}
       <div
         class="projetor-cortina"
         data-testid="projetor-cortina"
@@ -176,7 +179,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       {letreiroDoProjetor.value && (
         <LetreiroDoProjetor
           dados={letreiroDoProjetor.value}
-          lerRetrato={lerRetratoLocal}
+          lerRetrato={lerRetrato}
           aoTerminar={() => { letreiroDoProjetor.value = null; }}
         />
       )}

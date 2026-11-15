@@ -736,3 +736,35 @@ test('fase 7: jogar a casa no projetor — portas, clima, revelação, interrupt
   await proj.screenshot({ path: 'test-results/fase7-projetor-fim.png' });
   assert.deepEqual(errosProj, []); assert.deepEqual(erros, []); await ctx.close();
 });
+
+test('projetor: retrato aparece e reflete modo moeda vs imersivo', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  const mapaId = await criarMapaPelaInterface(page);
+  await sessao(page, '(s, p) => { s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: p }); s.selecao.value = [{ colecao: "tokens", id: "lia" }]; }', peca('lia', 'Lia', 7.5, 7.5, { player: true, vision: { radius: 8, dark: false } }));
+  await page.click('[data-testid="aba-selecao"]');
+  await page.locator('[data-testid="retrato-arquivo"]').setInputFiles('tests/e2e/retrato-de-teste.png');
+  await page.waitForFunction(() => (window as unknown as { __atlas: { viewport(): { diagnosticoDasPecas(): { retrato: boolean }[] } } }).__atlas.viewport().diagnosticoDasPecas()[0]?.retrato === true, null, { timeout: 8000 });
+
+  await page.click('[data-testid="modo-sessao"]'); await page.locator('[data-testid="dock"]').waitFor();
+  await page.click('[data-testid="dock-titulo-projetor"]');
+
+  const proj = await ctx.newPage(), errosProj: string[] = [];
+  proj.on('pageerror', e => errosProj.push(e.message)); proj.on('console', m => { if (m.type() === 'error') errosProj.push(m.text()); });
+  await proj.goto(`${amb.url}#/projetor/${mapaId}`);
+  await proj.waitForFunction(() => (window as unknown as { __projetor?: { doc(): unknown } }).__projetor?.doc() != null, null, { timeout: 20_000 });
+  await page.getByText('Conectado', { exact: true }).waitFor({ timeout: 5000 });
+
+  // Retrato deve aparecer no projetor (mesmo quando estado chegou antes do blob) e refletir tokenStyle 'coin' vs 'immersive'.
+  await proj.waitForFunction(() => {
+    const d = (window as unknown as { __projetor: { viewport(): { diagnosticoDasPecas(): { id: string; retrato: boolean; tokenStyle: string }[] } } }).__projetor.viewport().diagnosticoDasPecas();
+    return d.find(x => x.id === 'lia')?.retrato === true && d.find(x => x.id === 'lia')?.tokenStyle === 'coin';
+  }, null, { timeout: 8000 });
+
+  await sessao(page, '(s) => s.store.executar({ tipo: "item.atualizar", colecao: "tokens", id: "lia", patch: { tokenStyle: "immersive" } })');
+  await proj.waitForFunction(() => {
+    const d = (window as unknown as { __projetor: { viewport(): { diagnosticoDasPecas(): { id: string; retrato: boolean; tokenStyle: string }[] } } }).__projetor.viewport().diagnosticoDasPecas();
+    return d.find(x => x.id === 'lia')?.retrato === true && d.find(x => x.id === 'lia')?.tokenStyle === 'immersive';
+  }, null, { timeout: 8000 });
+
+  assert.deepEqual(errosProj, []); assert.deepEqual(erros, []); await ctx.close();
+});
