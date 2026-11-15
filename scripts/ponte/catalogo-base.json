@@ -462,24 +462,7 @@
                 }
               },
               "tipo": {
-                "type": "string",
-                "enum": [
-                  "sala",
-                  "cozinha",
-                  "quarto",
-                  "biblioteca",
-                  "escritorio",
-                  "banheiro",
-                  "corredor",
-                  "enfermaria",
-                  "taverna",
-                  "sala-de-jantar",
-                  "sala-de-jogos",
-                  "capela",
-                  "forja",
-                  "varanda",
-                  "porao"
-                ]
+                "type": "string"
               },
               "nome": {
                 "type": "string"

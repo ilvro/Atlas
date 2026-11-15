@@ -244,6 +244,73 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('escada', ['escada.madeira', 'escada.pedra'], 'parede', [0, 1], 3, { areaMinima: 10, alto: true }),
     item('tocha', ['tocha.parede'], 'na-parede', [0, 2], 4),
   ],
+  estabulo: [
+    item('fardo', ['fardo-de-feno'], 'parede', [2, 4], 1),
+    item('bebedouro', ['bebedouro'], 'parede', [1, 2], 2),
+    item('palha', ['monte-de-palha'], 'canto', [1, 2], 3),
+    item('cavalo', ['cavalo'], 'centro', [0, 2], 4, { areaMinima: 12 }),
+    item('tina', ['tina-de-agua'], 'junto', [0, 1], 5, { junto: { de: 'bebedouro', modo: 'ao-lado' } }),
+  ],
+  celeiro: [
+    item('fardo', ['fardo-de-feno'], 'parede', [3, 6], 1),
+    item('sacos', ['sacos'], 'canto', [1, 3], 2),
+    item('carroca', ['carroca'], 'centro', [0, 1], 3, { areaMinima: 20 }),
+    item('carrinho', ['carrinho-de-mao'], 'parede', [0, 1], 4),
+    item('barris', ['pilha-de-barris'], 'canto', [0, 2], 5),
+  ],
+  deposito: [
+    item('caixotes', ['pilha-de-caixotes'], 'canto', [1, 3], 1),
+    item('caixote', ['caixote'], 'parede', [2, 5], 2),
+    item('barril', ['barril', 'pilha-de-barris'], 'parede', [1, 3], 3),
+    item('sacos', ['sacos'], 'canto', [1, 2], 4),
+    item('estante-piso', ['estante.piso'], 'parede', [1, 2], 5, { alto: true }),
+  ],
+  loja: [
+    item('balcao', ['balcao'], 'parede', [1, 1], 1),
+    item('estante-piso', ['estante.piso'], 'parede', [2, 4], 2, { alto: true }),
+    item('prateleira', ['prateleira.parede'], 'na-parede', [1, 3], 3),
+    item('caixote', ['caixote'], 'canto', [0, 2], 4),
+    item('barril', ['barril'], 'canto', [0, 2], 5),
+  ],
+  oficina: [
+    item('bancada', ['bancada.trabalho', 'mesa.retangular'], 'parede', [1, 2], 1),
+    item('estante', ['estante'], 'na-parede', [1, 2], 2),
+    item('caixote', ['caixote'], 'canto', [1, 3], 3),
+    item('amolar', ['pedra-de-amolar'], 'parede', [0, 1], 4),
+    item('banqueta', ['banqueta', 'cadeira'], 'junto', [1, 2], 5, { junto: { de: 'bancada', modo: 'em-frente', folga: 0.1 } }),
+  ],
+  cela: [
+    item('cama', ['catre', 'enxergao', 'cama.solteiro'], 'parede', [1, 1], 1),
+    item('grilhoes', ['grilhoes.parede'], 'na-parede', [0, 1], 2),
+    item('palha', ['monte-de-palha'], 'canto', [0, 1], 3),
+    item('banco', ['banco'], 'parede', [0, 1], 4),
+  ],
+  dormitorio: [
+    item('cama', ['beliche', 'cama.solteiro'], 'parede', [2, 6], 1),
+    item('bau', ['bau', 'comoda'], 'junto', [1, 3], 2, { junto: { de: 'cama', modo: 'ao-lado' } }),
+    item('suporte-armas', ['suporte-de-armas'], 'parede', [0, 1], 3, { alto: true }),
+  ],
+  refeitorio: [
+    item('mesa', ['mesa.banquete', 'mesa.taverna', 'mesa.retangular'], 'centro', [1, 3], 1, { areaMinima: 9 }),
+    item('banco', ['banco.longo', 'banco', 'cadeira'], 'junto', [2, 6], 2, { junto: { de: 'mesa', modo: 'ao-redor' } }),
+    item('lareira', ['lareira.pedra', 'lareira.marmore'], 'parede', [0, 1], 3, { alto: true, areaMinima: 12 }),
+    item('caldeirao', ['caldeirao'], 'canto', [0, 1], 4),
+    item('servico', ['pratos.servico', 'fruteira', 'garrafa.tacas'], 'sobre', [1, 3], 5, { junto: { de: 'mesa', modo: 'ao-redor' } }),
+  ],
+  salao: [
+    item('mesa', ['mesa.banquete', 'mesa.oval', 'mesa.retangular'], 'centro', [1, 2], 1, { areaMinima: 12 }),
+    item('banco', ['banco.longo', 'cadeira', 'banco'], 'junto', [2, 6], 2, { junto: { de: 'mesa', modo: 'ao-redor' } }),
+    item('lareira', ['lareira.pedra', 'lareira.marmore'], 'parede', [0, 1], 3, { alto: true }),
+    item('estandarte', ['estandarte'], 'canto', [0, 2], 4),
+    item('trono', ['trono'], 'parede', [0, 1], 5, { alto: true }),
+    item('quadro', ['quadro', 'paisagem.grande', 'retrato.oval'], 'na-parede', [1, 3], 6),
+    item('arandela', ['arandela'], 'na-parede', [1, 3], 7),
+  ],
+  patio: [
+    item('banco', ['banco.jardim'], 'parede', [0, 2], 1),
+    item('vaso', ['vaso.planta'], 'canto', [1, 3], 2),
+    item('poco', ['poco', 'fonte'], 'centro', [0, 1], 3, { areaMinima: 20 }),
+  ],
 };
 
 /**
@@ -257,6 +324,8 @@ export const VARIACOES_DE_GENERO: Readonly<Record<string, { trocar?: Record<stri
     trocar: {
       'sala:sofa': ['sofa.canto'], 'quarto:cama': ['cama.box'], 'quarto:cama.casal': ['cama.box'], 'quarto:armario': ['guarda-roupa.liso'], 'banheiro:vaso': ['vaso.moderno'], 'banheiro:pia': ['balcao'],
       'escritorio:escrivaninha': ['escrivaninha.computador'], 'sala-de-jantar:mesa': ['mesa.vidro'], 'cozinha:mesa': ['mesa.vidro'],
+      'oficina:bancada': ['bancada.ferramentas'], 'oficina:banqueta': ['cadeira'], 'dormitorio:bau': ['comoda'], 'cela:cama': ['cama.solteiro'],
+      'refeitorio:mesa': ['mesa.retangular'], 'refeitorio:banco': ['cadeira', 'banco'], 'salao:mesa': ['mesa.retangular'], 'salao:banco': ['cadeira'],
     },
   },
   fantasia: {
@@ -265,6 +334,9 @@ export const VARIACOES_DE_GENERO: Readonly<Record<string, { trocar?: Record<stri
       'taverna:cadeira': ['banco', 'banqueta'], 'cozinha:cadeira': ['banco', 'banqueta'], 'sala:sofa': ['banco'], 'taverna:mesa': ['mesa.taverna', 'mesa.redonda-rustica'], 'taverna:banco': ['banco.longo'], 'cozinha:mesa': ['mesa.taverna', 'mesa.cavalete'],
       'quarto:cama': ['catre', 'enxergao'], 'quarto:cama.casal': ['cama.dossel'], 'quarto:armario': ['bau'], 'quarto:comoda': ['bau'], 'porao:caixote-canto': ['barril.em-pe'], 'porao:caixote-parede': ['barril.deitado', 'caixa'], 'sala:lareira': ['lareira.pedra'],
       'forja:lareira': ['fornalha'], 'sala-de-jantar:mesa': ['mesa.cavalete', 'mesa.banquete'], 'sala-de-jantar:cadeira': ['cadeira.espaldar'], 'hospital:cama': ['catre', 'enxergao'],
+      'oficina:bancada': ['bancada.trabalho'], 'oficina:banqueta': ['banqueta'], 'cela:cama': ['catre', 'enxergao'], 'dormitorio:bau': ['bau'],
+      'refeitorio:mesa': ['mesa.banquete', 'mesa.taverna'], 'refeitorio:banco': ['banco.longo'], 'refeitorio:lareira': ['lareira.pedra'],
+      'salao:mesa': ['mesa.banquete'], 'salao:banco': ['banco.longo'], 'salao:lareira': ['lareira.pedra'],
     },
   },
 };

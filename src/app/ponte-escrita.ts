@@ -7,7 +7,7 @@ import { ceuNoHorario } from '../domain/clima.ts';
 import { EVENTOS_DE_CENA } from '../domain/eventos-de-cena.ts';
 import { CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, FORMAS_DE_TELHADO, criarMapa, type CumeeiraDeTelhado, type DetalheDeTelhado, type FormaDeTelhado, type MapaAtlas } from '../domain/mapa.ts';
 import { descreverPasso, duracaoEstimada, momentoValido, type Momento, type PassoDeMomento } from '../domain/momentos.ts';
-import { GENEROS, PINCEIS_DE_PRESENCA, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
+import { GENEROS, PINCEIS_DE_PRESENCA, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
 import { validarMapa } from '../domain/validacao.ts';
 import { materialDe, materiaisDo } from '../procedural/materiais.ts';
 import type { RepositorioMapas } from '../data/repositorio.ts';
@@ -188,7 +188,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
       descricao: 'Cria cômodos (piso, paredes, telhado). rets em CÉLULAS de 1,5 m, x1/y1 exclusivos. telhado = estilo, cobertura ou null. Guia: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         comodos: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
-          rets: { type: 'array', minItems: 1, items: esquemaDoRetanguloDeCelulas }, tipo: { type: 'string', enum: TIPOS_DE_COMODO.map(t => t.id) }, nome: { type: 'string' },
+          rets: { type: 'array', minItems: 1, items: esquemaDoRetanguloDeCelulas }, tipo: { type: 'string' }, nome: { type: 'string' },
           piso: { type: 'string' }, papel: { type: 'string' }, telhado: { type: ['string', 'null'] }, telhadoVisivel: { type: 'boolean' },
           telhadoForma: { type: 'string', enum: [...FORMAS_DE_TELHADO] }, telhadoCumeeira: { type: 'string', enum: [...CUMEEIRAS_DE_TELHADO] },
           telhadoDetalhes: { type: 'array', items: { type: 'string', enum: [...DETALHES_DE_TELHADO] } },

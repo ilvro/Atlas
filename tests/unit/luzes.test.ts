@@ -47,4 +47,6 @@ test('sem função, sem luz a sugerir e fora da fila quando já há luz; a luz �
   assert.equal(proximaSugestao(ctx(m), 'e', sem)?.tipo, 'luz');
   m.lights.l = { id: 'l', position: [1, 1], radius: 4, color: '#fff', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'fire', on: true, nightOnly: false, preset: null, rays: false };
   assert.equal(proximaSugestao(ctx(m), 'e', sem), null);
+  const patio = mapaCom(sala('p', 0, 0, 4, 4, { name: 'Pátio', function: 'patio' }));
+  assert.equal(propostaDeLuzes(ctx(patio), 'p'), null, 'pátio ao ar livre não recebe luz automática');
 });

@@ -21,6 +21,8 @@ export interface LuzDaFuncao {
   tamanho: 'principal' | 'pequena';
   /** Receitas em que a luz prefere ficar (sobre a mesa, o balcão…). */
   sobre: string[];
+  /** Quando verdadeiro, a função ao ar livre não recebe luz automática. */
+  semLuz?: boolean;
 }
 export const LUZES_POR_FUNCAO: Readonly<Record<string, LuzDaFuncao>> = {
   quarto: { m2PorLuz: 20, tamanho: 'pequena', sobre: ['mesinha', 'comoda'] },
@@ -38,6 +40,16 @@ export const LUZES_POR_FUNCAO: Readonly<Record<string, LuzDaFuncao>> = {
   capela: { m2PorLuz: 14, tamanho: 'pequena', sobre: ['altar'] },
   forja: { m2PorLuz: 14, tamanho: 'principal', sobre: ['bigorna', 'lareira.pedra'] },
   porao: { m2PorLuz: 18, tamanho: 'principal', sobre: [] },
+  estabulo: { m2PorLuz: 18, tamanho: 'principal', sobre: [] },
+  celeiro: { m2PorLuz: 20, tamanho: 'principal', sobre: [] },
+  deposito: { m2PorLuz: 18, tamanho: 'principal', sobre: ['estante.piso'] },
+  loja: { m2PorLuz: 16, tamanho: 'principal', sobre: ['balcao'] },
+  oficina: { m2PorLuz: 16, tamanho: 'principal', sobre: ['bancada.trabalho', 'mesa.retangular'] },
+  cela: { m2PorLuz: 18, tamanho: 'principal', sobre: [] },
+  dormitorio: { m2PorLuz: 18, tamanho: 'pequena', sobre: ['comoda'] },
+  refeitorio: { m2PorLuz: 16, tamanho: 'principal', sobre: ['mesa.banquete', 'mesa.taverna', 'mesa.retangular'] },
+  salao: { m2PorLuz: 16, tamanho: 'principal', sobre: ['mesa.banquete', 'mesa.oval', 'mesa.retangular'] },
+  patio: { m2PorLuz: 20, tamanho: 'pequena', sobre: [], semLuz: true },
 };
 
 const DISTANCIA_MINIMA = 2;
@@ -49,7 +61,7 @@ const distancia = (a: Ponto, b: Ponto) => Math.hypot(a[0] - b[0], a[1] - b[1]);
  */
 export function propostaDeLuzes(c: Contexto, roomId: string): Proposta | null {
   const sala = c.m.rooms[roomId], ins = insightDoComodo(c.m, roomId), regra = sala?.function ? LUZES_POR_FUNCAO[sala.function] : null;
-  if (!sala || !ins || !regra || ins.luzes.length) return null;
+  if (!sala || !ins || !regra || regra.semLuz || ins.luzes.length) return null;
   const preset = presetDeLuz(LUZES_POR_GENERO[generoDe(c.m.style.genre).id]![regra.tamanho]); if (!preset) return null;
   const gerarId = c.gerarId ?? novoIdEntidade, comprimento = Math.max(ins.caixa.x1 - ins.caixa.x0, ins.caixa.y1 - ins.caixa.y0);
   const quantas = Math.max(1, regra.aCadaMetros ? Math.round(comprimento / regra.aCadaMetros) : Math.round(ins.area / regra.m2PorLuz));
