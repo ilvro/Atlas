@@ -115,7 +115,7 @@ Testes: manual (salvar um arquivo do Atlas com o app aberto → aviso na aba do 
 Pronto quando: o ciclo editar → aviso → recarregar funciona sem fechar o app.
 Commit: `desktop app shows reload notice after background rebuild`
 
-### A6 — Documentação  ⬜
+### A6 — Documentação  ✅
 Objetivo: quem lê sabe que o app se atualiza e o que ainda exige reinício.
 Depende de: A5.
 Arquivos: mudar `Atlas/docs/assistente/LEIAME.md` (passo 3), `Atlas/scripts/ponte/LEIAME.md` e o `README.md` da Mesa (seção do app de desktop, se houver).
