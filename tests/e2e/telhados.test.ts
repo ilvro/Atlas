@@ -176,3 +176,63 @@ test('mestre controla telhados na sessão: chave geral nos três estados (chega 
   assert.deepEqual(errosProj, []);
   await ctx.close();
 });
+
+test('telhado por edifício: faces texturizadas, luz e sombra do sol e cobertura distinta', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await sessao(page, `(s, a) => {
+    const cel = []; for (let y = 4; y < 7; y++) for (let x = 6; x < 10; x++) cel.push([x, y]);
+    s.store.executar({ tipo: "terreno.base", material: "areia" });
+    s.store.executar({ tipo: "clima.aplicar", patch: { preset: "tarde", time: "12:00", ambient: { color: "#ffffff", intensity: 1 }, sun: { angle: 1.57, color: "#fff8e8", intensity: 1 } } });
+    s.store.executar({ tipo: "acabamento.atualizar", patch: { preset: "nenhum", texture: 0, vignette: 0, saturation: 1, grain: 0, tint: "#ffffff" } });
+    s.store.executar({ tipo: "comodo.criar", id: "casa", nome: "Casa", funcao: "sala", piso: { material: "areia", seed: 1 }, papel: null, telhado: "telha.barro", celulas: cel });
+    s.store.executar({ tipo: "comodo.atualizar", id: "casa", patch: { roof: { shape: "quatro-aguas", details: ["chamine"] } } });
+    s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.fora });
+    s.store.executar({ tipo: "sessao.revelar", ids: ["casa"] });
+  }`, { fora: peca('p1', 'Fora', 6.5, 12.5) });
+  await page.waitForTimeout(900);
+
+  await page.click('[data-testid="modo-sessao"]');
+  await page.waitForTimeout(300);
+  await page.click('[data-testid="vista-jogador"]');
+  await page.waitForTimeout(900);
+
+  const bNorte = await brilho(page, [11.0, 6.2], [13.0, 7.6]);
+  const bSul = await brilho(page, [11.0, 8.9], [13.0, 10.3]);
+  const diffQuatro = Math.abs(bNorte - bSul) / Math.max(bNorte, bSul);
+  assert.ok(diffQuatro > 0.1 && bNorte > bSul, `face norte (${bNorte.toFixed(1)}) deve ficar >10% mais clara que sul (${bSul.toFixed(1)}) ao meio-dia`);
+
+  const faixaSombra: [[number, number], [number, number]] = [[11.0, 10.85], [13.0, 11.25]];
+  const bComTelhado = await brilho(page, ...faixaSombra);
+
+  // Sem sun (luz de cima à esquerda) + duas águas com ridge: 'v' -> divisão vertical entre oeste e leste
+  await sessao(page, `(s) => {
+    s.store.executar({ tipo: "clima.aplicar", patch: { sun: null } });
+    s.store.executar({ tipo: "comodo.atualizar", id: "casa", patch: { roof: { shape: "duas-aguas", ridge: "v", details: [] } } });
+  }`);
+  await page.waitForTimeout(800);
+
+  const bOeste = await brilho(page, [9.2, 7.0], [11.5, 9.5]);
+  const bLeste = await brilho(page, [12.5, 7.0], [14.8, 9.5]);
+  assert.ok(bOeste > bLeste * 1.1, `duas águas ridge v: lado oeste (${bOeste.toFixed(1)}) mais claro que leste (${bLeste.toFixed(1)})`);
+
+  // Trocar cobertura para telha.ardosia muda visivelmente os pixels do telhado
+  await sessao(page, `(s) => {
+    s.store.executar({ tipo: "comodo.atualizar", id: "casa", patch: { roof: { material: "telha.ardosia" } } });
+  }`);
+  await page.waitForTimeout(900);
+  const bArdosia = await brilho(page, [9.2, 7.0], [11.5, 9.5]);
+  assert.ok(Math.abs(bOeste - bArdosia) > 15, `telha.barro (${bOeste.toFixed(1)}) e telha.ardosia (${bArdosia.toFixed(1)}) devem divergir em luminosidade`);
+
+  // Sem telhado ao meio-dia: a faixa ao sul do edifício perde a sombra do telhado e fica mais clara
+  await sessao(page, `(s) => {
+    s.store.executar({ tipo: "clima.aplicar", patch: { sun: { angle: 1.57, color: "#fff8e8", intensity: 1 } } });
+    s.store.executar({ tipo: "comodo.atualizar", id: "casa", patch: { roof: { material: null, visible: false } } });
+  }`);
+  await page.waitForTimeout(800);
+  const bSemTelhado = await brilho(page, ...faixaSombra);
+  assert.ok(bSemTelhado > bComTelhado, `faixa de sombra ao sul sem telhado (${bSemTelhado.toFixed(1)}) deve ficar mais clara que com telhado (${bComTelhado.toFixed(1)})`);
+
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
