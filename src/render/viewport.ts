@@ -145,7 +145,7 @@ export interface Viewport {
    * Fotografa o mapa como o mestre o vê, sem marcadores nem interface: guarda a câmera e o modo, liga o projetor, enquadra `caixa` (padrão: o mapa todo),
    * espera o assar terminar, extrai a cena e restaura tudo. Devolve um PNG (dataURL) cujo maior lado cabe em `ladoMaximo`, mais a escala e a caixa efetivas.
    */
-  capturar(opcoes?: { caixa?: Caixa; ladoMaximo?: number }): Promise<Captura>;
+  capturar(opcoes?: { caixa?: Caixa; ladoMaximo?: number; vista?: 'planta' | 'telhados' }): Promise<Captura>;
   destruir(): void;
 }
 
@@ -1034,15 +1034,17 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     });
   }
 
-  async function capturar(opcoes: { caixa?: Caixa; ladoMaximo?: number } = {}): Promise<Captura> {
+  async function capturar(opcoes: { caixa?: Caixa; ladoMaximo?: number; vista?: 'planta' | 'telhados' } = {}): Promise<Captura> {
     const m = doc(), pedida = opcoes.caixa ?? { x0: 0, y0: 0, x1: m.bounds.width, y1: m.bounds.height };
     const caixa = { x0: Math.max(0, Math.min(pedida.x0, pedida.x1)), y0: Math.max(0, Math.min(pedida.y0, pedida.y1)), x1: Math.min(m.bounds.width, Math.max(pedida.x0, pedida.x1)), y1: Math.min(m.bounds.height, Math.max(pedida.y0, pedida.y1)) };
     if (caixa.x1 - caixa.x0 < 0.5 || caixa.y1 - caixa.y0 < 0.5) throw new Error('A caixa está fora do mapa ou é pequena demais.');
     const ladoMaximo = Math.max(64, Math.round(opcoes.ladoMaximo ?? 1280));
+    const vista = opcoes.vista ?? 'planta';
     const camera0 = camera, modo0 = modoProjetor;
     try {
       camAnim = null;
       projetor(true);
+      if (vista === 'telhados') cena.forcarTelhados(1);
       definirCamera(calcularEnquadre({ x: caixa.x0, y: caixa.y0, largura: caixa.x1 - caixa.x0, altura: caixa.y1 - caixa.y0 }, tela(), 0));
       const limite = performance.now() + 8_000;
       let calmos = 0;
@@ -1086,6 +1088,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       const reducao = fonte.width / tela_.width;
       return { dataUrl, largura: fonte.width, altura: fonte.height, pxPorMetro: Math.round(camera.zoom * resolucao * reducao * 100) / 100, caixa, bytes, qualidade, ...(aviso ? { aviso } : {}) };
     } finally {
+      if (vista === 'telhados') cena.forcarTelhados(null);
       projetor(modo0);
       definirCamera(camera0);
     }

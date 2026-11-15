@@ -31,7 +31,7 @@ export interface ContextoDeLeitura {
   /** O que a câmera mostra agora, em metros; `null` quando não há editor na tela. */
   caixaVisivel?: () => Caixa | null;
   /** Fotografa o mapa aberto (o viewport); ausente ou `null` quando não há editor na tela. */
-  capturar?: (opcoes: { caixa?: { x0: number; y0: number; x1: number; y1: number }; ladoMaximo?: number }) => Promise<{ dataUrl: string; largura: number; altura: number; pxPorMetro: number; bytes: number; qualidade: number; caixa: { x0: number; y0: number; x1: number; y1: number }; aviso?: string }> | null;
+  capturar?: (opcoes: { caixa?: { x0: number; y0: number; x1: number; y1: number }; ladoMaximo?: number; vista?: 'planta' | 'telhados' }) => Promise<{ dataUrl: string; largura: number; altura: number; pxPorMetro: number; bytes: number; qualidade: number; caixa: { x0: number; y0: number; x1: number; y1: number }; aviso?: string }> | null;
 }
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -241,16 +241,19 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
     },
     {
       nome: 'atlas_ver_mapa',
-      descricao: 'Captura imagem JPEG do mapa aberto (todo, ou recorte com caixa [x0,y0,x1,y1] em metros). Retorna escala e caixa.',
-      esquema: { type: 'object', properties: { caixa: { type: 'array', items: { type: 'number' }, minItems: 4, maxItems: 4 }, ladoMaximo: { type: 'number', minimum: 256, maximum: 1600 } }, required: [], additionalProperties: false },
+      descricao: 'Captura JPEG do mapa aberto (todo ou caixa [x0,y0,x1,y1] m). vista: planta (interiores) ou telhados (como os jogadores veem de fora). Retorna escala e caixa.',
+      esquema: { type: 'object', properties: { caixa: { type: 'array', items: { type: 'number' }, minItems: 4, maxItems: 4 }, ladoMaximo: { type: 'number', minimum: 256, maximum: 1600 }, vista: { type: 'string', enum: ['planta', 'telhados'] } }, required: [], additionalProperties: false },
       anotacoes: { leitura: true },
       async executar(args) {
         const c = args.caixa;
         if (c !== undefined && !(Array.isArray(c) && c.length === 4 && c.every(n => typeof n === 'number' && Number.isFinite(n)))) throw new Error('"caixa" deve ser [x0, y0, x1, y1] em metros.');
+        const v = args.vista;
+        if (v !== undefined && v !== 'planta' && v !== 'telhados') throw new Error('"vista" deve ser "planta" ou "telhados".');
+        const vista: 'planta' | 'telhados' = v ?? 'planta';
         if (!ctx.mapaAberto()) throw new Error('Não há mapa aberto: use atlas_abrir.');
         const lm = args.ladoMaximo;
         if (lm !== undefined && !(typeof lm === 'number' && Number.isFinite(lm) && lm >= 256 && lm <= 1600)) throw new Error('"ladoMaximo" deve ser um número de 256 a 1600.');
-        const opcoes = { ...(lm !== undefined ? { ladoMaximo: lm } : {}), ...(c ? { caixa: { x0: c[0] as number, y0: c[1] as number, x1: c[2] as number, y1: c[3] as number } } : {}) };
+        const opcoes = { ...(lm !== undefined ? { ladoMaximo: lm } : {}), ...(c ? { caixa: { x0: c[0] as number, y0: c[1] as number, x1: c[2] as number, y1: c[3] as number } } : {}), vista };
         let p = ctx.capturar?.(opcoes);
         if (!p && await esperarEditor(ctx, ESPERA_DO_EDITOR_MS)) p = ctx.capturar?.(opcoes);
         if (!p) throw new Error('O editor não está na tela: abra o mapa no Atlas (atlas_abrir).');
@@ -265,7 +268,7 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
         const textoAviso = r.aviso ? ` Aviso: ${r.aviso}.` : '';
         return [
           imagem(r.dataUrl),
-          { tipo: 'texto', texto: `Imagem ${r.largura}×${r.altura} px. Escala: ${r.pxPorMetro} px por metro. JPEG de ${Math.round(r.bytes / 1024)} KB (qualidade ${r.qualidade}). Caixa em metros: [${r1(k.x0)}, ${r1(k.y0)}, ${r1(k.x1)}, ${r1(k.y1)}] (o pixel 0,0 é o ponto x0,y0).${textoAviso}` },
+          { tipo: 'texto', texto: `Imagem ${r.largura}×${r.altura} px (vista: ${vista}). Escala: ${r.pxPorMetro} px por metro. JPEG de ${Math.round(r.bytes / 1024)} KB (qualidade ${r.qualidade}). Caixa em metros: [${r1(k.x0)}, ${r1(k.y0)}, ${r1(k.x1)}, ${r1(k.y1)}] (o pixel 0,0 é o ponto x0,y0).${textoAviso}` },
         ];
       },
     },

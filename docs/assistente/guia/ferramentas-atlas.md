@@ -166,5 +166,7 @@ Parâmetros:
 
 ## atlas_ver_mapa
 
-Captura imagem JPEG do mapa aberto. Sem caixa, mostra o mapa todo; com caixa [x0,y0,x1,y1] em metros, mostra recorte. Retorna escala e caixa.
+Captura imagem JPEG do mapa aberto. Sem `caixa`, mostra o mapa todo; com `caixa` `[x0,y0,x1,y1]` em metros, mostra o recorte. Retorna escala e caixa.
+
+- `vista`: `'planta'` (padrão: interiores, paredes e mobília) ou `'telhados'` (telhados fechados, como os jogadores veem as construções por fora). Depois de construir casas, confira as duas vistas: `planta` para validar portas, circulação e mobília; `telhados` para validar a cobertura, cumeeiras, sombras e silhueta dos edifícios na paisagem.
 
