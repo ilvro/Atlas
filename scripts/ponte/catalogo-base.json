@@ -851,12 +851,19 @@
   },
   {
     "nome": "atlas_mapa_ler",
-    "descricao": "Resume o mapa (aberto ou por id): terreno, cômodos, objetos, luzes, regiões, peças, clima, momentos e notas. O aberto e os de abas em segundo plano vêm ao vivo, com naoSalvo.",
+    "descricao": "Resume o mapa (aberto ou por id): edifícios, cômodos (forma e telhado), terreno, objetos, luzes, regiões, peças, clima, momentos e notas. comodos filtra por ids.",
     "esquema": {
       "type": "object",
       "properties": {
         "id": {
           "type": "string"
+        },
+        "comodos": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 100
         }
       },
       "required": [],

@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { ferramentasDeLeitura, resumirMapa, type ContextoDeLeitura } from '../../src/app/ponte-leitura.ts';
+import { codificar } from '../../src/domain/celulas.ts';
 import { lerMapa } from '../../src/domain/migracoes.ts';
-import { criarMapa } from '../../src/domain/mapa.ts';
+import { criarMapa, type Comodo } from '../../src/domain/mapa.ts';
 import { listaDeReceitas } from '../../src/procedural/receitas/index.ts';
 import { PRESETS_DE_CLIMA } from '../../src/domain/presets.ts';
 
@@ -259,4 +260,100 @@ test('mapa em aba de segundo plano sem edições: naoSalvo false e fora da marca
   const { chamar } = montar(covil, { sessaoEmCache: id => id === 'outro' ? { mapa: { ...covil, id: 'outro' }, naoSalvo: false } : null });
   assert.equal(JSON.parse(await chamar('atlas_mapa_ler', { id: 'outro' })).naoSalvo, false);
   assert.equal('naoSalvo' in JSON.parse(await chamar('atlas_mapas_listar')).mapas[1], false);
+});
+
+function criarComodoTeste(
+  id: string,
+  nome: string,
+  rets: [number, number, number, number][],
+  roof: Comodo['roof'],
+  funcao: string | null = 'sala',
+): Comodo {
+  const celulas: [number, number][] = [];
+  for (const [x0, y0, x1, y1] of rets) {
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) celulas.push([x, y]);
+  }
+  return {
+    id,
+    name: nome,
+    function: funcao,
+    cells: codificar(celulas),
+    floor: { material: 'tabuas.carvalho', seed: 1 },
+    wallpaper: null,
+    wallStyle: null,
+    palette: null,
+    roof,
+    levelId: null,
+  };
+}
+
+test('atlas_mapa_ler: edifícios, forma em L (rets), telhado de estilo/ajustado, resumo.retangulares e filtro comodos', async () => {
+  const m = criarMapa({ id: 'vila', nome: 'Vila' });
+  // Edifício 1 (em L): duas salas que se tocam com prefixo "Casa Falk · "
+  const c1 = criarComodoTeste('c1', 'Casa Falk · sala', [[2, 2, 6, 5]], { material: 'telha.ardosia', visible: true, shape: 'duas-aguas', steep: true, details: ['cruz'] }, 'capela');
+  const c2 = criarComodoTeste('c2', 'Casa Falk · anexo', [[4, 5, 6, 7]], { material: 'telha.ardosia', visible: true, shape: 'piramide', steep: false, details: ['chamine'] }, 'sala');
+  // Edifício 2 (cômodo único em L): 2 rets iguais aos de entrada, sem telhado
+  const retsEmL: [number, number, number, number][] = [[10, 2, 14, 4], [10, 4, 12, 6]];
+  const cL = criarComodoTeste('cL', 'Oficina em L', retsEmL, { material: null, visible: false }, 'forja');
+  // Edifício 3 (retangular simples)
+  const cRet = criarComodoTeste('cRet', 'Cabana', [[16, 2, 19, 5]], { material: 'telha.palha', visible: true, shape: 'quatro-aguas', steep: false, details: [] }, 'quarto');
+  // Varanda ao ar livre sem telhado (não entra em edifício nem em comodosSemTelhado)
+  const cVar = criarComodoTeste('cVar', 'Varanda', [[16, 5, 19, 6]], { material: null, visible: false }, 'varanda');
+
+  m.rooms = { c1, c2, cL, cRet, cVar };
+
+  const { chamar } = montar(m);
+  const r = JSON.parse(await chamar('atlas_mapa_ler'));
+
+  const porId = Object.fromEntries(r.comodos.map((c: { id: string }) => [c.id, c]));
+  // Cômodo em L devolve os 2 rets de entrada
+  assert.deepEqual(porId.cL.rets, retsEmL);
+  assert.equal(porId.cL.telhado, null);
+  assert.equal(porId.cL.area, 12 * 2.25);
+
+  // Telhado de estilo igreja volta como { estilo: 'igreja' }
+  assert.deepEqual(porId.c1.telhado, { estilo: 'igreja' });
+  // Telhado ajustado volta por campos
+  assert.deepEqual(porId.c2.telhado, { cobertura: 'telha.ardosia', forma: 'piramide', ingreme: false, detalhes: ['chamine'] });
+  // Choupana volta como { estilo: 'choupana' }
+  assert.deepEqual(porId.cRet.telhado, { estilo: 'choupana' });
+
+  // Duas salas que se tocam caem no mesmo edificio
+  assert.equal(porId.c1.edificio, 'c1');
+  assert.equal(porId.c2.edificio, 'c1');
+  assert.equal('edificio' in porId.cVar, false);
+
+  const ed1 = r.edificios.find((e: { id: string }) => e.id === 'c1');
+  assert.equal(ed1.nome, 'Casa Falk');
+  assert.deepEqual(ed1.salas, ['c1', 'c2']);
+  assert.deepEqual(ed1.telhados, ['igreja', 'telha.ardosia']);
+  assert.equal(ed1.area, (12 + 4) * 2.25);
+  assert.deepEqual(ed1.caixa, [3, 3, 6, 7.5]);
+
+  // Resumo: 3 edifícios (c1+c2 em L, cL em L, cRet retangular) -> retangulares = 1, comodosSemTelhado = 1 (cL)
+  assert.equal(r.resumo.edificios, 3);
+  assert.equal(r.resumo.retangulares, 1);
+  assert.equal(r.resumo.comodosSemTelhado, 1);
+  assert.equal(r.resumo.areaMin, 9 * 2.25);
+  assert.equal(r.resumo.areaMax, 16 * 2.25);
+
+  // Filtro opcional comodos: limita aos ids pedidos
+  const filtrado = JSON.parse(await chamar('atlas_mapa_ler', { comodos: ['cL'] }));
+  assert.deepEqual(filtrado.comodos.map((c: { id: string }) => c.id), ['cL']);
+  assert.deepEqual(filtrado.comodos[0].rets, retsEmL);
+});
+
+test('resumirMapa: troca rets por retsResumidos quando o JSON passa de 60 KB, salvo com filtro comodos', () => {
+  const m = criarMapa({ id: 'grande', nome: 'Grande' });
+  m.notes = 'x'.repeat(61_000);
+  m.rooms = {
+    c1: criarComodoTeste('c1', 'Casa', [[2, 2, 6, 5], [4, 5, 6, 7]], { material: null, visible: false }),
+  };
+  const r = resumirMapa(m) as { comodos: { id: string; rets?: unknown; retsResumidos?: number }[] };
+  assert.equal('rets' in r.comodos[0]!, false);
+  assert.equal(r.comodos[0]!.retsResumidos, 2);
+
+  const detalhado = resumirMapa(m, { comodos: ['c1'] }) as { comodos: { id: string; rets?: unknown; retsResumidos?: number }[] };
+  assert.equal(Array.isArray(detalhado.comodos[0]!.rets), true);
+  assert.equal('retsResumidos' in detalhado.comodos[0]!, false);
 });
