@@ -1,5 +1,6 @@
 import { json, texto, type FerramentaDaPonte } from '#mesa/ponte';
 import { arranjar, type Padrao, type PedidoDeArranjo } from '../authoring/arranjo.ts';
+import { caminho, type PedidoDeCaminho } from '../authoring/caminho.ts';
 import { comodos, ErroDeConstrucao, espalhar, luzes, objetos, paredes, portas, regioes, terreno, type Construcao } from '../authoring/construcao.ts';
 import { construirEdificios, type PedidoDeEdificio } from '../authoring/edificio-construir.ts';
 import type { FormaDoEdificio, Frente } from '../authoring/edificio.ts';
@@ -183,6 +184,50 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
             comandos.push({ tipo: 'terreno.correnteza', material: textoOpcional(c.material, 'material', 80) ?? '', flow: { angle: numero(c.angulo, 'correnteza.angulo', -100, 100), speed: numero(c.velocidade, 'correnteza.velocidade', 0, 3) } });
           }
           return { comandos, ids: [] };
+        }))];
+      },
+    },
+    {
+      nome: 'atlas_caminho',
+      descricao: 'Traça caminhos orgânicos em METROS (curva, largura viva, borda e sulcos), de 1 a 20 num passo de desfazer. Guia: plataforma_guia ferramentas-atlas.',
+      esquema: { type: 'object', properties: {
+        caminhos: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'object', properties: {
+          pontos: { type: 'array', minItems: 2, items: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 } },
+          largura: { oneOf: [{ type: 'number' }, { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 }] },
+          material: { type: 'string' },
+          borda: { type: 'object', properties: { material: { type: 'string' }, largura: { type: 'number' } }, required: ['material', 'largura'], additionalProperties: false },
+          sulcos: { type: 'boolean' },
+          irregular: { type: 'number' },
+        }, required: ['pontos', 'largura', 'material'], additionalProperties: false } },
+        semente,
+      }, required: ['caminhos'], additionalProperties: false },
+      anotacoes: { destrutiva: true },
+      async executar(args) {
+        const lista = args.caminhos;
+        if (!Array.isArray(lista) || !lista.length) throw new Error('Falta "caminhos": uma lista de 1 a 20 caminhos.');
+        if (lista.length > 20) throw new Error(`"caminhos" aceita até 20 itens por chamada (recebeu ${lista.length}).`);
+        const s = sementeDe(args);
+        const pedidos: PedidoDeCaminho[] = lista.map((raw, i) => {
+          const item = objeto(raw, `caminhos[${i}]`);
+          const larg = item.largura;
+          let largura: number | [number, number];
+          if (typeof larg === 'number') largura = numero(larg, `caminhos[${i}].largura`, 0.25, 40);
+          else if (Array.isArray(larg) && larg.length === 2) largura = [numero(larg[0], `caminhos[${i}].largura[0]`, 0.25, 40), numero(larg[1], `caminhos[${i}].largura[1]`, 0.25, 40)];
+          else throw new Error(`caminhos[${i}].largura deve ser número ou [min, max].`);
+          const bordaRaw = item.borda === undefined ? undefined : objeto(item.borda, `caminhos[${i}].borda`);
+          return {
+            pontos: pontos(item.pontos, `caminhos[${i}].pontos`),
+            largura,
+            material: String(item.material ?? ''),
+            ...(bordaRaw ? { borda: { material: String(bordaRaw.material ?? ''), largura: numero(bordaRaw.largura, `caminhos[${i}].borda.largura`, 0.25, 10) } } : {}),
+            ...(typeof item.sulcos === 'boolean' ? { sulcos: item.sulcos } : {}),
+            ...(item.irregular !== undefined ? { irregular: numero(item.irregular, `caminhos[${i}].irregular`, 0, 5) } : {}),
+          };
+        });
+        return [texto(escrever(ctx, `${pedidos.length} caminho(s)`, mapa => {
+          const comandos: Comando[] = [];
+          for (let i = 0; i < pedidos.length; i++) comandos.push(...caminho(mapa, pedidos[i]!, s + i * 31).comandos);
+          return { comandos, ids: [], resumo: `${pedidos.length} caminho(s) traçado(s). Confira com atlas_ver_mapa.` };
         }))];
       },
     },
@@ -548,6 +593,50 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           if (nota !== undefined) comandos.push({ tipo: 'mapa.notas', texto: nota });
           for (const c of lista) comandos.push({ tipo: 'comodo.notas', id: c.id, patch: c.patch });
           return { comandos, ids: [] };
+        }))];
+      },
+    },
+    {
+      nome: 'atlas_caminho',
+      descricao: 'Traça caminhos orgânicos em METROS (curva, largura viva, borda e sulcos), de 1 a 20 num passo de desfazer. Guia: plataforma_guia ferramentas-atlas.',
+      esquema: { type: 'object', properties: {
+        caminhos: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'object', properties: {
+          pontos: { type: 'array', minItems: 2, items: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 } },
+          largura: { oneOf: [{ type: 'number' }, { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 }] },
+          material: { type: 'string' },
+          borda: { type: 'object', properties: { material: { type: 'string' }, largura: { type: 'number' } }, required: ['material', 'largura'], additionalProperties: false },
+          sulcos: { type: 'boolean' },
+          irregular: { type: 'number' },
+        }, required: ['pontos', 'largura', 'material'], additionalProperties: false } },
+        semente,
+      }, required: ['caminhos'], additionalProperties: false },
+      anotacoes: { destrutiva: true },
+      async executar(args) {
+        const lista = args.caminhos;
+        if (!Array.isArray(lista) || !lista.length) throw new Error('Falta "caminhos": uma lista de 1 a 20 caminhos.');
+        if (lista.length > 20) throw new Error(`"caminhos" aceita até 20 itens por chamada (recebeu ${lista.length}).`);
+        const s = sementeDe(args);
+        const pedidos: PedidoDeCaminho[] = lista.map((raw, i) => {
+          const item = objeto(raw, `caminhos[${i}]`);
+          const larg = item.largura;
+          let largura: number | [number, number];
+          if (typeof larg === 'number') largura = numero(larg, `caminhos[${i}].largura`, 0.25, 40);
+          else if (Array.isArray(larg) && larg.length === 2) largura = [numero(larg[0], `caminhos[${i}].largura[0]`, 0.25, 40), numero(larg[1], `caminhos[${i}].largura[1]`, 0.25, 40)];
+          else throw new Error(`caminhos[${i}].largura deve ser número ou [min, max].`);
+          const bordaRaw = item.borda === undefined ? undefined : objeto(item.borda, `caminhos[${i}].borda`);
+          return {
+            pontos: pontos(item.pontos, `caminhos[${i}].pontos`),
+            largura,
+            material: String(item.material ?? ''),
+            ...(bordaRaw ? { borda: { material: String(bordaRaw.material ?? ''), largura: numero(bordaRaw.largura, `caminhos[${i}].borda.largura`, 0.25, 10) } } : {}),
+            ...(typeof item.sulcos === 'boolean' ? { sulcos: item.sulcos } : {}),
+            ...(item.irregular !== undefined ? { irregular: numero(item.irregular, `caminhos[${i}].irregular`, 0, 5) } : {}),
+          };
+        });
+        return [texto(escrever(ctx, `${pedidos.length} caminho(s)`, mapa => {
+          const comandos: Comando[] = [];
+          for (let i = 0; i < pedidos.length; i++) comandos.push(...caminho(mapa, pedidos[i]!, s + i * 31).comandos);
+          return { comandos, ids: [], resumo: `${pedidos.length} caminho(s) traçado(s). Confira com atlas_ver_mapa.` };
         }))];
       },
     },
