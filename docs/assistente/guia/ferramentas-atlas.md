@@ -69,6 +69,17 @@ Resume o mapa (aberto ou por `id`): `resumo` (contagem de edifícios, área méd
 
 O mapa aberto (com ou sem `id`) e os mapas que estão em abas de segundo plano (o Atlas guarda até 3) vêm do documento vivo, com as edições ainda não gravadas, e trazem `naoSalvo`. `atlas_mapas_listar` e `atlas_o_que_vejo` marcam `naoSalvo: true` quando há edições não gravadas. Os outros mapas vêm do disco.
 
+## atlas_mobiliar
+
+Mobília e ilumina cômodos prontos pela função e pelo gênero com o mesmo gerador da interface (`propostaDeMobilia` e `propostaDeLuzes`), tudo num só passo de desfazer. Use logo depois de criar cômodos (e abrir suas portas) para preencher o interior base; depois, ajuste à mão com `atlas_objetos`, `atlas_mover` ou `atlas_remover` o que conta a história singular daquele lugar.
+
+Parâmetros:
+- `comodos`: lista de 1 a 60 ids de cômodos do mapa aberto (em ordem: cada cômodo vê os anteriores).
+- `luzes`: booleano opcional (`true` por padrão; passe `false` para mobiliar sem criar luzes).
+- `semente`: número opcional para variar o sorteio de móveis e paleta.
+
+A resposta traz o relatório por cômodo (ex.: `"Casa Falk · sala: 9 objetos, 1 luz"`). Cômodos sem regras, pequenos demais ou com id inexistente não abortam o lote: entram no relatório com o motivo.
+
 ## atlas_momento
 
 Cria ou refaz momento no mapa aberto (um passo de desfazer). Sem "id" cria novo; com "id" refaz o existente (inclusive um do mestre; prefira criar outro a menos que ele peça a troca). Tipos de passo em atlas_catalogo { parte: "momentos" }.
