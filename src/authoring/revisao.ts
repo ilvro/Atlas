@@ -1,7 +1,10 @@
+import { decodificar } from '../domain/celulas.ts';
+import { ehNoite, nivelDaLuz } from '../domain/clima.ts';
 import { edificiosDe, type Edificio } from '../domain/edificios.ts';
 import { arestasDeParede, caixaDasCelulas, comodoEm, indiceDeCelulas } from '../domain/geometria.ts';
 import { colunas, linhas, type Comodo, type MapaAtlas } from '../domain/mapa.ts';
 import { FUNCOES_AO_AR_LIVRE } from '../domain/presets.ts';
+import { retangulosDe } from '../domain/telhado-geometria.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { MATERIAIS } from '../procedural/materiais.ts';
 import { caixaDoObjeto, insightDoComodo, tamanhoDoObjeto, type Caixa, type InsightDoComodo } from './insight.ts';
@@ -23,6 +26,25 @@ export const LIMIAR_AREA_INTERIOR_VAZIO = 9;
 export const M2_POR_OBJETO_INTERIOR = 8;
 export const LIMIAR_ESCALA_ARVORE = 2.5;
 export const LIMIAR_ESCALA_ROCHEDO = 1.5;
+
+export const MIN_EDIFICIOS_CASAS_IGUAIS = 5;
+export const LIMIAR_CV_AREA_CASAS = 0.3;
+export const LIMIAR_FRACAO_RETANGULARES = 0.7;
+export const MIN_OBJETOS_FILEIRAS_MECANICAS = 12;
+export const FOLGA_GRADE_FILEIRAS = 2;
+export const LIMIAR_DESVIO_ROTACAO_FILEIRAS = 0.05;
+export const LIMIAR_COPIAS_REPETICAO = 40;
+export const LIMIAR_FRACAO_REPETICAO = 0.35;
+export const MIN_COPIAS_FRACAO_REPETICAO = 12;
+export const LIMIAR_AREA_MANCHA_DISCO = 4;
+export const LIMIAR_CIRCULARIDADE_MANCHA = 0.85;
+export const LIMIAR_OCUPACAO_COMPOSICAO = 0.55;
+export const LIMIAR_DESVIO_CENTRO_COMPOSICAO = 0.1;
+export const LIMIAR_DIFERENCA_MARGENS_COMPOSICAO = 0.3;
+export const LIMIAR_AMBIENTE_ESCURO = 0.45;
+export const LIMIAR_AREA_COMODO_SEM_LUZ = 6;
+
+const TAGS_VEGETACAO = new Set(['arvore', 'arbusto', 'grama']);
 
 const ORDEM_GRAVIDADE: Record<Gravidade, number> = { erro: 0, aviso: 1, dica: 2 };
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -249,6 +271,276 @@ function regraEscalaSuspeita(m: MapaAtlas): Achado[] {
   return achados;
 }
 
+function ehVegetacao(idFonte: string): boolean {
+  const item = ACERVO.item(idFonte);
+  return item ? item.tags.some(t => TAGS_VEGETACAO.has(t)) : false;
+}
+
+function regraCasasIguais(m: MapaAtlas): Achado[] {
+  const salas = Object.values(m.rooms);
+  if (!salas.length) return [];
+  const arestas = arestasDeParede(m);
+  const algumTelhadoAberto = salas.some(s => !s.roof.visible);
+  const salasFiltradas: Record<string, Comodo> = {};
+  for (const s of salas) {
+    if (!s.roof.material && s.function !== null && FUNCOES_AO_AR_LIVRE.has(s.function)) continue;
+    const ins = insightDoComodo(m, s.id, arestas);
+    if (ins && ehSobradoDecorativoFechado(m, s, ins, algumTelhadoAberto)) continue;
+    salasFiltradas[s.id] = s.roof.material ? s : { ...s, roof: { ...s.roof, material: '__agrupar__' } };
+  }
+  const eds = edificiosDe({ rooms: salasFiltradas });
+  if (eds.length < MIN_EDIFICIOS_CASAS_IGUAIS) return [];
+  const areaCel = m.grid.size * m.grid.size;
+  const areas = eds.map(ed => ed.celulas.length * areaCel);
+  const media = areas.reduce((s, a) => s + a, 0) / areas.length;
+  const desvio = Math.sqrt(areas.reduce((s, a) => s + (a - media) ** 2, 0) / areas.length);
+  const cv = media > 0 ? desvio / media : 0;
+  const retangulares = eds.filter(ed => retangulosDe(ed.celulas).length === 1).length;
+  const fracaoRet = retangulares / eds.length;
+  if (cv >= LIMIAR_CV_AREA_CASAS && fracaoRet < LIMIAR_FRACAO_RETANGULARES) return [];
+  const todasCelulas = eds.flatMap(ed => ed.celulas);
+  const c = caixaDasCelulas(m, todasCelulas);
+  return [{
+    regra: 'casas-iguais',
+    gravidade: 'aviso',
+    mensagem: `${eds.length} casas de tamanho e forma parecidos`,
+    sugestao: 'Variar porte por função, plantas em L e anexos, alpendre (o guia de projeto explica).',
+    ids: eds.map(ed => ed.id),
+    ...(c ? { caixa: tuplaCaixa(c) } : {}),
+  }];
+}
+
+function regraFileirasMecanicas(m: MapaAtlas): Achado[] {
+  const porFonte = new Map<string, (typeof m.props)[string][]>();
+  for (const o of Object.values(m.props)) {
+    const id = ACERVO.idDaFonte(o.source);
+    let lista = porFonte.get(id);
+    if (!lista) {
+      lista = [];
+      porFonte.set(id, lista);
+    }
+    lista.push(o);
+  }
+  const achados: Achado[] = [];
+  for (const [id, lista] of porFonte) {
+    const n = lista.length;
+    if (n < MIN_OBJETOS_FILEIRAS_MECANICAS) continue;
+    const limiteGrade = Math.sqrt(n) + FOLGA_GRADE_FILEIRAS;
+    const xs = new Set(lista.map(o => Math.round(o.position[0] * 10)));
+    const ys = new Set(lista.map(o => Math.round(o.position[1] * 10)));
+    const emGradeQuadrada = xs.size <= limiteGrade && ys.size <= limiteGrade;
+    const emGradeRetangular = Math.min(xs.size, ys.size) <= limiteGrade && (xs.size + ys.size) / 2 <= limiteGrade && xs.size * ys.size <= n * 1.25;
+    if (!emGradeQuadrada && !emGradeRetangular) continue;
+    const mediaRot = lista.reduce((s, o) => s + o.rotation, 0) / n;
+    const desvioRot = Math.sqrt(lista.reduce((s, o) => s + (o.rotation - mediaRot) ** 2, 0) / n);
+    if (desvioRot >= LIMIAR_DESVIO_ROTACAO_FILEIRAS) continue;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const o of lista) {
+      if (o.position[0] < x0) x0 = o.position[0];
+      if (o.position[1] < y0) y0 = o.position[1];
+      if (o.position[0] > x1) x1 = o.position[0];
+      if (o.position[1] > y1) y1 = o.position[1];
+    }
+    achados.push({
+      regra: 'fileiras-mecanicas',
+      gravidade: 'aviso',
+      mensagem: `${n} objetos “${id}” alinhados em grade regular e com mesma rotação.`,
+      sugestao: 'Use um conjunto de atlas_espalhar ou varie receita, rotação e espaçamento.',
+      ids: lista.slice(0, 10).map(o => o.id),
+      caixa: [r1(x0), r1(y0), r1(x1), r1(y1)],
+    });
+  }
+  return achados;
+}
+
+function regraRepeticao(m: MapaAtlas): Achado[] {
+  const porFonte = new Map<string, (typeof m.props)[string][]>();
+  let totalNaoVegetacao = 0;
+  for (const o of Object.values(m.props)) {
+    const id = ACERVO.idDaFonte(o.source);
+    if (ehVegetacao(id)) continue;
+    totalNaoVegetacao++;
+    let lista = porFonte.get(id);
+    if (!lista) {
+      lista = [];
+      porFonte.set(id, lista);
+    }
+    lista.push(o);
+  }
+  if (!totalNaoVegetacao) return [];
+  const achados: Achado[] = [];
+  for (const [id, lista] of porFonte) {
+    const n = lista.length;
+    const fracao = n / totalNaoVegetacao;
+    if (n < LIMIAR_COPIAS_REPETICAO && !(n >= MIN_COPIAS_FRACAO_REPETICAO && fracao > LIMIAR_FRACAO_REPETICAO)) continue;
+    achados.push({
+      regra: 'repeticao',
+      gravidade: 'aviso',
+      mensagem: `A receita “${id}” repete ${n} vezes (${Math.round(fracao * 100)}% dos objetos que não são vegetação).`,
+      sugestao: 'Alterne entre 3 a 5 receitas da mesma família para dar variedade visual.',
+      ids: lista.slice(0, 10).map(o => o.id),
+    });
+  }
+  return achados;
+}
+
+function regraManchaEmDisco(m: MapaAtlas): Achado[] {
+  const res = m.terrain.resolution;
+  const areaCel = res * res;
+  const achados: Achado[] = [];
+  for (const camada of Object.values(m.terrain.layers)) {
+    const mat = MATERIAIS[camada.material];
+    if (mat && (mat.uso === 'agua' || mat.uso === 'macico')) continue;
+    const celulas = decodificar(camada.cells);
+    if (celulas.length * areaCel < LIMIAR_AREA_MANCHA_DISCO) continue;
+    const mapaIdx = new Map<string, number>();
+    celulas.forEach(([x, y], i) => mapaIdx.set(`${x},${y}`, i));
+    const visitado = new Uint8Array(celulas.length);
+    for (let i = 0; i < celulas.length; i++) {
+      if (visitado[i]) continue;
+      const comp: [number, number][] = [];
+      const fila: number[] = [i];
+      visitado[i] = 1;
+      for (let q = 0; q < fila.length; q++) {
+        const idx = fila[q]!;
+        const [cx, cy] = celulas[idx]!;
+        comp.push([cx, cy]);
+        for (const [nx, ny] of [[cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]] as const) {
+          const viz = mapaIdx.get(`${nx},${ny}`);
+          if (viz !== undefined && !visitado[viz]) {
+            visitado[viz] = 1;
+            fila.push(viz);
+          }
+        }
+      }
+      const areaComp = comp.length * areaCel;
+      if (areaComp < LIMIAR_AREA_MANCHA_DISCO) continue;
+      let sx = 0, sy = 0, minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const [cx, cy] of comp) {
+        const mx = (cx + 0.5) * res;
+        const my = (cy + 0.5) * res;
+        sx += mx;
+        sy += my;
+        if (cx * res < minX) minX = cx * res;
+        if (cy * res < minY) minY = cy * res;
+        if ((cx + 1) * res > maxX) maxX = (cx + 1) * res;
+        if ((cy + 1) * res > maxY) maxY = (cy + 1) * res;
+      }
+      const centroX = sx / comp.length;
+      const centroY = sy / comp.length;
+      let r = 0;
+      for (const [cx, cy] of comp) {
+        const d = Math.hypot((cx + 0.5) * res - centroX, (cy + 0.5) * res - centroY) + res * 0.5;
+        if (d > r) r = d;
+      }
+      const razao = r > 0 ? areaComp / (Math.PI * r * r) : 0;
+      if (razao > LIMIAR_CIRCULARIDADE_MANCHA) {
+        achados.push({
+          regra: 'mancha-em-disco',
+          gravidade: 'dica',
+          mensagem: `Mancha de terreno “${camada.material}” (${r1(areaComp)} m²) tem formato quase circular (razão ${ Math.round(razao * 100) / 100 }).`,
+          sugestao: 'Use traços orgânicos (caminho, polígono irregular ou varios circulos de raios diferentes) em vez de um disco isolado.',
+          ids: [camada.id],
+          caixa: [r1(minX), r1(minY), r1(maxX), r1(maxY)],
+        });
+      }
+    }
+  }
+  return achados;
+}
+
+function regraComposicaoCentralizada(m: MapaAtlas): Achado[] {
+  if (!temTerrenoExterior(m)) return [];
+  const W = m.bounds.width;
+  const H = m.bounds.height;
+  if (W <= 0 || H <= 0) return [];
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  let temConstrucao = false;
+  for (const s of Object.values(m.rooms)) {
+    const c = caixaDasCelulas(m, decodificar(s.cells));
+    if (!c) continue;
+    temConstrucao = true;
+    if (c.x0 < x0) x0 = c.x0;
+    if (c.y0 < y0) y0 = c.y0;
+    if (c.x1 > x1) x1 = c.x1;
+    if (c.y1 > y1) y1 = c.y1;
+  }
+  for (const o of Object.values(m.props)) {
+    const id = ACERVO.idDaFonte(o.source);
+    if (ehVegetacao(id)) continue;
+    const c = caixaDoObjeto(o);
+    temConstrucao = true;
+    if (c.x0 < x0) x0 = c.x0;
+    if (c.y0 < y0) y0 = c.y0;
+    if (c.x1 > x1) x1 = c.x1;
+    if (c.y1 > y1) y1 = c.y1;
+  }
+  if (!temConstrucao) return [];
+  const cx0 = Math.max(0, x0), cy0 = Math.max(0, y0);
+  const cx1 = Math.min(W, x1), cy1 = Math.min(H, y1);
+  if (cx1 <= cx0 || cy1 <= cy0) return [];
+  const ocupacao = ((cx1 - cx0) * (cy1 - cy0)) / (W * H);
+  if (ocupacao >= LIMIAR_OCUPACAO_COMPOSICAO) return [];
+  const centroX = (cx0 + cx1) / 2;
+  const centroY = (cy0 + cy1) / 2;
+  const desvioX = Math.abs(centroX - W / 2) / W;
+  const desvioY = Math.abs(centroY - H / 2) / H;
+  if (desvioX >= LIMIAR_DESVIO_CENTRO_COMPOSICAO || desvioY >= LIMIAR_DESVIO_CENTRO_COMPOSICAO) return [];
+  const margens = [cx0, W - cx1, cy0, H - cy1];
+  const minM = Math.min(...margens);
+  const maxM = Math.max(...margens);
+  if (maxM <= 0 || (maxM - minM) / maxM >= LIMIAR_DIFERENCA_MARGENS_COMPOSICAO) return [];
+  return [{
+    regra: 'composicao-centralizada',
+    gravidade: 'dica',
+    mensagem: `Tudo o que foi construído ocupa ${Math.round(ocupacao * 100)}% do mapa no centro, cercado por margens quase iguais.`,
+    sugestao: 'Deixe massas saírem pela borda (estrada, rio, mata) ou componha em diagonal.',
+    ids: [],
+    caixa: [r1(cx0), r1(cy0), r1(cx1), r1(cy1)],
+  }];
+}
+
+function mapaEscuro(m: MapaAtlas): boolean {
+  return ehNoite(m) || m.climate.ambient.intensity < LIMIAR_AMBIENTE_ESCURO;
+}
+
+function regraNoiteSemLuz(m: MapaAtlas): Achado[] {
+  if (!mapaEscuro(m)) return [];
+  const luzesAtivas = Object.values(m.lights).filter(l => nivelDaLuz(l, m) > 0);
+  if (luzesAtivas.length === 0) {
+    return [{
+      regra: 'noite-sem-luz',
+      gravidade: 'aviso',
+      mensagem: 'O mapa tem ambiente escuro ou noturno e nenhuma luz acesa.',
+      sugestao: 'Adicione fontes de luz com atlas_luzes ou objetos luminosos (tocha, poste, fogueira, lareira).',
+      ids: [],
+    }];
+  }
+  const salas = Object.values(m.rooms);
+  if (!salas.length) return [];
+  const arestas = arestasDeParede(m);
+  const indice = indiceDeCelulas(m);
+  const algumTelhadoAberto = salas.some(s => !s.roof.visible);
+  const achados: Achado[] = [];
+  for (const s of salas) {
+    if (s.function !== null && FUNCOES_AO_AR_LIVRE.has(s.function)) continue;
+    const ins = insightDoComodo(m, s.id, arestas);
+    if (!ins || ins.area < LIMIAR_AREA_COMODO_SEM_LUZ || ehSobradoDecorativoFechado(m, s, ins, algumTelhadoAberto)) continue;
+    const temLuz = luzesAtivas.some(l => comodoEm(m, l.position, indice) === s.id);
+    if (!temLuz && ins.janelas.length === 0) {
+      achados.push({
+        regra: 'noite-sem-luz',
+        gravidade: 'dica',
+        mensagem: `O cômodo “${s.name}” (${r1(ins.area)} m²) está sem luz e sem janela num mapa escuro.`,
+        sugestao: 'Adicione uma luz interna (vela, arandela, lareira) com atlas_luzes ou uma janela com atlas_portas.',
+        ids: [s.id],
+        caixa: tuplaCaixa(ins.caixa),
+      });
+    }
+  }
+  return achados;
+}
+
 export const REGRAS: Readonly<Record<string, (m: MapaAtlas) => Achado[]>> = {
   'comodo-sem-acesso': regraComodoSemAcesso,
   'edificio-sem-telhado': regraEdificioSemTelhado,
@@ -256,6 +548,12 @@ export const REGRAS: Readonly<Record<string, (m: MapaAtlas) => Achado[]>> = {
   'porta-bloqueada': regraPortaBloqueada,
   'objeto-fora': regraObjetoFora,
   'escala-suspeita': regraEscalaSuspeita,
+  'casas-iguais': regraCasasIguais,
+  'fileiras-mecanicas': regraFileirasMecanicas,
+  'repeticao': regraRepeticao,
+  'mancha-em-disco': regraManchaEmDisco,
+  'composicao-centralizada': regraComposicaoCentralizada,
+  'noite-sem-luz': regraNoiteSemLuz,
 };
 
 export function revisarMapa(m: MapaAtlas, opcoes?: { regras?: string[] }): Achado[] {

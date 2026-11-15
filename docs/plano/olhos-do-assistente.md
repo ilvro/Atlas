@@ -121,7 +121,7 @@ Testes: um caso mínimo que dispara cada regra e um que não dispara; ordenaçã
 Pronto quando: `npm test` passa; rodar `revisarMapa` sobre um mapa de exemplo da Fase 10 (`src/app/exemplos.ts`) não dá nenhum `erro`.
 Commit: `added structural map review rules`
 
-### B5b — Revisão: regras de composição  ⬜
+### B5b — Revisão: regras de composição  ✅
 Objetivo: a revisão também pega os defeitos de "mapa sem vida".
 Depende de: B5a.
 Ler: `src/authoring/revisao.ts` (B5a), `src/domain/celulas.ts`, `src/authoring/insight.ts` (`caixaDoObjeto`).
