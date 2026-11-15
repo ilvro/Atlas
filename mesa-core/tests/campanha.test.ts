@@ -36,7 +36,7 @@ test('uma entidade precisa de uma campanha existente e de dados válidos', async
   assert.equal(await repo.entidadeDaRef(c.id, fichaRef), undefined);
 });
 
-test('cada aplicativo só altera as próprias referências de uma entidade alheia', async () => {
+test('cada aplicativo só altera etiquetas, notas e as próprias referências de uma entidade alheia', async () => {
   const idb = new IDBFactory(), mesa = await abrir('mesa', idb), ficha = await abrir('ficha', idb), atlas = await abrir('atlas', idb);
   const c = await mesa.criarCampanha({ nome: 'Ilha' });
   const e = await mesa.criarEntidade({ campanhaId: c.id, tipo: 'personagem', nome: 'Muirenn' });
@@ -46,11 +46,16 @@ test('cada aplicativo só altera as próprias referências de uma entidade alhei
   const depois = (await atlas.obterEntidade(e.id))!;
   await atlas.salvarEntidade({ ...depois, refs: [...depois.refs, tokenRef] });
   assert.deepEqual((await mesa.obterEntidade(e.id))!.refs, [fichaRef, tokenRef]);
-  // Mudar o nome, as notas, ou mexer na referência de outro aplicativo: recusado.
+  const atual0 = (await atlas.obterEntidade(e.id))!;
+  // Etiquetas e notas: qualquer aplicativo altera.
+  await atlas.salvarEntidade({ ...atual0, tags: ['npc'], notas: 'Vista no porto' });
+  assert.deepEqual((await mesa.obterEntidade(e.id))!.tags, ['npc']);
+  assert.equal((await mesa.obterEntidade(e.id))!.notas, 'Vista no porto');
+  // Mudar o nome, o retrato, ou mexer na referência de outro aplicativo: recusado.
   const atual = (await atlas.obterEntidade(e.id))!;
-  await assert.rejects(atlas.salvarEntidade({ ...atual, nome: 'Outra' }), /só altera as próprias referências/);
-  await assert.rejects(atlas.salvarEntidade({ ...atual, notas: 'x' }), /só altera as próprias referências/);
-  await assert.rejects(atlas.salvarEntidade({ ...atual, refs: [tokenRef] }), /só altera as próprias referências/);
+  await assert.rejects(atlas.salvarEntidade({ ...atual, nome: 'Outra' }), /só altera etiquetas, notas e as próprias referências/);
+  await assert.rejects(atlas.salvarEntidade({ ...atual, retrato: new Blob(['x']) }), /só altera etiquetas, notas e as próprias referências/);
+  await assert.rejects(atlas.salvarEntidade({ ...atual, refs: [tokenRef] }), /só altera etiquetas, notas e as próprias referências/);
   // Quem criou altera tudo.
   await mesa.salvarEntidade({ ...atual, nome: 'Muirenn da Lua Pálida', notas: 'Herborista' });
   assert.equal((await ficha.obterEntidade(e.id))!.nome, 'Muirenn da Lua Pálida');

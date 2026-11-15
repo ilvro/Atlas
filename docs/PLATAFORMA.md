@@ -123,7 +123,7 @@ O nome "Mesa" funciona em português e inglês, como Jukebox e Ateliê. Pode mud
 | --- | --- | --- |
 | Tema | `localStorage['mesa:tema']` → `{ v: 1, id: 'ordem'\|'prata'\|'neutro', acento?: '#rrggbb' }`; o evento `storage` avisa as outras abas | qualquer aplicativo |
 | Campanha ativa | `localStorage['mesa:campanha-ativa']` → id da campanha | qualquer aplicativo |
-| Campanha | IndexedDB `mesa-campanha-v1` (`campanhas`, `entidades`, `ligacoes`, `sessoes`), sem escopo de caminho | quem criou a entidade altera tudo; os outros só as próprias referências (aplicado pelo repositório e testado) |
+| Campanha | IndexedDB `mesa-campanha-v1` (`campanhas`, `entidades`, `ligacoes`, `sessoes`), sem escopo de caminho | quem criou a entidade altera tudo; os outros só as etiquetas, as notas e as próprias referências (aplicado pelo repositório e testado) |
 | Quadros da Mesa | IndexedDB `mesa-quadros-v1` (`quadros`, `itens`, `imagens`, `ajustes`), próprio da Mesa | só a Mesa |
 | Eventos | `BroadcastChannel('mesa:eventos')`, envelope `{ contrato, app, tipo, id, em, campanhaId, dados, respondeA? }`; fatos só do dono, pedidos de qualquer um, resposta como `mesa.resposta` | todos |
 | Mapas do Atlas | IndexedDB `atlas-v1:<caminho>`, **com** escopo de caminho (interno ao Atlas) | só o Atlas |
