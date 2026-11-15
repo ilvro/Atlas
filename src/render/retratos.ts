@@ -29,14 +29,15 @@ export function criarRetratos(ler: (id: string) => Promise<Blob | null>, aoChega
       if (!pedidas.has(id)) {
         pedidas.add(id);
         void ler(id).then(async blob => {
-          if (!blob || !vivo) return;
+          if (!blob) { pedidas.delete(id); return; }
+          if (!vivo) return;
           const bitmap = await createImageBitmap(blob); if (!vivo) { bitmap.close(); return; }
           bitmaps.set(id, bitmap); prontas.set(id, texturaPropria(bitmap)); aoChegar();
-        }).catch(() => { /* retrato ilegível: a peça segue com a inicial */ });
+        }).catch(() => { pedidas.delete(id); /* retrato ilegível: a peça segue com a inicial */ });
       }
       return null;
     },
-    limpar() { vivo = false; for (const t of prontas.values()) t.destroy(true); for (const t of derivadas.values()) t.destroy(true); prontas.clear(); derivadas.clear(); bitmaps.clear(); },
+    limpar() { vivo = false; for (const t of prontas.values()) t.destroy(true); for (const t of derivadas.values()) t.destroy(true); prontas.clear(); derivadas.clear(); bitmaps.clear(); pedidas.clear(); },
   };
 }
 
