@@ -54,7 +54,7 @@ Lista:
 Pronto quando: um cemitério de teste com 6 tipos de peça e um quintal rural ficam convincentes na prancha e no mapa.
 Nota: pedras e cruzes em pé mostram a face voltada para +y (como as faces das paredes no estilo caixa); sem isso, vistas de cima, viravam tracinhos. A `lanterna.farol` não acende sozinha: ponha uma luz `farol` sobre ela. O conjunto `cemiterio` (E5) ainda usa só a `lapide`.
 
-### E3 — Kit de ficção científica  ⬜ **[Opus]**
+### E3 — Kit de ficção científica  ✅ **[Opus]**
 Objetivo: dá para montar a ponte de comando, os corredores, a enfermaria, a sala de máquinas e o alojamento de uma nave ou estação.
 Arquivos: criar `src/procedural/receitas/ficcao.ts` e registrar em `receitas/index.ts`.
 Lista (todas com `generos: ['ficcao-cientifica']`):
@@ -63,6 +63,7 @@ Lista (todas com `generos: ['ficcao-cientifica']`):
 - **Técnico:** `tubulacao` (`campos.largura`, `campos.curva`), `grade.ventilacao`, `painel.eletrico` (aberto ou fechado), `gerador` (núcleo com anel), `caixa.carga` (`campos.cor`, marcações), `conteiner` (6 × 2,4 m), `bancada.ferramentas`, `extintor`, `cabos` (feixe no chão), `escada.marinheiro`.
 - **Médico e laboratório:** `maca.medica`, `scanner.corpo`, `mesa.laboratorio` (vidraria), `armario.amostras`.
 Pronto quando: um cômodo de teste de cada tipo fica convincente na prancha, no Ilustrado e no Pixel.
+Nota: `escada.marinheiro` virou `escotilha` (alçapão com escada descendo), que se lê de cima; as funções citadas são as da E4 (`ponte-de-comando`, `corredor-tecnico`, `sala-de-maquinas`, `laboratorio`, `cabine`, `eclusa`, `baia-de-carga`, `criogenia`). Até a E4 criar o gênero, as peças ficam fora da Biblioteca filtrada por gênero, mas o conector já as aceita por id.
 
 ### E4 — Gênero `ficcao-cientifica`  ⬜
 Objetivo: o Atlas entende nave e estação como gênero: cômodos, mobília automática, luzes e paleta.
