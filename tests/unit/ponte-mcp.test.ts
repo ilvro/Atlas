@@ -779,6 +779,36 @@ test('plataforma_guia: enum das seções, índice com resumos, texto da seção 
     const erro: any = await mcp.client.callTool({ name: 'plataforma_guia', arguments: { secao: 'nada' } });
     assert.equal(erro.isError, true);
     assert.match(textoDe(erro), /a-primeira, b-segunda/);
+
+    // B3: criar um .md novo depois de criar o servidor faz a seção aparecer em listTools e em plataforma_guia
+    fs.writeFileSync(path.join(pasta, 'c-terceira.md'), '> resumo: a terceira\n\nTexto da terceira.\n');
+    const { tools: toolsDepois } = await mcp.client.listTools();
+    const guiaDepois = toolsDepois.find(t => t.name === 'plataforma_guia')!;
+    assert.deepEqual((guiaDepois.inputSchema.properties as any).secao.enum, ['a-primeira', 'b-segunda', 'c-terceira']);
+    assert.match(textoDe(await mcp.client.callTool({ name: 'plataforma_guia', arguments: { secao: 'c-terceira' } })), /Texto da terceira/);
+
+    // B3: lista de até 4 seções devolve as seções concatenadas, cada uma com título
+    const multi = textoDe(await mcp.client.callTool({ name: 'plataforma_guia', arguments: { secao: ['a-primeira', 'c-terceira'] } }));
+    assert.match(multi, /# a-primeira[\s\S]*Texto da primeira[\s\S]*# c-terceira[\s\S]*Texto da terceira/);
+
+    // Mais de 4 seções é recusado
+    const maisDeQuatro: any = await mcp.client.callTool({ name: 'plataforma_guia', arguments: { secao: ['a-primeira', 'b-segunda', 'c-terceira', 'a-primeira', 'b-segunda'] } });
+    assert.equal(maisDeQuatro.isError, true);
+    assert.match(textoDe(maisDeQuatro), /no máximo 4/);
+
+    // Seção inexistente na lista dá a lista das que existem
+    const erroLista: any = await mcp.client.callTool({ name: 'plataforma_guia', arguments: { secao: ['a-primeira', 'nao-existe'] } });
+    assert.equal(erroLista.isError, true);
+    assert.match(textoDe(erroLista), /a-primeira, b-segunda, c-terceira/);
+
+    // Se um arquivo falhar (ex.: subpasta com nome .md) ou a pasta sumir, devolve o que deu e um aviso sem derrubar
+    fs.mkdirSync(path.join(pasta, 'd-quebrado.md'));
+    const comFalha = textoDe(await mcp.client.callTool({ name: 'plataforma_guia', arguments: { secao: 'a-primeira' } }));
+    assert.match(comFalha, /Aviso:.*d-quebrado\.md/);
+    assert.match(comFalha, /Texto da primeira/);
+    fs.rmSync(pasta, { recursive: true, force: true });
+    const semPasta = textoDe(await mcp.client.callTool({ name: 'plataforma_guia', arguments: {} }));
+    assert.match(semPasta, /Aviso:.*pasta do guia/);
   } finally {
     await mcp.fechar();
   }

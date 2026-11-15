@@ -533,43 +533,72 @@ export const CAMINHO_GUIA_PADRAO = path.join(raiz, 'docs', 'assistente', 'guia')
 
 export interface SecaoDoGuia { nome: string; resumo: string; texto: string }
 
-/** Lê os `*.md` da pasta do guia (ordem alfabética). O resumo é a linha `> resumo: …` do começo do arquivo. */
-export function lerGuia(pasta: string): SecaoDoGuia[] {
+export function lerGuiaComAviso(pasta: string): { secoes: SecaoDoGuia[]; aviso?: string } {
   let arquivos: string[];
   try {
     arquivos = fs.readdirSync(pasta).filter(a => a.endsWith('.md')).sort();
   } catch {
-    return [];
+    return { secoes: [], aviso: `Aviso: não foi possível ler a pasta do guia (${pasta}).` };
   }
-  return arquivos.map(a => {
-    const texto = fs.readFileSync(path.join(pasta, a), 'utf8');
-    const primeira = texto.split('\n', 1)[0] ?? '';
-    const m = /^>\s*resumo:\s*(.*)$/i.exec(primeira);
-    return { nome: a.slice(0, -3), resumo: m ? m[1]!.trim() : primeira.replace(/^[#>\s]+/, '').trim(), texto };
-  });
+  const secoes: SecaoDoGuia[] = [];
+  const falhas: string[] = [];
+  for (const a of arquivos) {
+    try {
+      const texto = fs.readFileSync(path.join(pasta, a), 'utf8');
+      const primeira = texto.split('\n', 1)[0] ?? '';
+      const m = /^>\s*resumo:\s*(.*)$/i.exec(primeira);
+      secoes.push({ nome: a.slice(0, -3), resumo: m ? m[1]!.trim() : primeira.replace(/^[#>\s]+/, '').trim(), texto });
+    } catch {
+      falhas.push(a);
+    }
+  }
+  return {
+    secoes,
+    ...(falhas.length ? { aviso: `Aviso: falha ao ler arquivo(s) do guia: ${falhas.join(', ')}.` } : {}),
+  };
+}
+
+/** Lê os `*.md` da pasta do guia (ordem alfabética). O resumo é a linha `> resumo: …` do começo do arquivo. */
+export function lerGuia(pasta: string): SecaoDoGuia[] {
+  return lerGuiaComAviso(pasta).secoes;
 }
 
 export function ferramentaGuia(secoes: SecaoDoGuia[]) {
   return {
     name: 'plataforma_guia',
-    description: 'Guia de como usar a plataforma. Sem `secao`, lista as seções; com `secao`, devolve o texto. Consulte antes de compor um mapa, criar um momento, planejar uma sessão ou criar documentos e fichas.',
+    description: 'Guia de como usar a plataforma. Sem `secao`, lista as seções; com `secao` (texto ou lista de até 4), devolve o texto. Consulte antes de compor um mapa, criar um momento, planejar uma sessão ou criar documentos e fichas.',
     inputSchema: {
       type: 'object' as const,
-      properties: { secao: { type: 'string', enum: secoes.map(s => s.nome), description: 'Nome da seção; omita para ver o índice.' } },
+      properties: { secao: { type: 'string', enum: secoes.map(s => s.nome), description: 'Nome da seção (ou lista de até 4 seções); omita para ver o índice.' } },
     },
     annotations: { readOnlyHint: true, idempotentHint: true },
   };
 }
 
-export function textoDoGuia(secoes: SecaoDoGuia[], secao?: unknown) {
+export function textoDoGuia(secoes: SecaoDoGuia[], secao?: unknown, aviso?: string) {
+  const comAviso = (t: string) => (aviso ? `${aviso}\n\n${t}` : t);
   const lista = secoes.map(s => s.nome).join(', ');
-  if (secao === undefined || secao === null || secao === '') {
-    if (secoes.length === 0) return { content: [{ type: 'text' as const, text: 'O guia está vazio.' }] };
-    return { content: [{ type: 'text' as const, text: `Seções do guia (chame plataforma_guia com a seção):\n${secoes.map(s => `- ${s.nome}: ${s.resumo}`).join('\n')}` }] };
+  if (secao === undefined || secao === null || secao === '' || (Array.isArray(secao) && secao.length === 0)) {
+    if (secoes.length === 0) return { content: [{ type: 'text' as const, text: comAviso('O guia está vazio.') }] };
+    return { content: [{ type: 'text' as const, text: comAviso(`Seções do guia (chame plataforma_guia com a seção):\n${secoes.map(s => `- ${s.nome}: ${s.resumo}`).join('\n')}`) }] };
   }
-  const achada = typeof secao === 'string' ? secoes.find(s => s.nome === secao) : undefined;
-  if (!achada) return { isError: true, content: [{ type: 'text' as const, text: `Seção "${String(secao)}" não existe. Seções: ${lista || '(nenhuma)'}.` }] };
-  return { content: [{ type: 'text' as const, text: achada.texto }] };
+  const pedidas: unknown[] = Array.isArray(secao) ? secao : [secao];
+  if (pedidas.length > 4) {
+    return { isError: true, content: [{ type: 'text' as const, text: comAviso(`Peça no máximo 4 seções por vez. Seções: ${lista || '(nenhuma)'}.`) }] };
+  }
+  const achadas: SecaoDoGuia[] = [];
+  for (const nome of pedidas) {
+    const achada = typeof nome === 'string' ? secoes.find(s => s.nome === nome) : undefined;
+    if (!achada) {
+      return { isError: true, content: [{ type: 'text' as const, text: comAviso(`Seção "${String(nome)}" não existe. Seções: ${lista || '(nenhuma)'}.`) }] };
+    }
+    achadas.push(achada);
+  }
+  if (achadas.length === 1 && !Array.isArray(secao)) {
+    return { content: [{ type: 'text' as const, text: comAviso(`# ${achadas[0]!.nome}\n\n${achadas[0]!.texto}`) }] };
+  }
+  const concatenado = achadas.map(s => `# ${s.nome}\n\n${s.texto.trim()}`).join('\n\n---\n\n');
+  return { content: [{ type: 'text' as const, text: comAviso(concatenado) }] };
 }
 
 /** Ferramentas internas: chamadas pelo próprio servidor, escondidas do `tools/list`. */
@@ -620,8 +649,8 @@ export function acrescentarAviso<T extends { content: Array<{ type: 'text'; text
 }
 
 /** `tools/call`: roteia para `ponte_estado`, ferramentas locais de preset ou para a ponte e converte o resultado. */
-export async function chamarFerramenta(ponta: Ponta, nome: string, args: Record<string, unknown>, prazoMs?: number, guia: SecaoDoGuia[] = []) {
-  if (nome === 'plataforma_guia') return textoDoGuia(guia, args.secao);
+export async function chamarFerramenta(ponta: Ponta, nome: string, args: Record<string, unknown>, prazoMs?: number, guia: SecaoDoGuia[] = [], avisoGuia?: string) {
+  if (nome === 'plataforma_guia') return textoDoGuia(guia, args.secao, avisoGuia);
   const ativas = ponta.ativas();
   const apps = ponta.apps();
   if (nome === FERRAMENTA_ESTADO.name) return { content: [{ type: 'text' as const, text: textoDoEstado(ponta.conectada(), ativas, apps, ponta.motivo()) }] };
@@ -775,7 +804,7 @@ export interface McpOpcoes {
   prazoMs?: number;
   intervaloDeProgressoMs?: number;
   instrucoes?: string;
-  /** Pasta dos `*.md` do guia; lida uma vez na partida. */
+  /** Pasta dos `*.md` do guia; relida a cada chamada. */
   pastaDoGuia?: string;
 }
 
@@ -788,13 +817,14 @@ export function criarServidorMcp(op: McpOpcoes) {
       ...(op.instrucoes !== undefined ? { instructions: op.instrucoes } : {}),
     },
   );
-  const guia = lerGuia(op.pastaDoGuia ?? CAMINHO_GUIA_PADRAO);
+  const pastaGuia = op.pastaDoGuia ?? CAMINHO_GUIA_PADRAO;
+  const guiaAgora = () => lerGuiaComAviso(pastaGuia);
   let pronto = false;
   const ponta = conectarNaPonte({
     ...op,
     aoMudar: () => { if (pronto) server.sendToolListChanged().catch(() => {}); },
   });
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: listarFerramentas(ponta.catalogo(), guia) }));
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: listarFerramentas(ponta.catalogo(), guiaAgora().secoes) }));
   server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
     const progressToken = req.params._meta?.progressToken;
     let timerProgresso: NodeJS.Timeout | null = null;
@@ -810,7 +840,8 @@ export function criarServidorMcp(op: McpOpcoes) {
       }, intervalo);
     }
     try {
-      return await chamarFerramenta(ponta, req.params.name, (req.params.arguments ?? {}) as Record<string, unknown>, op.prazoMs, guia);
+      const g = req.params.name === 'plataforma_guia' ? guiaAgora() : { secoes: [] };
+      return await chamarFerramenta(ponta, req.params.name, (req.params.arguments ?? {}) as Record<string, unknown>, op.prazoMs, g.secoes, g.aviso);
     } finally {
       if (timerProgresso) clearInterval(timerProgresso);
     }
