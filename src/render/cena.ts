@@ -89,7 +89,7 @@ interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; 
 export function criarCena(op: OpcoesDaCena): Cena {
   const raiz = new Container(), terrenoC = new Container(), submersosC = Object.assign(new Container(), { sortableChildren: true }), escarpasC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics();
   const marcasG = new Graphics(), regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), tituloC = new Container();
-  const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados(), neblina = criarNeblina(), bordas = criarBordas(), particulas = criarParticulas(), presenca = criarPresenca(), agua = criarAgua(), cachoeiras = criarCachoeiras(), sombras = criarSombrasDoSol();
+  const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados({ baker: op.baker, aoPintar: op.aoPintar }), neblina = criarNeblina(), bordas = criarBordas(), particulas = criarParticulas(), presenca = criarPresenca(), agua = criarAgua(), cachoeiras = criarCachoeiras(), sombras = criarSombrasDoSol();
   const halos = criarHalos(luz, telhados);
   // A tinta do chão (presença natural) cobre o piso, mas não a face de rocha das escarpas, que sobe acima dela.
   // A luz multiplica tudo o que está embaixo (piso, objetos, paredes); marcadores, regiões e peças ficam por cima, sempre legíveis.
@@ -375,6 +375,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
   function chavesEmUso(): Set<string> {
     const s = new Set<string>();
     for (const e of [...salas.values(), ...objetos.values(), ...(terreno ? [terreno] : [])]) { if (e.chave) s.add(e.chave); }
+    for (const c of telhados.chavesEmUso()) s.add(c);
     return s;
   }
 

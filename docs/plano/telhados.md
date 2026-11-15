@@ -144,7 +144,7 @@ Pronto quando: a prancha de materiais (ou a lista do Inspetor) mostra as 12 cobe
 Commit: `added distinct roof coverings with their own patterns`
 Nota: são 12 coberturas (3 antigas + 9 novas; o "13" da ficha era erro de conta). Cada padrão é uma função pura e periódica de tom e mancha em `coberturas.ts` (`amostrarPonto`, `amostrarCobertura`); o Ilustrado amostra a 80 px/m com cores contínuas e o Pixel na `res` do mapa em 5 tons + 2 da mancha. `Material.mancha` (musgo, ferrugem, azinhavre) é campo novo. A lona ganhou padrão próprio (`lona`) em vez de `pregas`. O `executarBake` aceita `{ tipo: 'cobertura' }` para o T5c pedir o ladrilho ao worker. Os pintores `pintarMaterial` e `pintarMaterialPixel` também pintam as coberturas, então qualquer amostra de material funciona.
 
-### T5c — Desenho do telhado: trechos, águas, luz, beiral e sombra  ⬜
+### T5c — Desenho do telhado: trechos, águas, luz, beiral e sombra  ✅
 Objetivo: o telhado tem cara de telhado: cada água com a textura girada na queda, luz e sombra conforme o sol, cumeeira, beiral sobre as paredes e sombra no chão.
 Depende de: T2, T5a, T5b.
 Ler: `src/render/telhados.ts`, `src/render/textura-propria.ts` (como textura procedural vira `Texture` do Pixi), `src/procedural/executar.ts` (pedidos `cobertura` e `detalhe-de-telhado`), `src/procedural/detalhes-de-telhado.ts` (`posicoesDosDetalhes`), `src/domain/clima.ts` (`Ceu.sun`), `src/render/sombras-do-sol.ts` (direção e cor da sombra), `fase-8.md:101` (telhado no Pixel).
