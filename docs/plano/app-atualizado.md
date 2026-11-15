@@ -69,7 +69,7 @@ Testes (com `rodar` falso que cria a pasta de saída esperada): só os apps pedi
 Pronto quando: tocar um arquivo do Atlas e rodar `npm run desktop:prep -- --se-mudou` remonta só o Atlas; rodar de novo diz "tudo em dia".
 Commit: `desktop prep rebuilds only changed apps with atomic swap`
 
-### A3 — O lançador remonta o que mudou ao abrir  ⬜
+### A3 — O lançador remonta o que mudou ao abrir  ✅
 Objetivo: abrir o app pelo atalho sempre mostra o código atual.
 Depende de: A2.
 Ler: `Mesa/scripts/launch-desktop.mjs` (`iniciarAppDesktop`, o começo do arquivo e o ramo do binário Tauri).
