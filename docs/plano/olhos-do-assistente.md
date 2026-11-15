@@ -46,7 +46,7 @@ Testes: unitário da ferramenta (a opção `vista` chega ao `capturar`; valor in
 Pronto quando: `atlas_ver_mapa { vista: 'telhados' }` mostra os telhados num mapa em Construir, e a vista do editor não muda depois da captura.
 Commit: `ver_mapa can capture with roofs closed`
 
-### B2 — `atlas_mapa_ler` com edifícios, forma e telhado  ⬜
+### B2 — `atlas_mapa_ler` com edifícios, forma e telhado  ✅
 Objetivo: o Claude lê o mapa em termos de casas, com a forma e o telhado de cada uma.
 Depende de: —.
 Ler: `src/app/ponte-leitura.ts` (`resumirMapa`), `src/domain/edificios.ts` (`edificiosDe`), `src/domain/telhado-geometria.ts` (`retangulosDe`), `src/domain/presets.ts` (`ESTILOS_DE_TELHADO`), `src/domain/celulas.ts` (`decodificar`, `area`).

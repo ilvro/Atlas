@@ -63,7 +63,9 @@ Cria e abre mapa novo em metros (padrão 45×30; grid 1,5 m). "base": atlas_cata
 
 ## atlas_mapa_ler
 
-Resume o mapa (aberto ou por id): tamanho, terreno, cômodos (rets em m), objetos, luzes, regiões, peças, clima, acabamento, momentos e notas.
+Resume o mapa (aberto ou por `id`): `resumo` (contagem de edifícios, área média/mín/máx em m², `comodosSemTelhado` e `retangulares`), `edificios` (`id`, `nome`, `salas`, `area` em m², `caixa` `[x, y, largura, altura]` em m e `telhados`), `comodos` (`rets` em células `[x0, y0, x1, y1]` com fim exclusivo, `area` em m², `telhado` como `{ estilo }` ou `{ cobertura, forma, ingreme, detalhes }`, `edificio` e `retangulo` em m), além de terreno, objetos, luzes, regiões, peças, clima, acabamento, momentos e notas.
+
+- `comodos`: lista opcional de ids de cômodos para detalhar só aqueles cômodos (útil quando o JSON do mapa grande troca `rets` por `retsResumidos`).
 
 O mapa aberto (com ou sem `id`) e os mapas que estão em abas de segundo plano (o Atlas guarda até 3) vêm do documento vivo, com as edições ainda não gravadas, e trazem `naoSalvo`. `atlas_mapas_listar` e `atlas_o_que_vejo` marcam `naoSalvo: true` quando há edições não gravadas. Os outros mapas vêm do disco.
 
