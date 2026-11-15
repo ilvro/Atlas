@@ -509,4 +509,11 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 - **T7 — Mestre abre e fecha telhados na sessão** — `session.roofs` (`'auto' | 'fechados' | 'abertos'`) em `mapa.ts` e `validacao.ts`, comando `sessao.telhados` em `comandos.ts`, `alvoDe` em `src/render/telhados.ts`, botão de três estados "Telhados: automático / sempre / abertos" em `Cabecalho.tsx` e ação de clique direito por edifício ("Abrir/Fechar telhado da casa") em `Editor.tsx` e `acoes.ts` numa transação única "Telhado". Testes em `tests/unit/interacao.test.ts`, `tests/unit/projecao.test.ts` e `tests/e2e/telhados.test.ts`.
 - **Fechamento da frente Telhados (T1–T7)** — Todas as tarefas concluídas e validadas com `npm run typecheck`, `npm test` (931/931), `tests/e2e/telhados.test.ts` (4/4) e testes de telhado em `tests/e2e/fase7.test.ts` (2/2). Sem pendências abertas no plano.
 
+## Mapas melhores pelo assistente
+
+### Frente A — App sempre atualizado
+
+- **A1 — Carimbo de versão de cada app** — `Mesa/scripts/carimbo.ts` (`ENTRADAS_DO_BUILD`, `ARQUIVO_DO_CARIMBO`, `carimboDe`, `carimboDoApp`, `lerCarimboMontado`, `appsVelhos`, `deveIgnorarCaminho` e `ignorarDoApp`, excluindo `src/default-sheets.js` gerado no Dossiê e aplicando `filtroCopiaJukebox` na Jukebox). Testes em `Mesa/tests/unit/carimbo.test.ts`.
+
+
 

@@ -34,7 +34,7 @@ Ordem: A1 → A2 → A3 → A4 → A5 → A6.
 
 ---
 
-### A1 — Carimbo de versão de cada app  ⬜
+### A1 — Carimbo de versão de cada app  ✅
 Objetivo: saber, sem compilar, se o build de um app está velho.
 Depende de: —.
 Ler: `Mesa/scripts/build-desktop.ts` inteiro (`planejarMontagemDesktop`, `filtroCopiaJukebox`); `Mesa/tests/unit/desktop.test.ts` (como os scripts são testados); os `vite.config.*` e `package.json` de Mesa, Atlas, Atelie e Dossie (o que entra no build); `Dossie/scripts/gen-default-sheets.js` (**o que ele lê e onde escreve**: o que ele escreve fica FORA das entradas).
