@@ -22,7 +22,7 @@ export const mapaNoProjetorId = signal<string | null>(null);
 
 export type MensagemDoMestre =
   | { tipo: 'estado'; doc: MapaAtlas; versao: number }
-  | { tipo: 'camera'; caixa: Caixa }
+  | { tipo: 'camera'; caixa: Caixa; seguir?: boolean }
   | { tipo: 'evento'; nome: EventoDeCena }
   | { tipo: 'relampago' }
   | { tipo: 'retrato'; id: string; blob: Blob }
@@ -41,6 +41,7 @@ export type MensagemDoMestre =
 export type MensagemDoProjetor =
   | { tipo: 'ola'; largura: number; altura: number }
   | { tipo: 'tamanho'; largura: number; altura: number }
+  | { tipo: 'soltou' }
   | { tipo: 'tchau' };
 
 /** O retângulo do mapa que o projetor mostra (null até haver projetor). Mexer nele move a câmera do projetor, não a do mestre. */
@@ -138,13 +139,15 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
       if (msg.largura > 0 && msg.altura > 0) aspectoDoProjetor.value = msg.largura / msg.altura;
       if (msg.tipo === 'ola') { retratosEnviados = new Set(); projetorConectado.value = true; }
       const atual = caixaDoProjetor.peek(), asp = aspectoDoProjetor.peek();
-      caixaDoProjetor.value = atual ? ajustarAoAspecto(atual, asp) : caixaDosJogadores(s.store.documento, asp);
+      const caixa = seguirJogadores.peek() || !atual ? caixaDosJogadores(s.store.documento, asp) : ajustarAoAspecto(atual, asp);
+      caixaDoProjetor.value = caixa;
       enviarEstado();
-      if (caixaDoProjetor.peek()) enviar({ tipo: 'camera', caixa: caixaDoProjetor.peek()! });
+      enviar({ tipo: 'camera', caixa, ...(seguirJogadores.peek() ? { seguir: true } : {}) });
       if (msg.tipo === 'ola' && ultimoEstadoTela?.acao === 'escurecer') {
         enviar({ tipo: 'tela', acao: 'escurecer', ms: ultimoEstadoTela.ms });
       }
-    } else if (msg.tipo === 'tchau') { projetorConectado.value = false; caixaDoProjetor.value = null; }
+    } else if (msg.tipo === 'soltou') { seguirJogadores.value = false; }
+    else if (msg.tipo === 'tchau') { projetorConectado.value = false; caixaDoProjetor.value = null; }
   };
   canalEspecifico.onmessage = aoMensagem;
   canalGlobal.onmessage = aoMensagem;
@@ -154,9 +157,12 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
     if (seguirJogadores.peek() && projetorConectado.peek() && (e.mudancas.completo || e.mudancas.colecoes.tokens)) caixaDoProjetor.value = caixaDosJogadores(e.documento, aspectoDoProjetor.peek());
   });
   // Ligar "seguir os jogadores" enquadra na hora; a caixa publicada segue qualquer mudança (arrastar o quadro, seguir).
-  const parar1 = effect(() => { if (seguirJogadores.value && projetorConectado.peek()) caixaDoProjetor.value = caixaDosJogadores(s.store.documento, aspectoDoProjetor.peek()); });
+  const parar1 = effect(() => {
+    const seguir = seguirJogadores.value, conectado = projetorConectado.value, asp = aspectoDoProjetor.value;
+    if (seguir && conectado) caixaDoProjetor.value = caixaDosJogadores(s.store.documento, asp);
+  });
   const parar3 = effect(() => { void recursosDasFichas.value; void mostrarPvNoProjetor.value; enviarRecursos(); });
-  const parar2 = effect(() => { const c = caixaDoProjetor.value; if (c && projetorConectado.peek()) enviar({ tipo: 'camera', caixa: c }); });
+  const parar2 = effect(() => { const c = caixaDoProjetor.value; if (c && projetorConectado.peek()) enviar({ tipo: 'camera', caixa: c, ...(seguirJogadores.peek() ? { seguir: true } : {}) }); });
 
   return {
     evento: nome => { if (projetorConectado.peek()) enviar({ tipo: 'evento', nome }); },
