@@ -754,7 +754,7 @@ test('instruções do servidor: client.getInstructions() devolve o texto configu
 
 
 const TITULOS_DO_INSTRUCOES_ANTIGO = [
-  'Seu papel', 'Antes de construir', 'Compor um mapa', 'Decida a composição antes do detalhe', 'Ordem de construção',
+  'Seu papel', 'Antes de construir', 'Compor um mapa', 'Projete antes de construir', 'Ordem de construção',
   'Confira com os olhos depois de cada bloco', 'Regras que valem ouro', 'Momentos', 'Planejar uma sessão',
   '1. Leia antes de propor', '2. Converse e escreva o plano, sem construir nada', '3. Com o plano aprovado, construa nesta ordem',
   '4. Termine com um resumo', 'Documentos, fichas e trilha', 'Abrir os apps que faltam', 'Quando uma ferramenta falha',
