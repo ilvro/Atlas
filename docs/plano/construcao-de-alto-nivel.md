@@ -216,7 +216,7 @@ Como: ferramenta `atlas_arranjo { padrao, area, itens, espacamento, ... , sement
 Pronto quando: pelo MCP, um cemitério de 15 × 10 m sai com quadras, fileiras levemente tortas e lápides variadas.
 Commit: `added atlas_arranjo tool`
 
-### D5a — Caminho orgânico  ⬜
+### D5a — Caminho orgânico  ✅
 Objetivo: trilhas e estradas com curva suave, largura viva, borda e sulcos.
 Depende de: —.
 Ler: `src/authoring/formas.ts` (`Forma` `faixa`, `celulasDaForma`, `irregular`), `src/authoring/construcao.ts` (`terreno`, `OpDeTerreno`), o comando `presenca.pintar` (procure em `src/state/comandos*.ts`) e o pincel `sulcos` em `src/domain/presets.ts` (`PINCEIS_DE_PRESENCA`).
