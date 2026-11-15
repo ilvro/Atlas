@@ -56,3 +56,13 @@ Commit: mensagem curta em inglês
 | [fase-14.md](fase-14.md) | Concluída (ponte MCP, leitura, escrita, momentos, Mesa, Ateliê, Dossiê, Jukebox) |
 | [ponte-mcp.md](ponte-mcp.md) | Detalhado — catálogo estável, prazos, catálogo base, anotações, instruções, descrições |
 | [telhados.md](telhados.md) | Detalhado — telhado por edifício, padrão ao criar, estilos (coberturas, formas, detalhes), penumbra, chave na sessão |
+| [mapas-melhores.md](mapas-melhores.md) | **Documento-mestre** da iniciativa "mapas melhores pelo assistente": problema, diagnóstico, ordem e frentes A–I (implementação pelo Gemini; guia e acervo pelo Opus) |
+| [app-atualizado.md](app-atualizado.md) | A — app de desktop se remonta ao abrir e enquanto está aberto (Mesa) |
+| [olhos-do-assistente.md](olhos-do-assistente.md) | B — vista de telhados, leitura de edifícios, guia relido, catálogo com busca, `atlas_revisar` |
+| [guia-de-projeto.md](guia-de-projeto.md) | C — método de projeto e repertório de lugares (Opus) |
+| [construcao-de-alto-nivel.md](construcao-de-alto-nivel.md) | D — `atlas_mobiliar`, tipos genéricos, `atlas_edificio`, `atlas_arranjo`, `atlas_caminho` |
+| [acervo-ampliado.md](acervo-ampliado.md) | E — materiais, kits rural, cemitério e ficção científica (Opus); gênero ficção científica |
+| [patamares.md](patamares.md) | F — relevo em patamares com escarpas derivadas, névoa de profundidade e sombra |
+| [comodos-livres.md](comodos-livres.md) | G — cômodos redondos e em polígono, telhado em cone |
+| [andares.md](andares.md) | H — andares, escadas e sessão por andar |
+| [acabamento-do-terreno.md](acabamento-do-terreno.md) | I — edifícios assentados, contato externo, maciço como serra, tempo ao ar livre |
