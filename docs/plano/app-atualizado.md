@@ -83,7 +83,7 @@ Testes: manual (abrir pelo atalho depois de tocar `Atlas/src/main.tsx` e conferi
 Pronto quando: editar o Atlas, fechar e abrir o app mostra a mudança.
 Commit: `desktop launcher rebuilds stale apps on start`
 
-### A4 — Observador: remonta enquanto o app está aberto  ⬜
+### A4 — Observador: remonta enquanto o app está aberto  ✅
 Objetivo: uma edição ou commit com o app aberto gera um build novo em segundo plano.
 Depende de: A3.
 Ler: `Mesa/scripts/launch-desktop.mjs`; `Mesa/scripts/carimbo.ts` (A1).
