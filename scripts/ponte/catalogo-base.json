@@ -1883,6 +1883,31 @@
     }
   },
   {
+    "nome": "atlas_revisar",
+    "descricao": "Revisa o mapa aberto (ou por id) e aponta defeitos: cômodos sem acesso, casas iguais, fileiras mecânicas, interiores vazios, luz. Use antes de entregar.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "regras": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 30
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "app": "atlas",
+    "anotacoes": {
+      "leitura": true
+    }
+  },
+  {
     "nome": "atlas_salvar",
     "descricao": "Grava o mapa aberto (o botão Gravar). Use ao fim de uma leva de mudanças; sem isso, elas ficam só como rascunho.",
     "esquema": {

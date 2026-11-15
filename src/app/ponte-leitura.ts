@@ -11,6 +11,7 @@ import { MATERIAIS, materiaisDo } from '../procedural/materiais.ts';
 import { listaDeReceitas } from '../procedural/receitas/index.ts';
 import { TODOS_OS_CONJUNTOS } from '../authoring/espalhar.ts';
 import { regrasPara } from '../authoring/regras-mobilia.ts';
+import { revisarMapa } from '../authoring/revisao.ts';
 import { caixaDe, type Alvo, type Caixa } from '../render/selecao.ts';
 import type { RepositorioMapas } from '../data/repositorio.ts';
 
@@ -411,6 +412,29 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
         // `abrirMapa` resolve antes de o viewport existir: espera o editor nascer (até 10 s) antes de responder.
         if (ctx.editorPronto && !(await esperarEditor(ctx, ESPERA_AO_ABRIR_MS))) return [json({ aberto: m.id, nome: m.name, aviso: 'O mapa abriu, mas o editor ainda não apareceu na tela (a aba pode estar em segundo plano). atlas_ver_mapa espera mais um pouco; se falhar, peça ao mestre para trazer a aba do Atlas para a frente.' })];
         return [json({ aberto: m.id, nome: m.name })];
+      },
+    },
+    {
+      nome: 'atlas_revisar',
+      descricao: 'Revisa o mapa aberto (ou por id) e aponta defeitos: cômodos sem acesso, casas iguais, fileiras mecânicas, interiores vazios, luz. Use antes de entregar.',
+      esquema: { type: 'object', properties: { id: { type: 'string' }, regras: { type: 'array', items: { type: 'string' }, maxItems: 30 } }, required: [], additionalProperties: false },
+      anotacoes: { leitura: true },
+      async executar(args) {
+        if (args.regras !== undefined && !(Array.isArray(args.regras) && args.regras.every(x => typeof x === 'string'))) {
+          throw new Error('"regras" deve ser uma lista de nomes de regras.');
+        }
+        const regras = args.regras as string[] | undefined;
+        const m = await carregar(args.id);
+        const achados = revisarMapa(m, regras ? { regras } : undefined);
+        const reais = achados.filter(a => a.regra !== 'mais');
+        return [json({
+          achados,
+          resumo: {
+            erros: reais.filter(a => a.gravidade === 'erro').length,
+            avisos: reais.filter(a => a.gravidade === 'aviso').length,
+            dicas: reais.filter(a => a.gravidade === 'dica').length,
+          },
+        })];
       },
     },
     {

@@ -154,6 +154,15 @@ Cria regiões funcionais no mapa aberto em metros (um passo de desfazer): reveal
 
 Remove entidades do mapa aberto pelos ids (atlas_mapa_ler). Age na hora, sem confirmação. Um passo de desfazer.
 
+## atlas_revisar
+
+Revisa o mapa aberto (ou por `id`) e devolve `{ achados, resumo: { erros, avisos, dicas } }`, com até 15 achados ordenados por gravidade (`erro`, `aviso`, `dica`), cada um com `regra`, `gravidade`, `mensagem`, `sugestao`, `ids` e `caixa` opcional em metros.
+
+- `id`: opcional; sem `id`, revisa o mapa aberto.
+- `regras`: lista opcional de regras para filtrar (`comodo-sem-acesso`, `edificio-sem-telhado`, `interior-vazio`, `porta-bloqueada`, `objeto-fora`, `escala-suspeita`, `casas-iguais`, `fileiras-mecanicas`, `repeticao`, `mancha-em-disco`, `composicao-centralizada`, `noite-sem-luz`).
+
+Rode sempre antes de entregar o mapa ao mestre e corrija os erros e avisos apontados.
+
 ## atlas_salvar
 
 Grava o mapa aberto, pelo mesmo caminho do botão Gravar. Sem parâmetros. Devolve `{ salvo, revisao }`; se o mapa já estava gravado, responde que não havia nada a gravar. Se o mapa foi alterado em outra aba, volta erro e nada é gravado: avise o mestre. As escritas do assistente ficam só como rascunho até esta chamada.
