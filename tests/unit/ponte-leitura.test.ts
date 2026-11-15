@@ -77,9 +77,16 @@ test('atlas_catalogo lista todas as receitas com os campos', async () => {
   assert.deepEqual(r.find(x => x.id === comCampos.id)!.campos!.map(c => c.id), comCampos.campos!.map(c => c.id));
 });
 
-test('atlas_catalogo: demais partes, índice e parte inválida', async () => {
+test('atlas_catalogo: demais partes, conjuntos, comodos, busca, índice e parte inválida', async () => {
   const { chamar } = montar(null);
   assert.ok(JSON.parse(await chamar('atlas_catalogo', { parte: 'colecao' })).length > 0);
+  const conjuntos = JSON.parse(await chamar('atlas_catalogo', { parte: 'conjuntos' })) as { id: string; arranjo?: string; itens: string[] }[];
+  assert.ok(conjuntos.some(c => c.id === 'mata' && c.itens.length > 0));
+  assert.equal(conjuntos.find(c => c.id === 'cemiterio')?.arranjo, 'fileiras');
+  const comodos = JSON.parse(await chamar('atlas_catalogo', { parte: 'comodos' })) as { id: string; mobilia: boolean; semTelhado: boolean }[];
+  assert.equal(comodos.find(c => c.id === 'sala')?.mobilia, true);
+  assert.equal(comodos.find(c => c.id === 'sala')?.semTelhado, false);
+  assert.equal(comodos.find(c => c.id === 'varanda')?.semTelhado, true);
   assert.ok(JSON.parse(await chamar('atlas_catalogo', { parte: 'materiais' })).piso.length > 0);
   assert.equal(JSON.parse(await chamar('atlas_catalogo', { parte: 'climas' })).climas.length, PRESETS_DE_CLIMA.length);
   assert.ok(JSON.parse(await chamar('atlas_catalogo', { parte: 'luzes' })).length > 0);
@@ -87,8 +94,21 @@ test('atlas_catalogo: demais partes, índice e parte inválida', async () => {
   const mo = JSON.parse(await chamar('atlas_catalogo', { parte: 'momentos' }));
   assert.equal(mo.limites.passosPorMomento, 60);
   assert.equal(mo.tiposDePasso.length, 15);
-  assert.ok(JSON.parse(await chamar('atlas_catalogo')).partes.receitas > 0);
-  await assert.rejects(chamar('atlas_catalogo', { parte: 'xyz' }), /Parte desconhecida/);
+  const indice = JSON.parse(await chamar('atlas_catalogo'));
+  assert.ok(indice.partes.receitas > 0);
+  assert.ok(indice.partes.conjuntos > 0);
+  assert.ok(indice.partes.comodos > 0);
+  assert.match(indice.dica, /use busca para procurar por palavra/);
+  const b = JSON.parse(await chamar('atlas_catalogo', { busca: 'cemiterio' })) as {
+    receitas: { id: string }[];
+    colecao: { id: string }[];
+    conjuntos: { id: string }[];
+    materiais: { id: string }[];
+  };
+  assert.ok(b.conjuntos.some(c => c.id === 'cemiterio'));
+  assert.ok(b.receitas.some(r => r.id === 'lapide'));
+  assert.ok(b.receitas.some(r => r.id === 'banco.jardim'));
+  await assert.rejects(chamar('atlas_catalogo', { parte: 'xyz' }), /Parte desconhecida.*conjuntos.*comodos/);
 });
 
 test('atlas_abrir navega até o mapa e recusa id que não existe', async () => {

@@ -6,7 +6,7 @@
 2. `atlas_o_que_vejo` (no Atlas) e `mesa_o_que_vejo` (na Mesa): o que o mestre tem na tela. No Atlas, o mapa aberto, o modo, a área visível e a seleção; na Mesa, a campanha, a tela e o item aberto. É o que dá sentido a "este cômodo", "esses objetos" ou "esta sessão".
 3. `campanha_ler` (com `campanha_listar` para achar o `campanhaId`): entidades, sessões e o que já existe. Use `campanha_entidade_ler` e `campanha_sessao_ler` para aprofundar.
 4. `atlas_mapas_listar` e `atlas_mapa_ler`: o que já há no Atlas e o que tem dentro do mapa aberto (cômodos, objetos, luzes, regiões, momentos, notas).
-5. `atlas_catalogo`: nunca invente ids. Sem argumento devolve um índice; com `parte` (`receitas`, `colecao`, `materiais`, `telhado`, `climas`, `luzes`, `presenca`, `momentos`) devolve a lista. Os conjuntos do `atlas_espalhar` são: `mata`, `jardim`, `cemiterio`, `papelada`, `caixotes`, `bibelos`, `refeicao`, `bagunca` e `plantas`. Quando uma ferramenta recusar um id, ela volta com os mais parecidos: use essas sugestões, não chute outro.
+5. `atlas_catalogo`: nunca invente ids. Sem argumento devolve um índice; com `parte` (`receitas`, `colecao`, `conjuntos`, `comodos`, `materiais`, `telhado`, `climas`, `luzes`, `presenca`, `momentos`) devolve a lista; com `busca` (ex.: `atlas_catalogo { busca: "cemiterio" }`) procura por palavra em receitas, coleção, conjuntos e materiais. Os conjuntos do `atlas_espalhar` estão em `atlas_catalogo { parte: "conjuntos" }` (`mata`, `jardim`, `cemiterio`, `papelada`, `caixotes`, `bibelos`, `refeicao`, `bagunca`, `plantas`). Quando uma ferramenta recusar um id, ela volta com os mais parecidos: use essas sugestões, não chute outro.
 6. `atlas_abrir`: abre o mapa certo antes de escrever nele.
 
 ## Compor um mapa
@@ -19,7 +19,7 @@ Antes de qualquer chamada, faça o projeto com `plataforma_guia projetar` (brief
 
 1. **Mapa:** `atlas_mapa_criar` (`nome`, `largura`, `altura` em metros, `base`, `genero`, `estilo`, `campanhaId`). Ele abre sozinho.
 2. **Terreno:** `atlas_terreno`. Primeiro a `base`, depois as camadas em `operacoes`: água, maciço de rocha, chão. Use `correnteza` para a água se mover.
-3. **Estrutura:** `atlas_comodos` (cômodos, com as paredes nascendo sozinhas; `rets` em células de 1,5 m com limites exclusivos, ex.: `[2, 3, 5, 6]` para 3 × 3 células = 4,5 × 4,5 m; tipos em `atlas_catalogo { parte: "climas" }` e estilos de telhado em `atlas_catalogo { parte: "telhado" }`), `atlas_paredes` (muros, cercas, muretas e escarpas/barrancos avulsos) e `atlas_portas` (portas, janelas, arcos, passagens secretas). Crie o cômodo ou a parede antes da porta, em chamadas separadas.
+3. **Estrutura:** `atlas_comodos` (cômodos, com as paredes nascendo sozinhas; `rets` em células de 1,5 m com limites exclusivos, ex.: `[2, 3, 5, 6]` para 3 × 3 células = 4,5 × 4,5 m; tipos em `atlas_catalogo { parte: "comodos" }` e estilos de telhado em `atlas_catalogo { parte: "telhado" }`), `atlas_paredes` (muros, cercas, muretas e escarpas/barrancos avulsos) e `atlas_portas` (portas, janelas, arcos, passagens secretas). Crie o cômodo ou a parede antes da porta, em chamadas separadas.
 4. **Objetos grandes:** árvores, rochedos e móveis grandes, com `atlas_objetos`; para muitos iguais, `atlas_espalhar` com um `conjunto`.
 5. **Objetos pequenos:** adereços, bagunça e detalhes, com `atlas_objetos` e `atlas_espalhar`.
 6. **Luzes:** `atlas_luzes`.

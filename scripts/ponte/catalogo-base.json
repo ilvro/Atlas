@@ -403,7 +403,7 @@
   },
   {
     "nome": "atlas_catalogo",
-    "descricao": "Catálogo de opções (receitas, colecao, materiais, telhado, climas, luzes, presenca, momentos). Use para não inventar ids.",
+    "descricao": "Catálogo de opções (receitas, colecao, conjuntos, comodos, materiais, telhado, climas, luzes, presenca, momentos). Aceita busca por palavra. Use para não inventar ids.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -412,6 +412,8 @@
           "enum": [
             "receitas",
             "colecao",
+            "conjuntos",
+            "comodos",
             "materiais",
             "telhado",
             "climas",
@@ -419,6 +421,10 @@
             "presenca",
             "momentos"
           ]
+        },
+        "busca": {
+          "type": "string",
+          "maxLength": 60
         }
       },
       "required": [],
@@ -566,7 +572,7 @@
   },
   {
     "nome": "atlas_espalhar",
-    "descricao": "Espalha um conjunto de objetos numa região em metros. Conjuntos: atlas_catalogo receitas. Detalhes: plataforma_guia ferramentas-atlas.",
+    "descricao": "Espalha um conjunto de objetos numa região em metros. Conjuntos em atlas_catalogo { parte: \"conjuntos\" }. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
