@@ -554,6 +554,127 @@
     }
   },
   {
+    "nome": "atlas_edificio",
+    "descricao": "Constrói edifícios inteiros por programa: cômodos com função e área, forma (L, T, linear…), frente, alpendre, telhado; portas, janelas, mobília e luz. Um desfazer.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "edificios": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "properties": {
+              "nome": {
+                "type": "string"
+              },
+              "origem": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "lote": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "frente": {
+                "type": "string",
+                "enum": [
+                  "n",
+                  "s",
+                  "l",
+                  "o"
+                ]
+              },
+              "forma": {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "compacta",
+                  "L",
+                  "T",
+                  "U",
+                  "linear",
+                  "patio"
+                ]
+              },
+              "alpendre": {
+                "type": "boolean"
+              },
+              "telhado": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "piso": {
+                "type": "string"
+              },
+              "mobiliar": {
+                "type": "boolean"
+              },
+              "luzes": {
+                "type": "boolean"
+              },
+              "comodos": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 12,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "tipo": {
+                      "type": "string"
+                    },
+                    "area": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "nome": {
+                      "type": "string"
+                    },
+                    "principal": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "tipo",
+                    "area"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "nome",
+              "origem",
+              "frente",
+              "comodos"
+            ]
+          }
+        },
+        "semente": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "edificios"
+      ],
+      "additionalProperties": false
+    },
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": true
+    }
+  },
+  {
     "nome": "atlas_espalhar",
     "descricao": "Espalha um conjunto de objetos numa região em metros. Conjuntos em atlas_catalogo { parte: \"conjuntos\" }. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {

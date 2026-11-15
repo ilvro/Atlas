@@ -45,6 +45,69 @@ Exemplo — igreja com nave e campanário colado:
 
 Desfaz as últimas entradas do histórico do mapa aberto (a mesma pilha do Ctrl+Z, inclusive edições do mestre). Parâmetro opcional `passos`: de 1 a 20, padrão 1. Devolve os rótulos desfeitos; com o histórico vazio, é erro. Um momento inteiro é um passo de desfazer (todos os seus passos de água, luz, objeto, revelar e interagir se fundem), desde que ninguém faça outro comando no meio; use para testar um momento que altera o mapa e voltar ao estado anterior com `passos: 1`. Desfazer não grava: depois, `atlas_salvar` se quiser fixar.
 
+## atlas_edificio
+
+Constrói de 1 a 12 edifícios completos por programa (planta baixa composta, portas internas e externa, janelas na fachada, telhado, mobília e luzes) numa só transação (`Ctrl+Z` desfaz tudo). Falha em um edifício não derruba os demais: a resposta lista os edifícios inseridos e os motivos dos que falharam.
+
+Parâmetros por item em `edificios[]`:
+- `nome`: nome do edifício.
+- `origem`: `[x, y]` em CÉLULAS do grid (1,5 m) do canto superior esquerdo do lote.
+- `lote`: `[largura, altura]` opcionais em células (padrão: `3 × √(área total)`).
+- `frente`: `'n' | 's' | 'l' | 'o'`.
+- `forma`: `'auto' | 'compacta' | 'L' | 'T' | 'U' | 'linear' | 'patio'`.
+- `alpendre`: `true` cria varanda frontal sem telhado.
+- `telhado`, `piso`, `mobiliar` (padrão `true`), `luzes` (padrão `true`).
+- `comodos[]`: `{ tipo, area (m²), nome?, principal? }` (1 a 12 cômodos).
+
+Dica de composição: **varie `forma`, porte e `frente` entre edifícios vizinhos** para evitar casas iguais em fila.
+
+Exemplos:
+
+Casa de camponês em L com alpendre:
+```json
+{
+  "edificios": [{
+    "nome": "Casa do Lenhador", "origem": [6, 8], "frente": "s", "forma": "L", "alpendre": true, "telhado": "choupana",
+    "comodos": [
+      { "tipo": "sala", "area": 18, "principal": true },
+      { "tipo": "cozinha", "area": 10 },
+      { "tipo": "quarto", "area": 10 }
+    ]
+  }]
+}
+```
+
+Igreja (nave principal grande + sacristia + torre):
+```json
+{
+  "edificios": [{
+    "nome": "Capela de São Bento", "origem": [20, 6], "frente": "o", "forma": "T", "telhado": "igreja",
+    "comodos": [
+      { "tipo": "capela", "area": 36, "nome": "Nave", "principal": true },
+      { "tipo": "oficina", "area": 12, "nome": "Sacristia" },
+      { "tipo": "capela", "area": 9, "nome": "Campanário" }
+    ]
+  }]
+}
+```
+
+Módulo de alojamento (corredor linear com cabines):
+```json
+{
+  "edificios": [{
+    "nome": "Ala da Guarnição", "origem": [8, 22], "frente": "n", "forma": "linear", "telhado": "galpao-de-zinco",
+    "comodos": [
+      { "tipo": "salao", "area": 18, "principal": true },
+      { "tipo": "dormitorio", "area": 12 },
+      { "tipo": "dormitorio", "area": 12 },
+      { "tipo": "dormitorio", "area": 12 },
+      { "tipo": "cozinha", "area": 10 },
+      { "tipo": "deposito", "area": 9 }
+    ]
+  }]
+}
+```
+
 ## atlas_espalhar
 
 Espalha conjunto de objetos numa região em metros (um passo de desfazer). Conjuntos em atlas_catalogo { parte: "conjuntos" }. Objetos ficam comuns e editáveis.

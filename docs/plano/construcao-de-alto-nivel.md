@@ -158,7 +158,8 @@ Testes: toda planta de D3a gerada no teste fica acessível; janelas não caem em
 Pronto quando: `npm test` passa.
 Commit: `building plans get doors and windows`
 
-### D3c — Ferramenta `atlas_edificio`  ⬜
+### D3c — Ferramenta `atlas_edificio`  ✅
+Nota: em `tests/unit/ponte-escrita.test.ts`, a contagem de ferramentas subiu para 27 e o teto de bytes para 23,5 KB; em `regras-mobilia.ts`, `dormitorio` ganhou assento de canto fallback para cômodos de 9 m².
 Objetivo: o Claude constrói edifícios inteiros por programa, num passo de desfazer.
 Depende de: D3b, D1.
 Ler: `src/authoring/construcao.ts` (`comodos`, `portas`, `aplicarEmCopia`), `src/authoring/mobiliar-lote.ts` (D1), `src/app/ponte-escrita.ts` (`atlas_comodos` como modelo), `tests/unit/ponte-escrita.test.ts`.

@@ -31,7 +31,7 @@ const terra = { acao: 'pintar', material: 'terra', forma: { faixa: [[0, 5], [10,
 
 test('as ferramentas têm nome, descrição com unidades e esquema de objeto', () => {
   const { f } = montar();
-  assert.deepEqual(Object.keys(f), ['atlas_mapa_criar', 'atlas_terreno', 'atlas_comodos', 'atlas_mobiliar', 'atlas_paredes', 'atlas_portas', 'atlas_objetos', 'atlas_espalhar', 'atlas_luzes', 'atlas_ambiente', 'atlas_regioes', 'atlas_presenca', 'atlas_notas', 'atlas_momento', 'atlas_momento_testar', 'atlas_remover', 'atlas_mover', 'atlas_salvar', 'atlas_desfazer']);
+  assert.deepEqual(Object.keys(f), ['atlas_mapa_criar', 'atlas_terreno', 'atlas_comodos', 'atlas_mobiliar', 'atlas_edificio', 'atlas_paredes', 'atlas_portas', 'atlas_objetos', 'atlas_espalhar', 'atlas_luzes', 'atlas_ambiente', 'atlas_regioes', 'atlas_presenca', 'atlas_notas', 'atlas_momento', 'atlas_momento_testar', 'atlas_remover', 'atlas_mover', 'atlas_salvar', 'atlas_desfazer']);
   for (const x of Object.values(f)) { assert.ok(x.descricao.length > 60 && x.descricao.length <= 180, x.nome); assert.equal(x.esquema.type, 'object'); }
   assert.match(f.atlas_comodos!.descricao, /CÉLULAS/);
   assert.match(f.atlas_terreno!.descricao, /METROS/);
@@ -400,17 +400,17 @@ test('o esquema dos passos bate com o catálogo de momentos', () => {
   }
 });
 
-test('as ferramentas do Atlas têm descrições curtas e somam menos de 22 KB', () => {
+test('as ferramentas do Atlas têm descrições curtas e ficam dentro do orçamento compacto', () => {
   const ctxL = { repo: () => null, mapaAberto: () => null, abrirMapa: async () => {} };
   const ctxE = { store: () => null, repo: () => null, abrirMapa: async () => {} };
   const todas = [...ferramentasDeLeitura(ctxL), ...ferramentasDeEscrita(ctxE)];
-  assert.equal(todas.length, 26);
+  assert.equal(todas.length, 27);
   for (const f of todas) {
     assert.ok(f.descricao.length <= 800, `${f.nome} passou de 800 caracteres: ${f.descricao.length}`);
     assert.ok(f.descricao.length >= 40, `${f.nome} descrição muito curta: ${f.descricao.length}`);
   }
   const bytes = Buffer.byteLength(JSON.stringify(todas));
-  assert.ok(bytes < 22_000, `Esperava soma das atlas_* menor que 22 KB (22000 bytes), obteve ${bytes}`);
+  assert.ok(bytes < 23_500, `Esperava soma das atlas_* menor que 23,5 KB (23500 bytes), obteve ${bytes}`);
 });
 
 
@@ -483,4 +483,37 @@ test('atlas_momento: água que baixa (acao e deixar) no esquema e nas referênci
   await assert.rejects(chamar('atlas_momento', { nome: 'x', passos: [{ ...agua, acao: 'baixar', deixar: 'agua.lago' }] }), /Passo 1 \(agua\).*material de chão/);
   await assert.rejects(chamar('atlas_momento', { nome: 'x', passos: [{ ...agua, deixar: 'lama' }] }), /Passo 1 \(agua\).*só vale com acao/);
   await assert.rejects(chamar('atlas_momento', { nome: 'x', passos: [{ ...agua, acao: 'secar' }] }), /Passo 1/);
+});
+
+test('atlas_edificio monta 6 edifícios variados numa transação e desfaz de uma vez', async () => {
+  const mapaGrande = criarMapa({ nome: 'Vila', largura: 110, altura: 110 });
+  mapaGrande.style.genre = 'fantasia';
+  const store = criarStore(mapaGrande);
+  const f = Object.fromEntries(ferramentasDeEscrita({ store: () => store, repo: () => null, abrirMapa: async () => {} }).map(x => [x.nome, x]));
+  const resp = ((await f.atlas_edificio!.executar({
+    edificios: [
+      { nome: 'Casa Sul', origem: [2, 2], frente: 's', forma: 'compacta', comodos: [{ tipo: 'sala', area: 14 }, { tipo: 'quarto', area: 9 }] },
+      { nome: 'Taverna em L', origem: [14, 2], frente: 'o', forma: 'L', alpendre: true, comodos: [{ tipo: 'taverna', area: 32, principal: true }, { tipo: 'cozinha', area: 14 }, { tipo: 'deposito', area: 10 }] },
+      { nome: 'Capela em T', origem: [32, 2], frente: 's', forma: 'T', comodos: [{ tipo: 'capela', area: 28, principal: true }, { tipo: 'oficina', area: 12 }, { tipo: 'sala', nome: 'Sacristia', area: 10 }] },
+      { nome: 'Estalagem U', origem: [2, 22], frente: 'l', forma: 'U', comodos: [{ tipo: 'salao', area: 24, principal: true }, { tipo: 'cozinha', area: 14 }, { tipo: 'quarto', area: 12 }, { tipo: 'quarto', area: 12 }] },
+      { nome: 'Quartel Linear', origem: [22, 24], frente: 'n', forma: 'linear', comodos: [{ tipo: 'salao', area: 28, principal: true }, { tipo: 'dormitorio', area: 18 }, { tipo: 'dormitorio', area: 18 }, { tipo: 'cozinha', area: 14 }, { tipo: 'deposito', area: 12 }] },
+      { nome: 'Oficina Pátio', origem: [44, 24], frente: 'o', forma: 'patio', comodos: [{ tipo: 'oficina', area: 22, principal: true }, { tipo: 'loja', area: 16 }, { tipo: 'deposito', area: 12 }, { tipo: 'quarto', area: 10 }] },
+    ],
+    semente: 17,
+  }))[0] as { texto: string }).texto;
+
+  assert.match(resp, /Casa Sul:/);
+  assert.match(resp, /Taverna em L:/);
+  assert.match(resp, /Capela em T:/);
+  assert.match(resp, /Estalagem U:/);
+  assert.match(resp, /Quartel Linear:/);
+  assert.match(resp, /Oficina Pátio:/);
+  assert.equal(store.historico.length, 1);
+
+  const errosEstruturais = (await import('../../src/authoring/revisao.ts')).revisarMapa(store.documento)
+    .filter(a => a.regra === 'casas-iguais' || a.regra === 'comodo-sem-acesso' || a.regra === 'interior-vazio');
+  assert.deepEqual(errosEstruturais, []);
+
+  store.desfazer();
+  assert.equal(Object.keys(store.documento.rooms).length, 0);
 });
