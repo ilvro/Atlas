@@ -178,7 +178,7 @@ Testes: dois edifícios num mapa vazio entram, acessíveis e mobiliados; um edif
 Pronto quando: pelo MCP, `atlas_edificio` com 6 programas variados monta 6 casas diferentes, e `atlas_revisar` não acusa `casas-iguais`, `comodo-sem-acesso` nem `interior-vazio`.
 Commit: `added atlas_edificio tool`
 
-### D4a — Arranjos de objetos  ⬜
+### D4a — Arranjos de objetos  ✅
 Objetivo: dispor muitos objetos com ordem e variação, sem o aspecto de grade mecânica.
 Depende de: —.
 Ler: `src/authoring/espalhar.ts` (conjuntos e o espalhar orgânico), `src/authoring/formas.ts` (`Forma`, `medirForma`), `src/authoring/construcao.ts` (`objetos`, `itemInvalido`), `src/authoring/portas.ts` (`reservasDePorta`), `src/authoring/insight.ts` (`caixaDoObjeto`).
