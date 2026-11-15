@@ -515,5 +515,6 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 
 - **A1 — Carimbo de versão de cada app** — `Mesa/scripts/carimbo.ts` (`ENTRADAS_DO_BUILD`, `ARQUIVO_DO_CARIMBO`, `carimboDe`, `carimboDoApp`, `lerCarimboMontado`, `appsVelhos`, `deveIgnorarCaminho` e `ignorarDoApp`, excluindo `src/default-sheets.js` gerado no Dossiê e aplicando `filtroCopiaJukebox` na Jukebox). Testes em `Mesa/tests/unit/carimbo.test.ts`.
 
+### Frente E — Acervo ampliado (Opus)
 
-
+- **E1 — Materiais rústicos e industriais** — 16 materiais em `src/procedural/materiais.ts`: pisos `terra.batida`, `palha.chao`, `pedra.rustica`, `tabuas.rusticas`, `metal.chapa`, `metal.grade`, `vinil.industrial`, `concreto.placas`; paredes `toras`, `pedra.aparelhada`, `reboco.sujo`, `painel.metalico`, `painel.acolchoado`; terrenos `neve.pisada`, `terra.congelada`, `piso.hangar` (com faixa de segurança). Dez padrões novos (`palha-chao`, `lajes-rusticas`, `chapa-xadrez`, `grade-metal`, `toras`, `manchado`, `painel`, `acolchoado`, `pisada`, `placas`) como sombreadores por pixel no Ilustrado e ladrilhos no Pixel (`estilos/materiais-pixel.ts`). Conferidos em prancha nas duas estéticas. Testes em `tests/unit/materiais-rusticos.test.ts`.
