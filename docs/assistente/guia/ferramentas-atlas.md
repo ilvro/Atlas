@@ -14,7 +14,7 @@ Ajusta clima e acabamento do mapa aberto (um passo de desfazer). Presets em atla
 
 ## atlas_catalogo
 
-Catálogo de opções: receitas, colecao, materiais, telhado, climas, luzes, presenca ou momentos. Sem parte, traz contagens. Use para não inventar ids.
+Catálogo de opções: `receitas`, `colecao`, `conjuntos`, `comodos`, `materiais`, `telhado`, `climas`, `luzes`, `presenca` ou `momentos`. Sem `parte`, traz contagens. Com `busca` (texto de até 60 caracteres), filtra por id, nome, tags e funções (sem `parte`, procura em receitas, coleção, conjuntos e materiais, até 40 de cada). Use para não inventar ids.
 
 ## atlas_comodos
 
@@ -47,7 +47,7 @@ Desfaz as últimas entradas do histórico do mapa aberto (a mesma pilha do Ctrl+
 
 ## atlas_espalhar
 
-Espalha conjunto de objetos numa região em metros (um passo de desfazer). Conjuntos em atlas_catalogo { parte: "receitas" }. Objetos ficam comuns e editáveis.
+Espalha conjunto de objetos numa região em metros (um passo de desfazer). Conjuntos em atlas_catalogo { parte: "conjuntos" }. Objetos ficam comuns e editáveis.
 
 Parâmetros:
 

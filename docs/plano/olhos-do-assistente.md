@@ -80,7 +80,7 @@ Testes: criar um `.md` novo na pasta temporária depois de criar o servidor e ve
 Pronto quando: editar `docs/assistente/guia/mapas.md` com o app do Claude aberto e chamar `plataforma_guia mapas` traz o texto novo.
 Commit: `guide sections are reread on every call`
 
-### B4 — Catálogo: conjuntos, tipos de cômodo e busca  ⬜
+### B4 — Catálogo: conjuntos, tipos de cômodo e busca  ✅
 Objetivo: o Claude acha o que existe sem ler o catálogo inteiro.
 Depende de: —.
 Ler: `src/app/ponte-leitura.ts` (`catalogo`, `PARTES`, a ferramenta `atlas_catalogo`), `src/authoring/espalhar.ts` (`TODOS_OS_CONJUNTOS`, a forma de cada conjunto), `src/procedural/receitas/index.ts` (`listaDeReceitas`), `src/procedural/colecao.ts` (`COLECAO`).

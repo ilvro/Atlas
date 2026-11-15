@@ -270,7 +270,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_espalhar',
-      descricao: 'Espalha um conjunto de objetos numa região em metros. Conjuntos: atlas_catalogo receitas. Detalhes: plataforma_guia ferramentas-atlas.',
+      descricao: 'Espalha um conjunto de objetos numa região em metros. Conjuntos em atlas_catalogo { parte: "conjuntos" }. Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         conjunto: { type: 'string', enum: TODOS_OS_CONJUNTOS.map(c => c.id) }, forma: esquemaDaForma(),
         densidade: { type: 'number', exclusiveMinimum: 0, maximum: 20 }, semente,

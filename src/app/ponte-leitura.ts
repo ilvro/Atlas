@@ -7,8 +7,10 @@ import { descreverPasso } from '../domain/momentos.ts';
 import { ESTILOS_DE_TELHADO, FUNCOES_AO_AR_LIVRE, GENEROS, PACOTES_DE_PRESENCA, PINCEIS_DE_PRESENCA, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO } from '../domain/presets.ts';
 import { formaDe, retangulosDe } from '../domain/telhado-geometria.ts';
 import { COLECAO } from '../procedural/colecao.ts';
-import { materiaisDo } from '../procedural/materiais.ts';
+import { MATERIAIS, materiaisDo } from '../procedural/materiais.ts';
 import { listaDeReceitas } from '../procedural/receitas/index.ts';
+import { TODOS_OS_CONJUNTOS } from '../authoring/espalhar.ts';
+import { regrasPara } from '../authoring/regras-mobilia.ts';
 import { caixaDe, type Alvo, type Caixa } from '../render/selecao.ts';
 import type { RepositorioMapas } from '../data/repositorio.ts';
 
@@ -202,8 +204,11 @@ export function resumirMapa(m: MapaAtlas, opcoes?: { comodos?: readonly string[]
   return saida;
 }
 
-type Parte = 'receitas' | 'colecao' | 'materiais' | 'telhado' | 'climas' | 'luzes' | 'presenca' | 'momentos';
-const PARTES: readonly Parte[] = ['receitas', 'colecao', 'materiais', 'telhado', 'climas', 'luzes', 'presenca', 'momentos'];
+type Parte = 'receitas' | 'colecao' | 'conjuntos' | 'comodos' | 'materiais' | 'telhado' | 'climas' | 'luzes' | 'presenca' | 'momentos';
+const PARTES: readonly Parte[] = ['receitas', 'colecao', 'conjuntos', 'comodos', 'materiais', 'telhado', 'climas', 'luzes', 'presenca', 'momentos'];
+const LIMITE_BUSCA_CATALOGO = 40;
+
+const normalizarBusca = (s: string): string => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 const TIPOS_DE_PASSO = [
   { tipo: 'esperar', campos: { ms: 'número, 100 a 120000' }, descricao: 'Espera antes do próximo passo.' },
@@ -223,13 +228,40 @@ const TIPOS_DE_PASSO = [
   { tipo: 'nota', campos: { texto: 'até 400 caracteres' }, descricao: 'Aviso só para o mestre.' },
 ];
 
-export function catalogo(parte?: string): unknown {
+export function catalogo(parte?: string, busca?: string): unknown {
+  const termos = busca ? normalizarBusca(busca.trim()).split(/\s+/).filter(Boolean) : [];
+  const bate = (textos: readonly (string | undefined)[]) =>
+    !termos.length || termos.every(t => textos.some(x => x !== undefined && normalizarBusca(x).includes(t)));
+  const listarReceitas = () =>
+    listaDeReceitas()
+      .filter(r => bate([r.id, r.nome, ...r.tags, ...r.funcoes]))
+      .map(r => ({ id: r.id, nome: r.nome, categoria: r.categoria, tipo: r.tipo, funcoes: r.funcoes, tags: r.tags, ...(r.generos?.length ? { generos: r.generos } : {}), ...(r.kit ? { kit: r.kit } : {}), pegada: r.pegada, ...(r.altura !== undefined ? { altura: r.altura } : {}), ...(r.submerso ? { submerso: true } : {}), ...(r.campos?.length ? { campos: r.campos.map(c => ({ id: c.id, rotulo: c.rotulo, tipo: c.tipo, padrao: c.padrao, ...(c.min !== undefined ? { min: c.min } : {}), ...(c.max !== undefined ? { max: c.max } : {}), ...(c.uso ? { uso: c.uso } : {}) })) } : {}) }));
+  const listarColecao = () =>
+    COLECAO
+      .filter(i => bate([i.id, i.nome, ...i.tags, ...i.funcoes]))
+      .map(i => ({ id: i.id, nome: i.nome, categoria: i.categoria, pegada: i.pegada, funcoes: i.funcoes, tags: i.tags, ...(i.generos.length ? { generos: i.generos } : {}), ...(i.kit ? { kit: i.kit } : {}) }));
+  const listarConjuntos = () =>
+    TODOS_OS_CONJUNTOS
+      .filter(c => bate([c.id, c.nome, c.descricao, ...c.itens.map(i => i.receita)]))
+      .map(c => ({ id: c.id, nome: c.nome, descricao: c.descricao, densidade: c.densidade, ...(c.grade ? { arranjo: 'fileiras' as const } : {}), itens: c.itens.map(i => i.receita) }));
+
   switch (parte as Parte | undefined) {
-    case 'receitas': return listaDeReceitas().map(r => ({ id: r.id, nome: r.nome, categoria: r.categoria, tipo: r.tipo, funcoes: r.funcoes, tags: r.tags, ...(r.generos?.length ? { generos: r.generos } : {}), ...(r.kit ? { kit: r.kit } : {}), pegada: r.pegada, ...(r.altura !== undefined ? { altura: r.altura } : {}), ...(r.submerso ? { submerso: true } : {}), ...(r.campos?.length ? { campos: r.campos.map(c => ({ id: c.id, rotulo: c.rotulo, tipo: c.tipo, padrao: c.padrao, ...(c.min !== undefined ? { min: c.min } : {}), ...(c.max !== undefined ? { max: c.max } : {}), ...(c.uso ? { uso: c.uso } : {}) })) } : {}) }));
-    case 'colecao': return COLECAO.map(i => ({ id: i.id, nome: i.nome, categoria: i.categoria, pegada: i.pegada, funcoes: i.funcoes, tags: i.tags, ...(i.generos.length ? { generos: i.generos } : {}), ...(i.kit ? { kit: i.kit } : {}) }));
+    case 'receitas': return listarReceitas();
+    case 'colecao': return listarColecao();
+    case 'conjuntos': return listarConjuntos();
+    case 'comodos': return TIPOS_DE_COMODO.map(t => ({
+      id: t.id,
+      nome: t.nome,
+      funcao: t.funcao,
+      piso: t.piso,
+      papel: t.papel,
+      descricao: t.descricao,
+      mobilia: GENEROS.some(g => regrasPara(t.funcao, g.id).length > 0),
+      semTelhado: FUNCOES_AO_AR_LIVRE.has(t.funcao),
+    }));
     case 'materiais': {
       const usos = ['piso', 'papel', 'objeto', 'terreno', 'macico', 'agua', 'telhado'] as const;
-      return Object.fromEntries(usos.map(u => [u, materiaisDo(u).map(x => ({ id: x.id, nome: x.nome }))]));
+      return Object.fromEntries(usos.map(u => [u, materiaisDo(u).filter(x => bate([x.id, x.nome, u])).map(x => ({ id: x.id, nome: x.nome }))]));
     }
     case 'telhado': return {
       estilos: ESTILOS_DE_TELHADO.map(e => ({ id: e.id, nome: e.nome, cobertura: e.roof.material, forma: e.roof.shape ?? 'quatro-aguas', ingreme: !!e.roof.steep, detalhes: e.roof.details ?? [] })),
@@ -242,7 +274,16 @@ export function catalogo(parte?: string): unknown {
     case 'luzes': return PRESETS_DE_LUZ.map(l => ({ id: l.id, nome: l.nome, descricao: l.descricao, raio: l.radius, cor: l.color, intensidade: l.intensity, tremulo: l.flicker, energia: l.power, cone: l.cone }));
     case 'presenca': return { pacotes: PACOTES_DE_PRESENCA, pincéis: PINCEIS_DE_PRESENCA.map(p => ({ id: p.id, nome: p.nome, pacote: p.pacote, cor: p.cor, brilha: p.brilho, ...(p.forma ? { forma: p.forma } : {}), ...(p.submerso ? { submerso: true } : {}) })) };
     case 'momentos': return { limites: { passosPorMomento: 60, nome: '1 a 60 caracteres' }, tiposDePasso: TIPOS_DE_PASSO };
-    case undefined: return { partes: { receitas: listaDeReceitas().length, colecao: COLECAO.length, materiais: Object.fromEntries((['piso', 'papel', 'objeto', 'terreno', 'macico', 'agua', 'telhado'] as const).map(u => [u, materiaisDo(u).length])), telhado: ESTILOS_DE_TELHADO.length, climas: PRESETS_DE_CLIMA.length, luzes: PRESETS_DE_LUZ.length, presenca: PINCEIS_DE_PRESENCA.length, momentos: TIPOS_DE_PASSO.length }, dica: 'Peça uma parte por vez com atlas_catalogo { parte }.' };
+    case undefined:
+      if (termos.length) {
+        return {
+          receitas: listarReceitas().slice(0, LIMITE_BUSCA_CATALOGO),
+          colecao: listarColecao().slice(0, LIMITE_BUSCA_CATALOGO),
+          conjuntos: listarConjuntos().slice(0, LIMITE_BUSCA_CATALOGO),
+          materiais: Object.values(MATERIAIS).filter(x => bate([x.id, x.nome, x.uso])).slice(0, LIMITE_BUSCA_CATALOGO).map(x => ({ id: x.id, nome: x.nome, uso: x.uso })),
+        };
+      }
+      return { partes: { receitas: listaDeReceitas().length, colecao: COLECAO.length, conjuntos: TODOS_OS_CONJUNTOS.length, comodos: TIPOS_DE_COMODO.length, materiais: Object.fromEntries((['piso', 'papel', 'objeto', 'terreno', 'macico', 'agua', 'telhado'] as const).map(u => [u, materiaisDo(u).length])), telhado: ESTILOS_DE_TELHADO.length, climas: PRESETS_DE_CLIMA.length, luzes: PRESETS_DE_LUZ.length, presenca: PINCEIS_DE_PRESENCA.length, momentos: TIPOS_DE_PASSO.length }, dica: 'Peça uma parte por vez com atlas_catalogo { parte } ou use busca para procurar por palavra.' };
     default: throw new Error(`Parte desconhecida: "${String(parte)}". Use: ${PARTES.join(', ')}.`);
   }
 }
@@ -348,10 +389,15 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
     },
     {
       nome: 'atlas_catalogo',
-      descricao: 'Catálogo de opções (receitas, colecao, materiais, telhado, climas, luzes, presenca, momentos). Use para não inventar ids.',
-      esquema: { type: 'object', properties: { parte: { type: 'string', enum: [...PARTES] } }, required: [], additionalProperties: false },
+      descricao: 'Catálogo de opções (receitas, colecao, conjuntos, comodos, materiais, telhado, climas, luzes, presenca, momentos). Aceita busca por palavra. Use para não inventar ids.',
+      esquema: { type: 'object', properties: { parte: { type: 'string', enum: [...PARTES] }, busca: { type: 'string', maxLength: 60 } }, required: [], additionalProperties: false },
       anotacoes: { leitura: true },
-      async executar(args) { return [json(catalogo(typeof args.parte === 'string' ? args.parte : undefined))]; },
+      async executar(args) {
+        if (args.busca !== undefined && (typeof args.busca !== 'string' || args.busca.length > 60)) {
+          throw new Error('"busca" deve ser um texto de até 60 caracteres.');
+        }
+        return [json(catalogo(typeof args.parte === 'string' ? args.parte : undefined, typeof args.busca === 'string' ? args.busca : undefined))];
+      },
     },
     {
       nome: 'atlas_abrir',
