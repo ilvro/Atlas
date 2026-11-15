@@ -107,7 +107,7 @@ Testes: todo tipo novo tem regras e só cita receitas que existem (faça um test
 Pronto quando: `atlas_comodos` aceita os tipos novos e `atlas_mobiliar` mobília um estábulo com feno, bebedouro e palha.
 Commit: `added generic room types with furnishing rules`
 
-### D3a — Planta do edifício a partir do programa  ⬜
+### D3a — Planta do edifício a partir do programa  ✅
 Objetivo: uma função pura transforma um programa em cômodos encaixados numa planta com forma.
 Depende de: D2.
 Ler: `src/authoring/construcao.ts` (`comodos`, `PedidoDeComodo`, `Ret`), `src/domain/celulas.ts`, `src/domain/edificios.ts`, `src/domain/telhado-geometria.ts` (`retangulosDe`), `src/domain/presets.ts` (`tipoDeComodo`, `FUNCOES_AO_AR_LIVRE`).
