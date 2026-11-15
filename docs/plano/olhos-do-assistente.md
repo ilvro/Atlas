@@ -95,7 +95,7 @@ Testes: `busca: 'cemiterio'` traz o conjunto `cemiterio`, a `lapide` e o `banco.
 Pronto quando: o índice mostra as partes novas e a busca funciona pela ferramenta.
 Commit: `catalog lists scatter sets, room types and supports search`
 
-### B5a — Revisão: regras de estrutura  ⬜
+### B5a — Revisão: regras de estrutura  ✅
 Objetivo: uma função pura aponta defeitos objetivos de construção.
 Depende de: —.
 Ler: `src/authoring/insight.ts` (`InsightDoComodo` e a função que o calcula), `src/authoring/portas.ts` (`reservasDePorta`), `src/domain/edificios.ts`, `src/domain/presets.ts` (`FUNCOES_AO_AR_LIVRE`), `src/procedural/acervo.ts` (`ACERVO.item`, `pegadaDaFonte`).
