@@ -161,7 +161,7 @@ Testes: e2e com captura ao meio-dia na vista de jogador: casa 4×3 em quatro ág
 Pronto quando: o porto à noite e o entreposto mostram telhados com volume, e o fade continua funcionando.
 Commit: `roofs drawn per building with textured faces, light and shadow`
 
-### T5d — Estilos de telhado e o seletor no Inspetor  ⬜
+### T5d — Estilos de telhado e o seletor no Inspetor  ✅
 Objetivo: escolher "Igreja" ou "Choupana" num clique, sem montar cobertura e forma à mão.
 Depende de: T5c.
 Ler: `src/domain/presets.ts` (`TIPOS_DE_COMODO`, `telhadoPadrao` do T3), `src/ui/Inspetor.tsx:595-610`, `src/authoring/construcao.ts` (`PedidoDeComodo`), `src/app/ponte-escrita.ts:185-200`, `src/app/ponte-leitura.ts:105-115` (`atlas_catalogo`), `src/render/miniatura.ts`.

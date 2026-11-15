@@ -403,7 +403,7 @@
   },
   {
     "nome": "atlas_catalogo",
-    "descricao": "Catálogo de opções (receitas, colecao, materiais, climas, luzes, presenca, momentos). Use para não inventar ids.",
+    "descricao": "Catálogo de opções (receitas, colecao, materiais, telhado, climas, luzes, presenca, momentos). Use para não inventar ids.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -413,6 +413,7 @@
             "receitas",
             "colecao",
             "materiais",
+            "telhado",
             "climas",
             "luzes",
             "presenca",
@@ -430,7 +431,7 @@
   },
   {
     "nome": "atlas_comodos",
-    "descricao": "Cria cômodos (piso, paredes, telhado). ATENÇÃO: rets em CÉLULAS de 1,5 m, x1/y1 exclusivos. telhado omitido = do gênero; null = sem. Guia: plataforma_guia ferramentas-atlas.",
+    "descricao": "Cria cômodos (piso, paredes, telhado). rets em CÉLULAS de 1,5 m, x1/y1 exclusivos. telhado = estilo, cobertura ou null. Guia: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -491,6 +492,37 @@
               },
               "telhadoVisivel": {
                 "type": "boolean"
+              },
+              "telhadoForma": {
+                "type": "string",
+                "enum": [
+                  "quatro-aguas",
+                  "duas-aguas",
+                  "plano",
+                  "piramide"
+                ]
+              },
+              "telhadoCumeeira": {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "h",
+                  "v"
+                ]
+              },
+              "telhadoDetalhes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "chamine",
+                    "cruz",
+                    "sino",
+                    "catavento",
+                    "claraboia",
+                    "caixa-dagua"
+                  ]
+                }
               }
             },
             "required": [
@@ -3040,7 +3072,7 @@
   },
   {
     "nome": "mesa_entidade_editar",
-    "descricao": "Edita uma entidade criada pela Mesa (nome, tags, notas); as de outros apps são recusadas. Não remove. Detalhes: plataforma_guia ferramentas-mesa.",
+    "descricao": "Edita nome, tags e notas de uma entidade; nas criadas por outros apps só tags e notas (o nome é recusado). Não remove. Detalhes: plataforma_guia ferramentas-mesa.",
     "esquema": {
       "type": "object",
       "required": [

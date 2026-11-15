@@ -10,8 +10,22 @@ import { mulberry32 } from '../procedural/ruido.ts';
 import { codificar } from '../domain/celulas.ts';
 import { novaLuz, novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
 import { PAREDE_PADRAO, encaixarNaParede, motivoDeNaoCaber } from '../domain/geometria.ts';
-import type { Abertura, MapaAtlas, Objeto, Parede, Ponto, Regiao } from '../domain/mapa.ts';
-import { PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, presetDeLuz, telhadoPadrao, tipoDeComodo } from '../domain/presets.ts';
+import {
+  CUMEEIRAS_DE_TELHADO,
+  DETALHES_DE_TELHADO,
+  FORMAS_DE_TELHADO,
+  type Abertura,
+  type Comodo,
+  type CumeeiraDeTelhado,
+  type DetalheDeTelhado,
+  type FormaDeTelhado,
+  type MapaAtlas,
+  type Objeto,
+  type Parede,
+  type Ponto,
+  type Regiao,
+} from '../domain/mapa.ts';
+import { ESTILOS_DE_TELHADO, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, estiloDeTelhado, presetDeLuz, telhadoPadrao, tipoDeComodo } from '../domain/presets.ts';
 import { aplicarComando, type Comando } from '../state/comandos.ts';
 import { TODOS_OS_CONJUNTOS, conjuntoDeEspalhar, espalhar as espalharConjunto } from './espalhar.ts';
 import { celulasDaForma, medirForma, sementeDaForma, type Forma, type Ret } from './formas.ts';
@@ -65,7 +79,61 @@ export function terreno(mapa: MapaAtlas, ops: readonly OpDeTerreno[], semente = 
 }
 
 // ---------- Cômodos ----------
-export interface PedidoDeComodo { rets: readonly Ret[]; tipo: string; nome?: string; piso?: string; papel?: string; telhado?: string | null; telhadoVisivel?: boolean }
+export interface PedidoDeComodo {
+  rets: readonly Ret[];
+  tipo: string;
+  nome?: string;
+  piso?: string;
+  papel?: string;
+  telhado?: string | null;
+  telhadoVisivel?: boolean;
+  telhadoForma?: FormaDeTelhado;
+  telhadoCumeeira?: CumeeiraDeTelhado;
+  telhadoDetalhes?: readonly DetalheDeTelhado[];
+}
+
+function resolverTelhadoPedido(
+  p: PedidoDeComodo,
+  acumulado: Pick<MapaAtlas, 'rooms' | 'style'>,
+  funcao: string,
+  celulas: readonly [number, number][],
+): Omit<Comodo['roof'], 'visible'> | null {
+  if (p.telhadoForma !== undefined && !FORMAS_DE_TELHADO.includes(p.telhadoForma)) {
+    throw new ErroDeConstrucao(`forma de telhado “${String(p.telhadoForma)}” não existe; formas: ${lista(FORMAS_DE_TELHADO)}`);
+  }
+  if (p.telhadoCumeeira !== undefined && !CUMEEIRAS_DE_TELHADO.includes(p.telhadoCumeeira)) {
+    throw new ErroDeConstrucao(`cumeeira “${String(p.telhadoCumeeira)}” não existe; valores: ${lista(CUMEEIRAS_DE_TELHADO)}`);
+  }
+  if (p.telhadoDetalhes !== undefined) {
+    for (const d of p.telhadoDetalhes) {
+      if (!DETALHES_DE_TELHADO.includes(d)) throw new ErroDeConstrucao(`detalhe de telhado “${String(d)}” não existe; detalhes: ${lista(DETALHES_DE_TELHADO)}`);
+    }
+  }
+  let base: Omit<Comodo['roof'], 'visible'> | null;
+  if (p.telhado === undefined) {
+    base = telhadoPadrao(acumulado, funcao, celulas);
+  } else if (p.telhado === null) {
+    base = null;
+  } else {
+    const est = estiloDeTelhado(p.telhado);
+    if (est) {
+      base = { ...est.roof, ...(est.roof.details ? { details: [...est.roof.details] } : {}) };
+    } else {
+      const m = MATERIAIS[p.telhado];
+      if (!m || m.uso !== 'telhado') {
+        throw new ErroDeConstrucao(`telhado “${p.telhado}” não existe; estilos: ${lista(ESTILOS_DE_TELHADO.map(e => e.id))}; coberturas: ${lista(materiaisDo('telhado').map(x => x.id))}`);
+      }
+      base = { material: p.telhado };
+    }
+  }
+  if (!base) return null;
+  return {
+    ...base,
+    ...(p.telhadoForma !== undefined ? { shape: p.telhadoForma } : {}),
+    ...(p.telhadoCumeeira !== undefined ? { ridge: p.telhadoCumeeira } : {}),
+    ...(p.telhadoDetalhes !== undefined ? { details: [...p.telhadoDetalhes] } : {}),
+  };
+}
 
 /** Cômodos em células do grid (`[x0, y0, x1, y1]`, fim exclusivo); várias `rets` fazem um cômodo em L. As paredes derivam sozinhas. */
 export function comodos(mapa: MapaAtlas, pedidos: readonly PedidoDeComodo[], semente = 1, gerarId: GeradorDeId = novoIdEntidade): Construcao {
@@ -77,14 +145,13 @@ export function comodos(mapa: MapaAtlas, pedidos: readonly PedidoDeComodo[], sem
     if (!p.rets.length) throw new ErroDeConstrucao('um cômodo precisa de ao menos um retângulo [x0, y0, x1, y1]');
     if (p.piso) verificarMaterial(p.piso, ['piso'], 'piso');
     if (p.papel) verificarMaterial(p.papel, ['papel'], 'papel de parede');
-    if (p.telhado) verificarMaterial(p.telhado, ['telhado'], 'telhado');
     const celulas: [number, number][] = [];
     for (const [x0, y0, x1, y1] of p.rets) {
       if (![x0, y0, x1, y1].every(Number.isFinite) || x1 <= x0 || y1 <= y0) throw new ErroDeConstrucao(`retângulo inválido [${x0}, ${y0}, ${x1}, ${y1}]: use [x0, y0, x1, y1] em células do grid, com x1 > x0 e y1 > y0`);
       for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) celulas.push([x, y]);
     }
     const id = gerarId('c');
-    const telhado = p.telhado === undefined ? telhadoPadrao(acumulado, t.funcao, celulas) : p.telhado;
+    const telhado = resolverTelhadoPedido(p, acumulado, t.funcao, celulas);
     comandos.push({
       tipo: 'comodo.criar', id, nome: p.nome ?? t.nome, funcao: t.funcao, celulas,
       piso: { material: p.piso ?? t.piso, seed: Math.floor(rng() * 2 ** 31) },
@@ -97,7 +164,7 @@ export function comodos(mapa: MapaAtlas, pedidos: readonly PedidoDeComodo[], sem
     acumulado.rooms[id] = {
       id, name: p.nome ?? t.nome, function: t.funcao, cells: codificar(celulas),
       floor: { material: p.piso ?? t.piso, seed: 0 }, wallpaper: null, wallStyle: null, palette: null,
-      roof: { material: telhado ?? null, visible: p.telhadoVisivel ?? true }, levelId: null,
+      roof: { ...(telhado ?? { material: null }), visible: p.telhadoVisivel ?? true }, levelId: null,
     };
     ids.push(id);
   }

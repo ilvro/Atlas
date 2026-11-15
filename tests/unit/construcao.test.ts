@@ -55,7 +55,8 @@ test('comodos: todos os tipos têm piso e papel válidos; tipo inválido lista a
 test('comodos: sem telhado usa o padrão do gênero/vizinho; null explícito deixa sem telhado', () => {
   const inv = vazio();
   const padrao = aplicar(comodos(inv, [{ rets: [[1, 1, 3, 3]], tipo: 'sala' }], 1, contador()), inv);
-  assert.equal(padrao.rooms.c001!.roof.material, 'telha.barro');
+  assert.equal(padrao.rooms.c001!.roof.material, 'telha.velha');
+  assert.equal(padrao.rooms.c001!.roof.shape, 'duas-aguas');
 
   const varanda = aplicar(comodos(inv, [{ rets: [[1, 1, 3, 3]], tipo: 'varanda' }], 1, contador()), inv);
   assert.equal(varanda.rooms.c001!.roof.material, null);
@@ -68,6 +69,17 @@ test('comodos: sem telhado usa o padrão do gênero/vizinho; null explícito dei
     { rets: [[3, 1, 5, 3]], tipo: 'cozinha' },
   ], 1, contador()), inv);
   assert.equal(dois.rooms.c002!.roof.material, 'telha.palha');
+
+  const igreja = aplicar(comodos(inv, [
+    { rets: [[1, 1, 5, 4]], tipo: 'capela', nome: 'Nave', telhado: 'igreja' },
+    { rets: [[5, 1, 7, 4]], tipo: 'capela', nome: 'Torre', telhado: 'torre', telhadoForma: 'piramide', telhadoCumeeira: 'v', telhadoDetalhes: ['sino'] },
+  ], 1, contador()), inv);
+  assert.equal(igreja.rooms.c001!.roof.material, 'telha.ardosia');
+  assert.deepEqual(igreja.rooms.c001!.roof.details, ['cruz']);
+  assert.equal(igreja.rooms.c002!.roof.material, 'telha.escamas');
+  assert.equal(igreja.rooms.c002!.roof.shape, 'piramide');
+  assert.equal(igreja.rooms.c002!.roof.ridge, 'v');
+  assert.deepEqual(igreja.rooms.c002!.roof.details, ['sino']);
 });
 
 test('paredes: adiciona com o padrão e sobrescreve campos; escarpa com drop e defaults', () => {

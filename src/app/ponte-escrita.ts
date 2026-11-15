@@ -4,7 +4,7 @@ import { TODOS_OS_CONJUNTOS } from '../authoring/espalhar.ts';
 import { celulasDaForma, sementeDaForma, type Forma } from '../authoring/formas.ts';
 import { ceuNoHorario } from '../domain/clima.ts';
 import { EVENTOS_DE_CENA } from '../domain/eventos-de-cena.ts';
-import { criarMapa, type MapaAtlas } from '../domain/mapa.ts';
+import { CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, FORMAS_DE_TELHADO, criarMapa, type CumeeiraDeTelhado, type DetalheDeTelhado, type FormaDeTelhado, type MapaAtlas } from '../domain/mapa.ts';
 import { descreverPasso, duracaoEstimada, momentoValido, type Momento, type PassoDeMomento } from '../domain/momentos.ts';
 import { GENEROS, PINCEIS_DE_PRESENCA, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
 import { validarMapa } from '../domain/validacao.ts';
@@ -184,11 +184,13 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_comodos',
-      descricao: 'Cria cômodos (piso, paredes, telhado). ATENÇÃO: rets em CÉLULAS de 1,5 m, x1/y1 exclusivos. telhado omitido = do gênero; null = sem. Guia: plataforma_guia ferramentas-atlas.',
+      descricao: 'Cria cômodos (piso, paredes, telhado). rets em CÉLULAS de 1,5 m, x1/y1 exclusivos. telhado = estilo, cobertura ou null. Guia: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         comodos: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
           rets: { type: 'array', minItems: 1, items: esquemaDoRetanguloDeCelulas }, tipo: { type: 'string', enum: TIPOS_DE_COMODO.map(t => t.id) }, nome: { type: 'string' },
           piso: { type: 'string' }, papel: { type: 'string' }, telhado: { type: ['string', 'null'] }, telhadoVisivel: { type: 'boolean' },
+          telhadoForma: { type: 'string', enum: [...FORMAS_DE_TELHADO] }, telhadoCumeeira: { type: 'string', enum: [...CUMEEIRAS_DE_TELHADO] },
+          telhadoDetalhes: { type: 'array', items: { type: 'string', enum: [...DETALHES_DE_TELHADO] } },
         }, required: ['rets', 'tipo'] } },
         semente,
       }, required: ['comodos'], additionalProperties: false },
@@ -197,6 +199,9 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         const pedidos = itens(args, 'comodos').map((c, i) => ({
           rets: retangulos(c.rets, `comodos[${i}].rets`), tipo: String(c.tipo ?? ''), nome: textoOpcional(c.nome, 'nome', 120), piso: textoOpcional(c.piso, 'piso', 80), papel: textoOpcional(c.papel, 'papel', 80),
           ...(c.telhado !== undefined ? { telhado: c.telhado === null ? null : textoOpcional(c.telhado, 'telhado', 80) } : {}), ...(typeof c.telhadoVisivel === 'boolean' ? { telhadoVisivel: c.telhadoVisivel } : {}),
+          ...(c.telhadoForma !== undefined ? { telhadoForma: String(c.telhadoForma) as FormaDeTelhado } : {}),
+          ...(c.telhadoCumeeira !== undefined ? { telhadoCumeeira: String(c.telhadoCumeeira) as CumeeiraDeTelhado } : {}),
+          ...(Array.isArray(c.telhadoDetalhes) ? { telhadoDetalhes: c.telhadoDetalhes.map(d => String(d)) as DetalheDeTelhado[] } : {}),
         }));
         const s = sementeDe(args);
         return [texto(escrever(ctx, `${pedidos.length} cômodo(s)`, mapa => geracao(comodos(mapa, pedidos.map(p => limpar(p)), s))))];

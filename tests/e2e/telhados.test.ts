@@ -236,3 +236,46 @@ test('telhado por edifício: faces texturizadas, luz e sombra do sol e cobertura
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test('inspetor: escolher Igreja na nave e Torre no campanário e ver na vista de jogador', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await sessao(page, `(s) => {
+    const cel = (x0, x1, y0, y1) => { const r = []; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) r.push([x, y]); return r; };
+    const piso = { material: "laje.pedra", seed: 1 };
+    s.store.executar({ tipo: "comodo.criar", id: "nave", nome: "Nave", funcao: "sala", piso, papel: null, telhado: "telha.barro", celulas: cel(4, 8, 4, 7) });
+    s.store.executar({ tipo: "comodo.criar", id: "torre", nome: "Campanário", funcao: "sala", piso, papel: null, telhado: "telha.barro", celulas: cel(8, 10, 4, 7) });
+    s.store.executar({ tipo: "sessao.revelar", ids: ["nave", "torre"] });
+  }`);
+  await page.waitForTimeout(500);
+
+  await page.click('[data-testid="ferramenta-selecionar"]');
+  const [nx, ny] = await clientDe(page, [9.0, 8.25]);
+  await page.mouse.click(nx, ny);
+  await page.click('[data-testid="aba-selecao"]');
+  await page.click('[data-testid="telhado-igreja"]');
+
+  const [tx, ty] = await clientDe(page, [13.5, 8.25]);
+  await page.mouse.click(tx, ty);
+  await page.click('[data-testid="telhado-torre"]');
+  await page.locator('[data-testid="telhado-ajustar"] > summary').click();
+  await page.locator('[data-testid="telhado-ajustar"] select').first().waitFor();
+
+  const doc = await documento(page);
+  assert.equal(doc.rooms.nave!.roof.material, 'telha.ardosia');
+  assert.equal(doc.rooms.nave!.roof.shape, 'duas-aguas');
+  assert.deepEqual(doc.rooms.nave!.roof.details, ['cruz']);
+  assert.equal(doc.rooms.torre!.roof.material, 'telha.escamas');
+  assert.equal(doc.rooms.torre!.roof.shape, 'piramide');
+  assert.deepEqual(doc.rooms.torre!.roof.details, ['sino']);
+
+  await page.click('[data-testid="modo-sessao"]');
+  await page.waitForTimeout(300);
+  await page.click('[data-testid="vista-jogador"]');
+  await page.waitForTimeout(800);
+
+  const diag = await telhados(page);
+  assert.deepEqual(diag.map(d => [d.id, d.alvo]), [['nave', 1], ['torre', 1]]);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});

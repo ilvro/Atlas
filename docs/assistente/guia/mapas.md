@@ -19,7 +19,7 @@ Antes de qualquer chamada, desenhe em texto uma grade mental de 5 em 5 metros e 
 
 1. **Mapa:** `atlas_mapa_criar` (`nome`, `largura`, `altura` em metros, `base`, `genero`, `estilo`, `campanhaId`). Ele abre sozinho.
 2. **Terreno:** `atlas_terreno`. Primeiro a `base`, depois as camadas em `operacoes`: água, maciço de rocha, chão. Use `correnteza` para a água se mover.
-3. **Estrutura:** `atlas_comodos` (cômodos, com as paredes nascendo sozinhas; `rets` em células de 1,5 m com limites exclusivos, ex.: `[2, 3, 5, 6]` para 3 × 3 células = 4,5 × 4,5 m; tipos com padrões de piso e papel em `atlas_catalogo { parte: "climas" }`), `atlas_paredes` (muros, cercas, muretas e escarpas/barrancos avulsos) e `atlas_portas` (portas, janelas, arcos, passagens secretas). Crie o cômodo ou a parede antes da porta, em chamadas separadas.
+3. **Estrutura:** `atlas_comodos` (cômodos, com as paredes nascendo sozinhas; `rets` em células de 1,5 m com limites exclusivos, ex.: `[2, 3, 5, 6]` para 3 × 3 células = 4,5 × 4,5 m; tipos em `atlas_catalogo { parte: "climas" }` e estilos de telhado em `atlas_catalogo { parte: "telhado" }`), `atlas_paredes` (muros, cercas, muretas e escarpas/barrancos avulsos) e `atlas_portas` (portas, janelas, arcos, passagens secretas). Crie o cômodo ou a parede antes da porta, em chamadas separadas.
 4. **Objetos grandes:** árvores, rochedos e móveis grandes, com `atlas_objetos`; para muitos iguais, `atlas_espalhar` com um `conjunto`.
 5. **Objetos pequenos:** adereços, bagunça e detalhes, com `atlas_objetos` e `atlas_espalhar`.
 6. **Luzes:** `atlas_luzes`.

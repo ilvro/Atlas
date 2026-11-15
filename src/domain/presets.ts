@@ -1,6 +1,6 @@
 import { decodificar } from './celulas.ts';
 import { ambienteDaCor, ceuNoHorario } from './clima.ts';
-import type { Acabamento, Clima, Luz, MapaAtlas, Ponto, Tempo } from './mapa.ts';
+import type { Acabamento, Clima, Comodo, Luz, MapaAtlas, Ponto, Tempo } from './mapa.ts';
 
 /** Um tipo de cômodo: o piso e o papel de parede que combinam, e a função que a construção inteligente (Fase 5) vai usar. */
 export interface TipoDeComodo { id: string; nome: string; funcao: string; piso: string; papel: string; descricao: string }
@@ -150,14 +150,50 @@ export const generoDe = (id: string): Genero => GENEROS.find(g => g.id === id) ?
 /** Funções de cômodo ao ar livre que nascem sem telhado por padrão. */
 export const FUNCOES_AO_AR_LIVRE = new Set(['varanda', 'patio', 'claustro', 'quintal']);
 
-/** Material de telhado padrão ao criar um cômodo: ar livre fica sem; senão herda do vizinho (do mesmo nível) ou usa o gênero do mapa. */
+/** Um estilo de telhado: combinação nomeada de cobertura, forma, inclinação e detalhes (só usada na interface e construção; o documento grava os campos resultantes em `room.roof`). */
+export interface EstiloDeTelhado { id: string; nome: string; roof: Omit<Comodo['roof'], 'visible'> }
+
+export const ESTILOS_DE_TELHADO: readonly EstiloDeTelhado[] = [
+  { id: 'casa-de-telha', nome: 'Casa de telha', roof: { material: 'telha.barro', shape: 'quatro-aguas', steep: false, details: ['chamine'] } },
+  { id: 'casa-velha', nome: 'Casa velha', roof: { material: 'telha.velha', shape: 'duas-aguas', steep: false, details: ['chamine'] } },
+  { id: 'choupana', nome: 'Choupana', roof: { material: 'telha.palha', shape: 'quatro-aguas', steep: false, details: [] } },
+  { id: 'casa-de-pedra', nome: 'Casa de pedra', roof: { material: 'telha.pedra', shape: 'duas-aguas', steep: false, details: ['chamine'] } },
+  { id: 'celeiro', nome: 'Celeiro', roof: { material: 'telha.tabuinhas', shape: 'duas-aguas', steep: true, details: ['catavento'] } },
+  { id: 'igreja', nome: 'Igreja', roof: { material: 'telha.ardosia', shape: 'duas-aguas', steep: true, details: ['cruz'] } },
+  { id: 'torre', nome: 'Torre / campanário', roof: { material: 'telha.escamas', shape: 'piramide', steep: true, details: ['sino'] } },
+  { id: 'templo-de-cobre', nome: 'Templo de cobre', roof: { material: 'telha.cobre', shape: 'quatro-aguas', steep: true, details: [] } },
+  { id: 'galpao-de-zinco', nome: 'Galpão de zinco', roof: { material: 'telha.zinco', shape: 'duas-aguas', steep: false, details: [] } },
+  { id: 'laje-moderna', nome: 'Laje moderna', roof: { material: 'telha.concreto', shape: 'plano', details: ['caixa-dagua'] } },
+  { id: 'casa-nordica', nome: 'Casa nórdica', roof: { material: 'telha.grama', shape: 'duas-aguas', steep: false, details: ['chamine'] } },
+  { id: 'tenda', nome: 'Tenda', roof: { material: 'telha.lona', shape: 'piramide', steep: false, details: [] } },
+];
+
+export const estiloDeTelhado = (id: string): EstiloDeTelhado | undefined => ESTILOS_DE_TELHADO.find(e => e.id === id);
+
+const clonarTelhado = (r: Omit<Comodo['roof'], 'visible'>): Omit<Comodo['roof'], 'visible'> => ({
+  material: r.material,
+  ...(r.shape !== undefined ? { shape: r.shape } : {}),
+  ...(r.ridge !== undefined ? { ridge: r.ridge } : {}),
+  ...(r.steep !== undefined ? { steep: r.steep } : {}),
+  ...(r.details !== undefined ? { details: [...r.details] } : {}),
+});
+
+const ESTILO_POR_FUNCAO: Readonly<Record<string, string>> = {
+  capela: 'igreja',
+  forja: 'casa-de-pedra',
+  torre: 'torre',
+  campanario: 'torre',
+};
+
+/** Estilo de telhado padrão ao criar um cômodo: ar livre fica sem; funções especiais sobrepõem vizinhos; senão herda do vizinho (do mesmo nível) ou usa o gênero do mapa. */
 export function telhadoPadrao(
   m: Pick<MapaAtlas, 'rooms' | 'style'>,
   funcao: string | null,
   celulas: readonly [number, number][],
   nivel: string | null = null,
-): string | null {
+): Omit<Comodo['roof'], 'visible'> | null {
   if (funcao && FUNCOES_AO_AR_LIVRE.has(funcao)) return null;
+  if (funcao && ESTILO_POR_FUNCAO[funcao]) return clonarTelhado(estiloDeTelhado(ESTILO_POR_FUNCAO[funcao]!)!.roof);
   if (celulas.length) {
     const vizinhas = new Set<string>();
     for (const [x, y] of celulas) {
@@ -169,12 +205,12 @@ export function telhadoPadrao(
     for (const sala of Object.values(m.rooms)) {
       if (!sala.roof.material || (sala.levelId ?? null) !== nivel) continue;
       for (const [cx, cy] of decodificar(sala.cells)) {
-        if (vizinhas.has(`${cx},${cy}`)) return sala.roof.material;
+        if (vizinhas.has(`${cx},${cy}`)) return clonarTelhado(sala.roof);
       }
     }
   }
   const genero = m.style.genre;
-  if (genero === 'fantasia') return 'telha.palha';
-  if (genero === 'moderno') return 'telha.ardosia';
-  return 'telha.barro';
+  if (genero === 'fantasia') return clonarTelhado(estiloDeTelhado('choupana')!.roof);
+  if (genero === 'moderno') return clonarTelhado(estiloDeTelhado('laje-moderna')!.roof);
+  return clonarTelhado(estiloDeTelhado('casa-velha')!.roof);
 }

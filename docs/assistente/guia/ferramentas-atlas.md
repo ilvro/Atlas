@@ -14,13 +14,32 @@ Ajusta clima e acabamento do mapa aberto (um passo de desfazer). Presets em atla
 
 ## atlas_catalogo
 
-Catálogo de opções: receitas, colecao, materiais, climas, luzes, presenca ou momentos. Sem parte, traz contagens. Use para não inventar ids.
+Catálogo de opções: receitas, colecao, materiais, telhado, climas, luzes, presenca ou momentos. Sem parte, traz contagens. Use para não inventar ids.
 
 ## atlas_comodos
 
 Cria cômodos (piso, paredes e telhado; um passo de desfazer). ATENÇÃO: rets em CÉLULAS do grid de 1,5 m com x1 e y1 exclusivos (ex.: [2,3,5,6] = 3×3 células). Tipo: atlas_catalogo.
 
-- `telhado`: omitido = telhado do gênero (ou do cômodo vizinho; varandas ficam sem); `null` = sem telhado.
+- `telhado`: omitido = estilo pela função/gênero (ou herdado do cômodo vizinho; varandas ficam sem); `null` = sem telhado; ou id de um **estilo de telhado** (ver tabela ou `atlas_catalogo { parte: "telhado" }`) ou id de uma cobertura avulsa (`telha.barro`, etc.).
+- `telhadoForma`, `telhadoCumeeira`, `telhadoDetalhes`: sobrescritas opcionais sobre o telhado resolvido (`quatro-aguas`, `duas-aguas`, `plano`, `piramide`; `auto`, `h`, `v`; `chamine`, `cruz`, `sino`, `catavento`, `claraboia`, `caixa-dagua`).
+
+| Estilo | Cobertura | Forma | Íngreme | Detalhes |
+| --- | --- | --- | --- | --- |
+| `casa-de-telha` | `telha.barro` | `quatro-aguas` | não | `chamine` |
+| `casa-velha` | `telha.velha` | `duas-aguas` | não | `chamine` |
+| `choupana` | `telha.palha` | `quatro-aguas` | não | — |
+| `casa-de-pedra` | `telha.pedra` | `duas-aguas` | não | `chamine` |
+| `celeiro` | `telha.tabuinhas` | `duas-aguas` | sim | `catavento` |
+| `igreja` | `telha.ardosia` | `duas-aguas` | sim | `cruz` |
+| `torre` | `telha.escamas` | `piramide` | sim | `sino` |
+| `templo-de-cobre` | `telha.cobre` | `quatro-aguas` | sim | — |
+| `galpao-de-zinco` | `telha.zinco` | `duas-aguas` | não | — |
+| `laje-moderna` | `telha.concreto` | `plano` | não | `caixa-dagua` |
+| `casa-nordica` | `telha.grama` | `duas-aguas` | não | `chamine` |
+| `tenda` | `telha.lona` | `piramide` | não | — |
+
+Exemplo — igreja com nave e campanário colado:
+`atlas_comodos { comodos: [{ rets: [[6, 6, 12, 9]], tipo: "capela", nome: "Nave", telhado: "igreja" }, { rets: [[12, 6, 14, 9]], tipo: "capela", nome: "Campanário", telhado: "torre" }] }`
 
 ## atlas_desfazer
 
