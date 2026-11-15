@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { plantaDoEdificio, type PlantaDoEdificio } from '../../src/authoring/edificio.ts';
-import { ErroDeConstrucao, comodos, aplicarEmCopia } from '../../src/authoring/construcao.ts';
+import { aberturasDoEdificio, acessivel, plantaDoEdificio, type PlantaDoEdificio } from '../../src/authoring/edificio.ts';
+import { ErroDeConstrucao, comodos, portas, aplicarEmCopia } from '../../src/authoring/construcao.ts';
 import { decodificar } from '../../src/domain/celulas.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 
@@ -290,4 +290,70 @@ test('gera plantas legíveis (ASCII) para 3 programas de exemplo', () => {
     const ascii = desenharAscii(planta);
     assert.ok(ascii.length > 0 && ascii.includes('\n'));
   }
+});
+
+test('toda planta gerada fica acessível por portas e aplica no mapa', () => {
+  const mBase = criarMapa({ largura: 60, altura: 60 });
+  const programas = [
+    { nome: 'Cabana', origem: [4, 4] as [number, number], frente: 's' as const, comodos: [{ tipo: 'oficina', area: 18 }] },
+    { nome: 'Casa L', origem: [4, 4] as [number, number], frente: 'n' as const, forma: 'L' as const, comodos: [{ tipo: 'sala', area: 18 }, { tipo: 'cozinha', area: 12 }, { tipo: 'quarto', area: 9 }] },
+    { nome: 'Alojamento Linear', origem: [4, 4] as [number, number], frente: 'n' as const, forma: 'linear' as const, comodos: [{ tipo: 'salao', area: 16, principal: true }, { tipo: 'dormitorio', area: 12 }, { tipo: 'dormitorio', area: 12 }, { tipo: 'cozinha', area: 9 }, { tipo: 'deposito', area: 9 }] },
+    { nome: 'Quartel em T', origem: [4, 4] as [number, number], frente: 's' as const, forma: 'T' as const, alpendre: true, comodos: [{ tipo: 'salao', area: 18, principal: true }, { tipo: 'dormitorio', area: 12 }, { tipo: 'dormitorio', area: 12 }, { tipo: 'oficina', area: 9 }, { tipo: 'deposito', area: 9 }] },
+    { nome: 'Estalagem U', origem: [4, 4] as [number, number], frente: 'l' as const, forma: 'U' as const, alpendre: true, comodos: [{ tipo: 'taverna', area: 20, principal: true }, { tipo: 'cozinha', area: 12 }, { tipo: 'quarto', area: 9 }, { tipo: 'deposito', area: 9 }] },
+    { nome: 'Mosteiro', origem: [4, 4] as [number, number], frente: 'o' as const, forma: 'patio' as const, comodos: [{ tipo: 'capela', area: 20, principal: true }, { tipo: 'dormitorio', area: 14 }, { tipo: 'refeitorio', area: 14 }, { tipo: 'cozinha', area: 9 }, { tipo: 'deposito', area: 9 }] },
+  ];
+
+  for (const prog of programas) {
+    const planta = plantaDoEdificio(mBase, prog, 13);
+    const ab = aberturasDoEdificio(planta, mBase.grid.size);
+    assert.equal(acessivel(planta, ab, mBase.grid.size), true, `${prog.nome} deveria ficar acessível`);
+    assert.ok(ab.portas.length >= 1);
+
+    // Verifica que todas as portas e janelas encaixam de verdade nas paredes geradas no mapa
+    const c = comodos(mBase, planta.comodos.map(cm => ({ rets: cm.rets, tipo: cm.tipo, nome: cm.nome })), 13);
+    const comSalas = aplicarEmCopia(mBase, c.comandos);
+    const ps = portas(comSalas, [...ab.portas, ...ab.janelas], 13);
+    assert.equal(ps.ids.length, ab.portas.length + ab.janelas.length);
+  }
+});
+
+test('janelas não caem em cela/depósito/corredor e respeitam distância de portas', () => {
+  const m = criarMapa({ largura: 60, altura: 60 });
+  const planta = plantaDoEdificio(m, {
+    nome: 'Masmorra e Galpão',
+    origem: [4, 4],
+    frente: 's',
+    forma: 'linear',
+    comodos: [
+      { tipo: 'sala', area: 22, principal: true },
+      { tipo: 'cela', area: 18 },
+      { tipo: 'deposito', area: 18 },
+      { tipo: 'porao', area: 18 },
+      { tipo: 'quarto', area: 18 },
+    ],
+  }, 5);
+  const ab = aberturasDoEdificio(planta, m.grid.size);
+
+  const caixaDe = (rets: readonly (readonly [number, number, number, number])[]) =>
+    rets.map(r => r.map(v => v * m.grid.size) as [number, number, number, number]);
+
+  const proibidos = planta.comodos.filter(cm => ['cela', 'deposito', 'porao', 'corredor'].includes(cm.tipo));
+  const comJanelas = planta.comodos.filter(cm => cm.tipo === 'sala' || cm.tipo === 'quarto');
+  for (const j of ab.janelas) {
+    // Nunca a menos de 1 célula de qualquer porta
+    for (const d of ab.portas) {
+      assert.ok(Math.hypot(j.perto[0] - d.perto[0], j.perto[1] - d.perto[1]) >= m.grid.size - 1e-6);
+    }
+    // Verifica que não encosta somente em cômodo proibido (cela/deposito/porao/corredor)
+    const tocaPermitido = comJanelas.some(cm =>
+      caixaDe(cm.rets).some(([x0, y0, x1, y1]) => j.perto[0] >= x0 - 0.1 && j.perto[0] <= x1 + 0.1 && j.perto[1] >= y0 - 0.1 && j.perto[1] <= y1 + 0.1),
+    );
+    assert.equal(tocaPermitido, true, `janela em [${j.perto}] fora de cômodos permitidos (proibidos: ${proibidos.length})`);
+  }
+
+  // Entrada fica na face `frente` ('s' neste caso -> y máximo da frente do principal)
+  const principal = planta.comodos[planta.entrada.comodo]!;
+  const maxY = Math.max(...principal.rets.map(r => r[3])) * m.grid.size;
+  assert.ok(Math.abs(ab.portas[0]!.perto[1] - maxY) < 1e-6);
+  assert.equal(ab.portas[0]!.largura, 1.2);
 });

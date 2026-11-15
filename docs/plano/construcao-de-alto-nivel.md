@@ -142,7 +142,7 @@ Testes: programa de 1 cômodo dá 1 retângulo na origem; 3 cômodos em `L` dão
 Pronto quando: `npm test` passa e um teste imprime (em comentário) a planta ASCII de 3 programas de exemplo para revisão do Opus.
 Commit: `added building floor plan from a room program`
 
-### D3b — Portas e janelas do edifício  ⬜
+### D3b — Portas e janelas do edifício  ✅
 Objetivo: todo cômodo do edifício tem acesso, e a fachada tem janelas.
 Depende de: D3a.
 Ler: `src/authoring/construcao.ts` (`portas`, `PedidoDePorta`), `src/domain/geometria.ts` (`encaixarNaParede`, `motivoDeNaoCaber`), `src/authoring/portas.ts` (como a sugestão escolhe a parede).

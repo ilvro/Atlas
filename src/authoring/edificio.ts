@@ -4,10 +4,10 @@
  * que respeita limites do lote, cômodos e paredes existentes do mapa.
  */
 import { decodificar } from '../domain/celulas.ts';
-import type { MapaAtlas } from '../domain/mapa.ts';
-import { tipoDeComodo } from '../domain/presets.ts';
+import type { MapaAtlas, Ponto } from '../domain/mapa.ts';
+import { FUNCOES_AO_AR_LIVRE, tipoDeComodo } from '../domain/presets.ts';
 import { mulberry32 } from '../procedural/ruido.ts';
-import { ErroDeConstrucao, type Ret } from './construcao.ts';
+import { ErroDeConstrucao, type PedidoDePorta, type Ret } from './construcao.ts';
 
 export type Frente = 'n' | 's' | 'l' | 'o';
 export type FormaDoEdificio = 'auto' | 'compacta' | 'L' | 'T' | 'U' | 'linear' | 'patio';
@@ -765,3 +765,277 @@ export function plantaDoEdificio(m: MapaAtlas, p: ProgramaDeEdificio, semente: n
     entrada: { comodo: 0, lado: p.frente },
   };
 }
+
+// ---------- D3b — Portas e janelas do edifício ----------
+
+export interface AberturasDoEdificio {
+  portas: PedidoDePorta[];
+  janelas: PedidoDePorta[];
+}
+
+interface ArestaDaPlanta {
+  /** Posição do centro da aresta em células (meio-inteiro na direção da parede). */
+  cx: number;
+  cy: number;
+  lado: Frente;
+  /** Coordenada fixa ao longo da normal (para agrupar arestas colineares). */
+  coordFixa: number;
+  /** Índice ao longo da direção da face. */
+  passo: number;
+  salaA: number;
+  salaB: number | null;
+}
+
+const TIPOS_ENTRADA_LARGA = new Set(['salao', 'celeiro', 'capela', 'taverna', 'igreja']);
+const TIPOS_SERVICO = new Set(['cozinha', 'deposito', 'oficina', 'estabulo']);
+const SEM_JANELAS = new Set(['porao', 'deposito', 'cela', 'corredor', ...FUNCOES_AO_AR_LIVRE]);
+const OPOSTA: Record<Frente, Frente> = { n: 's', s: 'n', l: 'o', o: 'l' };
+
+function mapaDeCelulasDaPlanta(planta: PlantaDoEdificio): Map<string, number> {
+  const mapa = new Map<string, number>();
+  planta.comodos.forEach((c, idx) => {
+    for (const [x0, y0, x1, y1] of c.rets) {
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) mapa.set(`${x},${y}`, idx);
+      }
+    }
+  });
+  return mapa;
+}
+
+function arestasDaPlanta(planta: PlantaDoEdificio): ArestaDaPlanta[] {
+  const celulas = mapaDeCelulasDaPlanta(planta);
+  const saida: ArestaDaPlanta[] = [];
+  const dirs: { lado: Frente; dx: number; dy: number; ox: number; oy: number }[] = [
+    { lado: 'n', dx: 0, dy: -1, ox: 0.5, oy: 0 },
+    { lado: 's', dx: 0, dy: 1, ox: 0.5, oy: 1 },
+    { lado: 'o', dx: -1, dy: 0, ox: 0, oy: 0.5 },
+    { lado: 'l', dx: 1, dy: 0, ox: 1, oy: 0.5 },
+  ];
+  planta.comodos.forEach((c, idx) => {
+    for (const [x0, y0, x1, y1] of c.rets) {
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+          for (const d of dirs) {
+            const viz = celulas.get(`${x + d.dx},${y + d.dy}`) ?? null;
+            if (viz === idx) continue;
+            const horiz = d.lado === 'n' || d.lado === 's';
+            saida.push({
+              cx: x + d.ox,
+              cy: y + d.oy,
+              lado: d.lado,
+              coordFixa: horiz ? y + d.oy : x + d.ox,
+              passo: horiz ? x : y,
+              salaA: idx,
+              salaB: viz,
+            });
+          }
+        }
+      }
+    }
+  });
+  return saida;
+}
+
+/** Agrupa arestas externas contíguas e colineares de um cômodo numa mesma face. */
+function agruparTrechos(arestas: readonly ArestaDaPlanta[]): ArestaDaPlanta[][] {
+  if (!arestas.length) return [];
+  const ord = [...arestas].sort((a, b) => a.coordFixa - b.coordFixa || a.passo - b.passo);
+  const grupos: ArestaDaPlanta[][] = [];
+  let atual: ArestaDaPlanta[] = [ord[0]!];
+  for (let i = 1; i < ord.length; i++) {
+    const prev = ord[i - 1]!, cur = ord[i]!;
+    if (cur.coordFixa === prev.coordFixa && cur.passo === prev.passo + 1) {
+      atual.push(cur);
+    } else {
+      grupos.push(atual);
+      atual = [cur];
+    }
+  }
+  grupos.push(atual);
+  return grupos;
+}
+
+function pontoDaAresta(a: ArestaDaPlanta, grade: number): Ponto {
+  return [a.cx * grade, a.cy * grade];
+}
+
+function arestaDoMeio(trecho: readonly ArestaDaPlanta[]): ArestaDaPlanta {
+  return trecho[Math.floor(trecho.length / 2)]!;
+}
+
+/**
+ * Gera portas e janelas (em metros) para uma `PlantaDoEdificio`:
+ * entrada na frente (do alpendre ou do principal), portas internas segundo `ligadoA`/corredor,
+ * porta de fundos opcional e janelas nas fachadas longas longe das portas.
+ */
+export function aberturasDoEdificio(planta: PlantaDoEdificio, grade = 1.5): AberturasDoEdificio {
+  const arestas = arestasDaPlanta(planta);
+  const portas: PedidoDePorta[] = [];
+  const janelas: PedidoDePorta[] = [];
+  const pertoDeAlgumaPorta = (p: Ponto, minDist: number) =>
+    portas.some(d => Math.hypot(d.perto[0] - p[0], d.perto[1] - p[1]) < minDist);
+
+  // 1. Entrada na face `frente` do alpendre (se houver) ou do cômodo principal
+  const varandaIdx = planta.comodos.findIndex(c => c.tipo === 'varanda');
+  const alvoEntradaIdx = varandaIdx >= 0 ? varandaIdx : planta.entrada.comodo;
+  const ladoEntrada = planta.entrada.lado;
+  const principalComodo = planta.comodos[planta.entrada.comodo]!;
+  const larguraEntrada = TIPOS_ENTRADA_LARGA.has(principalComodo.tipo) ? 1.5 : 1.2;
+
+  let trechoEntrada = agruparTrechos(
+    arestas.filter(a => a.salaA === alvoEntradaIdx && a.salaB === null && a.lado === ladoEntrada),
+  ).sort((a, b) => b.length - a.length)[0];
+  if (!trechoEntrada) {
+    trechoEntrada = agruparTrechos(
+      arestas.filter(a => a.salaA === alvoEntradaIdx && a.salaB === null),
+    ).sort((a, b) => b.length - a.length)[0];
+  }
+  if (trechoEntrada) {
+    portas.push({
+      perto: pontoDaAresta(arestaDoMeio(trechoEntrada), grade),
+      tipo: 'door',
+      largura: larguraEntrada,
+    });
+  }
+
+  // 2. Portas internas entre cada cômodo e seu ligadoA (ou para o corredor se encostar nele)
+  const paresComPorta = new Set<string>();
+  const chavePar = (a: number, b: number) => (a < b ? `${a}:${b}` : `${b}:${a}`);
+  const corredorIdx = planta.comodos.findIndex(c => c.tipo === 'corredor');
+
+  planta.comodos.forEach((c, idx) => {
+    if (c.ligadoA === null) return;
+    let alvo = c.ligadoA;
+    // Para o corredor: se o cômodo encosta no corredor e ainda não liga nele, prefira ligar no corredor quando o pai é corredor
+    if (corredorIdx >= 0 && idx !== corredorIdx && alvo !== corredorIdx) {
+      const tocaCorredor = arestas.some(a => a.salaA === idx && a.salaB === corredorIdx);
+      if (tocaCorredor && c.tipo !== 'varanda') alvo = corredorIdx;
+    }
+    const par = chavePar(idx, alvo);
+    if (paresComPorta.has(par)) return;
+
+    let trechos = agruparTrechos(arestas.filter(a => a.salaA === idx && a.salaB === alvo))
+      .sort((a, b) => b.length - a.length);
+    if (!trechos.length && alvo !== c.ligadoA) {
+      alvo = c.ligadoA;
+      trechos = agruparTrechos(arestas.filter(a => a.salaA === idx && a.salaB === alvo))
+        .sort((a, b) => b.length - a.length);
+    }
+    if (!trechos.length) return;
+
+    paresComPorta.add(chavePar(idx, alvo));
+    const trecho = trechos[0]!;
+    portas.push({
+      perto: pontoDaAresta(arestaDoMeio(trecho), grade),
+      tipo: 'door',
+      largura: 0.9,
+    });
+  });
+
+  // Se houver algum cômodo ainda sem ligação ao grafo (ex.: fallback), garante conexão com qualquer vizinho compartilhado
+  planta.comodos.forEach((_c, idx) => {
+    if (idx === planta.entrada.comodo) return;
+    const temAlguma = planta.comodos.some((_, j) => j !== idx && paresComPorta.has(chavePar(idx, j)));
+    if (temAlguma) return;
+    const vizinhos = agruparTrechos(arestas.filter(a => a.salaA === idx && a.salaB !== null))
+      .sort((a, b) => b.length - a.length);
+    if (vizinhos[0]) {
+      const alvo = vizinhos[0][0]!.salaB!;
+      paresComPorta.add(chavePar(idx, alvo));
+      portas.push({
+        perto: pontoDaAresta(arestaDoMeio(vizinhos[0]), grade),
+        tipo: 'door',
+        largura: 0.9,
+      });
+    }
+  });
+
+  // 3. Porta de fundos no cômodo de serviço em face externa oposta à frente (plantas com 3+ cômodos)
+  if (planta.comodos.length >= 3) {
+    const oposta = OPOSTA[ladoEntrada];
+    for (let idx = 0; idx < planta.comodos.length; idx++) {
+      if (!TIPOS_SERVICO.has(planta.comodos[idx]!.tipo)) continue;
+      const trechosOpostos = agruparTrechos(
+        arestas.filter(a => a.salaA === idx && a.salaB === null && a.lado === oposta),
+      ).sort((a, b) => b.length - a.length);
+      if (!trechosOpostos.length) continue;
+      const meio = pontoDaAresta(arestaDoMeio(trechosOpostos[0]!), grade);
+      if (!pertoDeAlgumaPorta(meio, grade * 0.99)) {
+        portas.push({ perto: meio, tipo: 'door', largura: 0.9 });
+        break;
+      }
+    }
+  }
+
+  // 4. Janelas: 1 por face externa com 3+ células (2 se 6+), fora de porao/deposito/cela/corredor/ar livre
+  planta.comodos.forEach((c, idx) => {
+    if (SEM_JANELAS.has(c.tipo)) return;
+    for (const lado of FRENTES) {
+      const trechos = agruparTrechos(arestas.filter(a => a.salaA === idx && a.salaB === null && a.lado === lado));
+      for (const trecho of trechos) {
+        if (trecho.length < 3) continue;
+        const qtd = trecho.length >= 6 ? 2 : 1;
+        const alvosIndices = qtd === 2
+          ? [Math.floor(trecho.length / 4), Math.floor((trecho.length * 3) / 4)]
+          : [Math.floor(trecho.length / 2)];
+        const usadasNesteTrecho: Ponto[] = [];
+
+        for (const alvoIdx of alvosIndices) {
+          // Busca a posição válida mais próxima do alvoIdx e longe (>= 1 célula) das portas e de outras janelas
+          const candidatos = trecho
+            .map((a, i) => ({ a, distIdx: Math.abs(i - alvoIdx) }))
+            .sort((x, y) => x.distIdx - y.distIdx);
+          for (const { a } of candidatos) {
+            const p = pontoDaAresta(a, grade);
+            if (pertoDeAlgumaPorta(p, grade - 1e-6)) continue;
+            if (usadasNesteTrecho.some(u => Math.hypot(u[0] - p[0], u[1] - p[1]) < grade * 1.5)) continue;
+            janelas.push({ perto: p, tipo: 'window', largura: 0.9 });
+            usadasNesteTrecho.push(p);
+            break;
+          }
+        }
+      }
+    }
+  });
+
+  return { portas, janelas };
+}
+
+/** Verifica por busca em largura a partir da entrada se todos os cômodos da planta têm acesso por porta. */
+export function acessivel(planta: PlantaDoEdificio, aberturas: AberturasDoEdificio, grade = 1.5): boolean {
+  if (!planta.comodos.length) return false;
+  const arestas = arestasDaPlanta(planta);
+  const adj = new Map<number, Set<number>>();
+  for (let i = 0; i < planta.comodos.length; i++) adj.set(i, new Set());
+  const inicios = new Set<number>();
+  const tol = grade * 0.55;
+
+  for (const d of aberturas.portas) {
+    for (const a of arestas) {
+      const [ax, ay] = pontoDaAresta(a, grade);
+      if (Math.hypot(ax - d.perto[0], ay - d.perto[1]) <= tol) {
+        if (a.salaB === null) inicios.add(a.salaA);
+        else {
+          adj.get(a.salaA)!.add(a.salaB);
+          adj.get(a.salaB)!.add(a.salaA);
+        }
+      }
+    }
+  }
+
+  if (!inicios.size) return false;
+  const visitados = new Set<number>(inicios);
+  const fila = [...inicios];
+  while (fila.length) {
+    const cur = fila.shift()!;
+    for (const v of adj.get(cur)!) {
+      if (!visitados.has(v)) {
+        visitados.add(v);
+        fila.push(v);
+      }
+    }
+  }
+  return visitados.size === planta.comodos.length;
+}
+
