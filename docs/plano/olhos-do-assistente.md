@@ -66,7 +66,7 @@ Testes: cômodo em L devolve 2 `rets` iguais aos de entrada; telhado de estilo `
 Pronto quando: o resumo de "Lysdal · a vila (neve)" mostra 40 cômodos em cerca de 18 edifícios, com `comodosSemTelhado` alto.
 Commit: `map summary reports buildings, room shapes and roofs`
 
-### B3 — O guia é relido a cada chamada  ⬜
+### B3 — O guia é relido a cada chamada  ✅
 Objetivo: melhorar o guia não exige reiniciar o app do Claude.
 Depende de: —.
 Ler: `scripts/ponte/mcp.ts` (`lerGuia`, `ferramentaGuia`, `textoDoGuia`, `listarFerramentas`, `chamarFerramenta` e o trecho de `criarServidor` que faz `const guia = lerGuia(...)`), `tests/unit/ponte-mcp.test.ts`.
