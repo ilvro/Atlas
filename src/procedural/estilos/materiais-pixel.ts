@@ -258,8 +258,86 @@ const molhadaPixel = (p: P): void => {
 const coberturaPixel = (p: P): void => ladrilhar(p, texturaDeCobertura(p.m, 'pixel', p.seed, p.res).tela);
 const COBERTURAS_PIXEL = Object.fromEntries(PADROES_DE_COBERTURA.map(c => [c, coberturaPixel])) as Record<PadraoDeCobertura, (p: P) => void>;
 
+
+// ---------- Rústicos e industriais (frente E1) ----------
+const mod = (v: number, n: number) => ((v % n) + n) % n;
+/** Um ladrilho de Voronoi periódico: `n × n` sítios a cada `s` pixels; índices 0..2 tons da pedra, 3 junta, 4 sombra da borda. */
+function vorPixel(idx: Int16Array, w: number, h: number, r: () => number, s: number): void {
+  const n = Math.round(w / s), sit: [number, number, number][] = [];
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) sit.push([(i + 0.15 + 0.7 * r()) * s, (j + 0.15 + 0.7 * r()) * s, Math.floor(r() * 3)]);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let d1 = Infinity, d2 = Infinity, k1 = 0, sx = 0, sy = 0;
+    for (const [px, py, k] of sit) {
+      const dx = Math.min(Math.abs(x + 0.5 - px), w - Math.abs(x + 0.5 - px)), dy = Math.min(Math.abs(y + 0.5 - py), h - Math.abs(y + 0.5 - py)), d = Math.hypot(dx, dy);
+      if (d < d1) { d2 = d1; d1 = d; k1 = k; sx = px; sy = py; } else if (d < d2) d2 = d;
+    }
+    idx[y * w + x] = d2 - d1 < 1.1 ? 3 : d2 - d1 < 2.1 && (x + 0.5 - sx) + (y + 0.5 - sy) > 0 ? 4 : k1;
+  }
+}
+const RUSTICOS_PIXEL: Partial<Record<Padrao, (p: P) => void>> = {
+  'palha-chao': p => {
+    ruidoPixel(p, 'palha-terra', 0.04, 0.16, true);
+    ladrilhar(p, ladrilho(chaveDe(p, 'palha'), 48, 48, [p.t.C, p.t.c2, p.t.c1, p.t.e2], (idx, w, h, r) => {
+      for (let i = 0; i < 150; i++) {
+        const x = Math.floor(r() * w), y = Math.floor(r() * h), dir = Math.floor(r() * 4), n = 2 + Math.floor(r() * 3), c = Math.floor(r() * 3);
+        const dx = [1, 0, 1, 1][dir]!, dy = [0, 1, 1, -1][dir]!;
+        for (let k = 0; k < n; k++) idx[mod(y + k * dy, h) * w + mod(x + k * dx, w)] = c;
+        const sombra = mod(y + 1, h) * w + mod(x + 1, w); if (idx[sombra] === -1) idx[sombra] = 3;
+      }
+    }));
+  },
+  'lajes-rusticas': p => {
+    const s = Math.max(5, Math.round(0.75 * p.res));
+    ladrilhar(p, ladrilho(chaveDe(p, `lajes${s}`), s * 6, s * 6, [p.t.B, p.t.c1, p.t.e1, p.t.E, p.t.e2], (idx, w, h, r) => vorPixel(idx, w, h, r, s)));
+  },
+  'chapa-xadrez': p => {
+    ladrilhar(p, ladrilho(chaveDe(p, 'chapa'), 6, 6, [p.t.c2, p.t.e1], idx => { idx[0] = 0; idx[7] = 1; idx[3 * 6 + 3] = 0; idx[3 * 6 + 2 + 6] = 1; }));
+    const l = Math.max(6, Math.round(1.2 * p.res)) * p.px;
+    for (let y = Math.floor(p.A.y / l) * l; y < p.A.y + p.A.h; y += l) ret(p, p.A.x, y, p.A.w, p.px, p.t.E);
+    for (let x = Math.floor(p.A.x / l) * l; x < p.A.x + p.A.w; x += l) ret(p, x, p.A.y, p.px, p.A.h, p.t.E);
+  },
+  'grade-metal': p => ladrilhar(p, ladrilho(chaveDe(p, 'grade'), 2, 3, [p.t.c1, p.t.E, p.t.e2], idx => { idx[0] = 0; idx[1] = 0; idx[2] = 0; idx[3] = 2; idx[4] = 1; idx[5] = 1; })),
+  toras: p => {
+    const H = Math.max(3, Math.round(0.27 * p.res));
+    ladrilhar(p, ladrilho(chaveDe(p, `toras${H}`), 40, H, [p.t.c2, p.t.B, p.t.e1, p.t.E, p.t.e2], (idx, w, h, r) => {
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) idx[y * w + x] = y === 0 ? 3 : y === 1 ? 0 : y === h - 1 ? 2 : 1;
+      for (let i = 0; i < 10; i++) { const x = Math.floor(r() * w), y = 1 + Math.floor(r() * Math.max(1, h - 2)), n = 2 + Math.floor(r() * 4); for (let k = 0; k < n; k++) idx[y * w + mod(x + k, w)] = 4; }
+    }));
+  },
+  manchado: p => ruidoPixel(p, 'manchado', 0.06, 0.14, true),
+  painel: p => {
+    const w = Math.max(6, Math.round(0.9 * p.res)), h = Math.max(8, Math.round(1.2 * p.res));
+    ladrilhar(p, ladrilho(chaveDe(p, `painel${w}x${h}`), w, h, [p.t.c2, p.t.E, p.t.C, p.t.e1], (idx, W, H, r) => {
+      for (let x = 0; x < W; x++) { idx[x] = 0; idx[(H - 1) * W + x] = 1; }
+      for (let y = 0; y < H; y++) { idx[y * W] = 0; idx[y * W + W - 1] = 1; }
+      for (let y = 2; y < H - 2; y += 3) { idx[y * W + 1] = 2; idx[y * W + W - 2] = 2; }
+      if (r() < 0.5) for (let y = Math.floor(H * 0.35); y < Math.floor(H * 0.65); y += 2) for (let x = 2; x < W - 2; x++) idx[y * W + x] = 3;
+    }));
+  },
+  acolchoado: p => {
+    const s = Math.max(2, Math.round(0.16 * p.res));
+    ladrilhar(p, ladrilho(chaveDe(p, `acolch${s}`), 2 * s, 2 * s, [p.t.c1, p.t.e1, p.t.E], (idx, w, h) => {
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const d = Math.abs(x + 0.5 - s) + Math.abs(y + 0.5 - s); idx[y * w + x] = d >= s - 0.5 ? 1 : d < s * 0.5 ? 0 : -1; }
+      idx[0] = 2;
+    }));
+  },
+  pisada: p => {
+    ruidoPixel(p, 'neve-pisada', 0.05, 0.1, true);
+    ladrilhar(p, ladrilho(chaveDe(p, 'pegadas'), 40, 40, [p.t.e1, p.t.C], (idx, w, h, r) => {
+      for (let i = 0; i < 9; i++) { const x = Math.floor(r() * w), y = Math.floor(r() * h), v = r() < 0.5; for (const [ox, oy] of [[0, 0], [v ? 2 : 1, v ? 1 : 2]]) { const xx = x + ox!, yy = y + oy!; idx[mod(yy, h) * w + mod(xx, w)] = 0; idx[mod(yy + (v ? 1 : 0), h) * w + mod(xx + (v ? 0 : 1), w)] = 0; idx[mod(yy - 1, h) * w + mod(xx, w)] = 1; } }
+    }));
+  },
+  placas: p => {
+    const L = p.m.lado ?? 2;
+    quadros(p, L, (i, j) => [p.t.B, p.t.c1, p.t.B, p.t.e1][Math.floor(hash2D(i, j, p.seed + 2) * 4)]!, p.t.E);
+    if (p.m.ouro) { const l = Math.max(4, Math.round(L * p.res)) * p.px; for (let y = Math.floor(p.A.y / (4 * l)) * 4 * l + 2 * p.px; y < p.A.y + p.A.h; y += 4 * l) ret(p, p.A.x, y, p.A.w, Math.max(p.px, Math.round(0.12 * p.res) * p.px), p.m.ouro); }
+    ladrilhar(p, ladrilho(chaveDe(p, 'oleo'), 48, 48, [p.t.e1, p.t.e2], (idx, w, h, r) => { manchar(idx, w, h, r, 0, 14, 3, 2); manchar(idx, w, h, r, 1, 5, 2, 2); }));
+  },
+};
+
 const PINTORES: Record<Padrao, (p: P) => void> = {
   ...COBERTURAS_PIXEL,
+  ...(RUSTICOS_PIXEL as Record<'palha-chao' | 'lajes-rusticas' | 'chapa-xadrez' | 'grade-metal' | 'toras' | 'manchado' | 'painel' | 'acolchoado' | 'pisada' | 'placas', (p: P) => void>),
   tabuas: p => {
     const alt = Math.max(3, Math.round((p.m.largura ?? 0.2) * p.res) + 1) / p.res;      // pelo menos 3 pixels de altura
     fileiras(p, () => alt, () => 1.4 + p.r() * 2.2, () => (p.r() < 0.5 ? p.t.B : p.t.c1), p.t.e1);

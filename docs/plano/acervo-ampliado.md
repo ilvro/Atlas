@@ -35,7 +35,7 @@ Ordem: E1 → E2 e E3 (paralelos) → E4 → E5.
 
 ---
 
-### E1 — Materiais novos  ⬜ **[Opus]**
+### E1 — Materiais novos  ✅ **[Opus]**
 Objetivo: pisos, paredes e terrenos que faltam para o rústico e o industrial.
 Arquivos: `src/procedural/materiais.ts`, `src/procedural/estilos/materiais-pixel.ts` e testes de materiais.
 Lista:
@@ -43,6 +43,7 @@ Lista:
 - **Papel (parede):** `toras` (cabana de toras), `pedra.aparelhada`, `reboco.sujo`, `painel.metalico` (painéis com rebites e juntas), `painel.acolchoado` (acolchoado de nave e hospital).
 - **Terreno:** `neve.pisada` (neve suja com marcas), `terra.congelada`, `grama.alta`, `piso.hangar` (concreto industrial com faixas; serve de base de nave e estacionamento).
 Pronto quando: os materiais aparecem no catálogo e na Biblioteca, nas duas estéticas, e a prancha mostra cada um ao lado de um vizinho.
+Nota: `borracha.faixas` e `grama.alta` ficaram de fora (pouco ganho sobre o que existe); entrou `concreto.placas` (piso de placas para interiores industriais). `terra.congelada` usa o padrão `terra` com pontos de geada (o `rachado` parecia laje).
 
 ### E2 — Kit rural, de montanha e de cemitério  ⬜ **[Opus]**
 Objetivo: cemitérios, vilas e lugares de montanha com identidade.
