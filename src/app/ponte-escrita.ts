@@ -2,6 +2,7 @@ import { json, texto, type FerramentaDaPonte } from '#mesa/ponte';
 import { comodos, ErroDeConstrucao, espalhar, luzes, objetos, paredes, portas, regioes, terreno, type Construcao } from '../authoring/construcao.ts';
 import { TODOS_OS_CONJUNTOS } from '../authoring/espalhar.ts';
 import { celulasDaForma, sementeDaForma, type Forma } from '../authoring/formas.ts';
+import { formatarRelatorioDeMobilia, mobiliarLote } from '../authoring/mobiliar-lote.ts';
 import { ceuNoHorario } from '../domain/clima.ts';
 import { EVENTOS_DE_CENA } from '../domain/eventos-de-cena.ts';
 import { CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, FORMAS_DE_TELHADO, criarMapa, type CumeeiraDeTelhado, type DetalheDeTelhado, type FormaDeTelhado, type MapaAtlas } from '../domain/mapa.ts';
@@ -52,7 +53,7 @@ export function escrever(ctx: ContextoDeEscrita, rotulo: string, gerar: (mapa: M
   try {
     if (!store) throw new Error(SEM_MAPA);
     const { comandos, ids, afetados, resumo } = gerar(store.documento);
-    if (!comandos.length) { registrarChamada({ rotulo, ids: [], ok: true }); return `${rotulo}: nada mudou (nenhum comando gerado). Confira as coordenadas com atlas_ver_mapa.`; }
+    if (!comandos.length) { registrarChamada({ rotulo, ids: [], ok: true }); return `${rotulo}: nada mudou (nenhum comando gerado).${resumo ? ` ${resumo}.` : ''} Confira as coordenadas com atlas_ver_mapa.`; }
     store.transacao(`IA: ${rotulo}`, g => { for (const c of comandos) g.aplicar(c); });
     registrarChamada({ rotulo, ids: afetados ?? ids, ok: true, ref: { store, versao: store.versaoEdicao } });
     return `${rotulo}: ${comandos.length} comando(s) aplicados como um passo de desfazer.${resumo ? ` ${resumo}.` : ''}${ids.length ? ` Ids criados: ${ids.join(', ')}.` : ''} Confira com atlas_ver_mapa. ${AVISO_NAO_GRAVADO}`;
@@ -205,6 +206,28 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         }));
         const s = sementeDe(args);
         return [texto(escrever(ctx, `${pedidos.length} cômodo(s)`, mapa => geracao(comodos(mapa, pedidos.map(p => limpar(p)), s))))];
+      },
+    },
+    {
+      nome: 'atlas_mobiliar',
+      descricao: 'Mobília e ilumina cômodos prontos pela função e pelo gênero (de 1 a 60 cômodos num passo de desfazer). Detalhes: plataforma_guia ferramentas-atlas.',
+      esquema: { type: 'object', properties: {
+        comodos: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 60 },
+        luzes: { type: 'boolean' },
+        semente,
+      }, required: ['comodos'], additionalProperties: false },
+      anotacoes: { destrutiva: true },
+      async executar(args) {
+        const v = args.comodos;
+        if (!Array.isArray(v) || !v.length) throw new Error('Falta "comodos": uma lista de 1 a 60 ids de cômodos.');
+        if (v.length > 60) throw new Error(`"comodos" aceita até 60 cômodos por chamada (recebeu ${v.length}); divida em várias chamadas.`);
+        if (v.some(x => typeof x !== 'string' || !x)) throw new Error('"comodos" deve conter só textos (ids de cômodos).');
+        if (args.luzes !== undefined && typeof args.luzes !== 'boolean') throw new Error('"luzes" deve ser true ou false.');
+        const s = sementeDe(args);
+        return [texto(escrever(ctx, `mobiliar ${v.length} cômodo(s)`, mapa => {
+          const r = mobiliarLote(mapa, { comodos: v as string[], luzes: args.luzes as boolean | undefined, semente: s });
+          return { comandos: r.comandos, ids: r.ids, resumo: formatarRelatorioDeMobilia(r.relatorio) };
+        }))];
       },
     },
     {

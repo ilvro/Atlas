@@ -45,7 +45,7 @@ Ordem: D1 → D2 → D3a → D3b → D3c; D4a → D4b e D5a → D5b em qualquer 
 
 ---
 
-### D1 — `atlas_mobiliar`  ⬜
+### D1 — `atlas_mobiliar`  ✅
 Objetivo: o Claude mobília e ilumina cômodos com o gerador que a interface já usa.
 Depende de: —.
 Ler: `src/authoring/mobiliar.ts` (`propostaDeMobilia`), `src/authoring/luzes.ts` (`propostaDeLuzes`), `src/authoring/sugestoes.ts` (`Contexto`), `src/authoring/proposta.ts`, `src/authoring/construcao.ts` (`aplicarEmCopia`), `src/app/ponte-escrita.ts` (`escrever`, `geracao` e uma ferramenta inteira, como `atlas_comodos`), `tests/unit/ponte-escrita.test.ts`.

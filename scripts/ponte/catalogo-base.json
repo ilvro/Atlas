@@ -895,6 +895,37 @@
     }
   },
   {
+    "nome": "atlas_mobiliar",
+    "descricao": "Mobília e ilumina cômodos prontos pela função e pelo gênero (de 1 a 60 cômodos num passo de desfazer). Detalhes: plataforma_guia ferramentas-atlas.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "comodos": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "maxItems": 60
+        },
+        "luzes": {
+          "type": "boolean"
+        },
+        "semente": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "comodos"
+      ],
+      "additionalProperties": false
+    },
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": true
+    }
+  },
+  {
     "nome": "atlas_momento",
     "descricao": "Cria ou refaz um momento no mapa aberto (sem \"id\" cria; com \"id\" altera). Tipos de passo: atlas_catalogo momentos. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
