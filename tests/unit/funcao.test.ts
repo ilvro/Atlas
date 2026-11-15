@@ -17,6 +17,9 @@ const POR_NOME: [string, string | null, number?][] = [
   ['Cozinha', 'cozinha'], ['Copa', 'cozinha'], ['Sala de jantar', 'sala-de-jantar'], ['Sala de jogos', 'sala-de-jogos'], ['Sala de bilhar', 'sala-de-jogos'], ['Sala de estar', 'sala'], ['Sala 2', 'sala', 0.6], ['Sala', 'sala', 0.6],
   ['Sala de ritual', null], ['Quarto do Hugo', 'quarto'], ['Suíte', 'quarto'], ['Escritório', 'escritorio'], ['Gabinete', 'escritorio'], ['Biblioteca', 'biblioteca'],
   ['Banheiro', 'banheiro'], ['WC', 'banheiro'], ['Corredor', 'corredor'], ['Hall', 'corredor'], ['Enfermaria', 'hospital'], ['Taverna', 'taverna'], ['Porão', 'porao'], ['Adega', 'porao'],
+  ['Armazém do Ben', 'deposito'], ['Estábulo', 'estabulo'], ['Celeiro', 'celeiro'], ['Loja', 'loja'],
+  ['Oficina', 'oficina'], ['Cela', 'cela'], ['Dormitório', 'dormitorio'], ['Refeitório', 'refeitorio'],
+  ['Salão', 'salao'], ['Pátio', 'patio'],
   ['Ponte de comando', null], ['Cômodo', null],
 ];
 for (const [nome, esperado, confianca] of POR_NOME) {

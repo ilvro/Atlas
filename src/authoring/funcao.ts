@@ -11,7 +11,8 @@ const FUNCOES = new Set(TIPOS_DE_COMODO.map(t => t.funcao));
 // Das mais específicas para as mais genéricas: a primeira palavra que bate decide.
 const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number }[] = [
   { palavras: ['cozinha', 'copa'], funcao: 'cozinha', confianca: 0.9 },
-  { palavras: ['quarto', 'dormitorio', 'suite', 'alcova'], funcao: 'quarto', confianca: 0.9 },
+  { palavras: ['quarto', 'suite', 'alcova'], funcao: 'quarto', confianca: 0.9 },
+  { palavras: ['dormitorio', 'alojamento', 'quartel'], funcao: 'dormitorio', confianca: 0.9 },
   { palavras: ['biblioteca'], funcao: 'biblioteca', confianca: 0.9 },
   { palavras: ['escritorio', 'gabinete', 'estudo'], funcao: 'escritorio', confianca: 0.9 },
   { palavras: ['banheiro', 'lavabo', 'banho', 'wc'], funcao: 'banheiro', confianca: 0.9 },
@@ -19,12 +20,21 @@ const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number
   { palavras: ['enfermaria', 'consultorio', 'hospital'], funcao: 'hospital', confianca: 0.9 },
   { palavras: ['taverna', 'bar', 'estalagem', 'pub'], funcao: 'taverna', confianca: 0.9 },
   { palavras: ['varanda', 'terraco', 'sacada', 'alpendre'], funcao: 'varanda', confianca: 0.9 },
+  { palavras: ['patio', 'quintal'], funcao: 'patio', confianca: 0.9 },
   { palavras: ['capela', 'igreja', 'templo', 'santuario'], funcao: 'capela', confianca: 0.9 },
-  { palavras: ['forja', 'ferraria', 'oficina'], funcao: 'forja', confianca: 0.9 },
+  { palavras: ['forja', 'ferraria'], funcao: 'forja', confianca: 0.9 },
+  { palavras: ['oficina', 'carpintaria'], funcao: 'oficina', confianca: 0.9 },
+  { palavras: ['estabulo', 'cocheira'], funcao: 'estabulo', confianca: 0.9 },
+  { palavras: ['celeiro', 'paiol'], funcao: 'celeiro', confianca: 0.9 },
+  { palavras: ['deposito', 'armazem', 'almoxarifado'], funcao: 'deposito', confianca: 0.9 },
+  { palavras: ['loja', 'mercearia', 'botica', 'venda'], funcao: 'loja', confianca: 0.9 },
+  { palavras: ['cela', 'prisao', 'calabouco'], funcao: 'cela', confianca: 0.9 },
   { palavras: ['porao', 'adega', 'cripta'], funcao: 'porao', confianca: 0.9 },
-  { palavras: ['jantar', 'refeitorio'], funcao: 'sala-de-jantar', confianca: 0.9 },
+  { palavras: ['jantar'], funcao: 'sala-de-jantar', confianca: 0.9 },
+  { palavras: ['refeitorio', 'cantina'], funcao: 'refeitorio', confianca: 0.9 },
   { palavras: ['jogos', 'bilhar', 'sinuca', 'fumar'], funcao: 'sala-de-jogos', confianca: 0.9 },
-  { palavras: ['estar', 'salao'], funcao: 'sala', confianca: 0.9 },
+  { palavras: ['salao', 'comunal'], funcao: 'salao', confianca: 0.9 },
+  { palavras: ['estar'], funcao: 'sala', confianca: 0.9 },
 ];
 const CONHECIDAS = new Set(POR_NOME.flatMap(r => r.palavras));
 const LIGACOES = new Set(['de', 'do', 'da', 'dos', 'das']);

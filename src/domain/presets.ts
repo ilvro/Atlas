@@ -21,6 +21,16 @@ export const TIPOS_DE_COMODO: readonly TipoDeComodo[] = [
   { id: 'forja', nome: 'Forja', funcao: 'forja', piso: 'laje.pedra', papel: 'tijolo', descricao: 'Lajes de pedra e tijolo' },
   { id: 'varanda', nome: 'Varanda', funcao: 'varanda', piso: 'laje.pedra', papel: 'reboco.branco', descricao: 'Lajes de pedra, balaustrada e vasos' },
   { id: 'porao', nome: 'Porão', funcao: 'porao', piso: 'laje.pedra', papel: 'tijolo', descricao: 'Lajes de pedra e tijolo' },
+  { id: 'estabulo', nome: 'Estábulo', funcao: 'estabulo', piso: 'tabuas.escuras', papel: 'tijolo', descricao: 'Tábuas escuras e tijolo para cavalos e feno' },
+  { id: 'celeiro', nome: 'Celeiro', funcao: 'celeiro', piso: 'tabuas.escuras', papel: 'tijolo', descricao: 'Tábuas escuras, feno e grãos' },
+  { id: 'deposito', nome: 'Depósito', funcao: 'deposito', piso: 'concreto', papel: 'tijolo', descricao: 'Concreto, tijolo e estoque de carga' },
+  { id: 'loja', nome: 'Loja', funcao: 'loja', piso: 'tabuas.carvalho', papel: 'papel.liso-claro', descricao: 'Tábuas de carvalho, balcão e prateleiras' },
+  { id: 'oficina', nome: 'Oficina', funcao: 'oficina', piso: 'tabuas.escuras', papel: 'tijolo', descricao: 'Tábuas escuras e bancadas de trabalho' },
+  { id: 'cela', nome: 'Cela', funcao: 'cela', piso: 'laje.pedra', papel: 'tijolo', descricao: 'Lajes de pedra e tijolo' },
+  { id: 'dormitorio', nome: 'Dormitório', funcao: 'dormitorio', piso: 'tabuas.escuras', papel: 'reboco.branco', descricao: 'Tábuas escuras e alojamento coletivo' },
+  { id: 'refeitorio', nome: 'Refeitório', funcao: 'refeitorio', piso: 'tabuas.escuras', papel: 'tijolo', descricao: 'Tábuas escuras e mesas compridas' },
+  { id: 'salao', nome: 'Salão', funcao: 'salao', piso: 'tabuas.carvalho', papel: 'boiserie.escura', descricao: 'Tábuas de carvalho e boiserie escura' },
+  { id: 'patio', nome: 'Pátio', funcao: 'patio', piso: 'laje.pedra', papel: 'reboco.branco', descricao: 'Lajes de pedra ao ar livre' },
 ];
 export const tipoDeComodo = (id: string): TipoDeComodo | undefined => TIPOS_DE_COMODO.find(t => t.id === id);
 
@@ -183,6 +193,8 @@ const ESTILO_POR_FUNCAO: Readonly<Record<string, string>> = {
   forja: 'casa-de-pedra',
   torre: 'torre',
   campanario: 'torre',
+  estabulo: 'celeiro',
+  celeiro: 'celeiro',
 };
 
 /** Estilo de telhado padrão ao criar um cômodo: ar livre fica sem; funções especiais sobrepõem vizinhos; senão herda do vizinho (do mesmo nível) ou usa o gênero do mapa. */
@@ -194,6 +206,9 @@ export function telhadoPadrao(
 ): Omit<Comodo['roof'], 'visible'> | null {
   if (funcao && FUNCOES_AO_AR_LIVRE.has(funcao)) return null;
   if (funcao && ESTILO_POR_FUNCAO[funcao]) return clonarTelhado(estiloDeTelhado(ESTILO_POR_FUNCAO[funcao]!)!.roof);
+  if (m.style.genre === 'moderno' && (funcao === 'deposito' || funcao === 'oficina')) {
+    return clonarTelhado(estiloDeTelhado('galpao-de-zinco')!.roof);
+  }
   if (celulas.length) {
     const vizinhas = new Set<string>();
     for (const [x, y] of celulas) {

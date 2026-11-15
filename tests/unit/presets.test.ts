@@ -43,6 +43,10 @@ test('telhadoPadrao: varia por gênero/função e deixa funções ao ar livre se
   assert.deepEqual(telhadoPadrao(inv, 'forja', [[2, 2]]), estiloDeTelhado('casa-de-pedra')!.roof);
   assert.deepEqual(telhadoPadrao(inv, 'torre', [[2, 2]]), estiloDeTelhado('torre')!.roof);
   assert.deepEqual(telhadoPadrao(inv, 'campanario', [[2, 2]]), estiloDeTelhado('torre')!.roof);
+  assert.deepEqual(telhadoPadrao(inv, 'estabulo', [[2, 2]]), estiloDeTelhado('celeiro')!.roof);
+  assert.deepEqual(telhadoPadrao(inv, 'celeiro', [[2, 2]]), estiloDeTelhado('celeiro')!.roof);
+  assert.deepEqual(telhadoPadrao(moderno, 'deposito', [[2, 2]]), estiloDeTelhado('galpao-de-zinco')!.roof);
+  assert.deepEqual(telhadoPadrao(moderno, 'oficina', [[2, 2]]), estiloDeTelhado('galpao-de-zinco')!.roof);
 
   for (const f of FUNCOES_AO_AR_LIVRE) {
     assert.equal(telhadoPadrao(fantasia, f, [[2, 2]]), null, `${f} deve nascer sem telhado`);

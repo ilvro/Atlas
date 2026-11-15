@@ -63,7 +63,8 @@ Testes: lote com sala e quarto gera objetos nos dois; id inexistente vira `motiv
 Pronto quando: `atlas_mobiliar` mobília os 40 cômodos de "Lysdal · a vila (neve)" numa chamada (com `luzes: false`) e o Ctrl+Z desfaz tudo de uma vez.
 Commit: `added atlas_mobiliar tool`
 
-### D2 — Tipos de cômodo genéricos e a mobília deles  ⬜
+### D2 — Tipos de cômodo genéricos e a mobília deles  ✅
+Nota: em `src/app/ponte-escrita.ts`, `atlas_comodos.tipo` passou a aceitar `{ type: 'string' }` sem `enum` inline no esquema JSON para manter a soma das ferramentas abaixo de 22 KB (com `catalogo-base.json` atualizado).
 Objetivo: os lugares comuns fora de casa têm tipo, piso, papel, telhado padrão e mobília.
 Depende de: D1 (para testar pela ferramenta).
 Ler: `src/domain/presets.ts` (`TIPOS_DE_COMODO`, `FUNCOES_AO_AR_LIVRE`, `telhadoPadrao`), `src/authoring/regras-mobilia.ts` inteiro (`ItemDeRegra`, `item`, `REGRAS_DE_MOBILIA`, `VARIACOES_DE_GENERO`), `src/authoring/mobiliar.ts` (`MATERIAIS_POR_GENERO`), `src/authoring/funcao.ts` (`POR_NOME`), `src/authoring/luzes.ts` (`LUZES_POR_FUNCAO`). Use `atlas_catalogo { parte: 'receitas' }` (ou `listaDeReceitas()`) para conferir que cada receita citada existe.

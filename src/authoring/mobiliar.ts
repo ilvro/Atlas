@@ -22,12 +22,27 @@ export const MATERIAIS_POR_GENERO: Readonly<Record<string, Record<string, Materi
       quarto: { pisos: ['tabuas.carvalho', 'parquet.espinha'], papeis: ['papel.damasco-vinho', 'papel.floral-rosa', 'papel.floral-azul'] }, biblioteca: { pisos: ['tabuas.escuras', 'parquet.espinha'], papeis: ['papel.damasco-vinho', 'boiserie.escura', 'boiserie.verde'] },
       escritorio: { pisos: ['tabuas.carvalho', 'parquet.espinha'], papeis: ['papel.listras-musgo', 'boiserie.escura', 'papel.bordo-listras'] }, banheiro: { pisos: ['ladrilho.cozinha', 'marmore.branco', 'hexagono.salvia'], papeis: ['papel.liso-claro', 'papel.floral-azul'] },
       corredor: { pisos: ['tabuas.escuras', 'marmore.xadrez-diagonal'], papeis: ['papel.damasco-azul', 'papel.azul-listras'] }, 'sala-de-jantar': { pisos: ['tabuas.carvalho', 'marmore.xadrez-diagonal', 'parquet.espinha'], papeis: ['papel.listras-musgo', 'papel.bordo-listras', 'boiserie.verde'] }, 'sala-de-jogos': { pisos: ['tabuas.escuras', 'parquet.espinha'], papeis: ['papel.damasco-vinho', 'boiserie.verde'] }, capela: { pisos: ['laje.pedra', 'marmore.branco'], papeis: ['reboco.branco'] }, forja: { pisos: ['laje.pedra'], papeis: ['tijolo'] }, varanda: { pisos: ['laje.pedra', 'marmore.branco', 'hexagono.terracota'], papeis: ['reboco.branco', 'tijolo'] }, hospital: { pisos: ['azulejo.branco'], papeis: ['papel.liso-claro'] }, taverna: { pisos: ['tabuas.carvalho'], papeis: ['tijolo'] }, porao: { pisos: ['concreto'], papeis: ['tijolo'] },
+      estabulo: { pisos: ['terra.batida', 'palha.chao', 'tabuas.rusticas'], papeis: ['toras', 'reboco.sujo'] },
+      celeiro: { pisos: ['palha.chao', 'terra.batida', 'tabuas.rusticas'], papeis: ['toras', 'reboco.sujo'] },
+      deposito: { pisos: ['tabuas.rusticas', 'laje.pedra'], papeis: ['reboco.sujo', 'papel.liso-escuro'] },
+      loja: { pisos: ['parquet.espinha', 'tabuas.escuras'], papeis: ['papel.listras-creme', 'boiserie.escura'] },
+      oficina: { pisos: ['tabuas.rusticas', 'concreto'], papeis: ['reboco.sujo', 'pedra.aparelhada'] },
+      cela: { pisos: ['pedra.rustica', 'concreto'], papeis: ['pedra.aparelhada', 'reboco.sujo'] },
+      dormitorio: { pisos: ['tabuas.rusticas', 'tabuas.carvalho'], papeis: ['papel.liso-claro', 'reboco.sujo'] },
+      refeitorio: { pisos: ['tabuas.rusticas', 'laje.pedra'], papeis: ['reboco.branco', 'pedra.aparelhada'] },
+      salao: { pisos: ['parquet.espinha', 'marmore.xadrez-diagonal'], papeis: ['papel.damasco-vinho', 'boiserie.verde'] },
+      patio: { pisos: ['pedra.rustica', 'marmore.branco'], papeis: ['tijolo', 'pedra.aparelhada'] },
     };
     const e = extra[t.funcao]!; return [t.funcao, { pisos: [t.piso, ...e.pisos], papeis: [t.papel, ...e.papeis] }];
   })),
   moderno: Object.fromEntries(TIPOS_DE_COMODO.map(t => [t.funcao, t.funcao === 'cozinha' ? { pisos: ['ladrilho.cozinha', 'azulejo.branco', 'hexagono.salvia', 'concreto'], papeis: ['reboco.branco', 'papel.liso-claro'] } : t.funcao === 'banheiro' || t.funcao === 'hospital' ? { pisos: ['azulejo.branco', 'ladrilho.cozinha'], papeis: ['reboco.branco', 'papel.liso-claro'] }
-    : t.funcao === 'porao' ? { pisos: ['concreto', 'carpete.cinza'], papeis: ['reboco.branco', 'papel.liso-escuro'] } : { pisos: ['tabuas.claras', 'carpete.cinza', 'concreto', 'tabuas.cinza'], papeis: ['papel.liso-claro', 'reboco.branco', 'papel.liso-escuro'] }])),
-  fantasia: Object.fromEntries(TIPOS_DE_COMODO.map(t => [t.funcao, t.funcao === 'quarto' || t.funcao === 'biblioteca' || t.funcao === 'escritorio' ? { pisos: ['tabuas.escuras', 'tabuas.carvalho'], papeis: ['tijolo', 'papel.damasco-vinho'] } : { pisos: ['laje.pedra', 'tabuas.escuras'], papeis: ['tijolo', 'papel.liso-escuro'] }])),
+    : t.funcao === 'porao' || t.funcao === 'deposito' || t.funcao === 'oficina' || t.funcao === 'cela' ? { pisos: ['concreto', 'concreto.placas', 'vinil.industrial', 'carpete.cinza'], papeis: ['reboco.branco', 'papel.liso-escuro', 'painel.metalico'] }
+    : t.funcao === 'patio' ? { pisos: ['concreto.placas', 'laje.pedra'], papeis: ['reboco.branco', 'tijolo'] }
+    : { pisos: ['tabuas.claras', 'carpete.cinza', 'concreto', 'tabuas.cinza'], papeis: ['papel.liso-claro', 'reboco.branco', 'papel.liso-escuro'] }])),
+  fantasia: Object.fromEntries(TIPOS_DE_COMODO.map(t => [t.funcao, t.funcao === 'quarto' || t.funcao === 'biblioteca' || t.funcao === 'escritorio' ? { pisos: ['tabuas.escuras', 'tabuas.carvalho'], papeis: ['tijolo', 'papel.damasco-vinho'] }
+    : t.funcao === 'estabulo' || t.funcao === 'celeiro' ? { pisos: ['palha.chao', 'terra.batida', 'tabuas.rusticas'], papeis: ['toras', 'tijolo'] }
+    : t.funcao === 'cela' || t.funcao === 'forja' || t.funcao === 'patio' ? { pisos: ['pedra.rustica', 'laje.pedra'], papeis: ['pedra.aparelhada', 'tijolo'] }
+    : { pisos: ['laje.pedra', 'tabuas.escuras', 'tabuas.rusticas'], papeis: ['tijolo', 'pedra.aparelhada', 'papel.liso-escuro'] }])),
 };
 
 export const PALETAS_POR_GENERO: Readonly<Record<string, Paleta[]>> = {

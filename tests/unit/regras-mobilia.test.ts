@@ -54,3 +54,13 @@ test('itens da coleção entram nas regras só para os gêneros a que servem', (
   assert.ok(!ids('sala', 'moderno').some(i => i.startsWith('casa:')), 'o moderno não usa o capitonê');
   assert.ok(ids('sala', 'moderno').includes('sofa.canto') && !ids('sala', 'moderno').includes('sofa'), 'o sofá de canto toma o lugar do sofá');
 });
+
+test('tipos genéricos de cômodo têm regras de mobília com as receitas esperadas', () => {
+  const novos = ['estabulo', 'celeiro', 'deposito', 'loja', 'oficina', 'cela', 'dormitorio', 'refeitorio', 'salao', 'patio'];
+  for (const f of novos) {
+    assert.ok(TIPOS_DE_COMODO.some(t => t.funcao === f), f);
+    assert.ok(REGRAS_DE_MOBILIA[f]?.length, f);
+  }
+  const stab = regrasPara('estabulo', 'fantasia').flatMap(r => r.receitas);
+  assert.ok(stab.includes('fardo-de-feno') && stab.includes('bebedouro') && stab.includes('monte-de-palha'));
+});
