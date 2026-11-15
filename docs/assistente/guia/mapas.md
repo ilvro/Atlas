@@ -1,4 +1,4 @@
-> resumo: compor um mapa: ler o que existe, decidir a composição, ordem de construção, conferir com os olhos e as regras aprendidas na Fase 10.
+> resumo: construir um mapa: o que ler antes, a ordem das chamadas, conferir com os olhos, as regras de ouro e o respeito ao que é do mestre. O projeto vem antes: leia `projetar`.
 
 ## Antes de construir
 
@@ -6,14 +6,14 @@
 2. `atlas_o_que_vejo` (no Atlas) e `mesa_o_que_vejo` (na Mesa): o que o mestre tem na tela. No Atlas, o mapa aberto, o modo, a área visível e a seleção; na Mesa, a campanha, a tela e o item aberto. É o que dá sentido a "este cômodo", "esses objetos" ou "esta sessão".
 3. `campanha_ler` (com `campanha_listar` para achar o `campanhaId`): entidades, sessões e o que já existe. Use `campanha_entidade_ler` e `campanha_sessao_ler` para aprofundar.
 4. `atlas_mapas_listar` e `atlas_mapa_ler`: o que já há no Atlas e o que tem dentro do mapa aberto (cômodos, objetos, luzes, regiões, momentos, notas).
-5. `atlas_catalogo`: nunca invente ids. Sem argumento devolve um índice; com `parte` (`receitas`, `colecao`, `materiais`, `climas`, `luzes`, `presenca`, `momentos`) devolve a lista. Quando uma ferramenta recusar um id, ela volta com os mais parecidos: use essas sugestões, não chute outro.
+5. `atlas_catalogo`: nunca invente ids. Sem argumento devolve um índice; com `parte` (`receitas`, `colecao`, `materiais`, `telhado`, `climas`, `luzes`, `presenca`, `momentos`) devolve a lista. Os conjuntos do `atlas_espalhar` são: `mata`, `jardim`, `cemiterio`, `papelada`, `caixotes`, `bibelos`, `refeicao`, `bagunca` e `plantas`. Quando uma ferramenta recusar um id, ela volta com os mais parecidos: use essas sugestões, não chute outro.
 6. `atlas_abrir`: abre o mapa certo antes de escrever nele.
 
 ## Compor um mapa
 
-### Decida a composição antes do detalhe
+### Projete antes de construir
 
-Antes de qualquer chamada, desenhe em texto uma grade mental de 5 em 5 metros e decida onde ficam as massas grandes: rocha, água, mata, construções e caminhos. Escreva esse rascunho para o mestre em poucas linhas (ex.: "rocha ao norte, lago no centro, trilha de oeste a leste, cabana a sudeste"). Só depois do rascunho aprovado vem o detalhe. Coordenadas são em metros, com origem no canto superior esquerdo e y para baixo; a única exceção são os cômodos (`atlas_comodos`), em células de 1,5 m.
+Antes de qualquer chamada, faça o projeto com `plataforma_guia projetar` (brief, programa, circulação, massa, identidade) e consulte o repertório do lugar em `lugares` (exteriores) ou `interiores`. Com imagem de referência, leia antes `referencias`. Depois desenhe em texto uma grade mental de 5 em 5 metros com as massas grandes (rocha, água, mata, construções e caminhos) e mostre ao mestre o resumo em poucas linhas (ex.: "platô na diagonal, mata abaixo do penhasco a leste, rua de sul a norte, salão dominante na praça"). Só depois do resumo aprovado vem o detalhe. Coordenadas são em metros, com origem no canto superior esquerdo e y para baixo; a única exceção são os cômodos (`atlas_comodos`), em células de 1,5 m.
 
 ### Ordem de construção
 
@@ -30,11 +30,14 @@ Antes de qualquer chamada, desenhe em texto uma grade mental de 5 em 5 metros e 
 
 ### Confira com os olhos depois de cada bloco
 
-Depois de cada bloco, chame `atlas_ver_mapa` (mapa inteiro, ou só uma `caixa` [x0, y0, x1, y1] em metros para olhar um detalhe de perto) e compare com a intenção. Corrija o que destoa antes de seguir. Mapas montados sem olhar a imagem saem errados: massas fora de lugar, objetos minúsculos, rotações trocadas. Quando uma escrita responder "nada mudou", confira as coordenadas na imagem.
+Depois de cada bloco, chame `atlas_ver_mapa` (mapa inteiro, ou só uma `caixa` [x0, y0, x1, y1] em metros para olhar um detalhe de perto) e compare com a intenção. Corrija o que destoa antes de seguir. Mapas montados sem olhar a imagem saem errados: massas fora de lugar, objetos minúsculos, rotações trocadas. Quando uma escrita responder "nada mudou", confira as coordenadas na imagem. A captura mostra a planta (interiores), sem telhados. No fim, passe pela conferência do passo 8 de `projetar`.
 
 ## Regras que valem ouro
 
 Elas vêm de refazer mapas comparando com referências profissionais.
+
+- **Casas com forma e porte.** Nunca uma fileira de retângulos iguais: cada edifício tem programa, porte e forma próprios (L, anexo, alpendre) e um traço de identidade. Veja `projetar`, passos 2, 4 e 5.
+- **Nada em grade mecânica.** Lápides, árvores, caixas e bancos: varie receita, rotação e espaçamento, e deixe falhas.
 
 - **Maciços de rocha vs. escarpas e barrancos:**
   - **Maciços volumétricos de rocha, caverna e falésia são terreno (`atlas_terreno` com uso `macico`):** use materiais maciços (ex.: `rocha.caverna`, `rocha.arenito`, `rocha.nevada`, `rocha.cinza`; confira em `atlas_catalogo { parte: "materiais" }`) para grandes massas, montanhas, platôs e paredes de caverna que cobrem áreas de células. Rochedos como objetos por cima dão volume adicional.

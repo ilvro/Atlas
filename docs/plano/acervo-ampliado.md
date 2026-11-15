@@ -63,7 +63,7 @@ Lista (todas com `generos: ['ficcao-cientifica']`):
 - **Técnico:** `tubulacao` (`campos.largura`, `campos.curva`), `grade.ventilacao`, `painel.eletrico` (aberto ou fechado), `gerador` (núcleo com anel), `caixa.carga` (`campos.cor`, marcações), `conteiner` (6 × 2,4 m), `bancada.ferramentas`, `extintor`, `cabos` (feixe no chão), `escada.marinheiro`.
 - **Médico e laboratório:** `maca.medica`, `scanner.corpo`, `mesa.laboratorio` (vidraria), `armario.amostras`.
 Pronto quando: um cômodo de teste de cada tipo fica convincente na prancha, no Ilustrado e no Pixel.
-Nota: `escada.marinheiro` virou `escotilha` (alçapão com escada descendo), que se lê de cima; as funções citadas são as da E4 (`ponte-de-comando`, `corredor-tecnico`, `sala-de-maquinas`, `laboratorio`, `cabine`, `eclusa`, `baia-de-carga`, `criogenia`). Até a E4 criar o gênero, as peças ficam fora da Biblioteca filtrada por gênero, mas o conector já as aceita por id.
+Nota: `escada.marinheiro` virou `escotilha` (alçapão com escada descendo), que se lê de cima; as funções citadas são as da E4 (`ponte-de-comando`, `corredor-tecnico`, `sala-de-maquinas`, `laboratorio`, `cabine`, `eclusa`, `baia-de-carga`, `criogenia`). As peças já aparecem na Biblioteca e no conector; até a E4, nenhuma regra de mobília as usa.
 
 ### E4 — Gênero `ficcao-cientifica`  ⬜
 Objetivo: o Atlas entende nave e estação como gênero: cômodos, mobília automática, luzes e paleta.
