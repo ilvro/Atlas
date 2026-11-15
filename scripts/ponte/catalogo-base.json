@@ -646,6 +646,182 @@
     }
   },
   {
+    "nome": "atlas_caminho",
+    "descricao": "Traça caminhos orgânicos em METROS (curva, largura viva, borda e sulcos), de 1 a 20 num passo de desfazer. Guia: plataforma_guia ferramentas-atlas.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "caminhos": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "properties": {
+              "pontos": {
+                "type": "array",
+                "minItems": 2,
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                }
+              },
+              "largura": {
+                "oneOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                ]
+              },
+              "material": {
+                "type": "string"
+              },
+              "borda": {
+                "type": "object",
+                "properties": {
+                  "material": {
+                    "type": "string"
+                  },
+                  "largura": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "material",
+                  "largura"
+                ],
+                "additionalProperties": false
+              },
+              "sulcos": {
+                "type": "boolean"
+              },
+              "irregular": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "pontos",
+              "largura",
+              "material"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "semente": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "caminhos"
+      ],
+      "additionalProperties": false
+    },
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": true
+    }
+  },
+  {
+    "nome": "atlas_caminho",
+    "descricao": "Traça caminhos orgânicos em METROS (curva, largura viva, borda e sulcos), de 1 a 20 num passo de desfazer. Guia: plataforma_guia ferramentas-atlas.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "caminhos": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "properties": {
+              "pontos": {
+                "type": "array",
+                "minItems": 2,
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                }
+              },
+              "largura": {
+                "oneOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                ]
+              },
+              "material": {
+                "type": "string"
+              },
+              "borda": {
+                "type": "object",
+                "properties": {
+                  "material": {
+                    "type": "string"
+                  },
+                  "largura": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "material",
+                  "largura"
+                ],
+                "additionalProperties": false
+              },
+              "sulcos": {
+                "type": "boolean"
+              },
+              "irregular": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "pontos",
+              "largura",
+              "material"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "semente": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "caminhos"
+      ],
+      "additionalProperties": false
+    },
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": true
+    }
+  },
+  {
     "nome": "atlas_catalogo",
     "descricao": "Catálogo de opções (receitas, colecao, conjuntos, comodos, materiais, telhado, climas, luzes, presenca, momentos). Aceita busca por palavra. Use para não inventar ids.",
     "esquema": {

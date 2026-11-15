@@ -31,7 +31,7 @@ const terra = { acao: 'pintar', material: 'terra', forma: { faixa: [[0, 5], [10,
 
 test('as ferramentas têm nome, descrição com unidades e esquema de objeto', () => {
   const { f } = montar();
-  assert.deepEqual(Object.keys(f), ['atlas_mapa_criar', 'atlas_terreno', 'atlas_comodos', 'atlas_mobiliar', 'atlas_edificio', 'atlas_paredes', 'atlas_portas', 'atlas_objetos', 'atlas_espalhar', 'atlas_arranjo', 'atlas_luzes', 'atlas_ambiente', 'atlas_regioes', 'atlas_presenca', 'atlas_notas', 'atlas_momento', 'atlas_momento_testar', 'atlas_remover', 'atlas_mover', 'atlas_salvar', 'atlas_desfazer']);
+  assert.deepEqual(Object.keys(f), ['atlas_mapa_criar', 'atlas_terreno', 'atlas_caminho', 'atlas_comodos', 'atlas_mobiliar', 'atlas_edificio', 'atlas_paredes', 'atlas_portas', 'atlas_objetos', 'atlas_espalhar', 'atlas_arranjo', 'atlas_luzes', 'atlas_ambiente', 'atlas_regioes', 'atlas_presenca', 'atlas_notas', 'atlas_momento', 'atlas_momento_testar', 'atlas_remover', 'atlas_mover', 'atlas_salvar', 'atlas_desfazer']);
   for (const x of Object.values(f)) { assert.ok(x.descricao.length > 60 && x.descricao.length <= 180, x.nome); assert.equal(x.esquema.type, 'object'); }
   assert.match(f.atlas_comodos!.descricao, /CÉLULAS/);
   assert.match(f.atlas_terreno!.descricao, /METROS/);
@@ -404,13 +404,13 @@ test('as ferramentas do Atlas têm descrições curtas e ficam dentro do orçame
   const ctxL = { repo: () => null, mapaAberto: () => null, abrirMapa: async () => {} };
   const ctxE = { store: () => null, repo: () => null, abrirMapa: async () => {} };
   const todas = [...ferramentasDeLeitura(ctxL), ...ferramentasDeEscrita(ctxE)];
-  assert.equal(todas.length, 28);
+  assert.equal(todas.length, 30);
   for (const f of todas) {
     assert.ok(f.descricao.length <= 800, `${f.nome} passou de 800 caracteres: ${f.descricao.length}`);
     assert.ok(f.descricao.length >= 40, `${f.nome} descrição muito curta: ${f.descricao.length}`);
   }
   const bytes = Buffer.byteLength(JSON.stringify(todas));
-  assert.ok(bytes < 26_500, `Esperava soma das atlas_* menor que 26,5 KB (26500 bytes), obteve ${bytes}`);
+  assert.ok(bytes < 28_000, `Esperava soma das atlas_* menor que 28 KB (28000 bytes), obteve ${bytes}`);
 });
 
 
@@ -538,4 +538,26 @@ test('atlas_arranjo monta cemitério 15×10 m em quadras com desfazer único', a
   assert.ok(Object.keys(store.documento.props).length >= 16);
   store.desfazer();
   assert.equal(Object.keys(store.documento.props).length, 0);
+});
+
+test('atlas_caminho traça trilha orgânica em ziguezague com borda e desfaz num passo', async () => {
+  const { store, chamar } = montar();
+  const r = await chamar('atlas_caminho', {
+    caminhos: [{
+      pontos: [[4, 4], [14, 10], [8, 20], [22, 26]],
+      largura: [1.5, 3],
+      material: 'terra',
+      borda: { material: 'neve.pisada', largura: 0.7 },
+      sulcos: true,
+    }],
+    semente: 5,
+  });
+  assert.match(r, /1 caminho\(s\) traçado\(s\)/);
+  assert.equal(store.historico.length, 1);
+  assert.ok(Object.values(store.documento.terrain.layers).some(l => l.material === 'terra'));
+  assert.ok(Object.values(store.documento.terrain.layers).some(l => l.material === 'neve.pisada'));
+  assert.ok(Object.values(store.documento.presence).some(p => p.brush === 'sulcos'));
+  store.desfazer();
+  assert.equal(Object.keys(store.documento.terrain.layers).length, 0);
+  assert.equal(Object.keys(store.documento.presence).length, 0);
 });

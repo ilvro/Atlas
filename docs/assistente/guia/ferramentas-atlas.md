@@ -36,6 +36,29 @@ Caixotes numa baia de carga em fileiras com corredor:
 Bancos de igreja em fileiras olhando o altar (ângulo 0):
 `atlas_arranjo { padrao: "fileiras", area: { retangulo: [7, 6, 14, 13] }, itens: [{ item: "banco.igreja" }], espacamento: [2.4, 1.4], angulo: 0, encarar: "fileira", falhas: 0.05, grupos: { tamanho: [1, 4], vazio: 1.6 } }`
 
+## atlas_caminho
+
+Traça de 1 a 20 trilhas ou estradas orgânicas em METROS num único passo de desfazer: suaviza curvas, varia a largura ao longo do percurso, cria bordas irregulares com faixa marginal opcional e acrescenta sulcos de carroça em trechos largos (`sulcos: true`, quando largura > 2 m).
+
+Parâmetros por item em `caminhos[]`:
+- `pontos`: `[x, y][]` em metros (mínimo 2 pontos).
+- `largura`: número fixo ou intervalo `[min, max]` em metros.
+- `material`: id de terreno (ex.: `terra`, `paralelepipedo`, `cascalho`).
+- `borda`: opcional `{ material, largura }` que envolve o caminho antes do miolo.
+- `sulcos`: opcional `boolean` para marcas paralelas de roda.
+- `irregular`: opcional (padrão `0.35`) controla a sinuosidade da borda em metros.
+
+Exemplos:
+
+Trilha de terra na neve com borda de neve suja:
+`atlas_caminho { caminhos: [{ pontos: [[4, 28], [14, 20], [26, 22], [38, 12]], largura: [1.5, 2.8], material: "terra", borda: { material: "neve.pisada", largura: 0.8 }, irregular: 0.45 }] }`
+
+Estrada de paralelepípedo com sulcos:
+`atlas_caminho { caminhos: [{ pontos: [[2, 16], [18, 15], [34, 18]], largura: [3.2, 4.2], material: "paralelepipedo", borda: { material: "lama", largura: 0.6 }, sulcos: true }] }`
+
+Corredor de cascalho entre túmulos:
+`atlas_caminho { caminhos: [{ pontos: [[15, 4], [15, 16], [22, 22]], largura: [1.2, 1.8], material: "cascalho", irregular: 0.2 }] }`
+
 ## atlas_catalogo
 
 Catálogo de opções: `receitas`, `colecao`, `conjuntos`, `comodos`, `materiais`, `telhado`, `climas`, `luzes`, `presenca` ou `momentos`. Sem `parte`, traz contagens. Com `busca` (texto de até 60 caracteres), filtra por id, nome, tags e funções (sem `parte`, procura em receitas, coleção, conjuntos e materiais, até 40 de cada). Use para não inventar ids.

@@ -233,7 +233,7 @@ Testes: caminho em L sai com o canto arredondado (nenhuma célula no vértice ex
 Pronto quando: `npm test` passa.
 Commit: `added organic path builder`
 
-### D5b — Ferramenta `atlas_caminho`  ⬜
+### D5b — Ferramenta `atlas_caminho`  ✅
 Objetivo: o Claude traça trilhas e estradas que parecem gastas pelo uso.
 Depende de: D5a.
 Arquivos: mudar `ponte-escrita.ts`, `ferramentas-atlas.md` (exemplos: trilha de terra na neve com borda de neve suja; estrada de paralelepípedo com sulcos; corredor de cascalho entre túmulos), `mapas.md` (caminhos sempre com `atlas_caminho`, nunca com faixa reta de `atlas_terreno`), `catalogo-base.json`; testes.
