@@ -45,9 +45,13 @@ test('nas escadas retas o z dos degraus cresce de +y para −y', () => {
 
 test('a escada em caracol tem de 12 a 16 degraus em cunha e pelo menos 10 alturas distintas', () => {
   for (const d of [1.6, 2.2, 3.6]) {
-    const ps = partes('escada.caracol', { diametro: d }), cunhas = ps.filter(p => p.forma === 'poli');
+    const ps = partes('escada.caracol', { diametro: d }), cunhas = ps.filter(p => p.forma === 'poli' && p.dir !== undefined);      // a pisada tem o veio orientado
     assert.ok(cunhas.length >= 12 && cunhas.length <= 16, `${d}: ${cunhas.length}`);
     assert.ok(new Set(cunhas.map(p => p.z)).size >= 10);
+    assert.ok(cunhas.every(p => p.mat.startsWith('madeira.')), 'degraus de madeira');
+    const nucleo = ps.filter(p => p.forma === 'elipse' && p.z > 1).reduce((a, b) => (b.w! > a.w! ? b : a));      // o maior volume alto é o pilar
+    assert.ok(nucleo.w! >= 0.6 * (d / 2), `${d}: núcleo de pedra robusto (~0,32 R)`);
+    assert.ok(ps.filter(p => p.forma === 'poli' && p.z > 0.9 && p.mat === 'madeira.escura' && p.dir === undefined).length >= cunhas.length - 2, 'corrimão acompanha os degraus');
   }
 });
 

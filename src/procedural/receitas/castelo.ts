@@ -1,4 +1,4 @@
-import { elipse, poli, ret } from '../descricao.ts';
+import { elipse, poli, ret, type Parte } from '../descricao.ts';
 import { bolha, lente } from '../organico.ts';
 import { mulberry32 } from '../ruido.ts';
 import { mat, num, piso, type Receita } from './comum.ts';
@@ -12,6 +12,51 @@ const yDegrau = (l: number, n: number, i: number): number => l / 2 - ((i + 0.5) 
 const lado = [-1, 1];
 
 /** Mobiliário de castelo, estalagem e caserna: escadas, mesas, camas e assentos. */
+/** Um setor de coroa (de `r0` a `r1`, de `a0` a `a1`) como polígono, com o arco amostrado. */
+function setor(r0: number, r1: number, a0: number, a1: number, k = 4): number[] {
+  const pts: number[] = [];
+  for (let j = 0; j <= k; j++) { const a = a0 + ((a1 - a0) * j) / k; pts.push(Math.cos(a) * r1, Math.sin(a) * r1); }
+  for (let j = k; j >= 0; j--) { const a = a0 + ((a1 - a0) * j) / k; pts.push(Math.cos(a) * r0, Math.sin(a) * r0); }
+  return pts;
+}
+
+/**
+ * Escada em caracol 2.5D: poço escuro no chão, degraus de madeira subindo em espiral (cada um com espelho claro na
+ * borda e mais escuro quanto mais perto do poço), núcleo cilíndrico de pedra em anéis e corrimão curvo com postes.
+ */
+function escadaCaracol(d: number): Parte[] {
+  const n = 12 + Math.round(((d - 1.6) / 2) * 4), da = (Math.PI * 2) / n, R = d / 2, r0 = 0.32 * R, rDegrau = R - 0.07, zt = 0.1 + (n - 1) * 0.16;
+  const partes: Parte[] = [
+    elipse(0, 0, d, d, '#0e0d12', 0.02, { contorno: 'leve' }),                                  // o poço
+    elipse(0, 0, d - 0.06, d - 0.06, '#1a1820', 0.03, { contorno: false, semSombra: true, detalhe: 2 }),
+  ];
+  for (let i = 0; i < n; i++) {
+    const a0 = Math.PI / 2 + i * da, a1 = a0 + da * 1.04, z = 0.1 + i * 0.16, meio = (a0 + a1) / 2;
+    partes.push(
+      poli(setor(r0, rDegrau, a0, a1), i % 3 === 2 ? 'madeira.escura' : 'madeira.media', z, { dir: meio, contorno: 'leve', sombraLeve: true }),
+      // Espelho: o bordo da pisada, claro, na aresta que cai para o degrau de baixo.
+      poli(setor(r0, rDegrau, a0, a0 + da * 0.14, 2), 'madeira.clara', z + 0.005, { contorno: false, semSombra: true, alfa: 0.75, detalhe: 2 }),
+      // Uma junta de tábua no meio da pisada.
+      poli(setor(r0 + 0.02, rDegrau - 0.02, meio - 0.006, meio + 0.006, 1), '#24160c', z + 0.006, { contorno: false, semSombra: true, alfa: 0.6, detalhe: 3 }),
+    );
+    // Quanto mais baixo o degrau, mais ele afunda na escuridão do poço.
+    const fundo = 0.68 * Math.pow(1 - i / (n - 1), 2.2);
+    if (fundo > 0.04) partes.push(poli(setor(r0, rDegrau, a0, a1), '#1a120c', z + 0.007, { contorno: false, semSombra: true, suave: true, alfa: fundo, detalhe: 2 }));
+    // Corrimão: um trecho de arco por degrau, subindo junto, e um poste a cada dois degraus.
+    if (i > 0) partes.push(poli(setor(R - 0.075, R - 0.015, a0 - da * 0.02, a1, 3), 'madeira.escura', z + 0.9, { contorno: 'leve', sombraLeve: true, detalhe: 2 }));
+    if (i % 2 === 0 && i > 0) partes.push(elipse(Math.cos(a0) * (R - 0.045), Math.sin(a0) * (R - 0.045), 0.085, 0.085, 'madeira.escura', z + 0.92, { contorno: 'leve', detalhe: 2 }));
+  }
+  // Núcleo de pedra em anéis, com luz de noroeste.
+  partes.push(
+    elipse(0, 0, r0 * 2 + 0.04, r0 * 2 + 0.04, PEDRA_ESC, zt + 0.5, { contorno: 'leve' }),
+    elipse(0, 0, r0 * 1.7, r0 * 1.7, PEDRA, zt + 0.52, { contorno: 'leve', semSombra: true, detalhe: 2 }),
+    elipse(-r0 * 0.12, -r0 * 0.12, r0 * 1.05, r0 * 1.05, '#8e9098', zt + 0.53, { contorno: 'leve', semSombra: true, detalhe: 2 }),
+    elipse(-r0 * 0.2, -r0 * 0.2, r0 * 0.45, r0 * 0.45, '#b4b6be', zt + 0.54, D),
+    ...Array.from({ length: 8 }, (_, k) => { const a = (k / 8) * Math.PI * 2 + 0.2; return poli(setor(r0 * 0.86, r0 * 1.02, a - 0.02, a + 0.02, 1), PEDRA_ESC, zt + 0.535, { ...D, alfa: 0.8 }); }),
+  );
+  return partes;
+}
+
 export const RECEITAS_DE_CASTELO: Receita[] = [
   // Escadas: a subida vai de +y (embaixo) para −y (em cima); o z dos degraus cresce nesse sentido.
   { id: 'escada.madeira', nome: 'Escada de madeira', categoria: 'decoracao', tipo: 'piso', funcoes: ['corredor', 'porao', 'sala', 'taverna'], tags: ['escada', 'degraus', 'madeira', 'andar', 'subida'], pegada: [1.2, 2.6], ...G,
@@ -39,15 +84,7 @@ export const RECEITAS_DE_CASTELO: Receita[] = [
     } },
   { id: 'escada.caracol', nome: 'Escada em caracol', categoria: 'decoracao', tipo: 'piso', funcoes: ['corredor', 'porao', 'sala', 'taverna'], tags: ['escada', 'caracol', 'torre', 'degraus', 'espiral', 'subida'], pegada: [2.2, 2.2], ...G,
     campos: [{ id: 'diametro', rotulo: 'Diâmetro', tipo: 'numero', padrao: 2.2, min: 1.6, max: 3.6, passo: 0.1 }],
-    gerar: p => {
-      const d = num(p, 'diametro', 2.2, 1.6, 3.6), n = 12 + Math.round(((d - 1.6) / 2) * 4), da = (Math.PI * 2) / n, R = d / 2, r0 = 0.18, zt = 0.1 + (n - 1) * 0.12;
-      return piso([d, d], [
-        elipse(0, 0, d, d, PEDRA_ESC, 0.05),
-        ...Array.from({ length: n }, (_, i) => { const a0 = Math.PI / 2 + i * da, a1 = a0 + da * 1.05, c = Math.cos, s = Math.sin; return poli([c(a0) * r0, s(a0) * r0, c(a0) * R, s(a0) * R, c(a1) * R, s(a1) * R, c(a1) * r0, s(a1) * r0], i % 2 ? '#8e9098' : '#a0a2aa', 0.1 + i * 0.12, V); }),
-        elipse(0, 0, 0.4, 0.4, PEDRA, zt + 0.5, { contorno: 'leve' }),
-        elipse(-0.04, -0.04, 0.2, 0.2, '#a2a4ac', zt + 0.52, D),
-      ]);
-    } },
+    gerar: p => piso([num(p, 'diametro', 2.2, 1.6, 3.6), num(p, 'diametro', 2.2, 1.6, 3.6)], escadaCaracol(num(p, 'diametro', 2.2, 1.6, 3.6))) },
   { id: 'escada.de-mao', nome: 'Escada de mão', categoria: 'decoracao', tipo: 'piso', funcoes: ['corredor', 'porao', 'sala', 'taverna'], tags: ['escada', 'mao', 'madeira', 'travessas', 'subida'], pegada: [0.5, 2.4], ...G,
     campos: [{ id: 'comprimento', rotulo: 'Comprimento', tipo: 'numero', padrao: 2.4, min: 1.6, max: 4, passo: 0.1 }],
     gerar: p => {

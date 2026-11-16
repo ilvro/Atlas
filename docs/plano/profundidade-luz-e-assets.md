@@ -68,7 +68,7 @@ Comparando as referências do *Farol de OSNI* e das duas casas externas com o re
 | [K6](#k6--escarpa-oblíqua-profunda-e-oclusão-de-base-independente-do-sol) | Etapa 3 · Relevo & Penhascos Dramáticos | Face mais larga (`escarpa.ts`) + oclusão basal contínua independente do ângulo solar | — | ✅ |
 | [K7](#k7--curva-não-linear-de-profundidade-e-render-de-rampasdegraus-no-relevo) | Etapa 3 · Relevo & Penhascos Dramáticos | Curva não-linear de neblina em `relevo.ts` e textura visível para `degraus < 1 m` em `assar.ts` | K6 | ✅ |
 | [K8](#k8--paliçada-25d-robusta-e-massa-visual-de-paredes) | Etapa 4 · Escala, Materialidade & Salto 2.5D | Paliçada defensiva ~1 m em 2.5D + reforço de massa/profundidade em paredes (`exterior.ts`, `cena.ts`) | — | ✅ |
-| [K9](#k9--polimento-do-raster-procedural-e-escadacaracol-25d) | Etapa 4 · Escala, Materialidade & Salto 2.5D | Reduzir contorno vetorial pesado, ampliar AO em `raster.ts` e refazer `escada.caracol` | K8 | ⬜ |
+| [K9](#k9--polimento-do-raster-procedural-e-escadacaracol-25d) | Etapa 4 · Escala, Materialidade & Salto 2.5D | Reduzir contorno vetorial pesado, ampliar AO em `raster.ts` e refazer `escada.caracol` | K8 | ✅ |
 | [K10](#k10--especificação-e-pack-piloto-25d-em-publiccolecao-e-guias-atualizados) | Etapa 4 · Escala, Materialidade & Salto 2.5D | Padrão 2.5D (~75°) em `public/colecao/` (peças heroicas) + regras de densidade/folga nos guias | K2, K5, K7, K9 | ⬜ |
 
 ---
@@ -414,7 +414,7 @@ node --test tests/unit/receitas.test.ts tests/unit/kit-exterior.test.ts
 
 ---
 
-### K9 — Polimento do raster procedural (`raster.ts`) e `escada.caracol` 2.5D  ⬜
+### K9 — Polimento do raster procedural (`raster.ts`) e `escada.caracol` 2.5D  ✅
 
 **Objetivo:** diminuir o aspecto "diagrama vetorial com contorno preto grosso" em `src/procedural/raster.ts` e refazer `escada.caracol` (e camas/sofás-base selecionados) com camadas de profundidade inspiradas nas referências.
 

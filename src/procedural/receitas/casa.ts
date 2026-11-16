@@ -2,6 +2,61 @@ import { elipse, poli, ret, type Parte } from '../descricao.ts';
 import { mulberry32 } from '../ruido.ts';
 import { LOMBADAS, folhas, mat, num, parede, piso, type Receita } from './comum.ts';
 
+/** Retângulo de cantos macios (superelipse) girado de `a`: almofadas e travesseiros. */
+function almofada(x: number, y: number, w: number, h: number, a: number): number[] {
+  const c = Math.cos(a), sn = Math.sin(a), pts: number[] = [];
+  for (let k = 0; k < 20; k++) {
+    const t = (k / 20) * Math.PI * 2, ct = Math.cos(t), st = Math.sin(t);
+    const u = Math.sign(ct) * Math.pow(Math.abs(ct), 0.4) * (w / 2), v = Math.sign(st) * Math.pow(Math.abs(st), 0.4) * (h / 2);
+    pts.push(x + u * c - v * sn, y + u * sn + v * c);
+  }
+  return pts;
+}
+
+/**
+ * Cama em 2.5D: estrado escuro, cabeceira chanfrada mais alta, lençol, travesseiros encavalados (cada um com sombra
+ * e vinco), colcha com a dobra do lençol virada por cima e dobras diagonais suaves de tecido.
+ */
+function cama(W: number, H: number, colcha: string, travesseiros: 1 | 2, seed: number): Parte[] {
+  const r = mulberry32(seed), y0 = -H / 2, cab = 0.12, ch = 0.04;
+  const yColcha = y0 + cab + 0.62, hColcha = H / 2 - yColcha - 0.03;
+  const partes: Parte[] = [
+    ret(0, 0.01, W, H - 0.02, 'madeira.escura', 0.45, { raio: 0.03 }),
+    // Cabeceira: tábua mais alta com os cantos chanfrados e um friso claro.
+    poli([-W / 2 + ch, y0, W / 2 - ch, y0, W / 2, y0 + ch, W / 2, y0 + cab, -W / 2, y0 + cab, -W / 2, y0 + ch], 'madeira.escura', 1.0, { dir: 0 }),
+    ret(0, y0 + cab * 0.4, W - 0.12, 0.025, 'madeira.clara', 1.01, { contorno: false, semSombra: true, alfa: 0.7, detalhe: 3 }),
+    ret(0, 0.03, W - 0.1, H - cab - 0.06, 'tecido.linho', 0.55, { raio: 0.05, contorno: 'leve', detalhe: 2 }),
+  ];
+  // Travesseiros: o segundo encavala no primeiro, um pouco girados.
+  const tw = travesseiros === 2 ? Math.min(0.66, (W - 0.12) / 2 + 0.04) : Math.min(0.62, W - 0.3), th = 0.34, ty = y0 + cab + 0.24;
+  const pos = travesseiros === 2 ? [[-tw / 2 + 0.03, -0.05 + r() * 0.04], [tw / 2 - 0.03, 0.06 + r() * 0.04]] : [[(r() - 0.5) * 0.06, (r() - 0.5) * 0.1]];
+  pos.forEach(([x, a], k) => {
+    const z = 0.68 + k * 0.03;
+    partes.push(
+      poli(almofada(x!, ty + k * 0.015, tw, th, a!), 'tecido.linho', z, { contorno: 'leve', sombraLeve: true }),
+      poli(almofada(x! - 0.02, ty + k * 0.015 - 0.03, tw * 0.7, th * 0.5, a!), '#fbf6ec', z + 0.005, { contorno: false, semSombra: true, suave: true, alfa: 0.5, detalhe: 2 }),
+      ret(x!, ty + k * 0.015 + 0.02, tw * 0.6, 0.012, '#8a7e6c', z + 0.006, { contorno: false, semSombra: true, alfa: 0.55, detalhe: 3 }),
+    );
+  });
+  partes.push(
+    // Colcha um pouco mais larga que o colchão (cai pelas bordas), com a dobra do lençol por cima.
+    ret(0, yColcha + hColcha / 2, W - 0.04, hColcha, colcha, 0.62, { raio: 0.05 }),
+    ret(0, yColcha + 0.07, W - 0.04, 0.13, 'tecido.linho', 0.63, { raio: 0.03, contorno: 'leve', detalhe: 2 }),
+    ret(0, yColcha + 0.14, W - 0.06, 0.02, '#000000', 0.631, { contorno: false, semSombra: true, alfa: 0.25, detalhe: 3 }),
+  );
+  // Dobras diagonais suaves: vincos em cunha que nascem de uma borda e morrem no meio da colcha (sombra com luz ao lado).
+  const xa = -W / 2 + 0.05, xb = W / 2 - 0.05, topo = yColcha + 0.22, base = yColcha + hColcha - 0.06;
+  for (let k = 0; k < 4; k++) {
+    const lado = k % 2 ? 1 : -1, x0 = lado < 0 ? xa : xb, x1 = x0 - lado * (W - 0.1) * (0.45 + r() * 0.3);
+    const y0 = topo + (base - topo) * (0.08 + k * 0.24 + r() * 0.06), y1 = Math.min(base, Math.max(topo, y0 + (r() - 0.35) * 0.3)), e = 0.07 + r() * 0.04;
+    partes.push(
+      poli([x0, y0, x1, y1, x0, y0 + e], '#000000', 0.632, { contorno: false, semSombra: true, suave: true, alfa: 0.2, detalhe: 3 }),
+      poli([x0, y0 - e * 0.7, x1, y1, x0, y0], '#ffffff', 0.633, { contorno: false, semSombra: true, suave: true, alfa: 0.12, detalhe: 3 }),
+    );
+  }
+  return partes;
+}
+
 /** O acervo básico da casa: o lote 1 (22 receitas). */
 export const RECEITAS_DA_CASA: Receita[] = [
   { id: 'caixa', nome: 'Caixote', categoria: 'decoracao', tipo: 'piso', funcoes: ['porao', 'deposito', 'galpao'], tags: ['caixa', 'madeira'], pegada: [0.7, 0.7],
@@ -52,11 +107,11 @@ export const RECEITAS_DA_CASA: Receita[] = [
 
   { id: 'cama.solteiro', nome: 'Cama de solteiro', categoria: 'camas', tipo: 'piso', funcoes: ['quarto', 'hospital'], tags: ['cama', 'dormir'], pegada: [0.95, 2.0],
     campos: [{ id: 'cobertor', rotulo: 'Cobertor', tipo: 'material', padrao: 'tecido.verde', uso: 'objeto' }],
-    gerar: p => piso([0.95, 2], [ret(0, 0, 0.95, 2, 'madeira.escura', 0.5, { raio: 0.03 }), ret(0, 0.02, 0.85, 1.88, 'tecido.linho', 0.56, { raio: 0.04, detalhe: 2 }), ret(0, -0.78, 0.55, 0.32, 'tecido.linho', 0.7, { raio: 0.08 }), ret(0, 0.28, 0.85, 1.3, mat(p, 'cobertor', 'tecido.verde'), 0.62, { raio: 0.04 }), ret(0, -0.12, 0.85, 0.09, 'tecido.linho', 0.63, { detalhe: 2 })]) },
+    gerar: p => piso([0.95, 2], cama(0.95, 2, mat(p, 'cobertor', 'tecido.verde'), 1, p.seed)) },
 
   { id: 'cama.casal', nome: 'Cama de casal', categoria: 'camas', tipo: 'piso', funcoes: ['quarto'], tags: ['cama', 'dormir'], pegada: [1.7, 2.1],
     campos: [{ id: 'cobertor', rotulo: 'Colcha', tipo: 'material', padrao: 'tecido.veludo-vinho', uso: 'objeto' }],
-    gerar: p => piso([1.7, 2.1], [ret(0, 0, 1.7, 2.1, 'madeira.escura', 0.5, { raio: 0.03 }), ret(0, 0.02, 1.6, 1.98, 'tecido.linho', 0.56, { raio: 0.04, detalhe: 2 }), ret(-0.4, -0.8, 0.6, 0.34, 'tecido.linho', 0.7, { raio: 0.08 }), ret(0.4, -0.8, 0.6, 0.34, 'tecido.linho', 0.7, { raio: 0.08 }), ret(0, 0.3, 1.6, 1.4, mat(p, 'cobertor', 'tecido.veludo-vinho'), 0.62, { raio: 0.04 }), ret(0, -0.1, 1.6, 0.1, 'tecido.linho', 0.63, { detalhe: 2 })]) },
+    gerar: p => piso([1.7, 2.1], cama(1.7, 2.1, mat(p, 'cobertor', 'tecido.veludo-vinho'), 2, p.seed)) },
 
   { id: 'tapete.persa', nome: 'Tapete persa', categoria: 'tapetes', tipo: 'piso', funcoes: ['sala', 'quarto', 'biblioteca', 'escritorio'], tags: ['tapete', 'persa'], pegada: [3.2, 2.2],
     campos: [{ id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 3.2, min: 1, max: 8, passo: 0.2 }, { id: 'altura', rotulo: 'Profundidade', tipo: 'numero', padrao: 2.2, min: 1, max: 8, passo: 0.2 }, { id: 'material', rotulo: 'Padrão', tipo: 'material', padrao: 'tapete.persa', uso: 'objeto' }],
