@@ -7,9 +7,11 @@ import type { FormaDoEdificio, Frente } from '../authoring/edificio.ts';
 import { TODOS_OS_CONJUNTOS } from '../authoring/espalhar.ts';
 import { celulasDaForma, sementeDaForma, type Forma } from '../authoring/formas.ts';
 import { formatarRelatorioDeMobilia, mobiliarLote } from '../authoring/mobiliar-lote.ts';
+import { listaDeAndares } from '../domain/andares.ts';
 import { ceuNoHorario } from '../domain/clima.ts';
 import { EVENTOS_DE_CENA } from '../domain/eventos-de-cena.ts';
-import { CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, FORMAS_DE_TELHADO, criarMapa, type CumeeiraDeTelhado, type DetalheDeTelhado, type FormaDeTelhado, type MapaAtlas } from '../domain/mapa.ts';
+import { novoIdEntidade } from '../domain/fabrica.ts';
+import { CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, FORMAS_DE_TELHADO, criarMapa, type CumeeiraDeTelhado, type DetalheDeTelhado, type FormaDeTelhado, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
 import { descreverPasso, duracaoEstimada, momentoValido, type Momento, type PassoDeMomento } from '../domain/momentos.ts';
 import { GENEROS, PINCEIS_DE_PRESENCA, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
 import { validarMapa } from '../domain/validacao.ts';
@@ -109,6 +111,24 @@ const textoOpcional = (v: unknown, nome: string, max = 200): string | undefined 
   if (typeof v !== 'string' || v.length > max) throw new Error(`"${nome}" deve ser texto de até ${max} caracteres.`);
   return v;
 };
+const andarSchema = { type: ['string', 'null'] } as const;
+const lerAndar = (v: unknown, nome = 'andar'): string | null | undefined => {
+  if (v === undefined) return undefined;
+  if (v === null) return null;
+  if (typeof v !== 'string' || !v.length || v.length > 60) throw new Error(`"${nome}" deve ser id de andar (texto) ou null.`);
+  return v;
+};
+const verificarAndar = (m: MapaAtlas, a: string | null | undefined): string | null | undefined => {
+  if (a && !m.levels?.[a]) throw new Error(`O andar “${a}” não existe; use atlas_andares.`);
+  return a;
+};
+const aplicarAndarBase = <T extends { andar?: string | null }>(mapa: MapaAtlas, itensLista: readonly T[], andarBase: string | null | undefined): T[] => {
+  verificarAndar(mapa, andarBase);
+  return itensLista.map(x => {
+    const a = x.andar !== undefined ? verificarAndar(mapa, x.andar) : andarBase;
+    return a !== undefined ? { ...x, andar: a } : x;
+  });
+};
 const sementeDe = (args: Args): number => args.semente === undefined ? Math.floor(Math.random() * 1_000_000) + 1 : numero(args.semente, 'semente', -1e9, 1e9);
 
 const baseValida = (id: string): boolean => id === 'vazio' || materiaisDo('terreno').some(m => m.id === id) || id.startsWith('grama#') || id.startsWith('grama:');
@@ -159,6 +179,52 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         await ctx.atualizarLista?.();
         await ctx.abrirMapa(gravado.id);
         return [json({ id: gravado.id, nome: gravado.name, largura, altura, unidade: 'm', campanhaId: gravado.campanhaId, dica: 'Mapa aberto. Use atlas_terreno, atlas_comodos, atlas_paredes e atlas_portas; confira com atlas_ver_mapa.' })];
+      },
+    },
+    {
+      nome: 'atlas_andares',
+      descricao: 'Cria ou renomeia andares do mapa (cima +1/+2, porão -1/-2) e lista todos com ids. Guia: plataforma_guia ferramentas-atlas.',
+      esquema: { type: 'object', properties: {
+        criar: { type: 'array', maxItems: 20, items: { type: 'object', properties: { nome: { type: 'string' }, order: { type: 'integer' } }, required: ['nome', 'order'] } },
+        renomear: { type: 'array', maxItems: 20, items: { type: 'object', properties: { id: andarSchema, nome: { type: 'string' } }, required: ['id', 'nome'] } },
+      }, additionalProperties: false },
+      anotacoes: { destrutiva: true },
+      async executar(args) {
+        const criarLista = args.criar === undefined ? [] : itens(args, 'criar', 20).map((a, i) => {
+          const nome = textoOpcional(a.nome, `criar[${i}].nome`, 40)?.trim();
+          if (!nome) throw new Error(`Falta "criar[${i}].nome".`);
+          if (typeof a.order !== 'number' || !Number.isInteger(a.order) || a.order === 0) throw new Error(`"criar[${i}].order" deve ser inteiro diferente de 0 (+1 cima, -1 porão).`);
+          return { nome, order: a.order };
+        });
+        const renomearLista = args.renomear === undefined ? [] : itens(args, 'renomear', 20).map((a, i) => {
+          const id = a.id === null ? null : textoOpcional(a.id, `renomear[${i}].id`, 60);
+          if (id === undefined || id === '') throw new Error(`Falta "renomear[${i}].id" (texto ou null para térreo).`);
+          const nome = textoOpcional(a.nome, `renomear[${i}].nome`, 40)?.trim();
+          if (!nome) throw new Error(`Falta "renomear[${i}].nome".`);
+          return { id, nome };
+        });
+        const st = ctx.store();
+        if (!st) throw new Error(SEM_MAPA);
+        if (!criarLista.length && !renomearLista.length) {
+          const lista = listaDeAndares(st.documento).map(a => ({ id: a.id, nome: a.nome, ordem: a.order }));
+          return [json({ andares: lista })];
+        }
+        const resumoMsg = escrever(ctx, 'andares', mapa => {
+          void mapa;
+          const comandos: Comando[] = [];
+          const ids: string[] = [];
+          for (const a of criarLista) {
+            const id = novoIdEntidade('n');
+            comandos.push({ tipo: 'andar.criar', andar: { id, name: a.nome, order: a.order } });
+            ids.push(id);
+          }
+          for (const r of renomearLista) {
+            comandos.push({ tipo: 'andar.atualizar', id: r.id, patch: { name: r.nome } });
+          }
+          return { comandos, ids };
+        });
+        const andares = listaDeAndares(st.documento).map(a => ({ id: a.id, nome: a.nome, ordem: a.order }));
+        return [texto(resumoMsg), json({ andares })];
       },
     },
     {
@@ -243,11 +309,14 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           piso: { type: 'string' }, papel: { type: 'string' }, telhado: { type: ['string', 'null'] }, telhadoVisivel: { type: 'boolean' },
           telhadoForma: { type: 'string', enum: [...FORMAS_DE_TELHADO] }, telhadoCumeeira: { type: 'string', enum: [...CUMEEIRAS_DE_TELHADO] },
           telhadoDetalhes: { type: 'array', items: { type: 'string', enum: [...DETALHES_DE_TELHADO] } },
+          andar: andarSchema,
         }, required: ['tipo'], additionalProperties: false } },
+        andar: andarSchema,
         semente,
       }, required: ['comodos'], additionalProperties: false },
       anotacoes: { destrutiva: true },
       async executar(args) {
+        const andarBase = lerAndar(args.andar);
         const pedidos = itens(args, 'comodos').map((c, i) => ({
           ...(c.rets !== undefined ? { rets: retangulos(c.rets, `comodos[${i}].rets`) } : {}),
           ...(c.circulo !== undefined ? { circulo: lerCirculo(c.circulo, `comodos[${i}].circulo`) } : {}),
@@ -257,9 +326,10 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           ...(c.telhadoForma !== undefined ? { telhadoForma: String(c.telhadoForma) as FormaDeTelhado } : {}),
           ...(c.telhadoCumeeira !== undefined ? { telhadoCumeeira: String(c.telhadoCumeeira) as CumeeiraDeTelhado } : {}),
           ...(Array.isArray(c.telhadoDetalhes) ? { telhadoDetalhes: c.telhadoDetalhes.map(d => String(d)) as DetalheDeTelhado[] } : {}),
+          ...(c.andar !== undefined ? { andar: lerAndar(c.andar, `comodos[${i}].andar`) } : {}),
         }));
         const s = sementeDe(args);
-        return [texto(escrever(ctx, `${pedidos.length} cômodo(s)`, mapa => geracao(comodos(mapa, pedidos.map(p => limpar(p)), s))))];
+        return [texto(escrever(ctx, `${pedidos.length} cômodo(s)`, mapa => geracao(comodos(mapa, aplicarAndarBase(mapa, pedidos.map(p => limpar(p)), andarBase), s))))];
       },
     },
     {
@@ -268,6 +338,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
       esquema: { type: 'object', properties: {
         comodos: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 60 },
         luzes: { type: 'boolean' },
+        andar: andarSchema,
         semente,
       }, required: ['comodos'], additionalProperties: false },
       anotacoes: { destrutiva: true },
@@ -277,8 +348,10 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         if (v.length > 60) throw new Error(`"comodos" aceita até 60 cômodos por chamada (recebeu ${v.length}); divida em várias chamadas.`);
         if (v.some(x => typeof x !== 'string' || !x)) throw new Error('"comodos" deve conter só textos (ids de cômodos).');
         if (args.luzes !== undefined && typeof args.luzes !== 'boolean') throw new Error('"luzes" deve ser true ou false.');
+        const andarBase = lerAndar(args.andar);
         const s = sementeDe(args);
         return [texto(escrever(ctx, `mobiliar ${v.length} cômodo(s)`, mapa => {
+          verificarAndar(mapa, andarBase);
           const r = mobiliarLote(mapa, { comodos: v as string[], luzes: args.luzes as boolean | undefined, semente: s });
           return { comandos: r.comandos, ids: r.ids, resumo: formatarRelatorioDeMobilia(r.relatorio) };
         }))];
@@ -295,14 +368,17 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           forma: { type: 'string', enum: ['auto', 'compacta', 'L', 'T', 'U', 'linear', 'patio'] },
           alpendre: { type: 'boolean' }, telhado: { type: ['string', 'null'] }, piso: { type: 'string' },
           mobiliar: { type: 'boolean' }, luzes: { type: 'boolean' },
+          andar: andarSchema,
           comodos: { type: 'array', minItems: 1, maxItems: 12, items: { type: 'object', properties: {
             tipo: { type: 'string' }, area: { type: 'number', exclusiveMinimum: 0 }, nome: { type: 'string' }, principal: { type: 'boolean' },
           }, required: ['tipo', 'area'] } },
         }, required: ['nome', 'origem', 'frente', 'comodos'] } },
+        andar: andarSchema,
         semente,
       }, required: ['edificios'], additionalProperties: false },
       anotacoes: { destrutiva: true },
       async executar(args) {
+        const andarBase = lerAndar(args.andar);
         const pedidos: PedidoDeEdificio[] = itens(args, 'edificios', 12).map((e, i) => {
           const nome = textoOpcional(e.nome, `edificios[${i}].nome`, 80)?.trim();
           if (!nome) throw new Error(`Falta "edificios[${i}].nome".`);
@@ -335,12 +411,13 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
             piso: textoOpcional(e.piso, `edificios[${i}].piso`, 80),
             mobiliar: typeof e.mobiliar === 'boolean' ? e.mobiliar : undefined,
             luzes: typeof e.luzes === 'boolean' ? e.luzes : undefined,
+            andar: e.andar !== undefined ? lerAndar(e.andar, `edificios[${i}].andar`) : undefined,
             comodos: parsedComodos,
           });
         });
         const s = sementeDe(args);
         return [texto(escrever(ctx, `${pedidos.length} edifício(s)`, mapa => {
-          const r = construirEdificios(mapa, pedidos, s);
+          const r = construirEdificios(mapa, aplicarAndarBase(mapa, pedidos, andarBase), s);
           return { comandos: r.comandos, ids: r.ids, resumo: r.descricoes.join(' | ') };
         }))];
       },
@@ -352,18 +429,21 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         paredes: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
           path: { type: 'array', items: ponto, minItems: 2 }, kind: { type: 'string', enum: ['wall', 'low', 'fence', 'cliff'] },
           altura: { type: 'number' }, espessura: { type: 'number' }, material: { type: 'string' },
-          drop: { type: 'string', enum: ['a', 'b'] },
+          drop: { type: 'string', enum: ['a', 'b'] }, andar: andarSchema,
         }, required: ['path'] } },
+        andar: andarSchema,
       }, required: ['paredes'], additionalProperties: false },
       anotacoes: { destrutiva: true },
       async executar(args) {
+        const andarBase = lerAndar(args.andar);
         const pedidos = itens(args, 'paredes').map((p, i) => ({
           path: pontos(p.path, `paredes[${i}].path`), ...(p.kind !== undefined ? { kind: p.kind as 'wall' } : {}),
           ...(p.altura !== undefined ? { altura: numero(p.altura, 'altura', 0.05, 20) } : {}), ...(p.espessura !== undefined ? { espessura: numero(p.espessura, 'espessura', 0.02, 5) } : {}),
           ...(p.material !== undefined ? { material: textoOpcional(p.material, 'material', 80) } : {}),
           ...(p.drop !== undefined ? { drop: p.drop as 'a' | 'b' } : {}),
+          ...(p.andar !== undefined ? { andar: lerAndar(p.andar, `paredes[${i}].andar`) } : {}),
         }));
-        return [texto(escrever(ctx, `${pedidos.length} parede(s)`, mapa => geracao(paredes(mapa, pedidos))))];
+        return [texto(escrever(ctx, `${pedidos.length} parede(s)`, mapa => geracao(paredes(mapa, aplicarAndarBase(mapa, pedidos, andarBase)))))];
       },
     },
     {
@@ -371,16 +451,19 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
       descricao: 'Abre portas, janelas, arcos ou passagens secretas na parede mais próxima (em metros). Crie cômodo/parede antes. Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         portas: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
-          perto: ponto, tipo: { type: 'string', enum: ['door', 'window', 'arch', 'secret'] }, estado: { type: 'string', enum: ['closed', 'open', 'locked'] }, largura: { type: 'number' },
+          perto: ponto, tipo: { type: 'string', enum: ['door', 'window', 'arch', 'secret'] }, estado: { type: 'string', enum: ['closed', 'open', 'locked'] }, largura: { type: 'number' }, andar: andarSchema,
         }, required: ['perto'] } },
+        andar: andarSchema,
       }, required: ['portas'], additionalProperties: false },
       anotacoes: { destrutiva: true },
       async executar(args) {
+        const andarBase = lerAndar(args.andar);
         const pedidos = itens(args, 'portas').map((p, i) => ({
           perto: pontos([p.perto], `portas[${i}].perto`)[0]!, ...(p.tipo !== undefined ? { tipo: p.tipo as 'door' } : {}), ...(p.estado !== undefined ? { estado: p.estado as 'open' } : {}),
           ...(p.largura !== undefined ? { largura: numero(p.largura, 'largura', 0.2, 6) } : {}),
+          ...(p.andar !== undefined ? { andar: lerAndar(p.andar, `portas[${i}].andar`) } : {}),
         }));
-        return [texto(escrever(ctx, `${pedidos.length} abertura(s)`, mapa => geracao(portas(mapa, pedidos))))];
+        return [texto(escrever(ctx, `${pedidos.length} abertura(s)`, mapa => geracao(portas(mapa, aplicarAndarBase(mapa, pedidos, andarBase)))))];
       },
     },
     {
@@ -390,20 +473,42 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         objetos: { type: 'array', minItems: 1, maxItems: MAX_OBJETOS, items: { type: 'object', properties: {
           item: { type: 'string' }, pos: ponto, rotacao: { type: 'number' }, escala: { type: 'number', minimum: 0.05, maximum: 50 },
           camada: { type: 'string', enum: ['floor', 'table', 'wall', 'ceiling', 'underwater'] }, submerso: { type: 'boolean' }, oculto: { type: 'boolean' }, params: { type: 'object' },
+          andar: andarSchema,
+          escada: { type: 'object', properties: { leva: andarSchema, posicao: ponto }, required: ['leva'] },
         }, required: ['item', 'pos'] } },
+        andar: andarSchema,
         semente,
       }, required: ['objetos'], additionalProperties: false },
       anotacoes: { destrutiva: false },
       async executar(args) {
-        const pedidos = itens(args, 'objetos', MAX_OBJETOS).map((o, i) => ({
-          item: textoOpcional(o.item, 'item', 120) ?? '', pos: pontos([o.pos], `objetos[${i}].pos`)[0]!,
-          ...(o.rotacao !== undefined ? { rotacao: numero(o.rotacao, 'rotacao', -1000, 1000) } : {}), ...(o.escala !== undefined ? { escala: numero(o.escala, 'escala', 0.05, 50) } : {}),
-          ...(o.camada !== undefined ? { camada: o.camada as 'floor' } : {}), ...(typeof o.submerso === 'boolean' ? { submerso: o.submerso } : {}),
-          ...(typeof o.oculto === 'boolean' ? { oculto: o.oculto } : {}),
-          ...(o.params !== undefined ? { params: objeto(o.params, 'params') } : {}),
-        }));
+        const andarBase = lerAndar(args.andar);
+        const pedidos = itens(args, 'objetos', MAX_OBJETOS).map((o, i) => {
+          let escada: { leva: string | null; posicao?: Ponto } | undefined;
+          if (o.escada !== undefined) {
+            const eo = objeto(o.escada, `objetos[${i}].escada`);
+            const leva = lerAndar(eo.leva, `objetos[${i}].escada.leva`);
+            if (leva === undefined) throw new Error(`Falta "objetos[${i}].escada.leva".`);
+            escada = {
+              leva,
+              ...(eo.posicao !== undefined ? { posicao: pontos([eo.posicao], `objetos[${i}].escada.posicao`)[0]! } : {}),
+            };
+          }
+          return {
+            item: textoOpcional(o.item, 'item', 120) ?? '', pos: pontos([o.pos], `objetos[${i}].pos`)[0]!,
+            ...(o.rotacao !== undefined ? { rotacao: numero(o.rotacao, 'rotacao', -1000, 1000) } : {}), ...(o.escala !== undefined ? { escala: numero(o.escala, 'escala', 0.05, 50) } : {}),
+            ...(o.camada !== undefined ? { camada: o.camada as 'floor' } : {}), ...(typeof o.submerso === 'boolean' ? { submerso: o.submerso } : {}),
+            ...(typeof o.oculto === 'boolean' ? { oculto: o.oculto } : {}),
+            ...(o.params !== undefined ? { params: objeto(o.params, 'params') } : {}),
+            ...(o.andar !== undefined ? { andar: lerAndar(o.andar, `objetos[${i}].andar`) } : {}),
+            ...(escada ? { escada } : {}),
+          };
+        });
         const s = sementeDe(args);
-        return [texto(escrever(ctx, `${pedidos.length} objeto(s)`, mapa => geracao(objetos(mapa, pedidos, s))))];
+        return [texto(escrever(ctx, `${pedidos.length} objeto(s)`, mapa => {
+          const lista = aplicarAndarBase(mapa, pedidos, andarBase);
+          for (const it of lista) if (it.escada) verificarAndar(mapa, it.escada.leva);
+          return geracao(objetos(mapa, lista, s));
+        }))];
       },
     },
     {
@@ -411,15 +516,19 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
       descricao: 'Espalha um conjunto de objetos numa região em metros. Conjuntos em atlas_catalogo { parte: "conjuntos" }. Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         conjunto: { type: 'string', enum: TODOS_OS_CONJUNTOS.map(c => c.id) }, forma: esquemaDaForma(),
-        densidade: { type: 'number', exclusiveMinimum: 0, maximum: 20 }, semente,
+        densidade: { type: 'number', exclusiveMinimum: 0, maximum: 20 }, andar: andarSchema, semente,
       }, required: ['conjunto', 'forma'], additionalProperties: false },
       anotacoes: { destrutiva: false },
       async executar(args) {
         const conjunto = verificarId('conjunto', args.conjunto, TODOS_OS_CONJUNTOS.map(c => ({ id: c.id, nome: c.id })));
         const forma = validarForma(args.forma);
         const densidade = args.densidade === undefined ? undefined : numero(args.densidade, 'densidade', 0.001, 20);
+        const andar = lerAndar(args.andar);
         const s = sementeDe(args);
-        return [texto(escrever(ctx, `espalhar ${conjunto}`, mapa => geracao(espalhar(mapa, { conjunto, forma, densidade }, s))))];
+        return [texto(escrever(ctx, `espalhar ${conjunto}`, mapa => {
+          verificarAndar(mapa, andar);
+          return geracao(espalhar(mapa, { conjunto, forma, densidade, ...(andar !== undefined ? { andar } : {}) }, s));
+        }))];
       },
     },
     {
@@ -441,10 +550,12 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           tamanho: { type: 'array', items: { type: 'integer', minimum: 1 }, minItems: 2, maxItems: 2 },
           vazio: { type: 'number', minimum: 0 },
         }, required: ['tamanho', 'vazio'] },
+        andar: andarSchema,
         semente,
       }, required: ['padrao', 'area', 'itens', 'espacamento'], additionalProperties: false },
       anotacoes: { destrutiva: true },
       async executar(args) {
+        const andar = lerAndar(args.andar);
         const area = validarForma(args.area);
         const itensRaw = itens(args, 'itens', 20).map((it, i) => {
           const item = textoOpcional(it.item, `itens[${i}].item`, 120) ?? '';
@@ -480,9 +591,11 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           falhas: args.falhas !== undefined ? numero(args.falhas, 'falhas', 0, 0.6) : undefined,
           encarar: args.encarar !== undefined ? String(args.encarar) as PedidoDeArranjo['encarar'] : undefined,
           grupos,
+          andar,
         });
         const s = sementeDe(args);
         return [texto(escrever(ctx, `arranjo ${pedido.padrao}`, mapa => {
+          verificarAndar(mapa, andar);
           const r = arranjar(mapa, pedido, s);
           return { comandos: r.comandos, ids: r.ids, resumo: `${r.ids.length} item(ns) colocado(s); ${r.ignorados} posição(ões) ignorada(s)` };
         }))];
@@ -495,16 +608,20 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         luzes: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
           preset: { type: 'string', enum: PRESETS_DE_LUZ.map(l => l.id) }, pos: ponto, direcao: { type: 'number' },
           raio: { type: 'number', minimum: 0.1, maximum: 200 }, cor: { type: 'string' }, intensidade: { type: 'number', minimum: 0, maximum: 3 },
+          andar: andarSchema,
         }, required: ['preset', 'pos'] } },
+        andar: andarSchema,
       }, required: ['luzes'], additionalProperties: false },
       anotacoes: { destrutiva: false },
       async executar(args) {
+        const andarBase = lerAndar(args.andar);
         const pedidos = itens(args, 'luzes').map((l, i) => ({
           preset: verificarId('preset de luz', l.preset, PRESETS_DE_LUZ), pos: pontos([l.pos], `luzes[${i}].pos`)[0]!,
           ...(l.direcao !== undefined ? { direcao: numero(l.direcao, 'direcao', -1000, 1000) } : {}), ...(l.raio !== undefined ? { raio: numero(l.raio, 'raio', 0.1, 200) } : {}),
           ...(l.cor !== undefined ? { cor: cor(l.cor, 'cor') } : {}), ...(l.intensidade !== undefined ? { intensidade: numero(l.intensidade, 'intensidade', 0, 3) } : {}),
+          ...(l.andar !== undefined ? { andar: lerAndar(l.andar, `luzes[${i}].andar`) } : {}),
         }));
-        return [texto(escrever(ctx, `${pedidos.length} luz(es)`, mapa => geracao(luzes(mapa, pedidos))))];
+        return [texto(escrever(ctx, `${pedidos.length} luz(es)`, mapa => geracao(luzes(mapa, aplicarAndarBase(mapa, pedidos, andarBase)))))];
       },
     },
     {
@@ -537,24 +654,27 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
       esquema: { type: 'object', properties: {
         regioes: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
           poligono: { type: 'array', items: ponto, minItems: 3 }, tipo: { type: 'string', enum: ['reveal', 'trigger', 'audio', 'note'] },
-          nome: { type: 'string' }, texto: { type: 'string' }, somenteMestre: { type: 'boolean' },
+          nome: { type: 'string' }, texto: { type: 'string' }, somenteMestre: { type: 'boolean' }, andar: andarSchema,
         }, required: ['poligono', 'tipo'] } },
+        andar: andarSchema,
       }, required: ['regioes'], additionalProperties: false },
       anotacoes: { destrutiva: false },
       async executar(args) {
+        const andarBase = lerAndar(args.andar);
         const pedidos = itens(args, 'regioes').map((r, i) => ({
           poligono: pontos(r.poligono, `regioes[${i}].poligono`), tipo: String(r.tipo ?? '') as 'reveal',
           ...(r.nome !== undefined ? { nome: textoOpcional(r.nome, 'nome', 120) } : {}), ...(r.texto !== undefined ? { texto: textoOpcional(r.texto, 'texto', 5000) } : {}),
           ...(typeof r.somenteMestre === 'boolean' ? { somenteMestre: r.somenteMestre } : {}),
+          ...(r.andar !== undefined ? { andar: lerAndar(r.andar, `regioes[${i}].andar`) } : {}),
         }));
-        return [texto(escrever(ctx, `${pedidos.length} região(ões)`, mapa => geracao(regioes(mapa, pedidos.map(p => limpar(p))))))];
+        return [texto(escrever(ctx, `${pedidos.length} região(ões)`, mapa => geracao(regioes(mapa, aplicarAndarBase(mapa, pedidos.map(p => limpar(p)), andarBase)))))];
       },
     },
     {
       nome: 'atlas_presenca',
       descricao: 'Pinta presença (musgo, sangue, mofo...) em metros; com apagar:true, apaga na forma. Pincéis: atlas_catalogo presenca. Guia: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
-        pincel: { type: 'string', enum: PINCEIS_DE_PRESENCA.map(p => p.id) }, forma: esquemaDaForma(), intensidade: unidadeEsq, semente,
+        pincel: { type: 'string', enum: PINCEIS_DE_PRESENCA.map(p => p.id) }, forma: esquemaDaForma(), intensidade: unidadeEsq, andar: andarSchema, semente,
         apagar: { type: 'boolean', description: 'true apaga a presença na forma (sem pincel, todos os pincéis).' },
       }, required: ['forma'], additionalProperties: false },
       anotacoes: { destrutiva: false },
@@ -564,13 +684,16 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         const pincel = args.pincel === undefined ? null : verificarId('pincel de presença', args.pincel, PINCEIS_DE_PRESENCA);
         const forma = validarForma(args.forma);
         const intensidade = args.intensidade === undefined ? undefined : numero(args.intensidade, 'intensidade', 0, 1);
+        const andar = lerAndar(args.andar);
         const s = sementeDe(args);
         return [texto(escrever(ctx, apagar ? `apagar presença${pincel ? ` ${pincel}` : ''}` : `presença ${pincel}`, mapa => {
+          verificarAndar(mapa, andar);
           const celulas = celulasDaForma(forma, { resolucao: mapa.terrain.resolution, largura: mapa.bounds.width, altura: mapa.bounds.height, semente: sementeDaForma(Math.floor(s) || 1, 0) });
           if (!celulas.length) return { comandos: [], ids: [] };
-          if (apagar) return { comandos: [{ tipo: 'presenca.apagar', brush: pincel, celulas }], ids: [] };
-          const comandos: Comando[] = [{ tipo: 'presenca.pintar', brush: pincel!, celulas, ...(intensidade !== undefined ? { intensidade } : {}) }];
-          const id = `p_${pincel!.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 60)}`;
+          const nivel = andar ?? null;
+          if (apagar) return { comandos: [{ tipo: 'presenca.apagar', brush: pincel, celulas, ...(nivel !== null ? { levelId: nivel } : {}) }], ids: [] };
+          const comandos: Comando[] = [{ tipo: 'presenca.pintar', brush: pincel!, celulas, ...(intensidade !== undefined ? { intensidade } : {}), ...(nivel !== null ? { levelId: nivel } : {}) }];
+          const id = `p_${pincel!.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 60)}${nivel ? `_${nivel.slice(0, 20)}` : ''}`;
           const atual = intensidade ?? mapa.presence[id]?.intensity ?? 0.6;
           return { comandos, ids: [], resumo: `Intensidade do pincel ${pincel}: ${atual}` };
         }))];

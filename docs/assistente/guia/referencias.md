@@ -31,11 +31,11 @@ Meça pelo que tem tamanho conhecido: porta de 0,9 a 1,2 m, cama de 2 m, carroç
 - **Paliçada, muro, cerca** → `atlas_paredes` (`fence`, `low`) acompanhando a borda real do platô, não um retângulo.
 - **Floresta pintada como textura** → árvores de verdade (`atlas_espalhar` com `mata`, ou `casa:pinheiro-nevado-*` e `casa:arvore-nevada-*`), em bordas irregulares, densas na encosta e ralas perto das casas.
 - **Torre, farol e moinho redondos** → ainda não há cômodo redondo: aproxime com um octógono de células, montado com 3 `rets` empilhadas, a do meio mais larga (ex.: `[[11, 10, 13, 11], [10, 11, 14, 13], [11, 13, 13, 14]]`), telhado `torre` e, por cima, peças que digam o que é (`pas.moinho`, `lanterna.farol`). Explique a aproximação ao mestre.
-- **Vários andares** → o Atlas mostra um andar por mapa: faça mapas separados (térreo, porão, andar de cima) com o mesmo contorno externo e as escadas no mesmo ponto.
+- **Vários andares** → use `atlas_andares` (`ordem` negativo para porões, positivo para andares superiores) com as paredes externas e escadas (`escada: { leva }`) alinhadas nas mesmas coordenadas.
 
 ## 5. Dizer o que não dá
 
-Antes de construir, diga ao mestre, em uma ou duas frases, o que o Atlas não reproduz da imagem: a vista em perspectiva, a altitude de verdade, os cômodos redondos e os andares no mesmo mapa. E diga como você vai aproximar cada um. Isso evita a decepção do "ficou plano".
+Antes de construir, diga ao mestre, em uma ou duas frases, o que o Atlas não reproduz da imagem: a vista em perspectiva e a altitude fotorealista. E diga como você vai aproximar cada um. Isso evita a decepção do "ficou plano".
 
 ## 6. Conferir contra a referência
 

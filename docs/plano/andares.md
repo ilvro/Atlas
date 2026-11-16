@@ -109,7 +109,7 @@ Testes: a ação aparece perto da escada e não longe; mudar de andar grava `lev
 Pronto quando: numa sessão, a peça desce do térreo do moinho para o porão pela escada em caracol e o projetor acompanha.
 Commit: `stairs move tokens between levels`
 
-### H6 — Andares pelo conector  ⬜
+### H6 — Andares pelo conector  ✅
 Objetivo: o Claude constrói edifícios de vários andares.
 Depende de: H5 (e D3c, se já existir, para o `atlas_edificio` aceitar `andar`).
 Ler: `src/app/ponte-escrita.ts` (todas as ferramentas de criação), `src/app/ponte-leitura.ts` (`resumirMapa`, `atlas_o_que_vejo`, `atlas_ver_mapa`), `src/authoring/construcao.ts`, guias.

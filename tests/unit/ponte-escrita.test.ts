@@ -31,7 +31,7 @@ const terra = { acao: 'pintar', material: 'terra', forma: { faixa: [[0, 5], [10,
 
 test('as ferramentas têm nome, descrição com unidades e esquema de objeto', () => {
   const { f } = montar();
-  assert.deepEqual(Object.keys(f), ['atlas_mapa_criar', 'atlas_terreno', 'atlas_caminho', 'atlas_comodos', 'atlas_mobiliar', 'atlas_edificio', 'atlas_paredes', 'atlas_portas', 'atlas_objetos', 'atlas_espalhar', 'atlas_arranjo', 'atlas_luzes', 'atlas_ambiente', 'atlas_regioes', 'atlas_presenca', 'atlas_notas', 'atlas_momento', 'atlas_momento_testar', 'atlas_remover', 'atlas_mover', 'atlas_salvar', 'atlas_desfazer']);
+  assert.deepEqual(Object.keys(f), ['atlas_mapa_criar', 'atlas_andares', 'atlas_terreno', 'atlas_caminho', 'atlas_comodos', 'atlas_mobiliar', 'atlas_edificio', 'atlas_paredes', 'atlas_portas', 'atlas_objetos', 'atlas_espalhar', 'atlas_arranjo', 'atlas_luzes', 'atlas_ambiente', 'atlas_regioes', 'atlas_presenca', 'atlas_notas', 'atlas_momento', 'atlas_momento_testar', 'atlas_remover', 'atlas_mover', 'atlas_salvar', 'atlas_desfazer']);
   for (const x of Object.values(f)) { assert.ok(x.descricao.length > 60 && x.descricao.length <= 180, x.nome); assert.equal(x.esquema.type, 'object'); }
   assert.match(f.atlas_comodos!.descricao, /CÉLULAS/);
   assert.match(f.atlas_terreno!.descricao, /METROS/);
@@ -428,13 +428,13 @@ test('as ferramentas do Atlas têm descrições curtas e ficam dentro do orçame
   const ctxL = { repo: () => null, mapaAberto: () => null, abrirMapa: async () => {} };
   const ctxE = { store: () => null, repo: () => null, abrirMapa: async () => {} };
   const todas = [...ferramentasDeLeitura(ctxL), ...ferramentasDeEscrita(ctxE)];
-  assert.equal(todas.length, 30);
+  assert.equal(todas.length, 31);
   for (const f of todas) {
     assert.ok(f.descricao.length <= 800, `${f.nome} passou de 800 caracteres: ${f.descricao.length}`);
     assert.ok(f.descricao.length >= 40, `${f.nome} descrição muito curta: ${f.descricao.length}`);
   }
   const bytes = Buffer.byteLength(JSON.stringify(todas));
-  assert.ok(bytes < 28_000, `Esperava soma das atlas_* menor que 28 KB (28000 bytes), obteve ${bytes}`);
+  assert.ok(bytes < 30_000, `Esperava soma das atlas_* menor que 30 KB (30000 bytes), obteve ${bytes}`);
 });
 
 
@@ -594,4 +594,61 @@ test('atlas_terreno aceita acao relevo e deriva escarpas', async () => {
   });
   assert.ok(store.documento.terrain.relief);
   assert.ok(Object.values(store.documento.walls).some(w => w.source && 'reliefStep' in w.source));
+});
+
+test('atlas_andares e parâmetro andar constroem múltiplos andares com escadas ligadas', async () => {
+  const { f, store, chamar } = montar();
+  const r1 = await f.atlas_andares!.executar({ criar: [{ nome: 'Porão', order: -1 }, { nome: 'Sótão', order: 1 }] });
+  const b1 = r1[1]!;
+  const lista1 = JSON.parse(b1.tipo === 'texto' ? b1.texto : '') as { andares: { id: string | null; nome: string; ordem: number }[] };
+  const poraoId = lista1.andares.find(a => a.ordem === -1)!.id!;
+  const topoId = lista1.andares.find(a => a.ordem === 1)!.id!;
+  assert.equal(store.documento.levels?.[poraoId]?.order, -1);
+
+  await f.atlas_andares!.executar({ renomear: [{ id: topoId, nome: '1º andar' }] });
+  assert.equal(store.documento.levels?.[topoId]?.name, '1º andar');
+
+  await assert.rejects(f.atlas_andares!.executar({ criar: [{ nome: 'Zero', order: 0 }] }), /diferente de 0/);
+  await assert.rejects(chamar('atlas_comodos', { andar: 'nao-existe', comodos: [{ rets: [[2, 2, 5, 5]], tipo: 'sala' }] }), /não existe/);
+
+  // Mesmas coordenadas de prédio em 3 andares ficam isoladas por andar
+  await chamar('atlas_comodos', { andar: poraoId, comodos: [{ rets: [[2, 2, 6, 6]], tipo: 'porao', nome: 'Subsolo' }] });
+  await chamar('atlas_comodos', { andar: null, comodos: [{ rets: [[2, 2, 6, 6]], tipo: 'sala', nome: 'Salão' }] });
+  await chamar('atlas_comodos', { andar: topoId, comodos: [{ rets: [[2, 2, 6, 6]], tipo: 'quarto', nome: 'Quarto' }] });
+
+  assert.equal(Object.values(store.documento.rooms).filter(r => r.levelId === poraoId).length, 1);
+  assert.equal(Object.values(store.documento.rooms).filter(r => r.levelId === null).length, 1);
+  assert.equal(Object.values(store.documento.rooms).filter(r => r.levelId === topoId).length, 1);
+
+  await chamar('atlas_portas', { andar: null, portas: [{ perto: [6, 9] }] });
+  const abTerreo = Object.values(store.documento.openings);
+  assert.equal(abTerreo.length, 1);
+  assert.equal(store.documento.walls[abTerreo[0]!.wallId]!.levelId ?? null, null);
+
+  await chamar('atlas_portas', { andar: topoId, portas: [{ perto: [6, 9] }] });
+  assert.equal(Object.values(store.documento.openings).length, 2);
+  const abTopo = Object.values(store.documento.openings).find(a => a.id !== abTerreo[0]!.id)!;
+  assert.equal(store.documento.walls[abTopo.wallId]!.levelId, topoId);
+
+  // Escadas em porão -> térreo e térreo -> 1º andar
+  await chamar('atlas_objetos', {
+    andar: poraoId,
+    objetos: [{ item: 'escada.caracol', pos: [4.5, 4.5], escada: { leva: null, posicao: [4.5, 4.5] } }],
+  });
+  await chamar('atlas_objetos', {
+    andar: topoId,
+    objetos: [{ item: 'escada.caracol', pos: [4.5, 4.5], escada: { leva: null } }],
+  });
+  const escPorao = Object.values(store.documento.props).find(p => p.levelId === poraoId)!;
+  assert.equal(escPorao.interaction?.kind, 'stairs');
+  assert.equal(escPorao.interaction?.toLevel, null);
+  assert.deepEqual(escPorao.interaction?.toPosition, [4.5, 4.5]);
+
+  // Luz, presença e região no porão carregam levelId
+  await chamar('atlas_luzes', { andar: poraoId, luzes: [{ pos: [5, 5], preset: 'tocha' }] });
+  await chamar('atlas_presenca', { andar: poraoId, pincel: 'mofo', forma: { disco: [5, 5], raio: 2 } });
+  await chamar('atlas_regioes', { andar: poraoId, regioes: [{ tipo: 'note', poligono: [[3, 3], [6, 3], [6, 6], [3, 6]], texto: 'Subsolo' }] });
+  assert.equal(Object.values(store.documento.lights)[0]!.levelId, poraoId);
+  assert.equal(Object.values(store.documento.presence)[0]!.levelId, poraoId);
+  assert.equal(Object.values(store.documento.regions)[0]!.levelId, poraoId);
 });
