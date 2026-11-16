@@ -1,5 +1,5 @@
 import { BlurFilter, Container, Graphics, RenderTexture, Sprite, type Renderer } from 'pixi.js';
-import { DURACAO_DA_QUEDA, DURACAO_DA_VOLTA, curvaDoClarao, ehNoite, intervaloDoRelampago, luzesDerivadas, nivelDaLuz, piscarDaQueda, piscarDaVolta } from '../domain/clima.ts';
+import { DURACAO_DA_QUEDA, DURACAO_DA_VOLTA, LUZ_INTERIOR_PADRAO, curvaDoClarao, ehNoite, intervaloDoRelampago, luzesDerivadas, nivelDaLuz, piscarDaQueda, piscarDaVolta } from '../domain/clima.ts';
 import type { Luz, MapaAtlas, Ponto } from '../domain/mapa.ts';
 import { IndiceDeSegmentos, oclusores, poligonoIluminado } from '../domain/visibilidade.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
@@ -13,7 +13,7 @@ import { texturaDeBrilho } from './luzes.ts';
 /** Pixels por metro do mapa de luz: baixo de propósito (a luz é suave e o desfoque esconde a resolução). */
 export const RES_LUZ = 8;
 /** Quanto da luz ambiente do céu chega ao interior de cômodos cobertos por telhado. */
-export const FATOR_DO_INTERIOR = 0.55;
+export const FATOR_DO_INTERIOR = LUZ_INTERIOR_PADRAO;
 const TEXTURA_MAX = 4096;
 
 export interface MapaDeLuz {
@@ -156,9 +156,10 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     if (!brutaRT || !finalRT) return;
     renderer.render({ container: raiz, target: brutaRT, clear: true, clearColor: [0, 0, 0, 0] });
     const brilho = claraoAtual * 0.35, amb: [number, number, number, number] = [Math.min(1, ambiente[0] * efAmbiente + brilho), Math.min(1, ambiente[1] * efAmbiente + brilho), Math.min(1, ambiente[2] * efAmbiente + brilho), 1];
-    const intR = Math.min(1, ambiente[0] * efAmbiente * FATOR_DO_INTERIOR + brilho * 0.3);
-    const intG = Math.min(1, ambiente[1] * efAmbiente * FATOR_DO_INTERIOR + brilho * 0.3);
-    const intB = Math.min(1, ambiente[2] * efAmbiente * FATOR_DO_INTERIOR + brilho * 0.3);
+    const fatorInterior = mapa?.climate.interiorLight ?? FATOR_DO_INTERIOR;
+    const intR = Math.min(1, ambiente[0] * efAmbiente * fatorInterior + brilho * 0.3);
+    const intG = Math.min(1, ambiente[1] * efAmbiente * fatorInterior + brilho * 0.3);
+    const intB = Math.min(1, ambiente[2] * efAmbiente * fatorInterior + brilho * 0.3);
     interior.tint = (Math.round(intR * 255) << 16) | (Math.round(intG * 255) << 8) | Math.round(intB * 255);
     renderer.render({ container: interior, target: finalRT, clear: true, clearColor: amb });
     renderer.render({ container: composicao, target: finalRT, clear: false });

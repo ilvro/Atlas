@@ -62,7 +62,7 @@ Comparando as referências do *Farol de OSNI* e das duas casas externas com o re
 | --- | --- | --- | --- | --- |
 | [K1](#k1--usar-salaoutline-na-máscara-de-luz-e-poeira-dos-interiores) | Etapa 1 · Correções Imediatas & Auditoria | Eliminar sombra quadrada em casas rotacionadas (`mapa-de-luz.ts`, `mascara-de-comodos.ts`) | — | ✅ |
 | [K2](#k2--auditoria-espacial-em-atlas_revisar-exterior-em-cômodo-parede-e-relevo) | Etapa 1 · Correções Imediatas & Auditoria | Detectar neve/árvore em cômodo, parede cortando sala e paliçada em escarpa/degrau | — | ⬜ |
-| [K3](#k3--penumbra-de-interior-configurável-climainteriorlight-e-contraste-diurno) | Etapa 1 · Correções Imediatas & Auditoria | `Clima.interiorLight?` configurável via presets e `atlas_ambiente` | K1 | ⬜ |
+| [K3](#k3--penumbra-de-interior-configurável-climainteriorlight-e-contraste-diurno) | Etapa 1 · Correções Imediatas & Auditoria | `Clima.interiorLight?` configurável via presets e `atlas_ambiente` | K1 | ✅ |
 | [K4](#k4--oclusores-de-luz-para-pilares-e-objetos-altos-no-domínio) | Etapa 2 · Oclusão & Iluminação Dinâmica | Segmentos de oclusão rotacionados em `visibilidade.ts` sem auto-bloqueio de luzes embutidas | — | ⬜ |
 | [K5](#k5--sombras-dinâmicas-de-objetospilares-e-tokens-em-mapa-de-luzts) | Etapa 2 · Oclusão & Iluminação Dinâmica | Conectar oclusão de objetos altos e tokens no `MapaDeLuz` (efeito lanterna do Farol de OSNI) | K3, K4 | ⬜ |
 | [K6](#k6--escarpa-oblíqua-profunda-e-oclusão-de-base-independente-do-sol) | Etapa 3 · Relevo & Penhascos Dramáticos | Face mais larga (`escarpa.ts`) + oclusão basal contínua independente do ângulo solar | — | ⬜ |
@@ -159,7 +159,7 @@ Adicionar 3 testes em `tests/unit/revisao.test.ts`: `monte-de-neve` invadindo qu
 
 ---
 
-### K3 — Penumbra de interior configurável (`Clima.interiorLight?`) e contraste diurno  ⬜
+### K3 — Penumbra de interior configurável (`Clima.interiorLight?`) e contraste diurno  ✅
 
 **Objetivo:** tornar configurável o fator de luz ambiente dentro de cômodos cobertos (`Clima.interiorLight`), permitindo interiores com clima de lanterna/lareira mesmo durante o dia sem escurecer o exterior.
 
