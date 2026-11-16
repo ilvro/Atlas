@@ -700,6 +700,21 @@ export function mudarAndar(delta: 1 | -1): void {
   if (alvo && alvo.id !== s.andarAtivo.peek()) definirAndarAtivo(alvo.id);
 }
 
+/** Transfere uma peça para outro andar e move a vista do mestre junto se for peça de jogador no andar de origem. */
+export function executarMudancaDeAndarDaPeca(pecaId: string, destino: string | null, posicao: Ponto, origem: string | null): void {
+  const s = sessao.value; if (!s) return;
+  const peca = s.doc.value.tokens[pecaId]; if (!peca) return;
+  try {
+    s.store.executar({ tipo: 'peca.mudarAndar', id: pecaId, levelId: destino, position: posicao }, { rotulo: 'Mudar peça de andar' });
+  } catch (erro) {
+    avisar(erro instanceof Error ? erro.message : String(erro), { tipo: 'erro' });
+    tocar('erro');
+    return;
+  }
+  if (peca.player && s.andarAtivo.peek() === origem) definirAndarAtivo(destino);
+  tocar('selecionar');
+}
+
 /** Onde "adicionar aqui" cai: sob o ponteiro, ou no centro da vista. */
 export function pontoDeAdicionar(base?: Ponto): Ponto {
   const v = viewport.atual, s = sessao.value;

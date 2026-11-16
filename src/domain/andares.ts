@@ -1,7 +1,17 @@
 import { podar } from './iniciativa.ts';
-import type { MapaAtlas } from './mapa.ts';
+import type { Interacao, MapaAtlas, Objeto, Peca, Ponto } from './mapa.ts';
 
 export const NOME_TERREO_PADRAO = 'Térreo';
+
+export const RECEITAS_DE_ESCADA = new Set([
+  'escada.madeira',
+  'escada.pedra',
+  'escada.caracol',
+  'escada.de-mao',
+  'alcapao',
+]);
+
+export const ehReceitaDeEscada = (receita: string): boolean => RECEITAS_DE_ESCADA.has(receita);
 
 export interface ItemDeAndar {
   id: string | null;
@@ -134,4 +144,95 @@ export function mapaDoAndar(m: MapaAtlas, andar: string | null, semCache = false
 
   if (!semCache) cache.get(m)?.set(andar, filtrado);
   return filtrado;
+}
+
+/** Andar vizinho padrão ao colocar uma escada (`alcapao` desce quando possível; demais sobem). */
+export function andarVizinhoDeEscada(
+  m: Pick<MapaAtlas, 'levels' | 'groundLevelName'>,
+  origem: string | null,
+  receita: string,
+): string | null | undefined {
+  const lista = listaDeAndares(m);
+  if (lista.length <= 1) return undefined;
+  const idx = lista.findIndex(a => a.id === origem);
+  if (idx < 0) return undefined;
+  const prefereDescer = receita === 'alcapao';
+  const alvo = prefereDescer ? (lista[idx - 1] ?? lista[idx + 1]) : (lista[idx + 1] ?? lista[idx - 1]);
+  return alvo?.id;
+}
+
+/** Cria uma interação de escada padrão para um objeto recém-posto quando o mapa tem mais de um andar. */
+export function interacaoDeEscadaPadrao(
+  m: Pick<MapaAtlas, 'levels' | 'groundLevelName'>,
+  origem: string | null,
+  receita: string,
+): Interacao | null {
+  if (!ehReceitaDeEscada(receita)) return null;
+  const destino = andarVizinhoDeEscada(m, origem, receita);
+  if (destino === undefined) return null;
+  return { kind: 'stairs', on: false, targets: [], sound: null, clue: null, toLevel: destino };
+}
+
+/** Escadas no mesmo andar que uma peça a até `alcance` metros, da mais próxima à mais distante. */
+export function escadasPerto(
+  m: Pick<MapaAtlas, 'props'>,
+  ponto: Ponto,
+  andar: string | null,
+  alcance = 1.5,
+): Objeto[] {
+  const achadas: { obj: Objeto; dist: number }[] = [];
+  for (const o of Object.values(m.props)) {
+    if (andarDe(o) !== andar || o.interaction?.kind !== 'stairs') continue;
+    const dist = Math.hypot(o.position[0] - ponto[0], o.position[1] - ponto[1]);
+    if (dist <= alcance) achadas.push({ obj: o, dist });
+  }
+  return achadas.sort((a, b) => a.dist - b.dist).map(x => x.obj);
+}
+
+/** Já existe alguma escada ou ponto de escada no andar `destino` dentro de `raio` metros de `ponto`? */
+export function temEscadaDeChegada(
+  m: Pick<MapaAtlas, 'props'>,
+  destino: string | null,
+  ponto: Ponto,
+  raio = 2,
+): boolean {
+  for (const o of Object.values(m.props)) {
+    if (andarDe(o) !== destino) continue;
+    const ehEscada = o.interaction?.kind === 'stairs' || (o.source.kind === 'recipe' && ehReceitaDeEscada(o.source.recipe));
+    if (!ehEscada) continue;
+    if (Math.hypot(o.position[0] - ponto[0], o.position[1] - ponto[1]) <= raio) return true;
+  }
+  return false;
+}
+
+export interface AcaoDeEscada {
+  escadaId: string;
+  rotulo: string;
+  destino: string | null;
+  posicao: Ponto;
+  subindo: boolean;
+}
+
+/** Descreve a ação de subir ou descer pela escada mais próxima de uma peça na sessão (até 1,5 m). */
+export function acaoEscadaParaPeca(
+  m: Pick<MapaAtlas, 'props' | 'levels' | 'groundLevelName'>,
+  peca: Pick<Peca, 'position' | 'levelId'>,
+): AcaoDeEscada | null {
+  const origem = andarDe(peca);
+  const esc = escadasPerto(m, peca.position, origem, 1.5)[0];
+  if (!esc || esc.interaction?.kind !== 'stairs') return null;
+  const dest = esc.interaction.toLevel ?? null;
+  if (dest === origem) return null;
+  const lista = listaDeAndares(m);
+  const itemOrig = lista.find(a => a.id === origem);
+  const itemDest = lista.find(a => a.id === dest);
+  if (!itemOrig || !itemDest) return null;
+  const subindo = itemDest.order > itemOrig.order;
+  return {
+    escadaId: esc.id,
+    rotulo: `${subindo ? 'Subir' : 'Descer'} para ${itemDest.nome}`,
+    destino: dest,
+    posicao: esc.interaction.toPosition ? [esc.interaction.toPosition[0], esc.interaction.toPosition[1]] : [peca.position[0], peca.position[1]],
+    subindo,
+  };
 }

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { andarDe, andaresDosJogadores, ehMultiandar, listaDeAndares, mapaDoAndar } from '../../src/domain/andares.ts';
+import { acaoEscadaParaPeca, andarDe, andaresDosJogadores, ehMultiandar, interacaoDeEscadaPadrao, listaDeAndares, mapaDoAndar, temEscadaDeChegada } from '../../src/domain/andares.ts';
 import { codificar } from '../../src/domain/celulas.ts';
+import { ACERVO } from '../../src/procedural/acervo.ts';
 import { novaLuz, novoObjeto, novaPeca } from '../../src/domain/fabrica.ts';
 import { encaixarNaParede, PAREDE_PADRAO } from '../../src/domain/geometria.ts';
 import { gerarLayout } from '../../src/authoring/layout.ts';
@@ -250,4 +251,72 @@ test('H4: exploração isolada por andar, projeção e escolha de andar do proje
 
   s.executar({ tipo: 'sessao.esquecer', andar: null });
   assert.equal(s.documento.session.explored, null);
+});
+
+test('H5: escadas entre andares, validação, ação radial perto/longe e par automático', () => {
+  const m = mapaExemplo();
+  const caracol = interacaoDeEscadaPadrao(m, null, 'escada.caracol');
+  assert.equal(caracol?.kind, 'stairs');
+  assert.equal(caracol?.toLevel, 'a1');
+
+  const alcapao = interacaoDeEscadaPadrao(m, null, 'alcapao');
+  assert.equal(alcapao?.kind, 'stairs');
+  assert.equal(alcapao?.toLevel, 'b1');
+  assert.equal(interacaoDeEscadaPadrao(m, null, 'mesa.cavalete'), null);
+
+  m.props.esc0 = novoObjeto([4.5, 4.5], {
+    id: 'esc0',
+    source: ACERVO.fonte('escada.caracol', 1),
+    interaction: { kind: 'stairs', on: false, targets: [], sound: null, clue: null, toLevel: 'b1', toPosition: [6, 6] },
+  });
+  m.tokens.heroi = novaPeca([4.5, 5.2], 'Mia', { id: 'heroi', player: true });
+  m.lights.lan = novaLuz([4.5, 5.2], { id: 'lan', ownerId: 'heroi' });
+  m.tokens.heroi.lightId = 'lan';
+
+  // Validação: mesmo andar ou andar inexistente falham
+  const invalidaMesmo = structuredClone(m);
+  invalidaMesmo.props.esc0!.interaction!.toLevel = null;
+  assert.throws(() => validarMapa(invalidaMesmo), ErroDeValidacao);
+
+  const invalidaFalsa = structuredClone(m);
+  invalidaFalsa.props.esc0!.interaction!.toLevel = 'nao_existe';
+  assert.throws(() => validarMapa(invalidaFalsa), ErroDeValidacao);
+
+  // Perto da escada (< 1,5 m) mostra "Descer para Porão"; longe retorna null
+  const perto = acaoEscadaParaPeca(m, m.tokens.heroi);
+  assert.equal(perto?.rotulo, 'Descer para Porão');
+  assert.equal(perto?.subindo, false);
+  assert.deepEqual(perto?.posicao, [6, 6]);
+
+  const longe = acaoEscadaParaPeca(m, { ...m.tokens.heroi, position: [10, 10] });
+  assert.equal(longe, null);
+
+  // Par automático: ainda não há escada no porão em [6, 6]
+  assert.equal(temEscadaDeChegada(m, 'b1', [6, 6], 2), false);
+  m.props.escB = novoObjeto([6, 6], {
+    id: 'escB',
+    source: ACERVO.fonte('escada.caracol', 1),
+    levelId: 'b1',
+    interaction: { kind: 'stairs', on: false, targets: [], sound: null, clue: null, toLevel: null, toPosition: [4.5, 4.5] },
+  });
+  assert.equal(temEscadaDeChegada(m, 'b1', [6, 6], 2), true);
+
+  // Subir de volta aparece quando está no porão perto de escB
+  const s = criarStore(m);
+  s.executar({ tipo: 'peca.mudarAndar', id: 'heroi', levelId: perto!.destino, position: perto!.posicao });
+  assert.equal(s.documento.tokens.heroi!.levelId, 'b1');
+  assert.equal(s.documento.lights.lan!.levelId, 'b1');
+  assert.ok(s.documento.session.exploredLevels?.b1?.cells.length);
+  const acaoSubir = acaoEscadaParaPeca(s.documento, s.documento.tokens.heroi!);
+  assert.equal(acaoSubir?.rotulo, 'Subir para Térreo');
+  assert.equal(acaoSubir?.subindo, true);
+
+  // Desfazer volta ao térreo
+  s.desfazer();
+  assert.equal(s.documento.tokens.heroi!.levelId, undefined);
+  assert.equal(s.documento.lights.lan!.levelId, undefined);
+
+  // Remover porão desvincula esc0 em vez de deixar destino quebrado
+  s.executar({ tipo: 'andar.remover', id: 'b1' });
+  assert.equal(s.documento.props.esc0!.interaction, null);
 });

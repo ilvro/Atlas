@@ -59,6 +59,8 @@ export type Comando =
   | { tipo: 'peca.mover'; id: string; para: Ponto; livre?: boolean }
   /** Gira o cone da lanterna da peça para `direcao` (rad), sem mover a peça. */
   | { tipo: 'peca.virar'; id: string; direcao: number }
+  /** Transfere uma peça para outro andar (por uma escada) e, opcionalmente, para uma nova posição. */
+  | { tipo: 'peca.mudarAndar'; id: string; levelId: string | null; position?: Ponto }
   /** Zera o que as peças já exploraram ("Recomeçar a exploração"). */
   | { tipo: 'sessao.esquecer'; andar?: string | null }
   /** Revela cômodos inteiros (contam como explorados) ou portas secretas aos jogadores, ou os esconde de novo. */
@@ -244,6 +246,29 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       else luz.cone.direction = c.direcao;
       break;
     }
+    case 'peca.mudarAndar': {
+      const t = m.tokens[c.id] ?? nao(`A peça “${c.id}” não existe.`);
+      if (c.levelId !== null && !m.levels?.[c.levelId]) nao(`O andar “${c.levelId}” não existe.`);
+      const prox = c.position ? centroDaCelula(m, c.position) : t.position;
+      if (!prox.every(Number.isFinite) || prox[0] < 0 || prox[1] < 0 || prox[0] > m.bounds.width || prox[1] > m.bounds.height) nao('Fora do mapa.');
+      if (c.levelId === null) delete t.levelId;
+      else t.levelId = c.levelId;
+      t.position = [prox[0], prox[1]];
+      const luz = t.lightId ? m.lights[t.lightId] : undefined;
+      if (luz) {
+        luz.position = [t.position[0], t.position[1]];
+        if (c.levelId === null) delete luz.levelId;
+        else luz.levelId = c.levelId;
+      }
+      if (t.player) {
+        const escopo = mapaDoAndar(m as unknown as MapaAtlas, c.levelId, true);
+        const res = escopo.session.explored?.res ?? RES_NEVOA;
+        const exp = exploradoAgora(escopo, celulasVisiveis(escopo, res));
+        if (c.levelId === null) m.session.explored = exp;
+        else { m.session.exploredLevels ??= {}; m.session.exploredLevels[c.levelId] = exp; }
+      }
+      break;
+    }
     case 'sessao.esquecer': {
       if (c.andar === undefined) {
         m.session.explored = null;
@@ -305,8 +330,8 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       const o = m.props[c.id] ?? nao(`O objeto “${c.id}” não existe.`), i = o.interaction;
       if (!i) nao('Este objeto não é interativo.');
       else if (i.kind === 'clue') nao('As pistas chegam com a Fase 9.');
-      else if (i.kind === 'note') {
-        // Uma nota não altera o documento do mapa
+      else if (i.kind === 'note' || i.kind === 'stairs') {
+        // Uma nota ou escada não altera o documento por interagir
       } else {
         i.on = !i.on;
         if (i.kind === 'switch') for (const id of alvosDoInterruptor(m, o)) { const l = m.lights[id]; if (l) l.on = i.on; }
@@ -380,7 +405,10 @@ function aplicar(m: MapaAtlas, c: Comando): void {
         delete m.walls[id];
         for (const [oid, o] of Object.entries(m.openings)) if (o.wallId === id) delete m.openings[oid];
       }
-      for (const [id, o] of Object.entries(m.props)) if (andarDe(o) === c.id) delete m.props[id];
+      for (const [id, o] of Object.entries(m.props)) {
+        if (andarDe(o) === c.id) delete m.props[id];
+        else if (o.interaction?.kind === 'stairs' && o.interaction.toLevel === c.id) o.interaction = null;
+      }
       for (const [id, l] of Object.entries(m.lights)) if (andarDe(l) === c.id) delete m.lights[id];
       for (const [id, r] of Object.entries(m.regions)) if (andarDe(r) === c.id) delete m.regions[id];
       for (const [id, p] of Object.entries(m.presence)) if (andarDe(p) === c.id) delete m.presence[id];
@@ -416,7 +444,7 @@ export const ROTULOS: Record<Comando['tipo'], string> = {
   'mapa.renomear': 'Renomear mapa', 'mapa.notas': 'Editar notas', 'mapa.campanha': 'Ligar à campanha', 'grade.atualizar': 'Ajustar grade',
   'limites.atualizar': 'Redimensionar mapa', 'estilo.atualizar': 'Mudar estilo', 'mapa.audio': 'Som do mapa', 'clima.aplicar': 'Mudar clima', 'clima.predefinir': 'Aplicar clima', 'clima.salvar': 'Salvar clima', 'clima.esquecer': 'Esquecer clima', 'clima.audio': 'Som do clima', 'momento.salvar': 'Salvar momento', 'momento.remover': 'Remover momento', 'acabamento.atualizar': 'Ajustar acabamento',
   'fundo.atualizar': 'Ajustar fundo', 'memoria.atualizar': 'Ajustar memória', 'item.adicionar': 'Adicionar', 'item.atualizar': 'Editar',
-  'item.remover': 'Remover', 'objeto.camada': 'Mudar a camada', 'luz.estado': 'Luzes', 'objeto.visibilidade': 'Visibilidade de objetos', 'selecao.mover': 'Mover', 'peca.mover': 'Mover peça', 'peca.virar': 'Virar a lanterna', 'sessao.esquecer': 'Recomeçar a exploração', 'sessao.revelar': 'Revelar', 'sessao.ocultar': 'Esconder cômodos', 'sessao.explorar': 'Explorar', 'sessao.telhados': 'Telhados da sessão', 'interagir': 'Usar', 'iniciativa.iniciar': 'Começar a iniciativa', 'iniciativa.passo': 'Passar a vez', 'iniciativa.valor': 'Valor de iniciativa', 'iniciativa.encerrar': 'Encerrar a iniciativa', 'proposta.aceitar': 'Aceitar sugestão',
+  'item.remover': 'Remover', 'objeto.camada': 'Mudar a camada', 'luz.estado': 'Luzes', 'objeto.visibilidade': 'Visibilidade de objetos', 'selecao.mover': 'Mover', 'peca.mover': 'Mover peça', 'peca.virar': 'Virar a lanterna', 'peca.mudarAndar': 'Mudar peça de andar', 'sessao.esquecer': 'Recomeçar a exploração', 'sessao.revelar': 'Revelar', 'sessao.ocultar': 'Esconder cômodos', 'sessao.explorar': 'Explorar', 'sessao.telhados': 'Telhados da sessão', 'interagir': 'Usar', 'iniciativa.iniciar': 'Começar a iniciativa', 'iniciativa.passo': 'Passar a vez', 'iniciativa.valor': 'Valor de iniciativa', 'iniciativa.encerrar': 'Encerrar a iniciativa', 'proposta.aceitar': 'Aceitar sugestão',
   'andar.criar': 'Criar andar', 'andar.atualizar': 'Editar andar', 'andar.remover': 'Remover andar',
 };
 

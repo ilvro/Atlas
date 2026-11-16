@@ -8,7 +8,7 @@ import { celulasDoDisco, celulasEntre, decodificar } from '../domain/celulas.ts'
 import { misturar, type EstadoDeClima, type MisturaDeClima } from '../domain/clima.ts';
 import { conjuntoDeEspalhar, espalhar } from '../authoring/espalhar.ts';
 import { copiasDe, novaLuz, novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
-import { mapaDoAndar } from '../domain/andares.ts';
+import { interacaoDeEscadaPadrao, mapaDoAndar } from '../domain/andares.ts';
 import { comprimentoDaParede, contornoDoComodo, encaixarNaParede, encaixarObjetoDeParede, indiceDeCelulas, pontoNaParede, salaDaCelula } from '../domain/geometria.ts';
 import type { Abertura, MapaAtlas, Peca, Ponto } from '../domain/mapa.ts';
 import type { Recursos } from '../domain/fichas.ts';
@@ -799,7 +799,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item: item as never }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, enc.ponto); novaSemente(); }
         return;
       }
-      const item = novoObjeto(alvo, { source: fonte, rotation: pincel.objeto.rotacao, ...(receita.submerso ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : {}), ...(andar !== null ? { levelId: andar } : {}) });
+      const interacao = interacaoDeEscadaPadrao(m, andar, receita.id);
+      const item = novoObjeto(alvo, { source: fonte, rotation: pincel.objeto.rotacao, ...(receita.submerso ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : {}), ...(interacao ? { interaction: interacao } : {}), ...(andar !== null ? { levelId: andar } : {}) });
       if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item: item as never }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, alvo); novaSemente(); }
       return;
     }
@@ -908,7 +909,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       }
       if (hit) {
         ponte.definirSelecao(e.shiftKey ? combinarSelecao(sel, [hit], 'alternar') : [hit]);
-        const interacaoImediata = hit.colecao === 'openings' || (hit.colecao === 'props' && m.props[hit.id]?.interaction && m.props[hit.id]!.interaction!.kind !== 'clue' && m.props[hit.id]!.interaction!.kind !== 'note');
+        const interacaoImediata = hit.colecao === 'openings' || (hit.colecao === 'props' && m.props[hit.id]?.interaction && m.props[hit.id]!.interaction!.kind !== 'clue' && m.props[hit.id]!.interaction!.kind !== 'note' && m.props[hit.id]!.interaction!.kind !== 'stairs');
         if (interacaoImediata && !e.shiftKey) ponte.aoInteragir?.(hit);   // clicar numa porta a abre ou fecha; Shift+clique só a seleciona
         return;
       }

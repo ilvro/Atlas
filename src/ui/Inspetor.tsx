@@ -8,6 +8,7 @@ import { NOMES_COLECAO, desfazer, duplicarSelecao, refazer, removerSelecao, sess
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { cobrirCasas } from '../authoring/cobrir.ts';
 import { aguaEm } from '../domain/agua.ts';
+import { andarDe, andarVizinhoDeEscada, ehMultiandar, ehReceitaDeEscada, listaDeAndares, temEscadaDeChegada } from '../domain/andares.ts';
 import { area } from '../domain/celulas.ts';
 import { edificioDaSala } from '../domain/edificios.ts';
 import { PALETAS_PIXEL } from '../domain/paletas.ts';
@@ -421,18 +422,83 @@ function InteracaoDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
   const editar = (interaction: Objeto['interaction'] | undefined, rotulo: string) => tentar(() => s.store.executar({ tipo: 'item.atualizar', colecao: 'props', id: o.id, patch: { interaction: interaction as never } }, { rotulo }));
   const efetivas = i?.kind === 'switch' ? alvosDoInterruptor(m, o) : [];
   const trocar = (id: string, marcar: boolean) => editar({ ...i!, targets: marcar ? [...new Set([...efetivas, id])] : efetivas.filter(x => x !== id) }, 'Luzes do interruptor');
+  const multi = ehMultiandar(m);
+  const receitaEscada = o.source.kind === 'recipe' && ehReceitaDeEscada(o.source.recipe) ? o.source.recipe : null;
+  const origemAndar = andarDe(o);
+  const outrosAndares = multi ? listaDeAndares(m).filter(a => a.id !== origemAndar) : [];
+  const padraoDestino = receitaEscada ? andarVizinhoDeEscada(m, origemAndar, receitaEscada) : outrosAndares[0]?.id;
+  const destinoAtual = i?.kind === 'stairs' ? (i.toLevel ?? null) : undefined;
+  const valorEscada = destinoAtual === undefined ? '__none' : (destinoAtual ?? '__terreo');
+  const posChegada: [number, number] = i?.kind === 'stairs' && i.toPosition ? [i.toPosition[0], i.toPosition[1]] : [o.position[0], o.position[1]];
+  const faltaEscadaChegada = multi && i?.kind === 'stairs' && destinoAtual !== undefined && !temEscadaDeChegada(m, destinoAtual, posChegada, 2);
+
+  const criarEscadaDeChegada = () => {
+    if (destinoAtual === undefined) return;
+    const nova = {
+      id: `p_${crypto.randomUUID().slice(0, 8)}`,
+      source: structuredClone(o.source),
+      position: [posChegada[0], posChegada[1]] as [number, number],
+      rotation: o.rotation,
+      scale: o.scale,
+      elevation: o.elevation,
+      wall: null,
+      roomId: null,
+      blocks: { ...o.blocks },
+      castsShadow: o.castsShadow,
+      harmonize: o.harmonize,
+      interaction: {
+        kind: 'stairs' as const,
+        on: false,
+        targets: [],
+        sound: i?.sound ?? null,
+        clue: null,
+        toLevel: origemAndar,
+        toPosition: [o.position[0], o.position[1]] as [number, number],
+      },
+      ...(destinoAtual !== null ? { levelId: destinoAtual } : {}),
+    };
+    tentar(() => s.store.executar({ tipo: 'item.adicionar', colecao: 'props', item: nova as never }, { rotulo: 'Criar escada de chegada' }));
+  };
+
   return (<>
+    {(receitaEscada || i?.kind === 'stairs') && multi && (
+      <div class="escada-entre-andares" data-testid="escada-destino-bloco">
+        <CampoOpcoes
+          rotulo="Leva a"
+          dica="Andar de destino ao usar esta escada na sessão."
+          valor={valorEscada}
+          opcoes={[['__none', 'Nenhum andar'], ...outrosAndares.map(a => [a.id ?? '__terreo', a.nome] as const)]}
+          aoMudar={v => editar(v === '__none' ? null : {
+            kind: 'stairs',
+            on: false,
+            targets: [],
+            sound: i?.sound ?? null,
+            clue: null,
+            toLevel: v === '__terreo' ? null : v,
+            toPosition: i?.toPosition,
+          }, 'Destino da escada')}
+        />
+        {faltaEscadaChegada && (
+          <div class="acoes-selecao">
+            <button type="button" class="botao-pilula" data-testid="criar-escada-chegada" onClick={criarEscadaDeChegada}>
+              Criar a escada de chegada
+            </button>
+          </div>
+        )}
+      </div>
+    )}
     <CampoOpcoes rotulo="Interação" dica="O que o mestre aciona na sessão, clicando no objeto ou com Enter ao lado de uma peça." valor={i?.kind ?? ''}
-      opcoes={[['', 'Nenhuma'], ['switch', 'Interruptor'], ['drawer', 'Gaveta'], ['clue', 'Pista do Ateliê'], ['note', 'Nota / Descrição']] as never}
+      opcoes={[['', 'Nenhuma'], ['switch', 'Interruptor'], ['drawer', 'Gaveta'], ['clue', 'Pista do Ateliê'], ['note', 'Nota / Descrição'], ...(multi ? [['stairs', 'Escada entre andares'] as const] : [])] as never}
       aoMudar={v => editar(v ? {
-        kind: v as 'switch' | 'drawer' | 'clue' | 'note',
-        on: (v === 'clue' || v === 'note') ? false : i?.on ?? true,
+        kind: v as 'switch' | 'drawer' | 'clue' | 'note' | 'stairs',
+        on: (v === 'clue' || v === 'note' || v === 'stairs') ? false : i?.on ?? true,
         targets: [],
         sound: i?.sound ?? null,
         clue: v === 'clue' ? i?.clue ?? null : null,
         note: v === 'note' ? i?.note ?? '' : undefined,
         noteTitle: v === 'note' ? i?.noteTitle ?? '' : undefined,
         gmOnly: v === 'note' ? i?.gmOnly ?? false : undefined,
+        ...(v === 'stairs' ? { toLevel: padraoDestino ?? null } : {}),
       } : null, 'Interação do objeto')} />
     {(i?.kind === 'switch' || i?.kind === 'drawer') && <EscolherCena s={s} tipo="efeito" id="som-do-objeto" rotulo="Som" dica="Um efeito do Jukebox toca ao usar. Sem escolha (ou com o Jukebox fechado), vale o som do Atlas." valor={i.sound} aoEscolher={ref => editar({ ...i, sound: ref }, 'Som do objeto')} />}
     {i?.kind === 'clue' && <PistaDoObjeto i={i} aoEscolher={ref => editar({ ...i, clue: ref }, 'Pista do objeto')} />}
