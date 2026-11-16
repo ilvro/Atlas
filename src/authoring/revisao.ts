@@ -1,8 +1,9 @@
-import { decodificar } from '../domain/celulas.ts';
+import { decodificar, type Faixa } from '../domain/celulas.ts';
 import { ehNoite, nivelDaLuz } from '../domain/clima.ts';
 import { edificiosDe, type Edificio } from '../domain/edificios.ts';
+import { pontoNoPoligono } from '../domain/formas-de-comodo.ts';
 import { arestasDeParede, caixaDasCelulas, comodoEm, indiceDeCelulas } from '../domain/geometria.ts';
-import { colunas, linhas, type Comodo, type MapaAtlas } from '../domain/mapa.ts';
+import { colunas, linhas, type Comodo, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
 import { FUNCOES_AO_AR_LIVRE } from '../domain/presets.ts';
 import { retangulosDe } from '../domain/telhado-geometria.ts';
 import { ACERVO } from '../procedural/acervo.ts';
@@ -51,6 +52,34 @@ const r1 = (n: number) => Math.round(n * 10) / 10;
 const tuplaCaixa = (c: Caixa): [number, number, number, number] => [r1(c.x0), r1(c.y0), r1(c.x1), r1(c.y1)];
 const intersecta = (a: Caixa, b: Caixa) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
 
+function caixaDoComodo(m: MapaAtlas, s: Comodo): Caixa | null {
+  if (s.outline && s.outline.length >= 3) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of s.outline) {
+      if (x < x0) x0 = x;
+      if (y < y0) y0 = y;
+      if (x > x1) x1 = x;
+      if (y > y1) y1 = y;
+    }
+    return { x0, y0, x1, y1 };
+  }
+  return caixaDasCelulas(m, decodificar(s.cells));
+}
+
+function salaNoPonto(m: MapaAtlas, ponto: Ponto, nivel: string | null, indices: Map<string | null, Map<number, string>>): string | null {
+  for (const s of Object.values(m.rooms)) {
+    if ((s.levelId ?? null) === nivel && s.outline && s.outline.length >= 3 && pontoNoPoligono(ponto, s.outline)) {
+      return s.id;
+    }
+  }
+  let idx = indices.get(nivel);
+  if (!idx) {
+    idx = indiceDeCelulas(m, nivel);
+    indices.set(nivel, idx);
+  }
+  return comodoEm(m, ponto, idx);
+}
+
 /** Agrupa todos os cômodos (exceto cômodos ao ar livre sem telhado) em edifícios conexos em 4 direções. */
 export function edificiosParaRevisao(m: Pick<MapaAtlas, 'rooms'>): Edificio[] {
   const salas: Record<string, Comodo> = {};
@@ -83,6 +112,24 @@ function regraComodoSemAcesso(m: MapaAtlas): Achado[] {
     if (ins) insPorId.set(s.id, ins);
   }
   const algumTelhadoAberto = salas.some(s => !s.roof.visible);
+  const indices = new Map<string | null, Map<number, string>>();
+  const escadasPorSala = new Map<string, string[]>();
+  const escadasDoExterior: string[] = [];
+  for (const o of Object.values(m.props)) {
+    if (o.interaction?.kind !== 'stairs' || o.interaction.toLevel === undefined) continue;
+    const origNivel = o.levelId ?? null;
+    const origSala = o.roomId && m.rooms[o.roomId] ? o.roomId : salaNoPonto(m, o.position, origNivel, indices);
+    const destNivel = o.interaction.toLevel ?? null;
+    const destPos = o.interaction.toPosition ?? o.position;
+    const destSala = salaNoPonto(m, destPos, destNivel, indices);
+    if (!destSala) continue;
+    if (origSala === null) {
+      if (origNivel === null) escadasDoExterior.push(destSala);
+    } else {
+      escadasPorSala.set(origSala, [...(escadasPorSala.get(origSala) ?? []), destSala]);
+      escadasPorSala.set(destSala, [...(escadasPorSala.get(destSala) ?? []), origSala]);
+    }
+  }
   const acessiveis = new Set<string>();
   const fila: string[] = [];
   for (const s of salas) {
@@ -91,6 +138,12 @@ function regraComodoSemAcesso(m: MapaAtlas): Achado[] {
     if (ins.portas.some(p => p.outro === null)) {
       acessiveis.add(s.id);
       fila.push(s.id);
+    }
+  }
+  for (const destId of escadasDoExterior) {
+    if (!acessiveis.has(destId)) {
+      acessiveis.add(destId);
+      fila.push(destId);
     }
   }
   for (let i = 0; i < fila.length; i++) {
@@ -107,6 +160,12 @@ function regraComodoSemAcesso(m: MapaAtlas): Achado[] {
       if (v.ligado && !acessiveis.has(v.id)) {
         acessiveis.add(v.id);
         fila.push(v.id);
+      }
+    }
+    for (const destId of escadasPorSala.get(atual) ?? []) {
+      if (!acessiveis.has(destId)) {
+        acessiveis.add(destId);
+        fila.push(destId);
       }
     }
   }
@@ -140,7 +199,13 @@ function regraEdificioSemTelhado(m: MapaAtlas): Achado[] {
   const eds = edificiosParaRevisao(m);
   const achados: Achado[] = [];
   for (const ed of eds) {
-    const cobertas = ed.salas.map(id => m.rooms[id]!).filter(s => !(s.function !== null && FUNCOES_AO_AR_LIVRE.has(s.function)));
+    const cobertas = ed.salas
+      .map(id => m.rooms[id]!)
+      .filter(s => {
+        if (s.function !== null && FUNCOES_AO_AR_LIVRE.has(s.function)) return false;
+        if (s.levelId && (m.levels?.[s.levelId]?.order ?? 0) < 0) return false;
+        return true;
+      });
     if (!cobertas.length || cobertas.some(s => s.roof.material !== null)) continue;
     const c = caixaDasCelulas(m, ed.celulas);
     const nomes = ed.salas.map(id => m.rooms[id]!.name).slice(0, 3).join(', ');
@@ -457,7 +522,7 @@ function regraComposicaoCentralizada(m: MapaAtlas): Achado[] {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   let temConstrucao = false;
   for (const s of Object.values(m.rooms)) {
-    const c = caixaDasCelulas(m, decodificar(s.cells));
+    const c = caixaDoComodo(m, s);
     if (!c) continue;
     temConstrucao = true;
     if (c.x0 < x0) x0 = c.x0;
@@ -519,14 +584,14 @@ function regraNoiteSemLuz(m: MapaAtlas): Achado[] {
   const salas = Object.values(m.rooms);
   if (!salas.length) return [];
   const arestas = arestasDeParede(m);
-  const indice = indiceDeCelulas(m);
+  const ativasIds = new Set(luzesAtivas.map(l => l.id));
   const algumTelhadoAberto = salas.some(s => !s.roof.visible);
   const achados: Achado[] = [];
   for (const s of salas) {
     if (s.function !== null && FUNCOES_AO_AR_LIVRE.has(s.function)) continue;
     const ins = insightDoComodo(m, s.id, arestas);
     if (!ins || ins.area < LIMIAR_AREA_COMODO_SEM_LUZ || ehSobradoDecorativoFechado(m, s, ins, algumTelhadoAberto)) continue;
-    const temLuz = luzesAtivas.some(l => comodoEm(m, l.position, indice) === s.id);
+    const temLuz = ins.luzes.some(id => ativasIds.has(id));
     if (!temLuz && ins.janelas.length === 0) {
       achados.push({
         regra: 'noite-sem-luz',
@@ -537,6 +602,79 @@ function regraNoiteSemLuz(m: MapaAtlas): Achado[] {
         caixa: tuplaCaixa(ins.caixa),
       });
     }
+  }
+  return achados;
+}
+
+function areaIntersecaoCaixa(a: Caixa, b: Caixa): number {
+  const dx = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
+  const dy = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
+  return dx > 0 && dy > 0 ? dx * dy : 0;
+}
+
+function faixasTocamCaixa(faixas: readonly Faixa[], res: number, q: Caixa): boolean {
+  for (const [y, x0, n] of faixas) {
+    const cy0 = y * res, cy1 = (y + 1) * res;
+    if (cy1 <= q.y0 || cy0 >= q.y1) continue;
+    const cx0 = x0 * res, cx1 = (x0 + n) * res;
+    if (cx1 > q.x0 && cx0 < q.x1) return true;
+  }
+  return false;
+}
+
+function regraErmosVazios(m: MapaAtlas): Achado[] {
+  if (!temTerrenoExterior(m)) return [];
+  const W = m.bounds.width, H = m.bounds.height;
+  if (W < 40 || H < 40) return [];
+  const hw = W / 2, hh = H / 2;
+  const quadrantes: (Caixa & { nome: string })[] = [
+    { nome: 'noroeste', x0: 0, y0: 0, x1: hw, y1: hh },
+    { nome: 'nordeste', x0: hw, y0: 0, x1: W, y1: hh },
+    { nome: 'sudoeste', x0: 0, y0: hh, x1: hw, y1: H },
+    { nome: 'sudeste', x0: hw, y0: hh, x1: W, y1: H },
+  ];
+  const t = m.grid.size, [ox, oy] = m.grid.offset;
+  const res = m.terrain.resolution || 0.25;
+  const salasTerreo = Object.values(m.rooms).filter(s => (s.levelId ?? null) === null);
+  const propsTerreo = Object.values(m.props).filter(o => (o.levelId ?? null) === null);
+  const camadas = Object.values(m.terrain.layers);
+  const patamares = Object.values(m.terrain.relief?.patamares ?? {}).filter(p => p.altura !== 0);
+  const achados: Achado[] = [];
+  for (const q of quadrantes) {
+    const areaQ = (q.x1 - q.x0) * (q.y1 - q.y0);
+    if (areaQ <= 0) continue;
+    let areaPredios = 0;
+    for (const s of salasTerreo) {
+      const cels = decodificar(s.cells);
+      if (cels.length) {
+        for (const [cx, cy] of cels) {
+          const x0 = ox + cx * t, y0 = oy + cy * t;
+          areaPredios += areaIntersecaoCaixa({ x0, y0, x1: x0 + t, y1: y0 + t }, q);
+        }
+      } else {
+        const c = caixaDoComodo(m, s);
+        if (c) areaPredios += areaIntersecaoCaixa(c, q);
+      }
+    }
+    const fracaoFora = Math.max(0, (areaQ - Math.min(areaQ, areaPredios)) / areaQ);
+    if (fracaoFora < 0.6) continue;
+    const temProp = propsTerreo.some(o => {
+      const c = caixaDoObjeto(o);
+      return intersecta(c, q) || (o.position[0] >= q.x0 && o.position[0] <= q.x1 && o.position[1] >= q.y0 && o.position[1] <= q.y1);
+    });
+    if (temProp) continue;
+    const temCamada = camadas.some(l => faixasTocamCaixa(l.cells, res, q));
+    if (temCamada) continue;
+    const temRelevo = patamares.some(p => faixasTocamCaixa(p.cells, res, q));
+    if (temRelevo) continue;
+    achados.push({
+      regra: 'ermos-vazios',
+      gravidade: 'aviso',
+      mensagem: `O quadrante ${q.nome} tem ${Math.round(fracaoFora * 100)}% de área aberta sem objetos, terreno extra, água ou relevo.`,
+      sugestao: 'Povoe o quadrante com atlas_espalhar, afloramentos de terreno (rocha.*, agua.*), trilhas (atlas_caminho) ou patamares de relevo.',
+      ids: [],
+      caixa: tuplaCaixa(q),
+    });
   }
   return achados;
 }
@@ -554,6 +692,7 @@ export const REGRAS: Readonly<Record<string, (m: MapaAtlas) => Achado[]>> = {
   'mancha-em-disco': regraManchaEmDisco,
   'composicao-centralizada': regraComposicaoCentralizada,
   'noite-sem-luz': regraNoiteSemLuz,
+  'ermos-vazios': regraErmosVazios,
 };
 
 export function revisarMapa(m: MapaAtlas, opcoes?: { regras?: string[] }): Achado[] {
