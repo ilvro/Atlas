@@ -46,7 +46,7 @@ Testes: círculo de raio 3 m numa grade de 1,5 m dá cerca de 12 a 16 células; 
 Pronto quando: `npm test` passa.
 Commit: `rooms can have a free outline polygon`
 
-### G2 — Paredes do contorno  ⬜
+### G2 — Paredes do contorno  ✅
 Objetivo: o cômodo de contorno tem parede que segue o polígono e porta que funciona.
 Depende de: G1.
 Ler: `src/domain/geometria.ts` inteiro (`arestasDeParede`, `paredesDerivadas`, `arestasCobertas`, `recalcularParedes`, `encaixarNaParede`, `motivoDeNaoCaber`), `src/domain/visibilidade.ts` (`oclusores`), `src/domain/movimento.ts` (`bloqueioNoCaminho`).
