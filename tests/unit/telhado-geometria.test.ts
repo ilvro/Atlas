@@ -3,9 +3,12 @@ import assert from 'node:assert/strict';
 import { codificar } from '../../src/domain/celulas.ts';
 import { edificiosDe } from '../../src/domain/edificios.ts';
 import { criarMapa, type Comodo, type Telhado } from '../../src/domain/mapa.ts';
+import { circulo } from '../../src/domain/formas-de-comodo.ts';
 import {
   aguasDe,
+  aguasDoContorno,
   aguasDoTrecho,
+  expandirContorno,
   formaDe,
   ordemDoTrecho,
   retangulosDe,
@@ -149,4 +152,37 @@ test('igreja (nave em duas águas + torre em pirâmide vizinha) dá 1 edifício 
   assert.equal(trechos.length, 2);
   assert.deepEqual(trechos.map(t => t.salas), [['nave'], ['torre']]);
   assert.equal(ordemDoTrecho(trechos[0]!.roof) < ordemDoTrecho(trechos[1]!.roof), true);
+});
+
+test('aguasDoContorno: cone em círculo conserva a área expandida, sem cumeeiras, com quedas radiais e plano gera platibanda', () => {
+  const pts = circulo([6, 6], 3, 24);
+  const { faces, cumeeiras } = aguasDoContorno(pts, { shape: 'cone', material: 'telha.escamas', steep: true }, 0.25);
+  assert.equal(faces.length, 24);
+  assert.equal(cumeeiras.length, 0);
+  const expandido = expandirContorno(pts, 0.25);
+  assert.ok(Math.abs(somaDasAreas(faces) - areaPoligono(expandido)) < 1e-6);
+  for (const f of faces) {
+    const medio: [number, number] = [(f.pontos[0]![0] + f.pontos[1]![0]) / 2, (f.pontos[0]![1] + f.pontos[1]![1]) / 2];
+    const radial = (medio[0] - 6) * f.queda[0] + (medio[1] - 6) * f.queda[1];
+    assert.ok(radial > 0, 'queda aponta para fora do cone');
+  }
+
+  const plano = aguasDoContorno(pts, { shape: 'plano', material: 'telha.concreto' }, 0.25);
+  assert.equal(plano.faces.length, 2);
+  assert.equal(plano.faces[1]!.platibanda, true);
+  assert.equal(ordemDoTrecho({ shape: 'cone' }), 2);
+});
+
+test('trechosDe mantém cômodo com outline separado mesmo vizinho a cômodo de mesmo material/forma', () => {
+  const m = criarMapa();
+  const c1 = comodo('a', [[0, 0], [1, 0]], { material: 'telha.escamas', visible: true, shape: 'cone' });
+  const c2 = { ...comodo('b', [[2, 0], [3, 0]], { material: 'telha.escamas', visible: true, shape: 'cone' }), outline: circulo([4.5, 0.75], 1.5, 16) };
+  m.rooms = { a: c1, b: c2 };
+  const eds = edificiosDe(m);
+  const trechos = trechosDe(m, eds[0]!);
+  assert.equal(trechos.length, 2);
+  const trechoB = trechos.find(t => t.salas[0] === 'b')!;
+  assert.ok(trechoB.outline);
+  const aguas = aguasDoTrecho(trechoB, m.grid);
+  assert.equal(aguas.faces.length, 16);
 });

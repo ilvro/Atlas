@@ -107,8 +107,14 @@ const centro = (f: Face): Ponto => { const p = f.pontos; return [p.reduce((s, q)
  */
 export function posicoesDosDetalhes(trecho: Trecho, grade: Pick<MapaAtlas['grid'], 'size' | 'offset'>, semente: number): PosicaoDeDetalhe[] {
   const detalhes = formaDe(trecho.roof).details;
+  if (!detalhes.length) return [];
+  if (trecho.outline && trecho.outline.length >= 3) {
+    const cx = trecho.outline.reduce((s, p) => s + p[0], 0) / trecho.outline.length;
+    const cy = trecho.outline.reduce((s, p) => s + p[1], 0) / trecho.outline.length;
+    return detalhes.map((d, i) => ({ detalhe: d, x: cx + (i === 0 ? 0 : (i - 0.5) * 0.9), y: cy, ang: 0 }));
+  }
   const principal = retangulosDe(trecho.celulas)[0];
-  if (!detalhes.length || !principal) return [];
+  if (!principal) return [];
   const t = grade.size, [ox, oy] = grade.offset;
   const x0 = ox + principal[0] * t, y0 = oy + principal[1] * t, x1 = ox + principal[2] * t, y1 = oy + principal[3] * t;
   const { faces, cumeeiras } = aguasDe([x0, y0, x1, y1], trecho.roof, 0);

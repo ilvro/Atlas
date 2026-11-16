@@ -1,6 +1,7 @@
+import { circulo } from '../domain/formas-de-comodo.ts';
 import type { Comodo, MapaAtlas } from '../domain/mapa.ts';
 import { camadaDoObjeto } from '../domain/camadas.ts';
-import { aguasDe, formaDe } from '../domain/telhado-geometria.ts';
+import { aguasDe, aguasDoContorno, formaDe } from '../domain/telhado-geometria.ts';
 import { assarDescricao } from '../procedural/assar.ts';
 import { ehPadraoDeCobertura, texturaDeCobertura } from '../procedural/coberturas.ts';
 import { descricaoDoDetalhe, posicoesDosDetalhes } from '../procedural/detalhes-de-telhado.ts';
@@ -20,7 +21,18 @@ export function desenharMiniatura(canvas: HTMLCanvasElement | OffscreenCanvas, m
   ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(ox, oy, m.bounds.width * esc, m.bounds.height * esc);
   ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1; ctx.strokeRect(ox + 0.5, oy + 0.5, m.bounds.width * esc, m.bounds.height * esc);
   const t = m.grid.size * esc;
-  for (const sala of Object.values(m.rooms)) { ctx.fillStyle = css(corDoNome(sala.floor.material, 0.32, 0.3)); for (const [y, x0, n] of sala.cells) ctx.fillRect(ox + x0 * t, oy + y * t, n * t + 0.5, t + 0.5); }
+  for (const sala of Object.values(m.rooms)) {
+    ctx.fillStyle = css(corDoNome(sala.floor.material, 0.32, 0.3));
+    if (sala.outline && sala.outline.length >= 3) {
+      ctx.beginPath();
+      ctx.moveTo(ox + sala.outline[0]![0] * esc, oy + sala.outline[0]![1] * esc);
+      for (let i = 1; i < sala.outline.length; i++) ctx.lineTo(ox + sala.outline[i]![0] * esc, oy + sala.outline[i]![1] * esc);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      for (const [y, x0, n] of sala.cells) ctx.fillRect(ox + x0 * t, oy + y * t, n * t + 0.5, t + 0.5);
+    }
+  }
   ctx.strokeStyle = '#16141a'; ctx.lineCap = 'round';
   for (const p of Object.values(m.walls)) { ctx.lineWidth = Math.max(1.5, p.thickness * esc); ctx.beginPath(); p.path.forEach(([x, y], i) => i ? ctx.lineTo(ox + x * esc, oy + y * esc) : ctx.moveTo(ox + x * esc, oy + y * esc)); ctx.stroke(); }
   for (const l of Object.values(m.lights)) { const g = ctx.createRadialGradient(ox + l.position[0] * esc, oy + l.position[1] * esc, 0, ox + l.position[0] * esc, oy + l.position[1] * esc, Math.max(6, Math.min(l.radius, 4) * esc)); g.addColorStop(0, `${l.color}aa`); g.addColorStop(1, `${l.color}00`); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); }
@@ -42,11 +54,13 @@ export function desenharMiniaturaDoTelhado(canvas: HTMLCanvasElement | Offscreen
   ctx.scale(esc, esc);
 
   const beiral = 0.2;
+  const cone = formaDe(roof).shape === 'cone';
   ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-  ctx.fillRect(-beiral + 0.16, -beiral + 0.16, 2 + beiral * 2, 2 + beiral * 2);
+  if (cone) { ctx.beginPath(); ctx.arc(1.16, 1.16, 1 + beiral, 0, Math.PI * 2); ctx.fill(); }
+  else ctx.fillRect(-beiral + 0.16, -beiral + 0.16, 2 + beiral * 2, 2 + beiral * 2);
 
   const mat = materialDe(roof.material);
-  const { faces, cumeeiras } = aguasDe([0, 0, 2, 2], roof, beiral);
+  const { faces, cumeeiras } = cone ? aguasDoContorno(circulo([1, 1], 1, 16), roof, beiral) : aguasDe([0, 0, 2, 2], roof, beiral);
   const pat = ehPadraoDeCobertura(mat.padrao) ? (() => {
     const cob = texturaDeCobertura(mat, 'illustrated', 1);
     return { p: ctx.createPattern(cob.tela as CanvasImageSource, 'repeat'), escala: cob.metros / cob.tela.width };

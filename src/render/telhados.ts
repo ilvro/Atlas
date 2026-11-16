@@ -3,7 +3,7 @@ import { edificiosDe, type Edificio } from '../domain/edificios.ts';
 import type { DetalheDeTelhado, MapaAtlas, Peca, Ponto } from '../domain/mapa.ts';
 import { comodosConhecidos } from '../domain/nevoa.ts';
 import { sombraDoSol } from '../domain/sol.ts';
-import { aguasDoTrecho, formaDe, retangulosDe, trechosDe } from '../domain/telhado-geometria.ts';
+import { aguasDoTrecho, expandirContorno, formaDe, retangulosDe, trechosDe } from '../domain/telhado-geometria.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import type { Baker } from '../procedural/baker.ts';
 import { ehPadraoDeCobertura, PERIODO_DA_COBERTURA, RES_DA_COBERTURA } from '../procedural/coberturas.ts';
@@ -144,10 +144,16 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
       d.sombra.alpha = 0.35;
       d.sombra.filters = pixel ? [] : [desfoque];
       for (const trecho of trechos) {
-        const dist = formaDe(trecho.roof).shape === 'piramide' || trecho.roof.steep ? SOMBRA_ALTA : SOMBRA_NORMAL;
+        const s = formaDe(trecho.roof).shape;
+        const dist = s === 'piramide' || s === 'cone' || trecho.roof.steep ? SOMBRA_ALTA : SOMBRA_NORMAL;
         const dx = sSol.dir[0] * dist, dy = sSol.dir[1] * dist;
-        for (const [rx0, ry0, rx1, ry1] of retangulosDe(trecho.celulas)) {
-          d.sombra.rect(ox + rx0 * t - beiral + dx, oy + ry0 * t - beiral + dy, (rx1 - rx0) * t + beiral * 2, (ry1 - ry0) * t + beiral * 2);
+        if (trecho.outline && trecho.outline.length >= 3) {
+          const ext = expandirContorno(trecho.outline, beiral);
+          if (ext.length >= 3) d.sombra.poly(ext.flatMap(([px, py]) => [px + dx, py + dy]));
+        } else {
+          for (const [rx0, ry0, rx1, ry1] of retangulosDe(trecho.celulas)) {
+            d.sombra.rect(ox + rx0 * t - beiral + dx, oy + ry0 * t - beiral + dy, (rx1 - rx0) * t + beiral * 2, (ry1 - ry0) * t + beiral * 2);
+          }
         }
       }
       d.sombra.fill({ color: hexParaNumero(sSol.cor) });
@@ -172,20 +178,28 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
 
       for (const face of faces) {
         if (face.platibanda) {
-          const outer = face.pontos.slice(0, 4).flat();
-          const inner = face.pontos.slice(5, 9).flat();
+          const split = face.pontos.findIndex((p, i) => i > 0 && p[0] === face.pontos[0]![0] && p[1] === face.pontos[0]![1]);
+          const outer = (split > 0 ? face.pontos.slice(0, split) : face.pontos.slice(0, 4)).flat();
+          const inner = (split > 0 ? face.pontos.slice(split + 1, -1) : face.pontos.slice(5, 9)).flat();
           g.poly(outer).fill({ color: escuro }).poly(inner).cut();
-          const ix0 = Math.min(face.pontos[5]![0], face.pontos[7]![0]);
-          const iy0 = Math.min(face.pontos[5]![1], face.pontos[7]![1]);
-          const ix1 = Math.max(face.pontos[5]![0], face.pontos[7]![0]);
-          const iy1 = Math.max(face.pontos[5]![1], face.pontos[7]![1]);
+          let ix0 = Infinity, iy0 = Infinity, ix1 = -Infinity, iy1 = -Infinity;
+          for (let i = 0; i < inner.length; i += 2) {
+            const x = inner[i]!, y = inner[i + 1]!;
+            if (x < ix0) ix0 = x; if (y < iy0) iy0 = y;
+            if (x > ix1) ix1 = x; if (y > iy1) iy1 = y;
+          }
           const w = ix1 - ix0, h = iy1 - iy0;
           const sx = -dirDoSol[0] * 0.22, sy = -dirDoSol[1] * 0.22;
           if (w > 0 && h > 0) {
-            const lx = ix0 + Math.max(0, sx), ly = iy0 + Math.max(0, sy);
-            const lw = Math.max(0, w - Math.abs(sx)), lh = Math.max(0, h - Math.abs(sy));
-            if (lw > 0 && lh > 0) g.rect(ix0, iy0, w, h).fill({ color: 0x000000, alpha: 0.24 }).rect(lx, ly, lw, lh).cut();
-            else g.rect(ix0, iy0, w, h).fill({ color: 0x000000, alpha: 0.24 });
+            if (split > 4) {
+              const innerPts = face.pontos.slice(split + 1, -1);
+              g.poly(inner).fill({ color: 0x000000, alpha: 0.24 }).poly(innerPts.flatMap(([x, y]) => [x + sx, y + sy])).cut();
+            } else {
+              const lx = ix0 + Math.max(0, sx), ly = iy0 + Math.max(0, sy);
+              const lw = Math.max(0, w - Math.abs(sx)), lh = Math.max(0, h - Math.abs(sy));
+              if (lw > 0 && lh > 0) g.rect(ix0, iy0, w, h).fill({ color: 0x000000, alpha: 0.24 }).rect(lx, ly, lw, lh).cut();
+              else g.rect(ix0, iy0, w, h).fill({ color: 0x000000, alpha: 0.24 });
+            }
           }
           continue;
         }
@@ -205,12 +219,12 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
         else if (dot < -0.001) g.poly(pts).fill({ color: 0x000000, alpha: alfaBase * -dot });
       }
 
-      if (cumeeiras.length) {
+      if (cumeeiras.length && forma.shape !== 'cone') {
         for (const [[x0, y0], [x1, y1]] of cumeeiras) g.moveTo(x0, y0).lineTo(x1, y1);
         g.stroke({ width: 0.12, color: claro, cap: 'round' });
       }
 
-      if (forma.shape === 'duas-aguas') {
+      if (forma.shape === 'duas-aguas' && !trecho.outline) {
         for (const [rx0, ry0, rx1, ry1] of retangulosDe(trecho.celulas)) {
           const x0 = ox + rx0 * t - beiral, y0 = oy + ry0 * t - beiral;
           const x1 = ox + rx1 * t + beiral, y1 = oy + ry1 * t + beiral;

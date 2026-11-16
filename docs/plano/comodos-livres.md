@@ -75,7 +75,7 @@ Testes (e2e): um cômodo circular de raio 4 m num mapa: o pixel no centro tem a 
 Pronto quando: um farol redondo se desenha redondo nas duas estéticas, com as faces internas acompanhando a curva.
 Commit: `outline rooms draw round floors and wall faces`
 
-### G4 — Telhado em cone e telhado de contorno  ⬜
+### G4 — Telhado em cone e telhado de contorno  ✅
 Objetivo: a torre redonda tem telhado cônico.
 Depende de: G3.
 Ler: `src/domain/telhado-geometria.ts` inteiro (`formaDe`, `trechosDe`, `aguasDe`, `aguasDoTrecho`, `Face`), `src/render/telhados.ts` (desenho das faces e da sombra), `src/domain/mapa.ts` (`FORMAS_DE_TELHADO`), `src/domain/presets.ts` (`ESTILOS_DE_TELHADO`).

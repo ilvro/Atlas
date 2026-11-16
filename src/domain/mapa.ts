@@ -74,7 +74,7 @@ export interface Terreno { resolution: number; base: string; layers: Record<stri
   relief?: RelevoDoTerreno;
 }
 
-export const FORMAS_DE_TELHADO = ['quatro-aguas', 'duas-aguas', 'plano', 'piramide'] as const;
+export const FORMAS_DE_TELHADO = ['quatro-aguas', 'duas-aguas', 'plano', 'piramide', 'cone'] as const;
 export type FormaDeTelhado = (typeof FORMAS_DE_TELHADO)[number];
 export const DETALHES_DE_TELHADO = ['chamine', 'cruz', 'sino', 'catavento', 'claraboia', 'caixa-dagua'] as const;
 export type DetalheDeTelhado = (typeof DETALHES_DE_TELHADO)[number];
