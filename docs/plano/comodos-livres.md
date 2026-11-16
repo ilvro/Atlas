@@ -61,7 +61,7 @@ Testes: círculo isolado gera 1 parede fechada com 24 segmentos; a visão não a
 Pronto quando: `npm test` passa.
 Commit: `outline rooms derive their walls`
 
-### G3 — Piso e faces internas pelo contorno  ⬜
+### G3 — Piso e faces internas pelo contorno  ✅
 Objetivo: o cômodo redondo é desenhado redondo: piso recortado, sombra de contato e faces internas do estilo caixa.
 Depende de: G2.
 Ler: `src/procedural/assar.ts` (`assarComodo`, `facesDoContorno`, `pintarFacePixel`, `ao_longo`), `src/domain/geometria.ts` (`contornoDoComodo`, `SegmentoDeContorno`, `facesDoContorno`), `src/render/entradas.ts` (`entradaDoComodo`, `chaveDoComodo`), `src/render/mascara-de-comodos.ts`.

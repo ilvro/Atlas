@@ -5,7 +5,15 @@ import type { MapaAtlas } from '../domain/mapa.ts';
 export function desenharComodos(g: Graphics, m: Pick<MapaAtlas, 'rooms' | 'grid'>): void {
   const t = m.grid.size, [ox, oy] = m.grid.offset;
   g.clear();
-  for (const sala of Object.values(m.rooms)) for (const [y, x0, n] of sala.cells) g.rect(ox + x0 * t, oy + y * t, n * t, t);
+  for (const sala of Object.values(m.rooms)) {
+    if (sala.outline && sala.outline.length >= 3) {
+      g.moveTo(sala.outline[0]![0], sala.outline[0]![1]);
+      for (let i = 1; i < sala.outline.length; i++) g.lineTo(sala.outline[i]![0], sala.outline[i]![1]);
+      g.closePath();
+    } else {
+      for (const [y, x0, n] of sala.cells) g.rect(ox + x0 * t, oy + y * t, n * t, t);
+    }
+  }
   g.fill(0xffffff);
 }
 

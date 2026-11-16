@@ -1,5 +1,5 @@
 import { arestasDeParede, comprimentoDaParede, pontoNaParede, salasDaAbertura, type ArestaUnitaria } from '../domain/geometria.ts';
-import type { Comodo, MapaAtlas, Objeto, Parede } from '../domain/mapa.ts';
+import type { Comodo, MapaAtlas, Objeto, Parede, Ponto } from '../domain/mapa.ts';
 import { generoDe } from '../domain/presets.ts';
 import { celulasForaDePatamares, corDaNeblinaDoRelevo, degrausDoRelevo, topoDoRelevo } from '../domain/relevo.ts';
 import type { EntradaDeEscarpa } from '../procedural/escarpa.ts';
@@ -33,7 +33,9 @@ export function entradaDoComodo(m: MapaAtlas, sala: Comodo, ctx: ContextoDeEntra
   aberturas.sort((a, b) => a.centro[0] - b.centro[0] || a.centro[1] - b.centro[1]); objetos.sort((a, b) => a.centro[0] - b.centro[0] || a.centro[1] - b.centro[1]);
   const alturas = Object.values(m.walls).filter(p => p.source && 'roomId' in p.source && p.source.roomId === sala.id).map(p => p.height);
   return {
-    grade: { size: m.grid.size, offset: [m.grid.offset[0], m.grid.offset[1]] }, celulas: sala.cells, piso: sala.floor, papel: sala.wallpaper,
+    grade: { size: m.grid.size, offset: [m.grid.offset[0], m.grid.offset[1]] }, celulas: sala.cells,
+    ...(sala.outline ? { outline: sala.outline.map(([x, y]) => [r3(x), r3(y)] as Ponto) } : {}),
+    piso: sala.floor, papel: sala.wallpaper,
     estilo: sala.wallStyle ?? m.style.walls, altura: alturas.length ? Math.max(...alturas) : 2.6, aberturas, objetos,
   };
 }
