@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { novoObjeto } from '../../src/domain/fabrica.ts';
+import { circulo } from '../../src/domain/formas-de-comodo.ts';
+import { codificar } from '../../src/domain/celulas.ts';
 import { insightDoComodo } from '../../src/authoring/insight.ts';
 import { circulacao, malhaDoComodo, marcarRetangulo, retanguloLivre, indiceNaMalha, RES_MALHA } from '../../src/authoring/malha.ts';
 import { abertura, mapaCom, paredeEm, sala } from './apoio-casa.ts';
@@ -83,4 +85,20 @@ test('uma casa de 3 cômodos de 6 × 4,5 m calcula as malhas depressa', () => {
   const t0 = performance.now();
   for (const id of ['a', 'b', 'c']) { const ins = insightDoComodo(m, id)!; circulacao(malhaDoComodo(m, ins), ins); }
   console.log(`# malha das 3 salas: ${(performance.now() - t0).toFixed(2)} ms`);
+});
+
+test('malhaDoComodo respeita outline circular e polígono rotacionado em 30°', () => {
+  const m = mapaCom(sala('torre', 0, 0, 1, 1, { cells: codificar([]), outline: circulo([10, 10], 4, 24) }));
+  const malha = malhaDoComodo(m, insightDoComodo(m, 'torre')!);
+  assert.equal(retanguloLivre(malha, { x0: 9.5, y0: 9.5, x1: 10.5, y1: 10.5 }, []), true, 'centro do círculo é livre');
+  assert.equal(retanguloLivre(malha, { x0: 6.1, y0: 6.1, x1: 6.8, y1: 6.8 }, []), false, 'canto da AABB fora do círculo é negado');
+
+  const ang = Math.PI / 6;
+  const c = Math.cos(ang), s = Math.sin(ang);
+  const rot = (lx: number, ly: number): [number, number] => [10 + lx * c - ly * s, 10 + lx * s + ly * c];
+  const poly = [rot(-3, -2.25), rot(3, -2.25), rot(3, 2.25), rot(-3, 2.25)];
+  m.rooms.rot = { ...m.rooms.torre!, id: 'rot', outline: poly };
+  const ir = insightDoComodo(m, 'rot')!, mr = malhaDoComodo(m, ir);
+  assert.equal(retanguloLivre(mr, { x0: 9.5, y0: 9.5, x1: 10.5, y1: 10.5 }, []), true, 'miolo do retângulo rotacionado é livre');
+  assert.equal(retanguloLivre(mr, { x0: ir.caixa.x0 + 0.1, y0: ir.caixa.y1 - 0.6, x1: ir.caixa.x0 + 0.6, y1: ir.caixa.y1 - 0.1 }, []), false, 'canto morto da AABB fora do retângulo inclinado é negado');
 });

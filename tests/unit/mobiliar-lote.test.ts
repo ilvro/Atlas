@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { ferramentasDeEscrita, type ContextoDeEscrita } from '../../src/app/ponte-escrita.ts';
 import { aplicarEmCopia, comodos } from '../../src/authoring/construcao.ts';
 import { formatarRelatorioDeMobilia, mobiliarLote } from '../../src/authoring/mobiliar-lote.ts';
+import { pontoNoPoligono } from '../../src/domain/formas-de-comodo.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
 import { criarStore } from '../../src/state/store.ts';
@@ -109,4 +110,36 @@ test('atlas_mobiliar: mobília 40 cômodos de "Lysdal · a vila (neve)" numa cha
   store.desfazer();
   assert.deepEqual(store.documento, antesDeMobiliar);
   assert.equal(Object.keys(store.documento.props).length, 0);
+});
+
+test('mobiliarLote em torre circular e sala em polígono rotacionado mantém móveis dentro do contorno', () => {
+  const base = criarMapa({ id: 'm3', nome: 'Torre e Casa', agora: 1, largura: 40, altura: 30 });
+  const ang = Math.PI / 6;
+  const c = Math.cos(ang), s = Math.sin(ang);
+  const rot = (lx: number, ly: number): [number, number] => [24 + lx * c - ly * s, 14 + lx * s + ly * c];
+  const polyRot = [rot(-3, -2.25), rot(3, -2.25), rot(3, 2.25), rot(-3, 2.25)];
+  const cmd = comodos(base, [
+    { circulo: { centro: [10, 10], raio: 4, lados: 24 }, tipo: 'sala', nome: 'Torre redonda' },
+    { poligono: polyRot, tipo: 'sala', nome: 'Sala inclinada' },
+  ], 10, geradorDeterministico());
+  const mapa = aplicarEmCopia(base, cmd.comandos);
+  const res = mobiliarLote(mapa, { comodos: cmd.ids, semente: 7, gerarId: geradorDeterministico() });
+  assert.equal(res.relatorio.length, 2);
+  assert.ok(res.relatorio[0]!.objetos >= 2, `esperava >= 2 objetos na torre circular, veio ${res.relatorio[0]!.objetos}`);
+  assert.ok(res.relatorio[1]!.objetos >= 2, `esperava >= 2 objetos na sala inclinada, veio ${res.relatorio[1]!.objetos}`);
+
+  const final = aplicarEmCopia(mapa, res.comandos);
+  validarMapa(final);
+  for (const o of Object.values(final.props)) {
+    const out = final.rooms[o.roomId!]!.outline!;
+    if (o.elevation === 'wall') {
+      assert.ok(o.wall?.wallId && final.walls[o.wall.wallId], `objeto de parede ${o.id} sem parede válida`);
+    } else {
+      assert.ok(pontoNoPoligono(o.position, out), `objeto ${o.id} fora do contorno`);
+    }
+  }
+  for (const l of Object.values(final.lights)) {
+    const dentro = Object.values(final.rooms).some(r => r.outline && pontoNoPoligono(l.position, r.outline));
+    assert.ok(dentro, `luz ${l.id} fora do contorno`);
+  }
 });

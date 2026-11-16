@@ -1,4 +1,5 @@
 import { decodificar, type Celula } from '../domain/celulas.ts';
+import { areaDoPoligono, pontoNoPoligono } from '../domain/formas-de-comodo.ts';
 import { arestasDeParede, caixaDasCelulas, centroDaAbertura, comodoEm, indiceDeCelulas, normalParaDentro, pontoNaParede, salasDaAbertura, type ArestaUnitaria } from '../domain/geometria.ts';
 import type { Abertura, MapaAtlas, Objeto, Ponto } from '../domain/mapa.ts';
 import { ACERVO } from '../procedural/acervo.ts';
@@ -36,15 +37,41 @@ const LIGACOES: readonly Abertura['kind'][] = ['door', 'arch', 'secret'];
 export function insightDoComodo(m: MapaAtlas, roomId: string, arestas: Map<string, ArestaUnitaria> = arestasDeParede(m)): InsightDoComodo | null {
   const sala = m.rooms[roomId]; if (!sala) return null;
   const nivel = sala.levelId ?? null;
-  const celulas = decodificar(sala.cells), t = m.grid.size, caixa = caixaDasCelulas(m, celulas); if (!caixa) return null;
+  const celulas = decodificar(sala.cells), t = m.grid.size;
+  const outline = sala.outline && sala.outline.length >= 3 ? sala.outline : null;
+  let caixa: Caixa | null;
+  let area: number;
+  if (outline) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of outline) {
+      if (x < x0) x0 = x;
+      if (y < y0) y0 = y;
+      if (x > x1) x1 = x;
+      if (y > y1) y1 = y;
+    }
+    caixa = { x0, y0, x1, y1 };
+    area = areaDoPoligono(outline);
+  } else {
+    caixa = caixaDasCelulas(m, celulas);
+    if (!caixa) return null;
+    area = celulas.length * t * t;
+  }
   const indice = indiceDeCelulas(m, nivel);
-  // Perímetro, lado de fora e vizinhos, pelas arestas unitárias do mesmo andar.
+  // Perímetro, lado de fora e vizinhos, pelas arestas unitárias do mesmo andar (ou pelo contorno livre).
   let perimetro = 0, externo = 0; const compartilhado = new Map<string, number>();
-  for (const a of arestas.values()) {
-    if ((a.levelId ?? null) !== nivel || !a.salas.includes(roomId)) continue;
-    perimetro += t;
-    const outro = a.salas.find(x => x !== roomId) ?? null;
-    if (outro === null) externo += t; else compartilhado.set(outro, (compartilhado.get(outro) ?? 0) + t);
+  if (outline) {
+    for (let i = 0; i < outline.length; i++) {
+      const a = outline[i]!, b = outline[(i + 1) % outline.length]!;
+      perimetro += Math.hypot(b[0] - a[0], b[1] - a[1]);
+    }
+    externo = perimetro;
+  } else {
+    for (const a of arestas.values()) {
+      if ((a.levelId ?? null) !== nivel || !a.salas.includes(roomId)) continue;
+      perimetro += t;
+      const outro = a.salas.find(x => x !== roomId) ?? null;
+      if (outro === null) externo += t; else compartilhado.set(outro, (compartilhado.get(outro) ?? 0) + t);
+    }
   }
   const portas: AberturaDoComodo[] = [], janelas: AberturaDoComodo[] = [], ligados = new Set<string>();
   for (const a of Object.values(m.openings)) {
@@ -55,9 +82,12 @@ export function insightDoComodo(m: MapaAtlas, roomId: string, arestas: Map<strin
     if (a.kind === 'window') janelas.push(item); else { portas.push(item); if (outro && LIGACOES.includes(a.kind)) ligados.add(outro); }
   }
   const objetos = Object.values(m.props).filter(o => (o.levelId ?? null) === nivel && o.roomId === roomId).map(o => ({ id: o.id, receita: ACERVO.idDaFonte(o.source), elevation: o.elevation, caixa: caixaDoObjeto(o) }));
-  const luzes = Object.values(m.lights).filter(l => (l.levelId ?? null) === nivel && comodoEm(m, l.position, indice) === roomId).map(l => l.id);
+  const luzes = Object.values(m.lights).filter(l => {
+    if ((l.levelId ?? null) !== nivel) return false;
+    return outline ? pontoNoPoligono(l.position, outline) : comodoEm(m, l.position, indice) === roomId;
+  }).map(l => l.id);
   return {
-    id: roomId, nome: sala.name, funcao: sala.function, celulas, area: celulas.length * t * t, perimetro, caixa, portas, janelas,
+    id: roomId, nome: sala.name, funcao: sala.function, celulas, area, perimetro, caixa, portas, janelas,
     vizinhos: [...compartilhado].map(([id, comprimento]) => ({ id, comprimento, ligado: ligados.has(id) })), externo, objetos, luzes,
   };
 }

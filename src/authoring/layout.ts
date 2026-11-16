@@ -78,7 +78,7 @@ class Gerador {
 
   constructor(m: MapaAtlas, ins: InsightDoComodo, malha: Malha, circ: Circulacao, regras: ItemDeRegra[], pedido: PedidoDeLayout, gerarId: (p: string) => string, rng: () => number, nivel: string | null) {
     this.m = m; this.ins = ins; this.malha = malha; this.circ = circ; this.regras = regras; this.pedido = pedido; this.gerarId = gerarId; this.rng = rng; this.nivel = nivel;
-    this.segmentos = contornoDoComodo(m, ins.celulas).flat().map(s => { const comprimento = distancia(s.a, s.b); return { a: s.a, b: s.b, n: s.n, comprimento, t: [(s.b[0] - s.a[0]) / comprimento, (s.b[1] - s.a[1]) / comprimento] as Ponto }; });
+    this.segmentos = contornoDoComodo(m, ins.celulas, m.rooms[ins.id]?.outline).flat().map(s => { const comprimento = distancia(s.a, s.b); return { a: s.a, b: s.b, n: s.n, comprimento, t: [(s.b[0] - s.a[0]) / comprimento, (s.b[1] - s.a[1]) / comprimento] as Ponto }; });
     this.existentes = Object.values(m.props).filter(o => (o.levelId ?? null) === nivel && o.roomId === ins.id);
     for (const o of this.existentes) if (o.elevation === 'floor' && o.blocks.move) this.bloqueantes.push(caixaDoObjeto(o));
     let sx = 0, sy = 0, n = 0;

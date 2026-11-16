@@ -1,3 +1,4 @@
+import { pontoNoPoligono } from '../domain/formas-de-comodo.ts';
 import type { MapaAtlas } from '../domain/mapa.ts';
 import { caixaDoObjeto, type Caixa, type InsightDoComodo } from './insight.ts';
 
@@ -22,10 +23,18 @@ export function malhaDoComodo(m: MapaAtlas, ins: InsightDoComodo): Malha {
   const res = RES_MALHA, { x0, y0, x1, y1 } = ins.caixa, t = m.grid.size, [ox, oy] = m.grid.offset;
   const colunas = Math.max(1, Math.ceil((x1 - x0) / res - EPS)), linhas = Math.max(1, Math.ceil((y1 - y0) / res - EPS));
   const malha: Malha = { res, x0, y0, colunas, linhas, dentro: new Uint8Array(colunas * linhas), ocupada: new Uint8Array(colunas * linhas), porta: new Uint8Array(colunas * linhas) };
-  const minhas = new Set(ins.celulas.map(([x, y]) => y * 200_003 + x));
-  for (let l = 0; l < linhas; l++) for (let c = 0; c < colunas; c++) {
-    const cx = x0 + (c + 0.5) * res, cy = y0 + (l + 0.5) * res;
-    if (minhas.has(Math.floor((cy - oy) / t) * 200_003 + Math.floor((cx - ox) / t))) malha.dentro[indiceNaMalha(malha, c, l)] = 1;
+  const outline = m.rooms[ins.id]?.outline;
+  if (outline && outline.length >= 3) {
+    for (let l = 0; l < linhas; l++) for (let c = 0; c < colunas; c++) {
+      const cx = x0 + (c + 0.5) * res, cy = y0 + (l + 0.5) * res;
+      if (pontoNoPoligono([cx, cy], outline)) malha.dentro[indiceNaMalha(malha, c, l)] = 1;
+    }
+  } else {
+    const minhas = new Set(ins.celulas.map(([x, y]) => y * 200_003 + x));
+    for (let l = 0; l < linhas; l++) for (let c = 0; c < colunas; c++) {
+      const cx = x0 + (c + 0.5) * res, cy = y0 + (l + 0.5) * res;
+      if (minhas.has(Math.floor((cy - oy) / t) * 200_003 + Math.floor((cx - ox) / t))) malha.dentro[indiceNaMalha(malha, c, l)] = 1;
+    }
   }
   // Móveis de piso que bloqueiam (tapetes e o que está sobre mesas ou nas paredes não contam).
   for (const o of ins.objetos) {
