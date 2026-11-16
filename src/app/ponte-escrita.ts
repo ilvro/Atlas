@@ -233,20 +233,26 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_comodos',
-      descricao: 'Cria cômodos (piso, paredes, telhado). rets em CÉLULAS de 1,5 m, x1/y1 exclusivos. telhado = estilo, cobertura ou null. Guia: plataforma_guia ferramentas-atlas.',
+      descricao: 'Cria cômodos (piso, paredes, telhado). rets em CÉLULAS de 1,5 m (x1/y1 exclusivos), circulo/poligono em METROS. Guia: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         comodos: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
-          rets: { type: 'array', minItems: 1, items: esquemaDoRetanguloDeCelulas }, tipo: { type: 'string' }, nome: { type: 'string' },
+          rets: { type: 'array', minItems: 1, items: esquemaDoRetanguloDeCelulas },
+          circulo: { type: 'object', properties: { centro: ponto, raio: { type: 'number', minimum: 0.8 }, lados: { type: 'integer', minimum: 8, maximum: 48 } }, required: ['centro', 'raio'], additionalProperties: false },
+          poligono: { type: 'array', items: coord, minItems: 3, maxItems: 64 },
+          tipo: { type: 'string' }, nome: { type: 'string' },
           piso: { type: 'string' }, papel: { type: 'string' }, telhado: { type: ['string', 'null'] }, telhadoVisivel: { type: 'boolean' },
           telhadoForma: { type: 'string', enum: [...FORMAS_DE_TELHADO] }, telhadoCumeeira: { type: 'string', enum: [...CUMEEIRAS_DE_TELHADO] },
           telhadoDetalhes: { type: 'array', items: { type: 'string', enum: [...DETALHES_DE_TELHADO] } },
-        }, required: ['rets', 'tipo'] } },
+        }, required: ['tipo'], additionalProperties: false } },
         semente,
       }, required: ['comodos'], additionalProperties: false },
       anotacoes: { destrutiva: true },
       async executar(args) {
         const pedidos = itens(args, 'comodos').map((c, i) => ({
-          rets: retangulos(c.rets, `comodos[${i}].rets`), tipo: String(c.tipo ?? ''), nome: textoOpcional(c.nome, 'nome', 120), piso: textoOpcional(c.piso, 'piso', 80), papel: textoOpcional(c.papel, 'papel', 80),
+          ...(c.rets !== undefined ? { rets: retangulos(c.rets, `comodos[${i}].rets`) } : {}),
+          ...(c.circulo !== undefined ? { circulo: lerCirculo(c.circulo, `comodos[${i}].circulo`) } : {}),
+          ...(c.poligono !== undefined ? { poligono: pontos(c.poligono, `comodos[${i}].poligono`) } : {}),
+          tipo: String(c.tipo ?? ''), nome: textoOpcional(c.nome, 'nome', 120), piso: textoOpcional(c.piso, 'piso', 80), papel: textoOpcional(c.papel, 'papel', 80),
           ...(c.telhado !== undefined ? { telhado: c.telhado === null ? null : textoOpcional(c.telhado, 'telhado', 80) } : {}), ...(typeof c.telhadoVisivel === 'boolean' ? { telhadoVisivel: c.telhadoVisivel } : {}),
           ...(c.telhadoForma !== undefined ? { telhadoForma: String(c.telhadoForma) as FormaDeTelhado } : {}),
           ...(c.telhadoCumeeira !== undefined ? { telhadoCumeeira: String(c.telhadoCumeeira) as CumeeiraDeTelhado } : {}),
@@ -954,6 +960,17 @@ function pontos(v: unknown, nome: string): [number, number][] {
     if (!Array.isArray(p) || p.length !== 2 || !p.every(n => typeof n === 'number' && Number.isFinite(n))) throw new Error(`"${nome}[${i}]" deve ser [x, y] em metros.`);
     return [p[0], p[1]] as [number, number];
   });
+}
+
+function lerCirculo(v: unknown, nome: string): { centro: [number, number]; raio: number; lados?: number } {
+  const c = objeto(v, nome);
+  const centro = pontos([c.centro], `${nome}.centro`)[0]!;
+  const raio = numero(c.raio, `${nome}.raio`, 0.8, 1000);
+  if (c.lados === undefined) return { centro, raio };
+  if (!Number.isInteger(c.lados) || (c.lados as number) < 8 || (c.lados as number) > 48) {
+    throw new Error(`"${nome}.lados" deve ser um inteiro entre 8 e 48.`);
+  }
+  return { centro, raio, lados: c.lados as number };
 }
 
 function retangulos(v: unknown, nome: string): [number, number, number, number][] {

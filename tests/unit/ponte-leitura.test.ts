@@ -5,6 +5,7 @@ import { ferramentasDeLeitura, resumirMapa, type ContextoDeLeitura } from '../..
 import { codificar } from '../../src/domain/celulas.ts';
 import { lerMapa } from '../../src/domain/migracoes.ts';
 import { criarMapa, type Comodo } from '../../src/domain/mapa.ts';
+import { circulo } from '../../src/domain/formas-de-comodo.ts';
 import { listaDeReceitas } from '../../src/procedural/receitas/index.ts';
 import { PRESETS_DE_CLIMA } from '../../src/domain/presets.ts';
 
@@ -60,6 +61,30 @@ test('atlas_mapa_ler do covil: contagens certas, sem células cruas e curto', as
   assert.ok(r.terreno.camadas.every((c: { celulas: number }) => c.celulas > 0));
   assert.ok(!texto.includes('"cells"'));
   assert.equal(resumirMapa(covil).nome, covil.name);
+});
+
+test('resumirMapa identifica contorno circular (>= 12 lados) e polígono arredondado a 0,1 m', () => {
+  const m = criarMapa({ id: 'circ', nome: 'Farol' });
+  m.rooms.r1 = {
+    id: 'r1', name: 'Torre', function: 'torre', cells: codificar([[9, 9], [10, 9], [9, 10], [10, 10]]),
+    outline: circulo([15.04, 15.02], 3),
+    floor: { material: 'pedra.laje', seed: 1 }, wallpaper: null, wallStyle: null, palette: null,
+    roof: { material: 'telha.escamas', shape: 'cone', steep: true, visible: true }, levelId: null,
+  };
+  m.rooms.r2 = {
+    id: 'r2', name: 'Octógono', function: 'sala', cells: codificar([[2, 2], [3, 2]]),
+    outline: circulo([5, 5], 2, 8),
+    floor: { material: 'pedra.laje', seed: 1 }, wallpaper: null, wallStyle: null, palette: null,
+    roof: { material: 'telha.barro', visible: true }, levelId: null,
+  };
+  const r = resumirMapa(m) as { comodos: Record<string, unknown>[] };
+  const c1 = r.comodos.find(c => c.id === 'r1')!;
+  const c2 = r.comodos.find(c => c.id === 'r2')!;
+  assert.equal(c1.forma, 'circulo');
+  assert.deepEqual(c1.centro, [15, 15]);
+  assert.equal(c1.raio, 3);
+  assert.equal(c2.forma, 'poligono');
+  assert.equal((c2.vertices as [number, number][]).length, 8);
 });
 
 test('atlas_mapa_ler por id e com id desconhecido', async () => {

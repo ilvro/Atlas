@@ -857,7 +857,7 @@
   },
   {
     "nome": "atlas_comodos",
-    "descricao": "Cria cômodos (piso, paredes, telhado). rets em CÉLULAS de 1,5 m, x1/y1 exclusivos. telhado = estilo, cobertura ou null. Guia: plataforma_guia ferramentas-atlas.",
+    "descricao": "Cria cômodos (piso, paredes, telhado). rets em CÉLULAS de 1,5 m (x1/y1 exclusivos), circulo/poligono em METROS. Guia: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -880,6 +880,47 @@
                   "maxItems": 4,
                   "description": "[x0, y0, x1, y1] em células de 1,5 m (x1, y1 exclusivos)."
                 }
+              },
+              "circulo": {
+                "type": "object",
+                "properties": {
+                  "centro": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "description": "[x, y] em metros."
+                  },
+                  "raio": {
+                    "type": "number",
+                    "minimum": 0.8
+                  },
+                  "lados": {
+                    "type": "integer",
+                    "minimum": 8,
+                    "maximum": 48
+                  }
+                },
+                "required": [
+                  "centro",
+                  "raio"
+                ],
+                "additionalProperties": false
+              },
+              "poligono": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "minItems": 3,
+                "maxItems": 64
               },
               "tipo": {
                 "type": "string"
@@ -936,9 +977,9 @@
               }
             },
             "required": [
-              "rets",
               "tipo"
-            ]
+            ],
+            "additionalProperties": false
           }
         },
         "semente": {

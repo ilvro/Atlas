@@ -103,7 +103,7 @@ Testes: unitários do estado (círculo → `comodo.criar` com `outline` de 24 po
 Pronto quando: o mestre desenha a torre redonda do farol em três gestos: círculo, porta e telhado.
 Commit: `room tool draws circles and polygons`
 
-### G6 — Cômodos de forma livre pelo conector  ⬜
+### G6 — Cômodos de forma livre pelo conector  ✅
 Objetivo: o Claude cria torres, absides e módulos redondos.
 Depende de: G4.
 Ler: `src/authoring/construcao.ts` (`comodos`, `PedidoDeComodo`), `src/app/ponte-escrita.ts` (`atlas_comodos`), `src/app/ponte-leitura.ts` (`resumirMapa`, que a B2 ampliou), guias.

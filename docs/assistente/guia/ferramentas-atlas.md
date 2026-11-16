@@ -65,10 +65,17 @@ Catálogo de opções: `receitas`, `colecao`, `conjuntos`, `comodos`, `materiais
 
 ## atlas_comodos
 
-Cria cômodos (piso, paredes e telhado; um passo de desfazer). ATENÇÃO: rets em CÉLULAS do grid de 1,5 m com x1 e y1 exclusivos (ex.: [2,3,5,6] = 3×3 células). Tipo: atlas_catalogo.
+Cria cômodos (piso, paredes e telhado; um passo de desfazer). Escolha **exatamente uma** forma por cômodo:
+- `rets`: retângulos em **CÉLULAS do grid de 1,5 m** com `x1` e `y1` exclusivos (ex.: `[2,3,5,6]` = 3×3 células).
+- `circulo`: `{ centro: [x, y], raio, lados? }` em **METROS** (`raio >= 0,8`, `lados` opcional de `8` a `48`, padrão `24`).
+- `poligono`: lista de vértices `[[x, y], ...]` em **METROS** (polígono simples, mínimo 3 pontos, área >= 2 m²).
 
-- `telhado`: omitido = estilo pela função/gênero (ou herdado do cômodo vizinho; varandas ficam sem); `null` = sem telhado; ou id de um **estilo de telhado** (ver tabela ou `atlas_catalogo { parte: "telhado" }`) ou id de uma cobertura avulsa (`telha.barro`, etc.).
-- `telhadoForma`, `telhadoCumeeira`, `telhadoDetalhes`: sobrescritas opcionais sobre o telhado resolvido (`quatro-aguas`, `duas-aguas`, `plano`, `piramide`; `auto`, `h`, `v`; `chamine`, `cruz`, `sino`, `catavento`, `claraboia`, `caixa-dagua`).
+> **Unidades:** `rets` usa células (1,5 m); `circulo` e `poligono` usam **metros**. Não misture `rets` com `circulo`/`poligono` no mesmo cômodo.
+
+Tipo dos cômodos: ver `atlas_catalogo`.
+
+- `telhado`: omitido = estilo pela função/gênero (contorno circular >= 8 lados escolhe `torre-redonda`; ou herdado do cômodo vizinho; varandas ficam sem); `null` = sem telhado; ou id de um **estilo de telhado** (ver tabela ou `atlas_catalogo { parte: "telhado" }`) ou id de uma cobertura avulsa (`telha.barro`, etc.).
+- `telhadoForma`, `telhadoCumeeira`, `telhadoDetalhes`: sobrescritas opcionais sobre o telhado resolvido (`quatro-aguas`, `duas-aguas`, `plano`, `piramide`, `cone`; `auto`, `h`, `v`; `chamine`, `cruz`, `sino`, `catavento`, `claraboia`, `caixa-dagua`).
 
 | Estilo | Cobertura | Forma | Íngreme | Detalhes |
 | --- | --- | --- | --- | --- |
@@ -79,14 +86,24 @@ Cria cômodos (piso, paredes e telhado; um passo de desfazer). ATENÇÃO: rets e
 | `celeiro` | `telha.tabuinhas` | `duas-aguas` | sim | `catavento` |
 | `igreja` | `telha.ardosia` | `duas-aguas` | sim | `cruz` |
 | `torre` | `telha.escamas` | `piramide` | sim | `sino` |
+| `torre-redonda` | `telha.escamas` | `cone` | sim | — |
+| `torre-conica-de-palha` | `telha.palha` | `cone` | sim | — |
 | `templo-de-cobre` | `telha.cobre` | `quatro-aguas` | sim | — |
 | `galpao-de-zinco` | `telha.zinco` | `duas-aguas` | não | — |
 | `laje-moderna` | `telha.concreto` | `plano` | não | `caixa-dagua` |
 | `casa-nordica` | `telha.grama` | `duas-aguas` | não | `chamine` |
 | `tenda` | `telha.lona` | `piramide` | não | — |
 
-Exemplo — igreja com nave e campanário colado:
-`atlas_comodos { comodos: [{ rets: [[6, 6, 12, 9]], tipo: "capela", nome: "Nave", telhado: "igreja" }, { rets: [[12, 6, 14, 9]], tipo: "capela", nome: "Campanário", telhado: "torre" }] }`
+Exemplos:
+- **Igreja com nave e campanário colado:**
+  `atlas_comodos { comodos: [{ rets: [[6, 6, 12, 9]], tipo: "capela", nome: "Nave", telhado: "igreja" }, { rets: [[12, 6, 14, 9]], tipo: "capela", nome: "Campanário", telhado: "torre" }] }`
+- **Farol redondo (círculo de raio 3 m em [15, 15], depois porta na base):**
+  `atlas_comodos { comodos: [{ circulo: { centro: [15, 15], raio: 3 }, tipo: "salao", nome: "Farol", telhado: "torre-redonda" }] }`
+  `atlas_portas { portas: [{ perto: [15, 18] }] }`
+- **Igreja com abside semicircular encostada na nave:**
+  `atlas_comodos { comodos: [{ rets: [[4, 4, 10, 8]], tipo: "capela", nome: "Nave", telhado: "igreja" }, { poligono: [[15, 6], [16.5, 6.4], [17.6, 7.5], [18, 9], [17.6, 10.5], [16.5, 11.6], [15, 12]], tipo: "capela", nome: "Abside", telhado: "igreja" }] }`
+- **Módulo de estação em octógono com quatro corredores:**
+  `atlas_comodos { comodos: [{ circulo: { centro: [15, 15], raio: 4.5, lados: 8 }, tipo: "oficina", nome: "Núcleo" }, { rets: [[9, 3, 11, 7], [9, 13, 11, 17], [3, 9, 7, 11], [13, 9, 17, 11]], tipo: "corredor", nome: "Corredores" }] }`
 
 ## atlas_desfazer
 

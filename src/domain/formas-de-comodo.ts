@@ -188,3 +188,30 @@ export function celulasDoContorno(
   }
   return saida;
 }
+
+/** Se `outline` for um polígono regular com 12 lados ou mais (aproximando um círculo), devolve centro e raio; senão `null`. */
+export function detectarCirculo(outline: readonly Ponto[]): { centro: Ponto; raio: number; lados: number } | null {
+  const n = outline.length;
+  if (n < 12) return null;
+  let sx = 0, sy = 0;
+  for (const [x, y] of outline) { sx += x; sy += y; }
+  const cx = sx / n, cy = sy / n;
+  const rs: number[] = [];
+  const angs: number[] = [];
+  for (const [x, y] of outline) {
+    const dx = x - cx, dy = y - cy;
+    rs.push(Math.hypot(dx, dy));
+    angs.push(Math.atan2(dy, dx));
+  }
+  const rMedio = rs.reduce((a, b) => a + b, 0) / n;
+  if (rMedio < 0.1) return null;
+  const tolR = Math.max(0.02, rMedio * 0.02);
+  if (rs.some(r => Math.abs(r - rMedio) > tolR)) return null;
+  const passoEsperado = (2 * Math.PI) / n;
+  for (let i = 0; i < n; i++) {
+    let d = Math.abs(angs[(i + 1) % n]! - angs[i]!);
+    if (d > Math.PI) d = 2 * Math.PI - d;
+    if (Math.abs(d - passoEsperado) > Math.max(0.04, passoEsperado * 0.1)) return null;
+  }
+  return { centro: [cx, cy], raio: rMedio, lados: n };
+}

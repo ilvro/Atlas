@@ -9,6 +9,7 @@ import { MATERIAIS, materiaisDo, type Material } from '../procedural/materiais.t
 import { mulberry32 } from '../procedural/ruido.ts';
 import { codificar } from '../domain/celulas.ts';
 import { novaLuz, novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
+import { AREA_MINIMA_CONTORNO, areaDoPoligono, celulasDoContorno, circulo, ehPoligonoSimples, normalizarContorno } from '../domain/formas-de-comodo.ts';
 import { PAREDE_PADRAO, encaixarNaParede, motivoDeNaoCaber } from '../domain/geometria.ts';
 import {
   CUMEEIRAS_DE_TELHADO,
@@ -84,7 +85,9 @@ export function terreno(mapa: MapaAtlas, ops: readonly OpDeTerreno[], semente = 
 
 // ---------- Cômodos ----------
 export interface PedidoDeComodo {
-  rets: readonly Ret[];
+  rets?: readonly Ret[];
+  circulo?: { centro: Ponto; raio: number; lados?: number };
+  poligono?: readonly Ponto[];
   tipo: string;
   nome?: string;
   piso?: string;
@@ -101,6 +104,7 @@ function resolverTelhadoPedido(
   acumulado: Pick<MapaAtlas, 'rooms' | 'style'>,
   funcao: string,
   celulas: readonly [number, number][],
+  outline?: readonly Ponto[],
 ): Omit<Comodo['roof'], 'visible'> | null {
   if (p.telhadoForma !== undefined && !FORMAS_DE_TELHADO.includes(p.telhadoForma)) {
     throw new ErroDeConstrucao(`forma de telhado “${String(p.telhadoForma)}” não existe; formas: ${lista(FORMAS_DE_TELHADO)}`);
@@ -115,7 +119,7 @@ function resolverTelhadoPedido(
   }
   let base: Omit<Comodo['roof'], 'visible'> | null;
   if (p.telhado === undefined) {
-    base = telhadoPadrao(acumulado, funcao, celulas);
+    base = telhadoPadrao(acumulado, funcao, celulas, null, outline);
   } else if (p.telhado === null) {
     base = null;
   } else {
@@ -139,25 +143,67 @@ function resolverTelhadoPedido(
   };
 }
 
-/** Cômodos em células do grid (`[x0, y0, x1, y1]`, fim exclusivo); várias `rets` fazem um cômodo em L. As paredes derivam sozinhas. */
+function resolverFormaDoComodo(
+  mapa: MapaAtlas,
+  p: PedidoDeComodo,
+): { celulas: [number, number][]; outline?: Ponto[] } {
+  const formas = [p.rets !== undefined, p.circulo !== undefined, p.poligono !== undefined].filter(Boolean).length;
+  if (formas === 0) throw new ErroDeConstrucao('um cômodo precisa de rets (células), circulo (metros) ou poligono (metros)');
+  if (formas > 1) throw new ErroDeConstrucao('informe apenas uma forma por cômodo: rets, circulo ou poligono');
+
+  if (p.rets !== undefined) {
+    if (!p.rets.length) throw new ErroDeConstrucao('um cômodo precisa de ao menos um retângulo [x0, y0, x1, y1]');
+    const celulas: [number, number][] = [];
+    for (const [x0, y0, x1, y1] of p.rets) {
+      if (![x0, y0, x1, y1].every(Number.isFinite) || x1 <= x0 || y1 <= y0) {
+        throw new ErroDeConstrucao(`retângulo inválido [${x0}, ${y0}, ${x1}, ${y1}]: use [x0, y0, x1, y1] em células do grid, com x1 > x0 e y1 > y0`);
+      }
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) celulas.push([x, y]);
+    }
+    return { celulas };
+  }
+
+  let outline: Ponto[];
+  if (p.circulo !== undefined) {
+    const { centro, raio, lados = 24 } = p.circulo;
+    if (!Number.isFinite(centro[0]) || !Number.isFinite(centro[1])) throw new ErroDeConstrucao('centro do círculo inválido');
+    if (!Number.isFinite(raio) || raio < 0.8) throw new ErroDeConstrucao('raio do círculo deve ser >= 0,8 m');
+    if (!Number.isInteger(lados) || lados < 8 || lados > 48) throw new ErroDeConstrucao('lados do círculo deve ser inteiro entre 8 e 48');
+    outline = circulo(centro, raio, lados);
+  } else {
+    const bruto = p.poligono ?? [];
+    if (bruto.length < 3 || bruto.some(q => !Number.isFinite(q[0]) || !Number.isFinite(q[1]))) {
+      throw new ErroDeConstrucao('poligono precisa de ao menos 3 vértices [x, y] em metros');
+    }
+    outline = normalizarContorno(bruto);
+  }
+
+  if (outline.length < 3 || !ehPoligonoSimples(outline)) {
+    throw new ErroDeConstrucao('o contorno do cômodo precisa ser um polígono simples (sem auto-interseção)');
+  }
+  if (areaDoPoligono(outline) < AREA_MINIMA_CONTORNO) {
+    throw new ErroDeConstrucao(`a área do contorno precisa ser de ao menos ${AREA_MINIMA_CONTORNO} m²`);
+  }
+  const celulas = celulasDoContorno(mapa.grid, outline);
+  if (!celulas.length) throw new ErroDeConstrucao('o contorno do cômodo não cobre nenhuma célula válida do mapa');
+  return { celulas, outline };
+}
+
+/** Cômodos em células do grid (`rets: [x0, y0, x1, y1]`, fim exclusivo) ou em contorno livre em metros (`circulo` / `poligono`). As paredes derivam sozinhas. */
 export function comodos(mapa: MapaAtlas, pedidos: readonly PedidoDeComodo[], semente = 1, gerarId: GeradorDeId = novoIdEntidade): Construcao {
   const rng = mulberry32(Math.floor(semente) || 1), comandos: Comando[] = [], ids: string[] = [];
   const acumulado: Pick<MapaAtlas, 'rooms' | 'style'> = { style: mapa.style, rooms: { ...mapa.rooms } };
   for (const p of pedidos) {
     const t = tipoDeComodo(p.tipo);
     if (!t) throw new ErroDeConstrucao(`tipo de cômodo “${p.tipo}” não existe; tipos: ${lista(TIPOS_DE_COMODO.map(x => x.id))}`);
-    if (!p.rets.length) throw new ErroDeConstrucao('um cômodo precisa de ao menos um retângulo [x0, y0, x1, y1]');
     if (p.piso) verificarMaterial(p.piso, ['piso'], 'piso');
     if (p.papel) verificarMaterial(p.papel, ['papel'], 'papel de parede');
-    const celulas: [number, number][] = [];
-    for (const [x0, y0, x1, y1] of p.rets) {
-      if (![x0, y0, x1, y1].every(Number.isFinite) || x1 <= x0 || y1 <= y0) throw new ErroDeConstrucao(`retângulo inválido [${x0}, ${y0}, ${x1}, ${y1}]: use [x0, y0, x1, y1] em células do grid, com x1 > x0 e y1 > y0`);
-      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) celulas.push([x, y]);
-    }
+    const { celulas, outline } = resolverFormaDoComodo(mapa, p);
     const id = gerarId('c');
-    const telhado = resolverTelhadoPedido(p, acumulado, t.funcao, celulas);
+    const telhado = resolverTelhadoPedido(p, acumulado, t.funcao, celulas, outline);
     comandos.push({
       tipo: 'comodo.criar', id, nome: p.nome ?? t.nome, funcao: t.funcao, celulas,
+      ...(outline ? { outline } : {}),
       piso: { material: p.piso ?? t.piso, seed: Math.floor(rng() * 2 ** 31) },
       papel: { material: p.papel ?? t.papel, seed: Math.floor(rng() * 2 ** 31) },
       ...(telhado !== null ? { telhado } : {}),
@@ -167,6 +213,7 @@ export function comodos(mapa: MapaAtlas, pedidos: readonly PedidoDeComodo[], sem
     }
     acumulado.rooms[id] = {
       id, name: p.nome ?? t.nome, function: t.funcao, cells: codificar(celulas),
+      ...(outline ? { outline } : {}),
       floor: { material: p.piso ?? t.piso, seed: 0 }, wallpaper: null, wallStyle: null, palette: null,
       roof: { ...(telhado ?? { material: null }), visible: p.telhadoVisivel ?? true }, levelId: null,
     };
