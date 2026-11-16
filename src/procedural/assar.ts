@@ -45,6 +45,7 @@ export interface ObjetoNaFace { receita: string; params: Record<string, unknown>
 export interface EntradaDoComodo {
   grade: { size: number; offset: [number, number] };
   celulas: Faixa[];
+  outline?: Ponto[];
   piso: { material: string; seed: number };
   papel: { material: string; seed: number } | null;
   estilo: 'box' | 'solid';
@@ -97,17 +98,30 @@ function desenharAbertura(ctx: Contexto, a: AberturaNaFace, u: number, H: number
   if (a.tipo === 'secret') { ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 0.01; ctx.strokeRect(u - w / 2, H - 2.1, w, 2.1); }
 }
 
-/** O cômodo inteiro numa tela: piso, sombra de contato com as paredes e, no estilo caixa, as quatro faces internas. */
+function caixaDoContorno(pts: readonly Ponto[]): { x0: number; y0: number; x1: number; y1: number } | null {
+  if (pts.length < 3) return null;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [x, y] of pts) {
+    if (x < x0) x0 = x;
+    if (y < y0) y0 = y;
+    if (x > x1) x1 = x;
+    if (y > y1) y1 = y;
+  }
+  return { x0, y0, x1, y1 };
+}
+
+/** O cômodo inteiro numa tela: piso, sombra de contato com as paredes e, no estilo caixa, as faces internas. */
 export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRaster): Assado {
   const grade: Grade = { size: e.grade.size, offset: e.grade.offset, kind: 'square', visible: false, snap: true, lineStyle: 'solid', color: 'auto', opacity: 0.1, lineWidth: 1 };
-  const cells = decodificar(e.celulas), caixa = caixaDasCelulas({ grid: grade }, cells);
+  const cells = decodificar(e.celulas);
+  const caixa = e.outline && e.outline.length >= 3 ? caixaDoContorno(e.outline) : caixaDasCelulas({ grid: grade }, cells);
   if (!caixa) return { tela: criarTela(1, 1), origem: [0, 0], res };
   const pixel = estilo.id === 'pixel', encaixe = (v: number) => (pixel ? Math.floor(v * res) / res : v);      // no Pixel a tela começa na grade de pixels
   const x0 = encaixe(caixa.x0 - MARGEM_COMODO), y0 = encaixe(caixa.y0 - MARGEM_COMODO);
   const tela = criarTela((caixa.x1 - x0 + MARGEM_COMODO) * res, (caixa.y1 - y0 + MARGEM_COMODO) * res), ctx = contextoDe(tela);
   const base = () => ctx.setTransform(res, 0, 0, res, -x0 * res, -y0 * res);
   base();
-  const lacos = contornoDoComodo({ grid: grade }, cells);
+  const lacos = contornoDoComodo({ grid: grade }, cells, e.outline);
   const tracar = () => { ctx.beginPath(); for (const laco of lacos) { ctx.moveTo(laco[0]!.a[0], laco[0]!.a[1]); for (const s of laco) ctx.lineTo(s.b[0], s.b[1]); ctx.closePath(); } };
 
   ctx.save(); tracar(); ctx.clip();

@@ -329,3 +329,34 @@ test('encaixarNaParede funciona em segmento oblíquo e recalcularParedes preserv
   assert.ok(m.openings.p1);
   assert.ok(m.walls[m.openings.p1.wallId]);
 });
+
+test('contornoDoComodo e facesDoContorno suportam outline com miter correto e limite 3×prof', () => {
+  const m = mapaCom(sala('ret', retangulo(0, 0, 2, 2)));
+  // 90° em células permanece exato: extensão de cada canto é [prof*±1, prof*±1]
+  const prof = 0.5;
+  const lacosRet = contornoDoComodo(m, decodificar(m.rooms.ret!.cells));
+  const facesRet = facesDoContorno(lacosRet[0]!, prof);
+  assert.equal(facesRet.length, 4);
+  const seg0 = facesRet[0]!.segmento, segAnt = facesRet[3]!.segmento;
+  assert.deepEqual(facesRet[0]!.quad[3], [seg0.a[0] + prof * (seg0.n[0] + segAnt.n[0]), seg0.a[1] + prof * (seg0.n[1] + segAnt.n[1])]);
+
+  // Triângulo bem agudo testa o limite de 3×prof no bico (2° / ~14°)
+  const agudo: [number, number][] = [[0, 0], [10, 1], [10, 0]];
+  const lacosAg = contornoDoComodo(m, [], agudo);
+  assert.equal(lacosAg.length, 1);
+  const facesAg = facesDoContorno(lacosAg[0]!, prof);
+  for (const f of facesAg) {
+    const ext = Math.hypot(f.quad[3][0] - f.quad[0][0], f.quad[3][1] - f.quad[0][1]);
+    assert.ok(ext <= 3 * prof + 1e-6, `extensão ${ext} passou do limite 3×prof (${3 * prof})`);
+  }
+
+  // Octógono regular mantém distância exata `prof` ao longo das normais das duas faces vizinhas
+  const lacosOct = contornoDoComodo(m, [], octogono([6, 6], 3));
+  const facesOct = facesDoContorno(lacosOct[0]!, prof);
+  assert.equal(facesOct.length, 8);
+  for (const f of facesOct) {
+    const dx = f.quad[3][0] - f.quad[0][0], dy = f.quad[3][1] - f.quad[0][1];
+    const proj = dx * f.segmento.n[0] + dy * f.segmento.n[1];
+    assert.ok(Math.abs(proj - prof) < 1e-6);
+  }
+});

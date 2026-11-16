@@ -1,5 +1,5 @@
 import { decodificar, type Celula } from './celulas.ts';
-import { pontoNoPoligono } from './formas-de-comodo.ts';
+import { pontoNoPoligono, normalizarContorno } from './formas-de-comodo.ts';
 import type { Abertura, MapaAtlas, Objeto, Parede, Ponto } from './mapa.ts';
 
 /**
@@ -391,8 +391,19 @@ export function limparOrfaos(m: Rascunho): void {
 // ---------- Contorno de um cômodo (para o desenho das faces) ----------
 export interface SegmentoDeContorno { a: Ponto; b: Ponto; /** Normal que aponta para dentro do cômodo. */ n: Ponto; /** Arestas unitárias que o segmento cobre. */ ks: string[] }
 
-/** Laços fechados de segmentos ao redor das células, com as colineares juntas e a normal para dentro. */
-export function contornoDoComodo(m: Pick<MapaAtlas, 'grid'>, cells: readonly Celula[]): SegmentoDeContorno[][] {
+/** Laços fechados de segmentos ao redor do cômodo (ou do `outline` livre), com a normal para dentro. */
+export function contornoDoComodo(m: Pick<MapaAtlas, 'grid'>, cells: readonly Celula[], outline?: readonly Ponto[]): SegmentoDeContorno[][] {
+  if (outline && outline.length >= 3) {
+    const pts = normalizarContorno(outline);
+    const segs: SegmentoDeContorno[] = [];
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i]!, b = pts[(i + 1) % pts.length]!;
+      const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
+      if (len < 1e-9) continue;
+      segs.push({ a, b, n: [dy / len, -dx / len], ks: [] });
+    }
+    return segs.length >= 3 ? [segs] : [];
+  }
   const dentro = new Set(cells.map(([x, y]) => chaveCel(x, y)));
   interface Bruta { de: [number, number]; para: [number, number]; n: [number, number]; k: string }
   const brutas: Bruta[] = [];
@@ -419,10 +430,32 @@ export function contornoDoComodo(m: Pick<MapaAtlas, 'grid'>, cells: readonly Cel
   return lacos;
 }
 
-/** Faces internas (estilo caixa): o trapézio de cada segmento, com cantos em meia-esquadria, `prof` metros para dentro. */
+/** Faces internas (estilo caixa): o trapézio de cada segmento, com cantos em meia-esquadria (miter com limite 3×prof), `prof` metros para dentro. */
 export function facesDoContorno(laco: readonly SegmentoDeContorno[], prof: number): { segmento: SegmentoDeContorno; quad: [Ponto, Ponto, Ponto, Ponto] }[] {
   const m = laco.length;
-  const interno = laco.map((e, i) => { const ant = laco[(i - 1 + m) % m]!; return [e.a[0] + prof * (ant.n[0] + e.n[0]), e.a[1] + prof * (ant.n[1] + e.n[1])] as Ponto; });
+  const maxExt = 3 * prof;
+  const interno = laco.map((e, i) => {
+    const ant = laco[(i - 1 + m) % m]!;
+    const dot = ant.n[0] * e.n[0] + ant.n[1] * e.n[1];
+    const denom = 1 + dot;
+    let bx = ant.n[0] + e.n[0], by = ant.n[1] + e.n[1];
+    if (denom > 1e-4) {
+      bx = (prof * bx) / denom;
+      by = (prof * by) / denom;
+    } else {
+      // Quina ~180° (bico degenerado): segue a bissetriz média com extensão limitada
+      const tLen = Math.hypot(bx, by);
+      if (tLen > 1e-9) { bx = (maxExt * bx) / tLen; by = (maxExt * by) / tLen; }
+      else { bx = prof * e.n[0]; by = prof * e.n[1]; }
+    }
+    const len = Math.hypot(bx, by);
+    if (len > maxExt) {
+      const f = maxExt / len;
+      bx *= f;
+      by *= f;
+    }
+    return [e.a[0] + bx, e.a[1] + by] as Ponto;
+  });
   return laco.map((e, i) => ({ segmento: e, quad: [e.a, e.b, interno[(i + 1) % m]!, interno[i]!] }));
 }
 
