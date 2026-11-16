@@ -16,6 +16,8 @@ import { ehEscarpaAvulsa } from '../../src/render/entradas.ts';
 import { corDaNeblinaDoRelevo, tintDoRelevo } from '../../src/domain/relevo.ts';
 import { PINCEL_PADRAO, comandoDoPincelDeTerreno } from '../../src/render/pincel.ts';
 import { segmentosERotulosDeNivel } from '../../src/render/linhas-de-nivel.ts';
+import { comporMascaraDeRelevo } from '../../src/procedural/assar.ts';
+import { codificar } from '../../src/domain/celulas.ts';
 
 function retanguloDeCelulas(x0: number, y0: number, x1: number, y1: number): [number, number][] {
   const out: [number, number][] = [];
@@ -150,4 +152,43 @@ test('relevo: pincel com altitude emite relevo.pintar e linhas de nível rotulam
   assert.ok(segmentos.length > 0, 'desenha traços tracejados');
   assert.ok(rotulos.length >= 1, 'emite rótulo de altitude ao longo da borda');
   assert.ok(rotulos.every(r => r.texto === '−20 m'));
+});
+
+test('relevo (J9): patamar na margem do mapa não gera parede espúria nem artefato radial e mapa grande usa mRes reduzida', () => {
+  const m = aplicarEmCopia(criarMapa({ largura: 30, altura: 30 }), [
+    { tipo: 'relevo.pintar', altura: -15, celulas: retanguloDeCelulas(0, 0, 32, 32) },
+  ]);
+  const bordas = bordasDoRelevo(m);
+  for (const b of bordas) {
+    for (const seg of b.caminhos) {
+      const naMargemX = seg.every(([x]) => Math.abs(x) < 1e-3);
+      const naMargemY = seg.every(([, y]) => Math.abs(y) < 1e-3);
+      assert.equal(naMargemX || naMargemY, false, 'borda do patamar não deve fechar sobre a margem do mapa');
+    }
+  }
+  const celulas = codificar(retanguloDeCelulas(0, 0, 32, 32));
+  const comp = comporMascaraDeRelevo([{ altura: -15, celulas }], 0, 0.25, 30, 30, 32);
+  assert.equal(comp.mRes, 8);
+  const idx = (xm: number, ym: number) => Math.floor(ym * comp.mRes) * comp.Mw + Math.floor(xm * comp.mRes);
+  const gCanto = comp.gain[idx(0, 0)]!;
+  const gInterior = comp.gain[idx(2, 2)]!;
+  const bCanto = comp.bias[idx(0, 0)]!;
+  const bInterior = comp.bias[idx(2, 2)]!;
+  assert.ok(Math.abs(gCanto - gInterior) < 1e-4, `gain no canto (${gCanto}) deve igualar interior (${gInterior})`);
+  assert.ok(Math.abs(bCanto - bInterior) < 1e-4, `bias no canto (${bCanto}) deve igualar interior (${bInterior})`);
+
+  const grande = comporMascaraDeRelevo(
+    [
+      { altura: -10, celulas: codificar(retanguloDeCelulas(0, 0, 120, 120)) },
+      { altura: -25, celulas: codificar(retanguloDeCelulas(120, 0, 240, 120)) },
+    ],
+    0,
+    0.25,
+    140,
+    120,
+    32,
+  );
+  assert.equal(grande.mRes, 4);
+  assert.equal(grande.Mw, 140 * 4);
+  assert.ok(grande.Mw < 140 * 32);
 });
