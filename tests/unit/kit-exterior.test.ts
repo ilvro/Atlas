@@ -30,9 +30,9 @@ test('as receitas do kit exterior desenham sem erro, com pegada estável e parte
 });
 
 test('os conjuntos exteriores só citam itens do acervo, e as árvores levam a tag `arvore`', () => {
-  assert.deepEqual(CONJUNTOS_EXTERIORES.map(c => c.id), ['mata', 'jardim', 'cemiterio']); assert.equal(TODOS_OS_CONJUNTOS.length, 9);
+  assert.deepEqual(CONJUNTOS_EXTERIORES.map(c => c.id), ['mata', 'jardim', 'cemiterio', 'mata-nevada', 'bosque-morto', 'encosta-rochosa', 'costa-rochosa']); assert.equal(TODOS_OS_CONJUNTOS.length, 13);
   for (const c of CONJUNTOS_EXTERIORES) for (const i of c.itens) assert.ok(ACERVO.item(i.receita), i.receita);
-  for (const a of ['casa:arvore-3m', 'casa:arvore-5m', 'casa:arvore-7m', 'casa:pinheiro-3m', 'casa:pinheiro-4m']) assert.ok(ACERVO.item(a)?.tags.includes('arvore'), a);
+  for (const a of ['casa:arvore-3m', 'casa:arvore-5m', 'casa:arvore-7m', 'casa:pinheiro-3m', 'casa:pinheiro-4m', 'casa:pinheiro-nevado-3m', 'casa:pinheiro-nevado-4m', 'casa:arvore-nevada-3m', 'casa:arvore-nevada-5m']) assert.ok(ACERVO.item(a)?.tags.includes('arvore'), a);
   assert.ok(!ACERVO.item('casa:arbusto-verde')?.tags.includes('arvore'));
 });
 

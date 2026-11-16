@@ -189,7 +189,9 @@ Módulo de alojamento (corredor linear com cabines):
 
 ## atlas_espalhar
 
-Espalha conjunto de objetos numa região em metros (um passo de desfazer). Conjuntos em atlas_catalogo { parte: "conjuntos" }. Objetos ficam comuns e editáveis.
+Espalha conjunto de objetos numa região em metros (um passo de desfazer). Conjuntos em `atlas_catalogo { parte: "conjuntos" }`:
+- Internos: `papelada`, `caixotes`, `bibelos`, `refeicao`, `bagunca`, `plantas`.
+- Exteriores por bioma: `mata` (temperado), `jardim`, `cemiterio`, `mata-nevada` (neve/inverno), `bosque-morto` (pântano/maldito/inverno seco), `encosta-rochosa` (serra/montanha) e `costa-rochosa` (litoral/margem). Objetos ficam comuns e editáveis.
 
 Parâmetros:
 
