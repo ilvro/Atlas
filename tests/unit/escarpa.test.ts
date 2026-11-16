@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { caixaDaEscarpa, larguraDaFace, ladoBaixo, sombrearEscarpa, type EntradaDeEscarpa } from '../../src/procedural/escarpa.ts';
+import { caixaDaEscarpa, larguraDaFace, sombraDaEscarpa, FACE_MAXIMA, ladoBaixo, sombrearEscarpa, type EntradaDeEscarpa } from '../../src/procedural/escarpa.ts';
 import { sombrearMacico } from '../../src/procedural/macico.ts';
 import { materialDe } from '../../src/procedural/materiais.ts';
 import { oclusores } from '../../src/domain/visibilidade.ts';
@@ -27,8 +27,10 @@ test('escarpa: a face fica do lado baixo (drop a = abaixo, b = acima num segment
   }
 });
 
-test('escarpa: a face tem 0,35 × altura (mínimo 0,4 m) e a sombra de contato fica só fora dela', () => {
-  assert.ok(Math.abs(larguraDaFace(3) - 1.05) < 1e-9); assert.equal(larguraDaFace(0.5), 0.4);
+test('escarpa: a face tem 0,55 × altura (mínimo 0,4 m, máximo 9,5 m) e a sombra de contato fica só fora dela', () => {
+  assert.ok(Math.abs(larguraDaFace(3) - 1.65) < 1e-9); assert.equal(larguraDaFace(0.5), 0.4);
+  assert.ok(Math.abs(larguraDaFace(5) - 2.75) < 1e-9); assert.equal(larguraDaFace(10), 5.5); assert.equal(larguraDaFace(30), FACE_MAXIMA);
+  assert.equal(sombraDaEscarpa(1), 0.65); assert.equal(sombraDaEscarpa(2), 0.65); assert.ok(Math.abs(sombraDaEscarpa(5) - 1.45) < 1e-9); assert.equal(sombraDaEscarpa(10), 2.4);
   for (const pixel of [false, true]) {
     const { r } = metades(base('a'), pixel); let sombras = 0, sobre = 0;
     for (let i = 0; i < r.largura * r.altura; i++) { const rocha = r.rgba[i * 4 + 3]! > 250, s = r.sombra[i * 4 + 3]! > 0; if (s) sombras++; if (s && rocha) sobre++; }
@@ -65,4 +67,14 @@ test('pé escuro por material: forte na caverna, leve nos outros', () => {
 test('escarpa avulsa bloqueia o passo mas não a visão nem a luz', () => {
   const m = { walls: { w1: { id: 'w1', path: [[0, 0], [6, 0]], height: 3, thickness: 0.4, material: 'rocha.cinza', kind: 'cliff', blocks: { move: true, sight: false, light: false }, drop: 'b', source: null } }, openings: {} } as never;
   assert.equal(oclusores(m, 'visao').length, 0); assert.equal(oclusores(m, 'luz').length, 0); assert.equal(oclusores(m, 'movimento').length, 1);
+});
+
+test('escarpa: quedas de 5 m e 10 m ganham face larga e caixa com a sombra proporcional; o Pixel mantém alfa binário', () => {
+  for (const altura of [5, 10]) {
+    const e = { ...base('a'), altura }, c = caixaDaEscarpa(e);
+    assert.ok(c.y1 >= larguraDaFace(altura) + sombraDaEscarpa(altura), `caixa ${altura}: ${JSON.stringify(c)}`);
+    const r = sombrearEscarpa(e, RES, true);
+    for (let i = 0; i < r.largura * r.altura; i++) { const a = r.rgba[i * 4 + 3]!; assert.ok(a === 0 || a === 255); }
+    assert.ok(metades(e, false).abaixo > 0);
+  }
 });

@@ -14,14 +14,17 @@ import { fbm, valueNoise2D } from './ruido.ts';
 export interface EntradaDeEscarpa { path: Ponto[]; drop: 'a' | 'b'; altura: number; material: string; seed: number }
 
 export const LARGURA_MINIMA_DA_FACE = 0.4;
-export const FATOR_DA_FACE = 0.35;
-export const FACE_MAXIMA = 6;
-export const SOMBRA_DA_ESCARPA = 0.5;
+export const FATOR_DA_FACE = 0.55;
+export const FACE_MAXIMA = 9.5;
+/** Sombra de pé de uma escarpa baixa (≤ 2 m); acima disso cresce com a altura (`sombraDaEscarpa`). */
+export const SOMBRA_DA_ESCARPA = 0.65;
+/** Alcance (m) da sombra de contato no pé: 0,65 m até 2 m de queda, depois 0,45 + 0,2 × altura, no máximo 2,4 m. */
+export const sombraDaEscarpa = (altura: number): number => altura <= 2 ? SOMBRA_DA_ESCARPA : Math.min(2.4, 0.45 + 0.2 * altura);
 /** A aresta clara do topo, um palmo para o lado alto. */
 export const LABIO_DA_ESCARPA = 0.12;
 const MARGEM = 0.25;
 
-/** Largura (m) da face vista de cima: 0,35 × altura, entre 0,4 m e `FACE_MAXIMA`. */
+/** Largura (m) da face vista de cima: 0,55 × altura, entre 0,4 m e `FACE_MAXIMA`. */
 export const larguraDaFace = (altura: number): number => Math.min(FACE_MAXIMA, Math.max(LARGURA_MINIMA_DA_FACE, FATOR_DA_FACE * altura));
 
 /** O lado baixo de um segmento: `a` é o lado da normal esquerda `(-ty, tx)` do sentido do caminho (a mesma de `swing: 'a'` das portas), `b` o oposto. */
@@ -32,7 +35,7 @@ export function ladoBaixo(a: Ponto, b: Ponto, drop: 'a' | 'b'): Ponto {
 
 /** A caixa (m, no espaço do caminho relativo) que cabe a face, o lábio, a sombra e a borda quebrada. */
 export function caixaDaEscarpa(e: Pick<EntradaDeEscarpa, 'path' | 'drop' | 'altura'>): { x0: number; y0: number; x1: number; y1: number } {
-  const w = larguraDaFace(e.altura) * 1.3 + SOMBRA_DA_ESCARPA + MARGEM, caixa = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  const w = larguraDaFace(e.altura) * 1.3 + sombraDaEscarpa(e.altura) + MARGEM, caixa = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
   for (let i = 0; i + 1 < e.path.length; i++) {
     const a = e.path[i]!, b = e.path[i + 1]!, n = ladoBaixo(a, b, e.drop);
     for (const p of [a, b]) for (const k of [w, -(LABIO_DA_ESCARPA + MARGEM)]) {
@@ -82,7 +85,7 @@ export function sombrearEscarpa(e: EntradaDeEscarpa, res: number, pixel: boolean
     if (f.v >= -lip && f.v <= f.borda && f.ponta > 0) dentro[i] = 1;
   }
 
-  const alcance = pixel ? (pe < 0.5 ? 1.01 : 2.01) / res : SOMBRA_DA_ESCARPA, sombraPixel = rgb('#0b0e12');
+  const alcance = pixel ? (pe < 0.5 ? 1.01 : 2.01) / res : sombraDaEscarpa(e.altura), sombraPixel = rgb('#0b0e12');
   for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++) {
     const f = info(x, y), o = i * 4, t = Math.min(1, Math.max(0, f.v / f.borda));
     const interior = f.v >= -lip && f.v <= f.borda && f.ponta > 0;
@@ -102,17 +105,17 @@ export function sombrearEscarpa(e: EntradaDeEscarpa, res: number, pixel: boolean
         const ft = t + (fbm(rPatamar, f.u * 1.7, t * 2.5, 3) - 0.5) * 0.3, banda = Math.floor(Math.min(0.999, Math.max(0, ft)) * 3), fr = Math.min(1, Math.max(0, ft)) * 3 - banda;
         const tom = banda === 0 ? misturar(cBase, cCla, 0.3) : banda === 1 ? cBase : misturar(cBase, cEsc, 0.55);
         const estria = fbm(rEstria, f.u * 13, t * 1.1, 2) - 0.5, grao = (fbm(rGrao, f.px * 6, f.py * 6, 3) - 0.5) * 0.35;
-        const luz = lit * 0.35 + estria * 0.9 + grao + (fr > 0.8 ? -0.25 : fr < 0.12 ? 0.25 : 0);      // o degrau pega luz na quebra e sombra logo abaixo
+        const luz = lit * 0.35 + estria * 0.9 + grao + (fr > 0.8 ? -0.35 : fr < 0.12 ? 0.35 : 0) + (f.v < 0.3 ? 0.15 : 0);      // o degrau pega luz na quebra e sombra logo abaixo
         cor = luz >= 0 ? misturar(tom, cCla, luz * 0.8) : misturar(tom, cEsc, -luz * 1.1);
         let tinto = 0;
         if (banda > 0 && fr < 0.07) tinto = 0.75;
-        if (f.v < 0) cor = misturar(cor, cCla, 0.75);      // a aresta clara do topo
+        if (f.v < 0) cor = misturar(cor, cCla, 0.85);      // a aresta clara do topo
         if (f.v >= 0 && f.v < 0.05) tinto = Math.max(tinto, 0.7);
         if (cTopo) {
           const m = f.v < 0 ? 1 : 1 - suave(0.1, 0.3, t + (fbm(rNeve, f.u * 1.6, 2, 3) - 0.5) * 0.35);
           if (m > 0) { cor = misturar(cor, lit >= -0.2 ? cTopo : misturar(cTopo, neveSombra, 0.9), m); tinto *= 1 - m * 0.6; }
         }
-        cor = misturar(cor, escuridao, suave(0.55, 1, t) * 0.7 * pe);      // pé da parede
+        cor = misturar(cor, escuridao, suave(0.45, 1, t) * 0.85 * pe);      // pé da parede, mais fundo
         tinto = Math.max(tinto, 0.85 * (1 - suave(0, 1.6 / res, Math.min(f.borda - f.v, f.v + lip))));
         if (tinto > 0) cor = misturar(cor, tinta, tinto);
       }
