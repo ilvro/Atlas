@@ -36,6 +36,18 @@ test('terreno: material inválido lista as opções', () => {
   erro(() => terreno(vazio(), [{ acao: 'pintar', forma: { disco: [5, 5], raio: 1 } }]), /exige um material/);
 });
 
+test('terreno: acao relevo gera relevo.pintar e recusa altura fora da faixa', () => {
+  const m0 = vazio();
+  const { comandos } = terreno(m0, [{ acao: 'relevo', altura: -25, forma: { retangulo: [10, 0, 30, 20], irregular: 1.5 } }], 7);
+  assert.deepEqual(comandos.map(c => c.tipo), ['relevo.pintar']);
+  const m = aplicar({ comandos, ids: [] }, m0);
+  assert.ok(m.terrain.relief);
+  assert.ok(Object.values(m.walls).some(w => w.source && 'reliefStep' in w.source));
+  erro(() => terreno(m0, [{ acao: 'relevo', forma: { disco: [5, 5], raio: 2 } }]), /altura/);
+  erro(() => terreno(m0, [{ acao: 'relevo', altura: 250, forma: { disco: [5, 5], raio: 2 } }]), /fora da faixa/);
+  erro(() => terreno(m0, [{ acao: 'relevo', altura: -250, forma: { disco: [5, 5], raio: 2 } }]), /fora da faixa/);
+});
+
 test('comodos: cria cômodo com piso e papel do tipo, e telhado', () => {
   const { comandos, ids } = comodos(vazio(), [{ rets: [[2, 2, 6, 6]], tipo: 'taverna', nome: 'Cabana', telhado: 'telha.barro', telhadoVisivel: false }], 4, contador());
   assert.deepEqual(ids, ['c001']);

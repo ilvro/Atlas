@@ -163,10 +163,10 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_terreno',
-      descricao: 'Pinta ou apaga terreno do mapa aberto, em METROS. Materiais: atlas_catalogo materiais. Detalhes: plataforma_guia ferramentas-atlas.',
+      descricao: 'Pinta, apaga ou define altitude de relevo do terreno, em METROS. Materiais: atlas_catalogo materiais. Guia: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         base: { type: 'string' },
-        operacoes: { type: 'array', maxItems: MAX_ITENS, items: { type: 'object', properties: { acao: { type: 'string', enum: ['pintar', 'apagar'] }, material: { type: 'string' }, forma: esquemaDaForma() }, required: ['acao', 'forma'] } },
+        operacoes: { type: 'array', maxItems: MAX_ITENS, items: { type: 'object', properties: { acao: { type: 'string', enum: ['pintar', 'apagar', 'relevo'] }, material: { type: 'string' }, altura: { type: 'number', minimum: -200, maximum: 200 }, forma: esquemaDaForma() }, required: ['acao', 'forma'] } },
         correnteza: { type: 'object', properties: { material: { type: 'string' }, angulo: { type: 'number' }, velocidade: { type: 'number', minimum: 0, maximum: 3 } }, required: ['material', 'angulo', 'velocidade'] },
         semente,
       }, additionalProperties: false },
@@ -178,7 +178,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         return [texto(escrever(ctx, 'terreno', mapa => {
           const comandos: Comando[] = [];
           if (args.base !== undefined) comandos.push({ tipo: 'terreno.base', material: verificarBase(args.base) });
-          if (ops.length) comandos.push(...terreno(mapa, ops.map(o => ({ acao: o.acao as 'pintar' | 'apagar', material: textoOpcional(o.material, 'material', 80), forma: validarForma(o.forma) })), s).comandos);
+          if (ops.length) comandos.push(...terreno(mapa, ops.map(o => ({ acao: o.acao as 'pintar' | 'apagar' | 'relevo', material: textoOpcional(o.material, 'material', 80), ...(o.altura !== undefined ? { altura: numero(o.altura, 'altura', -200, 200) } : {}), forma: validarForma(o.forma) })), s).comandos);
           if (args.correnteza !== undefined) {
             const c = objeto(args.correnteza, 'correnteza');
             comandos.push({ tipo: 'terreno.correnteza', material: textoOpcional(c.material, 'material', 80) ?? '', flow: { angle: numero(c.angulo, 'correnteza.angulo', -100, 100), speed: numero(c.velocidade, 'correnteza.velocidade', 0, 3) } });

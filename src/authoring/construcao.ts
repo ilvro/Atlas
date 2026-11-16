@@ -60,20 +60,24 @@ function verificarMaterial(id: string, usos: readonly Material['uso'][], rotulo:
 }
 
 // ---------- Terreno ----------
-export interface OpDeTerreno { acao: 'pintar' | 'apagar'; material?: string; forma: Forma }
+export interface OpDeTerreno { acao: 'pintar' | 'apagar' | 'relevo'; material?: string; altura?: number; forma: Forma }
 
-/** Pinta ou apaga terreno em formas (metros). `pintar` exige `material` de terreno, maciço ou água. */
+/** Pinta terreno, apaga terreno ou define patamares de relevo em formas (metros). */
 export function terreno(mapa: MapaAtlas, ops: readonly OpDeTerreno[], semente = 1, _gerarId: GeradorDeId = novoIdEntidade): Construcao {
   const comandos: Comando[] = [], res = mapa.terrain.resolution;
   ops.forEach((op, n) => {
-    if (op.acao !== 'pintar' && op.acao !== 'apagar') throw new ErroDeConstrucao(`ação “${String(op.acao)}” não existe; ações: pintar, apagar`);
+    if (op.acao !== 'pintar' && op.acao !== 'apagar' && op.acao !== 'relevo') throw new ErroDeConstrucao(`ação “${String(op.acao)}” não existe; ações: pintar, apagar, relevo`);
     if (op.acao === 'pintar') {
       if (!op.material) throw new ErroDeConstrucao(`pintar exige um material; materiais de terreno: ${lista(['terreno', 'macico', 'agua'].flatMap(u => materiaisDo(u as Material['uso'])).map(x => x.id))}`);
       verificarMaterial(op.material, ['terreno', 'macico', 'agua'], 'terreno');
+    } else if (op.acao === 'relevo') {
+      if (typeof op.altura !== 'number' || !Number.isFinite(op.altura)) throw new ErroDeConstrucao('relevo exige "altura" numérica entre -200 e 200 m.');
+      if (op.altura < -200 || op.altura > 200) throw new ErroDeConstrucao(`altura ${op.altura} m fora da faixa (-200 a 200 m).`);
     }
     const celulas = celulasDaForma(op.forma, { resolucao: res, largura: mapa.bounds.width, altura: mapa.bounds.height, semente: sementeDaForma(Math.floor(semente) || 1, n) });
     if (!celulas.length) return;
-    comandos.push(op.acao === 'pintar' ? { tipo: 'terreno.pintar', material: op.material!, celulas } : { tipo: 'terreno.apagar', celulas });
+    if (op.acao === 'relevo') comandos.push({ tipo: 'relevo.pintar', altura: op.altura!, celulas });
+    else comandos.push(op.acao === 'pintar' ? { tipo: 'terreno.pintar', material: op.material!, celulas } : { tipo: 'terreno.apagar', celulas });
   });
   return { comandos, ids: [] };
 }

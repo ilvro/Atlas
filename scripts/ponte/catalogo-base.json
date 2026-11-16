@@ -2478,7 +2478,7 @@
   },
   {
     "nome": "atlas_terreno",
-    "descricao": "Pinta ou apaga terreno do mapa aberto, em METROS. Materiais: atlas_catalogo materiais. Detalhes: plataforma_guia ferramentas-atlas.",
+    "descricao": "Pinta, apaga ou define altitude de relevo do terreno, em METROS. Materiais: atlas_catalogo materiais. Guia: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -2495,11 +2495,17 @@
                 "type": "string",
                 "enum": [
                   "pintar",
-                  "apagar"
+                  "apagar",
+                  "relevo"
                 ]
               },
               "material": {
                 "type": "string"
+              },
+              "altura": {
+                "type": "number",
+                "minimum": -200,
+                "maximum": 200
               },
               "forma": {
                 "description": "Forma em metros.",

@@ -290,11 +290,26 @@ Grava o mapa aberto, pelo mesmo caminho do botão Gravar. Sem parâmetros. Devol
 
 ## atlas_terreno
 
-Pinta ou apaga terreno no mapa aberto (um passo de desfazer), em METROS. Operações: { acao, material, forma }. Materiais: atlas_catalogo { parte: "materiais" }.
+Pinta terreno, apaga terreno ou define patamares de altitude (`acao: "relevo"`) no mapa aberto (um passo de desfazer), em METROS. Operações: `{ acao, material?, altura?, forma }`. Materiais: `atlas_catalogo { parte: "materiais" }`.
 
 Parâmetros:
 
-- `operacoes[].forma`: Forma em metros: disco, poligono, faixa, retangulo ou celulas. irregular opcional (m).
+- `operacoes[].acao`: `'pintar'`, `'apagar'` ou `'relevo'` (exige `altura` de −200 a 200 m; bordas >= 1 m geram penhascos automaticamente e degraus < 1 m viram degraus transponíveis).
+- `operacoes[].forma`: Forma em metros: disco, poligono, faixa, retangulo ou celulas. `irregular` opcional (m).
+
+**Patamar vs. maciço vs. escarpa avulsa:** Use patamar (`acao: "relevo"`) quando há níveis distintos de terreno com sombra de penhasco e névoa de altitude entre eles. Use maciço (`pintar` com material `macico`, como `rocha.caverna`) para massas volumétricas de rocha, paredes de caverna ou afloramentos sobre um mesmo nível. Use escarpa avulsa (`atlas_paredes` `kind: "cliff"`) apenas para ressaltos pontuais ou margens lineares onde não interessa dividir a altitude da área inteira.
+
+Exemplo de platô com vale (vila a 0 m, mata a −25 m com `irregular: 1.5`, trilha descendo em degraus de 0,8 m):
+```json
+{
+  "operacoes": [
+    { "acao": "relevo", "altura": -25, "forma": { "retangulo": [0, 35, 60, 60], "irregular": 1.5 } },
+    { "acao": "relevo", "altura": -0.8, "forma": { "faixa": [[28, 30], [28, 33]], "largura": 3 } },
+    { "acao": "relevo", "altura": -1.6, "forma": { "faixa": [[28, 33], [28, 36]], "largura": 3 } }
+  ]
+}
+```
+O que está em patamares baixos também recebe árvores e objetos em escala real — o tom de profundidade e a sombra do penhasco cuidam da sensação de distância.
 
 ## atlas_ver_mapa
 

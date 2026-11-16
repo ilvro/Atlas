@@ -99,7 +99,7 @@ Testes: unitário do estado (escolher altitude troca o comando do pincel); e2e o
 Pronto quando: o mestre pinta um vale de −15 m com o pincel e vê as linhas de nível.
 Commit: `added relief brush and contour lines`
 
-### F5 — Relevo pelo conector  ⬜
+### F5 — Relevo pelo conector  ✅
 Objetivo: o Claude pinta altitude e lê o relevo.
 Depende de: F1 (F2 e F3 para valer a pena).
 Ler: `src/authoring/construcao.ts` (`terreno`, `OpDeTerreno`), `src/app/ponte-escrita.ts` (`atlas_terreno`), `src/app/ponte-leitura.ts` (`resumirMapa`), guia `ferramentas-atlas.md` e `mapas.md`.

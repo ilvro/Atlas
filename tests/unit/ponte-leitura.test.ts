@@ -403,3 +403,18 @@ test('atlas_revisar: devolve achados e resumo do mapa aberto (ou por id) e filtr
 
   await assert.rejects(chamar('atlas_revisar', { regras: [123] }), /regras/);
 });
+
+test('resumirMapa: inclui patamares de relevo e escarpas derivadas', () => {
+  const m = criarMapa({ id: 'vale', nome: 'Vale', largura: 20, altura: 20 });
+  const celulas = codificar([[10, 10], [10, 11], [11, 10], [11, 11]]);
+  m.terrain.relief = { patamares: { 'p-200': { id: 'p-200', altura: -20, cells: celulas } } };
+  m.walls = {
+    wr_0_1: { id: 'wr_0_1', kind: 'cliff', path: [[2.5, 2.5], [3, 2.5]], height: 20, thickness: 0.4, blocks: { move: true, sight: false, light: false }, material: 'rocha.cinza', drop: 'b', source: { reliefStep: 0 } },
+  };
+  const r = resumirMapa(m) as { relevo: { altura: number; area: number; caixa: number[] }[]; escarpasDerivadas: number };
+  assert.equal(r.escarpasDerivadas, 1);
+  assert.equal(r.relevo.length, 1);
+  assert.equal(r.relevo[0]!.altura, -20);
+  assert.ok(r.relevo[0]!.area > 0);
+  assert.deepEqual(r.relevo[0]!.caixa, [2.5, 2.5, 0.5, 0.5]);
+});
