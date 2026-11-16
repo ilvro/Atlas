@@ -646,6 +646,18 @@ function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
     <CampoOpcoes rotulo="Piso" valor={c.floor.material} opcoes={materiaisDo('piso').map(x => [x.id, x.nome] as const)} aoMudar={v => editar({ floor: { material: v } }, 'Trocar o piso')} />
     <CampoOpcoes rotulo="Papel" valor={c.wallpaper?.material ?? ''} opcoes={[['', 'Sem papel'], ...materiaisDo('papel').map(x => [x.id, x.nome] as const)]} aoMudar={v => editar({ wallpaper: v ? { material: v, seed: c.wallpaper?.seed ?? 1 } : null }, 'Papel de parede')} />
     <CampoOpcoes rotulo="Paredes" valor={c.wallStyle ?? ''} opcoes={[['', 'Do mapa'], ['box', 'Caixa'], ['solid', 'Sólidas']]} aoMudar={v => editar({ wallStyle: v || null }, 'Estilo das paredes')} />
+    {c.outline && c.outline.length >= 3 && (
+      <div class="linha">
+        <span class="linha-rotulo">Contorno</span>
+        <span class="linha-controle">
+          <span>{c.outline.length} vértices</span>
+          {' '}
+          <button type="button" class="acao" data-testid="converter-em-celulas" onClick={() => editar({ outline: null }, 'Converter cômodo em células')}>
+            Converter em células
+          </button>
+        </span>
+      </div>
+    )}
     <div class="campo-bloco">
       <div class="linha-rotulo">Telhado</div>
       <p class="dica">Na vista dos jogadores, cobre o cômodo até alguém entrar nele.</p>
