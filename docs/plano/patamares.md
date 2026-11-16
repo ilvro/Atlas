@@ -77,7 +77,7 @@ Testes (e2e): um mapa de 30 × 20 m, metade em −25 m e metade em 0, com grama 
 Pronto quando: o platô parece estar acima da mata, mesmo sem sombra.
 Commit: `lower terrain fades with depth haze`
 
-### F3 — Sombra do penhasco sobre o nível de baixo  ⬜
+### F3 — Sombra do penhasco sobre o nível de baixo  ✅
 Objetivo: a borda alta projeta sombra no nível de baixo, na direção do sol.
 Depende de: F2.
 Ler: `src/render/sombras-do-sol.ts` inteiro (como maciços e escarpas já projetam sombra: `ALTURA_DA_ROCHA`, `macicos`), `src/domain/sol.ts`.

@@ -88,3 +88,35 @@ test('relevo: metade a −25 m fica >= 20% mais escura, árvore recebe tint e cl
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test('relevo: penhasco projeta sombra para sudeste com sol a noroeste e clareia com sol a sudeste', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+
+  await sessao(page, `(s) => {
+    s.store.executar({ tipo: "limites.atualizar", largura: 30, altura: 20 });
+    s.store.executar({ tipo: "terreno.base", material: "areia" });
+    s.store.executar({ tipo: "acabamento.atualizar", patch: { preset: "nenhum", texture: 0, vignette: 0, saturation: 1, grain: 0, tint: "#ffffff" } });
+    // Sol a noroeste (angle = 3π/4 -> dir = (+0.707, +0.707) = sudeste) às 15:00
+    s.store.executar({ tipo: "clima.aplicar", patch: { preset: "tarde", time: "15:00", ambient: { color: "#ffffff", intensity: 0.9 }, sun: { angle: ${3 * Math.PI / 4}, color: "#fff8e8", intensity: 1 } } });
+    const celulas = [];
+    for (let y = 0; y < 80; y++) for (let x = 60; x < 120; x++) celulas.push([x, y]);
+    s.store.executar({ tipo: "relevo.pintar", altura: -20, celulas });
+  }`);
+
+  await page.evaluate(() => (window as unknown as JanelaAtlas).__atlas.viewport()!.enquadrar());
+  await esperarPintura(page);
+  // Desnível 20 m -> sombra de 12 m para sudeste sobre x ∈ [17..23]
+  const sombraNoroeste = await brilho(page, [17, 6], [22, 14]);
+
+  await sessao(page, `(s) => {
+    // Agora o sol vem do sudeste (angle = -π/4 -> dir = (-0.707, -0.707) = noroeste), sem sombra no lado baixo leste
+    s.store.executar({ tipo: "clima.aplicar", patch: { sun: { angle: ${-Math.PI / 4}, color: "#fff8e8", intensity: 1 } } });
+  }`);
+  await esperarPintura(page);
+  const semSombraSudeste = await brilho(page, [17, 6], [22, 14]);
+
+  assert.ok(sombraNoroeste < semSombraSudeste - 2, `faixa sudeste na sombra (${sombraNoroeste.toFixed(1)}) deve ser mais escura que sem sombra (${semSombraSudeste.toFixed(1)})`);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});

@@ -1,6 +1,7 @@
 import { BlurFilter, ColorMatrixFilter, Container, Graphics, Matrix, Sprite } from 'pixi.js';
 import { contornar } from '../domain/contorno.ts';
 import type { MapaAtlas, Ponto } from '../domain/mapa.ts';
+import { alturaEm, bordasDoRelevo, DEGRAU_TRANSPONIVEL } from '../domain/relevo.ts';
 import { sombraDoSol, type SombraDoSol } from '../domain/sol.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { ladoBaixo } from '../procedural/escarpa.ts';
@@ -74,15 +75,47 @@ export function criarSombrasDoSol() {
     }
     for (const [id, c] of sprites) if (!vivos.has(id)) { c.destroy({ children: true }); sprites.delete(id); }
 
-    // Escarpas avulsas: o corte da crista, varrido para o lado baixo, quando o sol está do lado alto.
+    // Escarpas avulsas (sem relevo, que projeta abaixo com comprimento próprio): o corte da crista varrido para o lado baixo.
     const v: Ponto = [0, 0];
     for (const p of Object.values(m.walls)) {
-      if (!ehEscarpaAvulsa(p)) continue;
+      if (!ehEscarpaAvulsa(p) || (p.source && 'reliefStep' in p.source)) continue;
       const L = p.height * s.porMetro; v[0] = s.dir[0] * L; v[1] = s.dir[1] * L;
       for (let i = 0; i + 1 < p.path.length; i++) {
         const a = p.path[i]!, b = p.path[i + 1]!, n = ladoBaixo(a, b, p.drop ?? 'b');
         if (n[0] * s.dir[0] + n[1] * s.dir[1] < 0.05) continue;
         figuras.poly([a[0], a[1], b[0], b[1], b[0] + v[0], b[1] + v[1], a[0] + v[0], a[1] + v[1]]).fill({ color: 0xffffff });
+      }
+    }
+
+    // Relevo em patamares: cada borda projeta sombra na direção oposta ao sol (até 12 m), apenas sobre o lado baixo.
+    const alcancaBaixo = (p: Ponto, n: Ponto, L: number, limiar: number): number => {
+      const passo = Math.max(0.25, L / 12);
+      let valido = 0;
+      for (let d = passo; d <= L + 1e-4; d += passo) {
+        const dist = Math.min(d, L);
+        const h = alturaEm(m, [p[0] + n[0] * 0.05 + s.dir[0] * dist, p[1] + n[1] * 0.05 + s.dir[1] * dist]);
+        if (h >= limiar) break;
+        valido = dist;
+      }
+      return valido;
+    };
+    for (const borda of bordasDoRelevo(m)) {
+      if (borda.desnivel < DEGRAU_TRANSPONIVEL) continue;
+      const L = Math.min(borda.desnivel * 0.6, 12);
+      for (let idx = 0; idx < borda.caminhos.length; idx++) {
+        const caminho = borda.caminhos[idx]!, drop = borda.drops[idx] ?? 'b';
+        for (let i = 0; i + 1 < caminho.length; i++) {
+          const a = caminho[i]!, b = caminho[i + 1]!, n = ladoBaixo(a, b, drop);
+          if (n[0] * s.dir[0] + n[1] * s.dir[1] < 0.05) continue;
+          const la = alcancaBaixo(a, n, L, borda.limiar);
+          const lb = alcancaBaixo(b, n, L, borda.limiar);
+          if (la <= 0 && lb <= 0) continue;
+          figuras.poly([
+            a[0], a[1], b[0], b[1],
+            b[0] + s.dir[0] * lb, b[1] + s.dir[1] * lb,
+            a[0] + s.dir[0] * la, a[1] + s.dir[1] * la,
+          ]).fill({ color: 0xffffff });
+        }
       }
     }
 
