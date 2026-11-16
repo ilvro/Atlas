@@ -78,6 +78,7 @@ Para isso, cinco coisas precisam existir:
 | G — Cômodos de forma livre | [comodos-livres.md](comodos-livres.md) | Gemini | — |
 | H — Andares | [andares.md](andares.md) | Gemini | G recomendado (torre redonda de vários andares) |
 | I — Acabamento do terreno e dos edifícios | [acabamento-do-terreno.md](acabamento-do-terreno.md) | Gemini | F1 |
+| J — Realismo, rotação, composição e guias | [realismo-e-composicao.md](realismo-e-composicao.md) | Gemini / Claude | I4 |
 
 **Ordem recomendada:**
 
