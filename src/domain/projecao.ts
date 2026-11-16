@@ -1,3 +1,4 @@
+import { mapaDoAndar } from './andares.ts';
 import { contem } from './celulas.ts';
 import { podar } from './iniciativa.ts';
 import type { MapaAtlas } from './mapa.ts';
@@ -17,22 +18,24 @@ import { celulasExploradas, celulasVisiveis, RES_NEVOA, secretaOculta } from './
  */
 export const CAMPOS_DO_MESTRE = ['notes', 'comodosExtra', 'campanhaId', 'audioCue', 'climateAudio', 'customClimates', 'moments', 'regions.gmOnly', 'regions.payload', 'regions.refs', 'presence.gmOnly', 'openings.secret', 'props.oculto', 'tokens.foraDaVista', 'props.interaction.clue'] as const;
 
-/** O mapa que os jogadores podem ver. Pura: não muda `m`. */
-export function projetarParaJogadores(m: MapaAtlas): MapaAtlas {
-  const p = structuredClone(m);
-  const res = m.session.explored?.res ?? RES_NEVOA;
-  const exploradas = celulasExploradas(m);
-  if (m.session.explored !== null || exploradas.length > 0) {
+/** O mapa que os jogadores podem ver em um dado andar (`null` = térreo). Pura: não muda `m`. */
+export function projetarParaJogadores(m: MapaAtlas, andar: string | null = null): MapaAtlas {
+  const escopo = mapaDoAndar(m, andar, true);
+  const p = structuredClone(escopo);
+  const res = escopo.session.explored?.res ?? RES_NEVOA;
+  const exploradas = celulasExploradas(escopo);
+  if (escopo.session.explored !== null || exploradas.length > 0) {
     p.session.explored = { res, cells: exploradas };
   } else {
     p.session.explored = null;
   }
+  delete p.session.exploredLevels;
 
   delete p.terrain.submerged; // o que a água cobriu é histórico de edição, não vai à vista
   p.notes = ''; p.comodosExtra = {}; p.campanhaId = null; p.audioCue = null; p.climateAudio = {}; p.customClimates = {}; p.moments = {};
   for (const [id, r] of Object.entries(p.regions)) { if (r.gmOnly) delete p.regions[id]; else { r.payload = {}; r.refs = []; } }
   for (const [id, x] of Object.entries(p.presence)) if (x.gmOnly) delete p.presence[id];
-  for (const [id, a] of Object.entries(p.openings)) if (secretaOculta(m, a)) delete p.openings[id];
+  for (const [id, a] of Object.entries(p.openings)) if (secretaOculta(escopo, a)) delete p.openings[id];
   for (const [id, o] of Object.entries(p.props)) {
     if (o.oculto) {
       delete p.props[id];
@@ -41,7 +44,7 @@ export function projetarParaJogadores(m: MapaAtlas): MapaAtlas {
   }
 
   // Quem os jogadores não veem agora não é enviado (nem a posição, nem a luz).
-  const visivel = celulasVisiveis(m, res);
+  const visivel = celulasVisiveis(escopo, res);
   for (const [id, t] of Object.entries(p.tokens)) {
     if (t.player || contem(visivel, Math.floor(t.position[0] / res), Math.floor(t.position[1] / res))) continue;
     delete p.tokens[id];
@@ -49,7 +52,7 @@ export function projetarParaJogadores(m: MapaAtlas): MapaAtlas {
   }
   p.session.initiative = podar(p.session.initiative, id => !!p.tokens[id]);
 
-  const revelados = new Set(m.session.revealed);
+  const revelados = new Set(escopo.session.revealed);
   for (const o of Object.values(p.props)) if (o.interaction && !revelados.has(o.id)) o.interaction.clue = null;
   p.session.revealed = p.session.revealed.filter(id => ['rooms', 'openings', 'props', 'tokens', 'regions'].some(c => (p as unknown as Record<string, Record<string, unknown>>)[c]![id]));
   return p;

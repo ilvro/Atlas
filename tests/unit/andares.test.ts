@@ -1,16 +1,18 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { andarDe, ehMultiandar, listaDeAndares, mapaDoAndar } from '../../src/domain/andares.ts';
+import { andarDe, andaresDosJogadores, ehMultiandar, listaDeAndares, mapaDoAndar } from '../../src/domain/andares.ts';
 import { codificar } from '../../src/domain/celulas.ts';
 import { novaLuz, novoObjeto, novaPeca } from '../../src/domain/fabrica.ts';
 import { encaixarNaParede, PAREDE_PADRAO } from '../../src/domain/geometria.ts';
 import { gerarLayout } from '../../src/authoring/layout.ts';
-import { criarMapa } from '../../src/domain/mapa.ts';
+import { criarMapa, type MapaAtlas } from '../../src/domain/mapa.ts';
 import { ErroDeValidacao } from '../../src/domain/esquema.ts';
+import { projetarParaJogadores } from '../../src/domain/projecao.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
 import { comandoDeComodoPorContorno } from '../../src/render/pincel.ts';
 import { todosOsAlvos } from '../../src/render/selecao.ts';
 import { registrarAbaAberta, lembrarAndarDaAba, obterAndarDaAba } from '../../src/app/abas.ts';
+import { resolverAndarDoProjetor } from '../../src/app/projetor.ts';
 import { criarSessao } from '../../src/app/sessao.ts';
 import { criarStore } from '../../src/state/store.ts';
 
@@ -192,4 +194,60 @@ test('H3: andarAtivo da sessão, criação por contorno no andar e seleção iso
   } finally {
     ses.fechar();
   }
+});
+
+test('H4: exploração isolada por andar, projeção e escolha de andar do projetor', () => {
+  const base = criarMapa({ id: 'h4', nome: 'Torre', agora: 1 });
+  base.bounds = { width: 30, height: 30 };
+  base.levels = { a1: { id: 'a1', name: '1º Andar', order: 1 } };
+  base.tokens.h0 = novaPeca([3, 3], 'Téo', { id: 'h0', player: true });
+  base.tokens.h1 = novaPeca([18, 18], 'Lia', { id: 'h1', player: true, levelId: 'a1' });
+  base.tokens.e1 = novaPeca([1, 1], 'Espectro', { id: 'e1', player: false, levelId: 'a1' });
+  base.props.bau = novoObjeto([18, 18], { id: 'bau', oculto: true, levelId: 'a1' });
+
+  const s = criarStore(base);
+
+  // Salão fechado no andar 1 bloqueia visão até [1, 1]
+  s.executar({
+    tipo: 'comodo.criar',
+    id: 'r1',
+    nome: 'Salão',
+    funcao: 'sala',
+    piso: { material: 'pedra.laje', seed: 1 },
+    papel: null,
+    celulas: [[10, 10], [11, 10], [12, 10], [13, 10], [14, 10], [15, 10], [10, 11], [11, 11], [12, 11], [13, 11], [14, 11], [15, 11], [10, 12], [11, 12], [12, 12], [13, 12], [14, 12], [15, 12], [10, 13], [11, 13], [12, 13], [13, 13], [14, 13], [15, 13], [10, 14], [11, 14], [12, 14], [13, 14], [14, 14], [15, 14], [10, 15], [11, 15], [12, 15], [13, 15], [14, 15], [15, 15]],
+    levelId: 'a1',
+  });
+
+  // Mover h1 no andar 1 atualiza só exploredLevels.a1
+  s.executar({ tipo: 'peca.mover', id: 'h1', para: [19, 19], livre: true });
+  assert.equal(s.documento.session.explored, null);
+  assert.ok(s.documento.session.exploredLevels?.a1?.cells.length);
+
+  // Mover h0 no térreo atualiza só explored
+  s.executar({ tipo: 'peca.mover', id: 'h0', para: [4.5, 4.5], livre: true });
+  assert.ok((s.documento.session.explored as MapaAtlas['session']['explored'])?.cells.length);
+
+  // Projetar para jogadores por andar
+  const projA1 = projetarParaJogadores(s.documento, 'a1');
+  assert.equal(projA1.session.exploredLevels, undefined);
+  assert.ok(projA1.session.explored?.cells.length);
+  assert.equal(projA1.tokens.h0, undefined);
+  assert.ok(projA1.tokens.h1);
+  assert.equal(projA1.props.bau, undefined);
+  assert.equal(projA1.tokens.e1, undefined);
+
+  // Grupo dividido e resolução automática/manual do projetor
+  assert.deepEqual(andaresDosJogadores(s.documento).map(a => a.id), [null, 'a1']);
+  assert.equal(resolverAndarDoProjetor(s.documento, 'a1', undefined), 'a1');
+  assert.equal(resolverAndarDoProjetor(s.documento, 'a1', null), null);
+  assert.equal(resolverAndarDoProjetor(s.documento, undefined, 'inexistente'), null);
+
+  // Esquecer só o andar 1 preserva exploração do térreo
+  s.executar({ tipo: 'sessao.esquecer', andar: 'a1' });
+  assert.equal(s.documento.session.exploredLevels, undefined);
+  assert.ok((s.documento.session.explored as MapaAtlas['session']['explored'])?.cells.length);
+
+  s.executar({ tipo: 'sessao.esquecer', andar: null });
+  assert.equal(s.documento.session.explored, null);
 });

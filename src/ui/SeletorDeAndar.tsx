@@ -34,6 +34,12 @@ export function SeletorDeAndar({ s }: { s: SessaoDeEdicao }) {
   if (!multi && !construir) return null;
 
   const lista = listaDeAndares(m);
+  const jogadoresPorAndar = new Map<string | null, number>();
+  if (!construir) {
+    for (const t of Object.values(m.tokens)) {
+      if (t.player) jogadoresPorAndar.set(andarDe(t), (jogadoresPorAndar.get(andarDe(t)) ?? 0) + 1);
+    }
+  }
 
   const criarAndar = (direcao: 1 | -1) => {
     const orders = lista.map(a => a.order);
@@ -122,6 +128,11 @@ export function SeletorDeAndar({ s }: { s: SessaoDeEdicao }) {
                 >
                   <span class="andar-ordem">{item.order === 0 ? 'T' : item.order > 0 ? `+${item.order}` : item.order}</span>
                   <span>{item.nome}</span>
+                  {!construir && (jogadoresPorAndar.get(item.id) ?? 0) > 0 && (
+                    <span class="andar-jogadores" data-testid={`andar-jogadores-${item.id ?? 'terreo'}`}>
+                      {jogadoresPorAndar.get(item.id)} {jogadoresPorAndar.get(item.id) === 1 ? 'peça' : 'peças'}
+                    </span>
+                  )}
                 </button>
               )}
               {construir && !estaEditando && (

@@ -2466,3 +2466,7 @@ body.projetor { overflow: hidden; background: #000; }
 .andar-rodape { display: flex; gap: 4px; margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--linha); }
 .andar-rodape button { flex: 1; padding: 4px 6px; border-radius: 4px; font: 700 10.5px var(--corpo); color: var(--apagado); border: 1px solid transparent; }
 .andar-rodape button:hover { background: var(--superficie-2); color: #fff; border-color: var(--linha-forte); }
+.andar-jogadores { margin-left: auto; padding: 1px 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); font: 700 10px var(--corpo); color: var(--texto); white-space: nowrap; }
+.projetor-andar { display: inline-flex; align-items: center; gap: 4px; }
+.projetor-andar select { background: transparent; border: 0; color: inherit; font: inherit; cursor: pointer; outline: none; }
+.projetor-andar select option { background: var(--superficie); color: var(--texto); }
