@@ -105,5 +105,5 @@ export function entradaDaEscarpa(p: Parede): EntradaDeEscarpa {
   return { path: p.path.map(q => [r3(q[0] - ox), r3(q[1] - oy)] as [number, number]), drop: p.drop ?? 'b', altura: p.height, material: materialDe(p.material).uso === 'macico' ? p.material : 'rocha.cinza', seed: sementeDoId(p.id) };
 }
 export const chaveDaEscarpa = (e: EntradaDeEscarpa, res: number, estilo: IdDoEstilo = 'illustrated'): string => `${estilo}|e|${res}|${JSON.stringify(e)}`;
-/** Parede `cliff` desenhada como face de rocha (as do contorno do maciço, com `source`, ficam invisíveis). */
-export const ehEscarpaAvulsa = (p: Parede): boolean => p.kind === 'cliff' && !p.source;
+/** Parede `cliff` desenhada como face de rocha (avulsa ou derivada de degrau de relevo; as do contorno do maciço ficam no assar do terreno). */
+export const ehEscarpaAvulsa = (p: Parede): boolean => p.kind === 'cliff' && (!p.source || 'reliefStep' in p.source);

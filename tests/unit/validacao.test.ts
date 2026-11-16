@@ -138,3 +138,38 @@ test('validação de telhado: aceita ausência dos campos novos e recusa valores
     x.rooms[chaveSala].roof.details = ['antena'];
   })), `rooms.${chaveSala}.roof.details[0]`);
 });
+
+test('validação de relevo: patamares válidos, sobreposição, faixa de altitude e reliefStep só em escarpa', () => {
+  assert.equal(caminhoDoErro(mexer(x => {
+    delete x.terrain.relief;
+  })), null);
+
+  assert.equal(caminhoDoErro(mexer(x => {
+    x.terrain.relief = {
+      patamares: {
+        'p-200': { id: 'p-200', altura: -20, cells: [[2, 2, 4]] },
+        p30: { id: 'p30', altura: 3, cells: [[4, 2, 4]] },
+      },
+    };
+  })), null);
+
+  assert.equal(caminhoDoErro(mexer(x => {
+    x.terrain.relief = { patamares: { p9999: { id: 'p9999', altura: 250, cells: [[2, 2, 2]] } } };
+  })), 'terrain.relief.patamares.p9999.altura');
+
+  assert.equal(caminhoDoErro(mexer(x => {
+    x.terrain.relief = {
+      patamares: {
+        p10: { id: 'p10', altura: 1, cells: [[2, 2, 4]] },
+        'p-10': { id: 'p-10', altura: -1, cells: [[2, 4, 3]] },
+      },
+    };
+  })), 'terrain.relief.patamares.p-10.cells');
+
+  assert.equal(caminhoDoErro(mexer(x => {
+    x.walls.wr_test = {
+      id: 'wr_test', path: [[1, 1], [4, 1]], height: 3, thickness: 0.2, material: 'rocha.cinza',
+      kind: 'wall', blocks: { move: true, sight: true, light: true }, drop: null, source: { reliefStep: 0 },
+    };
+  })), 'walls.wr_test.source');
+});

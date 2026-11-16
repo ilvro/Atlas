@@ -42,7 +42,7 @@ Ordem: F1 → F2 → F3; F4 e F5 depois de F1.
 
 ---
 
-### F1 — Patamares no documento, comandos e escarpas derivadas  ⬜
+### F1 — Patamares no documento, comandos e escarpas derivadas  ✅
 Objetivo: o documento guarda a altitude, e as bordas viram escarpas sozinhas.
 Depende de: —.
 Ler: `src/domain/mapa.ts` (`Terreno`, `Parede.source`), `src/domain/validacao.ts` (validação de `terrain` e de `source`), `src/domain/contorno.ts` inteiro (`contornar`, `atualizarEscarpasDoMacico`, `idDaEscarpa`), `src/state/comandos-construir.ts` (`terreno.pintar`, `terreno.apagar` e a chamada a `atualizarEscarpasDoMacico`), `src/state/comandos.ts` (o tipo `Comando`), `src/domain/celulas.ts`, `src/domain/geometria.ts:205-215` (`recalcularParedes` não mexe nas paredes de terreno: confira que também deixa as do relevo).
