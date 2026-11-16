@@ -44,13 +44,20 @@ interface Ancora { pos: Ponto; rot: number; w: number; h: number }
  * contando o que já existe (não repete uma cama, e as cadeiras se juntam à mesa que o mestre já pôs). Determinístico: mesma semente, mesmo layout.
  */
 export function gerarLayout(m: MapaAtlas, pedido: PedidoDeLayout): Layout {
+  const sala = m.rooms[pedido.roomId];
+  if (!sala) return { objetos: [], faltaram: [] };
+  const nivel = sala.levelId ?? null;
   const ins = insightDoComodo(m, pedido.roomId); if (!ins) return { objetos: [], faltaram: [] };
-  const malha = malhaDoComodo(m, ins);
   // Os vãos das portas que ainda vão entrar ficam livres, mesmo sem porta ainda.
+  const malha = malhaDoComodo(m, ins);
   for (const caixa of reservasDePorta(m, pedido.roomId)) marcarRetangulo(malha, caixa, 'porta');
   const circ = circulacao(malha, ins), regras = regrasPara(pedido.funcao, pedido.genero);
   const gerarId = pedido.gerarId ?? novoIdEntidade, rng = mulberry32(Math.imul(pedido.semente | 0, 2654435761) ^ hashTexto(pedido.roomId));
-  return new Gerador(m, ins, malha, circ, regras, pedido, gerarId, rng).gerar();
+  const res = new Gerador(m, ins, malha, circ, regras, pedido, gerarId, rng, nivel).gerar();
+  if (nivel !== null) {
+    res.objetos = res.objetos.map(o => ({ ...o, levelId: nivel }));
+  }
+  return res;
 }
 
 class Gerador {
@@ -67,11 +74,12 @@ class Gerador {
 
   private readonly m: MapaAtlas; private readonly ins: InsightDoComodo; private readonly malha: Malha; private readonly circ: Circulacao;
   private readonly regras: ItemDeRegra[]; private readonly pedido: PedidoDeLayout; private readonly gerarId: (p: string) => string; private readonly rng: () => number;
+  private readonly nivel: string | null;
 
-  constructor(m: MapaAtlas, ins: InsightDoComodo, malha: Malha, circ: Circulacao, regras: ItemDeRegra[], pedido: PedidoDeLayout, gerarId: (p: string) => string, rng: () => number) {
-    this.m = m; this.ins = ins; this.malha = malha; this.circ = circ; this.regras = regras; this.pedido = pedido; this.gerarId = gerarId; this.rng = rng;
+  constructor(m: MapaAtlas, ins: InsightDoComodo, malha: Malha, circ: Circulacao, regras: ItemDeRegra[], pedido: PedidoDeLayout, gerarId: (p: string) => string, rng: () => number, nivel: string | null) {
+    this.m = m; this.ins = ins; this.malha = malha; this.circ = circ; this.regras = regras; this.pedido = pedido; this.gerarId = gerarId; this.rng = rng; this.nivel = nivel;
     this.segmentos = contornoDoComodo(m, ins.celulas).flat().map(s => { const comprimento = distancia(s.a, s.b); return { a: s.a, b: s.b, n: s.n, comprimento, t: [(s.b[0] - s.a[0]) / comprimento, (s.b[1] - s.a[1]) / comprimento] as Ponto }; });
-    this.existentes = Object.values(m.props).filter(o => o.roomId === ins.id);
+    this.existentes = Object.values(m.props).filter(o => (o.levelId ?? null) === nivel && o.roomId === ins.id);
     for (const o of this.existentes) if (o.elevation === 'floor' && o.blocks.move) this.bloqueantes.push(caixaDoObjeto(o));
     let sx = 0, sy = 0, n = 0;
     for (let l = 0; l < malha.linhas; l++) for (let c = 0; c < malha.colunas; c++) if (malha.dentro[l * malha.colunas + c]) { sx += malha.x0 + (c + 0.5) * malha.res; sy += malha.y0 + (l + 0.5) * malha.res; n++; }
@@ -225,7 +233,7 @@ class Gerador {
   private colocarNaParede(receita: string, params: Record<string, unknown>, largura: number): Objeto | null {
     const lacos: { wallId: string; dist: number; ponto: Ponto; at: number; roomId: string; nota: number }[] = [];
     for (const s of this.segmentos) for (let d = largura / 2 + 0.1; d <= s.comprimento - largura / 2 - 0.1 + 1e-9; d += PASSO) {
-      const sonda: Ponto = [s.a[0] + s.t[0] * d + s.n[0] * 0.25, s.a[1] + s.t[1] * d + s.n[1] * 0.25], e = encaixarObjetoDeParede(this.m, sonda, largura);
+      const sonda: Ponto = [s.a[0] + s.t[0] * d + s.n[0] * 0.25, s.a[1] + s.t[1] * d + s.n[1] * 0.25], e = encaixarObjetoDeParede(this.m, sonda, largura, undefined, this.nivel);
       if (!e || e.roomId !== this.ins.id) continue;
       lacos.push({ wallId: e.parede.id, dist: e.at, ponto: e.ponto, at: e.at, roomId: e.roomId, nota: this.distanciaDaPorta(e.ponto) + this.rng() * 1.5 });
     }

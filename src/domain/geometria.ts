@@ -13,15 +13,22 @@ export interface ArestaUnitaria {
   chave: string; orient: Orientacao; i: number; j: number;
   /** Cômodos dos dois lados: [acima ou à esquerda, abaixo ou à direita]. `null` é fora de qualquer cômodo. */
   salas: [string | null, string | null];
+  /** Andar dos cômodos desta aresta (`null` = térreo). */
+  levelId?: string | null;
 }
 
 const chaveCel = (x: number, y: number) => y * 200_003 + x;
 export const arredondar = (v: number): number => Math.round(v * 1e6) / 1e6;
+const chaveArestaNivel = (nivel: string | null, orient: Orientacao, i: number, j: number) =>
+  nivel === null ? `${orient}:${i}:${j}` : `${nivel}|${orient}:${i}:${j}`;
 
-/** Célula → cômodo. */
-export function indiceDeCelulas(m: Pick<MapaAtlas, 'rooms'>): Map<number, string> {
+/** Célula → cômodo (quando `nivel` é passado, considera só cômodos daquele andar). */
+export function indiceDeCelulas(m: Pick<MapaAtlas, 'rooms'>, nivel?: string | null): Map<number, string> {
   const indice = new Map<number, string>();
-  for (const sala of Object.values(m.rooms)) for (const [x, y] of decodificar(sala.cells)) indice.set(chaveCel(x, y), sala.id);
+  for (const sala of Object.values(m.rooms)) {
+    if (nivel !== undefined && (sala.levelId ?? null) !== nivel) continue;
+    for (const [x, y] of decodificar(sala.cells)) indice.set(chaveCel(x, y), sala.id);
+  }
   return indice;
 }
 export const salaDaCelula = (indice: Map<number, string>, x: number, y: number): string | null => indice.get(chaveCel(x, y)) ?? null;
@@ -32,22 +39,31 @@ export function comodoEm(m: Pick<MapaAtlas, 'rooms' | 'grid'>, p: Ponto, indice 
   return salaDaCelula(indice, Math.floor((p[0] - m.grid.offset[0]) / t), Math.floor((p[1] - m.grid.offset[1]) / t));
 }
 
-/** Todas as arestas que separam cômodos diferentes ou um cômodo do vazio, sem repetir as compartilhadas. */
+/** Todas as arestas que separam cômodos diferentes ou um cômodo do vazio dentro de cada andar, sem repetir as compartilhadas. */
 export function arestasDeParede(m: Pick<MapaAtlas, 'rooms'>): Map<string, ArestaUnitaria> {
-  const indice = indiceDeCelulas(m), saida = new Map<string, ArestaUnitaria>();
+  const saida = new Map<string, ArestaUnitaria>();
+  const porNivel = new Map<string | null, typeof m.rooms[string][]>();
   for (const sala of Object.values(m.rooms)) {
     if (sala.outline) continue;
-    for (const [x, y] of decodificar(sala.cells)) {
-      const visitar = (orient: Orientacao, i: number, j: number, outra: string | null, eMeu: 0 | 1) => {
-        if (outra === sala.id) return;
-        const chave = `${orient}:${i}:${j}`;
-        if (saida.has(chave)) return;
-        saida.set(chave, { chave, orient, i, j, salas: eMeu === 1 ? [outra, sala.id] : [sala.id, outra] });
-      };
-      visitar('h', x, y, salaDaCelula(indice, x, y - 1), 1);
-      visitar('v', x, y, salaDaCelula(indice, x - 1, y), 1);
-      visitar('h', x, y + 1, salaDaCelula(indice, x, y + 1), 0);
-      visitar('v', x + 1, y, salaDaCelula(indice, x + 1, y), 0);
+    const nivel = sala.levelId ?? null;
+    const lista = porNivel.get(nivel);
+    if (lista) lista.push(sala); else porNivel.set(nivel, [sala]);
+  }
+  for (const [nivel, salas] of porNivel) {
+    const indice = indiceDeCelulas(m, nivel);
+    for (const sala of salas) {
+      for (const [x, y] of decodificar(sala.cells)) {
+        const visitar = (orient: Orientacao, i: number, j: number, outra: string | null, eMeu: 0 | 1) => {
+          if (outra === sala.id) return;
+          const chave = chaveArestaNivel(nivel, orient, i, j);
+          if (saida.has(chave)) return;
+          saida.set(chave, { chave, orient, i, j, salas: eMeu === 1 ? [outra, sala.id] : [sala.id, outra], levelId: nivel });
+        };
+        visitar('h', x, y, salaDaCelula(indice, x, y - 1), 1);
+        visitar('v', x, y, salaDaCelula(indice, x - 1, y), 1);
+        visitar('h', x, y + 1, salaDaCelula(indice, x, y + 1), 0);
+        visitar('v', x + 1, y, salaDaCelula(indice, x + 1, y), 0);
+      }
     }
   }
   return saida;
@@ -91,26 +107,33 @@ export function paredesDoContorno(
 ): ParedeDerivada[] {
   const paredes: ParedeDerivada[] = [];
   const t = m.grid.size, [ox, oy] = m.grid.offset;
-  const gradeH = new Map<number, [number, number][]>();
-  const gradeV = new Map<number, [number, number][]>();
-  const registrar = (orient: Orientacao, i: number, j: number) => {
-    if (orient === 'h') {
-      const l = gradeH.get(j) ?? []; l.push([ox + i * t, ox + (i + 1) * t]); gradeH.set(j, l);
-    } else {
-      const l = gradeV.get(i) ?? []; l.push([oy + j * t, oy + (j + 1) * t]); gradeV.set(i, l);
-    }
-  };
-  for (const a of arestas.values()) registrar(a.orient, a.i, a.j);
-  for (const k of ignorar) {
-    if (arestas.has(k)) continue;
-    const [o, si, sj] = k.split(':');
-    const i = Number(si), j = Number(sj);
-    if ((o === 'h' || o === 'v') && Number.isInteger(i) && Number.isInteger(j)) registrar(o, i, j);
-  }
 
   for (const sala of Object.values(m.rooms)) {
     const out = sala.outline;
     if (!out || out.length < 3) continue;
+    const nivel = sala.levelId ?? null;
+    const gradeH = new Map<number, [number, number][]>();
+    const gradeV = new Map<number, [number, number][]>();
+    const registrar = (orient: Orientacao, i: number, j: number) => {
+      if (orient === 'h') {
+        const l = gradeH.get(j) ?? []; l.push([ox + i * t, ox + (i + 1) * t]); gradeH.set(j, l);
+      } else {
+        const l = gradeV.get(i) ?? []; l.push([oy + j * t, oy + (j + 1) * t]); gradeV.set(i, l);
+      }
+    };
+    for (const a of arestas.values()) {
+      if ((a.levelId ?? null) === nivel) registrar(a.orient, a.i, a.j);
+    }
+    for (const k of ignorar) {
+      if (arestas.has(k)) continue;
+      const partes = k.split('|');
+      const kNivel = partes.length === 2 ? partes[0]! : null;
+      if (kNivel !== nivel) continue;
+      const base = partes.length === 2 ? partes[1]! : partes[0]!;
+      const [o, si, sj] = base.split(':');
+      const i = Number(si), j = Number(sj);
+      if ((o === 'h' || o === 'v') && Number.isInteger(i) && Number.isInteger(j)) registrar(o, i, j);
+    }
     const n = out.length;
     const segs: [Ponto, Ponto][] = [];
     for (let k = 0; k < n; k++) {
@@ -159,6 +182,7 @@ export function paredesDoContorno(
         path,
         ...structuredClone(PAREDE_PADRAO),
         source: { roomId: sala.id },
+        ...(nivel !== null ? { levelId: nivel } : {}),
       });
     });
   }
@@ -172,9 +196,13 @@ export function paredesDerivadas(m: Pick<MapaAtlas, 'rooms' | 'grid'>, ignorar: 
   const paredes: ParedeDerivada[] = [];
   for (const orient of ['h', 'v'] as const) {
     const doEixo = arestas.filter(a => a.orient === orient);
-    // Agrupa por linha (j para horizontais, i para verticais) e por par de cômodos; dentro, ordena ao longo da linha.
+    // Agrupa por andar, linha (j para horizontais, i para verticais) e par de cômodos; dentro, ordena ao longo da linha.
     const grupos = new Map<string, ArestaUnitaria[]>();
-    for (const a of doEixo) { const k = `${orient === 'h' ? a.j : a.i}|${a.salas.join('|')}`; (grupos.get(k) ?? grupos.set(k, []).get(k)!).push(a); }
+    for (const a of doEixo) {
+      const nivel = a.levelId ?? null;
+      const k = `${nivel ?? ''}|${orient === 'h' ? a.j : a.i}|${a.salas.join('|')}`;
+      (grupos.get(k) ?? grupos.set(k, []).get(k)!).push(a);
+    }
     for (const lista of grupos.values()) {
       const ao = (a: ArestaUnitaria) => (orient === 'h' ? a.i : a.j);
       lista.sort((a, b) => ao(a) - ao(b));
@@ -184,7 +212,10 @@ export function paredesDerivadas(m: Pick<MapaAtlas, 'rooms' | 'grid'>, ignorar: 
         const primeira = lista[ini]!, ultima = lista[k - 1]!, linha = orient === 'h' ? primeira.j : primeira.i;
         const [a0] = segmentoDaAresta(m, primeira), [, b1] = segmentoDaAresta(m, ultima);
         const dono = [...primeira.salas].filter((s): s is string => s !== null).sort()[0]!;
-        paredes.push({ id: IDENT_PAREDE(orient, linha, ao(primeira), ao(ultima) + 1), path: [a0, b1], ...structuredClone(PAREDE_PADRAO), source: { roomId: dono } });
+        const nivel = primeira.levelId ?? null;
+        const baseId = IDENT_PAREDE(orient, linha, ao(primeira), ao(ultima) + 1);
+        const id = nivel === null ? baseId : `${baseId}_${nivel}`.slice(0, 64);
+        paredes.push({ id, path: [a0, b1], ...structuredClone(PAREDE_PADRAO), source: { roomId: dono }, ...(nivel !== null ? { levelId: nivel } : {}) });
         ini = k;
       }
     }
@@ -240,18 +271,22 @@ export function projetarNaParede(p: Pick<Parede, 'path'>, ponto: Ponto): { dist:
 /** Os cômodos que enxergam uma abertura (um ou dois, se a parede é compartilhada); vazio se a parede não é de cômodo. */
 export function salasDaAbertura(m: Pick<MapaAtlas, 'walls' | 'grid' | 'rooms'>, a: Pick<Abertura, 'wallId' | 'at'>, arestas: Map<string, ArestaUnitaria> = arestasDeParede(m)): string[] {
   const p = m.walls[a.wallId]; if (!p) return [];
+  const nivel = p.levelId ?? null;
   const { ponto, tangente } = pontoNaParede(p, a.at * comprimentoDaParede(p)), t = m.grid.size, [ox, oy] = m.grid.offset;
   if (!p.id.startsWith('wc_')) {
-    const chave = Math.abs(tangente[0]) > 0.5 ? `h:${Math.floor((ponto[0] - ox) / t)}:${Math.round((ponto[1] - oy) / t)}` : `v:${Math.round((ponto[0] - ox) / t)}:${Math.floor((ponto[1] - oy) / t)}`;
+    const orient: Orientacao = Math.abs(tangente[0]) > 0.5 ? 'h' : 'v';
+    const i = orient === 'h' ? Math.floor((ponto[0] - ox) / t) : Math.round((ponto[0] - ox) / t);
+    const j = orient === 'h' ? Math.round((ponto[1] - oy) / t) : Math.floor((ponto[1] - oy) / t);
+    const chave = chaveArestaNivel(nivel, orient, i, j);
     const achadas = (arestas.get(chave)?.salas ?? ([] as (string | null)[])).filter((x): x is string => x !== null);
     if (achadas.length) return achadas;
   }
-  const indice = indiceDeCelulas(m);
+  const indice = indiceDeCelulas(m, nivel);
   const encontradas = new Set<string>();
   for (const n of [[-tangente[1], tangente[0]], [tangente[1], -tangente[0]]] as const) {
     const teste: Ponto = [ponto[0] + n[0] * 0.4, ponto[1] + n[1] * 0.4];
     for (const s of Object.values(m.rooms)) {
-      if (s.outline && pontoNoPoligono(teste, s.outline)) encontradas.add(s.id);
+      if ((s.levelId ?? null) === nivel && s.outline && pontoNoPoligono(teste, s.outline)) encontradas.add(s.id);
     }
     const c = comodoEm(m, teste, indice);
     if (c) encontradas.add(c);
@@ -292,9 +327,12 @@ export function motivoDeNaoCaber(m: Pick<MapaAtlas, 'walls' | 'openings'>, a: Pi
 export interface EncaixeNaParede { parede: Parede; /** Fração ao longo da parede (0 a 1). */ at: number; /** Lado em que o ponto está: 1 à direita de quem anda do início ao fim, -1 à esquerda. */ lado: 1 | -1; /** Distância do ponto à parede. */ distancia: number; /** Ponto da parede onde a abertura fica. */ ponto: Ponto }
 
 /** A parede mais próxima de `ponto`, e onde a abertura de `largura` metros ficaria nela: no centro de uma célula, e sempre inteira dentro da parede. */
-export function encaixarNaParede(m: Pick<MapaAtlas, 'walls' | 'grid'>, ponto: Ponto, largura: number, tolerancia = 0.75, desligado = m.grid?.snap !== undefined ? !m.grid.snap : !m.grid?.visible): EncaixeNaParede | null {
+export function encaixarNaParede(m: Pick<MapaAtlas, 'walls' | 'grid'>, ponto: Ponto, largura: number, tolerancia = 0.75, desligado = m.grid?.snap !== undefined ? !m.grid.snap : !m.grid?.visible, andar?: string | null): EncaixeNaParede | null {
   let melhor: { parede: Parede; dist: number; distancia: number; lado: 1 | -1 } | null = null;
-  for (const p of Object.values(m.walls)) { const r = projetarNaParede(p, ponto); if (r.distancia <= tolerancia && (!melhor || r.distancia < melhor.distancia)) melhor = { parede: p, ...r }; }
+  for (const p of Object.values(m.walls)) {
+    if (andar !== undefined && (p.levelId ?? null) !== andar) continue;
+    const r = projetarNaParede(p, ponto); if (r.distancia <= tolerancia && (!melhor || r.distancia < melhor.distancia)) melhor = { parede: p, ...r };
+  }
   if (!melhor) return null;
   const p = melhor.parede, comp = comprimentoDaParede(p);
   if (comp < largura - 1e-6) return null;
@@ -310,10 +348,11 @@ export function encaixarNaParede(m: Pick<MapaAtlas, 'walls' | 'grid'>, ponto: Po
 }
 
 /** Onde pôr um objeto de parede (um quadro, uma estante): na face do cômodo que está do lado do ponteiro. `null` se desse lado não há cômodo. */
-export function encaixarObjetoDeParede(m: Pick<MapaAtlas, 'walls' | 'grid' | 'rooms'>, ponto: Ponto, largura: number, desligado = m.grid?.snap !== undefined ? !m.grid.snap : !m.grid?.visible): (EncaixeNaParede & { roomId: string }) | null {
-  const e = encaixarNaParede(m, ponto, largura, 1.0, desligado); if (!e) return null;
+export function encaixarObjetoDeParede(m: Pick<MapaAtlas, 'walls' | 'grid' | 'rooms'>, ponto: Ponto, largura: number, desligado = m.grid?.snap !== undefined ? !m.grid.snap : !m.grid?.visible, andar?: string | null): (EncaixeNaParede & { roomId: string }) | null {
+  const e = encaixarNaParede(m, ponto, largura, 1.0, desligado, andar); if (!e) return null;
   const { tangente } = pontoNaParede(e.parede, e.at * comprimentoDaParede(e.parede)), n: Ponto = [-tangente[1] * e.lado, tangente[0] * e.lado];
-  const sala = comodoEm(m, [e.ponto[0] + n[0] * 0.3, e.ponto[1] + n[1] * 0.3]);
+  const nivel = e.parede.levelId ?? null;
+  const sala = comodoEm(m, [e.ponto[0] + n[0] * 0.3, e.ponto[1] + n[1] * 0.3], indiceDeCelulas(m, nivel));
   return sala ? { ...e, roomId: sala } : null;
 }
 
@@ -326,22 +365,30 @@ type Rascunho = MapaAtlas;
  * reprojetados pelo ponto onde estavam; os que não encontram mais parede, ou não cabem, saem.
  */
 export function recalcularParedes(m: Rascunho): void {
-  const antigas = new Map<string, Pick<Parede, 'path'>>();
-  for (const p of Object.values(m.walls)) antigas.set(p.id, { path: p.path.map(q => [q[0], q[1]] as Ponto) });
+  const antigas = new Map<string, { path: Ponto[]; levelId: string | null }>();
+  for (const p of Object.values(m.walls)) antigas.set(p.id, { path: p.path.map(q => [q[0], q[1]] as Ponto), levelId: p.levelId ?? null });
   const derivada = (p: Parede) => !!p.source && 'roomId' in p.source;      // as do maciço (terrainLayerId) não são dos cômodos: ficam
   const antesDerivadas = new Map(Object.values(m.walls).filter(derivada).map(p => [p.id, p]));
 
   const cobertas = new Set<string>();
-  for (const p of Object.values(m.walls)) if (!p.source) for (const k of arestasCobertas(m, p)) cobertas.add(k);
+  for (const p of Object.values(m.walls)) {
+    if (!p.source) {
+      const nivel = p.levelId ?? null;
+      for (const k of arestasCobertas(m, p)) cobertas.add(nivel === null ? k : `${nivel}|${k}`);
+    }
+  }
   for (const id of Object.keys(m.walls)) if (derivada(m.walls[id]!)) delete m.walls[id];
   for (const d of paredesDerivadas(m, cobertas)) {
     const anterior = antesDerivadas.get(d.id);
     m.walls[d.id] = anterior ? { ...d, height: anterior.height, thickness: anterior.thickness, material: anterior.material, kind: anterior.kind, blocks: { ...anterior.blocks } } : d;
   }
 
-  const parede = (id: string) => m.walls[id], achar = (ponto: Ponto, tolerancia = 0.06): { parede: Parede; dist: number } | null => {
+  const parede = (id: string) => m.walls[id], achar = (ponto: Ponto, nivel: string | null, tolerancia = 0.06): { parede: Parede; dist: number } | null => {
     let melhor: { parede: Parede; dist: number; d: number } | null = null;
-    for (const p of Object.values(m.walls)) { const r = projetarNaParede(p, ponto); if (r.distancia <= tolerancia && (!melhor || r.distancia < melhor.d)) melhor = { parede: p, dist: r.dist, d: r.distancia }; }
+    for (const p of Object.values(m.walls)) {
+      if ((p.levelId ?? null) !== nivel) continue;
+      const r = projetarNaParede(p, ponto); if (r.distancia <= tolerancia && (!melhor || r.distancia < melhor.d)) melhor = { parede: p, dist: r.dist, d: r.distancia };
+    }
     return melhor;
   };
   const mesmaGeometria = (a: Pick<Parede, 'path'> | undefined, b: Pick<Parede, 'path'> | undefined) => !!a && !!b && a.path.length === b.path.length && a.path.every((q, i) => Math.abs(q[0] - b.path[i]![0]) < 1e-6 && Math.abs(q[1] - b.path[i]![1]) < 1e-6);
@@ -350,7 +397,7 @@ export function recalcularParedes(m: Rascunho): void {
     const velha = antigas.get(a.wallId);
     if (parede(a.wallId) && mesmaGeometria(velha, parede(a.wallId))) continue;
     if (!velha) { delete m.openings[a.id]; continue; }
-    const alvo = achar(pontoNaParede(velha, a.at * comprimentoDaParede(velha)).ponto);
+    const alvo = achar(pontoNaParede(velha, a.at * comprimentoDaParede(velha)).ponto, velha.levelId);
     if (!alvo) { delete m.openings[a.id]; continue; }
     a.wallId = alvo.parede.id; a.at = arredondar(alvo.dist / comprimentoDaParede(alvo.parede));
     if (motivoDeNaoCaber({ walls: m.walls, openings: m.openings }, a)) delete m.openings[a.id];
@@ -360,21 +407,26 @@ export function recalcularParedes(m: Rascunho): void {
     const velha = antigas.get(o.wall.wallId);
     if (parede(o.wall.wallId) && mesmaGeometria(velha, parede(o.wall.wallId))) continue;
     if (!velha) { delete m.props[o.id]; continue; }
-    const alvo = achar(pontoNaParede(velha, o.wall.at * comprimentoDaParede(velha)).ponto);
+    const alvo = achar(pontoNaParede(velha, o.wall.at * comprimentoDaParede(velha)).ponto, velha.levelId);
     if (!alvo) { delete m.props[o.id]; continue; }
     o.wall.wallId = alvo.parede.id; o.wall.at = arredondar(alvo.dist / comprimentoDaParede(alvo.parede));
   }
   limparOrfaos(m);
 }
 
-/** Objeto de parede mora no cômodo da face; os demais moram no cômodo que está sob eles. */
+/** Objeto de parede mora no cômodo da face; os demais moram no cômodo do mesmo andar que está sob eles. */
 export function atualizarSalasDosObjetos(m: Rascunho): void {
   const objetos = Object.values(m.props) as Objeto[];
   if (!objetos.length) return;
-  const indice = indiceDeCelulas(m);
+  const indices = new Map<string | null, Map<number, string>>();
+  const indiceDe = (nivel: string | null) => {
+    let idx = indices.get(nivel);
+    if (!idx) { idx = indiceDeCelulas(m, nivel); indices.set(nivel, idx); }
+    return idx;
+  };
   for (const o of objetos) {
     if (o.elevation === 'wall') { if (o.roomId && !m.rooms[o.roomId]) delete m.props[o.id]; continue; }
-    const sala = comodoEm(m, o.position, indice);
+    const sala = comodoEm(m, o.position, indiceDe(o.levelId ?? null));
     if (o.roomId !== sala) o.roomId = sala;
   }
 }

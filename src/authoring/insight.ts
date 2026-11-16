@@ -35,26 +35,27 @@ const LIGACOES: readonly Abertura['kind'][] = ['door', 'arch', 'secret'];
 /** O que se sabe de um cômodo olhando o documento: tamanho, aberturas, vizinhos, objetos e luzes. `null` se o cômodo não existe. */
 export function insightDoComodo(m: MapaAtlas, roomId: string, arestas: Map<string, ArestaUnitaria> = arestasDeParede(m)): InsightDoComodo | null {
   const sala = m.rooms[roomId]; if (!sala) return null;
+  const nivel = sala.levelId ?? null;
   const celulas = decodificar(sala.cells), t = m.grid.size, caixa = caixaDasCelulas(m, celulas); if (!caixa) return null;
-  const indice = indiceDeCelulas(m);
-  // Perímetro, lado de fora e vizinhos, pelas arestas unitárias.
+  const indice = indiceDeCelulas(m, nivel);
+  // Perímetro, lado de fora e vizinhos, pelas arestas unitárias do mesmo andar.
   let perimetro = 0, externo = 0; const compartilhado = new Map<string, number>();
   for (const a of arestas.values()) {
-    if (!a.salas.includes(roomId)) continue;
+    if ((a.levelId ?? null) !== nivel || !a.salas.includes(roomId)) continue;
     perimetro += t;
     const outro = a.salas.find(x => x !== roomId) ?? null;
     if (outro === null) externo += t; else compartilhado.set(outro, (compartilhado.get(outro) ?? 0) + t);
   }
   const portas: AberturaDoComodo[] = [], janelas: AberturaDoComodo[] = [], ligados = new Set<string>();
   for (const a of Object.values(m.openings)) {
-    const parede = m.walls[a.wallId]; if (!parede) continue;
+    const parede = m.walls[a.wallId]; if (!parede || (parede.levelId ?? null) !== nivel) continue;
     const salas = salasDaAbertura(m, a, arestas); if (!salas.includes(roomId)) continue;
     const outro = salas.find(x => x !== roomId) ?? null, dist = centroDaAbertura(parede, a), normal = normalParaDentro(m, parede, dist, roomId, indice); if (!normal) continue;
     const item: AberturaDoComodo = { id: a.id, kind: a.kind, wallId: a.wallId, at: a.at, centro: pontoNaParede(parede, dist).ponto, largura: a.width, normal, outro };
     if (a.kind === 'window') janelas.push(item); else { portas.push(item); if (outro && LIGACOES.includes(a.kind)) ligados.add(outro); }
   }
-  const objetos = Object.values(m.props).filter(o => o.roomId === roomId).map(o => ({ id: o.id, receita: ACERVO.idDaFonte(o.source), elevation: o.elevation, caixa: caixaDoObjeto(o) }));
-  const luzes = Object.values(m.lights).filter(l => comodoEm(m, l.position, indice) === roomId).map(l => l.id);
+  const objetos = Object.values(m.props).filter(o => (o.levelId ?? null) === nivel && o.roomId === roomId).map(o => ({ id: o.id, receita: ACERVO.idDaFonte(o.source), elevation: o.elevation, caixa: caixaDoObjeto(o) }));
+  const luzes = Object.values(m.lights).filter(l => (l.levelId ?? null) === nivel && comodoEm(m, l.position, indice) === roomId).map(l => l.id);
   return {
     id: roomId, nome: sala.name, funcao: sala.function, celulas, area: celulas.length * t * t, perimetro, caixa, portas, janelas,
     vizinhos: [...compartilhado].map(([id, comprimento]) => ({ id, comprimento, ligado: ligados.has(id) })), externo, objetos, luzes,

@@ -52,7 +52,7 @@ Testes: um mapa sem `levels` dá o mesmo conteúdo no filtro do térreo; um obje
 Pronto quando: `npm test` passa.
 Commit: `added map levels and per-level map filter`
 
-### H2 — Comandos de andar e paredes por andar  ⬜
+### H2 — Comandos de andar e paredes por andar  ✅
 Objetivo: criar, renomear, reordenar e remover andares; tudo o que é derivado respeita o andar.
 Depende de: H1.
 Ler: `src/state/comandos.ts` e `src/state/comandos-construir.ts` (todos os comandos de criação: `comodo.criar`, `parede.adicionar`, `item.adicionar`, `terreno.*`, `presenca.*`), `src/domain/geometria.ts` (`arestasDeParede`, `paredesDerivadas`, `recalcularParedes`, `encaixarNaParede`), `src/domain/presets.ts` (`telhadoPadrao`: já filtra por nível), `src/authoring/insight.ts` e `layout.ts` (a mobília só deve ver o andar do cômodo).

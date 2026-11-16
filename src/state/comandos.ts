@@ -3,7 +3,8 @@ import { ceuNoHorario } from '../domain/clima.ts';
 import { camadaDoObjeto } from '../domain/camadas.ts';
 import { ErroDeValidacao } from '../domain/esquema.ts';
 import { clonar, produzir } from './imutavel.ts';
-import type { Acabamento, Clima, Estilo, Fundo, Grade, Luz, Memoria, MapaAtlas, ModoTelhadosSessao, NomeColecao, Ponto } from '../domain/mapa.ts';
+import type { Acabamento, Andar, Clima, Estilo, Fundo, Grade, Luz, Memoria, MapaAtlas, ModoTelhadosSessao, NomeColecao, Ponto } from '../domain/mapa.ts';
+import { andarDe } from '../domain/andares.ts';
 import { atualizarSalasDosObjetos } from '../domain/geometria.ts';
 import { alvosDoInterruptor } from '../domain/interagiveis.ts';
 import { definirValor, iniciar, passo, podar } from '../domain/iniciativa.ts';
@@ -73,7 +74,10 @@ export type Comando =
   | { tipo: 'iniciativa.iniciar'; entradas: { tokenId: string; value: number }[] }
   | { tipo: 'iniciativa.passo'; passo: 1 | -1 }
   | { tipo: 'iniciativa.valor'; tokenId: string; value: number }
-  | { tipo: 'iniciativa.encerrar' };
+  | { tipo: 'iniciativa.encerrar' }
+  | { tipo: 'andar.criar'; andar: Andar }
+  | { tipo: 'andar.atualizar'; id: string | null; patch: { name?: string; order?: number } }
+  | { tipo: 'andar.remover'; id: string };
 
 const nao = (msg: string): never => { throw new ErroDeComando(msg); };
 
@@ -310,6 +314,57 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       if (!m.session.initiative) nao('Não há iniciativa em andamento.');
       m.session.initiative = null; break;
     }
+    case 'andar.criar': {
+      const { andar } = c;
+      if (m.levels?.[andar.id]) nao(`Já existe o andar “${andar.id}”.`);
+      if (!Number.isInteger(andar.order) || andar.order === 0) nao('A ordem do andar deve ser inteiro diferente de 0.');
+      if (Object.values(m.levels ?? {}).some(a => a.order === andar.order)) nao('Já existe um andar nessa posição.');
+      m.levels ??= {};
+      m.levels[andar.id] = clonar(andar);
+      break;
+    }
+    case 'andar.atualizar': {
+      if (c.id === null) {
+        if (c.patch.order !== undefined) nao('O térreo tem ordem fixa (0).');
+        if (c.patch.name !== undefined) {
+          const n = c.patch.name.trim();
+          if (!n) nao('Dê um nome ao andar.');
+          m.groundLevelName = n;
+        }
+        break;
+      }
+      const a = m.levels?.[c.id] ?? nao(`O andar “${c.id}” não existe.`);
+      if (c.patch.name !== undefined) a.name = c.patch.name;
+      if (c.patch.order !== undefined) {
+        if (!Number.isInteger(c.patch.order) || c.patch.order === 0) nao('A ordem do andar deve ser inteiro diferente de 0.');
+        if (Object.values(m.levels ?? {}).some(outro => outro.id !== c.id && outro.order === c.patch.order)) nao('Já existe um andar nessa posição.');
+        a.order = c.patch.order;
+      }
+      break;
+    }
+    case 'andar.remover': {
+      const levels = m.levels;
+      if (!levels || !levels[c.id]) return nao(`O andar “${c.id}” não existe.`);
+      delete levels[c.id];
+      if (!Object.keys(levels).length) delete m.levels;
+      for (const [id, x] of Object.entries(m.rooms)) if (andarDe(x) === c.id) { delete m.rooms[id]; delete m.comodosExtra[id]; }
+      for (const [id, w] of Object.entries(m.walls)) if (andarDe(w) === c.id) {
+        delete m.walls[id];
+        for (const [oid, o] of Object.entries(m.openings)) if (o.wallId === id) delete m.openings[oid];
+      }
+      for (const [id, o] of Object.entries(m.props)) if (andarDe(o) === c.id) delete m.props[id];
+      for (const [id, l] of Object.entries(m.lights)) if (andarDe(l) === c.id) delete m.lights[id];
+      for (const [id, r] of Object.entries(m.regions)) if (andarDe(r) === c.id) delete m.regions[id];
+      for (const [id, p] of Object.entries(m.presence)) if (andarDe(p) === c.id) delete m.presence[id];
+      for (const [id, t] of Object.entries(m.tokens)) if (andarDe(t) === c.id) delete m.tokens[id];
+      if (m.session.exploredLevels) {
+        delete m.session.exploredLevels[c.id];
+        if (!Object.keys(m.session.exploredLevels).length) delete m.session.exploredLevels;
+      }
+      m.session.initiative = podar(m.session.initiative, id => !!m.tokens[id]);
+      m.session.revealed = m.session.revealed.filter(id => !!(m.rooms[id] || m.walls[id] || m.openings[id] || m.props[id] || m.lights[id] || m.regions[id] || m.presence[id] || m.tokens[id]));
+      break;
+    }
     default: { const _fim: never = c; nao(`Comando desconhecido: ${JSON.stringify(_fim)}`); }
   }
 }
@@ -334,6 +389,7 @@ export const ROTULOS: Record<Comando['tipo'], string> = {
   'limites.atualizar': 'Redimensionar mapa', 'estilo.atualizar': 'Mudar estilo', 'mapa.audio': 'Som do mapa', 'clima.aplicar': 'Mudar clima', 'clima.predefinir': 'Aplicar clima', 'clima.salvar': 'Salvar clima', 'clima.esquecer': 'Esquecer clima', 'clima.audio': 'Som do clima', 'momento.salvar': 'Salvar momento', 'momento.remover': 'Remover momento', 'acabamento.atualizar': 'Ajustar acabamento',
   'fundo.atualizar': 'Ajustar fundo', 'memoria.atualizar': 'Ajustar memória', 'item.adicionar': 'Adicionar', 'item.atualizar': 'Editar',
   'item.remover': 'Remover', 'objeto.camada': 'Mudar a camada', 'luz.estado': 'Luzes', 'objeto.visibilidade': 'Visibilidade de objetos', 'selecao.mover': 'Mover', 'peca.mover': 'Mover peça', 'peca.virar': 'Virar a lanterna', 'sessao.esquecer': 'Recomeçar a exploração', 'sessao.revelar': 'Revelar', 'sessao.ocultar': 'Esconder cômodos', 'sessao.explorar': 'Explorar', 'sessao.telhados': 'Telhados da sessão', 'interagir': 'Usar', 'iniciativa.iniciar': 'Começar a iniciativa', 'iniciativa.passo': 'Passar a vez', 'iniciativa.valor': 'Valor de iniciativa', 'iniciativa.encerrar': 'Encerrar a iniciativa', 'proposta.aceitar': 'Aceitar sugestão',
+  'andar.criar': 'Criar andar', 'andar.atualizar': 'Editar andar', 'andar.remover': 'Remover andar',
 };
 
 export type { NomeColecao };

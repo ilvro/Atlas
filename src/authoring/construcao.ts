@@ -258,7 +258,7 @@ export function paredes(mapa: MapaAtlas, pedidos: readonly PedidoDeParede[], _se
 }
 
 // ---------- Portas ----------
-export interface PedidoDePorta { perto: Ponto; tipo?: Abertura['kind']; estado?: Abertura['state']; largura?: number }
+export interface PedidoDePorta { perto: Ponto; tipo?: Abertura['kind']; estado?: Abertura['state']; largura?: number; andar?: string | null }
 const TIPOS_DE_ABERTURA: readonly Abertura['kind'][] = ['door', 'window', 'arch', 'secret'];
 const ESTADOS_DE_ABERTURA: readonly Abertura['state'][] = ['closed', 'open', 'locked'];
 
@@ -273,7 +273,7 @@ export function portas(mapa: MapaAtlas, pedidos: readonly PedidoDePorta[], _seme
     const tipo = p.tipo ?? 'door', estado = p.estado ?? 'closed', largura = p.largura ?? 0.9;
     if (!TIPOS_DE_ABERTURA.includes(tipo)) throw new ErroDeConstrucao(`tipo de abertura “${tipo}” não existe; tipos: ${lista(TIPOS_DE_ABERTURA)}`);
     if (!ESTADOS_DE_ABERTURA.includes(estado)) throw new ErroDeConstrucao(`estado “${estado}” não existe; estados: ${lista(ESTADOS_DE_ABERTURA)}`);
-    const e = encaixarNaParede(atual, p.perto, largura);
+    const e = encaixarNaParede(atual, p.perto, largura, 0.75, undefined, p.andar);
     if (!e) throw new ErroDeConstrucao(`não há parede perto de [${p.perto[0]}, ${p.perto[1]}] para a abertura; crie o cômodo ou a parede antes e aponte para a parede (até ~0,75 m)`);
     const abertura: Abertura = { id: gerarId('a'), wallId: e.parede.id, at: e.at, width: largura, kind: tipo, state: estado, material: 'madeira.media', som: null, swing: 'a' };
     const motivo = motivoDeNaoCaber(atual, abertura);
