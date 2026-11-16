@@ -127,3 +127,19 @@ test('trocar de clima pede ao Jukebox a cena daquele clima; sem cena, outro mapa
     await new Promise(r => setTimeout(r, 40)); assert.equal(pedidos.length, 1);
   } finally { atlas.fechar(); jukebox.fechar(); }
 });
+
+test('presets atmosféricos trazem glow, edges e sol rasante em neve', () => {
+  const neve = presetDeClima('neve')!;
+  assert.ok(neve.climate.sun!.angle >= 0.7 && neve.climate.sun!.angle <= 0.85);
+  assert.ok(neve.finish.glow >= 0.3 && neve.finish.vignette >= 0.35);
+  assert.equal(neve.finish.edges.kind, 'clouds');
+  assert.ok(neve.finish.edges.amount >= 0.3);
+
+  assert.equal(presetDeClima('neblina')!.finish.edges.kind, 'fog');
+  assert.ok(presetDeClima('neblina')!.finish.glow > 0);
+  assert.equal(presetDeClima('tempestade')!.finish.edges.kind, 'dark');
+  assert.equal(presetDeClima('noite')!.finish.edges.kind, 'dark');
+  assert.ok(presetDeClima('noite')!.finish.glow >= 0.35);
+  assert.equal(presetDeClima('apagao')!.finish.edges.kind, 'dark');
+  assert.ok(presetDeClima('apagao')!.finish.glow >= 0.4);
+});

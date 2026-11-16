@@ -38,7 +38,7 @@ Ataca sete gargalos reais separados em **quatro etapas** e **dez fichas curtas**
 | [J7](#j7--receita-palicada-e-visual-tático-de-cercasmuros-fence-e-low) | Etapa 3 · Ermos & Cercas | Postes/travessas em `fence`, destaque em `low` e receita `palicada` | — | ✅ |
 | [J8](#j8--enriquecer-textura-de-neve-padrão-em-materiaists) | Etapa 4 · Terreno & Atmosfera | Micro-cristas e sombra fria em `'neve'` (sem parecer grama) | — | ✅ |
 | [J9](#j9--proteger-bordas-e-desempenho-do-relevo-em-mapas-grandes) | Etapa 4 · Terreno & Atmosfera | Sem artefatos radiais na margem do mapa e bake rápido | — | ✅ |
-| [J10](#j10--presets-cinematográficos-de-climaacabamento-com-glow-edges-e-sol-rasante) | Etapa 4 · Terreno & Atmosfera | Climas/acabamentos prontos com `glow`, `edges` e `sol` baixo | J2 | ⬜ |
+| [J10](#j10--presets-cinematográficos-de-climaacabamento-com-glow-edges-e-sol-rasante) | Etapa 4 · Terreno & Atmosfera | Climas/acabamentos prontos com `glow`, `edges` e `sol` baixo | J2 | ✅ |
 
 ---
 

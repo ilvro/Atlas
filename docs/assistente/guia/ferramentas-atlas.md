@@ -11,7 +11,8 @@ Abre um mapa no Atlas (pela rota, como na galeria) e espera o editor aparecer na
 ## atlas_ambiente
 
 Ajusta clima e acabamento do mapa aberto (um passo de desfazer). Presets em `atlas_catalogo { parte: "climas" }`. `"guardarClima"` `{ id, nome }` salva no mapa.
-- Em exteriores e cenas atmosféricas, ajuste `acabamento` com `glow` (`0.35–0.8`), `vignette` (`0.3–0.5`), `edges` (`{ kind: "clouds" | "fog" | "dark", amount }`) e `grade` opcional, além de `sol.angle` baixo/rasante (`0.65–0.85`) para sombras longas e leitura de relevo dramática.
+- Presets atmosféricos (`neve`, `neblina`, `tempestade`, `noite`, `apagao`, `neon`) já trazem `glow`, `vignette`, `edges` (`clouds`/`fog`/`dark`) e — em `neve` — `sol.angle` rasante (`0.75`); `acabamento.preset` também oferece `'inverno-nevado'` e `'sombrio-cinematografico'`.
+- Em exteriores e cenas personalizadas, ajuste `acabamento` com `glow` (`0.35–0.8`), `vignette` (`0.3–0.5`), `edges` (`{ kind: "clouds" | "fog" | "dark", amount }`) e `grade` opcional, além de `sol.angle` baixo/rasante (`0.65–0.85`) para sombras longas e leitura de relevo dramática.
 
 ## atlas_andares
 
