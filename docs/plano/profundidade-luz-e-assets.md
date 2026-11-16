@@ -63,7 +63,7 @@ Comparando as referências do *Farol de OSNI* e das duas casas externas com o re
 | [K1](#k1--usar-salaoutline-na-máscara-de-luz-e-poeira-dos-interiores) | Etapa 1 · Correções Imediatas & Auditoria | Eliminar sombra quadrada em casas rotacionadas (`mapa-de-luz.ts`, `mascara-de-comodos.ts`) | — | ✅ |
 | [K2](#k2--auditoria-espacial-em-atlas_revisar-exterior-em-cômodo-parede-e-relevo) | Etapa 1 · Correções Imediatas & Auditoria | Detectar neve/árvore em cômodo, parede cortando sala e paliçada em escarpa/degrau | — | ✅ |
 | [K3](#k3--penumbra-de-interior-configurável-climainteriorlight-e-contraste-diurno) | Etapa 1 · Correções Imediatas & Auditoria | `Clima.interiorLight?` configurável via presets e `atlas_ambiente` | K1 | ✅ |
-| [K4](#k4--oclusores-de-luz-para-pilares-e-objetos-altos-no-domínio) | Etapa 2 · Oclusão & Iluminação Dinâmica | Segmentos de oclusão rotacionados em `visibilidade.ts` sem auto-bloqueio de luzes embutidas | — | ⬜ |
+| [K4](#k4--oclusores-de-luz-para-pilares-e-objetos-altos-no-domínio) | Etapa 2 · Oclusão & Iluminação Dinâmica | Segmentos de oclusão rotacionados em `visibilidade.ts` sem auto-bloqueio de luzes embutidas | — | ✅ |
 | [K5](#k5--sombras-dinâmicas-de-objetospilares-e-tokens-em-mapa-de-luzts) | Etapa 2 · Oclusão & Iluminação Dinâmica | Conectar oclusão de objetos altos e tokens no `MapaDeLuz` (efeito lanterna do Farol de OSNI) | K3, K4 | ⬜ |
 | [K6](#k6--escarpa-oblíqua-profunda-e-oclusão-de-base-independente-do-sol) | Etapa 3 · Relevo & Penhascos Dramáticos | Face mais larga (`escarpa.ts`) + oclusão basal contínua independente do ângulo solar | — | ⬜ |
 | [K7](#k7--curva-não-linear-de-profundidade-e-render-de-rampasdegraus-no-relevo) | Etapa 3 · Relevo & Penhascos Dramáticos | Curva não-linear de neblina em `relevo.ts` e textura visível para `degraus < 1 m` em `assar.ts` | K6 | ⬜ |
@@ -212,7 +212,7 @@ Testar validação de faixa (`0.05..1`), interpolação em `misturar`, presets e
 
 Objetivo: reproduzir o impacto visual da **Imagem 5 (OSNI)** — onde uma lanterna ou lareira não atravessa o núcleo maciço da torre, móveis grandes nem personagens, gerando sombras direcionais reais sobre o piso texturizado.
 
-### K4 — Oclusores de luz para pilares e objetos altos no domínio  ⬜
+### K4 — Oclusores de luz para pilares e objetos altos no domínio  ✅
 
 **Objetivo:** criar função pura em `src/domain/visibilidade.ts` que extrai segmentos de oclusão rotacionados para objetos altos/opacos (pilares, estantes, armários, paliçadas), sem bloquear fontes de luz situadas no interior da própria caixa do objeto.
 

@@ -65,7 +65,7 @@ const objeto = e.obj({
   position: ponto, rotation: e.num({ min: -1000, max: 1000 }), scale: e.num({ min: 0.05, max: 50 }),
   elevation: e.um('floor', 'table', 'wall', 'ceiling', 'underwater'),
   wall: e.nulo(e.obj({ wallId: id, at: unidade, face: e.um('inner', 'outer') })),
-  roomId: idOuNulo, blocks: e.obj({ move: e.bool(), sight: e.bool() }), castsShadow: e.bool(), harmonize: e.bool(),
+  roomId: idOuNulo, blocks: e.obj({ move: e.bool(), sight: e.bool(), light: e.opt(e.bool()) }), castsShadow: e.bool(), harmonize: e.bool(),
   layer: e.opt(e.num({ inteiro: true, min: -100000, max: 100000 })),
   oculto: e.opt(e.bool()),
   levelId: e.opt(idOuNulo),

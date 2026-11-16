@@ -1,9 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { codificar } from '../../src/domain/celulas.ts';
+import { novoObjeto } from '../../src/domain/fabrica.ts';
 import { recalcularParedes } from '../../src/domain/geometria.ts';
 import { criarMapa, type Abertura, type Comodo, type MapaAtlas, type Ponto } from '../../src/domain/mapa.ts';
-import { IndiceDeSegmentos, oclusores, poligonoIluminado } from '../../src/domain/visibilidade.ts';
+import { IndiceDeSegmentos, oclusores, oclusoresDeObjetos, poligonoIluminado, segmentosParaFonte } from '../../src/domain/visibilidade.ts';
+import { ACERVO } from '../../src/procedural/acervo.ts';
 
 const retangulo = (x0: number, y0: number, x1: number, y1: number): [number, number][] => { const c: [number, number][] = []; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) c.push([x, y]); return c; };
 const sala = (id: string, cells: [number, number][]): Comodo => ({ id, name: id, function: null, cells: codificar(cells), floor: { material: 'tabuas.carvalho', seed: 1 }, wallpaper: null, wallStyle: null, palette: null, roof: { material: null, visible: true }, levelId: null });
@@ -76,4 +78,62 @@ test('o índice devolve o mesmo polígono que a lista inteira', () => {
     }
   }
   assert.ok(indice.perto([6, 6], 9).length < todos.length, 'o índice descarta o que está longe');
+});
+
+test('pilar quadrado e armário rotacionado projetam cone de sombra atrás de uma luz próxima', () => {
+  const m = criarMapa({ id: 'm', agora: 1 });
+  m.props.pilar = novoObjeto([6, 5], { id: 'pilar', source: ACERVO.fonte('pilar', 1), scale: 2 }); // 1 m × 1 m quadrado -> octógono
+  m.props.armario = novoObjeto([10, 10], { id: 'armario', source: ACERVO.fonte('armario', 1), rotation: Math.PI / 4 }); // 1.2 m × 0.6 m rotacionado
+
+  const objs = oclusoresDeObjetos(m);
+  assert.equal(objs.length, 2);
+  assert.equal(objs.find(o => o.id === 'pilar')!.segmentos.length, 8, 'pilar quadrado vira octógono inscrito');
+  assert.equal(objs.find(o => o.id === 'armario')!.segmentos.length, 4, 'armário retangular tem 4 lados');
+
+  const segsPilar = segmentosParaFonte([4, 5], [], objs);
+  const pPilar = poligonoIluminado([4, 5], segsPilar, 10, null);
+  assert.ok(dentro(pPilar, 5.2, 5), 'antes do pilar está iluminado');
+  assert.ok(!dentro(pPilar, 8, 5), 'atrás do pilar fica na sombra');
+  assert.ok(dentro(pPilar, 8, 7), 'ao lado do cone de sombra continua iluminado');
+
+  // Luz a sudoeste do armário girado a 45° projeta sombra na diagonal nordeste/oposta
+  const posLuzArmario: Ponto = [8.5, 8.5];
+  const pArmario = poligonoIluminado(posLuzArmario, segmentosParaFonte(posLuzArmario, [], objs), 10, null);
+  assert.ok(!dentro(pArmario, 11.8, 11.8), 'atrás do armário rotacionado fica na sombra');
+  assert.ok(dentro(pArmario, 11, 8.5), 'fora da sombra lateral do armário continua iluminado');
+});
+
+test('objetos baixos, iluminação, escadas e árvores sem bloqueio de visão não bloqueiam luz', () => {
+  const m = criarMapa({ id: 'm', agora: 1 });
+  m.props.tapete = novoObjeto([5, 5], { id: 'tapete', source: ACERVO.fonte('tapete.persa', 1) });
+  m.props.mesa = novoObjeto([7, 5], { id: 'mesa', source: ACERVO.fonte('mesa.retangular', 1) });
+  m.props.poste = novoObjeto([9, 5], { id: 'poste', source: ACERVO.fonte('poste.luz', 1) });
+  m.props.escada = novoObjeto([11, 5], { id: 'escada', source: ACERVO.fonte('escada.madeira', 1) });
+  m.props.arvore = novoObjeto([13, 5], { id: 'arvore', source: ACERVO.fonte('casa:arvore-5m', 1) });
+  m.props.cerca = novoObjeto([15, 5], { id: 'cerca', source: ACERVO.fonte('cerca', 1) });
+
+  assert.equal(oclusoresDeObjetos(m).length, 0);
+  const p = poligonoIluminado([3, 5], segmentosParaFonte([3, 5], [], oclusoresDeObjetos(m)), 15, null);
+  assert.ok(dentro(p, 16, 5), 'luz atravessa tapetes, mesas, postes, escadas, árvores e cercas');
+});
+
+test('luz posicionada dentro ou sobre uma lareira não sofre auto-oclusão, mas respeita filtros e overrides', () => {
+  const m = criarMapa({ id: 'm', agora: 1 });
+  m.props.lareira = novoObjeto([6, 5], { id: 'lareira', source: ACERVO.fonte('lareira.pedra', 1) });
+  m.props.mesaBloq = novoObjeto([10, 5], { id: 'mesaBloq', source: ACERVO.fonte('mesa.retangular', 1), blocks: { move: true, sight: false, light: true } });
+  m.props.pilarOff = novoObjeto([3, 5], { id: 'pilarOff', source: ACERVO.fonte('pilar', 1), blocks: { move: true, sight: true, light: false } });
+  m.props.oculto = novoObjeto([6, 8], { id: 'oculto', source: ACERVO.fonte('pilar', 1), oculto: true });
+  m.props.paredeProp = novoObjeto([6, 2], { id: 'paredeProp', source: ACERVO.fonte('estante', 1), elevation: 'wall' });
+  m.props.andar2 = novoObjeto([6, 10], { id: 'andar2', source: ACERVO.fonte('pilar', 1), levelId: 'a2' });
+
+  const objsTerreo = oclusoresDeObjetos(m);
+  assert.deepEqual(objsTerreo.map(o => o.id).sort(), ['lareira', 'mesaBloq']);
+  assert.deepEqual(oclusoresDeObjetos(m, { levelId: 'a2' }).map(o => o.id), ['andar2']);
+
+  // Luz dentro da lareira não é bloqueada pela própria lareira, mas continua bloqueada por mesaBloq
+  const segsLareira = segmentosParaFonte([6, 5], [], objsTerreo);
+  const pLareira = poligonoIluminado([6, 5], segsLareira, 8, null);
+  assert.ok(dentro(pLareira, 6, 8), 'luz na lareira ilumina o cômodo sem auto-oclusão');
+  assert.ok(dentro(pLareira, 3, 5), 'pilar com blocks.light=false não bloqueia');
+  assert.ok(!dentro(pLareira, 12, 5), 'objeto com blocks.light=true projeta sombra atrás de si');
 });
