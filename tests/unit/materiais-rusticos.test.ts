@@ -24,3 +24,16 @@ test('os padrões novos têm pintor no Pixel e cores hex válidas', () => {
   }
   assert.equal(MATERIAIS['piso.hangar']!.ouro, '#c9a12a', 'o hangar tem faixa de segurança');
 });
+
+test('neve mantém hierarquia distinta de neve.funda, neve.pisada e grama', () => {
+  const neve = MATERIAIS['neve']!;
+  const funda = MATERIAIS['neve.funda']!;
+  const pisada = MATERIAIS['neve.pisada']!;
+  const grama = MATERIAIS['grama']!;
+  assert.equal(neve.uso, 'terreno');
+  assert.equal(neve.padrao, 'neve');
+  assert.notEqual(neve.padrao, grama.padrao);
+  assert.notEqual(neve.padrao, funda.padrao);
+  assert.notEqual(neve.padrao, pisada.padrao);
+  assert.equal(neve.claro, '#ffffff');
+});
