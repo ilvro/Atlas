@@ -36,6 +36,25 @@ export const CONJUNTOS_EXTERIORES: readonly ConjuntoDeEspalhar[] = [
     { receita: 'canteiro', peso: 3, contexto: 'livre' }, { receita: 'casa:arbusto-verde', peso: 2, contexto: 'livre' }, { receita: 'casa:arbusto-florido', peso: 2, contexto: 'livre' }, { receita: 'vaso.planta', peso: 1, contexto: 'livre' }, { receita: 'banco.jardim', peso: 1, contexto: 'livre' }, { receita: 'pedra.pequena', peso: 1, contexto: 'livre' }] },
   { id: 'cemiterio', nome: 'Cemitério', descricao: 'Lápides em fileiras, com árvores esparsas', densidade: 0.12, grade: [1.3, 1.9], itens: [
     { receita: 'lapide', peso: 10, contexto: 'livre' }, { receita: 'casa:pinheiro-3m', peso: 1, contexto: 'livre' }, { receita: 'casa:arvore-3m', peso: 1, contexto: 'livre' }] },
+  { id: 'mata-nevada', nome: 'Mata nevada', descricao: 'Pinheiros e árvores nevadas, arbustos secos, rochedos e galhos', densidade: 0.09, itens: [
+    { receita: 'casa:pinheiro-nevado-3m', peso: 3, contexto: 'livre' }, { receita: 'casa:pinheiro-nevado-4m', peso: 2, contexto: 'livre' },
+    { receita: 'casa:arvore-nevada-3m', peso: 2, contexto: 'livre' }, { receita: 'casa:arvore-nevada-5m', peso: 1, contexto: 'livre' },
+    { receita: 'casa:arbusto-seco-2m-neve', peso: 2, contexto: 'livre' }, { receita: 'casa:arbusto-seco-1m', peso: 1, contexto: 'livre' },
+    { receita: 'rochedo', peso: 1, contexto: 'livre' }, { receita: 'pedra.media', peso: 2, contexto: 'sob-arvore' },
+    { receita: 'galho-seco', peso: 2, contexto: 'sob-arvore' }, { receita: 'toco', peso: 1, contexto: 'sob-arvore' }] },
+  { id: 'bosque-morto', nome: 'Bosque morto', descricao: 'Árvores mortas, arbustos secos, galhos, tocos e pedras', densidade: 0.09, itens: [
+    { receita: 'arvore-morta', peso: 3, contexto: 'livre' }, { receita: 'arvore-morta-caida', peso: 1, contexto: 'livre' },
+    { receita: 'casa:arbusto-seco-1m', peso: 2, contexto: 'livre' }, { receita: 'casa:arbusto-seco-2m', peso: 2, contexto: 'livre' },
+    { receita: 'galho-seco', peso: 3, contexto: 'livre' }, { receita: 'toco', peso: 2, contexto: 'livre' },
+    { receita: 'raiz-exposta', peso: 1, contexto: 'livre' }, { receita: 'pedra.pequena', peso: 2, contexto: 'livre' }, { receita: 'pedra.media', peso: 1, contexto: 'livre' }] },
+  { id: 'encosta-rochosa', nome: 'Encosta rochosa', descricao: 'Rochedos, pedras, seixos e arbustos secos ralos', densidade: 0.14, itens: [
+    { receita: 'rochedo', peso: 2, contexto: 'livre' }, { receita: 'pedra.grande', peso: 2, contexto: 'livre' },
+    { receita: 'pedra.media', peso: 3, contexto: 'livre' }, { receita: 'pedra.pequena', peso: 3, contexto: 'livre' },
+    { receita: 'seixos', peso: 3, contexto: 'livre' }, { receita: 'casa:arbusto-seco-1m', peso: 2, contexto: 'livre' }, { receita: 'galho-seco', peso: 1, contexto: 'livre' }] },
+  { id: 'costa-rochosa', nome: 'Costa rochosa', descricao: 'Rochedos, seixos, pedras, troncos à deriva e juncos', densidade: 0.15, itens: [
+    { receita: 'rochedo', peso: 2, contexto: 'livre' }, { receita: 'pedra.grande', peso: 2, contexto: 'livre' },
+    { receita: 'pedra.media', peso: 3, contexto: 'livre' }, { receita: 'seixos', peso: 4, contexto: 'livre' },
+    { receita: 'tronco.caido', peso: 1, contexto: 'livre' }, { receita: 'galho-seco', peso: 2, contexto: 'livre' }, { receita: 'junco', peso: 2, contexto: 'livre' }] },
 ];
 export const TODOS_OS_CONJUNTOS: readonly ConjuntoDeEspalhar[] = [...CONJUNTOS_DE_ESPALHAR, ...CONJUNTOS_EXTERIORES];
 export const conjuntoDeEspalhar = (id: string): ConjuntoDeEspalhar | undefined => TODOS_OS_CONJUNTOS.find(c => c.id === id);

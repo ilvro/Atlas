@@ -1241,7 +1241,11 @@
             "plantas",
             "mata",
             "jardim",
-            "cemiterio"
+            "cemiterio",
+            "mata-nevada",
+            "bosque-morto",
+            "encosta-rochosa",
+            "costa-rochosa"
           ]
         },
         "forma": {

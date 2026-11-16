@@ -34,7 +34,7 @@ Ataca sete gargalos reais separados em **quatro etapas** e **dez fichas curtas**
 | [J3](#j3--suportar-outline-em-insightdocomodo-e-malhadocomodo) | Etapa 2 · Formas & Edifícios | Mobília e malha fina `0,25 m` em `circulo` e `poligono` | — | ✅ |
 | [J4](#j4--atualizar-atlas_revisar-para-escadas-subsolos-outline-e-ermos-vazios) | Etapa 2 · Formas & Edifícios | Revisão multi-andar, porões, `outline` e quadrantes vazios | J3 | ✅ |
 | [J5](#j5--suportar-rotacao-em-atlas_edificio) | Etapa 2 · Formas & Edifícios | Casas rotacionadas (`poligono`) no construtor de edifícios | J3, J4 | ✅ |
-| [J6](#j6--conjuntos-exteriores-por-bioma-em-atlas_espalhar) | Etapa 3 · Ermos & Cercas | Conjuntos `mata-nevada`, `bosque-morto`, `encosta-rochosa`, `costa-rochosa` | — | ⬜ |
+| [J6](#j6--conjuntos-exteriores-por-bioma-em-atlas_espalhar) | Etapa 3 · Ermos & Cercas | Conjuntos `mata-nevada`, `bosque-morto`, `encosta-rochosa`, `costa-rochosa` | — | ✅ |
 | [J7](#j7--receita-palicada-e-visual-tático-de-cercasmuros-fence-e-low) | Etapa 3 · Ermos & Cercas | Postes/travessas em `fence`, destaque em `low` e receita `palicada` | — | ⬜ |
 | [J8](#j8--enriquecer-textura-de-neve-padrão-em-materiaists) | Etapa 4 · Terreno & Atmosfera | Micro-cristas e sombra fria em `'neve'` (sem parecer grama) | — | ⬜ |
 | [J9](#j9--proteger-bordas-e-desempenho-do-relevo-em-mapas-grandes) | Etapa 4 · Terreno & Atmosfera | Sem artefatos radiais na margem do mapa e bake rápido | — | ⬜ |

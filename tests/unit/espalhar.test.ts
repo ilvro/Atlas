@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CONJUNTOS_DE_ESPALHAR, espalhar } from '../../src/authoring/espalhar.ts';
+import { CONJUNTOS_DE_ESPALHAR, CONJUNTOS_EXTERIORES, espalhar } from '../../src/authoring/espalhar.ts';
 import { insightDoComodo } from '../../src/authoring/insight.ts';
 import { malhaDoComodo, retanguloLivre } from '../../src/authoring/malha.ts';
 import { novoObjeto } from '../../src/domain/fabrica.ts';
 import type { MapaAtlas, Objeto } from '../../src/domain/mapa.ts';
+import { ACERVO } from '../../src/procedural/acervo.ts';
 import { pegadaDaReceita, receitaDe } from '../../src/procedural/receitas/index.ts';
 import { abertura, mapaCom, paredeEm, sala } from './apoio-casa.ts';
 
@@ -64,4 +65,22 @@ test('mesma semente, mesmo resultado; sem cômodo só vale "livre"; sem mesa a p
   const fora = espalhar(m, pedido([20, 20], 2, 'caixotes')); assert.equal(fora.length, 0, 'fora de cômodos não há parede');
   const plantas = espalhar(m, pedido([20, 20], 2, 'plantas')); assert.ok(plantas.every(o => o.roomId === null && receita(o) === 'vaso.planta'));
   const semMesa = escritorio(); delete semMesa.props.mesa; assert.deepEqual(espalhar(semMesa, pedido([3, 2], 1.5, 'papelada')), []);
+});
+
+test('conjuntos exteriores por bioma só usam itens do acervo e espalham fora de cômodos', () => {
+  const novosBiomas = ['mata-nevada', 'bosque-morto', 'encosta-rochosa', 'costa-rochosa'];
+  for (const id of novosBiomas) {
+    const conj = CONJUNTOS_EXTERIORES.find(c => c.id === id);
+    assert.ok(conj, `conjunto ${id} ausente`);
+    for (const item of conj.itens) assert.ok(ACERVO.item(item.receita), `${id}: item inválido ${item.receita}`);
+    const permitidos = new Set(conj.itens.map(i => i.receita));
+    const m = escritorio();
+    const colocados = espalhar(m, pedido([25, 25], 8, id, 17));
+    assert.ok(colocados.length >= 3, `${id}: gerou apenas ${colocados.length}`);
+    for (const o of colocados) {
+      const rid = ACERVO.idDaFonte(o.source);
+      assert.ok(permitidos.has(rid), `${id}: item inesperado ${rid}`);
+      assert.equal(o.roomId, null);
+    }
+  }
 });
