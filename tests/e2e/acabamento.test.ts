@@ -71,11 +71,11 @@ test('I1: casa na neve ganha chão pisado em volta, soleira na porta e desliga c
   await page.evaluate(() => (window as unknown as JanelaAtlas).__atlas.viewport()!.enquadrar());
   await esperarPintura(page);
 
-  // A 0,3 m fora da parede leste (x ~ 12,3 m) está a neve pisada; a 3 m (x ~ 15,5 m) está a neve intacta
-  const pertoCom = await brilho(page, [12.1, 8], [12.4, 10]);
+  // A 0,55 m fora da parede leste (dentro do aro de 0,75 m e além do blur da sombra de contato) está a neve pisada; a 3 m está intacta
+  const pertoCom = await brilho(page, [12.52, 8], [12.68, 10]);
   const longeCom = await brilho(page, [15.0, 8], [16.0, 10]);
   const soleiraCom = await brilho(page, [8.6, 12.12], [9.4, 12.48]);
-  assert.ok(pertoCom < longeCom - 6, `chão a 0,3 m (${pertoCom.toFixed(1)}) deve ficar mais escuro que a 3 m (${longeCom.toFixed(1)})`);
+  assert.ok(pertoCom < longeCom - 5, `chão perto (${pertoCom.toFixed(1)}) deve ficar mais escuro que a 3 m (${longeCom.toFixed(1)})`);
   assert.ok(soleiraCom < longeCom - 15, `soleira na porta (${soleiraCom.toFixed(1)}) deve destacar sobre a neve (${longeCom.toFixed(1)})`);
 
   // Desliga assentamento pela UI do inspetor ("Assentar edifícios")
@@ -83,11 +83,56 @@ test('I1: casa na neve ganha chão pisado em volta, soleira na porta e desliga c
   await page.locator('[data-testid="estilo-assentar"]').uncheck();
   await esperarPintura(page);
 
-  const pertoSem = await brilho(page, [12.1, 8], [12.4, 10]);
+  const pertoSem = await brilho(page, [12.52, 8], [12.68, 10]);
   const longeSem = await brilho(page, [15.0, 8], [16.0, 10]);
   const soleiraSem = await brilho(page, [8.6, 12.12], [9.4, 12.48]);
   assert.ok(Math.abs(pertoSem - longeSem) < 8, `com settle: false, chão perto (${pertoSem.toFixed(1)}) igual ao longe (${longeSem.toFixed(1)})`);
   assert.ok(soleiraSem > soleiraCom + 12, `com settle: false, soleira some (${soleiraSem.toFixed(1)} vs ${soleiraCom.toFixed(1)})`);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+test('I2: parede externa ganha sombra de contato com sol desligado, mas sem sombra sob porta aberta', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+
+  await sessao(page, `(s) => {
+    s.store.executar({ tipo: "limites.atualizar", largura: 24, altura: 21 });
+    s.store.executar({ tipo: "terreno.base", material: "areia" });
+    s.store.executar({ tipo: "estilo.atualizar", patch: { settle: false } });
+    s.store.executar({ tipo: "clima.aplicar", patch: { preset: "tarde", time: "12:00", ambient: { color: "#ffffff", intensity: 0.95 }, sun: null } });
+    s.store.executar({ tipo: "acabamento.atualizar", patch: { preset: "nenhum", texture: 0, vignette: 0, saturation: 1, grain: 0, tint: "#ffffff" } });
+    const cels = [];
+    for (let y = 4; y < 8; y++) for (let x = 4; x < 8; x++) cels.push([x, y]);
+    s.store.executar({
+      tipo: "comodo.criar",
+      id: "casa",
+      nome: "Casa",
+      funcao: "sala",
+      celulas: cels,
+      piso: { material: "tabuas.carvalho", seed: 1 },
+      papel: null,
+      telhado: null,
+      levelId: null,
+    });
+    const pareSul = Object.values(s.doc.value.walls).find(w =>
+      Math.abs(w.path[0][1] - 12) < 0.05 && Math.abs(w.path[1][1] - 12) < 0.05
+    );
+    s.store.executar({
+      tipo: "abertura.adicionar",
+      abertura: { id: "porta_aberta", kind: "door", wallId: pareSul.id, at: 0.5, width: 1.5, state: "open", material: "madeira.carvalho", swing: "b", som: null },
+    });
+  }`);
+
+  await page.evaluate(() => (window as unknown as JanelaAtlas).__atlas.viewport()!.enquadrar());
+  await esperarPintura(page);
+
+  // Parede leste fica em x = 12 m; deslocamento 0,2 m cai em [12,12 .. 12,32]. A 2 m fica em [14,0 .. 15,0].
+  const logoFora = await brilho(page, [12.14, 7.5], [12.30, 10.5]);
+  const a2m = await brilho(page, [14.0, 7.5], [15.0, 10.5]);
+  const sobPortaAberta = await brilho(page, [8.6, 12.14], [9.4, 12.30]);
+  assert.ok(logoFora < a2m - 4, `pixel logo fora da parede (${logoFora.toFixed(1)}) deve ficar mais escuro que a 2 m (${a2m.toFixed(1)})`);
+  assert.ok(sobPortaAberta > logoFora + 3, `sob a porta aberta (${sobPortaAberta.toFixed(1)}) não há sombra de contato (${logoFora.toFixed(1)})`);
   assert.deepEqual(erros, []);
   await ctx.close();
 });

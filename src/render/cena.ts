@@ -28,6 +28,7 @@ import { paletaDe } from '../domain/paletas.ts';
 import { criarPresenca } from './presenca.ts';
 import { criarAgua } from './agua.ts';
 import { criarCachoeiras } from './cachoeiras.ts';
+import { criarContatoExterno } from './contato-externo.ts';
 import { criarSombrasDoSol } from './sombras-do-sol.ts';
 
 export interface OpcoesDaCena {
@@ -101,11 +102,11 @@ interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; 
 export function criarCena(op: OpcoesDaCena): Cena {
   const raiz = new Container(), terrenoC = new Container(), veuTerrenoG = new Graphics(), submersosC = Object.assign(new Container(), { sortableChildren: true }), escarpasC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics(), fantasmaAndarG = new Graphics();
   const marcasG = new Graphics(), regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), tituloC = new Container();
-  const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados({ baker: op.baker, aoPintar: op.aoPintar }), neblina = criarNeblina(), bordas = criarBordas(), particulas = criarParticulas(), presenca = criarPresenca(), agua = criarAgua(), cachoeiras = criarCachoeiras(), sombras = criarSombrasDoSol();
+  const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados({ baker: op.baker, aoPintar: op.aoPintar }), neblina = criarNeblina(), bordas = criarBordas(), particulas = criarParticulas(), presenca = criarPresenca(), agua = criarAgua(), cachoeiras = criarCachoeiras(), sombras = criarSombrasDoSol(), contato = criarContatoExterno();
   const halos = criarHalos(luz, telhados);
   // A tinta do chão (presença natural) cobre o piso, mas não a face de rocha das escarpas, que sobe acima dela.
   // A luz multiplica tudo o que está embaixo (piso, objetos, paredes); marcadores, regiões e peças ficam por cima, sempre legíveis.
-  raiz.addChild(terrenoC, presenca.submerso, submersosC, agua.raiz, veuTerrenoG, comodosC, presenca.chao, escarpasC, sombras.raiz, objetosC, cachoeiras.raiz, paredesG, fantasmaAndarG, presenca.abaixo, luz.sprite, presenca.acima, halos.raiz, neblina.raiz, particulas.raiz, bordas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
+  raiz.addChild(terrenoC, presenca.submerso, submersosC, agua.raiz, veuTerrenoG, comodosC, presenca.chao, escarpasC, contato.raiz, sombras.raiz, objetosC, cachoeiras.raiz, paredesG, fantasmaAndarG, presenca.abaixo, luz.sprite, presenca.acima, halos.raiz, neblina.raiz, particulas.raiz, bordas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
 
   let mapa: MapaAtlas | null = null, vistaDaCena: Vista = 'construir', destruida = false, pintandoAgora = 0, ultimoQuadro = -1;
   let ultimoContextoAndar: ContextoDoAndar | null = null;
@@ -453,6 +454,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (tudo || colecao('walls') || campos('style')) sincronizarEscarpas(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid')) sincronizarComodos(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid', 'session', 'style')) desenharParedes(m);
+      if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || campos('grid', 'style', 'climate')) contato.atualizar(m);
       if (tudo || colecao('rooms') || campos('levels', 'bounds', 'grid')) desenharOverlaysDeAndar(m, contextoAndar);
       if (tudo || colecao('props') || campos('style') || refazerPorRelevo) sincronizarObjetos(m, (tudo || campos('style') || refazerPorRelevo) ? null : mud!.colecoes.props ?? null, comPop);
       if (tudo || colecao('props') || campos('style', 'grid')) cachoeiras.sincronizar(m);
@@ -475,7 +477,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       const mud: Mudancas = { completo: false, colecoes: {}, campos: ['climate'] };
       luz.sincronizar(visao, mud); neblina.sincronizar(visao, mud); bordas.sincronizar(visao, mud); particulas.sincronizar(visao, mud); halos.sincronizar(visao, mud);
     },
-    definirAtmosfera: ligada => { sombras.definirLigado(ligada); if (ligada && mapa) sombras.atualizar(mapa, objetos, pixelRes0(mapa)); luz.definirLigado(ligada); neblina.definirLigado(ligada); bordas.definirLigado(ligada); particulas.definirLigado(ligada); halos.definirLigado(ligada); },
+    definirAtmosfera: ligada => { sombras.definirLigado(ligada); contato.definirLigado(ligada); if (ligada && mapa) sombras.atualizar(mapa, objetos, pixelRes0(mapa)); luz.definirLigado(ligada); neblina.definirLigado(ligada); bordas.definirLigado(ligada); particulas.definirLigado(ligada); halos.definirLigado(ligada); },
     relampagoAgora: () => luz.relampagoAgora(),
     definirModoProjetor: ligado => { modoDoProjetor = ligado; marcasVisiveis(); luzesC.visible = !ligado; regioesC.visible = !ligado; if (mapa) { sincronizarObjetos(mapa, null, false); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } },
     definirEfeitosDeLuz: (luzes, ambiente) => luz.definirEfeitos(luzes, ambiente),

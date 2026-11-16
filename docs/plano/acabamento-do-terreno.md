@@ -42,7 +42,7 @@ Testes (e2e): uma casa na neve: o pixel a 0,3 m da parede externa é mais escuro
 Pronto quando: as casas de Lysdal parecem habitadas, com o chão pisado em volta e as soleiras.
 Commit: `buildings settle into terrain with trodden ground and thresholds`
 
-### I2 — Sombra de contato do lado de fora das paredes  ⬜
+### I2 — Sombra de contato do lado de fora das paredes  ✅
 Objetivo: a parede externa tem volume: sombra suave no chão do lado de fora.
 Depende de: —.
 Ler: `src/render/cena.ts` (`desenharParedes`, `desenharParede`, a ordem dos containers em `raiz.addChild`), `src/render/sombras-do-sol.ts` (se a parede já projeta sombra com o sol; não duplique).
