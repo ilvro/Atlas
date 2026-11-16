@@ -114,6 +114,8 @@ export function luzesDerivadas(m: MapaAtlas): Luz[] {
 }
 
 // ---------- Mistura de climas ----------
+/** Fator padrão da luz ambiente dentro de cômodos cobertos por telhado. */
+export const LUZ_INTERIOR_PADRAO = 0.55;
 /** O clima e o acabamento de um momento: o que a transição interpola. */
 export interface EstadoDeClima { climate: Clima; finish: Acabamento }
 /** O resultado de `misturar`: igual ao estado, mas a energia da rede é um número de 0 a 1 (`rede`), para a luz poder esmaecer. */
@@ -135,8 +137,9 @@ export function misturar(a: EstadoDeClima, b: EstadoDeClima, t: number): Mistura
     : !cb.sun ? { ...ca.sun, intensity: lerp(ca.sun.intensity, 0, t) }
     : { angle: lerp(ca.sun.angle, cb.sun.angle, t), color: corMisturada(ca.sun.color, cb.sun.color, t), intensity: lerp(ca.sun.intensity, cb.sun.intensity, t) };
   const weather = Object.fromEntries((Object.keys(cb.weather) as (keyof Clima['weather'])[]).map(k => [k, lerp(ca.weather[k], cb.weather[k], t)])) as unknown as Clima['weather'];
+  const interiorLight = lerp(ca.interiorLight ?? LUZ_INTERIOR_PADRAO, cb.interiorLight ?? LUZ_INTERIOR_PADRAO, t);
   return {
-    climate: { preset: cb.preset, ambient: ambienteDaCor(mistura(efetiva(ca.ambient), efetiva(cb.ambient), t)), sun, time: cb.time, weather, rede: lerp(ca.gridPower ? 1 : 0, cb.gridPower ? 1 : 0, t) },
+    climate: { preset: cb.preset, ambient: ambienteDaCor(mistura(efetiva(ca.ambient), efetiva(cb.ambient), t)), sun, time: cb.time, weather, rede: lerp(ca.gridPower ? 1 : 0, cb.gridPower ? 1 : 0, t), interiorLight },
     finish: {
       preset: fb.preset, texture: lerp(fa.texture, fb.texture, t), vignette: lerp(fa.vignette, fb.vignette, t), saturation: lerp(fa.saturation, fb.saturation, t), grain: lerp(fa.grain, fb.grain, t),
       tint: corMisturada(fa.tint, fb.tint, t), grade: { lift: lerp(fa.grade.lift, fb.grade.lift, t), gamma: lerp(fa.grade.gamma, fb.grade.gamma, t), gain: lerp(fa.grade.gain, fb.grade.gain, t) },

@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { criarBarramento, criarRef, type Barramento, type Evento } from '#mesa';
 import { pedirSomDoClima } from '../../src/app/audio-do-clima.ts';
+import { LUZ_INTERIOR_PADRAO, misturar } from '../../src/domain/clima.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { PRESETS_DE_CLIMA, presetDeClima } from '../../src/domain/presets.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
@@ -142,4 +143,29 @@ test('presets atmosféricos trazem glow, edges e sol rasante em neve', () => {
   assert.ok(presetDeClima('noite')!.finish.glow >= 0.35);
   assert.equal(presetDeClima('apagao')!.finish.edges.kind, 'dark');
   assert.ok(presetDeClima('apagao')!.finish.glow >= 0.4);
+});
+
+test('interiorLight: validação de faixa, presets atmosféricos e interpolação em misturar', () => {
+  assert.equal(presetDeClima('neve')!.climate.interiorLight, 0.34);
+  assert.equal(presetDeClima('neblina')!.climate.interiorLight, 0.32);
+  assert.equal(presetDeClima('tempestade')!.climate.interiorLight, 0.25);
+  assert.equal(presetDeClima('entardecer')!.climate.interiorLight, 0.38);
+
+  const m = novo();
+  assert.doesNotThrow(() => validarMapa(m));
+  m.climate.interiorLight = 0.05;
+  assert.doesNotThrow(() => validarMapa(m));
+  m.climate.interiorLight = 1;
+  assert.doesNotThrow(() => validarMapa(m));
+  m.climate.interiorLight = 0.04;
+  assert.throws(() => validarMapa(m));
+  m.climate.interiorLight = 1.1;
+  assert.throws(() => validarMapa(m));
+
+  const a = { climate: { ...presetDeClima('tarde')!.climate, preset: 'tarde' }, finish: presetDeClima('tarde')!.finish };
+  const b = { climate: { ...presetDeClima('tempestade')!.climate, preset: 'tempestade' }, finish: presetDeClima('tempestade')!.finish };
+  const meio = misturar(a, b, 0.5);
+  assert.ok(Math.abs(meio.climate.interiorLight! - (LUZ_INTERIOR_PADRAO + 0.25) * 0.5) < 1e-9);
+  assert.ok(Math.abs(misturar(a, b, 0).climate.interiorLight! - LUZ_INTERIOR_PADRAO) < 1e-9);
+  assert.ok(Math.abs(misturar(a, b, 1).climate.interiorLight! - 0.25) < 1e-9);
 });

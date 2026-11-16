@@ -58,6 +58,8 @@ export interface Clima {
   weather: Tempo;
   /** A rede elétrica está ligada? Desligada (apagão), as luzes `power: 'grid'` apagam. */
   gridPower: boolean;
+  /** Fator da luz ambiente em cômodos cobertos (`0.05` a `1`; ausente = `0.55`). */
+  interiorLight?: number;
 }
 export interface Acabamento { preset: string; texture: number; vignette: number; saturation: number; grain: number; /** Cor que tinge a cena; #ffffff não tinge. */ tint: string; grade: { lift: number; gamma: number; gain: number };
   /** Bordas do mapa: nuvens, escuro ou neblina (`amount` de 0 a 1). */ edges: { kind: 'none' | 'clouds' | 'dark' | 'fog'; amount: number };

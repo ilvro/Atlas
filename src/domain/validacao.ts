@@ -112,6 +112,7 @@ const CAMPOS_DO_CLIMA = {
   time: e.texto({ min: 5, max: 5, padrao: /^([01]\d|2[0-3]):[0-5]\d$/ }),
   weather: e.obj({ rain: unidade, snow: unidade, fog: unidade, wind: e.num({ min: -1, max: 1 }), dust: unidade, embers: unidade, leaves: unidade, lightning: unidade }),
   gridPower: e.bool(),
+  interiorLight: e.opt(e.num({ min: 0.05, max: 1 })),
 };
 const CAMPOS_DO_ACABAMENTO = {
   texture: unidade, vignette: unidade, saturation: e.num({ min: 0, max: 2 }), grain: unidade, tint: hex,

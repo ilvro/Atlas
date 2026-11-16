@@ -288,6 +288,11 @@
             },
             "redeLigada": {
               "type": "boolean"
+            },
+            "luzInterna": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 1
             }
           }
         },

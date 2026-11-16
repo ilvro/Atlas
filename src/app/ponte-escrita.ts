@@ -635,6 +635,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           ambiente: { type: 'object', properties: { color: { type: 'string' }, intensity: unidadeEsq }, required: ['color', 'intensity'] },
           sol: { type: ['object', 'null'], properties: { angle: { type: 'number' }, color: { type: 'string' }, intensity: { type: 'number', minimum: 0, maximum: 3 } }, required: ['angle', 'color', 'intensity'] },
           redeLigada: { type: 'boolean' },
+          luzInterna: { type: 'number', minimum: 0.05, maximum: 1 },
         } },
         acabamento: { type: 'object', properties: {
           preset: { type: 'string', enum: PRESETS_DE_ACABAMENTO.map(a => a.id) }, texture: unidadeEsq, vignette: unidadeEsq, grain: unidadeEsq, glow: unidadeEsq, saturation: { type: 'number', minimum: 0, maximum: 2 }, tint: { type: 'string' },
@@ -1036,8 +1037,9 @@ function comandosDeAmbiente(mapa: MapaAtlas, args: Args): Comando[] {
       else { const s = objeto(c.sol, 'clima.sol'); patch.sun = { angle: numero(s.angle, 'clima.sol.angle', -1000, 1000), color: cor(s.color, 'clima.sol.color'), intensity: numero(s.intensity, 'clima.sol.intensity', 0, 3) }; }
     }
     if (c.redeLigada !== undefined) { if (typeof c.redeLigada !== 'boolean') throw new Error('"clima.redeLigada" deve ser true ou false.'); patch.gridPower = c.redeLigada; }
+    if (c.luzInterna !== undefined) patch.interiorLight = numero(c.luzInterna, 'clima.luzInterna', 0.05, 1);
     if (Object.keys(patch).length) comandos.push({ tipo: 'clima.aplicar', patch: patch as never });
-    else if (c.preset === undefined) throw new Error('"clima" está vazio: passe preset, horario, tempo, ambiente, sol ou redeLigada.');
+    else if (c.preset === undefined) throw new Error('"clima" está vazio: passe preset, horario, tempo, ambiente, sol, redeLigada ou luzInterna.');
   }
   if (args.acabamento !== undefined) {
     const a = objeto(args.acabamento, 'acabamento'), patch: Record<string, unknown> = {};
