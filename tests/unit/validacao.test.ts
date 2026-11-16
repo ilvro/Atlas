@@ -173,3 +173,32 @@ test('validação de relevo: patamares válidos, sobreposição, faixa de altitu
     };
   })), 'walls.wr_test.source');
 });
+
+test('validação de contorno livre em cômodo: aceita polígono simples e recusa autointerseção/pequeno', () => {
+  assert.equal(caminhoDoErro(mexer(m => {
+    m.rooms.r1 = {
+      id: 'r1', name: 'Torre', function: 'sala', cells: [[2, 2, 2], [3, 2, 2]],
+      outline: [[3, 6], [6, 6], [6, 3], [3, 3]],
+      floor: { material: 'pedra', seed: 1 }, wallpaper: null, wallStyle: null, palette: null,
+      roof: { material: null, visible: true }, levelId: null,
+    };
+  })), null);
+
+  assert.equal(caminhoDoErro(mexer(m => {
+    m.rooms.r1 = {
+      id: 'r1', name: 'Torre', function: 'sala', cells: [[2, 2, 2], [3, 2, 2]],
+      outline: [[3, 3], [6, 6], [6, 3], [3, 6]], // laço cruzado
+      floor: { material: 'pedra', seed: 1 }, wallpaper: null, wallStyle: null, palette: null,
+      roof: { material: null, visible: true }, levelId: null,
+    };
+  })), 'rooms.r1.outline');
+
+  assert.equal(caminhoDoErro(mexer(m => {
+    m.rooms.r1 = {
+      id: 'r1', name: 'Torre', function: 'sala', cells: [[2, 2, 2], [3, 2, 2]],
+      outline: [[3, 3], [3, 4], [4, 4], [4, 3]], // 1 m² < 2 m²
+      floor: { material: 'pedra', seed: 1 }, wallpaper: null, wallStyle: null, palette: null,
+      roof: { material: null, visible: true }, levelId: null,
+    };
+  })), 'rooms.r1.outline');
+});

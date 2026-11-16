@@ -563,3 +563,7 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 - **F5 — Relevo pelo conector** — `OpDeTerreno.acao = 'relevo'` com `altura` (−200 a 200) em `src/authoring/construcao.ts`, esquema de `atlas_terreno` em `src/app/ponte-escrita.ts`, resumo `relevo` e `escarpasDerivadas` em `resumirMapa` (`src/app/ponte-leitura.ts`), `catalogo-base.json` regenerado e instruções/exemplos em `docs/assistente/guia/ferramentas-atlas.md` e `mapas.md`. Testes em `construcao.test.ts`, `ponte-leitura.test.ts`, `ponte-escrita.test.ts` e `ponte-mcp.test.ts`.
 
 **Resumo Frente F:** Relevo em patamares completo do domínio ao editor e MCP: `terrain.relief` com patamares disjuntos e derivation automática de escarpas (`reliefStep`), névoa atmosférica por profundidade no terreno e objetos (`tintDoRelevo`), sombra solar direcional sobre patamares mais baixos, pincel + linhas de contorno tracejadas no editor e leitura/pintura via `atlas_terreno` e `atlas_mapa_ler` (1034/1034 unit + 2/2 e2e `relevo.test.ts`).
+
+### Frente G — Cômodos de forma livre
+
+- **G1 — Contorno no documento, formas e células derivadas** — `Comodo.outline?` em `src/domain/mapa.ts` e `src/domain/validacao.ts` (3–64 vértices, polígono simples, área >= 2 m²), `src/domain/formas-de-comodo.ts` (`circulo`, `octogono`, `poligonoRegular`, `areaDoPoligono`, `pontoNoPoligono`, `celulasDoContorno`, `normalizarContorno`), suporte em `comodo.criar` e `comodo.atualizar` (`outline: null`) em `src/state/comandos-construir.ts`. Testes em `formas-de-comodo.test.ts` e `validacao.test.ts`.

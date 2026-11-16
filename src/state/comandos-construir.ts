@@ -2,7 +2,8 @@ import type { Ref } from '#mesa';
 import { codificar, decodificar, subtrair, unir, type Celula, type Faixa } from '../domain/celulas.ts';
 import { atualizarEscarpasDoMacico, mesmasFaixas } from '../domain/contorno.ts';
 import { atualizarSalasDosObjetos, limparOrfaos, motivoDeNaoCaber, recalcularParedes } from '../domain/geometria.ts';
-import type { Abertura, Comodo, MapaAtlas, Parede } from '../domain/mapa.ts';
+import { colunas, linhas, type Abertura, type Comodo, type MapaAtlas, type Parede, type Ponto } from '../domain/mapa.ts';
+import { AREA_MINIMA_CONTORNO, MAX_VERTICES_CONTORNO, MIN_VERTICES_CONTORNO, areaDoPoligono, celulasDoContorno, ehPoligonoSimples, normalizarContorno } from '../domain/formas-de-comodo.ts';
 import { ALTITUDE_MAX, ALTITUDE_MIN, atualizarEscarpasDoRelevo, idDoPatamar } from '../domain/relevo.ts';
 import { suavizarMargem } from '../domain/agua.ts';
 import { materialDe } from '../procedural/materiais.ts';
@@ -13,10 +14,10 @@ export type CelulaDoComando = readonly [number, number];
 
 /** Comandos de construção: cômodos, paredes, aberturas e terreno. Cômodos e paredes refazem as paredes derivadas. */
 export type ComandoConstruir =
-  | { tipo: 'comodo.criar'; id: string; nome: string; funcao: string | null; piso: Comodo['floor']; papel: Comodo['wallpaper']; telhado?: string | Omit<Comodo['roof'], 'visible'> | null; celulas: readonly CelulaDoComando[] }
+  | { tipo: 'comodo.criar'; id: string; nome: string; funcao: string | null; piso: Comodo['floor']; papel: Comodo['wallpaper']; telhado?: string | Omit<Comodo['roof'], 'visible'> | null; celulas: readonly CelulaDoComando[]; outline?: readonly Ponto[] }
   | { tipo: 'comodo.pintar'; id: string; celulas: readonly CelulaDoComando[] }
   | { tipo: 'comodo.apagar'; celulas: readonly CelulaDoComando[] }
-  | { tipo: 'comodo.atualizar'; id: string; patch: ParcialProfundo<Omit<Comodo, 'id' | 'cells'>> }
+  | { tipo: 'comodo.atualizar'; id: string; patch: ParcialProfundo<Omit<Comodo, 'id' | 'cells' | 'outline'>> & { outline?: readonly Ponto[] | null } }
   | { tipo: 'comodo.remover'; id: string }
   | { tipo: 'comodo.notas'; id: string; patch: { leitura?: string; notasMestre?: string; refs?: Ref[] } }
   | { tipo: 'parede.adicionar'; parede: Omit<Parede, 'source'> }
@@ -108,13 +109,35 @@ function camadasMudadas(m: MapaAtlas, antes: ReadonlyMap<string, MapaAtlas['terr
   return mudadas;
 }
 
+function prepararContorno(m: MapaAtlas, bruto: readonly Ponto[]): { outline: Ponto[]; celulas: Celula[] } {
+  if (bruto.length < MIN_VERTICES_CONTORNO || bruto.length > MAX_VERTICES_CONTORNO) {
+    nao(`O contorno do cômodo deve ter de ${MIN_VERTICES_CONTORNO} a ${MAX_VERTICES_CONTORNO} vértices.`);
+  }
+  const outline = normalizarContorno(bruto);
+  if (outline.length < MIN_VERTICES_CONTORNO || !ehPoligonoSimples(outline)) nao('O contorno do cômodo é inválido ou se cruza.');
+  if (areaDoPoligono(outline) < AREA_MINIMA_CONTORNO) nao(`O contorno do cômodo precisa ter pelo menos ${AREA_MINIMA_CONTORNO} m².`);
+  const cols = colunas(m), lins = linhas(m);
+  const celulas = celulasDoContorno(m.grid, outline).filter(([x, y]) => x >= 0 && y >= 0 && x < cols && y < lins);
+  if (!celulas.length) nao('O contorno do cômodo não cobre nenhuma célula dentro dos limites do mapa.');
+  return { outline, celulas };
+}
+
 export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
   switch (c.tipo) {
     case 'comodo.criar': {
       if (m.rooms[c.id]) nao(`Já existe o cômodo “${c.id}”.`);
-      const cel = normais(c.celulas); if (!cel.length) nao('Um cômodo precisa de pelo menos uma célula.');
+      let cel: Celula[];
+      let outline: Ponto[] | undefined;
+      if (c.outline !== undefined) {
+        const prep = prepararContorno(m, c.outline);
+        outline = prep.outline;
+        cel = prep.celulas;
+      } else {
+        cel = normais(c.celulas);
+        if (!cel.length) nao('Um cômodo precisa de pelo menos uma célula.');
+      }
       const roof: Comodo['roof'] = typeof c.telhado === 'object' && c.telhado !== null ? { ...clonar(c.telhado), visible: true } : { material: c.telhado ?? null, visible: true };
-      m.rooms[c.id] = { id: c.id, name: c.nome, function: c.funcao, cells: [], floor: clonar(c.piso), wallpaper: c.papel ? clonar(c.papel) : null, wallStyle: null, palette: null, roof, levelId: null };
+      m.rooms[c.id] = { id: c.id, name: c.nome, function: c.funcao, cells: [], ...(outline ? { outline } : {}), floor: clonar(c.piso), wallpaper: c.papel ? clonar(c.papel) : null, wallStyle: null, palette: null, roof, levelId: null };
       darCelulas(m, c.id, cel); recalcularParedes(m); break;
     }
     case 'comodo.pintar': darCelulas(m, c.id, normais(c.celulas)); recalcularParedes(m); break;
@@ -126,7 +149,19 @@ export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
     case 'comodo.atualizar': {
       const s = m.rooms[c.id] ?? nao(`O cômodo “${c.id}” não existe.`);
       if ('id' in c.patch || 'cells' in c.patch) nao('Identificador e células não se editam assim.');
-      mesclar(s, c.patch as Record<string, unknown>); break;
+      const { outline: novoContorno, ...resto } = c.patch;
+      mesclar(s, resto as Record<string, unknown>);
+      if (novoContorno === null) {
+        delete s.outline;
+        recalcularParedes(m);
+      } else if (novoContorno !== undefined) {
+        const prep = prepararContorno(m, novoContorno);
+        s.outline = prep.outline;
+        s.cells = [];
+        darCelulas(m, c.id, prep.celulas);
+        recalcularParedes(m);
+      }
+      break;
     }
     case 'comodo.notas': {
       if (!m.rooms[c.id]) nao(`O cômodo “${c.id}” não existe.`);

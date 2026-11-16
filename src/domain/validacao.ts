@@ -1,5 +1,6 @@
 import { ehRef } from '#mesa';
 import { ehCanonica } from './celulas.ts';
+import { AREA_MINIMA_CONTORNO, MAX_VERTICES_CONTORNO, MIN_VERTICES_CONTORNO, areaDoPoligono, ehPoligonoSimples } from './formas-de-comodo.ts';
 import { ErroDeValidacao, HEX, IDENT, e, type Esq } from './esquema.ts';
 import { COLECOES, CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, ESTADOS_FIGURA, ESTILOS_DE_LINHA_DA_GRADE, FORMAS_DE_TELHADO, MODOS_TELHADOS_SESSAO, SCHEMA_MAPA, TIPOS_DE_GRADE, VERSAO_MAPA, colunas, linhas, type MapaAtlas } from './mapa.ts';
 import { momentoValido, type Momento } from './momentos.ts';
@@ -17,8 +18,16 @@ const refs = e.lista(ref, { max: 64 });
 const faixa = e.tupla(e.num({ inteiro: true, min: 0, max: 100_000 }), e.num({ inteiro: true, min: 0, max: 100_000 }), e.num({ inteiro: true, min: 1, max: 100_000 }));
 const faixas = e.proprio((v, c) => { e.lista(faixa, { max: 200_000 }).verificar(v, c); if (!ehCanonica(v as never)) throw new ErroDeValidacao('As faixas devem estar ordenadas, sem sobreposição nem emendas.', c); });
 
+const contorno = e.lista(ponto, { min: MIN_VERTICES_CONTORNO, max: MAX_VERTICES_CONTORNO });
+
 const comodo = e.obj({
   id, name: nome, function: e.nulo(e.texto({ min: 1, max: 60 })), cells: faixas,
+  outline: e.opt(e.proprio((v, c) => {
+    contorno.verificar(v, c);
+    const pts = v as readonly [number, number][];
+    if (!ehPoligonoSimples(pts)) throw new ErroDeValidacao('O contorno do cômodo não pode se cruzar.', c);
+    if (areaDoPoligono(pts) < AREA_MINIMA_CONTORNO) throw new ErroDeValidacao(`O contorno do cômodo precisa ter pelo menos ${AREA_MINIMA_CONTORNO} m².`, c);
+  })),
   floor: e.obj({ material, seed: e.num({ inteiro: true, min: 0, max: 2 ** 31 }) }),
   wallpaper: e.nulo(e.obj({ material, seed: e.num({ inteiro: true, min: 0, max: 2 ** 31 }) })),
   wallStyle: e.nulo(e.um('box', 'solid')), palette: e.nulo(e.texto({ min: 1, max: 60 })),

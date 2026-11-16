@@ -31,7 +31,7 @@ Ordem: G1 → G2 → G3 → G4; G5 e G6 depois de G3.
 
 ---
 
-### G1 — Contorno no documento, formas e células derivadas  ⬜
+### G1 — Contorno no documento, formas e células derivadas  ✅
 Objetivo: o documento aceita um cômodo de contorno livre e mantém as células coerentes.
 Depende de: —.
 Ler: `src/domain/mapa.ts` (`Comodo`), `src/domain/validacao.ts` (validação de `rooms`), `src/state/comandos-construir.ts` (`comodo.criar`, `comodo.atualizar` e onde chamam `recalcularParedes`), `src/domain/celulas.ts`, `src/domain/geometria.ts` (`cantoDoMundo`, a conversão entre célula e metro).
