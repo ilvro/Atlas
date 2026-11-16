@@ -31,7 +31,7 @@ Ataca sete gargalos reais separados em **quatro etapas** e **dez fichas curtas**
 | --- | --- | --- | --- | --- |
 | [J1](#j1--atualizar-referenciasmd-e-lugaresmd-para-círculos-escala-e-ermos) | Etapa 1 · Guias | Círculos reais, escala e recorte tático de perspectiva | — | ✅ |
 | [J2](#j2--receitas-de-iluminação-acabamento-e-profundidade-nos-guias) | Etapa 1 · Guias | Receitas `atlas_ambiente`, profundidade e `nucleo.md` | J1 | ✅ |
-| [J3](#j3--suportar-outline-em-insightdocomodo-e-malhadocomodo) | Etapa 2 · Formas & Edifícios | Mobília e malha fina `0,25 m` em `circulo` e `poligono` | — | ⬜ |
+| [J3](#j3--suportar-outline-em-insightdocomodo-e-malhadocomodo) | Etapa 2 · Formas & Edifícios | Mobília e malha fina `0,25 m` em `circulo` e `poligono` | — | ✅ |
 | [J4](#j4--atualizar-atlas_revisar-para-escadas-subsolos-outline-e-ermos-vazios) | Etapa 2 · Formas & Edifícios | Revisão multi-andar, porões, `outline` e quadrantes vazios | J3 | ⬜ |
 | [J5](#j5--suportar-rotacao-em-atlas_edificio) | Etapa 2 · Formas & Edifícios | Casas rotacionadas (`poligono`) no construtor de edifícios | J3, J4 | ⬜ |
 | [J6](#j6--conjuntos-exteriores-por-bioma-em-atlas_espalhar) | Etapa 3 · Ermos & Cercas | Conjuntos `mata-nevada`, `bosque-morto`, `encosta-rochosa`, `costa-rochosa` | — | ⬜ |

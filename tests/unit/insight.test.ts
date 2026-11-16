@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { novoObjeto } from '../../src/domain/fabrica.ts';
+import { circulo } from '../../src/domain/formas-de-comodo.ts';
+import { codificar } from '../../src/domain/celulas.ts';
 import { insightDoComodo } from '../../src/authoring/insight.ts';
 import { abertura, mapaCom, sala } from './apoio-casa.ts';
 
@@ -46,4 +48,23 @@ test('objetos do cômodo entram, inclusive os de parede, com a caixa já girada;
   assert.deepEqual(i.objetos.map(o => o.id).sort(), ['o1', 'o2']); assert.deepEqual(i.luzes, ['l1']);
   const c = i.objetos.find(o => o.id === 'o1')!.caixa;
   assert.ok(Math.abs((c.x1 - c.x0) - 0.9) < 1e-9 && Math.abs((c.y1 - c.y0) - 1.8) < 1e-9, 'a mesa de 1,8 × 0,9 girada 90° ocupa 0,9 × 1,8');
+});
+
+test('cômodo com outline (círculo e polígono estreito sem células) calcula caixa, área e perímetro reais', () => {
+  const m = mapaCom(sala('torre', 0, 0, 1, 1, { cells: codificar([]), outline: circulo([10, 10], 4, 24) }));
+  m.lights.l1 = { id: 'l1', position: [10, 10], radius: 4, color: '#fff', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'fire', on: true, nightOnly: false, preset: null, rays: false };
+  const i = insightDoComodo(m, 'torre')!;
+  assert.ok(i, 'não retorna null mesmo com cells vazio');
+  assert.ok(Math.abs(i.caixa.x0 - 6) < 1e-4 && Math.abs(i.caixa.x1 - 14) < 1e-4);
+  assert.ok(Math.abs(i.caixa.y0 - 6) < 1e-4 && Math.abs(i.caixa.y1 - 14) < 1e-4);
+  const areaEsperada = 24 * 0.5 * 16 * Math.sin((2 * Math.PI) / 24);
+  assert.ok(Math.abs(i.area - areaEsperada) < 1e-3, `esperava área ~${areaEsperada}, veio ${i.area}`);
+  assert.ok(Math.abs(i.perimetro - 24 * 2 * 4 * Math.sin(Math.PI / 24)) < 1e-2);
+  assert.deepEqual(i.luzes, ['l1']);
+
+  // Polígono diagonal fino sem células cujo centro caia dentro
+  const diag = [[2, 2], [6, 6], [5.4, 6.6], [1.4, 2.6]] as [number, number][];
+  m.rooms.diag = { ...m.rooms.torre!, id: 'diag', outline: diag };
+  const id = insightDoComodo(m, 'diag')!;
+  assert.ok(id && id.area > 4 && id.caixa.x0 === 1.4 && id.caixa.x1 === 6);
 });
