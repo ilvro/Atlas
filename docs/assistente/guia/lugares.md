@@ -12,7 +12,8 @@ Ids conferidos no catálogo; confirme com `atlas_catalogo` se algum for recusado
 - **Vida:** `pilha-de-lenha`, `varal`, `barril-de-chuva`, `galinheiro`, `carroca`, `carroca-de-feno`, `fardo-de-feno`, `bebedouro`, `poste-de-amarracao`, `espantalho` na horta, `canteiro` com `cerca`, `lanterna-de-poste` na praça.
 - **Telhados:** `choupana` e `casa-velha` (pobre), `casa-de-pedra` (montanha), `casa-nordica` (frio), `celeiro` para celeiro e estábulo, `igreja` na capela.
 - **Neve:** chão `neve` ou `neve.funda`, caminhos `neve.pisada` e `terra.sulcos`, `monte-de-neve` junto das paredes, `casa:pinheiro-nevado-3m` e `-4m`, `casa:arvore-nevada-5m`, `casa:arbusto-seco-2m-neve`.
-- **Armadilhas:** casas do mesmo tamanho espaçadas igualmente; vila oval no centro do mapa; muro de rocha em volta no lugar de um desnível; trilha reta e larga demais.
+- **4 quadrantes externos:** os arredores de vilas nunca podem ficar apenas no material base; cubra os quatro quadrantes com afloramentos `rocha.*` + `atlas_espalhar` + trilhas sinuosas + variação de terreno (como `neve.funda` e `neve.pisada` em regiões frias).
+- **Armadilhas:** casas do mesmo tamanho espaçadas igualmente; vila oval no centro do mapa; muro de rocha em volta no lugar de um desnível; trilha reta e larga demais; cantos externos vazios.
 
 ## Cidade e rua
 
