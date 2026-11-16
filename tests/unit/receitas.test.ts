@@ -133,10 +133,26 @@ test('variantes de grama e grama personalizada resolvem e adaptam receitas', () 
 });
 
 test('palicada varia toras por semente e responde ao parametro largura', () => {
-  assert.deepEqual(pegadaDaReceita('palicada'), [2, 0.45]);
-  assert.deepEqual(pegadaDaReceita('palicada', { largura: 4 }), [4, 0.45]);
+  assert.deepEqual(pegadaDaReceita('palicada'), [2, 0.95]);
+  assert.deepEqual(pegadaDaReceita('palicada', { largura: 4 }), [4, 0.95]);
   const a = todasAsPartes('palicada', { largura: 3 }, 7);
   const b = todasAsPartes('palicada', { largura: 3 }, 8);
   assert.ok(a.length >= 12);
   assert.notDeepEqual(a, b);
+});
+
+test('palicada 2.5D: toras de 0,34–0,46 m com ponta acima de 2,8 m, sombra de 2,9 m e passarela opcional atrás', () => {
+  assert.equal(RECEITAS['palicada']!.altura, 2.9);
+  const partes = todasAsPartes('palicada', { largura: 4 }, 3);
+  const corpos = partes.filter(p => p.forma === 'ret' && p.z === 2.3);
+  assert.ok(corpos.length >= 8, 'uma tora a cada ~0,4 m');
+  assert.ok(corpos.every(p => p.w! >= 0.34 && p.w! <= 0.46), 'toras grossas');
+  assert.ok(partes.filter(p => p.forma === 'poli' && p.z >= 2.8).length >= corpos.length, 'cada tora tem ponta cônica');
+  const c = caixaDasPartes(partes);
+  assert.ok(c.y1 - c.y0 > 0.8, 'espessura visual ~1 m');
+  const semPasso = todasAsPartes('palicada', { largura: 4, passarela: 0 }, 3);
+  const comPasso = todasAsPartes('palicada', { largura: 4, passarela: 1 }, 3);
+  const tabuas = comPasso.filter(p => p.z >= 1.7 && p.z < 1.8);
+  assert.ok(tabuas.length > 0 && semPasso.every(p => p.z < 1.7 || p.z > 1.8), 'passarela só quando pedida');
+  assert.ok(tabuas.every(p => p.y! < 0), 'passarela atrás das estacas (−y)');
 });
