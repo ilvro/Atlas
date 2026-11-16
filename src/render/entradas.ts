@@ -1,7 +1,9 @@
-import { arestasDeParede, comprimentoDaParede, pontoNaParede, salasDaAbertura, type ArestaUnitaria } from '../domain/geometria.ts';
+import { codificar, type Faixa } from '../domain/celulas.ts';
+import { pontoNoPoligono } from '../domain/formas-de-comodo.ts';
+import { arestasDeParede, comprimentoDaParede, indiceDeCelulas, normalParaDentro, pontoNaParede, salasDaAbertura, type ArestaUnitaria } from '../domain/geometria.ts';
 import type { Comodo, MapaAtlas, Objeto, Parede, Ponto } from '../domain/mapa.ts';
 import { generoDe } from '../domain/presets.ts';
-import { celulasForaDePatamares, corDaNeblinaDoRelevo, degrausDoRelevo, topoDoRelevo } from '../domain/relevo.ts';
+import { alturaNaCelula, celulasForaDePatamares, corDaNeblinaDoRelevo, degrausDoRelevo, topoDoRelevo } from '../domain/relevo.ts';
 import type { EntradaDeEscarpa } from '../procedural/escarpa.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import { ACERVO } from '../procedural/acervo.ts';
@@ -12,7 +14,7 @@ import type { PedidoDeBake } from '../procedural/executar.ts';
 import { urlDoItem } from './url-da-colecao.ts';
 
 /** O que o desenho precisa saber de cada coisa, em dados simples: a chave do cache é o próprio JSON. */
-const r3 = (v: number) => Math.round(v * 1000) / 1000;
+const r3 = (v: number) => Math.round(v * 1000) / 1000 || 0;
 
 export interface ContextoDeEntradas { arestas: Map<string, ArestaUnitaria> }
 export const contextoDeEntradas = (m: Pick<MapaAtlas, 'rooms'>): ContextoDeEntradas => ({ arestas: arestasDeParede(m) });
@@ -40,6 +42,105 @@ export function entradaDoComodo(m: MapaAtlas, sala: Comodo, ctx: ContextoDeEntra
   };
 }
 
+const materialDoAssentamento = (base: string): string | null => {
+  if (base === 'neve' || base === 'neve.funda') return 'neve.pisada';
+  if (base === 'grama' || base.startsWith('grama#') || base.startsWith('grama:')) return 'terra';
+  return null;
+};
+
+function assentamentoDoTerreno(m: MapaAtlas, base: string): EntradaDeTerreno['assentamento'] {
+  if (m.style.settle === false) return undefined;
+  const salasTerreo = Object.values(m.rooms).filter(s => (s.levelId ?? null) === null);
+  const cobertos = salasTerreo.filter(s => !!s.roof.material);
+  if (!cobertos.length) return undefined;
+
+  const mat = materialDoAssentamento(base);
+  const resT = m.terrain.resolution || 0.25;
+  const colsT = Math.max(1, Math.ceil(m.bounds.width / resT));
+  const linsT = Math.max(1, Math.ceil(m.bounds.height / resT));
+  const gs = m.grid.size, [ox, oy] = m.grid.offset;
+
+  const marcarSala = (s: Comodo, destino: Uint8Array) => {
+    if (s.outline && s.outline.length >= 3) {
+      let xMin = Infinity, yMin = Infinity, xMax = -Infinity, yMax = -Infinity;
+      for (const [px, py] of s.outline) {
+        if (px < xMin) xMin = px; if (py < yMin) yMin = py;
+        if (px > xMax) xMax = px; if (py > yMax) yMax = py;
+      }
+      const tx0 = Math.max(0, Math.floor(xMin / resT)), tx1 = Math.min(colsT - 1, Math.ceil(xMax / resT));
+      const ty0 = Math.max(0, Math.floor(yMin / resT)), ty1 = Math.min(linsT - 1, Math.ceil(yMax / resT));
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+        if (pontoNoPoligono([(tx + 0.5) * resT, (ty + 0.5) * resT], s.outline)) destino[ty * colsT + tx] = 1;
+      }
+      return;
+    }
+    for (const [ry, rx0, rn] of s.cells) {
+      const tx0 = Math.max(0, Math.floor((ox + rx0 * gs) / resT + 1e-6));
+      const tx1 = Math.min(colsT - 1, Math.ceil((ox + (rx0 + rn) * gs) / resT - 1e-6) - 1);
+      const ty0 = Math.max(0, Math.floor((oy + ry * gs) / resT + 1e-6));
+      const ty1 = Math.min(linsT - 1, Math.ceil((oy + (ry + 1) * gs) / resT - 1e-6) - 1);
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) destino[ty * colsT + tx] = 1;
+    }
+  };
+
+  let celulas: Faixa[] = [];
+  let salas: Faixa[] = [];
+  if (mat) {
+    const maskCobertos = new Uint8Array(colsT * linsT);
+    const maskTodos = new Uint8Array(colsT * linsT);
+    for (const s of cobertos) marcarSala(s, maskCobertos);
+    for (const s of salasTerreo) marcarSala(s, maskTodos);
+
+    const raio = Math.max(1, Math.round(0.75 / resT));
+    const raioSq = (0.75 / resT) ** 2 + 0.25;
+    const offsets: [number, number][] = [];
+    for (let dy = -raio; dy <= raio; dy++) for (let dx = -raio; dx <= raio; dx++) {
+      if (dx * dx + dy * dy <= raioSq) offsets.push([dx, dy]);
+    }
+    const temRelevo = !!m.terrain.relief && Object.keys(m.terrain.relief.patamares).length > 0;
+    const ptsSala: [number, number][] = [];
+    const ptsAnel = new Map<number, [number, number]>();
+    for (let ty = 0; ty < linsT; ty++) for (let tx = 0; tx < colsT; tx++) {
+      const idx = ty * colsT + tx;
+      if (!maskCobertos[idx]) continue;
+      ptsSala.push([tx, ty]);
+      const altOrigem = temRelevo ? alturaNaCelula(m, tx, ty) : 0;
+      for (const [dx, dy] of offsets) {
+        const nx = tx + dx, ny = ty + dy;
+        if (nx < 0 || ny < 0 || nx >= colsT || ny >= linsT) continue;
+        const nIdx = ny * colsT + nx;
+        if (maskTodos[nIdx]) continue;
+        if (temRelevo && alturaNaCelula(m, nx, ny) !== altOrigem) continue;
+        if (!ptsAnel.has(nIdx)) ptsAnel.set(nIdx, [nx, ny]);
+      }
+    }
+    celulas = codificar([...ptsAnel.values()]);
+    salas = codificar(ptsSala);
+  }
+
+  const cobertoPorId = new Set(cobertos.map(s => s.id));
+  const arestas = arestasDeParede(m);
+  const idxGround = indiceDeCelulas(m, null);
+  const soleiras: NonNullable<EntradaDeTerreno['assentamento']>['soleiras'] = [];
+  for (const a of Object.values(m.openings)) {
+    if (a.kind !== 'door' && a.kind !== 'arch') continue;
+    const p = m.walls[a.wallId];
+    if (!p || (p.levelId ?? null) !== null) continue;
+    const vizinhos = salasDaAbertura(m, a, arestas);
+    if (vizinhos.length !== 1) continue;
+    const salaId = vizinhos[0]!;
+    if (!cobertoPorId.has(salaId)) continue;
+    const dist = a.at * comprimentoDaParede(p);
+    const dentro = normalParaDentro(m, p, dist, salaId, idxGround);
+    if (!dentro) continue;
+    const { ponto } = pontoNaParede(p, dist);
+    soleiras.push({ centro: [r3(ponto[0]), r3(ponto[1])], normal: [r3(-dentro[0]), r3(-dentro[1])], largura: r3(a.width) });
+  }
+  soleiras.sort((a, b) => a.centro[0] - b.centro[0] || a.centro[1] - b.centro[1]);
+  if (!celulas.length && !soleiras.length) return undefined;
+  return { celulas, ...(salas.length ? { salas } : {}), material: mat, soleiras };
+}
+
 export function entradaDoTerreno(m: MapaAtlas): EntradaDeTerreno {
   const rel = m.terrain.relief;
   let relevo: EntradaDeTerreno['relevo'];
@@ -61,10 +162,15 @@ export function entradaDoTerreno(m: MapaAtlas): EntradaDeTerreno {
       ...(degs.length ? { degraus: degs.map(d => ({ caminhos: d.caminhos, drops: d.drops })) } : {}),
     };
   }
-  return { largura: m.bounds.width, altura: m.bounds.height, resolucao: m.terrain.resolution, // Um fundo em textura aparece onde o terreno é 'vazio': o mesmo desenho do terreno, sem uma segunda via.
-    base: m.terrain.base !== 'vazio' ? m.terrain.base : m.backdrop.kind === 'texture' && m.backdrop.material ? m.backdrop.material : 'vazio',
+  const base = m.terrain.base !== 'vazio' ? m.terrain.base : m.backdrop.kind === 'texture' && m.backdrop.material ? m.backdrop.material : 'vazio';
+  const assentamento = assentamentoDoTerreno(m, base);
+  return {
+    largura: m.bounds.width, altura: m.bounds.height, resolucao: m.terrain.resolution, // Um fundo em textura aparece onde o terreno é 'vazio': o mesmo desenho do terreno, sem uma segunda via.
+    base,
     camadas: Object.values(m.terrain.layers).sort((a, b) => a.order - b.order).map(c => ({ material: c.material, celulas: c.cells, ...(c.flow ? { flow: c.flow } : {}) })),
-    ...(relevo ? { relevo } : {}) };
+    ...(relevo ? { relevo } : {}),
+    ...(assentamento ? { assentamento } : {}),
+  };
 }
 
 /** Chave do cache de um objeto de piso: a mesma receita, semente e parâmetros reaproveitam o mesmo desenho. */

@@ -140,7 +140,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
 
   // ---------- Terreno ----------
   function sincronizarTerreno(m: MapaAtlas): void {
-    const e = entradaDoTerreno(m), temAlgo = e.base !== 'vazio' || e.camadas.length > 0 || !!e.relevo;
+    const e = entradaDoTerreno(m), temAlgo = e.base !== 'vazio' || e.camadas.length > 0 || !!e.relevo || !!e.assentamento;
     if (!temAlgo) { if (terreno) { removerEntrada(terreno); terreno = null; } agua.aplicar(undefined, m); return; }
     terreno ??= novaEntrada(terrenoC);
     const estilo = m.style.renderer, res = resolucaoDe(m, 'terreno'), chave = chaveDoTerreno(e, res, estilo);
@@ -449,7 +449,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       ultimoContextoAndar = contextoAndar ?? null;
       const tudo = !mud || mud.completo, campos = (...c: string[]) => tudo || c.some(x => mud!.campos.includes(x)), colecao = (c: string) => tudo || !!(mud!.colecoes as Record<string, unknown>)[c];
       const refazerPorRelevo = !!m.terrain.relief && campos('climate', 'terrain');
-      if (campos('terrain', 'bounds', 'grid', 'backdrop', 'style') || refazerPorRelevo) sincronizarTerreno(m);
+      if (campos('terrain', 'bounds', 'grid', 'backdrop', 'style') || colecao('rooms') || colecao('walls') || colecao('openings') || refazerPorRelevo) sincronizarTerreno(m);
       if (tudo || colecao('walls') || campos('style')) sincronizarEscarpas(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid')) sincronizarComodos(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid', 'session', 'style')) desenharParedes(m);

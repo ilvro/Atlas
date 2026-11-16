@@ -16,6 +16,7 @@ import { orientacaoDominante } from './orientacao.ts';
 import { descreverReceita } from './receitas/index.ts';
 import { fatorDeProfundidade } from '../domain/relevo.ts';
 import { ladoBaixo } from './escarpa.ts';
+import { distanciaAMargem } from './profundidade.ts';
 
 export interface Assado { tela: Tela; /** Canto superior esquerdo da tela, em metros (no espaço local do objeto, ou do mundo para cômodos e terreno). */ origem: Ponto; res: number; /** Terreno com água: profundidade (R) e margem (G) das camadas de água, a `res` px/m, do mesmo tamanho do mapa. */ agua?: { tela: Tela; res: number } }
 
@@ -179,6 +180,13 @@ export interface EntradaDeTerreno {
     neblina: string;
     degraus?: { caminhos: Ponto[][]; drops: ('a' | 'b')[] }[];
   };
+  /** Aro de chão pisado em volta dos edifícios cobertos do térreo e soleiras nas portas de fora. */
+  assentamento?: {
+    celulas: Faixa[];
+    salas?: Faixa[];
+    material: string | null;
+    soleiras: { centro: Ponto; normal: Ponto; largura: number }[];
+  };
 }
 
 /** O WebKitGTK não tem `filter` no contexto 2D (nem no OffscreenCanvas). */
@@ -265,6 +273,7 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
     pc.setTransform(1, 0, 0, 1, 0, 0); pc.globalCompositeOperation = 'destination-in'; pc.drawImage(comAlfa(corpo, null) as CanvasImageSource, 0, 0);
     ctx.drawImage(pintada as CanvasImageSource, 0, 0); ctx.setTransform(res, 0, 0, res, 0, 0);
   });
+  if (e.assentamento) pintarAssentamento(ctx, e, W, Hh, res, estilo);
   if (e.relevo?.faixas.length) {
     const img = ctx.getImageData(0, 0, W, Hh);
     const pxDados = img.data;
@@ -326,6 +335,117 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
   const dadosDaAgua = texturaDeAgua(aguas, W, Hh, res, e.largura, e.altura);
   if (dadosDaAgua) { const ta = criarTela(dadosDaAgua.width, dadosDaAgua.height); contextoDe(ta).putImageData(dadosDaAgua, 0, 0); return { tela, origem: [0, 0], res, agua: { tela: ta, res: RES_DA_TEXTURA_DE_AGUA } }; }
   return { tela, origem: [0, 0], res };
+}
+
+function pintarAssentamento(ctx: Contexto, e: EntradaDeTerreno, W: number, Hh: number, res: number, estilo: EstiloDeRaster): void {
+  const assent = e.assentamento;
+  if (!assent) return;
+  const pixel = estilo.id === 'pixel';
+  const preencherFaixas = (faixas: readonly Faixa[], destino: Uint8Array, valor: number) => {
+    for (const [fy, fx0, fn] of faixas) {
+      const py0 = Math.max(0, Math.floor(fy * e.resolucao * res));
+      const py1 = Math.min(Hh - 1, Math.ceil((fy + 1) * e.resolucao * res) - 1);
+      const px0 = Math.max(0, Math.floor(fx0 * e.resolucao * res));
+      const px1 = Math.min(W - 1, Math.ceil((fx0 + fn) * e.resolucao * res) - 1);
+      for (let y = py0; y <= py1; y++) for (let x = px0; x <= px1; x++) destino[y * W + x] = valor;
+    }
+  };
+
+  if (assent.material && assent.celulas.length) {
+    const anel = new Uint8Array(W * Hh);
+    preencherFaixas(assent.celulas, anel, 1);
+    const foraSalas = new Uint8Array(W * Hh).fill(1);
+    if (assent.salas?.length) preencherFaixas(assent.salas, foraSalas, 0);
+    const dist = assent.salas?.length ? distanciaAMargem(foraSalas, W, Hh, res, 0.9) : null;
+    const macia = dist ? null : mascaraSuavizada(assent.celulas, e.resolucao, W, Hh, res);
+    const ruido = valueNoise2D(4711);
+    const mascaraImg = new ImageData(W, Hh);
+    for (let y = 0, i = 0; y < Hh; y++) for (let x = 0; x < W; x++, i++) {
+      if (!anel[i]) continue;
+      const mx = x / res, my = y / res;
+      const torcao = (fbm(ruido, mx * 1.4, my * 1.4, 3) - 0.5) * 0.34;
+      let t = 0;
+      if (dist) {
+        if (!foraSalas[i]) continue;
+        t = Math.max(0, Math.min(1, 1 - (dist[i]! + torcao) / 0.75));
+      } else if (macia) {
+        t = Math.max(0, Math.min(1, macia[i * 4 + 3]! / 255 + torcao));
+      }
+      if (t <= 0) continue;
+      if (pixel) {
+        const limiar = (BAYER4[(y & 3) * 4 + (x & 3)]! + 0.5) / 16;
+        if (t * 0.85 > limiar * 0.8 + 0.15) mascaraImg.data[i * 4 + 3] = 255;
+      } else {
+        mascaraImg.data[i * 4 + 3] = Math.round(0.85 * suave(0, 1, t) * 255);
+      }
+    }
+    const mascTela = criarTela(W, Hh);
+    contextoDe(mascTela).putImageData(mascaraImg, 0, 0);
+    const pintada = criarTela(W, Hh), pc = contextoDe(pintada);
+    pc.setTransform(res, 0, 0, res, 0, 0);
+    estilo.pintarMaterial(pc, assent.material, { x: 0, y: 0, w: e.largura, h: e.altura }, 29, { res });
+    pc.setTransform(1, 0, 0, 1, 0, 0);
+    // Sujeira de piso gasto junto à fundação para distinguir o aro mesmo sobre neve clara
+    pc.fillStyle = '#3e362e';
+    pc.globalAlpha = pixel ? 0.24 : 0.38;
+    pc.fillRect(0, 0, W, Hh);
+    pc.globalAlpha = 1;
+    pc.globalCompositeOperation = 'destination-in';
+    pc.drawImage(mascTela as CanvasImageSource, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(pintada as CanvasImageSource, 0, 0);
+    ctx.setTransform(res, 0, 0, res, 0, 0);
+  }
+
+  if (assent.soleiras.length) {
+    const corLeque = materialDe(assent.material ?? 'terra');
+    ctx.save();
+    ctx.setTransform(res, 0, 0, res, 0, 0);
+    for (const sol of assent.soleiras) {
+      const [cx, cy] = sol.centro, [nx, ny] = sol.normal;
+      const ang = Math.atan2(ny, nx);
+      const wLaje = sol.largura + 0.3;
+      const fundoLaje = 0.5;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(ang);
+
+      // Leque de chão gasto saindo da soleira até 1,5 m
+      if (!pixel) {
+        const g = ctx.createRadialGradient(0.15, 0, 0.1, 0.2, 0, 1.5);
+        g.addColorStop(0, corLeque.escuro);
+        g.addColorStop(0.5, corLeque.base);
+        g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.save();
+        ctx.globalAlpha = 0.6;
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(0, -wLaje * 0.45);
+        ctx.arc(0.15, 0, 1.5, -0.68, 0.68);
+        ctx.lineTo(0, wLaje * 0.45);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      } else {
+        ctx.fillStyle = corLeque.base;
+        ctx.fillRect(0.5, -wLaje * 0.55, 0.75, wLaje * 1.1);
+      }
+
+      // Laje de pedra (largura da porta + 0,3 m por 0,5 m de fundo, do lado de fora)
+      ctx.fillStyle = 'rgba(7, 10, 14, 0.25)';
+      ctx.fillRect(0.06, -wLaje / 2 + 0.04, fundoLaje, wLaje);
+      ctx.fillStyle = '#8b877f';
+      ctx.fillRect(0.04, -wLaje / 2, fundoLaje, wLaje);
+      ctx.fillStyle = '#b4b0a6';
+      ctx.fillRect(0.04, -wLaje / 2, 0.07, wLaje);
+      ctx.strokeStyle = '#3a3834';
+      ctx.lineWidth = 0.06;
+      ctx.strokeRect(0.04, -wLaje / 2, fundoLaje, wLaje);
+
+      ctx.restore();
+    }
+    ctx.restore();
+  }
 }
 
 export type { Parte };

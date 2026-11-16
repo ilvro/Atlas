@@ -70,6 +70,7 @@ function EstiloDoMapa({ s }: { s: SessaoDeEdicao }) {
   return (<>
     <h3 class="faixa pequena">Estilo</h3>
     <CampoOpcoes rotulo="Renderizador" dica="O mesmo mapa em outro estilo de desenho; nada no mapa muda." valor={e.renderer} opcoes={[['illustrated', 'Ilustrado'], ['pixel', 'Pixel']]} aoMudar={v => atualizar({ renderer: v })} />
+    <CampoCaixa id="estilo-assentar" rotulo="Assentar edifícios" dica="Chão pisado em volta das casas e soleira nas portas de fora." valor={e.settle !== false} aoMudar={v => atualizar({ settle: v })} />
     {pixel && <>
       <CampoOpcoes rotulo="Pixels por célula" valor={String(e.pixel.pixelsPerCell)} opcoes={tamanhos.map(n => [String(n), String(n)] as const)} aoMudar={v => atualizar({ pixel: { pixelsPerCell: Number(v) } })} />
       <CampoOpcoes rotulo="Paleta" valor={PALETAS_PIXEL.some(p => p.id === e.palette) ? e.palette : PALETAS_PIXEL[0]!.id} opcoes={PALETAS_PIXEL.map(p => [p.id, p.nome] as const)} aoMudar={v => atualizar({ palette: v })} />
