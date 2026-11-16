@@ -35,7 +35,7 @@ Ordem: H1 → H2 → H3 → H4 → H5 → H6.
 
 ---
 
-### H1 — Andares no documento e o filtro `mapaDoAndar`  ⬜
+### H1 — Andares no documento e o filtro `mapaDoAndar`  ✅
 Objetivo: o documento sabe de andares, e uma função pura recorta um andar.
 Depende de: —.
 Ler: `src/domain/mapa.ts` inteiro, `src/domain/validacao.ts`, `src/domain/migracoes.ts`, `src/domain/projecao.ts` (como outra função pura copia e filtra o mapa: o mesmo estilo serve aqui), `src/domain/edificios.ts` (já separa por `levelId`).

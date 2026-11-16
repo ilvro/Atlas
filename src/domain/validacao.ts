@@ -50,6 +50,7 @@ const parede = e.obj({
     else if (v && typeof v === 'object' && 'reliefStep' in v) e.obj({ reliefStep: e.num({ min: -200, max: 200 }) }).verificar(v, c);
     else e.obj({ roomId: id }).verificar(v, c);
   })),
+  levelId: e.opt(idOuNulo),
 });
 const abertura = e.obj({
   id, wallId: id, at: unidade, width: e.num({ min: 0.2, max: 10 }), kind: e.um('door', 'window', 'arch', 'secret'),
@@ -67,6 +68,7 @@ const objeto = e.obj({
   roomId: idOuNulo, blocks: e.obj({ move: e.bool(), sight: e.bool() }), castsShadow: e.bool(), harmonize: e.bool(),
   layer: e.opt(e.num({ inteiro: true, min: -100000, max: 100000 })),
   oculto: e.opt(e.bool()),
+  levelId: e.opt(idOuNulo),
   interaction: e.nulo(e.obj({
     kind: e.um('switch', 'drawer', 'clue', 'note'),
     on: e.bool(),
@@ -82,11 +84,13 @@ const luz = e.obj({
   id, position: ponto, radius: e.num({ min: 0.1, max: 200 }), color: hex, intensity: e.num({ min: 0, max: 3 }), flicker: unidade,
   cone: e.nulo(e.obj({ angle: e.num({ min: 0.05, max: Math.PI * 2 }), direction: e.num({ min: -1000, max: 1000 }) })),
   ownerId: idOuNulo, power: e.um('grid', 'fire', 'battery', 'magic'), on: e.bool(), nightOnly: e.bool(), preset: e.nulo(e.texto({ min: 1, max: 40 })), rays: e.bool(),
+  levelId: e.opt(idOuNulo),
 });
 const regiao = e.obj({
   id, polygon: e.lista(ponto, { min: 3, max: 2_000 }), kind: e.um('reveal', 'trigger', 'note', 'audio'), gmOnly: e.bool(), payload: e.json(), refs,
+  levelId: e.opt(idOuNulo),
 });
-const presenca = e.obj({ id, brush: e.texto({ min: 1, max: 60 }), cells: faixas, intensity: unidade, seed: e.num({ inteiro: true, min: 0, max: 2 ** 31 }), gmOnly: e.bool() });
+const presenca = e.obj({ id, brush: e.texto({ min: 1, max: 60 }), cells: faixas, intensity: unidade, seed: e.num({ inteiro: true, min: 0, max: 2 ** 31 }), gmOnly: e.bool(), levelId: e.opt(idOuNulo) });
 const peca = e.obj({
   id, name: nome, portrait: refAsset,
   sprite: e.nulo(e.obj({ body: e.texto({ min: 1, max: 40 }), hair: e.texto({ min: 1, max: 40 }), outfit: e.texto({ min: 1, max: 40 }), accessories: e.lista(e.texto({ min: 1, max: 40 }), { max: 20 }), colors: e.json(2_000), seed: e.num({ inteiro: true, min: 0, max: 2 ** 31 }) })),
@@ -96,6 +100,7 @@ const peca = e.obj({
   hp: e.opt(e.nulo(e.obj({ pv: e.num({ min: 0 }), pvMax: e.num({ min: 1 }) }))),
   tokenStyle: e.opt(e.um('coin', 'immersive')),
   portraitScale: e.opt(e.num({ min: 0.5, max: 3.0 })),
+  levelId: e.opt(idOuNulo),
 });
 
 // Os campos do clima e do acabamento sem o `preset`: o mapa os guarda com ele, o clima salvo sem.
@@ -116,6 +121,8 @@ export const ESQUEMA_MAPA: Esq = e.obj({
   schema: e.um(SCHEMA_MAPA), version: e.num({ inteiro: true, min: 1, max: 1_000 }),
   id, name: nome, revision: e.num({ inteiro: true, min: 0, max: 2 ** 31 }), createdAt: e.num({ min: 0 }), updatedAt: e.num({ min: 0 }),
   campanhaId: idOuNulo,
+  levels: e.opt(e.porId(e.obj({ id, name: nome, order: e.num({ inteiro: true, min: -100, max: 100 }) }))),
+  groundLevelName: e.opt(nome),
   grid: e.obj({
     kind: e.um(...TIPOS_DE_GRADE),
     size: e.num({ min: 0.25, max: 10 }),
@@ -160,6 +167,13 @@ export const ESQUEMA_MAPA: Esq = e.obj({
   }),
   session: e.obj({
     explored: e.nulo(e.obj({ res: e.num({ min: 0.25, max: 2 }), cells: faixas })),
+    exploredLevels: e.opt(e.proprio((v, c) => {
+      if (!v || typeof v !== 'object' || Array.isArray(v)) throw new ErroDeValidacao('Deve ser um dicionário.', c);
+      for (const [k, x] of Object.entries(v)) {
+        id.verificar(k, `${c}.${k}`);
+        e.obj({ res: e.num({ min: 0.25, max: 2 }), cells: faixas }).verificar(x, `${c}.${k}`);
+      }
+    })),
     initiative: e.nulo(e.obj({
       order: e.lista(e.obj({ tokenId: id, value: e.num({ min: -999, max: 999 }) }), { max: 64 }),
       current: e.num({ inteiro: true, min: 0, max: 64 }), round: e.num({ inteiro: true, min: 1, max: 9999 }),
@@ -193,11 +207,28 @@ export function validarMapa(valor: unknown): asserts valor is MapaAtlas {
   if (m.version !== VERSAO_MAPA) throw new ErroDeValidacao(`Versão ${m.version}; esta validação é da ${VERSAO_MAPA}. Migre antes.`, 'version');
   const falha = (msg: string, c: string): never => { throw new ErroDeValidacao(msg, c); };
   const cols = colunas(m), lins = linhas(m);
+  const checarAndar = (lvl: string | null | undefined, caminho: string) => {
+    if (lvl != null && !m.levels?.[lvl]) falha('Andar inexistente.', caminho);
+  };
+  if (m.levels) {
+    const ordens = new Set<number>();
+    for (const [aid, a] of Object.entries(m.levels)) {
+      if (a.id !== aid) falha('Identificador diferente da chave.', `levels.${aid}.id`);
+      if (a.order === 0) falha('O térreo (ordem 0) é o andar padrão e não vai em levels.', `levels.${aid}.order`);
+      if (ordens.has(a.order)) falha('Ordem de andar repetida.', `levels.${aid}.order`);
+      ordens.add(a.order);
+    }
+  }
+  if (m.session.exploredLevels) {
+    for (const k of Object.keys(m.session.exploredLevels)) checarAndar(k, `session.exploredLevels.${k}`);
+  }
 
   for (const [rid, c] of Object.entries(m.rooms)) {
+    checarAndar(c.levelId, `rooms.${rid}.levelId`);
     for (const [y, x0, n] of c.cells) if (y >= lins || x0 + n > cols) falha('Células fora dos limites do mapa.', `rooms.${rid}.cells`);
   }
   for (const [wid, p] of Object.entries(m.walls)) {
+    checarAndar(p.levelId, `walls.${wid}.levelId`);
     if (p.source && 'roomId' in p.source && !m.rooms[p.source.roomId]) falha('Cômodo de origem inexistente.', `walls.${wid}.source.roomId`);
     if (p.source && 'terrainLayerId' in p.source && !m.terrain.layers[p.source.terrainLayerId]) falha('Camada de terreno de origem inexistente.', `walls.${wid}.source.terrainLayerId`);
     if (p.source && 'reliefStep' in p.source && p.kind !== 'cliff') falha('Origem de relevo vale só para escarpas.', `walls.${wid}.source`);
@@ -205,13 +236,21 @@ export function validarMapa(valor: unknown): asserts valor is MapaAtlas {
   }
   for (const [oid, a] of Object.entries(m.openings)) if (!m.walls[a.wallId]) falha('Parede inexistente.', `openings.${oid}.wallId`);
   for (const [pid, o] of Object.entries(m.props)) {
+    checarAndar(o.levelId, `props.${pid}.levelId`);
     if (o.roomId && !m.rooms[o.roomId]) falha('Cômodo inexistente.', `props.${pid}.roomId`);
     for (const alvo of o.interaction?.targets ?? []) if (!m.lights[alvo]) falha('O interruptor controla uma luz que não existe.', `props.${pid}.interaction.targets`);
     if (o.wall && !m.walls[o.wall.wallId]) falha('Parede inexistente.', `props.${pid}.wall.wallId`);
     if ((o.elevation === 'wall') !== (o.wall !== null)) falha('Objeto de parede precisa de “wall”, e só ele.', `props.${pid}.wall`);
   }
-  for (const [lid, l] of Object.entries(m.lights)) if (l.ownerId && !m.props[l.ownerId] && !m.tokens[l.ownerId]) falha('Dono inexistente (objeto ou token).', `lights.${lid}.ownerId`);
-  for (const [tid, t] of Object.entries(m.tokens)) if (t.lightId && !m.lights[t.lightId]) falha('Luz inexistente.', `tokens.${tid}.lightId`);
+  for (const [lid, l] of Object.entries(m.lights)) {
+    checarAndar(l.levelId, `lights.${lid}.levelId`);
+    if (l.ownerId && !m.props[l.ownerId] && !m.tokens[l.ownerId]) falha('Dono inexistente (objeto ou token).', `lights.${lid}.ownerId`);
+  }
+  for (const [rid, r] of Object.entries(m.regions)) checarAndar(r.levelId, `regions.${rid}.levelId`);
+  for (const [tid, t] of Object.entries(m.tokens)) {
+    checarAndar(t.levelId, `tokens.${tid}.levelId`);
+    if (t.lightId && !m.lights[t.lightId]) falha('Luz inexistente.', `tokens.${tid}.lightId`);
+  }
   for (const [cid, c] of Object.entries(m.customClimates)) if (c.id !== cid) falha('Identificador diferente da chave.', `customClimates.${cid}.id`);
   for (const [mid, mto] of Object.entries(m.moments)) {
     const erro = momentoValido(mto);
@@ -232,6 +271,7 @@ export function validarMapa(valor: unknown): asserts valor is MapaAtlas {
   for (const alvo of m.session.revealed) if (!COLECOES.some(c => (m[c] as Record<string, unknown>)[alvo])) falha('Alvo revelado inexistente.', 'session.revealed');
   const celT = Math.ceil(m.bounds.width / m.terrain.resolution), linT = Math.ceil(m.bounds.height / m.terrain.resolution);
   for (const [pid, p] of Object.entries(m.presence)) {
+    checarAndar(p.levelId, `presence.${pid}.levelId`);
     if (p.id !== pid) falha('Identificador diferente da chave.', `presence.${pid}.id`);
     for (const [y, x0, n] of p.cells) if (y >= linT || x0 + n > celT) falha('Células de presença fora dos limites do mapa.', `presence.${pid}.cells`);
   }
