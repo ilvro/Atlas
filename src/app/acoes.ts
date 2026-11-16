@@ -12,7 +12,7 @@ import { ROTULO_DA_FERRAMENTA, type Ferramenta } from '../render/pincel.ts';
 import { colecaoDaFerramenta } from '../render/viewport.ts';
 import { campanhaAtiva } from './campanha.ts';
 import { PRESETS_DE_CLIMA } from '../domain/presets.ts';
-import { FERRAMENTAS_DA_SESSAO, modo, vistaDeJogador } from './modo.ts';
+import { FERRAMENTAS_DA_SESSAO, modo, mostrarRelevo, vistaDeJogador } from './modo.ts';
 import { aceitarSugestao, definirSugestoesLigadas, dispensarSugestao, outraSugestao, sugestao, sugestoesLigadas } from './sugestoes.ts';
 import { momentoEmCurso, pararMomento } from './momentos.ts';
 import { dispararEspaco } from './barra-de-efeitos.ts';
@@ -160,6 +160,7 @@ export const ACOES: readonly Acao[] = [
     const s = app.sessao.value; if (!s) return;
     s.store.executar({ tipo: 'grade.atualizar', patch: { visible: !s.doc.value.grid.visible } }, { rotulo: s.doc.value.grid.visible ? 'Esconder a grade' : 'Mostrar a grade' }); tocar('selecionar');
   } },
+  { id: 'relevo', nome: 'Mostrar ou esconder linhas de relevo', grupo: 'Vista', habilitada: noEditor, executar: () => { mostrarRelevo.value = !mostrarRelevo.value; tocar('selecionar'); } },
 
   { id: 'tema-atlas', nome: 'Tema Atlas', grupo: 'Aparência', palavras: 'turquesa padrao', executar: () => trocarTema({ id: 'atlas' }) },
   { id: 'tema-ordem', nome: 'Tema Ordem', grupo: 'Aparência', palavras: 'vermelho', executar: () => trocarTema({ id: 'ordem' }) },
@@ -170,7 +171,7 @@ export const ACOES: readonly Acao[] = [
 ];
 
 /** O que só existe em Construir: tudo o que muda o mapa (ferramentas de pôr, biblioteca, assistente, remover, duplicar, grade). Na Sessão fica desabilitado. */
-const GRUPOS_SO_DE_CONSTRUIR = new Set(['Construir', 'Adicionar', 'Assistente']), IDS_SO_DE_CONSTRUIR = new Set(['remover', 'duplicar', 'luz-acesa', 'grade']);
+const GRUPOS_SO_DE_CONSTRUIR = new Set(['Construir', 'Adicionar', 'Assistente']), IDS_SO_DE_CONSTRUIR = new Set(['remover', 'duplicar', 'luz-acesa', 'grade', 'relevo']);
 const soEmConstruir = (a: Acao) => GRUPOS_SO_DE_CONSTRUIR.has(a.grupo) || IDS_SO_DE_CONSTRUIR.has(a.id);
 const HABILITADA = (a: Acao) => (modo.value === 'sessao' && soEmConstruir(a) ? false : a.habilitada ? a.habilitada() : true);
 export const acaoPorId = (id: string): Acao | undefined => {

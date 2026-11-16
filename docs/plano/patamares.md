@@ -87,7 +87,7 @@ Testes (e2e): com o sol vindo do noroeste, a faixa logo a sudeste da borda (no l
 Pronto quando: ao mudar a hora do clima, a sombra do penhasco gira com o sol.
 Commit: `relief cliffs cast sun shadows on lower ground`
 
-### F4 — Pincel de relevo e linhas de nível no editor  ⬜
+### F4 — Pincel de relevo e linhas de nível no editor  ✅
 Objetivo: o mestre pinta e vê a altitude.
 Depende de: F1.
 Ler: `src/ui/Biblioteca.tsx` (`Terreno`, linhas 110 a 125: lista de materiais do pincel), `src/render/viewport.ts` (onde a ferramenta Terreno chama `terreno.pintar`), `src/render/pincel.ts`, `docs/INTERFACE.md` (identidade visual).

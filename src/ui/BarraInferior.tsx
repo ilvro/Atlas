@@ -5,6 +5,7 @@ import { ROTULO_DA_FERRAMENTA, type Ferramenta } from '../render/pincel.ts';
 import {
   FERRAMENTAS_DA_SESSAO,
   modo,
+  mostrarRelevo,
   regraDaRegua,
   definirRegraDaRegua,
   vistaDeJogador,
@@ -303,6 +304,20 @@ export function BarraInferior({ s }: { s: SessaoDeEdicao }) {
                 ▾
               </button>
             </div>
+          )}
+
+          {modo.value === 'construir' && (
+            <button
+              type="button"
+              class={`ferramenta ${mostrarRelevo.value ? 'ativa' : ''}`}
+              aria-pressed={mostrarRelevo.value}
+              title="Mostrar relevo"
+              aria-label="Mostrar relevo"
+              onClick={() => executar('relevo')}
+              data-testid="alternar-relevo"
+            >
+              <Icone nome="relevo" tamanho={18} />
+            </button>
           )}
         </nav>
 
