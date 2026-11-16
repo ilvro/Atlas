@@ -16,7 +16,9 @@ import { ehEscarpaAvulsa } from '../../src/render/entradas.ts';
 import { corDaNeblinaDoRelevo, tintDoRelevo } from '../../src/domain/relevo.ts';
 import { PINCEL_PADRAO, comandoDoPincelDeTerreno } from '../../src/render/pincel.ts';
 import { segmentosERotulosDeNivel } from '../../src/render/linhas-de-nivel.ts';
-import { comporMascaraDeRelevo } from '../../src/procedural/assar.ts';
+import { comporMascaraDeRelevo, larguraDoDeclive, pintarDegraus } from '../../src/procedural/assar.ts';
+import { fatorDeProfundidade } from '../../src/domain/relevo.ts';
+import type { Contexto } from '../../src/procedural/canvas.ts';
 import { codificar } from '../../src/domain/celulas.ts';
 
 function retanguloDeCelulas(x0: number, y0: number, x1: number, y1: number): [number, number][] {
@@ -191,4 +193,47 @@ test('relevo (J9): patamar na margem do mapa não gera parede espúria nem artef
   assert.equal(grande.mRes, 4);
   assert.equal(grande.Mw, 140 * 4);
   assert.ok(grande.Mw < 140 * 32);
+});
+
+test('relevo: fatorDeProfundidade é monotônico, zera no topo e já separa degraus médios (3–10 m)', () => {
+  assert.equal(fatorDeProfundidade(5, 5), 0);
+  assert.equal(fatorDeProfundidade(8, 5), 0, 'acima do topo também é 0');
+  let anterior = 0;
+  for (let queda = 0.5; queda <= 30; queda += 0.5) {
+    const p = fatorDeProfundidade(-queda, 0);
+    assert.ok(p >= anterior, `monotônico em ${queda} m`);
+    assert.ok(p <= 1);
+    anterior = p;
+  }
+  assert.equal(fatorDeProfundidade(-20, 0), 1, 'satura em 20 m');
+  assert.ok(fatorDeProfundidade(-3.5, 0) > 0.25, '3,5 m já tem leitura clara');
+  assert.ok(fatorDeProfundidade(-13, 0) - fatorDeProfundidade(-3.5, 0) > 0.35, 'platô +3,5 m × vale −9,5 m bem separados');
+});
+
+test('relevo: degraus < 1 m pintam faixa de declive escura no lado baixo e borda clara na crista', () => {
+  // Contexto falso: registra cada traço com a cor e os pontos.
+  const tracos: { cor: string; largura: number; pts: number[][] }[] = [];
+  let atual: number[][] = [];
+  const falso = {
+    strokeStyle: '', lineWidth: 0, lineCap: '', lineJoin: '',
+    save() {}, restore() {}, setTransform() {},
+    beginPath() { atual = []; },
+    moveTo(x: number, y: number) { atual.push([x, y]); },
+    lineTo(x: number, y: number) { atual.push([x, y]); },
+    stroke() { tracos.push({ cor: falso.strokeStyle, largura: falso.lineWidth, pts: atual }); },
+  };
+  const ctx = falso as unknown as Contexto;
+  // Borda horizontal em y = 5, lado baixo para +y.
+  const path: [number, number][] = [[0, 5], [10, 5]];
+  const drop = ladoBaixo(path[0]!, path[1]!, 'a')[1] > 0 ? 'a' : 'b';
+  pintarDegraus(ctx, [{ caminhos: [path], drops: [drop], desnivel: 0.5 }], 16, false);
+  const alfa = (cor: string) => Number(/,\s*([\d.]+)\)$/.exec(cor)?.[1] ?? 0);
+  const escuros = tracos.filter(t => t.cor.startsWith('rgba(0, 0, 0') || t.cor.startsWith('rgba(30'));
+  const claros = tracos.filter(t => t.cor.startsWith('rgba(255'));
+  assert.ok(escuros.length >= 6, 'faixa em camadas + hachuras + quebra');
+  assert.ok(escuros.every(t => t.pts.every(p => p[1]! >= 5 - 1e-6)), 'sombra só no lado baixo');
+  assert.ok(escuros.some(t => t.pts.some(p => p[1]! > 5 + larguraDoDeclive(0.5) * 0.5)), 'a faixa avança pelo declive');
+  assert.ok(escuros.some(t => alfa(t.cor) >= 0.3), 'há sombra forte junto à crista');
+  assert.ok(claros.length === 1 && claros[0]!.pts.every(p => p[1]! < 5), 'borda clara no lado alto');
+  assert.ok(Math.abs(larguraDoDeclive(0.5) - 0.55) < 1e-9);
 });
