@@ -30,6 +30,32 @@ export const RECEITAS_EXTERIORES: Receita[] = [
   { id: 'cerca', nome: 'Cerca de madeira', ...G, funcoes: ['jardim'], tags: ['cerca', 'madeira', 'limite'], pegada: [2.0, 0.12],
     campos: [{ id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 2, min: 0.6, max: 6, passo: 0.2 }],
     gerar: p => { const w = num(p, 'largura', 2, 0.6, 6), n = Math.max(2, Math.round(w / 0.28)); return piso([w, 0.12], [ret(0, 0, w, 0.04, 'madeira.media', 0.7, { contorno: 'leve', detalhe: 2 }), ...Array.from({ length: n + 1 }, (_, i) => ret(-w / 2 + (i * w) / n, 0, 0.09, 0.12, 'madeira.escura', 0.9, { raio: 0.01, contorno: 'leve' })), ret(0, 0, w, 0.03, 'madeira.clara', 0.8, { contorno: false, semSombra: true, detalhe: 3 })]); } },
+  { id: 'palicada', nome: 'Paliçada de toras', ...G, funcoes: ['jardim'], tags: ['palicada', 'muro', 'madeira', 'forte', 'defesa', 'limite'], pegada: [2.0, 0.45], altura: 2.4,
+    campos: [{ id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 2, min: 0.8, max: 6, passo: 0.2 }],
+    gerar: p => {
+      const r = mulberry32(p.seed), w = num(p, 'largura', 2, 0.8, 6);
+      const n = Math.max(3, Math.round(w / 0.26)), passo = w / n;
+      const toras: Parte[] = [];
+      for (let i = 0; i < n; i++) {
+        const lx = -w / 2 + (i + 0.5) * passo;
+        const diam = Math.min(0.38, passo * (0.94 + r() * 0.12));
+        const oy = (r() - 0.5) * 0.05;
+        const matTora = i % 3 === 0 ? 'madeira.escura' : 'madeira.media';
+        const z = 1.15 + r() * 0.12;
+        toras.push(
+          elipse(lx, oy, diam, diam * (0.92 + r() * 0.1), matTora, z, { contorno: 'leve' }),
+          elipse(lx - diam * 0.05, oy - diam * 0.05, diam * 0.64, diam * 0.64, 'madeira.clara', z + 0.15, { contorno: false, semSombra: true, detalhe: 2 }),
+          elipse(lx, oy, diam * 0.28, diam * 0.28, 'madeira.media', z + 0.18, { contorno: false, semSombra: true, detalhe: 3 }),
+        );
+      }
+      return piso([w, 0.45], [
+        ret(0, 0, w, 0.14, 'madeira.escura', 0.9, { raio: 0.02, contorno: 'leve', sombraLeve: true }),
+        ret(0, -0.015, Math.max(0.2, w - 0.06), 0.06, 'madeira.media', 0.95, { contorno: false, semSombra: true, detalhe: 2 }),
+        ...toras,
+        ret(-w / 2 + passo * 0.5, 0, 0.08, 0.2, '#9a845c', 1.38, { raio: 0.01, contorno: 'leve', detalhe: 3 }),
+        ret(w / 2 - passo * 0.5, 0, 0.08, 0.2, '#9a845c', 1.38, { raio: 0.01, contorno: 'leve', detalhe: 3 }),
+      ]);
+    } },
   { id: 'poco', nome: 'Poço', ...G, tags: ['poco', 'agua', 'pedra'], pegada: [1.4, 1.4],
     gerar: () => piso([1.4, 1.4], [elipse(0, 0, 1.4, 1.4, PEDRA[1]!, 0.8, { contorno: 'leve' }), ...Array.from({ length: 14 }, (_, i) => { const a = (i / 14) * Math.PI * 2; return elipse(Math.cos(a) * 0.58, Math.sin(a) * 0.58, 0.26, 0.2, i % 2 ? PEDRA[0]! : PEDRA[2]!, 0.85, { contorno: 'leve', detalhe: 2 }); }), elipse(0, 0, 0.9, 0.9, '#14202a', 0.9, { contorno: 'leve' }), elipse(0.05, 0.05, 0.5, 0.5, '#1f3a4d', 0.92, { contorno: false, semSombra: true, detalhe: 3 }), ret(0, 0, 1.5, 0.07, 'madeira.escura', 1.6, { contorno: 'leve', detalhe: 2 }), ret(-0.7, 0, 0.1, 0.1, 'madeira.escura', 1.65, { contorno: 'leve', detalhe: 3 }), ret(0.7, 0, 0.1, 0.1, 'madeira.escura', 1.65, { contorno: 'leve', detalhe: 3 })]) },
   { id: 'banco.jardim', nome: 'Banco de jardim', ...G, funcoes: ['jardim', 'cemiterio'], tags: ['banco', 'assento', 'jardim'], pegada: [1.5, 0.5],

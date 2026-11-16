@@ -131,3 +131,12 @@ test('variantes de grama e grama personalizada resolvem e adaptam receitas', () 
   const tufoCinza = todasAsPartes('tufo-de-grama', { material: 'grama.acinzentada' }, 10);
   assert.notDeepEqual(tufoVerde, tufoCinza);
 });
+
+test('palicada varia toras por semente e responde ao parametro largura', () => {
+  assert.deepEqual(pegadaDaReceita('palicada'), [2, 0.45]);
+  assert.deepEqual(pegadaDaReceita('palicada', { largura: 4 }), [4, 0.45]);
+  const a = todasAsPartes('palicada', { largura: 3 }, 7);
+  const b = todasAsPartes('palicada', { largura: 3 }, 8);
+  assert.ok(a.length >= 12);
+  assert.notDeepEqual(a, b);
+});

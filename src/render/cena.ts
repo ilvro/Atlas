@@ -3,7 +3,7 @@ import { listaDeAndares } from '../domain/andares.ts';
 import { decodificar } from '../domain/celulas.ts';
 import { comprimentoDaParede, contornoDoComodo, pontoNaParede } from '../domain/geometria.ts';
 import type { Abertura, Luz, MapaAtlas, Objeto, Parede, Peca, Ponto, Regiao } from '../domain/mapa.ts';
-import { materialDe } from '../procedural/materiais.ts';
+import { materialDe, tom } from '../procedural/materiais.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { camadaDoObjeto } from '../domain/camadas.ts';
 import type { Baker } from '../procedural/baker.ts';
@@ -223,19 +223,71 @@ export function criarCena(op: OpcoesDaCena): Cena {
   function desenharParede(g: Graphics, m: MapaAtlas, p: Parede): void {
     // A parede é traçada em trechos, pulando o vão das portas e dos arcos.
     const comp = comprimentoDaParede(p), vaos = Object.values(m.openings).filter(a => a.wallId === p.id && (a.kind === 'door' || a.kind === 'arch' || secretaRevelada(m, a))).map(a => [a.at * comp - a.width / 2, a.at * comp + a.width / 2] as const).sort((x, y) => x[0] - y[0]);
+    const trechos: [number, number][] = [];
     let pos = 0;
-    const trecho = (d0: number, d1: number) => {
-      if (d1 - d0 < 1e-4) return;
-      // Percorre os vértices da parede entre d0 e d1.
-      const pts: Ponto[] = [pontoEm(p, d0)]; let acum = 0;
-      for (let i = 0; i + 1 < p.path.length; i++) { const l = Math.hypot(p.path[i + 1]![0] - p.path[i]![0], p.path[i + 1]![1] - p.path[i]![1]); acum += l; if (acum > d0 && acum < d1) pts.push(p.path[i + 1]!); }
-      pts.push(pontoEm(p, d1));
-      g.moveTo(pts[0]![0], pts[0]![1]); for (const q of pts.slice(1)) g.lineTo(q[0], q[1]);
+    for (const [a, b] of vaos) {
+      const fim = Math.max(pos, a);
+      if (fim - pos >= 1e-4) trechos.push([pos, fim]);
+      pos = b;
+    }
+    if (comp - pos >= 1e-4) trechos.push([pos, comp]);
+    if (!trechos.length) return;
+
+    const trazarTrechos = (dx = 0, dy = 0) => {
+      for (const [d0, d1] of trechos) {
+        const pts: Ponto[] = [pontoEm(p, d0)];
+        let acum = 0;
+        for (let i = 0; i + 1 < p.path.length; i++) {
+          const l = Math.hypot(p.path[i + 1]![0] - p.path[i]![0], p.path[i + 1]![1] - p.path[i]![1]);
+          acum += l;
+          if (acum > d0 && acum < d1) pts.push(p.path[i + 1]!);
+        }
+        pts.push(pontoEm(p, d1));
+        g.moveTo(pts[0]![0] + dx, pts[0]![1] + dy);
+        for (const q of pts.slice(1)) g.lineTo(q[0] + dx, q[1] + dy);
+      }
     };
-    for (const [a, b] of vaos) { trecho(pos, Math.max(pos, a)); pos = b; }
-    trecho(pos, comp);
-    const baixa = p.kind === 'low' || p.kind === 'fence';
-    g.stroke({ width: lw(p.thickness * (baixa ? 0.7 : 1)), color: baixa ? 0x4a4658 : COR_TOPO, alpha: p.kind === 'fence' ? 0.8 : 1, join: 'miter', cap: 'butt' });
+
+    if (p.kind === 'fence') {
+      const matHex = p.material && p.material !== 'parede.topo' ? materialDe(p.material).base : '#7c5838';
+      const corTravessa = hexParaNumero(matHex);
+      const corPoste = hexParaNumero(tom(matHex, -0.32));
+      const corMiolo = hexParaNumero(tom(matHex, 0.24));
+      trazarTrechos(0.05, 0.06);
+      g.stroke({ width: lw(Math.max(0.08, p.thickness * 0.44)), color: 0x0e0c10, alpha: pixelRes ? 0.35 : 0.26, join: 'miter', cap: 'round' });
+      trazarTrechos();
+      g.stroke({ width: lw(Math.max(0.08, p.thickness * 0.42)), color: 0x1e1612, alpha: 0.96, join: 'miter', cap: 'butt' });
+      trazarTrechos();
+      g.stroke({ width: lw(Math.max(0.05, p.thickness * 0.24)), color: corTravessa, alpha: 0.96, join: 'miter', cap: 'butt' });
+      const raio = Math.max(0.075, p.thickness * 0.42);
+      for (const [d0, d1] of trechos) {
+        const len = d1 - d0;
+        const nPostes = Math.max(1, Math.round(len / 1.2));
+        for (let k = 0; k <= nPostes; k++) {
+          const [px, py] = pontoEm(p, d0 + (k / nPostes) * len);
+          g.circle(px + 0.04, py + 0.05, raio).fill({ color: 0x0e0c10, alpha: pixelRes ? 0.35 : 0.24 });
+          g.circle(px, py, raio).fill({ color: corPoste, alpha: 0.98 }).stroke({ width: lw(0.025), color: 0x16110e, alpha: 0.95 });
+          g.circle(px - raio * 0.14, py - raio * 0.14, raio * 0.52).fill({ color: corMiolo, alpha: 0.92 });
+        }
+      }
+      return;
+    }
+
+    if (p.kind === 'low') {
+      const matHex = p.material && p.material !== 'parede.topo' ? materialDe(p.material).base : '#7b7780';
+      trazarTrechos(0.06, 0.08);
+      g.stroke({ width: lw(p.thickness * 0.86), color: 0x0b0a0e, alpha: pixelRes ? 0.38 : 0.28, join: 'miter', cap: 'butt' });
+      trazarTrechos();
+      g.stroke({ width: lw(p.thickness * 0.84), color: 0x1e1c24, alpha: 0.96, join: 'miter', cap: 'butt' });
+      trazarTrechos();
+      g.stroke({ width: lw(p.thickness * 0.6), color: hexParaNumero(matHex), alpha: 0.96, join: 'miter', cap: 'butt' });
+      trazarTrechos();
+      g.stroke({ width: lw(p.thickness * 0.22), color: hexParaNumero(tom(matHex, 0.22)), alpha: pixelRes ? 0.85 : 0.65, join: 'miter', cap: 'butt' });
+      return;
+    }
+
+    trazarTrechos();
+    g.stroke({ width: lw(p.thickness), color: COR_TOPO, alpha: 1, join: 'miter', cap: 'butt' });
   }
 
   function desenharParedes(m: MapaAtlas): void {

@@ -267,7 +267,7 @@ Cria paredes, muros, cercas ou escarpas avulsas em metros (um passo de desfazer)
 
 Parâmetros de cada parede:
 - `path`: lista de pontos `[x, y]` em metros (mínimo 2 pontos).
-- `kind`: `'wall'` (parede cheia que bloqueia movimento, visão e luz), `'low'` (muro baixo: bloqueia passo, visão livre), `'fence'` (cerca) ou `'cliff'` (escarpa / barranco).
+- `kind`: `'wall'` (parede cheia que bloqueia movimento, visão e luz), `'low'` (muro baixo com borda destacada: bloqueia passo, visão livre), `'fence'` (cerca de madeira com postes e travessas para pastos/jardins) ou `'cliff'` (escarpa / barranco). Para paliçada defensiva pesada de toras, prefira a receita `palicada` com `atlas_arranjo` (`padrao: "ao-longo"`, `espacamento: [2.0, 0]`).
 - `drop`: `'a' | 'b'` (qual lado desce na escarpa; `'a'` = lado esquerdo do sentido do traçado, `'b'` = lado direito).
 - `altura`, `espessura`, `material`: opcionais. Na escarpa o material padrão é `rocha.cinza` (aceita qualquer material de uso `macico`).
 - `andar`: id de andar opcional (`null` ou omitido = térreo).
