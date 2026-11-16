@@ -104,6 +104,7 @@ export interface Parede {
   /** De que lado a escarpa desce; só vale para `kind: 'cliff'`. */
   drop: 'a' | 'b' | null;
   source: null | { roomId: string } | { terrainLayerId: string } | { reliefStep: number };
+  levelId?: string | null;
 }
 export interface Abertura {
   id: string; wallId: string; at: number; width: number; kind: 'door' | 'window' | 'arch' | 'secret';
@@ -123,6 +124,7 @@ export interface Objeto {
   layer?: number;
   /** Escondido dos jogadores no projetor; visível em meia opacidade no editor para o mestre. */
   oculto?: boolean;
+  levelId?: string | null;
 }
 /** `targets` vazio num interruptor = as luzes `power: 'grid'` do cômodo do objeto. `clue` só vai ao jogador depois de revelada. */
 export interface Interacao {
@@ -143,13 +145,15 @@ export interface Luz {
   preset: string | null;
   /** Raios visíveis no cone. */
   rays: boolean;
+  levelId?: string | null;
 }
 export interface Regiao {
   id: string; polygon: Ponto[]; kind: 'reveal' | 'trigger' | 'note' | 'audio'; gmOnly: boolean;
   payload: Record<string, unknown>; refs: Ref[];
+  levelId?: string | null;
 }
 /** Presença pintada (musgo, sangue, mofo…) em células de `terrain.resolution` metros, em RLE: como o terreno, sem imagem. */
-export interface Presenca { id: string; brush: string; cells: Faixa[]; intensity: number; seed: number; gmOnly: boolean }
+export interface Presenca { id: string; brush: string; cells: Faixa[]; intensity: number; seed: number; gmOnly: boolean; levelId?: string | null }
 export const ESTADOS_FIGURA = ['normal', 'hurt', 'dying', 'unconscious', 'dead', 'maddened'] as const;
 export const ESTILOS_DE_TOKEN = ['coin', 'immersive'] as const;
 export type EstiloDeToken = (typeof ESTILOS_DE_TOKEN)[number];
@@ -167,13 +171,17 @@ export interface Peca {
   tokenStyle?: EstiloDeToken;
   /** Escala visual da arte do token (0.5 a 3.0, padrão 1.0). */
   portraitScale?: number;
+  levelId?: string | null;
 }
+export interface Andar { id: string; name: string; order: number }
 export interface NotaDeComodo { id: string; leitura: string; notasMestre: string; refs: Ref[] }
 export const MODOS_TELHADOS_SESSAO = ['auto', 'fechados', 'abertos'] as const;
 export type ModoTelhadosSessao = (typeof MODOS_TELHADOS_SESSAO)[number];
 export interface Sessao {
   /** `res`: lado de cada célula do explorado, em metros (independe da grade do mapa); `cells` são faixas `[y, x0, n]` nessa malha. */
   explored: null | { res: number; cells: Faixa[] };
+  /** Explorado dos outros andares (fora o térreo `null`); mesmo formato que `explored`. */
+  exploredLevels?: Record<string, { res: number; cells: Faixa[] }>;
   initiative: null | { order: { tokenId: string; value: number }[]; current: number; round: number };
   revealed: string[]; event: string | null;
   /** Chave geral da sessão para os telhados; ausente vale `'auto'`. */
@@ -185,6 +193,9 @@ export interface MapaAtlas {
   schema: typeof SCHEMA_MAPA; version: number;
   id: string; name: string; revision: number; createdAt: number; updatedAt: number;
   campanhaId: string | null;
+  /** Andares fora o térreo (`null`); térreo tem `order: 0`. */
+  levels?: Record<string, Andar>;
+  groundLevelName?: string;
   grid: Grade; bounds: { width: number; height: number };
   style: Estilo; climate: Clima; finish: Acabamento; memory: Memoria; backdrop: Fundo; terrain: Terreno;
   rooms: Record<string, Comodo>; walls: Record<string, Parede>; openings: Record<string, Abertura>;
