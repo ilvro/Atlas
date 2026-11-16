@@ -60,7 +60,7 @@ Comparando as referências do *Farol de OSNI* e das duas casas externas com o re
 
 | Ficha | Etapa | Foco | Depende de | Estado |
 | --- | --- | --- | --- | --- |
-| [K1](#k1--usar-salaoutline-na-máscara-de-luz-e-poeira-dos-interiores) | Etapa 1 · Correções Imediatas & Auditoria | Eliminar sombra quadrada em casas rotacionadas (`mapa-de-luz.ts`, `mascara-de-comodos.ts`) | — | ⬜ |
+| [K1](#k1--usar-salaoutline-na-máscara-de-luz-e-poeira-dos-interiores) | Etapa 1 · Correções Imediatas & Auditoria | Eliminar sombra quadrada em casas rotacionadas (`mapa-de-luz.ts`, `mascara-de-comodos.ts`) | — | ✅ |
 | [K2](#k2--auditoria-espacial-em-atlas_revisar-exterior-em-cômodo-parede-e-relevo) | Etapa 1 · Correções Imediatas & Auditoria | Detectar neve/árvore em cômodo, parede cortando sala e paliçada em escarpa/degrau | — | ⬜ |
 | [K3](#k3--penumbra-de-interior-configurável-climainteriorlight-e-contraste-diurno) | Etapa 1 · Correções Imediatas & Auditoria | `Clima.interiorLight?` configurável via presets e `atlas_ambiente` | K1 | ⬜ |
 | [K4](#k4--oclusores-de-luz-para-pilares-e-objetos-altos-no-domínio) | Etapa 2 · Oclusão & Iluminação Dinâmica | Segmentos de oclusão rotacionados em `visibilidade.ts` sem auto-bloqueio de luzes embutidas | — | ⬜ |
@@ -77,7 +77,7 @@ Comparando as referências do *Farol de OSNI* e das duas casas externas com o re
 
 Objetivo: resolver os bugs imediatamente visíveis nas capturas (sombra quadrada sob casas rotacionadas, interiores claros demais de dia e ausência de travas contra sobreposição em `atlas_revisar`).
 
-### K1 — Usar `sala.outline` na máscara de luz e poeira dos interiores  ⬜
+### K1 — Usar `sala.outline` na máscara de luz e poeira dos interiores  ✅
 
 **Objetivo:** corrigir `desenharInterior` em `src/render/mapa-de-luz.ts` e `faixasDosComodos` em `src/render/mascara-de-comodos.ts` para respeitar `sala.outline` em cômodos rotacionados ou livres, eliminando o retângulo cinza que vaza fora das paredes.
 

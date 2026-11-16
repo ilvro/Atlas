@@ -136,9 +136,16 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     let tem = false;
     for (const sala of Object.values(m.rooms)) {
       if (!sala.roof.material) continue;
-      for (const [y, x0, n] of sala.cells) {
-        interior.rect(ox + x0 * t, oy + y * t, n * t, t);
+      if (sala.outline && sala.outline.length >= 3) {
+        interior.moveTo(sala.outline[0]![0], sala.outline[0]![1]);
+        for (let i = 1; i < sala.outline.length; i++) interior.lineTo(sala.outline[i]![0], sala.outline[i]![1]);
+        interior.closePath();
         tem = true;
+      } else {
+        for (const [y, x0, n] of sala.cells) {
+          interior.rect(ox + x0 * t, oy + y * t, n * t, t);
+          tem = true;
+        }
       }
     }
     if (tem) interior.fill(0xffffff);
