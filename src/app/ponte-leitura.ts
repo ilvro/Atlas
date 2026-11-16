@@ -2,6 +2,7 @@ import { imagem, json, type FerramentaDaPonte } from '#mesa/ponte';
 import { area, decodificar, limites } from '../domain/celulas.ts';
 import { edificiosDe, type Edificio } from '../domain/edificios.ts';
 import { EVENTOS_DE_CENA } from '../domain/eventos-de-cena.ts';
+import { detectarCirculo } from '../domain/formas-de-comodo.ts';
 import { CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, FORMAS_DE_TELHADO, colunas, linhas, type Comodo, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
 import { descreverPasso } from '../domain/momentos.ts';
 import { ESTILOS_DE_TELHADO, FUNCOES_AO_AR_LIVRE, GENEROS, PACOTES_DE_PRESENCA, PINCEIS_DE_PRESENCA, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO } from '../domain/presets.ts';
@@ -114,6 +115,12 @@ export function resumirMapa(m: MapaAtlas, opcoes?: { comodos?: readonly string[]
     const rets = retangulosDe(cels);
     const nCel = area(c.cells);
     const edId = salaParaEdificio.get(c.id);
+    const circ = c.outline && c.outline.length >= 3 ? detectarCirculo(c.outline) : null;
+    const contorno = c.outline && c.outline.length >= 3
+      ? circ
+        ? { forma: 'circulo' as const, centro: [r1(circ.centro[0]), r1(circ.centro[1])] as [number, number], raio: r1(circ.raio) }
+        : { forma: 'poligono' as const, vertices: c.outline.map(([x, y]) => [r1(x), r1(y)] as [number, number]) }
+      : {};
     return {
       id: c.id,
       nome: c.name,
@@ -124,6 +131,7 @@ export function resumirMapa(m: MapaAtlas, opcoes?: { comodos?: readonly string[]
       telhado: resumirTelhado(c.roof),
       ...(edId ? { edificio: edId } : {}),
       rets,
+      ...contorno,
       ...(l ? { retangulo: [r1(l.x0 * t), r1(l.y0 * t), r1((l.x1 - l.x0 + 1) * t), r1((l.y1 - l.y0 + 1) * t)] } : {}),
     };
   });
@@ -211,7 +219,14 @@ export function resumirMapa(m: MapaAtlas, opcoes?: { comodos?: readonly string[]
     notas: m.notes,
   };
   if (!filtroComodos && JSON.stringify(saida).length > LIMITE_JSON_MAPA_LER) {
-    saida.comodos = comodos.map(({ rets, ...resto }) => ({ ...resto, retsResumidos: rets.length }));
+    saida.comodos = comodos.map(({ rets, ...resto }) => {
+      const r = resto as Record<string, unknown>;
+      if (Array.isArray(r.vertices)) {
+        const { vertices, ...semVert } = r;
+        return { ...semVert, retsResumidos: rets.length, verticesResumidos: vertices.length };
+      }
+      return { ...resto, retsResumidos: rets.length };
+    });
   }
   return saida;
 }

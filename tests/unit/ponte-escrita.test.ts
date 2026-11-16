@@ -107,6 +107,30 @@ test('atlas_comodos aceita estilo de telhado e cobertura com forma e detalhes', 
   validarMapa(store.documento);
 });
 
+test('atlas_comodos aceita circulo e poligono, gera telhado cone e recusa misturar rets com circulo', async () => {
+  const { store, chamar } = montar();
+  await chamar('atlas_comodos', { comodos: [
+    { circulo: { centro: [15, 15], raio: 3 }, tipo: 'salao', nome: 'Farol de Lysdal' },
+    { poligono: [[2, 2], [6, 2], [6, 6], [2, 6]], tipo: 'sala', nome: 'Vestíbulo' },
+  ] });
+  const salas = Object.values(store.documento.rooms);
+  const farol = salas.find(s => s.name === 'Farol de Lysdal')!;
+  const vest = salas.find(s => s.name === 'Vestíbulo')!;
+  assert.equal(farol.outline?.length, 24);
+  assert.equal(farol.roof.shape, 'cone');
+  assert.equal(vest.outline?.length, 4);
+  validarMapa(store.documento);
+
+  await assert.rejects(
+    chamar('atlas_comodos', { comodos: [{ rets: [[1, 1, 3, 3]], circulo: { centro: [5, 5], raio: 2 }, tipo: 'sala' }] }),
+    /apenas uma forma/,
+  );
+  await assert.rejects(
+    chamar('atlas_comodos', { comodos: [{ tipo: 'sala' }] }),
+    /precisa de rets/,
+  );
+});
+
 test('atlas_paredes cria muros avulsos e escarpas; porta sem parede perto volta como erro legível', async () => {
   const { store, chamar } = montar();
   await chamar('atlas_paredes', { paredes: [{ path: [[1, 1], [8, 1]], kind: 'fence' }, { path: [[10, 5], [10, 20]], kind: 'cliff', drop: 'b' }] });

@@ -94,6 +94,18 @@ test('comodos: sem telhado usa o padrão do gênero/vizinho; null explícito dei
   assert.deepEqual(igreja.rooms.c002!.roof.details, ['sino']);
 });
 
+test('comodos: circulo e poligono criam cômodo com contorno e recusam combinação com rets', () => {
+  const m = aplicar(comodos(vazio(), [
+    { circulo: { centro: [12, 10], raio: 3 }, tipo: 'sala', nome: 'Farol' },
+    { poligono: [[2, 2], [6, 2], [7, 4], [2, 5]], tipo: 'sala', nome: 'Sala poligonal' },
+  ], 1, contador()));
+  assert.equal(m.rooms.c001!.outline?.length, 24);
+  assert.equal(m.rooms.c001!.roof.shape, 'cone');
+  assert.equal(m.rooms.c002!.outline?.length, 4);
+  erro(() => comodos(vazio(), [{ rets: [[1, 1, 3, 3]], circulo: { centro: [5, 5], raio: 2 }, tipo: 'sala' }]), /apenas uma forma/);
+  erro(() => comodos(vazio(), [{ tipo: 'sala' }]), /precisa de rets/);
+});
+
 test('paredes: adiciona com o padrão e sobrescreve campos; escarpa com drop e defaults', () => {
   const c = paredes(vazio(), [
     { path: [[2, 2], [8, 2]], kind: 'fence', altura: 1.1 },
