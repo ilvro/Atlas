@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { circulo } from '../../src/domain/formas-de-comodo.ts';
 import { codificar } from '../../src/domain/celulas.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
-import { ESTILOS_DE_TELHADO, FUNCOES_AO_AR_LIVRE, estiloDeTelhado, telhadoPadrao } from '../../src/domain/presets.ts';
+import { ESTILOS_DE_TELHADO, FUNCOES_AO_AR_LIVRE, PRESETS_DE_ACABAMENTO, estiloDeTelhado, presetDeAcabamento, telhadoPadrao } from '../../src/domain/presets.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
 
 test('ESTILOS_DE_TELHADO: todos os 14 estilos são únicos e passam na validação do mapa', () => {
@@ -91,4 +91,15 @@ test('telhadoPadrao: contorno circular (>= 8 lados) ganha estilo torre-redonda e
   const outline = circulo([6, 6], 3, 24);
   assert.deepEqual(telhadoPadrao(m, 'sala', [[4, 4]], null, outline), estiloDeTelhado('torre-redonda')!.roof);
   assert.equal(telhadoPadrao(m, 'varanda', [[4, 4]], null, outline), null);
+});
+
+test('PRESETS_DE_ACABAMENTO: preserva presets clássicos e inclui presets cinematográficos com glow e bordas', () => {
+  for (const id of ['nenhum', 'neutro', 'sujo', 'sepia', 'frio', 'quente', 'inverno-nevado', 'sombrio-cinematografico']) {
+    assert.ok(presetDeAcabamento(id), `preset ${id} deve existir`);
+  }
+  assert.equal(new Set(PRESETS_DE_ACABAMENTO.map(p => p.id)).size, PRESETS_DE_ACABAMENTO.length);
+  const inv = presetDeAcabamento('inverno-nevado')!;
+  assert.ok(inv.valores.glow >= 0.3 && inv.valores.edges.kind === 'clouds' && inv.valores.edges.amount >= 0.3);
+  const sombrio = presetDeAcabamento('sombrio-cinematografico')!;
+  assert.ok(sombrio.valores.glow >= 0.4 && sombrio.valores.edges.kind === 'dark' && sombrio.valores.vignette >= 0.5);
 });
