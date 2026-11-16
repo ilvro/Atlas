@@ -3,6 +3,7 @@ import { Application, Container, Graphics, Rectangle, Sprite, Text, Texture } fr
 import { criarEventosDeCena, type EventoDeCena, type EstadoDosEventos } from './eventos-de-cena.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import { distanciaDoPercurso, pontosDaRegua, textoDaRegua, type RegraDeDiagonal } from '../domain/regua.ts';
+import { circulo, ehPoligonoSimples } from '../domain/formas-de-comodo.ts';
 import { celulasDoDisco, celulasEntre, decodificar } from '../domain/celulas.ts';
 import { misturar, type EstadoDeClima, type MisturaDeClima } from '../domain/clima.ts';
 import { conjuntoDeEspalhar, espalhar } from '../authoring/espalhar.ts';
@@ -29,7 +30,7 @@ import { criarFantasmaDeProposta } from './fantasma-proposta.ts';
 import type { Vista } from './nevoa.ts';
 import { criarRetratos } from './retratos.ts';
 import { ajustarGradePorAlinhamento, celulasHexagonaisVisiveis, deltaEncaixado, encaixar, intersecoesDaGrade, linhasDaGrade, segmentosTracejados } from './grade.ts';
-import { LARGURA_DA_ABERTURA, comandoDoPincelDeTerreno, type Ferramenta, type Pincel } from './pincel.ts';
+import { LARGURA_DA_ABERTURA, comandoDeComodoPorContorno, comandoDoPincelDeTerreno, pontoPreso45, type Ferramenta, type Pincel } from './pincel.ts';
 import { corDaLinhaDeNivel, criarLinhasDeNivel } from './linhas-de-nivel.ts';
 import { alvoEm, alvosNaCaixa, alvosNoLaco, caixaDaSelecao, caixaDe, combinarSelecao, ehMovel, mesmoAlvo, type Alvo, type Caixa } from './selecao.ts';
 
@@ -164,6 +165,8 @@ type Interacao =
   | { tipo: 'retangulo'; ini: Ponto; atual: Ponto; modo: 'trocar' | 'somar'; x0: number; y0: number; moveu: boolean }
   | { tipo: 'laco'; pontos: Ponto[]; modo: 'trocar' | 'somar' }
   | { tipo: 'cômodo'; apagar: boolean; sala: string; criado: boolean; gesto: Gesto; ini: [number, number]; atual: [number, number]; retangulo: boolean; visitadas: Set<number> }
+  | { tipo: 'comodo-circulo'; centro: Ponto; atual: Ponto; lados: number; tipoComodo: string }
+  | { tipo: 'comodo-poligono'; pontos: Ponto[]; atual: Ponto; tipoComodo: string }
   | { tipo: 'terreno'; apagar: boolean; gesto: Gesto; ultimo: Ponto; presenca: boolean }
   | { tipo: 'espalhar'; apagar: boolean; gesto: Gesto; ultimo: Ponto; semente: number }
   | { tipo: 'parede'; ini: Ponto; fim: Ponto }
@@ -384,7 +387,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     const pad = px(5);
     for (const a of alvos) {
       if (a.colecao === 'rooms') {
-        for (const lc of contornoDoComodo(m, decodificar(m.rooms[a.id]!.cells))) { selecaoG.moveTo(lc[0]!.a[0], lc[0]!.a[1]); for (const s of lc) selecaoG.lineTo(s.b[0], s.b[1]); selecaoG.closePath(); }
+        const s = m.rooms[a.id]!;
+        for (const lc of contornoDoComodo(m, decodificar(s.cells), s.outline)) { selecaoG.moveTo(lc[0]!.a[0], lc[0]!.a[1]); for (const seg of lc) selecaoG.lineTo(seg.b[0], seg.b[1]); selecaoG.closePath(); }
         selecaoG.stroke({ width: px(2.5), color: cor, alpha: 0.95 }); continue;
       }
       if (a.colecao === 'walls') { const p = m.walls[a.id]!; selecaoG.moveTo(p.path[0]![0], p.path[0]![1]); for (const q of p.path.slice(1)) selecaoG.lineTo(q[0], q[1]); selecaoG.stroke({ width: p.thickness + px(6), color: cor, alpha: 0.55, cap: 'round', join: 'round' });
@@ -457,6 +461,27 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       const t = m.grid.size, cor2 = interacao.apagar ? 0xff6b6b : cor;
       for (const [x, y] of retanguloDeCelulas(m, interacao.ini, interacao.atual)) laco.rect(m.grid.offset[0] + x * t, m.grid.offset[1] + y * t, t, t);
       laco.fill({ color: cor2, alpha: 0.28 }).stroke({ width: px(1), color: cor2, alpha: 0.6 });
+    } else if (interacao?.tipo === 'comodo-circulo') {
+      const r = Math.hypot(interacao.atual[0] - interacao.centro[0], interacao.atual[1] - interacao.centro[1]);
+      if (r >= 0.1) {
+        const pts = circulo(interacao.centro, r, interacao.lados);
+        laco.poly(pts.flat()).fill({ color: cor, alpha: 0.2 }).stroke({ width: px(1.8), color: r >= 0.8 ? cor : 0xff6b6b, alpha: 0.9 });
+      }
+      laco.moveTo(interacao.centro[0], interacao.centro[1]).lineTo(interacao.atual[0], interacao.atual[1]).stroke({ width: px(1.5), color: cor, alpha: 0.8 });
+      laco.circle(interacao.centro[0], interacao.centro[1], px(4.5)).fill(0xffffff).stroke({ width: px(1.5), color: cor });
+    } else if (interacao?.tipo === 'comodo-poligono') {
+      const pts = [...interacao.pontos, interacao.atual];
+      const simples = pts.length < 3 || ehPoligonoSimples(pts);
+      const corPol = simples ? cor : 0xff6b6b;
+      if (pts.length >= 3) laco.poly(pts.flat()).fill({ color: corPol, alpha: 0.18 });
+      laco.moveTo(pts[0]![0], pts[0]![1]);
+      for (const q of pts.slice(1)) laco.lineTo(q[0], q[1]);
+      laco.stroke({ width: px(1.8), color: corPol, alpha: 0.9, cap: 'round', join: 'round' });
+      const pertoPrimeiro = interacao.pontos.length >= 3 && Math.hypot(interacao.atual[0] - interacao.pontos[0]![0], interacao.atual[1] - interacao.pontos[0]![1]) <= px(12);
+      for (let k = 0; k < interacao.pontos.length; k++) {
+        const q = interacao.pontos[k]!;
+        laco.circle(q[0], q[1], px(k === 0 && pertoPrimeiro ? 7 : 4.5)).fill(k === 0 && pertoPrimeiro ? cor : 0xffffff).stroke({ width: px(1.5), color: corPol });
+      }
     } else if (interacao?.tipo === 'peca' && interacao.moveu) {
       const { de, para, motivo, livre } = interacao, t = m.grid.size, cor3 = motivo ? 0xe0342c : livre ? 0xd9a23b : 0x3fb950;
       laco.rect(para[0] - t / 2, para[1] - t / 2, t, t).fill({ color: cor3, alpha: 0.22 }).stroke({ width: px(1.5), color: cor3, alpha: 0.9 });
@@ -488,6 +513,12 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     const livre = !m.grid.snap || altPressionado;
     const p: Ponto = [encaixar(ponteiro[0], m.grid, 0, 0.5, livre), encaixar(ponteiro[1], m.grid, 1, 0.5, livre)];
     if (f === 'comodo' || f === 'borracha') {
+      const forma = f === 'comodo' ? (pincel.comodoForma ?? 'celulas') : 'celulas';
+      if (forma !== 'celulas') {
+        const pt: Ponto = [encaixar(ponteiro[0], m.grid, 0, 1, livre), encaixar(ponteiro[1], m.grid, 1, 1, livre)];
+        fantasmaG.circle(pt[0], pt[1], px(5)).fill({ color: cor, alpha: 0.85 }).stroke({ width: px(1.5), color: 0xffffff });
+        return;
+      }
       const [x, y] = celulaDe(m, ponteiro), t = m.grid.size, c = f === 'borracha' ? 0xff6b6b : cor;
       if (dentroDoMapa(m, [x, y])) fantasmaG.rect(m.grid.offset[0] + x * t, m.grid.offset[1] + y * t, t, t).fill({ color: c, alpha: 0.28 }).stroke({ width: px(1.5), color: c, alpha: 0.9 });
       return;
@@ -630,10 +661,38 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     zoomarEm(telaDe(e), Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015)));
   }, { passive: false });
 
+  function concluirContorno(outline: readonly Ponto[], tipoComodo: string): void {
+    const id = novoIdEntidade('c');
+    const cmd = comandoDeComodoPorContorno(doc(), outline, tipoComodo, id);
+    if (typeof cmd === 'string') { ponte.aviso(cmd); return; }
+    if (tentar(() => store.executar(cmd, { rotulo: `Criar ${cmd.nome.toLowerCase()}` }))) {
+      ponte.definirSelecao([{ colecao: 'rooms', id }]);
+      const c = caixaDe(doc(), { colecao: 'rooms', id });
+      if (c) ponte.aoColocar(cmd.nome, [(c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2]);
+    }
+  }
+
   // Pincelada de cômodo ou de borracha.
   function comecarComodo(e: PointerEvent, p: Ponto, apagar: boolean): void {
-    const m = doc(), c = celulaDe(m, p); if (!dentroDoMapa(m, c)) return;
-    const existente = apagar ? null : salaDaCelula(indiceDeCelulas(m), c[0], c[1]), tipo = tipoDeComodo(ponte.pincel().comodo) ?? tipoDeComodo('sala')!;
+    const m = doc(), pincel = ponte.pincel();
+    if (!apagar) {
+      const forma = pincel.comodoForma ?? 'celulas';
+      const livre = !m.grid.snap || e.altKey;
+      const pt: Ponto = [encaixar(p[0], m.grid, 0, 1, livre), encaixar(p[1], m.grid, 1, 1, livre)];
+      if (forma === 'circulo') {
+        const lados = Math.max(8, Math.min(48, Math.round(pincel.comodoLados ?? 24)));
+        interacao = { tipo: 'comodo-circulo', centro: pt, atual: pt, lados, tipoComodo: pincel.comodo };
+        return;
+      }
+      if (forma === 'poligono') {
+        try { canvas.releasePointerCapture(e.pointerId); } catch { /* ok */ }
+        interacao = { tipo: 'comodo-poligono', pontos: [pt], atual: pt, tipoComodo: pincel.comodo };
+        camadaSuja = true;
+        return;
+      }
+    }
+    const c = celulaDe(m, p); if (!dentroDoMapa(m, c)) return;
+    const existente = apagar ? null : salaDaCelula(indiceDeCelulas(m), c[0], c[1]), tipo = tipoDeComodo(pincel.comodo) ?? tipoDeComodo('sala')!;
     interacao = {
       tipo: 'cômodo', apagar, sala: apagar ? '' : existente ?? novoIdEntidade('c'), criado: !!existente,
       gesto: store.iniciarGesto(apagar ? 'Apagar cômodo' : existente ? 'Pintar cômodo' : `Criar ${tipo.nome.toLowerCase()}`), ini: c, atual: c, retangulo: e.shiftKey, visitadas: new Set(),
@@ -752,6 +811,26 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   canvas.addEventListener('pointerdown', e => {
     altPressionado = e.altKey;
+    if (interacao?.tipo === 'comodo-poligono') {
+      if (e.button === 2 || e.button === 1) { interacao = null; camadaSuja = true; cursor(); return; }
+      if (e.button !== 0) return;
+      const m = doc(), p = mundoDe(e), livre = !m.grid.snap || e.altKey;
+      let pt: Ponto = [encaixar(p[0], m.grid, 0, 1, livre), encaixar(p[1], m.grid, 1, 1, livre)];
+      const ultimo = interacao.pontos.at(-1)!;
+      if (e.shiftKey) pt = pontoPreso45(ultimo, pt);
+      const pertoPrimeiro = interacao.pontos.length >= 3 && Math.hypot(pt[0] - interacao.pontos[0]![0], pt[1] - interacao.pontos[0]![1]) <= px(12);
+      if (pertoPrimeiro || (e.detail >= 2 && interacao.pontos.length >= 3)) {
+        const pontos = interacao.pontos;
+        interacao = null;
+        concluirContorno(pontos, ponte.pincel().comodo);
+        camadaSuja = true; cursor();
+        return;
+      }
+      if (Math.hypot(pt[0] - ultimo[0], pt[1] - ultimo[1]) > px(4)) interacao.pontos.push(pt);
+      interacao.atual = pt;
+      camadaSuja = true;
+      return;
+    }
     if (interacao) return;
     if (somenteLeitura) {
       if (e.button === 0 || e.button === 1 || e.button === 2) {
@@ -891,6 +970,14 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     } else if (i.tipo === 'cômodo') {
       const c = celulaDe(m, ponteiro);
       if (i.retangulo) i.atual = c; else { pintarCelulas(celulasEntre(i.atual, c).filter(x => dentroDoMapa(m, x))); i.atual = c; }
+    } else if (i.tipo === 'comodo-circulo') {
+      const livre = !m.grid.snap || e.altKey;
+      i.atual = [encaixar(ponteiro[0], m.grid, 0, 1, livre), encaixar(ponteiro[1], m.grid, 1, 1, livre)];
+    } else if (i.tipo === 'comodo-poligono') {
+      const livre = !m.grid.snap || e.altKey;
+      let pt: Ponto = [encaixar(ponteiro[0], m.grid, 0, 1, livre), encaixar(ponteiro[1], m.grid, 1, 1, livre)];
+      if (e.shiftKey) pt = pontoPreso45(i.pontos.at(-1)!, pt);
+      i.atual = pt;
     } else if (i.tipo === 'terreno') { const antes = i.ultimo; i.ultimo = ponteiro; pintarTerreno(ponteiro, antes); }
     else if (i.tipo === 'espalhar') { if (Math.hypot(ponteiro[0] - i.ultimo[0], ponteiro[1] - i.ultimo[1]) >= ponte.pincel().espalhar.raio / 2) { i.ultimo = ponteiro; espalharAqui(ponteiro); } }
     else if (i.tipo === 'parede') i.fim = pontoDeParede(m, ponteiro, i.ini, !m.grid.snap || e.altKey);
@@ -925,6 +1012,10 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   function terminar(e: PointerEvent, cancelado: boolean): void {
     const i = interacao; if (!i) return;
+    if (i.tipo === 'comodo-poligono') {
+      if (cancelado) { interacao = null; camadaSuja = true; cursor(); }
+      return;
+    }
     interacao = null;
     try { canvas.releasePointerCapture(e.pointerId); } catch { /* já solto */ }
     const m = doc(), sel = ponte.selecao();
@@ -956,6 +1047,9 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       if (cancelado) i.gesto.cancelar();
       else { if (i.retangulo) { interacao = i; pintarCelulas(retanguloDeCelulas(m, i.ini, i.atual)); interacao = null; } if (i.gesto.ativo) i.gesto.concluir(); }
       if (!cancelado && !i.apagar) { const sala = doc().rooms[i.sala]; if (sala) { ponte.definirSelecao([{ colecao: 'rooms', id: i.sala }]); const c = caixaDe(doc(), { colecao: 'rooms', id: i.sala }); if (c) ponte.aoColocar(sala.name, [(c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2]); } }
+    } else if (i.tipo === 'comodo-circulo' && !cancelado) {
+      const r = Math.hypot(i.atual[0] - i.centro[0], i.atual[1] - i.centro[1]);
+      if (r >= 0.8) concluirContorno(circulo(i.centro, r, i.lados), i.tipoComodo);
     } else if (i.tipo === 'alinhamento-grade') {
       if (cancelado) i.gesto.cancelar(); else i.gesto.concluir();
     } else if (i.tipo === 'terreno' || i.tipo === 'espalhar') { if (cancelado) i.gesto.cancelar(); else i.gesto.concluir(); }
@@ -977,6 +1071,12 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (e.key === 'Alt' && !altPressionado) { altPressionado = true; camadaSuja = true; }
     // Esc limpa a régua (e só isso: o próximo Esc volta à ferramenta de selecionar).
     if (e.key === 'Escape' && regua) { e.stopImmediatePropagation(); regua = null; if (interacao?.tipo === 'regua') interacao = null; camadaSuja = true; return; }
+    if (e.key === 'Enter' && interacao?.tipo === 'comodo-poligono' && interacao.pontos.length >= 3) {
+      e.stopImmediatePropagation();
+      const { pontos, tipoComodo } = interacao; interacao = null;
+      concluirContorno(pontos, tipoComodo);
+      camadaSuja = true; cursor(); return;
+    }
     // Esc durante um arrasto ou uma pincelada cancela só isso, antes de qualquer outro atalho.
     if (e.key === 'Escape' && interacao) {
       e.stopImmediatePropagation();
@@ -1010,6 +1110,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (transicao) passoDaTransicao(performance.now());
     else if (doc().finish.grain > 0 && alvoDoAcabamento().filters?.length) acabamento.aplicar(doc().finish, performance.now() / 1000);
     if (regua && ponte.ferramenta() !== 'regua') { regua = null; camadaSuja = true; }   // trocar de ferramenta limpa a régua
+    if (interacao?.tipo === 'comodo-poligono' && ponte.ferramenta() !== 'comodo') { interacao = null; camadaSuja = true; }
     if (!camadaSuja) return;
     camadaSuja = false;
     desenharGrade(); desenharRelevo(); desenharSelecao(); desenharLaco(); desenharFantasma(); cursor();

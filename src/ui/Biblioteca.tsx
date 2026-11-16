@@ -4,7 +4,7 @@ import { useSignal } from '@preact/signals';
 import { modo } from '../app/modo.ts';
 import { tocar } from '../fx/som.ts';
 import { TIPOS_DE_COMODO, PRESETS_DE_LUZ, PACOTES_DE_PRESENCA, PINCEIS_DE_PRESENCA } from '../domain/presets.ts';
-import type { Pincel } from '../render/pincel.ts';
+import type { FormaDeDesenhoDeComodo, Pincel } from '../render/pincel.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { materialDe, materiaisDo } from '../procedural/materiais.ts';
 import { ACERVO, type ItemDoAcervo } from '../procedural/acervo.ts';
@@ -24,9 +24,34 @@ function MiniReceita({ id }: { id: string }) {
 
 function mudar(s: SessaoDeEdicao, patch: Partial<Pincel>): void { s.pincel.value = { ...s.pincel.value, ...patch }; tocar('selecionar'); }
 
+const FORMAS_COMODO: readonly { id: FormaDeDesenhoDeComodo; rotulo: string }[] = [
+  { id: 'celulas', rotulo: 'Células' },
+  { id: 'circulo', rotulo: 'Círculo' },
+  { id: 'poligono', rotulo: 'Polígono' },
+];
+
 function Comodos({ s }: { s: SessaoDeEdicao }) {
+  const forma = s.pincel.value.comodoForma ?? 'celulas';
+  const lados = s.pincel.value.comodoLados ?? 24;
+  const dica = forma === 'circulo'
+    ? 'Clique no centro e arraste até a borda para definir o raio.'
+    : forma === 'poligono'
+      ? 'Clique para marcar vértices (Shift trava 45°). Feche no 1º ponto ou com duplo clique; Esc cancela.'
+      : 'Pinte no mapa. Comece sobre um cômodo para estendê-lo; Shift pinta um retângulo.';
   return (<>
-    <p class="dica">Pinte no mapa. Comece sobre um cômodo para estendê-lo; <kbd>Shift</kbd> pinta um retângulo.</p>
+    <div class="chips" role="group" aria-label="Forma do cômodo" data-testid="forma-comodo">
+      {FORMAS_COMODO.map(op => (
+        <button type="button" key={op.id} class={`chip ${forma === op.id ? 'ativo' : ''}`} onClick={() => mudar(s, { comodoForma: op.id })} data-testid={`comodo-forma-${op.id}`}>
+          {op.rotulo}
+        </button>
+      ))}
+    </div>
+    {forma === 'circulo' && (
+      <div class="ajustes">
+        <CampoNumero rotulo="Lados" valor={lados} min={8} max={48} passo={1} aoConfirmar={v => { mudar(s, { comodoLados: Math.max(8, Math.min(48, Math.round(v))) }); }} />
+      </div>
+    )}
+    <p class="dica">{dica}</p>
     <div class="lista-cartas">
       {TIPOS_DE_COMODO.map(t => (
         <button type="button" key={t.id} class={`carta ${s.pincel.value.comodo === t.id ? 'ativa' : ''}`} onClick={() => mudar(s, { comodo: t.id })} title={t.descricao} data-testid={`comodo-${t.id}`}>

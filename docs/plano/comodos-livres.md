@@ -90,7 +90,7 @@ Testes: círculo de 24 lados dá 24 faces triangulares que somam a área do pol�
 Pronto quando: o farol redondo aparece com telhado cônico na vista de telhados (B1).
 Commit: `added cone roofs for outline rooms`
 
-### G5 — Ferramenta de cômodo redondo e em polígono no editor  ⬜
+### G5 — Ferramenta de cômodo redondo e em polígono no editor  ✅
 Objetivo: o mestre desenha cômodos redondos e poligonais.
 Depende de: G3.
 Ler: `src/render/viewport.ts` (a ferramenta Cômodo, por volta da linha 640: como o retângulo é arrastado e vira `comodo.criar`), `src/ui/Biblioteca.tsx` (a seção da ferramenta Cômodo), `src/ui/Inspetor.tsx` (`CamposDoComodo`), `docs/INTERFACE.md`.

@@ -13,6 +13,7 @@ import {
 import { decodificar } from '../../src/domain/celulas.ts';
 import { criarMapa, type Ponto } from '../../src/domain/mapa.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
+import { comandoDeComodoPorContorno, pontoPreso45 } from '../../src/render/pincel.ts';
 import { ErroDeComando } from '../../src/state/comandos-construir.ts';
 import { criarStore } from '../../src/state/store.ts';
 
@@ -88,4 +89,30 @@ test('formas-de-comodo: comodo.criar e comodo.atualizar com outline mantêm cél
   validarMapa(st.documento);
   assert.equal(st.documento.rooms.torre!.outline, undefined);
   assert.equal(decodificar(st.documento.rooms.torre!.cells).length, 16);
+});
+
+test('ferramenta de cômodo livre: pontoPreso45 trava múltiplos de 45° e comandoDeComodoPorContorno gera cone no círculo', () => {
+  const p = pontoPreso45([3, 3], [6, 3.1]);
+  assert.ok(Math.abs(p[1] - 3) < 1e-6);
+  assert.ok(p[0] > 5.9);
+
+  const diag = pontoPreso45([0, 0], [3, 2.9]);
+  assert.ok(Math.abs(diag[0] - diag[1]) < 1e-6);
+
+  const m = criarMapa({ id: 'm', agora: 1 });
+  const c = comandoDeComodoPorContorno(m, circulo([6, 6], 3, 24), 'sala', 'torre1', 42);
+  assert.equal(typeof c, 'object');
+  if (typeof c === 'string') return;
+  assert.equal(c.tipo, 'comodo.criar');
+  assert.equal(typeof c.telhado, 'object');
+  assert.equal((c.telhado as { shape?: string }).shape, 'cone');
+
+  const st = criarStore(m);
+  st.executar(c);
+  assert.ok(st.documento.rooms.torre1?.outline);
+  assert.equal(st.documento.rooms.torre1!.roof.shape, 'cone');
+
+  // Autointerseção e área mínima recusam com mensagem legível
+  assert.equal(typeof comandoDeComodoPorContorno(m, [[0, 0], [4, 4], [4, 0], [0, 4]], 'sala', 'bad'), 'string');
+  assert.equal(typeof comandoDeComodoPorContorno(m, [[3, 3], [3.5, 3], [3.5, 3.5]], 'sala', 'mini'), 'string');
 });
