@@ -7,6 +7,7 @@
 import { ACERVO } from '../procedural/acervo.ts';
 import { MATERIAIS, materiaisDo, type Material } from '../procedural/materiais.ts';
 import { mulberry32 } from '../procedural/ruido.ts';
+import { mapaDoAndar } from '../domain/andares.ts';
 import { codificar } from '../domain/celulas.ts';
 import { novaLuz, novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
 import { AREA_MINIMA_CONTORNO, areaDoPoligono, celulasDoContorno, circulo, ehPoligonoSimples, normalizarContorno } from '../domain/formas-de-comodo.ts';
@@ -97,6 +98,7 @@ export interface PedidoDeComodo {
   telhadoForma?: FormaDeTelhado;
   telhadoCumeeira?: CumeeiraDeTelhado;
   telhadoDetalhes?: readonly DetalheDeTelhado[];
+  andar?: string | null;
 }
 
 function resolverTelhadoPedido(
@@ -200,13 +202,21 @@ export function comodos(mapa: MapaAtlas, pedidos: readonly PedidoDeComodo[], sem
     if (p.papel) verificarMaterial(p.papel, ['papel'], 'papel de parede');
     const { celulas, outline } = resolverFormaDoComodo(mapa, p);
     const id = gerarId('c');
-    const telhado = resolverTelhadoPedido(p, acumulado, t.funcao, celulas, outline);
+    const andar = p.andar ?? null;
+    const acumuladoDoAndar = andar === null && Object.values(acumulado.rooms).every(r => !r.levelId)
+      ? acumulado
+      : {
+          style: acumulado.style,
+          rooms: Object.fromEntries(Object.entries(acumulado.rooms).filter(([, r]) => (r.levelId ?? null) === andar)),
+        };
+    const telhado = resolverTelhadoPedido(p, acumuladoDoAndar, t.funcao, celulas, outline);
     comandos.push({
       tipo: 'comodo.criar', id, nome: p.nome ?? t.nome, funcao: t.funcao, celulas,
       ...(outline ? { outline } : {}),
       piso: { material: p.piso ?? t.piso, seed: Math.floor(rng() * 2 ** 31) },
       papel: { material: p.papel ?? t.papel, seed: Math.floor(rng() * 2 ** 31) },
       ...(telhado !== null ? { telhado } : {}),
+      ...(andar !== null ? { levelId: andar } : {}),
     });
     if (p.telhadoVisivel !== undefined) {
       comandos.push({ tipo: 'comodo.atualizar', id, patch: { roof: { visible: p.telhadoVisivel } } });
@@ -215,7 +225,7 @@ export function comodos(mapa: MapaAtlas, pedidos: readonly PedidoDeComodo[], sem
       id, name: p.nome ?? t.nome, function: t.funcao, cells: codificar(celulas),
       ...(outline ? { outline } : {}),
       floor: { material: p.piso ?? t.piso, seed: 0 }, wallpaper: null, wallStyle: null, palette: null,
-      roof: { ...(telhado ?? { material: null }), visible: p.telhadoVisivel ?? true }, levelId: null,
+      roof: { ...(telhado ?? { material: null }), visible: p.telhadoVisivel ?? true }, levelId: andar,
     };
     ids.push(id);
   }
@@ -223,7 +233,7 @@ export function comodos(mapa: MapaAtlas, pedidos: readonly PedidoDeComodo[], sem
 }
 
 // ---------- Paredes ----------
-export interface PedidoDeParede { path: readonly Ponto[]; kind?: Parede['kind']; altura?: number; espessura?: number; material?: string; drop?: Parede['drop'] }
+export interface PedidoDeParede { path: readonly Ponto[]; kind?: Parede['kind']; altura?: number; espessura?: number; material?: string; drop?: Parede['drop']; andar?: string | null }
 const TIPOS_DE_PAREDE: readonly Parede['kind'][] = ['wall', 'low', 'fence', 'cliff'];
 
 /** Paredes avulsas (muro, cerca, mureta) ao longo de polilinhas em metros. */
@@ -234,7 +244,7 @@ export function paredes(mapa: MapaAtlas, pedidos: readonly PedidoDeParede[], _se
     if (p.path.length < 2) throw new ErroDeConstrucao('uma parede precisa de ao menos 2 pontos em path');
     if (p.kind && !TIPOS_DE_PAREDE.includes(p.kind)) throw new ErroDeConstrucao(`tipo de parede “${p.kind}” não existe; tipos: ${lista(TIPOS_DE_PAREDE)}`);
     const id = gerarId('w');
-    const parede: Omit<Parede, 'source'> = { ...structuredClone(PAREDE_PADRAO), id, path: p.path.map(q => [q[0], q[1]] as Ponto) };
+    const parede: Omit<Parede, 'source'> = { ...structuredClone(PAREDE_PADRAO), id, path: p.path.map(q => [q[0], q[1]] as Ponto), ...(p.andar ? { levelId: p.andar } : {}) };
     if (p.kind) {
       parede.kind = p.kind;
       if (p.kind === 'low' || p.kind === 'fence' || p.kind === 'cliff') {
@@ -286,7 +296,7 @@ export function portas(mapa: MapaAtlas, pedidos: readonly PedidoDePorta[], _seme
 }
 
 // ---------- Objetos ----------
-export interface PedidoDeObjeto { item: string; pos: Ponto; rotacao?: number; escala?: number; params?: Record<string, unknown>; camada?: Objeto['elevation']; submerso?: boolean; oculto?: boolean }
+export interface PedidoDeObjeto { item: string; pos: Ponto; rotacao?: number; escala?: number; params?: Record<string, unknown>; camada?: Objeto['elevation']; submerso?: boolean; oculto?: boolean; andar?: string | null; escada?: { leva: string | null; posicao?: Ponto } }
 const CAMADAS: readonly Objeto['elevation'][] = ['floor', 'table', 'wall', 'ceiling', 'underwater'];
 
 function itemInvalido(item: string): ErroDeConstrucao {
@@ -305,10 +315,23 @@ export function objetos(mapa: MapaAtlas, pedidos: readonly PedidoDeObjeto[], sem
     if (p.camada && !CAMADAS.includes(p.camada)) throw new ErroDeConstrucao(`camada “${p.camada}” não existe; camadas: ${lista(CAMADAS)}`);
     const submerso = (p.submerso ?? info.submerso) ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : {};
     const seed = Math.floor(rng() * 2 ** 31), rotation = p.rotacao ?? rng() * Math.PI * 2;
+    const escadaInteracao = p.escada ? {
+      interaction: {
+        kind: 'stairs' as const,
+        on: false,
+        targets: [],
+        sound: null,
+        clue: null,
+        toLevel: p.escada.leva,
+        ...(p.escada.posicao ? { toPosition: [p.escada.posicao[0], p.escada.posicao[1]] as Ponto } : {}),
+      },
+    } : {};
     const o = novoObjeto([p.pos[0], p.pos[1]], {
       id: gerarId('o'), source: ACERVO.fonte(p.item, seed, p.params), rotation, ...submerso,
       ...(p.escala !== undefined ? { scale: p.escala } : {}), ...(p.camada ? { elevation: p.camada } : {}),
       ...(typeof p.oculto === 'boolean' ? { oculto: p.oculto } : {}),
+      ...(p.andar ? { levelId: p.andar } : {}),
+      ...escadaInteracao,
     });
     comandos.push({ tipo: 'item.adicionar', colecao: 'props', item: o as unknown as { id: string } & Record<string, unknown> });
     ids.push(o.id);
@@ -317,7 +340,7 @@ export function objetos(mapa: MapaAtlas, pedidos: readonly PedidoDeObjeto[], sem
 }
 
 // ---------- Espalhar ----------
-export interface PedidoDeEspalhar { conjunto: string; forma: Forma; densidade?: number }
+export interface PedidoDeEspalhar { conjunto: string; forma: Forma; densidade?: number; andar?: string | null }
 
 /** Espalha um conjunto (`mata`, `jardim`, `cemiterio`, `bagunca`…) dentro da forma. Aproximado, como `kit.espalhar`. */
 export function espalhar(mapa: MapaAtlas, pedido: PedidoDeEspalhar, semente = 1, gerarId: GeradorDeId = novoIdEntidade): Construcao {
@@ -328,13 +351,14 @@ export function espalhar(mapa: MapaAtlas, pedido: PedidoDeEspalhar, semente = 1,
   const R = Math.min(2.5, Math.max(1, Math.min(w, h) / 2)), passo = R * 1.1;
   const centros: Ponto[] = [[(caixa.x0 + caixa.x1) / 2, (caixa.y0 + caixa.y1) / 2]];
   for (let y = caixa.y0; y <= caixa.y1 + passo; y += passo) for (let x = caixa.x0; x <= caixa.x1 + passo; x += passo) centros.push([x, y]);
-  // Cópia de trabalho: o espalhar conta o que já existe, inclusive o que este mesmo pedido pôs.
-  const rascunho = structuredClone(mapa) as MapaAtlas, comandos: Comando[] = [], ids: string[] = [];
+  // Cópia de trabalho isolada por andar: o espalhar conta o que já existe naquele andar, inclusive o que este pedido pôs.
+  const rascunho = structuredClone(mapaDoAndar(mapa, pedido.andar ?? null, true)) as MapaAtlas, comandos: Comando[] = [], ids: string[] = [];
   for (const centro of centros) {
     if (sdf(centro) > R * 0.3) continue;
     const novos = espalharConjunto(rascunho, { centro, raio: R, conjunto: pedido.conjunto, semente: rng() * 1000, gerarId, densidade: pedido.densidade });
-    for (const n of novos) {
-      if (!dentro(n.position)) continue;
+    for (const base of novos) {
+      if (!dentro(base.position)) continue;
+      const n = pedido.andar ? { ...base, levelId: pedido.andar } : base;
       rascunho.props[n.id] = n; ids.push(n.id);
       comandos.push({ tipo: 'item.adicionar', colecao: 'props', item: n as unknown as { id: string } & Record<string, unknown> });
     }
@@ -343,7 +367,7 @@ export function espalhar(mapa: MapaAtlas, pedido: PedidoDeEspalhar, semente = 1,
 }
 
 // ---------- Luzes ----------
-export interface PedidoDeLuz { preset: string; pos: Ponto; direcao?: number; raio?: number; cor?: string; intensidade?: number }
+export interface PedidoDeLuz { preset: string; pos: Ponto; direcao?: number; raio?: number; cor?: string; intensidade?: number; andar?: string | null }
 
 /** Luzes a partir de predefinições (`vela`, `tocha`, `fogueira`, `lanterna`…). `direcao` (rad) vale para cones. */
 export function luzes(mapa: MapaAtlas, pedidos: readonly PedidoDeLuz[], _semente = 1, gerarId: GeradorDeId = novoIdEntidade): Construcao {
@@ -355,6 +379,7 @@ export function luzes(mapa: MapaAtlas, pedidos: readonly PedidoDeLuz[], _semente
     const l = novaLuz([p.pos[0], p.pos[1]], {
       id: gerarId('l'), ...camposDoPreset(preset, p.direcao ?? 0),
       ...(p.raio !== undefined ? { radius: p.raio } : {}), ...(p.cor !== undefined ? { color: p.cor } : {}), ...(p.intensidade !== undefined ? { intensity: p.intensidade } : {}),
+      ...(p.andar ? { levelId: p.andar } : {}),
     });
     comandos.push({ tipo: 'item.adicionar', colecao: 'lights', item: l as unknown as { id: string } & Record<string, unknown> });
     ids.push(l.id);
@@ -363,7 +388,7 @@ export function luzes(mapa: MapaAtlas, pedidos: readonly PedidoDeLuz[], _semente
 }
 
 // ---------- Regiões ----------
-export interface PedidoDeRegiao { poligono: readonly Ponto[]; tipo: Regiao['kind']; nome?: string; texto?: string; somenteMestre?: boolean }
+export interface PedidoDeRegiao { poligono: readonly Ponto[]; tipo: Regiao['kind']; nome?: string; texto?: string; somenteMestre?: boolean; andar?: string | null }
 const TIPOS_DE_REGIAO: readonly Regiao['kind'][] = ['reveal', 'trigger', 'note', 'audio'];
 
 /** Regiões (`reveal`, `trigger`, `note`, `audio`) como polígonos em metros. */
@@ -376,7 +401,7 @@ export function regioes(mapa: MapaAtlas, pedidos: readonly PedidoDeRegiao[], _se
     const id = gerarId('r'), payload: Record<string, unknown> = {};
     if (p.nome) payload.nome = p.nome;
     if (p.texto) payload.texto = p.texto;
-    const r: Regiao = { id, polygon: p.poligono.map(q => [q[0], q[1]] as Ponto), kind: p.tipo, gmOnly: p.somenteMestre ?? true, payload, refs: [] };
+    const r: Regiao = { id, polygon: p.poligono.map(q => [q[0], q[1]] as Ponto), kind: p.tipo, gmOnly: p.somenteMestre ?? true, payload, refs: [], ...(p.andar ? { levelId: p.andar } : {}) };
     comandos.push({ tipo: 'item.adicionar', colecao: 'regions', item: r as unknown as { id: string } & Record<string, unknown> });
     ids.push(id);
   }

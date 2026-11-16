@@ -2,6 +2,7 @@
  * Construção completa de edifícios por programa (`plantaDoEdificio` -> cômodos -> portas/janelas -> mobília/luzes)
  * como função pura: encadeia uma cópia do mapa e isola falhas por edifício para os válidos entrarem juntos numa transação.
  */
+import { mapaDoAndar } from '../domain/andares.ts';
 import { novoIdEntidade } from '../domain/fabrica.ts';
 import type { MapaAtlas } from '../domain/mapa.ts';
 import { FUNCOES_AO_AR_LIVRE } from '../domain/presets.ts';
@@ -15,6 +16,7 @@ export interface PedidoDeEdificio extends ProgramaDeEdificio {
   piso?: string;
   mobiliar?: boolean;
   luzes?: boolean;
+  andar?: string | null;
 }
 
 const LADO_POR_EXTENSO: Record<Frente, string> = {
@@ -46,7 +48,8 @@ export function construirEdificios(
   pedidos.forEach((pedido, idx) => {
     const s = sementeBase + idx * 97;
     try {
-      const planta = plantaDoEdificio(atual, pedido, s);
+      const escopoAndar = mapaDoAndar(atual, pedido.andar ?? null, true);
+      const planta = plantaDoEdificio(escopoAndar, pedido, s);
       const pedidosComodo: PedidoDeComodo[] = planta.comodos.map(cm => {
         const aoArLivre = FUNCOES_AO_AR_LIVRE.has(cm.tipo);
         return {
@@ -55,6 +58,7 @@ export function construirEdificios(
           nome: cm.nome,
           ...(pedido.piso && !aoArLivre ? { piso: pedido.piso } : {}),
           ...(!aoArLivre && pedido.telhado !== undefined ? { telhado: pedido.telhado } : {}),
+          ...(pedido.andar ? { andar: pedido.andar } : {}),
         };
       });
 
@@ -64,7 +68,7 @@ export function construirEdificios(
       const idsEdificio: string[] = [...resComodos.ids];
 
       const ab = aberturasDoEdificio(planta, grade);
-      const todosVaos = [...ab.portas, ...ab.janelas];
+      const todosVaos = [...ab.portas, ...ab.janelas].map(v => pedido.andar ? { ...v, andar: pedido.andar } : v);
       if (todosVaos.length) {
         const resPortas = portas(proximo, todosVaos, s, gerarId);
         proximo = aplicarEmCopia(proximo, resPortas.comandos);

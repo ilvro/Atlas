@@ -402,6 +402,61 @@
     }
   },
   {
+    "nome": "atlas_andares",
+    "descricao": "Cria ou renomeia andares do mapa (cima +1/+2, porão -1/-2) e lista todos com ids. Guia: plataforma_guia ferramentas-atlas.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "criar": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "properties": {
+              "nome": {
+                "type": "string"
+              },
+              "order": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "nome",
+              "order"
+            ]
+          }
+        },
+        "renomear": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "nome": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "nome"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "app": "atlas",
+    "anotacoes": {
+      "destrutiva": true
+    }
+  },
+  {
     "nome": "atlas_arranjo",
     "descricao": "Dispõe até 300 objetos com variação em fileiras, grade solta, aglomerado, ao longo de caminho, círculo ou bordas; evita paredes e portas. Um desfazer.",
     "esquema": {
@@ -626,6 +681,12 @@
           "required": [
             "tamanho",
             "vazio"
+          ]
+        },
+        "andar": {
+          "type": [
+            "string",
+            "null"
           ]
         },
         "semente": {
@@ -974,6 +1035,12 @@
                     "caixa-dagua"
                   ]
                 }
+              },
+              "andar": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             },
             "required": [
@@ -981,6 +1048,12 @@
             ],
             "additionalProperties": false
           }
+        },
+        "andar": {
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "semente": {
           "type": "number"
@@ -1086,6 +1159,12 @@
               "luzes": {
                 "type": "boolean"
               },
+              "andar": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
               "comodos": {
                 "type": "array",
                 "minItems": 1,
@@ -1121,6 +1200,12 @@
               "comodos"
             ]
           }
+        },
+        "andar": {
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "semente": {
           "type": "number"
@@ -1283,6 +1368,12 @@
           "exclusiveMinimum": 0,
           "maximum": 20
         },
+        "andar": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "semente": {
           "type": "number"
         }
@@ -1350,6 +1441,12 @@
                 "type": "number",
                 "minimum": 0,
                 "maximum": 3
+              },
+              "andar": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             },
             "required": [
@@ -1357,6 +1454,12 @@
               "pos"
             ]
           }
+        },
+        "andar": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -1476,6 +1579,12 @@
         },
         "luzes": {
           "type": "boolean"
+        },
+        "andar": {
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "semente": {
           "type": "number"
@@ -2074,6 +2183,35 @@
               },
               "params": {
                 "type": "object"
+              },
+              "andar": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "escada": {
+                "type": "object",
+                "properties": {
+                  "leva": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "posicao": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "description": "[x, y] em metros."
+                  }
+                },
+                "required": [
+                  "leva"
+                ]
               }
             },
             "required": [
@@ -2081,6 +2219,12 @@
               "pos"
             ]
           }
+        },
+        "andar": {
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "semente": {
           "type": "number"
@@ -2146,12 +2290,24 @@
                   "a",
                   "b"
                 ]
+              },
+              "andar": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             },
             "required": [
               "path"
             ]
           }
+        },
+        "andar": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -2205,12 +2361,24 @@
               },
               "largura": {
                 "type": "number"
+              },
+              "andar": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             },
             "required": [
               "perto"
             ]
           }
+        },
+        "andar": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -2375,6 +2543,12 @@
           "minimum": 0,
           "maximum": 1
         },
+        "andar": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "semente": {
           "type": "number"
         },
@@ -2436,6 +2610,12 @@
               },
               "somenteMestre": {
                 "type": "boolean"
+              },
+              "andar": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             },
             "required": [
@@ -2443,6 +2623,12 @@
               "tipo"
             ]
           }
+        },
+        "andar": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -2712,7 +2898,7 @@
   },
   {
     "nome": "atlas_ver_mapa",
-    "descricao": "Captura JPEG do mapa aberto (todo ou caixa [x0,y0,x1,y1] m). vista: planta (interiores) ou telhados (como os jogadores veem de fora). Retorna escala e caixa.",
+    "descricao": "Captura JPEG do mapa aberto (todo ou caixa [x0,y0,x1,y1] m). vista: planta (interiores) ou telhados (como os jogadores veem de fora). Aceita andar.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -2734,6 +2920,12 @@
           "enum": [
             "planta",
             "telhados"
+          ]
+        },
+        "andar": {
+          "type": [
+            "string",
+            "null"
           ]
         }
       },

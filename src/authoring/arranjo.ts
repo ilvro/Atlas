@@ -2,6 +2,7 @@
  * Arranjos espaciais de objetos com variação controlada (fileiras, grade solta, aglomerado, ao longo de caminho,
  * círculo e bordas). Pura em `src/authoring/`: evita paredes, cômodos externos, objetos existentes e reservas de portas.
  */
+import { mapaDoAndar } from '../domain/andares.ts';
 import { comodoEm, indiceDeCelulas } from '../domain/geometria.ts';
 import { novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
 import type { MapaAtlas, Ponto } from '../domain/mapa.ts';
@@ -40,6 +41,7 @@ export interface PedidoDeArranjo {
   encarar?: 'fileira' | 'centro' | 'caminho' | 'livre';
   /** Fileiras em quadras com corredores: `tamanho: [cols, rows]`, `vazio` em metros. */
   grupos?: { tamanho: [number, number]; vazio: number };
+  andar?: string | null;
 }
 
 interface Candidato {
@@ -318,15 +320,16 @@ export function arranjar(
     }
   }
 
-  // Contexto do mapa para evitar colisões
-  const indice = indiceDeCelulas(m);
-  const salaDaArea = p.padrao === 'ao-longo' ? null : comodoEm(m, [cx, cy], indice);
+  // Contexto do mapa para evitar colisões (isolado no andar alvo)
+  const escopo = mapaDoAndar(m, p.andar ?? null, true);
+  const indice = indiceDeCelulas(escopo);
+  const salaDaArea = p.padrao === 'ao-longo' ? null : comodoEm(escopo, [cx, cy], indice);
   const bloqueios: Caixa[] = [];
-  for (const o of Object.values(m.props)) {
+  for (const o of Object.values(escopo.props)) {
     if (o.elevation === 'floor' && o.blocks.move) bloqueios.push(caixaDoObjeto(o));
   }
-  const portasBloq: Caixa[] = [...reservasDasAberturasExistentes(m)];
-  if (salaDaArea) portasBloq.push(...reservasDePorta(m, salaDaArea));
+  const portasBloq: Caixa[] = [...reservasDasAberturasExistentes(escopo)];
+  if (salaDaArea) portasBloq.push(...reservasDePorta(escopo, salaDaArea));
 
   const pesosAcum: number[] = [];
   let soma = 0;
@@ -363,7 +366,7 @@ export function arranjar(
       ignorados++;
       continue;
     }
-    if (paredesBloqueiamCaixa(m, caixaCand)) {
+    if (paredesBloqueiamCaixa(escopo, caixaCand)) {
       ignorados++;
       continue;
     }
@@ -383,11 +386,11 @@ export function arranjar(
         [caixaCand.x0, caixaCand.y1],
         [caixaCand.x1, caixaCand.y1],
       ] as Ponto[];
-      if (nos.some(pt => comodoEm(m, pt, indice) !== salaDaArea)) {
+      if (nos.some(pt => comodoEm(escopo, pt, indice) !== salaDaArea)) {
         ignorados++;
         continue;
       }
-    } else if (Object.keys(m.rooms).length > 0) {
+    } else if (Object.keys(escopo.rooms).length > 0) {
       const nos = [
         cand.pos,
         [caixaCand.x0 + 0.05, caixaCand.y0 + 0.05],
@@ -395,7 +398,7 @@ export function arranjar(
         [caixaCand.x0 + 0.05, caixaCand.y1 - 0.05],
         [caixaCand.x1 - 0.05, caixaCand.y1 - 0.05],
       ] as Ponto[];
-      if (nos.some(pt => comodoEm(m, pt, indice) !== null)) {
+      if (nos.some(pt => comodoEm(escopo, pt, indice) !== null)) {
         ignorados++;
         continue;
       }
@@ -406,6 +409,7 @@ export function arranjar(
       source: fonte,
       rotation: rotacao,
       scale: escala,
+      ...(p.andar ? { levelId: p.andar } : {}),
     });
     bloqueios.push(caixaCand);
     ids.push(obj.id);

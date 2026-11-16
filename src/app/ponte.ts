@@ -3,7 +3,7 @@ import { conectarPonte, ferramentasDaCampanha } from '#mesa/ponte';
 import { telaParaMundo } from '../render/camera.ts';
 import { SeloDoAssistente, estadoDaPonte } from '../ui/SeloDoAssistente.tsx';
 import { ErroDeConflito } from '../data/repositorio.ts';
-import { atualizarLista, cacheDeSessoes, gravarMapa, navegar, pararMomento, servicos, sessao, tocarMomentoDoMapa, viewport } from './app.ts';
+import { atualizarLista, cacheDeSessoes, definirAndarAtivo, gravarMapa, navegar, pararMomento, servicos, sessao, tocarMomentoDoMapa, viewport } from './app.ts';
 import { campanhaAtiva, sincronizarMapaComCampanha } from './campanha.ts';
 import { seloDoAssistente } from './assistente-slot.ts';
 import { modo } from './modo.ts';
@@ -30,6 +30,7 @@ const cliente = conectarPonte({
     ...ferramentasDeLeitura({ repo: () => servicos.value?.repo ?? null, mapaAberto: () => sessao.value?.doc.value ?? null, naoSalvo: () => sessao.value?.store.sujo ?? false,
       sessaoEmCache: id => { const c = cacheDeSessoes.get(id); return c ? { mapa: c.doc.value, naoSalvo: c.store.sujo } : null; }, abrirMapa: abrirPelaRota, editorPronto: () => viewport.atual !== null, capturar: o => viewport.atual?.capturar(o) ?? null,
       modo: () => modo.value, selecao: () => sessao.value?.selecao.value ?? [],
+      andarAtivo: () => sessao.value?.andarAtivo.peek() ?? null, definirAndarAtivo,
       caixaVisivel: () => { const v = viewport.atual; if (!v) return null; const [x0, y0] = telaParaMundo(v.camera, [0, 0]), [x1, y1] = telaParaMundo(v.camera, [v.tela.largura, v.tela.altura]); return { x0, y0, x1, y1 }; } }),
     ...ferramentasDeEscrita({
       store: () => sessao.value?.store ?? null, repo: () => servicos.value?.repo ?? null, abrirMapa: abrirPelaRota,

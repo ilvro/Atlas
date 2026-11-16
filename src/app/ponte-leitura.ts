@@ -1,4 +1,5 @@
 import { imagem, json, type FerramentaDaPonte } from '#mesa/ponte';
+import { andarDe, ehMultiandar, listaDeAndares } from '../domain/andares.ts';
 import { area, decodificar, limites } from '../domain/celulas.ts';
 import { edificiosDe, type Edificio } from '../domain/edificios.ts';
 import { EVENTOS_DE_CENA } from '../domain/eventos-de-cena.ts';
@@ -36,6 +37,8 @@ export interface ContextoDeLeitura {
   dormir?: (ms: number) => Promise<void>;
   /** O que a câmera mostra agora, em metros; `null` quando não há editor na tela. */
   caixaVisivel?: () => Caixa | null;
+  andarAtivo?: () => string | null;
+  definirAndarAtivo?: (id: string | null) => void;
   /** Fotografa o mapa aberto (o viewport); ausente ou `null` quando não há editor na tela. */
   capturar?: (opcoes: { caixa?: { x0: number; y0: number; x1: number; y1: number }; ladoMaximo?: number; vista?: 'planta' | 'telhados' }) => Promise<{ dataUrl: string; largura: number; altura: number; pxPorMetro: number; bytes: number; qualidade: number; caixa: { x0: number; y0: number; x1: number; y1: number }; aviso?: string }> | null;
 }
@@ -125,6 +128,7 @@ export function resumirMapa(m: MapaAtlas, opcoes?: { comodos?: readonly string[]
       id: c.id,
       nome: c.name,
       funcao: c.function,
+      andar: andarDe(c),
       celulas: nCel,
       area: r2(nCel * areaCel),
       piso: c.floor.material,
@@ -186,16 +190,18 @@ export function resumirMapa(m: MapaAtlas, opcoes?: { comodos?: readonly string[]
     };
   });
   const escarpasDerivadas = Object.values(m.walls).filter(w => w.source && 'reliefStep' in w.source).length;
-  const grupos = new Map<string, { quantidade: number; ids: string[]; posicoes: Ponto[] }>();
+  const grupos = new Map<string, { fonte: string; andar: string | null; quantidade: number; ids: string[]; posicoes: Ponto[] }>();
   for (const o of Object.values(m.props)) {
-    const chave = o.source.kind === 'recipe' ? o.source.recipe : `asset:${o.source.assetId}`;
-    const g = grupos.get(chave) ?? { quantidade: 0, ids: [], posicoes: [] };
+    const fonte = o.source.kind === 'recipe' ? o.source.recipe : `asset:${o.source.assetId}`;
+    const nivel = andarDe(o);
+    const chave = `${fonte}\0${nivel ?? ''}`;
+    const g = grupos.get(chave) ?? { fonte, andar: nivel, quantidade: 0, ids: [], posicoes: [] };
     g.quantidade++;
     if (g.posicoes.length < MAX_POSICOES) { g.posicoes.push(pt(o.position)); g.ids.push(o.id); }
     grupos.set(chave, g);
   }
-  const objetos = [...grupos].map(([fonte, g]) => ({ fonte, quantidade: g.quantidade, posicoes: g.posicoes, ids: g.ids, ...(g.quantidade > g.posicoes.length ? { maisPosicoes: g.quantidade - g.posicoes.length } : {}) }));
-  const luzes = Object.values(m.lights).map(l => ({ id: l.id, posicao: pt(l.position), raio: r1(l.radius), cor: l.color, preset: l.preset, ligada: l.on, energia: l.power }));
+  const objetos = [...grupos.values()].map(g => ({ fonte: g.fonte, andar: g.andar, quantidade: g.quantidade, posicoes: g.posicoes, ids: g.ids, ...(g.quantidade > g.posicoes.length ? { maisPosicoes: g.quantidade - g.posicoes.length } : {}) }));
+  const luzes = Object.values(m.lights).map(l => ({ id: l.id, andar: andarDe(l), posicao: pt(l.position), raio: r1(l.radius), cor: l.color, preset: l.preset, ligada: l.on, energia: l.power }));
   const regioes = Object.values(m.regions).map(g => {
     const xs = g.polygon.map(p => p[0]), ys = g.polygon.map(p => p[1]);
     return { id: g.id, tipo: g.kind, soMestre: g.gmOnly, retangulo: g.polygon.length ? [r1(Math.min(...xs)), r1(Math.min(...ys)), r1(Math.max(...xs) - Math.min(...xs)), r1(Math.max(...ys) - Math.min(...ys))] : null, ...(typeof g.payload.nome === 'string' ? { nome: g.payload.nome } : {}), ...(typeof g.payload.momento === 'string' ? { momento: g.payload.momento } : {}) };
@@ -204,6 +210,7 @@ export function resumirMapa(m: MapaAtlas, opcoes?: { comodos?: readonly string[]
     id: m.id, nome: m.name, revisao: m.revision, campanhaId: m.campanhaId,
     tamanho: { largura: m.bounds.width, altura: m.bounds.height, unidade: 'm' },
     grade: { tipo: m.grid.kind, celula: t, colunas: colunas(m), linhas: linhas(m) },
+    andares: listaDeAndares(m).map(a => ({ id: a.id, nome: a.nome, ordem: a.order })),
     estilo: { renderizador: m.style.renderer, genero: m.style.genre, paleta: m.style.palette },
     terreno: { resolucao: m.terrain.resolution, base: m.terrain.base, camadas },
     relevo, escarpasDerivadas,
@@ -211,7 +218,7 @@ export function resumirMapa(m: MapaAtlas, opcoes?: { comodos?: readonly string[]
     paredes: Object.keys(m.walls).length, aberturas: Object.values(m.openings).reduce<Record<string, number>>((a, o) => { a[o.kind] = (a[o.kind] ?? 0) + 1; return a; }, {}),
     objetos, luzes, regioes,
     presenca: Object.values(m.presence).map(p => ({ id: p.id, pincel: p.brush, celulas: area(p.cells) })),
-    pecas: Object.values(m.tokens).map(p => ({ id: p.id, nome: p.name, jogador: p.player, posicao: pt(p.position) })),
+    pecas: Object.values(m.tokens).map(p => ({ id: p.id, nome: p.name, jogador: p.player, andar: andarDe(p), posicao: pt(p.position) })),
     clima: { preset: m.climate.preset, hora: m.climate.time, tempo: Object.fromEntries(Object.entries(m.climate.weather).filter(([, v]) => v !== 0)) },
     acabamento: m.finish.preset,
     climasSalvos: Object.values(m.customClimates).map(c => ({ id: c.id, nome: c.name })),
@@ -339,9 +346,12 @@ export function oQueVejo(ctx: ContextoDeLeitura): Record<string, unknown> {
     return [{ id: a.id, colecao: a.colecao, tipo: TIPO_DO_ALVO[a.colecao], nome: nomeDe(a), posicao: pt([(c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2]) }];
   });
   const v = ctx.caixaVisivel?.() ?? null, modo = ctx.modo?.() ?? null;
+  const andarId = ctx.andarAtivo?.() ?? null;
+  const infoAndar = listaDeAndares(m).find(a => a.id === andarId) ?? listaDeAndares(m)[0]!;
   return {
     mapa: { id: m.id, nome: m.name, ...(ctx.naoSalvo?.() ? { naoSalvo: true } : {}) },
     modo: modo ? ROTULO_DO_MODO[modo] : null,
+    ...(ctx.andarAtivo || ehMultiandar(m) ? { andarAtivo: { id: infoAndar.id, nome: infoAndar.nome, ordem: infoAndar.order } } : {}),
     camera: v ? { caixa: [r1(v.x0), r1(v.y0), r1(v.x1), r1(v.y1)], unidade: 'm', dica: '[x0, y0, x1, y1] em metros, origem no canto superior esquerdo' } : null,
     selecao,
   };
@@ -465,8 +475,8 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
     },
     {
       nome: 'atlas_ver_mapa',
-      descricao: 'Captura JPEG do mapa aberto (todo ou caixa [x0,y0,x1,y1] m). vista: planta (interiores) ou telhados (como os jogadores veem de fora). Retorna escala e caixa.',
-      esquema: { type: 'object', properties: { caixa: { type: 'array', items: { type: 'number' }, minItems: 4, maxItems: 4 }, ladoMaximo: { type: 'number', minimum: 256, maximum: 1600 }, vista: { type: 'string', enum: ['planta', 'telhados'] } }, required: [], additionalProperties: false },
+      descricao: 'Captura JPEG do mapa aberto (todo ou caixa [x0,y0,x1,y1] m). vista: planta (interiores) ou telhados (como os jogadores veem de fora). Aceita andar.',
+      esquema: { type: 'object', properties: { caixa: { type: 'array', items: { type: 'number' }, minItems: 4, maxItems: 4 }, ladoMaximo: { type: 'number', minimum: 256, maximum: 1600 }, vista: { type: 'string', enum: ['planta', 'telhados'] }, andar: { type: ['string', 'null'] } }, required: [], additionalProperties: false },
       anotacoes: { leitura: true },
       async executar(args) {
         const c = args.caixa;
@@ -474,26 +484,47 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
         const v = args.vista;
         if (v !== undefined && v !== 'planta' && v !== 'telhados') throw new Error('"vista" deve ser "planta" ou "telhados".');
         const vista: 'planta' | 'telhados' = v ?? 'planta';
-        if (!ctx.mapaAberto()) throw new Error('Não há mapa aberto: use atlas_abrir.');
+        const aberto = ctx.mapaAberto();
+        if (!aberto) throw new Error('Não há mapa aberto: use atlas_abrir.');
+        if (args.andar !== undefined && args.andar !== null && typeof args.andar !== 'string') throw new Error('"andar" deve ser o id de um andar ou null para o térreo.');
+        const andarAlvo: string | null | undefined = args.andar as string | null | undefined;
+        if (typeof andarAlvo === 'string' && !aberto.levels?.[andarAlvo]) {
+          const validos = listaDeAndares(aberto).map(a => a.id ?? 'null').join(', ');
+          throw new Error(`Andar "${andarAlvo}" não existe. Disponíveis: ${validos}.`);
+        }
         const lm = args.ladoMaximo;
         if (lm !== undefined && !(typeof lm === 'number' && Number.isFinite(lm) && lm >= 256 && lm <= 1600)) throw new Error('"ladoMaximo" deve ser um número de 256 a 1600.');
         const opcoes = { ...(lm !== undefined ? { ladoMaximo: lm } : {}), ...(c ? { caixa: { x0: c[0] as number, y0: c[1] as number, x1: c[2] as number, y1: c[3] as number } } : {}), vista };
-        let p = ctx.capturar?.(opcoes);
-        if (!p && await esperarEditor(ctx, ESPERA_DO_EDITOR_MS)) p = ctx.capturar?.(opcoes);
-        if (!p) throw new Error('O editor não está na tela: abra o mapa no Atlas (atlas_abrir).');
-        let r: { dataUrl: string; largura: number; altura: number; pxPorMetro: number; bytes: number; qualidade: number; caixa: { x0: number; y0: number; x1: number; y1: number }; aviso?: string };
+        const anterior = ctx.andarAtivo?.() ?? null;
+        const trocouAndar = andarAlvo !== undefined && andarAlvo !== anterior && Boolean(ctx.definirAndarAtivo);
+        if (trocouAndar) ctx.definirAndarAtivo!(andarAlvo);
         try {
-          r = await p;
-        } catch (erro) {
-          const msg = erro instanceof Error ? erro.message : String(erro);
-          return [{ tipo: 'texto', texto: `não consegui capturar: ${msg}` }];
+          let p = ctx.capturar?.(opcoes);
+          if (!p && await esperarEditor(ctx, ESPERA_DO_EDITOR_MS)) {
+            if (trocouAndar) ctx.definirAndarAtivo!(andarAlvo);
+            p = ctx.capturar?.(opcoes);
+          }
+          if (!p) throw new Error('O editor não está na tela: abra o mapa no Atlas (atlas_abrir).');
+          let r: { dataUrl: string; largura: number; altura: number; pxPorMetro: number; bytes: number; qualidade: number; caixa: { x0: number; y0: number; x1: number; y1: number }; aviso?: string };
+          try {
+            r = await p;
+          } catch (erro) {
+            const msg = erro instanceof Error ? erro.message : String(erro);
+            return [{ tipo: 'texto', texto: `não consegui capturar: ${msg}` }];
+          }
+          const k = r.caixa;
+          const textoAviso = r.aviso ? ` Aviso: ${r.aviso}.` : '';
+          const idCapturado = andarAlvo !== undefined ? andarAlvo : anterior;
+          const infoAndar = ehMultiandar(aberto) || andarAlvo !== undefined
+            ? `, andar: ${listaDeAndares(aberto).find(a => a.id === idCapturado)?.nome ?? 'Térreo'}`
+            : '';
+          return [
+            imagem(r.dataUrl),
+            { tipo: 'texto', texto: `Imagem ${r.largura}×${r.altura} px (vista: ${vista}${infoAndar}). Escala: ${r.pxPorMetro} px por metro. JPEG de ${Math.round(r.bytes / 1024)} KB (qualidade ${r.qualidade}). Caixa em metros: [${r1(k.x0)}, ${r1(k.y0)}, ${r1(k.x1)}, ${r1(k.y1)}] (o pixel 0,0 é o ponto x0,y0).${textoAviso}` },
+          ];
+        } finally {
+          if (trocouAndar) ctx.definirAndarAtivo!(anterior);
         }
-        const k = r.caixa;
-        const textoAviso = r.aviso ? ` Aviso: ${r.aviso}.` : '';
-        return [
-          imagem(r.dataUrl),
-          { tipo: 'texto', texto: `Imagem ${r.largura}×${r.altura} px (vista: ${vista}). Escala: ${r.pxPorMetro} px por metro. JPEG de ${Math.round(r.bytes / 1024)} KB (qualidade ${r.qualidade}). Caixa em metros: [${r1(k.x0)}, ${r1(k.y0)}, ${r1(k.x1)}, ${r1(k.y1)}] (o pixel 0,0 é o ponto x0,y0).${textoAviso}` },
-        ];
       },
     },
   ];

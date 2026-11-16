@@ -31,7 +31,22 @@ Antes de qualquer chamada, faça o projeto com `plataforma_guia projetar` (brief
 
 ### Confira com os olhos depois de cada bloco
 
-Depois de cada bloco, chame `atlas_ver_mapa` (mapa inteiro, ou só uma `caixa` [x0, y0, x1, y1] em metros para olhar um detalhe de perto) e compare com a intenção. Corrija o que destoa antes de seguir. Mapas montados sem olhar a imagem saem errados: massas fora de lugar, objetos minúsculos, rotações trocadas. Quando uma escrita responder "nada mudou", confira as coordenadas na imagem. Depois de levantar edifícios, confira tanto `vista: "planta"` (interiores) quanto `vista: "telhados"` (coberturas de fora). No fim, rode `atlas_revisar` e passe pela conferência do passo 8 de `projetar`.
+Depois de cada bloco, chame `atlas_ver_mapa` (mapa inteiro, ou só uma `caixa` [x0, y0, x1, y1] em metros para olhar um detalhe de perto; passe `andar` para conferir outro pavimento sem perder o ativo) e compare com a intenção. Corrija o que destoa antes de seguir. Mapas montados sem olhar a imagem saem errados: massas fora de lugar, objetos minúsculos, rotações trocadas. Quando uma escrita responder "nada mudou", confira as coordenadas na imagem. Depois de levantar edifícios, confira tanto `vista: "planta"` (interiores) quanto `vista: "telhados"` (coberturas de fora). No fim, rode `atlas_revisar` e passe pela conferência do passo 8 de `projetar`.
+
+### Construções em vários andares
+
+Quando um edifício tiver subsolo ou pavimentos superiores:
+
+1. **Crie os andares primeiro** com `atlas_andares` (`ordem: -1` para porão, `1`, `2` para andares de cima; o térreo já é `null`).
+2. **Alinhe as paredes externas entre os andares** (mesmas células `rets` ou contorno nas paredes estruturais; o porão costuma ser menor ou igual ao térreo e nunca maior que a base que o sustenta).
+3. **Alinhe escadas e alçapões no mesmo `[x, y]`** nos dois andares (`escada`, `escada.caracol`, `escada.pedra`, `escada.madeira`, `alcapao`), ligando cada uma ao andar de destino com `escada: { leva }` (para descer ao térreo use `leva: null`).
+4. **Confira andar por andar** com `atlas_ver_mapa { andar: "porao" }`, `{ andar: null }`, `{ andar: "andar-1" }` usando `vista: "planta"` e `"telhados"`.
+
+Exemplo — moinho de 3 andares (subsolo úmido com poço, térreo com moenda/farinha e 1º andar com depósito de grãos):
+1. `atlas_andares { acao: "criar", id: "porao", ordem: -1, nome: "Porão" }` e `atlas_andares { acao: "criar", id: "andar-1", ordem: 1, nome: "1º andar" }`.
+2. Cômodos nas mesmas coordenadas externas: base menor em `porao` (`rets: [[10, 10, 14, 14]]`), `térreo` (`andar: null`, `rets: [[10, 10, 14, 14]]`) e `andar-1` (`rets: [[10, 10, 14, 14]]`, telhado `torre`).
+3. Em `[17, 17]` nos três andares: `escada.caracol` em `porao` (`escada: { leva: null }`), em `null` (`escada: { leva: "andar-1" }`, mais outra descendo se quiser dupla) e em `andar-1` (`escada: { leva: null }`).
+4. Mobília por andar: poço e barris no `porao`; moenda, sacos de farinha e balcão no térreo; depósito de grãos e engrenagens no `andar-1`.
 
 ## Regras que valem ouro
 

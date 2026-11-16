@@ -443,3 +443,59 @@ test('resumirMapa: inclui patamares de relevo e escarpas derivadas', () => {
   assert.ok(r.relevo[0]!.area > 0);
   assert.deepEqual(r.relevo[0]!.caixa, [2.5, 2.5, 0.5, 0.5]);
 });
+
+test('multiandar: resumirMapa lista andares, atlas_o_que_vejo traz andarAtivo e atlas_ver_mapa alterna e restaura andar', async () => {
+  const m = criarMapa({ id: 'moinho', nome: 'Moinho', largura: 30, altura: 20 });
+  m.levels = {
+    porao: { id: 'porao', name: 'Porão', order: -1 },
+    alto: { id: 'alto', name: '1º andar', order: 1 },
+  };
+  const cSub = criarComodoTeste('cSub', 'Subsolo', [[2, 2, 5, 5]], { material: null, visible: false });
+  cSub.levelId = 'porao';
+  const cTer = criarComodoTeste('cTer', 'Térreo', [[2, 2, 5, 5]], { material: 'telha.barro', visible: true });
+  m.rooms = { cSub, cTer };
+  m.props = {
+    p1: { id: 'p1', source: { kind: 'recipe', recipe: 'barril', seed: 1, params: {} }, position: [4, 4], rotation: 0, scale: 1, elevation: 'floor', wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: false, interaction: null, levelId: 'porao' },
+    p2: { id: 'p2', source: { kind: 'recipe', recipe: 'barril', seed: 2, params: {} }, position: [4, 4], rotation: 0, scale: 1, elevation: 'floor', wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: false, interaction: null, levelId: null },
+  };
+  m.lights = {
+    l1: { id: 'l1', position: [4, 4], radius: 4, color: '#ffaa55', intensity: 1, flicker: 0, cone: null, ownerId: null, power: 'fire', preset: 'tocha', on: true, nightOnly: false, rays: false, levelId: 'alto' },
+  };
+
+  const resumo = resumirMapa(m) as {
+    andares: { id: string | null; nome: string; ordem: number }[];
+    comodos: { id: string; andar: string | null }[];
+    objetos: { fonte: string; andar: string | null }[];
+    luzes: { id: string; andar: string | null }[];
+  };
+  assert.deepEqual(resumo.andares.map(a => a.id), ['porao', null, 'alto']);
+  assert.equal(resumo.comodos.find(c => c.id === 'cSub')?.andar, 'porao');
+  assert.equal(resumo.comodos.find(c => c.id === 'cTer')?.andar, null);
+  assert.equal(resumo.objetos.length, 2);
+  assert.deepEqual(resumo.objetos.map(o => o.andar).sort(), ['porao', null].sort());
+  assert.equal(resumo.luzes[0]?.andar, 'alto');
+
+  let ativo: string | null = 'alto';
+  const historicoAndar: (string | null)[] = [];
+  const { f, chamar } = montar(m, {
+    andarAtivo: () => ativo,
+    definirAndarAtivo: id => { ativo = id; historicoAndar.push(id); },
+    capturar: () => Promise.resolve({ dataUrl: 'data:image/jpeg;base64,12', largura: 10, altura: 10, pxPorMetro: 1, bytes: 10, qualidade: 0.8, caixa: { x0: 0, y0: 0, x1: 1, y1: 1 } }),
+  });
+
+  const vejo = JSON.parse(await chamar('atlas_o_que_vejo'));
+  assert.deepEqual(vejo.andarAtivo, { id: 'alto', nome: '1º andar', ordem: 1 });
+
+  const cap = await f.atlas_ver_mapa!.executar({ andar: 'porao' });
+  assert.equal(cap[0]!.tipo, 'imagem');
+  const bCap = cap[1]!;
+  assert.match(bCap.tipo === 'texto' ? bCap.texto : '', /Porão/);
+  assert.deepEqual(historicoAndar, ['porao', 'alto']);
+  assert.equal(ativo, 'alto');
+
+  await f.atlas_ver_mapa!.executar({ andar: null });
+  assert.equal(ativo, 'alto');
+
+  await assert.rejects(f.atlas_ver_mapa!.executar({ andar: 'inexistente' }), /não existe/);
+  assert.equal(ativo, 'alto');
+});

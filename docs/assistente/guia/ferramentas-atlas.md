@@ -12,6 +12,18 @@ Abre um mapa no Atlas (pela rota, como na galeria) e espera o editor aparecer na
 
 Ajusta clima e acabamento do mapa aberto (um passo de desfazer). Presets em atlas_catalogo { parte: "climas" }. "guardarClima" { id, nome } salva no mapa.
 
+## atlas_andares
+
+Cria ou renomeia andares do mapa aberto e devolve a lista ordenada de andares com ids (um passo de desfazer). O térreo já existe sempre como `null`; sem parâmetros, apenas lista os andares.
+
+Parâmetros:
+- `criar`: lista de `{ nome, order }`, com `order` inteiro diferente de `0` (`-1` porão, `1` 1º andar, `2` 2º andar...).
+- `renomear`: lista de `{ id, nome }` (`id` de andar ou `null` para renomear o térreo).
+
+Exemplos:
+`atlas_andares { criar: [{ nome: "Porão", order: -1 }, { nome: "1º andar", order: 1 }] }`
+`atlas_andares { renomear: [{ id: null, nome: "Térreo" }] }`
+
 ## atlas_arranjo
 
 Dispõe até 300 objetos em padrões geométricos com variação controlada (`fileiras`, `grade-solta`, `aglomerado`, `ao-longo`, `circulo`, `bordas`), desviando de paredes, cômodos (quando fora), portas e objetos que bloqueiam (um passo de desfazer). Devolve quantos itens entraram e quantas posições não couberam.
@@ -20,7 +32,7 @@ Parâmetros principais:
 - `padrao`: `'fileiras' | 'grade-solta' | 'aglomerado' | 'ao-longo' | 'circulo' | 'bordas'`. Em `'ao-longo'`, `area` deve ser `{ faixa, largura }`.
 - `itens[]`: `{ item, peso?, escala?: [min, max], params? }` (confira ids com `atlas_catalogo`).
 - `espacamento`: `[dx, dy]` em metros (ou `[passoAoLongo, afastamentoLateral]` em `ao-longo`).
-- `angulo`, `desalinho`, `giro`, `falhas` (`0..0.6`), `encarar` (`fileira | centro | caminho | livre`), `grupos` (`{ tamanho: [cols, rows], vazio }`).
+- `angulo`, `desalinho`, `giro`, `falhas` (`0..0.6`), `encarar` (`fileira | centro | caminho | livre`), `grupos` (`{ tamanho: [cols, rows], vazio }`), `andar` (id de andar ou `null` para o térreo).
 
 Exemplos:
 
@@ -76,6 +88,7 @@ Tipo dos cômodos: ver `atlas_catalogo`.
 
 - `telhado`: omitido = estilo pela função/gênero (contorno circular >= 8 lados escolhe `torre-redonda`; ou herdado do cômodo vizinho; varandas ficam sem); `null` = sem telhado; ou id de um **estilo de telhado** (ver tabela ou `atlas_catalogo { parte: "telhado" }`) ou id de uma cobertura avulsa (`telha.barro`, etc.).
 - `telhadoForma`, `telhadoCumeeira`, `telhadoDetalhes`: sobrescritas opcionais sobre o telhado resolvido (`quatro-aguas`, `duas-aguas`, `plano`, `piramide`, `cone`; `auto`, `h`, `v`; `chamine`, `cruz`, `sino`, `catavento`, `claraboia`, `caixa-dagua`).
+- `andar`: id de andar opcional (`null` ou omitido = térreo; crie o andar antes em `atlas_andares`).
 
 | Estilo | Cobertura | Forma | Íngreme | Detalhes |
 | --- | --- | --- | --- | --- |
@@ -120,7 +133,7 @@ Parâmetros por item em `edificios[]`:
 - `frente`: `'n' | 's' | 'l' | 'o'`.
 - `forma`: `'auto' | 'compacta' | 'L' | 'T' | 'U' | 'linear' | 'patio'`.
 - `alpendre`: `true` cria varanda frontal sem telhado.
-- `telhado`, `piso`, `mobiliar` (padrão `true`), `luzes` (padrão `true`).
+- `telhado`, `piso`, `mobiliar` (padrão `true`), `luzes` (padrão `true`), `andar` (id de andar ou `null` para o térreo).
 - `comodos[]`: `{ tipo, area (m²), nome?, principal? }` (1 a 12 cômodos).
 
 Dica de composição: **varie `forma`, porte e `frente` entre edifícios vizinhos** para evitar casas iguais em fila.
@@ -179,10 +192,11 @@ Espalha conjunto de objetos numa região em metros (um passo de desfazer). Conju
 Parâmetros:
 
 - `forma`: Forma em metros: disco, poligono, faixa, retangulo ou celulas. irregular opcional (m).
+- `andar`: id de andar opcional (`null` ou omitido = térreo).
 
 ## atlas_luzes
 
-Acende luzes no mapa aberto em metros (um passo de desfazer). Presets em atlas_catalogo { parte: "luzes" }. Luzes aparecem em clima escuro (atlas_ambiente).
+Acende luzes no mapa aberto em metros (um passo de desfazer). Presets em atlas_catalogo { parte: "luzes" }. Luzes aparecem em clima escuro (atlas_ambiente). Aceita `andar` opcional por luz (`null` = térreo).
 
 ## atlas_mapa_criar
 
@@ -190,7 +204,7 @@ Cria e abre mapa novo em metros (padrão 45×30; grid 1,5 m). "base": atlas_cata
 
 ## atlas_mapa_ler
 
-Resume o mapa (aberto ou por `id`): `resumo` (contagem de edifícios, área média/mín/máx em m², `comodosSemTelhado` e `retangulares`), `edificios` (`id`, `nome`, `salas`, `area` em m², `caixa` `[x, y, largura, altura]` em m e `telhados`), `comodos` (`rets` em células `[x0, y0, x1, y1]` com fim exclusivo, `area` em m², `telhado` como `{ estilo }` ou `{ cobertura, forma, ingreme, detalhes }`, `edificio` e `retangulo` em m), além de terreno, objetos, luzes, regiões, peças, clima, acabamento, momentos e notas.
+Resume o mapa (aberto ou por `id`): `andares` (lista ordenada `{ id, nome, ordem }`), `resumo` (contagem de edifícios, área média/mín/máx em m², `comodosSemTelhado` e `retangulares`), `edificios` (`id`, `nome`, `salas`, `area` em m², `caixa` `[x, y, largura, altura]` em m e `telhados`), `comodos` (`andar`, `rets` em células `[x0, y0, x1, y1]` com fim exclusivo, `area` em m², `telhado` como `{ estilo }` ou `{ cobertura, forma, ingreme, detalhes }`, `edificio` e `retangulo` em m), além de terreno, objetos (com `andar`), luzes (com `andar`), regiões, peças (com `andar`), clima, acabamento, momentos e notas.
 
 - `comodos`: lista opcional de ids de cômodos para detalhar só aqueles cômodos (útil quando o JSON do mapa grande troca `rets` por `retsResumidos`).
 
@@ -240,6 +254,8 @@ Parâmetros de cada objeto:
 - `submerso`: booleano (opcional; fica sob a água).
 - `oculto`: booleano (opcional; `true` esconde o objeto e suas luzes dos jogadores/projetor até ser mostrado por um momento).
 - `params`: objeto com parâmetros da receita (opcional).
+- `andar`: id de andar opcional (`null` ou omitido = térreo).
+- `escada`: opcional para receitas de escada/alçapão (`escada`, `escada.caracol`, `escada.pedra`, `escada.madeira`, `alcapao`); `{ leva: string | null, posicao?: [x, y] }` define a ligação entre andares (`leva: null` aponta para o térreo).
 
 ## atlas_paredes
 
@@ -250,6 +266,7 @@ Parâmetros de cada parede:
 - `kind`: `'wall'` (parede cheia que bloqueia movimento, visão e luz), `'low'` (muro baixo: bloqueia passo, visão livre), `'fence'` (cerca) ou `'cliff'` (escarpa / barranco).
 - `drop`: `'a' | 'b'` (qual lado desce na escarpa; `'a'` = lado esquerdo do sentido do traçado, `'b'` = lado direito).
 - `altura`, `espessura`, `material`: opcionais. Na escarpa o material padrão é `rocha.cinza` (aceita qualquer material de uso `macico`).
+- `andar`: id de andar opcional (`null` ou omitido = térreo).
 
 **Escarpa vs. maciço de terreno:**
 - Use `atlas_terreno` com materiais de uso `macico` (`rocha.caverna`, `rocha.arenito`, etc.) para massas volumétricas de pedra, montanhas, platôs ou interiores de cavernas que cobrem uma área.
@@ -271,11 +288,11 @@ Exemplo:
 
 ## atlas_portas
 
-Abre portas, janelas, arcos ou passagens secretas na parede mais próxima (metros, até ~0,75 m da parede; um passo de desfazer). Crie cômodo/parede antes.
+Abre portas, janelas, arcos ou passagens secretas na parede mais próxima (metros, até ~0,75 m da parede; um passo de desfazer). Aceita `andar` opcional (`null` = térreo). Crie cômodo/parede antes.
 
 ## atlas_presenca
 
-Pinta presença (musgo, sangue, mofo, fuligem...) em metros (um passo de desfazer). Pincéis em atlas_catalogo { parte: "presenca" }.
+Pinta presença (musgo, sangue, mofo, fuligem...) em metros (um passo de desfazer). Pincéis em atlas_catalogo { parte: "presenca" }. Aceita `andar` opcional (`null` = térreo).
 
 - `apagar: true`: apaga a presença na forma. Sem `pincel`, apaga todos os pincéis; com `pincel`, só aquele.
 - `intensidade` (0 a 1): vale para a camada inteira daquele pincel, mesmo que ela já exista (padrão 0,6 ao criar). A resposta diz qual intensidade ficou.
@@ -286,7 +303,7 @@ Parâmetros:
 
 ## atlas_regioes
 
-Cria regiões funcionais no mapa aberto em metros (um passo de desfazer): reveal, trigger, audio ou note.
+Cria regiões funcionais no mapa aberto em metros (um passo de desfazer): reveal, trigger, audio ou note. Aceita `andar` opcional (`null` = térreo).
 
 ## atlas_remover
 
@@ -333,4 +350,5 @@ O que está em patamares baixos também recebe árvores e objetos em escala real
 Captura imagem JPEG do mapa aberto. Sem `caixa`, mostra o mapa todo; com `caixa` `[x0,y0,x1,y1]` em metros, mostra o recorte. Retorna escala e caixa.
 
 - `vista`: `'planta'` (padrão: interiores, paredes e mobília) ou `'telhados'` (telhados fechados, como os jogadores veem as construções por fora). Depois de construir casas, confira as duas vistas: `planta` para validar portas, circulação e mobília; `telhados` para validar a cobertura, cumeeiras, sombras e silhueta dos edifícios na paisagem.
+- `andar`: id de andar opcional (`null` para o térreo) para capturar outro andar sem perder a vista ativa depois.
 
