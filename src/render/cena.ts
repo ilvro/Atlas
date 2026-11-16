@@ -29,6 +29,7 @@ import { criarPresenca } from './presenca.ts';
 import { criarAgua } from './agua.ts';
 import { criarCachoeiras } from './cachoeiras.ts';
 import { criarContatoExterno } from './contato-externo.ts';
+import { criarTempoNoChao } from './tempo-no-chao.ts';
 import { criarSombrasDoSol } from './sombras-do-sol.ts';
 
 export interface OpcoesDaCena {
@@ -102,11 +103,11 @@ interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; 
 export function criarCena(op: OpcoesDaCena): Cena {
   const raiz = new Container(), terrenoC = new Container(), veuTerrenoG = new Graphics(), submersosC = Object.assign(new Container(), { sortableChildren: true }), escarpasC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics(), fantasmaAndarG = new Graphics();
   const marcasG = new Graphics(), regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), tituloC = new Container();
-  const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados({ baker: op.baker, aoPintar: op.aoPintar }), neblina = criarNeblina(), bordas = criarBordas(), particulas = criarParticulas(), presenca = criarPresenca(), agua = criarAgua(), cachoeiras = criarCachoeiras(), sombras = criarSombrasDoSol(), contato = criarContatoExterno();
+  const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados({ baker: op.baker, aoPintar: op.aoPintar }), neblina = criarNeblina(), bordas = criarBordas(), particulas = criarParticulas(), presenca = criarPresenca(), agua = criarAgua(), cachoeiras = criarCachoeiras(), sombras = criarSombrasDoSol(), contato = criarContatoExterno(), tempo = criarTempoNoChao();
   const halos = criarHalos(luz, telhados);
   // A tinta do chão (presença natural) cobre o piso, mas não a face de rocha das escarpas, que sobe acima dela.
   // A luz multiplica tudo o que está embaixo (piso, objetos, paredes); marcadores, regiões e peças ficam por cima, sempre legíveis.
-  raiz.addChild(terrenoC, presenca.submerso, submersosC, agua.raiz, veuTerrenoG, comodosC, presenca.chao, escarpasC, contato.raiz, sombras.raiz, objetosC, cachoeiras.raiz, paredesG, fantasmaAndarG, presenca.abaixo, luz.sprite, presenca.acima, halos.raiz, neblina.raiz, particulas.raiz, bordas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
+  raiz.addChild(terrenoC, presenca.submerso, submersosC, agua.raiz, veuTerrenoG, comodosC, presenca.chao, tempo.chao, escarpasC, contato.raiz, sombras.raiz, objetosC, tempo.chapeus, cachoeiras.raiz, paredesG, fantasmaAndarG, presenca.abaixo, luz.sprite, presenca.acima, halos.raiz, neblina.raiz, particulas.raiz, bordas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
 
   let mapa: MapaAtlas | null = null, vistaDaCena: Vista = 'construir', destruida = false, pintandoAgora = 0, ultimoQuadro = -1;
   let ultimoContextoAndar: ContextoDoAndar | null = null;
@@ -131,7 +132,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (destruida || e.chave !== chave || e.c.destroyed) return;
       const tex = adquirir(chave, r), antiga = e.chaveTextura;
       if (!e.sprite) { e.sprite = new Sprite(tex); e.c.addChild(e.sprite); } else e.sprite.texture = tex;
-      aplicar(e.sprite, r); e.chaveTextura = chave; e.placeholder.visible = false; soltar(antiga); if (mapa && !e.c.destroyed) sombras.atualizar(mapa, objetos, pixelRes0(mapa)); op.aoPintar?.();
+      aplicar(e.sprite, r); e.chaveTextura = chave; e.placeholder.visible = false; soltar(antiga); if (mapa && !e.c.destroyed) { sombras.atualizar(mapa, objetos, pixelRes0(mapa)); tempo.atualizar(mapa, objetos); } op.aoPintar?.();
     }).catch(erro => console.warn('Atlas: falha ao pintar', erro)).finally(() => { pintandoAgora--; });
   }
 
@@ -463,6 +464,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       agua.sincronizar(m); if (tudo || colecao('props') || campos('style')) agua.objetos(m);
       presenca.sincronizar(m, mud); nevoa.sincronizar(m, mud); telhados.sincronizar(m, mud);
       const v = visaoDoClima ?? m;
+      if (tudo || colecao('rooms') || colecao('props') || colecao('walls') || campos('climate', 'bounds', 'grid', 'style')) tempo.atualizar(v, objetos);
       luz.sincronizar(v, mud); neblina.sincronizar(v, mud); bordas.sincronizar(v, mud); particulas.sincronizar(v, mud); halos.sincronizar(v, mud);
       // Os marcadores das luzes também refletem o clima (apagada pela rede ou pelo dia), então refazem quando ele muda.
       if (tudo || colecao('lights') || campos('climate')) sincronizarSimples(luzes, luzesC, m.lights, tudo || campos('climate') ? null : mud!.colecoes.lights ?? null, (c, l) => desenharLuz(c, l, m), comPop);
@@ -475,13 +477,14 @@ export function criarCena(op: OpcoesDaCena): Cena {
     },
     atualizarAtmosfera(visao) {
       const mud: Mudancas = { completo: false, colecoes: {}, campos: ['climate'] };
+      tempo.atualizar(visao, objetos);
       luz.sincronizar(visao, mud); neblina.sincronizar(visao, mud); bordas.sincronizar(visao, mud); particulas.sincronizar(visao, mud); halos.sincronizar(visao, mud);
     },
-    definirAtmosfera: ligada => { sombras.definirLigado(ligada); contato.definirLigado(ligada); if (ligada && mapa) sombras.atualizar(mapa, objetos, pixelRes0(mapa)); luz.definirLigado(ligada); neblina.definirLigado(ligada); bordas.definirLigado(ligada); particulas.definirLigado(ligada); halos.definirLigado(ligada); },
+    definirAtmosfera: ligada => { sombras.definirLigado(ligada); contato.definirLigado(ligada); tempo.definirLigado(ligada, mapa, objetos); if (ligada && mapa) sombras.atualizar(mapa, objetos, pixelRes0(mapa)); luz.definirLigado(ligada); neblina.definirLigado(ligada); bordas.definirLigado(ligada); particulas.definirLigado(ligada); halos.definirLigado(ligada); },
     relampagoAgora: () => luz.relampagoAgora(),
-    definirModoProjetor: ligado => { modoDoProjetor = ligado; marcasVisiveis(); luzesC.visible = !ligado; regioesC.visible = !ligado; if (mapa) { sincronizarObjetos(mapa, null, false); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } },
+    definirModoProjetor: ligado => { modoDoProjetor = ligado; marcasVisiveis(); luzesC.visible = !ligado; regioesC.visible = !ligado; if (mapa) { sincronizarObjetos(mapa, null, false); tempo.atualizar(mapa, objetos); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } },
     definirEfeitosDeLuz: (luzes, ambiente) => luz.definirEfeitos(luzes, ambiente),
-    definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); if (v !== vistaDaCena) { vistaDaCena = v; if (mapa) { desenharParedes(mapa); sincronizarObjetos(mapa, null, false); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } } marcasVisiveis(); },
+    definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); if (v !== vistaDaCena) { vistaDaCena = v; if (mapa) { desenharParedes(mapa); sincronizarObjetos(mapa, null, false); tempo.atualizar(mapa, objetos); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } } marcasVisiveis(); },
     forcarTelhados: alfa => telhados.forcar(alfa),
     diagnosticoDosTelhados: () => telhados.diagnostico(),
     redesenharPecas() { if (mapa) sincronizarSimples(pecas, pecasC, mapa.tokens, null, (c, t) => desenharPeca(c, t, mapa!), false); },
@@ -508,7 +511,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       destruida = true; if (terrenoTimer) clearTimeout(terrenoTimer);
       for (const e of [...salas.values(), ...objetos.values(), ...(terreno ? [terreno] : [])]) soltar(e.chaveTextura);
       for (const t of texturas.values()) t.tex.destroy(true); texturas.clear();
-      sombras.destruir(); luz.destruir(); halos.destruir(); nevoa.destruir(); telhados.destruir(); neblina.destruir(); bordas.destruir(); particulas.destruir(); presenca.destruir(); agua.destruir(); cachoeiras.destruir(); raiz.destroy({ children: true });
+      tempo.destruir(); sombras.destruir(); luz.destruir(); halos.destruir(); nevoa.destruir(); telhados.destruir(); neblina.destruir(); bordas.destruir(); particulas.destruir(); presenca.destruir(); agua.destruir(); cachoeiras.destruir(); raiz.destroy({ children: true });
     },
   };
 }

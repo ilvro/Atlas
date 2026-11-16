@@ -163,3 +163,96 @@ test('I3: maciço grande no navegador pinta cumeada e serra sem erros', async ()
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test('I4: varanda embranquece na neve, banco ao ar livre ganha chapéu de neve e chuva escurece o piso aberto', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+
+  await sessao(page, `(s) => {
+    s.store.executar({ tipo: "limites.atualizar", largura: 24, altura: 21 });
+    s.store.executar({ tipo: "terreno.base", material: "terra" });
+    s.store.executar({ tipo: "estilo.atualizar", patch: { settle: false } });
+    s.store.executar({ tipo: "clima.aplicar", patch: {
+      preset: "tarde",
+      time: "12:00",
+      ambient: { color: "#ffffff", intensity: 0.95 },
+      sun: null,
+      weather: { rain: 0, snow: 0, fog: 0, wind: 0, dust: 0, embers: 0, leaves: 0, lightning: 0 },
+    } });
+    s.store.executar({ tipo: "acabamento.atualizar", patch: { preset: "nenhum", texture: 0, vignette: 0, saturation: 1, grain: 0, tint: "#ffffff" } });
+
+    const varanda = [], sala = [];
+    for (let y = 4; y < 8; y++) for (let x = 4; x < 8; x++) varanda.push([x, y]);
+    for (let y = 4; y < 8; y++) for (let x = 9; x < 13; x++) sala.push([x, y]);
+    s.store.executar({
+      tipo: "comodo.criar",
+      id: "varanda",
+      nome: "Varanda",
+      funcao: "varanda",
+      celulas: varanda,
+      piso: { material: "tabuas.carvalho", seed: 1 },
+      papel: null,
+      telhado: null,
+      levelId: null,
+    });
+    s.store.executar({
+      tipo: "comodo.criar",
+      id: "sala",
+      nome: "Sala",
+      funcao: "sala",
+      celulas: sala,
+      piso: { material: "tabuas.carvalho", seed: 1 },
+      papel: null,
+      telhado: "casa-de-telha",
+      levelId: null,
+    });
+    s.store.executar({
+      tipo: "item.adicionar",
+      colecao: "props",
+      item: {
+        id: "banco_fora",
+        source: { kind: "recipe", recipe: "banco.jardim", seed: 1, params: {} },
+        position: [9, 15],
+        rotation: 0,
+        scale: 1,
+        elevation: "floor",
+        wall: null,
+        roomId: null,
+        blocks: { move: true, sight: false },
+        castsShadow: true,
+        harmonize: false,
+        interaction: null,
+      },
+    });
+  }`);
+
+  await page.evaluate(() => (window as unknown as JanelaAtlas).__atlas.viewport()!.enquadrar());
+  await esperarPintura(page);
+  await page.waitForTimeout(1800);
+
+  const varandaSeca = await brilho(page, [7.2, 7.2], [10.8, 10.8]);
+  const salaSeca = await brilho(page, [14.7, 7.2], [18.3, 10.8]);
+  const bancoSemNeve = await brilho(page, [8.4, 14.7], [9.6, 14.95]);
+
+  await sessao(page, `(s) => s.store.executar({ tipo: "clima.aplicar", patch: { weather: { snow: 0.8, rain: 0 } } })`);
+  await page.waitForTimeout(1800);
+
+  const varandaNeve = await brilho(page, [7.2, 7.2], [10.8, 10.8]);
+  const salaNeve = await brilho(page, [14.7, 7.2], [18.3, 10.8]);
+  const bancoComNeve = await brilho(page, [8.4, 14.7], [9.6, 14.95]);
+
+  assert.ok(varandaNeve > varandaSeca + 20, `varanda com neve 0,8 (${varandaNeve.toFixed(1)}) deve ficar bem mais clara que com neve 0 (${varandaSeca.toFixed(1)})`);
+  assert.ok(varandaNeve > salaNeve + 20, `varanda ao ar livre (${varandaNeve.toFixed(1)}) deve ficar bem mais branca que a sala coberta (${salaNeve.toFixed(1)})`);
+  assert.ok(bancoComNeve > bancoSemNeve + 12, `banco ao ar livre (${bancoComNeve.toFixed(1)} vs ${bancoSemNeve.toFixed(1)}) ganha chapéu de neve`);
+
+  await sessao(page, `(s) => s.store.executar({ tipo: "clima.aplicar", patch: { weather: { snow: 0, rain: 0.8 } } })`);
+  await page.waitForTimeout(1800);
+
+  const varandaChuva = await brilho(page, [7.2, 7.2], [10.8, 10.8]);
+  await sessao(page, `(s) => s.store.executar({ tipo: "clima.aplicar", patch: { weather: { snow: 0, rain: 0 } } })`);
+  await page.waitForTimeout(1800);
+  const varandaSecaFinal = await brilho(page, [7.2, 7.2], [10.8, 10.8]);
+  assert.ok(varandaChuva < varandaSecaFinal - 5, `chuva (${varandaChuva.toFixed(1)}) deve escurecer o piso ao ar livre (${varandaSecaFinal.toFixed(1)})`);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
