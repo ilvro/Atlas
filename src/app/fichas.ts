@@ -136,7 +136,8 @@ export function adicionarPersonagem(s: SessaoDeEdicao, e: Entidade, onde?: Ponto
   if (e.tipo === 'personagem') {
     if (existente) { s.selecao.value = [{ colecao: 'tokens', id: existente.id }]; avisar(`${e.nome} já está no mapa.`, { duracao: 1800 }); return existente; }
     const centro = (m.grid.snap === false && onde) ? onde : centroDaCelula(m, onde ?? [m.bounds.width / 2, m.bounds.height / 2]);
-    const peca = novaPeca(centro, e.nome, { player: true, refs: [ref] });
+    const andar = s.andarAtivo?.peek() ?? null;
+    const peca = novaPeca(centro, e.nome, { player: true, refs: [ref], ...(andar !== null ? { levelId: andar } : {}) });
     s.store.executar({ tipo: 'item.adicionar', colecao: 'tokens', item: peca as never }, { rotulo: `Pôr ${e.nome} no mapa` });
     s.selecao.value = [{ colecao: 'tokens', id: peca.id }];
     if (e.retrato && repo) void repo.salvarAsset(e.retrato).then(portrait => { if (s.store.documento.tokens[peca.id]) s.store.executar({ tipo: 'item.atualizar', colecao: 'tokens', id: peca.id, patch: { portrait } }, { rotulo: `Retrato de ${e.nome}` }); }).catch(erro => console.warn('Atlas: não consegui guardar o retrato', erro));
@@ -172,7 +173,8 @@ export function adicionarPersonagem(s: SessaoDeEdicao, e: Entidade, onde?: Ponto
     ];
   }
 
-  const peca = novaPeca(baseCentro, infoNome.nome, { player: false, refs: [ref], hp });
+  const andar = s.andarAtivo?.peek() ?? null;
+  const peca = novaPeca(baseCentro, infoNome.nome, { player: false, refs: [ref], hp, ...(andar !== null ? { levelId: andar } : {}) });
   s.store.executar({ tipo: 'item.adicionar', colecao: 'tokens', item: peca as never }, { rotulo: `Pôr ${infoNome.nome} no mapa` });
   s.selecao.value = [{ colecao: 'tokens', id: peca.id }];
   if (e.retrato && repo) void repo.salvarAsset(e.retrato).then(portrait => { if (s.store.documento.tokens[peca.id]) s.store.executar({ tipo: 'item.atualizar', colecao: 'tokens', id: peca.id, patch: { portrait } }, { rotulo: `Retrato de ${infoNome.nome}` }); }).catch(erro => console.warn('Atlas: não consegui guardar o retrato', erro));

@@ -1,6 +1,7 @@
 import { Container, Graphics, Sprite, Text, Texture, type Renderer } from 'pixi.js';
+import { listaDeAndares } from '../domain/andares.ts';
 import { decodificar } from '../domain/celulas.ts';
-import { comprimentoDaParede, pontoNaParede } from '../domain/geometria.ts';
+import { comprimentoDaParede, contornoDoComodo, pontoNaParede } from '../domain/geometria.ts';
 import type { Abertura, Luz, MapaAtlas, Objeto, Parede, Peca, Ponto, Regiao } from '../domain/mapa.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import { ACERVO } from '../procedural/acervo.ts';
@@ -44,10 +45,16 @@ export interface OpcoesDaCena {
   recursos?(t: Peca): Recursos | null;
 }
 
+export interface ContextoDoAndar {
+  completo: MapaAtlas;
+  andar: string | null;
+  construir: boolean;
+}
+
 export interface Cena {
   readonly raiz: Container;
   /** `mudancas === null` refaz tudo. */
-  sincronizar(m: MapaAtlas, mudancas: Mudancas | null, comPop: boolean, visaoDoClima?: MapaAtlas): void;
+  sincronizar(m: MapaAtlas, mudancas: Mudancas | null, comPop: boolean, visaoDoClima?: MapaAtlas, contextoAndar?: ContextoDoAndar): void;
   /** Só a atmosfera (luz, neblina, partículas) com o clima de `visao`: o que a transição de clima chama a cada quadro. */
   atualizarAtmosfera(visao: MapaAtlas): void;
   /** Avança as animações de entrada e a tremulação das luzes. */
@@ -92,15 +99,16 @@ export interface Cena {
 interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; chave: string; chaveTextura: string | null }
 
 export function criarCena(op: OpcoesDaCena): Cena {
-  const raiz = new Container(), terrenoC = new Container(), submersosC = Object.assign(new Container(), { sortableChildren: true }), escarpasC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics();
+  const raiz = new Container(), terrenoC = new Container(), veuTerrenoG = new Graphics(), submersosC = Object.assign(new Container(), { sortableChildren: true }), escarpasC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics(), fantasmaAndarG = new Graphics();
   const marcasG = new Graphics(), regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), tituloC = new Container();
   const luz = criarMapaDeLuz(op.renderer), nevoa = criarNevoa(op.renderer), telhados = criarTelhados({ baker: op.baker, aoPintar: op.aoPintar }), neblina = criarNeblina(), bordas = criarBordas(), particulas = criarParticulas(), presenca = criarPresenca(), agua = criarAgua(), cachoeiras = criarCachoeiras(), sombras = criarSombrasDoSol();
   const halos = criarHalos(luz, telhados);
   // A tinta do chão (presença natural) cobre o piso, mas não a face de rocha das escarpas, que sobe acima dela.
   // A luz multiplica tudo o que está embaixo (piso, objetos, paredes); marcadores, regiões e peças ficam por cima, sempre legíveis.
-  raiz.addChild(terrenoC, presenca.submerso, submersosC, agua.raiz, comodosC, presenca.chao, escarpasC, sombras.raiz, objetosC, cachoeiras.raiz, paredesG, presenca.abaixo, luz.sprite, presenca.acima, halos.raiz, neblina.raiz, particulas.raiz, bordas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
+  raiz.addChild(terrenoC, presenca.submerso, submersosC, agua.raiz, veuTerrenoG, comodosC, presenca.chao, escarpasC, sombras.raiz, objetosC, cachoeiras.raiz, paredesG, fantasmaAndarG, presenca.abaixo, luz.sprite, presenca.acima, halos.raiz, neblina.raiz, particulas.raiz, bordas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
 
   let mapa: MapaAtlas | null = null, vistaDaCena: Vista = 'construir', destruida = false, pintandoAgora = 0, ultimoQuadro = -1;
+  let ultimoContextoAndar: ContextoDoAndar | null = null;
   const salas = new Map<string, Entrada>(), objetos = new Map<string, Entrada>();
   const luzes = new Map<string, Container>(), pecas = new Map<string, Container>(), regioes = new Map<string, Container>();
   const animacoes: { alvo: Container; t0: number; dur: number; final: number }[] = [];
@@ -394,17 +402,58 @@ export function criarCena(op: OpcoesDaCena): Cena {
     return s;
   }
 
+  function tracoTracejado(g: Graphics, a: Ponto, b: Ponto, traco = 0.25, vao = 0.15): void {
+    const dx = b[0] - a[0], dy = b[1] - a[1], dist = Math.hypot(dx, dy);
+    if (dist < 1e-4) return;
+    const ux = dx / dist, uy = dy / dist;
+    for (let d = 0; d < dist; d += traco + vao) {
+      const f = Math.min(dist, d + traco);
+      g.moveTo(a[0] + ux * d, a[1] + uy * d).lineTo(a[0] + ux * f, a[1] + uy * f);
+    }
+  }
+
+  function desenharOverlaysDeAndar(m: MapaAtlas, ctx?: ContextoDoAndar): void {
+    veuTerrenoG.clear();
+    fantasmaAndarG.clear();
+    const completo = ctx?.completo ?? m, andar = ctx?.andar ?? null;
+    const construir = ctx?.construir ?? vistaDaCena === 'construir';
+    const ordem = andar === null ? 0 : (completo.levels?.[andar]?.order ?? 0);
+    if (ordem > 0) {
+      veuTerrenoG.rect(0, 0, m.bounds.width, m.bounds.height).fill({ color: 0x000000, alpha: 0.45 });
+    }
+    if (!construir || modoDoProjetor) { fantasmaAndarG.visible = false; return; }
+    fantasmaAndarG.visible = true;
+    const lista = listaDeAndares(completo);
+    const idx = lista.findIndex(a => a.id === andar);
+    const abaixo = idx > 0 ? lista[idx - 1]! : null;
+    if (!abaixo) return;
+    for (const sala of Object.values(completo.rooms)) {
+      if ((sala.levelId ?? null) !== abaixo.id) continue;
+      if (sala.outline && sala.outline.length >= 3) {
+        const n = sala.outline.length;
+        for (let k = 0; k < n; k++) tracoTracejado(fantasmaAndarG, sala.outline[k]!, sala.outline[(k + 1) % n]!);
+      } else {
+        for (const anel of contornoDoComodo(completo, decodificar(sala.cells))) {
+          for (const seg of anel) tracoTracejado(fantasmaAndarG, seg.a, seg.b);
+        }
+      }
+    }
+    fantasmaAndarG.stroke({ width: 0.05, color: 0xe6edf7, alpha: 0.3, cap: 'butt' });
+  }
+
   return {
     raiz,
     get pintando() { return pintandoAgora + op.baker.pendentes; },
-    sincronizar(m, mud, comPop, visaoDoClima) {
+    sincronizar(m, mud, comPop, visaoDoClima, contextoAndar) {
       mapa = m;
+      ultimoContextoAndar = contextoAndar ?? null;
       const tudo = !mud || mud.completo, campos = (...c: string[]) => tudo || c.some(x => mud!.campos.includes(x)), colecao = (c: string) => tudo || !!(mud!.colecoes as Record<string, unknown>)[c];
       const refazerPorRelevo = !!m.terrain.relief && campos('climate', 'terrain');
       if (campos('terrain', 'bounds', 'grid', 'backdrop', 'style') || refazerPorRelevo) sincronizarTerreno(m);
       if (tudo || colecao('walls') || campos('style')) sincronizarEscarpas(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid')) sincronizarComodos(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid', 'session', 'style')) desenharParedes(m);
+      if (tudo || colecao('rooms') || campos('levels', 'bounds', 'grid')) desenharOverlaysDeAndar(m, contextoAndar);
       if (tudo || colecao('props') || campos('style') || refazerPorRelevo) sincronizarObjetos(m, (tudo || campos('style') || refazerPorRelevo) ? null : mud!.colecoes.props ?? null, comPop);
       if (tudo || colecao('props') || campos('style', 'grid')) cachoeiras.sincronizar(m);
       if (tudo || colecao('props') || colecao('walls') || campos('climate', 'terrain', 'bounds', 'style')) sombras.atualizar(m, objetos, pixelRes0(m));
@@ -428,9 +477,9 @@ export function criarCena(op: OpcoesDaCena): Cena {
     },
     definirAtmosfera: ligada => { sombras.definirLigado(ligada); if (ligada && mapa) sombras.atualizar(mapa, objetos, pixelRes0(mapa)); luz.definirLigado(ligada); neblina.definirLigado(ligada); bordas.definirLigado(ligada); particulas.definirLigado(ligada); halos.definirLigado(ligada); },
     relampagoAgora: () => luz.relampagoAgora(),
-    definirModoProjetor: ligado => { modoDoProjetor = ligado; marcasVisiveis(); luzesC.visible = !ligado; regioesC.visible = !ligado; if (mapa) sincronizarObjetos(mapa, null, false); },
+    definirModoProjetor: ligado => { modoDoProjetor = ligado; marcasVisiveis(); luzesC.visible = !ligado; regioesC.visible = !ligado; if (mapa) { sincronizarObjetos(mapa, null, false); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } },
     definirEfeitosDeLuz: (luzes, ambiente) => luz.definirEfeitos(luzes, ambiente),
-    definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); if (v !== vistaDaCena) { vistaDaCena = v; if (mapa) { desenharParedes(mapa); sincronizarObjetos(mapa, null, false); } } marcasVisiveis(); },
+    definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); if (v !== vistaDaCena) { vistaDaCena = v; if (mapa) { desenharParedes(mapa); sincronizarObjetos(mapa, null, false); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } } marcasVisiveis(); },
     forcarTelhados: alfa => telhados.forcar(alfa),
     diagnosticoDosTelhados: () => telhados.diagnostico(),
     redesenharPecas() { if (mapa) sincronizarSimples(pecas, pecasC, mapa.tokens, null, (c, t) => desenharPeca(c, t, mapa!), false); },

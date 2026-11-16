@@ -67,7 +67,7 @@ Testes: dois cômodos sobrepostos em andares diferentes não geram paredes comun
 Pronto quando: `npm test` passa.
 Commit: `level commands and per-level derived walls`
 
-### H3 — Editor: andar ativo, seletor e criar no andar  ⬜
+### H3 — Editor: andar ativo, seletor e criar no andar  ✅
 Objetivo: o mestre vê e edita um andar por vez.
 Depende de: H2.
 Ler: `src/render/cena.ts` (`sincronizar` e como o mapa chega), `src/render/viewport.ts` (de onde vem o mapa que a cena recebe; as ferramentas que criam entidades), `src/app/app.ts` e `src/app/abas.ts` (estado por mapa aberto), `src/ui/Cabecalho.tsx` ou `src/ui/BarraInferior.tsx` (onde cabe o seletor; siga `docs/INTERFACE.md`), `src/app/acoes.ts`.

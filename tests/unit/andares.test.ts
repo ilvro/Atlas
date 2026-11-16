@@ -8,6 +8,10 @@ import { gerarLayout } from '../../src/authoring/layout.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { ErroDeValidacao } from '../../src/domain/esquema.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
+import { comandoDeComodoPorContorno } from '../../src/render/pincel.ts';
+import { todosOsAlvos } from '../../src/render/selecao.ts';
+import { registrarAbaAberta, lembrarAndarDaAba, obterAndarDaAba } from '../../src/app/abas.ts';
+import { criarSessao } from '../../src/app/sessao.ts';
 import { criarStore } from '../../src/state/store.ts';
 
 function mapaExemplo() {
@@ -163,4 +167,29 @@ test('H2: comandos de andar, paredes derivadas isoladas por andar, encaixe e mob
   assert.equal(s.documento.levels!.a1!.name, 'Andar 1');
   assert.ok(s.documento.rooms.r1);
   assert.equal(Object.values(s.documento.walls).filter(w => w.levelId === 'a1').length, 4);
+});
+
+test('H3: andarAtivo da sessão, criação por contorno no andar e seleção isolada por andar', () => {
+  const m = mapaExemplo();
+  const cmd = comandoDeComodoPorContorno(m, [[1, 1], [5, 1], [5, 5], [1, 5]], 'torre', 'c_sup', 42, 'a1');
+  assert.equal(typeof cmd, 'object');
+  if (typeof cmd !== 'string') assert.equal(cmd.levelId, 'a1');
+
+  registrarAbaAberta(m.id, m.name);
+  lembrarAndarDaAba(m.id, 'a1');
+  assert.equal(obterAndarDaAba(m.id), 'a1');
+
+  const repoFake = { gravar: async (doc: typeof m) => doc } as never;
+  const ses = criarSessao(m, repoFake, { salvo: true });
+  try {
+    assert.equal(ses.andarAtivo.value, 'a1');
+    const alvosA1 = todosOsAlvos(mapaDoAndar(ses.doc.value, ses.andarAtivo.value)).map(a => a.id);
+    assert.deepEqual(alvosA1, ['p1', 'l1']);
+    ses.selecao.value = [{ colecao: 'props', id: 'p1' }];
+    ses.store.executar({ tipo: 'andar.remover', id: 'a1' });
+    assert.equal(ses.andarAtivo.value, null);
+    assert.deepEqual(ses.selecao.value, []);
+  } finally {
+    ses.fechar();
+  }
 });

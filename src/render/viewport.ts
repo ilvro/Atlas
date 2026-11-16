@@ -8,6 +8,7 @@ import { celulasDoDisco, celulasEntre, decodificar } from '../domain/celulas.ts'
 import { misturar, type EstadoDeClima, type MisturaDeClima } from '../domain/clima.ts';
 import { conjuntoDeEspalhar, espalhar } from '../authoring/espalhar.ts';
 import { copiasDe, novaLuz, novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
+import { mapaDoAndar } from '../domain/andares.ts';
 import { comprimentoDaParede, contornoDoComodo, encaixarNaParede, encaixarObjetoDeParede, indiceDeCelulas, pontoNaParede, salaDaCelula } from '../domain/geometria.ts';
 import type { Abertura, MapaAtlas, Peca, Ponto } from '../domain/mapa.ts';
 import type { Recursos } from '../domain/fichas.ts';
@@ -83,6 +84,8 @@ export interface PonteViewport {
   regraDaRegua?(): RegraDeDiagonal;
   /** Câmera salva para restaurar ao abrir o mapa (em vez de enquadrar do zero). */
   cameraInicial?: Camera;
+  /** Andar exibido pelo editor/projetor (`null` = térreo). */
+  andarAtivo?(): string | null;
 }
 
 /** Quanto dura a transição entre dois climas, em milissegundos, se ninguém escolheu outra. */
@@ -206,14 +209,19 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   let ponteiro: Ponto | null = null, interacao: Interacao | null = null, espaco = false, camadaSuja = true, destruido = false, regua: Regua | null = null, altPressionado = false, modoProjetor = somenteLeitura;
   const reguaTexto = new Text({ text: '', style: { fontFamily: 'system-ui, sans-serif', fontSize: 14, fontWeight: '600', fill: 0xffffff, stroke: { color: 0x07080b, width: 4 } } });
   reguaTexto.visible = false;
-  const doc = (): MapaAtlas => store.documento;
+  const completo = (): MapaAtlas => store.documento;
+  const andarAtual = (): string | null => ponte.andarAtivo?.() ?? null;
+  const doc = (): MapaAtlas => mapaDoAndar(completo(), andarAtual());
+  const ctxAndar = () => ({ completo: completo(), andar: andarAtual(), construir: !somenteLeitura && !modoProjetor && !ponte.emSessao?.() });
+  let ultimoAndar: string | null = andarAtual();
+  let ultimoConstruir = ctxAndar().construir;
   const tela = (): Tela => ({ largura: app.screen.width, altura: app.screen.height });
   const acento = (): number => { const v = getComputedStyle(document.documentElement).getPropertyValue('--acento').trim(); return /^#[0-9a-f]{6}$/i.test(v) ? hexParaNumero(v) : COR_PADRAO_ACENTO; };
   const px = (n: number) => n / camera.zoom;
 
   const retratos = criarRetratos(async id => (await ponte.lerRetrato?.(id)) ?? null, () => {
     // Chegou um retrato: redesenha as peças (só as peças, sem refazer o resto).
-    if (destruido) return; const m = doc(); cena.sincronizar(m, { completo: false, colecoes: { tokens: Object.keys(m.tokens) }, campos: [] }, false, visaoDoClima(m)); camadaSuja = true;
+    if (destruido) return; const m = doc(); cena.sincronizar(m, { completo: false, colecoes: { tokens: Object.keys(m.tokens) }, campos: [] }, false, visaoDoClima(m), ctxAndar()); camadaSuja = true;
   });
   const cena: Cena = criarCena({ baker, renderer: app.renderer, acento, efeitos: fxAtivo, aoPintar: () => { camadaSuja = true; }, retrato: (id, pixel) => retratos.obter(id, pixel), recursos: t => ponte.recursosDaPeca?.(t) ?? null });
   const acabamento = criarFiltroAcabamento();
@@ -544,13 +552,13 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (f === 'peca') { fantasmaG.circle(p[0], p[1], m.grid.size * 0.45).fill({ color: cor, alpha: 0.35 }).stroke({ width: px(1.5), color: cor, alpha: 0.8 }); return; }
     if (f === 'regiao') { fantasmaG.rect(p[0] - 1.5, p[1] - 1.5, 3, 3).fill({ color: cor, alpha: 0.12 }).stroke({ width: px(1.5), color: cor, alpha: 0.8 }); return; }
     if (f === 'abertura') {
-      const l = LARGURA_DA_ABERTURA[pincel.abertura.tipo], e = encaixarNaParede(m, ponteiro, l, 0.75, livre);
+      const l = LARGURA_DA_ABERTURA[pincel.abertura.tipo], e = encaixarNaParede(m, ponteiro, l, 0.75, livre, andarAtual());
       if (e) { const c = e.at * comprimentoDaParede(e.parede), a = pontoNaParede(e.parede, c - l / 2).ponto, b = pontoNaParede(e.parede, c + l / 2).ponto; fantasmaG.moveTo(a[0], a[1]).lineTo(b[0], b[1]).stroke({ width: e.parede.thickness + 0.12, color: cor, alpha: 0.85, cap: 'butt' }); }
       return;
     }
     if (!receita) return;
     if (receita.tipo === 'parede') {
-      const l = typeof pincel.objeto.params.largura === 'number' ? pincel.objeto.params.largura : receita.pegada[0], e = encaixarObjetoDeParede(m, ponteiro, l, livre);
+      const l = typeof pincel.objeto.params.largura === 'number' ? pincel.objeto.params.largura : receita.pegada[0], e = encaixarObjetoDeParede(m, ponteiro, l, livre, andarAtual());
       if (e) { const c = e.at * comprimentoDaParede(e.parede), a = pontoNaParede(e.parede, Math.max(0, c - l / 2)).ponto, b = pontoNaParede(e.parede, Math.min(comprimentoDaParede(e.parede), c + l / 2)).ponto; fantasmaG.moveTo(a[0], a[1]).lineTo(b[0], b[1]).stroke({ width: e.parede.thickness + 0.14, color: 0xd9a75e, alpha: 0.9, cap: 'butt' }); }
       return;
     }
@@ -613,26 +621,28 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   function redesenharTudo(): void {
     const m = doc();
+    ultimoAndar = andarAtual();
+    ultimoConstruir = ctxAndar().construir;
     pararTransicao(); vistoDoDoc = estadoDoDoc(m);
     desenharBase(m); desenharGrade(); desenharRelevo(); desenharSelecao(); desenharLaco(); desenharFantasma(); aplicarEstilo();
-    cena.sincronizar(m, null, false);
+    cena.sincronizar(m, null, false, visaoDoClima(m), ctxAndar());
   }
 
   function aoEvento(e: EventoStore): void {
     if (destruido) return;
-    if (e.mudancas.completo) { redesenharTudo(); if (e.tipo === 'substituir') enquadrarMapa(); return; }
-    const mud = e.mudancas;
-    if (mud.campos.some(c => ['backdrop', 'bounds', 'grid'].includes(c))) desenharBase(e.documento);
+    if (e.mudancas.completo || ultimoAndar !== andarAtual()) { redesenharTudo(); if (e.tipo === 'substituir') enquadrarMapa(); return; }
+    const mud = e.mudancas, mAndar = doc();
+    if (mud.campos.some(c => ['backdrop', 'bounds', 'grid'].includes(c)) || mud.campos.includes('levels')) desenharBase(mAndar);
     if (mud.campos.some(c => ['backdrop', 'bounds', 'grid', 'style'].includes(c))) aplicarEstilo();
     if (mud.campos.includes('climate') || mud.campos.includes('finish')) {
       // Só troca de clima (ou desfazer e refazer) anima; arrastar um controle fino do inspetor acompanha na hora.
-      const antes = estadoExibido(), trocou = antes.climate.preset !== e.documento.climate.preset || e.tipo === 'desfazer' || e.tipo === 'refazer';
-      if (trocou && ponte.acabamento() && fxAtivo()) iniciarTransicao(antes, e.documento); else pararTransicao();
+      const antes = estadoExibido(), trocou = antes.climate.preset !== mAndar.climate.preset || e.tipo === 'desfazer' || e.tipo === 'refazer';
+      if (trocou && ponte.acabamento() && fxAtivo()) iniciarTransicao(antes, mAndar); else pararTransicao();
     }
     if (mud.campos.includes('finish')) aplicarAcabamento();
-    cena.sincronizar(e.documento, mud, e.tipo === 'executar' || e.tipo === 'refazer', visaoDoClima(e.documento));
+    cena.sincronizar(mAndar, mud, e.tipo === 'executar' || e.tipo === 'refazer', visaoDoClima(mAndar), ctxAndar());
     if (transicao) aplicarAcabamento();
-    vistoDoDoc = estadoDoDoc(e.documento);
+    vistoDoDoc = estadoDoDoc(mAndar);
     camadaSuja = true;
   }
   const cancelarAssinatura = store.assinar(aoEvento);
@@ -662,8 +672,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   }, { passive: false });
 
   function concluirContorno(outline: readonly Ponto[], tipoComodo: string): void {
-    const id = novoIdEntidade('c');
-    const cmd = comandoDeComodoPorContorno(doc(), outline, tipoComodo, id);
+    const id = novoIdEntidade('c'), andar = andarAtual();
+    const cmd = comandoDeComodoPorContorno(doc(), outline, tipoComodo, id, undefined, andar);
     if (typeof cmd === 'string') { ponte.aviso(cmd); return; }
     if (tentar(() => store.executar(cmd, { rotulo: `Criar ${cmd.nome.toLowerCase()}` }))) {
       ponte.definirSelecao([{ colecao: 'rooms', id }]);
@@ -705,12 +715,12 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     const novas = celulas.filter(c => !i.visitadas.has(chaveCel(c[0], c[1])));
     if (!novas.length) return;
     for (const c of novas) i.visitadas.add(chaveCel(c[0], c[1]));
-    const m = doc(), tipo = tipoDeComodo(ponte.pincel().comodo) ?? tipoDeComodo('sala')!;
+    const m = doc(), andar = andarAtual(), tipo = tipoDeComodo(ponte.pincel().comodo) ?? tipoDeComodo('sala')!;
     const ok = tentar(() => {
-      if (i.apagar) i.gesto.aplicar({ tipo: 'comodo.apagar', celulas: novas });
+      if (i.apagar) i.gesto.aplicar({ tipo: 'comodo.apagar', celulas: novas, ...(andar !== null ? { levelId: andar } : {}) });
       else if (!i.criado) {
         const mesmos = Object.values(m.rooms).filter(s => s.function === tipo.funcao).length;
-        i.gesto.aplicar({ tipo: 'comodo.criar', id: i.sala, nome: mesmos ? `${tipo.nome} ${mesmos + 1}` : tipo.nome, funcao: tipo.funcao, piso: { material: tipo.piso, seed: Math.floor(Math.random() * 1e6) }, papel: { material: tipo.papel, seed: Math.floor(Math.random() * 1e6) }, telhado: telhadoPadrao(m, tipo.funcao, novas), celulas: novas });
+        i.gesto.aplicar({ tipo: 'comodo.criar', id: i.sala, nome: mesmos ? `${tipo.nome} ${mesmos + 1}` : tipo.nome, funcao: tipo.funcao, piso: { material: tipo.piso, seed: Math.floor(Math.random() * 1e6) }, papel: { material: tipo.papel, seed: Math.floor(Math.random() * 1e6) }, telhado: telhadoPadrao(m, tipo.funcao, novas), celulas: novas, ...(andar !== null ? { levelId: andar } : {}) });
         i.criado = true;
       } else i.gesto.aplicar({ tipo: 'comodo.pintar', id: i.sala, celulas: novas });
     });
@@ -721,14 +731,17 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   function espalharAqui(p: Ponto): void {
     const i = interacao; if (i?.tipo !== 'espalhar') return;
     const pincel = ponte.pincel().espalhar, conjunto = conjuntoDeEspalhar(pincel.conjunto); if (!conjunto) return;
-    const antes = i.gesto, base = store.documento;
+    const antes = i.gesto, andar = andarAtual(), base = doc();
     if (i.apagar) {
       const receitas = new Set(conjunto.itens.map(x => x.receita));
       for (const o of Object.values(base.props)) if (o.source.kind === 'recipe' && receitas.has(o.source.recipe) && Math.hypot(o.position[0] - p[0], o.position[1] - p[1]) <= pincel.raio) if (!tentar(() => antes.aplicar({ tipo: 'item.remover', colecao: 'props', id: o.id }))) { antes.cancelar(); interacao = null; return; }
       return;
     }
     const novos = espalhar(base, { centro: p, raio: pincel.raio, conjunto: pincel.conjunto, semente: i.semente++ });
-    for (const item of novos) if (!tentar(() => antes.aplicar({ tipo: 'item.adicionar', colecao: 'props', item: item as never }))) { antes.cancelar(); interacao = null; return; }
+    for (const o of novos) {
+      const item = andar !== null ? { ...o, levelId: andar } : o;
+      if (!tentar(() => antes.aplicar({ tipo: 'item.adicionar', colecao: 'props', item: item as never }))) { antes.cancelar(); interacao = null; return; }
+    }
   }
 
   function pintarTerreno(p: Ponto, anterior: Ponto | null): void {
@@ -740,8 +753,9 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     for (const q of pontos) for (const c of celulasDoDisco(q, raio, res, cols, lins)) unicas.set(chaveCel(c[0], c[1]), c);
     if (!unicas.size) return;
     const celulas = [...unicas.values()];
+    const andar = andarAtual();
     const comando = i.presenca
-      ? (i.apagar ? { tipo: 'presenca.apagar' as const, brush: null, celulas } : { tipo: 'presenca.pintar' as const, brush: pincel.presenca.brush, celulas })
+      ? (i.apagar ? { tipo: 'presenca.apagar' as const, brush: null, celulas, ...(andar !== null ? { levelId: andar } : {}) } : { tipo: 'presenca.pintar' as const, brush: pincel.presenca.brush, celulas, ...(andar !== null ? { levelId: andar } : {}) })
       : comandoDoPincelDeTerreno(pincel.terreno, celulas, i.apagar);
     if (!tentar(() => i.gesto.aplicar(comando))) { i.gesto.cancelar(); interacao = null; }
   }
@@ -754,7 +768,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   }
 
   function colocar(e: PointerEvent, p: Ponto): void {
-    const m = doc(), f = ponte.ferramenta(), pincel = ponte.pincel();
+    const m = doc(), f = ponte.ferramenta(), pincel = ponte.pincel(), andar = andarAtual();
     const livre = !m.grid.snap || e.altKey;
     const alvo: Ponto = [encaixar(p[0], m.grid, 0, 0.5, livre), encaixar(p[1], m.grid, 1, 0.5, livre)];
     if (f === 'comodo' || f === 'borracha') { comecarComodo(e, p, f === 'borracha'); return; }
@@ -768,7 +782,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     }
     if (f === 'parede') { const q = pontoDeParede(m, p, undefined, livre); interacao = { tipo: 'parede', ini: q, fim: q }; return; }
     if (f === 'abertura') {
-      const largura = LARGURA_DA_ABERTURA[pincel.abertura.tipo], enc = encaixarNaParede(m, p, largura, 0.75, livre);
+      const largura = LARGURA_DA_ABERTURA[pincel.abertura.tipo], enc = encaixarNaParede(m, p, largura, 0.75, livre, andar);
       if (!enc) { ponte.aviso('Chegue mais perto de uma parede.'); return; }
       const abertura: Abertura = { id: novoIdEntidade('a'), wallId: enc.parede.id, at: enc.at, width: largura, kind: pincel.abertura.tipo, state: 'closed', material: 'madeira.media', som: null, swing: enc.lado === 1 ? 'a' : 'b' };
       const nome = { door: 'Porta', window: 'Janela', arch: 'Arco', secret: 'Porta secreta' }[abertura.kind];
@@ -779,19 +793,19 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       const receita = ACERVO.item(pincel.objeto.item); if (!receita) { ponte.aviso('Escolha um objeto na biblioteca.'); return; }
       const sementeDoObjeto = sementeAtual(), fonte = ACERVO.fonte(receita.id, sementeDoObjeto, pincel.objeto.params);
       if (receita.tipo === 'parede') {
-        const l = typeof pincel.objeto.params.largura === 'number' ? pincel.objeto.params.largura : receita.pegada[0], enc = encaixarObjetoDeParede(m, p, l, livre);
+        const l = typeof pincel.objeto.params.largura === 'number' ? pincel.objeto.params.largura : receita.pegada[0], enc = encaixarObjetoDeParede(m, p, l, livre, andar);
         if (!enc) { ponte.aviso('Objetos de parede vão na face de um cômodo: aproxime-se de uma parede por dentro.'); return; }
-        const item = novoObjeto(enc.ponto, { source: fonte, elevation: 'wall', wall: { wallId: enc.parede.id, at: enc.at, face: 'inner' }, roomId: enc.roomId, blocks: { move: false, sight: false }, castsShadow: false });
+        const item = novoObjeto(enc.ponto, { source: fonte, elevation: 'wall', wall: { wallId: enc.parede.id, at: enc.at, face: 'inner' }, roomId: enc.roomId, blocks: { move: false, sight: false }, castsShadow: false, ...(andar !== null ? { levelId: andar } : {}) });
         if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item: item as never }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, enc.ponto); novaSemente(); }
         return;
       }
-      const item = novoObjeto(alvo, { source: fonte, rotation: pincel.objeto.rotacao, ...(receita.submerso ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : {}) });
+      const item = novoObjeto(alvo, { source: fonte, rotation: pincel.objeto.rotacao, ...(receita.submerso ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : {}), ...(andar !== null ? { levelId: andar } : {}) });
       if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item: item as never }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, alvo); novaSemente(); }
       return;
     }
     if (f === 'luz') {
       const preset = presetDeLuz(pincel.luz.preset); if (!preset) return;
-      const item = novaLuz(alvo, camposDoPreset(preset, pincel.luz.direcao));
+      const item = novaLuz(alvo, { ...camposDoPreset(preset, pincel.luz.direcao), ...(andar !== null ? { levelId: andar } : {}) });
       if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'lights', item: item as never }, { rotulo: `Pôr ${preset.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'lights', id: item.id }]); ponte.aoColocar(preset.nome, alvo); }
       return;
     }
@@ -949,7 +963,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       if (!i.gesto) { if (Math.hypot(tx - i.x0, ty - i.y0) <= LIMIAR_ARRASTO) return; i.gesto = store.iniciarGesto('Mover abertura'); }
       const a = m.openings[i.id]; if (!a) return;
       const livre = !m.grid.snap || e.altKey;
-      const enc = encaixarNaParede(m, ponteiro, a.width, 1.2, livre);
+      const enc = encaixarNaParede(m, ponteiro, a.width, 1.2, livre, andarAtual());
       if (enc && (enc.parede.id !== a.wallId || Math.abs(enc.at - a.at) > 1e-6)) { try { i.gesto.aplicar({ tipo: 'abertura.atualizar', id: i.id, patch: { wallId: enc.parede.id, at: enc.at } }); } catch { /* ali não cabe: fica onde estava */ } }
     } else if (i.tipo === 'projetor') {
       const c0 = i.caixa0;
@@ -1055,8 +1069,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     } else if (i.tipo === 'terreno' || i.tipo === 'espalhar') { if (cancelado) i.gesto.cancelar(); else i.gesto.concluir(); }
     else if (i.tipo === 'parede' && !cancelado) {
       if (Math.hypot(i.fim[0] - i.ini[0], i.fim[1] - i.ini[1]) >= 0.25) {
-        const tipo = ponte.pincel().parede.tipo, id = novoIdEntidade('w');
-        if (tentar(() => store.executar({ tipo: 'parede.adicionar', parede: { id, path: [i.ini, i.fim], height: tipo === 'wall' ? 2.6 : tipo === 'cliff' ? 3 : 1.1, thickness: tipo === 'wall' ? 0.2 : tipo === 'cliff' ? 0.4 : 0.14, material: tipo === 'cliff' ? 'rocha.cinza' : 'parede.topo', kind: tipo, blocks: { move: true, sight: tipo === 'wall', light: tipo === 'wall' }, drop: tipo === 'cliff' ? 'b' : null } }, { rotulo: 'Desenhar parede' }))) { ponte.definirSelecao([{ colecao: 'walls', id }]); ponte.aoColocar('Parede', i.fim); }
+        const tipo = ponte.pincel().parede.tipo, id = novoIdEntidade('w'), andar = andarAtual();
+        if (tentar(() => store.executar({ tipo: 'parede.adicionar', parede: { id, path: [i.ini, i.fim], height: tipo === 'wall' ? 2.6 : tipo === 'cliff' ? 3 : 1.1, thickness: tipo === 'wall' ? 0.2 : tipo === 'cliff' ? 0.4 : 0.14, material: tipo === 'cliff' ? 'rocha.cinza' : 'parede.topo', kind: tipo, blocks: { move: true, sight: tipo === 'wall', light: tipo === 'wall' }, drop: tipo === 'cliff' ? 'b' : null, ...(andar !== null ? { levelId: andar } : {}) } }, { rotulo: 'Desenhar parede' }))) { ponte.definirSelecao([{ colecao: 'walls', id }]); ponte.aoColocar('Parede', i.fim); }
       }
     }
     camadaSuja = true; cursor();
@@ -1226,7 +1240,10 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     redesenhar: () => { redesenharTudo(); },
     redesenharPecas: () => { cena.redesenharPecas(); camadaSuja = true; },
     diagnosticoDosTelhados: () => cena.diagnosticoDosTelhados(),
-    atualizarSobreposicoes: () => { camadaSuja = true; cena.definirVista(ponte.vista?.() ?? 'construir'); aplicarAcabamento(); },
+    atualizarSobreposicoes: () => {
+      if (ultimoAndar !== andarAtual() || ultimoConstruir !== ctxAndar().construir) { redesenharTudo(); return; }
+      camadaSuja = true; cena.definirVista(ponte.vista?.() ?? 'construir'); aplicarAcabamento();
+    },
     relampagoAgora: () => cena.relampagoAgora(),
     definirDuracaoDaTransicao: ms => { duracaoDaTransicao = Math.max(0, ms); },
     dispararEvento: e => { eventos.disparar(e, performance.now()); },

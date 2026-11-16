@@ -2436,3 +2436,33 @@ body.projetor { overflow: hidden; background: #000; }
 .ajustar-telhado-corpo { display: flex; flex-direction: column; gap: 4px; }
 .chips-detalhes { display: flex; flex-wrap: wrap; gap: 4px 8px; }
 .chip-detalhe { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--texto); cursor: pointer; }
+
+/* ---- Seletor de andares (multi-nível) ---- */
+.seletor-de-andar { position: absolute; top: 12px; left: 12px; z-index: 24; display: flex; flex-direction: column; gap: 4px; user-select: none; }
+.andar-gatilho, .andar-menu-novo, .painel-andares { background: rgba(14, 15, 23, 0.88); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--linha-forte); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45); color: var(--texto); }
+.andar-gatilho { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; font: 700 11px var(--corpo); letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; }
+.andar-gatilho:hover { border-color: var(--acento); color: #fff; }
+.andar-menu-novo { display: flex; flex-direction: column; border-radius: 8px; padding: 4px; min-width: 140px; }
+.andar-menu-novo button { text-align: left; padding: 6px 8px; border-radius: 5px; font: 600 12px var(--corpo); color: var(--texto); }
+.andar-menu-novo button:hover { background: var(--superficie-2); color: #fff; }
+.painel-andares { border-radius: 8px; padding: 5px; min-width: 168px; max-width: 230px; }
+.andares-lista { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow-y: auto; }
+.andar-linha { display: flex; align-items: center; gap: 2px; border-radius: 5px; padding: 2px 4px; }
+.andar-linha:hover { background: rgba(255, 255, 255, 0.06); }
+.andar-linha.ativo { background: var(--acento-suave); box-shadow: inset 0 0 0 1px var(--acento); }
+.andar-nome { flex: 1; display: flex; align-items: center; gap: 6px; text-align: left; font: 600 12px var(--corpo); color: var(--texto); padding: 3px 2px; min-width: 0; }
+.andar-linha.ativo .andar-nome { color: #fff; }
+.andar-ordem { display: inline-grid; place-items: center; min-width: 20px; height: 18px; padding: 0 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); font: 700 10px var(--corpo); color: var(--apagado); }
+.andar-linha.ativo .andar-ordem { background: var(--acento); color: var(--acento-texto); }
+.andar-input { flex: 1; background: var(--superficie); border: 1px solid var(--acento); border-radius: 4px; color: #fff; font: 600 12px var(--corpo); padding: 3px 6px; min-width: 0; }
+.andar-acoes { display: inline-flex; gap: 2px; }
+.andar-btn { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 4px; color: var(--apagado); font-size: 12px; }
+.andar-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.andar-btn.perigo:hover { color: var(--perigo); }
+.andar-confirmar { margin-top: 4px; padding: 6px; border-radius: 5px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.4); font: 600 11px var(--corpo); display: flex; flex-direction: column; gap: 5px; }
+.andar-confirmar-botoes { display: flex; gap: 6px; }
+.andar-confirmar-botoes button { padding: 3px 8px; border-radius: 4px; font: 600 11px var(--corpo); background: var(--superficie-2); color: var(--texto); }
+.andar-confirmar-botoes .andar-btn-confirmar { background: var(--perigo); color: #fff; }
+.andar-rodape { display: flex; gap: 4px; margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--linha); }
+.andar-rodape button { flex: 1; padding: 4px 6px; border-radius: 4px; font: 700 10.5px var(--corpo); color: var(--apagado); border: 1px solid transparent; }
+.andar-rodape button:hover { background: var(--superficie-2); color: #fff; border-color: var(--linha-forte); }
