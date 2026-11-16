@@ -14,6 +14,8 @@ import { pintarFacePixel } from './estilos/faces-pixel.ts';
 import { RES_DA_TEXTURA_DE_AGUA, leitoDaAgua, texturaDeAgua } from './agua.ts';
 import { orientacaoDominante } from './orientacao.ts';
 import { descreverReceita } from './receitas/index.ts';
+import { fatorDeProfundidade } from '../domain/relevo.ts';
+import { ladoBaixo } from './escarpa.ts';
 
 export interface Assado { tela: Tela; /** Canto superior esquerdo da tela, em metros (no espaço local do objeto, ou do mundo para cômodos e terreno). */ origem: Ponto; res: number; /** Terreno com água: profundidade (R) e margem (G) das camadas de água, a `res` px/m, do mesmo tamanho do mapa. */ agua?: { tela: Tela; res: number } }
 
@@ -156,12 +158,41 @@ export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRas
 export interface EntradaDeTerreno {
   largura: number; altura: number; resolucao: number; base: string;
   camadas: { material: string; celulas: Faixa[]; /** Correnteza (só em camadas de água). */ flow?: { angle: number; speed: number } | null }[];
+  /** Patamares abaixo do topo (em metros) para escurecer e enevoar, e degraus < 1 m. */
+  relevo?: {
+    faixas: { altura: number; celulas: Faixa[] }[];
+    topo: number;
+    neblina: string;
+    degraus?: { caminhos: Ponto[][]; drops: ('a' | 'b')[] }[];
+  };
 }
 
 /** O WebKitGTK não tem `filter` no contexto 2D (nem no OffscreenCanvas). */
 const temFiltro = (c: Contexto): boolean => 'filter' in c;
 
 const suave = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+
+/** Máscara alfa desfocada (0,5 m) com bordas do mapa estendidas para camadas e relevo. */
+function mascaraSuavizada(celulas: readonly Faixa[], resolucao: number, W: number, Hh: number, res: number): Uint8ClampedArray {
+  const mascara = criarTela(W, Hh), mc = contextoDe(mascara);
+  mc.setTransform(res, 0, 0, res, 0, 0); mc.fillStyle = '#fff';
+  for (const [y, x0, n] of celulas) mc.fillRect(x0 * resolucao, y * resolucao, n * resolucao, resolucao);
+  const blur = Math.max(1, 0.5 * res), P = Math.ceil(blur * 3), estendida = criarTela(W + 2 * P, Hh + 2 * P), ec = contextoDe(estendida), M = mascara as CanvasImageSource;
+  ec.drawImage(M, P, P);
+  ec.drawImage(M, 0, 0, 1, Hh, 0, P, P, Hh); ec.drawImage(M, W - 1, 0, 1, Hh, P + W, P, P, Hh);
+  ec.drawImage(estendida as CanvasImageSource, 0, P, W + 2 * P, 1, 0, 0, W + 2 * P, P); ec.drawImage(estendida as CanvasImageSource, 0, P + Hh - 1, W + 2 * P, 1, 0, P + Hh, W + 2 * P, P);
+  if (temFiltro(ec)) {
+    const mac = contextoDe(criarTela(W + 2 * P, Hh + 2 * P));
+    mac.filter = `blur(${blur}px)`; mac.drawImage(estendida as CanvasImageSource, 0, 0);
+    return mac.getImageData(P, P, W, Hh).data;
+  }
+  const bruta = ec.getImageData(0, 0, W + 2 * P, Hh + 2 * P);
+  desfocarAlfa(bruta.data, bruta.width, bruta.height, blur);
+  const recorte = new Uint8ClampedArray(W * Hh * 4);
+  for (let y = 0; y < Hh; y++) recorte.set(bruta.data.subarray(((y + P) * bruta.width + P) * 4, ((y + P) * bruta.width + P + W) * 4), y * W * 4);
+  return recorte;
+}
 
 /** O terreno todo numa tela só. Cada camada tem a borda torcida por ruído (orgânica, não um borrão) e um aro escuro por baixo: a transição automática. */
 export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeRaster): Assado {
@@ -171,25 +202,7 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
   const aguas: { profundidade: Float32Array; binaria: Uint8Array }[] = [];
   e.camadas.forEach((camada, idx) => {
     if (!camada.celulas.length) return;
-    const mascara = criarTela(W, Hh), mc = contextoDe(mascara);
-    mc.setTransform(res, 0, 0, res, 0, 0); mc.fillStyle = '#fff';
-    for (const [y, x0, n] of camada.celulas) mc.fillRect(x0 * e.resolucao, y * e.resolucao, n * e.resolucao, e.resolucao);
-    // O desfoque arredonda a borda; a máscara é estendida além da tela (a última linha e coluna repetidas) para a camada que encosta
-    // na borda do mapa não perder cobertura ali (senão a água ganharia margem e espuma na borda do mapa).
-    const blur = Math.max(1, 0.5 * res), P = Math.ceil(blur * 3), estendida = criarTela(W + 2 * P, Hh + 2 * P), ec = contextoDe(estendida), M = mascara as CanvasImageSource;
-    ec.drawImage(M, P, P);
-    ec.drawImage(M, 0, 0, 1, Hh, 0, P, P, Hh); ec.drawImage(M, W - 1, 0, 1, Hh, P + W, P, P, Hh);
-    ec.drawImage(estendida as CanvasImageSource, 0, P, W + 2 * P, 1, 0, 0, W + 2 * P, P); ec.drawImage(estendida as CanvasImageSource, 0, P + Hh - 1, W + 2 * P, 1, 0, P + Hh, W + 2 * P, P);
-    // Sem `ctx.filter` (WebKitGTK, também no OffscreenCanvas/worker) o desfoque é feito em CPU por `desfocarAlfa`; com ele o caminho é o de sempre.
-    let fonte: Uint8ClampedArray;
-    if (temFiltro(ec)) { const mac = contextoDe(criarTela(W + 2 * P, Hh + 2 * P)); mac.filter = `blur(${blur}px)`; mac.drawImage(estendida as CanvasImageSource, 0, 0); fonte = mac.getImageData(P, P, W, Hh).data; }
-    else {
-      const bruta = ec.getImageData(0, 0, W + 2 * P, Hh + 2 * P);
-      desfocarAlfa(bruta.data, bruta.width, bruta.height, blur);
-      const recorte = new Uint8ClampedArray(W * Hh * 4);
-      for (let y = 0; y < Hh; y++) recorte.set(bruta.data.subarray(((y + P) * bruta.width + P) * 4, ((y + P) * bruta.width + P + W) * 4), y * W * 4);
-      fonte = recorte;
-    }
+    const fonte = mascaraSuavizada(camada.celulas, e.resolucao, W, Hh, res);
     const ruido = valueNoise2D(1000 + idx * 17);
     const material = materialDe(camada.material), macico = material.uso === 'macico', agua = material.uso === 'agua';
     const corpo = new ImageData(W, Hh), aro = new ImageData(W, Hh), binaria = new Uint8Array(pixel || macico || agua ? W * Hh : 0), cobertura = new Uint8Array((macico || agua) && !pixel ? W * Hh : 0), ruidoFino = valueNoise2D(3000 + idx * 31);
@@ -238,6 +251,64 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
     pc.setTransform(1, 0, 0, 1, 0, 0); pc.globalCompositeOperation = 'destination-in'; pc.drawImage(comAlfa(corpo, null) as CanvasImageSource, 0, 0);
     ctx.drawImage(pintada as CanvasImageSource, 0, 0); ctx.setTransform(res, 0, 0, res, 0, 0);
   });
+  if (e.relevo?.faixas.length) {
+    const img = ctx.getImageData(0, 0, W, Hh);
+    const pxDados = img.data;
+    const nr = parseInt(e.relevo.neblina.slice(1, 3), 16), ng = parseInt(e.relevo.neblina.slice(3, 5), 16), nb = parseInt(e.relevo.neblina.slice(5, 7), 16);
+    for (const f of e.relevo.faixas) {
+      const p = fatorDeProfundidade(f.altura, e.relevo.topo);
+      if (p <= 0 || !f.celulas.length) continue;
+      const masc = mascaraSuavizada(f.celulas, e.resolucao, W, Hh, res);
+      const esc = 1 - 0.6 * p, alfaMax = 0.25 * p;
+      for (let k = 0, i = 0; k < pxDados.length; k += 4, i++) {
+        if (!pxDados[k + 3]) continue;
+        const m = masc[k + 3]! / 255;
+        if (m <= 0.01) continue;
+        const x = i % W, y = (i - x) / W;
+        const limiar = pixel ? (BAYER4[(y & 3) * 4 + (x & 3)]! + 0.5) / 16 : 0;
+        const t = pixel ? (m >= 0.5 ? 1 : 0) : m;
+        if (!t) continue;
+        const alfa = pixel
+          ? Math.min(2, Math.floor((alfaMax / 0.125) + (1 - limiar) * 0.999)) * 0.125
+          : alfaMax;
+        const r = pxDados[k]!, g = pxDados[k + 1]!, b = pxDados[k + 2]!;
+        const r2 = (r * (1 - alfa) + nr * alfa) * esc;
+        const g2 = (g * (1 - alfa) + ng * alfa) * esc;
+        const b2 = (b * (1 - alfa) + nb * alfa) * esc;
+        pxDados[k] = Math.round(r * (1 - t) + r2 * t);
+        pxDados[k + 1] = Math.round(g * (1 - t) + g2 * t);
+        pxDados[k + 2] = Math.round(b * (1 - t) + b2 * t);
+      }
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.putImageData(img, 0, 0);
+    ctx.setTransform(res, 0, 0, res, 0, 0);
+  }
+  if (e.relevo?.degraus?.length) {
+    ctx.save();
+    ctx.setTransform(res, 0, 0, res, 0, 0);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (const deg of e.relevo.degraus) {
+      for (let idx = 0; idx < deg.caminhos.length; idx++) {
+        const path = deg.caminhos[idx]!, drop = deg.drops[idx] ?? 'b';
+        if (path.length < 2) continue;
+        const deslocar = (sinal: number) => {
+          ctx.beginPath();
+          for (let i = 0; i < path.length; i++) {
+            const p = path[i]!, pAnt = path[Math.max(0, i - 1)]!, pProx = path[Math.min(path.length - 1, i + 1)]!;
+            const n = ladoBaixo(pAnt, pProx, drop);
+            const x = p[0] + n[0] * sinal, y = p[1] + n[1] * sinal;
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        };
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.28)'; ctx.lineWidth = 0.15; deslocar(0.08);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.32)'; ctx.lineWidth = 0.05; deslocar(-0.05);
+      }
+    }
+    ctx.restore();
+  }
   const dadosDaAgua = texturaDeAgua(aguas, W, Hh, res, e.largura, e.altura);
   if (dadosDaAgua) { const ta = criarTela(dadosDaAgua.width, dadosDaAgua.height); contextoDe(ta).putImageData(dadosDaAgua, 0, 0); return { tela, origem: [0, 0], res, agua: { tela: ta, res: RES_DA_TEXTURA_DE_AGUA } }; }
   return { tela, origem: [0, 0], res };

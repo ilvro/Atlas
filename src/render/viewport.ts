@@ -127,6 +127,7 @@ export interface Viewport {
   aguaAtiva(): boolean;
   /** Quantos objetos de piso já têm a textura pintada (para os testes). */
   objetosPintados(): number;
+  tintDeObjeto(id: string): number | null;
   /** Para os testes: como cada peça está desenhada. */
   diagnosticoDasPecas(): ReturnType<Cena['diagnosticoDasPecas']>;
   diagnosticoDosTelhados(): ReturnType<Cena['diagnosticoDosTelhados']>;
@@ -1123,6 +1124,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     contagemDeCachoeiras: () => cena.contagemDeCachoeiras(),
     aguaAtiva: () => cena.aguaAtiva(),
     objetosPintados: () => cena.objetosPintados(),
+    tintDeObjeto: id => cena.tintDeObjeto(id),
     diagnosticoDasPecas: () => cena.diagnosticoDasPecas(),
     mostrarProposta: previa => { fantasmaDaProposta.mostrar(doc(), previa); camadaSuja = true; },
     contagemDoFantasma: () => fantasmaDaProposta.contagem(),

@@ -11,8 +11,9 @@ import {
   degrausDoRelevo,
 } from '../../src/domain/relevo.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
-import { ladoBaixo } from '../../src/procedural/escarpa.ts';
+import { ladoBaixo, larguraDaFace, FACE_MAXIMA } from '../../src/procedural/escarpa.ts';
 import { ehEscarpaAvulsa } from '../../src/render/entradas.ts';
+import { corDaNeblinaDoRelevo, tintDoRelevo } from '../../src/domain/relevo.ts';
 
 function retanguloDeCelulas(x0: number, y0: number, x1: number, y1: number): [number, number][] {
   const out: [number, number][] = [];
@@ -113,4 +114,16 @@ test('relevo: escarpa herdará material da camada de maciço se existir e sobrev
     celulas: [[1, 1], [1, 2]],
   }]);
   assert.ok(comSala.walls[esc.id], 'recalcularParedes (via cômodo) não remove escarpa de relevo');
+});
+
+test('relevo: larguraDaFace limita em FACE_MAXIMA e tintDoRelevo escurece abaixo do topo e muda com clima', () => {
+  assert.equal(larguraDaFace(25), FACE_MAXIMA);
+  const m = criarMapa({ largura: 20, altura: 20 });
+  const r = aplicarEmCopia(m, [{ tipo: 'relevo.pintar', altura: -25, celulas: retanguloDeCelulas(20, 0, 40, 40) }]);
+  assert.equal(tintDoRelevo(r, [2, 2]), 0xffffff, 'ponto no topo fica sem escurecimento');
+  const tintBaixo = tintDoRelevo(r, [8, 8]);
+  assert.notEqual(tintBaixo, 0xffffff, 'ponto a -25 m ganha tint de profundidade');
+  const outroClima = aplicarEmCopia(r, [{ tipo: 'clima.aplicar', patch: { ambient: { color: '#334477', intensity: 0.4 } } }]);
+  assert.notEqual(corDaNeblinaDoRelevo(outroClima.climate), corDaNeblinaDoRelevo(r.climate));
+  assert.notEqual(tintDoRelevo(outroClima, [8, 8]), tintBaixo);
 });

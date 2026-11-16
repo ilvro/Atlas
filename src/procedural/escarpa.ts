@@ -15,13 +15,14 @@ export interface EntradaDeEscarpa { path: Ponto[]; drop: 'a' | 'b'; altura: numb
 
 export const LARGURA_MINIMA_DA_FACE = 0.4;
 export const FATOR_DA_FACE = 0.35;
+export const FACE_MAXIMA = 6;
 export const SOMBRA_DA_ESCARPA = 0.5;
 /** A aresta clara do topo, um palmo para o lado alto. */
 export const LABIO_DA_ESCARPA = 0.12;
 const MARGEM = 0.25;
 
-/** Largura (m) da face vista de cima: 0,35 × altura, no mínimo 0,4 m. */
-export const larguraDaFace = (altura: number): number => Math.max(LARGURA_MINIMA_DA_FACE, FATOR_DA_FACE * altura);
+/** Largura (m) da face vista de cima: 0,35 × altura, entre 0,4 m e `FACE_MAXIMA`. */
+export const larguraDaFace = (altura: number): number => Math.min(FACE_MAXIMA, Math.max(LARGURA_MINIMA_DA_FACE, FATOR_DA_FACE * altura));
 
 /** O lado baixo de um segmento: `a` é o lado da normal esquerda `(-ty, tx)` do sentido do caminho (a mesma de `swing: 'a'` das portas), `b` o oposto. */
 export function ladoBaixo(a: Ponto, b: Ponto, drop: 'a' | 'b'): Ponto {
