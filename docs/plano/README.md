@@ -66,3 +66,5 @@ Commit: mensagem curta em inglês
 | [comodos-livres.md](comodos-livres.md) | G — cômodos redondos e em polígono, telhado em cone |
 | [andares.md](andares.md) | H — andares, escadas e sessão por andar |
 | [acabamento-do-terreno.md](acabamento-do-terreno.md) | I — edifícios assentados, contato externo, maciço como serra, tempo ao ar livre |
+| [realismo-e-composicao.md](realismo-e-composicao.md) | J — Realismo, rotação, composição e guias (`J1`–`J10`, concluída) |
+| [profundidade-luz-e-assets.md](profundidade-luz-e-assets.md) | K — Profundidade, luz dinâmica, consistência e salto visual 2.5D (`K1`–`K10`, planejada) |

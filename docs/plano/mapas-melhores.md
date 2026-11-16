@@ -79,6 +79,7 @@ Para isso, cinco coisas precisam existir:
 | H — Andares | [andares.md](andares.md) | Gemini | G recomendado (torre redonda de vários andares) |
 | I — Acabamento do terreno e dos edifícios | [acabamento-do-terreno.md](acabamento-do-terreno.md) | Gemini | F1 |
 | J — Realismo, rotação, composição e guias | [realismo-e-composicao.md](realismo-e-composicao.md) | Gemini / Claude | I4 |
+| K — Profundidade, luz dinâmica, consistência e salto visual 2.5D | [profundidade-luz-e-assets.md](profundidade-luz-e-assets.md) | Gemini / Claude | J10 |
 
 **Ordem recomendada:**
 
