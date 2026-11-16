@@ -1,4 +1,7 @@
-import type { MapaAtlas, Ponto } from './mapa.ts';
+import { ACERVO } from '../procedural/acervo.ts';
+import { ehArvore } from './camadas.ts';
+import { pontoNoPoligono } from './formas-de-comodo.ts';
+import type { MapaAtlas, Objeto, Ponto } from './mapa.ts';
 import { centroDaAbertura } from './geometria.ts';
 
 /**
@@ -6,6 +9,16 @@ import { centroDaAbertura } from './geometria.ts';
  * Sem Pixi e sem documento além do que a pergunta precisa: a Fase 7 usa as mesmas funções para a visão das peças.
  */
 export interface Segmento { a: Ponto; b: Ponto }
+
+export interface OclusorDeObjeto {
+  id: string;
+  poligono: Ponto[];
+  segmentos: Segmento[];
+}
+
+export interface OpcoesOclusoresDeObjetos {
+  levelId?: string | null;
+}
 
 /** O vão da abertura deixa passar a luz, a visão ou quem anda? Arco sempre; porta e porta secreta só abertas (a trancada não); janela só a luz. */
 const deixaPassar = (kind: 'door' | 'window' | 'arch' | 'secret', estado: 'closed' | 'open' | 'locked', para: 'luz' | 'visao' | 'movimento'): boolean =>
@@ -108,4 +121,102 @@ export class IndiceDeSegmentos {
     for (let j = Math.floor((o[1] - r) / B); j <= Math.floor((o[1] + r) / B); j++) for (let k = Math.floor((o[0] - r) / B); k <= Math.floor((o[0] + r) / B); k++) for (const i of this.baldes.get(IndiceDeSegmentos.chave(k, j)) ?? []) achados.add(i);
     return [...achados].sort((a, b) => a - b).map(i => this.segmentos[i]!);
   }
+}
+
+const ALTURA_MINIMA_OCLUSOR = 1.6;
+const FATOR_OCTOGONO = Math.SQRT2 - 1;
+
+const RECEITAS_OCLUSORAS_ESTRUTURAIS = new Set([
+  'pilar', 'coluna-arruinada', 'palicada', 'rochedo', 'lareira.pedra', 'lareira.marmore', 'fornalha',
+  'pilha-de-caixotes', 'pilha-de-barris', 'armario', 'armario.metal', 'armario.amostras',
+  'guarda-roupa.liso', 'cristaleira', 'estante', 'prateleira.pocoes', 'confessionario', 'orgao-de-tubos',
+  'jazigo', 'tenda', 'barraca-de-feira', 'conteiner', 'gerador', 'painel.eletrico', 'geladeira',
+]);
+
+const RECEITAS_SEM_OCLUSAO = new Set([
+  'poste.luz', 'lanterna-de-poste', 'lanterna.farol', 'luminaria.chao', 'tocheiro', 'velas-votivas',
+  'braseiro', 'fogueira', 'caldeirao', 'espeto-de-assar', 'alcapao', 'cerca', 'grade.ferro',
+  'balaustrada', 'portao.ferro', 'varal', 'pas.moinho', 'cabideiro', 'espantalho',
+  'navio', 'barco-de-vela', 'guindaste-de-cais',
+]);
+
+const CATEGORIAS_SEM_OCLUSAO = new Set(['camas', 'assentos']);
+
+/** Informa se um objeto de piso deve projetar sombra dinâmica contra fontes de luz. */
+export function objetoBloqueiaLuz(o: Objeto): boolean {
+  if (o.blocks.light !== undefined) return o.blocks.light;
+  if (o.blocks.sight) return true;
+  const id = ACERVO.idDaFonte(o.source);
+  if (RECEITAS_SEM_OCLUSAO.has(id) || id.startsWith('tocha') || id.startsWith('escada')) return false;
+  const item = ACERVO.item(id);
+  if (ehArvore(id) || item?.tags.includes('arvore') || item?.tags.includes('arbusto')) return false;
+  if (item && CATEGORIAS_SEM_OCLUSAO.has(item.categoria)) return false;
+  if (RECEITAS_OCLUSORAS_ESTRUTURAIS.has(id) && o.scale >= 0.7) return true;
+  return ACERVO.alturaDaFonte(o.source) * o.scale >= ALTURA_MINIMA_OCLUSOR;
+}
+
+/** Constrói segmentos fechados a partir dos vértices de um polígono simples. */
+export function segmentosDoPoligono(poligono: readonly Ponto[]): Segmento[] {
+  const segs: Segmento[] = [];
+  for (let i = 0; i < poligono.length; i++) {
+    segs.push({ a: poligono[i]!, b: poligono[(i + 1) % poligono.length]! });
+  }
+  return segs;
+}
+
+function poligonoDoObjeto(o: Objeto): Ponto[] {
+  const [pw, ph] = ACERVO.pegadaDaFonte(o.source);
+  const w = pw * o.scale, h = ph * o.scale;
+  if (w <= 0 || h <= 0) return [];
+  const rx = w / 2, ry = h / 2;
+  const quadrado = Math.max(w, h) <= Math.min(w, h) * 1.25;
+  const locais: readonly Ponto[] = quadrado
+    ? [
+        [-rx, -ry * FATOR_OCTOGONO], [-rx * FATOR_OCTOGONO, -ry], [rx * FATOR_OCTOGONO, -ry], [rx, -ry * FATOR_OCTOGONO],
+        [rx, ry * FATOR_OCTOGONO], [rx * FATOR_OCTOGONO, ry], [-rx * FATOR_OCTOGONO, ry], [-rx, ry * FATOR_OCTOGONO],
+      ]
+    : [[-rx, -ry], [rx, -ry], [rx, ry], [-rx, ry]];
+  const c = Math.cos(o.rotation), s = Math.sin(o.rotation), [cx, cy] = o.position;
+  return locais.map(([u, v]) => [cx + u * c - v * s, cy + u * s + v * c]);
+}
+
+/** Extrai segmentos de oclusão rotacionados e polígonos de auto-contenção para pilares e objetos altos no piso. */
+export function oclusoresDeObjetos(m: Pick<MapaAtlas, 'props'>, opcoes: OpcoesOclusoresDeObjetos = {}): OclusorDeObjeto[] {
+  const nivel = opcoes.levelId ?? null;
+  const saida: OclusorDeObjeto[] = [];
+  for (const o of Object.values(m.props)) {
+    if ((o.levelId ?? null) !== nivel || o.elevation !== 'floor' || o.oculto) continue;
+    if (!objetoBloqueiaLuz(o)) continue;
+    const poligono = poligonoDoObjeto(o);
+    if (poligono.length < 3) continue;
+    saida.push({ id: o.id, poligono, segmentos: segmentosDoPoligono(poligono) });
+  }
+  return saida;
+}
+
+function pontoNaBorda(p: Ponto, poligono: readonly Ponto[], tol = 1e-4): boolean {
+  const tol2 = tol * tol;
+  for (let i = 0; i < poligono.length; i++) {
+    const a = poligono[i]!, b = poligono[(i + 1) % poligono.length]!;
+    const dx = b[0] - a[0], dy = b[1] - a[1], len2 = dx * dx + dy * dy;
+    const u = len2 > 1e-12 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2)) : 0;
+    const px = a[0] + u * dx - p[0], py = a[1] + u * dy - p[1];
+    if (px * px + py * py <= tol2) return true;
+  }
+  return false;
+}
+
+/** Junta segmentos de paredes com os de objetos que não contêm `posLuz` (evita auto-oclusão). */
+export function segmentosParaFonte(
+  posLuz: Ponto,
+  segmentosParedes: readonly Segmento[],
+  oclusoresObj: readonly OclusorDeObjeto[],
+): Segmento[] {
+  if (oclusoresObj.length === 0) return [...segmentosParedes];
+  const saida = [...segmentosParedes];
+  for (const obj of oclusoresObj) {
+    if (pontoNoPoligono(posLuz, obj.poligono) || pontoNaBorda(posLuz, obj.poligono)) continue;
+    for (const seg of obj.segmentos) saida.push(seg);
+  }
+  return saida;
 }
