@@ -56,16 +56,24 @@ export function sombrearMacico(e: EntradaDoMacico): SaidaDoMacico {
   const vor = celulasDeVoronoi({ x: 0, y: 0, w: W / res, h: H / res }, 1.6, s * 7 + 3), rTorce = valueNoise2D(s * 13 + 6), rFalha = valueNoise2D(s * 13 + 7);
 
   const dist = distanciaAMargem(dentro, W, H, res, ALTURA_DO_MACICO + 0.5);
+  const distLonga = distanciaAMargem(dentro, W, H, res, 30);
   const suavizada = desfocar(dist, W, H, Math.max(2, Math.round(0.28 * res)));      // direção da encosta estável: sem raios onde o gradiente gira
+  const suavLonga = desfocar(distLonga, W, H, Math.max(4, Math.round(0.9 * res)));
   const ativo = (i: number) => dentro[i]! > 0 || (alfa !== null && alfa[i]! > 0);
 
   // 1. Altura bruta (0 a 1) e a mesma em patamares (`z`: patamar + um declive leve na face).
   const bruta = new Float32Array(n), z = new Float32Array(n);
   for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++) {
     if (!ativo(i)) continue;
-    const mx = x / res, my = y / res, d = dist[i]!;
+    const mx = x / res, my = y / res, d = dist[i]!, dl = distLonga[i]!;
     const interior = suave(0.2, 1.2, d);
-    const b = 0.1 + Math.min(d, ALTURA_DO_MACICO) / ALTURA_DO_MACICO * 0.55 + (fbm(rGrande, mx * 0.34, my * 0.34, 3) - 0.5) * 1.15 * interior + (fbm(rCorte, mx * 1.25, my * 1.25, 2) - 0.5) * 0.3 + (fbm(rCorte, mx * 5, my * 5, 1) - 0.5) * 0.04;      // lóbulos grandes, não serrilhado
+    const pesoSerra = suave(3.0, 10.0, dl);
+    const crista = 0.25 * suave(2.5, 25, dl);
+    const loboBorda = (fbm(rGrande, mx * 0.34, my * 0.34, 3) - 0.5) * 1.15 * interior;
+    const loboSerra = (fbm(rGrande, mx * 0.1, my * 0.1, 3) - 0.5) * 0.55;
+    const lobos = loboBorda * (1 - pesoSerra) + loboSerra * pesoSerra;
+    const corte = ((fbm(rCorte, mx * 1.25, my * 1.25, 2) - 0.5) * 0.3 + (fbm(rCorte, mx * 5, my * 5, 1) - 0.5) * 0.04) * (1 - 0.8 * pesoSerra);
+    const b = 0.1 + Math.min(d, ALTURA_DO_MACICO) / ALTURA_DO_MACICO * 0.55 + crista + lobos + corte;
     const bb = limitar(b, 0, 0.999); bruta[i] = bb;
     const f = bb * N, nivel = Math.floor(f);
     z[i] = nivel + (pixel ? 0 : (f - nivel) * 0.3) + 1;                 // fora da rocha z = 0: a borda externa também pega luz e sombra
@@ -79,7 +87,7 @@ export function sombrearMacico(e: EntradaDoMacico): SaidaDoMacico {
 
   for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++) {
     if (!ativo(i)) continue;
-    const mx = x / res, my = y / res, nivel = Math.floor(z[i]!) - 1, d = dist[i]!;
+    const mx = x / res, my = y / res, nivel = Math.floor(z[i]!) - 1, d = dist[i]!, dl = distLonga[i]!;
     let sombraLuz: number, sMacia = 0, sLit = 0, revela = 0;                                         // > 0 claro, < 0 escuro
     let tinto = 0;                                                 // quanto vai para o nanquim (0 a 1)
     const alto = tons[limitar(nivel, 0, N - 1)]!;
@@ -109,6 +117,18 @@ export function sombrearMacico(e: EntradaDoMacico): SaidaDoMacico {
         let sn = 0, sr = 0;
         for (const t of [-0.32, -0.16, 0, 0.16, 0.32]) { sn += rEstria((mx + ux * t) * 15, (my + uy * t) * 15); sr += rRevela((mx + ux * t) * 9, (my + uy * t) * 9); }
         estria = (sn / 5 - 0.5) * 3.2 * w; revela = suave(0.5, 0.68, sr / 5) * w;
+      } else if (dl > 12) {
+        // No miolo profundo das serras, estrias longas descem das cumeadas para as bordas pelo gradiente de `distLonga`.
+        const kL = kg * 2;
+        const glx = suavLonga[y * W + px(x + kL)]! - suavLonga[y * W + px(x - kL)]!;
+        const gly = suavLonga[py(y + kL) * W + x]! - suavLonga[py(y - kL) * W + x]!;
+        const gnL = Math.hypot(glx, gly), glL = gnL * res / (2 * kL);
+        if (gnL > 1e-5 && glL > 0.15) {
+          const ux = glx / gnL, uy = gly / gnL, w = suave(12, 16, dl) * suave(0.15, 0.6, glL);
+          let sn = 0;
+          for (const t of [-0.96, -0.48, 0, 0.48, 0.96]) sn += rEstria((mx + ux * t) * 3.5, (my + uy * t) * 3.5);
+          estria = (sn / 5 - 0.5) * 2.4 * w;
+        }
       }
       const grao = (fbm(rGrao, mx * 5, my * 5, 3) - 0.5) * 0.3 + (fbm(rGrao, mx * 17 + 30, my * 17, 2) - 0.5) * 0.42 * suave(0.05, 0.4, d) + (hash2D(x, y, s) - 0.5) * 0.05;
       sombraLuz = lit * 0.8 + macia * 0.7 + larga * 0.35 + faceta + estria * 0.22 + grao - fenda * 0.8;

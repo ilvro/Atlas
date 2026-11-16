@@ -136,3 +136,30 @@ test('I2: parede externa ganha sombra de contato com sol desligado, mas sem somb
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test('I3: maciço grande no navegador pinta cumeada e serra sem erros', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+
+  await sessao(page, `(s) => {
+    s.store.executar({ tipo: "limites.atualizar", largura: 48, altura: 36 });
+    s.store.executar({ tipo: "terreno.base", material: "neve" });
+    s.store.executar({ tipo: "clima.aplicar", patch: { preset: "tarde", time: "12:00", ambient: { color: "#ffffff", intensity: 0.95 }, sun: null } });
+    s.store.executar({ tipo: "acabamento.atualizar", patch: { preset: "nenhum", texture: 0, vignette: 0, saturation: 1, grain: 0, tint: "#ffffff" } });
+    const res = s.doc.value.terrain.resolution;
+    const x0 = Math.round(6 / res), x1 = Math.round(42 / res);
+    const y0 = Math.round(4 / res), y1 = Math.round(32 / res);
+    const cels = [];
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) cels.push([x, y]);
+    s.store.executar({ tipo: "terreno.pintar", material: "rocha.nevada", celulas: cels, suavizar: false });
+  }`);
+
+  await page.evaluate(() => (window as unknown as JanelaAtlas).__atlas.viewport()!.enquadrar());
+  await esperarPintura(page);
+
+  const encosta = await brilho(page, [6.4, 16], [7.2, 20]);
+  const cumeada = await brilho(page, [22, 16], [26, 20]);
+  assert.ok(cumeada > encosta + 8, `cumeada (${cumeada.toFixed(1)}) do maciço grande deve ler mais alta/clara que a encosta (${encosta.toFixed(1)})`);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
