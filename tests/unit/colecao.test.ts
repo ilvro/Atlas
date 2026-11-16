@@ -71,3 +71,16 @@ test('fonteDoPixel: o arquivo manual vence quando o pixelsPerCell é múltiplo i
   for (const ppc of [12, 24, 8, 20]) assert.deepEqual(fonteDoPixel(manual, ppc), { tipo: 'derivada' }, `ppc ${ppc}`);
   assert.deepEqual(fonteDoPixel({}, 16), { tipo: 'derivada' });
 });
+
+test('vista: sprite oblíquo 2.5D exige altura e resolução de 128 a 256 px/m; topo e ausente seguem como antes', () => {
+  assert.equal(validarColecao(catalogo(
+    gerado('casa:a', { vista: 'topo' }),
+    achado('casa:b'),
+    { ...achado('casa:c'), vista: 'obliqua', altura: 0.6 },
+    { ...achado('casa:d'), vista: 'obliqua', altura: 0.9, res: 256 },
+  )).length, 4);
+  recusa([{ ...achado('casa:a'), vista: 'isometrica' }], /vista deve ser/);
+  recusa([{ ...achado('casa:a'), vista: 'obliqua' }], /precisa de altura/);
+  recusa([{ ...achado('casa:a'), vista: 'obliqua', altura: 1, res: 64 }], /entre 128 e 256/);
+  recusa([{ ...achado('casa:a'), vista: 'obliqua', altura: 1, res: 512 }], /entre 128 e 256/);
+});

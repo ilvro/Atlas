@@ -69,7 +69,7 @@ Comparando as referências do *Farol de OSNI* e das duas casas externas com o re
 | [K7](#k7--curva-não-linear-de-profundidade-e-render-de-rampasdegraus-no-relevo) | Etapa 3 · Relevo & Penhascos Dramáticos | Curva não-linear de neblina em `relevo.ts` e textura visível para `degraus < 1 m` em `assar.ts` | K6 | ✅ |
 | [K8](#k8--paliçada-25d-robusta-e-massa-visual-de-paredes) | Etapa 4 · Escala, Materialidade & Salto 2.5D | Paliçada defensiva ~1 m em 2.5D + reforço de massa/profundidade em paredes (`exterior.ts`, `cena.ts`) | — | ✅ |
 | [K9](#k9--polimento-do-raster-procedural-e-escadacaracol-25d) | Etapa 4 · Escala, Materialidade & Salto 2.5D | Reduzir contorno vetorial pesado, ampliar AO em `raster.ts` e refazer `escada.caracol` | K8 | ✅ |
-| [K10](#k10--especificação-e-pack-piloto-25d-em-publiccolecao-e-guias-atualizados) | Etapa 4 · Escala, Materialidade & Salto 2.5D | Padrão 2.5D (~75°) em `public/colecao/` (peças heroicas) + regras de densidade/folga nos guias | K2, K5, K7, K9 | ⬜ |
+| [K10](#k10--especificação-e-pack-piloto-25d-em-publiccolecao-e-guias-atualizados) | Etapa 4 · Escala, Materialidade & Salto 2.5D | Padrão 2.5D (~75°) em `public/colecao/` (peças heroicas) + regras de densidade/folga nos guias | K2, K5, K7, K9 | ✅ |
 
 ---
 
@@ -456,7 +456,7 @@ node --test tests/unit/receitas.test.ts tests/unit/acervo-castelo.test.ts
 
 ---
 
-### K10 — Padrão de sprites 2.5D (~75°) em `public/colecao/` (pack piloto) e guias  ⬜
+### K10 — Padrão de sprites 2.5D (~75°) em `public/colecao/` (pack piloto) e guias  ✅
 
 **Objetivo:** estabelecer a especificação visual do **pack piloto de sprites pintados em 2.5D (~75°)** via `public/colecao/` (`colecao.json`) para os ~12–15 assets heroicos em que ilustração supera desenho vetorial, e atualizar os guias MCP com regras anti-inconsistência e densidade interna.
 

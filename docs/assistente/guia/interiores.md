@@ -9,6 +9,7 @@ Tipos de cômodo e gêneros: `atlas_catalogo { parte: "climas" }` (`tiposDeComod
 - **Cômodos com porte certo:** quarto de 9 a 16 m², sala de 16 a 30 m², cozinha de 9 a 16 m², banheiro de 3 a 6 m², corredor de 1 célula (1,5 m) de largura. Um corredor de 3 m é um salão.
 - **Circulação:** desenhe primeiro o caminho (entrada → corredor ou sala → cômodos). Todo cômodo precisa de porta; os de serviço (cozinha, depósito) têm porta para fora ou para os fundos.
 - **Móveis contra as paredes, centro livre**, a não ser a mesa de jantar e o tapete. Cama com a cabeceira na parede; mesa com cadeiras em volta; nada na frente da porta.
+- **Proporção e densidade:** prefira cômodos compactos de 3 a 5 m por lado. Salão amplo de centro vazio é o defeito mais visível: divida-o com tapete, lareira ou pilares no meio (que também dão sombra às luzes) e agrupe os móveis em conjuntos alinhados às paredes. Interior cheio e próximo lê melhor que um galpão esparso.
 - **Interiores de trabalho cheios** (armazém, oficina, cozinha, laboratório), com fileiras e corredores. Um interior vazio parece inacabado.
 - Janelas nas paredes externas dos cômodos de estar; nenhuma no porão nem no depósito.
 
