@@ -10,7 +10,8 @@ Abre um mapa no Atlas (pela rota, como na galeria) e espera o editor aparecer na
 
 ## atlas_ambiente
 
-Ajusta clima e acabamento do mapa aberto (um passo de desfazer). Presets em atlas_catalogo { parte: "climas" }. "guardarClima" { id, nome } salva no mapa.
+Ajusta clima e acabamento do mapa aberto (um passo de desfazer). Presets em `atlas_catalogo { parte: "climas" }`. `"guardarClima"` `{ id, nome }` salva no mapa.
+- Em exteriores e cenas atmosféricas, ajuste `acabamento` com `glow` (`0.35–0.8`), `vignette` (`0.3–0.5`), `edges` (`{ kind: "clouds" | "fog" | "dark", amount }`) e `grade` opcional, além de `sol.angle` baixo/rasante (`0.65–0.85`) para sombras longas e leitura de relevo dramática.
 
 ## atlas_andares
 
@@ -331,7 +332,7 @@ Parâmetros:
 - `operacoes[].acao`: `'pintar'`, `'apagar'` ou `'relevo'` (exige `altura` de −200 a 200 m; bordas >= 1 m geram penhascos automaticamente e degraus < 1 m viram degraus transponíveis).
 - `operacoes[].forma`: Forma em metros: disco, poligono, faixa, retangulo ou celulas. `irregular` opcional (m).
 
-**Patamar vs. maciço vs. escarpa avulsa:** Use patamar (`acao: "relevo"`) quando há níveis distintos de terreno com sombra de penhasco e névoa de altitude entre eles. Use maciço (`pintar` com material `macico`, como `rocha.caverna`) para massas volumétricas de rocha, paredes de caverna ou afloramentos sobre um mesmo nível. Use escarpa avulsa (`atlas_paredes` `kind: "cliff"`) apenas para ressaltos pontuais ou margens lineares onde não interessa dividir a altitude da área inteira.
+**Patamar vs. maciço vs. escarpa avulsa:** Use patamar (`acao: "relevo"`) quando há níveis distintos de terreno com sombra de penhasco e névoa de altitude entre eles. Use maciço (`pintar` com material `macico`, como `rocha.caverna`) para massas volumétricas de rocha, paredes de caverna ou afloramentos sobre um mesmo nível; em grandes escarpas de contorno ou em bordas do mapa, prefira `macico` (`rocha.*`) + `cliff` em vez de patamares gigantes encostados na margem do mapa. Use escarpa avulsa (`atlas_paredes` `kind: "cliff"`) apenas para ressaltos pontuais ou margens lineares onde não interessa dividir a altitude da área inteira.
 
 Exemplo de platô com vale (vila a 0 m, mata a −25 m com `irregular: 1.5`, trilha descendo em degraus de 0,8 m):
 ```json

@@ -31,7 +31,7 @@ Antes de qualquer chamada, faça o projeto com `plataforma_guia projetar` (brief
 
 ### Confira com os olhos depois de cada bloco
 
-Depois de cada bloco, chame `atlas_ver_mapa` (mapa inteiro, ou só uma `caixa` [x0, y0, x1, y1] em metros para olhar um detalhe de perto; passe `andar` para conferir outro pavimento sem perder o ativo) e compare com a intenção. Corrija o que destoa antes de seguir. Mapas montados sem olhar a imagem saem errados: massas fora de lugar, objetos minúsculos, rotações trocadas. Quando uma escrita responder "nada mudou", confira as coordenadas na imagem. Depois de levantar edifícios, confira tanto `vista: "planta"` (interiores) quanto `vista: "telhados"` (coberturas de fora). No fim, rode `atlas_revisar` e passe pela conferência do passo 8 de `projetar`.
+Depois de cada bloco, chame `atlas_ver_mapa` (mapa inteiro, ou só uma `caixa` [x0, y0, x1, y1] em metros para olhar um detalhe de perto; passe `andar` para conferir outro pavimento sem perder o ativo) e compare com a intenção. Corrija o que destoa antes de seguir. Mapas montados sem olhar a imagem saem errados: massas fora de lugar, objetos minúsculos, rotações trocadas. Quando uma escrita responder "nada mudou", confira as coordenadas na imagem. Depois de levantar edifícios e antes de `atlas_salvar`, confira tanto `vista: "planta"` quanto `vista: "telhados"` inspecionando os **4 quadrantes externos** do mapa: proporção realista das casas, variedade de ângulos e formas, vegetação/rochedos nos arredores e profundidade com luz e acabamento. No fim, rode `atlas_revisar` e passe pela conferência do passo 8 de `projetar`.
 
 ### Construções em vários andares
 

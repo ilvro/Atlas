@@ -31,6 +31,7 @@ Portes típicos: cabana de 15 a 30 m² (1 ou 2 cômodos); casa de família de 35
 - Gire as plantas: a frente vira para a rua, não para o norte do mapa.
 - Telhados (`telhado`): 1 estilo dominante na região + 1 ou 2 variações; edifícios especiais com estilo próprio (`igreja`, `torre`, `celeiro`). Lista em `atlas_catalogo { parte: "telhado" }`.
 - **Composição do mapa:** as massas grandes (mata, rocha, água, a própria vila) **saem pela borda**; prefira diagonais; ocupe 60 a 75% do retângulo. Um oval de coisas no meio, com margem igual dos quatro lados, é o sinal de mapa amador.
+- **Profundidade em camadas:** alterne ao menos 2 a 3 degraus de altura (via `relevo` em patamares ou `rocha.*` maciço + `cliff` sequencial); nunca deixe apenas um plano liso entre a vila/caminho e o abismo ou encosta.
 
 ## 5. Identidade
 
@@ -45,16 +46,22 @@ Dê a cada edifício pelo menos **um traço** que só ele tem: anexo, alpendre, 
 
 ## 7. Luz e clima
 
-Poucas fontes com propósito (lareira, tocha na porta, lanterna de poste na praça). Escolha o clima pela cena, não pelo padrão; à noite, ambiente baixo e poças de luz quente.
+Poucas fontes com propósito (lareira, tocha na porta, lanterna de poste na praça). Escolha o clima pela cena, nunca deixe o mapa exterior no acabamento cru (`neutro` sem `glow`/`edges`); à noite, use ambiente baixo e poças de luz quente.
+
+| Cena | `sol.angle` | `glow` | `vignette` | `edges` | Notas |
+| --- | --- | --- | --- | --- | --- |
+| Exterior frio / nevado | `0.65–0.85` (rasante) | `0.35–0.55` | `0.35–0.48` | `clouds` ou `fog` (`0.35–0.5`) | Sombras longas azuladas; neve 0.25–0.45 |
+| Noturno / ravina | `0.7–0.8` | `0.45–0.8` | `0.3–0.5` | `dark` ou `fog` (`0.5–0.7`) | `ambient` azulado frio + tochas `#ffa842` |
+| Gruta / masmorra | `null` (ou baixo fora) | `0.4–0.65` | `0.4–0.55` | `dark` (`0.5–0.7`) | Contraste entre tochas quentes e `ambient` frio/escuro |
 
 ## 8. Conferir antes de entregar
 
-Depois de cada bloco, `atlas_ver_mapa` (a captura mostra a planta, sem telhados). No fim, responda a cada pergunta olhando a imagem:
+Depois de cada bloco, `atlas_ver_mapa` (conferindo tanto `vista: "planta"` quanto `vista: "telhados"`). No fim, responda a cada pergunta olhando a imagem:
 
 1. Os portes variam? Há um dominante? Nenhuma sequência de 3 iguais?
 2. Todo edifício tem forma própria, porta para fora, telhado (menos o que é ao ar livre) e um traço de identidade?
 3. Todo interior tem função e mobília? Nenhum cômodo vazio sem razão?
 4. Algo está em grade mecânica (lápides, árvores, caixas)?
-5. As massas saem pela borda? Os caminhos ligam as portas?
-6. A escala está certa (árvores de 3 a 8 m, porta de 1 m)?
+5. As massas saem pela borda, os **4 quadrantes externos** têm vida/relevo e há 2–3 degraus de profundidade? Os caminhos ligam as portas?
+6. A escala está certa (árvores de 3 a 8 m, porta de 1 m) e o acabamento tem `glow`, `edges` e direção de `sol` coerente?
 7. Se houver referência: liste os **5 a 8 traços marcantes** dela e confira um por um. Diga ao mestre os que ficaram de fora e por quê.
