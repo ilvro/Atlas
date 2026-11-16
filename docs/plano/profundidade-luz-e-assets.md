@@ -67,7 +67,7 @@ Comparando as referências do *Farol de OSNI* e das duas casas externas com o re
 | [K5](#k5--sombras-dinâmicas-de-objetospilares-e-tokens-em-mapa-de-luzts) | Etapa 2 · Oclusão & Iluminação Dinâmica | Conectar oclusão de objetos altos e tokens no `MapaDeLuz` (efeito lanterna do Farol de OSNI) | K3, K4 | ✅ |
 | [K6](#k6--escarpa-oblíqua-profunda-e-oclusão-de-base-independente-do-sol) | Etapa 3 · Relevo & Penhascos Dramáticos | Face mais larga (`escarpa.ts`) + oclusão basal contínua independente do ângulo solar | — | ✅ |
 | [K7](#k7--curva-não-linear-de-profundidade-e-render-de-rampasdegraus-no-relevo) | Etapa 3 · Relevo & Penhascos Dramáticos | Curva não-linear de neblina em `relevo.ts` e textura visível para `degraus < 1 m` em `assar.ts` | K6 | ✅ |
-| [K8](#k8--paliçada-25d-robusta-e-massa-visual-de-paredes) | Etapa 4 · Escala, Materialidade & Salto 2.5D | Paliçada defensiva ~1 m em 2.5D + reforço de massa/profundidade em paredes (`exterior.ts`, `cena.ts`) | — | ⬜ |
+| [K8](#k8--paliçada-25d-robusta-e-massa-visual-de-paredes) | Etapa 4 · Escala, Materialidade & Salto 2.5D | Paliçada defensiva ~1 m em 2.5D + reforço de massa/profundidade em paredes (`exterior.ts`, `cena.ts`) | — | ✅ |
 | [K9](#k9--polimento-do-raster-procedural-e-escadacaracol-25d) | Etapa 4 · Escala, Materialidade & Salto 2.5D | Reduzir contorno vetorial pesado, ampliar AO em `raster.ts` e refazer `escada.caracol` | K8 | ⬜ |
 | [K10](#k10--especificação-e-pack-piloto-25d-em-publiccolecao-e-guias-atualizados) | Etapa 4 · Escala, Materialidade & Salto 2.5D | Padrão 2.5D (~75°) em `public/colecao/` (peças heroicas) + regras de densidade/folga nos guias | K2, K5, K7, K9 | ⬜ |
 
@@ -374,7 +374,7 @@ Validar monotonicidade de `fatorDeProfundidade`, preservação de `0` no topo e 
 
 Objetivo: atacar o **Ponto 4** (paliçada minúscula) e o **Ponto 3** (salto de qualidade nas estruturas, escada do farol, mobiliário e arquitetura de sprites 2.5D em `public/colecao/`).
 
-### K8 — Paliçada 2.5D robusta e massa visual de paredes  ⬜
+### K8 — Paliçada 2.5D robusta e massa visual de paredes  ✅
 
 **Objetivo:** dar escala militar real à receita `palicada` (abandonando o visual de bolinhas de `0,45 m`) e enriquecer o volume de borda/topo das paredes em `cena.ts` para reforçar o peso arquitetônico visto nas referências.
 

@@ -286,8 +286,40 @@ export function criarCena(op: OpcoesDaCena): Cena {
       return;
     }
 
+    // Parede cheia: sombra de contato sutil, topo escuro, chanfro claro do lado da luz (noroeste) e aresta escura do
+    // outro, e juntas espaçadas ao longo do topo — massa de alvenaria, não um traço chato de CAD.
+    const t = p.thickness;
+    if (p.kind === 'wall') { trazarTrechos(t * 0.18, t * 0.24); g.stroke({ width: lw(t * 1.15), color: 0x050408, alpha: pixelRes ? 0.3 : 0.2, join: 'miter', cap: 'butt' }); }
     trazarTrechos();
-    g.stroke({ width: lw(p.thickness), color: COR_TOPO, alpha: 1, join: 'miter', cap: 'butt' });
+    g.stroke({ width: lw(t), color: COR_TOPO, alpha: 1, join: 'miter', cap: 'butt' });
+    if (p.kind !== 'wall') return;
+    const fino = pixelRes > 0 && t * pixelRes < 5;      // no Pixel, parede de poucos pixels fica só com o topo
+    if (fino) return;
+    const LUZ: Ponto = [-Math.SQRT1_2, -Math.SQRT1_2];
+    for (const [d0, d1] of trechos) {
+      const pts: Ponto[] = [pontoEm(p, d0)];
+      let acum = 0;
+      for (let i = 0; i + 1 < p.path.length; i++) { acum += Math.hypot(p.path[i + 1]![0] - p.path[i]![0], p.path[i + 1]![1] - p.path[i]![1]); if (acum > d0 && acum < d1) pts.push(p.path[i + 1]!); }
+      pts.push(pontoEm(p, d1));
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const a = pts[i]!, b = pts[i + 1]!, comp = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (comp < 1e-4) continue;
+        const tx = (b[0] - a[0]) / comp, ty = (b[1] - a[1]) / comp;
+        let nx = -ty, ny = tx, face = nx * LUZ[0] + ny * LUZ[1];
+        if (face < 0) { nx = -nx; ny = -ny; face = -face; }      // n aponta para o lado iluminado
+        const lado = (k: number, w: number, cor: number, alfa: number) =>
+          g.moveTo(a[0] + nx * k, a[1] + ny * k).lineTo(b[0] + nx * k, b[1] + ny * k).stroke({ width: lw(w), color: cor, alpha: alfa, cap: 'butt' });
+        lado(t * 0.3, t * 0.16, 0x4a4552, pixelRes ? 1 : 0.35 + 0.45 * face);
+        lado(-t * 0.32, t * 0.14, 0x08070a, pixelRes ? 1 : 0.4 + 0.4 * face);
+        // Juntas: traços curtos através do topo, com espaçamento irregular estável.
+        if (comp < 0.5) continue;
+        let h = Math.abs(Math.round(a[0] * 131 + a[1] * 71)) % 97;
+        for (let d = 0.35 + (h % 7) * 0.04; d < comp - 0.2; d += 0.55 + ((h = (h * 37 + 11) % 97) % 9) * 0.04) {
+          const cx = a[0] + tx * d, cy = a[1] + ty * d;
+          g.moveTo(cx + nx * t * 0.36, cy + ny * t * 0.36).lineTo(cx - nx * t * 0.36, cy - ny * t * 0.36).stroke({ width: lw(Math.max(0.012, t * 0.05)), color: 0x2f2b36, alpha: pixelRes ? 1 : 0.55, cap: 'butt' });
+        }
+      }
+    }
   }
 
   function desenharParedes(m: MapaAtlas): void {

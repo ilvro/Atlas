@@ -18,6 +18,59 @@ function pedra(w: number, h: number, seed: number): Parte[] {
     elipse(-w * 0.2, h * 0.15, w * 0.25, h * 0.18, '#4f7a3a', 0.62, { contorno: false, semSombra: true, detalhe: 3 })];
 }
 
+/**
+ * Paliçada defensiva em 2.5D (a frente olha para +y): toras grossas de pé, com o corpo cilíndrico aparente na face
+ * da frente, ponta cônica de madeira clara cortada a machado, duas travessas amarradas e base de terra socada.
+ * Com `passarela`, um passadiço estreito de tábuas corre atrás das estacas (lado −y).
+ */
+function palicada(w: number, passarela: boolean, seed: number): Parte[] {
+  const r = mulberry32(seed), D = 0.95, frente = D / 2 - 0.06;
+  const n = Math.max(2, Math.round(w / 0.4)), passo = w / n;
+  const partes: Parte[] = [
+    // Base de terra socada e o rastro escuro do pé das estacas.
+    ret(0, frente - 0.1, w, 0.34, '#5b4a3a', 0.04, { raio: 0.12, contorno: false, semSombra: true, suave: true, alfa: 0.85 }),
+    ...Array.from({ length: Math.max(3, Math.round(w * 2.5)) }, () => elipse((r() - 0.5) * w * 0.94, frente - 0.06 + (r() - 0.5) * 0.18, 0.16 + r() * 0.16, 0.08 + r() * 0.06, r() < 0.5 ? '#6b5845' : '#4a3b2e', 0.05, { contorno: false, semSombra: true, suave: true, alfa: 0.7, detalhe: 3 })),
+    ret(0, frente, w, 0.06, '#120c08', 0.06, { raio: 0.03, contorno: false, semSombra: true, alfa: 0.55 }),
+  ];
+  if (passarela) {
+    const py = -D / 2 + 0.14;
+    partes.push(ret(0, py, w, 0.24, 'madeira.media', 1.7, { contorno: 'leve', sombraLeve: true }));
+    for (let x = -w / 2 + 0.4 + r() * 0.1; x < w / 2 - 0.05; x += 0.38 + r() * 0.12) partes.push(ret(x, py, 0.018, 0.24, '#24160c', 1.71, { contorno: false, semSombra: true, detalhe: 3 }));
+    partes.push(ret(0, py - 0.11, w, 0.025, 'madeira.escura', 1.72, { contorno: false, semSombra: true, detalhe: 2 }));
+  }
+  const topoDoCorpo = -0.08;
+  for (let i = 0; i < n; i++) {
+    const lx = -w / 2 + (i + 0.5) * passo + (r() - 0.5) * passo * 0.08;
+    const d = Math.min(0.46, Math.max(0.34, passo * (0.98 + r() * 0.12)));
+    const yt = topoDoCorpo + (r() - 0.5) * 0.06;       // altura irregular das toras
+    const corpo = r() < 0.34 ? 'madeira.escura' : 'madeira.media';
+    const L = 0.22 + r() * 0.1, ponta: [number, number] = [lx + (r() - 0.5) * d * 0.25, yt - L];
+    const hb = frente - yt;
+    partes.push(
+      // Corpo cilíndrico de pé: veio vertical, luz do lado oeste, sombra do lado leste.
+      ret(lx, yt + hb / 2, d, hb, corpo, 2.3, { raio: d * 0.18, dir: Math.PI / 2, contorno: 'leve' }),
+      elipse(lx, frente - 0.01, d * 0.98, d * 0.34, corpo, 2.29, { contorno: 'leve', semSombra: true }),      // base redonda da tora
+      ret(lx - d * 0.25, yt + hb / 2 + 0.01, d * 0.16, hb * 0.9, '#d9ad72', 2.31, { raio: d * 0.08, contorno: false, semSombra: true, suave: true, alfa: 0.5, detalhe: 2 }),
+      ret(lx + d * 0.34, yt + hb / 2, d * 0.22, hb * 0.98, '#120a05', 2.31, { raio: d * 0.1, contorno: false, semSombra: true, suave: true, alfa: 0.6, detalhe: 2 }),
+      ret(lx + d / 2 - 0.006, yt + hb / 2 + 0.02, 0.026, hb * 0.92, '#0b0604', 2.312, { contorno: false, semSombra: true, alfa: 0.85, detalhe: 2 }),      // fresta até a tora vizinha
+      // Ponta cônica: a silhueta inteira projeta a sombra; as duas facetas talhadas vêm por cima.
+      poli([lx - d / 2, yt + 0.02, ponta[0], ponta[1], lx + d / 2, yt + 0.02], 'madeira.clara', 2.88, { contorno: 'leve' }),
+      poli([lx - d / 2, yt + 0.02, ponta[0], ponta[1], lx - d * 0.05, yt + 0.05], '#d9b27a', 2.89, { contorno: false, semSombra: true, detalhe: 2 }),
+      poli([lx - d * 0.05, yt + 0.05, ponta[0], ponta[1], lx + d / 2, yt + 0.02], '#8e6a40', 2.89, { contorno: false, semSombra: true, detalhe: 2 }),
+      // Marcas de machado.
+      ret(lx - d * 0.18, yt - L * 0.35, d * 0.16, 0.012, '#5a3e22', 2.9, { contorno: false, semSombra: true, detalhe: 3 }),
+      ret(lx + d * 0.12, yt - L * 0.2, d * 0.14, 0.012, '#4a321a', 2.9, { contorno: false, semSombra: true, detalhe: 3 }),
+    );
+  }
+  // Duas travessas na face da frente, amarradas a cada tora.
+  for (const ty of [frente - 0.36, frente - 0.14]) {
+    partes.push(ret(0, ty, w - 0.04, 0.075, 'madeira.escura', 2.36, { raio: 0.02, contorno: 'leve', sombraLeve: true }));
+    partes.push(ret(0, ty - 0.02, w - 0.08, 0.018, 'madeira.media', 2.365, { contorno: false, semSombra: true, detalhe: 3 }));
+    for (let i = 0; i < n; i++) partes.push(ret(-w / 2 + (i + 0.5) * passo, ty, 0.06, 0.11, '#2a1d14', 2.37, { raio: 0.01, contorno: false, semSombra: true, detalhe: 3 }));
+  }
+  return partes;
+}
+
 /** O kit exterior: pedras, toco, tronco caído, cerca, poço, banco de jardim, canteiro, poste e lápide (as árvores e arbustos são da coleção). */
 export const RECEITAS_EXTERIORES: Receita[] = [
   { id: 'pedra.pequena', nome: 'Pedra pequena', ...G, funcoes: ['jardim', 'cemiterio'], tags: ['pedra', 'rocha', 'natureza'], pegada: [0.5, 0.4], gerar: p => piso([0.5, 0.4], pedra(0.5, 0.4, p.seed)) },
@@ -30,32 +83,12 @@ export const RECEITAS_EXTERIORES: Receita[] = [
   { id: 'cerca', nome: 'Cerca de madeira', ...G, funcoes: ['jardim'], tags: ['cerca', 'madeira', 'limite'], pegada: [2.0, 0.12],
     campos: [{ id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 2, min: 0.6, max: 6, passo: 0.2 }],
     gerar: p => { const w = num(p, 'largura', 2, 0.6, 6), n = Math.max(2, Math.round(w / 0.28)); return piso([w, 0.12], [ret(0, 0, w, 0.04, 'madeira.media', 0.7, { contorno: 'leve', detalhe: 2 }), ...Array.from({ length: n + 1 }, (_, i) => ret(-w / 2 + (i * w) / n, 0, 0.09, 0.12, 'madeira.escura', 0.9, { raio: 0.01, contorno: 'leve' })), ret(0, 0, w, 0.03, 'madeira.clara', 0.8, { contorno: false, semSombra: true, detalhe: 3 })]); } },
-  { id: 'palicada', nome: 'Paliçada de toras', ...G, funcoes: ['jardim'], tags: ['palicada', 'muro', 'madeira', 'forte', 'defesa', 'limite'], pegada: [2.0, 0.45], altura: 2.4,
-    campos: [{ id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 2, min: 0.8, max: 6, passo: 0.2 }],
-    gerar: p => {
-      const r = mulberry32(p.seed), w = num(p, 'largura', 2, 0.8, 6);
-      const n = Math.max(3, Math.round(w / 0.26)), passo = w / n;
-      const toras: Parte[] = [];
-      for (let i = 0; i < n; i++) {
-        const lx = -w / 2 + (i + 0.5) * passo;
-        const diam = Math.min(0.38, passo * (0.94 + r() * 0.12));
-        const oy = (r() - 0.5) * 0.05;
-        const matTora = i % 3 === 0 ? 'madeira.escura' : 'madeira.media';
-        const z = 1.15 + r() * 0.12;
-        toras.push(
-          elipse(lx, oy, diam, diam * (0.92 + r() * 0.1), matTora, z, { contorno: 'leve' }),
-          elipse(lx - diam * 0.05, oy - diam * 0.05, diam * 0.64, diam * 0.64, 'madeira.clara', z + 0.15, { contorno: false, semSombra: true, detalhe: 2 }),
-          elipse(lx, oy, diam * 0.28, diam * 0.28, 'madeira.media', z + 0.18, { contorno: false, semSombra: true, detalhe: 3 }),
-        );
-      }
-      return piso([w, 0.45], [
-        ret(0, 0, w, 0.14, 'madeira.escura', 0.9, { raio: 0.02, contorno: 'leve', sombraLeve: true }),
-        ret(0, -0.015, Math.max(0.2, w - 0.06), 0.06, 'madeira.media', 0.95, { contorno: false, semSombra: true, detalhe: 2 }),
-        ...toras,
-        ret(-w / 2 + passo * 0.5, 0, 0.08, 0.2, '#9a845c', 1.38, { raio: 0.01, contorno: 'leve', detalhe: 3 }),
-        ret(w / 2 - passo * 0.5, 0, 0.08, 0.2, '#9a845c', 1.38, { raio: 0.01, contorno: 'leve', detalhe: 3 }),
-      ]);
-    } },
+  { id: 'palicada', nome: 'Paliçada de toras', ...G, funcoes: ['jardim'], tags: ['palicada', 'muro', 'madeira', 'forte', 'defesa', 'limite'], pegada: [2.0, 0.95], altura: 2.9,
+    campos: [
+      { id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 2, min: 0.8, max: 6, passo: 0.2 },
+      { id: 'passarela', rotulo: 'Passarela de tábuas atrás das estacas (0 não, 1 sim)', tipo: 'numero', padrao: 0, min: 0, max: 1, passo: 1 },
+    ],
+    gerar: p => piso([num(p, 'largura', 2, 0.8, 6), 0.95], palicada(num(p, 'largura', 2, 0.8, 6), num(p, 'passarela', 0, 0, 1) >= 0.5, p.seed)) },
   { id: 'poco', nome: 'Poço', ...G, tags: ['poco', 'agua', 'pedra'], pegada: [1.4, 1.4],
     gerar: () => piso([1.4, 1.4], [elipse(0, 0, 1.4, 1.4, PEDRA[1]!, 0.8, { contorno: 'leve' }), ...Array.from({ length: 14 }, (_, i) => { const a = (i / 14) * Math.PI * 2; return elipse(Math.cos(a) * 0.58, Math.sin(a) * 0.58, 0.26, 0.2, i % 2 ? PEDRA[0]! : PEDRA[2]!, 0.85, { contorno: 'leve', detalhe: 2 }); }), elipse(0, 0, 0.9, 0.9, '#14202a', 0.9, { contorno: 'leve' }), elipse(0.05, 0.05, 0.5, 0.5, '#1f3a4d', 0.92, { contorno: false, semSombra: true, detalhe: 3 }), ret(0, 0, 1.5, 0.07, 'madeira.escura', 1.6, { contorno: 'leve', detalhe: 2 }), ret(-0.7, 0, 0.1, 0.1, 'madeira.escura', 1.65, { contorno: 'leve', detalhe: 3 }), ret(0.7, 0, 0.1, 0.1, 'madeira.escura', 1.65, { contorno: 'leve', detalhe: 3 })]) },
   { id: 'banco.jardim', nome: 'Banco de jardim', ...G, funcoes: ['jardim', 'cemiterio'], tags: ['banco', 'assento', 'jardim'], pegada: [1.5, 0.5],
