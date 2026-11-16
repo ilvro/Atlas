@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { aplicarEmCopia, comodos, luzes, objetos, portas, terreno } from '../../src/authoring/construcao.ts';
+import { aplicarEmCopia, comodos, luzes, objetos, paredes, portas, terreno } from '../../src/authoring/construcao.ts';
 import { MAX_ACHADOS, revisarMapa } from '../../src/authoring/revisao.ts';
 import { codificar } from '../../src/domain/celulas.ts';
 import { circulo } from '../../src/domain/formas-de-comodo.ts';
@@ -356,4 +356,79 @@ test('ermos-vazios: aponta quadrante externo vazio em mapa >= 40 m e ignora mapa
     { rets: [[22, 22, 38, 38]], tipo: 'salao', nome: 'Fortaleza SE' },
   ]).comandos);
   assert.deepEqual(revisarMapa(povoado, { regras: ['ermos-vazios'] }), []);
+});
+
+test('objeto-externo-no-interior: monte-de-neve invadindo quarto rotacionado dispara erro e ignora varanda aberta ou exterior', () => {
+  let m = criarMapa({ largura: 30, altura: 20 });
+  m = aplicarEmCopia(m, comodos(m, [
+    { poligono: [[10, 6], [14, 10], [10, 14], [6, 10]], tipo: 'quarto', nome: 'Quarto rotacionado', telhado: 'casa-velha' },
+    { rets: [[12, 2, 15, 4]], tipo: 'varanda', nome: 'Varanda aberta', telhado: null },
+  ]).comandos);
+  const idQuarto = Object.values(m.rooms).find(r => r.name === 'Quarto rotacionado')!.id;
+
+  // Monte de neve invadindo a quina do quarto rotacionado pelo canto
+  const invadindo = aplicarEmCopia(m, objetos(m, [
+    { item: 'monte-de-neve', pos: [7.6, 8.2], rotacao: 0.7 },
+    { item: 'monte-de-neve', pos: [19.5, 4.5] }, // na varanda aberta (roof.material === null)
+  ]).comandos);
+  const achados = revisarMapa(invadindo, { regras: ['objeto-externo-no-interior'] });
+  assert.equal(achados.length, 1);
+  assert.equal(achados[0]!.gravidade, 'erro');
+  assert.equal(achados[0]!.ids[1], idQuarto);
+  assert.match(achados[0]!.sugestao, /atlas_mover|atlas_remover/);
+
+  // Do lado de fora afastado do quarto, não dispara
+  const fora = aplicarEmCopia(m, objetos(m, [
+    { item: 'monte-de-neve', pos: [3.5, 3.5] },
+  ]).comandos);
+  assert.deepEqual(revisarMapa(fora, { regras: ['objeto-externo-no-interior'] }), []);
+});
+
+test('parede-atravessa-comodo: parede low cortando Sacristia dispara erro e ignora encosto na borda externa', () => {
+  let m = criarMapa({ largura: 30, altura: 20 });
+  m = aplicarEmCopia(m, comodos(m, [
+    { rets: [[4, 4, 8, 8]], tipo: 'capela', nome: 'Sacristia' },
+  ]).comandos);
+  const idSacristia = Object.keys(m.rooms)[0]!;
+
+  // Parede baixa cortando a Sacristia por dentro (6,6 -> 12,12)
+  const cortando = aplicarEmCopia(m, paredes(m, [
+    { path: [[5, 8], [13, 10]], kind: 'low' },
+  ]).comandos);
+  const achados = revisarMapa(cortando, { regras: ['parede-atravessa-comodo'] });
+  assert.equal(achados.length, 1);
+  assert.equal(achados[0]!.gravidade, 'erro');
+  assert.equal(achados[0]!.ids[1], idSacristia);
+
+  // Parede baixa externa apenas encostando na parede de fora (x = 12, y = 9)
+  const encostada = aplicarEmCopia(m, paredes(m, [
+    { path: [[12, 9], [16, 9]], kind: 'low' },
+  ]).comandos);
+  assert.deepEqual(revisarMapa(encostada, { regras: ['parede-atravessa-comodo'] }), []);
+});
+
+test('objeto-em-escarpa-ou-degrau: palicada sobre crista e sobre degrau < 1 m disparam aviso e passam com folga ou rio plano', () => {
+  let m = criarMapa({ largura: 30, altura: 20 });
+  // Patamar alto (+3 m) em x: 4..12, y: 4..12 e degrau baixo (+0.5 m) em x: 14..22, y: 4..12
+  m = aplicarEmCopia(m, terreno(m, [
+    { acao: 'relevo', altura: 3, forma: { retangulo: [4, 4, 12, 12] } },
+    { acao: 'relevo', altura: 0.5, forma: { retangulo: [14, 4, 22, 12] } },
+  ]).comandos);
+
+  // Paliçada cruzando a crista de 3 m (x = 12) e outra cruzando o degrau de 0,5 m (x = 14)
+  const ruim = aplicarEmCopia(m, objetos(m, [
+    { item: 'palicada', pos: [12.0, 8.0], rotacao: 0 },
+    { item: 'palicada', pos: [14.0, 8.0], rotacao: 0 },
+  ]).comandos);
+  const achados = revisarMapa(ruim, { regras: ['objeto-em-escarpa-ou-degrau'] });
+  assert.equal(achados.length, 2);
+  assert.ok(achados.every(a => a.gravidade === 'aviso'));
+
+  // Paliçadas com folga lateral >= 0,6 m das bordas e carroça no terreno plano
+  const bom = aplicarEmCopia(m, objetos(m, [
+    { item: 'palicada', pos: [8.0, 8.0], rotacao: 0 },
+    { item: 'palicada', pos: [18.0, 8.0], rotacao: 0 },
+    { item: 'carroca', pos: [26.0, 15.0], rotacao: 0 },
+  ]).comandos);
+  assert.deepEqual(revisarMapa(bom, { regras: ['objeto-em-escarpa-ou-degrau'] }), []);
 });

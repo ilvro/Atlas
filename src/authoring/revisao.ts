@@ -2,8 +2,9 @@ import { decodificar, type Faixa } from '../domain/celulas.ts';
 import { ehNoite, nivelDaLuz } from '../domain/clima.ts';
 import { edificiosDe, type Edificio } from '../domain/edificios.ts';
 import { pontoNoPoligono } from '../domain/formas-de-comodo.ts';
-import { arestasDeParede, caixaDasCelulas, comodoEm, indiceDeCelulas } from '../domain/geometria.ts';
-import { colunas, linhas, type Comodo, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
+import { arestasDeParede, caixaDasCelulas, comodoEm, contornoDoComodo, indiceDeCelulas, type SegmentoDeContorno } from '../domain/geometria.ts';
+import { colunas, linhas, type Comodo, type MapaAtlas, type Objeto, type Ponto } from '../domain/mapa.ts';
+import { DEGRAU_TRANSPONIVEL, bordasDoRelevo } from '../domain/relevo.ts';
 import { FUNCOES_AO_AR_LIVRE } from '../domain/presets.ts';
 import { retangulosDe } from '../domain/telhado-geometria.ts';
 import { ACERVO } from '../procedural/acervo.ts';
@@ -46,6 +47,9 @@ export const LIMIAR_AMBIENTE_ESCURO = 0.45;
 export const LIMIAR_AREA_COMODO_SEM_LUZ = 6;
 
 const TAGS_VEGETACAO = new Set(['arvore', 'arbusto', 'grama']);
+const TAGS_EXTERIORES = new Set(['neve', 'arvore', 'arbusto', 'rocha', 'barco', 'cais', 'palicada', 'carroca', 'tenda']);
+const IDS_ESTRUTURAIS_RELEVO = new Set(['tenda', 'carroca', 'carroca-tombada', 'carroca-de-feno', 'pilha-de-lenha', 'barraca-de-feira', 'galinheiro', 'bebedouro', 'banco.jardim']);
+const CATEGORIAS_MOVEIS = new Set(['mesas', 'assentos', 'camas', 'armazenamento', 'cozinha']);
 
 const ORDEM_GRAVIDADE: Record<Gravidade, number> = { erro: 0, aviso: 1, dica: 2 };
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -679,6 +683,228 @@ function regraErmosVazios(m: MapaAtlas): Achado[] {
   return achados;
 }
 
+function distPontoSegmento(p: Ponto, a: Ponto, b: Ponto): number {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const l2 = dx * dx + dy * dy;
+  if (l2 <= 1e-12) return Math.hypot(p[0] - a[0], p[1] - a[1]);
+  const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2));
+  return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+}
+
+function pontosDeAmostraDoObjeto(o: Objeto): Ponto[] {
+  const [w, h] = tamanhoDoObjeto(o);
+  const mx = Math.min(0.12, w * 0.2), my = Math.min(0.12, h * 0.2);
+  const hw = Math.max(0, w * 0.5 - mx), hh = Math.max(0, h * 0.5 - my);
+  const c = Math.cos(o.rotation), s = Math.sin(o.rotation);
+  const locais: Ponto[] = [
+    [0, 0],
+    [-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh],
+    [0, -hh], [hw, 0], [0, hh], [-hw, 0],
+  ];
+  return locais.map(([u, v]) => [o.position[0] + u * c - v * s, o.position[1] + u * s + v * c]);
+}
+
+function regraObjetoExternoNoInterior(m: MapaAtlas): Achado[] {
+  const salas = Object.values(m.rooms);
+  if (!salas.length) return [];
+  const indices = new Map<string | null, Map<number, string>>();
+  const achados: Achado[] = [];
+  for (const o of Object.values(m.props)) {
+    if (o.wall) continue;
+    const id = ACERVO.idDaFonte(o.source);
+    const item = ACERVO.item(id);
+    if (!item || (item.categoria !== 'exterior' && !item.tags.some(t => TAGS_EXTERIORES.has(t)))) continue;
+    const nivel = o.levelId ?? null;
+    for (const pt of pontosDeAmostraDoObjeto(o)) {
+      const salaId = salaNoPonto(m, pt, nivel, indices);
+      if (!salaId) continue;
+      const sala = m.rooms[salaId];
+      if (!sala || sala.roof.material === null) continue;
+      achados.push({
+        regra: 'objeto-externo-no-interior',
+        gravidade: 'erro',
+        mensagem: `O objeto externo “${id}” (${o.id}) invade o cômodo coberto “${sala.name}” (${sala.id}).`,
+        sugestao: 'Mova o objeto para fora do cômodo com atlas_mover ou remova-o com atlas_remover.',
+        ids: [o.id, sala.id],
+        caixa: tuplaCaixa(caixaDoObjeto(o)),
+      });
+      break;
+    }
+  }
+  return achados;
+}
+
+function regraParedeAtravessaComodo(m: MapaAtlas): Achado[] {
+  const salas = Object.values(m.rooms);
+  if (!salas.length) return [];
+  const indices = new Map<string | null, Map<number, string>>();
+  const bordas = new Map<string, SegmentoDeContorno[]>();
+  const bordaDaSala = (salaId: string): SegmentoDeContorno[] => {
+    let segs = bordas.get(salaId);
+    if (!segs) {
+      const s = m.rooms[salaId]!;
+      segs = contornoDoComodo(m, decodificar(s.cells), s.outline).flat();
+      bordas.set(salaId, segs);
+    }
+    return segs;
+  };
+  const achados: Achado[] = [];
+  for (const p of Object.values(m.walls)) {
+    if (p.source || p.kind === 'cliff' || p.path.length < 2) continue;
+    const nivel = p.levelId ?? null;
+    if (!salas.some(s => (s.levelId ?? null) === nivel)) continue;
+    let totalLen = 0;
+    for (let i = 0; i < p.path.length - 1; i++) {
+      totalLen += Math.hypot(p.path[i + 1]![0] - p.path[i]![0], p.path[i + 1]![1] - p.path[i]![1]);
+    }
+    if (totalLen <= 1e-6) continue;
+    let distAcum = 0;
+    let atingida: string | null = null;
+    for (let i = 0; i < p.path.length - 1 && !atingida; i++) {
+      const a = p.path[i]!, b = p.path[i + 1]!;
+      const segLen = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (segLen <= 1e-6) continue;
+      const n = Math.max(2, Math.ceil(segLen / 0.25));
+      for (let k = 0; k <= n; k++) {
+        const t = k / n;
+        const d = distAcum + t * segLen;
+        if (totalLen > 0.3 && (d <= 0.15 || d >= totalLen - 0.15)) continue;
+        const pt: Ponto = [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])];
+        const salaId = salaNoPonto(m, pt, nivel, indices);
+        if (!salaId) continue;
+        let minDist = Infinity;
+        for (const seg of bordaDaSala(salaId)) {
+          const dist = distPontoSegmento(pt, seg.a, seg.b);
+          if (dist < minDist) minDist = dist;
+          if (minDist < 0.25) break;
+        }
+        if (minDist >= 0.25) {
+          atingida = salaId;
+          break;
+        }
+      }
+      distAcum += segLen;
+    }
+    if (atingida) {
+      const sala = m.rooms[atingida]!;
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const [x, y] of p.path) {
+        if (x < x0) x0 = x;
+        if (y < y0) y0 = y;
+        if (x > x1) x1 = x;
+        if (y > y1) y1 = y;
+      }
+      achados.push({
+        regra: 'parede-atravessa-comodo',
+        gravidade: 'erro',
+        mensagem: `A parede avulsa (${p.id}) atravessa o interior do cômodo “${sala.name}” (${sala.id}).`,
+        sugestao: 'Encoste a parede pelo lado de fora, recue suas pontas ou remova-a com atlas_remover.',
+        ids: [p.id, sala.id],
+        caixa: tuplaCaixa({ x0, y0, x1, y1 }),
+      });
+    }
+  }
+  return achados;
+}
+
+function segmentoCruzaRetangulo(ax: number, ay: number, bx: number, by: number, hw: number, hh: number): boolean {
+  const dx = bx - ax, dy = by - ay;
+  let t0 = 0, t1 = 1;
+  const clip = (p: number, q: number): boolean => {
+    if (p === 0) return q >= 0;
+    const r = q / p;
+    if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r; }
+    else { if (r < t0) return false; if (r < t1) t1 = r; }
+    return true;
+  };
+  return clip(-dx, ax + hw) && clip(dx, hw - ax) && clip(-dy, ay + hh) && clip(dy, hh - ay) && t0 <= t1;
+}
+
+function distSegmentoObjeto(o: Objeto, a: Ponto, b: Ponto): number {
+  const [w, h] = tamanhoDoObjeto(o);
+  const hw = w * 0.5, hh = h * 0.5;
+  const c = Math.cos(-o.rotation), s = Math.sin(-o.rotation);
+  const paraLocal = (p: Ponto): Ponto => {
+    const dx = p[0] - o.position[0], dy = p[1] - o.position[1];
+    return [dx * c - dy * s, dx * s + dy * c];
+  };
+  const al = paraLocal(a), bl = paraLocal(b);
+  if (segmentoCruzaRetangulo(al[0], al[1], bl[0], bl[1], hw, hh)) return 0;
+  const distPontoRet = (p: Ponto) => Math.hypot(Math.max(0, Math.abs(p[0]) - hw), Math.max(0, Math.abs(p[1]) - hh));
+  let minD = Math.min(distPontoRet(al), distPontoRet(bl));
+  const cantos: Ponto[] = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]];
+  for (const canto of cantos) {
+    const d = distPontoSegmento(canto, al, bl);
+    if (d < minD) minD = d;
+  }
+  return minD;
+}
+
+function regraObjetoEmEscarpaOuDegrau(m: MapaAtlas): Achado[] {
+  const cristas: [Ponto, Ponto][] = [];
+  const degraus: [Ponto, Ponto][] = [];
+  for (const b of bordasDoRelevo(m)) {
+    const destino = b.desnivel >= DEGRAU_TRANSPONIVEL ? cristas : degraus;
+    for (const c of b.caminhos) {
+      for (let i = 0; i < c.length - 1; i++) destino.push([c[i]!, c[i + 1]!]);
+    }
+  }
+  for (const p of Object.values(m.walls)) {
+    if (p.kind !== 'cliff' || (p.levelId ?? null) !== null || p.height < DEGRAU_TRANSPONIVEL) continue;
+    if (p.source && 'reliefStep' in p.source) continue;
+    for (let i = 0; i < p.path.length - 1; i++) cristas.push([p.path[i]!, p.path[i + 1]!]);
+  }
+  if (!cristas.length && !degraus.length) return [];
+  const achados: Achado[] = [];
+  for (const o of Object.values(m.props)) {
+    if ((o.levelId ?? null) !== null || o.wall) continue;
+    const id = ACERVO.idDaFonte(o.source);
+    const item = ACERVO.item(id);
+    const ehBarreira = id === 'palicada' || id === 'cerca' || id === 'grade.ferro' || id === 'portao.ferro' || !!item?.tags.some(t => t === 'palicada' || t === 'cerca');
+    const ehEstrutural = ehBarreira || IDS_ESTRUTURAIS_RELEVO.has(id) || (o.elevation === 'floor' && item !== undefined && CATEGORIAS_MOVEIS.has(item.categoria));
+    if (!ehEstrutural) continue;
+
+    let bateuCrista = false;
+    for (const [a, b] of cristas) {
+      if (distSegmentoObjeto(o, a, b) < 0.5) {
+        bateuCrista = true;
+        break;
+      }
+    }
+    if (bateuCrista) {
+      achados.push({
+        regra: 'objeto-em-escarpa-ou-degrau',
+        gravidade: 'aviso',
+        mensagem: `O objeto “${id}” (${o.id}) cruza ou está a menos de 0,5 m de uma crista de escarpa.`,
+        sugestao: 'Afaste o objeto da borda do platô com atlas_mover ou ajuste o relevo.',
+        ids: [o.id],
+        caixa: tuplaCaixa(caixaDoObjeto(o)),
+      });
+      continue;
+    }
+    if (ehBarreira) {
+      let bateuDegrau = false;
+      for (const [a, b] of degraus) {
+        if (distSegmentoObjeto(o, a, b) < 0.6) {
+          bateuDegrau = true;
+          break;
+        }
+      }
+      if (bateuDegrau) {
+        achados.push({
+          regra: 'objeto-em-escarpa-ou-degrau',
+          gravidade: 'aviso',
+          mensagem: `A barreira “${id}” (${o.id}) cruza ou está a menos de 0,6 m de um degrau de relevo.`,
+          sugestao: 'Dê ao menos 0,6 m de folga lateral dos degraus do relevo com atlas_mover.',
+          ids: [o.id],
+          caixa: tuplaCaixa(caixaDoObjeto(o)),
+        });
+      }
+    }
+  }
+  return achados;
+}
+
 export const REGRAS: Readonly<Record<string, (m: MapaAtlas) => Achado[]>> = {
   'comodo-sem-acesso': regraComodoSemAcesso,
   'edificio-sem-telhado': regraEdificioSemTelhado,
@@ -686,6 +912,9 @@ export const REGRAS: Readonly<Record<string, (m: MapaAtlas) => Achado[]>> = {
   'porta-bloqueada': regraPortaBloqueada,
   'objeto-fora': regraObjetoFora,
   'escala-suspeita': regraEscalaSuspeita,
+  'objeto-externo-no-interior': regraObjetoExternoNoInterior,
+  'parede-atravessa-comodo': regraParedeAtravessaComodo,
+  'objeto-em-escarpa-ou-degrau': regraObjetoEmEscarpaOuDegrau,
   'casas-iguais': regraCasasIguais,
   'fileiras-mecanicas': regraFileirasMecanicas,
   'repeticao': regraRepeticao,
