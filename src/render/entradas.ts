@@ -159,7 +159,7 @@ export function entradaDoTerreno(m: MapaAtlas): EntradaDeTerreno {
       faixas,
       topo,
       neblina: corDaNeblinaDoRelevo(m.climate),
-      ...(degs.length ? { degraus: degs.map(d => ({ caminhos: d.caminhos, drops: d.drops })) } : {}),
+      ...(degs.length ? { degraus: degs.map(d => ({ caminhos: d.caminhos, drops: d.drops, desnivel: d.desnivel })) } : {}),
     };
   }
   const base = m.terrain.base !== 'vazio' ? m.terrain.base : m.backdrop.kind === 'texture' && m.backdrop.material ? m.backdrop.material : 'vazio';

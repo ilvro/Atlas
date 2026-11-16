@@ -11,7 +11,10 @@ import type { Clima, MapaAtlas, Parede, Ponto, RelevoDoTerreno } from './mapa.ts
 export const DEGRAU_TRANSPONIVEL = 1;
 export const ALTITUDE_MIN = -200;
 export const ALTITUDE_MAX = 200;
-export const PROFUNDIDADE_DE_NEVOA = 30;
+/** Queda (m) abaixo do topo em que a névoa de profundidade satura. */
+export const PROFUNDIDADE_DE_NEVOA = 20;
+/** Expoente da curva de profundidade: < 1 separa logo os degraus médios (3–10 m) sem estourar o fundo. */
+export const CURVA_DA_NEVOA = 0.72;
 const MAX_PONTOS_POR_PAREDE = 4000;
 
 export const idDoPatamar = (altura: number): string => `p${Math.round((altura === 0 ? 0 : altura) * 10)}`;
@@ -212,9 +215,9 @@ export function topoDoRelevo(m: Pick<MapaAtlas, 'bounds' | 'terrain'>): number {
   return dist.at(-1) ?? 0;
 }
 
-/** Fator normalizado de profundidade em [0, 1] abaixo do topo. */
+/** Fator normalizado de profundidade em [0, 1] abaixo do topo: curva côncava (0 no topo, 1 a `PROFUNDIDADE_DE_NEVOA` m abaixo). */
 export const fatorDeProfundidade = (altura: number, topo: number): number =>
-  clamp((topo - altura) / PROFUNDIDADE_DE_NEVOA, 0, 1);
+  Math.pow(clamp((topo - altura) / PROFUNDIDADE_DE_NEVOA, 0, 1), CURVA_DA_NEVOA);
 
 /** Cor multiplicativa Pixi para objetos abaixo do topo de relevo (escurecimento + mistura para névoa). */
 export function tintDoRelevo(m: Pick<MapaAtlas, 'bounds' | 'terrain' | 'climate'>, ponto: Ponto): number {

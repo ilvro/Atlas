@@ -178,7 +178,8 @@ export interface EntradaDeTerreno {
     faixas: { altura: number; celulas: Faixa[] }[];
     topo: number;
     neblina: string;
-    degraus?: { caminhos: Ponto[][]; drops: ('a' | 'b')[] }[];
+    /** Degraus transponíveis: `desnivel` (m) alarga a faixa de declive; sem ele, vale 0,5 m. */
+    degraus?: { caminhos: Ponto[][]; drops: ('a' | 'b')[]; desnivel?: number }[];
   };
   /** Aro de chão pisado em volta dos edifícios cobertos do térreo e soleiras nas portas de fora. */
   assentamento?: {
@@ -414,34 +415,68 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
     ctx.putImageData(img, 0, 0);
     ctx.setTransform(res, 0, 0, res, 0, 0);
   }
-  if (e.relevo?.degraus?.length) {
-    ctx.save();
-    ctx.setTransform(res, 0, 0, res, 0, 0);
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    for (const deg of e.relevo.degraus) {
-      for (let idx = 0; idx < deg.caminhos.length; idx++) {
-        const path = deg.caminhos[idx]!, drop = deg.drops[idx] ?? 'b';
-        if (path.length < 2) continue;
-        const deslocar = (sinal: number) => {
-          ctx.beginPath();
-          for (let i = 0; i < path.length; i++) {
-            const p = path[i]!, pAnt = path[Math.max(0, i - 1)]!, pProx = path[Math.min(path.length - 1, i + 1)]!;
-            const n = ladoBaixo(pAnt, pProx, drop);
-            const x = p[0] + n[0] * sinal, y = p[1] + n[1] * sinal;
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-          }
-          ctx.stroke();
-        };
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.28)'; ctx.lineWidth = 0.15; deslocar(0.08);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.32)'; ctx.lineWidth = 0.05; deslocar(-0.05);
-      }
-    }
-    ctx.restore();
-  }
+  if (e.relevo?.degraus?.length) pintarDegraus(ctx, e.relevo.degraus, res, pixel);
   const dadosDaAgua = texturaDeAgua(aguas, W, Hh, res, e.largura, e.altura);
   if (dadosDaAgua) { const ta = criarTela(dadosDaAgua.width, dadosDaAgua.height); contextoDe(ta).putImageData(dadosDaAgua, 0, 0); return { tela, origem: [0, 0], res, agua: { tela: ta, res: RES_DA_TEXTURA_DE_AGUA } }; }
   return { tela, origem: [0, 0], res };
+}
+
+/** Largura (m) da faixa de declive de um degrau transponível: ~0,55 m para 0,5 m de desnível. */
+export const larguraDoDeclive = (desnivel: number): number => Math.min(0.85, Math.max(0.3, 0.35 + 0.4 * desnivel));
+
+/**
+ * Degraus < 1 m como talude: faixa de sombra em degradê no lado baixo, hachuras curtas de declive ao longo do
+ * contorno, quebra escura no pé da crista e borda clara no topo. No Pixel, menos camadas e traço de 1 px.
+ */
+export function pintarDegraus(ctx: Contexto, degraus: readonly { caminhos: Ponto[][]; drops: ('a' | 'b')[]; desnivel?: number }[], res: number, pixel: boolean): void {
+  ctx.save();
+  ctx.setTransform(res, 0, 0, res, 0, 0);
+  ctx.lineCap = pixel ? 'butt' : 'round';
+  ctx.lineJoin = 'round';
+  const px = 1 / res;
+  for (const deg of degraus) {
+    const L = larguraDoDeclive(deg.desnivel ?? 0.5);
+    for (let idx = 0; idx < deg.caminhos.length; idx++) {
+      const path = deg.caminhos[idx]!, drop = deg.drops[idx] ?? 'b';
+      if (path.length < 2) continue;
+      const normal = (i: number): Ponto => ladoBaixo(path[Math.max(0, i - 1)]!, path[Math.min(path.length - 1, i + 1)]!, drop);
+      const deslocar = (d: number) => {
+        ctx.beginPath();
+        for (let i = 0; i < path.length; i++) { const p = path[i]!, n = normal(i), x = p[0] + n[0] * d, y = p[1] + n[1] * d; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+        ctx.stroke();
+      };
+      // Faixa de declive: camadas concêntricas do pé da crista para baixo, cada uma mais rala (um degradê sem sobreposição nas quinas).
+      const camadas = pixel ? 2 : 5, passo = L / camadas;
+      for (let k = 0; k < camadas; k++) {
+        const t = k / camadas;
+        ctx.strokeStyle = `rgba(0, 0, 0, ${(0.34 * Math.pow(1 - t, 1.4)).toFixed(3)})`;
+        ctx.lineWidth = passo + (pixel ? 0 : 0.01);
+        deslocar((k + 0.5) * passo);
+      }
+      // Hachuras de declive: traços curtos e irregulares no sentido da queda, como taludes de terra batida.
+      let semente = Math.round(Math.abs(path[0]![0] * 73.1 + path[0]![1] * 19.7) * 1000) % 2147483647 || 1;
+      const rnd = () => { semente = (semente * 16807) % 2147483647; return semente / 2147483647; };
+      ctx.strokeStyle = pixel ? 'rgba(0, 0, 0, 0.5)' : 'rgba(30, 22, 16, 0.26)';
+      ctx.lineWidth = pixel ? px : 0.035;
+      ctx.beginPath();
+      const espaco = pixel ? 0.6 : 0.42;
+      for (let i = 0; i + 1 < path.length; i++) {
+        const a = path[i]!, b = path[i + 1]!, comp = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (comp < 1e-6) continue;
+        const n = ladoBaixo(a, b, drop), tx = (b[0] - a[0]) / comp, ty = (b[1] - a[1]) / comp;
+        for (let d = espaco * (0.3 + rnd() * 0.6); d < comp; d += espaco * (0.75 + rnd() * 0.5)) {
+          const ox = a[0] + tx * d, oy = a[1] + ty * d, l = L * (0.45 + rnd() * 0.35), inc = (rnd() - 0.5) * 0.12;
+          ctx.moveTo(ox + n[0] * 0.06, oy + n[1] * 0.06);
+          ctx.lineTo(ox + n[0] * l + tx * inc, oy + n[1] * l + ty * inc);
+        }
+      }
+      ctx.stroke();
+      // Quebra escura no pé da crista e borda clara no topo.
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.32)'; ctx.lineWidth = pixel ? px : 0.045; deslocar(pixel ? px / 2 : 0.025);
+      ctx.strokeStyle = `rgba(255, 250, 240, ${pixel ? 0.5 : 0.34})`; ctx.lineWidth = pixel ? px : 0.06; deslocar(pixel ? -px / 2 : -0.035);
+    }
+  }
+  ctx.restore();
 }
 
 function pintarAssentamento(ctx: Contexto, e: EntradaDeTerreno, W: number, Hh: number, res: number, estilo: EstiloDeRaster): void {

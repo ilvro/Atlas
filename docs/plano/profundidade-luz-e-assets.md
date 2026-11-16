@@ -66,7 +66,7 @@ Comparando as referências do *Farol de OSNI* e das duas casas externas com o re
 | [K4](#k4--oclusores-de-luz-para-pilares-e-objetos-altos-no-domínio) | Etapa 2 · Oclusão & Iluminação Dinâmica | Segmentos de oclusão rotacionados em `visibilidade.ts` sem auto-bloqueio de luzes embutidas | — | ✅ |
 | [K5](#k5--sombras-dinâmicas-de-objetospilares-e-tokens-em-mapa-de-luzts) | Etapa 2 · Oclusão & Iluminação Dinâmica | Conectar oclusão de objetos altos e tokens no `MapaDeLuz` (efeito lanterna do Farol de OSNI) | K3, K4 | ✅ |
 | [K6](#k6--escarpa-oblíqua-profunda-e-oclusão-de-base-independente-do-sol) | Etapa 3 · Relevo & Penhascos Dramáticos | Face mais larga (`escarpa.ts`) + oclusão basal contínua independente do ângulo solar | — | ✅ |
-| [K7](#k7--curva-não-linear-de-profundidade-e-render-de-rampasdegraus-no-relevo) | Etapa 3 · Relevo & Penhascos Dramáticos | Curva não-linear de neblina em `relevo.ts` e textura visível para `degraus < 1 m` em `assar.ts` | K6 | ⬜ |
+| [K7](#k7--curva-não-linear-de-profundidade-e-render-de-rampasdegraus-no-relevo) | Etapa 3 · Relevo & Penhascos Dramáticos | Curva não-linear de neblina em `relevo.ts` e textura visível para `degraus < 1 m` em `assar.ts` | K6 | ✅ |
 | [K8](#k8--paliçada-25d-robusta-e-massa-visual-de-paredes) | Etapa 4 · Escala, Materialidade & Salto 2.5D | Paliçada defensiva ~1 m em 2.5D + reforço de massa/profundidade em paredes (`exterior.ts`, `cena.ts`) | — | ⬜ |
 | [K9](#k9--polimento-do-raster-procedural-e-escadacaracol-25d) | Etapa 4 · Escala, Materialidade & Salto 2.5D | Reduzir contorno vetorial pesado, ampliar AO em `raster.ts` e refazer `escada.caracol` | K8 | ⬜ |
 | [K10](#k10--especificação-e-pack-piloto-25d-em-publiccolecao-e-guias-atualizados) | Etapa 4 · Escala, Materialidade & Salto 2.5D | Padrão 2.5D (~75°) em `public/colecao/` (peças heroicas) + regras de densidade/folga nos guias | K2, K5, K7, K9 | ⬜ |
@@ -331,7 +331,7 @@ Ajustar ou ampliar `tests/unit/escarpa.test.ts` cobrindo `larguraDaFace` e caixa
 
 ---
 
-### K7 — Curva não-linear de profundidade e render de rampas/degraus no relevo  ⬜
+### K7 — Curva não-linear de profundidade e render de rampas/degraus no relevo  ✅
 
 **Objetivo:** dar separação visual clara a terraços e abismos entre `2 m` e `12 m` em `relevo.ts`/`assar.ts` e transformar `degraus < 1 m` de linha tracejada tímida em transição legível de rampa/declive.
 
