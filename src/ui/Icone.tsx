@@ -49,6 +49,7 @@ const CAMINHOS: Record<string, string> = {
   texto: 'M4 7V4h16v3M9 20h6M12 4v16',
   nota: 'M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z',
   tremor: 'M2 12l3-6 4 12 4-12 4 12 3-6',
+  escada: 'M4 20h5v-4h5v-4h6M4 12l7-7M11 5h5v5',
 };
 
 export function Icone({ nome, tamanho = 18 }: { nome: string; tamanho?: number }) {

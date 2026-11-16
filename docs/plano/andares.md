@@ -95,7 +95,7 @@ Testes: duas peças em andares diferentes têm visões independentes; o explorad
 Pronto quando: numa sessão de teste, uma peça no porão não revela nada do térreo no projetor.
 Commit: `session vision, exploration and projector per level`
 
-### H5 — Escadas que levam a outro andar  ⬜
+### H5 — Escadas que levam a outro andar  ✅
 Objetivo: a peça sobe e desce pela escada.
 Depende de: H4.
 Ler: `src/domain/mapa.ts` (`Interacao`), `src/domain/interagiveis.ts`, `src/domain/interacao.ts`, `src/app/acoes.ts` (ações de clique direito na peça), `src/ui/Inspetor.tsx` (campos de interação de um objeto), receitas `escada.madeira`, `escada.pedra`, `escada.caracol`, `escada.de-mao` e `alcapao`.

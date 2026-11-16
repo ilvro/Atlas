@@ -1,7 +1,7 @@
 import { comodoEm, indiceDeCelulas } from './geometria.ts';
 import type { MapaAtlas, Objeto } from './mapa.ts';
 
-export const ROTULO_DA_INTERACAO: Record<NonNullable<Objeto['interaction']>['kind'], string> = { switch: 'Interruptor', drawer: 'Gaveta', clue: 'Pista', note: 'Nota' };
+export const ROTULO_DA_INTERACAO: Record<NonNullable<Objeto['interaction']>['kind'], string> = { switch: 'Interruptor', drawer: 'Gaveta', clue: 'Pista', note: 'Nota', stairs: 'Escada' };
 
 /** O cômodo onde o objeto está (o que ele guarda, ou o que a posição dele cai). */
 const comodoDo = (m: MapaAtlas, o: Objeto): string | null => o.roomId ?? comodoEm(m, o.position);
@@ -23,5 +23,6 @@ export function alvosDoInterruptor(m: MapaAtlas, o: Objeto): string[] {
 export function acaoDoInterativo(o: Objeto): string {
   const i = o.interaction; if (!i) return '';
   if (i.kind === 'note') return 'Ler nota';
+  if (i.kind === 'stairs') return 'Escada entre andares';
   return i.kind === 'switch' ? (i.on ? 'Apagar as luzes' : 'Acender as luzes') : i.kind === 'drawer' ? (i.on ? 'Fechar a gaveta' : 'Abrir a gaveta') : 'Inspecionar a pista';
 }

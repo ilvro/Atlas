@@ -70,7 +70,7 @@ const objeto = e.obj({
   oculto: e.opt(e.bool()),
   levelId: e.opt(idOuNulo),
   interaction: e.nulo(e.obj({
-    kind: e.um('switch', 'drawer', 'clue', 'note'),
+    kind: e.um('switch', 'drawer', 'clue', 'note', 'stairs'),
     on: e.bool(),
     targets: e.lista(id, { max: 200 }),
     sound: e.nulo(ref),
@@ -78,6 +78,8 @@ const objeto = e.obj({
     note: e.opt(e.texto({ max: 50_000 })),
     noteTitle: e.opt(e.texto({ max: 200 })),
     gmOnly: e.opt(e.bool()),
+    toLevel: e.opt(idOuNulo),
+    toPosition: e.opt(ponto),
   })),
 });
 const luz = e.obj({
@@ -239,6 +241,11 @@ export function validarMapa(valor: unknown): asserts valor is MapaAtlas {
     checarAndar(o.levelId, `props.${pid}.levelId`);
     if (o.roomId && !m.rooms[o.roomId]) falha('Cômodo inexistente.', `props.${pid}.roomId`);
     for (const alvo of o.interaction?.targets ?? []) if (!m.lights[alvo]) falha('O interruptor controla uma luz que não existe.', `props.${pid}.interaction.targets`);
+    if (o.interaction?.kind === 'stairs') {
+      const dest = o.interaction.toLevel ?? null;
+      checarAndar(dest, `props.${pid}.interaction.toLevel`);
+      if (dest === (o.levelId ?? null)) falha('A escada precisa levar a um andar diferente do atual.', `props.${pid}.interaction.toLevel`);
+    }
     if (o.wall && !m.walls[o.wall.wallId]) falha('Parede inexistente.', `props.${pid}.wall.wallId`);
     if ((o.elevation === 'wall') !== (o.wall !== null)) falha('Objeto de parede precisa de “wall”, e só ele.', `props.${pid}.wall`);
   }

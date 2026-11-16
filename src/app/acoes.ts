@@ -17,6 +17,7 @@ import { aceitarSugestao, definirSugestoesLigadas, dispensarSugestao, outraSuges
 import { momentoEmCurso, pararMomento } from './momentos.ts';
 import { dispararEspaco } from './barra-de-efeitos.ts';
 import type { Alvo } from '../render/selecao.ts';
+import { acaoEscadaParaPeca, andarDe } from '../domain/andares.ts';
 import { edificioDaSala } from '../domain/edificios.ts';
 import { comodoEm } from '../domain/geometria.ts';
 import type { Ponto } from '../domain/mapa.ts';
@@ -328,6 +329,19 @@ export function itensDoMenuRadial(alvo: Alvo | null, mundo: Ponto): ItemRadial[]
   if (modo.value === 'sessao') {
     const salaId = comodoEm(m, mundo), ed = salaId ? edificioDaSala(m, salaId) : null;
     const itensSessao: ItemRadial[] = [];
+    if (alvo?.colecao === 'tokens') {
+      const peca = m.tokens[alvo.id];
+      const acaoEscada = peca ? acaoEscadaParaPeca(m, peca) : null;
+      if (peca && acaoEscada) {
+        const origem = andarDe(peca);
+        itensSessao.push({
+          id: `escada-${acaoEscada.escadaId}`,
+          rotulo: acaoEscada.rotulo,
+          icone: 'escada',
+          fazer: () => app.executarMudancaDeAndarDaPeca(peca.id, acaoEscada.destino, acaoEscada.posicao, origem),
+        });
+      }
+    }
     if (ed) {
       const visivel = ed.salas.some(id => m.rooms[id]?.roof.visible);
       itensSessao.push({

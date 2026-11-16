@@ -222,7 +222,7 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
   const editar = (fn: () => void) => { if (tentar(fn)) tocar('selecionar'); };
   let acoes = null;
   const emSessao = modo.value === 'sessao';
-  if (emSessao && a.colecao === 'props' && m.props[a.id]?.interaction) {
+  if (emSessao && a.colecao === 'props' && m.props[a.id]?.interaction && m.props[a.id]!.interaction!.kind !== 'stairs') {
     const o = m.props[a.id]!;
     acoes = <button type="button" class="cartao-texto" onClick={() => usarObjeto(o.id)} data-testid="cartao-usar">{acaoDoInterativo(o)}</button>;
   } else if (emSessao && a.colecao === 'tokens') {
