@@ -14,9 +14,9 @@ export type CelulaDoComando = readonly [number, number];
 
 /** Comandos de construção: cômodos, paredes, aberturas e terreno. Cômodos e paredes refazem as paredes derivadas. */
 export type ComandoConstruir =
-  | { tipo: 'comodo.criar'; id: string; nome: string; funcao: string | null; piso: Comodo['floor']; papel: Comodo['wallpaper']; telhado?: string | Omit<Comodo['roof'], 'visible'> | null; celulas: readonly CelulaDoComando[]; outline?: readonly Ponto[] }
+  | { tipo: 'comodo.criar'; id: string; nome: string; funcao: string | null; piso: Comodo['floor']; papel: Comodo['wallpaper']; telhado?: string | Omit<Comodo['roof'], 'visible'> | null; celulas: readonly CelulaDoComando[]; outline?: readonly Ponto[]; levelId?: string | null }
   | { tipo: 'comodo.pintar'; id: string; celulas: readonly CelulaDoComando[] }
-  | { tipo: 'comodo.apagar'; celulas: readonly CelulaDoComando[] }
+  | { tipo: 'comodo.apagar'; celulas: readonly CelulaDoComando[]; levelId?: string | null }
   | { tipo: 'comodo.atualizar'; id: string; patch: ParcialProfundo<Omit<Comodo, 'id' | 'cells' | 'outline'>> & { outline?: readonly Ponto[] | null } }
   | { tipo: 'comodo.remover'; id: string }
   | { tipo: 'comodo.notas'; id: string; patch: { leitura?: string; notasMestre?: string; refs?: Ref[] } }
@@ -38,8 +38,8 @@ export type ComandoConstruir =
   | { tipo: 'terreno.correnteza'; material: string; flow: { angle: number; speed: number } | null }
   | { tipo: 'relevo.pintar'; altura: number; celulas: readonly CelulaDoComando[] }
   | { tipo: 'relevo.apagar'; celulas: readonly CelulaDoComando[] }
-  | { tipo: 'presenca.pintar'; brush: string; celulas: readonly CelulaDoComando[]; intensidade?: number }
-  | { tipo: 'presenca.apagar'; brush: string | null; celulas: readonly CelulaDoComando[] };
+  | { tipo: 'presenca.pintar'; brush: string; celulas: readonly CelulaDoComando[]; intensidade?: number; levelId?: string | null }
+  | { tipo: 'presenca.apagar'; brush: string | null; celulas: readonly CelulaDoComando[]; levelId?: string | null };
 
 export const TIPOS_DE_CONSTRUCAO = ['comodo.criar', 'comodo.pintar', 'comodo.apagar', 'comodo.atualizar', 'comodo.remover', 'comodo.notas', 'parede.adicionar', 'parede.atualizar', 'parede.remover', 'parede.desanexar', 'abertura.adicionar', 'abertura.atualizar', 'abertura.remover', 'terreno.pintar', 'terreno.emergir', 'terreno.apagar', 'terreno.base', 'terreno.correnteza', 'relevo.pintar', 'relevo.apagar', 'presenca.pintar', 'presenca.apagar'] as const;
 export const ehComandoDeConstrucao = (c: { tipo: string }): c is ComandoConstruir => (TIPOS_DE_CONSTRUCAO as readonly string[]).includes(c.tipo);
@@ -75,10 +75,11 @@ const normais = (cel: readonly CelulaDoComando[]): Celula[] => cel.map(([x, y]) 
 /** Dá as `celulas` ao cômodo `id`, tirando-as de quem as tinha; cômodos que ficam sem células deixam de existir. */
 function darCelulas(m: MapaAtlas, id: string, celulas: readonly Celula[]): void {
   const sala = m.rooms[id] ?? nao(`O cômodo “${id}” não existe.`);
+  const nivel = sala.levelId ?? null;
   const novas = codificar(celulas);
   const doOutro = new Map<string, Celula[]>();
   for (const outra of Object.values(m.rooms)) {
-    if (outra.id === id) continue;
+    if (outra.id === id || (outra.levelId ?? null) !== nivel) continue;
     const dela = new Set(decodificar(outra.cells).map(([x, y]) => chave(x, y))), roubadas = celulas.filter(([x, y]) => dela.has(chave(x, y)));
     if (roubadas.length) doOutro.set(outra.id, roubadas as Celula[]);
   }
@@ -89,7 +90,10 @@ function darCelulas(m: MapaAtlas, id: string, celulas: readonly Celula[]): void 
 
 function removerVazios(m: MapaAtlas): void { for (const s of Object.values(m.rooms)) if (!s.cells.length) delete m.rooms[s.id]; }
 
-const idDaPresenca = (brush: string) => `p_${brush.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 60)}`;
+const idDaPresenca = (brush: string, levelId: string | null = null) => {
+  const base = `p_${brush.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 60)}`;
+  return levelId ? `${base}_${levelId}`.slice(0, 64) : base;
+};
 /** Uma semente estável por pincel: a mesma presença tem a mesma cara em qualquer cópia do mapa. */
 const sementeDe = (texto: string) => { let h = 2166136261; for (const ch of texto) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return (h >>> 0) % 2 ** 31; };
 const intersecao = (a: readonly Faixa[], b: readonly Faixa[]): Faixa[] => subtrair(a, subtrair(a, b));
@@ -137,13 +141,14 @@ export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
         if (!cel.length) nao('Um cômodo precisa de pelo menos uma célula.');
       }
       const roof: Comodo['roof'] = typeof c.telhado === 'object' && c.telhado !== null ? { ...clonar(c.telhado), visible: true } : { material: c.telhado ?? null, visible: true };
-      m.rooms[c.id] = { id: c.id, name: c.nome, function: c.funcao, cells: [], ...(outline ? { outline } : {}), floor: clonar(c.piso), wallpaper: c.papel ? clonar(c.papel) : null, wallStyle: null, palette: null, roof, levelId: null };
+      m.rooms[c.id] = { id: c.id, name: c.nome, function: c.funcao, cells: [], ...(outline ? { outline } : {}), floor: clonar(c.piso), wallpaper: c.papel ? clonar(c.papel) : null, wallStyle: null, palette: null, roof, levelId: c.levelId ?? null };
       darCelulas(m, c.id, cel); recalcularParedes(m); break;
     }
     case 'comodo.pintar': darCelulas(m, c.id, normais(c.celulas)); recalcularParedes(m); break;
     case 'comodo.apagar': {
       const tirar = codificar(normais(c.celulas));
-      for (const s of Object.values(m.rooms)) s.cells = subtrair(s.cells, tirar);
+      const nivel = c.levelId ?? null;
+      for (const s of Object.values(m.rooms)) if ((s.levelId ?? null) === nivel) s.cells = subtrair(s.cells, tirar);
       removerVazios(m); recalcularParedes(m); break;
     }
     case 'comodo.atualizar': {
@@ -159,6 +164,8 @@ export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
         s.outline = prep.outline;
         s.cells = [];
         darCelulas(m, c.id, prep.celulas);
+        recalcularParedes(m);
+      } else if ('levelId' in resto) {
         recalcularParedes(m);
       }
       break;
@@ -279,15 +286,18 @@ export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
     }
     case 'presenca.pintar': {
       if (!c.brush) nao('Escolha um pincel de presença.');
-      const id = idDaPresenca(c.brush);
-      m.presence[id] ??= { id, brush: c.brush, cells: [], intensity: 0.6, seed: sementeDe(c.brush), gmOnly: false };
+      const nivel = c.levelId ?? null;
+      const id = idDaPresenca(c.brush, nivel);
+      m.presence[id] ??= { id, brush: c.brush, cells: [], intensity: 0.6, seed: sementeDe(c.brush), gmOnly: false, ...(nivel !== null ? { levelId: nivel } : {}) };
       m.presence[id]!.cells = unir(m.presence[id]!.cells, codificar(normais(c.celulas)));
       if (c.intensidade !== undefined) m.presence[id]!.intensity = Math.min(1, Math.max(0, c.intensidade));
       break;
     }
     case 'presenca.apagar': {
       const tirar = codificar(normais(c.celulas));
+      const nivel = c.levelId ?? null;
       for (const p of Object.values(m.presence)) {
+        if ((p.levelId ?? null) !== nivel) continue;
         if (c.brush !== null && p.brush !== c.brush) continue;
         p.cells = subtrair(p.cells, tirar); if (!p.cells.length) delete m.presence[p.id];
       }

@@ -3,10 +3,12 @@ import { test } from 'node:test';
 import { andarDe, ehMultiandar, listaDeAndares, mapaDoAndar } from '../../src/domain/andares.ts';
 import { codificar } from '../../src/domain/celulas.ts';
 import { novaLuz, novoObjeto, novaPeca } from '../../src/domain/fabrica.ts';
-import { PAREDE_PADRAO } from '../../src/domain/geometria.ts';
+import { encaixarNaParede, PAREDE_PADRAO } from '../../src/domain/geometria.ts';
+import { gerarLayout } from '../../src/authoring/layout.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { ErroDeValidacao } from '../../src/domain/esquema.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
+import { criarStore } from '../../src/state/store.ts';
 
 function mapaExemplo() {
   const m = criarMapa({ id: 'multi', nome: 'Moinho', agora: 1 });
@@ -115,4 +117,50 @@ test('validação: recusa order 0, order repetida e levelId/exploredLevels inexi
   const mExpOrfao = structuredClone(m);
   mExpOrfao.session.exploredLevels!.naoexiste = { res: 0.5, cells: [] };
   assert.throws(() => validarMapa(mExpOrfao), ErroDeValidacao);
+});
+
+test('H2: comandos de andar, paredes derivadas isoladas por andar, encaixe e mobília por andar', () => {
+  const s = criarStore(criarMapa({ id: 'h2', nome: 'Casa', agora: 1 }));
+  s.executar({ tipo: 'andar.criar', andar: { id: 'a1', name: 'Superior', order: 1 } });
+  s.executar({ tipo: 'andar.atualizar', id: 'a1', patch: { name: 'Andar 1' } });
+  assert.equal(s.documento.levels!.a1!.name, 'Andar 1');
+
+  const piso = { material: 'tabuas.carvalho', seed: 1 };
+  // Quarto no térreo e quarto em cima nas mesmas células [2..6, 2..5]
+  const celulas: [number, number][] = [];
+  for (let y = 2; y < 5; y++) for (let x = 2; x < 6; x++) celulas.push([x, y]);
+  s.executar({ tipo: 'comodo.criar', id: 'r0', nome: 'Sala', funcao: 'sala', piso, papel: null, celulas, levelId: null });
+  s.executar({ tipo: 'comodo.criar', id: 'r1', nome: 'Quarto', funcao: 'quarto', piso, papel: null, celulas, levelId: 'a1' });
+
+  // Nenhum roubou células do outro, e cada andar tem 4 paredes derivadas próprias
+  assert.equal(Object.keys(s.documento.rooms).length, 2);
+  const paredesR0 = Object.values(s.documento.walls).filter(w => (w.levelId ?? null) === null);
+  const paredesR1 = Object.values(s.documento.walls).filter(w => (w.levelId ?? null) === 'a1');
+  assert.equal(paredesR0.length, 4);
+  assert.equal(paredesR1.length, 4);
+
+  // Removendo r0, encaixarNaParede com andar null não pega a parede do andar a1
+  s.executar({ tipo: 'comodo.remover', id: 'r0' });
+  assert.equal(encaixarNaParede(s.documento, [4.5, 3], 0.9, 0.75, false, null), null);
+  assert.ok(encaixarNaParede(s.documento, [4.5, 3], 0.9, 0.75, false, 'a1'));
+
+  // Mobília do quarto em a1 ignora cama posta no térreo no mesmo lugar
+  s.executar({
+    tipo: 'item.adicionar',
+    colecao: 'props',
+    item: novoObjeto([5.2, 4.5], { id: 'mesaT', source: { kind: 'recipe', recipe: 'cama.casal', seed: 1, params: {} }, levelId: null }) as unknown as { id: string } & Record<string, unknown>,
+  });
+  const layout = gerarLayout(s.documento, { roomId: 'r1', funcao: 'quarto', genero: 'investigacao', semente: 7 });
+  assert.ok(layout.objetos.some(o => o.source.kind === 'recipe' && o.source.recipe.startsWith('cama')));
+  assert.ok(layout.objetos.every(o => o.levelId === 'a1'));
+
+  // Remover andar a1 apaga r1 e suas paredes; desfazer restaura
+  s.executar({ tipo: 'andar.remover', id: 'a1' });
+  assert.equal(s.documento.levels, undefined);
+  assert.equal(s.documento.rooms.r1, undefined);
+  assert.equal(Object.values(s.documento.walls).filter(w => w.levelId === 'a1').length, 0);
+  s.desfazer();
+  assert.equal(s.documento.levels!.a1!.name, 'Andar 1');
+  assert.ok(s.documento.rooms.r1);
+  assert.equal(Object.values(s.documento.walls).filter(w => w.levelId === 'a1').length, 4);
 });
