@@ -22,15 +22,18 @@ Quando o mestre mandar uma imagem, faça esta leitura **por escrito**, antes de 
 
 ## 3. Escala
 
-Meça pelo que tem tamanho conhecido: porta de 0,9 a 1,2 m, cama de 2 m, carroça de 3 m, casa de vila de 6 a 10 m de frente, pinheiro de 3 a 8 m de copa. Em perspectiva, o que está ao fundo encolhe: normalize antes de medir. Compare com o tamanho do mapa: se a imagem mostra 40 casas, um mapa tático legível não comporta todas; escolha o recorte (a praça e a rua principal, por exemplo) ou proponha mapas separados.
+Meça pelo que tem tamanho conhecido: porta de 0,9 a 1,2 m, cama de 2 m, carroça de 3 m, pinheiro de 3 a 8 m de copa. Em perspectiva, o que está ao fundo encolhe: normalize antes de medir.
+
+- **Porte tático mínimo:** casa rural simples `>= 5×4 m` de largura útil; casarão ou estalagem `>= 10–14 m`; torre, moinho ou farol com `raio >= 3,5–5 m` (use vários andares via `atlas_andares` + escadas quando a referência mostrar torre alta). Nunca faça casas-miniatura de `1×2` células.
+- **Recorte tático de ilustrações em perspectiva:** se a imagem mostrar uma paisagem panorâmica enorme (vilarejo inteiro com montanhas distantes), **não** infle o mapa para `150×150 m` deixando bordas vazias; escolha um **recorte focal denso** (`45–85 m`) com os pontos marcantes. Só use mapa amplo se o mestre pedir explicitamente — e, nesse caso, preencha os **4 cantos** com floresta densa, rochedos e patamares de relevo.
 
 ## 4. Traduzir perspectiva em planta
 
 - **Penhasco visto de lado** → borda de platô vista de cima: rocha (`macico`) ou escarpa (`atlas_paredes` com `kind: 'cliff'`) com o lado baixo (`drop`) para fora. **Do outro lado, o terreno continua** (mata, rio, campo), mais escuro e com névoa (`atlas_presenca` fina ou clima). Nunca feche a vila com um muro de rocha ao redor.
 - **Casas em perspectiva** → plantas com portes e formas variados (`projetar`, passo 4), com telhado e frente para a rua.
-- **Paliçada, muro, cerca** → `atlas_paredes` (`fence`, `low`) acompanhando a borda real do platô, não um retângulo.
+- **Paliçada, muro, cerca** → acompanhe a borda real do platô ou perímetro, não um retângulo mecânico. Evite `atlas_paredes { kind: "fence" }` como paliçada defensiva pesada (prefira `low`, muralha ou toras; reserve `fence` para cercas leves).
 - **Floresta pintada como textura** → árvores de verdade (`atlas_espalhar` com `mata`, ou `casa:pinheiro-nevado-*` e `casa:arvore-nevada-*`), em bordas irregulares, densas na encosta e ralas perto das casas.
-- **Torre, farol e moinho redondos** → ainda não há cômodo redondo: aproxime com um octógono de células, montado com 3 `rets` empilhadas, a do meio mais larga (ex.: `[[11, 10, 13, 11], [10, 11, 14, 13], [11, 13, 13, 14]]`), telhado `torre` e, por cima, peças que digam o que é (`pas.moinho`, `lanterna.farol`). Explique a aproximação ao mestre.
+- **Torre, farol e moinho redondos** → use `atlas_comodos` com `circulo: { centro, raio, lados }` (`lados: 24` a `32`, `raio >= 3,5` m), telhado `torre-redonda` ou `torre-conica-de-palha`, andares extras via `atlas_andares` + `escada` e peças no topo ou entorno (`pas.moinho`, `lanterna.farol`). Para plantas inclinadas ou absides irregulares, use `poligono`.
 - **Vários andares** → use `atlas_andares` (`ordem` negativo para porões, positivo para andares superiores) com as paredes externas e escadas (`escada: { leva }`) alinhadas nas mesmas coordenadas.
 
 ## 5. Dizer o que não dá
