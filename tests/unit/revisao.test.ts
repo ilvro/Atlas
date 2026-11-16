@@ -3,6 +3,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { aplicarEmCopia, comodos, luzes, objetos, portas, terreno } from '../../src/authoring/construcao.ts';
 import { MAX_ACHADOS, revisarMapa } from '../../src/authoring/revisao.ts';
+import { codificar } from '../../src/domain/celulas.ts';
+import { circulo } from '../../src/domain/formas-de-comodo.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { lerMapa } from '../../src/domain/migracoes.ts';
 
@@ -285,4 +287,73 @@ test('revisarMapa nos exemplos da Fase 10 não aponta nenhum erro e as regras de
     const compNaoDica = revisarMapa(m, { regras: regrasComposicao }).filter(a => a.gravidade !== 'dica');
     assert.deepEqual(compNaoDica, [], `Exemplo ${arq} teve erro/aviso de composição: ${JSON.stringify(compNaoDica)}`);
   }
+});
+
+test('comodo-sem-acesso e edificio-sem-telhado: aceita escadas entre andares/exterior e ignora telhado em subsolo', () => {
+  let m = criarMapa({ largura: 30, altura: 20 });
+  m.terrain.base = 'grama';
+  m.levels = {
+    porao: { id: 'porao', name: 'Porão', order: -1 },
+    alto: { id: 'alto', name: '1º andar', order: 1 },
+  };
+  m = aplicarEmCopia(m, comodos(m, [
+    { rets: [[2, 2, 5, 5]], tipo: 'sala', nome: 'Térreo' },
+    { rets: [[2, 2, 5, 5]], tipo: 'porao', nome: 'Porão', andar: 'porao', telhado: null },
+    { rets: [[2, 2, 5, 5]], tipo: 'quarto', nome: 'Torre alta', andar: 'alto' },
+    { rets: [[8, 2, 11, 5]], tipo: 'porao', nome: 'Cripta externa', andar: 'porao', telhado: null },
+  ]).comandos);
+  // Porta só no térreo + escadas ligando térreo <-> porão, térreo <-> alto e exterior -> cripta
+  m = aplicarEmCopia(m, portas(m, [{ perto: [3, 5.25], tipo: 'door' }]).comandos);
+  m = aplicarEmCopia(m, objetos(m, [
+    { item: 'escada.caracol', pos: [5, 5], escada: { leva: 'porao' } },
+    { item: 'escada.madeira', pos: [4, 5], escada: { leva: 'alto' } },
+    { item: 'alcapao', pos: [14, 5], escada: { leva: 'porao' } },
+  ]).comandos);
+
+  assert.deepEqual(revisarMapa(m, { regras: ['comodo-sem-acesso'] }), []);
+  assert.deepEqual(revisarMapa(m, { regras: ['edificio-sem-telhado'] }), []);
+});
+
+test('composicao-centralizada: enxerga cômodo outline mesmo com cells vazio', () => {
+  let m = criarMapa({ largura: 30, altura: 30 });
+  m.terrain.base = 'grama';
+  m = aplicarEmCopia(m, comodos(m, [
+    { circulo: { centro: [15, 15], raio: 4, lados: 24 }, tipo: 'sala', nome: 'Torre central' },
+  ]).comandos);
+  const idTorre = Object.keys(m.rooms)[0]!;
+  m = { ...m, rooms: { ...m.rooms, [idTorre]: { ...m.rooms[idTorre]!, cells: codificar([]) } } };
+  const achados = revisarMapa(m, { regras: ['composicao-centralizada'] });
+  assert.equal(achados.length, 1);
+  assert.equal(achados[0]!.regra, 'composicao-centralizada');
+
+  m = { ...m, rooms: { ...m.rooms, [idTorre]: { ...m.rooms[idTorre]!, outline: circulo([4, 15], 3, 24) } } };
+  assert.deepEqual(revisarMapa(m, { regras: ['composicao-centralizada'] }), []);
+});
+
+test('ermos-vazios: aponta quadrante externo vazio em mapa >= 40 m e ignora mapas pequenos, interiores ou povoados', () => {
+  // Mapa pequeno (< 40 m) não dispara
+  const pequeno = criarMapa({ largura: 36, altura: 36 });
+  pequeno.terrain.base = 'grama';
+  assert.deepEqual(revisarMapa(pequeno, { regras: ['ermos-vazios'] }), []);
+
+  // Mapa interior (base vazio) não dispara
+  const interior = criarMapa({ largura: 60, altura: 60 });
+  interior.terrain.base = 'vazio';
+  assert.deepEqual(revisarMapa(interior, { regras: ['ermos-vazios'] }), []);
+
+  // Mapa exterior 60×60 totalmente vazio: 4 quadrantes vazios
+  const grande = criarMapa({ largura: 60, altura: 60 });
+  grande.terrain.base = 'neve';
+  assert.equal(revisarMapa(grande, { regras: ['ermos-vazios'] }).length, 4);
+
+  // Povoando cada quadrante de um jeito: objeto (NO), camada de terreno (NE), relevo (SO) e prédio >= 45% (SE)
+  let povoado = aplicarEmCopia(grande, objetos(grande, [{ item: 'rochedo', pos: [10, 10] }]).comandos);
+  povoado = aplicarEmCopia(povoado, terreno(povoado, [
+    { acao: 'pintar', material: 'agua.lago', forma: { disco: [45, 15], raio: 4 } },
+    { acao: 'relevo', altura: -8, forma: { retangulo: [5, 35, 20, 50] } },
+  ]).comandos);
+  povoado = aplicarEmCopia(povoado, comodos(povoado, [
+    { rets: [[22, 22, 38, 38]], tipo: 'salao', nome: 'Fortaleza SE' },
+  ]).comandos);
+  assert.deepEqual(revisarMapa(povoado, { regras: ['ermos-vazios'] }), []);
 });
