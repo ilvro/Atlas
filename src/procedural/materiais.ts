@@ -341,7 +341,7 @@ export function pintarMaterial(ctx: Contexto, id: string, area: Area, seed = 1, 
     case 'acolchoado': pintarAcolchoado(ctx, mat, A, seed, pxDe(ctx)); break;
     case 'pisada': pintarNevePisada(ctx, mat, A, seed, pxDe(ctx)); break;
     case 'placas': pintarPlacas(ctx, mat, A, seed, pxDe(ctx)); break;
-    case 'neve': camadaDeRuido(ctx, A, seed, 2.5, 0.35, 'multiply', 6); camadaDeRuido(ctx, A, seed + 1, 0.7, 0.2, 'soft-light', 10); break;
+    case 'neve': pintarNeve(ctx, mat, A, seed); break;
     default:
       if (ehPadraoDeCobertura(mat.padrao)) { pintarCobertura(ctx, mat, A, seed); break; }
       camadaDeRuido(ctx, A, seed, 2, 0.15);
@@ -441,6 +441,27 @@ function pintarGelo(ctx: Contexto, mat: Material, A: Area, seed: number, r: () =
   };
   tracar(mat.escuro, 0.45, px * 1.3, px * 1.5); tracar(mat.claro, 0.85, px * 2.1, 0);
   ctx.restore();
+}
+
+/** Neve padrão: ondas de vento suaves em baixa frequência com brilho frio (#ffffff) e sombra azulada sutil, sem ruído denso de grama. */
+function pintarNeve(ctx: Contexto, mat: Material, A: Area, seed: number): void {
+  const rn = valueNoise2D(seed * 13 + 5), E = rgbHex(mat.escuro), C = rgbHex(mat.claro);
+  const S: Cor3 = [Math.round((E[0] + 200) * 0.5), Math.round((E[1] + 214) * 0.5), Math.round((E[2] + 230) * 0.5)];
+  const ang = 0.28 + (seed % 7) * 0.08, ux = Math.cos(ang), uy = Math.sin(ang);
+  porPixel(ctx, A, (x, y, o) => {
+    const ampl = 0.45 + 0.55 * passo(0.3, 0.7, fbm(rn, x * 0.14 + 30, y * 0.14 + 70, 2));
+    const warp = (fbm(rn, x * 0.16 + 15, y * 0.16 + 5, 3) - 0.5) * 3.2;
+    const per = 3.4 + (fbm(rn, x * 0.11, y * 0.11, 2) - 0.5) * 1.1;
+    let ph = (x * ux + y * uy + warp) / per; ph -= Math.floor(ph);
+    // Perfil suave de ondulação batida pelo vento: subida gradual até 0.72 e queda macia
+    let v = ph < 0.72 ? Math.sin((ph / 0.72) * Math.PI - Math.PI * 0.5) * 0.36 : Math.sin(((1 - ph) / 0.28) * Math.PI - Math.PI * 0.5) * 0.42;
+    v = v * ampl + (fbm(rn, x * 0.85, y * 0.85, 2) - 0.5) * 0.14;
+    if (v < 0) {
+      o[0] = S[0]; o[1] = S[1]; o[2] = S[2]; o[3] = Math.min(68, Math.round(-v * 110));
+    } else {
+      o[0] = C[0]; o[1] = C[1]; o[2] = C[2]; o[3] = Math.min(82, Math.round(v * 135));
+    }
+  });
 }
 
 /** Neve funda: por cima da neve de sempre, cristas de vento (subida suave clara, queda curta em sombra azul) em faixas de 2 a 4 m, mais marolas finas. */
