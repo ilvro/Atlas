@@ -29,7 +29,8 @@ import { criarFantasmaDeProposta } from './fantasma-proposta.ts';
 import type { Vista } from './nevoa.ts';
 import { criarRetratos } from './retratos.ts';
 import { ajustarGradePorAlinhamento, celulasHexagonaisVisiveis, deltaEncaixado, encaixar, intersecoesDaGrade, linhasDaGrade, segmentosTracejados } from './grade.ts';
-import { LARGURA_DA_ABERTURA, type Ferramenta, type Pincel } from './pincel.ts';
+import { LARGURA_DA_ABERTURA, comandoDoPincelDeTerreno, type Ferramenta, type Pincel } from './pincel.ts';
+import { corDaLinhaDeNivel, criarLinhasDeNivel } from './linhas-de-nivel.ts';
 import { alvoEm, alvosNaCaixa, alvosNoLaco, caixaDaSelecao, caixaDe, combinarSelecao, ehMovel, mesmoAlvo, type Alvo, type Caixa } from './selecao.ts';
 
 export type { Ferramenta } from './pincel.ts';
@@ -70,6 +71,8 @@ export interface PonteViewport {
   caixaDoProjetor?(): Caixa | null;
   /** Modo de Alinhamento da grade: desenha gabarito 3x3 para calibrar offset e escala. */
   alinhandoGrade?(): boolean;
+  /** Mostrar linhas de contorno do relevo mesmo fora do pincel de relevo (só em Construir). */
+  mostrarRelevo?(): boolean;
   /** Proporção (largura / altura) da tela do projetor, para o retângulo ter a forma certa. */
   aspectoDoProjetor?(): number;
   aoMudarCaixaDoProjetor?(c: Caixa): void;
@@ -197,7 +200,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const store = ponte.store, baker: Baker = criarBaker();
   const mundo = new Container(), area_ = new Graphics(), grade = new Graphics(), selecaoG = new Graphics(), fantasmaC = new Container(), fantasmaG = new Graphics(), laco = new Graphics();
   let camera: Camera = { x: 0, y: 0, zoom: 20 };
-  let ponteiro: Ponto | null = null, interacao: Interacao | null = null, espaco = false, camadaSuja = true, destruido = false, regua: Regua | null = null, altPressionado = false;
+  let ponteiro: Ponto | null = null, interacao: Interacao | null = null, espaco = false, camadaSuja = true, destruido = false, regua: Regua | null = null, altPressionado = false, modoProjetor = somenteLeitura;
   const reguaTexto = new Text({ text: '', style: { fontFamily: 'system-ui, sans-serif', fontSize: 14, fontWeight: '600', fill: 0xffffff, stroke: { color: 0x07080b, width: 4 } } });
   reguaTexto.visible = false;
   const doc = (): MapaAtlas => store.documento;
@@ -215,7 +218,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   let pixelAtivo = false, zoomLivre = camera.zoom;
   fantasmaC.addChild(fantasmaG);
   const fantasmaDaProposta = criarFantasmaDeProposta({ baker, acento, efeitos: fxAtivo });
-  mundo.addChild(area_, cena.raiz, pixelizacao.sprite, grade, selecaoG, fantasmaC, fantasmaDaProposta.raiz, laco, reguaTexto);
+  const linhasDeNivel = criarLinhasDeNivel();
+  mundo.addChild(area_, cena.raiz, pixelizacao.sprite, grade, linhasDeNivel.container, selecaoG, fantasmaC, fantasmaDaProposta.raiz, laco, reguaTexto);
   app.stage.addChild(mundo, clarao);
 
   // ---------- Transição de clima ----------
@@ -491,8 +495,9 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (f === 'espalhar') { fantasmaG.circle(ponteiro[0], ponteiro[1], pincel.espalhar.raio).fill({ color: cor, alpha: 0.1 }).stroke({ width: px(1.5), color: cor, alpha: 0.9 }); return; }
     if (f === 'presenca') { const cp = hexParaNumero(pincelDePresenca(pincel.presenca.brush)?.cor ?? '#ffffff'); fantasmaG.circle(ponteiro[0], ponteiro[1], pincel.presenca.raio).fill({ color: cp, alpha: 0.2 }).stroke({ width: px(1.5), color: cp, alpha: 0.9 }); return; }
     if (f === 'terreno') {
-      const c = hexParaNumero(materialDe(pincel.terreno.material).claro);
-      fantasmaG.circle(ponteiro[0], ponteiro[1], pincel.terreno.raio).fill({ color: c, alpha: 0.18 }).stroke({ width: px(1.5), color: cor, alpha: 0.9 });
+      const emRelevo = pincel.terreno.modo === 'relevo';
+      const c = emRelevo ? corDaLinhaDeNivel(pincel.terreno.altura ?? 0) : hexParaNumero(materialDe(pincel.terreno.material).claro);
+      fantasmaG.circle(ponteiro[0], ponteiro[1], pincel.terreno.raio).fill({ color: c, alpha: 0.18 }).stroke({ width: px(1.5), color: emRelevo ? c : cor, alpha: 0.9 });
       return;
     }
     if (f === 'luz') {
@@ -568,10 +573,17 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     aplicarAcabamento(); definirCamera(camera, pixelAtivo ? zoomLivre : camera.zoom);
   }
 
+  function desenharRelevo(): void {
+    const noEditor = !somenteLeitura && !modoProjetor && !ponte.emSessao?.() && (ponte.vista?.() ?? 'construir') === 'construir';
+    const pincelAtivo = ponte.ferramenta() === 'terreno' && ponte.pincel().terreno.modo === 'relevo';
+    const visivel = noEditor && (Boolean(ponte.mostrarRelevo?.()) || pincelAtivo);
+    linhasDeNivel.atualizar(doc(), camera.zoom, visivel);
+  }
+
   function redesenharTudo(): void {
     const m = doc();
     pararTransicao(); vistoDoDoc = estadoDoDoc(m);
-    desenharBase(m); desenharGrade(); desenharSelecao(); desenharLaco(); desenharFantasma(); aplicarEstilo();
+    desenharBase(m); desenharGrade(); desenharRelevo(); desenharSelecao(); desenharLaco(); desenharFantasma(); aplicarEstilo();
     cena.sincronizar(m, null, false);
   }
 
@@ -669,8 +681,9 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     for (const q of pontos) for (const c of celulasDoDisco(q, raio, res, cols, lins)) unicas.set(chaveCel(c[0], c[1]), c);
     if (!unicas.size) return;
     const celulas = [...unicas.values()];
-    const comando = i.presenca ? (i.apagar ? { tipo: 'presenca.apagar' as const, brush: null, celulas } : { tipo: 'presenca.pintar' as const, brush: pincel.presenca.brush, celulas })
-      : i.apagar ? { tipo: 'terreno.apagar' as const, celulas } : { tipo: 'terreno.pintar' as const, material: pincel.terreno.material, celulas, ...(pincel.terreno.suavizar ? { suavizar: true } : {}) };
+    const comando = i.presenca
+      ? (i.apagar ? { tipo: 'presenca.apagar' as const, brush: null, celulas } : { tipo: 'presenca.pintar' as const, brush: pincel.presenca.brush, celulas })
+      : comandoDoPincelDeTerreno(pincel.terreno, celulas, i.apagar);
     if (!tentar(() => i.gesto.aplicar(comando))) { i.gesto.cancelar(); interacao = null; }
   }
 
@@ -691,7 +704,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       espalharAqui(p); return;
     }
     if (f === 'terreno' || f === 'presenca') {
-      const presenca = f === 'presenca', nome = presenca ? 'presença' : 'terreno';
+      const presenca = f === 'presenca', nome = presenca ? 'presença' : pincel.terreno.modo === 'relevo' ? 'relevo' : 'terreno';
       interacao = { tipo: 'terreno', presenca, apagar: e.altKey, gesto: store.iniciarGesto(e.altKey ? `Apagar ${nome}` : `Pintar ${nome}`), ultimo: p }; pintarTerreno(p, null); return;
     }
     if (f === 'parede') { const q = pontoDeParede(m, p, undefined, livre); interacao = { tipo: 'parede', ini: q, fim: q }; return; }
@@ -999,7 +1012,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (regua && ponte.ferramenta() !== 'regua') { regua = null; camadaSuja = true; }   // trocar de ferramenta limpa a régua
     if (!camadaSuja) return;
     camadaSuja = false;
-    desenharGrade(); desenharSelecao(); desenharLaco(); desenharFantasma(); cursor();
+    desenharGrade(); desenharRelevo(); desenharSelecao(); desenharLaco(); desenharFantasma(); cursor();
   };
   app.ticker.add(aoQuadro);
   const observador = new ResizeObserver(() => { camadaSuja = true; });
@@ -1014,7 +1027,6 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     enquadrarMapa();
   }
 
-  let modoProjetor = somenteLeitura;
   let pintandoSimulado: number | null = null;
   function esperarQuadro(): Promise<void> {
     return new Promise<void>(resolve => {
@@ -1094,7 +1106,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       definirCamera(camera0);
     }
   }
-  function projetor(ligado: boolean): void { modoProjetor = ligado; cena.definirModoProjetor(ligado); grade.visible = !ligado; area_.visible = !ligado; selecaoG.visible = !ligado; fantasmaC.visible = !ligado; fantasmaDaProposta.raiz.visible = !ligado; laco.visible = !ligado; }
+  function projetor(ligado: boolean): void { modoProjetor = ligado; cena.definirModoProjetor(ligado); grade.visible = !ligado; area_.visible = !ligado; selecaoG.visible = !ligado; fantasmaC.visible = !ligado; fantasmaDaProposta.raiz.visible = !ligado; laco.visible = !ligado; desenharRelevo(); }
 
   return {
     get camera() { return camera; },
@@ -1136,7 +1148,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     destruir() {
       destruido = true; cancelarAssinatura(); observador.disconnect();
       window.removeEventListener('keydown', aoTeclar, true); window.removeEventListener('keyup', aoSoltar);
-      app.ticker.remove(aoQuadro); limparFantasmaSprite(); fantasmaDaProposta.destruir(); retratos.limpar(); cena.destruir(); baker.encerrar(); pixelizacao.destruir(); app.destroy(true, { children: true });
+      app.ticker.remove(aoQuadro); limparFantasmaSprite(); fantasmaDaProposta.destruir(); linhasDeNivel.destruir(); retratos.limpar(); cena.destruir(); baker.encerrar(); pixelizacao.destruir(); app.destroy(true, { children: true });
     },
   };
 }

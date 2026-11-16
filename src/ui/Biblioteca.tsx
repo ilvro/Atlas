@@ -111,12 +111,25 @@ function Correnteza({ s, material }: { s: SessaoDeEdicao; material: string }) {
 
 function Terreno({ s }: { s: SessaoDeEdicao }) {
   const p = s.pincel.value.terreno;
+  const emRelevo = p.modo === 'relevo';
+  const altitudeAtual = p.altura ?? 0;
   const matPincel = materialDe(p.material);
   const baseAtual = s.doc.value.terrain.base;
   const matBase = baseAtual !== 'vazio' ? materialDe(baseAtual) : null;
+  const atalhosRelevo: readonly [number, string][] = [[-20, '−20'], [-5, '−5'], [0, '0'], [3, '+3'], [10, '+10']];
+  const escolherAltitude = (alt: number) => mudar(s, { terreno: { ...p, modo: 'relevo', altura: alt } });
   return (<>
-    <p class="dica">Pinte o chão ao ar livre. As bordas se misturam sozinhas. <kbd>Alt</kbd> apaga; <kbd>[</kbd> e <kbd>]</kbd> mudam o pincel.</p>
-    <div class="lista-cartas">{[...materiaisDo('terreno'), ...materiaisDo('macico'), ...materiaisDo('agua')].map(m => <button type="button" key={m.id} class={`carta ${p.material === m.id ? 'ativa' : ''}`} onClick={() => mudar(s, { terreno: { ...p, material: m.id } })} data-testid={`terreno-${m.id}`}><span class="carta-amostras"><Amostra id={m.id} tamanho={26} /></span><span class="carta-nome">{m.nome}</span></button>)}</div>
+    <p class="dica">Pinte o chão ou alturas ao ar livre. As bordas se misturam sozinhas. <kbd>Alt</kbd> apaga; <kbd>[</kbd> e <kbd>]</kbd> mudam o pincel.</p>
+    <div class="ajustes">
+      <h4>Relevo</h4>
+      <CampoNumero id="terreno-relevo-altura" rotulo="Altitude" valor={altitudeAtual} min={-100} max={100} passo={0.5} unidade="m"
+        aoConfirmar={v => { if (v < -100 || v > 100) return false; escolherAltitude(v); }} />
+      <div class="chips">
+        {atalhosRelevo.map(([v, rotulo]) => <button type="button" key={v} class={`chip ${emRelevo && altitudeAtual === v ? 'ativo' : ''}`} onClick={() => escolherAltitude(v)} data-testid={`relevo-atalho-${v}`}>{rotulo}</button>)}
+        <button type="button" class={`chip ${emRelevo && altitudeAtual === 0 ? 'ativo' : ''}`} title="Apagar patamar (volta para 0 m)" onClick={() => escolherAltitude(0)} data-testid="relevo-borracha">Borracha (0 m)</button>
+      </div>
+    </div>
+    <div class="lista-cartas">{[...materiaisDo('terreno'), ...materiaisDo('macico'), ...materiaisDo('agua')].map(m => <button type="button" key={m.id} class={`carta ${!emRelevo && p.material === m.id ? 'ativa' : ''}`} onClick={() => mudar(s, { terreno: { ...p, modo: 'material', material: m.id } })} data-testid={`terreno-${m.id}`}><span class="carta-amostras"><Amostra id={m.id} tamanho={26} /></span><span class="carta-nome">{m.nome}</span></button>)}</div>
     {matPincel.padrao === 'grama' && <CampoCor rotulo="Tom da grama" dica="Personalize o tom de cor da grama do pincel" valor={matPincel.base} aoPrevia={cor => { mudar(s, { terreno: { ...p, material: `grama#${cor.replace('#', '')}` } }); }} aoConfirmar={() => {}} />}
     <CampoNumero rotulo="Pincel" unidade="m" valor={p.raio} min={0.25} max={12} passo={0.5} aoConfirmar={v => { mudar(s, { terreno: { ...p, raio: v } }); }} />
     {materialDe(p.material).uso === 'agua' && <CampoCaixa rotulo="Suavizar a margem" dica="Arredonda a borda da água onde você pintar: lagos e poças mais redondos." valor={p.suavizar === true} aoMudar={v => { mudar(s, { terreno: { ...p, suavizar: v } }); }} />}

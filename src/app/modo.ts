@@ -37,3 +37,6 @@ export const vistaAtual = (): 'construir' | 'mestre' | 'jogador' => (modo.value 
 
 /** Modo de Alinhamento Visual da Grade (desenha gabarito 3×3 para ajustar offset e size pelo mouse). */
 export const alinhandoGrade = signal(false);
+
+/** Mostrar linhas de contorno de relevo em Construir mesmo fora do pincel de relevo. */
+export const mostrarRelevo = signal(false);

@@ -14,6 +14,8 @@ import { validarMapa } from '../../src/domain/validacao.ts';
 import { ladoBaixo, larguraDaFace, FACE_MAXIMA } from '../../src/procedural/escarpa.ts';
 import { ehEscarpaAvulsa } from '../../src/render/entradas.ts';
 import { corDaNeblinaDoRelevo, tintDoRelevo } from '../../src/domain/relevo.ts';
+import { PINCEL_PADRAO, comandoDoPincelDeTerreno } from '../../src/render/pincel.ts';
+import { segmentosERotulosDeNivel } from '../../src/render/linhas-de-nivel.ts';
 
 function retanguloDeCelulas(x0: number, y0: number, x1: number, y1: number): [number, number][] {
   const out: [number, number][] = [];
@@ -126,4 +128,26 @@ test('relevo: larguraDaFace limita em FACE_MAXIMA e tintDoRelevo escurece abaixo
   const outroClima = aplicarEmCopia(r, [{ tipo: 'clima.aplicar', patch: { ambient: { color: '#334477', intensity: 0.4 } } }]);
   assert.notEqual(corDaNeblinaDoRelevo(outroClima.climate), corDaNeblinaDoRelevo(r.climate));
   assert.notEqual(tintDoRelevo(outroClima, [8, 8]), tintBaixo);
+});
+
+test('relevo: pincel com altitude emite relevo.pintar e linhas de nível rotulam bordas', () => {
+  const celulas: [number, number][] = [[2, 3], [2, 4]];
+  const comoMaterial = comandoDoPincelDeTerreno(PINCEL_PADRAO.terreno, celulas, false);
+  assert.equal(comoMaterial.tipo, 'terreno.pintar');
+
+  const emRelevo = { ...PINCEL_PADRAO.terreno, modo: 'relevo' as const, altura: -20 };
+  const cmdRelevo = comandoDoPincelDeTerreno(emRelevo, celulas, false);
+  assert.deepEqual(cmdRelevo, { tipo: 'relevo.pintar', altura: -20, celulas });
+
+  const borrachaAlt = { ...PINCEL_PADRAO.terreno, modo: 'relevo' as const, altura: 0 };
+  assert.deepEqual(comandoDoPincelDeTerreno(borrachaAlt, celulas, false), { tipo: 'relevo.pintar', altura: 0, celulas });
+  assert.deepEqual(comandoDoPincelDeTerreno(emRelevo, celulas, true), { tipo: 'relevo.apagar', celulas });
+
+  const m = aplicarEmCopia(criarMapa({ largura: 30, altura: 20 }), [
+    { tipo: 'relevo.pintar', altura: -20, celulas: retanguloDeCelulas(0, 0, 60, 80) },
+  ]);
+  const { segmentos, rotulos } = segmentosERotulosDeNivel(m);
+  assert.ok(segmentos.length > 0, 'desenha traços tracejados');
+  assert.ok(rotulos.length >= 1, 'emite rótulo de altitude ao longo da borda');
+  assert.ok(rotulos.every(r => r.texto === '−20 m'));
 });
