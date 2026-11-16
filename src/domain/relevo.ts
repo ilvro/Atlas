@@ -6,11 +6,12 @@ import { materialDe } from '../procedural/materiais.ts';
 import { codificar, type Faixa } from './celulas.ts';
 import { contornar } from './contorno.ts';
 import { limparOrfaos, PAREDE_PADRAO } from './geometria.ts';
-import type { MapaAtlas, Parede, Ponto, RelevoDoTerreno } from './mapa.ts';
+import type { Clima, MapaAtlas, Parede, Ponto, RelevoDoTerreno } from './mapa.ts';
 
 export const DEGRAU_TRANSPONIVEL = 1;
 export const ALTITUDE_MIN = -200;
 export const ALTITUDE_MAX = 200;
+export const PROFUNDIDADE_DE_NEVOA = 30;
 const MAX_PONTOS_POR_PAREDE = 4000;
 
 export const idDoPatamar = (altura: number): string => `p${Math.round((altura === 0 ? 0 : altura) * 10)}`;
@@ -190,4 +191,57 @@ export function atualizarEscarpasDoRelevo(m: MapaAtlas): void {
   for (const a of Object.values(m.openings)) if (!m.walls[a.wallId]) delete m.openings[a.id];
   for (const o of Object.values(m.props)) if (o.wall && !m.walls[o.wall.wallId]) delete m.props[o.id];
   limparOrfaos(m);
+}
+
+const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+
+/** Cor de névoa de altitude: azul acinzentado (#8a9aae) misturado 50% com a luz ambiente iluminada do clima. */
+export function corDaNeblinaDoRelevo(clima: Pick<Clima, 'ambient'>): string {
+  const ceu = [0x6e, 0x82, 0x9c];
+  const hex = clima.ambient.color;
+  const itens = [1, 3, 5].map((i, idx) => {
+    const amb = clamp(parseInt(hex.slice(i, i + 2), 16) * clima.ambient.intensity * 0.5, 0, 255);
+    return Math.round((ceu[idx]! + amb) * 0.5);
+  });
+  return `#${itens.map(v => clamp(v, 0, 255).toString(16).padStart(2, '0')).join('')}`;
+}
+
+/** Maior altitude do mapa (0 se não houver patamares). */
+export function topoDoRelevo(m: Pick<MapaAtlas, 'bounds' | 'terrain'>): number {
+  const dist = alturasDistintas(m);
+  return dist.at(-1) ?? 0;
+}
+
+/** Fator normalizado de profundidade em [0, 1] abaixo do topo. */
+export const fatorDeProfundidade = (altura: number, topo: number): number =>
+  clamp((topo - altura) / PROFUNDIDADE_DE_NEVOA, 0, 1);
+
+/** Cor multiplicativa Pixi para objetos abaixo do topo de relevo (escurecimento + mistura para névoa). */
+export function tintDoRelevo(m: Pick<MapaAtlas, 'bounds' | 'terrain' | 'climate'>, ponto: Ponto): number {
+  if (!m.terrain.relief) return 0xffffff;
+  const topo = topoDoRelevo(m);
+  const p = fatorDeProfundidade(alturaEm(m, ponto), topo);
+  if (p <= 0.001) return 0xffffff;
+  const esc = 1 - 0.6 * p;
+  const alfa = 0.25 * p;
+  const neblina = corDaNeblinaDoRelevo(m.climate);
+  const canais = [1, 3, 5].map(i => {
+    const nb = parseInt(neblina.slice(i, i + 2), 16);
+    return clamp(Math.round((255 * (1 - alfa) + nb * alfa) * esc), 0, 255);
+  });
+  return (canais[0]! << 16) | (canais[1]! << 8) | canais[2]!;
+}
+
+/** Células a 0 m fora de patamares explícitos (usado quando topo > 0 para aplicar névoa no vale). */
+export function celulasForaDePatamares(m: Pick<MapaAtlas, 'bounds' | 'terrain'>): Faixa[] {
+  const g = gradeDoRelevo(m);
+  if (!g) return [];
+  const zeros: [number, number][] = [];
+  for (let j = 0; j < g.lins; j++) {
+    const base = j * g.cols;
+    for (let i = 0; i < g.cols; i++) {
+      if (g.alturas[base + i] === 0) zeros.push([i, j]);
+    }
+  }
+  return codificar(zeros);
 }

@@ -1,6 +1,7 @@
 import { arestasDeParede, comprimentoDaParede, pontoNaParede, salasDaAbertura, type ArestaUnitaria } from '../domain/geometria.ts';
 import type { Comodo, MapaAtlas, Objeto, Parede } from '../domain/mapa.ts';
 import { generoDe } from '../domain/presets.ts';
+import { celulasForaDePatamares, corDaNeblinaDoRelevo, degrausDoRelevo, topoDoRelevo } from '../domain/relevo.ts';
 import type { EntradaDeEscarpa } from '../procedural/escarpa.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import { ACERVO } from '../procedural/acervo.ts';
@@ -38,9 +39,30 @@ export function entradaDoComodo(m: MapaAtlas, sala: Comodo, ctx: ContextoDeEntra
 }
 
 export function entradaDoTerreno(m: MapaAtlas): EntradaDeTerreno {
+  const rel = m.terrain.relief;
+  let relevo: EntradaDeTerreno['relevo'];
+  if (rel && Object.keys(rel.patamares).length) {
+    const topo = topoDoRelevo(m);
+    const faixas = Object.values(rel.patamares)
+      .filter(p => p.altura < topo && p.cells.length > 0)
+      .map(p => ({ altura: p.altura, celulas: p.cells }));
+    if (0 < topo) {
+      const zeros = celulasForaDePatamares(m);
+      if (zeros.length) faixas.push({ altura: 0, celulas: zeros });
+    }
+    faixas.sort((a, b) => a.altura - b.altura);
+    const degs = degrausDoRelevo(m);
+    relevo = {
+      faixas,
+      topo,
+      neblina: corDaNeblinaDoRelevo(m.climate),
+      ...(degs.length ? { degraus: degs.map(d => ({ caminhos: d.caminhos, drops: d.drops })) } : {}),
+    };
+  }
   return { largura: m.bounds.width, altura: m.bounds.height, resolucao: m.terrain.resolution, // Um fundo em textura aparece onde o terreno é 'vazio': o mesmo desenho do terreno, sem uma segunda via.
     base: m.terrain.base !== 'vazio' ? m.terrain.base : m.backdrop.kind === 'texture' && m.backdrop.material ? m.backdrop.material : 'vazio',
-    camadas: Object.values(m.terrain.layers).sort((a, b) => a.order - b.order).map(c => ({ material: c.material, celulas: c.cells, ...(c.flow ? { flow: c.flow } : {}) })) };
+    camadas: Object.values(m.terrain.layers).sort((a, b) => a.order - b.order).map(c => ({ material: c.material, celulas: c.cells, ...(c.flow ? { flow: c.flow } : {}) })),
+    ...(relevo ? { relevo } : {}) };
 }
 
 /** Chave do cache de um objeto de piso: a mesma receita, semente e parâmetros reaproveitam o mesmo desenho. */

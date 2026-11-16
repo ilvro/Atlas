@@ -11,6 +11,7 @@ import type { Mudancas } from '../state/mudancas.ts';
 import { corDoNome, hexParaNumero } from './cores.ts';
 import { chaveDaEscarpa, chaveDoComodo, chaveDoObjeto, ehEscarpaAvulsa, entradaDaEscarpa, chaveDoTerreno, pedidoDoObjeto, contextoDeEntradas, entradaDoComodo, entradaDoTerreno, opcoesDoPixel, resolucaoDe } from './entradas.ts';
 import { nivelDaLuz } from '../domain/clima.ts';
+import { tintDoRelevo } from '../domain/relevo.ts';
 import { criarMapaDeLuz } from './mapa-de-luz.ts';
 import { criarNevoa, type Vista } from './nevoa.ts';
 import { secretaOculta } from '../domain/nevoa.ts';
@@ -69,6 +70,8 @@ export interface Cena {
   diagnosticoDasPecas(): { id: string; vez: boolean; retrato: boolean; deitada: boolean; raio: number; quadro: { linha: number; coluna: number } | null; pips: Recursos | null; estadoVisto: string }[];
   /** Quantos objetos de piso já têm a textura pintada (sem o marcador). */
   objetosPintados(): number;
+  /** Tint atual (24 bits) do container de um objeto (para testes de relevo/submersão). */
+  tintDeObjeto(id: string): number | null;
   /** Refaz o desenho de todas as peças (chegaram PV e PD novos, por exemplo). */
   redesenharPecas(): void;
   /** Quantas presenças estão desenhadas agora. */
@@ -129,7 +132,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
 
   // ---------- Terreno ----------
   function sincronizarTerreno(m: MapaAtlas): void {
-    const e = entradaDoTerreno(m), temAlgo = e.base !== 'vazio' || e.camadas.length > 0;
+    const e = entradaDoTerreno(m), temAlgo = e.base !== 'vazio' || e.camadas.length > 0 || !!e.relevo;
     if (!temAlgo) { if (terreno) { removerEntrada(terreno); terreno = null; } agua.aplicar(undefined, m); return; }
     terreno ??= novaEntrada(terrenoC);
     const estilo = m.style.renderer, res = resolucaoDe(m, 'terreno'), chave = chaveDoTerreno(e, res, estilo);
@@ -252,13 +255,23 @@ export function criarCena(op: OpcoesDaCena): Cena {
     e.placeholder.clear().roundRect(-w / 2, -h / 2, w, h, 0.08).fill({ color: corDoNome(o.source.kind === 'recipe' ? o.source.recipe : o.source.assetId, 0.35, 0.34), alpha: 0.7 });
   }
 
-  /** Objeto submerso: tingido pela cor do fundo e esmaecido pela profundidade no ponto dele (no Pixel, em três degraus e sem transparência). Os outros voltam ao normal. */
+  const multiplicarTint = (a: number, b: number): number =>
+    (Math.round(((a >> 16) & 255) * ((b >> 16) & 255) / 255) << 16) |
+    (Math.round(((a >> 8) & 255) * ((b >> 8) & 255) / 255) << 8) |
+    Math.round((a & 255) * (b & 255) / 255);
+
+  /** Objeto submerso: tingido pela cor do fundo e esmaecido pela profundidade no ponto dele; abaixo do topo de relevo também recebe tom e névoa. */
   function aplicarSubmersao(c: Container, o: Objeto, m: MapaAtlas): void {
     const sub = o.elevation === 'underwater' ? agua.submersao(o.position[0], o.position[1]) : null;
-    if (!sub) { if (o.elevation === 'underwater') { c.tint = 0xb4c8d0; c.alpha = m.style.renderer === 'pixel' ? 1 : 0.8; } else { c.tint = 0xffffff; c.alpha = 1; } return; }
+    const tRel = tintDoRelevo(m, o.position);
+    if (!sub) {
+      if (o.elevation === 'underwater') { c.tint = multiplicarTint(0xb4c8d0, tRel); c.alpha = m.style.renderer === 'pixel' ? 1 : 0.8; }
+      else { c.tint = tRel; c.alpha = 1; }
+      return;
+    }
     const pixel = m.style.renderer === 'pixel', t = pixel ? (sub.profundidade < 0.17 ? 0.25 : sub.profundidade < 0.5 ? 0.6 : 1) : Math.min(1, 0.25 + sub.profundidade * 0.9);
     const canal = (sh: number) => Math.round(255 - (255 - Math.min(255, ((sub.cor >> sh) & 255) * 1.8 + 40)) * 0.8 * t);
-    c.tint = (canal(16) << 16) | (canal(8) << 8) | canal(0); c.alpha = pixel ? 1 : 1 - 0.45 * t;
+    c.tint = multiplicarTint((canal(16) << 16) | (canal(8) << 8) | canal(0), tRel); c.alpha = pixel ? 1 : 1 - 0.45 * t;
   }
   function reaplicarSubmersos(m: MapaAtlas): void { for (const [id, e] of objetos) { const o = m.props[id] as Objeto | undefined; if (o?.elevation === 'underwater') aplicarSubmersao(e.c, o, m); } }
 
@@ -269,7 +282,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (!o || chave === null) { if (e) { removerEntrada(e); objetos.delete(id); } continue; }
       let entrada = e;
       if (!entrada) {
-        entrada = novaEntrada(objetosC); objetos.set(id, entrada); desenharMarcadorDeObjeto(entrada, o);
+        entrada = novaEntrada(objetosC); entrada.c.label = id; objetos.set(id, entrada); desenharMarcadorDeObjeto(entrada, o);
         if (comPop && op.efeitos()) { entrada.c.scale.set(0.6); animacoes.push({ alvo: entrada.c, t0: performance.now(), dur: 180, final: o.scale }); }
       }
       const pai = o.elevation === 'underwater' ? submersosC : objetosC;      // o que está sob a água fica entre o leito e a superfície
@@ -387,11 +400,12 @@ export function criarCena(op: OpcoesDaCena): Cena {
     sincronizar(m, mud, comPop, visaoDoClima) {
       mapa = m;
       const tudo = !mud || mud.completo, campos = (...c: string[]) => tudo || c.some(x => mud!.campos.includes(x)), colecao = (c: string) => tudo || !!(mud!.colecoes as Record<string, unknown>)[c];
-      if (campos('terrain', 'bounds', 'grid', 'backdrop', 'style')) sincronizarTerreno(m);
+      const refazerPorRelevo = !!m.terrain.relief && campos('climate', 'terrain');
+      if (campos('terrain', 'bounds', 'grid', 'backdrop', 'style') || refazerPorRelevo) sincronizarTerreno(m);
       if (tudo || colecao('walls') || campos('style')) sincronizarEscarpas(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid')) sincronizarComodos(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid', 'session', 'style')) desenharParedes(m);
-      if (tudo || colecao('props') || campos('style')) sincronizarObjetos(m, tudo || campos('style') ? null : mud!.colecoes.props ?? null, comPop);
+      if (tudo || colecao('props') || campos('style') || refazerPorRelevo) sincronizarObjetos(m, (tudo || campos('style') || refazerPorRelevo) ? null : mud!.colecoes.props ?? null, comPop);
       if (tudo || colecao('props') || campos('style', 'grid')) cachoeiras.sincronizar(m);
       if (tudo || colecao('props') || colecao('walls') || campos('climate', 'terrain', 'bounds', 'style')) sombras.atualizar(m, objetos, pixelRes0(m));
       if (tudo || colecao('props')) desenharMarcas(m);
@@ -427,6 +441,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     aguaAtiva: () => agua.ativa(),
     diagnosticoDasPecas: () => [...pecas.entries()].map(([id, c]) => ({ id, ...(visuais.get(c)?.estado() ?? { vez: false, retrato: false, deitada: false, raio: 0, deslizando: false, trilha: 0, quadro: null, pips: null, estadoVisto: 'normal' }) })),
     objetosPintados: () => [...objetos.values()].filter(e => e.sprite !== null && !e.placeholder.visible).length,
+    tintDeObjeto: id => objetos.get(id)?.c.tint ?? null,
     quadro(agora) {
       luz.quadro(agora); nevoa.quadro(agora); telhados.quadro(agora);
       for (const c of pecas.values()) visuais.get(c)?.quadro(agora, op.efeitos());

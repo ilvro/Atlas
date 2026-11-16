@@ -61,7 +61,7 @@ Testes: pintar −20 num retângulo gera uma escarpa fechada em volta, com `drop
 Pronto quando: `npm test` passa, e no editor, pintando o relevo por um teste e2e ou pelo console, aparecem as escarpas (o desenho delas já vem do código da escarpa avulsa; confira em `ehEscarpaAvulsa`, em `src/render/entradas.ts`, que elas são tratadas como avulsas, e ajuste se não forem).
 Commit: `added terrain relief steps with derived cliffs`
 
-### F2 — Tom pela altitude no terreno e nos objetos  ⬜
+### F2 — Tom pela altitude no terreno e nos objetos  ✅
 Objetivo: o que está mais baixo parece distante: mais escuro, mais frio e enevoado.
 Depende de: F1.
 Ler: `src/render/entradas.ts` (`entradaDoTerreno`, `chaveDoTerreno`), `src/procedural/assar.ts` (`EntradaDeTerreno`, `assarTerreno`), `src/render/cena.ts` (`sincronizarTerreno` e onde os objetos ganham `tint`; procure `harmonize`), `src/domain/clima.ts` (cor do ambiente e do céu), `src/procedural/escarpa.ts` (`larguraDaFace`).
