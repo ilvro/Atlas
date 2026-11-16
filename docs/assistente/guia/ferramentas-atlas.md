@@ -134,6 +134,7 @@ Parâmetros por item em `edificios[]`:
 - `frente`: `'n' | 's' | 'l' | 'o'`.
 - `forma`: `'auto' | 'compacta' | 'L' | 'T' | 'U' | 'linear' | 'patio'`.
 - `alpendre`: `true` cria varanda frontal sem telhado.
+- `rotacao`: ângulo opcional em radianos ao redor do centro da planta (ex.: `0.26` ≈ 15°, `-0.35` ≈ -20°), quebrando alinhamentos rígidos na grade.
 - `telhado`, `piso`, `mobiliar` (padrão `true`), `luzes` (padrão `true`), `andar` (id de andar ou `null` para o térreo).
 - `comodos[]`: `{ tipo, area (m²), nome?, principal? }` (1 a 12 cômodos).
 

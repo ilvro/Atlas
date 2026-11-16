@@ -360,3 +360,21 @@ test('contornoDoComodo e facesDoContorno suportam outline com miter correto e li
     assert.ok(Math.abs(proj - prof) < 1e-6);
   }
 });
+
+test('dois cômodos outline adjacentes não duplicam a aresta compartilhada', () => {
+  const quadA: [number, number][] = [[3, 3], [6, 4], [5, 7], [2, 6]];
+  const quadB: [number, number][] = [[6, 4], [9, 5], [8, 8], [5, 7]];
+  const m = mapaCom(salaContorno('a', quadA), salaContorno('b', quadB));
+  // 4 + 4 - 1 aresta compartilhada (de [6,4] a [5,7]) = 7 segmentos simples (b fica com 2 trechos de 2+1 ou 1 polilinha)
+  const paredesShared = Object.values(m.walls).filter(w => {
+    for (let i = 0; i < w.path.length - 1; i++) {
+      const p = w.path[i]!, q = w.path[i + 1]!;
+      const mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2;
+      if (Math.hypot(mx - 5.5, my - 5.5) < 0.05) return true;
+    }
+    return false;
+  });
+  assert.equal(paredesShared.length, 1);
+  m.openings.p1 = porta(paredesShared[0]!.id, 0.5, { id: 'p1' });
+  assert.deepEqual(salasDaAbertura(m, m.openings.p1).sort(), ['a', 'b']);
+});

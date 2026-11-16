@@ -28,6 +28,8 @@ export interface ProgramaDeEdificio {
   frente: Frente;
   forma?: FormaDoEdificio;
   alpendre?: boolean;
+  /** Rotação em radianos ao redor do centro da planta (padrão 0). */
+  rotacao?: number;
   /** De 1 a 12 cômodos. */
   comodos: ComodoDoPrograma[];
 }
