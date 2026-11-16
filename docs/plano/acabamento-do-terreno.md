@@ -67,7 +67,7 @@ Testes: a métrica acima; a mesma semente dá o mesmo resultado; num maciço de 
 Pronto quando: as laterais de "Lysdal · a vila (neve)" leem como serra nevada, e a gruta e o entreposto da Fase 10 continuam iguais a olho.
 Commit: `large rock masses read as ridges instead of camouflage`
 
-### I4 — Neve e chuva no que está ao ar livre  ⬜
+### I4 — Neve e chuva no que está ao ar livre  ✅
 Objetivo: com neve, o que está ao ar livre embranquece; com chuva, fica molhado.
 Depende de: —.
 Ler: `src/render/mascara-de-comodos.ts` (onde chuva e neve sabem o que é coberto), `src/domain/presets.ts` (`FUNCOES_AO_AR_LIVRE`), `src/render/cena.ts` (o que reage a `climate.weather`), `src/render/agua.ts` (o brilho de superfície molhada, se houver algo reaproveitável).
