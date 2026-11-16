@@ -1,7 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { codificar, decodificar } from '../../src/domain/celulas.ts';
-import { arestasCobertas, arestasDeParede, caixaDasCelulas, comodoEm, comprimentoDaParede, contornoDoComodo, facesDoContorno, indiceDeCelulas, motivoDeNaoCaber, paredesDerivadas, pontoNaParede, projetarNaParede, recalcularParedes } from '../../src/domain/geometria.ts';
+import { arestasCobertas, arestasDeParede, caixaDasCelulas, comodoEm, comprimentoDaParede, contornoDoComodo, facesDoContorno, indiceDeCelulas, motivoDeNaoCaber, normalParaDentro, paredesDerivadas, pontoNaParede, projetarNaParede, recalcularParedes } from '../../src/domain/geometria.ts';
+import { celulasDoContorno, circulo, octogono } from '../../src/domain/formas-de-comodo.ts';
+import { bloqueioNoCaminho } from '../../src/domain/movimento.ts';
+import { oclusores } from '../../src/domain/visibilidade.ts';
 import { criarMapa, type Abertura, type Comodo, type MapaAtlas } from '../../src/domain/mapa.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
 
@@ -260,3 +263,69 @@ test('copiar itens: ids novos, deslocamento, e nada de dono ou luz compartilhado
 
 import { aplicarComando as aplicarComandoParaTeste } from '../../src/state/comandos.ts';
 const dono = (p: { source: unknown }) => (p.source as { roomId?: string } | null)?.roomId;
+
+const salaContorno = (id: string, outline: [number, number][]): Comodo => ({
+  ...sala(id, celulasDoContorno({ size: 1.5, offset: [0, 0] }, outline)),
+  outline,
+});
+
+test('cômodo em círculo deriva uma parede fechada contínua e bloqueia visão e movimento', () => {
+  const outline = circulo([6, 6], 3, 24);
+  const m = mapaCom(salaContorno('torre', outline));
+  const paredes = Object.values(m.walls);
+  assert.equal(paredes.length, 1);
+  const p = paredes[0]!;
+  assert.match(p.id, /^wc_torre_\d+$/);
+  assert.equal(p.path.length, 25);
+  assert.deepEqual(p.path[0], p.path[24]);
+  assert.ok(oclusores(m, 'visao').length >= 24);
+  assert.equal(bloqueioNoCaminho(m, [6, 6], [6.2, 10]), 'Tem uma parede no caminho.');
+
+  const encaixe = encaixarNaParede(m, [9, 6], 0.9);
+  assert.ok(encaixe);
+  assert.equal(encaixe.parede.id, p.id);
+  m.openings.p1 = porta(p.id, encaixe.at, { id: 'p1', state: 'open' });
+  const { ponto: ptPorta } = pontoNaParede(p, encaixe.at * comprimentoDaParede(p));
+  const fora: [number, number] = [ptPorta[0] + 1, ptPorta[1]];
+  const dentro: [number, number] = [ptPorta[0] - 1, ptPorta[1]];
+  assert.equal(bloqueioNoCaminho(m, dentro, fora), null);
+  validarMapa(m);
+});
+
+test('cômodo com outline encostado em cômodo de células compartilha a aresta sem duplicar parede', () => {
+  // Retângulo em células [4,2]..[6,4] => x ∈ [6, 9], y ∈ [3, 6]. Aresta esquerda é x=6, y ∈ [3, 6].
+  const quadradoContorno: [number, number][] = [[3, 3], [3, 6], [6, 6], [6, 3]];
+  const m = mapaCom(salaContorno('c', quadradoContorno), sala('b', retangulo(4, 2, 6, 4)));
+  const arestaCompartilhada = Object.values(m.walls).filter(w => {
+    for (let i = 0; i < w.path.length - 1; i++) {
+      const a = w.path[i]!, b = w.path[i + 1]!;
+      if (Math.abs(a[0] - 6) < 1e-6 && Math.abs(b[0] - 6) < 1e-6) return true;
+    }
+    return false;
+  });
+  // Apenas a parede da grade (dv...) existe na borda x=6; wc_c_* foi podada nessa aresta.
+  assert.equal(arestaCompartilhada.length, 1);
+  const compartilhada = arestaCompartilhada[0]!;
+  m.openings.p1 = porta(compartilhada.id, 0.5, { id: 'p1' });
+  const ligadas = salasDaAbertura(m, m.openings.p1).sort();
+  assert.deepEqual(ligadas, ['b', 'c']);
+  const n = normalParaDentro(m, compartilhada, 1.5, 'c');
+  assert.ok(n && n[0] < 0);
+});
+
+test('encaixarNaParede funciona em segmento oblíquo e recalcularParedes preserva a porta se o outline mexer pouco', () => {
+  const oct = octogono([6, 6], 3);
+  const m = mapaCom(salaContorno('oct', oct));
+  // Ponto médio do primeiro segmento diagonal
+  const seg = [oct[0]!, oct[1]!] as const;
+  const meio: [number, number] = [(seg[0][0] + seg[1][0]) / 2, (seg[0][1] + seg[1][1]) / 2];
+  const encaixe = encaixarNaParede(m, meio, 0.9);
+  assert.ok(encaixe);
+  m.openings.p1 = porta(encaixe.parede.id, encaixe.at, { id: 'p1' });
+
+  // Move levemente (0.03 m) — abaixo de 0.06 m de tolerância
+  m.rooms.oct!.outline = octogono([6.03, 6], 3);
+  recalcularParedes(m);
+  assert.ok(m.openings.p1);
+  assert.ok(m.walls[m.openings.p1.wallId]);
+});

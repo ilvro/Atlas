@@ -1,4 +1,5 @@
 import { decodificar, type Celula } from './celulas.ts';
+import { pontoNoPoligono } from './formas-de-comodo.ts';
 import type { Abertura, MapaAtlas, Objeto, Parede, Ponto } from './mapa.ts';
 
 /**
@@ -34,17 +35,20 @@ export function comodoEm(m: Pick<MapaAtlas, 'rooms' | 'grid'>, p: Ponto, indice 
 /** Todas as arestas que separam cômodos diferentes ou um cômodo do vazio, sem repetir as compartilhadas. */
 export function arestasDeParede(m: Pick<MapaAtlas, 'rooms'>): Map<string, ArestaUnitaria> {
   const indice = indiceDeCelulas(m), saida = new Map<string, ArestaUnitaria>();
-  for (const sala of Object.values(m.rooms)) for (const [x, y] of decodificar(sala.cells)) {
-    const visitar = (orient: Orientacao, i: number, j: number, outra: string | null, eMeu: 0 | 1) => {
-      if (outra === sala.id) return;
-      const chave = `${orient}:${i}:${j}`;
-      if (saida.has(chave)) return;
-      saida.set(chave, { chave, orient, i, j, salas: eMeu === 1 ? [outra, sala.id] : [sala.id, outra] });
-    };
-    visitar('h', x, y, salaDaCelula(indice, x, y - 1), 1);
-    visitar('v', x, y, salaDaCelula(indice, x - 1, y), 1);
-    visitar('h', x, y + 1, salaDaCelula(indice, x, y + 1), 0);
-    visitar('v', x + 1, y, salaDaCelula(indice, x + 1, y), 0);
+  for (const sala of Object.values(m.rooms)) {
+    if (sala.outline) continue;
+    for (const [x, y] of decodificar(sala.cells)) {
+      const visitar = (orient: Orientacao, i: number, j: number, outra: string | null, eMeu: 0 | 1) => {
+        if (outra === sala.id) return;
+        const chave = `${orient}:${i}:${j}`;
+        if (saida.has(chave)) return;
+        saida.set(chave, { chave, orient, i, j, salas: eMeu === 1 ? [outra, sala.id] : [sala.id, outra] });
+      };
+      visitar('h', x, y, salaDaCelula(indice, x, y - 1), 1);
+      visitar('v', x, y, salaDaCelula(indice, x - 1, y), 1);
+      visitar('h', x, y + 1, salaDaCelula(indice, x, y + 1), 0);
+      visitar('v', x + 1, y, salaDaCelula(indice, x + 1, y), 0);
+    }
   }
   return saida;
 }
@@ -62,9 +66,109 @@ const IDENT_PAREDE = (orient: Orientacao, linha: number, ini: number, fim: numbe
 
 export interface ParedeDerivada extends Parede { source: { roomId: string } }
 
-/** Junta arestas vizinhas e colineares (mesmo par de cômodos) em trechos de parede contínuos. */
+function subtrairIntervalos(base: [number, number][], remover: readonly [number, number][]): [number, number][] {
+  let atual = base;
+  for (const [r0, r1] of remover) {
+    if (r1 - r0 <= 1e-6) continue;
+    const prox: [number, number][] = [];
+    for (const [a, b] of atual) {
+      if (r1 <= a + 1e-6 || r0 >= b - 1e-6) { prox.push([a, b]); continue; }
+      if (r0 > a + 1e-6) prox.push([a, r0]);
+      if (r1 < b - 1e-6) prox.push([r1, b]);
+    }
+    atual = prox;
+  }
+  return atual;
+}
+
+const mesmoPonto = (a: Ponto, b: Ponto) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 1e-4;
+
+/** Paredes derivadas dos cômodos com contorno livre (`outline`), recortando lados coincidentes com arestas de cômodos de células. */
+export function paredesDoContorno(
+  m: Pick<MapaAtlas, 'rooms' | 'grid'>,
+  ignorar: ReadonlySet<string> = new Set(),
+  arestas = arestasDeParede(m),
+): ParedeDerivada[] {
+  const paredes: ParedeDerivada[] = [];
+  const t = m.grid.size, [ox, oy] = m.grid.offset;
+  const gradeH = new Map<number, [number, number][]>();
+  const gradeV = new Map<number, [number, number][]>();
+  const registrar = (orient: Orientacao, i: number, j: number) => {
+    if (orient === 'h') {
+      const l = gradeH.get(j) ?? []; l.push([ox + i * t, ox + (i + 1) * t]); gradeH.set(j, l);
+    } else {
+      const l = gradeV.get(i) ?? []; l.push([oy + j * t, oy + (j + 1) * t]); gradeV.set(i, l);
+    }
+  };
+  for (const a of arestas.values()) registrar(a.orient, a.i, a.j);
+  for (const k of ignorar) {
+    if (arestas.has(k)) continue;
+    const [o, si, sj] = k.split(':');
+    const i = Number(si), j = Number(sj);
+    if ((o === 'h' || o === 'v') && Number.isInteger(i) && Number.isInteger(j)) registrar(o, i, j);
+  }
+
+  for (const sala of Object.values(m.rooms)) {
+    const out = sala.outline;
+    if (!out || out.length < 3) continue;
+    const n = out.length;
+    const segs: [Ponto, Ponto][] = [];
+    for (let k = 0; k < n; k++) {
+      const a = out[k]!, b = out[(k + 1) % n]!;
+      const cortes: [number, number][] = [];
+      if (Math.abs(a[1] - b[1]) < 1e-4 && Math.abs(a[0] - b[0]) > 1e-4) {
+        const j = Math.round((a[1] - oy) / t);
+        if (Math.abs(a[1] - (oy + j * t)) < 1e-4) {
+          for (const [x0, x1] of gradeH.get(j) ?? []) {
+            const u0 = (x0 - a[0]) / (b[0] - a[0]), u1 = (x1 - a[0]) / (b[0] - a[0]);
+            const lo = Math.max(0, Math.min(u0, u1)), hi = Math.min(1, Math.max(u0, u1));
+            if (hi - lo > 1e-5) cortes.push([lo, hi]);
+          }
+        }
+      } else if (Math.abs(a[0] - b[0]) < 1e-4 && Math.abs(a[1] - b[1]) > 1e-4) {
+        const i = Math.round((a[0] - ox) / t);
+        if (Math.abs(a[0] - (ox + i * t)) < 1e-4) {
+          for (const [y0, y1] of gradeV.get(i) ?? []) {
+            const u0 = (y0 - a[1]) / (b[1] - a[1]), u1 = (y1 - a[1]) / (b[1] - a[1]);
+            const lo = Math.max(0, Math.min(u0, u1)), hi = Math.min(1, Math.max(u0, u1));
+            if (hi - lo > 1e-5) cortes.push([lo, hi]);
+          }
+        }
+      }
+      for (const [u0, u1] of subtrairIntervalos([[0, 1]], cortes)) {
+        if (u1 - u0 <= 1e-5) continue;
+        segs.push([
+          [arredondar(a[0] + (b[0] - a[0]) * u0), arredondar(a[1] + (b[1] - a[1]) * u0)],
+          [arredondar(a[0] + (b[0] - a[0]) * u1), arredondar(a[1] + (b[1] - a[1]) * u1)],
+        ]);
+      }
+    }
+    const cadeias: Ponto[][] = [];
+    for (const [a, b] of segs) {
+      const ult = cadeias.at(-1);
+      if (ult && mesmoPonto(ult.at(-1)!, a)) ult.push(b);
+      else cadeias.push([a, b]);
+    }
+    if (cadeias.length > 1 && mesmoPonto(cadeias.at(-1)!.at(-1)!, cadeias[0]![0]!)) {
+      const rabo = cadeias.pop()!;
+      cadeias[0] = [...rabo.slice(0, -1), ...cadeias[0]!];
+    }
+    cadeias.forEach((path, idx) => {
+      paredes.push({
+        id: `wc_${sala.id}_${idx}`,
+        path,
+        ...structuredClone(PAREDE_PADRAO),
+        source: { roomId: sala.id },
+      });
+    });
+  }
+  return paredes;
+}
+
+/** Junta arestas vizinhas e colineares dos cômodos de células e as paredes contínuas dos cômodos de contorno. */
 export function paredesDerivadas(m: Pick<MapaAtlas, 'rooms' | 'grid'>, ignorar: ReadonlySet<string> = new Set()): ParedeDerivada[] {
-  const arestas = [...arestasDeParede(m).values()].filter(a => !ignorar.has(a.chave));
+  const mapaArestas = arestasDeParede(m);
+  const arestas = [...mapaArestas.values()].filter(a => !ignorar.has(a.chave));
   const paredes: ParedeDerivada[] = [];
   for (const orient of ['h', 'v'] as const) {
     const doEixo = arestas.filter(a => a.orient === orient);
@@ -85,6 +189,7 @@ export function paredesDerivadas(m: Pick<MapaAtlas, 'rooms' | 'grid'>, ignorar: 
       }
     }
   }
+  paredes.push(...paredesDoContorno(m, ignorar, mapaArestas));
   return paredes;
 }
 
@@ -136,8 +241,22 @@ export function projetarNaParede(p: Pick<Parede, 'path'>, ponto: Ponto): { dist:
 export function salasDaAbertura(m: Pick<MapaAtlas, 'walls' | 'grid' | 'rooms'>, a: Pick<Abertura, 'wallId' | 'at'>, arestas: Map<string, ArestaUnitaria> = arestasDeParede(m)): string[] {
   const p = m.walls[a.wallId]; if (!p) return [];
   const { ponto, tangente } = pontoNaParede(p, a.at * comprimentoDaParede(p)), t = m.grid.size, [ox, oy] = m.grid.offset;
-  const chave = Math.abs(tangente[0]) > 0.5 ? `h:${Math.floor((ponto[0] - ox) / t)}:${Math.round((ponto[1] - oy) / t)}` : `v:${Math.round((ponto[0] - ox) / t)}:${Math.floor((ponto[1] - oy) / t)}`;
-  return (arestas.get(chave)?.salas ?? ([] as (string | null)[])).filter((x): x is string => x !== null);
+  if (!p.id.startsWith('wc_')) {
+    const chave = Math.abs(tangente[0]) > 0.5 ? `h:${Math.floor((ponto[0] - ox) / t)}:${Math.round((ponto[1] - oy) / t)}` : `v:${Math.round((ponto[0] - ox) / t)}:${Math.floor((ponto[1] - oy) / t)}`;
+    const achadas = (arestas.get(chave)?.salas ?? ([] as (string | null)[])).filter((x): x is string => x !== null);
+    if (achadas.length) return achadas;
+  }
+  const indice = indiceDeCelulas(m);
+  const encontradas = new Set<string>();
+  for (const n of [[-tangente[1], tangente[0]], [tangente[1], -tangente[0]]] as const) {
+    const teste: Ponto = [ponto[0] + n[0] * 0.4, ponto[1] + n[1] * 0.4];
+    for (const s of Object.values(m.rooms)) {
+      if (s.outline && pontoNoPoligono(teste, s.outline)) encontradas.add(s.id);
+    }
+    const c = comodoEm(m, teste, indice);
+    if (c) encontradas.add(c);
+  }
+  return [...encontradas];
 }
 
 /**
@@ -146,8 +265,12 @@ export function salasDaAbertura(m: Pick<MapaAtlas, 'walls' | 'grid' | 'rooms'>, 
  */
 export function normalParaDentro(m: Pick<MapaAtlas, 'rooms' | 'grid'>, parede: Pick<Parede, 'path'>, dist: number, roomId: string, indice = indiceDeCelulas(m)): Ponto | null {
   const { ponto, tangente } = pontoNaParede(parede, dist);
+  const outline = m.rooms[roomId]?.outline;
   const candidatas: Ponto[] = [[-tangente[1], tangente[0]], [tangente[1], -tangente[0]]];
-  return candidatas.find(n => comodoEm(m, [ponto[0] + n[0] * 0.4, ponto[1] + n[1] * 0.4], indice) === roomId) ?? null;
+  return candidatas.find(n => {
+    const q: Ponto = [ponto[0] + n[0] * 0.4, ponto[1] + n[1] * 0.4];
+    return outline ? pontoNoPoligono(q, outline) : comodoEm(m, q, indice) === roomId;
+  }) ?? null;
 }
 
 export const centroDaAbertura = (p: Pick<Parede, 'path'>, a: Pick<Abertura, 'at'>): number => a.at * comprimentoDaParede(p);
