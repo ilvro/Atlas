@@ -1,6 +1,7 @@
 import { decodificar } from './celulas.ts';
 import type { Edificio } from './edificios.ts';
-import type { CumeeiraDeTelhado, DetalheDeTelhado, FormaDeTelhado, MapaAtlas, Telhado } from './mapa.ts';
+import { normalizarContorno } from './formas-de-comodo.ts';
+import type { CumeeiraDeTelhado, DetalheDeTelhado, FormaDeTelhado, MapaAtlas, Ponto, Telhado } from './mapa.ts';
 
 export type Ret = [x0: number, y0: number, x1: number, y1: number];
 export type Segmento = [[number, number], [number, number]];
@@ -15,6 +16,7 @@ export interface Face {
 export interface Trecho {
   salas: string[];
   celulas: [number, number][];
+  outline?: Ponto[];
   roof: Telhado;
 }
 
@@ -38,11 +40,11 @@ export function formaDe(roof?: Partial<Telhado>): FormaResolvida {
   };
 }
 
-/** Ordem de desenho dos trechos: plano (0) por baixo, águas (1) no meio, pirâmide (2) por cima. */
+/** Ordem de desenho dos trechos: plano (0) por baixo, águas (1) no meio, pirâmide e cone (2) por cima. */
 export function ordemDoTrecho(roof?: Partial<Telhado>): number {
   const s = formaDe(roof).shape;
   if (s === 'plano') return 0;
-  if (s === 'piramide') return 2;
+  if (s === 'piramide' || s === 'cone') return 2;
   return 1;
 }
 
@@ -79,10 +81,11 @@ export function trechosDe(m: Pick<MapaAtlas, 'rooms'>, edificio: Edificio): Trec
     chaveDaSala.set(id, `${sala.roof.material}\0${shape}`);
     const cels = decodificar(sala.cells).map(([x, y]): [number, number] => [x, y]);
     celulasPorSala.set(id, cels);
-    for (const [x, y] of cels) dono.set(`${x},${y}`, id);
+    if (!sala.outline) for (const [x, y] of cels) dono.set(`${x},${y}`, id);
   }
 
   for (const id of celulasPorSala.keys()) {
+    if (m.rooms[id]?.outline) continue;
     const chave = chaveDaSala.get(id)!;
     for (const [x, y] of celulasPorSala.get(id)!) {
       for (const [dx, dy] of VIZINHOS) {
@@ -126,6 +129,7 @@ export function trechosDe(m: Pick<MapaAtlas, 'rooms'>, edificio: Edificio): Trec
       }
     }
     celulas.sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+    const primeira = m.rooms[ids[0]!]!;
     const roof: Telhado = {
       material: base.material,
       visible: ids.some(id => m.rooms[id]!.roof.visible),
@@ -134,7 +138,7 @@ export function trechosDe(m: Pick<MapaAtlas, 'rooms'>, edificio: Edificio): Trec
       ...(steep ? { steep } : {}),
       ...(detalhes.size ? { details: [...detalhes] } : {}),
     };
-    trechos.push({ salas: ids, celulas, roof });
+    trechos.push({ salas: ids, celulas, ...(ids.length === 1 && primeira.outline ? { outline: primeira.outline } : {}), roof });
   }
 
   trechos.sort((a, b) => ordemDoTrecho(a.roof) - ordemDoTrecho(b.roof) || compararId(a.salas[0]!, b.salas[0]!));
@@ -306,11 +310,98 @@ export function aguasDe(
   return { faces, cumeeiras: temCumeeira ? [[[cx, ty], [cx, by]]] : [] };
 }
 
+function centroideDoPoligono(pts: readonly Ponto[]): Ponto {
+  let a2 = 0, cx = 0, cy = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const [x0, y0] = pts[i]!, [x1, y1] = pts[(i + 1) % pts.length]!;
+    const c = x0 * y1 - x1 * y0;
+    a2 += c;
+    cx += (x0 + x1) * c;
+    cy += (y0 + y1) * c;
+  }
+  if (Math.abs(a2) > 1e-9) return [cx / (3 * a2), cy / (3 * a2)];
+  return [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
+}
+
+/** Desloca o polígono para fora por `beiral` metros usando meia-esquadria (negativo retrai), limitado a 3×|beiral|. */
+export function expandirContorno(outline: readonly Ponto[], beiral: number): Ponto[] {
+  const pts = normalizarContorno(outline);
+  const m = pts.length;
+  if (m < 3 || Math.abs(beiral) < 1e-9) return pts;
+  const normais = pts.map((a, i): Ponto => {
+    const b = pts[(i + 1) % m]!;
+    const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1;
+    return [-dy / len, dx / len];
+  });
+  const maxExt = 3 * Math.abs(beiral);
+  return pts.map((v, i): Ponto => {
+    const n1 = normais[(i - 1 + m) % m]!, n2 = normais[i]!;
+    const denom = 1 + (n1[0] * n2[0] + n1[1] * n2[1]);
+    let ox = n1[0] + n2[0], oy = n1[1] + n2[1];
+    if (denom > 1e-4) {
+      ox = (beiral * ox) / denom;
+      oy = (beiral * oy) / denom;
+    } else {
+      const len = Math.hypot(ox, oy);
+      if (len > 1e-9) { const s = Math.sign(beiral) * maxExt / len; ox *= s; oy *= s; }
+      else { ox = beiral * n2[0]; oy = beiral * n2[1]; }
+    }
+    const len = Math.hypot(ox, oy);
+    if (len > maxExt) {
+      const f = maxExt / len;
+      ox *= f;
+      oy *= f;
+    }
+    return [v[0] + ox, v[1] + oy];
+  });
+}
+
+/** Águas e cumeeiras de um cômodo de contorno livre em metros. */
+export function aguasDoContorno(
+  outline: readonly Ponto[],
+  roof?: Partial<Telhado>,
+  beiral = 0.25,
+): { faces: Face[]; cumeeiras: Segmento[] } {
+  const { shape } = formaDe(roof);
+  const ext = expandirContorno(outline, beiral);
+  if (ext.length < 3) return { faces: [], cumeeiras: [] };
+
+  if (shape === 'plano') {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const [x, y] of ext) {
+      if (x < minX) minX = x; if (y < minY) minY = y;
+      if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+    }
+    const p = Math.min(0.14, (maxX - minX) / 4, (maxY - minY) / 4);
+    const interno = expandirContorno(ext, -p);
+    const laje: Face = { pontos: interno, normal: [0, 0], queda: [0, 1] };
+    const platibanda: Face = {
+      pontos: [...ext, ext[0]!, ...[...interno].reverse(), interno[interno.length - 1]!],
+      normal: [0, 0],
+      queda: [0, 1],
+      platibanda: true,
+    };
+    return { faces: [laje, platibanda], cumeeiras: [] };
+  }
+
+  const centro = centroideDoPoligono(ext);
+  const faces: Face[] = [];
+  for (let i = 0; i < ext.length; i++) {
+    const a = ext[i]!, b = ext[(i + 1) % ext.length]!;
+    const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
+    if (len < 1e-9) continue;
+    const n: [number, number] = [-dy / len, dx / len];
+    faces.push({ pontos: [a, b, centro], normal: n, queda: n });
+  }
+  return { faces, cumeeiras: [] };
+}
+
 /**
  * Junta as faces e cumeeiras de todos os retângulos que compõem um trecho, em **metros** do mundo: as células passam pela grade
  * (`size` e `offset`) antes de ganhar o beiral, que também é em metros.
  */
 export function aguasDoTrecho(trecho: Trecho, grade: Pick<MapaAtlas['grid'], 'size' | 'offset'>, beiral = 0.25): { faces: Face[]; cumeeiras: Segmento[] } {
+  if (trecho.outline && trecho.outline.length >= 3) return aguasDoContorno(trecho.outline, trecho.roof, beiral);
   const faces: Face[] = [];
   const cumeeiras: Segmento[] = [];
   const t = grade.size, [ox, oy] = grade.offset;

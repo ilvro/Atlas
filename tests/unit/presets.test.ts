@@ -1,13 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { circulo } from '../../src/domain/formas-de-comodo.ts';
 import { codificar } from '../../src/domain/celulas.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { ESTILOS_DE_TELHADO, FUNCOES_AO_AR_LIVRE, estiloDeTelhado, telhadoPadrao } from '../../src/domain/presets.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
 
-test('ESTILOS_DE_TELHADO: todos os 12 estilos são únicos e passam na validação do mapa', () => {
-  assert.equal(ESTILOS_DE_TELHADO.length, 12);
-  assert.equal(new Set(ESTILOS_DE_TELHADO.map(e => e.id)).size, 12);
+test('ESTILOS_DE_TELHADO: todos os 14 estilos são únicos e passam na validação do mapa', () => {
+  assert.equal(ESTILOS_DE_TELHADO.length, 14);
+  assert.equal(new Set(ESTILOS_DE_TELHADO.map(e => e.id)).size, 14);
   for (const e of ESTILOS_DE_TELHADO) {
     const m = criarMapa();
     m.rooms.r1 = {
@@ -83,4 +84,11 @@ test('telhadoPadrao: vizinho de outro nível não passa o telhado', () => {
   };
   assert.deepEqual(telhadoPadrao(m, 'sala', [[2, 1]]), estiloDeTelhado('casa-velha')!.roof, 'no térreo, o porão de baixo não conta');
   assert.deepEqual(telhadoPadrao(m, 'sala', [[2, 1]], 'subsolo'), { material: 'telha.ardosia' });
+});
+
+test('telhadoPadrao: contorno circular (>= 8 lados) ganha estilo torre-redonda em cone', () => {
+  const m = criarMapa();
+  const outline = circulo([6, 6], 3, 24);
+  assert.deepEqual(telhadoPadrao(m, 'sala', [[4, 4]], null, outline), estiloDeTelhado('torre-redonda')!.roof);
+  assert.equal(telhadoPadrao(m, 'varanda', [[4, 4]], null, outline), null);
 });

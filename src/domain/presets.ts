@@ -176,6 +176,8 @@ export const ESTILOS_DE_TELHADO: readonly EstiloDeTelhado[] = [
   { id: 'laje-moderna', nome: 'Laje moderna', roof: { material: 'telha.concreto', shape: 'plano', details: ['caixa-dagua'] } },
   { id: 'casa-nordica', nome: 'Casa nórdica', roof: { material: 'telha.grama', shape: 'duas-aguas', steep: false, details: ['chamine'] } },
   { id: 'tenda', nome: 'Tenda', roof: { material: 'telha.lona', shape: 'piramide', steep: false, details: [] } },
+  { id: 'torre-redonda', nome: 'Torre redonda', roof: { material: 'telha.escamas', shape: 'cone', steep: true, details: ['catavento'] } },
+  { id: 'torre-conica-de-palha', nome: 'Torre de palha', roof: { material: 'telha.palha', shape: 'cone', steep: true, details: [] } },
 ];
 
 export const estiloDeTelhado = (id: string): EstiloDeTelhado | undefined => ESTILOS_DE_TELHADO.find(e => e.id === id);
@@ -197,14 +199,18 @@ const ESTILO_POR_FUNCAO: Readonly<Record<string, string>> = {
   celeiro: 'celeiro',
 };
 
-/** Estilo de telhado padrão ao criar um cômodo: ar livre fica sem; funções especiais sobrepõem vizinhos; senão herda do vizinho (do mesmo nível) ou usa o gênero do mapa. */
+/** Estilo de telhado padrão ao criar um cômodo: ar livre fica sem; contorno circular ganha cone; funções especiais sobrepõem vizinhos; senão herda do vizinho (do mesmo nível) ou usa o gênero do mapa. */
 export function telhadoPadrao(
   m: Pick<MapaAtlas, 'rooms' | 'style'>,
   funcao: string | null,
   celulas: readonly [number, number][],
   nivel: string | null = null,
+  outline?: readonly Ponto[],
 ): Omit<Comodo['roof'], 'visible'> | null {
   if (funcao && FUNCOES_AO_AR_LIVRE.has(funcao)) return null;
+  if (outline && outline.length >= 8 && (!funcao || !ESTILO_POR_FUNCAO[funcao] || funcao === 'torre' || funcao === 'campanario')) {
+    return clonarTelhado(estiloDeTelhado('torre-redonda')!.roof);
+  }
   if (funcao && ESTILO_POR_FUNCAO[funcao]) return clonarTelhado(estiloDeTelhado(ESTILO_POR_FUNCAO[funcao]!)!.roof);
   if (m.style.genre === 'moderno' && (funcao === 'deposito' || funcao === 'oficina')) {
     return clonarTelhado(estiloDeTelhado('galpao-de-zinco')!.roof);

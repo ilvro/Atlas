@@ -690,7 +690,7 @@ function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
           <summary>Ajustar</summary>
           <div class="ajustar-telhado-corpo">
             <CampoOpcoes rotulo="Cobertura" valor={c.roof.material} opcoes={materiaisDo('telhado').map(x => [x.id, x.nome] as const)} aoMudar={v => editar({ roof: { material: v } }, 'Cobertura do telhado')} />
-            <CampoOpcoes rotulo="Forma" valor={c.roof.shape ?? 'quatro-aguas'} opcoes={[['quatro-aguas', 'Quatro águas'], ['duas-aguas', 'Duas águas'], ['piramide', 'Pirâmide'], ['plano', 'Plano']]} aoMudar={v => editar({ roof: { shape: v } }, 'Forma do telhado')} />
+            <CampoOpcoes rotulo="Forma" valor={c.roof.shape ?? 'quatro-aguas'} opcoes={[['quatro-aguas', 'Quatro águas'], ['duas-aguas', 'Duas águas'], ['piramide', 'Pirâmide'], ['cone', 'Cone'], ['plano', 'Plano']]} aoMudar={v => editar({ roof: { shape: v } }, 'Forma do telhado')} />
             <CampoOpcoes rotulo="Cumeeira" valor={c.roof.ridge ?? 'auto'} opcoes={[['auto', 'Automática'], ['h', 'Horizontal'], ['v', 'Vertical']]} aoMudar={v => editar({ roof: { ridge: v === 'auto' ? undefined : v } }, 'Cumeeira do telhado')} />
             <CampoCaixa rotulo="Íngreme" valor={!!c.roof.steep} aoMudar={v => editar({ roof: { steep: v } }, 'Inclinação do telhado')} />
             <div class="linha">
