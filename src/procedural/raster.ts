@@ -26,7 +26,10 @@ export function desenharPartes(ctx: Contexto, partes: readonly Parte[], { res, s
     if (sombras && !p.semSombra && p.z > 0.03) {
       const leve = p.sombraLeve ? 0.35 : 1;
       ctx.save(); ctx.globalAlpha = alfa; ctx.shadowColor = `rgba(0,0,0,${0.55 * leve})`; ctx.shadowBlur = (0.04 + p.z * 0.08) * res; ctx.shadowOffsetX = ctx.shadowOffsetY = (0.015 + p.z * 0.045) * res * leve;
-      ctx.fillStyle = '#000'; caminho(ctx, p); ctx.fill(); ctx.restore();
+      ctx.fillStyle = '#000'; caminho(ctx, p); ctx.fill();
+      // Oclusão de contato: uma sombra curta e centrada, que ancora a peça no chão (ou na peça de baixo) em qualquer direção.
+      ctx.shadowColor = `rgba(0,0,0,${0.28 * (p.sombraLeve ? 0.5 : 1)})`; ctx.shadowBlur = (0.03 + Math.min(p.z, 1.2) * 0.05) * res; ctx.shadowOffsetX = ctx.shadowOffsetY = 0;
+      caminho(ctx, p); ctx.fill(); ctx.restore();
     }
     ctx.save(); caminho(ctx, p); ctx.clip(); ctx.globalAlpha = alfa;
     pintarMaterial(ctx, p.mat, b, s, { dir: p.dir ?? 0 });
@@ -38,9 +41,10 @@ export function desenharPartes(ctx: Contexto, partes: readonly Parte[], { res, s
     caminho(ctx, p); ctx.lineWidth = Math.min(0.06, Math.min(b.w, b.h) * 0.18); ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.stroke();
     ctx.restore();
     if (p.contorno !== false) {
-      const leve = p.contorno === 'leve';
-      caminho(ctx, p); ctx.strokeStyle = `rgba(14,10,12,${leve ? 0.45 : 0.9})`; ctx.lineWidth = leve ? 0.01 : 0.02; ctx.stroke();
-      if (!leve) { ctx.save(); ctx.translate(0.004, -0.003); caminho(ctx, p); ctx.strokeStyle = 'rgba(14,10,12,0.3)'; ctx.lineWidth = 0.01; ctx.stroke(); ctx.restore(); }
+      // Nanquim: firme só nas partes estruturais; leve e miúdo ganham um fio fino e ralo, sem o traço duplicado.
+      const leve = p.contorno === 'leve' || p.detalhe === 3;
+      caminho(ctx, p); ctx.strokeStyle = `rgba(14,10,12,${leve ? 0.28 : 0.8})`; ctx.lineWidth = leve ? 0.008 : 0.018; ctx.stroke();
+      if (!leve) { ctx.save(); ctx.translate(0.004, -0.003); caminho(ctx, p); ctx.strokeStyle = 'rgba(14,10,12,0.22)'; ctx.lineWidth = 0.008; ctx.stroke(); ctx.restore(); }
     }
   });
 }
