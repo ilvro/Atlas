@@ -3,6 +3,7 @@ import { codificar, decodificar, subtrair, unir, type Celula, type Faixa } from 
 import { atualizarEscarpasDoMacico, mesmasFaixas } from '../domain/contorno.ts';
 import { atualizarSalasDosObjetos, limparOrfaos, motivoDeNaoCaber, recalcularParedes } from '../domain/geometria.ts';
 import type { Abertura, Comodo, MapaAtlas, Parede } from '../domain/mapa.ts';
+import { ALTITUDE_MAX, ALTITUDE_MIN, atualizarEscarpasDoRelevo, idDoPatamar } from '../domain/relevo.ts';
 import { suavizarMargem } from '../domain/agua.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import { clonar } from './imutavel.ts';
@@ -34,10 +35,12 @@ export type ComandoConstruir =
   | { tipo: 'terreno.base'; material: string }
   /** Correnteza da camada de água desse material (`angle` em rad, `speed` de 0 a 3 m/s); `null` deixa a água parada. */
   | { tipo: 'terreno.correnteza'; material: string; flow: { angle: number; speed: number } | null }
+  | { tipo: 'relevo.pintar'; altura: number; celulas: readonly CelulaDoComando[] }
+  | { tipo: 'relevo.apagar'; celulas: readonly CelulaDoComando[] }
   | { tipo: 'presenca.pintar'; brush: string; celulas: readonly CelulaDoComando[]; intensidade?: number }
   | { tipo: 'presenca.apagar'; brush: string | null; celulas: readonly CelulaDoComando[] };
 
-export const TIPOS_DE_CONSTRUCAO = ['comodo.criar', 'comodo.pintar', 'comodo.apagar', 'comodo.atualizar', 'comodo.remover', 'comodo.notas', 'parede.adicionar', 'parede.atualizar', 'parede.remover', 'parede.desanexar', 'abertura.adicionar', 'abertura.atualizar', 'abertura.remover', 'terreno.pintar', 'terreno.emergir', 'terreno.apagar', 'terreno.base', 'terreno.correnteza', 'presenca.pintar', 'presenca.apagar'] as const;
+export const TIPOS_DE_CONSTRUCAO = ['comodo.criar', 'comodo.pintar', 'comodo.apagar', 'comodo.atualizar', 'comodo.remover', 'comodo.notas', 'parede.adicionar', 'parede.atualizar', 'parede.remover', 'parede.desanexar', 'abertura.adicionar', 'abertura.atualizar', 'abertura.remover', 'terreno.pintar', 'terreno.emergir', 'terreno.apagar', 'terreno.base', 'terreno.correnteza', 'relevo.pintar', 'relevo.apagar', 'presenca.pintar', 'presenca.apagar'] as const;
 export const ehComandoDeConstrucao = (c: { tipo: string }): c is ComandoConstruir => (TIPOS_DE_CONSTRUCAO as readonly string[]).includes(c.tipo);
 
 export const ROTULOS_CONSTRUIR: Record<ComandoConstruir['tipo'], string> = {
@@ -45,6 +48,7 @@ export const ROTULOS_CONSTRUIR: Record<ComandoConstruir['tipo'], string> = {
   'parede.adicionar': 'Desenhar parede', 'parede.atualizar': 'Editar parede', 'parede.remover': 'Remover parede', 'parede.desanexar': 'Desanexar parede',
   'abertura.adicionar': 'Pôr abertura', 'abertura.atualizar': 'Editar abertura', 'abertura.remover': 'Remover abertura',
   'terreno.pintar': 'Pintar terreno', 'terreno.apagar': 'Apagar terreno', 'terreno.emergir': 'Água que baixa', 'terreno.base': 'Terreno base', 'terreno.correnteza': 'Correnteza da água',
+  'relevo.pintar': 'Pintar relevo', 'relevo.apagar': 'Apagar relevo',
   'presenca.pintar': 'Pintar presença', 'presenca.apagar': 'Apagar presença',
 };
 
@@ -145,7 +149,7 @@ export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
     case 'parede.atualizar': { const p = m.walls[c.id] ?? nao(`A parede “${c.id}” não existe.`); mesclar(p, c.patch as Record<string, unknown>); break; }
     case 'parede.remover': {
       const p = m.walls[c.id] ?? nao(`A parede “${c.id}” não existe.`);
-      if (p.source) nao('terrainLayerId' in p.source ? 'Esta parede segue o maciço. Desanexe-a antes, ou mude o terreno.' : 'Esta parede segue o cômodo. Desanexe-a antes, ou mude o cômodo.');
+      if (p.source) nao('terrainLayerId' in p.source ? 'Esta parede segue o maciço. Desanexe-a antes, ou mude o terreno.' : 'reliefStep' in p.source ? 'Esta parede segue o relevo. Desanexe-a antes, ou mude o relevo.' : 'Esta parede segue o cômodo. Desanexe-a antes, ou mude o cômodo.');
       delete m.walls[c.id]; for (const a of Object.values(m.openings)) if (a.wallId === c.id) delete m.openings[a.id];
       for (const o of Object.values(m.props)) if (o.wall?.wallId === c.id) delete m.props[o.id];
       recalcularParedes(m); break;
@@ -215,6 +219,28 @@ export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
       if (materialDe(camada.material).uso !== 'agua') nao('Só a água tem correnteza.');
       if (c.flow && !(Number.isFinite(c.flow.angle) && Number.isFinite(c.flow.speed) && c.flow.speed >= 0 && c.flow.speed <= 3)) nao('A correnteza vai de 0 a 3 m/s.');
       camada.flow = c.flow && c.flow.speed > 0 ? { angle: c.flow.angle, speed: c.flow.speed } : null; break;
+    }
+    case 'relevo.pintar':
+    case 'relevo.apagar': {
+      const altRaw = c.tipo === 'relevo.apagar' ? 0 : c.altura;
+      if (!Number.isFinite(altRaw) || altRaw < ALTITUDE_MIN || altRaw > ALTITUDE_MAX) {
+        nao(`A altitude deve ficar entre ${ALTITUDE_MIN} e ${ALTITUDE_MAX} m.`);
+      }
+      const altura = altRaw === 0 ? 0 : altRaw;
+      const novas = codificar(normais(c.celulas));
+      if (!novas.length) break;
+      if (!m.terrain.relief && altura === 0) break;
+      const patamares = m.terrain.relief ? Object.fromEntries(Object.entries(m.terrain.relief.patamares).map(([k, v]) => [k, { ...v, cells: subtrair(v.cells, novas) }])) : {};
+      if (altura !== 0) {
+        const pid = idDoPatamar(altura);
+        const atual = patamares[pid];
+        patamares[pid] = { id: pid, altura, cells: unir(atual?.cells ?? [], novas) };
+      }
+      for (const [k, v] of Object.entries(patamares)) if (!v.cells.length) delete patamares[k];
+      if (Object.keys(patamares).length) m.terrain.relief = { patamares };
+      else delete m.terrain.relief;
+      atualizarEscarpasDoRelevo(m);
+      break;
     }
     case 'presenca.pintar': {
       if (!c.brush) nao('Escolha um pincel de presença.');

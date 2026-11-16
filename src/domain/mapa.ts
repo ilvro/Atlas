@@ -64,10 +64,15 @@ export interface Acabamento { preset: string; texture: number; vignette: number;
 export interface ClimaSalvo { id: string; name: string; climate: Omit<Clima, 'preset'>; finish: Omit<Acabamento, 'preset'> }
 export interface Memoria { sketch: boolean; paper: string; ink: string }
 export interface Fundo { kind: 'solid' | 'texture'; color: string; material: string | null; title: null | { text: string; font: string; position: Ponto } }
+export interface Patamar { id: string; altura: number; cells: Faixa[] }
+export interface RelevoDoTerreno { patamares: Record<string, Patamar> }
 /** Camadas de terreno pintadas por células de `resolution` metros (em RLE). `base: 'vazio'` deixa ver o fundo do mapa. */
 export interface Terreno { resolution: number; base: string; layers: Record<string, { id: string; material: string; cells: Faixa[]; order: number; /** Correnteza da camada de água (`angle` em rad); `null` é água parada. */ flow: null | { angle: number; speed: number } }>;
   /** O que a água cobriu (`terreno.pintar` com `lembrar`): por camada original, o material e as células que ela perdeu. A água que baixa devolve isso. */
-  submerged?: Record<string, { material: string; cells: Faixa[]; /** Posição da camada original, para recriá-la no mesmo lugar se ela sumiu. */ order?: number }> }
+  submerged?: Record<string, { material: string; cells: Faixa[]; /** Posição da camada original, para recriá-la no mesmo lugar se ela sumiu. */ order?: number }>;
+  /** Patamares de altitude em metros; células fora dos patamares ficam em 0 m. */
+  relief?: RelevoDoTerreno;
+}
 
 export const FORMAS_DE_TELHADO = ['quatro-aguas', 'duas-aguas', 'plano', 'piramide'] as const;
 export type FormaDeTelhado = (typeof FORMAS_DE_TELHADO)[number];
@@ -96,7 +101,7 @@ export interface Parede {
   kind: 'wall' | 'low' | 'fence' | 'cliff'; blocks: { move: boolean; sight: boolean; light: boolean };
   /** De que lado a escarpa desce; só vale para `kind: 'cliff'`. */
   drop: 'a' | 'b' | null;
-  source: null | { roomId: string } | { terrainLayerId: string };
+  source: null | { roomId: string } | { terrainLayerId: string } | { reliefStep: number };
 }
 export interface Abertura {
   id: string; wallId: string; at: number; width: number; kind: 'door' | 'window' | 'arch' | 'secret';

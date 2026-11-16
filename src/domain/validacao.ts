@@ -32,12 +32,14 @@ const comodo = e.obj({
   }), levelId: idOuNulo,
 });
 const parede = e.obj({
-  id, path: e.lista(ponto, { min: 2, max: 5_000 }), height: e.num({ min: 0.1, max: 30 }), thickness: e.num({ min: 0.02, max: 5 }), material,
+  id, path: e.lista(ponto, { min: 2, max: 5_000 }), height: e.num({ min: 0.1, max: 400 }), thickness: e.num({ min: 0.02, max: 5 }), material,
   kind: e.um('wall', 'low', 'fence', 'cliff'), blocks: e.obj({ move: e.bool(), sight: e.bool(), light: e.bool() }),
   drop: e.nulo(e.um('a', 'b')),
   source: e.nulo(e.proprio((v, c) => {
-    // Origem da parede: um cômodo ou uma camada de terreno (o maciço que gerou o contorno).
-    if (v && typeof v === 'object' && 'terrainLayerId' in v) e.obj({ terrainLayerId: id }).verificar(v, c); else e.obj({ roomId: id }).verificar(v, c);
+    // Origem da parede: cômodo, maciço ou degrau de relevo.
+    if (v && typeof v === 'object' && 'terrainLayerId' in v) e.obj({ terrainLayerId: id }).verificar(v, c);
+    else if (v && typeof v === 'object' && 'reliefStep' in v) e.obj({ reliefStep: e.num({ min: -200, max: 200 }) }).verificar(v, c);
+    else e.obj({ roomId: id }).verificar(v, c);
   })),
 });
 const abertura = e.obj({
@@ -138,6 +140,9 @@ export const ESQUEMA_MAPA: Esq = e.obj({
         e.obj({ material, cells: faixas, order: e.opt(e.num({ inteiro: true, min: 0, max: 10_000 })) }).verificar(x, `${c}.${k}`);
       }
     })),
+    relief: e.opt(e.obj({
+      patamares: e.porId(e.obj({ id, altura: e.num({ min: -200, max: 200 }), cells: faixas })),
+    })),
   }),
   rooms: e.porId(comodo), walls: e.porId(parede), openings: e.porId(abertura), props: e.porId(objeto), lights: e.porId(luz),
   regions: e.porId(regiao), presence: e.porId(presenca), tokens: e.porId(peca),
@@ -186,6 +191,7 @@ export function validarMapa(valor: unknown): asserts valor is MapaAtlas {
   for (const [wid, p] of Object.entries(m.walls)) {
     if (p.source && 'roomId' in p.source && !m.rooms[p.source.roomId]) falha('Cômodo de origem inexistente.', `walls.${wid}.source.roomId`);
     if (p.source && 'terrainLayerId' in p.source && !m.terrain.layers[p.source.terrainLayerId]) falha('Camada de terreno de origem inexistente.', `walls.${wid}.source.terrainLayerId`);
+    if (p.source && 'reliefStep' in p.source && p.kind !== 'cliff') falha('Origem de relevo vale só para escarpas.', `walls.${wid}.source`);
     // `drop` fora de uma escarpa não tem efeito; o validador não tem canal de aviso, então aceita (e o render ignora).
   }
   for (const [oid, a] of Object.entries(m.openings)) if (!m.walls[a.wallId]) falha('Parede inexistente.', `openings.${oid}.wallId`);
@@ -223,6 +229,22 @@ export function validarMapa(valor: unknown): asserts valor is MapaAtlas {
   for (const [cid, camada] of Object.entries(m.terrain.layers)) {
     if (camada.id !== cid) falha('Identificador diferente da chave.', `terrain.layers.${cid}.id`);
     for (const [y, x0, n] of camada.cells) if (y >= linT || x0 + n > celT) falha('Células de terreno fora dos limites do mapa.', `terrain.layers.${cid}.cells`);
+  }
+  if (m.terrain.relief) {
+    const porLinha = new Map<number, [number, number][]>();
+    for (const [pid, pat] of Object.entries(m.terrain.relief.patamares)) {
+      if (pat.id !== pid) falha('Identificador diferente da chave.', `terrain.relief.patamares.${pid}.id`);
+      for (const [y, x0, n] of pat.cells) {
+        if (y >= linT || x0 + n > celT) falha('Células de relevo fora dos limites do mapa.', `terrain.relief.patamares.${pid}.cells`);
+        const intervalos = porLinha.get(y) ?? [];
+        const x1 = x0 + n;
+        for (const [a0, a1] of intervalos) {
+          if (x0 < a1 && a0 < x1) falha('Patamares de relevo não podem se sobrepor.', `terrain.relief.patamares.${pid}.cells`);
+        }
+        intervalos.push([x0, x1]);
+        porLinha.set(y, intervalos);
+      }
+    }
   }
 }
 

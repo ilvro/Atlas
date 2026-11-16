@@ -553,3 +553,7 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 - **D5b — Ferramenta `atlas_caminho`** — ferramenta `atlas_caminho { caminhos, semente? }` (até 20 caminhos num passo de desfazer) em `src/app/ponte-escrita.ts`, exemplos em `ferramentas-atlas.md`, regra em `mapas.md` e `catalogo-base.json` regenerado. Testes em `tests/unit/ponte-escrita.test.ts` e `tests/unit/ponte-mcp.test.ts`.
 
 **Resumo Frente D:** Entregues os construtores de alto nível para geração assistida em escala de cena: `atlas_mobiliar` para lotes de cômodos, 10 tipos genéricos de cômodo, plantas compostas com portas/janelas (`atlas_edificio`), arranjos com variação controlada (`atlas_arranjo`) e caminhos orgânicos (`atlas_caminho`). Validado com `npm run typecheck` e suíte unitária completa sem regressões.
+
+### Frente F — Relevo em patamares
+
+- **F1 — Patamares, comandos e escarpas derivadas** — `Patamar`/`RelevoDoTerreno` e `source: { reliefStep }` em `src/domain/mapa.ts` e `src/domain/validacao.ts`, módulo puro `src/domain/relevo.ts` (`alturaNaCelula`, `alturaEm`, `alturasDistintas`, `bordasDoRelevo`, `degrausDoRelevo`, `atualizarEscarpasDoRelevo` com `wr_<limiar>_<n>` e `drop` automático para o lado baixo), comandos `relevo.pintar` / `relevo.apagar` em `src/state/comandos-construir.ts` e suporte em `ehEscarpaAvulsa` (`src/render/entradas.ts`). Testes em `tests/unit/relevo.test.ts` e `tests/unit/validacao.test.ts`.
