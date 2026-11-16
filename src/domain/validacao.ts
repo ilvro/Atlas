@@ -139,6 +139,7 @@ export const ESQUEMA_MAPA: Esq = e.obj({
   bounds: e.obj({ width: e.num({ min: 3, max: 600 }), height: e.num({ min: 3, max: 600 }) }),
   style: e.obj({
     renderer: e.um('illustrated', 'pixel'), palette: e.texto({ min: 1, max: 60 }), walls: e.um('box', 'solid'), genre: e.texto({ min: 1, max: 40 }),
+    settle: e.opt(e.bool()),
     pixel: e.obj({ pixelsPerCell: e.num({ inteiro: true, min: 8, max: 64 }), dither: e.um('none', 'bayer4'), outline: e.bool() }),
   }),
   climate: e.obj({ preset: e.texto({ min: 1, max: 60 }), ...CAMPOS_DO_CLIMA }),

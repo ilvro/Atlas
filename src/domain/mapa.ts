@@ -42,6 +42,8 @@ export interface Estilo {
   walls: 'box' | 'solid';
   /** O gênero do mapa (`GENEROS`): guia as sugestões do assistente. Um id desconhecido vale como 'investigacao'. */
   genre: string;
+  /** Chão pisado em volta dos edifícios e soleiras nas portas externas (padrão `true`). */
+  settle?: boolean;
   pixel: { pixelsPerCell: number; dither: 'none' | 'bayer4'; outline: boolean };
 }
 /** O tempo que faz: cada campo vai de 0 a 1 (o vento, de −1 a 1: o sinal é a direção). */

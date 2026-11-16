@@ -25,7 +25,7 @@ Ordem: qualquer. I1 depois de F1, se a frente F estiver em andamento (o aro resp
 
 ---
 
-### I1 — Chão pisado e soleira em volta dos edifícios  ⬜
+### I1 — Chão pisado e soleira em volta dos edifícios  ✅
 Objetivo: a casa assenta no terreno com um aro de uso e uma soleira em cada porta externa.
 Depende de: —.
 Ler: `src/render/entradas.ts` (`entradaDoTerreno`, `chaveDoTerreno`), `src/procedural/assar.ts` (`assarTerreno`: como as camadas são pintadas com borda torcida e aro), `src/domain/edificios.ts`, `src/domain/geometria.ts` (aberturas e as paredes onde estão).
