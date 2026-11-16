@@ -1,7 +1,7 @@
 import { ACERVO } from '../procedural/acervo.ts';
 import { ehArvore } from './camadas.ts';
-import { pontoNoPoligono } from './formas-de-comodo.ts';
-import type { MapaAtlas, Objeto, Ponto } from './mapa.ts';
+import { pontoNoPoligono, poligonoRegular } from './formas-de-comodo.ts';
+import type { MapaAtlas, Objeto, Peca, Ponto } from './mapa.ts';
 import { centroDaAbertura } from './geometria.ts';
 
 /**
@@ -14,6 +14,20 @@ export interface OclusorDeObjeto {
   id: string;
   poligono: Ponto[];
   segmentos: Segmento[];
+}
+
+export interface OclusorDeToken {
+  id: string;
+  centro: Ponto;
+  raio: number;
+  lightId: string | null;
+  poligono: Ponto[];
+  segmentos: Segmento[];
+}
+
+export interface FiltroDeFonte {
+  ownerId?: string | null;
+  lightId?: string | null;
 }
 
 export interface OpcoesOclusoresDeObjetos {
@@ -206,17 +220,52 @@ function pontoNaBorda(p: Ponto, poligono: readonly Ponto[], tol = 1e-4): boolean
   return false;
 }
 
-/** Junta segmentos de paredes com os de objetos que não contêm `posLuz` (evita auto-oclusão). */
+/** Junta segmentos de paredes com os de objetos que não contêm `posLuz` e tokens fora da margem de auto-oclusão. */
 export function segmentosParaFonte(
   posLuz: Ponto,
   segmentosParedes: readonly Segmento[],
   oclusoresObj: readonly OclusorDeObjeto[],
+  oclusoresTokens: readonly OclusorDeToken[] = [],
+  filtro: FiltroDeFonte = {},
 ): Segmento[] {
-  if (oclusoresObj.length === 0) return [...segmentosParedes];
+  if (oclusoresObj.length === 0 && oclusoresTokens.length === 0) return [...segmentosParedes];
   const saida = [...segmentosParedes];
   for (const obj of oclusoresObj) {
+    if (filtro.ownerId && obj.id === filtro.ownerId) continue;
     if (pontoNoPoligono(posLuz, obj.poligono) || pontoNaBorda(posLuz, obj.poligono)) continue;
     for (const seg of obj.segmentos) saida.push(seg);
+  }
+  for (const tok of oclusoresTokens) {
+    if (filtro.ownerId && tok.id === filtro.ownerId) continue;
+    if (filtro.lightId && tok.lightId === filtro.lightId) continue;
+    const margem = tok.raio + 0.15;
+    const dx = tok.centro[0] - posLuz[0], dy = tok.centro[1] - posLuz[1];
+    if (dx * dx + dy * dy <= margem * margem) continue;
+    for (const seg of tok.segmentos) saida.push(seg);
+  }
+  return saida;
+}
+
+/** Raio da silhueta octogonal de oclusão de uma peça (cerca de 45% do diâmetro mínimo). */
+export const raioDoOclusorDeToken = (peca: Pick<Peca, 'size'>): number => Math.max(0.22, peca.size * 0.28);
+
+function poligonoDoToken(peca: Pick<Peca, 'position' | 'size'>): Ponto[] {
+  return poligonoRegular(peca.position, raioDoOclusorDeToken(peca), 8, Math.PI / 8);
+}
+
+/** Segmentos leves (octógono reduzido) para oclusão dinâmica de uma peça. */
+export function oclusorDeToken(peca: Pick<Peca, 'position' | 'size'>): Segmento[] {
+  return segmentosDoPoligono(poligonoDoToken(peca));
+}
+
+/** Extrai oclusores octogonais de todas as peças vivas no nível especificado. */
+export function oclusoresDeTokens(m: Pick<MapaAtlas, 'tokens'>, nivel: string | null = null): OclusorDeToken[] {
+  const saida: OclusorDeToken[] = [];
+  for (const p of Object.values(m.tokens)) {
+    if ((p.levelId ?? null) !== nivel || p.figure.state === 'dead') continue;
+    const raio = raioDoOclusorDeToken(p);
+    const poligono = poligonoDoToken(p);
+    saida.push({ id: p.id, centro: p.position, raio, lightId: p.lightId, poligono, segmentos: segmentosDoPoligono(poligono) });
   }
   return saida;
 }

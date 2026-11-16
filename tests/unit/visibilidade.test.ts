@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { codificar } from '../../src/domain/celulas.ts';
-import { novoObjeto } from '../../src/domain/fabrica.ts';
+import { novoObjeto, novaPeca } from '../../src/domain/fabrica.ts';
 import { recalcularParedes } from '../../src/domain/geometria.ts';
 import { criarMapa, type Abertura, type Comodo, type MapaAtlas, type Ponto } from '../../src/domain/mapa.ts';
-import { IndiceDeSegmentos, oclusores, oclusoresDeObjetos, poligonoIluminado, segmentosParaFonte } from '../../src/domain/visibilidade.ts';
+import { IndiceDeSegmentos, oclusorDeToken, oclusores, oclusoresDeObjetos, oclusoresDeTokens, poligonoIluminado, segmentosParaFonte } from '../../src/domain/visibilidade.ts';
 import { ACERVO } from '../../src/procedural/acervo.ts';
 
 const retangulo = (x0: number, y0: number, x1: number, y1: number): [number, number][] => { const c: [number, number][] = []; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) c.push([x, y]); return c; };
@@ -136,4 +136,26 @@ test('luz posicionada dentro ou sobre uma lareira não sofre auto-oclusão, mas 
   assert.ok(dentro(pLareira, 6, 8), 'luz na lareira ilumina o cômodo sem auto-oclusão');
   assert.ok(dentro(pLareira, 3, 5), 'pilar com blocks.light=false não bloqueia');
   assert.ok(!dentro(pLareira, 12, 5), 'objeto com blocks.light=true projeta sombra atrás de si');
+});
+
+test('oclusor de token ignora mortos/outro andar e não bloqueia a lanterna do próprio portador', () => {
+  const m = criarMapa({ id: 'm', agora: 1 });
+  m.tokens.portador = novaPeca([4, 5], 'Investigador', { id: 'portador', size: 1, lightId: 'l1' });
+  m.tokens.aliado = novaPeca([7, 5], 'Aliado', { id: 'aliado', size: 1.5 });
+  m.tokens.morto = novaPeca([4, 8], 'Caído', { id: 'morto', figure: { state: 'dead' } });
+  m.tokens.andar2 = novaPeca([4, 2], 'Outro andar', { id: 'andar2', levelId: 'a2' });
+
+  assert.equal(oclusorDeToken(m.tokens.portador).length, 8, 'octógono leve');
+  const tokens = oclusoresDeTokens(m);
+  assert.deepEqual(tokens.map(t => t.id).sort(), ['aliado', 'portador']);
+  assert.ok(Math.abs(tokens.find(t => t.id === 'portador')!.raio - 0.28) < 1e-6);
+  assert.ok(Math.abs(tokens.find(t => t.id === 'aliado')!.raio - 0.42) < 1e-6);
+
+  // Lanterna na mão do portador (0.35 m à frente, dentro de r + 0.15 = 0.43 m) não sofre auto-oclusão, mas gera sombra atrás do aliado
+  const posLanterna: Ponto = [4.35, 5];
+  const segs = segmentosParaFonte(posLanterna, [], [], tokens, { ownerId: 'portador', lightId: 'l1' });
+  const poli = poligonoIluminado(posLanterna, segs, 10, null);
+  assert.ok(dentro(poli, 2, 5), 'ilumina atrás do próprio portador sem auto-bloqueio');
+  assert.ok(dentro(poli, 5.5, 5), 'ilumina entre os dois tokens');
+  assert.ok(!dentro(poli, 9.5, 5), 'segundo token projeta sombra atrás de si');
 });

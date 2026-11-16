@@ -64,7 +64,7 @@ Comparando as referências do *Farol de OSNI* e das duas casas externas com o re
 | [K2](#k2--auditoria-espacial-em-atlas_revisar-exterior-em-cômodo-parede-e-relevo) | Etapa 1 · Correções Imediatas & Auditoria | Detectar neve/árvore em cômodo, parede cortando sala e paliçada em escarpa/degrau | — | ✅ |
 | [K3](#k3--penumbra-de-interior-configurável-climainteriorlight-e-contraste-diurno) | Etapa 1 · Correções Imediatas & Auditoria | `Clima.interiorLight?` configurável via presets e `atlas_ambiente` | K1 | ✅ |
 | [K4](#k4--oclusores-de-luz-para-pilares-e-objetos-altos-no-domínio) | Etapa 2 · Oclusão & Iluminação Dinâmica | Segmentos de oclusão rotacionados em `visibilidade.ts` sem auto-bloqueio de luzes embutidas | — | ✅ |
-| [K5](#k5--sombras-dinâmicas-de-objetospilares-e-tokens-em-mapa-de-luzts) | Etapa 2 · Oclusão & Iluminação Dinâmica | Conectar oclusão de objetos altos e tokens no `MapaDeLuz` (efeito lanterna do Farol de OSNI) | K3, K4 | ⬜ |
+| [K5](#k5--sombras-dinâmicas-de-objetospilares-e-tokens-em-mapa-de-luzts) | Etapa 2 · Oclusão & Iluminação Dinâmica | Conectar oclusão de objetos altos e tokens no `MapaDeLuz` (efeito lanterna do Farol de OSNI) | K3, K4 | ✅ |
 | [K6](#k6--escarpa-oblíqua-profunda-e-oclusão-de-base-independente-do-sol) | Etapa 3 · Relevo & Penhascos Dramáticos | Face mais larga (`escarpa.ts`) + oclusão basal contínua independente do ângulo solar | — | ⬜ |
 | [K7](#k7--curva-não-linear-de-profundidade-e-render-de-rampasdegraus-no-relevo) | Etapa 3 · Relevo & Penhascos Dramáticos | Curva não-linear de neblina em `relevo.ts` e textura visível para `degraus < 1 m` em `assar.ts` | K6 | ⬜ |
 | [K8](#k8--paliçada-25d-robusta-e-massa-visual-de-paredes) | Etapa 4 · Escala, Materialidade & Salto 2.5D | Paliçada defensiva ~1 m em 2.5D + reforço de massa/profundidade em paredes (`exterior.ts`, `cena.ts`) | — | ⬜ |
@@ -251,7 +251,7 @@ Testar em `tests/unit/visibilidade.test.ts`: pilar/armário rotacionado projeta 
 
 ---
 
-### K5 — Sombras dinâmicas de objetos/pilares e tokens em `mapa-de-luz.ts`  ⬜
+### K5 — Sombras dinâmicas de objetos/pilares e tokens em `mapa-de-luz.ts`  ✅
 
 **Objetivo:** conectar `oclusoresDeObjetos` e silhuetas de oclusão opcional de `m.tokens` ao cálculo de `poligonoIluminado` em `src/render/mapa-de-luz.ts`, respeitando o orçamento de desempenho por quadro.
 

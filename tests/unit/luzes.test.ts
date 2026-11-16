@@ -3,9 +3,12 @@ import assert from 'node:assert/strict';
 import { LUZES_POR_FUNCAO, LUZES_POR_GENERO, propostaDeLuzes } from '../../src/authoring/luzes.ts';
 import { previaDaProposta } from '../../src/authoring/proposta.ts';
 import { proximaSugestao, type Contexto } from '../../src/authoring/sugestoes.ts';
-import { novoObjeto } from '../../src/domain/fabrica.ts';
+import { mapaDoAndar } from '../../src/domain/andares.ts';
+import { novaLuz, novoObjeto, novaPeca } from '../../src/domain/fabrica.ts';
 import type { Luz, MapaAtlas } from '../../src/domain/mapa.ts';
 import { GENEROS, TIPOS_DE_COMODO, presetDeLuz } from '../../src/domain/presets.ts';
+import { ACERVO } from '../../src/procedural/acervo.ts';
+import { luzAfetadaPorTokens, nivelAtivoDe, poligonoDaLuz, sincronizarOclusao } from '../../src/render/mapa-de-luz.ts';
 import { mapaCom, sala } from './apoio-casa.ts';
 
 const contador = () => { let n = 0; return (p: string) => `${p}${++n}`; };
@@ -49,4 +52,57 @@ test('sem função, sem luz a sugerir e fora da fila quando já há luz; a luz �
   assert.equal(proximaSugestao(ctx(m), 'e', sem), null);
   const patio = mapaCom(sala('p', 0, 0, 4, 4, { name: 'Pátio', function: 'patio' }));
   assert.equal(propostaDeLuzes(ctx(patio), 'p'), null, 'pátio ao ar livre não recebe luz automática');
+});
+
+const dentroPoligono = (p: number[], x: number, y: number): boolean => {
+  let d = false;
+  for (let i = 0, j = p.length - 2; i < p.length; j = i, i += 2) {
+    const xi = p[i]!, yi = p[i + 1]!, xj = p[j]!, yj = p[j + 1]!;
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) d = !d;
+  }
+  return d;
+};
+
+test('lanterna de um token ilumina ao redor do portador, projeta sombra atrás de outro token e pilar, e move seletivamente', () => {
+  const m = mapaCom(sala('s', 0, 0, 14, 10, { name: 'Salão', function: 'sala' }));
+  const lanterna = novaLuz([4.25, 6], { id: 'lanterna', radius: 9, ownerId: 'portador' });
+  const longe = novaLuz([40, 40], { id: 'longe', radius: 4 });
+  m.lights[lanterna.id] = lanterna;
+  m.lights[longe.id] = longe;
+  m.tokens.portador = novaPeca([4, 6], 'Portador', { id: 'portador', lightId: 'lanterna', size: 1 });
+  m.tokens.segundo = novaPeca([8, 6], 'Segundo', { id: 'segundo', size: 1 });
+  m.props.pilar = novoObjeto([4, 9], { id: 'pilar', source: ACERVO.fonte('pilar', 1), scale: 1.8 });
+
+  const s1 = sincronizarOclusao(null, m, null);
+  assert.equal(s1.estaticoMudou, true);
+  const poli = poligonoDaLuz(lanterna, s1.ctx);
+  assert.ok(dentroPoligono(poli, 2.5, 6), 'portador não bloqueia a própria lanterna');
+  assert.ok(!dentroPoligono(poli, 10.5, 6), 'segundo token projeta sombra dinâmica');
+  assert.ok(!dentroPoligono(poli, 4, 11.5), 'pilar próximo projeta sombra dinâmica');
+
+  // Mover o segundo token recalcula apenas a lanterna perto dele (não a luz distante), mantendo o índice estático
+  m.tokens.segundo = { ...m.tokens.segundo, position: [8, 7.5] };
+  const s2 = sincronizarOclusao(s1.ctx, m, { completo: false, colecoes: { tokens: ['segundo'] }, campos: [] });
+  assert.equal(s2.estaticoMudou, false);
+  assert.equal(s2.ctx.versaoEstatica, s1.ctx.versaoEstatica);
+  assert.ok(luzAfetadaPorTokens(lanterna, s2.tokensMudados));
+  assert.ok(!luzAfetadaPorTokens(longe, s2.tokensMudados));
+  const poli2 = poligonoDaLuz(lanterna, s2.ctx);
+  assert.ok(dentroPoligono(poli2, 10.5, 6), 'antiga posição atrás do token voltou a ficar iluminada');
+});
+
+test('oclusão de objetos e tokens respeita recorte de andar vindo de mapaDoAndar', () => {
+  const m = mapaCom(sala('s', 0, 0, 8, 8, { name: 'Térreo', function: 'sala' }));
+  m.levels = { a2: { id: 'a2', name: 'Superior', order: 1 } };
+  m.props.p2 = novoObjeto([6, 4], { id: 'p2', source: ACERVO.fonte('pilar', 1), scale: 2, levelId: 'a2' });
+  m.tokens.t2 = novaPeca([4, 6], 'Guarda', { id: 't2', levelId: 'a2' });
+  const luz2 = novaLuz([4, 4], { id: 'l2', radius: 8, levelId: 'a2' });
+  m.lights.l2 = luz2;
+
+  const andar2 = mapaDoAndar(m, 'a2');
+  assert.equal(nivelAtivoDe(andar2), 'a2');
+  const { ctx: ctxAndar2 } = sincronizarOclusao(null, andar2, null);
+  const poli = poligonoDaLuz(luz2, ctxAndar2);
+  assert.ok(!dentroPoligono(poli, 9, 4), 'pilar do andar superior projeta sombra no próprio andar');
+  assert.ok(!dentroPoligono(poli, 4, 8.5), 'token do andar superior projeta sombra no próprio andar');
 });
