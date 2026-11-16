@@ -82,6 +82,7 @@ export function comandoDeComodoPorContorno(
   tipoComodoId: string,
   id: string,
   semente = Math.floor(Math.random() * 1e6),
+  andar: string | null = null,
 ): Extract<ComandoConstruir, { tipo: 'comodo.criar' }> | string {
   const outline = normalizarContorno(bruto);
   if (outline.length < 3 || !ehPoligonoSimples(outline)) return 'O contorno do cômodo se cruza ou é inválido.';
@@ -101,5 +102,6 @@ export function comandoDeComodoPorContorno(
     telhado: telhadoPadrao(m, tipo.funcao, celulas, null, outline),
     celulas,
     outline,
+    ...(andar !== null ? { levelId: andar } : {}),
   };
 }

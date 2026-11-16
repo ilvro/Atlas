@@ -5,6 +5,7 @@ export interface AbaMapa {
   id: string;
   nome: string;
   camera?: { x: number; y: number; zoom: number };
+  andar?: string | null;
 }
 
 export const CHAVE_ABAS = 'atlas:abas-abertas';
@@ -91,6 +92,21 @@ export function lembrarCameraDaAba(id: string, camera: { x: number; y: number; z
 export function obterCameraDaAba(id: string): { x: number; y: number; zoom: number } | undefined {
   const aba = abasAbertas.value.find(a => a.id === id);
   return aba?.camera ? { ...aba.camera } : undefined;
+}
+
+export function lembrarAndarDaAba(id: string, andar: string | null): void {
+  const lista = [...abasAbertas.value];
+  const idx = lista.findIndex(a => a.id === id);
+  if (idx < 0) return;
+  const existente = lista[idx];
+  if (!existente || existente.andar === andar) return;
+  lista[idx] = { ...existente, andar };
+  abasAbertas.value = lista;
+  persistir(lista);
+}
+
+export function obterAndarDaAba(id: string): string | null | undefined {
+  return abasAbertas.value.find(a => a.id === id)?.andar;
 }
 
 export function fecharAba(id: string): string | null {

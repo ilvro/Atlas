@@ -160,6 +160,8 @@ export const ACOES: readonly Acao[] = [
     const s = app.sessao.value; if (!s) return;
     s.store.executar({ tipo: 'grade.atualizar', patch: { visible: !s.doc.value.grid.visible } }, { rotulo: s.doc.value.grid.visible ? 'Esconder a grade' : 'Mostrar a grade' }); tocar('selecionar');
   } },
+  { id: 'andar-acima', nome: 'Subir para o andar acima', grupo: 'Vista', palavras: 'andar pavimento piso subir', atalhos: ['PageUp'], habilitada: noEditor, executar: () => app.mudarAndar(1) },
+  { id: 'andar-abaixo', nome: 'Descer para o andar abaixo', grupo: 'Vista', palavras: 'andar pavimento piso descer', atalhos: ['PageDown'], habilitada: noEditor, executar: () => app.mudarAndar(-1) },
   { id: 'relevo', nome: 'Mostrar ou esconder linhas de relevo', grupo: 'Vista', habilitada: noEditor, executar: () => { mostrarRelevo.value = !mostrarRelevo.value; tocar('selecionar'); } },
 
   { id: 'tema-atlas', nome: 'Tema Atlas', grupo: 'Aparência', palavras: 'turquesa padrao', executar: () => trocarTema({ id: 'atlas' }) },

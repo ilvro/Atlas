@@ -25,6 +25,7 @@ import { Inspetor } from './Inspetor.tsx';
 import { PilulaDeSugestao } from './PilulaDeSugestao.tsx';
 import { BarraInferior } from './BarraInferior.tsx';
 import { BarraDeEfeitos } from './BarraDeEfeitos.tsx';
+import { SeletorDeAndar } from './SeletorDeAndar.tsx';
 import { WidgetsDeTopo } from './WidgetsDeTopo.tsx';
 import { PreviaDaFicha } from './PreviaDaFicha.tsx';
 import { EditorDeMomento, momentoEmEdicao } from './Momentos.tsx';
@@ -69,6 +70,7 @@ function ponteDa(s: SessaoDeEdicao): PonteViewport {
     recursosDaPeca: t => recursosDaPeca(t),
     alinhandoGrade: () => alinhandoGrade.value,
     mostrarRelevo: () => mostrarRelevo.value,
+    andarAtivo: () => s.andarAtivo.peek(),
   };
 }
 
@@ -83,7 +85,7 @@ function AreaDoMapa({ s }: { s: SessaoDeEdicao }) {
     return () => { morto = true; vp?.destruir(); if (viewportAtual.atual === vp) viewportAtual.atual = null; };
   }, [s]);
   // A seleção, a ferramenta e o pincel vivem em signals; o viewport só precisa saber que deve redesenhar as sobreposições.
-  useSignalEffect(() => { s.selecao.value; s.ferramenta.value; s.pincel.value; acabamentoLigado.value; vistaAtual(); regraDaRegua.value; caixaDoProjetor.value; projetorConectado.value; mostrarQuadroDoProjetor.value; alinhandoGrade.value; mostrarRelevo.value; viewportAtual.atual?.atualizarSobreposicoes(); });
+  useSignalEffect(() => { s.selecao.value; s.ferramenta.value; s.pincel.value; s.andarAtivo.value; modo.value; acabamentoLigado.value; vistaAtual(); regraDaRegua.value; caixaDoProjetor.value; projetorConectado.value; mostrarQuadroDoProjetor.value; alinhandoGrade.value; mostrarRelevo.value; viewportAtual.atual?.atualizarSobreposicoes(); });
   useSignalEffect(() => { const d = duracaoDoClima.value; if (d) viewportAtual.atual?.definirDuracaoDaTransicao(d); });
   useSignalEffect(() => { tema.value; requestAnimationFrame(() => viewportAtual.atual?.redesenhar()); });
   useEffect(() => {
@@ -169,6 +171,7 @@ export function Editor() {
       <Biblioteca s={s} />
       <div class="area-com-cartao">
         <AreaDoMapa s={s} />
+        <SeletorDeAndar s={s} />
         <WidgetsDeTopo s={s} />
         <CartaoContextual s={s} />
         <PreviaDaFicha s={s} />

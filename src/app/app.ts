@@ -9,6 +9,7 @@ import { exportarBackup, importarBackup, lerPacote, nomeDoArquivo, type Relatori
 import { ErroDeBackup } from '../data/backup.ts';
 import { ErroDeConflito, type ResumoMapa } from '../data/repositorio.ts';
 import { duplicarParaNovaSessao, criarMapa, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
+import { ehMultiandar, listaDeAndares, mapaDoAndar } from '../domain/andares.ts';
 import { copiasDe, nomeDoAlvo, novaLuz, novaPeca, novaRegiao, novoObjeto } from '../domain/fabrica.ts';
 import { interagiveisPerto } from '../domain/interacao.ts';
 import { ROTULO_DA_INTERACAO } from '../domain/interagiveis.ts';
@@ -36,7 +37,7 @@ import { criarSessao, type SessaoDeEdicao } from './sessao.ts';
 import { iniciarTema } from './tema.ts';
 import { avisar } from './toasts.ts';
 import { comTransicao } from './transicao.ts';
-import { abasAbertas, atualizarNomeDaAba, fecharAba, lembrarCameraDaAba, registrarAbaAberta } from './abas.ts';
+import { abasAbertas, atualizarNomeDaAba, fecharAba, lembrarAndarDaAba, lembrarCameraDaAba, registrarAbaAberta } from './abas.ts';
 
 // ---------- Estado global da interface ----------
 export const servicos = signal<Servicos | null>(null);
@@ -294,6 +295,7 @@ export function abrirProjetor(): void {
 
 export function fecharSessao(): void {
   const atual = sessao.value; if (!atual) return;
+  lembrarAndarDaAba(atual.doc.value.id, atual.andarAtivo.peek());
   if (viewport.atual?.camera) {
     lembrarCameraDaAba(atual.doc.value.id, { ...viewport.atual.camera });
   }
@@ -318,6 +320,7 @@ export async function abrirMapa(id: string, comodo?: FocoPendente): Promise<void
       nova = criarSessao(mapa, s.repo, { salvo: true });
     }
     await comTransicao(() => {
+      if (sessao.value) lembrarAndarDaAba(sessao.value.doc.value.id, sessao.value.andarAtivo.peek());
       if (sessao.value && viewport.atual?.camera) {
         lembrarCameraDaAba(sessao.value.doc.value.id, { ...viewport.atual.camera });
       }
@@ -664,12 +667,37 @@ export function aoColocar(rotulo: string, mundo: Ponto): void { tocar('pop'); ef
 
 export function adicionarEm(colecao: ColecaoLivre, mundo: Ponto): void {
   const s = sessao.value; if (!s) return;
-  const doc = s.doc.value;
-  const item = colecao === 'lights' ? novaLuz(mundo) : colecao === 'props' ? novoObjeto(mundo) : colecao === 'tokens' ? novaPeca(mundo, `Peça ${Object.keys(doc.tokens).length + 1}`) : colecao === 'regions' ? novaRegiao(mundo) : null;
-  if (!item) return;
+  const doc = s.doc.value, andar = s.andarAtivo.peek();
+  const base = colecao === 'lights' ? novaLuz(mundo) : colecao === 'props' ? novoObjeto(mundo) : colecao === 'tokens' ? novaPeca(mundo, `Peça ${Object.keys(doc.tokens).length + 1}`) : colecao === 'regions' ? novaRegiao(mundo) : null;
+  if (!base) return;
+  const item = andar !== null ? { ...base, levelId: andar } : base;
   try { s.store.executar({ tipo: 'item.adicionar', colecao, item: item as never }, { rotulo: `Adicionar ${SINGULAR[colecao]}` }); } catch (erro) { avisar(String(erro instanceof Error ? erro.message : erro), { tipo: 'erro' }); tocar('erro'); return; }
   s.selecao.value = [{ colecao, id: item.id }];
   tocar('pop'); efeitoDeColocar(`+ ${SINGULAR[colecao]}`, mundo);
+}
+
+/** Troca o andar exibido no editor da sessão atual (`null` = térreo). */
+export function definirAndarAtivo(id: string | null): void {
+  const s = sessao.value; if (!s) return;
+  const m = s.doc.value;
+  if (id !== null && !m.levels?.[id]) return;
+  if (s.andarAtivo.peek() === id) return;
+  s.andarAtivo.value = id;
+  s.selecao.value = [];
+  lembrarAndarDaAba(m.id, id);
+  viewport.atual?.redesenhar();
+  tocar('selecionar');
+}
+
+export function mudarAndar(delta: 1 | -1): void {
+  const s = sessao.value; if (!s) return;
+  const m = s.doc.value;
+  if (!ehMultiandar(m)) return;
+  const lista = listaDeAndares(m);
+  const idx = lista.findIndex(a => a.id === s.andarAtivo.peek());
+  const novo = Math.max(0, Math.min(lista.length - 1, (idx < 0 ? 0 : idx) + delta));
+  const alvo = lista[novo];
+  if (alvo && alvo.id !== s.andarAtivo.peek()) definirAndarAtivo(alvo.id);
 }
 
 /** Onde "adicionar aqui" cai: sob o ponteiro, ou no centro da vista. */
@@ -689,7 +717,7 @@ export function aplicarClima(id: string): void {
   tocar('selecionar'); avisar(`Clima: ${nome}`, { duracao: 1400 });
 }
 
-export function selecionarTudo(): void { const s = sessao.value; if (s) { s.selecao.value = todosOsAlvos(s.doc.value); tocar('selecionar'); } }
+export function selecionarTudo(): void { const s = sessao.value; if (s) { s.selecao.value = todosOsAlvos(mapaDoAndar(s.doc.value, s.andarAtivo.peek())); tocar('selecionar'); } }
 
 /** O comando que remove um item selecionado, qualquer que seja o tipo. */
 function comandoDeRemocao(m: MapaAtlas, a: Alvo): Comando | null {

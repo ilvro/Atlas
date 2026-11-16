@@ -1,7 +1,9 @@
 import { computed, signal, type ReadonlySignal, type Signal } from '@preact/signals';
 import { criarAutosalvamento, type Autosalvamento, type EstadoDeGravacao } from '../data/autosalvamento.ts';
 import type { RepositorioMapas } from '../data/repositorio.ts';
+import { mapaDoAndar } from '../domain/andares.ts';
 import type { MapaAtlas } from '../domain/mapa.ts';
+import { obterAndarDaAba } from './abas.ts';
 import { podarSelecao, type Alvo } from '../render/selecao.ts';
 import { PINCEL_PADRAO, type Ferramenta, type Pincel } from '../render/pincel.ts';
 import { criarStore, type Store } from '../state/store.ts';
@@ -24,6 +26,8 @@ export interface SessaoDeEdicao {
   readonly pincel: Signal<Pincel>;
   /** A biblioteca (gaveta com os itens da ferramenta) está aberta? */
   readonly biblioteca: Signal<boolean>;
+  /** Identificador do andar ativo na tela (`null` = térreo). */
+  readonly andarAtivo: Signal<string | null>;
   fechar(): void;
 }
 
@@ -34,11 +38,15 @@ export function criarSessao(mapa: MapaAtlas, repo: RepositorioMapas, opcoes: { s
   const rotuloDesfazer = signal(''), rotuloRefazer = signal(''), historico = signal<readonly string[]>([]);
   const gravacao = signal<EstadoDeGravacao>(auto.estado), selecao = signal<Alvo[]>([]), ferramenta = signal<Ferramenta>('selecionar');
   const pincel = signal<Pincel>(structuredClone(PINCEL_PADRAO)), biblioteca = signal(false);
+  const salvoAndar = obterAndarDaAba(mapa.id);
+  const andarAtivo = signal<string | null>(salvoAndar && mapa.levels?.[salvoAndar] ? salvoAndar : null);
 
   const sincronizar = () => {
     doc.value = store.documento; sujo.value = store.sujo; podeDesfazer.value = store.podeDesfazer; podeRefazer.value = store.podeRefazer;
     rotuloDesfazer.value = store.rotuloDesfazer; rotuloRefazer.value = store.rotuloRefazer; historico.value = store.historico;
-    const podada = podarSelecao(store.documento, selecao.peek());
+    const nivel = andarAtivo.peek();
+    if (nivel !== null && !store.documento.levels?.[nivel]) andarAtivo.value = null;
+    const podada = podarSelecao(mapaDoAndar(store.documento, andarAtivo.peek()), selecao.peek());
     if (podada.length !== selecao.peek().length) selecao.value = podada;
   };
   const sair = store.assinar(sincronizar);
@@ -46,7 +54,7 @@ export function criarSessao(mapa: MapaAtlas, repo: RepositorioMapas, opcoes: { s
   sincronizar();
 
   return {
-    store, auto, doc, sujo, podeDesfazer, podeRefazer, rotuloDesfazer, rotuloRefazer, historico, gravacao, selecao, ferramenta, pincel, biblioteca,
+    store, auto, doc, sujo, podeDesfazer, podeRefazer, rotuloDesfazer, rotuloRefazer, historico, gravacao, selecao, ferramenta, pincel, biblioteca, andarAtivo,
     fechar() { sair(); sairGravacao(); auto.fechar(); store.dispor(); },
   };
 }
