@@ -1,7 +1,16 @@
 import { BlurFilter, Container, Graphics, RenderTexture, Sprite, type Renderer } from 'pixi.js';
 import { DURACAO_DA_QUEDA, DURACAO_DA_VOLTA, LUZ_INTERIOR_PADRAO, curvaDoClarao, ehNoite, intervaloDoRelampago, luzesDerivadas, nivelDaLuz, piscarDaQueda, piscarDaVolta } from '../domain/clima.ts';
-import type { Luz, MapaAtlas, Ponto } from '../domain/mapa.ts';
-import { IndiceDeSegmentos, oclusores, poligonoIluminado } from '../domain/visibilidade.ts';
+import type { Luz, MapaAtlas } from '../domain/mapa.ts';
+import {
+  IndiceDeSegmentos,
+  oclusores,
+  oclusoresDeObjetos,
+  oclusoresDeTokens,
+  poligonoIluminado,
+  segmentosParaFonte,
+  type OclusorDeObjeto,
+  type OclusorDeToken,
+} from '../domain/visibilidade.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import { somPreferido, trovao } from '../fx/som.ts';
 import { valueNoise2D } from '../procedural/ruido.ts';
@@ -41,6 +50,117 @@ interface LuzNaGPU { c: Container; s: Sprite; s2: Sprite; s3: Sprite; m: Graphic
 const somarCor = (cor: number, v: number): number => { const c = (n: number) => Math.min(255, Math.round(n * 255 + v * 255)); return (c(((cor >> 16) & 255) / 255) << 16) | (c(((cor >> 8) & 255) / 255) << 8) | c((cor & 255) / 255); };
 const rgb01 = (hex: string): [number, number, number] => { const n = hexParaNumero(hex); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
 
+interface ObjetoComCaixa { oclusor: OclusorDeObjeto; x0: number; y0: number; x1: number; y1: number }
+
+export interface ContextoDeOclusao {
+  nivel: string | null;
+  indiceParedes: IndiceDeSegmentos;
+  objetos: ObjetoComCaixa[];
+  tokens: OclusorDeToken[];
+  tokensPorId: Map<string, OclusorDeToken>;
+  versaoEstatica: number;
+}
+
+/** Determina o andar representado por `m` (quando já filtrado por `mapaDoAndar`, todos os itens compartilham o mesmo `levelId`). */
+export function nivelAtivoDe(m: Pick<MapaAtlas, 'lights' | 'tokens' | 'props' | 'rooms' | 'walls'>): string | null {
+  let primeiroNaoNulo: string | null = null;
+  for (const c of [m.lights, m.tokens, m.props, m.rooms, m.walls]) {
+    for (const item of Object.values(c)) {
+      const nivel = item.levelId ?? null;
+      if (nivel === null) return null;
+      if (primeiroNaoNulo === null) primeiroNaoNulo = nivel;
+    }
+  }
+  return primeiroNaoNulo;
+}
+
+function empacotarObjetos(lista: readonly OclusorDeObjeto[]): ObjetoComCaixa[] {
+  return lista.map(oclusor => {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of oclusor.poligono) {
+      if (x < x0) x0 = x;
+      if (y < y0) y0 = y;
+      if (x > x1) x1 = x;
+      if (y > y1) y1 = y;
+    }
+    return { oclusor, x0, y0, x1, y1 };
+  });
+}
+
+function tokenMudou(a: OclusorDeToken, b: OclusorDeToken): boolean {
+  return a.centro[0] !== b.centro[0] || a.centro[1] !== b.centro[1] || a.raio !== b.raio || a.lightId !== b.lightId;
+}
+
+/** Atualiza o índice estático (`walls` + `props`) separado dos `tokens` dinâmicos para recálculo seletivo por luz. */
+export function sincronizarOclusao(
+  atual: ContextoDeOclusao | null,
+  m: MapaAtlas,
+  mud: Mudancas | null,
+): { ctx: ContextoDeOclusao; estaticoMudou: boolean; tokensMudados: OclusorDeToken[] } {
+  const tudo = !mud || mud.completo;
+  const col = (c: string) => tudo || !!(mud!.colecoes as Record<string, unknown>)[c];
+  const campo = (...c: string[]) => tudo || c.some(x => mud!.campos.includes(x));
+  const estaticoMudou = !atual || col('walls') || col('openings') || col('rooms') || col('props') || campo('grid');
+  const tokensMudaram = estaticoMudou || col('tokens');
+  if (!estaticoMudou && !tokensMudaram) return { ctx: atual, estaticoMudou: false, tokensMudados: [] };
+
+  const nivel = nivelAtivoDe(m);
+  const indiceParedes = estaticoMudou ? new IndiceDeSegmentos(oclusores(m, 'luz')) : atual.indiceParedes;
+  const objetos = estaticoMudou ? empacotarObjetos(oclusoresDeObjetos(m, { levelId: nivel })) : atual.objetos;
+  const versaoEstatica = estaticoMudou ? (atual?.versaoEstatica ?? 0) + 1 : atual.versaoEstatica;
+
+  const tokens = tokensMudaram ? oclusoresDeTokens(m, nivel) : atual!.tokens;
+  const tokensPorId = tokensMudaram ? new Map(tokens.map(t => [t.id, t])) : atual!.tokensPorId;
+  const tokensMudados: OclusorDeToken[] = [];
+  if (!estaticoMudou && tokensMudaram && atual) {
+    for (const ant of atual.tokens) {
+      const novo = tokensPorId.get(ant.id);
+      if (!novo) tokensMudados.push(ant);
+      else if (tokenMudou(ant, novo)) tokensMudados.push(ant, novo);
+    }
+    for (const novo of tokens) {
+      if (!atual.tokensPorId.has(novo.id)) tokensMudados.push(novo);
+    }
+  }
+
+  return {
+    ctx: { nivel, indiceParedes, objetos, tokens, tokensPorId, versaoEstatica },
+    estaticoMudou,
+    tokensMudados,
+  };
+}
+
+/** Verifica se uma luz é alcançada por algum token alterado (ou é portada por ele). */
+export function luzAfetadaPorTokens(l: Luz, mudados: readonly OclusorDeToken[]): boolean {
+  const alcance = l.radius * 1.5;
+  for (const t of mudados) {
+    if (l.ownerId === t.id || t.lightId === l.id) return true;
+    const r = alcance + t.raio;
+    const dx = t.centro[0] - l.position[0], dy = t.centro[1] - l.position[1];
+    if (dx * dx + dy * dy <= r * r) return true;
+  }
+  return false;
+}
+
+/** Calcula o polígono iluminado de `l` considerando paredes, objetos altos e tokens fora da margem do portador. */
+export function poligonoDaLuz(l: Luz, ctx: ContextoDeOclusao): number[] {
+  const paredesPerto = ctx.indiceParedes.perto(l.position, l.radius);
+  const r = l.radius * 1.5, lx = l.position[0], ly = l.position[1];
+  const objsPerto: OclusorDeObjeto[] = [];
+  for (const o of ctx.objetos) {
+    if (o.x1 < lx - r || o.x0 > lx + r || o.y1 < ly - r || o.y0 > ly + r) continue;
+    objsPerto.push(o.oclusor);
+  }
+  const tokensPerto: OclusorDeToken[] = [];
+  for (const t of ctx.tokens) {
+    const rt = r + t.raio;
+    const dx = t.centro[0] - lx, dy = t.centro[1] - ly;
+    if (dx * dx + dy * dy <= rt * rt) tokensPerto.push(t);
+  }
+  const segs = segmentosParaFonte(l.position, paredesPerto, objsPerto, tokensPerto, { ownerId: l.ownerId, lightId: l.id });
+  return poligonoIluminado(l.position, segs, l.radius, l.cone);
+}
+
 /**
  * Cada luz é um brilho redondo recortado pelo polígono que ela enxerga (as paredes fazem sombra), somado numa textura "bruta";
  * esta, desfocada, vai sobre a cor do ambiente numa textura final que multiplica a cena. Os polígonos só são refeitos quando a
@@ -55,7 +175,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
   const passadaFaixas = new Container(), faixasS = new Sprite(); passadaFaixas.addChild(faixasS); passadaFaixas.filters = [criarFiltroDeFaixas()];
   const luzes = new Map<string, LuzNaGPU>(), ruido = valueNoise2D(7);
   let brutaRT: RenderTexture | null = null, finalRT: RenderTexture | null = null, faixasRT: RenderTexture | null = null, largura = 0, altura = 0, resAtual = 0, pixel = false, pxPorMetro = 0;
-  let indice: IndiceDeSegmentos | null = null, versaoGeo = 0, derivadas: Luz[] = [], ambiente: [number, number, number] = [1, 1, 1];
+  let oclusao: ContextoDeOclusao | null = null, derivadas: Luz[] = [], ambiente: [number, number, number] = [1, 1, 1];
   let sujo = true, ligado = true, destruido = false, contador = 0, interiorPronto = false;
   // O estado do momento (clima): o mapa atual, se é noite, a queda de energia, o relâmpago e os trovões a caminho.
   let mapa: MapaAtlas | null = null, noite = false, redeAnterior: boolean | null = null, queda = 0, volta = 0;
@@ -105,10 +225,10 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
 
   function atualizar(g: LuzNaGPU, l: Luz): void {
     g.luz = l;
-    const geo = JSON.stringify([l.position, l.radius, l.cone]);
-    if (geo !== g.chaveGeo || g.versaoGeo !== versaoGeo) {
-      g.chaveGeo = geo; g.versaoGeo = versaoGeo;
-      const pts = poligonoIluminado(l.position, indice!.perto(l.position, l.radius), l.radius, l.cone);
+    const geo = JSON.stringify([l.position, l.radius, l.cone, l.ownerId]);
+    if (oclusao && (geo !== g.chaveGeo || g.versaoGeo !== oclusao.versaoEstatica)) {
+      g.chaveGeo = geo; g.versaoGeo = oclusao.versaoEstatica;
+      const pts = poligonoDaLuz(l, oclusao);
       g.poligono = pts;
       g.m.clear(); if (pts.length >= 6) g.m.poly(pts).fill(0xffffff);
       for (const s of [g.s, g.s2, g.s3]) { s.position.set(l.position[0], l.position[1]); s.width = s.height = l.radius * 2; }
@@ -184,10 +304,13 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       }
       if (campo('bounds', 'style', 'grid')) dimensionar(m);
       if (!brutaRT) dimensionar(m);
-      const geoMudou = col('walls') || col('openings') || col('rooms') || campo('grid') || !indice;
+      const { ctx, estaticoMudou, tokensMudados } = sincronizarOclusao(oclusao, m, mud);
+      oclusao = ctx;
+      if (tokensMudados.length > 0) {
+        for (const g of luzes.values()) if (luzAfetadaPorTokens(g.luz, tokensMudados)) g.versaoGeo = -1;
+      }
       if (col('rooms') || campo('grid') || !interiorPronto) desenharInterior(m);
-      if (geoMudou) { indice = new IndiceDeSegmentos(oclusores(m, 'luz')); versaoGeo++; }
-      if (geoMudou || col('lights') || campo('climate')) derivadas = luzesDerivadas(m);
+      if (estaticoMudou || col('lights') || campo('climate')) derivadas = luzesDerivadas(m);
       if (campo('climate')) { const a = m.climate.ambient, [r, g, b] = rgb01(a.color); ambiente = [Math.min(1, r * a.intensity), Math.min(1, g * a.intensity), Math.min(1, b * a.intensity)]; }
       todasLuzes = [...Object.values(m.lights), ...derivadas];
       const vivos = new Set<string>();
