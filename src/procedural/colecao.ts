@@ -21,12 +21,22 @@ export interface ItemDaColecao {
   res?: number;
   /** Altura (m) para a sombra do sol; ausente vale o maior lado da pegada. Os itens gerados a trazem (o maior `z` da descrição). */
   altura?: number;
+  /**
+   * Vista do desenho. `topo` (padrão): ortogonal de cima, como as receitas. `obliqua`: sprite pintado em 2.5D (~75°),
+   * topo + uma faixa da face da frente (+y), luz neutra de noroeste e sem sombra longa embutida (ver `docs/curadoria.md`).
+   * Exige `altura` (a sombra do sol vem do motor) e `res` entre 128 e 256 px/m.
+   */
+  vista?: VistaDoItem;
   /** Versão Pixel feita à mão (PNG relativo a `public/colecao/`, em escala 1:1 do Pixel a 16 px por célula). Vale mais que a derivada e que a gerada. */
   pixelArquivo?: string;
   origem: OrigemDoItem;
 }
 
 export const LICENCAS_ACEITAS = ['CC0-1.0', 'CC-BY-4.0'] as const;
+export const VISTAS_DA_COLECAO = ['topo', 'obliqua'] as const;
+export type VistaDoItem = typeof VISTAS_DA_COLECAO[number];
+/** Faixa de resolução (px/m) de um sprite oblíquo: 128 para peças grandes, até 256 para miúdas. */
+export const RES_DO_OBLIQUO: readonly [number, number] = [128, 256];
 export const RES_DA_COLECAO = 128;
 /** Os pixels por célula em que um `pixelArquivo` é desenhado 1:1. */
 export const PPC_DO_PIXEL_ARQUIVO = 16;
@@ -62,6 +72,14 @@ export function validarColecao(bruto: unknown): ItemDaColecao[] {
     textos(x.tags, `${c}.tags`); textos(x.generos, `${c}.generos`);
     if (x.kit !== null && typeof x.kit !== 'string') falha('O kit é um texto ou nulo.', `${c}.kit`);
     if (x.res !== undefined && !(typeof x.res === 'number' && x.res >= 16 && x.res <= 512)) falha('A resolução deve ficar entre 16 e 512 px/m.', `${c}.res`);
+    if (x.vista !== undefined) {
+      if (!(VISTAS_DA_COLECAO as readonly unknown[]).includes(x.vista)) falha(`A vista deve ser ${VISTAS_DA_COLECAO.join(' ou ')}.`, `${c}.vista`);
+      if (x.vista === 'obliqua') {
+        if (!(typeof x.altura === 'number' && x.altura > 0)) falha('Sprite oblíquo precisa de altura (m): a sombra do sol vem do motor, não da imagem.', `${c}.altura`);
+        const res = x.res ?? RES_DA_COLECAO;
+        if (!(typeof res === 'number' && res >= RES_DO_OBLIQUO[0] && res <= RES_DO_OBLIQUO[1])) falha(`Sprite oblíquo deve ser assado entre ${RES_DO_OBLIQUO[0]} e ${RES_DO_OBLIQUO[1]} px/m.`, `${c}.res`);
+      }
+    }
     if (x.pixelArquivo !== undefined && !(typeof x.pixelArquivo === 'string' && /^[A-Za-z0-9._/-]+\.png$/.test(x.pixelArquivo) && !x.pixelArquivo.includes('..'))) falha('O pixelArquivo deve ser um .png relativo a public/colecao/.', `${c}.pixelArquivo`);
     const o = x.origem; if (!ehObj(o)) return falha('Falta a origem.', `${c}.origem`);
     if (o.tipo === 'gerado') {

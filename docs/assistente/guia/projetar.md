@@ -46,7 +46,7 @@ Dê a cada edifício pelo menos **um traço** que só ele tem: anexo, alpendre, 
 
 ## 7. Luz e clima
 
-Poucas fontes com propósito (lareira, tocha na porta, lanterna de poste na praça). Escolha o clima pela cena, nunca deixe o mapa exterior no acabamento cru (`neutro` sem `glow`/`edges`); à noite, use ambiente baixo e poças de luz quente.
+Poucas fontes com propósito (lareira, tocha, lanterna na praça). Escolha o clima pela cena; nunca o acabamento cru (`neutro` sem `glow`/`edges`). À noite, ambiente baixo e poças de luz quente; interiores à luz de lanterna pedem `clima.luzInterna` baixo (ver `referencias`).
 
 | Cena | `sol.angle` | `glow` | `vignette` | `edges` | Notas |
 | --- | --- | --- | --- | --- | --- |
@@ -56,7 +56,7 @@ Poucas fontes com propósito (lareira, tocha na porta, lanterna de poste na pra�
 
 ## 8. Conferir antes de entregar
 
-Depois de cada bloco, `atlas_ver_mapa` (conferindo tanto `vista: "planta"` quanto `vista: "telhados"`). No fim, responda a cada pergunta olhando a imagem:
+Depois de cada bloco, `atlas_ver_mapa` (`vista: "planta"` e `"telhados"`) e `atlas_revisar`. No fim, responda olhando a imagem:
 
 1. Os portes variam? Há um dominante? Nenhuma sequência de 3 iguais?
 2. Todo edifício tem forma própria, porta para fora, telhado (menos o que é ao ar livre) e um traço de identidade?

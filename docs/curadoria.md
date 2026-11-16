@@ -33,3 +33,41 @@ O que existe com licença clara é, em sua maioria, **pixel art de 16 a 48 px po
 ## O que preciso de você
 
 Qual destes (se algum) devo importar na 6.2b? Minha sugestão: **nenhum agora**. Os candidatos "talvez" exigem abrir os pacotes para conferir ângulo, resolução e arquivo de licença, e o ganho é pequeno diante do que os geradores já cobrem. Se quiser tentar, o mais promissor é o **Kenney Furniture Kit** para o kit moderno; me diga e eu baixo só esse pacote, confiro a licença do arquivo e mostro as imagens antes de importar qualquer coisa.
+
+## Padrão 2.5D (~75°) para sprites pintados (Frente K)
+
+As receitas procedurais seguem desenhando pisos, terrenos, formas livres e mobília paramétrica. Um sprite pintado só entra onde a ilustração vence o desenho vetorial: as **peças heroicas**, que o olho procura primeiro numa cena. Todo sprite desse pack segue o mesmo padrão, para conviver com as receitas sem destoar.
+
+### Especificação
+
+- **Câmera:** oblíqua consistente de ~75°, inclinada do sul para o norte. Mostra o topo inteiro e uma faixa estreita da face da frente (`+y`, a frente local do objeto, a mesma das receitas), com cerca de 20 a 25% da altura real. Nunca isométrico (45°) nem vista 3/4 de RPG Maker.
+- **Luz:** neutra, vinda de noroeste (a mesma do chanfro das paredes e do nanquim das receitas). **Nenhuma sombra longa embutida**: a sombra projetada vem de `sombras-do-sol.ts` pela `altura` do item. Só vale a oclusão de contato curta, colada à base.
+- **Resolução:** `128 px/m` para peças grandes e `256 px/m` para miúdas (o validador recusa fora dessa faixa). A pegada declarada é a da base no chão; a imagem cobre a pegada mais a margem de sombra, como os itens gerados.
+- **Fundo e borda:** PNG/WebP com alfa limpo (sem halo nem franja de cor), compatível com `derivarPixel`. Contorno pintado fino e escuro, nunca o traço preto grosso de CAD.
+- **Paleta:** tons terrosos e dessaturados, coerentes com os materiais (`madeira.*`, `tecido.*`, `pedra.*`) e com a harmonização de cor da coleção.
+- **Registro:** no `colecao.json`, `vista: "obliqua"`, `altura` em metros e `res`; a origem segue as regras de sempre (gerado, ou achado com CC0/CC-BY 4.0 e linha em `docs/LICENCAS.md`).
+
+### Pack piloto (ordem de prioridade)
+
+1. Cama com lençol amassado (solteiro e casal).
+2. Sofá estofado.
+3. Estante cheia.
+4. Fogão a lenha e pia de pedra.
+5. Mesa rústica gasta.
+6. Tapete persa detalhado.
+7. Escada circular de madeira e pedra com poço central.
+8. Pinheiro nevado em camadas.
+9. Carroça coberta.
+10. Barco a remo de tábuas.
+11. Segmento de paliçada alta.
+12. Lareira de pedra.
+
+### Como um sprite entra
+
+1. Conferir licença no arquivo do pacote (não só na página) e registrar autor, fonte, URL e arquivo original.
+2. Conferir o ângulo contra a especificação: topo + faixa da frente, luz de noroeste, sem sombra longa. Se a sombra vier embutida, recortar antes.
+3. Reamostrar para 128 ou 256 px/m pela pegada real, com alfa limpo.
+4. Registrar no `colecao.json` (`vista: "obliqua"`, `altura`, `res`) e em `docs/LICENCAS.md`; `npm test` valida os dois.
+5. Comparar no mapa, lado a lado com a receita equivalente, em Ilustrado e Pixel, antes de trocar a receita no acervo.
+
+Até haver arte pintada com licença conferida, **nenhum binário entra**: a escada em caracol, as camas e a paliçada já foram refeitas em 2.5D nas receitas (K8 e K9) e cobrem o pack provisoriamente.
