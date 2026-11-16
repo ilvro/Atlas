@@ -87,13 +87,13 @@ export function criarSombrasDoSol() {
       }
     }
 
-    // Relevo em patamares: cada borda projeta sombra na direção oposta ao sol (até 12 m), apenas sobre o lado baixo.
-    const alcancaBaixo = (p: Ponto, n: Ponto, L: number, limiar: number): number => {
+    // Relevo em patamares: cada borda projeta sombra na direção oposta ao sol (até 15 m) e uma faixa de base independente do sol, apenas sobre o lado baixo.
+    const alcancaBaixo = (p: Ponto, n: Ponto, L: number, limiar: number, dir: Ponto = s.dir): number => {
       const passo = Math.max(0.25, L / 12);
       let valido = 0;
       for (let d = passo; d <= L + 1e-4; d += passo) {
         const dist = Math.min(d, L);
-        const h = alturaEm(m, [p[0] + n[0] * 0.05 + s.dir[0] * dist, p[1] + n[1] * 0.05 + s.dir[1] * dist]);
+        const h = alturaEm(m, [p[0] + n[0] * 0.05 + dir[0] * dist, p[1] + n[1] * 0.05 + dir[1] * dist]);
         if (h >= limiar) break;
         valido = dist;
       }
@@ -101,11 +101,16 @@ export function criarSombrasDoSol() {
     };
     for (const borda of bordasDoRelevo(m)) {
       if (borda.desnivel < DEGRAU_TRANSPONIVEL) continue;
-      const L = Math.min(borda.desnivel * 0.6, 12);
+      const L = Math.min(borda.desnivel * 0.85, 15), base = Math.min(2.4, 0.45 + 0.2 * borda.desnivel);
       for (let idx = 0; idx < borda.caminhos.length; idx++) {
         const caminho = borda.caminhos[idx]!, drop = borda.drops[idx] ?? 'b';
         for (let i = 0; i + 1 < caminho.length; i++) {
           const a = caminho[i]!, b = caminho[i + 1]!, n = ladoBaixo(a, b, drop);
+          // Oclusão de base: faixa colada ao pé, na normal baixa, qualquer que seja o lado do sol.
+          if (borda.desnivel >= 1.5) {
+            const ba = alcancaBaixo(a, n, base, borda.limiar, n), bb = alcancaBaixo(b, n, base, borda.limiar, n);
+            if (ba > 0 || bb > 0) figuras.poly([a[0], a[1], b[0], b[1], b[0] + n[0] * bb, b[1] + n[1] * bb, a[0] + n[0] * ba, a[1] + n[1] * ba]).fill({ color: 0xffffff });
+          }
           if (n[0] * s.dir[0] + n[1] * s.dir[1] < 0.05) continue;
           const la = alcancaBaixo(a, n, L, borda.limiar);
           const lb = alcancaBaixo(b, n, L, borda.limiar);

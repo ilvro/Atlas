@@ -65,7 +65,7 @@ Comparando as referências do *Farol de OSNI* e das duas casas externas com o re
 | [K3](#k3--penumbra-de-interior-configurável-climainteriorlight-e-contraste-diurno) | Etapa 1 · Correções Imediatas & Auditoria | `Clima.interiorLight?` configurável via presets e `atlas_ambiente` | K1 | ✅ |
 | [K4](#k4--oclusores-de-luz-para-pilares-e-objetos-altos-no-domínio) | Etapa 2 · Oclusão & Iluminação Dinâmica | Segmentos de oclusão rotacionados em `visibilidade.ts` sem auto-bloqueio de luzes embutidas | — | ✅ |
 | [K5](#k5--sombras-dinâmicas-de-objetospilares-e-tokens-em-mapa-de-luzts) | Etapa 2 · Oclusão & Iluminação Dinâmica | Conectar oclusão de objetos altos e tokens no `MapaDeLuz` (efeito lanterna do Farol de OSNI) | K3, K4 | ✅ |
-| [K6](#k6--escarpa-oblíqua-profunda-e-oclusão-de-base-independente-do-sol) | Etapa 3 · Relevo & Penhascos Dramáticos | Face mais larga (`escarpa.ts`) + oclusão basal contínua independente do ângulo solar | — | ⬜ |
+| [K6](#k6--escarpa-oblíqua-profunda-e-oclusão-de-base-independente-do-sol) | Etapa 3 · Relevo & Penhascos Dramáticos | Face mais larga (`escarpa.ts`) + oclusão basal contínua independente do ângulo solar | — | ✅ |
 | [K7](#k7--curva-não-linear-de-profundidade-e-render-de-rampasdegraus-no-relevo) | Etapa 3 · Relevo & Penhascos Dramáticos | Curva não-linear de neblina em `relevo.ts` e textura visível para `degraus < 1 m` em `assar.ts` | K6 | ⬜ |
 | [K8](#k8--paliçada-25d-robusta-e-massa-visual-de-paredes) | Etapa 4 · Escala, Materialidade & Salto 2.5D | Paliçada defensiva ~1 m em 2.5D + reforço de massa/profundidade em paredes (`exterior.ts`, `cena.ts`) | — | ⬜ |
 | [K9](#k9--polimento-do-raster-procedural-e-escadacaracol-25d) | Etapa 4 · Escala, Materialidade & Salto 2.5D | Reduzir contorno vetorial pesado, ampliar AO em `raster.ts` e refazer `escada.caracol` | K8 | ⬜ |
@@ -293,7 +293,7 @@ Adicionar teste verificando que a lanterna associada a um token (`lightId` / dis
 
 Objetivo: resolver os pontos da **Imagem 2 e Imagem 3** — fazer desníveis de `+3,5 m`, `-4,5 m` e `-9,5 m` parecerem penhascos e terraços reais vistos de cima, não muros estreitos nem linhas tímidas na neve.
 
-### K6 — Escarpa oblíqua profunda e oclusão de base independente do sol  ⬜
+### K6 — Escarpa oblíqua profunda e oclusão de base independente do sol  ✅
 
 **Objetivo:** ampliar a expressão vertical de `escarpa.ts` e garantir sombreamento de base ao longo de todo penhasco em `sombras-do-sol.ts`, inclusive quando a crista olha de frente para o sol.
 
