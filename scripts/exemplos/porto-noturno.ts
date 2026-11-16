@@ -182,7 +182,7 @@ export const portoNoturno: Exemplo = {
     k.objeto('cama.solteiro', [5.5, 9.8], { rotation: 0 });
     k.objeto('cama.solteiro', [7.2, 9.8], { rotation: 0 });
     k.objeto('cama.solteiro', [8.9, 9.8], { rotation: 0 });
-    k.objeto('canteiro', [12.0, 6.8], { rotation: Math.PI / 2, scale: 0.85 });
+    k.objeto('vaso.planta', [12.0, 6.8], { scale: 1.2 });
     k.objeto('mesa.retangular', [16.5, 4.8], { params: { largura: 3.4, profundidade: 1.0 }, rotation: 0 });
     k.objeto('mesa.redonda', [15.8, 9.8]);
     k.objeto('cama.solteiro', [19.2, 9.8], { rotation: Math.PI / 2 });
@@ -278,8 +278,8 @@ export const portoNoturno: Exemplo = {
       rotation: Math.PI / 2,
       blocks: { move: false, sight: false },
     });
-    k.objeto('navio', [40.2, 30.0], {
-      params: { comprimento: 18, mastros: 3 },
+    k.objeto('navio', [40.2, 34.0], {
+      params: { comprimento: 16, mastros: 3 },
       rotation: -Math.PI / 2,
       blocks: { move: false, sight: false },
     });

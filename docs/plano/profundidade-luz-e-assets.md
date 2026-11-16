@@ -61,7 +61,7 @@ Comparando as referências do *Farol de OSNI* e das duas casas externas com o re
 | Ficha | Etapa | Foco | Depende de | Estado |
 | --- | --- | --- | --- | --- |
 | [K1](#k1--usar-salaoutline-na-máscara-de-luz-e-poeira-dos-interiores) | Etapa 1 · Correções Imediatas & Auditoria | Eliminar sombra quadrada em casas rotacionadas (`mapa-de-luz.ts`, `mascara-de-comodos.ts`) | — | ✅ |
-| [K2](#k2--auditoria-espacial-em-atlas_revisar-exterior-em-cômodo-parede-e-relevo) | Etapa 1 · Correções Imediatas & Auditoria | Detectar neve/árvore em cômodo, parede cortando sala e paliçada em escarpa/degrau | — | ⬜ |
+| [K2](#k2--auditoria-espacial-em-atlas_revisar-exterior-em-cômodo-parede-e-relevo) | Etapa 1 · Correções Imediatas & Auditoria | Detectar neve/árvore em cômodo, parede cortando sala e paliçada em escarpa/degrau | — | ✅ |
 | [K3](#k3--penumbra-de-interior-configurável-climainteriorlight-e-contraste-diurno) | Etapa 1 · Correções Imediatas & Auditoria | `Clima.interiorLight?` configurável via presets e `atlas_ambiente` | K1 | ✅ |
 | [K4](#k4--oclusores-de-luz-para-pilares-e-objetos-altos-no-domínio) | Etapa 2 · Oclusão & Iluminação Dinâmica | Segmentos de oclusão rotacionados em `visibilidade.ts` sem auto-bloqueio de luzes embutidas | — | ⬜ |
 | [K5](#k5--sombras-dinâmicas-de-objetospilares-e-tokens-em-mapa-de-luzts) | Etapa 2 · Oclusão & Iluminação Dinâmica | Conectar oclusão de objetos altos e tokens no `MapaDeLuz` (efeito lanterna do Farol de OSNI) | K3, K4 | ⬜ |
@@ -119,7 +119,9 @@ Incluir teste garantindo que `faixasDosComodos` em cômodo rotacionado/circular 
 
 ---
 
-### K2 — Auditoria espacial em `atlas_revisar`: exterior em cômodo, parede e relevo  ⬜
+### K2 — Auditoria espacial em `atlas_revisar`: exterior em cômodo, parede e relevo  ✅
+
+**Nota:** Reclassificados itens de carga/armazém/oficina (`caixote`, `pilha-de-caixotes`, `barril`, `pilha-de-barris`, `sacos`, `ancora`, `rolo-de-corda` em `porto.ts` e `carrinho-de-mao` em `estrada.ts`) para `armazenamento`/`decoracao`, substituído o `canteiro` interno de `porto-noturno.ts` por `vaso.planta` e ajustadas sobreposições nos exemplos `porto-noturno` e `gruta-dos-contrabandistas` (com regeneração dos JSONs). Na regra `objeto-externo-no-interior`, os pontos amostrados usam a pegada rotacionada do objeto (`pontosDeAmostraDoObjeto`, margem ≤ 0,12 m) para evitar falsos positivos de cantos vazios da AABB.
 
 **Objetivo:** acrescentar três regras em `src/authoring/revisao.ts` para detectar inconsistências físicas antes de entregar o mapa: objeto exterior dentro de cômodo coberto, parede avulsa cruzando cômodo e estrutura/paliçada sobre escarpa ou degrau de relevo.
 

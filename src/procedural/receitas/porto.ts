@@ -140,25 +140,25 @@ export const RECEITAS_PORTO: Receita[] = [
       for (const [x, y] of [[-1.42, -1.04], [1.42, -1.04], [-1.42, 0.82], [1.42, 0.82]] as const) partes.push(elipse(x, y, 0.09, 0.09, 'madeira.escura', 2.1, FINO));
       return piso([3, 2.4], partes);
     } },
-  { id: 'caixote', nome: 'Caixote', ...P, tags: ['caixote', 'caixa', 'carga', 'madeira', 'porto'], pegada: [0.8, 0.8], altura: 0.7,
+  { id: 'caixote', nome: 'Caixote', ...P, categoria: 'armazenamento', funcoes: ['porto', 'porao', 'deposito', 'jardim'], tags: ['caixote', 'caixa', 'carga', 'madeira', 'porto'], pegada: [0.8, 0.8], altura: 0.7,
     gerar: p => { const r = mulberry32(p.seed), partes: Parte[] = []; caixote(partes, 0, 0, 0.74, (r() - 0.5) * 0.1, 0.5, r() < 0.5 ? 'madeira.media' : 'madeira.clara'); return piso([0.8, 0.8], partes); } },
-  { id: 'pilha-de-caixotes', nome: 'Pilha de caixotes', ...P, tags: ['caixote', 'caixa', 'carga', 'pilha', 'porto'], pegada: [1.6, 1.3], altura: 1.5,
+  { id: 'pilha-de-caixotes', nome: 'Pilha de caixotes', ...P, categoria: 'armazenamento', funcoes: ['porto', 'porao', 'deposito', 'jardim'], tags: ['caixote', 'caixa', 'carga', 'pilha', 'porto'], pegada: [1.6, 1.3], altura: 1.5,
     gerar: p => {
       const r = mulberry32(p.seed), partes: Parte[] = [];
       caixote(partes, -0.4, -0.2, 0.68, (r() - 0.5) * 0.12, 0.5); caixote(partes, 0.4, -0.25, 0.64, (r() - 0.5) * 0.12, 0.52, 'madeira.clara'); caixote(partes, 0.0, 0.38, 0.62, (r() - 0.5) * 0.12, 0.54);
       caixote(partes, -0.3, -0.1, 0.56, 0.35 + (r() - 0.5) * 0.2, 1.2, 'madeira.clara'); caixote(partes, 0.1, 0.35, 0.46, -0.3 + (r() - 0.5) * 0.2, 1.8);
       return piso([1.6, 1.3], partes);
     } },
-  { id: 'barril', nome: 'Barril', ...P, tags: ['barril', 'carga', 'madeira', 'porto', 'taverna'], pegada: [0.7, 0.7], altura: 0.9,
+  { id: 'barril', nome: 'Barril', ...P, categoria: 'armazenamento', funcoes: ['porto', 'porao', 'taverna', 'jardim'], tags: ['barril', 'carga', 'madeira', 'porto', 'taverna'], pegada: [0.7, 0.7], altura: 0.9,
     gerar: p => { const r = mulberry32(p.seed), partes: Parte[] = []; barril(partes, 0, 0, 0.66, 0.5, r() * Math.PI); return piso([0.7, 0.7], partes); } },
-  { id: 'pilha-de-barris', nome: 'Pilha de barris', ...P, tags: ['barril', 'carga', 'pilha', 'porto', 'taverna'], pegada: [1.6, 1.4], altura: 1.6,
+  { id: 'pilha-de-barris', nome: 'Pilha de barris', ...P, categoria: 'armazenamento', funcoes: ['porto', 'porao', 'taverna', 'jardim'], tags: ['barril', 'carga', 'pilha', 'porto', 'taverna'], pegada: [1.6, 1.4], altura: 1.6,
     gerar: p => {
       const r = mulberry32(p.seed), partes: Parte[] = [];
       for (const [x, y] of [[-0.5, -0.4], [0.5, -0.4], [-0.5, 0.4], [0.5, 0.4]] as const) barril(partes, x + (r() - 0.5) * 0.05, y + (r() - 0.5) * 0.05, 0.64, 0.5, r() * Math.PI);
       barril(partes, 0, 0, 0.6, 1.4, r() * Math.PI);
       return piso([1.6, 1.4], partes);
     } },
-  { id: 'sacos', nome: 'Sacos', ...P, tags: ['sacos', 'carga', 'tecido', 'porto', 'armazem'], pegada: [1.2, 0.9], altura: 0.5,
+  { id: 'sacos', nome: 'Sacos', ...P, categoria: 'armazenamento', funcoes: ['porto', 'porao', 'deposito', 'jardim'], tags: ['sacos', 'carga', 'tecido', 'porto', 'armazem'], pegada: [1.2, 0.9], altura: 0.5,
     gerar: p => {
       const r = mulberry32(p.seed), partes: Parte[] = [], n = 4 + Math.floor(r() * 3), cores = ['tecido.linho', 'tecido.mostarda', 'tecido.salvia', 'tecido.linho'];
       for (let i = 0; i < n; i++) {
@@ -176,12 +176,12 @@ export const RECEITAS_PORTO: Receita[] = [
       for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2 + r() * 0.3; partes.push(elipse(Math.cos(a) * 0.68, Math.sin(a) * 0.48, 0.13, 0.13, i % 2 ? '#c89a50' : '#b8663a', 0.9, { contorno: 'leve', semSombra: true, detalhe: 2 })); }
       return piso([1.6, 1.2], partes);
     } },
-  { id: 'ancora', nome: 'Âncora', ...P, tags: ['ancora', 'ferro', 'porto', 'navio'], pegada: [0.9, 1.1], altura: 0.2,
+  { id: 'ancora', nome: 'Âncora', ...P, categoria: 'decoracao', funcoes: ['porto', 'forja', 'jardim'], tags: ['ancora', 'ferro', 'porto', 'navio'], pegada: [0.9, 1.1], altura: 0.2,
     gerar: () => {
       const arco: number[] = []; for (let i = 0; i <= 12; i++) { const a = Math.PI * (0.1 + 0.8 * (i / 12)); arco.push(Math.cos(a) * 0.36, 0.26 + Math.sin(a) * 0.26); }
       return piso([0.9, 1.1], [ret(0.03, 0.04, 0.09, 0.9, '#17181c', 0.5, { contorno: false, sombraLeve: true }), ret(0, 0, 0.09, 0.9, 'ferro', 0.6, { raio: 0.03, contorno: 'leve', detalhe: 1 }), ret(0, -0.28, 0.76, 0.07, 'ferro', 0.62, { raio: 0.03, contorno: 'leve', detalhe: 1 }), elipse(0, -0.44, 0.22, 0.22, 'ferro', 0.64, { contorno: 'leve', detalhe: 1 }), elipse(0, -0.44, 0.1, 0.1, '#9a8a6a', 0.66, FINO), ...faixa(arco, 0.07, 'ferro', 0.6, { contorno: 'leve', semSombra: true, detalhe: 1 }), poli([-0.42, 0.42, -0.3, 0.46, -0.34, 0.54], 'ferro', 0.62, { contorno: 'leve', detalhe: 2 }), poli([0.42, 0.42, 0.3, 0.46, 0.34, 0.54], 'ferro', 0.62, { contorno: 'leve', detalhe: 2 }), ret(-0.12, -0.2, 0.03, 0.4, tom('#6a6d77', 0.2), 0.7, FINO)]);
     } },
-  { id: 'rolo-de-corda', nome: 'Rolo de corda', ...P, tags: ['corda', 'rolo', 'porto', 'navio'], pegada: [0.8, 0.8], altura: 0.2,
+  { id: 'rolo-de-corda', nome: 'Rolo de corda', ...P, categoria: 'decoracao', funcoes: ['porto', 'forja', 'porao', 'jardim'], tags: ['corda', 'rolo', 'porto', 'navio'], pegada: [0.8, 0.8], altura: 0.2,
     gerar: p => {
       const r = mulberry32(p.seed), partes: Parte[] = [elipse(0.03, 0.04, 0.7, 0.7, '#2a1c10', 0.5, { contorno: false, sombraLeve: true })];
       for (let i = 0; i < 5; i++) { const d = 0.7 - i * 0.12; partes.push(elipse(0, 0, d, d, i % 2 ? '#a8895a' : '#c8aa72', 0.6 + i * 0.03, { contorno: 'leve', semSombra: true, detalhe: i < 2 ? 1 : 2 })); }

@@ -132,7 +132,7 @@ export const RECEITAS_ESTRADA: Receita[] = [
       for (const x of [-0.6, 0.6]) partes.push(ret(x, 0, 0.1, 0.78, 'madeira.media', 0.95, { contorno: 'leve', semSombra: true, detalhe: 2 }), elipse(x, -0.3, 0.05, 0.05, 'ferro', 1.0, FINO), elipse(x, 0.3, 0.05, 0.05, 'ferro', 1.0, FINO));
       return piso([1.8, 0.8], partes);
     } },
-  { id: 'carrinho-de-mao', nome: 'Carrinho de mão', ...P, tags: ['carrinho', 'mao', 'jardim', 'fazenda', 'carga'], pegada: [1.9, 0.7], altura: 0.5,
+  { id: 'carrinho-de-mao', nome: 'Carrinho de mão', ...P, categoria: 'decoracao', funcoes: ['estrada', 'estabulo', 'porao', 'jardim'], tags: ['carrinho', 'mao', 'jardim', 'fazenda', 'carga'], pegada: [1.9, 0.7], altura: 0.5,
     gerar: p => {
       const r = mulberry32(p.seed), partes: Parte[] = [], bojo = [-0.1, -0.3, 0.5, -0.19, 0.5, 0.19, -0.1, 0.3];
       for (const s of [-1, 1]) partes.push(ret(-0.52, s * 0.22, 0.95, 0.045, 'madeira.media', 0.55, { contorno: 'leve', sombraLeve: true, detalhe: 2 }), ret(-1.02, s * 0.22, 0.12, 0.06, 'madeira.clara', 0.58, { contorno: 'leve', semSombra: true, detalhe: 2 }), ret(-0.2, s * 0.25, 0.04, 0.1, 'ferro', 0.6, FINO));

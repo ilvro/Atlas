@@ -98,7 +98,7 @@ export const grutaDosContrabandistas: Exemplo = {
 
     // Passarelas de tábuas irregulares (segmentos de cais sobre a água)
     for (const [pos, comp, larg, rot] of [
-      [[9.0, 11.2], 10.0, 2.0, -0.06],
+      [[9.0, 11.55], 10.0, 2.0, -0.06],
       [[20.5, 11.2], 11.5, 2.0, 0.04],
       [[4.2, 13.8], 4.8, 1.8, 1.78],
       [[9.2, 14.5], 5.6, 1.8, 1.72],
@@ -192,8 +192,8 @@ export const grutaDosContrabandistas: Exemplo = {
     }
     k.objeto('casa:folhagem-tropical-1m', [8.8, 24.2], { scale: 0.9 });
     k.objeto('casa:folhagem-tropical-1m', [12.8, 32.8], { scale: 0.95 });
-    k.objeto('pedra.grande', [10.5, 3.2], { rotation: 0.5 });
-    k.objeto('pedra.grande', [20.5, 3.0], { rotation: -0.4 });
+    k.objeto('pedra.grande', [11.6, 3.2], { rotation: 0.5 });
+    k.objeto('pedra.grande', [19.6, 3.0], { rotation: -0.4 });
 
     // Luzes: lanternas quentes fora das cabanas e luz verde-dourada entrando pela boca da gruta ao sul
     k.luz('tocha', [6.8, 10.9], { radius: 6.5, color: '#ffb84d', intensity: 1.25, flicker: 0.22 });
