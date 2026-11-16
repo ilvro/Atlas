@@ -195,15 +195,22 @@ const temFiltro = (c: Contexto): boolean => 'filter' in c;
 const suave = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 
-/** Máscara alfa desfocada (0,5 m) com bordas do mapa estendidas para camadas e relevo. */
+/** Máscara alfa desfocada (0,5 m) com bordas do mapa estendidas para camadas. */
 function mascaraSuavizada(celulas: readonly Faixa[], resolucao: number, W: number, Hh: number, res: number): Uint8ClampedArray {
   const mascara = criarTela(W, Hh), mc = contextoDe(mascara);
   mc.setTransform(res, 0, 0, res, 0, 0); mc.fillStyle = '#fff';
   for (const [y, x0, n] of celulas) mc.fillRect(x0 * resolucao, y * resolucao, n * resolucao, resolucao);
   const blur = Math.max(1, 0.5 * res), P = Math.ceil(blur * 3), estendida = criarTela(W + 2 * P, Hh + 2 * P), ec = contextoDe(estendida), M = mascara as CanvasImageSource;
+  ec.imageSmoothingEnabled = false;
   ec.drawImage(M, P, P);
-  ec.drawImage(M, 0, 0, 1, Hh, 0, P, P, Hh); ec.drawImage(M, W - 1, 0, 1, Hh, P + W, P, P, Hh);
-  ec.drawImage(estendida as CanvasImageSource, 0, P, W + 2 * P, 1, 0, 0, W + 2 * P, P); ec.drawImage(estendida as CanvasImageSource, 0, P + Hh - 1, W + 2 * P, 1, 0, P + Hh, W + 2 * P, P);
+  ec.drawImage(M, 0, 0, 1, Hh, 0, P, P, Hh);
+  ec.drawImage(M, W - 1, 0, 1, Hh, P + W, P, P, Hh);
+  ec.drawImage(M, 0, 0, W, 1, P, 0, W, P);
+  ec.drawImage(M, 0, Hh - 1, W, 1, P, P + Hh, W, P);
+  ec.drawImage(M, 0, 0, 1, 1, 0, 0, P, P);
+  ec.drawImage(M, W - 1, 0, 1, 1, P + W, 0, P, P);
+  ec.drawImage(M, 0, Hh - 1, 1, 1, 0, P + Hh, P, P);
+  ec.drawImage(M, W - 1, Hh - 1, 1, 1, P + W, P + Hh, P, P);
   if (temFiltro(ec)) {
     const mac = contextoDe(criarTela(W + 2 * P, Hh + 2 * P));
     mac.filter = `blur(${blur}px)`; mac.drawImage(estendida as CanvasImageSource, 0, 0);
@@ -214,6 +221,71 @@ function mascaraSuavizada(celulas: readonly Faixa[], resolucao: number, W: numbe
   const recorte = new Uint8ClampedArray(W * Hh * 4);
   for (let y = 0; y < Hh; y++) recorte.set(bruta.data.subarray(((y + P) * bruta.width + P) * 4, ((y + P) * bruta.width + P + W) * 4), y * W * 4);
   return recorte;
+}
+
+function rasterizarFaixasEmAlfa(celulas: readonly Faixa[], resolucao: number, Mw: number, Mh: number, mRes: number, buf: Uint8ClampedArray): void {
+  buf.fill(0);
+  const scale = resolucao * mRes;
+  for (const [y, x0, n] of celulas) {
+    const y0 = Math.max(0, Math.floor(y * scale));
+    const y1 = Math.min(Mh, Math.ceil((y + 1) * scale));
+    if (y1 <= y0) continue;
+    const xStart = Math.max(0, Math.floor(x0 * scale));
+    const xEnd = Math.min(Mw, Math.ceil((x0 + n) * scale));
+    if (xEnd <= xStart) continue;
+    for (let py = y0; py < y1; py++) {
+      const row = py * Mw;
+      for (let px = xStart; px < xEnd; px++) buf[(row + px) * 4 + 3] = 255;
+    }
+  }
+  desfocarAlfa(buf, Mw, Mh, Math.max(1, 0.5 * mRes));
+}
+
+export interface MascaraDeRelevoComposta {
+  Mw: number;
+  Mh: number;
+  mRes: number;
+  gain: Float32Array;
+  bias: Float32Array;
+}
+
+/**
+ * Compõe todos os patamares do relevo numa grade reduzida com extensão de bordas segura (`desfocarAlfa`),
+ * unificando múltiplas passadas em fatores afins (`out = cor * gain + neblina * bias`) para assar mapas grandes rapidamente.
+ */
+export function comporMascaraDeRelevo(
+  faixas: readonly { altura: number; celulas: Faixa[] }[],
+  topo: number,
+  resolucao: number,
+  largura: number,
+  altura: number,
+  res: number,
+): MascaraDeRelevoComposta {
+  const mapaGrande = largura * altura >= 8000;
+  const mRes = mapaGrande ? Math.min(res, 4) : Math.min(res, 8);
+  const Mw = Math.max(1, Math.ceil(largura * mRes));
+  const Mh = Math.max(1, Math.ceil(altura * mRes));
+  const total = Mw * Mh;
+  const gain = new Float32Array(total).fill(1);
+  const bias = new Float32Array(total);
+  const buf = new Uint8ClampedArray(total * 4);
+
+  for (const f of faixas) {
+    const p = fatorDeProfundidade(f.altura, topo);
+    if (p <= 0 || !f.celulas.length) continue;
+    rasterizarFaixasEmAlfa(f.celulas, resolucao, Mw, Mh, mRes, buf);
+    const esc = 1 - 0.6 * p, alfaMax = 0.25 * p;
+    const cMul = (1 - alfaMax) * esc, cAdd = alfaMax * esc;
+    for (let q = 0; q < total; q++) {
+      const t = buf[q * 4 + 3]! / 255;
+      if (t <= 0.01) continue;
+      const kTier = 1 - t + t * cMul;
+      const bTier = t * cAdd;
+      gain[q] = gain[q]! * kTier;
+      bias[q] = bias[q]! * kTier + bTier;
+    }
+  }
+  return { Mw, Mh, mRes, gain, bias };
 }
 
 /** O terreno todo numa tela só. Cada camada tem a borda torcida por ruído (orgânica, não um borrão) e um aro escuro por baixo: a transição automática. */
@@ -278,29 +350,64 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
     const img = ctx.getImageData(0, 0, W, Hh);
     const pxDados = img.data;
     const nr = parseInt(e.relevo.neblina.slice(1, 3), 16), ng = parseInt(e.relevo.neblina.slice(3, 5), 16), nb = parseInt(e.relevo.neblina.slice(5, 7), 16);
-    for (const f of e.relevo.faixas) {
-      const p = fatorDeProfundidade(f.altura, e.relevo.topo);
-      if (p <= 0 || !f.celulas.length) continue;
-      const masc = mascaraSuavizada(f.celulas, e.resolucao, W, Hh, res);
-      const esc = 1 - 0.6 * p, alfaMax = 0.25 * p;
-      for (let k = 0, i = 0; k < pxDados.length; k += 4, i++) {
-        if (!pxDados[k + 3]) continue;
-        const m = masc[k + 3]! / 255;
-        if (m <= 0.01) continue;
-        const x = i % W, y = (i - x) / W;
-        const limiar = pixel ? (BAYER4[(y & 3) * 4 + (x & 3)]! + 0.5) / 16 : 0;
-        const t = pixel ? (m >= 0.5 ? 1 : 0) : m;
-        if (!t) continue;
-        const alfa = pixel
-          ? Math.min(2, Math.floor((alfaMax / 0.125) + (1 - limiar) * 0.999)) * 0.125
-          : alfaMax;
-        const r = pxDados[k]!, g = pxDados[k + 1]!, b = pxDados[k + 2]!;
-        const r2 = (r * (1 - alfa) + nr * alfa) * esc;
-        const g2 = (g * (1 - alfa) + ng * alfa) * esc;
-        const b2 = (b * (1 - alfa) + nb * alfa) * esc;
-        pxDados[k] = Math.round(r * (1 - t) + r2 * t);
-        pxDados[k + 1] = Math.round(g * (1 - t) + g2 * t);
-        pxDados[k + 2] = Math.round(b * (1 - t) + b2 * t);
+    if (!pixel) {
+      const { Mw, Mh, mRes, gain, bias } = comporMascaraDeRelevo(e.relevo.faixas, e.relevo.topo, e.resolucao, e.largura, e.altura, res);
+      const sx0 = new Int32Array(W), sx1 = new Int32Array(W);
+      const stx = new Float32Array(W);
+      const escalaX = mRes / res;
+      for (let x = 0; x < W; x++) {
+        const fx = Math.max(0, Math.min(Mw - 1, (x + 0.5) * escalaX - 0.5));
+        const x0 = Math.floor(fx), x1 = Math.min(Mw - 1, x0 + 1);
+        sx0[x] = x0; sx1[x] = x1; stx[x] = fx - x0;
+      }
+      for (let y = 0; y < Hh; y++) {
+        const fy = Math.max(0, Math.min(Mh - 1, (y + 0.5) * escalaX - 0.5));
+        const y0 = Math.floor(fy), y1 = Math.min(Mh - 1, y0 + 1), ty = fy - y0;
+        const row0 = y0 * Mw, row1 = y1 * Mw;
+        const pxRow = y * W * 4;
+        for (let x = 0; x < W; x++) {
+          const k = pxRow + x * 4;
+          if (!pxDados[k + 3]) continue;
+          const x0 = sx0[x]!, x1 = sx1[x]!, tx = stx[x]!;
+          const gTop = gain[row0 + x0]! + (gain[row0 + x1]! - gain[row0 + x0]!) * tx;
+          const gBot = gain[row1 + x0]! + (gain[row1 + x1]! - gain[row1 + x0]!) * tx;
+          const g = gTop + (gBot - gTop) * ty;
+          const bTop = bias[row0 + x0]! + (bias[row0 + x1]! - bias[row0 + x0]!) * tx;
+          const bBot = bias[row1 + x0]! + (bias[row1 + x1]! - bias[row1 + x0]!) * tx;
+          const b = bTop + (bBot - bTop) * ty;
+          if (g >= 0.9999 && b <= 1e-5) continue;
+          pxDados[k] = Math.round(pxDados[k]! * g + nr * b);
+          pxDados[k + 1] = Math.round(pxDados[k + 1]! * g + ng * b);
+          pxDados[k + 2] = Math.round(pxDados[k + 2]! * g + nb * b);
+        }
+      }
+    } else {
+      const mRes = e.largura * e.altura >= 8000 ? Math.min(res, 6) : res;
+      const Mw = Math.max(1, Math.ceil(e.largura * mRes));
+      const Mh = Math.max(1, Math.ceil(e.altura * mRes));
+      const masc = new Uint8ClampedArray(Mw * Mh * 4);
+      const escala = mRes / res;
+      for (const f of e.relevo.faixas) {
+        const p = fatorDeProfundidade(f.altura, e.relevo.topo);
+        if (p <= 0 || !f.celulas.length) continue;
+        rasterizarFaixasEmAlfa(f.celulas, e.resolucao, Mw, Mh, mRes, masc);
+        const esc = 1 - 0.6 * p, alfaMax = 0.25 * p;
+        for (let y = 0; y < Hh; y++) {
+          const my = Math.min(Mh - 1, Math.floor((y + 0.5) * escala));
+          const mRow = my * Mw, pxRow = y * W * 4;
+          for (let x = 0; x < W; x++) {
+            const k = pxRow + x * 4;
+            if (!pxDados[k + 3]) continue;
+            const mx = Math.min(Mw - 1, Math.floor((x + 0.5) * escala));
+            const m = masc[(mRow + mx) * 4 + 3]! / 255;
+            if (m < 0.5) continue;
+            const limiar = (BAYER4[(y & 3) * 4 + (x & 3)]! + 0.5) / 16;
+            const alfa = Math.min(2, Math.floor((alfaMax / 0.125) + (1 - limiar) * 0.999)) * 0.125;
+            pxDados[k] = Math.round((pxDados[k]! * (1 - alfa) + nr * alfa) * esc);
+            pxDados[k + 1] = Math.round((pxDados[k + 1]! * (1 - alfa) + ng * alfa) * esc);
+            pxDados[k + 2] = Math.round((pxDados[k + 2]! * (1 - alfa) + nb * alfa) * esc);
+          }
+        }
       }
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
