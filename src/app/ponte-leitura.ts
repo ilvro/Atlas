@@ -167,7 +167,17 @@ export function resumirMapa(m: MapaAtlas, opcoes?: { comodos?: readonly string[]
     retangulares,
   };
 
+  const resTerreno = m.terrain.resolution || 0.25, areaTerreno = resTerreno * resTerreno;
   const camadas = Object.values(m.terrain.layers).sort((a, b) => a.order - b.order).map(c => ({ id: c.id, material: c.material, celulas: area(c.cells), ...(c.flow ? { correnteza: { angulo: r1(c.flow.angle), velocidade: r1(c.flow.speed) } } : {}) }));
+  const relevo = Object.values(m.terrain.relief?.patamares ?? {}).sort((a, b) => a.altura - b.altura).map(p => {
+    const n = area(p.cells), l = limites(p.cells);
+    return {
+      altura: p.altura,
+      area: r2(n * areaTerreno),
+      caixa: l ? [r1(l.x0 * resTerreno), r1(l.y0 * resTerreno), r1((l.x1 - l.x0 + 1) * resTerreno), r1((l.y1 - l.y0 + 1) * resTerreno)] : [0, 0, 0, 0],
+    };
+  });
+  const escarpasDerivadas = Object.values(m.walls).filter(w => w.source && 'reliefStep' in w.source).length;
   const grupos = new Map<string, { quantidade: number; ids: string[]; posicoes: Ponto[] }>();
   for (const o of Object.values(m.props)) {
     const chave = o.source.kind === 'recipe' ? o.source.recipe : `asset:${o.source.assetId}`;
@@ -188,6 +198,7 @@ export function resumirMapa(m: MapaAtlas, opcoes?: { comodos?: readonly string[]
     grade: { tipo: m.grid.kind, celula: t, colunas: colunas(m), linhas: linhas(m) },
     estilo: { renderizador: m.style.renderer, genero: m.style.genre, paleta: m.style.palette },
     terreno: { resolucao: m.terrain.resolution, base: m.terrain.base, camadas },
+    relevo, escarpasDerivadas,
     resumo, edificios, comodos,
     paredes: Object.keys(m.walls).length, aberturas: Object.values(m.openings).reduce<Record<string, number>>((a, o) => { a[o.kind] = (a[o.kind] ?? 0) + 1; return a; }, {}),
     objetos, luzes, regioes,

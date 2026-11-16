@@ -561,3 +561,13 @@ test('atlas_caminho traça trilha orgânica em ziguezague com borda e desfaz num
   assert.equal(Object.keys(store.documento.terrain.layers).length, 0);
   assert.equal(Object.keys(store.documento.presence).length, 0);
 });
+
+test('atlas_terreno aceita acao relevo e deriva escarpas', async () => {
+  const { store, chamar } = montar();
+  await chamar('atlas_terreno', {
+    operacoes: [{ acao: 'relevo', altura: -25, forma: { retangulo: [10, 0, 30, 20], irregular: 1.5 } }],
+    semente: 3,
+  });
+  assert.ok(store.documento.terrain.relief);
+  assert.ok(Object.values(store.documento.walls).some(w => w.source && 'reliefStep' in w.source));
+});
