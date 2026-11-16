@@ -652,3 +652,32 @@ test('atlas_andares e parâmetro andar constroem múltiplos andares com escadas 
   assert.equal(Object.values(store.documento.presence)[0]!.levelId, poraoId);
   assert.equal(Object.values(store.documento.regions)[0]!.levelId, poraoId);
 });
+
+test('atlas_edificio aceita rotacao em radianos e gera cômodos outline com aberturas e mobília', async () => {
+  const { chamar, store } = montar();
+  await chamar('atlas_mapa_criar', { nome: 'Oblíquo', largura: 60, altura: 60 });
+  const res = await chamar('atlas_edificio', {
+    edificios: [{
+      nome: 'Cabana Oblíqua',
+      origem: [6, 6],
+      frente: 's',
+      forma: 'L',
+      alpendre: true,
+      rotacao: 0.28,
+      telhado: 'choupana',
+      comodos: [
+        { tipo: 'sala', area: 18, principal: true },
+        { tipo: 'quarto', area: 10 },
+      ],
+    }],
+  });
+  assert.match(res, /Cabana Oblíqua/);
+  assert.doesNotMatch(res, /\(erro\)/);
+  const salas = Object.values(store.documento.rooms);
+  assert.equal(salas.length, 3);
+  for (const s of salas) {
+    assert.ok(s.outline && s.outline.length >= 4);
+  }
+  assert.ok(Object.keys(store.documento.openings).length >= 2);
+  assert.ok(Object.keys(store.documento.props).length >= 2);
+});

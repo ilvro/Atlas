@@ -1144,6 +1144,9 @@
               "alpendre": {
                 "type": "boolean"
               },
+              "rotacao": {
+                "type": "number"
+              },
               "telhado": {
                 "type": [
                   "string",

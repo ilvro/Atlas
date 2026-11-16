@@ -366,7 +366,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           lote: { type: 'array', items: { type: 'integer' }, minItems: 2, maxItems: 2 },
           frente: { type: 'string', enum: ['n', 's', 'l', 'o'] },
           forma: { type: 'string', enum: ['auto', 'compacta', 'L', 'T', 'U', 'linear', 'patio'] },
-          alpendre: { type: 'boolean' }, telhado: { type: ['string', 'null'] }, piso: { type: 'string' },
+          alpendre: { type: 'boolean' }, rotacao: { type: 'number' }, telhado: { type: ['string', 'null'] }, piso: { type: 'string' },
           mobiliar: { type: 'boolean' }, luzes: { type: 'boolean' },
           andar: andarSchema,
           comodos: { type: 'array', minItems: 1, maxItems: 12, items: { type: 'object', properties: {
@@ -407,6 +407,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
             frente: String(e.frente ?? '') as Frente,
             forma: e.forma !== undefined ? String(e.forma) as FormaDoEdificio : undefined,
             alpendre: typeof e.alpendre === 'boolean' ? e.alpendre : undefined,
+            rotacao: e.rotacao !== undefined ? numero(e.rotacao, `edificios[${i}].rotacao`, -100, 100) : undefined,
             telhado: e.telhado === null ? null : textoOpcional(e.telhado, `edificios[${i}].telhado`, 80),
             piso: textoOpcional(e.piso, `edificios[${i}].piso`, 80),
             mobiliar: typeof e.mobiliar === 'boolean' ? e.mobiliar : undefined,

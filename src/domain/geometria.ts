@@ -135,6 +135,9 @@ export function paredesDoContorno(
       if ((o === 'h' || o === 'v') && Number.isInteger(i) && Number.isInteger(j)) registrar(o, i, j);
     }
     const n = out.length;
+    const outrasOutlines = Object.values(m.rooms).filter(
+      o => o.id < sala.id && o.outline && o.outline.length >= 3 && (o.levelId ?? null) === nivel,
+    );
     const segs: [Ponto, Ponto][] = [];
     for (let k = 0; k < n; k++) {
       const a = out[k]!, b = out[(k + 1) % n]!;
@@ -154,6 +157,27 @@ export function paredesDoContorno(
           for (const [y0, y1] of gradeV.get(i) ?? []) {
             const u0 = (y0 - a[1]) / (b[1] - a[1]), u1 = (y1 - a[1]) / (b[1] - a[1]);
             const lo = Math.max(0, Math.min(u0, u1)), hi = Math.min(1, Math.max(u0, u1));
+            if (hi - lo > 1e-5) cortes.push([lo, hi]);
+          }
+        }
+      }
+      const segLen = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (segLen > 1e-4 && outrasOutlines.length) {
+        const tx = (b[0] - a[0]) / segLen, ty = (b[1] - a[1]) / segLen;
+        for (const outra of outrasOutlines) {
+          const o = outra.outline!;
+          const on = o.length;
+          for (let j = 0; j < on; j++) {
+            const c = o[j]!, d = o[(j + 1) % on]!;
+            const oLen = Math.hypot(d[0] - c[0], d[1] - c[1]);
+            if (oLen < 1e-4) continue;
+            const dot = ((d[0] - c[0]) * tx + (d[1] - c[1]) * ty) / oLen;
+            if (Math.abs(dot) < 1 - 1e-4) continue;
+            const perp = (c[0] - a[0]) * ty - (c[1] - a[1]) * tx;
+            if (Math.abs(perp) > 1e-3) continue;
+            const uc = ((c[0] - a[0]) * tx + (c[1] - a[1]) * ty) / segLen;
+            const ud = ((d[0] - a[0]) * tx + (d[1] - a[1]) * ty) / segLen;
+            const lo = Math.max(0, Math.min(uc, ud)), hi = Math.min(1, Math.max(uc, ud));
             if (hi - lo > 1e-5) cortes.push([lo, hi]);
           }
         }
