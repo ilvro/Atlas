@@ -52,7 +52,7 @@ Testes (e2e): o pixel logo fora da parede é mais escuro que o pixel a 2 m, com 
 Pronto quando: as paredes de fora deixam de parecer um traço chapado.
 Commit: `outer walls get contact shadow`
 
-### I3 — Maciço grande com leitura de serra  ⬜
+### I3 — Maciço grande com leitura de serra  ✅
 Objetivo: maciços grandes leem como montanha, com cristas e vales grandes, e não como camuflagem.
 Depende de: —.
 Ler: `src/procedural/macico.ts` inteiro (`sombrearMacico`, as constantes do topo), `src/procedural/profundidade.ts` (`distanciaAMargem`, `PROFUNDIDADE_MAXIMA`), `src/procedural/assar.ts` (onde o maciço é chamado), `tests/unit/` (procure testes do maciço) e as capturas dos exemplos da Fase 10 com maciço (gruta, entreposto).
@@ -62,7 +62,7 @@ Como:
 2. A altura bruta passa a ter três termos: (a) a encosta perto da borda, como hoje (até `ALTURA_DO_MACICO`); (b) uma **crista** que cresce com `distLonga` (por exemplo `0,35 × suave(2, 25, distLonga)`), que faz o miolo subir em direção a uma linha de cumeada; (c) os lóbulos de ruído com **frequência inversa ao tamanho**, ou seja, `fbm` com escala `0,34 / (1 + distLonga / 12)` e amplitude que cai de 1,15 na borda para 0,5 no miolo profundo.
 3. No miolo profundo (`distLonga` > 12 m), as estrias seguem a direção do gradiente de `distLonga` desfocado (descendo da cumeada para as bordas), o que desenha vales e esporões em vez de manchas.
 4. Mantenha o resultado de maciços pequenos (até ~8 m de largura) praticamente igual ao de hoje: os exemplos da Fase 10 não podem mudar de cara. Compare as capturas antes e depois.
-5. Métrica para o teste: num maciço de 60 × 40 m, conte as transições de patamar ao longo de uma linha horizontal no miolo. Hoje são muitas e curtas; depois, menos e mais longas (média de trechos ≥ 3 m). Meça hoje, fixe o alvo no teste e anote os números na ficha.
+5. Métrica para o teste: num maciço de 60 × 40 m, conte as transições de patamar ao longo de uma linha horizontal no miolo. Hoje são muitas e curtas; depois, menos e mais longas (média de trechos ≥ 3 m). Meça hoje, fixe o alvo no teste e anote os números na ficha. (Medido em `60×40 m` miolo 34 m: antes `1,21 m` no Pixel / `1,29 m` em 5 patamares; depois `12,14 m` média em 5 linhas no Pixel / `5,53 m` em 5 patamares; `6×6 m` `meanDiff = 0`).
 Testes: a métrica acima; a mesma semente dá o mesmo resultado; num maciço de 6 × 6 m, a diferença média de pixels contra a versão anterior fica abaixo de um limiar pequeno (gere a referência antes de mudar).
 Pronto quando: as laterais de "Lysdal · a vila (neve)" leem como serra nevada, e a gruta e o entreposto da Fase 10 continuam iguais a olho.
 Commit: `large rock masses read as ridges instead of camouflage`

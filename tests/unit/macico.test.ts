@@ -47,3 +47,57 @@ test('maciço: determinístico, no Pixel só poucas cores, e a chave do terreno 
   const entrada = (material: string) => ({ largura: 4, altura: 4, resolucao: 0.5, base: 'vazio', camadas: [{ material, celulas: [[0, 0, 4]] as [number, number, number][] }] });
   assert.notEqual(chaveDoTerreno(entrada('rocha.cinza'), 24), chaveDoTerreno(entrada('rocha.arenito'), 24));
 });
+
+test('maciço 60×40 m lê como serra com trechos longos no miolo (média ≥ 3 m)', () => {
+  const res = 16, W60 = 960, H40 = 640;
+  const dentro = new Uint8Array(W60 * H40);
+  for (let y = 16; y < 624; y++) for (let x = 16; x < 944; x++) dentro[y * W60 + x] = 1;
+  const mat = materialDe('rocha.cinza');
+  const a = sombrearMacico({ dentro, alfa: null, largura: W60, altura: H40, res, seed: 11, cores: mat, pixel: true });
+  const b = sombrearMacico({ dentro, alfa: null, largura: W60, altura: H40, res, seed: 11, cores: mat, pixel: true });
+  assert.deepEqual(a.rgba, b.rgba);
+
+  const x0 = 208, x1 = W60 - 208, compM = (x1 - x0) / res;
+  let tot = 0, linhas = 0;
+  for (const y of [220, 260, 320, 380, 420]) {
+    let trans = 0, prev = -1;
+    for (let x = x0; x < x1; x++) {
+      const i = (y * W60 + x) * 4;
+      const cor = (a.rgba[i]! << 16) | (a.rgba[i + 1]! << 8) | a.rgba[i + 2]!;
+      if (prev !== -1 && cor !== prev) trans++;
+      prev = cor;
+    }
+    tot += trans; linhas++;
+  }
+  const media = compM / (tot / linhas + 1);
+  assert.ok(media >= 3, `média de trechos no miolo (${media.toFixed(2)} m) deve ser ≥ 3 m`);
+});
+
+test('maciço pequeno 6×6 m mantém referência anterior dentro de limiar mínimo', () => {
+  const res = 16, w = 96, h = 96, dentro = new Uint8Array(w * h);
+  for (let y = 16; y < 80; y++) for (let x = 16; x < 80; x++) dentro[y * w + x] = 1;
+  const { rgba } = sombrearMacico({
+    dentro,
+    alfa: dentro.map(v => v * 255),
+    largura: w,
+    altura: h,
+    res,
+    seed: 11,
+    cores: materialDe('rocha.cinza'),
+    pixel: false,
+  });
+  const ref: [number, number, number, number, number, number][] = [
+    [20, 20, 87, 91, 96, 255], [32, 20, 105, 109, 114, 255], [48, 20, 105, 109, 114, 255], [64, 20, 54, 57, 62, 255], [72, 20, 95, 99, 104, 255],
+    [20, 32, 105, 109, 114, 255], [32, 32, 141, 146, 151, 255], [48, 32, 144, 149, 154, 255], [64, 32, 93, 97, 103, 255], [72, 32, 27, 30, 34, 255],
+    [20, 48, 100, 104, 109, 255], [32, 48, 141, 146, 151, 255], [48, 48, 128, 133, 138, 255], [64, 48, 29, 32, 36, 255], [72, 48, 17, 20, 24, 255],
+    [20, 64, 78, 82, 87, 255], [32, 64, 47, 50, 55, 255], [48, 64, 32, 35, 40, 255], [64, 64, 22, 25, 29, 255], [72, 64, 18, 21, 25, 255],
+    [20, 72, 56, 60, 65, 255], [32, 72, 67, 71, 76, 255], [48, 72, 52, 56, 61, 255], [64, 72, 71, 75, 80, 255], [72, 72, 77, 81, 86, 255],
+  ];
+  let soma = 0;
+  for (const [x, y, r, g, b, a] of ref) {
+    const i = (y * w + x) * 4;
+    soma += Math.abs(rgba[i]! - r) + Math.abs(rgba[i + 1]! - g) + Math.abs(rgba[i + 2]! - b) + Math.abs(rgba[i + 3]! - a);
+  }
+  const mediaDiff = soma / (ref.length * 4);
+  assert.ok(mediaDiff < 2, `diferença média (${mediaDiff.toFixed(2)}) no maciço 6×6 m deve ficar abaixo de 2`);
+});
