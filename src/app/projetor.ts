@@ -1,4 +1,5 @@
 import { effect, signal } from '@preact/signals';
+import { andarDe, andaresDosJogadores } from '../domain/andares.ts';
 import type { Recursos } from '../domain/fichas.ts';
 import type { Vista } from '../domain/inspecao.ts';
 import type { MapaAtlas } from '../domain/mapa.ts';
@@ -54,6 +55,24 @@ export const seguirJogadores = signal(false);
 export const aspectoDoProjetor = signal(16 / 9);
 /** Mostrar o quadro do projetor sobre o mapa do mestre. */
 export const mostrarQuadroDoProjetor = signal(true);
+/** Override manual do andar mostrado no projetor (`undefined` = automático). */
+export const andarManualDoProjetor = signal<string | null | undefined>(undefined);
+/** Andar efetivo que o projetor está exibindo agora (`null` = térreo). */
+export const andarDoProjetor = signal<string | null>(null);
+
+/** Resolve qual andar o projetor deve exibir com base no override manual ou na última peça de jogador movida. */
+export function resolverAndarDoProjetor(
+  m: MapaAtlas,
+  ultimoMovido?: string | null,
+  manual?: string | null,
+): string | null {
+  if (manual !== undefined && (manual === null || !!m.levels?.[manual])) return manual;
+  const andares = andaresDosJogadores(m);
+  if (!andares.length) return null;
+  if (andares.length === 1) return andares[0]!.id;
+  if (ultimoMovido !== undefined && andares.some(a => a.id === ultimoMovido)) return ultimoMovido;
+  return andares[0]!.id;
+}
 
 /** Estica a caixa até ter a proporção `asp`, sem tirar nada dela e mantendo o centro. */
 export function ajustarAoAspecto(c: Caixa, asp: number): Caixa {
@@ -62,8 +81,8 @@ export function ajustarAoAspecto(c: Caixa, asp: number): Caixa {
 }
 
 /** A caixa que enquadra as peças de jogador com folga (ou o mapa todo, se não houver). */
-export function caixaDosJogadores(m: MapaAtlas, asp: number, margem = 5): Caixa {
-  const pecas = Object.values(m.tokens).filter(t => t.player);
+export function caixaDosJogadores(m: MapaAtlas, asp: number, margem = 5, andar?: string | null): Caixa {
+  const pecas = Object.values(m.tokens).filter(t => t.player && (andar === undefined || andarDe(t) === andar));
   if (!pecas.length) return ajustarAoAspecto({ x0: 0, y0: 0, x1: m.bounds.width, y1: m.bounds.height }, asp);
   const xs = pecas.map(t => t.position[0]), ys = pecas.map(t => t.position[1]);
   return ajustarAoAspecto({ x0: Math.min(...xs) - margem, y0: Math.min(...ys) - margem, x1: Math.max(...xs) + margem, y1: Math.max(...ys) + margem }, asp);
@@ -100,6 +119,29 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
     try { canalGlobal.postMessage(comSeq); } catch { /* ignora */ }
   };
   let retratosEnviados = new Set<string>(), temporizador: ReturnType<typeof setTimeout> | null = null, parado = false;
+  let ultimoAndarMovido: string | null | undefined = undefined;
+  let ultimosJogadores = new Map<string, { x: number; y: number; andar: string | null }>();
+  const registrarJogadores = (m: MapaAtlas) => {
+    const prox = new Map<string, { x: number; y: number; andar: string | null }>();
+    for (const t of Object.values(m.tokens)) {
+      if (!t.player) continue;
+      const atual = { x: t.position[0], y: t.position[1], andar: andarDe(t) };
+      prox.set(t.id, atual);
+      const ant = ultimosJogadores.get(t.id);
+      if (ant && (ant.x !== atual.x || ant.y !== atual.y || ant.andar !== atual.andar)) {
+        ultimoAndarMovido = atual.andar;
+      }
+    }
+    ultimosJogadores = prox;
+  };
+  registrarJogadores(s.store.documento);
+  const andarAtual = (m: MapaAtlas): string | null => {
+    const resolvido = resolverAndarDoProjetor(m, ultimoAndarMovido, andarManualDoProjetor.peek());
+    andarDoProjetor.value = resolvido;
+    return resolvido;
+  };
+  andarManualDoProjetor.value = undefined;
+  andarAtual(s.store.documento);
   caixaDoProjetor.value = null; projetorConectado.value = false;
 
   const enviarRetratos = (m: MapaAtlas) => {
@@ -115,10 +157,11 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
     enviar({ tipo: 'recursos', por: recursosParaOProjetor(s.store.documento.tokens, recursosDaPeca, mostrarPvNoProjetor.peek()) });
   };
   const enviarEstado = () => {
-    if (!projetorConectado.peek() || parado) return;
     const m = s.store.documento;
+    const andar = andarAtual(m);
+    if (!projetorConectado.peek() || parado) return;
     enviarRetratos(m);
-    enviar({ tipo: 'estado', doc: projetarParaJogadores(m), versao: s.store.versaoEdicao });
+    enviar({ tipo: 'estado', doc: projetarParaJogadores(m, andar), versao: s.store.versaoEdicao });
     enviarRecursos();
   };
   const agendar = () => {
@@ -138,8 +181,8 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
     if (msg.tipo === 'ola' || msg.tipo === 'tamanho') {
       if (msg.largura > 0 && msg.altura > 0) aspectoDoProjetor.value = msg.largura / msg.altura;
       if (msg.tipo === 'ola') { retratosEnviados = new Set(); projetorConectado.value = true; }
-      const atual = caixaDoProjetor.peek(), asp = aspectoDoProjetor.peek();
-      const caixa = seguirJogadores.peek() || !atual ? caixaDosJogadores(s.store.documento, asp) : ajustarAoAspecto(atual, asp);
+      const atual = caixaDoProjetor.peek(), asp = aspectoDoProjetor.peek(), m = s.store.documento;
+      const caixa = seguirJogadores.peek() || !atual ? caixaDosJogadores(m, asp, 5, andarAtual(m)) : ajustarAoAspecto(atual, asp);
       caixaDoProjetor.value = caixa;
       enviarEstado();
       enviar({ tipo: 'camera', caixa, ...(seguirJogadores.peek() ? { seguir: true } : {}) });
@@ -153,13 +196,29 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
   canalGlobal.onmessage = aoMensagem;
 
   const sair = s.store.assinar(e => {
+    if (e.mudancas.completo || e.mudancas.colecoes.tokens) registrarJogadores(e.documento);
+    andarAtual(e.documento);
     agendar();
-    if (seguirJogadores.peek() && projetorConectado.peek() && (e.mudancas.completo || e.mudancas.colecoes.tokens)) caixaDoProjetor.value = caixaDosJogadores(e.documento, aspectoDoProjetor.peek());
+    if (seguirJogadores.peek() && projetorConectado.peek() && (e.mudancas.completo || e.mudancas.colecoes.tokens)) {
+      caixaDoProjetor.value = caixaDosJogadores(e.documento, aspectoDoProjetor.peek(), 5, andarAtual(e.documento));
+    }
   });
   // Ligar "seguir os jogadores" enquadra na hora; a caixa publicada segue qualquer mudança (arrastar o quadro, seguir).
   const parar1 = effect(() => {
     const seguir = seguirJogadores.value, conectado = projetorConectado.value, asp = aspectoDoProjetor.value;
-    if (seguir && conectado) caixaDoProjetor.value = caixaDosJogadores(s.store.documento, asp);
+    if (seguir && conectado) {
+      const m = s.store.documento;
+      caixaDoProjetor.value = caixaDosJogadores(m, asp, 5, andarAtual(m));
+    }
+  });
+  const parar4 = effect(() => {
+    void andarManualDoProjetor.value;
+    const m = s.store.documento;
+    const andar = andarAtual(m);
+    if (projetorConectado.peek() && !parado) {
+      enviarEstado();
+      if (seguirJogadores.peek()) caixaDoProjetor.value = caixaDosJogadores(m, aspectoDoProjetor.peek(), 5, andar);
+    }
   });
   const parar3 = effect(() => { void recursosDasFichas.value; void mostrarPvNoProjetor.value; enviarRecursos(); });
   const parar2 = effect(() => { const c = caixaDoProjetor.value; if (c && projetorConectado.peek()) enviar({ tipo: 'camera', caixa: c, ...(seguirJogadores.peek() ? { seguir: true } : {}) }); });
@@ -223,12 +282,14 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
       }
     },
     parar() {
-      parado = true; sair(); parar1(); parar2(); parar3();
+      parado = true; sair(); parar1(); parar2(); parar3(); parar4();
       if (temporizador) clearTimeout(temporizador);
       canalEspecifico.close();
       canalGlobal.close();
       caixaDoProjetor.value = null;
       projetorConectado.value = false;
+      andarManualDoProjetor.value = undefined;
+      andarDoProjetor.value = null;
       telaEscura.value = false;
       ultimoEstadoTela = null;
     },

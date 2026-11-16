@@ -4,7 +4,7 @@ import { camadaDoObjeto } from '../domain/camadas.ts';
 import { ErroDeValidacao } from '../domain/esquema.ts';
 import { clonar, produzir } from './imutavel.ts';
 import type { Acabamento, Andar, Clima, Estilo, Fundo, Grade, Luz, Memoria, MapaAtlas, ModoTelhadosSessao, NomeColecao, Ponto } from '../domain/mapa.ts';
-import { andarDe } from '../domain/andares.ts';
+import { andarDe, mapaDoAndar } from '../domain/andares.ts';
 import { atualizarSalasDosObjetos } from '../domain/geometria.ts';
 import { alvosDoInterruptor } from '../domain/interagiveis.ts';
 import { definirValor, iniciar, passo, podar } from '../domain/iniciativa.ts';
@@ -60,7 +60,7 @@ export type Comando =
   /** Gira o cone da lanterna da peça para `direcao` (rad), sem mover a peça. */
   | { tipo: 'peca.virar'; id: string; direcao: number }
   /** Zera o que as peças já exploraram ("Recomeçar a exploração"). */
-  | { tipo: 'sessao.esquecer' }
+  | { tipo: 'sessao.esquecer'; andar?: string | null }
   /** Revela cômodos inteiros (contam como explorados) ou portas secretas aos jogadores, ou os esconde de novo. */
   | { tipo: 'sessao.revelar'; ids: string[] }
   | { tipo: 'sessao.ocultar'; ids: string[] }
@@ -215,14 +215,25 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       const destino = centroDaCelula(m, c.para), de: Ponto = [t.position[0], t.position[1]];
       if (destino[0] < 0 || destino[1] < 0 || destino[0] > m.bounds.width || destino[1] > m.bounds.height) nao('Fora do mapa.');
       if (Math.hypot(destino[0] - de[0], destino[1] - de[1]) < 1e-6) break;
-      if (!c.livre) { const motivo = bloqueioNoCaminho(m, de, destino); if (motivo) nao(motivo); }
+      const nivel = andarDe(t);
+      const antesNivel = mapaDoAndar(m as unknown as MapaAtlas, nivel, true);
+      if (!c.livre) { const motivo = bloqueioNoCaminho(antesNivel, de, destino); if (motivo) nao(motivo); }
       // O que a peça de jogador via de onde estava também fica explorado (antes de ela sair do lugar).
-      const viam = t.player ? celulasVisiveis(m, m.session.explored?.res ?? RES_NEVOA) : [];
+      const res = antesNivel.session.explored?.res ?? RES_NEVOA;
+      const viam = t.player ? celulasVisiveis(antesNivel, res) : [];
       t.position = destino; t.facing = ladoDoMovimento(de, destino);
       // A lanterna vai junto e aponta para onde a peça andou.
       const luz = t.lightId ? m.lights[t.lightId] : undefined;
-      if (luz) { luz.position = [destino[0], destino[1]]; if (luz.cone) luz.cone.direction = anguloDoMovimento(de, destino); }
-      if (t.player) m.session.explored = exploradoAgora(m, viam);
+      if (luz) {
+        luz.position = [destino[0], destino[1]];
+        if (luz.cone) luz.cone.direction = anguloDoMovimento(de, destino);
+        if (nivel !== null) luz.levelId = nivel; else delete luz.levelId;
+      }
+      if (t.player) {
+        const exp = exploradoAgora(mapaDoAndar(m as unknown as MapaAtlas, nivel, true), viam);
+        if (nivel === null) m.session.explored = exp;
+        else { m.session.exploredLevels ??= {}; m.session.exploredLevels[nivel] = exp; }
+      }
       break;
     }
     case 'peca.virar': {
@@ -233,7 +244,18 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       else luz.cone.direction = c.direcao;
       break;
     }
-    case 'sessao.esquecer': m.session.explored = null; break;
+    case 'sessao.esquecer': {
+      if (c.andar === undefined) {
+        m.session.explored = null;
+        delete m.session.exploredLevels;
+      } else if (c.andar === null) {
+        m.session.explored = null;
+      } else if (m.session.exploredLevels) {
+        delete m.session.exploredLevels[c.andar];
+        if (!Object.keys(m.session.exploredLevels).length) delete m.session.exploredLevels;
+      }
+      break;
+    }
     case 'sessao.revelar': {
       for (const id of c.ids) if (!m.rooms[id] && !m.openings[id] && !m.props[id] && !m.regions[id]) nao(`“${id}” não é um cômodo, uma abertura, um objeto nem uma região deste mapa.`);
       m.session.revealed = [...new Set([...m.session.revealed, ...c.ids])];
@@ -264,7 +286,13 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       break;
     }
     case 'sessao.explorar': {
-      if (Object.values(m.tokens).some(t => t.player)) m.session.explored = exploradoAgora(m);
+      const niveis = new Set<string | null>();
+      for (const t of Object.values(m.tokens)) if (t.player) niveis.add(andarDe(t));
+      for (const nivel of niveis) {
+        const exp = exploradoAgora(mapaDoAndar(m as unknown as MapaAtlas, nivel, true));
+        if (nivel === null) m.session.explored = exp;
+        else { m.session.exploredLevels ??= {}; m.session.exploredLevels[nivel] = exp; }
+      }
       break;
     }
     case 'sessao.ocultar': m.session.revealed = m.session.revealed.filter(id => !c.ids.includes(id)); break;

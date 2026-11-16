@@ -47,12 +47,14 @@ const radianos = (g: number) => (g * Math.PI) / 180;
 
 /** O que as peças de jogador já viram, com o botão de recomeçar (pede confirmação, porque apaga a memória do grupo). */
 function ExploracaoDoMapa({ s }: { s: SessaoDeEdicao }) {
-  const confirmando = useSignal(false), e = s.doc.value.session.explored, res = e?.res ?? 0.5, metros = e ? Math.round(area(e.cells) * res * res) : 0;
+  const confirmando = useSignal(false), andar = s.andarAtivo.value, m = s.doc.value;
+  const e = andar === null ? m.session.explored : (m.session.exploredLevels?.[andar] ?? null);
+  const res = e?.res ?? 0.5, metros = e ? Math.round(area(e.cells) * res * res) : 0;
   return (<>
     <h3 class="faixa pequena">Exploração</h3>
     <p class="dica" data-testid="exploracao-area">{metros ? `Os jogadores já viram cerca de ${metros} m².` : 'Os jogadores ainda não exploraram nada.'}</p>
     {confirmando.value
-      ? <div class="acoes-selecao"><button type="button" class="botao-pilula perigo" data-testid="exploracao-confirmar" onClick={() => { confirmando.value = false; tentar(() => s.store.executar({ tipo: 'sessao.esquecer' })); }}>Apagar a memória</button><button type="button" class="botao-pilula" onClick={() => { confirmando.value = false; }}>Cancelar</button></div>
+      ? <div class="acoes-selecao"><button type="button" class="botao-pilula perigo" data-testid="exploracao-confirmar" onClick={() => { confirmando.value = false; tentar(() => s.store.executar({ tipo: 'sessao.esquecer', andar })); }}>Apagar a memória</button><button type="button" class="botao-pilula" onClick={() => { confirmando.value = false; }}>Cancelar</button></div>
       : <div class="acoes-selecao"><button type="button" class="botao-pilula" disabled={!e} data-testid="exploracao-recomecar" onClick={() => { confirmando.value = true; }}>Recomeçar a exploração</button></div>}
   </>);
 }

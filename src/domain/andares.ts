@@ -34,6 +34,13 @@ export function listaDeAndares(m: Pick<MapaAtlas, 'levels' | 'groundLevelName'>)
   return itens.sort((a, b) => a.order - b.order);
 }
 
+/** Andares (ordenados) que têm ao menos uma peça de jogador neste instante. */
+export function andaresDosJogadores(m: Pick<MapaAtlas, 'tokens' | 'levels' | 'groundLevelName'>): ItemDeAndar[] {
+  const presentes = new Set<string | null>();
+  for (const t of Object.values(m.tokens)) if (t.player) presentes.add(andarDe(t));
+  return listaDeAndares(m).filter(a => presentes.has(a.id));
+}
+
 function filtrarDicionario<T extends { levelId?: string | null }>(
   dic: Record<string, T>,
   andar: string | null,
@@ -46,18 +53,19 @@ function filtrarDicionario<T extends { levelId?: string | null }>(
 }
 
 /**
- * Recorte puro e em cache (`WeakMap`) do mapa para um único andar (`null` = térreo).
- * Andares de cima mantêm o terreno do térreo; porões (`order < 0`) trocam o terreno por vazio,
- * o fundo por rocha escura `#141210` e zeram o tempo do clima.
+ * Recorte puro do mapa para um único andar (`null` = térreo), com cache `WeakMap` por padrão.
+ * Passe `semCache = true` quando `m` estiver sendo mutado no momento (ex.: rascunho Immer).
  */
-export function mapaDoAndar(m: MapaAtlas, andar: string | null): MapaAtlas {
-  let porAndar = cache.get(m);
-  if (!porAndar) {
-    porAndar = new Map();
-    cache.set(m, porAndar);
+export function mapaDoAndar(m: MapaAtlas, andar: string | null, semCache = false): MapaAtlas {
+  if (!semCache) {
+    let porAndar = cache.get(m);
+    if (!porAndar) {
+      porAndar = new Map();
+      cache.set(m, porAndar);
+    }
+    const guardado = porAndar.get(andar);
+    if (guardado) return guardado;
   }
-  const guardado = porAndar.get(andar);
-  if (guardado) return guardado;
 
   const rooms = filtrarDicionario(m.rooms, andar);
   const walls = filtrarDicionario(m.walls, andar);
@@ -124,6 +132,6 @@ export function mapaDoAndar(m: MapaAtlas, andar: string | null): MapaAtlas {
     },
   };
 
-  porAndar.set(andar, filtrado);
+  if (!semCache) cache.get(m)?.set(andar, filtrado);
   return filtrado;
 }

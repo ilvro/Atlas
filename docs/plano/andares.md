@@ -82,7 +82,7 @@ Testes: trocar de andar troca o que a cena mostra; criar um cômodo no andar 1 g
 Pronto quando: o mestre monta o térreo e o andar de cima de uma casa, alinhando as paredes pelo fantasma.
 Commit: `editor shows one level at a time with level picker`
 
-### H4 — Sessão: peças, visão, explorado e projetor por andar  ⬜
+### H4 — Sessão: peças, visão, explorado e projetor por andar  ✅
 Objetivo: na sessão, cada peça enxerga o próprio andar, e o projetor mostra o andar dos jogadores.
 Depende de: H3.
 Ler: `src/domain/nevoa.ts` (`poligonosDeVisao`, `celulasExploradas`, `exploradoAgora`), `src/domain/projecao.ts` (`projetarParaJogadores`), `src/app/projetor.ts`, `src/app/sessao.ts`, `src/render/nevoa.ts`, `src/render/telhados.ts` (`alguemDentro`).

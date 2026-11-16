@@ -4,9 +4,11 @@ import { embutido } from '../app/embutido.ts';
 import { acaoPorId, executarAcao, fxLigado, somLigado } from '../app/acoes.ts';
 import { abrirProjetor, ajudaAberta, navegar, paletaAberta, rota, sessao } from '../app/app.ts';
 import { ROTULO_DO_MODO, modo, vistaDeJogador, type Modo } from '../app/modo.ts';
+import { andarDoProjetor, andarManualDoProjetor } from '../app/projetor.ts';
 import { seloDoAssistente } from '../app/assistente-slot.ts';
 import { tema, trocarTema } from '../app/tema.ts';
 import { TEMAS, type TemaId } from '#mesa';
+import { andaresDosJogadores, ehMultiandar, listaDeAndares } from '../domain/andares.ts';
 import { MODOS_TELHADOS_SESSAO, type ModoTelhadosSessao } from '../domain/mapa.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { Icone } from './Icone.tsx';
@@ -36,6 +38,33 @@ function BotaoTelhadosSessao({ s }: { s: SessaoDeEdicao }) {
   );
 }
 
+function SeletorAndarProjetor({ s }: { s: SessaoDeEdicao }) {
+  const m = s.doc.value;
+  if (!ehMultiandar(m) || andaresDosJogadores(m).length <= 1) return null;
+  const lista = listaDeAndares(m);
+  const manual = andarManualDoProjetor.value;
+  const efetivo = andarDoProjetor.value;
+  const nomeEfetivo = lista.find(a => a.id === efetivo)?.nome ?? lista[0]?.nome ?? 'Térreo';
+  const valor = manual === undefined ? '__auto' : (manual ?? '__terreo');
+  return (
+    <label class="botao-pilula projetor-andar" title="Andar exibido na janela do projetor" data-testid="projetor-andar">
+      <span>Projetor:</span>
+      <select
+        aria-label="Andar do projetor"
+        data-testid="projetor-andar-select"
+        value={valor}
+        onChange={e => {
+          const v = (e.target as HTMLSelectElement).value;
+          andarManualDoProjetor.value = v === '__auto' ? undefined : v === '__terreo' ? null : v;
+        }}
+      >
+        <option value="__auto">{nomeEfetivo} (auto)</option>
+        {lista.map(a => <option key={a.id ?? '__terreo'} value={a.id ?? '__terreo'}>{a.nome}</option>)}
+      </select>
+    </label>
+  );
+}
+
 const executar = (id: string) => () => { const a = acaoPorId(id); if (a) executarAcao(a); };
 const dica = (nome: string, id: string) => { const t = acaoPorId(id)?.atalhos?.[0]; return t ? `${nome} (${mostrarAtalho(t)})` : nome; };
 
@@ -50,6 +79,7 @@ function CabecalhoEmbutido({ Selo }: { Selo: ComponentType | null }) {
       {Selo ? <Selo /> : null}
       {noEditor ? <button type="button" class="botao-pilula botao-vista" aria-pressed={vistaDeJogador.value} title={dica('Ver como jogador', 'vista-jogador')} onClick={executar('vista-jogador')} data-testid="vista-jogador">Jogador</button> : null}
       {noEditor && s ? <BotaoTelhadosSessao s={s} /> : null}
+      {noEditor && s ? <SeletorAndarProjetor s={s} /> : null}
       {noEditor ? <button type="button" class="botao-pilula" title="Abrir a janela do projetor para os jogadores" onClick={abrirProjetor} data-testid="embutido-projetor">Projetor</button> : null}
       <button type="button" class={`botao-icone ${fxLigado.value ? 'ligado' : ''}`} title="Animações" aria-pressed={fxLigado.value} onClick={executar('fx')} data-testid="alternar-fx"><Icone nome="anim" /></button>
       <button type="button" class={`botao-icone ${somLigado.value ? 'ligado' : ''}`} title="Sons" aria-pressed={somLigado.value} onClick={executar('som')} data-testid="alternar-som"><Icone nome={somLigado.value ? 'som' : 'mudo'} /></button>
@@ -69,6 +99,7 @@ export function Cabecalho() {
       {noEditor && modo.value === 'sessao' ? <span class="faixa-sessao" data-testid="faixa-sessao">SESSÃO</span> : null}
       {noEditor && modo.value === 'sessao' ? <button type="button" class="botao-pilula botao-vista" aria-pressed={vistaDeJogador.value} title={dica('Ver como jogador', 'vista-jogador')} onClick={executar('vista-jogador')} data-testid="vista-jogador"><Icone nome="olho" tamanho={14} />Ver como jogador</button> : null}
       {noEditor && s && modo.value === 'sessao' ? <BotaoTelhadosSessao s={s} /> : null}
+      {noEditor && s && modo.value === 'sessao' ? <SeletorAndarProjetor s={s} /> : null}
       <span class="espaco" />
       {noEditor && s ? (<div class="grupo chave-de-modo" role="radiogroup" aria-label="Modo" data-testid="chave-de-modo">
         {(['construir', 'sessao'] as Modo[]).map(id => <button type="button" key={id} role="radio" aria-checked={modo.value === id} class={`ficha ${modo.value === id ? 'ativa' : ''}`} title={dica(`Modo ${ROTULO_DO_MODO[id]}`, 'modo')} data-testid={`modo-${id}`} onClick={() => { if (modo.value !== id) executar('modo')(); }}>{ROTULO_DO_MODO[id]}</button>)}
