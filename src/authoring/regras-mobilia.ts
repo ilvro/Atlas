@@ -24,6 +24,10 @@ export interface ItemDeRegra {
   junto?: { de: string; modo: 'ao-redor' | 'ao-lado' | 'em-frente'; /** Para 'em-frente': a distância (m) entre a âncora e o móvel; padrão 1,2. */ folga?: number };
   /** Não fica na frente de janela. */
   alto?: boolean;
+  /** Cópias a mais a cada 10 m² de área acima de 12 m² (cômodo grande ganha mais estantes, quadros, vasos…). */
+  escala?: number;
+  /** Para 'junto': se não couber junto da âncora, tenta o centro do cômodo. */
+  senaoCentro?: boolean;
   params?: Record<string, unknown>;
 }
 
@@ -55,13 +59,13 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('mesa-centro', ['mesa.centro'], 'junto', [0, 1], 2.5, { areaMinima: 14, junto: { de: 'sofa', modo: 'em-frente', folga: 0.5 } }),
     item('poltrona', ['poltrona.capitone', 'poltrona', 'casa:poltrona-capitone-vinho', 'casa:poltrona-capitone-verde', 'casa:poltrona-capitone-couro'], 'junto', [1, 2], 3, { areaMinima: 12, junto: { de: 'sofa', modo: 'em-frente' } }),
     item('mesinha', ['mesinha'], 'junto', [1, 1], 4, { junto: { de: 'sofa', modo: 'ao-lado' } }),
-    item('tapete', ['tapete.persa', 'tapete.oval', 'tapete.redondo', 'tapete.liso', 'casa:tapete-persa-p-vinho', 'casa:tapete-persa-p-verde', 'casa:tapete-persa-p-creme', 'casa:tapete-oval-vinho', 'casa:tapete-oval-verde', 'casa:tapete-oval-creme', 'casa:tapete-persa-g-vinho', 'casa:tapete-persa-g-verde', 'casa:tapete-persa-g-creme'], 'centro', [1, 1], 5, { areaMinima: 9 }),
-    item('aparador', ['aparador', 'estante.piso'], 'parede', [1, 1], 6, { alto: true }),
-    item('vaso', ['vaso.planta'], 'canto', [1, 2], 7),
-    item('quadro', ['quadro', 'retrato.oval', 'paisagem.grande', 'quadros.grupo', 'mapa.mundi', 'quadro.abstrato'], 'na-parede', [2, 4], 8),
+    item('tapete', ['tapete.persa', 'tapete.oval', 'tapete.redondo', 'tapete.liso', 'casa:tapete-persa-p-vinho', 'casa:tapete-persa-p-verde', 'casa:tapete-persa-p-creme', 'casa:tapete-oval-vinho', 'casa:tapete-oval-verde', 'casa:tapete-oval-creme', 'casa:tapete-persa-g-vinho', 'casa:tapete-persa-g-verde', 'casa:tapete-persa-g-creme'], 'junto', [1, 1], 2.2, { areaMinima: 9, junto: { de: 'sofa', modo: 'em-frente', folga: -0.55 }, senaoCentro: true, params: { largura: 3.6, altura: 2.6, diametro: 3 } }),
+    item('aparador', ['aparador', 'estante.piso', 'cristaleira'], 'parede', [1, 1], 6, { alto: true, escala: 0.4 }),
+    item('vaso', ['vaso.planta'], 'canto', [1, 2], 7, { escala: 0.3 }),
+    item('quadro', ['quadro', 'retrato.oval', 'paisagem.grande', 'quadros.grupo', 'mapa.mundi', 'quadro.abstrato'], 'na-parede', [2, 4], 8, { escala: 0.6 }),
     item('espelho', ['espelho', 'espelho.grande'], 'na-parede', [0, 1], 8.5),
     item('relogio-parede', ['relogio.parede'], 'na-parede', [0, 1], 8.6),
-    item('arandela', ['arandela'], 'na-parede', [1, 2], 8.7),
+    item('arandela', ['arandela'], 'na-parede', [1, 2], 8.7, { escala: 0.3 }),
     item('cortina', ['cortina.janela'], 'na-parede', [0, 1], 8.8, { areaMinima: 12 }),
     item('prateleira-flutuante', ['prateleira.flutuante'], 'na-parede', [0, 1], 8.9),
     item('poltrona-lareira', ['poltrona.capitone', 'poltrona'], 'junto', [1, 2], 9, { junto: { de: 'lareira', modo: 'em-frente' } }),
@@ -93,10 +97,13 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('tina', ['tina-de-agua'], 'canto', [0, 1], 13),
   ],
   biblioteca: [
-    item('estante', ['estante'], 'na-parede', [2, 3], 1),
-    item('estante-baixa', ['estante.piso'], 'parede', [1, 2], 2, { alto: true }),
+    item('estante', ['estante'], 'na-parede', [2, 3], 1, { escala: 0.5 }),
+    item('estante-baixa', ['estante.piso'], 'parede', [1, 2], 2, { alto: true, escala: 1.2, params: { largura: 1.8 } }),
     item('poltrona', ['poltrona.capitone', 'poltrona', 'casa:poltrona-capitone-vinho', 'casa:poltrona-capitone-verde', 'casa:poltrona-capitone-couro'], 'canto', [1, 2], 3, { areaMinima: 10 }),
-    item('mesa', ['mesa.redonda'], 'centro', [0, 1], 4, { areaMinima: 14 }),
+    item('mesa', ['mesa.retangular', 'mesa.redonda'], 'centro', [0, 1], 4, { areaMinima: 14 }),
+    item('cadeira-leitura', ['cadeira.espaldar', 'cadeira'], 'junto', [2, 4], 4.2, { junto: { de: 'mesa', modo: 'ao-redor' } }),
+    item('tapete', ['tapete.persa', 'tapete.oval'], 'centro', [0, 1], 4.4, { areaMinima: 16, params: { largura: 4, altura: 2.8 } }),
+    item('luminaria', ['luminaria.franja'], 'canto', [0, 1], 4.6),
     item('livros', ['livros.pilha'], 'canto', [1, 2], 5),
     item('escrivaninha', ['escrivaninha', 'escrivaninha.verde'], 'parede', [0, 1], 6, { areaMinima: 12 }),
     item('globo', ['globo.terrestre'], 'canto', [0, 1], 7),
@@ -109,7 +116,7 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
   escritorio: [
     item('escrivaninha', ['escrivaninha', 'escrivaninha.verde'], 'parede', [1, 1], 1),
     item('cadeira', ['cadeira'], 'junto', [1, 1], 2, { junto: { de: 'escrivaninha', modo: 'em-frente', folga: 0.1 } }),
-    item('estante', ['estante'], 'na-parede', [1, 2], 3),
+    item('estante', ['estante'], 'na-parede', [1, 2], 3, { escala: 0.4 }),
     item('poltrona', ['poltrona.capitone', 'poltrona'], 'canto', [0, 1], 4, { areaMinima: 10 }),
     item('quadro', ['quadro', 'retrato.oval', 'paisagem.grande', 'quadros.grupo', 'mapa.mundi', 'quadro.abstrato'], 'na-parede', [1, 2], 5),
     item('vaso', ['vaso.planta'], 'canto', [0, 1], 6),
@@ -149,13 +156,13 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
   ],
   'sala-de-jantar': [
     item('mesa', ['mesa.oval'], 'centro', [1, 1], 1, { areaMinima: 10 }),
-    item('cadeira', ['cadeira'], 'junto', [4, 6], 2, { junto: { de: 'mesa', modo: 'ao-redor' } }),
+    item('cadeira', ['cadeira'], 'junto', [6, 8], 2, { junto: { de: 'mesa', modo: 'ao-redor' } }),
     item('louca', ['pratos.servico', 'castical.mesa', 'fruteira', 'garrafa.tacas', 'candelabro'], 'sobre', [2, 4], 2.5, { junto: { de: 'mesa', modo: 'ao-lado' } }),
     item('cristaleira', ['cristaleira'], 'parede', [1, 1], 3, { alto: true }),
     item('aparador', ['aparador'], 'parede', [0, 1], 4, { alto: true }),
     item('lareira', ['lareira.nobre', 'lareira.marmore'], 'parede', [0, 1], 5, { alto: true, areaMinima: 16 }),
-    item('vaso', ['vaso.planta'], 'canto', [0, 1], 6),
-    item('quadro', ['quadro', 'retrato.oval', 'paisagem.grande', 'quadros.grupo', 'mapa.mundi', 'quadro.abstrato'], 'na-parede', [2, 3], 7),
+    item('vaso', ['vaso.planta'], 'canto', [0, 1], 6, { escala: 0.3 }),
+    item('quadro', ['quadro', 'retrato.oval', 'paisagem.grande', 'quadros.grupo', 'mapa.mundi', 'quadro.abstrato'], 'na-parede', [2, 3], 7, { escala: 0.4 }),
     item('arandela', ['arandela'], 'na-parede', [1, 3], 7.5),
     item('cortina', ['cortina.janela'], 'na-parede', [0, 1], 7.6, { areaMinima: 10 }),
     item('relogio-parede', ['relogio.parede'], 'na-parede', [0, 1], 7.7),

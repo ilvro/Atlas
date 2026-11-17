@@ -92,7 +92,9 @@ class Gerador {
     for (const regra of this.regras) {
       if (regra.areaMinima && this.ins.area < regra.areaMinima) continue;
       // O alvo de cada item vem de um sorteio só dele: o que já foi posto não muda a conta, e a sugestão não volta depois de aceita.
-      const alvo = regra.quantos[0] + Math.floor(mulberry32(Math.imul(this.pedido.semente | 0, 2654435761) ^ hashTexto(`${this.pedido.roomId}/${regra.id}`))() * (regra.quantos[1] - regra.quantos[0] + 1));
+      // Cômodo grande ganha mais peças: `porArea` cópias a mais a cada 10 m² acima de 12 m² (estantes da biblioteca, quadros, vasos…).
+      const extra = regra.escala ? Math.floor((Math.max(0, this.ins.area - 12) / 10) * regra.escala) : 0;
+      const alvo = regra.quantos[0] + extra + Math.floor(mulberry32(Math.imul(this.pedido.semente | 0, 2654435761) ^ hashTexto(`${this.pedido.roomId}/${regra.id}`))() * (regra.quantos[1] - regra.quantos[0] + 1));
       const receitas = todasAsReceitas(regra), ja = this.existentes.filter(o => receitas.includes(ACERVO.idDaFonte(o.source))).length;
       for (let k = 0; k < alvo - ja; k++) {
         const obj = this.colocar(regra);
@@ -128,7 +130,9 @@ class Gerador {
     if (regra.lugar === 'sobre') return this.colocarSobre(regra, receita, params, w, h);
     const tapete = rec.categoria === 'tapetes', bloqueia = !tapete;
     const temDependentes = this.regras.some(r => r.junto?.de === regra.id);
-    for (const c of this.candidatos(regra, w, h)) {
+    const lista = this.candidatos(regra, w, h);
+    if (regra.senaoCentro && regra.lugar === 'junto') lista.push(...this.deCentro().map(c => ({ ...c, nota: c.nota - 1000 })));
+    for (const c of lista) {
       // O centro precisa cair no cômodo pela mesma regra do mapa (as células), senão o objeto fica sem cômodo (borda curva).
       if (comodoEm(this.m, c.pos, this.indice) !== this.ins.id) continue;
       const base = novoObjeto(c.pos, { rotation: c.rot, source: ACERVO.fonte(receita, 1, params) }), caixa = caixaDoObjeto(base);
