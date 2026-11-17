@@ -28,8 +28,8 @@ export const salaDaGuarda: Exemplo = {
 
     // Duas mesas de jogo sobre tapetes, com velas, dados e moedas.
     for (const [x, y, r] of [[20.6, 8.8, 0.04], [31.4, 9.0, -0.05]] as const) {
-      k.objeto('tapete.persa', [x, y], { params: { largura: 5.6, altura: 4.2, material: 'tapete.verde' }, rotation: r });
-      k.objeto('mesa.cavalete', [x, y], { params: { largura: 3.4 }, rotation: r + 0.08, scale: 1.2 });
+      k.objeto('tapete.persa', [x, y], { params: { largura: 5.6, altura: 4.2, material: 'tapete.verde', desenho: 3 }, rotation: r });
+      k.objeto('mesa.cavalete', [x, y], { params: { largura: 3.4 }, rotation: r + 0.08, scale: 1.45 });
       k.objeto('banco.longo', [x - 0.4, y - 2.0], { params: { largura: 3 }, rotation: r - 0.1 });
       k.objeto('banco.longo', [x + 0.5, y + 2.0], { params: { largura: 3 }, rotation: r + 0.15 });
       k.objeto('castical.mesa', [x - 0.8, y - 0.2], { rotation: 0 });
@@ -44,16 +44,16 @@ export const salaDaGuarda: Exemplo = {
     k.objeto('monte-de-palha', [14.2, 5.0], { rotation: 0.3, scale: 2 });
     k.objeto('monte-de-palha', [37.0, 5.2], { rotation: 1.8, scale: 2.1 });
     k.objeto('enxergao', [37.8, 10.2], { rotation: 0.1 });
-    k.objeto('balista', [16.2, 15.6], { rotation: 2.4, scale: 1.5 });
+    k.objeto('balista', [16.2, 15.6], { rotation: 2.4, scale: 2.1 });
     k.objeto('pilha-de-balas', [13.6, 17.8], { scale: 1.3 });
     k.objeto('viga-partida', [19.4, 18.0], { rotation: 0.9 });
-    k.objeto('braseiro', [34.4, 16.8], { scale: 1.5 });
+    k.objeto('braseiro', [34.4, 16.8], { scale: 1.8 });
     k.luz('fogueira', [34.4, 16.8], { radius: 7, intensity: 1.3, color: '#ffa04a' });
     k.objeto('barril', [37.8, 17.8], { scale: 1.2 });
     k.objeto('barril.deitado', [37.6, 15.0], { rotation: 0.6 });
     k.objeto('suporte-de-armas', [12.6, 9.8], { params: { largura: 2 }, rotation: Math.PI / 2 });
     k.objeto('mesa-de-armas', [13.4, 12.6], { rotation: Math.PI / 2 });
-    for (const [x, y, s] of [[27.4, 16.6, 2.2], [23.8, 17.8, 1.4], [38.0, 12.6, 1.4]] as const) k.objeto('escombros', [x, y], { scale: s, rotation: 0 });
+    for (const [x, y, s] of [[27.4, 16.6, 2.6], [23.8, 17.8, 1.8], [38.0, 12.6, 1.8], [30.6, 18.2, 1.6], [13.4, 18.4, 1.4]] as const) k.objeto('escombros', [x, y], { scale: s, rotation: 0 });
     k.espalhar('bagunca', { poligono: [[13, 4], [38, 4], [38, 18.5], [13, 18.5]] }, { densidade: 0.03 });
 
     // Nicho com fogo a nordeste e o estandarte azul na parede leste.
