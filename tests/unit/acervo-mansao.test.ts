@@ -57,3 +57,12 @@ test('pisos de casarão: mármore com incrustação, espinha e assoalho marcheta
   assert.equal(MATERIAIS['tabuas.marchetadas']!.padrao, 'marchetaria');
   assert.equal(MATERIAIS['parquet.espinha']!.padrao, 'espinha');
 });
+
+test('móveis altos mostram a frente rebatida: tampo junto da parede (−y) e portas, gavetas ou livros à frente (+y)', () => {
+  for (const [id, minimo] of [['armario', 6], ['comoda', 6], ['aparador', 10], ['cristaleira', 10], ['estante.piso', 20], ['guarda-roupa.liso', 6]] as const) {
+    const ps = partes(id), [w, d] = pegadaDaReceita(id), c = caixaDasPartes(ps);
+    assert.ok(c.x1 - c.x0 <= w + 0.05 && c.y1 - c.y0 <= d + 0.05, `${id} cabe na pegada`);
+    const frente = ps.filter(p => p.forma !== 'poli' && p.y! > -d / 2 + d * 0.3 && p.semSombra);
+    assert.ok(frente.length >= minimo, `${id}: ${frente.length} detalhes na frente`);
+  }
+});

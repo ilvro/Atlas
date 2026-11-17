@@ -1,6 +1,7 @@
 import { elipse, poli, ret } from '../descricao.ts';
 import { mulberry32 } from '../ruido.ts';
 import { mat, num, piso, type Receita } from './comum.ts';
+import { movelComFrente } from './frente.ts';
 
 const MARMORE = '#d9d5cc', MARMORE_ESCURO = '#a8a399', FELTRO = '#2f6a45', G = { generos: ['investigacao'], kit: 'investigacao' };
 
@@ -45,7 +46,7 @@ export const RECEITAS_DE_INVESTIGACAO: Receita[] = [
 
   { id: 'cristaleira', nome: 'Cristaleira', categoria: 'armazenamento', tipo: 'piso', funcoes: ['sala-de-jantar', 'sala'], tags: ['movel', 'vidro', 'porcelana'], pegada: [1.2, 0.45], ...G,
     campos: [{ id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 1.2, min: 0.8, max: 2, passo: 0.1 }],
-    gerar: p => { const w = num(p, 'largura', 1.2, 0.8, 2); return piso([w, 0.45], [ret(0, 0, w, 0.45, 'madeira.escura', 1.8, { raio: 0.02 }), ret(0, 0.02, w - 0.1, 0.36, 'vidro', 1.85, { vidro: true, contorno: 'leve' }), ...Array.from({ length: Math.round(w / 0.25) }, (_, i) => elipse(-w / 2 + 0.16 + i * 0.25, 0.02, 0.12, 0.12, i % 2 ? 'porcelana' : '#c9a45a', 1.9, { contorno: 'leve', detalhe: 3 })), ret(0, -0.19, w - 0.06, 0.04, 'madeira.media', 1.92, { contorno: false, semSombra: true })]); } },
+    gerar: p => { const w = num(p, 'largura', 1.2, 0.8, 2); return piso([w, 0.45], movelComFrente(w, 0.45, { madeira: 'madeira.escura', divisao: 'vitrine', colunas: Math.max(2, Math.round(w / 0.5)), fileiras: 3, altura: 1.8, seed: p.seed, tampo: 0.28 })); } },
 
   { id: 'banheira.pes', nome: 'Banheira com pés', categoria: 'banheiro', tipo: 'piso', funcoes: ['banheiro'], tags: ['banheira', 'banho', 'porcelana'], pegada: [1.7, 0.8], ...G,
     gerar: () => piso([1.7, 0.8], [...[[-0.7, -0.28], [-0.7, 0.28], [0.7, -0.28], [0.7, 0.28]].map(([x, y]) => elipse(x!, y!, 0.1, 0.1, 'latao', 0.2, { contorno: 'leve', detalhe: 2 })), elipse(0, 0, 1.7, 0.8, 'porcelana', 0.55, { contorno: 'leve' }), elipse(0.04, 0, 1.5, 0.6, '#cfd8dc', 0.58, { contorno: 'leve', detalhe: 2 }), elipse(0.1, 0, 1.3, 0.5, '#9db9c8', 0.6, { contorno: false, semSombra: true, detalhe: 3 }), elipse(-0.68, 0, 0.1, 0.1, 'latao', 0.7, { contorno: 'leve', detalhe: 3 }), ret(-0.82, 0, 0.12, 0.04, 'latao', 0.72, { contorno: false, semSombra: true, detalhe: 3 })]) },
