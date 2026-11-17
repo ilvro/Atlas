@@ -28,7 +28,8 @@ import { BarraDeEfeitos } from './BarraDeEfeitos.tsx';
 import { SeletorDeAndar } from './SeletorDeAndar.tsx';
 import { WidgetsDeTopo } from './WidgetsDeTopo.tsx';
 import { PreviaDaFicha } from './PreviaDaFicha.tsx';
-import { EditorDeMomento, momentoEmEdicao } from './Momentos.tsx';
+import { EditorDeMomento } from './EditorDeMomento.tsx';
+import { momentoEmEdicao } from './Momentos.tsx';
 
 const zoomPct = signal(100), cursorMundo = signal<[number, number] | null>(null), pintando = signal(0);
 
@@ -184,6 +185,7 @@ export function Editor() {
         <ModalNotaDeObjeto />
         {momentoEmEdicao.value && (
           <EditorDeMomento
+            key={momentoEmEdicao.value.id}
             s={s}
             momento={momentoEmEdicao.value}
             aoFechar={() => { momentoEmEdicao.value = null; }}
