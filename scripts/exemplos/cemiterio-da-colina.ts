@@ -26,14 +26,15 @@ export const cemiterioDaColina: Exemplo = {
     // A capela ao norte e o jazigo da família a oeste.
     k.aplicar((m, id) => construirEdificios(m, [
       { nome: 'Capela', origem: [20, 1], lote: [5, 5], frente: 's', forma: 'linear', telhado: 'telha.barro', comodos: [{ tipo: 'capela', area: 40, principal: true }] },
-      { nome: 'Jazigo da família', origem: [6, 6], lote: [3, 3], frente: 'l', forma: 'compacta', telhado: 'telha.velha', comodos: [{ tipo: 'capela', area: 12, nome: 'Jazigo', principal: true }] },
+      { nome: 'Jazigo da família', origem: [6, 6], lote: [3, 3], frente: 'l', forma: 'compacta', telhado: 'telha.ardosia', comodos: [{ tipo: 'capela', area: 12, nome: 'Jazigo', principal: true }] },
     ], 7, id));
     k.tirarExternosDosInteriores();
 
-    // Lápides, túmulos e covas, sem fila mecânica.
-    k.espalhar('cemiterio', { poligono: [[12, 11], [20, 8.5], [24, 12], [20, 18], [13, 18]] }, { densidade: 0.12, escala: 1.6 });
-    k.espalhar('cemiterio', { poligono: [[26, 15], [34, 14.5], [38, 18], [32, 22], [25, 21]] }, { densidade: 0.11, escala: 1.6 });
-    k.espalhar('cemiterio', { poligono: [[33, 8], [39, 8.5], [40, 11.5], [34, 11.2]] }, { densidade: 0.14, escala: 1.6 });
+    // Lápides, túmulos e covas, sem fila mecânica. O conjunto também espalha árvores verdes, que aqui não cabem (a mata é morta).
+    const semArvores = (ids: string[]) => k.remover(ids.filter(id => { const f = k.construir().props[id]?.source; return f?.kind === 'asset'; }));
+    semArvores(k.espalhar('cemiterio', { poligono: [[12, 11], [20, 8.5], [24, 12], [20, 18], [13, 18]] }, { densidade: 0.12, escala: 1.6 }));
+    semArvores(k.espalhar('cemiterio', { poligono: [[26, 15], [34, 14.5], [38, 18], [32, 22], [25, 21]] }, { densidade: 0.11, escala: 1.6 }));
+    semArvores(k.espalhar('cemiterio', { poligono: [[33, 8], [39, 8.5], [40, 11.5], [34, 11.2]] }, { densidade: 0.14, escala: 1.6 }));
     for (const [x, y, r] of [[15.4, 9.6, 0.2], [22.2, 11.4, -0.3], [28.6, 20.6, 0.4], [35.2, 19.2, -0.2], [12.4, 15.2, 0.1], [24.8, 16.4, 0.5]] as const) k.objeto(x > 24 ? 'cruz.pedra' : 'cruz.madeira', [x, y], { rotation: r, scale: 1.5 });
     for (const [x, y, r] of [[17.2, 13.6, 0.3], [30.4, 18.6, -0.4], [36.6, 7.6, 0.9]] as const) k.objeto('sarcofago', [x, y], { rotation: r, scale: 1.1 });
     k.objeto('tumulo', [24.6, 19.2], { rotation: 1.2 });
@@ -67,7 +68,7 @@ export const cemiterioDaColina: Exemplo = {
     k.luz('lanterna', [31.6, 6.0], { radius: 5 });
     k.presenca('musgo', { poligono: colina, irregular: 0.6 }, 0.3);
 
-    k.clima('noite', { time: '23:40', ambient: { color: '#9a6a52', intensity: 0.58 }, tempo: { fog: 0.15, leaves: 0.1, wind: 0.1 } });
+    k.clima('noite', { time: '23:40', ambient: { color: '#b07a5c', intensity: 0.74 }, tempo: { fog: 0.15, leaves: 0.1, wind: 0.1 } });
     k.acabamento(null, { tint: '#ffc8a8', saturation: 1.05, vignette: 0.55, edges: { kind: 'dark', amount: 0.55 }, glow: 0.75 });
     k.guardarClima('enterro-ao-entardecer', 'Enterro ao entardecer', 'entardecer', { finish: { edges: { kind: 'dark', amount: 0.4 } } });
     k.guardarClima('nevoeiro-dos-mortos', 'Nevoeiro dos mortos', 'neblina', { time: '03:00', sun: null, ambient: { color: '#56606a', intensity: 0.3 } });
