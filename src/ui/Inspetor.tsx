@@ -28,7 +28,7 @@ import { Amostra } from './campos-material.tsx';
 import { desenharMiniaturaDoTelhado } from '../render/miniatura.ts';
 import { tocar } from '../fx/som.ts';
 import { chaveDoAlvo, type Alvo } from '../render/selecao.ts';
-import type { ParcialProfundo } from '../state/comandos.ts';
+import type { Comando, ParcialProfundo } from '../state/comandos.ts';
 import type { Gesto } from '../state/store.ts';
 import { useGestoDeCor } from './gesto-de-cor.ts';
 import { PainelDoSprite } from './PainelDoSprite.tsx';
@@ -223,7 +223,7 @@ function SomDoMapa({ s }: { s: SessaoDeEdicao }) {
 function SeletorDeClima({ s }: { s: SessaoDeEdicao }) {
   const m = s.doc.value, st = s.store, nomeando = useSignal(false), nome = useSignal('');
   const ativo = presetDeClima(m.climate.preset)?.id ?? m.climate.preset;
-  const ajustar = (patch: Record<string, unknown>, rotulo: string) => tentar(() => st.executar({ tipo: 'clima.aplicar', patch: patch as never }, { rotulo }));
+  const ajustar = (patch: Extract<Comando, { tipo: 'clima.aplicar' }>['patch'], rotulo: string) => tentar(() => st.executar({ tipo: 'clima.aplicar', patch }, { rotulo }));
   const guardar = () => {
     const n = nome.value.trim(); if (!n) { avisar('Dê um nome ao clima.', { tipo: 'erro' }); return; }
     if (tentar(() => st.executar({ tipo: 'clima.salvar', nome: n }, { rotulo: `Salvar clima: ${n}` }))) { nomeando.value = false; nome.value = ''; tocar('pop'); }
@@ -385,7 +385,7 @@ function CamposDaPeca({ s, t }: { s: SessaoDeEdicao; t: Peca }) {
       if (t.lightId && s.doc.value.lights[t.lightId]) g.aplicar({ tipo: 'item.remover', colecao: 'lights', id: t.lightId });
       if (!preset) return;
       const nova = novaLuz([t.position[0], t.position[1]], { ...camposDoPreset(preset, direcao), ownerId: t.id });
-      g.aplicar({ tipo: 'item.adicionar', colecao: 'lights', item: nova as never });
+      g.aplicar({ tipo: 'item.adicionar', colecao: 'lights', item: nova });
       g.aplicar({ tipo: 'item.atualizar', colecao: 'tokens', id: t.id, patch: { lightId: nova.id } });
     }));
   };
@@ -420,7 +420,7 @@ function PistaDoObjeto({ i, aoEscolher }: { i: NonNullable<Objeto['interaction']
 
 function InteracaoDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
   const m = s.doc.value, i = o.interaction;
-  const editar = (interaction: Objeto['interaction'] | undefined, rotulo: string) => tentar(() => s.store.executar({ tipo: 'item.atualizar', colecao: 'props', id: o.id, patch: { interaction: interaction as never } }, { rotulo }));
+  const editar = (interaction: Objeto['interaction'] | undefined, rotulo: string) => tentar(() => s.store.executar({ tipo: 'item.atualizar', colecao: 'props', id: o.id, patch: { interaction } }, { rotulo }));
   const efetivas = i?.kind === 'switch' ? alvosDoInterruptor(m, o) : [];
   const trocar = (id: string, marcar: boolean) => editar({ ...i!, targets: marcar ? [...new Set([...efetivas, id])] : efetivas.filter(x => x !== id) }, 'Luzes do interruptor');
   const multi = ehMultiandar(m);
@@ -435,10 +435,10 @@ function InteracaoDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
 
   const criarEscadaDeChegada = () => {
     if (destinoAtual === undefined) return;
-    const nova = {
+    const nova: Objeto = {
       id: `p_${crypto.randomUUID().slice(0, 8)}`,
       source: structuredClone(o.source),
-      position: [posChegada[0], posChegada[1]] as [number, number],
+      position: [posChegada[0], posChegada[1]],
       rotation: o.rotation,
       scale: o.scale,
       elevation: o.elevation,
@@ -448,17 +448,17 @@ function InteracaoDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
       castsShadow: o.castsShadow,
       harmonize: o.harmonize,
       interaction: {
-        kind: 'stairs' as const,
+        kind: 'stairs',
         on: false,
         targets: [],
         sound: i?.sound ?? null,
         clue: null,
         toLevel: origemAndar,
-        toPosition: [o.position[0], o.position[1]] as [number, number],
+        toPosition: [o.position[0], o.position[1]],
       },
       ...(destinoAtual !== null ? { levelId: destinoAtual } : {}),
     };
-    tentar(() => s.store.executar({ tipo: 'item.adicionar', colecao: 'props', item: nova as never }, { rotulo: 'Criar escada de chegada' }));
+    tentar(() => s.store.executar({ tipo: 'item.adicionar', colecao: 'props', item: nova }, { rotulo: 'Criar escada de chegada' }));
   };
 
   return (<>
@@ -489,7 +489,7 @@ function InteracaoDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
       </div>
     )}
     <CampoOpcoes rotulo="Interação" dica="O que o mestre aciona na sessão, clicando no objeto ou com Enter ao lado de uma peça." valor={i?.kind ?? ''}
-      opcoes={[['', 'Nenhuma'], ['switch', 'Interruptor'], ['drawer', 'Gaveta'], ['clue', 'Pista do Ateliê'], ['note', 'Nota / Descrição'], ...(multi ? [['stairs', 'Escada entre andares'] as const] : [])] as never}
+      opcoes={[['', 'Nenhuma'], ['switch', 'Interruptor'], ['drawer', 'Gaveta'], ['clue', 'Pista do Ateliê'], ['note', 'Nota / Descrição'], ...(multi ? [['stairs', 'Escada entre andares'] as const] : [])]}
       aoMudar={v => editar(v ? {
         kind: v as 'switch' | 'drawer' | 'clue' | 'note' | 'stairs',
         on: (v === 'clue' || v === 'note' || v === 'stairs') ? false : i?.on ?? true,
@@ -702,7 +702,7 @@ const mesmoTelhado = (a: Comodo['roof'], b: Omit<Comodo['roof'], 'visible'>): bo
 function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
   const st = s.store, m = s.doc.value, extra = m.comodosExtra[c.id];
   const ed = c.roof.material ? edificioDaSala(m, c.id) : null;
-  const editar = (patch: Record<string, unknown>, rotulo?: string) => tentar(() => st.executar({ tipo: 'comodo.atualizar', id: c.id, patch: patch as never }, rotulo ? { rotulo } : {}));
+  const editar = (patch: Extract<Comando, { tipo: 'comodo.atualizar' }>['patch'], rotulo?: string) => tentar(() => st.executar({ tipo: 'comodo.atualizar', id: c.id, patch }, rotulo ? { rotulo } : {}));
   const notas = (patch: { leitura?: string; notasMestre?: string }) => tentar(() => st.executar({ tipo: 'comodo.notas', id: c.id, patch }, { rotulo: 'Notas do cômodo' }));
   const detalhesAtivos = new Set(c.roof.details ?? []);
   const alternarDetalhe = (d: DetalheDeTelhado) => {
@@ -802,7 +802,7 @@ function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
                 if (id === c.id) continue;
                 // Todos os campos, mesmo os ausentes: `undefined` apaga no outro cômodo a forma ou os detalhes que este não tem.
                 const { material, visible, shape, ridge, steep, details } = c.roof;
-                g.aplicar({ tipo: 'comodo.atualizar', id, patch: { roof: { material, visible, shape, ridge, steep, details } } as never });
+                g.aplicar({ tipo: 'comodo.atualizar', id, patch: { roof: { material, visible, shape, ridge, steep, details } } });
               }
             }))}
           >
@@ -826,9 +826,9 @@ function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
 
 function CamposDaParede({ s, w }: { s: SessaoDeEdicao; w: Parede }) {
   const avulsa = w.kind === 'cliff' && !w.source;
-  const st = s.store, editar = (patch: Record<string, unknown>, rotulo?: string) => tentar(() => st.executar({ tipo: 'parede.atualizar', id: w.id, patch: patch as never }, rotulo ? { rotulo } : {}));
+  const st = s.store, editar = (patch: Extract<Comando, { tipo: 'parede.atualizar' }>['patch'], rotulo?: string) => tentar(() => st.executar({ tipo: 'parede.atualizar', id: w.id, patch }, rotulo ? { rotulo } : {}));
   return (<>
-    <CampoOpcoes rotulo="Tipo" valor={w.kind} opcoes={[['wall', 'Parede'], ['low', 'Muro baixo'], ['fence', 'Cerca'], ['cliff', 'Escarpa']] as never}
+    <CampoOpcoes rotulo="Tipo" valor={w.kind} opcoes={[['wall', 'Parede'], ['low', 'Muro baixo'], ['fence', 'Cerca'], ['cliff', 'Escarpa']]}
       aoMudar={v => editar(v === 'cliff' ? { kind: v, drop: w.drop ?? 'b', material: materialDe(w.material).uso === 'macico' ? w.material : 'rocha.cinza', blocks: { sight: false, light: false } } : { kind: v }, 'Tipo da parede')} />
     {avulsa && <p class="dica">Lado baixo: a seta no mapa. <button type="button" class="botao-pilula" data-testid="escarpa-lado" onClick={() => editar({ drop: (w.drop ?? 'b') === 'a' ? 'b' : 'a' }, 'Lado baixo da escarpa')}>Trocar o lado</button></p>}
     <CampoNumero rotulo="Altura" unidade="m" valor={w.height} min={avulsa ? 0.5 : 0.1} max={avulsa ? 12 : 20} passo={avulsa ? 0.5 : 0.1} aoConfirmar={v => editar({ height: v }, 'Altura da parede')} />
@@ -841,12 +841,12 @@ function CamposDaParede({ s, w }: { s: SessaoDeEdicao; w: Parede }) {
 }
 
 function CamposDaAbertura({ s, o }: { s: SessaoDeEdicao; o: Abertura }) {
-  const editar = (patch: Record<string, unknown>, rotulo?: string) => tentar(() => s.store.executar({ tipo: 'abertura.atualizar', id: o.id, patch: patch as never }, rotulo ? { rotulo } : {}));
+  const editar = (patch: Extract<Comando, { tipo: 'abertura.atualizar' }>['patch'], rotulo?: string) => tentar(() => s.store.executar({ tipo: 'abertura.atualizar', id: o.id, patch }, rotulo ? { rotulo } : {}));
   const porta = o.kind === 'door' || o.kind === 'secret';
   return (<>
-    <CampoOpcoes rotulo="Tipo" valor={o.kind} opcoes={[['door', 'Porta'], ['window', 'Janela'], ['arch', 'Arco'], ['secret', 'Porta secreta']] as never} aoMudar={v => editar({ kind: v }, 'Tipo da abertura')} />
-    {porta && <CampoOpcoes rotulo="Estado" valor={o.state} opcoes={[['closed', 'Fechada'], ['open', 'Aberta'], ['locked', 'Trancada']] as never} aoMudar={v => editar({ state: v }, 'Estado da porta')} />}
-    {o.kind === 'door' && <CampoOpcoes rotulo="Abre para" valor={o.swing} opcoes={[['a', 'Um lado'], ['b', 'O outro lado']] as never} aoMudar={v => editar({ swing: v }, 'Lado da porta')} />}
+    <CampoOpcoes rotulo="Tipo" valor={o.kind} opcoes={[['door', 'Porta'], ['window', 'Janela'], ['arch', 'Arco'], ['secret', 'Porta secreta']]} aoMudar={v => editar({ kind: v }, 'Tipo da abertura')} />
+    {porta && <CampoOpcoes rotulo="Estado" valor={o.state} opcoes={[['closed', 'Fechada'], ['open', 'Aberta'], ['locked', 'Trancada']]} aoMudar={v => editar({ state: v }, 'Estado da porta')} />}
+    {o.kind === 'door' && <CampoOpcoes rotulo="Abre para" valor={o.swing} opcoes={[['a', 'Um lado'], ['b', 'O outro lado']]} aoMudar={v => editar({ swing: v }, 'Lado da porta')} />}
     <CampoNumero rotulo="Largura" unidade="m" valor={o.width} min={0.4} max={6} passo={0.1} aoConfirmar={v => editar({ width: v }, 'Largura da abertura')} />
     {porta && <EscolherCena s={s} tipo="efeito" id="som-da-porta" rotulo="Som da porta" dica="Um efeito do Jukebox toca ao abrir e ao fechar. Sem escolha (ou com o Jukebox fechado), vale o som do Atlas." valor={o.som} aoEscolher={ref => editar({ som: ref }, 'Som da porta')} />}
   </>);

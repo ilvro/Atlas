@@ -34,12 +34,12 @@ const SUGESTAO_DE_FUNCAO: TipoDeSugestao = {
   texto: (c, roomId) => { const f = funcaoSugerida(c, roomId); return f ? `Usar como ${f.nome}?` : null; },
   gerar(c, roomId) {
     const f = funcaoSugerida(c, roomId), sala = c.m.rooms[roomId], tipo = f && tipoDaFuncao(f.funcao); if (!f || !sala || !tipo) return null;
-    const patch: Record<string, unknown> = { function: f.funcao };
+    const patch: { function: string; floor?: { material: string }; wallpaper?: { material: string; seed: number } } = { function: f.funcao };
     // Troca piso e papel só se ainda são exatamente os de um tipo de cômodo: o que o mestre escolheu à mão não se mexe.
     if (TIPOS_DE_COMODO.some(t => t.piso === sala.floor.material && t.papel === (sala.wallpaper?.material ?? null))) {
       patch.floor = { material: tipo.piso }; patch.wallpaper = { material: tipo.papel, seed: sala.wallpaper?.seed ?? sala.floor.seed };
     }
-    return novaProposta({ tipo: 'funcao', rotulo: `Usar como ${f.nome}`, comandos: [{ tipo: 'comodo.atualizar', id: roomId, patch: patch as never }], versaoEsperada: c.versao, roomId, semente: c.semente });
+    return novaProposta({ tipo: 'funcao', rotulo: `Usar como ${f.nome}`, comandos: [{ tipo: 'comodo.atualizar', id: roomId, patch }], versaoEsperada: c.versao, roomId, semente: c.semente });
   },
 };
 

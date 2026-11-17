@@ -333,7 +333,7 @@ export function objetos(mapa: MapaAtlas, pedidos: readonly PedidoDeObjeto[], sem
       ...(p.andar ? { levelId: p.andar } : {}),
       ...escadaInteracao,
     });
-    comandos.push({ tipo: 'item.adicionar', colecao: 'props', item: o as unknown as { id: string } & Record<string, unknown> });
+    comandos.push({ tipo: 'item.adicionar', colecao: 'props', item: o });
     ids.push(o.id);
   }
   return { comandos, ids };
@@ -360,7 +360,7 @@ export function espalhar(mapa: MapaAtlas, pedido: PedidoDeEspalhar, semente = 1,
       if (!dentro(base.position)) continue;
       const n = pedido.andar ? { ...base, levelId: pedido.andar } : base;
       rascunho.props[n.id] = n; ids.push(n.id);
-      comandos.push({ tipo: 'item.adicionar', colecao: 'props', item: n as unknown as { id: string } & Record<string, unknown> });
+      comandos.push({ tipo: 'item.adicionar', colecao: 'props', item: n });
     }
   }
   return { comandos, ids };
@@ -382,7 +382,7 @@ export function luzes(mapa: MapaAtlas, pedidos: readonly PedidoDeLuz[], _semente
       ...(p.raios !== undefined ? { rays: p.raios } : {}),
       ...(p.andar ? { levelId: p.andar } : {}),
     });
-    comandos.push({ tipo: 'item.adicionar', colecao: 'lights', item: l as unknown as { id: string } & Record<string, unknown> });
+    comandos.push({ tipo: 'item.adicionar', colecao: 'lights', item: l });
     ids.push(l.id);
   }
   return { comandos, ids };
@@ -403,7 +403,7 @@ export function regioes(mapa: MapaAtlas, pedidos: readonly PedidoDeRegiao[], _se
     if (p.nome) payload.nome = p.nome;
     if (p.texto) payload.texto = p.texto;
     const r: Regiao = { id, polygon: p.poligono.map(q => [q[0], q[1]] as Ponto), kind: p.tipo, gmOnly: p.somenteMestre ?? true, payload, refs: [], ...(p.andar ? { levelId: p.andar } : {}) };
-    comandos.push({ tipo: 'item.adicionar', colecao: 'regions', item: r as unknown as { id: string } & Record<string, unknown> });
+    comandos.push({ tipo: 'item.adicionar', colecao: 'regions', item: r });
     ids.push(id);
   }
   return { comandos, ids };

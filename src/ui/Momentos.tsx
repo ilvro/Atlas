@@ -541,7 +541,9 @@ export function CamposDoPasso({
       const regioes = Object.values(doc.regions).map(r => ({ colecao: 'regions' as const, id: r.id, nome: `Região: ${nomeRegiao(r)}` }));
       const alvos = [...salas, ...pecas, ...regioes];
       const sel = s.selecao.value[0];
-      const podeUsarSel = sel && (sel.colecao === 'rooms' || sel.colecao === 'tokens' || sel.colecao === 'regions');
+      const alvoSel = sel && (sel.colecao === 'rooms' || sel.colecao === 'tokens' || sel.colecao === 'regions')
+        ? { colecao: sel.colecao, id: sel.id }
+        : null;
 
       const chaveAtual = `${passo.alvo.colecao}:${passo.alvo.id}`;
 
@@ -555,8 +557,8 @@ export function CamposDoPasso({
                 value={chaveAtual}
                 onChange={e => {
                   const [colecao, id] = (e.target as HTMLSelectElement).value.split(':');
-                  if (colecao && id) {
-                    aoAtualizar({ ...passo, alvo: { colecao: colecao as any, id } });
+                  if (colecao === 'rooms' || colecao === 'tokens' || colecao === 'regions') {
+                    if (id) aoAtualizar({ ...passo, alvo: { colecao, id } });
                   }
                 }}
               >
@@ -570,11 +572,11 @@ export function CamposDoPasso({
             <button
               type="button"
               class="dock-pilula"
-              disabled={!podeUsarSel}
+              disabled={!alvoSel}
               title="Focar no item atualmente selecionado"
               onClick={() => {
-                if (podeUsarSel) {
-                  aoAtualizar({ ...passo, alvo: { colecao: sel.colecao as any, id: sel.id } });
+                if (alvoSel) {
+                  aoAtualizar({ ...passo, alvo: alvoSel });
                 }
               }}
             >

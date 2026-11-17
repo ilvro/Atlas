@@ -36,7 +36,7 @@ export function CampoCaixa({ rotulo, dica, id, valor, aoMudar }: BaseCampo & { v
   return <Linha rotulo={rotulo} dica={dica}><input id={id} data-testid={id} type="checkbox" checked={valor} onChange={e => aoMudar((e.target as HTMLInputElement).checked)} /></Linha>;
 }
 
-export function CampoOpcoes<T extends string>({ rotulo, dica, id, valor, opcoes, aoMudar }: BaseCampo & { valor: T; opcoes: readonly (readonly [T, string])[]; aoMudar: (v: T) => void }) {
+export function CampoOpcoes<T extends string>({ rotulo, dica, id, valor, opcoes, aoMudar }: BaseCampo & { valor: T; opcoes: readonly (readonly [NoInfer<T>, string])[]; aoMudar: (v: NoInfer<T>) => void }) {
   return <Linha rotulo={rotulo} dica={dica}><select id={id} data-testid={id} value={valor} onChange={e => aoMudar((e.target as HTMLSelectElement).value as T)}>{opcoes.map(([v, nome]) => <option key={v} value={v}>{nome}</option>)}</select></Linha>;
 }
 

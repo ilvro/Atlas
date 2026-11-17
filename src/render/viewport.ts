@@ -31,7 +31,7 @@ import { criarRetratos } from './retratos.ts';
 import { ajustarGradePorAlinhamento, celulasHexagonaisVisiveis, deltaEncaixado, encaixar, intersecoesDaGrade, linhasDaGrade, segmentosTracejados } from './grade.ts';
 import { LARGURA_DA_ABERTURA, comandoDeComodoPorContorno, comandoDoPincelDeTerreno, pontoPreso45, type Ferramenta, type Pincel } from './pincel.ts';
 import { corDaLinhaDeNivel, criarLinhasDeNivel } from './linhas-de-nivel.ts';
-import { alvoEm, alvosNaCaixa, alvosNoLaco, caixaDaSelecao, caixaDe, combinarSelecao, ehMovel, mesmoAlvo, type Alvo, type Caixa } from './selecao.ts';
+import { alvoEm, alvosNaCaixa, alvosNoLaco, caixaDaSelecao, caixaDe, combinarSelecao, ehMovel, mesmoAlvo, type Alvo, type AlvoMovel, type Caixa } from './selecao.ts';
 
 export type { Ferramenta } from './pincel.ts';
 export const colecaoDaFerramenta = (f: Ferramenta): ColecaoLivre | null => ({ luz: 'lights', objeto: 'props', peca: 'tokens', regiao: 'regions' } as Partial<Record<Ferramenta, ColecaoLivre>>)[f] ?? null;
@@ -162,7 +162,7 @@ const COR_PADRAO_ACENTO = 0xe91d25;
 
 type Interacao =
   | { tipo: 'pan'; botao: number; x0: number; y0: number; camera0: Camera; moveu: boolean }
-  | { tipo: 'mover'; hit: Alvo; alvos: Alvo[]; origem: Ponto; ref: Ponto; aplicado: Ponto; gesto: Gesto | null; x0: number; y0: number; estavaNaSelecao: boolean; ctrl: boolean }
+  | { tipo: 'mover'; hit: Alvo; alvos: AlvoMovel[]; origem: Ponto; ref: Ponto; aplicado: Ponto; gesto: Gesto | null; x0: number; y0: number; estavaNaSelecao: boolean; ctrl: boolean }
   | { tipo: 'peca'; id: string; de: Ponto; para: Ponto; motivo: string | null; livre: boolean; x0: number; y0: number; moveu: boolean }
   | { tipo: 'deslizar'; id: string; gesto: Gesto | null; x0: number; y0: number }
   | { tipo: 'retangulo'; ini: Ponto; atual: Ponto; modo: 'trocar' | 'somar'; x0: number; y0: number; moveu: boolean }
@@ -789,18 +789,18 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         const l = typeof pincel.objeto.params.largura === 'number' ? pincel.objeto.params.largura : receita.pegada[0], enc = encaixarObjetoDeParede(m, p, l, livre, andar);
         if (!enc) { ponte.aviso('Objetos de parede vão na face de um cômodo: aproxime-se de uma parede por dentro.'); return; }
         const item = novoObjeto(enc.ponto, { source: fonte, elevation: 'wall', wall: { wallId: enc.parede.id, at: enc.at, face: 'inner' }, roomId: enc.roomId, blocks: { move: false, sight: false }, castsShadow: false, ...(andar !== null ? { levelId: andar } : {}) });
-        if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item: item as never }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, enc.ponto); novaSemente(); }
+        if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, enc.ponto); novaSemente(); }
         return;
       }
       const interacao = interacaoDeEscadaPadrao(m, andar, receita.id);
       const item = novoObjeto(alvo, { source: fonte, rotation: pincel.objeto.rotacao, ...(receita.submerso ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : {}), ...(interacao ? { interaction: interacao } : {}), ...(andar !== null ? { levelId: andar } : {}) });
-      if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item: item as never }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, alvo); novaSemente(); }
+      if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, alvo); novaSemente(); }
       return;
     }
     if (f === 'luz') {
       const preset = presetDeLuz(pincel.luz.preset); if (!preset) return;
       const item = novaLuz(alvo, { ...camposDoPreset(preset, pincel.luz.direcao), ...(andar !== null ? { levelId: andar } : {}) });
-      if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'lights', item: item as never }, { rotulo: `Pôr ${preset.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'lights', id: item.id }]); ponte.aoColocar(preset.nome, alvo); }
+      if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'lights', item }, { rotulo: `Pôr ${preset.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'lights', id: item.id }]); ponte.aoColocar(preset.nome, alvo); }
       return;
     }
     const colecao = colecaoDaFerramenta(f);
@@ -942,13 +942,13 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         if (i.ctrl) {
           // Ctrl+arrastar: o que se arrasta é uma cópia; o original fica onde estava.
           const { comandos, alvos } = copiasDe(m, i.alvos, [0, 0]), gesto = i.gesto;
-          if (!tentar(() => { for (const c of comandos) gesto.aplicar(c as never); })) { gesto.cancelar(); interacao = null; return; }
+          if (!tentar(() => { for (const c of comandos) gesto.aplicar(c); })) { gesto.cancelar(); interacao = null; return; }
           i.alvos = alvos; ponte.definirSelecao(alvos);
         }
       }
       const livre = !doc().grid.snap || e.altKey;
       const d = deltaEncaixado(i.ref, [ponteiro[0] - i.origem[0], ponteiro[1] - i.origem[1]], doc().grid, 0.5, livre), passo: Ponto = [d[0] - i.aplicado[0], d[1] - i.aplicado[1]];
-      if (Math.abs(passo[0]) > 1e-9 || Math.abs(passo[1]) > 1e-9) { i.gesto.aplicar({ tipo: 'selecao.mover', alvos: i.alvos as never, delta: passo }); i.aplicado = d; }
+      if (Math.abs(passo[0]) > 1e-9 || Math.abs(passo[1]) > 1e-9) { i.gesto.aplicar({ tipo: 'selecao.mover', alvos: i.alvos, delta: passo }); i.aplicado = d; }
     } else if (i.tipo === 'peca') {
       if (Math.hypot(tx - i.x0, ty - i.y0) > LIMIAR_ARRASTO) i.moveu = true;
       i.livre = !m.grid.snap || e.altKey; i.para = i.livre ? ponteiro : centroDaCelula(m, ponteiro);

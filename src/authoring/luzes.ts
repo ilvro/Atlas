@@ -93,7 +93,7 @@ export function propostaDeLuzes(c: Contexto, roomId: string): Proposta | null {
   }
   if (!escolhidas.length) return null;
   const luzes: Luz[] = escolhidas.map(e => novaLuz([Math.round(e.pos[0] * 100) / 100, Math.round(e.pos[1] * 100) / 100], { id: gerarId('l'), ownerId: e.dono, on: true, nightOnly: false, ...camposDoPreset(preset) }));
-  return novaProposta({ tipo: 'luz', rotulo: `Iluminar a ${sala.name}`, comandos: luzes.map(l => ({ tipo: 'item.adicionar' as const, colecao: 'lights' as const, item: l as never })), versaoEsperada: c.versao, roomId, semente: c.semente });
+  return novaProposta({ tipo: 'luz', rotulo: `Iluminar a ${sala.name}`, comandos: luzes.map(l => ({ tipo: 'item.adicionar' as const, colecao: 'lights' as const, item: l })), versaoEsperada: c.versao, roomId, semente: c.semente });
 }
 
 export const textoDeLuzes = (c: Contexto, roomId: string): string | null => (propostaDeLuzes(c, roomId) ? `Iluminar a ${c.m.rooms[roomId]!.name}?` : null);

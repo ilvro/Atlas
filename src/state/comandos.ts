@@ -3,7 +3,7 @@ import { ceuNoHorario } from '../domain/clima.ts';
 import { camadaDoObjeto } from '../domain/camadas.ts';
 import { ErroDeValidacao } from '../domain/esquema.ts';
 import { clonar, produzir } from './imutavel.ts';
-import { COLECOES_LIVRES, type Acabamento, type Andar, type Clima, type ColecaoLivre, type Estilo, type Fundo, type Grade, type Luz, type Memoria, type MapaAtlas, type ModoTelhadosSessao, type NomeColecao, type Ponto } from '../domain/mapa.ts';
+import { COLECOES_LIVRES, type Acabamento, type Andar, type Clima, type ColecaoLivre, type Estilo, type Fundo, type Grade, type Luz, type Memoria, type MapaAtlas, type ModoTelhadosSessao, type NomeColecao, type Objeto, type Peca, type Ponto, type Presenca, type Regiao } from '../domain/mapa.ts';
 import { andarDe, mapaDoAndar } from '../domain/andares.ts';
 import { atualizarSalasDosObjetos } from '../domain/geometria.ts';
 import { alvosDoInterruptor } from '../domain/interagiveis.ts';
@@ -19,6 +19,16 @@ export { COLECOES_LIVRES, type ColecaoLivre };
 
 export { ErroDeComando };
 export type { ParcialProfundo };
+export type EntidadeLivre = Objeto | Luz | Peca | Regiao | Presenca;
+export type ItemParaAdicionar = EntidadeLivre | ({ id: string } & Record<string, unknown>);
+export type PatchDeItem =
+  | ParcialProfundo<Objeto>
+  | ParcialProfundo<Luz>
+  | ParcialProfundo<Peca>
+  | ParcialProfundo<Regiao>
+  | ParcialProfundo<Presenca>
+  | Record<string, unknown>;
+
 export interface AlvoMovel { colecao: ColecaoLivre; id: string }
 
 export type Comando =
@@ -41,8 +51,8 @@ export type Comando =
   | { tipo: 'acabamento.atualizar'; patch: ParcialProfundo<Acabamento> }
   | { tipo: 'fundo.atualizar'; patch: ParcialProfundo<Fundo> }
   | { tipo: 'memoria.atualizar'; patch: ParcialProfundo<Memoria> }
-  | { tipo: 'item.adicionar'; colecao: ColecaoLivre; item: { id: string } & Record<string, unknown> }
-  | { tipo: 'item.atualizar'; colecao: ColecaoLivre; id: string; patch: Record<string, unknown> }
+  | { tipo: 'item.adicionar'; colecao: ColecaoLivre; item: ItemParaAdicionar }
+  | { tipo: 'item.atualizar'; colecao: ColecaoLivre; id: string; patch: PatchDeItem }
   | { tipo: 'item.remover'; colecao: ColecaoLivre; id: string }
   /** Muda a camada dos objetos: `frente`/`tras` passam por cima/por baixo de todos; `subir`/`descer` andam uma camada. */
   | { tipo: 'objeto.camada'; ids: string[]; modo: 'frente' | 'tras' | 'subir' | 'descer' }
@@ -183,8 +193,9 @@ function aplicar(m: MapaAtlas, c: Comando): void {
     }
     case 'item.atualizar': {
       const item = existente(m, c.colecao, c.id);
-      if ('id' in c.patch && c.patch.id !== c.id) nao('O identificador não muda.');
-      mesclar(item, c.patch);
+      const patch = c.patch as Record<string, unknown>;
+      if ('id' in patch && patch.id !== c.id) nao('O identificador não muda.');
+      mesclar(item, patch);
       if (c.colecao === 'props') atualizarSalasDosObjetos(m);
       break;
     }
