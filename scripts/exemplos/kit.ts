@@ -25,7 +25,8 @@ import { criarRef } from '#mesa';
 import { ACERVO } from '../../src/procedural/acervo.ts';
 import { chavesDaForma, medirForma, sementeDaForma, type Forma, type Medida, type Ret } from '../../src/authoring/formas.ts';
 import { espalhar as espalharConjunto, conjuntoDeEspalhar } from '../../src/authoring/espalhar.ts';
-import { codificar } from '../../src/domain/celulas.ts';
+import { codificar, decodificar } from '../../src/domain/celulas.ts';
+import { aplicarEmCopia, type Construcao, type GeradorDeId } from '../../src/authoring/construcao.ts';
 import { atualizarEscarpasDoMacico } from '../../src/domain/contorno.ts';
 import { ceuNoHorario } from '../../src/domain/clima.ts';
 import { novaLuz, novaPeca, novoObjeto } from '../../src/domain/fabrica.ts';
@@ -33,6 +34,7 @@ import { PAREDE_PADRAO, atualizarSalasDosObjetos, encaixarNaParede, motivoDeNaoC
 import { criarMapa, type Abertura, type Acabamento, type Comodo, type Estilo, type Fundo, type MapaAtlas, type Objeto, type Parede, type Peca, type Ponto, type Regiao, type Tempo } from '../../src/domain/mapa.ts';
 import { camposDoPreset, presetDeAcabamento, presetDeClima, presetDeLuz, pincelDePresenca, tipoDeComodo, TIPOS_DE_COMODO } from '../../src/domain/presets.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
+import { revisarMapa } from '../../src/authoring/revisao.ts';
 import { mulberry32 } from '../../src/procedural/ruido.ts';
 
 /** Carimbo fixo (5/11/2026) para o JSON não mudar entre execuções. */
@@ -176,7 +178,7 @@ export class Kit {
    * Espalha um conjunto (`CONJUNTOS_DE_ESPALHAR`/`CONJUNTOS_EXTERIORES`: mata, jardim, cemiterio…) dentro da forma. `densidade` (itens/m²)
    * troca a do conjunto; é aproximada, porque a forma é coberta por vários círculos. Devolve os ids criados.
    */
-  espalhar(conjunto: string, forma: Forma, o: { densidade?: number } = {}): string[] {
+  espalhar(conjunto: string, forma: Forma, o: { densidade?: number; /** Multiplica a escala de cada item espalhado. */ escala?: number } = {}): string[] {
     if (!conjuntoDeEspalhar(conjunto)) throw new Error(`Kit: conjunto desconhecido “${conjunto}”.`);
     const { caixa, sdf, dentro } = this.medir(forma), w = caixa.x1 - caixa.x0, h = caixa.y1 - caixa.y0;
     const R = Math.min(2.5, Math.max(1, Math.min(w, h) / 2)), passo = R * 1.1, criados: string[] = [];
@@ -185,7 +187,7 @@ export class Kit {
     for (const centro of centros) {
       if (sdf(centro) > R * 0.3) continue;
       const novos = espalharConjunto(this.m, { centro, raio: R, conjunto, semente: this.rng() * 1000, gerarId: p => this.id(p), densidade: o.densidade });
-      for (const n of novos) if (dentro(n.position)) { this.m.props[n.id] = n; criados.push(n.id); }
+      for (const n of novos) if (dentro(n.position)) { if (o.escala) n.scale *= o.escala; this.m.props[n.id] = n; criados.push(n.id); }
     }
     return criados;
   }
@@ -282,6 +284,47 @@ export class Kit {
 
   /** Notas do mestre do mapa. */
   notas(texto: string): this { this.m.notes = texto; return this; }
+
+  // ---------- Ferramentas do assistente ----------
+  /**
+   * Roda uma ferramenta de autoria do assistente (as mesmas do MCP: `caminho`, `construirEdificios`, `terreno` com relevo, `comodos`…)
+   * sobre o mapa montado até aqui e incorpora o resultado. `f` recebe o mapa e um gerador de ids derivado da semente (JSON estável).
+   *
+   *   k.aplicar((m, id) => caminho(m, { pontos: [[0, 5], [20, 8]], largura: [1.6, 2.4], material: 'terra', sulcos: true }, 7));
+   *   k.aplicar((m, id) => construirEdificios(m, [{ nome: 'Casa', origem: [4, 4], frente: 's', comodos: [...] }], 3, id));
+   */
+  aplicar(f: (m: MapaAtlas, gerarId: GeradorDeId) => Construcao): string[] {
+    const c = f(this.construir(), p => this.id(p));
+    const novo = structuredClone(aplicarEmCopia(this.construir(), c.comandos));      // o estado do editor sai congelado; o kit precisa mexer
+    for (const k of Object.keys(this.m) as (keyof MapaAtlas)[]) delete (this.m as Partial<MapaAtlas>)[k];
+    Object.assign(this.m, novo);
+    this.terreno.clear(); this.ordem.length = 0; this.correntezas.clear();
+    for (const camada of Object.values(novo.terrain.layers).sort((a, b) => a.order - b.order)) {
+      if (!this.ordem.includes(camada.material)) this.ordem.push(camada.material);
+      if (camada.flow) this.correntezas.set(camada.material, { ...camada.flow });
+      for (const [x, y] of decodificar(camada.cells)) this.terreno.set(y * 65_536 + x, camada.material);
+    }
+    this.presencas.clear(); this.intensidades.clear();
+    for (const p of Object.values(novo.presence)) {
+      const s = this.presencas.get(p.brush) ?? new Set<number>();
+      for (const [x, y] of decodificar(p.cells)) s.add(y * 65_536 + x);
+      this.presencas.set(p.brush, s); this.intensidades.set(p.brush, p.intensity);
+    }
+    return c.ids;
+  }
+
+  /**
+   * O passo de `atlas_revisar` que o assistente faz depois de `atlas_edificio`: tira os objetos de exterior que a mobília automática
+   * (ou o script) deixou dentro de um cômodo coberto e os que bloqueiam uma porta. Devolve quantos saíram.
+   */
+  tirarExternosDosInteriores(): number {
+    let n = 0;
+    for (;;) {
+      const achados = revisarMapa(this.construir(), { regras: ['objeto-externo-no-interior', 'porta-bloqueada'] }).filter(a => a.ids.length && this.m.props[a.ids[0]!]);
+      if (!achados.length) return n;
+      for (const a of achados) { const id = a.ids[0]!; if (!this.m.props[id]) continue; delete this.m.props[id]; n++; for (const l of Object.values(this.m.lights)) if (l.ownerId === id) delete this.m.lights[l.id]; }
+    }
+  }
 
   // ---------- Resultado ----------
   /** O documento pronto: terreno e presenças gravados, objetos ligados aos cômodos. Pode ser chamado mais de uma vez. Valide com `validarMapa`. */
