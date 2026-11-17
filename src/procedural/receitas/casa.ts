@@ -1,6 +1,7 @@
 import { elipse, poli, ret, type Parte } from '../descricao.ts';
 import { mulberry32 } from '../ruido.ts';
 import { LOMBADAS, folhas, mat, num, parede, piso, type Receita } from './comum.ts';
+import { movelComFrente } from './frente.ts';
 
 /** Retângulo de cantos macios (superelipse) girado de `a`: almofadas e travesseiros. */
 function almofada(x: number, y: number, w: number, h: number, a: number): number[] {
@@ -73,22 +74,28 @@ export const RECEITAS_DA_CASA: Receita[] = [
   { id: 'escrivaninha', nome: 'Escrivaninha', categoria: 'mesas', tipo: 'piso', funcoes: ['escritorio', 'biblioteca', 'quarto'], tags: ['mesa', 'trabalho', 'abajur'], pegada: [1.5, 0.8],
     gerar: p => { const r = mulberry32(p.seed); return piso([1.5, 0.8], [ret(0, 0, 1.44, 0.72, 'madeira.escura', 0.76, { raio: 0.02 }), ...folhas(r, -0.15, 0.02, 4, 0.55, 0.21), ret(-0.5, -0.12, 0.26, 0.3, '#2f4a32', 0.82, { raio: 0.01, detalhe: 2 }), elipse(0.08, -0.2, 0.06, 0.06, 'pedra.escura', 0.82, { detalhe: 3 }), elipse(0.5, 0.05, 0.36, 0.36, 'tecido.linho', 1.25), elipse(0.5, 0.05, 0.1, 0.1, 'latao', 1.27, { detalhe: 2 })]); } },
 
-  { id: 'aparador', nome: 'Aparador', categoria: 'armazenamento', tipo: 'piso', funcoes: ['sala', 'cozinha', 'corredor'], tags: ['movel', 'madeira'], pegada: [1.7, 0.5],
-    gerar: p => { const r = mulberry32(p.seed); return piso([1.7, 0.5], [ret(0, 0, 1.66, 0.46, 'madeira.escura', 0.85, { raio: 0.02 }), elipse(-0.55, 0, 0.2, 0.2, 'latao', 1.1), elipse(-0.55, 0, 0.11, 0.11, 'tecido.veludo-vinho', 1.15, { detalhe: 2 }), ret(0.1, -0.02, 0.32, 0.24, 'couro.marrom', 0.9, { raio: 0.01 }), ret(0.12, -0.04, 0.28, 0.2, LOMBADAS[Math.floor(r() * LOMBADAS.length)]!, 0.95, { raio: 0.01, detalhe: 2 }), elipse(0.55, 0.02, 0.08, 0.08, 'papel.folha', 1.0, { detalhe: 2 })]); } },
+  { id: 'aparador', nome: 'Aparador', categoria: 'armazenamento', tipo: 'piso', funcoes: ['sala', 'cozinha', 'corredor'], tags: ['movel', 'madeira'], pegada: [1.7, 0.5], altura: 0.9,
+    gerar: p => { const r = mulberry32(p.seed), partes = movelComFrente(1.7, 0.5, { madeira: 'madeira.escura', divisao: 'portas-e-gavetas', colunas: 3, altura: 0.9, seed: p.seed, tampo: 0.42 });
+      partes.push(elipse(-0.55, -0.15, 0.16, 0.16, 'latao', 1.1), elipse(-0.55, -0.15, 0.09, 0.09, 'tecido.veludo-vinho', 1.15, { detalhe: 2 }), ret(0.1, -0.16, 0.3, 0.12, LOMBADAS[Math.floor(r() * LOMBADAS.length)]!, 0.95, { raio: 0.01, detalhe: 2 }), elipse(0.55, -0.15, 0.08, 0.08, 'papel.folha', 1.0, { detalhe: 2 }));
+      return piso([1.7, 0.5], partes); } },
 
-  { id: 'comoda', nome: 'Cômoda', categoria: 'armazenamento', tipo: 'piso', funcoes: ['quarto', 'sala'], tags: ['movel', 'gavetas'], pegada: [1.0, 0.5],
-    gerar: () => piso([1, 0.5], [ret(0, 0, 1, 0.5, 'madeira.media', 0.85, { raio: 0.02 }), ret(0, 0, 0.94, 0.44, 'madeira.clara', 0.86, { contorno: 'leve', detalhe: 2 }), ret(0, 0, 0.012, 0.44, 'madeira.escura', 0.87, { detalhe: 3 }), elipse(-0.25, 0.1, 0.05, 0.05, 'latao', 0.9, { detalhe: 3 }), elipse(0.25, 0.1, 0.05, 0.05, 'latao', 0.9, { detalhe: 3 })]) },
+  { id: 'comoda', nome: 'Cômoda', categoria: 'armazenamento', tipo: 'piso', funcoes: ['quarto', 'sala'], tags: ['movel', 'gavetas'], pegada: [1.0, 0.5], altura: 0.9,
+    gerar: p => piso([1, 0.5], movelComFrente(1, 0.5, { madeira: 'madeira.media', divisao: 'gavetas', colunas: 1, fileiras: 3, altura: 0.9, seed: p.seed })) },
 
-  { id: 'armario', nome: 'Guarda-roupa', categoria: 'armazenamento', tipo: 'piso', funcoes: ['quarto'], tags: ['movel', 'roupas'], pegada: [1.2, 0.6],
-    gerar: () => piso([1.2, 0.6], [ret(0, 0, 1.2, 0.6, 'madeira.escura', 2.0, { raio: 0.02 }), ret(0, 0, 1.12, 0.52, 'madeira.media', 2.02, { contorno: 'leve', detalhe: 2 }), ret(0, 0, 0.015, 0.52, 'madeira.escura', 2.03, { detalhe: 3 }), ret(-0.55, 0, 0.02, 0.5, 'madeira.clara', 2.03, { detalhe: 3 })]) },
+  { id: 'armario', nome: 'Guarda-roupa', categoria: 'armazenamento', tipo: 'piso', funcoes: ['quarto'], tags: ['movel', 'roupas'], pegada: [1.2, 0.6], altura: 2,
+    gerar: p => piso([1.2, 0.6], movelComFrente(1.2, 0.6, { madeira: 'madeira.escura', divisao: 'portas-e-gavetas', colunas: 2, altura: 2, seed: p.seed, tampo: 0.3 })) },
 
-  { id: 'estante.piso', nome: 'Estante baixa', categoria: 'armazenamento', tipo: 'piso', funcoes: ['biblioteca', 'sala', 'escritorio'], tags: ['livros', 'estante'], pegada: [1.6, 0.4],
+  { id: 'estante.piso', nome: 'Estante baixa', categoria: 'armazenamento', tipo: 'piso', funcoes: ['biblioteca', 'sala', 'escritorio'], tags: ['livros', 'estante'], pegada: [1.6, 0.4], altura: 1.1,
     campos: [{ id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 1.6, min: 0.6, max: 4, passo: 0.2 }],
-    gerar: p => { const w = num(p, 'largura', 1.6, 0.6, 4), r = mulberry32(p.seed), partes: Parte[] = [ret(0, 0, w, 0.4, 'madeira.escura', 1.1, { raio: 0.02 })]; for (let u = -w / 2 + 0.07; u < w / 2 - 0.1;) { const l = 0.05 + r() * 0.06; partes.push(ret(u + l / 2, 0, l, 0.3 + r() * 0.05, LOMBADAS[Math.floor(r() * LOMBADAS.length)]!, 1.12, { detalhe: 2, contorno: 'leve' })); u += l + 0.004; } return piso([w, 0.4], partes); } },
+    gerar: p => { const w = num(p, 'largura', 1.6, 0.6, 4); return piso([w, 0.4], movelComFrente(w, 0.4, { madeira: 'madeira.escura', divisao: 'livros', fileiras: 2, altura: 1.1, seed: p.seed, tampo: 0.3 })); } },
 
   { id: 'cadeira', nome: 'Cadeira', categoria: 'assentos', tipo: 'piso', funcoes: ['sala', 'cozinha', 'escritorio', 'taverna'], tags: ['assento'], pegada: [0.5, 0.5],
     campos: [{ id: 'estofado', rotulo: 'Estofado', tipo: 'material', padrao: 'tecido.veludo-vinho', uso: 'objeto' }],
-    gerar: p => piso([0.5, 0.5], [ret(0, 0.02, 0.46, 0.44, 'madeira.media', 0.45, { raio: 0.04 }), ret(0, 0.04, 0.34, 0.32, mat(p, 'estofado', 'tecido.veludo-vinho'), 0.5, { raio: 0.05, detalhe: 2 }), ret(0, -0.21, 0.48, 0.08, 'madeira.escura', 0.92, { raio: 0.03 })]) },
+    gerar: p => { const e = mat(p, 'estofado', 'tecido.veludo-vinho'); return piso([0.5, 0.5], [
+      ret(0, 0.06, 0.46, 0.38, 'madeira.media', 0.45, { raio: 0.04 }), ret(0, 0.08, 0.34, 0.28, e, 0.5, { raio: 0.05, detalhe: 2 }),
+      // Encosto em pé, rebatido para trás: travessa de cima, estofado e as duas colunas.
+      ret(0, -0.15, 0.44, 0.2, 'madeira.escura', 0.92, { raio: 0.04, contorno: 'leve' }), ret(0, -0.14, 0.32, 0.14, e, 0.93, { raio: 0.03, detalhe: 2 }), ret(0, -0.235, 0.46, 0.04, 'madeira.media', 0.94, { raio: 0.02, detalhe: 2 }),
+    ]); } },
 
   { id: 'banco', nome: 'Banco', categoria: 'assentos', tipo: 'piso', funcoes: ['taverna', 'cozinha', 'corredor', 'igreja'], tags: ['assento', 'madeira'], pegada: [1.2, 0.35],
     campos: [{ id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 1.2, min: 0.4, max: 4, passo: 0.1 }],

@@ -1,5 +1,6 @@
 import { elipse, ret } from '../descricao.ts';
 import { mulberry32 } from '../ruido.ts';
+import { movelComFrente } from './frente.ts';
 import { mat, num, piso, type Receita } from './comum.ts';
 
 const G = { generos: ['moderno'], kit: 'moderno' }, BRANCO = '#e9ecef', INOX = '#aeb4bc', GRAFITE = '#2a2d33';
@@ -28,7 +29,7 @@ export const RECEITAS_MODERNAS: Receita[] = [
     gerar: p => { const c = mat(p, 'cobertor', 'tecido.linho'); return piso([1.65, 2.05], [ret(0, 0, 1.65, 2.05, '#cfd3d8', 0.35, { raio: 0.04 }), ret(0, 0.05, 1.55, 1.9, '#f2f0ea', 0.5, { raio: 0.06, contorno: 'leve' }), ret(0, -0.98, 1.65, 0.1, 'madeira.clara', 0.8, { raio: 0.03 }), ret(0, 0.3, 1.5, 1.4, c, 0.62, { raio: 0.06, contorno: 'leve', detalhe: 2 }), ret(-0.38, -0.72, 0.62, 0.34, '#fbfaf6', 0.7, { raio: 0.08, contorno: 'leve' }), ret(0.38, -0.72, 0.62, 0.34, '#fbfaf6', 0.7, { raio: 0.08, contorno: 'leve' }), ret(0, 0.1, 1.5, 0.05, '#ffffff', 0.66, { contorno: false, semSombra: true, detalhe: 3 })]); } },
   { id: 'guarda-roupa.liso', nome: 'Guarda-roupa de portas lisas', categoria: 'armazenamento', tipo: 'piso', funcoes: ['quarto'], tags: ['armario', 'roupas', 'moderno'], pegada: [1.8, 0.6], ...G,
     campos: [{ id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 1.8, min: 1, max: 3.2, passo: 0.1 }],
-    gerar: p => { const w = num(p, 'largura', 1.8, 1, 3.2), portas = Math.max(2, Math.round(w / 0.6)); return piso([w, 0.6], [ret(0, 0, w, 0.6, 'madeira.clara', 2.1, { raio: 0.01 }), ret(0, 0.02, w - 0.04, 0.54, '#ece7dc', 2.15, { contorno: 'leve', detalhe: 2 }), ...Array.from({ length: portas - 1 }, (_, i) => ret(-w / 2 + ((i + 1) * w) / portas, 0.02, 0.012, 0.52, '#9a9488', 2.17, { contorno: false, semSombra: true, detalhe: 3 }))]); } },
+    gerar: p => { const w = num(p, 'largura', 1.8, 1, 3.2); return piso([w, 0.6], movelComFrente(w, 0.6, { madeira: 'madeira.clara', divisao: 'portas', colunas: Math.max(2, Math.round(w / 0.6)), altura: 2.1, painel: '#ece7dc', seed: p.seed, tampo: 0.3 })); } },
   { id: 'box.banheiro', nome: 'Box de banheiro', categoria: 'banheiro', tipo: 'piso', funcoes: ['banheiro'], tags: ['box', 'chuveiro', 'banheiro', 'moderno'], pegada: [0.95, 0.95], ...G,
     gerar: () => piso([0.95, 0.95], [ret(0, 0, 0.95, 0.95, '#d8dde2', 0.2, { raio: 0.02, contorno: 'leve' }), ret(0, 0, 0.85, 0.85, '#b8c4cc', 0.22, { contorno: false, semSombra: true, detalhe: 2 }), elipse(0.05, 0.05, 0.08, 0.08, GRAFITE, 0.25, { contorno: 'leve', detalhe: 3 }), elipse(-0.2, -0.2, 0.22, 0.22, INOX, 1.6, { contorno: 'leve', detalhe: 2 }), ret(0, 0.45, 0.95, 0.03, 'vidro', 1.7, { vidro: true, contorno: 'leve', detalhe: 2 }), ret(0.46, 0, 0.03, 0.95, 'vidro', 1.7, { vidro: true, contorno: 'leve', detalhe: 2 })]) },
   { id: 'vaso.moderno', nome: 'Vaso sanitário moderno', categoria: 'banheiro', tipo: 'piso', funcoes: ['banheiro'], tags: ['vaso', 'banheiro', 'moderno'], pegada: [0.4, 0.68], ...G,
