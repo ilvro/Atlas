@@ -21,13 +21,15 @@ export interface ItemDeRegra {
   /** Os menores números entram primeiro. */
   prioridade: number;
   /** Para 'junto' e 'sobre': ao redor de que item (id da regra) e como (o modo só vale para 'junto'). */
-  junto?: { de: string; modo: 'ao-redor' | 'ao-lado' | 'em-frente'; /** Para 'em-frente': a distância (m) entre a âncora e o móvel; padrão 1,2. */ folga?: number };
+  junto?: { de: string; modo: 'ao-redor' | 'ao-lado' | 'em-frente' | 'ladeando'; /** Para 'em-frente': a distância (m) entre a âncora e o móvel; padrão 1,2. */ folga?: number };
   /** Não fica na frente de janela. */
   alto?: boolean;
   /** Cópias a mais a cada 10 m² de área acima de 12 m² (cômodo grande ganha mais estantes, quadros, vasos…). */
   escala?: number;
-  /** Para 'junto': se não couber junto da âncora, tenta o centro do cômodo. */
-  senaoCentro?: boolean;
+  /** Para 'junto': se não couber junto da âncora (ou ela não existir), tenta o centro ou as paredes do cômodo. */
+  senao?: 'centro' | 'parede';
+  /** Parâmetros que crescem com a área: a partir de cada área (m²), estes valem por cima de `params` (a mesa de jantar fica mais comprida). */
+  paramsPorArea?: [areaMinima: number, params: Record<string, unknown>][];
   params?: Record<string, unknown>;
 }
 
@@ -55,11 +57,11 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
   ],
   sala: [
     item('lareira', ['lareira.nobre', 'lareira.marmore'], 'parede', [1, 1], 1, { alto: true, areaMinima: 12 }),
-    item('sofa', ['sofa.capitone', 'sofa', 'casa:chesterfield-vinho', 'casa:chesterfield-verde', 'casa:chesterfield-couro'], 'parede', [1, 1], 2, { areaMinima: 9 }),
-    item('mesa-centro', ['mesa.centro'], 'junto', [0, 1], 2.5, { areaMinima: 14, junto: { de: 'sofa', modo: 'em-frente', folga: 0.5 } }),
-    item('poltrona', ['poltrona.capitone', 'poltrona', 'casa:poltrona-capitone-vinho', 'casa:poltrona-capitone-verde', 'casa:poltrona-capitone-couro'], 'junto', [1, 2], 3, { areaMinima: 12, junto: { de: 'sofa', modo: 'em-frente' } }),
+    item('sofa', ['sofa.capitone', 'sofa', 'casa:chesterfield-vinho', 'casa:chesterfield-verde', 'casa:chesterfield-couro'], 'junto', [1, 1], 2, { areaMinima: 9, junto: { de: 'lareira', modo: 'em-frente', folga: 2.6 }, senao: 'parede' }),
+    item('mesa-centro', ['mesa.centro'], 'junto', [1, 1], 2.5, { areaMinima: 9, junto: { de: 'sofa', modo: 'em-frente', folga: 0.45 } }),
+    item('poltrona', ['poltrona.capitone', 'poltrona', 'casa:poltrona-capitone-vinho', 'casa:poltrona-capitone-verde', 'casa:poltrona-capitone-couro'], 'junto', [1, 2], 3, { areaMinima: 12, junto: { de: 'mesa-centro', modo: 'ladeando' }, senao: 'parede' }),
     item('mesinha', ['mesinha'], 'junto', [1, 1], 4, { junto: { de: 'sofa', modo: 'ao-lado' } }),
-    item('tapete', ['tapete.persa', 'tapete.oval', 'tapete.redondo', 'tapete.liso', 'casa:tapete-persa-p-vinho', 'casa:tapete-persa-p-verde', 'casa:tapete-persa-p-creme', 'casa:tapete-oval-vinho', 'casa:tapete-oval-verde', 'casa:tapete-oval-creme', 'casa:tapete-persa-g-vinho', 'casa:tapete-persa-g-verde', 'casa:tapete-persa-g-creme'], 'junto', [1, 1], 2.2, { areaMinima: 9, junto: { de: 'sofa', modo: 'em-frente', folga: -0.55 }, senaoCentro: true, params: { largura: 3.6, altura: 2.6, diametro: 3 } }),
+    item('tapete', ['tapete.persa', 'tapete.oval', 'tapete.redondo', 'tapete.liso', 'casa:tapete-persa-p-vinho', 'casa:tapete-persa-p-verde', 'casa:tapete-persa-p-creme', 'casa:tapete-oval-vinho', 'casa:tapete-oval-verde', 'casa:tapete-oval-creme', 'casa:tapete-persa-g-vinho', 'casa:tapete-persa-g-verde', 'casa:tapete-persa-g-creme'], 'junto', [1, 1], 2.2, { areaMinima: 9, junto: { de: 'sofa', modo: 'em-frente', folga: -0.55 }, senao: 'centro', params: { largura: 3.6, altura: 2.6, diametro: 3 } }),
     item('aparador', ['aparador', 'estante.piso', 'cristaleira'], 'parede', [1, 1], 6, { alto: true, escala: 0.4 }),
     item('vaso', ['vaso.planta'], 'canto', [1, 2], 7, { escala: 0.3 }),
     item('quadro', ['quadro', 'retrato.oval', 'paisagem.grande', 'quadros.grupo', 'mapa.mundi', 'quadro.abstrato'], 'na-parede', [2, 4], 8, { escala: 0.6 }),
@@ -68,7 +70,8 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('arandela', ['arandela'], 'na-parede', [1, 2], 8.7, { escala: 0.3 }),
     item('cortina', ['cortina.janela'], 'na-parede', [0, 1], 8.8, { areaMinima: 12 }),
     item('prateleira-flutuante', ['prateleira.flutuante'], 'na-parede', [0, 1], 8.9),
-    item('poltrona-lareira', ['poltrona.capitone', 'poltrona'], 'junto', [1, 2], 9, { junto: { de: 'lareira', modo: 'em-frente' } }),
+    item('recanto', ['poltrona.capitone', 'poltrona'], 'canto', [0, 1], 9, { areaMinima: 24, escala: 0.25 }),
+    item('mesinha-recanto', ['mesinha'], 'junto', [1, 1], 9.2, { junto: { de: 'recanto', modo: 'ao-lado' } }),
     item('piano', ['piano.cauda'], 'parede', [0, 1], 10, { areaMinima: 20 }),
     item('relogio', ['relogio.pe'], 'canto', [0, 1], 11),
     item('tv', ['rack.tv'], 'parede', [0, 1], 12, { alto: true }),
@@ -100,7 +103,7 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('estante', ['estante'], 'na-parede', [2, 3], 1, { escala: 0.5 }),
     item('estante-baixa', ['estante.piso'], 'parede', [1, 2], 2, { alto: true, escala: 1.2, params: { largura: 1.8 } }),
     item('poltrona', ['poltrona.capitone', 'poltrona', 'casa:poltrona-capitone-vinho', 'casa:poltrona-capitone-verde', 'casa:poltrona-capitone-couro'], 'canto', [1, 2], 3, { areaMinima: 10 }),
-    item('mesa', ['mesa.retangular', 'mesa.redonda'], 'centro', [0, 1], 4, { areaMinima: 14 }),
+    item('mesa', ['mesa.retangular', 'mesa.redonda'], 'centro', [1, 1], 4, { areaMinima: 14, paramsPorArea: [[30, { largura: 2.6 }]] }),
     item('cadeira-leitura', ['cadeira.espaldar', 'cadeira'], 'junto', [2, 4], 4.2, { junto: { de: 'mesa', modo: 'ao-redor' } }),
     item('tapete', ['tapete.persa', 'tapete.oval'], 'centro', [0, 1], 4.4, { areaMinima: 16, params: { largura: 4, altura: 2.8 } }),
     item('luminaria', ['luminaria.franja'], 'canto', [0, 1], 4.6),
@@ -155,7 +158,7 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('armas-parede', ['escudo.parede', 'lancas.parede'], 'na-parede', [0, 1], 11),
   ],
   'sala-de-jantar': [
-    item('mesa', ['mesa.oval'], 'centro', [1, 1], 1, { areaMinima: 10 }),
+    item('mesa', ['mesa.oval'], 'centro', [1, 1], 1, { areaMinima: 10, paramsPorArea: [[18, { largura: 3.4 }], [26, { largura: 4.2 }]] }),
     item('cadeira', ['cadeira'], 'junto', [6, 8], 2, { junto: { de: 'mesa', modo: 'ao-redor' } }),
     item('louca', ['pratos.servico', 'castical.mesa', 'fruteira', 'garrafa.tacas', 'candelabro'], 'sobre', [2, 4], 2.5, { junto: { de: 'mesa', modo: 'ao-lado' } }),
     item('cristaleira', ['cristaleira'], 'parede', [1, 1], 3, { alto: true }),
@@ -358,7 +361,8 @@ export function regrasPara(funcao: string, genero: string): ItemDeRegra[] {
   const serve = (r: string) => { const g = ACERVO.item(r)?.generos ?? []; return !g.length || g.includes(id); };
   const tirados = new Set((v.sem ?? []).filter(k => k.startsWith(`${funcao}:`)).map(k => k.slice(funcao.length + 1)));
   // Quem dependia de um item tirado sai junto, em cascata.
-  let mudou = true; while (mudou) { mudou = false; for (const r of base) if (!tirados.has(r.id) && r.junto && tirados.has(r.junto.de)) { tirados.add(r.id); mudou = true; } }
+  // Quem tem alternativa (`senao`) fica: sem a âncora, vai para o centro ou para a parede.
+  let mudou = true; while (mudou) { mudou = false; for (const r of base) if (!tirados.has(r.id) && r.junto && !r.senao && tirados.has(r.junto.de)) { tirados.add(r.id); mudou = true; } }
   const lista = base.filter(r => !tirados.has(r.id)).map(r => {
     const troca = v.trocar?.[`${funcao}:${r.id}`] ?? null;
     const porReceita = (alternativas: string[]) => alternativas.flatMap(x => v.trocar?.[`${funcao}:${x}`] ?? [x]);
@@ -367,6 +371,6 @@ export function regrasPara(funcao: string, genero: string): ItemDeRegra[] {
   }).filter(r => r.receitas.length > 0);
   // Quem depende de um item que ficou sem nenhuma alternativa para este gênero sai também (em cascata).
   let restantes = lista;
-  for (let mudou = true; mudou;) { const ids = new Set(restantes.map(r => r.id)), antes = restantes.length; restantes = restantes.filter(r => !r.junto || ids.has(r.junto.de)); mudou = restantes.length !== antes; }
+  for (let mudou = true; mudou;) { const ids = new Set(restantes.map(r => r.id)), antes = restantes.length; restantes = restantes.filter(r => !r.junto || r.senao || ids.has(r.junto.de)); mudou = restantes.length !== antes; }
   return restantes.sort((a, b) => a.prioridade - b.prioridade);
 }
