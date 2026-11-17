@@ -149,7 +149,7 @@ export const mansaoDaIlha: Exemplo = {
 
     // Luzes do térreo.
     k.luz('fogueira', [15.75, 2.9], { radius: 6, intensity: 1.1, color: '#ff9a4a' });
-    for (const [x, y, r] of [[17.2, 21.6, 9], [5.25, 22.5, 6], [15.75, 7, 6], [26.8, 6.4, 6], [27.6, 14.2, 5.5], [27, 23.2, 6], [5.25, 14.25, 5.5], [5.25, 8.5, 4], [27, 18, 3.5]] as const) k.luz('lamparina', [x, y], { radius: r, intensity: 1.05, color: '#ffc27a', flicker: 0.06 });
+    for (const [x, y, r] of [[17.2, 21.6, 9], [5.25, 22.5, 6], [15.75, 7, 6], [26.8, 6.4, 6], [27.6, 14.2, 5.5], [27, 23.2, 6], [5.25, 14.25, 5.5], [5.25, 8.5, 4], [27, 18, 3.5]] as const) k.luz('lamparina', [x, y], { radius: r * 1.2, intensity: 0.45, color: '#ffd9a8', flicker: 0.04 });
 
     // ---------- 1º andar ----------
     k.aplicar(() => ({ comandos: [{ tipo: 'andar.criar', andar: { id: CIMA, name: '1º andar', order: 1 } }], ids: [CIMA] }));
@@ -244,11 +244,11 @@ export const mansaoDaIlha: Exemplo = {
     ] as const) k.objeto(item, [x, y], { params: params as Record<string, unknown>, levelId: CIMA });
 
     // Luzes de cima.
-    for (const [x, y, r] of [[15.75, 19.6, 9], [13.5, 4.5, 6], [20.25, 6.6, 4], [20.25, 2.6, 3], [4.5, 25.5, 3.5], [26.6, 6, 6], [27.4, 12.75, 5], [27, 17.25, 5], [27.2, 23.2, 5.5], [4, 7.5, 3.5], [4, 12, 4.5], [4, 17.25, 4], [4, 21.6, 4], [15.75, 10.5, 6]] as const) k.luz('lamparina', [x, y], { radius: r, intensity: 1, color: '#ffc27a', flicker: 0.06, levelId: CIMA });
+    for (const [x, y, r] of [[15.75, 19.6, 9], [13.5, 4.5, 6], [20.25, 6.6, 4], [20.25, 2.6, 3], [4.5, 25.5, 3.5], [26.6, 6, 6], [27.4, 12.75, 5], [27, 17.25, 5], [27.2, 23.2, 5.5], [4, 7.5, 3.5], [4, 12, 4.5], [4, 17.25, 4], [4, 21.6, 4], [15.75, 10.5, 6]] as const) k.luz('lamparina', [x, y], { radius: r * 1.2, intensity: 0.45, color: '#ffd9a8', flicker: 0.04, levelId: CIMA });
 
     // ---------- Clima, notas ----------
-    k.clima('noite', { time: '22:30', ambient: { color: '#c9bca6', intensity: 0.82 }, interiorLight: 0.95, tempo: { rain: 0.35, wind: 0.3 } });
-    k.acabamento(null, { vignette: 0.32, saturation: 1.0, tint: '#fff4e4', edges: { kind: 'dark', amount: 0.25 }, glow: 0.45 });
+    k.clima('noite', { time: '22:30', ambient: { color: '#c2cbcc', intensity: 0.92 }, interiorLight: 1, tempo: { rain: 0.35, wind: 0.3 } });
+    k.acabamento(null, { vignette: 0.28, saturation: 0.82, tint: '#e8f0ee', edges: { kind: 'dark', amount: 0.25 }, glow: 0.3 });
     k.guardarClima('tarde-de-chuva', 'Tarde de chuva', 'tempestade', { time: '16:30' });
     k.notaDeComodo(hall, { leitura: 'O hall sobe dois andares. Do alto da galeria, retratos de família olham para quem entra; o lustre balança com o vento que vem da porta.', notasMestre: 'O retrato acima da escadaria esconde um cofre.' });
     k.notaDeComodo(salao, { leitura: 'O fogo estala na lareira de mármore. O piano está aberto, com uma partitura pela metade.' });
