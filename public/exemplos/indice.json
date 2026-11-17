@@ -70,6 +70,86 @@
     "miniatura": "gruta-dos-contrabandistas.webp"
   },
   {
+    "id": "jardim-do-colosso",
+    "nome": "Jardim do colosso",
+    "descricao": "Pátio de ruína tomado pelo mato: tablado rúnico sob a estátua de um herói, arquibancada em arco, colunata partida, terraço com escadaria e carvalhos antigos.",
+    "tamanho": [
+      48,
+      27
+    ],
+    "miniatura": "jardim-do-colosso.webp"
+  },
+  {
+    "id": "praca-da-fonte",
+    "nome": "Praça da fonte",
+    "descricao": "Largo de vila calçado em roseta com fonte octogonal, casas com sacada, jardim murado no alto, passarela de tábuas e quintal enlameado ao sol da manhã.",
+    "tamanho": [
+      48,
+      27
+    ],
+    "miniatura": "praca-da-fonte.webp"
+  },
+  {
+    "id": "aldeia-ao-entardecer",
+    "nome": "Aldeia ao entardecer",
+    "descricao": "Choupanas de palha em volta de um terreiro de capim, trilhas de terra que se cruzam, poço, carroça, lenha e cercas sob a luz rasante do fim do dia.",
+    "tamanho": [
+      48,
+      27
+    ],
+    "miniatura": "aldeia-ao-entardecer.webp"
+  },
+  {
+    "id": "santuario-da-luz",
+    "nome": "Santuário da luz",
+    "descricao": "Salão subterrâneo de pedra: tablado do relicário banhado por uma luz fria, quatro braseiros sobre círculos rúnicos, escadaria monumental a leste e andaimes de madeira a oeste.",
+    "tamanho": [
+      48,
+      27
+    ],
+    "miniatura": "santuario-da-luz.webp"
+  },
+  {
+    "id": "praca-saqueada",
+    "nome": "Praça saqueada",
+    "descricao": "Largo calçado com fonte em estrela depois do saque: casa ainda em chamas, telhado de telhas desabado, entulho, carroça tombada, armas caídas e manchas de sangue.",
+    "tamanho": [
+      48,
+      27
+    ],
+    "miniatura": "praca-saqueada.webp"
+  },
+  {
+    "id": "sala-da-guarda",
+    "nome": "Sala da guarda",
+    "descricao": "Posto de guarda subterrâneo: duas mesas de jogo à luz de velas sobre tapetes, montes de palha, balista desmontada, braseiro, nicho com fogo, estandarte azul e o abismo que se abre ao sul.",
+    "tamanho": [
+      48,
+      27
+    ],
+    "miniatura": "sala-da-guarda.webp"
+  },
+  {
+    "id": "pantano-das-brumas",
+    "nome": "Pântano das brumas",
+    "descricao": "Canais de água negra entre bancos de lama rachada e cristas de pedra com musgo, casulos de criaturas, raízes, um círculo de pedras que brilha e névoa fechando as bordas.",
+    "tamanho": [
+      40,
+      30
+    ],
+    "miniatura": "pantano-das-brumas.webp"
+  },
+  {
+    "id": "cemiterio-da-colina",
+    "nome": "Cemitério da colina",
+    "descricao": "Topo de colina cercado de escuro: capela de pedra com telhado de telha, jazigo, lápides tortas, sarcófagos que brilham, anjos, árvores mortas, muro de pedra e o portão da roseira.",
+    "tamanho": [
+      48,
+      27
+    ],
+    "miniatura": "cemiterio-da-colina.webp"
+  },
+  {
     "id": "clareira",
     "nome": "Clareira",
     "descricao": "Uma clareira com trilha de terra, seis árvores e uma fogueira.",

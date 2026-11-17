@@ -14,12 +14,20 @@ import { clareira } from './clareira.ts';
 import { covilNaCaverna } from './covil-na-caverna.ts';
 import { desfiladeiroNevado } from './desfiladeiro-nevado.ts';
 import { entrepostoDoRio } from './entreposto-do-rio.ts';
+import { jardimDoColosso } from './jardim-do-colosso.ts';
+import { pracaDaFonte } from './praca-da-fonte.ts';
+import { aldeiaAoEntardecer } from './aldeia-ao-entardecer.ts';
+import { santuarioDaLuz } from './santuario-da-luz.ts';
+import { pracaSaqueada } from './praca-saqueada.ts';
+import { salaDaGuarda } from './sala-da-guarda.ts';
+import { pantanoDasBrumas } from './pantano-das-brumas.ts';
+import { cemiterioDaColina } from './cemiterio-da-colina.ts';
 import { grutaDosContrabandistas } from './gruta-dos-contrabandistas.ts';
 import { portoNoturno } from './porto-noturno.ts';
 import { ravinaNoturna } from './ravina-noturna.ts';
 import { ruinaCosteira } from './ruina-costeira.ts';
 
-/** A lista dos exemplos: os sete da Fase 10 mais a Clareira de teste. */
+/** A lista dos exemplos: os sete da Fase 10, os oito montados com as ferramentas do assistente e a Clareira de teste. */
 export const EXEMPLOS: readonly Exemplo[] = [
   desfiladeiroNevado,
   ruinaCosteira,
@@ -28,6 +36,14 @@ export const EXEMPLOS: readonly Exemplo[] = [
   entrepostoDoRio,
   covilNaCaverna,
   grutaDosContrabandistas,
+  jardimDoColosso,
+  pracaDaFonte,
+  aldeiaAoEntardecer,
+  santuarioDaLuz,
+  pracaSaqueada,
+  salaDaGuarda,
+  pantanoDasBrumas,
+  cemiterioDaColina,
   clareira,
 ];
 

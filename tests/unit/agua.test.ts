@@ -16,9 +16,9 @@ function lago(lado: number, margem: number, pixel = false) {
   return { W, saida: leitoDaAgua({ binaria, cobertura, largura: W, altura: W, res: RES, seed: 1, material: materialDe('agua.lago'), pixel }) };
 }
 
-test('os cinco materiais de água existem e aparecem por uso', () => {
-  for (const id of ['agua.mar', 'agua.lago', 'agua.rio', 'agua.gruta', 'agua.pantano']) assert.equal(MATERIAIS[id]?.uso, 'agua', id);
-  assert.equal(materiaisDo('agua').length, 5);
+test('os seis materiais de água existem e aparecem por uso', () => {
+  for (const id of ['agua.mar', 'agua.lago', 'agua.rio', 'agua.gruta', 'agua.pantano', 'agua.turfa']) assert.equal(MATERIAIS[id]?.uso, 'agua', id);
+  assert.equal(materiaisDo('agua').length, 6);
   assert.equal(MATERIAIS['agua.gruta']!.transparencia, 0.85);
 });
 
