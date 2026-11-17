@@ -22,6 +22,7 @@ import { pracaSaqueada } from './praca-saqueada.ts';
 import { salaDaGuarda } from './sala-da-guarda.ts';
 import { pantanoDasBrumas } from './pantano-das-brumas.ts';
 import { cemiterioDaColina } from './cemiterio-da-colina.ts';
+import { mansaoDaIlha } from './mansao-da-ilha.ts';
 import { grutaDosContrabandistas } from './gruta-dos-contrabandistas.ts';
 import { portoNoturno } from './porto-noturno.ts';
 import { ravinaNoturna } from './ravina-noturna.ts';
@@ -44,6 +45,7 @@ export const EXEMPLOS: readonly Exemplo[] = [
   salaDaGuarda,
   pantanoDasBrumas,
   cemiterioDaColina,
+  mansaoDaIlha,
   clareira,
 ];
 

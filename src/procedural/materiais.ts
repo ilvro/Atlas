@@ -85,6 +85,8 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('pintura.paisagem', 'Pintura de paisagem', 'objeto', '#2a3a3a', '#131a1c', '#7a8a6a', 'pintura'),
   m('tapete.persa', 'Tapete persa', 'objeto', '#7a1f24', '#1a2440', '#e6d3a8', 'persa', { borda: '#1a2440', meio: '#b2312e' }),
   m('tapete.verde', 'Tapete persa verde', 'objeto', '#2f4a32', '#14221a', '#d9c98e', 'persa', { borda: '#14221a', meio: '#4f7346' }),
+  m('tapete.creme', 'Tapete persa creme', 'objeto', '#d9cdb2', '#2a2a3a', '#f1e8d2', 'persa', { borda: '#3d4f6e', meio: '#7d2a28' }),
+  m('tapete.azul', 'Tapete persa azul', 'objeto', '#24365a', '#141a2a', '#d8c08a', 'persa', { borda: '#6e1c22', meio: '#b98a3a' }),
   // Coberturas de telhado (o desenho de cada padrão está em coberturas.ts; a queda d'água aponta para +y)
   m('telha.barro', 'Telha de barro', 'telhado', '#a5553a', '#4a2014', '#d4845e', 'telha-canal'),
   m('telha.velha', 'Telha velha com musgo', 'telhado', '#8e5a44', '#3c2216', '#b9846a', 'telha-canal', { mancha: { cor: '#5f7a3a', quanto: 0.42 } }),
@@ -628,26 +630,63 @@ function pintarAreiaMolhada(ctx: Contexto, mat: Material, A: Area, seed: number,
   });
 }
 
+/**
+ * Tapete persa pintado pixel a pixel, com simetria espelhada nos dois eixos: guarda externa, cercadura larga com rosetas e
+ * gavinha, guarda interna, campo com treliça miúda, cantoneiras e o medalhão central lobado com pingentes no eixo longo.
+ * Cores do material: `base` (campo), `borda` (cercadura e cantoneiras), `meio` (medalhão), `claro` e `escuro` (filetes).
+ */
 function pintarPersa(ctx: Contexto, mat: Material, a: Area, r: () => number): void {
-  const b = Math.min(a.w, a.h) * 0.11, borda = mat.borda ?? mat.escuro, meio = mat.meio ?? mat.claro;
-  ctx.fillStyle = borda; ctx.fillRect(a.x, a.y, a.w, a.h); ctx.fillStyle = mat.base; ctx.fillRect(a.x + b, a.y + b, a.w - 2 * b, a.h - 2 * b);
-  ctx.strokeStyle = mat.claro; ctx.lineWidth = 0.02;
-  for (const k of [0.25, 0.75]) ctx.strokeRect(a.x + b * k, a.y + b * k, a.w - 2 * b * k, a.h - 2 * b * k);
-  ctx.fillStyle = meio;
-  for (let x = a.x + b * 0.5; x < a.x + a.w - b * 0.4; x += b * 0.6) for (const y of [a.y + b * 0.5, a.y + a.h - b * 0.5]) { ctx.beginPath(); ctx.arc(x, y, b * 0.16, 0, 7); ctx.fill(); }
-  for (let y = a.y + b * 0.5; y < a.y + a.h - b * 0.4; y += b * 0.6) for (const x of [a.x + b * 0.5, a.x + a.w - b * 0.5]) { ctx.beginPath(); ctx.arc(x, y, b * 0.16, 0, 7); ctx.fill(); }
-  ctx.fillStyle = mat.escuro; ctx.globalAlpha = 0.45;
-  for (let y = a.y + b * 1.6; y < a.y + a.h - b * 1.2; y += 0.28) for (let x = a.x + b * 1.6; x < a.x + a.w - b * 1.2; x += 0.28) { ctx.beginPath(); ctx.moveTo(x, y - 0.07); ctx.lineTo(x + 0.05, y); ctx.lineTo(x, y + 0.07); ctx.lineTo(x - 0.05, y); ctx.fill(); }
-  ctx.globalAlpha = 1;
-  const cx = a.x + a.w / 2, cy = a.y + a.h / 2, rx = a.w * 0.2, ry = a.h * 0.28;
-  ctx.fillStyle = borda; ctx.beginPath(); ctx.moveTo(cx - rx * 1.3, cy); ctx.lineTo(cx, cy - ry * 1.15); ctx.lineTo(cx + rx * 1.3, cy); ctx.lineTo(cx, cy + ry * 1.15); ctx.fill();
-  ctx.fillStyle = mat.claro; ctx.beginPath(); ctx.ellipse(cx, cy, rx * 0.75, ry * 0.7, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = meio; ctx.beginPath(); ctx.ellipse(cx, cy, rx * 0.5, ry * 0.45, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = borda; for (let i = 0; i < 8; i++) { const t = (i * Math.PI) / 4; ctx.beginPath(); ctx.arc(cx + Math.cos(t) * rx * 0.62, cy + Math.sin(t) * ry * 0.58, Math.min(rx, ry) * 0.07, 0, 7); ctx.fill(); }
-  ctx.strokeStyle = mat.claro; ctx.lineWidth = 0.012; ctx.globalAlpha = 0.8;
-  for (let y = a.y + 0.03; y < a.y + a.h; y += 0.05) for (const x of [a.x, a.x + a.w]) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (x === a.x ? -0.09 : 0.09), y + (r() - 0.5) * 0.02); ctx.stroke(); }
+  const seed = Math.floor(r() * 1e6), rn = valueNoise2D(seed * 17 + 3);
+  const F = rgbHex(mat.base), B = rgbHex(mat.borda ?? mat.escuro), M = rgbHex(mat.meio ?? mat.claro), C = rgbHex(mat.claro), E = rgbHex(mat.escuro);
+  const cx = a.x + a.w / 2, cy = a.y + a.h / 2, hw = a.w / 2, hh = a.h / 2, s = Math.min(a.w, a.h);
+  const g1 = s * 0.022, g2 = s * 0.048, b = s * 0.15, g3 = b + s * 0.025;
+  const fw = hw - g3, fh = hh - g3, horizontal = a.w >= a.h, mx = fw * (horizontal ? 0.42 : 0.7), my = fh * (horizontal ? 0.7 : 0.42);
+  const P = s * 0.1, q = s * 0.075;
+  porPixel(ctx, a, (x, y, o) => {
+    const u = Math.abs(x - cx), v = Math.abs(y - cy), eu = hw - u, ev = hh - v, e = Math.min(eu, ev);
+    const t = eu < ev ? y - a.y : x - a.x;         // coordenada ao longo da borda mais próxima
+    let cor: Cor3 = F;
+    if (e < g1) cor = E;
+    else if (e < g2) { const k = ((t / (s * 0.035)) % 1 + 1) % 1; cor = Math.abs(k - 0.5) < 0.18 && Math.abs(e - (g1 + g2) / 2) < s * 0.008 ? M : C; }
+    else if (e < b) {
+      // Cercadura: rosetas espaçadas e uma gavinha ondulada entre elas.
+      const meio = (g2 + b) / 2, k = ((t / P) % 1 + 1) % 1, du = (k - 0.5) * P, dv = e - meio, d = Math.hypot(du, dv), rr = (b - g2) * 0.36;
+      const gav = Math.abs(dv - Math.sin((t / P) * Math.PI * 2) * (b - g2) * 0.22) < s * 0.006;
+      if (d < rr) { const th = Math.atan2(dv, du), petala = d < rr * (0.7 + 0.3 * Math.cos(th * 6)); cor = d < rr * 0.28 ? C : petala ? M : B; }
+      else cor = gav ? C : B;
+      if (Math.abs(e - g2) < s * 0.005 || Math.abs(e - b) < s * 0.005) cor = E;
+    } else if (e < g3) cor = Math.abs(e - (b + g3) / 2) < s * 0.006 ? M : C;
+    else {
+      // Campo: treliça de losangos miúdos e flores nos nós.
+      const fu = ((x - cx) / q % 1 + 1) % 1, fv = ((y - cy) / q % 1 + 1) % 1, los = Math.abs(fu - 0.5) + Math.abs(fv - 0.5);
+      cor = F;
+      if (Math.abs(los - 0.5) < 0.05) cor = mixC(F, E, 0.45);
+      else if (los < 0.14) cor = mixC(F, C, 0.55);
+      // Cantoneiras: quarto de medalhão em cada canto do campo.
+      const dc = Math.hypot((fw - u) / (mx * 0.62), (fh - v) / (my * 0.62));
+      if (dc < 1) cor = dc > 0.86 ? E : dc > 0.74 ? C : (Math.cos(Math.atan2(fh - v, fw - u) * 8) > 0.4 && dc > 0.4 ? M : B);
+      // Medalhão lobado e pingentes no eixo longo.
+      const du = (x - cx) / mx, dv = (y - cy) / my, d = Math.hypot(du, dv), th = Math.atan2(dv, du), rr = 1 + 0.09 * Math.cos(th * 8);
+      const longo = horizontal ? Math.abs(du) : Math.abs(dv), curto = horizontal ? Math.abs(dv) : Math.abs(du);
+      if (Math.abs(longo - 1.3) / 0.22 + curto / 0.16 < 1) cor = Math.abs(longo - 1.3) / 0.22 + curto / 0.16 > 0.75 ? E : C;
+      if (d < rr) {
+        const n = d / rr;
+        if (n > 0.9) cor = E; else if (n > 0.76) cor = Math.cos(th * 24) > 0.6 ? M : C; else if (n > 0.5) cor = Math.cos(th * 8) > 0.2 && n < 0.68 ? C : B;
+        else if (n > 0.26) cor = Math.cos(th * 8 + Math.PI / 8) > 0.35 ? C : M; else cor = n < 0.1 ? C : n < 0.14 ? E : M;
+      }
+    }
+    // Pelo do tapete, desgaste e sujeira suaves.
+    const grao = (hash2D(Math.floor(x * 140), Math.floor(y * 140), seed) - 0.5) * 0.08, gasto = (fbm(rn, x * 0.8, y * 0.8, 3) - 0.5) * 0.18;
+    const k = 1 + grao + gasto * 0.6;
+    o[0] = Math.max(0, Math.min(255, cor[0] * k)); o[1] = Math.max(0, Math.min(255, cor[1] * k)); o[2] = Math.max(0, Math.min(255, cor[2] * k));
+  });
+  // Franja nas pontas do eixo longo.
+  ctx.strokeStyle = mat.claro; ctx.lineWidth = 0.012; ctx.globalAlpha = 0.85;
+  if (horizontal) { for (let y = a.y + 0.03; y < a.y + a.h; y += 0.045) for (const x of [a.x, a.x + a.w]) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (x === a.x ? -0.1 : 0.1), y + (r() - 0.5) * 0.025); ctx.stroke(); } }
+  else { for (let x = a.x + 0.03; x < a.x + a.w; x += 0.045) for (const y of [a.y, a.y + a.h]) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (r() - 0.5) * 0.025, y + (y === a.y ? -0.1 : 0.1)); ctx.stroke(); } }
   ctx.globalAlpha = 1;
 }
+const mixC = (a: Cor3, b: Cor3, t: number): Cor3 => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
 // ---------- Rústicos e industriais (pisos, paredes e terrenos da frente E1) ----------
 const escurecer = (o: number[], k: number): void => { o[0] = o[0]! * k; o[1] = o[1]! * k; o[2] = o[2]! * k; };

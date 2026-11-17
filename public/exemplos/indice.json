@@ -150,6 +150,16 @@
     "miniatura": "cemiterio-da-colina.webp"
   },
   {
+    "id": "mansao-da-ilha",
+    "nome": "Mansão da ilha",
+    "descricao": "Casarão vitoriano em dois andares: hall de pé-direito duplo com escadaria nobre, salão da lareira com piano, biblioteca, sala de jogos, sala de jantar posta e, em cima, galeria, suíte e quartos.",
+    "tamanho": [
+      33,
+      34.5
+    ],
+    "miniatura": "mansao-da-ilha.webp"
+  },
+  {
     "id": "clareira",
     "nome": "Clareira",
     "descricao": "Uma clareira com trilha de terra, seis árvores e uma fogueira.",
