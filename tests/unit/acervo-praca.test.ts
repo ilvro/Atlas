@@ -84,9 +84,9 @@ test('o fosso de luz tem aro de blocos e brilho no fundo, na cor pedida; a mural
   assert.deepEqual(pegadaDaReceita('muralha-em-degraus', { largura: 6, profundidade: 3 }), [6, 3]);
 });
 
-test('as lajes de pedra são lajes grandes; o tijolo continua em fiadas', () => {
+test('o piso de lajes é de lajes grandes, o calçamento antigo é de pedras irregulares e o tijolo continua em fiadas', () => {
   assert.equal(MATERIAIS['laje.pedra']!.padrao, 'lajes-grandes');
-  assert.equal(MATERIAIS['lajes.antigas']!.padrao, 'lajes-grandes');
+  assert.equal(MATERIAIS['lajes.antigas']!.padrao, 'lajes-rusticas', 'calçamento antigo ao ar livre em pedras irregulares');
   assert.equal(MATERIAIS['tijolo']!.padrao, 'laje');
 });
 
