@@ -687,7 +687,7 @@ export function comandosDeEspalhar(
   return espalhar(base, { centro, raio: opcoes.raio, conjunto: opcoes.conjunto, semente: opcoes.semente }).map(o => ({
     tipo: 'item.adicionar' as const,
     colecao: 'props' as const,
-    item: (opcoes.andar !== null ? { ...o, levelId: opcoes.andar } : o) as never,
+    item: opcoes.andar !== null ? { ...o, levelId: opcoes.andar } : o,
   }));
 }
 
@@ -697,7 +697,7 @@ export function adicionarEm(colecao: ColecaoLivre, mundo: Ponto): void {
   const base = colecao === 'lights' ? novaLuz(mundo) : colecao === 'props' ? novoObjeto(mundo) : colecao === 'tokens' ? novaPeca(mundo, `Peça ${Object.keys(doc.tokens).length + 1}`) : colecao === 'regions' ? novaRegiao(mundo) : null;
   if (!base) return;
   const item = andar !== null ? { ...base, levelId: andar } : base;
-  try { s.store.executar({ tipo: 'item.adicionar', colecao, item: item as never }, { rotulo: `Adicionar ${SINGULAR[colecao]}` }); } catch (erro) { avisar(String(erro instanceof Error ? erro.message : erro), { tipo: 'erro' }); tocar('erro'); return; }
+  try { s.store.executar({ tipo: 'item.adicionar', colecao, item }, { rotulo: `Adicionar ${SINGULAR[colecao]}` }); } catch (erro) { avisar(String(erro instanceof Error ? erro.message : erro), { tipo: 'erro' }); tocar('erro'); return; }
   s.selecao.value = [{ colecao, id: item.id }];
   tocar('pop'); efeitoDeColocar(`+ ${SINGULAR[colecao]}`, mundo);
 }

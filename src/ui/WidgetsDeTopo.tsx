@@ -185,7 +185,7 @@ function WidgetTempo({ s }: { s: SessaoDeEdicao }) {
     const novo = avancarHorario(atual, mins);
     tentar(() =>
       s.store.executar(
-        { tipo: 'clima.aplicar', patch: { time: novo } as never },
+        { tipo: 'clima.aplicar', patch: { time: novo } },
         { rotulo },
       ),
     );

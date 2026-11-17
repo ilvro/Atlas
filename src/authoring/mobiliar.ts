@@ -105,9 +105,9 @@ export function propostaDeMobilia(c: Contexto, roomId: string): Proposta | null 
   const mat = materiaisDe(genero, sala.function), vario = hashDoTexto(roomId), piso = mat.pisos[(c.semente + vario) % mat.pisos.length]!, papel = mat.papeis[(c.semente + Math.floor(vario / 7)) % mat.papeis.length]!;
   const ehDeTipo = TIPOS_DE_COMODO.some(t => t.piso === sala.floor.material && t.papel === (sala.wallpaper?.material ?? null));
   if (ehDeTipo && (piso !== sala.floor.material || papel !== sala.wallpaper?.material)) {
-    comandos.push({ tipo: 'comodo.atualizar', id: roomId, patch: { floor: { material: piso }, wallpaper: { material: papel, seed: sala.wallpaper?.seed ?? sala.floor.seed } } as never });
+    comandos.push({ tipo: 'comodo.atualizar', id: roomId, patch: { floor: { material: piso }, wallpaper: { material: papel, seed: sala.wallpaper?.seed ?? sala.floor.seed } } });
   }
-  for (const o of layout.objetos) comandos.push({ tipo: 'item.adicionar', colecao: 'props', item: o as never });
+  for (const o of layout.objetos) comandos.push({ tipo: 'item.adicionar', colecao: 'props', item: o });
   return novaProposta({ tipo: 'mobiliar', rotulo: `Mobiliar a ${sala.name}`, comandos, versaoEsperada: c.versao, roomId, semente: c.semente });
 }
 

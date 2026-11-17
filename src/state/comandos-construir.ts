@@ -9,7 +9,11 @@ import { suavizarMargem } from '../domain/agua.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import { clonar } from './imutavel.ts';
 
-export type ParcialProfundo<T> = { [K in keyof T]?: T[K] extends readonly unknown[] ? T[K] : T[K] extends object ? ParcialProfundo<T[K]> : T[K] };
+export type ParcialProfundo<T> = T extends readonly unknown[]
+  ? T
+  : T extends object
+    ? { [K in keyof T]?: ParcialProfundo<T[K]> }
+    : T;
 export type CelulaDoComando = readonly [number, number];
 
 /** Comandos de construção: cômodos, paredes, aberturas e terreno. Cômodos e paredes refazem as paredes derivadas. */

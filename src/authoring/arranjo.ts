@@ -413,7 +413,7 @@ export function arranjar(
     });
     bloqueios.push(caixaCand);
     ids.push(obj.id);
-    comandos.push({ tipo: 'item.adicionar', colecao: 'props', item: obj as never });
+    comandos.push({ tipo: 'item.adicionar', colecao: 'props', item: obj });
   }
 
   return { comandos, ids, ignorados };
