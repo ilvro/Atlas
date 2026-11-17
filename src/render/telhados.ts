@@ -65,6 +65,17 @@ const chaveCobertura = (material: string, res: number, estilo: IdDoEstilo): stri
 const chaveDetalhe = (detalhe: DetalheDeTelhado, cobertura: string, seed: number, res: number, estilo: IdDoEstilo, px?: OpcoesDoPixel): string =>
   `detalhe-telhado|${detalhe}|${cobertura}|${seed}|${res.toFixed(3)}|${estilo}|${px ? `${px.ppc}|${px.contorno ? 1 : 0}|${px.paleta}|${px.dither}` : 'i'}`;
 
+/**
+ * O telhado fica acima da camada de luz (é ele que esconde o interior), então recebe a luz do clima por tinta: ambiente
+ * mais metade do sol, cada canal até 1. De dia fica como está; no entardecer e à noite escurece com o resto do mapa.
+ */
+export function luzSobreOsTelhados(c: Pick<MapaAtlas['climate'], 'ambient' | 'sun'>): number {
+  const rgb = (h: string) => { const n = parseInt(h.slice(1), 16); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
+  const a = rgb(c.ambient.color), s = c.sun ? rgb(c.sun.color) : [0, 0, 0], ks = c.sun ? c.sun.intensity * 0.5 : 0;
+  const canal = (i: number) => Math.round(Math.max(0.12, Math.min(1, a[i]! * c.ambient.intensity + s[i]! * ks)) * 255);
+  return (canal(0) << 16) | (canal(1) << 8) | canal(2);
+}
+
 export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Telhados {
   const raiz = new Container();
   const edificios = new Map<string, DoEdificio>();
@@ -289,6 +300,7 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
     raiz,
     sincronizar(m, mud) {
       mapa = m;
+      raiz.tint = luzSobreOsTelhados(m.climate);
       const redesenhar = !mud || mud.completo || Boolean(mud.colecoes.rooms) || mud.campos.some(c => c === 'grid' || c === 'climate' || c === 'style');
       if (redesenhar) {
         const eds = edificiosDe(m);
