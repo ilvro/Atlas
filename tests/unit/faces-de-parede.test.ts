@@ -22,3 +22,13 @@ test('facesDoContorno com profundidade por lado: cada face tem a sua e as quinas
   // Sem a função, todas iguais (o comportamento antigo).
   assert.ok(facesDoContorno(laco, 0.5).every(f => f.prof === 0.5));
 });
+
+test('objetos de parede são ampliados na face, em volta do próprio centro, sem passar da sanca nem do rodapé', async () => {
+  const { ampliarNaFace, AMPLIACAO_NA_FACE } = await import('../../src/procedural/assar.ts');
+  const quadro = [{ forma: 'ret' as const, x: 2, y: 1.1, w: 1, h: 0.7, mat: '#000000', z: 1 }];
+  const [a] = ampliarNaFace(quadro, 2, 2.6);
+  assert.ok(Math.abs(a!.w! - AMPLIACAO_NA_FACE[0]) < 1e-9 && Math.abs(a!.h! - 0.7 * AMPLIACAO_NA_FACE[1]) < 1e-9);
+  assert.equal(a!.x, 2); assert.equal(a!.y, 1.1);
+  const alto = ampliarNaFace([{ ...quadro[0]!, y: 0.6, h: 0.8 }], 2, 2.6)[0]!;
+  assert.ok(alto.y! - alto.h! / 2 >= 0.15 - 1e-9, 'não invade a sanca');
+});
