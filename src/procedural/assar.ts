@@ -113,6 +113,26 @@ function caixaDoContorno(pts: readonly Ponto[]): { x0: number; y0: number; x1: n
   return { x0, y0, x1, y1 };
 }
 
+/** Ampliação de leitura dos objetos pendurados na face (a face comprime a altura da parede; quadros e espelhos sumiriam). */
+export const AMPLIACAO_NA_FACE: readonly [number, number] = [1.2, 1.7];
+
+/**
+ * Amplia as partes de um objeto de parede (já em coordenadas da face: x ao longo da parede, y de cima para baixo) em volta
+ * do centro dele, sem passar da sanca (y 0,15) nem do rodapé (y H − 0,2).
+ */
+export function ampliarNaFace(partes: readonly Parte[], u: number, H: number): Parte[] {
+  if (!partes.length) return [];
+  let y0 = Infinity, y1 = -Infinity;
+  for (const p of partes) {
+    if (p.forma === 'poli') for (let i = 1; i < p.pts!.length; i += 2) { y0 = Math.min(y0, p.pts![i]!); y1 = Math.max(y1, p.pts![i]!); }
+    else { y0 = Math.min(y0, p.y! - p.h! / 2); y1 = Math.max(y1, p.y! + p.h! / 2); }
+  }
+  const [sx, sy0] = AMPLIACAO_NA_FACE, cy = (y0 + y1) / 2, meia = (y1 - y0) / 2, limite = Math.min(cy - 0.15, H - 0.2 - cy);
+  const sy = meia > 0 ? Math.max(1, Math.min(sy0, limite / meia)) : sy0;
+  const X = (x: number) => u + (x - u) * sx, Y = (y: number) => cy + (y - cy) * sy;
+  return partes.map(p => (p.forma === 'poli' ? { ...p, pts: p.pts!.map((v, i) => (i % 2 ? Y(v) : X(v))) } : { ...p, x: X(p.x!), y: Y(p.y!), w: p.w! * sx, h: p.h! * sy }));
+}
+
 /** O cômodo inteiro numa tela: piso, sombra de contato com as paredes e, no estilo caixa, as faces internas. */
 export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRaster): Assado {
   const grade: Grade = { size: e.grade.size, offset: e.grade.offset, kind: 'square', visible: false, snap: true, lineStyle: 'solid', color: 'auto', opacity: 0.1, lineWidth: 1 };
@@ -145,7 +165,7 @@ export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRas
     for (const laco of lacos) for (const f of facesDoContorno(laco, profMax, n => profMax * fatorDaFace(n))) {
       const s = f.segmento, prof = f.prof, k = prof / H, comp = Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1]), dx = (s.b[0] - s.a[0]) / comp, dy = (s.b[1] - s.a[1]) / comp;
       if (pixel) {
-        const objetos = e.objetos.flatMap(o => { const u = ao_longo(s, o.centro); if (u === null) return []; const d = descreverReceita(o.receita, { seed: o.seed, params: o.params }); return d.tipo === 'parede' ? [{ partes: partesParaFace(d.face, u, H) }] : []; });
+        const objetos = e.objetos.flatMap(o => { const u = ao_longo(s, o.centro); if (u === null) return []; const d = descreverReceita(o.receita, { seed: o.seed, params: o.params }); return d.tipo === 'parede' ? [{ partes: ampliarNaFace(partesParaFace(d.face, u, H), u, H) }] : []; });
         const aberturas = e.aberturas.flatMap(a => { const u = ao_longo(s, a.centro); return u === null ? [] : [{ tipo: a.tipo, u, largura: a.largura, material: a.material, partes: partesDaAbertura(a, u, H) }]; });
         pintarFacePixel(ctx, { segmento: s, quad: f.quad, H, prof, papel, aberturas, objetos }, res, [x0, y0]);
         continue;
@@ -171,7 +191,7 @@ export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRas
       for (const o of e.objetos) {
         const u = ao_longo(s, o.centro); if (u === null) continue;
         const d = descreverReceita(o.receita, { seed: o.seed, params: o.params });
-        if (d.tipo === 'parede') estilo.desenharPartes(ctx, partesParaFace(d.face, u, H), { res, seed: o.seed, sombras: false });
+        if (d.tipo === 'parede') estilo.desenharPartes(ctx, ampliarNaFace(partesParaFace(d.face, u, H), u, H), { res, seed: o.seed, sombras: false });
       }
       ctx.restore();
     }
