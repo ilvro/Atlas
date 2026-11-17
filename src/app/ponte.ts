@@ -1,11 +1,10 @@
 // Só em desenvolvimento: importado por `main.tsx` dentro de `if (import.meta.env.DEV)`; o Vite elimina o chunk do build.
 import { conectarPonte, ferramentasDaCampanha } from '#mesa/ponte';
 import { telaParaMundo } from '../render/camera.ts';
-import { SeloDoAssistente, estadoDaPonte } from '../ui/SeloDoAssistente.tsx';
 import { ErroDeConflito } from '../data/repositorio.ts';
 import { atualizarLista, cacheDeSessoes, definirAndarAtivo, gravarMapa, navegar, pararMomento, servicos, sessao, tocarMomentoDoMapa, viewport } from './app.ts';
 import { campanhaAtiva, sincronizarMapaComCampanha } from './campanha.ts';
-import { seloDoAssistente } from './assistente-slot.ts';
+import { estadoDaPonte } from './assistente-slot.ts';
 import { modo } from './modo.ts';
 import { ferramentasDeEscrita } from './ponte-escrita.ts';
 import { ferramentasDeLeitura } from './ponte-leitura.ts';
@@ -49,4 +48,3 @@ const cliente = conectarPonte({
 
 estadoDaPonte.value = cliente.estado();
 cliente.aoMudarEstado(e => { estadoDaPonte.value = e; });
-seloDoAssistente.value = SeloDoAssistente;

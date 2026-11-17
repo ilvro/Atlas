@@ -6,7 +6,6 @@ import { distanciaDoPercurso, pontosDaRegua, textoDaRegua, type RegraDeDiagonal 
 import { circulo, ehPoligonoSimples } from '../domain/formas-de-comodo.ts';
 import { celulasDoDisco, celulasEntre, decodificar } from '../domain/celulas.ts';
 import { misturar, type EstadoDeClima, type MisturaDeClima } from '../domain/clima.ts';
-import { conjuntoDeEspalhar, espalhar } from '../authoring/espalhar.ts';
 import { copiasDe, novaLuz, novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
 import { interacaoDeEscadaPadrao, mapaDoAndar } from '../domain/andares.ts';
 import { comprimentoDaParede, contornoDoComodo, encaixarNaParede, encaixarObjetoDeParede, indiceDeCelulas, pontoNaParede, salaDaCelula } from '../domain/geometria.ts';
@@ -85,6 +84,8 @@ export interface PonteViewport {
   cameraInicial?: Camera;
   /** Andar exibido pelo editor/projetor (`null` = térreo). */
   andarAtivo?(): string | null;
+  /** Gera comandos de uma pincelada de espalhar (ou apagar espalhados), fornecido pela camada de aplicativo. */
+  espalhar?(base: MapaAtlas, mundo: Ponto, opcoes: { conjunto: string; raio: number; apagar: boolean; semente: number; andar: string | null }): readonly Parameters<Gesto['aplicar']>[0][];
 }
 
 /** Quanto dura a transição entre dois climas, em milissegundos, se ninguém escolheu outra. */
@@ -728,18 +729,11 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   /** Uma pincelada de espalhar: põe (ou, com Alt, tira) os objetos do conjunto no círculo, dentro do gesto. */
   function espalharAqui(p: Ponto): void {
-    const i = interacao; if (i?.tipo !== 'espalhar') return;
-    const pincel = ponte.pincel().espalhar, conjunto = conjuntoDeEspalhar(pincel.conjunto); if (!conjunto) return;
-    const antes = i.gesto, andar = andarAtual(), base = doc();
-    if (i.apagar) {
-      const receitas = new Set(conjunto.itens.map(x => x.receita));
-      for (const o of Object.values(base.props)) if (o.source.kind === 'recipe' && receitas.has(o.source.recipe) && Math.hypot(o.position[0] - p[0], o.position[1] - p[1]) <= pincel.raio) if (!tentar(() => antes.aplicar({ tipo: 'item.remover', colecao: 'props', id: o.id }))) { antes.cancelar(); interacao = null; return; }
-      return;
-    }
-    const novos = espalhar(base, { centro: p, raio: pincel.raio, conjunto: pincel.conjunto, semente: i.semente++ });
-    for (const o of novos) {
-      const item = andar !== null ? { ...o, levelId: andar } : o;
-      if (!tentar(() => antes.aplicar({ tipo: 'item.adicionar', colecao: 'props', item: item as never }))) { antes.cancelar(); interacao = null; return; }
+    const i = interacao; if (i?.tipo !== 'espalhar' || !ponte.espalhar) return;
+    const pincel = ponte.pincel().espalhar, andar = andarAtual(), base = doc();
+    const comandos = ponte.espalhar(base, p, { conjunto: pincel.conjunto, raio: pincel.raio, apagar: i.apagar, semente: i.semente++, andar });
+    for (const c of comandos) {
+      if (!tentar(() => i.gesto.aplicar(c))) { i.gesto.cancelar(); interacao = null; return; }
     }
   }
 

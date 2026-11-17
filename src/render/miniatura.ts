@@ -143,3 +143,39 @@ export function desenharMiniaturaDoTelhado(canvas: HTMLCanvasElement | Offscreen
   }
   ctx.restore();
 }
+
+/**
+ * Gera uma miniatura em WebP (< 512 KB) a partir do documento do mapa.
+ * Em ambiente sem canvas ou sem suporte a WebP/toBlob (ex.: Node nos testes), retorna undefined silenciosamente.
+ */
+export async function gerarMiniaturaDoMapa(m: MapaAtlas, l = 320, a = 200): Promise<Blob | undefined> {
+  try {
+    if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
+      const canvas = document.createElement('canvas');
+      canvas.width = l;
+      canvas.height = a;
+      desenharMiniatura(canvas, m);
+      if (typeof canvas.toBlob === 'function') {
+        const blob = await new Promise<Blob | null>(res => {
+          try {
+            canvas.toBlob(b => res(b), 'image/webp', 0.82);
+          } catch {
+            res(null);
+          }
+        });
+        if (blob && blob.size > 0 && blob.size <= 512 * 1024) return blob;
+      }
+    }
+    if (typeof OffscreenCanvas !== 'undefined') {
+      const canvas = new OffscreenCanvas(l, a);
+      desenharMiniatura(canvas, m);
+      if (typeof canvas.convertToBlob === 'function') {
+        const blob = await canvas.convertToBlob({ type: 'image/webp', quality: 0.82 });
+        if (blob && blob.size > 0 && blob.size <= 512 * 1024) return blob;
+      }
+    }
+  } catch {
+    // Retorna undefined silenciosamente em ambientes sem suporte ou com falha
+  }
+  return undefined;
+}

@@ -2,7 +2,7 @@ import { signal } from '@preact/signals';
 import { criarRef, mesmaRef, type Campanha, type Entidade, type Ref } from '#mesa';
 import type { MapaAtlas } from '../domain/mapa.ts';
 import type { Servicos } from './servicos.ts';
-import { gerarMiniaturaDoMapa } from '../ui/previa.ts';
+import { gerarMiniaturaDoMapa } from '../render/miniatura.ts';
 
 /** A campanha em que o mestre está trabalhando. Chave compartilhada com os outros aplicativos da mesa. */
 export const CHAVE_CAMPANHA_ATIVA = 'mesa:campanha-ativa';
