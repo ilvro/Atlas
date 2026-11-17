@@ -1,5 +1,6 @@
 import { ladoBaixo } from '../procedural/escarpa.ts';
-import { Application, Container, Graphics, Rectangle, Sprite, Text, Texture } from 'pixi.js';
+import { Application, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
+import { capturarViewport, type Captura } from './captura.ts';
 import { criarEventosDeCena, type EventoDeCena, type EstadoDosEventos } from './eventos-de-cena.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import { distanciaDoPercurso, pontosDaRegua, textoDaRegua, type RegraDeDiagonal } from '../domain/regua.ts';
@@ -91,8 +92,7 @@ export interface PonteViewport {
 /** Quanto dura a transição entre dois climas, em milissegundos, se ninguém escolheu outra. */
 const DURACAO_PADRAO_DA_TRANSICAO = 1600;
 
-/** O resultado de `capturar`: a imagem e como ler coordenadas nela (a origem da caixa é o canto superior esquerdo da imagem). */
-export interface Captura { dataUrl: string; largura: number; altura: number; pxPorMetro: number; caixa: Caixa; /** Tamanho do JPEG em bytes. */ bytes: number; /** Qualidade JPEG usada (0 a 1). */ qualidade: number; /** Aviso se a cena não acalmou a tempo. */ aviso?: string; }
+export type { Captura } from './captura.ts';
 
 export interface Viewport {
   readonly camera: Camera;
@@ -1137,84 +1137,22 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   }
 
   let pintandoSimulado: number | null = null;
-  function esperarQuadro(): Promise<void> {
-    return new Promise<void>(resolve => {
-      let resolvido = false;
-      let timer: ReturnType<typeof setTimeout> | null = null;
-      let raf: number | null = null;
-      const concluir = () => {
-        if (resolvido) return;
-        resolvido = true;
-        if (timer !== null) clearTimeout(timer);
-        if (raf !== null && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf);
-        resolve();
-      };
-      if (typeof requestAnimationFrame === 'function') {
-        raf = requestAnimationFrame(concluir);
-      }
-      timer = setTimeout(concluir, 50);
-    });
-  }
-
-  async function capturar(opcoes: { caixa?: Caixa; ladoMaximo?: number; vista?: 'planta' | 'telhados' } = {}): Promise<Captura> {
-    const m = doc(), pedida = opcoes.caixa ?? { x0: 0, y0: 0, x1: m.bounds.width, y1: m.bounds.height };
-    const caixa = { x0: Math.max(0, Math.min(pedida.x0, pedida.x1)), y0: Math.max(0, Math.min(pedida.y0, pedida.y1)), x1: Math.min(m.bounds.width, Math.max(pedida.x0, pedida.x1)), y1: Math.min(m.bounds.height, Math.max(pedida.y0, pedida.y1)) };
-    if (caixa.x1 - caixa.x0 < 0.5 || caixa.y1 - caixa.y0 < 0.5) throw new Error('A caixa está fora do mapa ou é pequena demais.');
-    const ladoMaximo = Math.max(64, Math.round(opcoes.ladoMaximo ?? 1280));
-    const vista = opcoes.vista ?? 'planta';
-    const camera0 = camera, modo0 = modoProjetor;
-    try {
-      camAnim = null;
-      projetor(true);
-      if (vista === 'telhados') cena.forcarTelhados(1);
-      definirCamera(calcularEnquadre({ x: caixa.x0, y: caixa.y0, largura: caixa.x1 - caixa.x0, altura: caixa.y1 - caixa.y0 }, tela(), 0));
-      const limite = performance.now() + 8_000;
-      let calmos = 0;
-      let aviso: string | undefined;
-      while (calmos < 3) {
-        if (performance.now() >= limite) {
-          aviso = 'a cena ainda estava pintando; a imagem pode estar incompleta';
-          break;
-        }
-        await esperarQuadro();
-        if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
-          app.ticker.update();
-        }
-        calmos = (pintandoSimulado ?? cena.pintando) === 0 ? calmos + 1 : 0;
-      }
-      await new Promise<void>(r => setTimeout(r, 250));
-      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
-        app.ticker.update();
-      }
-      app.renderer.render(app.stage);
-      const [ax, ay] = mundoParaTela(camera, [caixa.x0, caixa.y0]), [bx, by] = mundoParaTela(camera, [caixa.x1, caixa.y1]);
-      const x = Math.max(0, Math.floor(ax)), y = Math.max(0, Math.floor(ay)), w = Math.max(1, Math.min(app.screen.width, Math.ceil(bx)) - x), h = Math.max(1, Math.min(app.screen.height, Math.ceil(by)) - y);
-      const resolucao = Math.min(2, ladoMaximo / Math.max(w, h));
-      const tela_ = app.renderer.extract.canvas({ target: app.stage, frame: new Rectangle(x, y, w, h), resolution: resolucao, clearColor: app.renderer.background.color });
-      // JPEG com teto de tamanho (o app do Claude recusa resultados grandes): baixa a qualidade e depois o lado.
-      const LIMITE_BASE64 = 700_000;
-      let fonte = tela_ as HTMLCanvasElement, lado = Math.max(fonte.width, fonte.height), dataUrl = '', qualidade = 0.85;
-      for (;;) {
-        for (const q of [0.85, 0.75, 0.65]) {
-          qualidade = q; dataUrl = fonte.toDataURL('image/jpeg', q);
-          if (dataUrl.length - dataUrl.indexOf(',') - 1 <= LIMITE_BASE64) break;
-        }
-        if (dataUrl.length - dataUrl.indexOf(',') - 1 <= LIMITE_BASE64 || lado <= 512) break;
-        lado = Math.max(512, Math.round(lado * 0.8));
-        const f = lado / Math.max(fonte.width, fonte.height), menor = document.createElement('canvas');
-        menor.width = Math.max(1, Math.round(fonte.width * f)); menor.height = Math.max(1, Math.round(fonte.height * f));
-        const g = menor.getContext('2d')!; g.imageSmoothingQuality = 'high'; g.drawImage(fonte, 0, 0, menor.width, menor.height);
-        fonte = menor;
-      }
-      const b64 = dataUrl.length - dataUrl.indexOf(',') - 1, bytes = Math.floor(b64 * 3 / 4) - (dataUrl.endsWith('==') ? 2 : dataUrl.endsWith('=') ? 1 : 0);
-      const reducao = fonte.width / tela_.width;
-      return { dataUrl, largura: fonte.width, altura: fonte.height, pxPorMetro: Math.round(camera.zoom * resolucao * reducao * 100) / 100, caixa, bytes, qualidade, ...(aviso ? { aviso } : {}) };
-    } finally {
-      if (vista === 'telhados') cena.forcarTelhados(null);
-      projetor(modo0);
-      definirCamera(camera0);
-    }
-  }
+  const capturar = (opcoes?: { caixa?: Caixa; ladoMaximo?: number; vista?: 'planta' | 'telhados' }): Promise<Captura> =>
+    capturarViewport(
+      {
+        app,
+        cena,
+        doc,
+        tela,
+        camera: () => camera,
+        definirCamera,
+        modoProjetor: () => modoProjetor,
+        projetor,
+        limparAnimacaoCamera: () => { camAnim = null; },
+        pintandoSimulado: () => pintandoSimulado,
+      },
+      opcoes,
+    );
   function projetor(ligado: boolean): void { modoProjetor = ligado; cena.definirModoProjetor(ligado); grade.visible = !ligado; area_.visible = !ligado; selecaoG.visible = !ligado; fantasmaC.visible = !ligado; fantasmaDaProposta.raiz.visible = !ligado; laco.visible = !ligado; desenharRelevo(); }
 
   return {
