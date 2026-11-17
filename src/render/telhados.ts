@@ -28,6 +28,8 @@ export interface Telhados {
   readonly raiz: Container;
   sincronizar(m: MapaAtlas, mudancas: Mudancas | null): void;
   definirVista(v: Vista): void;
+  /** No modo Construir, mostra os telhados em vez de escondê-los. */
+  definirNoEditor(v: boolean): void;
   forcar(alfa: number | null): void;
   quadro(agora: number): void;
   /** Para os testes: a opacidade de cada telhado agora. */
@@ -73,7 +75,7 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
   const chavesAtivas = new Set<string>();
   const desfoque = new BlurFilter({ strength: 2, quality: 3 });
 
-  let mapa: MapaAtlas | null = null, vista: Vista = 'construir', ultimo = -1, destruido = false, imediato = true, forcado: number | null = null;
+  let mapa: MapaAtlas | null = null, vista: Vista = 'construir', ultimo = -1, destruido = false, imediato = true, forcado: number | null = null, noEditor = false;
 
   function redesenharPorChave(chave: string): void {
     const m = mapa; if (!m || destruido) return;
@@ -263,7 +265,8 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
   function alvoDe(d: DoEdificio): number {
     if (forcado !== null) return d.visivelNoMapa ? forcado : 0;
     const modoTelhados = mapa?.session.roofs ?? 'auto';
-    if (vista === 'construir' || !d.visivelNoMapa || modoTelhados === 'abertos') return 0;
+    if (vista === 'construir') return noEditor && d.visivelNoMapa ? 1 : 0;
+    if (!d.visivelNoMapa || modoTelhados === 'abertos') return 0;
     if (vista === 'mestre') return ALFA_DO_MESTRE;
     return !d.conhecido || (modoTelhados !== 'fechados' && d.dentro) ? 0 : 1;
   }
@@ -315,6 +318,7 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
       imediato = false;
     },
     definirVista(v) { if (v === vista) return; vista = v; imediato = true; reavaliar(); imediato = false; },
+    definirNoEditor(v) { if (v === noEditor) return; noEditor = v; reavaliar(); },
     forcar(alfa) { forcado = alfa; imediato = true; reavaliar(); imediato = false; },
     quadro(agora) {
       if (destruido) return;

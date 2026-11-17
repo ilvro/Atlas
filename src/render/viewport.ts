@@ -56,6 +56,8 @@ export interface PonteViewport {
   aoCamera?(c: Camera): void;
   /** Mostrar o acabamento (vinheta, tinta…) no editor? */
   acabamento(): boolean;
+  /** Mostrar os telhados no modo Construir? (ausente: escondidos, como antes) */
+  telhados?(): boolean;
   /** Lê a imagem guardada de um retrato (pelo id do asset). */
   lerRetrato?(id: string): Promise<Blob | null>;
   /** PV e PD da ficha ligada a uma peça, para os pips; sem a função (ou `null`) não há pips. */
@@ -253,6 +255,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   function aplicarAcabamento(): void {
     const m = doc(), finish = (exibido ?? m).finish, ligado = ponte.acabamento() && (finish.preset !== 'nenhum' || exibido !== null);
     cena.definirAtmosfera(ponte.acabamento());
+    cena.definirTelhadosNoEditor(ponte.telhados?.() ?? false);
     // No Pixel o acabamento vai sobre o sprite pixelizado (o filtro de paleta já rodou dentro dele); no Ilustrado, direto na raiz da cena.
     const alvo = alvoDoAcabamento(), outro = pixelAtivo ? cena.raiz : pixelizacao.sprite;
     outro.filters = []; alvo.filters = ligado ? [acabamento.filtro] : [];
