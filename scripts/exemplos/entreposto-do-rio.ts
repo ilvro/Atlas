@@ -8,7 +8,6 @@ export const entrepostoDoRio: Exemplo = {
   largura: 58,
   altura: 36,
   semente: 1074,
-  miniatura: 'telhados',
   construir(k) {
     k.estilo({ genre: 'fantasia', palette: 'fantasia-pedra' });
     k.fundo({ kind: 'solid', color: '#0c2430' });
