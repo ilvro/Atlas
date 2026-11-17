@@ -365,6 +365,8 @@ export class Kit {
 export interface Exemplo {
   /** Letras, números, `_` e `-`: vira o nome do arquivo `public/exemplos/<id>.atlas.json`. */ id: string;
   nome: string; descricao: string; largura: number; altura: number; semente?: number; celula?: number;
+  /** Como fotografar a miniatura: com os telhados à mostra (vilas, portos) ou a planta por dentro (padrão; masmorras, casarões). */
+  miniatura?: 'telhados' | 'planta';
   construir(k: Kit): void;
 }
 

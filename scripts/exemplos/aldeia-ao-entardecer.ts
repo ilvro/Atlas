@@ -10,6 +10,7 @@ export const aldeiaAoEntardecer: Exemplo = {
   largura: 48,
   altura: 27,
   semente: 6619,
+  miniatura: 'telhados',
   construir(k) {
     k.estilo({ genre: 'fantasia', palette: 'fantasia-pedra' });
     k.fundo({ kind: 'solid', color: '#1b1d14' });

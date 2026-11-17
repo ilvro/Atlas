@@ -11,6 +11,7 @@ export const pracaDaFonte: Exemplo = {
   largura: 48,
   altura: 27,
   semente: 5303,
+  miniatura: 'telhados',
   construir(k) {
     k.estilo({ genre: 'fantasia', palette: 'fantasia-pedra' });
     k.fundo({ kind: 'solid', color: '#20231b' });

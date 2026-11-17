@@ -9,6 +9,7 @@ export const pracaSaqueada: Exemplo = {
   largura: 48,
   altura: 27,
   semente: 8803,
+  miniatura: 'telhados',
   construir(k) {
     k.estilo({ genre: 'fantasia', palette: 'fantasia-pedra' });
     k.fundo({ kind: 'solid', color: '#1c1a16' });
