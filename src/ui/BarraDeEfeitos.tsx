@@ -10,7 +10,7 @@ import {
 import { momentoEmCurso } from '../app/momentos.ts';
 import { type EspacoDaBarra, obterIconeDoEspaco } from '../domain/barra-de-efeitos.ts';
 import type { PassoDeMomento } from '../domain/momentos.ts';
-import { CamposDoPasso } from './Momentos.tsx';
+import { CamposDoPasso } from './CamposDoPasso.tsx';
 import { Icone } from './Icone.tsx';
 import { avisar } from '../app/toasts.ts';
 import { criarRef } from '#mesa';
