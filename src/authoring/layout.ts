@@ -1,4 +1,4 @@
-import { PAREDE_PADRAO, centroDaAbertura, contornoDoComodo, encaixarObjetoDeParede } from '../domain/geometria.ts';
+import { PAREDE_PADRAO, centroDaAbertura, comodoEm, contornoDoComodo, encaixarObjetoDeParede, indiceDeCelulas } from '../domain/geometria.ts';
 import { novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
 import type { MapaAtlas, Objeto, Ponto } from '../domain/mapa.ts';
 import { mulberry32 } from '../procedural/ruido.ts';
@@ -72,11 +72,13 @@ class Gerador {
   private readonly sobre: { pos: Ponto; lado: number }[] = [];
   private readonly centroide: Ponto;
 
+  private readonly indice: Map<number, string>;
   private readonly m: MapaAtlas; private readonly ins: InsightDoComodo; private readonly malha: Malha; private readonly circ: Circulacao;
   private readonly regras: ItemDeRegra[]; private readonly pedido: PedidoDeLayout; private readonly gerarId: (p: string) => string; private readonly rng: () => number;
   private readonly nivel: string | null;
 
   constructor(m: MapaAtlas, ins: InsightDoComodo, malha: Malha, circ: Circulacao, regras: ItemDeRegra[], pedido: PedidoDeLayout, gerarId: (p: string) => string, rng: () => number, nivel: string | null) {
+    this.indice = indiceDeCelulas(m, nivel);
     this.m = m; this.ins = ins; this.malha = malha; this.circ = circ; this.regras = regras; this.pedido = pedido; this.gerarId = gerarId; this.rng = rng; this.nivel = nivel;
     this.segmentos = contornoDoComodo(m, ins.celulas, m.rooms[ins.id]?.outline).flat().map(s => { const comprimento = distancia(s.a, s.b); return { a: s.a, b: s.b, n: s.n, comprimento, t: [(s.b[0] - s.a[0]) / comprimento, (s.b[1] - s.a[1]) / comprimento] as Ponto }; });
     this.existentes = Object.values(m.props).filter(o => (o.levelId ?? null) === nivel && o.roomId === ins.id);
@@ -127,6 +129,8 @@ class Gerador {
     const tapete = rec.categoria === 'tapetes', bloqueia = !tapete;
     const temDependentes = this.regras.some(r => r.junto?.de === regra.id);
     for (const c of this.candidatos(regra, w, h)) {
+      // O centro precisa cair no cômodo pela mesma regra do mapa (as células), senão o objeto fica sem cômodo (borda curva).
+      if (comodoEm(this.m, c.pos, this.indice) !== this.ins.id) continue;
       const base = novoObjeto(c.pos, { rotation: c.rot, source: ACERVO.fonte(receita, 1, params) }), caixa = caixaDoObjeto(base);
       if (!retanguloLivre(this.malha, caixa, tapete ? [this.malha.porta] : [this.malha.porta, this.circ.faixa])) continue;
       if (bloqueia) {
