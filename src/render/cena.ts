@@ -187,7 +187,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
   }
 
   // ---------- Paredes, aberturas e marcas de objetos de parede ----------
-  const COR_TOPO = 0x15131a, COR_TOPO_CLARO = 0x2b2833;
+  const COR_TOPO = 0x15131a, COR_TOPO_CLARO = 0x2b2833, ESPESSURA_MINIMA_DE_COMODO = 0.34;
   /** No Pixel (px por metro > 0) os traços têm largura ímpar em pixels e o desenho anda meio pixel: o traço de 3 px cobre 3 pixels inteiros e o fio claro do meio é de 1 px. */
   let pixelRes = 0;
   const lw = (w: number): number => (pixelRes ? Math.max(1, 2 * Math.round((w * pixelRes - 1) / 2) + 1) / pixelRes : w);
@@ -288,7 +288,8 @@ export function criarCena(op: OpcoesDaCena): Cena {
 
     // Parede cheia: sombra de contato sutil, topo escuro, chanfro claro do lado da luz (noroeste) e aresta escura do
     // outro, e juntas espaçadas ao longo do topo — massa de alvenaria, não um traço chato de CAD.
-    const t = p.thickness;
+    // Paredes de cômodo ganham corpo de alvenaria no desenho (no mínimo 0,34 m), como nas plantas de mapa de mesa.
+    const t = p.kind === 'wall' && p.source && 'roomId' in p.source ? Math.max(p.thickness, ESPESSURA_MINIMA_DE_COMODO) : p.thickness;
     if (p.kind === 'wall') { trazarTrechos(t * 0.18, t * 0.24); g.stroke({ width: lw(t * 1.15), color: 0x050408, alpha: pixelRes ? 0.3 : 0.2, join: 'miter', cap: 'butt' }); }
     trazarTrechos();
     g.stroke({ width: lw(t), color: COR_TOPO, alpha: 1, join: 'miter', cap: 'butt' });

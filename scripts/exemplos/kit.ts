@@ -206,7 +206,7 @@ export class Kit {
 
   // ---------- Atmosfera ----------
   /** Aplica um clima pronto (`PRESETS_DE_CLIMA`: manha, tarde, entardecer, noite, tempestade, neblina, neve…). `time` ("HH:MM") move o sol; `tempo` ajusta o tempo. */
-  clima(preset: string, ajuste: { time?: string; tempo?: Partial<Tempo>; gridPower?: boolean; ambient?: { color: string; intensity: number }; sun?: null | { angle: number; color: string; intensity: number } } = {}): this {
+  clima(preset: string, ajuste: { time?: string; tempo?: Partial<Tempo>; gridPower?: boolean; ambient?: { color: string; intensity: number }; sun?: null | { angle: number; color: string; intensity: number }; /** Luz do ambiente dentro dos cômodos cobertos (0 a 1). */ interiorLight?: number } = {}): this {
     const p = presetDeClima(preset); if (!p) throw new Error(`Kit: clima desconhecido “${preset}”.`);
     this.m.climate = { preset: p.id, ...structuredClone(p.climate) }; this.m.finish = structuredClone(p.finish);
     if (ajuste.time) { const ceu = ceuNoHorario(ajuste.time); Object.assign(this.m.climate, { time: ajuste.time, sun: ceu.sun, ambient: ceu.ambient }); }
@@ -214,6 +214,7 @@ export class Kit {
     if (ajuste.sun !== undefined) this.m.climate.sun = ajuste.sun ? { ...ajuste.sun } : null;
     if (ajuste.tempo) Object.assign(this.m.climate.weather, ajuste.tempo);
     if (ajuste.gridPower !== undefined) this.m.climate.gridPower = ajuste.gridPower;
+    if (ajuste.interiorLight !== undefined) this.m.climate.interiorLight = ajuste.interiorLight;
     return this;
   }
 

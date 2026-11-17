@@ -19,12 +19,13 @@ import { RECEITAS_DE_MASMORRA } from './masmorra.ts';
 import { RECEITAS_RURAIS } from './rural.ts';
 import { RECEITAS_DE_FICCAO } from './ficcao.ts';
 import { RECEITAS_DA_PRACA } from './praca.ts';
+import { RECEITAS_DA_MANSAO } from './mansao.ts';
 import type { PedidoDeReceita, Receita } from './comum.ts';
 
 export { CATEGORIAS, type CampoDeReceita, type Categoria, type PedidoDeReceita, type Receita } from './comum.ts';
 
 /** Todas as receitas, juntando as listas de cada kit. Os ids são únicos entre os arquivos (um teste confere). */
-const lista: Receita[] = [...RECEITAS_DA_CASA, ...RECEITAS_DE_INVESTIGACAO, ...RECEITAS_MODERNAS, ...RECEITAS_DE_FANTASIA, ...RECEITAS_DE_ARMAS, ...RECEITAS_DE_IGREJA, ...RECEITAS_DE_CASTELO, ...RECEITAS_DE_MASMORRA, ...RECEITAS_EXTERIORES, ...RECEITAS_RURAIS, ...RECEITAS_DE_FICCAO, ...RECEITAS_ERMOS, ...RECEITAS_MATA, ...RECEITAS_DA_PRACA, ...RECEITAS_PORTO, ...RECEITAS_ESTRADA, ...RECEITAS_CAVERNA, ...RECEITAS_FUNDO, ...RECEITAS_DE_PAREDE, ...RECEITAS_DE_ENFEITES];
+const lista: Receita[] = [...RECEITAS_DA_CASA, ...RECEITAS_DE_INVESTIGACAO, ...RECEITAS_MODERNAS, ...RECEITAS_DE_FANTASIA, ...RECEITAS_DE_ARMAS, ...RECEITAS_DE_IGREJA, ...RECEITAS_DE_CASTELO, ...RECEITAS_DE_MASMORRA, ...RECEITAS_EXTERIORES, ...RECEITAS_RURAIS, ...RECEITAS_DE_FICCAO, ...RECEITAS_ERMOS, ...RECEITAS_MATA, ...RECEITAS_DA_PRACA, ...RECEITAS_DA_MANSAO, ...RECEITAS_PORTO, ...RECEITAS_ESTRADA, ...RECEITAS_CAVERNA, ...RECEITAS_FUNDO, ...RECEITAS_DE_PAREDE, ...RECEITAS_DE_ENFEITES];
 
 /** O catálogo de receitas. */
 export const RECEITAS: Readonly<Record<string, Receita>> = Object.fromEntries(lista.map(r => [r.id, r]));
