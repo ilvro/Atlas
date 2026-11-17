@@ -15,7 +15,7 @@ import { entradaDoComodo } from '../../src/render/entradas.ts';
 const partes = (id: string, params: Record<string, unknown> = {}, seed = 3): Parte[] => { const d = descreverReceita(id, { seed, params }); return d.tipo === 'piso' ? d.partes : [...d.face, ...d.topo]; };
 
 test('as receitas da praça existem, são de exterior e respeitam os limites dos campos', () => {
-  assert.deepEqual(RECEITAS_DA_PRACA.map(r => r.id), ['arquibancada', 'roseta-de-calcamento', 'arco-de-pedra', 'estatua-heroica', 'muralha-em-degraus', 'fosso-de-luz', 'casulo']);
+  assert.deepEqual(RECEITAS_DA_PRACA.map(r => r.id), ['arquibancada', 'roseta-de-calcamento', 'arco-de-pedra', 'estatua-heroica', 'muralha-em-degraus', 'fosso-de-luz', 'tablado', 'andaime', 'casulo']);
   for (const r of RECEITAS_DA_PRACA) { assert.equal(RECEITAS[r.id], r); assert.equal(r.categoria, 'exterior'); assert.ok(partes(r.id).length > 5, r.id); }
   assert.deepEqual(pegadaDaReceita('roseta-de-calcamento', { raio: 99 }), [18, 18]);
   assert.deepEqual(pegadaDaReceita('casulo', { tamanho: 3 }), [3, 3.75]);
@@ -110,4 +110,13 @@ test('o degrau do relevo que cruza um cômodo entra no assado do cômodo', () =>
   const e = entradaDoComodo(m, sala);
   assert.ok(e.degraus && e.degraus.length >= 1);
   assert.equal(e.degraus[0]!.desnivel, 0.6);
+});
+
+test('tablado, andaime e lajes escuras de salão existem e cabem na pegada', () => {
+  for (const [id, params] of [['tablado', { largura: 9 }], ['andaime', { comprimento: 10, largura: 3 }]] as const) {
+    const ps = partes(id, params), [w, h] = pegadaDaReceita(id, params);
+    assert.ok(ps.length > 20, id);
+    for (const p of ps) for (let i = 0; i < (p.pts?.length ?? 0); i += 2) { assert.ok(Math.abs(p.pts![i]!) <= w / 2 + 0.3, id); assert.ok(Math.abs(p.pts![i + 1]!) <= h / 2 + 0.3, id); }
+  }
+  assert.equal(MATERIAIS['lajes.escuras']!.uso, 'terreno');
 });

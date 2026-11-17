@@ -1,7 +1,7 @@
 import { elipse, poli, ret, type Parte } from '../descricao.ts';
 import { tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
-import { bolha, sombraNoChao } from '../organico.ts';
+import { bolha, sombraNoChao, tira } from '../organico.ts';
 import { num, piso, type Receita } from './comum.ts';
 
 /**
@@ -286,6 +286,65 @@ function fossoDeLuz(L: number, seed: number, cor: string): Parte[] {
   return partes.filter(p => p.alfa === undefined || p.alfa > 0.001);
 }
 
+/**
+ * Tablado de pedra (estrado de relicário, altar de ritual): moldura larga em chanfro descendo dos quatro lados como um
+ * tronco de pirâmide, quina clara em volta do topo e o piso de cima em lajes rachadas, com lascas soltas.
+ */
+function tablado(W: number, seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], h = W / 2, i = h * 0.8, cor = '#7d756a';
+  partes.push(ret(0.15, 0.2, W + 0.2, W + 0.2, '#000000', 0.03, { alfa: 0.5, contorno: false, semSombra: true, suave: true }));
+  // Faces do chanfro: a de cima e a da esquerda pegam luz (noroeste), as outras ficam na sombra.
+  const faces: [number[], number][] = [
+    [[-h, -h, h, -h, i, -i, -i, -i], 0.22], [[h, -h, h, h, i, i, i, -i], -0.42],
+    [[h, h, -h, h, -i, i, i, i], -0.5], [[-h, h, -h, -h, -i, -i, -i, i], 0.08],
+  ];
+  for (const [pts, k] of faces) {
+    partes.push(poli(pts, tom(cor, k), 0.3, { contorno: 'leve', semSombra: true, detalhe: 1 }));
+    // Juntas dos blocos ao longo de cada face.
+    const [x0, y0, x1, y1, x2, y2, x3, y3] = pts as [number, number, number, number, number, number, number, number], n = Math.max(3, Math.round(W / 0.9));
+    for (let k2 = 1; k2 < n; k2++) { const t = k2 / n; partes.push(tira([x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, x3 + (x2 - x3) * t, y3 + (y2 - y3) * t], 0.02, tom(cor, k - 0.35), 0.31, { contorno: false, semSombra: true, detalhe: 3 })); }
+  }
+  for (const [x, y] of [[-h, -h], [h, -h], [h, h], [-h, h]] as const) partes.push(tira([x, y, x * (i / h), y * (i / h)], 0.03, tom(cor, -0.5), 0.32, { contorno: false, semSombra: true, detalhe: 3 }));
+  // Piso de cima: lajes claras, rachadas, com quina clara em volta.
+  const n = Math.max(2, Math.round((i * 2) / 1.2)), l = (i * 2) / n;
+  for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) {
+    const x = -i + l * (a + 0.5), y = -i + l * (b + 0.5), c = tom('#a9a59c', (r() - 0.5) * 0.14);
+    partes.push(ret(x, y, l - 0.04, l - 0.04, c, 0.6, { contorno: false, semSombra: true, detalhe: 1 }));
+    if (r() < 0.65) { const ang = r() * Math.PI, len = l * (0.4 + r() * 0.5); partes.push(tira([x - Math.cos(ang) * len / 2, y - Math.sin(ang) * len / 2, x + (r() - 0.5) * 0.2, y + (r() - 0.5) * 0.2, x + Math.cos(ang) * len / 2, y + Math.sin(ang) * len / 2], 0.022, tom(c, -0.55), 0.61, { contorno: false, semSombra: true, detalhe: 3 })); }
+  }
+  partes.push(poli(setorRet(i + 0.06, i - 0.02), tom(cor, 0.35), 0.62, { contorno: false, semSombra: true, detalhe: 3 }));
+  for (let k = 0; k < Math.round(W * 2); k++) { const x = (r() - 0.5) * i * 1.8, y = (r() - 0.5) * i * 1.8; partes.push(poli(bolha(x, y, 0.05 + r() * 0.08, 0.04 + r() * 0.06, 6, 0.35, r), tom('#7c7870', (r() - 0.5) * 0.3), 0.65, { contorno: 'leve', sombraLeve: true, detalhe: 2 })); }
+  return partes;
+}
+/** Moldura quadrada (anel) entre os meios-lados `a` (fora) e `b` (dentro). */
+const setorRet = (a: number, b: number): number[] => [-a, -a, a, -a, a, a, -a, a, -a, -a, -b, -b, -b, b, b, b, b, -b, -b, -b];
+
+/** Andaime de obra: plataforma de tábuas grossas sobre caibros, postes nos cantos, rolos de corda e ferramentas largadas. */
+function andaime(L: number, P: number, seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], MAD = '#86603e';
+  partes.push(ret(0.1, 0.14, L + 0.1, P + 0.1, '#000000', 0.05, { alfa: 0.45, contorno: false, semSombra: true, suave: true }));
+  for (const y of [-P / 2 + 0.15, 0, P / 2 - 0.15]) partes.push(ret(0, y, L, 0.16, tom(MAD, -0.35), 0.7, { contorno: 'leve', detalhe: 1 }));
+  // Tábuas de través, largas e de tom variado, com uma ou outra faltando.
+  for (let x = -L / 2 + 0.02; x < L / 2 - 0.05;) {
+    const w = 0.24 + r() * 0.08;
+    if (r() > 0.06) {
+      const c = tom(MAD, (r() - 0.5) * 0.3 + 0.08);
+      partes.push(ret(x + w / 2, (r() - 0.5) * 0.06, w - 0.02, P - 0.04 + (r() - 0.5) * 0.12, c, 0.9, { dir: Math.PI / 2, contorno: 'leve', detalhe: 1 }));
+      partes.push(ret(x + w / 2 - w * 0.3, 0, 0.02, P - 0.1, tom(c, 0.3), 0.91, { contorno: false, semSombra: true, alfa: 0.6, detalhe: 3 }));
+      for (const y of [-P / 2 + 0.15, P / 2 - 0.15]) partes.push(elipse(x + w / 2, y, 0.03, 0.03, '#2a2a2a', 0.92, { contorno: false, semSombra: true, detalhe: 3 }));
+    }
+    x += w;
+  }
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) partes.push(ret(sx * (L / 2 - 0.12), sy * (P / 2 - 0.12), 0.22, 0.22, tom(MAD, -0.2), 1.6, { raio: 0.03, contorno: 'leve' }));
+  for (let k = 0; k < Math.max(1, Math.round(L / 3)); k++) {
+    const x = (r() - 0.5) * (L - 1), y = (r() - 0.5) * (P - 0.8), R = 0.3 + r() * 0.15;
+    for (let a = 0; a < 4; a++) partes.push(poli(setorDeAnel(x, y, R * (0.35 + a * 0.16), R * (0.45 + a * 0.16), 0, Math.PI * 2, 18), a % 2 ? '#b89a62' : '#9a7f4c', 1.0 + a * 0.001, { contorno: false, semSombra: a > 0, detalhe: 2 }));
+  }
+  for (let k = 0; k < Math.round(L / 2); k++) { const x = (r() - 0.5) * L * 0.9, y = (r() - 0.5) * P * 0.7; partes.push(poli(retG(x, y, 0.7, 0.07, r() * Math.PI), '#6a4a30', 0.98, { contorno: 'leve', detalhe: 2 }), elipse(x, y, 0.1, 0.06, '#5a5d63', 0.99, { contorno: 'leve', detalhe: 3 })); }
+  return partes;
+}
+function retG(x: number, y: number, w: number, h: number, a: number): number[] { const c = Math.cos(a), s = Math.sin(a); return [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]].flatMap(([u, v]) => [x + u! * c - v! * s, y + u! * s + v! * c]); }
+
 export const RECEITAS_DA_PRACA: Receita[] = [
   { id: 'arquibancada', nome: 'Arquibancada em arco', ...PRACA, tags: ['arquibancada', 'anfiteatro', 'degraus', 'pedra', 'ruina', 'arena'], pegada: [13.9, 6], altura: 2.4,
     campos: [
@@ -316,6 +375,12 @@ export const RECEITAS_DA_PRACA: Receita[] = [
   { id: 'fosso-de-luz', nome: 'Fosso de luz', ...PRACA, funcoes: ['ruina', 'salao', 'capela', 'porao', 'caverna'], tags: ['fosso', 'poco', 'luz', 'brilho', 'abertura', 'magia', 'relicario'], pegada: [2.4, 2.4], altura: 0.2,
     campos: [{ id: 'largura', rotulo: 'Largura (m)', tipo: 'numero', padrao: 2.4, min: 1.2, max: 6, passo: 0.2 }, { id: 'cor', rotulo: 'Cor do brilho (0 fria, 1 dourada, 2 verde, 3 rubra)', tipo: 'numero', padrao: 0, min: 0, max: 3, passo: 1 }],
     gerar: p => { const L = num(p, 'largura', 2.4, 1.2, 6); return piso([L, L], fossoDeLuz(L, p.seed, ['#cfe6ff', '#ffe2a0', '#c8ffb0', '#ff8a6a'][Math.round(num(p, 'cor', 0, 0, 3))]!)); } },
+  { id: 'tablado', nome: 'Tablado de pedra', ...PRACA, funcoes: ['ruina', 'salao', 'capela', 'caverna'], tags: ['tablado', 'estrado', 'altar', 'pedra', 'relicario', 'plataforma', 'ritual'], pegada: [8, 8], altura: 0.8,
+    campos: [{ id: 'largura', rotulo: 'Lado (m)', tipo: 'numero', padrao: 8, min: 3, max: 16, passo: 0.5 }],
+    gerar: p => { const W = num(p, 'largura', 8, 3, 16); return piso([W, W], tablado(W, p.seed)); } },
+  { id: 'andaime', nome: 'Andaime de tábuas', ...PRACA, funcoes: ['ruina', 'salao', 'caverna', 'oficina', 'porao'], tags: ['andaime', 'tabuas', 'plataforma', 'obra', 'madeira', 'corda', 'mina'], pegada: [6, 2.4], altura: 1.6,
+    campos: [{ id: 'comprimento', rotulo: 'Comprimento (m)', tipo: 'numero', padrao: 6, min: 2, max: 20, passo: 0.5 }, { id: 'largura', rotulo: 'Largura (m)', tipo: 'numero', padrao: 2.4, min: 1.2, max: 5, passo: 0.2 }],
+    gerar: p => { const L = num(p, 'comprimento', 6, 2, 20), P = num(p, 'largura', 2.4, 1.2, 5); return piso([L, P], andaime(L, P, p.seed)); } },
   { id: 'casulo', nome: 'Casulo', ...PRACA, funcoes: ['jardim', 'caverna', 'pantano'], kit: 'pantano', tags: ['casulo', 'ninho', 'ovo', 'monte', 'pantano', 'criatura', 'cupinzeiro'], pegada: [2, 2.5], altura: 1.6,
     campos: [{ id: 'tamanho', rotulo: 'Tamanho (m)', tipo: 'numero', padrao: 2, min: 0.8, max: 4, passo: 0.2 }],
     gerar: p => { const T = num(p, 'tamanho', 2, 0.8, 4); return piso([T, T * 1.25], casulo(T, p.seed)); } },
