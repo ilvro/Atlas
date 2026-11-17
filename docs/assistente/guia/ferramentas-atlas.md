@@ -256,6 +256,7 @@ Parâmetros de cada objeto:
 - `rotacao`: em radianos (opcional; sorteado pela semente se omitido).
 - `escala`: fator de escala (0.05 a 50, opcional).
 - `camada`: `'floor'` | `'table'` | `'wall'` | `'ceiling'` | `'underwater'` (opcional).
+- Objetos de parede (`quadro`, `retrato.oval`, `cortina.janela`, `arandela`, `espelho.grande`, `tapecaria`… ou qualquer item com `camada: 'wall'`) ficam presos à face do cômodo mais próxima de `pos`: aponte para um ponto a até ~1 m da parede, do lado de dentro do cômodo. Sem parede perto, a ferramenta recusa.
 - `submerso`: booleano (opcional; fica sob a água).
 - `oculto`: booleano (opcional; `true` esconde o objeto e suas luzes dos jogadores/projetor até ser mostrado por um momento).
 - `params`: objeto com parâmetros da receita (opcional).

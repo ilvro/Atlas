@@ -4,10 +4,10 @@ import { celulasDeVoronoi, type Consulta } from './voronoi.ts';
 import { ehPadraoDeCobertura, texturaDeCobertura, type PadraoDeCobertura } from './coberturas.ts';
 
 export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho' | 'paralelepipedo' | 'lajegrama' | 'sulcos' | 'molhada'
-  | 'palha-chao' | 'lajes-rusticas' | 'lajes-grandes' | 'chapa-xadrez' | 'grade-metal' | 'toras' | 'manchado' | 'painel' | 'acolchoado' | 'pisada' | 'placas' | PadraoDeCobertura;
+  | 'palha-chao' | 'lajes-rusticas' | 'lajes-grandes' | 'marchetaria' | 'chapa-xadrez' | 'grade-metal' | 'toras' | 'manchado' | 'painel' | 'acolchoado' | 'pisada' | 'placas' | PadraoDeCobertura;
 export interface Material {
   id: string; nome: string; /** Para onde o material vai: piso, papel de parede, objeto ou terreno. */ uso: 'piso' | 'papel' | 'objeto' | 'terreno' | 'macico' | 'agua' | 'telhado';
-  base: string; escuro: string; claro: string; padrao: Padrao; largura?: number; lado?: number; ouro?: string; borda?: string; meio?: string; /** Maciço: cor do topo (neve), onde a rocha passa de 70% da altura. */ topo?: string; /** Maciço e escarpa: quanto o pé da face escurece e quanto pesa a sombra de contato (0 a 1; ausente vale 1). */ pe?: number;
+  base: string; escuro: string; claro: string; padrao: Padrao; /** Tapete: qual desenho (1 medalhão, 2 floral, 3 cercaduras, 4 kilim, 5 oval); ausente sorteia pela semente. */ desenho?: number; largura?: number; lado?: number; ouro?: string; borda?: string; meio?: string; /** Maciço: cor do topo (neve), onde a rocha passa de 70% da altura. */ topo?: string; /** Maciço e escarpa: quanto o pé da face escurece e quanto pesa a sombra de contato (0 a 1; ausente vale 1). */ pe?: number;
   /** Água: cor perto da margem e no fundo, cor da espuma e quanto se enxerga o leito (0 a 1) no fundo. */ raso?: string; fundo?: string; espuma?: string; transparencia?: number; /** Água: rede de luz animada sobre o leito (cáusticas). */ causticas?: boolean; /** Água: quanto de espuma na margem e em volta dos objetos (0 a 1, padrão 1); água parada de gruta quase não tem. */ espumaForca?: number; /** Água: rebentação, cristas de onda brancas que correm para a margem (0 a 1; só o mar). */ ondas?: number;
   /** Telhado: o que cresce ou corrói na cobertura (musgo, ferrugem, azinhavre) e quanto dela cobre (0 a 1). */ mancha?: { cor: string; quanto: number };
 }
@@ -30,6 +30,8 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('carpete.cinza', 'Carpete cinza', 'piso', '#4d4f55', '#272830', '#6c6e76', 'trama'),
   m('parquet.espinha', 'Parquet em espinha de peixe', 'piso', '#8a5a34', '#4a2e18', '#c08a54', 'espinha'),
   m('marmore.branco', 'Mármore branco', 'piso', '#d4d2cb', '#8d8b84', '#efede6', 'marmore', { lado: 0.9 }),
+  m('marmore.incrustado', 'Mármore com incrustações', 'piso', '#d6cfbf', '#8a8273', '#f0eadc', 'marmore', { lado: 1.05, meio: '#2a282e' }),
+  m('tabuas.marchetadas', 'Assoalho marchetado', 'piso', '#4c3626', '#1f150d', '#7c5c40', 'marchetaria'),
   m('marmore.xadrez-diagonal', 'Mármore preto e branco em diagonal', 'piso', '#dcd8cf', '#25232a', '#f2eee4', 'losango', { lado: 0.5 }),
   m('hexagono.salvia', 'Hexágonos verde-sálvia', 'piso', '#8a9a7b', '#4a5642', '#b5c3a6', 'hexagono', { lado: 0.2 }),
   m('hexagono.terracota', 'Hexágonos de terracota', 'piso', '#b9653a', '#6b3018', '#d68c5e', 'hexagono', { lado: 0.2 }),
@@ -86,6 +88,9 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('tapete.persa', 'Tapete persa', 'objeto', '#7a1f24', '#1a2440', '#e6d3a8', 'persa', { borda: '#1a2440', meio: '#b2312e' }),
   m('tapete.verde', 'Tapete persa verde', 'objeto', '#2f4a32', '#14221a', '#d9c98e', 'persa', { borda: '#14221a', meio: '#4f7346' }),
   m('tapete.creme', 'Tapete persa creme', 'objeto', '#d9cdb2', '#2a2a3a', '#f1e8d2', 'persa', { borda: '#3d4f6e', meio: '#7d2a28' }),
+  m('tapete.marinho', 'Tapete marinho desbotado', 'objeto', '#2c3344', '#151922', '#d6c8aa', 'persa', { borda: '#3c4256', meio: '#9a8462' }),
+  m('tapete.areia', 'Tapete cor de areia', 'objeto', '#b9a27a', '#4a3a26', '#e4d6b4', 'persa', { borda: '#8c7048', meio: '#6e5a3e' }),
+  m('tapete.desbotado', 'Tapete rosado desbotado', 'objeto', '#d4c8ac', '#6a5c48', '#efe6d0', 'persa', { borda: '#b39b6c', meio: '#a87a70' }),
   m('tapete.azul', 'Tapete persa azul', 'objeto', '#24365a', '#141a2a', '#d8c08a', 'persa', { borda: '#6e1c22', meio: '#b98a3a' }),
   // Coberturas de telhado (o desenho de cada padrão está em coberturas.ts; a queda d'água aponta para +y)
   m('telha.barro', 'Telha de barro', 'telhado', '#a5553a', '#4a2014', '#d4845e', 'telha-canal'),
@@ -147,6 +152,9 @@ export const materialDe = (id: string): Material => {
     const hex = raw.startsWith('#') ? raw : `#${raw}`;
     return { id, nome: 'Grama personalizada', uso: 'terreno', base: hex, escuro: tom(hex, -0.45), claro: tom(hex, 0.35), padrao: 'grama' };
   }
+  // `tapete.persa@3`: o mesmo material com um desenho escolhido.
+  const arroba = id.indexOf('@');
+  if (arroba > 0) { const base = MATERIAIS[id.slice(0, arroba)]; const d = Number(id.slice(arroba + 1)); if (base) return Number.isFinite(d) && d > 0 ? { ...base, id, desenho: Math.round(d) } : base; }
   return MATERIAIS[id] ?? MATERIAIS['pedra.escura']!;
 };
 export const materiaisDo = (uso: Material['uso']): Material[] => Object.values(MATERIAIS).filter(x => x.uso === uso);
@@ -241,28 +249,9 @@ export function pintarMaterial(ctx: Contexto, id: string, area: Area, seed = 1, 
       for (let y = A.y; y < A.y + A.h; y += 0.025) { ctx.globalAlpha = 0.15 + r() * 0.25; ctx.beginPath(); ctx.moveTo(A.x, y); for (let x = A.x; x < A.x + A.w; x += 0.15) ctx.lineTo(x, y + Math.sin(x * 3 + y * 9) * 0.008); ctx.stroke(); }
       ctx.globalAlpha = 1; camadaDeRuido(ctx, A, seed, 1.5, 0.3); break;
     }
-    case 'espinha': {
-      // Espinha de peixe: tábuas 2:1 em degraus (horizontal onde i+j é par, vertical onde é ímpar), com o conjunto girado 45°.
-      const u = 0.13, cx = A.x + A.w / 2, cy = A.y + A.h / 2, n = Math.ceil(diag / u / 2) + 2;
-      ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.PI / 4);
-      for (let j = -n; j < n; j++) for (let i = -n; i < n; i++) {
-        const h = (i + j) % 2 === 0, x = i * u, y = j * u, w = h ? 2 * u : u, l = h ? u : 2 * u;
-        ctx.fillStyle = misturar(mat.escuro, mat.claro, 0.3 + r() * 0.5); ctx.fillRect(x + 0.004, y + 0.004, w - 0.008, l - 0.008);
-        ctx.globalAlpha = 0.25; ctx.fillStyle = mat.escuro; ctx.fillRect(x + (h ? 0 : u * 0.25), y + (h ? u * 0.25 : 0), h ? w : 0.006, h ? 0.006 : l); ctx.globalAlpha = 1;
-      }
-      ctx.restore(); camadaDeRuido(ctx, A, seed, 2.5, 0.3); break;
-    }
-    case 'marmore': {
-      // Lajes grandes de mármore com veios e juntas finas.
-      const l = mat.lado ?? 0.8;
-      for (let y = Math.floor(A.y / l) * l; y < A.y + A.h; y += l) for (let x = Math.floor(A.x / l) * l; x < A.x + A.w; x += l) {
-        ctx.fillStyle = misturar(mat.base, mat.claro, r() * 0.6); ctx.fillRect(x + 0.008, y + 0.008, l - 0.016, l - 0.016);
-        ctx.strokeStyle = mat.escuro; ctx.lineWidth = 0.006;
-        for (let v = 0; v < 3; v++) { ctx.globalAlpha = 0.2 + r() * 0.3; ctx.beginPath(); ctx.moveTo(x + r() * l, y); ctx.bezierCurveTo(x + r() * l, y + l * 0.3, x + r() * l, y + l * 0.6, x + r() * l, y + l); ctx.stroke(); }
-        ctx.globalAlpha = 1;
-      }
-      camadaDeRuido(ctx, A, seed, 1.6, 0.25, 'soft-light', 6); break;
-    }
+    case 'espinha': pintarEspinha(ctx, mat, A, seed, pxDe(ctx)); break;
+    case 'marmore': pintarMarmore(ctx, mat, A, seed, pxDe(ctx)); break;
+    case 'marchetaria': pintarMarchetaria(ctx, mat, A, seed, pxDe(ctx)); break;
     case 'losango': {
       // Xadrez em diagonal (mármore preto e branco).
       const l = mat.lado ?? 0.5, cx = A.x + A.w / 2, cy = A.y + A.h / 2, n = Math.ceil(diag / l / 2) + 2;
@@ -531,6 +520,78 @@ function pintarParalelepipedo(ctx: Contexto, mat: Material, A: Area, seed: numbe
 }
 
 /**
+ * Mármore em placas (`lado`, padrão 0,8 m): tom próprio por placa, veios finos e contínuos que atravessam as juntas (com
+ * deslocamento por placa), veios largos e esfumados, brilho de polimento em diagonal, bisel e junta escura. Com `meio`,
+ * um losango incrustado no cruzamento das juntas (o piso de biblioteca e hall de casarão).
+ */
+function pintarMarmore(ctx: Contexto, mat: Material, A: Area, seed: number, px: number): void {
+  const rn = valueNoise2D(seed * 53 + 11), rv = valueNoise2D(seed * 59 + 7), E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), L = mat.lado ?? 0.8, gw = 0.008;
+  const I = mat.meio ? rgbHex(mat.meio) : null, ri = L * 0.14;
+  porPixel(ctx, A, (x, y, o) => {
+    const i = Math.floor(x / L), j = Math.floor(y / L), lx = x - i * L, ly = y - j * L, d = Math.min(lx, ly, L - lx, L - ly);
+    // Losango incrustado no cruzamento das juntas.
+    if (I) {
+      const cx = Math.round(x / L) * L, cy = Math.round(y / L) * L, dl = Math.abs(x - cx) + Math.abs(y - cy);
+      if (dl < ri) { const k = dl > ri - 0.012 ? 0.75 : 1 + (fbm(rn, x * 9, y * 9, 2) - 0.5) * 0.25 - (dl / ri) * 0.15; tomDe(o, I, k); return; }
+    }
+    if (d < gw) { mez(o, E, B, 0.35); return; }
+    let t = 0.55 + (hash2D(i, j, seed + 3) - 0.5) * 0.22 + (fbm(rn, x * 1.4, y * 1.4, 4) - 0.5) * 0.25;
+    t += (1 - passo(gw, gw + 0.03, d)) * (lx + ly < (L - lx) + (L - ly) ? 0.12 : -0.12);
+    t += (fbm(rn, (x + y) * 0.35, (x - y) * 0.9, 2) - 0.5) * 0.12;      // brilho de polimento
+    if (t < 0.5) mez(o, E, B, Math.max(0, t) * 2); else mez(o, B, C, Math.min(1, (t - 0.5) * 2));
+    // Veios: finos e nítidos, mais uns largos e apagados; cada placa desloca um pouco o desenho.
+    const ox = hash2D(i, j, seed + 9) * 3, oy = hash2D(i, j, seed + 11) * 3;
+    const fino = Math.abs(fbm(rv, x * 0.9 + ox, y * 0.55 + oy, 5) - 0.5), largo = Math.abs(fbm(rv, x * 0.4 + 40 + ox, y * 0.3 + oy, 4) - 0.5);
+    if (fino < 0.008) rumo(o, E, 0.5 * (1 - fino / 0.008));
+    if (largo < 0.05) rumo(o, E, 0.16 * (1 - largo / 0.05));
+    if (hash2D(Math.floor(x / px), Math.floor(y / px), seed) > 0.995) rumo(o, C, 0.5);
+  });
+}
+
+/**
+ * Taco em ponto húngaro (espinha de peixe vista de cima): colunas de tacos inclinados, alternando o sentido a cada coluna,
+ * cada taco com tom próprio, veio no comprimento, junta escura e um pouco de desgaste no meio do cômodo.
+ */
+function pintarEspinha(ctx: Contexto, mat: Material, A: Area, seed: number, px: number): void {
+  const rn = valueNoise2D(seed * 61 + 5), E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), W = 0.56, P = 0.14, gw = 0.008;
+  porPixel(ctx, A, (x, y, o) => {
+    const c = Math.floor(x / W), xl = x - c * W, par = (c & 1) === 0, t = y + (par ? xl : W - xl), id = Math.floor(t / P), ft = t - id * P;
+    const sx = par ? xl - y : xl + y;      // eixo ao longo do taco, para o veio
+    if (xl < gw || ft < gw * 1.4) { mez(o, E, B, 0.2); return; }
+    let k = 0.35 + hash2D(c, id, seed + 4) * 0.4 + (fbm(rn, sx * 6 + c * 3.1, ft * 40 + id, 2) - 0.5) * 0.25;
+    k += (hash2D(Math.floor(sx * 30), id + c * 97, seed) - 0.5) * 0.06;
+    if (ft > P - 0.02) k -= 0.12; else if (ft < 0.025) k += 0.08;
+    if (k < 0.5) mez(o, E, B, Math.max(0, k) * 2); else mez(o, B, C, Math.min(1, (k - 0.5) * 2));
+    rumo(o, C, passo(0.62, 0.85, fbm(rn, x * 0.25 + 8, y * 0.25, 3)) * 0.18);
+    if (hash2D(Math.floor(x / px), Math.floor(y / px), 7) > 0.997) rumo(o, E, 0.4);
+  });
+}
+
+/**
+ * Assoalho largo marchetado: tábuas de 0,24 m com emendas desencontradas, veio e tom por tábua, e de tanto em tanto uma
+ * faixa de marchetaria em losangos de madeira clara (o piso de quarto de casarão).
+ */
+function pintarMarchetaria(ctx: Contexto, mat: Material, A: Area, seed: number, px: number): void {
+  const rn = valueNoise2D(seed * 67 + 3), E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), T = 0.24, faixa = 2.6, hf = 0.3, gw = 0.008;
+  porPixel(ctx, A, (x, y, o) => {
+    const fy = ((y % faixa) + faixa) % faixa;
+    if (fy < hf) {
+      // Faixa de marchetaria: losangos claros com filete escuro, sobre madeira escura.
+      const u = ((x / hf) % 1 + 1) % 1, v = fy / hf, dl = Math.abs(u - 0.5) + Math.abs(v - 0.5);
+      if (fy < 0.02 || fy > hf - 0.02) { mez(o, E, B, 0.15); return; }
+      if (dl < 0.42) { mez(o, B, C, 0.6 + (fbm(rn, x * 20, y * 20, 2) - 0.5) * 0.3); if (dl > 0.38) rumo(o, E, 0.6); return; }
+      mez(o, E, B, 0.35 + (fbm(rn, x * 12, y * 12, 2) - 0.5) * 0.3); return;
+    }
+    const i = Math.floor(x / T), lx = x - i * T, L = 1.6 + hash2D(i, 3, seed) * 1.6, off = hash2D(i, 5, seed) * L, j = Math.floor((y + off) / L), ly = y + off - j * L;
+    if (lx < gw || ly < gw * 1.2) { mez(o, E, B, 0.12); return; }
+    let k = 0.3 + hash2D(i, j, seed + 2) * 0.38 + (fbm(rn, lx * 30 + i * 7, y * 2.2, 3) - 0.5) * 0.3 + (fbm(rn, x * 0.6, y * 0.6, 2) - 0.5) * 0.15;
+    if (lx < 0.02) k += 0.06; else if (lx > T - 0.02) k -= 0.08;
+    if (k < 0.5) mez(o, E, B, Math.max(0, k) * 2); else mez(o, B, C, Math.min(1, (k - 0.5) * 2));
+    if (hash2D(Math.floor(x / px), Math.floor(y / px), 9) > 0.997) rumo(o, E, 0.4);
+  });
+}
+
+/**
  * Lajes grandes de piso (fiadas de `lado` m, padrão 0,9, comprimentos de 0,9 a 1,8 m desencontrados): cada laje com tom
  * próprio, bisel claro a noroeste e escuro a sudeste, desgaste no meio, rachaduras finas, cantos lascados e junta escura.
  */
@@ -631,42 +692,72 @@ function pintarAreiaMolhada(ctx: Contexto, mat: Material, A: Area, seed: number,
 }
 
 /**
- * Tapete persa pintado pixel a pixel, com simetria espelhada nos dois eixos: guarda externa, cercadura larga com rosetas e
- * gavinha, guarda interna, campo com treliça miúda, cantoneiras e o medalhão central lobado com pingentes no eixo longo.
- * Cores do material: `base` (campo), `borda` (cercadura e cantoneiras), `meio` (medalhão), `claro` e `escuro` (filetes).
+ * Tapete persa pintado pixel a pixel, com simetria espelhada nos dois eixos e cinco desenhos (`mat.desenho`, ou sorteado
+ * pela semente): 1 medalhão central com cantoneiras; 2 floral, palmetas e flores espalhadas no campo; 3 cercaduras
+ * concêntricas com o campo manchado (abrash); 4 kilim, losangos em degraus; 5 oval, com a cercadura seguindo a elipse.
+ * As cores do material são apagadas um pouco e o pelo ganha desgaste e sujeira, como tapete velho de casarão.
  */
 function pintarPersa(ctx: Contexto, mat: Material, a: Area, r: () => number): void {
-  const seed = Math.floor(r() * 1e6), rn = valueNoise2D(seed * 17 + 3);
-  const F = rgbHex(mat.base), B = rgbHex(mat.borda ?? mat.escuro), M = rgbHex(mat.meio ?? mat.claro), C = rgbHex(mat.claro), E = rgbHex(mat.escuro);
-  const cx = a.x + a.w / 2, cy = a.y + a.h / 2, hw = a.w / 2, hh = a.h / 2, s = Math.min(a.w, a.h);
-  const g1 = s * 0.022, g2 = s * 0.048, b = s * 0.15, g3 = b + s * 0.025;
+  const seed = Math.floor(r() * 1e6), rn = valueNoise2D(seed * 17 + 3), desenho = mat.desenho ?? 1 + Math.floor(hash2D(seed, 7, 3) * 4);
+  const apagar = (c: Cor3): Cor3 => { const l = c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11; return [c[0] + (l - c[0]) * 0.22 + 4, c[1] + (l - c[1]) * 0.22 + 2, c[2] + (l - c[2]) * 0.22]; };
+  const F = apagar(rgbHex(mat.base)), B = apagar(rgbHex(mat.borda ?? mat.escuro)), M = apagar(rgbHex(mat.meio ?? mat.claro)), C = apagar(rgbHex(mat.claro)), E = apagar(rgbHex(mat.escuro));
+  const cx = a.x + a.w / 2, cy = a.y + a.h / 2, hw = a.w / 2, hh = a.h / 2, s = Math.min(a.w, a.h), oval = desenho === 5;
+  const g1 = s * 0.02, g2 = s * 0.045, b = s * (desenho === 2 ? 0.1 : desenho === 3 ? 0.06 : 0.14), g3 = b + s * 0.022;
   const fw = hw - g3, fh = hh - g3, horizontal = a.w >= a.h, mx = fw * (horizontal ? 0.42 : 0.7), my = fh * (horizontal ? 0.7 : 0.42);
   const P = s * 0.1, q = s * 0.075;
   porPixel(ctx, a, (x, y, o) => {
-    const u = Math.abs(x - cx), v = Math.abs(y - cy), eu = hw - u, ev = hh - v, e = Math.min(eu, ev);
-    const t = eu < ev ? y - a.y : x - a.x;         // coordenada ao longo da borda mais próxima
+    const dx = x - cx, dy = y - cy, u = Math.abs(dx), v = Math.abs(dy);
+    let e: number, t: number;
+    if (oval) { const k = Math.hypot(dx / hw, dy / hh); if (k > 1) { o[3] = 0; return; } e = (1 - k) * s / 2; t = Math.atan2(dy / hh, dx / hw) * (hw + hh) / 2; }
+    else { const eu = hw - u, ev = hh - v; e = Math.min(eu, ev); t = eu < ev ? y - a.y : x - a.x; }
     let cor: Cor3 = F;
     if (e < g1) cor = E;
     else if (e < g2) { const k = ((t / (s * 0.035)) % 1 + 1) % 1; cor = Math.abs(k - 0.5) < 0.18 && Math.abs(e - (g1 + g2) / 2) < s * 0.008 ? M : C; }
     else if (e < b) {
-      // Cercadura: rosetas espaçadas e uma gavinha ondulada entre elas.
       const meio = (g2 + b) / 2, k = ((t / P) % 1 + 1) % 1, du = (k - 0.5) * P, dv = e - meio, d = Math.hypot(du, dv), rr = (b - g2) * 0.36;
-      const gav = Math.abs(dv - Math.sin((t / P) * Math.PI * 2) * (b - g2) * 0.22) < s * 0.006;
-      if (d < rr) { const th = Math.atan2(dv, du), petala = d < rr * (0.7 + 0.3 * Math.cos(th * 6)); cor = d < rr * 0.28 ? C : petala ? M : B; }
-      else cor = gav ? C : B;
+      if (desenho === 4) { const z = Math.abs(((t / (P * 0.5)) % 1 + 1) % 1 - 0.5) * 2; cor = Math.abs(dv) < (b - g2) * 0.32 * z ? M : B; }
+      else if (desenho === 3) cor = Math.abs(dv) < (b - g2) * 0.12 ? M : B;
+      else {
+        const gav = Math.abs(dv - Math.sin((t / P) * Math.PI * 2) * (b - g2) * 0.22) < s * 0.006;
+        if (d < rr) { const th = Math.atan2(dv, du), petala = d < rr * (0.7 + 0.3 * Math.cos(th * 6)); cor = d < rr * 0.28 ? C : petala ? M : B; } else cor = gav ? C : B;
+      }
       if (Math.abs(e - g2) < s * 0.005 || Math.abs(e - b) < s * 0.005) cor = E;
     } else if (e < g3) cor = Math.abs(e - (b + g3) / 2) < s * 0.006 ? M : C;
-    else {
-      // Campo: treliça de losangos miúdos e flores nos nós.
-      const fu = ((x - cx) / q % 1 + 1) % 1, fv = ((y - cy) / q % 1 + 1) % 1, los = Math.abs(fu - 0.5) + Math.abs(fv - 0.5);
+    else if (desenho === 2 || desenho === 5) {
+      // Floral: palmetas em grade desencontrada, cada uma girada, e gavinhas finas ligando.
+      const cel = s * (oval ? 0.16 : 0.2), gi = Math.floor(x / cel), gj = Math.floor(y / cel), ox = (gj & 1) * cel * 0.5;
+      const ci = Math.floor((x - ox) / cel), px0 = ci * cel + ox + cel / 2 + (hash2D(ci, gj, seed) - 0.5) * cel * 0.2, py0 = gj * cel + cel / 2;
+      const ddx = x - px0, ddy = y - py0, d = Math.hypot(ddx, ddy) / (cel * 0.42), th = Math.atan2(ddy, ddx) + hash2D(ci, gj, seed + 1) * 6.28, tipo = hash2D(ci, gj, seed + 2);
+      void gi;
       cor = F;
-      if (Math.abs(los - 0.5) < 0.05) cor = mixC(F, E, 0.45);
-      else if (los < 0.14) cor = mixC(F, C, 0.55);
-      // Cantoneiras: quarto de medalhão em cada canto do campo.
+      if (Math.abs(Math.sin(x / cel * 3.1) + Math.sin(y / cel * 2.3) * 0.8) < 0.05) cor = mixC(F, C, 0.35);
+      if (tipo < 0.55) { const rr = 0.55 + 0.45 * Math.abs(Math.cos(th * (tipo < 0.3 ? 2.5 : 3))); if (d < rr) cor = d < 0.22 ? M : d < rr * 0.8 ? C : mixC(C, F, 0.4); }
+      else if (tipo < 0.85) { const rr = 0.5 * (0.6 + 0.4 * Math.cos(th * 5)); if (d < rr) cor = d < 0.15 ? B : M; }
+      else if (d < 0.18) cor = C;
+      if (oval) { const k = Math.hypot(dx / (fw * 0.45), dy / (fh * 0.45)); if (k < 1) cor = k > 0.9 ? B : k > 0.8 ? C : cor === F ? mixC(F, C, 0.25) : cor; }
+    } else if (desenho === 3) {
+      // Campo manchado e duas cercaduras finas internas; flores tom sobre tom bem apagadas.
+      const abrash = (fbm(rn, x * 0.3, y * 1.2, 3) - 0.5) * 0.25;
+      cor = mixC(F, abrash > 0 ? C : E, Math.abs(abrash));
+      const eIn = Math.min(fw - u, fh - v);
+      if (Math.abs(eIn - s * 0.08) < s * 0.006 || Math.abs(eIn - s * 0.16) < s * 0.004) cor = B;
+      const fu = ((dx / q) % 1 + 1) % 1, fv = ((dy / q) % 1 + 1) % 1;
+      if (Math.hypot(fu - 0.5, fv - 0.5) < 0.12) cor = mixC(cor, M, 0.35);
+    } else if (desenho === 4) {
+      // Kilim: faixas de losangos em degraus, com miolo de outra cor.
+      const faixa = s * 0.22, k = ((dy / faixa) % 1 + 1) % 1, linha = Math.floor(dy / faixa), w = s * 0.11;
+      const pxs = Math.floor(dx / (s * 0.02)) * (s * 0.02), xx = ((pxs / (w * 2)) % 1 + 1) % 1, dd = Math.abs(xx - 0.5) * 2 + Math.abs(k - 0.5) * 2;
+      const pal = [B, M, C][((linha % 3) + 3) % 3]!;
+      cor = F;
+      if (dd < 0.95) cor = dd < 0.45 ? (dd < 0.2 ? E : C) : pal;
+      if (Math.abs(k - 0.02) < 0.02) cor = E;
+    } else {
+      // Medalhão: treliça miúda, cantoneiras, medalhão lobado e pingentes.
+      const fu = ((dx / q) % 1 + 1) % 1, fv = ((dy / q) % 1 + 1) % 1, los = Math.abs(fu - 0.5) + Math.abs(fv - 0.5);
+      if (Math.abs(los - 0.5) < 0.05) cor = mixC(F, E, 0.45); else if (los < 0.14) cor = mixC(F, C, 0.55);
       const dc = Math.hypot((fw - u) / (mx * 0.62), (fh - v) / (my * 0.62));
       if (dc < 1) cor = dc > 0.86 ? E : dc > 0.74 ? C : (Math.cos(Math.atan2(fh - v, fw - u) * 8) > 0.4 && dc > 0.4 ? M : B);
-      // Medalhão lobado e pingentes no eixo longo.
-      const du = (x - cx) / mx, dv = (y - cy) / my, d = Math.hypot(du, dv), th = Math.atan2(dv, du), rr = 1 + 0.09 * Math.cos(th * 8);
+      const du = dx / mx, dv = dy / my, d = Math.hypot(du, dv), th = Math.atan2(dv, du), rr = 1 + 0.09 * Math.cos(th * 8);
       const longo = horizontal ? Math.abs(du) : Math.abs(dv), curto = horizontal ? Math.abs(dv) : Math.abs(du);
       if (Math.abs(longo - 1.3) / 0.22 + curto / 0.16 < 1) cor = Math.abs(longo - 1.3) / 0.22 + curto / 0.16 > 0.75 ? E : C;
       if (d < rr) {
@@ -675,11 +766,13 @@ function pintarPersa(ctx: Contexto, mat: Material, a: Area, r: () => number): vo
         else if (n > 0.26) cor = Math.cos(th * 8 + Math.PI / 8) > 0.35 ? C : M; else cor = n < 0.1 ? C : n < 0.14 ? E : M;
       }
     }
-    // Pelo do tapete, desgaste e sujeira suaves.
-    const grao = (hash2D(Math.floor(x * 140), Math.floor(y * 140), seed) - 0.5) * 0.08, gasto = (fbm(rn, x * 0.8, y * 0.8, 3) - 0.5) * 0.18;
-    const k = 1 + grao + gasto * 0.6;
-    o[0] = Math.max(0, Math.min(255, cor[0] * k)); o[1] = Math.max(0, Math.min(255, cor[1] * k)); o[2] = Math.max(0, Math.min(255, cor[2] * k));
+    // Pelo do tapete, desgaste no meio (por onde se anda) e sujeira nas bordas.
+    const grao = (hash2D(Math.floor(x * 140), Math.floor(y * 140), seed) - 0.5) * 0.09, gasto = (fbm(rn, x * 0.8, y * 0.8, 3) - 0.5) * 0.22;
+    const centro = 1 - Math.min(1, Math.hypot(dx / hw, dy / hh)), k = 1 + grao + gasto * 0.7 + centro * 0.05;
+    const desbota = passo(0.55, 0.8, fbm(rn, x * 0.5 + 30, y * 0.5, 3)) * 0.18;
+    o[0] = Math.max(0, Math.min(255, (cor[0] + (200 - cor[0]) * desbota) * k)); o[1] = Math.max(0, Math.min(255, (cor[1] + (190 - cor[1]) * desbota) * k)); o[2] = Math.max(0, Math.min(255, (cor[2] + (170 - cor[2]) * desbota) * k));
   });
+  if (oval) return;
   // Franja nas pontas do eixo longo.
   ctx.strokeStyle = mat.claro; ctx.lineWidth = 0.012; ctx.globalAlpha = 0.85;
   if (horizontal) { for (let y = a.y + 0.03; y < a.y + a.h; y += 0.045) for (const x of [a.x, a.x + a.w]) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (x === a.x ? -0.1 : 0.1), y + (r() - 0.5) * 0.025); ctx.stroke(); } }

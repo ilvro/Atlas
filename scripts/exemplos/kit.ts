@@ -30,7 +30,7 @@ import { aplicarEmCopia, type Construcao, type GeradorDeId } from '../../src/aut
 import { atualizarEscarpasDoMacico } from '../../src/domain/contorno.ts';
 import { ceuNoHorario } from '../../src/domain/clima.ts';
 import { novaLuz, novaPeca, novoObjeto } from '../../src/domain/fabrica.ts';
-import { PAREDE_PADRAO, atualizarSalasDosObjetos, encaixarNaParede, motivoDeNaoCaber, recalcularParedes } from '../../src/domain/geometria.ts';
+import { PAREDE_PADRAO, atualizarSalasDosObjetos, encaixarNaParede, encaixarObjetoDeParede, motivoDeNaoCaber, recalcularParedes } from '../../src/domain/geometria.ts';
 import { criarMapa, type Abertura, type Acabamento, type Comodo, type Estilo, type Fundo, type MapaAtlas, type Objeto, type Parede, type Peca, type Ponto, type Regiao, type Tempo } from '../../src/domain/mapa.ts';
 import { camposDoPreset, presetDeAcabamento, presetDeClima, presetDeLuz, pincelDePresenca, tipoDeComodo, TIPOS_DE_COMODO } from '../../src/domain/presets.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
@@ -164,12 +164,21 @@ export class Kit {
     if (!info) throw new Error(`Kit: item desconhecido “${item}”.`);
     const { params, ...resto } = extra;
     const submerso = info.submerso ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : {};
+    // Objeto de parede: preso à face do cômodo mais perto de `pos` (do lado de dentro), no andar pedido.
+    let naParede = {};
+    if (info.tipo === 'parede') {
+      const largura = typeof params?.largura === 'number' ? params.largura : info.pegada[0];
+      const enc = encaixarObjetoDeParede(this.m, [pos[0], pos[1]], largura, false, resto.levelId ?? null);
+      if (!enc) throw new Error(`Kit: “${item}” é de parede e não há face de cômodo perto de [${pos}].`);
+      naParede = { position: [enc.ponto[0], enc.ponto[1]] as Ponto, elevation: 'wall' as const, wall: { wallId: enc.parede.id, at: enc.at, face: 'inner' as const }, roomId: enc.roomId, blocks: { move: false, sight: false }, castsShadow: false, rotation: 0 };
+    }
     const o = novoObjeto([pos[0], pos[1]], {
       id: this.id('o'),
       source: ACERVO.fonte(item, Math.floor(this.rng() * 2 ** 31), params),
       rotation: this.rng() * Math.PI * 2,
       ...submerso,
       ...resto,
+      ...naParede,
     });
     this.m.props[o.id] = o; return o.id;
   }

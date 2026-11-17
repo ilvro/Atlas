@@ -37,3 +37,23 @@ test('tapetes persas novos e o capitonê com botões', () => {
   for (const id of ['tapete.creme', 'tapete.azul']) assert.equal(MATERIAIS[id]!.padrao, 'persa');
   assert.ok(partes('sofa.capitone').filter(p => p.forma === 'elipse' && p.w! < 0.06).length >= 8);
 });
+
+test('tapete com desenho escolhido por @N, cinco desenhos, oval e paletas apagadas', async () => {
+  const { materialDe } = await import('../../src/procedural/materiais.ts');
+  assert.equal(materialDe('tapete.persa@3').desenho, 3);
+  assert.equal(materialDe('tapete.persa@3').base, MATERIAIS['tapete.persa']!.base);
+  assert.equal(materialDe('tapete.persa').desenho, undefined);
+  for (const id of ['tapete.marinho', 'tapete.areia', 'tapete.desbotado']) assert.equal(MATERIAIS[id]!.padrao, 'persa');
+  const ps = partes('tapete.persa', { desenho: 4 });
+  assert.equal(ps[0]!.mat, 'tapete.persa@4');
+  assert.equal(partes('tapete.persa')[0]!.mat, 'tapete.persa', 'sem desenho, a semente sorteia');
+  const oval = partes('tapete.oval');
+  assert.equal(oval[0]!.forma, 'elipse'); assert.ok(oval[0]!.mat.endsWith('@5'));
+});
+
+test('pisos de casarão: mármore com incrustação, espinha e assoalho marchetado', () => {
+  assert.equal(MATERIAIS['marmore.incrustado']!.padrao, 'marmore');
+  assert.ok(MATERIAIS['marmore.incrustado']!.meio);
+  assert.equal(MATERIAIS['tabuas.marchetadas']!.padrao, 'marchetaria');
+  assert.equal(MATERIAIS['parquet.espinha']!.padrao, 'espinha');
+});

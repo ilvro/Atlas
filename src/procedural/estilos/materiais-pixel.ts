@@ -344,6 +344,7 @@ const PINTORES: Record<Padrao, (p: P) => void> = {
   },
   xadrez: p => quadros(p, p.m.lado ?? 0.4, (i, j) => ((i + j) % 2 === 0 ? p.t.E : p.t.C)),
   laje: p => fileiras(p, () => 0.42 + p.r() * 0.2, () => 0.5 + p.r() * 0.8, () => [p.t.B, p.t.c1, p.t.c2][Math.floor(p.r() * 3)]!, p.t.e1),
+  marchetaria: p => fileiras(p, () => 0.24, () => 1.6 + p.r() * 1.6, () => [p.t.B, p.t.c1, p.t.e1][Math.floor(p.r() * 3)]!, p.t.E),
   'lajes-grandes': p => fileiras(p, () => 0.85 + p.r() * 0.1, () => 0.9 + p.r() * 0.9, () => [p.t.B, p.t.c1, p.t.c2, p.t.e1][Math.floor(p.r() * 4)]!, p.t.E),
   damasco: p => ladrilhar(p, ladrilho(chaveDe(p, 'damasco'), 8, 10, [p.t.C, p.t.e1], (idx, w) => {
     for (const [ox, oy] of [[1, 0], [5, 5]] as const) { idx[oy * w + ox] = 0; idx[(oy + 1) * w + ox] = 0; for (const d of [-1, 0, 1]) idx[(oy + 1) * w + ox + d] = 0; idx[(oy + 2) * w + ox] = 0; idx[(oy + 1) * w + ox + (ox === 1 ? 3 : -3)] = 1; }
