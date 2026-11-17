@@ -11,7 +11,7 @@ import { mapaDoAndar } from '../domain/andares.ts';
 import { codificar } from '../domain/celulas.ts';
 import { novaLuz, novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
 import { AREA_MINIMA_CONTORNO, areaDoPoligono, celulasDoContorno, circulo, ehPoligonoSimples, normalizarContorno } from '../domain/formas-de-comodo.ts';
-import { PAREDE_PADRAO, encaixarNaParede, motivoDeNaoCaber } from '../domain/geometria.ts';
+import { PAREDE_PADRAO, encaixarNaParede, encaixarObjetoDeParede, motivoDeNaoCaber } from '../domain/geometria.ts';
 import {
   CUMEEIRAS_DE_TELHADO,
   DETALHES_DE_TELHADO,
@@ -308,7 +308,6 @@ function itemInvalido(item: string): ErroDeConstrucao {
 
 /** Objetos do acervo (receita ou `casa:<nome>`) em posições em metros. Sem `rotacao`, sorteia pela semente. */
 export function objetos(mapa: MapaAtlas, pedidos: readonly PedidoDeObjeto[], semente = 1, gerarId: GeradorDeId = novoIdEntidade): Construcao {
-  void mapa;
   const rng = mulberry32(Math.floor(semente) || 1), comandos: Comando[] = [], ids: string[] = [];
   for (const p of pedidos) {
     const info = ACERVO.item(p.item); if (!info) throw itemInvalido(p.item);
@@ -326,12 +325,21 @@ export function objetos(mapa: MapaAtlas, pedidos: readonly PedidoDeObjeto[], sem
         ...(p.escada.posicao ? { toPosition: [p.escada.posicao[0], p.escada.posicao[1]] as Ponto } : {}),
       },
     } : {};
+    // Objeto de parede (quadro, cortina, arandela…): preso à face do cômodo mais próxima, como faz o editor; sem parede perto, erro claro.
+    let naParede = {};
+    if (info.tipo === 'parede' || p.camada === 'wall') {
+      const largura = typeof p.params?.largura === 'number' ? p.params.largura : info.pegada[0];
+      const enc = encaixarObjetoDeParede(mapa, [p.pos[0], p.pos[1]], largura, false, p.andar ?? null);
+      if (!enc) throw new ErroDeConstrucao(`“${p.item}” é de parede e precisa de uma parede de cômodo a até ~1 m de [${p.pos[0]}, ${p.pos[1]}], com o ponto do lado de dentro do cômodo`);
+      naParede = { position: [enc.ponto[0], enc.ponto[1]] as Ponto, elevation: 'wall' as const, wall: { wallId: enc.parede.id, at: enc.at, face: 'inner' as const }, roomId: enc.roomId, blocks: { move: false, sight: false }, castsShadow: false, rotation: 0 };
+    }
     const o = novoObjeto([p.pos[0], p.pos[1]], {
       id: gerarId('o'), source: ACERVO.fonte(p.item, seed, p.params), rotation, ...submerso,
       ...(p.escala !== undefined ? { scale: p.escala } : {}), ...(p.camada ? { elevation: p.camada } : {}),
       ...(typeof p.oculto === 'boolean' ? { oculto: p.oculto } : {}),
       ...(p.andar ? { levelId: p.andar } : {}),
       ...escadaInteracao,
+      ...naParede,
     });
     comandos.push({ tipo: 'item.adicionar', colecao: 'props', item: o });
     ids.push(o.id);

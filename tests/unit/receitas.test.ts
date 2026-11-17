@@ -29,7 +29,7 @@ test('toda receita gera partes finitas, com materiais que existem, e a pegada co
         assert.ok(Number.isFinite(p.z), `${r.id}: z`);
         const nums = p.forma === 'poli' ? p.pts! : [p.x!, p.y!, p.w!, p.h!];
         assert.ok(nums.every(Number.isFinite), `${r.id}: números não finitos`);
-        assert.ok(p.mat.startsWith('#') || MATERIAIS[p.mat], `${r.id}: material ${p.mat} não existe`);
+        assert.ok(p.mat.startsWith('#') || MATERIAIS[p.mat.split('@')[0]!], `${r.id}: material ${p.mat} não existe`);
         if (p.forma !== 'poli') assert.ok(p.w! > 0 && p.h! > 0, `${r.id}: parte sem área`);
       }
     }

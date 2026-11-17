@@ -114,8 +114,13 @@ export const RECEITAS_DA_CASA: Receita[] = [
     gerar: p => piso([1.7, 2.1], cama(1.7, 2.1, mat(p, 'cobertor', 'tecido.veludo-vinho'), 2, p.seed)) },
 
   { id: 'tapete.persa', nome: 'Tapete persa', categoria: 'tapetes', tipo: 'piso', funcoes: ['sala', 'quarto', 'biblioteca', 'escritorio'], tags: ['tapete', 'persa'], pegada: [3.2, 2.2],
-    campos: [{ id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 3.2, min: 1, max: 8, passo: 0.2 }, { id: 'altura', rotulo: 'Profundidade', tipo: 'numero', padrao: 2.2, min: 1, max: 8, passo: 0.2 }, { id: 'material', rotulo: 'Padrão', tipo: 'material', padrao: 'tapete.persa', uso: 'objeto' }],
-    gerar: p => { const w = num(p, 'largura', 3.2, 1, 8), h = num(p, 'altura', 2.2, 1, 8); return piso([w, h], [ret(0, 0, w, h, mat(p, 'material', 'tapete.persa'), 0.01, { semSombra: true, contorno: 'leve' })]); } },
+    campos: [{ id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 3.2, min: 1, max: 8, passo: 0.2 }, { id: 'altura', rotulo: 'Profundidade', tipo: 'numero', padrao: 2.2, min: 1, max: 8, passo: 0.2 }, { id: 'material', rotulo: 'Padrão', tipo: 'material', padrao: 'tapete.persa', uso: 'objeto' },
+      { id: 'desenho', rotulo: 'Desenho (0 sorteia; 1 medalhão, 2 floral, 3 cercaduras, 4 kilim)', tipo: 'numero', padrao: 0, min: 0, max: 4, passo: 1 }],
+    gerar: p => { const w = num(p, 'largura', 3.2, 1, 8), h = num(p, 'altura', 2.2, 1, 8), d = Math.round(num(p, 'desenho', 0, 0, 4)), m = mat(p, 'material', 'tapete.persa'); return piso([w, h], [ret(0, 0, w, h, d ? `${m}@${d}` : m, 0.01, { semSombra: true, contorno: 'leve' })]); } },
+
+  { id: 'tapete.oval', nome: 'Tapete oval', categoria: 'tapetes', tipo: 'piso', funcoes: ['sala', 'sala-de-jantar', 'quarto', 'biblioteca'], tags: ['tapete', 'oval', 'persa', 'floral'], pegada: [4, 2.6],
+    campos: [{ id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 4, min: 1.2, max: 8, passo: 0.2 }, { id: 'altura', rotulo: 'Profundidade', tipo: 'numero', padrao: 2.6, min: 1, max: 8, passo: 0.2 }, { id: 'material', rotulo: 'Padrão', tipo: 'material', padrao: 'tapete.desbotado', uso: 'objeto' }],
+    gerar: p => { const w = num(p, 'largura', 4, 1.2, 8), h = num(p, 'altura', 2.6, 1, 8); return piso([w, h], [elipse(0, 0, w, h, `${mat(p, 'material', 'tapete.desbotado')}@5`, 0.01, { semSombra: true, contorno: 'leve' })]); } },
 
   { id: 'tapete.liso', nome: 'Tapete liso', categoria: 'tapetes', tipo: 'piso', funcoes: ['sala', 'quarto', 'corredor'], tags: ['tapete'], pegada: [2.4, 1.6],
     campos: [{ id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 2.4, min: 0.6, max: 8, passo: 0.2 }, { id: 'altura', rotulo: 'Profundidade', tipo: 'numero', padrao: 1.6, min: 0.6, max: 8, passo: 0.2 }, { id: 'material', rotulo: 'Cor', tipo: 'material', padrao: 'carpete.vinho', uso: 'piso' }],
