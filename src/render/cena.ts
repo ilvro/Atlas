@@ -75,6 +75,8 @@ export interface Cena {
   definirVista(v: Vista): void;
   /** Força a opacidade dos telhados visíveis no mapa (ex.: captura na vista de telhados); `null` volta ao cálculo normal. */
   forcarTelhados(alfa: number | null): void;
+  /** No modo Construir, mostra os telhados (das casas com telhado visível) em vez de escondê-los. */
+  definirTelhadosNoEditor(v: boolean): void;
   /** Para os testes: como cada peça está desenhada agora (retrato, deitada, raio). */
   diagnosticoDasPecas(): { id: string; vez: boolean; retrato: boolean; deitada: boolean; raio: number; quadro: { linha: number; coluna: number } | null; pips: Recursos | null; estadoVisto: string }[];
   /** Quantos objetos de piso já têm a textura pintada (sem o marcador). */
@@ -571,6 +573,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     definirEfeitosDeLuz: (luzes, ambiente) => luz.definirEfeitos(luzes, ambiente),
     definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); if (v !== vistaDaCena) { vistaDaCena = v; if (mapa) { desenharParedes(mapa); sincronizarObjetos(mapa, null, false); tempo.atualizar(mapa, objetos); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } } marcasVisiveis(); },
     forcarTelhados: alfa => telhados.forcar(alfa),
+    definirTelhadosNoEditor: v => telhados.definirNoEditor(v),
     diagnosticoDosTelhados: () => telhados.diagnostico(),
     redesenharPecas() { if (mapa) sincronizarSimples(pecas, pecasC, mapa.tokens, null, (c, t) => desenharPeca(c, t, mapa!), false); },
     contagemDeParticulas: () => particulas.contagem(),

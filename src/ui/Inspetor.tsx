@@ -17,7 +17,7 @@ import { alvosDoInterruptor } from '../domain/interagiveis.ts';
 import { ROTULOS_DE_ESTADO } from '../domain/figuras.ts';
 import { DETALHES_DE_TELHADO, ESTADOS_FIGURA, type Abertura, type Acabamento, type Clima, type Comodo, type DetalheDeTelhado, type Estilo, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Presenca, type Regiao } from '../domain/mapa.ts';
 import { ESTILOS_DE_TELHADO, GENEROS, generoDe, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
-import { acabamentoLigado, aplicarClima, definirAcabamentoLigado, tocarMomentoDoMapa } from '../app/app.ts';
+import { acabamentoLigado, aplicarClima, definirAcabamentoLigado, definirTelhadosNoEditor, telhadosNoEditor, tocarMomentoDoMapa } from '../app/app.ts';
 import { abaDoInspetor, alinhandoGrade, definirRegraDaRegua, modo, regraDaRegua } from '../app/modo.ts';
 import { ROTULO_DA_REGRA, type RegraDeDiagonal } from '../domain/regua.ts';
 import { definirSugestoesLigadas, sugestoesLigadas } from '../app/sugestoes.ts';
@@ -179,6 +179,7 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
       <h3 class="faixa pequena">Acabamento</h3>
       {modo.value === 'construir' && <CampoCaixa rotulo="Sugestões do assistente" dica="Só para quem edita: uma pílula sugere o próximo passo do cômodo. Não muda o mapa." valor={sugestoesLigadas.value} aoMudar={definirSugestoesLigadas} />}
       <CampoCaixa rotulo="Ver atmosfera no editor" dica="Só para quem edita: não muda o mapa." valor={acabamentoLigado.value} aoMudar={definirAcabamentoLigado} />
+      {modo.value === 'construir' && <CampoCaixa rotulo="Ver telhados no editor" dica="Só para quem edita: mostra os telhados enquanto você constrói. Para tirar o de uma casa, desmarque “Telhado visível” nela." valor={telhadosNoEditor.value} aoMudar={definirTelhadosNoEditor} />}
       <CampoOpcoes rotulo="Estilo" valor={m.finish.preset} opcoes={[...PRESETS_DE_ACABAMENTO.map(p => [p.id, p.nome] as const), ...(PRESETS_DE_ACABAMENTO.some(p => p.id === m.finish.preset) ? [] : [[m.finish.preset, 'Personalizado'] as const])]} aoMudar={v => { const p = presetDeAcabamento(v); if (p) tentar(() => st.executar({ tipo: 'acabamento.atualizar', patch: { preset: v, ...p.valores } }, { rotulo: 'Acabamento' })); }} />
       <CampoNumero rotulo="Vinheta" valor={m.finish.vignette} min={0} max={1} passo={0.05} aoConfirmar={v => tentar(() => st.executar({ tipo: 'acabamento.atualizar', patch: { vignette: v } }))} />
       <CampoNumero rotulo="Grão" valor={m.finish.grain} min={0} max={1} passo={0.05} aoConfirmar={v => tentar(() => st.executar({ tipo: 'acabamento.atualizar', patch: { grain: v } }))} />
@@ -811,7 +812,7 @@ function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
         </span>
       </div>
     )}
-    <CampoCaixa rotulo="Telhado visível" valor={c.roof.visible} aoMudar={v => editar({ roof: { visible: v } }, 'Telhado')} />
+    <CampoCaixa rotulo="Telhado visível" dica={ed && ed.salas.length > 1 ? 'Vale para a casa toda.' : undefined} valor={c.roof.visible} aoMudar={v => tentar(() => st.transacao(v ? 'Mostrar telhado' : 'Esconder telhado', g => { for (const id of ed?.salas ?? [c.id]) g.aplicar({ tipo: 'comodo.atualizar', id, patch: { roof: { ...st.documento.rooms[id]!.roof, visible: v } } }); }))} />
     <h3 class="faixa pequena">Texto de leitura</h3>
     <textarea class="notas" aria-label="Texto de leitura do cômodo" rows={3} placeholder="O que os jogadores percebem ao entrar…" key={`l:${extra?.leitura ?? ''}`} defaultValue={extra?.leitura ?? ''}
       onChange={e => { const v = (e.target as HTMLTextAreaElement).value; if (v !== (extra?.leitura ?? '')) notas({ leitura: v }); }}

@@ -153,6 +153,7 @@ export const ACOES: readonly Acao[] = [
   { id: 'aqui-peca', nome: 'Pôr uma peça aqui', grupo: 'Adicionar', habilitada: noEditor, executar: adicionar('peca') },
   { id: 'aqui-regiao', nome: 'Pôr uma região aqui', grupo: 'Adicionar', habilitada: noEditor, executar: adicionar('regiao') },
 
+  { id: 'telhados-no-editor', nome: 'Mostrar ou esconder os telhados no editor', grupo: 'Vista', palavras: 'telhado cobertura casa construir', atalhos: ['Shift+T'], habilitada: noEditor, executar: () => app.definirTelhadosNoEditor(!app.telhadosNoEditor.value) },
   { id: 'enquadrar', nome: 'Enquadrar o mapa inteiro', grupo: 'Vista', atalhos: ['F'], habilitada: noEditor, executar: () => app.viewport.atual?.enquadrar() },
   { id: 'centralizar', nome: 'Centralizar na seleção', grupo: 'Vista', atalhos: ['Z'], habilitada: comSelecao, executar: app.centralizarNaSelecao },
   { id: 'zoom-mais', nome: 'Aproximar', grupo: 'Vista', atalhos: ['+', '='], habilitada: noEditor, executar: () => app.viewport.atual?.zoomPor(1.25) },

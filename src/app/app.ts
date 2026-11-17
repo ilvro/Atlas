@@ -64,6 +64,12 @@ let acabamentoInicial = true; try { acabamentoInicial = (typeof localStorage !==
 export const acabamentoLigado = signal(acabamentoInicial);
 export function definirAcabamentoLigado(v: boolean): void { acabamentoLigado.value = v; try { if (typeof localStorage !== 'undefined') localStorage.setItem(CHAVE_ACABAMENTO, v ? '1' : '0'); } catch { /* ignora */ } }
 
+/** Mostrar os telhados no modo Construir? Preferência de quem edita, não do mapa (cada casa ainda pode ter o telhado desligado). */
+const CHAVE_TELHADOS = 'atlas:telhados-no-editor';
+let telhadosInicial = false; try { telhadosInicial = (typeof localStorage !== 'undefined' ? localStorage.getItem(CHAVE_TELHADOS) : null) === '1'; } catch { /* padrão desligado */ }
+export const telhadosNoEditor = signal(telhadosInicial);
+export function definirTelhadosNoEditor(v: boolean): void { telhadosNoEditor.value = v; try { if (typeof localStorage !== 'undefined') localStorage.setItem(CHAVE_TELHADOS, v ? '1' : '0'); } catch { /* ignora */ } }
+
 const SINGULAR: Record<ColecaoSelecionavel, string> = { lights: 'luz', props: 'objeto', tokens: 'peça', regions: 'região', presence: 'presença', rooms: 'cômodo', walls: 'parede', openings: 'abertura' };
 const PLURAL: Record<ColecaoSelecionavel, string> = { lights: 'luzes', props: 'objetos', tokens: 'peças', regions: 'regiões', presence: 'presenças', rooms: 'cômodos', walls: 'paredes', openings: 'aberturas' };
 
