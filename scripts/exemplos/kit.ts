@@ -201,6 +201,9 @@ export class Kit {
     return criados;
   }
 
+  /** Tira objetos (e as luzes presas a eles) do mapa; útil para limpar o que um conjunto espalhou e não cabe na cena. */
+  remover(ids: readonly string[]): this { for (const id of ids) { delete this.m.props[id]; for (const l of Object.values(this.m.lights)) if (l.ownerId === id) delete this.m.lights[l.id]; } return this; }
+
   /** Uma peça (personagem, monstro) em `pos`. */
   peca(nome: string, pos: Ponto, extra: Partial<Peca> = {}): string {
     const t = novaPeca([pos[0], pos[1]], nome, { id: this.id('t'), ...extra }); this.m.tokens[t.id] = t; return t.id;
