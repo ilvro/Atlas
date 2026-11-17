@@ -125,13 +125,14 @@ class Gerador {
 
   private colocar(regra: ItemDeRegra): Objeto | null {
     const receita = this.escolherReceita(regra), rec = ACERVO.item(receita); if (!rec) return null;
-    const params = { ...(regra.params ?? {}), ...(this.pedido.params?.(receita) ?? {}) }, [w, h] = ACERVO.pegadaDaFonte(ACERVO.fonte(receita, 1, params));
+    const porArea = (regra.paramsPorArea ?? []).filter(([a]) => this.ins.area >= a).reduce<Record<string, unknown>>((acc, [, p]) => ({ ...acc, ...p }), {});
+    const params = { ...(regra.params ?? {}), ...porArea, ...(this.pedido.params?.(receita) ?? {}) }, [w, h] = ACERVO.pegadaDaFonte(ACERVO.fonte(receita, 1, params));
     if (regra.lugar === 'na-parede') return this.colocarNaParede(receita, params, w);
     if (regra.lugar === 'sobre') return this.colocarSobre(regra, receita, params, w, h);
     const tapete = rec.categoria === 'tapetes', bloqueia = !tapete;
     const temDependentes = this.regras.some(r => r.junto?.de === regra.id);
     const lista = this.candidatos(regra, w, h);
-    if (regra.senaoCentro && regra.lugar === 'junto') lista.push(...this.deCentro().map(c => ({ ...c, nota: c.nota - 1000 })));
+    if (regra.senao && regra.lugar === 'junto') lista.push(...(regra.senao === 'centro' ? this.deCentro() : this.deParede(w, h, false).sort((a, b) => b.nota - a.nota)).map(c => ({ ...c, nota: c.nota - 1000 })));
     for (const c of lista) {
       // O centro precisa cair no cômodo pela mesma regra do mapa (as células), senão o objeto fica sem cômodo (borda curva).
       if (comodoEm(this.m, c.pos, this.indice) !== this.ins.id) continue;
@@ -225,6 +226,9 @@ class Gerador {
           lista.push({ pos: base, rot, nota: 0 });
           if (extensao >= 1.4) for (const k of [-1, 1]) lista.push({ pos: soma(base, lateral, k * extensao / 4), rot, nota: 0 });
         }
+      } else if (j.modo === 'ladeando') {
+        // Dos dois lados da âncora, virado para ela (poltronas em volta da mesa de centro).
+        for (const k of [1, -1]) { const d: Ponto = [ex[0] * k, ex[1] * k]; lista.push({ pos: soma(a.pos, d, a.w / 2 + h / 2 + 0.25), rot: rotacaoVoltadaPara(d), nota: 0 }); }
       } else if (j.modo === 'ao-lado') {
         for (const k of [1, -1]) lista.push({ pos: soma(soma(a.pos, ex, k * (a.w / 2 + w / 2 + 0.04)), ey, -(a.h / 2 - h / 2)), rot: a.rot, nota: 0 });
       } else {

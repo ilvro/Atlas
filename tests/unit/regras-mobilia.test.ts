@@ -24,7 +24,9 @@ for (const genero of GENEROS.map(g => g.id)) for (const funcao of funcoes) {
       assert.ok(r.quantos[0] >= 0 && r.quantos[1] >= r.quantos[0] && r.quantos[1] > 0, r.id);
       if (r.lugar === 'junto' || r.lugar === 'sobre') {
         assert.ok(r.junto, `${r.id} é “${r.lugar}” e precisa de âncora`);
-        const ancora = regras.find(x => x.id === r.junto!.de); assert.ok(ancora, `${r.id}: a âncora “${r.junto!.de}” não está na regra`);
+        const ancora = regras.find(x => x.id === r.junto!.de);
+        if (!ancora && r.senao) continue;      // sem a âncora neste gênero, usa a alternativa (centro ou parede)
+        assert.ok(ancora, `${r.id}: a âncora “${r.junto!.de}” não está na regra`);
         assert.ok(ancora!.prioridade < r.prioridade, `${r.id}: a âncora vem antes`);
       }
     }
