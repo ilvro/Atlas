@@ -6,7 +6,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { signal, useSignalEffect } from '@preact/signals';
 import { acaoPorId, executarAcao, itensDoMenuRadial } from '../app/acoes.ts';
 import { FERRAMENTAS_DA_SESSAO, alinhandoGrade, duracaoDoClima, modo, mostrarRelevo, regraDaRegua, vistaAtual } from '../app/modo.ts';
-import { acabamentoLigado, adicionarEm, alternarPorta, usarObjeto, aoColocar, focarNoComodo, focoPendente, menuRadial, notaDeObjetoAberta, servicos, sessao, viewport as viewportAtual } from '../app/app.ts';
+import { acabamentoLigado, adicionarEm, alternarPorta, usarObjeto, aoColocar, comandosDeEspalhar, focarNoComodo, focoPendente, menuRadial, notaDeObjetoAberta, servicos, sessao, viewport as viewportAtual } from '../app/app.ts';
 import { obterCameraDaAba } from '../app/abas.ts';
 import { mostrarAtalho } from '../app/atalhos.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
@@ -71,6 +71,7 @@ function ponteDa(s: SessaoDeEdicao): PonteViewport {
     alinhandoGrade: () => alinhandoGrade.value,
     mostrarRelevo: () => mostrarRelevo.value,
     andarAtivo: () => s.andarAtivo.peek(),
+    espalhar: comandosDeEspalhar,
   };
 }
 

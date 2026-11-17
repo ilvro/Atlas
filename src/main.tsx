@@ -31,4 +31,12 @@ if (import.meta.env.DEV || new URLSearchParams(location.search).has('diagnostico
 }
 
 // Ponte do assistente (em desenvolvimento e no app de desktop; não existe no build do Pages).
-if (import.meta.env.DEV || import.meta.env.VITE_PONTE === '1') void import('./app/ponte.ts');
+if (import.meta.env.DEV || import.meta.env.VITE_PONTE === '1') {
+  void Promise.all([
+    import('./app/ponte.ts'),
+    import('./app/assistente-slot.ts'),
+    import('./ui/SeloDoAssistente.tsx'),
+  ]).then(([, { seloDoAssistente }, { SeloDoAssistente }]) => {
+    seloDoAssistente.value = SeloDoAssistente;
+  });
+}

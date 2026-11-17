@@ -21,6 +21,7 @@ import { todosOsAlvos, caixaDe, caixaDaSelecao, ehMovel, type Alvo, type Caixa, 
 import type { Viewport } from '../render/viewport.ts';
 import type { ColecaoLivre, Comando } from '../state/comandos.ts';
 import { embutido } from './embutido.ts';
+import { conjuntoDeEspalhar, espalhar } from '../authoring/espalhar.ts';
 import { campanhaAtiva, carregarCampanhas, desvincularMapa, entidadesDaCampanha, refDoMapa, revincularMapa, sincronizarMapaComCampanha } from './campanha.ts';
 import { pedirCena, pedirEfeito, pedirSilencio, pedirSomDoClima, pedirSomDoMapa, tocarSomEscolhido } from './audio-do-clima.ts';
 import { comandoDaEtapaDeAgua, etapasDaAgua } from '../domain/agua.ts';
@@ -664,6 +665,31 @@ function efeitoDeColocar(texto: string, mundo: Ponto): void {
 
 /** Uma ferramenta de construção pôs algo: som e um efeito no lugar. */
 export function aoColocar(rotulo: string, mundo: Ponto): void { tocar('pop'); efeitoDeColocar(`+ ${rotulo.toLowerCase()}`, mundo); }
+
+/** Gera os comandos de uma pincelada da ferramenta Espalhar (ou apagar espalhados). */
+export function comandosDeEspalhar(
+  base: MapaAtlas,
+  centro: Ponto,
+  opcoes: { conjunto: string; raio: number; apagar: boolean; semente: number; andar: string | null },
+): Comando[] {
+  const conjunto = conjuntoDeEspalhar(opcoes.conjunto);
+  if (!conjunto) return [];
+  if (opcoes.apagar) {
+    const receitas = new Set(conjunto.itens.map(x => x.receita));
+    const saida: Comando[] = [];
+    for (const o of Object.values(base.props)) {
+      if (o.source.kind === 'recipe' && receitas.has(o.source.recipe) && Math.hypot(o.position[0] - centro[0], o.position[1] - centro[1]) <= opcoes.raio) {
+        saida.push({ tipo: 'item.remover', colecao: 'props', id: o.id });
+      }
+    }
+    return saida;
+  }
+  return espalhar(base, { centro, raio: opcoes.raio, conjunto: opcoes.conjunto, semente: opcoes.semente }).map(o => ({
+    tipo: 'item.adicionar' as const,
+    colecao: 'props' as const,
+    item: (opcoes.andar !== null ? { ...o, levelId: opcoes.andar } : o) as never,
+  }));
+}
 
 export function adicionarEm(colecao: ColecaoLivre, mundo: Ponto): void {
   const s = sessao.value; if (!s) return;
