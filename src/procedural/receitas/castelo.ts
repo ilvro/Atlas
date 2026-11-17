@@ -2,6 +2,7 @@ import { elipse, poli, ret, type Parte } from '../descricao.ts';
 import { bolha, lente } from '../organico.ts';
 import { mulberry32 } from '../ruido.ts';
 import { mat, num, piso, type Receita } from './comum.ts';
+import { escadaDeAlvenaria } from './praca.ts';
 
 const G = { generos: ['fantasia'], kit: 'fantasia' }, PEDRA = '#6e7078', PEDRA_ESC = '#3a3c42', PALHA = '#c9ae5a', PALHA_CL = '#e0c878', ACO = '#9aa0aa', VINHO = '#7a1f24', FOGO = '#ffc24a';
 const V = { contorno: 'leve' as const, detalhe: 2 as const };                       // volumes
@@ -74,13 +75,8 @@ export const RECEITAS_DE_CASTELO: Receita[] = [
   { id: 'escada.pedra', nome: 'Escada de pedra', categoria: 'decoracao', tipo: 'piso', funcoes: ['corredor', 'porao', 'sala', 'taverna'], tags: ['escada', 'degraus', 'pedra', 'castelo', 'subida'], pegada: [1.4, 2.8], ...G,
     campos: [{ id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 1.4, min: 1, max: 4, passo: 0.1 }, { id: 'comprimento', rotulo: 'Comprimento', tipo: 'numero', padrao: 2.8, min: 1.6, max: 6, passo: 0.1 }],
     gerar: p => {
-      const w = num(p, 'largura', 1.4, 1, 4), l = num(p, 'comprimento', 2.8, 1.6, 6), n = Math.max(4, Math.round(l / 0.3)), z = (i: number) => 0.1 + i * 0.16, wd = w - 0.42;
-      return piso([w, l], [
-        ret(0, 0, w, l, PEDRA_ESC, 0.05),
-        ...Array.from({ length: n }, (_, i) => ret(0, yDegrau(l, n, i), wd, (l / n) * 0.92, i % 2 ? '#8e9098' : '#a0a2aa', z(i), { raio: 0.02, ...V })),
-        ...Array.from({ length: n }, (_, i) => ret(0, yDegrau(l, n, i) + 0.02, wd * 0.6, (l / n) * 0.4, '#b4b6be', z(i) + 0.005, { alfa: 0.5, suave: true, ...D })),   // o desgaste do meio
-        ...[0, 1, 2].flatMap(k => lado.map(s => ret(s * (w / 2 - 0.1), yDegrau(l, 3, k), 0.2, l / 3, PEDRA, z(Math.floor(((k + 0.5) * n) / 3)) + 0.35, { raio: 0.02, ...V }))),
-      ]);
+      const w = num(p, 'largura', 1.4, 1, 4), l = num(p, 'comprimento', 2.8, 1.6, 6);
+      return piso([w, l], escadaDeAlvenaria(w, l, p.seed, true, '#8e9098'));
     } },
   { id: 'escada.caracol', nome: 'Escada em caracol', categoria: 'decoracao', tipo: 'piso', funcoes: ['corredor', 'porao', 'sala', 'taverna'], tags: ['escada', 'caracol', 'torre', 'degraus', 'espiral', 'subida'], pegada: [2.2, 2.2], ...G,
     campos: [{ id: 'diametro', rotulo: 'Diâmetro', tipo: 'numero', padrao: 2.2, min: 1.6, max: 3.6, passo: 0.1 }],

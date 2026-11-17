@@ -4,7 +4,7 @@ import { celulasDeVoronoi, type Consulta } from './voronoi.ts';
 import { ehPadraoDeCobertura, texturaDeCobertura, type PadraoDeCobertura } from './coberturas.ts';
 
 export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho' | 'paralelepipedo' | 'lajegrama' | 'sulcos' | 'molhada'
-  | 'palha-chao' | 'lajes-rusticas' | 'chapa-xadrez' | 'grade-metal' | 'toras' | 'manchado' | 'painel' | 'acolchoado' | 'pisada' | 'placas' | PadraoDeCobertura;
+  | 'palha-chao' | 'lajes-rusticas' | 'lajes-grandes' | 'chapa-xadrez' | 'grade-metal' | 'toras' | 'manchado' | 'painel' | 'acolchoado' | 'pisada' | 'placas' | PadraoDeCobertura;
 export interface Material {
   id: string; nome: string; /** Para onde o material vai: piso, papel de parede, objeto ou terreno. */ uso: 'piso' | 'papel' | 'objeto' | 'terreno' | 'macico' | 'agua' | 'telhado';
   base: string; escuro: string; claro: string; padrao: Padrao; largura?: number; lado?: number; ouro?: string; borda?: string; meio?: string; /** Maciço: cor do topo (neve), onde a rocha passa de 70% da altura. */ topo?: string; /** Maciço e escarpa: quanto o pé da face escurece e quanto pesa a sombra de contato (0 a 1; ausente vale 1). */ pe?: number;
@@ -24,7 +24,7 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('ladrilho.cozinha', 'Ladrilho de cozinha', 'piso', '#c9c1a8', '#8a8266', '#e9e3cf', 'xadrez', { lado: 0.3 }),
   m('ladrilho.azul', 'Ladrilho azul', 'piso', '#5d7d96', '#2c4358', '#9bb8cc', 'xadrez', { lado: 0.3 }),
   m('azulejo.branco', 'Azulejo branco', 'piso', '#dcdcd6', '#9a9a92', '#f5f5f0', 'xadrez', { lado: 0.25 }),
-  m('laje.pedra', 'Lajes de pedra', 'piso', '#6b6e75', '#2e3036', '#9a9da5', 'laje'),
+  m('laje.pedra', 'Lajes de pedra', 'piso', '#6b6e75', '#2e3036', '#9a9da5', 'lajes-grandes'),
   m('concreto', 'Concreto', 'piso', '#6c6a66', '#34322f', '#8d8a85', 'liso'),
   m('carpete.vinho', 'Carpete vinho', 'piso', '#5a1b25', '#2c0c12', '#7d2b36', 'trama'),
   m('carpete.cinza', 'Carpete cinza', 'piso', '#4d4f55', '#272830', '#6c6e76', 'trama'),
@@ -130,7 +130,7 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('cascalho', 'Cascalho', 'terreno', '#7a756c', '#3f3b36', '#b0aaa0', 'cascalho'),
   m('paralelepipedo', 'Paralelepípedo', 'terreno', '#85878a', '#393c40', '#b8babc', 'paralelepipedo'),
   m('lajes.gramadas', 'Lajes com grama', 'terreno', '#8c8475', '#3b342b', '#bcb2a0', 'lajegrama'),
-  m('lajes.antigas', 'Lajes antigas', 'terreno', '#b3a487', '#5c5040', '#dccfb6', 'laje'),
+  m('lajes.antigas', 'Lajes antigas', 'terreno', '#b3a487', '#5c5040', '#dccfb6', 'lajes-grandes', { lado: 1.1 }),
   m('terra.sulcos', 'Terra com sulcos', 'terreno', '#7a5a3a', '#3b2a1a', '#a1805a', 'sulcos'),
   m('areia.molhada', 'Areia molhada', 'terreno', '#9c855a', '#5a4a2c', '#d8c690', 'molhada'),
   m('neve.pisada', 'Neve pisada', 'terreno', '#d3dae2', '#8693a3', '#f4f7fa', 'pisada'),
@@ -334,6 +334,7 @@ export function pintarMaterial(ctx: Contexto, id: string, area: Area, seed = 1, 
     case 'molhada': pintarAreiaMolhada(ctx, mat, A, seed, pxDe(ctx)); break;
     case 'palha-chao': pintarPalhaNoChao(ctx, mat, A, seed, pxDe(ctx)); break;
     case 'lajes-rusticas': pintarLajesRusticas(ctx, mat, A, seed, pxDe(ctx)); break;
+    case 'lajes-grandes': pintarLajesGrandes(ctx, mat, A, seed, pxDe(ctx)); break;
     case 'chapa-xadrez': pintarChapaXadrez(ctx, mat, A, seed, pxDe(ctx)); break;
     case 'grade-metal': pintarGradeMetal(ctx, mat, A, seed, pxDe(ctx)); break;
     case 'toras': pintarToras(ctx, mat, A, seed, pxDe(ctx)); break;
@@ -524,6 +525,38 @@ function pintarParalelepipedo(ctx: Contexto, mat: Material, A: Area, seed: numbe
     if (t < 0.5) mez(o, E, B, Math.max(0, t) * 2); else mez(o, B, C, Math.min(1, (t - 0.5) * 2));
     const k = 1 - (1 - domo) * 0.42; o[0] = o[0]! * k; o[1] = o[1]! * k; o[2] = o[2]! * k;
     rumo(o, rejunte, (1 - passo(w * 0.3, w * 1.7, q.borda)) * 0.96 * (0.85 + 0.15 * fbm(rn, x * 14, y * 14, 2)));
+  });
+}
+
+/**
+ * Lajes grandes de piso (fiadas de `lado` m, padrão 0,9, comprimentos de 0,9 a 1,8 m desencontrados): cada laje com tom
+ * próprio, bisel claro a noroeste e escuro a sudeste, desgaste no meio, rachaduras finas, cantos lascados e junta escura.
+ */
+function pintarLajesGrandes(ctx: Contexto, mat: Material, A: Area, seed: number, px: number): void {
+  const rn = valueNoise2D(seed * 41 + 3), E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), RH = mat.lado ?? 0.9, gw = 0.028;
+  const largura = (i: number, j: number) => 0.9 * RH / 0.9 + hash2D(i, j, seed + 2) * 0.9 * RH / 0.9;
+  porPixel(ctx, A, (x, y, o) => {
+    const j = Math.floor(y / RH), off = hash2D(j, 1, seed + 5) * 1.3;
+    // Bordas da laje na fileira j: soma de larguras a partir de uma origem que se repete a cada 8 lajes.
+    const bloco = 8, ciclo = (() => { let t = 0; for (let k = 0; k < bloco; k++) t += largura(k, j); return t; })();
+    const xl = x - off - Math.floor((x - off) / ciclo) * ciclo, base = Math.floor((x - off) / ciclo);
+    let e0 = 0, i = 0; while (i < bloco - 1 && e0 + largura(i, j) <= xl) { e0 += largura(i, j); i++; }
+    const e1 = e0 + largura(i, j), id = base * bloco + i, yt = j * RH, yb = yt + RH;
+    const dx0 = xl - e0, dx1 = e1 - xl, dy0 = y - yt, dy1 = yb - y, d = Math.min(dx0, dx1, dy0, dy1), sobre = d - gw;
+    if (sobre < 0) { mez(o, E, B, 0.12 + 0.15 * fbm(rn, x * 9, y * 9, 2)); return; }
+    let t = 0.28 + 0.4 * hash2D(id, j, seed + 3) + (fbm(rn, x * 1.8 + id, y * 1.8, 4) - 0.5) * 0.32 + (hash2D(Math.floor(x / px), Math.floor(y / px), 6) - 0.5) * 0.05;
+    // Bisel: luz a noroeste, sombra a sudeste; o miolo gasto um pouco mais claro.
+    const bisel = 1 - passo(0, 0.07, sobre), noroeste = Math.min(dx0, dy0) < Math.min(dx1, dy1) ? 1 : -1;
+    t += bisel * 0.2 * noroeste + passo(0.15, 0.4, d) * 0.04;
+    // Canto lascado: perto de uma quina, um triângulo mais escuro.
+    const quina = Math.min(Math.hypot(dx0, dy0), Math.hypot(dx1, dy0), Math.hypot(dx0, dy1), Math.hypot(dx1, dy1));
+    if (quina < 0.12 && hash2D(id, j, seed + 17) < 0.45) t -= 0.25 * (1 - quina / 0.12);
+    if (t < 0.5) mez(o, E, B, Math.max(0, t) * 2); else mez(o, B, C, Math.min(1, (t - 0.5) * 2));
+    // Rachadura: uma linha fina e torta em algumas lajes.
+    if (hash2D(id, j, seed + 40) < 0.22 && Math.abs(fbm(rn, x * 1.3 + id * 7.3, y * 1.3 + j * 3.1, 2) - 0.5) < 0.008) rumo(o, E, 0.7);
+    // Manchas de umidade e sujeira.
+    rumo(o, E, passo(0.6, 0.82, fbm(rn, x * 0.7 + 50, y * 0.7, 3)) * 0.22);
+    if (bisel > 0 && noroeste < 0) { const k = 1 - bisel * 0.18; o[0] = o[0]! * k; o[1] = o[1]! * k; o[2] = o[2]! * k; }
   });
 }
 

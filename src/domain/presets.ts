@@ -35,7 +35,7 @@ export const TIPOS_DE_COMODO: readonly TipoDeComodo[] = [
 export const tipoDeComodo = (id: string): TipoDeComodo | undefined => TIPOS_DE_COMODO.find(t => t.id === id);
 
 /** Uma predefinição de luz: círculo (lamparina, vela, lâmpada…) ou cone (lanterna, holofote, farol). */
-export interface PresetDeLuz { id: string; nome: string; descricao: string; radius: number; color: string; intensity: number; flicker: number; power: Luz['power']; /** Abertura do cone, em graus; `null` ilumina em círculo. */ cone: number | null }
+export interface PresetDeLuz { id: string; nome: string; descricao: string; radius: number; color: string; intensity: number; flicker: number; power: Luz['power']; /** Abertura do cone, em graus; `null` ilumina em círculo. */ cone: number | null; /** Raios visíveis (num círculo: o feixe que desce do alto). */ rays?: boolean }
 
 export const PRESETS_DE_LUZ: readonly PresetDeLuz[] = [
   { id: 'vela', nome: 'Vela', descricao: 'Luz pequena e trêmula', radius: 3, color: '#ffcf8a', intensity: 0.7, flicker: 0.25, power: 'fire', cone: null },
@@ -45,6 +45,7 @@ export const PRESETS_DE_LUZ: readonly PresetDeLuz[] = [
   { id: 'lampada', nome: 'Lâmpada', descricao: 'Luz elétrica estável', radius: 6, color: '#fff1d0', intensity: 1, flicker: 0, power: 'grid', cone: null },
   { id: 'neon', nome: 'Néon', descricao: 'Luz azulada de letreiro', radius: 5, color: '#7af0ff', intensity: 1.1, flicker: 0.08, power: 'grid', cone: null },
   { id: 'luar', nome: 'Luz mágica', descricao: 'Brilho frio e suave', radius: 10, color: '#9fb7ff', intensity: 0.6, flicker: 0, power: 'magic', cone: null },
+  { id: 'feixe', nome: 'Feixe do alto', descricao: 'Luz que cai de uma abertura no teto, com raios', radius: 7, color: '#dcecff', intensity: 1.5, flicker: 0, power: 'magic', cone: null, rays: true },
   { id: 'lanterna', nome: 'Lanterna', descricao: 'Facho de bateria', radius: 9, color: '#fff0cc', intensity: 1, flicker: 0, power: 'battery', cone: 60 },
   { id: 'holofote', nome: 'Holofote', descricao: 'Facho fechado e longo', radius: 14, color: '#ffffff', intensity: 1.4, flicker: 0, power: 'grid', cone: 30 },
   { id: 'farol', nome: 'Farol', descricao: 'Facho aberto, de longe', radius: 16, color: '#fff7d6', intensity: 1.2, flicker: 0, power: 'grid', cone: 45 },
@@ -52,8 +53,8 @@ export const PRESETS_DE_LUZ: readonly PresetDeLuz[] = [
 export const presetDeLuz = (id: string): PresetDeLuz | undefined => PRESETS_DE_LUZ.find(p => p.id === id);
 
 /** Os campos de uma luz a partir de uma predefinição. `direcao` (rad) só vale para cones. */
-export function camposDoPreset(p: PresetDeLuz, direcao = 0): Pick<Luz, 'radius' | 'color' | 'intensity' | 'flicker' | 'power' | 'cone' | 'preset'> {
-  return { radius: p.radius, color: p.color, intensity: p.intensity, flicker: p.flicker, power: p.power, cone: p.cone === null ? null : { angle: (p.cone * Math.PI) / 180, direction: direcao }, preset: p.id };
+export function camposDoPreset(p: PresetDeLuz, direcao = 0): Pick<Luz, 'radius' | 'color' | 'intensity' | 'flicker' | 'power' | 'cone' | 'preset'> & { rays?: boolean } {
+  return { radius: p.radius, color: p.color, intensity: p.intensity, flicker: p.flicker, power: p.power, cone: p.cone === null ? null : { angle: (p.cone * Math.PI) / 180, direction: direcao }, preset: p.id, ...(p.rays ? { rays: true } : {}) };
 }
 
 export const posicaoDeTitulo = (largura: number, altura: number, onde: 'inferior-direito' | 'inferior-esquerdo' | 'superior-direito' | 'superior-esquerdo' | 'topo', comprimento = 7): Ponto =>

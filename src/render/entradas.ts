@@ -16,7 +16,7 @@ import { urlDoItem } from './url-da-colecao.ts';
 /** O que o desenho precisa saber de cada coisa, em dados simples: a chave do cache é o próprio JSON. */
 const r3 = (v: number) => Math.round(v * 1000) / 1000 || 0;
 
-export interface ContextoDeEntradas { arestas: Map<string, ArestaUnitaria> }
+export interface ContextoDeEntradas { arestas: Map<string, ArestaUnitaria>; /** Degraus do relevo (< 1 m), calculados uma vez por sincronização. */ degraus?: ReturnType<typeof degrausDoRelevo> }
 export const contextoDeEntradas = (m: Pick<MapaAtlas, 'rooms'>): ContextoDeEntradas => ({ arestas: arestasDeParede(m) });
 
 export function entradaDoComodo(m: MapaAtlas, sala: Comodo, ctx: ContextoDeEntradas = contextoDeEntradas(m)): EntradaDoComodo {
@@ -34,11 +34,26 @@ export function entradaDoComodo(m: MapaAtlas, sala: Comodo, ctx: ContextoDeEntra
   }
   aberturas.sort((a, b) => a.centro[0] - b.centro[0] || a.centro[1] - b.centro[1]); objetos.sort((a, b) => a.centro[0] - b.centro[0] || a.centro[1] - b.centro[1]);
   const alturas = Object.values(m.walls).filter(p => p.source && 'roomId' in p.source && p.source.roomId === sala.id).map(p => p.height);
+  // Degraus do relevo que cruzam o cômodo: o piso cobre o terreno, então o assado do cômodo os desenha como degrau construído.
+  const degraus: NonNullable<EntradaDoComodo['degraus']> = [];
+  if (m.terrain.relief && Object.keys(m.terrain.relief.patamares).length) {
+    ctx.degraus ??= degrausDoRelevo(m);
+    const t = m.grid.size, [ox, oy] = m.grid.offset;
+    let cx0 = Infinity, cy0 = Infinity, cx1 = -Infinity, cy1 = -Infinity;
+    for (const [y, x0, n] of sala.cells) { cx0 = Math.min(cx0, ox + x0 * t); cx1 = Math.max(cx1, ox + (x0 + n) * t); cy0 = Math.min(cy0, oy + y * t); cy1 = Math.max(cy1, oy + (y + 1) * t); }
+    const dentro = (q: Ponto) => q[0] >= cx0 - 1 && q[0] <= cx1 + 1 && q[1] >= cy0 - 1 && q[1] <= cy1 + 1;
+    for (const d of ctx.degraus) {
+      const caminhos: Ponto[][] = [], drops: ('a' | 'b')[] = [];
+      d.caminhos.forEach((c, i) => { if (c.some(dentro)) { caminhos.push(c.map(([x, y]) => [r3(x), r3(y)] as Ponto)); drops.push(d.drops[i] ?? 'b'); } });
+      if (caminhos.length) degraus.push({ caminhos, drops, desnivel: r3(d.desnivel) });
+    }
+  }
   return {
     grade: { size: m.grid.size, offset: [m.grid.offset[0], m.grid.offset[1]] }, celulas: sala.cells,
     ...(sala.outline ? { outline: sala.outline.map(([x, y]) => [r3(x), r3(y)] as Ponto) } : {}),
     piso: sala.floor, papel: sala.wallpaper,
     estilo: sala.wallStyle ?? m.style.walls, altura: alturas.length ? Math.max(...alturas) : 2.6, aberturas, objetos,
+    ...(degraus.length ? { degraus } : {}),
   };
 }
 

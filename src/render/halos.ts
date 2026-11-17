@@ -65,13 +65,14 @@ void main() {
   float ang = atan(p.y, p.x);
   float diff = mod(ang - uDirecao + 3.14159265, 6.2831853) - 3.14159265;
   float meia = uAbertura * 0.5;
+  bool cheio = uAbertura > 6.2;
 
-  if (abs(diff) > meia) {
+  if (!cheio && abs(diff) > meia) {
     finalColor = vec4(0.0);
     return;
   }
 
-  float borda = pixel ? 1.0 : smoothstep(meia, meia - min(0.08, meia * 0.25), abs(diff));
+  float borda = (pixel || cheio) ? 1.0 : smoothstep(meia, meia - min(0.08, meia * 0.25), abs(diff));
 
   float queda = clamp(1.0 - dist, 0.0, 1.0);
   if (pixel) {
@@ -83,9 +84,15 @@ void main() {
   float escalaAng = 14.0;
   float coord = diff * escalaAng + uTempo * 0.3;
   float n = ruido1D(coord) * 0.65 + ruido1D(coord * 2.3 + 5.1) * 0.35;
+  // Feixe que desce do alto (sem cone): listras periódicas em volta (sem emenda em ±π) e um miolo claro onde a luz bate no chão.
+  if (cheio) n = 0.5 + 0.22 * sin(ang * 11.0 + uTempo * 0.3) + 0.18 * sin(ang * 17.0 - uTempo * 0.21 + 1.3) + 0.1 * sin(ang * 29.0 + 2.1);
   float listras = pixel ? step(0.48, n) : smoothstep(0.25, 0.75, n);
 
   float alfa = queda * borda * listras * (0.25 * uIntensidade);
+  if (cheio) {
+    float miolo = pixel ? step(dist, 0.3) * 0.5 : smoothstep(0.42, 0.0, dist) * 0.55;
+    alfa = alfa * 1.4 + miolo * uIntensidade;
+  }
   finalColor = vec4(uCor * alfa, alfa);
 }`;
 
@@ -170,9 +177,10 @@ export function criarHalos(mapaDeLuz: MapaDeLuz, telhados: Telhados): Halos {
       }
       for (const [id, h] of halos) if (!idsVivas.has(id)) { h.s.destroy(); halos.delete(id); }
 
-      // Raios: luz com cone e rays: true ganha mesh em coordenadas de mundo com shader de listras radiais
+      // Raios: luz com rays: true ganha mesh em coordenadas de mundo com shader de listras radiais (no cone, ou em volta toda
+      // quando não há cone: o feixe que desce de uma abertura no teto).
       for (const l of vivas) {
-        const querRaios = l.cone !== null && l.rays;
+        const querRaios = l.rays;
         let r = raios.get(l.id);
         if (!querRaios) {
           if (r) { r.mesh.geometry.destroy(); r.c.destroy({ children: true }); raios.delete(l.id); }
@@ -203,8 +211,8 @@ export function criarHalos(mapaDeLuz: MapaDeLuz, telhados: Telhados): Halos {
           item.mesh.geometry = geometriaQuad(l.radius);
         }
         const u = item.grupo.uniforms as Record<string, unknown>;
-        u.uDirecao = l.cone!.direction;
-        u.uAbertura = l.cone!.angle;
+        u.uDirecao = l.cone ? l.cone.direction : 0;
+        u.uAbertura = l.cone ? l.cone.angle : Math.PI * 2;
         u.uRaio = l.radius;
         u.uCor = new Float32Array(rgb01(l.color));
         u.uPixel = pixel ? 1 : 0;

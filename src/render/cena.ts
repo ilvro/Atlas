@@ -537,7 +537,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       const refazerPorRelevo = !!m.terrain.relief && campos('climate', 'terrain');
       if (campos('terrain', 'bounds', 'grid', 'backdrop', 'style') || colecao('rooms') || colecao('walls') || colecao('openings') || refazerPorRelevo) sincronizarTerreno(m);
       if (tudo || colecao('walls') || campos('style')) sincronizarEscarpas(m);
-      if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid')) sincronizarComodos(m);
+      if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid') || refazerPorRelevo) sincronizarComodos(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid', 'session', 'style')) desenharParedes(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || campos('grid', 'style', 'climate')) contato.atualizar(m);
       if (tudo || colecao('rooms') || campos('levels', 'bounds', 'grid')) desenharOverlaysDeAndar(m, contextoAndar);

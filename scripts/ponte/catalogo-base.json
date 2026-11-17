@@ -1426,6 +1426,7 @@
                   "lampada",
                   "neon",
                   "luar",
+                  "feixe",
                   "lanterna",
                   "holofote",
                   "farol"
@@ -1455,6 +1456,10 @@
                 "type": "number",
                 "minimum": 0,
                 "maximum": 3
+              },
+              "raios": {
+                "type": "boolean",
+                "description": "Raios visíveis; sem cone, feixe que desce de uma abertura no teto."
               },
               "andar": {
                 "type": [

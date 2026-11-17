@@ -367,7 +367,7 @@ export function espalhar(mapa: MapaAtlas, pedido: PedidoDeEspalhar, semente = 1,
 }
 
 // ---------- Luzes ----------
-export interface PedidoDeLuz { preset: string; pos: Ponto; direcao?: number; raio?: number; cor?: string; intensidade?: number; andar?: string | null }
+export interface PedidoDeLuz { preset: string; pos: Ponto; direcao?: number; raio?: number; cor?: string; intensidade?: number; /** Raios visíveis: no cone, as listras de luz; num círculo, o feixe que desce do alto. */ raios?: boolean; andar?: string | null }
 
 /** Luzes a partir de predefinições (`vela`, `tocha`, `fogueira`, `lanterna`…). `direcao` (rad) vale para cones. */
 export function luzes(mapa: MapaAtlas, pedidos: readonly PedidoDeLuz[], _semente = 1, gerarId: GeradorDeId = novoIdEntidade): Construcao {
@@ -379,6 +379,7 @@ export function luzes(mapa: MapaAtlas, pedidos: readonly PedidoDeLuz[], _semente
     const l = novaLuz([p.pos[0], p.pos[1]], {
       id: gerarId('l'), ...camposDoPreset(preset, p.direcao ?? 0),
       ...(p.raio !== undefined ? { radius: p.raio } : {}), ...(p.cor !== undefined ? { color: p.cor } : {}), ...(p.intensidade !== undefined ? { intensity: p.intensidade } : {}),
+      ...(p.raios !== undefined ? { rays: p.raios } : {}),
       ...(p.andar ? { levelId: p.andar } : {}),
     });
     comandos.push({ tipo: 'item.adicionar', colecao: 'lights', item: l as unknown as { id: string } & Record<string, unknown> });

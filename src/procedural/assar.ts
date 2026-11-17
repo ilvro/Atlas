@@ -53,6 +53,8 @@ export interface EntradaDoComodo {
   altura: number;
   aberturas: AberturaNaFace[];
   objetos: ObjetoNaFace[];
+  /** Degraus do relevo (< 1 m) que cruzam o cômodo, em metros do mapa. */
+  degraus?: { caminhos: Ponto[][]; drops: ('a' | 'b')[]; desnivel: number }[];
 }
 
 /** Profundidade (m) com que a face de uma parede de `altura` aparece para dentro do cômodo. */
@@ -135,6 +137,7 @@ export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRas
   ctx.shadowColor = 'rgba(0,0,0,0.75)'; ctx.shadowBlur = 0.35 * res; ctx.lineWidth = 0.25; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; tracar(); ctx.stroke();
   if (e.estilo === 'solid') { ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 0.5 * res; ctx.shadowOffsetX = 0.12 * res; ctx.shadowOffsetY = 0.18 * res; ctx.lineWidth = 0.5; ctx.strokeStyle = 'rgba(0,0,0,0.6)'; tracar(); ctx.stroke(); }
   }
+  if (e.degraus?.length) pintarDegrausConstruidos(ctx, e.degraus, res, pixel);
   ctx.restore();
 
   if (e.estilo === 'box') {
@@ -423,6 +426,44 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
 
 /** Largura (m) da faixa de declive de um degrau transponível: ~0,55 m para 0,5 m de desnível. */
 export const larguraDoDeclive = (desnivel: number): number => Math.min(0.85, Math.max(0.3, 0.35 + 0.4 * desnivel));
+
+/**
+ * Degraus do relevo dentro de um cômodo, como degrau construído (tablado, estrado, nave elevada): o espelho do degrau
+ * em faixa escura do lado baixo, a sombra curta que ele projeta, a linha dura do pé e a quina clara e gasta no alto.
+ * Desenha no sistema de coordenadas atual do contexto (metros do mapa).
+ */
+export function pintarDegrausConstruidos(ctx: Contexto, degraus: readonly { caminhos: Ponto[][]; drops: ('a' | 'b')[]; desnivel?: number }[], res: number, pixel: boolean): void {
+  ctx.save();
+  ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
+  const px = 1 / res, enc = (v: number) => (pixel ? Math.max(px, Math.round(v * res) * px) : v);
+  for (const deg of degraus) {
+    const h = deg.desnivel ?? 0.5, espelho = enc(Math.min(0.32, 0.1 + h * 0.22)), sombra = enc(Math.min(0.9, 0.25 + h * 0.6));
+    for (let idx = 0; idx < deg.caminhos.length; idx++) {
+      const path = deg.caminhos[idx]!, drop = deg.drops[idx] ?? 'b';
+      if (path.length < 2) continue;
+      const normal = (i: number): Ponto => ladoBaixo(path[Math.max(0, i - 1)]!, path[Math.min(path.length - 1, i + 1)]!, drop);
+      const deslocar = (d: number) => {
+        ctx.beginPath();
+        for (let i = 0; i < path.length; i++) { const p = path[i]!, n = normal(i), x = p[0] + n[0] * d, y = p[1] + n[1] * d; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+        ctx.stroke();
+      };
+      // Sombra projetada no piso de baixo, em degradê curto.
+      const camadas = pixel ? 2 : 4;
+      for (let k = 0; k < camadas; k++) {
+        const t = k / camadas, w = (sombra - espelho) / camadas;
+        ctx.strokeStyle = `rgba(0, 0, 0, ${(0.42 * Math.pow(1 - t, 1.6)).toFixed(3)})`; ctx.lineWidth = w + (pixel ? 0 : 0.01);
+        deslocar(espelho + (k + 0.5) * w);
+      }
+      // O espelho do degrau: faixa escura com um fio de luz no meio (a pedra do espelho).
+      ctx.strokeStyle = 'rgba(14, 10, 8, 0.62)'; ctx.lineWidth = espelho; deslocar(espelho / 2);
+      if (!pixel) { ctx.strokeStyle = 'rgba(255, 245, 225, 0.08)'; ctx.lineWidth = espelho * 0.3; deslocar(espelho * 0.45); }
+      // Linha dura do pé e quina clara no alto.
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)'; ctx.lineWidth = pixel ? px : 0.03; deslocar(espelho);
+      ctx.strokeStyle = `rgba(255, 248, 232, ${pixel ? 0.55 : 0.42})`; ctx.lineWidth = pixel ? px : 0.07; deslocar(pixel ? -px / 2 : -0.04);
+    }
+  }
+  ctx.restore();
+}
 
 /**
  * Degraus < 1 m como talude: faixa de sombra em degradê no lado baixo, hachuras curtas de declive ao longo do

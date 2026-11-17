@@ -14,10 +14,40 @@ function chamas(r: () => number, cx: number, cy: number, raio: number, n: number
 const brasas = (r: () => number, cx: number, cy: number, raio: number, n: number, z: number): Parte[] =>
   Array.from({ length: n }, () => { const a = r() * 6.28, d = Math.sqrt(r()) * raio; return elipse(cx + Math.cos(a) * d, cy + Math.sin(a) * d, 0.05 + r() * 0.04, 0.04 + r() * 0.03, r() < 0.3 ? CHAMA : BRASA, z, MIUDO); });
 
+/** Língua de fogo vista de cima: gota alongada apontando para `ang`, do pé largo à ponta fina. */
+function lingua(x: number, y: number, ang: number, len: number, larg: number, cor: string, z: number, alfa: number): Parte {
+  const c = Math.cos(ang), s = Math.sin(ang), loc = [-len * 0.25, 0, -len * 0.1, larg / 2, len * 0.35, larg * 0.4, len, 0, len * 0.35, -larg * 0.4, -len * 0.1, -larg / 2], pts: number[] = [];
+  for (let i = 0; i < loc.length; i += 2) pts.push(x + loc[i]! * c - loc[i + 1]! * s, y + loc[i]! * s + loc[i + 1]! * c);
+  return poli(pts, cor, z, { contorno: false, semSombra: true, suave: true, alfa, detalhe: 2 });
+}
+
+/** Braseiro de ferro em tripé: pés em garra para fora da bacia, aro rebitado, leito de carvão em brasa e chamas em camadas (rubro por fora, branco no miolo). */
+function braseiro(seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], R = 0.36, vento = -0.9 + (r() - 0.5) * 0.6;
+  for (let k = 0; k < 3; k++) {
+    const a = Math.PI / 2 + (k / 3) * Math.PI * 2 + 0.3, ex = Math.cos(a) * 0.48, ey = Math.sin(a) * 0.48;
+    partes.push(tira([Math.cos(a) * 0.2, Math.sin(a) * 0.2, Math.cos(a) * 0.44, Math.sin(a) * 0.44], 0.06, '#2e3036', 0.35, { contorno: 'leve', detalhe: 2 }));
+    partes.push(elipse(ex, ey, 0.1, 0.1, '#3c3f46', 0.1, { contorno: 'leve', detalhe: 2 }));
+  }
+  partes.push(elipse(0, 0, R * 2 + 0.08, R * 2 + 0.08, '#24262b', 0.9, { contorno: 'leve', sombraLeve: true }));
+  partes.push(elipse(-0.015, -0.02, R * 2 + 0.02, R * 2 + 0.02, '#4b4f58', 0.92, { contorno: false, semSombra: true, detalhe: 1 }));
+  partes.push(elipse(0, 0, R * 2 - 0.08, R * 2 - 0.08, '#1a0d08', 0.94, { contorno: 'leve', semSombra: true }));
+  for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; partes.push(elipse(Math.cos(a) * (R - 0.0), Math.sin(a) * (R - 0.0), 0.035, 0.035, '#8a8e98', 0.95, MIUDO)); }
+  // Leito de carvão: rubro por baixo, laranja vivo no meio, pedaços escuros por cima.
+  partes.push(elipse(0, 0, R * 1.7, R * 1.7, '#7a1a08', 0.96, MIUDO), elipse(0.01, 0.01, R * 1.25, R * 1.25, ARDE, 0.97, MIUDO));
+  for (let k = 0; k < 14; k++) { const a = r() * 6.28, d = Math.sqrt(r()) * R * 0.8; partes.push(elipse(Math.cos(a) * d, Math.sin(a) * d, 0.06 + r() * 0.05, 0.05 + r() * 0.04, r() < 0.45 ? CARVAO : r() < 0.5 ? BRASA : CHAMA, 0.98, MIUDO)); }
+  // Chamas: línguas puxadas pelo vento, em três camadas.
+  for (let k = 0; k < 6; k++) { const a = vento + (r() - 0.5) * 1.6, d = r() * R * 0.5; partes.push(lingua(Math.cos(a) * d * 0.5, Math.sin(a) * d * 0.5, a * 0.3 + vento * 0.7, 0.32 + r() * 0.2, 0.22 + r() * 0.1, '#ff5a12', 1.05 + k * 0.002, 0.85)); }
+  for (let k = 0; k < 5; k++) { const a = vento + (r() - 0.5) * 1.2; partes.push(lingua((r() - 0.5) * 0.12, (r() - 0.5) * 0.12, a, 0.24 + r() * 0.12, 0.15 + r() * 0.06, '#ffb22e', 1.1 + k * 0.002, 0.9)); }
+  for (let k = 0; k < 3; k++) partes.push(lingua((r() - 0.5) * 0.06, (r() - 0.5) * 0.06, vento + (r() - 0.5) * 0.8, 0.14 + r() * 0.06, 0.09, '#fff2b8', 1.15 + k * 0.002, 0.95));
+  for (let k = 0; k < 5; k++) { const a = vento + (r() - 0.5) * 1.4, d = 0.45 + r() * 0.2; partes.push(elipse(Math.cos(a) * d, Math.sin(a) * d, 0.03, 0.03, CHAMA, 1.2, { ...MIUDO, alfa: 0.8 })); }
+  return partes;
+}
+
 /** Fogo, ofícios, masmorra e acampamento: o que dá vida a forja, pátio, masmorra e acampamento. */
 export const RECEITAS_DE_MASMORRA: Receita[] = [
-  { id: 'braseiro', nome: 'Braseiro', categoria: 'lareira-e-luz', tipo: 'piso', funcoes: ['sala', 'porao', 'capela', 'forja', 'jardim'], tags: ['braseiro', 'fogo', 'brasa', 'luz', 'tripe'], pegada: [0.7, 0.7], ...G,
-    gerar: p => { const r = mulberry32(p.seed); return piso([0.7, 0.7], [elipse(0, 0, 0.56, 0.56, 'ferro', 0.5, {}), ...[Math.PI / 2, Math.PI * 1.17, Math.PI * 1.83].map(a => tira([0, 0, Math.cos(a) * 0.33, Math.sin(a) * 0.33], 0.05, '#4a4d56', 0.3, { contorno: 'leve', detalhe: 2 })), elipse(0, 0, 0.47, 0.47, '#2a1a14', 0.52, VOL), ...brasas(r, 0, 0, 0.19, 9, 0.54), ...chamas(r, 0, 0, 0.1, 4, 0.6)]); } },
+  { id: 'braseiro', nome: 'Braseiro', categoria: 'lareira-e-luz', tipo: 'piso', funcoes: ['sala', 'porao', 'capela', 'forja', 'jardim'], tags: ['braseiro', 'fogo', 'brasa', 'luz', 'tripe'], pegada: [1, 1], altura: 1.2, ...G,
+    gerar: p => piso([1, 1], braseiro(p.seed)) },
   { id: 'fogueira', nome: 'Fogueira', categoria: 'lareira-e-luz', tipo: 'piso', funcoes: ['jardim'], tags: ['fogueira', 'fogo', 'acampamento', 'lenha', 'chamas'], pegada: [1.1, 1.1], ...G,
     gerar: p => { const r = mulberry32(p.seed), n = 9 + Math.floor(r() * 3), a0 = r() * 6.28; return piso([1.1, 1.1], [
       elipse(0, 0, 0.96, 0.96, '#4a4743', 0.04, {}),

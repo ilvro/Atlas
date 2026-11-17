@@ -609,6 +609,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         luzes: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
           preset: { type: 'string', enum: PRESETS_DE_LUZ.map(l => l.id) }, pos: ponto, direcao: { type: 'number' },
           raio: { type: 'number', minimum: 0.1, maximum: 200 }, cor: { type: 'string' }, intensidade: { type: 'number', minimum: 0, maximum: 3 },
+          raios: { type: 'boolean', description: 'Raios visíveis; sem cone, feixe que desce de uma abertura no teto.' },
           andar: andarSchema,
         }, required: ['preset', 'pos'] } },
         andar: andarSchema,
@@ -620,6 +621,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           preset: verificarId('preset de luz', l.preset, PRESETS_DE_LUZ), pos: pontos([l.pos], `luzes[${i}].pos`)[0]!,
           ...(l.direcao !== undefined ? { direcao: numero(l.direcao, 'direcao', -1000, 1000) } : {}), ...(l.raio !== undefined ? { raio: numero(l.raio, 'raio', 0.1, 200) } : {}),
           ...(l.cor !== undefined ? { cor: cor(l.cor, 'cor') } : {}), ...(l.intensidade !== undefined ? { intensidade: numero(l.intensidade, 'intensidade', 0, 3) } : {}),
+          ...(l.raios !== undefined ? { raios: l.raios === true } : {}),
           ...(l.andar !== undefined ? { andar: lerAndar(l.andar, `luzes[${i}].andar`) } : {}),
         }));
         return [texto(escrever(ctx, `${pedidos.length} luz(es)`, mapa => geracao(luzes(mapa, aplicarAndarBase(mapa, pedidos, andarBase)))))];
