@@ -1,4 +1,4 @@
-import { chaveDaRef, type Ref } from '../../mesa-core/src/refs.ts';
+import { chaveDaRef, type Ref } from '#mesa';
 import type { Peca } from './mapa.ts';
 
 /** PV e PD de uma ficha, como a Ficha os publica em `ficha.recursos`. Vivem na memória da sessão: o documento do mapa só guarda o `Ref`. */

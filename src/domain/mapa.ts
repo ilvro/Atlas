@@ -218,6 +218,9 @@ export interface MapaAtlas {
 /** Coleções de entidades por identificador: as que o editor seleciona, move e remove. */
 export const COLECOES = ['rooms', 'walls', 'openings', 'props', 'lights', 'regions', 'presence', 'tokens'] as const;
 export type NomeColecao = (typeof COLECOES)[number];
+/** Coleções que os comandos genéricos manipulam (cômodos, paredes e aberturas têm comandos próprios). */
+export const COLECOES_LIVRES = ['props', 'lights', 'tokens', 'regions', 'presence'] as const;
+export type ColecaoLivre = (typeof COLECOES_LIVRES)[number];
 
 export interface OpcoesNovoMapa {
   nome?: string; id?: string; agora?: number;

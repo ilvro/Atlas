@@ -7,8 +7,8 @@ import {
   salvarContador,
   chaveContador,
   CONTADOR_PADRAO,
-  estadoCronometro,
 } from '../../src/domain/relogio.ts';
+import { estadoCronometro } from '../../src/app/relogio.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { criarStore } from '../../src/state/store.ts';
 import { ceuNoHorario } from '../../src/domain/clima.ts';

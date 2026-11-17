@@ -2,7 +2,12 @@ import { contem, codificar, type Celula, type Faixa } from './celulas.ts';
 import type { MapaAtlas, Ponto } from './mapa.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import { pontoNoPoligono } from './regioes.ts';
-import type { CelulaDoComando, ComandoConstruir } from '../state/comandos-construir.ts';
+
+export type CelulaDeAgua = readonly [number, number];
+export type ComandoDeEtapaDeAgua =
+  | { tipo: 'terreno.pintar'; material: string; celulas: readonly CelulaDeAgua[]; suavizar?: boolean; lembrar?: boolean }
+  | { tipo: 'terreno.emergir'; material: string; celulas: readonly CelulaDeAgua[] }
+  | { tipo: 'terreno.apagar'; celulas: readonly CelulaDeAgua[] };
 
 /** O material da camada de água que cobre o ponto (em metros), ou `null` se ali não há água. */
 export function aguaEm(m: Pick<MapaAtlas, 'terrain'>, p: Ponto): string | null {
@@ -47,7 +52,7 @@ export function etapasDaAgua(
   totalEtapas = 6,
   limites?: { width: number; height: number } | { largura: number; altura: number } | readonly [number, number],
   ordem: 'centro' | 'borda' = 'centro',
-): CelulaDoComando[][] {
+): CelulaDeAgua[][] {
   if (poligono.length < 3 || totalEtapas <= 0) return [];
 
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -81,7 +86,7 @@ export function etapasDaAgua(
   const cy0 = Math.max(0, Math.floor(minY / res));
   const cy1 = maxRows !== undefined ? Math.min(maxRows - 1, Math.ceil(maxY / res)) : Math.ceil(maxY / res);
 
-  const celulas: { c: CelulaDoComando; d: number }[] = [];
+  const celulas: { c: CelulaDeAgua; d: number }[] = [];
   if (cx0 <= cx1 && cy0 <= cy1) {
     for (let cy = cy0; cy <= cy1; cy++) {
       for (let cx = cx0; cx <= cx1; cx++) {
@@ -103,7 +108,7 @@ export function etapasDaAgua(
 
   celulas.sort((a, b) => a.d - b.d);
 
-  const etapas: CelulaDoComando[][] = Array.from({ length: totalEtapas }, () => []);
+  const etapas: CelulaDeAgua[][] = Array.from({ length: totalEtapas }, () => []);
   const total = celulas.length;
   if (total === 0) return etapas;
 
@@ -118,8 +123,8 @@ export function etapasDaAgua(
 export function comandoDaEtapaDeAgua(
   mapa: Pick<MapaAtlas, 'terrain'>,
   passo: { material: string; acao?: 'subir' | 'baixar'; deixar?: string },
-  celulas: readonly CelulaDoComando[],
-): ComandoConstruir | null {
+  celulas: readonly CelulaDeAgua[],
+): ComandoDeEtapaDeAgua | null {
   if (celulas.length === 0) return null;
   if (passo.acao !== 'baixar') return { tipo: 'terreno.pintar', material: passo.material, celulas, suavizar: true, lembrar: true };
   const camadas = Object.values(mapa.terrain.layers).filter(c => c.material === passo.material);
