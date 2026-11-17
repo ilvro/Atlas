@@ -507,33 +507,35 @@ export function contornoDoComodo(m: Pick<MapaAtlas, 'grid'>, cells: readonly Cel
 }
 
 /** Faces internas (estilo caixa): o trapézio de cada segmento, com cantos em meia-esquadria (miter com limite 3×prof), `prof` metros para dentro. */
-export function facesDoContorno(laco: readonly SegmentoDeContorno[], prof: number): { segmento: SegmentoDeContorno; quad: [Ponto, Ponto, Ponto, Ponto] }[] {
-  const m = laco.length;
-  const maxExt = 3 * prof;
+export function facesDoContorno(laco: readonly SegmentoDeContorno[], prof: number, profundidade?: (n: Ponto) => number): { segmento: SegmentoDeContorno; quad: [Ponto, Ponto, Ponto, Ponto]; prof: number }[] {
+  const m = laco.length, d = laco.map(e => (profundidade ? profundidade(e.n) : prof));
+  const maxExt = 3 * Math.max(...d, 1e-6);
   const interno = laco.map((e, i) => {
-    const ant = laco[(i - 1 + m) % m]!;
-    const dot = ant.n[0] * e.n[0] + ant.n[1] * e.n[1];
-    const denom = 1 + dot;
-    let bx = ant.n[0] + e.n[0], by = ant.n[1] + e.n[1];
-    if (denom > 1e-4) {
-      bx = (prof * bx) / denom;
-      by = (prof * by) / denom;
+    const ia = (i - 1 + m) % m, ant = laco[ia]!, da = d[ia]!, de = d[i]!;
+    // A quina interna é o encontro das duas faces deslocadas (cada uma com a sua profundidade).
+    const det = ant.n[0] * e.n[1] - ant.n[1] * e.n[0];
+    let bx: number, by: number;
+    if (Math.abs(det) > 1e-4) {
+      bx = (da * e.n[1] - de * ant.n[1]) / det;
+      by = (ant.n[0] * de - e.n[0] * da) / det;
     } else {
-      // Quina ~180° (bico degenerado): segue a bissetriz média com extensão limitada
-      const tLen = Math.hypot(bx, by);
-      if (tLen > 1e-9) { bx = (maxExt * bx) / tLen; by = (maxExt * by) / tLen; }
-      else { bx = prof * e.n[0]; by = prof * e.n[1]; }
+      // Normais paralelas: segue a da face atual; bico de ~180°, a bissetriz média com extensão limitada.
+      const dot = ant.n[0] * e.n[0] + ant.n[1] * e.n[1];
+      if (dot > 0) { bx = de * e.n[0]; by = de * e.n[1]; }
+      else { bx = ant.n[0] + e.n[0]; by = ant.n[1] + e.n[1]; const t = Math.hypot(bx, by); if (t > 1e-9) { bx = (maxExt * bx) / t; by = (maxExt * by) / t; } else { bx = de * e.n[0]; by = de * e.n[1]; } }
     }
     const len = Math.hypot(bx, by);
-    if (len > maxExt) {
-      const f = maxExt / len;
-      bx *= f;
-      by *= f;
-    }
+    if (len > maxExt) { const f = maxExt / len; bx *= f; by *= f; }
     return [e.a[0] + bx, e.a[1] + by] as Ponto;
   });
-  return laco.map((e, i) => ({ segmento: e, quad: [e.a, e.b, interno[(i + 1) % m]!, interno[i]!] }));
+  return laco.map((e, i) => ({ segmento: e, quad: [e.a, e.b, interno[(i + 1) % m]!, interno[i]!], prof: d[i]! }));
 }
+
+/**
+ * Quanto da face de uma parede aparece, pela direção da normal para dentro do cômodo (rebatimento de planta de mesa):
+ * a parede do fundo (norte, normal para +y) mostra a face inteira, as laterais 45% e a da frente (sul) 18%.
+ */
+export const fatorDaFace = (n: Ponto): number => (n[1] >= 0 ? 0.45 + 0.55 * n[1] : 0.45 + 0.27 * n[1]);
 
 /** Caixa que envolve um conjunto de células, em metros. */
 export function caixaDasCelulas(m: Pick<MapaAtlas, 'grid'>, cells: readonly Celula[]): { x0: number; y0: number; x1: number; y1: number } | null {

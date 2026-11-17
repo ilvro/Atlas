@@ -1,4 +1,4 @@
-import { contornoDoComodo, facesDoContorno, caixaDasCelulas, type SegmentoDeContorno } from '../domain/geometria.ts';
+import { contornoDoComodo, facesDoContorno, fatorDaFace, caixaDasCelulas, type SegmentoDeContorno } from '../domain/geometria.ts';
 import type { Faixa } from '../domain/celulas.ts';
 import { decodificar } from '../domain/celulas.ts';
 import type { Grade, Ponto } from '../domain/mapa.ts';
@@ -58,7 +58,7 @@ export interface EntradaDoComodo {
 }
 
 /** Profundidade (m) com que a face de uma parede de `altura` aparece para dentro do cômodo. */
-export const profundidadeDaFace = (altura: number): number => altura * 0.21;
+export const profundidadeDaFace = (altura: number): number => altura * 0.42;
 
 const MARGEM_COMODO = 0.4;
 
@@ -141,9 +141,9 @@ export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRas
   ctx.restore();
 
   if (e.estilo === 'box') {
-    const H = e.altura, prof = profundidadeDaFace(H), k = prof / H, papel = e.papel ?? { material: 'papel.liso-claro', seed: 1 };
-    for (const laco of lacos) for (const f of facesDoContorno(laco, prof)) {
-      const s = f.segmento, comp = Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1]), dx = (s.b[0] - s.a[0]) / comp, dy = (s.b[1] - s.a[1]) / comp;
+    const H = e.altura, profMax = profundidadeDaFace(H), papel = e.papel ?? { material: 'papel.liso-claro', seed: 1 };
+    for (const laco of lacos) for (const f of facesDoContorno(laco, profMax, n => profMax * fatorDaFace(n))) {
+      const s = f.segmento, prof = f.prof, k = prof / H, comp = Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1]), dx = (s.b[0] - s.a[0]) / comp, dy = (s.b[1] - s.a[1]) / comp;
       if (pixel) {
         const objetos = e.objetos.flatMap(o => { const u = ao_longo(s, o.centro); if (u === null) return []; const d = descreverReceita(o.receita, { seed: o.seed, params: o.params }); return d.tipo === 'parede' ? [{ partes: partesParaFace(d.face, u, H) }] : []; });
         const aberturas = e.aberturas.flatMap(a => { const u = ao_longo(s, a.centro); return u === null ? [] : [{ tipo: a.tipo, u, largura: a.largura, material: a.material, partes: partesDaAbertura(a, u, H) }]; });
@@ -154,12 +154,19 @@ export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRas
       ctx.beginPath(); ctx.moveTo(f.quad[0][0], f.quad[0][1]); for (const q of f.quad.slice(1)) ctx.lineTo(q[0], q[1]); ctx.closePath(); ctx.clip();
       ctx.transform(dx, dy, s.n[0] * k, s.n[1] * k, s.a[0], s.a[1]);
       const sementeDaFace = Math.round(s.a[0] * 13 + s.a[1] * 7);
+      // A face da parede, de cima (y = 0, junto do topo da parede) até o chão (y = H): sanca, papel de parede e rodapé.
       estilo.pintarMaterial(ctx, papel.material, { x: 0, y: 0, w: comp, h: H }, papel.seed + sementeDaFace, { res });
-      estilo.pintarMaterial(ctx, 'madeira.escura', { x: 0, y: H - 0.9, w: comp, h: 0.9 }, 3 + sementeDaFace, { res });
-      ctx.fillStyle = tom(materialDe('madeira.media').base, 0.1); ctx.fillRect(0, H - 0.93, comp, 0.05);
+      const corLam = materialDe('madeira.escura').base;
+      ctx.fillStyle = tom(corLam, -0.2); ctx.fillRect(0, H - 0.16, comp, 0.16);
+      ctx.fillStyle = tom(corLam, 0.25); ctx.fillRect(0, H - 0.17, comp, 0.025);
+      ctx.fillStyle = '#e6dccb'; ctx.globalAlpha = 0.85; ctx.fillRect(0, 0, comp, 0.12); ctx.globalAlpha = 1;
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, 0.12, comp, 0.03);
       const gr = ctx.createLinearGradient(0, 0, 0, H);
-      gr.addColorStop(0, 'rgba(0,0,0,0.55)'); gr.addColorStop(0.35, 'rgba(0,0,0,0.12)'); gr.addColorStop(0.9, 'rgba(0,0,0,0.1)'); gr.addColorStop(1, 'rgba(0,0,0,0.5)');
+      gr.addColorStop(0, 'rgba(0,0,0,0.18)'); gr.addColorStop(0.3, 'rgba(0,0,0,0.0)'); gr.addColorStop(0.92, 'rgba(0,0,0,0.05)'); gr.addColorStop(1, 'rgba(0,0,0,0.38)');
       ctx.fillStyle = gr; ctx.fillRect(0, 0, comp, H);
+      // A face que olha para a luz (noroeste) clareia um pouco; a oposta, escurece.
+      const luz = -(s.n[0] * -0.7071 + s.n[1] * -0.7071);
+      ctx.fillStyle = luz > 0 ? `rgba(255,240,215,${(0.08 * luz).toFixed(3)})` : `rgba(0,0,0,${(-0.12 * luz).toFixed(3)})`; ctx.fillRect(0, 0, comp, H);
       for (const a of e.aberturas) { const u = ao_longo(s, a.centro); if (u !== null) desenharAbertura(ctx, a, u, H, res, estilo); }
       for (const o of e.objetos) {
         const u = ao_longo(s, o.centro); if (u === null) continue;
