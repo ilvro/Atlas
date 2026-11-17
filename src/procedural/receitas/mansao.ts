@@ -9,7 +9,7 @@ import { setorDeAnel } from './praca.ts';
  * Kit da mansão: móveis de época vistos de cima, pintados com volume (luz a noroeste, sombra a sudeste), para salões,
  * bibliotecas, salas de jantar e quartos de uma casa rica. A parede fica sempre do lado −y; a frente do móvel é +y.
  */
-const K = { kit: 'mansao' };
+const K = { kit: 'mansao', generos: ['investigacao', 'fantasia'] };
 const MOGNO = '#4a2418', MOGNO_CL = '#7a4028', LATAO = '#c9a24a', LATAO_CL = '#f0d27a', MARMORE = '#e4ded2', MARMORE_SOMBRA = '#a9a296', PORCELANA = '#f4f0e6';
 const V = { contorno: 'leve' as const, detalhe: 2 as const }, D = { contorno: false as const, semSombra: true, detalhe: 3 as const };
 const cor = (id: string): string => (id.startsWith('#') ? id : materialDe(id).base);
