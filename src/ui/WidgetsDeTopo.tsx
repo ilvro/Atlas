@@ -5,9 +5,9 @@ import {
   avancarHorario,
   carregarContador,
   salvarContador,
-  estadoCronometro,
   type ContadorDramatico,
 } from '../domain/relogio.ts';
+import { estadoCronometro } from '../app/relogio.ts';
 import { ceuNoHorario } from '../domain/clima.ts';
 import { tocar } from '../fx/som.ts';
 import { tentar } from './campos.tsx';

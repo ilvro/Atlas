@@ -1,13 +1,13 @@
 import { decodificar } from '../domain/celulas.ts';
 import { caixaDasCelulas, comprimentoDaParede, pontoNaParede, projetarNaParede } from '../domain/geometria.ts';
-import type { MapaAtlas, Objeto, Ponto } from '../domain/mapa.ts';
+import { COLECOES_LIVRES, type ColecaoLivre, type MapaAtlas, type Objeto, type Ponto } from '../domain/mapa.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { camadaDoObjeto } from '../domain/camadas.ts';
-import { COLECOES_LIVRES, type AlvoMovel, type ColecaoLivre } from '../state/comandos.ts';
 
 /** O que o mestre pode selecionar: itens soltos (que também se movem) e a construção (cômodos, paredes, aberturas). */
 export type ColecaoSelecionavel = ColecaoLivre | 'rooms' | 'walls' | 'openings';
 export interface Alvo { colecao: ColecaoSelecionavel; id: string }
+export interface AlvoMovel { colecao: ColecaoLivre; id: string }
 export const ehMovel = (a: Alvo): a is AlvoMovel => (COLECOES_LIVRES as readonly string[]).includes(a.colecao);
 export interface Caixa { x0: number; y0: number; x1: number; y1: number }
 

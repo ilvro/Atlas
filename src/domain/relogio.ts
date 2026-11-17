@@ -1,8 +1,6 @@
-import { signal } from '@preact/signals';
-
 /**
  * Funções puras de formatação de cronômetro, avanço de horário do clima
- * e persistência dos contadores dramáticos de sessão.
+ * e leitura/gravação dos contadores dramáticos de sessão.
  */
 
 export interface ContadorDramatico {
@@ -14,12 +12,6 @@ export const CONTADOR_PADRAO: ContadorDramatico = {
   rotulo: 'Tensão',
   valor: 0,
 };
-
-/** Estado em memória do cronômetro (não grava no histórico de undo da Store). */
-export const estadoCronometro = signal<{ segundos: number; rodando: boolean }>({
-  segundos: 0,
-  rodando: false,
-});
 
 /** Formata segundos em MM:SS ou HH:MM:SS quando ultrapassa 1 hora. */
 export function formatarCronometro(segundosTotais: number): string {

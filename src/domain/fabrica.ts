@@ -1,6 +1,5 @@
 import { ACERVO } from '../procedural/acervo.ts';
-import type { Luz, MapaAtlas, Objeto, Peca, Ponto, Regiao } from './mapa.ts';
-import type { ColecaoLivre } from '../state/comandos.ts';
+import type { ColecaoLivre, Luz, MapaAtlas, Objeto, Peca, Ponto, Regiao } from './mapa.ts';
 
 /** Identificador curto e único o bastante para uma entidade criada no editor. */
 export const novoIdEntidade = (prefixo = 'x'): string => `${prefixo}${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;

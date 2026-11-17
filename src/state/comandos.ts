@@ -3,7 +3,7 @@ import { ceuNoHorario } from '../domain/clima.ts';
 import { camadaDoObjeto } from '../domain/camadas.ts';
 import { ErroDeValidacao } from '../domain/esquema.ts';
 import { clonar, produzir } from './imutavel.ts';
-import type { Acabamento, Andar, Clima, Estilo, Fundo, Grade, Luz, Memoria, MapaAtlas, ModoTelhadosSessao, NomeColecao, Ponto } from '../domain/mapa.ts';
+import { COLECOES_LIVRES, type Acabamento, type Andar, type Clima, type ColecaoLivre, type Estilo, type Fundo, type Grade, type Luz, type Memoria, type MapaAtlas, type ModoTelhadosSessao, type NomeColecao, type Ponto } from '../domain/mapa.ts';
 import { andarDe, mapaDoAndar } from '../domain/andares.ts';
 import { atualizarSalasDosObjetos } from '../domain/geometria.ts';
 import { alvosDoInterruptor } from '../domain/interagiveis.ts';
@@ -15,9 +15,7 @@ import { validarMapa } from '../domain/validacao.ts';
 import { momentoValido, type Momento } from '../domain/momentos.ts';
 import { aplicarConstrucao, ehComandoDeConstrucao, ErroDeComando, ROTULOS_CONSTRUIR, type ComandoConstruir, type ParcialProfundo } from './comandos-construir.ts';
 
-/** Coleções que os comandos genéricos manipulam. Cômodos, paredes e aberturas têm comandos próprios (Fase 3). */
-export const COLECOES_LIVRES = ['props', 'lights', 'tokens', 'regions', 'presence'] as const;
-export type ColecaoLivre = (typeof COLECOES_LIVRES)[number];
+export { COLECOES_LIVRES, type ColecaoLivre };
 
 export { ErroDeComando };
 export type { ParcialProfundo };
