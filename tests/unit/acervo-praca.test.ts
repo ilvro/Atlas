@@ -7,11 +7,15 @@ import type { Parte } from '../../src/procedural/descricao.ts';
 import { caminho } from '../../src/authoring/caminho.ts';
 import { terreno } from '../../src/authoring/construcao.ts';
 import { Kit } from '../../scripts/exemplos/kit.ts';
+import { camposDoPreset, presetDeLuz } from '../../src/domain/presets.ts';
+import { luzes } from '../../src/authoring/construcao.ts';
+import { aplicarEmCopia } from '../../src/authoring/construcao.ts';
+import { entradaDoComodo } from '../../src/render/entradas.ts';
 
 const partes = (id: string, params: Record<string, unknown> = {}, seed = 3): Parte[] => { const d = descreverReceita(id, { seed, params }); return d.tipo === 'piso' ? d.partes : [...d.face, ...d.topo]; };
 
 test('as receitas da praça existem, são de exterior e respeitam os limites dos campos', () => {
-  assert.deepEqual(RECEITAS_DA_PRACA.map(r => r.id), ['arquibancada', 'roseta-de-calcamento', 'arco-de-pedra', 'estatua-heroica', 'casulo']);
+  assert.deepEqual(RECEITAS_DA_PRACA.map(r => r.id), ['arquibancada', 'roseta-de-calcamento', 'arco-de-pedra', 'estatua-heroica', 'muralha-em-degraus', 'fosso-de-luz', 'casulo']);
   for (const r of RECEITAS_DA_PRACA) { assert.equal(RECEITAS[r.id], r); assert.equal(r.categoria, 'exterior'); assert.ok(partes(r.id).length > 5, r.id); }
   assert.deepEqual(pegadaDaReceita('roseta-de-calcamento', { raio: 99 }), [18, 18]);
   assert.deepEqual(pegadaDaReceita('casulo', { tamanho: 3 }), [3, 3.75]);
@@ -50,4 +54,60 @@ test('Kit.aplicar roda as ferramentas do assistente e o resultado continua edit�
   assert.equal(Object.values(m.terrain.relief!.patamares)[0]!.altura, 2);
   assert.equal(Object.keys(m.props).length, 1);
   assert.deepEqual(k.construir(), m, 'construir é estável');
+});
+
+test('as escadas de pedra clareiam de baixo (+y) para cima (−y), com muretas dos dois lados', () => {
+  for (const id of ['escada.pedra', 'escada.externa']) {
+    const ps = partes(id), pisadas = ps.filter(p => p.forma === 'ret' && p.alfa === undefined && p.w! > 0.6 && p.h! < 0.4).sort((a, b) => b.y! - a.y!);
+    assert.ok(pisadas.length >= 5, id);
+    const luz = (hex: string) => parseInt(hex.slice(1, 3), 16) + parseInt(hex.slice(3, 5), 16) + parseInt(hex.slice(5, 7), 16);
+    assert.ok(luz(pisadas.at(-1)!.mat) > luz(pisadas[0]!.mat), `${id}: o degrau de cima é mais claro`);
+    const [w] = pegadaDaReceita(id);
+    for (const s of [-1, 1]) assert.ok(ps.some(p => p.forma === 'ret' && Math.sign(p.x!) === s && Math.abs(p.x!) > w / 2 - 0.35 && p.z > 0.4), `${id}: mureta ${s}`);
+  }
+});
+
+test('o braseiro tem pés, aro, brasa e chamas em camadas acima da bacia', () => {
+  const ps = partes('braseiro');
+  assert.deepEqual(pegadaDaReceita('braseiro'), [1, 1]);
+  const chamas = ps.filter(p => p.forma === 'poli' && p.z > 1);
+  assert.ok(chamas.length >= 10);
+  assert.ok(chamas.some(p => p.mat === '#fff2b8'), 'miolo branco');
+});
+
+test('o fosso de luz tem aro de blocos e brilho no fundo, na cor pedida; a muralha sobe em patamares', () => {
+  const frio = partes('fosso-de-luz'), dourado = partes('fosso-de-luz', { cor: 1 });
+  assert.ok(frio.some(p => p.mat === '#cfe6ff') && dourado.some(p => p.mat === '#ffe2a0'));
+  assert.ok(frio.filter(p => p.forma === 'ret' && p.z === 0.18).length >= 12, 'aro de blocos');
+  const muralha = partes('muralha-em-degraus', { largura: 6, profundidade: 3, degraus: 3 }), zs = new Set(muralha.filter(p => p.forma === 'ret' && !p.alfa).map(p => Math.round(p.z * 10)));
+  assert.ok(zs.size >= 3);
+  assert.deepEqual(pegadaDaReceita('muralha-em-degraus', { largura: 6, profundidade: 3 }), [6, 3]);
+});
+
+test('as lajes de pedra são lajes grandes; o tijolo continua em fiadas', () => {
+  assert.equal(MATERIAIS['laje.pedra']!.padrao, 'lajes-grandes');
+  assert.equal(MATERIAIS['lajes.antigas']!.padrao, 'lajes-grandes');
+  assert.equal(MATERIAIS['tijolo']!.padrao, 'laje');
+});
+
+test('o feixe do alto é uma luz em círculo com raios, e atlas_luzes liga raios em qualquer luz', () => {
+  const f = presetDeLuz('feixe')!;
+  assert.equal(f.cone, null);
+  assert.equal(camposDoPreset(f).rays, true);
+  const k = new Kit({ id: 'teste-luz', nome: 'Teste', largura: 10, altura: 10, semente: 2 });
+  const m = k.construir();
+  const c = luzes(m, [{ preset: 'tocha', pos: [5, 5], raios: true }, { preset: 'vela', pos: [2, 2] }], 1, p => `${p}${Math.random().toString(36).slice(2, 8)}`);
+  const ls = Object.values(aplicarEmCopia(m, c.comandos).lights);
+  assert.deepEqual(ls.map(l => l.rays).sort(), [false, true]);
+});
+
+test('o degrau do relevo que cruza um cômodo entra no assado do cômodo', () => {
+  const k = new Kit({ id: 'teste-tablado', nome: 'Teste', largura: 15, altura: 15, semente: 4 });
+  k.base('terra');
+  k.comodo([1, 1, 9, 9], 'salao', { telhado: null });
+  k.aplicar(m => terreno(m, [{ acao: 'relevo', altura: 0.6, forma: { retangulo: [4.5, 4.5, 9, 9] } }], 1));
+  const m = k.construir(), sala = Object.values(m.rooms)[0]!;
+  const e = entradaDoComodo(m, sala);
+  assert.ok(e.degraus && e.degraus.length >= 1);
+  assert.equal(e.degraus[0]!.desnivel, 0.6);
 });

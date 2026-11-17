@@ -191,6 +191,101 @@ function estatuaHeroica(seed: number): Parte[] {
   return partes;
 }
 
+/**
+ * Escada de pedra de alvenaria (sobe de +y para −y): cada degrau é uma fiada de blocos com juntas desencontradas, quina
+ * gasta e clara na frente e a sombra do degrau de cima caindo sobre ele; os degraus de baixo são mais escuros (mais
+ * fundos). Com `muretas`, guardas laterais de pedra com capa em lances que acompanham a subida.
+ */
+export function escadaDeAlvenaria(w: number, l: number, seed: number, muretas = true, cor = '#9a958a'): Parte[] {
+  const r = mulberry32(seed), n = Math.max(3, Math.round(l / 0.3)), passo = l / n, lat = muretas ? Math.min(0.32, w * 0.14) : 0, wd = w - lat * 2;
+  const yD = (i: number) => l / 2 - (i + 0.5) * passo, z = (i: number) => 0.1 + i * 0.16, partes: Parte[] = [];
+  partes.push(ret(0, 0, w, l, tom(cor, -0.7), 0.04, { contorno: 'leve', sombraLeve: true }));
+  for (let i = 0; i < n; i++) {
+    const y = yD(i), t = n > 1 ? i / (n - 1) : 1, base = tom(cor, -0.42 + t * 0.5), dy = passo * 0.96;
+    // A pisada inteira, com juntas finas desencontradas entre os blocos.
+    partes.push(ret(0, y, wd, dy, base, z(i), { raio: 0.01, contorno: 'leve', detalhe: 1 }));
+    let x = -wd / 2 + 0.3 + (i % 2) * 0.25 + r() * 0.1;
+    while (x < wd / 2 - 0.2) { partes.push(ret(x, y + 0.01, 0.018, dy * 0.82, tom(base, -0.5), z(i) + 0.004, { alfa: 0.65, contorno: false, semSombra: true, detalhe: 3 })); x += 0.5 + r() * 0.45; }
+    // Sombra do espelho de cima no fundo da pisada (−y), em duas faixas; quina clara e gasta na frente (+y).
+    if (i < n - 1) {
+      partes.push(ret(0, y - dy / 2 + dy * 0.2, wd, dy * 0.4, '#000000', z(i) + 0.005, { alfa: 0.22, contorno: false, semSombra: true, suave: true, detalhe: 3 }));
+      partes.push(ret(0, y - dy / 2 + dy * 0.08, wd, dy * 0.16, '#000000', z(i) + 0.006, { alfa: 0.4, contorno: false, semSombra: true, detalhe: 3 }));
+    }
+    partes.push(ret(0, y + dy / 2 - 0.03, wd - 0.02, 0.045, tom(base, 0.4), z(i) + 0.007, { alfa: 0.85, contorno: false, semSombra: true, detalhe: 3 }));
+    partes.push(ret((r() - 0.5) * wd * 0.2, y + dy * 0.12, wd * 0.5, dy * 0.32, tom(base, 0.12), z(i) + 0.006, { alfa: 0.4, contorno: false, semSombra: true, suave: true, detalhe: 3 }));
+    if (r() < 0.2) partes.push(elipse(-wd / 2 + 0.12 + r() * (wd - 0.24), y + (r() - 0.5) * dy * 0.5, 0.14, 0.05, '#4f6a3a', z(i) + 0.008, { alfa: 0.7, contorno: false, semSombra: true, detalhe: 3 }));
+  }
+  if (muretas) {
+    const lances = Math.max(2, Math.round(l / 0.9)), cl = l / lances;
+    for (const s of [-1, 1]) for (let k = 0; k < lances; k++) {
+      const y = l / 2 - (k + 0.5) * cl, zz = z(Math.min(n - 1, Math.floor(((k + 0.5) * n) / lances))) + 0.45, c = tom(cor, -0.12 + (k / lances) * 0.2 + (r() - 0.5) * 0.06);
+      partes.push(ret(s * (w / 2 - lat / 2), y, lat, cl - 0.02, tom(c, -0.35), zz - 0.02, { raio: 0.02, contorno: 'leve', sombraLeve: true, detalhe: 1 }));
+      partes.push(ret(s * (w / 2 - lat / 2) - s * 0.02, y - 0.02, lat * 0.72, cl - 0.08, tom(c, 0.12), zz, { raio: 0.02, contorno: false, semSombra: true, detalhe: 2 }));
+    }
+  }
+  return partes;
+}
+
+/** Fiadas de blocos de alvenaria num retângulo (centro `cx`, `cy`), com juntas desencontradas, bisel e tom por bloco. */
+function alvenaria(partes: Parte[], r: () => number, cx: number, cy: number, w: number, h: number, cor: string, z: number, fiada = 0.45): void {
+  const linhas = Math.max(1, Math.round(h / fiada)), alt = h / linhas;
+  partes.push(ret(cx, cy, w, h, tom(cor, -0.62), z - 0.01, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
+  for (let j = 0; j < linhas; j++) {
+    const y = cy - h / 2 + (j + 0.5) * alt; let x = -w / 2 + (j % 2 ? -0.25 : 0);
+    while (x < w / 2 - 0.02) {
+      const x0 = Math.max(-w / 2, x), larg = Math.min(w / 2, x + 0.55 + r() * 0.6) - x0, c = tom(cor, (r() - 0.5) * 0.2);
+      if (larg > 0.06) {
+        partes.push(ret(cx + x0 + larg / 2, y, larg - 0.035, alt - 0.035, c, z, { raio: 0.02, contorno: false, semSombra: true, detalhe: 2 }));
+        partes.push(ret(cx + x0 + larg / 2 - 0.02, y - alt * 0.28, larg - 0.09, alt * 0.16, tom(c, 0.2), z + 0.004, { contorno: false, semSombra: true, alfa: 0.7, detalhe: 3 }));
+        partes.push(ret(cx + x0 + larg / 2 + 0.02, y + alt * 0.33, larg - 0.07, alt * 0.12, tom(c, -0.35), z + 0.004, { contorno: false, semSombra: true, alfa: 0.7, detalhe: 3 }));
+      }
+      x = x0 + larg;
+    }
+  }
+}
+
+/** Muralha de alvenaria em degraus (vista de cima): um maciço de blocos com `degraus` patamares recuados, o mais alto no meio. */
+function muralhaEmDegraus(L: number, P: number, degraus: number, seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], recuo = Math.min(0.45, (Math.min(L, P) / 2 - 0.3) / Math.max(1, degraus - 1));
+  partes.push(ret(0.12, 0.16, L + 0.1, P + 0.1, '#000000', 0.02, { alfa: 0.45, contorno: false, semSombra: true, suave: true }));
+  for (let k = 0; k < degraus; k++) {
+    const w = L - k * recuo * 2, h = P - k * recuo * 2, z = 0.9 + k * 0.9, cor = tom('#7a7670', -0.12 + k * 0.1);
+    if (w < 0.4 || h < 0.4) break;
+    if (k > 0) partes.push(ret(0.12, 0.16, w + 0.08, h + 0.08, '#000000', z - 0.05, { alfa: 0.55, contorno: false, semSombra: true, suave: true }));
+    alvenaria(partes, r, 0, 0, w, h, cor, z);
+    partes.push(ret(-0.03, -h / 2 + 0.04, w - 0.08, 0.06, tom(cor, 0.35), z + 0.01, { contorno: false, semSombra: true, alfa: 0.8, detalhe: 3 }));
+    partes.push(ret(-w / 2 + 0.04, -0.03, 0.06, h - 0.08, tom(cor, 0.25), z + 0.01, { contorno: false, semSombra: true, alfa: 0.7, detalhe: 3 }));
+  }
+  for (let i = 0; i < Math.round(L * P * 0.15); i++) partes.push(poli(bolha((r() - 0.5) * L * 0.9, (r() - 0.5) * P * 0.9, 0.12, 0.07, 6, 0.4, r), MUSGO[2]!, 0.95 + degraus * 0.9, { contorno: false, semSombra: true, alfa: 0.6, detalhe: 3 }));
+  return partes;
+}
+
+/** Fosso de luz: abertura quadrada no chão, aro de blocos lascados, paredes do poço descendo para o escuro e um brilho frio que sobe do fundo. */
+function fossoDeLuz(L: number, seed: number, cor: string): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], aro = 0.32, m = L / 2, i0 = m - aro;
+  // Aro de blocos: quatro lados com cantos.
+  for (const [cx, cy, w, h] of [[0, -m + aro / 2, L, aro], [0, m - aro / 2, L, aro], [-m + aro / 2, 0, aro, L - aro * 2], [m - aro / 2, 0, aro, L - aro * 2]] as const) {
+    const n = Math.max(1, Math.round(Math.max(w, h) / 0.6));
+    for (let k = 0; k < n; k++) {
+      const hor = w > h, t0 = -0.5 + k / n, t1 = -0.5 + (k + 1) / n, c = tom(PEDRA, (r() - 0.5) * 0.18 - 0.05);
+      const bx = hor ? cx + ((t0 + t1) / 2) * w : cx, by = hor ? cy : cy + ((t0 + t1) / 2) * h, bw = hor ? w / n - 0.03 : w - 0.03, bh = hor ? h - 0.03 : h / n - 0.03;
+      partes.push(ret(bx, by, bw, bh, c, 0.18, { raio: 0.02, contorno: 'leve', sombraLeve: true, detalhe: 1 }), ret(bx - 0.02, by - 0.02, bw * 0.8, bh * 0.6, tom(c, 0.16), 0.19, { contorno: false, semSombra: true, alfa: 0.7, detalhe: 3 }));
+    }
+  }
+  // Paredes do poço: quatro trapézios, do escuro na borda ao brilho no fundo (perspectiva vista de cima).
+  const f = i0 * 0.45;
+  const lados: number[][] = [[-i0, -i0, i0, -i0, f, -f, -f, -f], [i0, -i0, i0, i0, f, f, f, -f], [i0, i0, -i0, i0, -f, f, f, f], [-i0, i0, -i0, -i0, -f, -f, -f, f]];
+  lados.forEach((pts, k) => partes.push(poli(pts, tom('#2c3038', k === 0 || k === 3 ? -0.35 : -0.1), 0.06, { contorno: false, semSombra: true })));
+  // O brilho sobe pelas paredes: anéis da cor do fundo, mais fortes perto dele.
+  for (let k = 0; k < 3; k++) { const q = f + (i0 - f) * ((k + 1) / 4); partes.push(ret(0, 0, q * 2, q * 2, cor, 0.065 - k * 0.001, { contorno: false, semSombra: true, suave: true, alfa: 0.32 - k * 0.09 })); }
+  partes.push(ret(0, 0, f * 2, f * 2, tom(cor, -0.25), 0.07, { contorno: false, semSombra: true }));
+  partes.push(ret(0, 0, f * 1.6, f * 1.6, cor, 0.075, { contorno: false, semSombra: true, suave: true, alfa: 0.9 }));
+  partes.push(elipse(0, 0, f * 1.2, f * 1.2, '#ffffff', 0.08, { contorno: false, semSombra: true, suave: true, alfa: 0.85 }));
+  // Lascas e entulho caídos na beira do brilho.
+  for (let k = 0; k < 6; k++) { const a = r() * Math.PI * 2, d = f * (0.4 + r() * 0.6); partes.push(poli(bolha(Math.cos(a) * d, Math.sin(a) * d, 0.04 + r() * 0.03, 0.03 + r() * 0.02, 5, 0.35, r), '#6a6e78', 0.085, { contorno: 'leve', semSombra: true, detalhe: 3 })); }
+  return partes.filter(p => p.alfa === undefined || p.alfa > 0.001);
+}
+
 export const RECEITAS_DA_PRACA: Receita[] = [
   { id: 'arquibancada', nome: 'Arquibancada em arco', ...PRACA, tags: ['arquibancada', 'anfiteatro', 'degraus', 'pedra', 'ruina', 'arena'], pegada: [13.9, 6], altura: 2.4,
     campos: [
@@ -211,6 +306,16 @@ export const RECEITAS_DA_PRACA: Receita[] = [
     gerar: p => { const L = num(p, 'largura', 3, 1.5, 6); return piso([L + 1.8, 1.5], arcoDePedra(L, Math.round(num(p, 'flores', 1, 0, 1)) === 1, p.seed)); } },
   { id: 'estatua-heroica', nome: 'Estátua heroica', ...PRACA, funcoes: ['jardim', 'ruina', 'praca', 'cemiterio'], tags: ['estatua', 'heroi', 'monumento', 'pedestal', 'espada', 'praca'], pegada: [2, 2.6], altura: 6,
     gerar: p => piso([2, 2.6], estatuaHeroica(p.seed)) },
+  { id: 'muralha-em-degraus', nome: 'Muralha em degraus', ...PRACA, funcoes: ['ruina', 'salao', 'capela', 'porao'], tags: ['muralha', 'alvenaria', 'bastiao', 'pedra', 'degraus', 'parede', 'templo'], pegada: [4, 2], altura: 3.6,
+    campos: [
+      { id: 'largura', rotulo: 'Largura (m)', tipo: 'numero', padrao: 4, min: 1.5, max: 14, passo: 0.5 },
+      { id: 'profundidade', rotulo: 'Profundidade (m)', tipo: 'numero', padrao: 2, min: 1, max: 8, passo: 0.5 },
+      { id: 'degraus', rotulo: 'Patamares', tipo: 'numero', padrao: 3, min: 1, max: 5, passo: 1 },
+    ],
+    gerar: p => { const L = num(p, 'largura', 4, 1.5, 14), P = num(p, 'profundidade', 2, 1, 8); return piso([L, P], muralhaEmDegraus(L, P, Math.round(num(p, 'degraus', 3, 1, 5)), p.seed)); } },
+  { id: 'fosso-de-luz', nome: 'Fosso de luz', ...PRACA, funcoes: ['ruina', 'salao', 'capela', 'porao', 'caverna'], tags: ['fosso', 'poco', 'luz', 'brilho', 'abertura', 'magia', 'relicario'], pegada: [2.4, 2.4], altura: 0.2,
+    campos: [{ id: 'largura', rotulo: 'Largura (m)', tipo: 'numero', padrao: 2.4, min: 1.2, max: 6, passo: 0.2 }, { id: 'cor', rotulo: 'Cor do brilho (0 fria, 1 dourada, 2 verde, 3 rubra)', tipo: 'numero', padrao: 0, min: 0, max: 3, passo: 1 }],
+    gerar: p => { const L = num(p, 'largura', 2.4, 1.2, 6); return piso([L, L], fossoDeLuz(L, p.seed, ['#cfe6ff', '#ffe2a0', '#c8ffb0', '#ff8a6a'][Math.round(num(p, 'cor', 0, 0, 3))]!)); } },
   { id: 'casulo', nome: 'Casulo', ...PRACA, funcoes: ['jardim', 'caverna', 'pantano'], kit: 'pantano', tags: ['casulo', 'ninho', 'ovo', 'monte', 'pantano', 'criatura', 'cupinzeiro'], pegada: [2, 2.5], altura: 1.6,
     campos: [{ id: 'tamanho', rotulo: 'Tamanho (m)', tipo: 'numero', padrao: 2, min: 0.8, max: 4, passo: 0.2 }],
     gerar: p => { const T = num(p, 'tamanho', 2, 0.8, 4); return piso([T, T * 1.25], casulo(T, p.seed)); } },

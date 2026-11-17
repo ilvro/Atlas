@@ -5,7 +5,7 @@ import { mat, num, piso, type Receita } from './comum.ts';
 import { galho } from './ermos.ts';
 import { lapide } from './rural.ts';
 import { faixa } from './porto.ts';
-import { fonteDePraca } from './praca.ts';
+import { escadaDeAlvenaria, fonteDePraca } from './praca.ts';
 
 const G = { categoria: 'exterior' as const, tipo: 'piso' as const, funcoes: ['jardim'], kit: 'exterior' };
 const PEDRA = ['#7d7f86', '#6a6c73', '#8c8e94', '#5f6168'];
@@ -107,7 +107,7 @@ export const RECEITAS_EXTERIORES: Receita[] = [
     gerar: p => { const w = num(p, 'largura', 2, 0.6, 6), n = Math.max(2, Math.round(w / 0.22)); return piso([w, 0.28], [ret(0, 0, w, 0.28, '#c9c5bb', 1.0, { raio: 0.02, contorno: 'leve' }), ret(0, 0, w - 0.04, 0.18, '#dcd8ce', 1.02, { contorno: false, semSombra: true, detalhe: 2 }), ...Array.from({ length: n }, (_, i) => elipse(-w / 2 + ((i + 0.5) * w) / n, 0, 0.11, 0.11, '#bdb9ae', 0.9, { contorno: 'leve', detalhe: 2 })), ...[-1, 1].map(s2 => ret(s2 * (w / 2 - 0.1), 0, 0.2, 0.3, '#c9c5bb', 1.2, { raio: 0.02, contorno: 'leve' }))]); } },
   { id: 'escada.externa', nome: 'Escada externa', ...G, funcoes: ['varanda', 'jardim'], tags: ['escada', 'degraus', 'pedra', 'entrada'], pegada: [3.0, 1.8],
     campos: [{ id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 3, min: 1.2, max: 8, passo: 0.2 }],
-    gerar: p => { const w = num(p, 'largura', 3, 1.2, 8); return piso([w, 1.8], [ret(0, 0, w, 1.8, '#9a968c', 0.3, { contorno: 'leve' }), ...Array.from({ length: 6 }, (_, i) => ret(0, -0.75 + i * 0.3, w - 0.04, 0.28, i % 2 ? '#c4c0b6' : '#d2cec4', 0.35 + i * 0.12, { contorno: 'leve', detalhe: 2 })), ...[-1, 1].map(s2 => ret(s2 * (w / 2 - 0.1), 0, 0.2, 1.8, '#b6b2a8', 1.1, { raio: 0.02, contorno: 'leve' }))]); } },
+    gerar: p => { const w = num(p, 'largura', 3, 1.2, 8); return piso([w, 1.8], escadaDeAlvenaria(w, 1.8, p.seed, true, '#b2ada2')); } },
   { id: 'fonte', nome: 'Fonte', ...G, funcoes: ['jardim', 'varanda', 'praca'], tags: ['fonte', 'agua', 'pedra', 'jardim', 'praca', 'chafariz'], pegada: [2.4, 2.4], altura: 1.6,
     campos: [
       { id: 'diametro', rotulo: 'Diâmetro (m)', tipo: 'numero', padrao: 2.4, min: 1.4, max: 7, passo: 0.2 },
