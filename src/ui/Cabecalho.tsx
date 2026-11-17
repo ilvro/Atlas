@@ -2,7 +2,7 @@ import type { ComponentType } from 'preact';
 import { mostrarAtalho } from '../app/atalhos.ts';
 import { embutido } from '../app/embutido.ts';
 import { acaoPorId, executarAcao, fxLigado, somLigado } from '../app/acoes.ts';
-import { abrirProjetor, ajudaAberta, navegar, paletaAberta, rota, sessao } from '../app/app.ts';
+import { abrirProjetor, ajudaAberta, definirTelhadosNoEditor, navegar, paletaAberta, rota, sessao, telhadosNoEditor } from '../app/app.ts';
 import { ROTULO_DO_MODO, modo, vistaDeJogador, type Modo } from '../app/modo.ts';
 import { andarDoProjetor, andarManualDoProjetor } from '../app/projetor.ts';
 import { seloDoAssistente } from '../app/assistente-slot.ts';
@@ -34,6 +34,18 @@ function BotaoTelhadosSessao({ s }: { s: SessaoDeEdicao }) {
       data-modo-telhados={atual}
     >
       <Icone nome="telhado" tamanho={14} />{ROTULO_TELHADOS[atual]}
+    </button>
+  );
+}
+
+/** No modo Construir: mostra ou esconde os telhados enquanto se constrói (preferência de quem edita; Shift+T). */
+function BotaoTelhadosConstruir() {
+  const ligado = telhadosNoEditor.value;
+  return (
+    <button type="button" class={`botao-pilula botao-vista ${ligado ? 'ligado' : ''}`} aria-pressed={ligado}
+      title={`${ligado ? 'Esconder' : 'Mostrar'} os telhados enquanto constrói (Shift+T). Para tirar o telhado de uma casa, selecione um cômodo e desmarque “Telhado visível”.`}
+      onClick={() => definirTelhadosNoEditor(!ligado)} data-testid="construir-telhados">
+      <Icone nome="telhado" tamanho={14} />{ligado ? 'Telhados à mostra' : 'Telhados escondidos'}
     </button>
   );
 }
@@ -99,6 +111,7 @@ export function Cabecalho() {
       {noEditor && modo.value === 'sessao' ? <span class="faixa-sessao" data-testid="faixa-sessao">SESSÃO</span> : null}
       {noEditor && modo.value === 'sessao' ? <button type="button" class="botao-pilula botao-vista" aria-pressed={vistaDeJogador.value} title={dica('Ver como jogador', 'vista-jogador')} onClick={executar('vista-jogador')} data-testid="vista-jogador"><Icone nome="olho" tamanho={14} />Ver como jogador</button> : null}
       {noEditor && s && modo.value === 'sessao' ? <BotaoTelhadosSessao s={s} /> : null}
+      {noEditor && s && modo.value === 'construir' ? <BotaoTelhadosConstruir /> : null}
       {noEditor && s && modo.value === 'sessao' ? <SeletorAndarProjetor s={s} /> : null}
       <span class="espaco" />
       {noEditor && s ? (<div class="grupo chave-de-modo" role="radiogroup" aria-label="Modo" data-testid="chave-de-modo">
