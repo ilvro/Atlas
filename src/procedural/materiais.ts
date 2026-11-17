@@ -137,7 +137,7 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('cascalho', 'Cascalho', 'terreno', '#7a756c', '#3f3b36', '#b0aaa0', 'cascalho'),
   m('paralelepipedo', 'Paralelepípedo', 'terreno', '#85878a', '#393c40', '#b8babc', 'paralelepipedo'),
   m('lajes.gramadas', 'Lajes com grama', 'terreno', '#8c8475', '#3b342b', '#bcb2a0', 'lajegrama'),
-  m('lajes.antigas', 'Lajes antigas', 'terreno', '#b3a487', '#5c5040', '#dccfb6', 'lajes-grandes', { lado: 1.1 }),
+  m('lajes.antigas', 'Lajes antigas', 'terreno', '#b3a487', '#5c5040', '#dccfb6', 'lajes-rusticas', { lado: 0.95 }),
   m('terra.sulcos', 'Terra com sulcos', 'terreno', '#7a5a3a', '#3b2a1a', '#a1805a', 'sulcos'),
   m('areia.molhada', 'Areia molhada', 'terreno', '#9c855a', '#5a4a2c', '#d8c690', 'molhada'),
   m('neve.pisada', 'Neve pisada', 'terreno', '#d3dae2', '#8693a3', '#f4f7fa', 'pisada'),
@@ -806,8 +806,8 @@ function pintarPalhaNoChao(ctx: Contexto, mat: Material, A: Area, seed: number, 
 
 /** Lajes rústicas: pedras grandes e irregulares (Voronoi torcido), com bisel de luz, rachaduras, desgaste e musgo nas juntas. */
 function pintarLajesRusticas(ctx: Contexto, mat: Material, A: Area, seed: number, px: number): void {
-  const rn = valueNoise2D(seed * 47 + 1), V = celulasDeVoronoi(A, 0.75, seed * 17 + 2), q = novaConsulta();
-  const E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), junta: Cor3 = [E[0] * 0.7, E[1] * 0.68, E[2] * 0.62], w = 0.035;
+  const rn = valueNoise2D(seed * 47 + 1), L = mat.lado ?? 0.75, V = celulasDeVoronoi(A, L, seed * 17 + 2), q = novaConsulta(), externo = mat.uso === 'terreno';
+  const E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), junta: Cor3 = [E[0] * 0.7, E[1] * 0.68, E[2] * 0.62], w = externo ? 0.055 : 0.035;
   porPixel(ctx, A, (x, y, o) => {
     const xx = x + (fbm(rn, x * 2.5, y * 2.5, 2) - 0.5) * 0.12, yy = y + (fbm(rn, x * 2.5 + 19, y * 2.5 + 7, 2) - 0.5) * 0.12;
     V.consultar(xx, yy, q);
@@ -819,6 +819,8 @@ function pintarLajesRusticas(ctx: Contexto, mat: Material, A: Area, seed: number
     if (Math.abs(fbm(rn, x * 2.8 + 40 * (s.i & 3), y * 2.8 + 13 * (s.j & 3), 3) - 0.5) < 0.01 && hash2D(s.i, s.j, seed + 31) < 0.45) rumo(o, junta, 0.7);
     rumo(o, MUSGO, (1 - passo(0, w * 2.2, b)) * passo(0.55, 0.75, fbm(rn, x * 3 + 7, y * 3, 2)) * 0.5);
     rumo(o, junta, (1 - passo(w * 0.35, w, b)) * 0.95);
+    // Ao ar livre, capim nas juntas largas (e às vezes subindo na beira da pedra).
+    if (externo) { const capim = (1 - passo(w * 0.5, w * 1.6, b)) * passo(0.38, 0.6, fbm(rn, x * 4 + 3, y * 4 - 5, 3)); if (capim > 0.02) rumo(o, hash2D(Math.floor(x / (px * 1.5)), Math.floor(y / (px * 1.5)), 8) > 0.7 ? VERDE_CLARO : VERDE, Math.min(0.9, capim)); }
   });
 }
 
