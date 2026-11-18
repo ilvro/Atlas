@@ -246,17 +246,24 @@ function alvenaria(partes: Parte[], r: () => number, cx: number, cy: number, w: 
 
 /** Muralha de alvenaria em degraus (vista de cima): um maciço de blocos com `degraus` patamares recuados, o mais alto no meio. */
 function muralhaEmDegraus(L: number, P: number, degraus: number, seed: number): Parte[] {
-  const r = mulberry32(seed), partes: Parte[] = [], recuo = Math.min(0.45, (Math.min(L, P) / 2 - 0.3) / Math.max(1, degraus - 1));
-  partes.push(ret(0.12, 0.16, L + 0.1, P + 0.1, '#000000', 0.02, { alfa: 0.45, contorno: false, semSombra: true, suave: true }));
-  for (let k = 0; k < degraus; k++) {
-    const w = L - k * recuo * 2, h = P - k * recuo * 2, z = 0.9 + k * 0.9, cor = tom('#7a7670', -0.12 + k * 0.1);
-    if (w < 0.4 || h < 0.4) break;
-    if (k > 0) partes.push(ret(0.12, 0.16, w + 0.08, h + 0.08, '#000000', z - 0.05, { alfa: 0.55, contorno: false, semSombra: true, suave: true }));
-    alvenaria(partes, r, 0, 0, w, h, cor, z);
-    partes.push(ret(-0.03, -h / 2 + 0.04, w - 0.08, 0.06, tom(cor, 0.35), z + 0.01, { contorno: false, semSombra: true, alfa: 0.8, detalhe: 3 }));
-    partes.push(ret(-w / 2 + 0.04, -0.03, 0.06, h - 0.08, tom(cor, 0.25), z + 0.01, { contorno: false, semSombra: true, alfa: 0.7, detalhe: 3 }));
+  // Rebatida como as paredes dos cômodos: os patamares (vistos de cima) ficam no fundo (−y) e a face em pé de cada um
+  // desce para a frente (+y), escura e em fiadas, com a quina clara no alto. Assim a muralha se lê alta, não como chão.
+  const r = mulberry32(seed), partes: Parte[] = [], n = Math.max(1, degraus), face = Math.min(P * 0.55, 0.9 + n * 0.35);
+  const topoP = P - face, passo = topoP / n, recuo = Math.min(0.5, L * 0.04);
+  partes.push(ret(0.1, P / 2 + 0.1, L, 0.3, '#000000', 0.02, { alfa: 0.55, contorno: false, semSombra: true, suave: true }));
+  for (let k = 0; k < n; k++) {
+    // Do patamar mais alto (fundo) ao mais baixo (frente): cada um com seu topo e sua face.
+    const w = L - (n - 1 - k) * recuo * 2, cor = tom('#7a7670', 0.08 - k * 0.06), y0 = -P / 2 + k * passo, z = 3.2 - k * 0.9;
+    alvenaria(partes, r, 0, y0 + passo / 2, w, passo, cor, z);
+    partes.push(ret(0, y0 + 0.04, w - 0.06, 0.06, tom(cor, 0.4), z + 0.01, { contorno: false, semSombra: true, alfa: 0.85, detalhe: 3 }));
   }
-  for (let i = 0; i < Math.round(L * P * 0.15); i++) partes.push(poli(bolha((r() - 0.5) * L * 0.9, (r() - 0.5) * P * 0.9, 0.12, 0.07, 6, 0.4, r), MUSGO[2]!, 0.95 + degraus * 0.9, { contorno: false, semSombra: true, alfa: 0.6, detalhe: 3 }));
+  // A face em pé: fiadas escuras, mais escuras embaixo, com a quina clara no alto e o pé sujo.
+  const yf = -P / 2 + topoP, cf = '#4a4744';
+  alvenaria(partes, r, 0, yf + face / 2, L, face, cf, 0.6, 0.32);
+  const gr = 6;
+  for (let k = 0; k < gr; k++) partes.push(ret(0, yf + face * (k + 0.5) / gr, L, face / gr + 0.01, '#000000', 0.61, { alfa: 0.06 + 0.07 * k, contorno: false, semSombra: true, detalhe: 3 }));
+  partes.push(ret(0, yf + 0.03, L, 0.06, tom(cf, 0.55), 0.62, { contorno: false, semSombra: true, detalhe: 3 }));
+  for (let i = 0; i < Math.round(L * P * 0.12); i++) partes.push(poli(bolha((r() - 0.5) * L * 0.9, -P / 2 + r() * topoP, 0.12, 0.07, 6, 0.4, r), MUSGO[2]!, 3.4, { contorno: false, semSombra: true, alfa: 0.6, detalhe: 3 }));
   return partes;
 }
 
