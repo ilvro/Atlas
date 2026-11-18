@@ -100,16 +100,6 @@
     "miniatura": "aldeia-ao-entardecer.webp"
   },
   {
-    "id": "santuario-da-luz",
-    "nome": "Santuário da luz",
-    "descricao": "Salão subterrâneo de lajes escuras: tablado do relicário sob um feixe de luz fria, quatro braseiros sobre círculos rúnicos, escadaria monumental entre muralhas a leste e andaimes de obra a oeste.",
-    "tamanho": [
-      48,
-      27
-    ],
-    "miniatura": "santuario-da-luz.webp"
-  },
-  {
     "id": "praca-saqueada",
     "nome": "Praça saqueada",
     "descricao": "Largo calçado com fonte em estrela depois do saque: casa ainda em chamas, telhado de telhas desabado, entulho, carroça tombada, armas caídas e manchas de sangue.",
