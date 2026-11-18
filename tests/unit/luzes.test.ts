@@ -11,7 +11,8 @@ import { ACERVO } from '../../src/procedural/acervo.ts';
 import { RendererType } from 'pixi.js';
 import { ALTURA_DE_PAREDE } from '../../src/render/cena-de-altura.ts';
 import { ALTURA_DA_LUZ, ESCALA_HDR, codificarLuz, decodificarLuz, formatoDaLuz, luzAfetadaPorTokens, nivelAtivoDe, poligonoDaLuz, sincronizarOclusao } from '../../src/render/mapa-de-luz.ts';
-import { PESO_AO_CURTO, PESO_AO_LONGO, modoDeDepuracaoDaLuz, oclusaoDeAmostras, realceDoRelevo } from '../../src/render/composicao-de-luz.ts';
+import { PESO_AO_CURTO, PESO_AO_LONGO, EMISSAO_PADRAO, modoDeDepuracaoDaLuz, oclusaoDeAmostras, realceDoRelevo } from '../../src/render/composicao-de-luz.ts';
+import { LIMIAR_BLOOM, limiarDoBloom } from '../../src/render/bloom.ts';
 import { TAMANHO_TEXTURA_DIRECAO, floatParaHalf, pixelDeDirecao, texturaDeDirecao } from '../../src/render/luzes.ts';
 import { mapaCom, sala } from './apoio-casa.ts';
 
@@ -238,4 +239,14 @@ test('oclusaoDeAmostras dá 0 no plano, > 0 na quina e valoriza o raio curto', (
   const perto = oclusaoDeAmostras(2.0, [{ h: 3.0, peso: PESO_AO_CURTO }, { h: 2.0, peso: PESO_AO_LONGO }]);
   const longe = oclusaoDeAmostras(2.0, [{ h: 2.0, peso: PESO_AO_CURTO }, { h: 3.0, peso: PESO_AO_LONGO }]);
   assert.ok(perto > longe, `perto=${perto} > longe=${longe}`);
+});
+
+test('limiarDoBloom extrai apenas o excedente acima de 0,9 sem negativar canais abaixo', () => {
+  assert.equal(LIMIAR_BLOOM, 0.9);
+  assert.equal(EMISSAO_PADRAO, 3);
+  assert.deepEqual(limiarDoBloom([0, 0.5, 0.9]), [0, 0, 0]);
+  const b = limiarDoBloom([2.4, 1.1, 0.4]);
+  assert.ok(Math.abs(b[0] - 1.5) < 1e-12);
+  assert.ok(Math.abs(b[1] - 0.2) < 1e-12);
+  assert.equal(b[2], 0);
 });

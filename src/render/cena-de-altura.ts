@@ -247,7 +247,7 @@ export function criarCenaDeAltura(): CenaDeAltura {
       if (destruida) return;
       paredesAlturaG.clear();
       const c = Math.round(Math.min(1, Math.max(0, ALTURA_DE_PAREDE / ALTURA_MAXIMA)) * 255);
-      desenhar(paredesAlturaG, (c << 16) | (c << 8) | c);
+      desenhar(paredesAlturaG, c << 16);
       sujo = true;
     },
     atualizar(renderer, mundoIluminado, ativo) {

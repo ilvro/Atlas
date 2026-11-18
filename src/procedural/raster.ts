@@ -27,9 +27,10 @@ export function desenharPartes(ctx: Contexto, partes: readonly Parte[], { res, s
   ordenarPartes(partes).forEach((p, i) => {
     const b = caixaDe(p), s = seed * 31 + i;
     const alfa = p.alfa ?? 1;
-    if (p.desfoque) {
-      // Mancha macia: cor chapada desfocada (e somada, se for brilho). Sem material, traço ou sombra.
-      ctx.save(); ctx.globalAlpha = alfa; ctx.filter = `blur(${Math.max(0.5, p.desfoque * res).toFixed(2)}px)`;
+    if (p.desfoque || p.brilho) {
+      // Mancha macia ou emissiva: cor chapada (desfocada se houver `desfoque`, somada se `brilho`). Sem material, traço ou sombra.
+      ctx.save(); ctx.globalAlpha = alfa;
+      if (p.desfoque && 'filter' in ctx) ctx.filter = `blur(${Math.max(0.5, p.desfoque * res).toFixed(2)}px)`;
       if (p.brilho) ctx.globalCompositeOperation = 'lighter';
       ctx.fillStyle = materialDe(p.mat).base; caminho(ctx, p); ctx.fill(); ctx.restore();
       return;

@@ -1,15 +1,17 @@
-import { Filter, GlProgram, Matrix, Sprite, Texture, TextureMatrix, UniformGroup, type Container, type FilterSystem, type RenderSurface } from 'pixi.js';
+import { Container, Geometry, GlProgram, Matrix, Mesh, RenderTexture, Shader, Sprite, Texture, TextureMatrix, UniformGroup, type Renderer } from 'pixi.js';
 import { AO_PADRAO, RELEVO_PADRAO } from '../domain/mapa.ts';
 import { ALTURA_MAXIMA } from '../procedural/altura.ts';
+import { criarBloom, type PassoDeBloom } from './bloom.ts';
 import type { CenaDeAltura } from './cena-de-altura.ts';
 import { ALTURA_DA_LUZ, ALTURA_MAXIMA_DA_LUZ } from './luzes.ts';
-import type { MapaDeLuz } from './mapa-de-luz.ts';
+import { formatoDaLuz, type FormatoDeLuz, type MapaDeLuz } from './mapa-de-luz.ts';
 
 export const FORCA_RELEVO_PADRAO = 3;
 export const RAIO_AO_CURTO = 0.25;
 export const RAIO_AO_LONGO = 0.7;
 export const PESO_AO_CURTO = 2;
 export const PESO_AO_LONGO = 1;
+export const EMISSAO_PADRAO = 3;
 
 export type Vetor3 = readonly [number, number, number];
 export type AmostraAO = number | { readonly h: number; readonly peso?: number };
@@ -47,30 +49,6 @@ export function oclusaoDeAmostras(h0: number, amostras: readonly AmostraAO[]): n
   return t * t * (3 - 2 * t);
 }
 
-const vertex = `in vec2 aPosition;
-out vec2 vTextureCoord;
-out vec2 vLuzCoord;
-out vec2 vAlturaCoord;
-uniform vec4 uInputSize;
-uniform vec4 uOutputFrame;
-uniform vec4 uOutputTexture;
-uniform mat3 uLuzMatriz;
-uniform mat3 uAlturaMatriz;
-vec4 filterVertexPosition(void) {
-  vec2 position = aPosition * uOutputFrame.zw + uOutputFrame.xy;
-  position.x = position.x * (2.0 / uOutputTexture.x) - 1.0;
-  position.y = position.y * (2.0 * uOutputTexture.z / uOutputTexture.y) - uOutputTexture.z;
-  return vec4(position, 0.0, 1.0);
-}
-vec2 filterTextureCoord(void) { return aPosition * (uOutputFrame.zw * uInputSize.zw); }
-void main(void) {
-  gl_Position = filterVertexPosition();
-  vec2 tc = filterTextureCoord();
-  vTextureCoord = tc;
-  vLuzCoord = (uLuzMatriz * vec3(tc, 1.0)).xy;
-  vAlturaCoord = (uAlturaMatriz * vec3(tc, 1.0)).xy;
-}`;
-
 /** Lê o modo de depuração da luz na query string (`?luz=direcao` ou `?luz=altura`). */
 export function modoDeDepuracaoDaLuz(search?: string): 'direcao' | 'altura' | null {
   const s = search ?? (typeof location !== 'undefined' ? location.search : '');
@@ -83,16 +61,35 @@ export function modoDeDepuracaoDaLuz(search?: string): 'direcao' | 'altura' | nu
   }
 }
 
+const vertex = `in vec2 aPosition;
+in vec2 aUV;
+out vec2 vUV;
+out vec2 vLuzCoord;
+out vec2 vMundoPos;
+uniform mat3 uProjectionMatrix;
+uniform mat3 uWorldTransformMatrix;
+uniform mat3 uTransformMatrix;
+uniform mat3 uLuzMatriz;
+uniform mat3 uMundoMatriz;
+void main(void) {
+  mat3 mvp = uProjectionMatrix * uWorldTransformMatrix * uTransformMatrix;
+  gl_Position = vec4((mvp * vec3(aPosition, 1.0)).xy, 0.0, 1.0);
+  vUV = aUV;
+  vLuzCoord = (uLuzMatriz * vec3(aUV, 1.0)).xy;
+  vMundoPos = (uMundoMatriz * vec3(aUV, 1.0)).xy;
+}`;
+
 // Sem arrays constantes: o Pixi pode compilar para GLSL ES 1.00. Os uniformes compartilhados com o vértice são highp.
-const fragment = `in vec2 vTextureCoord;
+const fragment = `in vec2 vUV;
 in vec2 vLuzCoord;
-in vec2 vAlturaCoord;
+in vec2 vMundoPos;
 out vec4 finalColor;
 uniform sampler2D uTexture;
 uniform sampler2D uLuz;
 uniform sampler2D uDirecao;
 uniform sampler2D uAltura;
 uniform float uEscala;
+uniform float uEscalaHdr;
 uniform float uModoDirecao;
 uniform float uModoAltura;
 uniform vec3 uAmbiente;
@@ -105,9 +102,33 @@ uniform float uAO;
 uniform float uAlturaDaLuz;
 uniform float uAlcance;
 uniform float uAlturaMaxDaLuz;
+uniform float uEmissao;
+uniform highp float uTempo;
+
+float hash21(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float ruido1D(float x) {
+  float i = floor(x);
+  float f = fract(x);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(hash21(vec2(i, 0.0)), hash21(vec2(i + 1.0, 0.0)), f);
+}
+
+float ruido2D(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(hash21(i), hash21(i + vec2(1.0, 0.0)), f.x),
+    mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), f.x),
+    f.y
+  );
+}
 
 float amostraAltura(vec2 offset) {
-  return texture(uAltura, vAlturaCoord + offset * uAlturaTexel).r * uAlturaMaxima;
+  return texture(uAltura, vUV + offset * uAlturaTexel).r * uAlturaMaxima;
 }
 
 float anelAO(float h0, float raioTexels, float c, float s) {
@@ -128,10 +149,10 @@ float anelAO(float h0, float raioTexels, float c, float s) {
 }
 
 void main() {
-  vec4 c = texture(uTexture, vTextureCoord);
+  vec4 c = texture(uTexture, vUV);
+  vec4 alt = texture(uAltura, vUV);
   if (uModoAltura > 0.5) {
-    float h = texture(uAltura, vAlturaCoord).r;
-    finalColor = vec4(vec3(h) * c.a, c.a);
+    finalColor = vec4((vec3(alt.r) * c.a) / uEscalaHdr, c.a);
     return;
   }
   if (uModoDirecao > 0.5) {
@@ -141,14 +162,22 @@ void main() {
     vec2 dir = m > 1e-4 ? xy / m : vec2(0.0);
     float peso = smoothstep(0.001, 0.02, d.b * uEscala);
     vec3 vis = mix(vec3(0.0), vec3(dir * 0.5 + 0.5, 0.5), peso);
-    finalColor = vec4(vis * c.a, c.a);
+    finalColor = vec4((vis * c.a) / uEscalaHdr, c.a);
     return;
   }
+
   vec3 base = c.a > 0.0 ? c.rgb / c.a : vec3(0.0);
   vec3 luz = texture(uLuz, vLuzCoord).rgb * uEscala;
+  float emissao = uPassoEmMetros > 0.0 ? alt.g : 0.0;
+  float cint = 1.0;
+  if (emissao > 0.0001 && uTempo > 0.0) {
+    cint = 0.85 + 0.15 * ruido1D(uTempo * 7.0 + ruido2D(vMundoPos / 0.5) * 17.0);
+  }
+  vec3 luzEmissiva = base * emissao * uEmissao * cint;
+
   if (uPassoEmMetros <= 0.0 || (uRelevo <= 0.0001 && uAO <= 0.0001)) {
-    vec3 cor = clamp(base * luz, 0.0, 1.0);
-    finalColor = vec4(cor * c.a, c.a);
+    vec3 cor = max(base * luz + luzEmissiva, vec3(0.0));
+    finalColor = vec4((cor * c.a) / uEscalaHdr, c.a);
     return;
   }
 
@@ -196,163 +225,269 @@ void main() {
     fatorAO = uAO * smoothstep(0.0, 0.6, ao);
   }
 
-  vec3 cor = clamp(base * (ambiente * (1.0 - fatorAO) + luzDireta * (1.0 - 0.5 * fatorAO)), 0.0, 1.0);
-  finalColor = vec4(cor * c.a, c.a);
+  vec3 cor = max(base * (ambiente * (1.0 - fatorAO) + luzDireta * (1.0 - 0.5 * fatorAO)) + luzEmissiva, vec3(0.0));
+  finalColor = vec4((cor * c.a) / uEscalaHdr, c.a);
 }`;
 
-export class FiltroDeComposicaoDeLuz extends Filter {
-  private readonly luz: MapaDeLuz;
-  private readonly altura: CenaDeAltura | undefined;
-  private readonly mundoIluminado: Container | undefined;
-  private readonly grupo: UniformGroup;
-  private readonly textureMatrix: TextureMatrix;
-  private readonly alturaTextureMatrix: TextureMatrix;
-  private readonly alturaSprite: Sprite;
-  private relevo = RELEVO_PADRAO;
-  private ao = AO_PADRAO;
-
-  constructor(luz: MapaDeLuz, altura?: CenaDeAltura, mundoIluminado?: Container) {
-    const grupo = new UniformGroup({
-      uLuzMatriz: { value: new Matrix(), type: 'mat3x3<f32>' },
-      uAlturaMatriz: { value: new Matrix(), type: 'mat3x3<f32>' },
-      uEscala: { value: 1, type: 'f32' },
-      uModoDirecao: { value: 0, type: 'f32' },
-      uModoAltura: { value: 0, type: 'f32' },
-      uAmbiente: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
-      uAlturaTexel: { value: new Float32Array([0, 0]), type: 'vec2<f32>' },
-      uPassoEmMetros: { value: 0, type: 'f32' },
-      uAlturaMaxima: { value: ALTURA_MAXIMA, type: 'f32' },
-      uForca: { value: FORCA_RELEVO_PADRAO, type: 'f32' },
-      uRelevo: { value: RELEVO_PADRAO, type: 'f32' },
-      uAO: { value: AO_PADRAO, type: 'f32' },
-      uAlturaDaLuz: { value: ALTURA_DA_LUZ, type: 'f32' },
-      uAlcance: { value: 6, type: 'f32' },
-      uAlturaMaxDaLuz: { value: ALTURA_MAXIMA_DA_LUZ, type: 'f32' },
-    });
-    const glProgram = GlProgram.from({
-      vertex,
-      fragment,
-      preferredFragmentPrecision: 'highp',
-      name: 'atlas-composicao-de-luz',
-    });
-    super({
-      glProgram,
-      resolution: 'inherit',
-      antialias: 'inherit',
-      resources: {
-        composicao: grupo,
-        uLuz: Texture.WHITE.source,
-        uDirecao: Texture.EMPTY.source,
-        uAltura: Texture.EMPTY.source,
-      },
-    });
-    this.luz = luz;
-    this.altura = altura;
-    this.mundoIluminado = mundoIluminado;
-    this.grupo = grupo;
-    this.textureMatrix = new TextureMatrix(Texture.WHITE);
-    this.alturaTextureMatrix = new TextureMatrix(Texture.WHITE);
-    this.alturaSprite = new Sprite(Texture.EMPTY);
+function atualizarTransformDoMundo(alvo: Container, destino: Matrix): Matrix {
+  const cadeia: Container[] = [];
+  for (let cur: Container | null = alvo; cur; cur = cur.parent) cadeia.push(cur);
+  destino.identity();
+  for (let i = cadeia.length - 1; i >= 0; i--) {
+    const no = cadeia[i]!;
+    no.updateLocalTransform();
+    destino.append(no.localTransform);
   }
-
-  definirRelevo(v: number): void {
-    this.relevo = Math.min(1, Math.max(0, Number.isFinite(v) ? v : RELEVO_PADRAO));
-  }
-
-  definirAO(v: number): void {
-    this.ao = Math.min(1, Math.max(0, Number.isFinite(v) ? v : AO_PADRAO));
-  }
-
-  override apply(filterManager: FilterSystem, input: Texture, output: RenderSurface, clearMode: boolean): void {
-    const sp = this.luz.sprite;
-    const tex = sp.texture;
-    const pronta = Boolean(tex && !tex.destroyed && tex.source && !tex.source.destroyed && tex !== Texture.EMPTY);
-    const dir = this.luz.direcao;
-    const dirPronta = Boolean(dir && !dir.destroyed && dir.source && !dir.source.destroyed && dir !== Texture.EMPTY);
-    const texAlt = this.altura?.textura;
-    const altPronta = Boolean(
-      this.altura &&
-        this.mundoIluminado &&
-        texAlt &&
-        !texAlt.destroyed &&
-        texAlt.source &&
-        !texAlt.source.destroyed &&
-        texAlt !== Texture.EMPTY,
-    );
-    const uniforms = this.grupo.uniforms as {
-      uLuzMatriz: Matrix;
-      uAlturaMatriz: Matrix;
-      uEscala: number;
-      uModoDirecao: number;
-      uModoAltura: number;
-      uAmbiente: Float32Array;
-      uAlturaTexel: Float32Array;
-      uPassoEmMetros: number;
-      uAlturaMaxima: number;
-      uForca: number;
-      uRelevo: number;
-      uAO: number;
-      uAlturaDaLuz: number;
-      uAlcance: number;
-      uAlturaMaxDaLuz: number;
-    };
-    if (pronta) {
-      this.textureMatrix.texture = tex;
-      filterManager
-        .calculateSpriteMatrix(uniforms.uLuzMatriz, sp)
-        .prepend(this.textureMatrix.mapCoord);
-      uniforms.uEscala = this.luz.escala;
-      this.resources.uLuz = tex.source;
-    } else {
-      uniforms.uLuzMatriz.identity();
-      uniforms.uEscala = 1;
-      this.resources.uLuz = Texture.WHITE.source;
-    }
-    this.resources.uDirecao = dirPronta ? dir.source : Texture.EMPTY.source;
-    if (altPronta && texAlt && this.altura && this.mundoIluminado) {
-      this.alturaTextureMatrix.texture = texAlt;
-      this.alturaSprite.texture = texAlt;
-      this.altura.atualizarSpriteDeMapeamento(this.alturaSprite, this.mundoIluminado);
-      filterManager
-        .calculateSpriteMatrix(uniforms.uAlturaMatriz, this.alturaSprite)
-        .prepend(this.alturaTextureMatrix.mapCoord);
-      this.resources.uAltura = texAlt.source;
-      uniforms.uAlturaTexel[0] = 1 / Math.max(1, texAlt.source.pixelWidth);
-      uniforms.uAlturaTexel[1] = 1 / Math.max(1, texAlt.source.pixelHeight);
-      uniforms.uPassoEmMetros = this.altura.metrosPorTexel;
-    } else {
-      uniforms.uAlturaMatriz.identity();
-      this.resources.uAltura = Texture.EMPTY.source;
-      uniforms.uAlturaTexel[0] = 0;
-      uniforms.uAlturaTexel[1] = 0;
-      uniforms.uPassoEmMetros = 0;
-    }
-    const amb = this.luz.ambiente;
-    uniforms.uAmbiente[0] = amb[0];
-    uniforms.uAmbiente[1] = amb[1];
-    uniforms.uAmbiente[2] = amb[2];
-    uniforms.uAlturaMaxima = ALTURA_MAXIMA;
-    uniforms.uForca = FORCA_RELEVO_PADRAO;
-    uniforms.uAlturaDaLuz = ALTURA_DA_LUZ;
-    uniforms.uAlcance = this.luz.alcance;
-    uniforms.uAlturaMaxDaLuz = ALTURA_MAXIMA_DA_LUZ;
-    uniforms.uRelevo = altPronta && dirPronta ? this.relevo : 0;
-    uniforms.uAO = altPronta ? this.ao : 0;
-    const modo = modoDeDepuracaoDaLuz();
-    uniforms.uModoDirecao = modo === 'direcao' ? 1 : 0;
-    uniforms.uModoAltura = modo === 'altura' ? 1 : 0;
-    filterManager.applyFilter(this, input, output, clearMode);
-  }
-
-  override destroy(destroyPrograms = false): void {
-    this.textureMatrix.destroy();
-    this.alturaTextureMatrix.destroy();
-    this.alturaSprite.destroy();
-    super.destroy(destroyPrograms);
-  }
+  return destino;
 }
 
-/** Filtro em tela cheia (Ilustrado) que compõe a cena com o mapa de luz em HDR (ou 8 bits escalado) e realce por relevo. */
-export function criarFiltroDeComposicaoDeLuz(luz: MapaDeLuz, altura?: CenaDeAltura, mundoIluminado?: Container): FiltroDeComposicaoDeLuz {
-  return new FiltroDeComposicaoDeLuz(luz, altura, mundoIluminado);
+export interface ComposicaoDeLuz {
+  /** Sprite em tela cheia posicionado no espaço do mundo com a cena iluminada + bloom. */
+  readonly sprite: Sprite;
+  readonly pronta: boolean;
+  definirRelevo(v: number): void;
+  definirAO(v: number): void;
+  definirGlow(v: number): void;
+  /** Renderiza `mundoIluminado` em `corRT`, compõe luz/relevo/AO/emissão em `hdrRT`, aplica bloom e escreve `saidaRT`. */
+  atualizar(mundoIluminado: Container, ativo: boolean, tempoSeg: number): void;
+  destruir(): void;
+}
+
+/**
+ * Composição em tela cheia (Ilustrado): renderiza `mundoIluminado` em `corRT`, compõe em `hdrRT`
+ * (luz HDR, direção, relevo, AO e emissão cintilante) e aplica bloom em `saidaRT`.
+ */
+export function criarComposicaoDeLuz(renderer: Renderer, luz: MapaDeLuz, altura: CenaDeAltura): ComposicaoDeLuz {
+  const quad = new Geometry({
+    attributes: {
+      aPosition: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+      aUV: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+    },
+    indexBuffer: new Uint16Array([0, 1, 2, 0, 2, 3]),
+  });
+  const grupo = new UniformGroup({
+    uLuzMatriz: { value: new Matrix(), type: 'mat3x3<f32>' },
+    uMundoMatriz: { value: new Matrix(), type: 'mat3x3<f32>' },
+    uEscala: { value: 1, type: 'f32' },
+    uEscalaHdr: { value: 1, type: 'f32' },
+    uModoDirecao: { value: 0, type: 'f32' },
+    uModoAltura: { value: 0, type: 'f32' },
+    uAmbiente: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
+    uAlturaTexel: { value: new Float32Array([0, 0]), type: 'vec2<f32>' },
+    uPassoEmMetros: { value: 0, type: 'f32' },
+    uAlturaMaxima: { value: ALTURA_MAXIMA, type: 'f32' },
+    uForca: { value: FORCA_RELEVO_PADRAO, type: 'f32' },
+    uRelevo: { value: RELEVO_PADRAO, type: 'f32' },
+    uAO: { value: AO_PADRAO, type: 'f32' },
+    uAlturaDaLuz: { value: ALTURA_DA_LUZ, type: 'f32' },
+    uAlcance: { value: 6, type: 'f32' },
+    uAlturaMaxDaLuz: { value: ALTURA_MAXIMA_DA_LUZ, type: 'f32' },
+    uEmissao: { value: EMISSAO_PADRAO, type: 'f32' },
+    uTempo: { value: 0, type: 'f32' },
+  });
+  const prog = GlProgram.from({ vertex, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-composicao-de-luz' });
+  const shader = new Shader({
+    glProgram: prog,
+    resources: {
+      composicao: grupo,
+      uTexture: Texture.EMPTY.source,
+      uLuz: Texture.WHITE.source,
+      uDirecao: Texture.EMPTY.source,
+      uAltura: Texture.EMPTY.source,
+    },
+  });
+  const mesh = new Mesh({ geometry: quad, shader });
+  const bloom: PassoDeBloom = criarBloom();
+  const sprite = new Sprite(Texture.EMPTY);
+  sprite.visible = false;
+
+  const textureMatrix = new TextureMatrix(Texture.WHITE);
+  const camAtual = new Matrix();
+  const camInv = new Matrix();
+  const spInv = new Matrix();
+
+  let corRT: RenderTexture | null = null;
+  let hdrRT: RenderTexture | null = null;
+  let saidaRT: RenderTexture | null = null;
+  let largura = 0;
+  let alturaTela = 0;
+  let resolucao = 0;
+  let formatoAtivo: FormatoDeLuz = 'rgba8unorm';
+  let escalaHdrAtiva = 1;
+  let relevo = RELEVO_PADRAO;
+  let ao = AO_PADRAO;
+  let glow = 0;
+  let pronta = false;
+  let destruida = false;
+
+  function dimensionar(): void {
+    const w = Math.max(1, Math.round(renderer.screen.width));
+    const h = Math.max(1, Math.round(renderer.screen.height));
+    const r = renderer.resolution || 1;
+    const { formato, escala } = formatoDaLuz(renderer);
+    if (corRT && hdrRT && saidaRT && w === largura && h === alturaTela && r === resolucao && formato === formatoAtivo) return;
+
+    corRT?.destroy(true);
+    hdrRT?.destroy(true);
+    saidaRT?.destroy(true);
+    corRT = RenderTexture.create({ width: w, height: h, resolution: r, scaleMode: 'linear' });
+    hdrRT = RenderTexture.create({ width: w, height: h, resolution: r, scaleMode: 'linear', format: formato });
+    saidaRT = RenderTexture.create({ width: w, height: h, resolution: r, scaleMode: 'linear' });
+    sprite.texture = saidaRT;
+    mesh.scale.set(w, h);
+    largura = w;
+    alturaTela = h;
+    resolucao = r;
+    formatoAtivo = formato;
+    escalaHdrAtiva = escala;
+  }
+
+  return {
+    sprite,
+    get pronta() {
+      return pronta && Boolean(saidaRT);
+    },
+    definirRelevo(v) {
+      relevo = Math.min(1, Math.max(0, Number.isFinite(v) ? v : RELEVO_PADRAO));
+    },
+    definirAO(v) {
+      ao = Math.min(1, Math.max(0, Number.isFinite(v) ? v : AO_PADRAO));
+    },
+    definirGlow(v) {
+      glow = Math.max(0, Number.isFinite(v) ? v : 0);
+    },
+    atualizar(mundoIluminado, ativo, tempoSeg) {
+      if (destruida) return;
+      if (!ativo) {
+        sprite.visible = false;
+        mundoIluminado.renderable = true;
+        return;
+      }
+
+      dimensionar();
+      if (!corRT || !hdrRT || !saidaRT) return;
+
+      atualizarTransformDoMundo(mundoIluminado, camAtual);
+      camInv.copyFrom(camAtual).invert();
+
+      const prevRenderable = mundoIluminado.renderable;
+      mundoIluminado.renderable = true;
+      renderer.render({ container: mundoIluminado, target: corRT, transform: camAtual, clear: true, clearColor: [0, 0, 0, 0] });
+      mundoIluminado.renderable = prevRenderable;
+
+      const u = grupo.uniforms as {
+        uLuzMatriz: Matrix;
+        uMundoMatriz: Matrix;
+        uEscala: number;
+        uEscalaHdr: number;
+        uModoDirecao: number;
+        uModoAltura: number;
+        uAmbiente: Float32Array;
+        uAlturaTexel: Float32Array;
+        uPassoEmMetros: number;
+        uAlturaMaxima: number;
+        uForca: number;
+        uRelevo: number;
+        uAO: number;
+        uAlturaDaLuz: number;
+        uAlcance: number;
+        uAlturaMaxDaLuz: number;
+        uEmissao: number;
+        uTempo: number;
+      };
+
+      u.uMundoMatriz.set(largura, 0, 0, alturaTela, 0, 0).prepend(camInv);
+
+      const sp = luz.sprite;
+      const tex = sp.texture;
+      const luzPronta = Boolean(tex && !tex.destroyed && tex.source && !tex.source.destroyed && tex !== Texture.EMPTY);
+      if (luzPronta) {
+        textureMatrix.texture = tex;
+        sp.updateLocalTransform();
+        spInv.copyFrom(sp.localTransform).invert();
+        u.uLuzMatriz
+          .copyFrom(u.uMundoMatriz)
+          .prepend(spInv)
+          .scale(1 / Math.max(1, tex.orig.width), 1 / Math.max(1, tex.orig.height))
+          .translate(sp.anchor.x, sp.anchor.y)
+          .prepend(textureMatrix.mapCoord);
+        u.uEscala = luz.escala;
+        shader.resources.uLuz = tex.source;
+      } else {
+        u.uLuzMatriz.identity();
+        u.uEscala = 1;
+        shader.resources.uLuz = Texture.WHITE.source;
+      }
+
+      const dir = luz.direcao;
+      const dirPronta = Boolean(dir && !dir.destroyed && dir.source && !dir.source.destroyed && dir !== Texture.EMPTY);
+      shader.resources.uDirecao = dirPronta ? dir.source : Texture.EMPTY.source;
+
+      const texAlt = altura.textura;
+      const altPronta = Boolean(texAlt && !texAlt.destroyed && texAlt.source && !texAlt.source.destroyed && texAlt !== Texture.EMPTY);
+      if (altPronta && texAlt) {
+        shader.resources.uAltura = texAlt.source;
+        u.uAlturaTexel[0] = 1 / Math.max(1, texAlt.source.pixelWidth);
+        u.uAlturaTexel[1] = 1 / Math.max(1, texAlt.source.pixelHeight);
+        u.uPassoEmMetros = altura.metrosPorTexel;
+      } else {
+        shader.resources.uAltura = Texture.EMPTY.source;
+        u.uAlturaTexel[0] = 0;
+        u.uAlturaTexel[1] = 0;
+        u.uPassoEmMetros = 0;
+      }
+
+      const amb = luz.ambiente;
+      u.uAmbiente[0] = amb[0];
+      u.uAmbiente[1] = amb[1];
+      u.uAmbiente[2] = amb[2];
+      u.uEscalaHdr = escalaHdrAtiva;
+      u.uAlturaMaxima = ALTURA_MAXIMA;
+      u.uForca = FORCA_RELEVO_PADRAO;
+      u.uAlturaDaLuz = ALTURA_DA_LUZ;
+      u.uAlcance = luz.alcance;
+      u.uAlturaMaxDaLuz = ALTURA_MAXIMA_DA_LUZ;
+      u.uEmissao = EMISSAO_PADRAO;
+      u.uTempo = tempoSeg;
+      u.uRelevo = altPronta && dirPronta ? relevo : 0;
+      u.uAO = altPronta ? ao : 0;
+      const modo = modoDeDepuracaoDaLuz();
+      u.uModoDirecao = modo === 'direcao' ? 1 : 0;
+      u.uModoAltura = modo === 'altura' ? 1 : 0;
+
+      shader.resources.uTexture = corRT.source;
+      renderer.render({ container: mesh, target: hdrRT, clear: true, clearColor: [0, 0, 0, 0] });
+
+      const pxPorMetro = Math.hypot(camAtual.a, camAtual.b);
+      bloom.processar(renderer, hdrRT, {
+        saidaRT,
+        glow: modo ? 0 : glow,
+        pxPorMetro,
+        escalaHdr: escalaHdrAtiva,
+        formato: formatoAtivo,
+      });
+
+      sprite.setFromMatrix(camInv);
+      sprite.visible = true;
+      mundoIluminado.renderable = false;
+      pronta = true;
+    },
+    destruir() {
+      destruida = true;
+      pronta = false;
+      corRT?.destroy(true);
+      hdrRT?.destroy(true);
+      saidaRT?.destroy(true);
+      corRT = null;
+      hdrRT = null;
+      saidaRT = null;
+      bloom.destruir();
+      textureMatrix.destroy();
+      mesh.destroy();
+      shader.destroy(false);
+      prog.destroy();
+      quad.destroy(true);
+      sprite.destroy();
+    },
+  };
 }
