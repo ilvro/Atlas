@@ -48,15 +48,15 @@ export const santuarioDaLuz: Exemplo = {
     }
 
     // A escadaria monumental a leste, entre muralhas de alvenaria em degraus, com lanternas nos cantos.
-    k.objeto('escada.pedra', [39, 13.2], { params: { largura: 4, comprimento: 6 }, rotation: Math.PI / 2, scale: 1.8, blocks: { move: false, sight: false } });
+    k.objeto('escada.pedra', [39.6, 13.4], { params: { largura: 8, comprimento: 12 }, rotation: Math.PI / 2, blocks: { move: false, sight: false } });
     k.objeto('muralha-em-degraus', [40.6, 5.5], { params: { largura: 15, profundidade: 4.6, degraus: 3 }, rotation: 0 });
     k.objeto('muralha-em-degraus', [40.6, 22.2], { params: { largura: 15, profundidade: 5, degraus: 3 }, rotation: Math.PI });
     for (const y of [8.2, 18.6]) { k.objeto('lanterna-de-poste', [32.8, y]); k.luz('lanterna', [32.8, y], { radius: 4.5, intensity: 1.1, color: '#ff9a40' }); }
     k.objeto('estandarte', [34.2, 8.6], { params: { cor: 1 }, rotation: Math.PI / 2 });
 
     // Escadas que descem ao norte e ao sul.
-    k.objeto('escada.pedra', [15, 2.7], { params: { largura: 4, comprimento: 3.2 }, rotation: 0, scale: 1.6, blocks: { move: false, sight: false } });
-    k.objeto('escada.pedra', [15, 24.3], { params: { largura: 4, comprimento: 3.2 }, rotation: Math.PI, scale: 1.6, blocks: { move: false, sight: false } });
+    k.objeto('escada.pedra', [15, 2.7], { params: { largura: 6.4, comprimento: 5 }, rotation: 0, blocks: { move: false, sight: false } });
+    k.objeto('escada.pedra', [15, 24.3], { params: { largura: 6.4, comprimento: 5 }, rotation: Math.PI, blocks: { move: false, sight: false } });
 
     // Entulho grande ao sul do tablado e escombros pelo salão.
     for (const [x, y, s] of [[25.6, 21.2, 3.4], [27.6, 19.6, 1.6], [13.8, 9.2, 1.4], [34.6, 12.2, 1.2], [36.8, 26.2, 1.6], [31, 6.4, 1.1]] as const) k.objeto('escombros', [x, y], { scale: s, rotation: (x * 0.3) % 3 });
