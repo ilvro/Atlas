@@ -1,4 +1,5 @@
 import { Geometry, GlProgram, Mesh, RenderTexture, Shader, Texture, UniformGroup, type Renderer } from 'pixi.js';
+import { EXPOSICAO_PADRAO } from '../domain/mapa.ts';
 import type { FormatoDeLuz } from './mapa-de-luz.ts';
 
 /** Limiar acima do qual a cor HDR entra no bloom (`max(cor - 0.9, 0)`). */
@@ -7,6 +8,13 @@ export const LIMIAR_BLOOM = 0.9;
 export const RAIO_BLOOM_CURTO = 0.5;
 /** Raio (m) da passada larga de bloom. */
 export const RAIO_BLOOM_LONGO = 2.0;
+
+/** Curva de tom ACES aproximada (Narkowicz) para mapear HDR linear em `[0, 1]`. */
+export function aces(x: number): number {
+  const v = Math.max(0, x);
+  const c = (v * (2.51 * v + 0.03)) / (v * (2.43 * v + 0.59) + 0.14);
+  return Math.min(1, Math.max(0, c));
+}
 
 /** Extração pura do limiar de bloom (`max(cor - 0.9, 0)` por canal). */
 export function limiarDoBloom(cor: readonly [number, number, number], limiar = LIMIAR_BLOOM): [number, number, number] {
@@ -21,7 +29,7 @@ export interface PassoDeBloom {
   processar(
     renderer: Renderer,
     hdrRT: RenderTexture,
-    op: { saidaRT: RenderTexture; glow: number; pxPorMetro: number; escalaHdr: number; formato: FormatoDeLuz },
+    op: { saidaRT: RenderTexture; glow: number; pxPorMetro: number; escalaHdr: number; formato: FormatoDeLuz; exposure?: number; curvaDeTom?: boolean },
   ): void;
   destruir(): void;
 }
@@ -83,19 +91,30 @@ uniform sampler2D uBloom1;
 uniform sampler2D uBloom2;
 uniform float uEscalaHdr;
 uniform float uGlow;
+uniform float uExposicao;
+uniform float uCurvaDeTom;
+vec3 aces(vec3 x) {
+  return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
+}
 void main() {
   vec4 h = texture(uHdr, vUV);
   vec3 hdr = h.rgb * uEscalaHdr;
-  if (uGlow <= 0.0001) {
-    finalColor = vec4(clamp(hdr, 0.0, 1.0), h.a);
-    return;
+  vec3 bloom = vec3(0.0);
+  float a = h.a;
+  if (uGlow > 0.0001) {
+    vec3 b1 = texture(uBloom1, vUV).rgb * uEscalaHdr;
+    vec3 b2 = texture(uBloom2, vUV).rgb * uEscalaHdr;
+    bloom = (b1 * 0.6 + b2 * 0.4) * uGlow;
+    a = clamp(h.a + max(bloom.r, max(bloom.g, bloom.b)), 0.0, 1.0);
   }
-  vec3 b1 = texture(uBloom1, vUV).rgb * uEscalaHdr;
-  vec3 b2 = texture(uBloom2, vUV).rgb * uEscalaHdr;
-  vec3 bloom = (b1 * 0.6 + b2 * 0.4) * uGlow;
-  vec3 cor = clamp(hdr + bloom, 0.0, 1.0);
-  float a = clamp(h.a + max(bloom.r, max(bloom.g, bloom.b)), 0.0, 1.0);
-  finalColor = vec4(cor, a);
+  vec3 soma = hdr + bloom;
+  if (uCurvaDeTom > 0.5) {
+    vec3 linear = a > 0.0001 ? soma / a : vec3(0.0);
+    vec3 cor = aces(max(linear, vec3(0.0)) * uExposicao);
+    finalColor = vec4(cor * a, a);
+  } else {
+    finalColor = vec4(clamp(soma, 0.0, 1.0), a);
+  }
 }`;
 
 /**
@@ -127,6 +146,8 @@ export function criarBloom(): PassoDeBloom {
   const combinarGrupo = new UniformGroup({
     uEscalaHdr: { value: 1, type: 'f32' },
     uGlow: { value: 0, type: 'f32' },
+    uExposicao: { value: EXPOSICAO_PADRAO, type: 'f32' },
+    uCurvaDeTom: { value: 1, type: 'f32' },
   });
 
   const extrairShader = new Shader({ glProgram: progExtrair, resources: { uTexture: Texture.EMPTY.source, extrair: extrairGrupo } });
@@ -203,9 +224,12 @@ export function criarBloom(): PassoDeBloom {
       const r = hdrRT.source.resolution || 1;
       const glow = Math.max(0, Number.isFinite(op.glow) ? op.glow : 0);
       const escalaHdr = Math.max(1, op.escalaHdr);
-      const cu = combinarGrupo.uniforms as { uEscalaHdr: number; uGlow: number };
+      const exp = op.exposure !== undefined && Number.isFinite(op.exposure) ? Math.max(0, op.exposure) : EXPOSICAO_PADRAO;
+      const cu = combinarGrupo.uniforms as { uEscalaHdr: number; uGlow: number; uExposicao: number; uCurvaDeTom: number };
       cu.uEscalaHdr = escalaHdr;
       cu.uGlow = glow;
+      cu.uExposicao = exp;
+      cu.uCurvaDeTom = op.curvaDeTom === false ? 0 : 1;
       combinarShader.resources.uHdr = hdrRT.source;
 
       if (glow > 0.0001) {

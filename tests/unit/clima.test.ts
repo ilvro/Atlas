@@ -200,6 +200,19 @@ test('misturar: o meio-termo fica entre os dois (ambiente, chuva, tinta)', () =>
   assert.ok(Math.abs((rel.finish.relief ?? -1) - 0.5) < 1e-9);
   const ao = misturar({ ...a, finish: { ...a.finish, ao: 0 } }, { ...b, finish: { ...b.finish, ao: 1 } }, 0.5);
   assert.ok(Math.abs((ao.finish.ao ?? -1) - 0.5) < 1e-9);
+  const exp = misturar({ ...a, finish: { ...a.finish, exposure: 0.5 } }, { ...b, finish: { ...b.finish, exposure: 1.5 } }, 0.5);
+  assert.ok(Math.abs((exp.finish.exposure ?? -1) - 1.0) < 1e-9);
+  const spUmLado = misturar(a, { ...b, finish: { ...b.finish, split: { shadows: '#2a4a5a', highlights: '#ffb060', balance: 0.2, amount: 0.4 } } }, 0.5);
+  assert.equal(spUmLado.finish.split?.shadows, '#2a4a5a');
+  assert.ok(Math.abs((spUmLado.finish.split?.amount ?? -1) - 0.2) < 1e-9);
+  const spDois = misturar(
+    { ...a, finish: { ...a.finish, split: { shadows: '#000000', highlights: '#000000', balance: -0.4, amount: 0.2 } } },
+    { ...b, finish: { ...b.finish, split: { shadows: '#ffffff', highlights: '#ffffff', balance: 0.4, amount: 0.8 } } },
+    0.5,
+  );
+  assert.equal(spDois.finish.split?.shadows, '#808080');
+  assert.ok(Math.abs((spDois.finish.split?.balance ?? 9) - 0) < 1e-9);
+  assert.ok(Math.abs((spDois.finish.split?.amount ?? -1) - 0.5) < 1e-9);
 });
 
 test('misturar: o sol que some (ou aparece) muda só de intensidade, com a cor do lado que tem sol', () => {

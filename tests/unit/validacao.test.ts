@@ -222,3 +222,20 @@ test('validação de finish.ao: opcional, aceita 0..1 e recusa fora da faixa', (
   assert.equal(caminhoDoErro(mexer(x => { x.finish.ao = 1.1; })), 'finish.ao');
   assert.equal(caminhoDoErro(mexer(x => { x.finish.ao = 'medio'; })), 'finish.ao');
 });
+
+test('validação de finish.exposure e finish.split: opcionais e validam faixas e cores', () => {
+  assert.equal(caminhoDoErro(mexer(x => { delete x.finish.exposure; delete x.finish.split; })), null);
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.exposure = 0; })), null);
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.exposure = 1; })), null);
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.exposure = 4; })), null);
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.exposure = -0.1; })), 'finish.exposure');
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.exposure = 4.5; })), 'finish.exposure');
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.exposure = 'claro'; })), 'finish.exposure');
+
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.split = { shadows: '#2a4a5a', highlights: '#ffb060', balance: 0, amount: 0.35 }; })), null);
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.split = { shadows: 'azul', highlights: '#ffb060', balance: 0, amount: 0.35 }; })), 'finish.split.shadows');
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.split = { shadows: '#2a4a5a', highlights: '#fff', balance: 0, amount: 0.35 }; })), 'finish.split.highlights');
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.split = { shadows: '#2a4a5a', highlights: '#ffb060', balance: -1.5, amount: 0.35 }; })), 'finish.split.balance');
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.split = { shadows: '#2a4a5a', highlights: '#ffb060', balance: 0, amount: 1.2 }; })), 'finish.split.amount');
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.split = { shadows: '#2a4a5a', highlights: '#ffb060', balance: 0 }; })), 'finish.split.amount');
+});

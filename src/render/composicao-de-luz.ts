@@ -1,5 +1,5 @@
 import { Container, Geometry, GlProgram, Matrix, Mesh, RenderTexture, Shader, Sprite, Texture, TextureMatrix, UniformGroup, type Renderer } from 'pixi.js';
-import { AO_PADRAO, RELEVO_PADRAO } from '../domain/mapa.ts';
+import { AO_PADRAO, EXPOSICAO_PADRAO, RELEVO_PADRAO } from '../domain/mapa.ts';
 import { ALTURA_MAXIMA } from '../procedural/altura.ts';
 import { criarBloom, type PassoDeBloom } from './bloom.ts';
 import type { CenaDeAltura } from './cena-de-altura.ts';
@@ -248,6 +248,7 @@ export interface ComposicaoDeLuz {
   definirRelevo(v: number): void;
   definirAO(v: number): void;
   definirGlow(v: number): void;
+  definirExposicao(v: number): void;
   /** Renderiza `mundoIluminado` em `corRT`, compõe luz/relevo/AO/emissão em `hdrRT`, aplica bloom e escreve `saidaRT`. */
   atualizar(mundoIluminado: Container, ativo: boolean, tempoSeg: number): void;
   destruir(): void;
@@ -317,6 +318,7 @@ export function criarComposicaoDeLuz(renderer: Renderer, luz: MapaDeLuz, altura:
   let relevo = RELEVO_PADRAO;
   let ao = AO_PADRAO;
   let glow = 0;
+  let exposicao = EXPOSICAO_PADRAO;
   let pronta = false;
   let destruida = false;
 
@@ -355,6 +357,9 @@ export function criarComposicaoDeLuz(renderer: Renderer, luz: MapaDeLuz, altura:
     },
     definirGlow(v) {
       glow = Math.max(0, Number.isFinite(v) ? v : 0);
+    },
+    definirExposicao(v) {
+      exposicao = Math.min(4, Math.max(0, Number.isFinite(v) ? v : EXPOSICAO_PADRAO));
     },
     atualizar(mundoIluminado, ativo, tempoSeg) {
       if (destruida) return;
@@ -465,6 +470,8 @@ export function criarComposicaoDeLuz(renderer: Renderer, luz: MapaDeLuz, altura:
         pxPorMetro,
         escalaHdr: escalaHdrAtiva,
         formato: formatoAtivo,
+        exposure: exposicao,
+        curvaDeTom: !modo,
       });
 
       sprite.setFromMatrix(camInv);

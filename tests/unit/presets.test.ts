@@ -93,8 +93,8 @@ test('telhadoPadrao: contorno circular (>= 8 lados) ganha estilo torre-redonda e
   assert.equal(telhadoPadrao(m, 'varanda', [[4, 4]], null, outline), null);
 });
 
-test('PRESETS_DE_ACABAMENTO: preserva presets clássicos e inclui presets cinematográficos com glow e bordas', () => {
-  for (const id of ['nenhum', 'neutro', 'sujo', 'sepia', 'frio', 'quente', 'inverno-nevado', 'sombrio-cinematografico']) {
+test('PRESETS_DE_ACABAMENTO: preserva presets clássicos e inclui presets cinematográficos com glow, bordas e split', () => {
+  for (const id of ['nenhum', 'neutro', 'sujo', 'sepia', 'frio', 'quente', 'inverno-nevado', 'sombrio-cinematografico', 'masmorra', 'dia-dourado']) {
     assert.ok(presetDeAcabamento(id), `preset ${id} deve existir`);
   }
   assert.equal(new Set(PRESETS_DE_ACABAMENTO.map(p => p.id)).size, PRESETS_DE_ACABAMENTO.length);
@@ -102,4 +102,11 @@ test('PRESETS_DE_ACABAMENTO: preserva presets clássicos e inclui presets cinema
   assert.ok(inv.valores.glow >= 0.3 && inv.valores.edges.kind === 'clouds' && inv.valores.edges.amount >= 0.3);
   const sombrio = presetDeAcabamento('sombrio-cinematografico')!;
   assert.ok(sombrio.valores.glow >= 0.4 && sombrio.valores.edges.kind === 'dark' && sombrio.valores.vignette >= 0.5);
+  const masmorra = presetDeAcabamento('masmorra')!;
+  assert.deepEqual(masmorra.valores.split, { shadows: '#2a4a5a', highlights: '#ffb060', balance: 0, amount: 0.35 });
+  const sepia = presetDeAcabamento('sepia')!;
+  assert.equal(sepia.valores.saturation, 0.6);
+  assert.deepEqual(sepia.valores.split, { shadows: '#4a3a2a', highlights: '#e8d0a0', balance: 0, amount: 0.5 });
+  const dia = presetDeAcabamento('dia-dourado')!;
+  assert.deepEqual(dia.valores.split, { shadows: '#3a4a6a', highlights: '#ffe0a0', balance: 0, amount: 0.25 });
 });
