@@ -27,11 +27,14 @@ test('a máscara ganha resolução acima da célula, sem estourar o tamanho da t
 test('na cena, a tinta do chão fica sobre os cômodos, sob as escarpas e sob os objetos de piso', async () => {
   const { readFileSync } = await import('node:fs');
   const fonte = readFileSync(new URL('../../src/render/cena.ts', import.meta.url), 'utf8');
-  const linha = fonte.split('\n').find(l => l.includes('raiz.addChild('))!;
-  const pos = (nome: string) => linha.indexOf(nome);
-  const ordem = ['agua.raiz', 'comodosC', 'presenca.chao', 'escarpasC', 'objetosC', 'presenca.abaixo', 'luz.sprite', 'presenca.acima'].map(pos);
+  const linhas = fonte.split('\n');
+  const iluminado = linhas.find(l => l.includes('mundoIluminado.addChild('))!;
+  const raiz = linhas.find(l => l.includes('raiz.addChild('))!;
+  const junta = `${iluminado}\n${raiz}`;
+  const ordem = ['agua.raiz', 'comodosC', 'presenca.chao', 'escarpasC', 'objetosC', 'presenca.abaixo', 'luz.sprite', 'presenca.acima'].map(n => junta.indexOf(n));
   assert.ok(ordem.every(p => p >= 0));
   assert.deepEqual([...ordem].sort((a, b) => a - b), ordem);
+  assert.ok(raiz.indexOf('mundoIluminado') < raiz.indexOf('luz.sprite'));
 });
 
 test('a espuma não cerca plantas nem coisas finas, mas cerca pedras e troncos', async () => {

@@ -8,7 +8,8 @@ import { novaLuz, novoObjeto, novaPeca } from '../../src/domain/fabrica.ts';
 import type { Luz, MapaAtlas } from '../../src/domain/mapa.ts';
 import { GENEROS, TIPOS_DE_COMODO, presetDeLuz } from '../../src/domain/presets.ts';
 import { ACERVO } from '../../src/procedural/acervo.ts';
-import { luzAfetadaPorTokens, nivelAtivoDe, poligonoDaLuz, sincronizarOclusao } from '../../src/render/mapa-de-luz.ts';
+import { RendererType } from 'pixi.js';
+import { ESCALA_HDR, codificarLuz, decodificarLuz, formatoDaLuz, luzAfetadaPorTokens, nivelAtivoDe, poligonoDaLuz, sincronizarOclusao } from '../../src/render/mapa-de-luz.ts';
 import { mapaCom, sala } from './apoio-casa.ts';
 
 const contador = () => { let n = 0; return (p: string) => `${p}${++n}`; };
@@ -105,4 +106,21 @@ test('oclusão de objetos e tokens respeita recorte de andar vindo de mapaDoAnda
   const poli = poligonoDaLuz(luz2, ctxAndar2);
   assert.ok(!dentroPoligono(poli, 9, 4), 'pilar do andar superior projeta sombra no próprio andar');
   assert.ok(!dentroPoligono(poli, 4, 8.5), 'token do andar superior projeta sombra no próprio andar');
+});
+
+test('formatoDaLuz escolhe 16-bit float só em WebGL2 com EXT_color_buffer_float e cai para 8 bits escalado nos demais', () => {
+  assert.deepEqual(formatoDaLuz({ type: RendererType.WEBGL, context: { webGLVersion: 1 } }), { formato: 'rgba8unorm', escala: ESCALA_HDR });
+  assert.deepEqual(formatoDaLuz({ type: RendererType.WEBGL, context: { webGLVersion: 2, extensions: {} } }), { formato: 'rgba8unorm', escala: ESCALA_HDR });
+  assert.deepEqual(formatoDaLuz({ type: RendererType.WEBGL, context: { webGLVersion: 2, extensions: { colorBufferFloat: {} } } }), { formato: 'rgba16float', escala: 1 });
+  assert.deepEqual(formatoDaLuz({ type: RendererType.WEBGPU }), { formato: 'rgba8unorm', escala: ESCALA_HDR });
+});
+
+test('codificarLuz e decodificarLuz preservam intensidades <= 1 e HDR > 1 até ESCALA_HDR', () => {
+  assert.equal(codificarLuz(2.5, 1), 2.5);
+  assert.equal(decodificarLuz(2.5, 1), 2.5);
+  assert.equal(codificarLuz(2.5, ESCALA_HDR), 2.5 / ESCALA_HDR);
+  assert.equal(decodificarLuz(codificarLuz(2.5, ESCALA_HDR), ESCALA_HDR), 2.5);
+  assert.equal(decodificarLuz(codificarLuz(0.6, ESCALA_HDR), ESCALA_HDR), 0.6);
+  assert.equal(codificarLuz(-0.5, ESCALA_HDR), 0);
+  assert.equal(codificarLuz(10, ESCALA_HDR), 1);
 });

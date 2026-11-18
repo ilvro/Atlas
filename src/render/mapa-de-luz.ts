@@ -1,4 +1,4 @@
-import { BlurFilter, Container, Graphics, RenderTexture, Sprite, type Renderer } from 'pixi.js';
+import { Container, Geometry, GlProgram, Graphics, Mesh, RendererType, RenderTexture, Shader, Sprite, Texture, UniformGroup, type Renderer } from 'pixi.js';
 import { DURACAO_DA_QUEDA, DURACAO_DA_VOLTA, LUZ_INTERIOR_PADRAO, curvaDoClarao, ehNoite, intervaloDoRelampago, luzesDerivadas, nivelDaLuz, piscarDaQueda, piscarDaVolta } from '../domain/clima.ts';
 import type { Luz, MapaAtlas } from '../domain/mapa.ts';
 import {
@@ -25,9 +25,45 @@ export const RES_LUZ = 8;
 export const FATOR_DO_INTERIOR = LUZ_INTERIOR_PADRAO;
 const TEXTURA_MAX = 4096;
 
+/** Escala usada quando o renderizador cai no caminho de 8 bits: guarda `luz / ESCALA_HDR` e decodifica no filtro. */
+export const ESCALA_HDR = 4;
+
+export type FormatoDeLuz = 'rgba16float' | 'rgba8unorm';
+
+export interface InfoDeRendererDeLuz {
+  readonly type?: number;
+  readonly context?: {
+    readonly webGLVersion?: number;
+    readonly extensions?: { readonly colorBufferFloat?: unknown };
+  };
+}
+
+/** Escolhe o formato das texturas do mapa de luz: 16-bit float quando há WebGL2 com `EXT_color_buffer_float`; caso contrário 8 bits escalado. */
+export function formatoDaLuz(renderer: Renderer | InfoDeRendererDeLuz): { formato: FormatoDeLuz; escala: number } {
+  const info = renderer as InfoDeRendererDeLuz;
+  const ehWebGL = info.type === undefined || info.type === RendererType.WEBGL;
+  if (ehWebGL && info.context?.webGLVersion === 2 && info.context.extensions?.colorBufferFloat) {
+    return { formato: 'rgba16float', escala: 1 };
+  }
+  return { formato: 'rgba8unorm', escala: ESCALA_HDR };
+}
+
+/** Codifica uma intensidade/canal linear para armazenamento na textura do mapa de luz. */
+export function codificarLuz(v: number, escala: number): number {
+  const n = Math.max(0, v) / Math.max(1, escala);
+  return escala > 1 ? Math.min(1, n) : n;
+}
+
+/** Decodifica uma amostra lida da textura do mapa de luz para intensidade linear. */
+export function decodificarLuz(v: number, escala: number): number {
+  return v * escala;
+}
+
 export interface MapaDeLuz {
-  /** A luz já composta, para multiplicar sobre a cena (em metros). */
+  /** A luz já composta (em metros): no Pixel multiplica a cena; no Ilustrado é amostrada pelo filtro de composição. */
   readonly sprite: Sprite;
+  /** Fator de escala para decodificar a textura da luz (`1` em float ou no Pixel; `ESCALA_HDR` em 8 bits). */
+  readonly escala: number;
   sincronizar(m: MapaAtlas, mudancas: Mudancas | null): void;
   /** Tremulação das luzes; `agora` em milissegundos. */
   quadro(agora: number): void;
@@ -45,10 +81,66 @@ export interface MapaDeLuz {
   destruir(): void;
 }
 
-interface LuzNaGPU { c: Container; s: Sprite; s2: Sprite; s3: Sprite; m: Graphics; luz: Luz; raio: number; chaveGeo: string; versaoGeo: number; semente: number; alfa: number; clarao: number; poligono: number[] }
+interface LuzNaGPU {
+  c: Container;
+  mesh: Mesh<Geometry, Shader>;
+  shader: Shader;
+  grupo: UniformGroup;
+  m: Graphics;
+  luz: Luz;
+  raio: number;
+  chaveGeo: string;
+  versaoGeo: number;
+  semente: number;
+  alfa: number;
+  clarao: number;
+  corR: number;
+  corG: number;
+  corB: number;
+  poligono: number[];
+}
 
-const somarCor = (cor: number, v: number): number => { const c = (n: number) => Math.min(255, Math.round(n * 255 + v * 255)); return (c(((cor >> 16) & 255) / 255) << 16) | (c(((cor >> 8) & 255) / 255) << 8) | c((cor & 255) / 255); };
 const rgb01 = (hex: string): [number, number, number] => { const n = hexParaNumero(hex); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
+
+const vertexQuad = `in vec2 aPosition;
+in vec2 aUV;
+out vec2 vUV;
+uniform mat3 uProjectionMatrix;
+uniform mat3 uWorldTransformMatrix;
+uniform mat3 uTransformMatrix;
+void main(void) {
+  mat3 mvp = uProjectionMatrix * uWorldTransformMatrix * uTransformMatrix;
+  gl_Position = vec4((mvp * vec3(aPosition, 1.0)).xy, 0.0, 1.0);
+  vUV = aUV;
+}`;
+
+const fragmentLuz = `in vec2 vUV;
+out vec4 finalColor;
+uniform sampler2D uTexture;
+uniform vec3 uCor;
+uniform float uIntensidade;
+void main() {
+  vec4 t = texture(uTexture, vUV);
+  finalColor = vec4(t.rgb * uCor * uIntensidade, t.a);
+}`;
+
+// Blur gaussiano separável (9 amostras, pesos somando 1.0) feito direto entre RenderTextures para preservar valores HDR > 1.
+const fragmentBlur = `in vec2 vUV;
+out vec4 finalColor;
+uniform sampler2D uTexture;
+uniform vec2 uPasso;
+uniform vec4 uLimites;
+vec4 amostra(float k) {
+  return texture(uTexture, clamp(vUV + uPasso * k, uLimites.xy, uLimites.zw));
+}
+void main() {
+  vec4 soma = amostra(0.0) * 0.202362;
+  soma += (amostra(-1.0) + amostra(1.0)) * 0.179044;
+  soma += (amostra(-2.0) + amostra(2.0)) * 0.124009;
+  soma += (amostra(-3.0) + amostra(3.0)) * 0.067234;
+  soma += (amostra(-4.0) + amostra(4.0)) * 0.028532;
+  finalColor = soma;
+}`;
 
 interface ObjetoComCaixa { oclusor: OclusorDeObjeto; x0: number; y0: number; x1: number; y1: number }
 
@@ -162,19 +254,43 @@ export function poligonoDaLuz(l: Luz, ctx: ContextoDeOclusao): number[] {
 }
 
 /**
- * Cada luz é um brilho redondo recortado pelo polígono que ela enxerga (as paredes fazem sombra), somado numa textura "bruta";
- * esta, desfocada, vai sobre a cor do ambiente numa textura final que multiplica a cena. Os polígonos só são refeitos quando a
- * luz ou as paredes mudam; a tremulação só mexe na opacidade.
+ * Cada luz é um brilho redondo recortado pelo polígono que ela enxerga (as paredes fazem sombra), somado numa textura "bruta"
+ * via `Mesh` + `Shader` (sem o limite `[0, 1]` do `Sprite`); no Ilustrado, esta passa por blur gaussiano separável direto em
+ * `RenderTexture` e é composta por filtro em HDR (ou 8 bits escalado). No Pixel mantém o caminho em faixas e `multiply`.
  */
 export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
   const raiz = new Container(), interior = new Graphics(), composicao = new Container(), brutaS = new Sprite(), sprite = new Sprite();
-  const blur = new BlurFilter({ strength: 2, quality: 3 }); blur.blendMode = 'add';
-  brutaS.blendMode = 'add'; composicao.addChild(brutaS); composicao.filters = [blur];
+  brutaS.blendMode = 'add'; composicao.addChild(brutaS);
   sprite.blendMode = 'multiply';
   // No Pixel a luz final passa por um filtro de faixas (degraus de borda dura) antes de multiplicar a cena.
   const passadaFaixas = new Container(), faixasS = new Sprite(); passadaFaixas.addChild(faixasS); passadaFaixas.filters = [criarFiltroDeFaixas()];
+  const progLuz = GlProgram.from({ vertex: vertexQuad, fragment: fragmentLuz, preferredFragmentPrecision: 'highp', name: 'atlas-luz-hdr' });
+  const progBlur = GlProgram.from({ vertex: vertexQuad, fragment: fragmentBlur, preferredFragmentPrecision: 'highp', name: 'atlas-luz-blur' });
+  const quadLuz = new Geometry({
+    attributes: {
+      aPosition: new Float32Array([-0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5]),
+      aUV: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+    },
+    indexBuffer: new Uint16Array([0, 1, 2, 0, 2, 3]),
+  });
+  const quadTela = new Geometry({
+    attributes: {
+      aPosition: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+      aUV: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+    },
+    indexBuffer: new Uint16Array([0, 1, 2, 0, 2, 3]),
+  });
+  const blurHGrupo = new UniformGroup({ uPasso: { value: new Float32Array([0, 0]), type: 'vec2<f32>' }, uLimites: { value: new Float32Array([0, 0, 1, 1]), type: 'vec4<f32>' } });
+  const blurVGrupo = new UniformGroup({ uPasso: { value: new Float32Array([0, 0]), type: 'vec2<f32>' }, uLimites: { value: new Float32Array([0, 0, 1, 1]), type: 'vec4<f32>' } });
+  const blurHShader = new Shader({ glProgram: progBlur, resources: { uTexture: Texture.EMPTY.source, blur: blurHGrupo } });
+  const blurVShader = new Shader({ glProgram: progBlur, resources: { uTexture: Texture.EMPTY.source, blur: blurVGrupo } });
+  const blurH = new Mesh({ geometry: quadTela, shader: blurHShader });
+  const blurV = new Mesh({ geometry: quadTela, shader: blurVShader });
+  blurV.blendMode = 'add';
+
   const luzes = new Map<string, LuzNaGPU>(), ruido = valueNoise2D(7);
-  let brutaRT: RenderTexture | null = null, finalRT: RenderTexture | null = null, faixasRT: RenderTexture | null = null, largura = 0, altura = 0, resAtual = 0, pixel = false, pxPorMetro = 0;
+  let brutaRT: RenderTexture | null = null, desfoqueRT: RenderTexture | null = null, finalRT: RenderTexture | null = null, faixasRT: RenderTexture | null = null;
+  let largura = 0, altura = 0, resAtual = 0, pixel = false, pxPorMetro = 0, escalaAtiva = 1;
   let oclusao: ContextoDeOclusao | null = null, derivadas: Luz[] = [], ambiente: [number, number, number] = [1, 1, 1];
   let sujo = true, ligado = true, destruido = false, contador = 0, interiorPronto = false;
   // O estado do momento (clima): o mapa atual, se é noite, a queda de energia, o relâmpago e os trovões a caminho.
@@ -184,43 +300,69 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
 
   let todasLuzes: Luz[] = [];
 
-  function dimensionar(m: MapaAtlas): void {
-    const w = m.bounds.width, h = m.bounds.height, ehPixel = m.style.renderer === 'pixel', r0 = ehPixel ? m.style.pixel.pixelsPerCell / m.grid.size : RES_LUZ;
-    if (brutaRT && w === largura && h === altura && r0 === resAtual) return;
-    largura = w; altura = h; resAtual = r0; pixel = ehPixel;
-    const res = Math.min(r0, TEXTURA_MAX / Math.max(w, h)), pw = Math.max(1, Math.round(w * res)), ph = Math.max(1, Math.round(h * res)); pxPorMetro = res;
-    const antigas = [brutaRT, finalRT, faixasRT], modo = pixel ? 'nearest' : 'linear';
-    brutaRT = RenderTexture.create({ width: pw, height: ph, scaleMode: modo }); finalRT = RenderTexture.create({ width: pw, height: ph, scaleMode: modo });
-    faixasRT = pixel ? RenderTexture.create({ width: pw, height: ph, scaleMode: 'nearest' }) : null;
-    // Pixel: sem desfoque, em resolução do Pixel, e as faixas depois da composição. Ilustrado: a luz suave de sempre.
-    composicao.filters = pixel ? [] : [blur]; faixasS.texture = finalRT;
-    brutaS.texture = brutaRT; sprite.texture = pixel ? faixasRT! : finalRT; sprite.scale.set(w / pw, h / ph); raiz.scale.set(pw / w, ph / h); interior.scale.set(pw / w, ph / h);
-    for (const t of antigas) t?.destroy(true);
-    sujo = true;
-  }
-
   function aplicarAlfa(g: LuzNaGPU, k: number): void {
     g.alfa = k;
     g.c.visible = k > 0.01;
-    g.s.alpha = Math.min(1, k);
-    g.s.visible = k > 0.01;
-    g.s2.alpha = Math.min(1, Math.max(0, k - 1));
-    g.s2.visible = k > 1.001;
-    g.s3.alpha = Math.min(1, Math.max(0, k - 2));
-    g.s3.visible = k > 2.001;
+    g.mesh.visible = k > 0.01;
+    (g.grupo.uniforms as Record<string, unknown>).uIntensidade = pixel ? Math.min(1, k) : codificarLuz(k, escalaAtiva);
+  }
+
+  function aplicarCor(g: LuzNaGPU, r: number, gCor: number, b: number): void {
+    if (r === g.corR && gCor === g.corG && b === g.corB) return;
+    g.corR = r; g.corG = gCor; g.corB = b;
+    (g.grupo.uniforms as Record<string, unknown>).uCor = new Float32Array([r, gCor, b]);
+  }
+
+  function dimensionar(m: MapaAtlas): void {
+    const w = m.bounds.width, h = m.bounds.height, ehPixel = m.style.renderer === 'pixel', r0 = ehPixel ? m.style.pixel.pixelsPerCell / m.grid.size : RES_LUZ;
+    if (brutaRT && w === largura && h === altura && r0 === resAtual && ehPixel === pixel) return;
+    largura = w; altura = h; resAtual = r0; pixel = ehPixel;
+    const res = Math.min(r0, TEXTURA_MAX / Math.max(w, h)), pw = Math.max(1, Math.round(w * res)), ph = Math.max(1, Math.round(h * res)); pxPorMetro = res;
+    const { formato, escala: escalaHDR } = formatoDaLuz(renderer);
+    const escalaAntes = escalaAtiva;
+    escalaAtiva = pixel ? 1 : escalaHDR;
+    const antigas = [brutaRT, desfoqueRT, finalRT, faixasRT];
+    if (pixel) {
+      brutaRT = RenderTexture.create({ width: pw, height: ph, scaleMode: 'nearest' });
+      desfoqueRT = null;
+      finalRT = RenderTexture.create({ width: pw, height: ph, scaleMode: 'nearest' });
+      faixasRT = RenderTexture.create({ width: pw, height: ph, scaleMode: 'nearest' });
+      brutaS.texture = brutaRT; faixasS.texture = finalRT;
+      sprite.texture = faixasRT; sprite.renderable = true; sprite.visible = ligado;
+    } else {
+      brutaRT = RenderTexture.create({ width: pw, height: ph, scaleMode: 'linear', format: formato });
+      desfoqueRT = RenderTexture.create({ width: pw, height: ph, scaleMode: 'linear', format: formato });
+      finalRT = RenderTexture.create({ width: pw, height: ph, scaleMode: 'linear', format: formato });
+      faixasRT = null;
+      blurHShader.resources.uTexture = brutaRT.source;
+      blurVShader.resources.uTexture = desfoqueRT.source;
+      const lim = new Float32Array([0.5 / pw, 0.5 / ph, 1 - 0.5 / pw, 1 - 0.5 / ph]);
+      (blurHGrupo.uniforms as Record<string, unknown>).uPasso = new Float32Array([1.35 / pw, 0]);
+      (blurVGrupo.uniforms as Record<string, unknown>).uPasso = new Float32Array([0, 1.35 / ph]);
+      (blurHGrupo.uniforms as Record<string, unknown>).uLimites = lim;
+      (blurVGrupo.uniforms as Record<string, unknown>).uLimites = lim;
+      blurH.scale.set(pw, ph); blurV.scale.set(pw, ph);
+      sprite.texture = finalRT; sprite.renderable = false; sprite.visible = true;
+    }
+    sprite.scale.set(w / pw, h / ph); raiz.scale.set(pw / w, ph / h); interior.scale.set(pw / w, ph / h);
+    for (const t of antigas) t?.destroy(true);
+    if (escalaAtiva !== escalaAntes) {
+      for (const g of luzes.values()) if (g.alfa >= 0) aplicarAlfa(g, g.alfa);
+    }
+    sujo = true;
   }
 
   function criar(l: Luz): LuzNaGPU {
     const c = new Container(), m = new Graphics();
-    const novoS = () => {
-      const s = new Sprite(texturaDeBrilho());
-      s.anchor.set(0.5); s.blendMode = 'add'; s.mask = m; s.visible = false;
-      c.addChild(s);
-      return s;
-    };
-    const s = novoS(), s2 = novoS(), s3 = novoS();
-    c.addChild(m); raiz.addChild(c);
-    return { c, s, s2, s3, m, luz: l, raio: l.radius, chaveGeo: '', versaoGeo: -1, semente: ++contador * 13.7, alfa: -1, clarao: -1, poligono: [] };
+    const grupo = new UniformGroup({
+      uCor: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
+      uIntensidade: { value: 1, type: 'f32' },
+    });
+    const shader = new Shader({ glProgram: progLuz, resources: { uTexture: texturaDeBrilho().source, luz: grupo } });
+    const mesh = new Mesh({ geometry: quadLuz, shader });
+    mesh.blendMode = 'add'; mesh.mask = m; mesh.visible = false;
+    c.addChild(mesh, m); raiz.addChild(c);
+    return { c, mesh, shader, grupo, m, luz: l, raio: l.radius, chaveGeo: '', versaoGeo: -1, semente: ++contador * 13.7, alfa: -1, clarao: -1, corR: -1, corG: -1, corB: -1, poligono: [] };
   }
 
   function atualizar(g: LuzNaGPU, l: Luz): void {
@@ -231,16 +373,19 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       const pts = poligonoDaLuz(l, oclusao);
       g.poligono = pts;
       g.m.clear(); if (pts.length >= 6) g.m.poly(pts).fill(0xffffff);
-      for (const s of [g.s, g.s2, g.s3]) { s.position.set(l.position[0], l.position[1]); s.width = s.height = l.radius * 2; }
+      g.mesh.position.set(l.position[0], l.position[1]);
+      g.mesh.scale.set(l.radius * 2);
       g.raio = l.radius;
     }
-    const cor = hexParaNumero(l.color);
-    for (const s of [g.s, g.s2, g.s3]) s.tint = cor;
+    const [r, gCor, b] = rgb01(l.color);
+    const c = g.clarao > 0 && l.id.startsWith('janela:') ? g.clarao * 0.6 : 0;
+    aplicarCor(g, Math.min(1, r + c), Math.min(1, gCor + c), Math.min(1, b + c));
     if (g.alfa < 0 && mapa) {
       const daRede = l.power === 'grid';
       const nivel = nivelDaLuz(l, mapa, queda > 0 ? { redeLigada: true, noite } : { noite });
       const piscar = !daRede ? 1 : queda > 0 ? piscarDaQueda(queda) : volta > 0 ? piscarDaVolta(volta) : 1;
-      aplicarAlfa(g, nivel * piscar * efLuzes * Math.min(3, Math.max(0, l.intensity)));
+      const base = pixel ? Math.min(3, Math.max(0, l.intensity)) : Math.max(0, l.intensity);
+      aplicarAlfa(g, nivel * piscar * efLuzes * base);
     }
   }
 
@@ -275,20 +420,38 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
   function renderizar(): void {
     if (!brutaRT || !finalRT) return;
     renderer.render({ container: raiz, target: brutaRT, clear: true, clearColor: [0, 0, 0, 0] });
-    const brilho = claraoAtual * 0.35, amb: [number, number, number, number] = [Math.min(1, ambiente[0] * efAmbiente + brilho), Math.min(1, ambiente[1] * efAmbiente + brilho), Math.min(1, ambiente[2] * efAmbiente + brilho), 1];
+    const brilho = claraoAtual * 0.35;
     const fatorInterior = mapa?.climate.interiorLight ?? FATOR_DO_INTERIOR;
-    const intR = Math.min(1, ambiente[0] * efAmbiente * fatorInterior + brilho * 0.3);
-    const intG = Math.min(1, ambiente[1] * efAmbiente * fatorInterior + brilho * 0.3);
-    const intB = Math.min(1, ambiente[2] * efAmbiente * fatorInterior + brilho * 0.3);
-    interior.tint = (Math.round(intR * 255) << 16) | (Math.round(intG * 255) << 8) | Math.round(intB * 255);
-    renderer.render({ container: interior, target: finalRT, clear: true, clearColor: amb });
-    renderer.render({ container: composicao, target: finalRT, clear: false });
-    if (pixel && faixasRT) renderer.render({ container: passadaFaixas, target: faixasRT, clear: true, clearColor: [0, 0, 0, 1] });
+    if (pixel) {
+      const amb: [number, number, number, number] = [Math.min(1, ambiente[0] * efAmbiente + brilho), Math.min(1, ambiente[1] * efAmbiente + brilho), Math.min(1, ambiente[2] * efAmbiente + brilho), 1];
+      const intR = Math.min(1, ambiente[0] * efAmbiente * fatorInterior + brilho * 0.3);
+      const intG = Math.min(1, ambiente[1] * efAmbiente * fatorInterior + brilho * 0.3);
+      const intB = Math.min(1, ambiente[2] * efAmbiente * fatorInterior + brilho * 0.3);
+      interior.tint = (Math.round(intR * 255) << 16) | (Math.round(intG * 255) << 8) | Math.round(intB * 255);
+      renderer.render({ container: interior, target: finalRT, clear: true, clearColor: amb });
+      renderer.render({ container: composicao, target: finalRT, clear: false });
+      if (faixasRT) renderer.render({ container: passadaFaixas, target: faixasRT, clear: true, clearColor: [0, 0, 0, 1] });
+    } else if (desfoqueRT) {
+      const amb: [number, number, number, number] = [
+        codificarLuz(ambiente[0] * efAmbiente + brilho, escalaAtiva),
+        codificarLuz(ambiente[1] * efAmbiente + brilho, escalaAtiva),
+        codificarLuz(ambiente[2] * efAmbiente + brilho, escalaAtiva),
+        1,
+      ];
+      const intR = Math.min(1, codificarLuz(ambiente[0] * efAmbiente * fatorInterior + brilho * 0.3, escalaAtiva));
+      const intG = Math.min(1, codificarLuz(ambiente[1] * efAmbiente * fatorInterior + brilho * 0.3, escalaAtiva));
+      const intB = Math.min(1, codificarLuz(ambiente[2] * efAmbiente * fatorInterior + brilho * 0.3, escalaAtiva));
+      interior.tint = (Math.round(intR * 255) << 16) | (Math.round(intG * 255) << 8) | Math.round(intB * 255);
+      renderer.render({ container: blurH, target: desfoqueRT, clear: true, clearColor: [0, 0, 0, 0] });
+      renderer.render({ container: interior, target: finalRT, clear: true, clearColor: amb });
+      renderer.render({ container: blurV, target: finalRT, clear: false });
+    }
     sujo = false;
   }
 
   return {
     sprite,
+    get escala() { return escalaAtiva; },
     sincronizar(m, mud) {
       if (destruido) return;
       const tudo = !mud || mud.completo, col = (c: string) => tudo || !!(mud!.colecoes as Record<string, unknown>)[c], campo = (...c: string[]) => tudo || c.some(x => mud!.campos.includes(x));
@@ -311,11 +474,14 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       }
       if (col('rooms') || campo('grid') || !interiorPronto) desenharInterior(m);
       if (estaticoMudou || col('lights') || campo('climate')) derivadas = luzesDerivadas(m);
-      if (campo('climate')) { const a = m.climate.ambient, [r, g, b] = rgb01(a.color); ambiente = [Math.min(1, r * a.intensity), Math.min(1, g * a.intensity), Math.min(1, b * a.intensity)]; }
+      if (campo('climate', 'style')) {
+        const a = m.climate.ambient, [r, g, b] = rgb01(a.color);
+        ambiente = pixel ? [Math.min(1, r * a.intensity), Math.min(1, g * a.intensity), Math.min(1, b * a.intensity)] : [r * a.intensity, g * a.intensity, b * a.intensity];
+      }
       todasLuzes = [...Object.values(m.lights), ...derivadas];
       const vivos = new Set<string>();
       for (const l of todasLuzes) { vivos.add(l.id); let g = luzes.get(l.id); if (!g) { g = criar(l); luzes.set(l.id, g); } atualizar(g, l); }
-      for (const [id, g] of luzes) if (!vivos.has(id)) { g.c.destroy({ children: true }); luzes.delete(id); }
+      for (const [id, g] of luzes) if (!vivos.has(id)) { g.shader.destroy(false); g.c.destroy({ children: true }); luzes.delete(id); }
       sujo = true;
     },
     quadro(agora) {
@@ -336,31 +502,38 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
         const nivel = nivelDaLuz(l, mapa, queda > 0 ? { redeLigada: true, noite } : { noite });
         const piscar = !daRede ? 1 : queda > 0 ? piscarDaQueda(queda) : volta > 0 ? piscarDaVolta(volta) : 1;
         const janela = l.id.startsWith('janela:');          // só a luz do céu pelas janelas leva o clarão
-        let k = nivel * piscar * efLuzes * Math.min(3, Math.max(0, l.intensity));
+        let k = nivel * piscar * efLuzes * (pixel ? Math.min(3, Math.max(0, l.intensity)) : Math.max(0, l.intensity));
         if (k > 0 && l.flicker > 0) {
           const f = (ruido(t * 9 + g.semente, g.semente) + 0.5 * ruido(t * 23, g.semente + 9)) / 1.5;
           if (!pixel) k *= 1 - l.flicker * 0.7 * f;
           else {
             // No Pixel a chama treme no raio, em passos de 1 pixel (a intensidade contínua faria as faixas cintilarem).
             const raio = Math.round(l.radius * (1 - l.flicker * 0.3 * f) * pxPorMetro) / pxPorMetro;
-            if (raio !== g.raio) { g.raio = raio; for (const s of [g.s, g.s2, g.s3]) s.width = s.height = raio * 2; sujo = true; }
+            if (raio !== g.raio) { g.raio = raio; g.mesh.scale.set(raio * 2); sujo = true; }
           }
-        } else if (pixel && g.raio !== l.radius) { g.raio = l.radius; for (const s of [g.s, g.s2, g.s3]) s.width = s.height = l.radius * 2; sujo = true; }
-        if (janela) k = Math.min(3, k + clarao * 1.2);
+        } else if (pixel && g.raio !== l.radius) { g.raio = l.radius; g.mesh.scale.set(l.radius * 2); sujo = true; }
+        if (janela) k = pixel ? Math.min(3, k + clarao * 1.2) : k + clarao * 1.2;
         if (Math.abs(k - g.alfa) > 1e-3) { aplicarAlfa(g, k); sujo = true; }
-        if (janela && clarao !== g.clarao) { g.clarao = clarao; const tint = clarao > 0 ? somarCor(hexParaNumero(l.color), clarao * 0.6) : hexParaNumero(l.color); for (const s of [g.s, g.s2, g.s3]) s.tint = tint; }
+        if (janela && clarao !== g.clarao) {
+          g.clarao = clarao;
+          const [r, gCor, b] = rgb01(l.color), c = clarao > 0 ? clarao * 0.6 : 0;
+          aplicarCor(g, Math.min(1, r + c), Math.min(1, gCor + c), Math.min(1, b + c));
+        }
       }
       if (sujo) renderizar();
     },
     relampagoAgora: disparar,
     definirEfeitos(luzes, ambiente) { if (luzes === efLuzes && ambiente === efAmbiente) return; efLuzes = luzes; efAmbiente = ambiente; sujo = true; },
-    definirLigado(v) { ligado = v; sprite.visible = v; if (v) sujo = true; },
+    definirLigado(v) { ligado = v; sprite.visible = pixel ? v : true; sprite.renderable = pixel; if (v) sujo = true; },
     intensidade: (id: string) => { const g = luzes.get(id); return g ? Math.max(0, g.alfa) : 0; },
     poligono: (id: string) => { const g = luzes.get(id); return g?.poligono && g.poligono.length >= 6 ? g.poligono : null; },
     todasAsLuzes: () => todasLuzes,
     destruir() {
-      destruido = true; for (const g of luzes.values()) g.c.destroy({ children: true }); luzes.clear();
-      brutaRT?.destroy(true); finalRT?.destroy(true); faixasRT?.destroy(true); passadaFaixas.destroy({ children: false }); faixasS.destroy(); interior.destroy(); sprite.destroy(); composicao.destroy({ children: false }); raiz.destroy({ children: true });
+      destruido = true; for (const g of luzes.values()) { g.shader.destroy(false); g.c.destroy({ children: true }); } luzes.clear();
+      blurH.destroy(); blurV.destroy(); blurHShader.destroy(false); blurVShader.destroy(false);
+      quadLuz.destroy(true); quadTela.destroy(true); progLuz.destroy(); progBlur.destroy();
+      brutaRT?.destroy(true); desfoqueRT?.destroy(true); finalRT?.destroy(true); faixasRT?.destroy(true);
+      passadaFaixas.destroy({ children: false }); faixasS.destroy(); interior.destroy(); sprite.destroy(); composicao.destroy({ children: false }); raiz.destroy({ children: true });
     },
   };
 }
