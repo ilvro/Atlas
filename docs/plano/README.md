@@ -68,3 +68,4 @@ Commit: mensagem curta em inglês
 | [acabamento-do-terreno.md](acabamento-do-terreno.md) | I — edifícios assentados, contato externo, maciço como serra, tempo ao ar livre |
 | [realismo-e-composicao.md](realismo-e-composicao.md) | J — Realismo, rotação, composição e guias (`J1`–`J10`, concluída) |
 | [profundidade-luz-e-assets.md](profundidade-luz-e-assets.md) | K — Profundidade, luz dinâmica, consistência e salto visual 2.5D (`K1`–`K10`, planejada) |
+| [fidelidade-de-render.md](fidelidade-de-render.md) | L — Luz HDR com relevo, altura dos assados, AO, bloom, curva de tom, paredes com face; estruturas e santuário pelo Opus (`L1`–`L12`, planejada) |
