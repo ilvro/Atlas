@@ -260,12 +260,12 @@ function muralhaEmDegraus(L: number, P: number, degraus: number, seed: number): 
   partes.push(ret(0.1, P / 2 + 0.05, L + 0.2, 0.5, '#000000', 0.02, { alfa: 0.75, contorno: false, semSombra: true, desfoque: 0.18 }));
   for (let k = 0; k < n; k++) {
     // Do patamar mais alto (fundo) ao mais baixo (frente): cada um com seu topo e sua face.
-    const w = L - (n - 1 - k) * recuo * 2, cor = tom('#7a7670', 0.08 - k * 0.06), y0 = -P / 2 + k * passo, z = 3.2 - k * 0.9;
+    const w = L - (n - 1 - k) * recuo * 2, cor = tom('#58554f', 0.06 - k * 0.07), y0 = -P / 2 + k * passo, z = 3.2 - k * 0.9;
     alvenaria(partes, r, 0, y0 + passo / 2, w, passo, cor, z);
     partes.push(ret(0, y0 + 0.04, w - 0.06, 0.06, tom(cor, 0.4), z + 0.01, { contorno: false, semSombra: true, alfa: 0.85, detalhe: 3 }));
   }
   // A face em pé: fiadas escuras, mais escuras embaixo, com a quina clara no alto e o pé sujo.
-  const yf = -P / 2 + topoP, cf = '#4a4744';
+  const yf = -P / 2 + topoP, cf = '#2f2d2b';
   alvenaria(partes, r, 0, yf + face / 2, L, face, cf, 0.6, 0.32);
   const gr = 6;
   for (let k = 0; k < gr; k++) partes.push(ret(0, yf + face * (k + 0.5) / gr, L, face / gr + 0.01, '#000000', 0.61, { alfa: 0.06 + 0.07 * k, contorno: false, semSombra: true, detalhe: 3 }));
