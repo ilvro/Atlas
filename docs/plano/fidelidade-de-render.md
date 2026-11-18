@@ -58,7 +58,7 @@ Tudo isso fica **só no estilo Ilustrado**. O Pixel continua com o caminho atual
 | [L4](#l4--altura-de-terreno-e-cômodos-e-cena-de-altura) | Gemini | Altura de terreno e cômodos (luminância como reserva) e a cena de altura montada em paralelo | L3 | ✅ |
 | [L5](#l5--filtro-de-luz-com-relevo) | Gemini | Filtro em tela cheia: normal por Sobel, `N·L`, luz HDR; chave `relevo` | L1, L2, L4 | ✅ |
 | [L6](#l6--oclusão-de-contato-e-de-canto) | Gemini | AO derivada da altura no mesmo filtro + AO no pé das paredes | L5 | ✅ |
-| [L7](#l7--bloom-e-fogo-emissivo) | Gemini | Bloom do que passa de 1; partes `brilho` marcam emissão | L5 | ⬜ |
+| [L7](#l7--bloom-e-fogo-emissivo) | Gemini | Bloom do que passa de 1; partes `brilho` marcam emissão | L5 | ✅ |
 | [L8](#l8--curva-de-tom-e-tonalização-dividida) | Gemini | ACES aproximado e `finish.split` (sombras/luzes) no acabamento | L5 | ⬜ |
 | [L9](#l9--paredes-com-topo-e-face-interna) | Gemini + Opus | Parede com topo e face interna visível, material por cômodo, objetos de parede na face | — | ⬜ |
 | [L10](#l10--materiais-com-altura-e-variação-por-peça) | **Opus** | Pintores de altura e variação peça a peça nos padrões de piso principais; resolução do terreno | L4 | ⬜ |
@@ -266,7 +266,7 @@ vec3 cor = base * (ambiente + (luz - uAmbiente) * mix(1.0, realce, uRelevo));
 
 ---
 
-## L7 — Bloom e fogo emissivo  ⬜
+## L7 — Bloom e fogo emissivo  ✅
 
 **Objetivo:** o que passa de 1 (fogo, velas, feixe) estoura num brilho quente.
 
@@ -286,6 +286,8 @@ vec3 cor = base * (ambiente + (luz - uAmbiente) * mix(1.0, realce, uRelevo));
 **Testes:** puro `limiarDoBloom(cor)`. Visual: `test-results/l7-bloom.png` com `sala-da-guarda` (velas e braseiro).
 
 **Pronto quando:** velas e braseiros têm núcleo estourado e um brilho quente que vaza sobre a mesa; `glow: 0` desliga.
+
+**Nota:** altura isolada no canal **R** (`alturaPorLuminancia` e `desenharAlturaDasPartes` em `src/procedural/altura.ts`, `assarComodo`/`assarTerreno` em `src/procedural/assar.ts`, `paredesAlturaG` em `src/render/cena-de-altura.ts`) para que o canal **G** carregue apenas emissão (`parteEscreveEmissao`, `brilho: true` com `lighter` + `desfoque` preservando `R`; `src/procedural/raster.ts` também trata `brilho: true` sem `desfoque`). Em `src/render/composicao-de-luz.ts`, `criarComposicaoDeLuz` substitui `FiltroDeComposicaoDeLuz`: renderiza `mundoIluminado` em `corRT`, compõe luz/relevo/AO + `base * G * EMISSAO_PADRAO` (`3`) com cintilação espacial/temporal (`uTempo` zerado sob `movimentoReduzido()`) em `hdrRT` no formato da luz (`rgba16float` ou `rgba8unorm` escalado por `ESCALA_HDR`), e `src/render/bloom.ts` (`criarBloom`, `limiarDoBloom`) extrai `max(cor − 0.9, 0)` em 1/4, desfoca em `0.5` m (`1/4`) e `2.0` m (`1/8`) via passadas gaussianas manuais (sem `BlurFilter`/`filters`) e soma em `saidaRT` com peso `finish.glow` (ligado em `src/render/cena.ts`). Conferido em `tests/unit/altura.test.ts`, `tests/unit/luzes.test.ts` (1141/1141), `tests/e2e/fase6.test.ts` + `fase10-halos.test.ts` (8/8), `tests/e2e/ponte-captura.test.ts` (5/5), `npm run build`, verificação em Chromium de `?luz=altura`, `?luz=direcao`, cintilação da emissão e comparativo `test-results/l7-bloom.png` em `sala-da-guarda` (média no braseiro `178.9` com `glow: 0` → `380.6` com `glow: 0.8`). Em `tests/e2e/acabamento.test.ts`, o teste `I1` (sem `settle`) segue com a regressão introduzida na L6 pela oclusão de parede no raio `0.7` m (`pertoSem = 204.7` vs `longeSem = 224.0`).
 
 **Commit:** `added bloom and emissive fire`
 

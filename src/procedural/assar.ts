@@ -183,7 +183,7 @@ export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRas
     const actx = contextoDe(altura);
     actx.setTransform(res, 0, 0, res, -x0 * res, -y0 * res);
     actx.save(); tracar(actx); actx.clip();
-    actx.fillStyle = 'rgb(128,128,128)';
+    actx.fillStyle = 'rgb(128,0,0)';
     actx.fillRect(caixa.x0, caixa.y0, caixa.x1 - caixa.x0, caixa.y1 - caixa.y0);
     pintarAlturaDoMaterial(actx, e.piso.material, { x: caixa.x0, y: caixa.y0, w: caixa.x1 - caixa.x0, h: caixa.y1 - caixa.y0 }, e.piso.seed, { res });
     if (e.degraus?.length) pintarAlturaDegrausConstruidos(actx, e.degraus);
@@ -437,7 +437,7 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
         const aguaAlt = new Uint8ClampedArray(W * Hh * 4);
         for (let px = 0; px < W * Hh; px++) {
           const k = px * 4;
-          aguaAlt[k] = 128; aguaAlt[k + 1] = 128; aguaAlt[k + 2] = 128; aguaAlt[k + 3] = cobertura[px]!;
+          aguaAlt[k] = 128; aguaAlt[k + 1] = 0; aguaAlt[k + 2] = 0; aguaAlt[k + 3] = cobertura[px]!;
         }
         const t = criarTela(W, Hh);
         contextoDe(t).putImageData(new ImageData(aguaAlt as Uint8ClampedArray<ArrayBuffer>, W, Hh), 0, 0);
@@ -581,7 +581,7 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
       for (let k = 0; k < aDados.length; k += 4) {
         if (!aDados[k + 3]) continue;
         const c = Math.max(0, Math.min(255, Math.round((aDados[k]! / 255 + delta) * 255)));
-        aDados[k] = c; aDados[k + 1] = c; aDados[k + 2] = c;
+        aDados[k] = c; aDados[k + 1] = 0; aDados[k + 2] = 0;
       }
     } else {
       const { Mw, Mh, mRes, altitudes } = comporAltitudeDoRelevo(e.relevo.faixas, e.relevo.topo, e.resolucao, e.largura, e.altura, res);
@@ -604,7 +604,7 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
           const aBot = altitudes[row1 + x0]! + (altitudes[row1 + x1]! - altitudes[row1 + x0]!) * tx;
           const alt = aTop + (aBot - aTop) * ty;
           const c = Math.max(0, Math.min(255, Math.round((aDados[k]! / 255 + alt / 40) * 255)));
-          aDados[k] = c; aDados[k + 1] = c; aDados[k + 2] = c;
+          aDados[k] = c; aDados[k + 1] = 0; aDados[k + 2] = 0;
         }
       }
     }
@@ -666,7 +666,7 @@ export function pintarAlturaDegrausConstruidos(ctx: Contexto, degraus: readonly 
   ctx.lineJoin = 'miter';
   const cinza = (v: number) => {
     const c = Math.max(0, Math.min(255, Math.round(v * 255)));
-    return `rgb(${c},${c},${c})`;
+    return `rgb(${c},0,0)`;
   };
   for (const deg of degraus) {
     const h = deg.desnivel ?? 0.5;

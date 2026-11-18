@@ -17,9 +17,14 @@ export const PINTORES_DE_ALTURA: Partial<Record<Padrao, PintorDeAltura>> = {};
 const limitar = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
 const limitarInt = (v: number, a: number, b: number): number => (v < a ? a : v > b ? b : v);
 
-const cinza = (v: number): string => {
+const canalR = (v: number): string => {
   const c = Math.round(limitar(v) * 255);
-  return `rgb(${c},${c},${c})`;
+  return `rgb(${c},0,0)`;
+};
+
+const canalG = (v: number): string => {
+  const c = Math.round(limitar(v) * 255);
+  return `rgb(0,${c},0)`;
 };
 
 /**
@@ -66,8 +71,8 @@ export function alturaPorLuminancia(rgba: Uint8ClampedArray, largura: number, al
     const passaAlta = lum[i]! - media[i]!;
     const c = Math.round(limitar(0.5 + 0.35 * passaAlta) * 255);
     out[k] = c;
-    out[k + 1] = c;
-    out[k + 2] = c;
+    out[k + 1] = 0;
+    out[k + 2] = 0;
     out[k + 3] = rgba[k + 3]!;
   }
   return out;
@@ -118,15 +123,33 @@ export function parteEscreveAltura(p: Parte): boolean {
   return !(p.suave || p.desfoque || p.brilho || (p.alfa !== undefined && p.alfa < 0.5) || p.semSombra);
 }
 
+/** Verdadeiro se a parte escreve emissão no canal G do mapa de altura (`brilho: true`). */
+export function parteEscreveEmissao(p: Parte): boolean {
+  return Boolean(p.brilho);
+}
+
 /**
- * Desenha a altura (cinza 0–1 relativa a `ALTURA_MAXIMA`) das partes sólidas na mesma ordem e geometria de
- * `desenharPartes`, sem traço, sombra ou AO. Fundo transparente = altura 0. Partes arredondadas (`raio`)
- * recebem um domo radial de `v` no centro a `0.85 * v` na borda.
+ * Desenha a altura no canal R (0–1 relativa a `ALTURA_MAXIMA`) das partes sólidas e a emissão no canal G (`alfa`)
+ * das partes `brilho: true` na mesma ordem e geometria de `desenharPartes`, sem traço, sombra ou AO. Fundo transparente = 0.
+ * Partes arredondadas (`raio`) recebem um domo radial de `v` no centro a `0.85 * v` na borda.
  */
-export function desenharAlturaDasPartes(ctx: Contexto, partes: readonly Parte[], _op: { res: number }): void {
+export function desenharAlturaDasPartes(ctx: Contexto, partes: readonly Parte[], op: { res: number }): void {
   ctx.save();
   ctx.globalAlpha = 1;
   for (const p of ordenarPartes(partes)) {
+    if (parteEscreveEmissao(p)) {
+      const alfa = p.alfa ?? 1;
+      if (alfa <= 0) continue;
+      ctx.save();
+      ctx.globalAlpha = 1;
+      if ('globalCompositeOperation' in ctx) ctx.globalCompositeOperation = 'lighter';
+      if (p.desfoque && 'filter' in ctx) ctx.filter = `blur(${Math.max(0.5, p.desfoque * op.res).toFixed(2)}px)`;
+      ctx.fillStyle = canalG(alfa);
+      caminho(ctx, p);
+      ctx.fill();
+      ctx.restore();
+      continue;
+    }
     if (!parteEscreveAltura(p)) continue;
     const v = limitar(p.z / ALTURA_MAXIMA);
     caminho(ctx, p);
@@ -137,15 +160,15 @@ export function desenharAlturaDasPartes(ctx: Contexto, partes: readonly Parte[],
         ctx.translate(b.x + b.w / 2, b.y + b.h / 2);
         ctx.scale(b.w / 2, b.h / 2);
         const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
-        g.addColorStop(0, cinza(v));
-        g.addColorStop(1, cinza(v * 0.85));
+        g.addColorStop(0, canalR(v));
+        g.addColorStop(1, canalR(v * 0.85));
         ctx.fillStyle = g;
         ctx.fill();
         ctx.restore();
         continue;
       }
     }
-    ctx.fillStyle = cinza(v);
+    ctx.fillStyle = canalR(v);
     ctx.fill();
   }
   ctx.restore();

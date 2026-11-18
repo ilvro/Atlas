@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ALTURA_MAXIMA, PINTORES_DE_ALTURA, alturaPorLuminancia, desenharAlturaDasPartes, parteEscreveAltura, pintarAlturaDoMaterial } from '../../src/procedural/altura.ts';
+import { ALTURA_MAXIMA, PINTORES_DE_ALTURA, alturaPorLuminancia, desenharAlturaDasPartes, parteEscreveAltura, parteEscreveEmissao, pintarAlturaDoMaterial } from '../../src/procedural/altura.ts';
 import { assarComodo, assarTerreno } from '../../src/procedural/assar.ts';
 import type { Contexto } from '../../src/procedural/canvas.ts';
 import { elipse, poli, ret } from '../../src/procedural/descricao.ts';
@@ -19,7 +19,7 @@ function criarCanvasDeTeste(largura: number, altura: number) {
   let tracos = 0;
   // Matriz afim [a, b, c, d, e, f] (x' = a*x + c*y + e, y' = b*x + d*y + f).
   let ctm: [number, number, number, number, number, number] = [1, 0, 0, 1, 0, 0];
-  const pilha: { ctm: [number, number, number, number, number, number]; globalAlpha: number }[] = [];
+  const pilha: { ctm: [number, number, number, number, number, number]; globalAlpha: number; globalCompositeOperation: string }[] = [];
   let formaAtual: ((px: number, py: number) => boolean) | null = null;
 
   const mult = (m: [number, number, number, number, number, number]): [number, number, number, number, number, number] => [
@@ -45,9 +45,10 @@ function criarCanvasDeTeste(largura: number, altura: number) {
 
   const ctx = {
     globalAlpha: 1,
+    globalCompositeOperation: 'source-over',
     fillStyle: '#000000' as string | GradienteFalso,
-    save() { pilha.push({ ctm: [...ctm], globalAlpha: ctx.globalAlpha }); },
-    restore() { const s = pilha.pop(); if (s) { ctm = s.ctm; ctx.globalAlpha = s.globalAlpha; } },
+    save() { pilha.push({ ctm: [...ctm], globalAlpha: ctx.globalAlpha, globalCompositeOperation: ctx.globalCompositeOperation }); },
+    restore() { const s = pilha.pop(); if (s) { ctm = s.ctm; ctx.globalAlpha = s.globalAlpha; ctx.globalCompositeOperation = s.globalCompositeOperation; } },
     setTransform(a: number, b: number, c: number, d: number, e: number, f: number) { ctm = [a, b, c, d, e, f]; },
     translate(tx: number, ty: number) { ctm = mult([1, 0, 0, 1, tx, ty]); },
     scale(sx: number, sy: number) { ctm = mult([sx, 0, 0, sy, 0, 0]); },
@@ -88,12 +89,20 @@ function criarCanvasDeTeste(largura: number, altura: number) {
       if (!formaAtual) return;
       const estilo = ctx.fillStyle;
       const a = Math.round(ctx.globalAlpha * 255);
+      const lighter = ctx.globalCompositeOperation === 'lighter';
       for (let py = 0; py < altura; py++) {
         for (let px = 0; px < largura; px++) {
           if (!formaAtual(px + 0.5, py + 0.5)) continue;
           const [r, g, b] = typeof estilo === 'string' ? parseRgb(estilo) : estilo._cor(px + 0.5, py + 0.5);
           const idx = (py * largura + px) * 4;
-          pixels[idx] = r; pixels[idx + 1] = g; pixels[idx + 2] = b; pixels[idx + 3] = a;
+          if (lighter) {
+            pixels[idx] = Math.min(255, pixels[idx]! + r);
+            pixels[idx + 1] = Math.min(255, pixels[idx + 1]! + g);
+            pixels[idx + 2] = Math.min(255, pixels[idx + 2]! + b);
+            pixels[idx + 3] = Math.min(255, pixels[idx + 3]! + a);
+          } else {
+            pixels[idx] = r; pixels[idx + 1] = g; pixels[idx + 2] = b; pixels[idx + 3] = a;
+          }
         }
       }
     },
@@ -107,7 +116,7 @@ function criarCanvasDeTeste(largura: number, altura: number) {
   return { ctx: ctx as unknown as Contexto, pixel, get tracos() { return tracos; } };
 }
 
-test('desenharAlturaDasPartes: duas partes (z 0,4 e 1,2) produzem alturas 0,1 e 0,3 nas posições certas e brilho não escreve', () => {
+test('desenharAlturaDasPartes: duas partes (z 0,4 e 1,2) produzem alturas em R (0,1 e 0,3) e brilho escreve emissão em G preservando R', () => {
   const res = 20; // 1 m = 20 px; tela de 4 m x 2 m (80 x 40 px), origem em (-2, -1)
   const tela = criarCanvasDeTeste(80, 40);
   tela.ctx.setTransform(res, 0, 0, res, 40, 20);
@@ -116,24 +125,27 @@ test('desenharAlturaDasPartes: duas partes (z 0,4 e 1,2) produzem alturas 0,1 e 
     ret(0.5, 0, 0.8, 0.8, 'ferro', 1.2),
     ret(-0.8, 0, 0.8, 0.8, 'madeira.media', 0.4),
     elipse(0, 0, 0.5, 0.5, '#ffaa00', 2.0, { brilho: true }),
+    elipse(0.5, 0, 0.4, 0.4, '#ffdd88', 2.2, { brilho: true, alfa: 0.4 }),
   ];
   desenharAlturaDasPartes(tela.ctx, partes, { res });
 
-  // Parte em x = -0.8 m -> px = 40 - 16 = 24, py = 20; z = 0.4 -> v = 0.1
+  // Parte em x = -0.8 m -> px = 40 - 16 = 24, py = 20; z = 0.4 -> R = 0.1, G = 0
   const p1 = tela.pixel(24, 20);
   assert.equal(p1[3], 255);
   assert.ok(Math.abs(p1[0] / 255 - 0.1) < 0.01, `esperava ~0.1, veio ${p1[0] / 255}`);
-  assert.equal(p1[0], p1[1]);
-  assert.equal(p1[1], p1[2]);
+  assert.equal(p1[1], 0);
+  assert.equal(p1[2], 0);
 
-  // Parte em x = +0.5 m -> px = 40 + 10 = 50, py = 20; z = 1.2 -> v = 0.3
+  // Parte em x = +0.5 m -> px = 40 + 10 = 50, py = 20; z = 1.2 + brilho alfa 0.4 -> R = 0.3 preservado, G = 0.4
   const p2 = tela.pixel(50, 20);
   assert.equal(p2[3], 255);
-  assert.ok(Math.abs(p2[0] / 255 - 0.3) < 0.01, `esperava ~0.3, veio ${p2[0] / 255}`);
+  assert.ok(Math.abs(p2[0] / 255 - 0.3) < 0.01, `esperava R ~0.3, veio ${p2[0] / 255}`);
+  assert.ok(Math.abs(p2[1] / 255 - 0.4) < 0.01, `esperava G ~0.4, veio ${p2[1] / 255}`);
+  assert.equal(p2[2], 0);
 
-  // Centro (0, 0) -> px = 40, py = 20: coberto apenas pela parte `brilho`, deve ficar transparente (altura 0)
+  // Centro (0, 0) -> px = 40, py = 20: coberto apenas pela parte `brilho` (alfa padrão 1), altura R = 0 e emissão G = 1
   const centro = tela.pixel(40, 20);
-  assert.deepEqual(centro, [0, 0, 0, 0]);
+  assert.deepEqual(centro, [0, 255, 0, 255]);
   assert.equal(tela.tracos, 0, 'tela de altura nunca desenha traço');
 });
 
@@ -154,16 +166,19 @@ test('desenharAlturaDasPartes: ordena por z crescente, aplica teto em ALTURA_MAX
   desenharAlturaDasPartes(tela.ctx, partes, { res });
 
   assert.equal(ALTURA_MAXIMA, 4);
-  assert.deepEqual(tela.pixel(30, 30), [255, 255, 255, 255]);
+  assert.deepEqual(tela.pixel(30, 30), [255, 0, 0, 255]);
 
   const pMeioAlfa = tela.pixel(46, 46);
   assert.equal(pMeioAlfa[3], 255);
   assert.ok(Math.abs(pMeioAlfa[0] / 255 - 0.5) < 0.01);
+  assert.equal(pMeioAlfa[1], 0);
 
   assert.equal(parteEscreveAltura(poli([0, 0, 1, 0, 0, 1], 'pedra', 1)), true);
   assert.equal(parteEscreveAltura(ret(0, 0, 1, 1, 'pedra', 1, { suave: true })), false);
   assert.equal(parteEscreveAltura(ret(0, 0, 1, 1, 'pedra', 1, { desfoque: 0.1 })), false);
   assert.equal(parteEscreveAltura(ret(0, 0, 1, 1, 'pedra', 1, { brilho: true })), false);
+  assert.equal(parteEscreveEmissao(ret(0, 0, 1, 1, 'pedra', 1, { brilho: true })), true);
+  assert.equal(parteEscreveEmissao(ret(0, 0, 1, 1, 'pedra', 1)), false);
   assert.equal(parteEscreveAltura(ret(0, 0, 1, 1, 'pedra', 1, { alfa: 0.49 })), false);
   assert.equal(parteEscreveAltura(ret(0, 0, 1, 1, 'pedra', 1, { alfa: 0.5 })), true);
   assert.equal(parteEscreveAltura(ret(0, 0, 1, 1, 'pedra', 1, { semSombra: true })), false);
