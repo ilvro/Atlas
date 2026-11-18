@@ -89,6 +89,13 @@ As fichas L1–L4 e L9 podem andar em paralelo (L1 → L2 numa sessão; L3 → L
 4. Clampe a saída do filtro em 1 por enquanto (a curva de tom vem na L8). A diferença visível desta ficha é só que luzes com `intensity > 1` deixam de saturar no branco da cor de base.
 5. Pixel: mantenha o caminho atual (`multiply`, 8 bits, faixas). Separe por `estilo === 'pixel'`.
 
+**Decisão (2026-11-18, depois da conferência do Gemini):** no Pixi 8.22.0, `Sprite.alpha` é limitado a [0, 1] e guardado em 8 bits (`updateRenderGroupTransforms.mjs`), e o `FilterSystem` e o `BlurFilter` pegam texturas temporárias do `TexturePool` sem formato, isto é, em 8 bits. Por isso os passos 1–2 valem com estas trocas (opção A):
+- cada luz é desenhada com `Mesh` + `Shader` próprio (`uCor` e `uIntensidade` num `UniformGroup` f32, sem limite em 1), com `blendMode = 'add'` e a mesma máscara do polígono;
+- o desfoque do Ilustrado sai de `composicao.filters = [blur]` e vira duas passadas gaussianas separáveis (H e V) feitas à mão com `Mesh` em tela cheia, entre `brutaRT`, uma `desfoqueRT` e `finalRT`, todas no mesmo formato;
+- o formato float exige WebGL2 **com** `EXT_color_buffer_float` (`renderer.context.extensions.colorBufferFloat`, acessível só quando o renderizador é `WebGLRenderer`). Sem isso (WebGL1, WebGPU nesta versão), use 8 bits com `ESCALA_HDR = 4` e o mesmo caminho de `Mesh`;
+- o Pixel continua no caminho atual;
+- linhas atuais em `mapa-de-luz.ts`: `RenderTexture.create` ~193, `s/s2/s3` ~202–211, ambiente ~278–314.
+
 **Não fazer:** normal, direção, bloom, curva de tom. Não mude o cálculo de oclusão.
 
 **Testes:** em `tests/unit/luzes.test.ts`, teste puro de `formatoDaLuz` (WebGL1 → 8 bits com escala 4; WebGL2 → float com escala 1) e da codificação `codificarLuz(v, escala)` / `decodificarLuz`. Abra `public/exemplos/sala-da-guarda.atlas.json` no app (`npm run dev`) e confira que nada escureceu nem estourou.
@@ -111,7 +118,7 @@ As fichas L1–L4 e L9 podem andar em paralelo (L1 → L2 numa sessão; L3 → L
 
 **Como:**
 1. Em `luzes.ts`, crie `texturaDeDirecao()`: textura 256 × 256 em que o pixel `(u, v)` (com `d = (u, v) − centro`, normalizado pelo raio) guarda `R = 0.5 − 0.5·dx·f`, `G = 0.5 − 0.5·dy·f`, `B = f`, com `f` a mesma queda de `texturaDeBrilho`. Ou seja: o vetor que aponta **do pixel para a luz**, pesado pela intensidade. Use float se disponível (mesma regra da L1); em 8 bits, guarde já com o deslocamento de 0,5.
-2. Para cada luz, crie um segundo sprite com essa textura, na mesma posição, escala, máscara (o mesmo polígono de oclusão) e `alpha` que o sprite de brilho, mas **sem** a cor da luz (branco) e numa raiz separada, `raizDirecao`. Renderize `raizDirecao` numa `direcaoRT` do mesmo tamanho de `finalRT`, com blend aditivo e o mesmo desfoque.
+2. Para cada luz, crie um segundo sprite com essa textura, na mesma posição, escala, máscara (o mesmo polígono de oclusão) e `alpha` que o sprite de brilho, mas **sem** a cor da luz (branco) e numa raiz separada, `raizDirecao`. Renderize `raizDirecao` numa `direcaoRT` do mesmo tamanho e formato de `finalRT`, com blend aditivo e o mesmo desfoque. Use o mesmo caminho da L1 (`Mesh` por luz e desfoque à mão, sem `filters`), porque a soma de várias luzes passa de 1.
 3. Os campos `R` e `G` se somam entre luzes: o resultado, depois de subtrair `0.5 × soma de B`, é a soma vetorial pesada. Essa correção fica no shader da L5, não aqui.
 4. Exponha `direcao: Texture` em `MapaDeLuz` e passe-a para o filtro de composição como `uDirecao`. Nesta ficha o filtro só a recebe; o uso vem na L5. Adicione um modo de depuração `?luz=direcao` (query string, lido em `composicao-de-luz.ts`) que mostra `normalize(xy)` como cor, para conferir.
 5. Altura da luz: não acrescente campo em `Luz`. O shader da L5 usa uma altura fixa `ALTURA_DA_LUZ = 1.6` m (tocha na parede), e `feixe`/luz com `rays` usa 6 m (vem do alto). Exporte a constante.
@@ -259,7 +266,7 @@ vec3 cor = base * (ambiente + (luz - uAmbiente) * mix(1.0, realce, uRelevo));
 
 **Como:**
 1. Emissão: a tela de altura da L3 usa só o canal R. Grave em **G** a emissão: partes com `brilho: true` escrevem `G = alfa da parte`. No shader, `cor += base × G × uEmissao` (com `uEmissao = 3`): o miolo do fogo passa de 1 sem depender do mapa de luz.
-2. `bloom.ts`: filtro de duas passadas depois de `composicao-de-luz` e antes do acabamento: extrai `max(cor − 0.9, 0)`, reduz para 1/4, desfoca em duas escalas (raio 0,5 m e 2 m), soma de volta com peso `finish.glow` (campo que já existe; hoje só controla o halo). Implemente com `BlurFilter` do Pixi em `RenderTexture` de 1/4, sem shader novo se der.
+2. `bloom.ts`: extrai `max(cor − 0.9, 0)` da cor **antes** da curva de tom, reduz para 1/4, desfoca em duas escalas (raio 0,5 m e 2 m) e soma de volta com peso `finish.glow` (campo que já existe; hoje só controla o halo). **Não use `BlurFilter` nem `filters`**: eles passam por texturas de 8 bits (ver a decisão da L1). Reaproveite as passadas gaussianas feitas à mão da L1, em `RenderTexture` no formato da luz. Para isso, a composição da L5 deixa de ser um `Filter` em `mundoIluminado` e passa a renderizar `mundoIluminado` numa `corRT` própria, com um `Mesh` em tela cheia que escreve a cor HDR numa `hdrRT`; o bloom lê a `hdrRT`.
 3. Cintilação: o `MapaDeLuz` já tremula o halo das luzes (`quadro(agora)`), mas a chama desenhada fica parada. Passe um uniform global `uTempo` e faça a emissão oscilar com `0.85 + 0.15 × ruído(tempo × 7 + hash(posição/0.5 m))`, para que cada chama tremule por conta própria.
 
 **Não fazer:** redesenhar o braseiro (L11, Opus).
@@ -283,7 +290,7 @@ vec3 cor = base * (ambiente + (luz - uAmbiente) * mix(1.0, realce, uRelevo));
 **Arquivos:** mudar `acabamento.ts`, `composicao-de-luz.ts` (tirar o clamp da L1), `src/domain/mapa.ts`, `validacao.ts`, `presets.ts`, ponte e catálogo.
 
 **Como:**
-1. Tire o `clamp(…, 1)` da composição e aplique no acabamento, antes de tudo, a curva ACES aproximada de Narkowicz: `c = (x(2.51x + 0.03)) / (x(2.43x + 0.59) + 0.14)`, com `x = cor × finish.exposure` (padrão 1). Ajuste a exposição padrão para que um mapa sem luz forte fique igual ao de antes (± 3% de luminância média; meça com `sala-da-guarda` e `aldeia-ao-entardecer`).
+1. Tire o `clamp(…, 1)` da composição. A curva de tom roda **no passo que lê a `hdrRT` e soma o bloom** (L7), não no filtro de acabamento, porque o acabamento é um `Filter` e recebe uma textura de 8 bits já cortada em 1. Esse passo escreve a cor já em 0–1, e o acabamento segue igual depois dele. Curva: ACES aproximada de Narkowicz: `c = (x(2.51x + 0.03)) / (x(2.43x + 0.59) + 0.14)`, com `x = cor × finish.exposure` (padrão 1). Ajuste a exposição padrão para que um mapa sem luz forte fique igual ao de antes (± 3% de luminância média; meça com `sala-da-guarda` e `aldeia-ao-entardecer`).
 2. `finish.split?: { shadows: '#rrggbb'; highlights: '#rrggbb'; balance: number; amount: number }`. No shader: `l = luminância`, `t = smoothstep(0, 1, l + balance)`, `cor = mix(cor, cor × mix(sombra, luz, t) × 2, amount)`, mantendo a luminância original (normalize depois).
 3. Presets novos de acabamento: `masmorra` (sombras `#2a4a5a`, luzes `#ffb060`, amount 0,35), `sepia` (sombras `#4a3a2a`, luzes `#e8d0a0`, amount 0,5, saturação 0,6) e `dia-dourado` (sombras `#3a4a6a`, luzes `#ffe0a0`, amount 0,25).
 
