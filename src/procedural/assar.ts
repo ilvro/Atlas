@@ -1,4 +1,4 @@
-import { desenharAlturaDasPartes } from './altura.ts';
+import { ALTURA_MAXIMA, PINTORES_DE_ALTURA, alturaPorLuminancia, desenharAlturaDasPartes, pintarAlturaDoMaterial } from './altura.ts';
 import { contornoDoComodo, facesDoContorno, fatorDaFace, caixaDasCelulas, type SegmentoDeContorno } from '../domain/geometria.ts';
 import type { Faixa } from '../domain/celulas.ts';
 import { decodificar } from '../domain/celulas.ts';
@@ -21,7 +21,7 @@ import { distanciaAMargem } from './profundidade.ts';
 
 export interface Assado {
   tela: Tela;
-  /** Tela de altura (cinza 0–1) alinhada à `tela`, ou `null` quando não há (Pixel, parede, terreno/cômodo antes da L4). */
+  /** Tela de altura (cinza 0–1) alinhada à `tela`, ou `null` quando não há (Pixel, parede, escarpa). */
   altura?: Tela | null;
   /** Canto superior esquerdo da tela, em metros (no espaço local do objeto, ou do mundo para cômodos e terreno). */
   origem: Ponto;
@@ -155,14 +155,14 @@ export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRas
   const grade: Grade = { size: e.grade.size, offset: e.grade.offset, kind: 'square', visible: false, snap: true, lineStyle: 'solid', color: 'auto', opacity: 0.1, lineWidth: 1 };
   const cells = decodificar(e.celulas);
   const caixa = e.outline && e.outline.length >= 3 ? caixaDoContorno(e.outline) : caixaDasCelulas({ grid: grade }, cells);
-  if (!caixa) return { tela: criarTela(1, 1), origem: [0, 0], res };
+  if (!caixa) return { tela: criarTela(1, 1), altura: null, origem: [0, 0], res };
   const pixel = estilo.id === 'pixel', encaixe = (v: number) => (pixel ? Math.floor(v * res) / res : v);      // no Pixel a tela começa na grade de pixels
   const x0 = encaixe(caixa.x0 - MARGEM_COMODO), y0 = encaixe(caixa.y0 - MARGEM_COMODO);
   const tela = criarTela((caixa.x1 - x0 + MARGEM_COMODO) * res, (caixa.y1 - y0 + MARGEM_COMODO) * res), ctx = contextoDe(tela);
   const base = () => ctx.setTransform(res, 0, 0, res, -x0 * res, -y0 * res);
   base();
   const lacos = contornoDoComodo({ grid: grade }, cells, e.outline);
-  const tracar = () => { ctx.beginPath(); for (const laco of lacos) { ctx.moveTo(laco[0]!.a[0], laco[0]!.a[1]); for (const s of laco) ctx.lineTo(s.b[0], s.b[1]); ctx.closePath(); } };
+  const tracar = (c: Contexto = ctx) => { c.beginPath(); for (const laco of lacos) { c.moveTo(laco[0]!.a[0], laco[0]!.a[1]); for (const s of laco) c.lineTo(s.b[0], s.b[1]); c.closePath(); } };
 
   ctx.save(); tracar(); ctx.clip();
   estilo.pintarMaterial(ctx, e.piso.material, { x: caixa.x0, y: caixa.y0, w: caixa.x1 - caixa.x0, h: caixa.y1 - caixa.y0 }, e.piso.seed, { res });
@@ -176,6 +176,19 @@ export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRas
   }
   if (e.degraus?.length) pintarDegrausConstruidos(ctx, e.degraus, res, pixel);
   ctx.restore();
+
+  let altura: Tela | null = null;
+  if (!pixel) {
+    altura = criarTela(tela.width, tela.height);
+    const actx = contextoDe(altura);
+    actx.setTransform(res, 0, 0, res, -x0 * res, -y0 * res);
+    actx.save(); tracar(actx); actx.clip();
+    actx.fillStyle = 'rgb(128,128,128)';
+    actx.fillRect(caixa.x0, caixa.y0, caixa.x1 - caixa.x0, caixa.y1 - caixa.y0);
+    pintarAlturaDoMaterial(actx, e.piso.material, { x: caixa.x0, y: caixa.y0, w: caixa.x1 - caixa.x0, h: caixa.y1 - caixa.y0 }, e.piso.seed, { res });
+    if (e.degraus?.length) pintarAlturaDegrausConstruidos(actx, e.degraus);
+    actx.restore();
+  }
 
   if (e.estilo === 'box') {
     const H = e.altura, profMax = profundidadeDaFace(H), papel = e.papel ?? { material: 'papel.liso-claro', seed: 1 };
@@ -213,7 +226,7 @@ export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRas
       ctx.restore();
     }
   }
-  return { tela, origem: [x0, y0], res };
+  return { tela, altura, origem: [x0, y0], res };
 }
 
 // ---------- Terreno ----------
@@ -336,11 +349,68 @@ export function comporMascaraDeRelevo(
   return { Mw, Mh, mRes, gain, bias };
 }
 
+/** Compõe a altitude média (m) de todos os patamares do relevo na mesma grade reduzida de `comporMascaraDeRelevo`. */
+export function comporAltitudeDoRelevo(
+  faixas: readonly { altura: number; celulas: Faixa[] }[],
+  topo: number,
+  resolucao: number,
+  largura: number,
+  altura: number,
+  res: number,
+): { Mw: number; Mh: number; mRes: number; altitudes: Float32Array } {
+  const mapaGrande = largura * altura >= 8000;
+  const mRes = mapaGrande ? Math.min(res, 4) : Math.min(res, 8);
+  const Mw = Math.max(1, Math.ceil(largura * mRes));
+  const Mh = Math.max(1, Math.ceil(altura * mRes));
+  const total = Mw * Mh;
+  const somaPeso = new Float32Array(total);
+  const somaAlt = new Float32Array(total);
+  const buf = new Uint8ClampedArray(total * 4);
+
+  for (const f of faixas) {
+    if (!f.celulas.length) continue;
+    rasterizarFaixasEmAlfa(f.celulas, resolucao, Mw, Mh, mRes, buf);
+    for (let q = 0; q < total; q++) {
+      const t = buf[q * 4 + 3]! / 255;
+      if (t <= 0.004) continue;
+      somaPeso[q]! += t;
+      somaAlt[q]! += t * f.altura;
+    }
+  }
+  const altitudes = new Float32Array(total);
+  for (let q = 0; q < total; q++) {
+    const w = somaPeso[q]!;
+    if (w <= 0) altitudes[q] = topo;
+    else {
+      const wTopo = Math.max(0, 1 - w);
+      altitudes[q] = (wTopo * topo + somaAlt[q]!) / (wTopo + w);
+    }
+  }
+  return { Mw, Mh, mRes, altitudes };
+}
+
 /** O terreno todo numa tela só. Cada camada tem a borda torcida por ruído (orgânica, não um borrão) e um aro escuro por baixo: a transição automática. */
 export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeRaster): Assado {
-  const pixel = estilo.id === 'pixel', W = Math.ceil(e.largura * res), Hh = Math.ceil(e.altura * res), tela = criarTela(W, Hh), ctx = contextoDe(tela);
+  const pixel = estilo.id === 'pixel', W = Math.ceil(e.largura * res), Hh = Math.ceil(e.altura * res), tela = criarTela(W, Hh), ctx = contextoDe(tela, pixel ? undefined : { willReadFrequently: true });
   ctx.setTransform(res, 0, 0, res, 0, 0);
   if (e.base !== 'vazio') estilo.pintarMaterial(ctx, e.base, { x: 0, y: 0, w: e.largura, h: e.altura }, 7, { res });
+  const altura = pixel ? null : criarTela(W, Hh);
+  const actx = altura ? contextoDe(altura, { willReadFrequently: true }) : null;
+  if (actx) {
+    actx.setTransform(res, 0, 0, res, 0, 0);
+    if (e.base !== 'vazio') {
+      if (PINTORES_DE_ALTURA[materialDe(e.base).padrao]) {
+        pintarAlturaDoMaterial(actx, e.base, { x: 0, y: 0, w: e.largura, h: e.altura }, 7, { res });
+      } else {
+        const baseImg = ctx.getImageData(0, 0, W, Hh);
+        const altImg = actx.createImageData(W, Hh);
+        altImg.data.set(alturaPorLuminancia(baseImg.data, W, Hh, res));
+        actx.setTransform(1, 0, 0, 1, 0, 0);
+        actx.putImageData(altImg, 0, 0);
+        actx.setTransform(res, 0, 0, res, 0, 0);
+      }
+    }
+  }
   const aguas: { profundidade: Float32Array; binaria: Uint8Array }[] = [];
   e.camadas.forEach((camada, idx) => {
     if (!camada.celulas.length) return;
@@ -363,6 +433,18 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
       const r = leitoDaAgua({ binaria, cobertura: pixel ? null : cobertura, largura: W, altura: Hh, res, seed: 13 + idx * 5, material, pixel });
       const poe = (dados: Uint8ClampedArray) => { const t = criarTela(W, Hh), c = contextoDe(t); c.putImageData(new ImageData(dados as Uint8ClampedArray<ArrayBuffer>, W, Hh), 0, 0); ctx.drawImage(t as CanvasImageSource, 0, 0); };
       ctx.setTransform(1, 0, 0, 1, 0, 0); poe(r.margem); poe(r.leito); ctx.setTransform(res, 0, 0, res, 0, 0);
+      if (actx) {
+        const aguaAlt = new Uint8ClampedArray(W * Hh * 4);
+        for (let px = 0; px < W * Hh; px++) {
+          const k = px * 4;
+          aguaAlt[k] = 128; aguaAlt[k + 1] = 128; aguaAlt[k + 2] = 128; aguaAlt[k + 3] = cobertura[px]!;
+        }
+        const t = criarTela(W, Hh);
+        contextoDe(t).putImageData(new ImageData(aguaAlt as Uint8ClampedArray<ArrayBuffer>, W, Hh), 0, 0);
+        actx.setTransform(1, 0, 0, 1, 0, 0);
+        actx.drawImage(t as CanvasImageSource, 0, 0);
+        actx.setTransform(res, 0, 0, res, 0, 0);
+      }
       aguas.push({ profundidade: r.profundidade, binaria });
       return;
     }
@@ -371,6 +453,14 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
       const r = sombrearMacico({ dentro: binaria, alfa: pixel ? null : cobertura, largura: W, altura: Hh, res, seed: 11 + idx * 5, cores: material, pixel });
       const poe = (dados: Uint8ClampedArray) => { const t = criarTela(W, Hh), c = contextoDe(t); c.putImageData(new ImageData(dados as Uint8ClampedArray<ArrayBuffer>, W, Hh), 0, 0); ctx.drawImage(t as CanvasImageSource, 0, 0); };
       ctx.setTransform(1, 0, 0, 1, 0, 0); poe(r.sombra); poe(r.rgba); ctx.setTransform(res, 0, 0, res, 0, 0);
+      if (actx) {
+        const altMacico = alturaPorLuminancia(r.rgba, W, Hh, res);
+        const t = criarTela(W, Hh);
+        contextoDe(t).putImageData(new ImageData(altMacico as Uint8ClampedArray<ArrayBuffer>, W, Hh), 0, 0);
+        actx.setTransform(1, 0, 0, 1, 0, 0);
+        actx.drawImage(t as CanvasImageSource, 0, 0);
+        actx.setTransform(res, 0, 0, res, 0, 0);
+      }
       return;
     }
     if (pixel) {
@@ -388,9 +478,30 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
     };
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = pixel ? 1 : 0.5; ctx.drawImage(comAlfa(aro, material.escuro) as CanvasImageSource, 0, 0); ctx.globalAlpha = 1;
-    const pintada = criarTela(W, Hh), pc = contextoDe(pintada);
-    pc.setTransform(res, 0, 0, res, 0, 0); estilo.pintarMaterial(pc, camada.material, { x: 0, y: 0, w: e.largura, h: e.altura }, 11 + idx * 5, { res, dir: material.padrao === 'sulcos' ? orientacaoDominante(camada.celulas) : 0 });
-    pc.setTransform(1, 0, 0, 1, 0, 0); pc.globalCompositeOperation = 'destination-in'; pc.drawImage(comAlfa(corpo, null) as CanvasImageSource, 0, 0);
+    const pintada = criarTela(W, Hh), pc = contextoDe(pintada, { willReadFrequently: !pixel });
+    const dir = material.padrao === 'sulcos' ? orientacaoDominante(camada.celulas) : 0;
+    pc.setTransform(res, 0, 0, res, 0, 0); estilo.pintarMaterial(pc, camada.material, { x: 0, y: 0, w: e.largura, h: e.altura }, 11 + idx * 5, { res, dir });
+    const mascCorpo = comAlfa(corpo, null);
+    if (actx) {
+      const altTela = criarTela(W, Hh), atc = contextoDe(altTela);
+      if (PINTORES_DE_ALTURA[material.padrao]) {
+        atc.setTransform(res, 0, 0, res, 0, 0);
+        pintarAlturaDoMaterial(atc, camada.material, { x: 0, y: 0, w: e.largura, h: e.altura }, 11 + idx * 5, { res, dir });
+        atc.setTransform(1, 0, 0, 1, 0, 0);
+      } else {
+        pc.setTransform(1, 0, 0, 1, 0, 0);
+        const corImg = pc.getImageData(0, 0, W, Hh);
+        const altImg = atc.createImageData(W, Hh);
+        altImg.data.set(alturaPorLuminancia(corImg.data, W, Hh, res));
+        atc.putImageData(altImg, 0, 0);
+      }
+      atc.globalCompositeOperation = 'destination-in';
+      atc.drawImage(mascCorpo as CanvasImageSource, 0, 0);
+      actx.setTransform(1, 0, 0, 1, 0, 0);
+      actx.drawImage(altTela as CanvasImageSource, 0, 0);
+      actx.setTransform(res, 0, 0, res, 0, 0);
+    }
+    pc.setTransform(1, 0, 0, 1, 0, 0); pc.globalCompositeOperation = 'destination-in'; pc.drawImage(mascCorpo as CanvasImageSource, 0, 0);
     ctx.drawImage(pintada as CanvasImageSource, 0, 0); ctx.setTransform(res, 0, 0, res, 0, 0);
   });
   if (e.assentamento) pintarAssentamento(ctx, e, W, Hh, res, estilo);
@@ -462,10 +573,49 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
     ctx.putImageData(img, 0, 0);
     ctx.setTransform(res, 0, 0, res, 0, 0);
   }
+  if (actx && e.relevo && (e.relevo.faixas.length > 0 || e.relevo.topo !== 0)) {
+    const altImg = actx.getImageData(0, 0, W, Hh);
+    const aDados = altImg.data;
+    if (!e.relevo.faixas.length) {
+      const delta = e.relevo.topo / 40;
+      for (let k = 0; k < aDados.length; k += 4) {
+        if (!aDados[k + 3]) continue;
+        const c = Math.max(0, Math.min(255, Math.round((aDados[k]! / 255 + delta) * 255)));
+        aDados[k] = c; aDados[k + 1] = c; aDados[k + 2] = c;
+      }
+    } else {
+      const { Mw, Mh, mRes, altitudes } = comporAltitudeDoRelevo(e.relevo.faixas, e.relevo.topo, e.resolucao, e.largura, e.altura, res);
+      const sx0 = new Int32Array(W), sx1 = new Int32Array(W), stx = new Float32Array(W);
+      const escalaX = mRes / res;
+      for (let x = 0; x < W; x++) {
+        const fx = Math.max(0, Math.min(Mw - 1, (x + 0.5) * escalaX - 0.5));
+        const x0 = Math.floor(fx), x1 = Math.min(Mw - 1, x0 + 1);
+        sx0[x] = x0; sx1[x] = x1; stx[x] = fx - x0;
+      }
+      for (let y = 0; y < Hh; y++) {
+        const fy = Math.max(0, Math.min(Mh - 1, (y + 0.5) * escalaX - 0.5));
+        const y0 = Math.floor(fy), y1 = Math.min(Mh - 1, y0 + 1), ty = fy - y0;
+        const row0 = y0 * Mw, row1 = y1 * Mw, pxRow = y * W * 4;
+        for (let x = 0; x < W; x++) {
+          const k = pxRow + x * 4;
+          if (!aDados[k + 3]) continue;
+          const x0 = sx0[x]!, x1 = sx1[x]!, tx = stx[x]!;
+          const aTop = altitudes[row0 + x0]! + (altitudes[row0 + x1]! - altitudes[row0 + x0]!) * tx;
+          const aBot = altitudes[row1 + x0]! + (altitudes[row1 + x1]! - altitudes[row1 + x0]!) * tx;
+          const alt = aTop + (aBot - aTop) * ty;
+          const c = Math.max(0, Math.min(255, Math.round((aDados[k]! / 255 + alt / 40) * 255)));
+          aDados[k] = c; aDados[k + 1] = c; aDados[k + 2] = c;
+        }
+      }
+    }
+    actx.setTransform(1, 0, 0, 1, 0, 0);
+    actx.putImageData(altImg, 0, 0);
+    actx.setTransform(res, 0, 0, res, 0, 0);
+  }
   if (e.relevo?.degraus?.length) pintarDegraus(ctx, e.relevo.degraus, res, pixel);
   const dadosDaAgua = texturaDeAgua(aguas, W, Hh, res, e.largura, e.altura);
-  if (dadosDaAgua) { const ta = criarTela(dadosDaAgua.width, dadosDaAgua.height); contextoDe(ta).putImageData(dadosDaAgua, 0, 0); return { tela, origem: [0, 0], res, agua: { tela: ta, res: RES_DA_TEXTURA_DE_AGUA } }; }
-  return { tela, origem: [0, 0], res };
+  if (dadosDaAgua) { const ta = criarTela(dadosDaAgua.width, dadosDaAgua.height); contextoDe(ta).putImageData(dadosDaAgua, 0, 0); return { tela, altura, origem: [0, 0], res, agua: { tela: ta, res: RES_DA_TEXTURA_DE_AGUA } }; }
+  return { tela, altura, origem: [0, 0], res };
 }
 
 /** Largura (m) da faixa de declive de um degrau transponível: ~0,55 m para 0,5 m de desnível. */
@@ -504,6 +654,52 @@ export function pintarDegrausConstruidos(ctx: Contexto, degraus: readonly { cami
       // Linha dura do pé e quina clara no alto.
       ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)'; ctx.lineWidth = pixel ? px : 0.03; deslocar(espelho);
       ctx.strokeStyle = `rgba(255, 248, 232, ${pixel ? 0.55 : 0.42})`; ctx.lineWidth = pixel ? px : 0.07; deslocar(pixel ? -px / 2 : -0.04);
+    }
+  }
+  ctx.restore();
+}
+
+/** Altura dos degraus construídos dentro de um cômodo (rampa suave do lado alto até a crista e queda pelo espelho). */
+export function pintarAlturaDegrausConstruidos(ctx: Contexto, degraus: readonly { caminhos: Ponto[][]; drops: ('a' | 'b')[]; desnivel?: number }[]): void {
+  ctx.save();
+  ctx.lineCap = 'butt';
+  ctx.lineJoin = 'miter';
+  const cinza = (v: number) => {
+    const c = Math.max(0, Math.min(255, Math.round(v * 255)));
+    return `rgb(${c},${c},${c})`;
+  };
+  for (const deg of degraus) {
+    const h = deg.desnivel ?? 0.5;
+    const espelho = Math.min(0.32, 0.1 + h * 0.22);
+    const delta = Math.min(0.35, Math.max(0.04, h / ALTURA_MAXIMA));
+    for (let idx = 0; idx < deg.caminhos.length; idx++) {
+      const path = deg.caminhos[idx]!, drop = deg.drops[idx] ?? 'b';
+      if (path.length < 2) continue;
+      const normal = (i: number): Ponto => ladoBaixo(path[Math.max(0, i - 1)]!, path[Math.min(path.length - 1, i + 1)]!, drop);
+      const deslocar = (d: number) => {
+        ctx.beginPath();
+        for (let i = 0; i < path.length; i++) {
+          const p = path[i]!, n = normal(i), x = p[0] + n[0] * d, y = p[1] + n[1] * d;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      };
+      const altoL = 0.24, passos = 4;
+      for (let k = passos - 1; k >= 0; k--) {
+        const t = (k + 0.5) / passos;
+        ctx.strokeStyle = cinza(0.5 + delta * (1 - t));
+        ctx.lineWidth = altoL / passos + 0.01;
+        deslocar(-t * altoL);
+      }
+      for (let k = passos - 1; k >= 0; k--) {
+        const t = (k + 0.5) / passos;
+        ctx.strokeStyle = cinza(0.5 + delta * (1 - t));
+        ctx.lineWidth = espelho / passos + 0.01;
+        deslocar(t * espelho);
+      }
+      ctx.strokeStyle = cinza(0.5 + delta);
+      ctx.lineWidth = 0.04;
+      deslocar(0);
     }
   }
   ctx.restore();
