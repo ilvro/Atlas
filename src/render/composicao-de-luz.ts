@@ -1,13 +1,16 @@
-import { Filter, GlProgram, Matrix, Texture, TextureMatrix, UniformGroup, type FilterSystem, type RenderSurface } from 'pixi.js';
+import { Filter, GlProgram, Matrix, Sprite, Texture, TextureMatrix, UniformGroup, type Container, type FilterSystem, type RenderSurface } from 'pixi.js';
+import type { CenaDeAltura } from './cena-de-altura.ts';
 import type { MapaDeLuz } from './mapa-de-luz.ts';
 
 const vertex = `in vec2 aPosition;
 out vec2 vTextureCoord;
 out vec2 vLuzCoord;
+out vec2 vAlturaCoord;
 uniform vec4 uInputSize;
 uniform vec4 uOutputFrame;
 uniform vec4 uOutputTexture;
 uniform mat3 uLuzMatriz;
+uniform mat3 uAlturaMatriz;
 vec4 filterVertexPosition(void) {
   vec2 position = aPosition * uOutputFrame.zw + uOutputFrame.xy;
   position.x = position.x * (2.0 / uOutputTexture.x) - 1.0;
@@ -20,14 +23,16 @@ void main(void) {
   vec2 tc = filterTextureCoord();
   vTextureCoord = tc;
   vLuzCoord = (uLuzMatriz * vec3(tc, 1.0)).xy;
+  vAlturaCoord = (uAlturaMatriz * vec3(tc, 1.0)).xy;
 }`;
 
-/** Lê o modo de depuração da luz na query string (`?luz=direcao`). */
-export function modoDeDepuracaoDaLuz(search?: string): 'direcao' | null {
+/** Lê o modo de depuração da luz na query string (`?luz=direcao` ou `?luz=altura`). */
+export function modoDeDepuracaoDaLuz(search?: string): 'direcao' | 'altura' | null {
   const s = search ?? (typeof location !== 'undefined' ? location.search : '');
   if (!s) return null;
   try {
-    return new URLSearchParams(s).get('luz') === 'direcao' ? 'direcao' : null;
+    const modo = new URLSearchParams(s).get('luz');
+    return modo === 'direcao' || modo === 'altura' ? modo : null;
   } catch {
     return null;
   }
@@ -36,14 +41,22 @@ export function modoDeDepuracaoDaLuz(search?: string): 'direcao' | null {
 // Sem arrays constantes: o Pixi pode compilar para GLSL ES 1.00. Os uniformes compartilhados com o vértice são highp.
 const fragment = `in vec2 vTextureCoord;
 in vec2 vLuzCoord;
+in vec2 vAlturaCoord;
 out vec4 finalColor;
 uniform sampler2D uTexture;
 uniform sampler2D uLuz;
 uniform sampler2D uDirecao;
+uniform sampler2D uAltura;
 uniform float uEscala;
 uniform float uModoDirecao;
+uniform float uModoAltura;
 void main() {
   vec4 c = texture(uTexture, vTextureCoord);
+  if (uModoAltura > 0.5) {
+    float h = texture(uAltura, vAlturaCoord).r;
+    finalColor = vec4(vec3(h) * c.a, c.a);
+    return;
+  }
   if (uModoDirecao > 0.5) {
     vec4 d = texture(uDirecao, vLuzCoord);
     vec2 xy = d.rg - 0.5 * d.b;
@@ -62,14 +75,20 @@ void main() {
 
 class FiltroDeComposicaoDeLuz extends Filter {
   private readonly luz: MapaDeLuz;
+  private readonly altura: CenaDeAltura | undefined;
+  private readonly mundoIluminado: Container | undefined;
   private readonly grupo: UniformGroup;
   private readonly textureMatrix: TextureMatrix;
+  private readonly alturaTextureMatrix: TextureMatrix;
+  private readonly alturaSprite: Sprite;
 
-  constructor(luz: MapaDeLuz) {
+  constructor(luz: MapaDeLuz, altura?: CenaDeAltura, mundoIluminado?: Container) {
     const grupo = new UniformGroup({
       uLuzMatriz: { value: new Matrix(), type: 'mat3x3<f32>' },
+      uAlturaMatriz: { value: new Matrix(), type: 'mat3x3<f32>' },
       uEscala: { value: 1, type: 'f32' },
       uModoDirecao: { value: 0, type: 'f32' },
+      uModoAltura: { value: 0, type: 'f32' },
     });
     const glProgram = GlProgram.from({
       vertex,
@@ -85,11 +104,16 @@ class FiltroDeComposicaoDeLuz extends Filter {
         composicao: grupo,
         uLuz: Texture.WHITE.source,
         uDirecao: Texture.EMPTY.source,
+        uAltura: Texture.EMPTY.source,
       },
     });
     this.luz = luz;
+    this.altura = altura;
+    this.mundoIluminado = mundoIluminado;
     this.grupo = grupo;
     this.textureMatrix = new TextureMatrix(Texture.WHITE);
+    this.alturaTextureMatrix = new TextureMatrix(Texture.WHITE);
+    this.alturaSprite = new Sprite(Texture.EMPTY);
   }
 
   override apply(filterManager: FilterSystem, input: Texture, output: RenderSurface, clearMode: boolean): void {
@@ -98,7 +122,23 @@ class FiltroDeComposicaoDeLuz extends Filter {
     const pronta = Boolean(tex && !tex.destroyed && tex.source && !tex.source.destroyed && tex !== Texture.EMPTY);
     const dir = this.luz.direcao;
     const dirPronta = Boolean(dir && !dir.destroyed && dir.source && !dir.source.destroyed && dir !== Texture.EMPTY);
-    const uniforms = this.grupo.uniforms as { uLuzMatriz: Matrix; uEscala: number; uModoDirecao: number };
+    const texAlt = this.altura?.textura;
+    const altPronta = Boolean(
+      this.altura &&
+        this.mundoIluminado &&
+        texAlt &&
+        !texAlt.destroyed &&
+        texAlt.source &&
+        !texAlt.source.destroyed &&
+        texAlt !== Texture.EMPTY,
+    );
+    const uniforms = this.grupo.uniforms as {
+      uLuzMatriz: Matrix;
+      uAlturaMatriz: Matrix;
+      uEscala: number;
+      uModoDirecao: number;
+      uModoAltura: number;
+    };
     if (pronta) {
       this.textureMatrix.texture = tex;
       filterManager
@@ -112,17 +152,33 @@ class FiltroDeComposicaoDeLuz extends Filter {
       this.resources.uLuz = Texture.WHITE.source;
     }
     this.resources.uDirecao = dirPronta ? dir.source : Texture.EMPTY.source;
-    uniforms.uModoDirecao = modoDeDepuracaoDaLuz() === 'direcao' ? 1 : 0;
+    if (altPronta && texAlt && this.altura && this.mundoIluminado) {
+      this.alturaTextureMatrix.texture = texAlt;
+      this.alturaSprite.texture = texAlt;
+      this.altura.atualizarSpriteDeMapeamento(this.alturaSprite, this.mundoIluminado);
+      filterManager
+        .calculateSpriteMatrix(uniforms.uAlturaMatriz, this.alturaSprite)
+        .prepend(this.alturaTextureMatrix.mapCoord);
+      this.resources.uAltura = texAlt.source;
+    } else {
+      uniforms.uAlturaMatriz.identity();
+      this.resources.uAltura = Texture.EMPTY.source;
+    }
+    const modo = modoDeDepuracaoDaLuz();
+    uniforms.uModoDirecao = modo === 'direcao' ? 1 : 0;
+    uniforms.uModoAltura = modo === 'altura' ? 1 : 0;
     filterManager.applyFilter(this, input, output, clearMode);
   }
 
   override destroy(destroyPrograms = false): void {
     this.textureMatrix.destroy();
+    this.alturaTextureMatrix.destroy();
+    this.alturaSprite.destroy();
     super.destroy(destroyPrograms);
   }
 }
 
 /** Filtro em tela cheia (Ilustrado) que compõe a cena com o mapa de luz em HDR (ou 8 bits escalado). */
-export function criarFiltroDeComposicaoDeLuz(luz: MapaDeLuz): Filter {
-  return new FiltroDeComposicaoDeLuz(luz);
+export function criarFiltroDeComposicaoDeLuz(luz: MapaDeLuz, altura?: CenaDeAltura, mundoIluminado?: Container): Filter {
+  return new FiltroDeComposicaoDeLuz(luz, altura, mundoIluminado);
 }

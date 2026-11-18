@@ -14,6 +14,7 @@ import { chaveDaEscarpa, chaveDoComodo, chaveDoObjeto, ehEscarpaAvulsa, entradaD
 import { nivelDaLuz } from '../domain/clima.ts';
 import { tintDoRelevo } from '../domain/relevo.ts';
 import { criarMapaDeLuz } from './mapa-de-luz.ts';
+import { criarCenaDeAltura } from './cena-de-altura.ts';
 import { criarFiltroDeComposicaoDeLuz } from './composicao-de-luz.ts';
 import { criarNevoa, type Vista } from './nevoa.ts';
 import { secretaOculta } from '../domain/nevoa.ts';
@@ -106,7 +107,7 @@ interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; 
 export function criarCena(op: OpcoesDaCena): Cena {
   const raiz = new Container(), mundoIluminado = new Container(), terrenoC = new Container(), veuTerrenoG = new Graphics(), submersosC = Object.assign(new Container(), { sortableChildren: true }), escarpasC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics(), fantasmaAndarG = new Graphics();
   const marcasG = new Graphics(), regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), tituloC = new Container();
-  const luz = criarMapaDeLuz(op.renderer), filtroDeLuz = criarFiltroDeComposicaoDeLuz(luz), nevoa = criarNevoa(op.renderer), telhados = criarTelhados({ baker: op.baker, aoPintar: op.aoPintar }), neblina = criarNeblina(), bordas = criarBordas(), particulas = criarParticulas(), presenca = criarPresenca(), agua = criarAgua(), cachoeiras = criarCachoeiras(), sombras = criarSombrasDoSol(), contato = criarContatoExterno(), tempo = criarTempoNoChao();
+  const luz = criarMapaDeLuz(op.renderer), cenaDeAltura = criarCenaDeAltura(), filtroDeLuz = criarFiltroDeComposicaoDeLuz(luz, cenaDeAltura, mundoIluminado), nevoa = criarNevoa(op.renderer), telhados = criarTelhados({ baker: op.baker, aoPintar: op.aoPintar }), neblina = criarNeblina(), bordas = criarBordas(), particulas = criarParticulas(), presenca = criarPresenca(), agua = criarAgua(), cachoeiras = criarCachoeiras(), sombras = criarSombrasDoSol(), contato = criarContatoExterno(), tempo = criarTempoNoChao();
   const halos = criarHalos(luz, telhados);
   // A tinta do chão (presença natural) cobre o piso, mas não a face de rocha das escarpas, que sobe acima dela.
   // No Ilustrado, o filtro de composição ilumina `mundoIluminado` em HDR; no Pixel, `luz.sprite` multiplica em 8 bits. Marcadores, regiões e peças ficam por cima.
@@ -169,14 +170,14 @@ export function criarCena(op: OpcoesDaCena): Cena {
   // ---------- Terreno ----------
   function sincronizarTerreno(m: MapaAtlas): void {
     const e = entradaDoTerreno(m), temAlgo = e.base !== 'vazio' || e.camadas.length > 0 || !!e.relevo || !!e.assentamento;
-    if (!temAlgo) { if (terreno) { removerEntrada(terreno); terreno = null; } agua.aplicar(undefined, m); return; }
+    if (!temAlgo) { if (terreno) { cenaDeAltura.definirTerreno(null); removerEntrada(terreno); terreno = null; } agua.aplicar(undefined, m); return; }
     terreno ??= novaEntrada(terrenoC);
     const estilo = m.style.renderer, res = resolucaoDe(m, 'terreno'), chave = chaveDoTerreno(e, res, estilo);
     if (terreno.chave === chave) return;
     const alvo = terreno;
     // Durante a pincelada o terreno muda a cada movimento: espera uma pausa antes de pedir a pintura.
     if (terrenoTimer) clearTimeout(terrenoTimer);
-    terrenoTimer = setTimeout(() => { terrenoTimer = null; if (!destruida && terreno === alvo) pintar(alvo, chave, { tipo: 'terreno', entrada: e, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); if (mapa) { agua.aplicar(r.agua, mapa); reaplicarSubmersos(mapa); } }); }, 140);
+    terrenoTimer = setTimeout(() => { terrenoTimer = null; if (!destruida && terreno === alvo) pintar(alvo, chave, { tipo: 'terreno', entrada: e, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); cenaDeAltura.definirTerreno(alvo.texAltura, r.origem, r.res); if (mapa) { agua.aplicar(r.agua, mapa); reaplicarSubmersos(mapa); } }); }, 140);
   }
 
   // ---------- Escarpas avulsas ----------
@@ -196,7 +197,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
   // ---------- Cômodos ----------
   function sincronizarComodos(m: MapaAtlas): void {
     const ctx = contextoDeEntradas(m), vivos = new Set(Object.keys(m.rooms));
-    for (const [id, e] of salas) if (!vivos.has(id)) { removerEntrada(e); salas.delete(id); }
+    for (const [id, e] of salas) if (!vivos.has(id)) { cenaDeAltura.removerComodo(id); removerEntrada(e); salas.delete(id); }
     for (const sala of Object.values(m.rooms)) {
       let e = salas.get(sala.id); if (!e) { e = novaEntrada(comodosC); salas.set(sala.id, e); }
       // Marcador até a textura chegar: o cômodo aparece na hora, com a cor do piso.
@@ -208,7 +209,8 @@ export function criarCena(op: OpcoesDaCena): Cena {
       }
       const entrada = entradaDoComodo(m, sala, ctx);
       const estilo = m.style.renderer, res = resolucaoDe(m, 'comodo');
-      pintar(e, chaveDoComodo(entrada, res, estilo), { tipo: 'comodo', entrada, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); });
+      const alvo = e;
+      pintar(alvo, chaveDoComodo(entrada, res, estilo), { tipo: 'comodo', entrada, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); cenaDeAltura.sincronizarComodo(sala.id, alvo.texAltura, r.origem, r.res); });
     }
   }
 
@@ -418,8 +420,9 @@ export function criarCena(op: OpcoesDaCena): Cena {
       }
       if (!animacoes.some(a => a.alvo === entrada!.c)) entrada.c.scale.set(o.scale);
       const pedido = pedidoDoObjeto(o, res, m.style.genre, m.style.renderer, opcoesDoPixel(m));
-      if (pedido) pintar(entrada, chave, pedido, (sp, r) => { sp.position.set(r.origem[0], r.origem[1]); sp.scale.set(1 / r.res); });
+      if (pedido) pintar(entrada, chave, pedido, (sp, r) => { sp.position.set(r.origem[0], r.origem[1]); sp.scale.set(1 / r.res); cenaDeAltura.sincronizarObjetos(objetos, objetosC); });
     }
+    cenaDeAltura.sincronizarObjetos(objetos, objetosC);
   }
 
   // ---------- Luzes, peças, regiões ----------
@@ -613,18 +616,22 @@ export function criarCena(op: OpcoesDaCena): Cena {
       luz.quadro(agora); nevoa.quadro(agora); telhados.quadro(agora);
       for (const c of pecas.values()) visuais.get(c)?.quadro(agora, op.efeitos());
       const dt = ultimoQuadro < 0 ? 0 : (agora - ultimoQuadro) / 1000; ultimoQuadro = agora; neblina.quadro(dt); bordas.quadro(dt); particulas.quadro(dt); presenca.quadro(dt); agua.quadro(dt); cachoeiras.quadro(dt); halos.quadro(agora, dt);
+      let animouObjeto = false;
       for (let i = animacoes.length - 1; i >= 0; i--) {
         const a = animacoes[i]!, t = Math.min(1, (agora - a.t0) / a.dur), e = 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2;   // easeOutBack
         if (a.alvo.destroyed) { animacoes.splice(i, 1); continue; }
         a.alvo.scale.set(a.final * (0.6 + 0.4 * e));
+        if (a.alvo.parent === objetosC) animouObjeto = true;
         if (t >= 1) { a.alvo.scale.set(a.final); animacoes.splice(i, 1); }
       }
+      if (animouObjeto) cenaDeAltura.sincronizarObjetos(objetos, objetosC);
+      cenaDeAltura.atualizar(op.renderer, mundoIluminado, atmosferaLigada && !ehPixel);
     },
     destruir() {
       destruida = true; if (terrenoTimer) clearTimeout(terrenoTimer);
       for (const e of [...salas.values(), ...objetos.values(), ...escarpas.values(), ...(terreno ? [terreno] : [])]) soltar(e.chaveTextura);
       for (const t of texturas.values()) { t.tex.destroy(true); t.texAltura?.destroy(true); } texturas.clear();
-      mundoIluminado.filters = []; filtroDeLuz.destroy();
+      mundoIluminado.filters = []; filtroDeLuz.destroy(); cenaDeAltura.destruir();
       tempo.destruir(); sombras.destruir(); luz.destruir(); halos.destruir(); nevoa.destruir(); telhados.destruir(); neblina.destruir(); bordas.destruir(); particulas.destruir(); presenca.destruir(); agua.destruir(); cachoeiras.destruir(); raiz.destroy({ children: true });
     },
   };

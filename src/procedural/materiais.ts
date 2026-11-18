@@ -354,7 +354,7 @@ function pintarCobertura(ctx: Contexto, mat: Material, A: Area, seed: number): v
 const rgbHex = (h: string): [number, number, number] => { const q = parseInt(h.slice(1), 16); return [(q >> 16) & 255, (q >> 8) & 255, q & 255]; };
 const passo = (a: number, b: number, x: number): number => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 /** Tamanho de um pixel do dispositivo, em metros locais. */
-const pxDe = (ctx: Contexto): number => 1 / (Math.hypot(ctx.getTransform().a, ctx.getTransform().b) || 1);
+export const pxDe = (ctx: Contexto): number => 1 / (Math.hypot(ctx.getTransform().a, ctx.getTransform().b) || 1);
 type Cor3 = [number, number, number];
 /** `o` ← a mistura de `a` e `b` (t = 0 dá `a`). */
 const mez = (o: number[], a: Cor3, b: Cor3, t: number): void => { o[0] = a[0] + (b[0] - a[0]) * t; o[1] = a[1] + (b[1] - a[1]) * t; o[2] = a[2] + (b[2] - a[2]) * t; };

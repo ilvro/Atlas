@@ -190,6 +190,8 @@ test('pixelDeDirecao e texturaDeDirecao codificam o vetor do pixel para a luz em
 
   assert.equal(modoDeDepuracaoDaLuz('?luz=direcao'), 'direcao');
   assert.equal(modoDeDepuracaoDaLuz('?foo=1&luz=direcao'), 'direcao');
+  assert.equal(modoDeDepuracaoDaLuz('?luz=altura'), 'altura');
+  assert.equal(modoDeDepuracaoDaLuz('?foo=1&luz=altura'), 'altura');
   assert.equal(modoDeDepuracaoDaLuz('?luz=outra'), null);
   assert.equal(modoDeDepuracaoDaLuz(''), null);
 });
