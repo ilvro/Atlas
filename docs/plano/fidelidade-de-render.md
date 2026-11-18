@@ -1,0 +1,363 @@
+# Frente L — Fidelidade de render (luz com relevo, HDR, oclusão e paredes com face)
+
+Frente aberta em 2026-11-18, depois que o *Santuário da luz* foi apagado (três rodadas sem chegar perto da referência). As referências do usuário são o santuário e a sala da guarda (render 3D escuro, tochas quentes), o acampamento orc (pintado em sépia), o jardim do colosso (render 3D diurno, sombras longas) e três interiores pintados (dois quartos e uma cabana). O alvo **não é 3D**: é um 2D pintado com luz que reage ao relevo, no nível de Dungeondraft e Forgotten Adventures.
+
+**Quem implementa:** as fichas **[Gemini]** são de motor e vão para o Gemini 4 Hydrogen; cada uma traz o que ler, o que mudar e como verificar. As fichas **[Opus]** são de desenho (materiais, receitas, mapas) e o Opus faz diretamente, como na Frente K. Regras de fechamento no [README](README.md): `npm run typecheck` e `npm test` passando, ficha marcada ✅, uma linha no [progress.md](../../progress.md), um commit por ficha.
+
+**Mapa de teste:** o santuário, refeito na L11 sobre a referência `docs/referencias/exemplos/santuario-da-luz.png`. Depois dele vêm a sala da guarda, a mansão e o jardim do colosso (L12).
+
+---
+
+## Diagnóstico: o que as referências têm e o motor não
+
+Comparação lado a lado de `test-results/fase10-sala-da-guarda.png` e `fase10-mansao-da-ilha.png` com as referências. Em ordem de impacto:
+
+1. **A luz não realça as superfícies, só tinge.** O `MapaDeLuz` ([mapa-de-luz.ts](../../src/render/mapa-de-luz.ts)) é uma textura de 8 bits a 8 px/m que **multiplica** a cena (`sprite.blendMode = 'multiply'`). Multiplicar por um valor ≤ 1 nunca passa da cor de base: uma mesa sob a tocha volta, no máximo, à cor que tem de dia. Nas referências, a madeira sob a vela fica *mais clara e saturada* que a cor de base (sobre-exposição quente), e o resto cai no azul escuro. Falta **luz em HDR** (acima de 1) com **curva de tom**.
+2. **A luz não sabe de que lado vem.** Uma tocha ilumina por igual as duas bordas de uma laje, de um degrau ou de uma tábua. Nas referências, a junta do lado da luz brilha e a do outro lado escurece: é isso que dá relevo. Falta **normal por pixel** e **direção da luz por pixel**.
+3. **Nada assenta no chão.** Faltam oclusão de contato e de canto: escuro no pé das paredes, nas juntas, embaixo e em volta dos móveis, nos cantos dos cômodos. A K9 pôs um pouco de AO dentro de cada objeto, mas não existe AO *entre* objeto e chão nem entre parede e chão.
+4. **Paredes são linhas.** As paredes são traços vetoriais em `desenharParede` ([cena.ts](../../src/render/cena.ts)). Nos interiores de referência, as paredes têm **topo grosso e escuro** e **face interna visível** (papel de parede, rodapé, quadros e janelas *na face*), como se olhássemos de cima para dentro de uma caixa. Na sala da guarda e no santuário, as paredes são alvenaria com altura, com o topo claro e a face na sombra.
+5. **Fogo e brilho sem bloom.** O fogo é um desenho com `brilho` aditivo ([raster.ts](../../src/procedural/raster.ts)), e o halo é um degradê. Falta o **estouro** (núcleo branco saturado, bloom amplo e quente) e a **cintilação na própria chama**.
+6. **Textura rasa e uniforme.** O terreno sai a 24 px/m e os cômodos a 64 px/m (`resolucao` em [ilustrado.ts](../../src/procedural/estilos/ilustrado.ts)). Nas referências, cada tábua e cada laje tem tom próprio, bisel, desgaste e sujeira nas juntas. Os padrões atuais em [materiais.ts](../../src/procedural/materiais.ts) variam pouco de peça a peça e não têm altura (necessária para os itens 2 e 3).
+7. **Cor sem direção.** As referências têm gradação dividida: sombras puxadas para azul-petróleo e luzes para âmbar (sala da guarda), ou monocromia sépia (acampamento). O `acabamento` tem saturação, tinta, lift/gamma/gain, mas não **tonalização dividida** (uma cor para as sombras e outra para as luzes).
+8. **Estrutura com altura não existe como peça.** Escadas, estrados, muralhas e plataformas são desenhos planos de receitas soltas, cada uma com o próprio sol (foi o que gerou as paredes duplicadas do santuário). Falta uma **família de receitas estruturais** que usem o material do piso e a mesma convenção de luz.
+
+O que **já existe** e esta frente aproveita: oclusão de luz por paredes, objetos altos e peças (K4/K5), relevo em patamares (Frente F), `Parte.z` em toda receita (altura de cada parte, já usada para ordenar e para a sombra), AO interna de objetos (K9), halos e raios ([halos.ts](../../src/render/halos.ts)) e o filtro de acabamento ([acabamento.ts](../../src/render/acabamento.ts)).
+
+---
+
+## Arquitetura
+
+A ideia central é um **passo de luz em tela cheia** que substitui a multiplicação simples:
+
+```
+cena (cores de base) ──┐
+mapa de altura ────────┼──► filtro "luz com relevo" ──► bloom ──► acabamento (tom + gradação)
+mapa de luz (HDR) ─────┤        cor = base × (ambiente + luz × sombreamento(N·L)) + AO
+mapa de direção ───────┘
+```
+
+- **Mapa de luz HDR** (L1): o mesmo `MapaDeLuz` de hoje (oclusão por paredes, objetos e peças), mas guardando valores até 4 em vez de até 1.
+- **Mapa de direção** (L2): uma segunda textura, do mesmo tamanho e com a mesma oclusão, em que cada luz soma o *vetor* da direção até ela, pesado pela intensidade. Com isso, cada pixel sabe de onde vem a luz dominante sem que o shader precise percorrer a lista de luzes.
+- **Mapa de altura** (L3 e L4): cada desenho assado (terreno, cômodo, objeto) ganha uma tela irmã em tons de cinza com a altura. Para objetos, a altura vem de `Parte.z`. Para materiais, vem de um pintor de altura por padrão; o padrão que ainda não tiver o dele usa a luminância da cor como aproximação. A cena de altura é montada com os mesmos sprites e transformações da cena de cor.
+- **Filtro de luz com relevo** (L5): calcula a normal a partir do mapa de altura (Sobel), faz `N·L` com o mapa de direção, aplica o mapa de luz HDR e a AO derivada da altura (L6), e devolve a cor em HDR.
+- **Bloom e curva de tom** (L7 e L8): o brilho acima de 1 vaza em bloom; o acabamento ganha curva de tom (ACES aproximada) e tonalização dividida.
+
+Tudo isso fica **só no estilo Ilustrado**. O Pixel continua com o caminho atual (ver memória "Pixel em espera"): toda ficha deve manter o Pixel funcionando e com os testes passando, sem gastar esforço nele.
+
+**Desempenho:** os mapas de luz e direção ficam a 8 px/m (a luz é suave). O mapa de altura acompanha a resolução da tela, porque é ele que dá o detalhe. O filtro de luz roda uma vez por quadro em tela cheia, como o acabamento já faz. Quando o desempenho cair abaixo do aceitável (ver L5), existe a opção `relevo: false` no mapa, que volta ao caminho atual.
+
+---
+
+## Índice
+
+| Ficha | Quem | O quê | Depende de | Estado |
+|---|---|---|---|---|
+| [L1](#l1--mapa-de-luz-em-hdr) | Gemini | Mapa de luz em ponto flutuante, valores até 4, composição por filtro em vez de `multiply` | — | ⬜ |
+| [L2](#l2--mapa-de-direção-da-luz) | Gemini | Segunda textura com a direção da luz dominante, mesma oclusão | L1 | ⬜ |
+| [L3](#l3--altura-nos-desenhos-assados-objetos) | Gemini | Tela de altura irmã para objetos assados, a partir de `Parte.z` | — | ⬜ |
+| [L4](#l4--altura-de-terreno-e-cômodos-e-cena-de-altura) | Gemini | Altura de terreno e cômodos (luminância como reserva) e a cena de altura montada em paralelo | L3 | ⬜ |
+| [L5](#l5--filtro-de-luz-com-relevo) | Gemini | Filtro em tela cheia: normal por Sobel, `N·L`, luz HDR; chave `relevo` | L1, L2, L4 | ⬜ |
+| [L6](#l6--oclusão-de-contato-e-de-canto) | Gemini | AO derivada da altura no mesmo filtro + AO no pé das paredes | L5 | ⬜ |
+| [L7](#l7--bloom-e-fogo-emissivo) | Gemini | Bloom do que passa de 1; partes `brilho` marcam emissão | L5 | ⬜ |
+| [L8](#l8--curva-de-tom-e-tonalização-dividida) | Gemini | ACES aproximado e `finish.split` (sombras/luzes) no acabamento | L5 | ⬜ |
+| [L9](#l9--paredes-com-topo-e-face-interna) | Gemini + Opus | Parede com topo e face interna visível, material por cômodo, objetos de parede na face | — | ⬜ |
+| [L10](#l10--materiais-com-altura-e-variação-por-peça) | **Opus** | Pintores de altura e variação peça a peça nos padrões de piso principais; resolução do terreno | L4 | ⬜ |
+| [L11](#l11--estruturas-com-altura-fogo-e-o-santuário) | **Opus** | Família `estrutura.*` (estrado, escadaria, muralha, plataforma), fogo novo e o santuário refeito | L5–L10 | ⬜ |
+| [L12](#l12--exemplos-revistos-e-guia) | **Opus** | Sala da guarda, mansão e jardim revistos; guia do assistente atualizado | L11 | ⬜ |
+
+As fichas L1–L4 e L9 podem andar em paralelo (L1 → L2 numa sessão; L3 → L4 em outra; L9 em outra).
+
+---
+
+## L1 — Mapa de luz em HDR  ⬜
+
+**Objetivo:** a luz pode passar de 1 (sobre-exposição quente), e a composição deixa de ser `multiply` de 8 bits.
+
+**Depende de:** —
+
+**Ler:**
+- [src/render/mapa-de-luz.ts](../../src/render/mapa-de-luz.ts) inteiro, em especial `RenderTexture.create` (linha ~54), os `alpha` de `s`, `s2`, `s3` (linhas ~66–70, que hoje empilham três sprites para simular intensidade > 1) e o cálculo do ambiente (`Math.min(1, …)`, linhas ~139–175).
+- A ordem das camadas em [src/render/cena.ts](../../src/render/cena.ts), linha ~112 (`raiz.addChild(…)`): `luz.sprite` fica entre `presenca.abaixo` e `presenca.acima`.
+- [src/render/acabamento.ts](../../src/render/acabamento.ts), para o padrão de `Filter` com `GlProgram` e `UniformGroup` usado no projeto.
+
+**Arquivos:** mudar `src/render/mapa-de-luz.ts`, `src/render/cena.ts`; criar `src/render/composicao-de-luz.ts`.
+
+**Como:**
+1. Crie `brutaRT` e `finalRT` com `format: 'rgba16float'` quando o renderizador for WebGL2 ou WebGPU (`renderer.context.webGLVersion === 2` ou `renderer.type` WebGPU). Senão, mantenha 8 bits e guarde `luz / ESCALA_HDR` com `ESCALA_HDR = 4`, decodificando no filtro. Exporte `ESCALA_HDR` e uma função `formatoDaLuz(renderer): { formato; escala }`.
+2. Troque o empilhamento `s/s2/s3` por um sprite só com `alpha = k / escala` (no caminho de 16 bits, `escala = 1` e a cor da luz pode passar de 1 via `tint` com intensidade aplicada como `alpha` acima de 1, o que o blend aditivo em float aceita). Remova o `Math.min(1, …)` do ambiente no caminho HDR.
+3. Pare de pôr `luz.sprite` na cena com `multiply`. Agrupe em `cena.ts` todas as camadas **abaixo** de `luz.sprite` (de `terrenoC` até `presenca.abaixo`) num `Container` novo, `mundoIluminado`, e aplique a ele um `Filter` de [composicao-de-luz.ts](../../src/render/composicao-de-luz.ts) que lê a textura de luz (como `uniform sampler2D uLuz` com a matriz mundo → UV da luz) e faz `cor.rgb * luz.rgb * escala`. Nesta ficha o resultado deve ser **visualmente igual** ao de hoje quando nenhuma luz passa de 1.
+4. Clampe a saída do filtro em 1 por enquanto (a curva de tom vem na L8). A diferença visível desta ficha é só que luzes com `intensity > 1` deixam de saturar no branco da cor de base.
+5. Pixel: mantenha o caminho atual (`multiply`, 8 bits, faixas). Separe por `estilo === 'pixel'`.
+
+**Não fazer:** normal, direção, bloom, curva de tom. Não mude o cálculo de oclusão.
+
+**Testes:** em `tests/unit/luzes.test.ts`, teste puro de `formatoDaLuz` (WebGL1 → 8 bits com escala 4; WebGL2 → float com escala 1) e da codificação `codificarLuz(v, escala)` / `decodificarLuz`. Abra `public/exemplos/sala-da-guarda.atlas.json` no app (`npm run dev`) e confira que nada escureceu nem estourou.
+
+**Pronto quando:** o mapa de luz é float em WebGL2, a cena é composta por filtro e o resultado é igual ao de antes para intensidades ≤ 1.
+
+**Commit:** `light map is now hdr and composited by a filter`
+
+---
+
+## L2 — Mapa de direção da luz  ⬜
+
+**Objetivo:** cada pixel sabe a direção (no plano) da luz dominante e se ela vem de cima ou rasante.
+
+**Depende de:** L1.
+
+**Ler:** `criar(l)` e `atualizar(g, l)` em [mapa-de-luz.ts](../../src/render/mapa-de-luz.ts) (cada luz é um `Container` com sprite aditivo e máscara do polígono iluminado); `texturaDeBrilho` em [luzes.ts](../../src/render/luzes.ts).
+
+**Arquivos:** mudar `src/render/mapa-de-luz.ts`, `src/render/luzes.ts`; mudar `src/render/composicao-de-luz.ts`.
+
+**Como:**
+1. Em `luzes.ts`, crie `texturaDeDirecao()`: textura 256 × 256 em que o pixel `(u, v)` (com `d = (u, v) − centro`, normalizado pelo raio) guarda `R = 0.5 − 0.5·dx·f`, `G = 0.5 − 0.5·dy·f`, `B = f`, com `f` a mesma queda de `texturaDeBrilho`. Ou seja: o vetor que aponta **do pixel para a luz**, pesado pela intensidade. Use float se disponível (mesma regra da L1); em 8 bits, guarde já com o deslocamento de 0,5.
+2. Para cada luz, crie um segundo sprite com essa textura, na mesma posição, escala, máscara (o mesmo polígono de oclusão) e `alpha` que o sprite de brilho, mas **sem** a cor da luz (branco) e numa raiz separada, `raizDirecao`. Renderize `raizDirecao` numa `direcaoRT` do mesmo tamanho de `finalRT`, com blend aditivo e o mesmo desfoque.
+3. Os campos `R` e `G` se somam entre luzes: o resultado, depois de subtrair `0.5 × soma de B`, é a soma vetorial pesada. Essa correção fica no shader da L5, não aqui.
+4. Exponha `direcao: Texture` em `MapaDeLuz` e passe-a para o filtro de composição como `uDirecao`. Nesta ficha o filtro só a recebe; o uso vem na L5. Adicione um modo de depuração `?luz=direcao` (query string, lido em `composicao-de-luz.ts`) que mostra `normalize(xy)` como cor, para conferir.
+5. Altura da luz: não acrescente campo em `Luz`. O shader da L5 usa uma altura fixa `ALTURA_DA_LUZ = 1.6` m (tocha na parede), e `feixe`/luz com `rays` usa 6 m (vem do alto). Exporte a constante.
+
+**Não fazer:** usar a direção para iluminar (L5).
+
+**Testes:** teste puro do pixel de `texturaDeDirecao` (centro com `B = 1` e `R = G = 0.5`; borda direita com `R < 0.5`). Conferência visual com `?luz=direcao` no `sala-da-guarda`: as cores giram em volta de cada tocha e somem atrás das paredes.
+
+**Pronto quando:** `direcaoRT` acompanha o mapa de luz (mesmo tamanho, oclusão e desfoque) e o modo de depuração mostra as setas certas.
+
+**Commit:** `light map also tracks the light direction`
+
+---
+
+## L3 — Altura nos desenhos assados: objetos  ⬜
+
+**Objetivo:** cada objeto assado vem com uma tela de altura (cinza 0–1) alinhada à tela de cor.
+
+**Depende de:** —
+
+**Ler:**
+- `desenharPartes` em [src/procedural/raster.ts](../../src/procedural/raster.ts) (ordena por `z`, desenha sombra, corpo, volume e contorno).
+- [src/procedural/baker.ts](../../src/procedural/baker.ts) e [bake.worker.ts](../../src/procedural/bake.worker.ts): o que o worker devolve (a tela e a origem).
+- `Parte` em [src/procedural/descricao.ts](../../src/procedural/descricao.ts).
+
+**Arquivos:** criar `src/procedural/altura.ts`; mudar `raster.ts`, `baker.ts`, `bake.worker.ts`, o tipo do resultado do assado e a entrada correspondente em [src/render/cena.ts](../../src/render/cena.ts) (só para guardar a textura de altura ao lado da de cor; ainda não usada).
+
+**Como:**
+1. Em `altura.ts`, `desenharAlturaDasPartes(ctx, partes, { res })`: mesma ordem por `z` de `desenharPartes`, mesma geometria, mas cada parte preenche com cinza `v = clamp(z / ALTURA_MAXIMA)` (`ALTURA_MAXIMA = 4` m). Partes com `suave`, `desfoque`, `brilho`, `alfa < 0.5` ou `semSombra` **não** escrevem altura. Partes com `raio` (arredondadas) ganham um domo: `v` no centro, caindo 15% na borda (degradê radial), para dar volume a barris e almofadas.
+2. Sem traço, sem sombra, sem AO: a tela de altura é limpa. Fundo transparente = altura 0.
+3. O worker passa a devolver `{ tela, altura, origem, res }` (a `altura` como `ImageBitmap` do mesmo tamanho). Só no Ilustrado; no Pixel, `altura: null`.
+4. Na `Entrada` de objeto em `cena.ts`, guarde `texAltura` ao lado da textura. Libere junto quando a entrada for destruída (siga o padrão de `chaveTextura`).
+5. Cache: a altura entra na mesma chave do objeto (não é um assado separado).
+
+**Não fazer:** terreno e cômodos (L4); montar a cena de altura (L4); objetos de parede (`DescricaoDeParede`) ficam com `altura: null` até a L9.
+
+**Testes:** `tests/unit/altura.test.ts`: uma descrição com duas partes (z 0,4 e 1,2) produz pixels de altura 0,1 e 0,3 nas posições certas; parte `brilho` não escreve. Use o canvas de teste que `tests/unit/raster*.test.ts` já usa.
+
+**Pronto quando:** todo objeto Ilustrado assado chega à cena com `texAltura`, sem mudança visual.
+
+**Commit:** `baked objects also carry a height map`
+
+---
+
+## L4 — Altura de terreno e cômodos, e a cena de altura  ⬜
+
+**Objetivo:** existe uma textura de altura da tela inteira, montada com os mesmos sprites da cena.
+
+**Depende de:** L3.
+
+**Ler:** `pintarMaterial` em [materiais.ts](../../src/procedural/materiais.ts) (despacha por `padrao`); [assar.ts](../../src/procedural/assar.ts) (terreno, cômodos, degraus, relevo); `cena.ts` linhas ~110–190 (como terreno, cômodos e objetos viram sprites).
+
+**Arquivos:** mudar `src/procedural/altura.ts`, `materiais.ts` (só o registro), `assar.ts`, `src/render/cena.ts`; criar `src/render/cena-de-altura.ts`.
+
+**Como:**
+1. Registro de pintores de altura: em `altura.ts`, `PINTORES_DE_ALTURA: Partial<Record<Padrao, (ctx, mat, area, seed, px) => void>>`, vazio nesta ficha (o Opus preenche na L10). `pintarAlturaDoMaterial(ctx, id, area, seed, o)`: se o padrão tem pintor, usa; senão, **reserva por luminância**: pinta o material em cor numa tela temporária, converte para luminância, aplica passa-alta (luminância menos a média borrada com raio de 0,5 m) e grava `0.5 + 0.35 × passaAlta`. Isso dá juntas mais baixas e peças mais altas na maioria dos padrões.
+2. Em `assar.ts`, o assado de terreno e de cômodo produz a tela de altura em paralelo: base 0,5 para piso, mais o relevo do terreno (os patamares da Frente F: `0.5 + altura_do_patamar / 40`, saturado), e os degraus (`pintarDegrausConstruidos`) com a altura de cada degrau. Devolva junto como na L3.
+3. `cena-de-altura.ts`: um `Container` paralelo, `alturaC`, que espelha `terrenoC`, `comodosC` e `objetosC` (mesmas posições, escalas, rotações e ordem), com sprites que usam `texAltura`. Objetos somam a altura sobre o chão: use `blendMode = 'max'` (ou `lighten`) para que o objeto nunca afunde abaixo do piso. Renderize `alturaC` numa `alturaRT` com a mesma câmera da cena, a cada quadro em que a câmera ou o conteúdo mudar (não a cada quadro parado).
+4. Exponha `alturaRT` para o filtro de composição como `uAltura` (com a mesma matriz de tela da cena). Modo de depuração `?luz=altura`.
+
+**Não fazer:** usar a altura para iluminar (L5). Não escreva pintores de padrão (L10).
+
+**Testes:** puro: a reserva por luminância de um padrão `laje` dá valor menor nas juntas que no miolo da laje (amostre os pixels sabidos de junta e de miolo). Visual: `?luz=altura` no `sala-da-guarda` mostra lajes, mesas e caixotes em relevo.
+
+**Pronto quando:** `alturaRT` acompanha a câmera, com terreno, cômodos e objetos.
+
+**Commit:** `terrain and rooms carry height and the scene has a height pass`
+
+---
+
+## L5 — Filtro de luz com relevo  ⬜
+
+**Objetivo:** a luz realça as superfícies do lado de onde vem e escurece o lado oposto.
+
+**Depende de:** L1, L2, L4.
+
+**Ler:** o filtro de `composicao-de-luz.ts` (L1) e as três texturas: `uLuz`, `uDirecao`, `uAltura`.
+
+**Arquivos:** mudar `src/render/composicao-de-luz.ts`; mudar `src/domain/mapa.ts` e `src/domain/validacao.ts` (campo `finish.relief`); mudar `src/app/ponte-escrita.ts` (expor em `atlas_ambiente`, junto do acabamento que ela já edita, `Acabamento` em `src/domain/mapa.ts`) e regenerar `scripts/ponte/catalogo-base.json` como as fichas K fizeram.
+
+**Como (shader):**
+```glsl
+// h(p) = altura em metros (amostra × ALTURA_MAXIMA); passo = 1 texel da alturaRT
+vec3 N = normalize(vec3(-(hR - hL) * uForca, -(hD - hU) * uForca, 2.0 * passoEmMetros));
+vec4 d = texture(uDirecao, uvLuz);            // L2
+vec2 dirXY = (d.rg - 0.5 * d.b) / max(d.b, 1e-3);   // direção pesada, em −1..1
+vec3 L = normalize(vec3(dirXY, uAlturaDaLuz / uAlcance));
+float lambert = clamp(dot(N, L), 0.0, 1.0);
+float plano = L.z;                             // o que um chão liso receberia
+float realce = lambert / max(plano, 0.25);     // > 1 no lado virado para a luz, < 1 no oposto
+vec3 luz = texture(uLuz, uvLuz).rgb * uEscala;
+vec3 ambiente = uAmbiente * (0.75 + 0.25 * N.z); // o céu ilumina mais o que está virado para cima
+vec3 cor = base * (ambiente + (luz - uAmbiente) * mix(1.0, realce, uRelevo));
+```
+- `uAmbiente` é a cor de ambiente que o `MapaDeLuz` já calcula (passe-a como uniform). A diferença `luz − ambiente` é a parte que vem das luzes, a única que ganha direção.
+- `uForca` (padrão 3) e `uRelevo` (`finish.relief`, 0–1, padrão 0,7) controlam a força. `relief: 0` dá exatamente o resultado da L1 e é o desligamento.
+- Pixel: o filtro não é aplicado.
+
+**Desempenho:** meça em `npm run dev` com o `porto-noturno` (o maior em luzes) no notebook do usuário: anote os quadros por segundo antes e depois na linha "Nota:" da ficha. Se cair mais de 25%, reduza a `alturaRT` à metade da resolução de tela e anote.
+
+**Não fazer:** AO (L6), bloom (L7), curva de tom (L8).
+
+**Testes:** puro em `tests/unit/luzes.test.ts`: a função TypeScript espelho `realceDoRelevo(N, L)` (mesma fórmula, exportada para teste) dá 1 para chão liso, > 1 para normal inclinada para a luz, < 1 para a inclinada contra. Validação de `finish.relief` em `tests/unit/validacao*.test.ts`. Visual: `sala-da-guarda` com `relief` 0 e 0,7 lado a lado em `test-results/l5-relevo.png`.
+
+**Pronto quando:** juntas de laje e bordas de tábua acendem do lado da tocha; `relief: 0` volta ao de antes.
+
+**Commit:** `lights now shade surfaces by their relief`
+
+---
+
+## L6 — Oclusão de contato e de canto  ⬜
+
+**Objetivo:** objetos e paredes assentam no chão; juntas e cantos escurecem.
+
+**Depende de:** L5.
+
+**Ler:** `composicao-de-luz.ts`; `desenharParedes` em `cena.ts` (linha ~328); a AO interna dos objetos na K9 (`desenharPartes`, segunda passada de oclusão).
+
+**Arquivos:** mudar `src/render/composicao-de-luz.ts`, `src/render/cena-de-altura.ts`, `src/render/cena.ts`.
+
+**Como:**
+1. AO por altura no shader: 8 amostras em anel a 2 raios (0,25 m e 0,7 m em pixels de tela), `ao = Σ max(0, h(amostra) − h(p)) / n`, com peso maior no raio curto. `cor *= 1 − uAO × smoothstep(0, 0.6, ao)`, com `uAO = finish.ao` (0–1, padrão 0,55). Aplique a AO **antes** de somar a luz, e só sobre o ambiente e metade da luz direta (a luz forte apaga um pouco a AO, como nas referências).
+2. Paredes: desenhe as paredes também na `alturaC` (uma `Graphics` irmã de `paredesG`, mesmo traçado, cinza `ALTURA_DE_PAREDE / ALTURA_MAXIMA`, com `ALTURA_DE_PAREDE = 3`). Assim a AO do passo 1 escurece o pé das paredes e os cantos dos cômodos sem código extra.
+3. Campo `finish.ao` no domínio, validação e ponte (como `relief` na L5).
+
+**Não fazer:** sombra projetada nova (a K5 já cuida); AO no Pixel.
+
+**Testes:** validação de `finish.ao`; função espelho `oclusaoDeAmostras(h0, amostras)` com caso plano (0) e caso de quina (> 0). Visual: `test-results/l6-ao.png` com `mansao-da-ilha` (pés de parede e móveis).
+
+**Pronto quando:** móveis e paredes têm um escuro de contato visível e macio, e `ao: 0` desliga.
+
+**Commit:** `added contact and corner occlusion from the height pass`
+
+---
+
+## L7 — Bloom e fogo emissivo  ⬜
+
+**Objetivo:** o que passa de 1 (fogo, velas, feixe) estoura num brilho quente.
+
+**Depende de:** L5.
+
+**Ler:** `Parte.brilho` e `desfoque` em [descricao.ts](../../src/procedural/descricao.ts) e como `raster.ts` os desenha; `finish.glow` em [halos.ts](../../src/render/halos.ts) (linha ~242).
+
+**Arquivos:** mudar `src/procedural/altura.ts` (canal de emissão), `raster.ts`, `src/render/composicao-de-luz.ts`; criar `src/render/bloom.ts`.
+
+**Como:**
+1. Emissão: a tela de altura da L3 usa só o canal R. Grave em **G** a emissão: partes com `brilho: true` escrevem `G = alfa da parte`. No shader, `cor += base × G × uEmissao` (com `uEmissao = 3`): o miolo do fogo passa de 1 sem depender do mapa de luz.
+2. `bloom.ts`: filtro de duas passadas depois de `composicao-de-luz` e antes do acabamento: extrai `max(cor − 0.9, 0)`, reduz para 1/4, desfoca em duas escalas (raio 0,5 m e 2 m), soma de volta com peso `finish.glow` (campo que já existe; hoje só controla o halo). Implemente com `BlurFilter` do Pixi em `RenderTexture` de 1/4, sem shader novo se der.
+3. Cintilação: o `MapaDeLuz` já tremula o halo das luzes (`quadro(agora)`), mas a chama desenhada fica parada. Passe um uniform global `uTempo` e faça a emissão oscilar com `0.85 + 0.15 × ruído(tempo × 7 + hash(posição/0.5 m))`, para que cada chama tremule por conta própria.
+
+**Não fazer:** redesenhar o braseiro (L11, Opus).
+
+**Testes:** puro `limiarDoBloom(cor)`. Visual: `test-results/l7-bloom.png` com `sala-da-guarda` (velas e braseiro).
+
+**Pronto quando:** velas e braseiros têm núcleo estourado e um brilho quente que vaza sobre a mesa; `glow: 0` desliga.
+
+**Commit:** `added bloom and emissive fire`
+
+---
+
+## L8 — Curva de tom e tonalização dividida  ⬜
+
+**Objetivo:** o HDR vira cor de tela com uma curva bonita, e o mapa pode puxar sombras e luzes para cores diferentes.
+
+**Depende de:** L5.
+
+**Ler:** [acabamento.ts](../../src/render/acabamento.ts) inteiro; o tipo `finish` em `src/domain/mapa.ts`; os presets de acabamento, se houver em `src/domain/presets.ts`.
+
+**Arquivos:** mudar `acabamento.ts`, `composicao-de-luz.ts` (tirar o clamp da L1), `src/domain/mapa.ts`, `validacao.ts`, `presets.ts`, ponte e catálogo.
+
+**Como:**
+1. Tire o `clamp(…, 1)` da composição e aplique no acabamento, antes de tudo, a curva ACES aproximada de Narkowicz: `c = (x(2.51x + 0.03)) / (x(2.43x + 0.59) + 0.14)`, com `x = cor × finish.exposure` (padrão 1). Ajuste a exposição padrão para que um mapa sem luz forte fique igual ao de antes (± 3% de luminância média; meça com `sala-da-guarda` e `aldeia-ao-entardecer`).
+2. `finish.split?: { shadows: '#rrggbb'; highlights: '#rrggbb'; balance: number; amount: number }`. No shader: `l = luminância`, `t = smoothstep(0, 1, l + balance)`, `cor = mix(cor, cor × mix(sombra, luz, t) × 2, amount)`, mantendo a luminância original (normalize depois).
+3. Presets novos de acabamento: `masmorra` (sombras `#2a4a5a`, luzes `#ffb060`, amount 0,35), `sepia` (sombras `#4a3a2a`, luzes `#e8d0a0`, amount 0,5, saturação 0,6) e `dia-dourado` (sombras `#3a4a6a`, luzes `#ffe0a0`, amount 0,25).
+
+**Não fazer:** mexer em vinheta, grão ou textura.
+
+**Testes:** puro `aces(x)` (0 → 0, 1 → ≈ 0,8, 10 → < 1); `tonalizar(cor, split)` preserva a luminância. Validação de `split` e `exposure`.
+
+**Pronto quando:** as luzes fortes saturam suavemente em vez de cortar, e os três presets existem.
+
+**Commit:** `added tone curve and split toning to the finish`
+
+---
+
+## L9 — Paredes com topo e face interna  ⬜
+
+**Objetivo:** paredes deixam de ser linhas: têm topo e, nos interiores, uma face voltada para dentro do cômodo, como nas referências de quarto e cabana.
+
+**Depende de:** —
+
+**Divisão:** o Gemini faz a geometria e o encaixe (passos 1–4); o Opus faz os materiais de face e os objetos de parede desenhados na face (passo 5).
+
+**Ler:** `desenharParede` e `desenharParedes` em [cena.ts](../../src/render/cena.ts) (linhas ~225–360, inclusive o chanfro e as juntas da K8); `DescricaoDeParede` em [descricao.ts](../../src/procedural/descricao.ts) (`face` em (u, z) e `topo`); as salas e paredes em `src/domain/mapa.ts`; como os cômodos são assados em [assar.ts](../../src/procedural/assar.ts).
+
+**Arquivos:** criar `src/procedural/faces-de-parede.ts`; mudar `assar.ts` (o assado do cômodo desenha as faces), `cena.ts` (o topo), `src/domain/mapa.ts` (`Sala.wallFace?: string` com o id do material da face; `Parede.height?`), validação e ponte.
+
+**Como:**
+1. A face é desenhada **dentro do assado do cômodo**, não na camada de paredes: para cada lado do contorno da sala que coincide com uma parede `wall`, pinte uma faixa para dentro do cômodo com largura `PROJECAO × altura` (`PROJECAO = 0.18`, ou seja, 0,54 m para 3 m de parede). A faixa usa o material `sala.wallFace` (padrão: o material da parede, ou `parede.reboco`), com rodapé (os 12% de baixo, mais escuros), degradê de luz (mais escuro embaixo) e quinas em meia-esquadria (nos cantos, as faces se encontram na diagonal).
+2. Portas e janelas cortam a face: porta = vão na face mostrando o batente; janela = retângulo de vidro na face com peitoril.
+3. O topo da parede (em `cena.ts`) fica mais grosso e escuro (`#1a1820` com borda clara do lado de dentro), como nas referências; mantenha o chanfro da K8.
+4. Alinhamento com a AO (L6) e a altura (L4): a face escreve altura em rampa (0 no pé, `altura/ALTURA_MAXIMA` no topo).
+5. **[Opus]** Materiais de face: `parede.papel-damasco`, `parede.papel-listrado`, `parede.lambri`, `parede.tabuas`, `parede.alvenaria`, `parede.rocha`. Objetos de parede (`DescricaoDeParede`) passam a desenhar a `face` sobre a faixa da face em vez de só o `topo`: quadro, janela, lareira, estante, arandela.
+
+**Não fazer:** paredes `low` e `fence` (seguem como estão); exteriores (a face aparece só do lado de dentro do cômodo coberto).
+
+**Testes:** puro em `tests/unit/faces-de-parede.test.ts`: a faixa de uma sala retangular 4 × 3 m com parede de 3 m tem 0,54 m de largura e quinas diagonais; porta abre vão na faixa. Visual: `mansao-da-ilha` em `test-results/l9-faces.png`.
+
+**Pronto quando:** os cômodos da mansão leem como caixas vistas de cima, com face interna em todas as paredes.
+
+**Commit:** `walls now show their inner face inside rooms`
+
+---
+
+## L10 — Materiais com altura e variação por peça  ⬜  [Opus]
+
+**Objetivo:** os pisos principais têm altura própria (para a L5 e a L6) e variação de tom, desgaste e sujeira peça a peça.
+
+**Depende de:** L4.
+
+**Escopo:** pintores de altura e revisão de cor para `laje`, `lajes-grandes`, `lajes.escuras`, `tabuas`, `espinha`, `paralelepipedo`, `pedra`, `rachado`, `cascalho`, `terra`, `areia`, `lajes-rusticas` e as escadas de alvenaria. Cada peça (tábua, laje) ganha tom, desgaste de borda e sujeira de junta próprios; juntas ficam abaixo do miolo na altura, com bisel. Subir a resolução do terreno no Ilustrado de 24 para 40 px/m, medindo memória e tempo de assado no `desfiladeiro-nevado` (o maior); se passar de 1,5× no tempo, voltar a 32.
+
+**Pronto quando:** sob a L5, lajes e tábuas leem como peças com relevo, sem o ar de padrão repetido.
+
+---
+
+## L11 — Estruturas com altura, fogo e o santuário  ⬜  [Opus]
+
+**Objetivo:** escadas, estrados e muralhas deixam de ser desenhos soltos; o santuário é refeito como teste da frente.
+
+**Depende de:** L5–L10.
+
+**Escopo:**
+- Família `estrutura.*` em `src/procedural/receitas/`: `estrutura.estrado`, `estrutura.escadaria` (embutida no piso, descendo ou subindo, com o material do piso em volta), `estrutura.muralha` (alvenaria com topo e face, alturas em degrau) e `estrutura.plataforma`. Todas recebem o material do piso como parâmetro, para que piso, degrau e muralha sejam da mesma pedra. Altura em `Parte.z` coerente, para a L5 dar o relevo sozinha (sem sombra pintada à mão do lado "do sol").
+- Braseiro e tocha refeitos para o bloom: núcleo emissivo, brasa, fumaça leve; o círculo rúnico com brilho fraco.
+- Santuário refeito em `scripts/exemplos/santuario-da-luz.ts` sobre `docs/referencias/exemplos/santuario-da-luz.png`, com preset de acabamento `masmorra`. Comparação em `test-results/` gerada por `npm run exemplos -- --so santuario-da-luz`.
+- Antes de cada rodada de ajuste, comparar com a referência e dizer com franqueza se o que falta é do mapa ou do motor.
+
+---
+
+## L12 — Exemplos revistos e guia  ⬜  [Opus]
+
+Revisar `sala-da-guarda`, `mansao-da-ilha` e `jardim-do-colosso` com as estruturas, faces de parede e presets novos; regenerar as miniaturas; atualizar o guia do assistente (`relief`, `ao`, `split`, `estrutura.*`, `wallFace`) para que o Claude do app use o que existe.
+
+---
+
+## O que esta frente **não** alcança
+
+Para alinhar a expectativa: mesmo com tudo pronto, as referências renderizadas em 3D (santuário, sala da guarda, jardim) continuam à frente em três coisas que pediriam um motor 3D: **sombras longas e exatas do sol** sobre geometria complexa (as do jardim), **luz indireta** (a luz que rebate na parede e tinge o chão) e **objetos fotorrealistas** com muitos milhares de detalhes. O alvo realista é ficar entre as referências pintadas (quartos, cabana, acampamento), que esta frente alcança, e as renderizadas, das quais ela chega perto na luz e no relevo.
