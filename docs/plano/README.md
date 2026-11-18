@@ -10,7 +10,7 @@ O [ROADMAP](../ROADMAP.md) diz **o quê** e em que ordem. Esta pasta diz **como*
    - `npm run typecheck` e `npm test` passando (e `npm run test:e2e` quando a ficha pedir);
    - marcar a ficha com ✅ (⬜ → ✅) e anotar desvios, se houve, numa linha "Nota:" dentro da ficha;
    - acrescentar uma linha na fase em andamento do [progress.md](../../progress.md);
-   - sugerir a mensagem de commit (a da ficha, ajustada se preciso). **Não commitar:** o usuário revisa e commita.
+   - fazer **um commit atômico por tarefa** (usando a mensagem da ficha, ajustada se preciso, seguindo o estilo do histórico do repositório).
 4. **Fechar a fase:** depois da última tarefa, o resumo completo da fase vai para o progress.md (implementado, validação, pendências reais) e o Opus detalha a próxima.
 
 ## Regras de tamanho
