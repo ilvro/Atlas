@@ -23,6 +23,13 @@ export function desenharPartes(ctx: Contexto, partes: readonly Parte[], { res, s
   [...partes].sort((a, b) => a.z - b.z).forEach((p, i) => {
     const b = caixaDe(p), s = seed * 31 + i;
     const alfa = p.alfa ?? 1;
+    if (p.desfoque) {
+      // Mancha macia: cor chapada desfocada (e somada, se for brilho). Sem material, traço ou sombra.
+      ctx.save(); ctx.globalAlpha = alfa; ctx.filter = `blur(${Math.max(0.5, p.desfoque * res).toFixed(2)}px)`;
+      if (p.brilho) ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = materialDe(p.mat).base; caminho(ctx, p); ctx.fill(); ctx.restore();
+      return;
+    }
     if (sombras && !p.semSombra && p.z > 0.03) {
       const leve = p.sombraLeve ? 0.35 : 1;
       ctx.save(); ctx.globalAlpha = alfa; ctx.shadowColor = `rgba(0,0,0,${0.55 * leve})`; ctx.shadowBlur = (0.04 + p.z * 0.08) * res; ctx.shadowOffsetX = ctx.shadowOffsetY = (0.015 + p.z * 0.045) * res * leve;

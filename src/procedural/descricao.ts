@@ -24,6 +24,10 @@ export interface Parte {
   alfa?: number;
   /** Nível de detalhe: o renderizador Pixel descarta o que não cabe na resolução. */
   detalhe?: 1 | 2 | 3;
+  /** Borda macia (m): a parte vira uma mancha de cor chapada desfocada, sem traço nem sombra (fogo, brilho, névoa). */
+  desfoque?: number;
+  /** Soma a luz em vez de cobrir (com `desfoque`): o miolo do fogo e os brilhos clareiam o que está embaixo. */
+  brilho?: boolean;
 }
 
 export interface DescricaoDePiso { tipo: 'piso'; pegada: [number, number]; partes: Parte[] }
