@@ -1,6 +1,6 @@
 import { elipse, poli, ret, type Parte } from '../descricao.ts';
 import { mulberry32 } from '../ruido.ts';
-import { tira } from '../organico.ts';
+import { bolha, tira } from '../organico.ts';
 import { mat, parede, piso, type Receita } from './comum.ts';
 
 const G = { generos: ['fantasia'], kit: 'fantasia' }, PEDRA = '#6e7078', PEDRA_ESC = '#3a3c42', ARDE = '#ff7a2a', CHAMA = '#ffc24a', BRASA = '#c8401a', AGUA = '#5d8aa0', CORDA = '#b89a62', CARVAO = '#1a1210';
@@ -36,11 +36,16 @@ function braseiro(seed: number): Parte[] {
   // Leito de carvão: rubro por baixo, laranja vivo no meio, pedaços escuros por cima.
   partes.push(elipse(0, 0, R * 1.7, R * 1.7, '#7a1a08', 0.96, MIUDO), elipse(0.01, 0.01, R * 1.25, R * 1.25, ARDE, 0.97, MIUDO));
   for (let k = 0; k < 14; k++) { const a = r() * 6.28, d = Math.sqrt(r()) * R * 0.8; partes.push(elipse(Math.cos(a) * d, Math.sin(a) * d, 0.06 + r() * 0.05, 0.05 + r() * 0.04, r() < 0.45 ? CARVAO : r() < 0.5 ? BRASA : CHAMA, 0.98, MIUDO)); }
-  // Chamas: línguas puxadas pelo vento, em três camadas.
-  for (let k = 0; k < 6; k++) { const a = vento + (r() - 0.5) * 1.6, d = r() * R * 0.5; partes.push(lingua(Math.cos(a) * d * 0.5, Math.sin(a) * d * 0.5, a * 0.3 + vento * 0.7, 0.32 + r() * 0.2, 0.22 + r() * 0.1, '#ff5a12', 1.05 + k * 0.002, 0.85)); }
-  for (let k = 0; k < 5; k++) { const a = vento + (r() - 0.5) * 1.2; partes.push(lingua((r() - 0.5) * 0.12, (r() - 0.5) * 0.12, a, 0.24 + r() * 0.12, 0.15 + r() * 0.06, '#ffb22e', 1.1 + k * 0.002, 0.9)); }
-  for (let k = 0; k < 3; k++) partes.push(lingua((r() - 0.5) * 0.06, (r() - 0.5) * 0.06, vento + (r() - 0.5) * 0.8, 0.14 + r() * 0.06, 0.09, '#fff2b8', 1.15 + k * 0.002, 0.95));
-  for (let k = 0; k < 5; k++) { const a = vento + (r() - 0.5) * 1.4, d = 0.45 + r() * 0.2; partes.push(elipse(Math.cos(a) * d, Math.sin(a) * d, 0.03, 0.03, CHAMA, 1.2, { ...MIUDO, alfa: 0.8 })); }
+  // Fogo visto de cima: uma bola de chamas de borda macia que transborda a bacia. Brilho rubro largo, línguas desfocadas
+  // espalhadas (mais longas para onde o vento puxa), camadas cada vez mais claras e quentes até o miolo quase branco.
+  const macio = (pts: number[], c: string, z: number, alfa: number, d: number, brilho = false): Parte => poli(pts, c, z, { contorno: false, semSombra: true, alfa, desfoque: d, brilho });
+  partes.push(elipse(0, 0, 1.0, 1.0, '#c8300a', 1.0, { contorno: false, semSombra: true, alfa: 0.45, desfoque: 0.12 }));
+  for (let k = 0; k < 9; k++) { const a = (k / 9) * Math.PI * 2 + (r() - 0.5) * 0.5, puxa = 1 + 0.45 * Math.max(0, Math.cos(a - vento)), d = 0.12 * puxa; partes.push(macio(bolha(Math.cos(a) * d, Math.sin(a) * d, 0.17 * puxa, 0.12, 9, 0.3, r, a), k % 2 ? '#ff5a12' : '#ff6e1c', 1.05 + k * 0.001, 0.85, 0.04)); }
+  partes.push(macio(bolha(0, 0, 0.27, 0.27, 12, 0.22, r), '#ff8a24', 1.1, 0.9, 0.035));
+  partes.push(macio(bolha(0.01, 0.01, 0.19, 0.19, 10, 0.2, r), '#ffb238', 1.12, 0.92, 0.03, true));
+  partes.push(macio(bolha(0, 0, 0.11, 0.11, 8, 0.2, r), '#ffe08a', 1.14, 0.95, 0.025, true));
+  partes.push(elipse(0, 0, 0.1, 0.1, '#fffbe8', 1.16, { contorno: false, semSombra: true, desfoque: 0.02, brilho: true }));
+  for (let k = 0; k < 10; k++) { const a = vento + (r() - 0.5) * 2.2, d = 0.34 + r() * 0.14; partes.push(elipse(Math.cos(a) * d, Math.sin(a) * d, 0.03, 0.03, k % 2 ? '#ffd25a' : '#ff8a2a', 1.25, { contorno: false, semSombra: true, alfa: 0.9, desfoque: 0.008, brilho: true })); }
   return partes;
 }
 

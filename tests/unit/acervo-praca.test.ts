@@ -67,12 +67,12 @@ test('as escadas de pedra clareiam de baixo (+y) para cima (−y), com muretas d
   }
 });
 
-test('o braseiro tem pés, aro, brasa e chamas em camadas acima da bacia', () => {
+test('o braseiro tem pés, aro, brasa e uma bola de fogo de borda macia, com o miolo somando luz', () => {
   const ps = partes('braseiro');
   assert.deepEqual(pegadaDaReceita('braseiro'), [1, 1]);
-  const chamas = ps.filter(p => p.forma === 'poli' && p.z > 1);
-  assert.ok(chamas.length >= 10);
-  assert.ok(chamas.some(p => p.mat === '#fff2b8'), 'miolo branco');
+  const fogo = ps.filter(p => p.z > 1 && p.desfoque);
+  assert.ok(fogo.length >= 10, `${fogo.length} manchas de fogo`);
+  assert.ok(fogo.some(p => p.brilho && p.mat === '#fffbe8'), 'miolo quase branco somando luz');
 });
 
 test('o fosso de luz tem aro de blocos e brilho no fundo, na cor pedida; a muralha sobe em patamares', () => {
