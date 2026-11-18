@@ -73,10 +73,10 @@ export const RECEITAS_DE_CASTELO: Receita[] = [
       ]);
     } },
   { id: 'escada.pedra', nome: 'Escada de pedra', categoria: 'decoracao', tipo: 'piso', funcoes: ['corredor', 'porao', 'sala', 'taverna'], tags: ['escada', 'degraus', 'pedra', 'castelo', 'subida'], pegada: [1.4, 2.8], ...G,
-    campos: [{ id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 1.4, min: 1, max: 4, passo: 0.1 }, { id: 'comprimento', rotulo: 'Comprimento', tipo: 'numero', padrao: 2.8, min: 1.6, max: 6, passo: 0.1 }],
+    campos: [{ id: 'largura', rotulo: 'Largura', tipo: 'numero', padrao: 1.4, min: 1, max: 10, passo: 0.1 }, { id: 'comprimento', rotulo: 'Comprimento', tipo: 'numero', padrao: 2.8, min: 1.6, max: 14, passo: 0.1 }],
     gerar: p => {
-      const w = num(p, 'largura', 1.4, 1, 4), l = num(p, 'comprimento', 2.8, 1.6, 6);
-      return piso([w, l], escadaDeAlvenaria(w, l, p.seed, true, '#8e9098'));
+      const w = num(p, 'largura', 1.4, 1, 10), l = num(p, 'comprimento', 2.8, 1.6, 14);
+      return piso([w, l], escadaDeAlvenaria(w, l, p.seed, true, '#8f8a80'));
     } },
   { id: 'escada.caracol', nome: 'Escada em caracol', categoria: 'decoracao', tipo: 'piso', funcoes: ['corredor', 'porao', 'sala', 'taverna'], tags: ['escada', 'caracol', 'torre', 'degraus', 'espiral', 'subida'], pegada: [2.2, 2.2], ...G,
     campos: [{ id: 'diametro', rotulo: 'Diâmetro', tipo: 'numero', padrao: 2.2, min: 1.6, max: 3.6, passo: 0.1 }],
