@@ -52,7 +52,7 @@ Tudo isso fica **só no estilo Ilustrado**. O Pixel continua com o caminho atual
 
 | Ficha | Quem | O quê | Depende de | Estado |
 |---|---|---|---|---|
-| [L1](#l1--mapa-de-luz-em-hdr) | Gemini | Mapa de luz em ponto flutuante, valores até 4, composição por filtro em vez de `multiply` | — | ⬜ |
+| [L1](#l1--mapa-de-luz-em-hdr) | Gemini | Mapa de luz em ponto flutuante, valores até 4, composição por filtro em vez de `multiply` | — | ✅ |
 | [L2](#l2--mapa-de-direção-da-luz) | Gemini | Segunda textura com a direção da luz dominante, mesma oclusão | L1 | ⬜ |
 | [L3](#l3--altura-nos-desenhos-assados-objetos) | Gemini | Tela de altura irmã para objetos assados, a partir de `Parte.z` | — | ⬜ |
 | [L4](#l4--altura-de-terreno-e-cômodos-e-cena-de-altura) | Gemini | Altura de terreno e cômodos (luminância como reserva) e a cena de altura montada em paralelo | L3 | ⬜ |
@@ -69,7 +69,7 @@ As fichas L1–L4 e L9 podem andar em paralelo (L1 → L2 numa sessão; L3 → L
 
 ---
 
-## L1 — Mapa de luz em HDR  ⬜
+## L1 — Mapa de luz em HDR  ✅
 
 **Objetivo:** a luz pode passar de 1 (sobre-exposição quente), e a composição deixa de ser `multiply` de 8 bits.
 
@@ -101,6 +101,8 @@ As fichas L1–L4 e L9 podem andar em paralelo (L1 → L2 numa sessão; L3 → L
 **Testes:** em `tests/unit/luzes.test.ts`, teste puro de `formatoDaLuz` (WebGL1 → 8 bits com escala 4; WebGL2 → float com escala 1) e da codificação `codificarLuz(v, escala)` / `decodificarLuz`. Abra `public/exemplos/sala-da-guarda.atlas.json` no app (`npm run dev`) e confira que nada escureceu nem estourou.
 
 **Pronto quando:** o mapa de luz é float em WebGL2, a cena é composta por filtro e o resultado é igual ao de antes para intensidades ≤ 1.
+
+**Nota:** o teste estrutural em `tests/unit/presenca-camada.test.ts` foi atualizado para ler a ordem das camadas entre `mundoIluminado.addChild` e `raiz.addChild`. Conferido no Chromium (`sala-da-guarda`, `fase10-halos.test.ts` 3/3 e `intensity=1` vs `3` linear 10→29); em `fase4.test.ts` apenas os testes legados que ainda clicavam fora da parede (`janelas`, `relâmpago`, `janelas acesas`) ou esperavam `finish.preset === 'frio'` continuam com a regressão anterior à Frente L.
 
 **Commit:** `light map is now hdr and composited by a filter`
 
