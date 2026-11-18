@@ -26,7 +26,15 @@ export type PedidoDeBake =
   /** Um detalhe de telhado (chaminé, cruz, sino…) assado como objeto, centrado em (0, 0). */
   | { tipo: 'detalhe-de-telhado'; detalhe: DetalheDeTelhado; cobertura: string; seed: number; res: number; estilo: IdDoEstilo; pixel?: OpcoesDoPixel };
 
-export interface ResultadoDeBake { bitmap: ImageBitmap; origem: [number, number]; res: number; /** Terreno com água: textura de profundidade (R) e margem (G), `res` px/m. */ agua?: { bitmap: ImageBitmap; res: number } }
+export interface ResultadoDeBake {
+  bitmap: ImageBitmap;
+  /** Mapa de altura (cinza 0–1) alinhado ao `bitmap`, ou `null` quando não há (Pixel, parede, imagem, terreno/cômodo antes da L4). */
+  altura: ImageBitmap | null;
+  origem: [number, number];
+  res: number;
+  /** Terreno com água: textura de profundidade (R) e margem (G), `res` px/m. */
+  agua?: { bitmap: ImageBitmap; res: number };
+}
 
 /** O trabalho pesado: pinta numa tela e devolve um `ImageBitmap`. Roda no worker, ou na página se o navegador não tiver worker. */
 export async function executarBake(p: PedidoDeBake): Promise<ResultadoDeBake> {
@@ -47,8 +55,9 @@ export async function executarBake(p: PedidoDeBake): Promise<ResultadoDeBake> {
 
 async function paraBitmap(a: Assado): Promise<ResultadoDeBake> {
   const bitmap = 'transferToImageBitmap' in a.tela ? a.tela.transferToImageBitmap() : await createImageBitmap(a.tela);
+  const altura = a.altura ? ('transferToImageBitmap' in a.altura ? a.altura.transferToImageBitmap() : await createImageBitmap(a.altura)) : null;
   const agua = a.agua ? { bitmap: 'transferToImageBitmap' in a.agua.tela ? a.agua.tela.transferToImageBitmap() : await createImageBitmap(a.agua.tela), res: a.agua.res } : undefined;
-  return { bitmap, origem: a.origem, res: a.res, ...(agua ? { agua } : {}) };
+  return { bitmap, altura, origem: a.origem, res: a.res, ...(agua ? { agua } : {}) };
 }
 
 /** A descrição do gerador pesado, assada no estilo pedido. O import é dinâmico: os geradores só carregam quando um item gerado é pedido no Pixel. */
@@ -90,7 +99,7 @@ async function assarImagem(p: Extract<PedidoDeBake, { tipo: 'imagem' }>): Promis
     tela = criarTela(d.width, d.height); ctx = contextoDe(tela); ctx.putImageData(new ImageData(d.data as unknown as Uint8ClampedArray<ArrayBuffer>, d.width, d.height), 0, 0);
   }
   const bitmap = 'transferToImageBitmap' in tela ? tela.transferToImageBitmap() : await createImageBitmap(tela);
-  return { bitmap, origem: [-tela.width / p.res / 2, -tela.height / p.res / 2], res: p.res };
+  return { bitmap, altura: null, origem: [-tela.width / p.res / 2, -tela.height / p.res / 2], res: p.res };
 }
 
 /** A arte manual do Pixel: o PNG ampliado em `nearest` por um inteiro, centrado no objeto, sem mexer em nenhuma cor. */
@@ -98,7 +107,7 @@ async function assarImagemManual(p: Extract<PedidoDeBake, { tipo: 'imagem' }>, i
   const e = p.pixelManual!.escala, tela = criarTela(imagem.width * e, imagem.height * e), ctx = contextoDe(tela);
   ctx.imageSmoothingEnabled = false; ctx.drawImage(imagem, 0, 0, imagem.width * e, imagem.height * e); imagem.close();
   const bitmap = 'transferToImageBitmap' in tela ? tela.transferToImageBitmap() : await createImageBitmap(tela);
-  return { bitmap, origem: [-tela.width / p.res / 2, -tela.height / p.res / 2], res: p.res };
+  return { bitmap, altura: null, origem: [-tela.width / p.res / 2, -tela.height / p.res / 2], res: p.res };
 }
 
 function lerPixels(imagem: ImageBitmap): { width: number; height: number; data: Uint8ClampedArray } {

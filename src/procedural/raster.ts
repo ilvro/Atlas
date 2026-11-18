@@ -15,12 +15,16 @@ export function caminho(ctx: Contexto, p: Parte): void {
   else ctx.rect(p.x! - p.w! / 2, p.y! - p.h! / 2, p.w!, p.h!);
 }
 
+export function ordenarPartes(partes: readonly Parte[]): Parte[] {
+  return [...partes].sort((a, b) => a.z - b.z);
+}
+
 /**
  * Renderizador Ilustrado: cada parte com sombra suave pela altura, material pintado, sombreado e traço de nanquim.
  * O contexto já está em metros; `res` (px por metro) só serve às sombras, que o canvas mede em pixels.
  */
 export function desenharPartes(ctx: Contexto, partes: readonly Parte[], { res, seed = 1, sombras = true }: { res: number; seed?: number; sombras?: boolean }): void {
-  [...partes].sort((a, b) => a.z - b.z).forEach((p, i) => {
+  ordenarPartes(partes).forEach((p, i) => {
     const b = caixaDe(p), s = seed * 31 + i;
     const alfa = p.alfa ?? 1;
     if (p.desfoque) {

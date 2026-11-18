@@ -101,7 +101,7 @@ export interface Cena {
   destruir(): void;
 }
 
-interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; chave: string; chaveTextura: string | null }
+interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; texAltura: Texture | null; chave: string; chaveTextura: string | null }
 
 export function criarCena(op: OpcoesDaCena): Cena {
   const raiz = new Container(), mundoIluminado = new Container(), terrenoC = new Container(), veuTerrenoG = new Graphics(), submersosC = Object.assign(new Container(), { sortableChildren: true }), escarpasC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics(), fantasmaAndarG = new Graphics();
@@ -128,12 +128,26 @@ export function criarCena(op: OpcoesDaCena): Cena {
   let terreno: Entrada | null = null, terrenoTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Texturas compartilhadas por chave, com contagem de uso: quando ninguém mais usa, saem da GPU.
-  const texturas = new Map<string, { tex: Texture; usos: number }>();
-  const adquirir = (chave: string, r: ResultadoDeBake): Texture => {
-    let t = texturas.get(chave); if (!t) { t = { tex: Texture.from(r.bitmap), usos: 0 }; if (chave.startsWith('pixel|')) t.tex.source.scaleMode = 'nearest'; texturas.set(chave, t); }
-    t.usos++; return t.tex;
+  const texturas = new Map<string, { tex: Texture; texAltura: Texture | null; usos: number }>();
+  const adquirir = (chave: string, r: ResultadoDeBake): { tex: Texture; texAltura: Texture | null } => {
+    let t = texturas.get(chave);
+    if (!t) {
+      t = { tex: Texture.from(r.bitmap), texAltura: r.altura ? Texture.from(r.altura) : null, usos: 0 };
+      if (chave.startsWith('pixel|')) t.tex.source.scaleMode = 'nearest';
+      texturas.set(chave, t);
+    }
+    t.usos++;
+    return { tex: t.tex, texAltura: t.texAltura };
   };
-  const soltar = (chave: string | null) => { if (!chave) return; const t = texturas.get(chave); if (t && --t.usos <= 0) { t.tex.destroy(true); texturas.delete(chave); } };
+  const soltar = (chave: string | null) => {
+    if (!chave) return;
+    const t = texturas.get(chave);
+    if (t && --t.usos <= 0) {
+      t.tex.destroy(true);
+      t.texAltura?.destroy(true);
+      texturas.delete(chave);
+    }
+  };
 
   /** Pede a pintura e, quando chega, troca o desenho — a menos que a coisa já tenha mudado de novo. */
   function pintar(e: Entrada, chave: string, pedido: PedidoDeBake, aplicar: (s: Sprite, r: ResultadoDeBake) => void): void {
@@ -141,15 +155,16 @@ export function criarCena(op: OpcoesDaCena): Cena {
     e.chave = chave; pintandoAgora++;
     op.baker.pedir(chave, pedido).then(r => {
       if (destruida || e.chave !== chave || e.c.destroyed) return;
-      const tex = adquirir(chave, r), antiga = e.chaveTextura;
+      const { tex, texAltura } = adquirir(chave, r), antiga = e.chaveTextura;
       if (!e.sprite) { e.sprite = new Sprite(tex); e.c.addChild(e.sprite); } else e.sprite.texture = tex;
+      e.texAltura = texAltura;
       aplicar(e.sprite, r); e.chaveTextura = chave; e.placeholder.visible = false; soltar(antiga); if (mapa && !e.c.destroyed) { sombras.atualizar(mapa, objetos, pixelRes0(mapa)); tempo.atualizar(mapa, objetos); } op.aoPintar?.();
     }).catch(erro => console.warn('Atlas: falha ao pintar', erro)).finally(() => { pintandoAgora--; });
   }
 
   const pixelRes0 = (m: MapaAtlas): boolean => m.style.renderer === 'pixel';
-  const novaEntrada = (pai: Container): Entrada => { const c = new Container(), placeholder = new Graphics(); c.addChild(placeholder); pai.addChild(c); return { c, placeholder, sprite: null, chave: '', chaveTextura: null }; };
-  const removerEntrada = (e: Entrada) => { soltar(e.chaveTextura); e.c.destroy({ children: true }); };
+  const novaEntrada = (pai: Container): Entrada => { const c = new Container(), placeholder = new Graphics(); c.addChild(placeholder); pai.addChild(c); return { c, placeholder, sprite: null, texAltura: null, chave: '', chaveTextura: null }; };
+  const removerEntrada = (e: Entrada) => { soltar(e.chaveTextura); e.texAltura = null; e.c.destroy({ children: true }); };
 
   // ---------- Terreno ----------
   function sincronizarTerreno(m: MapaAtlas): void {
@@ -607,8 +622,8 @@ export function criarCena(op: OpcoesDaCena): Cena {
     },
     destruir() {
       destruida = true; if (terrenoTimer) clearTimeout(terrenoTimer);
-      for (const e of [...salas.values(), ...objetos.values(), ...(terreno ? [terreno] : [])]) soltar(e.chaveTextura);
-      for (const t of texturas.values()) t.tex.destroy(true); texturas.clear();
+      for (const e of [...salas.values(), ...objetos.values(), ...escarpas.values(), ...(terreno ? [terreno] : [])]) soltar(e.chaveTextura);
+      for (const t of texturas.values()) { t.tex.destroy(true); t.texAltura?.destroy(true); } texturas.clear();
       mundoIluminado.filters = []; filtroDeLuz.destroy();
       tempo.destruir(); sombras.destruir(); luz.destruir(); halos.destruir(); nevoa.destruir(); telhados.destruir(); neblina.destruir(); bordas.destruir(); particulas.destruir(); presenca.destruir(); agua.destruir(); cachoeiras.destruir(); raiz.destroy({ children: true });
     },
