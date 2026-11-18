@@ -53,7 +53,7 @@ Tudo isso fica **só no estilo Ilustrado**. O Pixel continua com o caminho atual
 | Ficha | Quem | O quê | Depende de | Estado |
 |---|---|---|---|---|
 | [L1](#l1--mapa-de-luz-em-hdr) | Gemini | Mapa de luz em ponto flutuante, valores até 4, composição por filtro em vez de `multiply` | — | ✅ |
-| [L2](#l2--mapa-de-direção-da-luz) | Gemini | Segunda textura com a direção da luz dominante, mesma oclusão | L1 | ⬜ |
+| [L2](#l2--mapa-de-direção-da-luz) | Gemini | Segunda textura com a direção da luz dominante, mesma oclusão | L1 | ✅ |
 | [L3](#l3--altura-nos-desenhos-assados-objetos) | Gemini | Tela de altura irmã para objetos assados, a partir de `Parte.z` | — | ⬜ |
 | [L4](#l4--altura-de-terreno-e-cômodos-e-cena-de-altura) | Gemini | Altura de terreno e cômodos (luminância como reserva) e a cena de altura montada em paralelo | L3 | ⬜ |
 | [L5](#l5--filtro-de-luz-com-relevo) | Gemini | Filtro em tela cheia: normal por Sobel, `N·L`, luz HDR; chave `relevo` | L1, L2, L4 | ⬜ |
@@ -108,7 +108,7 @@ As fichas L1–L4 e L9 podem andar em paralelo (L1 → L2 numa sessão; L3 → L
 
 ---
 
-## L2 — Mapa de direção da luz  ⬜
+## L2 — Mapa de direção da luz  ✅
 
 **Objetivo:** cada pixel sabe a direção (no plano) da luz dominante e se ela vem de cima ou rasante.
 
@@ -130,6 +130,8 @@ As fichas L1–L4 e L9 podem andar em paralelo (L1 → L2 numa sessão; L3 → L
 **Testes:** teste puro do pixel de `texturaDeDirecao` (centro com `B = 1` e `R = G = 0.5`; borda direita com `R < 0.5`). Conferência visual com `?luz=direcao` no `sala-da-guarda`: as cores giram em volta de cada tocha e somem atrás das paredes.
 
 **Pronto quando:** `direcaoRT` acompanha o mapa de luz (mesmo tamanho, oclusão e desfoque) e o modo de depuração mostra as setas certas.
+
+**Nota:** `pixelDeDirecao` codifica `((0.5 − 0.5·dx)·f, (0.5 − 0.5·dy)·f, f, f)` (com `(0.5 − 0.5·dx)` multiplicado por `f`) para que `d.rg − 0.5·d.b` recupere exatamente a soma vetorial pesada e dê zero fora do círculo/atrás das paredes; `texturaDeDirecao` usa `BufferImageSource` (`alphaMode: 'no-premultiply-alpha'`) em `rgba16float` (via `floatParaHalf`) ou `rgba8unorm`. Em `mapa-de-luz.ts`, cada luz tem seu `meshDir` e máscara própria em `raizDirecao`, reutilizando `desfoqueRT` para o blur separável até `direcaoRT`. Conferido no Chromium em `sala-da-guarda` com `?luz=direcao` (`test-results/l2-direcao.png`) e `tests/e2e/fase10-halos.test.ts` (3/3).
 
 **Commit:** `light map also tracks the light direction`
 

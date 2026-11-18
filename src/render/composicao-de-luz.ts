@@ -22,15 +22,38 @@ void main(void) {
   vLuzCoord = (uLuzMatriz * vec3(tc, 1.0)).xy;
 }`;
 
+/** Lê o modo de depuração da luz na query string (`?luz=direcao`). */
+export function modoDeDepuracaoDaLuz(search?: string): 'direcao' | null {
+  const s = search ?? (typeof location !== 'undefined' ? location.search : '');
+  if (!s) return null;
+  try {
+    return new URLSearchParams(s).get('luz') === 'direcao' ? 'direcao' : null;
+  } catch {
+    return null;
+  }
+}
+
 // Sem arrays constantes: o Pixi pode compilar para GLSL ES 1.00. Os uniformes compartilhados com o vértice são highp.
 const fragment = `in vec2 vTextureCoord;
 in vec2 vLuzCoord;
 out vec4 finalColor;
 uniform sampler2D uTexture;
 uniform sampler2D uLuz;
+uniform sampler2D uDirecao;
 uniform float uEscala;
+uniform float uModoDirecao;
 void main() {
   vec4 c = texture(uTexture, vTextureCoord);
+  if (uModoDirecao > 0.5) {
+    vec4 d = texture(uDirecao, vLuzCoord);
+    vec2 xy = d.rg - 0.5 * d.b;
+    float m = length(xy);
+    vec2 dir = m > 1e-4 ? xy / m : vec2(0.0);
+    float peso = smoothstep(0.001, 0.02, d.b * uEscala);
+    vec3 vis = mix(vec3(0.0), vec3(dir * 0.5 + 0.5, 0.5), peso);
+    finalColor = vec4(vis * c.a, c.a);
+    return;
+  }
   vec3 base = c.a > 0.0 ? c.rgb / c.a : vec3(0.0);
   vec3 luz = texture(uLuz, vLuzCoord).rgb * uEscala;
   vec3 cor = clamp(base * luz, 0.0, 1.0);
@@ -46,6 +69,7 @@ class FiltroDeComposicaoDeLuz extends Filter {
     const grupo = new UniformGroup({
       uLuzMatriz: { value: new Matrix(), type: 'mat3x3<f32>' },
       uEscala: { value: 1, type: 'f32' },
+      uModoDirecao: { value: 0, type: 'f32' },
     });
     const glProgram = GlProgram.from({
       vertex,
@@ -60,6 +84,7 @@ class FiltroDeComposicaoDeLuz extends Filter {
       resources: {
         composicao: grupo,
         uLuz: Texture.WHITE.source,
+        uDirecao: Texture.EMPTY.source,
       },
     });
     this.luz = luz;
@@ -71,7 +96,9 @@ class FiltroDeComposicaoDeLuz extends Filter {
     const sp = this.luz.sprite;
     const tex = sp.texture;
     const pronta = Boolean(tex && !tex.destroyed && tex.source && !tex.source.destroyed && tex !== Texture.EMPTY);
-    const uniforms = this.grupo.uniforms as { uLuzMatriz: Matrix; uEscala: number };
+    const dir = this.luz.direcao;
+    const dirPronta = Boolean(dir && !dir.destroyed && dir.source && !dir.source.destroyed && dir !== Texture.EMPTY);
+    const uniforms = this.grupo.uniforms as { uLuzMatriz: Matrix; uEscala: number; uModoDirecao: number };
     if (pronta) {
       this.textureMatrix.texture = tex;
       filterManager
@@ -84,6 +111,8 @@ class FiltroDeComposicaoDeLuz extends Filter {
       uniforms.uEscala = 1;
       this.resources.uLuz = Texture.WHITE.source;
     }
+    this.resources.uDirecao = dirPronta ? dir.source : Texture.EMPTY.source;
+    uniforms.uModoDirecao = modoDeDepuracaoDaLuz() === 'direcao' ? 1 : 0;
     filterManager.applyFilter(this, input, output, clearMode);
   }
 

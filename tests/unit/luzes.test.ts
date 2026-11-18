@@ -9,7 +9,9 @@ import type { Luz, MapaAtlas } from '../../src/domain/mapa.ts';
 import { GENEROS, TIPOS_DE_COMODO, presetDeLuz } from '../../src/domain/presets.ts';
 import { ACERVO } from '../../src/procedural/acervo.ts';
 import { RendererType } from 'pixi.js';
-import { ESCALA_HDR, codificarLuz, decodificarLuz, formatoDaLuz, luzAfetadaPorTokens, nivelAtivoDe, poligonoDaLuz, sincronizarOclusao } from '../../src/render/mapa-de-luz.ts';
+import { ALTURA_DA_LUZ, ESCALA_HDR, codificarLuz, decodificarLuz, formatoDaLuz, luzAfetadaPorTokens, nivelAtivoDe, poligonoDaLuz, sincronizarOclusao } from '../../src/render/mapa-de-luz.ts';
+import { modoDeDepuracaoDaLuz } from '../../src/render/composicao-de-luz.ts';
+import { TAMANHO_TEXTURA_DIRECAO, floatParaHalf, pixelDeDirecao, texturaDeDirecao } from '../../src/render/luzes.ts';
 import { mapaCom, sala } from './apoio-casa.ts';
 
 const contador = () => { let n = 0; return (p: string) => `${p}${++n}`; };
@@ -123,4 +125,71 @@ test('codificarLuz e decodificarLuz preservam intensidades <= 1 e HDR > 1 até E
   assert.equal(decodificarLuz(codificarLuz(0.6, ESCALA_HDR), ESCALA_HDR), 0.6);
   assert.equal(codificarLuz(-0.5, ESCALA_HDR), 0);
   assert.equal(codificarLuz(10, ESCALA_HDR), 1);
+});
+
+test('pixelDeDirecao e texturaDeDirecao codificam o vetor do pixel para a luz em 8 bits e float', () => {
+  assert.equal(ALTURA_DA_LUZ, 1.6);
+
+  const centro = pixelDeDirecao(128, 128);
+  assert.equal(centro[0], 0.5);
+  assert.equal(centro[1], 0.5);
+  assert.equal(centro[2], 1);
+
+  const direita = pixelDeDirecao(192, 128);
+  assert.ok(direita[0] < 0.5, `borda direita R=${direita[0]} < 0.5`);
+  assert.ok(direita[2] > 0);
+  assert.ok(direita[0] - 0.5 * direita[2] < 0, 'vetor aponta para a esquerda (centro)');
+  assert.ok(Math.abs(direita[1] - 0.5 * direita[2]) < 1e-12, 'sem componente vertical na linha central');
+
+  const direitaExtrema = pixelDeDirecao(255, 128);
+  assert.ok(direitaExtrema[0] < 0.5 && direitaExtrema[2] > 0);
+
+  const esquerda = pixelDeDirecao(64, 128);
+  assert.ok(esquerda[0] - 0.5 * esquerda[2] > 0, 'vetor aponta para a direita (centro)');
+
+  const cima = pixelDeDirecao(128, 64);
+  const baixo = pixelDeDirecao(128, 192);
+  assert.ok(cima[1] - 0.5 * cima[2] > 0, 'acima aponta para baixo');
+  assert.ok(baixo[1] - 0.5 * baixo[2] < 0, 'abaixo aponta para cima');
+
+  const fora = pixelDeDirecao(0, 0);
+  assert.deepEqual(fora, [0, 0, 0, 0]);
+
+  // Soma vetorial de duas luzes: d.rg - 0.5 * d.b recupera exatamente a soma ponderada por intensidade e queda
+  const k1 = 2.0, k2 = 0.75;
+  const p1 = pixelDeDirecao(192, 128); // dx = +0.5
+  const p2 = pixelDeDirecao(128, 96);  // dy = -0.25
+  const sumR = k1 * p1[0] + k2 * p2[0];
+  const sumG = k1 * p1[1] + k2 * p2[1];
+  const sumB = k1 * p1[2] + k2 * p2[2];
+  assert.ok(Math.abs((sumR - 0.5 * sumB) / sumB - (-0.5 * (k1 * p1[2] * 0.5) / sumB)) < 1e-9);
+  assert.ok(Math.abs((sumG - 0.5 * sumB) / sumB - (-0.5 * (k2 * p2[2] * -0.25) / sumB)) < 1e-9);
+
+  // Texturas reais (BufferImageSource 8 bits e float16)
+  const tex8 = texturaDeDirecao(false);
+  assert.equal(tex8.width, TAMANHO_TEXTURA_DIRECAO);
+  assert.equal(tex8.height, TAMANHO_TEXTURA_DIRECAO);
+  assert.equal(tex8.source.format, 'rgba8unorm');
+  assert.equal(tex8.source.alphaMode, 'no-premultiply-alpha');
+  const buf8 = tex8.source.resource as Uint8Array;
+  const idxCentro = (128 * TAMANHO_TEXTURA_DIRECAO + 128) * 4;
+  assert.equal(buf8[idxCentro + 2], 255);
+  assert.ok(Math.abs(buf8[idxCentro]! - 128) <= 1);
+  assert.ok(Math.abs(buf8[idxCentro + 1]! - 128) <= 1);
+  const idxDir = (128 * TAMANHO_TEXTURA_DIRECAO + 192) * 4;
+  assert.ok(buf8[idxDir]! < 128);
+
+  const texF = texturaDeDirecao(true);
+  assert.equal(texF.source.format, 'rgba16float');
+  assert.equal(texF.source.alphaMode, 'no-premultiply-alpha');
+  const bufF = texF.source.resource as Uint16Array;
+  assert.equal(bufF[idxCentro], floatParaHalf(0.5));
+  assert.equal(bufF[idxCentro + 1], floatParaHalf(0.5));
+  assert.equal(bufF[idxCentro + 2], floatParaHalf(1));
+  assert.ok(bufF[idxDir]! < floatParaHalf(0.5));
+
+  assert.equal(modoDeDepuracaoDaLuz('?luz=direcao'), 'direcao');
+  assert.equal(modoDeDepuracaoDaLuz('?foo=1&luz=direcao'), 'direcao');
+  assert.equal(modoDeDepuracaoDaLuz('?luz=outra'), null);
+  assert.equal(modoDeDepuracaoDaLuz(''), null);
 });
