@@ -1,6 +1,6 @@
 import { ErroDeValidacao } from './esquema.ts';
 import { arestasDeParede, centroDaAbertura, comodoEm, indiceDeCelulas, normalParaDentro, pontoNaParede, salasDaAbertura } from './geometria.ts';
-import type { Acabamento, Clima, Luz, MapaAtlas } from './mapa.ts';
+import { RELEVO_PADRAO, type Acabamento, type Clima, type Luz, type MapaAtlas } from './mapa.ts';
 
 /** O céu de um horário: de onde vem a luz (sol ou lua), o ambiente sugerido e se é noite. Tudo derivado, nunca gravado. */
 export interface Ceu { sun: NonNullable<Clima['sun']>; ambient: Clima['ambient']; noite: boolean }
@@ -138,12 +138,14 @@ export function misturar(a: EstadoDeClima, b: EstadoDeClima, t: number): Mistura
     : { angle: lerp(ca.sun.angle, cb.sun.angle, t), color: corMisturada(ca.sun.color, cb.sun.color, t), intensity: lerp(ca.sun.intensity, cb.sun.intensity, t) };
   const weather = Object.fromEntries((Object.keys(cb.weather) as (keyof Clima['weather'])[]).map(k => [k, lerp(ca.weather[k], cb.weather[k], t)])) as unknown as Clima['weather'];
   const interiorLight = lerp(ca.interiorLight ?? LUZ_INTERIOR_PADRAO, cb.interiorLight ?? LUZ_INTERIOR_PADRAO, t);
+  const relief = fa.relief === undefined && fb.relief === undefined ? undefined : lerp(fa.relief ?? RELEVO_PADRAO, fb.relief ?? RELEVO_PADRAO, t);
   return {
     climate: { preset: cb.preset, ambient: ambienteDaCor(mistura(efetiva(ca.ambient), efetiva(cb.ambient), t)), sun, time: cb.time, weather, rede: lerp(ca.gridPower ? 1 : 0, cb.gridPower ? 1 : 0, t), interiorLight },
     finish: {
       preset: fb.preset, texture: lerp(fa.texture, fb.texture, t), vignette: lerp(fa.vignette, fb.vignette, t), saturation: lerp(fa.saturation, fb.saturation, t), grain: lerp(fa.grain, fb.grain, t),
       tint: corMisturada(fa.tint, fb.tint, t), grade: { lift: lerp(fa.grade.lift, fb.grade.lift, t), gamma: lerp(fa.grade.gamma, fb.grade.gamma, t), gain: lerp(fa.grade.gain, fb.grade.gain, t) },
       edges: { kind: fb.edges.kind, amount: lerp(fa.edges.amount, fb.edges.amount, t) }, glow: lerp(fa.glow, fb.glow, t),
+      ...(relief !== undefined ? { relief } : {}),
     },
   };
 }

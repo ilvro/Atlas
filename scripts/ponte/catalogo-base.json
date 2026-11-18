@@ -332,6 +332,11 @@
               "minimum": 0,
               "maximum": 1
             },
+            "relief": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
             "saturation": {
               "type": "number",
               "minimum": 0,

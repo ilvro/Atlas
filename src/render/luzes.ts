@@ -1,7 +1,11 @@
 import { BufferImageSource, Texture } from 'pixi.js';
 
-/** Altura padrão (em metros) de uma luz de parede/chão no cálculo de relevo; feixes (`rays`) usam 6 m. */
+/** Altura padrão (em metros) de uma luz de parede/chão no cálculo de relevo; feixes (`rays`) usam `ALTURA_DO_FEIXE`. */
 export const ALTURA_DA_LUZ = 1.6;
+/** Altura (em metros) de uma luz com `rays: true` (feixe vindo do alto). */
+export const ALTURA_DO_FEIXE = 6;
+/** Teto usado para normalizar a altura da luz no canal alfa do mapa de direção (`<= 1`). */
+export const ALTURA_MAXIMA_DA_LUZ = 8;
 /** Resolução da textura radial de direção da luz. */
 export const TAMANHO_TEXTURA_DIRECAO = 256;
 

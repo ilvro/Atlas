@@ -640,7 +640,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           luzInterna: { type: 'number', minimum: 0.05, maximum: 1 },
         } },
         acabamento: { type: 'object', properties: {
-          preset: { type: 'string', enum: PRESETS_DE_ACABAMENTO.map(a => a.id) }, texture: unidadeEsq, vignette: unidadeEsq, grain: unidadeEsq, glow: unidadeEsq, saturation: { type: 'number', minimum: 0, maximum: 2 }, tint: { type: 'string' },
+          preset: { type: 'string', enum: PRESETS_DE_ACABAMENTO.map(a => a.id) }, texture: unidadeEsq, vignette: unidadeEsq, grain: unidadeEsq, glow: unidadeEsq, relief: unidadeEsq, saturation: { type: 'number', minimum: 0, maximum: 2 }, tint: { type: 'string' },
           grade: { type: 'object', properties: { lift: { type: 'number', minimum: -1, maximum: 1 }, gamma: { type: 'number', minimum: 0.1, maximum: 4 }, gain: { type: 'number', minimum: 0, maximum: 4 } } },
           edges: { type: 'object', properties: { kind: { type: 'string', enum: ['none', 'clouds', 'dark', 'fog'] }, amount: unidadeEsq }, required: ['kind', 'amount'] },
         } },
@@ -1051,7 +1051,7 @@ function comandosDeAmbiente(mapa: MapaAtlas, args: Args): Comando[] {
       Object.assign(patch, structuredClone(presetDeAcabamento(preset)!.valores));
     }
     let ajustes = 0;
-    for (const k of ['texture', 'vignette', 'grain', 'glow'] as const) { const v = numeroOpc(a[k], `acabamento.${k}`, 0, 1); if (v !== undefined) { patch[k] = v; ajustes++; } }
+    for (const k of ['texture', 'vignette', 'grain', 'glow', 'relief'] as const) { const v = numeroOpc(a[k], `acabamento.${k}`, 0, 1); if (v !== undefined) { patch[k] = v; ajustes++; } }
     const sat = numeroOpc(a.saturation, 'acabamento.saturation', 0, 2); if (sat !== undefined) { patch.saturation = sat; ajustes++; }
     if (a.tint !== undefined) { patch.tint = cor(a.tint, 'acabamento.tint'); ajustes++; }
     if (a.grade !== undefined) {
@@ -1066,7 +1066,7 @@ function comandosDeAmbiente(mapa: MapaAtlas, args: Args): Comando[] {
       if (!['none', 'clouds', 'dark', 'fog'].includes(String(ed.kind))) throw new Error('"acabamento.edges.kind" deve ser none, clouds, dark ou fog.');
       patch.edges = { kind: ed.kind, amount: numero(ed.amount, 'acabamento.edges.amount', 0, 1) }; ajustes++;
     }
-    if (!preset && !ajustes) throw new Error('"acabamento" está vazio: passe preset e/ou ajustes (texture, vignette, grain, glow, saturation, tint, grade, edges).');
+    if (!preset && !ajustes) throw new Error('"acabamento" está vazio: passe preset e/ou ajustes (texture, vignette, grain, glow, relief, saturation, tint, grade, edges).');
     patch.preset = ajustes ? 'personalizado' : preset;
     comandos.push({ tipo: 'acabamento.atualizar', patch: patch as never });
   }

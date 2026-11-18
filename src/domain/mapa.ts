@@ -61,9 +61,12 @@ export interface Clima {
   /** Fator da luz ambiente em cômodos cobertos (`0.05` a `1`; ausente = `0.55`). */
   interiorLight?: number;
 }
+/** Relevo padrão da luz sobre superfícies quando `finish.relief` está ausente. */
+export const RELEVO_PADRAO = 0.7;
 export interface Acabamento { preset: string; texture: number; vignette: number; saturation: number; grain: number; /** Cor que tinge a cena; #ffffff não tinge. */ tint: string; grade: { lift: number; gamma: number; gain: number };
   /** Bordas do mapa: nuvens, escuro ou neblina (`amount` de 0 a 1). */ edges: { kind: 'none' | 'clouds' | 'dark' | 'fog'; amount: number };
-  /** Halo das luzes, de 0 a 1. */ glow: number }
+  /** Halo das luzes, de 0 a 1. */ glow: number;
+  /** Relevo da luz sobre superfícies (0 a 1; ausente = `RELEVO_PADRAO`). */ relief?: number }
 /** Um clima do usuário: o clima e o acabamento de um momento, guardados com nome para voltar a eles. */
 export interface ClimaSalvo { id: string; name: string; climate: Omit<Clima, 'preset'>; finish: Omit<Acabamento, 'preset'> }
 export interface Memoria { sketch: boolean; paper: string; ink: string }

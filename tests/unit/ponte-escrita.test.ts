@@ -269,6 +269,12 @@ test('atlas_ambiente: erros legíveis para valores fora da faixa e ids desconhec
   assert.equal(store.documento.climate.interiorLight, 0.22);
   await assert.rejects(chamar('atlas_ambiente', { clima: { luzInterna: 0.02 } }), /luzInterna.*entre 0\.05 e 1/);
   await assert.rejects(chamar('atlas_ambiente', { clima: { luzInterna: 1.5 } }), /luzInterna.*entre 0\.05 e 1/);
+  await chamar('atlas_ambiente', { acabamento: { relief: 0.35 } });
+  assert.equal(store.documento.finish.relief, 0.35);
+  await chamar('atlas_ambiente', { acabamento: { relief: 0 } });
+  assert.equal(store.documento.finish.relief, 0);
+  await assert.rejects(chamar('atlas_ambiente', { acabamento: { relief: -0.1 } }), /relief.*entre 0 e 1/);
+  await assert.rejects(chamar('atlas_ambiente', { acabamento: { relief: 1.5 } }), /relief.*entre 0 e 1/);
 });
 
 test('atlas_regioes cria regiões; atlas_presenca pinta e ajusta a intensidade', async () => {

@@ -1,6 +1,26 @@
 import { Filter, GlProgram, Matrix, Sprite, Texture, TextureMatrix, UniformGroup, type Container, type FilterSystem, type RenderSurface } from 'pixi.js';
+import { RELEVO_PADRAO } from '../domain/mapa.ts';
+import { ALTURA_MAXIMA } from '../procedural/altura.ts';
 import type { CenaDeAltura } from './cena-de-altura.ts';
+import { ALTURA_DA_LUZ, ALTURA_MAXIMA_DA_LUZ } from './luzes.ts';
 import type { MapaDeLuz } from './mapa-de-luz.ts';
+
+export const FORCA_RELEVO_PADRAO = 3;
+
+export type Vetor3 = readonly [number, number, number];
+
+/**
+ * Espelho puro do realce direcional usado pelo filtro de luz com relevo:
+ * `clamp(dot(N, L), 0, 1) / max(L.z, 0.25)` com `N` e `L` normalizados.
+ */
+export function realceDoRelevo(N: Vetor3, L: Vetor3): number {
+  const nLen = Math.hypot(N[0], N[1], N[2]) || 1;
+  const lLen = Math.hypot(L[0], L[1], L[2]) || 1;
+  const nx = N[0] / nLen, ny = N[1] / nLen, nz = N[2] / nLen;
+  const lx = L[0] / lLen, ly = L[1] / lLen, lz = L[2] / lLen;
+  const lambert = Math.min(1, Math.max(0, nx * lx + ny * ly + nz * lz));
+  return lambert / Math.max(lz, 0.25);
+}
 
 const vertex = `in vec2 aPosition;
 out vec2 vTextureCoord;
@@ -50,6 +70,20 @@ uniform sampler2D uAltura;
 uniform float uEscala;
 uniform float uModoDirecao;
 uniform float uModoAltura;
+uniform vec3 uAmbiente;
+uniform vec2 uAlturaTexel;
+uniform float uPassoEmMetros;
+uniform float uAlturaMaxima;
+uniform float uForca;
+uniform float uRelevo;
+uniform float uAlturaDaLuz;
+uniform float uAlcance;
+uniform float uAlturaMaxDaLuz;
+
+float amostraAltura(vec2 offset) {
+  return texture(uAltura, vAlturaCoord + offset * uAlturaTexel).r * uAlturaMaxima;
+}
+
 void main() {
   vec4 c = texture(uTexture, vTextureCoord);
   if (uModoAltura > 0.5) {
@@ -69,11 +103,43 @@ void main() {
   }
   vec3 base = c.a > 0.0 ? c.rgb / c.a : vec3(0.0);
   vec3 luz = texture(uLuz, vLuzCoord).rgb * uEscala;
-  vec3 cor = clamp(base * luz, 0.0, 1.0);
+  if (uRelevo <= 0.0001 || uPassoEmMetros <= 0.0) {
+    vec3 cor = clamp(base * luz, 0.0, 1.0);
+    finalColor = vec4(cor * c.a, c.a);
+    return;
+  }
+
+  // Normal por Sobel 3x3 em metros (Y cresce para baixo no mundo/tela).
+  float hTL = amostraAltura(vec2(-1.0, -1.0));
+  float hT  = amostraAltura(vec2( 0.0, -1.0));
+  float hTR = amostraAltura(vec2( 1.0, -1.0));
+  float hL  = amostraAltura(vec2(-1.0,  0.0));
+  float hR  = amostraAltura(vec2( 1.0,  0.0));
+  float hBL = amostraAltura(vec2(-1.0,  1.0));
+  float hB  = amostraAltura(vec2( 0.0,  1.0));
+  float hBR = amostraAltura(vec2( 1.0,  1.0));
+  float gx = (hTR + 2.0 * hR + hBR) - (hTL + 2.0 * hL + hBL);
+  float gy = (hBL + 2.0 * hB + hBR) - (hTL + 2.0 * hT + hTR);
+  vec3 N = normalize(vec3(-gx * uForca, -gy * uForca, 8.0 * uPassoEmMetros));
+
+  vec4 d = texture(uDirecao, vLuzCoord);
+  float peso = smoothstep(0.001, 0.02, d.b * uEscala);
+  vec2 dirXY = d.b > 1e-4 ? clamp(2.0 * (d.rg - 0.5 * d.b) / d.b, vec2(-1.0), vec2(1.0)) * peso : vec2(0.0);
+  float alturaDaLuz = d.a > 1e-5 && d.b > 1e-4 ? clamp((d.a / d.b) * uAlturaMaxDaLuz, 0.5, uAlturaMaxDaLuz) : uAlturaDaLuz;
+  vec3 L = normalize(vec3(dirXY, alturaDaLuz / max(uAlcance, 0.5)));
+
+  float lambert = clamp(dot(N, L), 0.0, 1.0);
+  float plano = L.z;
+  float realce = lambert / max(plano, 0.25);
+
+  vec3 direta = max(luz - uAmbiente, vec3(0.0));
+  vec3 ambBase = luz - direta;
+  vec3 ambiente = ambBase * mix(1.0, 0.75 + 0.25 * N.z, uRelevo);
+  vec3 cor = clamp(base * (ambiente + direta * mix(1.0, realce, uRelevo * peso)), 0.0, 1.0);
   finalColor = vec4(cor * c.a, c.a);
 }`;
 
-class FiltroDeComposicaoDeLuz extends Filter {
+export class FiltroDeComposicaoDeLuz extends Filter {
   private readonly luz: MapaDeLuz;
   private readonly altura: CenaDeAltura | undefined;
   private readonly mundoIluminado: Container | undefined;
@@ -81,6 +147,7 @@ class FiltroDeComposicaoDeLuz extends Filter {
   private readonly textureMatrix: TextureMatrix;
   private readonly alturaTextureMatrix: TextureMatrix;
   private readonly alturaSprite: Sprite;
+  private relevo = RELEVO_PADRAO;
 
   constructor(luz: MapaDeLuz, altura?: CenaDeAltura, mundoIluminado?: Container) {
     const grupo = new UniformGroup({
@@ -89,6 +156,15 @@ class FiltroDeComposicaoDeLuz extends Filter {
       uEscala: { value: 1, type: 'f32' },
       uModoDirecao: { value: 0, type: 'f32' },
       uModoAltura: { value: 0, type: 'f32' },
+      uAmbiente: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
+      uAlturaTexel: { value: new Float32Array([0, 0]), type: 'vec2<f32>' },
+      uPassoEmMetros: { value: 0, type: 'f32' },
+      uAlturaMaxima: { value: ALTURA_MAXIMA, type: 'f32' },
+      uForca: { value: FORCA_RELEVO_PADRAO, type: 'f32' },
+      uRelevo: { value: RELEVO_PADRAO, type: 'f32' },
+      uAlturaDaLuz: { value: ALTURA_DA_LUZ, type: 'f32' },
+      uAlcance: { value: 6, type: 'f32' },
+      uAlturaMaxDaLuz: { value: ALTURA_MAXIMA_DA_LUZ, type: 'f32' },
     });
     const glProgram = GlProgram.from({
       vertex,
@@ -116,6 +192,10 @@ class FiltroDeComposicaoDeLuz extends Filter {
     this.alturaSprite = new Sprite(Texture.EMPTY);
   }
 
+  definirRelevo(v: number): void {
+    this.relevo = Math.min(1, Math.max(0, Number.isFinite(v) ? v : RELEVO_PADRAO));
+  }
+
   override apply(filterManager: FilterSystem, input: Texture, output: RenderSurface, clearMode: boolean): void {
     const sp = this.luz.sprite;
     const tex = sp.texture;
@@ -138,6 +218,15 @@ class FiltroDeComposicaoDeLuz extends Filter {
       uEscala: number;
       uModoDirecao: number;
       uModoAltura: number;
+      uAmbiente: Float32Array;
+      uAlturaTexel: Float32Array;
+      uPassoEmMetros: number;
+      uAlturaMaxima: number;
+      uForca: number;
+      uRelevo: number;
+      uAlturaDaLuz: number;
+      uAlcance: number;
+      uAlturaMaxDaLuz: number;
     };
     if (pronta) {
       this.textureMatrix.texture = tex;
@@ -160,10 +249,26 @@ class FiltroDeComposicaoDeLuz extends Filter {
         .calculateSpriteMatrix(uniforms.uAlturaMatriz, this.alturaSprite)
         .prepend(this.alturaTextureMatrix.mapCoord);
       this.resources.uAltura = texAlt.source;
+      uniforms.uAlturaTexel[0] = 1 / Math.max(1, texAlt.source.pixelWidth);
+      uniforms.uAlturaTexel[1] = 1 / Math.max(1, texAlt.source.pixelHeight);
+      uniforms.uPassoEmMetros = this.altura.metrosPorTexel;
     } else {
       uniforms.uAlturaMatriz.identity();
       this.resources.uAltura = Texture.EMPTY.source;
+      uniforms.uAlturaTexel[0] = 0;
+      uniforms.uAlturaTexel[1] = 0;
+      uniforms.uPassoEmMetros = 0;
     }
+    const amb = this.luz.ambiente;
+    uniforms.uAmbiente[0] = amb[0];
+    uniforms.uAmbiente[1] = amb[1];
+    uniforms.uAmbiente[2] = amb[2];
+    uniforms.uAlturaMaxima = ALTURA_MAXIMA;
+    uniforms.uForca = FORCA_RELEVO_PADRAO;
+    uniforms.uAlturaDaLuz = ALTURA_DA_LUZ;
+    uniforms.uAlcance = this.luz.alcance;
+    uniforms.uAlturaMaxDaLuz = ALTURA_MAXIMA_DA_LUZ;
+    uniforms.uRelevo = altPronta && dirPronta ? this.relevo : 0;
     const modo = modoDeDepuracaoDaLuz();
     uniforms.uModoDirecao = modo === 'direcao' ? 1 : 0;
     uniforms.uModoAltura = modo === 'altura' ? 1 : 0;
@@ -178,7 +283,7 @@ class FiltroDeComposicaoDeLuz extends Filter {
   }
 }
 
-/** Filtro em tela cheia (Ilustrado) que compõe a cena com o mapa de luz em HDR (ou 8 bits escalado). */
-export function criarFiltroDeComposicaoDeLuz(luz: MapaDeLuz, altura?: CenaDeAltura, mundoIluminado?: Container): Filter {
+/** Filtro em tela cheia (Ilustrado) que compõe a cena com o mapa de luz em HDR (ou 8 bits escalado) e realce por relevo. */
+export function criarFiltroDeComposicaoDeLuz(luz: MapaDeLuz, altura?: CenaDeAltura, mundoIluminado?: Container): FiltroDeComposicaoDeLuz {
   return new FiltroDeComposicaoDeLuz(luz, altura, mundoIluminado);
 }

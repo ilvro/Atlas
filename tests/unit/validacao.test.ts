@@ -202,3 +202,13 @@ test('validação de contorno livre em cômodo: aceita polígono simples e recus
     };
   })), 'rooms.r1.outline');
 });
+
+test('validação de finish.relief: opcional, aceita 0..1 e recusa fora da faixa', () => {
+  assert.equal(caminhoDoErro(mexer(x => { delete x.finish.relief; })), null);
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.relief = 0; })), null);
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.relief = 0.7; })), null);
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.relief = 1; })), null);
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.relief = -0.1; })), 'finish.relief');
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.relief = 1.1; })), 'finish.relief');
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.relief = 'alto'; })), 'finish.relief');
+});
