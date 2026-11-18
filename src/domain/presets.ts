@@ -68,11 +68,13 @@ export const PRESETS_DE_ACABAMENTO: readonly PresetDeAcabamento[] = [
   { id: 'nenhum', nome: 'Nenhum', valores: { texture: 0, vignette: 0, saturation: 1, grain: 0, tint: '#ffffff', grade: grade(), ...SEM_BORDA } },
   { id: 'neutro', nome: 'Neutro', valores: { texture: 0.2, vignette: 0.28, saturation: 1, grain: 0.03, tint: '#ffffff', grade: grade(), ...SEM_BORDA } },
   { id: 'sujo', nome: 'Sujo e gasto', valores: { texture: 0.55, vignette: 0.5, saturation: 0.78, grain: 0.1, tint: '#f1e6d4', grade: grade(0, 1.05, 1), ...SEM_BORDA } },
-  { id: 'sepia', nome: 'Sépia de investigação', valores: { texture: 0.35, vignette: 0.45, saturation: 0.45, grain: 0.07, tint: '#ffe2b8', grade: grade(), ...SEM_BORDA } },
+  { id: 'sepia', nome: 'Sépia de investigação', valores: { texture: 0.35, vignette: 0.45, saturation: 0.6, grain: 0.07, tint: '#ffe2b8', grade: grade(), ...SEM_BORDA, split: { shadows: '#4a3a2a', highlights: '#e8d0a0', balance: 0, amount: 0.5 } } },
   { id: 'frio', nome: 'Frio e pálido', valores: { texture: 0.25, vignette: 0.4, saturation: 0.7, grain: 0.05, tint: '#cfe0ff', grade: grade(0, 1, 1), ...SEM_BORDA } },
   { id: 'quente', nome: 'Quente e vivo', valores: { texture: 0.15, vignette: 0.25, saturation: 1.25, grain: 0.02, tint: '#fff0d8', grade: grade(), ...SEM_BORDA } },
   { id: 'inverno-nevado', nome: 'Inverno nevado', valores: { texture: 0.2, vignette: 0.38, saturation: 0.72, grain: 0.03, tint: '#e4efff', grade: grade(0.01, 0.98, 1.03), edges: { kind: 'clouds', amount: 0.35 }, glow: 0.38 } },
   { id: 'sombrio-cinematografico', nome: 'Sombrio cinematográfico', valores: { texture: 0.3, vignette: 0.55, saturation: 0.75, grain: 0.06, tint: '#d4e2ff', grade: grade(-0.01, 1.06, 1.02), edges: { kind: 'dark', amount: 0.35 }, glow: 0.48 } },
+  { id: 'masmorra', nome: 'Masmorra', valores: { texture: 0.3, vignette: 0.48, saturation: 0.92, grain: 0.06, tint: '#ffffff', grade: grade(0, 1.04, 1), edges: { kind: 'dark', amount: 0.3 }, glow: 0.6, split: { shadows: '#2a4a5a', highlights: '#ffb060', balance: 0, amount: 0.35 } } },
+  { id: 'dia-dourado', nome: 'Dia dourado', valores: { texture: 0.15, vignette: 0.22, saturation: 1.08, grain: 0.02, tint: '#ffffff', grade: grade(), ...SEM_BORDA, split: { shadows: '#3a4a6a', highlights: '#ffe0a0', balance: 0, amount: 0.25 } } },
 ];
 export const presetDeAcabamento = (id: string): PresetDeAcabamento | undefined => PRESETS_DE_ACABAMENTO.find(p => p.id === id);
 

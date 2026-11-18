@@ -59,7 +59,7 @@ Tudo isso fica **só no estilo Ilustrado**. O Pixel continua com o caminho atual
 | [L5](#l5--filtro-de-luz-com-relevo) | Gemini | Filtro em tela cheia: normal por Sobel, `N·L`, luz HDR; chave `relevo` | L1, L2, L4 | ✅ |
 | [L6](#l6--oclusão-de-contato-e-de-canto) | Gemini | AO derivada da altura no mesmo filtro + AO no pé das paredes | L5 | ✅ |
 | [L7](#l7--bloom-e-fogo-emissivo) | Gemini | Bloom do que passa de 1; partes `brilho` marcam emissão | L5 | ✅ |
-| [L8](#l8--curva-de-tom-e-tonalização-dividida) | Gemini | ACES aproximado e `finish.split` (sombras/luzes) no acabamento | L5 | ⬜ |
+| [L8](#l8--curva-de-tom-e-tonalização-dividida) | Gemini | ACES aproximado e `finish.split` (sombras/luzes) no acabamento | L5 | ✅ |
 | [L9](#l9--paredes-com-topo-e-face-interna) | Gemini + Opus | Parede com topo e face interna visível, material por cômodo, objetos de parede na face | — | ⬜ |
 | [L10](#l10--materiais-com-altura-e-variação-por-peça) | **Opus** | Pintores de altura e variação peça a peça nos padrões de piso principais; resolução do terreno | L4 | ⬜ |
 | [L11](#l11--estruturas-com-altura-fogo-e-o-santuário) | **Opus** | Família `estrutura.*` (estrado, escadaria, muralha, plataforma), fogo novo e o santuário refeito | L5–L10 | ⬜ |
@@ -293,7 +293,7 @@ vec3 cor = base * (ambiente + (luz - uAmbiente) * mix(1.0, realce, uRelevo));
 
 ---
 
-## L8 — Curva de tom e tonalização dividida  ⬜
+## L8 — Curva de tom e tonalização dividida  ✅
 
 **Objetivo:** o HDR vira cor de tela com uma curva bonita, e o mapa pode puxar sombras e luzes para cores diferentes.
 
@@ -313,6 +313,8 @@ vec3 cor = base * (ambiente + (luz - uAmbiente) * mix(1.0, realce, uRelevo));
 **Testes:** puro `aces(x)` (0 → 0, 1 → ≈ 0,8, 10 → < 1); `tonalizar(cor, split)` preserva a luminância. Validação de `split` e `exposure`.
 
 **Pronto quando:** as luzes fortes saturam suavemente em vez de cortar, e os três presets existem.
+
+**Nota:** `EXPOSICAO_PADRAO` (`0.82`), `TonalizacaoDividida`, `Acabamento.exposure?` (`0..4`) e `Acabamento.split?` em `src/domain/mapa.ts`; validação em `src/domain/validacao.ts`, interpolação em `misturar` (`src/domain/clima.ts`), exposição em `atlas_ambiente` (`src/app/ponte-escrita.ts`, com `acabamento.preset` sem `enum` duplicado para manter a soma dos esquemas < 30 KB; `scripts/ponte/catalogo-base.json` regenerado) e limpeza de `exposure`/`split` ao trocar preset em `src/ui/Inspetor.tsx`. O preset `sepia` já existia em `src/domain/presets.ts` (sem `split`, com `saturation: 0.45`): foi atualizado para `saturation: 0.6` com `split` (e `tests/unit/ponte-escrita.test.ts` ajustado), junto dos novos presets `masmorra` e `dia-dourado`. Em `src/render/bloom.ts`, `fragmentCombinar` aplica `aces(x)` (desfazendo pré-multiplicação por `a`, desativado nos modos `?luz=direcao`/`?luz=altura`, e `aces` exportada com clamp `[0, 1]` conforme Narkowicz); `src/render/composicao-de-luz.ts` (`definirExposicao`) e `src/render/cena.ts` repassam `finish.exposure ?? EXPOSICAO_PADRAO`; `src/render/acabamento.ts` aplica `finish.split` com preservação de luminância e exporta `tonalizar`. Calibração no Chromium: `aldeia-ao-entardecer` `34.150 → 35.064` (`+2.7%`); `sala-da-guarda` (mapa noturno com `glow: 0.8` e 6 luzes de fogo) `21.768 → 20.051` (`−7.9%`; em `0.85` ficava `20.946`, `−3.8%`, e `aldeia-ao-entardecer` subia para `+5.3%`). Conferido em `tests/unit/luzes.test.ts`, `validacao.test.ts`, `clima.test.ts`, `presets.test.ts`, `ponte-escrita.test.ts` (`1144/1144`), `npm run build`, `tests/e2e/fase6.test.ts` + `fase10-halos.test.ts` + `ponte-captura.test.ts` (`13/13`) e visualmente em `test-results/l8-tom.png`. Em `tests/e2e/relevo.test.ts`, o primeiro subteste (`bBaixa <= bAlta * 0.8`) já falhava em `HEAD` antes da L8 (`48.0` vs `41.1`; com L8 `56.4` vs `46.7`).
 
 **Commit:** `added tone curve and split toning to the finish`
 

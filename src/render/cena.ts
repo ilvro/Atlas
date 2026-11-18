@@ -2,7 +2,7 @@ import { Container, Graphics, Sprite, Text, Texture, type Renderer } from 'pixi.
 import { listaDeAndares } from '../domain/andares.ts';
 import { decodificar } from '../domain/celulas.ts';
 import { comprimentoDaParede, contornoDoComodo, pontoNaParede } from '../domain/geometria.ts';
-import { AO_PADRAO, RELEVO_PADRAO, type Abertura, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Ponto, type Regiao } from '../domain/mapa.ts';
+import { AO_PADRAO, EXPOSICAO_PADRAO, RELEVO_PADRAO, type Abertura, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Ponto, type Regiao } from '../domain/mapa.ts';
 import { materialDe, tom } from '../procedural/materiais.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { camadaDoObjeto } from '../domain/camadas.ts';
@@ -604,7 +604,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       const v = visaoDoClima ?? m;
       ehPixel = m.style.renderer === 'pixel';
       if (tudo || colecao('rooms') || colecao('props') || colecao('walls') || campos('climate', 'bounds', 'grid', 'style')) tempo.atualizar(v, objetos);
-      luz.sincronizar(v, mud); composicaoDeLuz.definirRelevo(v.finish.relief ?? RELEVO_PADRAO); composicaoDeLuz.definirAO(v.finish.ao ?? AO_PADRAO); composicaoDeLuz.definirGlow(v.finish.glow); atualizarComposicaoDeLuz(); neblina.sincronizar(v, mud); bordas.sincronizar(v, mud); particulas.sincronizar(v, mud); halos.sincronizar(v, mud);
+      luz.sincronizar(v, mud); composicaoDeLuz.definirRelevo(v.finish.relief ?? RELEVO_PADRAO); composicaoDeLuz.definirAO(v.finish.ao ?? AO_PADRAO); composicaoDeLuz.definirGlow(v.finish.glow); composicaoDeLuz.definirExposicao(v.finish.exposure ?? EXPOSICAO_PADRAO); atualizarComposicaoDeLuz(); neblina.sincronizar(v, mud); bordas.sincronizar(v, mud); particulas.sincronizar(v, mud); halos.sincronizar(v, mud);
       // Os marcadores das luzes também refletem o clima (apagada pela rede ou pelo dia), então refazem quando ele muda.
       if (tudo || colecao('lights') || campos('climate')) sincronizarSimples(luzes, luzesC, m.lights, tudo || campos('climate') ? null : mud!.colecoes.lights ?? null, (c, l) => desenharLuz(c, l, m), comPop);
       if (tudo || colecao('tokens') || campos('grid', 'style')) sincronizarSimples(pecas, pecasC, m.tokens, tudo || campos('grid', 'style') ? null : mud!.colecoes.tokens ?? null, (c, t) => desenharPeca(c, t, m), comPop);
@@ -617,7 +617,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     atualizarAtmosfera(visao) {
       const mud: Mudancas = { completo: false, colecoes: {}, campos: ['climate'] };
       tempo.atualizar(visao, objetos);
-      luz.sincronizar(visao, mud); composicaoDeLuz.definirRelevo(visao.finish.relief ?? RELEVO_PADRAO); composicaoDeLuz.definirAO(visao.finish.ao ?? AO_PADRAO); composicaoDeLuz.definirGlow(visao.finish.glow); neblina.sincronizar(visao, mud); bordas.sincronizar(visao, mud); particulas.sincronizar(visao, mud); halos.sincronizar(visao, mud);
+      luz.sincronizar(visao, mud); composicaoDeLuz.definirRelevo(visao.finish.relief ?? RELEVO_PADRAO); composicaoDeLuz.definirAO(visao.finish.ao ?? AO_PADRAO); composicaoDeLuz.definirGlow(visao.finish.glow); composicaoDeLuz.definirExposicao(visao.finish.exposure ?? EXPOSICAO_PADRAO); neblina.sincronizar(visao, mud); bordas.sincronizar(visao, mud); particulas.sincronizar(visao, mud); halos.sincronizar(visao, mud);
     },
     definirAtmosfera: ligada => { atmosferaLigada = ligada; sombras.definirLigado(ligada); contato.definirLigado(ligada); tempo.definirLigado(ligada, mapa, objetos); if (ligada && mapa) sombras.atualizar(mapa, objetos, pixelRes0(mapa)); luz.definirLigado(ligada); atualizarComposicaoDeLuz(); neblina.definirLigado(ligada); bordas.definirLigado(ligada); particulas.definirLigado(ligada); halos.definirLigado(ligada); },
     relampagoAgora: () => luz.relampagoAgora(),

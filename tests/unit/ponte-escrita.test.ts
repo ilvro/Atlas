@@ -247,7 +247,8 @@ test('atlas_ambiente: clima + horário + acabamento + guardar numa entrada só',
   assert.equal(m.climate.weather.dust, 0.25);
   assert.equal(m.finish.vignette, 0.6);
   assert.equal(m.finish.preset, 'personalizado');
-  assert.equal(m.finish.saturation, 0.45);
+  assert.equal(m.finish.saturation, 0.6);
+  assert.deepEqual(m.finish.split, { shadows: '#4a3a2a', highlights: '#e8d0a0', balance: 0, amount: 0.5 });
   assert.equal(m.customClimates['fim-de-tarde']!.name, 'Fim de tarde');
   validarMapa(m);
 });
@@ -281,6 +282,23 @@ test('atlas_ambiente: erros legíveis para valores fora da faixa e ids desconhec
   assert.equal(store.documento.finish.ao, 0);
   await assert.rejects(chamar('atlas_ambiente', { acabamento: { ao: -0.1 } }), /ao.*entre 0 e 1/);
   await assert.rejects(chamar('atlas_ambiente', { acabamento: { ao: 1.5 } }), /ao.*entre 0 e 1/);
+  await chamar('atlas_ambiente', { acabamento: { exposure: 1.25 } });
+  assert.equal(store.documento.finish.exposure, 1.25);
+  await assert.rejects(chamar('atlas_ambiente', { acabamento: { exposure: -0.1 } }), /exposure.*entre 0 e 4/);
+  await assert.rejects(chamar('atlas_ambiente', { acabamento: { exposure: 5 } }), /exposure.*entre 0 e 4/);
+  await chamar('atlas_ambiente', { acabamento: { preset: 'masmorra' } });
+  assert.equal(store.documento.finish.preset, 'masmorra');
+  assert.deepEqual(store.documento.finish.split, { shadows: '#2a4a5a', highlights: '#ffb060', balance: 0, amount: 0.35 });
+  await chamar('atlas_ambiente', { acabamento: { split: { shadows: '#112233', highlights: '#ffddaa', amount: 0.4 } } });
+  assert.deepEqual(store.documento.finish.split, { shadows: '#112233', highlights: '#ffddaa', balance: 0, amount: 0.4 });
+  await chamar('atlas_ambiente', { acabamento: { split: null } });
+  assert.equal(store.documento.finish.split, undefined);
+  await chamar('atlas_ambiente', { acabamento: { preset: 'dia-dourado' } });
+  assert.equal(store.documento.finish.preset, 'dia-dourado');
+  await chamar('atlas_ambiente', { acabamento: { preset: 'neutro' } });
+  assert.equal(store.documento.finish.split, undefined);
+  await assert.rejects(chamar('atlas_ambiente', { acabamento: { split: { shadows: '#112233', highlights: '#ffddaa', amount: 1.2 } } }), /split\.amount/);
+  await assert.rejects(chamar('atlas_ambiente', { acabamento: { split: { shadows: 'errado', highlights: '#ffddaa', amount: 0.5 } } }), /split\.shadows/);
 });
 
 test('atlas_regioes cria regiões; atlas_presenca pinta e ajusta a intensidade', async () => {

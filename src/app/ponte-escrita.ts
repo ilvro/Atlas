@@ -640,9 +640,10 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           luzInterna: { type: 'number', minimum: 0.05, maximum: 1 },
         } },
         acabamento: { type: 'object', properties: {
-          preset: { type: 'string', enum: PRESETS_DE_ACABAMENTO.map(a => a.id) }, texture: unidadeEsq, vignette: unidadeEsq, grain: unidadeEsq, glow: unidadeEsq, relief: unidadeEsq, ao: unidadeEsq, saturation: { type: 'number', minimum: 0, maximum: 2 }, tint: { type: 'string' },
+          preset: { type: 'string' }, texture: unidadeEsq, vignette: unidadeEsq, grain: unidadeEsq, glow: unidadeEsq, relief: unidadeEsq, ao: unidadeEsq, exposure: { type: 'number', minimum: 0, maximum: 4 }, saturation: { type: 'number', minimum: 0, maximum: 2 }, tint: { type: 'string' },
           grade: { type: 'object', properties: { lift: { type: 'number', minimum: -1, maximum: 1 }, gamma: { type: 'number', minimum: 0.1, maximum: 4 }, gain: { type: 'number', minimum: 0, maximum: 4 } } },
           edges: { type: 'object', properties: { kind: { type: 'string', enum: ['none', 'clouds', 'dark', 'fog'] }, amount: unidadeEsq }, required: ['kind', 'amount'] },
+          split: { type: ['object', 'null'], properties: { shadows: { type: 'string' }, highlights: { type: 'string' }, balance: { type: 'number' }, amount: { type: 'number' } }, required: ['shadows', 'highlights', 'amount'] },
         } },
         guardarClima: { type: 'object', properties: { id: { type: 'string' }, nome: { type: 'string' } }, required: ['id', 'nome'] },
       }, additionalProperties: false },
@@ -1049,9 +1050,12 @@ function comandosDeAmbiente(mapa: MapaAtlas, args: Args): Comando[] {
     if (a.preset !== undefined) {
       preset = verificarId('acabamento', a.preset, PRESETS_DE_ACABAMENTO);
       Object.assign(patch, structuredClone(presetDeAcabamento(preset)!.valores));
+      if (patch.exposure === undefined) patch.exposure = undefined;
+      if (patch.split === undefined) patch.split = undefined;
     }
     let ajustes = 0;
     for (const k of ['texture', 'vignette', 'grain', 'glow', 'relief', 'ao'] as const) { const v = numeroOpc(a[k], `acabamento.${k}`, 0, 1); if (v !== undefined) { patch[k] = v; ajustes++; } }
+    const exp = numeroOpc(a.exposure, 'acabamento.exposure', 0, 4); if (exp !== undefined) { patch.exposure = exp; ajustes++; }
     const sat = numeroOpc(a.saturation, 'acabamento.saturation', 0, 2); if (sat !== undefined) { patch.saturation = sat; ajustes++; }
     if (a.tint !== undefined) { patch.tint = cor(a.tint, 'acabamento.tint'); ajustes++; }
     if (a.grade !== undefined) {
@@ -1066,7 +1070,21 @@ function comandosDeAmbiente(mapa: MapaAtlas, args: Args): Comando[] {
       if (!['none', 'clouds', 'dark', 'fog'].includes(String(ed.kind))) throw new Error('"acabamento.edges.kind" deve ser none, clouds, dark ou fog.');
       patch.edges = { kind: ed.kind, amount: numero(ed.amount, 'acabamento.edges.amount', 0, 1) }; ajustes++;
     }
-    if (!preset && !ajustes) throw new Error('"acabamento" está vazio: passe preset e/ou ajustes (texture, vignette, grain, glow, relief, ao, saturation, tint, grade, edges).');
+    if (a.split !== undefined) {
+      if (a.split === null) {
+        patch.split = undefined;
+      } else {
+        const sp = objeto(a.split, 'acabamento.split');
+        patch.split = {
+          shadows: cor(sp.shadows, 'acabamento.split.shadows'),
+          highlights: cor(sp.highlights, 'acabamento.split.highlights'),
+          balance: sp.balance === undefined ? 0 : numero(sp.balance, 'acabamento.split.balance', -1, 1),
+          amount: numero(sp.amount, 'acabamento.split.amount', 0, 1),
+        };
+      }
+      ajustes++;
+    }
+    if (!preset && !ajustes) throw new Error('"acabamento" está vazio: passe preset e/ou ajustes (texture, vignette, grain, glow, relief, ao, exposure, saturation, tint, grade, edges, split).');
     patch.preset = ajustes ? 'personalizado' : preset;
     comandos.push({ tipo: 'acabamento.atualizar', patch: patch as never });
   }

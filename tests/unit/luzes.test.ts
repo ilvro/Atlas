@@ -10,9 +10,11 @@ import { GENEROS, TIPOS_DE_COMODO, presetDeLuz } from '../../src/domain/presets.
 import { ACERVO } from '../../src/procedural/acervo.ts';
 import { RendererType } from 'pixi.js';
 import { ALTURA_DE_PAREDE } from '../../src/render/cena-de-altura.ts';
+import { EXPOSICAO_PADRAO } from '../../src/domain/mapa.ts';
+import { tonalizar } from '../../src/render/acabamento.ts';
 import { ALTURA_DA_LUZ, ESCALA_HDR, codificarLuz, decodificarLuz, formatoDaLuz, luzAfetadaPorTokens, nivelAtivoDe, poligonoDaLuz, sincronizarOclusao } from '../../src/render/mapa-de-luz.ts';
 import { PESO_AO_CURTO, PESO_AO_LONGO, EMISSAO_PADRAO, modoDeDepuracaoDaLuz, oclusaoDeAmostras, realceDoRelevo } from '../../src/render/composicao-de-luz.ts';
-import { LIMIAR_BLOOM, limiarDoBloom } from '../../src/render/bloom.ts';
+import { LIMIAR_BLOOM, aces, limiarDoBloom } from '../../src/render/bloom.ts';
 import { TAMANHO_TEXTURA_DIRECAO, floatParaHalf, pixelDeDirecao, texturaDeDirecao } from '../../src/render/luzes.ts';
 import { mapaCom, sala } from './apoio-casa.ts';
 
@@ -249,4 +251,39 @@ test('limiarDoBloom extrai apenas o excedente acima de 0,9 sem negativar canais 
   assert.ok(Math.abs(b[0] - 1.5) < 1e-12);
   assert.ok(Math.abs(b[1] - 0.2) < 1e-12);
   assert.equal(b[2], 0);
+});
+
+test('aces(x) mapeia 0 → 0, 1 → ≈ 0,8, satura suavemente até 1 e é monotônica', () => {
+  assert.ok(EXPOSICAO_PADRAO > 0 && EXPOSICAO_PADRAO <= 2);
+  assert.equal(aces(0), 0);
+  assert.equal(aces(-0.5), 0);
+  const em1 = aces(1);
+  assert.ok(Math.abs(em1 - 0.8) < 0.02, `aces(1)=${em1}`);
+  assert.ok(aces(5) < 1 && aces(5) > em1);
+  assert.ok(aces(10) <= 1 && aces(10) >= aces(5));
+  assert.ok(aces(0.2) < aces(0.5) && aces(0.5) < aces(1));
+});
+
+test('tonalizar(cor, split) preserva a luminância e puxa sombras e luzes para cores distintas', () => {
+  const lum = (c: readonly [number, number, number]) => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+  const masmorra = { shadows: '#2a4a5a', highlights: '#ffb060', balance: 0, amount: 0.35 };
+
+  // amount 0 mantém a cor exata
+  assert.deepEqual(tonalizar([0.4, 0.5, 0.6], { ...masmorra, amount: 0 }), [0.4, 0.5, 0.6]);
+  // preto puro não gera NaN
+  assert.deepEqual(tonalizar([0, 0, 0], masmorra), [0, 0, 0]);
+
+  for (const cor of [[0.15, 0.15, 0.15], [0.45, 0.45, 0.45], [0.75, 0.75, 0.75], [0.6, 0.45, 0.3]] as const) {
+    const res = tonalizar(cor, masmorra);
+    assert.ok(Math.abs(lum(res) - lum(cor)) < 1e-9, `luminância preservada em ${cor}: ${lum(res)} vs ${lum(cor)}`);
+  }
+
+  const sombra = tonalizar([0.1, 0.1, 0.1], { ...masmorra, amount: 1 });
+  assert.ok(sombra[2] > sombra[0], `sombras puxam para azul-petróleo: ${sombra}`);
+  const luz = tonalizar([0.85, 0.85, 0.85], { ...masmorra, amount: 1 });
+  assert.ok(luz[0] > luz[2], `luzes puxam para âmbar: ${luz}`);
+
+  const negBal = tonalizar([0.5, 0.5, 0.5], { ...masmorra, balance: -0.6, amount: 0.6 });
+  const posBal = tonalizar([0.5, 0.5, 0.5], { ...masmorra, balance: 0.6, amount: 0.6 });
+  assert.ok(negBal[2] > posBal[2] && posBal[0] > negBal[0]);
 });
