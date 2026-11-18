@@ -30,17 +30,18 @@ export const santuarioDaLuz: Exemplo = {
 
     // O tablado do relicário: estrado de pedra em chanfro, o fosso de luz, o guardião caído, armas e o sangue.
     k.objeto('tablado', [21.8, 13.6], { params: { largura: 9.4 }, rotation: 0, blocks: { move: false, sight: false } });
-    k.objeto('fosso-de-luz', [21.8, 13.2], { params: { largura: 2.6, cor: 0 }, rotation: 0 });
-    k.objeto('ossada', [21.6, 13.4], { rotation: 0.4, scale: 1.8 });
+    k.objeto('ossada', [21.6, 13.4], { rotation: 0.4, scale: 2.3 });
+    k.objeto('pilha-de-ossos', [19.6, 11.6], { rotation: 0.9, scale: 0.8 });
+    k.objeto('viga-partida', [23.4, 14.8], { rotation: 2.4 });
     k.objeto('armas-caidas', [23.6, 12.4], { rotation: 1.4, scale: 1.3 });
     k.objeto('armas-caidas', [19.8, 15.2], { rotation: -0.6, scale: 1.1 });
     k.objeto('bau', [20.4, 16.4], { rotation: -0.5 });
     k.objeto('escudos-empilhados', [24.4, 15.6], { rotation: 0.8 });
     k.presenca('ordem.sangue', { disco: [20.8, 18.9], raio: 0.5, irregular: 0.8 }, 0.55);
-    k.luz('feixe', [21.8, 13.4], { radius: 5.5, intensity: 1.25 });
+    k.luz('feixe', [21.8, 13.4], { radius: 5, intensity: 0.6 });
 
     // Quatro braseiros sobre círculos rúnicos.
-    for (const [x, y] of [[29.4, 2.8], [30, 24.4], [40.6, 1.4], [42, 25.6]] as const) {
+    for (const [x, y] of [[29.4, 2.8], [30, 24.4], [41.4, 1.4], [42, 25.6]] as const) {
       k.objeto('circulo-runico', [x, y], { params: { raio: 2.4, raios: 8 }, rotation: (x * 0.37) % 1 });
       k.objeto('braseiro', [x, y], { rotation: (y * 0.7) % 6, scale: 2.2 });
       k.luz('fogueira', [x, y], { radius: 7.5, intensity: 1.7, color: '#ff7a24' });
@@ -48,22 +49,36 @@ export const santuarioDaLuz: Exemplo = {
 
     // A escadaria monumental a leste, entre muralhas de alvenaria em degraus, com lanternas nos cantos.
     k.objeto('escada.pedra', [39, 13.2], { params: { largura: 4, comprimento: 6 }, rotation: Math.PI / 2, scale: 1.8, blocks: { move: false, sight: false } });
-    k.objeto('muralha-em-degraus', [40.6, 5.2], { params: { largura: 15, profundidade: 4.6, degraus: 3 }, rotation: 0 });
-    k.objeto('muralha-em-degraus', [40.6, 21.4], { params: { largura: 15, profundidade: 4.6, degraus: 3 }, rotation: Math.PI });
+    k.objeto('muralha-em-degraus', [40.6, 5.5], { params: { largura: 15, profundidade: 4.6, degraus: 3 }, rotation: 0 });
+    k.objeto('muralha-em-degraus', [40.6, 22.2], { params: { largura: 15, profundidade: 5, degraus: 3 }, rotation: Math.PI });
     for (const y of [8.2, 18.6]) { k.objeto('lanterna-de-poste', [32.8, y]); k.luz('lanterna', [32.8, y], { radius: 4.5, intensity: 1.1, color: '#ff9a40' }); }
     k.objeto('estandarte', [34.2, 8.6], { params: { cor: 1 }, rotation: Math.PI / 2 });
 
     // Escadas que descem ao norte e ao sul.
-    k.objeto('escada.pedra', [15, 1.6], { params: { largura: 4, comprimento: 3.2 }, rotation: 0, scale: 1.6, blocks: { move: false, sight: false } });
-    k.objeto('escada.pedra', [15, 25.4], { params: { largura: 4, comprimento: 3.2 }, rotation: Math.PI, scale: 1.6, blocks: { move: false, sight: false } });
+    k.objeto('escada.pedra', [15, 2.7], { params: { largura: 4, comprimento: 3.2 }, rotation: 0, scale: 1.6, blocks: { move: false, sight: false } });
+    k.objeto('escada.pedra', [15, 24.3], { params: { largura: 4, comprimento: 3.2 }, rotation: Math.PI, scale: 1.6, blocks: { move: false, sight: false } });
 
     // Entulho grande ao sul do tablado e escombros pelo salão.
     for (const [x, y, s] of [[25.6, 21.2, 3.4], [27.6, 19.6, 1.6], [13.8, 9.2, 1.4], [34.6, 12.2, 1.2], [36.8, 26.2, 1.6], [31, 6.4, 1.1]] as const) k.objeto('escombros', [x, y], { scale: s, rotation: (x * 0.3) % 3 });
     for (const [x, y] of [[17.2, 6.4], [27, 8.6], [16.4, 19.8], [33.2, 15.8], [11.6, 13.6], [28.6, 15.4]] as const) k.objeto('seixos', [x, y], { scale: 1.5, rotation: x });
     k.objeto('pilha-de-ossos', [33.6, 3.4], { rotation: 0.2 });
 
-    k.clima('apagao', { time: '23:30', ambient: { color: '#6f80aa', intensity: 0.66 }, sun: null, tempo: { fog: 0.2, dust: 0.15 } });
-    k.acabamento(null, { vignette: 0.5, saturation: 1.0, tint: '#dde6ff', edges: { kind: 'dark', amount: 0.35 }, glow: 0.95 });
+    // Lamparinas dos saqueadores no andaime: a madeira e as cordas aparecem na luz quente.
+    for (const y of [5.2, 9.6, 18.4]) k.luz('lamparina', [5.6, y], { radius: 4, intensity: 0.9, color: '#ffb066' });
+    // Sombra das muralhas altas caindo sobre a escadaria e o salão.
+    k.presenca('sombra', { retangulo: [32.6, 7.4, 48, 8.8] }, 0.55);
+    k.presenca('sombra', { retangulo: [32.6, 17.8, 48, 19] }, 0.45);
+    k.presenca('sombra', { retangulo: [31.6, 2.6, 33.4, 23.8] }, 0.3);
+    // Entulho fino pelo salão: tábuas, vigas, pedras soltas e lascas.
+    for (let i = 0; i < 26; i++) {
+      const x = 9 + k.rng() * 23, y = 1.5 + k.rng() * 24;
+      if (x > 16.6 && x < 27 && y > 8.6 && y < 18.6) continue;
+      const item = ['seixos', 'seixos', 'tabua-solta', 'escombros', 'pedra.pequena', 'viga-partida'][Math.floor(k.rng() * 6)]!;
+      k.objeto(item, [x, y], { rotation: k.rng() * 6.28, scale: item === 'escombros' ? 0.6 + k.rng() * 0.6 : 1 + k.rng() * 0.5 });
+    }
+
+    k.clima('apagao', { time: '23:30', ambient: { color: '#8e9ab8', intensity: 0.72 }, sun: null, tempo: { fog: 0.2, dust: 0.15 } });
+    k.acabamento(null, { vignette: 0.42, saturation: 1.05, grain: 0.02, texture: 0.1, tint: '#e6ecff', edges: { kind: 'dark', amount: 0.3 }, glow: 0.9 });
     k.guardarClima('ritual', 'Ritual em curso', undefined, { tempo: { embers: 0.4, fog: 0.3 } });
 
     k.regiao([[17, 9], [26.6, 9], [26.6, 18.4], [17, 18.4]], 'trigger', { nome: 'Tablado do relicário', texto: 'Um feixe de luz branca, sem origem, cai sobre o tablado. O guardião jaz na beira do fosso, ainda agarrado à espada.' });
