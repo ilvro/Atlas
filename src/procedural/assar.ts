@@ -1,3 +1,4 @@
+import { desenharAlturaDasPartes } from './altura.ts';
 import { contornoDoComodo, facesDoContorno, fatorDaFace, caixaDasCelulas, type SegmentoDeContorno } from '../domain/geometria.ts';
 import type { Faixa } from '../domain/celulas.ts';
 import { decodificar } from '../domain/celulas.ts';
@@ -18,7 +19,16 @@ import { fatorDeProfundidade } from '../domain/relevo.ts';
 import { ladoBaixo } from './escarpa.ts';
 import { distanciaAMargem } from './profundidade.ts';
 
-export interface Assado { tela: Tela; /** Canto superior esquerdo da tela, em metros (no espaço local do objeto, ou do mundo para cômodos e terreno). */ origem: Ponto; res: number; /** Terreno com água: profundidade (R) e margem (G) das camadas de água, a `res` px/m, do mesmo tamanho do mapa. */ agua?: { tela: Tela; res: number } }
+export interface Assado {
+  tela: Tela;
+  /** Tela de altura (cinza 0–1) alinhada à `tela`, ou `null` quando não há (Pixel, parede, terreno/cômodo antes da L4). */
+  altura?: Tela | null;
+  /** Canto superior esquerdo da tela, em metros (no espaço local do objeto, ou do mundo para cômodos e terreno). */
+  origem: Ponto;
+  res: number;
+  /** Terreno com água: profundidade (R) e margem (G) das camadas de água, a `res` px/m, do mesmo tamanho do mapa. */
+  agua?: { tela: Tela; res: number };
+}
 
 // ---------- Objetos de piso ----------
 export const MARGEM_SOMBRA = 0.3;
@@ -32,7 +42,14 @@ export function assarDescricao(d: Descricao, seed: number, res: number, estilo: 
   ctx.setTransform(res, 0, 0, res, -x0 * res, -y0 * res);
   estilo.desenharPartes(ctx, d.tipo === 'piso' ? d.partes : d.face, { res, seed, sombras: true, ppc: pixel?.ppc });
   estilo.finalizar?.(ctx, tela.width, tela.height, { contorno: pixel?.contorno ?? false });
-  return { tela, origem: [x0, y0], res };
+  let altura: Tela | null = null;
+  if (estilo.id !== 'pixel' && d.tipo === 'piso') {
+    altura = criarTela(tela.width, tela.height);
+    const actx = contextoDe(altura);
+    actx.setTransform(res, 0, 0, res, -x0 * res, -y0 * res);
+    desenharAlturaDasPartes(actx, d.partes, { res });
+  }
+  return { tela, altura, origem: [x0, y0], res };
 }
 
 /** Um objeto de piso de receita inteiro (partes + sombras) numa tela, com o centro do objeto em (0, 0) do espaço local. */
