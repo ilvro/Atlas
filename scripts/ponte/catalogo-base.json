@@ -337,6 +337,11 @@
               "minimum": 0,
               "maximum": 1
             },
+            "ao": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
             "saturation": {
               "type": "number",
               "minimum": 0,

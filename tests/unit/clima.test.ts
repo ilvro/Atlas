@@ -198,6 +198,8 @@ test('misturar: o meio-termo fica entre os dois (ambiente, chuva, tinta)', () =>
   assert.ok(Math.abs(chuva.climate.weather.rain - 0.25) < 1e-9);
   const rel = misturar({ ...a, finish: { ...a.finish, relief: 0 } }, { ...b, finish: { ...b.finish, relief: 1 } }, 0.5);
   assert.ok(Math.abs((rel.finish.relief ?? -1) - 0.5) < 1e-9);
+  const ao = misturar({ ...a, finish: { ...a.finish, ao: 0 } }, { ...b, finish: { ...b.finish, ao: 1 } }, 0.5);
+  assert.ok(Math.abs((ao.finish.ao ?? -1) - 0.5) < 1e-9);
 });
 
 test('misturar: o sol que some (ou aparece) muda só de intensidade, com a cor do lado que tem sol', () => {

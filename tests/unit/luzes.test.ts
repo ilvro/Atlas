@@ -9,8 +9,9 @@ import type { Luz, MapaAtlas } from '../../src/domain/mapa.ts';
 import { GENEROS, TIPOS_DE_COMODO, presetDeLuz } from '../../src/domain/presets.ts';
 import { ACERVO } from '../../src/procedural/acervo.ts';
 import { RendererType } from 'pixi.js';
+import { ALTURA_DE_PAREDE } from '../../src/render/cena-de-altura.ts';
 import { ALTURA_DA_LUZ, ESCALA_HDR, codificarLuz, decodificarLuz, formatoDaLuz, luzAfetadaPorTokens, nivelAtivoDe, poligonoDaLuz, sincronizarOclusao } from '../../src/render/mapa-de-luz.ts';
-import { modoDeDepuracaoDaLuz, realceDoRelevo } from '../../src/render/composicao-de-luz.ts';
+import { PESO_AO_CURTO, PESO_AO_LONGO, modoDeDepuracaoDaLuz, oclusaoDeAmostras, realceDoRelevo } from '../../src/render/composicao-de-luz.ts';
 import { TAMANHO_TEXTURA_DIRECAO, floatParaHalf, pixelDeDirecao, texturaDeDirecao } from '../../src/render/luzes.ts';
 import { mapaCom, sala } from './apoio-casa.ts';
 
@@ -212,4 +213,29 @@ test('realceDoRelevo dá 1 para chão liso, > 1 para normal inclinada para a luz
 
   // Normal oposta (N·L <= 0) zera em vez de negativar
   assert.equal(realceDoRelevo([0.9, 0, 0.4], luzEsquerda), 0);
+});
+
+test('oclusaoDeAmostras dá 0 no plano, > 0 na quina e valoriza o raio curto', () => {
+  assert.equal(ALTURA_DE_PAREDE, 3);
+  assert.equal(oclusaoDeAmostras(2.0, [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]), 0);
+  // Amostras mais baixas que o ponto também não produzem oclusão negativa
+  assert.equal(oclusaoDeAmostras(2.0, [1.5, 1.0, 2.0, 1.8]), 0);
+
+  // Parede reta: ~3 de 8 direções batem na parede de 3 m (h = 3)
+  const parede = oclusaoDeAmostras(2.0, [
+    { h: 3.0, peso: PESO_AO_CURTO }, { h: 3.0, peso: PESO_AO_CURTO }, { h: 2.0, peso: PESO_AO_CURTO }, { h: 2.0, peso: PESO_AO_CURTO },
+    { h: 3.0, peso: PESO_AO_LONGO }, { h: 2.0, peso: PESO_AO_LONGO }, { h: 2.0, peso: PESO_AO_LONGO }, { h: 2.0, peso: PESO_AO_LONGO },
+  ]);
+  // Quina de cômodo: mais direções batem nas duas paredes
+  const quina = oclusaoDeAmostras(2.0, [
+    { h: 3.0, peso: PESO_AO_CURTO }, { h: 3.0, peso: PESO_AO_CURTO }, { h: 3.0, peso: PESO_AO_CURTO }, { h: 2.0, peso: PESO_AO_CURTO },
+    { h: 3.0, peso: PESO_AO_LONGO }, { h: 3.0, peso: PESO_AO_LONGO }, { h: 3.0, peso: PESO_AO_LONGO }, { h: 2.0, peso: PESO_AO_LONGO },
+  ]);
+  assert.ok(parede > 0 && parede < 1, `parede=${parede}`);
+  assert.ok(quina > parede && quina <= 1, `quina=${quina} > parede=${parede}`);
+
+  // Peso maior no raio curto: elevação no raio curto produz AO maior do que no longo
+  const perto = oclusaoDeAmostras(2.0, [{ h: 3.0, peso: PESO_AO_CURTO }, { h: 2.0, peso: PESO_AO_LONGO }]);
+  const longe = oclusaoDeAmostras(2.0, [{ h: 2.0, peso: PESO_AO_CURTO }, { h: 3.0, peso: PESO_AO_LONGO }]);
+  assert.ok(perto > longe, `perto=${perto} > longe=${longe}`);
 });

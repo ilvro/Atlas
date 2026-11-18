@@ -117,7 +117,7 @@ const CAMPOS_DO_CLIMA = {
 const CAMPOS_DO_ACABAMENTO = {
   texture: unidade, vignette: unidade, saturation: e.num({ min: 0, max: 2 }), grain: unidade, tint: hex,
   grade: e.obj({ lift: e.num({ min: -1, max: 1 }), gamma: e.num({ min: 0.1, max: 4 }), gain: e.num({ min: 0, max: 4 }) }),
-  edges: e.obj({ kind: e.um('none', 'clouds', 'dark', 'fog'), amount: unidade }), glow: unidade, relief: e.opt(unidade),
+  edges: e.obj({ kind: e.um('none', 'clouds', 'dark', 'fog'), amount: unidade }), glow: unidade, relief: e.opt(unidade), ao: e.opt(unidade),
 };
 
 export const ESQUEMA_MAPA: Esq = e.obj({
