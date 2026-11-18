@@ -197,24 +197,31 @@ function estatuaHeroica(seed: number): Parte[] {
  * fundos). Com `muretas`, guardas laterais de pedra com capa em lances que acompanham a subida.
  */
 export function escadaDeAlvenaria(w: number, l: number, seed: number, muretas = true, cor = '#9a958a'): Parte[] {
-  const r = mulberry32(seed), n = Math.max(3, Math.round(l / 0.3)), passo = l / n, lat = muretas ? Math.min(0.32, w * 0.14) : 0, wd = w - lat * 2;
+  const r = mulberry32(seed), n = Math.max(3, Math.round(l / 0.42)), passo = l / n, lat = muretas ? Math.min(0.34, w * 0.12) : 0, wd = w - lat * 2;
   const yD = (i: number) => l / 2 - (i + 0.5) * passo, z = (i: number) => 0.1 + i * 0.16, partes: Parte[] = [];
-  partes.push(ret(0, 0, w, l, tom(cor, -0.7), 0.04, { contorno: 'leve', sombraLeve: true }));
+  partes.push(ret(0, 0, w, l, tom(cor, -0.72), 0.04, { contorno: 'leve', sombraLeve: true }));
   for (let i = 0; i < n; i++) {
-    const y = yD(i), t = n > 1 ? i / (n - 1) : 1, base = tom(cor, -0.42 + t * 0.5), dy = passo * 0.96;
-    // A pisada inteira, com juntas finas desencontradas entre os blocos.
-    partes.push(ret(0, y, wd, dy, base, z(i), { raio: 0.01, contorno: 'leve', detalhe: 1 }));
-    let x = -wd / 2 + 0.3 + (i % 2) * 0.25 + r() * 0.1;
-    while (x < wd / 2 - 0.2) { partes.push(ret(x, y + 0.01, 0.018, dy * 0.82, tom(base, -0.5), z(i) + 0.004, { alfa: 0.65, contorno: false, semSombra: true, detalhe: 3 })); x += 0.5 + r() * 0.45; }
-    // Sombra do espelho de cima no fundo da pisada (−y), em duas faixas; quina clara e gasta na frente (+y).
-    if (i < n - 1) {
-      partes.push(ret(0, y - dy / 2 + dy * 0.2, wd, dy * 0.4, '#000000', z(i) + 0.005, { alfa: 0.22, contorno: false, semSombra: true, suave: true, detalhe: 3 }));
-      partes.push(ret(0, y - dy / 2 + dy * 0.08, wd, dy * 0.16, '#000000', z(i) + 0.006, { alfa: 0.4, contorno: false, semSombra: true, detalhe: 3 }));
+    const y = yD(i), t = n > 1 ? i / (n - 1) : 1, base = tom(cor, -0.5 + t * 0.62), dy = passo * 0.97;
+    // A pisada em 2 a 4 blocos de tom próprio, com a frente (+y) irregular e quinas lascadas.
+    const nb = Math.max(2, Math.round(wd / (1.1 + r() * 0.6))), bw = wd / nb;
+    for (let b = 0; b < nb; b++) {
+      const x0 = -wd / 2 + b * bw + 0.015, x1 = x0 + bw - 0.03, c = tom(base, (r() - 0.5) * 0.18), yt = y - dy / 2, yb = y + dy / 2;
+      const pts: number[] = [x0, yt, x1, yt];
+      // Lasca no canto de trás, às vezes.
+      const lasca = r() < 0.3 ? 0.06 + r() * 0.06 : 0;
+      pts.push(x1, yb - lasca);
+      for (let k = 5; k >= 1; k--) pts.push(x0 + ((x1 - x0) * k) / 6, yb - (r() < 0.25 ? r() * 0.06 : 0));
+      pts.push(x0 + (r() < 0.3 ? 0.06 : 0), yb);
+      partes.push(poli(pts, c, z(i), { contorno: 'leve', detalhe: 1 }));
+      partes.push(ret((x0 + x1) / 2 + (r() - 0.5) * bw * 0.3, y + dy * 0.1, bw * 0.5, dy * 0.35, tom(c, 0.12), z(i) + 0.006, { contorno: false, semSombra: true, alfa: 0.5, desfoque: 0.05 }));
     }
-    partes.push(ret(0, y + dy / 2 - 0.03, wd - 0.02, 0.045, tom(base, 0.4), z(i) + 0.007, { alfa: 0.85, contorno: false, semSombra: true, detalhe: 3 }));
-    partes.push(ret((r() - 0.5) * wd * 0.2, y + dy * 0.12, wd * 0.5, dy * 0.32, tom(base, 0.12), z(i) + 0.006, { alfa: 0.4, contorno: false, semSombra: true, suave: true, detalhe: 3 }));
-    if (r() < 0.2) partes.push(elipse(-wd / 2 + 0.12 + r() * (wd - 0.24), y + (r() - 0.5) * dy * 0.5, 0.14, 0.05, '#4f6a3a', z(i) + 0.008, { alfa: 0.7, contorno: false, semSombra: true, detalhe: 3 }));
+    // Sombra do degrau de cima no fundo da pisada, macia, e a quina clara e gasta na frente.
+    if (i < n - 1) partes.push(ret(0, y - dy / 2 + dy * 0.22, wd, dy * 0.44, '#000000', z(i) + 0.005, { contorno: false, semSombra: true, alfa: 0.72, desfoque: 0.06 }), ret(0, y - dy / 2 + 0.02, wd, 0.05, '#000000', z(i) + 0.0055, { contorno: false, semSombra: true, alfa: 0.85 }));
+    partes.push(ret(0, y + dy / 2 - 0.035, wd - 0.04, 0.05, tom(base, 0.5), z(i) + 0.007, { contorno: false, semSombra: true, alfa: 0.85, detalhe: 3 }));
   }
+  // Pó e sujeira junto das muretas e nos cantos.
+  for (const sx of [-1, 1]) partes.push(ret(sx * (wd / 2 - 0.15), 0, 0.35, l * 0.95, '#1a1612', 0.1 + n * 0.16, { contorno: false, semSombra: true, alfa: 0.35, desfoque: 0.12 }));
+  for (let k = 0; k < Math.round(w * l * 0.3); k++) partes.push(poli(bolha((r() - 0.5) * wd * 0.95, (r() - 0.5) * l * 0.95, 0.04 + r() * 0.05, 0.03 + r() * 0.04, 5, 0.35, r), tom(cor, -0.25), 0.1 + n * 0.16, { contorno: 'leve', sombraLeve: true, detalhe: 3 }));
   if (muretas) {
     const lances = Math.max(2, Math.round(l / 0.9)), cl = l / lances;
     for (const s of [-1, 1]) for (let k = 0; k < lances; k++) {
@@ -250,7 +257,7 @@ function muralhaEmDegraus(L: number, P: number, degraus: number, seed: number): 
   // desce para a frente (+y), escura e em fiadas, com a quina clara no alto. Assim a muralha se lê alta, não como chão.
   const r = mulberry32(seed), partes: Parte[] = [], n = Math.max(1, degraus), face = Math.min(P * 0.55, 0.9 + n * 0.35);
   const topoP = P - face, passo = topoP / n, recuo = Math.min(0.5, L * 0.04);
-  partes.push(ret(0.1, P / 2 + 0.1, L, 0.3, '#000000', 0.02, { alfa: 0.55, contorno: false, semSombra: true, suave: true }));
+  partes.push(ret(0.1, P / 2 + 0.05, L + 0.2, 0.5, '#000000', 0.02, { alfa: 0.75, contorno: false, semSombra: true, desfoque: 0.18 }));
   for (let k = 0; k < n; k++) {
     // Do patamar mais alto (fundo) ao mais baixo (frente): cada um com seu topo e sua face.
     const w = L - (n - 1 - k) * recuo * 2, cor = tom('#7a7670', 0.08 - k * 0.06), y0 = -P / 2 + k * passo, z = 3.2 - k * 0.9;

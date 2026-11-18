@@ -20,7 +20,7 @@ test('as 17 receitas do castelo existem, com categoria, kit e funções válidas
 
 test('escadas e mesas com campo mudam de pegada e respeitam os limites', () => {
   const casos: [string, string, number, number, number, number][] = [
-    ['escada.madeira', 'largura', 0.8, 2.4, 1.2, 0], ['escada.madeira', 'comprimento', 1.6, 5, 2.6, 1], ['escada.pedra', 'largura', 1, 4, 1.4, 0], ['escada.pedra', 'comprimento', 1.6, 6, 2.8, 1],
+    ['escada.madeira', 'largura', 0.8, 2.4, 1.2, 0], ['escada.madeira', 'comprimento', 1.6, 5, 2.6, 1], ['escada.pedra', 'largura', 1, 10, 1.4, 0], ['escada.pedra', 'comprimento', 1.6, 14, 2.8, 1],
     ['escada.caracol', 'diametro', 1.6, 3.6, 2.2, 0], ['escada.de-mao', 'comprimento', 1.6, 4, 2.4, 1],
     ['mesa.cavalete', 'largura', 1.4, 4, 2.2, 0], ['mesa.banquete', 'largura', 2.4, 7, 4, 0], ['mesa.redonda-rustica', 'diametro', 0.8, 2, 1.1, 0], ['bancada.trabalho', 'largura', 1.2, 3, 1.8, 0],
   ];

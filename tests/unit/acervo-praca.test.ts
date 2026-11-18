@@ -58,7 +58,8 @@ test('Kit.aplicar roda as ferramentas do assistente e o resultado continua edit�
 
 test('as escadas de pedra clareiam de baixo (+y) para cima (−y), com muretas dos dois lados', () => {
   for (const id of ['escada.pedra', 'escada.externa']) {
-    const ps = partes(id), pisadas = ps.filter(p => p.forma === 'ret' && p.alfa === undefined && p.w! > 0.6 && p.h! < 0.4).sort((a, b) => b.y! - a.y!);
+    const cy = (p: Parte) => p.pts!.filter((_, i) => i % 2).reduce((a, b) => a + b, 0) / (p.pts!.length / 2);
+    const ps = partes(id), pisadas = ps.filter(p => p.forma === 'poli' && p.detalhe === 1 && p.alfa === undefined).sort((a, b) => cy(b) - cy(a));
     assert.ok(pisadas.length >= 5, id);
     const luz = (hex: string) => parseInt(hex.slice(1, 3), 16) + parseInt(hex.slice(3, 5), 16) + parseInt(hex.slice(5, 7), 16);
     assert.ok(luz(pisadas.at(-1)!.mat) > luz(pisadas[0]!.mat), `${id}: o degrau de cima é mais claro`);
