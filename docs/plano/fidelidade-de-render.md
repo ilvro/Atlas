@@ -56,7 +56,7 @@ Tudo isso fica **só no estilo Ilustrado**. O Pixel continua com o caminho atual
 | [L2](#l2--mapa-de-direção-da-luz) | Gemini | Segunda textura com a direção da luz dominante, mesma oclusão | L1 | ✅ |
 | [L3](#l3--altura-nos-desenhos-assados-objetos) | Gemini | Tela de altura irmã para objetos assados, a partir de `Parte.z` | — | ✅ |
 | [L4](#l4--altura-de-terreno-e-cômodos-e-cena-de-altura) | Gemini | Altura de terreno e cômodos (luminância como reserva) e a cena de altura montada em paralelo | L3 | ✅ |
-| [L5](#l5--filtro-de-luz-com-relevo) | Gemini | Filtro em tela cheia: normal por Sobel, `N·L`, luz HDR; chave `relevo` | L1, L2, L4 | ⬜ |
+| [L5](#l5--filtro-de-luz-com-relevo) | Gemini | Filtro em tela cheia: normal por Sobel, `N·L`, luz HDR; chave `relevo` | L1, L2, L4 | ✅ |
 | [L6](#l6--oclusão-de-contato-e-de-canto) | Gemini | AO derivada da altura no mesmo filtro + AO no pé das paredes | L5 | ⬜ |
 | [L7](#l7--bloom-e-fogo-emissivo) | Gemini | Bloom do que passa de 1; partes `brilho` marcam emissão | L5 | ⬜ |
 | [L8](#l8--curva-de-tom-e-tonalização-dividida) | Gemini | ACES aproximado e `finish.split` (sombras/luzes) no acabamento | L5 | ⬜ |
@@ -197,7 +197,7 @@ As fichas L1–L4 e L9 podem andar em paralelo (L1 → L2 numa sessão; L3 → L
 
 ---
 
-## L5 — Filtro de luz com relevo  ⬜
+## L5 — Filtro de luz com relevo  ✅
 
 **Objetivo:** a luz realça as superfícies do lado de onde vem e escurece o lado oposto.
 
@@ -232,6 +232,8 @@ vec3 cor = base * (ambiente + (luz - uAmbiente) * mix(1.0, realce, uRelevo));
 **Testes:** puro em `tests/unit/luzes.test.ts`: a função TypeScript espelho `realceDoRelevo(N, L)` (mesma fórmula, exportada para teste) dá 1 para chão liso, > 1 para normal inclinada para a luz, < 1 para a inclinada contra. Validação de `finish.relief` em `tests/unit/validacao*.test.ts`. Visual: `sala-da-guarda` com `relief` 0 e 0,7 lado a lado em `test-results/l5-relevo.png`.
 
 **Pronto quando:** juntas de laje e bordas de tábua acendem do lado da tocha; `relief: 0` volta ao de antes.
+
+**Nota:** `Acabamento.relief?` + `RELEVO_PADRAO = 0.7` em `src/domain/mapa.ts`, `src/domain/validacao.ts` (`0..1`), interpolação em `misturar` (`src/domain/clima.ts`), exposição em `atlas_ambiente` (`src/app/ponte-escrita.ts`) e `scripts/ponte/catalogo-base.json` regenerado. Em `src/render/composicao-de-luz.ts`, a normal é derivada por Sobel 3×3 sobre `uAltura` (`uPassoEmMetros` exposto em `CenaDeAltura.metrosPorTexel`), `dirXY` recupera o vetor `[-1, 1]` de `uDirecao` (`2.0 * (d.rg - 0.5 * d.b) / d.b`), e a altura da luz (`ALTURA_DA_LUZ = 1.6` m ou `ALTURA_DO_FEIXE = 6` m para `rays`) vai codificada no canal `A` de `direcaoRT` (`uAlturaNorm` em `src/render/mapa-de-luz.ts`) junto de `ambiente` e `alcance`; para manter interiores sem luz direta (`luz < uAmbiente`) coerentes e `relief: 0` idêntico à L1, a parcela direta é `max(luz - uAmbiente, 0.0)` e o fator `0.75 + 0.25 * N.z` do ambiente também é ponderado por `uRelevo`. Medição em `porto-noturno` (Chromium headless/SwiftShader, 1440×860): `relief: 0` = `60.0 fps` (120 quadros / 2000 ms), `relief: 0.7` = `50.6 fps` (102 quadros / 2016,5 ms) — queda de 15,7% (< 25%), mantida `alturaRT` em resolução cheia. Conferido em `tests/unit/luzes.test.ts` (`realceDoRelevo`), `validacao.test.ts`, `ponte-escrita.test.ts`, `clima.test.ts`, `tests/e2e/fase6.test.ts` + `fase10-halos.test.ts` (8/8) e visualmente em `test-results/l5-relevo.png`.
 
 **Commit:** `lights now shade surfaces by their relief`
 

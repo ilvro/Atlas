@@ -17,7 +17,7 @@ import { valueNoise2D } from '../procedural/ruido.ts';
 import type { Mudancas } from '../state/mudancas.ts';
 import { hexParaNumero } from './cores.ts';
 import { criarFiltroDeFaixas } from './faixas.ts';
-import { ALTURA_DA_LUZ, texturaDeBrilho, texturaDeDirecao } from './luzes.ts';
+import { ALTURA_DA_LUZ, ALTURA_DO_FEIXE, ALTURA_MAXIMA_DA_LUZ, texturaDeBrilho, texturaDeDirecao } from './luzes.ts';
 
 export { ALTURA_DA_LUZ };
 
@@ -68,6 +68,10 @@ export interface MapaDeLuz {
   readonly direcao: Texture;
   /** Fator de escala para decodificar a textura da luz (`1` em float ou no Pixel; `ESCALA_HDR` em 8 bits). */
   readonly escala: number;
+  /** Cor efetiva do ambiente (já multiplicada por efeitos e clarão de relâmpago), em escala linear. */
+  readonly ambiente: readonly [number, number, number];
+  /** Alcance médio (m) das luzes ativas ponderado pela intensidade (padrão `6`). */
+  readonly alcance: number;
   sincronizar(m: MapaAtlas, mudancas: Mudancas | null): void;
   /** Tremulação das luzes; `agora` em milissegundos. */
   quadro(agora: number): void;
@@ -137,9 +141,10 @@ const fragmentDirecao = `in vec2 vUV;
 out vec4 finalColor;
 uniform sampler2D uTexture;
 uniform float uIntensidade;
+uniform float uAlturaNorm;
 void main() {
   vec4 t = texture(uTexture, vUV);
-  finalColor = vec4(t.rgb * uIntensidade, t.a);
+  finalColor = vec4(t.rgb * uIntensidade, t.b * uIntensidade * uAlturaNorm);
 }`;
 
 // Blur gaussiano separável (9 amostras, pesos somando 1.0) feito direto entre RenderTextures para preservar valores HDR > 1.
@@ -396,7 +401,10 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     c.addChild(mesh, m); raiz.addChild(c);
 
     const cDir = new Container(), mDir = new Graphics();
-    const grupoDir = new UniformGroup({ uIntensidade: { value: 1, type: 'f32' } });
+    const grupoDir = new UniformGroup({
+      uIntensidade: { value: 1, type: 'f32' },
+      uAlturaNorm: { value: ALTURA_DA_LUZ / ALTURA_MAXIMA_DA_LUZ, type: 'f32' },
+    });
     const shaderDir = new Shader({ glProgram: progDirecao, resources: { uTexture: texturaDeDirecao(ehFloatAtivo).source, direcao: grupoDir } });
     const meshDir = new Mesh({ geometry: quadLuz, shader: shaderDir });
     meshDir.blendMode = 'add'; meshDir.mask = mDir; meshDir.visible = false;
@@ -431,6 +439,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     const [r, gCor, b] = rgb01(l.color);
     const c = g.clarao > 0 && l.id.startsWith('janela:') ? g.clarao * 0.6 : 0;
     aplicarCor(g, Math.min(1, r + c), Math.min(1, gCor + c), Math.min(1, b + c));
+    (g.grupoDir.uniforms as Record<string, unknown>).uAlturaNorm = (l.rays ? ALTURA_DO_FEIXE : ALTURA_DA_LUZ) / ALTURA_MAXIMA_DA_LUZ;
     if (g.alfa < 0 && mapa) {
       const daRede = l.power === 'grid';
       const nivel = nivelDaLuz(l, mapa, queda > 0 ? { redeLigada: true, noite } : { noite });
@@ -509,10 +518,30 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     sujo = false;
   }
 
+  const ambienteEfetivo: [number, number, number] = [1, 1, 1];
+
   return {
     sprite,
     get direcao() { return !pixel && direcaoRT ? direcaoRT : Texture.EMPTY; },
     get escala() { return escalaAtiva; },
+    get ambiente(): readonly [number, number, number] {
+      const brilho = claraoAtual * 0.35;
+      ambienteEfetivo[0] = ambiente[0] * efAmbiente + brilho;
+      ambienteEfetivo[1] = ambiente[1] * efAmbiente + brilho;
+      ambienteEfetivo[2] = ambiente[2] * efAmbiente + brilho;
+      return ambienteEfetivo;
+    },
+    get alcance() {
+      let somaPeso = 0, somaRaio = 0;
+      for (const g of luzes.values()) {
+        const k = Math.max(0, g.alfa);
+        if (k > 0.01) {
+          somaPeso += k;
+          somaRaio += k * g.luz.radius;
+        }
+      }
+      return somaPeso > 0 ? somaRaio / somaPeso : 6;
+    },
     sincronizar(m, mud) {
       if (destruido) return;
       const tudo = !mud || mud.completo, col = (c: string) => tudo || !!(mud!.colecoes as Record<string, unknown>)[c], campo = (...c: string[]) => tudo || c.some(x => mud!.campos.includes(x));

@@ -11,6 +11,8 @@ export interface CenaDeAltura {
   readonly alturaC: Container;
   /** Textura de altura na resolução da tela (`alturaRT`), ou `Texture.EMPTY` antes do primeiro quadro. */
   readonly textura: Texture;
+  /** Tamanho em metros de 1 texel de `alturaRT` no zoom atual (0 antes do primeiro quadro). */
+  readonly metrosPorTexel: number;
   /** Verdadeiro se a última chamada a `atualizar` redesenhou `alturaRT` (para testes/diagnóstico). */
   readonly redesenhouNoUltimoQuadro: boolean;
   definirTerreno(tex: Texture | null, origem?: readonly [number, number], res?: number): void;
@@ -109,6 +111,11 @@ export function criarCenaDeAltura(): CenaDeAltura {
     alturaC,
     get textura() {
       return alturaRT ?? Texture.EMPTY;
+    },
+    get metrosPorTexel() {
+      if (!alturaRT || resolucao <= 0) return 0;
+      const pxPorMetro = Math.hypot(camAtual.a, camAtual.b);
+      return pxPorMetro > 0 ? 1 / (pxPorMetro * resolucao) : 0;
     },
     get redesenhouNoUltimoQuadro() {
       return redesenhou;

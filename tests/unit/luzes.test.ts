@@ -10,7 +10,7 @@ import { GENEROS, TIPOS_DE_COMODO, presetDeLuz } from '../../src/domain/presets.
 import { ACERVO } from '../../src/procedural/acervo.ts';
 import { RendererType } from 'pixi.js';
 import { ALTURA_DA_LUZ, ESCALA_HDR, codificarLuz, decodificarLuz, formatoDaLuz, luzAfetadaPorTokens, nivelAtivoDe, poligonoDaLuz, sincronizarOclusao } from '../../src/render/mapa-de-luz.ts';
-import { modoDeDepuracaoDaLuz } from '../../src/render/composicao-de-luz.ts';
+import { modoDeDepuracaoDaLuz, realceDoRelevo } from '../../src/render/composicao-de-luz.ts';
 import { TAMANHO_TEXTURA_DIRECAO, floatParaHalf, pixelDeDirecao, texturaDeDirecao } from '../../src/render/luzes.ts';
 import { mapaCom, sala } from './apoio-casa.ts';
 
@@ -194,4 +194,22 @@ test('pixelDeDirecao e texturaDeDirecao codificam o vetor do pixel para a luz em
   assert.equal(modoDeDepuracaoDaLuz('?foo=1&luz=altura'), 'altura');
   assert.equal(modoDeDepuracaoDaLuz('?luz=outra'), null);
   assert.equal(modoDeDepuracaoDaLuz(''), null);
+});
+
+test('realceDoRelevo dá 1 para chão liso, > 1 para normal inclinada para a luz e < 1 para inclinada contra', () => {
+  const luzEsquerda: readonly [number, number, number] = [-0.8, 0, 0.6];
+  // Chão liso (N = [0, 0, 1]) recebe 1 quando L.z >= 0.25
+  assert.ok(Math.abs(realceDoRelevo([0, 0, 1], luzEsquerda) - 1) < 1e-12);
+  assert.ok(Math.abs(realceDoRelevo([0, 0, 1], [0, 0, 1]) - 1) < 1e-12);
+
+  // Normal inclinada na direção da luz recebe > 1
+  const voltadaParaLuz = realceDoRelevo([-0.6, 0, 0.8], luzEsquerda);
+  assert.ok(voltadaParaLuz > 1, `esperado > 1, recebeu ${voltadaParaLuz}`);
+
+  // Normal inclinada contra a luz recebe < 1
+  const voltadaContraLuz = realceDoRelevo([0.3, 0, 0.95], luzEsquerda);
+  assert.ok(voltadaContraLuz < 1 && voltadaContraLuz >= 0, `esperado < 1, recebeu ${voltadaContraLuz}`);
+
+  // Normal oposta (N·L <= 0) zera em vez de negativar
+  assert.equal(realceDoRelevo([0.9, 0, 0.4], luzEsquerda), 0);
 });
