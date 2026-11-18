@@ -275,6 +275,12 @@ test('atlas_ambiente: erros legíveis para valores fora da faixa e ids desconhec
   assert.equal(store.documento.finish.relief, 0);
   await assert.rejects(chamar('atlas_ambiente', { acabamento: { relief: -0.1 } }), /relief.*entre 0 e 1/);
   await assert.rejects(chamar('atlas_ambiente', { acabamento: { relief: 1.5 } }), /relief.*entre 0 e 1/);
+  await chamar('atlas_ambiente', { acabamento: { ao: 0.4 } });
+  assert.equal(store.documento.finish.ao, 0.4);
+  await chamar('atlas_ambiente', { acabamento: { ao: 0 } });
+  assert.equal(store.documento.finish.ao, 0);
+  await assert.rejects(chamar('atlas_ambiente', { acabamento: { ao: -0.1 } }), /ao.*entre 0 e 1/);
+  await assert.rejects(chamar('atlas_ambiente', { acabamento: { ao: 1.5 } }), /ao.*entre 0 e 1/);
 });
 
 test('atlas_regioes cria regiões; atlas_presenca pinta e ajusta a intensidade', async () => {

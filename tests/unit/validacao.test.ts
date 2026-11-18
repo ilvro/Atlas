@@ -212,3 +212,13 @@ test('validação de finish.relief: opcional, aceita 0..1 e recusa fora da faixa
   assert.equal(caminhoDoErro(mexer(x => { x.finish.relief = 1.1; })), 'finish.relief');
   assert.equal(caminhoDoErro(mexer(x => { x.finish.relief = 'alto'; })), 'finish.relief');
 });
+
+test('validação de finish.ao: opcional, aceita 0..1 e recusa fora da faixa', () => {
+  assert.equal(caminhoDoErro(mexer(x => { delete x.finish.ao; })), null);
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.ao = 0; })), null);
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.ao = 0.55; })), null);
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.ao = 1; })), null);
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.ao = -0.1; })), 'finish.ao');
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.ao = 1.1; })), 'finish.ao');
+  assert.equal(caminhoDoErro(mexer(x => { x.finish.ao = 'medio'; })), 'finish.ao');
+});

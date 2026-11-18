@@ -57,7 +57,7 @@ Tudo isso fica **só no estilo Ilustrado**. O Pixel continua com o caminho atual
 | [L3](#l3--altura-nos-desenhos-assados-objetos) | Gemini | Tela de altura irmã para objetos assados, a partir de `Parte.z` | — | ✅ |
 | [L4](#l4--altura-de-terreno-e-cômodos-e-cena-de-altura) | Gemini | Altura de terreno e cômodos (luminância como reserva) e a cena de altura montada em paralelo | L3 | ✅ |
 | [L5](#l5--filtro-de-luz-com-relevo) | Gemini | Filtro em tela cheia: normal por Sobel, `N·L`, luz HDR; chave `relevo` | L1, L2, L4 | ✅ |
-| [L6](#l6--oclusão-de-contato-e-de-canto) | Gemini | AO derivada da altura no mesmo filtro + AO no pé das paredes | L5 | ⬜ |
+| [L6](#l6--oclusão-de-contato-e-de-canto) | Gemini | AO derivada da altura no mesmo filtro + AO no pé das paredes | L5 | ✅ |
 | [L7](#l7--bloom-e-fogo-emissivo) | Gemini | Bloom do que passa de 1; partes `brilho` marcam emissão | L5 | ⬜ |
 | [L8](#l8--curva-de-tom-e-tonalização-dividida) | Gemini | ACES aproximado e `finish.split` (sombras/luzes) no acabamento | L5 | ⬜ |
 | [L9](#l9--paredes-com-topo-e-face-interna) | Gemini + Opus | Parede com topo e face interna visível, material por cômodo, objetos de parede na face | — | ⬜ |
@@ -239,7 +239,7 @@ vec3 cor = base * (ambiente + (luz - uAmbiente) * mix(1.0, realce, uRelevo));
 
 ---
 
-## L6 — Oclusão de contato e de canto  ⬜
+## L6 — Oclusão de contato e de canto  ✅
 
 **Objetivo:** objetos e paredes assentam no chão; juntas e cantos escurecem.
 
@@ -259,6 +259,8 @@ vec3 cor = base * (ambiente + (luz - uAmbiente) * mix(1.0, realce, uRelevo));
 **Testes:** validação de `finish.ao`; função espelho `oclusaoDeAmostras(h0, amostras)` com caso plano (0) e caso de quina (> 0). Visual: `test-results/l6-ao.png` com `mansao-da-ilha` (pés de parede e móveis).
 
 **Pronto quando:** móveis e paredes têm um escuro de contato visível e macio, e `ao: 0` desliga.
+
+**Nota:** `AO_PADRAO` (`0.55`) e `Acabamento.ao?` em `src/domain/mapa.ts`, validação `0..1` em `src/domain/validacao.ts`, interpolação em `misturar` (`src/domain/clima.ts`), exposição em `atlas_ambiente` (`src/app/ponte-escrita.ts`) e `scripts/ponte/catalogo-base.json` regenerado. Em `src/render/cena-de-altura.ts`, `ALTURA_DE_PAREDE = 3` e `paredesAlturaG` (atualizada via `atualizarParedes` em `desenharParedes` de `src/render/cena.ts` para `p.kind === 'wall'`, usando os mesmos trechos com vãos de portas/arcos e `larguraDaParede` com cinza `ALTURA_DE_PAREDE / ALTURA_MAXIMA`). Em `src/render/composicao-de-luz.ts`, `anelAO` com 8 direções a dois raios em metros (`RAIO_AO_CURTO = 0.25` m peso `2`, `RAIO_AO_LONGO = 0.7` m peso `1` rotacionado em 22,5°) aplicada antes da soma final sobre `ambiente` por inteiro e `0.5` da `luzDireta`, mais a função espelho `oclusaoDeAmostras(h0, amostras)`. Conferido em `tests/unit/validacao.test.ts`, `tests/unit/luzes.test.ts`, `tests/unit/clima.test.ts`, `tests/unit/ponte-escrita.test.ts` (1140/1140), `tests/e2e/fase6.test.ts` + `fase10-halos.test.ts` (8/8), `npm run build` e comparativo `test-results/l6-ao.png` em `mansao-da-ilha`.
 
 **Commit:** `added contact and corner occlusion from the height pass`
 

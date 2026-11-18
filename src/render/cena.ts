@@ -2,7 +2,7 @@ import { Container, Graphics, Sprite, Text, Texture, type Renderer } from 'pixi.
 import { listaDeAndares } from '../domain/andares.ts';
 import { decodificar } from '../domain/celulas.ts';
 import { comprimentoDaParede, contornoDoComodo, pontoNaParede } from '../domain/geometria.ts';
-import { RELEVO_PADRAO, type Abertura, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Ponto, type Regiao } from '../domain/mapa.ts';
+import { AO_PADRAO, RELEVO_PADRAO, type Abertura, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Ponto, type Regiao } from '../domain/mapa.ts';
 import { materialDe, tom } from '../procedural/materiais.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { camadaDoObjeto } from '../domain/camadas.ts';
@@ -248,7 +248,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     }
   }
 
-  function desenharParede(g: Graphics, m: MapaAtlas, p: Parede): void {
+  function trechosDaParede(m: MapaAtlas, p: Parede): [number, number][] {
     // A parede é traçada em trechos, pulando o vão das portas e dos arcos.
     const comp = comprimentoDaParede(p), vaos = Object.values(m.openings).filter(a => a.wallId === p.id && (a.kind === 'door' || a.kind === 'arch' || secretaRevelada(m, a))).map(a => [a.at * comp - a.width / 2, a.at * comp + a.width / 2] as const).sort((x, y) => x[0] - y[0]);
     const trechos: [number, number][] = [];
@@ -259,33 +259,41 @@ export function criarCena(op: OpcoesDaCena): Cena {
       pos = b;
     }
     if (comp - pos >= 1e-4) trechos.push([pos, comp]);
-    if (!trechos.length) return;
+    return trechos;
+  }
 
-    const trazarTrechos = (dx = 0, dy = 0) => {
-      for (const [d0, d1] of trechos) {
-        const pts: Ponto[] = [pontoEm(p, d0)];
-        let acum = 0;
-        for (let i = 0; i + 1 < p.path.length; i++) {
-          const l = Math.hypot(p.path[i + 1]![0] - p.path[i]![0], p.path[i + 1]![1] - p.path[i]![1]);
-          acum += l;
-          if (acum > d0 && acum < d1) pts.push(p.path[i + 1]!);
-        }
-        pts.push(pontoEm(p, d1));
-        g.moveTo(pts[0]![0] + dx, pts[0]![1] + dy);
-        for (const q of pts.slice(1)) g.lineTo(q[0] + dx, q[1] + dy);
+  function trazarTrechos(g: Graphics, p: Parede, trechos: readonly [number, number][], dx = 0, dy = 0): void {
+    for (const [d0, d1] of trechos) {
+      const pts: Ponto[] = [pontoEm(p, d0)];
+      let acum = 0;
+      for (let i = 0; i + 1 < p.path.length; i++) {
+        const l = Math.hypot(p.path[i + 1]![0] - p.path[i]![0], p.path[i + 1]![1] - p.path[i]![1]);
+        acum += l;
+        if (acum > d0 && acum < d1) pts.push(p.path[i + 1]!);
       }
-    };
+      pts.push(pontoEm(p, d1));
+      g.moveTo(pts[0]![0] + dx, pts[0]![1] + dy);
+      for (const q of pts.slice(1)) g.lineTo(q[0] + dx, q[1] + dy);
+    }
+  }
+
+  const larguraDaParede = (p: Parede): number =>
+    p.kind === 'wall' && p.source && 'roomId' in p.source ? Math.max(p.thickness, ESPESSURA_MINIMA_DE_COMODO) : p.thickness;
+
+  function desenharParede(g: Graphics, m: MapaAtlas, p: Parede): void {
+    const trechos = trechosDaParede(m, p);
+    if (!trechos.length) return;
 
     if (p.kind === 'fence') {
       const matHex = p.material && p.material !== 'parede.topo' ? materialDe(p.material).base : '#7c5838';
       const corTravessa = hexParaNumero(matHex);
       const corPoste = hexParaNumero(tom(matHex, -0.32));
       const corMiolo = hexParaNumero(tom(matHex, 0.24));
-      trazarTrechos(0.05, 0.06);
+      trazarTrechos(g, p, trechos, 0.05, 0.06);
       g.stroke({ width: lw(Math.max(0.08, p.thickness * 0.44)), color: 0x0e0c10, alpha: pixelRes ? 0.35 : 0.26, join: 'miter', cap: 'round' });
-      trazarTrechos();
+      trazarTrechos(g, p, trechos);
       g.stroke({ width: lw(Math.max(0.08, p.thickness * 0.42)), color: 0x1e1612, alpha: 0.96, join: 'miter', cap: 'butt' });
-      trazarTrechos();
+      trazarTrechos(g, p, trechos);
       g.stroke({ width: lw(Math.max(0.05, p.thickness * 0.24)), color: corTravessa, alpha: 0.96, join: 'miter', cap: 'butt' });
       const raio = Math.max(0.075, p.thickness * 0.42);
       for (const [d0, d1] of trechos) {
@@ -303,13 +311,13 @@ export function criarCena(op: OpcoesDaCena): Cena {
 
     if (p.kind === 'low') {
       const matHex = p.material && p.material !== 'parede.topo' ? materialDe(p.material).base : '#7b7780';
-      trazarTrechos(0.06, 0.08);
+      trazarTrechos(g, p, trechos, 0.06, 0.08);
       g.stroke({ width: lw(p.thickness * 0.86), color: 0x0b0a0e, alpha: pixelRes ? 0.38 : 0.28, join: 'miter', cap: 'butt' });
-      trazarTrechos();
+      trazarTrechos(g, p, trechos);
       g.stroke({ width: lw(p.thickness * 0.84), color: 0x1e1c24, alpha: 0.96, join: 'miter', cap: 'butt' });
-      trazarTrechos();
+      trazarTrechos(g, p, trechos);
       g.stroke({ width: lw(p.thickness * 0.6), color: hexParaNumero(matHex), alpha: 0.96, join: 'miter', cap: 'butt' });
-      trazarTrechos();
+      trazarTrechos(g, p, trechos);
       g.stroke({ width: lw(p.thickness * 0.22), color: hexParaNumero(tom(matHex, 0.22)), alpha: pixelRes ? 0.85 : 0.65, join: 'miter', cap: 'butt' });
       return;
     }
@@ -317,9 +325,9 @@ export function criarCena(op: OpcoesDaCena): Cena {
     // Parede cheia: sombra de contato sutil, topo escuro, chanfro claro do lado da luz (noroeste) e aresta escura do
     // outro, e juntas espaçadas ao longo do topo — massa de alvenaria, não um traço chato de CAD.
     // Paredes de cômodo ganham corpo de alvenaria no desenho (no mínimo 0,34 m), como nas plantas de mapa de mesa.
-    const t = p.kind === 'wall' && p.source && 'roomId' in p.source ? Math.max(p.thickness, ESPESSURA_MINIMA_DE_COMODO) : p.thickness;
-    if (p.kind === 'wall') { trazarTrechos(t * 0.18, t * 0.24); g.stroke({ width: lw(t * 1.15), color: 0x050408, alpha: pixelRes ? 0.3 : 0.2, join: 'miter', cap: 'butt' }); }
-    trazarTrechos();
+    const t = larguraDaParede(p);
+    if (p.kind === 'wall') { trazarTrechos(g, p, trechos, t * 0.18, t * 0.24); g.stroke({ width: lw(t * 1.15), color: 0x050408, alpha: pixelRes ? 0.3 : 0.2, join: 'miter', cap: 'butt' }); }
+    trazarTrechos(g, p, trechos);
     g.stroke({ width: lw(t), color: COR_TOPO, alpha: 1, join: 'miter', cap: 'butt' });
     if (p.kind !== 'wall') return;
     const fino = pixelRes > 0 && t * pixelRes < 5;      // no Pixel, parede de poucos pixels fica só com o topo
@@ -370,6 +378,18 @@ export function criarCena(op: OpcoesDaCena): Cena {
       const a = pontoEm(p, Math.max(0, c - meia)), b = pontoEm(p, Math.min(comprimentoDaParede(p), c + meia));
       paredesG.moveTo(a[0], a[1]).lineTo(b[0], b[1]).stroke({ width: lw(p.thickness * 0.34), color: 0xd9a75e, alpha: pixelRes ? 1 : 0.9, cap: 'butt' }); void tangente;
     }
+    cenaDeAltura.atualizarParedes((g, cor) => {
+      if (pixelRes > 0) return;
+      for (const p of Object.values(m.walls)) {
+        if (p.kind !== 'wall') continue;
+        if (p.source && 'terrainLayerId' in p.source) continue;
+        if (ehEscarpaAvulsa(p)) continue;
+        const trechos = trechosDaParede(m, p);
+        if (!trechos.length) continue;
+        trazarTrechos(g, p, trechos);
+        g.stroke({ width: larguraDaParede(p), color: cor, alpha: 1, join: 'miter', cap: 'butt' });
+      }
+    });
   }
 
   // ---------- Objetos de piso ----------
@@ -580,7 +600,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       const v = visaoDoClima ?? m;
       ehPixel = m.style.renderer === 'pixel';
       if (tudo || colecao('rooms') || colecao('props') || colecao('walls') || campos('climate', 'bounds', 'grid', 'style')) tempo.atualizar(v, objetos);
-      luz.sincronizar(v, mud); filtroDeLuz.definirRelevo(v.finish.relief ?? RELEVO_PADRAO); atualizarComposicaoDeLuz(); neblina.sincronizar(v, mud); bordas.sincronizar(v, mud); particulas.sincronizar(v, mud); halos.sincronizar(v, mud);
+      luz.sincronizar(v, mud); filtroDeLuz.definirRelevo(v.finish.relief ?? RELEVO_PADRAO); filtroDeLuz.definirAO(v.finish.ao ?? AO_PADRAO); atualizarComposicaoDeLuz(); neblina.sincronizar(v, mud); bordas.sincronizar(v, mud); particulas.sincronizar(v, mud); halos.sincronizar(v, mud);
       // Os marcadores das luzes também refletem o clima (apagada pela rede ou pelo dia), então refazem quando ele muda.
       if (tudo || colecao('lights') || campos('climate')) sincronizarSimples(luzes, luzesC, m.lights, tudo || campos('climate') ? null : mud!.colecoes.lights ?? null, (c, l) => desenharLuz(c, l, m), comPop);
       if (tudo || colecao('tokens') || campos('grid', 'style')) sincronizarSimples(pecas, pecasC, m.tokens, tudo || campos('grid', 'style') ? null : mud!.colecoes.tokens ?? null, (c, t) => desenharPeca(c, t, m), comPop);
@@ -593,7 +613,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     atualizarAtmosfera(visao) {
       const mud: Mudancas = { completo: false, colecoes: {}, campos: ['climate'] };
       tempo.atualizar(visao, objetos);
-      luz.sincronizar(visao, mud); filtroDeLuz.definirRelevo(visao.finish.relief ?? RELEVO_PADRAO); neblina.sincronizar(visao, mud); bordas.sincronizar(visao, mud); particulas.sincronizar(visao, mud); halos.sincronizar(visao, mud);
+      luz.sincronizar(visao, mud); filtroDeLuz.definirRelevo(visao.finish.relief ?? RELEVO_PADRAO); filtroDeLuz.definirAO(visao.finish.ao ?? AO_PADRAO); neblina.sincronizar(visao, mud); bordas.sincronizar(visao, mud); particulas.sincronizar(visao, mud); halos.sincronizar(visao, mud);
     },
     definirAtmosfera: ligada => { atmosferaLigada = ligada; sombras.definirLigado(ligada); contato.definirLigado(ligada); tempo.definirLigado(ligada, mapa, objetos); if (ligada && mapa) sombras.atualizar(mapa, objetos, pixelRes0(mapa)); luz.definirLigado(ligada); atualizarComposicaoDeLuz(); neblina.definirLigado(ligada); bordas.definirLigado(ligada); particulas.definirLigado(ligada); halos.definirLigado(ligada); },
     relampagoAgora: () => luz.relampagoAgora(),
