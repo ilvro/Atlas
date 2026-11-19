@@ -1032,6 +1032,9 @@
               "papel": {
                 "type": "string"
               },
+              "wallFace": {
+                "type": "string"
+              },
               "telhado": {
                 "type": [
                   "string",

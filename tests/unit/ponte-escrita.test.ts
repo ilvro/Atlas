@@ -95,11 +95,12 @@ test('cabana de 3 × 3 células com porta, cada chamada um passo, e o mapa valid
 test('atlas_comodos aceita estilo de telhado e cobertura com forma e detalhes', async () => {
   const { store, chamar } = montar();
   await chamar('atlas_comodos', { comodos: [
-    { rets: [[6, 2, 10, 5]], tipo: 'capela', nome: 'Nave', telhado: 'igreja' },
+    { rets: [[6, 2, 10, 5]], tipo: 'capela', nome: 'Nave', telhado: 'igreja', wallFace: 'pedra.aparelhada' },
     { rets: [[10, 2, 12, 5]], tipo: 'capela', nome: 'Campanário', telhado: 'telha.escamas', telhadoForma: 'piramide', telhadoDetalhes: ['sino'] },
   ] });
   const [nave, torre] = Object.values(store.documento.rooms);
   assert.equal(nave!.roof.material, 'telha.ardosia');
+  assert.equal(nave!.wallFace, 'pedra.aparelhada');
   assert.deepEqual(nave!.roof.details, ['cruz']);
   assert.equal(torre!.roof.material, 'telha.escamas');
   assert.equal(torre!.roof.shape, 'piramide');

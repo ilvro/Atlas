@@ -30,6 +30,7 @@ const comodo = e.obj({
   })),
   floor: e.obj({ material, seed: e.num({ inteiro: true, min: 0, max: 2 ** 31 }) }),
   wallpaper: e.nulo(e.obj({ material, seed: e.num({ inteiro: true, min: 0, max: 2 ** 31 }) })),
+  wallFace: e.opt(material),
   wallStyle: e.nulo(e.um('box', 'solid')), palette: e.nulo(e.texto({ min: 1, max: 60 })),
   roof: e.obj({
     material: e.nulo(material),

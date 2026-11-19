@@ -2,7 +2,7 @@ import { codificar, type Faixa } from '../domain/celulas.ts';
 import { pontoNoPoligono } from '../domain/formas-de-comodo.ts';
 import { arestasDeParede, comprimentoDaParede, indiceDeCelulas, normalParaDentro, pontoNaParede, salasDaAbertura, type ArestaUnitaria } from '../domain/geometria.ts';
 import type { Comodo, MapaAtlas, Objeto, Parede, Ponto } from '../domain/mapa.ts';
-import { generoDe } from '../domain/presets.ts';
+import { FUNCOES_AO_AR_LIVRE, generoDe } from '../domain/presets.ts';
 import { alturaNaCelula, celulasForaDePatamares, corDaNeblinaDoRelevo, degrausDoRelevo, topoDoRelevo } from '../domain/relevo.ts';
 import type { EntradaDeEscarpa } from '../procedural/escarpa.ts';
 import { materialDe } from '../procedural/materiais.ts';
@@ -33,14 +33,29 @@ export function entradaDoComodo(m: MapaAtlas, sala: Comodo, ctx: ContextoDeEntra
     objetos.push({ receita: o.source.recipe, params: o.source.params, seed: o.source.seed, centro: [r3(ponto[0]), r3(ponto[1])] });
   }
   aberturas.sort((a, b) => a.centro[0] - b.centro[0] || a.centro[1] - b.centro[1]); objetos.sort((a, b) => a.centro[0] - b.centro[0] || a.centro[1] - b.centro[1]);
-  const alturas = Object.values(m.walls).filter(p => p.source && 'roomId' in p.source && p.source.roomId === sala.id).map(p => p.height);
+  const t = m.grid.size, [ox, oy] = m.grid.offset;
+  let cx0 = Infinity, cy0 = Infinity, cx1 = -Infinity, cy1 = -Infinity;
+  if (sala.outline && sala.outline.length >= 3) {
+    for (const [x, y] of sala.outline) { cx0 = Math.min(cx0, x); cy0 = Math.min(cy0, y); cx1 = Math.max(cx1, x); cy1 = Math.max(cy1, y); }
+  } else {
+    for (const [y, x0, n] of sala.cells) { cx0 = Math.min(cx0, ox + x0 * t); cx1 = Math.max(cx1, ox + (x0 + n) * t); cy0 = Math.min(cy0, oy + y * t); cy1 = Math.max(cy1, oy + (y + 1) * t); }
+  }
+  const nivel = sala.levelId ?? null;
+  const paredes: NonNullable<EntradaDoComodo['paredes']> = Object.values(m.walls)
+    .filter(p => {
+      if ((p.levelId ?? null) !== nivel || p.kind !== 'wall') return false;
+      let wx0 = Infinity, wy0 = Infinity, wx1 = -Infinity, wy1 = -Infinity;
+      for (const [x, y] of p.path) { wx0 = Math.min(wx0, x); wy0 = Math.min(wy0, y); wx1 = Math.max(wx1, x); wy1 = Math.max(wy1, y); }
+      return wx1 >= cx0 - 0.25 && wx0 <= cx1 + 0.25 && wy1 >= cy0 - 0.25 && wy0 <= cy1 + 0.25;
+    })
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map(p => ({ path: p.path.map(([x, y]) => [r3(x), r3(y)] as Ponto), height: p.height, material: p.material, kind: p.kind }));
+  const alturas = paredes.map(p => p.height);
+  const coberto = !(!sala.roof.material && sala.function !== null && FUNCOES_AO_AR_LIVRE.has(sala.function));
   // Degraus do relevo que cruzam o cômodo: o piso cobre o terreno, então o assado do cômodo os desenha como degrau construído.
   const degraus: NonNullable<EntradaDoComodo['degraus']> = [];
   if (m.terrain.relief && Object.keys(m.terrain.relief.patamares).length) {
     ctx.degraus ??= degrausDoRelevo(m);
-    const t = m.grid.size, [ox, oy] = m.grid.offset;
-    let cx0 = Infinity, cy0 = Infinity, cx1 = -Infinity, cy1 = -Infinity;
-    for (const [y, x0, n] of sala.cells) { cx0 = Math.min(cx0, ox + x0 * t); cx1 = Math.max(cx1, ox + (x0 + n) * t); cy0 = Math.min(cy0, oy + y * t); cy1 = Math.max(cy1, oy + (y + 1) * t); }
     const dentro = (q: Ponto) => q[0] >= cx0 - 1 && q[0] <= cx1 + 1 && q[1] >= cy0 - 1 && q[1] <= cy1 + 1;
     for (const d of ctx.degraus) {
       const caminhos: Ponto[][] = [], drops: ('a' | 'b')[] = [];
@@ -52,6 +67,9 @@ export function entradaDoComodo(m: MapaAtlas, sala: Comodo, ctx: ContextoDeEntra
     grade: { size: m.grid.size, offset: [m.grid.offset[0], m.grid.offset[1]] }, celulas: sala.cells,
     ...(sala.outline ? { outline: sala.outline.map(([x, y]) => [r3(x), r3(y)] as Ponto) } : {}),
     piso: sala.floor, papel: sala.wallpaper,
+    ...(sala.wallFace ? { wallFace: sala.wallFace } : {}),
+    coberto,
+    paredes,
     estilo: sala.wallStyle ?? m.style.walls, altura: alturas.length ? Math.max(...alturas) : 2.6, aberturas, objetos,
     ...(degraus.length ? { degraus } : {}),
   };

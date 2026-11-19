@@ -93,6 +93,7 @@ export interface PedidoDeComodo {
   nome?: string;
   piso?: string;
   papel?: string;
+  wallFace?: string;
   telhado?: string | null;
   telhadoVisivel?: boolean;
   telhadoForma?: FormaDeTelhado;
@@ -200,6 +201,7 @@ export function comodos(mapa: MapaAtlas, pedidos: readonly PedidoDeComodo[], sem
     if (!t) throw new ErroDeConstrucao(`tipo de cômodo “${p.tipo}” não existe; tipos: ${lista(TIPOS_DE_COMODO.map(x => x.id))}`);
     if (p.piso) verificarMaterial(p.piso, ['piso'], 'piso');
     if (p.papel) verificarMaterial(p.papel, ['papel'], 'papel de parede');
+    if (p.wallFace) verificarMaterial(p.wallFace, ['papel', 'piso', 'objeto', 'terreno'], 'face de parede');
     const { celulas, outline } = resolverFormaDoComodo(mapa, p);
     const id = gerarId('c');
     const andar = p.andar ?? null;
@@ -215,6 +217,7 @@ export function comodos(mapa: MapaAtlas, pedidos: readonly PedidoDeComodo[], sem
       ...(outline ? { outline } : {}),
       piso: { material: p.piso ?? t.piso, seed: Math.floor(rng() * 2 ** 31) },
       papel: { material: p.papel ?? t.papel, seed: Math.floor(rng() * 2 ** 31) },
+      ...(p.wallFace ? { wallFace: p.wallFace } : {}),
       ...(telhado !== null ? { telhado } : {}),
       ...(andar !== null ? { levelId: andar } : {}),
     });
