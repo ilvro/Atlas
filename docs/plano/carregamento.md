@@ -88,7 +88,7 @@ mansao-da-ilha: editor 1.03 s | pronto 10.08 s | longtasks 588 ms (3) | assados 
   objeto              105       1507.4        209.5         0.41
 ```
 
-### M2 — Fila puxada, mais workers e prioridade  ⬜
+### M2 — Fila puxada, mais workers e prioridade  ✅
 Objetivo: nenhum worker fica parado enquanto há trabalho, e um assado longo não segura os curtos atrás dele.
 Depende de: M1.
 Ler: `src/procedural/baker.ts` inteiro, `src/render/cena.ts` (onde `pintar` pede terreno, cômodo e objeto), `src/ui/previa.ts`.
@@ -102,6 +102,23 @@ Não fazer: mudar o que cada assado faz.
 Testes: com 2 executores falsos, um pedido de 100 ms e quatro de 10 ms, os quatro curtos terminam antes do longo; a prioridade 0 passa na frente da 1; chaves iguais compartilham o mesmo trabalho (comportamento atual).
 Pronto quando: o medidor mostra o Entreposto pronto em ~8,5 s (o terreno virou o limite).
 Commit: `bake queue now feeds idle workers first, with priorities`
+Nota: medição no worktree (`npm run medir:carga -- entreposto-do-rio mansao-da-ilha`, 6 workers, com outros agentes rodando em paralelo no host; o terreno segue sendo o limite do Entreposto: `editor 1,28 s` + debounce de `140 ms` + `terreno 8,74 s` = `10,93 s`, enquanto objetos/imagens/cômodos terminam antes nos demais workers; Mansão caiu de `10,08 s` para `6,91–7,40 s`; os 5 erros 403 são apenas do symlink `node_modules` fora do root do Vite no worktree):
+```
+entreposto-do-rio: editor 1.28 s | pronto 10.93 s | longtasks 842 ms (4) | assados 123
+  tipo                  n    soma (ms)   maior (ms)  maior (Mpx)
+  terreno               1       8743.9       8743.9         2.14
+  objeto              108       3838.6        566.7         0.38
+  comodo                6       3511.4        901.3         0.91
+  imagem                7        158.0         35.7         0.54
+  cobertura             1         98.2         98.2         0.03
+
+mansao-da-ilha: editor 1.04 s | pronto 6.91 s | longtasks 489 ms (2) | assados 119
+  tipo                  n    soma (ms)   maior (ms)  maior (Mpx)
+  comodo                9       9615.0       2595.6         0.84
+  terreno               1       4058.9       4058.9         1.17
+  objeto              105       2669.5        381.2         0.41
+  imagem                4         36.3          9.7         0.03
+```
 
 ### M3 — Cada camada do terreno só na caixa dela  ⬜
 Objetivo: o custo de uma camada passa a ser proporcional à área dela, não à do mapa.

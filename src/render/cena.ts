@@ -157,10 +157,10 @@ export function criarCena(op: OpcoesDaCena): Cena {
   };
 
   /** Pede a pintura e, quando chega, troca o desenho — a menos que a coisa já tenha mudado de novo. */
-  function pintar(e: Entrada, chave: string, pedido: PedidoDeBake, aplicar: (s: Sprite, r: ResultadoDeBake) => void): void {
+  function pintar(e: Entrada, chave: string, pedido: PedidoDeBake, aplicar: (s: Sprite, r: ResultadoDeBake) => void, prioridade?: number): void {
     if (e.chave === chave) return;
     e.chave = chave; pintandoAgora++;
-    op.baker.pedir(chave, pedido).then(r => {
+    op.baker.pedir(chave, pedido, prioridade).then(r => {
       if (destruida || e.chave !== chave || e.c.destroyed) return;
       const { tex, texAltura } = adquirir(chave, r), antiga = e.chaveTextura;
       if (!e.sprite) { e.sprite = new Sprite(tex); e.c.addChild(e.sprite); } else e.sprite.texture = tex;
@@ -183,7 +183,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     const alvo = terreno;
     // Durante a pincelada o terreno muda a cada movimento: espera uma pausa antes de pedir a pintura.
     if (terrenoTimer) clearTimeout(terrenoTimer);
-    terrenoTimer = setTimeout(() => { terrenoTimer = null; if (!destruida && terreno === alvo) pintar(alvo, chave, { tipo: 'terreno', entrada: e, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); cenaDeAltura.definirTerreno(alvo.texAltura, r.origem, r.res); if (mapa) { agua.aplicar(r.agua, mapa); reaplicarSubmersos(mapa); } }); }, 140);
+    terrenoTimer = setTimeout(() => { terrenoTimer = null; if (!destruida && terreno === alvo) pintar(alvo, chave, { tipo: 'terreno', entrada: e, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); cenaDeAltura.definirTerreno(alvo.texAltura, r.origem, r.res); if (mapa) { agua.aplicar(r.agua, mapa); reaplicarSubmersos(mapa); } }, 0); }, 140);
   }
 
   // ---------- Escarpas avulsas ----------
@@ -196,7 +196,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       const p = m.walls[id]!, entrada = entradaDaEscarpa(p), origem = p.path[0]!;
       let e = escarpas.get(id); if (!e) { e = novaEntrada(escarpasC); escarpas.set(id, e); }
       e.c.position.set(origem[0], origem[1]);
-      pintar(e, chaveDaEscarpa(entrada, res, estilo), { tipo: 'escarpa', entrada, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); });
+      pintar(e, chaveDaEscarpa(entrada, res, estilo), { tipo: 'escarpa', entrada, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); }, 0);
     }
   }
 
@@ -216,7 +216,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       const entrada = entradaDoComodo(m, sala, ctx);
       const estilo = m.style.renderer, res = resolucaoDe(m, 'comodo');
       const alvo = e;
-      pintar(alvo, chaveDoComodo(entrada, res, estilo), { tipo: 'comodo', entrada, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); cenaDeAltura.sincronizarComodo(sala.id, alvo.texAltura, r.origem, r.res); });
+      pintar(alvo, chaveDoComodo(entrada, res, estilo), { tipo: 'comodo', entrada, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); cenaDeAltura.sincronizarComodo(sala.id, alvo.texAltura, r.origem, r.res); }, 0);
     }
   }
 
@@ -465,7 +465,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       }
       if (!animacoes.some(a => a.alvo === entrada!.c)) entrada.c.scale.set(o.scale);
       const pedido = pedidoDoObjeto(o, res, m.style.genre, m.style.renderer, opcoesDoPixel(m));
-      if (pedido) pintar(entrada, chave, pedido, (sp, r) => { sp.position.set(r.origem[0], r.origem[1]); sp.scale.set(1 / r.res); cenaDeAltura.sincronizarObjetos(objetos, objetosC); });
+      if (pedido) pintar(entrada, chave, pedido, (sp, r) => { sp.position.set(r.origem[0], r.origem[1]); sp.scale.set(1 / r.res); cenaDeAltura.sincronizarObjetos(objetos, objetosC); }, 1);
     }
     cenaDeAltura.sincronizarObjetos(objetos, objetosC);
   }
@@ -493,7 +493,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     if (!chave) { if (atual) { soltar(atual); folhaDaPeca.delete(t.id); } return null; }
     if (chave !== atual) {
       const spec = t.sprite!;
-      op.baker.pedir(chave, { tipo: 'sprite', spec }).then(r => {
+      op.baker.pedir(chave, { tipo: 'sprite', spec }, 1).then(r => {
         if (destruida || chaveDoSprite(mapa?.tokens[t.id] ?? ({ sprite: null } as Peca)) !== chave) return;
         const antes = folhaDaPeca.get(t.id) ?? null; adquirir(chave, r); folhaDaPeca.set(t.id, chave); soltar(antes); redesenhar();
       }).catch(erro => console.warn('Atlas: falha ao pintar o sprite', erro));
