@@ -28,7 +28,7 @@ export type PedidoDeBake =
 
 export interface ResultadoDeBake {
   bitmap: ImageBitmap;
-  /** Mapa de altura (cinza 0–1) alinhado ao `bitmap`, ou `null` quando não há (Pixel, parede, imagem, terreno/cômodo antes da L4). */
+  /** Mapa de altura (R) e emissão (G) alinhado ao `bitmap`, ou `null` quando não há (Pixel, parede, imagem, escarpa). */
   altura: ImageBitmap | null;
   origem: [number, number];
   res: number;

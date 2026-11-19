@@ -18,6 +18,7 @@ import type { Mudancas } from '../state/mudancas.ts';
 import { hexParaNumero } from './cores.ts';
 import { criarFiltroDeFaixas } from './faixas.ts';
 import { ALTURA_DA_LUZ, ALTURA_DO_FEIXE, ALTURA_MAXIMA_DA_LUZ, texturaDeBrilho, texturaDeDirecao } from './luzes.ts';
+import { FRAGMENT_BLUR_GAUSSIANO, VERTEX_QUAD, criarQuadUnitario } from './passadas.ts';
 
 export { ALTURA_DA_LUZ };
 
@@ -119,18 +120,6 @@ interface LuzNaGPU {
 
 const rgb01 = (hex: string): [number, number, number] => { const n = hexParaNumero(hex); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
 
-const vertexQuad = `in vec2 aPosition;
-in vec2 aUV;
-out vec2 vUV;
-uniform mat3 uProjectionMatrix;
-uniform mat3 uWorldTransformMatrix;
-uniform mat3 uTransformMatrix;
-void main(void) {
-  mat3 mvp = uProjectionMatrix * uWorldTransformMatrix * uTransformMatrix;
-  gl_Position = vec4((mvp * vec3(aPosition, 1.0)).xy, 0.0, 1.0);
-  vUV = aUV;
-}`;
-
 const fragmentLuz = `in vec2 vUV;
 out vec4 finalColor;
 uniform sampler2D uTexture;
@@ -149,24 +138,6 @@ uniform float uAlturaNorm;
 void main() {
   vec4 t = texture(uTexture, vUV);
   finalColor = vec4(t.rgb * uIntensidade, t.b * uIntensidade * uAlturaNorm);
-}`;
-
-// Blur gaussiano separável (9 amostras, pesos somando 1.0) feito direto entre RenderTextures para preservar valores HDR > 1.
-const fragmentBlur = `in vec2 vUV;
-out vec4 finalColor;
-uniform sampler2D uTexture;
-uniform vec2 uPasso;
-uniform vec4 uLimites;
-vec4 amostra(float k) {
-  return texture(uTexture, clamp(vUV + uPasso * k, uLimites.xy, uLimites.zw));
-}
-void main() {
-  vec4 soma = amostra(0.0) * 0.202362;
-  soma += (amostra(-1.0) + amostra(1.0)) * 0.179044;
-  soma += (amostra(-2.0) + amostra(2.0)) * 0.124009;
-  soma += (amostra(-3.0) + amostra(3.0)) * 0.067234;
-  soma += (amostra(-4.0) + amostra(4.0)) * 0.028532;
-  finalColor = soma;
 }`;
 
 interface ObjetoComCaixa { oclusor: OclusorDeObjeto; x0: number; y0: number; x1: number; y1: number }
@@ -283,7 +254,7 @@ export function poligonoDaLuz(l: Luz, ctx: ContextoDeOclusao): number[] {
 /**
  * Cada luz é um brilho redondo recortado pelo polígono que ela enxerga (as paredes fazem sombra), somado numa textura "bruta"
  * via `Mesh` + `Shader` (sem o limite `[0, 1]` do `Sprite`); no Ilustrado, esta passa por blur gaussiano separável direto em
- * `RenderTexture` e é composta por filtro em HDR (ou 8 bits escalado). No Pixel mantém o caminho em faixas e `multiply`.
+ * `RenderTexture` e é composta em tela cheia em HDR (ou 8 bits escalado). No Pixel mantém o caminho em faixas e `multiply`.
  */
 export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
   const raiz = new Container(), raizDirecao = new Container(), interior = new Graphics(), composicao = new Container(), brutaS = new Sprite(), sprite = new Sprite();
@@ -291,9 +262,9 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
   sprite.blendMode = 'multiply';
   // No Pixel a luz final passa por um filtro de faixas (degraus de borda dura) antes de multiplicar a cena.
   const passadaFaixas = new Container(), faixasS = new Sprite(); passadaFaixas.addChild(faixasS); passadaFaixas.filters = [criarFiltroDeFaixas()];
-  const progLuz = GlProgram.from({ vertex: vertexQuad, fragment: fragmentLuz, preferredFragmentPrecision: 'highp', name: 'atlas-luz-hdr' });
-  const progDirecao = GlProgram.from({ vertex: vertexQuad, fragment: fragmentDirecao, preferredFragmentPrecision: 'highp', name: 'atlas-luz-direcao' });
-  const progBlur = GlProgram.from({ vertex: vertexQuad, fragment: fragmentBlur, preferredFragmentPrecision: 'highp', name: 'atlas-luz-blur' });
+  const progLuz = GlProgram.from({ vertex: VERTEX_QUAD, fragment: fragmentLuz, preferredFragmentPrecision: 'highp', name: 'atlas-luz-hdr' });
+  const progDirecao = GlProgram.from({ vertex: VERTEX_QUAD, fragment: fragmentDirecao, preferredFragmentPrecision: 'highp', name: 'atlas-luz-direcao' });
+  const progBlur = GlProgram.from({ vertex: VERTEX_QUAD, fragment: FRAGMENT_BLUR_GAUSSIANO, preferredFragmentPrecision: 'highp', name: 'atlas-luz-blur' });
   const quadLuz = new Geometry({
     attributes: {
       aPosition: new Float32Array([-0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5]),
@@ -301,13 +272,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     },
     indexBuffer: new Uint16Array([0, 1, 2, 0, 2, 3]),
   });
-  const quadTela = new Geometry({
-    attributes: {
-      aPosition: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
-      aUV: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
-    },
-    indexBuffer: new Uint16Array([0, 1, 2, 0, 2, 3]),
-  });
+  const quadTela = criarQuadUnitario();
   const blurHGrupo = new UniformGroup({ uPasso: { value: new Float32Array([0, 0]), type: 'vec2<f32>' }, uLimites: { value: new Float32Array([0, 0, 1, 1]), type: 'vec4<f32>' } });
   const blurVGrupo = new UniformGroup({ uPasso: { value: new Float32Array([0, 0]), type: 'vec2<f32>' }, uLimites: { value: new Float32Array([0, 0, 1, 1]), type: 'vec4<f32>' } });
   const blurHShader = new Shader({ glProgram: progBlur, resources: { uTexture: Texture.EMPTY.source, blur: blurHGrupo } });

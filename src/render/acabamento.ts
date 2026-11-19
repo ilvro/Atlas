@@ -95,15 +95,23 @@ void main() {
   finalColor = vec4(clamp(cor, 0.0, 1.0) * c.a, c.a);
 }`;
 
-const rgb = (hex: string): Float32Array => { const p = parseInt(hex.slice(1), 16); return new Float32Array([((p >> 16) & 255) / 255, ((p >> 8) & 255) / 255, (p & 255) / 255]); };
+const preencherRgb = (destino: Float32Array, hex: string): void => {
+  const p = parseInt(hex.slice(1), 16);
+  destino[0] = ((p >> 16) & 255) / 255;
+  destino[1] = ((p >> 8) & 255) / 255;
+  destino[2] = (p & 255) / 255;
+};
 
 /** O acabamento da cena (saturação, tinta, tonalização dividida, textura, vinheta, granulação, curva de cor), igual nos dois renderizadores. */
 export function criarFiltroAcabamento(): { filtro: Filter; aplicar(a: Acabamento, tempo?: number): void } {
+  const uTom = new Float32Array([1, 1, 1]);
+  const uSplitShadows = new Float32Array([0.5, 0.5, 0.5]);
+  const uSplitHighlights = new Float32Array([0.5, 0.5, 0.5]);
   const grupo = new UniformGroup({
-    uSaturacao: { value: 1, type: 'f32' }, uTom: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' }, uVinheta: { value: 0, type: 'f32' }, uGrao: { value: 0, type: 'f32' },
+    uSaturacao: { value: 1, type: 'f32' }, uTom: { value: uTom, type: 'vec3<f32>' }, uVinheta: { value: 0, type: 'f32' }, uGrao: { value: 0, type: 'f32' },
     uTextura: { value: 0, type: 'f32' }, uLift: { value: 0, type: 'f32' }, uGamma: { value: 1, type: 'f32' }, uGain: { value: 1, type: 'f32' }, uTempo: { value: 0, type: 'f32' },
-    uSplitShadows: { value: new Float32Array([0.5, 0.5, 0.5]), type: 'vec3<f32>' },
-    uSplitHighlights: { value: new Float32Array([0.5, 0.5, 0.5]), type: 'vec3<f32>' },
+    uSplitShadows: { value: uSplitShadows, type: 'vec3<f32>' },
+    uSplitHighlights: { value: uSplitHighlights, type: 'vec3<f32>' },
     uSplitBalance: { value: 0, type: 'f32' },
     uSplitAmount: { value: 0, type: 'f32' },
   });
@@ -112,13 +120,21 @@ export function criarFiltroAcabamento(): { filtro: Filter; aplicar(a: Acabamento
     filtro,
     aplicar(a, tempo = 0) {
       const u = grupo.uniforms as Record<string, unknown>;
-      u.uSaturacao = a.saturation; u.uTom = rgb(a.tint); u.uVinheta = a.vignette; u.uGrao = a.grain; u.uTextura = a.texture;
+      u.uSaturacao = a.saturation; preencherRgb(uTom, a.tint); u.uVinheta = a.vignette; u.uGrao = a.grain; u.uTextura = a.texture;
       u.uLift = a.grade.lift; u.uGamma = a.grade.gamma; u.uGain = a.grade.gain; u.uTempo = tempo;
       const split = a.split;
-      u.uSplitShadows = split ? rgb(split.shadows) : new Float32Array([0.5, 0.5, 0.5]);
-      u.uSplitHighlights = split ? rgb(split.highlights) : new Float32Array([0.5, 0.5, 0.5]);
-      u.uSplitBalance = split ? split.balance : 0;
-      u.uSplitAmount = split ? split.amount : 0;
+      if (split) {
+        preencherRgb(uSplitShadows, split.shadows);
+        preencherRgb(uSplitHighlights, split.highlights);
+        u.uSplitBalance = split.balance;
+        u.uSplitAmount = split.amount;
+      } else {
+        uSplitShadows[0] = 0.5; uSplitShadows[1] = 0.5; uSplitShadows[2] = 0.5;
+        uSplitHighlights[0] = 0.5; uSplitHighlights[1] = 0.5; uSplitHighlights[2] = 0.5;
+        u.uSplitBalance = 0;
+        u.uSplitAmount = 0;
+      }
+      grupo.update();
     },
   };
 }
