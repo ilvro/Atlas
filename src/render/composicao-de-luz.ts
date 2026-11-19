@@ -89,11 +89,13 @@ uniform sampler2D uTexture;
 uniform sampler2D uLuz;
 uniform sampler2D uDirecao;
 uniform sampler2D uAltura;
+uniform sampler2D uMascaraInterior;
 uniform float uEscala;
 uniform float uEscalaHdr;
 uniform float uModoDirecao;
 uniform float uModoAltura;
 uniform vec3 uAmbiente;
+uniform vec3 uAmbienteInterior;
 uniform vec2 uAlturaTexel;
 uniform float uPassoEmMetros;
 uniform float uAlturaMaxima;
@@ -168,7 +170,9 @@ void main() {
   }
 
   vec3 base = c.a > 0.0 ? c.rgb / c.a : vec3(0.0);
-  vec3 luz = texture(uLuz, vLuzCoord).rgb * uEscala;
+  float dentro = texture(uMascaraInterior, vLuzCoord).r;
+  vec3 ambBase = mix(uAmbiente, uAmbienteInterior, dentro);
+  vec3 direta = max(texture(uLuz, vLuzCoord).rgb * uEscala, vec3(0.0));
   float emissao = uPassoEmMetros > 0.0 ? alt.g : 0.0;
   float cint = 1.0;
   if (emissao > 0.0001 && uTempo > 0.0) {
@@ -177,13 +181,11 @@ void main() {
   vec3 luzEmissiva = base * emissao * uEmissao * cint;
 
   if (uPassoEmMetros <= 0.0 || (uRelevo <= 0.0001 && uAO <= 0.0001)) {
-    vec3 cor = max(base * luz + luzEmissiva, vec3(0.0));
+    vec3 cor = max(base * (ambBase + direta) + luzEmissiva, vec3(0.0));
     finalColor = vec4((cor * c.a) / uEscalaHdr, c.a);
     return;
   }
 
-  vec3 direta = max(luz - uAmbiente, vec3(0.0));
-  vec3 ambBase = luz - direta;
   vec3 ambiente = ambBase;
   vec3 luzDireta = direta;
 
@@ -281,6 +283,7 @@ export function criarComposicaoDeLuz(renderer: Renderer, luz: MapaDeLuz, altura:
     uModoDirecao: { value: 0, type: 'f32' },
     uModoAltura: { value: 0, type: 'f32' },
     uAmbiente: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
+    uAmbienteInterior: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
     uAlturaTexel: { value: new Float32Array([0, 0]), type: 'vec2<f32>' },
     uPassoEmMetros: { value: 0, type: 'f32' },
     uAlturaMaxima: { value: ALTURA_MAXIMA, type: 'f32' },
@@ -299,9 +302,10 @@ export function criarComposicaoDeLuz(renderer: Renderer, luz: MapaDeLuz, altura:
     resources: {
       composicao: grupo,
       uTexture: Texture.EMPTY.source,
-      uLuz: Texture.WHITE.source,
+      uLuz: Texture.EMPTY.source,
       uDirecao: Texture.EMPTY.source,
       uAltura: Texture.EMPTY.source,
+      uMascaraInterior: Texture.EMPTY.source,
     },
   });
   const mesh = new Mesh({ geometry: quad, shader });
@@ -395,6 +399,7 @@ export function criarComposicaoDeLuz(renderer: Renderer, luz: MapaDeLuz, altura:
         uModoDirecao: number;
         uModoAltura: number;
         uAmbiente: Float32Array;
+        uAmbienteInterior: Float32Array;
         uAlturaTexel: Float32Array;
         uPassoEmMetros: number;
         uAlturaMaxima: number;
@@ -428,8 +433,12 @@ export function criarComposicaoDeLuz(renderer: Renderer, luz: MapaDeLuz, altura:
       } else {
         u.uLuzMatriz.identity();
         u.uEscala = 1;
-        shader.resources.uLuz = Texture.WHITE.source;
+        shader.resources.uLuz = Texture.EMPTY.source;
       }
+
+      const mascInt = luz.mascaraInterior;
+      const mascIntPronta = Boolean(luzPronta && mascInt && !mascInt.destroyed && mascInt.source && !mascInt.source.destroyed && mascInt !== Texture.EMPTY);
+      shader.resources.uMascaraInterior = mascIntPronta ? mascInt.source : Texture.EMPTY.source;
 
       const dir = luz.direcao;
       const dirPronta = Boolean(dir && !dir.destroyed && dir.source && !dir.source.destroyed && dir !== Texture.EMPTY);
@@ -453,6 +462,10 @@ export function criarComposicaoDeLuz(renderer: Renderer, luz: MapaDeLuz, altura:
       u.uAmbiente[0] = amb[0];
       u.uAmbiente[1] = amb[1];
       u.uAmbiente[2] = amb[2];
+      const ambInt = luz.ambienteInterior;
+      u.uAmbienteInterior[0] = ambInt[0];
+      u.uAmbienteInterior[1] = ambInt[1];
+      u.uAmbienteInterior[2] = ambInt[2];
       u.uEscalaHdr = escalaHdrAtiva;
       u.uAlturaMaxima = ALTURA_MAXIMA;
       u.uForca = FORCA_RELEVO_PADRAO;
