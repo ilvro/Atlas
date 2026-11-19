@@ -679,7 +679,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       for (const e of [...salas.values(), ...objetos.values(), ...escarpas.values(), ...(terreno ? [terreno] : [])]) soltar(e.chaveTextura);
       for (const t of texturas.values()) { t.tex.destroy(true); t.texAltura?.destroy(true); } texturas.clear();
       composicaoDeLuz.destruir(); cenaDeAltura.destruir();
-      tempo.destruir(); sombras.destruir(); luz.destruir(); halos.destruir(); nevoa.destruir(); telhados.destruir(); neblina.destruir(); bordas.destruir(); particulas.destruir(); presenca.destruir(); agua.destruir(); cachoeiras.destruir(); raiz.destroy({ children: true });
+      tempo.destruir(); sombras.destruir(); contato.destruir(); luz.destruir(); halos.destruir(); nevoa.destruir(); telhados.destruir(); neblina.destruir(); bordas.destruir(); particulas.destruir(); presenca.destruir(); agua.destruir(); cachoeiras.destruir(); raiz.destroy({ children: true });
     },
   };
 }

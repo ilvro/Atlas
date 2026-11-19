@@ -139,5 +139,10 @@ export function criarContatoExterno(renderer: Renderer) {
       atmosferaLigada = ligado;
       if (ultimoMapa) camada.sprite.alpha = atmosferaLigada && ultimoMapa.climate.sun !== null ? ALFA_COM_SOL : ALFA_BASE;
     },
+    destruir(): void {
+      desfoque.destroy();
+      camada.destruir();
+      g.destroy();
+    },
   };
 }

@@ -331,6 +331,7 @@ export function criarTempoNoChao(renderer: Renderer) {
     destruir(): void {
       limparPisos();
       limparChapeus();
+      achatarBranco.destroy();
       camadaDosChapeus.destruir();
       desenhoDosChapeus.destroy({ children: true });
     },
