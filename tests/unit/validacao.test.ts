@@ -127,8 +127,14 @@ test('validação de telhado: aceita ausência dos campos novos e recusa valores
   })), null);
 
   assert.equal(caminhoDoErro(mexer(x => {
-    x.rooms[chaveSala].roof.shape = 'cupula';
+    x.rooms[chaveSala].roof.shape = 'redondo';
   })), `rooms.${chaveSala}.roof.shape`);
+
+  for (const forma of ['uma-agua', 'mansarda', 'holandes', 'cupula', 'abobada', 'pagode', 'bulbo']) {
+    assert.equal(caminhoDoErro(mexer(x => {
+      x.rooms[chaveSala].roof.shape = forma;
+    })), null);
+  }
 
   assert.equal(caminhoDoErro(mexer(x => {
     x.rooms[chaveSala].roof.ridge = 'diagonal';
@@ -137,6 +143,39 @@ test('validação de telhado: aceita ausência dos campos novos e recusa valores
   assert.equal(caminhoDoErro(mexer(x => {
     x.rooms[chaveSala].roof.details = ['antena'];
   })), `rooms.${chaveSala}.roof.details[0]`);
+});
+
+test('validação de telhado: wear, seed e style.facades opcionais e validação de faixas', () => {
+  const chaveSala = Object.keys(mapaCompleto().rooms)[0]!;
+
+  // Sem os novos campos continua passando
+  assert.equal(caminhoDoErro(mexer(x => {
+    delete x.style.facades;
+    delete x.rooms[chaveSala].roof.wear;
+    delete x.rooms[chaveSala].roof.seed;
+  })), null);
+
+  // Valores válidos de wear, seed e facades
+  assert.equal(caminhoDoErro(mexer(x => {
+    x.style.facades = false;
+    x.rooms[chaveSala].roof.wear = { moss: 0, dirt: 0.4, damage: 1, snow: 'auto' };
+    x.rooms[chaveSala].roof.seed = 42;
+  })), null);
+
+  assert.equal(caminhoDoErro(mexer(x => {
+    x.rooms[chaveSala].roof.wear = { snow: 0.75 };
+  })), null);
+
+  // Recusa fora de faixa, tipos errados e campos desconhecidos
+  assert.equal(caminhoDoErro(mexer(x => { x.rooms[chaveSala].roof.wear = { moss: -0.1 }; })), `rooms.${chaveSala}.roof.wear.moss`);
+  assert.equal(caminhoDoErro(mexer(x => { x.rooms[chaveSala].roof.wear = { dirt: 1.1 }; })), `rooms.${chaveSala}.roof.wear.dirt`);
+  assert.equal(caminhoDoErro(mexer(x => { x.rooms[chaveSala].roof.wear = { damage: 'alto' }; })), `rooms.${chaveSala}.roof.wear.damage`);
+  assert.equal(caminhoDoErro(mexer(x => { x.rooms[chaveSala].roof.wear = { snow: 1.2 }; })), `rooms.${chaveSala}.roof.wear.snow`);
+  assert.equal(caminhoDoErro(mexer(x => { x.rooms[chaveSala].roof.wear = { snow: 'pesada' }; })), `rooms.${chaveSala}.roof.wear.snow`);
+  assert.equal(caminhoDoErro(mexer(x => { x.rooms[chaveSala].roof.wear = { extra: 0.2 }; })), `rooms.${chaveSala}.roof.wear.extra`);
+  assert.equal(caminhoDoErro(mexer(x => { x.rooms[chaveSala].roof.seed = Infinity; })), `rooms.${chaveSala}.roof.seed`);
+  assert.equal(caminhoDoErro(mexer(x => { x.rooms[chaveSala].roof.seed = '42'; })), `rooms.${chaveSala}.roof.seed`);
+  assert.equal(caminhoDoErro(mexer(x => { x.style.facades = 'nao'; })), 'style.facades');
 });
 
 test('validação de relevo: patamares válidos, sobreposição, faixa de altitude e reliefStep só em escarpa', () => {

@@ -11,7 +11,7 @@ import { listaDeAndares } from '../domain/andares.ts';
 import { ceuNoHorario } from '../domain/clima.ts';
 import { EVENTOS_DE_CENA } from '../domain/eventos-de-cena.ts';
 import { novoIdEntidade } from '../domain/fabrica.ts';
-import { CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, FORMAS_DE_TELHADO, criarMapa, type CumeeiraDeTelhado, type DetalheDeTelhado, type FormaDeTelhado, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
+import { CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, criarMapa, type CumeeiraDeTelhado, type DetalheDeTelhado, type FormaDeTelhado, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
 import { descreverPasso, duracaoEstimada, momentoValido, type Momento, type PassoDeMomento } from '../domain/momentos.ts';
 import { GENEROS, PINCEIS_DE_PRESENCA, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
 import { validarMapa } from '../domain/validacao.ts';
@@ -307,7 +307,8 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           poligono: { type: 'array', items: coord, minItems: 3, maxItems: 64 },
           tipo: { type: 'string' }, nome: { type: 'string' },
           piso: { type: 'string' }, papel: { type: 'string' }, wallFace: { type: 'string' }, telhado: { type: ['string', 'null'] }, telhadoVisivel: { type: 'boolean' },
-          telhadoForma: { type: 'string', enum: [...FORMAS_DE_TELHADO] }, telhadoCumeeira: { type: 'string', enum: [...CUMEEIRAS_DE_TELHADO] },
+          // N9: voltar para [...FORMAS_DE_TELHADO]
+          telhadoForma: { type: 'string', enum: ['quatro-aguas', 'duas-aguas', 'plano', 'piramide', 'cone'] }, telhadoCumeeira: { type: 'string', enum: [...CUMEEIRAS_DE_TELHADO] },
           telhadoDetalhes: { type: 'array', items: { type: 'string', enum: [...DETALHES_DE_TELHADO] } },
           andar: andarSchema,
         }, required: ['tipo'], additionalProperties: false } },

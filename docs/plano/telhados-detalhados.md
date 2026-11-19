@@ -48,7 +48,7 @@ Ordem: N1 → N2 → N3 → N4 → N6 (aqui o telhado novo substitui o antigo) �
 
 ---
 
-### N1 — Documento: desgaste, formas novas e fachadas  ⬜
+### N1 — Documento: desgaste, formas novas e fachadas  ✅
 Objetivo: o documento consegue dizer "telha velha com musgo e duas telhas faltando, coberta de neve" e as formas novas.
 Depende de: —.
 Ler: `src/domain/mapa.ts:90-110` (`FORMAS_DE_TELHADO`, `DetalheDeTelhado`, `Comodo.roof`) e `Estilo`, `src/domain/validacao.ts`, `src/state/comandos-construir.ts` (merge de `roof` em `comodo.atualizar`), `src/domain/telhado-geometria.ts` (`formaDe`, `trechosDe`).
@@ -63,6 +63,7 @@ Como:
 Não fazer: render; estilos novos (N9).
 Testes: validação dos campos novos; `formaDe` com e sem `wear`; dois cômodos vizinhos com `wear` diferente dão dois trechos.
 Pronto quando: `npm run typecheck` e `npm test` passam e os exemplos abrem.
+Nota: `src/app/ponte-escrita.ts` espalhava `[...FORMAS_DE_TELHADO]` em `atlas_comodos`; para não estourar o catálogo base nem o orçamento de 30 KB antes da N9, `telhadoForma` ficou temporariamente restrito às 5 formas anteriores (com comentário para voltar para `[...FORMAS_DE_TELHADO]` na N9).
 Commit: `roofs can describe wear, new shapes and facades`
 
 ### N2 — Campo de altura do telhado  ⬜

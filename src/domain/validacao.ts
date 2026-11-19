@@ -20,6 +20,15 @@ const faixas = e.proprio((v, c) => { e.lista(faixa, { max: 200_000 }).verificar(
 
 const contorno = e.lista(ponto, { min: MIN_VERTICES_CONTORNO, max: MAX_VERTICES_CONTORNO });
 
+const desgasteDeTelhado = e.obj({
+  moss: e.opt(unidade),
+  dirt: e.opt(unidade),
+  damage: e.opt(unidade),
+  snow: e.opt(e.proprio((v, c) => {
+    if (v !== 'auto') unidade.verificar(v, c);
+  })),
+});
+
 const comodo = e.obj({
   id, name: nome, function: e.nulo(e.texto({ min: 1, max: 60 })), cells: faixas,
   outline: e.opt(e.proprio((v, c) => {
@@ -39,6 +48,8 @@ const comodo = e.obj({
     ridge: e.opt(e.um(...CUMEEIRAS_DE_TELHADO)),
     steep: e.opt(e.bool()),
     details: e.opt(e.lista(e.um(...DETALHES_DE_TELHADO), { max: 12 })),
+    wear: e.opt(desgasteDeTelhado),
+    seed: e.opt(e.num()),
   }), levelId: idOuNulo,
 });
 const parede = e.obj({
@@ -144,6 +155,7 @@ export const ESQUEMA_MAPA: Esq = e.obj({
   style: e.obj({
     renderer: e.um('illustrated', 'pixel'), palette: e.texto({ min: 1, max: 60 }), walls: e.um('box', 'solid'), genre: e.texto({ min: 1, max: 40 }),
     settle: e.opt(e.bool()),
+    facades: e.opt(e.bool()),
     pixel: e.obj({ pixelsPerCell: e.num({ inteiro: true, min: 8, max: 64 }), dither: e.um('none', 'bayer4'), outline: e.bool() }),
   }),
   climate: e.obj({ preset: e.texto({ min: 1, max: 60 }), ...CAMPOS_DO_CLIMA }),

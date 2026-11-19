@@ -649,3 +649,7 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 ### Frente M — Carregamento rápido
 
 - **M1 — Medidor de carregamento** — `src/procedural/bake.worker.ts` mede `performance.now()` em volta de `executarBake` e devolve `ms`; `src/procedural/baker.ts` registra `{ tipo, ms, px }` em `globalThis.__atlasAssados` somente quando `globalThis.__atlasMedirAssados` é verdadeiro (também no fallback sem worker); criado `scripts/dev/medir-carga.ts` (script `medir:carga` em `package.json`) que abre contexto novo, mede tempo até `esperarEditor` e `pintando === 0`, soma `longtask` e imprime tabela por tipo (`n`, `soma`, `maior`, `maior Mpx`). Medição base salva em `docs/plano/carregamento.md` (`entreposto-do-rio` 12,52 s; `mansao-da-ilha` 10,08 s).
+
+### Frente N — Telhados detalhados
+
+- **N1 — Documento de telhados (desgaste, formas novas e fachadas)** — `src/domain/mapa.ts` adiciona `uma-agua`, `mansarda`, `holandes`, `cupula`, `abobada`, `pagode` e `bulbo` a `FORMAS_DE_TELHADO`, `DesgasteDeTelhado`/`roof.wear`, `roof.seed` e `Estilo.facades`; `src/domain/telhado-geometria.ts` adiciona `telhadoEfetivo` (mantendo `formaDe` como alias) com `wear` padrão `{ moss: 0, dirt: 0.15, damage: 0, snow: 'auto' }` e separa `trechosDe` por `wear` efetivo preservando `wear`/`seed`; `src/domain/validacao.ts` valida os novos campos mantendo compatibilidade com mapas antigos; `src/app/ponte-escrita.ts` mantém `telhadoForma` nas 5 formas anteriores até a N9.

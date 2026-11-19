@@ -20,25 +20,52 @@ export interface Trecho {
   roof: Telhado;
 }
 
+export interface DesgasteEfetivo {
+  moss: number;
+  dirt: number;
+  damage: number;
+  snow: number | 'auto';
+}
+
+export const DESGASTE_PADRAO: DesgasteEfetivo = {
+  moss: 0,
+  dirt: 0.15,
+  damage: 0,
+  snow: 'auto',
+};
+
 export interface FormaResolvida {
   shape: FormaDeTelhado;
   ridge: CumeeiraDeTelhado;
   steep: boolean;
   details: DetalheDeTelhado[];
+  wear: DesgasteEfetivo;
+  seed?: number;
 }
+
+export type TelhadoEfetivo = FormaResolvida;
 
 const VIZINHOS: readonly [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const compararId = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 /** Resolve campos opcionais do telhado com os padrões do documento. */
-export function formaDe(roof?: Partial<Telhado>): FormaResolvida {
+export function telhadoEfetivo(roof?: Partial<Telhado>): FormaResolvida {
   return {
     shape: roof?.shape ?? 'quatro-aguas',
     ridge: roof?.ridge ?? 'auto',
     steep: roof?.steep ?? false,
     details: roof?.details ? [...roof.details] : [],
+    wear: {
+      moss: roof?.wear?.moss ?? DESGASTE_PADRAO.moss,
+      dirt: roof?.wear?.dirt ?? DESGASTE_PADRAO.dirt,
+      damage: roof?.wear?.damage ?? DESGASTE_PADRAO.damage,
+      snow: roof?.wear?.snow ?? DESGASTE_PADRAO.snow,
+    },
+    ...(roof?.seed !== undefined ? { seed: roof.seed } : {}),
   };
 }
+
+export const formaDe = telhadoEfetivo;
 
 /** Ordem de desenho dos trechos: plano (0) por baixo, águas (1) no meio, pirâmide e cone (2) por cima. */
 export function ordemDoTrecho(roof?: Partial<Telhado>): number {
@@ -48,7 +75,7 @@ export function ordemDoTrecho(roof?: Partial<Telhado>): number {
   return 1;
 }
 
-/** Agrupa os cômodos vizinhos de um edifício que compartilham o mesmo `material` e `shape`. */
+/** Agrupa os cômodos vizinhos de um edifício que compartilham o mesmo `material`, `shape` e `wear` efetivo. */
 export function trechosDe(m: Pick<MapaAtlas, 'rooms'>, edificio: Edificio): Trecho[] {
   const pai = new Map<string, string>();
   const find = (x: string): string => {
@@ -77,8 +104,9 @@ export function trechosDe(m: Pick<MapaAtlas, 'rooms'>, edificio: Edificio): Trec
     const sala = m.rooms[id];
     if (!sala || !sala.roof.material) continue;
     pai.set(id, id);
-    const shape = formaDe(sala.roof).shape;
-    chaveDaSala.set(id, `${sala.roof.material}\0${shape}`);
+    const { shape, wear } = telhadoEfetivo(sala.roof);
+    const chaveWear = `${wear.moss}\0${wear.dirt}\0${wear.damage}\0${wear.snow}`;
+    chaveDaSala.set(id, `${sala.roof.material}\0${shape}\0${chaveWear}`);
     const cels = decodificar(sala.cells).map(([x, y]): [number, number] => [x, y]);
     celulasPorSala.set(id, cels);
     if (!sala.outline) for (const [x, y] of cels) dono.set(`${x},${y}`, id);
@@ -110,10 +138,14 @@ export function trechosDe(m: Pick<MapaAtlas, 'rooms'>, edificio: Edificio): Trec
     const detalhes = new Set<DetalheDeTelhado>();
     let steep = !!base.steep;
     let ridge = base.ridge;
+    let wear = base.wear;
+    let seed = base.seed;
     for (const id of ids) {
       const r = m.rooms[id]!.roof;
       if (r.steep) steep = true;
       if (!ridge && r.ridge) ridge = r.ridge;
+      if (!wear && r.wear) wear = r.wear;
+      if (seed === undefined && r.seed !== undefined) seed = r.seed;
       for (const d of r.details ?? []) detalhes.add(d);
     }
 
@@ -137,6 +169,8 @@ export function trechosDe(m: Pick<MapaAtlas, 'rooms'>, edificio: Edificio): Trec
       ...(ridge ? { ridge } : {}),
       ...(steep ? { steep } : {}),
       ...(detalhes.size ? { details: [...detalhes] } : {}),
+      ...(wear ? { wear: { ...wear } } : {}),
+      ...(seed !== undefined ? { seed } : {}),
     };
     trechos.push({ salas: ids, celulas, ...(ids.length === 1 && primeira.outline ? { outline: primeira.outline } : {}), roof });
   }
