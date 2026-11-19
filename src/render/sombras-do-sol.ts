@@ -1,4 +1,4 @@
-import { BlurFilter, ColorMatrixFilter, Container, Graphics, Matrix, Sprite } from 'pixi.js';
+import { BlurFilter, ColorMatrixFilter, Container, Graphics, Matrix, Sprite, type Renderer } from 'pixi.js';
 import { contornar } from '../domain/contorno.ts';
 import type { MapaAtlas, Ponto } from '../domain/mapa.ts';
 import { alturaEm, bordasDoRelevo, DEGRAU_TRANSPONIVEL } from '../domain/relevo.ts';
@@ -6,8 +6,11 @@ import { sombraDoSol, type SombraDoSol } from '../domain/sol.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { ladoBaixo } from '../procedural/escarpa.ts';
 import { materialDe } from '../procedural/materiais.ts';
+import { criarCamadaEmTextura } from './camada-em-textura.ts';
 import { ehEscarpaAvulsa } from './entradas.ts';
 
+/** Resolução (px/m) da textura das sombras no Ilustrado: a sombra é macia, não precisa de mais. */
+const RES_DA_SOMBRA = 12;
 /** Quanto o maciço de rocha "tem de altura" para a sombra (a mesma saturação do relevo do assar). */
 export const ALTURA_DA_ROCHA = 1.5;
 
@@ -17,12 +20,15 @@ interface EntradaVisual { c: Container; sprite: Sprite | null }
 /**
  * A sombra do sol nos exteriores: todas as sombras (objetos, escarpas, maciços) são desenhadas numa cor só, dentro de um `Container` com um filtro
  * que as achata numa cor e as desfoca, e com a opacidade da sombra no próprio container: onde duas se cruzam não escurece em dobro.
- * Atualiza quando muda o clima, o mapa ou chega uma textura; nada por quadro.
+ * Atualiza quando muda o clima, o mapa ou chega uma textura; nada por quadro. O desenho (com os filtros) vai para uma textura
+ * própria em metros, e a cena recebe só o sprite dela (ver `camada-em-textura.ts`).
  */
-export function criarSombrasDoSol() {
-  const raiz = new Container(), objetos = new Container(), figuras = new Graphics(), apagar = new Graphics();
+export function criarSombrasDoSol(renderer: Renderer) {
+  const raiz = new Container(), desenho = new Container(), objetos = new Container(), figuras = new Graphics(), apagar = new Graphics();
+  const camada = criarCamadaEmTextura(renderer);
   apagar.blendMode = 'erase';
-  raiz.addChild(objetos, figuras, apagar);
+  desenho.addChild(objetos, figuras, apagar);
+  raiz.addChild(camada.sprite);
   const achatar = new ColorMatrixFilter(), desfoque = new BlurFilter({ strength: 2, quality: 3 });
   raiz.visible = false;
   const sprites = new Map<string, Container>();
@@ -34,7 +40,7 @@ export function criarSombrasDoSol() {
     corAtual = cor; pixelAtual = pixel;
     const n = parseInt(cor.slice(1), 16);
     achatar.matrix = [0, 0, 0, 0, ((n >> 16) & 255) / 255, 0, 0, 0, 0, ((n >> 8) & 255) / 255, 0, 0, 0, 0, (n & 255) / 255, 0, 0, 0, 1, 0];
-    raiz.filters = pixel ? [achatar] : [achatar, desfoque];
+    desenho.filters = pixel ? [achatar] : [achatar, desfoque];
   }
 
   /** A transformação que leva o desenho do objeto (centro, rotação, escala) a uma silhueta esticada para `dir`: a base fica no pé e a ponta vai `altura × porMetro` adiante. */
@@ -60,7 +66,7 @@ export function criarSombrasDoSol() {
     const s = sombraDoSol(m.climate, pixel);
     figuras.clear(); apagar.clear();
     if (!s) { raiz.visible = false; for (const [id, c] of sprites) { c.destroy({ children: true }); sprites.delete(id); } return; }
-    pintarCor(s.cor, pixel); raiz.alpha = s.alfa;
+    pintarCor(s.cor, pixel); camada.sprite.alpha = s.alfa;
 
     // Objetos de piso, fora de cômodos, com a mesma textura que o objeto já tem.
     const vivos = new Set<string>();
@@ -137,6 +143,7 @@ export function criarSombrasDoSol() {
     }
     for (const id of macicos.keys()) if (!vivas.has(id)) macicos.delete(id);
     raiz.visible = ligado;
+    if (ligado) camada.renderizar(desenho, m.bounds.width, m.bounds.height, pixel ? m.style.pixel.pixelsPerCell / m.grid.size : RES_DA_SOMBRA, { pixel });
   }
 
   return {
@@ -145,6 +152,6 @@ export function criarSombrasDoSol() {
     definirLigado(l: boolean) { ligado = l; if (!l) raiz.visible = false; },
     /** Quantas sombras de objeto existem agora (testes). */
     contagem: () => sprites.size,
-    destruir() { achatar.destroy(); desfoque.destroy(); },      // a árvore da cena destrói o container
+    destruir() { achatar.destroy(); desfoque.destroy(); camada.destruir(); desenho.destroy({ children: true }); },      // a árvore da cena destrói `raiz`
   };
 }
