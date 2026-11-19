@@ -135,6 +135,29 @@ export function parteEscreveEmissao(p: Parte): boolean {
   return Boolean(p.brilho);
 }
 
+const PISO_BYTE = Math.round(PISO_NO_MAPA * 255);
+
+/**
+ * Compõe uma máscara alfa de emissão (ex.: brilho com `desfoque`) no buffer RGBA do mapa de altura,
+ * somando `alfa` no canal G sem rebaixar o canal R abaixo do piso nas bordas semitransparentes.
+ */
+export function comporEmissaoNoMapa(dst: Uint8ClampedArray, mascara: Uint8ClampedArray, alfa: number): void {
+  const gEmis = limitar(alfa) * 255;
+  for (let i = 0; i < dst.length; i += 4) {
+    const m = mascara[i + 3]! / 255;
+    if (m <= 0) continue;
+    const da = dst[i + 3]! / 255;
+    const outA = da + m * (1 - da);
+    if (outA <= 0) continue;
+    const dr = dst[i]!;
+    const dg = dst[i + 1]!;
+    dst[i] = Math.round((dr * da + PISO_BYTE * m * (1 - da)) / outA);
+    dst[i + 1] = Math.min(255, Math.round((dg * da + gEmis * m) / outA));
+    dst[i + 2] = 0;
+    dst[i + 3] = Math.min(255, Math.round(outA * 255));
+  }
+}
+
 /**
  * Desenha a altura no canal R (`alturaNoMapa(z)`: absoluta, piso em 0,5) das partes sólidas e a emissão no canal G (`alfa`)
  * das partes `brilho: true` na mesma ordem e geometria de `desenharPartes`, sem traço, sombra ou AO. Fundo transparente = sem objeto.
@@ -147,6 +170,26 @@ export function desenharAlturaDasPartes(ctx: Contexto, partes: readonly Parte[],
     if (parteEscreveEmissao(p)) {
       const alfa = p.alfa ?? 1;
       if (alfa <= 0) continue;
+      if (p.desfoque && 'canvas' in ctx && typeof ctx.getImageData === 'function' && typeof ctx.putImageData === 'function' && typeof ctx.getTransform === 'function') {
+        const w = ctx.canvas.width, h = ctx.canvas.height;
+        if (w > 0 && h > 0) {
+          const tmp = criarTela(w, h), tc = contextoDe(tmp, { willReadFrequently: true });
+          const m = ctx.getTransform();
+          tc.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
+          if ('filter' in tc) tc.filter = `blur(${Math.max(0.5, p.desfoque * op.res).toFixed(2)}px)`;
+          tc.fillStyle = '#ffffff';
+          caminho(tc, p);
+          tc.fill();
+          const dst = ctx.getImageData(0, 0, w, h);
+          const masc = tc.getImageData(0, 0, w, h);
+          comporEmissaoNoMapa(dst.data, masc.data, alfa);
+          ctx.save();
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.putImageData(dst, 0, 0);
+          ctx.restore();
+          continue;
+        }
+      }
       ctx.save();
       ctx.globalAlpha = 1;
       if (p.desfoque && 'filter' in ctx) ctx.filter = `blur(${Math.max(0.5, p.desfoque * op.res).toFixed(2)}px)`;
