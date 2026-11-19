@@ -109,9 +109,11 @@ void main() {
   }
   vec3 soma = hdr + bloom;
   if (uCurvaDeTom > 0.5) {
-    vec3 linear = a > 0.0001 ? soma / a : vec3(0.0);
-    vec3 cor = aces(max(linear, vec3(0.0)) * uExposicao);
-    finalColor = vec4(cor * a, a);
+    vec3 sobreMapa = h.a > 0.0001 ? aces(max(hdr / h.a + bloom, vec3(0.0)) * uExposicao) * h.a : vec3(0.0);
+    vec3 sobreVazio = (1.0 - h.a) * aces(max(bloom, vec3(0.0)) * uExposicao);
+    vec3 cor = sobreMapa + sobreVazio;
+    float aFinal = clamp(h.a + max(sobreVazio.r, max(sobreVazio.g, sobreVazio.b)), 0.0, 1.0);
+    finalColor = vec4(cor, aFinal);
   } else {
     finalColor = vec4(clamp(soma, 0.0, 1.0), a);
   }
