@@ -17,6 +17,7 @@ import { entrepostoDoRio } from './entreposto-do-rio.ts';
 import { jardimDoColosso } from './jardim-do-colosso.ts';
 import { pracaDaFonte } from './praca-da-fonte.ts';
 import { aldeiaAoEntardecer } from './aldeia-ao-entardecer.ts';
+import { santuarioDaLuz } from './santuario-da-luz.ts';
 import { pracaSaqueada } from './praca-saqueada.ts';
 import { salaDaGuarda } from './sala-da-guarda.ts';
 import { pantanoDasBrumas } from './pantano-das-brumas.ts';
@@ -39,6 +40,7 @@ export const EXEMPLOS: readonly Exemplo[] = [
   jardimDoColosso,
   pracaDaFonte,
   aldeiaAoEntardecer,
+  santuarioDaLuz,
   pracaSaqueada,
   salaDaGuarda,
   pantanoDasBrumas,

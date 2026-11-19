@@ -126,7 +126,7 @@ export const RECEITAS_MATA: Receita[] = [
       return piso([2.6, 0.8], partes);
     } },
   { id: 'circulo-runico', nome: 'Círculo rúnico', ...RUINA, tags: ['runas', 'circulo', 'entalhe', 'magia', 'ruina'], pegada: [4, 4], altura: 0.02,
-    campos: [{ id: 'raio', rotulo: 'Raio (m)', tipo: 'numero', padrao: 2, min: 1, max: 5, passo: 0.25 }, { id: 'raios', rotulo: 'Raios', tipo: 'numero', padrao: 6, min: 0, max: 12, passo: 1 }],
+    campos: [{ id: 'raio', rotulo: 'Raio (m)', tipo: 'numero', padrao: 2, min: 1, max: 5, passo: 0.25 }, { id: 'raios', rotulo: 'Raios', tipo: 'numero', padrao: 6, min: 0, max: 12, passo: 1 }, { id: 'brilho', rotulo: 'Brilho das runas (0 a 1)', tipo: 'numero', padrao: 0, min: 0, max: 1, passo: 0.1 }],
     gerar: p => {
       const r = mulberry32(p.seed), R = num(p, 'raio', 2, 1, 5), n = Math.round(num(p, 'raios', 6, 0, 12)), partes: Parte[] = [], fundo = '#23252a', luz = '#6e727a';
       const par = (r0: number, r1: number, z: number): void => { anel(partes, r0 * R, r1 * R, fundo, z, 56); anel(partes, (r0 + 0.012) * R, (r1 - 0.012) * R, luz, z + 0.01, 56); };
@@ -138,6 +138,9 @@ export const RECEITAS_MATA: Receita[] = [
         for (let k = 0; k < 2 + Math.floor(r() * 2); k++) partes.push(galho(cx + (r() - 0.5) * 0.12, cy + (r() - 0.5) * 0.12, a + (r() < 0.5 ? 0 : Math.PI / 2) + (r() - 0.5) * 0.7, 0.1 + r() * 0.08, 0.025, fundo, 0.55));
       }
       anel(partes, 0, R * 0.12, fundo, 0.5, 16); partes.push(elipse(0, 0, R * 0.16, R * 0.16, luz, 0.52, { contorno: false, semSombra: true, detalhe: 3 }));
+      // Runas acesas: os sulcos ganham uma cópia emissiva fraca, brasa no fundo do entalhe (sem novo sorteio: o desenho não muda).
+      const brilho = num(p, 'brilho', 0, 0, 1);
+      if (brilho > 0) for (const q of partes.filter(q => q.mat === fundo)) partes.push({ ...q, mat: '#ff8a3a', z: q.z + 0.1, brilho: true, alfa: brilho * 0.55, contorno: false, semSombra: true });
       return piso([R * 2, R * 2], partes);
     } },
   { id: 'escombros', nome: 'Escombros', ...RUINA, tags: ['escombros', 'pedra', 'ruina', 'entulho'], pegada: [2, 1.6], altura: 0.4,
