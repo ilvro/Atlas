@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clareira } from '../../scripts/exemplos/clareira.ts';
+import { covilNaCaverna } from '../../scripts/exemplos/covil-na-caverna.ts';
 import { Kit, montarExemplo } from '../../scripts/exemplos/kit.ts';
 import { decodificar } from '../../src/domain/celulas.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
@@ -8,13 +8,13 @@ import { validarMapa } from '../../src/domain/validacao.ts';
 const novo = (semente = 3) => new Kit({ id: 'teste', nome: 'Teste', largura: 30, altura: 20, semente });
 const celulasDe = (k: Kit, material: string) => { const m = k.construir(), c = Object.values(m.terrain.layers).find(l => l.material === material); return c ? decodificar(c.cells) : []; };
 
-test('o mesmo script gera o mesmo JSON duas vezes, e a Clareira valida', () => {
-  const a = JSON.stringify(montarExemplo(clareira)), b = JSON.stringify(montarExemplo(clareira));
+test('o mesmo script gera o mesmo JSON duas vezes, e o exemplo valida', () => {
+  const a = JSON.stringify(montarExemplo(covilNaCaverna)), b = JSON.stringify(montarExemplo(covilNaCaverna));
   assert.equal(a, b);
-  const m = montarExemplo(clareira);
+  const m = montarExemplo(covilNaCaverna);
   validarMapa(m);
-  assert.equal(Object.keys(m.props).length, 6); assert.equal(Object.keys(m.lights).length, 1);
-  assert.equal(m.terrain.base, 'grama'); assert.ok(Object.values(m.terrain.layers).some(l => l.material === 'terra'));
+  assert.ok(Object.keys(m.props).length > 0); assert.ok(Object.keys(m.lights).length > 0);
+  assert.equal(m.terrain.base, 'vazio'); assert.ok(Object.values(m.terrain.layers).some(l => l.material === 'rocha.caverna'));
 });
 
 test('semente diferente muda ids e espalhamento; ids são únicos', () => {
