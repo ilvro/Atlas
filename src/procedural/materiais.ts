@@ -1036,8 +1036,7 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
   manchado: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
 
   tabuas(ctx, mat, area, seed, px) {
-    const A = areaDaCor(area), r = mulberry32(seed * 7919 + 13), rn = valueNoise2D(seed * 7 + 2);
-    plano(ctx, A);
+    const A = areaDaCor(area), r = mulberry32(seed * 7919 + 13);
     const larg = mat.largura ?? 0.2, fileiras: Tabua[][] = [];
     for (const b of layoutDeTabuas(mat, A, r)) (fileiras[Math.round((b.y - A.y) / larg)] ??= []).push(b);
     // Cada tábua: platô levemente abaulado no meio da largura, um pouco mais alta ou baixa que a vizinha, juntas finas.
@@ -1052,7 +1051,7 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
   },
 
   laje(ctx, _mat, area, seed, px) {
-    const A = areaDaCor(area), r = mulberry32(seed * 7919 + 13), rn = valueNoise2D(seed * 11 + 4);
+    const A = areaDaCor(area), r = mulberry32(seed * 7919 + 13);
     const pecas = layoutDeLajes(A, r).filter((p): p is Extract<PecaDeLaje, { fileira: false }> => !p.fileira), FAIXA = 0.1, faixas: number[][] = [];
     pecas.forEach((p, k) => { for (let f = Math.floor((p.y - A.y) / FAIXA); f <= Math.floor((p.y + p.alt - A.y) / FAIXA); f++) (faixas[f] ??= []).push(k); });
     alturaPorPixel(ctx, A, (x, y) => {
@@ -1091,7 +1090,7 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
       let melhor = Infinity, bi = 0, bj = 0, bx = 0, by = 0;
       const j0 = Math.round(y / dy);
       for (let j = j0 - 1; j <= j0 + 1; j++) { const ox = j % 2 ? dx / 2 : 0, i0 = Math.round((x - ox) / dx); for (let i = i0 - 1; i <= i0 + 1; i++) { const hx = i * dx + ox, hy = j * dy, dd = Math.hypot(x - hx, y - hy); if (dd < melhor) { melhor = dd; bi = i; bj = j; bx = hx; by = hy; } } }
-      const px = Math.abs(x - bx), py = Math.abs(y - by), apotema = R * 0.866, dist = apotema - Math.max(px * 0.866 + py * 0.5, py);
+      const ax = Math.abs(x - bx), ay = Math.abs(y - by), apotema = R * 0.866, dist = apotema - Math.max(ax, ax * 0.5 + ay * 0.866);
       return plato(Math.max(-1, dist), Math.max(0.01, px * 0.8), 0.014, 0.03) + (hash2D(bi, bj, seed + 71) - 0.5) * 0.01;
     });
   },
@@ -1162,14 +1161,14 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
     alturaPorPixel(ctx, A, (x, y) => {
       const xx = x + (fbm(rn, x * 6, y * 6, 2) - 0.5) * 0.035, yy = y + (fbm(rn, x * 6 + 31, y * 6 + 7, 2) - 0.5) * 0.035;
       V.consultar(xx, yy, q);
-      // Pedra arredondada: domo a partir da borda, rejunte fundo.
-      const b = q.borda * 0.5;
-      return b < 0.008 ? PISO - 0.08 : PISO - 0.08 + Math.sqrt(passo(0.008, 0.07, b)) * 0.1 + (hash2D(q.sitio.i, q.sitio.j, seed + 3) - 0.5) * 0.02;
+      // Pedra arredondada: domo a partir da borda, rejunte fundo (mínimo 0,8 px para não sumir a 32 px/m no terreno).
+      const b = q.borda * 0.5, j = Math.max(0.008, px * 0.8);
+      return b < j ? PISO - 0.08 : PISO - 0.08 + Math.sqrt(passo(j, Math.max(0.07, j + 0.04), b)) * 0.1 + (hash2D(q.sitio.i, q.sitio.j, seed + 3) - 0.5) * 0.02;
     });
   },
 
   lajegrama(ctx, _mat, area, seed, px) {
-    const A = areaDaCor(area), rn = valueNoise2D(seed * 31 + 9), RH = 1.25, LW = 1.7, gw = 0.06;
+    const A = areaDaCor(area), RH = 1.25, LW = 1.7, gw = 0.06;
     alturaPorPixel(ctx, A, (x, y) => {
       const j = Math.floor(y / RH), off = hash2D(j, 0, seed + 5) * LW, jit = (i: number) => (hash2D(i, j, seed + 9) - 0.5) * 0.4;
       let i = Math.floor((x - off) / LW), e0 = i * LW + off + jit(i), e1 = (i + 1) * LW + off + jit(i + 1);
