@@ -20,6 +20,7 @@
     "test:e2e": "node --test --test-concurrency=1 \"tests/e2e/*.test.ts\"",
     "build:core": "tsc -p mesa-core/tsconfig.build.json",
     "mesa-dev": "node scripts/mesa-dev.ts",
+    "medir:carga": "node scripts/dev/medir-carga.ts",
     "ponte:mcp": "node scripts/ponte/mcp.ts",
     "ponte:catalogo": "node scripts/ponte/catalogo.ts",
     "ponte:verificar": "node scripts/ponte/verificar-build.ts",

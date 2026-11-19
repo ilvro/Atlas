@@ -57,7 +57,7 @@ Ordem: M1 → M2 → M3 → M4; M5 e M7 depois de M2, em qualquer ordem; M6 por 
 
 ---
 
-### M1 — Medidor de carregamento  ⬜
+### M1 — Medidor de carregamento  ✅
 Objetivo: um comando que mede o tempo de abrir um exemplo e o custo de cada tipo de assado, para comparar antes e depois de cada tarefa.
 Depende de: —.
 Ler: `tests/e2e/apoio.ts` (`iniciarAmbiente`, `abrir`, `esperarEditor`), `src/procedural/bake.worker.ts`, `src/render/viewport.ts` (`pintando`).
@@ -70,6 +70,23 @@ Não fazer: otimizar nada.
 Testes: rodar o medidor nos dois exemplos e colar a tabela na nota da ficha (a base de comparação).
 Pronto quando: `npm run medir:carga -- entreposto-do-rio` imprime a tabela.
 Commit: `added a load time probe for example maps`
+Nota: medição base (`npm run medir:carga -- entreposto-do-rio mansao-da-ilha`):
+```
+entreposto-do-rio: editor 1.76 s | pronto 12.52 s | longtasks 1430 ms (5) | assados 123
+  tipo                  n    soma (ms)   maior (ms)  maior (Mpx)
+  imagem                7      33759.3       8380.8         0.54
+  terreno               1       8356.3       8356.3         2.14
+  objeto              108       2112.0        386.6         0.38
+  comodo                6       1459.5        463.3         0.91
+  cobertura             1         82.3         82.3         0.03
+
+mansao-da-ilha: editor 1.03 s | pronto 10.08 s | longtasks 588 ms (3) | assados 119
+  tipo                  n    soma (ms)   maior (ms)  maior (Mpx)
+  imagem                4       8965.7       4210.9         0.03
+  comodo                9       6226.3       2253.0         0.84
+  terreno               1       4047.7       4047.7         1.17
+  objeto              105       1507.4        209.5         0.41
+```
 
 ### M2 — Fila puxada, mais workers e prioridade  ⬜
 Objetivo: nenhum worker fica parado enquanto há trabalho, e um assado longo não segura os curtos atrás dele.

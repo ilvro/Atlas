@@ -5,11 +5,15 @@ interface Mensagem { id: number; pedido: PedidoDeBake }
 
 self.onmessage = async (e: MessageEvent<Mensagem>) => {
   const { id, pedido } = e.data;
+  const t0 = performance.now();
   try {
     const r = await executarBake(pedido);
+    const ms = performance.now() - t0;
     const transferir: Transferable[] = [r.bitmap];
     if (r.altura) transferir.push(r.altura);
     if (r.agua) transferir.push(r.agua.bitmap);
-    (self as unknown as Worker).postMessage({ id, ok: true, resultado: r }, transferir);
-  } catch (erro) { (self as unknown as Worker).postMessage({ id, ok: false, erro: erro instanceof Error ? erro.message : String(erro) }); }
+    (self as unknown as Worker).postMessage({ id, ok: true, resultado: r, ms }, transferir);
+  } catch (erro) {
+    (self as unknown as Worker).postMessage({ id, ok: false, erro: erro instanceof Error ? erro.message : String(erro), ms: performance.now() - t0 });
+  }
 };
