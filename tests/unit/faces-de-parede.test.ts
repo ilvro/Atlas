@@ -246,19 +246,19 @@ function comCanvasSoftware<T>(fn: () => T): T {
 }
 
 test('sala retangular 4 × 3 m com parede de 3 m tem faixa de 0,54 m e quinas diagonais em meia-esquadria', () => {
-  assert.equal(PROJECAO, 0.18);
-  assert.ok(Math.abs(profundidadeDaFace(3) - 0.54) < 1e-9);
+  assert.equal(PROJECAO, 0.24);
+  assert.ok(Math.abs(profundidadeDaFace(3) - 0.72) < 1e-9);
   const lacos = contornoDoComodo(criarMapa({ celula: 1 }), [[0, 0], [1, 0], [2, 0], [3, 0], [0, 1], [1, 1], [2, 1], [3, 1], [0, 2], [1, 2], [2, 2], [3, 2]]);
   const paredes: ParedeDaSala[] = [
     { path: [[0, 0], [4, 0], [4, 3], [0, 3], [0, 0]], height: 3, material: 'parede.topo', kind: 'wall' },
   ];
   const faces = calcularFacesDasParedes(lacos, paredes, { alturaPadrao: 3 });
   assert.equal(faces.length, 4);
-  for (const f of faces) assert.ok(Math.abs(f.prof - 0.54) < 1e-9, `largura esperada 0,54 m, veio ${f.prof}`);
+  for (const f of faces) assert.ok(Math.abs(f.prof - 0.72) < 1e-9, `largura esperada 0.72 m, veio ${f.prof}`);
   const norte = faces.find(f => f.segmento.n[1] > 0.5)!;
   // Quinas internas avançam 0,54 m nos dois eixos (diagonal 45° em meia-esquadria).
-  assert.ok(Math.abs(norte.quad[3][0] - (norte.segmento.a[0] - 0.54)) < 1e-6);
-  assert.ok(Math.abs(norte.quad[3][1] - (norte.segmento.a[1] + 0.54)) < 1e-6);
+  assert.ok(Math.abs(norte.quad[3][0] - (norte.segmento.a[0] - 0.72)) < 1e-6);
+  assert.ok(Math.abs(norte.quad[3][1] - (norte.segmento.a[1] + 0.72)) < 1e-6);
   for (let i = 0; i < faces.length; i++) {
     assert.deepEqual(faces[i]!.quad[2], faces[(i + 1) % faces.length]!.quad[3]);
   }

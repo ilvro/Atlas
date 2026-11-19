@@ -65,6 +65,11 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('reboco.sujo', 'Reboco sujo', 'papel', '#a59c88', '#5e5546', '#c9c1ad', 'manchado'),
   m('painel.metalico', 'Painel metálico', 'papel', '#5d646c', '#23272c', '#949ca6', 'painel'),
   m('painel.acolchoado', 'Painel acolchoado', 'papel', '#b7b4a8', '#6e6b60', '#dedbd0', 'acolchoado'),
+  // Faces de parede (Frente L): reboco claro, tábuas de cabana, alvenaria de masmorra e rocha de gruta.
+  m('parede.reboco', 'Reboco liso', 'papel', '#c4bca8', '#857c68', '#ddd6c4', 'liso'),
+  m('parede.tabuas', 'Tábuas de parede', 'papel', '#6a4630', '#2e1c10', '#94684a', 'tabuas', { largura: 0.16 }),
+  m('parede.alvenaria', 'Alvenaria de pedra', 'papel', '#5d5a58', '#26231f', '#86827c', 'laje'),
+  m('parede.rocha', 'Rocha viva', 'papel', '#575d63', '#24282d', '#848c94', 'rachado'),
   // Objetos
   m('madeira.escura', 'Madeira escura', 'objeto', '#3d2416', '#1e110a', '#6b4024', 'veio'),
   m('madeira.media', 'Madeira média', 'objeto', '#74431f', '#3d2312', '#a46a36', 'veio'),
