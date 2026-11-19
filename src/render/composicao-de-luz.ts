@@ -1,10 +1,11 @@
-import { Container, Geometry, GlProgram, Matrix, Mesh, RenderTexture, Shader, Sprite, Texture, TextureMatrix, UniformGroup, type Renderer } from 'pixi.js';
+import { Container, GlProgram, Matrix, Mesh, RenderTexture, Shader, Sprite, Texture, TextureMatrix, UniformGroup, type Renderer } from 'pixi.js';
 import { AO_PADRAO, EXPOSICAO_PADRAO, RELEVO_PADRAO } from '../domain/mapa.ts';
 import { ALTURA_MAXIMA } from '../procedural/altura.ts';
 import { criarBloom, type PassoDeBloom } from './bloom.ts';
 import type { CenaDeAltura } from './cena-de-altura.ts';
 import { ALTURA_DA_LUZ, ALTURA_MAXIMA_DA_LUZ } from './luzes.ts';
 import { formatoDaLuz, type FormatoDeLuz, type MapaDeLuz } from './mapa-de-luz.ts';
+import { atualizarTransformDoMundo, criarQuadUnitario } from './passadas.ts';
 
 /** Força do relevo na normal. Com 3, um só nível do mapa de 8 bits (≈ 1,6 cm) já virava uma rampa visível; juntas e biséis têm dezenas de níveis. */
 export const FORCA_RELEVO_PADRAO = 1.2;
@@ -18,7 +19,7 @@ export type Vetor3 = readonly [number, number, number];
 export type AmostraAO = number | { readonly h: number; readonly peso?: number };
 
 /**
- * Espelho puro do realce direcional usado pelo filtro de luz com relevo:
+ * Espelho puro do realce direcional usado pela composição de luz com relevo:
  * `clamp(dot(N, L), 0, 1) / max(L.z, 0.25)` com `N` e `L` normalizados.
  */
 export function realceDoRelevo(N: Vetor3, L: Vetor3): number {
@@ -50,16 +51,26 @@ export function oclusaoDeAmostras(h0: number, amostras: readonly AmostraAO[]): n
   return t * t * (3 - 2 * t);
 }
 
+let ultimoSearchModo: string | null = null;
+let ultimoModoCache: 'direcao' | 'altura' | null = null;
+
 /** Lê o modo de depuração da luz na query string (`?luz=direcao` ou `?luz=altura`). */
 export function modoDeDepuracaoDaLuz(search?: string): 'direcao' | 'altura' | null {
   const s = search ?? (typeof location !== 'undefined' ? location.search : '');
   if (!s) return null;
+  if (search === undefined && s === ultimoSearchModo) return ultimoModoCache;
+  let resultado: 'direcao' | 'altura' | null = null;
   try {
     const modo = new URLSearchParams(s).get('luz');
-    return modo === 'direcao' || modo === 'altura' ? modo : null;
+    resultado = modo === 'direcao' || modo === 'altura' ? modo : null;
   } catch {
-    return null;
+    resultado = null;
   }
+  if (search === undefined) {
+    ultimoSearchModo = s;
+    ultimoModoCache = resultado;
+  }
+  return resultado;
 }
 
 const vertex = `in vec2 aPosition;
@@ -238,18 +249,6 @@ void main() {
   finalColor = vec4((cor * c.a) / uEscalaHdr, c.a);
 }`;
 
-function atualizarTransformDoMundo(alvo: Container, destino: Matrix): Matrix {
-  const cadeia: Container[] = [];
-  for (let cur: Container | null = alvo; cur; cur = cur.parent) cadeia.push(cur);
-  destino.identity();
-  for (let i = cadeia.length - 1; i >= 0; i--) {
-    const no = cadeia[i]!;
-    no.updateLocalTransform();
-    destino.append(no.localTransform);
-  }
-  return destino;
-}
-
 export interface ComposicaoDeLuz {
   /** Sprite em tela cheia posicionado no espaço do mundo com a cena iluminada + bloom. */
   readonly sprite: Sprite;
@@ -268,13 +267,7 @@ export interface ComposicaoDeLuz {
  * (luz HDR, direção, relevo, AO e emissão cintilante) e aplica bloom em `saidaRT`.
  */
 export function criarComposicaoDeLuz(renderer: Renderer, luz: MapaDeLuz, altura: CenaDeAltura): ComposicaoDeLuz {
-  const quad = new Geometry({
-    attributes: {
-      aPosition: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
-      aUV: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
-    },
-    indexBuffer: new Uint16Array([0, 1, 2, 0, 2, 3]),
-  });
+  const quad = criarQuadUnitario();
   const grupo = new UniformGroup({
     uLuzMatriz: { value: new Matrix(), type: 'mat3x3<f32>' },
     uMundoMatriz: { value: new Matrix(), type: 'mat3x3<f32>' },

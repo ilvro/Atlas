@@ -1,6 +1,7 @@
-import { Geometry, GlProgram, Mesh, RenderTexture, Shader, Texture, UniformGroup, type Renderer } from 'pixi.js';
+import { GlProgram, Mesh, RenderTexture, Shader, Texture, UniformGroup, type Renderer } from 'pixi.js';
 import { EXPOSICAO_PADRAO } from '../domain/mapa.ts';
 import type { FormatoDeLuz } from './mapa-de-luz.ts';
+import { FRAGMENT_BLUR_GAUSSIANO, VERTEX_QUAD, criarQuadUnitario } from './passadas.ts';
 
 /** Limiar acima do qual a cor HDR entra no bloom (`max(cor - 0.9, 0)`). */
 export const LIMIAR_BLOOM = 0.9;
@@ -34,18 +35,6 @@ export interface PassoDeBloom {
   destruir(): void;
 }
 
-const vertexQuad = `in vec2 aPosition;
-in vec2 aUV;
-out vec2 vUV;
-uniform mat3 uProjectionMatrix;
-uniform mat3 uWorldTransformMatrix;
-uniform mat3 uTransformMatrix;
-void main(void) {
-  mat3 mvp = uProjectionMatrix * uWorldTransformMatrix * uTransformMatrix;
-  gl_Position = vec4((mvp * vec3(aPosition, 1.0)).xy, 0.0, 1.0);
-  vUV = aUV;
-}`;
-
 const fragmentExtrair = `in vec2 vUV;
 out vec4 finalColor;
 uniform sampler2D uTexture;
@@ -64,24 +53,6 @@ void main() {
     extrair(vUV + vec2( uTexel.x,  uTexel.y))
   ) * 0.25;
   finalColor = vec4(soma / uEscalaHdr, 1.0);
-}`;
-
-// Blur gaussiano separável (9 amostras, pesos somando 1.0) feito direto em RenderTextures para preservar HDR.
-const fragmentBlur = `in vec2 vUV;
-out vec4 finalColor;
-uniform sampler2D uTexture;
-uniform vec2 uPasso;
-uniform vec4 uLimites;
-vec4 amostra(float k) {
-  return texture(uTexture, clamp(vUV + uPasso * k, uLimites.xy, uLimites.zw));
-}
-void main() {
-  vec4 soma = amostra(0.0) * 0.202362;
-  soma += (amostra(-1.0) + amostra(1.0)) * 0.179044;
-  soma += (amostra(-2.0) + amostra(2.0)) * 0.124009;
-  soma += (amostra(-3.0) + amostra(3.0)) * 0.067234;
-  soma += (amostra(-4.0) + amostra(4.0)) * 0.028532;
-  finalColor = soma;
 }`;
 
 const fragmentCombinar = `in vec2 vUV;
@@ -124,17 +95,11 @@ void main() {
  * Usa apenas passadas manuais com `Mesh` + `RenderTexture` no formato da luz (sem `BlurFilter` / `filters`).
  */
 export function criarBloom(): PassoDeBloom {
-  const quad = new Geometry({
-    attributes: {
-      aPosition: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
-      aUV: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
-    },
-    indexBuffer: new Uint16Array([0, 1, 2, 0, 2, 3]),
-  });
+  const quad = criarQuadUnitario();
 
-  const progExtrair = GlProgram.from({ vertex: vertexQuad, fragment: fragmentExtrair, preferredFragmentPrecision: 'highp', name: 'atlas-bloom-extrair' });
-  const progBlur = GlProgram.from({ vertex: vertexQuad, fragment: fragmentBlur, preferredFragmentPrecision: 'highp', name: 'atlas-bloom-blur' });
-  const progCombinar = GlProgram.from({ vertex: vertexQuad, fragment: fragmentCombinar, preferredFragmentPrecision: 'highp', name: 'atlas-bloom-combinar' });
+  const progExtrair = GlProgram.from({ vertex: VERTEX_QUAD, fragment: fragmentExtrair, preferredFragmentPrecision: 'highp', name: 'atlas-bloom-extrair' });
+  const progBlur = GlProgram.from({ vertex: VERTEX_QUAD, fragment: FRAGMENT_BLUR_GAUSSIANO, preferredFragmentPrecision: 'highp', name: 'atlas-bloom-blur' });
+  const progCombinar = GlProgram.from({ vertex: VERTEX_QUAD, fragment: fragmentCombinar, preferredFragmentPrecision: 'highp', name: 'atlas-bloom-combinar' });
 
   const extrairGrupo = new UniformGroup({
     uTexel: { value: new Float32Array([0, 0]), type: 'vec2<f32>' },

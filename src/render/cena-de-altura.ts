@@ -1,5 +1,6 @@
 import { Container, Graphics, Matrix, RenderTexture, Sprite, Texture, type Renderer } from 'pixi.js';
 import { alturaNoMapa } from '../procedural/altura.ts';
+import { atualizarTransformDoMundo } from './passadas.ts';
 
 /** Altura padrão (m) usada para paredes no mapa de altura. */
 export const ALTURA_DE_PAREDE = 3;
@@ -27,27 +28,13 @@ export interface CenaDeAltura {
   atualizarParedes(desenhar: (g: Graphics, cor: number) => void): void;
   /** Renderiza `alturaC` em `alturaRT` somente quando câmera, tamanho de tela ou conteúdo mudarem. */
   atualizar(renderer: Renderer, mundoIluminado: Container, ativo: boolean): void;
-  /** Ajusta `sprite.worldTransform` para `filterManager.calculateSpriteMatrix` mapear `mundoIluminado` na `alturaRT`. */
-  atualizarSpriteDeMapeamento(sprite: Sprite, mundoIluminado: Container): void;
   destruir(): void;
-}
-
-function atualizarTransformDoMundo(alvo: Container, destino: Matrix): Matrix {
-  const cadeia: Container[] = [];
-  for (let cur: Container | null = alvo; cur; cur = cur.parent) cadeia.push(cur);
-  destino.identity();
-  for (let i = cadeia.length - 1; i >= 0; i--) {
-    const no = cadeia[i]!;
-    no.updateLocalTransform();
-    destino.append(no.localTransform);
-  }
-  return destino;
 }
 
 /**
  * Cena de altura paralela (Ilustrado): espelha terreno, cômodos e objetos usando `texAltura`.
- * Objetos combinam entre si com `blendMode = 'max'` (para que sobreposições não somem e nada afunde abaixo do piso)
- * e cobrem o chão em `alturaRT` com a base do piso mais a própria altura, renderizada sob demanda quando câmera ou conteúdo mudam.
+ * Objetos combinam entre si com `blendMode = 'max'` (para que sobreposições fiquem com a parte mais alta)
+ * e cobrem o chão em `alturaRT` com a altura absoluta do assado (`alturaNoMapa`), renderizada sob demanda quando câmera ou conteúdo mudam.
  */
 export function criarCenaDeAltura(): CenaDeAltura {
   const alturaC = new Container();
@@ -83,7 +70,6 @@ export function criarCenaDeAltura(): CenaDeAltura {
   let destruida = false;
 
   const camAtual = new Matrix();
-  const camInv = new Matrix();
   let ultimaCam = [NaN, NaN, NaN, NaN, NaN, NaN];
 
   function dimensionar(renderer: Renderer): void {
@@ -265,12 +251,8 @@ export function criarCenaDeAltura(): CenaDeAltura {
       renderer.render({ container: paredesAlturaG, target: alturaRT, transform: camAtual, clear: false });
 
       ultimaCam = [camAtual.a, camAtual.b, camAtual.c, camAtual.d, camAtual.tx, camAtual.ty];
-      camInv.copyFrom(camAtual).invert();
       sujo = false;
       redesenhou = true;
-    },
-    atualizarSpriteDeMapeamento(sprite, mundoIluminado) {
-      sprite.worldTransform.copyFrom(mundoIluminado.worldTransform).append(camInv);
     },
     destruir() {
       destruida = true;
