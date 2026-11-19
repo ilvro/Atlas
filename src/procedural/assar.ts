@@ -1,4 +1,4 @@
-import { ALTURA_MAXIMA, PINTORES_DE_ALTURA, alturaPorLuminancia, desenharAlturaDasPartes, pintarAlturaDoMaterial } from './altura.ts';
+import { ALTURA_MAXIMA, PINTORES_DE_ALTURA, PISO_NO_MAPA, alturaPorLuminancia, desenharAlturaDasPartes, pintarAlturaDoMaterial } from './altura.ts';
 import { contornoDoComodo, caixaDasCelulas } from '../domain/geometria.ts';
 import {
   AMPLIACAO_NA_FACE,
@@ -143,7 +143,7 @@ export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRas
     actx = contextoDe(altura);
     actx.setTransform(res, 0, 0, res, -x0 * res, -y0 * res);
     actx.save(); tracar(actx); actx.clip();
-    actx.fillStyle = 'rgb(128,0,0)';
+    actx.fillStyle = `rgb(${Math.round(PISO_NO_MAPA * 255)},0,0)`;
     actx.fillRect(caixa.x0, caixa.y0, caixa.x1 - caixa.x0, caixa.y1 - caixa.y0);
     pintarAlturaDoMaterial(actx, e.piso.material, { x: caixa.x0, y: caixa.y0, w: caixa.x1 - caixa.x0, h: caixa.y1 - caixa.y0 }, e.piso.seed, { res });
     if (e.degraus?.length) pintarAlturaDegrausConstruidos(actx, e.degraus);
@@ -381,9 +381,10 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
       ctx.setTransform(1, 0, 0, 1, 0, 0); poe(r.margem); poe(r.leito); ctx.setTransform(res, 0, 0, res, 0, 0);
       if (actx) {
         const aguaAlt = new Uint8ClampedArray(W * Hh * 4);
+        const pisoByte = Math.round(PISO_NO_MAPA * 255);
         for (let px = 0; px < W * Hh; px++) {
           const k = px * 4;
-          aguaAlt[k] = 128; aguaAlt[k + 1] = 0; aguaAlt[k + 2] = 0; aguaAlt[k + 3] = cobertura[px]!;
+          aguaAlt[k] = pisoByte; aguaAlt[k + 1] = 0; aguaAlt[k + 2] = 0; aguaAlt[k + 3] = cobertura[px]!;
         }
         const t = criarTela(W, Hh);
         contextoDe(t).putImageData(new ImageData(aguaAlt as Uint8ClampedArray<ArrayBuffer>, W, Hh), 0, 0);

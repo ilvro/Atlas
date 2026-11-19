@@ -1,5 +1,5 @@
 import { Container, Graphics, Matrix, RenderTexture, Sprite, Texture, type Renderer } from 'pixi.js';
-import { ALTURA_MAXIMA } from '../procedural/altura.ts';
+import { alturaNoMapa } from '../procedural/altura.ts';
 
 /** Altura padrão (m) usada para paredes no mapa de altura. */
 export const ALTURA_DE_PAREDE = 3;
@@ -23,7 +23,7 @@ export interface CenaDeAltura {
   sincronizarComodo(id: string, tex: Texture | null, origem?: readonly [number, number], res?: number): void;
   removerComodo(id: string): void;
   sincronizarObjetos(objetos: ReadonlyMap<string, EntradaDeAltura>, paiEsperado: Container): void;
-  /** Redesenha as paredes na `alturaC` com o valor de cinza correspondente a `ALTURA_DE_PAREDE / ALTURA_MAXIMA`. */
+  /** Redesenha as paredes na `alturaC` com o valor de altura correspondente a `alturaNoMapa(ALTURA_DE_PAREDE)`. */
   atualizarParedes(desenhar: (g: Graphics, cor: number) => void): void;
   /** Renderiza `alturaC` em `alturaRT` somente quando câmera, tamanho de tela ou conteúdo mudarem. */
   atualizar(renderer: Renderer, mundoIluminado: Container, ativo: boolean): void;
@@ -247,7 +247,7 @@ export function criarCenaDeAltura(): CenaDeAltura {
     atualizarParedes(desenhar) {
       if (destruida) return;
       paredesAlturaG.clear();
-      const c = Math.round(Math.min(1, Math.max(0, ALTURA_DE_PAREDE / ALTURA_MAXIMA)) * 255);
+      const c = Math.round(alturaNoMapa(ALTURA_DE_PAREDE) * 255);
       desenhar(paredesAlturaG, c << 16);
       sujo = true;
     },

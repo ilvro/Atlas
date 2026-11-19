@@ -1,6 +1,6 @@
 import { facesDoContorno, type SegmentoDeContorno } from '../domain/geometria.ts';
 import type { Parede, Ponto } from '../domain/mapa.ts';
-import { ALTURA_MAXIMA, desenharAlturaDasPartes, parteEscreveEmissao } from './altura.ts';
+import { PISO_NO_MAPA, alturaNoMapa, desenharAlturaDasPartes, parteEscreveEmissao } from './altura.ts';
 import type { Contexto } from './canvas.ts';
 import type { Descricao, Parte } from './descricao.ts';
 import type { EstiloDeRaster } from './estilos/index.ts';
@@ -13,8 +13,8 @@ export const PROJECAO = 0.24;
 export const ACHATAMENTO_DO_PAPEL = 0.55;
 /** Proporção da altura da face ocupada pelo rodapé (os 12% de baixo). */
 export const PROPORCAO_RODAPE = 0.12;
-/** Altura normalizada base do piso no mapa de altura da cena (`0.5 × 4 m = 2 m`). */
-export const ALTURA_BASE_PISO = 0.5;
+/** Altura normalizada do piso no mapa de altura (0,5 = nível do chão, `z = 0`). */
+export const ALTURA_BASE_PISO = PISO_NO_MAPA;
 /** Ampliação de leitura dos objetos pendurados na face. */
 export const AMPLIACAO_NA_FACE: readonly [number, number] = [1.2, 1.7];
 
@@ -277,9 +277,9 @@ function tracarSolidoSemVaos(ctx: Contexto, u0: number, u1: number, H: number, v
   if (u1 > cur + 1e-4) retangulo(ctx, cur, 0, u1, H);
 }
 
-/** Altura normalizada no topo da face (mantém base >= piso `0.5` e casa com `ALTURA_DE_PAREDE / ALTURA_MAXIMA = 0.75` a `3 m`). */
+/** Altura normalizada no topo da face, na mesma escala absoluta de `alturaNoMapa` (piso em 0,5, satura em +2 m = 1,0). */
 export function alturaTopoDaFace(altura: number): number {
-  return Math.min(1, Math.max(ALTURA_BASE_PISO + 0.05 * altura, altura / ALTURA_MAXIMA));
+  return alturaNoMapa(Math.max(0, altura));
 }
 
 function desenharAberturaNaFace(ctx: Contexto, a: AberturaDaFace, u: number, H: number, res: number, estilo: EstiloDeRaster): void {
