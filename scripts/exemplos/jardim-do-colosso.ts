@@ -84,7 +84,7 @@ export const jardimDoColosso: Exemplo = {
 
     // Fim de tarde: o sol baixo estica a sombra do colosso pelo pátio.
     k.clima('tarde', { time: '16:40', ambient: { color: '#fff1da', intensity: 0.95 }, tempo: { leaves: 0.25, wind: 0.2, dust: 0.1 } });
-    k.acabamento('quente', { vignette: 0.3, saturation: 1.12, tint: '#ffe9c4', edges: { kind: 'none', amount: 0 }, glow: 0.3 });
+    k.acabamento('dia-dourado', { vignette: 0.3, saturation: 1.12, tint: '#fff2dc', edges: { kind: 'none', amount: 0 }, glow: 0.3 });
     k.guardarClima('entardecer', 'Entardecer dourado', 'entardecer', { time: '17:20' });
     k.guardarClima('lua-sobre-o-colosso', 'Lua sobre o colosso', 'noite', { time: '22:30' });
 
