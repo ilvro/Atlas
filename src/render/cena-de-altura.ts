@@ -1,10 +1,8 @@
-import { ColorMatrixFilter, Container, Graphics, Matrix, RenderTexture, Sprite, Texture, type Renderer } from 'pixi.js';
+import { Container, Graphics, Matrix, RenderTexture, Sprite, Texture, type Renderer } from 'pixi.js';
 import { ALTURA_MAXIMA } from '../procedural/altura.ts';
 
 /** Altura padrão (m) usada para paredes no mapa de altura. */
 export const ALTURA_DE_PAREDE = 3;
-/** Altura (0–1) do piso no mapa de altura: os objetos assentam sobre ela. */
-const ALTURA_BASE_DO_PISO = 0.5;
 
 export interface EntradaDeAltura {
   c: Container;
@@ -71,11 +69,8 @@ export function criarCenaDeAltura(): CenaDeAltura {
   const objetos = new Map<string, { c: Container; s: Sprite }>();
   const objetosAddC = new Container();
   const objetosAlturaS = new Sprite(Texture.EMPTY);
-  // O objeto cobre o piso (não soma ao relevo dele): onde há objeto, a altura vira a base do piso (0,5) mais a do objeto,
-  // senão os veios e juntas do piso apareciam em tapetes, sofás e mesas. O canal G (emissão) passa intacto.
-  const sobreOPiso = new ColorMatrixFilter();
-  sobreOPiso.matrix = [1, 0, 0, 0, ALTURA_BASE_DO_PISO, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0];
-  objetosAlturaS.filters = [sobreOPiso];
+  // O objeto cobre o piso (não soma ao relevo dele): a altura dos objetos já vem absoluta do assado (`alturaNoMapa`), então
+  // basta desenhá-la por cima; senão os veios e juntas do piso apareciam em tapetes, sofás e mesas.
   objetosAddC.addChild(objetosAlturaS);
 
   let alturaRT: RenderTexture | null = null;

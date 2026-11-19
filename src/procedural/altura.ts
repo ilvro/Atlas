@@ -3,8 +3,12 @@ import type { Parte } from './descricao.ts';
 import { ALTURAS_DE_PADRAO, materialDe, pintarMaterial, pxDe, type Area, type Material, type Padrao } from './materiais.ts';
 import { caixaDe, caminho, ordenarPartes } from './raster.ts';
 
-/** Altura em metros correspondente ao valor máximo (1.0 / 255) no mapa de altura dos objetos. */
+/** Metros por unidade do mapa de altura: `0,5 + z / ALTURA_MAXIMA` cobre de −2 m a +2 m em volta do piso. */
 export const ALTURA_MAXIMA = 4;
+/** O piso no mapa de altura. */
+export const PISO_NO_MAPA = 0.5;
+/** Valor (0–1) de uma altura `z` (m) no mapa: absoluto, com o piso em 0,5; abaixo do piso (escada que desce, poço) vale. */
+export const alturaNoMapa = (z: number): number => Math.min(1, Math.max(0, PISO_NO_MAPA + z / ALTURA_MAXIMA));
 
 /** Raio (m) da média móvel usada no passa-alta de reserva por luminância. */
 export const RAIO_PASSA_ALTA = 0.5;
@@ -132,9 +136,9 @@ export function parteEscreveEmissao(p: Parte): boolean {
 }
 
 /**
- * Desenha a altura no canal R (0–1 relativa a `ALTURA_MAXIMA`) das partes sólidas e a emissão no canal G (`alfa`)
- * das partes `brilho: true` na mesma ordem e geometria de `desenharPartes`, sem traço, sombra ou AO. Fundo transparente = 0.
- * Partes arredondadas (`raio`) recebem um domo radial de `v` no centro a `0.85 * v` na borda.
+ * Desenha a altura no canal R (`alturaNoMapa(z)`: absoluta, piso em 0,5) das partes sólidas e a emissão no canal G (`alfa`)
+ * das partes `brilho: true` na mesma ordem e geometria de `desenharPartes`, sem traço, sombra ou AO. Fundo transparente = sem objeto.
+ * Partes arredondadas (`raio`) recebem um domo radial, 15% mais perto do piso na borda.
  */
 export function desenharAlturaDasPartes(ctx: Contexto, partes: readonly Parte[], op: { res: number }): void {
   ctx.save();
@@ -145,8 +149,13 @@ export function desenharAlturaDasPartes(ctx: Contexto, partes: readonly Parte[],
       if (alfa <= 0) continue;
       ctx.save();
       ctx.globalAlpha = 1;
-      if ('globalCompositeOperation' in ctx) ctx.globalCompositeOperation = 'lighter';
       if (p.desfoque && 'filter' in ctx) ctx.filter = `blur(${Math.max(0.5, p.desfoque * op.res).toFixed(2)}px)`;
+      // Onde ainda não há nada, o brilho assenta no piso (0,5); depois soma a emissão no G.
+      if ('globalCompositeOperation' in ctx) ctx.globalCompositeOperation = 'destination-over';
+      ctx.fillStyle = canalR(PISO_NO_MAPA);
+      caminho(ctx, p);
+      ctx.fill();
+      if ('globalCompositeOperation' in ctx) ctx.globalCompositeOperation = 'lighter';
       ctx.fillStyle = canalG(alfa);
       caminho(ctx, p);
       ctx.fill();
@@ -154,7 +163,7 @@ export function desenharAlturaDasPartes(ctx: Contexto, partes: readonly Parte[],
       continue;
     }
     if (!parteEscreveAltura(p)) continue;
-    const v = limitar(p.z / ALTURA_MAXIMA);
+    const v = alturaNoMapa(p.z);
     caminho(ctx, p);
     if (p.raio) {
       const b = caixaDe(p);
@@ -164,7 +173,7 @@ export function desenharAlturaDasPartes(ctx: Contexto, partes: readonly Parte[],
         ctx.scale(b.w / 2, b.h / 2);
         const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
         g.addColorStop(0, canalR(v));
-        g.addColorStop(1, canalR(v * 0.85));
+        g.addColorStop(1, canalR(PISO_NO_MAPA + (v - PISO_NO_MAPA) * 0.85));
         ctx.fillStyle = g;
         ctx.fill();
         ctx.restore();
