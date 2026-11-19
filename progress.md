@@ -649,6 +649,7 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 ### Frente M — Carregamento rápido
 
 - **M1 — Medidor de carregamento** — `src/procedural/bake.worker.ts` mede `performance.now()` em volta de `executarBake` e devolve `ms`; `src/procedural/baker.ts` registra `{ tipo, ms, px }` em `globalThis.__atlasAssados` somente quando `globalThis.__atlasMedirAssados` é verdadeiro (também no fallback sem worker); criado `scripts/dev/medir-carga.ts` (script `medir:carga` em `package.json`) que abre contexto novo, mede tempo até `esperarEditor` e `pintando === 0`, soma `longtask` e imprime tabela por tipo (`n`, `soma`, `maior`, `maior Mpx`). Medição base salva em `docs/plano/carregamento.md` (`entreposto-do-rio` 12,52 s; `mansao-da-ilha` 10,08 s).
+- **M2 — Fila puxada, mais workers e prioridade** — `src/procedural/baker.ts` extrai `criarFilaDeBake` pura (sem `Worker`), usa `clamp(hardwareConcurrency - 1, 2, 6)` workers (respeitando `opcoes.workers`), alimenta workers livres com fila central por prioridade (0: `terreno`/`comodo`/`escarpa`, 1: `objeto`/`gerado`/`imagem`/`sprite`, 2: `cobertura`/`detalhe-de-telhado`) e FIFO dentro da mesma prioridade, mantendo deduplicação por chave com promoção na fila; `src/render/cena.ts` passa prioridades explícitas; `tests/unit/baker-fila.test.ts` (5/5) e `medir:carga` (`entreposto-do-rio` 10,93 s limitado pelo terreno de 8,74 s; `mansao-da-ilha` 6,91 s).
 
 ### Frente N — Telhados detalhados
 
