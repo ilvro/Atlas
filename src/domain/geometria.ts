@@ -507,8 +507,8 @@ export function contornoDoComodo(m: Pick<MapaAtlas, 'grid'>, cells: readonly Cel
 }
 
 /** Faces internas (estilo caixa): o trapézio de cada segmento, com cantos em meia-esquadria (miter com limite 3×prof), `prof` metros para dentro. */
-export function facesDoContorno(laco: readonly SegmentoDeContorno[], prof: number, profundidade?: (n: Ponto) => number): { segmento: SegmentoDeContorno; quad: [Ponto, Ponto, Ponto, Ponto]; prof: number }[] {
-  const m = laco.length, d = laco.map(e => (profundidade ? profundidade(e.n) : prof));
+export function facesDoContorno(laco: readonly SegmentoDeContorno[], prof: number, profundidade?: (n: Ponto, segmento: SegmentoDeContorno, indice: number) => number): { segmento: SegmentoDeContorno; quad: [Ponto, Ponto, Ponto, Ponto]; prof: number }[] {
+  const m = laco.length, d = laco.map((e, i) => (profundidade ? profundidade(e.n, e, i) : prof));
   const maxExt = 3 * Math.max(...d, 1e-6);
   const interno = laco.map((e, i) => {
     const ia = (i - 1 + m) % m, ant = laco[ia]!, da = d[ia]!, de = d[i]!;

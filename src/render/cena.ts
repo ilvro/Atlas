@@ -1,8 +1,10 @@
 import { Container, Graphics, Sprite, Text, Texture, type Renderer } from 'pixi.js';
 import { listaDeAndares } from '../domain/andares.ts';
 import { decodificar } from '../domain/celulas.ts';
-import { comprimentoDaParede, contornoDoComodo, pontoNaParede } from '../domain/geometria.ts';
+import { pontoNoPoligono } from '../domain/formas-de-comodo.ts';
+import { comodoEm, comprimentoDaParede, contornoDoComodo, indiceDeCelulas, pontoNaParede } from '../domain/geometria.ts';
 import { AO_PADRAO, EXPOSICAO_PADRAO, RELEVO_PADRAO, type Abertura, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Ponto, type Regiao } from '../domain/mapa.ts';
+import { alturaTopoDaFace } from '../procedural/faces-de-parede.ts';
 import { materialDe, tom } from '../procedural/materiais.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { camadaDoObjeto } from '../domain/camadas.ts';
@@ -219,7 +221,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
   }
 
   // ---------- Paredes, aberturas e marcas de objetos de parede ----------
-  const COR_TOPO = 0x15131a, COR_TOPO_CLARO = 0x2b2833, ESPESSURA_MINIMA_DE_COMODO = 0.34;
+  const COR_TOPO = 0x1a1820, COR_TOPO_CLARO = 0x2b2833, COR_BORDA_INTERNA = 0x4e485a, ESPESSURA_MINIMA_DE_COMODO = 0.34, ESPESSURA_MINIMA_ILUSTRADO = 0.38;
   /** No Pixel (px por metro > 0) os traços têm largura ímpar em pixels e o desenho anda meio pixel: o traço de 3 px cobre 3 pixels inteiros e o fio claro do meio é de 1 px. */
   let pixelRes = 0;
   const lw = (w: number): number => (pixelRes ? Math.max(1, 2 * Math.round((w * pixelRes - 1) / 2) + 1) / pixelRes : w);
@@ -281,10 +283,13 @@ export function criarCena(op: OpcoesDaCena): Cena {
     }
   }
 
-  const larguraDaParede = (p: Parede): number =>
-    p.kind === 'wall' && p.source && 'roomId' in p.source ? Math.max(p.thickness, ESPESSURA_MINIMA_DE_COMODO) : p.thickness;
+  const larguraDaParede = (p: Parede): number => {
+    if (p.kind !== 'wall') return p.thickness;
+    if (pixelRes === 0) return Math.max(p.thickness, p.source && 'roomId' in p.source ? ESPESSURA_MINIMA_ILUSTRADO : 0.3);
+    return p.source && 'roomId' in p.source ? Math.max(p.thickness, ESPESSURA_MINIMA_DE_COMODO) : p.thickness;
+  };
 
-  function desenharParede(g: Graphics, m: MapaAtlas, p: Parede): void {
+  function desenharParede(g: Graphics, m: MapaAtlas, p: Parede, temComodoEm?: (pt: Ponto, nivel: string | null) => boolean): void {
     const trechos = trechosDaParede(m, p);
     if (!trechos.length) return;
 
@@ -352,6 +357,11 @@ export function criarCena(op: OpcoesDaCena): Cena {
           g.moveTo(a[0] + nx * k, a[1] + ny * k).lineTo(b[0] + nx * k, b[1] + ny * k).stroke({ width: lw(w), color: cor, alpha: alfa, cap: 'butt' });
         lado(t * 0.3, t * 0.16, 0x4a4552, pixelRes ? 1 : 0.35 + 0.45 * face);
         lado(-t * 0.32, t * 0.14, 0x08070a, pixelRes ? 1 : 0.4 + 0.4 * face);
+        if (pixelRes === 0 && temComodoEm) {
+          const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, dTeste = t * 0.5 + 0.25, nivel = p.levelId ?? null;
+          if (temComodoEm([mx + nx * dTeste, my + ny * dTeste], nivel)) lado(t * 0.44, Math.max(0.025, t * 0.08), COR_BORDA_INTERNA, 0.78);
+          if (temComodoEm([mx - nx * dTeste, my - ny * dTeste], nivel)) lado(-t * 0.44, Math.max(0.025, t * 0.08), COR_BORDA_INTERNA, 0.78);
+        }
         // Juntas: traços curtos através do topo, com espaçamento irregular estável.
         if (comp < 0.5) continue;
         let h = Math.abs(Math.round(a[0] * 131 + a[1] * 71)) % 97;
@@ -367,12 +377,22 @@ export function criarCena(op: OpcoesDaCena): Cena {
     paredesG.clear();
     pixelRes = m.style.renderer === 'pixel' ? m.style.pixel.pixelsPerCell / m.grid.size : 0;
     paredesG.position.set(pixelRes ? 0.5 / pixelRes : 0, pixelRes ? 0.5 / pixelRes : 0);
+    const indicePorNivel = new Map<string | null, Map<number, string>>();
+    const temComodoEm = (pt: Ponto, nivel: string | null): boolean => {
+      let idx = indicePorNivel.get(nivel);
+      if (!idx) { idx = indiceDeCelulas(m, nivel); indicePorNivel.set(nivel, idx); }
+      if (comodoEm(m, pt, idx)) return true;
+      for (const s of Object.values(m.rooms)) {
+        if ((s.levelId ?? null) === nivel && s.outline && pontoNoPoligono(pt, s.outline)) return true;
+      }
+      return false;
+    };
     for (const p of Object.values(m.walls)) {
       if (p.source && 'terrainLayerId' in p.source) continue;      // contorno do maciço: o assar já mostra a rocha (a seleção traça a parede)
       if (ehEscarpaAvulsa(p)) continue;                              // escarpa avulsa: a face de rocha é assada à parte (`sincronizarEscarpas`)
-      desenharParede(paredesG, m, p);
-      // Um fio claro no meio do topo dá volume à faixa escura.
-      if (p.kind === 'wall') { paredesG.moveTo(p.path[0]![0], p.path[0]![1]); for (const q of p.path.slice(1)) paredesG.lineTo(q[0], q[1]); paredesG.stroke({ width: lw(p.thickness * 0.14), color: COR_TOPO_CLARO, alpha: pixelRes ? 1 : 0.9, cap: 'butt' }); }
+      desenharParede(paredesG, m, p, temComodoEm);
+      // No Pixel, um fio claro no meio do topo dá volume à faixa escura.
+      if (pixelRes > 0 && p.kind === 'wall') { paredesG.moveTo(p.path[0]![0], p.path[0]![1]); for (const q of p.path.slice(1)) paredesG.lineTo(q[0], q[1]); paredesG.stroke({ width: lw(p.thickness * 0.14), color: COR_TOPO_CLARO, alpha: 1, cap: 'butt' }); }
     }
     for (const a of Object.values(m.openings)) { const p = m.walls[a.wallId]; if (p) desenharAbertura(paredesG, p, a, m); }
     // Objetos de parede aparecem na faixa da parede como uma marca, e inteiros na face do cômodo.
@@ -391,7 +411,8 @@ export function criarCena(op: OpcoesDaCena): Cena {
         const trechos = trechosDaParede(m, p);
         if (!trechos.length) continue;
         trazarTrechos(g, p, trechos);
-        g.stroke({ width: larguraDaParede(p), color: cor, alpha: 1, join: 'miter', cap: 'butt' });
+        const hCor = p.height > 0 ? (Math.round(alturaTopoDaFace(p.height) * 255) << 16) : cor;
+        g.stroke({ width: larguraDaParede(p), color: hCor, alpha: 1, join: 'miter', cap: 'butt' });
       }
     });
   }

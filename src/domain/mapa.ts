@@ -111,6 +111,8 @@ export interface Comodo {
   /** Contorno livre em metros (polígono simples anti-horário); quando presente, `cells` é derivado dele. */
   outline?: Ponto[];
   floor: { material: string; seed: number }; wallpaper: { material: string; seed: number } | null;
+  /** Material opcional da face interna das paredes (sobrescreve `wallpaper` e o material da parede). */
+  wallFace?: string;
   wallStyle: null | 'box' | 'solid'; palette: string | null;
   roof: Telhado; levelId: string | null;
 }

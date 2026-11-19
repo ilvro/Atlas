@@ -1,5 +1,17 @@
 import { ALTURA_MAXIMA, PINTORES_DE_ALTURA, alturaPorLuminancia, desenharAlturaDasPartes, pintarAlturaDoMaterial } from './altura.ts';
-import { contornoDoComodo, facesDoContorno, fatorDaFace, caixaDasCelulas, type SegmentoDeContorno } from '../domain/geometria.ts';
+import { contornoDoComodo, caixaDasCelulas } from '../domain/geometria.ts';
+import {
+  AMPLIACAO_NA_FACE,
+  ampliarNaFace,
+  aoLongoDoSegmento,
+  calcularFacesDasParedes,
+  desenharFacesDasParedes,
+  partesDaAbertura,
+  profundidadeDaFace,
+  type AberturaDaFace,
+  type ObjetoDaFace,
+  type ParedeDaSala,
+} from './faces-de-parede.ts';
 import type { Faixa } from '../domain/celulas.ts';
 import { decodificar } from '../domain/celulas.ts';
 import type { Grade, Ponto } from '../domain/mapa.ts';
@@ -58,14 +70,17 @@ export function assarObjeto(receita: string, params: Record<string, unknown>, se
 }
 
 // ---------- Cômodos ----------
-export interface AberturaNaFace { tipo: 'door' | 'window' | 'arch' | 'secret'; centro: Ponto; largura: number; material: string }
-export interface ObjetoNaFace { receita: string; params: Record<string, unknown>; seed: number; centro: Ponto }
+export type AberturaNaFace = AberturaDaFace;
+export type ObjetoNaFace = ObjetoDaFace;
 export interface EntradaDoComodo {
   grade: { size: number; offset: [number, number] };
   celulas: Faixa[];
   outline?: Ponto[];
   piso: { material: string; seed: number };
   papel: { material: string; seed: number } | null;
+  wallFace?: string;
+  coberto?: boolean;
+  paredes?: ParedeDaSala[];
   estilo: 'box' | 'solid';
   altura: number;
   aberturas: AberturaNaFace[];
@@ -74,49 +89,9 @@ export interface EntradaDoComodo {
   degraus?: { caminhos: Ponto[][]; drops: ('a' | 'b')[]; desnivel: number }[];
 }
 
-/** Profundidade (m) com que a face de uma parede de `altura` aparece para dentro do cômodo. */
-export const profundidadeDaFace = (altura: number): number => altura * 0.42;
+export { AMPLIACAO_NA_FACE, ampliarNaFace, profundidadeDaFace };
 
 const MARGEM_COMODO = 0.4;
-
-/** Onde um ponto do mundo cai sobre um segmento do contorno: distância ao longo dele, ou `null` se não está nele. */
-function ao_longo(seg: SegmentoDeContorno, p: Ponto): number | null {
-  const dx = seg.b[0] - seg.a[0], dy = seg.b[1] - seg.a[1], c = Math.hypot(dx, dy);
-  const u = ((p[0] - seg.a[0]) * dx + (p[1] - seg.a[1]) * dy) / c, perp = Math.abs((p[0] - seg.a[0]) * -dy / c + (p[1] - seg.a[1]) * dx / c);
-  return perp <= 0.08 && u >= -0.01 && u <= c + 0.01 ? Math.max(0, Math.min(c, u)) : null;
-}
-
-/** As partes (na face: u ao longo da parede, altura do chão para cima) que enfeitam uma abertura: o batente da porta, a janela com cortina. */
-function partesDaAbertura(a: AberturaNaFace, u: number, H: number): Parte[] {
-  const w = a.largura, mad = a.material || 'madeira.media';
-  if (a.tipo === 'door') return partesParaFace([
-    { forma: 'ret', x: -w / 2 + 0.08, y: 1.08, w: 0.1, h: 2.16, mat: mad, z: 0.1 }, { forma: 'ret', x: w / 2 - 0.08, y: 1.08, w: 0.1, h: 2.16, mat: mad, z: 0.1 },
-    { forma: 'ret', x: 0, y: 2.18, w: w - 0.06, h: 0.1, mat: mad, z: 0.1 },
-  ], u, H);
-  if (a.tipo === 'window') {
-    const l = w, cortina = 'cortina.vinho';
-    return partesParaFace([
-      { forma: 'ret', x: 0, y: 1.55, w: l * 0.82, h: 1.3, mat: mad, z: 0.04 }, { forma: 'ret', x: 0, y: 1.55, w: l * 0.68, h: 1.16, mat: 'vidro', z: 0.05, vidro: true },
-      { forma: 'ret', x: 0, y: 1.55, w: 0.04, h: 1.16, mat: mad, z: 0.06 }, { forma: 'ret', x: 0, y: 1.55, w: l * 0.68, h: 0.04, mat: mad, z: 0.06 },
-      { forma: 'ret', x: -l * 0.4, y: 1.5, w: 0.22, h: 1.5, mat: cortina, z: 0.08 }, { forma: 'ret', x: l * 0.4, y: 1.5, w: 0.22, h: 1.5, mat: cortina, z: 0.08 },
-      { forma: 'ret', x: 0, y: 0.88, w: l * 0.9, h: 0.07, mat: 'madeira.escura', z: 0.09 },
-    ], u, H);
-  }
-  return [];
-}
-
-function desenharAbertura(ctx: Contexto, a: AberturaNaFace, u: number, H: number, res: number, estilo: EstiloDeRaster): void {
-  const w = a.largura;
-  if (a.tipo === 'door' || a.tipo === 'arch') {
-    ctx.fillStyle = '#0a080b'; ctx.beginPath();
-    if (a.tipo === 'arch') { ctx.rect(u - w / 2 + 0.08, H - 1.7, w - 0.16, 1.7); ctx.moveTo(u - w / 2 + 0.08, H - 1.7); ctx.arc(u, H - 1.7, w / 2 - 0.08, Math.PI, 0); } else ctx.rect(u - w / 2 + 0.08, H - 2.15, w - 0.16, 2.15);
-    ctx.fill();
-  }
-  const partes = partesDaAbertura(a, u, H);
-  if (partes.length) estilo.desenharPartes(ctx, partes, { res, seed: 1, sombras: false });
-  // Porta secreta: parece parede; só uma fresta quase invisível.
-  if (a.tipo === 'secret') { ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 0.01; ctx.strokeRect(u - w / 2, H - 2.1, w, 2.1); }
-}
 
 function caixaDoContorno(pts: readonly Ponto[]): { x0: number; y0: number; x1: number; y1: number } | null {
   if (pts.length < 3) return null;
@@ -130,25 +105,7 @@ function caixaDoContorno(pts: readonly Ponto[]): { x0: number; y0: number; x1: n
   return { x0, y0, x1, y1 };
 }
 
-/** Ampliação de leitura dos objetos pendurados na face (a face comprime a altura da parede; quadros e espelhos sumiriam). */
-export const AMPLIACAO_NA_FACE: readonly [number, number] = [1.2, 1.7];
-
-/**
- * Amplia as partes de um objeto de parede (já em coordenadas da face: x ao longo da parede, y de cima para baixo) em volta
- * do centro dele, sem passar da sanca (y 0,15) nem do rodapé (y H − 0,2).
- */
-export function ampliarNaFace(partes: readonly Parte[], u: number, H: number): Parte[] {
-  if (!partes.length) return [];
-  let y0 = Infinity, y1 = -Infinity;
-  for (const p of partes) {
-    if (p.forma === 'poli') for (let i = 1; i < p.pts!.length; i += 2) { y0 = Math.min(y0, p.pts![i]!); y1 = Math.max(y1, p.pts![i]!); }
-    else { y0 = Math.min(y0, p.y! - p.h! / 2); y1 = Math.max(y1, p.y! + p.h! / 2); }
-  }
-  const [sx, sy0] = AMPLIACAO_NA_FACE, cy = (y0 + y1) / 2, meia = (y1 - y0) / 2, limite = Math.min(cy - 0.15, H - 0.2 - cy);
-  const sy = meia > 0 ? Math.max(1, Math.min(sy0, limite / meia)) : sy0;
-  const X = (x: number) => u + (x - u) * sx, Y = (y: number) => cy + (y - cy) * sy;
-  return partes.map(p => (p.forma === 'poli' ? { ...p, pts: p.pts!.map((v, i) => (i % 2 ? Y(v) : X(v))) } : { ...p, x: X(p.x!), y: Y(p.y!), w: p.w! * sx, h: p.h! * sy }));
-}
+/** Ampliação de leitura dos objetos pendurados na face. */
 
 /** O cômodo inteiro numa tela: piso, sombra de contato com as paredes e, no estilo caixa, as faces internas. */
 export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRaster): Assado {
@@ -178,9 +135,10 @@ export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRas
   ctx.restore();
 
   let altura: Tela | null = null;
+  let actx: Contexto | null = null;
   if (!pixel) {
     altura = criarTela(tela.width, tela.height);
-    const actx = contextoDe(altura);
+    actx = contextoDe(altura);
     actx.setTransform(res, 0, 0, res, -x0 * res, -y0 * res);
     actx.save(); tracar(actx); actx.clip();
     actx.fillStyle = 'rgb(128,0,0)';
@@ -190,40 +148,26 @@ export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRas
     actx.restore();
   }
 
-  if (e.estilo === 'box') {
-    const H = e.altura, profMax = profundidadeDaFace(H), papel = e.papel ?? { material: 'papel.liso-claro', seed: 1 };
-    for (const laco of lacos) for (const f of facesDoContorno(laco, profMax, n => profMax * fatorDaFace(n))) {
-      const s = f.segmento, prof = f.prof, k = prof / H, comp = Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1]), dx = (s.b[0] - s.a[0]) / comp, dy = (s.b[1] - s.a[1]) / comp;
-      if (pixel) {
-        const objetos = e.objetos.flatMap(o => { const u = ao_longo(s, o.centro); if (u === null) return []; const d = descreverReceita(o.receita, { seed: o.seed, params: o.params }); return d.tipo === 'parede' ? [{ partes: ampliarNaFace(partesParaFace(d.face, u, H), u, H) }] : []; });
-        const aberturas = e.aberturas.flatMap(a => { const u = ao_longo(s, a.centro); return u === null ? [] : [{ tipo: a.tipo, u, largura: a.largura, material: a.material, partes: partesDaAbertura(a, u, H) }]; });
-        pintarFacePixel(ctx, { segmento: s, quad: f.quad, H, prof, papel, aberturas, objetos }, res, [x0, y0]);
-        continue;
+  if (e.estilo === 'box' && e.coberto !== false) {
+    const faces = calcularFacesDasParedes(lacos, e.paredes, { alturaPadrao: e.altura, wallFace: e.wallFace, papel: e.papel, aberturas: e.aberturas });
+    if (pixel) {
+      const seedPapel = e.papel?.seed ?? 1;
+      for (const f of faces) {
+        const s = f.segmento, H = f.altura;
+        const objetos = e.objetos.flatMap(o => { const u = aoLongoDoSegmento(s, o.centro); if (u === null || u < f.u0 - 0.01 || u > f.u1 + 0.01) return []; const d = descreverReceita(o.receita, { seed: o.seed, params: o.params }); return d.tipo === 'parede' ? [{ partes: ampliarNaFace(partesParaFace(d.face, u, H), u, H) }] : []; });
+        const aberturas = e.aberturas.flatMap(a => { const u = aoLongoDoSegmento(s, a.centro); return u === null || u < f.u0 - 0.01 || u > f.u1 + 0.01 ? [] : [{ tipo: a.tipo, u, largura: a.largura, material: a.material, partes: partesDaAbertura(a, u, H) }]; });
+        pintarFacePixel(ctx, { segmento: s, quad: f.quad, H, prof: f.prof, papel: { material: f.material, seed: seedPapel }, aberturas, objetos }, res, [x0, y0]);
       }
-      ctx.save(); base();
-      ctx.beginPath(); ctx.moveTo(f.quad[0][0], f.quad[0][1]); for (const q of f.quad.slice(1)) ctx.lineTo(q[0], q[1]); ctx.closePath(); ctx.clip();
-      ctx.transform(dx, dy, s.n[0] * k, s.n[1] * k, s.a[0], s.a[1]);
-      const sementeDaFace = Math.round(s.a[0] * 13 + s.a[1] * 7);
-      // A face da parede, de cima (y = 0, junto do topo da parede) até o chão (y = H): sanca, papel de parede e rodapé.
-      estilo.pintarMaterial(ctx, papel.material, { x: 0, y: 0, w: comp, h: H }, papel.seed + sementeDaFace, { res });
-      const corLam = materialDe('madeira.escura').base;
-      ctx.fillStyle = tom(corLam, -0.2); ctx.fillRect(0, H - 0.16, comp, 0.16);
-      ctx.fillStyle = tom(corLam, 0.25); ctx.fillRect(0, H - 0.17, comp, 0.025);
-      ctx.fillStyle = '#e6dccb'; ctx.globalAlpha = 0.85; ctx.fillRect(0, 0, comp, 0.12); ctx.globalAlpha = 1;
-      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, 0.12, comp, 0.03);
-      const gr = ctx.createLinearGradient(0, 0, 0, H);
-      gr.addColorStop(0, 'rgba(0,0,0,0.18)'); gr.addColorStop(0.3, 'rgba(0,0,0,0.0)'); gr.addColorStop(0.92, 'rgba(0,0,0,0.05)'); gr.addColorStop(1, 'rgba(0,0,0,0.38)');
-      ctx.fillStyle = gr; ctx.fillRect(0, 0, comp, H);
-      // A face que olha para a luz (noroeste) clareia um pouco; a oposta, escurece.
-      const luz = -(s.n[0] * -0.7071 + s.n[1] * -0.7071);
-      ctx.fillStyle = luz > 0 ? `rgba(255,240,215,${(0.08 * luz).toFixed(3)})` : `rgba(0,0,0,${(-0.12 * luz).toFixed(3)})`; ctx.fillRect(0, 0, comp, H);
-      for (const a of e.aberturas) { const u = ao_longo(s, a.centro); if (u !== null) desenharAbertura(ctx, a, u, H, res, estilo); }
-      for (const o of e.objetos) {
-        const u = ao_longo(s, o.centro); if (u === null) continue;
-        const d = descreverReceita(o.receita, { seed: o.seed, params: o.params });
-        if (d.tipo === 'parede') estilo.desenharPartes(ctx, ampliarNaFace(partesParaFace(d.face, u, H), u, H), { res, seed: o.seed, sombras: false });
-      }
-      ctx.restore();
+    } else {
+      desenharFacesDasParedes(ctx, actx, faces, {
+        res,
+        origem: [x0, y0],
+        estilo,
+        papelSeed: e.papel?.seed ?? 1,
+        aberturas: e.aberturas,
+        objetos: e.objetos,
+        descrever: (receita, seed, params) => descreverReceita(receita, { seed, params }),
+      });
     }
   }
   return { tela, altura, origem: [x0, y0], res };
