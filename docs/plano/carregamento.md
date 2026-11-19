@@ -149,7 +149,7 @@ Testes: unit, a chave de um ladrilho não muda quando se pinta uma célula a 20 
 Pronto quando: o Entreposto fica pronto em menos de 3 s, e pintar uma célula de grama reassa 1 ou 2 ladrilhos.
 Commit: `terrain is baked in parallel tiles`
 
-### M5 — Cache persistente de assados  ⬜
+### M5 — Cache persistente de assados  ✅
 Objetivo: reabrir um mapa (ou abrir outro com os mesmos objetos) não assa de novo o que já foi assado.
 Depende de: M2.
 Ler: `src/procedural/baker.ts`, `src/procedural/executar.ts` (`ResultadoDeBake`), `src/data/repositorio.ts` e `mesa-core/src/idb.ts` (como o app abre o IndexedDB), `vite.config.ts`.
@@ -164,6 +164,7 @@ Não fazer: guardar assados no documento ou no `public/`.
 Testes: unit (com `fake-indexeddb`, que já é dependência): acerto, erro de versão, despejo por tamanho. E2e no `build` (ou com `?cache=1`): abrir o Entreposto, recarregar e medir.
 Pronto quando: reabrir o Entreposto leva menos de 1,5 s.
 Commit: `baked images persist across reloads in indexeddb`
+Nota: implementado também `src/procedural/bake.worker.ts` (clonagem dos bitmaps antes da transferência via `postMessage` e gravação PNG assíncrona no worker) e `src/versao-pintores.d.ts`, com inicialização sob demanda dos workers em `baker.ts` e atualização em lote de `usadoEm` sem bloquear a entrega do cache. Medição em `tests/e2e/cache-assados.test.ts` (build de produção + `vite preview`, usando `porto-noturno` no lugar do `entreposto-do-rio` removido em `1883b38`): frio `13,64 s` (`103` assados) → reabertura `1,40 s` (editor `1,29 s` + pintura `0,11 s`, `0` cacheáveis reassados, `103` registros em `atlas-assados-v1`).
 
 ### M6 — Ruído de baixa frequência numa grade reduzida  ⬜
 Objetivo: cortar o custo dos pintores por pixel sem mudar o desenho a olho.
