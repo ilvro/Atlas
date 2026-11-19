@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ALTURA_MAXIMA, PINTORES_DE_ALTURA, alturaPorLuminancia, desenharAlturaDasPartes, parteEscreveAltura, parteEscreveEmissao, pintarAlturaDoMaterial } from '../../src/procedural/altura.ts';
+import { ALTURA_MAXIMA, PINTORES_DE_ALTURA, alturaPorLuminancia, comporEmissaoNoMapa, desenharAlturaDasPartes, parteEscreveAltura, parteEscreveEmissao, pintarAlturaDoMaterial } from '../../src/procedural/altura.ts';
 import { assarComodo, assarTerreno } from '../../src/procedural/assar.ts';
 import type { Contexto } from '../../src/procedural/canvas.ts';
 import { elipse, poli, ret } from '../../src/procedural/descricao.ts';
@@ -597,4 +597,29 @@ test('assarTerreno e assarComodo geram altura em paralelo no Ilustrado (com rele
     );
     assert.equal(comodoPixel.altura, null);
   });
+});
+
+test('comporEmissaoNoMapa preserva R=0.5 na borda desfocada vazia e preserva altura de objetos sob o brilho', () => {
+  // Pixel 0: vazio + halo desfocado (m ≈ 0.3); Pixel 1: objeto opaco (R=180, A=255) + halo (m ≈ 0.5); Pixel 2: borda do objeto (R=180, A=128) + halo (m ≈ 0.3)
+  const dst = new Uint8ClampedArray([
+    0, 0, 0, 0,
+    180, 0, 0, 255,
+    180, 0, 0, 128,
+  ]);
+  const masc = new Uint8ClampedArray([
+    255, 255, 255, 77,
+    255, 255, 255, 128,
+    255, 255, 255, 77,
+  ]);
+  comporEmissaoNoMapa(dst, masc, 0.8);
+  // Borda vazia: R permanece exatamente no piso (128), sem cratera; G = 0.8 * 255 = 204; A = 77
+  assert.equal(dst[0], 128);
+  assert.equal(dst[1], 204);
+  assert.equal(dst[3], 77);
+  // Objeto opaco: R preservado (180), G somado (0.8 * 255 * 128/255 ≈ 102), A = 255
+  assert.equal(dst[4], 180);
+  assert.ok(Math.abs(dst[5]! - 102) <= 1, `G esperado ~102, veio ${dst[5]}`);
+  assert.equal(dst[7], 255);
+  // Borda semitransparente: R entre piso (128) e objeto (180), nunca abaixo do piso
+  assert.ok(dst[8]! >= 128 && dst[8]! <= 180, `R na borda deve ficar entre 128 e 180, veio ${dst[8]}`);
 });
