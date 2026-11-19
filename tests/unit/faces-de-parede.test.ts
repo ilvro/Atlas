@@ -325,7 +325,8 @@ test('porta abre vão na faixa da face e rampa de altura sobe do piso (0,5) ao t
     assert.ok(luma(2, 0.3) > luma(0.9, 0.3) + 40, `vão da porta (${luma(2, 0.3)}) deve mostrar piso claro vs face (${luma(0.9, 0.3)})`);
     assert.ok(Math.abs(rAlt(2, 0.3) / 255 - 0.5) < 0.08, `altura no vão da porta ~0,5, veio ${rAlt(2, 0.3) / 255}`);
     assert.ok(rAlt(0.9, 0.1) > rAlt(0.9, 0.45), `altura no topo da face (${rAlt(0.9, 0.1)}) > perto do pé (${rAlt(0.9, 0.45)})`);
-    assert.ok(Math.abs(alturaTopoDaFace(3) - 0.75) < 1e-6);
+    assert.ok(Math.abs(alturaTopoDaFace(3) - 1) < 1e-6);
+    assert.ok(Math.abs(alturaTopoDaFace(1.2) - 0.8) < 1e-6);
   });
 });
 
