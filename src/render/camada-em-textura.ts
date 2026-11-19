@@ -1,4 +1,4 @@
-import { Container, RenderTexture, Sprite, type Renderer } from 'pixi.js';
+import { Container, RenderTexture, Sprite, Texture, type Renderer } from 'pixi.js';
 
 /** Lado máximo da textura de uma camada (px). */
 const LADO_MAXIMO = 4096;
@@ -41,6 +41,6 @@ export function criarCamadaEmTextura(renderer: Renderer): CamadaEmTextura {
       if (pai && indice >= 0) pai.addChildAt(conteudo, Math.min(indice, pai.children.length));
       sprite.scale.set(largura / w, altura / h);
     },
-    destruir() { rt?.destroy(true); rt = null; escala.destroy(); },
+    destruir() { sprite.texture = Texture.EMPTY; rt?.destroy(true); rt = null; escala.destroy(); },
   };
 }
