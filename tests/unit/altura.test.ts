@@ -510,6 +510,23 @@ test('L10: pisos de peças e lisos têm pintor de altura com a geometria do dese
   assert.ok(Math.abs(em(xadrez, l * 0.5, l * 0.5) - 128) <= 4, 'peça do ladrilho perto de 0,5');
   // Casas escuras e claras do xadrez ficam na mesma altura (a cor não vira relevo).
   assert.ok(Math.abs(em(xadrez, l * 0.5, l * 0.5) - em(xadrez, l * 1.5, l * 0.5)) <= 3, 'casa escura e clara na mesma altura');
+  // Hexágono: o miolo deslocado na horizontal não pode afundar em sulco (regressão de shadowing de `px`).
+  const hex = pintar('hexagono.salvia'), R = materialDe('hexagono.salvia').lado ?? 0.2, dxHex = R * 1.732;
+  const hHexCentro = em(hex, dxHex, 0.6), hHexLado = em(hex, dxHex + R * 0.45, 0.6), hHexJunta = em(hex, dxHex + dxHex / 2 - 0.01, 0.6);
+  assert.ok(Math.abs(hHexCentro - hHexLado) <= 2, `miolo horizontal do hexágono fica no platô (${hHexCentro} vs ${hHexLado})`);
+  assert.ok(hHexJunta < hHexCentro, `junta do hexágono (${hHexJunta}) abaixo do miolo (${hHexCentro})`);
+  // Paralelepípedo a 32 px/m (terreno): rejuntes continuam visíveis sem sumir abaixo de 1 px.
+  const para = comOffscreenEmMemoria(() => {
+    const rT = 32, wt = 64, ht = 64;
+    const tela = new OffscreenCanvas(wt, ht) as unknown as { _data: Uint8ClampedArray; getContext(t: string): Contexto };
+    const ctx = tela.getContext('2d');
+    ctx.setTransform(rT, 0, 0, rT, 0, 0);
+    pintarAlturaDoMaterial(ctx, 'paralelepipedo', { x: 0, y: 0, w: 2, h: 2 }, 3, { res: rT });
+    return tela._data;
+  });
+  let minPara = 255, maxPara = 0;
+  for (let i = 0; i < para.length; i += 4) { const v = para[i]!; if (v < minPara) minPara = v; if (v > maxPara) maxPara = v; }
+  assert.ok(maxPara - minPara >= 15, `paralelepípedo a 32 px/m preserva contraste de rejunte (${minPara}..${maxPara})`);
 });
 
 test('assarTerreno e assarComodo geram altura em paralelo no Ilustrado (com relevo e degraus) e null no Pixel', () => {
