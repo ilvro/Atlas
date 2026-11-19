@@ -453,7 +453,7 @@ test('alturaPorLuminancia e pintarAlturaDoMaterial: padrão laje dá valor menor
   assert.ok(hJunta < hMiolo, `junta (${hJunta}) deve ser menor que miolo (${hMiolo})`);
 
   // 2) Teste de ponta a ponta com `pintarAlturaDoMaterial` no material real 'calcada' (padrão 'laje')
-  assert.deepEqual(PINTORES_DE_ALTURA, {}, 'PINTORES_DE_ALTURA começa vazio na L4');
+  assert.ok(PINTORES_DE_ALTURA.laje, 'a L10 registra um pintor de altura para o padrão laje');
   comOffscreenEmMemoria(() => {
     const area = { x: 0, y: 0, w: 3, h: 3 };
     const corTela = new OffscreenCanvas(W, H) as unknown as { width: number; height: number; _data: Uint8ClampedArray; getContext(t: string): Contexto };
@@ -479,6 +479,32 @@ test('alturaPorLuminancia e pintarAlturaDoMaterial: padrão laje dá valor menor
     assert.equal(materialDe('calcada').padrao, 'laje');
     assert.ok(altTela._data[pJunta]! < altTela._data[pMiolo]!, `altura na junta (${altTela._data[pJunta]}) < miolo (${altTela._data[pMiolo]})`);
   });
+});
+
+test('L10: pisos de peças e lisos têm pintor de altura com a geometria do desenho', () => {
+  for (const padrao of ['tabuas', 'laje', 'xadrez', 'losango', 'hexagono', 'marmore', 'espinha', 'marchetaria', 'lajes-grandes', 'lajes-rusticas', 'rachado', 'paralelepipedo', 'lajegrama', 'placas', 'liso', 'trama', 'persa', 'damasco'] as const) {
+    assert.ok(PINTORES_DE_ALTURA[padrao], `padrão ${padrao} tem pintor de altura`);
+  }
+  const res = 40, W = 80, H = 80;      // 2 m × 2 m
+  const pintar = (id: string): Uint8ClampedArray => comOffscreenEmMemoria(() => {
+    const tela = new OffscreenCanvas(W, H) as unknown as { _data: Uint8ClampedArray; getContext(t: string): Contexto };
+    const ctx = tela.getContext('2d');
+    ctx.setTransform(res, 0, 0, res, 0, 0);
+    pintarAlturaDoMaterial(ctx, id, { x: 0, y: 0, w: 2, h: 2 }, 3, { res });
+    return tela._data;
+  });
+  const em = (d: Uint8ClampedArray, x: number, y: number) => d[(Math.round(y * res) * W + Math.round(x * res)) * 4]!;
+  // Mármore polido: o miolo da placa é plano (os veios são desenho); só a junta afunda.
+  const marmore = pintar('marmore.branco'), lado = materialDe('marmore.branco').lado ?? 0.8;
+  const miolos = [[0.2, 0.2], [0.4, 0.3], [0.6, 0.55], [0.3, 0.65]].map(([x, y]) => em(marmore, x!, y!));
+  assert.ok(Math.max(...miolos) - Math.min(...miolos) <= 1, `mármore plano no miolo (${miolos.join(', ')})`);
+  assert.ok(em(marmore, lado, 0.4) < miolos[0]!, 'junta do mármore abaixo do miolo');
+  // Ladrilho: a junta fica abaixo da peça, e as peças ficam perto do piso (0,5).
+  const l = materialDe('ladrilho.xadrez').lado ?? 0.5, xadrez = pintar('ladrilho.xadrez');
+  assert.ok(em(xadrez, l, l * 0.5) < em(xadrez, l * 0.5, l * 0.5), 'junta do ladrilho abaixo da peça');
+  assert.ok(Math.abs(em(xadrez, l * 0.5, l * 0.5) - 128) <= 4, 'peça do ladrilho perto de 0,5');
+  // Casas escuras e claras do xadrez ficam na mesma altura (a cor não vira relevo).
+  assert.ok(Math.abs(em(xadrez, l * 0.5, l * 0.5) - em(xadrez, l * 1.5, l * 0.5)) <= 3, 'casa escura e clara na mesma altura');
 });
 
 test('assarTerreno e assarComodo geram altura em paralelo no Ilustrado (com relevo e degraus) e null no Pixel', () => {

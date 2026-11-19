@@ -198,19 +198,14 @@ export function pintarMaterial(ctx: Contexto, id: string, area: Area, seed = 1, 
   const diag = Math.hypot(area.w, area.h), A: Area = { x: area.x + area.w / 2 - diag / 2, y: area.y + area.h / 2 - diag / 2, w: diag, h: diag };
   switch (mat.padrao) {
     case 'tabuas': {
-      const larg = mat.largura ?? 0.2;
-      for (let y = A.y; y < A.y + A.h; y += larg) {
-        let x = A.x - r() * 2;
-        while (x < A.x + A.w) {
-          const comp = 1.4 + r() * 2.2;
-          ctx.fillStyle = misturar(mat.escuro, mat.claro, 0.35 + r() * 0.35); ctx.fillRect(x, y, comp, larg);
-          ctx.strokeStyle = mat.escuro; ctx.lineWidth = 0.006;
-          for (let v = 0; v < 5; v++) { const yy = y + larg * (0.15 + r() * 0.7); ctx.globalAlpha = 0.18 + r() * 0.2; ctx.beginPath(); ctx.moveTo(x, yy); for (let t = 0.2; t <= comp; t += 0.2) ctx.lineTo(x + t, yy + (r() - 0.5) * 0.02); ctx.stroke(); }
-          ctx.globalAlpha = 0.85; ctx.fillStyle = mat.escuro; ctx.fillRect(x + comp - 0.008, y, 0.012, larg);
-          if (r() < 0.25) { ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(x + r() * comp, y + larg * (0.3 + r() * 0.4), 0.025 + r() * 0.02, 0, 7); ctx.fill(); }
-          ctx.globalAlpha = 1; x += comp;
-        }
-        ctx.fillStyle = mat.escuro; ctx.globalAlpha = 0.9; ctx.fillRect(A.x, y - 0.006, A.w, 0.012); ctx.globalAlpha = 1;
+      for (const t of layoutDeTabuas(mat, A, r)) {
+        ctx.fillStyle = misturar(mat.escuro, mat.claro, t.tom); ctx.fillRect(t.x, t.y, t.comp, t.larg);
+        ctx.strokeStyle = mat.escuro; ctx.lineWidth = 0.006;
+        for (const v of t.veios) { ctx.globalAlpha = v.alfa; ctx.beginPath(); ctx.moveTo(t.x, v.y); for (let k = 0; k < v.dy.length; k++) ctx.lineTo(t.x + (k + 1) * 0.2, v.y + v.dy[k]!); ctx.stroke(); }
+        ctx.globalAlpha = 0.85; ctx.fillStyle = mat.escuro; ctx.fillRect(t.x + t.comp - 0.008, t.y, 0.012, t.larg);
+        if (t.no) { ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(t.no.x, t.no.y, t.no.r, 0, 7); ctx.fill(); }
+        ctx.globalAlpha = 1;
+        if (t.fimDaFileira) { ctx.fillStyle = mat.escuro; ctx.globalAlpha = 0.9; ctx.fillRect(A.x, t.y - 0.006, A.w, 0.012); ctx.globalAlpha = 1; }
       }
       camadaDeRuido(ctx, A, seed, 3, 0.35); break;
     }
@@ -224,10 +219,9 @@ export function pintarMaterial(ctx: Contexto, id: string, area: Area, seed = 1, 
     }
     case 'laje': {
       // Lajes irregulares: fileiras de alturas diferentes, juntas escuras.
-      for (let y = A.y; y < A.y + A.h; y += 0.42 + r() * 0.2) {
-        const alt = 0.42 + r() * 0.2; let x = A.x - r();
-        while (x < A.x + A.w) { const comp = 0.5 + r() * 0.8; ctx.fillStyle = misturar(mat.base, mat.claro, r() * 0.45); ctx.fillRect(x + 0.012, y + 0.012, comp - 0.024, alt - 0.024); x += comp; }
-        ctx.fillStyle = mat.escuro; ctx.globalAlpha = 0.7; ctx.fillRect(A.x, y, A.w, 0.02); ctx.globalAlpha = 1;
+      for (const l of layoutDeLajes(A, r)) {
+        if (l.fileira) { ctx.fillStyle = mat.escuro; ctx.globalAlpha = 0.7; ctx.fillRect(A.x, l.y, A.w, 0.02); ctx.globalAlpha = 1; continue; }
+        ctx.fillStyle = misturar(mat.base, mat.claro, l.tom); ctx.fillRect(l.x + 0.012, l.y + 0.012, l.comp - 0.024, l.alt - 0.024);
       }
       camadaDeRuido(ctx, A, seed, 1.4, 0.5, 'multiply', 6); break;
     }
@@ -964,3 +958,227 @@ function pintarPlacas(ctx: Contexto, mat: Material, A: Area, seed: number, px: n
     if (dj < 0.012) tomDe(o, E, 0.75); else if (dj < 0.03) escurecer(o, 0.93);
   });
 }
+
+// ---------- Layouts compartilhados entre a cor e a altura ----------
+
+interface Tabua { x: number; y: number; comp: number; larg: number; tom: number; veios: { y: number; alfa: number; dy: number[] }[]; no: { x: number; y: number; r: number } | null; fimDaFileira: boolean }
+/** As tábuas de `tabuas`, na ordem e com os sorteios do desenho (a cor e a altura leem o mesmo layout). */
+function layoutDeTabuas(mat: Material, A: Area, r: () => number): Tabua[] {
+  const larg = mat.largura ?? 0.2, saida: Tabua[] = [];
+  for (let y = A.y; y < A.y + A.h; y += larg) {
+    let x = A.x - r() * 2;
+    while (x < A.x + A.w) {
+      const comp = 1.4 + r() * 2.2, tom = 0.35 + r() * 0.35, veios: Tabua['veios'] = [];
+      for (let v = 0; v < 5; v++) { const yy = y + larg * (0.15 + r() * 0.7), alfa = 0.18 + r() * 0.2, dy: number[] = []; for (let t = 0.2; t <= comp; t += 0.2) dy.push((r() - 0.5) * 0.02); veios.push({ y: yy, alfa, dy }); }
+      let no: Tabua['no'] = null;
+      if (r() < 0.25) { const nx = x + r() * comp, ny = y + larg * (0.3 + r() * 0.4), nr = 0.025 + r() * 0.02; no = { x: nx, y: ny, r: nr }; }
+      saida.push({ x, y, comp, larg, tom, veios, no, fimDaFileira: false });
+      x += comp;
+    }
+    saida[saida.length - 1]!.fimDaFileira = true;
+  }
+  return saida;
+}
+
+type PecaDeLaje = { fileira: false; x: number; y: number; comp: number; alt: number; tom: number } | { fileira: true; y: number };
+/** As lajes de `laje` (fileiras de alturas sorteadas), na ordem dos sorteios do desenho. */
+function layoutDeLajes(A: Area, r: () => number): PecaDeLaje[] {
+  const saida: PecaDeLaje[] = [];
+  for (let y = A.y; y < A.y + A.h; y += 0.42 + r() * 0.2) {
+    const alt = 0.42 + r() * 0.2; let x = A.x - r();
+    while (x < A.x + A.w) { const comp = 0.5 + r() * 0.8, tom = r() * 0.45; saida.push({ fileira: false, x, y, comp, alt, tom }); x += comp; }
+    saida.push({ fileira: true, y });
+  }
+  return saida;
+}
+
+// ---------- Alturas por padrão (Frente L, L10) ----------
+// O mapa de altura vai de 0 a 1 com o piso em 0,5. Os valores são de leitura, não de medida: o filtro de relevo deriva a
+// normal da diferença entre vizinhos, então juntas de 1 a 2 cm viram 0,03 a 0,07 aqui. Cada peça é um platô com bisel,
+// uma leve inclinação própria (cada laje pega a luz de um jeito) e micro-relevo; materiais polidos ficam planos.
+
+/** Piso no mapa de altura. */
+const PISO = 0.5;
+
+/** Platô de uma peça: `d` é a distância à borda (m), `junta` a meia-largura da junta, `bisel` a largura da quina gasta. */
+const plato = (d: number, junta: number, bisel: number, prof: number): number => (d < junta ? PISO - prof : PISO - prof * (1 - passo(0, bisel, d - junta)) * 0.85);
+
+/** Pinta a altura `h(x, y)` (0–1) no canal R, por pixel, na área já rodada como a cor faz. */
+function alturaPorPixel(ctx: Contexto, A: Area, h: (x: number, y: number) => number): void {
+  porPixel(ctx, A, (x, y, o) => { o[0] = Math.round(Math.min(1, Math.max(0, h(x, y))) * 255); o[1] = 0; o[2] = 0; });
+}
+
+/** A área que a cor de fato cobre (o quadrado da diagonal, para a rotação do padrão não deixar canto vazio). */
+const areaDaCor = (area: Area): Area => { const diag = Math.hypot(area.w, area.h); return { x: area.x + area.w / 2 - diag / 2, y: area.y + area.h / 2 - diag / 2, w: diag, h: diag }; };
+
+/** Inclinação própria de uma peça: um plano suave de ±`k` em torno do centro, sorteado por (`i`, `j`). */
+const inclinacao = (i: number, j: number, seed: number, u: number, v: number, k: number): number => ((hash2D(i, j, seed + 71) - 0.5) * u + (hash2D(i, j, seed + 73) - 0.5) * v) * k;
+
+const plano = (ctx: Contexto, A: Area): void => { ctx.save(); ctx.fillStyle = `rgb(${Math.round(PISO * 255)},0,0)`; ctx.fillRect(A.x, A.y, A.w, A.h); ctx.restore(); };
+
+/** Pintores de altura por padrão: a mesma geometria do desenho de cor. Padrões fora daqui usam a reserva por luminância. */
+export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Material, area: Area, seed: number, px: number) => void>> = {
+  // Lisos e polidos: planos. A luminância deles é desenho (veio, estampa, mancha), não relevo.
+  liso: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
+  trama: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
+  couro: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
+  metal: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
+  vidro: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
+  pintura: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
+  persa: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
+  damasco: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
+  listras: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
+  floral: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
+  manchado: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
+
+  tabuas(ctx, mat, area, seed, px) {
+    const A = areaDaCor(area), r = mulberry32(seed * 7919 + 13), rn = valueNoise2D(seed * 7 + 2);
+    plano(ctx, A);
+    const larg = mat.largura ?? 0.2, fileiras: Tabua[][] = [];
+    for (const b of layoutDeTabuas(mat, A, r)) (fileiras[Math.round((b.y - A.y) / larg)] ??= []).push(b);
+    // Cada tábua: platô levemente abaulado no meio da largura, um pouco mais alta ou baixa que a vizinha, juntas finas.
+    alturaPorPixel(ctx, A, (x, y) => {
+      const fi = Math.floor((y - A.y) / larg), yl = y - A.y - fi * larg;
+      let t: Tabua | undefined;
+      for (const b of fileiras[fi] ?? []) if (b.x <= x && x < b.x + b.comp) { t = b; break; }
+      if (!t) return PISO;
+      const d = Math.min(yl, larg - yl, x - t.x, t.x + t.comp - x), i = Math.round(t.x * 10);
+      return plato(d, Math.max(0.006, px * 0.8), 0.02, 0.035) + (hash2D(i, fi, seed + 5) - 0.5) * 0.02 + Math.sin((yl / larg) * Math.PI) * 0.006 + (fbm(rn, x * 2, y * 30, 2) - 0.5) * 0.008;
+    });
+  },
+
+  laje(ctx, _mat, area, seed, px) {
+    const A = areaDaCor(area), r = mulberry32(seed * 7919 + 13), rn = valueNoise2D(seed * 11 + 4);
+    const pecas = layoutDeLajes(A, r).filter((p): p is Extract<PecaDeLaje, { fileira: false }> => !p.fileira), FAIXA = 0.1, faixas: number[][] = [];
+    pecas.forEach((p, k) => { for (let f = Math.floor((p.y - A.y) / FAIXA); f <= Math.floor((p.y + p.alt - A.y) / FAIXA); f++) (faixas[f] ??= []).push(k); });
+    alturaPorPixel(ctx, A, (x, y) => {
+      let melhor = -1, idx = -1;
+      for (const k of faixas[Math.floor((y - A.y) / FAIXA)] ?? []) {
+        const p = pecas[k]!;
+        if (x < p.x || x >= p.x + p.comp || y < p.y || y >= p.y + p.alt) continue;
+        const d = Math.min(x - p.x, p.x + p.comp - x, y - p.y, p.y + p.alt - y);
+        if (d > melhor) { melhor = d; idx = k; }
+      }
+      if (idx < 0) return PISO - 0.06;
+      const p = pecas[idx]!, u = (x - p.x) / p.comp - 0.5, v = (y - p.y) / p.alt - 0.5;
+      return plato(melhor, Math.max(0.014, px * 0.8), 0.05, 0.06) + inclinacao(idx, 0, seed, u, v, 0.03) + (fbm(rn, x * 3, y * 3, 3) - 0.5) * 0.025;
+    });
+  },
+
+  xadrez(ctx, mat, area, seed, px) {
+    const A = areaDaCor(area), l = mat.lado ?? 0.5;
+    alturaPorPixel(ctx, A, (x, y) => {
+      const i = Math.floor(x / l), j = Math.floor(y / l), lx = x - i * l, ly = y - j * l, d = Math.min(lx, l - lx, ly, l - ly);
+      return plato(d, Math.max(0.006, px * 0.8), 0.012, 0.03) + inclinacao(i, j, seed, lx / l - 0.5, ly / l - 0.5, 0.006);
+    });
+  },
+
+  losango(ctx, mat, area, seed, px) {
+    const A = areaDaCor(area), l = mat.lado ?? 0.5, cx = A.x + A.w / 2, cy = A.y + A.h / 2, c = Math.SQRT1_2;
+    alturaPorPixel(ctx, A, (x, y) => {
+      const u = ((x - cx) * c + (y - cy) * c), v = (-(x - cx) * c + (y - cy) * c), i = Math.floor(u / l), j = Math.floor(v / l), lu = u - i * l, lv = v - j * l;
+      return plato(Math.min(lu, l - lu, lv, l - lv), Math.max(0.005, px * 0.8), 0.012, 0.03) + inclinacao(i, j, seed, lu / l - 0.5, lv / l - 0.5, 0.006);
+    });
+  },
+
+  hexagono(ctx, mat, area, seed, px) {
+    const A = areaDaCor(area), R = mat.lado ?? 0.2, dx = R * 1.732, dy = R * 1.5;
+    alturaPorPixel(ctx, A, (x, y) => {
+      // O hexágono mais próximo entre os centros vizinhos da grade em meia-queda; a distância à borda vem da norma hexagonal.
+      let melhor = Infinity, bi = 0, bj = 0, bx = 0, by = 0;
+      const j0 = Math.round(y / dy);
+      for (let j = j0 - 1; j <= j0 + 1; j++) { const ox = j % 2 ? dx / 2 : 0, i0 = Math.round((x - ox) / dx); for (let i = i0 - 1; i <= i0 + 1; i++) { const hx = i * dx + ox, hy = j * dy, dd = Math.hypot(x - hx, y - hy); if (dd < melhor) { melhor = dd; bi = i; bj = j; bx = hx; by = hy; } } }
+      const px = Math.abs(x - bx), py = Math.abs(y - by), apotema = R * 0.866, dist = apotema - Math.max(px * 0.866 + py * 0.5, py);
+      return plato(Math.max(-1, dist), Math.max(0.01, px * 0.8), 0.014, 0.03) + inclinacao(bi, bj, seed, (x - bx) / R, (y - by) / R, 0.008);
+    });
+  },
+
+  marmore(ctx, mat, area, _seed, px) {
+    // Polido: placas planas, só a junta fina; os veios são desenho, não relevo.
+    const A = areaDaCor(area), L = mat.lado ?? 0.8;
+    alturaPorPixel(ctx, A, (x, y) => { const lx = x - Math.floor(x / L) * L, ly = y - Math.floor(y / L) * L; return plato(Math.min(lx, L - lx, ly, L - ly), Math.max(0.004, px * 0.8), 0.006, 0.02); });
+  },
+
+  espinha(ctx, _mat, area, seed, px) {
+    const A = areaDaCor(area), W = 0.56, P = 0.14;
+    alturaPorPixel(ctx, A, (x, y) => {
+      const c = Math.floor(x / W), xl = x - c * W, par = (c & 1) === 0, t = y + (par ? xl : W - xl), id = Math.floor(t / P), ft = t - id * P;
+      return plato(Math.min(xl, W - xl, ft * 0.7, (P - ft) * 0.7), Math.max(0.004, px * 0.8), 0.012, 0.025) + (hash2D(c, id, seed + 4) - 0.5) * 0.012;
+    });
+  },
+
+  marchetaria(ctx, _mat, area, seed, px) {
+    const A = areaDaCor(area), T = 0.24, faixa = 2.6, hf = 0.3;
+    alturaPorPixel(ctx, A, (x, y) => {
+      const fy = ((y % faixa) + faixa) % faixa;
+      if (fy < hf) return plato(Math.min(fy, hf - fy), Math.max(0.01, px * 0.8), 0.01, 0.02);
+      const i = Math.floor(x / T), lx = x - i * T, L = 1.6 + hash2D(i, 3, seed) * 1.6, off = hash2D(i, 5, seed) * L, j = Math.floor((y + off) / L), ly = y + off - j * L;
+      return plato(Math.min(lx, T - lx, ly, L - ly), Math.max(0.004, px * 0.8), 0.014, 0.025) + (hash2D(i, j, seed + 2) - 0.5) * 0.014;
+    });
+  },
+
+  'lajes-grandes'(ctx, mat, area, seed, px) {
+    const A = areaDaCor(area), rn = valueNoise2D(seed * 41 + 3), RH = mat.lado ?? 0.9, gw = 0.028;
+    const largura = (i: number, j: number) => 0.9 * RH / 0.9 + hash2D(i, j, seed + 2) * 0.9 * RH / 0.9;
+    alturaPorPixel(ctx, A, (x, y) => {
+      const j = Math.floor(y / RH), off = hash2D(j, 1, seed + 5) * 1.3, bloco = 8;
+      let ciclo = 0; for (let k = 0; k < bloco; k++) ciclo += largura(k, j);
+      const xl = x - off - Math.floor((x - off) / ciclo) * ciclo, base = Math.floor((x - off) / ciclo);
+      let e0 = 0, i = 0; while (i < bloco - 1 && e0 + largura(i, j) <= xl) { e0 += largura(i, j); i++; }
+      const e1 = e0 + largura(i, j), id = base * bloco + i, yt = j * RH, dx0 = xl - e0, dx1 = e1 - xl, dy0 = y - yt, dy1 = yt + RH - y, d = Math.min(dx0, dx1, dy0, dy1);
+      const quina = Math.min(Math.hypot(dx0, dy0), Math.hypot(dx1, dy0), Math.hypot(dx0, dy1), Math.hypot(dx1, dy1));
+      const lasca = quina < 0.12 && hash2D(id, j, seed + 17) < 0.45 ? 0.05 * (1 - quina / 0.12) : 0;
+      const rach = hash2D(id, j, seed + 40) < 0.22 && Math.abs(fbm(rn, x * 1.3 + id * 7.3, y * 1.3 + j * 3.1, 2) - 0.5) < 0.008 ? 0.03 : 0;
+      return plato(d, Math.max(gw, px * 0.8), 0.07, 0.07) - lasca - rach + inclinacao(id, j, seed, (xl - e0) / (e1 - e0) - 0.5, dy0 / RH - 0.5, 0.035) + (fbm(rn, x * 2.2 + id, y * 2.2, 4) - 0.5) * 0.04;
+    });
+  },
+
+  'lajes-rusticas'(ctx, mat, area, seed, px) {
+    const A = areaDaCor(area), rn = valueNoise2D(seed * 47 + 1), L = mat.lado ?? 0.75, V = celulasDeVoronoi(A, L, seed * 17 + 2), q = novaConsulta(), w = mat.uso === 'terreno' ? 0.055 : 0.035;
+    alturaPorPixel(ctx, A, (x, y) => {
+      const xx = x + (fbm(rn, x * 2.5, y * 2.5, 2) - 0.5) * 0.12, yy = y + (fbm(rn, x * 2.5 + 19, y * 2.5 + 7, 2) - 0.5) * 0.12;
+      V.consultar(xx, yy, q);
+      const s = q.sitio;
+      return plato(q.borda * 0.5, Math.max(w * 0.5, px * 0.8), 0.08, 0.08) + inclinacao(s.i, s.j, seed, (xx - s.x) / L, (yy - s.y) / L, 0.05) + (fbm(rn, x * 2.6, y * 2.6, 4) - 0.5) * 0.05;
+    });
+  },
+
+  rachado(ctx, _mat, area, seed, px) {
+    const A = areaDaCor(area), rn = valueNoise2D(seed * 31 + 5), V1 = celulasDeVoronoi(A, 0.9, seed * 13 + 1), V2 = celulasDeVoronoi(A, 1.9, seed * 13 + 2), q1 = novaConsulta(), q2 = novaConsulta();
+    alturaPorPixel(ctx, A, (x, y) => {
+      const xx = x + (fbm(rn, x * 2.4, y * 2.4, 2) - 0.5) * 0.17, yy = y + (fbm(rn, x * 2.4 + 37, y * 2.4 + 11, 2) - 0.5) * 0.17;
+      V1.consultar(xx, yy, q1);
+      V2.consultar(x + (fbm(rn, x * 1.1 + 5, y * 1.1, 2) - 0.5) * 0.5, y + (fbm(rn, x * 1.1, y * 1.1 + 5, 2) - 0.5) * 0.5, q2);
+      const s = q1.sitio;
+      return plato(q1.borda * 0.5, Math.max(0.012, px * 0.8), 0.09, 0.09) - (1 - passo(0.01, 0.05, q2.borda * 0.5)) * 0.06 + inclinacao(s.i, s.j, seed, (xx - s.x) / 0.9, (yy - s.y) / 0.9, 0.06) + (fbm(rn, x * 3.1, y * 3.1, 4) - 0.5) * 0.07;
+    });
+  },
+
+  paralelepipedo(ctx, _mat, area, seed, px) {
+    const A = areaDaCor(area), rn = valueNoise2D(seed * 29 + 3), V = celulasDeVoronoi(A, 0.25, seed * 13 + 4), q = novaConsulta();
+    alturaPorPixel(ctx, A, (x, y) => {
+      const xx = x + (fbm(rn, x * 6, y * 6, 2) - 0.5) * 0.035, yy = y + (fbm(rn, x * 6 + 31, y * 6 + 7, 2) - 0.5) * 0.035;
+      V.consultar(xx, yy, q);
+      // Pedra arredondada: domo a partir da borda, rejunte fundo.
+      const b = q.borda * 0.5;
+      return b < 0.008 ? PISO - 0.08 : PISO - 0.08 + Math.sqrt(passo(0.008, 0.07, b)) * 0.1 + (hash2D(q.sitio.i, q.sitio.j, seed + 3) - 0.5) * 0.02;
+    });
+  },
+
+  lajegrama(ctx, _mat, area, seed, px) {
+    const A = areaDaCor(area), rn = valueNoise2D(seed * 31 + 9), RH = 1.25, LW = 1.7, gw = 0.06;
+    alturaPorPixel(ctx, A, (x, y) => {
+      const j = Math.floor(y / RH), off = hash2D(j, 0, seed + 5) * LW, jit = (i: number) => (hash2D(i, j, seed + 9) - 0.5) * 0.4;
+      let i = Math.floor((x - off) / LW), e0 = i * LW + off + jit(i), e1 = (i + 1) * LW + off + jit(i + 1);
+      if (x < e0) { i--; e1 = e0; e0 = i * LW + off + jit(i); } else if (x >= e1) { i++; e0 = e1; e1 = (i + 1) * LW + off + jit(i + 1); }
+      if (hash2D(i, j, seed + 21) < 0.1) return PISO - 0.07 + (fbm(rn, x * 7, y * 7, 3) - 0.5) * 0.04;
+      const yt = j * RH, d = Math.min(x - e0, e1 - x, y - yt, yt + RH - y);
+      return plato(d, Math.max(gw * 0.5, px * 0.8), 0.08, 0.07) + inclinacao(i, j, seed, (x - e0) / (e1 - e0) - 0.5, (y - yt) / RH - 0.5, 0.04) + (fbm(rn, x * 2.2, y * 2.2, 4) - 0.5) * 0.04;
+    });
+  },
+
+  placas(ctx, mat, area, _seed, px) {
+    const A = areaDaCor(area), L = mat.lado ?? 2;
+    alturaPorPixel(ctx, A, (x, y) => { const lx = x - Math.floor(x / L) * L, ly = y - Math.floor(y / L) * L; return plato(Math.min(lx, L - lx, ly, L - ly), Math.max(0.012, px * 0.8), 0.02, 0.03); });
+  },
+};
