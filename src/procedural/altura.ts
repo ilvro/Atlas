@@ -118,9 +118,12 @@ export function pintarAlturaDoMaterial(ctx: Contexto, id: string, area: Area, se
   ctx.restore();
 }
 
-/** Verdadeiro se a parte contribui para o mapa de altura (partes sólidas; exclui luzes, veladuras, suaves e itens sem sombra). */
+/**
+ * Verdadeiro se a parte contribui para o mapa de altura (partes sólidas; exclui luzes, veladuras e suaves). `semSombra` escreve:
+ * a parte não projeta sombra, mas é superfície (tapete, toalha), e sem altura própria herdava o relevo do piso embaixo.
+ */
 export function parteEscreveAltura(p: Parte): boolean {
-  return !(p.suave || p.desfoque || p.brilho || (p.alfa !== undefined && p.alfa < 0.5) || p.semSombra);
+  return !(p.suave || p.desfoque || p.brilho || (p.alfa !== undefined && p.alfa < 0.5));
 }
 
 /** Verdadeiro se a parte escreve emissão no canal G do mapa de altura (`brilho: true`). */

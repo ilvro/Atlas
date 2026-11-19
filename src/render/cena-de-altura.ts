@@ -1,8 +1,10 @@
-import { Container, Graphics, Matrix, RenderTexture, Sprite, Texture, type Renderer } from 'pixi.js';
+import { ColorMatrixFilter, Container, Graphics, Matrix, RenderTexture, Sprite, Texture, type Renderer } from 'pixi.js';
 import { ALTURA_MAXIMA } from '../procedural/altura.ts';
 
 /** Altura padrão (m) usada para paredes no mapa de altura. */
 export const ALTURA_DE_PAREDE = 3;
+/** Altura (0–1) do piso no mapa de altura: os objetos assentam sobre ela. */
+const ALTURA_BASE_DO_PISO = 0.5;
 
 export interface EntradaDeAltura {
   c: Container;
@@ -47,7 +49,7 @@ function atualizarTransformDoMundo(alvo: Container, destino: Matrix): Matrix {
 /**
  * Cena de altura paralela (Ilustrado): espelha terreno, cômodos e objetos usando `texAltura`.
  * Objetos combinam entre si com `blendMode = 'max'` (para que sobreposições não somem e nada afunde abaixo do piso)
- * e somam sua altura sobre o chão em `alturaRT`, renderizada sob demanda quando câmera ou conteúdo mudam.
+ * e cobrem o chão em `alturaRT` com a base do piso mais a própria altura, renderizada sob demanda quando câmera ou conteúdo mudam.
  */
 export function criarCenaDeAltura(): CenaDeAltura {
   const alturaC = new Container();
@@ -69,7 +71,11 @@ export function criarCenaDeAltura(): CenaDeAltura {
   const objetos = new Map<string, { c: Container; s: Sprite }>();
   const objetosAddC = new Container();
   const objetosAlturaS = new Sprite(Texture.EMPTY);
-  objetosAlturaS.blendMode = 'add';
+  // O objeto cobre o piso (não soma ao relevo dele): onde há objeto, a altura vira a base do piso (0,5) mais a do objeto,
+  // senão os veios e juntas do piso apareciam em tapetes, sofás e mesas. O canal G (emissão) passa intacto.
+  const sobreOPiso = new ColorMatrixFilter();
+  sobreOPiso.matrix = [1, 0, 0, 0, ALTURA_BASE_DO_PISO, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0];
+  objetosAlturaS.filters = [sobreOPiso];
   objetosAddC.addChild(objetosAlturaS);
 
   let alturaRT: RenderTexture | null = null;
