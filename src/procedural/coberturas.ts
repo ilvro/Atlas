@@ -3,23 +3,36 @@ import type { Material } from './materiais.ts';
 import { hash2D } from './ruido.ts';
 
 /**
- * Coberturas de telhado: cada uma é uma função pura e periódica que diz, para um ponto do ladrilho (em metros), o **tom**
- * (0 = escuro, 0,5 = base, 1 = claro) e a vontade de **mancha** (musgo, ferrugem, azinhavre). A queda d'água aponta para +y:
- * as fiadas correm em x e a de cima cobre a de baixo. O Ilustrado amostra em alta resolução e mistura as cores; o Pixel
- * amostra na grade dele e quantiza em cinco tons, sem gradiente. O mesmo desenho serve aos dois.
+ * Coberturas de telhado: cada uma é uma função pura que diz, para um ponto em metros `(u, v)` sobre a água,
+ * o **tom** (`t`, 0 = escuro, 0,5 = base, 1 = claro), a vontade de **mancha** (`m`: musgo, ferrugem, azinhavre),
+ * a **altura miúda** dentro da peça (`h`, 0–1, para relevo e normais) e o **id** inteiro estável da peça.
+ * A queda d'água aponta para +y (+v): as fiadas correm em x (u) e a de cima cobre a de baixo.
+ * O modo contínuo amostra em metros sem repetir a cada 2 m (usado pelo assado por edifício); o modo periódico
+ * fecha em `PERIODO_DA_COBERTURA` para miniaturas e para o Pixel.
  */
 
 export const PADROES_DE_COBERTURA = ['telha-canal', 'escamas', 'ardosia', 'palha', 'tabuinhas', 'lajes-telhado', 'ondulado', 'cobre', 'concreto-laje', 'grama-telhado', 'lona'] as const;
 export type PadraoDeCobertura = (typeof PADROES_DE_COBERTURA)[number];
 export const ehPadraoDeCobertura = (p: string): p is PadraoDeCobertura => (PADROES_DE_COBERTURA as readonly string[]).includes(p);
 
-/** Lado do ladrilho em metros: todo padrão repete um número inteiro de vezes nele, então o ladrilho emenda nos dois eixos. */
+/** Lado do ladrilho periódico em metros: no modo periódico todo padrão fecha nos dois eixos. */
 export const PERIODO_DA_COBERTURA = 2;
 /** Resolução do ladrilho no Ilustrado (px/m). */
 export const RES_DA_COBERTURA = 80;
 
-interface Amostra { t: number; m: number }
-type Amostrador = (x: number, y: number, s: number, o: Amostra) => void;
+export interface AmostraDeCobertura {
+  /** Tom local (0 = escuro, 0,5 = base, 1 = claro). */
+  t: number;
+  /** Vontade de mancha (musgo, ferrugem, azinhavre). */
+  m: number;
+  /** Altura miúda dentro da peça (0–1): juntas fundas perto de 0, bordas/cristas altas perto de 1. */
+  h: number;
+  /** Inteiro não-negativo estável por peça (telha, placa, tábua, chapa, painel). */
+  id: number;
+}
+
+type AmostradorInterno = (x: number, y: number, s: number, o: AmostraDeCobertura, periodico: boolean) => void;
+export type AmostradorDeCobertura = (u: number, v: number, saida: AmostraDeCobertura) => void;
 
 const P = PERIODO_DA_COBERTURA;
 const md = (i: number, n: number) => ((i % n) + n) % n;
@@ -29,170 +42,647 @@ const liso = (t: number) => t * t * (3 - 2 * t);
 const entre = (a: number, b: number, x: number) => liso(lim((x - a) / (b - a)));
 const h2 = (i: number, j: number, s: number) => hash2D(i, j, s);
 
-/** Ruído de valor periódico: `nx` células no período em x e `ny` em y. */
-function vr(x: number, y: number, nx: number, ny: number, s: number): number {
-  const u = (x / P) * nx, v = (y / P) * ny, xi = Math.floor(u), yi = Math.floor(v), a = liso(u - xi), b = liso(v - yi);
-  const g = (i: number, j: number) => h2(md(i, nx), md(j, ny), s);
-  return (g(xi, yi) * (1 - a) + g(xi + 1, yi) * a) * (1 - b) + (g(xi, yi + 1) * (1 - a) + g(xi + 1, yi + 1) * a) * b;
+/** Inteiro não-negativo estável para a peça `(i, j)` (e subpeça opcional `sub`). */
+function idPeca(i: number, j: number, sub = 0): number {
+  let n = (Math.imul(i | 0, 374761393) ^ Math.imul(j | 0, 668265263) ^ Math.imul(sub | 0, 1442695041)) | 0;
+  n = Math.imul(n ^ (n >>> 13), 1274126177);
+  return (n ^ (n >>> 16)) & 0x7fffffff;
 }
-/** Três oitavas de `vr`, cada uma com o dobro de células (continua periódico). */
-function fb(x: number, y: number, nx: number, ny: number, s: number, oitavas = 3): number {
+
+/** Hash determinístico [0, 1) a partir do `id` da peça e de uma semente. */
+export function hashDaPeca(id: number, semente = 0): number {
+  return hash2D(id | 0, semente | 0, 9187);
+}
+
+/** Ruído de valor: `nx` células a cada `P` m em x e `ny` em y; fecha no período só quando `periodico` é verdadeiro. */
+function vr(x: number, y: number, nx: number, ny: number, s: number, periodico: boolean): number {
+  const u = (x / P) * nx, v = (y / P) * ny, xi = Math.floor(u), yi = Math.floor(v), a = liso(u - xi), b = liso(v - yi);
+  if (periodico) {
+    const g = (i: number, j: number) => h2(md(i, nx), md(j, ny), s);
+    return (g(xi, yi) * (1 - a) + g(xi + 1, yi) * a) * (1 - b) + (g(xi, yi + 1) * (1 - a) + g(xi + 1, yi + 1) * a) * b;
+  }
+  return (h2(xi, yi, s) * (1 - a) + h2(xi + 1, yi, s) * a) * (1 - b) + (h2(xi, yi + 1, s) * (1 - a) + h2(xi + 1, yi + 1, s) * a) * b;
+}
+
+/** Oitavas de `vr`, preservando a mesma frequência espacial nos modos contínuo e periódico. */
+function fb(x: number, y: number, nx: number, ny: number, s: number, periodico: boolean, oitavas = 3): number {
   let soma = 0, amp = 1, total = 0;
-  for (let k = 0; k < oitavas; k++) { soma += amp * vr(x, y, nx << k, ny << k, s + k * 31); total += amp; amp *= 0.5; }
+  for (let k = 0; k < oitavas; k++) {
+    soma += amp * vr(x, y, nx << k, ny << k, s + k * 31, periodico);
+    total += amp;
+    amp *= 0.5;
+  }
   return soma / total;
 }
 
-/** Fronteiras de `n` peças numa fiada (de 0 a `P`), com tamanhos tremidos e a fiada inteira deslocada: devolve o índice e as bordas da peça em `x`. */
-function pecaNaFiada(x: number, j: number, n: number, tremor: number, s: number): { k: number; a: number; b: number } {
-  const desl = h2(j, 0, s + 41) * P, xx = fr((x - desl) / P) * P, w = P / n;
-  const borda = (k: number) => (k <= 0 ? 0 : k >= n ? P : k * w + (h2(k, j, s + 43) - 0.5) * tremor * w);
-  let k = Math.min(n - 1, Math.floor(xx / w));
-  while (k > 0 && xx < borda(k)) k--;
-  while (k < n - 1 && xx >= borda(k + 1)) k++;
-  return { k, a: borda(k), b: borda(k + 1) };
+/**
+ * Fronteiras de peças de largura variada numa fiada (`n` peças a cada `P` m), com a fiada inteira deslocada.
+ * No modo periódico fecha em `[0, P]`; no contínuo corre livremente em `x` sem repetir.
+ */
+function pecaNaFiada(
+  x: number,
+  j: number,
+  n: number,
+  tremor: number,
+  s: number,
+  periodico: boolean,
+): { k: number; a: number; b: number; xx: number } {
+  const w = P / n;
+  if (periodico) {
+    const desl = h2(j, 0, s + 41) * P, xx = fr((x - desl) / P) * P;
+    const borda = (k: number) => (k <= 0 ? 0 : k >= n ? P : k * w + (h2(k, j, s + 43) - 0.5) * tremor * w);
+    let k = Math.min(n - 1, Math.floor(xx / w));
+    while (k > 0 && xx < borda(k)) k--;
+    while (k < n - 1 && xx >= borda(k + 1)) k++;
+    return { k, a: borda(k), b: borda(k + 1), xx };
+  }
+  const desl = h2(j, 0, s + 41) * w * 7, xx = x - desl;
+  const borda = (k: number) => k * w + (h2(k, j, s + 43) - 0.5) * tremor * w;
+  let k = Math.floor(xx / w);
+  while (xx < borda(k)) k--;
+  while (xx >= borda(k + 1)) k++;
+  return { k, a: borda(k), b: borda(k + 1), xx };
 }
 
-const AMOSTRADORES: Record<PadraoDeCobertura, Amostrador> = {
-  /** Telha canal: capas convexas e canais côncavos em colunas, com a ponta arredondada de cada capa sombreando a fiada de baixo. */
-  'telha-canal': (x, y, s, o) => {
-    const cw = 0.25, rh = 0.4, i = Math.floor(x / cw), j = Math.floor(y / rh), u = x / cw - i, v = y / rh - j;
-    const capa = u >= 0.3, uc = capa ? (u - 0.3) / 0.7 : u / 0.3, bojo = Math.sin(Math.PI * uc);
-    const ponta = capa ? 0.82 + 0.13 * bojo : 0.86 + 0.05 * bojo, varia = (h2(md(i, 8), md(j, 5), s) - 0.5) * 0.18;
+/** Platô com junta funda e bisel nítido, como nos pintores de altura. */
+const bisel = (d: number, junta: number, larg: number) => entre(junta, junta + larg, d);
+
+const AMOSTRADORES: Record<PadraoDeCobertura, AmostradorInterno> = {
+  /**
+   * Telha canal (barro e telha velha): capas convexas em arco alto e canais côncavos fundos em colunas,
+   * borda inferior espessa em arco sobrepondo a fiada de baixo, variação por peça (±8%) e ~1 em 40 telhas trocadas.
+   */
+  'telha-canal': (x, y, s, o, per) => {
+    const cw = 0.25, rh = 0.4;
+    const iRaw = Math.floor(x / cw), jRaw = Math.floor(y / rh);
+    const i = per ? md(iRaw, 8) : iRaw, j = per ? md(jRaw, 5) : jRaw;
+    const u = x / cw - iRaw, v = y / rh - jRaw;
+    const capa = u >= 0.28;
+    const uc = capa ? (u - 0.28) / 0.72 : u / 0.28;
+    const id = idPeca(i, j, capa ? 1 : 0);
+
+    const tomPeca = (hashDaPeca(id, s + 17) - 0.5) * 0.16;      // ±8%
+    const manchaPeca = (hashDaPeca(id, s + 29) - 0.5) * 0.2;
+    const altPeca = (hashDaPeca(id, s + 71) - 0.5) * 0.06;
+    const pontaPeca = (hashDaPeca(id, s + 61) - 0.5) * 0.03;
+    // Cerca de 1 em cada 40 telhas é visivelmente mais clara ou mais escura (telha trocada).
+    const rTroca = hashDaPeca(id, s + 53);
+    const troca = capa ? (rTroca < 0.0125 ? -0.26 : rTroca > 0.9875 ? 0.26 : 0) : 0;
+
+    const dx = 2 * uc - 1;
+    // Perfil semicircular forte na capa (sem derivada infinita nas bordas) e calha côncava no canal.
+    const arco = capa ? Math.sqrt(Math.max(0, 1 - 0.92 * dx * dx)) : 0;
+    const bojo = Math.sin(Math.PI * uc);
+    const ponta = (capa ? 0.84 + 0.11 * bojo : 0.88 + 0.04 * bojo) + pontaPeca;
+
+    let h: number;
     let t: number;
-    if (v > ponta) t = 0.08 + 0.1 * (v - ponta) / (1 - ponta);
-    else if (capa) t = 0.5 + 0.27 * Math.cos(Math.PI * uc) + 0.1 * bojo + varia - (ponta - v < 0.035 ? 0.14 : 0);
-    else t = 0.27 + 0.1 * bojo + varia * 0.6;
-    if (v < 0.12) t -= 0.22 * (1 - v / 0.12);
-    o.t = t + (fb(x, y, 16, 16, s + 3) - 0.5) * 0.14;
-    o.m = fb(x, y, 4, 4, s + 7) * 0.72 + fb(x, y, 40, 40, s + 8) * 0.28 + (capa ? -0.04 : 0.08) + 0.12 * v;
+    if (v > ponta) {
+      const f = (v - ponta) / Math.max(1e-4, 1 - ponta);
+      h = 0.05 + 0.06 * f;
+      t = 0.09 + 0.08 * f;
+    } else if (capa) {
+      const rampa = 0.74 + 0.26 * (v / ponta);
+      const lip = entre(ponta, ponta - 0.06, v);
+      const encaixe = entre(0, 0.09, v);
+      const bordaLat = entre(0, 0.08, Math.min(uc, 1 - uc));
+      h = (0.26 + 0.66 * arco) * rampa * (0.34 + 0.66 * lip) * (0.72 + 0.28 * encaixe) * (0.74 + 0.26 * bordaLat) + altPeca;
+      // Albedo quase simétrico (deixa a luz direcional ler o arco em `h`), com leve realce de crista e oclusão de borda.
+      t = 0.45 + 0.06 * Math.cos(Math.PI * uc) + 0.17 * bojo + tomPeca + troca - (ponta - v < 0.04 ? 0.12 : 0);
+      if (v < 0.12) t -= 0.24 * (1 - v / 0.12);
+    } else {
+      const rampa = 0.82 + 0.18 * (v / ponta);
+      const lip = entre(ponta, ponta - 0.05, v);
+      h = (0.12 + 0.16 * dx * dx) * rampa * (0.45 + 0.55 * lip) + altPeca * 0.4;
+      t = 0.26 + 0.1 * dx * dx + tomPeca * 0.7;
+      if (v < 0.12) t -= 0.2 * (1 - v / 0.12);
+    }
+
+    const grao = fb(x, y, 16, 16, s + 3, per);
+    o.t = t + (grao - 0.5) * 0.12;
+    o.m = fb(x, y, 4, 4, s + 7, per) * 0.68 + fb(x, y, 40, 40, s + 8, per) * 0.24 + (capa ? -0.05 : 0.12) + 0.12 * v + manchaPeca - (troca > 0 ? 0.24 : 0);
+    o.h = lim(h + (grao - 0.5) * 0.025);
+    o.id = id;
   },
-  /** Escamas de ardósia: fiadas desencontradas de escamas com a ponta redonda; a fiada de cima cobre o alto da de baixo. */
-  escamas: (x, y, s, o) => {
+
+  /**
+   * Escamas de ardósia: fiadas desencontradas de placas arredondadas; cada escama sobe suavemente até
+   * a borda inferior espessa em arco, com bisel nítido e sombra funda sobre a fiada de baixo.
+   */
+  escamas: (x, y, s, o, per) => {
     const sw = 0.25, rh = 0.2, r = sw / 2;
-    const escama = (j: number) => {
-      const off = md(j, 2) * r, i = Math.floor((x - off) / sw), cx = off + i * sw + r, dx = (x - cx) / r;
-      const fundo = j * rh + rh * 0.55 + rh * 0.9 * Math.sqrt(Math.max(0, 1 - dx * dx));
-      return { i, dx, fundo };
+    const escama = (jRow: number) => {
+      const off = md(jRow, 2) * r;
+      const iRaw = Math.floor((x - off) / sw);
+      const cx = off + iRaw * sw + r;
+      const dx = (x - cx) / r;
+      const fundo = jRow * rh + rh * 0.55 + rh * 0.9 * Math.sqrt(Math.max(0, 1 - dx * dx));
+      return { iRaw, dx, fundo };
     };
     const j0 = Math.floor(y / rh), cima = escama(j0 - 1);
-    const dentroDeCima = y <= cima.fundo, e = dentroDeCima ? cima : escama(j0), j = dentroDeCima ? j0 - 1 : j0, vb = e.fundo - y;
-    let t = 0.5 + (h2(md(e.i, 8), md(j, 10), s) - 0.5) * 0.28 - e.dx * 0.12 + 0.08 * entre(0, 0.1, vb);
-    if (vb < 0.016) t = 0.14;
-    if (!dentroDeCima && y - cima.fundo < 0.035) t -= 0.26 * (1 - (y - cima.fundo) / 0.035);
-    o.t = t + (fb(x, y, 20, 20, s + 3) - 0.5) * 0.1;
-    o.m = fb(x, y, 5, 5, s + 7);
+    const dentroDeCima = y <= cima.fundo;
+    const e = dentroDeCima ? cima : escama(j0);
+    const jRaw = dentroDeCima ? j0 - 1 : j0;
+    const i = per ? md(e.iRaw, 8) : e.iRaw, j = per ? md(jRaw, 10) : jRaw;
+    const id = idPeca(i, j);
+
+    const tomPeca = (hashDaPeca(id, s + 17) - 0.5) * 0.22;
+    const manchaPeca = (hashDaPeca(id, s + 29) - 0.5) * 0.18;
+    const altPeca = (hashDaPeca(id, s + 71) - 0.5) * 0.06;
+    const inclinacao = (hashDaPeca(id, s + 73) - 0.5) * 0.05 * e.dx;
+
+    const vb = e.fundo - y;                                      // distância até a borda inferior curva (m)
+    const vs = (1 - Math.abs(e.dx)) * r;                         // distância até a junta lateral (m)
+    const sobCima = dentroDeCima ? 1 : y - cima.fundo;
+
+    // A escama é mais alta na borda inferior exposta e afunda suavemente sob a fiada de cima.
+    const rampa = 0.9 - 0.34 * lim(vb / 0.2);
+    const bordaInf = bisel(vb, 0.004, 0.017);
+    const bordaLat = bisel(vs, 0.004, 0.014);
+    const degrauCima = dentroDeCima ? 1 : 0.22 + 0.78 * entre(0, 0.024, sobCima);
+    const grao = fb(x, y, 20, 20, s + 3, per);
+
+    let h = (0.09 + (rampa - 0.09) * bordaInf * bordaLat) * degrauCima + altPeca + inclinacao + (grao - 0.5) * 0.02;
+    let t = 0.5 + tomPeca - e.dx * 0.03 + 0.07 * entre(0, 0.08, vb) + (grao - 0.5) * 0.09;
+    if (vb < 0.013) { t = 0.13; h = Math.min(h, 0.11 + (vb / 0.013) * 0.16); }
+    if (vs < 0.006) { t = Math.min(t, 0.18); }
+    if (!dentroDeCima && sobCima < 0.036) t -= 0.28 * (1 - sobCima / 0.036);
+
+    o.t = t;
+    o.m = fb(x, y, 5, 5, s + 7, per) + manchaPeca + (vb < 0.03 ? 0.1 : 0);
+    o.h = lim(h);
+    o.id = id;
   },
-  /** Ardósia: placas retangulares desencontradas de tom variado, juntas finas e a beira de cada fiada marcada. */
-  ardosia: (x, y, s, o) => {
-    const w = 0.25, rh = 0.2, j = Math.floor(y / rh), v = y / rh - j, off = md(j, 2) * (w / 2), i = Math.floor((x - off) / w), u = (x - off) / w - i;
-    let t = 0.5 + (h2(md(i, 8), md(j, 10), s) - 0.5) * 0.34 + (fb(x, y, 24, 24, s + 3) - 0.5) * 0.12 + (u < 0.12 ? 0.05 : 0);
-    if (u < 0.04 || u > 0.975) t = 0.13;
-    if (v > 0.92) t = 0.1;
-    if (v < 0.16) t -= 0.2 * (1 - v / 0.16);
-    o.t = t; o.m = fb(x, y, 5, 5, s + 7);
+
+  /**
+   * Ardósia: placas retangulares finas e desencontradas, platô plano com quina biselada nítida,
+   * junta lateral fina, leve lascado na borda inferior e degrau marcante em cada fiada.
+   */
+  ardosia: (x, y, s, o, per) => {
+    const w = 0.25, rh = 0.2;
+    const jRaw = Math.floor(y / rh), v = y / rh - jRaw;
+    const off = md(jRaw, 2) * (w / 2);
+    const iRaw = Math.floor((x - off) / w), u = (x - off) / w - iRaw;
+    const i = per ? md(iRaw, 8) : iRaw, j = per ? md(jRaw, 10) : jRaw;
+    const id = idPeca(i, j);
+
+    const tomPeca = (hashDaPeca(id, s + 17) - 0.5) * 0.28;
+    const manchaPeca = (hashDaPeca(id, s + 29) - 0.5) * 0.18;
+    const altPeca = (hashDaPeca(id, s + 71) - 0.5) * 0.08;
+    const tilt = (hashDaPeca(id, s + 73) - 0.5) * 0.05 * (u - 0.5);
+    const lascaBorda = (hashDaPeca(id, s + 61) - 0.5) * 0.006 + (vr(x, 0, 48, 1, s + md(j, 10) * 13 + (per ? 0 : j * 7), per) - 0.5) * 0.004;
+
+    const du = Math.min(u, 1 - u) * w;
+    const db = (1 - v) * rh + lascaBorda;
+    const dt = v * rh;
+
+    const rampa = 0.46 + 0.46 * lim(v / 0.92);
+    const platLat = bisel(du, 0.005, 0.011);
+    const platInf = bisel(db, 0.008, 0.013);
+    const sobCima = 0.3 + 0.7 * entre(0, 0.02, dt);
+    const grao = fb(x, y, 24, 24, s + 3, per);
+
+    const h = (0.07 + (rampa - 0.07) * platLat * platInf) * sobCima + altPeca + tilt + (grao - 0.5) * 0.025;
+    let t = 0.5 + tomPeca + (grao - 0.5) * 0.11 + (u < 0.08 ? 0.02 : 0);
+    if (du < 0.007) t = 0.12;
+    if (db < 0.013) t = 0.1;
+    if (dt < 0.032) t -= 0.24 * (1 - dt / 0.032);
+
+    o.t = t;
+    o.m = fb(x, y, 5, 5, s + 7, per) + manchaPeca + (du < 0.02 || db < 0.025 ? 0.12 : 0);
+    o.h = lim(h);
+    o.id = id;
   },
-  /** Palha: fibras na direção da queda, em cursos de 0,5 m com a beira desfiada e funda. */
-  palha: (x, y, s, o) => {
-    const rh = 0.5, j = Math.floor(y / rh), v = y / rh - j, fibra = fb(x, y, 64, 4, s, 3), beira = 0.8 + 0.14 * vr(x, 0, 48, 1, s + md(j, 4) * 17);
-    let t = 0.33 + 0.42 * fibra + (h2(md(Math.floor(x / 0.02), 100), md(j, 4), s + 5) - 0.5) * 0.22;
-    if (v > beira) t = 0.1 + 0.12 * fibra;
-    if (v < 0.1) t -= 0.16 * (1 - v / 0.1);
-    o.t = t; o.m = fb(x, y, 4, 4, s + 7) + 0.12 * v;
+
+  /**
+   * Palha: feixes espessos na direção da queda em cursos de 0,5 m, borda grossa e desfiada no beiral
+   * de cada curso e estrias fundas de colmo para o sol ler o volume dos feixes.
+   */
+  palha: (x, y, s, o, per) => {
+    const rh = 0.5;
+    const jRaw = Math.floor(y / rh), v = y / rh - jRaw;
+    const j = per ? md(jRaw, 4) : jRaw;
+    // Feixes de largura variada (~25 cm) dão identidade de peça e volume arredondado ao colmo.
+    const { k, a, b, xx } = pecaNaFiada(x, j, 8, 0.4, s, per);
+    const id = idPeca(k, j);
+    const uLocal = (xx - a) / Math.max(1e-4, b - a);
+
+    const tomPeca = (hashDaPeca(id, s + 17) - 0.5) * 0.16;      // ±8%
+    const manchaPeca = (hashDaPeca(id, s + 29) - 0.5) * 0.18;
+    const altPeca = (hashDaPeca(id, s + 71) - 0.5) * 0.08;
+
+    const fibra = fb(x, y, 64, 4, s, per, 3);
+    const estriaFina = vr(x, y, 128, 6, s + 19, per);
+    const colmoX = per ? md(Math.floor(x / 0.02), 100) : Math.floor(x / 0.02);
+    const fio = h2(colmoX, j, s + 5);
+
+    const sBeira = s + md(j, 4) * 17 + (per ? 0 : j * 7);
+    const ondaLarga = (vr(x, 0, 12, 1, sBeira + 3, per) - 0.5) * 0.1;
+    const fiapo = (vr(x, 0, 64, 1, sBeira, per) - 0.5) * 0.16;
+    const beira = lim(0.82 + ondaLarga + fiapo + (hashDaPeca(id, s + 61) - 0.5) * 0.05);
+    const domoFeixe = 0.72 + 0.28 * Math.sin(Math.PI * lim(uLocal));
+
+    const tSombra = 0.09 + 0.12 * fibra;
+    let h: number;
+    let t = 0.34 + 0.38 * fibra + (fio - 0.5) * 0.2 + tomPeca;
+    if (v > beira) {
+      const f = (v - beira) / Math.max(1e-4, 1 - beira);
+      h = 0.06 + 0.09 * fibra * (1 - 0.45 * f);
+      t = tSombra;
+    } else {
+      // Feixe cresce em espessura até a borda grossa do curso e cai de golpe na ponta desfiada.
+      const rampa = 0.42 + 0.5 * entre(0.03, Math.max(0.15, beira - 0.05), v);
+      const quedaBorda = entre(beira, beira - 0.075, v);
+      const sobCima = entre(0, 0.12, v);
+      h = (0.08 + (rampa * domoFeixe * (0.26 + 0.74 * quedaBorda) - 0.08) * (0.28 + 0.72 * sobCima)) + altPeca + (fibra - 0.5) * 0.22 + (estriaFina - 0.5) * 0.1;
+      // Em v = 0, a sombra sob a beira da fiada de cima emenda suavemente com a sombra em v = 1.
+      if (v < 0.14) t = tSombra + (t - tSombra) * entre(0, 0.14, v);
+    }
+
+    o.t = t;
+    o.m = fb(x, y, 4, 4, s + 7, per) + 0.14 * v + manchaPeca;
+    o.h = lim(h);
+    o.id = id;
   },
-  /** Tabuinhas de madeira: fiadas de 25 cm com tábuas curtas de largura variada, veio na queda e frestas escuras. */
-  tabuinhas: (x, y, s, o) => {
-    const rh = 0.25, j = md(Math.floor(y / rh), 8), v = y / rh - Math.floor(y / rh), { k, a, b } = pecaNaFiada(x, j, 9, 0.5, s);
-    const xx = fr((x - h2(j, 0, s + 41) * P) / P) * P;
-    let t = 0.47 + (h2(k, j, s + 11) - 0.5) * 0.28 + (fb(x, y, 96, 6, s + 13) - 0.5) * 0.34;
-    if (xx - a < 0.014 || b - xx < 0.006) t = 0.1;
-    if (v > 0.93) t = 0.12;
-    if (v < 0.14) t -= 0.24 * (1 - v / 0.14);
-    o.t = t; o.m = fb(x, y, 5, 5, s + 7) + 0.1 * v;
+
+  /**
+   * Tabuinhas de madeira: fiadas de 25 cm com tábuas curtas desencontradas de largura e ponta variadas,
+   * frestas fundas entre peças, degrau firme sob cada fiada e veio na direção da queda.
+   */
+  tabuinhas: (x, y, s, o, per) => {
+    const rh = 0.25;
+    const jRaw = Math.floor(y / rh), v = y / rh - jRaw;
+    const j = per ? md(jRaw, 8) : jRaw;
+    const { k, a, b, xx } = pecaNaFiada(x, j, 9, 0.5, s, per);
+    const id = idPeca(k, j);
+
+    const tomPeca = (hashDaPeca(id, s + 17) - 0.5) * 0.26;
+    const manchaPeca = (hashDaPeca(id, s + 29) - 0.5) * 0.2;
+    const altPeca = (hashDaPeca(id, s + 71) - 0.5) * 0.09;
+    const tilt = (hashDaPeca(id, s + 73) - 0.5) * 0.06 * ((xx - a) / Math.max(1e-4, b - a) - 0.5);
+
+    const dL = xx - a, dR = b - xx, lado = Math.min(dL, dR);
+    // Ponta inferior lascada e levemente desigual entre tabuinhas vizinhas, com cantos gastos.
+    const lasca = (vr(x, 0, 36, 1, s + md(j, 8) * 19 + (per ? 0 : j * 11), per) - 0.5) * 0.04;
+    const pe = 0.91 + (hashDaPeca(id, s + 61) - 0.5) * 0.08 + lasca - 0.07 * (1 - lim(lado / 0.025)) ** 2;
+    const veio = fb(x, y, 96, 6, s + 13, per);
+
+    let h: number;
+    let t = 0.48 + tomPeca + (veio - 0.5) * 0.32;
+    if (v > pe) {
+      h = 0.05 + 0.05 * ((v - pe) / Math.max(1e-4, 1 - pe));
+      t = 0.1;
+    } else {
+      const rampa = 0.42 + 0.5 * (v / pe);
+      const bordaLat = bisel(lado, 0.006, 0.012);
+      const bordaInf = entre(pe, pe - 0.055, v);
+      const sobCima = 0.3 + 0.7 * entre(0, 0.12, v);
+      h = (0.06 + (rampa - 0.06) * bordaLat * bordaInf) * sobCima + altPeca + tilt + (veio - 0.5) * 0.09;
+      if (dL < 0.011 || dR < 0.006) t = 0.09;
+      if (v < 0.14) t -= 0.25 * (1 - v / 0.14);
+    }
+
+    o.t = t;
+    o.m = fb(x, y, 5, 5, s + 7, per) + 0.12 * v + manchaPeca + (lado < 0.018 ? 0.1 : 0);
+    o.h = lim(h);
+    o.id = id;
   },
-  /** Lajes de pedra: placas grossas e irregulares, de beira torta e cantos gastos, com sombra funda sob cada fiada. */
-  'lajes-telhado': (x, y, s, o) => {
-    const rh = 0.4, j = md(Math.floor(y / rh), 5), v = y / rh - Math.floor(y / rh), { k, a, b } = pecaNaFiada(x, j, 4, 0.45, s);
-    const xx = fr((x - h2(j, 0, s + 41) * P) / P) * P, lado = Math.min(xx - a, b - xx);
-    const pe = 0.76 + 0.14 * vr(x, 0, 20, 1, s + j * 13) - 0.18 * (1 - lim(lado / 0.07)) ** 2;
-    let t = 0.5 + (h2(k, j, s + 11) - 0.5) * 0.3 + (fb(x, y, 24, 24, s + 3) - 0.5) * 0.32 + 0.08 * entre(0.2, 0, lado);
-    if (v > pe) t = 0.07 + 0.08 * (v - pe);
-    if (lado < 0.012 && v <= pe) t = 0.1;
-    if (v < 0.18) t -= 0.3 * (1 - v / 0.18);
-    o.t = t; o.m = fb(x, y, 6, 6, s + 7) * 0.75 + fb(x, y, 40, 40, s + 8) * 0.25 + 0.25 * (1 - lim(lado / 0.06)) + 0.15 * entre(pe - 0.15, pe, v);
+
+  /**
+   * Lajes de pedra: placas grossas e irregulares, beira torta, cantos quebrados, juntas fundas e
+   * sombra pesada sob cada fiada.
+   */
+  'lajes-telhado': (x, y, s, o, per) => {
+    const rh = 0.4;
+    const jRaw = Math.floor(y / rh), v = y / rh - jRaw;
+    const j = per ? md(jRaw, 5) : jRaw;
+    const { k, a, b, xx } = pecaNaFiada(x, j, 4, 0.45, s, per);
+    const id = idPeca(k, j);
+
+    const tomPeca = (hashDaPeca(id, s + 17) - 0.5) * 0.26;
+    const manchaPeca = (hashDaPeca(id, s + 29) - 0.5) * 0.2;
+    const altPeca = (hashDaPeca(id, s + 71) - 0.5) * 0.1;
+
+    const lado = Math.min(xx - a, b - xx);
+    const pe = 0.82 + 0.11 * vr(x, 0, 20, 1, s + md(j, 5) * 13 + (per ? 0 : j * 11), per) + (hashDaPeca(id, s + 61) - 0.5) * 0.05 - 0.14 * (1 - lim(lado / 0.065)) ** 2;
+    const pedra = fb(x, y, 24, 24, s + 3, per);
+
+    let h: number;
+    let t = 0.5 + tomPeca + (pedra - 0.5) * 0.28 + 0.07 * entre(0.18, 0, lado);
+    if (v > pe) {
+      h = 0.04 + 0.06 * ((v - pe) / Math.max(1e-4, 1 - pe));
+      t = 0.07 + 0.07 * (v - pe);
+    } else {
+      const rampa = 0.54 + 0.38 * (v / pe);
+      const bordaLat = bisel(lado, 0.009, 0.036);
+      const bordaInf = entre(pe, pe - 0.085, v);
+      const sobCima = 0.26 + 0.74 * entre(0, 0.14, v);
+      h = (0.06 + (rampa - 0.06) * bordaLat * bordaInf) * sobCima + altPeca + (pedra - 0.5) * 0.08;
+      if (lado < 0.011) t = 0.1;
+      if (v < 0.17) t -= 0.28 * (1 - v / 0.17);
+    }
+
+    o.t = t;
+    o.m = fb(x, y, 6, 6, s + 7, per) * 0.7 + fb(x, y, 40, 40, s + 8, per) * 0.22 + 0.24 * (1 - lim(lado / 0.06)) + 0.15 * entre(pe - 0.15, pe, v) + manchaPeca;
+    o.h = lim(h);
+    o.id = id;
   },
-  /** Zinco ondulado: ondas na queda, chapas de 1 m sobrepostas (as emendas a 0,5 m da borda do ladrilho) com a aba clara, pregos nas cristas e ferrugem escorrendo. */
-  ondulado: (x, y, s, o) => {
-    const onda = P / 24, v = fr(y + 0.5), fase = (x / onda) * Math.PI * 2;
-    let t = 0.5 + 0.32 * Math.sin(fase) + (fb(x, y, 8, 8, s + 3) - 0.5) * 0.12;
-    if (v > 0.975) t = 0.16; else if (v < 0.02) t = 0.86;
-    const cx = (Math.round((x / onda - 0.25) / 4) * 4 + 0.25) * onda, cy = Math.floor(y + 0.5) - 0.45;
-    if (Math.hypot(x - cx, y - cy) < 0.013) t = 0.92;
-    o.t = t; o.m = fb(x, y, 6, 6, s + 7) * 0.8 + 0.22 * entre(0.6, 1, v) + 0.18 * vr(x, y, 48, 2, s + 9);
+
+  /**
+   * Zinco ondulado: ondas senoidais pronunciadas na queda, chapas de 1 × 1 m sobrepostas nos vales,
+   * pregos em relevo nas cristas e ferrugem escorrendo pelos vales.
+   */
+  ondulado: (x, y, s, o, per) => {
+    const onda = P / 24;
+    const iRaw = Math.floor(x), jRaw = Math.floor(y + 0.5);
+    const i = per ? md(iRaw, 2) : iRaw, j = per ? md(jRaw, 2) : jRaw;
+    const id = idPeca(i, j);
+    const v = fr(y + 0.5), ux = fr(x);
+    // Fase deslocada para que a emenda lateral de 1 m caia exatamente num vale (sin = -1) e a crista em k + 0,5.
+    const fase = (x / onda) * Math.PI * 2 - Math.PI / 2;
+    const sen = Math.sin(fase);
+
+    const tomPeca = (hashDaPeca(id, s + 17) - 0.5) * 0.16;      // ±8%
+    const manchaPeca = (hashDaPeca(id, s + 29) - 0.5) * 0.22;
+    const altPeca = (hashDaPeca(id, s + 71) - 0.5) * 0.04;
+
+    const grao = fb(x, y, 8, 8, s + 3, per);
+    // Onda forte em altura (0,16 no vale até 0,84 na crista) com leve inclinação de sobreposição entre chapas.
+    let h = 0.48 + 0.35 * sen + 0.07 * v + altPeca + (grao - 0.5) * 0.025;
+    let t = 0.5 + 0.24 * sen + tomPeca + (grao - 0.5) * 0.11;
+
+    // Emenda horizontal entre chapas (degrau de sobreposição).
+    if (v > 0.965) {
+      const f = (v - 0.965) / 0.035;
+      h = h * (1 - 0.72 * f);
+      t = 0.16;
+    } else if (v < 0.022) {
+      h += 0.04 * (1 - v / 0.022);
+      t = 0.84;
+    }
+    // Emenda lateral escondida no vale da chapa (a cada 1 m = 12 ondas inteiras).
+    if (ux < 0.01 || ux > 0.99) {
+      h -= 0.06;
+      t -= 0.09;
+    }
+    // Pregos/parafusos nas cristas (k + 0,5) logo abaixo da emenda horizontal.
+    const cx = (Math.round((x / onda - 0.5) / 4) * 4 + 0.5) * onda, cy = jRaw - 0.45;
+    const dPrego = Math.hypot(x - cx, y - cy);
+    if (dPrego < 0.015) {
+      const bPrego = Math.sqrt(Math.max(0, 1 - (dPrego / 0.015) ** 2));
+      h += 0.14 * bPrego;
+      t = Math.max(t, 0.82 + 0.14 * bPrego);
+    }
+
+    o.t = t;
+    o.m = fb(x, y, 6, 6, s + 7, per) * 0.74 + 0.2 * entre(0.6, 1, v) + 0.16 * vr(x, y, 48, 2, s + 9, per) + 0.08 * (1 - sen) * 0.5 + manchaPeca;
+    o.h = lim(h);
+    o.id = id;
   },
-  /** Cobre de junta em pé: chapas verticais de 40 cm, juntas salientes, emendas desencontradas e azinhavre escorrendo das juntas. */
-  cobre: (x, y, s, o) => {
-    const pan = 0.4, i = Math.floor(x / pan), u = x / pan - i, off = md(i, 2) * 0.5, v = fr(y + off);
-    let t = 0.5 + (h2(md(i, 5), md(Math.floor(y + off), 2), s) - 0.5) * 0.14 + (fb(x, y, 10, 10, s + 3) - 0.5) * 0.12;
-    if (u < 0.04) t = 0.86; else if (u < 0.08) t = 0.2;
-    if (v < 0.012) t = 0.24; else if (v < 0.025) t = 0.72;
-    // O azinhavre nasce nas juntas e escorre na queda: listras finas em x e compridas em y, mais forte logo depois da junta.
-    o.t = t; o.m = fb(x, y, 4, 4, s + 7) * 0.45 + fb(x, y, 48, 3, s + 9) * 0.4 + fb(x, y, 32, 32, s + 8) * 0.15 + 0.2 * (1 - entre(0.08, 0.5, u));
+
+  /**
+   * Cobre de junta em pé: chapas verticais de 40 cm, nervuras salientes em relevo forte, emendas
+   * transversais desencontradas em dobra e azinhavre escorrendo das juntas.
+   */
+  cobre: (x, y, s, o, per) => {
+    const pan = 0.4;
+    const iRaw = Math.floor(x / pan), u = x / pan - iRaw;
+    const off = md(iRaw, 2) * 0.5;
+    const jRaw = Math.floor(y + off), v = fr(y + off);
+    const i = per ? md(iRaw, 5) : iRaw, j = per ? md(jRaw, 2) : jRaw;
+    const id = idPeca(i, j);
+
+    const tomPeca = (hashDaPeca(id, s + 17) - 0.5) * 0.16;      // ±8%
+    const manchaPeca = (hashDaPeca(id, s + 29) - 0.5) * 0.2;
+    const altPeca = (hashDaPeca(id, s + 71) - 0.5) * 0.04;
+
+    const grao = fb(x, y, 10, 10, s + 3, per);
+    // Chapa quase plana com leve rampa até a emenda inferior e nervura trapezoidal alta exatamente na junta (u = 0 / 1).
+    const duJunta = Math.min(u, 1 - u);
+    const nervura = 1 - entre(0.018, 0.056, duJunta);
+    let h = 0.36 + 0.1 * v + 0.03 * Math.sin(Math.PI * u) + 0.52 * nervura + altPeca + (grao - 0.5) * 0.02;
+    let t = 0.5 + tomPeca + (grao - 0.5) * 0.11;
+
+    // Crista metálica da junta em pé e vincos escuros simétricos dos dois lados (funciona sob qualquer sol).
+    if (duJunta < 0.022) t = 0.78;
+    else if (duJunta < 0.048) t = 0.24;
+
+    // Emenda horizontal dobrada (dobra saliente sobre o degrau da chapa de baixo).
+    if (v > 0.98) {
+      h = Math.min(h, 0.18);
+      t = 0.22;
+    } else if (v < 0.014) {
+      h = Math.min(h, 0.24);
+      t = 0.26;
+    } else if (v < 0.04) {
+      h += 0.22 * (1 - (v - 0.014) / 0.026);
+      t = Math.max(t, 0.68);
+    }
+
+    o.t = t;
+    o.m = fb(x, y, 4, 4, s + 7, per) * 0.44 + fb(x, y, 48, 3, s + 9, per) * 0.38 + fb(x, y, 32, 32, s + 8, per) * 0.14 + 0.24 * (1 - entre(0.04, 0.28, duJunta)) + manchaPeca;
+    o.h = lim(h);
+    o.id = id;
   },
-  /** Laje de concreto: liso manchado, juntas de dilatação a cada 2 m e manchas de umidade. */
-  'concreto-laje': (x, y, s, o) => {
-    let t = 0.52 + (fb(x, y, 10, 10, s + 3) - 0.5) * 0.28 + (h2(md(Math.floor(x * 60), 120), md(Math.floor(y * 60), 120), s) - 0.5) * 0.08;
-    t -= 0.16 * entre(0.55, 0.8, fb(x, y, 3, 3, s + 5));
-    if (x < 0.014 || y < 0.014) t = 0.24;
-    o.t = t; o.m = fb(x, y, 4, 4, s + 7);
+
+  /**
+   * Laje de concreto: placas de 1 × 1 m com juntas de dilatação chanfradas e fundas,
+   * ligeiro desnível por placa, textura mineral granulada e manchas de umidade.
+   */
+  'concreto-laje': (x, y, s, o, per) => {
+    const ladoPlaca = 1;
+    const iRaw = Math.floor(x / ladoPlaca), jRaw = Math.floor(y / ladoPlaca);
+    const i = per ? md(iRaw, 2) : iRaw, j = per ? md(jRaw, 2) : jRaw;
+    const lx = x - iRaw * ladoPlaca, ly = y - jRaw * ladoPlaca;
+    const id = idPeca(i, j);
+
+    const tomPeca = (hashDaPeca(id, s + 17) - 0.5) * 0.16;      // ±8%
+    const manchaPeca = (hashDaPeca(id, s + 29) - 0.5) * 0.18;
+    const altPeca = (hashDaPeca(id, s + 71) - 0.5) * 0.06;
+
+    const d = Math.min(lx, ladoPlaca - lx, ly, ladoPlaca - ly);
+    const macro = fb(x, y, 10, 10, s + 3, per);
+    const micro = fb(x, y, 32, 32, s + 13, per);
+    const umidade = fb(x, y, 3, 3, s + 5, per);
+    const gx = per ? md(Math.floor(x * 60), 120) : Math.floor(x * 60);
+    const gy = per ? md(Math.floor(y * 60), 120) : Math.floor(y * 60);
+    const poro = h2(gx, gy, s);
+
+    const plat = bisel(d, 0.011, 0.022);
+    const h = 0.07 + (0.58 + altPeca + (macro - 0.5) * 0.09 + (micro - 0.5) * 0.06 + (poro - 0.5) * 0.035) * plat;
+
+    let t = 0.52 + tomPeca + (macro - 0.5) * 0.24 + (poro - 0.5) * 0.08;
+    t -= 0.16 * entre(0.55, 0.8, umidade);
+    if (d < 0.012) t = 0.19;
+    else if (d < 0.025) t -= 0.06;
+
+    o.t = t;
+    o.m = fb(x, y, 4, 4, s + 7, per) + manchaPeca + (d < 0.04 ? 0.1 : 0);
+    o.h = lim(h);
+    o.id = id;
   },
-  /** Telhado verde: grama densa em tufos, com leivas em faixas de 0,5 m e terra aparecendo. */
-  'grama-telhado': (x, y, s, o) => {
-    let t = 0.46 + (fb(x, y, 20, 20, s + 3) - 0.5) * 0.8 + (h2(md(Math.floor(x * 32), 64), md(Math.floor(y * 32), 64), s) - 0.5) * 0.45;
-    if (fr(y / 0.5) > 0.95) t -= 0.14;
-    o.t = t; o.m = fb(x, y, 5, 5, s + 7);
+
+  /**
+   * Telhado verde: leivas de grama de 0,5 × 0,5 m desencontradas e orgânicas, tufos densos com volume
+   * acentuado e costuras macias sob a vegetação.
+   */
+  'grama-telhado': (x, y, s, o, per) => {
+    const rw = 0.5, rh = 0.5;
+    // Deformação orgânica suave nas bordas das leivas para não parecer bloco retangular.
+    const wx = x + (vr(x, y, 6, 6, s + 21, per) - 0.5) * 0.08;
+    const wy = y + (vr(x, y, 6, 6, s + 27, per) - 0.5) * 0.08;
+    const jRaw = Math.floor(wy / rh), v = wy / rh - jRaw;
+    const off = md(jRaw, 2) * (rw / 2);
+    const iRaw = Math.floor((wx - off) / rw), u = (wx - off) / rw - iRaw;
+    const i = per ? md(iRaw, 4) : iRaw, j = per ? md(jRaw, 4) : jRaw;
+    const id = idPeca(i, j);
+
+    const tomPeca = (hashDaPeca(id, s + 17) - 0.5) * 0.16;      // ±8%
+    const manchaPeca = (hashDaPeca(id, s + 29) - 0.5) * 0.18;
+    const altPeca = (hashDaPeca(id, s + 71) - 0.5) * 0.06;
+
+    const tufo = fb(x, y, 20, 20, s + 3, per);
+    const fino = fb(x, y, 52, 52, s + 11, per);
+    const fx = per ? md(Math.floor(x * 32), 64) : Math.floor(x * 32);
+    const fy = per ? md(Math.floor(y * 32), 64) : Math.floor(y * 32);
+    const folha = h2(fx, fy, s);
+
+    const du = Math.min(u, 1 - u) * rw, dv = Math.min(v, 1 - v) * rh;
+    const leiva = 0.84 + 0.16 * entre(0, 0.055, Math.min(du, dv));
+    const h = (0.24 + 0.44 * tufo + 0.24 * fino + (folha - 0.5) * 0.12) * leiva + altPeca - (v > 0.93 ? 0.12 * entre(0.93, 1, v) : 0);
+
+    let t = 0.46 + tomPeca + (tufo - 0.5) * 0.72 + (folha - 0.5) * 0.38;
+    if (v > 0.94) t -= 0.12;
+
+    o.t = t;
+    o.m = fb(x, y, 5, 5, s + 7, per) + manchaPeca + (1 - leiva) * 0.35;
+    o.h = lim(h);
+    o.id = id;
   },
-  /** Lona: painéis de 1 m costurados, caídos entre as costuras, com trama fina e sujeira. */
-  lona: (x, y, s, o) => {
-    const u = fr(x);
-    let t = 0.52 + 0.12 * Math.cos(Math.PI * 2 * u) + (h2(md(Math.floor(x * 100), 200), md(Math.floor(y * 100), 200), s) - 0.5) * 0.08;
-    if (u < 0.012 || u > 0.988) t = 0.28; else if ((u < 0.03 || u > 0.97) && fr(y * 12.5) < 0.5) t = 0.38;
-    o.t = t; o.m = fb(x, y, 4, 4, s + 7) + 0.12 * vr(x, y, 2, 8, s + 9);
+
+  /**
+   * Lona: painéis de 1 × 1 m costurados, barriga macia em catenária entre costuras tensas,
+   * nervura dobrada na emenda, dobras suaves de tecido, pespontos e trama fina.
+   */
+  lona: (x, y, s, o, per) => {
+    const pw = 1, ph = 1;
+    const iRaw = Math.floor(x / pw), jRaw = Math.floor(y / ph);
+    const i = per ? md(iRaw, 2) : iRaw, j = per ? md(jRaw, 2) : jRaw;
+    const u = x / pw - iRaw, v = y / ph - jRaw;
+    const id = idPeca(i, j);
+
+    const tomPeca = (hashDaPeca(id, s + 17) - 0.5) * 0.16;      // ±8%
+    const manchaPeca = (hashDaPeca(id, s + 29) - 0.5) * 0.18;
+    const altPeca = (hashDaPeca(id, s + 71) - 0.5) * 0.04;
+
+    const tx = per ? md(Math.floor(x * 100), 200) : Math.floor(x * 100);
+    const ty = per ? md(Math.floor(y * 100), 200) : Math.floor(y * 100);
+    const trama = h2(tx, ty, s);
+    const dobra = fb(x, y, 4, 8, s + 13, per, 2);
+
+    // Costura tensa nas bordas (u = 0 e u = 1) e barriga suave caída no meio do painel com leve folga.
+    const catenaria = 0.32 + 0.42 * (0.5 + 0.5 * Math.cos(Math.PI * 2 * u));
+    const folga = (dobra - 0.5) * 0.14 * Math.sin(Math.PI * u);
+    const du = Math.min(u, 1 - u);
+    let h = catenaria + folga + altPeca + (trama - 0.5) * 0.025;
+    let t = 0.52 + tomPeca + 0.11 * Math.cos(Math.PI * 2 * u) + (trama - 0.5) * 0.08;
+
+    // Bainha dobrada saliente e sulco nítido da costura longitudinal.
+    if (du < 0.011) {
+      h = 0.36;
+      t = 0.27;
+    } else if (du < 0.038) {
+      h += 0.13 * (1 - (du - 0.011) / 0.027);
+      if (fr(y * 12.5) < 0.5) { h -= 0.05; t = 0.38; }
+    }
+    // Emenda transversal sobreposta a cada 1 m.
+    if (v > 0.976) {
+      h -= 0.18 * ((v - 0.976) / 0.024);
+      t -= 0.14;
+    } else if (v < 0.02) {
+      h += 0.09 * (1 - v / 0.02);
+      t += 0.06;
+    }
+
+    o.t = t;
+    o.m = fb(x, y, 4, 4, s + 7, per) + 0.12 * vr(x, y, 2, 8, s + 9, per) + 0.1 * Math.sin(Math.PI * u) + manchaPeca;
+    o.h = lim(h);
+    o.id = id;
   },
 };
 
-/** O tom e a mancha da cobertura num ponto (em metros, qualquer ponto: o desenho repete a cada `PERIODO_DA_COBERTURA`). */
-export function amostrarPonto(m: Material, x: number, y: number, semente = 1): { t: number; m: number } {
+function padraoDe(m: Material): PadraoDeCobertura {
   const padrao = m.padrao as string;
   if (!ehPadraoDeCobertura(padrao)) throw new Error(`O material “${m.id}” não é uma cobertura de telhado.`);
-  const o: Amostra = { t: 0, m: 0 };
-  AMOSTRADORES[padrao](fr(x / P) * P, fr(y / P) * P, md(Math.floor(semente), 5) * 101 + 7, o);
+  return padrao;
+}
+
+/** O tom, a mancha, a altura miúda e o id da peça num ponto (periódico a cada `PERIODO_DA_COBERTURA` m). */
+export function amostrarPonto(m: Material, x: number, y: number, semente = 1): AmostraDeCobertura {
+  const o: AmostraDeCobertura = { t: 0, m: 0, h: 0, id: 0 };
+  AMOSTRADORES[padraoDe(m)](fr(x / P) * P, fr(y / P) * P, md(Math.floor(semente), 5) * 101 + 7, o, true);
   return o;
+}
+
+/**
+ * Amostra contínua em `(u, v)` em metros, sem repetição periódica de 2 m (para assado por edifício).
+ * Aceita `saida` reutilizável para evitar alocações em laços por pixel.
+ */
+export function amostrarPontoContinuo(
+  m: Material,
+  u: number,
+  v: number,
+  semente = 1,
+  saida: AmostraDeCobertura = { t: 0, m: 0, h: 0, id: 0 },
+): AmostraDeCobertura {
+  AMOSTRADORES[padraoDe(m)](u, v, Math.floor(semente) * 101 + 7, saida, false);
+  return saida;
+}
+
+/** Devolve um amostrador contínuo vinculado ao material e à semente (sem busca de mapa por pixel). */
+export function amostradorContinuo(m: Material, semente = 1): AmostradorDeCobertura {
+  const fn = AMOSTRADORES[padraoDe(m)], s = Math.floor(semente) * 101 + 7;
+  return (u, v, saida) => fn(u, v, s, saida, false);
 }
 
 const rgb = (hex: string): [number, number, number] => { const p = parseInt(hex.slice(1), 16); return [(p >> 16) & 255, (p >> 8) & 255, p & 255]; };
 const mix = (a: readonly number[], b: readonly number[], t: number): [number, number, number] => [a[0]! + (b[0]! - a[0]!) * t, a[1]! + (b[1]! - a[1]!) * t, a[2]! + (b[2]! - a[2]!) * t];
+
+/** Converte `(t, mancha)` de uma amostra na cor RGB (0–255) do material de cobertura. */
+export function corDaAmostra(
+  m: Material,
+  t: number,
+  mancha: number,
+  saida: [number, number, number] = [0, 0, 0],
+): [number, number, number] {
+  const E = rgb(m.escuro), B = rgb(m.base), C = rgb(m.claro), q = m.mancha?.quanto ?? 0, M = m.mancha ? rgb(m.mancha.cor) : B;
+  const media = lim(t), peso = q > 0 ? entre(1 - q - 0.12, 1 - q + 0.12, mancha) : 0;
+  const base = media < 0.5 ? mix(E, B, media * 2) : mix(B, C, (media - 0.5) * 2);
+  const cor = peso > 0 ? mix(base, mix(mix(M, [0, 0, 0], 0.45), mix(M, [255, 255, 255], 0.12), media), peso * 0.92) : base;
+  saida[0] = cor[0]!; saida[1] = cor[1]!; saida[2] = cor[2]!;
+  return saida;
+}
 
 export type EstiloDaCobertura = 'illustrated' | 'pixel';
 /** Um ladrilho pronto, em RGBA: `lado × lado` pixels que valem `metros` metros em cada eixo. */
 export interface LadrilhoDeCobertura { lado: number; metros: number; dados: Uint8ClampedArray }
 
 /**
- * O ladrilho de uma cobertura, puro (sem canvas). Ilustrado: `RES_DA_COBERTURA` px/m, 2×2 amostras por pixel e cores contínuas.
+ * O ladrilho periódico de uma cobertura, puro (sem canvas), usado em miniaturas e no Pixel.
+ * Ilustrado: `RES_DA_COBERTURA` px/m, 2×2 amostras por pixel e cores contínuas.
  * Pixel: `res` px/m (o do mapa), cinco tons do material e a mancha em dois tons, decididos por pixel, sem mistura.
  */
 export function amostrarCobertura(m: Material, estilo: EstiloDaCobertura, semente = 1, res = RES_DA_COBERTURA): LadrilhoDeCobertura {
-  const padrao = m.padrao as string;
-  if (!ehPadraoDeCobertura(padrao)) throw new Error(`O material “${m.id}” não é uma cobertura de telhado.`);
-  const amostrar = AMOSTRADORES[padrao], s = md(Math.floor(semente), 5) * 101 + 7, pixel = estilo === 'pixel';
+  const amostrar = AMOSTRADORES[padraoDe(m)], s = md(Math.floor(semente), 5) * 101 + 7, pixel = estilo === 'pixel';
   const lado = Math.max(8, Math.round(P * (pixel ? res : RES_DA_COBERTURA))), passo = P / lado, sub = pixel ? 3 : 2;
   const E = rgb(m.escuro), B = rgb(m.base), C = rgb(m.claro), q = m.mancha?.quanto ?? 0, M = m.mancha ? rgb(m.mancha.cor) : B;
   const tons = pixel ? [E, mix(B, E, 0.5), B, mix(B, C, 0.5), C] : [];
   const manchaPx = pixel ? [mix(M, [0, 0, 0], 0.35), M] : [];
-  const dados = new Uint8ClampedArray(lado * lado * 4), o: Amostra = { t: 0, m: 0 };
+  const dados = new Uint8ClampedArray(lado * lado * 4), o: AmostraDeCobertura = { t: 0, m: 0, h: 0, id: 0 };
   for (let py = 0; py < lado; py++) for (let px = 0; px < lado; px++) {
     let soma = 0, menor = 1, somaM = 0;
     for (let sy = 0; sy < sub; sy++) for (let sx = 0; sx < sub; sx++) {
-      amostrar((px + (sx + 0.5) / sub) * passo, (py + (sy + 0.5) / sub) * passo, s, o);
+      amostrar((px + (sx + 0.5) / sub) * passo, (py + (sy + 0.5) / sub) * passo, s, o, true);
       const t = lim(o.t); soma += t; somaM += o.m; if (t < menor) menor = t;
     }
     const n = sub * sub, media = soma / n, mm = somaM / n, peso = q > 0 ? entre(1 - q - 0.12, 1 - q + 0.12, mm) : 0;

@@ -90,7 +90,7 @@ Testes: 4 × 2 em quatro águas: altura máxima no centro, gradiente apontando p
 Pronto quando: `npm test` passa.
 Commit: `added a height field for roof shapes with valleys and hips`
 
-### N3 — Coberturas com relevo e peças  ⬜
+### N3 — Coberturas com relevo e peças  ✅
 Objetivo: cada cobertura diz, além do tom, a altura miúda e a peça (telha, tábua, ardósia), para ter espessura, sombra própria e variação peça a peça.
 Depende de: —.
 Ler: `src/procedural/coberturas.ts` inteiro (`Amostrador`, `amostrarPonto`, `amostrarCobertura`, `pecaNaFiada`), `src/procedural/materiais.ts` (materiais `telha.*`, `Material.mancha`), as notas da Frente L sobre pintores de altura (só platôs, juntas e biséis).
@@ -104,6 +104,7 @@ Não fazer: render; desgaste (N5).
 Testes: toda cobertura devolve `h` em [0, 1] e `id` estável; mesma entrada dá a mesma saída; duas peças vizinhas têm `id` diferente.
 Pronto quando: uma prancha (`?prancha=coberturas`, ou o script de prancha existente) mostra as 12 com relevo sombreado de um sol fixo, e o usuário aprova.
 Commit: `roof coverings have per-piece relief and variation`
+Nota: Prancha de validação visual gerada em `test-results/n3-coberturas.png` (12 coberturas em 3,5 × 2,5 m contínuo a 80 px/m, sombreadas por sol direcional + faixa do mapa `h`). API exportada em `src/procedural/coberturas.ts` para uso da N4/N5: `AmostraDeCobertura` (`{ t, m, h, id }`), `amostrarPontoContinuo(m, u, v, semente?, saida?)`, `amostradorContinuo(m, semente?)` (sem alocação por pixel), `corDaAmostra(m, t, mancha, saida?)` e `hashDaPeca(id, semente?)`. Convenção de eixo: `u` corre ao longo do beiral e `+v` aponta na direção da queda d'água (a fiada de cima cobre a de baixo; no N4, passar `v` crescendo em direção ao beiral). `amostrarPonto`, `amostrarCobertura` e `texturaDeCobertura` continuam periódicos em 2 m para miniaturas e Pixel.
 
 ### N4 — Assado do telhado: cobertura, acabamento e detalhes  ⬜
 Objetivo: um pedido de assado devolve o telhado inteiro de um edifício, em cor e normal.
