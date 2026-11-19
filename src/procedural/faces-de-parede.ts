@@ -7,8 +7,10 @@ import type { EstiloDeRaster } from './estilos/index.ts';
 import { MATERIAIS, materialDe, tom } from './materiais.ts';
 import { partesParaFace } from './raster.ts';
 
-/** Razão entre a profundidade rebatida da face interna e a altura da parede (`0.18 × 3 m = 0.54 m`). */
-export const PROJECAO = 0.18;
+/** Razão entre a profundidade rebatida da face interna e a altura da parede (`0.24 × 3 m = 0.72 m`). */
+export const PROJECAO = 0.24;
+/** Achatamento do desenho do papel de parede na face (1 = tamanho real; a projeção da parede achata ~0,24). */
+export const ACHATAMENTO_DO_PAPEL = 0.55;
 /** Proporção da altura da face ocupada pelo rodapé (os 12% de baixo). */
 export const PROPORCAO_RODAPE = 0.12;
 /** Altura normalizada base do piso no mapa de altura da cena (`0.5 × 4 m = 2 m`). */
@@ -327,7 +329,13 @@ export function desenharFacesDasParedes(
 
     ctx.save();
     if (f.vaos.length) { tracarSolidoSemVaos(ctx, f.u0, f.u1, H, f.vaos); ctx.clip(); }
-    estilo.pintarMaterial(ctx, f.material, { x: f.u0, y: 0, w: wTrecho, h: H }, papelSeed + sementeDaFace, { res });
+    // O papel vai com achatamento suave (`ACHATAMENTO_DO_PAPEL`), não com o da projeção (`k`, ~0,2): achatado por inteiro, o
+    // motivo do papel (damasco, listra, flor) virava uma linha e a face lia como uma faixa lisa.
+    ctx.save();
+    ctx.setTransform(res, 0, 0, res, -origem[0] * res, -origem[1] * res);
+    ctx.transform(dx, dy, s.n[0] * ACHATAMENTO_DO_PAPEL, s.n[1] * ACHATAMENTO_DO_PAPEL, s.a[0], s.a[1]);
+    estilo.pintarMaterial(ctx, f.material, { x: f.u0, y: 0, w: wTrecho, h: prof / ACHATAMENTO_DO_PAPEL + 0.05 }, papelSeed + sementeDaFace, { res });
+    ctx.restore();
     // Rodapé (12% de baixo, mais escuro) e sanca no topo.
     ctx.fillStyle = tom(corLam, -0.22); ctx.fillRect(f.u0, H - rodapeH, wTrecho, rodapeH);
     ctx.fillStyle = tom(corLam, 0.22); ctx.fillRect(f.u0, H - rodapeH - 0.015, wTrecho, 0.025);

@@ -60,7 +60,7 @@ Tudo isso fica **só no estilo Ilustrado**. O Pixel continua com o caminho atual
 | [L6](#l6--oclusão-de-contato-e-de-canto) | Gemini | AO derivada da altura no mesmo filtro + AO no pé das paredes | L5 | ✅ |
 | [L7](#l7--bloom-e-fogo-emissivo) | Gemini | Bloom do que passa de 1; partes `brilho` marcam emissão | L5 | ✅ |
 | [L8](#l8--curva-de-tom-e-tonalização-dividida) | Gemini | ACES aproximado e `finish.split` (sombras/luzes) no acabamento | L5 | ✅ |
-| [L9](#l9--paredes-com-topo-e-face-interna) | Gemini + Opus | Parede com topo e face interna visível, material por cômodo, objetos de parede na face | — | 🟡 (1–4 ✅, falta 5 [Opus]) |
+| [L9](#l9--paredes-com-topo-e-face-interna) | Gemini + Opus | Parede com topo e face interna visível, material por cômodo, objetos de parede na face | — | ✅ |
 | [L10](#l10--materiais-com-altura-e-variação-por-peça) | **Opus** | Pintores de altura e variação peça a peça nos padrões de piso principais; resolução do terreno | L4 | ✅ |
 | [L11](#l11--estruturas-com-altura-fogo-e-o-santuário) | **Opus** | Família `estrutura.*` (estrado, escadaria, muralha, plataforma), fogo novo e o santuário refeito | L5–L10 | ⬜ |
 | [L12](#l12--exemplos-revistos-e-guia) | **Opus** | Sala da guarda, mansão e jardim revistos; guia do assistente atualizado | L11 | ⬜ |
@@ -320,7 +320,7 @@ vec3 cor = base * (ambiente + (luz - uAmbiente) * mix(1.0, realce, uRelevo));
 
 ---
 
-## L9 — Paredes com topo e face interna  🟡 (passos 1–4 ✅; falta passo 5 [Opus])
+## L9 — Paredes com topo e face interna  ✅
 
 **Objetivo:** paredes deixam de ser linhas: têm topo e, nos interiores, uma face voltada para dentro do cômodo, como nas referências de quarto e cabana.
 
@@ -346,6 +346,8 @@ vec3 cor = base * (ambiente + (luz - uAmbiente) * mix(1.0, realce, uRelevo));
 **Pronto quando:** os cômodos da mansão leem como caixas vistas de cima, com face interna em todas as paredes.
 
 **Nota (passos 1–4, Gemini):** `Comodo.wallFace?` em `src/domain/mapa.ts` (mantido `Comodo` no lugar de `Sala`, `wallpaper` preservado como fallback antes do material da parede/reboco e `Parede.height: number` mantido obrigatório para compatibilidade), validado em `src/domain/validacao.ts`, aceito em `comodo.criar` (`src/state/comandos-construir.ts`), `comodos` (`src/authoring/construcao.ts`) e `atlas_comodos` (`src/app/ponte-escrita.ts`) com `scripts/ponte/catalogo-base.json` regenerado. Novo `src/procedural/faces-de-parede.ts` (`PROJECAO = 0.18`, `PROPORCAO_RODAPE = 0.12`, `profundidadeDaFace`, `calcularFacesDasParedes` filtrando apenas lados coincidentes com `wall` e excluindo `low`/`fence`, com quinas em meia-esquadria via `facesDoContorno` em `src/domain/geometria.ts`, prioridade `wallFace → wallpaper → parede → papel.liso-claro`, vão recortado para portas/arcos e peitoril/vidro em janelas) ligado a `assarComodo` (`src/procedural/assar.ts`) e `entradaDoComodo` (`src/render/entradas.ts`, filtrando cômodos ao ar livre sem telhado via `FUNCOES_AO_AR_LIVRE` para preservar salas internas como `mansao-da-ilha` e `sala-da-guarda`). A rampa de altura na face vai da base do piso (`ALTURA_BASE_PISO = 0.5`) até `alturaTopoDaFace(H)` (`0.75` para 3 m), evitando degrau para baixo no rodapé e casando com `paredesAlturaG` e L6. Em `src/render/cena.ts`, o topo das paredes `wall` usa `#1a1820` (`ESPESSURA_MINIMA_ILUSTRADO = 0.38`), borda clara interna nos lados com cômodo, chanfro e juntas da K8 preservados. Conferido em `tests/unit/faces-de-parede.test.ts` + suíte unitária (`1145/1145`), `npm run typecheck`, `npm run build`, `tests/e2e/comodos-livres.test.ts` + `fase6.test.ts` + `fase10-halos.test.ts` + `ponte-captura.test.ts` (`14/14`) e visualmente em `test-results/l9-faces.png` (`mansao-da-ilha`). Falta apenas o passo 5 `[Opus]`.
+
+**Nota (passo 5, Opus):** o papel era pintado na altura real da parede e achatado pela projeção (`k ≈ 0,18`), e o motivo virava linha: a face lia como faixa lisa. Agora o material da face é pintado com achatamento suave (`ACHATAMENTO_DO_PAPEL = 0.55`) e só rodapé, sanca e degradê seguem a projeção; `PROJECAO` subiu de `0.18` para `0.24` (0,72 m numa parede de 3 m). Materiais de face novos: `parede.reboco` (o padrão que `resolverMaterialDaFace` já pedia e não existia), `parede.tabuas`, `parede.alvenaria` e `parede.rocha`; damasco, listras e lambri usam os papéis que já existiam. Os objetos de parede já eram desenhados na face pelo passo 4 (janela com cortina, lareira, estante).
 
 **Commit:** `walls now show their inner face inside rooms`
 
