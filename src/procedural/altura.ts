@@ -140,7 +140,7 @@ export function parteEscreveEmissao(p: Parte): boolean {
  * das partes `brilho: true` na mesma ordem e geometria de `desenharPartes`, sem traço, sombra ou AO. Fundo transparente = sem objeto.
  * Partes arredondadas (`raio`) recebem um domo radial, 15% mais perto do piso na borda.
  */
-export function desenharAlturaDasPartes(ctx: Contexto, partes: readonly Parte[], op: { res: number }): void {
+export function desenharAlturaDasPartes(ctx: Contexto, partes: readonly Parte[], op: { res: number; /** Altura real do objeto (m): nenhuma parte passa dela no mapa. */ teto?: number }): void {
   ctx.save();
   ctx.globalAlpha = 1;
   for (const p of ordenarPartes(partes)) {
@@ -163,7 +163,7 @@ export function desenharAlturaDasPartes(ctx: Contexto, partes: readonly Parte[],
       continue;
     }
     if (!parteEscreveAltura(p)) continue;
-    const v = alturaNoMapa(p.z);
+    const v = alturaNoMapa(op.teto !== undefined ? Math.min(p.z, op.teto) : p.z);
     caminho(ctx, p);
     if (p.raio) {
       const b = caixaDe(p);
