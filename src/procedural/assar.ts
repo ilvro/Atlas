@@ -26,7 +26,7 @@ import type { EstiloDeRaster, OpcoesDoPixel } from './estilos/index.ts';
 import { pintarFacePixel } from './estilos/faces-pixel.ts';
 import { RES_DA_TEXTURA_DE_AGUA, leitoDaAgua, texturaDeAgua } from './agua.ts';
 import { orientacaoDominante } from './orientacao.ts';
-import { descreverReceita } from './receitas/index.ts';
+import { descreverReceita, receitaDe } from './receitas/index.ts';
 import { fatorDeProfundidade } from '../domain/relevo.ts';
 import { ladoBaixo } from './escarpa.ts';
 import { distanciaAMargem } from './profundidade.ts';
@@ -46,7 +46,7 @@ export interface Assado {
 export const MARGEM_SOMBRA = 0.3;
 
 /** Uma descrição pronta (de receita ou de gerador pesado) inteira, com partes e sombras, numa tela com o centro do objeto em (0, 0) do espaço local. */
-export function assarDescricao(d: Descricao, seed: number, res: number, estilo: EstiloDeRaster, pixel?: OpcoesDoPixel): Assado {
+export function assarDescricao(d: Descricao, seed: number, res: number, estilo: EstiloDeRaster, pixel?: OpcoesDoPixel, alturaReal?: number): Assado {
   const partes = d.tipo === 'piso' ? d.partes : [...d.face.map(p => ({ ...p })), ...d.topo];
   const c = caixaDasPartes(partes), encaixe = (v: number) => (estilo.id === 'pixel' ? Math.floor(v * res) / res : v);      // no Pixel a tela começa na grade de pixels
   const x0 = encaixe(c.x0 - MARGEM_SOMBRA), y0 = encaixe(c.y0 - MARGEM_SOMBRA);
@@ -59,14 +59,16 @@ export function assarDescricao(d: Descricao, seed: number, res: number, estilo: 
     altura = criarTela(tela.width, tela.height);
     const actx = contextoDe(altura);
     actx.setTransform(res, 0, 0, res, -x0 * res, -y0 * res);
-    desenharAlturaDasPartes(actx, d.partes, { res });
+    desenharAlturaDasPartes(actx, d.partes, { res, ...(alturaReal !== undefined ? { teto: alturaReal } : {}) });
   }
   return { tela, altura, origem: [x0, y0], res };
 }
 
 /** Um objeto de piso de receita inteiro (partes + sombras) numa tela, com o centro do objeto em (0, 0) do espaço local. */
 export function assarObjeto(receita: string, params: Record<string, unknown>, seed: number, res: number, estilo: EstiloDeRaster, pixel?: OpcoesDoPixel): Assado {
-  return assarDescricao(descreverReceita(receita, { seed, params }), seed, res, estilo, pixel);
+  // A altura declarada da receita limita o mapa de altura: o `z` das partes também ordena o desenho (runas a 0,5 num círculo
+  // de 2 cm), e sem o teto esses entalhes viravam cristas.
+  return assarDescricao(descreverReceita(receita, { seed, params }), seed, res, estilo, pixel, receitaDe(receita)?.altura);
 }
 
 // ---------- Cômodos ----------
