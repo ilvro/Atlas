@@ -71,7 +71,7 @@ export const salaDaGuarda: Exemplo = {
     k.presenca('ordem.sangue', { disco: [36.6, 13.0], raio: 0.45, irregular: 0.9 }, 0.45);
 
     k.clima('apagao', { time: '23:30', ambient: { color: '#6676a0', intensity: 0.52 }, sun: null, tempo: { dust: 0.2 } });
-    k.acabamento(null, { vignette: 0.55, saturation: 0.9, edges: { kind: 'dark', amount: 0.4 }, glow: 0.8 });
+    k.acabamento('masmorra', { vignette: 0.55, edges: { kind: 'dark', amount: 0.4 }, glow: 0.8 });
     k.guardarClima('alarme', 'Alarme soado', undefined, { tempo: { embers: 0.3, fog: 0.2 } });
 
     k.notaDeComodo(sala, { leitura: 'Moedas e dados ainda em cima das mesas; as velas queimam pela metade. Quem jogava saiu às pressas.', notasMestre: 'Seis guardas dormem na galeria sul. O estandarte azul esconde uma alavanca que fecha a porta de ferro.' });

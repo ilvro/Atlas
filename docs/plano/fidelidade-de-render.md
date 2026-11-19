@@ -63,7 +63,7 @@ Tudo isso fica **só no estilo Ilustrado**. O Pixel continua com o caminho atual
 | [L9](#l9--paredes-com-topo-e-face-interna) | Gemini + Opus | Parede com topo e face interna visível, material por cômodo, objetos de parede na face | — | ✅ |
 | [L10](#l10--materiais-com-altura-e-variação-por-peça) | **Opus** | Pintores de altura e variação peça a peça nos padrões de piso principais; resolução do terreno | L4 | ✅ |
 | [L11](#l11--estruturas-com-altura-fogo-e-o-santuário) | **Opus** | Família `estrutura.*` (estrado, escadaria, muralha, plataforma), fogo novo e o santuário refeito | L5–L10 | ✅ |
-| [L12](#l12--exemplos-revistos-e-guia) | **Opus** | Sala da guarda, mansão e jardim revistos; guia do assistente atualizado | L11 | ⬜ |
+| [L12](#l12--exemplos-revistos-e-guia) | **Opus** | Sala da guarda, mansão e jardim revistos; guia do assistente atualizado | L11 | ✅ |
 
 As fichas L1–L4 e L9 podem andar em paralelo (L1 → L2 numa sessão; L3 → L4 em outra; L9 em outra).
 
@@ -383,9 +383,11 @@ vec3 cor = base * (ambiente + (luz - uAmbiente) * mix(1.0, realce, uRelevo));
 
 ---
 
-## L12 — Exemplos revistos e guia  ⬜  [Opus]
+## L12 — Exemplos revistos e guia  ✅  [Opus]
 
 Revisar `sala-da-guarda`, `mansao-da-ilha` e `jardim-do-colosso` com as estruturas, faces de parede e presets novos; regenerar as miniaturas; atualizar o guia do assistente (`relief`, `ao`, `split`, `estrutura.*`, `wallFace`) para que o Claude do app use o que existe.
+
+**Nota:** `sala-da-guarda` passou ao acabamento `masmorra` e `jardim-do-colosso` ao `dia-dourado`; a `mansao-da-ilha` não precisou de mudança no roteiro (as faces de papel e o relevo vêm do motor). Todas as 17 miniaturas regeneradas. Guia: `ferramentas-atlas.md` (`relief`, `ao`, `exposure`, `split`, presets com tonalização, `wallFace` com os materiais de face, família `estrutura.*` e o `brilho` do `circulo-runico`) e a linha de masmorra da tabela de luz em `projetar.md`. **Pendente:** o jardim continua longe da referência porque a diferença é de composição (a referência tem um colosso de vários metros cuja sombra longa atravessa o pátio; o nosso tem uma estátua pequena): pede uma rodada de composição desse mapa, não de motor.
 
 ---
 
