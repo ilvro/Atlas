@@ -999,8 +999,9 @@ function layoutDeLajes(A: Area, r: () => number): PecaDeLaje[] {
 
 // ---------- Alturas por padrão (Frente L, L10) ----------
 // O mapa de altura vai de 0 a 1 com o piso em 0,5. Os valores são de leitura, não de medida: o filtro de relevo deriva a
-// normal da diferença entre vizinhos, então juntas de 1 a 2 cm viram 0,03 a 0,07 aqui. Cada peça é um platô com bisel,
-// uma leve inclinação própria (cada laje pega a luz de um jeito) e micro-relevo; materiais polidos ficam planos.
+// normal da diferença entre vizinhos, então juntas de 1 a 2 cm viram 0,03 a 0,07 aqui. Cada peça é um platô com bisel e
+// um desnível próprio em relação às vizinhas; materiais polidos ficam planos. Nada de rampa suave nem micro-relevo de
+// baixa frequência: no mapa de 8 bits isso vira degraus de 1 nível, e o relevo da luz os desenha como curvas de nível.
 
 /** Piso no mapa de altura. */
 const PISO = 0.5;
@@ -1016,8 +1017,6 @@ function alturaPorPixel(ctx: Contexto, A: Area, h: (x: number, y: number) => num
 /** A área que a cor de fato cobre (o quadrado da diagonal, para a rotação do padrão não deixar canto vazio). */
 const areaDaCor = (area: Area): Area => { const diag = Math.hypot(area.w, area.h); return { x: area.x + area.w / 2 - diag / 2, y: area.y + area.h / 2 - diag / 2, w: diag, h: diag }; };
 
-/** Inclinação própria de uma peça: um plano suave de ±`k` em torno do centro, sorteado por (`i`, `j`). */
-const inclinacao = (i: number, j: number, seed: number, u: number, v: number, k: number): number => ((hash2D(i, j, seed + 71) - 0.5) * u + (hash2D(i, j, seed + 73) - 0.5) * v) * k;
 
 const plano = (ctx: Contexto, A: Area): void => { ctx.save(); ctx.fillStyle = `rgb(${Math.round(PISO * 255)},0,0)`; ctx.fillRect(A.x, A.y, A.w, A.h); ctx.restore(); };
 
@@ -1048,7 +1047,7 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
       for (const b of fileiras[fi] ?? []) if (b.x <= x && x < b.x + b.comp) { t = b; break; }
       if (!t) return PISO;
       const d = Math.min(yl, larg - yl, x - t.x, t.x + t.comp - x), i = Math.round(t.x * 10);
-      return plato(d, Math.max(0.006, px * 0.8), 0.02, 0.035) + (hash2D(i, fi, seed + 5) - 0.5) * 0.02 + Math.sin((yl / larg) * Math.PI) * 0.006 + (fbm(rn, x * 2, y * 30, 2) - 0.5) * 0.008;
+      return plato(d, Math.max(0.006, px * 0.8), 0.02, 0.035) + (hash2D(i, fi, seed + 5) - 0.5) * 0.02;
     });
   },
 
@@ -1065,8 +1064,7 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
         if (d > melhor) { melhor = d; idx = k; }
       }
       if (idx < 0) return PISO - 0.06;
-      const p = pecas[idx]!, u = (x - p.x) / p.comp - 0.5, v = (y - p.y) / p.alt - 0.5;
-      return plato(melhor, Math.max(0.014, px * 0.8), 0.05, 0.06) + inclinacao(idx, 0, seed, u, v, 0.03) + (fbm(rn, x * 3, y * 3, 3) - 0.5) * 0.025;
+      return plato(melhor, Math.max(0.014, px * 0.8), 0.05, 0.06) + (hash2D(idx, 0, seed + 71) - 0.5) * 0.04;
     });
   },
 
@@ -1074,7 +1072,7 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
     const A = areaDaCor(area), l = mat.lado ?? 0.5;
     alturaPorPixel(ctx, A, (x, y) => {
       const i = Math.floor(x / l), j = Math.floor(y / l), lx = x - i * l, ly = y - j * l, d = Math.min(lx, l - lx, ly, l - ly);
-      return plato(d, Math.max(0.006, px * 0.8), 0.012, 0.03) + inclinacao(i, j, seed, lx / l - 0.5, ly / l - 0.5, 0.006);
+      return plato(d, Math.max(0.006, px * 0.8), 0.012, 0.03) + (hash2D(i, j, seed + 71) - 0.5) * 0.008;
     });
   },
 
@@ -1082,7 +1080,7 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
     const A = areaDaCor(area), l = mat.lado ?? 0.5, cx = A.x + A.w / 2, cy = A.y + A.h / 2, c = Math.SQRT1_2;
     alturaPorPixel(ctx, A, (x, y) => {
       const u = ((x - cx) * c + (y - cy) * c), v = (-(x - cx) * c + (y - cy) * c), i = Math.floor(u / l), j = Math.floor(v / l), lu = u - i * l, lv = v - j * l;
-      return plato(Math.min(lu, l - lu, lv, l - lv), Math.max(0.005, px * 0.8), 0.012, 0.03) + inclinacao(i, j, seed, lu / l - 0.5, lv / l - 0.5, 0.006);
+      return plato(Math.min(lu, l - lu, lv, l - lv), Math.max(0.005, px * 0.8), 0.012, 0.03) + (hash2D(i, j, seed + 71) - 0.5) * 0.008;
     });
   },
 
@@ -1094,7 +1092,7 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
       const j0 = Math.round(y / dy);
       for (let j = j0 - 1; j <= j0 + 1; j++) { const ox = j % 2 ? dx / 2 : 0, i0 = Math.round((x - ox) / dx); for (let i = i0 - 1; i <= i0 + 1; i++) { const hx = i * dx + ox, hy = j * dy, dd = Math.hypot(x - hx, y - hy); if (dd < melhor) { melhor = dd; bi = i; bj = j; bx = hx; by = hy; } } }
       const px = Math.abs(x - bx), py = Math.abs(y - by), apotema = R * 0.866, dist = apotema - Math.max(px * 0.866 + py * 0.5, py);
-      return plato(Math.max(-1, dist), Math.max(0.01, px * 0.8), 0.014, 0.03) + inclinacao(bi, bj, seed, (x - bx) / R, (y - by) / R, 0.008);
+      return plato(Math.max(-1, dist), Math.max(0.01, px * 0.8), 0.014, 0.03) + (hash2D(bi, bj, seed + 71) - 0.5) * 0.01;
     });
   },
 
@@ -1134,7 +1132,7 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
       const quina = Math.min(Math.hypot(dx0, dy0), Math.hypot(dx1, dy0), Math.hypot(dx0, dy1), Math.hypot(dx1, dy1));
       const lasca = quina < 0.12 && hash2D(id, j, seed + 17) < 0.45 ? 0.05 * (1 - quina / 0.12) : 0;
       const rach = hash2D(id, j, seed + 40) < 0.22 && Math.abs(fbm(rn, x * 1.3 + id * 7.3, y * 1.3 + j * 3.1, 2) - 0.5) < 0.008 ? 0.03 : 0;
-      return plato(d, Math.max(gw, px * 0.8), 0.07, 0.07) - lasca - rach + inclinacao(id, j, seed, (xl - e0) / (e1 - e0) - 0.5, dy0 / RH - 0.5, 0.035) + (fbm(rn, x * 2.2 + id, y * 2.2, 4) - 0.5) * 0.04;
+      return plato(d, Math.max(gw, px * 0.8), 0.07, 0.07) - lasca - rach + (hash2D(id, j, seed + 71) - 0.5) * 0.05;
     });
   },
 
@@ -1144,7 +1142,7 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
       const xx = x + (fbm(rn, x * 2.5, y * 2.5, 2) - 0.5) * 0.12, yy = y + (fbm(rn, x * 2.5 + 19, y * 2.5 + 7, 2) - 0.5) * 0.12;
       V.consultar(xx, yy, q);
       const s = q.sitio;
-      return plato(q.borda * 0.5, Math.max(w * 0.5, px * 0.8), 0.08, 0.08) + inclinacao(s.i, s.j, seed, (xx - s.x) / L, (yy - s.y) / L, 0.05) + (fbm(rn, x * 2.6, y * 2.6, 4) - 0.5) * 0.05;
+      return plato(q.borda * 0.5, Math.max(w * 0.5, px * 0.8), 0.08, 0.08) + (hash2D(s.i, s.j, seed + 71) - 0.5) * 0.06;
     });
   },
 
@@ -1155,7 +1153,7 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
       V1.consultar(xx, yy, q1);
       V2.consultar(x + (fbm(rn, x * 1.1 + 5, y * 1.1, 2) - 0.5) * 0.5, y + (fbm(rn, x * 1.1, y * 1.1 + 5, 2) - 0.5) * 0.5, q2);
       const s = q1.sitio;
-      return plato(q1.borda * 0.5, Math.max(0.012, px * 0.8), 0.09, 0.09) - (1 - passo(0.01, 0.05, q2.borda * 0.5)) * 0.06 + inclinacao(s.i, s.j, seed, (xx - s.x) / 0.9, (yy - s.y) / 0.9, 0.06) + (fbm(rn, x * 3.1, y * 3.1, 4) - 0.5) * 0.07;
+      return plato(q1.borda * 0.5, Math.max(0.012, px * 0.8), 0.09, 0.09) - (1 - passo(0.01, 0.05, q2.borda * 0.5)) * 0.06 + (hash2D(s.i, s.j, seed + 71) - 0.5) * 0.07;
     });
   },
 
@@ -1176,9 +1174,9 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
       const j = Math.floor(y / RH), off = hash2D(j, 0, seed + 5) * LW, jit = (i: number) => (hash2D(i, j, seed + 9) - 0.5) * 0.4;
       let i = Math.floor((x - off) / LW), e0 = i * LW + off + jit(i), e1 = (i + 1) * LW + off + jit(i + 1);
       if (x < e0) { i--; e1 = e0; e0 = i * LW + off + jit(i); } else if (x >= e1) { i++; e0 = e1; e1 = (i + 1) * LW + off + jit(i + 1); }
-      if (hash2D(i, j, seed + 21) < 0.1) return PISO - 0.07 + (fbm(rn, x * 7, y * 7, 3) - 0.5) * 0.04;
+      if (hash2D(i, j, seed + 21) < 0.1) return PISO - 0.07;
       const yt = j * RH, d = Math.min(x - e0, e1 - x, y - yt, yt + RH - y);
-      return plato(d, Math.max(gw * 0.5, px * 0.8), 0.08, 0.07) + inclinacao(i, j, seed, (x - e0) / (e1 - e0) - 0.5, (y - yt) / RH - 0.5, 0.04) + (fbm(rn, x * 2.2, y * 2.2, 4) - 0.5) * 0.04;
+      return plato(d, Math.max(gw * 0.5, px * 0.8), 0.08, 0.07) + (hash2D(i, j, seed + 71) - 0.5) * 0.05;
     });
   },
 
