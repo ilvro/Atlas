@@ -8,10 +8,12 @@ import {
   aguasDe,
   aguasDoContorno,
   aguasDoTrecho,
+  DESGASTE_PADRAO,
   expandirContorno,
   formaDe,
   ordemDoTrecho,
   retangulosDe,
+  telhadoEfetivo,
   trechosDe,
   type Face,
   type Ret,
@@ -50,12 +52,27 @@ function comodo(id: string, celulas: [number, number][], roof: Telhado): Comodo 
   };
 }
 
-test('formaDe devolve os padrões quando os campos opcionais faltam', () => {
+test('formaDe e telhadoEfetivo devolvem os padrões quando os campos opcionais faltam e mesclam wear/seed', () => {
   assert.deepEqual(formaDe({ material: 'telha.barro', visible: true }), {
     shape: 'quatro-aguas',
     ridge: 'auto',
     steep: false,
     details: [],
+    wear: { moss: 0, dirt: 0.15, damage: 0, snow: 'auto' },
+  });
+  assert.deepEqual(telhadoEfetivo({ material: 'telha.barro', visible: true, wear: { moss: 0.6 }, seed: 77 }), {
+    shape: 'quatro-aguas',
+    ridge: 'auto',
+    steep: false,
+    details: [],
+    wear: { moss: 0.6, dirt: DESGASTE_PADRAO.dirt, damage: 0, snow: 'auto' },
+    seed: 77,
+  });
+  assert.deepEqual(formaDe({ material: 'telha.barro', visible: true, wear: { moss: 0.3, dirt: 0.5, damage: 0.2, snow: 0.8 } }).wear, {
+    moss: 0.3,
+    dirt: 0.5,
+    damage: 0.2,
+    snow: 0.8,
   });
   assert.equal(ordemDoTrecho({ shape: 'plano' }), 0);
   assert.equal(ordemDoTrecho({ shape: 'quatro-aguas' }), 1);
@@ -185,4 +202,28 @@ test('trechosDe mantém cômodo com outline separado mesmo vizinho a cômodo de 
   assert.ok(trechoB.outline);
   const aguas = aguasDoTrecho(trechoB, m.grid);
   assert.equal(aguas.faces.length, 16);
+});
+
+test('trechosDe separa cômodos vizinhos com wear efetivo diferente, une iguais e preserva wear e seed', () => {
+  const m = criarMapa();
+  m.rooms = {
+    a: comodo('a', [[0, 0], [1, 0]], { material: 'telha.barro', visible: true, shape: 'duas-aguas', wear: { moss: 0.7 }, seed: 11 }),
+    b: comodo('b', [[2, 0], [3, 0]], { material: 'telha.barro', visible: true, shape: 'duas-aguas', seed: 22 }),
+  };
+  const eds = edificiosDe(m);
+  assert.equal(eds.length, 1);
+
+  const separados = trechosDe(m, eds[0]!);
+  assert.equal(separados.length, 2);
+  assert.deepEqual(separados[0]!.roof.wear, { moss: 0.7 });
+  assert.equal(separados[0]!.roof.seed, 11);
+  assert.equal(separados[1]!.roof.wear, undefined);
+  assert.equal(separados[1]!.roof.seed, 22);
+
+  // Wear explícito igual ao padrão une com cômodo sem wear
+  m.rooms.a!.roof.wear = { moss: 0, dirt: 0.15, damage: 0, snow: 'auto' };
+  const unidos = trechosDe(m, eds[0]!);
+  assert.equal(unidos.length, 1);
+  assert.deepEqual(unidos[0]!.salas, ['a', 'b']);
+  assert.equal(unidos[0]!.roof.seed, 11);
 });

@@ -44,6 +44,8 @@ export interface Estilo {
   genre: string;
   /** Chão pisado em volta dos edifícios e soleiras nas portas externas (padrão `true`). */
   settle?: boolean;
+  /** Fachadas visíveis sob o beiral voltado para a frente do mapa (padrão `true`). */
+  facades?: boolean;
   pixel: { pixelsPerCell: number; dither: 'none' | 'bayer4'; outline: boolean };
 }
 /** O tempo que faz: cada campo vai de 0 a 1 (o vento, de −1 a 1: o sinal é a direção). */
@@ -90,12 +92,19 @@ export interface Terreno { resolution: number; base: string; layers: Record<stri
   relief?: RelevoDoTerreno;
 }
 
-export const FORMAS_DE_TELHADO = ['quatro-aguas', 'duas-aguas', 'plano', 'piramide', 'cone'] as const;
+export const FORMAS_DE_TELHADO = ['quatro-aguas', 'duas-aguas', 'plano', 'piramide', 'cone', 'uma-agua', 'mansarda', 'holandes', 'cupula', 'abobada', 'pagode', 'bulbo'] as const;
 export type FormaDeTelhado = (typeof FORMAS_DE_TELHADO)[number];
 export const DETALHES_DE_TELHADO = ['chamine', 'cruz', 'sino', 'catavento', 'claraboia', 'caixa-dagua'] as const;
 export type DetalheDeTelhado = (typeof DETALHES_DE_TELHADO)[number];
 export const CUMEEIRAS_DE_TELHADO = ['auto', 'h', 'v'] as const;
 export type CumeeiraDeTelhado = (typeof CUMEEIRAS_DE_TELHADO)[number];
+
+export interface DesgasteDeTelhado {
+  moss?: number;
+  dirt?: number;
+  damage?: number;
+  snow?: number | 'auto';
+}
 
 export interface Telhado {
   material: string | null;
@@ -104,6 +113,8 @@ export interface Telhado {
   ridge?: CumeeiraDeTelhado;
   steep?: boolean;
   details?: DetalheDeTelhado[];
+  wear?: DesgasteDeTelhado;
+  seed?: number;
 }
 
 export interface Comodo {
