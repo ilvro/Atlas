@@ -23,6 +23,8 @@ export interface EntradaDaAgua {
   /** Cobertura suave 0 a 255 (Ilustrado); `null` no Pixel. */
   cobertura: Uint8Array | null;
   largura: number; altura: number; res: number; seed: number; material: Material; pixel: boolean;
+  /** Deslocamento em pixels no mapa quando assada numa sub-caixa (preserva as coordenadas do mundo no ruído). */
+  origemPx?: [number, number];
 }
 export interface SaidaDaAgua {
   /** RGBA do leito tingido (a água por cima do que está embaixo). */
@@ -42,19 +44,19 @@ export const FAIXAS_DO_PIXEL = [0.5, 1.5] as const;
  * de cor, a mais rasa vazada em xadrez, e a margem em degraus de 2 pixels.
  */
 export function leitoDaAgua(e: EntradaDaAgua): SaidaDaAgua {
-  const { binaria, cobertura, largura: W, altura: H, res, pixel } = e, n = W * H;
+  const { binaria, cobertura, largura: W, altura: H, res, pixel } = e, [ox, oy] = e.origemPx ?? [0, 0], n = W * H;
   const cores = coresDaAgua(e.material), profundidade = distanciaAMargem(binaria, W, H, res, PROFUNDIDADE_MAXIMA);
   const terra = new Uint8Array(n); for (let i = 0; i < n; i++) terra[i] = binaria[i] ? 0 : 1;
   const aFora = distanciaAMargem(terra, W, H, res, MARGEM_MOLHADA + 1 / res);
   const leito = new Uint8ClampedArray(n * 4), margem = new Uint8ClampedArray(n * 4), ruido = valueNoise2D(7000 + e.seed), ruidoFundo = valueNoise2D(7100 + e.seed);
   const opaco = 1 - cores.transparencia, [m0, m1, m2] = rgb(e.material.escuro).map(v => v * 0.55) as [number, number, number];
   for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++) {
-    const k = i * 4, mx = x / res, my = y / res;
+    const k = i * 4, mx = (ox + x) / res, my = (oy + y) / res;
     if (binaria[i]) {
       const d = Math.max(0, profundidade[i]! + (fbm(ruidoFundo, mx * 0.9, my * 0.9, 2) - 0.5) * 0.7);
       if (pixel) {
         const faixa = d < FAIXAS_DO_PIXEL[0] ? 0 : d < FAIXAS_DO_PIXEL[1] ? 1 : 2, t = faixa === 0 ? 0 : faixa === 1 ? 0.5 : 1;
-        if (faixa === 0 && ((x + y) & 1)) continue;                        // o raso é vazado em xadrez: o leito aparece por entre os pixels
+        if (faixa === 0 && (((ox + x) + (oy + y)) & 1)) continue;                        // o raso é vazado em xadrez: o leito aparece por entre os pixels
         leito[k] = cores.raso[0] + (cores.fundo[0] - cores.raso[0]) * t; leito[k + 1] = cores.raso[1] + (cores.fundo[1] - cores.raso[1]) * t; leito[k + 2] = cores.raso[2] + (cores.fundo[2] - cores.raso[2]) * t; leito[k + 3] = 255;
       } else {
         const t = suave(0, PROFUNDIDADE_MAXIMA, d), a = ((cobertura ? cobertura[i]! / 255 : 1)) * (0.14 + (opaco - 0.14) * t);
@@ -71,18 +73,37 @@ export function leitoDaAgua(e: EntradaDaAgua): SaidaDaAgua {
 
 /** Quantas camadas de água distintas a superfície sabe animar (cada uma com a sua correnteza). */
 export const MAX_CAMADAS_DE_AGUA = 4;
+/** Camada de água assada (opcionalmente numa sub-caixa `[x0, y0, cw, ch]`) para compor a textura da superfície. */
+export interface CamadaDeAguaParaTextura {
+  profundidade: Float32Array;
+  binaria: Uint8Array;
+  x0?: number;
+  y0?: number;
+  cw?: number;
+  ch?: number;
+}
+
 /** Funde a profundidade (R), a margem (G: 1 na borda, 0 a 0,6 m) e o índice da camada (B: `(i + 1) × 50`, de 1 a 4) das camadas de água numa textura de 2 px/m; R e G guardam o maior valor. */
-export function texturaDeAgua(camadas: { profundidade: Float32Array; binaria: Uint8Array }[], W: number, H: number, res: number, largura: number, altura: number): ImageData | null {
+export function texturaDeAgua(camadas: CamadaDeAguaParaTextura[], W: number, H: number, res: number, largura: number, altura: number): ImageData | null {
   if (!camadas.length) return null;
   const wa = Math.max(1, Math.ceil(largura * RES_DA_TEXTURA_DE_AGUA)), ha = Math.max(1, Math.ceil(altura * RES_DA_TEXTURA_DE_AGUA)), dados = new ImageData(wa, ha);
   for (let i = 3; i < dados.data.length; i += 4) dados.data[i] = 255;
-  camadas.slice(0, MAX_CAMADAS_DE_AGUA).forEach((c, idx) => { for (let ya = 0; ya < ha; ya++) for (let xa = 0; xa < wa; xa++) {
-    const px = Math.min(W - 1, Math.floor((xa + 0.5) / RES_DA_TEXTURA_DE_AGUA * res)), py = Math.min(H - 1, Math.floor((ya + 0.5) / RES_DA_TEXTURA_DE_AGUA * res)), j = py * W + px;
-    if (!c.binaria[j]) continue;
-    const d = c.profundidade[j]!, k = (ya * wa + xa) * 4, r = Math.min(1, d / PROFUNDIDADE_MAXIMA) * 255, g = Math.max(0, 1 - d / ZONA_DE_ESPUMA) * 255;
-    if (r > dados.data[k]!) dados.data[k] = r;
-    if (g > dados.data[k + 1]!) dados.data[k + 1] = g;
-    dados.data[k + 2] = (idx + 1) * 50;
-  } });
+  camadas.slice(0, MAX_CAMADAS_DE_AGUA).forEach((c, idx) => {
+    const cx0 = c.x0 ?? 0, cy0 = c.y0 ?? 0, cw = c.cw ?? W, ch = c.ch ?? H;
+    for (let ya = 0; ya < ha; ya++) {
+      const py = Math.min(H - 1, Math.floor((ya + 0.5) / RES_DA_TEXTURA_DE_AGUA * res)), ly = py - cy0;
+      if (ly < 0 || ly >= ch) continue;
+      for (let xa = 0; xa < wa; xa++) {
+        const px = Math.min(W - 1, Math.floor((xa + 0.5) / RES_DA_TEXTURA_DE_AGUA * res)), lx = px - cx0;
+        if (lx < 0 || lx >= cw) continue;
+        const j = ly * cw + lx;
+        if (!c.binaria[j]) continue;
+        const d = c.profundidade[j]!, k = (ya * wa + xa) * 4, r = Math.min(1, d / PROFUNDIDADE_MAXIMA) * 255, g = Math.max(0, 1 - d / ZONA_DE_ESPUMA) * 255;
+        if (r > dados.data[k]!) dados.data[k] = r;
+        if (g > dados.data[k + 1]!) dados.data[k + 1] = g;
+        dados.data[k + 2] = (idx + 1) * 50;
+      }
+    }
+  });
   return dados;
 }

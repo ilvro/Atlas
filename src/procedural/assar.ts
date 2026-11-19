@@ -1,4 +1,4 @@
-import { ALTURA_MAXIMA, PINTORES_DE_ALTURA, PISO_NO_MAPA, alturaPorLuminancia, desenharAlturaDasPartes, pintarAlturaDoMaterial } from './altura.ts';
+import { ALTURA_MAXIMA, PINTORES_DE_ALTURA, PISO_NO_MAPA, RAIO_PASSA_ALTA, alturaPorLuminancia, desenharAlturaDasPartes, pintarAlturaDoMaterial } from './altura.ts';
 import { contornoDoComodo, caixaDasCelulas } from '../domain/geometria.ts';
 import {
   AMPLIACAO_NA_FACE,
@@ -17,19 +17,19 @@ import { decodificar } from '../domain/celulas.ts';
 import type { Grade, Ponto } from '../domain/mapa.ts';
 import { contextoDe, criarTela, type Contexto, type Tela } from './canvas.ts';
 import { caixaDasPartes, type Descricao, type Parte } from './descricao.ts';
-import { materialDe, tom } from './materiais.ts';
+import { materialDe, padraoDependeDaArea, tom } from './materiais.ts';
 import { fbm, valueNoise2D } from './ruido.ts';
 import { desfocarAlfa } from './desfocar.ts';
-import { sombrearMacico } from './macico.ts';
+import { SOMBRA_DE_CONTATO, sombrearMacico } from './macico.ts';
 import { partesParaFace } from './raster.ts';
 import type { EstiloDeRaster, OpcoesDoPixel } from './estilos/index.ts';
 import { pintarFacePixel } from './estilos/faces-pixel.ts';
-import { RES_DA_TEXTURA_DE_AGUA, leitoDaAgua, texturaDeAgua } from './agua.ts';
+import { RES_DA_TEXTURA_DE_AGUA, leitoDaAgua, texturaDeAgua, type CamadaDeAguaParaTextura } from './agua.ts';
 import { orientacaoDominante } from './orientacao.ts';
 import { descreverReceita, receitaDe } from './receitas/index.ts';
 import { fatorDeProfundidade } from '../domain/relevo.ts';
 import { ladoBaixo } from './escarpa.ts';
-import { distanciaAMargem } from './profundidade.ts';
+import { PROFUNDIDADE_MAXIMA, distanciaAMargem } from './profundidade.ts';
 
 export interface Assado {
   tela: Tela;
@@ -202,31 +202,52 @@ const temFiltro = (c: Contexto): boolean => 'filter' in c;
 const suave = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 
-/** Máscara alfa desfocada (0,5 m) com bordas do mapa estendidas para camadas. */
-function mascaraSuavizada(celulas: readonly Faixa[], resolucao: number, W: number, Hh: number, res: number): Uint8ClampedArray {
-  const mascara = criarTela(W, Hh), mc = contextoDe(mascara);
-  mc.setTransform(res, 0, 0, res, 0, 0); mc.fillStyle = '#fff';
-  for (const [y, x0, n] of celulas) mc.fillRect(x0 * resolucao, y * resolucao, n * resolucao, resolucao);
-  const blur = Math.max(1, 0.5 * res), P = Math.ceil(blur * 3), estendida = criarTela(W + 2 * P, Hh + 2 * P), ec = contextoDe(estendida), M = mascara as CanvasImageSource;
+interface CaixaPx { x0: number; y0: number; cw: number; ch: number }
+
+function caixaDaCamada(celulas: readonly Faixa[], resolucao: number, res: number, W: number, Hh: number, margemM: number): CaixaPx | null {
+  let gx0 = Infinity, gy0 = Infinity, gx1 = -Infinity, gy1 = -Infinity;
+  for (const [y, x0, n] of celulas) {
+    if (n <= 0) continue;
+    if (x0 < gx0) gx0 = x0;
+    if (x0 + n > gx1) gx1 = x0 + n;
+    if (y < gy0) gy0 = y;
+    if (y + 1 > gy1) gy1 = y + 1;
+  }
+  if (!Number.isFinite(gx0)) return null;
+  const x0 = Math.max(0, Math.floor((gx0 * resolucao - margemM) * res));
+  const y0 = Math.max(0, Math.floor((gy0 * resolucao - margemM) * res));
+  const x1 = Math.min(W, Math.ceil((gx1 * resolucao + margemM) * res));
+  const y1 = Math.min(Hh, Math.ceil((gy1 * resolucao + margemM) * res));
+  if (x1 <= x0 || y1 <= y0) return null;
+  return { x0, y0, cw: x1 - x0, ch: y1 - y0 };
+}
+
+/** Máscara alfa desfocada (0,5 m) com bordas estendidas para camadas, na caixa `[x0, y0, cw, ch]` quando fornecida. */
+function mascaraSuavizada(celulas: readonly Faixa[], resolucao: number, W: number, Hh: number, res: number, box?: CaixaPx): Uint8ClampedArray {
+  const x0 = box?.x0 ?? 0, y0 = box?.y0 ?? 0, cw = box?.cw ?? W, ch = box?.ch ?? Hh;
+  const mascara = criarTela(cw, ch), mc = contextoDe(mascara);
+  mc.setTransform(res, 0, 0, res, -x0, -y0); mc.fillStyle = '#fff';
+  for (const [y, cx0, n] of celulas) mc.fillRect(cx0 * resolucao, y * resolucao, n * resolucao, resolucao);
+  const blur = Math.max(1, 0.5 * res), P = Math.ceil(blur * 3), estendida = criarTela(cw + 2 * P, ch + 2 * P), ec = contextoDe(estendida), M = mascara as CanvasImageSource;
   ec.imageSmoothingEnabled = false;
   ec.drawImage(M, P, P);
-  ec.drawImage(M, 0, 0, 1, Hh, 0, P, P, Hh);
-  ec.drawImage(M, W - 1, 0, 1, Hh, P + W, P, P, Hh);
-  ec.drawImage(M, 0, 0, W, 1, P, 0, W, P);
-  ec.drawImage(M, 0, Hh - 1, W, 1, P, P + Hh, W, P);
+  ec.drawImage(M, 0, 0, 1, ch, 0, P, P, ch);
+  ec.drawImage(M, cw - 1, 0, 1, ch, P + cw, P, P, ch);
+  ec.drawImage(M, 0, 0, cw, 1, P, 0, cw, P);
+  ec.drawImage(M, 0, ch - 1, cw, 1, P, P + ch, cw, P);
   ec.drawImage(M, 0, 0, 1, 1, 0, 0, P, P);
-  ec.drawImage(M, W - 1, 0, 1, 1, P + W, 0, P, P);
-  ec.drawImage(M, 0, Hh - 1, 1, 1, 0, P + Hh, P, P);
-  ec.drawImage(M, W - 1, Hh - 1, 1, 1, P + W, P + Hh, P, P);
+  ec.drawImage(M, cw - 1, 0, 1, 1, P + cw, 0, P, P);
+  ec.drawImage(M, 0, ch - 1, 1, 1, 0, P + ch, P, P);
+  ec.drawImage(M, cw - 1, ch - 1, 1, 1, P + cw, P + ch, P, P);
   if (temFiltro(ec)) {
-    const mac = contextoDe(criarTela(W + 2 * P, Hh + 2 * P));
+    const mac = contextoDe(criarTela(cw + 2 * P, ch + 2 * P));
     mac.filter = `blur(${blur}px)`; mac.drawImage(estendida as CanvasImageSource, 0, 0);
-    return mac.getImageData(P, P, W, Hh).data;
+    return mac.getImageData(P, P, cw, ch).data;
   }
-  const bruta = ec.getImageData(0, 0, W + 2 * P, Hh + 2 * P);
+  const bruta = ec.getImageData(0, 0, cw + 2 * P, ch + 2 * P);
   desfocarAlfa(bruta.data, bruta.width, bruta.height, blur);
-  const recorte = new Uint8ClampedArray(W * Hh * 4);
-  for (let y = 0; y < Hh; y++) recorte.set(bruta.data.subarray(((y + P) * bruta.width + P) * 4, ((y + P) * bruta.width + P + W) * 4), y * W * 4);
+  const recorte = new Uint8ClampedArray(cw * ch * 4);
+  for (let y = 0; y < ch; y++) recorte.set(bruta.data.subarray(((y + P) * bruta.width + P) * 4, ((y + P) * bruta.width + P + cw) * 4), y * cw * 4);
   return recorte;
 }
 
@@ -336,7 +357,7 @@ export function comporAltitudeDoRelevo(
 }
 
 /** O terreno todo numa tela só. Cada camada tem a borda torcida por ruído (orgânica, não um borrão) e um aro escuro por baixo: a transição automática. */
-export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeRaster): Assado {
+export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeRaster, op?: { semCaixa?: boolean }): Assado {
   const pixel = estilo.id === 'pixel', W = Math.ceil(e.largura * res), Hh = Math.ceil(e.altura * res), tela = criarTela(W, Hh), ctx = contextoDe(tela, pixel ? undefined : { willReadFrequently: true });
   ctx.setTransform(res, 0, 0, res, 0, 0);
   if (e.base !== 'vazio') estilo.pintarMaterial(ctx, e.base, { x: 0, y: 0, w: e.largura, h: e.altura }, 7, { res });
@@ -357,55 +378,63 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
       }
     }
   }
-  const aguas: { profundidade: Float32Array; binaria: Uint8Array }[] = [];
+  const aguas: CamadaDeAguaParaTextura[] = [];
+  const margemBase = Math.max(1.5, RAIO_PASSA_ALTA, 1 / res) + 1;
+  const margemAguaMacico = margemBase + Math.max(PROFUNDIDADE_MAXIMA, SOMBRA_DE_CONTATO + 0.15);
   e.camadas.forEach((camada, idx) => {
     if (!camada.celulas.length) return;
-    const fonte = mascaraSuavizada(camada.celulas, e.resolucao, W, Hh, res);
-    const ruido = valueNoise2D(1000 + idx * 17);
     const material = materialDe(camada.material), macico = material.uso === 'macico', agua = material.uso === 'agua';
-    const corpo = new ImageData(W, Hh), aro = new ImageData(W, Hh), binaria = new Uint8Array(pixel || macico || agua ? W * Hh : 0), cobertura = new Uint8Array((macico || agua) && !pixel ? W * Hh : 0), ruidoFino = valueNoise2D(3000 + idx * 31);
-    for (let k = 0, px = 0; k < fonte.length; k += 4, px++) {
-      const b = fonte[k + 3]! / 255; if (b < 0.02) continue;
-      const mx = (px % W) / res, my = Math.floor(px / W) / res;
-      let v = b + (fbm(ruido, mx * 1.3, my * 1.3, 3) - 0.5) * 0.5;
-      if (macico) v += pixel ? (fbm(ruidoFino, mx * 3.5, my * 3.5, 3) - 0.5) * 0.35 : (fbm(ruidoFino, mx * 1.5, my * 1.5, 2) - 0.5) * 0.5 + (fbm(ruidoFino, mx * 6 + 9, my * 6, 1) - 0.5) * 0.06;      // borda de rocha: lóbulos grandes e arredondados (Ilustrado), degraus no Pixel
-      if (agua) { binaria[px] = v >= 0.5 ? 1 : 0; if (!pixel) cobertura[px] = suave(0.47, 0.53, v) * 255; }
-      else if (macico) { binaria[px] = v >= 0.5 ? 1 : 0; if (!pixel) cobertura[px] = suave(0.47, 0.53, v) * 255; }
-      else if (pixel) binaria[px] = v >= 0.5 ? 1 : 0;
-      else { corpo.data[k + 3] = suave(0.22, 0.78, v) * 255; aro.data[k + 3] = suave(0.12, 0.45, v) * 255; }
+    const box = op?.semCaixa ? { x0: 0, y0: 0, cw: W, ch: Hh } : caixaDaCamada(camada.celulas, e.resolucao, res, W, Hh, agua || macico ? margemAguaMacico : margemBase);
+    if (!box) return;
+    const { x0, y0, cw, ch } = box;
+    const fonte = mascaraSuavizada(camada.celulas, e.resolucao, W, Hh, res, box);
+    const ruido = valueNoise2D(1000 + idx * 17);
+    const corpo = new ImageData(cw, ch), aro = new ImageData(cw, ch), binaria = new Uint8Array(pixel || macico || agua ? cw * ch : 0), cobertura = new Uint8Array((macico || agua) && !pixel ? cw * ch : 0), ruidoFino = valueNoise2D(3000 + idx * 31);
+    for (let ly = 0, px = 0, k = 0; ly < ch; ly++) {
+      const my = (y0 + ly) / res;
+      for (let lx = 0; lx < cw; lx++, px++, k += 4) {
+        const b = fonte[k + 3]! / 255; if (b < 0.02) continue;
+        const mx = (x0 + lx) / res;
+        let v = b + (fbm(ruido, mx * 1.3, my * 1.3, 3) - 0.5) * 0.5;
+        if (macico) v += pixel ? (fbm(ruidoFino, mx * 3.5, my * 3.5, 3) - 0.5) * 0.35 : (fbm(ruidoFino, mx * 1.5, my * 1.5, 2) - 0.5) * 0.5 + (fbm(ruidoFino, mx * 6 + 9, my * 6, 1) - 0.5) * 0.06;      // borda de rocha: lóbulos grandes e arredondados (Ilustrado), degraus no Pixel
+        if (agua) { binaria[px] = v >= 0.5 ? 1 : 0; if (!pixel) cobertura[px] = suave(0.47, 0.53, v) * 255; }
+        else if (macico) { binaria[px] = v >= 0.5 ? 1 : 0; if (!pixel) cobertura[px] = suave(0.47, 0.53, v) * 255; }
+        else if (pixel) binaria[px] = v >= 0.5 ? 1 : 0;
+        else { corpo.data[k + 3] = suave(0.22, 0.78, v) * 255; aro.data[k + 3] = suave(0.12, 0.45, v) * 255; }
+      }
     }
     if (agua) {
       // Água: o que está embaixo continua à vista e ganha a cor do leito pela profundidade; a margem é uma faixa de areia molhada.
-      const r = leitoDaAgua({ binaria, cobertura: pixel ? null : cobertura, largura: W, altura: Hh, res, seed: 13 + idx * 5, material, pixel });
-      const poe = (dados: Uint8ClampedArray) => { const t = criarTela(W, Hh), c = contextoDe(t); c.putImageData(new ImageData(dados as Uint8ClampedArray<ArrayBuffer>, W, Hh), 0, 0); ctx.drawImage(t as CanvasImageSource, 0, 0); };
+      const r = leitoDaAgua({ binaria, cobertura: pixel ? null : cobertura, largura: cw, altura: ch, res, seed: 13 + idx * 5, material, pixel, origemPx: [x0, y0] });
+      const poe = (dados: Uint8ClampedArray) => { const t = criarTela(cw, ch), c = contextoDe(t); c.putImageData(new ImageData(dados as Uint8ClampedArray<ArrayBuffer>, cw, ch), 0, 0); ctx.drawImage(t as CanvasImageSource, x0, y0); };
       ctx.setTransform(1, 0, 0, 1, 0, 0); poe(r.margem); poe(r.leito); ctx.setTransform(res, 0, 0, res, 0, 0);
       if (actx) {
-        const aguaAlt = new Uint8ClampedArray(W * Hh * 4);
+        const aguaAlt = new Uint8ClampedArray(cw * ch * 4);
         const pisoByte = Math.round(PISO_NO_MAPA * 255);
-        for (let px = 0; px < W * Hh; px++) {
+        for (let px = 0; px < cw * ch; px++) {
           const k = px * 4;
           aguaAlt[k] = pisoByte; aguaAlt[k + 1] = 0; aguaAlt[k + 2] = 0; aguaAlt[k + 3] = cobertura[px]!;
         }
-        const t = criarTela(W, Hh);
-        contextoDe(t).putImageData(new ImageData(aguaAlt as Uint8ClampedArray<ArrayBuffer>, W, Hh), 0, 0);
+        const t = criarTela(cw, ch);
+        contextoDe(t).putImageData(new ImageData(aguaAlt as Uint8ClampedArray<ArrayBuffer>, cw, ch), 0, 0);
         actx.setTransform(1, 0, 0, 1, 0, 0);
-        actx.drawImage(t as CanvasImageSource, 0, 0);
+        actx.drawImage(t as CanvasImageSource, x0, y0);
         actx.setTransform(res, 0, 0, res, 0, 0);
       }
-      aguas.push({ profundidade: r.profundidade, binaria });
+      aguas.push({ profundidade: r.profundidade, binaria, x0, y0, cw, ch });
       return;
     }
     if (macico) {
       // Maciço: volume próprio (patamares, estrias, sombra de contato) e nenhum aro escuro das camadas comuns.
-      const r = sombrearMacico({ dentro: binaria, alfa: pixel ? null : cobertura, largura: W, altura: Hh, res, seed: 11 + idx * 5, cores: material, pixel });
-      const poe = (dados: Uint8ClampedArray) => { const t = criarTela(W, Hh), c = contextoDe(t); c.putImageData(new ImageData(dados as Uint8ClampedArray<ArrayBuffer>, W, Hh), 0, 0); ctx.drawImage(t as CanvasImageSource, 0, 0); };
+      const r = sombrearMacico({ dentro: binaria, alfa: pixel ? null : cobertura, largura: cw, altura: ch, res, seed: 11 + idx * 5, cores: material, pixel, origemPx: [x0, y0] });
+      const poe = (dados: Uint8ClampedArray) => { const t = criarTela(cw, ch), c = contextoDe(t); c.putImageData(new ImageData(dados as Uint8ClampedArray<ArrayBuffer>, cw, ch), 0, 0); ctx.drawImage(t as CanvasImageSource, x0, y0); };
       ctx.setTransform(1, 0, 0, 1, 0, 0); poe(r.sombra); poe(r.rgba); ctx.setTransform(res, 0, 0, res, 0, 0);
       if (actx) {
-        const altMacico = alturaPorLuminancia(r.rgba, W, Hh, res);
-        const t = criarTela(W, Hh);
-        contextoDe(t).putImageData(new ImageData(altMacico as Uint8ClampedArray<ArrayBuffer>, W, Hh), 0, 0);
+        const altMacico = alturaPorLuminancia(r.rgba, cw, ch, res);
+        const t = criarTela(cw, ch);
+        contextoDe(t).putImageData(new ImageData(altMacico as Uint8ClampedArray<ArrayBuffer>, cw, ch), 0, 0);
         actx.setTransform(1, 0, 0, 1, 0, 0);
-        actx.drawImage(t as CanvasImageSource, 0, 0);
+        actx.drawImage(t as CanvasImageSource, x0, y0);
         actx.setTransform(res, 0, 0, res, 0, 0);
       }
       return;
@@ -413,43 +442,45 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
     if (pixel) {
       // Borda em degraus de pixel: a camada é tudo ou nada, e o aro escuro é a vizinhança de 1 pixel dela.
       for (let px = 0; px < binaria.length; px++) {
-        const x = px % W, y = (px - x) / W, dentro = binaria[px]!;
+        const x = px % cw, y = (px - x) / cw, dentro = binaria[px]!;
         corpo.data[px * 4 + 3] = dentro ? 255 : 0;
-        aro.data[px * 4 + 3] = dentro || (x > 0 && binaria[px - 1]) || (x < W - 1 && binaria[px + 1]) || (y > 0 && binaria[px - W]) || (y < Hh - 1 && binaria[px + W]) ? 255 : 0;
+        aro.data[px * 4 + 3] = dentro || (x > 0 && binaria[px - 1]) || (x < cw - 1 && binaria[px + 1]) || (y > 0 && binaria[px - cw]) || (y < ch - 1 && binaria[px + cw]) ? 255 : 0;
       }
     }
     const comAlfa = (dados: ImageData, cor: string | null) => {
-      const t = criarTela(W, Hh), c = contextoDe(t); c.putImageData(dados, 0, 0);
-      if (cor) { c.globalCompositeOperation = 'source-in'; c.fillStyle = cor; c.fillRect(0, 0, W, Hh); }
+      const t = criarTela(cw, ch), c = contextoDe(t); c.putImageData(dados, 0, 0);
+      if (cor) { c.globalCompositeOperation = 'source-in'; c.fillStyle = cor; c.fillRect(0, 0, cw, ch); }
       return t;
     };
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalAlpha = pixel ? 1 : 0.5; ctx.drawImage(comAlfa(aro, material.escuro) as CanvasImageSource, 0, 0); ctx.globalAlpha = 1;
-    const pintada = criarTela(W, Hh), pc = contextoDe(pintada, { willReadFrequently: !pixel });
+    ctx.globalAlpha = pixel ? 1 : 0.5; ctx.drawImage(comAlfa(aro, material.escuro) as CanvasImageSource, x0, y0); ctx.globalAlpha = 1;
+    const pintada = criarTela(cw, ch), pc = contextoDe(pintada, { willReadFrequently: !pixel });
     const dir = material.padrao === 'sulcos' ? orientacaoDominante(camada.celulas) : 0;
-    pc.setTransform(res, 0, 0, res, 0, 0); estilo.pintarMaterial(pc, camada.material, { x: 0, y: 0, w: e.largura, h: e.altura }, 11 + idx * 5, { res, dir });
+    const caixaM = { x: x0 / res, y: y0 / res, w: cw / res, h: ch / res };
+    const areaMaterial = pixel || padraoDependeDaArea(material.padrao) ? { x: 0, y: 0, w: e.largura, h: e.altura } : caixaM;
+    pc.setTransform(res, 0, 0, res, -x0, -y0); estilo.pintarMaterial(pc, camada.material, areaMaterial, 11 + idx * 5, { res, dir });
     const mascCorpo = comAlfa(corpo, null);
     if (actx) {
-      const altTela = criarTela(W, Hh), atc = contextoDe(altTela);
+      const altTela = criarTela(cw, ch), atc = contextoDe(altTela);
       if (PINTORES_DE_ALTURA[material.padrao]) {
-        atc.setTransform(res, 0, 0, res, 0, 0);
-        pintarAlturaDoMaterial(atc, camada.material, { x: 0, y: 0, w: e.largura, h: e.altura }, 11 + idx * 5, { res, dir });
+        atc.setTransform(res, 0, 0, res, -x0, -y0);
+        pintarAlturaDoMaterial(atc, camada.material, areaMaterial, 11 + idx * 5, { res, dir });
         atc.setTransform(1, 0, 0, 1, 0, 0);
       } else {
         pc.setTransform(1, 0, 0, 1, 0, 0);
-        const corImg = pc.getImageData(0, 0, W, Hh);
-        const altImg = atc.createImageData(W, Hh);
-        altImg.data.set(alturaPorLuminancia(corImg.data, W, Hh, res));
+        const corImg = pc.getImageData(0, 0, cw, ch);
+        const altImg = atc.createImageData(cw, ch);
+        altImg.data.set(alturaPorLuminancia(corImg.data, cw, ch, res));
         atc.putImageData(altImg, 0, 0);
       }
       atc.globalCompositeOperation = 'destination-in';
       atc.drawImage(mascCorpo as CanvasImageSource, 0, 0);
       actx.setTransform(1, 0, 0, 1, 0, 0);
-      actx.drawImage(altTela as CanvasImageSource, 0, 0);
+      actx.drawImage(altTela as CanvasImageSource, x0, y0);
       actx.setTransform(res, 0, 0, res, 0, 0);
     }
     pc.setTransform(1, 0, 0, 1, 0, 0); pc.globalCompositeOperation = 'destination-in'; pc.drawImage(mascCorpo as CanvasImageSource, 0, 0);
-    ctx.drawImage(pintada as CanvasImageSource, 0, 0); ctx.setTransform(res, 0, 0, res, 0, 0);
+    ctx.drawImage(pintada as CanvasImageSource, x0, y0); ctx.setTransform(res, 0, 0, res, 0, 0);
   });
   if (e.assentamento) pintarAssentamento(ctx, e, W, Hh, res, estilo);
   if (e.relevo?.faixas.length) {

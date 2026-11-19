@@ -120,7 +120,7 @@ mansao-da-ilha: editor 1.04 s | pronto 6.91 s | longtasks 489 ms (2) | assados 1
   imagem                4         36.3          9.7         0.03
 ```
 
-### M3 — Cada camada do terreno só na caixa dela  ⬜
+### M3 — Cada camada do terreno só na caixa dela  ✅
 Objetivo: o custo de uma camada passa a ser proporcional à área dela, não à do mapa.
 Depende de: M1.
 Ler: `src/procedural/assar.ts:339-460` (`assarTerreno`), `mascaraSuavizada`, `src/procedural/materiais.ts:198-210` (`pintarMaterial`, área girada) e `:367` (`porPixel`), `src/procedural/altura.ts` (`alturaPorLuminancia`, `RAIO_PASSA_ALTA`).
@@ -133,6 +133,12 @@ Não fazer: ladrilhos (M4); mexer no ruído.
 Testes: o terreno do Entreposto assado antes e depois difere em no máximo 1/255 por canal em 99,9% dos pixels (salvar a referência no teste a partir do código antigo, ou comparar contra um PNG gerado antes da mudança).
 Pronto quando: o medidor mostra o terreno do Entreposto pelo menos 2 vezes mais rápido, sem diferença visível.
 Commit: `terrain layers are painted only inside their own bounds`
+Nota:
+- Padrões mantidos em `A` (quadrado da diagonal, via `padraoDependeDaArea`) por dependerem do layout/caixa ou sorteios (`r()`): `tabuas`, `xadrez`, `laje`, `damasco`, `listras`, `veio`, `losango`, `hexagono`, `floral`, `lambri`, `vidro`, `pregas`, `pintura`, `grama`, `terra`, `lama`, `areia`, `pedra`. Verificado que `cascalho` (`porPixel` + `celulasDeVoronoi.consultar`) é invariante à caixa, portanto usa `area` diretamente quando `dir === 0`; `gelo` também usa `area` (`porPixel` restrito à caixa quando `dir === 0`). Em `assarTerreno`, camadas de padrões dependentes de `area` (e estilo Pixel, cujo `ladrilhar` ancora em `p.A.x`) recebem a caixa do mapa no `pintarMaterial` sobre a sub-tela `(cw × ch)` com `setTransform(res, 0, 0, res, -x0, -y0)` (e `porPixel` recorta à tela destino quando sem rotação), preservando `>= 99,9%` de igualdade. `leitoDaAgua`/`texturaDeAgua` (`src/procedural/agua.ts`) e `sombrearMacico` (`src/procedural/macico.ts`) receberam `origemPx?: [number, number]` e caixa da camada.
+- Como `entreposto-do-rio` e `mansao-da-ilha` foram removidos na `main` (`1883b38`), a comparação (`tests/e2e/terreno-caixa.test.ts` e `tests/unit/terreno-caixa.test.ts`) e a medição (`npm run medir:carga -- porto-noturno gruta-dos-contrabandistas ruina-costeira`) usaram os exemplos atuais:
+  * `ruina-costeira`: terreno `16,30 s` → **6,37 s** (2,56× mais rápido; `pronto 8,37 s`)
+  * `porto-noturno`: terreno `12,24 s` → **5,13 s** (2,39× mais rápido; `pronto 9,39 s`)
+  * `gruta-dos-contrabandistas`: terreno `10,18 s` → **4,29 s** (2,37× mais rápido; `pronto 6,54 s`)
 
 ### M4 — Terreno em ladrilhos  ⬜
 Objetivo: o terreno é assado em pedaços paralelos, e uma pincelada reassa só os pedaços tocados.
