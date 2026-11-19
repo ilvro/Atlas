@@ -6,7 +6,8 @@ import type { CenaDeAltura } from './cena-de-altura.ts';
 import { ALTURA_DA_LUZ, ALTURA_MAXIMA_DA_LUZ } from './luzes.ts';
 import { formatoDaLuz, type FormatoDeLuz, type MapaDeLuz } from './mapa-de-luz.ts';
 
-export const FORCA_RELEVO_PADRAO = 3;
+/** Força do relevo na normal. Com 3, um só nível do mapa de 8 bits (≈ 1,6 cm) já virava uma rampa visível; juntas e biséis têm dezenas de níveis. */
+export const FORCA_RELEVO_PADRAO = 1.2;
 export const RAIO_AO_CURTO = 0.25;
 export const RAIO_AO_LONGO = 0.7;
 export const PESO_AO_CURTO = 2;
@@ -188,17 +189,20 @@ void main() {
 
   if (uRelevo > 0.0001) {
     // Normal por Sobel 3x3 em metros (Y cresce para baixo no mundo/tela).
-    float hTL = amostraAltura(vec2(-1.0, -1.0));
-    float hT  = amostraAltura(vec2( 0.0, -1.0));
-    float hTR = amostraAltura(vec2( 1.0, -1.0));
-    float hL  = amostraAltura(vec2(-1.0,  0.0));
-    float hR  = amostraAltura(vec2( 1.0,  0.0));
-    float hBL = amostraAltura(vec2(-1.0,  1.0));
-    float hB  = amostraAltura(vec2( 0.0,  1.0));
-    float hBR = amostraAltura(vec2( 1.0,  1.0));
+    // O passo do Sobel tem no mínimo 3 cm no mundo: o mapa de altura tem 8 bits (1 nível ≈ 1,6 cm), e com 1 texel de tela
+    // no zoom alto cada nível virava uma rampa de 45° e o relevo desenhava curvas de nível.
+    float k = max(1.0, 0.03 / max(uPassoEmMetros, 1e-5));
+    float hTL = amostraAltura(vec2(-k, -k));
+    float hT  = amostraAltura(vec2( 0.0, -k));
+    float hTR = amostraAltura(vec2( k, -k));
+    float hL  = amostraAltura(vec2(-k,  0.0));
+    float hR  = amostraAltura(vec2( k,  0.0));
+    float hBL = amostraAltura(vec2(-k,  k));
+    float hB  = amostraAltura(vec2( 0.0,  k));
+    float hBR = amostraAltura(vec2( k,  k));
     float gx = (hTR + 2.0 * hR + hBR) - (hTL + 2.0 * hL + hBL);
     float gy = (hBL + 2.0 * hB + hBR) - (hTL + 2.0 * hT + hTR);
-    vec3 N = normalize(vec3(-gx * uForca, -gy * uForca, 8.0 * uPassoEmMetros));
+    vec3 N = normalize(vec3(-gx * uForca, -gy * uForca, 8.0 * k * uPassoEmMetros));
 
     vec4 d = texture(uDirecao, vLuzCoord);
     float peso = smoothstep(0.001, 0.02, d.b * uEscala);
@@ -212,6 +216,9 @@ void main() {
 
     ambiente = ambBase * mix(1.0, 0.75 + 0.25 * N.z, uRelevo);
     luzDireta = direta * mix(1.0, realce, uRelevo * peso);
+    // A luz não sobe acima de si: o topo de uma muralha mais alta que a tocha fica no escuro (a face voltada para ela, não).
+    float hSup = amostraAltura(vec2(0.0, 0.0)) - 0.5 * uAlturaMaxima;
+    luzDireta *= 1.0 - 0.85 * peso * uRelevo * smoothstep(alturaDaLuz - 0.3, alturaDaLuz + 0.5, hSup);
   }
 
   float fatorAO = 0.0;
