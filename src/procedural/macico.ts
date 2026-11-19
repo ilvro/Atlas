@@ -21,6 +21,8 @@ export interface EntradaDoMacico {
   /** Cobertura suave da borda (0–255) no Ilustrado; `null` no Pixel (tudo ou nada). */
   alfa: Uint8Array | null;
   largura: number; altura: number; res: number; seed: number; cores: CoresDoMacico; pixel: boolean;
+  /** Deslocamento em pixels no mapa quando sombreado numa sub-caixa (preserva coordenadas do mundo). */
+  origemPx?: [number, number];
 }
 /** `rgba`: a rocha; `sombra`: a sombra de contato sobre o que está embaixo (para desenhar antes da rocha). */
 export interface SaidaDoMacico { rgba: Uint8ClampedArray; sombra: Uint8ClampedArray }
@@ -48,12 +50,12 @@ function desfocar(a: Float32Array, W: number, H: number, r: number): Float32Arra
 }
 
 export function sombrearMacico(e: EntradaDoMacico): SaidaDoMacico {
-  const { dentro, alfa, largura: W, altura: H, res, pixel } = e, pe = limitar(e.cores.pe ?? 1, 0, 1), n = W * H, N = pixel ? PATAMARES_PIXEL : PATAMARES_ILUSTRADO;
+  const { dentro, alfa, largura: W, altura: H, res, pixel } = e, [ox, oy] = e.origemPx ?? [0, 0], pe = limitar(e.cores.pe ?? 1, 0, 1), n = W * H, N = pixel ? PATAMARES_PIXEL : PATAMARES_ILUSTRADO;
   const rgba = new Uint8ClampedArray(n * 4), sombra = new Uint8ClampedArray(n * 4);
   const cBase = rgb(e.cores.base), cEsc = rgb(e.cores.escuro), cCla = rgb(e.cores.claro), cTopo = e.cores.topo ? rgb(e.cores.topo) : null, tinta = rgb(TRACO);
   const cNeveSombra: Cor = [184, 200, 220], cNeveSombraPixel: Cor = [150, 168, 196], escuridao: Cor = [7, 10, 14];
   const s = Math.floor(e.seed) || 1, rGrande = valueNoise2D(s * 13 + 1), rCorte = valueNoise2D(s * 13 + 2), rGrao = valueNoise2D(s * 13 + 3), rEstria = valueNoise2D(s * 13 + 4), rRevela = valueNoise2D(s * 13 + 9), rNeve = valueNoise2D(s * 13 + 5);
-  const vor = celulasDeVoronoi({ x: 0, y: 0, w: W / res, h: H / res }, 1.6, s * 7 + 3), rTorce = valueNoise2D(s * 13 + 6), rFalha = valueNoise2D(s * 13 + 7);
+  const vor = celulasDeVoronoi({ x: ox / res, y: oy / res, w: W / res, h: H / res }, 1.6, s * 7 + 3), rTorce = valueNoise2D(s * 13 + 6), rFalha = valueNoise2D(s * 13 + 7);
 
   const dist = distanciaAMargem(dentro, W, H, res, ALTURA_DO_MACICO + 0.5);
   const distLonga = distanciaAMargem(dentro, W, H, res, 30);
@@ -65,7 +67,7 @@ export function sombrearMacico(e: EntradaDoMacico): SaidaDoMacico {
   const bruta = new Float32Array(n), z = new Float32Array(n);
   for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++) {
     if (!ativo(i)) continue;
-    const mx = x / res, my = y / res, d = dist[i]!, dl = distLonga[i]!;
+    const mx = (ox + x) / res, my = (oy + y) / res, d = dist[i]!, dl = distLonga[i]!;
     const interior = suave(0.2, 1.2, d);
     const pesoSerra = suave(3.0, 10.0, dl);
     const crista = 0.25 * suave(2.5, 25, dl);
@@ -87,7 +89,7 @@ export function sombrearMacico(e: EntradaDoMacico): SaidaDoMacico {
 
   for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++) {
     if (!ativo(i)) continue;
-    const mx = x / res, my = y / res, nivel = Math.floor(z[i]!) - 1, d = dist[i]!, dl = distLonga[i]!;
+    const mx = (ox + x) / res, my = (oy + y) / res, nivel = Math.floor(z[i]!) - 1, d = dist[i]!, dl = distLonga[i]!;
     let sombraLuz: number, sMacia = 0, sLit = 0, revela = 0;                                         // > 0 claro, < 0 escuro
     let tinto = 0;                                                 // quanto vai para o nanquim (0 a 1)
     const alto = tons[limitar(nivel, 0, N - 1)]!;
@@ -130,7 +132,7 @@ export function sombrearMacico(e: EntradaDoMacico): SaidaDoMacico {
           estria = (sn / 5 - 0.5) * 2.4 * w;
         }
       }
-      const grao = (fbm(rGrao, mx * 5, my * 5, 3) - 0.5) * 0.3 + (fbm(rGrao, mx * 17 + 30, my * 17, 2) - 0.5) * 0.42 * suave(0.05, 0.4, d) + (hash2D(x, y, s) - 0.5) * 0.05;
+      const grao = (fbm(rGrao, mx * 5, my * 5, 3) - 0.5) * 0.3 + (fbm(rGrao, mx * 17 + 30, my * 17, 2) - 0.5) * 0.42 * suave(0.05, 0.4, d) + (hash2D(ox + x, oy + y, s) - 0.5) * 0.05;
       sombraLuz = lit * 0.8 + macia * 0.7 + larga * 0.35 + faceta + estria * 0.22 + grao - fenda * 0.8;
       sMacia = macia; sLit = lit;
       tinto = Math.max(suave(0.3, 0.85, -macia) * 0.7, fenda * 0.7, (1 - suave(0, 0.05, d)) * 0.6);

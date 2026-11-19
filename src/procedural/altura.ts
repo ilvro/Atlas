@@ -13,7 +13,7 @@ export const alturaNoMapa = (z: number): number => Math.min(1, Math.max(0, PISO_
 /** Raio (m) da média móvel usada no passa-alta de reserva por luminância. */
 export const RAIO_PASSA_ALTA = 0.5;
 
-export type PintorDeAltura = (ctx: Contexto, mat: Material, area: Area, seed: number, px: number) => void;
+export type PintorDeAltura = (ctx: Contexto, mat: Material, area: Area, seed: number, px: number, dir?: number) => void;
 
 /** Registro de pintores de altura dedicados por padrão de material (a mesma geometria do desenho; ver `ALTURAS_DE_PADRAO`). */
 export const PINTORES_DE_ALTURA: Partial<Record<Padrao, PintorDeAltura>> = ALTURAS_DE_PADRAO;
@@ -98,7 +98,7 @@ export function pintarAlturaDoMaterial(ctx: Contexto, id: string, area: Area, se
       ctx.rotate(o.dir);
       ctx.translate(-cx, -cy);
     }
-    pintor(ctx, mat, area, seed, 1 / res);
+    pintor(ctx, mat, area, seed, 1 / res, o.dir);
     ctx.restore();
     return;
   }

@@ -185,6 +185,15 @@ function ruido(seed: number, celulas: number) {
 
 export interface Area { x: number; y: number; w: number; h: number }
 
+const PADROES_DEPENDENTES_DE_AREA = new Set<Padrao>([
+  'tabuas', 'xadrez', 'laje', 'damasco', 'listras', 'veio', 'losango',
+  'hexagono', 'floral', 'lambri', 'vidro', 'pregas', 'pintura',
+  'grama', 'terra', 'lama', 'areia', 'pedra',
+]);
+
+/** Verdadeiro para padrões cujo layout, gradiente ou sorteios (`r()`) dependem da caixa `area` passada. */
+export const padraoDependeDaArea = (padrao: Padrao): boolean => PADROES_DEPENDENTES_DE_AREA.has(padrao);
+
 function camadaDeRuido(ctx: Contexto, area: Area, seed: number, metros: number, alpha: number, modo: GlobalCompositeOperation = 'multiply', celulas = 8): void {
   const padrao = ctx.createPattern(ruido(seed, celulas), 'repeat'); if (!padrao) return;
   padrao.setTransform(new DOMMatrix().translate(((seed * 0.37) % 1) * metros, ((seed * 0.61) % 1) * metros).scale(metros / 256));
@@ -200,7 +209,9 @@ export function pintarMaterial(ctx: Contexto, id: string, area: Area, seed = 1, 
   ctx.save();
   ctx.fillStyle = mat.base; ctx.fillRect(area.x, area.y, area.w, area.h);
   if (dir) { const cx = area.x + area.w / 2, cy = area.y + area.h / 2; ctx.translate(cx, cy); ctx.rotate(dir); ctx.translate(-cx, -cy); }
-  const diag = Math.hypot(area.w, area.h), A: Area = { x: area.x + area.w / 2 - diag / 2, y: area.y + area.h / 2 - diag / 2, w: diag, h: diag };
+  const diag = Math.hypot(area.w, area.h);
+  const quadrado: Area = { x: area.x + area.w / 2 - diag / 2, y: area.y + area.h / 2 - diag / 2, w: diag, h: diag };
+  const A: Area = dir !== 0 || padraoDependeDaArea(mat.padrao) ? quadrado : area;
   switch (mat.padrao) {
     case 'tabuas': {
       for (const t of layoutDeTabuas(mat, A, r)) {
@@ -367,13 +378,26 @@ const tomDe = (o: number[], c: Cor3, k: number): void => { o[0] = c[0] * k; o[1]
 function porPixel(ctx: Contexto, A: Area, fn: (x: number, y: number, o: number[]) => void): void {
   let s = pxDe(ctx) ** -1;
   if (A.w * A.h * s * s > 9e6) s = Math.sqrt(9e6 / (A.w * A.h));
-  const W = Math.max(1, Math.ceil(A.w * s)), H = Math.max(1, Math.ceil(A.h * s)), tela = criarTela(W, H), c = contextoDe(tela), img = c.createImageData(W, H), d = img.data, o = [0, 0, 0, 255];
+  const Wfull = Math.max(1, Math.ceil(A.w * s)), Hfull = Math.max(1, Math.ceil(A.h * s));
+  let i0 = 0, j0 = 0, i1 = Wfull, j1 = Hfull;
+  const telaAlvo = 'canvas' in ctx ? (ctx as { canvas?: { width: number; height: number } }).canvas : undefined;
+  if (telaAlvo && typeof ctx.getTransform === 'function') {
+    const m = ctx.getTransform();
+    if (m.b === 0 && m.c === 0 && m.a > 0 && m.d > 0) {
+      i0 = Math.max(0, Math.floor((-m.e / m.a - A.x) * s));
+      j0 = Math.max(0, Math.floor((-m.f / m.d - A.y) * s));
+      i1 = Math.min(Wfull, Math.ceil(((telaAlvo.width - m.e) / m.a - A.x) * s));
+      j1 = Math.min(Hfull, Math.ceil(((telaAlvo.height - m.f) / m.d - A.y) * s));
+      if (i1 <= i0 || j1 <= j0) return;
+    }
+  }
+  const W = i1 - i0, H = j1 - j0, tela = criarTela(W, H), c = contextoDe(tela), img = c.createImageData(W, H), d = img.data, o = [0, 0, 0, 255];
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
-    o[3] = 255; fn(A.x + (i + 0.5) / s, A.y + (j + 0.5) / s, o);
+    o[3] = 255; fn(A.x + (i0 + i + 0.5) / s, A.y + (j0 + j + 0.5) / s, o);
     const k = (j * W + i) * 4; d[k] = o[0]!; d[k + 1] = o[1]!; d[k + 2] = o[2]!; d[k + 3] = o[3]!;
   }
   c.putImageData(img, 0, 0);
-  ctx.save(); ctx.imageSmoothingEnabled = true; ctx.drawImage(tela as CanvasImageSource, A.x, A.y, W / s, H / s); ctx.restore();
+  ctx.save(); ctx.imageSmoothingEnabled = true; ctx.drawImage(tela as CanvasImageSource, A.x + i0 / s, A.y + j0 / s, W / s, H / s); ctx.restore();
 }
 
 const novaConsulta = (): Consulta => ({ f1: 0, f2: 0, borda: 0, sitio: { x: 0, y: 0, i: 0, j: 0, azar: 0 } });
@@ -1016,24 +1040,25 @@ function alturaPorPixel(ctx: Contexto, A: Area, h: (x: number, y: number) => num
 
 /** A área que a cor de fato cobre (o quadrado da diagonal, para a rotação do padrão não deixar canto vazio). */
 const areaDaCor = (area: Area): Area => { const diag = Math.hypot(area.w, area.h); return { x: area.x + area.w / 2 - diag / 2, y: area.y + area.h / 2 - diag / 2, w: diag, h: diag }; };
+const areaDaAltura = (area: Area, dir = 0): Area => (dir ? areaDaCor(area) : area);
 
 
 const plano = (ctx: Contexto, A: Area): void => { ctx.save(); ctx.fillStyle = `rgb(${Math.round(PISO * 255)},0,0)`; ctx.fillRect(A.x, A.y, A.w, A.h); ctx.restore(); };
 
 /** Pintores de altura por padrão: a mesma geometria do desenho de cor. Padrões fora daqui usam a reserva por luminância. */
-export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Material, area: Area, seed: number, px: number) => void>> = {
+export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Material, area: Area, seed: number, px: number, dir?: number) => void>> = {
   // Lisos e polidos: planos. A luminância deles é desenho (veio, estampa, mancha), não relevo.
-  liso: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
-  trama: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
-  couro: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
-  metal: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
-  vidro: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
-  pintura: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
-  persa: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
-  damasco: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
-  listras: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
-  floral: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
-  manchado: (ctx, _m, a) => plano(ctx, areaDaCor(a)),
+  liso: (ctx, _m, a, _s, _px, dir) => plano(ctx, areaDaAltura(a, dir)),
+  trama: (ctx, _m, a, _s, _px, dir) => plano(ctx, areaDaAltura(a, dir)),
+  couro: (ctx, _m, a, _s, _px, dir) => plano(ctx, areaDaAltura(a, dir)),
+  metal: (ctx, _m, a, _s, _px, dir) => plano(ctx, areaDaAltura(a, dir)),
+  vidro: (ctx, _m, a, _s, _px, dir) => plano(ctx, areaDaAltura(a, dir)),
+  pintura: (ctx, _m, a, _s, _px, dir) => plano(ctx, areaDaAltura(a, dir)),
+  persa: (ctx, _m, a) => plano(ctx, a),
+  damasco: (ctx, _m, a, _s, _px, dir) => plano(ctx, areaDaAltura(a, dir)),
+  listras: (ctx, _m, a, _s, _px, dir) => plano(ctx, areaDaAltura(a, dir)),
+  floral: (ctx, _m, a, _s, _px, dir) => plano(ctx, areaDaAltura(a, dir)),
+  manchado: (ctx, _m, a, _s, _px, dir) => plano(ctx, areaDaAltura(a, dir)),
 
   tabuas(ctx, mat, area, seed, px) {
     const A = areaDaCor(area), r = mulberry32(seed * 7919 + 13);
@@ -1095,22 +1120,22 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
     });
   },
 
-  marmore(ctx, mat, area, _seed, px) {
+  marmore(ctx, mat, area, _seed, px, dir) {
     // Polido: placas planas, só a junta fina; os veios são desenho, não relevo.
-    const A = areaDaCor(area), L = mat.lado ?? 0.8;
+    const A = areaDaAltura(area, dir), L = mat.lado ?? 0.8;
     alturaPorPixel(ctx, A, (x, y) => { const lx = x - Math.floor(x / L) * L, ly = y - Math.floor(y / L) * L; return plato(Math.min(lx, L - lx, ly, L - ly), Math.max(0.004, px * 0.8), 0.006, 0.02); });
   },
 
-  espinha(ctx, _mat, area, seed, px) {
-    const A = areaDaCor(area), W = 0.56, P = 0.14;
+  espinha(ctx, _mat, area, seed, px, dir) {
+    const A = areaDaAltura(area, dir), W = 0.56, P = 0.14;
     alturaPorPixel(ctx, A, (x, y) => {
       const c = Math.floor(x / W), xl = x - c * W, par = (c & 1) === 0, t = y + (par ? xl : W - xl), id = Math.floor(t / P), ft = t - id * P;
       return plato(Math.min(xl, W - xl, ft * 0.7, (P - ft) * 0.7), Math.max(0.004, px * 0.8), 0.012, 0.025) + (hash2D(c, id, seed + 4) - 0.5) * 0.012;
     });
   },
 
-  marchetaria(ctx, _mat, area, seed, px) {
-    const A = areaDaCor(area), T = 0.24, faixa = 2.6, hf = 0.3;
+  marchetaria(ctx, _mat, area, seed, px, dir) {
+    const A = areaDaAltura(area, dir), T = 0.24, faixa = 2.6, hf = 0.3;
     alturaPorPixel(ctx, A, (x, y) => {
       const fy = ((y % faixa) + faixa) % faixa;
       if (fy < hf) return plato(Math.min(fy, hf - fy), Math.max(0.01, px * 0.8), 0.01, 0.02);
@@ -1119,8 +1144,8 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
     });
   },
 
-  'lajes-grandes'(ctx, mat, area, seed, px) {
-    const A = areaDaCor(area), rn = valueNoise2D(seed * 41 + 3), RH = mat.lado ?? 0.9, gw = 0.028;
+  'lajes-grandes'(ctx, mat, area, seed, px, dir) {
+    const A = areaDaAltura(area, dir), rn = valueNoise2D(seed * 41 + 3), RH = mat.lado ?? 0.9, gw = 0.028;
     const largura = (i: number, j: number) => 0.9 * RH / 0.9 + hash2D(i, j, seed + 2) * 0.9 * RH / 0.9;
     alturaPorPixel(ctx, A, (x, y) => {
       const j = Math.floor(y / RH), off = hash2D(j, 1, seed + 5) * 1.3, bloco = 8;
@@ -1135,8 +1160,8 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
     });
   },
 
-  'lajes-rusticas'(ctx, mat, area, seed, px) {
-    const A = areaDaCor(area), rn = valueNoise2D(seed * 47 + 1), L = mat.lado ?? 0.75, V = celulasDeVoronoi(A, L, seed * 17 + 2), q = novaConsulta(), w = mat.uso === 'terreno' ? 0.055 : 0.035;
+  'lajes-rusticas'(ctx, mat, area, seed, px, dir) {
+    const A = areaDaAltura(area, dir), rn = valueNoise2D(seed * 47 + 1), L = mat.lado ?? 0.75, V = celulasDeVoronoi(A, L, seed * 17 + 2), q = novaConsulta(), w = mat.uso === 'terreno' ? 0.055 : 0.035;
     alturaPorPixel(ctx, A, (x, y) => {
       const xx = x + (fbm(rn, x * 2.5, y * 2.5, 2) - 0.5) * 0.12, yy = y + (fbm(rn, x * 2.5 + 19, y * 2.5 + 7, 2) - 0.5) * 0.12;
       V.consultar(xx, yy, q);
@@ -1145,8 +1170,8 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
     });
   },
 
-  rachado(ctx, _mat, area, seed, px) {
-    const A = areaDaCor(area), rn = valueNoise2D(seed * 31 + 5), V1 = celulasDeVoronoi(A, 0.9, seed * 13 + 1), V2 = celulasDeVoronoi(A, 1.9, seed * 13 + 2), q1 = novaConsulta(), q2 = novaConsulta();
+  rachado(ctx, _mat, area, seed, px, dir) {
+    const A = areaDaAltura(area, dir), rn = valueNoise2D(seed * 31 + 5), V1 = celulasDeVoronoi(A, 0.9, seed * 13 + 1), V2 = celulasDeVoronoi(A, 1.9, seed * 13 + 2), q1 = novaConsulta(), q2 = novaConsulta();
     alturaPorPixel(ctx, A, (x, y) => {
       const xx = x + (fbm(rn, x * 2.4, y * 2.4, 2) - 0.5) * 0.17, yy = y + (fbm(rn, x * 2.4 + 37, y * 2.4 + 11, 2) - 0.5) * 0.17;
       V1.consultar(xx, yy, q1);
@@ -1156,8 +1181,8 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
     });
   },
 
-  paralelepipedo(ctx, _mat, area, seed, px) {
-    const A = areaDaCor(area), rn = valueNoise2D(seed * 29 + 3), V = celulasDeVoronoi(A, 0.25, seed * 13 + 4), q = novaConsulta();
+  paralelepipedo(ctx, _mat, area, seed, px, dir) {
+    const A = areaDaAltura(area, dir), rn = valueNoise2D(seed * 29 + 3), V = celulasDeVoronoi(A, 0.25, seed * 13 + 4), q = novaConsulta();
     alturaPorPixel(ctx, A, (x, y) => {
       const xx = x + (fbm(rn, x * 6, y * 6, 2) - 0.5) * 0.035, yy = y + (fbm(rn, x * 6 + 31, y * 6 + 7, 2) - 0.5) * 0.035;
       V.consultar(xx, yy, q);
@@ -1167,8 +1192,8 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
     });
   },
 
-  lajegrama(ctx, _mat, area, seed, px) {
-    const A = areaDaCor(area), RH = 1.25, LW = 1.7, gw = 0.06;
+  lajegrama(ctx, _mat, area, seed, px, dir) {
+    const A = areaDaAltura(area, dir), RH = 1.25, LW = 1.7, gw = 0.06;
     alturaPorPixel(ctx, A, (x, y) => {
       const j = Math.floor(y / RH), off = hash2D(j, 0, seed + 5) * LW, jit = (i: number) => (hash2D(i, j, seed + 9) - 0.5) * 0.4;
       let i = Math.floor((x - off) / LW), e0 = i * LW + off + jit(i), e1 = (i + 1) * LW + off + jit(i + 1);
@@ -1179,8 +1204,8 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
     });
   },
 
-  placas(ctx, mat, area, _seed, px) {
-    const A = areaDaCor(area), L = mat.lado ?? 2;
+  placas(ctx, mat, area, _seed, px, dir) {
+    const A = areaDaAltura(area, dir), L = mat.lado ?? 2;
     alturaPorPixel(ctx, A, (x, y) => { const lx = x - Math.floor(x / L) * L, ly = y - Math.floor(y / L) * L; return plato(Math.min(lx, L - lx, ly, L - ly), Math.max(0.012, px * 0.8), 0.02, 0.03); });
   },
 };
