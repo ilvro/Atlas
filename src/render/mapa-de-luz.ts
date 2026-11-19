@@ -62,14 +62,18 @@ export function decodificarLuz(v: number, escala: number): number {
 }
 
 export interface MapaDeLuz {
-  /** A luz já composta (em metros): no Pixel multiplica a cena; no Ilustrado é amostrada pelo filtro de composição. */
+  /** No Pixel, a luz já composta com ambiente (multiplica a cena); no Ilustrado, apenas a luz direta HDR desfocada. */
   readonly sprite: Sprite;
   /** Mapa de direção dominante da luz (Ilustrado): `R/G` deslocados por `0.5 * B`, `B` = soma das intensidades. */
   readonly direcao: Texture;
+  /** Máscara de interiores cobertos por telhado (Ilustrado): `R = 1` dentro de cômodos cobertos, `0` fora. */
+  readonly mascaraInterior: Texture;
   /** Fator de escala para decodificar a textura da luz (`1` em float ou no Pixel; `ESCALA_HDR` em 8 bits). */
   readonly escala: number;
-  /** Cor efetiva do ambiente (já multiplicada por efeitos e clarão de relâmpago), em escala linear. */
+  /** Cor efetiva do ambiente externo (já multiplicada por efeitos e clarão de relâmpago), em escala linear. */
   readonly ambiente: readonly [number, number, number];
+  /** Cor efetiva do ambiente interno (cômodos cobertos por telhado), em escala linear. */
+  readonly ambienteInterior: readonly [number, number, number];
   /** Alcance médio (m) das luzes ativas ponderado pela intensidade (padrão `6`). */
   readonly alcance: number;
   sincronizar(m: MapaAtlas, mudancas: Mudancas | null): void;
@@ -317,10 +321,10 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
 
   const luzes = new Map<string, LuzNaGPU>(), ruido = valueNoise2D(7);
   let brutaRT: RenderTexture | null = null, desfoqueRT: RenderTexture | null = null, finalRT: RenderTexture | null = null, faixasRT: RenderTexture | null = null;
-  let brutaDirRT: RenderTexture | null = null, direcaoRT: RenderTexture | null = null;
+  let brutaDirRT: RenderTexture | null = null, direcaoRT: RenderTexture | null = null, interiorRT: RenderTexture | null = null;
   let largura = 0, altura = 0, resAtual = 0, pixel = false, pxPorMetro = 0, escalaAtiva = 1, ehFloatAtivo = false;
   let oclusao: ContextoDeOclusao | null = null, derivadas: Luz[] = [], ambiente: [number, number, number] = [1, 1, 1];
-  let sujo = true, ligado = true, destruido = false, contador = 0, interiorPronto = false;
+  let sujo = true, ligado = true, destruido = false, contador = 0, interiorPronto = false, interiorSujo = true;
   // O estado do momento (clima): o mapa atual, se é noite, a queda de energia, o relâmpago e os trovões a caminho.
   let mapa: MapaAtlas | null = null, noite = false, redeAnterior: boolean | null = null, queda = 0, volta = 0;
   let efLuzes = 1, efAmbiente = 1, flash = 0, forcaDoRaio = 0, proximoRaio = Infinity, ultimoQuadro = -1, claraoAtual = 0;
@@ -355,7 +359,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     const escalaAntes = escalaAtiva;
     escalaAtiva = pixel ? 1 : escalaHDR;
     ehFloatAtivo = !pixel && formato === 'rgba16float';
-    const antigas = [brutaRT, desfoqueRT, finalRT, faixasRT, brutaDirRT, direcaoRT];
+    const antigas = [brutaRT, desfoqueRT, finalRT, faixasRT, brutaDirRT, direcaoRT, interiorRT];
     if (pixel) {
       brutaRT = RenderTexture.create({ width: pw, height: ph, scaleMode: 'nearest' });
       desfoqueRT = null;
@@ -363,6 +367,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       faixasRT = RenderTexture.create({ width: pw, height: ph, scaleMode: 'nearest' });
       brutaDirRT = null;
       direcaoRT = null;
+      interiorRT = null;
       brutaS.texture = brutaRT; faixasS.texture = finalRT;
       sprite.texture = faixasRT; sprite.renderable = true; sprite.visible = ligado;
     } else {
@@ -371,6 +376,8 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       finalRT = RenderTexture.create({ width: pw, height: ph, scaleMode: 'linear', format: formato });
       brutaDirRT = RenderTexture.create({ width: pw, height: ph, scaleMode: 'linear', format: formato });
       direcaoRT = RenderTexture.create({ width: pw, height: ph, scaleMode: 'linear', format: formato });
+      interiorRT = RenderTexture.create({ width: pw, height: ph, scaleMode: 'linear' });
+      interiorSujo = true;
       faixasRT = null;
       const dirSource = texturaDeDirecao(ehFloatAtivo).source;
       for (const g of luzes.values()) g.shaderDir.resources.uTexture = dirSource;
@@ -478,6 +485,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     }
     if (tem) interior.fill(0xffffff);
     interiorPronto = true;
+    interiorSujo = true;
   }
 
   function renderizar(): void {
@@ -495,21 +503,15 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       renderer.render({ container: composicao, target: finalRT, clear: false });
       if (faixasRT) renderer.render({ container: passadaFaixas, target: faixasRT, clear: true, clearColor: [0, 0, 0, 1] });
     } else if (desfoqueRT) {
-      const amb: [number, number, number, number] = [
-        codificarLuz(ambiente[0] * efAmbiente + brilho, escalaAtiva),
-        codificarLuz(ambiente[1] * efAmbiente + brilho, escalaAtiva),
-        codificarLuz(ambiente[2] * efAmbiente + brilho, escalaAtiva),
-        1,
-      ];
-      const intR = Math.min(1, codificarLuz(ambiente[0] * efAmbiente * fatorInterior + brilho * 0.3, escalaAtiva));
-      const intG = Math.min(1, codificarLuz(ambiente[1] * efAmbiente * fatorInterior + brilho * 0.3, escalaAtiva));
-      const intB = Math.min(1, codificarLuz(ambiente[2] * efAmbiente * fatorInterior + brilho * 0.3, escalaAtiva));
-      interior.tint = (Math.round(intR * 255) << 16) | (Math.round(intG * 255) << 8) | Math.round(intB * 255);
+      if (interiorSujo && interiorRT) {
+        interior.tint = 0xffffff;
+        renderer.render({ container: interior, target: interiorRT, clear: true, clearColor: [0, 0, 0, 1] });
+        interiorSujo = false;
+      }
       blurHShader.resources.uTexture = brutaRT.source;
       blurVShader.resources.uTexture = desfoqueRT.source;
       renderer.render({ container: blurH, target: desfoqueRT, clear: true, clearColor: [0, 0, 0, 0] });
-      renderer.render({ container: interior, target: finalRT, clear: true, clearColor: amb });
-      renderer.render({ container: passadaV, target: finalRT, clear: false });
+      renderer.render({ container: passadaV, target: finalRT, clear: true, clearColor: [0, 0, 0, 0] });
       if (brutaDirRT && direcaoRT) {
         renderer.render({ container: raizDirecao, target: brutaDirRT, clear: true, clearColor: [0, 0, 0, 0] });
         blurHShader.resources.uTexture = brutaDirRT.source;
@@ -522,10 +524,12 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
   }
 
   const ambienteEfetivo: [number, number, number] = [1, 1, 1];
+  const ambienteInteriorEfetivo: [number, number, number] = [1, 1, 1];
 
   return {
     sprite,
     get direcao() { return !pixel && direcaoRT ? direcaoRT : Texture.EMPTY; },
+    get mascaraInterior() { return !pixel && interiorRT ? interiorRT : Texture.EMPTY; },
     get escala() { return escalaAtiva; },
     get ambiente(): readonly [number, number, number] {
       const brilho = claraoAtual * 0.35;
@@ -533,6 +537,14 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       ambienteEfetivo[1] = ambiente[1] * efAmbiente + brilho;
       ambienteEfetivo[2] = ambiente[2] * efAmbiente + brilho;
       return ambienteEfetivo;
+    },
+    get ambienteInterior(): readonly [number, number, number] {
+      const brilho = claraoAtual * 0.35;
+      const fatorInterior = mapa?.climate.interiorLight ?? FATOR_DO_INTERIOR;
+      ambienteInteriorEfetivo[0] = ambiente[0] * efAmbiente * fatorInterior + brilho * 0.3;
+      ambienteInteriorEfetivo[1] = ambiente[1] * efAmbiente * fatorInterior + brilho * 0.3;
+      ambienteInteriorEfetivo[2] = ambiente[2] * efAmbiente * fatorInterior + brilho * 0.3;
+      return ambienteInteriorEfetivo;
     },
     get alcance() {
       let somaPeso = 0, somaRaio = 0;
@@ -635,7 +647,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       blurH.destroy(); passadaV.destroy({ children: true }); blurHShader.destroy(false); blurVShader.destroy(false);
       quadLuz.destroy(true); quadTela.destroy(true); progLuz.destroy(); progDirecao.destroy(); progBlur.destroy();
       brutaRT?.destroy(true); desfoqueRT?.destroy(true); finalRT?.destroy(true); faixasRT?.destroy(true);
-      brutaDirRT?.destroy(true); direcaoRT?.destroy(true);
+      brutaDirRT?.destroy(true); direcaoRT?.destroy(true); interiorRT?.destroy(true);
       passadaFaixas.destroy({ children: false }); faixasS.destroy(); interior.destroy(); sprite.destroy(); composicao.destroy({ children: false }); raiz.destroy({ children: true }); raizDirecao.destroy({ children: true });
     },
   };
