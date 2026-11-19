@@ -40,16 +40,6 @@
     "miniatura": "porto-noturno.webp"
   },
   {
-    "id": "entreposto-do-rio",
-    "nome": "Entreposto do rio",
-    "descricao": "Estrada barrenta com carroça e cavalos, armazém portuário com depósito e escritório, deque de madeira e píer com barcaça sobre águas rasas.",
-    "tamanho": [
-      58,
-      36
-    ],
-    "miniatura": "entreposto-do-rio.webp"
-  },
-  {
     "id": "covil-na-caverna",
     "nome": "Covil na caverna",
     "descricao": "Garganta subterrânea cercada de rocha viva, rastro de sangue seco sob um feixe de luz fria, ossadas e ninho de peles no escuro.",
@@ -80,26 +70,6 @@
     "miniatura": "jardim-do-colosso.webp"
   },
   {
-    "id": "praca-da-fonte",
-    "nome": "Praça da fonte",
-    "descricao": "Largo de vila calçado em roseta com fonte octogonal, casas com sacada, jardim murado no alto, passarela de tábuas e quintal enlameado ao sol da manhã.",
-    "tamanho": [
-      48,
-      27
-    ],
-    "miniatura": "praca-da-fonte.webp"
-  },
-  {
-    "id": "aldeia-ao-entardecer",
-    "nome": "Aldeia ao entardecer",
-    "descricao": "Choupanas de palha em volta de um terreiro de capim, trilhas de terra que se cruzam, poço, carroça, lenha e cercas sob a luz rasante do fim do dia.",
-    "tamanho": [
-      48,
-      27
-    ],
-    "miniatura": "aldeia-ao-entardecer.webp"
-  },
-  {
     "id": "santuario-da-luz",
     "nome": "Santuário da luz",
     "descricao": "Salão subterrâneo de lajes escuras: estrado do relicário com um fosso de luz fria, quatro braseiros sobre círculos rúnicos, escadaria entre muralhas a leste e andaimes de obra a oeste.",
@@ -108,16 +78,6 @@
       27
     ],
     "miniatura": "santuario-da-luz.webp"
-  },
-  {
-    "id": "praca-saqueada",
-    "nome": "Praça saqueada",
-    "descricao": "Largo calçado com fonte em estrela depois do saque: casa ainda em chamas, telhado de telhas desabado, entulho, carroça tombada, armas caídas e manchas de sangue.",
-    "tamanho": [
-      48,
-      27
-    ],
-    "miniatura": "praca-saqueada.webp"
   },
   {
     "id": "sala-da-guarda",
@@ -138,35 +98,5 @@
       30
     ],
     "miniatura": "pantano-das-brumas.webp"
-  },
-  {
-    "id": "cemiterio-da-colina",
-    "nome": "Cemitério da colina",
-    "descricao": "Topo de colina cercado de escuro: capela de pedra com telhado de telha, jazigo, lápides tortas, sarcófagos que brilham, anjos, árvores mortas, muro de pedra e o portão da roseira.",
-    "tamanho": [
-      48,
-      27
-    ],
-    "miniatura": "cemiterio-da-colina.webp"
-  },
-  {
-    "id": "mansao-da-ilha",
-    "nome": "Mansão da ilha",
-    "descricao": "Casarão vitoriano em dois andares: hall de pé-direito duplo com escadaria nobre, salão da lareira com piano, biblioteca, sala de jogos, sala de jantar posta e, em cima, galeria, suíte e quartos.",
-    "tamanho": [
-      33,
-      34.5
-    ],
-    "miniatura": "mansao-da-ilha.webp"
-  },
-  {
-    "id": "clareira",
-    "nome": "Clareira",
-    "descricao": "Uma clareira com trilha de terra, seis árvores e uma fogueira.",
-    "tamanho": [
-      30,
-      20
-    ],
-    "miniatura": "clareira.webp"
   }
 ]

@@ -1,6 +1,6 @@
 /**
  * Mede o tempo de carregamento de mapas de exemplo (editor aberto, viewport pronto e custo de cada tipo de assado).
- *   npm run medir:carga -- entreposto-do-rio mansao-da-ilha
+ *   npm run medir:carga -- porto-noturno gruta-dos-contrabandistas
  */
 import { abrir, encerrar, esperarEditor, iniciarAmbiente, novoContexto } from '../../tests/e2e/apoio.ts';
 
@@ -137,7 +137,7 @@ function imprimirResultado(r: ResultadoExemplo): void {
 }
 
 const args = process.argv.slice(2);
-const exemplos = args.length > 0 ? args : ['entreposto-do-rio', 'mansao-da-ilha'];
+const exemplos = args.length > 0 ? args : ['porto-noturno', 'gruta-dos-contrabandistas'];
 
 const amb = await iniciarAmbiente();
 try {
