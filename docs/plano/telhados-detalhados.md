@@ -66,7 +66,7 @@ Pronto quando: `npm run typecheck` e `npm test` passam e os exemplos abrem.
 Nota: `src/app/ponte-escrita.ts` espalhava `[...FORMAS_DE_TELHADO]` em `atlas_comodos`; para não estourar o catálogo base nem o orçamento de 30 KB antes da N9, `telhadoForma` ficou temporariamente restrito às 5 formas anteriores (com comentário para voltar para `[...FORMAS_DE_TELHADO]` na N9).
 Commit: `roofs can describe wear, new shapes and facades`
 
-### N2 — Campo de altura do telhado  ⬜
+### N2 — Campo de altura do telhado  ✅
 Objetivo: uma função pura diz, para cada ponto de um edifício, a altura do telhado, a inclinação, a direção das fiadas e se o ponto está num rincão, numa cumeeira ou num espigão.
 Depende de: N1.
 Ler: `src/domain/telhado-geometria.ts` inteiro (`retangulosDe`, `aguasDe`, `aguasDoTrecho`, o caso de contorno e o cone), `src/domain/geometria.ts`.
@@ -88,6 +88,7 @@ Como:
 Não fazer: raster; cores.
 Testes: 4 × 2 em quatro águas: altura máxima no centro, gradiente apontando para fora em cada água, espigões nas diagonais; L de duas duas-águas: existe rincão na diagonal interna; puxado de 2 m ao lado de corpo de 6 m: o puxado fica mais baixo e não cobre a cumeeira do corpo; cúpula: `h` máximo no centro e simétrico; `u`/`v` contínuos dentro de uma água.
 Pronto quando: `npm test` passa.
+Nota: `(gx, gy) = (∂h/∂x, ∂h/∂y)` aponta no sentido da subida (para dentro), de modo que a normal da água para N4/N6 é `normalize(-gx, -gy, 1)` (com `(-gx, -gy)` apontando para fora/queda, igual a `composicao-de-luz.ts`). `v` cresce a partir de `0` no beiral da água vencedora e `u` corre em metros ao longo da aresta mais próxima (arco em metros nas formas radiais e perímetro acumulado no contorno livre). Exporta `campoDoEdificio`, `campoDosTrechos` (para o worker do N4), `ALTURA_BASE_TELHADO`, `BEIRAL_PADRAO`, `CampoDoTelhado` (`caixa: { x0, y0, x1, y1, w, h }`, `trechos`, `beiral`, `alturaMaxima`, `amostrar`), `AmostraDoTelhado` (alias `Amostra`, com `indiceTrecho` e `folgaRincao` para AO de rincão no N4) e `PecaDoTelhado`. Em encontros em L/T/puxado, alas perpendiculares mais estreitas (ou iguais) estendem a borda interna até a linha média do corpo para formar rincões contínuos até a cumeeira sem degrau.
 Commit: `added a height field for roof shapes with valleys and hips`
 
 ### N3 — Coberturas com relevo e peças  ✅
