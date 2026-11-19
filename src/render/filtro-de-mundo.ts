@@ -1,5 +1,5 @@
 import { Filter, GlProgram, Matrix, UniformGroup } from 'pixi.js';
-import type { FilterSystem, RenderSurface, Sprite, Texture } from 'pixi.js';
+import type { FilterSystem, RenderSurface, Sprite, Texture, TextureSource } from 'pixi.js';
 
 /**
  * Filtro de véu de mundo: o ruído da neblina e das bordas tem de estar preso ao terreno, não à tela. O Pixi recorta a área do filtro à parte
@@ -32,7 +32,7 @@ export const FRAGMENTO_DE_MUNDO_DECL = 'in vec2 vMundoUv;';
 
 class FiltroDeMundo extends Filter {
   private readonly _sprite: Sprite;
-  constructor(sprite: Sprite, programa: GlProgram, recursos: Record<string, UniformGroup>) {
+  constructor(sprite: Sprite, programa: GlProgram, recursos: Record<string, UniformGroup | TextureSource>) {
     const grupo = new UniformGroup({ uFiltroDeMundo: { value: new Matrix(), type: 'mat3x3<f32>' } });
     super({ glProgram: programa, resources: { ...recursos, filtroDeMundo: grupo } });
     this._sprite = sprite;
@@ -47,7 +47,7 @@ class FiltroDeMundo extends Filter {
 }
 
 /** Cria o filtro de mundo para `sprite` (o véu do tamanho do mapa), com o fragmento e os demais grupos de uniformes dados. */
-export function criarFiltroDeMundo(sprite: Sprite, opcoes: { vertex?: string; fragment: string; nome: string; recursos: Record<string, UniformGroup> }): Filter {
+export function criarFiltroDeMundo(sprite: Sprite, opcoes: { vertex?: string; fragment: string; nome: string; recursos: Record<string, UniformGroup | TextureSource> }): Filter {
   const programa = GlProgram.from({ vertex: opcoes.vertex ?? VERTEX_DE_MUNDO, fragment: opcoes.fragment, preferredFragmentPrecision: 'highp', name: opcoes.nome });
   return new FiltroDeMundo(sprite, programa, opcoes.recursos);
 }
