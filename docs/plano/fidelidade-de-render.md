@@ -62,7 +62,7 @@ Tudo isso fica **só no estilo Ilustrado**. O Pixel continua com o caminho atual
 | [L8](#l8--curva-de-tom-e-tonalização-dividida) | Gemini | ACES aproximado e `finish.split` (sombras/luzes) no acabamento | L5 | ✅ |
 | [L9](#l9--paredes-com-topo-e-face-interna) | Gemini + Opus | Parede com topo e face interna visível, material por cômodo, objetos de parede na face | — | ✅ |
 | [L10](#l10--materiais-com-altura-e-variação-por-peça) | **Opus** | Pintores de altura e variação peça a peça nos padrões de piso principais; resolução do terreno | L4 | ✅ |
-| [L11](#l11--estruturas-com-altura-fogo-e-o-santuário) | **Opus** | Família `estrutura.*` (estrado, escadaria, muralha, plataforma), fogo novo e o santuário refeito | L5–L10 | ⬜ |
+| [L11](#l11--estruturas-com-altura-fogo-e-o-santuário) | **Opus** | Família `estrutura.*` (estrado, escadaria, muralha, plataforma), fogo novo e o santuário refeito | L5–L10 | ✅ |
 | [L12](#l12--exemplos-revistos-e-guia) | **Opus** | Sala da guarda, mansão e jardim revistos; guia do assistente atualizado | L11 | ⬜ |
 
 As fichas L1–L4 e L9 podem andar em paralelo (L1 → L2 numa sessão; L3 → L4 em outra; L9 em outra).
@@ -367,7 +367,7 @@ vec3 cor = base * (ambiente + (luz - uAmbiente) * mix(1.0, realce, uRelevo));
 
 ---
 
-## L11 — Estruturas com altura, fogo e o santuário  ⬜  [Opus]
+## L11 — Estruturas com altura, fogo e o santuário  ✅  [Opus]
 
 **Objetivo:** escadas, estrados e muralhas deixam de ser desenhos soltos; o santuário é refeito como teste da frente.
 
@@ -378,6 +378,8 @@ vec3 cor = base * (ambiente + (luz - uAmbiente) * mix(1.0, realce, uRelevo));
 - Braseiro e tocha refeitos para o bloom: núcleo emissivo, brasa, fumaça leve; o círculo rúnico com brilho fraco.
 - Santuário refeito em `scripts/exemplos/santuario-da-luz.ts` sobre `docs/referencias/exemplos/santuario-da-luz.png`, com preset de acabamento `masmorra`. Comparação em `test-results/` gerada por `npm run exemplos -- --so santuario-da-luz`.
 - Antes de cada rodada de ajuste, comparar com a referência e dizer com franqueza se o que falta é do mapa ou do motor.
+
+**Nota:** `src/procedural/receitas/estrutura.ts` com `estrutura.escadaria` (sobe ou desce; descendo, `z` negativo até −1,8 m, cada degrau mais escuro e as laterais como parede do poço), `estrutura.estrado` (patamares recuados em lajes), `estrutura.muralha` (blocos grandes, topo até 1,9 m, face escura e sombra de contato no pé) e `estrutura.plataforma` (tábuas sobre vigas, postes, corrimão opcional); todas recebem o material do piso. O braseiro já tinha núcleo emissivo e passou a funcionar com o bloom sem mudança; o `circulo-runico` ganhou `brilho` (sulcos com cópia emissiva fraca, sem novo sorteio). Santuário refeito em `scripts/exemplos/santuario-da-luz.ts` com preset `masmorra`. No caminho, quatro ajustes de motor, cada um no próprio commit: alturas de objeto absolutas em volta do piso (aceitam `z` negativo), o teto do mapa de altura pela altura declarada da receita (entalhes com `z` de ordenação viravam cristas), o Sobel com passo mínimo de 3 cm e força 1,2 (no mapa de 8 bits, um nível virava rampa e desenhava curvas de nível no zoom alto) e a luz direta que some nas superfícies mais altas que a própria luz (topo de muralha no escuro). O que ainda separa do original é do render 3D (bruma volumétrica, luz rebatida, modelos detalhados), não do mapa.
 
 ---
 

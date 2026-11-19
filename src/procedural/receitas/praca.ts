@@ -234,7 +234,7 @@ export function escadaDeAlvenaria(w: number, l: number, seed: number, muretas = 
 }
 
 /** Fiadas de blocos de alvenaria num retângulo (centro `cx`, `cy`), com juntas desencontradas, bisel e tom por bloco. */
-function alvenaria(partes: Parte[], r: () => number, cx: number, cy: number, w: number, h: number, cor: string, z: number, fiada = 0.45): void {
+export function alvenaria(partes: Parte[], r: () => number, cx: number, cy: number, w: number, h: number, cor: string, z: number, fiada = 0.45): void {
   const linhas = Math.max(1, Math.round(h / fiada)), alt = h / linhas;
   partes.push(ret(cx, cy, w, h, tom(cor, -0.62), z - 0.01, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
   for (let j = 0; j < linhas; j++) {
@@ -243,8 +243,11 @@ function alvenaria(partes: Parte[], r: () => number, cx: number, cy: number, w: 
       const x0 = Math.max(-w / 2, x), larg = Math.min(w / 2, x + 0.55 + r() * 0.6) - x0, c = tom(cor, (r() - 0.5) * 0.2);
       if (larg > 0.06) {
         partes.push(ret(cx + x0 + larg / 2, y, larg - 0.035, alt - 0.035, c, z, { raio: 0.02, contorno: false, semSombra: true, detalhe: 2 }));
-        partes.push(ret(cx + x0 + larg / 2 - 0.02, y - alt * 0.28, larg - 0.09, alt * 0.16, tom(c, 0.2), z + 0.004, { contorno: false, semSombra: true, alfa: 0.7, detalhe: 3 }));
-        partes.push(ret(cx + x0 + larg / 2 + 0.02, y + alt * 0.33, larg - 0.07, alt * 0.12, tom(c, -0.35), z + 0.004, { contorno: false, semSombra: true, alfa: 0.7, detalhe: 3 }));
+        // Luz em cima e sombra embaixo do bloco; num bloco estreito demais as faixas ficariam sem área.
+        if (larg > 0.12) {
+          partes.push(ret(cx + x0 + larg / 2 - 0.02, y - alt * 0.28, larg - 0.09, alt * 0.16, tom(c, 0.2), z + 0.004, { contorno: false, semSombra: true, alfa: 0.7, detalhe: 3 }));
+          partes.push(ret(cx + x0 + larg / 2 + 0.02, y + alt * 0.33, larg - 0.07, alt * 0.12, tom(c, -0.35), z + 0.004, { contorno: false, semSombra: true, alfa: 0.7, detalhe: 3 }));
+        }
       }
       x = x0 + larg;
     }
