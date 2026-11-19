@@ -311,6 +311,9 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
   const blurH = new Mesh({ geometry: quadTela, shader: blurHShader });
   const blurV = new Mesh({ geometry: quadTela, shader: blurVShader });
   blurV.blendMode = 'add';
+  // O Pixi ignora o `blendMode` do container raiz de `renderer.render` (a raiz desenha em `normal`): sem este pai, o alfa
+  // acumulado das luzes apagava o ambiente embaixo e uma luz fraca (lua pela janela, lamparina) escurecia em vez de somar.
+  const passadaV = new Container(); passadaV.addChild(blurV);
 
   const luzes = new Map<string, LuzNaGPU>(), ruido = valueNoise2D(7);
   let brutaRT: RenderTexture | null = null, desfoqueRT: RenderTexture | null = null, finalRT: RenderTexture | null = null, faixasRT: RenderTexture | null = null;
@@ -506,13 +509,13 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       blurVShader.resources.uTexture = desfoqueRT.source;
       renderer.render({ container: blurH, target: desfoqueRT, clear: true, clearColor: [0, 0, 0, 0] });
       renderer.render({ container: interior, target: finalRT, clear: true, clearColor: amb });
-      renderer.render({ container: blurV, target: finalRT, clear: false });
+      renderer.render({ container: passadaV, target: finalRT, clear: false });
       if (brutaDirRT && direcaoRT) {
         renderer.render({ container: raizDirecao, target: brutaDirRT, clear: true, clearColor: [0, 0, 0, 0] });
         blurHShader.resources.uTexture = brutaDirRT.source;
         renderer.render({ container: blurH, target: desfoqueRT, clear: true, clearColor: [0, 0, 0, 0] });
         blurVShader.resources.uTexture = desfoqueRT.source;
-        renderer.render({ container: blurV, target: direcaoRT, clear: true, clearColor: [0, 0, 0, 0] });
+        renderer.render({ container: passadaV, target: direcaoRT, clear: true, clearColor: [0, 0, 0, 0] });
       }
     }
     sujo = false;
@@ -629,7 +632,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
         g.shaderDir.destroy(false); g.cDir.destroy({ children: true });
       }
       luzes.clear();
-      blurH.destroy(); blurV.destroy(); blurHShader.destroy(false); blurVShader.destroy(false);
+      blurH.destroy(); passadaV.destroy({ children: true }); blurHShader.destroy(false); blurVShader.destroy(false);
       quadLuz.destroy(true); quadTela.destroy(true); progLuz.destroy(); progDirecao.destroy(); progBlur.destroy();
       brutaRT?.destroy(true); desfoqueRT?.destroy(true); finalRT?.destroy(true); faixasRT?.destroy(true);
       brutaDirRT?.destroy(true); direcaoRT?.destroy(true);
