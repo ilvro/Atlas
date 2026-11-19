@@ -1,4 +1,5 @@
-import { BlurFilter, Container, Graphics } from 'pixi.js';
+import { BlurFilter, Container, Graphics, type Renderer } from 'pixi.js';
+import { criarCamadaEmTextura } from './camada-em-textura.ts';
 import {
   comodoEm,
   comprimentoDaParede,
@@ -14,6 +15,8 @@ const DESLOCAMENTO_FORA = 0.2;
 const AMOSTRA_LADO = 0.4;
 const ALFA_BASE = 0.28;
 const ALFA_COM_SOL = 0.15;
+/** Resolução (px/m) da textura do contato no Ilustrado. */
+const RES_DO_CONTATO = 16;
 
 /** Segmento de sombra de contato em coordenadas do mundo, já deslocado para o lado livre. */
 export interface TracoDeContato {
@@ -104,11 +107,13 @@ export function tracosDeContatoExterno(m: Pick<MapaAtlas, 'rooms' | 'walls' | 'o
 }
 
 /** Cria o módulo de renderização da sombra de contato externa das paredes derivadas de cômodos. */
-export function criarContatoExterno() {
+export function criarContatoExterno(renderer: Renderer) {
+  // O traço desfocado vai para uma textura própria em metros (ver `camada-em-textura.ts`); a cena recebe só o sprite.
   const raiz = new Container();
   const g = new Graphics();
+  const camada = criarCamadaEmTextura(renderer);
   const desfoque = new BlurFilter({ strength: 4, quality: 2 });
-  raiz.addChild(g);
+  raiz.addChild(camada.sprite);
   let atmosferaLigada = true;
   let ultimoMapa: MapaAtlas | null = null;
 
@@ -116,13 +121,15 @@ export function criarContatoExterno() {
     ultimoMapa = m;
     g.clear();
     const tracos = tracosDeContatoExterno(m);
-    if (!tracos.length) { g.filters = []; return; }
+    if (!tracos.length) { g.filters = []; camada.sprite.visible = false; return; }
+    camada.sprite.visible = true;
     for (const t of tracos) g.moveTo(t.de[0], t.de[1]).lineTo(t.para[0], t.para[1]);
     const pixelRes = m.style.renderer === 'pixel' ? m.style.pixel.pixelsPerCell / m.grid.size : 0;
     const largura = pixelRes > 0 ? Math.max(0.05, 2 / pixelRes) : LARGURA_CONTATO;
     g.stroke({ width: largura, color: 0x000000, alpha: 1, cap: 'butt' });
     g.filters = pixelRes > 0 ? [] : [desfoque];
-    g.alpha = atmosferaLigada && m.climate.sun !== null ? ALFA_COM_SOL : ALFA_BASE;
+    camada.sprite.alpha = atmosferaLigada && m.climate.sun !== null ? ALFA_COM_SOL : ALFA_BASE;
+    camada.renderizar(g, m.bounds.width, m.bounds.height, pixelRes > 0 ? pixelRes : RES_DO_CONTATO, { pixel: pixelRes > 0 });
   }
 
   return {
@@ -130,7 +137,7 @@ export function criarContatoExterno() {
     atualizar(m: MapaAtlas): void { desenhar(m); },
     definirLigado(ligado: boolean): void {
       atmosferaLigada = ligado;
-      if (ultimoMapa) g.alpha = atmosferaLigada && ultimoMapa.climate.sun !== null ? ALFA_COM_SOL : ALFA_BASE;
+      if (ultimoMapa) camada.sprite.alpha = atmosferaLigada && ultimoMapa.climate.sun !== null ? ALFA_COM_SOL : ALFA_BASE;
     },
   };
 }

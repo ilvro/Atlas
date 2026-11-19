@@ -1,4 +1,4 @@
-import { ColorMatrixFilter, Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { ColorMatrixFilter, Container, Graphics, Sprite, Texture, type Renderer } from 'pixi.js';
 import { decodificar } from '../domain/celulas.ts';
 import { camadaDoObjeto } from '../domain/camadas.ts';
 import { pontoNoPoligono } from '../domain/formas-de-comodo.ts';
@@ -9,6 +9,7 @@ import { ACERVO } from '../procedural/acervo.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import { distanciaAMargem } from '../procedural/profundidade.ts';
 import { fbm, hash2D, valueNoise2D } from '../procedural/ruido.ts';
+import { criarCamadaEmTextura } from './camada-em-textura.ts';
 import { resolucaoDe } from './entradas.ts';
 
 const LIMIAR_NEVE = 0.2;
@@ -180,9 +181,16 @@ function criarTexturaDePiso(
  * Efeitos do clima no chão ao ar livre (neve acumulada e pisos molhados pela chuva)
  * e chapéu de neve sobre móveis em áreas abertas. Só recalcula quando clima, cômodos ou objetos mudam.
  */
-export function criarTempoNoChao() {
+/** Resolução (px/m) da textura dos chapéus de neve. */
+const RES_DOS_CHAPEUS = 24;
+
+export function criarTempoNoChao(renderer: Renderer) {
   const chao = new Container();
-  const chapeus = Object.assign(new Container(), { sortableChildren: true });
+  // Os chapéus de neve usam filtro (silhueta branca): são desenhados numa textura própria em metros e a cena recebe só o sprite.
+  const chapeus = new Container();
+  const desenhoDosChapeus = Object.assign(new Container(), { sortableChildren: true });
+  const camadaDosChapeus = criarCamadaEmTextura(renderer);
+  chapeus.addChild(camadaDosChapeus.sprite);
   const chuvaEscuroG = new Graphics();
   const pisosC = new Container();
   chao.addChild(chuvaEscuroG, pisosC);
@@ -215,6 +223,7 @@ export function criarTempoNoChao() {
       ent.c.destroy({ children: true });
       caps.delete(id);
     }
+    camadaDosChapeus.sprite.visible = false;
   }
 
   function atualizarPisos(m: MapaAtlas): void {
@@ -297,12 +306,14 @@ export function criarTempoNoChao() {
       const mask = new Graphics().rect(-raio, -raio - 0.1, raio * 2, raio + 0.12).fill(0xffffff);
       rot.mask = mask;
       c.addChild(rot, mask);
-      chapeus.addChild(c);
+      desenhoDosChapeus.addChild(c);
       caps.set(id, { chave, c, rot, mask });
     }
     for (const [id, rec] of [...caps]) {
       if (!ativos.has(id)) { rec.c.destroy({ children: true }); caps.delete(id); }
     }
+    camadaDosChapeus.sprite.visible = caps.size > 0;
+    if (caps.size > 0) camadaDosChapeus.renderizar(desenhoDosChapeus, m.bounds.width, m.bounds.height, RES_DOS_CHAPEUS);
   }
 
   return {
@@ -320,6 +331,8 @@ export function criarTempoNoChao() {
     destruir(): void {
       limparPisos();
       limparChapeus();
+      camadaDosChapeus.destruir();
+      desenhoDosChapeus.destroy({ children: true });
     },
   };
 }
