@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DENSIDADE, TETO_DE_PARTICULAS, alfaDaNeblina, inclinacaoDaChuva, quantidade } from '../../src/render/particulas-config.ts';
+import { DENSIDADE, TETO_DE_PARTICULAS, alfaDaNeblina, coberturaDaNeblina, corDaNeblina, inclinacaoDaChuva, quantidade } from '../../src/render/particulas-config.ts';
 
 test('a quantidade cresce com a área e a intensidade, e tem teto', () => {
   assert.equal(quantidade(2, 100, 0), 0); assert.equal(quantidade(2, 0, 1), 0); assert.equal(quantidade(2, 100, -1), 0);
@@ -20,6 +20,10 @@ test('a chuva se inclina para o lado do vento, na razão de 0,4', () => {
 });
 
 test('a neblina vai de transparente até 55% de opacidade', () => {
-  assert.equal(alfaDaNeblina(0), 0); assert.equal(alfaDaNeblina(1), 0.55); assert.equal(alfaDaNeblina(2), 0.55); assert.equal(alfaDaNeblina(-1), 0);
-  assert.ok(Math.abs(alfaDaNeblina(0.5) - 0.275) < 1e-12);
+  assert.equal(alfaDaNeblina(0), 0); assert.equal(alfaDaNeblina(1), 0.88); assert.equal(alfaDaNeblina(2), 0.88); assert.equal(alfaDaNeblina(-1), 0);
+  assert.ok(alfaDaNeblina(0.3) > 0.55 && alfaDaNeblina(0.3) < alfaDaNeblina(0.6), 'pouca neblina já tem miolo visível');
+  assert.ok(coberturaDaNeblina(0.3) > coberturaDaNeblina(1), 'mais neblina cobre mais área');
+  const noite = corDaNeblina({ color: '#6f8496', intensity: 0.42 }), dia = corDaNeblina({ color: '#ffffff', intensity: 1 });
+  assert.ok(noite.every(v => v > 0.3 && v < 0.6), `à noite a névoa é um cinza médio (${noite.map(v => v.toFixed(2))})`);
+  assert.ok(dia.every(v => v > 0.85), 'de dia é quase branca');
 });
