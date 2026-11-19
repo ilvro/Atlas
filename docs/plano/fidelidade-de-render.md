@@ -61,7 +61,7 @@ Tudo isso fica **só no estilo Ilustrado**. O Pixel continua com o caminho atual
 | [L7](#l7--bloom-e-fogo-emissivo) | Gemini | Bloom do que passa de 1; partes `brilho` marcam emissão | L5 | ✅ |
 | [L8](#l8--curva-de-tom-e-tonalização-dividida) | Gemini | ACES aproximado e `finish.split` (sombras/luzes) no acabamento | L5 | ✅ |
 | [L9](#l9--paredes-com-topo-e-face-interna) | Gemini + Opus | Parede com topo e face interna visível, material por cômodo, objetos de parede na face | — | 🟡 (1–4 ✅, falta 5 [Opus]) |
-| [L10](#l10--materiais-com-altura-e-variação-por-peça) | **Opus** | Pintores de altura e variação peça a peça nos padrões de piso principais; resolução do terreno | L4 | ⬜ |
+| [L10](#l10--materiais-com-altura-e-variação-por-peça) | **Opus** | Pintores de altura e variação peça a peça nos padrões de piso principais; resolução do terreno | L4 | ✅ |
 | [L11](#l11--estruturas-com-altura-fogo-e-o-santuário) | **Opus** | Família `estrutura.*` (estrado, escadaria, muralha, plataforma), fogo novo e o santuário refeito | L5–L10 | ⬜ |
 | [L12](#l12--exemplos-revistos-e-guia) | **Opus** | Sala da guarda, mansão e jardim revistos; guia do assistente atualizado | L11 | ⬜ |
 
@@ -351,7 +351,7 @@ vec3 cor = base * (ambiente + (luz - uAmbiente) * mix(1.0, realce, uRelevo));
 
 ---
 
-## L10 — Materiais com altura e variação por peça  ⬜  [Opus]
+## L10 — Materiais com altura e variação por peça  ✅  [Opus]
 
 **Objetivo:** os pisos principais têm altura própria (para a L5 e a L6) e variação de tom, desgaste e sujeira peça a peça.
 
@@ -360,6 +360,8 @@ vec3 cor = base * (ambiente + (luz - uAmbiente) * mix(1.0, realce, uRelevo));
 **Escopo:** pintores de altura e revisão de cor para `laje`, `lajes-grandes`, `lajes.escuras`, `tabuas`, `espinha`, `paralelepipedo`, `pedra`, `rachado`, `cascalho`, `terra`, `areia`, `lajes-rusticas` e as escadas de alvenaria. Cada peça (tábua, laje) ganha tom, desgaste de borda e sujeira de junta próprios; juntas ficam abaixo do miolo na altura, com bisel. Subir a resolução do terreno no Ilustrado de 24 para 40 px/m, medindo memória e tempo de assado no `desfiladeiro-nevado` (o maior); se passar de 1,5× no tempo, voltar a 32.
 
 **Pronto quando:** sob a L5, lajes e tábuas leem como peças com relevo, sem o ar de padrão repetido.
+
+**Nota:** `ALTURAS_DE_PADRAO` em `src/procedural/materiais.ts` (ligado a `PINTORES_DE_ALTURA`) dá altura própria, com a geometria do desenho de cor, a `tabuas`, `laje`, `xadrez`, `losango`, `hexagono`, `marmore`, `espinha`, `marchetaria`, `lajes-grandes`, `lajes-rusticas`, `rachado`, `paralelepipedo`, `lajegrama` e `placas`: platô com junta (meia-largura mínima de 0,8 px, senão a junta some no assado), bisel, inclinação própria de cada peça e micro-relevo. Os lisos e estampados (`liso`, `trama`, `couro`, `metal`, `vidro`, `pintura`, `persa`, `damasco`, `listras`, `floral`, `manchado`) ficam planos: na reserva por luminância os veios do mármore viravam sulcos e as casas escuras do xadrez afundavam. `tabuas` e `laje` passaram a desenhar a partir de `layoutDeTabuas` e `layoutDeLajes`, que consomem os sorteios na mesma ordem (sequência de chamadas de desenho idêntica à anterior, conferida em 12 combinações de material e semente). Os padrões naturais (`terra`, `areia`, `pedra`, `cascalho`, `grama`, `neve`) seguem na reserva por luminância, que lê bem neles. A variação de tom, desgaste e sujeira por peça já existia nos pintores de cor e foi mantida. Terreno do Ilustrado: 40 px/m dobrava o tempo de pintura do `desfiladeiro-nevado` (5,6 → 11,3 s no Chromium sem GPU), então ficou em 32 px/m (8,0 s, 1,45×). Teste em `tests/unit/altura.test.ts`.
 
 ---
 

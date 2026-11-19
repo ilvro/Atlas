@@ -1,6 +1,6 @@
 import { contextoDe, criarTela, type Contexto } from './canvas.ts';
 import type { Parte } from './descricao.ts';
-import { materialDe, pintarMaterial, pxDe, type Area, type Material, type Padrao } from './materiais.ts';
+import { ALTURAS_DE_PADRAO, materialDe, pintarMaterial, pxDe, type Area, type Material, type Padrao } from './materiais.ts';
 import { caixaDe, caminho, ordenarPartes } from './raster.ts';
 
 /** Altura em metros correspondente ao valor máximo (1.0 / 255) no mapa de altura dos objetos. */
@@ -11,8 +11,8 @@ export const RAIO_PASSA_ALTA = 0.5;
 
 export type PintorDeAltura = (ctx: Contexto, mat: Material, area: Area, seed: number, px: number) => void;
 
-/** Registro de pintores de altura dedicados por padrão de material (preenchido na L10). */
-export const PINTORES_DE_ALTURA: Partial<Record<Padrao, PintorDeAltura>> = {};
+/** Registro de pintores de altura dedicados por padrão de material (a mesma geometria do desenho; ver `ALTURAS_DE_PADRAO`). */
+export const PINTORES_DE_ALTURA: Partial<Record<Padrao, PintorDeAltura>> = ALTURAS_DE_PADRAO;
 
 const limitar = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
 const limitarInt = (v: number, a: number, b: number): number => (v < a ? a : v > b ? b : v);
