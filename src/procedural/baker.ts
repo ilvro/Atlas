@@ -14,17 +14,33 @@ export interface Baker {
   encerrar(): void;
 }
 
+type AssadoMedido = { tipo: PedidoDeBake['tipo']; ms: number; px: number };
+type GlobalMedicao = { __atlasMedirAssados?: boolean; __atlasAssados?: AssadoMedido[] };
+
+function registrarAssado(tipo: PedidoDeBake['tipo'], ms: number, px: number): void {
+  const g = globalThis as unknown as GlobalMedicao;
+  if (!g.__atlasMedirAssados) return;
+  (g.__atlasAssados ??= []).push({ tipo, ms, px });
+}
+
 export function criarBaker(opcoes: { workers?: number } = {}): Baker {
   const usarWorker = typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined';
   const n = usarWorker ? Math.max(1, Math.min(opcoes.workers ?? 2, navigator.hardwareConcurrency ? Math.max(1, navigator.hardwareConcurrency - 1) : 2)) : 0;
-  const workers: Worker[] = [], cargas: number[] = [], esperando = new Map<number, { ok: (r: ResultadoDeBake) => void; erro: (e: Error) => void; worker: number }>();
+  const workers: Worker[] = [], cargas: number[] = [], esperando = new Map<number, { ok: (r: ResultadoDeBake) => void; erro: (e: Error) => void; worker: number; tipo: PedidoDeBake['tipo'] }>();
   let proximo = 0, pendentes = 0;
   for (let i = 0; i < n; i++) {
     const w = new Worker(new URL('./bake.worker.ts', import.meta.url), { type: 'module' });
-    w.onmessage = (e: MessageEvent<{ id: number; ok: boolean; resultado?: ResultadoDeBake; erro?: string }>) => {
+    w.onmessage = (e: MessageEvent<{ id: number; ok: boolean; resultado?: ResultadoDeBake; erro?: string; ms?: number }>) => {
       const espera = esperando.get(e.data.id); if (!espera) return;
       esperando.delete(e.data.id); cargas[espera.worker]!--; pendentes--;
-      if (e.data.ok) espera.ok(e.data.resultado!); else espera.erro(new Error(e.data.erro));
+      if (e.data.ok) {
+        const r = e.data.resultado!;
+        registrarAssado(espera.tipo, e.data.ms ?? 0, r.bitmap.width * r.bitmap.height);
+        espera.ok(r);
+      } else {
+        registrarAssado(espera.tipo, e.data.ms ?? 0, 0);
+        espera.erro(new Error(e.data.erro));
+      }
     };
     workers.push(w); cargas.push(0);
   }
@@ -32,9 +48,18 @@ export function criarBaker(opcoes: { workers?: number } = {}): Baker {
 
   const executar = (pedido: PedidoDeBake): Promise<ResultadoDeBake> => {
     pendentes++;
-    if (!workers.length) return import('./executar.ts').then(m => m.executarBake(pedido)).finally(() => { pendentes--; });
+    if (!workers.length) {
+      const t0 = performance.now();
+      return import('./executar.ts')
+        .then(m => m.executarBake(pedido))
+        .then(
+          r => { registrarAssado(pedido.tipo, performance.now() - t0, r.bitmap.width * r.bitmap.height); return r; },
+          err => { registrarAssado(pedido.tipo, performance.now() - t0, 0); throw err; },
+        )
+        .finally(() => { pendentes--; });
+    }
     const escolhido = cargas.indexOf(Math.min(...cargas)), id = ++proximo;
-    return new Promise<ResultadoDeBake>((ok, erro) => { esperando.set(id, { ok, erro, worker: escolhido }); cargas[escolhido]!++; workers[escolhido]!.postMessage({ id, pedido }); });
+    return new Promise<ResultadoDeBake>((ok, erro) => { esperando.set(id, { ok, erro, worker: escolhido, tipo: pedido.tipo }); cargas[escolhido]!++; workers[escolhido]!.postMessage({ id, pedido }); });
   };
 
   return {
