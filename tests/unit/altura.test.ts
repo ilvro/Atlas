@@ -149,7 +149,7 @@ test('desenharAlturaDasPartes: duas partes (z 0,4 e 1,2) produzem alturas em R (
   assert.equal(tela.tracos, 0, 'tela de altura nunca desenha traço');
 });
 
-test('desenharAlturaDasPartes: ordena por z crescente, aplica teto em ALTURA_MAXIMA e ignora suave, desfoque, alfa < 0.5 e semSombra', () => {
+test('desenharAlturaDasPartes: ordena por z crescente, aplica teto em ALTURA_MAXIMA e ignora suave, desfoque e alfa < 0.5; semSombra escreve', () => {
   const res = 20;
   const tela = criarCanvasDeTeste(60, 60);
   tela.ctx.setTransform(res, 0, 0, res, 30, 30);
@@ -181,7 +181,7 @@ test('desenharAlturaDasPartes: ordena por z crescente, aplica teto em ALTURA_MAX
   assert.equal(parteEscreveEmissao(ret(0, 0, 1, 1, 'pedra', 1)), false);
   assert.equal(parteEscreveAltura(ret(0, 0, 1, 1, 'pedra', 1, { alfa: 0.49 })), false);
   assert.equal(parteEscreveAltura(ret(0, 0, 1, 1, 'pedra', 1, { alfa: 0.5 })), true);
-  assert.equal(parteEscreveAltura(ret(0, 0, 1, 1, 'pedra', 1, { semSombra: true })), false);
+  assert.equal(parteEscreveAltura(ret(0, 0, 1, 1, 'pedra', 1, { semSombra: true })), true);
 });
 
 test('desenharAlturaDasPartes: parte com raio recebe domo (v no centro, ~15% menor na borda)', () => {
