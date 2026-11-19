@@ -67,6 +67,14 @@ Tudo isso fica **só no estilo Ilustrado**. O Pixel continua com o caminho atual
 
 As fichas L1–L4 e L9 podem andar em paralelo (L1 → L2 numa sessão; L3 → L4 em outra; L9 em outra).
 
+### Revisão das fichas L1–L9 (Opus, 2026-11-19)
+
+Typecheck e testes passavam, mas a conferência visual achou quatro defeitos, corrigidos cada um no próprio commit:
+- **Luz fraca escurecia o ambiente** (manchas cinza nos pisos claros da mansão, à noite): o desfoque final do mapa de luz era a raiz de `renderer.render`, e o Pixi ignora o `blendMode` da raiz; o alfa acumulado das luzes apagava o ambiente. Agora a passada tem um contêiner pai (`mapa-de-luz.ts`).
+- **Sombras do sol, sombra de contato e chapéus de neve sumiram**: camadas com filtro dentro de `mundoIluminado`, que é renderizado fora da tela com a câmera em `transform`; os filtros calculavam os limites sem ela. Agora essas camadas desenham numa textura própria em metros (`camada-em-textura.ts`).
+- **Relevo do piso vazava em tapetes e móveis**: a altura dos objetos era somada à do piso. Agora o objeto cobre o piso, e as partes `semSombra` (tapete) também gravam altura.
+- **Falhas de e2e anteriores à frente**: `fase4` (janelas, relâmpago, janelas acesas, seletor de clima) e `relevo` (metade baixa mais escura) já falhavam no commit anterior à L1; seguem como pendência fora desta frente.
+
 ---
 
 ## L1 — Mapa de luz em HDR  ✅
