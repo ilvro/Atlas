@@ -21,7 +21,6 @@ const diferenca = (p: Page, a: Buffer, b: Buffer) => p.evaluate(async ([a64, b64
 test('O7b: espelho e opacidade aparecem no mapa (receita e imagem da coleção)', async () => {
   const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
   await criarMapaPelaInterface(page);
-  await page.evaluate('window.__name = (f) => f');
   const rec = { kind: 'recipe', recipe: 'escrivaninha', seed: 5, params: {} }, arv = { kind: 'asset', assetId: 'casa:arvore-5m' };
   await exec(page, objeto('d0', 10, 10, rec)); await exec(page, objeto('d1', 16, 10, rec, { flip: true })); await exec(page, objeto('d2', 22, 10, rec, { flip: true, opacity: 0.5 }));
   await exec(page, objeto('a0', 10, 20, arv)); await exec(page, objeto('a1', 17, 20, arv, { flip: true })); await exec(page, objeto('a2', 24, 20, arv, { flip: true, opacity: 0.5 }));
