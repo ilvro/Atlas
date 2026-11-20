@@ -168,3 +168,10 @@ export const FAMILIAS: readonly Familia[] = [
   f('ossos', 'ossada', 'Ossada', ['ossada', 'pilha-de-ossos', 'cranio-animal']),
   f('ossos', 'peles', 'Peles', ['pilha-de-peles']),
 ];
+
+/** Escolhe a próxima variante da família, sempre diferente de `atual` quando há mais de uma. `rand` em [0, 1). */
+export function sortearVariante(f: Familia, atual: string, rand: () => number): string {
+  const outros = f.itens.filter(i => i !== atual);
+  if (outros.length === 0) return f.itens[0] ?? atual;
+  return outros[Math.min(outros.length - 1, Math.floor(rand() * outros.length))] ?? atual;
+}

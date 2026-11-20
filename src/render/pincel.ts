@@ -16,7 +16,7 @@ export interface Pincel {
   comodoLados?: number;
   /** Receita e parâmetros do objeto; `semente: null` varia a cada objeto posto. `rotacao` em radianos. */
   /** `item` é qualquer id do acervo: uma receita (`sofa`) ou um item da coleção (`casa:chesterfield-vinho`). */
-  objeto: { item: string; params: Record<string, unknown>; semente: number | null; rotacao: number };
+  objeto: { item: string; params: Record<string, unknown>; semente: number | null; rotacao: number; /** Família do item (`ACERVO.familiaDoItem`); `null` para item sem família. */ familia: string | null; /** Sorteia a variante da família a cada objeto posto. */ varianteAleatoria: boolean };
   luz: { preset: string; /** Direção do facho, em radianos. */ direcao: number };
   abertura: { tipo: 'door' | 'window' | 'arch' | 'secret' };
   parede: { tipo: 'wall' | 'low' | 'fence' | 'cliff' };
@@ -51,7 +51,7 @@ export function comandoDoPincelDeTerreno(
 
 export const PINCEL_PADRAO: Pincel = {
   comodo: 'sala',
-  objeto: { item: 'mesa.redonda', params: {}, semente: null, rotacao: 0 },
+  objeto: { item: 'mesa.redonda', params: {}, semente: null, rotacao: 0, familia: 'mesa-redonda', varianteAleatoria: false },
   luz: { preset: 'lamparina', direcao: 0 },
   abertura: { tipo: 'door' },
   parede: { tipo: 'wall' },

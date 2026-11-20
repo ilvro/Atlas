@@ -16,6 +16,7 @@ import { TIPOS_DE_COMODO, camposDoPreset, pincelDePresenca, presetDeLuz, telhado
 import { fxAtivo } from '../fx/fx.ts';
 import { criarBaker, type Baker } from '../procedural/baker.ts';
 import { ACERVO } from '../procedural/acervo.ts';
+import { sortearVariante } from '../procedural/familias.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import type { EventoStore, Gesto, Store } from '../state/store.ts';
 import { criarFiltroAcabamento } from './acabamento.ts';
@@ -515,6 +516,12 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const novaSemente = () => { semente = Math.floor(Math.random() * 2 ** 30); };
   const sementeAtual = (): number => ponte.pincel().objeto.semente ?? semente;
 
+  /** Com o dado ligado, a próxima variante da família já vai para o pincel (o fantasma a mostra). */
+  const sortearProximaVariante = () => {
+    const o = ponte.pincel().objeto; if (!o.varianteAleatoria || !o.familia) return;
+    const fam = ACERVO.familia(o.familia); if (!fam) return;
+    ponte.definirPincel({ objeto: { ...o, item: sortearVariante(fam, o.item, Math.random), semente: o.semente } });
+  };
   function limparFantasmaSprite(): void {
     fantasmaC.getChildByLabel('fantasma-objeto')?.destroy({ children: true });
     fantasmaSprite = null; fantasmaTextura?.destroy(true); fantasmaTextura = null; fantasmaChave = '';
@@ -799,12 +806,12 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         const l = typeof pincel.objeto.params.largura === 'number' ? pincel.objeto.params.largura : receita.pegada[0], enc = encaixarObjetoDeParede(m, p, l, livre, andar);
         if (!enc) { ponte.aviso('Objetos de parede vão na face de um cômodo: aproxime-se de uma parede por dentro.'); return; }
         const item = novoObjeto(enc.ponto, { source: fonte, elevation: 'wall', wall: { wallId: enc.parede.id, at: enc.at, face: 'inner' }, roomId: enc.roomId, blocks: { move: false, sight: false }, castsShadow: false, ...(andar !== null ? { levelId: andar } : {}) });
-        if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, enc.ponto); novaSemente(); }
+        if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, enc.ponto); novaSemente(); sortearProximaVariante(); }
         return;
       }
       const interacao = interacaoDeEscadaPadrao(m, andar, receita.id);
       const item = novoObjeto(alvo, { source: fonte, rotation: pincel.objeto.rotacao, ...(receita.submerso ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : {}), ...(interacao ? { interaction: interacao } : {}), ...(andar !== null ? { levelId: andar } : {}) });
-      if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, alvo); novaSemente(); }
+      if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, alvo); novaSemente(); sortearProximaVariante(); }
       return;
     }
     if (f === 'luz') {
@@ -1033,7 +1040,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (a.colecao === 'props') {
       const o = m.props[a.id]; if (!o) return;
       const id = ACERVO.idDaFonte(o.source); if (!ACERVO.item(id)) return;
-      ponte.definirPincel({ objeto: { item: id, params: o.source.kind === 'recipe' ? structuredClone(o.source.params) : {}, semente: o.source.kind === 'recipe' ? o.source.seed : null, rotacao: o.rotation } }); ponte.definirFerramenta('objeto'); ponte.aviso(`Pincel: ${ACERVO.item(id)?.nome ?? id}`);
+      ponte.definirPincel({ objeto: { item: id, params: o.source.kind === 'recipe' ? structuredClone(o.source.params) : {}, semente: o.source.kind === 'recipe' ? o.source.seed : null, rotacao: o.rotation, familia: ACERVO.familiaDoItem(id)?.id ?? null, varianteAleatoria: ponte.pincel().objeto.varianteAleatoria } }); ponte.definirFerramenta('objeto'); ponte.aviso(`Pincel: ${ACERVO.item(id)?.nome ?? id}`);
     } else if (a.colecao === 'lights') {
       const l = m.lights[a.id]; if (!l) return;
       ponte.definirPincel({ luz: { preset: l.preset && presetDeLuz(l.preset) ? l.preset : l.cone ? 'lanterna' : 'lamparina', direcao: l.cone?.direction ?? 0 } }); ponte.definirFerramenta('luz'); ponte.aviso('Pincel: luz copiada');

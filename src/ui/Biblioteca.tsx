@@ -66,7 +66,7 @@ function Comodos({ s }: { s: SessaoDeEdicao }) {
 function Objetos({ s }: { s: SessaoDeEdicao }) {
   const consulta = useSignal(''), categoria = useSignal<string | null>(null), atual = s.pincel.value.objeto, receita = ACERVO.item(atual.item);
   const lista = filtrar(ACERVO.lista().filter(r => !categoria.value || r.categoria === categoria.value), consulta.value, r => `${r.nome} ${r.tags.join(' ')} ${r.funcoes.join(' ')} ${r.categoria}`);
-  const escolher = (r: ItemDoAcervo) => { s.ferramenta.value = 'objeto'; s.pincel.value = { ...s.pincel.value, objeto: { item: r.id, params: {}, semente: null, rotacao: s.pincel.value.objeto.rotacao } }; tocar('selecionar'); };
+  const escolher = (r: ItemDoAcervo) => { s.ferramenta.value = 'objeto'; s.pincel.value = { ...s.pincel.value, objeto: { item: r.id, params: {}, semente: null, rotacao: s.pincel.value.objeto.rotacao, familia: ACERVO.familiaDoItem(r.id)?.id ?? null, varianteAleatoria: s.pincel.value.objeto.varianteAleatoria } }; tocar('selecionar'); };
   return (<>
     <input class="busca" type="search" placeholder="Buscar: mesa, cama, livros…" aria-label="Buscar objeto" value={consulta.value} onInput={e => { consulta.value = (e.target as HTMLInputElement).value; }} data-testid="busca-objeto" />
     <div class="chips">
