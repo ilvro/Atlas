@@ -27,6 +27,78 @@ export function fbm(ruido: (x: number, y: number) => number, x: number, y: numbe
   return soma / total;
 }
 
+/**
+ * Amostra `fbm(ruido, x * freq + offsetX, y * freqY + offsetY, oitavas)` numa grade reduzida sobre `area`
+ * e interpola por Catmull-Rom bicúbica. A grade é ancorada em múltiplos inteiros de `passo` com 2 células
+ * extras em cada borda, mantendo continuidade perfeita entre ladrilhos. Vale para baixa frequência
+ * (`max(freq, freqY) * 2^(oitavas - 1) <= 2` ciclos/m).
+ */
+export function campoDeRuido(
+  ruido: (x: number, y: number) => number,
+  area: { x: number; y: number; w: number; h: number },
+  freq: number,
+  oitavas: number,
+  passo?: number,
+  offsetX = 0,
+  offsetY = 0,
+  freqY = freq,
+): (x: number, y: number) => number {
+  const fMax = Math.max(freq, freqY) * (1 << Math.max(0, oitavas - 1));
+  const p = passo ?? 1 / (4 * fMax);
+  const inv = 1 / p;
+  const gx0 = Math.floor(area.x * inv) - 2;
+  const gy0 = Math.floor(area.y * inv) - 2;
+  const gx1 = Math.ceil((area.x + area.w) * inv) + 2;
+  const gy1 = Math.ceil((area.y + area.h) * inv) + 2;
+  const nx = Math.max(4, gx1 - gx0 + 1);
+  const ny = Math.max(4, gy1 - gy0 + 1);
+  const dados = new Float32Array(nx * ny);
+  for (let j = 0; j < ny; j++) {
+    const wy = (gy0 + j) * p * freqY + offsetY;
+    const base = j * nx;
+    for (let i = 0; i < nx; i++) {
+      dados[base + i] = fbm(ruido, (gx0 + i) * p * freq + offsetX, wy, oitavas);
+    }
+  }
+  const ox = gx0 * p, oy = gy0 * p;
+  const maxX = nx - 3, maxY = ny - 3;
+  return (x: number, y: number): number => {
+    const fx = (x - ox) * inv;
+    const fy = (y - oy) * inv;
+    let ix = Math.floor(fx);
+    let iy = Math.floor(fy);
+    let tx = fx - ix;
+    let ty = fy - iy;
+    if (ix < 1) { ix = 1; tx = 0; } else if (ix > maxX) { ix = maxX; tx = 1; }
+    if (iy < 1) { iy = 1; ty = 0; } else if (iy > maxY) { iy = maxY; ty = 1; }
+
+    const tx2 = tx * tx, tx3 = tx2 * tx;
+    const wx0 = 0.5 * (-tx + 2 * tx2 - tx3);
+    const wx1 = 0.5 * (2 - 5 * tx2 + 3 * tx3);
+    const wx2 = 0.5 * (tx + 4 * tx2 - 3 * tx3);
+    const wx3 = 0.5 * (-tx2 + tx3);
+
+    const r0 = (iy - 1) * nx + ix - 1;
+    const r1 = r0 + nx;
+    const r2 = r1 + nx;
+    const r3 = r2 + nx;
+
+    const v0 = dados[r0]! * wx0 + dados[r0 + 1]! * wx1 + dados[r0 + 2]! * wx2 + dados[r0 + 3]! * wx3;
+    const v1 = dados[r1]! * wx0 + dados[r1 + 1]! * wx1 + dados[r1 + 2]! * wx2 + dados[r1 + 3]! * wx3;
+    const v2 = dados[r2]! * wx0 + dados[r2 + 1]! * wx1 + dados[r2 + 2]! * wx2 + dados[r2 + 3]! * wx3;
+    const v3 = dados[r3]! * wx0 + dados[r3 + 1]! * wx1 + dados[r3 + 2]! * wx2 + dados[r3 + 3]! * wx3;
+
+    const ty2 = ty * ty, ty3 = ty2 * ty;
+    const res = 0.5 * (
+      (2 * v1) +
+      (-v0 + v2) * ty +
+      (2 * v0 - 5 * v1 + 4 * v2 - v3) * ty2 +
+      (-v0 + 3 * v1 - 3 * v2 + v3) * ty3
+    );
+    return res < 0 ? 0 : res > 1 ? 1 : res;
+  };
+}
+
 /** Ruído de valor com a grade dando a volta a cada `periodo` células: emenda perfeita nas bordas. */
 function ruidoPeriodico(x: number, y: number, periodo: number, seed: number): number {
   const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
