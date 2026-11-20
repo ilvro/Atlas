@@ -71,3 +71,4 @@ Commit: mensagem curta em inglês
 | [fidelidade-de-render.md](fidelidade-de-render.md) | L — Luz HDR com relevo, altura dos assados, AO, bloom, curva de tom, paredes com face; estruturas e santuário pelo Opus (`L1`–`L12`, planejada) |
 | [carregamento.md](carregamento.md) | M — carregamento rápido: medidor, fila puxada, terreno por caixa e em ladrilhos, cache persistente, ruído barato, prévia (`M1`–`M7`, planejada) |
 | [telhados-detalhados.md](telhados-detalhados.md) | N — telhados detalhados: campo de altura com rincões, coberturas com relevo, desgaste e neve, luz da cena, fachada, coberturas e formas de todas as eras (`N1`–`N10`, planejada) |
+| [biblioteca-por-familias.md](biblioteca-por-familias.md) | O — biblioteca por grupo → família → variante, terreno em grupos, recentes e favoritos, objetos livres da grade por padrão, espelho e opacidade, painel de propriedades antes e depois de pôr, pôr vários, famílias no assistente (`O1`–`O10`, planejada) |
