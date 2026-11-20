@@ -33,3 +33,12 @@ test('sombra do sol: a neblina a apaga, o Pixel é opaco, e a cor acompanha o am
   assert.ok(canais[2]! > canais[0]!, azul);
   assert.ok(PRESETS_DE_CLIMA.length > 0);
 });
+
+test('sombra da lua: só com luar forte, azulada e mais longa quando a lua está baixa', () => {
+  const noite = (time: string, intensity: number) => ({ time, sun: { angle: 2.5, color: '#a8b8d8', intensity }, ambient: { color: '#8a9aa6', intensity: 0.6 }, weather: { fog: 0 } as never }) as Parameters<typeof sombraDoSol>[0];
+  assert.equal(sombraDoSol(noite('23:00', 0.35)), null, 'a lua comum não lança sombra');
+  const forte = sombraDoSol(noite('00:30', 0.8))!;
+  assert.ok(forte && forte.alfa > 0.3, `luar forte lança sombra (${forte?.alfa})`);
+  assert.ok(sombraDoSol(noite('19:30', 0.8))!.porMetro > forte.porMetro, 'lua baixa, sombra longa');
+});
+

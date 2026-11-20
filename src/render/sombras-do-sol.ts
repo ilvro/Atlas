@@ -9,8 +9,8 @@ import { materialDe } from '../procedural/materiais.ts';
 import { criarCamadaEmTextura } from './camada-em-textura.ts';
 import { ehEscarpaAvulsa } from './entradas.ts';
 
-/** Resolução (px/m) da textura das sombras no Ilustrado: a sombra é macia, não precisa de mais. */
-const RES_DA_SOMBRA = 12;
+/** Resolução (px/m) da textura das sombras no Ilustrado: macia, mas nítida o bastante para a sombra de uma tora (30 cm) não sumir no desfoque. */
+const RES_DA_SOMBRA = 24;
 /** Quanto o maciço de rocha "tem de altura" para a sombra (a mesma saturação do relevo do assar). */
 export const ALTURA_DA_ROCHA = 1.5;
 
@@ -29,7 +29,7 @@ export function criarSombrasDoSol(renderer: Renderer) {
   apagar.blendMode = 'erase';
   desenho.addChild(objetos, figuras, apagar);
   raiz.addChild(camada.sprite);
-  const achatar = new ColorMatrixFilter(), desfoque = new BlurFilter({ strength: 2, quality: 3 });
+  const achatar = new ColorMatrixFilter(), desfoque = new BlurFilter({ strength: 1.4, quality: 3 });
   raiz.visible = false;
   const sprites = new Map<string, Container>();
   let ligado = true, corAtual = '', pixelAtual: boolean | null = null;
