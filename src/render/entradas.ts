@@ -402,7 +402,7 @@ export function chaveDoItem(assetId: string, item: ItemDaColecao, harmonizado: b
 export function chaveDoObjeto(o: Objeto, res: number, genero = 'investigacao', estilo: IdDoEstilo = 'illustrated', pixel?: OpcoesDoPixel): string | null {
   if (o.elevation === 'wall') return null;
   if (o.source.kind === 'asset') { const item = itemDaColecao(o.source.assetId); return item ? chaveDoItem(o.source.assetId, item, harmoniza(o, item), res, genero, estilo, pixel) : null; }     // asset desconhecido: o marcador fica, sem erro
-  return `${estilo}|o|${res}|${o.source.recipe}|${o.source.seed}|${JSON.stringify(o.source.params)}${sufixoDoPixel(pixel)}`;
+  return `${estilo}|o|${res}|${o.source.recipe}|${o.source.seed}|${JSON.stringify(o.source.params)}${sufixoDoPixel(pixel)}${o.flip ? '|f' : ''}`;
 }
 
 /** Item gerado desenhado no estilo Pixel: vai pela descrição, não pela imagem. */
@@ -425,7 +425,7 @@ export function pedidoDoItem(item: ItemDaColecao, pegada: [number, number], harm
 
 /** O pedido de pintura de um objeto de piso, de receita ou da coleção; `null` se não há o que pintar (asset desconhecido). */
 export function pedidoDoObjeto(o: Objeto, res: number, genero = 'investigacao', estilo: IdDoEstilo = 'illustrated', pixel?: OpcoesDoPixel): PedidoDeBake | null {
-  if (o.source.kind === 'recipe') return { tipo: 'objeto', receita: o.source.recipe, params: o.source.params, seed: o.source.seed, res, estilo, pixel };
+  if (o.source.kind === 'recipe') return { tipo: 'objeto', receita: o.source.recipe, params: o.source.params, seed: o.source.seed, res, estilo, pixel, ...(o.flip ? { espelhar: true } : {}) };
   const item = itemDaColecao(o.source.assetId); if (!item) return null;
   return pedidoDoItem(item, ACERVO.pegadaDaFonte(o.source), harmoniza(o, item), res, genero, estilo, pixel);
 }

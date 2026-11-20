@@ -78,6 +78,7 @@ export function criarSombrasDoSol(renderer: Renderer) {
       vivos.add(o.id);
       let c = sprites.get(o.id), filho = c?.children[0] as Sprite | undefined;
       if (!c || !filho) { c = new Container(); filho = new Sprite(sp.texture); c.addChild(filho); objetos.addChild(c); sprites.set(o.id, c); }
+      c.alpha = o.opacity ?? 1;
       filho.texture = sp.texture; filho.position.copyFrom(sp.position); filho.scale.copyFrom(sp.scale);
       c.setFromMatrix(matrizDaSombra(o.position, o.rotation, o.scale, ACERVO.pegadaDaFonte(o.source), ACERVO.alturaDaFonte(o.source), s));
     }

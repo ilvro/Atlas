@@ -16,7 +16,7 @@ import type { Faixa } from '../domain/celulas.ts';
 import { decodificar } from '../domain/celulas.ts';
 import type { Grade, Ponto } from '../domain/mapa.ts';
 import { contextoDe, criarTela, type Contexto, type Tela } from './canvas.ts';
-import { caixaDasPartes, type Descricao, type Parte } from './descricao.ts';
+import { caixaDasPartes, espelharDescricao, type Descricao, type Parte } from './descricao.ts';
 import { materialDe, padraoDependeDaArea, tom } from './materiais.ts';
 import { fbm, valueNoise2D } from './ruido.ts';
 import { desfocarAlfa } from './desfocar.ts';
@@ -67,10 +67,11 @@ export function assarDescricao(d: Descricao, seed: number, res: number, estilo: 
 }
 
 /** Um objeto de piso de receita inteiro (partes + sombras) numa tela, com o centro do objeto em (0, 0) do espaço local. */
-export function assarObjeto(receita: string, params: Record<string, unknown>, seed: number, res: number, estilo: EstiloDeRaster, pixel?: OpcoesDoPixel): Assado {
+export function assarObjeto(receita: string, params: Record<string, unknown>, seed: number, res: number, estilo: EstiloDeRaster, pixel?: OpcoesDoPixel, espelhar = false): Assado {
   // A altura declarada da receita limita o mapa de altura: o `z` das partes também ordena o desenho (runas a 0,5 num círculo
   // de 2 cm), e sem o teto esses entalhes viravam cristas.
-  return assarDescricao(descreverReceita(receita, { seed, params }), seed, res, estilo, pixel, receitaDe(receita)?.altura);
+  const d = descreverReceita(receita, { seed, params });
+  return assarDescricao(espelhar ? espelharDescricao(d) : d, seed, res, estilo, pixel, receitaDe(receita)?.altura);
 }
 
 // ---------- Cômodos ----------

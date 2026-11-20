@@ -512,17 +512,19 @@ export function criarCena(op: OpcoesDaCena): Cena {
     Math.round((a & 255) * (b & 255) / 255);
 
   /** Objeto submerso: tingido pela cor do fundo e esmaecido pela profundidade no ponto dele; abaixo do topo de relevo também recebe tom e névoa. */
+  const espelharImagem = (o: Objeto | undefined): boolean => !!o?.flip && o.source.kind === 'asset';
   function aplicarSubmersao(c: Container, o: Objeto, m: MapaAtlas): void {
     const sub = o.elevation === 'underwater' ? agua.submersao(o.position[0], o.position[1]) : null;
     const tRel = tintDoRelevo(m, o.position);
+    const opaco = o.opacity ?? 1;      // a opacidade do objeto compõe com a da submersão, e o oculto (×0,5) vem depois
     if (!sub) {
-      if (o.elevation === 'underwater') { c.tint = multiplicarTint(0xb4c8d0, tRel); c.alpha = m.style.renderer === 'pixel' ? 1 : 0.8; }
-      else { c.tint = tRel; c.alpha = 1; }
+      if (o.elevation === 'underwater') { c.tint = multiplicarTint(0xb4c8d0, tRel); c.alpha = (m.style.renderer === 'pixel' ? 1 : 0.8) * opaco; }
+      else { c.tint = tRel; c.alpha = opaco; }
       return;
     }
     const pixel = m.style.renderer === 'pixel', t = pixel ? (sub.profundidade < 0.17 ? 0.25 : sub.profundidade < 0.5 ? 0.6 : 1) : Math.min(1, 0.25 + sub.profundidade * 0.9);
     const canal = (sh: number) => Math.round(255 - (255 - Math.min(255, ((sub.cor >> sh) & 255) * 1.8 + 40)) * 0.8 * t);
-    c.tint = multiplicarTint((canal(16) << 16) | (canal(8) << 8) | canal(0), tRel); c.alpha = pixel ? 1 : 1 - 0.45 * t;
+    c.tint = multiplicarTint((canal(16) << 16) | (canal(8) << 8) | canal(0), tRel); c.alpha = (pixel ? 1 : 1 - 0.45 * t) * opaco;
   }
   function reaplicarSubmersos(m: MapaAtlas): void { for (const [id, e] of objetos) { const o = m.props[id] as Objeto | undefined; if (o?.elevation === 'underwater') aplicarSubmersao(e.c, o, m); } }
 
@@ -548,7 +550,14 @@ export function criarCena(op: OpcoesDaCena): Cena {
       }
       if (!animacoes.some(a => a.alvo === entrada!.c)) entrada.c.scale.set(o.scale);
       const pedido = pedidoDoObjeto(o, res, m.style.genre, m.style.renderer, opcoesDoPixel(m));
-      if (pedido) pintar(entrada, chave, pedido, (sp, r) => { sp.position.set(r.origem[0], r.origem[1]); sp.scale.set(1 / r.res); cenaDeAltura.sincronizarObjetos(objetos, objetosC); }, 1);
+      if (pedido) pintar(entrada, chave, pedido, (sp, r) => {
+        sp.position.set(r.origem[0], r.origem[1]); sp.scale.set(1 / r.res);
+        if (espelharImagem(mapa?.props[id] as Objeto | undefined)) { sp.position.x = -sp.position.x; sp.scale.x = -sp.scale.x; }
+        cenaDeAltura.sincronizarObjetos(objetos, objetosC);
+      }, 1);
+      // Imagem da coleção: o espelho é do sprite (a chave não muda), então acompanha o `flip` sem novo assado. Receita: já vem espelhada do assado.
+      const sp = entrada.sprite;
+      if (sp && !sp.destroyed && (sp.scale.x < 0) !== espelharImagem(o)) { sp.position.x = -sp.position.x; sp.scale.x = -sp.scale.x; }
     }
     cenaDeAltura.sincronizarObjetos(objetos, objetosC);
   }
