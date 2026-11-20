@@ -153,6 +153,10 @@ export interface Objeto {
   layer?: number;
   /** Escondido dos jogadores no projetor; visível em meia opacidade no editor para o mestre. */
   oculto?: boolean;
+  /** Espelhado na horizontal, no eixo local x, antes da rotação. Ausente = não espelhado. */
+  flip?: boolean;
+  /** Opacidade de 0,1 a 1; ausente vale 1. */
+  opacity?: number;
   levelId?: string | null;
 }
 /** `targets` vazio num interruptor = as luzes `power: 'grid'` do cômodo do objeto. `clue` só vai ao jogador depois de revelada. */

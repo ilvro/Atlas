@@ -50,3 +50,21 @@ export function caixaDasPartes(partes: readonly Parte[]): CaixaLocal {
   }
   return Number.isFinite(x0) ? { x0, y0, x1, y1 } : { x0: 0, y0: 0, x1: 0, y1: 0 };
 }
+
+const espelharParte = (p: Parte): Parte => {
+  const q: Parte = { ...p };
+  if (q.x !== undefined) q.x = 0 - q.x;
+  if (q.pts) {
+    const n = q.pts.length / 2, out: number[] = [];
+    for (let i = n - 1; i >= 0; i--) out.push(0 - q.pts[i * 2]!, q.pts[i * 2 + 1]!);
+    q.pts = out;
+  }
+  if (q.dir !== undefined) q.dir = Math.PI - q.dir;
+  return q;
+};
+
+/** Espelha a descrição na horizontal (eixo x local / eixo u da parede). Pura; espelhar duas vezes devolve o original. */
+export function espelharDescricao(d: Descricao): Descricao {
+  if (d.tipo === 'piso') return { ...d, partes: d.partes.map((p) => espelharParte(p)) };
+  return { ...d, face: d.face.map((p) => espelharParte(p)), topo: d.topo.map((p) => espelharParte(p)) };
+}
