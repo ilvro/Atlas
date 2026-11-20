@@ -38,8 +38,8 @@ export interface Assado {
   /** Canto superior esquerdo da tela, em metros (no espaço local do objeto, ou do mundo para cômodos e terreno). */
   origem: Ponto;
   res: number;
-  /** Terreno com água: profundidade (R) e margem (G) das camadas de água, a `res` px/m, do mesmo tamanho do mapa. */
-  agua?: { tela: Tela; res: number };
+  /** Terreno com água: profundidade (R) e margem (G) das camadas de água, a `res` px/m, do mesmo tamanho do mapa (ou do ladrilho, com `origem`). */
+  agua?: { tela: Tela; res: number; origem?: Ponto };
 }
 
 // ---------- Objetos de piso ----------
@@ -178,7 +178,18 @@ export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRas
 // ---------- Terreno ----------
 export interface EntradaDeTerreno {
   largura: number; altura: number; resolucao: number; base: string;
-  camadas: { material: string; celulas: Faixa[]; /** Correnteza (só em camadas de água). */ flow?: { angle: number; speed: number } | null }[];
+  /** Recorte do ladrilho em metros; sem ele, assa o mapa inteiro (`[0, 0, largura, altura]`). */
+  recorte?: { x: number; y: number; w: number; h: number };
+  camadas: {
+    material: string;
+    celulas: Faixa[];
+    /** Correnteza (só em camadas de água). */
+    flow?: { angle: number; speed: number } | null;
+    /** Orientação dominante (para `sulcos` quando recortada por ladrilho). */
+    dir?: number;
+    /** Índice real da camada de água no mapa (0..3) para preservar o canal B quando camadas anteriores ficam fora do ladrilho. */
+    indiceAgua?: number;
+  }[];
   /** Patamares abaixo do topo (em metros) para escurecer e enevoar, e degraus < 1 m. */
   relevo?: {
     faixas: { altura: number; celulas: Faixa[] }[];
@@ -196,6 +207,19 @@ export interface EntradaDeTerreno {
   };
 }
 
+/** Margem (m) usada no recorte e assado do relevo. */
+export const MARGEM_RELEVO = 2.5;
+/** Margem (m) usada no recorte e assado do assentamento. */
+export const MARGEM_ASSENTAMENTO = 2;
+
+/** Margens (m) das camadas de terreno por uso do material, compartilhadas entre `ladrilhosDoTerreno` e `assarTerreno`. */
+export function margensDoTerreno(res: number): { base: number; agua: number; macico: number } {
+  const base = Math.max(1.5, RAIO_PASSA_ALTA, 1 / Math.max(1e-6, res)) + 1;
+  const agua = base + PROFUNDIDADE_MAXIMA;
+  const macico = Math.max(base + Math.max(PROFUNDIDADE_MAXIMA, SOMBRA_DE_CONTATO + 0.15), 10);
+  return { base, agua, macico };
+}
+
 /** O WebKitGTK não tem `filter` no contexto 2D (nem no OffscreenCanvas). */
 const temFiltro = (c: Contexto): boolean => 'filter' in c;
 
@@ -204,7 +228,15 @@ const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 
 interface CaixaPx { x0: number; y0: number; cw: number; ch: number }
 
-function caixaDaCamada(celulas: readonly Faixa[], resolucao: number, res: number, W: number, Hh: number, margemM: number): CaixaPx | null {
+function caixaDaCamada(
+  celulas: readonly Faixa[],
+  resolucao: number,
+  res: number,
+  W: number,
+  Hh: number,
+  margemM: number,
+  janela?: { x0: number; y0: number; x1: number; y1: number },
+): CaixaPx | null {
   let gx0 = Infinity, gy0 = Infinity, gx1 = -Infinity, gy1 = -Infinity;
   for (const [y, x0, n] of celulas) {
     if (n <= 0) continue;
@@ -214,10 +246,16 @@ function caixaDaCamada(celulas: readonly Faixa[], resolucao: number, res: number
     if (y + 1 > gy1) gy1 = y + 1;
   }
   if (!Number.isFinite(gx0)) return null;
-  const x0 = Math.max(0, Math.floor((gx0 * resolucao - margemM) * res));
-  const y0 = Math.max(0, Math.floor((gy0 * resolucao - margemM) * res));
-  const x1 = Math.min(W, Math.ceil((gx1 * resolucao + margemM) * res));
-  const y1 = Math.min(Hh, Math.ceil((gy1 * resolucao + margemM) * res));
+  let x0 = Math.max(0, Math.floor((gx0 * resolucao - margemM) * res));
+  let y0 = Math.max(0, Math.floor((gy0 * resolucao - margemM) * res));
+  let x1 = Math.min(W, Math.ceil((gx1 * resolucao + margemM) * res));
+  let y1 = Math.min(Hh, Math.ceil((gy1 * resolucao + margemM) * res));
+  if (janela) {
+    x0 = Math.max(x0, janela.x0);
+    y0 = Math.max(y0, janela.y0);
+    x1 = Math.min(x1, janela.x1);
+    y1 = Math.min(y1, janela.y1);
+  }
   if (x1 <= x0 || y1 <= y0) return null;
   return { x0, y0, cw: x1 - x0, ch: y1 - y0 };
 }
@@ -251,15 +289,24 @@ function mascaraSuavizada(celulas: readonly Faixa[], resolucao: number, W: numbe
   return recorte;
 }
 
-function rasterizarFaixasEmAlfa(celulas: readonly Faixa[], resolucao: number, Mw: number, Mh: number, mRes: number, buf: Uint8ClampedArray): void {
+function rasterizarFaixasEmAlfa(
+  celulas: readonly Faixa[],
+  resolucao: number,
+  Mw: number,
+  Mh: number,
+  mRes: number,
+  buf: Uint8ClampedArray,
+  mx0 = 0,
+  my0 = 0,
+): void {
   buf.fill(0);
   const scale = resolucao * mRes;
   for (const [y, x0, n] of celulas) {
-    const y0 = Math.max(0, Math.floor(y * scale));
-    const y1 = Math.min(Mh, Math.ceil((y + 1) * scale));
+    const y0 = Math.max(0, Math.floor(y * scale) - my0);
+    const y1 = Math.min(Mh, Math.ceil((y + 1) * scale) - my0);
     if (y1 <= y0) continue;
-    const xStart = Math.max(0, Math.floor(x0 * scale));
-    const xEnd = Math.min(Mw, Math.ceil((x0 + n) * scale));
+    const xStart = Math.max(0, Math.floor(x0 * scale) - mx0);
+    const xEnd = Math.min(Mw, Math.ceil((x0 + n) * scale) - mx0);
     if (xEnd <= xStart) continue;
     for (let py = y0; py < y1; py++) {
       const row = py * Mw;
@@ -273,8 +320,26 @@ export interface MascaraDeRelevoComposta {
   Mw: number;
   Mh: number;
   mRes: number;
+  mx0: number;
+  my0: number;
   gain: Float32Array;
   bias: Float32Array;
+}
+
+function caixaDoRelevo(
+  largura: number,
+  altura: number,
+  mRes: number,
+  recorte?: { x: number; y: number; w: number; h: number },
+): { Mw: number; Mh: number; mx0: number; my0: number } {
+  const MwFull = Math.max(1, Math.ceil(largura * mRes));
+  const MhFull = Math.max(1, Math.ceil(altura * mRes));
+  if (!recorte) return { Mw: MwFull, Mh: MhFull, mx0: 0, my0: 0 };
+  const mx0 = Math.max(0, Math.floor((recorte.x - MARGEM_RELEVO) * mRes));
+  const my0 = Math.max(0, Math.floor((recorte.y - MARGEM_RELEVO) * mRes));
+  const mx1 = Math.min(MwFull, Math.ceil((recorte.x + recorte.w + MARGEM_RELEVO) * mRes));
+  const my1 = Math.min(MhFull, Math.ceil((recorte.y + recorte.h + MARGEM_RELEVO) * mRes));
+  return { Mw: Math.max(1, mx1 - mx0), Mh: Math.max(1, my1 - my0), mx0, my0 };
 }
 
 /**
@@ -288,11 +353,11 @@ export function comporMascaraDeRelevo(
   largura: number,
   altura: number,
   res: number,
+  recorte?: { x: number; y: number; w: number; h: number },
 ): MascaraDeRelevoComposta {
   const mapaGrande = largura * altura >= 8000;
   const mRes = mapaGrande ? Math.min(res, 4) : Math.min(res, 8);
-  const Mw = Math.max(1, Math.ceil(largura * mRes));
-  const Mh = Math.max(1, Math.ceil(altura * mRes));
+  const { Mw, Mh, mx0, my0 } = caixaDoRelevo(largura, altura, mRes, recorte);
   const total = Mw * Mh;
   const gain = new Float32Array(total).fill(1);
   const bias = new Float32Array(total);
@@ -301,7 +366,7 @@ export function comporMascaraDeRelevo(
   for (const f of faixas) {
     const p = fatorDeProfundidade(f.altura, topo);
     if (p <= 0 || !f.celulas.length) continue;
-    rasterizarFaixasEmAlfa(f.celulas, resolucao, Mw, Mh, mRes, buf);
+    rasterizarFaixasEmAlfa(f.celulas, resolucao, Mw, Mh, mRes, buf, mx0, my0);
     const esc = 1 - 0.6 * p, alfaMax = 0.25 * p;
     const cMul = (1 - alfaMax) * esc, cAdd = alfaMax * esc;
     for (let q = 0; q < total; q++) {
@@ -313,7 +378,7 @@ export function comporMascaraDeRelevo(
       bias[q] = bias[q]! * kTier + bTier;
     }
   }
-  return { Mw, Mh, mRes, gain, bias };
+  return { Mw, Mh, mRes, mx0, my0, gain, bias };
 }
 
 /** Compõe a altitude média (m) de todos os patamares do relevo na mesma grade reduzida de `comporMascaraDeRelevo`. */
@@ -324,11 +389,11 @@ export function comporAltitudeDoRelevo(
   largura: number,
   altura: number,
   res: number,
-): { Mw: number; Mh: number; mRes: number; altitudes: Float32Array } {
+  recorte?: { x: number; y: number; w: number; h: number },
+): { Mw: number; Mh: number; mRes: number; mx0: number; my0: number; altitudes: Float32Array } {
   const mapaGrande = largura * altura >= 8000;
   const mRes = mapaGrande ? Math.min(res, 4) : Math.min(res, 8);
-  const Mw = Math.max(1, Math.ceil(largura * mRes));
-  const Mh = Math.max(1, Math.ceil(altura * mRes));
+  const { Mw, Mh, mx0, my0 } = caixaDoRelevo(largura, altura, mRes, recorte);
   const total = Mw * Mh;
   const somaPeso = new Float32Array(total);
   const somaAlt = new Float32Array(total);
@@ -336,7 +401,7 @@ export function comporAltitudeDoRelevo(
 
   for (const f of faixas) {
     if (!f.celulas.length) continue;
-    rasterizarFaixasEmAlfa(f.celulas, resolucao, Mw, Mh, mRes, buf);
+    rasterizarFaixasEmAlfa(f.celulas, resolucao, Mw, Mh, mRes, buf, mx0, my0);
     for (let q = 0; q < total; q++) {
       const t = buf[q * 4 + 3]! / 255;
       if (t <= 0.004) continue;
@@ -353,40 +418,80 @@ export function comporAltitudeDoRelevo(
       altitudes[q] = (wTopo * topo + somaAlt[q]!) / (wTopo + w);
     }
   }
-  return { Mw, Mh, mRes, altitudes };
+  return { Mw, Mh, mRes, mx0, my0, altitudes };
 }
 
-/** O terreno todo numa tela só. Cada camada tem a borda torcida por ruído (orgânica, não um borrão) e um aro escuro por baixo: a transição automática. */
+/** O terreno todo numa tela só (ou o ladrilho `e.recorte`). Cada camada tem a borda torcida por ruído (orgânica, não um borrão) e um aro escuro por baixo: a transição automática. */
 export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeRaster, op?: { semCaixa?: boolean }): Assado {
-  const pixel = estilo.id === 'pixel', W = Math.ceil(e.largura * res), Hh = Math.ceil(e.altura * res), tela = criarTela(W, Hh), ctx = contextoDe(tela, pixel ? undefined : { willReadFrequently: true });
-  ctx.setTransform(res, 0, 0, res, 0, 0);
-  if (e.base !== 'vazio') estilo.pintarMaterial(ctx, e.base, { x: 0, y: 0, w: e.largura, h: e.altura }, 7, { res });
-  const altura = pixel ? null : criarTela(W, Hh);
+  const pixel = estilo.id === 'pixel', W = Math.ceil(e.largura * res), Hh = Math.ceil(e.altura * res);
+  const rec = e.recorte ?? { x: 0, y: 0, w: e.largura, h: e.altura };
+  const rx0 = e.recorte ? Math.max(0, Math.round(rec.x * res)) : 0;
+  const ry0 = e.recorte ? Math.max(0, Math.round(rec.y * res)) : 0;
+  const rx1 = e.recorte ? (rec.x + rec.w >= e.largura - 1e-9 ? W : Math.min(W, Math.round((rec.x + rec.w) * res))) : W;
+  const ry1 = e.recorte ? (rec.y + rec.h >= e.altura - 1e-9 ? Hh : Math.min(Hh, Math.round((rec.y + rec.h) * res))) : Hh;
+  const outW = Math.max(1, rx1 - rx0), outH = Math.max(1, ry1 - ry0);
+  const origem: Ponto = [rx0 / res, ry0 / res];
+  const recorteM = { x: rx0 / res, y: ry0 / res, w: outW / res, h: outH / res };
+  const resetTransform = (c: Contexto) => c.setTransform(res, 0, 0, res, -rx0, -ry0);
+
+  const tela = criarTela(outW, outH), ctx = contextoDe(tela, pixel ? undefined : { willReadFrequently: true });
+  resetTransform(ctx);
+  const areaBase = pixel || (e.base !== 'vazio' && padraoDependeDaArea(materialDe(e.base).padrao)) ? { x: 0, y: 0, w: e.largura, h: e.altura } : recorteM;
+  if (e.base !== 'vazio') estilo.pintarMaterial(ctx, e.base, areaBase, 7, { res });
+  const altura = pixel ? null : criarTela(outW, outH);
   const actx = altura ? contextoDe(altura, { willReadFrequently: true }) : null;
   if (actx) {
-    actx.setTransform(res, 0, 0, res, 0, 0);
+    resetTransform(actx);
     if (e.base !== 'vazio') {
       if (PINTORES_DE_ALTURA[materialDe(e.base).padrao]) {
-        pintarAlturaDoMaterial(actx, e.base, { x: 0, y: 0, w: e.largura, h: e.altura }, 7, { res });
+        pintarAlturaDoMaterial(actx, e.base, areaBase, 7, { res });
       } else {
-        const baseImg = ctx.getImageData(0, 0, W, Hh);
-        const altImg = actx.createImageData(W, Hh);
-        altImg.data.set(alturaPorLuminancia(baseImg.data, W, Hh, res));
-        actx.setTransform(1, 0, 0, 1, 0, 0);
-        actx.putImageData(altImg, 0, 0);
-        actx.setTransform(res, 0, 0, res, 0, 0);
+        const rPx = e.recorte ? Math.max(1, Math.round(RAIO_PASSA_ALTA * res)) : 0;
+        const bx0 = Math.max(0, rx0 - rPx), by0 = Math.max(0, ry0 - rPx);
+        const bx1 = Math.min(W, rx1 + rPx), by1 = Math.min(Hh, ry1 + rPx);
+        const bw = bx1 - bx0, bh = by1 - by0;
+        if (bx0 === rx0 && by0 === ry0 && bw === outW && bh === outH) {
+          const baseImg = ctx.getImageData(0, 0, outW, outH);
+          const altImg = actx.createImageData(outW, outH);
+          altImg.data.set(alturaPorLuminancia(baseImg.data, outW, outH, res));
+          actx.setTransform(1, 0, 0, 1, 0, 0);
+          actx.putImageData(altImg, 0, 0);
+          resetTransform(actx);
+        } else {
+          const bt = criarTela(bw, bh), bctx = contextoDe(bt, { willReadFrequently: true });
+          bctx.setTransform(res, 0, 0, res, -bx0, -by0);
+          const areaMargem = pixel || padraoDependeDaArea(materialDe(e.base).padrao)
+            ? { x: 0, y: 0, w: e.largura, h: e.altura }
+            : { x: bx0 / res, y: by0 / res, w: bw / res, h: bh / res };
+          estilo.pintarMaterial(bctx, e.base, areaMargem, 7, { res });
+          const lumAlt = alturaPorLuminancia(bctx.getImageData(0, 0, bw, bh).data, bw, bh, res);
+          const altImg = actx.createImageData(outW, outH);
+          const ox = rx0 - bx0, oy = ry0 - by0;
+          for (let ly = 0; ly < outH; ly++) {
+            const srcOff = ((oy + ly) * bw + ox) * 4;
+            altImg.data.set(lumAlt.subarray(srcOff, srcOff + outW * 4), ly * outW * 4);
+          }
+          actx.setTransform(1, 0, 0, 1, 0, 0);
+          actx.putImageData(altImg, 0, 0);
+          resetTransform(actx);
+        }
       }
     }
   }
   const aguas: CamadaDeAguaParaTextura[] = [];
-  const margemBase = Math.max(1.5, RAIO_PASSA_ALTA, 1 / res) + 1;
-  const margemAguaMacico = margemBase + Math.max(PROFUNDIDADE_MAXIMA, SOMBRA_DE_CONTATO + 0.15);
+  const margens = margensDoTerreno(res);
   e.camadas.forEach((camada, idx) => {
     if (!camada.celulas.length) return;
     const material = materialDe(camada.material), macico = material.uso === 'macico', agua = material.uso === 'agua', franja = material.franja ?? 0;
-    const box = op?.semCaixa ? { x0: 0, y0: 0, cw: W, ch: Hh } : caixaDaCamada(camada.celulas, e.resolucao, res, W, Hh, agua || macico ? margemAguaMacico : margemBase);
+    const margemM = macico ? margens.macico : agua ? margens.agua : margens.base;
+    const margemPx = Math.ceil(margemM * res);
+    const janela = e.recorte
+      ? { x0: Math.max(0, rx0 - margemPx), y0: Math.max(0, ry0 - margemPx), x1: Math.min(W, rx1 + margemPx), y1: Math.min(Hh, ry1 + margemPx) }
+      : undefined;
+    const box = op?.semCaixa ? { x0: 0, y0: 0, cw: W, ch: Hh } : caixaDaCamada(camada.celulas, e.resolucao, res, W, Hh, margemM, janela);
     if (!box) return;
     const { x0, y0, cw, ch } = box;
+    const dx = x0 - rx0, dy = y0 - ry0;
     const fonte = mascaraSuavizada(camada.celulas, e.resolucao, W, Hh, res, box);
     const ruido = valueNoise2D(1000 + idx * 17);
     const corpo = new ImageData(cw, ch), aro = new ImageData(cw, ch), binaria = new Uint8Array(pixel || macico || agua ? cw * ch : 0), cobertura = new Uint8Array((macico || agua) && !pixel ? cw * ch : 0), ruidoFino = valueNoise2D(3000 + idx * 31);
@@ -409,8 +514,8 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
     if (agua) {
       // Água: o que está embaixo continua à vista e ganha a cor do leito pela profundidade; a margem é uma faixa de areia molhada.
       const r = leitoDaAgua({ binaria, cobertura: pixel ? null : cobertura, largura: cw, altura: ch, res, seed: 13 + idx * 5, material, pixel, origemPx: [x0, y0] });
-      const poe = (dados: Uint8ClampedArray) => { const t = criarTela(cw, ch), c = contextoDe(t); c.putImageData(new ImageData(dados as Uint8ClampedArray<ArrayBuffer>, cw, ch), 0, 0); ctx.drawImage(t as CanvasImageSource, x0, y0); };
-      ctx.setTransform(1, 0, 0, 1, 0, 0); poe(r.margem); poe(r.leito); ctx.setTransform(res, 0, 0, res, 0, 0);
+      const poe = (dados: Uint8ClampedArray) => { const t = criarTela(cw, ch), c = contextoDe(t); c.putImageData(new ImageData(dados as Uint8ClampedArray<ArrayBuffer>, cw, ch), 0, 0); ctx.drawImage(t as CanvasImageSource, dx, dy); };
+      ctx.setTransform(1, 0, 0, 1, 0, 0); poe(r.margem); poe(r.leito); resetTransform(ctx);
       if (actx) {
         const aguaAlt = new Uint8ClampedArray(cw * ch * 4);
         const pisoByte = Math.round(PISO_NO_MAPA * 255);
@@ -421,24 +526,24 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
         const t = criarTela(cw, ch);
         contextoDe(t).putImageData(new ImageData(aguaAlt as Uint8ClampedArray<ArrayBuffer>, cw, ch), 0, 0);
         actx.setTransform(1, 0, 0, 1, 0, 0);
-        actx.drawImage(t as CanvasImageSource, x0, y0);
-        actx.setTransform(res, 0, 0, res, 0, 0);
+        actx.drawImage(t as CanvasImageSource, dx, dy);
+        resetTransform(actx);
       }
-      aguas.push({ profundidade: r.profundidade, binaria, x0, y0, cw, ch });
+      aguas.push({ profundidade: r.profundidade, binaria, x0, y0, cw, ch, indice: camada.indiceAgua ?? aguas.length });
       return;
     }
     if (macico) {
       // Maciço: volume próprio (patamares, estrias, sombra de contato) e nenhum aro escuro das camadas comuns.
       const r = sombrearMacico({ dentro: binaria, alfa: pixel ? null : cobertura, largura: cw, altura: ch, res, seed: 11 + idx * 5, cores: material, pixel, origemPx: [x0, y0] });
-      const poe = (dados: Uint8ClampedArray) => { const t = criarTela(cw, ch), c = contextoDe(t); c.putImageData(new ImageData(dados as Uint8ClampedArray<ArrayBuffer>, cw, ch), 0, 0); ctx.drawImage(t as CanvasImageSource, x0, y0); };
-      ctx.setTransform(1, 0, 0, 1, 0, 0); poe(r.sombra); poe(r.rgba); ctx.setTransform(res, 0, 0, res, 0, 0);
+      const poe = (dados: Uint8ClampedArray) => { const t = criarTela(cw, ch), c = contextoDe(t); c.putImageData(new ImageData(dados as Uint8ClampedArray<ArrayBuffer>, cw, ch), 0, 0); ctx.drawImage(t as CanvasImageSource, dx, dy); };
+      ctx.setTransform(1, 0, 0, 1, 0, 0); poe(r.sombra); poe(r.rgba); resetTransform(ctx);
       if (actx) {
         const altMacico = alturaPorLuminancia(r.rgba, cw, ch, res);
         const t = criarTela(cw, ch);
         contextoDe(t).putImageData(new ImageData(altMacico as Uint8ClampedArray<ArrayBuffer>, cw, ch), 0, 0);
         actx.setTransform(1, 0, 0, 1, 0, 0);
-        actx.drawImage(t as CanvasImageSource, x0, y0);
-        actx.setTransform(res, 0, 0, res, 0, 0);
+        actx.drawImage(t as CanvasImageSource, dx, dy);
+        resetTransform(actx);
       }
       return;
     }
@@ -456,9 +561,9 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
       return t;
     };
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalAlpha = pixel ? 1 : 0.5; ctx.drawImage(comAlfa(aro, material.escuro) as CanvasImageSource, x0, y0); ctx.globalAlpha = 1;
+    ctx.globalAlpha = pixel ? 1 : 0.5; ctx.drawImage(comAlfa(aro, material.escuro) as CanvasImageSource, dx, dy); ctx.globalAlpha = 1;
     const pintada = criarTela(cw, ch), pc = contextoDe(pintada, { willReadFrequently: !pixel });
-    const dir = material.padrao === 'sulcos' ? orientacaoDominante(camada.celulas) : 0;
+    const dir = material.padrao === 'sulcos' ? (camada.dir ?? orientacaoDominante(camada.celulas)) : 0;
     const caixaM = { x: x0 / res, y: y0 / res, w: cw / res, h: ch / res };
     const areaMaterial = pixel || padraoDependeDaArea(material.padrao) ? { x: 0, y: 0, w: e.largura, h: e.altura } : caixaM;
     pc.setTransform(res, 0, 0, res, -x0, -y0); estilo.pintarMaterial(pc, camada.material, areaMaterial, 11 + idx * 5, { res, dir });
@@ -479,33 +584,33 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
       atc.globalCompositeOperation = 'destination-in';
       atc.drawImage(mascCorpo as CanvasImageSource, 0, 0);
       actx.setTransform(1, 0, 0, 1, 0, 0);
-      actx.drawImage(altTela as CanvasImageSource, x0, y0);
-      actx.setTransform(res, 0, 0, res, 0, 0);
+      actx.drawImage(altTela as CanvasImageSource, dx, dy);
+      resetTransform(actx);
     }
     pc.setTransform(1, 0, 0, 1, 0, 0); pc.globalCompositeOperation = 'destination-in'; pc.drawImage(mascCorpo as CanvasImageSource, 0, 0);
-    ctx.drawImage(pintada as CanvasImageSource, x0, y0); ctx.setTransform(res, 0, 0, res, 0, 0);
+    ctx.drawImage(pintada as CanvasImageSource, dx, dy); resetTransform(ctx);
   });
-  if (e.assentamento) pintarAssentamento(ctx, e, W, Hh, res, estilo);
+  if (e.assentamento) pintarAssentamento(ctx, e, W, Hh, res, estilo, rx0, ry0, outW, outH);
   if (e.relevo?.faixas.length) {
-    const img = ctx.getImageData(0, 0, W, Hh);
+    const img = ctx.getImageData(0, 0, outW, outH);
     const pxDados = img.data;
     const nr = parseInt(e.relevo.neblina.slice(1, 3), 16), ng = parseInt(e.relevo.neblina.slice(3, 5), 16), nb = parseInt(e.relevo.neblina.slice(5, 7), 16);
     if (!pixel) {
-      const { Mw, Mh, mRes, gain, bias } = comporMascaraDeRelevo(e.relevo.faixas, e.relevo.topo, e.resolucao, e.largura, e.altura, res);
-      const sx0 = new Int32Array(W), sx1 = new Int32Array(W);
-      const stx = new Float32Array(W);
+      const { Mw, Mh, mRes, mx0, my0, gain, bias } = comporMascaraDeRelevo(e.relevo.faixas, e.relevo.topo, e.resolucao, e.largura, e.altura, res, e.recorte);
+      const sx0 = new Int32Array(outW), sx1 = new Int32Array(outW);
+      const stx = new Float32Array(outW);
       const escalaX = mRes / res;
-      for (let x = 0; x < W; x++) {
-        const fx = Math.max(0, Math.min(Mw - 1, (x + 0.5) * escalaX - 0.5));
+      for (let x = 0; x < outW; x++) {
+        const fx = Math.max(0, Math.min(Mw - 1, (rx0 + x + 0.5) * escalaX - 0.5 - mx0));
         const x0 = Math.floor(fx), x1 = Math.min(Mw - 1, x0 + 1);
         sx0[x] = x0; sx1[x] = x1; stx[x] = fx - x0;
       }
-      for (let y = 0; y < Hh; y++) {
-        const fy = Math.max(0, Math.min(Mh - 1, (y + 0.5) * escalaX - 0.5));
+      for (let y = 0; y < outH; y++) {
+        const fy = Math.max(0, Math.min(Mh - 1, (ry0 + y + 0.5) * escalaX - 0.5 - my0));
         const y0 = Math.floor(fy), y1 = Math.min(Mh - 1, y0 + 1), ty = fy - y0;
         const row0 = y0 * Mw, row1 = y1 * Mw;
-        const pxRow = y * W * 4;
-        for (let x = 0; x < W; x++) {
+        const pxRow = y * outW * 4;
+        for (let x = 0; x < outW; x++) {
           const k = pxRow + x * 4;
           if (!pxDados[k + 3]) continue;
           const x0 = sx0[x]!, x1 = sx1[x]!, tx = stx[x]!;
@@ -523,25 +628,26 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
       }
     } else {
       const mRes = e.largura * e.altura >= 8000 ? Math.min(res, 6) : res;
-      const Mw = Math.max(1, Math.ceil(e.largura * mRes));
-      const Mh = Math.max(1, Math.ceil(e.altura * mRes));
+      const { Mw, Mh, mx0, my0 } = caixaDoRelevo(e.largura, e.altura, mRes, e.recorte);
       const masc = new Uint8ClampedArray(Mw * Mh * 4);
       const escala = mRes / res;
       for (const f of e.relevo.faixas) {
         const p = fatorDeProfundidade(f.altura, e.relevo.topo);
         if (p <= 0 || !f.celulas.length) continue;
-        rasterizarFaixasEmAlfa(f.celulas, e.resolucao, Mw, Mh, mRes, masc);
+        rasterizarFaixasEmAlfa(f.celulas, e.resolucao, Mw, Mh, mRes, masc, mx0, my0);
         const esc = 1 - 0.6 * p, alfaMax = 0.25 * p;
-        for (let y = 0; y < Hh; y++) {
-          const my = Math.min(Mh - 1, Math.floor((y + 0.5) * escala));
-          const mRow = my * Mw, pxRow = y * W * 4;
-          for (let x = 0; x < W; x++) {
+        for (let y = 0; y < outH; y++) {
+          const gy = ry0 + y;
+          const my = Math.max(0, Math.min(Mh - 1, Math.floor((gy + 0.5) * escala) - my0));
+          const mRow = my * Mw, pxRow = y * outW * 4;
+          for (let x = 0; x < outW; x++) {
             const k = pxRow + x * 4;
             if (!pxDados[k + 3]) continue;
-            const mx = Math.min(Mw - 1, Math.floor((x + 0.5) * escala));
+            const gx = rx0 + x;
+            const mx = Math.max(0, Math.min(Mw - 1, Math.floor((gx + 0.5) * escala) - mx0));
             const m = masc[(mRow + mx) * 4 + 3]! / 255;
             if (m < 0.5) continue;
-            const limiar = (BAYER4[(y & 3) * 4 + (x & 3)]! + 0.5) / 16;
+            const limiar = (BAYER4[(gy & 3) * 4 + (gx & 3)]! + 0.5) / 16;
             const alfa = Math.min(2, Math.floor((alfaMax / 0.125) + (1 - limiar) * 0.999)) * 0.125;
             pxDados[k] = Math.round((pxDados[k]! * (1 - alfa) + nr * alfa) * esc);
             pxDados[k + 1] = Math.round((pxDados[k + 1]! * (1 - alfa) + ng * alfa) * esc);
@@ -552,10 +658,10 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.putImageData(img, 0, 0);
-    ctx.setTransform(res, 0, 0, res, 0, 0);
+    resetTransform(ctx);
   }
   if (actx && e.relevo && (e.relevo.faixas.length > 0 || e.relevo.topo !== 0)) {
-    const altImg = actx.getImageData(0, 0, W, Hh);
+    const altImg = actx.getImageData(0, 0, outW, outH);
     const aDados = altImg.data;
     if (!e.relevo.faixas.length) {
       const delta = e.relevo.topo / 40;
@@ -565,19 +671,19 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
         aDados[k] = c; aDados[k + 1] = 0; aDados[k + 2] = 0;
       }
     } else {
-      const { Mw, Mh, mRes, altitudes } = comporAltitudeDoRelevo(e.relevo.faixas, e.relevo.topo, e.resolucao, e.largura, e.altura, res);
-      const sx0 = new Int32Array(W), sx1 = new Int32Array(W), stx = new Float32Array(W);
+      const { Mw, Mh, mRes, mx0, my0, altitudes } = comporAltitudeDoRelevo(e.relevo.faixas, e.relevo.topo, e.resolucao, e.largura, e.altura, res, e.recorte);
+      const sx0 = new Int32Array(outW), sx1 = new Int32Array(outW), stx = new Float32Array(outW);
       const escalaX = mRes / res;
-      for (let x = 0; x < W; x++) {
-        const fx = Math.max(0, Math.min(Mw - 1, (x + 0.5) * escalaX - 0.5));
+      for (let x = 0; x < outW; x++) {
+        const fx = Math.max(0, Math.min(Mw - 1, (rx0 + x + 0.5) * escalaX - 0.5 - mx0));
         const x0 = Math.floor(fx), x1 = Math.min(Mw - 1, x0 + 1);
         sx0[x] = x0; sx1[x] = x1; stx[x] = fx - x0;
       }
-      for (let y = 0; y < Hh; y++) {
-        const fy = Math.max(0, Math.min(Mh - 1, (y + 0.5) * escalaX - 0.5));
+      for (let y = 0; y < outH; y++) {
+        const fy = Math.max(0, Math.min(Mh - 1, (ry0 + y + 0.5) * escalaX - 0.5 - my0));
         const y0 = Math.floor(fy), y1 = Math.min(Mh - 1, y0 + 1), ty = fy - y0;
-        const row0 = y0 * Mw, row1 = y1 * Mw, pxRow = y * W * 4;
-        for (let x = 0; x < W; x++) {
+        const row0 = y0 * Mw, row1 = y1 * Mw, pxRow = y * outW * 4;
+        for (let x = 0; x < outW; x++) {
           const k = pxRow + x * 4;
           if (!aDados[k + 3]) continue;
           const x0 = sx0[x]!, x1 = sx1[x]!, tx = stx[x]!;
@@ -591,12 +697,24 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
     }
     actx.setTransform(1, 0, 0, 1, 0, 0);
     actx.putImageData(altImg, 0, 0);
-    actx.setTransform(res, 0, 0, res, 0, 0);
+    resetTransform(actx);
   }
-  if (e.relevo?.degraus?.length) pintarDegraus(ctx, e.relevo.degraus, res, pixel);
-  const dadosDaAgua = texturaDeAgua(aguas, W, Hh, res, e.largura, e.altura);
-  if (dadosDaAgua) { const ta = criarTela(dadosDaAgua.width, dadosDaAgua.height); contextoDe(ta).putImageData(dadosDaAgua, 0, 0); return { tela, altura, origem: [0, 0], res, agua: { tela: ta, res: RES_DA_TEXTURA_DE_AGUA } }; }
-  return { tela, altura, origem: [0, 0], res };
+  if (e.relevo?.degraus?.length) pintarDegraus(ctx, e.relevo.degraus, res, pixel, [rx0, ry0]);
+  const waFull = Math.max(1, Math.ceil(e.largura * RES_DA_TEXTURA_DE_AGUA));
+  const haFull = Math.max(1, Math.ceil(e.altura * RES_DA_TEXTURA_DE_AGUA));
+  const ax0 = e.recorte ? Math.max(0, Math.round(rec.x * RES_DA_TEXTURA_DE_AGUA)) : 0;
+  const ay0 = e.recorte ? Math.max(0, Math.round(rec.y * RES_DA_TEXTURA_DE_AGUA)) : 0;
+  const ax1 = e.recorte ? (rec.x + rec.w >= e.largura - 1e-9 ? waFull : Math.min(waFull, Math.round((rec.x + rec.w) * RES_DA_TEXTURA_DE_AGUA))) : waFull;
+  const ay1 = e.recorte ? (rec.y + rec.h >= e.altura - 1e-9 ? haFull : Math.min(haFull, Math.round((rec.y + rec.h) * RES_DA_TEXTURA_DE_AGUA))) : haFull;
+  const recorteAgua = e.recorte ? { x0: ax0, y0: ay0, w: Math.max(1, ax1 - ax0), h: Math.max(1, ay1 - ay0) } : undefined;
+  const dadosDaAgua = texturaDeAgua(aguas, W, Hh, res, e.largura, e.altura, recorteAgua);
+  if (dadosDaAgua) {
+    const ta = criarTela(dadosDaAgua.width, dadosDaAgua.height);
+    contextoDe(ta).putImageData(dadosDaAgua, 0, 0);
+    const aguaOrigem: Ponto | undefined = e.recorte ? [ax0 / RES_DA_TEXTURA_DE_AGUA, ay0 / RES_DA_TEXTURA_DE_AGUA] : undefined;
+    return { tela, altura, origem, res, agua: { tela: ta, res: RES_DA_TEXTURA_DE_AGUA, ...(aguaOrigem ? { origem: aguaOrigem } : {}) } };
+  }
+  return { tela, altura, origem, res };
 }
 
 /** Largura (m) da faixa de declive de um degrau transponível: ~0,55 m para 0,5 m de desnível. */
@@ -690,9 +808,15 @@ export function pintarAlturaDegrausConstruidos(ctx: Contexto, degraus: readonly 
  * Degraus < 1 m como talude: faixa de sombra em degradê no lado baixo, hachuras curtas de declive ao longo do
  * contorno, quebra escura no pé da crista e borda clara no topo. No Pixel, menos camadas e traço de 1 px.
  */
-export function pintarDegraus(ctx: Contexto, degraus: readonly { caminhos: Ponto[][]; drops: ('a' | 'b')[]; desnivel?: number }[], res: number, pixel: boolean): void {
+export function pintarDegraus(
+  ctx: Contexto,
+  degraus: readonly { caminhos: Ponto[][]; drops: ('a' | 'b')[]; desnivel?: number }[],
+  res: number,
+  pixel: boolean,
+  origemPx: readonly [number, number] = [0, 0],
+): void {
   ctx.save();
-  ctx.setTransform(res, 0, 0, res, 0, 0);
+  ctx.setTransform(res, 0, 0, res, -origemPx[0], -origemPx[1]);
   ctx.lineCap = pixel ? 'butt' : 'round';
   ctx.lineJoin = 'round';
   const px = 1 / res;
@@ -741,70 +865,98 @@ export function pintarDegraus(ctx: Contexto, degraus: readonly { caminhos: Ponto
   ctx.restore();
 }
 
-function pintarAssentamento(ctx: Contexto, e: EntradaDeTerreno, W: number, Hh: number, res: number, estilo: EstiloDeRaster): void {
+function pintarAssentamento(
+  ctx: Contexto,
+  e: EntradaDeTerreno,
+  W: number,
+  Hh: number,
+  res: number,
+  estilo: EstiloDeRaster,
+  rx0 = 0,
+  ry0 = 0,
+  outW = W,
+  outH = Hh,
+): void {
   const assent = e.assentamento;
   if (!assent) return;
   const pixel = estilo.id === 'pixel';
+  const margemPx = e.recorte ? Math.ceil(MARGEM_ASSENTAMENTO * res) : 0;
+  const ax0 = e.recorte ? Math.max(0, rx0 - margemPx) : 0;
+  const ay0 = e.recorte ? Math.max(0, ry0 - margemPx) : 0;
+  const ax1 = e.recorte ? Math.min(W, rx0 + outW + margemPx) : W;
+  const ay1 = e.recorte ? Math.min(Hh, ry0 + outH + margemPx) : Hh;
+  const aw = ax1 - ax0, ah = ay1 - ay0;
   const preencherFaixas = (faixas: readonly Faixa[], destino: Uint8Array, valor: number) => {
     for (const [fy, fx0, fn] of faixas) {
-      const py0 = Math.max(0, Math.floor(fy * e.resolucao * res));
-      const py1 = Math.min(Hh - 1, Math.ceil((fy + 1) * e.resolucao * res) - 1);
-      const px0 = Math.max(0, Math.floor(fx0 * e.resolucao * res));
-      const px1 = Math.min(W - 1, Math.ceil((fx0 + fn) * e.resolucao * res) - 1);
-      for (let y = py0; y <= py1; y++) for (let x = px0; x <= px1; x++) destino[y * W + x] = valor;
+      const py0 = Math.max(ax0 * 0 + ay0, Math.floor(fy * e.resolucao * res));
+      const py1 = Math.min(ay1 - 1, Math.ceil((fy + 1) * e.resolucao * res) - 1);
+      if (py1 < py0) continue;
+      const px0 = Math.max(ax0, Math.floor(fx0 * e.resolucao * res));
+      const px1 = Math.min(ax1 - 1, Math.ceil((fx0 + fn) * e.resolucao * res) - 1);
+      if (px1 < px0) continue;
+      for (let y = py0; y <= py1; y++) {
+        const row = (y - ay0) * aw;
+        for (let x = px0; x <= px1; x++) destino[row + (x - ax0)] = valor;
+      }
     }
   };
 
-  if (assent.material && assent.celulas.length) {
-    const anel = new Uint8Array(W * Hh);
+  if (assent.material && assent.celulas.length && aw > 0 && ah > 0) {
+    const anel = new Uint8Array(aw * ah);
     preencherFaixas(assent.celulas, anel, 1);
-    const foraSalas = new Uint8Array(W * Hh).fill(1);
+    const foraSalas = new Uint8Array(aw * ah).fill(1);
     if (assent.salas?.length) preencherFaixas(assent.salas, foraSalas, 0);
-    const dist = assent.salas?.length ? distanciaAMargem(foraSalas, W, Hh, res, 0.9) : null;
-    const macia = dist ? null : mascaraSuavizada(assent.celulas, e.resolucao, W, Hh, res);
+    const dist = assent.salas?.length ? distanciaAMargem(foraSalas, aw, ah, res, 0.9) : null;
+    const macia = dist ? null : mascaraSuavizada(assent.celulas, e.resolucao, W, Hh, res, { x0: ax0, y0: ay0, cw: aw, ch: ah });
     const ruido = valueNoise2D(4711);
-    const mascaraImg = new ImageData(W, Hh);
-    for (let y = 0, i = 0; y < Hh; y++) for (let x = 0; x < W; x++, i++) {
-      if (!anel[i]) continue;
-      const mx = x / res, my = y / res;
-      const torcao = (fbm(ruido, mx * 1.4, my * 1.4, 3) - 0.5) * 0.34;
-      let t = 0;
-      if (dist) {
-        if (!foraSalas[i]) continue;
-        t = Math.max(0, Math.min(1, 1 - (dist[i]! + torcao) / 0.75));
-      } else if (macia) {
-        t = Math.max(0, Math.min(1, macia[i * 4 + 3]! / 255 + torcao));
-      }
-      if (t <= 0) continue;
-      if (pixel) {
-        const limiar = (BAYER4[(y & 3) * 4 + (x & 3)]! + 0.5) / 16;
-        if (t * 0.85 > limiar * 0.8 + 0.15) mascaraImg.data[i * 4 + 3] = 255;
-      } else {
-        mascaraImg.data[i * 4 + 3] = Math.round(0.85 * suave(0, 1, t) * 255);
+    const mascaraImg = new ImageData(aw, ah);
+    for (let ly = 0, i = 0; ly < ah; ly++) {
+      const y = ay0 + ly, my = y / res;
+      for (let lx = 0; lx < aw; lx++, i++) {
+        if (!anel[i]) continue;
+        const x = ax0 + lx, mx = x / res;
+        const torcao = (fbm(ruido, mx * 1.4, my * 1.4, 3) - 0.5) * 0.34;
+        let t = 0;
+        if (dist) {
+          if (!foraSalas[i]) continue;
+          t = Math.max(0, Math.min(1, 1 - (dist[i]! + torcao) / 0.75));
+        } else if (macia) {
+          t = Math.max(0, Math.min(1, macia[i * 4 + 3]! / 255 + torcao));
+        }
+        if (t <= 0) continue;
+        if (pixel) {
+          const limiar = (BAYER4[(y & 3) * 4 + (x & 3)]! + 0.5) / 16;
+          if (t * 0.85 > limiar * 0.8 + 0.15) mascaraImg.data[i * 4 + 3] = 255;
+        } else {
+          mascaraImg.data[i * 4 + 3] = Math.round(0.85 * suave(0, 1, t) * 255);
+        }
       }
     }
-    const mascTela = criarTela(W, Hh);
+    const mascTela = criarTela(aw, ah);
     contextoDe(mascTela).putImageData(mascaraImg, 0, 0);
-    const pintada = criarTela(W, Hh), pc = contextoDe(pintada);
-    pc.setTransform(res, 0, 0, res, 0, 0);
-    estilo.pintarMaterial(pc, assent.material, { x: 0, y: 0, w: e.largura, h: e.altura }, 29, { res });
+    const pintada = criarTela(aw, ah), pc = contextoDe(pintada);
+    pc.setTransform(res, 0, 0, res, -ax0, -ay0);
+    const areaAssent = pixel || padraoDependeDaArea(materialDe(assent.material).padrao)
+      ? { x: 0, y: 0, w: e.largura, h: e.altura }
+      : { x: ax0 / res, y: ay0 / res, w: aw / res, h: ah / res };
+    estilo.pintarMaterial(pc, assent.material, areaAssent, 29, { res });
     pc.setTransform(1, 0, 0, 1, 0, 0);
     // Sujeira de piso gasto junto à fundação para distinguir o aro mesmo sobre neve clara
     pc.fillStyle = '#3e362e';
     pc.globalAlpha = pixel ? 0.24 : 0.38;
-    pc.fillRect(0, 0, W, Hh);
+    pc.fillRect(0, 0, aw, ah);
     pc.globalAlpha = 1;
     pc.globalCompositeOperation = 'destination-in';
     pc.drawImage(mascTela as CanvasImageSource, 0, 0);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.drawImage(pintada as CanvasImageSource, 0, 0);
-    ctx.setTransform(res, 0, 0, res, 0, 0);
+    ctx.drawImage(pintada as CanvasImageSource, ax0 - rx0, ay0 - ry0);
+    ctx.setTransform(res, 0, 0, res, -rx0, -ry0);
   }
 
   if (assent.soleiras.length) {
     const corLeque = materialDe(assent.material ?? 'terra');
     ctx.save();
-    ctx.setTransform(res, 0, 0, res, 0, 0);
+    ctx.setTransform(res, 0, 0, res, -rx0, -ry0);
     for (const sol of assent.soleiras) {
       const [cx, cy] = sol.centro, [nx, ny] = sol.normal;
       const ang = Math.atan2(ny, nx);

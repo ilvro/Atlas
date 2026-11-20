@@ -5,6 +5,7 @@ import { tamanhoDoObjeto } from './selecao.ts';
 import { ehArvore } from '../domain/camadas.ts';
 import { forcaDoAnel, geraAnelDeEspuma } from './espuma.ts';
 import { ACERVO } from '../procedural/acervo.ts';
+import { RES_DA_TEXTURA_DE_AGUA } from '../procedural/agua.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import { hexParaNumero } from './cores.ts';
 import { FATOR_DE_MOVIMENTO_REDUZIDO } from './particulas-config.ts';
@@ -121,6 +122,12 @@ export interface RenderDeAgua {
   readonly raiz: Container;
   /** Chegou o resultado do terreno: a textura de água dele (ou `undefined`, se não há água). */
   aplicar(agua: { bitmap: ImageBitmap; res: number } | undefined, m: MapaAtlas): void;
+  /** Atualiza apenas o retângulo de um ladrilho de terreno na textura de água única do mapa. */
+  aplicarLadrilho(
+    caixa: { x: number; y: number; w: number; h: number },
+    agua: { bitmap: ImageBitmap; res: number; origem?: [number, number] } | undefined,
+    m: MapaAtlas,
+  ): void;
   /** O clima ou o estilo mudou: luz do sol, cor da espuma. */
   sincronizar(m: MapaAtlas): void;
   /** Os objetos de piso mudaram: refaz a máscara do anel de espuma. */
@@ -137,7 +144,19 @@ export interface RenderDeAgua {
 /** As camadas de água na ordem em que o assar numera a textura (o `B` dela): as que têm células, pela ordem de pintura. */
 const camadasDeAgua = (m: MapaAtlas) => Object.values(m.terrain.layers).filter(c => c.cells.length && materialDe(c.material).uso === 'agua').sort((a, b) => a.order - b.order);
 
-interface Desenho { mesh: Mesh<Geometry, Shader>; grupo: UniformGroup; textura: Texture; mascara: HTMLCanvasElement; texMascara: Texture; dados: Uint8ClampedArray; largura: number; altura: number; res: number }
+interface Desenho {
+  mesh: Mesh<Geometry, Shader>;
+  grupo: UniformGroup;
+  textura: Texture;
+  copia: HTMLCanvasElement;
+  cg: CanvasRenderingContext2D;
+  mascara: HTMLCanvasElement;
+  texMascara: Texture;
+  dados: Uint8ClampedArray;
+  largura: number;
+  altura: number;
+  res: number;
+}
 
 /** Quanto um objeto submerso é tingido e esmaecido, a cor da água e a profundidade (0 a 1) no ponto dele. */
 export interface Submersao { profundidade: number; cor: number; material: string }
@@ -183,6 +202,30 @@ export function criarAgua(): RenderDeAgua {
     desenho.texMascara.source.update();
   }
 
+  const criarDesenho = (wa: number, ha: number, res: number, m: MapaAtlas): Desenho => {
+    const copia = document.createElement('canvas'); copia.width = wa; copia.height = ha;
+    const cg = copia.getContext('2d', { willReadFrequently: true })!;
+    const textura = Texture.from(copia); textura.source.scaleMode = 'linear'; textura.source.addressMode = 'clamp-to-edge';
+    const w = wa / res, h = ha / res;
+    const geometria = new Geometry({ attributes: { aPosition: new Float32Array([0, 0, w, 0, w, h, 0, h]), aUV: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]) }, indexBuffer: new Uint16Array([0, 1, 2, 0, 2, 3]) });
+    const grupo = new UniformGroup({
+      uTamanho: { value: new Float32Array([w, h]), type: 'vec2<f32>' }, uTempo: { value: tempo, type: 'f32' }, uSol: { value: new Float32Array([-0.5, -0.7]), type: 'vec2<f32>' },
+      uLuz: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' }, uEspuma: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
+      uFlow0: { value: new Float32Array(2), type: 'vec2<f32>' }, uFlow1: { value: new Float32Array(2), type: 'vec2<f32>' }, uFlow2: { value: new Float32Array(2), type: 'vec2<f32>' }, uFlow3: { value: new Float32Array(2), type: 'vec2<f32>' },
+      uCaustica: { value: new Float32Array(4), type: 'vec4<f32>' }, uForcaEspuma: { value: new Float32Array([1, 1, 1, 1]), type: 'vec4<f32>' }, uOndas: { value: new Float32Array(4), type: 'vec4<f32>' }, uPixel: { value: 0, type: 'f32' }, uPpm: { value: 1, type: 'f32' },
+    });
+    prog ??= GlProgram.from({ vertex, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-agua' });
+    const dados = new Uint8ClampedArray(wa * ha * 4);
+    const mascara = document.createElement('canvas'); mascara.width = wa; mascara.height = ha;
+    const texMascara = Texture.from(mascara); texMascara.source.scaleMode = 'linear'; texMascara.source.addressMode = 'clamp-to-edge';
+    const mesh = new Mesh({ geometry: geometria, shader: new Shader({ glProgram: prog, resources: { uTexture: textura.source, uObjetos: texMascara.source, uSampler: textura.source.style, agua: grupo } }) });
+    raiz.addChild(mesh);
+    desenho = { mesh, grupo, textura, copia, cg, mascara, texMascara, dados, largura: wa, altura: ha, res };
+    sincronizar(m);
+    objetos(m);
+    return desenho;
+  };
+
   return {
     raiz,
     objetos,
@@ -201,24 +244,51 @@ export function criarAgua(): RenderDeAgua {
       mapaAtual = m;
       apagar();
       if (!agua) return;
-      const textura = Texture.from(agua.bitmap); textura.source.scaleMode = 'linear'; textura.source.addressMode = 'clamp-to-edge';
-      const w = agua.bitmap.width / agua.res, h = agua.bitmap.height / agua.res;
-      const geometria = new Geometry({ attributes: { aPosition: new Float32Array([0, 0, w, 0, w, h, 0, h]), aUV: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]) }, indexBuffer: new Uint16Array([0, 1, 2, 0, 2, 3]) });
-      const grupo = new UniformGroup({
-        uTamanho: { value: new Float32Array([w, h]), type: 'vec2<f32>' }, uTempo: { value: tempo, type: 'f32' }, uSol: { value: new Float32Array([-0.5, -0.7]), type: 'vec2<f32>' },
-        uLuz: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' }, uEspuma: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
-        uFlow0: { value: new Float32Array(2), type: 'vec2<f32>' }, uFlow1: { value: new Float32Array(2), type: 'vec2<f32>' }, uFlow2: { value: new Float32Array(2), type: 'vec2<f32>' }, uFlow3: { value: new Float32Array(2), type: 'vec2<f32>' },
-        uCaustica: { value: new Float32Array(4), type: 'vec4<f32>' }, uForcaEspuma: { value: new Float32Array([1, 1, 1, 1]), type: 'vec4<f32>' }, uOndas: { value: new Float32Array(4), type: 'vec4<f32>' }, uPixel: { value: 0, type: 'f32' }, uPpm: { value: 1, type: 'f32' },
-      });
-      prog ??= GlProgram.from({ vertex, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-agua' });
-      // A cópia na CPU da profundidade (R) e do índice da camada (B), para os objetos submersos; e a máscara dos objetos, na mesma grade.
-      const copia = document.createElement('canvas'); copia.width = agua.bitmap.width; copia.height = agua.bitmap.height;
-      const cg = copia.getContext('2d', { willReadFrequently: true })!; cg.drawImage(agua.bitmap, 0, 0);
-      const dados = cg.getImageData(0, 0, copia.width, copia.height).data;
-      const mascara = document.createElement('canvas'); mascara.width = copia.width; mascara.height = copia.height;
-      const texMascara = Texture.from(mascara); texMascara.source.scaleMode = 'linear'; texMascara.source.addressMode = 'clamp-to-edge';
-      const mesh = new Mesh({ geometry: geometria, shader: new Shader({ glProgram: prog, resources: { uTexture: textura.source, uObjetos: texMascara.source, uSampler: textura.source.style, agua: grupo } }) });
-      raiz.addChild(mesh); desenho = { mesh, grupo, textura, mascara, texMascara, dados, largura: copia.width, altura: copia.height, res: agua.res }; sincronizar(m); objetos(m);
+      const d = criarDesenho(agua.bitmap.width, agua.bitmap.height, agua.res, m);
+      d.cg.drawImage(agua.bitmap, 0, 0);
+      d.dados.set(d.cg.getImageData(0, 0, d.largura, d.altura).data);
+      d.textura.source.update();
+    },
+    aplicarLadrilho(caixa, agua, m) {
+      if (destruido) return;
+      mapaAtual = m;
+      const res = agua?.res ?? desenho?.res ?? RES_DA_TEXTURA_DE_AGUA;
+      const wa = Math.max(1, Math.ceil(m.bounds.width * res));
+      const ha = Math.max(1, Math.ceil(m.bounds.height * res));
+      if (!agua) {
+        if (!desenho) return;
+        if (desenho.largura !== wa || desenho.altura !== ha || desenho.res !== res) { apagar(); return; }
+        const ax0 = Math.max(0, Math.round(caixa.x * res));
+        const ay0 = Math.max(0, Math.round(caixa.y * res));
+        const ax1 = caixa.x + caixa.w >= m.bounds.width - 1e-9 ? desenho.largura : Math.min(desenho.largura, Math.round((caixa.x + caixa.w) * res));
+        const ay1 = caixa.y + caixa.h >= m.bounds.height - 1e-9 ? desenho.altura : Math.min(desenho.altura, Math.round((caixa.y + caixa.h) * res));
+        if (ax1 > ax0 && ay1 > ay0) {
+          desenho.cg.clearRect(ax0, ay0, ax1 - ax0, ay1 - ay0);
+          for (let y = ay0; y < ay1; y++) desenho.dados.fill(0, (y * desenho.largura + ax0) * 4, (y * desenho.largura + ax1) * 4);
+          desenho.textura.source.update();
+        }
+        return;
+      }
+      if (!desenho || desenho.largura !== wa || desenho.altura !== ha || desenho.res !== res) {
+        apagar();
+        criarDesenho(wa, ha, res, m);
+      }
+      const d = desenho!;
+      const ox = Math.round((agua.origem?.[0] ?? caixa.x) * res);
+      const oy = Math.round((agua.origem?.[1] ?? caixa.y) * res);
+      const pw = Math.min(agua.bitmap.width, d.largura - ox);
+      const ph = Math.min(agua.bitmap.height, d.altura - oy);
+      if (ox >= 0 && oy >= 0 && pw > 0 && ph > 0) {
+        d.cg.clearRect(ox, oy, pw, ph);
+        d.cg.drawImage(agua.bitmap, 0, 0, pw, ph, ox, oy, pw, ph);
+        const patch = d.cg.getImageData(ox, oy, pw, ph).data;
+        for (let row = 0; row < ph; row++) {
+          const srcOff = row * pw * 4;
+          const dstOff = ((oy + row) * d.largura + ox) * 4;
+          d.dados.set(patch.subarray(srcOff, srcOff + pw * 4), dstOff);
+        }
+        d.textura.source.update();
+      }
     },
     sincronizar,
     quadro(dt) {

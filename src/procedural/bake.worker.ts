@@ -32,7 +32,7 @@ async function clonarResultado(r: ResultadoComExtras): Promise<ResultadoComExtra
       altura,
       origem: r.origem,
       res: r.res,
-      ...(r.agua && aguaBmp ? { agua: { bitmap: aguaBmp, res: r.agua.res } } : {}),
+      ...(r.agua && aguaBmp ? { agua: { bitmap: aguaBmp, res: r.agua.res, ...(r.agua.origem ? { origem: r.agua.origem } : {}) } } : {}),
       ...(normal ? { normal } : {}),
       ...(fachada ? { fachada } : {}),
     };
@@ -54,7 +54,7 @@ async function gravarEmSegundoPlano(chave: string, copia: ResultadoComExtras): P
     await cacheDeAssadosPadrao().gravarBruto(chave, {
       cor,
       altura,
-      agua: copia.agua && aguaBlob ? { blob: aguaBlob, res: copia.agua.res } : null,
+      agua: copia.agua && aguaBlob ? { blob: aguaBlob, res: copia.agua.res, ...(copia.agua.origem ? { origem: copia.agua.origem } : {}) } : null,
       ...(normal !== undefined ? { normal } : {}),
       ...(fachada !== undefined ? { fachada } : {}),
       origem: copia.origem,

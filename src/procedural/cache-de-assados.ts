@@ -10,7 +10,7 @@ export interface RegistroAssado {
   chaveHash: string;
   cor: Blob;
   altura: Blob | null;
-  agua: { blob: Blob; res: number } | null;
+  agua: { blob: Blob; res: number; origem?: [number, number] } | null;
   normal?: Blob | null;
   fachada?: Blob | null;
   origem: [number, number];
@@ -27,7 +27,7 @@ export interface ResultadoComExtras extends ResultadoDeBake {
 export interface EntradaBrutaAssado {
   cor: Blob;
   altura: Blob | null;
-  agua: { blob: Blob; res: number } | null;
+  agua: { blob: Blob; res: number; origem?: [number, number] } | null;
   normal?: Blob | null;
   fachada?: Blob | null;
   origem: [number, number];
@@ -304,7 +304,7 @@ export function criarCacheDeAssados(opcoes: OpcoesCacheDeAssados = {}): CacheDeA
         altura,
         origem: reg.origem,
         res: reg.res,
-        ...(reg.agua && aguaBitmap ? { agua: { bitmap: aguaBitmap, res: reg.agua.res } } : {}),
+        ...(reg.agua && aguaBitmap ? { agua: { bitmap: aguaBitmap, res: reg.agua.res, ...(reg.agua.origem ? { origem: reg.agua.origem } : {}) } } : {}),
         ...(normal ? { normal } : {}),
         ...(fachada ? { fachada } : {}),
       };
@@ -383,7 +383,7 @@ export function criarCacheDeAssados(opcoes: OpcoesCacheDeAssados = {}): CacheDeA
       await gravarBruto(chave, {
         cor,
         altura,
-        agua: resultado.agua && aguaBlob ? { blob: aguaBlob, res: resultado.agua.res } : null,
+        agua: resultado.agua && aguaBlob ? { blob: aguaBlob, res: resultado.agua.res, ...(resultado.agua.origem ? { origem: resultado.agua.origem } : {}) } : null,
         ...(normal !== undefined ? { normal } : {}),
         ...(fachada !== undefined ? { fachada } : {}),
         origem: resultado.origem,

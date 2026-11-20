@@ -12,7 +12,7 @@ import type { Baker } from '../procedural/baker.ts';
 import type { PedidoDeBake, ResultadoDeBake } from '../procedural/executar.ts';
 import type { Mudancas } from '../state/mudancas.ts';
 import { corDoNome, hexParaNumero } from './cores.ts';
-import { chaveDaEscarpa, chaveDoComodo, chaveDoObjeto, ehEscarpaAvulsa, entradaDaEscarpa, chaveDoTerreno, pedidoDoObjeto, contextoDeEntradas, entradaDoComodo, entradaDoTerreno, opcoesDoPixel, resolucaoDe } from './entradas.ts';
+import { chaveDaEscarpa, chaveDoComodo, chaveDoObjeto, ehEscarpaAvulsa, entradaDaEscarpa, chaveDoTerreno, pedidoDoObjeto, contextoDeEntradas, entradaDoComodo, entradaDoTerreno, ladrilhosDoTerreno, opcoesDoPixel, resolucaoDe } from './entradas.ts';
 import { nivelDaLuz } from '../domain/clima.ts';
 import { tintDoRelevo } from '../domain/relevo.ts';
 import { criarMapaDeLuz } from './mapa-de-luz.ts';
@@ -130,10 +130,10 @@ export function criarCena(op: OpcoesDaCena): Cena {
       composicaoDeLuz.sprite.visible = true;
     }
   };
-  const salas = new Map<string, Entrada>(), objetos = new Map<string, Entrada>();
+  const salas = new Map<string, Entrada>(), objetos = new Map<string, Entrada>(), terrenos = new Map<string, Entrada>();
   const luzes = new Map<string, Container>(), pecas = new Map<string, Container>(), regioes = new Map<string, Container>();
   const animacoes: { alvo: Container; t0: number; dur: number; final: number }[] = [];
-  let terreno: Entrada | null = null, terrenoTimer: ReturnType<typeof setTimeout> | null = null;
+  let terrenoTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Texturas compartilhadas por chave, com contagem de uso: quando ninguém mais usa, saem da GPU.
   const texturas = new Map<string, { tex: Texture; texAltura: Texture | null; usos: number }>();
@@ -177,14 +177,60 @@ export function criarCena(op: OpcoesDaCena): Cena {
   // ---------- Terreno ----------
   function sincronizarTerreno(m: MapaAtlas): void {
     const e = entradaDoTerreno(m), temAlgo = e.base !== 'vazio' || e.camadas.length > 0 || !!e.relevo || !!e.assentamento;
-    if (!temAlgo) { if (terreno) { cenaDeAltura.definirTerreno(null); removerEntrada(terreno); terreno = null; } agua.aplicar(undefined, m); return; }
-    terreno ??= novaEntrada(terrenoC);
-    const estilo = m.style.renderer, res = resolucaoDe(m, 'terreno'), chave = chaveDoTerreno(e, res, estilo);
-    if (terreno.chave === chave) return;
-    const alvo = terreno;
-    // Durante a pincelada o terreno muda a cada movimento: espera uma pausa antes de pedir a pintura.
-    if (terrenoTimer) clearTimeout(terrenoTimer);
-    terrenoTimer = setTimeout(() => { terrenoTimer = null; if (!destruida && terreno === alvo) pintar(alvo, chave, { tipo: 'terreno', entrada: e, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); cenaDeAltura.definirTerreno(alvo.texAltura, r.origem, r.res); if (mapa) { agua.aplicar(r.agua, mapa); reaplicarSubmersos(mapa); } }, 0); }, 140);
+    if (terrenoTimer) { clearTimeout(terrenoTimer); terrenoTimer = null; }
+    if (!temAlgo) {
+      for (const ent of terrenos.values()) removerEntrada(ent);
+      terrenos.clear();
+      cenaDeAltura.limparTerreno();
+      agua.aplicar(undefined, m);
+      return;
+    }
+    const estilo = m.style.renderer, res = resolucaoDe(m, 'terreno');
+    const ladrilhos = ladrilhosDoTerreno(e, res);
+    const vivos = new Set(ladrilhos.map(l => `${l.i},${l.j}`));
+    for (const [k, ent] of terrenos) {
+      if (!vivos.has(k)) {
+        cenaDeAltura.removerLadrilhoTerreno(k);
+        removerEntrada(ent);
+        terrenos.delete(k);
+      }
+    }
+    if (!e.camadas.some(c => c.celulas.length > 0 && materialDe(c.material).uso === 'agua')) {
+      agua.aplicar(undefined, m);
+    }
+
+    const mudados = ladrilhos.filter(l => {
+      const k = `${l.i},${l.j}`, ent = terrenos.get(k);
+      return !ent || ent.chave !== chaveDoTerreno(l.entrada, res, estilo);
+    });
+    if (!mudados.length) return;
+
+    const pedirLadrilhos = () => {
+      terrenoTimer = null;
+      if (destruida) return;
+      for (const l of ladrilhos) {
+        const k = `${l.i},${l.j}`;
+        let alvo = terrenos.get(k);
+        if (!alvo) { alvo = novaEntrada(terrenoC); terrenos.set(k, alvo); }
+        const chave = chaveDoTerreno(l.entrada, res, estilo);
+        if (alvo.chave === chave) continue;
+        const caixa = l.caixa;
+        pintar(alvo, chave, { tipo: 'terreno', entrada: l.entrada, res, estilo }, (s, r) => {
+          s.position.set(r.origem[0], r.origem[1]);
+          s.scale.set(1 / r.res);
+          cenaDeAltura.sincronizarLadrilhoTerreno(k, alvo!.texAltura, r.origem, r.res);
+          if (mapa) {
+            agua.aplicarLadrilho(caixa, r.agua, mapa);
+            reaplicarSubmersos(mapa);
+          }
+        }, 0);
+      }
+      op.baker.coletar(chavesEmUso());
+    };
+
+    // Na abertura do mapa não há ladrilhos ainda: assa de imediato; durante pinceladas espera 140 ms.
+    if (terrenos.size === 0) pedirLadrilhos();
+    else terrenoTimer = setTimeout(pedirLadrilhos, 140);
   }
 
   // ---------- Escarpas avulsas ----------
@@ -559,7 +605,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
   // ---------- Orquestração ----------
   function chavesEmUso(): Set<string> {
     const s = new Set<string>();
-    for (const e of [...salas.values(), ...objetos.values(), ...(terreno ? [terreno] : [])]) { if (e.chave) s.add(e.chave); }
+    for (const e of [...salas.values(), ...objetos.values(), ...terrenos.values(), ...escarpas.values()]) { if (e.chave) s.add(e.chave); }
     for (const c of telhados.chavesEmUso()) s.add(c);
     return s;
   }
@@ -677,7 +723,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     },
     destruir() {
       destruida = true; if (terrenoTimer) clearTimeout(terrenoTimer);
-      for (const e of [...salas.values(), ...objetos.values(), ...escarpas.values(), ...(terreno ? [terreno] : [])]) soltar(e.chaveTextura);
+      for (const e of [...salas.values(), ...objetos.values(), ...escarpas.values(), ...terrenos.values()]) soltar(e.chaveTextura);
       for (const t of texturas.values()) { t.tex.destroy(true); t.texAltura?.destroy(true); } texturas.clear();
       composicaoDeLuz.destruir(); cenaDeAltura.destruir();
       tempo.destruir(); sombras.destruir(); contato.destruir(); luz.destruir(); halos.destruir(); nevoa.destruir(); telhados.destruir(); neblina.destruir(); fumaca.destruir(); bordas.destruir(); particulas.destruir(); presenca.destruir(); agua.destruir(); cachoeiras.destruir(); raiz.destroy({ children: true });

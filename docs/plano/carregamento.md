@@ -140,7 +140,7 @@ Nota:
   * `porto-noturno`: terreno `12,24 s` → **5,13 s** (2,39× mais rápido; `pronto 9,39 s`)
   * `gruta-dos-contrabandistas`: terreno `10,18 s` → **4,29 s** (2,37× mais rápido; `pronto 6,54 s`)
 
-### M4 — Terreno em ladrilhos  ⬜
+### M4 — Terreno em ladrilhos  ✅
 Objetivo: o terreno é assado em pedaços paralelos, e uma pincelada reassa só os pedaços tocados.
 Depende de: M2, M3.
 Ler: `src/render/cena.ts:175-200` (terreno: chave, `pintar`, água, `cenaDeAltura.definirTerreno`), `src/render/entradas.ts` (`entradaDoTerreno`, `chaveDoTerreno`), `src/render/cena-de-altura.ts`, `src/render/agua.ts` (`aplicar`), `assarTerreno` depois da M3.
@@ -154,6 +154,13 @@ Não fazer: mudar pintores.
 Testes: unit, a chave de um ladrilho não muda quando se pinta uma célula a 20 m dele; e2e, captura do Entreposto com e sem ladrilhos difere em menos de 1% dos pixels, sem costura visível (compare uma faixa de 4 px em cada emenda).
 Pronto quando: o Entreposto fica pronto em menos de 3 s, e pintar uma célula de grama reassa 1 ou 2 ladrilhos.
 Commit: `terrain is baked in parallel tiles`
+Nota:
+- Escolha em `src/render/agua.ts`: mantida 1 textura/canvas (`copia`) única do mapa inteiro (`2 px/m`) e adicionado `aplicarLadrilho(caixa, agua, m)`, que redesenha apenas o retângulo do ladrilho na `copia` e no buffer CPU `dados` e chama `textura.source.update()`.
+- Em `ladrilhosDoTerreno` (`src/render/entradas.ts`), camadas vazias no recorte ficam como `{ material, celulas: [] }` quando precedem uma camada ativa (mantendo estáveis as sementes `1000 + idx * 17` / `11 + idx * 5` / `13 + idx * 5`) e camadas vazias no fim são podadas (para pintar um material novo num canto não invalidar ladrilhos distantes); camadas de água preservam `indiceAgua` real (canal `B`) e `sulcos` preserva `dir` global. `assar.ts` usa margem de `RAIO_PASSA_ALTA` ao calcular `alturaPorLuminancia` da base no recorte, e `executar.ts` / `baker.ts` / `bake.worker.ts` / `cache-de-assados.ts` preservam `agua.origem`.
+- Medição no worktree (`npm run medir:carga -- porto-noturno gruta-dos-contrabandistas ruina-costeira`, 6 workers; comparação contra M3; os 5 erros 403 são apenas do symlink `node_modules` fora do root do Vite no worktree):
+  * `porto-noturno`: `pronto` `9,39 s` → **6,96 s** (12 ladrilhos, maior terreno `5,13 s` → **2,44 s**)
+  * `gruta-dos-contrabandistas`: `pronto` `6,54 s` → **5,23 s** (6 ladrilhos, maior terreno `4,29 s` → **3,89 s**)
+  * `ruina-costeira`: `pronto` `8,37 s` → **5,82 s** (12 ladrilhos, maior terreno `6,37 s` → **4,19 s**)
 
 ### M5 — Cache persistente de assados  ✅
 Objetivo: reabrir um mapa (ou abrir outro com os mesmos objetos) não assa de novo o que já foi assado.

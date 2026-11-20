@@ -4,7 +4,7 @@ import { area, codificar } from '../../src/domain/celulas.ts';
 import { novoObjeto } from '../../src/domain/fabrica.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { aplicarComando, type Comando } from '../../src/state/comandos.ts';
-import { chaveDoItem, chaveDoObjeto, chaveDoTerreno, entradaDoTerreno, pedidoDoItem } from '../../src/render/entradas.ts';
+import { chaveDoItem, chaveDoObjeto, chaveDoTerreno, entradaDoTerreno, ladrilhosDoTerreno, LADO_DO_LADRILHO, pedidoDoItem } from '../../src/render/entradas.ts';
 import { mapaCompleto } from './fixtures.ts';
 
 test('chaveDoObjeto: receita, item da coleção conhecido, asset desconhecido (null) e objeto de parede (null)', () => {
@@ -79,4 +79,53 @@ test('I1: entradaDoTerreno calcula assentamento por material base, soleira nas p
   assert.equal(entradaDoTerreno(mSem).assentamento, undefined);
   assert.notEqual(chaveDoTerreno(entNeve, 20), chaveDoTerreno(entradaDoTerreno(mSem), 20));
   void codificar;
+});
+
+test('M4: ladrilhosDoTerreno divide em 16 m e pintar a 20 m fora não muda a chave do ladrilho', () => {
+  assert.equal(LADO_DO_LADRILHO, 16);
+  let m = criarMapa({ largura: 40, altura: 20 });
+  m = aplicarComando(m, { tipo: 'terreno.base', material: 'grama' });
+  const res = 24;
+
+  const antes = ladrilhosDoTerreno(entradaDoTerreno(m), res);
+  assert.equal(antes.length, 6); // ceil(40/16)=3 × ceil(20/16)=2
+  assert.deepEqual(antes[0]!.caixa, { x: 0, y: 0, w: 16, h: 16 });
+  assert.deepEqual(antes[2]!.caixa, { x: 32, y: 0, w: 8, h: 16 });
+  assert.deepEqual(antes[3]!.caixa, { x: 0, y: 16, w: 16, h: 4 });
+
+  const chavesAntes = new Map(antes.map(l => [`${l.i},${l.j}`, chaveDoTerreno(l.entrada, res)]));
+
+  // Pinta uma célula de terra em (37, 2) m (célula [148, 8] na grade 0,25 m), a > 20 m do ladrilho (0, 0) e (0, 1).
+  const mPintado = aplicarComando(m, { tipo: 'terreno.pintar', material: 'terra', celulas: [[148, 8]] });
+  const depois = ladrilhosDoTerreno(entradaDoTerreno(mPintado), res);
+  const mudados: string[] = [];
+  for (const l of depois) {
+    const id = `${l.i},${l.j}`;
+    if (chaveDoTerreno(l.entrada, res) !== chavesAntes.get(id)) mudados.push(id);
+  }
+
+  assert.equal(chaveDoTerreno(depois.find(l => l.i === 0 && l.j === 0)!.entrada, res), chavesAntes.get('0,0'));
+  assert.equal(chaveDoTerreno(depois.find(l => l.i === 0 && l.j === 1)!.entrada, res), chavesAntes.get('0,1'));
+  assert.deepEqual(mudados, ['2,0']);
+});
+
+test('M4: ladrilhosDoTerreno preserva o índice real da camada de água e isola correnteza distante', () => {
+  let m = criarMapa({ largura: 48, altura: 16 });
+  m = aplicarComando(m, { tipo: 'terreno.pintar', material: 'agua.lago', celulas: [[4, 4], [5, 4]] }); // ~1 m
+  m = aplicarComando(m, { tipo: 'terreno.pintar', material: 'agua.rio', celulas: [[180, 4], [181, 4]] }); // ~45 m
+  const res = 24;
+  const tiles = ladrilhosDoTerreno(entradaDoTerreno(m), res);
+  const t0 = tiles.find(l => l.i === 0 && l.j === 0)!;
+  const t2 = tiles.find(l => l.i === 2 && l.j === 0)!;
+
+  assert.equal(t0.entrada.camadas.length, 1);
+  assert.equal(t0.entrada.camadas[0]!.celulas.length > 0, true);
+  assert.equal(t2.entrada.camadas[0]!.celulas.length, 0);
+  assert.equal(t2.entrada.camadas[1]!.celulas.length > 0, true);
+  assert.equal(t2.entrada.camadas[1]!.indiceAgua, 1);
+
+  const chaveT2Antes = chaveDoTerreno(t2.entrada, res);
+  const mFlow = aplicarComando(m, { tipo: 'terreno.correnteza', material: 'agua.lago', flow: { angle: 0.5, speed: 1.5 } });
+  const t2Depois = ladrilhosDoTerreno(entradaDoTerreno(mFlow), res).find(l => l.i === 2 && l.j === 0)!;
+  assert.equal(chaveDoTerreno(t2Depois.entrada, res), chaveT2Antes);
 });
