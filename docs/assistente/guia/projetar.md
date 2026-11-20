@@ -52,6 +52,7 @@ Poucas fontes com propósito (lareira, tocha, lanterna na praça). Escolha o cli
 | --- | --- | --- | --- | --- | --- |
 | Exterior frio / nevado | `0.65–0.85` (rasante) | `0.35–0.55` | `0.35–0.48` | `clouds` ou `fog` (`0.35–0.5`) | Sombras longas azuladas; neve 0.25–0.45 |
 | Noturno / ravina | `0.7–0.8` | `0.45–0.8` | `0.3–0.5` | `dark` ou `fog` (`0.5–0.7`) | `ambient` azulado frio + tochas `#ffa842` |
+| Mata à noite, enevoada | lua `2.2–2.6`, `intensity` 0,8–0,9 | `0.5–0.7` | `0.25–0.35` | `none` | `tempo.fog` 0,35–0,5 (bancos sobre as copas), `ambient` cinza-esverdeado 0,7–0,85, fogueira 0,9–1,1 |
 | Gruta / masmorra | `null` (ou baixo fora) | `0.6–0.9` | `0.4–0.55` | `dark` (`0.3–0.5`) | Acabamento `masmorra`; tochas e braseiros quentes (`intensity` 1,4–2,2) sobre `ambient` frio a 0,5–0,6 |
 
 ## 8. Conferir antes de entregar
