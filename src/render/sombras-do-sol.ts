@@ -28,6 +28,8 @@ export function criarSombrasDoSol(renderer: Renderer) {
   const camada = criarCamadaEmTextura(renderer);
   apagar.blendMode = 'erase';
   desenho.addChild(objetos, figuras, apagar);
+  // Multiplica: a sombra só escurece o que está embaixo (em modo normal, a cor da sombra clareava um chão mais escuro que ela).
+  camada.sprite.blendMode = 'multiply';
   raiz.addChild(camada.sprite);
   const achatar = new ColorMatrixFilter(), desfoque = new BlurFilter({ strength: 1.4, quality: 3 });
   raiz.visible = false;
