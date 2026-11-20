@@ -33,6 +33,7 @@ Ids conferidos no catálogo; confirme com `atlas_catalogo` se algum for recusado
 ## Natureza
 
 - **Mata:** bordas irregulares, densa no miolo e rala na borda; árvores de 3 a 8 m misturadas com arbustos, `toco`, `tronco.caido`, `pedra.media`, `rochedo`. `atlas_espalhar` com `mata` faz a base; acrescente à mão.
+- **Mata fechada (floresta escura, vista de cima):** chão `chao.de.mata` e copas `casa:arvore-da-mata-4m/6m/8m` (variantes `6m-rala` e `5m-amarelada`) **encostando umas nas outras e saindo pela borda**; `atlas_espalhar` com `mata-fechada` faz a base. A mata cobre a maior parte do mapa; o que se vê do chão são clareiras e vãos.
 - **Clareira e trilha:** a trilha contorna obstáculos, alarga nas curvas e some sob a copa.
 - **Montanha e desfiladeiro:** maciço (`rocha.cinza`, `rocha.nevada`) nas bordas, escarpas para os degraus, `laje-de-pedra` e `rochedo` soltos, `seixos`.
 - **Pântano:** `agua.pantano` em manchas irregulares ligadas, `lama`, `junco`, `vitoria-regia`, `arvore-morta`, `raiz-exposta`, neblina.
@@ -45,5 +46,5 @@ Ids conferidos no catálogo; confirme com `atlas_catalogo` se algum for recusado
 
 ## Acampamento
 
-- `tenda` em aglomerado em volta de uma `fogueira` (luz `fogueira`), `saco-de-dormir`, `espeto-de-assar`, `caldeirao`, cavalos amarrados (`cavalo`, `poste-de-amarracao`), carroças fechando o perímetro.
-- Chão gasto no centro (`terra`), capim pisado nas bordas.
+- `tenda` em aglomerado em volta de uma `fogueira` (luz `fogueira`, `intensity` 0,9 a 1,1), `tora-assento` em volta do fogo, `catre-de-peles` ou `saco-de-dormir`, `espeto-de-assar`, `caldeirao`, cavalos amarrados (`cavalo`, `poste-de-amarracao`), carroças fechando o perímetro. A fogueira solta fumaça sozinha.
+- Clareira de `chao.batido` (a borda se mistura sozinha com o chão vizinho) de **forma irregular**, mais funda para um lado, nunca um disco centrado; em mata fechada, as copas avançam sobre a borda da clareira.

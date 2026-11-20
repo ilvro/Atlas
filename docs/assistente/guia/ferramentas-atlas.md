@@ -13,6 +13,8 @@ Abre um mapa no Atlas (pela rota, como na galeria) e espera o editor aparecer na
 Ajusta clima e acabamento do mapa aberto (um passo de desfazer). Presets em `atlas_catalogo { parte: "climas" }`. `"guardarClima"` `{ id, nome }` salva no mapa.
 - Presets atmosféricos (`neve`, `neblina`, `tempestade`, `noite`, `apagao`, `neon`) já trazem `glow`, `vignette`, `edges` (`clouds`/`fog`/`dark`) e — em `neve` — `sol.angle` rasante (`0.75`); `acabamento.preset` também oferece `'inverno-nevado'` e `'sombrio-cinematografico'`.
 - Em exteriores e cenas personalizadas, ajuste `acabamento` com `glow` (`0.35–0.8`), `vignette` (`0.3–0.5`), `edges` (`{ kind: "clouds" | "fog" | "dark", amount }`) e `grade` opcional, além de `sol.angle` baixo/rasante (`0.65–0.85`) para sombras longas e leitura de relevo dramática.
+- **Névoa na cena ≠ borda de névoa.** `clima.tempo.fog` (0 a 1) desenha **bancos de névoa** que o vento arrasta por cima das copas, com vãos limpos; a luz de fogueiras e tochas abre a névoa. Use 0,3 (fiapos) a 0,6 (bancos largos) para "névoa", "bruma", "mata enevoada". `acabamento.edges` com `fog` só fecha as **beiradas** do mapa numa moldura: não use para pedir névoa na cena, e em mapas que não terminam em nada (mata, campo) prefira `edges: { kind: "none" }`.
+- **Luar:** à noite, `sol` vira a lua. Com `intensity` acima de 0,35 (lua cheia, até 1), a lua projeta sombras azuladas para o lado oposto de `angle`; com 0,35 ou menos, não há sombra. Noite legível de mata: `ambient` cinza-esverdeado a 0,7–0,85, lua a 0,8–0,9 e `exposure` 0,9–1.
 - Luz com relevo (já ligada; só mexa se precisar): `relief` (0–1, padrão 0,7) faz a luz realçar juntas, biséis e degraus do lado de onde vem; `ao` (0–1, padrão 0,55) escurece o pé de paredes e móveis e o fundo de poços; `exposure` (0–4, padrão 0,82) clareia ou escurece o todo antes da curva de tom; `split` (`{ shadows, highlights, balance, amount }`) puxa as sombras para uma cor e as luzes para outra. Luzes acima de 1 de `intensity` estouram com bloom (fogo, feixe).
 - Presets de acabamento com tonalização dividida: `masmorra` (sombras azul-petróleo, luzes âmbar: masmorra, gruta, salão à luz de tochas), `sepia` (investigação, documento antigo) e `dia-dourado` (fim de tarde, ruína ao sol).
 
@@ -195,7 +197,7 @@ Módulo de alojamento (corredor linear com cabines):
 
 Espalha conjunto de objetos numa região em metros (um passo de desfazer). Conjuntos em `atlas_catalogo { parte: "conjuntos" }`:
 - Internos: `papelada`, `caixotes`, `bibelos`, `refeicao`, `bagunca`, `plantas`.
-- Exteriores por bioma: `mata` (temperado), `jardim`, `cemiterio`, `mata-nevada` (neve/inverno), `bosque-morto` (pântano/maldito/inverno seco), `encosta-rochosa` (serra/montanha) e `costa-rochosa` (litoral/margem). Objetos ficam comuns e editáveis.
+- Exteriores por bioma: `mata` (temperado), `mata-fechada` (floresta densa de copas grandes), `jardim`, `cemiterio`, `mata-nevada` (neve/inverno), `bosque-morto` (pântano/maldito/inverno seco), `encosta-rochosa` (serra/montanha) e `costa-rochosa` (litoral/margem). Objetos ficam comuns e editáveis.
 
 Parâmetros:
 
