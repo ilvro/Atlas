@@ -37,6 +37,7 @@ export function criarPeca(): PecaVisual {
   let paramsRespiracao: ParametrosRespiracao = { period: 4.2, amp: 1, tremor: 0 };
   // O sprite: a folha (96 × 96) fatiada em quadros, o sprite que mostra o quadro e a linha do lado para onde a peça olha.
   let estadoVisto = 'normal', pxDoSprite = 1, tintaNum = 0xffffff, folhaAtual: Texture | null = null, quadros: Texture[][] = [], spriteRef: Sprite | null = null, ladoParado = 0, corrente: { linha: number; coluna: number } | null = null;
+  let chaveCorpo = '', chaveBadge = '';
   const fatiar = (folha: Texture): Texture[][] => Array.from({ length: 4 }, (_, l) => Array.from({ length: 6 }, (_, k) => new Texture({ source: folha.source, frame: new Rectangle(k * QW, l * QH, QW, QH) })));
 
   return {
@@ -49,16 +50,20 @@ export function criarPeca(): PecaVisual {
       const r = rBase * escalaVisual;
       const ap = aparenciaDoEstado(t.figure.state);
       raio = r; deitada = ap.deitado; pulso = ap.pulso; tremor = ap.tremor;
-      if (retratoImersivo) { retratoImersivo.filters = []; retratoImersivo = null; }
-      for (const f of corpo.removeChildren()) f.destroy({ children: true });
-      for (const f of badge.removeChildren()) f.destroy({ children: true });
       const tinta = ap.tinta ? hexParaNumero(ap.tinta) : 0xffffff;
       // O Pixel usa o sprite quando há; o Ilustrado só quando a peça não tem retrato.
       const folha = comSprite.folha, usaSprite = !!folha && !!t.sprite && (comSprite.pixel || !tex);
       if (folha !== folhaAtual) { for (const q of quadros.flat()) q.destroy(false); quadros = folha ? fatiar(folha) : []; folhaAtual = folha; }
-      spriteRef = null; ladoParado = LINHA_DO_LADO[t.facing]; corrente = null;
+      ladoParado = LINHA_DO_LADO[t.facing];
       tem = !!tex && !usaSprite;
       eImersivo = estiloToken === 'immersive' && (!!tex || usaSprite);
+      const criticoPv = t.figure.state === 'hurt' || t.figure.state === 'dying' || (recursos !== null && emEstadoCritico(recursos));
+      const novaChaveCorpo = `${t.name}|${t.size}|${grade}|${estiloToken}|${escalaVisual}|${t.figure.state}|${usaSprite ? 1 : 0}|${comSprite.pixel ? 1 : 0}|${tex?.uid ?? 0}|${folha?.uid ?? 0}|${criticoPv ? 1 : 0}`;
+      if (novaChaveCorpo !== chaveCorpo) {
+        chaveCorpo = novaChaveCorpo;
+        if (retratoImersivo) { retratoImersivo.filters = []; retratoImersivo = null; }
+        for (const f of corpo.removeChildren()) f.destroy({ children: true });
+        spriteRef = null; corrente = null;
 
       if (eImersivo) {
         const fundo = new Graphics().ellipse(0, rBase * 0.65, rBase * 0.85, rBase * 0.32).fill({ color: 0x000000, alpha: 0.45 });
@@ -131,9 +136,10 @@ export function criarPeca(): PecaVisual {
           // No Pixel o retrato já vem derivado: recortado em círculo, na paleta e com contorno.
           if (comSprite.pixel) corpo.addChild(sp); else { const mascara = new Graphics().circle(0, 0, r * 0.93).fill(0xffffff); sp.mask = mascara; corpo.addChild(sp, mascara); }
         }
-      } else {
-        const rotulo = new Text({ text: (t.name.trim()[0] ?? '?').toUpperCase(), style: { fontFamily: 'Hanken Grotesk Variable, Hanken Grotesk, sans-serif', fontSize: 64, fontWeight: '800', fill: 0xffffff } });
-        rotulo.anchor.set(0.5); rotulo.scale.set((r * 1.1) / 64); corpo.addChild(rotulo);
+        } else {
+          const rotulo = new Text({ text: (t.name.trim()[0] ?? '?').toUpperCase(), style: { fontFamily: 'Hanken Grotesk Variable, Hanken Grotesk, sans-serif', fontSize: 64, fontWeight: '800', fill: 0xffffff } });
+          rotulo.anchor.set(0.5); rotulo.scale.set((r * 1.1) / 64); corpo.addChild(rotulo);
+        }
       }
       corpo.rotation = ap.deitado ? Math.PI / 2 : 0;
       const cor = ap.anel ? hexParaNumero(ap.anel) : acento;
@@ -150,23 +156,28 @@ export function criarPeca(): PecaVisual {
         marca.moveTo(-k, my - k).lineTo(k, my + k).moveTo(k, my - k).lineTo(-k, my + k).stroke({ width: 0.09, color: 0x120a0a, alpha: 0.85, cap: 'round' }).moveTo(-k, my - k).lineTo(k, my + k).moveTo(k, my - k).lineTo(-k, my + k).stroke({ width: 0.045, color: 0xe0342c, cap: 'round' });
       }
       const numBadge = extrairNumeroDoToken(t.name);
-      if (numBadge) {
-        const bx = r * 0.68, by = -r * 0.68;
-        const br = Math.max(0.12 * grade, r * 0.34);
-        const bg = new Graphics().circle(bx, by, br).fill(0x1a1a24).stroke({ width: Math.max(0.02 * grade, br * 0.15), color: 0xffffff, alpha: 0.85 });
-        const rotulo = new Text({
-          text: numBadge,
-          style: {
-            fontFamily: 'Hanken Grotesk Variable, Hanken Grotesk, sans-serif',
-            fontSize: 48,
-            fontWeight: '800',
-            fill: 0xffffff,
-          },
-        });
-        rotulo.anchor.set(0.5);
-        rotulo.scale.set((br * 1.3) / 48);
-        rotulo.position.set(bx, by);
-        badge.addChild(bg, rotulo);
+      const novaChaveBadge = `${numBadge ?? ''}|${r}|${grade}`;
+      if (novaChaveBadge !== chaveBadge) {
+        chaveBadge = novaChaveBadge;
+        for (const f of badge.removeChildren()) f.destroy({ children: true });
+        if (numBadge) {
+          const bx = r * 0.68, by = -r * 0.68;
+          const br = Math.max(0.12 * grade, r * 0.34);
+          const bg = new Graphics().circle(bx, by, br).fill(0x1a1a24).stroke({ width: Math.max(0.02 * grade, br * 0.15), color: 0xffffff, alpha: 0.85 });
+          const rotulo = new Text({
+            text: numBadge,
+            style: {
+              fontFamily: 'Hanken Grotesk Variable, Hanken Grotesk, sans-serif',
+              fontSize: 48,
+              fontWeight: '800',
+              fill: 0xffffff,
+            },
+          });
+          rotulo.anchor.set(0.5);
+          rotulo.scale.set((br * 1.3) / 48);
+          rotulo.position.set(bx, by);
+          badge.addChild(bg, rotulo);
+        }
       }
       pips.clear();
       if (recursos) {

@@ -42,8 +42,13 @@ export function criarSessao(mapa: MapaAtlas, repo: RepositorioMapas, opcoes: { s
   const andarAtivo = signal<string | null>(salvoAndar && mapa.levels?.[salvoAndar] ? salvoAndar : null);
 
   const sincronizar = () => {
-    doc.value = store.documento; sujo.value = store.sujo; podeDesfazer.value = store.podeDesfazer; podeRefazer.value = store.podeRefazer;
-    rotuloDesfazer.value = store.rotuloDesfazer; rotuloRefazer.value = store.rotuloRefazer; historico.value = store.historico;
+    doc.value = store.documento;
+    if (!store.emGesto) {
+      sujo.value = store.sujo; podeDesfazer.value = store.podeDesfazer; podeRefazer.value = store.podeRefazer;
+      rotuloDesfazer.value = store.rotuloDesfazer; rotuloRefazer.value = store.rotuloRefazer; historico.value = store.historico;
+    } else {
+      sujo.value = true;
+    }
     const nivel = andarAtivo.peek();
     if (nivel !== null && !store.documento.levels?.[nivel]) andarAtivo.value = null;
     const podada = podarSelecao(mapaDoAndar(store.documento, andarAtivo.peek()), selecao.peek());
