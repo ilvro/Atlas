@@ -1,19 +1,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  CAPAS_DE_CUMEEIRA,
+  CAPA_DA_COBERTURA,
   PADROES_DE_COBERTURA,
   PERIODO_DA_COBERTURA,
   amostradorContinuo,
   amostrarCobertura,
   amostrarPonto,
   amostrarPontoContinuo,
+  capaDaCobertura,
   corDaAmostra,
   ehPadraoDeCobertura,
   hashDaPeca,
   type AmostraDeCobertura,
   type LadrilhoDeCobertura,
 } from '../../src/procedural/coberturas.ts';
-import { materiaisDo } from '../../src/procedural/materiais.ts';
+import { materiaisDo, padraoDependeDaArea } from '../../src/procedural/materiais.ts';
 import { PADROES_PIXEL } from '../../src/procedural/estilos/materiais-pixel.ts';
 
 const COBERTURAS = materiaisDo('telhado');
@@ -29,9 +32,15 @@ function diferenca(l: LadrilhoDeCobertura, a: number, b: number, eixo: 'x' | 'y'
   return soma / (l.lado * 3);
 }
 
-test('há 12 coberturas, todas com padrão de cobertura, e o Pixel sabe pintar cada padrão', () => {
-  assert.equal(COBERTURAS.length, 12);
-  for (const m of COBERTURAS) assert.ok(ehPadraoDeCobertura(m.padrao), `${m.id} tem padrão ${m.padrao}`);
+test('há 24 coberturas, todas com padrão de cobertura, capa de cumeeira e suporte no Pixel e fora de PADROES_DEPENDENTES_DE_AREA', () => {
+  assert.equal(COBERTURAS.length, 24);
+  for (const m of COBERTURAS) {
+    assert.ok(ehPadraoDeCobertura(m.padrao), `${m.id} tem padrão ${m.padrao}`);
+    assert.equal(padraoDependeDaArea(m.padrao), false, `${m.id} (${m.padrao}) não deve depender de área`);
+    const capa = capaDaCobertura(m);
+    assert.ok((CAPAS_DE_CUMEEIRA as readonly string[]).includes(capa), `${m.id} tem capa inválida: ${capa}`);
+    assert.equal(capa, CAPA_DA_COBERTURA[m.padrao]);
+  }
   for (const p of PADROES_DE_COBERTURA) assert.ok(PADROES_PIXEL.includes(p), `o Pixel não pinta ${p}`);
   for (const p of PADROES_DE_COBERTURA) assert.ok(COBERTURAS.some(m => m.padrao === p), `nenhuma cobertura usa ${p}`);
 });
@@ -78,7 +87,11 @@ test('as coberturas são distintas: barro, ardósia e palha não saem iguais (ne
     const media = saida.reduce((a, b) => a + b, 0) / saida.length, desvio = Math.sqrt(saida.reduce((a, b) => a + (b - media) ** 2, 0) / saida.length);
     return saida.map(v => (v - media) / (desvio || 1));      // só a forma do desenho, sem a cor
   };
-  const ids = ['telha.barro', 'telha.ardosia', 'telha.palha', 'telha.escamas', 'telha.zinco'];
+  const ids = [
+    'telha.barro', 'telha.ardosia', 'telha.palha', 'telha.escamas', 'telha.zinco',
+    'telha.tabuas', 'telha.francesa', 'telha.esmaltada.verde', 'telha.chapa.cinza',
+    'telha.fibrocimento', 'telha.bambu', 'telha.couro', 'telha.chumbo',
+  ];
   const formas = ids.map(luminancias);
   for (let a = 0; a < ids.length; a++) for (let b = a + 1; b < ids.length; b++) {
     const correlacao = formas[a]!.reduce((s, v, i) => s + v * formas[b]![i]!, 0) / formas[a]!.length;
@@ -140,6 +153,14 @@ test('duas peças vizinhas têm id diferente e pontos dentro da mesma peça mant
     'concreto-laje': [1.0, 1.0],
     'grama-telhado': [0.55, 0.55],
     lona: [1.0, 1.0],
+    'tabuas-telhado': [0.2, 1.0],
+    'telha-francesa': [0.25, 0.4],
+    'telha-esmaltada': [0.25, 0.25],
+    'chapa-com-junta': [0.5, 1.0],
+    fibrocimento: [1.0, 1.0],
+    bambu: [0.2, 0.4],
+    'couro-telhado': [0.7, 0.5],
+    chumbo: [0.7, 1.0],
   };
   for (const m of COBERTURAS) {
     const [du, dv] = passos[m.padrao]!;
