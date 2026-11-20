@@ -3,7 +3,7 @@ import { fbm, hash2D, ladrilhoDeRuido, mulberry32, valueNoise2D } from './ruido.
 import { celulasDeVoronoi, type Consulta } from './voronoi.ts';
 import { ehPadraoDeCobertura, texturaDeCobertura, type PadraoDeCobertura } from './coberturas.ts';
 
-export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho' | 'paralelepipedo' | 'lajegrama' | 'sulcos' | 'molhada'
+export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho' | 'paralelepipedo' | 'lajegrama' | 'sulcos' | 'molhada' | 'batido' | 'folhico'
   | 'palha-chao' | 'lajes-rusticas' | 'lajes-grandes' | 'marchetaria' | 'chapa-xadrez' | 'grade-metal' | 'toras' | 'manchado' | 'painel' | 'acolchoado' | 'pisada' | 'placas' | PadraoDeCobertura;
 export interface Material {
   id: string; nome: string; /** Para onde o material vai: piso, papel de parede, objeto ou terreno. */ uso: 'piso' | 'papel' | 'objeto' | 'terreno' | 'macico' | 'agua' | 'telhado';
@@ -148,6 +148,8 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('areia.molhada', 'Areia molhada', 'terreno', '#9c855a', '#5a4a2c', '#d8c690', 'molhada'),
   m('neve.pisada', 'Neve pisada', 'terreno', '#d3dae2', '#8693a3', '#f4f7fa', 'pisada'),
   m('terra.congelada', 'Terra congelada', 'terreno', '#5e564c', '#2e2923', '#dfe4ea', 'terra'),
+  m('chao.batido', 'Chão batido', 'terreno', '#6c4e34', '#3a281a', '#8e6e4c', 'batido'),
+  m('chao.de.mata', 'Chão de mata', 'terreno', '#34301f', '#1a180f', '#5c5a32', 'folhico'),
   m('piso.hangar', 'Concreto industrial', 'terreno', '#7d7c78', '#3a3936', '#a6a49f', 'placas', { lado: 3, ouro: '#c9a12a' }),
 ].map(([id, mat]) => [id as string, mat as Material])) as Record<string, Material>;
 
@@ -345,6 +347,8 @@ export function pintarMaterial(ctx: Contexto, id: string, area: Area, seed = 1, 
     case 'acolchoado': pintarAcolchoado(ctx, mat, A, seed, pxDe(ctx)); break;
     case 'pisada': pintarNevePisada(ctx, mat, A, seed, pxDe(ctx)); break;
     case 'placas': pintarPlacas(ctx, mat, A, seed, pxDe(ctx)); break;
+    case 'batido': pintarChaoBatido(ctx, mat, A, seed, pxDe(ctx)); break;
+    case 'folhico': pintarChaoDeMata(ctx, mat, A, seed, pxDe(ctx)); break;
     case 'neve': pintarNeve(ctx, mat, A, seed); break;
     default:
       if (ehPadraoDeCobertura(mat.padrao)) { pintarCobertura(ctx, mat, A, seed); break; }
@@ -828,6 +832,81 @@ function pintarPalhaNoChao(ctx: Contexto, mat: Material, A: Area, seed: number, 
   });
 }
 
+/** Seixos de chão: em células de `G` m, com chance `chance`, uma pedrinha de raio `r0` a `r0 + dr` com volume (luz a noroeste). Devolve 0 fora e, dentro, a altura relativa (0 a 1). */
+function seixo(x: number, y: number, G: number, chance: number, r0: number, dr: number, seed: number): { k: number; luz: number; tom: number } {
+  const ci = Math.floor(x / G), cj = Math.floor(y / G);
+  for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+    const i = ci + di, j = cj + dj; if (hash2D(i, j, seed) > chance) continue;
+    const cx = (i + hash2D(i, j, seed + 1)) * G, cy = (j + hash2D(i, j, seed + 2)) * G, rr = r0 + dr * hash2D(i, j, seed + 3), q = Math.hypot((x - cx) / rr, (y - cy) / (rr * 0.8));
+    if (q < 1) return { k: Math.sqrt(1 - q * q), luz: -((x - cx) + (y - cy)) / (rr * 1.41), tom: hash2D(i, j, seed + 4) };
+  }
+  return { k: 0, luz: 0, tom: 0 };
+}
+
+/**
+ * Chão batido (clareira, acampamento, pátio de terra): liso, com manchas largas e suaves (umidade, cinza, pisoteio), grão fino e alguns
+ * seixos; nada de calombo: o relevo é quase plano.
+ */
+function pintarChaoBatido(ctx: Contexto, mat: Material, A: Area, seed: number, px: number): void {
+  const rn = valueNoise2D(seed * 29 + 3), E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), cinza: Cor3 = [C[0] * 0.82, C[1] * 0.8, C[2] * 0.78];
+  porPixel(ctx, A, (x, y, o) => {
+    const largo = fbm(rn, x * 0.28, y * 0.28, 3), medio = fbm(rn, x * 1.4 + 40, y * 1.4, 3), fino = hash2D(Math.floor(x / px), Math.floor(y / px), seed + 9);
+    mez(o, E, B, 0.35 + 0.6 * largo);
+    rumo(o, C, passo(0.55, 0.85, medio) * 0.35);
+    rumo(o, cinza, passo(0.62, 0.9, fbm(rn, x * 0.6 + 7, y * 0.6 + 3, 2)) * 0.25);
+    escurecer(o, 0.94 + fino * 0.1 - passo(0.6, 0.9, fbm(rn, x * 3.2 + 13, y * 3.2, 2)) * 0.12);
+    const p = seixo(x, y, 0.4, 0.07, 0.014, 0.022, seed + 31);
+    if (p.k > 0) { mez(o, [o[0]!, o[1]!, o[2]!], p.tom < 0.5 ? C : cinza, 0.55 * Math.min(1, p.k * 2)); escurecer(o, 0.95 + 0.15 * Math.max(-0.5, Math.min(0.6, p.luz))); }
+  });
+}
+
+/**
+ * Chão de mata: terra escura coberta de folhiço (folhas secas e agulhas em todas as direções, em ocre, castanho e oliva), manchas de musgo
+ * e capim, tufos de capim mais altos e galhinhos. É o chão sob as copas e entre elas.
+ */
+function pintarChaoDeMata(ctx: Contexto, mat: Material, A: Area, seed: number, px: number): void {
+  const rn = valueNoise2D(seed * 37 + 11), E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro);
+  const folhas: Cor3[] = [[92, 70, 40], [110, 88, 52], [74, 58, 36], [84, 82, 46], [62, 50, 32], [120, 98, 60]], musgo: Cor3 = [58, 72, 36], capim: Cor3 = [70, 86, 44], tmp = [0, 0, 0];
+  porPixel(ctx, A, (x, y, o) => {
+    const umido = fbm(rn, x * 0.35, y * 0.35, 3), verde = passo(0.45, 0.75, fbm(rn, x * 0.5 + 50, y * 0.5, 3));
+    mez(o, E, B, 0.3 + 0.55 * umido);
+    rumo(o, musgo, verde * 0.55);
+    // Folhiço: três camadas de folhas e agulhas (elipses finas), a de cima mais clara.
+    for (let c = 0; c < 3; c++) {
+      const G = 0.085 + c * 0.02, ci = Math.floor(x / G), cj = Math.floor(y / G), s = seed + c * 97;
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+        const i = ci + di, j = cj + dj; if (hash2D(i, j, s) > 0.62 - verde * 0.3) continue;
+        const cx = (i + hash2D(i, j, s + 1)) * G, cy = (j + hash2D(i, j, s + 2)) * G, a = hash2D(i, j, s + 3) * Math.PI, agulha = hash2D(i, j, s + 6) < 0.35;
+        const L = agulha ? 0.06 + 0.05 * hash2D(i, j, s + 4) : 0.035 + 0.03 * hash2D(i, j, s + 4), W = agulha ? 0.006 : 0.016 + 0.01 * hash2D(i, j, s + 7);
+        const dx = x - cx, dy = y - cy, u = dx * Math.cos(a) + dy * Math.sin(a), v = -dx * Math.sin(a) + dy * Math.cos(a);
+        const q = (u / L) ** 2 + (v / (W + px * 0.5)) ** 2; if (q > 1) continue;
+        const cor = folhas[Math.floor(hash2D(i, j, s + 5) * folhas.length)]!;
+        tomDe(tmp, cor, 0.72 + c * 0.14 + (v < 0 ? 0.08 : -0.08));
+        rumo(o, tmp, 0.85 * (1 - q * q));
+      }
+    }
+    // Tufos de capim: lâminas finas saindo de um centro, mais escuras na base.
+    const T = 0.55, ti = Math.floor(x / T), tj = Math.floor(y / T);
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      const i = ti + di, j = tj + dj; if (hash2D(i, j, seed + 401) > 0.18 + verde * 0.4) continue;
+      const cx = (i + hash2D(i, j, seed + 402)) * T, cy = (j + hash2D(i, j, seed + 403)) * T, dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy), R = 0.12 + 0.12 * hash2D(i, j, seed + 404);
+      if (d > R || d < 0.01) continue;
+      const n = 9, a = Math.atan2(dy, dx), setor = Math.round((a / (Math.PI * 2)) * n + hash2D(i, j, seed + 405) * 10), aa = ((setor - hash2D(i, j, seed + 405) * 10) / n) * Math.PI * 2;
+      const lateral = Math.abs(Math.sin(a - aa)) * d, w = 0.012 * (1 - d / R) + px * 0.4;
+      if (lateral < w && hash2D(setor, i * 31 + j, seed + 406) < 0.85) { tomDe(tmp, capim, 0.55 + 0.75 * (d / R) + 0.25 * hash2D(setor, j, seed + 407)); rumo(o, tmp, 0.9); }
+    }
+    // Galhinhos: traços escuros e finos.
+    const Gg = 1.1, gi = Math.floor(x / Gg), gj = Math.floor(y / Gg);
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      const i = gi + di, j = gj + dj; if (hash2D(i, j, seed + 501) > 0.3) continue;
+      const cx = (i + hash2D(i, j, seed + 502)) * Gg, cy = (j + hash2D(i, j, seed + 503)) * Gg, a = hash2D(i, j, seed + 504) * Math.PI, L = 0.12 + 0.2 * hash2D(i, j, seed + 505);
+      const dx = x - cx, dy = y - cy, u = dx * Math.cos(a) + dy * Math.sin(a), v = Math.abs(-dx * Math.sin(a) + dy * Math.cos(a) - Math.sin(u * 9) * 0.012);
+      if (Math.abs(u) < L && v < 0.007 + px * 0.4) { tomDe(tmp, [70, 52, 36], 0.75 + 0.3 * (u / L)); rumo(o, tmp, 0.9); }
+    }
+    escurecer(o, 0.92 + hash2D(Math.floor(x / px), Math.floor(y / px), seed + 3) * 0.12);
+  });
+}
+
 /** Lajes rústicas: pedras grandes e irregulares (Voronoi torcido), com bisel de luz, rachaduras, desgaste e musgo nas juntas. */
 function pintarLajesRusticas(ctx: Contexto, mat: Material, A: Area, seed: number, px: number): void {
   const rn = valueNoise2D(seed * 47 + 1), L = mat.lado ?? 0.75, V = celulasDeVoronoi(A, L, seed * 17 + 2), q = novaConsulta(), externo = mat.uso === 'terreno';
@@ -1059,6 +1138,12 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
   listras: (ctx, _m, a, _s, _px, dir) => plano(ctx, areaDaAltura(a, dir)),
   floral: (ctx, _m, a, _s, _px, dir) => plano(ctx, areaDaAltura(a, dir)),
   manchado: (ctx, _m, a, _s, _px, dir) => plano(ctx, areaDaAltura(a, dir)),
+  // Terra, lama e areia: quase planas. As manchas de cor são umidade e tom, não calombos (pela luminância viravam escamas sob a luz).
+  terra: (ctx, _m, a, s) => alturaPorPixel(ctx, a, (x, y) => PISO + seixo(x, y, 0.5, 0.25, 0.02, 0.04, s + 7).k * 0.05),
+  lama: (ctx, _m, a) => plano(ctx, a),
+  areia: (ctx, _m, a) => plano(ctx, a),
+  batido: (ctx, _m, a, s) => alturaPorPixel(ctx, a, (x, y) => PISO + seixo(x, y, 0.4, 0.07, 0.014, 0.022, s + 31).k * 0.025),
+  folhico: (ctx, _m, a, s) => { const rn = valueNoise2D(s * 37 + 11); alturaPorPixel(ctx, a, (x, y) => PISO + (hash2D(Math.floor(x / 0.09), Math.floor(y / 0.09), s) < 0.5 ? 0.015 : 0) + passo(0.45, 0.75, fbm(rn, x * 0.5 + 50, y * 0.5, 3)) * 0.02); },
 
   tabuas(ctx, mat, area, seed, px) {
     const A = areaDaCor(area), r = mulberry32(seed * 7919 + 13);

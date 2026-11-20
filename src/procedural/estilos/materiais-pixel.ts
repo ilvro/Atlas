@@ -366,6 +366,9 @@ const PINTORES: Record<Padrao, (p: P) => void> = {
   persa,
   grama: p => ladrilhar(p, ladrilho(chaveDe(p, 'grama'), 64, 64, [p.t.c1, p.t.e1, p.t.C, p.t.E], (idx, w, h, r) => { manchar(idx, w, h, r, 1, 150, 1, 2); manchar(idx, w, h, r, 0, 110, 1, 2); manchar(idx, w, h, r, 3, 25, 1, 1); })),
   terra: p => ruidoPixel(p, 'terra', 0.1, 0.12, true),
+  // Pixel em espera: chão batido e chão de mata usam os pintores de terra e de grama.
+  batido: p => ruidoPixel(p, 'terra', 0.1, 0.12, true),
+  folhico: p => ladrilhar(p, ladrilho(chaveDe(p, 'folhico'), 64, 64, [p.t.c1, p.t.e1, p.t.C, p.t.E], (idx, w, h, r) => { manchar(idx, w, h, r, 1, 150, 1, 2); manchar(idx, w, h, r, 0, 110, 1, 2); manchar(idx, w, h, r, 3, 25, 1, 1); })),
   lama: p => ruidoPixel(p, 'lama', 0.06, 0.16, true),
   areia: p => ruidoPixel(p, 'areia', 0.09, 0.07),
   neve: p => ruidoPixel(p, 'neve', 0.03, 0.05),
