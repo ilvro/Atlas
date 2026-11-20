@@ -1,4 +1,6 @@
 import { AREA_MINIMA_CONTORNO, areaDoPoligono, celulasDoContorno, ehPoligonoSimples, normalizarContorno } from '../domain/formas-de-comodo.ts';
+import type { PincelDeObjeto } from '../domain/pincel-de-objeto.ts';
+import { PROPRIEDADES_PADRAO } from '../domain/pincel-de-objeto.ts';
 import { colunas, linhas, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
 import { telhadoPadrao, tipoDeComodo } from '../domain/presets.ts';
 import type { ComandoConstruir } from '../state/comandos-construir.ts';
@@ -14,9 +16,8 @@ export interface Pincel {
   comodoForma?: FormaDeDesenhoDeComodo;
   /** Número de lados ao desenhar cômodo circular (8..48; padrão 24). */
   comodoLados?: number;
-  /** Receita e parâmetros do objeto; `semente: null` varia a cada objeto posto. `rotacao` em radianos. */
-  /** `item` é qualquer id do acervo: uma receita (`sofa`) ou um item da coleção (`casa:chesterfield-vinho`). */
-  objeto: { item: string; params: Record<string, unknown>; semente: number | null; rotacao: number; /** Família do item (`ACERVO.familiaDoItem`); `null` para item sem família. */ familia: string | null; /** Sorteia a variante da família a cada objeto posto. */ varianteAleatoria: boolean };
+  /** Item, desenho e propriedades do objeto (ver `PincelDeObjeto`). */
+  objeto: PincelDeObjeto;
   luz: { preset: string; /** Direção do facho, em radianos. */ direcao: number };
   abertura: { tipo: 'door' | 'window' | 'arch' | 'secret' };
   parede: { tipo: 'wall' | 'low' | 'fence' | 'cliff' };
@@ -51,7 +52,7 @@ export function comandoDoPincelDeTerreno(
 
 export const PINCEL_PADRAO: Pincel = {
   comodo: 'sala',
-  objeto: { item: 'mesa.redonda', params: {}, semente: null, rotacao: 0, familia: 'mesa-redonda', varianteAleatoria: false },
+  objeto: { item: 'mesa.redonda', params: {}, semente: null, rotacao: 0, familia: 'mesa-redonda', varianteAleatoria: false, ...PROPRIEDADES_PADRAO },
   luz: { preset: 'lamparina', direcao: 0 },
   abertura: { tipo: 'door' },
   parede: { tipo: 'wall' },
