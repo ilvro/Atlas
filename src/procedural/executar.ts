@@ -11,7 +11,7 @@ import { estiloDe, type IdDoEstilo, type OpcoesDoPixel } from './estilos/index.t
 import { SOMBRA_DE_CONTATO, caixaDoConteudo, contorno, puxarCor, sobrepor, sombraDeContato, type AlvoDeCor } from './harmonizar.ts';
 
 export type PedidoDeBake =
-  | { tipo: 'objeto'; receita: string; params: Record<string, unknown>; seed: number; res: number; estilo: IdDoEstilo; pixel?: OpcoesDoPixel }
+  | { tipo: 'objeto'; receita: string; params: Record<string, unknown>; seed: number; res: number; estilo: IdDoEstilo; pixel?: OpcoesDoPixel; /** Espelha a descrição (eixo x local) antes de assar: a luz e o relevo saem certos. */ espelhar?: boolean }
   /** Um item gerado da coleção, assado da descrição do gerador (sem a imagem): só no Pixel; o Ilustrado usa a imagem já assada. */
   | { tipo: 'gerado'; gerador: string; params: Record<string, unknown>; seed: number; res: number; estilo: IdDoEstilo; pixel?: OpcoesDoPixel }
   /** Uma imagem da coleção, já assada com a sombra: `resImagem` px/m, desenhada a `res` px/m, centrada no objeto. */
@@ -56,7 +56,7 @@ export async function executarBake(p: PedidoDeBake): Promise<ResultadoDeBake> {
   if (p.tipo === 'gerado') return paraBitmap(await assarGerado(p, estilo));
   const a: Assado =
     p.tipo === 'objeto'
-      ? assarObjeto(p.receita, p.params, p.seed, p.res, estilo, p.pixel)
+      ? assarObjeto(p.receita, p.params, p.seed, p.res, estilo, p.pixel, p.espelhar)
       : p.tipo === 'comodo'
         ? assarComodo(p.entrada, p.res, estilo)
         : p.tipo === 'escarpa'
