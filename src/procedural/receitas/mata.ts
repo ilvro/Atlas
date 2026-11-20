@@ -43,6 +43,62 @@ function anel(partes: Parte[], r0: number, r1: number, mat: string, z: number, p
   }
 }
 
+/**
+ * Contorno de uma pele de bicho esticada: corpo oval com quatro patas abertas nas diagonais, pescoço em cima e rabo embaixo, borda
+ * rasgada. `(cx, cy)` é o centro, `w × h` o corpo, `giro` gira tudo.
+ */
+function contornoDePele(r: () => number, cx: number, cy: number, w: number, h: number, giro = 0): number[] {
+  const pts: number[] = [], n = 64, abas = [[-0.75, 0.38], [-2.4, 0.38], [0.75, 0.36], [2.4, 0.36], [-Math.PI / 2, 0.3], [Math.PI / 2, 0.22]] as const;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    let k = 1 + (r() - 0.5) * 0.07;
+    for (const [ang, forca] of abas) { const d = Math.atan2(Math.sin(a - ang), Math.cos(a - ang)); k += forca * Math.exp(-(d * d) / 0.035); }
+    const x = Math.cos(a) * (w / 2) * k, y = Math.sin(a) * (h / 2) * k;
+    pts.push(cx + x * Math.cos(giro) - y * Math.sin(giro), cy + x * Math.sin(giro) + y * Math.cos(giro));
+  }
+  return pts;
+}
+
+/** Pelo sobre uma pele: borda clara, lombo escuro ao comprido (desfocado) e fios curtos que saem do lombo para fora. */
+function pelo(partes: Parte[], r: () => number, cx: number, cy: number, w: number, h: number, claro: string, escuro: string, z: number, giro = 0): void {
+  const c = Math.cos(giro), sn = Math.sin(giro), P = (x: number, y: number): [number, number] => [cx + x * c - y * sn, cy + x * sn + y * c];
+  partes.push(poli(contornoDePele(r, cx, cy, w, h, giro), claro, z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
+  const lombo: number[] = []; for (let i = 0; i <= 12; i++) { const t = i / 12 - 0.5, [x, y] = P(Math.sin(t * 9) * w * 0.03, t * h * 0.95); lombo.push(x, y); }
+  partes.push(tira(lombo, w * 0.32, escuro, z + 0.01, { contorno: false, semSombra: true, alfa: 0.85, desfoque: w * 0.08 }, 0.4));
+  partes.push(tira(lombo, w * 0.12, tom(escuro, -0.35), z + 0.012, { contorno: false, semSombra: true, alfa: 0.7, desfoque: w * 0.04 }, 0.3));
+  for (let i = 0; i < 140; i++) {
+    const t = r() - 0.5, lado = r() < 0.5 ? -1 : 1, u = lado * (0.02 + r() * 0.42) * w, v = t * h * 0.9, len = 0.035 + r() * 0.05, [x0, y0] = P(u, v), [x1, y1] = P(u + lado * len, v + len * 0.6);
+    const perto = Math.abs(u) / (w * 0.45);
+    partes.push(tira([x0, y0, x1, y1], 0.01, perto < 0.45 ? tom(escuro, (r() - 0.5) * 0.3) : tom(claro, (r() - 0.6) * 0.3), z + 0.02, { contorno: false, semSombra: true, alfa: 0.8, detalhe: 3 }, 0.2));
+  }
+}
+
+/**
+ * Catre de campanha: duas varas compridas que passam das pontas, travessas amarradas com corda e, por cima, uma lona esticada com uma pele
+ * inteira (lombo escuro, borda clara) ou várias peles castanhas costuradas cobrindo o estrado.
+ */
+function catre(seed: number, peles: boolean, cor: string | null): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], W = 0.86, H = 1.9, vara = '#6a5238', corda = '#b89a62';
+  for (const sx of [-1, 1]) partes.push(tira([sx * W / 2, -H / 2 - 0.1, sx * W / 2, H / 2 + 0.1], 0.055, vara, 0.3, { contorno: 'leve' }));
+  for (const sy of [-1, 1]) {
+    partes.push(tira([-W / 2 - 0.04, sy * H / 2, W / 2 + 0.04, sy * H / 2], 0.05, tom(vara, 0.08), 0.32, { contorno: 'leve' }));
+    for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) partes.push(tira([sx * W / 2 - 0.035, sy * H / 2 - 0.05 + k * 0.04, sx * W / 2 + 0.035, sy * H / 2 - 0.03 + k * 0.04], 0.012, corda, 0.34, { contorno: false, semSombra: true, detalhe: 3 }));
+  }
+  if (!peles) {
+    partes.push(ret(0, 0, W - 0.04, H - 0.06, '#9a9070', 0.36, { contorno: 'leve', semSombra: true, detalhe: 1 }));
+    partes.push(ret(W * 0.22, 0, W * 0.4, H - 0.1, '#000000', 0.37, { contorno: false, semSombra: true, alfa: 0.18, desfoque: 0.08 }));
+    pelo(partes, r, -0.02, 0.02, W * 0.95, H * 0.62, cor ?? '#ece4d4', '#4a3222', 0.42, (r() - 0.5) * 0.2);
+  } else {
+    const tons = cor ? [cor, tom(cor, 0.12), tom(cor, -0.12)] : ['#8a5e3c', '#a0724a', '#74482c'];
+    pelo(partes, r, 0, -H * 0.19, W * 0.96, H * 0.55, tons[0]!, tom(tons[0]!, -0.25), 0.4, 0.15);
+    pelo(partes, r, -0.01, H * 0.19, W * 0.94, H * 0.54, tons[1]!, tom(tons[1]!, -0.2), 0.44, Math.PI - 0.1);
+    pelo(partes, r, 0.03, 0, W * 0.72, H * 0.36, tons[2]!, tom(tons[2]!, -0.3), 0.48, Math.PI / 2 + 0.2);
+    // Costuras de couro entre as peles.
+    for (let k = 0; k < 9; k++) { const x = -W * 0.4 + k * W * 0.1, y = (r() - 0.5) * 0.04 - H * 0.02; partes.push(tira([x, y - 0.03, x + 0.02, y + 0.03], 0.012, '#3a2618', 0.5, { contorno: false, semSombra: true, detalhe: 3 })); }
+  }
+  return partes;
+}
+
 /** O kit da mata (beira de rio e sub-bosque) e da ruína. */
 export const RECEITAS_MATA: Receita[] = [
   { id: 'tufo-de-grama', nome: 'Tufo de grama', ...MATA, tags: ['grama', 'planta', 'natureza', 'mata'], pegada: [0.6, 0.6], altura: 0.25,
@@ -112,22 +168,8 @@ export const RECEITAS_MATA: Receita[] = [
       return piso([L, 0.4], partes);
     } },
   { id: 'catre-de-peles', nome: 'Catre de peles', ...MATA, funcoes: ['jardim', 'quarto'], tags: ['catre', 'cama', 'peles', 'pele', 'acampamento', 'dormir', 'mata'], pegada: [1, 2.1], altura: 0.5,
-    campos: [{ id: 'pele', rotulo: 'Pele', tipo: 'material', padrao: 'tecido.linho', uso: 'objeto' }],
-    gerar: p => {
-      // Catre de campanha: estrado de varas amarradas nos cantos e, por cima, uma pele inteira de bicho (contorno irregular, pelo mais escuro no lombo).
-      const r = mulberry32(p.seed), partes: Parte[] = [], W = 0.9, H = 2.0, vara = '#6a5238';
-      for (const sx of [-1, 1]) partes.push(tira([sx * W / 2, -H / 2 - 0.08, sx * W / 2, H / 2 + 0.08], 0.05, vara, 0.3, { contorno: 'leve' }));
-      for (const sy of [-1, 1]) partes.push(tira([-W / 2 - 0.06, sy * H / 2, W / 2 + 0.06, sy * H / 2], 0.045, tom(vara, 0.1), 0.32, { contorno: 'leve' }));
-      for (const sx of [-1, 1]) for (const sy of [-1, 1]) partes.push(elipse(sx * W / 2, sy * H / 2, 0.08, 0.08, '#b89a62', 0.34, { contorno: 'leve', semSombra: true, detalhe: 2 }));
-      const pele = typeof p.params?.pele === 'string' ? materialDe(p.params.pele).base : '#b08a5e', contorno = bolha(0, 0, W * 0.5, H * 0.46, 22, 0.14, r);
-      for (const [x, y, a] of [[-0.36, -0.62, -2.3], [0.36, -0.62, -0.8], [-0.34, 0.66, 2.4], [0.34, 0.66, 0.7]] as const) partes.push(poli(bolha(x, y, 0.16, 0.08, 8, 0.25, r, a), tom(pele, -0.1), 0.38, { contorno: 'leve', semSombra: true, detalhe: 2 }));
-      partes.push(poli(contorno, pele, 0.4, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
-      partes.push(poli(bolha(0, 0.05, W * 0.22, H * 0.36, 16, 0.18, r), tom(pele, -0.32), 0.41, { contorno: false, semSombra: true, suave: true, desfoque: 0.06, alfa: 0.8 }));
-      partes.push(poli(bolha(-0.1, -0.15, W * 0.28, H * 0.22, 14, 0.2, r), tom(pele, 0.25), 0.42, { contorno: false, semSombra: true, suave: true, desfoque: 0.08, alfa: 0.6 }));
-      for (let i = 0; i < 70; i++) { const a = r() * Math.PI * 2, d = Math.sqrt(r()), x = Math.cos(a) * d * W * 0.42, y = Math.sin(a) * d * H * 0.4; partes.push(tira([x, y, x + 0.03, y + 0.07], 0.012, tom(pele, r() < 0.5 ? -0.3 : 0.25), 0.43, { contorno: false, semSombra: true, detalhe: 3 }, 0.2)); }
-      partes.push(poli(bolha(0, -H * 0.47, 0.13, 0.1, 8, 0.2, r), tom(pele, -0.2), 0.42, { contorno: 'leve', semSombra: true, detalhe: 2 }));
-      return piso([1, 2.1], partes);
-    } },
+    campos: [{ id: 'estilo', rotulo: 'Estilo (0 lona com uma pele, 1 peles costuradas)', tipo: 'numero', padrao: 0, min: 0, max: 1, passo: 1 }, { id: 'pele', rotulo: 'Pelo', tipo: 'material', padrao: 'tecido.linho', uso: 'objeto' }],
+    gerar: p => piso([1, 2.1], catre(p.seed, Math.round(num(p, 'estilo', 0, 0, 1)) === 1, typeof p.params?.pele === 'string' ? materialDe(p.params.pele).base : null)) },
   { id: 'mureta-de-pedra', nome: 'Mureta de pedra', ...RUINA, tags: ['mureta', 'muro', 'pedra', 'ruina'], pegada: [3, 0.5], altura: 0.9,
     campos: [{ id: 'largura', rotulo: 'Largura (m)', tipo: 'numero', padrao: 3, min: 1, max: 10, passo: 0.5 }, { id: 'falha', rotulo: 'Falhas (0 inteira, 1 quebrada)', tipo: 'numero', padrao: 1, min: 0, max: 1, passo: 1 }],
     gerar: p => {
