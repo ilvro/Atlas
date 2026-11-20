@@ -27,9 +27,9 @@ export const acampamentoNaNevoa: Exemplo = {
     k.objeto('bau', [13.7, 12.0], { rotation: 0.3, scale: 0.45 });
 
     // Os abrigos: lona cinza a noroeste, peles a nordeste, catre de peles a sudoeste e lona verde a sudeste.
-    k.objeto('tenda', [8.8, 9.3], { rotation: -0.55, params: { lona: 'tecido.linho' } });
-    k.objeto('catre-de-peles', [15.6, 10.0], { rotation: 0.55 + Math.PI / 2, params: { pele: 'tecido.linho' } });
-    k.objeto('catre-de-peles', [7.8, 15.6], { rotation: 0, params: { pele: 'madeira.media' } });
+    k.objeto('tenda', [8.8, 9.3], { rotation: -0.55, params: { lona: 'tecido.cinza' } });
+    k.objeto('catre-de-peles', [15.6, 10.0], { rotation: 0.55 + Math.PI / 2, params: { estilo: 0 } });
+    k.objeto('catre-de-peles', [7.8, 15.6], { rotation: 0, params: { estilo: 1 } });
     k.objeto('tenda', [15.3, 16.0], { rotation: Math.PI / 2, params: { lona: 'tecido.salvia' } });
 
     // Pedras e galhos espalhados na franja leste.
@@ -42,6 +42,9 @@ export const acampamentoNaNevoa: Exemplo = {
       [0.4, 18.0, 'casa:arvore-da-mata-6m'], [0.6, 7.4, 'casa:arvore-da-mata-6m-rala'], [3.4, 4.2, 'casa:arvore-da-mata-5m-amarelada'], [0.4, 0.8, 'casa:arvore-da-mata-8m'],
       [10.6, 1.4, 'casa:arvore-da-mata-6m'], [15.4, 0.2, 'casa:arvore-da-mata-6m-rala'], [21.6, 1.0, 'casa:arvore-da-mata-8m'], [23.6, 8.8, 'casa:arvore-da-mata-6m'],
       [23.6, 14.0, 'casa:arvore-da-mata-6m-rala'], [0.0, 13.2, 'casa:arvore-da-mata-4m'], [6.6, 1.0, 'casa:arvore-da-mata-4m'], [19.4, 4.4, 'casa:arvore-da-mata-4m'], [1.2, 23.6, 'casa:arvore-da-mata-8m'],
+      [2.6, 10.2, 'casa:arvore-da-mata-6m'], [3.2, 15.6, 'casa:arvore-da-mata-5m-amarelada'], [7.0, 21.6, 'casa:arvore-da-mata-6m'], [13.6, 23.0, 'casa:arvore-da-mata-6m'],
+      [20.2, 22.8, 'casa:arvore-da-mata-6m'], [22.4, 4.6, 'casa:arvore-da-mata-6m'], [13.6, 3.4, 'casa:arvore-da-mata-5m-amarelada'], [7.0, 4.0, 'casa:arvore-da-mata-6m-rala'],
+      [21.0, 11.8, 'casa:arvore-da-mata-4m'], [18.6, 1.6, 'casa:arvore-da-mata-6m'],
     ] as const) k.objeto(item, [x, y], { rotation: k.rng() * 6 });
 
     k.clima('noite', { time: '23:10', ambient: { color: '#aab6b0', intensity: 0.8 }, sun: { angle: 2.4, color: '#a8b8d8', intensity: 0.9 }, tempo: { fog: 0.45, wind: 0.08 } });
