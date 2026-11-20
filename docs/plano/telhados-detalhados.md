@@ -172,7 +172,7 @@ Testes: e2e, casa com porta na parede de baixo: com o telhado fechado, a faixa a
 Pronto quando: a delegacia refeita (N10) tem a porta e as janelas à vista com o telhado fechado.
 Commit: `closed houses show their front facade under the eave`
 
-### N8a — Coberturas de todas as eras  ⬜
+### N8a — Coberturas de todas as eras  ✅
 Objetivo: cobrir de choupana a galpão industrial.
 Depende de: N3.
 Ler: `src/procedural/coberturas.ts`, `src/procedural/materiais.ts` (materiais `telha.*`), `docs/LICENCAS.md` (tudo procedural).
@@ -189,6 +189,7 @@ Como: padrões e materiais novos (`uso: 'telhado'`), cada um com capa de cumeeir
 Não fazer: os transparentes e nobres (N8b).
 Testes: os do T5b/N3 para cada material novo.
 Pronto quando: a prancha mostra os materiais novos distintos entre si, e o usuário aprova.
+Nota: O padrão de `telha.couro` foi nomeado `'couro-telhado'` em `PADROES_DE_COBERTURA` para não colidir com o padrão `'couro'` já existente em `Padrao` (`couro.marrom`, objeto), seguindo a mesma convenção de `'tabuas-telhado'`, `'grama-telhado'` e `'lajes-telhado'`. Exportado também `CAPAS_DE_CUMEEIRA`, `CAPA_DA_COBERTURA` e `capaDaCobertura` em `src/procedural/coberturas.ts` para uso da N4. Prancha de validação visual (12 coberturas novas sombreadas por sol fixo + mapa `h`) em `test-results/n8a-eras.png`.
 Commit: `added roof coverings for every era`
 
 ### N8b — Coberturas nobres e transparentes  ⬜
