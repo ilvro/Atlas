@@ -36,6 +36,7 @@ import {
   nomeDoCanalDoProjetor,
   projetorConectado,
   seguirJogadores,
+  jogadorSeguido,
   caixaDoProjetor,
   telaEscura,
   type MensagemDoMestre,
@@ -419,5 +420,31 @@ test('publicador: seguir jogadores sincroniza no ola, ao ligar depois, e solta q
     pub.parar();
     canalEsp.close();
     sess.fechar();
+  }
+});
+
+test('publicador: seguir um jogador específico enquadra só a peça dele', async () => {
+  const mapa = criarMapa({ id: 'mapa-pub-um-jogador', nome: 'Arena' });
+  const repo = criarRepoMock({ [mapa.id]: mapa });
+  const sess = criarSessao(mapa, repo, { salvo: true });
+  const peca = (id: string, x: number) => ({ id, name: id, position: [x, 10.5] as [number, number], size: 1, facing: 'down' as const, portrait: null, sprite: null, player: true, vision: { radius: 18, dark: false }, lightId: null, figure: { state: 'normal' as const }, refs: [], hp: null });
+  sess.store.executar({ tipo: 'item.adicionar', colecao: 'tokens', item: peca('a', 4.5) });
+  sess.store.executar({ tipo: 'item.adicionar', colecao: 'tokens', item: peca('b', 40.5) });
+  seguirJogadores.value = true;
+  jogadorSeguido.value = 'b';
+  const pub = iniciarPublicacao(sess, async () => null);
+  const canalEsp = new BroadcastChannel(nomeDoCanalDoProjetor(mapa.id));
+  const msgs: MensagemDoMestre[] = [];
+  canalEsp.onmessage = e => msgs.push(e.data);
+  try {
+    canalEsp.postMessage({ tipo: 'ola', largura: 1600, altura: 900, _seq: 1 });
+    await esperar(60);
+    const cam = msgs.filter((m): m is Extract<MensagemDoMestre, { tipo: 'camera' }> => m.tipo === 'camera').at(-1);
+    assert.ok(cam?.seguir);
+    assert.ok(Math.abs((cam!.caixa.x0 + cam!.caixa.x1) / 2 - 40.5) < 0.01, 'centrada no jogador b');
+    assert.ok(cam!.caixa.x1 - cam!.caixa.x0 < 30, 'não enquadra o grupo todo');
+  } finally {
+    seguirJogadores.value = false; jogadorSeguido.value = null;
+    pub.parar(); canalEsp.close(); sess.fechar();
   }
 });

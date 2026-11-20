@@ -20,9 +20,16 @@ const botaoVisivel = signal(true);
 const cortina = signal<{ escurecer: boolean; ms: number }>({ escurecer: false, ms: 0 });
 /** Letreiro de apresentação ou capítulo em exibição no projetor. */
 const letreiroDoProjetor = signal<DadosDoLetreiro | null>(null);
-/** Enquanto segue o mestre, a câmera dele enquadra o projetor; zoom ou arrasto aqui soltam o projetor até "Seguir o mestre". */
+/** Enquanto segue o mestre, a câmera dele enquadra o projetor; o arrasto aqui solta o projetor até "Seguir o mestre". */
 const seguindo = signal(true);
 let caixaDoMestre: Parameters<Viewport['enquadrarCaixa']>[0] | null = null, vpAtual: Viewport | null = null;
+/** Zoom local do projetor (1 = o enquadre do mestre; >1 aproxima). Sobrevive ao seguimento: só o arrasto o solta. */
+let zoomLocal = 1;
+const caixaComZoom = (c: NonNullable<typeof caixaDoMestre>) => {
+  if (zoomLocal === 1) return c;
+  const cx = (c.x0 + c.x1) / 2, cy = (c.y0 + c.y1) / 2, w = (c.x1 - c.x0) / zoomLocal, h = (c.y1 - c.y0) / zoomLocal;
+  return { x0: cx - w / 2, y0: cy - h / 2, x1: cx + w / 2, y1: cy + h / 2 };
+};
 /** Os retratos que o mestre enviou, por id de asset. */
 const retratos = new Map<string, Blob>();
 const versaoRetratos = signal(0);
@@ -52,7 +59,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
     silenciarNestaJanela();                                   // o áudio não toca no projetor
     const sairTema = iniciarTema();
     document.body.classList.add('projetor');
-    seguindo.value = true; caixaDoMestre = null;
+    seguindo.value = true; caixaDoMestre = null; zoomLocal = 1;
     retratos.clear(); recursosLocais.clear(); fecharInspecaoNoProjetor();
     cortina.value = { escurecer: false, ms: 0 };
     letreiroDoProjetor.value = null;
@@ -98,7 +105,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
         ultimoSeqMestre = msg._seq;
       }
       if (msg.tipo === 'estado') { doc.value = msg.doc; store!.projetar(msg.doc); }
-      else if (msg.tipo === 'camera') { caixa = caixaDoMestre = msg.caixa; if (msg.seguir) seguindo.value = true; if (seguindo.peek()) { vp?.enquadrarCaixa(msg.caixa, !primeira); primeira = false; } }
+      else if (msg.tipo === 'camera') { caixa = caixaDoMestre = msg.caixa; if (msg.seguir) seguindo.value = true; if (seguindo.peek()) { vp?.enquadrarCaixa(caixaComZoom(msg.caixa), !primeira); primeira = false; } }
       else if (msg.tipo === 'evento') vp?.dispararEvento(msg.nome);
       else if (msg.tipo === 'relampago') vp?.relampagoAgora();
       else if (msg.tipo === 'tela') { cortina.value = { escurecer: msg.acao === 'escurecer', ms: msg.ms }; }
@@ -116,23 +123,22 @@ export function Projetor({ mapaId }: { mapaId: string }) {
 
     // Enquanto o mestre não responde, pergunta de novo (ele pode abrir o mapa depois).
     const insistir = setInterval(() => { if (!doc.value) ola(); }, 1500);
-    const aoRedimensionar = () => { dizer({ tipo: 'tamanho', ...tamanho() }); if (caixa && seguindo.peek()) vp?.enquadrarCaixa(caixa, false); };
+    const aoRedimensionar = () => { dizer({ tipo: 'tamanho', ...tamanho() }); if (caixa && seguindo.peek()) vp?.enquadrarCaixa(caixaComZoom(caixa), false); };
     window.addEventListener('resize', aoRedimensionar);
     const aoSair = () => dizer({ tipo: 'tchau' });
     window.addEventListener('pagehide', aoSair);
-    // O mestre pode mudar o zoom na janela do projetor se desejar.
+    // A roda (inclusive sobre o canvas) dá zoom sem soltar o projetor: enquanto segue, o zoom é um fator sobre o enquadre do mestre.
     const aoRolarJanela = (e: WheelEvent) => {
       if ((e.target as HTMLElement)?.closest?.('.projetor-inspecao')) return;
-      if ((e.target as HTMLElement)?.tagName === 'CANVAS') return;
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
-      vp?.zoomPor(Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015)));
+      const fator = Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015));
+      if (seguindo.peek() && caixaDoMestre) { zoomLocal = Math.min(20, Math.max(0.05, zoomLocal * fator)); vp?.enquadrarCaixa(caixaComZoom(caixaDoMestre), false); }
+      else vp?.zoomPor(fator);
     };
-    window.addEventListener('wheel', aoRolarJanela, { passive: false });
-    // Zoom (roda, inclusive sobre o canvas) ou arrasto de mais de 4 px soltam o projetor da câmera do mestre.
+    window.addEventListener('wheel', aoRolarJanela, { passive: false, capture: true });
+    // Só o arrasto de mais de 4 px solta o projetor da câmera do mestre.
     const soltarSeguimento = () => { if (!seguindo.peek()) return; seguindo.value = false; dizer({ tipo: 'soltou' }); };
-    const soltar = (e: WheelEvent) => { if (!(e.target as HTMLElement)?.closest?.('.projetor-inspecao')) soltarSeguimento(); };
-    window.addEventListener('wheel', soltar, { capture: true, passive: true });
     let apertado: { x: number; y: number } | null = null;
     const aoApertar = (e: PointerEvent) => { apertado = { x: e.clientX, y: e.clientY }; };
     const aoArrastar = (e: PointerEvent) => { if (apertado && Math.hypot(e.clientX - apertado.x, e.clientY - apertado.y) > 4) { soltarSeguimento(); apertado = null; } };
@@ -148,7 +154,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       canalEspecifico.close(); canalGlobal.close();
       sairTema(); vp?.destruir(); store?.dispor();
       window.removeEventListener('resize', aoRedimensionar); window.removeEventListener('pagehide', aoSair); window.removeEventListener('pointermove', mexeu);
-      window.removeEventListener('wheel', aoRolarJanela); window.removeEventListener('wheel', soltar, { capture: true });
+      window.removeEventListener('wheel', aoRolarJanela, { capture: true });
       hospedeiro?.removeEventListener('pointerdown', aoApertar); window.removeEventListener('pointermove', aoArrastar); window.removeEventListener('pointerup', aoSoltar); window.removeEventListener('pointercancel', aoSoltar);
       vpAtual = null;
       seguindo.value = true;
@@ -186,7 +192,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
         />
       )}
       {!seguindo.value && <button type="button" class={`projetor-seguir ${botaoVisivel.value ? '' : 'oculto'}`} data-testid="projetor-seguir"
-        onClick={() => { seguindo.value = true; if (caixaDoMestre) vpAtual?.enquadrarCaixa(caixaDoMestre, true); }}>Seguir o mestre</button>}
+        onClick={() => { seguindo.value = true; zoomLocal = 1; if (caixaDoMestre) vpAtual?.enquadrarCaixa(caixaDoMestre, true); }}>Seguir o mestre</button>}
       <button type="button" class={`projetor-tela-cheia ${botaoVisivel.value ? '' : 'oculto'}`} aria-label="Tela cheia" title="Tela cheia" data-testid="projetor-tela-cheia"
         onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void document.documentElement.requestFullscreen?.(); }}><Icone nome="enquadrar" tamanho={20} /></button>
     </main>

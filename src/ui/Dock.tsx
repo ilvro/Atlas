@@ -17,6 +17,7 @@ import { SecaoDeMomentos } from './Momentos.tsx';
 import { embutido } from '../app/embutido.ts';
 import { definirMostrarPvNoProjetor, mostrarPvNoProjetor } from '../app/fichas.ts';
 import { Icone } from './Icone.tsx';
+import { SeletorDeJogadorSeguido } from './SeletorDeJogadorSeguido.tsx';
 
 import { secoesAbertasNoDock, abrirSecaoNoDock, alternarSecaoNoDock } from '../app/dock.ts';
 export { secoesAbertasNoDock, abrirSecaoNoDock, alternarSecaoNoDock };
@@ -233,7 +234,7 @@ function SecaoDeIniciativa({ s }: { s: SessaoDeEdicao }) {
   </>);
 }
 
-function SecaoDoProjetor() {
+function SecaoDoProjetor({ s }: { s: SessaoDeEdicao }) {
   const conectado = projetorConectado.value;
   return (<>
     <div class="dock-linha">
@@ -242,6 +243,9 @@ function SecaoDoProjetor() {
     </div>
     <div class="dock-linha">
       <button type="button" class={`dock-pilula ${seguirJogadores.value ? 'ativa' : ''}`} aria-pressed={seguirJogadores.value} data-testid="dock-projetor-seguir" onClick={() => { seguirJogadores.value = !seguirJogadores.value; }}>Seguir os jogadores</button>
+      <SeletorDeJogadorSeguido s={s} testid="dock-projetor-jogador" />
+    </div>
+    <div class="dock-linha">
       <button type="button" class={`dock-pilula ${mostrarQuadroDoProjetor.value ? 'ativa' : ''}`} aria-pressed={mostrarQuadroDoProjetor.value} data-testid="dock-projetor-quadro" onClick={() => { mostrarQuadroDoProjetor.value = !mostrarQuadroDoProjetor.value; }}>Mostrar o quadro</button>
     </div>
     <div class="dock-linha">
@@ -392,7 +396,7 @@ export function Dock({ s }: { s: SessaoDeEdicao }) {
             {id === 'iniciativa' && <SecaoDeIniciativa s={s} />}
             {id === 'personagens' && <Personagens s={s} />}
             {id === 'pistas' && <Pistas s={s} />}
-            {id === 'projetor' && <SecaoDoProjetor />}
+            {id === 'projetor' && <SecaoDoProjetor s={s} />}
           </PainelFlutuante>
         );
       })}
