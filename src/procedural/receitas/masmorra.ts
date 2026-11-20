@@ -2,6 +2,7 @@ import { elipse, poli, ret, type Parte } from '../descricao.ts';
 import { mulberry32 } from '../ruido.ts';
 import { bolha, tira } from '../organico.ts';
 import { mat, parede, piso, type Receita } from './comum.ts';
+import { materialDe, tom } from '../materiais.ts';
 
 const G = { generos: ['fantasia'], kit: 'fantasia' }, PEDRA = '#6e7078', PEDRA_ESC = '#3a3c42', ARDE = '#ff7a2a', CHAMA = '#ffc24a', BRASA = '#c8401a', AGUA = '#5d8aa0', CORDA = '#b89a62', CARVAO = '#1a1210';
 const MIUDO = { contorno: false, semSombra: true, detalhe: 3 } as const, VOL = { contorno: 'leve', detalhe: 2 } as const;
@@ -80,6 +81,39 @@ function fogueira(seed: number): Parte[] {
   return partes;
 }
 
+/**
+ * Tenda de duas águas vista de cima: cumeeira ao comprido (y), a água virada para a luz (oeste) clara junto à cumeeira e a outra na sombra,
+ * beirais escurecidos, a lona cedendo entre as varas, vincos do pano, varas saindo pelas pontas e cordas até as estacas. A porta (frente, +y)
+ * pode estar aberta.
+ */
+function tenda(seed: number, lona: string, aberta: boolean): Parte[] {
+  const r = mulberry32(seed), base = materialDe(lona).base, W = 1.04, H = 1.28, partes: Parte[] = [], cede = 0.06;
+  const agua = (s: number): number[] => [0, -H, s * W, -H - 0.02, s * (W - cede), -H * 0.33, s * (W - cede * 0.6), H * 0.33, s * W, H + 0.02, 0, H];
+  // As duas águas (o material da lona), com nanquim firme.
+  partes.push(poli(agua(-1), lona, 1.1, { dir: 0 }), poli(agua(1), lona, 1.1, { dir: 0 }));
+  const veu = (pts: number[], cor: string, alfa: number, d: number, z = 1.12): Parte => poli(pts, cor, z, { contorno: false, semSombra: true, alfa, desfoque: d });
+  // Luz e sombra: a água oeste clareia junto à cumeeira; a leste fica na sombra, mais funda no beiral.
+  partes.push(veu([-0.04, -H + 0.05, -0.55, -H + 0.08, -0.55, H - 0.08, -0.04, H - 0.05], tom(base, 0.4), 0.7, 0.2));
+  partes.push(veu([0.02, -H, W, -H, W, H, 0.02, H], '#000000', 0.38, 0.05), veu([W * 0.45, -H, W, -H, W, H, W * 0.45, H], '#000000', 0.28, 0.2));
+  partes.push(veu([-W, -H, -W * 0.7, -H, -W * 0.7, H, -W, H], '#000000', 0.16, 0.14));
+  // Vincos: o pano puxado pelas varas e pelas estacas, claros na água da luz e escuros na da sombra.
+  for (const s of [-1, 1]) for (let k = 0; k < 4; k++) {
+    const y0 = -H + 0.25 + k * 0.7 + (r() - 0.5) * 0.2, y1 = y0 + (r() - 0.5) * 0.5;
+    partes.push(tira([s * 0.08, y0, s * W * 0.55, (y0 + y1) / 2 + 0.05, s * (W - 0.08), y1], 0.035, s < 0 ? tom(base, 0.45) : tom(base, -0.55), 1.13, { contorno: false, semSombra: true, alfa: 0.75, desfoque: 0.015, detalhe: 3 }, 0.2));
+  }
+  // Cumeeira, varas nas pontas e a costura.
+  partes.push(tira([0, -H - 0.1, 0, H + 0.1], 0.04, tom(base, -0.55), 1.2, { contorno: false, semSombra: true, detalhe: 1 }));
+  for (const y of [-1, 1]) partes.push(elipse(0, y * (H + 0.08), 0.07, 0.07, 'madeira.escura', 1.7, VOL), tira([0, y * H, 0, y * (H + 0.11)], 0.035, 'madeira.escura', 1.65, VOL));
+  if (aberta) {
+    partes.push(poli([-0.42, H, 0.42, H, 0, H * 0.45], '#120d09', 1.15, { contorno: 'leve' }));
+    for (const s of [-1, 1]) partes.push(poli([s * 0.42, H, s * 0.08, H, s * 0.42, H * 0.62], tom(base, s < 0 ? 0.15 : -0.25), 1.18, VOL));
+  }
+  // Cordas dos beirais até as estacas, dos dois lados.
+  for (const s of [-1, 1]) for (const y of [-H + 0.15, 0, H - 0.15]) partes.push(tira([s * (W - 0.02), y, s * 1.17, y + (r() - 0.5) * 0.05], 0.014, CORDA, 0.3, MIUDO), ret(s * 1.17, y, 0.06, 0.06, 'madeira.escura', 0.3, MIUDO));
+  for (const y of [-1, 1]) partes.push(tira([0, y * (H + 0.1), 0.02, y * 1.38], 0.014, CORDA, 0.3, MIUDO));
+  return partes;
+}
+
 /** Fogo, ofícios, masmorra e acampamento: o que dá vida a forja, pátio, masmorra e acampamento. */
 export const RECEITAS_DE_MASMORRA: Receita[] = [
   { id: 'braseiro', nome: 'Braseiro', categoria: 'lareira-e-luz', tipo: 'piso', funcoes: ['sala', 'porao', 'capela', 'forja', 'jardim'], tags: ['braseiro', 'fogo', 'brasa', 'luz', 'tripe'], pegada: [1, 1], altura: 1.2, ...G,
@@ -147,11 +181,8 @@ export const RECEITAS_DE_MASMORRA: Receita[] = [
       [ret(0, 0.03, 0.18, 0.06, 'ferro', 2.05), ...[-1, 1].flatMap(s => [tira([s * 0.04, 0.05, s * 0.27, 0.16], 0.03, '#4a4d56', 1.8, { contorno: 'leve', detalhe: 2 }), elipse(s * 0.27, 0.18, 0.13, 0.1, 'ferro', 1.5, VOL), elipse(s * 0.27, 0.18, 0.06, 0.04, '#1a1614', 1.52, MIUDO)])]) },
 
   { id: 'tenda', nome: 'Tenda', categoria: 'exterior', tipo: 'piso', funcoes: ['jardim'], tags: ['tenda', 'acampamento', 'lona', 'barraca', 'viagem'], pegada: [2.4, 2.8], ...G,
-    campos: [{ id: 'lona', rotulo: 'Lona', tipo: 'material', padrao: 'tecido.linho', uso: 'objeto' }],
-    gerar: p => { const l = mat(p, 'lona', 'tecido.linho'); return piso([2.4, 2.8], [
-      ret(-0.525, 0, 1.05, 2.6, l, 1.1, { dir: 0 }), ret(0.525, 0, 1.05, 2.6, l, 1.1, { dir: 0 }), ret(0.525, 0, 1.05, 2.6, '#000000', 1.12, { contorno: false, semSombra: true, suave: true, alfa: 0.16, detalhe: 2 }),
-      ret(0, 0, 0.06, 2.8, 'madeira.escura', 1.7, VOL), poli([-0.5, 1.3, 0.5, 1.3, 0, 0.55], '#15100c', 1.2, { contorno: 'leve' }), poli([-0.5, 1.3, -0.1, 1.3, -0.5, 0.9], l, 1.25, VOL), poli([0.5, 1.3, 0.1, 1.3, 0.5, 0.9], l, 1.25, VOL),
-      ...[-1, 1].map(s => elipse(0, s * 1.36, 0.1, 0.1, 'madeira.clara', 1.75, VOL)), ...[-1, 1].flatMap(s => [-1.0, 0, 1.0].flatMap(y => [tira([s * 1.05, y, s * 1.17, y], 0.015, CORDA, 0.3, MIUDO), ret(s * 1.18, y, 0.07, 0.07, 'madeira.escura', 0.3, MIUDO)]))]); } },
+    campos: [{ id: 'lona', rotulo: 'Lona', tipo: 'material', padrao: 'tecido.linho', uso: 'objeto' }, { id: 'porta', rotulo: 'Porta (0 fechada, 1 aberta)', tipo: 'numero', padrao: 0, min: 0, max: 1, passo: 1 }],
+    gerar: p => piso([2.4, 2.8], tenda(p.seed, mat(p, 'lona', 'tecido.linho'), Math.round(Number(p.params.porta ?? 0)) === 1)) },
   { id: 'estandarte', nome: 'Estandarte', categoria: 'exterior', tipo: 'piso', funcoes: ['jardim', 'sala', 'corredor'], tags: ['estandarte', 'bandeira', 'brasao', 'heraldica', 'pendao'], pegada: [0.6, 0.9], ...G,
     campos: [{ id: 'cor', rotulo: 'Pano', tipo: 'material', padrao: 'tecido.veludo-azul', uso: 'objeto' }],
     gerar: p => piso([0.6, 0.9], [poli([-0.22, -0.28, 0.22, -0.28, 0.22, 0.4, 0, 0.28, -0.22, 0.4], mat(p, 'cor', 'tecido.veludo-azul'), 0.9, {}), elipse(0, -0.32, 0.28, 0.28, 'madeira.escura', 0.2, VOL),
