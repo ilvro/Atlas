@@ -107,7 +107,7 @@ Pronto quando: uma prancha (`?prancha=coberturas`, ou o script de prancha existe
 Commit: `roof coverings have per-piece relief and variation`
 Nota: Prancha de validação visual gerada em `test-results/n3-coberturas.png` (12 coberturas em 3,5 × 2,5 m contínuo a 80 px/m, sombreadas por sol direcional + faixa do mapa `h`). API exportada em `src/procedural/coberturas.ts` para uso da N4/N5: `AmostraDeCobertura` (`{ t, m, h, id }`), `amostrarPontoContinuo(m, u, v, semente?, saida?)`, `amostradorContinuo(m, semente?)` (sem alocação por pixel), `corDaAmostra(m, t, mancha, saida?)` e `hashDaPeca(id, semente?)`. Convenção de eixo: `u` corre ao longo do beiral e `+v` aponta na direção da queda d'água (a fiada de cima cobre a de baixo; no N4, passar `v` crescendo em direção ao beiral). `amostrarPonto`, `amostrarCobertura` e `texturaDeCobertura` continuam periódicos em 2 m para miniaturas e Pixel.
 
-### N4 — Assado do telhado: cobertura, acabamento e detalhes  ⬜
+### N4 — Assado do telhado: cobertura, acabamento e detalhes  ✅
 Objetivo: um pedido de assado devolve o telhado inteiro de um edifício, em cor e normal.
 Depende de: N2, N3, M2.
 Ler: `src/procedural/executar.ts` (`PedidoDeBake`, `paraBitmap`), `src/procedural/assar.ts` (`assarComodo`, como um cômodo vira `Assado`), `src/procedural/detalhes-de-telhado.ts` (`descricaoDoDetalhe`, `posicoesDosDetalhes`), `src/render/entradas.ts` (`entradaDoComodo`, chaves).
@@ -122,6 +122,7 @@ Como:
 Não fazer: render na cena (N6); desgaste (N5); fachada (N7).
 Testes: o assado de uma casa 4 × 3 tem alfa 0 fora do beiral e 1 dentro; numa casa em L, a normal muda de lado ao cruzar o rincão; mesma entrada dá o mesmo bitmap.
 Pronto quando: a prancha mostra uma casa em L, uma igreja (nave + torre) e uma cúpula com fiadas paralelas ao beiral, capas de cumeeira e rincão.
+Nota: Prancha de validação visual gerada em `test-results/n4-telhados.png` (casa em L de barro com chaminé, igreja nave + torre de ardósia com cruz e sino, e cúpula de cobre com cata-vento, em Albedo, Normal/AO e Prévia Sombreada). `src/procedural/assar-telhado.ts` exporta `amostrarTelhado` (puro em `Uint8ClampedArray` para testes em Node) e `assarTelhado` (Canvas/Worker com `assarDescricao` para detalhes); `src/render/entradas.ts` exporta `EntradaDoTelhado`, `entradaDoTelhado` e `chaveDoTelhado` (omitindo `sol` quando não há detalhes para não invalidar o cache ao mudar a hora); `executar.ts` inclui `{ tipo: 'telhado' }` e `ResultadoDeBake.normal`; `baker.ts` dá prioridade `2` a `tipo === 'telhado'`.
 Commit: `roofs are baked per building with color and normal maps`
 
 ### N5 — Desgaste: musgo, sujeira, dano, remendo, fuligem e neve  ⬜

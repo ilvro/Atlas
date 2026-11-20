@@ -1,3 +1,4 @@
+import type { CampoDoTelhado } from '../domain/campo-do-telhado.ts';
 import type { DetalheDeTelhado, MapaAtlas, Ponto } from '../domain/mapa.ts';
 import { aguasDe, formaDe, retangulosDe, type Face, type Trecho } from '../domain/telhado-geometria.ts';
 import { elipse, poli, ret, type DescricaoDePiso, type Parte } from './descricao.ts';
@@ -103,37 +104,68 @@ const centro = (f: Face): Ponto => { const p = f.pontos; return [p.reduce((s, q)
 /**
  * As posições dos detalhes do trecho, todas no maior retângulo dele: a chaminé numa água, a 1/3 ou 2/3 da cumeeira; a cruz na
  * ponta da cumeeira voltada para a frente do mapa (+y); o sino no centro; o cata-vento no meio da cumeeira; a claraboia no meio
- * da maior água; a caixa-d'água no centro. Sem cumeeira (pirâmide, laje, quatro águas quadrado), tudo parte do centro.
+ * da maior água; a caixa-d'água no centro. Sem cumeeira (pirâmide, laje, cúpula, bulbo, cone, quatro águas quadrado), tudo parte do centro.
+ * Quando `campo` é fornecido, valida as posições no campo de altura (evitando rincões e ajustando a rotação da claraboia pela inclinação real).
  */
-export function posicoesDosDetalhes(trecho: Trecho, grade: Pick<MapaAtlas['grid'], 'size' | 'offset'>, semente: number): PosicaoDeDetalhe[] {
-  const detalhes = formaDe(trecho.roof).details;
+export function posicoesDosDetalhes(
+  trecho: Trecho,
+  grade: Pick<MapaAtlas['grid'], 'size' | 'offset'>,
+  semente: number,
+  campo?: CampoDoTelhado,
+): PosicaoDeDetalhe[] {
+  const forma = formaDe(trecho.roof);
+  const detalhes = forma.details;
   if (!detalhes.length) return [];
   if (trecho.outline && trecho.outline.length >= 3) {
     const cx = trecho.outline.reduce((s, p) => s + p[0], 0) / trecho.outline.length;
     const cy = trecho.outline.reduce((s, p) => s + p[1], 0) / trecho.outline.length;
-    return detalhes.map((d, i) => ({ detalhe: d, x: cx + (i === 0 ? 0 : (i - 0.5) * 0.9), y: cy, ang: 0 }));
+    return detalhes.map((d, i) => {
+      const px = cx + (i === 0 ? 0 : (i - 0.5) * 0.9);
+      const py = cy;
+      let ang = 0;
+      if (d === 'claraboia' && campo) {
+        const a = campo.amostrar(px, py);
+        if (a && (a.gx !== 0 || a.gy !== 0)) ang = Math.atan2(-a.gy, -a.gx) - Math.PI / 2;
+      }
+      return { detalhe: d, x: px, y: py, ang };
+    });
   }
   const principal = retangulosDe(trecho.celulas)[0];
   if (!principal) return [];
   const t = grade.size, [ox, oy] = grade.offset;
   const x0 = ox + principal[0] * t, y0 = oy + principal[1] * t, x1 = ox + principal[2] * t, y1 = oy + principal[3] * t;
+  const semCumeeira = forma.shape === 'cupula' || forma.shape === 'bulbo' || forma.shape === 'cone' || forma.shape === 'uma-agua';
   const { faces, cumeeiras } = aguasDe([x0, y0, x1, y1], trecho.roof, 0);
-  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, meioMenor = Math.min(x1 - x0, y1 - y0) / 2, cume = cumeeiras[0];
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, meioMenor = Math.min(x1 - x0, y1 - y0) / 2, cume = semCumeeira ? undefined : cumeeiras[0];
   const azar = (k: number) => hash2D(Math.floor(semente), k, 977);
   const saida: PosicaoDeDetalhe[] = [];
   const usados: Ponto[] = [];
   /** Afasta um detalhe de outro que já caiu perto: tenta ao longo da cumeeira (para os dois lados) e depois nas águas, sempre dentro do retângulo. */
-  const livre = (p: Ponto): Ponto => {
+  const livre = (p: Ponto, prefereAgua = false): Ponto => {
     const [dx, dy] = cume ? [cume[1][0] - cume[0][0], cume[1][1] - cume[0][1]] : [0, 1], n = Math.hypot(dx, dy) || 1, ux = dx / n, uy = dy / n;
     const prender = (q: Ponto): Ponto => [Math.min(x1 - 0.4, Math.max(x0 + 0.4, q[0])), Math.min(y1 - 0.4, Math.max(y0 + 0.4, q[1]))];
     const longe = (q: Ponto) => usados.every(u => Math.hypot(u[0] - q[0], u[1] - q[1]) >= 1);
+    const bomNoCampo = (q: Ponto): boolean => {
+      if (!campo) return true;
+      const a = campo.amostrar(q[0], q[1]);
+      if (!a || a.peca === 'rincao' || a.folgaRincao < 0.12) return false;
+      if (prefereAgua && a.peca === 'beiral') return false;
+      return true;
+    };
     const tentativas: Ponto[] = [[0, 0]];
     for (let k = 1; k <= 6; k++) for (const s1 of [1, -1]) tentativas.push([s1 * k * 1.1, 0]);
     for (const lado of [1, -1]) for (let k = 0; k <= 6; k++) for (const s1 of k ? [1, -1] : [1]) tentativas.push([s1 * k * 1.1, lado * Math.max(0.9, meioMenor * 0.6)]);
-    let escolhido = prender(p);
+    let escolhido: Ponto | null = null;
     for (const [ao, perp] of tentativas) {
       const q = prender([p[0] + ux * ao - uy * perp, p[1] + uy * ao + ux * perp]);
-      if (longe(q)) { escolhido = q; break; }
+      if (longe(q) && bomNoCampo(q)) { escolhido = q; break; }
+    }
+    if (!escolhido) {
+      escolhido = prender(p);
+      for (const [ao, perp] of tentativas) {
+        const q = prender([p[0] + ux * ao - uy * perp, p[1] + uy * ao + ux * perp]);
+        if (longe(q)) { escolhido = q; break; }
+      }
     }
     usados.push(escolhido); return escolhido;
   };
@@ -157,7 +189,11 @@ export function posicoesDosDetalhes(trecho: Trecho, grade: Pick<MapaAtlas['grid'
       const maior = faces.filter(f => !f.platibanda).reduce((a, b) => (area(b) > area(a) ? b : a), faces[0]!);
       p = centro(maior); ang = maior.normal[0] || maior.normal[1] ? Math.atan2(maior.queda[1], maior.queda[0]) - Math.PI / 2 : 0;
     }
-    const [x, y] = livre(p);
+    const [x, y] = livre(p, d === 'chamine' || d === 'claraboia');
+    if (d === 'claraboia' && campo) {
+      const a = campo.amostrar(x, y);
+      if (a && (a.gx !== 0 || a.gy !== 0)) ang = Math.atan2(-a.gy, -a.gx) - Math.PI / 2;
+    }
     saida.push({ detalhe: d, x, y, ang });
   }
   return saida;
