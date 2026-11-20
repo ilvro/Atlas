@@ -24,6 +24,7 @@ import { secretaOculta } from '../domain/nevoa.ts';
 import { criarNeblina } from './neblina.ts';
 import { criarBordas } from './bordas.ts';
 import { criarHalos } from './halos.ts';
+import { criarFumaca } from './fumaca.ts';
 import { criarParticulas } from './particulas.ts';
 import { criarTelhados } from './telhados.ts';
 import { criarPeca, type PecaVisual } from './pecas.ts';
@@ -111,11 +112,11 @@ export function criarCena(op: OpcoesDaCena): Cena {
   const raiz = new Container(), mundoIluminado = new Container(), terrenoC = new Container(), veuTerrenoG = new Graphics(), submersosC = Object.assign(new Container(), { sortableChildren: true }), escarpasC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics(), fantasmaAndarG = new Graphics();
   const marcasG = new Graphics(), regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), tituloC = new Container();
   const luz = criarMapaDeLuz(op.renderer), cenaDeAltura = criarCenaDeAltura(), composicaoDeLuz = criarComposicaoDeLuz(op.renderer, luz, cenaDeAltura), nevoa = criarNevoa(op.renderer), telhados = criarTelhados({ baker: op.baker, aoPintar: op.aoPintar }), neblina = criarNeblina({ textura: () => (luz.sprite.texture === Texture.EMPTY ? null : luz.sprite.texture), escala: () => luz.escala }), bordas = criarBordas(), particulas = criarParticulas(), presenca = criarPresenca(), agua = criarAgua(), cachoeiras = criarCachoeiras(), sombras = criarSombrasDoSol(op.renderer), contato = criarContatoExterno(op.renderer), tempo = criarTempoNoChao(op.renderer);
-  const halos = criarHalos(luz, telhados);
+  const halos = criarHalos(luz, telhados), fumaca = criarFumaca();
   // A tinta do chão (presença natural) cobre o piso, mas não a face de rocha das escarpas, que sobe acima dela.
   // No Ilustrado, a composição de luz renderiza `mundoIluminado` em `corRT`, escreve HDR em `hdrRT` e aplica bloom em `composicaoDeLuz.sprite`; no Pixel, `luz.sprite` multiplica em 8 bits. Marcadores, regiões e peças ficam por cima.
   mundoIluminado.addChild(terrenoC, presenca.submerso, submersosC, agua.raiz, veuTerrenoG, comodosC, presenca.chao, tempo.chao, escarpasC, contato.raiz, sombras.raiz, objetosC, tempo.chapeus, cachoeiras.raiz, paredesG, fantasmaAndarG, presenca.abaixo);
-  raiz.addChild(mundoIluminado, composicaoDeLuz.sprite, luz.sprite, presenca.acima, halos.raiz, neblina.raiz, particulas.raiz, bordas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
+  raiz.addChild(mundoIluminado, composicaoDeLuz.sprite, luz.sprite, presenca.acima, halos.raiz, fumaca.raiz, neblina.raiz, particulas.raiz, bordas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
 
   let mapa: MapaAtlas | null = null, vistaDaCena: Vista = 'construir', destruida = false, pintandoAgora = 0, ultimoQuadro = -1;
   let ultimoContextoAndar: ContextoDoAndar | null = null, atmosferaLigada = true, ehPixel = false;
@@ -625,7 +626,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       const v = visaoDoClima ?? m;
       ehPixel = m.style.renderer === 'pixel';
       if (tudo || colecao('rooms') || colecao('props') || colecao('walls') || campos('climate', 'bounds', 'grid', 'style')) tempo.atualizar(v, objetos);
-      luz.sincronizar(v, mud); composicaoDeLuz.definirRelevo(v.finish.relief ?? RELEVO_PADRAO); composicaoDeLuz.definirAO(v.finish.ao ?? AO_PADRAO); composicaoDeLuz.definirGlow(v.finish.glow); composicaoDeLuz.definirExposicao(v.finish.exposure ?? EXPOSICAO_PADRAO); atualizarComposicaoDeLuz(); neblina.sincronizar(v, mud); bordas.sincronizar(v, mud); particulas.sincronizar(v, mud); halos.sincronizar(v, mud);
+      luz.sincronizar(v, mud); composicaoDeLuz.definirRelevo(v.finish.relief ?? RELEVO_PADRAO); composicaoDeLuz.definirAO(v.finish.ao ?? AO_PADRAO); composicaoDeLuz.definirGlow(v.finish.glow); composicaoDeLuz.definirExposicao(v.finish.exposure ?? EXPOSICAO_PADRAO); atualizarComposicaoDeLuz(); neblina.sincronizar(v, mud); fumaca.sincronizar(v, mud); bordas.sincronizar(v, mud); particulas.sincronizar(v, mud); halos.sincronizar(v, mud);
       // Os marcadores das luzes também refletem o clima (apagada pela rede ou pelo dia), então refazem quando ele muda.
       if (tudo || colecao('lights') || campos('climate')) sincronizarSimples(luzes, luzesC, m.lights, tudo || campos('climate') ? null : mud!.colecoes.lights ?? null, (c, l) => desenharLuz(c, l, m), comPop);
       if (tudo || colecao('tokens') || campos('grid', 'style')) sincronizarSimples(pecas, pecasC, m.tokens, tudo || campos('grid', 'style') ? null : mud!.colecoes.tokens ?? null, (c, t) => desenharPeca(c, t, m), comPop);
@@ -638,9 +639,9 @@ export function criarCena(op: OpcoesDaCena): Cena {
     atualizarAtmosfera(visao) {
       const mud: Mudancas = { completo: false, colecoes: {}, campos: ['climate'] };
       tempo.atualizar(visao, objetos);
-      luz.sincronizar(visao, mud); composicaoDeLuz.definirRelevo(visao.finish.relief ?? RELEVO_PADRAO); composicaoDeLuz.definirAO(visao.finish.ao ?? AO_PADRAO); composicaoDeLuz.definirGlow(visao.finish.glow); composicaoDeLuz.definirExposicao(visao.finish.exposure ?? EXPOSICAO_PADRAO); neblina.sincronizar(visao, mud); bordas.sincronizar(visao, mud); particulas.sincronizar(visao, mud); halos.sincronizar(visao, mud);
+      luz.sincronizar(visao, mud); composicaoDeLuz.definirRelevo(visao.finish.relief ?? RELEVO_PADRAO); composicaoDeLuz.definirAO(visao.finish.ao ?? AO_PADRAO); composicaoDeLuz.definirGlow(visao.finish.glow); composicaoDeLuz.definirExposicao(visao.finish.exposure ?? EXPOSICAO_PADRAO); neblina.sincronizar(visao, mud); fumaca.sincronizar(visao, mud); bordas.sincronizar(visao, mud); particulas.sincronizar(visao, mud); halos.sincronizar(visao, mud);
     },
-    definirAtmosfera: ligada => { atmosferaLigada = ligada; sombras.definirLigado(ligada); contato.definirLigado(ligada); tempo.definirLigado(ligada, mapa, objetos); if (ligada && mapa) sombras.atualizar(mapa, objetos, pixelRes0(mapa)); luz.definirLigado(ligada); atualizarComposicaoDeLuz(); neblina.definirLigado(ligada); bordas.definirLigado(ligada); particulas.definirLigado(ligada); halos.definirLigado(ligada); },
+    definirAtmosfera: ligada => { atmosferaLigada = ligada; sombras.definirLigado(ligada); contato.definirLigado(ligada); tempo.definirLigado(ligada, mapa, objetos); if (ligada && mapa) sombras.atualizar(mapa, objetos, pixelRes0(mapa)); luz.definirLigado(ligada); atualizarComposicaoDeLuz(); neblina.definirLigado(ligada); fumaca.definirLigado(ligada); bordas.definirLigado(ligada); particulas.definirLigado(ligada); halos.definirLigado(ligada); },
     relampagoAgora: () => luz.relampagoAgora(),
     definirModoProjetor: ligado => { modoDoProjetor = ligado; marcasVisiveis(); luzesC.visible = !ligado; regioesC.visible = !ligado; if (mapa) { sincronizarObjetos(mapa, null, false); tempo.atualizar(mapa, objetos); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } },
     definirEfeitosDeLuz: (luzes, ambiente) => luz.definirEfeitos(luzes, ambiente),
@@ -660,7 +661,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     quadro(agora) {
       luz.quadro(agora); nevoa.quadro(agora); telhados.quadro(agora);
       for (const c of pecas.values()) visuais.get(c)?.quadro(agora, op.efeitos());
-      const dt = ultimoQuadro < 0 ? 0 : (agora - ultimoQuadro) / 1000; ultimoQuadro = agora; neblina.quadro(dt); bordas.quadro(dt); particulas.quadro(dt); presenca.quadro(dt); agua.quadro(dt); cachoeiras.quadro(dt); halos.quadro(agora, dt);
+      const dt = ultimoQuadro < 0 ? 0 : (agora - ultimoQuadro) / 1000; ultimoQuadro = agora; neblina.quadro(dt); fumaca.quadro(dt); bordas.quadro(dt); particulas.quadro(dt); presenca.quadro(dt); agua.quadro(dt); cachoeiras.quadro(dt); halos.quadro(agora, dt);
       let animouObjeto = false;
       for (let i = animacoes.length - 1; i >= 0; i--) {
         const a = animacoes[i]!, t = Math.min(1, (agora - a.t0) / a.dur), e = 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2;   // easeOutBack
@@ -679,7 +680,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       for (const e of [...salas.values(), ...objetos.values(), ...escarpas.values(), ...(terreno ? [terreno] : [])]) soltar(e.chaveTextura);
       for (const t of texturas.values()) { t.tex.destroy(true); t.texAltura?.destroy(true); } texturas.clear();
       composicaoDeLuz.destruir(); cenaDeAltura.destruir();
-      tempo.destruir(); sombras.destruir(); contato.destruir(); luz.destruir(); halos.destruir(); nevoa.destruir(); telhados.destruir(); neblina.destruir(); bordas.destruir(); particulas.destruir(); presenca.destruir(); agua.destruir(); cachoeiras.destruir(); raiz.destroy({ children: true });
+      tempo.destruir(); sombras.destruir(); contato.destruir(); luz.destruir(); halos.destruir(); nevoa.destruir(); telhados.destruir(); neblina.destruir(); fumaca.destruir(); bordas.destruir(); particulas.destruir(); presenca.destruir(); agua.destruir(); cachoeiras.destruir(); raiz.destroy({ children: true });
     },
   };
 }
