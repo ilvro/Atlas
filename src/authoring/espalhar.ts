@@ -32,6 +32,10 @@ export const CONJUNTOS_EXTERIORES: readonly ConjuntoDeEspalhar[] = [
     { receita: 'casa:arvore-3m', peso: 2, contexto: 'livre' }, { receita: 'casa:arvore-5m', peso: 3, contexto: 'livre' }, { receita: 'casa:arvore-7m', peso: 1, contexto: 'livre' }, { receita: 'casa:pinheiro-3m', peso: 2, contexto: 'livre' }, { receita: 'casa:pinheiro-4m', peso: 1, contexto: 'livre' },
     { receita: 'casa:arbusto-verde', peso: 2, contexto: 'livre' }, { receita: 'casa:arbusto-grande', peso: 1, contexto: 'livre' },
     { receita: 'pedra.pequena', peso: 2, contexto: 'sob-arvore' }, { receita: 'pedra.media', peso: 1, contexto: 'sob-arvore' }, { receita: 'toco', peso: 1, contexto: 'sob-arvore' }, { receita: 'tronco.caido', peso: 1, contexto: 'sob-arvore' }] },
+  { id: 'mata-fechada', nome: 'Mata fechada', descricao: 'Copas grandes que se tocam, com pedras e tocos', densidade: 0.045, itens: [
+    { receita: 'casa:arvore-da-mata-8m', peso: 2, contexto: 'livre' }, { receita: 'casa:arvore-da-mata-6m', peso: 3, contexto: 'livre' }, { receita: 'casa:arvore-da-mata-6m-rala', peso: 1, contexto: 'livre' },
+    { receita: 'casa:arvore-da-mata-5m-amarelada', peso: 1, contexto: 'livre' }, { receita: 'casa:arvore-da-mata-4m', peso: 2, contexto: 'livre' },
+    { receita: 'pedra.pequena', peso: 2, contexto: 'sob-arvore' }, { receita: 'toco', peso: 1, contexto: 'sob-arvore' }, { receita: 'tora-assento', peso: 1, contexto: 'sob-arvore' }] },
   { id: 'jardim', nome: 'Jardim', descricao: 'Canteiros, arbustos, vasos e um banco', densidade: 0.18, itens: [
     { receita: 'canteiro', peso: 3, contexto: 'livre' }, { receita: 'casa:arbusto-verde', peso: 2, contexto: 'livre' }, { receita: 'casa:arbusto-florido', peso: 2, contexto: 'livre' }, { receita: 'vaso.planta', peso: 1, contexto: 'livre' }, { receita: 'banco.jardim', peso: 1, contexto: 'livre' }, { receita: 'pedra.pequena', peso: 1, contexto: 'livre' }] },
   { id: 'cemiterio', nome: 'Cemitério', descricao: 'Lápides em fileiras, com árvores esparsas', densidade: 0.12, grade: [1.3, 1.9], itens: [

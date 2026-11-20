@@ -1266,7 +1266,7 @@
   },
   {
     "nome": "atlas_espalhar",
-    "descricao": "Espalha um conjunto de objetos numa região em metros. Conjuntos em atlas_catalogo { parte: \"conjuntos\" }. Detalhes: plataforma_guia ferramentas-atlas.",
+    "descricao": "Espalha um conjunto de objetos numa região (m). Conjuntos em atlas_catalogo { parte: \"conjuntos\" }. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1280,6 +1280,7 @@
             "bagunca",
             "plantas",
             "mata",
+            "mata-fechada",
             "jardim",
             "cemiterio",
             "mata-nevada",
