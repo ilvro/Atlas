@@ -193,7 +193,7 @@ Testes: o campo difere do `fbm` direto em menos de 0,01 (máximo) numa área de 
 Pronto quando: o tempo do terreno e dos cômodos cai à metade, e o usuário não vê diferença na prancha.
 Commit: `low frequency noise is sampled on a coarse grid`
 
-### M7 — Primeira imagem em baixa resolução  ⬜
+### M7 — Primeira imagem em baixa resolução  ✅
 Objetivo: o chão aparece em menos de 1,5 s, ainda borrado, e ganha nitidez quando o assado cheio chega.
 Depende de: M2.
 Ler: `src/render/cena.ts` (`pintar`, terreno e cômodos), `src/render/entradas.ts` (`resolucaoDe`).
@@ -207,3 +207,9 @@ Não fazer: prévia de objetos.
 Testes: e2e, 1,5 s depois de abrir o Entreposto, o centro do mapa não está vazio (brilho diferente do fundo); quando `pintando` chega a 0, a textura do terreno tem a resolução cheia.
 Pronto quando: abrir a Mansão mostra o chão quase de imediato.
 Commit: `ground shows a low resolution preview while baking`
+Nota: implementado em `src/render/cena.ts` (`Entrada.chavePrevia`, `pintar` com `previa` opcional em `sincronizarTerreno` e `sincronizarComodos` apenas quando `estilo === 'illustrated' && !alvo.sprite`, e `chavesEmUso`). Como `entreposto-do-rio` e `mansao-da-ilha` foram removidos na `main` (`1883b38`), o e2e `tests/e2e/carga.test.ts` e a medição usaram os exemplos atuais:
+- `porto-noturno`: chão visível no centro em **1,38 s** (`pintando=280`), `24` assados de terreno (12 prévias + 12 cheios) e `30` de cômodo (15 prévias + 15 cheios).
+- Medição `npm run medir:carga -- porto-noturno gruta-dos-contrabandistas ruina-costeira` (worktree, 6 workers; os 5 erros 403 são apenas do symlink `node_modules` fora do root do Vite):
+  * `porto-noturno`: `editor 1.20 s | pronto 6.61 s | longtasks 804 ms (4) | assados 141`
+  * `gruta-dos-contrabandistas`: `editor 0.90 s | pronto 5.09 s | longtasks 345 ms (2) | assados 77`
+  * `ruina-costeira`: `editor 0.70 s | pronto 5.88 s | longtasks 279 ms (2) | assados 119`

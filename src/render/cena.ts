@@ -106,7 +106,7 @@ export interface Cena {
   destruir(): void;
 }
 
-interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; texAltura: Texture | null; chave: string; chaveTextura: string | null }
+interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; texAltura: Texture | null; chave: string; chaveTextura: string | null; chavePrevia?: string | null }
 
 export function criarCena(op: OpcoesDaCena): Cena {
   const raiz = new Container(), mundoIluminado = new Container(), terrenoC = new Container(), veuTerrenoG = new Graphics(), submersosC = Object.assign(new Container(), { sortableChildren: true }), escarpasC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics(), fantasmaAndarG = new Graphics();
@@ -158,20 +158,48 @@ export function criarCena(op: OpcoesDaCena): Cena {
   };
 
   /** Pede a pintura e, quando chega, troca o desenho — a menos que a coisa já tenha mudado de novo. */
-  function pintar(e: Entrada, chave: string, pedido: PedidoDeBake, aplicar: (s: Sprite, r: ResultadoDeBake) => void, prioridade?: number): void {
+  function pintar(
+    e: Entrada,
+    chave: string,
+    pedido: PedidoDeBake,
+    aplicar: (s: Sprite, r: ResultadoDeBake) => void,
+    prioridade?: number,
+    previa?: { chave: string; pedido: PedidoDeBake },
+  ): void {
     if (e.chave === chave) return;
-    e.chave = chave; pintandoAgora++;
-    op.baker.pedir(chave, pedido, prioridade).then(r => {
+    const usarPrevia = !!previa && previa.chave !== chave && !e.sprite;
+    e.chave = chave;
+    e.chavePrevia = usarPrevia ? previa.chave : null;
+
+    const aplicarResultado = (chaveRecebida: string, r: ResultadoDeBake, ehPrevia: boolean) => {
       if (destruida || e.chave !== chave || e.c.destroyed) return;
-      const { tex, texAltura } = adquirir(chave, r), antiga = e.chaveTextura;
+      if (ehPrevia && (e.chavePrevia !== chaveRecebida || e.chaveTextura === chave)) return;
+      const { tex, texAltura } = adquirir(chaveRecebida, r), antiga = e.chaveTextura;
       if (!e.sprite) { e.sprite = new Sprite(tex); e.c.addChild(e.sprite); } else e.sprite.texture = tex;
       e.texAltura = texAltura;
-      aplicar(e.sprite, r); e.chaveTextura = chave; e.placeholder.visible = false; soltar(antiga); if (mapa && !e.c.destroyed) { sombras.atualizar(mapa, objetos, pixelRes0(mapa)); tempo.atualizar(mapa, objetos); } op.aoPintar?.();
+      aplicar(e.sprite, r); e.chaveTextura = chaveRecebida; e.placeholder.visible = false;
+      if (!ehPrevia) e.chavePrevia = null;
+      soltar(antiga);
+      if (!ehPrevia) op.baker.coletar(chavesEmUso());
+      if (mapa && !e.c.destroyed) { sombras.atualizar(mapa, objetos, pixelRes0(mapa)); tempo.atualizar(mapa, objetos); } op.aoPintar?.();
+    };
+
+    if (usarPrevia) {
+      const chavePrevia = previa.chave;
+      pintandoAgora++;
+      op.baker.pedir(chavePrevia, previa.pedido, 0).then(r => {
+        aplicarResultado(chavePrevia, r, true);
+      }).catch(erro => console.warn('Atlas: falha ao pintar prévia', erro)).finally(() => { pintandoAgora--; });
+    }
+
+    pintandoAgora++;
+    op.baker.pedir(chave, pedido, usarPrevia ? 1 : prioridade).then(r => {
+      aplicarResultado(chave, r, false);
     }).catch(erro => console.warn('Atlas: falha ao pintar', erro)).finally(() => { pintandoAgora--; });
   }
 
   const pixelRes0 = (m: MapaAtlas): boolean => m.style.renderer === 'pixel';
-  const novaEntrada = (pai: Container): Entrada => { const c = new Container(), placeholder = new Graphics(); c.addChild(placeholder); pai.addChild(c); return { c, placeholder, sprite: null, texAltura: null, chave: '', chaveTextura: null }; };
+  const novaEntrada = (pai: Container): Entrada => { const c = new Container(), placeholder = new Graphics(); c.addChild(placeholder); pai.addChild(c); return { c, placeholder, sprite: null, texAltura: null, chave: '', chaveTextura: null, chavePrevia: null }; };
   const removerEntrada = (e: Entrada) => { soltar(e.chaveTextura); e.texAltura = null; e.c.destroy({ children: true }); };
 
   // ---------- Terreno ----------
@@ -215,6 +243,10 @@ export function criarCena(op: OpcoesDaCena): Cena {
         const chave = chaveDoTerreno(l.entrada, res, estilo);
         if (alvo.chave === chave) continue;
         const caixa = l.caixa;
+        const resPrevia = Math.max(1, res / 4);
+        const previa = estilo === 'illustrated' && !alvo.sprite
+          ? { chave: chaveDoTerreno(l.entrada, resPrevia, estilo), pedido: { tipo: 'terreno' as const, entrada: l.entrada, res: resPrevia, estilo } }
+          : undefined;
         pintar(alvo, chave, { tipo: 'terreno', entrada: l.entrada, res, estilo }, (s, r) => {
           s.position.set(r.origem[0], r.origem[1]);
           s.scale.set(1 / r.res);
@@ -223,7 +255,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
             agua.aplicarLadrilho(caixa, r.agua, mapa);
             reaplicarSubmersos(mapa);
           }
-        }, 0);
+        }, 0, previa);
       }
       op.baker.coletar(chavesEmUso());
     };
@@ -263,7 +295,11 @@ export function criarCena(op: OpcoesDaCena): Cena {
       const entrada = entradaDoComodo(m, sala, ctx);
       const estilo = m.style.renderer, res = resolucaoDe(m, 'comodo');
       const alvo = e;
-      pintar(alvo, chaveDoComodo(entrada, res, estilo), { tipo: 'comodo', entrada, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); cenaDeAltura.sincronizarComodo(sala.id, alvo.texAltura, r.origem, r.res); }, 0);
+      const resPrevia = Math.max(1, res / 4);
+      const previa = estilo === 'illustrated' && !alvo.sprite
+        ? { chave: chaveDoComodo(entrada, resPrevia, estilo), pedido: { tipo: 'comodo' as const, entrada, res: resPrevia, estilo } }
+        : undefined;
+      pintar(alvo, chaveDoComodo(entrada, res, estilo), { tipo: 'comodo', entrada, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); cenaDeAltura.sincronizarComodo(sala.id, alvo.texAltura, r.origem, r.res); }, 0, previa);
     }
   }
 
@@ -605,7 +641,10 @@ export function criarCena(op: OpcoesDaCena): Cena {
   // ---------- Orquestração ----------
   function chavesEmUso(): Set<string> {
     const s = new Set<string>();
-    for (const e of [...salas.values(), ...objetos.values(), ...terrenos.values(), ...escarpas.values()]) { if (e.chave) s.add(e.chave); }
+    for (const e of [...salas.values(), ...objetos.values(), ...terrenos.values(), ...escarpas.values()]) {
+      if (e.chave) s.add(e.chave);
+      if (e.chavePrevia) s.add(e.chavePrevia);
+    }
     for (const c of telhados.chavesEmUso()) s.add(c);
     return s;
   }
