@@ -12,7 +12,7 @@ const VARIACOES: Record<string, Record<string, unknown>[]> = {
 };
 
 test('as receitas de mata e ruína desenham sem erro, com pegada declarada e partes dentro dela', () => {
-  assert.deepEqual(RECEITAS_MATA.map(r => r.id), ['tufo-de-grama', 'junco', 'vitoria-regia', 'raiz-exposta', 'mureta-de-pedra', 'coluna-arruinada', 'coluna-caida', 'circulo-runico', 'escombros', 'viga-partida', 'tabua-solta']);
+  assert.deepEqual(RECEITAS_MATA.map(r => r.id), ['tufo-de-grama', 'junco', 'vitoria-regia', 'raiz-exposta', 'tora-assento', 'catre-de-peles', 'mureta-de-pedra', 'coluna-arruinada', 'coluna-caida', 'circulo-runico', 'escombros', 'viga-partida', 'tabua-solta']);
   for (const r of RECEITAS_MATA) {
     assert.equal(r.categoria, 'exterior'); assert.ok(r.kit === 'mata' || r.kit === 'ruina'); assert.ok(r.tags.length >= 3);
     for (const params of VARIACOES[r.id] ?? [{}]) for (const seed of [1, 2, 3]) {

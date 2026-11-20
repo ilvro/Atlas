@@ -1,7 +1,7 @@
 import { elipse, poli, ret, type Parte } from '../descricao.ts';
 import { materialDe, tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
-import { bolha, sombraNoChao } from '../organico.ts';
+import { bolha, sombraNoChao, tira } from '../organico.ts';
 import { num, piso, type Receita } from './comum.ts';
 import { galho } from './ermos.ts';
 
@@ -90,6 +90,44 @@ export const RECEITAS_MATA: Receita[] = [
       return piso([2.2, 1.6], partes);
     } },
 
+  { id: 'tora-assento', nome: 'Tora de assento', ...MATA, funcoes: ['jardim'], tags: ['tora', 'tronco', 'assento', 'banco', 'acampamento', 'madeira', 'mata'], pegada: [1.6, 0.4], altura: 0.4,
+    campos: [{ id: 'comprimento', rotulo: 'Comprimento (m)', tipo: 'numero', padrao: 1.6, min: 0.6, max: 4, passo: 0.1 }, { id: 'casca', rotulo: 'Casca (0 clara, 1 escura)', tipo: 'numero', padrao: 0, min: 0, max: 1, passo: 1 }],
+    gerar: p => {
+      // Tronco cortado deitado: casca clara com estrias escuras ao comprido, um nó, o lado da luz (norte) mais claro, e o corte da ponta com anéis.
+      const r = mulberry32(p.seed), L = num(p, 'comprimento', 1.6, 0.6, 4), D = 0.36, escura = Math.round(num(p, 'casca', 0, 0, 1)) === 1, partes: Parte[] = [];
+      const casca = escura ? '#5a4a3a' : '#a39684', sombra = tom(casca, -0.45), luz = tom(casca, 0.2);
+      partes.push(ret(0, 0, L - 0.06, D, casca, 0.4, { raio: D * 0.3, contorno: 'leve', sombraLeve: false, detalhe: 1 }));
+      partes.push(ret(0, D * 0.26, L - 0.04, D * 0.36, sombra, 0.41, { raio: D * 0.15, contorno: false, semSombra: true, suave: true, alfa: 0.55, detalhe: 1 }));
+      partes.push(ret(0, -D * 0.22, L - 0.08, D * 0.18, luz, 0.41, { raio: D * 0.08, contorno: false, semSombra: true, suave: true, alfa: 0.6, detalhe: 2 }));
+      for (let i = 0; i < Math.round(L * 14); i++) {
+        const x = -L / 2 + 0.06 + r() * (L - 0.16), y = (r() - 0.5) * D * 0.8, l = 0.08 + r() * 0.22;
+        partes.push(tira([x, y, x + l * 0.5, y + (r() - 0.5) * 0.02, x + l, y + (r() - 0.5) * 0.02], 0.012 + r() * 0.01, tom(casca, -0.35 - r() * 0.2), 0.42, { contorno: false, semSombra: true, detalhe: 3 }, 0.3));
+      }
+      if (r() < 0.7) { const x = (r() - 0.5) * L * 0.6; partes.push(elipse(x, (r() - 0.5) * D * 0.3, 0.07, 0.05, tom(casca, -0.4), 0.43, { contorno: 'leve', semSombra: true, detalhe: 2 })); }
+      // O corte: anéis do cerne claro à casca, numa das pontas (a outra fica com a casca).
+      const cx = L / 2 - 0.06;
+      partes.push(elipse(cx, 0, 0.1, D * 0.98, tom(casca, -0.25), 0.44, { contorno: 'leve', semSombra: true, detalhe: 1 }), elipse(cx + 0.005, 0, 0.08, D * 0.86, '#c9b48e', 0.45, { contorno: false, semSombra: true, detalhe: 2 }));
+      for (const k of [0.62, 0.38]) partes.push(elipse(cx + 0.005, 0, 0.08 * k, D * 0.86 * k, '#b09a74', 0.46, { contorno: 'leve', semSombra: true, detalhe: 3 }));
+      partes.push(elipse(-L / 2 + 0.06, 0, 0.08, D * 0.96, tom(casca, -0.15), 0.44, { contorno: 'leve', semSombra: true, detalhe: 2 }));
+      return piso([L, 0.4], partes);
+    } },
+  { id: 'catre-de-peles', nome: 'Catre de peles', ...MATA, funcoes: ['jardim', 'quarto'], tags: ['catre', 'cama', 'peles', 'pele', 'acampamento', 'dormir', 'mata'], pegada: [1, 2.1], altura: 0.5,
+    campos: [{ id: 'pele', rotulo: 'Pele', tipo: 'material', padrao: 'tecido.linho', uso: 'objeto' }],
+    gerar: p => {
+      // Catre de campanha: estrado de varas amarradas nos cantos e, por cima, uma pele inteira de bicho (contorno irregular, pelo mais escuro no lombo).
+      const r = mulberry32(p.seed), partes: Parte[] = [], W = 0.9, H = 2.0, vara = '#6a5238';
+      for (const sx of [-1, 1]) partes.push(tira([sx * W / 2, -H / 2 - 0.08, sx * W / 2, H / 2 + 0.08], 0.05, vara, 0.3, { contorno: 'leve' }));
+      for (const sy of [-1, 1]) partes.push(tira([-W / 2 - 0.06, sy * H / 2, W / 2 + 0.06, sy * H / 2], 0.045, tom(vara, 0.1), 0.32, { contorno: 'leve' }));
+      for (const sx of [-1, 1]) for (const sy of [-1, 1]) partes.push(elipse(sx * W / 2, sy * H / 2, 0.08, 0.08, '#b89a62', 0.34, { contorno: 'leve', semSombra: true, detalhe: 2 }));
+      const pele = typeof p.params?.pele === 'string' ? materialDe(p.params.pele).base : '#b08a5e', contorno = bolha(0, 0, W * 0.5, H * 0.46, 22, 0.14, r);
+      for (const [x, y, a] of [[-0.36, -0.62, -2.3], [0.36, -0.62, -0.8], [-0.34, 0.66, 2.4], [0.34, 0.66, 0.7]] as const) partes.push(poli(bolha(x, y, 0.16, 0.08, 8, 0.25, r, a), tom(pele, -0.1), 0.38, { contorno: 'leve', semSombra: true, detalhe: 2 }));
+      partes.push(poli(contorno, pele, 0.4, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
+      partes.push(poli(bolha(0, 0.05, W * 0.22, H * 0.36, 16, 0.18, r), tom(pele, -0.32), 0.41, { contorno: false, semSombra: true, suave: true, desfoque: 0.06, alfa: 0.8 }));
+      partes.push(poli(bolha(-0.1, -0.15, W * 0.28, H * 0.22, 14, 0.2, r), tom(pele, 0.25), 0.42, { contorno: false, semSombra: true, suave: true, desfoque: 0.08, alfa: 0.6 }));
+      for (let i = 0; i < 70; i++) { const a = r() * Math.PI * 2, d = Math.sqrt(r()), x = Math.cos(a) * d * W * 0.42, y = Math.sin(a) * d * H * 0.4; partes.push(tira([x, y, x + 0.03, y + 0.07], 0.012, tom(pele, r() < 0.5 ? -0.3 : 0.25), 0.43, { contorno: false, semSombra: true, detalhe: 3 }, 0.2)); }
+      partes.push(poli(bolha(0, -H * 0.47, 0.13, 0.1, 8, 0.2, r), tom(pele, -0.2), 0.42, { contorno: 'leve', semSombra: true, detalhe: 2 }));
+      return piso([1, 2.1], partes);
+    } },
   { id: 'mureta-de-pedra', nome: 'Mureta de pedra', ...RUINA, tags: ['mureta', 'muro', 'pedra', 'ruina'], pegada: [3, 0.5], altura: 0.9,
     campos: [{ id: 'largura', rotulo: 'Largura (m)', tipo: 'numero', padrao: 3, min: 1, max: 10, passo: 0.5 }, { id: 'falha', rotulo: 'Falhas (0 inteira, 1 quebrada)', tipo: 'numero', padrao: 1, min: 0, max: 1, passo: 1 }],
     gerar: p => {
