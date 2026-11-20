@@ -244,7 +244,7 @@ Testes: e2e: mudar a escala no painel da biblioteca e pôr um objeto faz o objet
 Pronto quando: dá para ajustar tudo antes de pôr, e o inspetor mostra o mesmo painel para o objeto selecionado.
 Commit: `object properties panel works before and after placing`
 
-### O9 — Pôr vários: arrastar, área e densidade  ⬜
+### O9 — Pôr vários: arrastar, área e densidade  ✅
 Objetivo: no modo `varios`, arrastar carimba a família ao longo do caminho; com área, cada carimbo espalha alguns itens no círculo.
 Depende de: O8a.
 Ler: `src/render/viewport.ts` (a interação `espalhar` e `espalharAqui`, que servem de modelo para gesto, passo e desfazer); `src/authoring/espalhar.ts` (amostragem e checagem de sobreposição).
