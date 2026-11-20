@@ -1,10 +1,38 @@
-import { BlurFilter, Container, Graphics, Matrix, Sprite, type Texture } from 'pixi.js';
+import {
+  BlurFilter,
+  ColorMatrixFilter,
+  Container,
+  GlProgram,
+  Graphics,
+  Matrix,
+  Mesh,
+  RenderTexture,
+  Shader,
+  Sprite,
+  Texture,
+  TextureMatrix,
+  UniformGroup,
+  type Renderer,
+} from 'pixi.js';
+import { ALTURA_BASE_TELHADO, campoDoEdificio } from '../domain/campo-do-telhado.ts';
+import { ehNoite, lerHorario } from '../domain/clima.ts';
 import { edificiosDe, type Edificio } from '../domain/edificios.ts';
-import type { DetalheDeTelhado, MapaAtlas, Peca, Ponto } from '../domain/mapa.ts';
+import {
+  AO_PADRAO,
+  EXPOSICAO_PADRAO,
+  RELEVO_PADRAO,
+  type Acabamento,
+  type Clima,
+  type DetalheDeTelhado,
+  type MapaAtlas,
+  type Peca,
+  type Ponto,
+} from '../domain/mapa.ts';
 import { comodosConhecidos } from '../domain/nevoa.ts';
-import { sombraDoSol } from '../domain/sol.ts';
+import { elevacaoDaLua, elevacaoDoSol, sombraDoSol } from '../domain/sol.ts';
 import { aguasDoTrecho, expandirContorno, formaDe, retangulosDe, trechosDe } from '../domain/telhado-geometria.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
+import { RES_DO_TELHADO } from '../procedural/assar-telhado.ts';
 import type { Baker } from '../procedural/baker.ts';
 import { ehPadraoDeCobertura, PERIODO_DA_COBERTURA, RES_DA_COBERTURA } from '../procedural/coberturas.ts';
 import { posicoesDosDetalhes } from '../procedural/detalhes-de-telhado.ts';
@@ -12,17 +40,24 @@ import type { IdDoEstilo, OpcoesDoPixel } from '../procedural/estilos/index.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import type { Mudancas } from '../state/mudancas.ts';
 import { hexParaNumero } from './cores.ts';
-import { opcoesDoPixel, resolucaoDe } from './entradas.ts';
+import {
+  chaveDoTelhado,
+  contextoDeEntradas,
+  entradaDoTelhado,
+  opcoesDoPixel,
+  resolucaoDe,
+  type ContextoDeEntradas,
+  type EntradaDoTelhado,
+} from './entradas.ts';
+import type { MapaDeLuz } from './mapa-de-luz.ts';
 import type { Vista } from './nevoa.ts';
+import { atualizarTransformDoMundo, criarQuadUnitario } from './passadas.ts';
 import { texturaPropria } from './textura-propria.ts';
 
 /** Quanto tempo leva (em segundos) para um telhado aparecer ou sumir ao entrar/sair de uma casa. */
 export const DURACAO_DO_TELHADO = 0.4;
 /** O mestre vê o telhado esmaecido, para saber que ele existe sem perder o cômodo de vista. */
 const ALFA_DO_MESTRE = 0.25;
-/** Alcance da sombra projetada no chão pela cobertura (em metros). */
-const SOMBRA_NORMAL = 0.6;
-const SOMBRA_ALTA = 1.2;
 
 export interface Telhados {
   readonly raiz: Container;
@@ -32,6 +67,10 @@ export interface Telhados {
   definirNoEditor(v: boolean): void;
   forcar(alfa: number | null): void;
   quadro(agora: number): void;
+  /** Atualiza luz e sombra dos telhados a partir da visão de clima (transições suaves). */
+  atualizarClima?(m: MapaAtlas): void;
+  /** Liga ou desliga a iluminação atmosférica e a sombra projetada. */
+  definirAtmosfera?(ligada: boolean): void;
   /** Para os testes: a opacidade de cada telhado agora. */
   diagnostico(): { id: string; edificio: string; alfa: number; alvo: number; dentro: boolean; conhecido: boolean }[];
   /** Se o telhado do cômodo está visível e cobrindo a sala agora. */
@@ -41,16 +80,11 @@ export interface Telhados {
   destruir(): void;
 }
 
-interface DoEdificio {
-  ed: Edificio;
-  c: Container;
-  sombra: Graphics;
-  chaves: Set<string>;
-  alfa: number;
-  alvo: number;
-  dentro: boolean;
-  conhecido: boolean;
-  visivelNoMapa: boolean;
+interface TelhadoEmCache {
+  cor: Texture;
+  normal: Texture | null;
+  origem: Ponto;
+  res: number;
 }
 
 interface DetalheEmCache {
@@ -59,15 +93,118 @@ interface DetalheEmCache {
   res: number;
 }
 
+interface DoEdificio {
+  ed: Edificio;
+  corC: Container;
+  normalC: Container;
+  sombraC: Container;
+  sombraG: Graphics;
+  sombraSp: Sprite | null;
+  sombraAlfaBase: number;
+  chaveAssado: string;
+  hMax: number;
+  chaves: Set<string>;
+  alfa: number;
+  alvo: number;
+  dentro: boolean;
+  conhecido: boolean;
+  visivelNoMapa: boolean;
+}
+
 const chaveCobertura = (material: string, res: number, estilo: IdDoEstilo): string =>
   `cobertura|${material}|${estilo}|${estilo === 'pixel' ? res.toFixed(3) : 'i'}`;
 
-const chaveDetalhe = (detalhe: DetalheDeTelhado, cobertura: string, seed: number, res: number, estilo: IdDoEstilo, px?: OpcoesDoPixel): string =>
+const chaveDetalhe = (
+  detalhe: DetalheDeTelhado,
+  cobertura: string,
+  seed: number,
+  res: number,
+  estilo: IdDoEstilo,
+  px?: OpcoesDoPixel,
+): string =>
   `detalhe-telhado|${detalhe}|${cobertura}|${seed}|${res.toFixed(3)}|${estilo}|${px ? `${px.ppc}|${px.contorno ? 1 : 0}|${px.paleta}|${px.dither}` : 'i'}`;
 
+const rgb01 = (hex: string): [number, number, number] => {
+  const n = hexParaNumero(hex);
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+};
+
+const clamp = (v: number, min: number, max: number): number => Math.min(max, Math.max(min, v));
+
+const normalizar3 = (x: number, y: number, z: number): [number, number, number] => {
+  const len = Math.hypot(x, y, z) || 1;
+  return [x / len, y / len, z / len];
+};
+
+const VERTEX_TELHADOS = `in vec2 aPosition;
+in vec2 aUV;
+out vec2 vUV;
+out vec2 vLuzCoord;
+uniform mat3 uProjectionMatrix;
+uniform mat3 uWorldTransformMatrix;
+uniform mat3 uTransformMatrix;
+uniform mat3 uLuzMatriz;
+void main(void) {
+  mat3 mvp = uProjectionMatrix * uWorldTransformMatrix * uTransformMatrix;
+  gl_Position = vec4((mvp * vec3(aPosition, 1.0)).xy, 0.0, 1.0);
+  vUV = aUV;
+  vLuzCoord = (uLuzMatriz * vec3(aUV, 1.0)).xy;
+}`;
+
+const FRAGMENT_TELHADOS = `in vec2 vUV;
+in vec2 vLuzCoord;
+out vec4 finalColor;
+uniform sampler2D uCor;
+uniform sampler2D uNormal;
+uniform sampler2D uLuzExterna;
+uniform float uEscalaLuz;
+uniform float uTemLuzExterna;
+uniform vec3 uAmbiente;
+uniform vec3 uSolCor;
+uniform vec3 uSolDir;
+uniform float uRelevo;
+uniform float uAO;
+uniform float uExposicao;
+
+vec3 aces(vec3 x) {
+  return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
+}
+
+void main() {
+  vec4 c = texture(uCor, vUV);
+  if (c.a <= 0.001) {
+    finalColor = vec4(0.0);
+    return;
+  }
+  vec3 base = c.rgb / c.a;
+  vec4 n = texture(uNormal, vUV);
+  vec3 N = vec3(0.0, 0.0, 1.0);
+  float ao = 1.0;
+  if (n.a > 0.001) {
+    vec3 np = n.rgb / n.a;
+    vec2 nxy = np.rg * 2.0 - 1.0;
+    float len2 = dot(nxy, nxy);
+    if (len2 > 0.999) {
+      nxy *= inversesqrt(len2) * 0.999;
+      len2 = dot(nxy, nxy);
+    }
+    vec3 nRaw = normalize(vec3(nxy, sqrt(max(0.0, 1.0 - len2))));
+    float pesoRelevo = clamp(uRelevo / 0.7, 0.0, 1.0);
+    N = normalize(mix(vec3(0.0, 0.0, 1.0), nRaw, pesoRelevo));
+    ao = np.b;
+  }
+  float aoAmb = mix(1.0, ao, uAO);
+  float aoDir = mix(1.0, ao, uAO * 0.5);
+  vec3 ext = uTemLuzExterna > 0.5 ? max(texture(uLuzExterna, vLuzCoord).rgb * uEscalaLuz, vec3(0.0)) : vec3(0.0);
+  float ndl = max(dot(N, uSolDir), 0.0);
+  vec3 corHDR = base * (uAmbiente * aoAmb + (uSolCor * ndl + ext) * aoDir);
+  vec3 lit = aces(max(corHDR, vec3(0.0)) * uExposicao);
+  finalColor = vec4(lit * c.a, c.a);
+}`;
+
 /**
- * O telhado fica acima da camada de luz (é ele que esconde o interior), então recebe a luz do clima por tinta: ambiente
- * mais metade do sol, cada canal até 1. De dia fica como está; no entardecer e à noite escurece com o resto do mapa.
+ * O telhado fica acima da camada de luz (é ele que esconde o interior), então no Pixel recebe a luz do clima por tinta:
+ * ambiente mais metade do sol, cada canal até 1. De dia fica como está; no entardecer e à noite escurece com o resto do mapa.
  */
 export function luzSobreOsTelhados(c: Pick<MapaAtlas['climate'], 'ambient' | 'sun'>): number {
   const rgb = (h: string) => { const n = parseInt(h.slice(1), 16); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
@@ -76,25 +213,149 @@ export function luzSobreOsTelhados(c: Pick<MapaAtlas['climate'], 'ambient' | 'su
   return (canal(0) << 16) | (canal(1) << 8) | canal(2);
 }
 
-export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Telhados {
+export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: MapaDeLuz; aoPintar?(): void } = {}): Telhados {
   const raiz = new Container();
+  const sombrasC = new Container();
+  const mundoCor = new Container();
+  const mundoNormal = new Container();
+  const saidaSprite = new Sprite(Texture.EMPTY);
+  saidaSprite.visible = false;
+  mundoNormal.renderable = false;
+  if (op.renderer) mundoCor.renderable = false;
+  raiz.addChild(sombrasC, mundoCor, mundoNormal, saidaSprite);
+
   const edificios = new Map<string, DoEdificio>();
   const salaParaEdificio = new Map<string, string>();
+  const assados = new Map<string, TelhadoEmCache>();
   const coberturas = new Map<string, Texture>();
   const detalhes = new Map<string, DetalheEmCache>();
   const emVoo = new Set<string>();
-  const chavesAtivas = new Set<string>();
-  const desfoque = new BlurFilter({ strength: 2, quality: 3 });
 
-  let mapa: MapaAtlas | null = null, vista: Vista = 'construir', ultimo = -1, destruido = false, imediato = true, forcado: number | null = null, noEditor = false;
+  const achatar = new ColorMatrixFilter();
+  const desfoque = new BlurFilter({ strength: 2, quality: 3 });
+  let corSombraAtual = '';
+
+  function atualizarFiltroSombra(cor: string): void {
+    if (cor === corSombraAtual) return;
+    corSombraAtual = cor;
+    const n = hexParaNumero(cor);
+    achatar.matrix = [
+      0, 0, 0, 0, ((n >> 16) & 255) / 255,
+      0, 0, 0, 0, ((n >> 8) & 255) / 255,
+      0, 0, 0, 0, (n & 255) / 255,
+      0, 0, 0, 1, 0,
+    ];
+  }
+
+  // Passada GPU de iluminação (criada apenas quando há renderer disponível).
+  let gpu: {
+    quad: ReturnType<typeof criarQuadUnitario>;
+    prog: GlProgram;
+    grupo: UniformGroup;
+    shader: Shader;
+    mesh: Mesh<ReturnType<typeof criarQuadUnitario>, Shader>;
+    textureMatrix: TextureMatrix;
+    camAtual: Matrix;
+    camInv: Matrix;
+    mundoMatriz: Matrix;
+    spInv: Matrix;
+    corRT: RenderTexture | null;
+    normalRT: RenderTexture | null;
+    saidaRT: RenderTexture | null;
+    largura: number;
+    altura: number;
+    resolucao: number;
+  } | null = null;
+
+  if (op.renderer) {
+    const quad = criarQuadUnitario();
+    const grupo = new UniformGroup({
+      uLuzMatriz: { value: new Matrix(), type: 'mat3x3<f32>' },
+      uEscalaLuz: { value: 1, type: 'f32' },
+      uTemLuzExterna: { value: 0, type: 'f32' },
+      uAmbiente: { value: new Float32Array([0.65, 0.65, 0.65]), type: 'vec3<f32>' },
+      uSolCor: { value: new Float32Array([0.65, 0.65, 0.65]), type: 'vec3<f32>' },
+      uSolDir: { value: new Float32Array([-0.55, -0.55, 0.63]), type: 'vec3<f32>' },
+      uRelevo: { value: RELEVO_PADRAO, type: 'f32' },
+      uAO: { value: AO_PADRAO, type: 'f32' },
+      uExposicao: { value: EXPOSICAO_PADRAO, type: 'f32' },
+    });
+    const prog = GlProgram.from({
+      vertex: VERTEX_TELHADOS,
+      fragment: FRAGMENT_TELHADOS,
+      preferredFragmentPrecision: 'highp',
+      name: 'atlas-telhados-iluminados',
+    });
+    const shader = new Shader({
+      glProgram: prog,
+      resources: {
+        telhados: grupo,
+        uCor: Texture.EMPTY.source,
+        uNormal: Texture.EMPTY.source,
+        uLuzExterna: Texture.EMPTY.source,
+      },
+    });
+    const mesh = new Mesh({ geometry: quad, shader });
+    gpu = {
+      quad,
+      prog,
+      grupo,
+      shader,
+      mesh,
+      textureMatrix: new TextureMatrix(Texture.WHITE),
+      camAtual: new Matrix(),
+      camInv: new Matrix(),
+      mundoMatriz: new Matrix(),
+      spInv: new Matrix(),
+      corRT: null,
+      normalRT: null,
+      saidaRT: null,
+      largura: 0,
+      altura: 0,
+      resolucao: 0,
+    };
+  }
+
+  let mapa: MapaAtlas | null = null;
+  let climaAtual: Clima | null = null;
+  let acabamentoAtual: Acabamento | null = null;
+  let atmosferaLigada = true;
+  let vista: Vista = 'construir';
+  let ultimo = -1;
+  let destruido = false;
+  let imediato = true;
+  let forcado: number | null = null;
+  let noEditor = false;
 
   function redesenharPorChave(chave: string): void {
     const m = mapa; if (!m || destruido) return;
     let tocou = false;
+    const ctx = contextoDeEntradas(m);
     for (const d of edificios.values()) {
-      if (d.chaves.has(chave)) { desenharEdificio(d, m); tocou = true; }
+      if (d.chaves.has(chave)) { desenharEdificio(d, m, ctx); tocou = true; }
     }
     if (tocou) op.aoPintar?.();
+  }
+
+  function pedirTelhado(chave: string, entrada: EntradaDoTelhado, res: number, estilo: IdDoEstilo): TelhadoEmCache | null {
+    const pronto = assados.get(chave);
+    if (pronto) return pronto;
+    if (!op.baker || emVoo.has(chave)) return null;
+    emVoo.add(chave);
+    op.baker.pedir(chave, { tipo: 'telhado', entrada, res, estilo }, 2).then(r => {
+      emVoo.delete(chave);
+      if (destruido) return;
+      const cor = texturaPropria(r.bitmap);
+      cor.source.scaleMode = estilo === 'pixel' ? 'nearest' : 'linear';
+      const normal = r.normal ? texturaPropria(r.normal) : null;
+      if (normal) normal.source.scaleMode = estilo === 'pixel' ? 'nearest' : 'linear';
+      assados.set(chave, { cor, normal, origem: r.origem, res: r.res });
+      redesenharPorChave(chave);
+    }).catch(erro => {
+      emVoo.delete(chave);
+      console.warn('Atlas: falha ao assar telhado', erro);
+    });
+    return null;
   }
 
   function pedirCobertura(chave: string, material: string, res: number, estilo: IdDoEstilo): Texture | null {
@@ -116,7 +377,15 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
     return null;
   }
 
-  function pedirDetalhe(chave: string, detalhe: DetalheDeTelhado, cobertura: string, seed: number, res: number, estilo: IdDoEstilo, pixel?: OpcoesDoPixel): DetalheEmCache | null {
+  function pedirDetalhe(
+    chave: string,
+    detalhe: DetalheDeTelhado,
+    cobertura: string,
+    seed: number,
+    res: number,
+    estilo: IdDoEstilo,
+    pixel?: OpcoesDoPixel,
+  ): DetalheEmCache | null {
     const pronto = detalhes.get(chave);
     if (pronto) return pronto;
     if (!op.baker || emVoo.has(chave)) return null;
@@ -135,46 +404,78 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
     return null;
   }
 
-  function desenharEdificio(d: DoEdificio, m: MapaAtlas): void {
-    while (d.c.children.length > 1) d.c.removeChildAt(1).destroy({ children: true });
-    d.chaves.clear();
+  function atualizarSombra(d: DoEdificio, m: MapaAtlas, clima: Clima, assado: TelhadoEmCache | null): void {
+    const pixel = m.style.renderer === 'pixel';
+    const sSol = atmosferaLigada ? sombraDoSol(clima, pixel) : null;
+    if (!sSol) {
+      d.sombraAlfaBase = 0;
+      d.sombraC.visible = false;
+      d.sombraG.clear();
+      d.sombraG.visible = false;
+      if (d.sombraSp) d.sombraSp.visible = false;
+      return;
+    }
 
+    atualizarFiltroSombra(sSol.cor);
+    const dist = Math.min(2.8, Math.max(0.35, (d.hMax - ALTURA_BASE_TELHADO) * 0.55 * sSol.porMetro));
+    const dx = sSol.dir[0] * dist;
+    const dy = sSol.dir[1] * dist;
+    d.sombraAlfaBase = Math.max(0.35, sSol.alfa);
+    d.sombraC.alpha = d.sombraAlfaBase * d.alfa;
+    d.sombraC.visible = d.alfa > 0.001;
+
+    if (assado) {
+      d.sombraG.clear();
+      d.sombraG.visible = false;
+      if (!d.sombraSp) {
+        d.sombraSp = new Sprite(assado.cor);
+        d.sombraC.addChild(d.sombraSp);
+      } else {
+        d.sombraSp.texture = assado.cor;
+      }
+      d.sombraSp.position.set(assado.origem[0] + dx, assado.origem[1] + dy);
+      d.sombraSp.scale.set(1 / assado.res);
+      d.sombraSp.filters = pixel ? [achatar] : [achatar, desfoque];
+      d.sombraSp.visible = true;
+      return;
+    }
+
+    if (d.sombraSp) d.sombraSp.visible = false;
+    d.sombraG.clear();
+    d.sombraG.visible = true;
+    d.sombraG.filters = pixel ? [] : [desfoque];
+    const trechos = trechosDe(m, d.ed);
+    const t = m.grid.size, [ox, oy] = m.grid.offset, beiral = 0.25;
+    for (const trecho of trechos) {
+      if (trecho.outline && trecho.outline.length >= 3) {
+        const ext = expandirContorno(trecho.outline, beiral);
+        if (ext.length >= 3) d.sombraG.poly(ext.flatMap(([px, py]) => [px + dx, py + dy]));
+      } else {
+        for (const [rx0, ry0, rx1, ry1] of retangulosDe(trecho.celulas)) {
+          d.sombraG.rect(
+            ox + rx0 * t - beiral + dx,
+            oy + ry0 * t - beiral + dy,
+            (rx1 - rx0) * t + beiral * 2,
+            (ry1 - ry0) * t + beiral * 2,
+          );
+        }
+      }
+    }
+    d.sombraG.fill({ color: hexParaNumero(sSol.cor) });
+  }
+
+  function desenharPreviaVetorial(d: DoEdificio, m: MapaAtlas, clima: Clima): void {
     const estilo = m.style.renderer, pixel = estilo === 'pixel', pxOpts = opcoesDoPixel(m);
     const resCob = pixel ? Math.max(1, m.style.pixel.pixelsPerCell / m.grid.size) : RES_DA_COBERTURA;
     const resDet = resolucaoDe(m, 'objeto');
-    const sun = m.climate.sun;
+    const sun = clima.sun;
     const dirDoSol: [number, number] = sun ? [Math.cos(sun.angle), -Math.sin(sun.angle)] : [-Math.SQRT1_2, -Math.SQRT1_2];
-    const sSol = sombraDoSol(m.climate, pixel);
     const trechos = trechosDe(m, d.ed);
     const t = m.grid.size, [ox, oy] = m.grid.offset, beiral = 0.25;
 
-    d.sombra.clear();
-    if (!sSol) {
-      d.sombra.visible = false;
-      d.sombra.filters = [];
-    } else {
-      d.sombra.visible = true;
-      d.sombra.alpha = 0.35;
-      d.sombra.filters = pixel ? [] : [desfoque];
-      for (const trecho of trechos) {
-        const s = formaDe(trecho.roof).shape;
-        const dist = s === 'piramide' || s === 'cone' || trecho.roof.steep ? SOMBRA_ALTA : SOMBRA_NORMAL;
-        const dx = sSol.dir[0] * dist, dy = sSol.dir[1] * dist;
-        if (trecho.outline && trecho.outline.length >= 3) {
-          const ext = expandirContorno(trecho.outline, beiral);
-          if (ext.length >= 3) d.sombra.poly(ext.flatMap(([px, py]) => [px + dx, py + dy]));
-        } else {
-          for (const [rx0, ry0, rx1, ry1] of retangulosDe(trecho.celulas)) {
-            d.sombra.rect(ox + rx0 * t - beiral + dx, oy + ry0 * t - beiral + dy, (rx1 - rx0) * t + beiral * 2, (ry1 - ry0) * t + beiral * 2);
-          }
-        }
-      }
-      d.sombra.fill({ color: hexParaNumero(sSol.cor) });
-    }
-
     for (const trecho of trechos) {
       const g = new Graphics();
-      d.c.addChild(g);
+      d.corC.addChild(g);
       const mat = materialDe(trecho.roof.material ?? '');
       const base = hexParaNumero(mat.base), escuro = hexParaNumero(mat.escuro), claro = hexParaNumero(mat.claro);
       const forma = formaDe(trecho.roof);
@@ -182,7 +483,6 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
       if (ehPadraoDeCobertura(mat.padrao)) {
         const kCob = chaveCobertura(mat.id, resCob, estilo);
         d.chaves.add(kCob);
-        chavesAtivas.add(kCob);
         tex = pedirCobertura(kCob, mat.id, resCob, estilo);
       }
 
@@ -252,7 +552,6 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
       for (const pos of posicoesDosDetalhes(trecho, m.grid, semente)) {
         const kDet = chaveDetalhe(pos.detalhe, mat.id, semente, resDet, estilo, pxOpts);
         d.chaves.add(kDet);
-        chavesAtivas.add(kDet);
         const pronto = pedirDetalhe(kDet, pos.detalhe, mat.id, semente, resDet, estilo, pxOpts);
         if (!pronto) continue;
         const wrap = new Container();
@@ -262,9 +561,227 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
         sp.position.set(pronto.origem[0], pronto.origem[1]);
         sp.scale.set(1 / pronto.res);
         wrap.addChild(sp);
-        d.c.addChild(wrap);
+        d.corC.addChild(wrap);
       }
     }
+  }
+
+  function desenharEdificio(d: DoEdificio, m: MapaAtlas, ctx: ContextoDeEntradas): void {
+    for (const ch of d.corC.removeChildren()) ch.destroy({ children: true });
+    for (const ch of d.normalC.removeChildren()) ch.destroy({ children: true });
+    d.chaves.clear();
+
+    const estilo = m.style.renderer, pixel = estilo === 'pixel';
+    const resTelhado = pixel ? Math.max(1, m.style.pixel.pixelsPerCell / m.grid.size) : RES_DO_TELHADO;
+    const entrada = entradaDoTelhado(m, d.ed, ctx);
+    const chave = chaveDoTelhado(entrada, resTelhado, estilo);
+    const campo = campoDoEdificio(m, d.ed);
+    d.hMax = Number.isFinite(campo.alturaMaxima) ? campo.alturaMaxima : ALTURA_BASE_TELHADO + 1.2;
+    d.chaveAssado = chave;
+    d.chaves.add(chave);
+
+    const assado = pedirTelhado(chave, entrada, resTelhado, estilo);
+    const clima = climaAtual ?? m.climate;
+
+    if (assado) {
+      const spCor = new Sprite(assado.cor);
+      spCor.position.set(assado.origem[0], assado.origem[1]);
+      spCor.scale.set(1 / assado.res);
+      d.corC.addChild(spCor);
+
+      if (assado.normal) {
+        const spNorm = new Sprite(assado.normal);
+        spNorm.position.set(assado.origem[0], assado.origem[1]);
+        spNorm.scale.set(1 / assado.res);
+        d.normalC.addChild(spNorm);
+      }
+    } else {
+      desenharPreviaVetorial(d, m, clima);
+    }
+
+    atualizarSombra(d, m, clima, assado);
+  }
+
+  function sincronizarOpacidade(d: DoEdificio): void {
+    const vis = d.alfa > 0.001;
+    d.corC.alpha = d.alfa;
+    d.corC.visible = vis;
+    d.normalC.alpha = d.alfa;
+    d.normalC.visible = vis;
+    d.sombraC.alpha = d.sombraAlfaBase * d.alfa;
+    d.sombraC.visible = vis && atmosferaLigada && d.sombraAlfaBase > 0;
+  }
+
+  function atualizarPassada(): void {
+    const renderer = op.renderer;
+    const m = mapa;
+    if (!renderer || !gpu || !m || destruido) return;
+    const pixel = m.style.renderer === 'pixel';
+    if (pixel) {
+      saidaSprite.visible = false;
+      mundoCor.renderable = true;
+      mundoNormal.renderable = false;
+      mundoCor.tint = luzSobreOsTelhados(climaAtual ?? m.climate);
+      return;
+    }
+
+    mundoCor.tint = 0xffffff;
+    let algumVisivel = false;
+    for (const d of edificios.values()) {
+      if (d.alfa > 0.001) { algumVisivel = true; break; }
+    }
+    if (!algumVisivel) {
+      saidaSprite.visible = false;
+      mundoCor.renderable = false;
+      mundoNormal.renderable = false;
+      return;
+    }
+
+    const w = Math.max(1, Math.round(renderer.screen.width));
+    const h = Math.max(1, Math.round(renderer.screen.height));
+    const r = renderer.resolution || 1;
+    if (!gpu.corRT || !gpu.normalRT || !gpu.saidaRT || w !== gpu.largura || h !== gpu.altura || r !== gpu.resolucao) {
+      gpu.corRT?.destroy(true);
+      gpu.normalRT?.destroy(true);
+      gpu.saidaRT?.destroy(true);
+      gpu.corRT = RenderTexture.create({ width: w, height: h, resolution: r, scaleMode: 'linear' });
+      gpu.normalRT = RenderTexture.create({ width: w, height: h, resolution: r, scaleMode: 'linear' });
+      gpu.saidaRT = RenderTexture.create({ width: w, height: h, resolution: r, scaleMode: 'linear' });
+      saidaSprite.texture = gpu.saidaRT;
+      gpu.mesh.scale.set(w, h);
+      gpu.largura = w;
+      gpu.altura = h;
+      gpu.resolucao = r;
+    }
+
+    atualizarTransformDoMundo(raiz, gpu.camAtual);
+    gpu.camInv.copyFrom(gpu.camAtual).invert();
+
+    mundoCor.renderable = true;
+    renderer.render({ container: mundoCor, target: gpu.corRT, transform: gpu.camAtual, clear: true, clearColor: [0, 0, 0, 0] });
+    mundoCor.renderable = false;
+
+    mundoNormal.renderable = true;
+    renderer.render({ container: mundoNormal, target: gpu.normalRT, transform: gpu.camAtual, clear: true, clearColor: [0, 0, 0, 0] });
+    mundoNormal.renderable = false;
+
+    const u = gpu.grupo.uniforms as {
+      uLuzMatriz: Matrix;
+      uEscalaLuz: number;
+      uTemLuzExterna: number;
+      uAmbiente: Float32Array;
+      uSolCor: Float32Array;
+      uSolDir: Float32Array;
+      uRelevo: number;
+      uAO: number;
+      uExposicao: number;
+    };
+
+    gpu.mundoMatriz.set(gpu.largura, 0, 0, gpu.altura, 0, 0).prepend(gpu.camInv);
+
+    const luz = op.luz;
+    const extTex = luz?.luzExterna;
+    const spLuz = luz?.sprite;
+    const baseTex = spLuz?.texture;
+    const extPronta = Boolean(
+      atmosferaLigada &&
+      luz &&
+      spLuz &&
+      extTex && !extTex.destroyed && extTex.source && !extTex.source.destroyed && extTex !== Texture.EMPTY &&
+      baseTex && !baseTex.destroyed && baseTex.source && !baseTex.source.destroyed && baseTex !== Texture.EMPTY,
+    );
+    if (extPronta && luz && spLuz && extTex) {
+      gpu.textureMatrix.texture = extTex;
+      spLuz.updateLocalTransform();
+      gpu.spInv.copyFrom(spLuz.localTransform).invert();
+      u.uLuzMatriz
+        .copyFrom(gpu.mundoMatriz)
+        .prepend(gpu.spInv)
+        .scale(1 / Math.max(1, extTex.orig.width), 1 / Math.max(1, extTex.orig.height))
+        .translate(spLuz.anchor.x, spLuz.anchor.y)
+        .prepend(gpu.textureMatrix.mapCoord);
+      u.uEscalaLuz = luz.escala;
+      u.uTemLuzExterna = 1;
+      gpu.shader.resources.uLuzExterna = extTex.source;
+    } else {
+      u.uLuzMatriz.identity();
+      u.uEscalaLuz = 1;
+      u.uTemLuzExterna = 0;
+      gpu.shader.resources.uLuzExterna = Texture.EMPTY.source;
+    }
+
+    const clima = climaAtual ?? m.climate;
+    const finish = acabamentoAtual ?? m.finish;
+
+    let ambR = 0.65, ambG = 0.65, ambB = 0.65;
+    let solR = 0.65, solG = 0.65, solB = 0.65;
+    let dirL: [number, number, number] = normalizar3(-0.55, -0.55, 0.63);
+
+    if (atmosferaLigada) {
+      let ambLuz: readonly [number, number, number];
+      if (luz) {
+        ambLuz = luz.ambiente;
+      } else {
+        const [ar, ag, ab] = rgb01(clima.ambient.color);
+        ambLuz = [ar * clima.ambient.intensity, ag * clima.ambient.intensity, ab * clima.ambient.intensity];
+      }
+      const lumAmb = 0.299 * ambLuz[0] + 0.587 * ambLuz[1] + 0.114 * ambLuz[2];
+      if (clima.sun) {
+        const sun = clima.sun;
+        const hora = lerHorario(clima.time);
+        const noite = ehNoite({ climate: clima });
+        const [sr, sg, sb] = rgb01(sun.color);
+        if (!noite) {
+          const elev = clamp(elevacaoDoSol(hora), 0.42, 0.76);
+          dirL = normalizar3(Math.cos(sun.angle) * Math.cos(elev), -Math.sin(sun.angle) * Math.cos(elev), Math.sin(elev));
+          const fatorAmb = 1 + (0.52 - 1) * clamp(sun.intensity, 0, 1);
+          ambR = ambLuz[0] * fatorAmb;
+          ambG = ambLuz[1] * fatorAmb;
+          ambB = ambLuz[2] * fatorAmb;
+          const kSol = 0.92 * sun.intensity * (0.25 + 0.75 * clamp(lumAmb, 0, 1));
+          solR = sr * kSol;
+          solG = sg * kSol;
+          solB = sb * kSol;
+        } else {
+          const elev = clamp(elevacaoDaLua(hora), 0.42, 0.76);
+          dirL = normalizar3(Math.cos(sun.angle) * Math.cos(elev), -Math.sin(sun.angle) * Math.cos(elev), Math.sin(elev));
+          ambR = ambLuz[0] * 0.85;
+          ambG = ambLuz[1] * 0.85;
+          ambB = ambLuz[2] * 0.85;
+          const kSol = 0.22 * sun.intensity * Math.max(lumAmb, 0.12);
+          solR = sr * kSol;
+          solG = sg * kSol;
+          solB = sb * kSol;
+        }
+      } else {
+        ambR = ambLuz[0] * 0.65;
+        ambG = ambLuz[1] * 0.65;
+        ambB = ambLuz[2] * 0.65;
+        solR = ambR;
+        solG = ambG;
+        solB = ambB;
+      }
+    }
+
+    u.uAmbiente[0] = ambR;
+    u.uAmbiente[1] = ambG;
+    u.uAmbiente[2] = ambB;
+    u.uSolCor[0] = solR;
+    u.uSolCor[1] = solG;
+    u.uSolCor[2] = solB;
+    u.uSolDir[0] = dirL[0];
+    u.uSolDir[1] = dirL[1];
+    u.uSolDir[2] = dirL[2];
+    u.uRelevo = clamp(finish.relief ?? RELEVO_PADRAO, 0, 1);
+    u.uAO = clamp(finish.ao ?? AO_PADRAO, 0, 1);
+    u.uExposicao = clamp(finish.exposure ?? EXPOSICAO_PADRAO, 0, 4);
+
+    gpu.shader.resources.uCor = gpu.corRT.source;
+    gpu.shader.resources.uNormal = gpu.normalRT.source;
+    renderer.render({ container: gpu.mesh, target: gpu.saidaRT, clear: true, clearColor: [0, 0, 0, 0] });
+
+    saidaSprite.setFromMatrix(gpu.camInv);
+    saidaSprite.visible = true;
   }
 
   /** Há peça de jogador dentro do edifício (em alguma célula dele)? */
@@ -292,7 +809,10 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
       d.conhecido = !conhecidos || d.ed.salas.some(id => conhecidos.has(id));
       d.visivelNoMapa = d.ed.salas.some(id => m.rooms[id]?.roof.visible);
       d.alvo = alvoDe(d);
-      if (imediato || forcado !== null || movimentoReduzido()) { d.alfa = d.alvo; d.c.alpha = d.alfa; d.c.visible = d.alfa > 0.001; }
+      if (imediato || forcado !== null || movimentoReduzido()) {
+        d.alfa = d.alvo;
+        sincronizarOpacidade(d);
+      }
     }
   }
 
@@ -300,34 +820,93 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
     raiz,
     sincronizar(m, mud) {
       mapa = m;
-      raiz.tint = luzSobreOsTelhados(m.climate);
+      climaAtual = m.climate;
+      acabamentoAtual = m.finish;
+      const pixel = m.style.renderer === 'pixel';
+      if (pixel || !op.renderer) {
+        mundoCor.tint = luzSobreOsTelhados(m.climate);
+        mundoCor.renderable = true;
+        saidaSprite.visible = false;
+      } else {
+        mundoCor.tint = 0xffffff;
+      }
       const redesenhar = !mud || mud.completo || Boolean(mud.colecoes.rooms) || mud.campos.some(c => c === 'grid' || c === 'climate' || c === 'style');
       if (redesenhar) {
         const eds = edificiosDe(m);
         const ids = new Set(eds.map(e => e.id));
         for (const [id, d] of edificios) {
-          if (!ids.has(id)) { d.c.destroy({ children: true }); edificios.delete(id); }
+          if (!ids.has(id)) {
+            d.corC.destroy({ children: true });
+            d.normalC.destroy({ children: true });
+            d.sombraC.destroy({ children: true });
+            edificios.delete(id);
+          }
         }
         salaParaEdificio.clear();
-        chavesAtivas.clear();
+        const ctx = contextoDeEntradas(m);
         for (const ed of eds) {
           let d = edificios.get(ed.id);
           if (!d) {
-            const c = new Container(), sombra = new Graphics();
-            c.addChild(sombra);
-            c.visible = false;
-            raiz.addChild(c);
-            d = { ed, c, sombra, chaves: new Set(), alfa: 0, alvo: 0, dentro: false, conhecido: false, visivelNoMapa: true };
+            const corC = new Container();
+            const normalC = new Container();
+            const sombraC = new Container();
+            const sombraG = new Graphics();
+            sombraC.addChild(sombraG);
+            corC.visible = false;
+            normalC.visible = false;
+            sombraC.visible = false;
+            mundoCor.addChild(corC);
+            mundoNormal.addChild(normalC);
+            sombrasC.addChild(sombraC);
+            d = {
+              ed,
+              corC,
+              normalC,
+              sombraC,
+              sombraG,
+              sombraSp: null,
+              sombraAlfaBase: 0,
+              chaveAssado: '',
+              hMax: ALTURA_BASE_TELHADO + 1.2,
+              chaves: new Set(),
+              alfa: 0,
+              alvo: 0,
+              dentro: false,
+              conhecido: false,
+              visivelNoMapa: true,
+            };
             edificios.set(ed.id, d);
           } else {
             d.ed = ed;
           }
           for (const salaId of ed.salas) salaParaEdificio.set(salaId, ed.id);
-          desenharEdificio(d, m);
+          desenharEdificio(d, m, ctx);
         }
       }
       reavaliar();
       imediato = false;
+    },
+    atualizarClima(m) {
+      if (destruido) return;
+      climaAtual = m.climate;
+      acabamentoAtual = m.finish;
+      const base = mapa ?? m;
+      if (base.style.renderer === 'pixel' || !op.renderer) {
+        mundoCor.tint = luzSobreOsTelhados(m.climate);
+      }
+      for (const d of edificios.values()) {
+        atualizarSombra(d, base, m.climate, assados.get(d.chaveAssado) ?? null);
+      }
+    },
+    definirAtmosfera(ligada) {
+      if (atmosferaLigada === ligada) return;
+      atmosferaLigada = ligada;
+      const m = mapa;
+      if (!m) return;
+      const clima = climaAtual ?? m.climate;
+      for (const d of edificios.values()) {
+        atualizarSombra(d, m, clima, assados.get(d.chaveAssado) ?? null);
+      }
     },
     definirVista(v) { if (v === vista) return; vista = v; imediato = true; reavaliar(); imediato = false; },
     definirNoEditor(v) { if (v === noEditor) return; noEditor = v; reavaliar(); },
@@ -339,8 +918,9 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
         if (d.alfa === d.alvo) continue;
         const passo = movimentoReduzido() ? 1 : dt / DURACAO_DO_TELHADO;
         d.alfa = d.alfa < d.alvo ? Math.min(d.alvo, d.alfa + passo) : Math.max(d.alvo, d.alfa - passo);
-        d.c.alpha = d.alfa; d.c.visible = d.alfa > 0.001;
+        sincronizarOpacidade(d);
       }
+      atualizarPassada();
     },
     diagnostico: () => {
       const out: { id: string; edificio: string; alfa: number; alvo: number; dentro: boolean; conhecido: boolean }[] = [];
@@ -352,17 +932,40 @@ export function criarTelhados(op: { baker?: Baker; aoPintar?(): void } = {}): Te
     visivel: (salaId: string) => {
       const edId = salaParaEdificio.get(salaId);
       const d = edId ? edificios.get(edId) : undefined;
-      return !!d && d.c.visible && d.alfa > 0.3;
+      return !!d && d.corC.visible && d.alfa > 0.3;
     },
-    chavesEmUso: () => new Set(chavesAtivas),
+    chavesEmUso: () => {
+      const s = new Set<string>();
+      for (const d of edificios.values()) {
+        for (const k of d.chaves) s.add(k);
+      }
+      return s;
+    },
     destruir() {
       destruido = true;
+      for (const a of assados.values()) {
+        a.cor.destroy(true);
+        a.normal?.destroy(true);
+      }
+      assados.clear();
       for (const tex of coberturas.values()) tex.destroy(true);
       coberturas.clear();
       for (const det of detalhes.values()) det.tex.destroy(true);
       detalhes.clear();
       emVoo.clear();
-      chavesAtivas.clear();
+      achatar.destroy();
+      desfoque.destroy();
+      if (gpu) {
+        gpu.corRT?.destroy(true);
+        gpu.normalRT?.destroy(true);
+        gpu.saidaRT?.destroy(true);
+        gpu.textureMatrix.destroy();
+        gpu.mesh.destroy();
+        gpu.shader.destroy(false);
+        gpu.prog.destroy();
+        gpu.quad.destroy(true);
+        gpu = null;
+      }
       raiz.destroy({ children: true });
     },
   };

@@ -332,3 +332,79 @@ test('capturar com vista de telhados em Construir: mostra o telhado na imagem e 
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test('telhado iluminado pela cena: noite escura, lampião da rua clareia borda, lamparina interna não vaza e fade por edifício continua', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await sessao(page, `(s, a) => {
+    const cel = []; for (let y = 4; y < 7; y++) for (let x = 6; x < 10; x++) cel.push([x, y]);
+    s.store.executar({ tipo: "terreno.base", material: "areia" });
+    s.store.executar({ tipo: "clima.aplicar", patch: { preset: "tarde", time: "12:00", ambient: { color: "#ffffff", intensity: 1 }, sun: { angle: 1.57, color: "#fff8e8", intensity: 1 } } });
+    s.store.executar({ tipo: "acabamento.atualizar", patch: { preset: "nenhum", texture: 0, vignette: 0, saturation: 1, grain: 0, tint: "#ffffff" } });
+    s.store.executar({ tipo: "comodo.criar", id: "casa", nome: "Casa", funcao: "sala", piso: { material: "areia", seed: 1 }, papel: null, telhado: "telha.barro", celulas: cel });
+    s.store.executar({ tipo: "comodo.atualizar", id: "casa", patch: { roof: { shape: "quatro-aguas", details: [] } } });
+    s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.fora });
+    s.store.executar({ tipo: "sessao.revelar", ids: ["casa"] });
+  }`, { fora: peca('p1', 'Fora', 6.5, 12.5) });
+  await page.waitForTimeout(900);
+
+  await page.click('[data-testid="modo-sessao"]');
+  await page.waitForTimeout(300);
+  await page.click('[data-testid="vista-jogador"]');
+  await page.waitForTimeout(900);
+
+  const centroTelhado: [[number, number], [number, number]] = [[10.8, 7.2], [13.2, 9.2]];
+  const bordaOeste: [[number, number], [number, number]] = [[9.1, 7.2], [10.4, 9.2]];
+
+  const bMeioDia = await brilho(page, ...centroTelhado);
+
+  // 1) À noite (23:00), telhado longe de luz fica bem mais escuro que ao meio-dia
+  await sessao(page, `(s) => {
+    s.store.executar({ tipo: "clima.aplicar", patch: { preset: "noite", time: "23:00", ambient: { color: "#1c2440", intensity: 0.25 }, sun: { angle: 1.57, color: "#9fb3e8", intensity: 0.35 } } });
+  }`);
+  await page.waitForTimeout(1900);
+
+  const bNoiteSemLuz = await brilho(page, ...centroTelhado);
+  const bBordaNoite = await brilho(page, ...bordaOeste);
+  assert.ok(bNoiteSemLuz < bMeioDia * 0.45, `à noite (${bNoiteSemLuz.toFixed(1)}) deve ficar bem mais escuro que ao meio-dia (${bMeioDia.toFixed(1)})`);
+
+  // 2) Lamparina dentro da casa coberta NÃO clareia o telhado
+  await sessao(page, `(s) => {
+    s.store.executar({ tipo: "item.adicionar", colecao: "lights", item: {
+      id: "interna", position: [12.0, 8.25], radius: 6, color: "#ffb36b", intensity: 2.0,
+      flicker: 0, cone: null, ownerId: null, power: "fire", on: true, nightOnly: false, preset: "lamparina", rays: false
+    } });
+  }`);
+  await page.waitForTimeout(600);
+
+  const bNoiteComInterna = await brilho(page, ...centroTelhado);
+  assert.ok(Math.abs(bNoiteComInterna - bNoiteSemLuz) < 3, `lamparina interna (${bNoiteComInterna.toFixed(1)}) não deve clarear o telhado (${bNoiteSemLuz.toFixed(1)})`);
+
+  // 3) Lampião na rua ao lado do telhado clareia claramente a borda próxima
+  await sessao(page, `(s) => {
+    s.store.executar({ tipo: "item.adicionar", colecao: "lights", item: {
+      id: "lampiao", position: [8.0, 8.25], radius: 7, color: "#ffc078", intensity: 2.2,
+      flicker: 0, cone: null, ownerId: null, power: "fire", on: true, nightOnly: false, preset: "lampiao", rays: false
+    } });
+  }`);
+  await page.waitForTimeout(600);
+
+  const bBordaComLampiao = await brilho(page, ...bordaOeste);
+  assert.ok(bBordaComLampiao > bBordaNoite * 1.4 && bBordaComLampiao - bBordaNoite > 12, `lampião na rua (${bBordaComLampiao.toFixed(1)}) deve clarear a borda próxima do telhado (${bBordaNoite.toFixed(1)})`);
+
+  // 4) Fade por edifício continua funcionando (entrar abre o telhado e revela a lamparina; sair fecha)
+  await sessao(page, `(s) => s.store.executar({ tipo: "item.atualizar", colecao: "tokens", id: "p1", patch: { position: [12.0, 8.25] } })`);
+  await page.waitForTimeout(700);
+  const diagDentro = await telhados(page);
+  assert.deepEqual(diagDentro.map(d => [d.id, d.alfa, d.alvo]), [['casa', 0, 0]], 'entrar na casa abre o telhado');
+  const bInteriorAberto = await brilho(page, ...centroTelhado);
+  assert.ok(bInteriorAberto > bNoiteComInterna + 15, `com telhado aberto (${bInteriorAberto.toFixed(1)}), a lamparina interna aparece bem mais clara que o telhado fechado (${bNoiteComInterna.toFixed(1)})`);
+
+  await sessao(page, `(s) => s.store.executar({ tipo: "item.atualizar", colecao: "tokens", id: "p1", patch: { position: [6.5, 12.5] } })`);
+  await page.waitForTimeout(700);
+  const diagFora = await telhados(page);
+  assert.deepEqual(diagFora.map(d => [d.id, d.alfa, d.alvo]), [['casa', 1, 1]], 'sair da casa volta a fechar o telhado');
+
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});

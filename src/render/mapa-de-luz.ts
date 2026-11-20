@@ -1,5 +1,7 @@
 import { Container, Geometry, GlProgram, Graphics, Mesh, RendererType, RenderTexture, Shader, Sprite, Texture, UniformGroup, type Renderer } from 'pixi.js';
 import { DURACAO_DA_QUEDA, DURACAO_DA_VOLTA, LUZ_INTERIOR_PADRAO, curvaDoClarao, ehNoite, intervaloDoRelampago, luzesDerivadas, nivelDaLuz, piscarDaQueda, piscarDaVolta } from '../domain/clima.ts';
+import { pontoNoPoligono } from '../domain/formas-de-comodo.ts';
+import { comodoEm, indiceDeCelulas } from '../domain/geometria.ts';
 import type { Luz, MapaAtlas } from '../domain/mapa.ts';
 import {
   IndiceDeSegmentos,
@@ -13,6 +15,7 @@ import {
 } from '../domain/visibilidade.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import { somPreferido, trovao } from '../fx/som.ts';
+import { ACERVO } from '../procedural/acervo.ts';
 import { valueNoise2D } from '../procedural/ruido.ts';
 import type { Mudancas } from '../state/mudancas.ts';
 import { hexParaNumero } from './cores.ts';
@@ -69,6 +72,8 @@ export interface MapaDeLuz {
   readonly direcao: Texture;
   /** Máscara de interiores cobertos por telhado (Ilustrado): `R = 1` dentro de cômodos cobertos, `0` fora. */
   readonly mascaraInterior: Texture;
+  /** Mapa de luzes externas aos telhados (Ilustrado), sem recorte de paredes internas; `Texture.EMPTY` no Pixel. */
+  readonly luzExterna: Texture;
   /** Fator de escala para decodificar a textura da luz (`1` em float ou no Pixel; `ESCALA_HDR` em 8 bits). */
   readonly escala: number;
   /** Cor efetiva do ambiente externo (já multiplicada por efeitos e clarão de relâmpago), em escala linear. */
@@ -105,6 +110,10 @@ interface LuzNaGPU {
   shaderDir: Shader;
   grupoDir: UniformGroup;
   mDir: Graphics;
+  cExt: Container;
+  meshExt: Mesh<Geometry, Shader>;
+  mExt: Graphics;
+  externa: boolean;
   luz: Luz;
   raio: number;
   chaveGeo: string;
@@ -251,13 +260,63 @@ export function poligonoDaLuz(l: Luz, ctx: ContextoDeOclusao): number[] {
   return poligonoIluminado(l.position, segs, l.radius, l.cone);
 }
 
+/** Diz se uma luz ilumina o exterior e os telhados: janelas e luzes dentro de cômodos cobertos ficam abaixo do telhado; estruturas altas contam como externas. */
+export function ehLuzExterna(
+  l: Luz,
+  m: Pick<MapaAtlas, 'rooms' | 'props' | 'grid'>,
+  indice: Map<number, string> = indiceDeCelulas(m),
+): boolean {
+  if (l.id.startsWith('janela:') || l.id.startsWith('janela-fora:')) return false;
+  if (l.ownerId) {
+    const dono = m.props[l.ownerId];
+    if (dono && dono.source.kind === 'recipe' && dono.source.recipe.startsWith('estrutura.')) return true;
+  }
+  const nivelLuz = l.levelId ?? null;
+  const [lx, ly] = l.position;
+  for (const p of Object.values(m.props)) {
+    if ((p.levelId ?? null) !== nivelLuz) continue;
+    if (p.source.kind !== 'recipe' || !p.source.recipe.startsWith('estrutura.')) continue;
+    const [w, h] = ACERVO.pegadaDaFonte(p.source);
+    const dx = lx - p.position[0], dy = ly - p.position[1];
+    const c = Math.cos(-p.rotation), s = Math.sin(-p.rotation);
+    const rx = dx * c - dy * s, ry = dx * s + dy * c;
+    if (Math.abs(rx) <= (w * p.scale) / 2 + 0.25 && Math.abs(ry) <= (h * p.scale) / 2 + 0.25) return true;
+  }
+  let sala = comodoEm(m, l.position, indice);
+  if (!sala) {
+    for (const r of Object.values(m.rooms)) {
+      if ((r.levelId ?? null) !== nivelLuz) continue;
+      if (r.outline && r.outline.length >= 3 && pontoNoPoligono(l.position, r.outline)) {
+        sala = r.id;
+        break;
+      }
+    }
+  }
+  return !(sala && m.rooms[sala]?.roof.material);
+}
+
+function desenharConeExterno(g: Graphics, l: Luz): void {
+  g.clear();
+  if (!l.cone) return;
+  const [lx, ly] = l.position;
+  const r = l.radius * 1.05;
+  const meia = l.cone.angle / 2;
+  const passos = Math.max(8, Math.ceil((l.cone.angle / Math.PI) * 24));
+  const pts: number[] = [lx, ly];
+  for (let i = 0; i <= passos; i++) {
+    const a = l.cone.direction - meia + (l.cone.angle * i) / passos;
+    pts.push(lx + Math.cos(a) * r, ly + Math.sin(a) * r);
+  }
+  g.poly(pts).fill(0xffffff);
+}
+
 /**
  * Cada luz é um brilho redondo recortado pelo polígono que ela enxerga (as paredes fazem sombra), somado numa textura "bruta"
  * via `Mesh` + `Shader` (sem o limite `[0, 1]` do `Sprite`); no Ilustrado, esta passa por blur gaussiano separável direto em
  * `RenderTexture` e é composta em tela cheia em HDR (ou 8 bits escalado). No Pixel mantém o caminho em faixas e `multiply`.
  */
 export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
-  const raiz = new Container(), raizDirecao = new Container(), interior = new Graphics(), composicao = new Container(), brutaS = new Sprite(), sprite = new Sprite();
+  const raiz = new Container(), raizDirecao = new Container(), raizExterna = new Container(), interior = new Graphics(), composicao = new Container(), brutaS = new Sprite(), sprite = new Sprite();
   brutaS.blendMode = 'add'; composicao.addChild(brutaS);
   sprite.blendMode = 'multiply';
   // No Pixel a luz final passa por um filtro de faixas (degraus de borda dura) antes de multiplicar a cena.
@@ -287,8 +346,9 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
   const luzes = new Map<string, LuzNaGPU>(), ruido = valueNoise2D(7);
   let brutaRT: RenderTexture | null = null, desfoqueRT: RenderTexture | null = null, finalRT: RenderTexture | null = null, faixasRT: RenderTexture | null = null;
   let brutaDirRT: RenderTexture | null = null, direcaoRT: RenderTexture | null = null, interiorRT: RenderTexture | null = null;
+  let brutaExtRT: RenderTexture | null = null, luzExternaRT: RenderTexture | null = null;
   let largura = 0, altura = 0, resAtual = 0, pixel = false, pxPorMetro = 0, escalaAtiva = 1, ehFloatAtivo = false;
-  let oclusao: ContextoDeOclusao | null = null, derivadas: Luz[] = [], ambiente: [number, number, number] = [1, 1, 1];
+  let oclusao: ContextoDeOclusao | null = null, indiceComodos: Map<number, string> | null = null, derivadas: Luz[] = [], ambiente: [number, number, number] = [1, 1, 1];
   let sujo = true, ligado = true, destruido = false, contador = 0, interiorPronto = false, interiorSujo = true;
   // O estado do momento (clima): o mapa atual, se é noite, a queda de energia, o relâmpago e os trovões a caminho.
   let mapa: MapaAtlas | null = null, noite = false, redeAnterior: boolean | null = null, queda = 0, volta = 0;
@@ -304,6 +364,9 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     g.mesh.visible = visivel;
     g.cDir.visible = visivel;
     g.meshDir.visible = visivel;
+    const visExt = visivel && g.externa;
+    g.cExt.visible = visExt;
+    g.meshExt.visible = visExt;
     const u = pixel ? Math.min(1, k) : codificarLuz(k, escalaAtiva);
     (g.grupo.uniforms as Record<string, unknown>).uIntensidade = u;
     (g.grupoDir.uniforms as Record<string, unknown>).uIntensidade = u;
@@ -324,7 +387,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     const escalaAntes = escalaAtiva;
     escalaAtiva = pixel ? 1 : escalaHDR;
     ehFloatAtivo = !pixel && formato === 'rgba16float';
-    const antigas = [brutaRT, desfoqueRT, finalRT, faixasRT, brutaDirRT, direcaoRT, interiorRT];
+    const antigas = [brutaRT, desfoqueRT, finalRT, faixasRT, brutaDirRT, direcaoRT, interiorRT, brutaExtRT, luzExternaRT];
     if (pixel) {
       brutaRT = RenderTexture.create({ width: pw, height: ph, scaleMode: 'nearest' });
       desfoqueRT = null;
@@ -333,6 +396,8 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       brutaDirRT = null;
       direcaoRT = null;
       interiorRT = null;
+      brutaExtRT = null;
+      luzExternaRT = null;
       brutaS.texture = brutaRT; faixasS.texture = finalRT;
       sprite.texture = faixasRT; sprite.renderable = true; sprite.visible = ligado;
     } else {
@@ -342,6 +407,8 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       brutaDirRT = RenderTexture.create({ width: pw, height: ph, scaleMode: 'linear', format: formato });
       direcaoRT = RenderTexture.create({ width: pw, height: ph, scaleMode: 'linear', format: formato });
       interiorRT = RenderTexture.create({ width: pw, height: ph, scaleMode: 'linear' });
+      brutaExtRT = RenderTexture.create({ width: pw, height: ph, scaleMode: 'linear', format: formato });
+      luzExternaRT = RenderTexture.create({ width: pw, height: ph, scaleMode: 'linear', format: formato });
       interiorSujo = true;
       faixasRT = null;
       const dirSource = texturaDeDirecao(ehFloatAtivo).source;
@@ -356,7 +423,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       blurH.scale.set(pw, ph); blurV.scale.set(pw, ph);
       sprite.texture = finalRT; sprite.renderable = false; sprite.visible = true;
     }
-    sprite.scale.set(w / pw, h / ph); raiz.scale.set(pw / w, ph / h); raizDirecao.scale.set(pw / w, ph / h); interior.scale.set(pw / w, ph / h);
+    sprite.scale.set(w / pw, h / ph); raiz.scale.set(pw / w, ph / h); raizDirecao.scale.set(pw / w, ph / h); raizExterna.scale.set(pw / w, ph / h); interior.scale.set(pw / w, ph / h);
     for (const t of antigas) t?.destroy(true);
     if (escalaAtiva !== escalaAntes) {
       for (const g of luzes.values()) if (g.alfa >= 0) aplicarAlfa(g, g.alfa);
@@ -385,15 +452,29 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     meshDir.blendMode = 'add'; meshDir.mask = mDir; meshDir.visible = false;
     cDir.addChild(meshDir, mDir); raizDirecao.addChild(cDir);
 
+    const cExt = new Container(), mExt = new Graphics();
+    const meshExt = new Mesh({ geometry: quadLuz, shader });
+    meshExt.blendMode = 'add'; meshExt.visible = false;
+    mExt.visible = false;
+    cExt.addChild(meshExt, mExt); raizExterna.addChild(cExt);
+
     return {
       c, mesh, shader, grupo, m,
       cDir, meshDir, shaderDir, grupoDir, mDir,
+      cExt, meshExt, mExt, externa: false,
       luz: l, raio: l.radius, chaveGeo: '', versaoGeo: -1, semente: ++contador * 13.7, alfa: -1, clarao: -1, corR: -1, corG: -1, corB: -1, poligono: [],
     };
   }
 
   function atualizar(g: LuzNaGPU, l: Luz): void {
     g.luz = l;
+    const externa = mapa ? ehLuzExterna(l, mapa, indiceComodos ?? undefined) : false;
+    if (externa !== g.externa) {
+      g.externa = externa;
+      const visExt = g.alfa > 0.01 && externa;
+      g.cExt.visible = visExt;
+      g.meshExt.visible = visExt;
+    }
     const geo = JSON.stringify([l.position, l.radius, l.cone, l.ownerId]);
     if (oclusao && (geo !== g.chaveGeo || g.versaoGeo !== oclusao.versaoEstatica)) {
       g.chaveGeo = geo; g.versaoGeo = oclusao.versaoEstatica;
@@ -405,11 +486,23 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       g.mesh.scale.set(l.radius * 2);
       g.meshDir.position.set(l.position[0], l.position[1]);
       g.meshDir.scale.set(l.radius * 2);
+      g.meshExt.position.set(l.position[0], l.position[1]);
+      g.meshExt.scale.set(l.radius * 2);
+      if (l.cone) {
+        desenharConeExterno(g.mExt, l);
+        g.mExt.visible = true;
+        g.meshExt.mask = g.mExt;
+      } else {
+        g.meshExt.mask = null;
+        g.mExt.clear();
+        g.mExt.visible = false;
+      }
       g.raio = l.radius;
     } else if (!pixel && g.raio !== l.radius) {
       g.raio = l.radius;
       g.mesh.scale.set(l.radius * 2);
       g.meshDir.scale.set(l.radius * 2);
+      g.meshExt.scale.set(l.radius * 2);
     }
     const [r, gCor, b] = rgb01(l.color);
     const c = g.clarao > 0 && l.id.startsWith('janela:') ? g.clarao * 0.6 : 0;
@@ -484,6 +577,13 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
         blurVShader.resources.uTexture = desfoqueRT.source;
         renderer.render({ container: passadaV, target: direcaoRT, clear: true, clearColor: [0, 0, 0, 0] });
       }
+      if (brutaExtRT && luzExternaRT) {
+        renderer.render({ container: raizExterna, target: brutaExtRT, clear: true, clearColor: [0, 0, 0, 0] });
+        blurHShader.resources.uTexture = brutaExtRT.source;
+        renderer.render({ container: blurH, target: desfoqueRT, clear: true, clearColor: [0, 0, 0, 0] });
+        blurVShader.resources.uTexture = desfoqueRT.source;
+        renderer.render({ container: passadaV, target: luzExternaRT, clear: true, clearColor: [0, 0, 0, 0] });
+      }
     }
     sujo = false;
   }
@@ -495,6 +595,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     sprite,
     get direcao() { return !pixel && direcaoRT ? direcaoRT : Texture.EMPTY; },
     get mascaraInterior() { return !pixel && interiorRT ? interiorRT : Texture.EMPTY; },
+    get luzExterna() { return !pixel && luzExternaRT ? luzExternaRT : Texture.EMPTY; },
     get escala() { return escalaAtiva; },
     get ambiente(): readonly [number, number, number] {
       const brilho = claraoAtual * 0.35;
@@ -542,7 +643,10 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       if (tokensMudados.length > 0) {
         for (const g of luzes.values()) if (luzAfetadaPorTokens(g.luz, tokensMudados)) g.versaoGeo = -1;
       }
-      if (col('rooms') || campo('grid') || !interiorPronto) desenharInterior(m);
+      if (col('rooms') || campo('grid') || !interiorPronto) {
+        indiceComodos = indiceDeCelulas(m);
+        desenharInterior(m);
+      }
       if (estaticoMudou || col('lights') || campo('climate')) derivadas = luzesDerivadas(m);
       if (campo('climate', 'style')) {
         const a = m.climate.ambient, [r, g, b] = rgb01(a.color);
@@ -554,6 +658,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       for (const [id, g] of luzes) if (!vivos.has(id)) {
         g.shader.destroy(false); g.c.destroy({ children: true });
         g.shaderDir.destroy(false); g.cDir.destroy({ children: true });
+        g.cExt.destroy({ children: true });
         luzes.delete(id);
       }
       sujo = true;
@@ -607,13 +712,15 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       for (const g of luzes.values()) {
         g.shader.destroy(false); g.c.destroy({ children: true });
         g.shaderDir.destroy(false); g.cDir.destroy({ children: true });
+        g.cExt.destroy({ children: true });
       }
       luzes.clear();
       blurH.destroy(); passadaV.destroy({ children: true }); blurHShader.destroy(false); blurVShader.destroy(false);
       quadLuz.destroy(true); quadTela.destroy(true); progLuz.destroy(); progDirecao.destroy(); progBlur.destroy();
       brutaRT?.destroy(true); desfoqueRT?.destroy(true); finalRT?.destroy(true); faixasRT?.destroy(true);
       brutaDirRT?.destroy(true); direcaoRT?.destroy(true); interiorRT?.destroy(true);
-      passadaFaixas.destroy({ children: false }); faixasS.destroy(); interior.destroy(); sprite.destroy(); composicao.destroy({ children: false }); raiz.destroy({ children: true }); raizDirecao.destroy({ children: true });
+      brutaExtRT?.destroy(true); luzExternaRT?.destroy(true);
+      passadaFaixas.destroy({ children: false }); faixasS.destroy(); interior.destroy(); sprite.destroy(); composicao.destroy({ children: false }); raiz.destroy({ children: true }); raizDirecao.destroy({ children: true }); raizExterna.destroy({ children: true });
     },
   };
 }
