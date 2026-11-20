@@ -2481,3 +2481,16 @@ body.projetor { overflow: hidden; background: #000; }
 .amostra-de-terreno { padding: 2px; line-height: 0; background: var(--superficie); border: 1px solid var(--linha); border-radius: 8px; transition: border-color 0.12s, transform 0.12s; }
 .amostra-de-terreno:hover { border-color: var(--linha-forte); transform: translateY(-1px); }
 .amostra-de-terreno.ativa { border-color: var(--acento); box-shadow: 0 0 0 1px var(--acento); background: var(--superficie-2); }
+
+/* Biblioteca de objetos: família na mão e catálogo de famílias */
+.familia-mao { margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--linha); }
+.familia-titulo { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px; font: 700 13px var(--corpo); }
+.familia-botoes { display: inline-flex; gap: 4px; }
+.familia-corpo { display: flex; gap: 8px; align-items: flex-start; }
+.familia-previa { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: none; padding: 4px; border: 1px solid var(--linha); border-radius: 8px; background: var(--superficie); }
+.familia-previa .mini-receita { width: 105px; height: 105px; }
+.familia-setas { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--apagado); }
+.familia-setas .chip { padding: 1px 8px; }
+.familia-variantes { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 4px; max-height: 150px; overflow-y: auto; }
+.familia-variantes .mini-receita { width: 36px; height: 36px; }
+.selo-variantes { position: absolute; top: 3px; right: 3px; min-width: 15px; padding: 0 4px; border-radius: 8px; background: var(--acento-suave); color: var(--acento); font: 700 9.5px var(--corpo); font-style: normal; text-align: center; }

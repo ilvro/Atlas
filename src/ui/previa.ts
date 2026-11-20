@@ -8,13 +8,13 @@ export { gerarMiniaturaDoMapa } from '../render/miniatura.ts';
 let baker: Baker | null = null;
 const previas = new Map<string, Promise<{ bitmap: ImageBitmap; origem: [number, number]; res: number }>>();
 
-export function pedirPrevia(receita: string, params: Record<string, unknown> = {}, seed = 3): Promise<{ bitmap: ImageBitmap; origem: [number, number]; res: number }> {
+export function pedirPrevia(receita: string, params: Record<string, unknown> = {}, seed = 3, res = 72): Promise<{ bitmap: ImageBitmap; origem: [number, number]; res: number }> {
   baker ??= criarBaker({ workers: 1 });
-  const chave = `previa|${receita}|${seed}|${JSON.stringify(params)}`;
+  const chave = `previa|${receita}|${seed}|${res}|${JSON.stringify(params)}`;
   let p = previas.get(chave);
   if (!p) {
     const item = ACERVO.item(receita), arquivo = item?.fonte === 'colecao' ? COLECAO.find(i => i.id === receita) : undefined;
-    p = baker.pedir(chave, arquivo ? { tipo: 'imagem', url: urlDoItem(arquivo), pegada: arquivo.pegada, res: 72, resImagem: arquivo.res ?? RES_DA_COLECAO, harmonizar: false, alvo: null } : { tipo: 'objeto', receita, params, seed, res: 72, estilo: 'illustrated' });
+    p = baker.pedir(chave, arquivo ? { tipo: 'imagem', url: urlDoItem(arquivo), pegada: arquivo.pegada, res, resImagem: arquivo.res ?? RES_DA_COLECAO, harmonizar: false, alvo: null } : { tipo: 'objeto', receita, params, seed, res, estilo: 'illustrated' });
     previas.set(chave, p);
   }
   return p;
