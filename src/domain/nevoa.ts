@@ -20,16 +20,37 @@ export function secretaOculta(m: Pick<MapaAtlas, 'session'>, a: Pick<Abertura, '
   return a.kind === 'secret' && !m.session.revealed.includes(a.id);
 }
 
+/** O polígono de cada peça, guardado pela posição, pelo raio e por uma assinatura dos segmentos que bloqueiam a visão: mover uma peça só refaz a dela. */
+const porPeca = new Map<string, { x: number; y: number; r: number; assinatura: string; pts: number[] }>();
+
+/** Assinatura barata dos segmentos (o tamanho e dois hashes de 32 bits das coordenadas). */
+function assinaturaDe(segs: readonly { a: Ponto; b: Ponto }[]): string {
+  let h1 = 0x811c9dc5, h2 = 0x1b873593;
+  for (const s of segs) for (const v of [s.a[0], s.a[1], s.b[0], s.b[1]]) {
+    const n = Math.round(v * 1e4) | 0;
+    h1 = Math.imul(h1 ^ n, 16777619); h2 = Math.imul(h2 + n, 0x85ebca6b) ^ (h2 >>> 13);
+  }
+  return `${segs.length}:${h1 >>> 0}:${h2 >>> 0}`;
+}
+
 function calcularPoligonos(m: MapaAtlas): number[][] {
   const aberturas = Object.values(m.openings).some(a => secretaOculta(m, a) && a.state !== 'closed')
     ? Object.fromEntries(Object.entries(m.openings).map(([id, a]) => [id, secretaOculta(m, a) ? { ...a, state: 'closed' as const } : a]))
     : m.openings;
-  const indice = new IndiceDeSegmentos(oclusores({ walls: m.walls, openings: aberturas }, 'visao')), saida: number[][] = [];
+  const segs = oclusores({ walls: m.walls, openings: aberturas }, 'visao'), assinatura = assinaturaDe(segs), saida: number[][] = [];
+  let indice: IndiceDeSegmentos | null = null;
+  const vivos = new Set<string>();
   for (const t of Object.values(m.tokens)) {
     if (!t.player || t.vision.radius <= 0) continue;
-    const p: Ponto = [t.position[0], t.position[1]], pts = poligonoIluminado(p, indice.perto(p, t.vision.radius), t.vision.radius, null);
-    if (pts.length >= 6) saida.push(pts);
+    const x = t.position[0], y = t.position[1], r = t.vision.radius; vivos.add(t.id);
+    let e = porPeca.get(t.id);
+    if (!e || e.x !== x || e.y !== y || e.r !== r || e.assinatura !== assinatura) {
+      const p: Ponto = [x, y]; indice ??= new IndiceDeSegmentos(segs);
+      e = { x, y, r, assinatura, pts: poligonoIluminado(p, indice.perto(p, r), r, null) }; porPeca.set(t.id, e);
+    }
+    if (e.pts.length >= 6) saida.push(e.pts);
   }
+  if (porPeca.size > 64) for (const id of porPeca.keys()) if (!vivos.has(id)) porPeca.delete(id);
   return saida;
 }
 
