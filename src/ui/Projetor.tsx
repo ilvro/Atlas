@@ -105,6 +105,34 @@ export function Projetor({ mapaId }: { mapaId: string }) {
         ultimoSeqMestre = msg._seq;
       }
       if (msg.tipo === 'estado') { doc.value = msg.doc; store!.projetar(msg.doc, { emGesto: msg.emGesto }); }
+      else if (msg.tipo === 'peca-gesto') {
+        const atual = store?.documento;
+        const t = atual?.tokens[msg.id];
+        if (atual && t) {
+          const luz = t.lightId ? atual.lights[t.lightId] : undefined;
+          const novoDoc: MapaAtlas = {
+            ...atual,
+            tokens: { ...atual.tokens, [msg.id]: { ...t, position: msg.position, facing: msg.facing } },
+            ...(luz ? {
+              lights: {
+                ...atual.lights,
+                [luz.id]: {
+                  ...luz,
+                  position: msg.position,
+                  ...(luz.cone && msg.lightDirection !== undefined ? { cone: { ...luz.cone, direction: msg.lightDirection } } : {}),
+                },
+              },
+            } : {}),
+          };
+          doc.value = novoDoc;
+          store!.projetar(novoDoc, { emGesto: true, pularValidacao: true });
+        }
+        if (msg.caixa) {
+          caixa = caixaDoMestre = msg.caixa;
+          if (msg.seguir) seguindo.value = true;
+          if (seguindo.peek()) { vp?.enquadrarCaixa(caixaComZoom(msg.caixa), false); primeira = false; }
+        }
+      }
       else if (msg.tipo === 'camera') { caixa = caixaDoMestre = msg.caixa; if (msg.seguir) seguindo.value = true; if (seguindo.peek()) { vp?.enquadrarCaixa(caixaComZoom(msg.caixa), !primeira && !msg.imediata); primeira = false; } }
       else if (msg.tipo === 'evento') vp?.dispararEvento(msg.nome);
       else if (msg.tipo === 'relampago') vp?.relampagoAgora();

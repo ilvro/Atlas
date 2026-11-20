@@ -168,7 +168,7 @@ const COR_PADRAO_ACENTO = 0xe91d25;
 type Interacao =
   | { tipo: 'pan'; botao: number; x0: number; y0: number; camera0: Camera; moveu: boolean }
   | { tipo: 'mover'; hit: Alvo; alvos: AlvoMovel[]; origem: Ponto; ref: Ponto; aplicado: Ponto; gesto: Gesto | null; x0: number; y0: number; estavaNaSelecao: boolean; ctrl: boolean }
-  | { tipo: 'peca'; id: string; de: Ponto; para: Ponto; motivo: string | null; livre: boolean; semGrade: boolean; gesto: Gesto | null; x0: number; y0: number; moveu: boolean }
+  | { tipo: 'peca'; id: string; de: Ponto; para: Ponto; offset: Ponto; motivo: string | null; livre: boolean; semGrade: boolean; gesto: Gesto | null; pendente: boolean; x0: number; y0: number; moveu: boolean }
   | { tipo: 'deslizar'; id: string; gesto: Gesto | null; x0: number; y0: number }
   | { tipo: 'retangulo'; ini: Ponto; atual: Ponto; modo: 'trocar' | 'somar'; x0: number; y0: number; moveu: boolean }
   | { tipo: 'laco'; pontos: Ponto[]; modo: 'trocar' | 'somar' }
@@ -211,7 +211,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const store = ponte.store, baker: Baker = criarBaker();
   const mundo = new Container(), area_ = new Graphics(), grade = new Graphics(), selecaoG = new Graphics(), fantasmaC = new Container(), fantasmaG = new Graphics(), laco = new Graphics();
   let camera: Camera = { x: 0, y: 0, zoom: 20 };
-  let ponteiro: Ponto | null = null, interacao: Interacao | null = null, espaco = false, camadaSuja = true, destruido = false, regua: Regua | null = null, altPressionado = false, modoProjetor = somenteLeitura;
+  let ponteiro: Ponto | null = null, interacao: Interacao | null = null, espaco = false, camadaSuja = true, gradeSuja = true, destruido = false, regua: Regua | null = null, altPressionado = false, modoProjetor = somenteLeitura;
   const reguaTexto = new Text({ text: '', style: { fontFamily: 'system-ui, sans-serif', fontSize: 14, fontWeight: '600', fill: 0xffffff, stroke: { color: 0x07080b, width: 4 } } });
   reguaTexto.visible = false;
   const completo = (): MapaAtlas => store.documento;
@@ -284,10 +284,12 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     area_.clear().rect(0, 0, m.bounds.width, m.bounds.height).fill({ color: 0xffffff, alpha: 0.03 }).stroke({ width: px(1.5), color: 0xffffff, alpha: 0.14 });
   }
 
+  let ultimoAlinhandoGrade = Boolean(ponte.alinhandoGrade?.());
   function desenharGrade(): void {
     const m = doc(); grade.clear();
     if (somenteLeitura) return;
     const alinhando = ponte.alinhandoGrade?.() ?? false;
+    ultimoAlinhandoGrade = alinhando;
     if (!m.grid.visible && !alinhando) return;
 
     const kind = m.grid.kind ?? 'square';
@@ -514,14 +516,14 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   // ---------- Fantasma: uma prévia do que a ferramenta ativa vai pôr ----------
   let semente = Math.floor(Math.random() * 2 ** 30), fantasmaChave = '', fantasmaSprite: Sprite | null = null, fantasmaTextura: Texture | null = null;
   const novaSemente = () => { semente = Math.floor(Math.random() * 2 ** 30); };
-  const sementeAtual = (): number => ponte.pincel().objeto.semente ?? semente;
-
   /** Com o dado ligado, a próxima variante da família já vai para o pincel (o fantasma a mostra). */
   const sortearProximaVariante = () => {
     const o = ponte.pincel().objeto; if (!o.varianteAleatoria || !o.familia) return;
     const fam = ACERVO.familia(o.familia); if (!fam) return;
     ponte.definirPincel({ objeto: { ...o, item: sortearVariante(fam, o.item, Math.random), semente: o.semente } });
   };
+  const sementeAtual = (): number => ponte.pincel().objeto.semente ?? semente;
+
   function limparFantasmaSprite(): void {
     fantasmaC.getChildByLabel('fantasma-objeto')?.destroy({ children: true });
     fantasmaSprite = null; fantasmaTextura?.destroy(true); fantasmaTextura = null; fantasmaChave = '';
@@ -600,7 +602,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   /** No Pixel a posição do mundo cai na grade de pixels do dispositivo, para os pixels do Pixel não tremerem nem ficarem de tamanhos diferentes. */
   const naGrade = (v: number): number => (pixelAtivo ? Math.round(v * app.renderer.resolution) / app.renderer.resolution : v);
   const posicaoDoMundo = (): void => { mundo.position.set(naGrade(camera.x + tremorAtual[0]), naGrade(camera.y + tremorAtual[1])); };
-  function aplicarCamera(): void { posicaoDoMundo(); mundo.scale.set(camera.zoom); camadaSuja = true; ponte.aoCamera?.(camera); }
+  function aplicarCamera(): void { posicaoDoMundo(); mundo.scale.set(camera.zoom); camadaSuja = true; gradeSuja = true; ponte.aoCamera?.(camera); }
   /** No Pixel o zoom é múltiplo inteiro de pixels do dispositivo por pixel do Pixel; `zoomPedido` guarda o zoom contínuo (senão a roda travaria em passos pequenos). */
   function encaixarNoPixel(c: Camera): Camera {
     if (!pixelAtivo) return c;
@@ -641,7 +643,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     ultimoAndar = andarAtual();
     ultimoConstruir = ctxAndar().construir;
     pararTransicao(); vistoDoDoc = estadoDoDoc(m);
-    desenharBase(m); desenharGrade(); desenharRelevo(); desenharSelecao(); desenharLaco(); desenharFantasma(); aplicarEstilo();
+    desenharBase(m); desenharGrade(); gradeSuja = false; desenharRelevo(); desenharSelecao(); desenharLaco(); desenharFantasma(); aplicarEstilo();
     cena.sincronizar(m, null, false, visaoDoClima(m), ctxAndar());
   }
 
@@ -649,7 +651,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (destruido) return;
     if (e.mudancas.completo || ultimoAndar !== andarAtual()) { redesenharTudo(); if (e.tipo === 'substituir') enquadrarMapa(); return; }
     const mud = e.mudancas, mAndar = doc();
-    if (mud.campos.some(c => ['backdrop', 'bounds', 'grid'].includes(c)) || mud.campos.includes('levels')) desenharBase(mAndar);
+    if (mud.campos.some(c => ['backdrop', 'bounds', 'grid'].includes(c)) || mud.campos.includes('levels')) { desenharBase(mAndar); gradeSuja = true; }
     if (mud.campos.some(c => ['backdrop', 'bounds', 'grid', 'style'].includes(c))) aplicarEstilo();
     if (mud.campos.includes('climate') || mud.campos.includes('finish')) {
       // Só troca de clima (ou desfazer e refazer) anima; arrastar um controle fino do inspetor acompanha na hora.
@@ -915,7 +917,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         ponte.definirSelecao([hit]);
         const t = m.tokens[hit.id]; if (!t) return;
         const semGrade = !m.grid.snap || ponte.movimentoLivre?.() === true;
-        interacao = { tipo: 'peca', id: hit.id, de: [t.position[0], t.position[1]], para: [t.position[0], t.position[1]], motivo: null, livre: e.altKey, semGrade, gesto: null, x0: tx, y0: ty, moveu: false };
+        interacao = { tipo: 'peca', id: hit.id, de: [t.position[0], t.position[1]], para: [t.position[0], t.position[1]], offset: [t.position[0] - p[0], t.position[1] - p[1]], motivo: null, livre: e.altKey, semGrade, gesto: null, pendente: false, x0: tx, y0: ty, moveu: false };
         cursor(); return;
       }
       if (hit) {
@@ -940,6 +942,20 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (e.ctrlKey) return;
     interacao = e.altKey ? { tipo: 'laco', pontos: [p], modo: e.shiftKey ? 'somar' : 'trocar' } : { tipo: 'retangulo', ini: p, atual: p, modo: e.shiftKey ? 'somar' : 'trocar', x0: tx, y0: ty, moveu: false };
   });
+
+  /** Aplica o passo de arrasto de peça em modo livre, atualizando a posição da peça na hora. */
+  function aplicarArrastoDePeca(i: Extract<Interacao, { tipo: 'peca' }>): void {
+    if (!i.semGrade || !i.moveu || !i.pendente || !i.gesto) return;
+    i.pendente = false;
+    const m = doc(), atual = m.tokens[i.id]?.position ?? i.de;
+    const motivo = i.livre ? null : bloqueioNoCaminho(m, atual, i.para);
+    i.motivo = motivo;
+    if (!motivo && Math.hypot(i.para[0] - atual[0], i.para[1] - atual[1]) > 1e-6) {
+      try { i.gesto.aplicar({ tipo: 'peca.mover', id: i.id, para: i.para, livre: i.livre, semGrade: true, emArrasto: true }); } catch { /* bloqueado */ }
+    }
+  }
+
+  let rafArrastoPeca = 0;
 
   canvas.addEventListener('pointermove', e => {
     ponteiro = mundoDe(e); altPressionado = e.altKey;
@@ -972,17 +988,26 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       const semGrade = !m.grid.snap || ponte.movimentoLivre?.() === true;
       i.semGrade = semGrade;
       i.livre = !m.grid.snap || e.altKey;
-      const alvoPos: Ponto = semGrade || i.livre
-        ? [Math.max(0, Math.min(m.bounds.width, ponteiro[0])), Math.max(0, Math.min(m.bounds.height, ponteiro[1]))]
-        : centroDaCelula(m, ponteiro);
+      const alvoPos: Ponto = semGrade
+        ? [Math.max(0, Math.min(m.bounds.width, ponteiro[0] + i.offset[0])), Math.max(0, Math.min(m.bounds.height, ponteiro[1] + i.offset[1]))]
+        : i.livre
+          ? [Math.max(0, Math.min(m.bounds.width, ponteiro[0])), Math.max(0, Math.min(m.bounds.height, ponteiro[1]))]
+          : centroDaCelula(m, ponteiro);
       i.para = alvoPos;
       if (semGrade && i.moveu) {
         if (!i.gesto) i.gesto = store.iniciarGesto('Mover peça');
         const atual = m.tokens[i.id]?.position ?? i.de;
-        const motivo = i.livre ? null : bloqueioNoCaminho(m, atual, alvoPos);
-        i.motivo = motivo;
-        if (!motivo && Math.hypot(alvoPos[0] - atual[0], alvoPos[1] - atual[1]) > 1e-6) {
-          try { i.gesto.aplicar({ tipo: 'peca.mover', id: i.id, para: alvoPos, livre: i.livre, semGrade: true }); } catch { /* bloqueado */ }
+        i.motivo = i.livre ? null : bloqueioNoCaminho(m, atual, alvoPos);
+        i.pendente = true;
+        if (!rafArrastoPeca) {
+          if (typeof requestAnimationFrame === 'function') {
+            rafArrastoPeca = requestAnimationFrame(() => {
+              rafArrastoPeca = 0;
+              if (interacao?.tipo === 'peca') aplicarArrastoDePeca(interacao);
+            });
+          } else {
+            aplicarArrastoDePeca(i);
+          }
         }
       } else {
         i.motivo = i.livre ? null : bloqueioNoCaminho(m, i.de, i.para);
@@ -1075,6 +1100,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
             const atual = doc().tokens[i.id]?.position ?? i.de;
             if (Math.hypot(i.para[0] - atual[0], i.para[1] - atual[1]) > 1e-6) {
               try { i.gesto.aplicar({ tipo: 'peca.mover', id: i.id, para: i.para, livre: i.livre, semGrade: i.semGrade }); } catch { /* ignora */ }
+            } else if (doc().tokens[i.id]?.player) {
+              try { i.gesto.aplicar({ tipo: 'sessao.explorar' }); } catch { /* ignora */ }
             }
           }
           i.gesto.concluir();
@@ -1150,6 +1177,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   // ---------- Laço do desenho ----------
   const aoQuadro = () => {
+    if (interacao?.tipo === 'peca') aplicarArrastoDePeca(interacao);
     if (camAnim) {
       const k = Math.min(1, (performance.now() - camAnim.t0) / 700), e = 1 - (1 - k) ** 3, { de, para } = camAnim;
       definirCamera({ x: de.x + (para.x - de.x) * e, y: de.y + (para.y - de.y) * e, zoom: de.zoom * (para.zoom / de.zoom) ** e });
@@ -1168,10 +1196,11 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (interacao?.tipo === 'comodo-poligono' && ponte.ferramenta() !== 'comodo') { interacao = null; camadaSuja = true; }
     if (!camadaSuja) return;
     camadaSuja = false;
-    desenharGrade(); desenharRelevo(); desenharSelecao(); desenharLaco(); desenharFantasma(); cursor();
+    if (gradeSuja) { desenharGrade(); gradeSuja = false; }
+    desenharRelevo(); desenharSelecao(); desenharLaco(); desenharFantasma(); cursor();
   };
   app.ticker.add(aoQuadro);
-  const observador = new ResizeObserver(() => { camadaSuja = true; });
+  const observador = new ResizeObserver(() => { camadaSuja = true; gradeSuja = true; });
   observador.observe(host);
 
   cena.definirModoProjetor(somenteLeitura);
@@ -1221,6 +1250,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     diagnosticoDosTelhados: () => cena.diagnosticoDosTelhados(),
     atualizarSobreposicoes: () => {
       if (ultimoAndar !== andarAtual() || ultimoConstruir !== ctxAndar().construir) { redesenharTudo(); return; }
+      if (Boolean(ponte.alinhandoGrade?.()) !== ultimoAlinhandoGrade) gradeSuja = true;
       camadaSuja = true; cena.definirVista(ponte.vista?.() ?? 'construir'); aplicarAcabamento();
     },
     relampagoAgora: () => cena.relampagoAgora(),
@@ -1243,7 +1273,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     simularPintando: (n: number | null) => { pintandoSimulado = n; },
     capturar,
     destruir() {
-      destruido = true; cancelarAssinatura(); observador.disconnect();
+      destruido = true; if (rafArrastoPeca) { cancelAnimationFrame(rafArrastoPeca); rafArrastoPeca = 0; } cancelarAssinatura(); observador.disconnect();
       window.removeEventListener('keydown', aoTeclar, true); window.removeEventListener('keyup', aoSoltar);
       app.ticker.remove(aoQuadro); limparFantasmaSprite(); fantasmaDaProposta.destruir(); linhasDeNivel.destruir(); retratos.limpar(); cena.destruir(); baker.encerrar(); pixelizacao.destruir(); app.destroy(true, { children: true });
     },

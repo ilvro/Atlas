@@ -484,19 +484,16 @@ test('publicador: arrastar peça em movimento livre (gesto) envia câmera e esta
 
     // Simula arrasto contínuo em freeform (com gesto ativo)
     const gesto = sess.store.iniciarGesto('Mover peça');
-    gesto.aplicar({ tipo: 'peca.mover', id: 'heroi', para: [10.3, 6.8], semGrade: true });
-    await esperar(50);
+    gesto.aplicar({ tipo: 'peca.mover', id: 'heroi', para: [10.3, 6.8], semGrade: true, emArrasto: true });
+    await esperar(30);
 
-    // Ainda antes de concluir o gesto, o projetor já recebeu câmera imediata e estado com emGesto: true
-    const camDurante = msgs.filter((m): m is Extract<MensagemDoMestre, { tipo: 'camera' }> => m.tipo === 'camera').at(-1);
-    assert.ok(camDurante, 'enviou câmera durante o arrasto do gesto');
-    assert.equal(camDurante!.imediata, true, 'câmera durante o arrasto é imediata');
-    assert.ok(Math.abs((camDurante!.caixa.x0 + camDurante!.caixa.x1) / 2 - 10.3) < 0.01);
-
-    const estadoDurante = msgs.filter((m): m is Extract<MensagemDoMestre, { tipo: 'estado' }> => m.tipo === 'estado').at(-1);
-    assert.ok(estadoDurante, 'enviou estado durante o arrasto');
-    assert.equal(estadoDurante!.emGesto, true);
-    assert.deepEqual(estadoDurante!.doc.tokens.heroi!.position, [10.3, 6.8]);
+    // Ainda antes de concluir o gesto, o projetor já recebeu peca-gesto leve com posição e câmera em tempo real
+    const msgGesto = msgs.filter((m): m is Extract<MensagemDoMestre, { tipo: 'peca-gesto' }> => m.tipo === 'peca-gesto').at(-1);
+    assert.ok(msgGesto, 'enviou mensagem leve peca-gesto durante o arrasto');
+    assert.deepEqual(msgGesto!.position, [10.3, 6.8]);
+    assert.ok(msgGesto!.caixa, 'incluiu a câmera da peça seguida');
+    assert.equal(msgGesto!.seguir, true);
+    assert.ok(Math.abs((msgGesto!.caixa!.x0 + msgGesto!.caixa!.x1) / 2 - 10.3) < 0.01);
 
     gesto.concluir();
     assert.equal(sess.store.historico.length, 2, 'adicionar + 1 entrada para o arrasto todo');

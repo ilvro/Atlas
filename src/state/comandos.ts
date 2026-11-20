@@ -63,8 +63,8 @@ export type Comando =
   /** Uma sugestão do assistente aceita: vários comandos como UMA entrada de histórico. Não aninha. */
   | { tipo: 'proposta.aceitar'; rotulo: string; comandos: Comando[] }
   | { tipo: 'selecao.mover'; alvos: AlvoMovel[]; delta: Ponto }
-  /** Anda com uma peça: encaixa no centro da célula (a menos que `semGrade`) e recusa atravessar parede ou porta fechada (a menos que `livre`). */
-  | { tipo: 'peca.mover'; id: string; para: Ponto; livre?: boolean; semGrade?: boolean }
+  /** Anda com uma peça: encaixa no centro da célula (a menos que `semGrade`) e recusa atravessar parede ou porta fechada (a menos que `livre`). `emArrasto` pula a atualização da memória explorada nos quadros intermediários. */
+  | { tipo: 'peca.mover'; id: string; para: Ponto; livre?: boolean; semGrade?: boolean; emArrasto?: boolean }
   /** Gira o cone da lanterna da peça para `direcao` (rad), sem mover a peça. */
   | { tipo: 'peca.virar'; id: string; direcao: number }
   /** Transfere uma peça para outro andar (por uma escada) e, opcionalmente, para uma nova posição. */
@@ -231,7 +231,7 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       if (!c.livre) { const motivo = bloqueioNoCaminho(antesNivel, de, destino); if (motivo) nao(motivo); }
       // O que a peça de jogador via de onde estava também fica explorado (antes de ela sair do lugar).
       const res = antesNivel.session.explored?.res ?? RES_NEVOA;
-      const viam = t.player ? celulasVisiveis(antesNivel, res) : [];
+      const viam = t.player && !c.emArrasto ? celulasVisiveis(antesNivel, res) : [];
       t.position = destino; t.facing = ladoDoMovimento(de, destino);
       // A lanterna vai junto e aponta para onde a peça andou.
       const luz = t.lightId ? m.lights[t.lightId] : undefined;
@@ -240,7 +240,7 @@ function aplicar(m: MapaAtlas, c: Comando): void {
         if (luz.cone) luz.cone.direction = anguloDoMovimento(de, destino);
         if (nivel !== null) luz.levelId = nivel; else delete luz.levelId;
       }
-      if (t.player) {
+      if (t.player && !c.emArrasto) {
         const exp = exploradoAgora(mapaDoAndar(m as unknown as MapaAtlas, nivel, true), viam);
         if (nivel === null) m.session.explored = exp;
         else { m.session.exploredLevels ??= {}; m.session.exploredLevels[nivel] = exp; }
@@ -436,14 +436,16 @@ function aplicar(m: MapaAtlas, c: Comando): void {
 
 /**
  * Aplicação pura e atômica: devolve o documento novo (congelado, compartilhando o que não mudou) ou lança,
- * deixando o recebido intacto. O resultado inteiro é validado antes de ser aceito.
+ * deixando o recebido intacto. O resultado inteiro é validado antes de ser aceito (ou ao concluir um gesto contínuo).
  */
 export function aplicarComando(mapa: MapaAtlas, comando: Comando): MapaAtlas {
   const proximo = produzir(mapa, rascunho => aplicar(rascunho, comando));
   if (proximo === mapa) return mapa;
-  try { validarMapa(proximo); } catch (erro) {
-    if (erro instanceof ErroDeValidacao) throw new ErroDeComando(`O comando deixaria o mapa inválido — ${erro.message}`);
-    throw erro;
+  if (!(comando.tipo === 'peca.mover' && comando.emArrasto === true)) {
+    try { validarMapa(proximo); } catch (erro) {
+      if (erro instanceof ErroDeValidacao) throw new ErroDeComando(`O comando deixaria o mapa inválido — ${erro.message}`);
+      throw erro;
+    }
   }
   return proximo;
 }
