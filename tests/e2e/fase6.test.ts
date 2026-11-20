@@ -21,6 +21,8 @@ test('coleção no mapa: escolher o chesterfield na biblioteca, pôr no mapa, ve
   await criarMapaPelaInterface(page);
   await ferramenta(page, 'comodo'); await retangulo(page, [6.75, 6.75], [14.25, 12.75]);
   await ferramenta(page, 'objeto'); await page.locator('[data-testid="biblioteca"]').waitFor();
+  await page.locator('[data-testid="busca-objeto"]').fill('chesterfield');
+  await page.locator('[data-testid="familia-sofa-chesterfield"]').click();
   const cartao = page.locator('[data-testid="receita-casa:chesterfield-vinho"]'); await cartao.waitFor();
   assert.match(await cartao.innerText(), /acervo/i, 'a marca “acervo”');
   await cartao.click(); await clicar(page, [10.5, 9.75]); await page.waitForTimeout(600);

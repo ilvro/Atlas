@@ -1,5 +1,4 @@
 import { Pistas } from './Pistas.tsx';
-import { useEffect, useRef } from 'preact/hooks';
 import { signal, useSignal } from '@preact/signals';
 import { modo } from '../app/modo.ts';
 import { tocar } from '../fx/som.ts';
@@ -7,21 +6,14 @@ import { TIPOS_DE_COMODO, PRESETS_DE_LUZ, PACOTES_DE_PRESENCA, PINCEIS_DE_PRESEN
 import type { FormaDeDesenhoDeComodo, Pincel } from '../render/pincel.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { materialDe } from '../procedural/materiais.ts';
-import { ACERVO, type ItemDoAcervo } from '../procedural/acervo.ts';
-import { CATEGORIAS } from '../procedural/receitas/index.ts';
+import { ACERVO } from '../procedural/acervo.ts';
 import { filtrar } from '../app/busca.ts';
 import { GRUPOS_DE_TERRENO } from '../procedural/grupos-de-terreno.ts';
 import { CampoCaixa, CampoCor, CampoNumero } from './campos.tsx';
 import { TODOS_OS_CONJUNTOS } from '../authoring/espalhar.ts';
 import { Amostra, CampoMaterial } from './campos-material.tsx';
 import { Icone } from './Icone.tsx';
-import { desenharPrevia, pedirPrevia } from './previa.ts';
-
-function MiniReceita({ id }: { id: string }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => { let vivo = true; void pedirPrevia(id).then(r => { if (vivo && ref.current) desenharPrevia(ref.current, r); }).catch(() => { /* a miniatura é só um enfeite */ }); return () => { vivo = false; }; }, [id]);
-  return <canvas ref={ref} width={72} height={72} class="mini-receita" aria-hidden="true" />;
-}
+import { CatalogoDeFamilias, FamiliaNaMao } from './FamiliaNoPincel.tsx';
 
 function mudar(s: SessaoDeEdicao, patch: Partial<Pincel>): void { s.pincel.value = { ...s.pincel.value, ...patch }; tocar('selecionar'); }
 
@@ -64,19 +56,10 @@ function Comodos({ s }: { s: SessaoDeEdicao }) {
 }
 
 function Objetos({ s }: { s: SessaoDeEdicao }) {
-  const consulta = useSignal(''), categoria = useSignal<string | null>(null), atual = s.pincel.value.objeto, receita = ACERVO.item(atual.item);
-  const lista = filtrar(ACERVO.lista().filter(r => !categoria.value || r.categoria === categoria.value), consulta.value, r => `${r.nome} ${r.tags.join(' ')} ${r.funcoes.join(' ')} ${r.categoria}`);
-  const escolher = (r: ItemDoAcervo) => { s.ferramenta.value = 'objeto'; s.pincel.value = { ...s.pincel.value, objeto: { item: r.id, params: {}, semente: null, rotacao: s.pincel.value.objeto.rotacao, familia: ACERVO.familiaDoItem(r.id)?.id ?? null, varianteAleatoria: s.pincel.value.objeto.varianteAleatoria } }; tocar('selecionar'); };
+  const atual = s.pincel.value.objeto, receita = ACERVO.item(atual.item);
   return (<>
-    <input class="busca" type="search" placeholder="Buscar: mesa, cama, livros…" aria-label="Buscar objeto" value={consulta.value} onInput={e => { consulta.value = (e.target as HTMLInputElement).value; }} data-testid="busca-objeto" />
-    <div class="chips">
-      <button type="button" class={`chip ${!categoria.value ? 'ativo' : ''}`} onClick={() => { categoria.value = null; }}>Todos</button>
-      {CATEGORIAS.map(([id, nome]) => <button type="button" key={id} class={`chip ${categoria.value === id ? 'ativo' : ''}`} onClick={() => { categoria.value = categoria.value === id ? null : id; }}>{nome}</button>)}
-    </div>
-    <div class="grade-receitas" data-testid="lista-receitas">
-      {lista.map(r => <button type="button" key={r.id} class={`receita ${atual.item === r.id ? 'ativa' : ''}`} onClick={() => escolher(r)} title={`${r.nome} · ${r.pegada[0]} × ${r.pegada[1]} m`} data-testid={`receita-${r.id}`}><MiniReceita id={r.id} /><span>{r.nome}</span>{r.fonte === 'colecao' && <i class="selo-acervo" title="Imagem da coleção da casa">acervo</i>}</button>)}
-      {!lista.length && <p class="dica">Nada com “{consulta.value}”.</p>}
-    </div>
+    <FamiliaNaMao s={s} />
+    <CatalogoDeFamilias s={s} />
     {receita && <div class="ajustes"><h4>{receita.nome}</h4>
       <p class="dica"><kbd>Q</kbd> <kbd>E</kbd> giram. <kbd>Ctrl</kbd>+clique num objeto copia o pincel. <kbd>Alt</kbd> põe fora da grade.</p>
       {receita.campos.map(c => c.tipo === 'numero'

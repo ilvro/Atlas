@@ -133,7 +133,7 @@ Testes: `sortearVariante` nunca repete o atual numa família de 2 ou mais; numa 
 Pronto quando: com `varianteAleatoria` ligado no código, pôr três árvores dá variantes diferentes, e o fantasma antecipa cada uma.
 Commit: `object brush remembers family and rolls a random variant`
 
-### O4 — Biblioteca de objetos por grupo e família  ⬜
+### O4 — Biblioteca de objetos por grupo e família  ✅
 Objetivo: a gaveta de Objetos navega por grupo → família → variante, como o carimbo do Inkarnate.
 Depende de: O3.
 Ler: `src/ui/Biblioteca.tsx` (função `Objetos` e `MiniReceita`); `src/ui/previa.ts`; as capturas do Inkarnate descritas na seção "Referência" acima.
