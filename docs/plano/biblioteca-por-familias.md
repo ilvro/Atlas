@@ -149,7 +149,7 @@ Testes: e2e opcional. Se existir `tests/e2e` cobrindo a biblioteca (`data-testid
 Pronto quando: achar "árvore" leva a uma família com ‹ 1/N ›, as setas e as miniaturas trocam a variante, e o dado sorteia a cada clique no mapa.
 Commit: `object library browses groups, families and variants`
 
-### O5 — Recentes e favoritos  ⬜
+### O5 — Recentes e favoritos  ✅
 Objetivo: abas "Recentes | Favoritos" na gaveta de Objetos.
 Depende de: O4.
 Ler: um uso de `localStorage` com `try/catch` já existente (`src/app/tema.ts`); `src/render/viewport.ts`, onde o objeto é posto (`ponte.aoColocar`).
@@ -163,7 +163,7 @@ Testes: `registrarRecente` (ordem, sem repetição, corte) e `alternarFavorito`.
 Pronto quando: os itens postos aparecem em Recentes depois de recarregar a página, e a estrela fixa a família em Favoritos.
 Commit: `object library has recents and favorites`
 
-### O6 — Objetos e luzes livres por padrão  ⬜
+### O6 — Objetos e luzes livres por padrão  ✅
 Objetivo: objetos e luzes são postos e arrastados fora da grade por padrão; `Alt` encaixa.
 Depende de: —.
 Ler: `src/render/viewport.ts`: `colocar` (`:766-800`), `desenharFantasma` (`:516-575`), o arrasto de seleção com `deltaEncaixado` (`:945-955`) e `encaixarObjetoDeParede`; `src/app/sessao.ts:20-60`; `src/domain/geometria.ts:375`.
