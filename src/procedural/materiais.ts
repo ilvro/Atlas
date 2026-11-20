@@ -161,8 +161,8 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('areia.molhada', 'Areia molhada', 'terreno', '#9c855a', '#5a4a2c', '#d8c690', 'molhada'),
   m('neve.pisada', 'Neve pisada', 'terreno', '#d3dae2', '#8693a3', '#f4f7fa', 'pisada'),
   m('terra.congelada', 'Terra congelada', 'terreno', '#5e564c', '#2e2923', '#dfe4ea', 'terra'),
-  m('chao.batido', 'Chão batido', 'terreno', '#6c4e34', '#3a281a', '#8e6e4c', 'batido', { franja: 1 }),
-  m('chao.de.mata', 'Chão de mata', 'terreno', '#34301f', '#1a180f', '#5c5a32', 'folhico', { franja: 1 }),
+  m('chao.batido', 'Chão batido', 'terreno', '#4c3e2f', '#2a2219', '#6a5a47', 'batido', { franja: 1 }),
+  m('chao.de.mata', 'Chão de mata', 'terreno', '#403a2b', '#1f1b14', '#5a5240', 'folhico', { franja: 1 }),
   m('piso.hangar', 'Concreto industrial', 'terreno', '#7d7c78', '#3a3936', '#a6a49f', 'placas', { lado: 3, ouro: '#c9a12a' }),
 ].map(([id, mat]) => [id as string, mat as Material])) as Record<string, Material>;
 
@@ -893,72 +893,135 @@ function seixo(x: number, y: number, G: number, chance: number, r0: number, dr: 
 }
 
 /**
- * Chão batido (clareira, acampamento, pátio de terra): liso, com manchas largas e suaves (umidade, cinza, pisoteio), grão fino e alguns
- * seixos; nada de calombo: o relevo é quase plano.
+ * Chama `f(cx, cy, i, j)` para os pontos sorteados (com chance `chance`) nas células de `G` m em volta de (x, y) e para no primeiro que
+ * devolver `true`. Cada traço tem de caber num raio de `G` em volta do próprio ponto.
+ */
+function sorteados(x: number, y: number, G: number, chance: number, seed: number, f: (cx: number, cy: number, i: number, j: number) => boolean | void): void {
+  const ci = Math.floor(x / G), cj = Math.floor(y / G);
+  for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+    const i = ci + di, j = cj + dj; if (hash2D(i, j, seed) > chance) continue;
+    if (f((i + hash2D(i, j, seed + 1)) * G, (j + hash2D(i, j, seed + 2)) * G, i, j)) return;
+  }
+}
+
+/** Onde (x, y) cai numa lente de meia-largura `W` e meio-comprimento `L` virada para `a`: < 1 dentro (0 no eixo), ≥ 1 fora. */
+function naLente(dx: number, dy: number, a: number, L: number, W: number): number {
+  const u = dx * Math.cos(a) + dy * Math.sin(a), t = u / L; if (t * t >= 1) return 2;
+  return Math.abs(-dx * Math.sin(a) + dy * Math.cos(a)) / (W * (1 - t * t));
+}
+
+/**
+ * Detritos de chão desenhados no tamanho em que se leem no mapa (o terreno sai a ~32 px/m: nada menor que 5 cm): folhas secas de 10 a 18 cm
+ * com borda escura e sombra curta, galhos com fio de luz, seixos com volume e sombra e tufos de capim. `dens` (0 a 1) escala cada um.
+ */
+function detritos(o: number[], x: number, y: number, seed: number, px: number, tmp: number[], dens: { folhas: number; galhos: number; seixos: number; capim: number; samambaia?: number }, folhas: readonly Cor3[], capim: Cor3): void {
+  const sombra = (k: number) => escurecer(o, k);
+  // Seixos: pedrinhas de 7 a 16 cm, claras no noroeste, com sombra para o sudeste.
+  if (dens.seixos > 0) {
+    const p = seixo(x, y, 0.5, 0.12 * dens.seixos, 0.035, 0.045, seed + 31);
+    if (p.k > 0) { tomDe(tmp, p.tom < 0.5 ? [104, 98, 88] : [86, 80, 72], 0.72 + 0.45 * Math.max(-0.5, Math.min(0.8, p.luz)) + 0.15 * p.k); rumo(o, tmp, Math.min(1, p.k * 3)); return; }
+    if (seixo(x - 0.025, y - 0.03, 0.5, 0.12 * dens.seixos, 0.035, 0.045, seed + 31).k > 0) sombra(0.62);
+  }
+  // Galhos: traços de 30 a 90 cm, um pouco tortos, com o lado da luz mais claro.
+  if (dens.galhos > 0) {
+    let feito = false;
+    sorteados(x, y, 1.2, 0.3 * dens.galhos, seed + 501, (cx, cy, i, j) => {
+      const a = hash2D(i, j, seed + 504) * Math.PI, L = 0.15 + 0.3 * hash2D(i, j, seed + 505), W = 0.016 + px * 0.45;
+      const dx = x - cx, dy = y - cy, u = dx * Math.cos(a) + dy * Math.sin(a); if (Math.abs(u) > L) return;
+      const v = -dx * Math.sin(a) + dy * Math.cos(a) - Math.sin(u * 7 + i) * 0.03, w = W * (1 - 0.5 * Math.abs(u / L));
+      if (Math.abs(v) < w) { tomDe(tmp, [74, 56, 40], v < 0 ? 1.15 : 0.7); rumo(o, tmp, 0.95); feito = true; return true; }
+      if (v > w && v < w + 0.035) sombra(0.75);
+    });
+    if (feito) return;
+  }
+  // Folhas secas: duas camadas, a de cima mais clara; cada folha com borda escura e sombra curta para o sudeste.
+  for (let c = 0; c < 2 && dens.folhas > 0; c++) {
+    const s = seed + c * 97;
+    sorteados(x, y, 0.24 + c * 0.05, (0.35 + c * 0.1) * dens.folhas, s, (cx, cy, i, j) => {
+      const a = hash2D(i, j, s + 3) * Math.PI, L = 0.05 + 0.04 * hash2D(i, j, s + 4), W = L * (0.36 + 0.16 * hash2D(i, j, s + 7)) + px * 0.4;
+      const e = naLente(x - cx, y - cy, a, L, W);
+      if (e < 1) { tomDe(tmp, folhas[Math.floor(hash2D(i, j, s + 5) * folhas.length)]!, (e > 0.72 ? 0.62 : 0.9 + c * 0.12) * (0.92 + 0.16 * hash2D(i, j, s + 8))); rumo(o, tmp, 0.95); return true; }
+      if (naLente(x - cx - 0.018, y - cy - 0.022, a, L, W) < 1) sombra(0.78);
+    });
+  }
+  // Samambaias: 6 a 8 frondes de 35 a 65 cm, com folíolos (a borda ondula a cada 10 cm), nervura escura e o lado da luz mais claro.
+  const fern = dens.samambaia ?? 0;
+  if (fern > 0) {
+    let feito = false;
+    sorteados(x, y, 1.5, 0.3 * fern, seed + 601, (cx, cy, i, j) => {
+      const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy), R = 0.35 + 0.3 * hash2D(i, j, seed + 604); if (d > R) return;
+      const n = 6 + Math.floor(hash2D(i, j, seed + 603) * 3), giro = hash2D(i, j, seed + 605) * Math.PI * 2, k = Math.round(((Math.atan2(dy, dx) - giro) / (Math.PI * 2)) * n), id = i * 7 + j;
+      const af = giro + (k / n) * Math.PI * 2 + (hash2D(k, id, seed + 606) - 0.5) * 0.4, Lf = R * (0.7 + 0.3 * hash2D(k, id, seed + 607));
+      const u = dx * Math.cos(af) + dy * Math.sin(af), v = -dx * Math.sin(af) + dy * Math.cos(af); if (u < 0 || u > Lf) return;
+      const t = u / Lf, larg = 0.11 * (1 - t) * (0.55 + 0.45 * Math.abs(Math.sin((u * Math.PI) / 0.1))) + px * 0.4;
+      if (Math.abs(v) < larg) { tomDe(tmp, [64, 90, 44], Math.abs(v) < 0.01 + px * 0.3 ? 0.6 : 0.8 + 0.4 * t + (v * (Math.sin(af) - Math.cos(af)) > 0 ? 0.12 : -0.06)); rumo(o, tmp, 0.95); feito = true; return true; }
+      if (Math.abs(v) < larg + 0.035) sombra(0.72);
+    });
+    if (feito) return;
+  }
+  // Capim: tufos de 50 cm a 1 m, lâminas saindo do centro, escuras na base e claras na ponta.
+  if (dens.capim > 0) sorteados(x, y, 1.1, 0.2 * dens.capim, seed + 401, (cx, cy, i, j) => {
+    const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy), R = 0.25 + 0.25 * hash2D(i, j, seed + 404);
+    if (d > R) return;
+    if (d < R * 0.35) sombra(0.82);
+    const n = 16, giro = hash2D(i, j, seed + 405) * 10, a = Math.atan2(dy, dx), setor = Math.round((a / (Math.PI * 2)) * n + giro), aa = ((setor - giro) / n) * Math.PI * 2;
+    const comp = R * (0.6 + 0.4 * hash2D(setor, i * 31 + j, seed + 408)); if (d > comp) return;
+    const lateral = Math.abs(Math.sin(a - aa)) * d, w = 0.026 * (1 - d / comp) + px * 0.45;
+    if (lateral < w && hash2D(setor, i * 31 + j, seed + 406) < 0.9) { tomDe(tmp, capim, 0.5 + 0.8 * (d / comp) + 0.2 * hash2D(setor, j, seed + 407)); rumo(o, tmp, 0.92); return true; }
+  });
+}
+
+/** Grão do chão: pintas de 4 a 8 cm (o "pincel" de terra), que aparecem no mapa como textura e não como ruído de pixel. */
+const grao = (rn: (x: number, y: number) => number, x: number, y: number): number => 0.6 * rn(x / 0.05, y / 0.05) + 0.4 * rn(x / 0.11 + 70, y / 0.11);
+
+/**
+ * Chão batido (clareira, acampamento, pátio de terra): terra pardo-acinzentada (o calor vem da luz, não do chão), com manchas largas de
+ * umidade e cinza, grão de 4 a 8 cm, riscos claros de pisoteio, manchas de musgo, seixos e poucas folhas e galhos.
  */
 function pintarChaoBatido(ctx: Contexto, mat: Material, A: Area, seed: number, px: number): void {
-  const rn = valueNoise2D(seed * 29 + 3), E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), cinza: Cor3 = [C[0] * 0.82, C[1] * 0.8, C[2] * 0.78];
+  const rn = valueNoise2D(seed * 29 + 3), rg = valueNoise2D(seed * 29 + 8), E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), cinza: Cor3 = [C[0] * 0.86, C[1] * 0.86, C[2] * 0.86], tmp = [0, 0, 0];
+  const folhas: Cor3[] = [[78, 62, 42], [66, 54, 38], [88, 76, 52], [60, 58, 40]], musgo: Cor3 = [60, 64, 40], capim: Cor3 = [74, 80, 48];
   const R = areaDeAmostragem(ctx, A);
-  const cLargo = campoDeRuido(rn, R, 0.28, 3);
-  const cCinza = campoDeRuido(rn, R, 0.6, 2, undefined, 7, 3);
+  const cLargo = campoDeRuido(rn, R, 0.28, 3), cCinza = campoDeRuido(rn, R, 0.6, 2, undefined, 7, 3), cMusgo = campoDeRuido(rn, R, 0.42, 3, undefined, 61, 17);
+  const cPo = campoDeRuido(rn, R, 0.75, 3, undefined, 140, 90), cPisado = campoDeRuido(rn, R, 0.55, 3, undefined, 210, 33), cFolhico = campoDeRuido(rn, R, 0.38, 3, undefined, 33, 270);
+  const po: Cor3 = [C[0] * 1.08, C[1] * 1.06, C[2] * 1.02], ruivo: Cor3 = [86, 60, 42];
   porPixel(ctx, A, (x, y, o) => {
-    const largo = cLargo(x, y), medio = fbm(rn, x * 1.4 + 40, y * 1.4, 3), fino = hash2D(Math.floor(x / px), Math.floor(y / px), seed + 9);
-    mez(o, E, B, 0.35 + 0.6 * largo);
-    rumo(o, C, passo(0.55, 0.85, medio) * 0.35);
+    const largo = cLargo(x, y), medio = fbm(rn, x * 1.4 + 40, y * 1.4, 3), m = passo(0.58, 0.82, cMusgo(x, y)), f = passo(0.55, 0.8, cFolhico(x, y));
+    mez(o, E, B, 0.3 + 0.65 * largo);
+    rumo(o, C, passo(0.55, 0.85, medio) * 0.3);
     rumo(o, cinza, passo(0.62, 0.9, cCinza(x, y)) * 0.25);
-    escurecer(o, 0.94 + fino * 0.1 - passo(0.6, 0.9, fbm(rn, x * 3.2 + 13, y * 3.2, 2)) * 0.12);
-    const p = seixo(x, y, 0.4, 0.07, 0.014, 0.022, seed + 31);
-    if (p.k > 0) { mez(o, [o[0]!, o[1]!, o[2]!], p.tom < 0.5 ? C : cinza, 0.55 * Math.min(1, p.k * 2)); escurecer(o, 0.95 + 0.15 * Math.max(-0.5, Math.min(0.6, p.luz))); }
+    // Poeira clara e seca, manchas pisadas e escuras e manchas de folhiço avermelhado: a clareira não é uma cor só.
+    rumo(o, po, passo(0.6, 0.85, cPo(x, y)) * 0.4);
+    escurecer(o, 1 - passo(0.62, 0.88, cPisado(x, y)) * 0.25);
+    rumo(o, ruivo, f * 0.3);
+    rumo(o, musgo, m * 0.45);
+    escurecer(o, 0.84 + grao(rg, x, y) * 0.3);
+    // Pintas escuras (torrões, carvão) de 4 a 7 cm.
+    sorteados(x, y, 0.22, 0.3, seed + 241, (cx, cy, i, j) => { const rr = 0.02 + 0.015 * hash2D(i, j, seed + 242); if (Math.hypot(x - cx, y - cy) < rr) { escurecer(o, 0.62); return true; } });
+    // Riscos de pisoteio: traços claros e curtos em todas as direções.
+    sorteados(x, y, 0.32, 0.4, seed + 211, (cx, cy, i, j) => { if (naLente(x - cx, y - cy, hash2D(i, j, seed + 212) * Math.PI, 0.07 + 0.08 * hash2D(i, j, seed + 213), 0.008 + px * 0.5) < 1) { rumo(o, C, 0.4); return true; } });
+    detritos(o, x, y, seed, px, tmp, { folhas: 0.12 + m * 0.4 + f * 0.6, galhos: 0.5, seixos: 1, capim: passo(0.6, 1, m) * 0.5 }, folhas, capim);
   });
 }
 
 /**
- * Chão de mata: terra escura coberta de folhiço (folhas secas e agulhas em todas as direções, em ocre, castanho e oliva), manchas de musgo
- * e capim, tufos de capim mais altos e galhinhos. É o chão sob as copas e entre elas.
+ * Chão de mata: terra escura e fria coberta de folhiço (folhas secas em ocre, castanho e oliva, legíveis no mapa), manchas de musgo,
+ * tufos de capim, galhos e seixos. É o chão sob as copas e entre elas.
  */
 function pintarChaoDeMata(ctx: Contexto, mat: Material, A: Area, seed: number, px: number): void {
-  const rn = valueNoise2D(seed * 37 + 11), E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro);
-  const folhas: Cor3[] = [[92, 70, 40], [110, 88, 52], [74, 58, 36], [84, 82, 46], [62, 50, 32], [120, 98, 60]], musgo: Cor3 = [58, 72, 36], capim: Cor3 = [70, 86, 44], tmp = [0, 0, 0];
+  const rn = valueNoise2D(seed * 37 + 11), rg = valueNoise2D(seed * 37 + 19), E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), tmp = [0, 0, 0];
+  const folhas: Cor3[] = [[84, 72, 52], [96, 84, 60], [70, 62, 46], [80, 78, 54], [62, 56, 44], [104, 92, 66]], musgo: Cor3 = [54, 66, 38], capim: Cor3 = [84, 92, 56];
   const R = areaDeAmostragem(ctx, A);
-  const cUmido = campoDeRuido(rn, R, 0.35, 3);
-  const cVerde = campoDeRuido(rn, R, 0.5, 3, undefined, 50, 0);
+  const cUmido = campoDeRuido(rn, R, 0.35, 3), cVerde = campoDeRuido(rn, R, 0.5, 3, undefined, 50, 0), cRuivo = campoDeRuido(rn, R, 0.3, 3, undefined, 120, 40);
+  const folhasRuivas: Cor3[] = [[100, 70, 48], [88, 62, 44], [110, 82, 56], [78, 58, 42]];
   porPixel(ctx, A, (x, y, o) => {
-    const umido = cUmido(x, y), verde = passo(0.45, 0.75, cVerde(x, y));
-    mez(o, E, B, 0.3 + 0.55 * umido);
-    rumo(o, musgo, verde * 0.55);
-    // Folhiço: três camadas de folhas e agulhas (elipses finas), a de cima mais clara.
-    for (let c = 0; c < 3; c++) {
-      const G = 0.085 + c * 0.02, ci = Math.floor(x / G), cj = Math.floor(y / G), s = seed + c * 97;
-      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
-        const i = ci + di, j = cj + dj; if (hash2D(i, j, s) > 0.62 - verde * 0.3) continue;
-        const cx = (i + hash2D(i, j, s + 1)) * G, cy = (j + hash2D(i, j, s + 2)) * G, a = hash2D(i, j, s + 3) * Math.PI, agulha = hash2D(i, j, s + 6) < 0.35;
-        const L = agulha ? 0.06 + 0.05 * hash2D(i, j, s + 4) : 0.035 + 0.03 * hash2D(i, j, s + 4), W = agulha ? 0.006 : 0.016 + 0.01 * hash2D(i, j, s + 7);
-        const dx = x - cx, dy = y - cy, u = dx * Math.cos(a) + dy * Math.sin(a), v = -dx * Math.sin(a) + dy * Math.cos(a);
-        const q = (u / L) ** 2 + (v / (W + px * 0.5)) ** 2; if (q > 1) continue;
-        const cor = folhas[Math.floor(hash2D(i, j, s + 5) * folhas.length)]!;
-        tomDe(tmp, cor, 0.72 + c * 0.14 + (v < 0 ? 0.08 : -0.08));
-        rumo(o, tmp, 0.85 * (1 - q * q));
-      }
-    }
-    // Tufos de capim: lâminas finas saindo de um centro, mais escuras na base.
-    const T = 0.55, ti = Math.floor(x / T), tj = Math.floor(y / T);
-    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
-      const i = ti + di, j = tj + dj; if (hash2D(i, j, seed + 401) > 0.18 + verde * 0.4) continue;
-      const cx = (i + hash2D(i, j, seed + 402)) * T, cy = (j + hash2D(i, j, seed + 403)) * T, dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy), R = 0.12 + 0.12 * hash2D(i, j, seed + 404);
-      if (d > R || d < 0.01) continue;
-      const n = 9, a = Math.atan2(dy, dx), setor = Math.round((a / (Math.PI * 2)) * n + hash2D(i, j, seed + 405) * 10), aa = ((setor - hash2D(i, j, seed + 405) * 10) / n) * Math.PI * 2;
-      const lateral = Math.abs(Math.sin(a - aa)) * d, w = 0.012 * (1 - d / R) + px * 0.4;
-      if (lateral < w && hash2D(setor, i * 31 + j, seed + 406) < 0.85) { tomDe(tmp, capim, 0.55 + 0.75 * (d / R) + 0.25 * hash2D(setor, j, seed + 407)); rumo(o, tmp, 0.9); }
-    }
-    // Galhinhos: traços escuros e finos.
-    const Gg = 1.1, gi = Math.floor(x / Gg), gj = Math.floor(y / Gg);
-    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
-      const i = gi + di, j = gj + dj; if (hash2D(i, j, seed + 501) > 0.3) continue;
-      const cx = (i + hash2D(i, j, seed + 502)) * Gg, cy = (j + hash2D(i, j, seed + 503)) * Gg, a = hash2D(i, j, seed + 504) * Math.PI, L = 0.12 + 0.2 * hash2D(i, j, seed + 505);
-      const dx = x - cx, dy = y - cy, u = dx * Math.cos(a) + dy * Math.sin(a), v = Math.abs(-dx * Math.sin(a) + dy * Math.cos(a) - Math.sin(u * 9) * 0.012);
-      if (Math.abs(u) < L && v < 0.007 + px * 0.4) { tomDe(tmp, [70, 52, 36], 0.75 + 0.3 * (u / L)); rumo(o, tmp, 0.9); }
-    }
-    escurecer(o, 0.92 + hash2D(Math.floor(x / px), Math.floor(y / px), seed + 3) * 0.12);
+    const verde = passo(0.45, 0.75, cVerde(x, y)), ruivo = passo(0.55, 0.8, cRuivo(x, y)), musgoso = verde * (0.75 + 0.5 * rn(x / 0.16 + 300, y / 0.16));
+    mez(o, E, B, 0.25 + 0.6 * cUmido(x, y));
+    rumo(o, C, passo(0.6, 0.85, fbm(rn, x * 1.2 + 9, y * 1.2, 3)) * 0.25);
+    rumo(o, [88, 60, 40], ruivo * 0.4);
+    rumo(o, musgo, Math.min(0.85, musgoso * 0.7));
+    escurecer(o, 0.82 + grao(rg, x, y) * 0.34);
+    detritos(o, x, y, seed, px, tmp, { folhas: 1 - verde * 0.5 + ruivo * 0.3, galhos: 0.8, seixos: 0.35, capim: 0.5 + verde * 0.8, samambaia: passo(0.25, 0.6, cVerde(x, y)) * 1.3 }, ruivo > 0.3 ? folhasRuivas : folhas, capim);
   });
 }
 
@@ -1206,8 +1269,8 @@ export const ALTURAS_DE_PADRAO: Partial<Record<Padrao, (ctx: Contexto, mat: Mate
   terra: (ctx, _m, a, s) => alturaPorPixel(ctx, a, (x, y) => PISO + seixo(x, y, 0.5, 0.25, 0.02, 0.04, s + 7).k * 0.05),
   lama: (ctx, _m, a) => plano(ctx, a),
   areia: (ctx, _m, a) => plano(ctx, a),
-  batido: (ctx, _m, a, s) => alturaPorPixel(ctx, a, (x, y) => PISO + seixo(x, y, 0.4, 0.07, 0.014, 0.022, s + 31).k * 0.025),
-  folhico: (ctx, _m, a, s) => { const rn = valueNoise2D(s * 37 + 11), cVerde = campoDeRuido(rn, areaDeAmostragem(ctx, a), 0.5, 3, undefined, 50, 0); alturaPorPixel(ctx, a, (x, y) => PISO + (hash2D(Math.floor(x / 0.09), Math.floor(y / 0.09), s) < 0.5 ? 0.015 : 0) + passo(0.45, 0.75, cVerde(x, y)) * 0.02); },
+  batido: (ctx, _m, a, s) => alturaPorPixel(ctx, a, (x, y) => PISO + seixo(x, y, 0.5, 0.096, 0.035, 0.045, s + 31).k * 0.04),
+  folhico: (ctx, _m, a, s) => alturaPorPixel(ctx, a, (x, y) => PISO + seixo(x, y, 0.5, 0.042, 0.035, 0.045, s + 31).k * 0.04),
 
   tabuas(ctx, mat, area, seed, px) {
     const A = areaDaCor(area), r = mulberry32(seed * 7919 + 13);
