@@ -73,16 +73,56 @@ export function oclusores(m: Pick<MapaAtlas, 'walls' | 'openings'>, para: 'luz' 
   return saida;
 }
 
+/** Parâmetro `t` em que o raio de `o` na direção (dx, dy) atinge o segmento (`Infinity` se não atinge). */
+function tNoSegmento(o: Ponto, dx: number, dy: number, s: Segmento): number {
+  const sx = s.b[0] - s.a[0], sy = s.b[1] - s.a[1], den = dx * sy - dy * sx;
+  if (Math.abs(den) < 1e-12) return Infinity;
+  const t = ((s.a[0] - o[0]) * sy - (s.a[1] - o[1]) * sx) / den, u = ((s.a[0] - o[0]) * dy - (s.a[1] - o[1]) * dx) / den;
+  return t > 1e-6 && u >= -1e-9 && u <= 1 + 1e-9 ? t : Infinity;
+}
+
 /** Distância até o primeiro segmento atingido pelo raio de `o` na direção (dx, dy). */
 function raio(o: Ponto, dx: number, dy: number, segs: readonly Segmento[]): number {
   let melhor = Infinity;
-  for (const s of segs) {
-    const sx = s.b[0] - s.a[0], sy = s.b[1] - s.a[1], den = dx * sy - dy * sx;
-    if (Math.abs(den) < 1e-12) continue;
-    const t = ((s.a[0] - o[0]) * sy - (s.a[1] - o[1]) * sx) / den, u = ((s.a[0] - o[0]) * dy - (s.a[1] - o[1]) * dx) / den;
-    if (t > 1e-6 && u >= -1e-9 && u <= 1 + 1e-9 && t < melhor) melhor = t;
-  }
+  for (const s of segs) { const t = tNoSegmento(o, dx, dy, s); if (t < melhor) melhor = t; }
   return melhor;
+}
+
+/** Com tantos segmentos ou mais, os raios andam por uma grade em vez de testar todos. */
+const SEGMENTOS_PARA_GRADE = 24;
+
+/** Grade quadrada centrada na fonte: cada célula lista os segmentos cuja caixa a toca. Só para raios limitados a `alcance`. */
+function criarGradeDeRaios(o: Ponto, segs: readonly Segmento[], alcance: number): (dx: number, dy: number) => number {
+  const n = 16, lado = (2 * alcance) / n, x0 = o[0] - alcance, y0 = o[1] - alcance;
+  const celulas: Segmento[][] = Array.from({ length: n * n }, () => []);
+  const idx = (v: number) => Math.max(0, Math.min(n - 1, Math.floor(v / lado)));
+  for (const s of segs) {
+    const i0 = idx(Math.min(s.a[0], s.b[0]) - x0), i1 = idx(Math.max(s.a[0], s.b[0]) - x0), j0 = idx(Math.min(s.a[1], s.b[1]) - y0), j1 = idx(Math.max(s.a[1], s.b[1]) - y0);
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) celulas[j * n + i]!.push(s);
+  }
+  return (dx, dy) => {
+    let ix = idx(o[0] - x0), iy = idx(o[1] - y0), melhor = Infinity;
+    const px = o[0] - x0, py = o[1] - y0, passoX = dx > 0 ? 1 : -1, passoY = dy > 0 ? 1 : -1;
+    const deltaX = dx === 0 ? Infinity : Math.abs(lado / dx), deltaY = dy === 0 ? Infinity : Math.abs(lado / dy);
+    let proxX = dx === 0 ? Infinity : ((dx > 0 ? (ix + 1) * lado - px : px - ix * lado) / Math.abs(dx));
+    let proxY = dy === 0 ? Infinity : ((dy > 0 ? (iy + 1) * lado - py : py - iy * lado) / Math.abs(dy));
+    for (;;) {
+      for (const s of celulas[iy * n + ix]!) { const t = tNoSegmento(o, dx, dy, s); if (t < melhor) melhor = t; }
+      const saida = Math.min(proxX, proxY);
+      // Uma folga na saída da célula: um acerto bem na quina também vive na vizinha.
+      if (melhor <= saida - 1e-7 || saida >= alcance) return melhor;
+      if (proxX < proxY) { ix += passoX; proxX += deltaX; } else { iy += passoY; proxY += deltaY; }
+      if (ix < 0 || ix >= n || iy < 0 || iy >= n) return melhor;
+    }
+  };
+}
+
+/** Quadrado da menor distância entre o ponto `o` e o segmento. */
+function distanciaAoSegmento2(o: Ponto, s: Segmento): number {
+  const sx = s.b[0] - s.a[0], sy = s.b[1] - s.a[1], c2 = sx * sx + sy * sy;
+  const u = c2 > 0 ? Math.max(0, Math.min(1, ((o[0] - s.a[0]) * sx + (o[1] - s.a[1]) * sy) / c2)) : 0;
+  const dx = s.a[0] + sx * u - o[0], dy = s.a[1] + sy * u - o[1];
+  return dx * dx + dy * dy;
 }
 
 /**
@@ -105,8 +145,11 @@ export function poligonoIluminado(o: Ponto, segs: readonly Segmento[], alcance: 
     lista = lista.map(d => d + cone.direction);
   } else lista.sort((a, b) => a - b);
   const pontos: number[] = cone ? [o[0], o[1]] : [];
+  // Um segmento cujo ponto mais próximo já passa do alcance só seria atingido além dele (o raio é limitado ao alcance): fora da conta.
+  const proximos = segs.filter(s => distanciaAoSegmento2(o, s) <= alcance * alcance);
+  const pelaGrade = proximos.length >= SEGMENTOS_PARA_GRADE ? criarGradeDeRaios(o, proximos, alcance) : null;
   for (const a of lista) {
-    const dx = Math.cos(a), dy = Math.sin(a), t = Math.min(alcance, raio(o, dx, dy, segs));
+    const dx = Math.cos(a), dy = Math.sin(a), t = Math.min(alcance, pelaGrade ? pelaGrade(dx, dy) : raio(o, dx, dy, proximos));
     pontos.push(o[0] + dx * t, o[1] + dy * t);
   }
   return pontos;
