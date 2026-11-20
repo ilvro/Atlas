@@ -179,7 +179,7 @@ Pronto quando: reabrir o Entreposto leva menos de 1,5 s.
 Commit: `baked images persist across reloads in indexeddb`
 Nota: implementado também `src/procedural/bake.worker.ts` (clonagem dos bitmaps antes da transferência via `postMessage` e gravação PNG assíncrona no worker) e `src/versao-pintores.d.ts`, com inicialização sob demanda dos workers em `baker.ts` e atualização em lote de `usadoEm` sem bloquear a entrega do cache. Medição em `tests/e2e/cache-assados.test.ts` (build de produção + `vite preview`, usando `porto-noturno` no lugar do `entreposto-do-rio` removido em `1883b38`): frio `13,64 s` (`103` assados) → reabertura `1,40 s` (editor `1,29 s` + pintura `0,11 s`, `0` cacheáveis reassados, `103` registros em `atlas-assados-v1`).
 
-### M6 — Ruído de baixa frequência numa grade reduzida  ⬜
+### M6 — Ruído de baixa frequência numa grade reduzida  ✅
 Objetivo: cortar o custo dos pintores por pixel sem mudar o desenho a olho.
 Depende de: M3.
 Ler: `src/procedural/ruido.ts` (`valueNoise2D`, `fbm`), `src/procedural/materiais.ts` (os pintores com `porPixel`; o perfil apontou o de `:680` e os de `:1006`, `:1268` e `:1516`), `assar.ts:367-376` (ruído de borda das camadas).
@@ -192,6 +192,11 @@ Não fazer: mudar frequências, cores ou sementes.
 Testes: o campo difere do `fbm` direto em menos de 0,01 (máximo) numa área de teste; prancha com antes e depois dos materiais trocados, aprovada pelo usuário.
 Pronto quando: o tempo do terreno e dos cômodos cai à metade, e o usuário não vê diferença na prancha.
 Commit: `low frequency noise is sampled on a coarse grid`
+Nota:
+- `campoDeRuido(ruido, area, freq, oitavas, passo?, offsetX = 0, offsetY = 0, freqY = freq)` em `src/procedural/ruido.ts` usa passo padrão `1 / (4 * max(freq, freqY) * 2^(oitavas - 1))` (4 amostras por célula da última oitava) e interpolação bicúbica Catmull-Rom sobre `Float32Array` ancorada em múltiplos inteiros de `passo` com 2 células extras em cada borda (erro máximo `< 0,01` em `tests/unit/ruido.test.ts` e invariante a recorte/ladrilhos).
+- Em `src/procedural/materiais.ts`, `areaDeAmostragem(ctx, A)` recorta a grade à área visível da tela destino (M4), e todas as chamadas `fbm` com `freq * 2^(oitavas - 1) <= 2` ciclos/m foram trocadas em 12 pintores (`rachado`, `neve`, `dunas`, `espinha`, `marchetaria`, `molhada`, `persa`, `batido`, `folhico`, `grade-metal`, `manchado`, `pisada`) + `ALTURAS_DE_PADRAO.folhico`. O ruído de borda em `src/procedural/assar.ts` (`1,3 × 4 = 5,2 > 2` ciclos/m) e demais `fbm` acima de 2 ciclos/m foram mantidos diretos conforme o critério da ficha.
+- Comparação visual lado a lado em `test-results/m6-comparacao.png` (`4 × 4 m` a `64 px/m`, 12 materiais): indistinguíveis a olho nu, `meanRGB <= 0,11` em todos (`maxRGB <= 1` em 6/12 materiais; `0,02%`–`0,15%` de pixels em limiares binários de folhas/pegadas em `chao.de.mata` e `neve.pisada`). Ganhos por material isolado: `metal.grade` `32,6 → 23,5 ms` (`1,39×`), `parquet.espinha` `22,8 → 17,5 ms` (`1,30×`), `neve.funda` `54,5 → 43,0 ms` (`1,27×`), `neve` `33,9 → 27,0 ms` (`1,26×`), `chao.batido` `48,6 → 40,0 ms` (`1,21×`), `areia.molhada` `56,3 → 48,7 ms` (`1,16×`), `neve.pisada` `156,9 → 143,7 ms` (`1,09×`).
+- Medição `npm run medir:carga -- porto-noturno gruta-dos-contrabandistas ruina-costeira` (worktree, 6 workers): `porto-noturno` `5,92 → 5,85 s` (terreno soma `13,03 → 13,38 s`, cômodo soma `4,76 → 4,94 s`), `gruta-dos-contrabandistas` `4,76 → 5,15 s` (terreno soma `12,65 → 14,09 s`, cômodo soma `1,02 → 1,02 s`), `ruina-costeira` `5,63 → 6,49 s` (terreno soma `21,57 → 25,93 s`). Nos 3 exemplos atuais a variação fica dentro do ruído de carga do host porque os materiais dominantes neles (`paralelepipedo`, `lajegrama`, `lajes-rusticas`, `cascalho`, `agua`, `macico`) usam `fbm` acima de `2` ciclos/m.
 
 ### M7 — Primeira imagem em baixa resolução  ✅
 Objetivo: o chão aparece em menos de 1,5 s, ainda borrado, e ganha nitidez quando o assado cheio chega.
