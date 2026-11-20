@@ -1,5 +1,6 @@
 import type { FonteObjeto } from '../domain/mapa.ts';
 import { COLECAO } from './colecao.ts';
+import { FAMILIAS, type Familia } from './familias.ts';
 import { listaDeReceitas, descreverReceita, pegadaDaReceita, type CampoDeReceita, type Categoria, type Receita } from './receitas/index.ts';
 
 /**
@@ -40,6 +41,11 @@ export interface Acervo {
   idDaFonte(f: FonteObjeto): string;
   /** A fonte para pôr um item no mapa. */
   fonte(id: string, seed: number, params?: Record<string, unknown>): FonteObjeto;
+  /** Todas as famílias (grupo → família → variantes), na ordem de `FAMILIAS`. */
+  familias(): readonly Familia[];
+  familia(id: string): Familia | undefined;
+  /** A família a que um item pertence. */
+  familiaDoItem(itemId: string): Familia | undefined;
 }
 
 const doReceita = (r: Receita): ItemDoAcervo => ({ id: r.id, fonte: 'receita', nome: r.nome, categoria: r.categoria, tipo: r.tipo, funcoes: r.funcoes, tags: r.tags, generos: r.generos ?? [], kit: r.kit ?? null, pegada: r.pegada, campos: r.campos ?? [], ...(r.submerso ? { submerso: true } : {}), ...(r.animacao ? { animacao: r.animacao } : {}) });
@@ -47,10 +53,15 @@ const daColecao = (c: ItemParaOAcervo): ItemDoAcervo => ({ id: c.id, fonte: 'col
 
 const ALTURA_MAXIMA = 12;
 
-export function criarAcervo(receitas: readonly Receita[], colecao: readonly ItemParaOAcervo[]): Acervo {
+export function criarAcervo(receitas: readonly Receita[], colecao: readonly ItemParaOAcervo[], familias: readonly Familia[] = FAMILIAS): Acervo {
   const itens = [...receitas.map(doReceita), ...colecao.map(daColecao)], porId = new Map(itens.map(i => [i.id, i]));
   const receitaPorId = new Map(receitas.map(r => [r.id, r]));
+  const familiaPorId = new Map(familias.map(f => [f.id, f])), familiaDoItem = new Map<string, Familia>();
+  for (const f of familias) for (const i of f.itens) familiaDoItem.set(i, f);
   return {
+    familias: () => familias,
+    familia: id => familiaPorId.get(id),
+    familiaDoItem: id => familiaDoItem.get(id),
     item: id => porId.get(id),
     lista: () => itens,
     pegadaDaFonte(f) {
