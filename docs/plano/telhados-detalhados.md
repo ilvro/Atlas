@@ -143,7 +143,7 @@ Pronto quando: a prancha reproduz o espírito da delegacia (telha com fios de mu
 Nota: `src/procedural/desgaste-de-telhado.ts` exporta `prepararDesgaste` e `aplicarDesgasteDeTelhado` (sem alocação por pixel), integrado em `amostrarTelhado` após o acabamento de cumeeira/beiral e antes dos detalhes; diferencia a semente das peças por direção da água `(dvx, dvy)` para evitar espelhamento simétrico entre águas opostas. Prancha de validação visual (delegacia em L com musgo e puxado mais baixo, cabana de tábuas gasta com remendos e peças faltando, casa de tabuinhas com dano > 0,6 e fuligem de chaminé, e casa em L nevada com anel derretido ao redor da chaminé) gerada em `test-results/n5-desgaste.png`.
 Commit: `roofs show moss, dirt, damage, soot and snow`
 
-### N6 — Camada de telhados iluminada  ⬜
+### N6 — Camada de telhados iluminada  ✅
 Objetivo: o telhado responde à luz como o resto do mapa: sol, noite, lampiões da rua e a mesma curva de tom.
 Depende de: N4, M2 (de preferência M5).
 Ler: `src/render/telhados.ts` inteiro, `src/render/cena.ts:100-130` (ordem das camadas) e `sincronizar`, `src/render/composicao-de-luz.ts` (shader, exposição, curva de tom), `src/render/mapa-de-luz.ts` (`ambiente`, `direcao`, `mascaraInterior`, luzes), `src/render/passadas.ts`, `src/render/sombras-do-sol.ts`, `src/render/halos.ts` (`telhados.visivel`).
@@ -157,6 +157,7 @@ Como:
 Não fazer: fachada (N7); mudar o fade.
 Testes: e2e ao meio-dia, as águas opostas de uma casa 4 × 3 diferem em mais de 10% de brilho (teste atual); à noite, um telhado longe de luz fica mais escuro que ao meio-dia, e um lampião na rua ao lado clareia a borda do telhado próxima; uma lamparina dentro da casa **não** clareia o telhado; o fade por edifício continua.
 Pronto quando: o porto à noite mostra os telhados iluminados só pelos lampiões, e o entreposto de dia tem telhados com relevo, no mesmo tom do chão.
+Nota: `MapaDeLuz` expõe `luzExterna` (`ehLuzExterna` exclui `janela:*`/`janela-fora:*` e luzes dentro de cômodos cobertos, mantendo luzes de rua e `estrutura.*`, com recorte só de cone sem paredes internas) renderizada em `brutaExtRT` → blur gaussiano → `luzExternaRT`. `Telhados` pede `{ tipo: 'telhado' }` (prioridade 2) usando o desenho vetorial apenas como prévia temporária, projeta sombra real pela silhueta de `texCor` deslocada pela `alturaMaxima` de `campoDoEdificio` e executa a passada GPU em Ilustrado (albedo + normal/AO + `luzExterna` + sol/lua + curva ACES com `finish.exposure`, custo zero quando nenhum telhado está visível), mantendo tinta por clima no Pixel. Validação visual comparativa em `test-results/n6-luz.png` (`porto-noturno` à noite + casa diurna às 14h30).
 Commit: `roofs are lit by the scene lights with relief and tone curve`
 
 ### N7 — Fachada sob o beiral  ⬜
