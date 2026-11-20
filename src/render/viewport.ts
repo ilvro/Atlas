@@ -18,6 +18,7 @@ import { fxAtivo } from '../fx/fx.ts';
 import { criarBaker, type Baker } from '../procedural/baker.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { sortearVariante } from '../procedural/familias.ts';
+import { carimbar, type Ocupado } from '../authoring/carimbar.ts';
 import { camposDoPincel, pincelDoObjeto, type CamposDoPincel } from '../domain/pincel-de-objeto.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import type { EventoStore, Gesto, Store } from '../state/store.ts';
@@ -183,6 +184,8 @@ type Interacao =
   | { tipo: 'comodo-poligono'; pontos: Ponto[]; atual: Ponto; tipoComodo: string }
   | { tipo: 'terreno'; apagar: boolean; gesto: Gesto; ultimo: Ponto; presenca: boolean }
   | { tipo: 'espalhar'; apagar: boolean; gesto: Gesto; ultimo: Ponto; semente: number }
+  /** O pincel de objeto no modo Vários: arrastar carimba de novo a cada passo, tudo num desfazer só. */
+  | { tipo: 'carimbar'; gesto: Gesto; ultimo: Ponto; livre: boolean; postos: string[]; nome: string }
   | { tipo: 'parede'; ini: Ponto; fim: Ponto }
   | { tipo: 'projetor'; modo: 'mover' | 'canto'; origem: Ponto; caixa0: Caixa; fixo: Ponto }
   | { tipo: 'alinhamento-grade'; modo: 'offset' | 'escala'; origem: Ponto; grade0: { size: number; offset: [number, number] }; gesto: Gesto }
@@ -611,6 +614,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     const c = fantasmaC.getChildByLabel('fantasma-objeto');
     // Receita: o espelho já vem no assado (`falso.flip`). Imagem da coleção: espelha o contêiner (antes da rotação).
     if (c && fantasmaSprite) { c.visible = true; c.position.set(p[0], p[1]); c.rotation = campos.rotation; c.scale.set(campos.scale * (campos.flip && falso.source.kind === 'asset' ? -1 : 1), campos.scale); fantasmaSprite.alpha = 0.7 * (campos.opacity ?? 1); }
+    if (pincel.objeto.colocar === 'varios' && pincel.objeto.area > 0) fantasmaG.circle(p[0], p[1], pincel.objeto.area).fill({ color: cor, alpha: 0.08 }).stroke({ width: px(1.5), color: cor, alpha: 0.8 });
     const [w, h] = [receita.pegada[0] * campos.scale, receita.pegada[1] * campos.scale];
     fantasmaG.roundRect(p[0] - w / 2, p[1] - h / 2, w, h, 0.05).stroke({ width: px(1.2), color: cor, alpha: fantasmaSprite ? 0.35 : 0.9 });
   }
@@ -795,6 +799,28 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     return Math.abs(q[0] - ini[0]) >= Math.abs(q[1] - ini[1]) ? [q[0], ini[1]] : [ini[0], q[1]];
   }
 
+  /** Um carimbo do modo Vários: um objeto no ponto, ou vários no círculo da área, dentro do gesto. */
+  function carimbarAqui(centro: Ponto): void {
+    const i = interacao; if (i?.tipo !== 'carimbar') return;
+    const m = doc(), pincel = ponte.pincel().objeto, andar = andarAtual(), familia = ACERVO.familiaDoItem(pincel.item) ?? null;
+    const alcance = pincel.area + 12, ocupados: Ocupado[] = [];
+    for (const o of Object.values(m.props)) {
+      if (o.elevation === 'wall' || Math.hypot(o.position[0] - centro[0], o.position[1] - centro[1]) > alcance) continue;
+      ocupados.push({ pos: o.position, raio: Math.max(...ACERVO.pegadaDaFonte(o.source)) * o.scale / 2 });
+    }
+    const primeiro = camposDoSorteio(), carimbos = carimbar(centro, pincel, familia, ocupados, Math.random, primeiro);
+    for (const c of carimbos) {
+      const receita = ACERVO.item(c.item); if (!receita || receita.tipo === 'parede') continue;
+      const seed = c.item === pincel.item && pincel.semente !== null ? pincel.semente : Math.floor(Math.random() * 2 ** 30);
+      const escada = interacaoDeEscadaPadrao(m, andar, receita.id);
+      const item = novoObjeto(c.posicao, { source: ACERVO.fonte(receita.id, seed, c.item === pincel.item ? pincel.params : {}), ...(receita.submerso ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : {}), ...(escada ? { interaction: escada } : {}), ...(andar !== null ? { levelId: andar } : {}), ...c.campos });
+      if (!tentar(() => i.gesto.aplicar({ tipo: 'item.adicionar', colecao: 'props', item }))) { i.gesto.cancelar(); interacao = null; return; }
+      i.postos.push(item.id); ponte.aoPorObjeto?.(receita.id);
+    }
+    if (carimbos.length) ponte.aoColocar(i.nome, centro);
+    novaSemente(); renovarSorteio(); sortearProximaVariante();
+  }
+
   function colocar(e: PointerEvent, p: Ponto): void {
     const m = doc(), f = ponte.ferramenta(), pincel = ponte.pincel(), andar = andarAtual();
     const livre = f === 'objeto' || f === 'luz' ? livreParaObjeto(objetosNaGrade(), m.grid.snap, e.altKey) : !m.grid.snap || e.altKey;
@@ -827,9 +853,13 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { if (pincel.objeto.selecionarAoPor) ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, enc.ponto); ponte.aoPorObjeto?.(receita.id); novaSemente(); renovarSorteio(); sortearProximaVariante(); }
         return;
       }
-      const interacao = interacaoDeEscadaPadrao(m, andar, receita.id);
+      if (pincel.objeto.colocar === 'varios') {
+        interacao = { tipo: 'carimbar', gesto: store.iniciarGesto(`Pôr ${(ACERVO.familiaDoItem(receita.id)?.nome ?? receita.nome).toLowerCase()}`), ultimo: alvo, livre, postos: [], nome: receita.nome };
+        carimbarAqui(alvo); return;
+      }
+      const escada = interacaoDeEscadaPadrao(m, andar, receita.id);
       const campos = camposDoSorteio();
-      const item = novoObjeto(alvo, { source: fonte, ...(receita.submerso ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : {}), ...(interacao ? { interaction: interacao } : {}), ...(andar !== null ? { levelId: andar } : {}), ...campos });
+      const item = novoObjeto(alvo, { source: fonte, ...(receita.submerso ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : {}), ...(escada ? { interaction: escada } : {}), ...(andar !== null ? { levelId: andar } : {}), ...campos });
       if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { if (pincel.objeto.selecionarAoPor) ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, alvo); ponte.aoPorObjeto?.(receita.id); novaSemente(); renovarSorteio(); sortearProximaVariante(); }
       return;
     }
@@ -1064,6 +1094,11 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       if (e.shiftKey) pt = pontoPreso45(i.pontos.at(-1)!, pt);
       i.atual = pt;
     } else if (i.tipo === 'terreno') { const antes = i.ultimo; i.ultimo = ponteiro; pintarTerreno(ponteiro, antes); }
+    else if (i.tipo === 'carimbar') {
+      const o = ponte.pincel().objeto, pegada = Math.max(...(ACERVO.item(o.item)?.pegada ?? [1, 1])) * o.escala, passo = Math.max(0.3, Math.max(pegada, o.area) / Math.max(0.1, o.densidade));
+      const alvo: Ponto = [encaixar(ponteiro[0], m.grid, 0, 0.5, i.livre), encaixar(ponteiro[1], m.grid, 1, 0.5, i.livre)];
+      if (Math.hypot(alvo[0] - i.ultimo[0], alvo[1] - i.ultimo[1]) >= passo) { i.ultimo = alvo; carimbarAqui(alvo); }
+    }
     else if (i.tipo === 'espalhar') { if (Math.hypot(ponteiro[0] - i.ultimo[0], ponteiro[1] - i.ultimo[1]) >= ponte.pincel().espalhar.raio / 2) { i.ultimo = ponteiro; espalharAqui(ponteiro); } }
     else if (i.tipo === 'parede') i.fim = pontoDeParede(m, ponteiro, i.ini, !m.grid.snap || e.altKey);
     else if (i.tipo === 'alinhamento-grade') {
@@ -1153,6 +1188,10 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     } else if (i.tipo === 'alinhamento-grade') {
       if (cancelado) i.gesto.cancelar(); else i.gesto.concluir();
     } else if (i.tipo === 'terreno' || i.tipo === 'espalhar') { if (cancelado) i.gesto.cancelar(); else i.gesto.concluir(); }
+    else if (i.tipo === 'carimbar') {
+      if (cancelado) i.gesto.cancelar();
+      else { i.gesto.concluir(); if (i.postos.length && ponte.pincel().objeto.selecionarAoPor) ponte.definirSelecao(i.postos.map(id => ({ colecao: 'props' as const, id }))); }
+    }
     else if (i.tipo === 'parede' && !cancelado) {
       if (Math.hypot(i.fim[0] - i.ini[0], i.fim[1] - i.ini[1]) >= 0.25) {
         const tipo = ponte.pincel().parede.tipo, id = novoIdEntidade('w'), andar = andarAtual();
@@ -1182,7 +1221,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       e.stopImmediatePropagation();
       const i = interacao; interacao = null;
       if ((i.tipo === 'mover' || i.tipo === 'peca' || i.tipo === 'deslizar' || i.tipo === 'alinhamento-grade') && i.gesto) i.gesto.cancelar();
-      else if (i.tipo === 'cômodo' || i.tipo === 'terreno' || i.tipo === 'espalhar') i.gesto.cancelar();
+      else if (i.tipo === 'cômodo' || i.tipo === 'terreno' || i.tipo === 'espalhar' || i.tipo === 'carimbar') i.gesto.cancelar();
       camadaSuja = true; cursor();
     }
   };
