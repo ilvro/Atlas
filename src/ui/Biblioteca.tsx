@@ -1,15 +1,16 @@
 import { Pistas } from './Pistas.tsx';
 import { useEffect, useRef } from 'preact/hooks';
-import { useSignal } from '@preact/signals';
+import { signal, useSignal } from '@preact/signals';
 import { modo } from '../app/modo.ts';
 import { tocar } from '../fx/som.ts';
 import { TIPOS_DE_COMODO, PRESETS_DE_LUZ, PACOTES_DE_PRESENCA, PINCEIS_DE_PRESENCA } from '../domain/presets.ts';
 import type { FormaDeDesenhoDeComodo, Pincel } from '../render/pincel.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
-import { materialDe, materiaisDo } from '../procedural/materiais.ts';
+import { materialDe } from '../procedural/materiais.ts';
 import { ACERVO, type ItemDoAcervo } from '../procedural/acervo.ts';
 import { CATEGORIAS } from '../procedural/receitas/index.ts';
 import { filtrar } from '../app/busca.ts';
+import { GRUPOS_DE_TERRENO } from '../procedural/grupos-de-terreno.ts';
 import { CampoCaixa, CampoCor, CampoNumero } from './campos.tsx';
 import { TODOS_OS_CONJUNTOS } from '../authoring/espalhar.ts';
 import { Amostra, CampoMaterial } from './campos-material.tsx';
@@ -134,6 +135,28 @@ function Correnteza({ s, material }: { s: SessaoDeEdicao; material: string }) {
   </>);
 }
 
+const gruposRecolhidos = signal<readonly string[]>([]);
+
+function CatalogoDeTerreno({ emRelevo, material, aoEscolher }: { s: SessaoDeEdicao; emRelevo: boolean; material: string; aoEscolher: (id: string) => void }) {
+  const busca = useSignal('');
+  const grupos = GRUPOS_DE_TERRENO.map(g => {
+    const itens = g.materiais.map(id => materialDe(id));
+    const filtrados = busca.value.trim() ? filtrar(itens, busca.value, m => `${m.nome} ${g.nome}`) : itens;
+    return { g, itens: filtrados };
+  }).filter(x => x.itens.length > 0);
+  const buscando = busca.value.trim() !== '';
+  return (<>
+    <input type="search" class="busca" placeholder="Buscar material…" value={busca.value} onInput={e => { busca.value = (e.currentTarget as HTMLInputElement).value; }} data-testid="busca-terreno" />
+    <div class="grupos-de-terreno">{grupos.map(({ g, itens }) => (
+      <details key={g.id} class="grupo-de-terreno" open={buscando || !gruposRecolhidos.value.includes(g.id)} data-testid={`grupo-terreno-${g.id}`}
+        onToggle={e => { if (buscando) return; const aberto = (e.currentTarget as HTMLDetailsElement).open, ja = gruposRecolhidos.value.includes(g.id); if (!aberto && !ja) gruposRecolhidos.value = [...gruposRecolhidos.value, g.id]; else if (aberto && ja) gruposRecolhidos.value = gruposRecolhidos.value.filter(x => x !== g.id); }}>
+        <summary class="faixa pequena">{g.nome} ({g.materiais.length})</summary>
+        <div class="amostras-de-terreno">{itens.map(m => <button type="button" key={m.id} class={`amostra-de-terreno ${!emRelevo && material === m.id ? 'ativa' : ''}`} title={m.nome} aria-label={m.nome} onClick={() => aoEscolher(m.id)} data-testid={`terreno-${m.id}`}><Amostra id={m.id} tamanho={40} /></button>)}</div>
+      </details>
+    ))}</div>
+  </>);
+}
+
 function Terreno({ s }: { s: SessaoDeEdicao }) {
   const p = s.pincel.value.terreno;
   const emRelevo = p.modo === 'relevo';
@@ -154,7 +177,7 @@ function Terreno({ s }: { s: SessaoDeEdicao }) {
         <button type="button" class={`chip ${emRelevo && altitudeAtual === 0 ? 'ativo' : ''}`} title="Apagar patamar (volta para 0 m)" onClick={() => escolherAltitude(0)} data-testid="relevo-borracha">Borracha (0 m)</button>
       </div>
     </div>
-    <div class="lista-cartas">{[...materiaisDo('terreno'), ...materiaisDo('macico'), ...materiaisDo('agua')].map(m => <button type="button" key={m.id} class={`carta ${!emRelevo && p.material === m.id ? 'ativa' : ''}`} onClick={() => mudar(s, { terreno: { ...p, modo: 'material', material: m.id } })} data-testid={`terreno-${m.id}`}><span class="carta-amostras"><Amostra id={m.id} tamanho={26} /></span><span class="carta-nome">{m.nome}</span></button>)}</div>
+    <CatalogoDeTerreno s={s} emRelevo={emRelevo} material={p.material} aoEscolher={id => mudar(s, { terreno: { ...p, modo: 'material', material: id } })} />
     {matPincel.padrao === 'grama' && <CampoCor rotulo="Tom da grama" dica="Personalize o tom de cor da grama do pincel" valor={matPincel.base} aoPrevia={cor => { mudar(s, { terreno: { ...p, material: `grama#${cor.replace('#', '')}` } }); }} aoConfirmar={() => {}} />}
     <CampoNumero rotulo="Pincel" unidade="m" valor={p.raio} min={0.25} max={12} passo={0.5} aoConfirmar={v => { mudar(s, { terreno: { ...p, raio: v } }); }} />
     {materialDe(p.material).uso === 'agua' && <CampoCaixa rotulo="Suavizar a margem" dica="Arredonda a borda da água onde você pintar: lagos e poças mais redondos." valor={p.suavizar === true} aoMudar={v => { mudar(s, { terreno: { ...p, suavizar: v } }); }} />}
