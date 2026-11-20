@@ -73,3 +73,23 @@ export function pincelDoObjeto(o: Objeto, atual: PincelDeObjeto, item: string, f
     sombra: o.castsShadow, bloqueia: o.blocks.move,
   };
 }
+
+/** As propriedades que o pincel e o objeto posto têm em comum: é o que o painel de propriedades edita nos dois casos. */
+export type PropriedadesDoObjeto = Pick<PincelDeObjeto, 'escala' | 'rotacao' | 'camada' | 'espelhado' | 'opacidade' | 'sombra' | 'bloqueia'>;
+
+export const valoresDoObjeto = (o: Objeto): PropriedadesDoObjeto => ({
+  escala: o.scale, rotacao: o.rotation, camada: o.layer ?? null, espelhado: o.flip ?? false, opacidade: o.opacity ?? 1, sombra: o.castsShadow, bloqueia: o.blocks.move,
+});
+
+/** A mudança de propriedades do painel como `patch` de `item.atualizar`; o que volta ao padrão sai do documento (`undefined`). */
+export function patchDoObjeto(m: Partial<PropriedadesDoObjeto>): Record<string, unknown> {
+  const p: Record<string, unknown> = {};
+  if (m.escala !== undefined) p.scale = Math.max(ESCALA_MIN, Math.min(ESCALA_MAX, m.escala));
+  if (m.rotacao !== undefined) p.rotation = m.rotacao;
+  if (m.camada !== undefined) p.layer = m.camada === null ? undefined : Math.round(m.camada);
+  if (m.espelhado !== undefined) p.flip = m.espelhado ? true : undefined;
+  if (m.opacidade !== undefined) p.opacity = m.opacidade >= 1 ? undefined : Math.max(0.1, m.opacidade);
+  if (m.sombra !== undefined) p.castsShadow = m.sombra;
+  if (m.bloqueia !== undefined) p.blocks = { move: m.bloqueia };
+  return p;
+}

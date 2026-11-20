@@ -39,3 +39,14 @@ test('pincelDoObjeto copia o jeito do objeto e mantém a colocação', () => {
   const p = pincelDoObjeto(o, base({ colocar: 'varios', area: 3 }), 'escrivaninha', null);
   assert.deepEqual([p.escala, p.rotacao, p.espelhado, p.opacidade, p.camada, p.sombra, p.bloqueia, p.colocar, p.area], [2, 0.5, true, 0.6, 2, false, false, 'varios', 3]);
 });
+import { patchDoObjeto, valoresDoObjeto } from '../../src/domain/pincel-de-objeto.ts';
+test('patchDoObjeto traduz o painel e apaga o que volta ao padrão', () => {
+  assert.deepEqual(patchDoObjeto({ escala: 2, opacidade: 0.5, espelhado: true, camada: 3, bloqueia: false }), { scale: 2, opacity: 0.5, flip: true, layer: 3, blocks: { move: false } });
+  const volta = patchDoObjeto({ opacidade: 1, espelhado: false, camada: null });
+  assert.deepEqual(Object.keys(volta).sort(), ['flip', 'layer', 'opacity']);
+  assert.ok(Object.values(volta).every(v => v === undefined));
+  assert.equal(patchDoObjeto({ escala: 999 }).scale, 50);
+});
+test('valoresDoObjeto lê os padrões de um objeto novo', () => {
+  assert.deepEqual(valoresDoObjeto(novoObjeto([0, 0])), { escala: 1, rotacao: 0, camada: null, espelhado: false, opacidade: 1, sombra: true, bloqueia: true });
+});

@@ -25,6 +25,10 @@ import { COLECAO } from '../procedural/colecao.ts';
 import { receitaDe } from '../procedural/receitas/index.ts';
 import { materialDe, materiaisDo } from '../procedural/materiais.ts';
 import { Amostra } from './campos-material.tsx';
+import { PropriedadesDoObjeto } from './PropriedadesDoObjeto.tsx';
+import { camadaDoObjeto } from '../domain/camadas.ts';
+import { patchDoObjeto, pincelDoObjeto, valoresDoObjeto, type PincelDeObjeto } from '../domain/pincel-de-objeto.ts';
+import { ACERVO } from '../procedural/acervo.ts';
 import { desenharMiniaturaDoTelhado } from '../render/miniatura.ts';
 import { tocar } from '../fx/som.ts';
 import { chaveDoAlvo, type Alvo } from '../render/selecao.ts';
@@ -529,6 +533,23 @@ function InteracaoDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
   </>);
 }
 
+/** O painel de propriedades aplicado ao objeto (ou aos objetos) selecionado: mostra o valor do primeiro e grava a mudança em todos, num gesto só. */
+function PropriedadesDaSelecao({ s, ids }: { s: SessaoDeEdicao; ids: readonly string[] }) {
+  const m = s.doc.value, primeiro = m.props[ids[0]!]; if (!primeiro) return null;
+  const valores = { ...valoresDoObjeto(primeiro), camada: camadaDoObjeto(primeiro) };
+  const mudar = (patch: Partial<PincelDeObjeto>) => {
+    const alterado = patchDoObjeto(patch), rotulo = ids.length > 1 ? `Ajustar ${ids.length} objetos` : 'Ajustar objeto';
+    tentar(() => s.store.transacao(rotulo, g => { for (const id of ids) g.aplicar({ tipo: 'item.atualizar', colecao: 'props', id, patch: alterado }); }));
+  };
+  return <PropriedadesDoObjeto modo="selecao" valores={valores} aoMudar={mudar} />;
+}
+
+function copiarParaOPincel(s: SessaoDeEdicao, o: Objeto): void {
+  const id = ACERVO.idDaFonte(o.source); if (!ACERVO.item(id)) return;
+  s.pincel.value = { ...s.pincel.value, objeto: pincelDoObjeto(o, s.pincel.value.objeto, id, ACERVO.familiaDoItem(id)?.id ?? null) };
+  s.ferramenta.value = 'objeto'; tocar('selecionar');
+}
+
 function CamposDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
   const editar = (patch: Record<string, unknown>, rotulo?: string) => tentar(() => s.store.executar({ tipo: 'item.atualizar', colecao: 'props', id: o.id, patch }, rotulo ? { rotulo } : {}));
   const receita = o.source.kind === 'recipe' ? receitaDe(o.source.recipe) : null;
@@ -538,17 +559,15 @@ function CamposDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
     {o.source.kind === 'asset' && <div class="item-da-colecao" data-testid="item-da-colecao"><strong>{item?.nome ?? o.source.assetId}</strong><span class="dica">{item ? `Coleção da casa · ${origem}` : 'Este item não está na coleção desta versão do Atlas: aparece como marcador.'}</span></div>}
     {o.source.kind === 'asset' && <CampoCaixa rotulo="Harmonizar com o mapa" dica="Recorta o vazio, põe contorno e sombra e puxa a cor para a do gênero do mapa. Vale para imagens achadas; as geradas já nascem no traço da casa." valor={o.harmonize} aoMudar={v => editar({ harmonize: v }, 'Harmonizar objeto')} />}
     {o.source.kind === 'recipe' && <Linha rotulo={receita?.nome ?? o.source.recipe}><button type="button" class="botao-pilula" data-testid="variar" onClick={() => editar({ source: { seed: (o.source.kind === 'recipe' ? o.source.seed : 0) + 1 } }, 'Variar o objeto')}>Variar</button></Linha>}
-    <CampoNumero rotulo="Rotação" unidade="°" valor={graus(o.rotation)} min={-360} max={360} passo={15} aoConfirmar={v => editar({ rotation: radianos(v) }, 'Girar')} />
+    <PropriedadesDaSelecao s={s} ids={[o.id]} />
     <Linha rotulo="Camada"><div class="acoes-selecao" data-testid="camadas">
       <button type="button" class="botao-pilula" data-testid="camada-tras" title="Enviar para trás (Ctrl+Shift+[)" onClick={() => tentar(() => s.store.executar({ tipo: 'objeto.camada', ids: [o.id], modo: 'tras' }, { rotulo: 'Enviar para trás' }))}>Para trás</button>
       <button type="button" class="botao-pilula" data-testid="camada-descer" title="Descer uma camada (Ctrl+[)" onClick={() => tentar(() => s.store.executar({ tipo: 'objeto.camada', ids: [o.id], modo: 'descer' }, { rotulo: 'Descer uma camada' }))}>↓</button>
       <button type="button" class="botao-pilula" data-testid="camada-subir" title="Subir uma camada (Ctrl+])" onClick={() => tentar(() => s.store.executar({ tipo: 'objeto.camada', ids: [o.id], modo: 'subir' }, { rotulo: 'Subir uma camada' }))}>↑</button>
       <button type="button" class="botao-pilula" data-testid="camada-frente" title="Trazer para a frente (Ctrl+Shift+])" onClick={() => tentar(() => s.store.executar({ tipo: 'objeto.camada', ids: [o.id], modo: 'frente' }, { rotulo: 'Trazer para a frente' }))}>Para frente</button>
     </div></Linha>
-    <CampoNumero rotulo="Escala" valor={o.scale} min={0.05} max={50} passo={0.1} aoConfirmar={v => editar({ scale: v }, 'Escala do objeto')} />
+    <button type="button" class="botao-pilula" data-testid="copiar-para-o-pincel" title="O mesmo que Ctrl+clique no objeto" onClick={() => copiarParaOPincel(s, o)}>Copiar para o pincel</button>
     <InteracaoDoObjeto s={s} o={o} />
-    <CampoCaixa rotulo="Bloqueia o movimento" valor={o.blocks.move} aoMudar={v => editar({ blocks: { move: v } })} />
-    <CampoCaixa rotulo="Projeta sombra" valor={o.castsShadow} aoMudar={v => editar({ castsShadow: v })} />
     <CampoCaixa rotulo="Oculto para jogadores" dica="O objeto (e luzes que carrega) não aparece no projetor até ser revelado por um momento." valor={!!o.oculto} aoMudar={v => editar({ oculto: v || undefined }, v ? 'Ocultar objeto' : 'Mostrar objeto')} />
     {(o.elevation === 'underwater' || (o.elevation === 'floor' && aguaEm(s.doc.value, o.position))) && <CampoCaixa rotulo="Submerso" dica="Fica sob a água: tingido pela cor do fundo e mais apagado quanto mais fundo; não projeta sombra." valor={o.elevation === 'underwater'} aoMudar={v => editar({ elevation: v ? 'underwater' : 'floor', castsShadow: v ? false : o.castsShadow }, v ? 'Submergir objeto' : 'Emergir objeto')} />}
   </>);
@@ -888,6 +907,7 @@ function PainelDaSelecao({ s }: { s: SessaoDeEdicao }) {
   return (
     <div class="painel-corpo" data-testid="painel-selecao">
       <h3 class="faixa pequena" data-testid="titulo-selecao">{unico ? nomeDoAlvo(unico.colecao, (m[unico.colecao] as Record<string, { id: string }>)[unico.id]!) : `${alvos.length} itens`}</h3>
+      {!unico && modo.value === 'construir' && alvos.every(a => a.colecao === 'props') && <PropriedadesDaSelecao s={s} ids={alvos.map(a => a.id)} />}
       {unico ? (modo.value === 'sessao' && unico.colecao !== 'tokens' ? <p class="dica" data-testid="dica-sessao">Na Sessão só as peças se ajustam aqui. Para editar isto, volte ao modo Construir (M).</p> : <Detalhe s={s} m={m} a={unico} />) : (
         <ul class="lista-itens">{alvos.map(a => <li key={chaveDoAlvo(a)}><button type="button" onClick={() => { s.selecao.value = [a]; }}>
           <span class="tipo-item">{NOMES_COLECAO.singular[a.colecao]}</span> {nomeDoAlvo(a.colecao, (m[a.colecao] as Record<string, { id: string }>)[a.id]!)}</button></li>)}</ul>
