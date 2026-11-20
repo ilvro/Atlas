@@ -80,6 +80,8 @@ const objeto = e.obj({
   roomId: idOuNulo, blocks: e.obj({ move: e.bool(), sight: e.bool(), light: e.opt(e.bool()) }), castsShadow: e.bool(), harmonize: e.bool(),
   layer: e.opt(e.num({ inteiro: true, min: -100000, max: 100000 })),
   oculto: e.opt(e.bool()),
+  flip: e.opt(e.bool()),
+  opacity: e.opt(e.num({ min: 0.1, max: 1 })),
   levelId: e.opt(idOuNulo),
   interaction: e.nulo(e.obj({
     kind: e.um('switch', 'drawer', 'clue', 'note', 'stairs'),
