@@ -5,6 +5,7 @@ import { ACERVO } from '../procedural/acervo.ts';
 import { GRUPOS_DE_OBJETOS, type Familia } from '../procedural/familias.ts';
 import { normalizar, pontuar } from '../app/busca.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
+import { alternarFavoritoDaFamilia, favoritos, recentes } from '../app/recentes.ts';
 import { desenharPrevia, pedirPrevia } from './previa.ts';
 
 export function MiniReceita({ id, tamanho = 72 }: { id: string; tamanho?: number }) {
@@ -49,7 +50,7 @@ export function FamiliaNaMao({ s }: { s: SessaoDeEdicao }) {
   return (
     <div class="familia-mao" data-testid="familia-na-mao">
       <div class="familia-titulo">
-        <b data-testid="familia-nome">{familia?.nome ?? item.nome}</b>
+        <b data-testid="familia-nome">{familia && <button type="button" class={`estrela ${favoritos.value.includes(familia.id) ? 'ativa' : ''}`} aria-pressed={favoritos.value.includes(familia.id)} title="Fixar a família em Favoritos" aria-label="Favorita" onClick={() => alternarFavoritoDaFamilia(familia.id)} data-testid="familia-estrela">{favoritos.value.includes(familia.id) ? '★' : '☆'}</button>}{familia?.nome ?? item.nome}</b>
         <span class="familia-botoes">
           {n > 1 && <button type="button" class={`chip ${o.varianteAleatoria ? 'ativo' : ''}`} aria-pressed={o.varianteAleatoria} title="Sorteia a variante a cada objeto posto" onClick={() => { s.pincel.value = { ...s.pincel.value, objeto: { ...o, varianteAleatoria: !o.varianteAleatoria } }; tocar('selecionar'); }} data-testid="variante-dado">🎲</button>}
           {temReceita && <button type="button" class={`chip ${variarDesenho ? 'ativo' : ''}`} aria-pressed={variarDesenho} title="Cada objeto sai com um desenho diferente" onClick={() => { s.pincel.value = { ...s.pincel.value, objeto: { ...o, semente: variarDesenho ? 3 : null } }; tocar('selecionar'); }} data-testid="variar-desenho">Variar o desenho</button>}
@@ -95,4 +96,29 @@ export function CatalogoDeFamilias({ s }: { s: SessaoDeEdicao }) {
       {!lista.length && <p class="dica">Nada com “{consulta.value}”.</p>}
     </div>
   </>);
+}
+
+/** Abas "Recentes | Favoritos": itens postos por último e famílias fixadas. */
+export function RecentesEFavoritos({ s }: { s: SessaoDeEdicao }) {
+  const aba = useSignal<'recentes' | 'favoritos'>('recentes'), atual = s.pincel.value.objeto;
+  const itens = recentes.value.filter(id => ACERVO.item(id));
+  const familias = favoritos.value.map(id => ACERVO.familias().find(f => f.id === id)).filter((f): f is Familia => !!f);
+  return (
+    <div class="recentes-favoritos" data-testid="recentes-favoritos">
+      <div class="chips" role="tablist">
+        <button type="button" role="tab" aria-selected={aba.value === 'recentes'} class={`chip ${aba.value === 'recentes' ? 'ativo' : ''}`} onClick={() => { aba.value = 'recentes'; }} data-testid="aba-recentes">Recentes</button>
+        <button type="button" role="tab" aria-selected={aba.value === 'favoritos'} class={`chip ${aba.value === 'favoritos' ? 'ativo' : ''}`} onClick={() => { aba.value = 'favoritos'; }} data-testid="aba-favoritos">Favoritos</button>
+      </div>
+      <div class="grade-receitas" data-testid={`lista-${aba.value}`}>
+        {aba.value === 'recentes' && itens.map(id => { const r = ACERVO.item(id)!; return (
+          <button type="button" key={id} class={`receita ${atual.item === id ? 'ativa' : ''}`} onClick={() => pegarItem(s, id)} title={r.nome} data-testid={`recente-${id}`}><MiniReceita id={id} /><span>{r.nome}</span></button>
+        ); })}
+        {aba.value === 'favoritos' && familias.map(f => (
+          <button type="button" key={f.id} class={`receita ${atual.familia === f.id ? 'ativa' : ''}`} onClick={() => pegarItem(s, f.itens[0]!)} title={f.nome} data-testid={`favorito-${f.id}`}><MiniReceita id={f.itens[0]!} /><span>{f.nome}</span></button>
+        ))}
+        {aba.value === 'recentes' && !itens.length && <p class="dica">Os objetos que você puser aparecem aqui.</p>}
+        {aba.value === 'favoritos' && !familias.length && <p class="dica">Toque na estrela da família na mão para fixá-la aqui.</p>}
+      </div>
+    </div>
+  );
 }

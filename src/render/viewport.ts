@@ -51,6 +51,8 @@ export interface PonteViewport {
   adicionar(colecao: ColecaoLivre, mundo: Ponto): void;
   /** Algo foi posto pelas ferramentas de construção: som e efeito. */
   aoColocar(rotulo: string, mundo: Ponto): void;
+  /** Um objeto da biblioteca foi posto (id do item): alimenta os recentes. */
+  aoPorObjeto?(itemId: string): void;
   /** Uma operação foi recusada (não cabe, fora do mapa…): o aplicativo mostra o motivo. */
   aviso(texto: string): void;
   aoMenuContexto(info: { tela: Ponto; mundo: Ponto; alvo: Alvo | null }): void;
@@ -808,12 +810,12 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         const l = typeof pincel.objeto.params.largura === 'number' ? pincel.objeto.params.largura : receita.pegada[0], enc = encaixarObjetoDeParede(m, p, l, livre, andar);
         if (!enc) { ponte.aviso('Objetos de parede vão na face de um cômodo: aproxime-se de uma parede por dentro.'); return; }
         const item = novoObjeto(enc.ponto, { source: fonte, elevation: 'wall', wall: { wallId: enc.parede.id, at: enc.at, face: 'inner' }, roomId: enc.roomId, blocks: { move: false, sight: false }, castsShadow: false, ...(andar !== null ? { levelId: andar } : {}) });
-        if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, enc.ponto); novaSemente(); sortearProximaVariante(); }
+        if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, enc.ponto); ponte.aoPorObjeto?.(receita.id); novaSemente(); sortearProximaVariante(); }
         return;
       }
       const interacao = interacaoDeEscadaPadrao(m, andar, receita.id);
       const item = novoObjeto(alvo, { source: fonte, rotation: pincel.objeto.rotacao, ...(receita.submerso ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : {}), ...(interacao ? { interaction: interacao } : {}), ...(andar !== null ? { levelId: andar } : {}) });
-      if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, alvo); novaSemente(); sortearProximaVariante(); }
+      if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, alvo); ponte.aoPorObjeto?.(receita.id); novaSemente(); sortearProximaVariante(); }
       return;
     }
     if (f === 'luz') {

@@ -2494,3 +2494,8 @@ body.projetor { overflow: hidden; background: #000; }
 .familia-variantes { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 4px; max-height: 150px; overflow-y: auto; }
 .familia-variantes .mini-receita { width: 36px; height: 36px; }
 .selo-variantes { position: absolute; top: 3px; right: 3px; min-width: 15px; padding: 0 4px; border-radius: 8px; background: var(--acento-suave); color: var(--acento); font: 700 9.5px var(--corpo); font-style: normal; text-align: center; }
+
+.recentes-favoritos { margin-bottom: 10px; }
+.recentes-favoritos .grade-receitas { max-height: 150px; overflow-y: auto; }
+.estrela { border: 0; background: none; padding: 0 4px 0 0; cursor: pointer; font-size: 15px; line-height: 1; color: var(--apagado); }
+.estrela.ativa { color: var(--acento); }
