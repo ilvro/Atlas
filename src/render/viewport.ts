@@ -9,6 +9,7 @@ import { celulasDoDisco, celulasEntre, decodificar } from '../domain/celulas.ts'
 import { misturar, type EstadoDeClima, type MisturaDeClima } from '../domain/clima.ts';
 import { copiasDe, novaLuz, novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
 import { interacaoDeEscadaPadrao, mapaDoAndar } from '../domain/andares.ts';
+import { livreParaObjeto } from '../domain/encaixe.ts';
 import { comprimentoDaParede, contornoDoComodo, encaixarNaParede, encaixarObjetoDeParede, indiceDeCelulas, pontoNaParede, salaDaCelula } from '../domain/geometria.ts';
 import type { Abertura, ColecaoLivre, MapaAtlas, Peca, Ponto } from '../domain/mapa.ts';
 import type { Recursos } from '../domain/fichas.ts';
@@ -59,6 +60,8 @@ export interface PonteViewport {
   aoCamera?(c: Camera): void;
   /** Mostrar o acabamento (vinheta, tinta…) no editor? */
   acabamento(): boolean;
+  /** Preferência: objetos e luzes encaixam na grade por padrão (ausente: livres, e `Alt` encaixa). */
+  objetosNaGrade?(): boolean;
   /** Mostrar os telhados no modo Construir? (ausente: escondidos, como antes) */
   telhados?(): boolean;
   /** Lê a imagem guardada de um retrato (pelo id do asset). */
@@ -219,6 +222,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const completo = (): MapaAtlas => store.documento;
   const andarAtual = (): string | null => ponte.andarAtivo?.() ?? null;
   const doc = (): MapaAtlas => mapaDoAndar(completo(), andarAtual());
+  const objetosNaGrade = (): boolean => ponte.objetosNaGrade?.() === true;
   const ctxAndar = () => ({ completo: completo(), andar: andarAtual(), construir: !somenteLeitura && !modoProjetor && !ponte.emSessao?.() });
   let ultimoAndar: string | null = andarAtual();
   let ultimoConstruir = ctxAndar().construir;
@@ -539,7 +543,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (!comSprite && fantasmaSprite) limparFantasmaSprite();
     const objetoFantasma = fantasmaC.getChildByLabel('fantasma-objeto');
     if (!ponteiro || interacao || !['objeto', 'luz', 'peca', 'regiao', 'abertura', 'comodo', 'borracha', 'terreno', 'presenca', 'espalhar'].includes(f)) { if (objetoFantasma) objetoFantasma.visible = false; return; }
-    const livre = !m.grid.snap || altPressionado;
+    const livre = f === 'objeto' || f === 'luz' ? livreParaObjeto(objetosNaGrade(), m.grid.snap, altPressionado) : !m.grid.snap || altPressionado;
     const p: Ponto = [encaixar(ponteiro[0], m.grid, 0, 0.5, livre), encaixar(ponteiro[1], m.grid, 1, 0.5, livre)];
     if (f === 'comodo' || f === 'borracha') {
       const forma = f === 'comodo' ? (pincel.comodoForma ?? 'celulas') : 'celulas';
@@ -783,7 +787,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   function colocar(e: PointerEvent, p: Ponto): void {
     const m = doc(), f = ponte.ferramenta(), pincel = ponte.pincel(), andar = andarAtual();
-    const livre = !m.grid.snap || e.altKey;
+    const livre = f === 'objeto' || f === 'luz' ? livreParaObjeto(objetosNaGrade(), m.grid.snap, e.altKey) : !m.grid.snap || e.altKey;
     const alvo: Ponto = [encaixar(p[0], m.grid, 0, 0.5, livre), encaixar(p[1], m.grid, 1, 0.5, livre)];
     if (f === 'comodo' || f === 'borracha') { comecarComodo(e, p, f === 'borracha'); return; }
     if (f === 'espalhar') {
@@ -982,7 +986,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
           i.alvos = alvos; ponte.definirSelecao(alvos);
         }
       }
-      const livre = !doc().grid.snap || e.altKey;
+      const soObjetos = i.alvos.every(a => a.colecao === 'props' || a.colecao === 'lights');
+      const livre = soObjetos ? livreParaObjeto(objetosNaGrade(), doc().grid.snap, e.altKey) : !doc().grid.snap || e.altKey;
       const d = deltaEncaixado(i.ref, [ponteiro[0] - i.origem[0], ponteiro[1] - i.origem[1]], doc().grid, 0.5, livre), passo: Ponto = [d[0] - i.aplicado[0], d[1] - i.aplicado[1]];
       if (Math.abs(passo[0]) > 1e-9 || Math.abs(passo[1]) > 1e-9) { i.gesto.aplicar({ tipo: 'selecao.mover', alvos: i.alvos, delta: passo }); i.aplicado = d; }
     } else if (i.tipo === 'peca') {

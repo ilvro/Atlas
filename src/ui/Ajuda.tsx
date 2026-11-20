@@ -68,7 +68,7 @@ export function Ajuda() {
             <li><span>Selecionar vários</span><span class="ajuda-teclas"><kbd>arrastar no vazio</kbd></span></li>
             <li><span>Selecionar com laço</span><span class="ajuda-teclas"><kbd>Alt+arrastar</kbd></span></li>
             <li><span>Somar à seleção</span><span class="ajuda-teclas"><kbd>Shift+clique</kbd></span></li>
-            <li><span>Mover sem encaixar na grade</span><span class="ajuda-teclas"><kbd>Alt+arrastar item</kbd></span></li>
+            <li><span>Mover sem encaixar na grade (objetos e luzes: Alt encaixa)</span><span class="ajuda-teclas"><kbd>Alt+arrastar item</kbd></span></li>
             <li><span>Mover a vista</span><span class="ajuda-teclas"><kbd>botão direito</kbd><kbd>Espaço+arrastar</kbd></span></li>
             <li><span>Menu de ações</span><span class="ajuda-teclas"><kbd>clique direito</kbd></span></li>
           </ul></div>

@@ -1,6 +1,7 @@
 import { Pistas } from './Pistas.tsx';
 import { signal, useSignal } from '@preact/signals';
 import { modo } from '../app/modo.ts';
+import { objetosNaGrade } from '../app/preferencias.ts';
 import { tocar } from '../fx/som.ts';
 import { TIPOS_DE_COMODO, PRESETS_DE_LUZ, PACOTES_DE_PRESENCA, PINCEIS_DE_PRESENCA } from '../domain/presets.ts';
 import type { FormaDeDesenhoDeComodo, Pincel } from '../render/pincel.ts';
@@ -62,7 +63,7 @@ function Objetos({ s }: { s: SessaoDeEdicao }) {
     <RecentesEFavoritos s={s} />
     <CatalogoDeFamilias s={s} />
     {receita && <div class="ajustes"><h4>{receita.nome}</h4>
-      <p class="dica"><kbd>Q</kbd> <kbd>E</kbd> giram. <kbd>Ctrl</kbd>+clique num objeto copia o pincel. <kbd>Alt</kbd> põe fora da grade.</p>
+      <p class="dica"><kbd>Q</kbd> <kbd>E</kbd> giram. <kbd>Ctrl</kbd>+clique num objeto copia o pincel. <kbd>Alt</kbd> {objetosNaGrade.value ? 'põe fora da grade' : 'encaixa na grade'}.</p>
       {receita.campos.map(c => c.tipo === 'numero'
         ? <CampoNumero key={c.id} rotulo={c.rotulo} unidade="m" valor={typeof atual.params[c.id] === 'number' ? atual.params[c.id] as number : c.padrao as number} min={c.min ?? 0} max={c.max ?? 20} passo={c.passo ?? 0.1} aoConfirmar={v => { s.pincel.value = { ...s.pincel.value, objeto: { ...atual, params: { ...atual.params, [c.id]: v } } }; }} />
         : <CampoMaterial key={c.id} rotulo={c.rotulo} uso={c.uso ?? 'objeto'} valor={typeof atual.params[c.id] === 'string' ? atual.params[c.id] as string : c.padrao as string} aoMudar={v => { if (v) s.pincel.value = { ...s.pincel.value, objeto: { ...atual, params: { ...atual.params, [c.id]: v } } }; }} />)}
