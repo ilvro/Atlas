@@ -98,5 +98,15 @@
       30
     ],
     "miniatura": "pantano-das-brumas.webp"
+  },
+  {
+    "id": "acampamento-na-nevoa",
+    "nome": "Acampamento na névoa",
+    "descricao": "Clareira de terra batida na mata fechada, à noite: fogueira entre troncos, quatro abrigos de lona e peles, pedras e galhos, e bancos de névoa passando por cima das copas.",
+    "tamanho": [
+      24,
+      24
+    ],
+    "miniatura": "acampamento-na-nevoa.webp"
   }
 ]

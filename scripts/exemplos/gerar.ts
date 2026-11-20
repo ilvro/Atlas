@@ -20,6 +20,7 @@ import { grutaDosContrabandistas } from './gruta-dos-contrabandistas.ts';
 import { portoNoturno } from './porto-noturno.ts';
 import { ravinaNoturna } from './ravina-noturna.ts';
 import { ruinaCosteira } from './ruina-costeira.ts';
+import { acampamentoNaNevoa } from './acampamento-na-nevoa.ts';
 
 /** A lista dos exemplos publicados na galeria. */
 export const EXEMPLOS: readonly Exemplo[] = [
@@ -33,6 +34,7 @@ export const EXEMPLOS: readonly Exemplo[] = [
   santuarioDaLuz,
   salaDaGuarda,
   pantanoDasBrumas,
+  acampamentoNaNevoa,
 ];
 
 const SAIDA = join(import.meta.dirname, '../../public/exemplos');
