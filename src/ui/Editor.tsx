@@ -7,6 +7,7 @@ import { signal, useSignalEffect } from '@preact/signals';
 import { acaoPorId, executarAcao, itensDoMenuRadial } from '../app/acoes.ts';
 import { FERRAMENTAS_DA_SESSAO, alinhandoGrade, duracaoDoClima, modo, mostrarRelevo, movimentoLivre, regraDaRegua, vistaAtual } from '../app/modo.ts';
 import { lembrarRecente } from '../app/recentes.ts';
+import { objetosNaGrade } from '../app/preferencias.ts';
 import { acabamentoLigado, telhadosNoEditor, adicionarEm, alternarPorta, usarObjeto, aoColocar, comandosDeEspalhar, focarNoComodo, focoPendente, menuRadial, notaDeObjetoAberta, servicos, sessao, viewport as viewportAtual } from '../app/app.ts';
 import { obterCameraDaAba } from '../app/abas.ts';
 import { mostrarAtalho } from '../app/atalhos.ts';
@@ -48,6 +49,7 @@ function ponteDa(s: SessaoDeEdicao): PonteViewport {
     adicionar: (colecao, mundo) => adicionarEm(colecao, mundo),
     aoColocar: (rotulo, mundo) => aoColocar(rotulo, mundo),
     aoPorObjeto: lembrarRecente,
+    objetosNaGrade: () => objetosNaGrade.peek(),
     aviso: texto => { avisar(texto, { tipo: 'erro', duracao: 3200 }); tocar('erro'); },
     aoMenuContexto: ({ tela, mundo, alvo }) => {
       if (modo.peek() === 'sessao') {
