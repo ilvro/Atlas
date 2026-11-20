@@ -11,12 +11,26 @@ const G = { categoria: 'exterior' as const, tipo: 'piso' as const, funcoes: ['ja
 const PEDRA = ['#7d7f86', '#6a6c73', '#8c8e94', '#5f6168'];
 
 /** Uma pedra irregular: polígono de bordas quebradas, com faces mais claras e escuras, e um pouco de musgo. */
+/**
+ * Pedra solta vista de cima: contorno facetado e irregular com nanquim, o topo plano mais claro puxado para a luz (noroeste), uma faceta de
+ * brilho, a encosta do sudeste escura e uma fenda. Cinza quente, sem musgo pintado (o musgo é do chão).
+ */
 function pedra(w: number, h: number, seed: number): Parte[] {
-  const r = mulberry32(seed), pts: number[] = [], n = 11;
-  for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2, k = 0.82 + r() * 0.18; pts.push(Math.cos(a) * (w / 2) * k, Math.sin(a) * (h / 2) * k); }
-  const faces = pts.map((v, i) => (i % 2 ? v * 0.6 : v * 0.6));
-  return [poli(pts, PEDRA[1]!, 0.5, { contorno: 'leve' }), poli(faces, PEDRA[2]!, 0.6, { contorno: false, detalhe: 2 }), poli(faces.map(v => v * 0.55), PEDRA[0]!, 0.68, { contorno: false, semSombra: true, detalhe: 3 }),
-    elipse(-w * 0.2, h * 0.15, w * 0.25, h * 0.18, '#4f7a3a', 0.62, { contorno: false, semSombra: true, detalhe: 3 })];
+  const r = mulberry32(seed), n = 8 + Math.floor(r() * 3), giro = r() * Math.PI, contorno: number[] = [], angs: number[] = [];
+  for (let i = 0; i < n; i++) { const a = giro + ((i + (r() - 0.5) * 0.5) / n) * Math.PI * 2, k = 0.74 + r() * 0.26; angs.push(a); contorno.push(Math.cos(a) * (w / 2) * k, Math.sin(a) * (h / 2) * k); }
+  const cx = -w * 0.1, cy = -h * 0.12, rumo = (f: number, j: number) => contorno.map((v, i) => (i % 2 ? cy + (v - cy) * f + (r() - 0.5) * h * j : cx + (v - cx) * f + (r() - 0.5) * w * j));
+  // A encosta escura: os vértices do lado sudeste e, de volta, os mesmos puxados para dentro.
+  const se: number[] = [], dentro: number[] = [];
+  for (let i = 0; i < n; i++) if (Math.cos(angs[i]!) + Math.sin(angs[i]!) > -0.35) { se.push(contorno[i * 2]!, contorno[i * 2 + 1]!); dentro.unshift(contorno[i * 2]! * 0.5 + w * 0.04, contorno[i * 2 + 1]! * 0.5 + h * 0.04); }
+  const tons = r() < 0.5 ? ['#6c6860', '#878278', '#a19b8f', '#4b4741'] : ['#64635e', '#7e7c75', '#9a978d', '#45443f'];
+  const fenda = r() * Math.PI;
+  return [
+    poli(contorno, tons[0]!, 0.5),
+    ...(se.length >= 4 ? [poli([...se, ...dentro], tons[3]!, 0.55, { contorno: false, semSombra: true, suave: true, alfa: 0.85, detalhe: 2 as const })] : []),
+    poli(rumo(0.62, 0.04), tons[1]!, 0.6, { contorno: false, semSombra: true, detalhe: 2 }),
+    poli(rumo(0.3, 0.05).map((v, i) => v + (i % 2 ? -h : -w) * 0.06), tons[2]!, 0.65, { contorno: false, semSombra: true, suave: true, detalhe: 3 }),
+    poli([Math.cos(fenda) * w * 0.3, Math.sin(fenda) * h * 0.3, w * 0.03, h * 0.05, Math.cos(fenda + 2.6) * w * 0.25, Math.sin(fenda + 2.6) * h * 0.25, w * 0.05, h * 0.07], '#2e2b27', 0.66, { contorno: false, semSombra: true, suave: true, alfa: 0.7, detalhe: 3 }),
+  ];
 }
 
 /**
