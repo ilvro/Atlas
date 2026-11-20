@@ -18,6 +18,7 @@ import { fxAtivo } from '../fx/fx.ts';
 import { criarBaker, type Baker } from '../procedural/baker.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { sortearVariante } from '../procedural/familias.ts';
+import { camposDoPincel, pincelDoObjeto, type CamposDoPincel } from '../domain/pincel-de-objeto.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import type { EventoStore, Gesto, Store } from '../state/store.ts';
 import { criarFiltroAcabamento } from './acabamento.ts';
@@ -529,6 +530,14 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     ponte.definirPincel({ objeto: { ...o, item: sortearVariante(fam, o.item, Math.random), semente: o.semente } });
   };
   const sementeAtual = (): number => ponte.pincel().objeto.semente ?? semente;
+  /** O sorteio das variações do pincel (rotação, escala, espelho): o mesmo para o fantasma e para o clique, e renovado depois de pôr. Refaz quando o ajuste do pincel muda. */
+  let sorteio: { chave: string; campos: CamposDoPincel } | null = null;
+  const camposDoSorteio = (): CamposDoPincel => {
+    const { item: _i, params: _p, semente: _s, familia: _f, varianteAleatoria: _v, ...ajuste } = ponte.pincel().objeto, chave = JSON.stringify(ajuste);
+    if (!sorteio || sorteio.chave !== chave) sorteio = { chave, campos: camposDoPincel(ponte.pincel().objeto, Math.random) };
+    return sorteio.campos;
+  };
+  const renovarSorteio = () => { sorteio = null; };
 
   function limparFantasmaSprite(): void {
     fantasmaC.getChildByLabel('fantasma-objeto')?.destroy({ children: true });
@@ -588,7 +597,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       return;
     }
     // Objeto de piso: o desenho de verdade, pela mesma fila de pintura dos objetos postos.
-    const falso = { id: 'f', source: ACERVO.fonte(receita.id, sementeAtual(), pincel.objeto.params), position: p, rotation: 0, scale: 1, elevation: 'floor' as const, wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true, interaction: null };
+    const campos = camposDoSorteio(), falso = { id: 'f', source: ACERVO.fonte(receita.id, sementeAtual(), pincel.objeto.params), position: p, rotation: 0, scale: 1, ...(campos.flip ? { flip: true } : {}), elevation: 'floor' as const, wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true, interaction: null };
     const res = resolucaoDe(m, 'objeto'), chave = chaveDoObjeto(falso, res, m.style.genre, m.style.renderer, opcoesDoPixel(m)), pedido = pedidoDoObjeto(falso, res, m.style.genre, m.style.renderer, opcoesDoPixel(m));
     if (chave && pedido && chave !== fantasmaChave) {
       fantasmaChave = chave;
@@ -600,8 +609,9 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       }).catch(() => { /* a prévia é só um enfeite */ });
     }
     const c = fantasmaC.getChildByLabel('fantasma-objeto');
-    if (c && fantasmaSprite) { c.visible = true; c.position.set(p[0], p[1]); c.rotation = pincel.objeto.rotacao; }
-    const [w, h] = receita.pegada;
+    // Receita: o espelho já vem no assado (`falso.flip`). Imagem da coleção: espelha o contêiner (antes da rotação).
+    if (c && fantasmaSprite) { c.visible = true; c.position.set(p[0], p[1]); c.rotation = campos.rotation; c.scale.set(campos.scale * (campos.flip && falso.source.kind === 'asset' ? -1 : 1), campos.scale); fantasmaSprite.alpha = 0.7 * (campos.opacity ?? 1); }
+    const [w, h] = [receita.pegada[0] * campos.scale, receita.pegada[1] * campos.scale];
     fantasmaG.roundRect(p[0] - w / 2, p[1] - h / 2, w, h, 0.05).stroke({ width: px(1.2), color: cor, alpha: fantasmaSprite ? 0.35 : 0.9 });
   }
 
@@ -814,12 +824,13 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         const l = typeof pincel.objeto.params.largura === 'number' ? pincel.objeto.params.largura : receita.pegada[0], enc = encaixarObjetoDeParede(m, p, l, livre, andar);
         if (!enc) { ponte.aviso('Objetos de parede vão na face de um cômodo: aproxime-se de uma parede por dentro.'); return; }
         const item = novoObjeto(enc.ponto, { source: fonte, elevation: 'wall', wall: { wallId: enc.parede.id, at: enc.at, face: 'inner' }, roomId: enc.roomId, blocks: { move: false, sight: false }, castsShadow: false, ...(andar !== null ? { levelId: andar } : {}) });
-        if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, enc.ponto); ponte.aoPorObjeto?.(receita.id); novaSemente(); sortearProximaVariante(); }
+        if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { if (pincel.objeto.selecionarAoPor) ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, enc.ponto); ponte.aoPorObjeto?.(receita.id); novaSemente(); renovarSorteio(); sortearProximaVariante(); }
         return;
       }
       const interacao = interacaoDeEscadaPadrao(m, andar, receita.id);
-      const item = novoObjeto(alvo, { source: fonte, rotation: pincel.objeto.rotacao, ...(receita.submerso ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : {}), ...(interacao ? { interaction: interacao } : {}), ...(andar !== null ? { levelId: andar } : {}) });
-      if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, alvo); ponte.aoPorObjeto?.(receita.id); novaSemente(); sortearProximaVariante(); }
+      const campos = camposDoSorteio();
+      const item = novoObjeto(alvo, { source: fonte, ...(receita.submerso ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : {}), ...(interacao ? { interaction: interacao } : {}), ...(andar !== null ? { levelId: andar } : {}), ...campos });
+      if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { if (pincel.objeto.selecionarAoPor) ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, alvo); ponte.aoPorObjeto?.(receita.id); novaSemente(); renovarSorteio(); sortearProximaVariante(); }
       return;
     }
     if (f === 'luz') {
@@ -1072,7 +1083,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (a.colecao === 'props') {
       const o = m.props[a.id]; if (!o) return;
       const id = ACERVO.idDaFonte(o.source); if (!ACERVO.item(id)) return;
-      ponte.definirPincel({ objeto: { item: id, params: o.source.kind === 'recipe' ? structuredClone(o.source.params) : {}, semente: o.source.kind === 'recipe' ? o.source.seed : null, rotacao: o.rotation, familia: ACERVO.familiaDoItem(id)?.id ?? null, varianteAleatoria: ponte.pincel().objeto.varianteAleatoria } }); ponte.definirFerramenta('objeto'); ponte.aviso(`Pincel: ${ACERVO.item(id)?.nome ?? id}`);
+      ponte.definirPincel({ objeto: pincelDoObjeto(o, ponte.pincel().objeto, id, ACERVO.familiaDoItem(id)?.id ?? null) }); ponte.definirFerramenta('objeto'); ponte.aviso(`Pincel: ${ACERVO.item(id)?.nome ?? id}`);
     } else if (a.colecao === 'lights') {
       const l = m.lights[a.id]; if (!l) return;
       ponte.definirPincel({ luz: { preset: l.preset && presetDeLuz(l.preset) ? l.preset : l.cone ? 'lanterna' : 'lamparina', direcao: l.cone?.direction ?? 0 } }); ponte.definirFerramenta('luz'); ponte.aviso('Pincel: luz copiada');
