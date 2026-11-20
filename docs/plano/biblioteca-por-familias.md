@@ -87,7 +87,7 @@ Regras de classificação:
 
 ---
 
-### O1 — Famílias e grupos do acervo  ⬜
+### O1 — Famílias e grupos do acervo  ✅
 Objetivo: todo item do acervo pertence a uma família, e toda família pertence a um grupo.
 Depende de: —.
 Ler: `src/procedural/acervo.ts` (inteiro); `src/procedural/receitas/comum.ts:1-30`; `src/procedural/colecao.ts:1-30`; a seção "Grupos de objetos" acima. Para listar todos os ids com nome, categoria e tags, rode `npx tsx -e "import {ACERVO} from './src/procedural/acervo.ts'; for (const i of ACERVO.lista()) console.log(i.id, '|', i.nome, '|', i.categoria, '|', i.tags.join(','))"`.
@@ -103,7 +103,7 @@ Pronto quando: os testes passam e o relatório final traz a tabela grupo → fam
 Nota (Frente P): se a P7 de [terreno-com-textura.md](terreno-com-textura.md) já tiver criado os carimbos de chão, classifique-os pela tabela da seção "Pontos de contato com a Frente O" de lá.
 Commit: `assets are grouped into families with variants`
 
-### O2 — Terreno em grupos  ⬜
+### O2 — Terreno em grupos  ✅
 Objetivo: a gaveta de Terreno mostra os materiais em grupos que se recolhem, com contagem, como o catálogo de texturas do Inkarnate.
 Depende de: —.
 Ler: `src/ui/Biblioteca.tsx` (função `Terreno`); `src/procedural/materiais.ts:1-20` e `materiaisDo`; a tabela "Grupos de terreno" acima; a classe `.faixa` e `.lista-cartas` em `src/ui/estilo.css`.
@@ -118,7 +118,7 @@ Testes: todo material de `terreno`, `macico` e `agua` está em exatamente um gru
 Pronto quando: a gaveta de Terreno mostra 8 grupos recolhíveis e a busca filtra.
 Commit: `terrain materials are grouped in collapsible sections`
 
-### O3 — Família no pincel  ⬜
+### O3 — Família no pincel  ✅
 Objetivo: o pincel de objeto guarda a família e a variante. Com o dado ligado, cada objeto posto sai de uma variante sorteada, e o fantasma mostra exatamente a próxima.
 Depende de: O1.
 Ler: `src/render/pincel.ts` (tipo `Pincel` e `PINCEL_PADRAO`); `src/render/viewport.ts:505-575` (`novaSemente`, `sementeAtual` e o fantasma do objeto) e `:788-800` (`colocar`, ramo `objeto`); `src/procedural/acervo.ts`.
