@@ -13,7 +13,7 @@ import { CampoCaixa, CampoCor, CampoNumero } from './campos.tsx';
 import { TODOS_OS_CONJUNTOS } from '../authoring/espalhar.ts';
 import { Amostra, CampoMaterial } from './campos-material.tsx';
 import { Icone } from './Icone.tsx';
-import { CatalogoDeFamilias, FamiliaNaMao } from './FamiliaNoPincel.tsx';
+import { CatalogoDeFamilias, FamiliaNaMao, RecentesEFavoritos } from './FamiliaNoPincel.tsx';
 
 function mudar(s: SessaoDeEdicao, patch: Partial<Pincel>): void { s.pincel.value = { ...s.pincel.value, ...patch }; tocar('selecionar'); }
 
@@ -59,6 +59,7 @@ function Objetos({ s }: { s: SessaoDeEdicao }) {
   const atual = s.pincel.value.objeto, receita = ACERVO.item(atual.item);
   return (<>
     <FamiliaNaMao s={s} />
+    <RecentesEFavoritos s={s} />
     <CatalogoDeFamilias s={s} />
     {receita && <div class="ajustes"><h4>{receita.nome}</h4>
       <p class="dica"><kbd>Q</kbd> <kbd>E</kbd> giram. <kbd>Ctrl</kbd>+clique num objeto copia o pincel. <kbd>Alt</kbd> põe fora da grade.</p>
