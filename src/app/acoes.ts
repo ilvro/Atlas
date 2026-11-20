@@ -12,7 +12,7 @@ import { ROTULO_DA_FERRAMENTA, type Ferramenta } from '../render/pincel.ts';
 import { colecaoDaFerramenta } from '../render/viewport.ts';
 import { campanhaAtiva } from './campanha.ts';
 import { PRESETS_DE_CLIMA } from '../domain/presets.ts';
-import { FERRAMENTAS_DA_SESSAO, modo, mostrarRelevo, vistaDeJogador } from './modo.ts';
+import { FERRAMENTAS_DA_SESSAO, definirMovimentoLivre, modo, mostrarRelevo, movimentoLivre, vistaDeJogador } from './modo.ts';
 import { aceitarSugestao, definirSugestoesLigadas, dispensarSugestao, outraSugestao, sugestao, sugestoesLigadas } from './sugestoes.ts';
 import { momentoEmCurso, pararMomento } from './momentos.ts';
 import { dispararEspaco } from './barra-de-efeitos.ts';
@@ -137,6 +137,7 @@ export const ACOES: readonly Acao[] = [
   { id: 'modo', nome: 'Alternar modo: Construir / Sessão', grupo: 'Geral', palavras: 'jogar mestre construir sessao editar', atalhos: ['M'], habilitada: noEditor, executar: () => app.alternarModo() },
   { id: 'biblioteca', nome: 'Abrir ou fechar a biblioteca', grupo: 'Construir', palavras: 'gaveta itens catalogo', atalhos: ['B'], habilitada: noEditor, executar: () => { const s = app.sessao.value; if (s) s.biblioteca.value = !s.biblioteca.value; } },
   { id: 'vista-jogador', nome: 'Ver como jogador (névoa) / ver tudo', grupo: 'Sessão', palavras: 'visao nevoa mestre jogadores', atalhos: ['J'], habilitada: () => modo.value === 'sessao', executar: () => { vistaDeJogador.value = !vistaDeJogador.value; avisar(vistaDeJogador.value ? 'Vista dos jogadores.' : 'Vista do mestre.', { duracao: 1400 }); } },
+  { id: 'movimento-livre', nome: 'Alternar movimento: em grade / livre (freeform)', grupo: 'Sessão', palavras: 'grade livre freeform combate exploracao peca mover encaixar', atalhos: ['G'], habilitada: () => modo.value === 'sessao', executar: () => { definirMovimentoLivre(!movimentoLivre.value); tocar('selecionar'); avisar(movimentoLivre.value ? 'Movimento livre (sem grade).' : 'Movimento em grade.', { duracao: 1400 }); } },
   { id: 'ferr-regua', nome: 'Ferramenta: régua (medir em quadrados)', grupo: 'Sessão', palavras: 'medir distancia metros quadrados', atalhos: ['R'], habilitada: () => modo.value === 'sessao', executar: () => usarFerramenta('regua') },
   { id: 'barra-efeitos', nome: 'Barra de efeitos: espaços 1 a 9', grupo: 'Sessão', palavras: 'barra efeitos momentos hotbar atalhos teclas', atalhos: ['1…9'], habilitada: () => modo.value === 'sessao', executar: () => {} },
   { id: 'interagir', nome: 'Interagir (abrir ou fechar a porta ao lado da peça)', grupo: 'Sessão', palavras: 'porta abrir fechar usar peca', atalhos: ['Enter'], habilitada: () => modo.value === 'sessao' && (app.sessao.value?.selecao.value.some(a => a.colecao === 'tokens') ?? false), executar: () => app.interagirComPerto() },

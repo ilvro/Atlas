@@ -40,3 +40,8 @@ export const alinhandoGrade = signal(false);
 
 /** Mostrar linhas de contorno de relevo em Construir mesmo fora do pincel de relevo. */
 export const mostrarRelevo = signal(false);
+
+/** Na Sessão, mover as peças livremente pelo mapa (sem encaixar no centro das células da grade). */
+export const movimentoLivre = signal(false);
+export function definirMovimentoLivre(v: boolean): void { movimentoLivre.value = v; }
+

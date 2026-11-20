@@ -26,7 +26,7 @@ import { campanhaAtiva, carregarCampanhas, desvincularMapa, entidadesDaCampanha,
 import { pedirCena, pedirEfeito, pedirSilencio, pedirSomDoClima, pedirSomDoMapa, tocarSomEscolhido } from './audio-do-clima.ts';
 import { comandoDaEtapaDeAgua, etapasDaAgua } from '../domain/agua.ts';
 import { gatilhoJaDisparou, iniciarRegioes, marcarGatilhoDisparado, nomeDaRegiao } from './regioes.ts';
-import { modo, vistaDeJogador } from './modo.ts';
+import { modo, movimentoLivre, vistaDeJogador } from './modo.ts';
 import { iniciarSugestoes } from './sugestoes.ts';
 import { abrirJanelaDoProjetor, ajustarAoAspecto, aspectoDoProjetor, caixaDoProjetor, iniciarPublicacao, mapaNoProjetorId, projetorConectado, seguirJogadores, telaEscura, type Publicador } from './projetor.ts';
 import type { EventoDeCena } from '../render/eventos-de-cena.ts';
@@ -823,12 +823,13 @@ export function camadaDaSelecao(modo: 'frente' | 'tras' | 'subir' | 'descer'): v
 export function moverSelecao(dx: number, dy: number): void {
   const s = sessao.value; if (!s || !s.selecao.value.length) return;
   if (modo.value === 'sessao') {
-    // Na sessão as setas levam as peças uma célula (sem atravessar paredes); o resto do mapa não anda.
+    // Na sessão as setas levam as peças uma célula (ou o passo fino quando em movimento livre), sem atravessar paredes; o resto do mapa não anda.
     const pecas = s.selecao.value.filter(a => a.colecao === 'tokens'); if (!pecas.length) return;
-    const g = s.doc.value.grid.size, passo = [Math.sign(dx) * g, Math.sign(dy) * g] as const;
+    const semGrade = !s.doc.value.grid.snap || movimentoLivre.value;
+    const g = s.doc.value.grid.size, passo = semGrade ? [dx, dy] as const : [Math.sign(dx) * g, Math.sign(dy) * g] as const;
     try {
       s.store.transacao(pecas.length > 1 ? 'Mover peças' : 'Mover peça', gesto => {
-        for (const a of pecas) { const t = s.doc.value.tokens[a.id]; if (t) gesto.aplicar({ tipo: 'peca.mover', id: a.id, para: [t.position[0] + passo[0], t.position[1] + passo[1]] }); }
+        for (const a of pecas) { const t = s.doc.value.tokens[a.id]; if (t) gesto.aplicar({ tipo: 'peca.mover', id: a.id, para: [t.position[0] + passo[0], t.position[1] + passo[1]], semGrade }); }
       });
     } catch (erro) { avisar(erro instanceof Error ? erro.message : String(erro)); }
     return;

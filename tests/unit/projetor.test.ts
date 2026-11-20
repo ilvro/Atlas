@@ -448,3 +448,60 @@ test('publicador: seguir um jogador específico enquadra só a peça dele', asyn
     pub.parar(); canalEsp.close(); sess.fechar();
   }
 });
+
+test('publicador: arrastar peça em movimento livre (gesto) envia câmera e estado em tempo real ao projetor', async () => {
+  const mapa = criarMapa({ id: 'mapa-pub-freeform', nome: 'Arena' });
+  const repo = criarRepoMock({ [mapa.id]: mapa });
+  const sess = criarSessao(mapa, repo, { salvo: true });
+  sess.store.executar({
+    tipo: 'item.adicionar',
+    colecao: 'tokens',
+    item: {
+      id: 'heroi',
+      name: 'Herói',
+      position: [4.5, 4.5],
+      size: 1,
+      facing: 'down',
+      portrait: null,
+      sprite: null,
+      player: true,
+      vision: { radius: 18, dark: false },
+      lightId: null,
+      figure: { state: 'normal' },
+      refs: [],
+      hp: null,
+    },
+  });
+  seguirJogadores.value = true;
+  const pub = iniciarPublicacao(sess, async () => null);
+  const canalEsp = new BroadcastChannel(nomeDoCanalDoProjetor(mapa.id));
+  const msgs: MensagemDoMestre[] = [];
+  canalEsp.onmessage = e => msgs.push(e.data);
+  try {
+    canalEsp.postMessage({ tipo: 'ola', largura: 1600, altura: 900, _seq: 1 });
+    await esperar(60);
+    msgs.length = 0;
+
+    // Simula arrasto contínuo em freeform (com gesto ativo)
+    const gesto = sess.store.iniciarGesto('Mover peça');
+    gesto.aplicar({ tipo: 'peca.mover', id: 'heroi', para: [10.3, 6.8], semGrade: true });
+    await esperar(50);
+
+    // Ainda antes de concluir o gesto, o projetor já recebeu câmera imediata e estado com emGesto: true
+    const camDurante = msgs.filter((m): m is Extract<MensagemDoMestre, { tipo: 'camera' }> => m.tipo === 'camera').at(-1);
+    assert.ok(camDurante, 'enviou câmera durante o arrasto do gesto');
+    assert.equal(camDurante!.imediata, true, 'câmera durante o arrasto é imediata');
+    assert.ok(Math.abs((camDurante!.caixa.x0 + camDurante!.caixa.x1) / 2 - 10.3) < 0.01);
+
+    const estadoDurante = msgs.filter((m): m is Extract<MensagemDoMestre, { tipo: 'estado' }> => m.tipo === 'estado').at(-1);
+    assert.ok(estadoDurante, 'enviou estado durante o arrasto');
+    assert.equal(estadoDurante!.emGesto, true);
+    assert.deepEqual(estadoDurante!.doc.tokens.heroi!.position, [10.3, 6.8]);
+
+    gesto.concluir();
+    assert.equal(sess.store.historico.length, 2, 'adicionar + 1 entrada para o arrasto todo');
+  } finally {
+    seguirJogadores.value = false;
+    pub.parar(); canalEsp.close(); sess.fechar();
+  }
+});

@@ -63,8 +63,8 @@ export type Comando =
   /** Uma sugestão do assistente aceita: vários comandos como UMA entrada de histórico. Não aninha. */
   | { tipo: 'proposta.aceitar'; rotulo: string; comandos: Comando[] }
   | { tipo: 'selecao.mover'; alvos: AlvoMovel[]; delta: Ponto }
-  /** Anda com uma peça: encaixa no centro da célula e recusa atravessar parede ou porta fechada (a menos que `livre`). */
-  | { tipo: 'peca.mover'; id: string; para: Ponto; livre?: boolean }
+  /** Anda com uma peça: encaixa no centro da célula (a menos que `semGrade`) e recusa atravessar parede ou porta fechada (a menos que `livre`). */
+  | { tipo: 'peca.mover'; id: string; para: Ponto; livre?: boolean; semGrade?: boolean }
   /** Gira o cone da lanterna da peça para `direcao` (rad), sem mover a peça. */
   | { tipo: 'peca.virar'; id: string; direcao: number }
   /** Transfere uma peça para outro andar (por uma escada) e, opcionalmente, para uma nova posição. */
@@ -223,7 +223,7 @@ function aplicar(m: MapaAtlas, c: Comando): void {
     case 'peca.mover': {
       const t = m.tokens[c.id] ?? nao(`A peça “${c.id}” não existe.`);
       if (!c.para.every(Number.isFinite)) nao('Destino inválido.');
-      const destino = centroDaCelula(m, c.para), de: Ponto = [t.position[0], t.position[1]];
+      const destino: Ponto = c.semGrade ? [c.para[0], c.para[1]] : centroDaCelula(m, c.para), de: Ponto = [t.position[0], t.position[1]];
       if (destino[0] < 0 || destino[1] < 0 || destino[0] > m.bounds.width || destino[1] > m.bounds.height) nao('Fora do mapa.');
       if (Math.hypot(destino[0] - de[0], destino[1] - de[1]) < 1e-6) break;
       const nivel = andarDe(t);
