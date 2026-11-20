@@ -27,6 +27,8 @@ export async function novoContexto(a: Ambiente, opcoes: Parameters<Browser['newC
 
 export interface Pagina { page: Page; erros: string[] }
 export async function abrir(ctx: BrowserContext, url: string): Promise<Pagina> {
+  // O tsx (esbuild com keepNames) embute `__name(...)` nas funções passadas a `page.evaluate`; no navegador esse auxiliar não existe.
+  await ctx.addInitScript(() => { (window as unknown as { __name?: (f: unknown) => unknown }).__name ??= (f) => f; });
   const page = await ctx.newPage(), erros: string[] = [];
   page.on('console', m => { if (m.type() === 'error') erros.push(m.text()); });
   page.on('pageerror', e => erros.push(`pageerror: ${e.message}`));
