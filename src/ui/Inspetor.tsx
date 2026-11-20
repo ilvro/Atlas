@@ -18,7 +18,7 @@ import { ROTULOS_DE_ESTADO } from '../domain/figuras.ts';
 import { DETALHES_DE_TELHADO, ESTADOS_FIGURA, type Abertura, type Acabamento, type Clima, type Comodo, type DetalheDeTelhado, type Estilo, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Presenca, type Regiao } from '../domain/mapa.ts';
 import { ESTILOS_DE_TELHADO, GENEROS, generoDe, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
 import { acabamentoLigado, aplicarClima, definirAcabamentoLigado, definirTelhadosNoEditor, telhadosNoEditor, tocarMomentoDoMapa } from '../app/app.ts';
-import { abaDoInspetor, alinhandoGrade, definirRegraDaRegua, modo, regraDaRegua } from '../app/modo.ts';
+import { abaDoInspetor, alinhandoGrade, definirMovimentoLivre, definirRegraDaRegua, modo, movimentoLivre, regraDaRegua } from '../app/modo.ts';
 import { ROTULO_DA_REGRA, type RegraDeDiagonal } from '../domain/regua.ts';
 import { definirSugestoesLigadas, sugestoesLigadas } from '../app/sugestoes.ts';
 import { COLECAO } from '../procedural/colecao.ts';
@@ -170,7 +170,8 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
       )}
       </>}
       {modo.value === 'sessao' && <>
-        <h3 class="faixa pequena">Régua</h3>
+        <h3 class="faixa pequena">Movimento e Régua</h3>
+        <CampoCaixa rotulo="Movimento livre" dica="Sem encaixar no centro das células da grade (G). Bom fora de combate." valor={movimentoLivre.value} aoMudar={definirMovimentoLivre} />
         <CampoOpcoes rotulo="Diagonal" dica="Como a régua conta as diagonais. Só para você: não muda o mapa." valor={regraDaRegua.value} opcoes={(Object.keys(ROTULO_DA_REGRA) as RegraDeDiagonal[]).map(r => [r, ROTULO_DA_REGRA[r]] as const)} aoMudar={v => definirRegraDaRegua(v as RegraDeDiagonal)} />
       </>}
       {Object.values(m.tokens).some(t => t.player) && <ExploracaoDoMapa s={s} />}

@@ -104,8 +104,8 @@ export function Projetor({ mapaId }: { mapaId: string }) {
         if (msg._seq === ultimoSeqMestre) return;
         ultimoSeqMestre = msg._seq;
       }
-      if (msg.tipo === 'estado') { doc.value = msg.doc; store!.projetar(msg.doc); }
-      else if (msg.tipo === 'camera') { caixa = caixaDoMestre = msg.caixa; if (msg.seguir) seguindo.value = true; if (seguindo.peek()) { vp?.enquadrarCaixa(caixaComZoom(msg.caixa), !primeira); primeira = false; } }
+      if (msg.tipo === 'estado') { doc.value = msg.doc; store!.projetar(msg.doc, { emGesto: msg.emGesto }); }
+      else if (msg.tipo === 'camera') { caixa = caixaDoMestre = msg.caixa; if (msg.seguir) seguindo.value = true; if (seguindo.peek()) { vp?.enquadrarCaixa(caixaComZoom(msg.caixa), !primeira && !msg.imediata); primeira = false; } }
       else if (msg.tipo === 'evento') vp?.dispararEvento(msg.nome);
       else if (msg.tipo === 'relampago') vp?.relampagoAgora();
       else if (msg.tipo === 'tela') { cortina.value = { escurecer: msg.acao === 'escurecer', ms: msg.ms }; }

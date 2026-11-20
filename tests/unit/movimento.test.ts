@@ -50,6 +50,16 @@ test('peca.mover encaixa no centro da célula, vira a peça e respeita os bloque
   assert.deepEqual(livre.tokens.t!.position, [8.25, 6.75]);
 });
 
+test('peca.mover com semGrade usa a coordenada exata (movimento freeform) e ainda respeita paredes', () => {
+  let m = mapaComParede();
+  m = aplicarComando(m, { tipo: 'peca.mover', id: 't', para: [3.2, 7.1], semGrade: true });
+  assert.deepEqual(m.tokens.t!.position, [3.2, 7.1]);
+  assert.equal(m.tokens.t!.facing, 'right');
+  assert.throws(() => aplicarComando(m, { tipo: 'peca.mover', id: 't', para: [8.1, 7.1], semGrade: true }), /parede/);
+  const livreSemGrade = aplicarComando(m, { tipo: 'peca.mover', id: 't', para: [8.1, 7.1], livre: true, semGrade: true });
+  assert.deepEqual(livreSemGrade.tokens.t!.position, [8.1, 7.1]);
+});
+
 test('mover a peça é uma entrada de histórico e desfazer a devolve', () => {
   const store = criarStore(mapaComParede());
   store.executar({ tipo: 'peca.mover', id: 't', para: [3.75, 6.75] });

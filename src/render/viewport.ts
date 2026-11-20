@@ -64,6 +64,8 @@ export interface PonteViewport {
   recursosDaPeca?(t: Peca): Recursos | null;
   /** Na sessão, arrastar uma peça a leva de célula em célula e as outras coisas só se selecionam. */
   emSessao?(): boolean;
+  /** Na sessão, mover peças sem encaixar na grade (com atualização em tempo real durante o arrasto). */
+  movimentoLivre?(): boolean;
   /** Pelos olhos de quem se vê o mapa agora (o mestre em Construir vê sempre tudo). */
   vista?(): Vista;
   /** Quanto dura a transição entre dois climas, em ms (preferência local); sem a função vale o padrão. */
@@ -165,7 +167,7 @@ const COR_PADRAO_ACENTO = 0xe91d25;
 type Interacao =
   | { tipo: 'pan'; botao: number; x0: number; y0: number; camera0: Camera; moveu: boolean }
   | { tipo: 'mover'; hit: Alvo; alvos: AlvoMovel[]; origem: Ponto; ref: Ponto; aplicado: Ponto; gesto: Gesto | null; x0: number; y0: number; estavaNaSelecao: boolean; ctrl: boolean }
-  | { tipo: 'peca'; id: string; de: Ponto; para: Ponto; motivo: string | null; livre: boolean; x0: number; y0: number; moveu: boolean }
+  | { tipo: 'peca'; id: string; de: Ponto; para: Ponto; motivo: string | null; livre: boolean; semGrade: boolean; gesto: Gesto | null; x0: number; y0: number; moveu: boolean }
   | { tipo: 'deslizar'; id: string; gesto: Gesto | null; x0: number; y0: number }
   | { tipo: 'retangulo'; ini: Ponto; atual: Ponto; modo: 'trocar' | 'somar'; x0: number; y0: number; moveu: boolean }
   | { tipo: 'laco'; pontos: Ponto[]; modo: 'trocar' | 'somar' }
@@ -494,8 +496,13 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         laco.circle(q[0], q[1], px(k === 0 && pertoPrimeiro ? 7 : 4.5)).fill(k === 0 && pertoPrimeiro ? cor : 0xffffff).stroke({ width: px(1.5), color: corPol });
       }
     } else if (interacao?.tipo === 'peca' && interacao.moveu) {
-      const { de, para, motivo, livre } = interacao, t = m.grid.size, cor3 = motivo ? 0xe0342c : livre ? 0xd9a23b : 0x3fb950;
-      laco.rect(para[0] - t / 2, para[1] - t / 2, t, t).fill({ color: cor3, alpha: 0.22 }).stroke({ width: px(1.5), color: cor3, alpha: 0.9 });
+      const { de, para, motivo, livre, semGrade } = interacao, t = m.grid.size, cor3 = motivo ? 0xe0342c : livre ? 0xd9a23b : 0x3fb950;
+      if (semGrade) {
+        const tam = (m.tokens[interacao.id]?.size ?? 1) * t * 0.44;
+        laco.circle(para[0], para[1], tam).fill({ color: cor3, alpha: 0.22 }).stroke({ width: px(1.5), color: cor3, alpha: 0.9 });
+      } else {
+        laco.rect(para[0] - t / 2, para[1] - t / 2, t, t).fill({ color: cor3, alpha: 0.22 }).stroke({ width: px(1.5), color: cor3, alpha: 0.9 });
+      }
       laco.moveTo(de[0], de[1]).lineTo(para[0], para[1]).stroke({ width: px(2.5), color: cor3, alpha: 0.9, cap: 'round' });
     } else if (interacao?.tipo === 'parede') {
       laco.moveTo(interacao.ini[0], interacao.ini[1]).lineTo(interacao.fim[0], interacao.fim[1]).stroke({ width: 0.2, color: cor, alpha: 0.75, cap: 'round' });
@@ -900,7 +907,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       if (hit?.colecao === 'tokens' && !e.shiftKey) {
         ponte.definirSelecao([hit]);
         const t = m.tokens[hit.id]; if (!t) return;
-        interacao = { tipo: 'peca', id: hit.id, de: [t.position[0], t.position[1]], para: [t.position[0], t.position[1]], motivo: null, livre: e.altKey, x0: tx, y0: ty, moveu: false };
+        const semGrade = !m.grid.snap || ponte.movimentoLivre?.() === true;
+        interacao = { tipo: 'peca', id: hit.id, de: [t.position[0], t.position[1]], para: [t.position[0], t.position[1]], motivo: null, livre: e.altKey, semGrade, gesto: null, x0: tx, y0: ty, moveu: false };
         cursor(); return;
       }
       if (hit) {
@@ -954,8 +962,24 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       if (Math.abs(passo[0]) > 1e-9 || Math.abs(passo[1]) > 1e-9) { i.gesto.aplicar({ tipo: 'selecao.mover', alvos: i.alvos, delta: passo }); i.aplicado = d; }
     } else if (i.tipo === 'peca') {
       if (Math.hypot(tx - i.x0, ty - i.y0) > LIMIAR_ARRASTO) i.moveu = true;
-      i.livre = !m.grid.snap || e.altKey; i.para = i.livre ? ponteiro : centroDaCelula(m, ponteiro);
-      i.motivo = i.livre ? null : bloqueioNoCaminho(m, i.de, i.para);
+      const semGrade = !m.grid.snap || ponte.movimentoLivre?.() === true;
+      i.semGrade = semGrade;
+      i.livre = !m.grid.snap || e.altKey;
+      const alvoPos: Ponto = semGrade || i.livre
+        ? [Math.max(0, Math.min(m.bounds.width, ponteiro[0])), Math.max(0, Math.min(m.bounds.height, ponteiro[1]))]
+        : centroDaCelula(m, ponteiro);
+      i.para = alvoPos;
+      if (semGrade && i.moveu) {
+        if (!i.gesto) i.gesto = store.iniciarGesto('Mover peça');
+        const atual = m.tokens[i.id]?.position ?? i.de;
+        const motivo = i.livre ? null : bloqueioNoCaminho(m, atual, alvoPos);
+        i.motivo = motivo;
+        if (!motivo && Math.hypot(alvoPos[0] - atual[0], alvoPos[1] - atual[1]) > 1e-6) {
+          try { i.gesto.aplicar({ tipo: 'peca.mover', id: i.id, para: alvoPos, livre: i.livre, semGrade: true }); } catch { /* bloqueado */ }
+        }
+      } else {
+        i.motivo = i.livre ? null : bloqueioNoCaminho(m, i.de, i.para);
+      }
     } else if (i.tipo === 'deslizar') {
       if (!i.gesto) { if (Math.hypot(tx - i.x0, ty - i.y0) <= LIMIAR_ARRASTO) return; i.gesto = store.iniciarGesto('Mover abertura'); }
       const a = m.openings[i.id]; if (!a) return;
@@ -1037,7 +1061,20 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       else if (!cancelado && i.ctrl) pipeta(i.hit);
       else if (!cancelado && i.estavaNaSelecao && sel.length > 1) ponte.definirSelecao([i.hit]);
     } else if (i.tipo === 'peca') {
-      if (!cancelado && i.moveu && Math.hypot(i.para[0] - i.de[0], i.para[1] - i.de[1]) > 1e-6) tentar(() => store.executar({ tipo: 'peca.mover', id: i.id, para: i.para, livre: i.livre }));
+      if (i.gesto) {
+        if (cancelado) i.gesto.cancelar();
+        else {
+          if (i.moveu && !i.motivo) {
+            const atual = doc().tokens[i.id]?.position ?? i.de;
+            if (Math.hypot(i.para[0] - atual[0], i.para[1] - atual[1]) > 1e-6) {
+              try { i.gesto.aplicar({ tipo: 'peca.mover', id: i.id, para: i.para, livre: i.livre, semGrade: i.semGrade }); } catch { /* ignora */ }
+            }
+          }
+          i.gesto.concluir();
+        }
+      } else if (!cancelado && i.moveu && Math.hypot(i.para[0] - i.de[0], i.para[1] - i.de[1]) > 1e-6) {
+        tentar(() => store.executar({ tipo: 'peca.mover', id: i.id, para: i.para, livre: i.livre, semGrade: i.semGrade }));
+      }
     } else if (i.tipo === 'regua') {
       if (cancelado) { /* nada */ } else if (i.moveu) {
         const fim = regua?.atual ?? i.ini;
@@ -1092,7 +1129,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (e.key === 'Escape' && interacao) {
       e.stopImmediatePropagation();
       const i = interacao; interacao = null;
-      if ((i.tipo === 'mover' || i.tipo === 'deslizar' || i.tipo === 'alinhamento-grade') && i.gesto) i.gesto.cancelar();
+      if ((i.tipo === 'mover' || i.tipo === 'peca' || i.tipo === 'deslizar' || i.tipo === 'alinhamento-grade') && i.gesto) i.gesto.cancelar();
       else if (i.tipo === 'cômodo' || i.tipo === 'terreno' || i.tipo === 'espalhar') i.gesto.cancelar();
       camadaSuja = true; cursor();
     }

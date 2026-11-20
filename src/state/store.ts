@@ -44,7 +44,7 @@ export interface Store {
   executar(comando: Comando, opcoes?: { rotulo?: string; versaoEsperada?: number; fusao?: string }): MapaAtlas;
   iniciarGesto(rotulo: string, opcoes?: { fusao?: string }): Gesto;
   /** Troca o documento por outra versão do MESMO mapa (a projeção recebida pelo projetor), avisando só o que mudou. Sem histórico. */
-  projetar(mapa: MapaAtlas): MapaAtlas;
+  projetar(mapa: MapaAtlas, opcoes?: { emGesto?: boolean }): MapaAtlas;
   /** Vários comandos como uma só entrada de histórico; se `corpo` lançar, nada do que fez fica. */
   transacao<T>(rotulo: string, corpo: (gesto: Gesto) => T, opcoes?: { fusao?: string }): T;
   desfazer(): MapaAtlas;
@@ -174,13 +174,13 @@ export function criarStore(inicial: MapaAtlas, opcoes: { salvo?: boolean } = {})
       return documento;
     },
 
-    projetar(mapa) {
+    projetar(mapa, opcoes) {
       validarMapa(mapa);
       if (mapa.id !== documento.id) return store.substituir(mapa);
       const antes = documento, proximo = congelar(compartilhar(antes, mapa));
       if (proximo === antes) return antes;
       documento = proximo; versao++;
-      avisar('executar', antes, 'Projeção');
+      avisar(opcoes?.emGesto ? 'gesto' : 'executar', antes, 'Projeção');
       return documento;
     },
 

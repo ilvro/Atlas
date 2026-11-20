@@ -6,6 +6,7 @@ import {
   FERRAMENTAS_DA_SESSAO,
   modo,
   mostrarRelevo,
+  movimentoLivre,
   regraDaRegua,
   definirRegraDaRegua,
   vistaDeJogador,
@@ -278,6 +279,20 @@ export function BarraInferior({ s }: { s: SessaoDeEdicao }) {
           >
             <Icone nome="enquadrar" tamanho={18} />
           </button>
+
+          {modo.value === 'sessao' && (
+            <button
+              type="button"
+              class={`ferramenta ${!movimentoLivre.value ? 'ativa' : ''}`}
+              aria-pressed={!movimentoLivre.value}
+              title={movimentoLivre.value ? 'Movimento livre ativo — clique para encaixar peças na grade (G)' : 'Movimento em grade ativo — clique para mover peças livremente (G)'}
+              aria-label="Alternar movimento em grade ou livre"
+              onClick={() => executar('movimento-livre')}
+              data-testid="alternar-movimento-livre"
+            >
+              <Icone nome="grade" tamanho={18} />
+            </button>
+          )}
 
           {modo.value === 'construir' && (
             <div class="item-ferramenta-grupo">

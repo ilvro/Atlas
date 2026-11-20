@@ -34,6 +34,8 @@ import {
   FERRAMENTAS_DA_SESSAO,
   regraDaRegua,
   definirRegraDaRegua,
+  movimentoLivre,
+  definirMovimentoLivre,
   vistaDeJogador,
   vistaAtual,
 } from '../../src/app/modo.ts';
@@ -97,4 +99,19 @@ test('controle de abertura e alternância de seções no Dock', () => {
 
   alternarSecaoNoDock('projetor');
   assert.equal(secoesAbertasNoDock.value.projetor, true);
+});
+
+test('alternar movimento livre (freeform) na Sessão', () => {
+  definirMovimentoLivre(false);
+  modo.value = 'sessao';
+
+  const acao = acaoPorId('movimento-livre');
+  assert.ok(acao);
+  executarAcao(acao);
+  assert.equal(movimentoLivre.value, true);
+
+  executarAcao(acao);
+  assert.equal(movimentoLivre.value, false);
+
+  modo.value = 'construir';
 });

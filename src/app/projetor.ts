@@ -22,8 +22,8 @@ export const nomeDoCanalDoProjetor = (mapaId: string): string => `atlas:projetor
 export const mapaNoProjetorId = signal<string | null>(null);
 
 export type MensagemDoMestre =
-  | { tipo: 'estado'; doc: MapaAtlas; versao: number }
-  | { tipo: 'camera'; caixa: Caixa; seguir?: boolean }
+  | { tipo: 'estado'; doc: MapaAtlas; versao: number; emGesto?: boolean }
+  | { tipo: 'camera'; caixa: Caixa; seguir?: boolean; imediata?: boolean }
   | { tipo: 'evento'; nome: EventoDeCena }
   | { tipo: 'relampago' }
   | { tipo: 'retrato'; id: string; blob: Blob }
@@ -167,12 +167,12 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
     const andar = andarAtual(m);
     if (!projetorConectado.peek() || parado) return;
     enviarRetratos(m);
-    enviar({ tipo: 'estado', doc: projetarParaJogadores(m, andar), versao: s.store.versaoEdicao });
+    enviar({ tipo: 'estado', doc: projetarParaJogadores(m, andar), versao: s.store.versaoEdicao, ...(s.store.emGesto ? { emGesto: true } : {}) });
     enviarRecursos();
   };
-  const agendar = () => {
+  const agendar = (ms = 100) => {
     if (temporizador) return;
-    temporizador = setTimeout(() => { temporizador = null; enviarEstado(); }, 100);
+    temporizador = setTimeout(() => { temporizador = null; enviarEstado(); }, ms);
     if (typeof temporizador?.unref === 'function') temporizador.unref();
   };
 
@@ -201,12 +201,15 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
   canalEspecifico.onmessage = aoMensagem;
   canalGlobal.onmessage = aoMensagem;
 
+  let cameraEmGesto = false;
   const sair = s.store.assinar(e => {
     if (e.mudancas.completo || e.mudancas.colecoes.tokens) registrarJogadores(e.documento);
     andarAtual(e.documento);
-    agendar();
+    agendar(e.tipo === 'gesto' ? 32 : 100);
     if (seguirJogadores.peek() && projetorConectado.peek() && (e.mudancas.completo || e.mudancas.colecoes.tokens)) {
+      cameraEmGesto = e.tipo === 'gesto';
       caixaDoProjetor.value = caixaDosJogadores(e.documento, aspectoDoProjetor.peek(), 5, andarAtual(e.documento), jogadorSeguido.peek());
+      cameraEmGesto = false;
     }
   });
   // Ligar "seguir os jogadores" enquadra na hora; a caixa publicada segue qualquer mudança (arrastar o quadro, seguir).
@@ -228,7 +231,7 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
     }
   });
   const parar3 = effect(() => { void recursosDasFichas.value; void mostrarPvNoProjetor.value; enviarRecursos(); });
-  const parar2 = effect(() => { const c = caixaDoProjetor.value; if (c && projetorConectado.peek()) enviar({ tipo: 'camera', caixa: c, ...(seguirJogadores.peek() ? { seguir: true } : {}) }); });
+  const parar2 = effect(() => { const c = caixaDoProjetor.value; if (c && projetorConectado.peek()) enviar({ tipo: 'camera', caixa: c, ...(seguirJogadores.peek() ? { seguir: true } : {}), ...(cameraEmGesto ? { imediata: true } : {}) }); });
 
   return {
     evento: nome => { if (projetorConectado.peek()) enviar({ tipo: 'evento', nome }); },

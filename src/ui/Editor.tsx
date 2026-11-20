@@ -5,7 +5,7 @@ import { TIPO_ARRASTE_PISTA, soltarPista } from './Pistas.tsx';
 import { useEffect, useRef } from 'preact/hooks';
 import { signal, useSignalEffect } from '@preact/signals';
 import { acaoPorId, executarAcao, itensDoMenuRadial } from '../app/acoes.ts';
-import { FERRAMENTAS_DA_SESSAO, alinhandoGrade, duracaoDoClima, modo, mostrarRelevo, regraDaRegua, vistaAtual } from '../app/modo.ts';
+import { FERRAMENTAS_DA_SESSAO, alinhandoGrade, duracaoDoClima, modo, mostrarRelevo, movimentoLivre, regraDaRegua, vistaAtual } from '../app/modo.ts';
 import { acabamentoLigado, telhadosNoEditor, adicionarEm, alternarPorta, usarObjeto, aoColocar, comandosDeEspalhar, focarNoComodo, focoPendente, menuRadial, notaDeObjetoAberta, servicos, sessao, viewport as viewportAtual } from '../app/app.ts';
 import { obterCameraDaAba } from '../app/abas.ts';
 import { mostrarAtalho } from '../app/atalhos.ts';
@@ -61,6 +61,7 @@ function ponteDa(s: SessaoDeEdicao): PonteViewport {
     acabamento: () => acabamentoLigado.peek(),
     telhados: () => telhadosNoEditor.peek(),
     emSessao: () => modo.value === 'sessao',
+    movimentoLivre: () => movimentoLivre.value,
     vista: vistaAtual,
     regraDaRegua: () => regraDaRegua.peek(),
     duracaoDaTransicao: () => duracaoDoClima.peek(),
@@ -88,7 +89,7 @@ function AreaDoMapa({ s }: { s: SessaoDeEdicao }) {
     return () => { morto = true; vp?.destruir(); if (viewportAtual.atual === vp) viewportAtual.atual = null; };
   }, [s]);
   // A seleção, a ferramenta e o pincel vivem em signals; o viewport só precisa saber que deve redesenhar as sobreposições.
-  useSignalEffect(() => { s.selecao.value; s.ferramenta.value; s.pincel.value; s.andarAtivo.value; modo.value; acabamentoLigado.value; telhadosNoEditor.value; vistaAtual(); regraDaRegua.value; caixaDoProjetor.value; projetorConectado.value; mostrarQuadroDoProjetor.value; alinhandoGrade.value; mostrarRelevo.value; viewportAtual.atual?.atualizarSobreposicoes(); });
+  useSignalEffect(() => { s.selecao.value; s.ferramenta.value; s.pincel.value; s.andarAtivo.value; modo.value; movimentoLivre.value; acabamentoLigado.value; telhadosNoEditor.value; vistaAtual(); regraDaRegua.value; caixaDoProjetor.value; projetorConectado.value; mostrarQuadroDoProjetor.value; alinhandoGrade.value; mostrarRelevo.value; viewportAtual.atual?.atualizarSobreposicoes(); });
   useSignalEffect(() => { const d = duracaoDoClima.value; if (d) viewportAtual.atual?.definirDuracaoDaTransicao(d); });
   useSignalEffect(() => { tema.value; requestAnimationFrame(() => viewportAtual.atual?.redesenhar()); });
   useEffect(() => {
