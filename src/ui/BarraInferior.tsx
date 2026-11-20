@@ -20,6 +20,7 @@ import {
 import { definirMostrarPvNoProjetor, mostrarPvNoProjetor } from '../app/fichas.ts';
 import { abrirSecaoNoDock } from '../app/dock.ts';
 import { Icone } from './Icone.tsx';
+import { SeletorDeJogadorSeguido } from './SeletorDeJogadorSeguido.tsx';
 import { ConfiguracaoDeGrade } from './ConfiguracaoDeGrade.tsx';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 
@@ -136,6 +137,7 @@ export function BarraInferior({ s }: { s: SessaoDeEdicao }) {
             <span>Seguir os jogadores</span>
             {seguirJogadores.value && <span aria-hidden="true">✓</span>}
           </button>
+          <div class="popover-item info"><SeletorDeJogadorSeguido s={s} testid="barra-projetor-jogador" /></div>
           <button
             type="button"
             class={`popover-item ${mostrarQuadroDoProjetor.value ? 'ativo' : ''}`}

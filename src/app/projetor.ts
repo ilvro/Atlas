@@ -52,6 +52,8 @@ export const projetorConectado = signal(false);
 export const telaEscura = signal(false);
 /** Enquadrar sempre as peças de jogador. */
 export const seguirJogadores = signal(false);
+/** Com "seguir os jogadores" ligado, enquadra só esta peça de jogador (`null` = todos). */
+export const jogadorSeguido = signal<string | null>(null);
 export const aspectoDoProjetor = signal(16 / 9);
 /** Mostrar o quadro do projetor sobre o mapa do mestre. */
 export const mostrarQuadroDoProjetor = signal(true);
@@ -81,8 +83,9 @@ export function ajustarAoAspecto(c: Caixa, asp: number): Caixa {
 }
 
 /** A caixa que enquadra as peças de jogador com folga (ou o mapa todo, se não houver). */
-export function caixaDosJogadores(m: MapaAtlas, asp: number, margem = 5, andar?: string | null): Caixa {
-  const pecas = Object.values(m.tokens).filter(t => t.player && (andar === undefined || andarDe(t) === andar));
+export function caixaDosJogadores(m: MapaAtlas, asp: number, margem = 5, andar?: string | null, jogadorId: string | null = null): Caixa {
+  const alvo = jogadorId ? m.tokens[jogadorId] : undefined;
+  const pecas = alvo?.player ? [alvo] : Object.values(m.tokens).filter(t => t.player && (andar === undefined || andarDe(t) === andar));
   if (!pecas.length) return ajustarAoAspecto({ x0: 0, y0: 0, x1: m.bounds.width, y1: m.bounds.height }, asp);
   const xs = pecas.map(t => t.position[0]), ys = pecas.map(t => t.position[1]);
   return ajustarAoAspecto({ x0: Math.min(...xs) - margem, y0: Math.min(...ys) - margem, x1: Math.max(...xs) + margem, y1: Math.max(...ys) + margem }, asp);
@@ -136,7 +139,10 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
   };
   registrarJogadores(s.store.documento);
   const andarAtual = (m: MapaAtlas): string | null => {
-    const resolvido = resolverAndarDoProjetor(m, ultimoAndarMovido, andarManualDoProjetor.peek());
+    const seguido = seguirJogadores.peek() ? m.tokens[jogadorSeguido.peek() ?? ''] : undefined;
+    const resolvido = seguido?.player && andarManualDoProjetor.peek() === undefined
+      ? andarDe(seguido)
+      : resolverAndarDoProjetor(m, ultimoAndarMovido, andarManualDoProjetor.peek());
     andarDoProjetor.value = resolvido;
     return resolvido;
   };
@@ -182,7 +188,7 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
       if (msg.largura > 0 && msg.altura > 0) aspectoDoProjetor.value = msg.largura / msg.altura;
       if (msg.tipo === 'ola') { retratosEnviados = new Set(); projetorConectado.value = true; }
       const atual = caixaDoProjetor.peek(), asp = aspectoDoProjetor.peek(), m = s.store.documento;
-      const caixa = seguirJogadores.peek() || !atual ? caixaDosJogadores(m, asp, 5, andarAtual(m)) : ajustarAoAspecto(atual, asp);
+      const caixa = seguirJogadores.peek() || !atual ? caixaDosJogadores(m, asp, 5, andarAtual(m), jogadorSeguido.peek()) : ajustarAoAspecto(atual, asp);
       caixaDoProjetor.value = caixa;
       enviarEstado();
       enviar({ tipo: 'camera', caixa, ...(seguirJogadores.peek() ? { seguir: true } : {}) });
@@ -200,15 +206,16 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
     andarAtual(e.documento);
     agendar();
     if (seguirJogadores.peek() && projetorConectado.peek() && (e.mudancas.completo || e.mudancas.colecoes.tokens)) {
-      caixaDoProjetor.value = caixaDosJogadores(e.documento, aspectoDoProjetor.peek(), 5, andarAtual(e.documento));
+      caixaDoProjetor.value = caixaDosJogadores(e.documento, aspectoDoProjetor.peek(), 5, andarAtual(e.documento), jogadorSeguido.peek());
     }
   });
   // Ligar "seguir os jogadores" enquadra na hora; a caixa publicada segue qualquer mudança (arrastar o quadro, seguir).
   const parar1 = effect(() => {
-    const seguir = seguirJogadores.value, conectado = projetorConectado.value, asp = aspectoDoProjetor.value;
+    const seguir = seguirJogadores.value, conectado = projetorConectado.value, asp = aspectoDoProjetor.value, quem = jogadorSeguido.value;
     if (seguir && conectado) {
       const m = s.store.documento;
-      caixaDoProjetor.value = caixaDosJogadores(m, asp, 5, andarAtual(m));
+      caixaDoProjetor.value = caixaDosJogadores(m, asp, 5, andarAtual(m), quem);
+      enviarEstado();
     }
   });
   const parar4 = effect(() => {
@@ -217,7 +224,7 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
     const andar = andarAtual(m);
     if (projetorConectado.peek() && !parado) {
       enviarEstado();
-      if (seguirJogadores.peek()) caixaDoProjetor.value = caixaDosJogadores(m, aspectoDoProjetor.peek(), 5, andar);
+      if (seguirJogadores.peek()) caixaDoProjetor.value = caixaDosJogadores(m, aspectoDoProjetor.peek(), 5, andar, jogadorSeguido.peek());
     }
   });
   const parar3 = effect(() => { void recursosDasFichas.value; void mostrarPvNoProjetor.value; enviarRecursos(); });
