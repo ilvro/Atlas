@@ -2470,3 +2470,12 @@ body.projetor { overflow: hidden; background: #000; }
 .projetor-andar { display: inline-flex; align-items: center; gap: 4px; }
 .projetor-andar select { background: transparent; border: 0; color: inherit; font: inherit; cursor: pointer; outline: none; }
 .projetor-andar select option { background: var(--superficie); color: var(--texto); }
+
+/* ---- Terreno em grupos que se recolhem ---- */
+.grupos-de-terreno { display: flex; flex-direction: column; gap: 2px; }
+.grupo-de-terreno > summary { cursor: pointer; list-style: none; margin: 10px 0 6px; }
+.grupo-de-terreno > summary::-webkit-details-marker { display: none; }
+.amostras-de-terreno { display: flex; flex-wrap: wrap; gap: 6px; }
+.amostra-de-terreno { padding: 2px; line-height: 0; background: var(--superficie); border: 1px solid var(--linha); border-radius: 8px; transition: border-color 0.12s, transform 0.12s; }
+.amostra-de-terreno:hover { border-color: var(--linha-forte); transform: translateY(-1px); }
+.amostra-de-terreno.ativa { border-color: var(--acento); box-shadow: 0 0 0 1px var(--acento); background: var(--superficie-2); }
