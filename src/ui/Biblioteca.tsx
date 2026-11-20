@@ -14,6 +14,7 @@ import { CampoCaixa, CampoCor, CampoNumero } from './campos.tsx';
 import { TODOS_OS_CONJUNTOS } from '../authoring/espalhar.ts';
 import { Amostra, CampoMaterial } from './campos-material.tsx';
 import { Icone } from './Icone.tsx';
+import { PropriedadesDoObjeto } from './PropriedadesDoObjeto.tsx';
 import { CatalogoDeFamilias, FamiliaNaMao, RecentesEFavoritos } from './FamiliaNoPincel.tsx';
 
 function mudar(s: SessaoDeEdicao, patch: Partial<Pincel>): void { s.pincel.value = { ...s.pincel.value, ...patch }; tocar('selecionar'); }
@@ -60,6 +61,7 @@ function Objetos({ s }: { s: SessaoDeEdicao }) {
   const atual = s.pincel.value.objeto, receita = ACERVO.item(atual.item);
   return (<>
     <FamiliaNaMao s={s} />
+    <PropriedadesDoObjeto modo="pincel" valores={atual} aoMudar={patch => { s.pincel.value = { ...s.pincel.value, objeto: { ...s.pincel.value.objeto, ...patch } }; }} />
     <RecentesEFavoritos s={s} />
     <CatalogoDeFamilias s={s} />
     {receita && <div class="ajustes"><h4>{receita.nome}</h4>

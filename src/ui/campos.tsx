@@ -44,3 +44,28 @@ export function CampoOpcoes<T extends string>({ rotulo, dica, id, valor, opcoes,
 export function CampoCor({ rotulo, dica, valor, aoPrevia, aoConfirmar, aoCancelar }: BaseCampo & { valor: string; aoPrevia: (v: string) => void; aoConfirmar: () => void; aoCancelar?: () => void }) {
   return <Linha rotulo={rotulo} dica={dica}><input type="color" value={valor} onInput={e => aoPrevia((e.target as HTMLInputElement).value)} onChange={aoConfirmar} onBlur={aoCancelar} /><code class="valor-cor">{valor}</code></Linha>;
 }
+
+/**
+ * Valor numérico editável (unidade à direita), `<input type="range">` embaixo e um botão opcional à direita do rótulo (o dado da rotação).
+ * A prévia vai no `input` (só o número mostrado muda); o valor só é confirmado no `change`, para não encher o desfazer.
+ */
+export function CampoDeslizante({ rotulo, dica, id, valor, aoConfirmar, min, max, passo = 1, unidade, extra }: BaseCampo & { valor: number; aoConfirmar: (v: number) => boolean | void; min: number; max: number; passo?: number; unidade?: string; extra?: ComponentChildren }) {
+  const previa = useSignal<number | null>(null), sal = useSignal(0);
+  const mostrado = previa.value ?? valor, arredondar = (v: number) => Math.round(v * 1000) / 1000;
+  const confirmar = (v: number) => { previa.value = null; if (!Number.isFinite(v) || aoConfirmar(Math.max(min, Math.min(max, v))) === false) sal.value++; };
+  return (
+    <div class="deslizante" title={dica} data-campo={rotulo}>
+      <div class="deslizante-topo">
+        <span class="linha-rotulo">{rotulo}</span>
+        <span class="deslizante-valor">
+          <input type="number" id={id} data-testid={id} key={`${valor}:${sal.value}:${previa.value ?? ''}`} step={passo} min={min} max={max} defaultValue={arredondar(mostrado)}
+            onChange={e => confirmar(Number((e.target as HTMLInputElement).value))} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} aria-label={rotulo} />
+          {unidade && <span class="unidade">{unidade}</span>}
+        </span>
+        {extra}
+      </div>
+      <input type="range" min={min} max={max} step={passo} value={mostrado} aria-label={`${rotulo} (barra)`} data-testid={id ? `${id}-barra` : undefined}
+        onInput={e => { previa.value = Number((e.target as HTMLInputElement).value); }} onChange={e => confirmar(Number((e.target as HTMLInputElement).value))} />
+    </div>
+  );
+}
