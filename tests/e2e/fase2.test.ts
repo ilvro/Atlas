@@ -146,7 +146,7 @@ test('menu radial: clique direito no vazio adiciona; sobre um item oferece remov
   assert.ok(await menu.locator('[role="menuitem"]').count() >= 6);
   await menu.getByRole('menuitem', { name: /Luz aqui/ }).click();
   const luzes = Object.values((await documento(page)).lights); assert.equal(luzes.length, 1);
-  assert.deepEqual(luzes[0]!.position, [12, 9]);
+  assert.ok(Math.hypot(luzes[0]!.position[0] - 12, luzes[0]!.position[1] - 9) < 0.01, 'a luz fica onde o clique foi (objetos e luzes são livres por padrão)');
   // Sobre o item: o clique direito o seleciona e mostra as ações dele.
   await page.mouse.click(x, y, { button: 'right' }); await menu.locator('[role="menuitem"]').first().waitFor();
   assert.deepEqual((await selecao(page)).map(a => a.colecao), ['lights']);
@@ -203,16 +203,22 @@ test('seleção por retângulo e por laço, mover com encaixe, remover com Desfa
   assert.deepEqual(erros, []); await ctx.close();
 });
 
-test('Alt desliga o encaixe na grade; as setas movem em meia célula e Shift em uma célula', async () => {
+test('objetos são livres por padrão e Alt encaixa; as setas movem em meia célula e Shift em uma célula', async () => {
   const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
-  await criarMapaPelaInterface(page); await pôr(page, 'objeto', [9, 9]);
+  await criarMapaPelaInterface(page);
+  // Sem Alt o objeto fica sob o cursor; com Alt, encaixa na grade.
+  await page.click('[data-testid="ferramenta-objeto"]');
+  const [cx, cy] = await clientDe(page, [9, 9]);
+  await page.keyboard.down('Alt'); await page.mouse.click(cx, cy); await page.keyboard.up('Alt');
+  await page.click('[data-testid="ferramenta-selecionar"]');
   const id = Object.keys((await documento(page)).props)[0]!;
+  assert.equal((await documento(page)).props[id]!.position[0], 9, 'com Alt, o objeto encaixa na grade');
   await page.keyboard.press('ArrowRight'); assert.equal((await documento(page)).props[id]!.position[0], 9.75);
   await page.keyboard.press('Shift+ArrowDown'); assert.equal((await documento(page)).props[id]!.position[1], 10.5);
   const p = (await documento(page)).props[id]!.position; const [x, y] = await clientDe(page, p);
-  await page.keyboard.down('Alt'); await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 37, y + 11, { steps: 8 }); await page.mouse.up(); await page.keyboard.up('Alt');
+  await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 37, y + 11, { steps: 8 }); await page.mouse.up();
   const q = (await documento(page)).props[id]!.position;
-  assert.ok(Math.abs(q[0] / 0.75 - Math.round(q[0] / 0.75)) > 1e-3, 'sem encaixe, a posição cai fora da grade');
+  assert.ok(Math.abs(q[0] / 0.75 - Math.round(q[0] / 0.75)) > 1e-3, 'sem Alt, o arrasto do objeto cai fora da grade');
   assert.deepEqual(erros, []); await ctx.close();
 });
 
@@ -273,7 +279,7 @@ test('edição do mesmo mapa em duas abas: a segunda a gravar recebe um conflito
   await ctx.close();
 });
 
-test('animações: ligadas criam efeitos; desligadas ou com movimento reduzido, não', async () => {
+test('animações: ligadas criam efeitos, mesmo com movimento reduzido no sistema; desligadas, não', async () => {
   const efeitos = (p: Page) => p.locator('#fx-layer > *').count();
   const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
   await criarMapaPelaInterface(page);
@@ -286,7 +292,7 @@ test('animações: ligadas criam efeitos; desligadas ou com movimento reduzido, 
 
   const reduzido = await novoContexto(amb, { reducedMotion: 'reduce' }), r = await abrir(reduzido, amb.url);
   await criarMapaPelaInterface(r.page); await pôr(r.page, 'luz', [6, 6]);
-  assert.equal(await efeitos(r.page), 0, 'movimento reduzido no sistema vence a preferência do usuário');
+  assert.ok(await efeitos(r.page) > 0, 'os efeitos seguem a preferência do usuário (ligada por padrão), mesmo com movimento reduzido no sistema');
   assert.equal(Object.keys((await documento(r.page)).lights).length, 1, 'e o resultado é o mesmo');
   assert.deepEqual([...erros, ...r.erros], []); await reduzido.close();
 });
@@ -391,7 +397,8 @@ test('mesa-dev: dois aplicativos sob a mesma origem compartilham tema e campanha
     // Os bancos internos têm escopo de caminho: o do Atlas não é visível como se fosse da Ficha.
     const nomes = await outra.evaluate(async () => (await indexedDB.databases()).map(d => d.name).sort());
     assert.ok(nomes.includes('atlas-v1:/Atlas/') && nomes.includes('mesa-campanha-v1'));
-    assert.deepEqual(atlas.erros, []);
+    // Este proxy de teste não tem a ponte do assistente: o WebSocket em /__ponte é recusado, e o navegador registra isso como erro.
+    assert.deepEqual(atlas.erros.filter(e => !e.includes('/__ponte')), []);
   } finally { await ctx.close(); await vite.close(); await new Promise<void>(ok => { proxy.close(() => ok()); proxy.closeAllConnections(); }); await new Promise<void>(ok => { ficha.close(() => ok()); ficha.closeAllConnections(); }); }
 });
 
