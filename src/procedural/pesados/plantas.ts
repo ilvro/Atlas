@@ -1,7 +1,7 @@
 import { elipse, poli, type DescricaoDePiso, type Parte } from '../descricao.ts';
 import { tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
-import { LUZ_X, LUZ_Y, bolha, lente, silhuetaDeDiscos, tonsComLuz, tufo, type Disco, type Tons } from '../organico.ts';
+import { LUZ_X, LUZ_Y, bolha, lente, silhuetaDeDiscos, tira, tonsComLuz, tufo, type Disco, type Tons } from '../organico.ts';
 import type { GeradorPesado } from './index.ts';
 
 const num = (v: unknown, padrao: number, min: number, max: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : padrao);
@@ -85,6 +85,78 @@ const arvoreNevada = (diametro: number, seed: number): DescricaoDePiso => copaDe
 const pinheiroNevado = (diametro: number, seed: number): DescricaoDePiso => conifera(diametro, seed, true);
 /** Carvalho: copa densa de muitos tufos pequenos, com folhas pintadas. */
 const carvalhoGrande = (diametro: number, seed: number): DescricaoDePiso => copaDeTufos(diametro, seed, VERDE, { miudo: 0.85, folhas: 7 });
+
+/** Tons da mata fechada à noite: verde-oliva com cachos amarelados e outros mais frios (ver `copaDeRaminhos`). */
+const OLIVA: Tons = { fundo: '#1b2313', base: '#38461f', meio: '#52622b', luz: '#717f3b', brilho: '#98a157' };
+const AMARELADO: Tons = { fundo: '#241f10', base: '#4a4520', meio: '#66602c', luz: '#857c3c', brilho: '#a89b55' };
+const FRIO: Tons = { fundo: '#141d12', base: '#2b3d26', meio: '#3b5232', luz: '#526b42', brilho: '#768a5a' };
+
+/**
+ * Um cacho de folhas finas visto de cima (a unidade da copa de mata): fundo escuro em estrela com nanquim e sombra, duas voltas de folhas
+ * estreitas que saem do centro, do escuro (atrás) ao claro (na frente e virado para a luz), e pontas acesas no lado da luz.
+ */
+function cacho(partes: Parte[], r: () => number, x: number, y: number, raio: number, tons: Tons, z: number, lado: number): void {
+  const n = 24 + Math.floor(r() * 12), luz = Math.atan2(LUZ_Y, LUZ_X), t = tonsComLuz(tons, Math.max(-0.42, Math.min(0.3, lado * 0.2))), o = { contorno: false as const, semSombra: true, suave: true };
+  // A base do cacho (só sombra projetada e um miolo escuro, sem traço).
+  partes.push(poli(bolha(x, y, raio * 0.62, raio * 0.62, 10, 0.25, r), t.fundo, z, { contorno: false, sombraLeve: true, detalhe: 1 }));
+  const folhas: { a: number; len: number; w: number; bx: number; by: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = r() * Math.PI * 2, d = raio * r() * 0.22, b = r() * Math.PI * 2;
+    folhas.push({ a, len: raio * (0.45 + r() * 0.55), w: raio * (0.1 + r() * 0.07), bx: x + Math.cos(b) * d, by: y + Math.sin(b) * d });
+  }
+  // Cada folha tem um contorno escuro um pouco maior por baixo (o nanquim da ponta) e, por cima, a folha pintada.
+  for (const f of folhas) partes.push(lente(f.bx, f.by, f.a, f.len * 1.08, f.w * 1.45, t.fundo, z + 0.005, { contorno: 'leve', semSombra: true, detalhe: 1 }));
+  folhas.sort((p, q) => p.len - q.len).reverse();
+  folhas.forEach((f, k) => {
+    const v = Math.cos(f.a - luz), alto = k / folhas.length;   // as mais curtas ficam por cima: o miolo do cacho é a parte mais alta
+    const cor = v > 0.3 ? (alto > 0.5 ? t.luz : t.meio) : v < -0.35 ? t.base : (alto > 0.6 ? t.meio : t.base);
+    partes.push(lente(f.bx, f.by, f.a, f.len, f.w, tom(cor, (r() - 0.5) * 0.1), z + 0.01 + alto * 0.01, { ...o, detalhe: alto > 0.5 ? 2 : 1 }));
+    if (v > 0.2 && r() < 0.55) partes.push(lente(f.bx + Math.cos(f.a) * f.len * 0.35, f.by + Math.sin(f.a) * f.len * 0.35, f.a, f.len * 0.55, f.w * 0.4, t.brilho, z + 0.022, { ...o, detalhe: 3, alfa: 0.85 }));
+  });
+}
+
+/**
+ * Copa de mata vista de cima, no estilo das copas pintadas de mapas de batalha: dezenas de cachos de folhas finas (não bolas), com nanquim
+ * e sombra em cada cacho, galhos escuros que aparecem nos vãos e cachos de tons variados (oliva, amarelado e frio). Os cachos de fora ficam
+ * embaixo e os do miolo por cima, como uma cúpula; os virados para a luz (noroeste) clareiam. `ralo` (0 a 1) abre mais vãos.
+ */
+function copaDeRaminhos(diametro: number, seed: number, { ralo = 0.2, tons = OLIVA }: { ralo?: number; tons?: Tons } = {}): DescricaoDePiso {
+  // `R` é o raio de arrumação: as folhas dos cachos da borda passam dele, e tudo tem de caber na pegada.
+  const r = mulberry32(seed), R = diametro / 2 - Math.min(0.85, 0.42 + diametro * 0.03) * 1.15, partes: Parte[] = [];
+  // Galhos: do tronco para fora, com bifurcações; ficam sob os cachos e aparecem nos vãos.
+  const galhos = 5 + Math.floor(r() * 3);
+  for (let i = 0; i < galhos; i++) {
+    const a = (i / galhos) * Math.PI * 2 + r() * 0.6, len = R * (0.62 + r() * 0.25), mx = Math.cos(a) * len * 0.5 + (r() - 0.5) * R * 0.12, my = Math.sin(a) * len * 0.5 + (r() - 0.5) * R * 0.12;
+    partes.push(tira([0, 0, mx, my, Math.cos(a) * len, Math.sin(a) * len], R * 0.05, '#3b2e22', 1.4, { contorno: 'leve', semSombra: true, detalhe: 1 }, 0.25));
+    for (const lado of [-1, 1]) if (r() < 0.75) { const b = a + lado * (0.45 + r() * 0.35), l2 = len * (0.35 + r() * 0.2); partes.push(tira([mx, my, mx + Math.cos(b) * l2, my + Math.sin(b) * l2], R * 0.025, '#45362a', 1.42, { contorno: 'leve', semSombra: true, detalhe: 2 }, 0.2)); }
+  }
+  partes.push(elipse(0, 0, R * 0.16, R * 0.16, '#33271d', 1.45, { contorno: 'leve', semSombra: true, detalhe: 1 }));
+  // Sombra interna: o miolo da copa é escuro (nos vãos do meio não se vê o chão, e sim a sombra da própria copa).
+  partes.push(poli(bolha(0, 0, R * 0.6 * (1 - ralo * 0.45), R * 0.6 * (1 - ralo * 0.45), 18, 0.18, r), '#0d120a', 1.3, { contorno: false, semSombra: true, suave: true, alfa: 0.85, detalhe: 1 }));
+  // Massas de folhagem: uma no miolo e um anel de 4 a 8 em volta, com raios sorteados (o contorno sai em lóbulos). Cada massa é uma cúpula
+  // de cachos com o próprio lado da luz e o próprio lado da sombra, e projeta sombra sobre as de baixo: é isso que dá volume à copa.
+  const nAnel = Math.max(4, Math.min(8, Math.round(2 + R * 1.1))), massas: { x: number; y: number; r: number; z: number }[] = [];
+  const giro = r() * Math.PI * 2;
+  for (let i = 0; i < nAnel; i++) { const a = giro + (i / nAnel) * Math.PI * 2 + (r() - 0.5) * 0.5, rm = R * (0.36 + r() * 0.16), d = R - rm * (0.95 + r() * 0.1); massas.push({ x: Math.cos(a) * d, y: Math.sin(a) * d, r: rm, z: 2 + r() * 0.3 }); }
+  massas.push({ x: (r() - 0.5) * R * 0.2, y: (r() - 0.5) * R * 0.2, r: R * (0.42 + r() * 0.1), z: 2.6 });
+  const tamanho = Math.min(0.85, 0.42 + R * 0.06), variantes = [tons, tons, tons, tons, tons, AMARELADO, FRIO];
+  for (const m of massas.sort((a, b) => a.z - b.z)) {
+    const ladoDaMassa = (m.x * LUZ_X + m.y * LUZ_Y) / R, tonsDaMassa = r() < 0.18 ? variantes[5 + Math.floor(r() * 2)]! : tons;
+    partes.push(poli(bolha(m.x, m.y, m.r * 0.74, m.r * 0.74, 14, 0.2, r), tonsDaMassa.fundo, m.z, { contorno: false, detalhe: 1 }));
+    const cachos: { x: number; y: number; r: number; d: number }[] = [];
+    for (let tent = 0; tent < 900 && cachos.length < 160; tent++) {
+      const a = r() * Math.PI * 2, d = Math.sqrt(r()) * m.r, x = m.x + Math.cos(a) * d, y = m.y + Math.sin(a) * d, rr = tamanho * (0.7 + r() * 0.5) * (1 - 0.3 * (d / m.r));
+      if (cachos.some(c => Math.hypot(c.x - x, c.y - y) < (c.r + rr) * (0.4 + ralo * 0.45))) continue;
+      cachos.push({ x, y, r: rr, d: d / m.r });
+    }
+    for (const c of cachos.sort((a, b) => b.d - a.d)) {
+      // Luz na massa: o lado noroeste de cada cúpula clareia, o sudeste escurece; o miolo de cada massa é a parte mais alta.
+      const local = ((c.x - m.x) * LUZ_X + (c.y - m.y) * LUZ_Y) / m.r, t = r() < 0.12 ? variantes[Math.floor(r() * variantes.length)]! : tonsDaMassa;
+      cacho(partes, r, c.x, c.y, c.r, t, m.z + 0.02 + (1 - c.d) * 0.08, local * 0.95 + ladoDaMassa * 0.4 - (c.d > 0.8 && local < 0 ? 0.5 : 0));
+    }
+  }
+  return { tipo: 'piso', pegada: [diametro, diametro], partes };
+}
 
 /** Arbusto sem folhas: galhos finos que se ramificam do centro (3 níveis), de 1 a 3 cm; com `neve`, tufos brancos nos nós. */
 function arbustoSeco(diametro: number, seed: number, neve: boolean): DescricaoDePiso {
@@ -191,6 +263,9 @@ export const PLANTAS: GeradorPesado[] = [
     gerar: p => arbustoSeco(num(p.params.diametro, 1.5, 0.8, 4), p.seed, p.params.neve === true) },
   { id: 'carvalho-grande', altura: ([w]) => w * 1.6, nome: 'Carvalho grande', categoria: 'exterior', funcoes: ['jardim'], tags: ['arvore', 'carvalho', 'planta', 'copa', 'exterior', 'mata'], generos: [], kit: 'mata', versao: 2, res: 64,
     variantes: [{ nome: '6 m', sufixo: '6m', params: { diametro: 6 }, seed: 91 }, { nome: '7 m', sufixo: '7m', params: { diametro: 7 }, seed: 92 }, { nome: '8 m', sufixo: '8m', params: { diametro: 8 }, seed: 93 }], gerar: p => carvalhoGrande(num(p.params.diametro, 7, 5, 10), p.seed) },
+  { id: 'arvore-da-mata', altura: ([w]) => w * 1.7, nome: 'Árvore da mata', categoria: 'exterior', funcoes: ['jardim'], tags: ['arvore', 'planta', 'copa', 'exterior', 'mata', 'floresta'], generos: [], kit: 'mata', versao: 1, res: 64,
+    variantes: [{ nome: '4 m', sufixo: '4m', params: { diametro: 4 }, seed: 111 }, { nome: '6 m', sufixo: '6m', params: { diametro: 6 }, seed: 112 }, { nome: '8 m', sufixo: '8m', params: { diametro: 8 }, seed: 113 }, { nome: '6 m, ralinha', sufixo: '6m-rala', params: { diametro: 6, ralo: 0.7 }, seed: 114 }, { nome: '5 m, amarelada', sufixo: '5m-amarelada', params: { diametro: 5, tons: 'amarelado' }, seed: 115 }],
+    gerar: p => copaDeRaminhos(num(p.params.diametro, 6, 2, 12), p.seed, { ralo: num(p.params.ralo, 0.2, 0, 1), tons: p.params.tons === 'amarelado' ? AMARELADO : p.params.tons === 'frio' ? FRIO : OLIVA }) },
   { id: 'folhagem-tropical', altura: ([w]) => w * 0.5, nome: 'Folhagem tropical', categoria: 'exterior', funcoes: ['jardim'], tags: ['arbusto', 'planta', 'folhagem', 'tropical', 'exterior', 'mata'], generos: [], kit: 'mata', versao: 1, res: 64,
     variantes: [{ nome: '1,6 m', sufixo: '1m', params: { diametro: 1.6 }, seed: 101 }, { nome: '2,4 m', sufixo: '2m', params: { diametro: 2.4 }, seed: 102 }], gerar: p => folhagemTropical(num(p.params.diametro, 2, 1, 4), p.seed) },
 ];
