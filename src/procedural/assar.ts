@@ -383,7 +383,7 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
   const margemAguaMacico = margemBase + Math.max(PROFUNDIDADE_MAXIMA, SOMBRA_DE_CONTATO + 0.15);
   e.camadas.forEach((camada, idx) => {
     if (!camada.celulas.length) return;
-    const material = materialDe(camada.material), macico = material.uso === 'macico', agua = material.uso === 'agua';
+    const material = materialDe(camada.material), macico = material.uso === 'macico', agua = material.uso === 'agua', franja = material.franja ?? 0;
     const box = op?.semCaixa ? { x0: 0, y0: 0, cw: W, ch: Hh } : caixaDaCamada(camada.celulas, e.resolucao, res, W, Hh, agua || macico ? margemAguaMacico : margemBase);
     if (!box) return;
     const { x0, y0, cw, ch } = box;
@@ -396,10 +396,13 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
         const b = fonte[k + 3]! / 255; if (b < 0.02) continue;
         const mx = (x0 + lx) / res;
         let v = b + (fbm(ruido, mx * 1.3, my * 1.3, 3) - 0.5) * 0.5;
+        // Franja: manchas miúdas (30 a 60 cm) do vizinho entrando na camada e da camada saindo para o vizinho.
+        if (franja > 0 && !pixel) v += (fbm(ruidoFino, mx * 2.6 + 31, my * 2.6, 3) - 0.5) * 0.9 * franja;
         if (macico) v += pixel ? (fbm(ruidoFino, mx * 3.5, my * 3.5, 3) - 0.5) * 0.35 : (fbm(ruidoFino, mx * 1.5, my * 1.5, 2) - 0.5) * 0.5 + (fbm(ruidoFino, mx * 6 + 9, my * 6, 1) - 0.5) * 0.06;      // borda de rocha: lóbulos grandes e arredondados (Ilustrado), degraus no Pixel
         if (agua) { binaria[px] = v >= 0.5 ? 1 : 0; if (!pixel) cobertura[px] = suave(0.47, 0.53, v) * 255; }
         else if (macico) { binaria[px] = v >= 0.5 ? 1 : 0; if (!pixel) cobertura[px] = suave(0.47, 0.53, v) * 255; }
         else if (pixel) binaria[px] = v >= 0.5 ? 1 : 0;
+        else if (franja > 0) { corpo.data[k + 3] = suave(0.38, 0.62, v) * 255; aro.data[k + 3] = suave(0.3, 0.5, v) * 120; }
         else { corpo.data[k + 3] = suave(0.22, 0.78, v) * 255; aro.data[k + 3] = suave(0.12, 0.45, v) * 255; }
       }
     }
