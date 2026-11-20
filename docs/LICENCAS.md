@@ -24,6 +24,11 @@ Imagens assadas pelo próprio Atlas (`npm run assar`) a partir de geradores em `
 | gerados/arvore-3m.webp | arvore | Árvore (3 m) |
 | gerados/arvore-5m.webp | arvore | Árvore (5 m) |
 | gerados/arvore-7m.webp | arvore | Árvore (7 m) |
+| gerados/arvore-da-mata-4m.webp | arvore-da-mata | Árvore da mata (4 m) |
+| gerados/arvore-da-mata-5m-amarelada.webp | arvore-da-mata | Árvore da mata (5 m, amarelada) |
+| gerados/arvore-da-mata-6m.webp | arvore-da-mata | Árvore da mata (6 m) |
+| gerados/arvore-da-mata-6m-rala.webp | arvore-da-mata | Árvore da mata (6 m, ralinha) |
+| gerados/arvore-da-mata-8m.webp | arvore-da-mata | Árvore da mata (8 m) |
 | gerados/arvore-nevada-3m.webp | arvore-nevada | Árvore nevada (3 m) |
 | gerados/arvore-nevada-5m.webp | arvore-nevada | Árvore nevada (5 m) |
 | gerados/carvalho-grande-6m.webp | carvalho-grande | Carvalho grande (6 m) |

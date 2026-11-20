@@ -289,6 +289,178 @@
       }
     },
     {
+      "id": "casa:arvore-da-mata-4m",
+      "nome": "Árvore da mata (4 m)",
+      "arquivo": "gerados/arvore-da-mata-4m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        4,
+        4
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "planta",
+        "copa",
+        "exterior",
+        "mata",
+        "floresta"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 6.8,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arvore-da-mata",
+        "params": {
+          "diametro": 4
+        },
+        "seed": 111,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:arvore-da-mata-5m-amarelada",
+      "nome": "Árvore da mata (5 m, amarelada)",
+      "arquivo": "gerados/arvore-da-mata-5m-amarelada.webp",
+      "categoria": "exterior",
+      "pegada": [
+        5,
+        5
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "planta",
+        "copa",
+        "exterior",
+        "mata",
+        "floresta"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 8.5,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arvore-da-mata",
+        "params": {
+          "diametro": 5,
+          "tons": "amarelado"
+        },
+        "seed": 115,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:arvore-da-mata-6m",
+      "nome": "Árvore da mata (6 m)",
+      "arquivo": "gerados/arvore-da-mata-6m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        6,
+        6
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "planta",
+        "copa",
+        "exterior",
+        "mata",
+        "floresta"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 10.2,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arvore-da-mata",
+        "params": {
+          "diametro": 6
+        },
+        "seed": 112,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:arvore-da-mata-6m-rala",
+      "nome": "Árvore da mata (6 m, ralinha)",
+      "arquivo": "gerados/arvore-da-mata-6m-rala.webp",
+      "categoria": "exterior",
+      "pegada": [
+        6,
+        6
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "planta",
+        "copa",
+        "exterior",
+        "mata",
+        "floresta"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 10.2,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arvore-da-mata",
+        "params": {
+          "diametro": 6,
+          "ralo": 0.7
+        },
+        "seed": 114,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:arvore-da-mata-8m",
+      "nome": "Árvore da mata (8 m)",
+      "arquivo": "gerados/arvore-da-mata-8m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        8,
+        8
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "planta",
+        "copa",
+        "exterior",
+        "mata",
+        "floresta"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 12,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arvore-da-mata",
+        "params": {
+          "diametro": 8
+        },
+        "seed": 113,
+        "versao": 1
+      }
+    },
+    {
       "id": "casa:arvore-nevada-3m",
       "nome": "Árvore nevada (3 m)",
       "arquivo": "gerados/arvore-nevada-3m.webp",
