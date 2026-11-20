@@ -36,7 +36,7 @@ export interface OpcoesFilaDeBake<TPedido, TResultado> {
 /** Prioridade padrão por tipo de assado: chão (0) antes de objetos/imagens (1), que vêm antes de telhados (2). */
 export function prioridadePadraoDoPedido(tipo: PedidoDeBake['tipo']): number {
   if (tipo === 'terreno' || tipo === 'comodo' || tipo === 'escarpa') return 0;
-  if (tipo === 'cobertura' || tipo === 'detalhe-de-telhado') return 2;
+  if (tipo === 'cobertura' || tipo === 'detalhe-de-telhado' || tipo === 'telhado') return 2;
   return 1;
 }
 

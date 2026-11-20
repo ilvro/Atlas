@@ -1,13 +1,17 @@
 import { codificar, type Faixa } from '../domain/celulas.ts';
+import type { Edificio } from '../domain/edificios.ts';
 import { pontoNoPoligono } from '../domain/formas-de-comodo.ts';
 import { arestasDeParede, comprimentoDaParede, indiceDeCelulas, normalParaDentro, pontoNaParede, salasDaAbertura, type ArestaUnitaria } from '../domain/geometria.ts';
 import type { Comodo, MapaAtlas, Objeto, Parede, Ponto } from '../domain/mapa.ts';
 import { FUNCOES_AO_AR_LIVRE, generoDe } from '../domain/presets.ts';
 import { alturaNaCelula, celulasForaDePatamares, corDaNeblinaDoRelevo, degrausDoRelevo, topoDoRelevo } from '../domain/relevo.ts';
+import { sombraDoSol } from '../domain/sol.ts';
+import { telhadoEfetivo, trechosDe } from '../domain/telhado-geometria.ts';
 import type { EntradaDeEscarpa } from '../procedural/escarpa.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { MARGEM_ASSENTAMENTO, MARGEM_RELEVO, larguraDoDeclive, margensDoTerreno, type EntradaDeTerreno, type EntradaDoComodo } from '../procedural/assar.ts';
+import type { EntradaDoTelhado, ParedeExternaDoTelhado, TrechoDoTelhado } from '../procedural/assar-telhado.ts';
 import { orientacaoDominante } from '../procedural/orientacao.ts';
 import { COLECAO, PPC_DO_PIXEL_ARQUIVO, RES_DA_COLECAO, fonteDoPixel, type ItemDaColecao } from '../procedural/colecao.ts';
 import { estiloDe, type IdDoEstilo, type OpcoesDoPixel, type TipoDeAssado } from '../procedural/estilos/index.ts';
@@ -427,6 +431,141 @@ export function pedidoDoObjeto(o: Objeto, res: number, genero = 'investigacao', 
 }
 export const chaveDoComodo = (e: EntradaDoComodo, res: number, estilo: IdDoEstilo = 'illustrated'): string => `${estilo}|c|${res}|${JSON.stringify(e)}`;
 export const chaveDoTerreno = (e: EntradaDeTerreno, res: number, estilo: IdDoEstilo = 'illustrated'): string => `${estilo}|t|${res}|${JSON.stringify(e)}`;
+
+export type { EntradaDoTelhado };
+
+/**
+ * Dados de entrada do assado de um edifício de telhado: trechos resolvidos, grade, paredes externas relevantes
+ * (para futura fachada N7), neve do clima quando algum trecho usa `snow: 'auto'`, direção do sol discretizada
+ * (somente quando há detalhes, evitando invalidar o cache quando só a hora muda sem detalhes) e gênero.
+ */
+export function entradaDoTelhado(
+  m: MapaAtlas,
+  ed: Edificio,
+  ctx: ContextoDeEntradas = contextoDeEntradas(m),
+): EntradaDoTelhado {
+  const trechosBrutos = trechosDe(m, ed);
+  let temDetalhes = false;
+  let usaNeveAuto = false;
+
+  const trechos: TrechoDoTelhado[] = trechosBrutos.map(t => {
+    const ef = telhadoEfetivo(t.roof);
+    const primeiraSala = m.rooms[t.salas[0]!];
+    const seed = ef.seed ?? primeiraSala?.floor.seed ?? 1;
+    if (ef.details.length > 0) temDetalhes = true;
+    if (ef.wear.snow === 'auto') usaNeveAuto = true;
+    return {
+      celulas: t.celulas.map(([x, y]): [number, number] => [x, y]),
+      ...(t.outline ? { outline: t.outline.map(([x, y]): Ponto => [r3(x), r3(y)]) } : {}),
+      roof: {
+        material: t.roof.material,
+        visible: t.roof.visible,
+        shape: ef.shape,
+        ridge: ef.ridge,
+        steep: ef.steep,
+        ...(ef.details.length ? { details: [...ef.details] } : {}),
+        wear: { ...ef.wear },
+        seed,
+      },
+      seed,
+    };
+  });
+
+  // Paredes externas do edifício (para a fachada no N7), apenas quando fachadas estão habilitadas.
+  let paredes: ParedeExternaDoTelhado[] | undefined;
+  if (m.style.facades !== false && ed.salas.length > 0) {
+    const nivel = m.rooms[ed.salas[0]!]?.levelId ?? null;
+    const salasEd = new Set(ed.salas);
+    const gs = m.grid.size;
+    const [ox, oy] = m.grid.offset;
+    let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+    for (const id of ed.salas) {
+      const s = m.rooms[id];
+      if (!s) continue;
+      if (s.outline && s.outline.length >= 3) {
+        for (const [x, y] of s.outline) {
+          if (x < bx0) bx0 = x; if (y < by0) by0 = y;
+          if (x > bx1) bx1 = x; if (y > by1) by1 = y;
+        }
+      } else {
+        for (const [ry, rx0, rn] of s.cells) {
+          bx0 = Math.min(bx0, ox + rx0 * gs);
+          bx1 = Math.max(bx1, ox + (rx0 + rn) * gs);
+          by0 = Math.min(by0, oy + ry * gs);
+          by1 = Math.max(by1, oy + (ry + 1) * gs);
+        }
+      }
+    }
+    if (Number.isFinite(bx0)) {
+      const aberturasPorParede = new Map<string, ParedeExternaDoTelhado['aberturas']>();
+      for (const a of Object.values(m.openings)) {
+        const salas = salasDaAbertura(m, a, ctx.arestas);
+        if (salas.length !== 1 || !salasEd.has(salas[0]!)) continue;
+        const p = m.walls[a.wallId];
+        if (!p || (p.levelId ?? null) !== nivel) continue;
+        const { ponto } = pontoNaParede(p, a.at * comprimentoDaParede(p));
+        const lista = aberturasPorParede.get(p.id) ?? [];
+        lista.push({
+          tipo: a.kind,
+          centro: [r3(ponto[0]), r3(ponto[1])],
+          largura: r3(a.width),
+          ...(a.material ? { material: a.material } : {}),
+        });
+        aberturasPorParede.set(p.id, lista);
+      }
+      const listaParedes = Object.values(m.walls)
+        .filter(p => {
+          if ((p.levelId ?? null) !== nivel || p.kind !== 'wall') return false;
+          let wx0 = Infinity, wy0 = Infinity, wx1 = -Infinity, wy1 = -Infinity;
+          for (const [x, y] of p.path) {
+            if (x < wx0) wx0 = x; if (y < wy0) wy0 = y;
+            if (x > wx1) wx1 = x; if (y > wy1) wy1 = y;
+          }
+          return wx1 >= bx0 - 0.25 && wx0 <= bx1 + 0.25 && wy1 >= by0 - 0.25 && wy0 <= by1 + 0.25;
+        })
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .map((p): ParedeExternaDoTelhado => {
+          const ab = (aberturasPorParede.get(p.id) ?? []).sort(
+            (a, b) => a.centro[0] - b.centro[0] || a.centro[1] - b.centro[1],
+          );
+          return {
+            path: p.path.map(([x, y]): Ponto => [r3(x), r3(y)]),
+            height: r3(p.height),
+            material: p.material,
+            aberturas: ab,
+          };
+        });
+      if (listaParedes.length) paredes = listaParedes;
+    }
+  }
+
+  let sol: EntradaDoTelhado['sol'];
+  if (temDetalhes) {
+    const s = sombraDoSol(m.climate, m.style.renderer === 'pixel');
+    if (s) {
+      // Discretiza em passos de 15° para não invalidar o cache por pequenas mudanças de horário.
+      const passo = Math.PI / 12;
+      const ang = Math.round(Math.atan2(s.dir[1], s.dir[0]) / passo) * passo;
+      sol = {
+        dir: [r3(Math.cos(ang)), r3(Math.sin(ang))],
+        porMetro: Math.round(Math.min(1.2, Math.max(0.25, s.porMetro * 0.55)) * 10) / 10,
+        forca: Math.round(Math.min(0.65, Math.max(0.2, s.alfa)) * 10) / 10,
+      };
+    }
+  }
+
+  return {
+    grade: { size: m.grid.size, offset: [m.grid.offset[0], m.grid.offset[1]] },
+    trechos,
+    ...(paredes ? { paredes } : {}),
+    neve: usaNeveAuto ? r3(m.climate.weather.snow) : 0,
+    ...(sol ? { sol } : {}),
+    genero: m.style.genre,
+  };
+}
+
+export const chaveDoTelhado = (e: EntradaDoTelhado, res: number, estilo: IdDoEstilo = 'illustrated'): string =>
+  `${estilo}|r|${res}|${JSON.stringify(e)}`;
 
 /** Semente estável de uma escarpa, a partir do id da parede. */
 const sementeDoId = (id: string): number => { let h = 2166136261; for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619); return (h >>> 0) % 100000 + 1; };

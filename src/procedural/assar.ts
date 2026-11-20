@@ -35,6 +35,8 @@ export interface Assado {
   tela: Tela;
   /** Tela de altura (cinza 0–1) alinhada à `tela`, ou `null` quando não há (Pixel, parede, escarpa). */
   altura?: Tela | null;
+  /** Tela de normal (RG = N.xy * 0,5 + 0,5, B = AO, A = alfa) alinhada à `tela`, usada pelos telhados. */
+  normal?: Tela | null;
   /** Canto superior esquerdo da tela, em metros (no espaço local do objeto, ou do mundo para cômodos e terreno). */
   origem: Ponto;
   res: number;

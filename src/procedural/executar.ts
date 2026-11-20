@@ -1,4 +1,5 @@
 import { MARGEM_SOMBRA, assarComodo, assarDescricao, assarObjeto, assarTerreno, type Assado, type EntradaDeTerreno, type EntradaDoComodo } from './assar.ts';
+import { assarTelhado, type EntradaDoTelhado } from './assar-telhado.ts';
 import { contextoDe, criarTela } from './canvas.ts';
 import { assarEscarpa, type EntradaDeEscarpa } from './escarpa.ts';
 import type { SpriteDaPeca } from '../domain/sprite.ts';
@@ -24,12 +25,16 @@ export type PedidoDeBake =
   /** O ladrilho periódico de uma cobertura de telhado (2 × 2 m, queda para +y); no Pixel, a `res` do mapa. */
   | { tipo: 'cobertura'; material: string; seed: number; res: number; estilo: IdDoEstilo }
   /** Um detalhe de telhado (chaminé, cruz, sino…) assado como objeto, centrado em (0, 0). */
-  | { tipo: 'detalhe-de-telhado'; detalhe: DetalheDeTelhado; cobertura: string; seed: number; res: number; estilo: IdDoEstilo; pixel?: OpcoesDoPixel };
+  | { tipo: 'detalhe-de-telhado'; detalhe: DetalheDeTelhado; cobertura: string; seed: number; res: number; estilo: IdDoEstilo; pixel?: OpcoesDoPixel }
+  /** O telhado inteiro de um edifício (cobertura, acabamento, detalhes, cor e normal/AO). */
+  | { tipo: 'telhado'; entrada: EntradaDoTelhado; res: number; estilo: IdDoEstilo };
 
 export interface ResultadoDeBake {
   bitmap: ImageBitmap;
   /** Mapa de altura (R) e emissão (G) alinhado ao `bitmap`, ou `null` quando não há (Pixel, parede, imagem, escarpa). */
   altura: ImageBitmap | null;
+  /** Mapa de normal (RG = N.xy * 0,5 + 0,5, B = AO, A = alfa) alinhado ao `bitmap` (telhados no Ilustrado). */
+  normal?: ImageBitmap | null;
   origem: [number, number];
   res: number;
   /** Terreno com água: textura de profundidade (R) e margem (G), `res` px/m. */
@@ -49,13 +54,23 @@ export async function executarBake(p: PedidoDeBake): Promise<ResultadoDeBake> {
   const estilo = estiloDe(p.estilo);
   if (p.tipo === 'detalhe-de-telhado') return paraBitmap(assarDescricao(descricaoDoDetalhe(p.detalhe, { cobertura: p.cobertura, semente: p.seed }), p.seed, p.res, estilo, p.pixel));
   if (p.tipo === 'gerado') return paraBitmap(await assarGerado(p, estilo));
-  const a: Assado = p.tipo === 'objeto' ? assarObjeto(p.receita, p.params, p.seed, p.res, estilo, p.pixel) : p.tipo === 'comodo' ? assarComodo(p.entrada, p.res, estilo) : p.tipo === 'escarpa' ? assarEscarpa(p.entrada, p.res, estilo) : assarTerreno(p.entrada, p.res, estilo);
+  const a: Assado =
+    p.tipo === 'objeto'
+      ? assarObjeto(p.receita, p.params, p.seed, p.res, estilo, p.pixel)
+      : p.tipo === 'comodo'
+        ? assarComodo(p.entrada, p.res, estilo)
+        : p.tipo === 'escarpa'
+          ? assarEscarpa(p.entrada, p.res, estilo)
+          : p.tipo === 'telhado'
+            ? assarTelhado(p.entrada, p.res, estilo)
+            : assarTerreno(p.entrada, p.res, estilo);
   return paraBitmap(a);
 }
 
 async function paraBitmap(a: Assado): Promise<ResultadoDeBake> {
   const bitmap = 'transferToImageBitmap' in a.tela ? a.tela.transferToImageBitmap() : await createImageBitmap(a.tela);
   const altura = a.altura ? ('transferToImageBitmap' in a.altura ? a.altura.transferToImageBitmap() : await createImageBitmap(a.altura)) : null;
+  const normal = a.normal ? ('transferToImageBitmap' in a.normal ? a.normal.transferToImageBitmap() : await createImageBitmap(a.normal)) : undefined;
   const agua = a.agua
     ? {
         bitmap: 'transferToImageBitmap' in a.agua.tela ? a.agua.tela.transferToImageBitmap() : await createImageBitmap(a.agua.tela),
@@ -63,7 +78,7 @@ async function paraBitmap(a: Assado): Promise<ResultadoDeBake> {
         ...(a.agua.origem ? { origem: a.agua.origem } : {}),
       }
     : undefined;
-  return { bitmap, altura, origem: a.origem, res: a.res, ...(agua ? { agua } : {}) };
+  return { bitmap, altura, ...(normal ? { normal } : {}), origem: a.origem, res: a.res, ...(agua ? { agua } : {}) };
 }
 
 /** A descrição do gerador pesado, assada no estilo pedido. O import é dinâmico: os geradores só carregam quando um item gerado é pedido no Pixel. */
