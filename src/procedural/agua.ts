@@ -81,29 +81,47 @@ export interface CamadaDeAguaParaTextura {
   y0?: number;
   cw?: number;
   ch?: number;
+  /** Índice real da camada de água no mapa (0..3), preservado quando camadas anteriores ficam fora do ladrilho. */
+  indice?: number;
 }
 
 /** Funde a profundidade (R), a margem (G: 1 na borda, 0 a 0,6 m) e o índice da camada (B: `(i + 1) × 50`, de 1 a 4) das camadas de água numa textura de 2 px/m; R e G guardam o maior valor. */
-export function texturaDeAgua(camadas: CamadaDeAguaParaTextura[], W: number, H: number, res: number, largura: number, altura: number): ImageData | null {
+export function texturaDeAgua(
+  camadas: CamadaDeAguaParaTextura[],
+  W: number,
+  H: number,
+  res: number,
+  largura: number,
+  altura: number,
+  recortePx?: { x0: number; y0: number; w: number; h: number },
+): ImageData | null {
   if (!camadas.length) return null;
-  const wa = Math.max(1, Math.ceil(largura * RES_DA_TEXTURA_DE_AGUA)), ha = Math.max(1, Math.ceil(altura * RES_DA_TEXTURA_DE_AGUA)), dados = new ImageData(wa, ha);
+  const waFull = Math.max(1, Math.ceil(largura * RES_DA_TEXTURA_DE_AGUA));
+  const haFull = Math.max(1, Math.ceil(altura * RES_DA_TEXTURA_DE_AGUA));
+  const ax0 = recortePx?.x0 ?? 0, ay0 = recortePx?.y0 ?? 0;
+  const wa = recortePx?.w ?? waFull, ha = recortePx?.h ?? haFull;
+  const dados = new ImageData(wa, ha);
   for (let i = 3; i < dados.data.length; i += 4) dados.data[i] = 255;
-  camadas.slice(0, MAX_CAMADAS_DE_AGUA).forEach((c, idx) => {
+  for (let i = 0; i < camadas.length; i++) {
+    const c = camadas[i]!, idx = c.indice ?? i;
+    if (idx < 0 || idx >= MAX_CAMADAS_DE_AGUA) continue;
     const cx0 = c.x0 ?? 0, cy0 = c.y0 ?? 0, cw = c.cw ?? W, ch = c.ch ?? H;
-    for (let ya = 0; ya < ha; ya++) {
+    for (let yOut = 0; yOut < ha; yOut++) {
+      const ya = ay0 + yOut;
       const py = Math.min(H - 1, Math.floor((ya + 0.5) / RES_DA_TEXTURA_DE_AGUA * res)), ly = py - cy0;
       if (ly < 0 || ly >= ch) continue;
-      for (let xa = 0; xa < wa; xa++) {
+      for (let xOut = 0; xOut < wa; xOut++) {
+        const xa = ax0 + xOut;
         const px = Math.min(W - 1, Math.floor((xa + 0.5) / RES_DA_TEXTURA_DE_AGUA * res)), lx = px - cx0;
         if (lx < 0 || lx >= cw) continue;
         const j = ly * cw + lx;
         if (!c.binaria[j]) continue;
-        const d = c.profundidade[j]!, k = (ya * wa + xa) * 4, r = Math.min(1, d / PROFUNDIDADE_MAXIMA) * 255, g = Math.max(0, 1 - d / ZONA_DE_ESPUMA) * 255;
+        const d = c.profundidade[j]!, k = (yOut * wa + xOut) * 4, r = Math.min(1, d / PROFUNDIDADE_MAXIMA) * 255, g = Math.max(0, 1 - d / ZONA_DE_ESPUMA) * 255;
         if (r > dados.data[k]!) dados.data[k] = r;
         if (g > dados.data[k + 1]!) dados.data[k + 1] = g;
         dados.data[k + 2] = (idx + 1) * 50;
       }
     }
-  });
+  }
   return dados;
 }

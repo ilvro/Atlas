@@ -21,6 +21,9 @@ export interface CenaDeAltura {
   /** Verdadeiro se a última chamada a `atualizar` redesenhou `alturaRT` (para testes/diagnóstico). */
   readonly redesenhouNoUltimoQuadro: boolean;
   definirTerreno(tex: Texture | null, origem?: readonly [number, number], res?: number): void;
+  sincronizarLadrilhoTerreno(id: string, tex: Texture | null, origem?: readonly [number, number], res?: number): void;
+  removerLadrilhoTerreno(id: string): void;
+  limparTerreno(): void;
   sincronizarComodo(id: string, tex: Texture | null, origem?: readonly [number, number], res?: number): void;
   removerComodo(id: string): void;
   sincronizarObjetos(objetos: ReadonlyMap<string, EntradaDeAltura>, paiEsperado: Container): void;
@@ -52,6 +55,7 @@ export function criarCenaDeAltura(): CenaDeAltura {
   terrenoS.visible = false;
   terrenoAlturaC.addChild(terrenoS);
 
+  const terrenoLadrilhos = new Map<string, Sprite>();
   const comodos = new Map<string, Sprite>();
   const objetos = new Map<string, { c: Container; s: Sprite }>();
   const objetosAddC = new Container();
@@ -131,6 +135,54 @@ export function criarCenaDeAltura(): CenaDeAltura {
         terrenoS.position.set(origem[0], origem[1]);
         terrenoS.scale.set(esc);
         terrenoS.visible = true;
+        sujo = true;
+      }
+    },
+    sincronizarLadrilhoTerreno(id, tex, origem, res) {
+      if (destruida) return;
+      let sp = terrenoLadrilhos.get(id);
+      if (!sp) {
+        sp = new Sprite(Texture.EMPTY);
+        sp.visible = false;
+        terrenoLadrilhos.set(id, sp);
+        terrenoAlturaC.addChild(sp);
+      }
+      const valida = tex && !tex.destroyed ? tex : null;
+      if (!valida || !origem || !res) {
+        if (sp.visible || sp.texture !== Texture.EMPTY) {
+          sp.visible = false;
+          sp.texture = Texture.EMPTY;
+          sujo = true;
+        }
+        return;
+      }
+      const esc = 1 / res;
+      if (!sp.visible || sp.texture !== valida || sp.x !== origem[0] || sp.y !== origem[1] || sp.scale.x !== esc) {
+        sp.texture = valida;
+        sp.position.set(origem[0], origem[1]);
+        sp.scale.set(esc);
+        sp.visible = true;
+        sujo = true;
+      }
+    },
+    removerLadrilhoTerreno(id) {
+      if (destruida) return;
+      const sp = terrenoLadrilhos.get(id);
+      if (!sp) return;
+      sp.destroy();
+      terrenoLadrilhos.delete(id);
+      sujo = true;
+    },
+    limparTerreno() {
+      if (destruida) return;
+      if (terrenoS.visible || terrenoS.texture !== Texture.EMPTY) {
+        terrenoS.visible = false;
+        terrenoS.texture = Texture.EMPTY;
+        sujo = true;
+      }
+      if (terrenoLadrilhos.size > 0) {
+        for (const sp of terrenoLadrilhos.values()) sp.destroy();
+        terrenoLadrilhos.clear();
         sujo = true;
       }
     },
@@ -256,6 +308,7 @@ export function criarCenaDeAltura(): CenaDeAltura {
     },
     destruir() {
       destruida = true;
+      terrenoLadrilhos.clear();
       comodos.clear();
       objetos.clear();
       alturaRT?.destroy(true);

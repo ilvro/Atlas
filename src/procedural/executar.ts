@@ -33,7 +33,7 @@ export interface ResultadoDeBake {
   origem: [number, number];
   res: number;
   /** Terreno com água: textura de profundidade (R) e margem (G), `res` px/m. */
-  agua?: { bitmap: ImageBitmap; res: number };
+  agua?: { bitmap: ImageBitmap; res: number; origem?: [number, number] };
 }
 
 /** O trabalho pesado: pinta numa tela e devolve um `ImageBitmap`. Roda no worker, ou na página se o navegador não tiver worker. */
@@ -56,7 +56,13 @@ export async function executarBake(p: PedidoDeBake): Promise<ResultadoDeBake> {
 async function paraBitmap(a: Assado): Promise<ResultadoDeBake> {
   const bitmap = 'transferToImageBitmap' in a.tela ? a.tela.transferToImageBitmap() : await createImageBitmap(a.tela);
   const altura = a.altura ? ('transferToImageBitmap' in a.altura ? a.altura.transferToImageBitmap() : await createImageBitmap(a.altura)) : null;
-  const agua = a.agua ? { bitmap: 'transferToImageBitmap' in a.agua.tela ? a.agua.tela.transferToImageBitmap() : await createImageBitmap(a.agua.tela), res: a.agua.res } : undefined;
+  const agua = a.agua
+    ? {
+        bitmap: 'transferToImageBitmap' in a.agua.tela ? a.agua.tela.transferToImageBitmap() : await createImageBitmap(a.agua.tela),
+        res: a.agua.res,
+        ...(a.agua.origem ? { origem: a.agua.origem } : {}),
+      }
+    : undefined;
   return { bitmap, altura, origem: a.origem, res: a.res, ...(agua ? { agua } : {}) };
 }
 

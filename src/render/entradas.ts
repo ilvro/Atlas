@@ -7,7 +7,8 @@ import { alturaNaCelula, celulasForaDePatamares, corDaNeblinaDoRelevo, degrausDo
 import type { EntradaDeEscarpa } from '../procedural/escarpa.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import { ACERVO } from '../procedural/acervo.ts';
-import type { EntradaDeTerreno, EntradaDoComodo } from '../procedural/assar.ts';
+import { MARGEM_ASSENTAMENTO, MARGEM_RELEVO, larguraDoDeclive, margensDoTerreno, type EntradaDeTerreno, type EntradaDoComodo } from '../procedural/assar.ts';
+import { orientacaoDominante } from '../procedural/orientacao.ts';
 import { COLECAO, PPC_DO_PIXEL_ARQUIVO, RES_DA_COLECAO, fonteDoPixel, type ItemDaColecao } from '../procedural/colecao.ts';
 import { estiloDe, type IdDoEstilo, type OpcoesDoPixel, type TipoDeAssado } from '../procedural/estilos/index.ts';
 import type { PedidoDeBake } from '../procedural/executar.ts';
@@ -204,6 +205,173 @@ export function entradaDoTerreno(m: MapaAtlas): EntradaDeTerreno {
     ...(relevo ? { relevo } : {}),
     ...(assentamento ? { assentamento } : {}),
   };
+}
+
+export const LADO_DO_LADRILHO = 16;
+
+export interface LadrilhoDeTerreno {
+  i: number;
+  j: number;
+  caixa: { x: number; y: number; w: number; h: number };
+  entrada: EntradaDeTerreno;
+}
+
+function recortarFaixas(faixas: readonly Faixa[], resolucao: number, x0M: number, y0M: number, x1M: number, y1M: number): Faixa[] {
+  if (!faixas.length) return [];
+  const cxMin = Math.floor(x0M / resolucao);
+  const cxMax = Math.ceil(x1M / resolucao) - 1;
+  const cyMin = Math.floor(y0M / resolucao);
+  const cyMax = Math.ceil(y1M / resolucao) - 1;
+  if (cxMax < cxMin || cyMax < cyMin) return [];
+  const saida: Faixa[] = [];
+  for (const [y, x0, n] of faixas) {
+    if (y < cyMin || y > cyMax || n <= 0) continue;
+    const a = Math.max(x0, cxMin);
+    const b = Math.min(x0 + n, cxMax + 1);
+    if (b > a) saida.push([y, a, b - a]);
+  }
+  return saida;
+}
+
+function caminhoTocaCaixa(path: readonly Ponto[], x0: number, y0: number, x1: number, y1: number): boolean {
+  if (path.length < 2) return false;
+  for (let i = 0; i + 1 < path.length; i++) {
+    const a = path[i]!, b = path[i + 1]!;
+    const sx0 = Math.min(a[0], b[0]), sx1 = Math.max(a[0], b[0]);
+    const sy0 = Math.min(a[1], b[1]), sy1 = Math.max(a[1], b[1]);
+    if (sx1 >= x0 && sx0 <= x1 && sy1 >= y0 && sy0 <= y1) return true;
+  }
+  return false;
+}
+
+/**
+ * Divide `[0, e.largura] × [0, e.altura]` em ladrilhos de até `16 × 16` m, recortando cada entrada à caixa + margem
+ * para que cada ladrilho possa ser assado e cacheado de forma independente sem costuras.
+ */
+export function ladrilhosDoTerreno(e: EntradaDeTerreno, res: number): LadrilhoDeTerreno[] {
+  const margens = margensDoTerreno(res);
+  let aguaCount = 0;
+  const metaCamadas = e.camadas.map(c => {
+    const mat = materialDe(c.material);
+    const agua = mat.uso === 'agua';
+    const macico = mat.uso === 'macico';
+    const margem = macico ? margens.macico : agua ? margens.agua : margens.base;
+    const indiceAgua = agua && c.celulas.length > 0 ? aguaCount++ : undefined;
+    const dir = mat.padrao === 'sulcos' && c.celulas.length > 0 ? r3(c.dir ?? orientacaoDominante(c.celulas)) : undefined;
+    return { c, margem, indiceAgua, dir };
+  });
+
+  const cols = Math.max(1, Math.ceil(e.largura / LADO_DO_LADRILHO));
+  const lins = Math.max(1, Math.ceil(e.altura / LADO_DO_LADRILHO));
+  const saida: LadrilhoDeTerreno[] = [];
+
+  for (let j = 0; j < lins; j++) {
+    const y = j * LADO_DO_LADRILHO;
+    const h = Math.min(LADO_DO_LADRILHO, e.altura - y);
+    if (h <= 0) continue;
+    for (let i = 0; i < cols; i++) {
+      const x = i * LADO_DO_LADRILHO;
+      const w = Math.min(LADO_DO_LADRILHO, e.largura - x);
+      if (w <= 0) continue;
+      const caixa = { x, y, w, h };
+
+      const camadas: EntradaDeTerreno['camadas'] = metaCamadas.map(({ c, margem, indiceAgua, dir }) => {
+        const celulas = recortarFaixas(c.celulas, e.resolucao, x - margem, y - margem, x + w + margem, y + h + margem);
+        if (!celulas.length) return { material: c.material, celulas: [] };
+        return {
+          material: c.material,
+          celulas,
+          ...(c.flow ? { flow: c.flow } : {}),
+          ...(dir !== undefined ? { dir } : {}),
+          ...(indiceAgua !== undefined ? { indiceAgua } : {}),
+        };
+      });
+      // Camadas vazias no fim não afetam o índice das anteriores; removê-las evita invalidar ladrilhos distantes ao criar uma camada nova num canto.
+      while (camadas.length > 0 && camadas[camadas.length - 1]!.celulas.length === 0) camadas.pop();
+
+      let relevo: EntradaDeTerreno['relevo'];
+      if (e.relevo) {
+        const faixas = e.relevo.faixas
+          .map(f => ({
+            altura: f.altura,
+            celulas: recortarFaixas(f.celulas, e.resolucao, x - MARGEM_RELEVO, y - MARGEM_RELEVO, x + w + MARGEM_RELEVO, y + h + MARGEM_RELEVO),
+          }))
+          .filter(f => f.celulas.length > 0);
+        const degraus: NonNullable<NonNullable<EntradaDeTerreno['relevo']>['degraus']> = [];
+        for (const d of e.relevo.degraus ?? []) {
+          const md = larguraDoDeclive(d.desnivel ?? 0.5) + 0.2;
+          const caminhos: Ponto[][] = [], drops: ('a' | 'b')[] = [];
+          d.caminhos.forEach((c, idx) => {
+            if (caminhoTocaCaixa(c, x - md, y - md, x + w + md, y + h + md)) {
+              caminhos.push(c);
+              drops.push(d.drops[idx] ?? 'b');
+            }
+          });
+          if (caminhos.length) degraus.push({ caminhos, drops, ...(d.desnivel !== undefined ? { desnivel: d.desnivel } : {}) });
+        }
+        relevo = {
+          faixas,
+          topo: e.relevo.topo,
+          neblina: e.relevo.neblina,
+          ...(degraus.length ? { degraus } : {}),
+        };
+      }
+
+      let assentamento: EntradaDeTerreno['assentamento'];
+      if (e.assentamento) {
+        const celulas = recortarFaixas(
+          e.assentamento.celulas,
+          e.resolucao,
+          x - MARGEM_ASSENTAMENTO,
+          y - MARGEM_ASSENTAMENTO,
+          x + w + MARGEM_ASSENTAMENTO,
+          y + h + MARGEM_ASSENTAMENTO,
+        );
+        const salas = e.assentamento.salas
+          ? recortarFaixas(
+              e.assentamento.salas,
+              e.resolucao,
+              x - MARGEM_ASSENTAMENTO,
+              y - MARGEM_ASSENTAMENTO,
+              x + w + MARGEM_ASSENTAMENTO,
+              y + h + MARGEM_ASSENTAMENTO,
+            )
+          : undefined;
+        const soleiras = e.assentamento.soleiras.filter(
+          s =>
+            s.centro[0] >= x - MARGEM_ASSENTAMENTO &&
+            s.centro[0] <= x + w + MARGEM_ASSENTAMENTO &&
+            s.centro[1] >= y - MARGEM_ASSENTAMENTO &&
+            s.centro[1] <= y + h + MARGEM_ASSENTAMENTO,
+        );
+        if (celulas.length > 0 || soleiras.length > 0) {
+          assentamento = {
+            celulas,
+            ...(salas?.length ? { salas } : {}),
+            material: e.assentamento.material,
+            soleiras,
+          };
+        }
+      }
+
+      saida.push({
+        i,
+        j,
+        caixa,
+        entrada: {
+          largura: e.largura,
+          altura: e.altura,
+          resolucao: e.resolucao,
+          base: e.base,
+          recorte: caixa,
+          camadas,
+          ...(relevo ? { relevo } : {}),
+          ...(assentamento ? { assentamento } : {}),
+        },
+      });
+    }
+  }
+  return saida;
 }
 
 /** Chave do cache de um objeto de piso: a mesma receita, semente e parâmetros reaproveitam o mesmo desenho. */

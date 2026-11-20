@@ -212,7 +212,7 @@ async function clonarResultadoParaCache(r: ResultadoComExtras): Promise<Resultad
       altura,
       origem: r.origem,
       res: r.res,
-      ...(r.agua && aguaBmp ? { agua: { bitmap: aguaBmp, res: r.agua.res } } : {}),
+      ...(r.agua && aguaBmp ? { agua: { bitmap: aguaBmp, res: r.agua.res, ...(r.agua.origem ? { origem: r.agua.origem } : {}) } } : {}),
       ...(normal ? { normal } : {}),
       ...(fachada ? { fachada } : {}),
     };
