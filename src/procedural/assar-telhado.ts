@@ -15,6 +15,12 @@ import {
   type PadraoDeCobertura,
 } from './coberturas.ts';
 import type { Parte } from './descricao.ts';
+import {
+  aplicarDesgasteDeTelhado,
+  prepararDesgaste,
+  type ContextoDesgaste,
+  type SaidaDesgaste,
+} from './desgaste-de-telhado.ts';
 import { descricaoDoDetalhe, posicoesDosDetalhes, type PosicaoDeDetalhe } from './detalhes-de-telhado.ts';
 import type { EstiloDeRaster, IdDoEstilo } from './estilos/index.ts';
 import { materialDe, type Material } from './materiais.ts';
@@ -415,6 +421,7 @@ interface ContextoTrecho {
   tonsPixel: readonly [number, number, number][];
   manchaPixel: readonly [number, number, number][];
   qMancha: number;
+  desgaste: ContextoDesgaste;
 }
 
 function prepararTrecho(t: TrechoDoTelhado): ContextoTrecho {
@@ -441,6 +448,7 @@ function prepararTrecho(t: TrechoDoTelhado): ContextoTrecho {
     tonsPixel: [E, mix(B, E, 0.5), B, mix(B, C, 0.5), C],
     manchaPixel: [mix(M, [0, 0, 0], 0.35), M],
     qMancha: mat.mancha?.quanto ?? 0,
+    desgaste: prepararDesgaste(mat, t.seed),
   };
 }
 
@@ -679,6 +687,7 @@ export function amostrarTelhado(
   }
 
   const ctxs = e.trechos.map(prepararTrecho);
+  const chamines = detalhes.filter(d => d.detalhe === 'chamine');
   const eps = Math.max(0.004, 0.75 / res);
   const inv2Eps = 1 / (2 * eps);
   const am0: AmostraDeCobertura = { t: 0, m: 0, h: 0, id: 0 };
@@ -687,6 +696,7 @@ export function amostrarTelhado(
   const amV1: AmostraDeCobertura = { t: 0, m: 0, h: 0, id: 0 };
   const amV2: AmostraDeCobertura = { t: 0, m: 0, h: 0, id: 0 };
   const rgbOut: [number, number, number] = [0, 0, 0];
+  const saidaDesgaste: SaidaDesgaste = { rgb: rgbOut, gx: 0, gy: 0, ao: 1 };
 
   for (let py = 0; py < H; py++) {
     const my = y0 + (py + 0.5) / res;
@@ -864,6 +874,36 @@ export function amostrarTelhado(
           rgbOut[2] *= esc;
           if (!pixel) ao *= 1 - 0.42 * sInt;
         }
+      }
+
+      // Desgaste (N5): dano, remendos, sujeira, fuligem, musgo e neve (por último).
+      const wear = ct.forma.wear;
+      const snowEfetiva = wear.snow === 'auto' ? e.neve : wear.snow;
+      if (wear.damage > 0 || wear.dirt > 0 || wear.moss > 0 || snowEfetiva > 0 || chamines.length > 0) {
+        saidaDesgaste.gx = gxTot;
+        saidaDesgaste.gy = gyTot;
+        saidaDesgaste.ao = ao;
+        aplicarDesgasteDeTelhado(
+          {
+            wear,
+            snowEfetiva,
+            seed: ct.seed,
+            amostra: a,
+            cobertura: am0,
+            mx,
+            my,
+            dvx,
+            dvy,
+            corMaterial: ct.material,
+            chamines,
+            pixel,
+            ctx: ct.desgaste,
+          },
+          saidaDesgaste,
+        );
+        gxTot = saidaDesgaste.gx;
+        gyTot = saidaDesgaste.gy;
+        ao = saidaDesgaste.ao;
       }
 
       const k = rowOff + px * 4;

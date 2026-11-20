@@ -125,7 +125,7 @@ Pronto quando: a prancha mostra uma casa em L, uma igreja (nave + torre) e uma c
 Nota: Prancha de validação visual gerada em `test-results/n4-telhados.png` (casa em L de barro com chaminé, igreja nave + torre de ardósia com cruz e sino, e cúpula de cobre com cata-vento, em Albedo, Normal/AO e Prévia Sombreada). `src/procedural/assar-telhado.ts` exporta `amostrarTelhado` (puro em `Uint8ClampedArray` para testes em Node) e `assarTelhado` (Canvas/Worker com `assarDescricao` para detalhes); `src/render/entradas.ts` exporta `EntradaDoTelhado`, `entradaDoTelhado` e `chaveDoTelhado` (omitindo `sol` quando não há detalhes para não invalidar o cache ao mudar a hora); `executar.ts` inclui `{ tipo: 'telhado' }` e `ResultadoDeBake.normal`; `baker.ts` dá prioridade `2` a `tipo === 'telhado'`.
 Commit: `roofs are baked per building with color and normal maps`
 
-### N5 — Desgaste: musgo, sujeira, dano, remendo, fuligem e neve  ⬜
+### N5 — Desgaste: musgo, sujeira, dano, remendo, fuligem e neve  ✅
 Objetivo: cada telhado conta a história da casa: novo, gasto, abandonado, nevado.
 Depende de: N4.
 Ler: `src/procedural/assar-telhado.ts`, `src/procedural/ruido.ts`, `Material.mancha` em `materiais.ts`, as referências (delegacia e cabana).
@@ -140,6 +140,7 @@ Como:
 Não fazer: animação; neve caindo (já existe em partículas).
 Testes: `damage = 0` não tira peça; a mesma semente dá o mesmo dano; a neve num telhado plano cobre mais que numa água íngreme.
 Pronto quando: a prancha reproduz o espírito da delegacia (telha com fios de musgo) e da cabana (madeira manchada, peças faltando), e o usuário aprova lado a lado.
+Nota: `src/procedural/desgaste-de-telhado.ts` exporta `prepararDesgaste` e `aplicarDesgasteDeTelhado` (sem alocação por pixel), integrado em `amostrarTelhado` após o acabamento de cumeeira/beiral e antes dos detalhes; diferencia a semente das peças por direção da água `(dvx, dvy)` para evitar espelhamento simétrico entre águas opostas. Prancha de validação visual (delegacia em L com musgo e puxado mais baixo, cabana de tábuas gasta com remendos e peças faltando, casa de tabuinhas com dano > 0,6 e fuligem de chaminé, e casa em L nevada com anel derretido ao redor da chaminé) gerada em `test-results/n5-desgaste.png`.
 Commit: `roofs show moss, dirt, damage, soot and snow`
 
 ### N6 — Camada de telhados iluminada  ⬜
