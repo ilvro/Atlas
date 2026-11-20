@@ -177,7 +177,7 @@ Testes: se a regra sair numa função pura (`livreParaObjeto(naGrade, snap, alt)
 Pronto quando: num mapa novo, um objeto posto fica exatamente sob o cursor; com `Alt`, fica no centro da célula.
 Commit: `objects and lights are placed off the grid by default`
 
-### O7a — Espelho e opacidade no documento  ⬜
+### O7a — Espelho e opacidade no documento  ✅
 Objetivo: `Objeto` ganha `flip` e `opacity`, validados, com um espelho de descrição puro.
 Depende de: —.
 Ler: `src/domain/mapa.ts:145-160`; `src/domain/validacao.ts` (função `objeto` e o bloco `props`); `src/procedural/descricao.ts:1-40`; `src/state/comandos.ts:194-215` (`item.atualizar`).
@@ -192,7 +192,7 @@ Testes: espelhar duas vezes devolve a mesma descrição; a pegada não muda; um 
 Pronto quando: typecheck e testes passam.
 Commit: `props can be flipped and made translucent`
 
-### O7b — Render do espelho e da opacidade  ⬜
+### O7b — Render do espelho e da opacidade  ✅
 Objetivo: o mapa desenha `flip` e `opacity`.
 Depende de: O7a.
 Ler: `src/render/entradas.ts:400-450` (`chaveDoObjeto`, `pedidoDoObjeto`); `src/render/cena.ts:525-560` (laço dos objetos: `oculto`, `aplicarSubmersao`, escala); `src/procedural/executar.ts` (onde a descrição do objeto vira bake); `src/render/cena-de-altura.ts` (`sincronizarObjetos`).
@@ -207,7 +207,7 @@ Testes: unitário para `chaveDoObjeto` (com e sem `flip` dão chaves diferentes)
 Pronto quando: os objetos espelhados aparecem espelhados com a luz ainda de noroeste nas receitas, e a opacidade aparece no editor e no projetor.
 Commit: `flipped and translucent props render correctly`
 
-### O8a — Propriedades no pincel  ⬜
+### O8a — Propriedades no pincel  ✅
 Objetivo: o pincel de objeto carrega escala, camada, espelho, opacidade, sombra e bloqueio, mais as variações aleatórias, e aplica tudo ao pôr.
 Depende de: O3, O7a.
 Ler: `src/render/pincel.ts`; `src/render/viewport.ts` (`colocar`, ramo `objeto`, e o fantasma `falso`); `src/domain/fabrica.ts` (`novoObjeto`); `camadaDoObjeto` em `src/render/cena.ts`.
@@ -225,7 +225,7 @@ Testes: `camposDoPincel` no padrão devolve só `rotation: 0, scale: 1`; com `ro
 Pronto quando: com valores mudados no código do pincel, o objeto nasce com eles e o fantasma os mostra.
 Commit: `object brush carries scale, layer, flip, opacity and random variation`
 
-### O8b — Painel de propriedades do objeto  ⬜
+### O8b — Painel de propriedades do objeto  ✅
 Objetivo: um único painel, no estilo do Inkarnate, edita o pincel na biblioteca e o objeto (ou a seleção) no inspetor.
 Depende de: O4, O6, O8a.
 Ler: `src/ui/campos.tsx` (inteiro); `src/ui/Inspetor.tsx:530-555` (`CamposDoObjeto`); `src/ui/Biblioteca.tsx` (`Objetos`); as capturas do Inkarnate descritas na seção "Referência".
