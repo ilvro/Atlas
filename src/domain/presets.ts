@@ -171,7 +171,7 @@ export interface EstiloDeTelhado { id: string; nome: string; roof: Omit<Comodo['
 
 export const ESTILOS_DE_TELHADO: readonly EstiloDeTelhado[] = [
   { id: 'casa-de-telha', nome: 'Casa de telha', roof: { material: 'telha.barro', shape: 'quatro-aguas', steep: false, details: ['chamine'] } },
-  { id: 'casa-velha', nome: 'Casa velha', roof: { material: 'telha.velha', shape: 'duas-aguas', steep: false, details: ['chamine'] } },
+  { id: 'casa-velha', nome: 'Casa velha', roof: { material: 'telha.barro', shape: 'duas-aguas', steep: false, details: ['chamine'], wear: { moss: 0.45, dirt: 0.4, damage: 0.15, snow: 'auto' } } },
   { id: 'choupana', nome: 'Choupana', roof: { material: 'telha.palha', shape: 'quatro-aguas', steep: false, details: [] } },
   { id: 'casa-de-pedra', nome: 'Casa de pedra', roof: { material: 'telha.pedra', shape: 'duas-aguas', steep: false, details: ['chamine'] } },
   { id: 'celeiro', nome: 'Celeiro', roof: { material: 'telha.tabuinhas', shape: 'duas-aguas', steep: true, details: ['catavento'] } },
@@ -184,9 +184,45 @@ export const ESTILOS_DE_TELHADO: readonly EstiloDeTelhado[] = [
   { id: 'tenda', nome: 'Tenda', roof: { material: 'telha.lona', shape: 'piramide', steep: false, details: [] } },
   { id: 'torre-redonda', nome: 'Torre redonda', roof: { material: 'telha.escamas', shape: 'cone', steep: true, details: ['catavento'] } },
   { id: 'torre-conica-de-palha', nome: 'Torre de palha', roof: { material: 'telha.palha', shape: 'cone', steep: true, details: [] } },
+  { id: 'cabana-de-tabuas', nome: 'Cabana de tábuas', roof: { material: 'telha.tabuas', shape: 'duas-aguas', steep: false, details: [] } },
+  { id: 'casa-colonial', nome: 'Casa colonial', roof: { material: 'telha.barro', shape: 'quatro-aguas', steep: false, details: ['chamine'] } },
+  { id: 'casa-francesa', nome: 'Casa francesa', roof: { material: 'telha.francesa', shape: 'quatro-aguas', steep: false, details: ['chamine'] } },
+  { id: 'celeiro-holandes', nome: 'Celeiro holandês', roof: { material: 'telha.tabuinhas', shape: 'holandes', steep: false, details: ['catavento'] } },
+  { id: 'sobrado-de-mansarda', nome: 'Sobrado de mansarda', roof: { material: 'telha.ardosia', shape: 'mansarda', steep: false, details: ['chamine'] } },
+  { id: 'puxado', nome: 'Puxado', roof: { material: 'telha.zinco', shape: 'uma-agua', steep: false, details: [] } },
+  { id: 'galpao-industrial', nome: 'Galpão industrial', roof: { material: 'telha.fibrocimento', shape: 'uma-agua', steep: false, details: [] } },
+  { id: 'pagode', nome: 'Pagode', roof: { material: 'telha.esmaltada.verde', shape: 'pagode', steep: false, details: [] } },
+  { id: 'templo-oriental', nome: 'Templo oriental', roof: { material: 'telha.esmaltada.amarela', shape: 'quatro-aguas', steep: true, details: [] } },
+  { id: 'palacio-de-marmore', nome: 'Palácio de mármore', roof: { material: 'telha.marmore', shape: 'quatro-aguas', steep: false, details: [] } },
+  { id: 'cupula-dourada', nome: 'Cúpula dourada', roof: { material: 'telha.ouro', shape: 'cupula', steep: false, details: [] } },
+  { id: 'igreja-ortodoxa', nome: 'Igreja ortodoxa', roof: { material: 'telha.ouro', shape: 'bulbo', steep: false, details: ['cruz'] } },
+  { id: 'catedral', nome: 'Catedral', roof: { material: 'telha.chumbo', shape: 'duas-aguas', steep: true, details: ['cruz'] } },
+  { id: 'observatorio', nome: 'Observatório', roof: { material: 'telha.chapa.cinza', shape: 'cupula', steep: false, details: [] } },
+  { id: 'estufa', nome: 'Estufa', roof: { material: 'telha.vidro', shape: 'duas-aguas', steep: false, details: [] } },
+  { id: 'capela-de-vitral', nome: 'Capela de vitral', roof: { material: 'telha.vitral', shape: 'duas-aguas', steep: true, details: [] } },
+  { id: 'iurta', nome: 'Iurta', roof: { material: 'telha.couro', shape: 'cone', steep: false, details: [] } },
+  { id: 'casa-de-bambu', nome: 'Casa de bambu', roof: { material: 'telha.bambu', shape: 'duas-aguas', steep: false, details: [] } },
+  { id: 'galpao-abobadado', nome: 'Galpão abobadado', roof: { material: 'telha.chapa.cinza', shape: 'abobada', steep: false, details: [] } },
 ];
 
 export const estiloDeTelhado = (id: string): EstiloDeTelhado | undefined => ESTILOS_DE_TELHADO.find(e => e.id === id);
+
+/** Predefinição de estado/conservação de um telhado (só usada na interface e construção; o documento grava apenas `room.roof.wear`). */
+export interface EstadoDeTelhado {
+  id: string;
+  nome: string;
+  wear: { moss: number; dirt: number; damage: number };
+}
+
+export const ESTADOS_DE_TELHADO: readonly EstadoDeTelhado[] = [
+  { id: 'novo', nome: 'Novo', wear: { moss: 0, dirt: 0, damage: 0 } },
+  { id: 'gasto', nome: 'Gasto', wear: { moss: 0.15, dirt: 0.3, damage: 0.08 } },
+  { id: 'velho', nome: 'Velho', wear: { moss: 0.45, dirt: 0.4, damage: 0.15 } },
+  { id: 'abandonado', nome: 'Abandonado', wear: { moss: 0.7, dirt: 0.6, damage: 0.45 } },
+  { id: 'em-ruinas', nome: 'Em ruínas', wear: { moss: 0.85, dirt: 0.8, damage: 0.8 } },
+];
+
+export const estadoDeTelhado = (id: string): EstadoDeTelhado | undefined => ESTADOS_DE_TELHADO.find(e => e.id === id);
 
 const clonarTelhado = (r: Omit<Comodo['roof'], 'visible'>): Omit<Comodo['roof'], 'visible'> => ({
   material: r.material,
@@ -194,6 +230,8 @@ const clonarTelhado = (r: Omit<Comodo['roof'], 'visible'>): Omit<Comodo['roof'],
   ...(r.ridge !== undefined ? { ridge: r.ridge } : {}),
   ...(r.steep !== undefined ? { steep: r.steep } : {}),
   ...(r.details !== undefined ? { details: [...r.details] } : {}),
+  ...(r.wear !== undefined ? { wear: { ...r.wear } } : {}),
+  ...(r.seed !== undefined ? { seed: r.seed } : {}),
 });
 
 const ESTILO_POR_FUNCAO: Readonly<Record<string, string>> = {

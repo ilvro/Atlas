@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import { circulo } from '../../src/domain/formas-de-comodo.ts';
 import { codificar } from '../../src/domain/celulas.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
-import { ESTILOS_DE_TELHADO, FUNCOES_AO_AR_LIVRE, PRESETS_DE_ACABAMENTO, estiloDeTelhado, presetDeAcabamento, telhadoPadrao } from '../../src/domain/presets.ts';
+import { ESTADOS_DE_TELHADO, ESTILOS_DE_TELHADO, FUNCOES_AO_AR_LIVRE, PRESETS_DE_ACABAMENTO, estadoDeTelhado, estiloDeTelhado, presetDeAcabamento, telhadoPadrao } from '../../src/domain/presets.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
 
-test('ESTILOS_DE_TELHADO: todos os 14 estilos são únicos e passam na validação do mapa', () => {
-  assert.equal(ESTILOS_DE_TELHADO.length, 14);
-  assert.equal(new Set(ESTILOS_DE_TELHADO.map(e => e.id)).size, 14);
+test('ESTILOS_DE_TELHADO: todos os 33 estilos são únicos e passam na validação do mapa', () => {
+  assert.equal(ESTILOS_DE_TELHADO.length, 33);
+  assert.equal(new Set(ESTILOS_DE_TELHADO.map(e => e.id)).size, 33);
   for (const e of ESTILOS_DE_TELHADO) {
     const m = criarMapa();
     m.rooms.r1 = {
@@ -24,6 +24,32 @@ test('ESTILOS_DE_TELHADO: todos os 14 estilos são únicos e passam na validaç�
       levelId: null,
     };
     assert.doesNotThrow(() => validarMapa(m), e.id);
+  }
+  const velha = estiloDeTelhado('casa-velha')!;
+  assert.equal(velha.roof.material, 'telha.barro');
+  assert.ok(velha.roof.wear?.moss && velha.roof.wear.moss > 0);
+});
+
+test('ESTADOS_DE_TELHADO: todos os 5 estados são únicos e passam na validação do mapa', () => {
+  assert.equal(ESTADOS_DE_TELHADO.length, 5);
+  assert.equal(new Set(ESTADOS_DE_TELHADO.map(e => e.id)).size, 5);
+  for (const id of ['novo', 'gasto', 'velho', 'abandonado', 'em-ruinas']) {
+    const est = estadoDeTelhado(id);
+    assert.ok(est, `estado ${id} deve existir`);
+    const m = criarMapa();
+    m.rooms.r1 = {
+      id: 'r1',
+      name: est.nome,
+      function: 'sala',
+      cells: codificar([[1, 1], [2, 1]]),
+      floor: { material: 'tabuas.carvalho', seed: 1 },
+      wallpaper: null,
+      wallStyle: null,
+      palette: null,
+      roof: { material: 'telha.barro', visible: true, wear: { ...est.wear, snow: 'auto' } },
+      levelId: null,
+    };
+    assert.doesNotThrow(() => validarMapa(m), id);
   }
 });
 

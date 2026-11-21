@@ -11,7 +11,7 @@ import { listaDeAndares } from '../domain/andares.ts';
 import { ceuNoHorario } from '../domain/clima.ts';
 import { EVENTOS_DE_CENA } from '../domain/eventos-de-cena.ts';
 import { novoIdEntidade } from '../domain/fabrica.ts';
-import { CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, criarMapa, type CumeeiraDeTelhado, type DetalheDeTelhado, type FormaDeTelhado, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
+import { CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, FORMAS_DE_TELHADO, criarMapa, type CumeeiraDeTelhado, type DesgasteDeTelhado, type DetalheDeTelhado, type FormaDeTelhado, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
 import { descreverPasso, duracaoEstimada, momentoValido, type Momento, type PassoDeMomento } from '../domain/momentos.ts';
 import { GENEROS, PINCEIS_DE_PRESENCA, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
 import { validarMapa } from '../domain/validacao.ts';
@@ -110,6 +110,15 @@ const textoOpcional = (v: unknown, nome: string, max = 200): string | undefined 
   if (v === undefined || v === null) return undefined;
   if (typeof v !== 'string' || v.length > max) throw new Error(`"${nome}" deve ser texto de até ${max} caracteres.`);
   return v;
+};
+const lerDesgaste = (raw: unknown, quem: string): DesgasteDeTelhado => {
+  const o = objeto(raw, quem);
+  const saida: DesgasteDeTelhado = {};
+  for (const k of ['moss', 'dirt', 'damage'] as const) {
+    if (o[k] !== undefined) saida[k] = numero(o[k], `${quem}.${k}`, 0, 1);
+  }
+  if (o.snow !== undefined) saida.snow = o.snow === 'auto' ? 'auto' : numero(o.snow, `${quem}.snow`, 0, 1);
+  return saida;
 };
 const andarSchema = { type: ['string', 'null'] } as const;
 const lerAndar = (v: unknown, nome = 'andar'): string | null | undefined => {
@@ -229,7 +238,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_terreno',
-      descricao: 'Pinta, apaga ou define altitude de relevo do terreno, em METROS. Materiais: atlas_catalogo materiais. Guia: plataforma_guia ferramentas-atlas.',
+      descricao: 'Pinta, apaga ou define relevo do terreno em METROS. Materiais: atlas_catalogo materiais. Guia: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         base: { type: 'string' },
         operacoes: { type: 'array', maxItems: MAX_ITENS, items: { type: 'object', properties: { acao: { type: 'string', enum: ['pintar', 'apagar', 'relevo'] }, material: { type: 'string' }, altura: { type: 'number', minimum: -200, maximum: 200 }, forma: esquemaDaForma() }, required: ['acao', 'forma'] } },
@@ -255,7 +264,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_caminho',
-      descricao: 'Traça caminhos orgânicos em METROS (curva, largura viva, borda e sulcos), de 1 a 20 num passo de desfazer. Guia: plataforma_guia ferramentas-atlas.',
+      descricao: 'Traça caminhos orgânicos em METROS (curva, largura, borda e sulcos), 1 a 20 num passo. Guia: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         caminhos: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'object', properties: {
           pontos: { type: 'array', minItems: 2, items: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 } },
@@ -307,9 +316,10 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           poligono: { type: 'array', items: coord, minItems: 3, maxItems: 64 },
           tipo: { type: 'string' }, nome: { type: 'string' },
           piso: { type: 'string' }, papel: { type: 'string' }, wallFace: { type: 'string' }, telhado: { type: ['string', 'null'] }, telhadoVisivel: { type: 'boolean' },
-          // N9: voltar para [...FORMAS_DE_TELHADO]
-          telhadoForma: { type: 'string', enum: ['quatro-aguas', 'duas-aguas', 'plano', 'piramide', 'cone'] }, telhadoCumeeira: { type: 'string', enum: [...CUMEEIRAS_DE_TELHADO] },
+          telhadoForma: { type: 'string', enum: [...FORMAS_DE_TELHADO] }, telhadoCumeeira: { type: 'string', enum: [...CUMEEIRAS_DE_TELHADO] },
           telhadoDetalhes: { type: 'array', items: { type: 'string', enum: [...DETALHES_DE_TELHADO] } },
+          telhadoEstado: { type: 'string' },
+          telhadoDesgaste: { type: 'object', properties: { moss: { type: 'number', minimum: 0, maximum: 1 }, dirt: { type: 'number', minimum: 0, maximum: 1 }, damage: { type: 'number', minimum: 0, maximum: 1 }, snow: { oneOf: [{ type: 'number', minimum: 0, maximum: 1 }, { const: 'auto' }] } }, additionalProperties: false },
           andar: andarSchema,
         }, required: ['tipo'], additionalProperties: false } },
         andar: andarSchema,
@@ -328,6 +338,8 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           ...(c.telhadoForma !== undefined ? { telhadoForma: String(c.telhadoForma) as FormaDeTelhado } : {}),
           ...(c.telhadoCumeeira !== undefined ? { telhadoCumeeira: String(c.telhadoCumeeira) as CumeeiraDeTelhado } : {}),
           ...(Array.isArray(c.telhadoDetalhes) ? { telhadoDetalhes: c.telhadoDetalhes.map(d => String(d)) as DetalheDeTelhado[] } : {}),
+          ...(c.telhadoEstado !== undefined ? { telhadoEstado: textoOpcional(c.telhadoEstado, 'telhadoEstado', 80) } : {}),
+          ...(c.telhadoDesgaste !== undefined ? { telhadoDesgaste: lerDesgaste(c.telhadoDesgaste, `comodos[${i}].telhadoDesgaste`) } : {}),
           ...(c.andar !== undefined ? { andar: lerAndar(c.andar, `comodos[${i}].andar`) } : {}),
         }));
         const s = sementeDe(args);
@@ -336,7 +348,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_mobiliar',
-      descricao: 'Mobília e ilumina cômodos prontos pela função e pelo gênero (de 1 a 60 cômodos num passo de desfazer). Detalhes: plataforma_guia ferramentas-atlas.',
+      descricao: 'Mobília e ilumina cômodos pela função e gênero (1 a 60 num passo). Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         comodos: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 60 },
         luzes: { type: 'boolean' },
@@ -361,7 +373,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_edificio',
-      descricao: 'Constrói edifícios inteiros por programa: cômodos com função e área, forma (L, T, linear…), frente, alpendre, telhado; portas, janelas, mobília e luz. Um desfazer.',
+      descricao: 'Constrói edifícios por programa: cômodos, forma (L, T, linear…), frente, alpendre, telhado, portas, janelas, mobília e luz.',
       esquema: { type: 'object', properties: {
         edificios: { type: 'array', minItems: 1, maxItems: 12, items: { type: 'object', properties: {
           nome: { type: 'string' }, origem: { type: 'array', items: { type: 'integer' }, minItems: 2, maxItems: 2 },
@@ -427,7 +439,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_paredes',
-      descricao: 'Cria paredes, muros, cercas ou escarpas avulsas em metros. Para salas use atlas_comodos. Detalhes: plataforma_guia ferramentas-atlas.',
+      descricao: 'Cria paredes, muros, cercas ou escarpas em metros. Salas: atlas_comodos. Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         paredes: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
           path: { type: 'array', items: ponto, minItems: 2 }, kind: { type: 'string', enum: ['wall', 'low', 'fence', 'cliff'] },
@@ -536,7 +548,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_arranjo',
-      descricao: 'Dispõe até 300 objetos com variação em fileiras, grade solta, aglomerado, ao longo de caminho, círculo ou bordas; evita paredes e portas. Um desfazer.',
+      descricao: 'Dispõe até 300 objetos em fileiras, grade, aglomerado, caminho, círculo ou bordas; evita paredes e portas.',
       esquema: { type: 'object', properties: {
         padrao: { type: 'string', enum: ['fileiras', 'grade-solta', 'aglomerado', 'ao-longo', 'circulo', 'bordas'] },
         area: esquemaDaForma(),
@@ -679,7 +691,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_presenca',
-      descricao: 'Pinta presença (musgo, sangue, mofo...) em metros; com apagar:true, apaga na forma. Pincéis: atlas_catalogo presenca. Guia: plataforma_guia ferramentas-atlas.',
+      descricao: 'Pinta ou apaga presença (musgo, sangue, mofo...) em metros. Pincéis: atlas_catalogo presenca. Guia: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         pincel: { type: 'string', enum: PINCEIS_DE_PRESENCA.map(p => p.id) }, forma: esquemaDaForma(), intensidade: unidadeEsq, andar: andarSchema, semente,
         apagar: { type: 'boolean', description: 'true apaga a presença na forma (sem pincel, todos os pincéis).' },
@@ -734,7 +746,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_caminho',
-      descricao: 'Traça caminhos orgânicos em METROS (curva, largura viva, borda e sulcos), de 1 a 20 num passo de desfazer. Guia: plataforma_guia ferramentas-atlas.',
+      descricao: 'Traça caminhos orgânicos em METROS (curva, largura, borda e sulcos), 1 a 20 num passo. Guia: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         caminhos: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'object', properties: {
           pontos: { type: 'array', minItems: 2, items: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 } },
@@ -778,7 +790,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_momento',
-      descricao: 'Cria ou refaz um momento no mapa aberto (sem "id" cria; com "id" altera). Tipos de passo: atlas_catalogo momentos. Detalhes: plataforma_guia ferramentas-atlas.',
+      descricao: 'Cria ou refaz momento no mapa (sem "id" cria; com "id" altera). Passos: atlas_catalogo momentos. Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         id: { type: 'string' },
         nome: { type: 'string', minLength: 1, maxLength: 60 },
@@ -856,7 +868,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_salvar',
-      descricao: 'Grava o mapa aberto (o botão Gravar). Use ao fim de uma leva de mudanças; sem isso, elas ficam só como rascunho.',
+      descricao: 'Grava o mapa aberto (botão Gravar). Use ao fim das mudanças; sem isso ficam só como rascunho.',
       esquema: { type: 'object', properties: {}, additionalProperties: false },
       anotacoes: { destrutiva: false, idempotente: true },
       async executar() {
@@ -871,7 +883,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_desfazer',
-      descricao: 'Desfaz as últimas entradas do histórico do mapa aberto (passos 1 a 20, padrão 1) e devolve os rótulos desfeitos.',
+      descricao: 'Desfaz as últimas entradas do histórico do mapa (1 a 20, padrão 1) e devolve os rótulos.',
       esquema: { type: 'object', properties: { passos: { type: 'integer', minimum: 1, maximum: 20 } }, additionalProperties: false },
       anotacoes: { destrutiva: true },
       async executar(args) {

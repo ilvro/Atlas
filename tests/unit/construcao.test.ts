@@ -67,7 +67,8 @@ test('comodos: todos os tipos têm piso e papel válidos; tipo inválido lista a
 test('comodos: sem telhado usa o padrão do gênero/vizinho; null explícito deixa sem telhado', () => {
   const inv = vazio();
   const padrao = aplicar(comodos(inv, [{ rets: [[1, 1, 3, 3]], tipo: 'sala' }], 1, contador()), inv);
-  assert.equal(padrao.rooms.c001!.roof.material, 'telha.velha');
+  assert.equal(padrao.rooms.c001!.roof.material, 'telha.barro');
+  assert.ok(padrao.rooms.c001!.roof.wear && padrao.rooms.c001!.roof.wear.moss! > 0);
   assert.equal(padrao.rooms.c001!.roof.shape, 'duas-aguas');
 
   const varanda = aplicar(comodos(inv, [{ rets: [[1, 1, 3, 3]], tipo: 'varanda' }], 1, contador()), inv);

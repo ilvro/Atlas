@@ -93,26 +93,52 @@ Cria cômodos (piso, paredes e telhado; um passo de desfazer). Escolha **exatame
 Tipo dos cômodos: ver `atlas_catalogo`.
 
 - `telhado`: omitido = estilo pela função/gênero (contorno circular >= 8 lados escolhe `torre-redonda`; ou herdado do cômodo vizinho; varandas ficam sem); `null` = sem telhado; ou id de um **estilo de telhado** (ver tabela ou `atlas_catalogo { parte: "telhado" }`) ou id de uma cobertura avulsa (`telha.barro`, etc.).
-- `telhadoForma`, `telhadoCumeeira`, `telhadoDetalhes`: sobrescritas opcionais sobre o telhado resolvido (`quatro-aguas`, `duas-aguas`, `plano`, `piramide`, `cone`; `auto`, `h`, `v`; `chamine`, `cruz`, `sino`, `catavento`, `claraboia`, `caixa-dagua`).
+- `telhadoForma`, `telhadoCumeeira`, `telhadoDetalhes`: sobrescritas opcionais sobre o telhado resolvido:
+  - Formas (12): `quatro-aguas`, `duas-aguas`, `uma-agua`, `mansarda`, `holandes`, `piramide`, `cone`, `cupula`, `abobada`, `pagode`, `bulbo`, `plano`.
+  - Cumeeiras: `auto`, `h`, `v`.
+  - Detalhes: `chamine`, `cruz`, `sino`, `catavento`, `claraboia`, `caixa-dagua`.
+- `telhadoEstado`: predefinição de conservação (`novo`, `gasto`, `velho`, `abandonado`, `em-ruinas`) — aplica musgo, sujeira e dano no `wear` do telhado.
+- `telhadoDesgaste`: ajuste fino parcial `{ moss?, dirt?, damage?, snow? }` (`0` a `1`; `snow` aceita `'auto'` para acompanhar o clima). Sobrescreve o `wear` do estilo/estado.
 - `andar`: id de andar opcional (`null` ou omitido = térreo; crie o andar antes em `atlas_andares`).
 - `wallFace`: material da face interna das paredes (o que se vê da parede de dentro do cômodo, entre o topo e o piso); omitido usa o `papel`. Além dos papéis (`papel.*`, `boiserie.*`), há `parede.reboco`, `parede.tabuas` (cabana), `parede.alvenaria` (masmorra, castelo) e `parede.rocha` (gruta).
 
-| Estilo | Cobertura | Forma | Íngreme | Detalhes |
-| --- | --- | --- | --- | --- |
-| `casa-de-telha` | `telha.barro` | `quatro-aguas` | não | `chamine` |
-| `casa-velha` | `telha.velha` | `duas-aguas` | não | `chamine` |
-| `choupana` | `telha.palha` | `quatro-aguas` | não | — |
-| `casa-de-pedra` | `telha.pedra` | `duas-aguas` | não | `chamine` |
-| `celeiro` | `telha.tabuinhas` | `duas-aguas` | sim | `catavento` |
-| `igreja` | `telha.ardosia` | `duas-aguas` | sim | `cruz` |
-| `torre` | `telha.escamas` | `piramide` | sim | `sino` |
-| `torre-redonda` | `telha.escamas` | `cone` | sim | — |
-| `torre-conica-de-palha` | `telha.palha` | `cone` | sim | — |
-| `templo-de-cobre` | `telha.cobre` | `quatro-aguas` | sim | — |
-| `galpao-de-zinco` | `telha.zinco` | `duas-aguas` | não | — |
-| `laje-moderna` | `telha.concreto` | `plano` | não | `caixa-dagua` |
-| `casa-nordica` | `telha.grama` | `duas-aguas` | não | `chamine` |
-| `tenda` | `telha.lona` | `piramide` | não | — |
+| Era / Gênero | Estilo | Cobertura | Forma | Íngreme | Detalhes |
+| --- | --- | --- | --- | --- | --- |
+| Rústico / Medieval | `choupana` | `telha.palha` | `quatro-aguas` | não | — |
+| Rústico / Medieval | `torre-conica-de-palha` | `telha.palha` | `cone` | sim | — |
+| Rústico / Medieval | `cabana-de-tabuas` | `telha.tabuas` | `duas-aguas` | não | — |
+| Rústico / Medieval | `casa-de-pedra` | `telha.pedra` | `duas-aguas` | não | `chamine` |
+| Rústico / Medieval | `celeiro` | `telha.tabuinhas` | `duas-aguas` | sim | `catavento` |
+| Rústico / Medieval | `igreja` | `telha.ardosia` | `duas-aguas` | sim | `cruz` |
+| Rústico / Medieval | `catedral` | `telha.chumbo` | `duas-aguas` | sim | `cruz` |
+| Rústico / Medieval | `torre` | `telha.escamas` | `piramide` | sim | `sino` |
+| Rústico / Medieval | `torre-redonda` | `telha.escamas` | `cone` | sim | `catavento` |
+| Rústico / Medieval | `casa-nordica` | `telha.grama` | `duas-aguas` | não | `chamine` |
+| Rústico / Medieval | `tenda` | `telha.lona` | `piramide` | não | — |
+| Rústico / Medieval | `iurta` | `telha.couro` | `cone` | não | — |
+| Clássico / Nobre | `templo-de-cobre` | `telha.cobre` | `quatro-aguas` | sim | — |
+| Clássico / Nobre | `palacio-de-marmore` | `telha.marmore` | `quatro-aguas` | não | — |
+| Clássico / Nobre | `cupula-dourada` | `telha.ouro` | `cupula` | não | — |
+| Clássico / Nobre | `igreja-ortodoxa` | `telha.ouro` | `bulbo` | não | `cruz` |
+| Clássico / Nobre | `capela-de-vitral` | `telha.vitral` | `duas-aguas` | sim | — |
+| Oriental | `pagode` | `telha.esmaltada.verde` | `pagode` | não | — |
+| Oriental | `templo-oriental` | `telha.esmaltada.amarela` | `quatro-aguas` | sim | — |
+| Oriental | `casa-de-bambu` | `telha.bambu` | `duas-aguas` | não | — |
+| Investigação / XIX | `casa-de-telha` | `telha.barro` | `quatro-aguas` | não | `chamine` |
+| Investigação / XIX | `casa-velha` | `telha.barro` (estado `velho`) | `duas-aguas` | não | `chamine` |
+| Investigação / XIX | `casa-colonial` | `telha.barro` | `quatro-aguas` | não | `chamine` |
+| Investigação / XIX | `casa-francesa` | `telha.francesa` | `quatro-aguas` | não | `chamine` |
+| Investigação / XIX | `celeiro-holandes` | `telha.tabuinhas` | `holandes` | não | `catavento` |
+| Investigação / XIX | `sobrado-de-mansarda` | `telha.ardosia` | `mansarda` | não | `chamine` |
+| Investigação / XIX | `observatorio` | `telha.chapa.cinza` | `cupula` | não | — |
+| Investigação / XIX | `estufa` | `telha.vidro` | `duas-aguas` | não | — |
+| Moderno / Industrial | `puxado` | `telha.zinco` | `uma-agua` | não | — |
+| Moderno / Industrial | `galpao-de-zinco` | `telha.zinco` | `duas-aguas` | não | — |
+| Moderno / Industrial | `galpao-industrial` | `telha.fibrocimento` | `uma-agua` | não | — |
+| Moderno / Industrial | `galpao-abobadado` | `telha.chapa.cinza` | `abobada` | não | — |
+| Moderno / Industrial | `laje-moderna` | `telha.concreto` | `plano` | não | `caixa-dagua` |
+
+Estados de telhado (`telhadoEstado`): `novo` (limpo), `gasto` (leve), `velho` (musgo 0,45 / sujeira 0,4 / dano 0,15), `abandonado` (0,7 / 0,6 / 0,45), `em-ruinas` (0,85 / 0,8 / 0,8).
 
 Exemplos:
 - **Igreja com nave e campanário colado:**
