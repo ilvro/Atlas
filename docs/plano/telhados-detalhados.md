@@ -160,7 +160,7 @@ Pronto quando: o porto à noite mostra os telhados iluminados só pelos lampiõe
 Nota: `MapaDeLuz` expõe `luzExterna` (`ehLuzExterna` exclui `janela:*`/`janela-fora:*` e luzes dentro de cômodos cobertos, mantendo luzes de rua e `estrutura.*`, com recorte só de cone sem paredes internas) renderizada em `brutaExtRT` → blur gaussiano → `luzExternaRT`. `Telhados` pede `{ tipo: 'telhado' }` (prioridade 2) usando o desenho vetorial apenas como prévia temporária, projeta sombra real pela silhueta de `texCor` deslocada pela `alturaMaxima` de `campoDoEdificio` e executa a passada GPU em Ilustrado (albedo + normal/AO + `luzExterna` + sol/lua + curva ACES com `finish.exposure`, custo zero quando nenhum telhado está visível), mantendo tinta por clima no Pixel. Validação visual comparativa em `test-results/n6-luz.png` (`porto-noturno` à noite + casa diurna às 14h30).
 Commit: `roofs are lit by the scene lights with relief and tone curve`
 
-### N7 — Fachada sob o beiral  ⬜
+### N7 — Fachada sob o beiral  ✅
 Objetivo: a casa fechada mostra a parede da frente com porta e janelas, como nos mapas de O Segredo na Ilha.
 Depende de: N6.
 Ler: `src/procedural/faces-de-parede.ts` (como a face de parede é pintada), `src/domain/mapa.ts` (`Parede`, `Abertura`, `wallFace`), `src/render/cena.ts` (camada de peças), `docs/referencias/segredo-na-ilha-mansao.png` e `telhados/`.
@@ -173,6 +173,7 @@ Como:
 Não fazer: fachadas laterais; perspectiva além da faixa.
 Testes: e2e, casa com porta na parede de baixo: com o telhado fechado, a faixa abaixo do beiral não tem a cor do chão; com `facades: false`, tem; uma peça na rua, logo abaixo da casa, aparece por cima da fachada.
 Pronto quando: a delegacia refeita (N10) tem a porta e as janelas à vista com o telhado fechado.
+Nota: `src/procedural/fachada.ts` exporta `ALTURA_DA_FACHADA = 0.9` e `assarFachada`, gerando o segundo bitmap `fachada` (mesma origem/resolução do telhado com altura expandida em baixo) para arestas externas frontais (`ny > 0.35`), com material externo resolvido em `entradaDoTelhado` (`wallFace` da sala adjacente → material da parede ≠ `'parede.topo'` → `'parede.tabuas'` em construções rústicas → `'parede.reboco'`), sombra sob o beiral, rodapé escuro, sombra de contato no chão e desenho de `door`, `window` e `arch` (com suporte a Ilustrado e Pixel). `Telhados` expõe `fachadaRaiz` inserida em `cena.ts` imediatamente antes de `pecasC`, acompanha o fade por edifício, atualiza ao mudar `walls`/`openings`, e no Ilustrado ilumina a fachada na GPU usando o mesmo `GlProgram`/uniformes do N6 com normal fixa `[0, 0.82, 0.57]` e `ao = 1.0` (custo zero sem fachadas visíveis). Validação visual comparativa em `test-results/n7-fachada.png`.
 Commit: `closed houses show their front facade under the eave`
 
 ### N8a — Coberturas de todas as eras  ✅

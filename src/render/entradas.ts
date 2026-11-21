@@ -1,14 +1,14 @@
 import { codificar, type Faixa } from '../domain/celulas.ts';
 import type { Edificio } from '../domain/edificios.ts';
 import { pontoNoPoligono } from '../domain/formas-de-comodo.ts';
-import { arestasDeParede, comprimentoDaParede, indiceDeCelulas, normalParaDentro, pontoNaParede, salasDaAbertura, type ArestaUnitaria } from '../domain/geometria.ts';
+import { arestasDeParede, comodoEm, comprimentoDaParede, indiceDeCelulas, normalParaDentro, pontoNaParede, salasDaAbertura, type ArestaUnitaria } from '../domain/geometria.ts';
 import type { Comodo, MapaAtlas, Objeto, Parede, Ponto } from '../domain/mapa.ts';
 import { FUNCOES_AO_AR_LIVRE, generoDe } from '../domain/presets.ts';
 import { alturaNaCelula, celulasForaDePatamares, corDaNeblinaDoRelevo, degrausDoRelevo, topoDoRelevo } from '../domain/relevo.ts';
 import { sombraDoSol } from '../domain/sol.ts';
 import { telhadoEfetivo, trechosDe } from '../domain/telhado-geometria.ts';
 import type { EntradaDeEscarpa } from '../procedural/escarpa.ts';
-import { materialDe } from '../procedural/materiais.ts';
+import { MATERIAIS, materialDe } from '../procedural/materiais.ts';
 import { hashDasTexturas, usaTextura } from '../procedural/texturas-carregadas.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { MARGEM_ASSENTAMENTO, MARGEM_RELEVO, larguraDoDeclive, margensDoTerreno, type EntradaDeTerreno, type EntradaDoComodo } from '../procedural/assar.ts';
@@ -499,12 +499,76 @@ export function entradaDoTelhado(
       }
     }
     if (Number.isFinite(bx0)) {
+      const idxNivel = indiceDeCelulas(m, nivel);
+      const salasComOutline = ed.salas
+        .map(id => m.rooms[id])
+        .filter((s): s is Comodo => Boolean(s && s.outline && s.outline.length >= 3));
+
+      const salaEmPonto = (pt: Ponto): Comodo | null => {
+        const idCel = comodoEm(m, pt, idxNivel);
+        if (idCel && salasEd.has(idCel)) return m.rooms[idCel] ?? null;
+        for (const s of salasComOutline) {
+          if (pontoNoPoligono(pt, s.outline!)) return s;
+        }
+        return null;
+      };
+
+      const salaAdjacente = (p: Parede): Comodo | null => {
+        if (p.source && 'roomId' in p.source && salasEd.has(p.source.roomId)) {
+          return m.rooms[p.source.roomId] ?? null;
+        }
+        for (let i = 0; i + 1 < p.path.length; i++) {
+          const a = p.path[i]!, b = p.path[i + 1]!;
+          const dx = b[0] - a[0], dy = b[1] - a[1], c = Math.hypot(dx, dy);
+          if (c < 1e-4) continue;
+          const mx = (a[0] + b[0]) * 0.5, my = (a[1] + b[1]) * 0.5;
+          const nx = -dy / c, ny = dx / c;
+          const s1 = salaEmPonto([mx + nx * 0.25, my + ny * 0.25]);
+          if (s1) return s1;
+          const s2 = salaEmPonto([mx - nx * 0.25, my - ny * 0.25]);
+          if (s2) return s2;
+        }
+        return m.rooms[ed.salas[0]!] ?? null;
+      };
+
+      const ehRustico = (s: Comodo | null): boolean => {
+        const telha = s?.roof.material ?? '';
+        const piso = s?.floor.material ?? '';
+        return (
+          telha.includes('palha') ||
+          telha.includes('tabuinhas') ||
+          telha.includes('tabuas') ||
+          telha.includes('bambu') ||
+          telha.includes('couro') ||
+          piso.includes('madeira') ||
+          piso.includes('tabuas')
+        );
+      };
+
+      const resolverWallFace = (p: Parede, sala: Comodo | null): string => {
+        if (sala?.wallFace && sala.wallFace !== 'parede.topo' && MATERIAIS[sala.wallFace]) {
+          return sala.wallFace;
+        }
+        if (p.material && p.material !== 'parede.topo' && MATERIAIS[p.material]) {
+          return p.material;
+        }
+        if (ehRustico(sala) && MATERIAIS['parede.tabuas']) return 'parede.tabuas';
+        return MATERIAIS['parede.reboco'] ? 'parede.reboco' : 'papel.liso-claro';
+      };
+
       const aberturasPorParede = new Map<string, ParedeExternaDoTelhado['aberturas']>();
       for (const a of Object.values(m.openings)) {
-        const salas = salasDaAbertura(m, a, ctx.arestas);
-        if (salas.length !== 1 || !salasEd.has(salas[0]!)) continue;
         const p = m.walls[a.wallId];
         if (!p || (p.levelId ?? null) !== nivel) continue;
+        const salas = salasDaAbertura(m, a, ctx.arestas);
+        const externaPorCelula = salas.length === 1 && salasEd.has(salas[0]!);
+        const externaPorOutline =
+          salas.length === 0 &&
+          salasComOutline.length > 0 &&
+          p.source &&
+          'roomId' in p.source &&
+          salasEd.has(p.source.roomId);
+        if (!externaPorCelula && !externaPorOutline) continue;
         const { ponto } = pontoNaParede(p, a.at * comprimentoDaParede(p));
         const lista = aberturasPorParede.get(p.id) ?? [];
         lista.push({
@@ -530,10 +594,13 @@ export function entradaDoTelhado(
           const ab = (aberturasPorParede.get(p.id) ?? []).sort(
             (a, b) => a.centro[0] - b.centro[0] || a.centro[1] - b.centro[1],
           );
+          const sala = salaAdjacente(p);
+          const wallFace = resolverWallFace(p, sala);
           return {
             path: p.path.map(([x, y]): Ponto => [r3(x), r3(y)]),
             height: r3(p.height),
             material: p.material,
+            wallFace,
             aberturas: ab,
           };
         });

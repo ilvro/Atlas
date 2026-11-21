@@ -117,7 +117,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
   // A tinta do chão (presença natural) cobre o piso, mas não a face de rocha das escarpas, que sobe acima dela.
   // No Ilustrado, a composição de luz renderiza `mundoIluminado` em `corRT`, escreve HDR em `hdrRT` e aplica bloom em `composicaoDeLuz.sprite`; no Pixel, `luz.sprite` multiplica em 8 bits. Marcadores, regiões e peças ficam por cima.
   mundoIluminado.addChild(terrenoC, presenca.submerso, submersosC, agua.raiz, veuTerrenoG, comodosC, presenca.chao, tempo.chao, escarpasC, contato.raiz, sombras.raiz, objetosC, tempo.chapeus, cachoeiras.raiz, paredesG, fantasmaAndarG, presenca.abaixo);
-  raiz.addChild(mundoIluminado, composicaoDeLuz.sprite, luz.sprite, presenca.acima, halos.raiz, fumaca.raiz, neblina.raiz, particulas.raiz, bordas.raiz, regioesC, luzesC, marcasG, pecasC, nevoa.sprite, telhados.raiz, tituloC);
+  raiz.addChild(mundoIluminado, composicaoDeLuz.sprite, luz.sprite, presenca.acima, halos.raiz, fumaca.raiz, neblina.raiz, particulas.raiz, bordas.raiz, regioesC, luzesC, marcasG, telhados.fachadaRaiz, pecasC, nevoa.sprite, telhados.raiz, tituloC);
 
   let mapa: MapaAtlas | null = null, vistaDaCena: Vista = 'construir', destruida = false, pintandoAgora = 0, ultimoQuadro = -1;
   let ultimoContextoAndar: ContextoDoAndar | null = null, atmosferaLigada = true, ehPixel = false;

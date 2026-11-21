@@ -36,6 +36,8 @@ export interface ResultadoDeBake {
   altura: ImageBitmap | null;
   /** Mapa de normal (RG = N.xy * 0,5 + 0,5, B = AO, A = alfa) alinhado ao `bitmap` (telhados no Ilustrado). */
   normal?: ImageBitmap | null;
+  /** Fachada frontal sob o beiral (+y), alinhada à mesma origem e resolução do telhado. */
+  fachada?: ImageBitmap | null;
   origem: [number, number];
   res: number;
   /** Terreno com água: textura de profundidade (R) e margem (G), `res` px/m. */
@@ -73,6 +75,7 @@ async function paraBitmap(a: Assado): Promise<ResultadoDeBake> {
   const bitmap = 'transferToImageBitmap' in a.tela ? a.tela.transferToImageBitmap() : await createImageBitmap(a.tela);
   const altura = a.altura ? ('transferToImageBitmap' in a.altura ? a.altura.transferToImageBitmap() : await createImageBitmap(a.altura)) : null;
   const normal = a.normal ? ('transferToImageBitmap' in a.normal ? a.normal.transferToImageBitmap() : await createImageBitmap(a.normal)) : undefined;
+  const fachada = a.fachada ? ('transferToImageBitmap' in a.fachada ? a.fachada.transferToImageBitmap() : await createImageBitmap(a.fachada)) : undefined;
   const agua = a.agua
     ? {
         bitmap: 'transferToImageBitmap' in a.agua.tela ? a.agua.tela.transferToImageBitmap() : await createImageBitmap(a.agua.tela),
@@ -80,7 +83,7 @@ async function paraBitmap(a: Assado): Promise<ResultadoDeBake> {
         ...(a.agua.origem ? { origem: a.agua.origem } : {}),
       }
     : undefined;
-  return { bitmap, altura, ...(normal ? { normal } : {}), origem: a.origem, res: a.res, ...(agua ? { agua } : {}) };
+  return { bitmap, altura, ...(normal ? { normal } : {}), ...(fachada ? { fachada } : {}), origem: a.origem, res: a.res, ...(agua ? { agua } : {}) };
 }
 
 /** A descrição do gerador pesado, assada no estilo pedido. O import é dinâmico: os geradores só carregam quando um item gerado é pedido no Pixel. */
