@@ -3,12 +3,15 @@ import { contornar } from '../domain/contorno.ts';
 import type { MapaAtlas, Objeto, Ponto } from '../domain/mapa.ts';
 import { alturaEm, bordasDoRelevo, DEGRAU_TRANSPONIVEL } from '../domain/relevo.ts';
 import { sombraDoSol, type SombraDoSol } from '../domain/sol.ts';
+import { ehArvore } from '../domain/camadas.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { ladoBaixo } from '../procedural/escarpa.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import { criarCamadaEmTextura } from './camada-em-textura.ts';
 import { ehEscarpaAvulsa } from './entradas.ts';
 
+/** A copa deixa passar luz entre as folhas: a sombra de uma árvore é mais rala que a de um objeto maciço. */
+export const TRANSPARENCIA_DA_COPA = 0.62;
 /** Resolução (px/m) da textura das sombras no Ilustrado: macia, mas nítida o bastante para a sombra de uma tora (30 cm) não sumir no desfoque. */
 const RES_DA_SOMBRA = 24;
 /** Quanto o maciço de rocha "tem de altura" para a sombra (a mesma saturação do relevo do assar). */
@@ -87,7 +90,7 @@ export function criarSombrasDoSol(renderer: Renderer) {
       vivos.add(o.id);
       let c = sprites.get(o.id), filho = c?.children[0] as Sprite | undefined;
       if (!c || !filho) { c = new Container(); filho = new Sprite(sp.texture); c.addChild(filho); objetos.addChild(c); sprites.set(o.id, c); }
-      c.alpha = o.opacity ?? 1;
+      c.alpha = (o.opacity ?? 1) * (ehArvore(ACERVO.idDaFonte(o.source)) ? TRANSPARENCIA_DA_COPA : 1);
       filho.texture = sp.texture; filho.position.copyFrom(sp.position); filho.scale.copyFrom(sp.scale);
       if (projetada) { c.position.set(o.position[0], o.position[1]); c.rotation = o.rotation; c.scale.set(o.scale); c.skew.set(0, 0); }
       else c.setFromMatrix(matrizDaSombra(o.position, o.rotation, o.scale, ACERVO.pegadaDaFonte(o.source), ACERVO.alturaDaFonte(o.source), s));
