@@ -139,7 +139,7 @@ Testes: um unitário, se a regra que escolhe o fundo for extraída para uma fun�
 Pronto quando: a gaveta de Terreno mostra a textura no `chao.de.mata`.
 Commit: `material swatches show their ground texture`
 
-### P7 — Carimbos de chão (Opus)  ⬜
+### P7 — Carimbos de chão (Opus)  ✅
 Objetivo: as receitas de chão que dão a variedade desenhada da referência.
 Depende de: —. Pode ser feita antes da P5.
 Ler: `src/procedural/receitas/exterior.ts` (`pedra`, `tora-assento`); `src/procedural/pesados/plantas.ts` (o raminho com nanquim da `arvore-da-mata`); `src/authoring/espalhar.ts:35` (`mata-fechada`); a seção "Pontos de contato com a Frente O" acima.
@@ -151,6 +151,12 @@ Como:
 Testes: os de receitas e de espalhar; o da O1, se existir.
 Pronto quando: a prancha dos carimbos (`test-results/p7-carimbos.png`) passa na comparação com os carimbos da referência.
 Commit: `added drawn ground stamps for forest floors`
+Feito em 2026-11-20:
+- Receitas em `src/procedural/receitas/chao.ts`: `folhico`, `galhada`, `raizes` (raio), `tufo-de-capim` (seco 0 a 1) e `moita-de-samambaia`. O tronco caído **manteve o id `tronco.caido`** em vez de ganhar um `tronco-caido`: foi redesenhado (casca em estrias, cilindro em faixas, cortes de galho, musgo, ponta lascada) e ganhou o parâmetro `comprimento`, e os mapas que já o usam ficam com o desenho novo.
+- Famílias: `moita-de-samambaia` em "Samambaia", `tufo-de-capim` em "Capim" e a família nova "Folhiço e galhos" (`folhico`, `galhada`, `raizes`). O tronco já estava em "Toco e tronco".
+- `mata-fechada`: os seis carimbos entram com pesos baixos. A densidade subiu de 0,045 para 0,0675, o que mantém o número de copas.
+- Prancha: `test-results/p7-carimbos.png` (carimbos sob o luar do acampamento; embaixo, recortes da referência na mesma escala).
+- Diferença que fica: a referência espalha muitos **brotos** (raminhos de 10 a 15 cm com três ou quatro folhinhas verdes) por todo o chão. Esse carimbo não estava na ficha; vale uma receita `broto` na P8 ou numa ficha à parte.
 
 ### P8 — Acampamento refeito e guia do assistente (Opus)  ⬜
 Objetivo: o exemplo usa o chão novo e os carimbos, e o assistente sabe usar os dois.
