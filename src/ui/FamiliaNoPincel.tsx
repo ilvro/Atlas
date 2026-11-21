@@ -22,19 +22,25 @@ function pegarItem(s: SessaoDeEdicao, id: string, ferramenta = true): void {
   tocar('selecionar');
 }
 
-const textoDoItem = (id: string): string => { const r = ACERVO.item(id); return r ? `${r.nome} ${r.tags.join(' ')} ${r.funcoes.join(' ')} ${r.categoria}` : ''; };
-
 interface Resultado { familia: Familia; item: string; nota: number }
 
-/** Famílias do grupo que casam com a consulta, com a primeira variante que casou (ou a primeira da família). */
+/** Tags, funções e categoria só casam por trecho inteiro e valem menos que o nome: a busca por letras soltas num texto longo acharia quase tudo. */
+const extrasDoItem = (id: string): string => { const r = ACERVO.item(id); return r ? normalizar(`${r.tags.join(' ')} ${r.funcoes.join(' ')} ${r.categoria}`) : ''; };
+function notaDoItem(q: string, id: string): number {
+  const r = ACERVO.item(id); if (!r) return 0;
+  const doNome = pontuar(q, r.nome); if (doNome >= 100) return doNome;
+  return q.split(/\s+/).every(p => extrasDoItem(id).includes(p)) ? 50 : 0;
+}
+
+/** Famílias do grupo que casam com a consulta (pelo nome da família, dos itens, das tags e das funções), com a primeira variante que casou (ou a primeira da família). */
 export function buscarFamilias(consulta: string, grupo: string | null): Resultado[] {
   const q = normalizar(consulta), lista = ACERVO.familias().filter(f => !grupo || f.grupo === grupo);
   if (!q) return lista.map(familia => ({ familia, item: familia.itens[0]!, nota: 1 }));
   const out: Resultado[] = [];
   lista.forEach(familia => {
-    const doNome = pontuar(q, familia.nome), casou = familia.itens.find(id => pontuar(q, textoDoItem(id)) > 0);
-    const nota = Math.max(doNome, ...familia.itens.map(id => pontuar(q, textoDoItem(id))));
-    if (nota > 0) out.push({ familia, item: casou ?? familia.itens[0]!, nota });
+    const notas = familia.itens.map(id => notaDoItem(q, id)), k = notas.findIndex(n => n > 0);
+    const nota = Math.max(pontuar(q, familia.nome), ...notas);
+    if (nota > 0) out.push({ familia, item: k >= 0 ? familia.itens[k]! : familia.itens[0]!, nota });
   });
   return out.map((r, i) => ({ r, i })).sort((a, b) => b.r.nota - a.r.nota || a.i - b.i).map(x => x.r);
 }
