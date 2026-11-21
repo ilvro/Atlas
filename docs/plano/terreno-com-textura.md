@@ -49,7 +49,7 @@ No mapa `acampamento-na-nevoa`, o chão continua longe da referência do Inkarna
 
 ---
 
-### P1 — Curadoria das texturas (Opus)  ⬜
+### P1 — Curadoria das texturas (Opus)  ✅ aprovada em 2026-11-20
 Objetivo: escolher, com aprovação do usuário, as texturas CC0 do lote 1.
 Depende de: —.
 Ler: `docs/LICENCAS.md` (regras); a referência `docs/referencias/exemplos/acampamento-na-nevoa.png`.
@@ -159,3 +159,35 @@ Commit: `misty camp uses textured ground and stamps`
 ## Ordem sugerida
 
 P1 → P2 → P3 (pode ir junto com a P2) → P4 → P5 → P6, com a P7 em paralelo a qualquer momento, e a P8 no fim. A P1 depende do usuário aprovar a prancha.
+
+## Curadoria (P1)
+
+Levantada em 2026-11-20. Prancha: `test-results/p1-texturas.png` (cada candidata a 32 px/m sobre 4 × 4 m, mostrada a 2×, ao lado de um recorte da referência na mesma escala). Segunda prancha só do musgo: `test-results/p1-musgo.png`. Os originais (1K) estão em `data-private/texturas-fonte/` (fora do git). **Nada foi para `public/`** (isso é a P2). Aprovada pelo usuário em 2026-11-20, com `Ground068` no lugar das `Moss*`.
+
+Todas são CC0. As cores das candidatas são cruas: o `mapaDeGradiente` (decisão 4) as puxa para a paleta do material, então a escolha pesa mais pela **estrutura** (grão, folhas, pedrisco) do que pelo tom.
+
+| material | recomendada | camada extra | alternativas | observação |
+| --- | --- | --- | --- | --- |
+| `chao.de.mata` | `forest_ground_04` (3,15 m) | `leaves_forest_ground` (1,26 m), em manchas | `forrest_ground_01`, `forest_leaves_02` | base de terra com folhiço fino; a referência é escura e sem laranja vivo |
+| `chao.batido` | `dirt_floor` (2,07 m) | `stony_dirt_path` (2,17 m), em manchas | `park_dirt`, `raked_dirt` | `dirt_floor` é liso e casa com a clareira da fogueira |
+| `terra` | `brown_mud_dry` (1,3 m) | — | `farm_soil`, `dirt` | grão com torrões; `farm_soil` tem fileiras, evitar |
+| `grama` | `leafy_grass` (2 m) | — | `sparse_grass`, `grass_path_2/3` | `grass_path_*` repete padrão visível a 1 m |
+| `grama.seca` | `withered_grass` (2 m) | — | `dry_decay_leaves`, `dry_ground_01` | `dry_ground_01` é terra rachada, serve ao lote 2 |
+| `musgo` (novo) | `Ground068` | — | `Ground037` | `Moss001–004` foram descartadas (tapete verde uniforme, sem cara de musgo). `Ground068` é musgo sobre terra, em manchas; a ambientCG não traz o tamanho real, adotar 1,5 m e conferir na P5 |
+
+Fontes (todas CC0):
+
+| id | fonte | autor | tamanho real | link |
+| --- | --- | --- | --- | --- |
+| `forest_ground_04` | Poly Haven | Rob Tuytel, Rico Cilliers | 3,15 m | https://polyhaven.com/a/forest_ground_04 |
+| `leaves_forest_ground` | Poly Haven | Dario Barresi, Dimitrios Savva | 1,26 m | https://polyhaven.com/a/leaves_forest_ground |
+| `dirt_floor` | Poly Haven | eye-candy.xyz | 2,07 m | https://polyhaven.com/a/dirt_floor |
+| `stony_dirt_path` | Poly Haven | eye-candy.xyz | 2,17 m | https://polyhaven.com/a/stony_dirt_path |
+| `brown_mud_dry` | Poly Haven | Rob Tuytel | 1,3 m | https://polyhaven.com/a/brown_mud_dry |
+| `leafy_grass` | Poly Haven | Charlotte Baglioni | 2 m | https://polyhaven.com/a/leafy_grass |
+| `withered_grass` | Poly Haven | Charlotte Baglioni | 2 m | https://polyhaven.com/a/withered_grass |
+| `Ground068` | ambientCG | ambientCG | ~1,5 m (estimado) | https://ambientcg.com/view?id=Ground068 |
+
+Limites que a prancha mostra: a 32 px/m, texturas de grão fino (`dirt_floor`, `dirt`) ficam quase lisas. Isso é o que a P5 mede; se o grão sumir, a saída é subir `resolucao('terreno')`, não trocar de textura.
+
+Observação do usuário: o catálogo do Inkarnate tem mais variedade e qualidade, e seus musgos são manchas sobre fundo transparente. Os ativos dele são proprietários e não entram no Atlas. O equivalente aqui é a camada com máscara da P3 (`mascara` na `CamadaDeTextura`): o musgo entra por manchas sobre o folhiço, não como chão inteiro. A variedade vem do lote 2 e de mais candidatas por material.
