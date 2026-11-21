@@ -8,12 +8,12 @@ export const METROS_DA_AMOSTRA = 2;
 
 export const degradeDe = (m: Pick<Material, 'claro' | 'base' | 'escuro'>): string => `linear-gradient(135deg, ${m.claro} 0%, ${m.base} 50%, ${m.escuro} 100%)`;
 
-/** O fundo da amostra: a primeira camada da textura (se o catálogo a conhece), ladrilhada em ~2 m, com a cor `base` por cima na força de `tingir`. */
+/** O fundo da amostra: a primeira camada da textura (se o catálogo a conhece), ladrilhada em ~2 m (com a `escala` da camada), com o tom base da camada (ou a `base` do material) por cima na força de `tingir`. */
 export function fundoDaAmostra(m: Pick<Material, 'claro' | 'base' | 'escuro' | 'textura'>, catalogo: CatalogoDeTexturas | null | undefined, tamanho: number): { backgroundImage: string; backgroundSize?: string } {
   const primeira = m.textura?.camadas[0], t = primeira && catalogo?.texturas.find(x => x.id === primeira.textura);
   if (!m.textura || !t) return { backgroundImage: degradeDe(m) };
-  const lado = Math.max(4, Math.round((tamanho * t.metros) / METROS_DA_AMOSTRA * 100) / 100);
-  const forca = Math.round(Math.min(1, Math.max(0, m.textura.tingir)) * 70);
-  const tinta = `linear-gradient(color-mix(in srgb, ${m.base} ${forca}%, transparent), color-mix(in srgb, ${m.base} ${forca}%, transparent))`;
+  const lado = Math.max(4, Math.round((tamanho * t.metros * (primeira.escala ?? 1)) / METROS_DA_AMOSTRA * 100) / 100);
+  const cor = primeira.tons?.[1] ?? m.base, forca = Math.round(Math.min(1, Math.max(0, m.textura.tingir)) * 100);
+  const tinta = `linear-gradient(color-mix(in srgb, ${cor} ${forca}%, transparent), color-mix(in srgb, ${cor} ${forca}%, transparent))`;
   return { backgroundImage: `${tinta}, url(${BASE}${t.arquivo})`, backgroundSize: `auto, ${lado}px ${lado}px` };
 }
