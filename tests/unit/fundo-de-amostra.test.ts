@@ -23,3 +23,11 @@ test('sem textura, sem catálogo ou textura desconhecida, o degradê continua', 
   assert.deepEqual(fundoDaAmostra(mats['teste.a']!, null, 40), { backgroundImage: degradeDe(mats['teste.a']!) });
   assert.deepEqual(fundoDaAmostra(mats['teste.a']!, { ...catalogo, texturas: [] }, 40), { backgroundImage: degradeDe(mats['teste.a']!) });
 });
+
+test('a camada manda: a escala muda o ladrilho e o tom base da camada tinge a amostra', () => {
+  mats['teste.a'] = { ...mats['lama']!, id: 'teste.a', textura: { camadas: [{ textura: 'tx_a', escala: 1.5, tons: ['#111111', '#445566', '#ffffff'] }], tingir: 0.5 } };
+  const f = fundoDaAmostra(mats['teste.a']!, catalogo, 40);
+  assert.equal(f.backgroundSize, 'auto, 30px 30px');
+  assert.ok(f.backgroundImage.includes('#445566'));
+  assert.ok(!f.backgroundImage.includes(mats['teste.a']!.base));
+});
