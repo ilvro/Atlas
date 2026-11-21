@@ -222,21 +222,21 @@ function brotos(seed: number, R: number): Parte[] {
 
 /** O kit do chão de mata: carimbos que se espalham pelo folhiço. */
 export const RECEITAS_DE_CHAO: Receita[] = [
-  { id: 'brotos', nome: 'Brotos', ...CHAO, tags: ['brotos', 'broto', 'plantinhas', 'mato', 'verde', 'chao', 'mata', 'natureza'], pegada: [1.2, 1.2], altura: 0.08,
+  { id: 'brotos', nome: 'Brotos', ...CHAO, tags: ['brotos', 'rasteira', 'broto', 'plantinhas', 'mato', 'verde', 'chao', 'mata', 'natureza'], pegada: [1.2, 1.2], altura: 0.08,
     campos: [{ id: 'raio', rotulo: 'Raio (m)', tipo: 'numero', padrao: 0.6, min: 0.3, max: 1.5, passo: 0.1 }],
     gerar: p => { const R = num(p, 'raio', 0.6, 0.3, 1.5); return piso([R * 2, R * 2], brotos(p.seed, R)); } },
-  { id: 'folhico', nome: 'Folhiço', ...CHAO, tags: ['folhas', 'folhico', 'chao', 'outono', 'mata', 'natureza'], pegada: [1.2, 1.1], altura: 0.04,
+  { id: 'folhico', nome: 'Folhiço', ...CHAO, tags: ['folhas', 'folhico', 'rasteira', 'chao', 'outono', 'mata', 'natureza'], pegada: [1.2, 1.1], altura: 0.04,
     campos: [{ id: 'raio', rotulo: 'Raio (m)', tipo: 'numero', padrao: 0.6, min: 0.3, max: 1.5, passo: 0.1 }],
     gerar: p => { const R = num(p, 'raio', 0.6, 0.3, 1.5); return piso([R * 2, R * 1.8], folhico(p.seed, R)); } },
-  { id: 'galhada', nome: 'Galhada', ...CHAO, tags: ['galhos', 'gravetos', 'lenha', 'chao', 'mata', 'natureza'], pegada: [1.2, 0.8], altura: 0.1,
+  { id: 'galhada', nome: 'Galhada', ...CHAO, tags: ['galhos', 'rasteira', 'gravetos', 'lenha', 'chao', 'mata', 'natureza'], pegada: [1.2, 0.8], altura: 0.1,
     gerar: p => piso([1.2, 0.8], galhada(p.seed, 1.2)) },
   { id: 'raizes', nome: 'Raízes', ...CHAO, tags: ['raiz', 'raizes', 'arvore', 'chao', 'mata', 'natureza'], pegada: [2.6, 2.6], altura: 0.25,
     campos: [{ id: 'raio', rotulo: 'Raio (m)', tipo: 'numero', padrao: 1.3, min: 0.6, max: 2.5, passo: 0.1 }],
     gerar: p => { const R = num(p, 'raio', 1.3, 0.6, 2.5); return piso([R * 2, R * 2], raizes(p.seed, R)); } },
-  { id: 'tufo-de-capim', nome: 'Tufo de capim', ...CHAO, tags: ['capim', 'grama', 'mato', 'planta', 'mata', 'natureza'], pegada: [1, 1], altura: 0.3,
+  { id: 'tufo-de-capim', nome: 'Tufo de capim', ...CHAO, tags: ['capim', 'grama', 'rasteira', 'mato', 'planta', 'mata', 'natureza'], pegada: [1, 1], altura: 0.3,
     campos: [{ id: 'seco', rotulo: 'Seco (0 verde, 1 palha)', tipo: 'numero', padrao: 0.4, min: 0, max: 1, passo: 0.1 }],
     gerar: p => piso([1, 1], tufoDeCapim(p.seed, 0.5, num(p, 'seco', 0.4, 0, 1))) },
-  { id: 'moita-de-samambaia', nome: 'Moita de samambaia', ...CHAO, tags: ['samambaia', 'moita', 'planta', 'folhagem', 'mata', 'natureza'], pegada: [1.3, 1.3], altura: 0.4,
+  { id: 'moita-de-samambaia', nome: 'Moita de samambaia', ...CHAO, tags: ['samambaia', 'moita', 'rasteira', 'planta', 'folhagem', 'mata', 'natureza'], pegada: [1.3, 1.3], altura: 0.4,
     gerar: p => piso([1.4, 1.4], moitaDeSamambaia(p.seed, 0.68)) },
 ];
 

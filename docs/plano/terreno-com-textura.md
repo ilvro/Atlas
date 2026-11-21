@@ -158,7 +158,7 @@ Feito em 2026-11-20:
 - Prancha: `test-results/p7-carimbos.png` (carimbos sob o luar do acampamento; embaixo, recortes da referência na mesma escala).
 - Depois da revisão, entrou também `brotos`: uma mancha (parâmetro `raio`) de raminhos de 8 a 12 cm, verde-escuros, com três ou quatro folhinhas. É o verde miúdo que salpica o chão da referência. Ficou na família própria "Brotos" e no `mata-fechada` com peso 2; a densidade foi a 0,0745, o que mantém o número de copas.
 
-### P8 — Acampamento refeito e guia do assistente (Opus)  ⬜
+### P8 — Acampamento refeito e guia do assistente (Opus)  ✅
 Objetivo: o exemplo usa o chão novo e os carimbos, e o assistente sabe usar os dois.
 Depende de: P5, P7.
 Ler: `scripts/exemplos/acampamento-na-nevoa.ts`; `docs/assistente/guia/lugares.md` (trecho do acampamento e da mata).
@@ -166,6 +166,10 @@ Arquivos: mudar `scripts/exemplos/acampamento-na-nevoa.ts`, `docs/assistente/gui
 Como: recompor o chão (material base, manchas de `musgo`, clareira) e espalhar os carimbos como na referência; comparar lado a lado. No guia: quando usar `musgo` e os carimbos, e que o chão de mata dispensa espalhar detrito miúdo.
 Pronto quando: a comparação não tem mais distância de chão que seja do motor. Se ainda houver, ela é anotada aqui com a causa.
 Commit: `misty camp uses textured ground and stamps`
+Feito em 2026-11-20. Na comparação de perto (recortes na mesma escala), a densidade e a variação do chão estão na da referência. O que ainda difere **não é do motor de chão**:
+- **Estilo dos carimbos:** os do Atlas têm nanquim; os da referência são pintura macia, sem contorno. Foi uma escolha (o traço das copas), e dá para trocar por carimbo se a direção visual mudar.
+- **Gravetos claros soltos:** a referência tem gravetos pálidos de 10 a 20 cm espalhados por todo o chão. A `galhada` em escala pequena virou asterisco, então ficou em poucos montes. Se fizer falta, a saída é um carimbo de mancha (como `brotos`) com gravetos soltos sem nanquim.
+- **Sombra das copas:** a mata fica mais escura que na referência por causa da sombra da lua das copas. Isso é luz (Frente L), não chão.
 
 ## Ordem sugerida
 
