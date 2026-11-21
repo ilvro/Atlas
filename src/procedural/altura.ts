@@ -1,6 +1,6 @@
 import { contextoDe, criarTela, type Contexto } from './canvas.ts';
 import type { Parte } from './descricao.ts';
-import { ALTURAS_DE_PADRAO, materialDe, pintarMaterial, pxDe, type Area, type Material, type Padrao } from './materiais.ts';
+import { ALTURAS_DE_PADRAO, materialDe, pintarAlturaComTextura, pintarMaterial, pxDe, texturaDisponivel, type Area, type Material, type Padrao } from './materiais.ts';
 import { caixaDe, caminho, ordenarPartes } from './raster.ts';
 
 /** Metros por unidade do mapa de altura: `0,5 + z / ALTURA_MAXIMA` cobre de −2 m a +2 m em volta do piso. */
@@ -17,6 +17,9 @@ export type PintorDeAltura = (ctx: Contexto, mat: Material, area: Area, seed: nu
 
 /** Registro de pintores de altura dedicados por padrão de material (a mesma geometria do desenho; ver `ALTURAS_DE_PADRAO`). */
 export const PINTORES_DE_ALTURA: Partial<Record<Padrao, PintorDeAltura>> = ALTURAS_DE_PADRAO;
+
+/** O material tem altura própria (pintor do padrão, ou textura carregada) e dispensa a reserva por luminância? */
+export const temAlturaPropria = (mat: Material, res?: number): boolean => !!PINTORES_DE_ALTURA[mat.padrao] || (!!mat.textura && texturaDisponivel(mat, res));
 
 const limitar = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
 const limitarInt = (v: number, a: number, b: number): number => (v < a ? a : v > b ? b : v);
@@ -89,6 +92,7 @@ export function alturaPorLuminancia(rgba: Uint8ClampedArray, largura: number, al
 export function pintarAlturaDoMaterial(ctx: Contexto, id: string, area: Area, seed = 1, o: { dir?: number; res?: number } = {}): void {
   const mat = materialDe(id);
   const res = o.res ?? (typeof ctx.getTransform === 'function' ? 1 / pxDe(ctx) : 1);
+  if (mat.textura && pintarAlturaComTextura(ctx, mat, area)) return;
   const pintor = PINTORES_DE_ALTURA[mat.padrao];
   if (pintor) {
     ctx.save();

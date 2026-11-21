@@ -106,7 +106,7 @@ Testes: `texturasDoTerreno` lista sem repetir; `chaveDoTerreno` muda com o hash 
 Pronto quando: typecheck e testes passam; no navegador, um terreno com um material de teste com `textura` carrega o WebP no worker (dá para ver na aba de rede).
 Commit: `terrain bakes preload the textures they use`
 
-### P5 — Pintar o terreno com textura, lote 1 (Opus)  ⬜
+### P5 — Pintar o terreno com textura, lote 1 (Opus)  ✅
 Objetivo: os materiais do lote 1 são pintados pela textura, e o acampamento chega perto da referência no chão.
 Depende de: P3, P4.
 Ler: `src/procedural/materiais.ts` (`pintarMaterial`, `porPixel`, `PINTORES_DE_ALTURA`); `src/procedural/assar.ts:427-600`; `src/procedural/estilos/ilustrado.ts`.
@@ -120,6 +120,11 @@ Não fazer: carimbos (P7) nem lote 2.
 Testes: os existentes; o visual vem do gerador de exemplos.
 Pronto quando: `npm run exemplos -- --so acampamento-na-nevoa` dá um chão com densidade e variação comparáveis às da referência (prancha `test-results/fase10-acampamento-na-nevoa.png`), sem repetição visível em 24 m e sem escamas sob a luz.
 Commit: `first terrain batch is painted from cc0 textures`
+Feito em 2026-11-20:
+- **Mistura:** cada camada vai à paleta pela luminância normalizada (média e desvio da textura, ±2,6 desvios cobrem a paleta). O resto do `tingir` traz o matiz da foto com a luminância da paleta: a foto crua é bem mais clara que o chão do Atlas, e misturada direto lavava as manchas. A textura é reduzida (média de caixa) até 1 a 2 texels por pixel antes de ler, para não serrilhar.
+- **Camadas:** `tons` por camada (o musgo verde e o capim seco dentro do folhiço pardo). `chao.de.mata` = `forest_ground_04` + manchas de `withered_grass`, `leaves_forest_ground` e `ground068`; `chao.batido` = `dirt_floor` + `stony_dirt_path` + `withered_grass`. As texturas vão ampliadas de 1,2 a 1,6× para que folha e torrão passem de 3 px.
+- **Altura:** plano, com os picos do deslocamento (acima de 1,2 desvio) erguidos um nível só. Sem escamas sob o luar nem sob a fogueira.
+- **Medição a 32 px/m:** o grão, a mancha e a variação de tom se mantêm, mas lâmina de capim e folha isolada não (viram grão). Na referência, esses elementos que se leem um a um são carimbos desenhados, não textura. Então quem fecha essa distância é a P7, e não vale subir `resolucao('terreno')` agora.
 
 ### P6 — Amostra do material com textura na interface (Sonnet)  ⬜
 Objetivo: as amostras de material mostram a textura de verdade, e não o degradê de três cores.
