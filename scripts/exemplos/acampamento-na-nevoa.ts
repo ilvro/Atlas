@@ -34,7 +34,38 @@ export const acampamentoNaNevoa: Exemplo = {
 
     // Pedras e galhos espalhados na franja leste.
     for (const [x, y, s] of [[18.4, 11.6, 0.7], [19.2, 12.8, 0.5], [18.0, 13.6, 0.6], [19.8, 14.2, 0.8], [18.8, 15.2, 0.5], [20.4, 11.2, 0.45]] as const) k.objeto('pedra.media', [x, y], { scale: s, rotation: k.rng() * 6 });
-    k.objeto('tora-assento', [21.0, 5.8], { rotation: -0.6, params: { comprimento: 3.2, casca: 1 } });
+    k.objeto('tronco.caido', [20.2, 6.3], { rotation: -0.6, params: { comprimento: 5 } });
+    k.objeto('galhada', [18.6, 7.4], { rotation: 0.4 });
+
+    // O chão em volta: manchas de musgo entre as árvores e os carimbos de chão (P7), sorteados fora da fogueira e dos abrigos.
+    for (const [x, y, r] of [[4.6, 12.6, 0.9], [19.6, 17.2, 1.1], [8.6, 5.4, 0.8], [17.2, 3.4, 0.7], [5.6, 19.4, 0.8]] as const) k.pintar('musgo', { disco: [x, y], raio: r, irregular: 0.6 });
+    const CENTRO = [12.3, 12.8] as const, livres: [number, number, number][] = [
+      [12.5, 13.2, 2.4], [8.8, 9.3, 2.0], [15.6, 10.0, 1.4], [7.8, 15.6, 1.4], [15.3, 16.0, 1.9], [20.2, 6.3, 1.8], [18.3, 7.6, 1.2], [22.1, 4.9, 1.2],
+      ...([[18.4, 11.6], [19.2, 12.8], [18.0, 13.6], [19.8, 14.2], [18.8, 15.2], [20.4, 11.2]] as const).map(([x, y]) => [x, y, 0.6] as [number, number, number]),
+    ];
+    /** Um ponto entre `r0` e `r1` m do meio da clareira, longe da fogueira, dos abrigos, das pedras e dos outros carimbos (`folga` m). */
+    const ponto = (r0: number, r1: number, folga: number): [number, number] | null => {
+      for (let t = 0; t < 40; t++) {
+        const a = k.rng() * Math.PI * 2, d = r0 + k.rng() * (r1 - r0), x = CENTRO[0] + Math.cos(a) * d, y = CENTRO[1] + Math.sin(a) * d;
+        if (x < 0.5 || y < 0.5 || x > 23.5 || y > 23.5 || livres.some(([lx, ly, lr]) => Math.hypot(x - lx, y - ly) < lr + folga)) continue;
+        livres.push([x, y, folga]); return [x, y];
+      }
+      return null;
+    };
+    const carimbo = (receita: string, n: number, r0: number, r1: number, folga: number, params: () => Record<string, number> = () => ({}), escala: () => number = () => 1): void => {
+      for (let i = 0; i < n; i++) { const p = ponto(r0, r1, folga); if (p) k.objeto(receita, p, { rotation: k.rng() * 6, scale: escala(), params: params() }); }
+    };
+    // Capim alto e macio na franja da clareira (tufos de 1 a 1,6 m), samambaias e folhiço sob a borda das copas.
+    carimbo('tufo-de-capim', 24, 4.4, 9.5, 0.7, () => ({ seco: 0.3 + k.rng() * 0.5 }), () => 1.1 + k.rng() * 0.6);
+    carimbo('moita-de-samambaia', 6, 6.5, 11, 0.7);
+    carimbo('folhico', 7, 5.5, 11, 0.6, () => ({ raio: 0.5 + k.rng() * 0.4 }));
+    carimbo('galhada', 3, 5, 10, 0.6);
+    // Gravetos soltos (galhada pequena) e brotos por todo o chão fora do miolo da clareira.
+    carimbo('galhada', 9, 4, 12, 0.6, () => ({}), () => 0.5 + k.rng() * 0.15);
+    carimbo('brotos', 70, 4, 12.5, 0.25, () => ({ raio: 0.6 + k.rng() * 0.5 }));
+
+    // Raízes que saem de debaixo das copas pequenas e de troncos fora do quadro, na borda da clareira.
+    for (const [x, y, r] of [[21.0, 11.8, 2.4], [19.4, 4.4, 2.2], [0.0, 13.2, 2.4], [6.6, 1.0, 2.2], [17.8, 5.0, 1.4], [4.6, 17.6, 1.5]] as const) k.objeto('raizes', [x, y], { rotation: k.rng() * 6, params: { raio: r } });
 
     // A mata: copas grandes fechando o sul e os cantos, mais ralas no norte; atrás delas, a mata contínua.
     for (const [x, y, item] of [

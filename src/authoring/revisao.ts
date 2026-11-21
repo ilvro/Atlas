@@ -46,7 +46,8 @@ export const LIMIAR_DIFERENCA_MARGENS_COMPOSICAO = 0.3;
 export const LIMIAR_AMBIENTE_ESCURO = 0.45;
 export const LIMIAR_AREA_COMODO_SEM_LUZ = 6;
 
-const TAGS_VEGETACAO = new Set(['arvore', 'arbusto', 'grama']);
+/** `rasteira`: carimbos de chão (brotos, folhiço, galhada, capim, samambaia) que se repetem de propósito, como a grama. */
+const TAGS_VEGETACAO = new Set(['arvore', 'arbusto', 'grama', 'rasteira']);
 const TAGS_EXTERIORES = new Set(['neve', 'arvore', 'arbusto', 'rocha', 'barco', 'cais', 'palicada', 'carroca', 'tenda']);
 const IDS_ESTRUTURAIS_RELEVO = new Set(['tenda', 'carroca', 'carroca-tombada', 'carroca-de-feno', 'pilha-de-lenha', 'barraca-de-feira', 'galinheiro', 'bebedouro', 'banco.jardim']);
 const CATEGORIAS_MOVEIS = new Set(['mesas', 'assentos', 'camas', 'armazenamento', 'cozinha']);
