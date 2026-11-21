@@ -169,6 +169,42 @@ function arcoDePedra(L: number, flores: boolean, seed: number): Parte[] {
   return partes;
 }
 
+/** Suaviza um contorno fechado [x, y, …] (Chaikin): cantos viram curvas, como a borda de uma sombra de verdade. */
+function suavizar(pts: readonly number[], voltas: number): number[] {
+  let a = pts.slice();
+  for (let v = 0; v < voltas; v++) {
+    const b: number[] = [], n = a.length / 2;
+    for (let i = 0; i < n; i++) {
+      const x0 = a[i * 2]!, y0 = a[i * 2 + 1]!, x1 = a[((i + 1) % n) * 2]!, y1 = a[((i + 1) % n) * 2 + 1]!;
+      b.push(x0 * 0.75 + x1 * 0.25, y0 * 0.75 + y1 * 0.25, x0 * 0.25 + x1 * 0.75, y0 * 0.25 + y1 * 0.75);
+    }
+    a = b;
+  }
+  return a;
+}
+
+/**
+ * Sombra projetada de um colosso que fica fora do mapa: a silhueta de um guerreiro de manto com a espada erguida, esticada
+ * pelo sol baixo, deitada no chão. Pés em +y (a base, junto da estátua), ponta da espada em −y. Um contorno só (onde as partes
+ * se cruzassem a sombra escureceria em dobro) e macio na borda. Não é desenhado como objeto: entra na camada das sombras do sol.
+ */
+function sombraDeColosso(L: number, seed: number, forca: number): Parte[] {
+  const r = mulberry32(seed), k = L / 34, j = () => (r() - 0.5) * 0.35;
+  // Meia silhueta direita, da ponta da espada aos pés, em unidades de um colosso de 34 m.
+  const direita: [number, number][] = [
+    [0.5, -15.6], [0.62, -9.4], [2.5, -9.0], [2.6, -8.3], [1.1, -8.0], [1.35, -6.9], [2.2, -5.6], [3.3, -3.4], [4.2, -1.2],
+    [4.6, 0.2], [4.0, 2.6], [3.6, 5.2], [3.9, 8.0], [4.2, 11.2], [4.6, 14.4], [4.7, 17], [2.2, 17], [1.6, 13.2], [0.8, 9.6],
+  ];
+  // A esquerda tem o manto aberto pelo vento: mais larga do ombro para baixo.
+  const esquerda = direita.slice().reverse().map(([x, y]): [number, number] => [-x * (y > 0 ? 1 + Math.min(0.3, y / 40) : 1), y]);
+  const pts: number[] = [0, -17 * k];
+  for (const [x, y] of [...direita, [0, 9.2] as [number, number], ...esquerda]) pts.push((x + j()) * k, (y + j() * 0.6) * k);
+  const contorno = suavizar(pts, 3);
+  // Só o alfa conta: a camada das sombras do sol achata a cor e multiplica (ver `ehSombraProjetada`).
+  return [poli(contorno, '#000000', 0.01, { desfoque: 0.35 * k, alfa: forca, semSombra: true, contorno: false })];
+}
+
+
 /** Estátua heroica sobre pedestal em dois degraus: figura de manto com a espada erguida (vista de cima), alta para lançar sombra longa. */
 function estatuaHeroica(seed: number): Parte[] {
   const r = mulberry32(seed), BR = '#a8a396', partes: Parte[] = [];
@@ -382,6 +418,9 @@ export const RECEITAS_DA_PRACA: Receita[] = [
     gerar: p => { const L = num(p, 'largura', 3, 1.5, 6); return piso([L + 1.8, 1.5], arcoDePedra(L, Math.round(num(p, 'flores', 1, 0, 1)) === 1, p.seed)); } },
   { id: 'estatua-heroica', nome: 'Estátua heroica', ...PRACA, funcoes: ['jardim', 'ruina', 'praca', 'cemiterio'], tags: ['estatua', 'heroi', 'monumento', 'pedestal', 'espada', 'praca'], pegada: [2, 2.6], altura: 6,
     gerar: p => piso([2, 2.6], estatuaHeroica(p.seed)) },
+  { id: 'sombra-de-colosso', nome: 'Sombra de colosso', ...PRACA, funcoes: ['jardim', 'ruina', 'praca'], tags: ['sombra-projetada', 'sombra', 'colosso', 'estatua', 'gigante', 'silhueta', 'espada', 'luz'], pegada: [13, 34], altura: 0.02,
+    campos: [{ id: 'comprimento', rotulo: 'Comprimento (m)', tipo: 'numero', padrao: 34, min: 10, max: 80, passo: 1 }, { id: 'forca', rotulo: 'Força (0 a 1)', tipo: 'numero', padrao: 1, min: 0.2, max: 1, passo: 0.05 }],
+    gerar: p => { const L = num(p, 'comprimento', 34, 10, 80); return piso([L * 0.38, L], sombraDeColosso(L, p.seed, num(p, 'forca', 1, 0.2, 1))); } },
   { id: 'muralha-em-degraus', nome: 'Muralha em degraus', ...PRACA, funcoes: ['ruina', 'salao', 'capela', 'porao'], tags: ['muralha', 'alvenaria', 'bastiao', 'pedra', 'degraus', 'parede', 'templo'], pegada: [4, 2], altura: 3.6,
     campos: [
       { id: 'largura', rotulo: 'Largura (m)', tipo: 'numero', padrao: 4, min: 1.5, max: 14, passo: 0.5 },

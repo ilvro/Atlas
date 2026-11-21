@@ -1,6 +1,6 @@
 import { BlurFilter, ColorMatrixFilter, Container, Graphics, Matrix, Sprite, type Renderer } from 'pixi.js';
 import { contornar } from '../domain/contorno.ts';
-import type { MapaAtlas, Ponto } from '../domain/mapa.ts';
+import type { MapaAtlas, Objeto, Ponto } from '../domain/mapa.ts';
 import { alturaEm, bordasDoRelevo, DEGRAU_TRANSPONIVEL } from '../domain/relevo.ts';
 import { sombraDoSol, type SombraDoSol } from '../domain/sol.ts';
 import { ACERVO } from '../procedural/acervo.ts';
@@ -13,6 +13,14 @@ import { ehEscarpaAvulsa } from './entradas.ts';
 const RES_DA_SOMBRA = 24;
 /** Quanto o maciço de rocha "tem de altura" para a sombra (a mesma saturação do relevo do assar). */
 export const ALTURA_DA_ROCHA = 1.5;
+
+/**
+ * Objeto que é só sombra (tag `sombra-projetada`, ex.: `sombra-de-colosso`): a silhueta de algo fora do mapa. Não aparece como objeto;
+ * entra na camada das sombras do sol como está, sem esticar, e some quando não há sol, como as outras sombras.
+ */
+export function ehSombraProjetada(o: Pick<Objeto, 'source'>): boolean {
+  return ACERVO.item(ACERVO.idDaFonte(o.source))?.tags.includes('sombra-projetada') ?? false;
+}
 
 /** A entrada de um objeto na cena, no que a sombra precisa. */
 interface EntradaVisual { c: Container; sprite: Sprite | null }
@@ -73,14 +81,16 @@ export function criarSombrasDoSol(renderer: Renderer) {
     // Objetos de piso, fora de cômodos, com a mesma textura que o objeto já tem.
     const vivos = new Set<string>();
     for (const o of Object.values(m.props)) {
-      if (!o.castsShadow || o.elevation !== 'floor' || o.roomId !== null) continue;
+      const projetada = ehSombraProjetada(o);
+      if ((!o.castsShadow && !projetada) || o.elevation !== 'floor' || o.roomId !== null) continue;
       const e = entradas.get(o.id), sp = e?.sprite; if (!e || !sp || sp.destroyed || sp.texture.destroyed) continue;
       vivos.add(o.id);
       let c = sprites.get(o.id), filho = c?.children[0] as Sprite | undefined;
       if (!c || !filho) { c = new Container(); filho = new Sprite(sp.texture); c.addChild(filho); objetos.addChild(c); sprites.set(o.id, c); }
       c.alpha = o.opacity ?? 1;
       filho.texture = sp.texture; filho.position.copyFrom(sp.position); filho.scale.copyFrom(sp.scale);
-      c.setFromMatrix(matrizDaSombra(o.position, o.rotation, o.scale, ACERVO.pegadaDaFonte(o.source), ACERVO.alturaDaFonte(o.source), s));
+      if (projetada) { c.position.set(o.position[0], o.position[1]); c.rotation = o.rotation; c.scale.set(o.scale); c.skew.set(0, 0); }
+      else c.setFromMatrix(matrizDaSombra(o.position, o.rotation, o.scale, ACERVO.pegadaDaFonte(o.source), ACERVO.alturaDaFonte(o.source), s));
     }
     for (const [id, c] of sprites) if (!vivos.has(id)) { c.destroy({ children: true }); sprites.delete(id); }
 
