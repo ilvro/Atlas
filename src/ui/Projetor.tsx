@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { signal } from '@preact/signals';
 import { iniciarTema } from '../app/tema.ts';
-import { canaisDoProjetor, projetorPodeDizer, type MensagemDoMestre, type MensagemDoProjetor } from '../app/projetor.ts';
+import { criarBarramento, type CanalLike } from '#mesa';
+import { canaisDoProjetor, nomeDoCanalEventosDaSala, projetorPodeDizer, type MensagemDoMestre, type MensagemDoProjetor } from '../app/projetor.ts';
+import { andarDe } from '../domain/andares.ts';
 import type { Recursos } from '../domain/fichas.ts';
 import { criarMapa, type MapaAtlas } from '../domain/mapa.ts';
 import { pecasDoJogador } from '../domain/projecao-remota.ts';
@@ -23,6 +25,14 @@ const botaoVisivel = signal(true);
 const cortina = signal<{ escurecer: boolean; ms: number }>({ escurecer: false, ms: 0 });
 /** Letreiro de apresentação ou capítulo em exibição no projetor. */
 const letreiroDoProjetor = signal<DadosDoLetreiro | null>(null);
+/** Aviso breve no projetor remoto quando um pedido é recusado (R15). */
+const avisoRemoto = signal<string | null>(null);
+let relogioAvisoRemoto: ReturnType<typeof setTimeout> | undefined;
+function mostrarAvisoRemoto(texto: string): void {
+  clearTimeout(relogioAvisoRemoto);
+  avisoRemoto.value = texto;
+  relogioAvisoRemoto = setTimeout(() => { avisoRemoto.value = null; }, 2200);
+}
 /** Enquanto segue o mestre, a câmera dele enquadra o projetor; o arrasto aqui solta o projetor até "Seguir o mestre". */
 const seguindo = signal(true);
 let caixaDoMestre: Parameters<Viewport['enquadrarCaixa']>[0] | null = null, vpAtual: Viewport | null = null;
@@ -70,6 +80,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
     cortina.value = { escurecer: false, ms: 0 };
     letreiroDoProjetor.value = null;
     const canais = canaisDoProjetor(mapaId, salaId).map(n => new BroadcastChannel(n));
+    const barramento = salaId ? criarBarramento({ app: 'atlas', criarCanal: () => new BroadcastChannel(nomeDoCanalEventosDaSala(salaId)) as unknown as CanalLike }) : null;
     let vp: Viewport | null = null, store: Store | null = null, morto = false, caixa: Parameters<Viewport['enquadrarCaixa']>[0] | null = null, primeira = true;
     let seqProjetor = 0;
     // No projetor remoto, a lógica de "livre ou seguindo" é a função pura `decidirCamera`; o `seguindo` só espelha o modo para a interface.
@@ -95,6 +106,23 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
       lerRetrato: lerRetratoLocal,
       recursosDaPeca: t => recursosLocais.get(t.id) ?? null,
       pecaDoJogador: t => remoto && pecasDoJogador({ tokens: { [t.id]: t } }, fichasDoJogador).has(t.id),
+      aoArrastarPecaRemota: remoto && barramento
+        ? async (peca, para) => {
+            const atual = doc.value;
+            if (!atual) return false;
+            const andar = andarDe(peca);
+            const r = await barramento.pedir(
+              'atlas.mover-peca',
+              { mapa: atual.id, peca: peca.id, position: para, ...(andar ? { levelId: andar } : {}) },
+              { prazoMs: 5000 },
+            );
+            if (!r.ok) {
+              mostrarAvisoRemoto(r.motivo === 'recusado' && r.detalhe ? `Não deu: ${r.detalhe}` : 'Não deu para mover a peça.');
+              return false;
+            }
+            return true;
+          }
+        : undefined,
     }).then(v => {
       if (morto) { v.destruir(); return; }
       vp = v; vpAtual = v;
@@ -227,8 +255,9 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
     const mexeu = () => { botaoVisivel.value = true; clearTimeout(sumir); sumir = setTimeout(() => { botaoVisivel.value = false; }, 3000); };
     window.addEventListener('pointermove', mexeu); mexeu();
     return () => {
-      morto = true; clearInterval(insistir); clearTimeout(sumir); aoSair();
+      morto = true; clearInterval(insistir); clearTimeout(sumir); clearTimeout(relogioAvisoRemoto); avisoRemoto.value = null; aoSair();
       for (const c of canais) c.close();
+      barramento?.fechar();
       if (remoto) window.removeEventListener('message', aoMensagem);
       sairTema(); vp?.destruir(); store?.dispor();
       window.removeEventListener('resize', aoRedimensionar); window.removeEventListener('pagehide', aoSair); window.removeEventListener('pointermove', mexeu);
@@ -271,6 +300,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
       )}
       {!seguindo.value && <button type="button" class={`projetor-seguir${remoto ? ' remoto' : ` ${botaoVisivel.value ? '' : 'oculto'}`}`} data-testid="projetor-seguir"
         onClick={() => { if (remoto) { seguirMestreRemoto(); return; } seguindo.value = true; zoomLocal = 1; if (caixaDoMestre) vpAtual?.enquadrarCaixa(caixaDoMestre, true); }}>Seguir o mestre</button>}
+      {avisoRemoto.value && <div class="projetor-aviso-remoto" role="status" data-testid="projetor-aviso-remoto">{avisoRemoto.value}</div>}
       {!remoto && <button type="button" class={`projetor-tela-cheia ${botaoVisivel.value ? '' : 'oculto'}`} aria-label="Tela cheia" title="Tela cheia" data-testid="projetor-tela-cheia"
         onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void document.documentElement.requestFullscreen?.(); }}><Icone nome="enquadrar" tamanho={20} /></button>}
     </main>

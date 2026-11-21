@@ -219,7 +219,7 @@ export function criarBarramento(opcoes: OpcoesBarramento): Barramento {
     for (const chave of [evento.tipo, '*']) for (const ouvinte of ouvintes.get(chave) ?? []) {
       try { ouvinte(evento); } catch (erro) { aviso(`Ouvinte de ${evento.tipo} falhou: ${String(erro)}`); }
     }
-    const atendente = CATALOGO[evento.tipo]?.natureza === 'pedido' && evento.app !== opcoes.app ? atendentes.get(evento.tipo) : undefined;
+    const atendente = CATALOGO[evento.tipo]?.natureza === 'pedido' && (evento.app !== opcoes.app || evento.autor !== undefined) ? atendentes.get(evento.tipo) : undefined;
     if (!atendente) return;
     Promise.resolve().then(() => atendente(evento.dados, evento)).then(
       resposta => barramento.emitir('mesa.resposta', resposta, { respondeA: evento.id }),

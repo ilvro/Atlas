@@ -25,6 +25,8 @@ export const CANAL_PROJETOR_REMOTO = 'atlas:projetor:remoto';
 export const nomeDoCanalDoProjetor = (mapaId: string): string => `atlas:projetor:${mapaId}`;
 /** O canal único do projetor remoto (a casca do jogador): prefixado pela sala, nunca os canais do mestre. */
 export const nomeDoCanalDaSala = (salaId: string): string => `sala:${salaId}:atlas:projetor`;
+/** O canal de eventos do barramento da sala (R15): onde o projetor remoto pede `atlas.mover-peca` e recebe `mesa.resposta`. */
+export const nomeDoCanalEventosDaSala = (salaId: string): string => `sala:${salaId}:mesa:eventos`;
 /** Os canais em que o projetor ouve e fala: no modo remoto só o da sala; no local, o do mapa e o global. */
 export const canaisDoProjetor = (mapaId: string, salaId?: string): string[] =>
   salaId ? [nomeDoCanalDaSala(salaId)] : [nomeDoCanalDoProjetor(mapaId), CANAL_PROJETOR_GLOBAL];
