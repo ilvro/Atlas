@@ -15,6 +15,7 @@ import { corDoNome, hexParaNumero } from './cores.ts';
 import { chaveDaEscarpa, chaveDoComodo, chaveDoObjeto, ehEscarpaAvulsa, entradaDaEscarpa, chaveDoTerreno, pedidoDoObjeto, contextoDeEntradas, entradaDoComodo, entradaDoTerreno, ladrilhosDoTerreno, opcoesDoPixel, resolucaoDe } from './entradas.ts';
 import { nivelDaLuz } from '../domain/clima.ts';
 import { tintDoRelevo } from '../domain/relevo.ts';
+import { carregarCatalogo, catalogoLido, usaTextura } from '../procedural/texturas-carregadas.ts';
 import { criarMapaDeLuz } from './mapa-de-luz.ts';
 import { criarCenaDeAltura } from './cena-de-altura.ts';
 import { criarComposicaoDeLuz } from './composicao-de-luz.ts';
@@ -204,7 +205,10 @@ export function criarCena(op: OpcoesDaCena): Cena {
 
   // ---------- Terreno ----------
   function sincronizarTerreno(m: MapaAtlas): void {
-    const e = entradaDoTerreno(m), temAlgo = e.base !== 'vazio' || e.camadas.length > 0 || !!e.relevo || !!e.assentamento;
+    const e = entradaDoTerreno(m);
+    // O hash do catálogo entra na chave de quem usa textura: lê o catálogo antes e sincroniza de novo (no-op sem material com textura).
+    if (m.style.renderer === 'illustrated' && usaTextura(e) && !catalogoLido()) { void carregarCatalogo().then(() => { if (!destruida && mapa) sincronizarTerreno(mapa); }); return; }
+    const temAlgo = e.base !== 'vazio' || e.camadas.length > 0 || !!e.relevo || !!e.assentamento;
     if (terrenoTimer) { clearTimeout(terrenoTimer); terrenoTimer = null; }
     if (!temAlgo) {
       for (const ent of terrenos.values()) removerEntrada(ent);

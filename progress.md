@@ -687,3 +687,4 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 
 - **P1 e P2 (2026-11-20):** texturas CC0 do lote 1 escolhidas (curadoria em `docs/plano/terreno-com-textura.md`) e preparadas como ladrilhos WebP a 128 px/m com catálogo, hash e licenças (`npm run texturas`).
 - **P3 (2026-11-20):** `src/procedural/textura-de-terreno.ts`: leitura bilinear em metros, mistura de duas leituras (girada e deslocada) contra a repetição, peso de camada por máscara de ruído e mapa de gradiente para a paleta.
+- **P4 (2026-11-20):** `src/procedural/texturas-carregadas.ts`: o worker carrega as texturas do terreno antes de assar (`garantirTexturas`), o pintor lê pixels já prontos, e a chave do terreno leva o hash do catálogo (`|tx<hash>`) só quando há material com textura. Falta ver o carregamento no navegador (nenhum material tem `textura` ainda; entra na P5).

@@ -9,6 +9,7 @@ import { sombraDoSol } from '../domain/sol.ts';
 import { telhadoEfetivo, trechosDe } from '../domain/telhado-geometria.ts';
 import type { EntradaDeEscarpa } from '../procedural/escarpa.ts';
 import { materialDe } from '../procedural/materiais.ts';
+import { hashDasTexturas, usaTextura } from '../procedural/texturas-carregadas.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { MARGEM_ASSENTAMENTO, MARGEM_RELEVO, larguraDoDeclive, margensDoTerreno, type EntradaDeTerreno, type EntradaDoComodo } from '../procedural/assar.ts';
 import type { EntradaDoTelhado, ParedeExternaDoTelhado, TrechoDoTelhado } from '../procedural/assar-telhado.ts';
@@ -430,7 +431,8 @@ export function pedidoDoObjeto(o: Objeto, res: number, genero = 'investigacao', 
   return pedidoDoItem(item, ACERVO.pegadaDaFonte(o.source), harmoniza(o, item), res, genero, estilo, pixel);
 }
 export const chaveDoComodo = (e: EntradaDoComodo, res: number, estilo: IdDoEstilo = 'illustrated'): string => `${estilo}|c|${res}|${JSON.stringify(e)}`;
-export const chaveDoTerreno = (e: EntradaDeTerreno, res: number, estilo: IdDoEstilo = 'illustrated'): string => `${estilo}|t|${res}|${JSON.stringify(e)}`;
+/** Com textura (só no Ilustrado) a chave leva o hash do catálogo: trocar um WebP invalida o cache. Sem textura a chave não muda. */
+export const chaveDoTerreno = (e: EntradaDeTerreno, res: number, estilo: IdDoEstilo = 'illustrated'): string => `${estilo}|t|${res}|${JSON.stringify(e)}${estilo === 'illustrated' && usaTextura(e) ? `|tx${hashDasTexturas()}` : ''}`;
 
 export type { EntradaDoTelhado };
 

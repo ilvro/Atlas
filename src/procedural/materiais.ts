@@ -1,6 +1,7 @@
 import { contextoDe, criarTela, type Contexto } from './canvas.ts';
 import { campoDeRuido, fbm, hash2D, ladrilhoDeRuido, mulberry32, valueNoise2D } from './ruido.ts';
 import { celulasDeVoronoi, type Consulta } from './voronoi.ts';
+import type { ReceitaDeTextura } from './textura-de-terreno.ts';
 import { ehPadraoDeCobertura, texturaDeCobertura, type PadraoDeCobertura } from './coberturas.ts';
 
 export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho' | 'paralelepipedo' | 'lajegrama' | 'sulcos' | 'molhada' | 'batido' | 'folhico'
@@ -10,6 +11,7 @@ export interface Material {
   base: string; escuro: string; claro: string; padrao: Padrao; /** Tapete: qual desenho (1 medalhão, 2 floral, 3 cercaduras, 4 kilim, 5 oval); ausente sorteia pela semente. */ desenho?: number; largura?: number; lado?: number; ouro?: string; borda?: string; meio?: string; /** Maciço: cor do topo (neve), onde a rocha passa de 70% da altura. */ topo?: string; /** Maciço e escarpa: quanto o pé da face escurece e quanto pesa a sombra de contato (0 a 1; ausente vale 1). */ pe?: number;
   /** Água: cor perto da margem e no fundo, cor da espuma e quanto se enxerga o leito (0 a 1) no fundo. */ raso?: string; fundo?: string; espuma?: string; transparencia?: number; /** Água: rede de luz animada sobre o leito (cáusticas). */ causticas?: boolean; /** Água: quanto de espuma na margem e em volta dos objetos (0 a 1, padrão 1); água parada de gruta quase não tem. */ espumaForca?: number; /** Água: rebentação, cristas de onda brancas que correm para a margem (0 a 1; só o mar). */ ondas?: number;
   /** Terreno: quanto a borda da camada se desfaz em manchas (0 a 1; ausente = borda comum). Chão batido e folhiço se misturam com o vizinho. */ franja?: number;
+  /** Terreno (Ilustrado): textura CC0 puxada para a paleta; o `padrao` continua como reserva e é o que o Pixel usa. */ textura?: ReceitaDeTextura;
   /** Telhado: o que cresce ou corrói na cobertura (musgo, ferrugem, azinhavre) e quanto dela cobre (0 a 1). */ mancha?: { cor: string; quanto: number };
 }
 
