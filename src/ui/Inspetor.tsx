@@ -15,8 +15,9 @@ import { PALETAS_PIXEL } from '../domain/paletas.ts';
 import { nomeDoAlvo, novaLuz } from '../domain/fabrica.ts';
 import { alvosDoInterruptor } from '../domain/interagiveis.ts';
 import { ROTULOS_DE_ESTADO } from '../domain/figuras.ts';
-import { DETALHES_DE_TELHADO, ESTADOS_FIGURA, type Abertura, type Acabamento, type Clima, type Comodo, type DetalheDeTelhado, type Estilo, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Presenca, type Regiao } from '../domain/mapa.ts';
-import { ESTILOS_DE_TELHADO, GENEROS, generoDe, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
+import { DETALHES_DE_TELHADO, ESTADOS_FIGURA, FORMAS_DE_TELHADO, type Abertura, type Acabamento, type Clima, type Comodo, type DetalheDeTelhado, type Estilo, type FormaDeTelhado, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Presenca, type Regiao } from '../domain/mapa.ts';
+import { ESTADOS_DE_TELHADO, ESTILOS_DE_TELHADO, GENEROS, generoDe, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
+import { telhadoEfetivo } from '../domain/telhado-geometria.ts';
 import { acabamentoLigado, aplicarClima, definirAcabamentoLigado, definirTelhadosNoEditor, telhadosNoEditor, tocarMomentoDoMapa } from '../app/app.ts';
 import { abaDoInspetor, alinhandoGrade, definirMovimentoLivre, definirRegraDaRegua, modo, movimentoLivre, regraDaRegua } from '../app/modo.ts';
 import { ROTULO_DA_REGRA, type RegraDeDiagonal } from '../domain/regua.ts';
@@ -42,7 +43,7 @@ import { pistas, pistasCarregadas } from '../app/pistas.ts';
 import { idDaPista, refDaPista } from '../data/pistas.ts';
 import { abrirFicha, recursosDasFichas } from '../app/fichas.ts';
 import { refDaFicha, textoDeRecursos } from '../domain/fichas.ts';
-import { CampoCaixa, CampoCor, Linha, CampoNumero, CampoOpcoes, CampoTexto, tentar } from './campos.tsx';
+import { CampoCaixa, CampoCor, CampoDeslizante, Linha, CampoNumero, CampoOpcoes, CampoTexto, tentar } from './campos.tsx';
 import { Icone } from './Icone.tsx';
 import { gatilhosDisparados, modoDeDisparo, rearmarGatilho } from '../app/regioes.ts';
 import { EVENTOS_DE_CENA, ROTULO_DO_EVENTO } from '../render/eventos-de-cena.ts';
@@ -705,6 +706,27 @@ const ROTULOS_DETALHES: Record<DetalheDeTelhado, string> = {
   'caixa-dagua': 'Caixa-d’água',
 };
 
+const ROTULOS_FORMAS: Record<FormaDeTelhado, string> = {
+  'quatro-aguas': 'Quatro águas',
+  'duas-aguas': 'Duas águas',
+  'uma-agua': 'Uma água',
+  mansarda: 'Mansarda',
+  holandes: 'Holandês',
+  piramide: 'Pirâmide',
+  cone: 'Cone',
+  cupula: 'Cúpula',
+  abobada: 'Abóbada',
+  pagode: 'Pagode',
+  bulbo: 'Bulbo',
+  plano: 'Plano',
+};
+
+const OPCOES_NEVE: readonly { id: string; nome: string; valor: number | 'auto'; ativo: (snow: number | 'auto') => boolean }[] = [
+  { id: 'auto', nome: 'Do clima', valor: 'auto', ativo: s => s === 'auto' },
+  { id: 'sem', nome: 'Sem neve', valor: 0, ativo: s => s === 0 },
+  { id: 'coberto', nome: 'Coberto', valor: 0.85, ativo: s => typeof s === 'number' && s >= 0.8 },
+];
+
 function MiniaturaDeTelhado({ roof }: { roof: Omit<Comodo['roof'], 'visible'> }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const chave = `${roof.material ?? ''}|${roof.shape ?? ''}|${roof.ridge ?? ''}|${roof.steep ? 1 : 0}|${(roof.details ?? []).join(',')}`;
@@ -730,6 +752,8 @@ function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
     const prox = detalhesAtivos.has(d) ? [...detalhesAtivos].filter(x => x !== d) : [...detalhesAtivos, d];
     editar({ roof: { details: prox } }, 'Detalhes do telhado');
   };
+  const wearAtual = telhadoEfetivo(c.roof).wear;
+  const mesmoWear = (a: number, b: number) => Math.abs(a - b) < 0.01;
   return (<>
     <CampoTexto rotulo="Nome" valor={c.name} aoConfirmar={v => v.trim() ? editar({ name: v.trim() }, 'Renomear cômodo') : false} />
     <CampoOpcoes rotulo="Função" valor={c.function ?? ''} opcoes={[['', 'Nenhuma'], ...TIPOS_DE_COMODO.map(t => [t.funcao, t.nome] as const)]} aoMudar={v => editar({ function: v || null }, 'Função do cômodo')} />
@@ -757,7 +781,7 @@ function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
           class={`estilo-telhado ${!c.roof.material ? 'ativo' : ''}`}
           aria-pressed={!c.roof.material}
           data-testid="telhado-nenhum"
-          onClick={() => editar({ roof: { material: null, shape: undefined, ridge: undefined, steep: undefined, details: undefined } }, 'Telhado')}
+          onClick={() => editar({ roof: { material: null, shape: undefined, ridge: undefined, steep: undefined, details: undefined, wear: undefined } }, 'Telhado')}
         >
           <span class="miniatura-telhado vazia" aria-hidden="true">—</span>
           <span class="estilo-telhado-nome">Nenhum</span>
@@ -778,6 +802,7 @@ function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
                   ridge: undefined,
                   steep: e.roof.steep,
                   details: e.roof.details ? [...e.roof.details] : undefined,
+                  wear: e.roof.wear ? { ...e.roof.wear } : c.roof.wear,
                 },
               }, 'Telhado')}
             >
@@ -787,12 +812,52 @@ function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
           );
         })}
       </div>
-      {c.roof.material && (
+      {c.roof.material && (<>
+        <div class="linha" data-testid="telhado-estados">
+          <span class="linha-rotulo">Estado</span>
+          <span class="linha-controle chips-detalhes" role="group" aria-label="Estado do telhado">
+            {ESTADOS_DE_TELHADO.map(est => {
+              const ativo = mesmoWear(wearAtual.moss, est.wear.moss) && mesmoWear(wearAtual.dirt, est.wear.dirt) && mesmoWear(wearAtual.damage, est.wear.damage);
+              return (
+                <button
+                  key={est.id}
+                  type="button"
+                  class="botao-pilula"
+                  aria-pressed={ativo}
+                  data-testid={`telhado-estado-${est.id}`}
+                  onClick={() => editar({ roof: { wear: { ...est.wear, snow: wearAtual.snow } } }, `Estado do telhado: ${est.nome}`)}
+                >
+                  {est.nome}
+                </button>
+              );
+            })}
+          </span>
+        </div>
+        <div class="linha" data-testid="telhado-neve-presets">
+          <span class="linha-rotulo">Neve</span>
+          <span class="linha-controle chips-detalhes" role="group" aria-label="Neve no telhado">
+            {OPCOES_NEVE.map(op => {
+              const ativo = op.ativo(wearAtual.snow);
+              return (
+                <button
+                  key={op.id}
+                  type="button"
+                  class="botao-pilula"
+                  aria-pressed={ativo}
+                  data-testid={`telhado-neve-${op.id}`}
+                  onClick={() => editar({ roof: { wear: { moss: wearAtual.moss, dirt: wearAtual.dirt, damage: wearAtual.damage, snow: op.valor } } }, 'Neve no telhado')}
+                >
+                  {op.nome}
+                </button>
+              );
+            })}
+          </span>
+        </div>
         <details class="ajustar-telhado" data-testid="telhado-ajustar">
           <summary>Ajustar</summary>
           <div class="ajustar-telhado-corpo">
             <CampoOpcoes rotulo="Cobertura" valor={c.roof.material} opcoes={materiaisDo('telhado').map(x => [x.id, x.nome] as const)} aoMudar={v => editar({ roof: { material: v } }, 'Cobertura do telhado')} />
-            <CampoOpcoes rotulo="Forma" valor={c.roof.shape ?? 'quatro-aguas'} opcoes={[['quatro-aguas', 'Quatro águas'], ['duas-aguas', 'Duas águas'], ['piramide', 'Pirâmide'], ['cone', 'Cone'], ['plano', 'Plano']]} aoMudar={v => editar({ roof: { shape: v } }, 'Forma do telhado')} />
+            <CampoOpcoes rotulo="Forma" valor={c.roof.shape ?? 'quatro-aguas'} opcoes={FORMAS_DE_TELHADO.map(f => [f, ROTULOS_FORMAS[f]] as const)} aoMudar={v => editar({ roof: { shape: v } }, 'Forma do telhado')} />
             <CampoOpcoes rotulo="Cumeeira" valor={c.roof.ridge ?? 'auto'} opcoes={[['auto', 'Automática'], ['h', 'Horizontal'], ['v', 'Vertical']]} aoMudar={v => editar({ roof: { ridge: v === 'auto' ? undefined : v } }, 'Cumeeira do telhado')} />
             <CampoCaixa rotulo="Íngreme" valor={!!c.roof.steep} aoMudar={v => editar({ roof: { steep: v } }, 'Inclinação do telhado')} />
             <div class="linha">
@@ -806,9 +871,32 @@ function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
                 ))}
               </span>
             </div>
+            <CampoDeslizante rotulo="Musgo" id="telhado-musgo" valor={wearAtual.moss} min={0} max={1} passo={0.05} aoConfirmar={v => editar({ roof: { wear: { ...wearAtual, moss: v } } }, 'Musgo do telhado')} />
+            <CampoDeslizante rotulo="Sujeira" id="telhado-sujeira" valor={wearAtual.dirt} min={0} max={1} passo={0.05} aoConfirmar={v => editar({ roof: { wear: { ...wearAtual, dirt: v } } }, 'Sujeira do telhado')} />
+            <CampoDeslizante rotulo="Dano" id="telhado-dano" valor={wearAtual.damage} min={0} max={1} passo={0.05} aoConfirmar={v => editar({ roof: { wear: { ...wearAtual, damage: v } } }, 'Dano do telhado')} />
+            <CampoDeslizante
+              rotulo="Neve"
+              dica="Cobertura de neve; “Do clima” acompanha o tempo do mapa."
+              id="telhado-neve"
+              valor={wearAtual.snow === 'auto' ? 0 : wearAtual.snow}
+              min={0}
+              max={1}
+              passo={0.05}
+              extra={
+                <button
+                  type="button"
+                  class="botao-pilula"
+                  aria-pressed={wearAtual.snow === 'auto'}
+                  onClick={() => editar({ roof: { wear: { ...wearAtual, snow: 'auto' } } }, 'Neve do clima')}
+                >
+                  Do clima
+                </button>
+              }
+              aoConfirmar={v => editar({ roof: { wear: { ...wearAtual, snow: v } } }, 'Neve do telhado')}
+            />
           </div>
         </details>
-      )}
+      </>)}
     </div>
     {ed && ed.salas.length > 1 && (
       <div class="linha">
@@ -822,8 +910,8 @@ function CamposDoComodo({ s, c }: { s: SessaoDeEdicao; c: Comodo }) {
               for (const id of ed.salas) {
                 if (id === c.id) continue;
                 // Todos os campos, mesmo os ausentes: `undefined` apaga no outro cômodo a forma ou os detalhes que este não tem.
-                const { material, visible, shape, ridge, steep, details } = c.roof;
-                g.aplicar({ tipo: 'comodo.atualizar', id, patch: { roof: { material, visible, shape, ridge, steep, details } } });
+                const { material, visible, shape, ridge, steep, details, wear, seed } = c.roof;
+                g.aplicar({ tipo: 'comodo.atualizar', id, patch: { roof: { material, visible, shape, ridge, steep, details, wear: wear ? { ...wear } : undefined, seed } } });
               }
             }))}
           >

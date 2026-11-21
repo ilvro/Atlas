@@ -54,13 +54,14 @@ export function desenharMiniaturaDoTelhado(canvas: HTMLCanvasElement | Offscreen
   ctx.scale(esc, esc);
 
   const beiral = 0.2;
-  const cone = formaDe(roof).shape === 'cone';
+  const forma = formaDe(roof);
+  const circular = forma.shape === 'cone' || forma.shape === 'cupula' || forma.shape === 'bulbo';
   ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-  if (cone) { ctx.beginPath(); ctx.arc(1.16, 1.16, 1 + beiral, 0, Math.PI * 2); ctx.fill(); }
+  if (circular) { ctx.beginPath(); ctx.arc(1.16, 1.16, 1 + beiral, 0, Math.PI * 2); ctx.fill(); }
   else ctx.fillRect(-beiral + 0.16, -beiral + 0.16, 2 + beiral * 2, 2 + beiral * 2);
 
   const mat = materialDe(roof.material);
-  const { faces, cumeeiras } = cone ? aguasDoContorno(circulo([1, 1], 1, 16), roof, beiral) : aguasDe([0, 0, 2, 2], roof, beiral);
+  const { faces, cumeeiras } = circular ? aguasDoContorno(circulo([1, 1], 1, 16), roof, beiral) : aguasDe([0, 0, 2, 2], roof, beiral);
   const pat = ehPadraoDeCobertura(mat.padrao) ? (() => {
     const cob = texturaDeCobertura(mat, 'illustrated', 1);
     return { p: ctx.createPattern(cob.tela as CanvasImageSource, 'repeat'), escala: cob.metros / cob.tela.width };
@@ -115,7 +116,6 @@ export function desenharMiniaturaDoTelhado(canvas: HTMLCanvasElement | Offscreen
     ctx.stroke();
   }
 
-  const forma = formaDe(roof);
   if (forma.shape === 'duas-aguas') {
     ctx.strokeStyle = mat.escuro;
     ctx.lineWidth = 0.08;

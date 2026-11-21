@@ -109,6 +109,32 @@ test('atlas_comodos aceita estilo de telhado e cobertura com forma e detalhes', 
   validarMapa(store.documento);
 });
 
+test('atlas_comodos aceita novas formas, telhadoEstado e telhadoDesgaste; recusa estado desconhecido e lista tudo em atlas_catalogo', async () => {
+  const { store, chamar } = montar();
+  await chamar('atlas_comodos', { comodos: [
+    { rets: [[2, 2, 5, 5]], tipo: 'salao', nome: 'Templo', telhado: 'pagode', telhadoEstado: 'abandonado', telhadoDesgaste: { snow: 0.85 } },
+    { rets: [[6, 2, 9, 5]], tipo: 'sala', nome: 'Sobrado', telhado: 'telha.ardosia', telhadoForma: 'mansarda', telhadoDesgaste: { moss: 0.2, dirt: 0.3, damage: 0.1, snow: 'auto' } },
+  ] });
+  const [templo, sobrado] = Object.values(store.documento.rooms);
+  assert.equal(templo!.roof.shape, 'pagode');
+  assert.deepEqual(templo!.roof.wear, { moss: 0.7, dirt: 0.6, damage: 0.45, snow: 0.85 });
+  assert.equal((templo!.roof as unknown as Record<string, unknown>).state, undefined);
+  assert.equal(sobrado!.roof.shape, 'mansarda');
+  assert.deepEqual(sobrado!.roof.wear, { moss: 0.2, dirt: 0.3, damage: 0.1, snow: 'auto' });
+  validarMapa(store.documento);
+
+  await assert.rejects(
+    chamar('atlas_comodos', { comodos: [{ rets: [[10, 2, 12, 4]], tipo: 'sala', telhadoEstado: 'em-po' }] }),
+    /estado de telhado “em-po” não existe/,
+  );
+
+  const catTelhado = catalogo('telhado') as { estilos: unknown[]; coberturas: unknown[]; formas: string[]; estados: { id: string }[] };
+  assert.equal(catTelhado.estilos.length, 33);
+  assert.ok(catTelhado.coberturas.length >= 15);
+  assert.equal(catTelhado.formas.length, 12);
+  assert.deepEqual(catTelhado.estados.map(e => e.id), ['novo', 'gasto', 'velho', 'abandonado', 'em-ruinas']);
+});
+
 test('atlas_comodos aceita circulo e poligono, gera telhado cone e recusa misturar rets com circulo', async () => {
   const { store, chamar } = montar();
   await chamar('atlas_comodos', { comodos: [
@@ -472,6 +498,8 @@ test('as ferramentas do Atlas têm descrições curtas e ficam dentro do orçame
   }
   const bytes = Buffer.byteLength(JSON.stringify(todas.filter(f => SEMPRE.includes(f.nome))));
   assert.ok(bytes < 16_000, `Esperava soma das atlas_* em SEMPRE menor que 16 KB (16000 bytes), obteve ${bytes}`);
+  const totalBytes = Buffer.byteLength(JSON.stringify(todas));
+  assert.ok(totalBytes < 30_000, `Esperava soma total das ferramentas menor que 30 KB (30000 bytes), obteve ${totalBytes}`);
 });
 
 

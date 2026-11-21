@@ -6,7 +6,7 @@ import { EVENTOS_DE_CENA } from '../domain/eventos-de-cena.ts';
 import { detectarCirculo } from '../domain/formas-de-comodo.ts';
 import { CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, FORMAS_DE_TELHADO, colunas, linhas, type Comodo, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
 import { descreverPasso } from '../domain/momentos.ts';
-import { ESTILOS_DE_TELHADO, FUNCOES_AO_AR_LIVRE, GENEROS, PACOTES_DE_PRESENCA, PINCEIS_DE_PRESENCA, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO } from '../domain/presets.ts';
+import { ESTADOS_DE_TELHADO, ESTILOS_DE_TELHADO, FUNCOES_AO_AR_LIVRE, GENEROS, PACOTES_DE_PRESENCA, PINCEIS_DE_PRESENCA, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO } from '../domain/presets.ts';
 import { formaDe, retangulosDe } from '../domain/telhado-geometria.ts';
 import { COLECAO } from '../procedural/colecao.ts';
 import { MATERIAIS, materiaisDo } from '../procedural/materiais.ts';
@@ -308,11 +308,12 @@ export function catalogo(parte?: string, busca?: string): unknown {
       return Object.fromEntries(usos.map(u => [u, materiaisDo(u).filter(x => bate([x.id, x.nome, u])).map(x => ({ id: x.id, nome: x.nome }))]));
     }
     case 'telhado': return {
-      estilos: ESTILOS_DE_TELHADO.map(e => ({ id: e.id, nome: e.nome, cobertura: e.roof.material, forma: e.roof.shape ?? 'quatro-aguas', ingreme: !!e.roof.steep, detalhes: e.roof.details ?? [] })),
+      estilos: ESTILOS_DE_TELHADO.map(e => ({ id: e.id, nome: e.nome, cobertura: e.roof.material, forma: e.roof.shape ?? 'quatro-aguas', ingreme: !!e.roof.steep, detalhes: e.roof.details ?? [], ...(e.roof.wear ? { desgaste: e.roof.wear } : {}) })),
       coberturas: materiaisDo('telhado').map(x => ({ id: x.id, nome: x.nome })),
       formas: [...FORMAS_DE_TELHADO],
       cumeeiras: [...CUMEEIRAS_DE_TELHADO],
       detalhes: [...DETALHES_DE_TELHADO],
+      estados: ESTADOS_DE_TELHADO,
     };
     case 'climas': return { climas: PRESETS_DE_CLIMA.map(c => ({ id: c.id, nome: c.nome, descricao: c.descricao })), acabamentos: PRESETS_DE_ACABAMENTO.map(a => ({ id: a.id, nome: a.nome })), generos: GENEROS.map(g => ({ id: g.id, nome: g.nome, descricao: g.descricao })), tiposDeComodo: TIPOS_DE_COMODO.map(t => ({ id: t.id, nome: t.nome, funcao: t.funcao, piso: t.piso, papel: t.papel })) };
     case 'luzes': return PRESETS_DE_LUZ.map(l => ({ id: l.id, nome: l.nome, descricao: l.descricao, raio: l.radius, cor: l.color, intensidade: l.intensity, tremulo: l.flicker, energia: l.power, cone: l.cone }));
@@ -422,7 +423,7 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
     },
     {
       nome: 'atlas_mapa_ler',
-      descricao: 'Resume o mapa (aberto ou por id): edifícios, cômodos (forma e telhado), terreno, objetos, luzes, regiões, peças, clima, momentos e notas. comodos filtra por ids.',
+      descricao: 'Resume o mapa (aberto ou por id): edifícios, cômodos, terreno, objetos, luzes, regiões, peças, clima, momentos e notas.',
       esquema: { type: 'object', properties: { id: { type: 'string' }, comodos: { type: 'array', items: { type: 'string' }, maxItems: 100 } }, required: [], additionalProperties: false },
       anotacoes: { leitura: true },
       async executar(args) {
@@ -437,7 +438,7 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
     },
     {
       nome: 'atlas_catalogo',
-      descricao: 'Catálogo de opções (receitas, colecao, conjuntos, comodos, materiais, telhado, climas, luzes, presenca, momentos). Aceita busca por palavra. Use para não inventar ids.',
+      descricao: 'Catálogo (receitas, colecao, conjuntos, comodos, materiais, telhado, climas, luzes, presenca, momentos) e busca por palavra.',
       esquema: { type: 'object', properties: { parte: { type: 'string', enum: [...PARTES] }, busca: { type: 'string', maxLength: 60 } }, required: [], additionalProperties: false },
       anotacoes: { leitura: true },
       async executar(args) {
@@ -463,7 +464,7 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
     },
     {
       nome: 'atlas_revisar',
-      descricao: 'Revisa o mapa aberto (ou por id) e aponta defeitos: cômodos sem acesso, casas iguais, fileiras mecânicas, interiores vazios, luz. Use antes de entregar.',
+      descricao: 'Revisa o mapa e aponta defeitos: cômodos sem acesso, casas iguais, fileiras, interiores vazios, luz.',
       esquema: { type: 'object', properties: { id: { type: 'string' }, regras: { type: 'array', items: { type: 'string' }, maxItems: 30 } }, required: [], additionalProperties: false },
       anotacoes: { leitura: true },
       async executar(args) {
@@ -486,7 +487,7 @@ export function ferramentasDeLeitura(ctx: ContextoDeLeitura): FerramentaDaPonte[
     },
     {
       nome: 'atlas_ver_mapa',
-      descricao: 'Captura JPEG do mapa aberto (todo ou caixa [x0,y0,x1,y1] m). vista: planta (interiores) ou telhados (como os jogadores veem de fora). Aceita andar.',
+      descricao: 'Captura JPEG do mapa (todo ou caixa [x0,y0,x1,y1] m). vista: planta ou telhados. Aceita andar.',
       esquema: { type: 'object', properties: { caixa: { type: 'array', items: { type: 'number' }, minItems: 4, maxItems: 4 }, ladoMaximo: { type: 'number', minimum: 256, maximum: 1600 }, vista: { type: 'string', enum: ['planta', 'telhados'] }, andar: { type: ['string', 'null'] } }, required: [], additionalProperties: false },
       anotacoes: { leitura: true },
       async executar(args) {

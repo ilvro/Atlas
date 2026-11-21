@@ -19,6 +19,7 @@ import {
   type Abertura,
   type Comodo,
   type CumeeiraDeTelhado,
+  type DesgasteDeTelhado,
   type DetalheDeTelhado,
   type FormaDeTelhado,
   type MapaAtlas,
@@ -27,7 +28,7 @@ import {
   type Ponto,
   type Regiao,
 } from '../domain/mapa.ts';
-import { ESTILOS_DE_TELHADO, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, estiloDeTelhado, presetDeLuz, telhadoPadrao, tipoDeComodo } from '../domain/presets.ts';
+import { ESTADOS_DE_TELHADO, ESTILOS_DE_TELHADO, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, estadoDeTelhado, estiloDeTelhado, presetDeLuz, telhadoPadrao, tipoDeComodo } from '../domain/presets.ts';
 import { aplicarComando, type Comando } from '../state/comandos.ts';
 import { erroDeFamilia, itemDoPedido } from './familia-do-pedido.ts';
 import { TODOS_OS_CONJUNTOS, conjuntoDeEspalhar, espalhar as espalharConjunto } from './espalhar.ts';
@@ -100,7 +101,29 @@ export interface PedidoDeComodo {
   telhadoForma?: FormaDeTelhado;
   telhadoCumeeira?: CumeeiraDeTelhado;
   telhadoDetalhes?: readonly DetalheDeTelhado[];
+  telhadoEstado?: string;
+  telhadoDesgaste?: DesgasteDeTelhado;
   andar?: string | null;
+}
+
+function validarDesgastePedido(d: DesgasteDeTelhado): DesgasteDeTelhado {
+  const saida: DesgasteDeTelhado = {};
+  for (const k of ['moss', 'dirt', 'damage'] as const) {
+    const v = d[k];
+    if (v !== undefined) {
+      if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 1) {
+        throw new ErroDeConstrucao(`telhadoDesgaste.${k} deve ser um número entre 0 e 1`);
+      }
+      saida[k] = v;
+    }
+  }
+  if (d.snow !== undefined) {
+    if (d.snow !== 'auto' && (typeof d.snow !== 'number' || !Number.isFinite(d.snow) || d.snow < 0 || d.snow > 1)) {
+      throw new ErroDeConstrucao('telhadoDesgaste.snow deve ser "auto" ou um número entre 0 e 1');
+    }
+    saida.snow = d.snow;
+  }
+  return saida;
 }
 
 function resolverTelhadoPedido(
@@ -121,6 +144,11 @@ function resolverTelhadoPedido(
       if (!DETALHES_DE_TELHADO.includes(d)) throw new ErroDeConstrucao(`detalhe de telhado “${String(d)}” não existe; detalhes: ${lista(DETALHES_DE_TELHADO)}`);
     }
   }
+  const estado = p.telhadoEstado !== undefined ? estadoDeTelhado(p.telhadoEstado) : undefined;
+  if (p.telhadoEstado !== undefined && !estado) {
+    throw new ErroDeConstrucao(`estado de telhado “${String(p.telhadoEstado)}” não existe; estados: ${lista(ESTADOS_DE_TELHADO.map(e => e.id))}`);
+  }
+  const desgastePedido = p.telhadoDesgaste !== undefined ? validarDesgastePedido(p.telhadoDesgaste) : undefined;
   let base: Omit<Comodo['roof'], 'visible'> | null;
   if (p.telhado === undefined) {
     base = telhadoPadrao(acumulado, funcao, celulas, null, outline);
@@ -129,7 +157,7 @@ function resolverTelhadoPedido(
   } else {
     const est = estiloDeTelhado(p.telhado);
     if (est) {
-      base = { ...est.roof, ...(est.roof.details ? { details: [...est.roof.details] } : {}) };
+      base = { ...est.roof, ...(est.roof.details ? { details: [...est.roof.details] } : {}), ...(est.roof.wear ? { wear: { ...est.roof.wear } } : {}) };
     } else {
       const m = MATERIAIS[p.telhado];
       if (!m || m.uso !== 'telhado') {
@@ -139,11 +167,16 @@ function resolverTelhadoPedido(
     }
   }
   if (!base) return null;
+  const wear: DesgasteDeTelhado | undefined =
+    base.wear || estado || desgastePedido
+      ? { ...(base.wear ?? {}), ...(estado?.wear ?? {}), ...(desgastePedido ?? {}) }
+      : undefined;
   return {
     ...base,
     ...(p.telhadoForma !== undefined ? { shape: p.telhadoForma } : {}),
     ...(p.telhadoCumeeira !== undefined ? { ridge: p.telhadoCumeeira } : {}),
     ...(p.telhadoDetalhes !== undefined ? { details: [...p.telhadoDetalhes] } : {}),
+    ...(wear ? { wear } : {}),
   };
 }
 

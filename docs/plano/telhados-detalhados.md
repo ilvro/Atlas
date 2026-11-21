@@ -211,7 +211,7 @@ Pronto quando: um palácio com cúpula dourada e uma estufa ficam convincentes n
 Nota: Para evitar colisão com `'marmore'` e `'vidro'` já existentes em `Padrao`, os 4 novos padrões foram registrados em `PADROES_DE_COBERTURA` como `'marmore-telhado'` (`pedra`), `'ouro-telhado'` (`pedra`), `'vidro-telhado'` (`chapa-dobrada`) e `'vitral-telhado'` (`chumbo`), com 6 materiais novos (`telha.marmore`, `.rosado`, `.negro`, `telha.ouro`, `telha.vidro`, `telha.vitral`) e `Material.especular` (também aplicado em `telha.esmaltada.*` e `telha.cobre`). `AmostraDeCobertura` ganhou `alfa`, `especular` e `cor` opcionais; `assarTelhado` escreve opacidade real em `cor.a` mantendo `normal.a = 255` (para recuperar `opac = c.a / n.a` na GPU) e só gera `Assado.altura` (mapa especular) quando algum trecho do edifício tem `especular > 0` (custo zero nos foscos). Em `telhados.ts`, o shader Blinn-Phong aplica brilho metálico/dielétrico e reflexo suave do céu nos vidros translúcidos preservando a transparência sobre o piso e a névoa. Prancha visual validada em `test-results/n8b-nobres.png`.
 Commit: `added marble, gold, glass and stained glass roofs`
 
-### N9 — Estilos, estado do telhado no Inspetor e ponte  ⬜
+### N9 — Estilos, estado do telhado no Inspetor e ponte  ✅
 Objetivo: o mestre escolhe "Palácio", "Pagode" ou "Estufa" e o estado "Abandonado" em dois cliques; o assistente faz o mesmo pelo MCP.
 Depende de: N1, N5, N8a, N8b.
 Ler: `src/domain/presets.ts` (`ESTILOS_DE_TELHADO`, `telhadoPadrao`), `src/ui/Inspetor.tsx` (seção Telhado), `src/app/ponte-escrita.ts` e `ponte-leitura.ts` (`atlas_comodos`, `atlas_catalogo`, `atlas_edificio`), `docs/assistente/guia/ferramentas-atlas.md`.
@@ -224,6 +224,7 @@ Como:
 Não fazer: estado gravado como id (o documento guarda só o `wear`).
 Testes: todo estilo e todo estado passam na validação; a ponte aceita estado e desgaste e recusa id desconhecido.
 Pronto quando: no Inspetor, "Delegacia" vira telha velha com musgo em dois cliques.
+Nota: `ESTILOS_DE_TELHADO` passou de 14 para 33 estilos (incluindo `casa-velha` convertida para `telha.barro` + `wear` e `clonarTelhado` preservando `wear`/`seed`), com `ESTADOS_DE_TELHADO` (`novo`, `gasto`, `velho`, `abandonado`, `em-ruinas`). `Inspetor.tsx` ganhou seletor de todas as 12 `FORMAS_DE_TELHADO`, fileiras compactas de Estado e Neve, 4 controles deslizantes de `wear` em "Ajustar", e `miniatura.ts` trata `cupula`/`bulbo` como circulares. `construcao.ts` e `ponte-escrita.ts` (`atlas_comodos`) aceitam as 12 formas, `telhadoEstado` e `telhadoDesgaste` (gravando só `roof.wear`), `ponte-leitura.ts` (`atlas_catalogo { parte: 'telhado' }`) expõe `estados`, e `catalogo-base.json` foi regenerado mantendo as ferramentas do Atlas em 29.935 bytes (< 30.000).
 Commit: `added roof styles for every era and roof condition presets`
 
 ### N10 — Prancha, exemplos e guia  ⬜

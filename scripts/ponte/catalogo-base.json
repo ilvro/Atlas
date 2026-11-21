@@ -495,7 +495,7 @@
   },
   {
     "nome": "atlas_arranjo",
-    "descricao": "Dispõe até 300 objetos com variação em fileiras, grade solta, aglomerado, ao longo de caminho, círculo ou bordas; evita paredes e portas. Um desfazer.",
+    "descricao": "Dispõe até 300 objetos em fileiras, grade, aglomerado, caminho, círculo ou bordas; evita paredes e portas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -745,7 +745,7 @@
   },
   {
     "nome": "atlas_caminho",
-    "descricao": "Traça caminhos orgânicos em METROS (curva, largura viva, borda e sulcos), de 1 a 20 num passo de desfazer. Guia: plataforma_guia ferramentas-atlas.",
+    "descricao": "Traça caminhos orgânicos em METROS (curva, largura, borda e sulcos), 1 a 20 num passo. Guia: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -833,7 +833,7 @@
   },
   {
     "nome": "atlas_caminho",
-    "descricao": "Traça caminhos orgânicos em METROS (curva, largura viva, borda e sulcos), de 1 a 20 num passo de desfazer. Guia: plataforma_guia ferramentas-atlas.",
+    "descricao": "Traça caminhos orgânicos em METROS (curva, largura, borda e sulcos), 1 a 20 num passo. Guia: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -921,7 +921,7 @@
   },
   {
     "nome": "atlas_catalogo",
-    "descricao": "Catálogo de opções (receitas, colecao, conjuntos, comodos, materiais, telhado, climas, luzes, presenca, momentos). Aceita busca por palavra. Use para não inventar ids.",
+    "descricao": "Catálogo (receitas, colecao, conjuntos, comodos, materiais, telhado, climas, luzes, presenca, momentos) e busca por palavra.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1051,7 +1051,14 @@
                   "duas-aguas",
                   "plano",
                   "piramide",
-                  "cone"
+                  "cone",
+                  "uma-agua",
+                  "mansarda",
+                  "holandes",
+                  "cupula",
+                  "abobada",
+                  "pagode",
+                  "bulbo"
                 ]
               },
               "telhadoCumeeira": {
@@ -1075,6 +1082,42 @@
                     "caixa-dagua"
                   ]
                 }
+              },
+              "telhadoEstado": {
+                "type": "string"
+              },
+              "telhadoDesgaste": {
+                "type": "object",
+                "properties": {
+                  "moss": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "dirt": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "damage": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "snow": {
+                    "oneOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      {
+                        "const": "auto"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
               },
               "andar": {
                 "type": [
@@ -1111,7 +1154,7 @@
   },
   {
     "nome": "atlas_desfazer",
-    "descricao": "Desfaz as últimas entradas do histórico do mapa aberto (passos 1 a 20, padrão 1) e devolve os rótulos desfeitos.",
+    "descricao": "Desfaz as últimas entradas do histórico do mapa (1 a 20, padrão 1) e devolve os rótulos.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1130,7 +1173,7 @@
   },
   {
     "nome": "atlas_edificio",
-    "descricao": "Constrói edifícios inteiros por programa: cômodos com função e área, forma (L, T, linear…), frente, alpendre, telhado; portas, janelas, mobília e luz. Um desfazer.",
+    "descricao": "Constrói edifícios por programa: cômodos, forma (L, T, linear…), frente, alpendre, telhado, portas, janelas, mobília e luz.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1579,7 +1622,7 @@
   },
   {
     "nome": "atlas_mapa_ler",
-    "descricao": "Resume o mapa (aberto ou por id): edifícios, cômodos (forma e telhado), terreno, objetos, luzes, regiões, peças, clima, momentos e notas. comodos filtra por ids.",
+    "descricao": "Resume o mapa (aberto ou por id): edifícios, cômodos, terreno, objetos, luzes, regiões, peças, clima, momentos e notas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1618,7 +1661,7 @@
   },
   {
     "nome": "atlas_mobiliar",
-    "descricao": "Mobília e ilumina cômodos prontos pela função e pelo gênero (de 1 a 60 cômodos num passo de desfazer). Detalhes: plataforma_guia ferramentas-atlas.",
+    "descricao": "Mobília e ilumina cômodos pela função e gênero (1 a 60 num passo). Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -1655,7 +1698,7 @@
   },
   {
     "nome": "atlas_momento",
-    "descricao": "Cria ou refaz um momento no mapa aberto (sem \"id\" cria; com \"id\" altera). Tipos de passo: atlas_catalogo momentos. Detalhes: plataforma_guia ferramentas-atlas.",
+    "descricao": "Cria ou refaz momento no mapa (sem \"id\" cria; com \"id\" altera). Passos: atlas_catalogo momentos. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -2295,7 +2338,7 @@
   },
   {
     "nome": "atlas_paredes",
-    "descricao": "Cria paredes, muros, cercas ou escarpas avulsas em metros. Para salas use atlas_comodos. Detalhes: plataforma_guia ferramentas-atlas.",
+    "descricao": "Cria paredes, muros, cercas ou escarpas em metros. Salas: atlas_comodos. Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -2446,7 +2489,7 @@
   },
   {
     "nome": "atlas_presenca",
-    "descricao": "Pinta presença (musgo, sangue, mofo...) em metros; com apagar:true, apaga na forma. Pincéis: atlas_catalogo presenca. Guia: plataforma_guia ferramentas-atlas.",
+    "descricao": "Pinta ou apaga presença (musgo, sangue, mofo...) em metros. Pincéis: atlas_catalogo presenca. Guia: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -2720,7 +2763,7 @@
   },
   {
     "nome": "atlas_revisar",
-    "descricao": "Revisa o mapa aberto (ou por id) e aponta defeitos: cômodos sem acesso, casas iguais, fileiras mecânicas, interiores vazios, luz. Use antes de entregar.",
+    "descricao": "Revisa o mapa e aponta defeitos: cômodos sem acesso, casas iguais, fileiras, interiores vazios, luz.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -2745,7 +2788,7 @@
   },
   {
     "nome": "atlas_salvar",
-    "descricao": "Grava o mapa aberto (o botão Gravar). Use ao fim de uma leva de mudanças; sem isso, elas ficam só como rascunho.",
+    "descricao": "Grava o mapa aberto (botão Gravar). Use ao fim das mudanças; sem isso ficam só como rascunho.",
     "esquema": {
       "type": "object",
       "properties": {},
@@ -2759,7 +2802,7 @@
   },
   {
     "nome": "atlas_terreno",
-    "descricao": "Pinta, apaga ou define altitude de relevo do terreno, em METROS. Materiais: atlas_catalogo materiais. Guia: plataforma_guia ferramentas-atlas.",
+    "descricao": "Pinta, apaga ou define relevo do terreno em METROS. Materiais: atlas_catalogo materiais. Guia: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -2951,7 +2994,7 @@
   },
   {
     "nome": "atlas_ver_mapa",
-    "descricao": "Captura JPEG do mapa aberto (todo ou caixa [x0,y0,x1,y1] m). vista: planta (interiores) ou telhados (como os jogadores veem de fora). Aceita andar.",
+    "descricao": "Captura JPEG do mapa (todo ou caixa [x0,y0,x1,y1] m). vista: planta ou telhados. Aceita andar.",
     "esquema": {
       "type": "object",
       "properties": {
