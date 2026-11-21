@@ -59,7 +59,7 @@ export function FamiliaNaMao({ s }: { s: SessaoDeEdicao }) {
         <b data-testid="familia-nome">{familia && <button type="button" class={`estrela ${favoritos.value.includes(familia.id) ? 'ativa' : ''}`} aria-pressed={favoritos.value.includes(familia.id)} title="Fixar a família em Favoritos" aria-label="Favorita" onClick={() => alternarFavoritoDaFamilia(familia.id)} data-testid="familia-estrela">{favoritos.value.includes(familia.id) ? '★' : '☆'}</button>}{familia?.nome ?? item.nome}</b>
         <span class="familia-botoes">
           {n > 1 && <button type="button" class={`chip ${o.varianteAleatoria ? 'ativo' : ''}`} aria-pressed={o.varianteAleatoria} title="Sorteia a variante a cada objeto posto" onClick={() => { s.pincel.value = { ...s.pincel.value, objeto: { ...o, varianteAleatoria: !o.varianteAleatoria } }; tocar('selecionar'); }} data-testid="variante-dado">🎲</button>}
-          {temReceita && <button type="button" class={`chip ${variarDesenho ? 'ativo' : ''}`} aria-pressed={variarDesenho} title="Cada objeto sai com um desenho diferente" onClick={() => { s.pincel.value = { ...s.pincel.value, objeto: { ...o, semente: variarDesenho ? 3 : null } }; tocar('selecionar'); }} data-testid="variar-desenho">Variar o desenho</button>}
+          {temReceita && <button type="button" class={`chip ${variarDesenho ? 'ativo' : ''}`} aria-pressed={variarDesenho} title="Variar o desenho: cada objeto sai com um desenho diferente" aria-label="Variar o desenho" onClick={() => { s.pincel.value = { ...s.pincel.value, objeto: { ...o, semente: variarDesenho ? 3 : null } }; tocar('selecionar'); }} data-testid="variar-desenho">🎨</button>}
         </span>
       </div>
       <div class="familia-corpo">
