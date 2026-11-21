@@ -1,4 +1,4 @@
-import { ALTURA_MAXIMA, PINTORES_DE_ALTURA, PISO_NO_MAPA, RAIO_PASSA_ALTA, alturaPorLuminancia, desenharAlturaDasPartes, pintarAlturaDoMaterial } from './altura.ts';
+import { ALTURA_MAXIMA, temAlturaPropria, PISO_NO_MAPA, RAIO_PASSA_ALTA, alturaPorLuminancia, desenharAlturaDasPartes, pintarAlturaDoMaterial } from './altura.ts';
 import { contornoDoComodo, caixaDasCelulas } from '../domain/geometria.ts';
 import {
   AMPLIACAO_NA_FACE,
@@ -446,7 +446,7 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
   if (actx) {
     resetTransform(actx);
     if (e.base !== 'vazio') {
-      if (PINTORES_DE_ALTURA[materialDe(e.base).padrao]) {
+      if (temAlturaPropria(materialDe(e.base), res)) {
         pintarAlturaDoMaterial(actx, e.base, areaBase, 7, { res });
       } else {
         const rPx = e.recorte ? Math.max(1, Math.round(RAIO_PASSA_ALTA * res)) : 0;
@@ -573,7 +573,7 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
     const mascCorpo = comAlfa(corpo, null);
     if (actx) {
       const altTela = criarTela(cw, ch), atc = contextoDe(altTela);
-      if (PINTORES_DE_ALTURA[material.padrao]) {
+      if (temAlturaPropria(material, res)) {
         atc.setTransform(res, 0, 0, res, -x0, -y0);
         pintarAlturaDoMaterial(atc, camada.material, areaMaterial, 11 + idx * 5, { res, dir });
         atc.setTransform(1, 0, 0, 1, 0, 0);

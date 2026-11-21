@@ -1,7 +1,8 @@
 import { contextoDe, criarTela, type Contexto } from './canvas.ts';
 import { campoDeRuido, fbm, hash2D, ladrilhoDeRuido, mulberry32, valueNoise2D } from './ruido.ts';
 import { celulasDeVoronoi, type Consulta } from './voronoi.ts';
-import type { ReceitaDeTextura } from './textura-de-terreno.ts';
+import { amostrarSemRepeticao, mapaDeGradiente, pesoDaCamada, reduzirTextura, tomDaTextura, type CamadaDeTextura, type Pixels, type ReceitaDeTextura, type Tom } from './textura-de-terreno.ts';
+import { texturaPronta } from './texturas-carregadas.ts';
 import { ehPadraoDeCobertura, texturaDeCobertura, type PadraoDeCobertura } from './coberturas.ts';
 
 export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho' | 'paralelepipedo' | 'lajegrama' | 'sulcos' | 'molhada' | 'batido' | 'folhico'
@@ -129,11 +130,11 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('parede.topo', 'Topo de parede', 'objeto', '#141218', '#08070a', '#2a2630', 'liso'),
   m('pedra.escura', 'Pedra escura', 'objeto', '#1b1d22', '#0c0d10', '#2b2f37', 'liso'),
   // Terreno
-  m('grama', 'Grama', 'terreno', '#3f6b34', '#234a1f', '#6a9a4a', 'grama'),
+  m('grama', 'Grama', 'terreno', '#3f6b34', '#234a1f', '#6a9a4a', 'grama', { textura: { tingir: 0.6, camadas: [{ textura: 'leafy_grass', escala: 1.4 }] } }),
   m('grama.acinzentada', 'Grama acinzentada', 'terreno', '#556353', '#323c31', '#7e8f7c', 'grama'),
-  m('grama.seca', 'Grama seca', 'terreno', '#7d7547', '#4e4827', '#a39b68', 'grama'),
+  m('grama.seca', 'Grama seca', 'terreno', '#7d7547', '#4e4827', '#a39b68', 'grama', { textura: { tingir: 0.6, camadas: [{ textura: 'withered_grass', escala: 1.4 }] } }),
   m('grama.escura', 'Grama escura', 'terreno', '#284825', '#142912', '#496d44', 'grama'),
-  m('terra', 'Terra', 'terreno', '#6a4d33', '#3b2a1a', '#8d6c49', 'terra'),
+  m('terra', 'Terra', 'terreno', '#6a4d33', '#3b2a1a', '#8d6c49', 'terra', { textura: { tingir: 0.6, camadas: [{ textura: 'brown_mud_dry', escala: 1.5 }] } }),
   m('areia', 'Areia', 'terreno', '#c8b27c', '#9a8650', '#e6d6a4', 'areia'),
   m('pedregulho', 'Pedregulho', 'terreno', '#6f6c66', '#3a3834', '#a09c94', 'pedra'),
   m('lama', 'Lama', 'terreno', '#4a3a28', '#2a1f14', '#6a5640', 'lama'),
@@ -163,8 +164,18 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('areia.molhada', 'Areia molhada', 'terreno', '#9c855a', '#5a4a2c', '#d8c690', 'molhada'),
   m('neve.pisada', 'Neve pisada', 'terreno', '#d3dae2', '#8693a3', '#f4f7fa', 'pisada'),
   m('terra.congelada', 'Terra congelada', 'terreno', '#5e564c', '#2e2923', '#dfe4ea', 'terra'),
-  m('chao.batido', 'Chão batido', 'terreno', '#4c3e2f', '#2a2219', '#6a5a47', 'batido', { franja: 1 }),
-  m('chao.de.mata', 'Chão de mata', 'terreno', '#403a2b', '#1f1b14', '#5a5240', 'folhico', { franja: 1 }),
+  m('chao.batido', 'Chão batido', 'terreno', '#4c3e2f', '#2a2219', '#6a5a47', 'batido', { franja: 1, textura: { tingir: 0.6, camadas: [
+    { textura: 'dirt_floor', escala: 1.5, tons: ['#2e261c', '#5a4c3a', '#857258'] },
+    { textura: 'stony_dirt_path', escala: 1.3, mascara: { freq: 0.45, limiar: 0.52, suave: 0.08, semente: 1 }, tons: ['#2c2620', '#58503f', '#8a7f68'] },
+    { textura: 'withered_grass', escala: 1.4, mascara: { freq: 0.35, limiar: 0.56, suave: 0.1, semente: 2 }, tons: ['#28231a', '#4e4632', '#786a4e'] },
+  ] } }),
+  m('chao.de.mata', 'Chão de mata', 'terreno', '#403a2b', '#1f1b14', '#5a5240', 'folhico', { franja: 1, textura: { tingir: 0.6, camadas: [
+    { textura: 'forest_ground_04', escala: 1.5, tons: ['#201c15', '#463f30', '#6e654e'] },
+    { textura: 'withered_grass', escala: 1.4, mascara: { freq: 0.3, limiar: 0.5, suave: 0.1, semente: 5 }, tons: ['#1e1e14', '#403e2c', '#665f44'] },
+    { textura: 'leaves_forest_ground', escala: 1.6, mascara: { freq: 0.4, limiar: 0.55, suave: 0.08, semente: 3 }, tons: ['#241c14', '#4e3e2c', '#7a6446'] },
+    { textura: 'ground068', escala: 1.2, mascara: { freq: 1.1, limiar: 0.63, suave: 0.05, semente: 4 }, tons: ['#1c2212', '#3c4826', '#64703e'] },
+  ] } }),
+  m('musgo', 'Musgo', 'terreno', '#3c4826', '#1c2212', '#64703e', 'grama', { franja: 1, textura: { tingir: 0.6, camadas: [{ textura: 'ground068', escala: 1.2 }] } }),
   m('piso.hangar', 'Concreto industrial', 'terreno', '#7d7c78', '#3a3936', '#a6a49f', 'placas', { lado: 3, ouro: '#c9a12a' }),
 ].map(([id, mat]) => [id as string, mat as Material])) as Record<string, Material>;
 
@@ -223,6 +234,7 @@ function camadaDeRuido(ctx: Contexto, area: Area, seed: number, metros: number, 
  */
 export function pintarMaterial(ctx: Contexto, id: string, area: Area, seed = 1, { dir = 0 }: { dir?: number } = {}): void {
   const mat = materialDe(id), r = mulberry32(seed * 7919 + 13);
+  if (mat.textura && pintarComTextura(ctx, mat, area)) return;
   ctx.save();
   ctx.fillStyle = mat.base; ctx.fillRect(area.x, area.y, area.w, area.h);
   if (dir) { const cx = area.x + area.w / 2, cy = area.y + area.h / 2; ctx.translate(cx, cy); ctx.rotate(dir); ctx.translate(-cx, -cy); }
@@ -433,6 +445,94 @@ function porPixel(ctx: Contexto, A: Area, fn: (x: number, y: number, o: number[]
   }
   c.putImageData(img, 0, 0);
   ctx.save(); ctx.imageSmoothingEnabled = true; ctx.drawImage(tela as CanvasImageSource, A.x + i0 / s, A.y + j0 / s, W / s, H / s); ctx.restore();
+}
+
+// ---------- Terreno com textura (Frente P): foto CC0 em ladrilho, sem repetição visível, puxada para a paleta ----------
+interface TexturaReduzida { fonte: Pixels; cor: Pixels; alt?: Pixels; metros: number; tom: Tom; tomAlt?: Tom }
+const reduzidas = new Map<string, TexturaReduzida>();
+
+/** A textura `id` reduzida para ler a 1 a 2 texels por pixel de `res` px/m (com a `escala` da camada); `undefined` se não carregou. */
+function texturaParaPintar(id: string, escala: number, res: number): TexturaReduzida | undefined {
+  const t = texturaPronta(id); if (!t) return undefined;
+  const fator = Math.max(1, 2 ** Math.floor(Math.log2(t.cor.largura / (t.metros * escala) / res))), k = `${id}@${fator}`;
+  let r = reduzidas.get(k);
+  if (!r || r.fonte !== t.cor) {
+    const cor = reduzirTextura(t.cor, fator), alt = t.alt ? reduzirTextura(t.alt, fator) : undefined;
+    r = { fonte: t.cor, cor, alt, metros: t.metros, tom: tomDaTextura(cor), tomAlt: alt ? tomDaTextura(alt, true) : undefined };
+    reduzidas.set(k, r);
+  }
+  return r;
+}
+
+/** Afrouxa a normalização de tom (±2,6 desvios em vez de ±2 cobrem a paleta): a 32 px/m o grão da foto vira chiado se tiver contraste cheio. */
+const CONTRASTE_FINO = 1.3;
+interface CamadaPronta { c: CamadaDeTextura; t: TexturaReduzida; tom: Tom; ppm: number; E: Cor3; B: Cor3; C: Cor3; dx: number; dy: number }
+
+/** As camadas da receita prontas para pintar, ou `null` se alguma textura ainda não carregou (aí vale o `padrao`). */
+function camadasProntas(mat: Material, res: number): CamadaPronta[] | null {
+  const rec = mat.textura; if (!rec?.camadas.length) return null;
+  const out: CamadaPronta[] = [];
+  for (const [i, c] of rec.camadas.entries()) {
+    const escala = c.escala ?? 1, t = texturaParaPintar(c.textura, escala, res); if (!t) return null;
+    const [e, b, cl] = c.tons ?? [mat.escuro, mat.base, mat.claro];
+    // Deslocamento fixo por camada (não pela semente): o mesmo material casa na base e nas camadas pintadas por cima.
+    out.push({ c, t, tom: { media: t.tom.media, desvio: t.tom.desvio * CONTRASTE_FINO }, ppm: t.cor.largura / (t.metros * escala), E: rgbHex(e), B: rgbHex(b), C: rgbHex(cl), dx: 17.3 * (i + 1), dy: 5.9 * (i + 1) });
+  }
+  return out;
+}
+
+/** O material tem textura e ela já carregou (neste contexto: página ou worker)? */
+export const texturaDisponivel = (mat: Material, res = 32): boolean => camadasProntas(mat, res) !== null;
+
+const lum = (o: ArrayLike<number>): number => 0.2126 * o[0]! + 0.7152 * o[1]! + 0.0722 * o[2]!;
+const RUIDO_DE_TEXTURA = valueNoise2D(4243), RUIDO_DE_MASCARA = valueNoise2D(4271);
+const mascaraDeTextura = (x: number, y: number): number => fbm(RUIDO_DE_MASCARA, x, y, 4);
+
+/** Chama `f(camada, peso)` para as camadas que cobrem (x, y), da base para cima; a base tem peso 1. */
+function cadaCamada(cs: readonly CamadaPronta[], x: number, y: number, f: (L: CamadaPronta, w: number, i: number) => void): void {
+  for (let i = 0; i < cs.length; i++) { const L = cs[i]!, w = i === 0 ? 1 : pesoDaCamada(L.c, x, y, mascaraDeTextura); if (w > 0) f(L, w, i); }
+}
+
+/**
+ * Ilustrado: pinta `area` pela receita de textura (P3): cada camada é lida sem repetição, levada à sua paleta pela luminância
+ * normalizada e misturada pela máscara. Devolve `false` (e não pinta) se alguma textura não carregou.
+ */
+function pintarComTextura(ctx: Contexto, mat: Material, area: Area): boolean {
+  const cs = camadasProntas(mat, 1 / pxDe(ctx)); if (!cs) return false;
+  const tingir = mat.textura!.tingir, tmp = [0, 0, 0, 255], cru = [0, 0, 0];
+  porPixel(ctx, areaDeAmostragem(ctx, area), (x, y, o) => {
+    cadaCamada(cs, x, y, (L, w, i) => {
+      const alvo = i === 0 ? o : tmp;
+      amostrarSemRepeticao(L.t.cor, L.ppm, x + L.dx, y + L.dy, RUIDO_DE_TEXTURA, alvo);
+      cru[0] = alvo[0]!; cru[1] = alvo[1]!; cru[2] = alvo[2]!;
+      mapaDeGradiente(alvo, L.E, L.B, L.C, 1, L.tom);
+      // O que sobra do `tingir` traz o matiz da foto, mas com a luminância da paleta (a foto crua é bem mais clara que o chão do Atlas).
+      if (tingir < 1) { const k = (lum(alvo) + 1) / (lum(cru) + 1); cru[0] *= k; cru[1] *= k; cru[2] *= k; rumo(alvo, cru, 1 - tingir); }
+      if (i > 0) rumo(o, tmp, w);
+    });
+    o[3] = 255;
+  });
+  return true;
+}
+
+/**
+ * Altura do terreno com textura: plano, com os pontos altos do deslocamento da camada dominante (pedrisco, torrão, folha)
+ * erguidos um nível só. Nada de rampa: no mapa de 8 bits ela vira curva de nível, e a luminância vira escama.
+ */
+export function pintarAlturaComTextura(ctx: Contexto, mat: Material, area: Area): boolean {
+  const cs = camadasProntas(mat, 1 / pxDe(ctx)); if (!cs) return false;
+  const tmp = [0, 0, 0, 255], piso = Math.round(PISO * 255), alto = piso + 1;
+  porPixel(ctx, areaDeAmostragem(ctx, area), (x, y, o) => {
+    let dom: CamadaPronta = cs[0]!;
+    cadaCamada(cs, x, y, (L, w) => { if (w >= 0.5) dom = L; });
+    let h = piso;
+    if (dom.t.alt && dom.t.tomAlt) {
+      amostrarSemRepeticao(dom.t.alt, dom.ppm, x + dom.dx, y + dom.dy, RUIDO_DE_TEXTURA, tmp);
+      if ((tmp[0]! / 255 - dom.t.tomAlt.media) / Math.max(1e-3, dom.t.tomAlt.desvio) > 1.2) h = alto;
+    }
+    o[0] = h; o[1] = 0; o[2] = 0;
+  });
+  return true;
 }
 
 const novaConsulta = (): Consulta => ({ f1: 0, f2: 0, borda: 0, sitio: { x: 0, y: 0, i: 0, j: 0, azar: 0 } });

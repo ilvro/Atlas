@@ -7,7 +7,7 @@ import { validarCatalogo, type CatalogoDeTexturas } from './texturas.ts';
 import type { Pixels } from './textura-de-terreno.ts';
 
 const BASE_PADRAO = '/colecao/texturas/';
-const carregadas = new Map<string, Pixels>();
+const carregadas = new Map<string, Pixels>(), deslocamentos = new Map<string, Pixels>(), metros = new Map<string, number>();
 const pendentes = new Map<string, Promise<void>>();
 let catalogo: CatalogoDeTexturas | null = null, promessaDoCatalogo: Promise<CatalogoDeTexturas | null> | null = null, hash = '';
 
@@ -67,7 +67,9 @@ export async function garantirTexturas(ids: readonly string[], base = BASE_PADRA
       if (!t) { console.warn(`Atlas: textura desconhecida ${id}`); return undefined; }
       let p = pendentes.get(id);
       if (!p) {
-        p = carregarUma(`${base}${t.arquivo}`).then(px => { carregadas.set(id, px); })
+        // O deslocamento é opcional: sem ele o relevo da textura fica plano.
+        const alt = t.deslocamento ? carregarUma(`${base}${t.deslocamento}`).catch(() => undefined) : Promise.resolve(undefined);
+        p = Promise.all([carregarUma(`${base}${t.arquivo}`), alt]).then(([px, d]) => { metros.set(id, t.metros); if (d) deslocamentos.set(id, d); carregadas.set(id, px); })
           .catch(erro => { console.warn(`Atlas: não consegui carregar a textura ${id}`, erro); })
           .finally(() => { pendentes.delete(id); });
         pendentes.set(id, p);
@@ -80,7 +82,13 @@ export async function garantirTexturas(ids: readonly string[], base = BASE_PADRA
 /** Os pixels de uma textura já carregada, ou `undefined`. Síncrona. */
 export const texturaCarregada = (id: string): Pixels | undefined => carregadas.get(id);
 
+/** A textura pronta para o pintor: a cor, o deslocamento (se houver) e o tamanho real do ladrilho (m). Síncrona. */
+export function texturaPronta(id: string): { cor: Pixels; alt?: Pixels; metros: number } | undefined {
+  const cor = carregadas.get(id), m = metros.get(id);
+  return cor && m ? { cor, alt: deslocamentos.get(id), metros: m } : undefined;
+}
+
 /** Só para testes: esquece tudo. */
-export function _reiniciarTexturas(): void { carregadas.clear(); pendentes.clear(); catalogo = null; promessaDoCatalogo = null; hash = ''; }
+export function _reiniciarTexturas(): void { carregadas.clear(); deslocamentos.clear(); metros.clear(); pendentes.clear(); catalogo = null; promessaDoCatalogo = null; hash = ''; }
 /** Só para testes: define o hash sem rede. */
 export function _definirHashDasTexturas(h: string): void { hash = h; }

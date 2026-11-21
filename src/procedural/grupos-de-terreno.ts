@@ -3,7 +3,7 @@ export interface GrupoDeTerreno { id: string; nome: string; materiais: readonly 
 
 export const GRUPOS_DE_TERRENO: readonly GrupoDeTerreno[] = [
   { id: 'grama', nome: 'Grama', materiais: ['grama', 'grama.acinzentada', 'grama.seca', 'grama.escura'] },
-  { id: 'terra', nome: 'Terra e lama', materiais: ['terra', 'terra.sulcos', 'terra.congelada', 'chao.batido', 'chao.de.mata', 'lama'] },
+  { id: 'terra', nome: 'Terra e lama', materiais: ['terra', 'terra.sulcos', 'terra.congelada', 'chao.batido', 'chao.de.mata', 'musgo', 'lama'] },
   { id: 'areia', nome: 'Areia', materiais: ['areia', 'areia.molhada'] },
   { id: 'pedra', nome: 'Pedra e cascalho', materiais: ['pedregulho', 'cascalho', 'rocha.rachada'] },
   { id: 'calcamento', nome: 'Calçamento', materiais: ['calcada', 'paralelepipedo', 'lajes.gramadas', 'lajes.escuras', 'lajes.antigas', 'piso.hangar'] },
