@@ -1,6 +1,6 @@
 {
   "versao": 1,
-  "hash": "617cfb207b40031d2b42fe5cd2da95ab3918d16f",
+  "hash": "a38bf97c9ff9361f68e0c075608b401151707488",
   "texturas": [
     {
       "id": "brown_mud_dry",
@@ -13,6 +13,18 @@
       "autor": "Rob Tuytel",
       "licenca": "CC0",
       "url": "https://polyhaven.com/a/brown_mud_dry"
+    },
+    {
+      "id": "damp_beach_sand_02",
+      "nome": "damp_beach_sand_02",
+      "arquivo": "damp_beach_sand_02.webp",
+      "deslocamento": "damp_beach_sand_02-alt.webp",
+      "metros": 1.87,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "Dimitrios Savva",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/damp_beach_sand_02"
     },
     {
       "id": "dirt_floor",
@@ -37,6 +49,30 @@
       "autor": "Rob Tuytel, Rico Cilliers",
       "licenca": "CC0",
       "url": "https://polyhaven.com/a/forest_ground_04"
+    },
+    {
+      "id": "grass_ground",
+      "nome": "grass_ground",
+      "arquivo": "grass_ground.webp",
+      "deslocamento": "grass_ground-alt.webp",
+      "metros": 2.51,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "Charlotte Baglioni",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/grass_ground"
+    },
+    {
+      "id": "gravel_floor",
+      "nome": "gravel_floor",
+      "arquivo": "gravel_floor.webp",
+      "deslocamento": "gravel_floor-alt.webp",
+      "metros": 2.25,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "Jenelle van Heerden, Matterfield",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/gravel_floor"
     },
     {
       "id": "ground068",
@@ -73,6 +109,102 @@
       "autor": "Dario Barresi, Dimitrios Savva",
       "licenca": "CC0",
       "url": "https://polyhaven.com/a/leaves_forest_ground"
+    },
+    {
+      "id": "mud_forest",
+      "nome": "mud_forest",
+      "arquivo": "mud_forest.webp",
+      "deslocamento": "mud_forest-alt.webp",
+      "metros": 2.35,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "eye-candy.xyz",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/mud_forest"
+    },
+    {
+      "id": "rocks_ground_02",
+      "nome": "rocks_ground_02",
+      "arquivo": "rocks_ground_02.webp",
+      "deslocamento": "rocks_ground_02-alt.webp",
+      "metros": 2,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "Rob Tuytel",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/rocks_ground_02"
+    },
+    {
+      "id": "rocky_trail",
+      "nome": "rocky_trail",
+      "arquivo": "rocky_trail.webp",
+      "deslocamento": "rocky_trail-alt.webp",
+      "metros": 2,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "Amal Kumar",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/rocky_trail"
+    },
+    {
+      "id": "sand_01",
+      "nome": "sand_01",
+      "arquivo": "sand_01.webp",
+      "deslocamento": "sand_01-alt.webp",
+      "metros": 1.5,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "Rob Tuytel",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/sand_01"
+    },
+    {
+      "id": "snow_01",
+      "nome": "snow_01",
+      "arquivo": "snow_01.webp",
+      "deslocamento": "snow_01-alt.webp",
+      "metros": 2,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "Rob Tuytel",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/snow_01"
+    },
+    {
+      "id": "snow_03",
+      "nome": "snow_03",
+      "arquivo": "snow_03.webp",
+      "deslocamento": "snow_03-alt.webp",
+      "metros": 2,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "Rob Tuytel",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/snow_03"
+    },
+    {
+      "id": "snow010a",
+      "nome": "Snow010A (tamanho real estimado em 2 m)",
+      "arquivo": "snow010a.webp",
+      "deslocamento": "snow010a-alt.webp",
+      "metros": 2,
+      "pxPorMetro": 128,
+      "fonte": "ambientCG",
+      "autor": "ambientCG",
+      "licenca": "CC0",
+      "url": "https://ambientcg.com/view?id=Snow010A"
+    },
+    {
+      "id": "sparse_grass",
+      "nome": "sparse_grass",
+      "arquivo": "sparse_grass.webp",
+      "deslocamento": "sparse_grass-alt.webp",
+      "metros": 2,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "Amal Kumar",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/sparse_grass"
     },
     {
       "id": "stony_dirt_path",
