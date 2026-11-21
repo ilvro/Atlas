@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'preact/hooks';
-import { useSignal } from '@preact/signals';
+import { signal, useSignal } from '@preact/signals';
 import { tocar } from '../fx/som.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { GRUPOS_DE_OBJETOS, type Familia } from '../procedural/familias.ts';
@@ -16,6 +16,7 @@ export function MiniReceita({ id, tamanho = 72 }: { id: string; tamanho?: number
 
 /** Põe um item (a variante) no pincel, junto com a família dele. Mantém rotação, dado e semente. */
 function pegarItem(s: SessaoDeEdicao, id: string, ferramenta = true): void {
+  catalogoAberto.value = false;
   const o = s.pincel.value.objeto;
   if (ferramenta) s.ferramenta.value = 'objeto';
   s.pincel.value = { ...s.pincel.value, objeto: { ...o, item: id, params: {}, familia: ACERVO.familiaDoItem(id)?.id ?? null } };
@@ -64,7 +65,10 @@ export function FamiliaNaMao({ s }: { s: SessaoDeEdicao }) {
       </div>
       <div class="familia-corpo">
         <div class="familia-previa">
-          <MiniReceita id={o.item} tamanho={140} />
+          <button type="button" class="familia-previa-abrir" title="Abrir o catálogo" aria-label="Abrir o catálogo" aria-expanded={catalogoAberto.value}
+            onMouseEnter={() => agendarCatalogo(true, ABRIR_MS)} onMouseLeave={() => agendarCatalogo(false, FECHAR_MS)} onClick={() => { abrirPorClique.value = true; agendarCatalogo(true, 0); }} data-testid="abrir-catalogo">
+            <MiniReceita id={o.item} tamanho={140} /><span class="familia-previa-rotulo">Catálogo</span>
+          </button>
           {n > 1 && <div class="familia-setas">
             <button type="button" class="chip" onClick={() => ir(-1)} aria-label="Variante anterior" data-testid="variante-anterior">‹</button>
             <span data-testid="variante-posicao">{i + 1} / {n}</span>
@@ -124,6 +128,63 @@ export function RecentesEFavoritos({ s }: { s: SessaoDeEdicao }) {
         ))}
         {aba.value === 'recentes' && !itens.length && <p class="dica">Os objetos que você puser aparecem aqui.</p>}
         {aba.value === 'favoritos' && !familias.length && <p class="dica">Toque na estrela da família na mão para fixá-la aqui.</p>}
+      </div>
+    </div>
+  );
+}
+
+/** O catálogo flutuante: abre ao parar o mouse sobre a prévia da família na mão (ou ao clicar nela) e fecha ao sair dele, com Esc ou ao escolher. */
+export const catalogoAberto = signal(false);
+/** Aberto por clique: a busca recebe o foco (por passagem do mouse, não rouba o teclado dos atalhos do mapa). */
+const abrirPorClique = signal(false);
+const ABRIR_MS = 220, FECHAR_MS = 450;
+let relogio: ReturnType<typeof setTimeout> | undefined;
+function agendarCatalogo(abrir: boolean, ms: number): void {
+  clearTimeout(relogio);
+  if (!abrir && !catalogoAberto.peek()) { abrirPorClique.value = false; return; }
+  relogio = setTimeout(() => { catalogoAberto.value = abrir; if (!abrir) abrirPorClique.value = false; }, ms);
+}
+
+export function CatalogoFlutuante({ s }: { s: SessaoDeEdicao }) {
+  const consulta = useSignal(''), busca = useRef<HTMLInputElement>(null), atual = s.pincel.value.objeto;
+  const aberto = catalogoAberto.value;
+  useEffect(() => {
+    if (!aberto) return;
+    if (abrirPorClique.peek()) busca.current?.focus();
+    const tecla = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); clearTimeout(relogio); catalogoAberto.value = false; } };
+    window.addEventListener('keydown', tecla, true);
+    return () => window.removeEventListener('keydown', tecla, true);
+  }, [aberto]);
+  useEffect(() => () => { clearTimeout(relogio); catalogoAberto.value = false; }, []);
+  if (!aberto) return null;
+  const lista = buscarFamilias(consulta.value, null);
+  const buscando = normalizar(consulta.value) !== '';
+  const secoes = buscando ? [{ id: 'busca', nome: `${lista.length} ${lista.length === 1 ? 'família' : 'famílias'}`, itens: lista }]
+    : GRUPOS_DE_OBJETOS.map(g => ({ id: g.id, nome: g.nome, itens: lista.filter(r => r.familia.grupo === g.id) })).filter(x => x.itens.length);
+  // Ficar com o foco na busca segura o catálogo aberto mesmo com o mouse fora.
+  const sair = () => { if (document.activeElement !== busca.current) agendarCatalogo(false, FECHAR_MS); };
+  return (
+    <div class="catalogo-flutuante" role="dialog" aria-label="Catálogo de objetos" data-testid="catalogo-flutuante"
+      onMouseEnter={() => clearTimeout(relogio)} onMouseLeave={sair}>
+      <div class="catalogo-topo">
+        <input ref={busca} class="busca" type="search" placeholder="Buscar no catálogo…" aria-label="Buscar no catálogo" value={consulta.value}
+          onInput={e => { consulta.value = (e.target as HTMLInputElement).value; }} onBlur={e => { const p = (e.currentTarget as HTMLElement).closest('.catalogo-flutuante'); if (p && !p.matches(':hover')) agendarCatalogo(false, FECHAR_MS); }} data-testid="busca-catalogo" />
+        <button type="button" class="botao-icone" aria-label="Fechar o catálogo" title="Fechar (Esc)" onClick={() => { clearTimeout(relogio); catalogoAberto.value = false; }}>✕</button>
+      </div>
+      <div class="catalogo-corpo">
+        {secoes.map(sec => (
+          <section key={sec.id} class="catalogo-secao">
+            <h4 class="faixa pequena">{sec.nome} <span>({sec.itens.length})</span></h4>
+            <div class="catalogo-grade">
+              {sec.itens.map(({ familia, item }) => (
+                <button type="button" key={familia.id} class={`receita ${atual.familia === familia.id ? 'ativa' : ''}`} onClick={() => pegarItem(s, item)} title={`${familia.nome} · ${familia.itens.length} ${familia.itens.length === 1 ? 'variante' : 'variantes'}`} data-testid={`catalogo-${familia.id}`}>
+                  <MiniReceita id={item} /><span>{familia.nome}</span>{familia.itens.length > 1 && <i class="selo-variantes">{familia.itens.length}</i>}
+                </button>
+              ))}
+            </div>
+          </section>
+        ))}
+        {!lista.length && <p class="dica">Nada com “{consulta.value}”.</p>}
       </div>
     </div>
   );

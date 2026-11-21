@@ -2491,6 +2491,19 @@ body.projetor { overflow: hidden; background: #000; }
 .familia-corpo { display: flex; gap: 8px; align-items: flex-start; }
 .familia-previa { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: none; padding: 4px; border: 1px solid var(--linha); border-radius: 8px; background: var(--superficie); }
 .familia-previa .mini-receita { width: 105px; height: 105px; }
+.familia-previa-abrir { position: relative; display: block; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 6px; }
+.familia-previa-rotulo { position: absolute; inset: auto 0 6px; margin: 0 auto; width: max-content; padding: 2px 8px; border-radius: 4px; background: rgba(0, 0, 0, 0.62); color: #fff; font: 700 11px var(--corpo); opacity: 0; transition: opacity 0.12s; pointer-events: none; }
+.familia-previa-abrir:hover .familia-previa-rotulo, .familia-previa-abrir:focus-visible .familia-previa-rotulo, .familia-previa-abrir[aria-expanded="true"] .familia-previa-rotulo { opacity: 1; }
+.familia-previa-abrir:hover .mini-receita { filter: brightness(0.85); }
+/* O catálogo completo, flutuando ao lado da gaveta (como o do Inkarnate). */
+.biblioteca { position: relative; }
+.catalogo-flutuante { position: absolute; top: 8px; bottom: 8px; left: calc(100% + 6px); z-index: 40; width: 440px; max-width: calc(100vw - 300px); display: flex; flex-direction: column; background: linear-gradient(var(--painel), var(--painel)), var(--fundo); border: 1px solid var(--linha-forte); border-radius: 10px; box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55); animation: gaveta-entra 0.14s ease-out; }
+.catalogo-topo { display: flex; gap: 6px; align-items: center; padding: 10px 10px 0 12px; flex: none; }
+.catalogo-topo .busca { margin: 0; }
+.catalogo-corpo { flex: 1; min-height: 0; overflow: auto; padding: 8px 12px 14px; }
+.catalogo-secao h4 { margin: 10px 0 6px; }
+.catalogo-secao h4 span { color: var(--apagado); font-weight: 400; }
+.catalogo-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; }
 .familia-setas { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--apagado); }
 .familia-setas .chip { padding: 1px 8px; }
 .familia-variantes { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 4px; max-height: 150px; overflow-y: auto; }
