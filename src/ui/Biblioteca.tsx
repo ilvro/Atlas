@@ -15,7 +15,7 @@ import { TODOS_OS_CONJUNTOS } from '../authoring/espalhar.ts';
 import { Amostra, CampoMaterial } from './campos-material.tsx';
 import { Icone } from './Icone.tsx';
 import { PropriedadesDoObjeto } from './PropriedadesDoObjeto.tsx';
-import { CatalogoDeFamilias, FamiliaNaMao, RecentesEFavoritos } from './FamiliaNoPincel.tsx';
+import { CatalogoDeFamilias, CatalogoFlutuante, FamiliaNaMao, RecentesEFavoritos } from './FamiliaNoPincel.tsx';
 
 function mudar(s: SessaoDeEdicao, patch: Partial<Pincel>): void { s.pincel.value = { ...s.pincel.value, ...patch }; tocar('selecionar'); }
 
@@ -208,6 +208,7 @@ export function Biblioteca({ s }: { s: SessaoDeEdicao }) {
         {f === 'comodo' && <Comodos s={s} />}{f === 'objeto' && <><Objetos s={s} /><h3 class="faixa pequena">Pistas do Ateliê</h3><Pistas s={s} /></>}{f === 'luz' && <Luzes s={s} />}
         {f === 'abertura' && <Aberturas s={s} />}{f === 'parede' && <Paredes s={s} />}{f === 'terreno' && <Terreno s={s} />}{f === 'presenca' && <Presenca s={s} />}{f === 'espalhar' && <Espalhar s={s} />}
       </div>
+      {f === 'objeto' && <CatalogoFlutuante s={s} />}
     </aside>
   );
 }
