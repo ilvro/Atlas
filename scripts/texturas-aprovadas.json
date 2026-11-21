@@ -6,5 +6,16 @@
   { "id": "brown_mud_dry", "pasta": "brown_mud_dry", "fonte": "Poly Haven", "autor": "Rob Tuytel", "metros": 1.3, "url": "https://polyhaven.com/a/brown_mud_dry", "licenca": "CC0" },
   { "id": "leafy_grass", "pasta": "leafy_grass", "fonte": "Poly Haven", "autor": "Charlotte Baglioni", "metros": 2, "url": "https://polyhaven.com/a/leafy_grass", "licenca": "CC0" },
   { "id": "withered_grass", "pasta": "withered_grass", "fonte": "Poly Haven", "autor": "Charlotte Baglioni", "metros": 2, "url": "https://polyhaven.com/a/withered_grass", "licenca": "CC0" },
-  { "id": "ground068", "pasta": "Ground068", "fonte": "ambientCG", "autor": "ambientCG", "metros": 1.5, "estimado": true, "url": "https://ambientcg.com/view?id=Ground068", "licenca": "CC0" }
+  { "id": "ground068", "pasta": "Ground068", "fonte": "ambientCG", "autor": "ambientCG", "metros": 1.5, "estimado": true, "url": "https://ambientcg.com/view?id=Ground068", "licenca": "CC0" },
+  { "id": "grass_ground", "pasta": "grass_ground", "fonte": "Poly Haven", "autor": "Charlotte Baglioni", "metros": 2.51, "url": "https://polyhaven.com/a/grass_ground", "licenca": "CC0" },
+  { "id": "sparse_grass", "pasta": "sparse_grass", "fonte": "Poly Haven", "autor": "Amal Kumar", "metros": 2, "url": "https://polyhaven.com/a/sparse_grass", "licenca": "CC0" },
+  { "id": "mud_forest", "pasta": "mud_forest", "fonte": "Poly Haven", "autor": "eye-candy.xyz", "metros": 2.35, "url": "https://polyhaven.com/a/mud_forest", "licenca": "CC0" },
+  { "id": "sand_01", "pasta": "sand_01", "fonte": "Poly Haven", "autor": "Rob Tuytel", "metros": 1.5, "url": "https://polyhaven.com/a/sand_01", "licenca": "CC0" },
+  { "id": "damp_beach_sand_02", "pasta": "damp_beach_sand_02", "fonte": "Poly Haven", "autor": "Dimitrios Savva", "metros": 1.87, "url": "https://polyhaven.com/a/damp_beach_sand_02", "licenca": "CC0" },
+  { "id": "gravel_floor", "pasta": "gravel_floor", "fonte": "Poly Haven", "autor": "Jenelle van Heerden, Matterfield", "metros": 2.25, "url": "https://polyhaven.com/a/gravel_floor", "licenca": "CC0" },
+  { "id": "rocks_ground_02", "pasta": "rocks_ground_02", "fonte": "Poly Haven", "autor": "Rob Tuytel", "metros": 2, "url": "https://polyhaven.com/a/rocks_ground_02", "licenca": "CC0" },
+  { "id": "snow_01", "pasta": "snow_01", "fonte": "Poly Haven", "autor": "Rob Tuytel", "metros": 2, "url": "https://polyhaven.com/a/snow_01", "licenca": "CC0" },
+  { "id": "snow_03", "pasta": "snow_03", "fonte": "Poly Haven", "autor": "Rob Tuytel", "metros": 2, "url": "https://polyhaven.com/a/snow_03", "licenca": "CC0" },
+  { "id": "rocky_trail", "pasta": "rocky_trail", "fonte": "Poly Haven", "autor": "Amal Kumar", "metros": 2, "url": "https://polyhaven.com/a/rocky_trail", "licenca": "CC0" },
+  { "id": "snow010a", "pasta": "Snow010A", "fonte": "ambientCG", "autor": "ambientCG", "metros": 2, "estimado": true, "url": "https://ambientcg.com/view?id=Snow010A", "licenca": "CC0" }
 ]

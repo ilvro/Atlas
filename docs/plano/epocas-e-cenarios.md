@@ -134,7 +134,7 @@ Commit: `object parts and water can glow above the light map`
 
 Todas as fichas deste bloco seguem o método da Frente P: prancha a 32 px/m ao lado de uma referência na mesma escala, `tingir` só no matiz, luminância da paleta, carimbos com nanquim e a tag `rasteira` no que se repete de propósito.
 
-### Q5 — Curadoria de texturas: lote 2 e biomas novos  ⬜ **[Opus]**
+### Q5 — Curadoria de texturas: lote 2 e biomas novos  ✅ **[Opus]**
 Objetivo: escolher as texturas CC0 de todos os terrenos deste bloco, numa prancha aprovada pelo usuário.
 Depende de: —.
 Ler: a seção "Curadoria (P1)" de [terreno-com-textura.md](terreno-com-textura.md) (formato da prancha e da tabela), `scripts/texturas-aprovadas.json`.
@@ -148,13 +148,14 @@ Não fazer: preparar ou ligar texturas.
 Pronto quando: a prancha está em `test-results/q5-texturas.png` e o usuário aprovou a tabela.
 Commit: — (só documentação; entra no commit da Q6 junto com `texturas-aprovadas.json`)
 
-### Q6 — Lote 2 com textura  ⬜ **[Opus]**
+### Q6 — Lote 2 com textura  ✅ **[Opus]**
 Objetivo: os onze materiais do lote 2 da Frente P passam a ser pintados com textura.
 Depende de: Q5.
 Arquivos: `scripts/texturas-aprovadas.json`, `public/colecao/texturas/`, `LICENCAS.md`, `src/procedural/materiais.ts` (`textura` dos onze).
 Como: o mesmo fluxo da P4/P5. A neve pisada leva uma camada de pegadas em manchas; a lama leva poças com `areia.molhada` por máscara.
 Pronto quando: a prancha dos onze materiais, ao lado da do lote 1, não destoa em tom nem em escala; `npm test` passa (inclusive a regra `repeticao`).
 Commit: `second terrain batch is painted from cc0 textures`
+Nota: `tingir` 1 é só a paleta; a grama acinzentada pede 0,92, e as neves, 0,15 (a foto já é neutra). O cascalho a 32 px/m perde o grão: virou `gravel_floor` a 2,2× com manchas de `rocks_ground_02`. A neve pisada usa manchas de `snow_03` no lugar da camada de pegadas. A prancha sai de `node scripts/dev/prancha-terreno.ts [materiais…]` (tarde e noite, quadros de 6 m), que também serve às Q7–Q9.
 
 ### Q7 — Deserto e campo  ⬜ **[Opus]**
 Objetivo: terrenos de deserto e de lavoura.
@@ -335,3 +336,39 @@ Depende de: Q4, Q12, Q21, E4.
 ## Validação da frente
 
 Ao fim de tudo: uma prancha com os nove exemplos novos lado a lado; a biblioteca, num mapa de cada gênero, não mostra nada de outra época (salvo os atemporais); `npm run typecheck`, `npm test` e `npm run test:e2e` passam; o tempo de carregamento de um mapa grande não fica pior que o da Frente M (as texturas novas são pré-carregadas só quando usadas).
+
+---
+
+## Curadoria (Q5)
+
+Levantada em 2026-11-20 e aprovada pelo usuário no mesmo dia. A prancha está em `test-results/q5-texturas.png`: cada candidata a 32 px/m sobre 4 × 4 m, mostrada a 2×, com as cores cruas. Os originais (1K) ficam em `data-private/texturas-fonte/`, fora do git. Todas são CC0. A escolha pesa pela estrutura, porque o tom vem da paleta.
+
+| material | ficha | escolhida | tamanho | alternativa | observação |
+| --- | --- | --- | --- | --- | --- |
+| `grama.escura` | Q6 | `grass_ground` | 2,51 m | `sparse_grass` | grão de grama sem padrão |
+| `grama.acinzentada` | Q6 | `sparse_grass` | 2 m | — | o cinza vem da paleta |
+| `lama` | Q6 | `mud_forest` | 2,35 m | `brown_mud` | úmida, com detritos |
+| `areia` | Q6 | `sand_01` | 1,5 m | `dense_sand` | `park_sand` é lisa demais |
+| `areia.molhada` | Q6 | `damp_beach_sand_02` | 1,87 m | `damp_sand` | ondulação de maré |
+| `cascalho` | Q6 | `gravel_floor` | 2,25 m | `rocky_gravel` | |
+| `pedregulho` | Q6 | `rocks_ground_02` | 2 m | `river_small_rocks` | o ladrilho aparece: depende da amostragem sem repetição |
+| `neve` | Q6 | `snow_01` | 2 m | `Snow006` | `snow_02` repete pegadas |
+| `neve.funda` | Q6 | `Snow010A` | 2 m (estimado) | — | `snow_04` tem rastro de pneu |
+| `neve.pisada` | Q6 | `snow_03` | 2 m | `Footsteps001` (camada) | `snow_05` tem rastro de pneu |
+| `terra.congelada` | Q6 | `rocky_trail` | 2 m | — | |
+| `areia.duna` | Q7 | `Ground054` | 2 m (estimado) | `sand_02` | as ondulações das dunas são procedurais e seguem o `dir` |
+| `terra.rachada` | Q7 | `dry_ground_01` | 4 m | `mud_cracked_dry_03` | |
+| `salina` | Q7 | `mud_cracked_dry_03` | 1,5 m | — | tingida de branco |
+| `laterita` | Q7 | `red_dirt_mud_01` | 1,5 m | `red_laterite_soil_stones` | |
+| `terra.arada` | Q7 | `farm_soil` | 2 m | — | os sulcos são procedurais; `farm_furrows` tem direção fixa |
+| `chao.de.selva` | Q8 | `brown_mud_leaves_01` | 1,3 m | `forrest_ground_03` | |
+| `folhas.outono` | Q8 | `ScatteredLeaves007` | 1,5 m (estimado) | `forest_floor` | traz opacidade: é a camada com máscara |
+| `grama.outono` | Q8 | `dry_decay_leaves` | 2 m | `winter_leaves` | |
+| `asfalto` | Q8 | `worn_asphalt` | 2 m | `asphalt_02` | |
+| `asfalto.rachado` | Q8 | `road_damaged` | 2,2 m | `asphalt_02` | |
+| `concreto.calcada` | Q8 | `concrete_pavement` | 1,8 m | `concrete_pavers_02` | |
+| `cinza.vulcanica` | Q9 | `moon_02` | 3,1 m | `burned_ground_01` | `burned_ground_01` repete a cada 1 m |
+| `chao.de.fungos` | Q9 | `mud_forest` | 2,35 m | `roots` | os fungos entram por carimbo |
+| crosta de `agua.lava` | Q9 | `Lava001` | 3 m (estimado) | `Lava004` | fendas acesas: base da máscara de brilho |
+
+Ficam procedurais: `basalto` (colunas hexagonais com o Voronoi, sobre o grão de `dark_rock_02`), `cristal.chao` e `grama.florida` (grama atual mais o carimbo de flores).
