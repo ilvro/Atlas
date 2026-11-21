@@ -29,7 +29,7 @@ Portes típicos: cabana de 15 a 30 m² (1 ou 2 cômodos); casa de família de 35
 
 - **Edifício = 2 a 4 retângulos**: corpo principal + anexo (cozinha, depósito, oficina) + alpendre ou varanda. Formas em L, T e U; casas geminadas dividem parede. Use várias `rets` em `atlas_comodos` para o L, e cômodos vizinhos para os anexos.
 - Gire as plantas: a frente vira para a rua, não para o norte do mapa.
-- Telhados (`telhado`): 1 estilo dominante na região + 1 ou 2 variações; edifícios especiais com estilo próprio (`igreja`, `torre`, `celeiro`). Lista em `atlas_catalogo { parte: "telhado" }`.
+- Telhados (`telhado`): 1 estilo dominante na região + 1 ou 2 variações; edifícios especiais com estilo próprio (`igreja`, `torre`, `celeiro`, `pagode`, `estufa`, `palacio-de-marmore`, `puxado` para anexos mais baixos). Varie a conservação com `telhadoEstado` (`novo`, `gasto`, `velho`, `abandonado`, `em-ruinas`) ou `telhadoDesgaste` (`moss`, `dirt`, `damage`, `snow`), e posicione portas e janelas na parede sul (`+y`) quando quiser evidenciar a fachada fechada. Lista completa em `atlas_catalogo { parte: "telhado" }`.
 - **Composição do mapa:** as massas grandes (mata, rocha, água, a própria vila) **saem pela borda**; prefira diagonais; ocupe 60 a 75% do retângulo. Um oval de coisas no meio, com margem igual dos quatro lados, é o sinal de mapa amador.
 - **Profundidade em camadas:** alterne ao menos 2 a 3 degraus de altura (via `relevo` em patamares ou `rocha.*` maciço + `cliff` sequencial); nunca deixe apenas um plano liso entre a vila/caminho e o abismo ou encosta.
 

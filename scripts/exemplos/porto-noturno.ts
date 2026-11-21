@@ -9,7 +9,7 @@ export const portoNoturno: Exemplo = {
   altura: 36,
   semente: 1077,
   construir(k) {
-    k.estilo({ genre: 'fantasia', palette: 'fantasia-pedra' });
+    k.estilo({ genre: 'fantasia', palette: 'fantasia-pedra', facades: true });
     k.fundo({ kind: 'solid', color: '#091622' });
     k.base('areia.molhada');
 
@@ -165,15 +165,94 @@ export const portoNoturno: Exemplo = {
       telhadoVisivel: false,
     });
 
-    // Portas principais
+    // Variedade de formas, estados/desgaste e fachadas externas para os edifícios do porto
+    k.aplicar(() => ({
+      ids: [],
+      comandos: [
+        {
+          tipo: 'comodo.atualizar',
+          id: 'telhado-oeste',
+          patch: {
+            wallFace: 'parede.reboco',
+            roof: { shape: 'duas-aguas', ridge: 'v', details: ['chamine'], wear: { moss: 0.22, dirt: 0.35, damage: 0.08, snow: 'auto' } },
+          },
+        },
+        {
+          tipo: 'comodo.atualizar',
+          id: 'telhado-leste',
+          patch: {
+            wallFace: 'parede.alvenaria',
+            roof: { material: 'telha.francesa', shape: 'mansarda', details: ['chamine'], wear: { moss: 0.18, dirt: 0.32, damage: 0.06, snow: 'auto' } },
+          },
+        },
+        ...(['estalagem-quarto-norte', 'estalagem-quarto-sul', 'estalagem-atrio', 'estalagem-jantar', 'estalagem-gabinete', 'estalagem-quarto-leste'] as const).map(
+          (id, idx) => ({
+            tipo: 'comodo.atualizar' as const,
+            id,
+            patch: {
+              wallFace: 'parede.alvenaria',
+              roof: {
+                material: 'telha.barro',
+                shape: 'quatro-aguas' as const,
+                ...(idx === 0 ? { details: ['chamine' as const] } : {}),
+                wear: { moss: 0.32, dirt: 0.42, damage: 0.12, snow: 'auto' as const },
+              },
+            },
+          }),
+        ),
+        ...(['guilda-quarto-1', 'guilda-quarto-2', 'guilda-atrio', 'guilda-cartografia', 'guilda-tesouraria'] as const).map(
+          (id, idx) => ({
+            tipo: 'comodo.atualizar' as const,
+            id,
+            patch: {
+              wallFace: 'parede.reboco',
+              roof: {
+                material: 'telha.ardosia',
+                shape: 'mansarda' as const,
+                ...(idx === 0 ? { details: ['chamine' as const] } : {}),
+                wear: { moss: 0.16, dirt: 0.28, damage: 0.05, snow: 'auto' as const },
+              },
+            },
+          }),
+        ),
+        {
+          tipo: 'comodo.atualizar',
+          id: 'armazem-alfandega',
+          patch: {
+            wallFace: 'parede.alvenaria',
+            roof: { material: 'telha.ardosia', shape: 'duas-aguas', ridge: 'v', details: ['claraboia'], wear: { moss: 0.42, dirt: 0.48, damage: 0.16, snow: 'auto' } },
+          },
+        },
+        {
+          tipo: 'comodo.atualizar',
+          id: 'oficina-naval',
+          patch: {
+            wallFace: 'parede.alvenaria',
+            roof: { material: 'telha.zinco', shape: 'uma-agua', ridge: 'h', details: ['chamine'], wear: { moss: 0.28, dirt: 0.5, damage: 0.18, snow: 'auto' } },
+          },
+        },
+      ],
+    }));
+
+    // Portas principais (incluindo fachadas frontais +y)
     for (const p of [
       [11.25, 3.0], [11.25, 13.5], [10.5, 5.25], [10.5, 9.75],
       [13.5, 5.25], [13.5, 9.75], [18.0, 9.75],
       [45.0, 3.0], [45.0, 12.0], [43.5, 5.25], [43.5, 9.75],
       [46.5, 5.25], [46.5, 9.75],
-      [9.0, 19.5], [15.0, 25.5], [40.5, 16.5], [36.0, 19.5],
+      [9.0, 19.5], [15.0, 25.5], [9.0, 31.5],
+      [40.5, 16.5], [36.0, 19.5], [40.5, 22.5],
     ] as const) {
       k.porta([p[0], p[1]], 'door', { state: 'open' });
+    }
+    // Janelas nas fachadas frontais (+y)
+    for (const j of [
+      [6.0, 12.0], [9.0, 12.0], [15.0, 12.0], [19.5, 12.0],
+      [39.0, 12.0], [42.0, 12.0], [48.0, 12.0], [52.5, 12.0],
+      [5.25, 31.5], [12.75, 31.5],
+      [37.5, 22.5], [43.5, 22.5],
+    ] as const) {
+      k.porta([j[0], j[1]], 'window', { width: 1.05 });
     }
 
     // Mobiliário interno da Estalagem, da Guilda, do Armazém e da Oficina
