@@ -37,7 +37,7 @@ import { criarAgua } from './agua.ts';
 import { criarCachoeiras } from './cachoeiras.ts';
 import { criarContatoExterno } from './contato-externo.ts';
 import { criarTempoNoChao } from './tempo-no-chao.ts';
-import { criarSombrasDoSol } from './sombras-do-sol.ts';
+import { criarSombrasDoSol, ehSombraProjetada } from './sombras-do-sol.ts';
 
 export interface OpcoesDaCena {
   baker: Baker;
@@ -556,6 +556,8 @@ export function criarCena(op: OpcoesDaCena): Cena {
       const pedido = pedidoDoObjeto(o, res, m.style.genre, m.style.renderer, opcoesDoPixel(m));
       if (pedido) pintar(entrada, chave, pedido, (sp, r) => {
         sp.position.set(r.origem[0], r.origem[1]); sp.scale.set(1 / r.res);
+        // Sombra projetada: a textura só serve à camada das sombras do sol; o objeto em si não aparece.
+        sp.alpha = ehSombraProjetada(o) ? 0 : 1;
         if (espelharImagem(mapa?.props[id] as Objeto | undefined)) { sp.position.x = -sp.position.x; sp.scale.x = -sp.scale.x; }
         cenaDeAltura.sincronizarObjetos(objetos, objetosC);
       }, 1);

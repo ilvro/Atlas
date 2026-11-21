@@ -127,7 +127,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('religiao', 'lapide', 'Lápide', ['lapide', 'cruz.madeira', 'cruz.pedra']),
   f('religiao', 'tumulo', 'Túmulo', ['cova', 'cova.aberta', 'tumulo']),
   f('religiao', 'sarcofago', 'Sarcófago e jazigo', ['caixao', 'sarcofago', 'jazigo']),
-  f('religiao', 'estatua', 'Estátua', ['estatua', 'estatua-heroica', 'anjo', 'imagem-de-santo', 'urna.pedestal']),
+  f('religiao', 'estatua', 'Estátua', ['estatua', 'estatua-heroica', 'anjo', 'imagem-de-santo', 'urna.pedestal', 'sombra-de-colosso']),
   f('religiao', 'sino', 'Sino', ['sino']),
   f('religiao', 'orgao-de-tubos', 'Órgão de tubos', ['orgao-de-tubos']),
   f('religiao', 'crucifixo', 'Adorno de igreja', ['crucifixo', 'icone.parede', 'vitral', 'pia-de-agua-benta']),

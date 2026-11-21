@@ -15,11 +15,20 @@ import { entradaDoComodo } from '../../src/render/entradas.ts';
 const partes = (id: string, params: Record<string, unknown> = {}, seed = 3): Parte[] => { const d = descreverReceita(id, { seed, params }); return d.tipo === 'piso' ? d.partes : [...d.face, ...d.topo]; };
 
 test('as receitas da praça existem, são de exterior e respeitam os limites dos campos', () => {
-  assert.deepEqual(RECEITAS_DA_PRACA.map(r => r.id), ['arquibancada', 'roseta-de-calcamento', 'arco-de-pedra', 'estatua-heroica', 'muralha-em-degraus', 'fosso-de-luz', 'tablado', 'andaime', 'casulo']);
-  for (const r of RECEITAS_DA_PRACA) { assert.equal(RECEITAS[r.id], r); assert.equal(r.categoria, 'exterior'); assert.ok(partes(r.id).length > 5, r.id); }
+  assert.deepEqual(RECEITAS_DA_PRACA.map(r => r.id), ['arquibancada', 'roseta-de-calcamento', 'arco-de-pedra', 'estatua-heroica', 'sombra-de-colosso', 'muralha-em-degraus', 'fosso-de-luz', 'tablado', 'andaime', 'casulo']);
+  for (const r of RECEITAS_DA_PRACA) { assert.equal(RECEITAS[r.id], r); assert.equal(r.categoria, 'exterior'); if (r.id !== 'sombra-de-colosso') assert.ok(partes(r.id).length > 5, r.id); }
   assert.deepEqual(pegadaDaReceita('roseta-de-calcamento', { raio: 99 }), [18, 18]);
   assert.deepEqual(pegadaDaReceita('casulo', { tamanho: 3 }), [3, 3.75]);
   assert.equal(pegadaDaReceita('arco-de-pedra', { largura: 4 })[0], 5.8);
+});
+
+test('a sombra de colosso é um contorno só, macio, marcado como sombra projetada e dentro da pegada', () => {
+  const ps = partes('sombra-de-colosso', { comprimento: 40 }), [w, h] = pegadaDaReceita('sombra-de-colosso', { comprimento: 40 });
+  assert.equal(ps.length, 1);
+  assert.ok(ps[0]!.desfoque! > 0 && ps[0]!.semSombra);
+  assert.ok(RECEITAS['sombra-de-colosso']!.tags.includes('sombra-projetada'));
+  assert.equal(h, 40);
+  for (let i = 0; i < ps[0]!.pts!.length; i += 2) { assert.ok(Math.abs(ps[0]!.pts![i]!) <= w / 2); assert.ok(Math.abs(ps[0]!.pts![i + 1]!) <= h / 2 + 0.3); }
 });
 
 test('a arquibancada sobe para fora: a fileira externa é mais alta e a pegada cabe as partes', () => {
