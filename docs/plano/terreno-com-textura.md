@@ -75,7 +75,7 @@ Testes: `validarCatalogo` recusa licença diferente de CC0, `metros <= 0` e id r
 Pronto quando: `npm run texturas` gera os ladrilhos e o catálogo, e os testes passam.
 Commit: `ground textures are prepared as tiles with catalog and licenses`
 
-### P3 — Amostragem sem repetição e mapa de gradiente (Sonnet)  ⬜
+### P3 — Amostragem sem repetição e mapa de gradiente (Sonnet)  ✅
 Objetivo: as funções puras que leem uma textura em metros, escondem a repetição e puxam a cor para a paleta.
 Depende de: —.
 Ler: `src/procedural/ruido.ts` (`valueNoise2D`, `fbm`, `campoDeRuido`); `src/procedural/materiais.ts:380-435` (`porPixel`, `mez`, `rumo`).

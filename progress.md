@@ -682,3 +682,8 @@ A Fase 9 está concluída. A Fase 6 está concluída, menos a 6.2b (importar os 
 ## Frente O — Biblioteca por famílias
 
 - **O4 (2026-11-20):** a gaveta de Objetos navega por grupo → família → variante (`src/ui/FamiliaNoPincel.tsx`): família na mão com prévia grande, setas ‹ n / N ›, miniaturas das variantes, dado (`varianteAleatoria`) e "Variar o desenho"; catálogo com busca, chips de grupo e grade de famílias. Os chips de `CATEGORIAS` saíram da gaveta. `pedirPrevia` aceita `res`. e2e da fase 6 ajustado para buscar a família.
+
+## Frente P — Terreno com textura
+
+- **P1 e P2 (2026-11-20):** texturas CC0 do lote 1 escolhidas (curadoria em `docs/plano/terreno-com-textura.md`) e preparadas como ladrilhos WebP a 128 px/m com catálogo, hash e licenças (`npm run texturas`).
+- **P3 (2026-11-20):** `src/procedural/textura-de-terreno.ts`: leitura bilinear em metros, mistura de duas leituras (girada e deslocada) contra a repetição, peso de camada por máscara de ruído e mapa de gradiente para a paleta.
