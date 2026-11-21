@@ -37,6 +37,8 @@ export interface Assado {
   altura?: Tela | null;
   /** Tela de normal (RG = N.xy * 0,5 + 0,5, B = AO, A = alfa) alinhada à `tela`, usada pelos telhados. */
   normal?: Tela | null;
+  /** Tela da fachada sob o beiral frontal (+y), alinhada à mesma origem e resolução do telhado. */
+  fachada?: Tela | null;
   /** Canto superior esquerdo da tela, em metros (no espaço local do objeto, ou do mundo para cômodos e terreno). */
   origem: Ponto;
   res: number;

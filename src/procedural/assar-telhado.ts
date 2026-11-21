@@ -23,6 +23,7 @@ import {
 } from './desgaste-de-telhado.ts';
 import { descricaoDoDetalhe, posicoesDosDetalhes, type PosicaoDeDetalhe } from './detalhes-de-telhado.ts';
 import type { EstiloDeRaster, IdDoEstilo } from './estilos/index.ts';
+import { assarFachada } from './fachada.ts';
 import { materialDe, type Material } from './materiais.ts';
 import { hash2D } from './ruido.ts';
 
@@ -37,6 +38,8 @@ export interface ParedeExternaDoTelhado {
   path: Ponto[];
   height: number;
   material: string;
+  /** Material resolvido para a face externa da fachada (nunca `'parede.topo'`). */
+  wallFace?: string;
   aberturas: {
     tipo: 'door' | 'window' | 'arch' | 'secret';
     centro: Ponto;
@@ -85,10 +88,12 @@ export interface DadosDoTelhado {
   origem: Ponto;
   res: number;
   detalhes: DetalheResolvido[];
+  campo?: CampoDoTelhado;
 }
 
 export interface AssadoDeTelhado extends Assado {
   normal?: Tela | null;
+  fachada?: Tela | null;
 }
 
 const lim = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -928,7 +933,7 @@ export function amostrarTelhado(
     comporDetalhesPuro(cor, normal, W, H, x0, y0, res, detalhes, e.sol, pixel);
   }
 
-  return { largura: W, altura: H, cor, normal, origem: [x0, y0], res, detalhes };
+  return { largura: W, altura: H, cor, normal, origem: [x0, y0], res, detalhes, campo };
 }
 
 /**
@@ -1110,5 +1115,9 @@ export function assarTelhado(e: EntradaDoTelhado, res: number, estilo: EstiloDeR
     comporDetalhesNaTela(tela, normal, dados.origem[0], dados.origem[1], res, dados.detalhes, e.sol, estilo);
   }
 
-  return { tela, altura: null, normal, origem: dados.origem, res };
+  const fachada = e.paredes?.length && dados.campo
+    ? assarFachada(e, dados.campo, dados.origem, dados.largura, dados.altura, res, estilo)
+    : null;
+
+  return { tela, altura: null, normal, fachada, origem: dados.origem, res };
 }

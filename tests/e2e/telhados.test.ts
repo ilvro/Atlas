@@ -408,3 +408,102 @@ test('telhado iluminado pela cena: noite escura, lampião da rua clareia borda, 
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+async function corMediaTela(p: Page, a: [number, number], b: [number, number]): Promise<[number, number, number]> {
+  const [x0, y0] = await clientDe(p, a), [x1, y1] = await clientDe(p, b);
+  const png = await p.screenshot({
+    clip: { x: Math.min(x0, x1), y: Math.min(y0, y1), width: Math.max(1, Math.abs(x1 - x0)), height: Math.max(1, Math.abs(y1 - y0)) },
+  });
+  return p.evaluate(async (base64: string) => {
+    const bmp = await createImageBitmap(await (await fetch(`data:image/png;base64,${base64}`)).blob());
+    const c = new OffscreenCanvas(bmp.width, bmp.height);
+    const g = c.getContext('2d')!;
+    g.drawImage(bmp, 0, 0);
+    const d = g.getImageData(0, 0, bmp.width, bmp.height).data;
+    let r = 0, gr = 0, bl = 0;
+    const n = d.length / 4;
+    for (let i = 0; i < d.length; i += 4) { r += d[i]!; gr += d[i + 1]!; bl += d[i + 2]!; }
+    return [r / n, gr / n, bl / n] as [number, number, number];
+  }, png.toString('base64'));
+}
+
+const distCor = (a: readonly [number, number, number], b: readonly [number, number, number]): number =>
+  Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+test('fachada sob o beiral: mostra parede, porta e janela com telhado fechado, desliga com facades: false e fica atrás das peças', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await sessao(page, `(s, a) => {
+    const cel = []; for (let y = 4; y < 7; y++) for (let x = 6; x < 10; x++) cel.push([x, y]);
+    s.store.executar({ tipo: "terreno.base", material: "areia" });
+    s.store.executar({ tipo: "clima.aplicar", patch: { preset: "tarde", time: "12:00", ambient: { color: "#ffffff", intensity: 1 }, sun: { angle: -1.57, color: "#fff8e8", intensity: 0.9 } } });
+    s.store.executar({ tipo: "acabamento.atualizar", patch: { preset: "nenhum", texture: 0, vignette: 0, saturation: 1, grain: 0, tint: "#ffffff" } });
+    s.store.executar({ tipo: "comodo.criar", id: "casa", nome: "Casa", funcao: "sala", piso: { material: "madeira.tabuas", seed: 1 }, papel: null, telhado: "telha.barro", celulas: cel });
+    s.store.executar({ tipo: "comodo.atualizar", id: "casa", patch: { wallFace: "parede.tabuas", roof: { shape: "duas-aguas", ridge: "h", details: [] } } });
+    const doc = s.doc.value;
+    const paredeSul = Object.values(doc.walls).find(w => w.path.length >= 2 && w.path.every(p => Math.abs(p[1] - 10.5) < 0.05));
+    if (!paredeSul) throw new Error("Parede sul não encontrada");
+    const p0x = paredeSul.path[0][0], p1x = paredeSul.path[paredeSul.path.length - 1][0];
+    const atParaX = (x) => (x - p0x) / (p1x - p0x);
+    s.store.executar({ tipo: "abertura.adicionar", abertura: {
+      id: "ab-porta", wallId: paredeSul.id, kind: "door", at: atParaX(10.8), width: 1.1,
+      state: "closed", swing: "a", material: "madeira.escura", som: null
+    } });
+    s.store.executar({ tipo: "abertura.adicionar", abertura: {
+      id: "ab-janela", wallId: paredeSul.id, kind: "window", at: atParaX(13.2), width: 1.1,
+      state: "closed", swing: "a", material: "madeira.media", som: null
+    } });
+    s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.fora });
+    s.store.executar({ tipo: "sessao.revelar", ids: ["casa"] });
+  }`, { fora: peca('p1', 'Fora', 6.0, 13.5) });
+  await page.waitForTimeout(900);
+
+  await page.click('[data-testid="modo-sessao"]');
+  await page.waitForTimeout(300);
+  await page.click('[data-testid="vista-jogador"]');
+  await page.waitForTimeout(3200);
+
+  // Casa vai de x: 9..15, y: 6..10.5; beiral sul em y = 10.75; faixa da fachada em y = 10.75..11.65.
+  const faixaParede: [[number, number], [number, number]] = [[11.6, 10.9], [12.4, 11.5]];
+  const faixaJanela: [[number, number], [number, number]] = [[12.9, 10.95], [13.5, 11.4]];
+  const chaoLivre: [[number, number], [number, number]] = [[11.0, 13.0], [13.0, 14.0]];
+
+  const corChao = await corMediaTela(page, ...chaoLivre);
+  const corFachada = await corMediaTela(page, ...faixaParede);
+  const corJanela = await corMediaTela(page, ...faixaJanela);
+
+  // 1) Com facades ligado (padrão), a faixa abaixo do beiral difere claramente do chão livre e a janela difere do chão.
+  const dFachadaChao = distCor(corFachada, corChao);
+  const dJanelaChao = distCor(corJanela, corChao);
+  assert.ok(dFachadaChao > 35, `fachada sob o beiral (${corFachada.map(v => v.toFixed(0))}) deve diferir do chão (${corChao.map(v => v.toFixed(0))}); dist=${dFachadaChao.toFixed(1)}`);
+  assert.ok(dJanelaChao > 40, `janela na fachada (${corJanela.map(v => v.toFixed(0))}) deve diferir do chão (${corChao.map(v => v.toFixed(0))}); dist=${dJanelaChao.toFixed(1)}`);
+
+  // 2) Com style.facades: false, a mesma faixa volta a ter a cor do chão.
+  await sessao(page, `(s) => s.store.executar({ tipo: "estilo.atualizar", patch: { facades: false } })`);
+  await page.waitForTimeout(3200);
+
+  const corSemFachada = await corMediaTela(page, ...faixaParede);
+  const dSemFachadaChao = distCor(corSemFachada, corChao);
+  const dComVsSem = distCor(corSemFachada, corFachada);
+  assert.ok(
+    dSemFachadaChao < 40 && dSemFachadaChao < dFachadaChao * 0.5 && dComVsSem > 45,
+    `com facades: false, a faixa (${corSemFachada.map(v => v.toFixed(0))}) deve voltar ao chão (${corChao.map(v => v.toFixed(0))}); dSemChao=${dSemFachadaChao.toFixed(1)}, dComChao=${dFachadaChao.toFixed(1)}, dComVsSem=${dComVsSem.toFixed(1)}`,
+  );
+
+  // 3) Com facades: true novamente, uma peça na rua bem em frente à fachada aparece POR CIMA dela.
+  await sessao(page, `(s) => s.store.executar({ tipo: "estilo.atualizar", patch: { facades: true } })`);
+  await page.waitForTimeout(1200);
+
+  const zonaPeca: [[number, number], [number, number]] = [[11.75, 10.95], [12.25, 11.45]];
+  const corAntesPeca = await corMediaTela(page, ...zonaPeca);
+
+  await sessao(page, `(s) => s.store.executar({ tipo: "item.atualizar", colecao: "tokens", id: "p1", patch: { position: [12.0, 11.2] } })`);
+  await page.waitForTimeout(500);
+
+  const corComPeca = await corMediaTela(page, ...zonaPeca);
+  const dPeca = distCor(corComPeca, corAntesPeca);
+  assert.ok(dPeca > 25, `peça em frente à fachada deve aparecer por cima dela (antes=${corAntesPeca.map(v => v.toFixed(0))}, com=${corComPeca.map(v => v.toFixed(0))}, dist=${dPeca.toFixed(1)})`);
+
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
