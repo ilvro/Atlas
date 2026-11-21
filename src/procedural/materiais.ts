@@ -14,6 +14,7 @@ export interface Material {
   /** Terreno: quanto a borda da camada se desfaz em manchas (0 a 1; ausente = borda comum). Chão batido e folhiço se misturam com o vizinho. */ franja?: number;
   /** Terreno (Ilustrado): textura CC0 puxada para a paleta; o `padrao` continua como reserva e é o que o Pixel usa. */ textura?: ReceitaDeTextura;
   /** Telhado: o que cresce ou corrói na cobertura (musgo, ferrugem, azinhavre) e quanto dela cobre (0 a 1). */ mancha?: { cor: string; quanto: number };
+  /** Telhado: brilho especular da cobertura (0 a 1, usado na iluminação N6/N8b). */ especular?: number;
 }
 
 const m = (id: string, nome: string, uso: Material['uso'], base: string, escuro: string, claro: string, padrao: Padrao, extra: Partial<Material> = {}): [string, Material] => [id, { id, nome, uso, base, escuro, claro, padrao, ...extra }];
@@ -109,16 +110,16 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('telha.palha', 'Palha', 'telhado', '#b08f4e', '#584322', '#dcbc7a', 'palha', { mancha: { cor: '#6e7044', quanto: 0.12 } }),
   m('telha.tabuinhas', 'Tabuinhas de madeira', 'telhado', '#7a5a3c', '#33230f', '#ad8a60', 'tabuinhas', { mancha: { cor: '#5a6a3a', quanto: 0.1 } }),
   m('telha.pedra', 'Lajes de pedra', 'telhado', '#7c7a72', '#34332e', '#aeaba0', 'lajes-telhado', { mancha: { cor: '#5a6e36', quanto: 0.28 } }),
-  m('telha.cobre', 'Cobre com azinhavre', 'telhado', '#8e5a3c', '#3a2012', '#c08660', 'cobre', { mancha: { cor: '#5fa88c', quanto: 0.5 } }),
+  m('telha.cobre', 'Cobre com azinhavre', 'telhado', '#8e5a3c', '#3a2012', '#c08660', 'cobre', { especular: 0.3, mancha: { cor: '#5fa88c', quanto: 0.5 } }),
   m('telha.zinco', 'Zinco ondulado', 'telhado', '#8a9096', '#43484e', '#c8cdd1', 'ondulado', { mancha: { cor: '#8a4a24', quanto: 0.3 } }),
   m('telha.concreto', 'Laje de concreto', 'telhado', '#8c8a84', '#4a4844', '#b6b3ac', 'concreto-laje', { mancha: { cor: '#3e3c38', quanto: 0.25 } }),
   m('telha.grama', 'Telhado de grama', 'telhado', '#4f7a36', '#1f3a16', '#84ae58', 'grama-telhado', { mancha: { cor: '#5a4430', quanto: 0.18 } }),
   m('telha.lona', 'Lona', 'telhado', '#c8b48a', '#76664a', '#e8dab6', 'lona', { mancha: { cor: '#8a7a5a', quanto: 0.15 } }),
   m('telha.tabuas', 'Tábuas de madeira', 'telhado', '#8a5d3b', '#352010', '#bc8a5a', 'tabuas-telhado', { mancha: { cor: '#4d5d32', quanto: 0.14 } }),
   m('telha.francesa', 'Telha francesa', 'telhado', '#b35334', '#4f1e12', '#df8862', 'telha-francesa', { mancha: { cor: '#5a6e38', quanto: 0.08 } }),
-  m('telha.esmaltada.verde', 'Telha esmaltada verde', 'telhado', '#286e56', '#0c2c22', '#6cc4a0', 'telha-esmaltada', { mancha: { cor: '#3c5434', quanto: 0.06 } }),
-  m('telha.esmaltada.azul', 'Telha esmaltada azul', 'telhado', '#244d82', '#0c1c36', '#6ea8e6', 'telha-esmaltada', { mancha: { cor: '#304458', quanto: 0.05 } }),
-  m('telha.esmaltada.amarela', 'Telha esmaltada amarela', 'telhado', '#c99224', '#5a3a08', '#fae078', 'telha-esmaltada', { mancha: { cor: '#7d5a1c', quanto: 0.06 } }),
+  m('telha.esmaltada.verde', 'Telha esmaltada verde', 'telhado', '#286e56', '#0c2c22', '#6cc4a0', 'telha-esmaltada', { especular: 0.55, mancha: { cor: '#3c5434', quanto: 0.06 } }),
+  m('telha.esmaltada.azul', 'Telha esmaltada azul', 'telhado', '#244d82', '#0c1c36', '#6ea8e6', 'telha-esmaltada', { especular: 0.55, mancha: { cor: '#304458', quanto: 0.05 } }),
+  m('telha.esmaltada.amarela', 'Telha esmaltada amarela', 'telhado', '#c99224', '#5a3a08', '#fae078', 'telha-esmaltada', { especular: 0.55, mancha: { cor: '#7d5a1c', quanto: 0.06 } }),
   m('telha.chapa.verde', 'Chapa metálica verde', 'telhado', '#3b6450', '#182b22', '#6f9c84', 'chapa-com-junta', { mancha: { cor: '#7a4424', quanto: 0.16 } }),
   m('telha.chapa.vermelha', 'Chapa metálica vermelha', 'telhado', '#8d362c', '#3d1410', '#c4685a', 'chapa-com-junta', { mancha: { cor: '#6e3418', quanto: 0.16 } }),
   m('telha.chapa.cinza', 'Chapa metálica cinza', 'telhado', '#6f7780', '#2e3338', '#adb6c0', 'chapa-com-junta', { mancha: { cor: '#7a4826', quanto: 0.18 } }),
@@ -126,6 +127,12 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('telha.bambu', 'Bambu', 'telhado', '#a89658', '#4a3f1e', '#d4c482', 'bambu', { mancha: { cor: '#6d7a3c', quanto: 0.36 } }),
   m('telha.couro', 'Couro costurado', 'telhado', '#8c5c38', '#3b2110', '#ba885c', 'couro-telhado', { mancha: { cor: '#56341c', quanto: 0.28 } }),
   m('telha.chumbo', 'Placas de chumbo', 'telhado', '#5a606a', '#25282e', '#8b929c', 'chumbo', { mancha: { cor: '#cfd5dc', quanto: 0.32 } }),
+  m('telha.marmore', 'Mármore branco', 'telhado', '#dfd9cc', '#8e877a', '#f6f3eb', 'marmore-telhado', { especular: 0.35, mancha: { cor: '#5a6a44', quanto: 0.08 } }),
+  m('telha.marmore.rosado', 'Mármore rosado', 'telhado', '#c9978e', '#784e48', '#ecd0c8', 'marmore-telhado', { especular: 0.35 }),
+  m('telha.marmore.negro', 'Mármore negro', 'telhado', '#2b2d34', '#121318', '#8e929e', 'marmore-telhado', { especular: 0.38 }),
+  m('telha.ouro', 'Folha de ouro', 'telhado', '#cfa134', '#6e4d0c', '#ffe582', 'ouro-telhado', { especular: 0.92 }),
+  m('telha.vidro', 'Estufa de vidro', 'telhado', '#7ea8c4', '#212730', '#d8f0ff', 'vidro-telhado', { especular: 0.85 }),
+  m('telha.vitral', 'Vitral colorido', 'telhado', '#4a5a78', '#1a1c24', '#dce8ff', 'vitral-telhado', { especular: 0.8 }),
   m('folhagem', 'Folhagem', 'objeto', '#2f5a34', '#14301a', '#5f9a4e', 'grama'),
   m('parede.topo', 'Topo de parede', 'objeto', '#141218', '#08070a', '#2a2630', 'liso'),
   m('pedra.escura', 'Pedra escura', 'objeto', '#1b1d22', '#0c0d10', '#2b2f37', 'liso'),
