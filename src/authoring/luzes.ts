@@ -11,6 +11,14 @@ export const LUZES_POR_GENERO: Readonly<Record<string, { principal: string; pequ
   investigacao: { principal: 'lamparina', pequena: 'vela' },
   moderno: { principal: 'lampada', pequena: 'lampada' },
   fantasia: { principal: 'tocha', pequena: 'vela' },
+  antiguidade: { principal: 'lucerna', pequena: 'vela' },
+  oriental: { principal: 'lanterna-de-papel', pequena: 'vela' },
+  deserto: { principal: 'lamparina', pequena: 'vela' },
+  faroeste: { principal: 'lamparina', pequena: 'vela' },
+  colonial: { principal: 'lamparina', pequena: 'vela' },
+  vitoriano: { principal: 'lampiao-a-gas', pequena: 'vela' },
+  'pos-apocaliptico': { principal: 'tonel', pequena: 'lanterna' },
+  cyberpunk: { principal: 'neon', pequena: 'neon-rosa' },
 };
 
 export interface LuzDaFuncao {

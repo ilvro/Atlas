@@ -1506,7 +1506,12 @@
                   "feixe",
                   "lanterna",
                   "holofote",
-                  "farol"
+                  "farol",
+                  "lucerna",
+                  "lanterna-de-papel",
+                  "lampiao-a-gas",
+                  "tonel",
+                  "neon-rosa"
                 ]
               },
               "pos": {
@@ -1591,7 +1596,15 @@
           "enum": [
             "investigacao",
             "moderno",
-            "fantasia"
+            "fantasia",
+            "antiguidade",
+            "oriental",
+            "deserto",
+            "faroeste",
+            "colonial",
+            "vitoriano",
+            "pos-apocaliptico",
+            "cyberpunk"
           ]
         },
         "estilo": {

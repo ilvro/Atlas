@@ -205,7 +205,7 @@ test('migração 3→4: o mapa da Fase 4 ganha o gênero "investigacao" e o rest
 test('generoDe: id desconhecido vale como investigacao', async () => {
   const { generoDe, GENEROS } = await import('../../src/domain/presets.ts');
   assert.equal(generoDe('xyz').id, 'investigacao'); assert.equal(generoDe('fantasia').id, 'fantasia');
-  assert.deepEqual(GENEROS.map(g => g.id), ['investigacao', 'moderno', 'fantasia']);
+  assert.deepEqual(GENEROS.map(g => g.id), ['investigacao', 'moderno', 'fantasia', 'antiguidade', 'oriental', 'deserto', 'faroeste', 'colonial', 'vitoriano', 'pos-apocaliptico', 'cyberpunk']);
 });
 
 test('migração 4→5: o mapa da Fase 6 ganha `player: false`, `interaction: null` e o explorado vazio, sem perder nada', () => {

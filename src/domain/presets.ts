@@ -49,6 +49,11 @@ export const PRESETS_DE_LUZ: readonly PresetDeLuz[] = [
   { id: 'lanterna', nome: 'Lanterna', descricao: 'Facho de bateria', radius: 9, color: '#fff0cc', intensity: 1, flicker: 0, power: 'battery', cone: 60 },
   { id: 'holofote', nome: 'Holofote', descricao: 'Facho fechado e longo', radius: 14, color: '#ffffff', intensity: 1.4, flicker: 0, power: 'grid', cone: 30 },
   { id: 'farol', nome: 'Farol', descricao: 'Facho aberto, de longe', radius: 16, color: '#fff7d6', intensity: 1.2, flicker: 0, power: 'grid', cone: 45 },
+  { id: 'lucerna', nome: 'Lucerna', descricao: 'Lamparina de óleo romana', radius: 3.5, color: '#ffc27a', intensity: 0.75, flicker: 0.2, power: 'fire', cone: null },
+  { id: 'lanterna-de-papel', nome: 'Lanterna de papel', descricao: 'Luz difusa e quente', radius: 4, color: '#ffb870', intensity: 0.8, flicker: 0.1, power: 'fire', cone: null },
+  { id: 'lampiao-a-gas', nome: 'Lampião a gás', descricao: 'Chama de gás, clara e firme', radius: 5, color: '#ffe2a8', intensity: 0.95, flicker: 0.05, power: 'fire', cone: null },
+  { id: 'tonel', nome: 'Fogo de tonel', descricao: 'Brasas em um barril metálico', radius: 6, color: '#ff7a2a', intensity: 1.1, flicker: 0.4, power: 'fire', cone: null },
+  { id: 'neon-rosa', nome: 'Néon rosa', descricao: 'Luz magenta de letreiro', radius: 5, color: '#ff4fd8', intensity: 1.1, flicker: 0.06, power: 'grid', cone: null },
 ];
 export const presetDeLuz = (id: string): PresetDeLuz | undefined => PRESETS_DE_LUZ.find(p => p.id === id);
 
@@ -155,13 +160,23 @@ export const pincelDePresenca = (id: string): PincelDePresenca | undefined => PI
 
 // ---------- Gênero ----------
 /** O gênero guia o que o assistente sugere (materiais, paleta, luzes). Um id desconhecido vale como `investigacao`. */
-export interface Genero { id: string; nome: string; descricao: string; /** Para onde a cor das imagens da coleção é puxada (saturação e luminância médias, 0 a 1, e uma tinta leve). */ alvoDeCor: { saturacao: number; luminancia: number; tinta: string } }
+export interface Genero { id: string; nome: string; descricao: string; /** Para onde a cor das imagens da coleção é puxada (saturação e luminância médias, 0 a 1, e uma tinta leve). */ alvoDeCor: { saturacao: number; luminancia: number; tinta: string }; /** Gêneros cujas famílias este também aceita (ex.: o vitoriano usa lareira e piano da investigação). */ herda?: readonly string[] }
 export const GENEROS: readonly Genero[] = [
   { id: 'investigacao', nome: 'Investigação', descricao: 'Casa antiga, lamparinas, damasco', alvoDeCor: { saturacao: 0.42, luminancia: 0.36, tinta: '#f1e2c8' } },
   { id: 'moderno', nome: 'Moderno', descricao: 'Lâmpadas, cores claras', alvoDeCor: { saturacao: 0.5, luminancia: 0.58, tinta: '#f4f6f8' } },
   { id: 'fantasia', nome: 'Fantasia', descricao: 'Velas, tochas, pedra e madeira', alvoDeCor: { saturacao: 0.5, luminancia: 0.42, tinta: '#f6dcb4' } },
+  { id: 'antiguidade', nome: 'Antiguidade', descricao: 'Mármore, bronze, lucernas', alvoDeCor: { saturacao: 0.42, luminancia: 0.5, tinta: '#f3e6cc' }, herda: ['fantasia'] },
+  { id: 'oriental', nome: 'Oriental', descricao: 'Papel, laca, lanternas', alvoDeCor: { saturacao: 0.4, luminancia: 0.42, tinta: '#f2e2c4' }, herda: ['fantasia'] },
+  { id: 'deserto', nome: 'Deserto', descricao: 'Adobe, tecido, lanternas de latão', alvoDeCor: { saturacao: 0.5, luminancia: 0.52, tinta: '#f7dcb0' }, herda: ['fantasia'] },
+  { id: 'faroeste', nome: 'Faroeste', descricao: 'Tábuas, poeira, lampião', alvoDeCor: { saturacao: 0.4, luminancia: 0.46, tinta: '#f0d6ae' }, herda: ['investigacao', 'fantasia'] },
+  { id: 'colonial', nome: 'Colonial e pirata', descricao: 'Caiado, convés, velas', alvoDeCor: { saturacao: 0.44, luminancia: 0.46, tinta: '#f1e0c2' }, herda: ['investigacao', 'fantasia'] },
+  { id: 'vitoriano', nome: 'Vitoriano e steampunk', descricao: 'Latão, vapor, gás', alvoDeCor: { saturacao: 0.36, luminancia: 0.36, tinta: '#ecd9b8' }, herda: ['investigacao', 'fantasia'] },
+  { id: 'pos-apocaliptico', nome: 'Pós-apocalíptico', descricao: 'Ferrugem, lona, fogo de tonel', alvoDeCor: { saturacao: 0.3, luminancia: 0.38, tinta: '#e2d6c0' }, herda: ['moderno'] },
+  { id: 'cyberpunk', nome: 'Cyberpunk', descricao: 'Néon, chuva, telas', alvoDeCor: { saturacao: 0.55, luminancia: 0.3, tinta: '#d6e4f4' }, herda: ['moderno', 'ficcao-cientifica'] },
 ];
 export const generoDe = (id: string): Genero => GENEROS.find(g => g.id === id) ?? GENEROS[0]!;
+/** O gênero e os que ele herda; `familias.ts` usa isto para decidir que famílias aparecem (fica aqui para não haver import circular). */
+export const generosVisiveis = (id: string): string[] => [id, ...(GENEROS.find(g => g.id === id)?.herda ?? [])];
 
 /** Funções de cômodo ao ar livre que nascem sem telhado por padrão. */
 export const FUNCOES_AO_AR_LIVRE = new Set(['varanda', 'patio', 'claustro', 'quintal']);
