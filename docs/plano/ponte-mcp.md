@@ -252,7 +252,7 @@ Nota: descrições com até 200 caracteres e campos com até 80, nos cinco apps.
 - **O que se perde:** as aprovações que o mestre já deu no app do Claude para as ferramentas que viraram sob demanda. O LEIAME avisa disso.
 - **Alternativa descartada:** mostrar só as ferramentas das abas abertas, com `list_changed`. Depende de o build comunitário do app do Claude atualizar a lista no meio da conversa, o que não está confirmado, e foi justamente o catálogo-base (PM3a) que resolveu as "ferramentas invisíveis".
 
-### PM6a — Registro de uso das ferramentas  ⬜
+### PM6a — Registro de uso das ferramentas  ✅
 Objetivo: saber quais ferramentas o assistente usa de fato, para revisar a lista `SEMPRE` com dados.
 Depende de: —.
 Ler: `scripts/ponte/mcp.ts` (`criarServidorMcp`, o `CallToolRequestSchema`, `carregarCache` como modelo de leitura de JSON com `try/catch`, `CAMINHO_CACHE_PADRAO`); `package.json` (scripts `ponte:*`); `scripts/ponte/LEIAME.md`.

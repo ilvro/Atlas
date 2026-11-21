@@ -11,6 +11,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { lerMensagem, appDoPrefixo } from './protocolo.ts';
 import type { AppConectado, Conteudo, FerramentaDoApp, Resultado, AnotacoesDaFerramenta } from './protocolo.ts';
 import { definirImagemNoAtelie } from './imagens.ts';
+import { registrarUso, lerUso, gravarUso, CAMINHO_USO_PADRAO } from './uso.ts';
 import { lerPreset, adicionarAoPreset, abrirPresetNaJukebox } from './presets.ts';
 
 export const ATRASOS_MS = [1000, 2000, 5000, 10000];
@@ -806,6 +807,13 @@ export interface McpOpcoes {
   instrucoes?: string;
   /** Pasta dos `*.md` do guia; relida a cada chamada. */
   pastaDoGuia?: string;
+  /** Registro de uso das ferramentas; `undefined` ou `null` desliga (só `principal()` liga o padrão). */
+  arquivoDeUso?: string | null;
+}
+
+/** Nome da ferramenta realmente usada numa chamada (a PM6b trata os executores). */
+export function nomeEfetivo(req: { params: { name: string } }): string {
+  return req.params.name;
 }
 
 /** Monta o servidor MCP `mesa` (sem transporte) sobre uma conexão com a ponte. */
@@ -844,6 +852,14 @@ export function criarServidorMcp(op: McpOpcoes) {
       return await chamarFerramenta(ponta, req.params.name, (req.params.arguments ?? {}) as Record<string, unknown>, op.prazoMs, g.secoes, g.aviso);
     } finally {
       if (timerProgresso) clearInterval(timerProgresso);
+      const arquivoDeUso = op.arquivoDeUso;
+      if (arquivoDeUso) {
+        const nome = nomeEfetivo(req);
+        setImmediate(() => {
+          try { gravarUso(arquivoDeUso, registrarUso(lerUso(arquivoDeUso), nome, new Date())); }
+          catch (e) { console.error('[mesa-mcp] aviso: registro de uso:', e); }
+        });
+      }
     }
   });
   server.oninitialized = () => { pronto = true; };
@@ -870,6 +886,7 @@ async function principal() {
     lerToken: () => fs.readFileSync(arquivoDoToken, 'utf8').trim(),
     arquivoDoCache: CAMINHO_CACHE_PADRAO,
     arquivoDoCatalogoBase: CAMINHO_CATALOGO_BASE_PADRAO,
+    arquivoDeUso: CAMINHO_USO_PADRAO,
     instrucoes,
   });
   await server.connect(new StdioServerTransport());
