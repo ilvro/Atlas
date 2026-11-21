@@ -1,5 +1,5 @@
 import { ACERVO } from '../procedural/acervo.ts';
-import { generoDe } from '../domain/presets.ts';
+import { generoDe, generosVisiveis } from '../domain/presets.ts';
 
 /**
  * Que móveis um cômodo costuma ter, onde ficam e quantos, por função. Dados puros: o gerador de layout (layout.ts) é que posiciona.
@@ -357,8 +357,8 @@ export const VARIACOES_DE_GENERO: Readonly<Record<string, { trocar?: Record<stri
 /** As regras de uma função para um gênero (id desconhecido vale como `investigacao`). Uma função sem regra devolve lista vazia. */
 export function regrasPara(funcao: string, genero: string): ItemDeRegra[] {
   const base = REGRAS_DE_MOBILIA[funcao] ?? [], v = VARIACOES_DE_GENERO[genero] ?? {}, id = generoDe(genero).id;
-  // Itens do acervo que servem só a certos gêneros (`generos` não vazio) saem das alternativas dos outros.
-  const serve = (r: string) => { const g = ACERVO.item(r)?.generos ?? []; return !g.length || g.includes(id); };
+  // Itens do acervo que servem só a certos gêneros (`generos` não vazio) saem das alternativas dos outros; um gênero aceita também os que herda.
+  const aceitos = generosVisiveis(id), serve = (r: string) => { const g = ACERVO.item(r)?.generos ?? []; return !g.length || g.some(x => aceitos.includes(x)); };
   const tirados = new Set((v.sem ?? []).filter(k => k.startsWith(`${funcao}:`)).map(k => k.slice(funcao.length + 1)));
   // Quem dependia de um item tirado sai junto, em cascata.
   // Quem tem alternativa (`senao`) fica: sem a âncora, vai para o centro ou para a parede.
