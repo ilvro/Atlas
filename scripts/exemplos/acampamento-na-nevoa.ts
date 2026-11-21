@@ -60,8 +60,8 @@ export const acampamentoNaNevoa: Exemplo = {
     carimbo('moita-de-samambaia', 6, 6.5, 11, 0.7);
     carimbo('folhico', 7, 5.5, 11, 0.6, () => ({ raio: 0.5 + k.rng() * 0.4 }));
     carimbo('galhada', 3, 5, 10, 0.6);
-    // Gravetos soltos (galhada pequena) e brotos por todo o chão fora do miolo da clareira.
-    carimbo('galhada', 9, 4, 12, 0.6, () => ({}), () => 0.5 + k.rng() * 0.15);
+    // Gravetos pálidos soltos e brotos por todo o chão; os gravetos chegam mais perto da fogueira (lenha que caiu no caminho).
+    carimbo('gravetos', 34, 3, 12.5, 0.3, () => ({ raio: 0.5 + k.rng() * 0.5 }));
     carimbo('brotos', 70, 4, 12.5, 0.25, () => ({ raio: 0.6 + k.rng() * 0.5 }));
 
     // Raízes que saem de debaixo das copas pequenas e de troncos fora do quadro, na borda da clareira.
