@@ -58,6 +58,14 @@ export const LUZES_POR_FUNCAO: Readonly<Record<string, LuzDaFuncao>> = {
   refeitorio: { m2PorLuz: 16, tamanho: 'principal', sobre: ['mesa.banquete', 'mesa.taverna', 'mesa.retangular'] },
   salao: { m2PorLuz: 16, tamanho: 'principal', sobre: ['mesa.banquete', 'mesa.oval', 'mesa.retangular'] },
   patio: { m2PorLuz: 20, tamanho: 'pequena', sobre: [], semLuz: true },
+  // Antiguidade (Q15c): a lucerna é o objeto que traz a própria luz; sem ela, o gênero põe a lucerna/vela de `LUZES_POR_GENERO`.
+  atrio: { m2PorLuz: 14, tamanho: 'principal', sobre: ['mesa-romana', 'impluvio'] },
+  peristilo: { m2PorLuz: 20, tamanho: 'pequena', sobre: [], semLuz: true },
+  triclinio: { m2PorLuz: 10, tamanho: 'principal', sobre: ['mesa-romana'] },
+  termas: { m2PorLuz: 14, tamanho: 'principal', sobre: ['impluvio'] },
+  templo: { m2PorLuz: 12, tamanho: 'principal', sobre: ['altar-de-sacrificio', 'tripe-de-bronze'] },
+  forum: { m2PorLuz: 20, tamanho: 'pequena', sobre: [], semLuz: true },
+  taberna: { m2PorLuz: 12, tamanho: 'principal', sobre: ['mesa-romana'] },
 };
 
 const DISTANCIA_MINIMA = 2;

@@ -12,6 +12,8 @@ import { interacaoDeEscadaPadrao, mapaDoAndar } from '../domain/andares.ts';
 import { livreParaObjeto } from '../domain/encaixe.ts';
 import { comprimentoDaParede, contornoDoComodo, encaixarNaParede, encaixarObjetoDeParede, indiceDeCelulas, pontoNaParede, salaDaCelula } from '../domain/geometria.ts';
 import type { Abertura, ColecaoLivre, MapaAtlas, Peca, Ponto } from '../domain/mapa.ts';
+import type { Ping } from '../domain/pings.ts';
+import { criarCamadaDePings } from './pings-camada.ts';
 import type { Recursos } from '../domain/fichas.ts';
 import { TIPOS_DE_COMODO, camposDoPreset, pincelDePresenca, presetDeLuz, telhadoPadrao, tipoDeComodo } from '../domain/presets.ts';
 import { fxAtivo } from '../fx/fx.ts';
@@ -74,6 +76,8 @@ export interface PonteViewport {
   pecaDoJogador?(t: Peca): boolean;
   /** No projetor remoto (R15), o jogador arrastou a própria peça até `para`; resolve `true` se o mestre aceitou. */
   aoArrastarPecaRemota?(peca: Peca, para: Ponto): Promise<boolean>;
+  /** Ping no mapa (R15b): Alt+clique (mestre/jogador) ou segurar 400 ms num ponto vazio (jogador remoto). */
+  aoPingar?(ponto: Ponto): void;
   /** Na sessão, arrastar uma peça a leva de célula em célula e as outras coisas só se selecionam. */
   emSessao?(): boolean;
   /** Na sessão, mover peças sem encaixar na grade (com atualização em tempo real durante o arrasto). */
@@ -133,6 +137,8 @@ export interface Viewport {
   atualizarSobreposicoes(): void;
   /** Dispara um relâmpago (e o trovão, se o som estiver ligado). Só vale com a atmosfera visível. */
   relampagoAgora(): void;
+  /** Exibe um ping animado no mapa (R15b). */
+  dispararPing(ping: Ping): void;
   /** Quanto dura, daqui em diante, a transição entre dois climas. */
   definirDuracaoDaTransicao(ms: number): void;
   /** Enquadra `caixa` (em metros) na tela inteira; `suave` anima a câmera (o projetor). */
@@ -227,6 +233,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   let camera: Camera = { x: 0, y: 0, zoom: 20 };
   let ponteiro: Ponto | null = null, interacao: Interacao | null = null, espaco = false, camadaSuja = true, gradeSuja = true, destruido = false, regua: Regua | null = null, altPressionado = false, modoProjetor = somenteLeitura, sobrePecaDoJogador = false;
   let pecaRemotaPendente: { id: string; de: Ponto; para: Ponto } | null = null;
+  let relogioPing: ReturnType<typeof setTimeout> | undefined;
+  const cancelarRelogioPing = () => { if (relogioPing !== undefined) { clearTimeout(relogioPing); relogioPing = undefined; } };
   const reguaTexto = new Text({ text: '', style: { fontFamily: 'system-ui, sans-serif', fontSize: 14, fontWeight: '600', fill: 0xffffff, stroke: { color: 0x07080b, width: 4 } } });
   reguaTexto.visible = false;
   const completo = (): MapaAtlas => store.documento;
@@ -252,7 +260,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const fantasmaDaProposta = criarFantasmaDeProposta({ baker, acento, efeitos: fxAtivo });
   const linhasDeNivel = criarLinhasDeNivel();
   mundo.addChild(area_, cena.raiz, pixelizacao.sprite, grade, linhasDeNivel.container, selecaoG, fantasmaC, fantasmaDaProposta.raiz, laco, reguaTexto);
-  app.stage.addChild(mundo, clarao);
+  const camadaPings = criarCamadaDePings();
+  app.stage.addChild(mundo, clarao, camadaPings.raiz);
 
   // ---------- Transição de clima ----------
   // O documento muda na hora; o que a cena exibe (luz, partículas, neblina, acabamento) caminha até ele em `duracaoDaTransicao`.
@@ -931,10 +940,26 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
           return;
         }
       }
+      if (e.button === 0 && e.altKey && ponte.aoPingar) {
+        ponte.aoPingar(mundoDe(e));
+        return;
+      }
       if (e.button === 0 || e.button === 1 || e.button === 2) {
         canvas.setPointerCapture(e.pointerId);
         const [tx, ty] = telaDe(e);
         interacao = { tipo: 'pan', botao: e.button, x0: tx, y0: ty, camera0: camera, moveu: false };
+        if (e.button === 0 && ponte.aoPingar) {
+          const pontoPing = mundoDe(e);
+          cancelarRelogioPing();
+          relogioPing = setTimeout(() => {
+            relogioPing = undefined;
+            if (interacao?.tipo === 'pan' && !interacao.moveu) {
+              interacao = null;
+              cursor();
+              ponte.aoPingar?.(pontoPing);
+            }
+          }, 400);
+        }
         cursor();
       }
       return;
@@ -983,6 +1008,10 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (f !== 'selecionar') { colocar(e, p); cursor(); camadaSuja = true; return; }
     const hit = alvoEm(m, p, px(8)), sel = ponte.selecao();
     if (ponte.emSessao?.()) {
+      if (e.button === 0 && e.altKey && ponte.aoPingar && (!hit || hit.colecao !== 'tokens')) {
+        ponte.aoPingar(p);
+        return;
+      }
       // Na sessão só as peças andam; o resto apenas se seleciona.
       if (hit?.colecao === 'tokens' && !e.shiftKey) {
         ponte.definirSelecao([hit]);
@@ -1043,7 +1072,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     }
     const i = interacao;
     if (i.tipo === 'pan') {
-      if (Math.hypot(tx - i.x0, ty - i.y0) > LIMIAR_ARRASTO) i.moveu = true;
+      if (Math.hypot(tx - i.x0, ty - i.y0) > LIMIAR_ARRASTO) { i.moveu = true; cancelarRelogioPing(); }
       if (i.moveu) definirCamera(panear({ ...i.camera0 }, tx - i.x0, ty - i.y0));
     } else if (i.tipo === 'mover') {
       if (!i.gesto) {
@@ -1166,6 +1195,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   }
 
   function terminar(e: PointerEvent, cancelado: boolean): void {
+    cancelarRelogioPing();
     const i = interacao; if (!i) return;
     if (i.tipo === 'comodo-poligono') {
       if (cancelado) { interacao = null; camadaSuja = true; cursor(); }
@@ -1295,6 +1325,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (pixelAtivo) pixelizacao.renderizar(cena.raiz);
     if (transicao) passoDaTransicao(performance.now());
     else if (doc().finish.grain > 0 && alvoDoAcabamento().filters?.length) acabamento.aplicar(doc().finish, performance.now() / 1000);
+    camadaPings.atualizar(camera, app.screen.width, app.screen.height, Date.now(), doc().climate.preset === 'night' || doc().climate.ambient.intensity < 0.55);
     if (regua && ponte.ferramenta() !== 'regua') { regua = null; camadaSuja = true; }   // trocar de ferramenta limpa a régua
     if (interacao?.tipo === 'comodo-poligono' && ponte.ferramenta() !== 'comodo') { interacao = null; camadaSuja = true; }
     if (!camadaSuja) return;
@@ -1357,6 +1388,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       camadaSuja = true; cena.definirVista(ponte.vista?.() ?? 'construir'); aplicarAcabamento();
     },
     relampagoAgora: () => cena.relampagoAgora(),
+    dispararPing: ping => camadaPings.adicionar(ping),
     definirDuracaoDaTransicao: ms => { duracaoDaTransicao = Math.max(0, ms); },
     dispararEvento: e => { eventos.disparar(e, performance.now()); },
     diagnosticoDosEventos: () => eventos.estado(performance.now()),
@@ -1378,6 +1410,8 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     destruir() {
       destruido = true; if (rafArrastoPeca) { cancelAnimationFrame(rafArrastoPeca); rafArrastoPeca = 0; } cancelarAssinatura(); observador.disconnect();
       window.removeEventListener('keydown', aoTeclar, true); window.removeEventListener('keyup', aoSoltar);
+      cancelarRelogioPing();
+      camadaPings.destruir();
       app.ticker.remove(aoQuadro); limparFantasmaSprite(); fantasmaDaProposta.destruir(); linhasDeNivel.destruir(); retratos.limpar(); cena.destruir(); baker.encerrar(); pixelizacao.destruir(); app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
     },
   };

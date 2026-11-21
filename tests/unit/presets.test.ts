@@ -10,9 +10,9 @@ import { GENEROS, TIPOS_DE_COMODO, generoDe, generosVisiveis, presetDeLuz } from
 import { familiasVisiveis } from '../../src/procedural/familias.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
 
-test('ESTILOS_DE_TELHADO: todos os 34 estilos são únicos e passam na validação do mapa', () => {
-  assert.equal(ESTILOS_DE_TELHADO.length, 34);
-  assert.equal(new Set(ESTILOS_DE_TELHADO.map(e => e.id)).size, 34);
+test('ESTILOS_DE_TELHADO: todos os 36 estilos são únicos e passam na validação do mapa', () => {
+  assert.equal(ESTILOS_DE_TELHADO.length, 36);
+  assert.equal(new Set(ESTILOS_DE_TELHADO.map(e => e.id)).size, 36);
   for (const e of ESTILOS_DE_TELHADO) {
     const m = criarMapa();
     m.rooms.r1 = {

@@ -525,7 +525,7 @@ Testes: o atendente com documento de teste (aceita a própria peça, recusa a do
 Pronto quando: em dois navegadores, o jogador arrasta a peça dele, o mestre vê mover e pode desfazer.
 Commit: `players move their own tokens online`
 
-### R15b — Ping no mapa  ⬜
+### R15b — Ping no mapa  ✅
 Objetivo: qualquer um na mesa aponta um lugar do mapa, e todos veem onde.
 Depende de: R14 (o projetor remoto já recebe gestos do jogador).
 Ler: o receptor do projetor e o gesto de arraste da R15; no Atlas do mestre, onde os eventos de cena (`EventoDeCena`) são desenhados sobre o mapa; `mesa-core/src/eventos.ts`.
@@ -735,7 +735,7 @@ Commit: `server-side dice rolls`
 | 2. O mestre publica | R5 → R5b → R6 | Sonnet | R4; a R5b bloqueia a R7 |
 | 3. O jogador vê | R7 → R8, R9 | Sonnet | R6 |
 | 4. Fichas e saguão | R10 ✅, R11 ✅ → R12 ✅ → R12b ✅, R13 ✅ | Sonnet (o Opus revisa a R12 e a R12b) | R7 para a R11 |
-| 5. Peça própria e ping | R14 ✅ → R15 ✅ → R15b → R15c | Sonnet; R15c pelo Opus | R11 |
+| 5. Peça própria e ping | R14 ✅ → R15 ✅ → R15b ✅ → R15c | Sonnet; R15c pelo Opus | R11 |
 | 6. Discord | R16 ✅, R17 → R18, R19 | Sonnet; R19 com o usuário | blocos 3 a 5 |
 | 7. Som | R21a ✅ → R21b → R22 → R23 | Sonnet | R3 para a R21b; R5, R6 e R12b para as outras |
 | Depois | R20 | Sonnet | R9 |
