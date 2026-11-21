@@ -67,7 +67,7 @@ Pronto quando: os testes passam, e a biblioteca continua igual (nada lê a marca
 Commit: `families are tagged with genres and biomes`
 Nota: o teste mostrou famílias mistas (o `caixote` tem uma receita só de ficção científica e outras livres). Exigir `generos` nelas tiraria o caixote da fantasia, então a regra ficou: família com `generos` cruza com cada receita marcada dela; família sem `generos` só é aceita se ao menos uma receita dela for livre. As famílias em que toda receita tem `generos` (lareira, piano, mesa de jogo, mesa de jantar, relógio de pé, banheira, pia, baú, forja, altar, munição, armas de parede, castiçal, passadeira, sino, alçapão, mesa posta, bancada, fogueira, tear, grilhões) ganharam a união dos gêneros das receitas.
 
-### Q2 — Filtro de época e bioma na biblioteca  ⬜
+### Q2 — Filtro de época e bioma na biblioteca  ✅
 Objetivo: a biblioteca e a gaveta de terreno mostram, de início, só o que combina com o mapa.
 Depende de: Q1.
 Ler: `src/ui/Biblioteca.tsx` (onde monta grupos, famílias e `GRUPOS_DE_TERRENO`, linha ~129), como `objetosNaGrade` é guardado no `localStorage` (procure em `src/ui/` e `src/app/`), `src/domain/mapa.ts` (`style.genre`), `INTERFACE.md` (padrões de chip).
@@ -82,6 +82,7 @@ Não fazer: gêneros novos (Q3).
 Testes: e2e: um mapa `fantasia` não mostra `notebook` na grade; com "Todas", mostra; a busca por "notebook" acha mesmo filtrado.
 Pronto quando: abrir um mapa de fantasia deixa a biblioteca visivelmente mais curta, e "Todas" devolve tudo.
 Commit: `library filters by the map's era and by biome`
+Nota: o catálogo de objetos mora em `src/ui/FamiliaNoPincel.tsx` (não em `Biblioteca.tsx`); o estado fica em `src/app/filtros.ts`. O chip de bioma dos objetos só aparece (e só vale) no grupo Natureza; a gaveta de terreno filtra só por bioma. O catálogo flutuante obedece ao mesmo filtro. Recentes e favoritos não são filtrados. Teste: `tests/e2e/filtro-epoca.test.ts`.
 
 ### Q3 — Gêneros de época  ✅
 Objetivo: os oito gêneros novos existem, podem ser escolhidos e têm paleta, luz e materiais básicos.
