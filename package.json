@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test \"tests/unit/**/*.test.ts\" \"mesa-core/tests/*.test.ts\"",
     "assar": "node scripts/assar-colecao.ts",
+    "texturas": "node scripts/preparar-texturas.ts",
     "exemplos": "node scripts/exemplos/gerar.ts",
     "test:e2e": "node --test --test-concurrency=1 \"tests/e2e/*.test.ts\"",
     "build:core": "tsc -p mesa-core/tsconfig.build.json",

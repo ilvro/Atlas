@@ -1,0 +1,102 @@
+{
+  "versao": 1,
+  "hash": "617cfb207b40031d2b42fe5cd2da95ab3918d16f",
+  "texturas": [
+    {
+      "id": "brown_mud_dry",
+      "nome": "brown_mud_dry",
+      "arquivo": "brown_mud_dry.webp",
+      "deslocamento": "brown_mud_dry-alt.webp",
+      "metros": 1.3,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "Rob Tuytel",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/brown_mud_dry"
+    },
+    {
+      "id": "dirt_floor",
+      "nome": "dirt_floor",
+      "arquivo": "dirt_floor.webp",
+      "deslocamento": "dirt_floor-alt.webp",
+      "metros": 2.07,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "eye-candy.xyz",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/dirt_floor"
+    },
+    {
+      "id": "forest_ground_04",
+      "nome": "forest_ground_04",
+      "arquivo": "forest_ground_04.webp",
+      "deslocamento": "forest_ground_04-alt.webp",
+      "metros": 3.15,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "Rob Tuytel, Rico Cilliers",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/forest_ground_04"
+    },
+    {
+      "id": "ground068",
+      "nome": "Ground068 (tamanho real estimado em 1.5 m)",
+      "arquivo": "ground068.webp",
+      "deslocamento": "ground068-alt.webp",
+      "metros": 1.5,
+      "pxPorMetro": 128,
+      "fonte": "ambientCG",
+      "autor": "ambientCG",
+      "licenca": "CC0",
+      "url": "https://ambientcg.com/view?id=Ground068"
+    },
+    {
+      "id": "leafy_grass",
+      "nome": "leafy_grass",
+      "arquivo": "leafy_grass.webp",
+      "deslocamento": "leafy_grass-alt.webp",
+      "metros": 2,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "Charlotte Baglioni",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/leafy_grass"
+    },
+    {
+      "id": "leaves_forest_ground",
+      "nome": "leaves_forest_ground",
+      "arquivo": "leaves_forest_ground.webp",
+      "deslocamento": "leaves_forest_ground-alt.webp",
+      "metros": 1.26,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "Dario Barresi, Dimitrios Savva",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/leaves_forest_ground"
+    },
+    {
+      "id": "stony_dirt_path",
+      "nome": "stony_dirt_path",
+      "arquivo": "stony_dirt_path.webp",
+      "deslocamento": "stony_dirt_path-alt.webp",
+      "metros": 2.17,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "eye-candy.xyz",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/stony_dirt_path"
+    },
+    {
+      "id": "withered_grass",
+      "nome": "withered_grass",
+      "arquivo": "withered_grass.webp",
+      "deslocamento": "withered_grass-alt.webp",
+      "metros": 2,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "Charlotte Baglioni",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/withered_grass"
+    }
+  ]
+}

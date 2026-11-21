@@ -39,7 +39,7 @@ function arquivosDe(dir: string): string[] { return readdirSync(dir).flatMap(n =
 test('a coleção da casa: ids únicos com prefixo, todo arquivo existe e todo arquivo está no catálogo', () => {
   assert.equal(new Set(COLECAO.map(i => i.id)).size, COLECAO.length);
   for (const i of COLECAO) { assert.match(i.id, /^casa:/); assert.ok(statSync(join(RAIZ, i.arquivo), { throwIfNoEntry: false })?.isFile(), `falta ${i.arquivo}`); assert.ok(i.pegada[0] > 0 && i.pegada[1] > 0); }
-  const noDisco = arquivosDe(RAIZ).map(p => relative(RAIZ, p)).filter(p => p !== 'colecao.json').sort(), noCatalogo = COLECAO.flatMap(i => i.pixelArquivo ? [i.arquivo, i.pixelArquivo] : [i.arquivo]).sort();
+  const noDisco = arquivosDe(RAIZ).map(p => relative(RAIZ, p)).filter(p => p !== 'colecao.json' && !p.startsWith('texturas/')).sort(), noCatalogo = COLECAO.flatMap(i => i.pixelArquivo ? [i.arquivo, i.pixelArquivo] : [i.arquivo]).sort();
   assert.deepEqual(noDisco, noCatalogo, 'cada arquivo de public/colecao/ (fora o JSON) está no catálogo, e vice-versa');
 });
 
@@ -49,6 +49,11 @@ test('todo item da coleção aparece em LICENCAS.md, e todo achado tem licença 
     if (i.pixelArquivo) assert.ok(LICENCAS.includes(i.pixelArquivo), `${i.pixelArquivo} (versão Pixel manual) não está em docs/LICENCAS.md`);
     if (i.origem.tipo === 'achado') { assert.ok(['CC0-1.0', 'CC-BY-4.0'].includes(i.origem.licenca)); assert.ok(LICENCAS.includes(i.origem.autor), `${i.arquivo}: o autor não está em LICENCAS.md`); }
   }
+});
+
+test('todo arquivo de public/colecao/texturas/ (fora o catálogo) aparece em LICENCAS.md', () => {
+  const pasta = join(RAIZ, 'texturas');
+  for (const p of arquivosDe(pasta)) { const n = relative(pasta, p); if (n === 'texturas.json') continue; assert.ok(LICENCAS.includes(`texturas/${n}`), `texturas/${n} não está em docs/LICENCAS.md`); }
 });
 
 test('tamanhos: cada arquivo até 400 KB e a coleção inteira até 15 MB', () => {

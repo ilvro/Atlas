@@ -1,0 +1,10 @@
+[
+  { "id": "forest_ground_04", "pasta": "forest_ground_04", "fonte": "Poly Haven", "autor": "Rob Tuytel, Rico Cilliers", "metros": 3.15, "url": "https://polyhaven.com/a/forest_ground_04", "licenca": "CC0" },
+  { "id": "leaves_forest_ground", "pasta": "leaves_forest_ground", "fonte": "Poly Haven", "autor": "Dario Barresi, Dimitrios Savva", "metros": 1.26, "url": "https://polyhaven.com/a/leaves_forest_ground", "licenca": "CC0" },
+  { "id": "dirt_floor", "pasta": "dirt_floor", "fonte": "Poly Haven", "autor": "eye-candy.xyz", "metros": 2.07, "url": "https://polyhaven.com/a/dirt_floor", "licenca": "CC0" },
+  { "id": "stony_dirt_path", "pasta": "stony_dirt_path", "fonte": "Poly Haven", "autor": "eye-candy.xyz", "metros": 2.17, "url": "https://polyhaven.com/a/stony_dirt_path", "licenca": "CC0" },
+  { "id": "brown_mud_dry", "pasta": "brown_mud_dry", "fonte": "Poly Haven", "autor": "Rob Tuytel", "metros": 1.3, "url": "https://polyhaven.com/a/brown_mud_dry", "licenca": "CC0" },
+  { "id": "leafy_grass", "pasta": "leafy_grass", "fonte": "Poly Haven", "autor": "Charlotte Baglioni", "metros": 2, "url": "https://polyhaven.com/a/leafy_grass", "licenca": "CC0" },
+  { "id": "withered_grass", "pasta": "withered_grass", "fonte": "Poly Haven", "autor": "Charlotte Baglioni", "metros": 2, "url": "https://polyhaven.com/a/withered_grass", "licenca": "CC0" },
+  { "id": "ground068", "pasta": "Ground068", "fonte": "ambientCG", "autor": "ambientCG", "metros": 1.5, "estimado": true, "url": "https://ambientcg.com/view?id=Ground068", "licenca": "CC0" }
+]
