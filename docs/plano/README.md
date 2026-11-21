@@ -54,7 +54,7 @@ Commit: mensagem curta em inglês
 | [fase-12.md](fase-12.md) | Peças, fichas flutuantes, gatilhos e tutoriais; 12.11 corrigiu os gatilhos |
 | [fase-13.md](fase-13.md) | Concluída (Momentos, projetor, painel, gatilhos, barra de efeitos) |
 | [fase-14.md](fase-14.md) | Concluída (ponte MCP, leitura, escrita, momentos, Mesa, Ateliê, Dossiê, Jukebox) |
-| [ponte-mcp.md](ponte-mcp.md) | Detalhado — catálogo estável, prazos, catálogo base, anotações, instruções, descrições |
+| [ponte-mcp.md](ponte-mcp.md) | Detalhado — catálogo estável, prazos, catálogo base, anotações, instruções, descrições; Etapa 6 (ferramentas em dois níveis, PM6a–c) a fazer |
 | [telhados.md](telhados.md) | Detalhado — telhado por edifício, padrão ao criar, estilos (coberturas, formas, detalhes), penumbra, chave na sessão |
 | [mapas-melhores.md](mapas-melhores.md) | **Documento-mestre** da iniciativa "mapas melhores pelo assistente": problema, diagnóstico, ordem e frentes A–I (implementação pelo Gemini; guia e acervo pelo Opus) |
 | [app-atualizado.md](app-atualizado.md) | A — app de desktop se remonta ao abrir e enquanto está aberto (Mesa) |
