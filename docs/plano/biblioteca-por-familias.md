@@ -267,7 +267,7 @@ Registro da implementação (para a auditoria):
 - **Teste e2e:** `tests/e2e/o9-varios.test.ts`.
 
 
-### O10 — Famílias na construção automática e no assistente  ⬜
+### O10 — Famílias na construção automática e no assistente  ✅
 Objetivo: os conjuntos de Espalhar e a ponte MCP entendem família, para o assistente pedir "árvore" sem escolher a variante.
 Depende de: O1.
 Ler: `src/authoring/espalhar.ts:13-60`; `src/app/ponte-leitura.ts:265-320` (`catalogo`); `docs/assistente/nucleo.md` (o trecho de `atlas_catalogo`); `src/app/ponte-escrita.ts` (onde o assistente põe objetos por id).
@@ -280,6 +280,14 @@ Não fazer: mudar mapas de exemplo salvos.
 Testes: um conjunto com família produz só itens daquela família; o catálogo traz a parte `familias`; `familia:arvore` é aceito e vira uma das variantes.
 Pronto quando: o assistente consegue listar as famílias e pôr "familia:pedra" num mapa.
 Commit: `assistant and scatter sets understand asset families`
+Registro da implementação (para a auditoria):
+- **`ItemDeConjunto`** virou `{ peso, contexto } & ({ receita } | { familia })`. O auxiliar `receitasDoItem(i)` (em `espalhar.ts`) devolve os ids que o item pode produzir e substitui `i.receita` em `app.ts`, no catálogo e nos testes. Ao sortear uma família, `espalhar` gasta **um `rng()` a mais** (só nesse caso), então a sequência de sorteios dos conjuntos convertidos muda em relação à de antes.
+- **Conjuntos convertidos** (só onde todas as variantes da família já estavam listadas, com o mesmo contexto): `mata` (arvore 6, pinheiro 3), `mata-fechada` (arvore-da-mata 9), `mata-nevada` (arvore-nevada 8), `bosque-morto` (arvore-morta 4, galho-seco 4), `encosta-rochosa` (pedra 13). O peso total de cada conjunto ficou igual. Os demais ficaram como estavam, porque listavam só parte das variantes (`jardim`, `costa-rochosa`, os internos). Efeito colateral: dentro de uma família a escolha da variante é **uniforme**, e antes era ponderada (por exemplo, 2/3/1 nas árvores da `mata`).
+- **`familia:<id>`** é aceito em `atlas_objetos` (`objetos()` em `construcao.ts`) e também em `atlas_arranjo` (`arranjar()`), que a ficha não citava, porque também recebe ids de item. A resolução fica em `src/authoring/familia-do-pedido.ts`. Um item comum **não gasta sorteio**, então as sementes dos pedidos antigos continuam dando o mesmo resultado. Família inexistente dá `ErroDeConstrucao` com sugestões.
+- **Catálogo:** parte nova `familias` (`grupo`, `id`, `nome`, `itens`), também nas contagens e na busca livre; `receitas` e `colecao` trazem `familia`; a busca casa o nome da família; os `itens` de `conjuntos` mostram `familia:<id>` onde há família.
+- **Orçamento das ferramentas:** o teste "orçamento compacto" (30 KB para as `atlas_*`) estourou por 33 bytes. Encurtei a descrição de `atlas_objetos` ("no mapa aberto" saiu) e atualizei `scripts/ponte/catalogo-base.json` à mão, só nessa entrada, sem rodar `npm run ponte:catalogo`. A folga ficou mínima: a próxima ferramenta ou parâmetro vai exigir enxugar mais ou subir o orçamento.
+- **Docs:** `docs/assistente/nucleo.md` e `docs/assistente/guia/ferramentas-atlas.md`.
+
 
 ## Ordem sugerida
 
