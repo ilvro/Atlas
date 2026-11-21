@@ -4,6 +4,10 @@ import { circulo } from '../../src/domain/formas-de-comodo.ts';
 import { codificar } from '../../src/domain/celulas.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { ESTADOS_DE_TELHADO, ESTILOS_DE_TELHADO, FUNCOES_AO_AR_LIVRE, PRESETS_DE_ACABAMENTO, estadoDeTelhado, estiloDeTelhado, presetDeAcabamento, telhadoPadrao } from '../../src/domain/presets.ts';
+import { MATERIAIS_POR_GENERO, PALETAS_POR_GENERO, materiaisDe, paletaDe } from '../../src/authoring/mobiliar.ts';
+import { LUZES_POR_GENERO } from '../../src/authoring/luzes.ts';
+import { GENEROS, TIPOS_DE_COMODO, generoDe, generosVisiveis, presetDeLuz } from '../../src/domain/presets.ts';
+import { familiasVisiveis } from '../../src/procedural/familias.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
 
 test('ESTILOS_DE_TELHADO: todos os 33 estilos são únicos e passam na validação do mapa', () => {
@@ -135,4 +139,34 @@ test('PRESETS_DE_ACABAMENTO: preserva presets clássicos e inclui presets cinema
   assert.deepEqual(sepia.valores.split, { shadows: '#4a3a2a', highlights: '#e8d0a0', balance: 0, amount: 0.5 });
   const dia = presetDeAcabamento('dia-dourado')!;
   assert.deepEqual(dia.valores.split, { shadows: '#3a4a6a', highlights: '#ffe0a0', balance: 0, amount: 0.25 });
+});
+
+test('GENEROS: os onze gêneros são escolhíveis e têm luzes, paleta e materiais para todas as funções', () => {
+  assert.equal(GENEROS.length, 11);
+  assert.equal(new Set(GENEROS.map(g => g.id)).size, 11);
+  for (const g of GENEROS) {
+    assert.equal(generoDe(g.id).id, g.id);
+    for (const k of ['principal', 'pequena'] as const) assert.ok(presetDeLuz(LUZES_POR_GENERO[g.id]![k]), `${g.id}/${k}`);
+    assert.ok(PALETAS_POR_GENERO[g.id]?.length, `paleta ${g.id}`);
+    assert.ok(paletaDe(g.id, 1));
+    for (const t of TIPOS_DE_COMODO) {
+      const m = MATERIAIS_POR_GENERO[g.id]![t.funcao]!;
+      assert.ok(m?.pisos.length && m.papeis.length, `${g.id}/${t.funcao}`);
+      assert.deepEqual(materiaisDe(g.id, t.funcao), m);
+    }
+  }
+});
+
+test('GENEROS: `herda` só cita gêneros que existem (ou o planejado ficcao-cientifica)', () => {
+  const ids = new Set([...GENEROS.map(g => g.id), 'ficcao-cientifica']);
+  for (const g of GENEROS) for (const h of g.herda ?? []) assert.ok(ids.has(h) && h !== g.id, `${g.id} herda ${h}`);
+  assert.deepEqual(generosVisiveis('vitoriano'), ['vitoriano', 'investigacao', 'fantasia']);
+  assert.deepEqual(generosVisiveis('desconhecido'), ['desconhecido']);
+});
+
+test('familiasVisiveis respeita a herança de gênero', () => {
+  const ids = (g: string) => new Set(familiasVisiveis(g, null).map(f => f.id));
+  assert.ok(ids('vitoriano').has('lareira') && ids('vitoriano').has('piano'));
+  assert.ok(!ids('fantasia').has('notebook'));
+  assert.ok(ids('cyberpunk').has('notebook'));
 });

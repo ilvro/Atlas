@@ -83,7 +83,7 @@ Testes: e2e: um mapa `fantasia` não mostra `notebook` na grade; com "Todas", mo
 Pronto quando: abrir um mapa de fantasia deixa a biblioteca visivelmente mais curta, e "Todas" devolve tudo.
 Commit: `library filters by the map's era and by biome`
 
-### Q3 — Gêneros de época  ⬜
+### Q3 — Gêneros de época  ✅
 Objetivo: os oito gêneros novos existem, podem ser escolhidos e têm paleta, luz e materiais básicos.
 Depende de: Q1. Pode correr em paralelo com a Q2. A E4 (`ficcao-cientifica`) continua uma ficha à parte, em [acervo-ampliado.md](acervo-ampliado.md).
 Ler: `src/domain/presets.ts` (`GENEROS`, `PRESETS_DE_LUZ`, `telhadoPadrao`), `src/authoring/mobiliar.ts` (`MATERIAIS_POR_GENERO`, `PALETAS_POR_GENERO`, `materiaisDe`), `src/authoring/luzes.ts` (`LUZES_POR_GENERO`), a ficha E4 (o formato que ela segue), `src/ui/Inspetor.tsx` (escolha de gênero).
@@ -102,10 +102,12 @@ Como:
 3. `LUZES_POR_GENERO`, principal e pequena por gênero: antiguidade `lucerna`/`vela`; oriental `lanterna-de-papel`/`vela`; deserto `lamparina`/`vela`; faroeste `lamparina`/`vela`; colonial `lamparina`/`vela`; vitoriano `lampiao-a-gas`/`vela`; pós-apocalíptico `tonel`/`lanterna`; cyberpunk `neon`/`neon-rosa`.
 4. `MATERIAIS_POR_GENERO` e `PALETAS_POR_GENERO`: por enquanto cada gênero novo **copia** o mais próximo (antiguidade, deserto e oriental copiam `fantasia`; faroeste, colonial e vitoriano copiam `investigacao`; pós-apocalíptico e cyberpunk copiam `moderno`), com um comentário `// trocado na ficha Q1Xc`. Os materiais próprios chegam com as Q10–Q12, e as fichas `c` os ligam.
 5. `telhadoPadrao`: sem mudança.
+6. **Herança de gênero.** `Genero` ganha `herda?: readonly string[]`. Valores: antiguidade, oriental e deserto herdam `['fantasia']`; faroeste, colonial e vitoriano herdam `['investigacao', 'fantasia']`; pós-apocalíptico herda `['moderno']`; cyberpunk herda `['moderno', 'ficcao-cientifica']`. `familiasVisiveis(genero, …)` (em `familias.ts`) passa a aceitar a família quando ela cita o gênero **ou** um dos gêneros que ele herda. Sem isso, as 21 famílias que a Q1 marcou pela soma das receitas (lareira, piano, castiçal…) sumiriam nos gêneros novos. Para evitar o ciclo de importação, `familias.ts` recebe uma função `generosVisiveis(id): string[]` exportada de `presets.ts`, ou a lógica fica numa função em `presets.ts`. Escolha a que não criar import circular.
 Não fazer: tipos de cômodo e regras de mobília (vêm nas fichas `c` de cada época).
-Testes: os onze gêneros (doze, com a E4) são escolhíveis; cada um tem luzes que existem no catálogo e materiais para todas as funções que o `investigacao` tem.
+Testes: os onze gêneros (doze, com a E4) são escolhíveis; cada um tem luzes que existem no catálogo e materiais para todas as funções que o `investigacao` tem; `herda` só cita gêneros que existem (ou `ficcao-cientifica`, enquanto a E4 não chega); `familiasVisiveis('vitoriano', null)` traz `lareira` e `piano`, e `familiasVisiveis('fantasia', null)` não traz `notebook`.
 Pronto quando: o inspetor oferece os gêneros novos; `atlas_mobiliar` num mapa `faroeste` funciona (ainda com o acervo de investigação).
 Commit: `added era genres with lights, palettes and base materials`
+Nota: `generosVisiveis` ficou em `presets.ts`, que `familias.ts` importa (sem ciclo). Três testes existentes precisaram de ajuste: a lista de `GENEROS` em `dominio.test.ts`, a igualdade entre `VARIACOES_DE_GENERO` e `GENEROS` em `regras-mobilia.test.ts` (virou "só cita gêneros que existem"; as variações dos gêneros novos chegam nas fichas `c`) e o orçamento total das ferramentas em `ponte-escrita.test.ts` (30 KB para 31 KB, pois o enum de gênero cresceu); `scripts/ponte/catalogo-base.json` foi regenerado. `Receita.generos` (via `serve` em `regras-mobilia.ts`) ainda não herda: itens só de `fantasia` não aparecem nos gêneros novos.
 
 ---
 

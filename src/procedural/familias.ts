@@ -1,3 +1,5 @@
+import { generosVisiveis } from '../domain/presets.ts';
+
 /**
  * A taxonomia do acervo: grupo → família → variante. Uma família reúne coisas intercambiáveis no mapa (a mesma coisa em tamanho, cor, estação ou desenho diferente);
  * `itens` está na ordem das variantes, do menor para o maior e, no mesmo tamanho, na ordem de cor da coleção.
@@ -53,7 +55,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('natureza', 'toco', 'Toco e tronco', ['toco', 'tora-assento', 'tronco.caido']),
   f('natureza', 'galho-seco', 'Galho seco', ['galho-seco', 'raiz-exposta']),
   f('natureza', 'capim', 'Capim', ['tufo-de-grama', 'tufo-de-capim', 'junco']),
-  f('natureza', 'folhico', 'Folhiço e galhos', ['folhico', 'galhada', 'raizes'], { biomas: ['temperado'] }),
+  f('natureza', 'folhico', 'Folhiço e galhos', ['folhico', 'galhada', 'gravetos', 'raizes'], { biomas: ['temperado'] }),
   f('natureza', 'brotos', 'Brotos', ['brotos'], { biomas: ['temperado'] }),
   f('natureza', 'monte-de-neve', 'Monte de neve', ['monte-de-neve'], { biomas: ['frio'] }),
   f('natureza', 'estalagmite', 'Estalagmite', ['estalagmite'], { biomas: ['subterraneo'] }),
@@ -185,7 +187,8 @@ export function sortearVariante(f: Familia, atual: string, rand: () => number): 
   return outros[Math.min(outros.length - 1, Math.floor(rand() * outros.length))] ?? atual;
 }
 
-/** As famílias que combinam com o gênero e o bioma. `null` não filtra; uma família sem a marca correspondente (atemporal) aparece sempre. */
+/** As famílias que combinam com o gênero (ou um dos que ele herda) e o bioma. `null` não filtra; uma família sem a marca correspondente (atemporal) aparece sempre. */
 export function familiasVisiveis(genero: string | null, bioma: string | null): Familia[] {
-  return FAMILIAS.filter(f => (genero === null || !f.generos?.length || f.generos.includes(genero)) && (bioma === null || !f.biomas?.length || f.biomas.includes(bioma)));
+  const aceitos = genero === null ? null : generosVisiveis(genero);
+  return FAMILIAS.filter(f => (aceitos === null || !f.generos?.length || f.generos.some(g => aceitos.includes(g))) && (bioma === null || !f.biomas?.length || f.biomas.includes(bioma)));
 }

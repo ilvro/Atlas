@@ -15,7 +15,7 @@ const SEM_PAR = (funcao: string): MateriaisDoComodo => {
 };
 
 /** Pisos e papéis por gênero e função; para a investigação, o par atual de `TIPOS_DE_COMODO` vem primeiro (é o que a pílula de função já pôs). */
-export const MATERIAIS_POR_GENERO: Readonly<Record<string, Record<string, MateriaisDoComodo>>> = {
+const MATERIAIS_BASE: Readonly<Record<string, Record<string, MateriaisDoComodo>>> = {
   investigacao: Object.fromEntries(TIPOS_DE_COMODO.map(t => {
     const extra: Record<string, MateriaisDoComodo> = {
       sala: { pisos: ['tabuas.escuras', 'parquet.espinha', 'marmore.xadrez-diagonal'], papeis: ['papel.listras-musgo', 'papel.verde-esmeralda', 'boiserie.escura'] }, cozinha: { pisos: ['azulejo.branco', 'hexagono.salvia', 'hexagono.terracota'], papeis: ['reboco.branco', 'papel.floral-azul'] },
@@ -45,7 +45,7 @@ export const MATERIAIS_POR_GENERO: Readonly<Record<string, Record<string, Materi
     : { pisos: ['laje.pedra', 'tabuas.escuras', 'tabuas.rusticas'], papeis: ['tijolo', 'pedra.aparelhada', 'papel.liso-escuro'] }])),
 };
 
-export const PALETAS_POR_GENERO: Readonly<Record<string, Paleta[]>> = {
+const PALETAS_BASE: Readonly<Record<string, Paleta[]>> = {
   investigacao: [
     { nome: 'Vinho e carvalho', madeira: 'madeira.escura', tecidos: ['tecido.veludo-vinho', 'tecido.linho'], tapete: 'tapete.persa' },
     { nome: 'Azul e nogueira', madeira: 'madeira.media', tecidos: ['tecido.veludo-azul', 'tecido.linho'], tapete: 'tapete.persa' },
@@ -61,6 +61,31 @@ export const PALETAS_POR_GENERO: Readonly<Record<string, Paleta[]>> = {
     { nome: 'Vinho e nogueira', madeira: 'madeira.media', tecidos: ['tecido.veludo-vinho', 'tecido.linho'], tapete: 'tapete.persa' },
     { nome: 'Verde e carvalho', madeira: 'madeira.escura', tecidos: ['tecido.verde', 'tecido.linho'], tapete: 'tapete.verde' },
   ],
+};
+
+/** Cada gênero novo copia, por enquanto, o mais próximo; os materiais próprios chegam com as Q10–Q12 e as fichas `c` de cada época os ligam. */
+export const MATERIAIS_POR_GENERO: Readonly<Record<string, Record<string, MateriaisDoComodo>>> = {
+  ...MATERIAIS_BASE,
+  antiguidade: MATERIAIS_BASE.fantasia!, // trocado na ficha Q15c
+  oriental: MATERIAIS_BASE.fantasia!, // trocado na ficha Q16c
+  deserto: MATERIAIS_BASE.fantasia!, // trocado na ficha Q17c
+  faroeste: MATERIAIS_BASE.investigacao!, // trocado na ficha Q18c
+  colonial: MATERIAIS_BASE.investigacao!, // trocado na ficha Q19c
+  vitoriano: MATERIAIS_BASE.investigacao!, // trocado na ficha Q20c
+  'pos-apocaliptico': MATERIAIS_BASE.moderno!, // trocado na ficha Q22c
+  cyberpunk: MATERIAIS_BASE.moderno!, // trocado na ficha Q23c
+};
+
+export const PALETAS_POR_GENERO: Readonly<Record<string, Paleta[]>> = {
+  ...PALETAS_BASE,
+  antiguidade: PALETAS_BASE.fantasia!, // trocado na ficha Q15c
+  oriental: PALETAS_BASE.fantasia!, // trocado na ficha Q16c
+  deserto: PALETAS_BASE.fantasia!, // trocado na ficha Q17c
+  faroeste: PALETAS_BASE.investigacao!, // trocado na ficha Q18c
+  colonial: PALETAS_BASE.investigacao!, // trocado na ficha Q19c
+  vitoriano: PALETAS_BASE.investigacao!, // trocado na ficha Q20c
+  'pos-apocaliptico': PALETAS_BASE.moderno!, // trocado na ficha Q22c
+  cyberpunk: PALETAS_BASE.moderno!, // trocado na ficha Q23c
 };
 
 export const materiaisDe = (genero: string, funcao: string): MateriaisDoComodo => (MATERIAIS_POR_GENERO[generoDe(genero).id] ?? MATERIAIS_POR_GENERO.investigacao!)[funcao] ?? SEM_PAR(funcao);

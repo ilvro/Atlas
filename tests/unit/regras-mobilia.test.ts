@@ -41,7 +41,7 @@ test('o gênero muda a mobília: fantasia não tem cadeira na taverna nem na coz
   assert.ok(!receitas('sala', 'fantasia').includes('sofa')); assert.ok(receitas('sala', 'fantasia').includes('poltrona'));
   assert.ok(receitas('quarto', 'investigacao').includes('estante')); assert.ok(!receitas('quarto', 'moderno').includes('estante'));
   assert.deepEqual(regrasPara('quarto', 'investigacao'), regrasPara('quarto', 'genero-que-nao-existe'));
-  assert.deepEqual(Object.keys(VARIACOES_DE_GENERO).sort(), GENEROS.map(g => g.id).sort());
+  for (const k of Object.keys(VARIACOES_DE_GENERO)) assert.ok(GENEROS.some(g => g.id === k), k); // os gêneros de época ganham variações nas fichas `c`
   assert.deepEqual(regrasPara('funcao-inexistente', 'moderno'), []);
 });
 

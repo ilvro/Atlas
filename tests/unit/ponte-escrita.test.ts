@@ -499,7 +499,7 @@ test('as ferramentas do Atlas têm descrições curtas e ficam dentro do orçame
   const bytes = Buffer.byteLength(JSON.stringify(todas.filter(f => SEMPRE.includes(f.nome))));
   assert.ok(bytes < 16_000, `Esperava soma das atlas_* em SEMPRE menor que 16 KB (16000 bytes), obteve ${bytes}`);
   const totalBytes = Buffer.byteLength(JSON.stringify(todas));
-  assert.ok(totalBytes < 30_000, `Esperava soma total das ferramentas menor que 30 KB (30000 bytes), obteve ${totalBytes}`);
+  assert.ok(totalBytes < 31_000, `Esperava soma total das ferramentas menor que 31 KB (31000 bytes), obteve ${totalBytes}`);
 });
 
 

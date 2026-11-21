@@ -34,8 +34,8 @@ test('familiaDoItem acha a família das árvores', () => {
   assert.equal(ACERVO.familiaDoItem('nao-existe'), undefined);
 });
 
-// Gêneros ainda não criados em `GENEROS` (a ficha Q3 os cria); sai daqui então.
-const GENEROS_PLANEJADOS = ['antiguidade', 'oriental', 'deserto', 'faroeste', 'colonial', 'vitoriano', 'pos-apocaliptico', 'cyberpunk', 'ficcao-cientifica'];
+// Gênero ainda não criado em `GENEROS` (a ficha E4 o cria); sai daqui então.
+const GENEROS_PLANEJADOS = ['ficcao-cientifica'];
 test('todo gênero e bioma citado nas famílias existe', () => {
   const generos = new Set([...GENEROS.map(g => g.id), ...GENEROS_PLANEJADOS]), biomas = new Set<string>(BIOMAS.map(b => b.id));
   for (const f of FAMILIAS) {
