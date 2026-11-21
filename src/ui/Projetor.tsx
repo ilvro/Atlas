@@ -4,6 +4,7 @@ import { iniciarTema } from '../app/tema.ts';
 import { canaisDoProjetor, projetorPodeDizer, type MensagemDoMestre, type MensagemDoProjetor } from '../app/projetor.ts';
 import type { Recursos } from '../domain/fichas.ts';
 import { criarMapa, type MapaAtlas } from '../domain/mapa.ts';
+import { pecasDoJogador } from '../domain/projecao-remota.ts';
 import { flutuarRolagem, ponto } from '../fx/fx.ts';
 import { silenciarNestaJanela } from '../fx/som.ts';
 import { criarViewport, type Viewport } from '../render/viewport.ts';
@@ -85,6 +86,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
     };
     const tamanho = () => ({ largura: ref.current?.clientWidth ?? innerWidth, altura: ref.current?.clientHeight ?? innerHeight });
     const ola = () => dizer({ tipo: 'ola', ...tamanho() });
+    let fichasDoJogador: string[] = [];
 
     void criarViewport(ref.current!, {
       store: (store = criarStore(criarMapa({ id: mapaId, nome: 'Aguardando…' }), { salvo: false })),
@@ -92,6 +94,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
       adicionar() {}, aoColocar() {}, aviso() {}, aoMenuContexto() {}, acabamento: () => true, vista: () => 'jogador',
       lerRetrato: lerRetratoLocal,
       recursosDaPeca: t => recursosLocais.get(t.id) ?? null,
+      pecaDoJogador: t => remoto && pecasDoJogador({ tokens: { [t.id]: t } }, fichasDoJogador).has(t.id),
     }).then(v => {
       if (morto) { v.destruir(); return; }
       vp = v; vpAtual = v;
@@ -162,6 +165,15 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
       else if (msg.tipo === 'retrato') { retratos.set(msg.id, msg.blob); versaoRetratos.value++; vp?.redesenharPecas(); }
     };
     for (const c of canais) c.onmessage = (e: MessageEvent<MensagemDoMestre>) => tratarMensagem(e.data);
+    const aoMensagem = (ev: MessageEvent) => {
+      if (!remoto || ev.origin !== location.origin) return;
+      if (window.parent !== window && ev.source !== window.parent) return;
+      const d = ev.data as { tipo?: unknown; fichas?: unknown } | null;
+      if (!d || typeof d !== 'object' || d.tipo !== 'jogador' || !Array.isArray(d.fichas)) return;
+      fichasDoJogador = d.fichas.filter((x): x is string => typeof x === 'string');
+      vp?.redesenharPecas();
+    };
+    if (remoto) window.addEventListener('message', aoMensagem);
 
     // Enquanto o mestre não responde, pergunta de novo (ele pode abrir o mapa depois).
     const insistir = setInterval(() => { if (!doc.value) ola(); }, 1500);
@@ -217,6 +229,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
     return () => {
       morto = true; clearInterval(insistir); clearTimeout(sumir); aoSair();
       for (const c of canais) c.close();
+      if (remoto) window.removeEventListener('message', aoMensagem);
       sairTema(); vp?.destruir(); store?.dispor();
       window.removeEventListener('resize', aoRedimensionar); window.removeEventListener('pagehide', aoSair); window.removeEventListener('pointermove', mexeu);
       window.removeEventListener('wheel', aoRolarJanela, { capture: true });

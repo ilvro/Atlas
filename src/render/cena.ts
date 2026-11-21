@@ -52,6 +52,8 @@ export interface OpcoesDaCena {
   retrato?(id: string | null | undefined, pixel?: RetratoNoPixel): Texture | null;
   /** PV e PD da ficha ligada a uma peça (só do mestre, ou do projetor se ele quiser). */
   recursos?(t: Peca): Recursos | null;
+  /** A peça pertence ao jogador que está vendo o projetor remoto (R14)? */
+  pecaDoJogador?(t: Peca): boolean;
 }
 
 export interface ContextoDoAndar {
@@ -604,7 +606,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     const pixel = m.style.renderer === 'pixel', px = m.style.pixel;
     const noPixel: RetratoNoPixel | undefined = pixel ? { chave: `${m.style.palette}|${px.pixelsPerCell}|${t.size}|${px.dither}|${px.outline}`, lado: Math.max(8, Math.round(t.size * px.pixelsPerCell * 0.9)), paleta: paletaDe(m.style.palette).cores, dither: px.dither === 'bayer4', contorno: px.outline } : undefined;
     const rec = op.recursos?.(t) ?? null, aparente = rec && emEstadoCritico(rec) && t.figure.state === 'normal' ? { ...t, figure: { state: 'hurt' as const } } : t;      // PV baixo: "ferida" só na tela
-    v.atualizar(aparente, m.grid.size, op.acento(), op.retrato?.(t.portrait?.id, noPixel) ?? null, op.efeitos(), { folha, pixel }, rec);
+    v.atualizar(aparente, m.grid.size, op.acento(), op.retrato?.(t.portrait?.id, noPixel) ?? null, op.efeitos(), { folha, pixel }, rec, op.pecaDoJogador?.(t) === true);
   }
 
   function desenharRegiao(c: Container, r: Regiao): void {

@@ -1,8 +1,8 @@
 import { elipse, poli, ret, type Parte } from '../descricao.ts';
 import { tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
-import { LUZ_X, LUZ_Y, bolha, lente, silhuetaDeDiscos, sombraNoChao, tira } from '../organico.ts';
-import { num, parede, piso, type Receita } from './comum.ts';
+import { LUZ_X, LUZ_Y, bolha, lente, silhuetaDeDiscos, sombraNoChao, tira, tonsComLuz, tufo } from '../organico.ts';
+import { num, parede, piso, type LuzDeReceita, type Receita } from './comum.ts';
 
 // Antiguidade (Q15a): templo e cidade. Mármore claro e quente, bronze com pátina, arenito e granito pintados para o Egito.
 // Como no resto do acervo: nanquim por baixo do que conta na silhueta, volume em degraus de tom para o noroeste e `z` moderado
@@ -632,6 +632,464 @@ function painelDeHieroglifos(seed: number, l: number): { face: Parte[]; topo: Pa
   return { face, topo };
 }
 
+// ---------- Casa e vida (Q15b) ----------
+// Terracota, madeira escura, linho e as cores pompeianas (vermelho, ocre, púrpura) por cima do mármore e do bronze da Q15a.
+
+const TERRACOTA: Tons = { nanquim: '#2a1208', sombra: '#6e3218', base: '#984a26', meio: '#b05c32', luz: '#c87648', brilho: '#e09a6c' };
+const BARRO: Tons = { nanquim: '#2a1a0e', sombra: '#7a5a3a', base: '#a07a50', meio: '#b48c60', luz: '#c8a274', brilho: '#e0c094' };
+const MADEIRA: Tons = { nanquim: '#1c1008', sombra: '#432814', base: '#62401f', meio: '#7a5229', luz: '#946637', brilho: '#b88a52' };
+const ESTUQUE: Tons = { nanquim: '#2a2018', sombra: '#8a7860', base: '#b0a080', meio: '#c4b494', luz: '#d6c8a8', brilho: '#ece0c4' };
+const POMPEIA = '#8e2c1c', OCRE = '#b8862e', PURPURA = '#5a2440', LINHO = '#d8ccb0', ANIL = '#2e4a6a';
+
+/** A direção da luz (noroeste) no referencial girado de `ang`. */
+const luzLocal = (ang: number): [number, number] => [LUZ_X * Math.cos(ang) + LUZ_Y * Math.sin(ang), -LUZ_X * Math.sin(ang) + LUZ_Y * Math.cos(ang)];
+/** Retângulo de cantos arredondados (u, v, w, h, raio) no referencial `f`. */
+function retR(f: Quadro, u: number, v: number, w: number, h: number, raio = 0): number[] {
+  const rr = Math.max(0.001, Math.min(raio, w / 2, h / 2)), pts: number[] = [];
+  const cantos: [number, number, number][] = [[u + w / 2 - rr, v - h / 2 + rr, -Math.PI / 2], [u + w / 2 - rr, v + h / 2 - rr, 0], [u - w / 2 + rr, v + h / 2 - rr, Math.PI / 2], [u - w / 2 + rr, v - h / 2 + rr, Math.PI]];
+  for (const [cu, cv, a0] of cantos) for (let k = 0; k <= 3; k++) { const a = a0 + (k / 3) * (Math.PI / 2); pts.push(cu + Math.cos(a) * rr, cv + Math.sin(a) * rr); }
+  return em(f, pts);
+}
+/** Retângulo (u, v, w, h) no referencial `f`. */
+const retQ = (f: Quadro, u: number, v: number, w: number, h: number): number[] => em(f, [u - w / 2, v - h / 2, u + w / 2, v - h / 2, u + w / 2, v + h / 2, u - w / 2, v + h / 2]);
+/** Um arco de `a0` a `a1` (rad) em `n` passos. */
+const arco = (x: number, y: number, rx: number, ry: number, a0: number, a1: number, n = 12): number[] => { const p: number[] = []; for (let k = 0; k <= n; k++) { const a = a0 + (k / n) * (a1 - a0); p.push(x + Math.cos(a) * rx, y + Math.sin(a) * ry); } return p; };
+/** Um círculo de `n` pontos (para tiras em anel). */
+const anel = (x: number, y: number, rx: number, ry = rx, n = 28): number[] => { const p: number[] = []; for (let k = 0; k <= n; k++) { const a = (k / n) * Math.PI * 2; p.push(x + Math.cos(a) * rx, y + Math.sin(a) * ry); } return p; };
+
+/** Tecido estofado (colchão, almofada) no referencial `f`: nanquim, base, o lado da luz mais claro e a borda de baixo escura. */
+function estofado(partes: Parte[], f: Quadro, ang: number, u: number, v: number, w: number, h: number, cor: string, z: number, raio = Math.min(w, h) * 0.3): void {
+  const [lu, lv] = luzLocal(ang);
+  partes.push(poli(retR(f, u - lu * 0.012, v - lv * 0.014, w + 0.03, h + 0.03, raio), tom(cor, -0.62), z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
+  partes.push(poli(retR(f, u, v, w, h, raio), tom(cor, -0.16), z + 0.003, { ...O, detalhe: 1 }));
+  partes.push(poli(retR(f, u + lu * w * 0.05, v + lv * h * 0.07, w * 0.88, h * 0.78, raio * 0.8), cor, z + 0.005, { ...S, detalhe: 1 }));
+  partes.push(poli(retR(f, u + lu * w * 0.14, v + lv * h * 0.2, w * 0.62, h * 0.38, raio * 0.6), tom(cor, 0.16), z + 0.007, { ...S, alfa: 0.75, detalhe: 2 }));
+}
+
+/** Uma fruta ou bolinha em volume (uva, romã, figo, pão): nanquim, base e o brilho para o noroeste. */
+function fruta(partes: Parte[], x: number, y: number, R: number, cor: string, z: number): void {
+  partes.push(elipse(x + 0.006, y + 0.007, R * 2 + 0.014, R * 2 + 0.014, tom(cor, -0.7), z, { contorno: false, semSombra: true, detalhe: 2 }), elipse(x, y, R * 2, R * 2, cor, z + 0.001, { ...O, detalhe: 2 }), elipse(x + LUZ_X * R * 0.4, y + LUZ_Y * R * 0.4, R * 0.7, R * 0.7, tom(cor, 0.35), z + 0.002, { ...S, alfa: 0.85, detalhe: 3 }));
+}
+
+/** Cacho de uvas (n bagos) em volta de (x, y). */
+function cacho(partes: Parte[], r: () => number, x: number, y: number, k: number, cor: string, z: number, n = 9): void {
+  for (let i = 0; i < n; i++) { const a = r() * 6.28, d = Math.sqrt(r()) * k * 0.9; fruta(partes, x + Math.cos(a) * d, y + Math.sin(a) * d * 1.3, k * 0.32, tom(cor, (r() - 0.5) * 0.2), z + i * 0.002); }
+}
+
+/** Leito de refeição (lectus) no referencial `f` (u ao comprido, v para a frente): moldura de madeira, colchão de linho, a coberta com franja que cai pela frente, o fulcro (cabeceira curva) com medalhão de bronze e as almofadas. */
+function leito(partes: Parte[], r: () => number, f: Quadro, ang: number, L: number, W: number, cobre: string, almofada: string): void {
+  bloco(partes, f, L, W, MADEIRA, 0.38, 0.05, ang);
+  for (const s of [-1, 1]) partes.push(poli(retQ(f, s * (L / 2 - 0.03), 0, 0.03, W - 0.06), BRONZE.luz, 0.395, { ...O, detalhe: 3 }));
+  estofado(partes, f, ang, 0.03, -0.01, L - 0.12, W - 0.12, LINHO, 0.45);
+  // A coberta: cobre a frente do colchão e cai pela borda, com uma barra dourada e a franja.
+  estofado(partes, f, ang, 0.08, W * 0.14, L - 0.26, W * 0.7, cobre, 0.5, 0.05);
+  partes.push(poli(retQ(f, 0.08, W * 0.43, L - 0.3, 0.05), OCRE, 0.51, { ...O, alfa: 0.9, detalhe: 2 }));
+  for (let u = -L / 2 + 0.22; u < L / 2 - 0.08; u += 0.065) partes.push(tira(em(f, [u, W / 2 - 0.02, u + (r() - 0.5) * 0.02, W / 2 + 0.05]), 0.022, tom(OCRE, -0.25), 0.395, { ...O, detalhe: 3 }));
+  // O fulcro: a cabeceira curva na ponta esquerda, de madeira com aplique de bronze e o medalhão na frente.
+  const fu = -L / 2, cur: number[] = [];
+  for (let k = 0; k <= 10; k++) { const v = -W / 2 + 0.04 + (k / 10) * (W - 0.1); cur.push(fu + 0.04, v); }
+  for (let k = 10; k >= 0; k--) { const v = -W / 2 + 0.04 + (k / 10) * (W - 0.1), t = (v + W / 2) / W; cur.push(fu + 0.12 + 0.12 * Math.sin(t * Math.PI * 0.95), v); }
+  partes.push(poli(em(f, cur).map((p, i) => p + (i % 2 ? 0.014 : 0.012)), MADEIRA.nanquim, 0.6, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), poli(em(f, cur), MADEIRA.meio, 0.605, { ...O, detalhe: 1 }));
+  partes.push(tira(em(f, cur.slice(cur.length / 2 + 2, cur.length - 2)), 0.03, BRONZE.luz, 0.61, { ...O, detalhe: 2 }, 0.4));
+  const [mx, my] = f(fu + 0.12, W / 2 - 0.1);
+  partes.push(elipse(mx, my, 0.1, 0.1, BRONZE.nanquim, 0.615, { contorno: 'leve', detalhe: 2 }), elipse(mx, my, 0.075, 0.075, BRONZE.meio, 0.62, { ...O, detalhe: 2 }), elipse(mx + LUZ_X * 0.01, my + LUZ_Y * 0.01, 0.035, 0.035, BRONZE.brilho, 0.625, { ...O, detalhe: 3 }));
+  // Almofadas: o rolo (pulvinus) junto ao fulcro e uma ou duas ao longo das costas.
+  estofado(partes, f, ang, fu + 0.38, -W * 0.08, 0.34, W * 0.56, almofada, 0.56, 0.12);
+  partes.push(tira(em(f, [fu + 0.38, -W * 0.34, fu + 0.38, W * 0.18]), 0.012, tom(almofada, -0.4), 0.57, { ...O, alfa: 0.6, detalhe: 3 }));
+  const n = L > 3 ? 2 : 1;
+  for (let i = 0; i < n; i++) estofado(partes, f, ang, fu + L * (0.48 + i * 0.3) + (r() - 0.5) * 0.1, -W * 0.3, 0.5, 0.26, i % 2 ? LINHO : almofada, 0.54, 0.1);
+}
+
+/** Triclínio: um leito só (`leitos` 1) ou três em U em volta do lugar da mesa (`leitos` 3), abertos para +y. */
+function triclinio(seed: number, leitos: number): { pegada: [number, number]; partes: Parte[] } {
+  const r = mulberry32(seed), partes: Parte[] = [], W = 1.05;
+  const [cobre, almofada] = ([[POMPEIA, OCRE], [PURPURA, OCRE], [ANIL, LINHO]] as const)[Math.floor(r() * 3)]!;
+  if (leitos < 2) {
+    sombraNoChao(partes, [-1.2, -0.55, 1.2, -0.55, 1.2, 0.6, -1.2, 0.6], 0.02, '#0d0a08', 0.4);
+    leito(partes, r, ID, 0, 2.3, W, cobre, almofada);
+    return { pegada: [2.4, 1.2], partes };
+  }
+  const PX = 4.4, PY = 4.2, Ls = PY - W - 0.05;
+  sombraNoChao(partes, [-2.2, -2.1, 2.2, -2.1, 2.2, 2.1, 1.1, 2.1, 1.1, -1.0, -1.1, -1.0, -1.1, 2.1, -2.2, 2.1], 0.02, '#0d0a08', 0.35);
+  leito(partes, r, quadro(0, -PY / 2 + W / 2, 0), 0, PX, W, cobre, almofada);
+  leito(partes, r, quadro(-PX / 2 + W / 2, PY / 2 - Ls / 2, -Math.PI / 2), -Math.PI / 2, Ls, W, cobre, almofada);
+  leito(partes, r, quadro(PX / 2 - W / 2, PY / 2 - Ls / 2, Math.PI / 2), Math.PI / 2, Ls, W, cobre, almofada);
+  return { pegada: [PX, PY], partes };
+}
+
+/** Mesa romana redonda de mármore (pé de leão escondido) com o que se serve: bandeja de bronze com uvas e romãs, taça, jarro e pão. */
+function mesaRomana(seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], R = 0.46;
+  sombraNoChao(partes, bolha(0, 0, R * 1.05, R * 1.05, 16, 0.03, r), 0.02, '#0d0a08', 0.45);
+  for (let k = 0; k < 3; k++) { const a = 0.5 + (k / 3) * Math.PI * 2, x = Math.cos(a) * R * 0.98, y = Math.sin(a) * R * 0.98; partes.push(elipse(x, y, 0.12, 0.1, BRONZE.nanquim, 0.08, { contorno: 'leve', detalhe: 2 }), elipse(x, y, 0.08, 0.07, BRONZE.meio, 0.085, { ...O, detalhe: 3 })); }
+  disco(partes, 0, 0, R, MARMORE, 0.7);
+  partes.push(tira(anel(0, 0, R * 0.9), 0.012, MARMORE.sombra, 0.716, { ...O, alfa: 0.6, detalhe: 3 }));
+  for (let k = 0; k < 3; k++) { const a = r() * 6.28, pts: number[] = []; let x = Math.cos(a) * R * 0.7, y = Math.sin(a) * R * 0.7; for (let j = 0; j < 5; j++) { pts.push(x, y); x += (r() - 0.5) * 0.18 - Math.cos(a) * 0.08; y += (r() - 0.5) * 0.18 - Math.sin(a) * 0.08; } partes.push(tira(pts, 0.008, '#8a8070', 0.717, { ...O, alfa: 0.45, detalhe: 3 }, 0.3)); }
+  // Bandeja de bronze com uvas, romãs e figos.
+  const bx = -0.08, by = 0.08;
+  disco(partes, bx, by, 0.17, BRONZE, 0.73);
+  partes.push(elipse(bx, by, 0.27, 0.27, tom(BRONZE.base, -0.2), 0.745, { ...O, detalhe: 2 }));
+  cacho(partes, r, bx - 0.04, by - 0.02, 0.07, '#4a2050', 0.75);
+  fruta(partes, bx + 0.07, by + 0.06, 0.045, '#9a2a22', 0.76); fruta(partes, bx + 0.08, by - 0.06, 0.035, '#5a3a4a', 0.76);
+  partes.push(elipse(bx + 0.06, by + 0.03, 0.018, 0.012, '#e8c070', 0.77, { ...O, detalhe: 3 }));
+  // Taça de verniz negro com o fundo vermelho e as duas asas.
+  const tx = 0.2, ty = -0.12;
+  partes.push(tira([tx - 0.1, ty, tx + 0.1, ty], 0.03, '#141010', 0.76, { contorno: 'leve', detalhe: 2 }));
+  partes.push(elipse(tx, ty, 0.15, 0.15, '#141010', 0.762, { contorno: 'leve', detalhe: 2 }), elipse(tx, ty, 0.11, 0.11, '#7a2a1a', 0.764, { ...O, detalhe: 2 }), elipse(tx + 0.008, ty + 0.008, 0.06, 0.06, '#4a0e10', 0.766, { ...O, detalhe: 3 }), elipse(tx - 0.03, ty - 0.03, 0.03, 0.02, '#d0a080', 0.768, { ...O, alfa: 0.6, detalhe: 3 }));
+  // Jarro (enócoa) de terracota com a boca trilobada.
+  const jx = -0.2, jy = -0.2;
+  disco(partes, jx, jy, 0.07, TERRACOTA, 0.8);
+  partes.push(poli([jx - 0.03, jy - 0.035, jx + 0.035, jy - 0.02, jx + 0.02, jy + 0.03, jx - 0.035, jy + 0.02], '#160804', 0.82, { contorno: 'leve', detalhe: 2 }), tira([jx + 0.04, jy + 0.03, jx + 0.08, jy + 0.06], 0.02, TERRACOTA.sombra, 0.815, { contorno: 'leve', detalhe: 3 }));
+  // Pão redondo em oito gomos.
+  const px = 0.2, py = 0.18;
+  disco(partes, px, py, 0.085, { nanquim: '#2a1608', sombra: '#7a4a1c', base: '#a06a2a', meio: '#b87e36', luz: '#cc9848', brilho: '#e6bc70' }, 0.74);
+  for (let k = 0; k < 4; k++) { const a = (k / 4) * Math.PI; partes.push(tira([px - Math.cos(a) * 0.075, py - Math.sin(a) * 0.075, px + Math.cos(a) * 0.075, py + Math.sin(a) * 0.075], 0.008, '#5a3412', 0.76, { ...O, alfa: 0.8, detalhe: 3 })); }
+  return partes;
+}
+
+/** Ânfora de pé vista de cima: o ombro, o gargalo, o lábio com a boca escura (ou o selo de piche) e as duas asas. */
+function anforaDePe(partes: Parte[], r: () => number, x: number, y: number, R: number, t: Tons, z: number, ang = r() * 6.28): void {
+  disco(partes, x, y, R, t, z);
+  const c = Math.cos(ang), s = Math.sin(ang);
+  for (const lado of [-1, 1]) {
+    const p = (k: number, d: number) => [x + c * lado * R * k - s * R * d, y + s * lado * R * k + c * R * d];
+    const pts = [...p(0.3, 0), ...p(0.6, -0.06), ...p(0.88, 0)], claro = olhar(Math.atan2(s * lado, c * lado)) > 0;
+    partes.push(tira(pts, R * 0.2, t.nanquim, z + 0.03, { contorno: 'leve', detalhe: 1 }), tira(pts, R * 0.11, claro ? t.luz : t.base, z + 0.034, { ...O, detalhe: 2 }));
+  }
+  partes.push(elipse(x + 0.008, y + 0.01, R * 0.8, R * 0.8, t.nanquim, z + 0.04, { contorno: 'leve', detalhe: 1 }), elipse(x, y, R * 0.72, R * 0.72, t.base, z + 0.043, { ...O, detalhe: 1 }), elipse(x + LUZ_X * R * 0.08, y + LUZ_Y * R * 0.08, R * 0.5, R * 0.5, t.luz, z + 0.046, { ...S, detalhe: 2 }));
+  const selo = r() < 0.4;
+  partes.push(elipse(x, y, R * 0.36, R * 0.36, selo ? '#1a1410' : '#120804', z + 0.05, { contorno: 'leve', detalhe: 2 }));
+  if (selo) partes.push(elipse(x + LUZ_X * R * 0.06, y + LUZ_Y * R * 0.06, R * 0.16, R * 0.16, '#4a4038', z + 0.052, { ...S, alfa: 0.8, detalhe: 3 }));
+}
+
+/** Ânfora deitada no referencial `f` (vista de lado, de cima): a ponta, o bojo comprido, o ombro, o gargalo e as asas; cilindro claro do lado da luz. */
+const PERFIL_DE_ANFORA: readonly (readonly [number, number])[] = [[-0.52, 0.018], [-0.47, 0.03], [-0.41, 0.07], [-0.32, 0.115], [-0.18, 0.145], [0.04, 0.152], [0.15, 0.142], [0.21, 0.1], [0.25, 0.052], [0.43, 0.046], [0.45, 0.062], [0.52, 0.062]];
+function anforaDeitada(partes: Parte[], f: Quadro, ang: number, t: Tons, z: number): void {
+  const [lu, lv] = luzLocal(ang);
+  const contorno = (k: number, du = 0, dv = 0): number[] => em(f, [...PERFIL_DE_ANFORA.flatMap(([u, w]) => [u + du, -w * k + dv]), ...[...PERFIL_DE_ANFORA].reverse().flatMap(([u, w]) => [u + du, w * k + dv])]);
+  for (const s of [-1, 1]) {
+    const asa = em(f, [0.19, s * 0.1, 0.3, s * 0.135, 0.42, s * 0.055]);
+    partes.push(tira(asa, 0.04, t.nanquim, z - 0.004, { contorno: 'leve', detalhe: 1 }), tira(asa, 0.022, s * lv < 0 ? t.luz : t.base, z - 0.002, { ...O, detalhe: 2 }));
+  }
+  partes.push(poli(contorno(1.08, 0.006, 0.008), t.nanquim, z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), poli(contorno(1), t.sombra, z + 0.002, { ...O, detalhe: 1 }));
+  partes.push(poli(contorno(0.82, 0, lv * 0.025), t.base, z + 0.004, { ...S, detalhe: 1 }), poli(contorno(0.5, 0, lv * 0.06), t.meio, z + 0.006, { ...S, detalhe: 2 }));
+  partes.push(poli(contorno(0.2, 0, lv * 0.095), t.luz, z + 0.008, { ...S, alfa: 0.85, detalhe: 2 }));
+  partes.push(tira(em(f, [0.452, -0.06, 0.452, 0.06]), 0.012, t.nanquim, z + 0.01, { ...O, alfa: 0.6, detalhe: 3 }));
+  void lu;
+}
+
+/** Ânforas empilhadas: uma camada de cinco deitadas, de pontas trocadas, e quatro por cima nos vãos, sobre a areia. */
+function anforasEmpilhadas(seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [];
+  sombraNoChao(partes, bolha(0, 0, 0.85, 0.66, 14, 0.08, r), 0.01, '#3a2a18', 0.5, [0.03, 0.04]);
+  for (let i = 0; i < 5; i++) { const x = -0.6 + i * 0.3 + (r() - 0.5) * 0.02, a = (i % 2 ? 1 : -1) * Math.PI / 2 + (r() - 0.5) * 0.05; anforaDeitada(partes, quadro(x, (r() - 0.5) * 0.06, a), a, r() < 0.3 ? BARRO : TERRACOTA, 0.25); }
+  for (let i = 0; i < 4; i++) { const x = -0.45 + i * 0.3 + (r() - 0.5) * 0.02, a = (i % 2 ? -1 : 1) * Math.PI / 2 + (r() - 0.5) * 0.05; anforaDeitada(partes, quadro(x, (r() - 0.5) * 0.06, a), a, r() < 0.3 ? BARRO : TERRACOTA, 0.5); }
+  return partes;
+}
+
+/** Pithos: o jarrão enterrado até o ombro, com dois cordões em relevo, o lábio grosso e o conteúdo (grão ou vinho); às vezes a tampa entreaberta. */
+function pithos(seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], t = TERRACOTA;
+  sombraNoChao(partes, bolha(0, 0, 0.62, 0.6, 14, 0.1, r), 0.005, '#2a1a0c', 0.6, [0, 0]);
+  disco(partes, 0, 0, 0.52, t, 0.1);
+  for (const k of [0.9, 0.74]) {
+    partes.push(tira(anel(0.006, 0.008, 0.52 * k), 0.05, t.nanquim, 0.116, { ...O, alfa: 0.55, detalhe: 2 }), tira(anel(0, 0, 0.52 * k), 0.032, t.base, 0.118, { ...O, detalhe: 2 }));
+    for (let j = 0; j < 30; j++) { const a = (j / 30) * Math.PI * 2, R0 = 0.52 * k; partes.push(tira([Math.cos(a) * (R0 - 0.014), Math.sin(a) * (R0 - 0.014), Math.cos(a + 0.06) * (R0 + 0.014), Math.sin(a + 0.06) * (R0 + 0.014)], 0.012, tom(t.base, olhar(a) * 0.3 + 0.05), 0.12, { ...O, detalhe: 3 })); }
+  }
+  partes.push(elipse(0.01, 0.012, 0.72, 0.72, t.nanquim, 0.2, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), elipse(0, 0, 0.68, 0.68, t.meio, 0.203, { ...O, detalhe: 1 }));
+  partes.push(tira(arco(LUZ_X * 0.012, LUZ_Y * 0.012, 0.3, 0.3, Math.PI * 0.85, Math.PI * 1.65), 0.05, t.luz, 0.205, { ...S, detalhe: 2 }, 0.3));
+  partes.push(elipse(0, 0, 0.46, 0.46, '#140804', 0.21, { contorno: 'leve', detalhe: 1 }), elipse(-LUZ_X * 0.025, -LUZ_Y * 0.025, 0.4, 0.4, '#3a1a0c', 0.212, { ...S, alfa: 0.7, detalhe: 2 }));
+  if (r() < 0.5) {   // grão
+    partes.push(elipse(0.01, 0.01, 0.36, 0.36, '#8a6a30', 0.214, { ...S, detalhe: 2 }));
+    for (let k = 0; k < 18; k++) { const a = r() * 6.28, d = Math.sqrt(r()) * 0.15; partes.push(elipse(0.01 + Math.cos(a) * d, 0.01 + Math.sin(a) * d, 0.02, 0.014, r() < 0.5 ? '#c8a050' : '#6a4a20', 0.216, { ...O, detalhe: 3 })); }
+  } else {   // vinho escuro com o reflexo do céu
+    partes.push(elipse(0.01, 0.01, 0.36, 0.36, '#2a0a10', 0.214, { ...S, detalhe: 2 }), elipse(-0.05, -0.05, 0.12, 0.05, '#8a6a78', 0.216, { ...S, alfa: 0.6, detalhe: 3 }));
+  }
+  if (r() < 0.5) {   // tampa entreaberta
+    const tx = 0.16, ty = 0.1;
+    disco(partes, tx, ty, 0.25, t, 0.26);
+    partes.push(elipse(tx, ty, 0.1, 0.1, t.nanquim, 0.275, { contorno: 'leve', detalhe: 2 }), elipse(tx - 0.01, ty - 0.01, 0.07, 0.07, t.luz, 0.278, { ...O, detalhe: 3 }));
+  }
+  return partes;
+}
+
+/** Lucerna: a lamparina de óleo (corpo redondo com o disco em relevo, bico com a chama e a asa em anel), no chão (`pe` 0) ou no candelabro de bronze (`pe` 1). A chama brilha. */
+function lucerna(seed: number, pe: boolean): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], t = pe ? BRONZE : TERRACOTA, z = pe ? 0.8 : 0.1, giro = pe ? r() * 6.28 : 0;
+  partes.push(elipse(0.06, 0, 0.56, 0.56, '#7a2806', 0.01, { ...O, brilho: true, alfa: 0.3, desfoque: 0.08, detalhe: 1 }));
+  if (pe) {
+    for (let k = 0; k < 3; k++) {
+      const a = giro + (k / 3) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a), ex = c * 0.25, ey = s * 0.25;
+      partes.push(tira([c * 0.05, s * 0.05, c * 0.16, s * 0.16, ex, ey], 0.05, BRONZE.nanquim, 0.2, { contorno: 'leve', detalhe: 1 }), tira([c * 0.05, s * 0.05, c * 0.16, s * 0.16, ex, ey], 0.026, tom(BRONZE.base, olhar(a) * 0.25), 0.205, { ...O, detalhe: 2 }));
+      partes.push(elipse(ex, ey, 0.07, 0.06, BRONZE.nanquim, 0.06, { contorno: 'leve', detalhe: 2 }), elipse(ex, ey, 0.05, 0.042, BRONZE.luz, 0.065, { ...O, detalhe: 3 }));
+    }
+    disco(partes, 0, 0, 0.13, BRONZE, z - 0.06);
+    partes.push(tira(anel(0, 0, 0.11), 0.012, BRONZE.sombra, z - 0.04, { ...O, alfa: 0.7, detalhe: 3 }));
+  }
+  const bx = -0.06, R = 0.105;
+  // O bico: do corpo à ponta arredondada, a leste.
+  const bico = [bx, -R * 0.62, 0.12, -0.05, 0.17, -0.048, 0.205, -0.02, 0.21, 0.02, 0.17, 0.048, 0.12, 0.05, bx, R * 0.62];
+  partes.push(poli(bico.map((v, i) => v + (i % 2 ? 0.01 : 0.008)), t.nanquim, z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), poli(bico, t.base, z + 0.003, { ...O, detalhe: 1 }), poli(bico.map((v, i) => (i % 2 ? v * 0.45 - 0.018 : v)), t.luz, z + 0.005, { ...S, alfa: 0.8, detalhe: 2 }));
+  // A asa em anel, a oeste.
+  partes.push(tira(anel(bx - R - 0.02, 0, 0.035, 0.03, 12), 0.022, t.nanquim, z + 0.002, { contorno: 'leve', detalhe: 2 }), tira(anel(bx - R - 0.02, 0, 0.035, 0.03, 12), 0.012, t.luz, z + 0.004, { ...O, detalhe: 3 }));
+  disco(partes, bx, 0, R, t, z + 0.006);
+  // O disco côncavo com a roseta em relevo e o furo de encher.
+  partes.push(elipse(bx, 0, R * 1.3, R * 1.3, tom(t.base, -0.15), z + 0.022, { ...O, detalhe: 2 }), elipse(bx - LUZ_X * R * 0.1, -LUZ_Y * R * 0.1, R * 1.0, R * 1.0, tom(t.meio, 0.05), z + 0.023, { ...S, detalhe: 2 }));
+  for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; partes.push(lente(bx + Math.cos(a) * R * 0.14, Math.sin(a) * R * 0.14, a, R * 0.42, R * 0.2, tom(t.base, olhar(a) * 0.3), z + 0.025, { ...O, detalhe: 3 })); }
+  partes.push(elipse(bx, 0, R * 0.22, R * 0.22, '#120804', z + 0.027, { contorno: 'leve', detalhe: 2 }));
+  // O pavio e a chama (brilho: cores escuras e saturadas).
+  partes.push(elipse(0.17, 0, 0.05, 0.045, '#160804', z + 0.01, { contorno: 'leve', detalhe: 2 }));
+  partes.push(elipse(0.19, 0, 0.16, 0.13, '#8a2a06', z + 0.03, { ...O, brilho: true, alfa: 0.7, desfoque: 0.03, detalhe: 1 }));
+  partes.push(lente(0.165, 0, 0.12, 0.1, 0.06, '#b8480c', z + 0.035, { ...O, brilho: true, desfoque: 0.008, detalhe: 1 }), lente(0.17, 0, 0.12, 0.065, 0.034, '#c88a2a', z + 0.04, { ...O, brilho: true, desfoque: 0.004, detalhe: 2 }));
+  return partes;
+}
+
+/** Tear vertical de pesos, encostado na parede (+y para a frente): as traves inclinadas, o pano tecido enrolado em cima com a barra grega, a urdidura que desce em feixes até os pesos de barro e o cesto de lã. */
+function tearVertical(seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [];
+  const cores = ([[POMPEIA, OCRE, LINHO], [ANIL, LINHO, OCRE], [PURPURA, OCRE, LINHO]] as const)[Math.floor(r() * 3)]!;
+  sombraNoChao(partes, [-1.0, -0.5, 1.0, -0.5, 1.0, 0.42, -1.0, 0.42], 0.02, '#0d0a08', 0.3);
+  // Os pesos de barro (pirâmides) em duas fiadas, e os feixes de fios que descem a eles.
+  const pesos: [number, number][] = [];
+  for (let i = 0; i < 17; i++) pesos.push([-0.76 + i * 0.095, 0.3 + (i % 2) * 0.05]);
+  for (const [wx, wy] of pesos) for (const d of [-0.03, 0, 0.03]) partes.push(tira([wx + d, -0.08, wx + d * 0.3, wy - 0.03], 0.007, LINHO, 0.6, { ...O, alfa: 0.9, detalhe: 2 }));
+  for (const [wx, wy] of pesos) {
+    partes.push(poli([wx - 0.035, wy - 0.03, wx + 0.035, wy - 0.03, wx + 0.042, wy + 0.035, wx - 0.042, wy + 0.035].map((v, i) => v + (i % 2 ? 0.008 : 0.006)), TERRACOTA.nanquim, 0.3, { contorno: 'leve', detalhe: 1 }));
+    partes.push(poli([wx - 0.035, wy - 0.03, wx + 0.035, wy - 0.03, wx + 0.042, wy + 0.035, wx - 0.042, wy + 0.035], TERRACOTA.base, 0.303, { ...O, detalhe: 2 }), poli([wx - 0.035, wy - 0.03, wx, wy - 0.03, wx - 0.01, wy + 0.035, wx - 0.042, wy + 0.035], TERRACOTA.luz, 0.305, { ...O, detalhe: 3 }), elipse(wx, wy - 0.012, 0.012, 0.012, TERRACOTA.nanquim, 0.307, { ...O, detalhe: 3 }));
+  }
+  // As varas de liços e de cruz, apoiadas nos braços.
+  for (const [y, w, z] of [[0.04, 0.04, 0.72], [0.16, 0.05, 0.66]] as const) partes.push(tira([-0.86, y, 0.86, y], w + 0.03, MADEIRA.nanquim, z, { contorno: 'leve', detalhe: 1 }), tira([-0.86, y, 0.86, y], w, MADEIRA.meio, z + 0.003, { ...O, detalhe: 2 }), tira([-0.86, y - w * 0.25, 0.86, y - w * 0.25], w * 0.3, MADEIRA.luz, z + 0.005, { ...O, detalhe: 3 }));
+  // O pano tecido: listras e a barra grega (meandro) em cima.
+  partes.push(poli([-0.8, -0.42, 0.8, -0.42, 0.8, -0.08, -0.8, -0.08], cores[0], 0.95, { contorno: 'leve', detalhe: 1 }));
+  partes.push(poli([-0.8, -0.22, 0.8, -0.22, 0.8, -0.12, -0.8, -0.12], cores[2], 0.952, { ...O, detalhe: 2 }));
+  const meandro: number[] = []; for (let x = -0.78, k = 0; x < 0.78; x += 0.04, k++) { const y = k % 4 < 2 ? -0.2 : -0.14; meandro.push(x, y, x + 0.04, y); }
+  partes.push(tira(meandro, 0.012, cores[1], 0.954, { ...O, detalhe: 3 }));
+  partes.push(poli([-0.8, -0.1, 0.8, -0.1, 0.8, -0.08, -0.8, -0.08], tom(cores[0], -0.3), 0.956, { ...O, detalhe: 2 }));
+  partes.push(poli([-0.8, -0.42, 0.8, -0.42, 0.8, -0.3, -0.8, -0.3], tom(cores[0], 0.12), 0.957, { ...S, alfa: 0.7, detalhe: 2 }));
+  // As traves laterais, inclinadas contra a parede, e o rolo de cima com o pano enrolado.
+  for (const s of [-1, 1]) {
+    const pts = [s * 0.9, -0.48, s * 0.9, 0.42];
+    partes.push(tira(pts.map((v, i) => v + (i % 2 ? 0.012 : 0.01)), 0.12, MADEIRA.nanquim, 1.0, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), tira(pts, 0.09, s < 0 ? MADEIRA.luz : MADEIRA.base, 1.003, { ...O, detalhe: 1 }), tira(pts.map((v, i) => (i % 2 ? v : v - 0.02)), 0.025, s < 0 ? MADEIRA.brilho : MADEIRA.meio, 1.005, { ...O, alfa: 0.8, detalhe: 3 }));
+    partes.push(elipse(s * 0.9, 0.1, 0.1, 0.08, MADEIRA.nanquim, 1.01, { contorno: 'leve', detalhe: 2 }));
+  }
+  partes.push(tira([-1.0, -0.44, 1.0, -0.44], 0.13, MADEIRA.nanquim, 1.1, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), tira([-0.98, -0.44, 0.98, -0.44], 0.1, MADEIRA.meio, 1.103, { ...O, detalhe: 1 }));
+  partes.push(tira([-0.8, -0.44, 0.8, -0.44], 0.12, tom(cores[0], -0.2), 1.106, { ...O, detalhe: 1 }), tira([-0.8, -0.465, 0.8, -0.465], 0.04, tom(cores[0], 0.15), 1.108, { ...S, detalhe: 2 }));
+  // O cesto (cálato) de lã, ao lado.
+  const cx = 1.03, cy = 0.28;
+  partes.push(elipse(cx + 0.01, cy + 0.012, 0.3, 0.3, '#2a1a0c', 0.3, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), elipse(cx, cy, 0.28, 0.28, '#8a6a38', 0.303, { ...O, detalhe: 1 }), tira(anel(cx, cy, 0.12), 0.02, '#a8884c', 0.305, { ...O, detalhe: 2 }));
+  for (const [dx, dy, c] of [[-0.04, -0.03, cores[0]], [0.05, -0.01, cores[2]], [0, 0.05, cores[1]]] as const) fruta(partes, cx + dx, cy + dy, 0.05, c, 0.32);
+  return partes;
+}
+
+/** Roda de carro de guerra vista de cima (de pé, rolando ao longo de x): aro de bronze, cambota e o cubo saliente. */
+function rodaDeBiga(partes: Parte[], x: number, y: number, d: number, z: number): void {
+  partes.push(poli(em(ID, [x - d / 2 + 0.01, y - 0.04, x + d / 2 + 0.03, y - 0.04, x + d / 2 + 0.03, y + 0.06, x - d / 2 + 0.01, y + 0.06]), MADEIRA.nanquim, z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
+  partes.push(poli(retR(ID, x, y, d, 0.075, 0.03), BRONZE.base, z + 0.003, { ...O, detalhe: 1 }), poli(retR(ID, x, y - 0.012, d * 0.96, 0.03, 0.015), BRONZE.luz, z + 0.005, { ...O, detalhe: 2 }));
+  for (const k of [-0.36, -0.18, 0.18, 0.36]) partes.push(poli(retQ(ID, x + k * d, y, 0.025, 0.1), MADEIRA.base, z + 0.006, { ...O, detalhe: 3 }));
+  partes.push(elipse(x + 0.01, y + 0.01, 0.12, 0.26, BRONZE.nanquim, z + 0.01, { contorno: 'leve', detalhe: 1 }), elipse(x, y, 0.1, 0.24, BRONZE.meio, z + 0.013, { ...O, detalhe: 2 }), elipse(x - 0.015, y - 0.02, 0.04, 0.12, BRONZE.brilho, z + 0.015, { ...O, alfa: 0.8, detalhe: 3 }));
+}
+
+/** Biga: o carro de guerra de duas rodas, sem os cavalos: a caixa em D aberta atrás (guarda de bronze pintada de vermelho, piso de correias), o eixo, as rodas, o timão e o jugo pousado no chão. */
+function biga(seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], cor = r() < 0.5 ? POMPEIA : ANIL;
+  sombraNoChao(partes, [0.8, -0.6, 1.7, -0.6, 1.7, 0.6, 0.8, 0.6], 0.02, '#0d0a08', 0.4);
+  // O timão (de madeira, cintado de bronze) e o jugo com as duas forquilhas.
+  const timao = [0.85, 0, 0.2, 0.01, -0.6, 0.0, -1.5, -0.01];
+  partes.push(tira(timao.map((v, i) => v + (i % 2 ? 0.014 : 0.012)), 0.11, MADEIRA.nanquim, 0.4, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), tira(timao, 0.075, MADEIRA.meio, 0.403, { ...O, detalhe: 1 }), tira(timao.map((v, i) => (i % 2 ? v - 0.018 : v)), 0.02, MADEIRA.brilho, 0.405, { ...O, alfa: 0.7, detalhe: 3 }));
+  for (const x of [0.4, -0.4, -1.2]) partes.push(poli(retQ(ID, x, 0, 0.05, 0.09), BRONZE.luz, 0.41, { contorno: 'leve', detalhe: 2 }));
+  const jugo = [-1.48, -0.66, -1.53, -0.3, -1.54, 0, -1.53, 0.3, -1.48, 0.66];
+  partes.push(tira(jugo.map((v, i) => v + (i % 2 ? 0.014 : 0.012)), 0.12, MADEIRA.nanquim, 0.42, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), tira(jugo, 0.085, MADEIRA.base, 0.423, { ...O, detalhe: 1 }), tira(jugo.map((v, i) => (i % 2 ? v : v - 0.02)), 0.025, MADEIRA.luz, 0.425, { ...O, detalhe: 3 }));
+  for (const s of [-1, 1]) {
+    const y0 = s * 0.4;
+    for (const d of [-0.13, 0.13]) partes.push(tira([-1.53, y0 + d * 0.4, -1.42, y0 + d, -1.3, y0 + d * 1.1], 0.04, BRONZE.nanquim, 0.43, { contorno: 'leve', detalhe: 2 }), tira([-1.53, y0 + d * 0.4, -1.42, y0 + d, -1.3, y0 + d * 1.1], 0.02, BRONZE.luz, 0.433, { ...O, detalhe: 3 }));
+    partes.push(tira(anel(-1.53, y0, 0.04, 0.035, 10), 0.015, BRONZE.brilho, 0.44, { contorno: 'leve', detalhe: 3 }));
+  }
+  // O eixo e as rodas.
+  partes.push(tira([1.3, -0.86, 1.3, 0.86], 0.07, MADEIRA.nanquim, 0.45, { contorno: 'leve', detalhe: 1 }), tira([1.3, -0.86, 1.3, 0.86], 0.045, MADEIRA.base, 0.452, { ...O, detalhe: 2 }));
+  for (const s of [-1, 1]) rodaDeBiga(partes, 1.3, s * 0.78, 0.92, 0.5);
+  // A caixa em D: o piso de correias trançadas e a guarda curva aberta atrás.
+  const D: number[] = [1.62, -0.5]; for (let k = 0; k <= 14; k++) { const a = -Math.PI / 2 - (k / 14) * Math.PI; D.push(1.1 + Math.cos(a) * 0.32, Math.sin(a) * -0.5); } D.push(1.62, 0.5);
+  partes.push(poli(D.map((v, i) => v + (i % 2 ? 0.016 : 0.014)), MADEIRA.nanquim, 0.6, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), poli(D, '#4a2e18', 0.603, { ...O, detalhe: 1 }));
+  for (let k = -4; k <= 4; k++) partes.push(tira([0.85, k * 0.1, 1.6, k * 0.1], 0.04, k % 2 ? '#6a4424' : '#5a3a1e', 0.605, { ...O, detalhe: 2 }));
+  for (let k = 0; k < 7; k++) partes.push(tira([0.9 + k * 0.1, -0.48, 0.9 + k * 0.1, 0.48], 0.035, '#7a5230', 0.606, { ...O, alfa: 0.75, detalhe: 3 }));
+  // A face de dentro da guarda (sombra no lado do noroeste, luz no do sudeste) e o topo com o friso de bronze.
+  const guarda = D.slice(0);
+  const dentro = guarda.map((v, i) => (i % 2 ? v * 0.84 : 1.1 + (v - 1.1) * 0.8 + 0.04));
+  partes.push(tira(dentro, 0.09, tom(cor, -0.45), 0.7, { ...O, detalhe: 2 }));
+  partes.push(tira(guarda.map((v, i) => v + (i % 2 ? 0.014 : 0.012)), 0.1, BRONZE.nanquim, 0.85, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), tira(guarda, 0.075, cor, 0.853, { ...O, detalhe: 1 }));
+  partes.push(tira(guarda, 0.025, BRONZE.luz, 0.856, { ...O, detalhe: 2 }));
+  for (let k = 2; k < D.length - 2; k += 6) partes.push(elipse(D[k]!, D[k + 1]!, 0.05, 0.05, BRONZE.brilho, 0.86, { contorno: 'leve', detalhe: 3 }));
+  // As rédeas enroladas no piso.
+  partes.push(tira(anel(1.35, -0.18, 0.09, 0.07, 14), 0.018, '#3a2414', 0.62, { contorno: 'leve', detalhe: 3 }), tira([1.35, -0.11, 1.2, 0.05, 0.95, 0.1], 0.018, '#3a2414', 0.62, { contorno: 'leve', detalhe: 3 }));
+  return partes;
+}
+
+/** Pérgola com videira: pilares de estuque, vigas e caibros de madeira e a copa da parreira, com falhas que deixam ver os caibros e os cachos. */
+function pergolado(seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], X = 1.8, Y = 1.3;
+  const VIDE = { fundo: '#1a2a10', base: '#3e5a22', meio: '#56782c', luz: '#74963a', brilho: '#9cba5a' };
+  for (const x of [-X, 0, X]) for (const y of [-Y, Y]) bloco(partes, quadro(x, y), 0.26, 0.26, ESTUQUE, 1.3, 0.04);
+  for (const y of [-Y, Y]) partes.push(tira([-1.98, y, 1.98, y], 0.16, MADEIRA.nanquim, 1.42, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), tira([-1.98, y, 1.98, y], 0.12, MADEIRA.base, 1.423, { ...O, detalhe: 1 }), tira([-1.98, y - 0.03, 1.98, y - 0.03], 0.035, MADEIRA.luz, 1.425, { ...O, detalhe: 2 }));
+  for (let x = -1.8; x <= 1.81; x += 0.45) partes.push(tira([x, -1.48, x, 1.48], 0.09, MADEIRA.nanquim, 1.48, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), tira([x, -1.48, x, 1.48], 0.06, MADEIRA.meio, 1.483, { ...O, detalhe: 1 }), tira([x - 0.015, -1.48, x - 0.015, 1.48], 0.018, MADEIRA.brilho, 1.485, { ...O, alfa: 0.7, detalhe: 3 }));
+  // O tronco da parreira, torcido, subindo em dois pilares.
+  for (const [x, y] of [[-X, Y], [X, -Y]] as const) { const pts: number[] = []; for (let k = 0; k <= 8; k++) pts.push(x + Math.sin(k * 1.3) * 0.12 + (x < 0 ? k * 0.08 : -k * 0.08), y + Math.cos(k * 1.1) * 0.08 + (y > 0 ? -k * 0.05 : k * 0.05)); partes.push(tira(pts, 0.09, '#2a1a10', 1.5, { contorno: 'leve', detalhe: 1 }, 0.6), tira(pts, 0.04, '#5a3e26', 1.503, { ...O, detalhe: 2 }, 0.6)); }
+  // A copa: tufos num grid sacudido, com falhas.
+  for (let gx = -1.6; gx <= 1.61; gx += 0.55) for (let gy = -1.1; gy <= 1.11; gy += 0.55) {
+    if (r() < 0.22) continue;
+    const x = gx + (r() - 0.5) * 0.3, y = gy + (r() - 0.5) * 0.3;
+    tufo(partes, r, x, y, 0.3 + r() * 0.14, tonsComLuz(VIDE, (r() - 0.5) * 0.12), 1.6, 7, 14, 5);
+  }
+  for (let k = 0; k < 9; k++) { const x = (r() - 0.5) * 3.4, y = (r() - 0.5) * 2.4; cacho(partes, r, x, y, 0.07, r() < 0.7 ? '#4a2050' : '#8a9a3a', 1.66, 8); }
+  return partes;
+}
+
+/** Impluvio: o tanque raso do átrio, com a borda de mármore, o fundo de mosaico (barra negra e roseta) visto pela água clara, a sombra da borda e os anéis da chuva. */
+function impluvio(seed: number, C: number, Lg: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], b = 0.24, ci = C - 2 * b, li = Lg - 2 * b;
+  // Fundo de mosaico.
+  partes.push(poli(retQ(ID, 0, 0, ci + 0.02, li + 0.02), '#d6cdb8', 0.01, { ...O, detalhe: 1 }));
+  partes.push(tira([-ci / 2 + 0.08, -li / 2 + 0.08, ci / 2 - 0.08, -li / 2 + 0.08, ci / 2 - 0.08, li / 2 - 0.08, -ci / 2 + 0.08, li / 2 - 0.08, -ci / 2 + 0.08, -li / 2 + 0.08], 0.06, '#1e1a16', 0.012, { ...O, detalhe: 2 }));
+  for (let x = -ci / 2 + 0.2; x < ci / 2 - 0.15; x += 0.12) for (const s of [-1, 1]) partes.push(poli(retQ(ID, x, s * (li / 2 - 0.2), 0.05, 0.05), '#1e1a16', 0.013, { ...O, detalhe: 3 }));
+  for (let y = -li / 2 + 0.32; y < li / 2 - 0.27; y += 0.12) for (const s of [-1, 1]) partes.push(poli(retQ(ID, s * (ci / 2 - 0.2), y, 0.05, 0.05), '#1e1a16', 0.013, { ...O, detalhe: 3 }));
+  const Rr = Math.min(ci, li) * 0.22;
+  partes.push(elipse(0, 0, Rr * 2, Rr * 2, '#1e1a16', 0.013, { ...O, detalhe: 2 }), elipse(0, 0, Rr * 1.8, Rr * 1.8, '#d6cdb8', 0.014, { ...O, detalhe: 2 }));
+  for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; partes.push(lente(0, 0, a, Rr * 0.86, Rr * 0.3, k % 2 ? '#8a2a1c' : '#1e1a16', 0.015, { ...O, detalhe: 3 })); }
+  // A água: veladura verde-azulada, mais funda (escura) junto às bordas, o reflexo do céu e os anéis.
+  partes.push(poli(retQ(ID, 0, 0, ci, li), '#2e7480', 0.02, { ...O, alfa: 0.42, detalhe: 1 }));
+  partes.push(poli(retQ(ID, 0, 0, ci * 0.8, li * 0.7), '#7ec0c4', 0.021, { ...S, alfa: 0.18, detalhe: 2 }));
+  partes.push(poli([-ci / 2, -li / 2, ci / 2, -li / 2, ci / 2, -li / 2 + 0.14, -ci / 2 + 0.14, -li / 2 + 0.14, -ci / 2 + 0.14, li / 2, -ci / 2, li / 2], '#0e2a30', 0.022, { ...S, alfa: 0.45, detalhe: 2 }));
+  for (let k = 0; k < 3; k++) { const x = (r() - 0.5) * ci * 0.6, y = (r() - 0.5) * li * 0.5; partes.push(tira([x - 0.3, y + 0.12, x + 0.3, y - 0.12], 0.04, '#e4f4f2', 0.023, { ...S, alfa: 0.35, detalhe: 3 }, 0.2)); }
+  for (let k = 0; k < 3; k++) { const x = (r() - 0.5) * ci * 0.5, y = (r() - 0.5) * li * 0.5; for (const rr of [0.06, 0.13]) partes.push(tira(anel(x, y, rr, rr * 0.9, 16), 0.012, '#e8f6f4', 0.024, { ...O, alfa: rr < 0.1 ? 0.6 : 0.35, detalhe: 3 })); }
+  // A borda de mármore em quatro lajes, e a bica de escoar.
+  bloco(partes, quadro(0, -Lg / 2 + b / 2), C, b, MARMORE, 0.14, 0.05);
+  bloco(partes, quadro(0, Lg / 2 - b / 2), C, b, MARMORE, 0.14, 0.05);
+  bloco(partes, quadro(-C / 2 + b / 2, 0), b, li, MARMORE, 0.141, 0.05);
+  bloco(partes, quadro(C / 2 - b / 2, 0), b, li, MARMORE, 0.141, 0.05);
+  partes.push(ret(C / 2 - b / 2, li / 2 - 0.25, 0.1, 0.14, '#2a2018', 0.15, { contorno: 'leve', raio: 0.02, detalhe: 2 }));
+  for (const [x, y] of [[-C / 2 + b, -Lg / 2 + b], [C / 2 - b, -Lg / 2 + b], [-C / 2 + b, Lg / 2 - b], [C / 2 - b, Lg / 2 - b]] as const) partes.push(tira([x, y - 0.12, x, y + 0.12], 0.008, MARMORE.nanquim, 0.16, { ...O, alfa: 0.35, detalhe: 3 }));
+  return partes;
+}
+
+/** Fonte de parede com máscara: a laje de mármore encostada na parede, a cabeça de leão que verte água e a bacia semicircular à frente. */
+function fonteComMascara(seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], cy = -0.3, RX = 0.64, RY = 0.74;
+  sombraNoChao(partes, [-0.7, -0.5, 0.7, -0.5, 0.7, 0.1, 0.4, 0.45, -0.4, 0.45, -0.7, 0.1], 0.02, '#0d0a08', 0.35);
+  // A bacia: borda de mármore em segmentos com o tom da face, a água com a espuma da queda.
+  const arco = (k: number, n = 16): number[] => { const p: number[] = []; for (let i = 0; i <= n; i++) { const a = (i / n) * Math.PI; p.push(Math.cos(a) * RX * k, cy + Math.sin(a) * RY * k); } return p; };
+  const agua = arco(0.84);
+  partes.push(poli(agua, '#2c4a5a', 0.3, { ...O, detalhe: 1 }), poli(arco(0.7).map((v, i) => (i % 2 ? v + 0.02 : v)), '#3d6578', 0.31, { ...S, detalhe: 2 }), poli(arco(0.45).map((v, i) => (i % 2 ? v + 0.04 : v)), '#5a8a9c', 0.32, { ...S, detalhe: 2 }));
+  for (const rr of [0.08, 0.16, 0.25]) partes.push(tira(anel(0, -0.02, rr, rr * 0.8, 18).slice(0, 22), 0.014, '#cfe6ec', 0.33, { ...O, alfa: 0.6 - rr, detalhe: 3 }));
+  partes.push(elipse(0, -0.02, 0.12, 0.09, '#e6f3f7', 0.335, { ...S, alfa: 0.8, detalhe: 2 }));
+  const n = 12;
+  for (let i = 0; i < n; i++) {
+    const a0 = (i / n) * Math.PI, a1 = ((i + 1) / n) * Math.PI, am = (a0 + a1) / 2;
+    const p = (a: number, k: number) => [Math.cos(a) * RX * k, cy + Math.sin(a) * RY * k];
+    const seg = [...p(a0, 1), ...p(a1, 1), ...p(a1, 0.84), ...p(a0, 0.84)];
+    partes.push(poli(seg.map((v, j) => v + (j % 2 ? 0.014 : 0.012)), MARMORE.nanquim, 0.5, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
+    partes.push(poli(seg, tomDaFace(MARMORE, olhar(am)), 0.503, { ...O, detalhe: 1 }));
+    partes.push(poli([...p(a0, 0.88), ...p(a1, 0.88), ...p(a1, 0.84), ...p(a0, 0.84)], tomDaFace(MARMORE, -olhar(am)), 0.505, { ...O, alfa: 0.8, detalhe: 2 }));
+  }
+  if (r() < 0.8) partes.push(poli(bolha(RX * 0.5, cy + RY * 0.55, 0.12, 0.06, 8, 0.3, r), '#4a5a2a', 0.51, { ...S, alfa: 0.7, detalhe: 3 }));
+  // A laje de trás, com cornija.
+  bloco(partes, quadro(0, -0.4), 1.36, 0.18, MARMORE, 1.1, 0.04);
+  partes.push(tira([-0.62, -0.32, 0.62, -0.32], 0.02, MARMORE.sombra, 1.12, { ...O, alfa: 0.7, detalhe: 3 }));
+  // A cabeça de leão: juba em mechas, a testa, o focinho e a boca que verte.
+  const hx = 0, hy = -0.25;
+  partes.push(elipse(hx + 0.012, hy + 0.014, 0.36, 0.3, MARMORE.nanquim, 0.9, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
+  for (let k = 0; k < 14; k++) { const a = (k / 14) * Math.PI * 2; partes.push(lente(hx + Math.cos(a) * 0.05, hy + Math.sin(a) * 0.04, a, 0.15, 0.07, tom(MARMORE.base, olhar(a) * 0.25 - 0.05), 0.905, { ...O, detalhe: 2 })); }
+  disco(partes, hx, hy + 0.03, 0.09, MARMORE, 0.92, 0.08);
+  partes.push(elipse(hx, hy + 0.1, 0.11, 0.08, MARMORE.meio, 0.94, { contorno: 'leve', detalhe: 2 }), elipse(hx - 0.01, hy + 0.09, 0.05, 0.03, MARMORE.brilho, 0.945, { ...O, detalhe: 3 }));
+  for (const s of [-1, 1]) partes.push(elipse(hx + s * 0.045, hy + 0.0, 0.03, 0.02, MARMORE.nanquim, 0.95, { ...O, detalhe: 3 }));
+  partes.push(elipse(hx, hy + 0.14, 0.05, 0.03, '#1a1612', 0.95, { contorno: 'leve', detalhe: 2 }));
+  // O jorro.
+  partes.push(tira([hx, hy + 0.15, hx, hy + 0.2, hx, -0.02], 0.04, '#9ccad6', 0.7, { ...O, alfa: 0.9, detalhe: 1 }, 0.6), tira([hx - 0.006, hy + 0.15, hx - 0.006, -0.03], 0.014, '#eef8fa', 0.705, { ...O, alfa: 0.9, detalhe: 2 }));
+  return partes;
+}
+
+/** Armário de rolos (armarium sem portas, visto de cima): nichos com rolos de papiro deitados para a frente, as etiquetas penduradas, tabuinhas de cera e uma cápsula. */
+function estanteDeRolos(seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], L = 1.8, P = 0.56, nb = 4, vao = (L - 0.08) / nb;
+  sombraNoChao(partes, [-0.92, -0.3, 0.92, -0.3, 0.92, 0.3, -0.92, 0.3], 0.02, '#0d0a08', 0.4);
+  bloco(partes, ID, L, P, MADEIRA, 0.3, 0.03);
+  partes.push(poli(retQ(ID, 0, 0.02, L - 0.08, P - 0.08), '#1a0e06', 0.32, { ...O, detalhe: 1 }));
+  for (let i = 0; i < nb; i++) {
+    const x0 = -L / 2 + 0.04 + i * vao + 0.03, x1 = x0 + vao - 0.06, tipo = r();
+    if (i === 2 && tipo < 0.5) {   // tabuinhas de cera empilhadas
+      for (let k = 0; k < 4; k++) { const x = (x0 + x1) / 2 + (r() - 0.5) * 0.04, y = 0.02 + (r() - 0.5) * 0.04; partes.push(poli(retR(quadro(x, y, (r() - 0.5) * 0.2), 0, 0, 0.3, 0.22, 0.01), k % 2 ? MADEIRA.meio : MADEIRA.base, 0.6 + k * 0.05, { contorno: 'leve', detalhe: 1 }), poli(retR(quadro(x, y, 0), 0, 0, 0.24, 0.16, 0.01), '#2a2014', 0.602 + k * 0.05, { ...O, alfa: 0.85, detalhe: 2 })); }
+      continue;
+    }
+    for (let camada = 0; camada < 2; camada++) {
+      const d = 0.075, z = 0.7 + camada * 0.25;
+      for (let x = x0 + d / 2 + (camada ? d / 2 : 0); x < x1 - d / 2 + 0.001; x += d) {
+        if (camada && r() < 0.25) continue;
+        const len = 0.34 + r() * 0.12, y = P / 2 - 0.04 - len / 2 - r() * 0.05, papiro = tom('#d4c08e', (r() - 0.5) * 0.15);
+        partes.push(poli(retR(ID, x + 0.006, y + 0.008, d + 0.012, len + 0.012, d / 2), '#2a1a0c', z, { contorno: 'leve', detalhe: 1 }), poli(retR(ID, x, y, d, len, d / 2), tom(papiro, -0.15), z + 0.002, { ...O, detalhe: 1 }), poli(retR(ID, x - d * 0.15, y, d * 0.45, len * 0.94, d * 0.22), tom(papiro, 0.12), z + 0.004, { ...S, detalhe: 2 }));
+        partes.push(elipse(x, y + len / 2 + 0.008, 0.03, 0.03, '#3a2414', z + 0.006, { contorno: 'leve', detalhe: 3 }));
+        if (r() < 0.35) partes.push(poli(retQ(ID, x + 0.01, y + len / 2 + 0.035, 0.028, 0.05), [POMPEIA, OCRE, '#2f5a3a'][Math.floor(r() * 3)]!, z + 0.008, { contorno: 'leve', detalhe: 3 }));
+      }
+    }
+  }
+  for (let i = 0; i <= nb; i++) { const x = -L / 2 + 0.04 + i * vao; partes.push(poli(retQ(ID, x, 0, 0.05, P), MADEIRA.nanquim, 1.2, { contorno: 'leve', detalhe: 1 }), poli(retQ(ID, x - 0.005, 0, 0.032, P - 0.01), MADEIRA.luz, 1.203, { ...O, detalhe: 2 })); }
+  partes.push(poli(retQ(ID, 0, -P / 2 + 0.025, L, 0.05), MADEIRA.nanquim, 1.2, { contorno: 'leve', detalhe: 1 }), poli(retQ(ID, 0, -P / 2 + 0.022, L - 0.01, 0.032), MADEIRA.meio, 1.203, { ...O, detalhe: 2 }));
+  return partes;
+}
+
+/** Banca de mercado com toldo: o toldo de uma água com listras e o babado na frente, o balcão de mármore com três dólios embutidos (azeitona, grão, vinho), cestos de frutas, pães e ânforas ao lado. */
+function bancaDeMercado(seed: number, paleta: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], [c1, c2] = ([[POMPEIA, LINHO], [ANIL, LINHO], [OCRE, '#5a3a20']] as const)[paleta]!;
+  sombraNoChao(partes, [-1.5, -1.15, 1.5, -1.15, 1.5, 1.1, -1.5, 1.1], 0.02, '#0d0a08', 0.3);
+  // Ânforas e cestos na frente e ao lado.
+  anforaDePe(partes, r, 1.25, 0.5, 0.17, TERRACOTA, 0.5);
+  anforaDePe(partes, r, 1.22, 0.88, 0.15, BARRO, 0.45);
+  const cesto = (x: number, y: number, R: number, cor: string, n: number) => {
+    partes.push(elipse(x + 0.01, y + 0.012, R * 2 + 0.04, R * 2 + 0.04, '#2a1a0c', 0.3, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), elipse(x, y, R * 2, R * 2, '#8a6a38', 0.303, { ...O, detalhe: 1 }), tira(anel(x, y, R * 0.85), 0.02, '#a8884c', 0.305, { ...O, detalhe: 2 }), elipse(x, y, R * 1.5, R * 1.5, '#3a2610', 0.306, { ...O, detalhe: 2 }));
+    for (let k = 0; k < n; k++) { const a = r() * 6.28, d = Math.sqrt(r()) * R * 0.55; fruta(partes, x + Math.cos(a) * d, y + Math.sin(a) * d, R * 0.24, tom(cor, (r() - 0.5) * 0.15), 0.32 + k * 0.002); }
+  };
+  cesto(-1.05, 1.0, 0.17, '#a82a20', 7); cesto(-0.6, 1.02, 0.15, '#c8a030', 6); cesto(-0.15, 1.04, 0.15, '#3a4a20', 12);
+  // O balcão de mármore com os dólios.
+  bloco(partes, quadro(-0.2, 0.62), 2.3, 0.42, MARMORE_VELHO, 0.9, 0.05);
+  for (const [k, x] of [-0.9, -0.3, 0.3].entries()) {
+    partes.push(elipse(x, 0.62, 0.3, 0.3, TERRACOTA.nanquim, 0.92, { contorno: 'leve', detalhe: 1 }), elipse(x, 0.62, 0.26, 0.26, TERRACOTA.meio, 0.923, { ...O, detalhe: 2 }), elipse(x, 0.62, 0.2, 0.2, '#140804', 0.925, { ...O, detalhe: 1 }));
+    if (k === 0) for (let j = 0; j < 10; j++) fruta(partes, x + (r() - 0.5) * 0.12, 0.62 + (r() - 0.5) * 0.12, 0.018, '#3a4020', 0.93);
+    else if (k === 1) partes.push(elipse(x, 0.62, 0.17, 0.17, '#b8944a', 0.927, { ...S, detalhe: 2 }));
+    else partes.push(elipse(x, 0.62, 0.17, 0.17, '#2a0a10', 0.927, { ...S, detalhe: 2 }), elipse(x - 0.03, 0.6, 0.06, 0.025, '#8a6a78', 0.93, { ...S, alfa: 0.6, detalhe: 3 }));
+  }
+  for (let k = 0; k < 3; k++) { const x = 0.55 + k * 0.13, y = 0.62 + (k % 2 ? 0.06 : -0.05); disco(partes, x, y, 0.06, { nanquim: '#2a1608', sombra: '#7a4a1c', base: '#a06a2a', meio: '#b87e36', luz: '#cc9848', brilho: '#e6bc70' }, 0.94); }
+  // O toldo de uma água (alto atrás, baixo na frente): listras ao comprido, babado recortado e os dois paus da frente.
+  const y0 = -1.15, y1 = 0.38, n = 10, w = 2.96 / n;
+  partes.push(poli([-1.5, y0, 1.5, y0, 1.5, y1 + 0.04, -1.5, y1 + 0.04], tom(c1, -0.55), 2.0, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
+  for (let i = 0; i < n; i++) {
+    const x0 = -1.48 + i * w, c = i % 2 ? c2 : c1;
+    partes.push(poli([x0, y0 + 0.02, x0 + w, y0 + 0.02, x0 + w, y1, x0, y1], tom(c, -0.08), 2.02, { ...S, detalhe: 1 }));
+    partes.push(poli([x0 + w * 0.12, y0 + 0.05, x0 + w * 0.4, y0 + 0.05, x0 + w * 0.4, y0 + 0.6, x0 + w * 0.12, y0 + 0.6], tom(c, 0.14), 2.025, { ...S, alfa: 0.6, detalhe: 3 }));
+    partes.push(elipse(x0 + w / 2, y1, w * 0.96, 0.18, tom(c, -0.28), 2.015, { ...S, detalhe: 2 }));
+  }
+  partes.push(poli([-1.5, y1 - 0.1, 1.5, y1 - 0.1, 1.5, y1 - 0.04, -1.5, y1 - 0.04], tom(c1, -0.45), 2.03, { ...O, alfa: 0.5, detalhe: 2 }));
+  for (const x of [-1.44, 1.44]) partes.push(elipse(x, y1 - 0.04, 0.1, 0.1, MADEIRA.nanquim, 2.05, { contorno: 'leve', detalhe: 2 }), elipse(x - 0.01, y1 - 0.05, 0.05, 0.05, MADEIRA.luz, 2.055, { ...O, detalhe: 3 }));
+  return partes;
+}
+
+/** Lira (quélis) deitada: a caixa de casco de tartaruga, os dois braços de chifre, a travessa com as cravelhas, sete cordas e a fita. */
+function lira(seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [];
+  sombraNoChao(partes, bolha(0, 0.05, 0.3, 0.4, 12, 0.05, r), 0.01, '#0d0a08', 0.3);
+  // Os braços de chifre, curvos, e a travessa.
+  for (const s of [-1, 1]) {
+    const pts = [s * 0.09, 0.06, s * 0.17, -0.06, s * 0.21, -0.2, s * 0.17, -0.32, s * 0.19, -0.38];
+    partes.push(tira(pts.map((v, i) => v + (i % 2 ? 0.01 : 0.008)), 0.06, '#140c06', 0.1, { contorno: 'leve', sombraLeve: true, detalhe: 1 }, 0.7), tira(pts, 0.042, '#4a3220', 0.103, { ...O, detalhe: 1 }, 0.7), tira(pts.map((v, i) => (i % 2 ? v : v - s * 0.008 - 0.004)), 0.014, '#8a6a48', 0.105, { ...O, detalhe: 3 }, 0.5));
+  }
+  partes.push(tira([-0.22, -0.34, 0.22, -0.34], 0.045, MADEIRA.nanquim, 0.11, { contorno: 'leve', detalhe: 1 }), tira([-0.22, -0.34, 0.22, -0.34], 0.03, MADEIRA.luz, 0.113, { ...O, detalhe: 2 }));
+  // A caixa: casco de tartaruga com as placas.
+  partes.push(elipse(0.01, 0.2, 0.38, 0.34, '#1a0e06', 0.08, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), elipse(0, 0.19, 0.35, 0.31, '#5a3a18', 0.083, { ...O, detalhe: 1 }), elipse(-0.02, 0.17, 0.26, 0.22, '#6e4a20', 0.085, { ...S, detalhe: 2 }));
+  for (const [x, y] of [[0, 0.19], [-0.08, 0.14], [0.08, 0.14], [-0.08, 0.24], [0.08, 0.24], [0, 0.09], [0, 0.29]] as const) partes.push(poli(bolha(x, y, 0.045, 0.04, 6, 0.08, r, Math.PI / 6), tom('#8a6a30', y < 0.19 ? 0.1 : -0.1), 0.087, { contorno: 'leve', detalhe: 2 }), elipse(x - 0.008, y - 0.008, 0.03, 0.025, '#b08a48', 0.089, { ...S, alfa: 0.6, detalhe: 3 }));
+  // O cavalete e as cordas, as cravelhas na travessa.
+  partes.push(tira([-0.08, 0.22, 0.08, 0.22], 0.025, '#d8c8a0', 0.12, { contorno: 'leve', detalhe: 2 }));
+  for (let k = 0; k < 7; k++) { const x = -0.075 + k * 0.025, xt = -0.15 + k * 0.05; partes.push(tira([x, 0.23, xt, -0.34], 0.006, '#ece2c8', 0.125, { ...O, alfa: 0.9, detalhe: 2 })); partes.push(elipse(xt, -0.34, 0.025, 0.025, '#2a1a0c', 0.13, { contorno: 'leve', detalhe: 3 })); }
+  partes.push(tira([0.2, -0.3, 0.26, -0.18, 0.24, -0.05, 0.28, 0.06], 0.025, POMPEIA, 0.115, { contorno: 'leve', detalhe: 3 }, 0.6));
+  partes.push(tira([0.12, 0.3, 0.18, 0.36, 0.22, 0.34], 0.008, '#3a2414', 0.09, { ...O, detalhe: 3 }), lente(0.22, 0.34, -0.3, 0.06, 0.025, '#d8c8a0', 0.095, { contorno: 'leve', detalhe: 3 }));
+  return partes;
+}
+
 // ---------- Receitas ----------
 
 const A = { generos: ['antiguidade', 'fantasia'], kit: 'antiguidade' };
@@ -645,7 +1103,7 @@ const colunaReceita = (id: string, nome: string, ordem: 0 | 1 | 2, tags: string[
   gerar: p => { const c = coluna(ordem, num(p, 'altura', 6, 2, 10), p.seed); return piso(c.pegada, c.partes); },
 });
 
-/** O kit da Antiguidade, parte 1 (Q15a): templo e cidade. */
+/** O kit da Antiguidade: templo e cidade (Q15a), casa e vida (Q15b). */
 export const RECEITAS_DA_ANTIGUIDADE: Receita[] = [
   colunaReceita('coluna.dorica', 'Coluna dórica', 0, ['dorica', 'abaco']),
   colunaReceita('coluna.jonica', 'Coluna jônica', 1, ['jonica', 'voluta']),
@@ -676,4 +1134,39 @@ export const RECEITAS_DA_ANTIGUIDADE: Receita[] = [
     gerar: p => { const l = num(p, 'largura', 2, 1.2, 4), d = painelDeHieroglifos(p.seed, l); return parede(l, d.face, d.topo); } },
   { id: 'aquila', nome: 'Áquila (estandarte romano)', categoria: 'decoracao', tipo: 'piso', funcoes: ['salao', 'forum', 'quartel', 'praca', 'templo'], generos: ['antiguidade'], kit: 'antiguidade', tags: ['aquila', 'aguia', 'estandarte', 'legiao', 'romana', 'ouro', 'bandeira', 'militar'], pegada: [1.1, 1.1], altura: 1.5,
     gerar: p => piso([1.1, 1.1], escalar(aquila(p.seed), 1.15)) },
+
+  // Q15b: casa e vida.
+  { id: 'triclinio', nome: 'Triclínio', categoria: 'camas', tipo: 'piso', funcoes: ['triclinio', 'sala-de-jantar', 'salao', 'atrio', 'peristilo'], ...A, tags: ['triclinio', 'leito', 'banquete', 'jantar', 'romana', 'grega', 'reclinado', 'almofada', 'divã'], pegada: [4.4, 4.2], altura: 0.75,
+    campos: [{ id: 'leitos', rotulo: 'Leitos (1 um só, 3 em U)', tipo: 'numero', padrao: 3, min: 1, max: 3, passo: 2 }],
+    gerar: p => { const t = triclinio(p.seed, Math.round(num(p, 'leitos', 3, 1, 3))); return piso(t.pegada, t.partes); } },
+  { id: 'mesa-romana', nome: 'Mesa romana', categoria: 'mesas', tipo: 'piso', funcoes: ['triclinio', 'sala-de-jantar', 'salao', 'atrio', 'peristilo', 'taberna'], ...A, tags: ['mesa', 'marmore', 'redonda', 'banquete', 'uvas', 'vinho', 'pao', 'romana', 'grega'], pegada: [1.0, 1.0], altura: 0.8,
+    gerar: p => piso([1.0, 1.0], mesaRomana(p.seed)) },
+  { id: 'anfora', nome: 'Ânfora', categoria: 'cozinha', tipo: 'piso', funcoes: ['cozinha', 'taberna', 'porao', 'deposito', 'mercado', 'porto', 'atrio'], ...A, tags: ['anfora', 'jarro', 'vaso', 'terracota', 'barro', 'vinho', 'azeite', 'romana', 'grega'], pegada: [0.6, 0.6], altura: 1.0,
+    gerar: p => { const r = mulberry32(p.seed), partes: Parte[] = []; sombraNoChao(partes, bolha(0.02, 0.03, 0.24, 0.24, 12, 0.05, r), 0.02, '#0d0a08', 0.5); anforaDePe(partes, r, 0, 0, 0.21, r() < 0.3 ? BARRO : TERRACOTA, 0.6); return piso([0.6, 0.6], partes); } },
+  { id: 'anforas-empilhadas', nome: 'Ânforas empilhadas', categoria: 'cozinha', tipo: 'piso', funcoes: ['porao', 'deposito', 'taberna', 'mercado', 'porto', 'cozinha'], ...A, tags: ['anfora', 'pilha', 'carga', 'terracota', 'vinho', 'azeite', 'porto', 'armazem', 'romana'], pegada: [1.6, 1.3], altura: 0.7,
+    gerar: p => piso([1.6, 1.3], anforasEmpilhadas(p.seed)) },
+  { id: 'pithos', nome: 'Pithos (jarrão enterrado)', categoria: 'cozinha', tipo: 'piso', funcoes: ['porao', 'deposito', 'cozinha', 'taberna', 'jardim'], ...A, tags: ['pithos', 'dolio', 'jarro', 'jarrao', 'terracota', 'grao', 'vinho', 'enterrado', 'armazem'], pegada: [1.3, 1.3], altura: 0.35,
+    gerar: p => piso([1.3, 1.3], pithos(p.seed)) },
+  { id: 'lucerna', nome: 'Lucerna', categoria: 'lareira-e-luz', tipo: 'piso', funcoes: ['atrio', 'triclinio', 'quarto', 'biblioteca', 'templo', 'termas', 'taberna', 'sala'], ...A, tags: ['lucerna', 'lamparina', 'candeeiro', 'oleo', 'chama', 'luz', 'candelabro', 'romana', 'brilho'], pegada: [0.6, 0.6],
+    campos: [{ id: 'pe', rotulo: 'Pé (0 no chão, 1 no candelabro)', tipo: 'numero', padrao: 1, min: 0, max: 1, passo: 1 }],
+    luz: (): LuzDeReceita => ({ preset: 'lucerna', raio: 3.5, cor: '#ffc27a', intensidade: 0.75, power: 'fire', flicker: 0.2 }),
+    gerar: p => piso([0.6, 0.6], lucerna(p.seed, Math.round(num(p, 'pe', 1, 0, 1)) === 1)) },
+  { id: 'tear-vertical', nome: 'Tear vertical de pesos', categoria: 'decoracao', tipo: 'piso', funcoes: ['atrio', 'quarto', 'oficina', 'sala'], ...A, tags: ['tear', 'tecelagem', 'pesos', 'urdidura', 'pano', 'la', 'grega', 'romana'], pegada: [2.3, 1.1], altura: 1.9,
+    gerar: p => piso([2.3, 1.1], tearVertical(p.seed)) },
+  { id: 'biga', nome: 'Biga (carro de guerra)', categoria: 'exterior', tipo: 'piso', funcoes: ['estabulo', 'estrada', 'arena', 'forum', 'quartel'], ...A, tags: ['biga', 'carro', 'carruagem', 'guerra', 'corrida', 'circo', 'roda', 'bronze', 'romana', 'grega'], pegada: [3.6, 1.9], altura: 1.1,
+    gerar: p => piso([3.6, 1.9], biga(p.seed)) },
+  { id: 'pergolado-com-videira', nome: 'Pérgola com videira', categoria: 'exterior', tipo: 'piso', funcoes: ['peristilo', 'jardim', 'patio', 'taberna'], ...A, tags: ['pergola', 'pergolado', 'videira', 'parreira', 'uva', 'sombra', 'jardim', 'romana', 'grega'], pegada: [4.2, 3.1], altura: 2.6,
+    gerar: p => piso([4.2, 3.1], pergolado(p.seed)) },
+  { id: 'impluvio', nome: 'Impluvio', categoria: 'decoracao', tipo: 'piso', funcoes: ['atrio', 'peristilo', 'termas'], ...A, tags: ['impluvio', 'tanque', 'agua', 'chuva', 'atrio', 'mosaico', 'marmore', 'romana'], pegada: [3, 2.2], altura: 0.15,
+    campos: [{ id: 'comprimento', rotulo: 'Comprimento (m)', tipo: 'numero', padrao: 3, min: 1.6, max: 6, passo: 0.2 }, { id: 'largura', rotulo: 'Largura (m)', tipo: 'numero', padrao: 2.2, min: 1.2, max: 4, passo: 0.2 }],
+    gerar: p => { const C = num(p, 'comprimento', 3, 1.6, 6), L = num(p, 'largura', 2.2, 1.2, 4); return piso([C, L], impluvio(p.seed, C, L)); } },
+  { id: 'fonte-com-mascara', nome: 'Fonte com máscara', categoria: 'decoracao', tipo: 'piso', funcoes: ['atrio', 'peristilo', 'jardim', 'praca', 'forum', 'termas'], ...A, tags: ['fonte', 'mascara', 'leao', 'bica', 'agua', 'bacia', 'marmore', 'parede', 'romana', 'grega'], pegada: [1.4, 1.0], altura: 1.5,
+    gerar: p => piso([1.4, 1.0], fonteComMascara(p.seed)) },
+  { id: 'estante-de-rolos', nome: 'Armário de rolos', categoria: 'armazenamento', tipo: 'piso', funcoes: ['biblioteca', 'atrio', 'escritorio', 'templo', 'sala'], ...A, tags: ['estante', 'armario', 'rolos', 'papiro', 'pergaminho', 'biblioteca', 'livros', 'tabuinhas', 'romana', 'grega'], pegada: [1.8, 0.56], altura: 1.9,
+    gerar: p => piso([1.8, 0.56], estanteDeRolos(p.seed)) },
+  { id: 'banca-de-mercado.toldo', nome: 'Banca de mercado com toldo', categoria: 'exterior', tipo: 'piso', funcoes: ['mercado', 'forum', 'praca', 'taberna', 'porto'], ...A, tags: ['banca', 'mercado', 'toldo', 'feira', 'balcao', 'termopolio', 'dolio', 'frutas', 'anfora', 'agora', 'romana'], pegada: [3, 2.3], altura: 2.4,
+    campos: [{ id: 'paleta', rotulo: 'Cores do toldo (0 a 2)', tipo: 'numero', padrao: 0, min: 0, max: 2, passo: 1 }],
+    gerar: p => piso([3, 2.3], bancaDeMercado(p.seed, Math.round(num(p, 'paleta', 0, 0, 2)))) },
+  { id: 'lira', nome: 'Lira', categoria: 'decoracao', tipo: 'piso', funcoes: ['triclinio', 'sala', 'atrio', 'peristilo', 'templo', 'quarto'], ...A, tags: ['lira', 'citara', 'instrumento', 'musica', 'cordas', 'tartaruga', 'grega', 'bardo'], pegada: [0.6, 0.8], altura: 0.15,
+    gerar: p => piso([0.6, 0.8], lira(p.seed)) },
 ];

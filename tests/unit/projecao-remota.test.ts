@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { projetarParaRemoto } from '../../src/domain/projecao-remota.ts';
+import { pecasDoJogador, projetarParaRemoto } from '../../src/domain/projecao-remota.ts';
 import { projetarParaJogadores } from '../../src/domain/projecao.ts';
 import { decodificar, codificar } from '../../src/domain/celulas.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
@@ -154,4 +154,15 @@ test('remota igual à local dentro da área: a visão do receptor e as células 
     assert.equal(faltam.length, 0, `camada ${id}: nada visível foi cortado`);
   }
   assert.ok(Object.keys(R.terrain.layers).length > 0);
+});
+
+test('pecasDoJogador: marca só as peças de jogador ligadas às fichas informadas', () => {
+  const m = criarMapa({ id: 'm1', nome: 'M' });
+  m.tokens.mia = { ...novaPeca([2, 2]), id: 'mia', player: true, refs: [{ app: 'ficha', tipo: 'ficha', id: 'f1' }] };
+  m.tokens.leo = { ...novaPeca([4, 2]), id: 'leo', player: true, refs: [{ app: 'ficha', tipo: 'ficha', id: 'f2' }] };
+  m.tokens.monstro = { ...novaPeca([6, 2]), id: 'monstro', player: false, refs: [{ app: 'ficha', tipo: 'ficha', id: 'f1' }] };
+  assert.deepEqual([...pecasDoJogador(m, ['f1'])], ['mia']);
+  assert.deepEqual([...pecasDoJogador(m, ['f1', 'f2'])].sort(), ['leo', 'mia']);
+  assert.deepEqual([...pecasDoJogador(m, [])], []);
+  assert.deepEqual([...pecasDoJogador(null, ['f1'])], []);
 });
