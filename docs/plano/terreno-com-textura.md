@@ -171,6 +171,8 @@ Feito em 2026-11-20. Na comparação de perto (recortes na mesma escala), a dens
 - **Gravetos claros soltos:** a referência tem gravetos pálidos de 10 a 20 cm espalhados por todo o chão. A `galhada` em escala pequena virou asterisco, então ficou em poucos montes. Se fizer falta, a saída é um carimbo de mancha (como `brotos`) com gravetos soltos sem nanquim.
 - **Sombra das copas:** a mata fica mais escura que na referência por causa da sombra da lua das copas. Isso é luz (Frente L), não chão.
 
+Feito depois (2026-11-21): o carimbo `gravetos` (gravetos pálidos de 10 a 20 cm, sem nanquim, só sombra macia e fio de luz; tag `rasteira`) entrou na família de folhiço, no conjunto `mata-fechada` e no acampamento, no lugar da `galhada` pequena. A sombra do sol e da lua das árvores passou a ser mais rala (`TRANSPARENCIA_DA_COPA = 0,62` em `sombras-do-sol.ts`): a copa deixa passar luz entre as folhas, e o chão sob a mata aparece.
+
 ## Ordem sugerida
 
 P1 → P2 → P3 (pode ir junto com a P2) → P4 → P5 → P6, com a P7 em paralelo a qualquer momento, e a P8 no fim. A P1 depende do usuário aprovar a prancha.
