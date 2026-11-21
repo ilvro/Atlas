@@ -16,7 +16,7 @@ Divisão do trabalho, como manda o `CLAUDE.md`: as fichas vão ao **Sonnet** com
 
 ## Decisões
 
-1. **Uma sala no Cloudflare.** É um Worker com um Durable Object (SQLite) por sala, no plano gratuito. O site continua no GitHub Pages. O código da sala vive num projeto novo, `Projects/Sala/` (TypeScript `strict`, com repositório git próprio), e é publicado com `wrangler`.
+1. **Uma sala no Cloudflare.** É um Worker com um Durable Object (SQLite) por sala, no plano gratuito. O site continua no GitHub Pages. O código da sala vive **dentro da Mesa**: o Worker fica em `Mesa/sala/`, e o protocolo (tipos e funções puras) em `Mesa/src/online/protocolo.ts`, usado pelo Worker, pela ponte do mestre e pela casca do jogador. Motivo: os dois clientes da sala são da Mesa. Assim há um repositório, um `npm test` e nenhuma cópia do protocolo para manter em dia. O Atlas e o Dossiê só conhecem o contrato (o campo `autor` e os eventos `sala.*` no mesa-core). A sala é publicada com `wrangler` ou pelo Workers Builds do Cloudflare ligado ao repositório da Mesa.
 2. **A sala é da campanha, não da chamada.** O `instanceId` da atividade muda a cada chamada, mas as fichas e o registro precisam durar entre sessões. Por isso a sala tem um id fixo, e um **diretório** (outro Durable Object, único) liga o servidor do Discord (`guildId`) à sala da campanha. Cada servidor tem uma sala ativa, escolhida pelo mestre na Mesa.
 3. **Identidade pelo Discord, para todos.** Dentro da atividade, a identidade vem do Embedded App SDK. No navegador, o mestre (e o jogador que abrir por link) entra pelo OAuth2 web do Discord. Nos dois casos, o Worker troca o `code` pelo token com o segredo do app, lê `/users/@me` e emite uma **sessão assinada** (HMAC, com validade de 12 h): `{ discordId, nome, avatar, papel }`. Quem decide o papel é o servidor: `papel = 'mestre'` quando `discordId === MESTRE_DISCORD_ID` (um segredo do Worker).
 4. **O mestre fica no navegador, e a Mesa faz a ponte.** O Atlas e o Dossiê do mestre não mudam de transporte. Uma tela da Mesa (`#/online`) faz a ponte entre o `BroadcastChannel` e a sala, repassando só o que pode sair:
@@ -57,6 +57,8 @@ Cliente → sala, em quadros de texto JSON, a não ser os blobs:
 | `evento { envelope }` | mestre: a lista `EVENTOS_DO_MESTRE`; jogador: `ficha.rolagem` e `ficha.recursos` só das fichas dele, e `atlas.mover-peca` | Espalha a todos com o `autor` carimbado. |
 | `ficha.salvar { ficha, rev }` | o dono da ficha, ou o mestre | Grava e espalha `ficha.atualizada`. Com `rev` velho, grava assim mesmo e marca `conflito: true`. |
 | `ficha.entregar { fichaId, dono }` | mestre | Muda o dono. |
+| `membro.personagem { fichaId }` | jogador (só ficha dele) | Escolhe com que personagem joga. Vai para todos em `membros`. |
+| `sala.config { nome, capaBlobId? }` | mestre | Nome e capa da campanha, mostrados no saguão. |
 | `blob { id, tipo }` + quadro binário | mestre | Guarda um retrato ou asset em pedaços de 512 KB, sem repetir id. |
 
 Sala → cliente: `bem-vindo`, `membros`, `canal`, `evento`, `ficha.atualizada`, `blob`, `erro { motivo }`.
@@ -69,7 +71,7 @@ Sala → cliente: `bem-vindo`, `membros`, `canal`, `evento`, `ficha.atualizada`,
 Objetivo: deixar prontos o app do Discord, a conta do Cloudflare e os quatro valores de que o código precisa.
 Depende de: —.
 Como:
-1. **Cloudflare:** criar a conta em `dash.cloudflare.com/sign-up`. O plano Workers Free não pede cartão. Na primeira publicação, escolher o subdomínio `<algo>.workers.dev`.
+1. **Cloudflare:** criar a conta em `dash.cloudflare.com/sign-up`. O plano Workers Free não pede cartão. Na primeira publicação, escolher o subdomínio `<algo>.workers.dev`. ✅ Conta criada e ligada ao GitHub (2026-11-20). Para publicar sozinho a cada push (depois da R1): em *Workers & Pages* → *Create* → *Import a repository*, escolher a Mesa, com a pasta raiz `/` e o comando de deploy `npx wrangler deploy -c sala/wrangler.toml`. Se houver *build watch paths*, use `sala/*` e `src/online/*`, para os pushes do resto da Mesa não republicarem a sala. Os segredos ficam em *Settings* → *Variables and Secrets*, do tipo *Secret*.
 2. **Discord, app:** em `discord.com/developers/applications` → *New Application*, com o nome "Mesa". Copiar o **Application ID** (público).
 3. **Discord, OAuth2:**
    - em *Client Secret* → *Reset Secret*, copiar o valor. Ele é segredo: vai só para o Cloudflare, nunca para o código nem para o GitHub;
@@ -81,34 +83,36 @@ Como:
    - em *Installation*, ligar *Guild Install* e instalar o app no servidor da mesa pelo link.
    - Se um jogador não vir a atividade no botão de Atividades (foguete) da chamada, acrescente-o em *App Testers*.
 Pronto quando: o usuário tem o Application ID, o Client Secret, o `MESTRE_DISCORD_ID` e a conta do Cloudflare logada (`npx wrangler login`).
-Nota: o Application ID (que também é o client id), a public key e o `MESTRE_DISCORD_ID` estão em `Projects/.mesa-online.env`, fora de qualquer repositório. Leia de lá, sem copiar os valores para este plano nem para arquivos versionados. A exceção é o client id, que é público e vai no código da Mesa (R17) e no `[vars]` do `wrangler.toml`. O Client Secret não está em arquivo nenhum: o usuário digita direto no `wrangler secret put`. Antes de cada commit no `Sala/`, confira que `.dev.vars` está no `.gitignore` e que o `git diff --cached` não tem o id do mestre nem o segredo.
+Nota: o Application ID (que também é o client id), a public key e o `MESTRE_DISCORD_ID` estão em `Projects/.mesa-online.env`, fora de qualquer repositório. Leia de lá, sem copiar os valores para este plano nem para arquivos versionados. A exceção é o client id, que é público e vai no código da Mesa (R17) e no `[vars]` do `wrangler.toml`. O Client Secret não está em arquivo nenhum: o usuário digita direto no `wrangler secret put`. Antes de cada commit que toque em `Mesa/sala/`, confira que `.dev.vars` está no `.gitignore` e que o `git diff --cached` não tem o id do mestre nem o segredo.
 
 ## Bloco 1 — Sala
 
-### R1 — Projeto Sala: Worker, Durable Object e WebSocket  ⬜
+### R1 — Sala na Mesa: Worker, Durable Object e WebSocket  ⬜
 Objetivo: uma sala que aceita conexões e repete mensagens para os outros conectados.
 Depende de: R0 (só para publicar; dá para desenvolver com `wrangler dev`).
-Ler: a documentação de Durable Objects com SQLite e da *WebSocket Hibernation API* (`ctx.acceptWebSocket`, `webSocketMessage`, `webSocketClose`); `Atlas/AGENTS.md` (convenções de TypeScript).
-Arquivos: criar `Sala/` com `package.json`, `tsconfig.json` (`strict`), `wrangler.toml`, `src/index.ts` (rotas), `src/sala.ts` (classe `Sala`), `tests/sala.test.ts`, `AGENTS.md` curto e `.gitignore`; rodar `git init`.
+Ler: a documentação de Durable Objects com SQLite e da *WebSocket Hibernation API* (`ctx.acceptWebSocket`, `webSocketMessage`, `webSocketClose`); `Mesa/AGENTS.md`, `Mesa/tsconfig.json`, `Mesa/package.json` e `.github/workflows/pages.yml` (o Pages publica só o `dist/`).
+Arquivos: criar `Mesa/sala/wrangler.toml`, `Mesa/sala/tsconfig.json`, `Mesa/sala/index.ts` (rotas), `Mesa/sala/sala.ts` (a classe `Sala`), `Mesa/sala/retransmitir.ts` (a lógica pura) e `Mesa/tests/unit/sala/retransmitir.test.ts`; mudar `Mesa/package.json`, `Mesa/.gitignore` (`.dev.vars` e `.wrangler/`) e `Mesa/AGENTS.md` (uma seção curta sobre a sala).
 Como:
 1. No `wrangler.toml`: `name = "mesa-sala"`, um binding `SALA` para a classe `Sala` e a migração `new_sqlite_classes = ["Sala"]` (no plano gratuito, só o backend SQLite é aceito).
 2. A rota `GET /sala/:id/ws` faz o upgrade e repassa ao Durable Object `idFromName(id)`.
 3. Por enquanto, a `Sala` aceita com hibernação e repete cada mensagem de texto aos outros. Guarda `{ discordId, papel }` em `serializeAttachment` (fica vazio nesta ficha).
 4. A rota `GET /sala/saude` devolve `ok`.
 5. CORS: só `https://ilvro.github.io`, `https://*.discordsays.com` e `http://127.0.0.1:5100`.
-6. Scripts: `dev` (`wrangler dev`), `deploy`, `test` (vitest com `@cloudflare/vitest-pool-workers`) e `typecheck`.
+6. O `sala/tsconfig.json` estende o da Mesa com `lib: ["ES2023"]` e `types: ["@cloudflare/workers-types"]`, sem DOM. O `tsconfig.json` principal continua sem incluir `sala/`.
+7. Lógica pura × Workers: os testes da Mesa (`node --test`) só importam módulos de `sala/` que não usam tipos do Workers (como `retransmitir.ts`, que recebe uma lista de conexões falsas). A classe do Durable Object e as rotas ficam finas e são checadas só pelo `sala/tsconfig.json`.
+8. Em `package.json`: `wrangler` e `@cloudflare/workers-types` em `devDependencies`; os scripts `sala:dev` (`wrangler dev -c sala/wrangler.toml`) e `sala:deploy`; e o `typecheck` passa a rodar também `tsc --noEmit -p sala/tsconfig.json`.
 Não fazer: login (R2), estado (R4).
 Testes: dois clientes na mesma sala recebem a mensagem um do outro; em salas diferentes, não recebem.
-Pronto quando: `npm test` e `npm run typecheck` passam no `Sala/`, e `wrangler dev` responde `/sala/saude`.
+Pronto quando: `npm test` e `npm run typecheck` passam na Mesa, `npm run sala:dev` responde `/sala/saude`, e o `dist/` do build do Pages não tem nada da sala.
 Commit: `room worker with durable object relay`
 
 ### R2 — Login pelo Discord e sessão assinada  ⬜
 Objetivo: o Worker sabe quem é cada conexão e quem é o mestre.
 Depende de: R1.
 Ler: o fluxo OAuth2 do Discord (troca do `code` em `https://discord.com/api/oauth2/token`, `GET /users/@me`); o exemplo de autenticação do Embedded App SDK.
-Arquivos: criar `Sala/src/sessao.ts` e `Sala/tests/sessao.test.ts`; mudar `src/index.ts`, `src/sala.ts` e `wrangler.toml`.
+Arquivos: criar `Mesa/sala/sessao.ts` (puro, com a Web Crypto, que existe no Node 22 e no Workers) e `Mesa/tests/unit/sala/sessao.test.ts`; mudar `sala/index.ts`, `sala/sala.ts` e `sala/wrangler.toml`.
 Como:
-1. Segredos via `wrangler secret put` (no `.dev.vars` em dev, que fica no `.gitignore`): `DISCORD_CLIENT_SECRET`, `MESTRE_DISCORD_ID` e `SEGREDO_SESSAO` (32 bytes aleatórios). `DISCORD_CLIENT_ID` vai em `[vars]`.
+1. Segredos via `wrangler secret put` (em dev, no `Mesa/sala/.dev.vars`, que fica no `.gitignore`): `DISCORD_CLIENT_SECRET`, `MESTRE_DISCORD_ID` e `SEGREDO_SESSAO` (32 bytes aleatórios). `DISCORD_CLIENT_ID` vai em `[vars]`.
 2. `POST /sala/token { code, redirectUri? }`: troca o `code` (com `redirect_uri` só no fluxo web) e lê `/users/@me`. Devolve `{ access_token, sessao }`; o `access_token` é o que o SDK usa no `authenticate`. A sessão é `base64url(json).base64url(hmacSha256)`, com `{ discordId, nome, avatar, papel, exp }`.
 3. `verificarSessao(token, segredo, agora)` → `Sessao | null`, com tempo constante na comparação.
 4. O WebSocket exige que a primeira mensagem seja `ola { sessao }` e fecha com 4001 se for inválida. A sessão verificada vai para o attachment.
@@ -117,29 +121,31 @@ Testes: assinar e verificar; sessão vencida, adulterada ou com outro segredo é
 Pronto quando: os testes passam e nenhum segredo aparece no código.
 Commit: `discord login and signed sessions in room worker`
 
-### R3 — Protocolo da sala no mesa-core  ⬜
+### R3 — Protocolo da sala e contrato  ⬜
 Objetivo: os tipos e o cliente da sala, iguais para a Mesa do mestre e para a casca do jogador.
 Depende de: R2.
 Ler: `Atlas/mesa-core/src/eventos.ts` (`Evento`, `CanalLike`, `validarEvento`, `CATALOGO`), `Atlas/src/app/projetor.ts` (`MensagemDoMestre`, `MensagemDoProjetor`), `Atlas/docs/PLATAFORMA.md` §5 e §10.
-Arquivos: criar `Atlas/mesa-core/src/sala.ts` e o teste dele; mudar `eventos.ts` (campo `autor?` no `Evento`, entrada `atlas.mover-peca` no `CATALOGO` como pedido de `atlas`, fatos `sala.*`), `index.ts` e `PLATAFORMA.md`.
+Arquivos:
+- na Mesa: criar `Mesa/src/online/protocolo.ts` (tipos, `EVENTOS_DO_MESTRE` e cabeçalho dos pedaços de blob, sem DOM nem Workers, para o Worker importar por `../src/online/protocolo.ts`), `Mesa/src/online/cliente.ts` (`conectarSala`) e os testes em `Mesa/tests/unit/online/`;
+- no mesa-core: mudar `eventos.ts` (o campo `autor?` no `Evento`; no `CATALOGO`, `atlas.mover-peca` como pedido de `atlas`, os pedidos `sala.fichas` e `sala.salvar-ficha` e o fato `sala.ficha-atualizada`, de `mesa`) e `index.ts`;
+- `Atlas/docs/PLATAFORMA.md`.
 Como:
 1. Os tipos `MensagemParaSala` e `MensagemDaSala` da tabela do protocolo. `Autor = { discordId; nome; papel: 'mestre' | 'jogador'; fichas: string[] }`.
 2. `conectarSala({ url, sessao, WebSocket? }) → ClienteDaSala`, com `enviar`, `ouvir(tipo, f)`, `estado: 'conectando' | 'aberta' | 'caiu'` e `fechar`. Reconecta com espera crescente (1, 2, 4… até 30 s), refaz o `ola` e repete o `bem-vindo`.
 3. Blobs: `enviarBlob(id, blob)` divide em pedaços de 512 KB num quadro binário com cabeçalho `{ id, i, n, tipo }`; `ouvirBlob` remonta.
 4. `EVENTOS_DO_MESTRE`: a lista fechada do que a ponte do mestre pode repassar. Por enquanto, `ficha.rolagem` de personagens e `atlas.cena-aberta`.
 5. No `PLATAFORMA.md`: em §2, um parágrafo "Modo online (Frente R)"; em §5, o campo `autor`; em §10, trocar "fora do escopo" por um link para esta frente.
-6. `npm run build:core` e copiar o `dist/` para `Mesa/vendor/mesa-core/` e `Dossie/vendor/mesa-core/`.
+6. `npm run build:core` e copiar o `dist/` para `Mesa/vendor/mesa-core/` e `Dossie/vendor/mesa-core/`. É um commit por repositório: Atlas (contrato), Mesa (protocolo e vendor) e Dossiê (vendor).
 Não fazer: a ponte (R5) nem a lógica de permissões (R4, no servidor).
 Testes: reconexão com um WebSocket falso; divisão e remontagem de um blob de 1,3 MB; `validarEvento` aceita `autor` e recusa `autor` malformado.
-Pronto quando: os testes do mesa-core passam e as cópias em `vendor/` batem com o `dist/`.
-Commit: `room protocol and client in mesa-core`
-Nota: o `Sala/` importa os tipos de `mesa-core/src/sala.ts` por caminho relativo ou por cópia em `Sala/vendor/`. Escolha a cópia se o `wrangler` reclamar.
+Pronto quando: os testes do mesa-core e da Mesa passam, e as cópias em `vendor/` batem com o `dist/`.
+Commit: `online contract: event author and room events` (Atlas); `room protocol and client` (Mesa); `mesa-core com eventos da sala` (Dossiê)
 
 ### R4 — Estado e permissões da sala  ⬜
 Objetivo: a sala guarda o que dura entre sessões e recusa o que cada papel não pode mandar.
 Depende de: R3.
-Ler: `Sala/src/sala.ts`, `mesa-core/src/sala.ts` e a API SQL do Durable Object (`ctx.storage.sql.exec`).
-Arquivos: criar `Sala/src/estado.ts`, `Sala/src/permissoes.ts`, `Sala/src/diretorio.ts` e os testes; mudar `sala.ts`, `index.ts` e `wrangler.toml` (classe `Diretorio`).
+Ler: `Mesa/sala/sala.ts`, `Mesa/src/online/protocolo.ts` e a API SQL do Durable Object (`ctx.storage.sql.exec`).
+Arquivos: criar `Mesa/sala/estado.ts`, `Mesa/sala/permissoes.ts`, `Mesa/sala/diretorio.ts` e os testes em `Mesa/tests/unit/sala/`; mudar `sala.ts`, `index.ts` e `wrangler.toml` (a classe `Diretorio`). O `estado.ts` recebe um `{ exec(sql, ...params) }`; nos testes, o `node:sqlite` em memória faz o papel do SQLite do Durable Object.
 Como:
 1. Tabelas da sala:
    - `fichas(id, dono, rev, json, atualizada_em)`;
@@ -190,7 +196,7 @@ Commit: `mesa online bridge publishes projector to the room`
 Objetivo: o `estado` de um mapa grande chega inteiro e sem estourar o limite de mensagem.
 Depende de: R5.
 Ler: o tamanho do `estado` nos mapas de `Atlas/public/exemplos/` (meça); `online.ts`; e `lerAsset` em `iniciarPublicacao`.
-Arquivos: mudar `Mesa/src/app/online.ts` e `mesa-core/src/sala.ts` (e as cópias em `vendor/`), mais testes.
+Arquivos: mudar `Mesa/src/app/online.ts` e `Mesa/src/online/protocolo.ts`, mais testes.
 Como:
 1. Um `estado` acima de 256 KB vai comprimido (`CompressionStream('gzip')`) como blob `estado:<mapa>:<versao>`. A mensagem `canal` leva só `{ tipo: 'estado', blobId, versao }`, e o receptor descomprime.
 2. Durante um gesto, `emGesto` e `peca-gesto` vão sem compressão e limitados a 15 por segundo.
@@ -290,6 +296,26 @@ Pronto quando: o jogador rola pelo card, abre a completa, edita um item e volta 
 Commit: `sheet card and full sheet in player shell`
 Nota: o Opus revisa o resultado visual (proporções, legibilidade no celular) antes de fechar.
 
+### R12b — Saguão da mesa  ⬜
+Objetivo: a tela de chegada mostra quem está na mesa, com que personagem e se o mestre já abriu.
+Depende de: R12 e R4 (`membro.personagem` e `sala.config`).
+Ler: `Casca.tsx`, `MesaOnline.tsx` e `protocolo.ts`.
+Arquivos: criar `Mesa/src/jogar/Saguao.tsx` e `Mesa/src/online/saguao.ts` (puro); mudar `Casca.tsx`, `MesaOnline.tsx`, `online.ts` (manda `sala.config` com o nome e a capa da campanha ativa) e o tratamento das duas mensagens em `sala/sala.ts`.
+Como:
+1. A casca abre no saguão quando a sala ainda não tem `estado` de mapa ou quando o jogador ainda não escolheu personagem. Depois, o saguão fica a um botão (ícone de pessoas) por cima do mapa.
+2. Ele mostra:
+   - o nome e a capa da campanha;
+   - os membros, com avatar, nome, o retrato do personagem escolhido e o selo "mestre";
+   - "Aguardando o mestre abrir a mesa", enquanto não houver mapa.
+3. Escolher personagem: as fichas do jogador como cartões grandes, mais "Nova ficha" e "Importar JSON". A escolha vai para a sala, e todos veem.
+4. A `#/online` da Mesa mostra a mesma lista ao mestre, com quem já escolheu. Abrir o mapa no Atlas é o que "abre a mesa": o `estado` chega, e as cascas saem do saguão sozinhas.
+5. O avatar vem do Discord (está na sessão). O saguão funciona por link, sem depender da R17.
+Não fazer: chat (a conversa é na chamada), iniciativa.
+Testes: `estadoDoSaguao(membros, fichas, temMapa)` puro: quem falta escolher, se o mestre está presente, se a mesa está aberta.
+Pronto quando: dois jogadores entram, escolhem personagem e se veem; o mestre abre o mapa, e os dois vão para o mapa.
+Commit: `lobby for the online table`
+Nota: o Opus revisa o visual do saguão.
+
 ### R13 — Fichas da sala no Dossiê do mestre  ⬜
 Objetivo: o mestre vê, edita e entrega as fichas da sala pelo Dossiê dele.
 Depende de: R11 e R5.
@@ -359,10 +385,11 @@ Como:
    - `authorize({ client_id, response_type: 'code', state: '', prompt: 'none', scope: ['identify', 'guilds'] })`;
    - `POST /sala/token { code }` (sem `redirect_uri`) e `authenticate({ access_token })`.
    - A sessão fica em memória, não no `localStorage`.
-3. Sala: `GET /sala/diretorio/<guildId>`. Se não houver sala ligada, mostrar "O mestre ainda não ligou uma sala a este servidor"; e, se quem abriu for o mestre, um seletor das salas dele.
-4. Todas as URLs do Worker usam o caminho mapeado (`/sala/...`), nunca o `workers.dev` direto. Chamar `patchUrlMappings` com os mapeamentos, para algum `fetch` absoluto que tenha escapado.
-5. O mestre que abrir a atividade entra como espectador: vê o projetor e o feed e não tem ficha.
-6. Conferir que os `iframe` de `/Atlas/` e `/Dossie/` carregam pelo mapeamento e que o `BroadcastChannel` entre a casca e eles funciona dentro do Discord. Se não funcionar, troque por `postMessage` com a casca como centro e anote.
+3. `commands.setActivity` com o nome da campanha, para aparecer no perfil de quem está jogando.
+4. Sala: `GET /sala/diretorio/<guildId>`. Se não houver sala ligada, mostrar "O mestre ainda não ligou uma sala a este servidor"; e, se quem abriu for o mestre, um seletor das salas dele.
+5. Todas as URLs do Worker usam o caminho mapeado (`/sala/...`), nunca o `workers.dev` direto. Chamar `patchUrlMappings` com os mapeamentos, para algum `fetch` absoluto que tenha escapado.
+6. O mestre que abrir a atividade entra como espectador: vê o projetor e o feed e não tem ficha.
+7. Conferir que os `iframe` de `/Atlas/` e `/Dossie/` carregam pelo mapeamento e que o `BroadcastChannel` entre a casca e eles funciona dentro do Discord. Se não funcionar, troque por `postMessage` com a casca como centro e anote.
 Não fazer: comandos de barra, convites nem outros recursos do Discord.
 Testes: unitários da escolha do modo (`frame_id`) e do caminho sem sala ligada; o resto é a R19.
 Pronto quando: o build passa e a casca em modo Discord funciona com um SDK falso.
@@ -372,7 +399,7 @@ Commit: `mesa as a discord activity`
 Objetivo: o mestre liga a sala ao servidor sem copiar ids à mão.
 Depende de: R17.
 Ler: `MesaOnline.tsx` e `diretorio.ts`.
-Arquivos: mudar `MesaOnline.tsx` e `Sala/src/index.ts`.
+Arquivos: mudar `MesaOnline.tsx` e `Mesa/sala/index.ts`.
 Como: com o escopo `guilds` no login web do mestre, listar os servidores em que ele está e em que o app está instalado (`GET /users/@me/guilds` pelo Worker, cruzando com uma lista mantida pelo diretório das guildas já vistas pela atividade). Um clique liga. Manter o campo de colar o id como alternativa.
 Pronto quando: o mestre escolhe o servidor numa lista.
 Commit: `pick discord server for the room from a list`
@@ -419,7 +446,7 @@ Commit: `server-side dice rolls`
 | 1. Sala | R1 → R2 → R3 → R4 | Sonnet | R0 só para publicar |
 | 2. O mestre publica | R5 → R6 | Sonnet | R4 |
 | 3. O jogador vê | R7 → R8, R9 | Sonnet | R6 |
-| 4. Fichas | R10 (já), R11 → R12, R13 | Sonnet (o Opus revisa a R12) | R7 para a R11 |
+| 4. Fichas e saguão | R10 (já), R11 → R12 → R12b, R13 | Sonnet (o Opus revisa a R12 e a R12b) | R7 para a R11 |
 | 5. Peça própria | R14 → R15 | Sonnet | R11 |
 | 6. Discord | R16 (já), R17 → R18, R19 | Sonnet; R19 com o usuário | blocos 3 a 5 |
 | Depois | R20 | Sonnet | R9 |
