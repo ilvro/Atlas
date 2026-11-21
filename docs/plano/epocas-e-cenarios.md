@@ -44,7 +44,7 @@ Os blocos 1 a 5 podem andar em paralelo, desde que se respeitem as dependências
 
 ## Bloco 1 — Base
 
-### Q1 — Gêneros e biomas nas famílias  ⬜
+### Q1 — Gêneros e biomas nas famílias  ✅
 Objetivo: cada família diz a que épocas e biomas serve.
 Depende de: —.
 Ler: `src/procedural/familias.ts` (inteiro), `src/procedural/grupos-de-terreno.ts`, `src/procedural/receitas/comum.ts` (`Receita.generos`, `kit`), `src/domain/presets.ts` (`GENEROS`), o teste de famílias em `tests/unit/` (procure `FAMILIAS`).
@@ -65,6 +65,7 @@ Não fazer: a interface (Q2), gêneros novos (Q3).
 Testes: todo gênero citado existe em `GENEROS` ou na lista dos planejados (`GENEROS_PLANEJADOS`, um array temporário no teste: `antiguidade`, `oriental`, `deserto`, `faroeste`, `colonial`, `vitoriano`, `pos-apocaliptico`, `cyberpunk`, `ficcao-cientifica`); todo bioma citado está em `BIOMAS`; se uma receita tem `generos`, a família dela também tem e os conjuntos se cruzam; `familiasVisiveis('fantasia', null)` não traz `notebook`, mas traz `caixote`.
 Pronto quando: os testes passam, e a biblioteca continua igual (nada lê a marca ainda).
 Commit: `families are tagged with genres and biomes`
+Nota: o teste mostrou famílias mistas (o `caixote` tem uma receita só de ficção científica e outras livres). Exigir `generos` nelas tiraria o caixote da fantasia, então a regra ficou: família com `generos` cruza com cada receita marcada dela; família sem `generos` só é aceita se ao menos uma receita dela for livre. As famílias em que toda receita tem `generos` (lareira, piano, mesa de jogo, mesa de jantar, relógio de pé, banheira, pia, baú, forja, altar, munição, armas de parede, castiçal, passadeira, sino, alçapão, mesa posta, bancada, fogueira, tear, grilhões) ganharam a união dos gêneros das receitas.
 
 ### Q2 — Filtro de época e bioma na biblioteca  ⬜
 Objetivo: a biblioteca e a gaveta de terreno mostram, de início, só o que combina com o mapa.
