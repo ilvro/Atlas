@@ -854,13 +854,15 @@ test('instruções do servidor: com o núcleo real, getInstructions() devolve o 
 });
 
 // Orçamento do catálogo (PM5b + etapas D e H). A meta da ficha era 25 KB, mas só o esquema (sem texto) já passa disso: o teto vale o que se alcançou encurtando textos.
-const ORCAMENTO_DA_BASE_BYTES = 50_500;
+const MAXIMO_POR_FERRAMENTA_BYTES = 4_500;
 const raizDoAtlas = path.resolve(import.meta.dirname, '..', '..');
 
-test('catálogo base: soma dentro do orçamento, descrições até 400 caracteres e campos até 80', () => {
+test('catálogo base: cada ferramenta dentro do limite, descrições até 400 caracteres e campos até 80', () => {
   const base = JSON.parse(fs.readFileSync(CAMINHO_CATALOGO_BASE_PADRAO, 'utf8')) as { nome: string; descricao: string; esquema: unknown }[];
-  const soma = base.reduce((a, t) => a + Buffer.byteLength(JSON.stringify({ nome: t.nome, descricao: t.descricao, esquema: t.esquema })), 0);
-  assert.ok(soma < ORCAMENTO_DA_BASE_BYTES, `base com ${soma} bytes`);
+  for (const t of base) {
+    const bytes = Buffer.byteLength(JSON.stringify({ nome: t.nome, descricao: t.descricao, esquema: t.esquema }));
+    assert.ok(bytes <= MAXIMO_POR_FERRAMENTA_BYTES, `${t.nome} com ${bytes} bytes`);
+  }
   const longos: string[] = [];
   const varrer = (o: unknown, nome: string) => {
     if (!o || typeof o !== 'object') return;

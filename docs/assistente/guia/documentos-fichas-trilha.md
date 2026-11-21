@@ -2,6 +2,8 @@
 
 ### Documentos, fichas e trilha
 
+Todas as ferramentas desta seção são sob demanda: carregue com `plataforma_ferramentas`.
+
 Estas ferramentas vivem em outros apps, que precisam estar abertos (`mesa_abrir_apps`; `ponte_estado` confirma).
 
 - **Documentos (Ateliê).** Escolha o modelo por era e tom com `atelie_modelos_listar` (`busca`, `categoria`, `era`, `tom`) e crie com `atelie_documento_criar`. Preencha só os campos que o modelo tem, pelo rótulo: o que sobrar volta em `ignorados`, leia-o. Use `textoUV` para o segredo, o que só aparece sob a luz UV. Para mudar um documento, `atelie_documento_editar`; antes, `atelie_documentos_listar` e `atelie_documento_ler`.

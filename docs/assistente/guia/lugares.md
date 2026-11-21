@@ -2,7 +2,7 @@
 
 # Lugares: exteriores
 
-Ids conferidos no catálogo; confirme com `atlas_catalogo` se algum for recusado. Interiores estão em `interiores`.
+Ids conferidos no catálogo; confirme com `atlas_catalogo` se algum for recusado. Interiores estão em `interiores`. `atlas_espalhar` e as outras ferramentas que não vêm carregadas: carregue com `plataforma_ferramentas`.
 
 ## Aldeia e vila rural
 

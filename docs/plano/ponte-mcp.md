@@ -295,7 +295,7 @@ Testes (`ponte-niveis.test.ts`, com o MCP de teste e o catálogo-base real):
 Pronto quando: o `tools/list` real tem 29 ferramentas e menos de 24 KB, e uma conversa de teste pelo Claude Code (`.mcp.json`) consegue carregar e executar `atlas_momento` pelo executor.
 Commit: rarely used assistant tools load on demand
 
-### PM6c — Núcleo, guia e orçamentos falam dos dois níveis  ⬜
+### PM6c — Núcleo, guia e orçamentos falam dos dois níveis  ✅
 Objetivo: as instruções explicam o uso sob demanda, e os testes de orçamento passam a medir o que realmente vai na conversa.
 Depende de: PM6b.
 Ler: `docs/assistente/nucleo.md`; `docs/assistente/guia/*.md` (procure os nomes de ferramenta que viraram sob demanda: `grep -n "atlas_momento\|atlas_ambiente\|atlas_arranjo\|atlas_espalhar\|atlas_presenca\|atlas_caminho\|atlas_regioes\|atlas_andares\|atlas_notas\|mesa_\|dossie_\|atelie_\|jukebox_"`); `docs/assistente/LEIAME.md`; `scripts/ponte/LEIAME.md`; o teste "as ferramentas do Atlas têm descrições curtas e ficam dentro do orçamento compacto" em `tests/unit/ponte-escrita.test.ts`; o teste "catálogo base: soma dentro do orçamento" em `tests/unit/ponte-mcp.test.ts`.

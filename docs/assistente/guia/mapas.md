@@ -11,6 +11,8 @@
 
 ## Compor um mapa
 
+O que não está carregado (`atlas_espalhar`, `atlas_ambiente`, `atlas_presenca`, `atlas_caminho`, `atlas_regioes`, `atlas_andares`, `atlas_notas`, `atlas_momento`): carregue com `plataforma_ferramentas`.
+
 ### Projete antes de construir
 
 Antes de qualquer chamada, faça o projeto com `plataforma_guia projetar` (brief, programa, circulação, massa, identidade) e consulte o repertório do lugar em `lugares` (exteriores) ou `interiores`. Com imagem de referência, leia antes `referencias`. Depois desenhe em texto uma grade mental de 5 em 5 metros com as massas grandes (rocha, água, mata, construções e caminhos) e mostre ao mestre o resumo em poucas linhas (ex.: "platô na diagonal, mata abaixo do penhasco a leste, rua de sul a norte, salão dominante na praça"). Só depois do resumo aprovado vem o detalhe. Coordenadas são em metros, com origem no canto superior esquerdo e y para baixo; a única exceção são os cômodos (`atlas_comodos`), em células de 1,5 m.
