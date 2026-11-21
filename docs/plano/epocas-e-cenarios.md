@@ -1,0 +1,334 @@
+# Frente Q — Épocas e cenários
+
+Planejada em 2026-11-20. O objetivo é chegar à variedade do Inkarnate: mapas de várias épocas (Antiguidade, Oriente, deserto, faroeste, colonial e pirata, vitoriano e steampunk, moderno, pós-apocalíptico e cyberpunk) e de vários cenários (deserto, selva, outono, vulcão, subterrâneo exótico, praia, cidade).
+
+Divisão do trabalho, como manda o `CLAUDE.md`: o **Opus** faz tudo o que é visual (curadoria e pintura de terreno, materiais, brilho próprio, receitas, plantas geradas, mapas de exemplo). O **Sonnet** faz domínio e interface (marcas de época, filtro, gêneros, regras de mobília). As fichas marcadas com **[Opus]** são feitas pelo Opus. As demais vão ao Sonnet, com esforço medium, uma ficha por subagente.
+
+O estilo Pixel está em espera: os assets novos só precisam ficar bons no Ilustrado, e o Pixel não pode quebrar (o teste da coleção e o derivado automático continuam passando).
+
+## Problema
+
+- **Épocas:** há três gêneros em `GENEROS` (`investigacao`, `moderno`, `fantasia`); `ficcao-cientifica` está planejado na E4 ([acervo-ampliado.md](acervo-ampliado.md)). O acervo de cerca de 355 itens cobre bem a casa dos anos 1920 e o medieval, cobre pouco o moderno (4 famílias) e não tem nada de Antiguidade, Oriente, deserto, faroeste, colonial, steampunk, pós-apocalíptico ou cyberpunk.
+- **Cenários:** os 35 materiais de terreno são todos de clima temperado ou frio. Não há duna, terra rachada, selva, folhas de outono, asfalto, basalto, lava nem chão de fungos. Na natureza também faltam palmeira de praia, cacto, cerejeira, bambu, árvore de selva e cogumelo gigante.
+- **Pisos, paredes e telhados** são quase todos europeus.
+- **Brilho próprio:** o motor não tem parte de objeto nem água que brilhe acima do mapa de luz. Uma luz (`PRESETS_DE_LUZ`) ilumina em volta, mas o objeto continua escuro à noite. Por isso lava, néon, cristal, tela e brasa não ficam convincentes. **É do motor, não do desenho**, e vem antes dos kits que dependem dele (Q8).
+- **Volume:** sem filtro, centenas de itens novos devolvem a biblioteca ao scroll infinito que a Frente O resolveu.
+
+## Decisões
+
+1. **Época é gênero.** O gênero já guia a mobília, a paleta e as luzes do assistente, e a receita já tem `generos?: string[]`. Por isso não se cria um eixo novo de "época": os estilos de época viram gêneros. Gêneros desta frente: `antiguidade`, `oriental`, `deserto`, `faroeste`, `colonial`, `vitoriano`, `pos-apocaliptico` e `cyberpunk`. Somam-se a `investigacao`, `moderno`, `fantasia` e `ficcao-cientifica` (E4).
+2. **Cenário é bioma**, uma marca à parte, que vale só para a natureza e o terreno: `temperado`, `frio`, `deserto`, `tropical`, `outono`, `vulcanico`, `subterraneo`, `urbano` e `mar`.
+3. **A marca fica na família, não no item.** `Familia` ganha `generos?` e `biomas?`. Família sem `generos` é atemporal e aparece em qualquer gênero (pedra, caixote, barril). `GrupoDeTerreno` e o `Material` de terreno ganham `biomas?`. Há um teste que exige `generos` em toda família com receita que também tenha `generos`, para as duas marcas não divergirem.
+4. **O filtro é preferência do editor, com padrão vindo do mapa.** A biblioteca abre filtrada pelo gênero do mapa, mais os atemporais. Um chip "Todas as épocas" desliga o filtro. A escolha manual fica no `localStorage`, com `try/catch`, como `objetosNaGrade`. O documento do mapa não muda de formato.
+5. **Texturas só CC0** (Poly Haven, ambientCG), na infraestrutura da Frente P: a curadoria em prancha é aprovada pelo usuário, `scripts/preparar-texturas.ts` prepara os arquivos, e cada um entra no `LICENCAS.md`.
+6. **Plantas e árvores novas são geradas** (`src/procedural/pesados/plantas.ts`, assadas por `npm run assar` em `public/colecao/gerados/`), como as árvores de hoje. Objetos são receitas.
+7. **Tamanho de kit:** cada época tem duas fichas de objetos [Opus] com 12 a 16 itens cada, uma ficha de gênero (Sonnet) e um mapa de exemplo [Opus]. O mapa de exemplo fecha a época: se algo destoar na composição, a correção sai ali mesmo, antes da época seguinte.
+8. **Ids** seguem o estilo do acervo: português, kebab-case, e ponto para variante (`coluna.dorica`, `carro.sedan`). Todo item novo entra numa família em `familias.ts` (já há teste para isso) e, quando for de época, com `generos` na receita.
+
+## Ordem
+
+| Bloco | Fichas | Quem | Depende de |
+| --- | --- | --- | --- |
+| 1. Base | Q1 → Q2 → Q3 | Sonnet | — |
+| 2. Brilho próprio | Q4 | Opus | — |
+| 3. Terreno | Q5 → Q6, Q7, Q8, Q9 | Opus | Q5 (curadoria); Q9 depende da Q4 |
+| 4. Pisos, paredes, telhados | Q10, Q11, Q12 | Opus | Q12 depende da Q4 |
+| 5. Biomas | Q13, Q14 | Opus | Q14 depende da Q4 |
+| 6. Épocas | Q15 … Q23 (a, b, c, d em cada) | Opus (a, b, d), Sonnet (c) | Q3; cada época depende dos materiais e biomas que usa |
+
+Ordem recomendada das épocas: Antiguidade, Oriental, Deserto, Faroeste, Colonial, Vitoriano, Moderno, Pós-apocalíptico, Cyberpunk. O Pós-apocalíptico reaproveita os carros do Moderno, e o Cyberpunk depende da E4 e do Moderno.
+
+Os blocos 1 a 5 podem andar em paralelo, desde que se respeitem as dependências. Cada mapa de exemplo (`d`) é mostrado ao usuário ao lado da referência antes de seguir para a próxima época.
+
+---
+
+## Bloco 1 — Base
+
+### Q1 — Gêneros e biomas nas famílias  ⬜
+Objetivo: cada família diz a que épocas e biomas serve.
+Depende de: —.
+Ler: `src/procedural/familias.ts` (inteiro), `src/procedural/grupos-de-terreno.ts`, `src/procedural/receitas/comum.ts` (`Receita.generos`, `kit`), `src/domain/presets.ts` (`GENEROS`), o teste de famílias em `tests/unit/` (procure `FAMILIAS`).
+Arquivos: mudar `familias.ts`, `grupos-de-terreno.ts` e o teste de famílias.
+Como:
+1. `Familia` ganha `generos?: readonly string[]` e `biomas?: readonly string[]`. O helper `f` recebe um 5º argumento opcional `{ generos?, biomas? }`.
+2. `export const BIOMAS = [{ id: 'temperado', nome: 'Temperado' }, { id: 'frio', nome: 'Frio e neve' }, { id: 'deserto', nome: 'Deserto' }, { id: 'tropical', nome: 'Tropical' }, { id: 'outono', nome: 'Outono' }, { id: 'vulcanico', nome: 'Vulcânico' }, { id: 'subterraneo', nome: 'Subterrâneo' }, { id: 'urbano', nome: 'Urbano' }, { id: 'mar', nome: 'Mar e praia' }] as const`.
+3. Classificar as famílias existentes, deixando atemporal tudo o que serve a qualquer época:
+   - `moderno` (grupo inteiro), `tv-de-parede`, `notebook`, `vaso-sanitario`, `escrivaninha`: `['moderno', 'investigacao']` quando o item serve aos dois (o `notebook` só ao moderno);
+   - grupo `ficcao`: `['ficcao-cientifica', 'cyberpunk']`;
+   - `maquina-de-cerco`, `pelourinho`, `suporte-de-armas`, `treino`: `['fantasia']`;
+   - `banco-de-igreja`, `crucifixo`, `orgao-de-tubos`: `['fantasia', 'investigacao', 'colonial', 'vitoriano']`;
+   - natureza: `arvore-nevada`, `monte-de-neve` com `biomas: ['frio']`; `arvore`, `carvalho`, `arvore-da-mata`, `samambaia`, `folhico`, `brotos` com `['temperado']`; `pinheiro` com `['temperado', 'frio']`; `palmeira`, `folhagem-tropical`, `costela-de-adao` com `['tropical']`; `coral`, `planta-aquatica` com `['mar', 'tropical']`; `estalagmite` com `['subterraneo']`; `arvore-morta`, `arbusto-seco` com `['temperado', 'frio', 'deserto']`.
+   - Na dúvida, deixe atemporal.
+4. `GRUPOS_DE_TERRENO`: cada grupo ganha `biomas` (ex.: `neve` → `['frio']`; `areia` → `['deserto', 'mar']`; `calcamento` → `['urbano', 'temperado']`).
+5. `familiasVisiveis(genero: string | null, bioma: string | null): Familia[]`. `null` não filtra. Uma família sem a marca correspondente aparece sempre.
+Não fazer: a interface (Q2), gêneros novos (Q3).
+Testes: todo gênero citado existe em `GENEROS` ou na lista dos planejados (`GENEROS_PLANEJADOS`, um array temporário no teste: `antiguidade`, `oriental`, `deserto`, `faroeste`, `colonial`, `vitoriano`, `pos-apocaliptico`, `cyberpunk`, `ficcao-cientifica`); todo bioma citado está em `BIOMAS`; se uma receita tem `generos`, a família dela também tem e os conjuntos se cruzam; `familiasVisiveis('fantasia', null)` não traz `notebook`, mas traz `caixote`.
+Pronto quando: os testes passam, e a biblioteca continua igual (nada lê a marca ainda).
+Commit: `families are tagged with genres and biomes`
+
+### Q2 — Filtro de época e bioma na biblioteca  ⬜
+Objetivo: a biblioteca e a gaveta de terreno mostram, de início, só o que combina com o mapa.
+Depende de: Q1.
+Ler: `src/ui/Biblioteca.tsx` (onde monta grupos, famílias e `GRUPOS_DE_TERRENO`, linha ~129), como `objetosNaGrade` é guardado no `localStorage` (procure em `src/ui/` e `src/app/`), `src/domain/mapa.ts` (`style.genre`), `INTERFACE.md` (padrões de chip).
+Arquivos: mudar `Biblioteca.tsx` e o estado de preferências do editor; criar um teste e2e curto, ou estender o da biblioteca.
+Como:
+1. No topo da biblioteca, uma linha de chips de época: "Deste mapa" (padrão, que usa `style.genre` do mapa), um chip por gênero e "Todas". A escolha manual vai para `localStorage['atlas.filtroDeEpoca']` com `try/catch`. "Deste mapa" acompanha a troca de gênero do mapa.
+2. Dentro do grupo Natureza e na gaveta de Terreno, uma linha de chips de bioma, com "Todos" como padrão, guardada em `atlas.filtroDeBioma`.
+3. A busca ignora os filtros. Quem procura pelo nome quer achar o item; o resultado de fora do filtro aparece com um selo do gênero.
+4. Recentes e favoritos não são filtrados.
+5. Quando o filtro esvazia um grupo, o grupo some. Se esvaziar tudo, aparece a mensagem "Nada desta época aqui — ver todas" com o atalho.
+Não fazer: gêneros novos (Q3).
+Testes: e2e: um mapa `fantasia` não mostra `notebook` na grade; com "Todas", mostra; a busca por "notebook" acha mesmo filtrado.
+Pronto quando: abrir um mapa de fantasia deixa a biblioteca visivelmente mais curta, e "Todas" devolve tudo.
+Commit: `library filters by the map's era and by biome`
+
+### Q3 — Gêneros de época  ⬜
+Objetivo: os oito gêneros novos existem, podem ser escolhidos e têm paleta, luz e materiais básicos.
+Depende de: Q1. Pode correr em paralelo com a Q2. A E4 (`ficcao-cientifica`) continua uma ficha à parte, em [acervo-ampliado.md](acervo-ampliado.md).
+Ler: `src/domain/presets.ts` (`GENEROS`, `PRESETS_DE_LUZ`, `telhadoPadrao`), `src/authoring/mobiliar.ts` (`MATERIAIS_POR_GENERO`, `PALETAS_POR_GENERO`, `materiaisDe`), `src/authoring/luzes.ts` (`LUZES_POR_GENERO`), a ficha E4 (o formato que ela segue), `src/ui/Inspetor.tsx` (escolha de gênero).
+Arquivos: mudar `presets.ts`, `mobiliar.ts` e `luzes.ts`; testes em `tests/unit/presets.test.ts`; retirar o `GENEROS_PLANEJADOS` do teste da Q1 (os gêneros passam a existir de verdade).
+Como:
+1. `GENEROS` recebe as entradas abaixo (`alvoDeCor`: saturação, luminância, tinta):
+   - `antiguidade`, "Antiguidade": "Mármore, bronze, lucernas" (0,42, 0,5, `#f3e6cc`);
+   - `oriental`, "Oriental": "Papel, laca, lanternas" (0,4, 0,42, `#f2e2c4`);
+   - `deserto`, "Deserto": "Adobe, tecido, lanternas de latão" (0,5, 0,52, `#f7dcb0`);
+   - `faroeste`, "Faroeste": "Tábuas, poeira, lampião" (0,4, 0,46, `#f0d6ae`);
+   - `colonial`, "Colonial e pirata": "Caiado, convés, velas" (0,44, 0,46, `#f1e0c2`);
+   - `vitoriano`, "Vitoriano e steampunk": "Latão, vapor, gás" (0,36, 0,36, `#ecd9b8`);
+   - `pos-apocaliptico`, "Pós-apocalíptico": "Ferrugem, lona, fogo de tonel" (0,3, 0,38, `#e2d6c0`);
+   - `cyberpunk`, "Cyberpunk": "Néon, chuva, telas" (0,55, 0,3, `#d6e4f4`).
+2. `PRESETS_DE_LUZ`: `lucerna` (raio 3,5, `#ffc27a`, intensidade 0,75, tremor 0,2, `fire`), `lanterna-de-papel` (raio 4, `#ffb870`, intensidade 0,8, tremor 0,1, `fire`), `lampiao-a-gas` (raio 5, `#ffe2a8`, intensidade 0,95, tremor 0,05, `fire`), `tonel` (raio 6, `#ff7a2a`, intensidade 1,1, tremor 0,4, `fire`), `neon-rosa` (raio 5, `#ff4fd8`, intensidade 1,1, tremor 0,06, `grid`).
+3. `LUZES_POR_GENERO`, principal e pequena por gênero: antiguidade `lucerna`/`vela`; oriental `lanterna-de-papel`/`vela`; deserto `lamparina`/`vela`; faroeste `lamparina`/`vela`; colonial `lamparina`/`vela`; vitoriano `lampiao-a-gas`/`vela`; pós-apocalíptico `tonel`/`lanterna`; cyberpunk `neon`/`neon-rosa`.
+4. `MATERIAIS_POR_GENERO` e `PALETAS_POR_GENERO`: por enquanto cada gênero novo **copia** o mais próximo (antiguidade, deserto e oriental copiam `fantasia`; faroeste, colonial e vitoriano copiam `investigacao`; pós-apocalíptico e cyberpunk copiam `moderno`), com um comentário `// trocado na ficha Q1Xc`. Os materiais próprios chegam com as Q10–Q12, e as fichas `c` os ligam.
+5. `telhadoPadrao`: sem mudança.
+Não fazer: tipos de cômodo e regras de mobília (vêm nas fichas `c` de cada época).
+Testes: os onze gêneros (doze, com a E4) são escolhíveis; cada um tem luzes que existem no catálogo e materiais para todas as funções que o `investigacao` tem.
+Pronto quando: o inspetor oferece os gêneros novos; `atlas_mobiliar` num mapa `faroeste` funciona (ainda com o acervo de investigação).
+Commit: `added era genres with lights, palettes and base materials`
+
+---
+
+## Bloco 2 — Brilho próprio
+
+### Q4 — Partes e água que brilham  ⬜ **[Opus]**
+Objetivo: uma parte de objeto, um piso ou uma água pode brilhar acima do mapa de luz, para que lava, néon, cristal, tela e brasa leiam à noite.
+Depende de: —.
+Ler: `src/procedural/descricao.ts` (`Parte`), `src/procedural/assar.ts`, `src/procedural/sprite.ts`, `src/render/mapa-de-luz.ts` (a composição HDR), `src/render/halos.ts`, `src/procedural/agua.ts` e o shader de água em `src/render/`.
+Arquivos: mudar `descricao.ts` (campo `brilho?: number`, de 0 a 1, na `Parte`), o assado (gera uma segunda saída, a máscara de brilho, só quando alguma parte brilha), o render (soma a máscara depois do mapa de luz, com o bloom da Frente L), `Material` de água (campo `brilho?` e `luzDoBrilho?`) e o shader de água.
+Como (o Opus detalha ao começar, conferindo o código):
+1. A máscara de brilho é assada junto com o sprite, na mesma resolução, e guardada no cache de assados (`cache-de-assados.ts` com a versão nova). O Pixel ignora a máscara.
+2. No render, o sprite continua multiplicado pela luz, e a máscara é somada por cima, na cor da própria parte, antes da curva de tom.
+3. Água com `brilho` (lava) não escurece com a noite e pulsa devagar. Nas margens, uma luz derivada (`luzDoBrilho`) ilumina o entorno, sem que o usuário precise pôr luzes à mão.
+4. Interagir com a sessão: a névoa de guerra continua escondendo o brilho.
+Não fazer: os materiais e objetos que usam o brilho (Q9, Q12, Q14 e kits).
+Testes: unitário: a descrição com `brilho` gera máscara e a sem `brilho` não gera; regressão visual da prancha de luz (de noite, um console com tela e uma poça de lava de teste).
+Pronto quando: na prancha noturna, a tela e a lava de teste brilham e iluminam em volta, e um mapa sem brilho fica idêntico ao de antes.
+Commit: `object parts and water can glow above the light map`
+
+---
+
+## Bloco 3 — Terreno
+
+Todas as fichas deste bloco seguem o método da Frente P: prancha a 32 px/m ao lado de uma referência na mesma escala, `tingir` só no matiz, luminância da paleta, carimbos com nanquim e a tag `rasteira` no que se repete de propósito.
+
+### Q5 — Curadoria de texturas: lote 2 e biomas novos  ⬜ **[Opus]**
+Objetivo: escolher as texturas CC0 de todos os terrenos deste bloco, numa prancha aprovada pelo usuário.
+Depende de: —.
+Ler: a seção "Curadoria (P1)" de [terreno-com-textura.md](terreno-com-textura.md) (formato da prancha e da tabela), `scripts/texturas-aprovadas.json`.
+Arquivos: acrescentar a seção "Curadoria (Q5)" no fim deste arquivo; baixar os originais para `data-private/texturas-fonte/` (fora do git). Nada vai para `public/`.
+Como: uma linha por material: recomendada, camada extra, alternativas e observação.
+- Lote 2 da P: `grama.escura`, `grama.acinzentada`, `lama`, `areia`, `areia.molhada`, `cascalho`, `pedregulho`, `neve`, `neve.funda`, `neve.pisada`, `terra.congelada`.
+- Deserto e campo: `areia.duna`, `terra.rachada` (`dry_ground_01`, já separada), `laterita`, `salina`, `terra.arada`, `grama.florida`.
+- Selva, outono e cidade: `chao.de.selva`, `folhas.outono` (camada com máscara), `grama.outono`, `asfalto`, `asfalto.rachado`, `concreto.calcada`.
+- Vulcão e subterrâneo: `basalto`, `cinza.vulcanica`, `chao.de.fungos`, `cristal.chao`.
+Não fazer: preparar ou ligar texturas.
+Pronto quando: a prancha está em `test-results/q5-texturas.png` e o usuário aprovou a tabela.
+Commit: — (só documentação; entra no commit da Q6 junto com `texturas-aprovadas.json`)
+
+### Q6 — Lote 2 com textura  ⬜ **[Opus]**
+Objetivo: os onze materiais do lote 2 da Frente P passam a ser pintados com textura.
+Depende de: Q5.
+Arquivos: `scripts/texturas-aprovadas.json`, `public/colecao/texturas/`, `LICENCAS.md`, `src/procedural/materiais.ts` (`textura` dos onze).
+Como: o mesmo fluxo da P4/P5. A neve pisada leva uma camada de pegadas em manchas; a lama leva poças com `areia.molhada` por máscara.
+Pronto quando: a prancha dos onze materiais, ao lado da do lote 1, não destoa em tom nem em escala; `npm test` passa (inclusive a regra `repeticao`).
+Commit: `second terrain batch is painted from cc0 textures`
+
+### Q7 — Deserto e campo  ⬜ **[Opus]**
+Objetivo: terrenos de deserto e de lavoura.
+Depende de: Q5.
+Arquivos: `materiais.ts`, `grupos-de-terreno.ts` (grupo novo `deserto`, "Deserto e sertão", com `biomas: ['deserto']`, e `campo`, "Campo e lavoura"), texturas e licenças, `receitas/chao.ts` (carimbos).
+Como:
+- `areia.duna`: textura e ondulações direcionais (`dir` do `pintarMaterial`), clara nas cristas;
+- `terra.rachada`, `laterita` (vermelha) e `salina` (branca rachada, com brilho baixo);
+- `terra.arada`: fileiras que seguem a direção do pincel;
+- `grama.florida`: base de grama com carimbos `flores-do-campo` (`rasteira`);
+- carimbos `plantacao.trigo` e `plantacao.milho` em fileiras, e `arrozal` (água rasa `agua.arrozal` com mudas em grade).
+Pronto quando: um recorte de 20 × 20 m com duna, oásis e lavoura lê como deserto à primeira vista.
+Commit: `added desert and farmland terrain`
+
+### Q8 — Selva, outono e cidade  ⬜ **[Opus]**
+Objetivo: terrenos tropicais, de outono e urbanos.
+Depende de: Q5.
+Arquivos: `materiais.ts`, `grupos-de-terreno.ts` (grupos `selva` e `cidade`; `folhas.outono` e `grama.outono` entram em `grama`, com bioma `outono`), texturas e licenças, `receitas/chao.ts`.
+Como:
+- `chao.de.selva`: escuro e úmido, com carimbo `folhas-largas` (`rasteira`);
+- `folhas.outono`: camada com máscara (como o musgo) sobre grama ou terra, em laranja e vermelho;
+- `asfalto`, `asfalto.rachado` (rachaduras e remendos), `concreto.calcada` (placas com junta);
+- carimbos urbanos: `faixa-de-pedestre`, `faixa-continua`, `faixa-tracejada`, `bueiro`, `mancha-de-oleo`, `vaga-pintada`. Os pintados seguem a direção do pincel.
+Pronto quando: uma rua de 2 faixas com calçada e cruzamento é montada só com o terreno e os carimbos, sem nenhum objeto.
+Commit: `added jungle, autumn and city terrain`
+
+### Q9 — Vulcão, subterrâneo e águas novas  ⬜ **[Opus]**
+Objetivo: terrenos vulcânicos e de caverna exótica, e as águas especiais.
+Depende de: Q4 e Q5.
+Arquivos: `materiais.ts` (terrenos, maciço e água), `grupos-de-terreno.ts` (grupo `vulcao`), texturas e licenças.
+Como:
+- terreno: `basalto` (colunas hexagonais vistas de cima), `cinza.vulcanica`, `chao.de.fungos` (com pontos que brilham fraco), `cristal.chao`;
+- maciço: `rocha.basalto`, `rocha.cristal` (veios que brilham);
+- água: `agua.lava` (brilho 1, crosta escura que se move devagar, luz laranja nas margens), `agua.tropical` (turquesa, transparente, cáusticas), `agua.acida` (verde, brilho 0,3), `agua.esgoto`.
+Pronto quando: à noite, um rio de lava ilumina o basalto em volta sem nenhuma luz posta à mão; a água tropical mostra o fundo de areia.
+Commit: `added volcanic and underground terrain with lava and new waters`
+
+---
+
+## Bloco 4 — Pisos, paredes e telhados
+
+Os materiais seguem o padrão de `materiais.ts` (uso `piso`, `papel` ou `telhado`). Telhados passam pelo `assar-telhado.ts` e pelas coberturas da Frente N.
+
+### Q10 — Antiguidade, Oriente e deserto  ⬜ **[Opus]**
+Objetivo: os materiais das três épocas mais distantes do acervo atual.
+Arquivos: `materiais.ts`, `coberturas.ts` (se o telhado pedir relevo próprio).
+Como:
+- pisos: `mosaico.romano` (tesselas com borda de meandro), `mosaico.medalhao`, `terracota.quadrada`, `lajes.arenito`, `tatami` (módulos 0,9 × 1,8 m com borda escura), `tabuas.laqueadas`, `zellige` (ladrilho geométrico);
+- paredes: `estuque.pompeiano` (vermelho com faixa preta), `alvenaria.arenito`, `parede.hieroglifos`, `shoji` (grade de madeira com papel, deixa passar luz), `madeira.laqueada`, `adobe`, `taipa`;
+- telhados: `telha.imbrex` (romana), `telha.curva.cinza` (oriental), `terraco.barro` (laje plana de barro com parapeito).
+Pronto quando: a prancha de materiais mostra os três estilos lado a lado e cada um se reconhece sem legenda.
+Commit: `added ancient, eastern and desert floors, walls and roofs`
+
+### Q11 — Colonial, faroeste e vitoriano  ⬜ **[Opus]**
+Como:
+- pisos: `conves` (tábuas longas com calafeto e cavilhas), `tijoleira`, `tabuas.gastas`, `ladrilho.hidraulico`;
+- paredes: `caiado`, `enxaimel`, `tabuas.descascadas`, `tijolo.fuligem`, `azulejo.portugues`;
+- telhados: `telha.capa-canal`, `chapa.rebitada`.
+Pronto quando: a prancha mostra os três estilos lado a lado e cada um se reconhece sem legenda.
+Commit: `added colonial, frontier and victorian floors, walls and roofs`
+
+### Q12 — Pós-apocalíptico e cyberpunk  ⬜ **[Opus]**
+Depende de: Q4 (néon).
+Como:
+- pisos: `concreto.rachado`, `entulho`, `linoleo`, `piso.neon` (faixas que brilham), `grade.cyber`;
+- paredes: `concreto.pichado` (pichações geradas, sem texto legível de marca), `chapa.enferrujada`, `painel.neon`, `azulejo.metro`;
+- telhados: `chapa.remendada`, e `laje.equipada` (laje com caixas de ar-condicionado e antenas como detalhe, via `detalhes-de-telhado.ts`).
+Pronto quando: à noite, o `painel.neon` e o `piso.neon` brilham; de dia, parecem tinta.
+Commit: `added post-apocalyptic and cyberpunk floors, walls and roofs`
+
+---
+
+## Bloco 5 — Biomas
+
+### Q13 — Árvores e plantas geradas  ⬜ **[Opus]**
+Objetivo: a vegetação dos biomas novos.
+Ler: `src/procedural/pesados/plantas.ts` (`PLANTAS`), `scripts/assar-colecao.ts`, `public/colecao/colecao.json`.
+Arquivos: `plantas.ts`, `colecao.json`, os `.webp` gerados, `LICENCAS.md` (bloco gerados) e `familias.ts`.
+Como (famílias novas com bioma):
+- `arvore-de-selva` (5 e 8 m, copa larga em camadas com cipós pendentes) — `tropical`;
+- `coqueiro` (4 e 6 m, inclinado) e `tamareira` (5 m) — `tropical`, `mar`, `deserto`;
+- `cacto` (`saguaro` 3 m, `opuntia` 1,5 m, `cacto-redondo` 0,8 m) — `deserto`;
+- `cerejeira` (4 e 6 m, flor rosa, e uma variante com pétalas no chão) — `temperado`;
+- `bambuzal` (moita de 2 e 4 m) — `tropical`, `temperado`;
+- outono: `arvore` e `carvalho` ganham variantes `-outono-laranja` e `-outono-vermelha` (mesma família, bioma `outono` acrescentado à família);
+- `arvore-de-mangue` (raízes aéreas sobre a água) — `tropical`, `mar`;
+- `baoba` (7 m) — `deserto`, `tropical`.
+Pronto quando: uma prancha com cada bioma (selva, praia, deserto, outono, jardim oriental) lê à primeira vista, e as árvores novas usam a mesma luz e o mesmo nanquim das atuais.
+Commit: `added jungle, beach, desert, blossom and autumn trees`
+
+### Q14 — Fungos, cristais, praia e outono  ⬜ **[Opus]**
+Depende de: Q4.
+Arquivos: uma receita nova `receitas/biomas.ts` e o `index.ts`; `familias.ts`.
+Como:
+- `cogumelo-gigante` (2, 4 e 6 m; campo `brilho`, de 0 a 1) e `tufo-de-cogumelos` — `subterraneo`, `temperado`;
+- `cristal` (aglomerado de 0,5, 1,5 e 3 m, brilho, campo `cor`) — `subterraneo`;
+- `fumarola` (rachadura com vapor; usa o sistema de partículas do clima) — `vulcanico`;
+- `concha`, `estrela-do-mar`, `madeira-a-deriva`, `alga-na-areia` — `mar`;
+- `cipo-pendente` (de parede de maciço) e `raizes-de-mangue` — `tropical`;
+- `cupinzeiro` — `deserto`, `tropical`;
+- `monte-de-folhas` (laranja e vermelho) — `outono`.
+Pronto quando: uma caverna de fungos com cristais, à noite, se ilumina só com os próprios objetos.
+Commit: `added fungi, crystals, beach and autumn props`
+
+---
+
+## Bloco 6 — Épocas
+
+Cada época tem quatro fichas:
+- **a e b [Opus]:** receitas num arquivo novo `receitas/<epoca>.ts`, com `kit: '<epoca>'` e `generos: ['<epoca>', …]`, ligadas no `index.ts` e classificadas em `familias.ts` (famílias novas com `generos`, ou itens novos em famílias que já existem). Pronto quando: uma prancha da ficha, de dia e de noite, mostra cada item legível e no tom do acervo.
+- **c (Sonnet):** gênero completo, no formato da E4. Ler: a E4 inteira; `presets.ts` (`TIPOS_DE_COMODO`), `regras-mobilia.ts` (`REGRAS_DE_MOBILIA`, `VARIACOES_DE_GENERO`), `mobiliar.ts` (`MATERIAIS_POR_GENERO`, `PALETAS_POR_GENERO`, trocando a cópia provisória da Q3), `luzes.ts` (`LUZES_POR_FUNCAO`), `funcao.ts` (palavras), `espalhar.ts` (`CONJUNTOS_EXTERIORES`). Testes: cada tipo novo tem regras e só cita receitas que existem; os conjuntos só citam receitas que existem; os materiais do gênero existem. Pronto quando: pelo MCP, um mapa do gênero com três cômodos típicos, mobiliado com `atlas_mobiliar`, já parece da época.
+- **d [Opus]:** um mapa de exemplo gerado por script em `scripts/exemplos/`, com captura em `public/exemplos/`. A composição é própria, não decalque. É mostrado ao usuário antes de seguir.
+
+### Q15 — Antiguidade (`antiguidade`)  ⬜
+- **Q15a — templo e cidade [Opus]:** `coluna.dorica`, `coluna.jonica`, `coluna.corintia` (família `coluna-classica`, campo `altura`), `coluna-classica.caida`, `frontao-caido`, `obelisco`, `estatua-classica` (deus em pé, campo `pose`), `busto-em-pedestal`, `altar-de-sacrificio`, `tripe-de-bronze` (braseiro, brasa com brilho), `estatua-egipcia` (faraó sentado), `esfinge`, `sarcofago.egipcio` (na família `sarcofago`), `painel-de-hieroglifos` (parede), `aquila` (estandarte romano). Commit: `added ancient temple and city kit`
+- **Q15b — casa e vida [Opus]:** `triclinio`, `mesa-romana`, `anfora`, `anforas-empilhadas`, `pithos`, `lucerna` (com luz `lucerna`), `tear-vertical`, `biga`, `pergolado-com-videira`, `impluvio` (tanque do átrio com água), `fonte-com-mascara`, `estante-de-rolos`, `banca-de-mercado.toldo`, `lira`. Commit: `added ancient household kit`
+- **Q15c — gênero (Sonnet):** tipos `atrio`, `peristilo` (ao ar livre), `triclinio`, `termas`, `templo`, `forum` (ao ar livre), `taberna`; materiais da Q10; conjuntos `ruina-classica` e `mercado-antigo`; palavras: átrio, peristilo, termas, templo, fórum, ágora. Commit: `added ancient genre with rooms and furnishing`
+- **Q15d — exemplo [Opus]:** "Vila do átrio" — uma vila romana com peristilo, triclínio e termas, à tarde.
+
+### Q16 — Oriental (`oriental`)  ⬜
+Depende de: Q10, Q13 (cerejeira e bambu).
+- **Q16a — casa [Opus]:** `mesa-baixa`, `zabuton`, `futon`, `biombo` (campo `folhas`, com pintura), `tansu`, `irori` (fogo no chão, brasa com brilho), `andon` (luz `lanterna-de-papel`), `lanterna-de-papel` (pendurada), `pergaminho-de-parede`, `ikebana`, `bonsai`, `suporte-de-espadas`, `armadura-oriental` (no suporte), `bule-e-xicaras.oriental`. Commit: `added eastern household kit`
+- **Q16b — jardim e templo [Opus]:** `torii`, `lanterna-de-pedra`, `ponte-arqueada` (campo `vao`), `sino-de-templo` (com estrutura), `incensario`, `guardiao-de-pedra` (par), `estatua-sentada`, `carpas` (submerso, no lago), `rastelado` (carimbo de cascalho rastelado, `rasteira`), `bacia-de-pedra` (tsukubai), `muro-de-bambu`, `portao-de-madeira`. Commit: `added eastern garden and temple kit`
+- **Q16c — gênero (Sonnet):** tipos `sala-de-tatami`, `casa-de-cha`, `dojo`, `santuario`, `jardim` (ao ar livre), `cozinha` (versão do gênero); telhado padrão `telha.curva.cinza`; conjuntos `jardim-de-pedras` e `bosque-de-bambu`; palavras: tatami, dojo, santuário, casa de chá. Commit: `added eastern genre with rooms and furnishing`
+- **Q16d — exemplo [Opus]:** "Templo na encosta" — santuário com torii, lago de carpas e cerejeiras, na neblina da manhã.
+
+### Q17 — Deserto (`deserto`)  ⬜
+Depende de: Q7, Q10, Q13.
+- **Q17a — tenda e casa [Opus]:** `tenda-beduina` (aberta, campo `largura`), `almofadas`, `tapete-de-chao` (famílias de cor), `narguile`, `mesa-de-latao` (bandeja com chá), `jarro-de-barro`, `cesto`, `lanterna-marroquina` (pendurada e de chão), `bau-pintado`, `tear-de-chao`. Commit: `added desert tent and household kit`
+- **Q17b — caravana e mercado [Opus]:** `camelo` (em pé, deitado, carregado), `poco.oasis` (na família `poco`), `banca-de-especiarias` (montes coloridos), `tapetes-pendurados`, `toldo-listrado`, `palanquim`, `cantaros-empilhados`, `fogueira-de-caravana` (família `fogueira`), `ossada-de-camelo` (família `ossada`). Commit: `added desert caravan and market kit`
+- **Q17c — gênero (Sonnet):** tipos `tenda`, `patio-com-fonte` (ao ar livre), `bazar`, `salao-de-cha`, `deposito`; telhado padrão `terraco.barro`; conjuntos `oasis` e `acampamento-de-caravana`; palavras: tenda, bazar, souk, oásis, caravançará. Commit: `added desert genre with rooms and furnishing`
+- **Q17d — exemplo [Opus]:** "Oásis da caravana" — dunas, tamareiras, tendas e camelos ao entardecer.
+
+### Q18 — Faroeste (`faroeste`)  ⬜
+Depende de: Q11, Q13 (cactos).
+- **Q18a — saloon e cidade [Opus]:** `balcao-de-saloon` (com prateleira de garrafas), `piano-de-armario`, `mesa-de-poquer` (fichas e cartas), `porta-de-vaivem`, `escarradeira`, `cabeca-de-bufalo` (parede), `placa-de-procurado` (parede, sem rosto real), `cofre`, `mesa-de-xerife`, `cela-de-xerife` (família `grade`). Commit: `added frontier saloon and town kit`
+- **Q18b — rua e estrada [Opus]:** `poste-de-amarrar`, `diligencia`, `carroca-coberta`, `bomba-de-manivela`, `cata-vento` (de fazenda), `caixa-dagua-de-ferrovia`, `trilho` (segmento reto e curvo, campo `comprimento`), `locomotiva`, `vagao`, `cerca-de-tabuas`, `cranio-de-boi` (família `ossada`). Commit: `added frontier street and railroad kit`
+- **Q18c — gênero (Sonnet):** tipos `saloon`, `xerifado`, `armazem-geral`, `banco`, `estacao`, `estabulo` (versão do gênero); conjuntos `rua-de-fronteira` e `deserto-de-cactos`; palavras: saloon, xerife, armazém, estação, rancho. Commit: `added frontier genre with rooms and furnishing`
+- **Q18d — exemplo [Opus]:** "Cidade da fronteira" — rua de terra com saloon, xerifado e estação, ao meio-dia.
+
+### Q19 — Colonial e pirata (`colonial`)  ⬜
+Depende de: Q11, Q13 (coqueiros).
+- **Q19a — navio e tesouro [Opus]:** `canhao-naval` (com carreta), `timao`, `mastro` (base com cordame), `bau-de-tesouro` (aberto e fechado), `moedas-espalhadas`, `mapa-do-tesouro` (sobre a mesa), `luneta-e-sextante`, `rede-de-dormir`, `bandeira-pirata` (família `barraca`), `forca`, `barril-de-rum`. Commit: `added pirate ship and treasure kit`
+- **Q19b — colônia e praia [Opus]:** `canoa`, `cabana-de-palha`, `sino-de-cais`, `mesa-de-cartografo`, `botica` (armário de frascos), `oratorio`, `pelourinho.colonial`, `fardos-de-acucar`, `canhao-de-forte` (na muralha). Commit: `added colonial town and beach kit`
+- **Q19c — gênero (Sonnet):** tipos `conves` (sem telhado), `cabine-do-capitao`, `porao`, `taverna-do-porto`, `fortim`, `casa-colonial`; conjuntos `enseada` e `tesouro-espalhado`; palavras: convés, cabine, porão, forte, enseada. Commit: `added colonial and pirate genre with rooms and furnishing`
+- **Q19d — exemplo [Opus]:** "Enseada dos piratas" — navio fundeado, praia de coqueiros e fortim, com água tropical.
+
+### Q20 — Vitoriano e steampunk (`vitoriano`)  ⬜
+Depende de: Q4 (faísca e caldeira), Q11.
+- **Q20a — fábrica e vapor [Opus]:** `caldeira` (porta com brasa que brilha), `maquina-a-vapor` (volante), `engrenagens` (chão e parede), `esteira`, `tear-mecanico`, `prensa`, `tubulacao.cobre` (na família `tubulacao`), `painel-de-manometros`, `chamine-industrial`. Commit: `added steam factory kit`
+- **Q20b — rua e invenções [Opus]:** `lampiao-a-gas` (poste, luz `lampiao-a-gas`), `banca-de-jornal`, `carruagem-fechada`, `relogio-de-rua`, `dirigivel` (ancorado, com mastro), `automato`, `bancada-de-inventor`, `gramofone`, `bobina-de-tesla` (arco que brilha). Commit: `added victorian street and inventions kit`
+- **Q20c — gênero (Sonnet):** tipos `fabrica`, `oficina-de-inventor`, `clube`, `estacao-de-dirigivel`, mais as salas de `investigacao` com a paleta do gênero; conjuntos `rua-de-paralelepipedo` e `patio-de-fabrica`; palavras: fábrica, caldeira, dirigível, oficina. Commit: `added victorian and steampunk genre with rooms and furnishing`
+- **Q20d — exemplo [Opus]:** "Doca do dirigível" — fábrica e doca de dirigível na névoa da noite, com lampiões.
+
+### Q21 — Moderno urbano (`moderno`)  ⬜
+Depende de: Q8.
+- **Q21a — rua [Opus]:** `carro` (família: `sedan`, `hatch`, `picape`, `van`, `viatura`, `taxi`; campo `cor`), `moto`, `bicicleta`, `onibus`, `semaforo`, `hidrante`, `lixeira`, `cacamba`, `ponto-de-onibus`, `orelhao`, `cone`, `barreira`, `bomba-de-gasolina`. Commit: `added modern street kit`
+- **Q21b — interiores [Opus]:** `estacao-de-trabalho` (mesa, cadeira e monitor), `divisoria`, `copiadora`, `bebedouro.galao`, `gondola` (prateleira de mercado com produtos), `caixa-registradora`, `freezer`, `mesa-de-lanchonete` (com assento estofado), `armario-de-vestiario`, `maquina-de-venda`, `cama-hospitalar`. Commit: `added modern office, shop and diner kit`
+- **Q21c — gênero (Sonnet):** tipos `escritorio`, `mercado`, `lanchonete`, `garagem`, `posto`, `vestiario`, `enfermaria`; conjuntos `rua-urbana`, `estacionamento`; palavras: escritório, mercado, lanchonete, garagem, posto. Commit: `moderno genre gains offices, shops and street sets`
+- **Q21d — exemplo [Opus]:** "Posto na estrada" — posto de gasolina com lanchonete à noite, sob chuva.
+
+### Q22 — Pós-apocalíptico (`pos-apocaliptico`)  ⬜
+Depende de: Q12, Q21a (carros).
+- **Q22a — ruína e sucata [Opus]:** `carro.enferrujado` (cada modelo da Q21 em versão carcaça), `onibus-tombado`, `barricada` (sucata), `sacos-de-areia` (muro, campo `comprimento`), `tonel-com-fogo` (luz `tonel`), `pneus-empilhados`, `cerca-de-arame-farpado`, `torre-de-vigia` (sucata). Commit: `added post-apocalyptic ruin and scrap kit`
+- **Q22b — acampamento [Opus]:** `barraca-improvisada` (lona e paletes), `colchao-no-chao`, `gerador-a-diesel`, `tanque-de-agua`, `horta-em-pneus`, `placa-pichada`, `caixa-de-suprimentos`, `fogareiro`. Commit: `added post-apocalyptic camp kit`
+- **Q22c — gênero (Sonnet):** tipos `acampamento` (ao ar livre), `abrigo`, `enfermaria-improvisada`, `oficina-de-sucata`, `posto-de-guarda`; conjuntos `estrada-abandonada` e `acampamento-de-sobreviventes`; palavras: abrigo, bunker, acampamento, sucata. Commit: `added post-apocalyptic genre with rooms and furnishing`
+- **Q22d — exemplo [Opus]:** "Posto avançado" — o posto da Q21d, anos depois: abandonado, cercado e habitado.
+
+### Q23 — Cyberpunk (`cyberpunk`)  ⬜
+Depende de: Q4, Q12, Q21, E4.
+- **Q23a — rua [Opus]:** `letreiro-neon` (parede; campos `cor` e `forma`, com glifos sem marca real), `holograma` (brilho translúcido), `barraca-de-lamen` (toldo e balcão), `drone`, `antena-parabolica`, `quadro-de-cabos`, `poste-com-telas`, `maquina-de-venda.neon` (variante da Q21b). Commit: `added cyberpunk street kit`
+- **Q23b — interiores [Opus]:** `estacao-hacker` (várias telas que brilham), `cadeira-de-implante`, `rack-de-servidores` (com leds), `fliperama`, `balcao-luminoso`, `capsula-de-hotel` (em pilha; o `beliche.capsula` existente vira variante), `gaiola-de-cabos`. Commit: `added cyberpunk interiors kit`
+- **Q23c — gênero (Sonnet):** tipos `clinica-clandestina`, `bar`, `hotel-capsula`, `sala-de-servidores`, `mercado-noturno` (ao ar livre); conjuntos `beco-de-neon` e `mercado-noturno`; o clima padrão das capturas é chuva noturna; palavras: clínica, hacker, servidor, beco, cápsula. Commit: `added cyberpunk genre with rooms and furnishing`
+- **Q23d — exemplo [Opus]:** "Beco de néon" — beco na chuva com barraca de lámen, letreiros e uma clínica clandestina.
+
+---
+
+## Validação da frente
+
+Ao fim de tudo: uma prancha com os nove exemplos novos lado a lado; a biblioteca, num mapa de cada gênero, não mostra nada de outra época (salvo os atemporais); `npm run typecheck`, `npm test` e `npm run test:e2e` passam; o tempo de carregamento de um mapa grande não fica pior que o da Frente M (as texturas novas são pré-carregadas só quando usadas).
