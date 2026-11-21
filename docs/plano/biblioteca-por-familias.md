@@ -257,6 +257,15 @@ Não fazer: mudar a ferramenta Espalhar.
 Testes: `carimbar` respeita o raio, não sobrepõe e é determinística com `rand` fixo.
 Pronto quando: arrastar no modo Vários com a família Árvore e área de 4 m planta um bosque variado, e Ctrl+Z desfaz tudo de uma vez.
 Commit: `object brush can stamp many along a drag with area and density`
+Registro da implementação (para a auditoria):
+- **Desvio de arquivo:** `carimbar` ficou em `src/domain/carimbar.ts`, e não em `src/authoring/carimbar.ts` como a ficha dizia. O teste de fronteira (`src/render` não importa `src/authoring` nem `src/ui`) proíbe o viewport de importar `authoring`. Primeiro foi commitado em `authoring` (`5af6dc7`) e o `npm test` pegou a falha; a correção é `84eaebb`. Alternativa descartada: passar a função pela ponte, como `ponte.espalhar`.
+- **Assinatura:** `carimbar(centro, pincel, familia, existentes, rand, primeiro?)`. O `primeiro` (campos já sorteados do fantasma) é um sexto parâmetro opcional que a ficha não previa; vale para o objeto do centro.
+- **Folga de sobreposição:** duas pegadas contam como sobrepostas quando a distância é menor que 0,75 × a soma dos raios (raio = metade do maior lado × escala), para as copas de árvore poderem se tocar. Não reaproveita o critério de caixas de `espalhar.ts`.
+- **Passo do arrasto:** `max(0,3 m, max(pegada × escala, área) ÷ densidade)`.
+- **Só objetos de piso:** com `colocar: 'varios'`, objeto de parede continua sendo posto um por clique.
+- **Ao soltar:** seleciona todos os objetos postos, se `selecionarAoPor` estiver ligado.
+- **Teste e2e:** `tests/e2e/o9-varios.test.ts`.
+
 
 ### O10 — Famílias na construção automática e no assistente  ⬜
 Objetivo: os conjuntos de Espalhar e a ponte MCP entendem família, para o assistente pedir "árvore" sem escolher a variante.
