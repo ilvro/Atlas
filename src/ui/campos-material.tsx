@@ -1,10 +1,23 @@
 import { materialDe, materiaisDo, type Material } from '../procedural/materiais.ts';
+import { signal } from '@preact/signals';
+import { carregarCatalogo } from '../procedural/texturas-carregadas.ts';
+import type { CatalogoDeTexturas } from '../procedural/texturas.ts';
+import { fundoDaAmostra } from './fundo-de-amostra.ts';
 import { Linha } from './campos.tsx';
 
-/** Uma amostra do material: base, claro e escuro lado a lado. */
+const catalogoDasAmostras = signal<CatalogoDeTexturas | null>(null);
+let pedido = false;
+function pedirCatalogo(): void {
+  if (pedido) return; pedido = true;
+  void carregarCatalogo().then(c => { catalogoDasAmostras.value = c; });
+}
+
+/** Uma amostra do material: a textura (quando o material tem uma e o catálogo já chegou) ou base, claro e escuro lado a lado. */
 export function Amostra({ id, tamanho = 18 }: { id: string; tamanho?: number }) {
   const m = materialDe(id);
-  return <span class="amostra" style={{ width: `${tamanho}px`, height: `${tamanho}px`, background: `linear-gradient(135deg, ${m.claro} 0%, ${m.base} 50%, ${m.escuro} 100%)` }} aria-hidden="true" />;
+  if (m.textura) pedirCatalogo();
+  const fundo = fundoDaAmostra(m, m.textura ? catalogoDasAmostras.value : null, tamanho);
+  return <span class="amostra" style={{ width: `${tamanho}px`, height: `${tamanho}px`, ...fundo }} aria-hidden="true" />;
 }
 
 export function CampoMaterial({ rotulo, dica, valor, uso, aoMudar, comNenhum }: { rotulo: string; dica?: string; valor: string | null; uso: Material['uso']; aoMudar: (v: string | null) => void; comNenhum?: string }) {
