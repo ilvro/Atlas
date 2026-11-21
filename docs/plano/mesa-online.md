@@ -81,6 +81,7 @@ Como:
    - em *Installation*, ligar *Guild Install* e instalar o app no servidor da mesa pelo link.
    - Se um jogador não vir a atividade no botão de Atividades (foguete) da chamada, acrescente-o em *App Testers*.
 Pronto quando: o usuário tem o Application ID, o Client Secret, o `MESTRE_DISCORD_ID` e a conta do Cloudflare logada (`npx wrangler login`).
+Nota: o Application ID (que também é o client id), a public key e o `MESTRE_DISCORD_ID` estão em `Projects/.mesa-online.env`, fora de qualquer repositório. Leia de lá, sem copiar os valores para este plano nem para arquivos versionados. A exceção é o client id, que é público e vai no código da Mesa (R17) e no `[vars]` do `wrangler.toml`. O Client Secret não está em arquivo nenhum: o usuário digita direto no `wrangler secret put`. Antes de cada commit no `Sala/`, confira que `.dev.vars` está no `.gitignore` e que o `git diff --cached` não tem o id do mestre nem o segredo.
 
 ## Bloco 1 — Sala
 
