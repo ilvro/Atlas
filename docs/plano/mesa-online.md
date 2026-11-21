@@ -444,7 +444,7 @@ Nota: feita pelo Opus (Dossiê `85804f2`).
 - Funciona na Ordem 2 e na Ordem 1 (PV, SAN/PD e PE, com os cinco atributos). Fotos: `scratchpad/cartao-o2.png` e `cartao-o1.png`.
 - A barra de navegação do celular sai no card, e a de Pavor/Lesões/Traumas fica.
 
-### R12b — Saguão da mesa  ⬜
+### R12b — Saguão da mesa  ✅
 Objetivo: a tela de chegada mostra quem está na mesa, com que personagem e se o mestre já abriu.
 Depende de: R12 e R4 (`membro.personagem` e `sala.config`).
 Ler: `Casca.tsx`, `MesaOnline.tsx` e `protocolo.ts`.
@@ -495,7 +495,7 @@ Nota: feita (Atlas `d03dd00`, Jukebox `3bd7e07`, Ateliê `d938937`, Mesa `fd9b77
 
 ## Bloco 5 — A peça própria
 
-### R14 — Projetor sabe quais peças são do jogador  ⬜
+### R14 — Projetor sabe quais peças são do jogador  ✅
 Objetivo: o projetor remoto destaca e libera a peça do jogador.
 Depende de: R7, R11 e R13 (o vínculo entre peça e ficha da sala).
 Ler: o receptor do projetor; `Peca.refs` em `Atlas/src/domain/mapa.ts`; `projetarParaJogadores` (que mantém `tokens.*.refs`).
@@ -734,8 +734,8 @@ Commit: `server-side dice rolls`
 | 1. Sala | R1 → R2 → R3 → R4 | Sonnet | R0 só para publicar |
 | 2. O mestre publica | R5 → R5b → R6 | Sonnet | R4; a R5b bloqueia a R7 |
 | 3. O jogador vê | R7 → R8, R9 | Sonnet | R6 |
-| 4. Fichas e saguão | R10 ✅, R11 ✅ → R12 ✅ → R12b, R13 ✅ | Sonnet (o Opus revisa a R12 e a R12b) | R7 para a R11 |
-| 5. Peça própria e ping | R14 → R15 → R15b → R15c | Sonnet; R15c pelo Opus | R11 |
+| 4. Fichas e saguão | R10 ✅, R11 ✅ → R12 ✅ → R12b ✅, R13 ✅ | Sonnet (o Opus revisa a R12 e a R12b) | R7 para a R11 |
+| 5. Peça própria e ping | R14 ✅ → R15 → R15b → R15c | Sonnet; R15c pelo Opus | R11 |
 | 6. Discord | R16 ✅, R17 → R18, R19 | Sonnet; R19 com o usuário | blocos 3 a 5 |
 | 7. Som | R21a ✅ → R21b → R22 → R23 | Sonnet | R3 para a R21b; R5, R6 e R12b para as outras |
 | Depois | R20 | Sonnet | R9 |
