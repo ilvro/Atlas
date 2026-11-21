@@ -126,7 +126,7 @@ Feito em 2026-11-20:
 - **Altura:** plano, com os picos do deslocamento (acima de 1,2 desvio) erguidos um nível só. Sem escamas sob o luar nem sob a fogueira.
 - **Medição a 32 px/m:** o grão, a mancha e a variação de tom se mantêm, mas lâmina de capim e folha isolada não (viram grão). Na referência, esses elementos que se leem um a um são carimbos desenhados, não textura. Então quem fecha essa distância é a P7, e não vale subir `resolucao('terreno')` agora.
 
-### P6 — Amostra do material com textura na interface (Sonnet)  ⬜
+### P6 — Amostra do material com textura na interface (Sonnet)  ✅
 Objetivo: as amostras de material mostram a textura de verdade, e não o degradê de três cores.
 Depende de: P4.
 Ler: `src/ui/campos-material.tsx` (`Amostra`); a ficha O2 da [Frente O](biblioteca-por-familias.md) (amostra de 40 px nos grupos de terreno).
