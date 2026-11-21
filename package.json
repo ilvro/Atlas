@@ -23,6 +23,7 @@
     "mesa-dev": "node scripts/mesa-dev.ts",
     "medir:carga": "node scripts/dev/medir-carga.ts",
     "ponte:mcp": "node scripts/ponte/mcp.ts",
+    "ponte:uso": "node scripts/ponte/uso.ts",
     "ponte:catalogo": "node scripts/ponte/catalogo.ts",
     "ponte:verificar": "node scripts/ponte/verificar-build.ts",
     "dev:mesa": "MESA_DEV_PREFIX=/Atlas/ vite --host 127.0.0.1 --port 5190 --strictPort"

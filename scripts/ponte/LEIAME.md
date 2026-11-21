@@ -54,6 +54,12 @@ Testes (`tests/unit/ponte-mcp.test.ts`) falham se nome, descrição, esquema ou 
 
 Quando uma ferramenta de qualquer app for criada, removida ou tiver descrição, esquema ou anotações alterados: rode `npm run ponte:catalogo` (com os repositórios irmãos ao lado do Atlas) e faça commit de `scripts/ponte/catalogo-base.json`.
 
+## Uso das ferramentas
+
+O servidor MCP anota, em `.ponte/uso.json` (só nesta máquina, fora do git), quantas vezes cada ferramenta foi chamada, quando foi a última vez e em quais dias (os 60 últimos). Serve para decidir com dados quais ferramentas merecem ficar sempre carregadas. A gravação acontece depois da resposta e nunca atrasa nem derruba uma chamada.
+
+Para ler: `npm run ponte:uso`. A tabela vem ordenada por dias distintos de uso e depois por chamadas, com o tamanho em bytes de cada ferramenta no catálogo base e o total no fim.
+
 ## Teste de fumaça
 
 ```
