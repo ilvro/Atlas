@@ -18,7 +18,7 @@ import { fxAtivo } from '../fx/fx.ts';
 import { criarBaker, type Baker } from '../procedural/baker.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { sortearVariante } from '../procedural/familias.ts';
-import { carimbar, type Ocupado } from '../authoring/carimbar.ts';
+import { carimbar, type Ocupado } from '../domain/carimbar.ts';
 import { camposDoPincel, pincelDoObjeto, type CamposDoPincel } from '../domain/pincel-de-objeto.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import type { EventoStore, Gesto, Store } from '../state/store.ts';
