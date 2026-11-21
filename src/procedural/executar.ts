@@ -6,6 +6,7 @@ import type { SpriteDaPeca } from '../domain/sprite.ts';
 import type { DetalheDeTelhado } from '../domain/mapa.ts';
 import { texturaDeCobertura } from './coberturas.ts';
 import { descricaoDoDetalhe } from './detalhes-de-telhado.ts';
+import { garantirTexturas, texturasDoTerreno } from './texturas-carregadas.ts';
 import { materialDe } from './materiais.ts';
 import { estiloDe, type IdDoEstilo, type OpcoesDoPixel } from './estilos/index.ts';
 import { SOMBRA_DE_CONTATO, caixaDoConteudo, contorno, puxarCor, sobrepor, sombraDeContato, type AlvoDeCor } from './harmonizar.ts';
@@ -52,6 +53,7 @@ export async function executarBake(p: PedidoDeBake): Promise<ResultadoDeBake> {
     return paraBitmap({ tela: copia, origem: [0, 0], res: tela.width / metros });
   }
   const estilo = estiloDe(p.estilo);
+  if (p.tipo === 'terreno' && p.estilo === 'illustrated') await garantirTexturas(texturasDoTerreno(p.entrada));   // não rejeita: sem textura o pintor usa o `padrao`
   if (p.tipo === 'detalhe-de-telhado') return paraBitmap(assarDescricao(descricaoDoDetalhe(p.detalhe, { cobertura: p.cobertura, semente: p.seed }), p.seed, p.res, estilo, p.pixel));
   if (p.tipo === 'gerado') return paraBitmap(await assarGerado(p, estilo));
   const a: Assado =

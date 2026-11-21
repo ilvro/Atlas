@@ -91,7 +91,7 @@ Testes: `amostrar` volta nas bordas e interpola; uma textura de cor única sai i
 Pronto quando: os testes passam.
 Commit: `pure sampler hides texture tiling and maps tones to the palette`
 
-### P4 — Texturas carregadas no assado (Sonnet)  ⬜
+### P4 — Texturas carregadas no assado (Sonnet)  ✅
 Objetivo: o worker e a página carregam as texturas que um terreno precisa antes de assar, e o cache sabe quando elas mudam.
 Depende de: P2.
 Ler: `src/procedural/executar.ts` (inteiro; `assarImagem` mostra o `fetch` com `createImageBitmap`); `src/procedural/bake.worker.ts`; `src/procedural/baker.ts:180-210`; `src/render/entradas.ts:433` (`chaveDoTerreno`); `src/procedural/assar.ts:427-445`.
