@@ -1,5 +1,5 @@
-import type { Ponto } from '../domain/mapa.ts';
-import { camposDoPincel, type CamposDoPincel, type PincelDeObjeto } from '../domain/pincel-de-objeto.ts';
+import type { Ponto } from './mapa.ts';
+import { camposDoPincel, type CamposDoPincel, type PincelDeObjeto } from './pincel-de-objeto.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { sortearVariante, type Familia } from '../procedural/familias.ts';
 

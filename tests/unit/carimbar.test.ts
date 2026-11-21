@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { carimbar } from '../../src/authoring/carimbar.ts';
+import { carimbar } from '../../src/domain/carimbar.ts';
 import { PINCEL_PADRAO } from '../../src/render/pincel.ts';
 import { ACERVO } from '../../src/procedural/acervo.ts';
 import type { PincelDeObjeto } from '../../src/domain/pincel-de-objeto.ts';
