@@ -48,6 +48,7 @@ async function clienteMcp(url: string, lerToken: () => string, arquivoDoCache?: 
   return { client, ponta, mudancas: () => mudancas, fechar: async () => { await fechar(); await client.close(); } };
 }
 
+const LOCAIS = ['ponte_estado', 'plataforma_guia', 'plataforma_ferramentas', 'plataforma_executar', 'plataforma_executar_destrutiva'];
 const textoDe = (r: any) => r.content.map((c: any) => c.text ?? '').join('');
 
 test('converterConteudo converte texto e imagem', () => {
@@ -162,7 +163,7 @@ test('sem ponte: só ponte_estado, com a explicação', async () => {
   const mcp = await clienteMcp('ws://127.0.0.1:1/__ponte', () => { throw new Error('sem token'); });
   try {
     const { tools } = await mcp.client.listTools();
-    assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'plataforma_guia']);
+    assert.deepEqual(tools.map(t => t.name), LOCAIS);
     const r = await mcp.client.callTool({ name: 'ponte_estado', arguments: {} });
     assert.match(textoDe(r), /npm run mesa-dev/);
     assert.equal(textoDe(r), SEM_PONTE);
@@ -193,7 +194,7 @@ test('catálogo estável: abrir e fechar aba não muda tools/list nem notifica; 
     ] }));
     await esperar(() => mcp.mudancas() === 1);
     const { tools } = await mcp.client.listTools();
-    assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'plataforma_guia', 'atlas_ver_mapa', 'atlas_mapa_criar']);
+    assert.deepEqual(tools.map(t => t.name), [...LOCAIS, 'atlas_ver_mapa', 'atlas_mapa_criar']);
     assert.equal(tools.find(t => t.name === 'atlas_ver_mapa')?.annotations?.readOnlyHint, true);
     assert.equal(tools.find(t => t.name === 'atlas_mapa_criar')?.annotations?.destructiveHint, false);
     assert.match(textoDe(await mcp.client.callTool({ name: 'ponte_estado', arguments: {} })), /atlas.*\(2 ferramentas\)/);
@@ -208,7 +209,7 @@ test('catálogo estável: abrir e fechar aba não muda tools/list nem notifica; 
     await new Promise(r => setTimeout(r, 60));
     assert.equal(mcp.mudancas(), mudancasAntes);
     const toolsDepoisDeFechar = (await mcp.client.listTools()).tools;
-    assert.deepEqual(toolsDepoisDeFechar.map(t => t.name), ['ponte_estado', 'plataforma_guia', 'atlas_ver_mapa', 'atlas_mapa_criar']);
+    assert.deepEqual(toolsDepoisDeFechar.map(t => t.name), [...LOCAIS, 'atlas_ver_mapa', 'atlas_mapa_criar']);
 
     // Chamar ferramenta de app fechado devolve erro com endereço
     const erroFechado: any = await mcp.client.callTool({ name: 'atlas_ver_mapa', arguments: {} });
@@ -225,7 +226,10 @@ test('catálogo estável: abrir e fechar aba não muda tools/list nem notifica; 
       { nome: 'atlas_novo', descricao: 'novo', esquema: { type: 'object' } },
     ] }));
     await esperar(() => mcp.mudancas() === 2);
-    assert.deepEqual((await mcp.client.listTools()).tools.map(t => t.name), ['ponte_estado', 'plataforma_guia', 'atlas_ver_mapa', 'atlas_mapa_criar', 'atlas_novo']);
+    // atlas_novo não é SEMPRE: fica fora do tools/list e entra no índice de plataforma_ferramentas.
+    const depoisDeNova = (await mcp.client.listTools()).tools;
+    assert.deepEqual(depoisDeNova.map(t => t.name), [...LOCAIS, 'atlas_ver_mapa', 'atlas_mapa_criar']);
+    assert.match(depoisDeNova.find(t => t.name === 'plataforma_ferramentas')?.description ?? '', /atlas_novo \(novo\)/);
 
     // Registrar as mesmas ferramentas de novo (ex.: recarregar ou focar aba) não notifica
     aba.send(JSON.stringify({ tipo: 'registrar', app: 'atlas', titulo: 'Atlas', ferramentas: [
@@ -241,7 +245,9 @@ test('catálogo estável: abrir e fechar aba não muda tools/list nem notifica; 
       { nome: 'atlas_ver_mapa', descricao: 'vê', esquema: { type: 'object', properties: {} } },
     ] }));
     await esperar(() => mcp.mudancas() === 3);
-    assert.deepEqual((await mcp.client.listTools()).tools.map(t => t.name), ['ponte_estado', 'plataforma_guia', 'atlas_ver_mapa']);
+    const depoisDeRemover = (await mcp.client.listTools()).tools;
+    assert.deepEqual(depoisDeRemover.map(t => t.name), [...LOCAIS, 'atlas_ver_mapa']);
+    assert.doesNotMatch(depoisDeRemover.find(t => t.name === 'plataforma_ferramentas')?.description ?? '', /atlas_novo/);
   } finally {
     aba.terminate();
     await mcp.fechar();
@@ -261,7 +267,9 @@ test('o cache sobrevive a reiniciar o MCP', async () => {
   const mcp = await clienteMcp('ws://127.0.0.1:1/__ponte', () => { throw new Error('sem token'); }, cache);
   try {
     const { tools } = await mcp.client.listTools();
-    assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'plataforma_guia', 'atlas_guardada']);
+    // sob demanda: fora do tools/list, mas no índice
+    assert.deepEqual(tools.map(t => t.name), LOCAIS);
+    assert.match(tools.find(t => t.name === 'plataforma_ferramentas')?.description ?? '', /atlas_guardada \(persistida\)/);
   } finally {
     await mcp.fechar();
   }
@@ -483,7 +491,8 @@ test('catálogo base: base com jukebox_listar e cache vazio traz a ferramenta se
   });
   try {
     const { tools } = await mcp.client.listTools();
-    assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'plataforma_guia', 'jukebox_listar']);
+    assert.deepEqual(tools.map(t => t.name), LOCAIS);
+    assert.match(tools.find(t => t.name === 'plataforma_ferramentas')?.description ?? '', /jukebox_listar \(lista\)/);
   } finally {
     await mcp.fechar();
   }
@@ -504,8 +513,9 @@ test('catálogo base: cache com descrição nova vence a base', async () => {
   });
   try {
     const { tools } = await mcp.client.listTools();
-    const jb = tools.find(t => t.name === 'jukebox_listar');
-    assert.equal(jb?.description, 'descrição nova do cache');
+    assert.match(tools.find(t => t.name === 'plataforma_ferramentas')?.description ?? '', /jukebox_listar \(descrição nova do cache\)/);
+    const carregada = textoDe(await mcp.client.callTool({ name: 'plataforma_ferramentas', arguments: { nomes: ['jukebox_listar'] } }));
+    assert.match(carregada, /"descricao": "descrição nova do cache"/);
   } finally {
     await mcp.fechar();
   }
@@ -537,7 +547,10 @@ test('catálogo base: aba do Atlas registrando sem uma ferramenta da base faz el
     }));
     await esperar(() => mcp.mudancas() === 1);
     const { tools } = await mcp.client.listTools();
-    assert.deepEqual(tools.map(t => t.name), ['ponte_estado', 'plataforma_guia', 'atlas_continua']);
+    assert.deepEqual(tools.map(t => t.name), LOCAIS);
+    const indice = tools.find(t => t.name === 'plataforma_ferramentas')?.description ?? '';
+    assert.match(indice, /atlas_continua \(continua\)/);
+    assert.doesNotMatch(indice, /atlas_antiga/);
   } finally {
     aba.terminate();
     await mcp.fechar();
@@ -637,7 +650,7 @@ test('gerarCatalogoBase troca as atlas_* pelas do código, mantém os outros app
   assert.deepEqual(gerado.map(g => g.nome), ['atlas_nova', 'mesa_x']);
 });
 
-test('com .ponte apagado, tools/list traz as 4 jukebox_* e mesa_elenco do catalogo-base padrão', async () => {
+test('com .ponte apagado, o índice de plataforma_ferramentas traz as jukebox_* e mesa_elenco do catalogo-base padrão', async () => {
   const cacheInexistente = path.join(os.tmpdir(), `inexistente-${Date.now()}`, 'ferramentas.json');
   const { server, fechar } = criarServidorMcp({
     url: 'ws://127.0.0.1:1/__ponte',
@@ -650,15 +663,11 @@ test('com .ponte apagado, tools/list traz as 4 jukebox_* e mesa_elenco do catalo
   await Promise.all([server.connect(a), client.connect(b)]);
   try {
     const { tools } = await client.listTools();
-    const nomes = tools.map(t => t.name);
-    assert.ok(nomes.includes('jukebox_listar'));
-    assert.ok(nomes.includes('jukebox_tocar'));
-    assert.ok(nomes.includes('jukebox_efeito'));
-    assert.ok(nomes.includes('jukebox_parar'));
-    assert.ok(nomes.includes('jukebox_preset_ler'));
-    assert.ok(nomes.includes('jukebox_preset_adicionar'));
-    assert.ok(nomes.includes('mesa_elenco'));
-    assert.ok(nomes.includes('mesa_elenco_ler'));
+    // Sob demanda: o índice de plataforma_ferramentas traz as jukebox_* e mesa_elenco*.
+    const indice = tools.find(t => t.name === 'plataforma_ferramentas')?.description ?? '';
+    for (const nome of ['jukebox_listar', 'jukebox_tocar', 'jukebox_efeito', 'jukebox_parar', 'jukebox_preset_ler', 'jukebox_preset_adicionar', 'mesa_elenco', 'mesa_elenco_ler']) {
+      assert.match(indice, new RegExp(`${nome} \\(`), `${nome} deve estar no índice`);
+    }
   } finally {
     await fechar();
     await client.close();
@@ -723,8 +732,15 @@ test('todas as ferramentas do Atlas e da Mesa declaram anotacoes e trazem annota
     const atlasENomes = [...atlasTools.map(t => t.nome), ...mesaTools.map(t => t.nome)];
     for (const nome of atlasENomes) {
       const tool = tools.find(t => t.name === nome);
-      assert.ok(tool, `Ferramenta "${nome}" deve estar no catálogo`);
-      assert.ok(tool.annotations, `Ferramenta "${nome}" deve trazer annotations no tools/list`);
+      if (tool) {
+        assert.ok(tool.annotations, `Ferramenta "${nome}" deve trazer annotations no tools/list`);
+        continue;
+      }
+      // Sob demanda: as anotações vêm em plataforma_ferramentas.
+      const carregada: any = await client.callTool({ name: 'plataforma_ferramentas', arguments: { nomes: [nome] } });
+      const dados = JSON.parse(carregada.content[0].text);
+      assert.equal(dados.nome, nome, `Ferramenta "${nome}" deve estar no catálogo`);
+      assert.ok(Object.keys(dados.anotacoes).length > 0, `Ferramenta "${nome}" deve trazer anotacoes em plataforma_ferramentas`);
     }
   } finally {
     await fechar();
