@@ -230,6 +230,9 @@ function fecharCopia(copia: ResultadoComExtras): void {
   copia.fachada?.close?.();
 }
 
+/** Quantas falhas seguidas de worker o baker tolera antes de ficar quebrado. */
+export const MAX_FALHAS_DE_WORKER = 3;
+
 export function criarBaker(opcoes: { workers?: number; cache?: CacheDeAssados | null } = {}): Baker {
   const usarWorker = typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined';
   const padrao = Math.max(2, Math.min(6, (navigator.hardwareConcurrency || 3) - 1));
@@ -241,15 +244,39 @@ export function criarBaker(opcoes: { workers?: number; cache?: CacheDeAssados | 
         ? cacheDeAssadosPadrao()
         : null;
   const workers: (Worker | null)[] = new Array<Worker | null>(n).fill(null);
-  const esperando = new Map<number, { ok: (r: ResultadoDeBake) => void; erro: (e: Error) => void; tipo: PedidoDeBake['tipo'] }>();
+  const esperando = new Map<number, { ok: (r: ResultadoDeBake) => void; erro: (e: Error) => void; tipo: PedidoDeBake['tipo']; indice: number }>();
   let proximo = 0;
   let encerrado = false;
+  /** Falhas seguidas de worker (zera quando um worker responde). Na `MAX_FALHAS_DE_WORKER`-ésima o baker fica quebrado. */
+  let falhasSeguidas = 0;
+  let quebrado = false;
+
+  /** O worker morreu (falha de import, erro não tratado, mensagem ilegível): rejeita o que estava nele e o descarta; o próximo `pedir` cria outro. */
+  function workerFalhou(indice: number, w: Worker, motivo: string): void {
+    if (workers[indice] !== w) return;
+    workers[indice] = null;
+    w.terminate();
+    const erro = new Error(`O worker de pintura falhou: ${motivo}`);
+    for (const [id, espera] of [...esperando]) {
+      if (espera.indice !== indice) continue;
+      esperando.delete(id);
+      espera.erro(erro);
+    }
+    if (++falhasSeguidas >= MAX_FALHAS_DE_WORKER && !quebrado) {
+      quebrado = true;
+      console.warn('As miniaturas pararam de carregar; recarregue a página (Ctrl+Shift+R).', motivo);
+    }
+  }
 
   function garantirWorker(indice: number): Worker {
     let w = workers[indice];
     if (!w) {
       w = new Worker(new URL('./bake.worker.ts', import.meta.url), { type: 'module' });
+      const criado = w;
+      w.onerror = (e: ErrorEvent) => workerFalhou(indice, criado, e.message || 'erro ao carregar o worker');
+      w.onmessageerror = () => workerFalhou(indice, criado, 'mensagem ilegível');
       w.onmessage = (e: MessageEvent<{ id: number; ok: boolean; resultado?: ResultadoDeBake; erro?: string; ms?: number }>) => {
+        falhasSeguidas = 0;
         const espera = esperando.get(e.data.id); if (!espera) return;
         esperando.delete(e.data.id);
         if (e.data.ok) {
@@ -268,10 +295,11 @@ export function criarBaker(opcoes: { workers?: number; cache?: CacheDeAssados | 
 
   const executores: ((pedido: PedidoDeBake, chave: string) => Promise<ResultadoDeBake>)[] = n > 0
     ? Array.from({ length: n }, (_, i) => (pedido: PedidoDeBake, chave: string) => {
+        if (quebrado) return Promise.reject(new Error('O worker de pintura quebrou; recarregue a página.'));
         const w = garantirWorker(i);
         const id = ++proximo;
         return new Promise<ResultadoDeBake>((ok, erro) => {
-          esperando.set(id, { ok, erro, tipo: pedido.tipo });
+          esperando.set(id, { ok, erro, tipo: pedido.tipo, indice: i });
           w.postMessage({
             id,
             pedido,
