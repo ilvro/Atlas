@@ -37,9 +37,12 @@ export const CONJUNTOS_EXTERIORES: readonly ConjuntoDeEspalhar[] = [
     { familia: 'arvore', peso: 6, contexto: 'livre' }, { familia: 'pinheiro', peso: 3, contexto: 'livre' },
     { receita: 'casa:arbusto-verde', peso: 2, contexto: 'livre' }, { receita: 'casa:arbusto-grande', peso: 1, contexto: 'livre' },
     { receita: 'pedra.pequena', peso: 2, contexto: 'sob-arvore' }, { receita: 'pedra.media', peso: 1, contexto: 'sob-arvore' }, { receita: 'toco', peso: 1, contexto: 'sob-arvore' }, { receita: 'tronco.caido', peso: 1, contexto: 'sob-arvore' }] },
-  { id: 'mata-fechada', nome: 'Mata fechada', descricao: 'Copas grandes que se tocam, com pedras e tocos', densidade: 0.045, itens: [
+  { id: 'mata-fechada', nome: 'Mata fechada', descricao: 'Copas grandes que se tocam, com pedras, tocos, raízes, samambaias, capim e folhiço', densidade: 0.0675, itens: [
     { familia: 'arvore-da-mata', peso: 9, contexto: 'livre' },
-    { receita: 'pedra.pequena', peso: 2, contexto: 'sob-arvore' }, { receita: 'toco', peso: 1, contexto: 'sob-arvore' }, { receita: 'tora-assento', peso: 1, contexto: 'sob-arvore' }] },
+    { receita: 'pedra.pequena', peso: 2, contexto: 'sob-arvore' }, { receita: 'toco', peso: 1, contexto: 'sob-arvore' }, { receita: 'tora-assento', peso: 1, contexto: 'sob-arvore' },
+    // Carimbos de chão (P7): pesos baixos, soltos, para quebrar o folhiço entre as copas.
+    { receita: 'raizes', peso: 1, contexto: 'sob-arvore' }, { receita: 'tronco.caido', peso: 0.5, contexto: 'livre' }, { receita: 'moita-de-samambaia', peso: 1.5, contexto: 'livre' },
+    { receita: 'tufo-de-capim', peso: 1.5, contexto: 'livre' }, { receita: 'galhada', peso: 1, contexto: 'livre' }, { receita: 'folhico', peso: 1, contexto: 'livre' }] },
   { id: 'jardim', nome: 'Jardim', descricao: 'Canteiros, arbustos, vasos e um banco', densidade: 0.18, itens: [
     { receita: 'canteiro', peso: 3, contexto: 'livre' }, { receita: 'casa:arbusto-verde', peso: 2, contexto: 'livre' }, { receita: 'casa:arbusto-florido', peso: 2, contexto: 'livre' }, { receita: 'vaso.planta', peso: 1, contexto: 'livre' }, { receita: 'banco.jardim', peso: 1, contexto: 'livre' }, { receita: 'pedra.pequena', peso: 1, contexto: 'livre' }] },
   { id: 'cemiterio', nome: 'Cemitério', descricao: 'Lápides em fileiras, com árvores esparsas', densidade: 0.12, grade: [1.3, 1.9], itens: [
