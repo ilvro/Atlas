@@ -61,7 +61,7 @@ Como:
 Pronto quando: a seção "Curadoria" lista a textura escolhida por material, com fonte, licença, autor e tamanho real.
 Commit: `curated cc0 ground textures for the first terrain batch`
 
-### P2 — Catálogo de texturas e preparo (Sonnet)  ⬜
+### P2 — Catálogo de texturas e preparo (Sonnet)  ✅
 Objetivo: as texturas aprovadas viram ladrilhos WebP com catálogo, licença e versão.
 Depende de: P1.
 Ler: `scripts/assar-colecao.ts` (estilo dos scripts e escrita no `LICENCAS.md`); `src/procedural/colecao.ts:1-40` (tipos do catálogo); `tests/unit/colecao.test.ts`.

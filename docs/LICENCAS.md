@@ -82,3 +82,20 @@ Imagens assadas pelo próprio Atlas (`npm run assar`) a partir de geradores em `
 | Special Elite | `@fontsource/special-elite` | Apache License 2.0 |
 | Hanken Grotesk | `@fontsource-variable/hanken-grotesk` | SIL Open Font License 1.1 |
 | Pixelify Sans (títulos do estilo Pixel: cartela do mapa e janela do projetor) | `@fontsource/pixelify-sans` | SIL Open Font License 1.1 |
+
+## Texturas de chão (CC0)
+
+Ladrilhos de terreno preparados por `npm run texturas` (`scripts/preparar-texturas.ts`, lista em `scripts/texturas-aprovadas.json`) a partir de originais CC0 de Poly Haven e ambientCG, reduzidos a 128 px/m e gravados em WebP em `public/colecao/texturas/` (cor e deslocamento em tons de cinza). O catálogo, com a versão (hash) e o tamanho real de cada uma, está em `public/colecao/texturas/texturas.json`. Os originais ficam em `data-private/`, fora do git. O teste de coleção exige que todo arquivo de `public/colecao/texturas/` esteja listado aqui.
+
+<!-- texturas:inicio -->
+| arquivo | textura | autor | fonte | licença | link |
+| --- | --- | --- | --- | --- | --- |
+| texturas/brown_mud_dry.webp<br>texturas/brown_mud_dry-alt.webp | brown_mud_dry | Rob Tuytel | Poly Haven | CC0 | https://polyhaven.com/a/brown_mud_dry |
+| texturas/dirt_floor.webp<br>texturas/dirt_floor-alt.webp | dirt_floor | eye-candy.xyz | Poly Haven | CC0 | https://polyhaven.com/a/dirt_floor |
+| texturas/forest_ground_04.webp<br>texturas/forest_ground_04-alt.webp | forest_ground_04 | Rob Tuytel, Rico Cilliers | Poly Haven | CC0 | https://polyhaven.com/a/forest_ground_04 |
+| texturas/ground068.webp<br>texturas/ground068-alt.webp | Ground068 (tamanho real estimado em 1.5 m) | ambientCG | ambientCG | CC0 | https://ambientcg.com/view?id=Ground068 |
+| texturas/leafy_grass.webp<br>texturas/leafy_grass-alt.webp | leafy_grass | Charlotte Baglioni | Poly Haven | CC0 | https://polyhaven.com/a/leafy_grass |
+| texturas/leaves_forest_ground.webp<br>texturas/leaves_forest_ground-alt.webp | leaves_forest_ground | Dario Barresi, Dimitrios Savva | Poly Haven | CC0 | https://polyhaven.com/a/leaves_forest_ground |
+| texturas/stony_dirt_path.webp<br>texturas/stony_dirt_path-alt.webp | stony_dirt_path | eye-candy.xyz | Poly Haven | CC0 | https://polyhaven.com/a/stony_dirt_path |
+| texturas/withered_grass.webp<br>texturas/withered_grass-alt.webp | withered_grass | Charlotte Baglioni | Poly Haven | CC0 | https://polyhaven.com/a/withered_grass |
+<!-- texturas:fim -->
