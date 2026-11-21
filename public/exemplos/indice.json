@@ -62,10 +62,10 @@
   {
     "id": "jardim-do-colosso",
     "nome": "Jardim do colosso",
-    "descricao": "Pátio de ruína tomado pelo mato: tablado rúnico sob a estátua de um herói, arquibancada em arco, colunata partida, terraço com escadaria e carvalhos antigos.",
+    "descricao": "Pátio cerimonial em ruína numa manhã dourada: a sombra de um colosso atravessa o tablado rúnico, arquibancada em arco, colunata ao norte, galeria coberta a leste, carvalho imenso e ruína desmoronada a oeste.",
     "tamanho": [
-      48,
-      27
+      60,
+      34
     ],
     "miniatura": "jardim-do-colosso.webp"
   },
