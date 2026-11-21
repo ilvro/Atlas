@@ -40,6 +40,16 @@
     "miniatura": "porto-noturno.webp"
   },
   {
+    "id": "vila-dos-telhados",
+    "nome": "Vila dos telhados",
+    "descricao": "Pequena vila rural com cabana de tábuas gasta, casa de tabuinhas com chaminé e delegacia em L de telha musgosa com puxado mais baixo, ao longo de uma estrada de terra arborizada.",
+    "tamanho": [
+      42,
+      28
+    ],
+    "miniatura": "vila-dos-telhados.webp"
+  },
+  {
     "id": "covil-na-caverna",
     "nome": "Covil na caverna",
     "descricao": "Garganta subterrânea cercada de rocha viva, rastro de sangue seco sob um feixe de luz fria, ossadas e ninho de peles no escuro.",
