@@ -220,6 +220,30 @@ function brotos(seed: number, R: number): Parte[] {
   return [...nanquim, ...cor];
 }
 
+/**
+ * Gravetos soltos: gravetos pálidos de 10 a 20 cm espalhados numa mancha, pintados sem nanquim (só uma sombra macia embaixo e a luz
+ * no lado noroeste), como os da referência de mata. Alguns têm um forquilha curta. A `galhada` é o monte; isto é o que sobra pelo chão.
+ */
+function gravetos(seed: number, R: number): Parte[] {
+  const r = mulberry32(seed), sombra: Parte[] = [], cor: Parte[] = [], tons = ['#b3a27f', '#a8946f', '#bfae8a', '#9c8763'];
+  const n = Math.round(10 * R * R / 0.36 + 3);
+  for (let i = 0; i < n; i++) {
+    const d = Math.sqrt(r()) * R, a0 = r() * Math.PI * 2, x = Math.cos(a0) * d, y = Math.sin(a0) * d, a = r() * Math.PI * 2, len = 0.1 + r() * 0.1;
+    const g = curva(r, x, y, a, len, (r() - 0.5) * 0.5, 5, 0.25), c = tons[Math.floor(r() * tons.length)]!, w = 0.022 + r() * 0.01;
+    // Sombra macia deslocada para sudeste (a luz vem de noroeste) e o graveto em dois tons: corpo e o fio claro do lado da luz.
+    sombra.push(tira(g.map((v, j) => v + (j % 2 ? 0.012 : 0.01)), w + 0.012, '#1a140c', 0.03, { ...O, alfa: 0.32, desfoque: 0.012 }, 0.6));
+    cor.push(tira(g, w, c, 0.032, { ...O, detalhe: 2 }, 0.6));
+    cor.push(tira(g.map((v, j) => v - (j % 2 ? w * 0.22 : w * 0.18)), w * 0.4, tom(c, 0.22), 0.033, { ...O, alfa: 0.8, detalhe: 3 }, 0.6));
+    if (r() < 0.35) {
+      // Forquilha: um raminho curto saindo do meio.
+      const px = g[4]!, py = g[5]!, ramo = curva(r, px, py, a + (r() < 0.5 ? 0.6 : -0.6), len * 0.35, 0.2, 3);
+      sombra.push(tira(ramo.map((v, j) => v + (j % 2 ? 0.012 : 0.01)), w * 0.7 + 0.01, '#1a140c', 0.03, { ...O, alfa: 0.3, desfoque: 0.01 }, 0.6));
+      cor.push(tira(ramo, w * 0.7, c, 0.032, { ...O, detalhe: 3 }, 0.6));
+    }
+  }
+  return [...sombra, ...cor];
+}
+
 /** O kit do chão de mata: carimbos que se espalham pelo folhiço. */
 export const RECEITAS_DE_CHAO: Receita[] = [
   { id: 'brotos', nome: 'Brotos', ...CHAO, tags: ['brotos', 'rasteira', 'broto', 'plantinhas', 'mato', 'verde', 'chao', 'mata', 'natureza'], pegada: [1.2, 1.2], altura: 0.08,
@@ -230,6 +254,9 @@ export const RECEITAS_DE_CHAO: Receita[] = [
     gerar: p => { const R = num(p, 'raio', 0.6, 0.3, 1.5); return piso([R * 2, R * 1.8], folhico(p.seed, R)); } },
   { id: 'galhada', nome: 'Galhada', ...CHAO, tags: ['galhos', 'rasteira', 'gravetos', 'lenha', 'chao', 'mata', 'natureza'], pegada: [1.2, 0.8], altura: 0.1,
     gerar: p => piso([1.2, 0.8], galhada(p.seed, 1.2)) },
+  { id: 'gravetos', nome: 'Gravetos soltos', ...CHAO, tags: ['gravetos', 'rasteira', 'galhos', 'chao', 'mata', 'natureza'], pegada: [1.2, 1.2], altura: 0.04,
+    campos: [{ id: 'raio', rotulo: 'Raio (m)', tipo: 'numero', padrao: 0.6, min: 0.3, max: 1.5, passo: 0.1 }],
+    gerar: p => { const R = num(p, 'raio', 0.6, 0.3, 1.5); return piso([R * 2 + 0.3, R * 2 + 0.3], gravetos(p.seed, R)); } },
   { id: 'raizes', nome: 'Raízes', ...CHAO, tags: ['raiz', 'raizes', 'arvore', 'chao', 'mata', 'natureza'], pegada: [2.6, 2.6], altura: 0.25,
     campos: [{ id: 'raio', rotulo: 'Raio (m)', tipo: 'numero', padrao: 1.3, min: 0.6, max: 2.5, passo: 0.1 }],
     gerar: p => { const R = num(p, 'raio', 1.3, 0.6, 2.5); return piso([R * 2, R * 2], raizes(p.seed, R)); } },
