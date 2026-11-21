@@ -21,7 +21,7 @@ import { todosOsAlvos, caixaDe, caixaDaSelecao, ehMovel, type Alvo, type Caixa, 
 import type { Viewport } from '../render/viewport.ts';
 import type { ColecaoLivre, Comando } from '../state/comandos.ts';
 import { embutido } from './embutido.ts';
-import { conjuntoDeEspalhar, espalhar } from '../authoring/espalhar.ts';
+import { conjuntoDeEspalhar, espalhar, receitasDoItem } from '../authoring/espalhar.ts';
 import { campanhaAtiva, carregarCampanhas, desvincularMapa, entidadesDaCampanha, refDoMapa, revincularMapa, sincronizarMapaComCampanha } from './campanha.ts';
 import { pedirCena, pedirEfeito, pedirSilencio, pedirSomDoClima, pedirSomDoMapa, tocarSomEscolhido } from './audio-do-clima.ts';
 import { comandoDaEtapaDeAgua, etapasDaAgua } from '../domain/agua.ts';
@@ -681,7 +681,7 @@ export function comandosDeEspalhar(
   const conjunto = conjuntoDeEspalhar(opcoes.conjunto);
   if (!conjunto) return [];
   if (opcoes.apagar) {
-    const receitas = new Set(conjunto.itens.map(x => x.receita));
+    const receitas = new Set(conjunto.itens.flatMap(receitasDoItem));
     const saida: Comando[] = [];
     for (const o of Object.values(base.props)) {
       if (o.source.kind === 'recipe' && receitas.has(o.source.recipe) && Math.hypot(o.position[0] - centro[0], o.position[1] - centro[1]) <= opcoes.raio) {

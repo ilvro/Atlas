@@ -10,7 +10,12 @@ import { circulacao, malhaDoComodo, retanguloLivre, type Circulacao, type Malha 
 import { rotacaoDeParede } from './layout.ts';
 
 /** `sob-arvore`: dentro da copa de uma árvore do mapa (objeto com a tag `arvore`), as que já existem e as que este mesmo pincel põe. */
-export interface ItemDeConjunto { receita: string; peso: number; contexto: 'parede' | 'mesa' | 'livre' | 'sob-arvore' }
+export type ItemDeConjunto = { peso: number; contexto: 'parede' | 'mesa' | 'livre' | 'sob-arvore' } & (
+  | { receita: string; familia?: undefined }
+  /** Uma família inteira com o mesmo peso total: cada vez que sai, uma variante sorteada com o mesmo gerador. */
+  | { familia: string; receita?: undefined });
+/** Os ids de item que um item de conjunto pode produzir: o próprio, ou todas as variantes da família. */
+export const receitasDoItem = (i: ItemDeConjunto): readonly string[] => (i.familia !== undefined ? ACERVO.familia(i.familia)?.itens ?? [] : [i.receita]);
 export interface ConjuntoDeEspalhar {
   id: string; nome: string; descricao: string; itens: ItemDeConjunto[];
   /** Itens por m² no centro do pincel. */
@@ -29,32 +34,28 @@ export const CONJUNTOS_DE_ESPALHAR: readonly ConjuntoDeEspalhar[] = [
 ];
 export const CONJUNTOS_EXTERIORES: readonly ConjuntoDeEspalhar[] = [
   { id: 'mata', nome: 'Mata', descricao: 'Árvores e arbustos, com pedras e tocos sob a copa', densidade: 0.1, itens: [
-    { receita: 'casa:arvore-3m', peso: 2, contexto: 'livre' }, { receita: 'casa:arvore-5m', peso: 3, contexto: 'livre' }, { receita: 'casa:arvore-7m', peso: 1, contexto: 'livre' }, { receita: 'casa:pinheiro-3m', peso: 2, contexto: 'livre' }, { receita: 'casa:pinheiro-4m', peso: 1, contexto: 'livre' },
+    { familia: 'arvore', peso: 6, contexto: 'livre' }, { familia: 'pinheiro', peso: 3, contexto: 'livre' },
     { receita: 'casa:arbusto-verde', peso: 2, contexto: 'livre' }, { receita: 'casa:arbusto-grande', peso: 1, contexto: 'livre' },
     { receita: 'pedra.pequena', peso: 2, contexto: 'sob-arvore' }, { receita: 'pedra.media', peso: 1, contexto: 'sob-arvore' }, { receita: 'toco', peso: 1, contexto: 'sob-arvore' }, { receita: 'tronco.caido', peso: 1, contexto: 'sob-arvore' }] },
   { id: 'mata-fechada', nome: 'Mata fechada', descricao: 'Copas grandes que se tocam, com pedras e tocos', densidade: 0.045, itens: [
-    { receita: 'casa:arvore-da-mata-8m', peso: 2, contexto: 'livre' }, { receita: 'casa:arvore-da-mata-6m', peso: 3, contexto: 'livre' }, { receita: 'casa:arvore-da-mata-6m-rala', peso: 1, contexto: 'livre' },
-    { receita: 'casa:arvore-da-mata-5m-amarelada', peso: 1, contexto: 'livre' }, { receita: 'casa:arvore-da-mata-4m', peso: 2, contexto: 'livre' },
+    { familia: 'arvore-da-mata', peso: 9, contexto: 'livre' },
     { receita: 'pedra.pequena', peso: 2, contexto: 'sob-arvore' }, { receita: 'toco', peso: 1, contexto: 'sob-arvore' }, { receita: 'tora-assento', peso: 1, contexto: 'sob-arvore' }] },
   { id: 'jardim', nome: 'Jardim', descricao: 'Canteiros, arbustos, vasos e um banco', densidade: 0.18, itens: [
     { receita: 'canteiro', peso: 3, contexto: 'livre' }, { receita: 'casa:arbusto-verde', peso: 2, contexto: 'livre' }, { receita: 'casa:arbusto-florido', peso: 2, contexto: 'livre' }, { receita: 'vaso.planta', peso: 1, contexto: 'livre' }, { receita: 'banco.jardim', peso: 1, contexto: 'livre' }, { receita: 'pedra.pequena', peso: 1, contexto: 'livre' }] },
   { id: 'cemiterio', nome: 'Cemitério', descricao: 'Lápides em fileiras, com árvores esparsas', densidade: 0.12, grade: [1.3, 1.9], itens: [
     { receita: 'lapide', peso: 10, contexto: 'livre' }, { receita: 'casa:pinheiro-3m', peso: 1, contexto: 'livre' }, { receita: 'casa:arvore-3m', peso: 1, contexto: 'livre' }] },
   { id: 'mata-nevada', nome: 'Mata nevada', descricao: 'Pinheiros e árvores nevadas, arbustos secos, rochedos e galhos', densidade: 0.09, itens: [
-    { receita: 'casa:pinheiro-nevado-3m', peso: 3, contexto: 'livre' }, { receita: 'casa:pinheiro-nevado-4m', peso: 2, contexto: 'livre' },
-    { receita: 'casa:arvore-nevada-3m', peso: 2, contexto: 'livre' }, { receita: 'casa:arvore-nevada-5m', peso: 1, contexto: 'livre' },
+    { familia: 'arvore-nevada', peso: 8, contexto: 'livre' },
     { receita: 'casa:arbusto-seco-2m-neve', peso: 2, contexto: 'livre' }, { receita: 'casa:arbusto-seco-1m', peso: 1, contexto: 'livre' },
     { receita: 'rochedo', peso: 1, contexto: 'livre' }, { receita: 'pedra.media', peso: 2, contexto: 'sob-arvore' },
     { receita: 'galho-seco', peso: 2, contexto: 'sob-arvore' }, { receita: 'toco', peso: 1, contexto: 'sob-arvore' }] },
   { id: 'bosque-morto', nome: 'Bosque morto', descricao: 'Árvores mortas, arbustos secos, galhos, tocos e pedras', densidade: 0.09, itens: [
-    { receita: 'arvore-morta', peso: 3, contexto: 'livre' }, { receita: 'arvore-morta-caida', peso: 1, contexto: 'livre' },
+    { familia: 'arvore-morta', peso: 4, contexto: 'livre' },
     { receita: 'casa:arbusto-seco-1m', peso: 2, contexto: 'livre' }, { receita: 'casa:arbusto-seco-2m', peso: 2, contexto: 'livre' },
-    { receita: 'galho-seco', peso: 3, contexto: 'livre' }, { receita: 'toco', peso: 2, contexto: 'livre' },
+    { familia: 'galho-seco', peso: 4, contexto: 'livre' }, { receita: 'toco', peso: 2, contexto: 'livre' },
     { receita: 'raiz-exposta', peso: 1, contexto: 'livre' }, { receita: 'pedra.pequena', peso: 2, contexto: 'livre' }, { receita: 'pedra.media', peso: 1, contexto: 'livre' }] },
   { id: 'encosta-rochosa', nome: 'Encosta rochosa', descricao: 'Rochedos, pedras, seixos e arbustos secos ralos', densidade: 0.14, itens: [
-    { receita: 'rochedo', peso: 2, contexto: 'livre' }, { receita: 'pedra.grande', peso: 2, contexto: 'livre' },
-    { receita: 'pedra.media', peso: 3, contexto: 'livre' }, { receita: 'pedra.pequena', peso: 3, contexto: 'livre' },
-    { receita: 'seixos', peso: 3, contexto: 'livre' }, { receita: 'casa:arbusto-seco-1m', peso: 2, contexto: 'livre' }, { receita: 'galho-seco', peso: 1, contexto: 'livre' }] },
+    { familia: 'pedra', peso: 13, contexto: 'livre' }, { receita: 'casa:arbusto-seco-1m', peso: 2, contexto: 'livre' }, { receita: 'galho-seco', peso: 1, contexto: 'livre' }] },
   { id: 'costa-rochosa', nome: 'Costa rochosa', descricao: 'Rochedos, seixos, pedras, troncos à deriva e juncos', densidade: 0.15, itens: [
     { receita: 'rochedo', peso: 2, contexto: 'livre' }, { receita: 'pedra.grande', peso: 2, contexto: 'livre' },
     { receita: 'pedra.media', peso: 3, contexto: 'livre' }, { receita: 'seixos', peso: 4, contexto: 'livre' },
@@ -82,8 +83,8 @@ interface Sala { malha: Malha; circ: Circulacao }
 export function espalhar(m: MapaAtlas, o: PedidoDeEspalhar): Objeto[] {
   const conjunto = conjuntoDeEspalhar(o.conjunto); if (!conjunto || !(o.raio > 0)) return [];
   const rng = mulberry32(Math.imul(Math.floor(o.semente * 1000) | 0, 2654435761) ^ Math.floor(o.centro[0] * 37 + o.centro[1] * 91)), gerarId = o.gerarId ?? novoIdEntidade;
-  const receitas = new Set(conjunto.itens.map(i => i.receita));
-  const lado = (id: string, escala = 1) => Math.max(...ACERVO.pegadaDaFonte(ACERVO.fonte(id, 1))) * escala, maior = Math.max(...conjunto.itens.map(i => lado(i.receita)));
+  const receitas = new Set(conjunto.itens.flatMap(receitasDoItem));
+  const lado = (id: string, escala = 1) => Math.max(...ACERVO.pegadaDaFonte(ACERVO.fonte(id, 1))) * escala, maior = Math.max(...[...receitas].map(id => lado(id)));
   const existentes = Object.values(m.props).filter(p => receitas.has(ACERVO.idDaFonte(p.source)) && distancia(p.position, o.centro) <= o.raio + maior);
   const noCirculo = existentes.filter(p => distancia(p.position, o.centro) <= o.raio).length;
   const alvo = Math.max(0, Math.round((o.densidade ?? conjunto.densidade) * Math.PI * o.raio * o.raio) - noCirculo);
@@ -109,7 +110,12 @@ export function espalhar(m: MapaAtlas, o: PedidoDeEspalhar): Objeto[] {
   for (const sala of Object.values(m.rooms)) for (const pt of insightDoComodo(m, sala.id)?.portas ?? []) if (pt.outro === null) portasExternas.push({ c: pt.centro, fora: [-pt.normal[0], -pt.normal[1]] });
   const naFrenteDePortaExterna = (p: Ponto, raio: number) => portasExternas.some(d => distancia(p, d.c) < 1.5 + raio && (p[0] - d.c[0]) * d.fora[0] + (p[1] - d.c[1]) * d.fora[1] >= -0.2);
 
-  const sorteio = (): ItemDeConjunto => { let r = rng() * conjunto.itens.reduce((s, i) => s + i.peso, 0); for (const i of conjunto.itens) { r -= i.peso; if (r <= 0) return i; } return conjunto.itens.at(-1)!; };
+  const sorteioBruto = (): ItemDeConjunto => { let r = rng() * conjunto.itens.reduce((s, i) => s + i.peso, 0); for (const i of conjunto.itens) { r -= i.peso; if (r <= 0) return i; } return conjunto.itens.at(-1)!; };
+  /** O item sorteado já com a variante: uma família escolhe a sua com o mesmo gerador (um `rng()` a mais só nesse caso). */
+  const sorteio = (): { receita: string; contexto: ItemDeConjunto['contexto'] } => {
+    const i = sorteioBruto(); if (i.familia === undefined) return { receita: i.receita, contexto: i.contexto };
+    const itens = ACERVO.familia(i.familia)?.itens ?? []; return { receita: itens[Math.min(itens.length - 1, Math.floor(rng() * itens.length))]!, contexto: i.contexto };
+  };
   const noDisco = (): Ponto => { const a = rng() * Math.PI * 2, d = o.raio * Math.sqrt(rng()); return [o.centro[0] + Math.cos(a) * d, o.centro[1] + Math.sin(a) * d]; };
   // A densidade cai para a borda do pincel.
   const aceitaPelaBorda = (p: Ponto) => rng() < 1 - 0.8 * (distancia(p, o.centro) / o.raio) ** 2;
