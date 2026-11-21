@@ -223,3 +223,91 @@ Testes: na base, a soma de todas as ferramentas fica abaixo de 25 KB; nenhuma de
 Pronto quando: a base está abaixo de 25 KB, e um pedido real (um mapa pequeno com momento, uma ameaça, um documento) sai sem erros de parâmetro. A verificação real é manual: anotar na Nota.
 Commit: lean tool schemas with details in the guide
 Nota: descrições com até 200 caracteres e campos com até 80, nos cinco apps. O texto que saiu foi movido, literal, para `guia/ferramentas-{atlas,mesa,dossie,atelie,jukebox}.md`, com uma seção por ferramenta. A base caiu de 40.567 para 33.644 bytes: Atlas 18,8→18,1 KB, Mesa 11,3→8,2, Dossiê 5,6→3,9, Ateliê 3,5→2,4, Jukebox 1,4→1,1. **A meta de 25 KB não fecha só com texto:** a estrutura dos esquemas, sem texto nenhum, já soma ~25 KB (só o Atlas tem ~16 KB). O teste de orçamento usa teto de 34.000 bytes; uma ferramenta nova vai exigir subir o teto de propósito. A base foi atualizada por script (os apps não foram abertos), e `mesa_campanha_atual` ficou como estava. O próximo corte possível é enxugar a estrutura dos esquemas do Atlas, numa ficha à parte, porque mudar esquema pode quebrar chamadas. Pendente: `npm run desktop:prep` na Mesa e a verificação manual com um pedido real.
+
+## Etapa 6: ferramentas em dois níveis (20/11/2026)
+
+**Medição de 20/11** (`tools/list` real do servidor `mesa`, sem nenhuma aba aberta):
+- **70 ferramentas, 57.433 bytes** (~15 a 18 mil tokens) em toda mensagem. Por app: Atlas 30 (32,1 KB), Mesa 15 (9,2), Dossiê 5 (6,1), Jukebox 8 (4,3), Ateliê 6 (3,3), `campanha_*` 4 (1,3), mais `plataforma_guia` e `ponte_estado`.
+- As maiores: `atlas_momento` 4,0 KB, `dossie_ameaca_criar` 3,6, `atlas_ambiente` 2,7, `atlas_arranjo` 2,7, `atlas_terreno` 2,1, `atlas_presenca` 2,0, `mesa_sessao_editar` 2,0.
+- Em 11/11 eram 33,6 KB. A PM5b mostrou que o texto já foi enxugado: o que pesa é a estrutura dos esquemas, que cresce a cada ferramenta nova. O teste "orçamento compacto" das `atlas_*` ficou com 33 bytes de folga na O10.
+
+**Problema:** o peso fixo ocupa a janela de contexto da conversa inteira, gasta a cota da assinatura e, com 70 opções parecidas (`atlas_objetos`, `atlas_arranjo`, `atlas_espalhar`, `atlas_mobiliar`), aumenta a chance de o modelo escolher a ferramenta errada.
+
+**Meta:** `tools/list` abaixo de **24 KB**, e uma ferramenta nova sob demanda custa só uma linha no índice.
+
+### Decisões (não rediscutir na implementação)
+
+- **Dois níveis, decididos no servidor MCP, não nos apps.** Os apps continuam registrando todas as ferramentas pela ponte como hoje: nada muda no `mesa-core`, na Mesa, no Dossiê, no Ateliê nem na Jukebox.
+  - **Sempre:** a lista `SEMPRE`, num arquivo novo, `scripts/ponte/niveis.ts`. Vai no `tools/list` com esquema completo e chamada direta, como hoje.
+  - **Sob demanda:** todas as outras, inclusive as que surgirem no futuro. **Ferramenta nova cai em sob demanda por padrão**, então não cresce o peso fixo. Promovê-la para `SEMPRE` é uma decisão explícita, com dados de uso (PM6a).
+- **Lista `SEMPRE` inicial (26):** `ponte_estado`, `plataforma_guia`, `atlas_abrir`, `atlas_o_que_vejo`, `atlas_mapas_listar`, `atlas_mapa_ler`, `atlas_mapa_criar`, `atlas_catalogo`, `atlas_comodos`, `atlas_edificio`, `atlas_mobiliar`, `atlas_objetos`, `atlas_portas`, `atlas_paredes`, `atlas_luzes`, `atlas_terreno`, `atlas_ver_mapa`, `atlas_revisar`, `atlas_salvar`, `atlas_desfazer`, `atlas_remover`, `atlas_mover`, `mesa_o_que_vejo`, `mesa_campanha_atual`, `campanha_listar`, `campanha_ler`. São as ferramentas de montar mapa e de se situar, que entram em quase toda conversa (~17 KB). O usuário não tem dados de uso: a lista é um palpite, e a PM6a existe para corrigi-la.
+- **Três ferramentas locais novas no MCP**, como `plataforma_guia` (não passam pela ponte e estão sempre no `tools/list`):
+  - `plataforma_ferramentas { nomes: string[] }` (`readOnlyHint`, `idempotentHint`): devolve, para cada nome, a descrição, o `inputSchema`, as anotações, o executor a usar e a seção `## <nome>` de `guia/ferramentas-<app>.md`, se existir. Num passo, o modelo recebe o esquema e o guia. A **descrição** dessa ferramenta traz o índice das sob demanda, agrupadas por app, com uma linha curta cada (gerada da primeira frase da descrição, até ~70 caracteres). Assim o modelo sabe o que existe sem carregar nada.
+  - `plataforma_executar { ferramenta: string, args: object }` (`destructiveHint: false`): chama uma ferramenta sob demanda **não destrutiva**. Uma ferramenta destrutiva chamada por aqui dá erro, e o erro diz qual executor usar.
+  - `plataforma_executar_destrutiva { ferramenta: string, args: object }` (`destructiveHint: true`): chama uma ferramenta sob demanda **destrutiva**. Destrutiva aqui é toda ferramenta cujas anotações (`anotacoesDaFerramenta`) não trazem `readOnlyHint: true` nem `destructiveHint: false`. Hoje são `atlas_ambiente`, `atlas_andares`, `atlas_arranjo`, `atlas_caminho`, `mesa_elenco`, `mesa_entidade_editar`, `mesa_sessao_editar`, `atelie_documento_editar`, `dossie_ficha_editar`, `jukebox_efeito`, `jukebox_parar` e `jukebox_tocar`.
+  - **Por que dois executores:** o app do Claude aprova as ferramentas por nome. Um executor só levaria a aprovação de uma escrita inofensiva para uma destrutiva. Separados, o mestre pode deixar `plataforma_executar` sempre permitida e manter a confirmação na destrutiva.
+- **Sem validador novo.** Os apps já validam os argumentos e devolvem erros claros. O executor só confere que `ferramenta` existe no catálogo e que é sob demanda ou `SEMPRE`. Chamar uma `SEMPRE` pelo executor também funciona, para não punir o modelo. Nome desconhecido dá erro com até 3 sugestões parecidas, reaproveitando a busca que já houver no `mcp.ts` (ou `startsWith` e prefixo do app).
+- **Chamada direta pelo nome continua aceita.** Se o cliente chamar `atlas_momento` direto, mesmo fora do `tools/list`, o `CallTool` atende como hoje. É o mesmo caminho, `chamarFerramenta`.
+- **Prazos, avisos e anotações:** o executor repassa para `chamarFerramenta` com o nome real, então o prazo de 120 s do `atlas_momento_testar`, os avisos de armazenamento e os casos especiais (`jukebox_preset_*`, `atelie_imagem_definir`) continuam valendo sem duplicar código.
+- **O que se perde:** as aprovações que o mestre já deu no app do Claude para as ferramentas que viraram sob demanda. O LEIAME avisa disso.
+- **Alternativa descartada:** mostrar só as ferramentas das abas abertas, com `list_changed`. Depende de o build comunitário do app do Claude atualizar a lista no meio da conversa, o que não está confirmado, e foi justamente o catálogo-base (PM3a) que resolveu as "ferramentas invisíveis".
+
+### PM6a — Registro de uso das ferramentas  ⬜
+Objetivo: saber quais ferramentas o assistente usa de fato, para revisar a lista `SEMPRE` com dados.
+Depende de: —.
+Ler: `scripts/ponte/mcp.ts` (`criarServidorMcp`, o `CallToolRequestSchema`, `carregarCache` como modelo de leitura de JSON com `try/catch`, `CAMINHO_CACHE_PADRAO`); `package.json` (scripts `ponte:*`); `scripts/ponte/LEIAME.md`.
+Arquivos: criar `scripts/ponte/uso.ts` e `tests/unit/ponte-uso.test.ts`; mudar `scripts/ponte/mcp.ts`, `package.json` e `scripts/ponte/LEIAME.md`.
+Como:
+- `uso.ts`: a função pura `registrarUso(dados: RegistroDeUso, nome: string, agora: Date): RegistroDeUso`, com `RegistroDeUso = Record<string, { chamadas: number; ultima: string /* ISO */; dias: string[] /* AAAA-MM-DD distintos, os 60 últimos */ }>`. Mais `lerUso(caminho)` e `gravarUso(caminho, dados)`, com `try/catch` e o objeto vazio como fallback. O caminho padrão é `.ponte/uso.json`, que já está no `.gitignore`.
+- No `CallTool` de `criarServidorMcp`, registre o nome **efetivo**: num executor da PM6b, o nome é o de `args.ferramenta`. Como a PM6b ainda não existe, deixe um ponto único (`nomeEfetivo(req)`) que por ora devolve `req.params.name`. A gravação não pode atrasar nem derrubar a chamada: grave depois da resposta, sem `await` no caminho da resposta, e engula erros com um `console.error`. `McpOpcoes` ganha `arquivoDeUso?: string | null` (`null` desliga, para os testes).
+- `npm run ponte:uso` (`scripts/ponte/uso.ts` com `import.meta.main`): imprime uma tabela ordenada por número de dias distintos com uso e depois por chamadas, com o tamanho em bytes de cada ferramenta no catálogo-base. Marque com `*` as que estão em `SEMPRE`, se `niveis.ts` já existir; senão, sem marca. No fim, imprime o total.
+- LEIAME: uma seção curta "Uso das ferramentas", explicando para que serve o registro, que ele fica só na máquina e como ler o relatório.
+Não fazer: os níveis (PM6b); mandar o registro para qualquer lugar fora de `.ponte/`.
+Testes: `registrarUso` soma as chamadas, guarda dias distintos, corta em 60 e atualiza `ultima`; um arquivo corrompido vira registro vazio; com o MCP de teste e um `arquivoDeUso` temporário, uma chamada a `ponte_estado` aparece no arquivo; com `arquivoDeUso: null`, nada é gravado.
+Pronto quando: depois de uma conversa real, `npm run ponte:uso` mostra as ferramentas usadas.
+Commit: bridge records which assistant tools get used
+
+### PM6b — Ferramentas sob demanda no servidor MCP  ⬜
+Objetivo: o `tools/list` traz só as ferramentas `SEMPRE` e três ferramentas locais; as outras são consultadas por `plataforma_ferramentas` e chamadas pelos executores.
+Depende de: PM6a (só pelo `nomeEfetivo`; se ela não estiver feita, pare e reporte).
+Ler: `scripts/ponte/mcp.ts` inteiro, sobretudo `listarFerramentas`, `chamarFerramenta`, `anotacoesDaFerramenta`, `FERRAMENTAS_INTERNAS_OCULTAS`, `ferramentaGuia`, `textoDoGuia`, `lerGuia` e `criarServidorMcp`; `tests/unit/ponte-mcp.test.ts` (os testes de `plataforma_guia`, de catálogo-base e de anotações, como modelo); `docs/assistente/guia/ferramentas-atlas.md` (formato das seções `## <nome>`); a seção "Decisões" desta etapa.
+Arquivos: criar `scripts/ponte/niveis.ts` e `tests/unit/ponte-niveis.test.ts`; mudar `scripts/ponte/mcp.ts`.
+Como:
+- `niveis.ts`: `export const SEMPRE: readonly string[]` (a lista das Decisões); `ehSempre(nome)`; `ehDestrutiva(anotacoes)`, que é `!(readOnlyHint === true || destructiveHint === false)` sobre o resultado de `anotacoesDaFerramenta`; `linhaDoIndice(descricao)`, que pega a primeira frase e corta em ~70 caracteres sem partir palavra; e `indiceSobDemanda(catalogo)`, que monta o texto agrupado por app (`Atlas: atlas_momento (cria ou refaz um momento…), …`).
+- `listarFerramentas(catalogo, guia)`: `ponte_estado`, `plataforma_guia`, `plataforma_ferramentas`, `plataforma_executar` e `plataforma_executar_destrutiva`, e depois só as ferramentas do catálogo com `ehSempre`. As internas continuam fora. A descrição de `plataforma_ferramentas` é uma frase de uso ("Ferramentas sob demanda: carregue o esquema e o guia antes de chamar com plataforma_executar ou plataforma_executar_destrutiva (a resposta diz qual).") seguida de `indiceSobDemanda`.
+- Esquemas:
+  - `plataforma_ferramentas`: `{ nomes: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 8 } }`, com `required: ['nomes']`.
+  - Os executores: `{ ferramenta: { type: 'string' }, args: { type: 'object' } }`, com `required: ['ferramenta']` e `args` padrão `{}`.
+- `chamarFerramenta`, no topo:
+  - `plataforma_ferramentas`: para cada nome, devolve um bloco JSON `{ nome, app, executor, anotacoes, descricao, esquema }` e, depois, o texto da seção `## <nome>` do guia do app, quando houver. Para isso a função passa a receber o guia completo, como já recebe `guia` no caso de `plataforma_guia`. Um nome desconhecido não derruba os outros: aparece como `{ nome, erro, sugestoes }`.
+  - Executores: valida `ferramenta` no `ponta.catalogo()` (e não em `ponta.ativas()`: o app fechado continua dando o erro de hoje, que diz para abrir a aba), confere o executor contra `ehDestrutiva` e chama `chamarFerramenta(ponta, ferramenta, args, prazoMs, guia, aviso)` recursivamente. Se `ferramenta` for um dos próprios executores ou `plataforma_ferramentas`, dá erro.
+  - O `nomeEfetivo` da PM6a passa a devolver `args.ferramenta` nos executores.
+- Em `criarServidorMcp`, passe o guia também no caso de `plataforma_ferramentas`.
+- O `list_changed` continua saindo quando o catálogo muda: o índice muda junto.
+Não fazer: mexer nos apps, no `mesa-core` ou na ponte (`servidor.ts`); mudar nome, descrição ou esquema de qualquer ferramenta; os textos do núcleo e do guia (PM6c).
+Testes (`ponte-niveis.test.ts`, com o MCP de teste e o catálogo-base real):
+- o `tools/list` tem as 26 `SEMPRE` mais as 3 locais novas e nenhuma outra; todo nome de `SEMPRE` existe no catálogo-base; o `tools/list` real fica abaixo de 24.000 bytes;
+- toda ferramenta do catálogo que não é `SEMPRE` nem interna aparece no índice da descrição de `plataforma_ferramentas`;
+- `plataforma_ferramentas { nomes: ['atlas_momento', 'nao_existe'] }` devolve o esquema e a seção do guia de `atlas_momento` e o erro com sugestões para o outro;
+- `plataforma_executar` com `atlas_arranjo` (destrutiva) dá erro citando `plataforma_executar_destrutiva`; `plataforma_executar_destrutiva` com `atlas_notas` (não destrutiva) dá erro citando `plataforma_executar`; com o executor certo, a chamada chega à aba falsa com os `args` intactos;
+- uma ferramenta nova registrada por uma aba falsa, fora de `SEMPRE`, não entra no `tools/list` e entra no índice;
+- os testes atuais de `ponte-mcp.test.ts` continuam passando. Ajuste os que contam o `tools/list` inteiro, mantendo a intenção de cada um (por exemplo, "com .ponte apagado, tools/list traz as jukebox_*" vira "o índice traz as jukebox_*").
+Pronto quando: o `tools/list` real tem 29 ferramentas e menos de 24 KB, e uma conversa de teste pelo Claude Code (`.mcp.json`) consegue carregar e executar `atlas_momento` pelo executor.
+Commit: rarely used assistant tools load on demand
+
+### PM6c — Núcleo, guia e orçamentos falam dos dois níveis  ⬜
+Objetivo: as instruções explicam o uso sob demanda, e os testes de orçamento passam a medir o que realmente vai na conversa.
+Depende de: PM6b.
+Ler: `docs/assistente/nucleo.md`; `docs/assistente/guia/*.md` (procure os nomes de ferramenta que viraram sob demanda: `grep -n "atlas_momento\|atlas_ambiente\|atlas_arranjo\|atlas_espalhar\|atlas_presenca\|atlas_caminho\|atlas_regioes\|atlas_andares\|atlas_notas\|mesa_\|dossie_\|atelie_\|jukebox_"`); `docs/assistente/LEIAME.md`; `scripts/ponte/LEIAME.md`; o teste "as ferramentas do Atlas têm descrições curtas e ficam dentro do orçamento compacto" em `tests/unit/ponte-escrita.test.ts`; o teste "catálogo base: soma dentro do orçamento" em `tests/unit/ponte-mcp.test.ts`.
+Arquivos: mudar `docs/assistente/nucleo.md`, os guias que citarem ferramentas sob demanda, os dois LEIAME, `tests/unit/ponte-escrita.test.ts` e `tests/unit/ponte-mcp.test.ts`.
+Como:
+- **Núcleo** (continua abaixo de 6 KB): uma seção curta, "Ferramentas sob demanda". Diz que só as de uso comum vêm carregadas; que antes de usar uma do índice de `plataforma_ferramentas` é preciso carregá-la (até 8 por vez, junto com o guia dela); e que ela é chamada pelo executor que a resposta indicar, com os mesmos `args` do esquema. Na regra "Respeito ao que é do mestre", `atlas_momento` passa a ser citada como sob demanda.
+- **Guias:** onde um passo manda chamar uma ferramenta sob demanda (por exemplo, em `momentos.md`, `sessao.md` e `documentos-fichas-trilha.md`), acrescente uma vez, no início da seção, "carregue com `plataforma_ferramentas`". Não reescreva o resto.
+- **Orçamentos:**
+  - O teste das `atlas_*` em `ponte-escrita.test.ts` deixa de somar todas as ferramentas do Atlas contra 30 KB. Fica: limites por descrição (40 a 800 caracteres), e a soma das `atlas_*` que estão em `SEMPRE` abaixo de 16 KB. Remova a contagem fixa `todas.length === 31`, ou atualize-a, e explique num comentário que ela existe para forçar a decisão de nível.
+  - O teste do catálogo-base em `ponte-mcp.test.ts` troca o teto de 34.000 bytes da base inteira por: `tools/list` abaixo de 24.000 bytes (já coberto na PM6b; aqui só remova a duplicata) e cada ferramenta da base com no máximo 4.500 bytes, para nenhuma ferramenta sob demanda crescer sem limite.
+- **LEIAME** (`scripts/ponte/` e `docs/assistente/`): explicar os dois níveis, como promover uma ferramenta a `SEMPRE` (editar `niveis.ts`, com o relatório de `npm run ponte:uso` em mãos), que as aprovações por nome dadas antes no app do Claude se perdem para as sob demanda, e a sugestão de deixar `plataforma_ferramentas` e `plataforma_executar` sempre permitidas e `plataforma_executar_destrutiva` com confirmação.
+Não fazer: mudar a lista `SEMPRE` (só com dados de uso, numa ficha à parte); mudar descrições ou esquemas das ferramentas.
+Testes: os de núcleo e guia que já existem (tamanho do núcleo, títulos preservados, citações de `plataforma_guia ferramentas-X`) continuam passando; os orçamentos novos acima.
+Pronto quando: `npm test` passa e um pedido real no app do Claude ("crie um momento de abertura neste mapa") carrega `atlas_momento` por `plataforma_ferramentas` e o executa sem erro de parâmetro. A verificação é manual: anotar na Nota. Depois, reiniciar o app do Claude, porque o núcleo mudou.
+Commit: assistant instructions explain on-demand tools
