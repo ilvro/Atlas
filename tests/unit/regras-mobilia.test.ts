@@ -66,3 +66,13 @@ test('tipos genéricos de cômodo têm regras de mobília com as receitas espera
   const stab = regrasPara('estabulo', 'fantasia').flatMap(r => r.receitas);
   assert.ok(stab.includes('fardo-de-feno') && stab.includes('bebedouro') && stab.includes('monte-de-palha'));
 });
+
+test('um gênero de época aceita os itens dos gêneros que herda', () => {
+  const receitas = (funcao: string, genero: string) => regrasPara(funcao, genero).flatMap(r => r.receitas);
+  const soFantasia = ACERVO.item('espadas.cruzadas')?.generos ?? [];
+  assert.deepEqual(soFantasia, ['fantasia']);
+  const funcao = Object.keys(REGRAS_DE_MOBILIA).find(f => receitas(f, 'fantasia').includes('espadas.cruzadas'));
+  assert.ok(funcao, 'alguma função usa espadas.cruzadas na fantasia');
+  assert.ok(receitas(funcao, 'antiguidade').includes('espadas.cruzadas'), 'antiguidade herda fantasia');
+  assert.ok(!receitas(funcao, 'moderno').includes('espadas.cruzadas'), 'moderno não herda fantasia');
+});
