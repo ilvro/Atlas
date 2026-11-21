@@ -2484,6 +2484,8 @@ body.projetor { overflow: hidden; background: #000; }
 
 /* Biblioteca de objetos: família na mão e catálogo de famílias */
 .familia-mao { margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--linha); }
+/* A família na mão fica presa no alto da gaveta: rolar o catálogo embaixo não a leva embora. */
+.biblioteca-corpo > .familia-mao { position: sticky; top: -10px; z-index: 2; margin: -10px -12px 12px; padding: 10px 12px; background: linear-gradient(var(--painel), var(--painel)), var(--fundo); box-shadow: 0 8px 10px -8px rgba(0, 0, 0, 0.55); }
 .familia-titulo { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px; font: 700 13px var(--corpo); }
 .familia-botoes { display: inline-flex; gap: 4px; }
 .familia-corpo { display: flex; gap: 8px; align-items: flex-start; }
