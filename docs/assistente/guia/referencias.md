@@ -4,6 +4,8 @@
 
 Quando o mestre mandar uma imagem, faça esta leitura **por escrito**, antes de qualquer chamada, e mostre a ele os itens 3 a 5.
 
+`atlas_andares`, `atlas_presenca`, `atlas_arranjo`, `atlas_espalhar` e `atlas_ambiente` não vêm carregadas: carregue com `plataforma_ferramentas`.
+
 ## 1. Que tipo de imagem é
 
 - **Mapa tático visto de cima** (battlemap): copie a estrutura quase direto; meça a escala.

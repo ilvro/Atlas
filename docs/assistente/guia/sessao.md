@@ -2,6 +2,8 @@
 
 ## Planejar uma sessão
 
+As ferramentas `mesa_*` fora de `mesa_o_que_vejo` e `mesa_campanha_atual`, e as de outros apps citadas aqui, são sob demanda: carregue com `plataforma_ferramentas`.
+
 Quando o mestre pedir para preparar uma sessão (por exemplo, "prepare a próxima a partir das notas da anterior"), siga este fluxo. Ele junta a Mesa (campanha, cenas, sessões) e o Atlas (mapas e momentos).
 
 ### 1. Leia antes de propor

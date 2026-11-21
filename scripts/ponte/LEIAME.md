@@ -60,6 +60,14 @@ O servidor MCP anota, em `.ponte/uso.json` (só nesta máquina, fora do git), qu
 
 Para ler: `npm run ponte:uso`. A tabela vem ordenada por dias distintos de uso e depois por chamadas, com o tamanho em bytes de cada ferramenta no catálogo base e o total no fim.
 
+## Dois níveis de ferramentas
+
+O `tools/list` traz só as ferramentas `SEMPRE` (lista em `scripts/ponte/niveis.ts`, com esquema completo e chamada direta) e quatro locais: `plataforma_guia`, `plataforma_ferramentas`, `plataforma_executar` e `plataforma_executar_destrutiva`. Todas as outras são sob demanda, inclusive as futuras: o índice delas está na descrição de `plataforma_ferramentas`, que carrega até 8 por vez (esquema, executor e guia). Quem não é destrutiva roda por `plataforma_executar`; a destrutiva, por `plataforma_executar_destrutiva` (o erro diz qual usar).
+
+Para promover uma ferramenta a `SEMPRE`, rode `npm run ponte:uso`, veja quais o assistente mais usa e edite `SEMPRE` em `niveis.ts`. Os testes limitam o `tools/list` a 24 KB e cada ferramenta da base a 4,5 KB.
+
+No app do Claude, as aprovações dadas antes, por nome, às ferramentas que viraram sob demanda se perdem. Sugestão: deixar `plataforma_ferramentas` e `plataforma_executar` sempre permitidas e `plataforma_executar_destrutiva` com confirmação.
+
 ## Teste de fumaça
 
 ```

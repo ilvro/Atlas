@@ -5,6 +5,7 @@ import { esquemaDoPasso, TIPOS_DE_PASSO_ESQUEMA, ferramentasDeEscrita, type Cont
 import { area } from '../../src/domain/celulas.ts';
 import { criarMapa, type MapaAtlas } from '../../src/domain/mapa.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
+import { SEMPRE } from '../../scripts/ponte/niveis.ts';
 import { criarStore } from '../../src/state/store.ts';
 
 function montar(comMapa = true, extra: Partial<ContextoDeEscrita> = {}) {
@@ -463,13 +464,14 @@ test('as ferramentas do Atlas têm descrições curtas e ficam dentro do orçame
   const ctxL = { repo: () => null, mapaAberto: () => null, abrirMapa: async () => {} };
   const ctxE = { store: () => null, repo: () => null, abrirMapa: async () => {} };
   const todas = [...ferramentasDeLeitura(ctxL), ...ferramentasDeEscrita(ctxE)];
+  // A contagem existe para forçar a decisão de nível (SEMPRE ou sob demanda) de cada ferramenta nova do Atlas.
   assert.equal(todas.length, 31);
   for (const f of todas) {
     assert.ok(f.descricao.length <= 800, `${f.nome} passou de 800 caracteres: ${f.descricao.length}`);
     assert.ok(f.descricao.length >= 40, `${f.nome} descrição muito curta: ${f.descricao.length}`);
   }
-  const bytes = Buffer.byteLength(JSON.stringify(todas));
-  assert.ok(bytes < 30_000, `Esperava soma das atlas_* menor que 30 KB (30000 bytes), obteve ${bytes}`);
+  const bytes = Buffer.byteLength(JSON.stringify(todas.filter(f => SEMPRE.includes(f.nome))));
+  assert.ok(bytes < 16_000, `Esperava soma das atlas_* em SEMPRE menor que 16 KB (16000 bytes), obteve ${bytes}`);
 });
 
 
