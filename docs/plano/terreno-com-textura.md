@@ -156,7 +156,7 @@ Feito em 2026-11-20:
 - Famílias: `moita-de-samambaia` em "Samambaia", `tufo-de-capim` em "Capim" e a família nova "Folhiço e galhos" (`folhico`, `galhada`, `raizes`). O tronco já estava em "Toco e tronco".
 - `mata-fechada`: os seis carimbos entram com pesos baixos. A densidade subiu de 0,045 para 0,0675, o que mantém o número de copas.
 - Prancha: `test-results/p7-carimbos.png` (carimbos sob o luar do acampamento; embaixo, recortes da referência na mesma escala).
-- Diferença que fica: a referência espalha muitos **brotos** (raminhos de 10 a 15 cm com três ou quatro folhinhas verdes) por todo o chão. Esse carimbo não estava na ficha; vale uma receita `broto` na P8 ou numa ficha à parte.
+- Depois da revisão, entrou também `brotos`: uma mancha (parâmetro `raio`) de raminhos de 8 a 12 cm, verde-escuros, com três ou quatro folhinhas. É o verde miúdo que salpica o chão da referência. Ficou na família própria "Brotos" e no `mata-fechada` com peso 2; a densidade foi a 0,0745, o que mantém o número de copas.
 
 ### P8 — Acampamento refeito e guia do assistente (Opus)  ⬜
 Objetivo: o exemplo usa o chão novo e os carimbos, e o assistente sabe usar os dois.

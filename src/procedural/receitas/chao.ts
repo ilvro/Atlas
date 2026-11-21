@@ -196,8 +196,35 @@ function folhico(seed: number, R: number): Parte[] {
   return partes;
 }
 
+/**
+ * Brotos: raminhos de 8 a 12 cm (caule escuro e três ou quatro folhinhas arredondadas, com nanquim) espalhados numa mancha. É o verde miúdo
+ * que salpica o chão de mata da referência; um carimbo cobre uma mancha inteira para não ter de pôr broto por broto.
+ */
+function brotos(seed: number, R: number): Parte[] {
+  const r = mulberry32(seed), nanquim: Parte[] = [], cor: Parte[] = [], tons = ['#22401c', '#2c4c22', '#365828', '#41642c'];
+  const n = Math.round(22 * R * R / 0.36 + 6);
+  for (let i = 0; i < n; i++) {
+    const d = Math.sqrt(r()) * R, a0 = r() * Math.PI * 2, x = Math.cos(a0) * d, y = Math.sin(a0) * d, a = r() * Math.PI * 2, len = 0.04 + r() * 0.05;
+    const caule = curva(r, x, y, a, len, (r() - 0.5) * 0.8, 4), c = tons[Math.floor(r() * tons.length)]!;
+    nanquim.push(tira(caule, 0.016, NANQUIM, 0.06, { ...O, alfa: 0.6 }, 0.5));
+    cor.push(tira(caule, 0.008, '#2a2416', 0.062, { ...O, detalhe: 3 }, 0.5));
+    const nf = 3 + Math.floor(r() * 2);
+    for (let k = 0; k < nf; k++) {
+      // As folhinhas saem da ponta e de um nó no meio, abertas em leque.
+      const j = k < 2 ? 3 : 1 + Math.floor(r() * 2), px = caule[j * 2]!, py = caule[j * 2 + 1]!, af = a + (k - (nf - 1) / 2) * 1.1 + (r() - 0.5) * 0.4;
+      const l = 0.04 + r() * 0.03, w = l * (0.6 + r() * 0.2), luz = Math.cos(af) * LUZ_X + Math.sin(af) * LUZ_Y;
+      nanquim.push(lente(px, py, af, l + 0.012, w + 0.012, NANQUIM, 0.06, { ...O, alfa: 0.6 }));
+      cor.push(lente(px, py, af, l, w, luz > 0.3 ? tom(c, 0.1) : luz < -0.3 ? tom(c, -0.15) : c, 0.064, { ...O, suave: true, detalhe: 2 }));
+    }
+  }
+  return [...nanquim, ...cor];
+}
+
 /** O kit do chão de mata: carimbos que se espalham pelo folhiço. */
 export const RECEITAS_DE_CHAO: Receita[] = [
+  { id: 'brotos', nome: 'Brotos', ...CHAO, tags: ['brotos', 'broto', 'plantinhas', 'mato', 'verde', 'chao', 'mata', 'natureza'], pegada: [1.2, 1.2], altura: 0.08,
+    campos: [{ id: 'raio', rotulo: 'Raio (m)', tipo: 'numero', padrao: 0.6, min: 0.3, max: 1.5, passo: 0.1 }],
+    gerar: p => { const R = num(p, 'raio', 0.6, 0.3, 1.5); return piso([R * 2, R * 2], brotos(p.seed, R)); } },
   { id: 'folhico', nome: 'Folhiço', ...CHAO, tags: ['folhas', 'folhico', 'chao', 'outono', 'mata', 'natureza'], pegada: [1.2, 1.1], altura: 0.04,
     campos: [{ id: 'raio', rotulo: 'Raio (m)', tipo: 'numero', padrao: 0.6, min: 0.3, max: 1.5, passo: 0.1 }],
     gerar: p => { const R = num(p, 'raio', 0.6, 0.3, 1.5); return piso([R * 2, R * 1.8], folhico(p.seed, R)); } },

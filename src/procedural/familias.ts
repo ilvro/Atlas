@@ -47,6 +47,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('natureza', 'galho-seco', 'Galho seco', ['galho-seco', 'raiz-exposta']),
   f('natureza', 'capim', 'Capim', ['tufo-de-grama', 'tufo-de-capim', 'junco']),
   f('natureza', 'folhico', 'Folhiço e galhos', ['folhico', 'galhada', 'raizes']),
+  f('natureza', 'brotos', 'Brotos', ['brotos']),
   f('natureza', 'monte-de-neve', 'Monte de neve', ['monte-de-neve']),
   f('natureza', 'estalagmite', 'Estalagmite', ['estalagmite']),
   f('natureza', 'buraco', 'Buraco', ['buraco']),
