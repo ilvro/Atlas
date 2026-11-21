@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CONJUNTOS_EXTERIORES, TODOS_OS_CONJUNTOS, espalhar } from '../../src/authoring/espalhar.ts';
+import { CONJUNTOS_EXTERIORES, TODOS_OS_CONJUNTOS, espalhar, receitasDoItem } from '../../src/authoring/espalhar.ts';
 import { insightDoComodo } from '../../src/authoring/insight.ts';
 import { novoObjeto } from '../../src/domain/fabrica.ts';
 import type { MapaAtlas, Objeto } from '../../src/domain/mapa.ts';
@@ -31,7 +31,7 @@ test('as receitas do kit exterior desenham sem erro, com pegada estável e parte
 
 test('os conjuntos exteriores só citam itens do acervo, e as árvores levam a tag `arvore`', () => {
   assert.deepEqual(CONJUNTOS_EXTERIORES.map(c => c.id), ['mata', 'mata-fechada', 'jardim', 'cemiterio', 'mata-nevada', 'bosque-morto', 'encosta-rochosa', 'costa-rochosa']); assert.equal(TODOS_OS_CONJUNTOS.length, 14);
-  for (const c of CONJUNTOS_EXTERIORES) for (const i of c.itens) assert.ok(ACERVO.item(i.receita), i.receita);
+  for (const c of CONJUNTOS_EXTERIORES) for (const i of c.itens) for (const r of receitasDoItem(i)) assert.ok(ACERVO.item(r), r);
   for (const a of ['casa:arvore-3m', 'casa:arvore-5m', 'casa:arvore-7m', 'casa:pinheiro-3m', 'casa:pinheiro-4m', 'casa:pinheiro-nevado-3m', 'casa:pinheiro-nevado-4m', 'casa:arvore-nevada-3m', 'casa:arvore-nevada-5m']) assert.ok(ACERVO.item(a)?.tags.includes('arvore'), a);
   assert.ok(!ACERVO.item('casa:arbusto-verde')?.tags.includes('arvore'));
 });

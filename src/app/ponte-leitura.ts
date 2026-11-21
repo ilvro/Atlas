@@ -11,7 +11,9 @@ import { formaDe, retangulosDe } from '../domain/telhado-geometria.ts';
 import { COLECAO } from '../procedural/colecao.ts';
 import { MATERIAIS, materiaisDo } from '../procedural/materiais.ts';
 import { listaDeReceitas } from '../procedural/receitas/index.ts';
-import { TODOS_OS_CONJUNTOS } from '../authoring/espalhar.ts';
+import { TODOS_OS_CONJUNTOS, receitasDoItem } from '../authoring/espalhar.ts';
+import { ACERVO } from '../procedural/acervo.ts';
+import { GRUPOS_DE_OBJETOS } from '../procedural/familias.ts';
 import { regrasPara } from '../authoring/regras-mobilia.ts';
 import { revisarMapa } from '../authoring/revisao.ts';
 import { caixaDe, type Alvo, type Caixa } from '../render/selecao.ts';
@@ -238,7 +240,7 @@ export function resumirMapa(m: MapaAtlas, opcoes?: { comodos?: readonly string[]
   return saida;
 }
 
-type Parte = 'receitas' | 'colecao' | 'conjuntos' | 'comodos' | 'materiais' | 'telhado' | 'climas' | 'luzes' | 'presenca' | 'momentos';
+type Parte = 'receitas' | 'colecao' | 'familias' | 'conjuntos' | 'comodos' | 'materiais' | 'telhado' | 'climas' | 'luzes' | 'presenca' | 'momentos';
 const PARTES: readonly Parte[] = ['receitas', 'colecao', 'conjuntos', 'comodos', 'materiais', 'telhado', 'climas', 'luzes', 'presenca', 'momentos'];
 const LIMITE_BUSCA_CATALOGO = 40;
 
@@ -266,22 +268,30 @@ export function catalogo(parte?: string, busca?: string): unknown {
   const termos = busca ? normalizarBusca(busca.trim()).split(/\s+/).filter(Boolean) : [];
   const bate = (textos: readonly (string | undefined)[]) =>
     !termos.length || termos.every(t => textos.some(x => x !== undefined && normalizarBusca(x).includes(t)));
+  const nomeDaFamilia = (id: string) => ACERVO.familiaDoItem(id)?.nome;
+  const idDaFamilia = (id: string) => ACERVO.familiaDoItem(id)?.id;
   const listarReceitas = () =>
     listaDeReceitas()
-      .filter(r => bate([r.id, r.nome, ...r.tags, ...r.funcoes]))
-      .map(r => ({ id: r.id, nome: r.nome, categoria: r.categoria, tipo: r.tipo, funcoes: r.funcoes, tags: r.tags, ...(r.generos?.length ? { generos: r.generos } : {}), ...(r.kit ? { kit: r.kit } : {}), pegada: r.pegada, ...(r.altura !== undefined ? { altura: r.altura } : {}), ...(r.submerso ? { submerso: true } : {}), ...(r.campos?.length ? { campos: r.campos.map(c => ({ id: c.id, rotulo: c.rotulo, tipo: c.tipo, padrao: c.padrao, ...(c.min !== undefined ? { min: c.min } : {}), ...(c.max !== undefined ? { max: c.max } : {}), ...(c.uso ? { uso: c.uso } : {}) })) } : {}) }));
+      .filter(r => bate([r.id, r.nome, nomeDaFamilia(r.id), ...r.tags, ...r.funcoes]))
+      .map(r => ({ id: r.id, ...(idDaFamilia(r.id) ? { familia: idDaFamilia(r.id) } : {}), nome: r.nome, categoria: r.categoria, tipo: r.tipo, funcoes: r.funcoes, tags: r.tags, ...(r.generos?.length ? { generos: r.generos } : {}), ...(r.kit ? { kit: r.kit } : {}), pegada: r.pegada, ...(r.altura !== undefined ? { altura: r.altura } : {}), ...(r.submerso ? { submerso: true } : {}), ...(r.campos?.length ? { campos: r.campos.map(c => ({ id: c.id, rotulo: c.rotulo, tipo: c.tipo, padrao: c.padrao, ...(c.min !== undefined ? { min: c.min } : {}), ...(c.max !== undefined ? { max: c.max } : {}), ...(c.uso ? { uso: c.uso } : {}) })) } : {}) }));
   const listarColecao = () =>
     COLECAO
-      .filter(i => bate([i.id, i.nome, ...i.tags, ...i.funcoes]))
-      .map(i => ({ id: i.id, nome: i.nome, categoria: i.categoria, pegada: i.pegada, funcoes: i.funcoes, tags: i.tags, ...(i.generos.length ? { generos: i.generos } : {}), ...(i.kit ? { kit: i.kit } : {}) }));
+      .filter(i => bate([i.id, i.nome, nomeDaFamilia(i.id), ...i.tags, ...i.funcoes]))
+      .map(i => ({ id: i.id, ...(idDaFamilia(i.id) ? { familia: idDaFamilia(i.id) } : {}), nome: i.nome, categoria: i.categoria, pegada: i.pegada, funcoes: i.funcoes, tags: i.tags, ...(i.generos.length ? { generos: i.generos } : {}), ...(i.kit ? { kit: i.kit } : {}) }));
+  /** As famílias do acervo (o assistente pede `familia:<id>` em atlas_objetos e atlas_arranjo): grupo, id, nome e as variantes, da menor para a maior. */
+  const listarFamilias = () =>
+    ACERVO.familias()
+      .filter(f => bate([f.id, f.nome, f.grupo, GRUPOS_DE_OBJETOS.find(g => g.id === f.grupo)?.nome, ...f.itens, ...f.itens.map(id => ACERVO.item(id)?.nome)]))
+      .map(f => ({ grupo: f.grupo, id: f.id, nome: f.nome, itens: f.itens }));
   const listarConjuntos = () =>
     TODOS_OS_CONJUNTOS
-      .filter(c => bate([c.id, c.nome, c.descricao, ...c.itens.map(i => i.receita)]))
-      .map(c => ({ id: c.id, nome: c.nome, descricao: c.descricao, densidade: c.densidade, ...(c.grade ? { arranjo: 'fileiras' as const } : {}), itens: c.itens.map(i => i.receita) }));
+      .filter(c => bate([c.id, c.nome, c.descricao, ...c.itens.flatMap(i => [...receitasDoItem(i), ...(i.familia !== undefined ? [i.familia] : [])])]))
+      .map(c => ({ id: c.id, nome: c.nome, descricao: c.descricao, densidade: c.densidade, ...(c.grade ? { arranjo: 'fileiras' as const } : {}), itens: c.itens.map(i => (i.familia !== undefined ? `familia:${i.familia}` : i.receita)) }));
 
   switch (parte as Parte | undefined) {
     case 'receitas': return listarReceitas();
     case 'colecao': return listarColecao();
+    case 'familias': return listarFamilias();
     case 'conjuntos': return listarConjuntos();
     case 'comodos': return TIPOS_DE_COMODO.map(t => ({
       id: t.id,
@@ -313,11 +323,12 @@ export function catalogo(parte?: string, busca?: string): unknown {
         return {
           receitas: listarReceitas().slice(0, LIMITE_BUSCA_CATALOGO),
           colecao: listarColecao().slice(0, LIMITE_BUSCA_CATALOGO),
+          familias: listarFamilias().slice(0, LIMITE_BUSCA_CATALOGO),
           conjuntos: listarConjuntos().slice(0, LIMITE_BUSCA_CATALOGO),
           materiais: Object.values(MATERIAIS).filter(x => bate([x.id, x.nome, x.uso])).slice(0, LIMITE_BUSCA_CATALOGO).map(x => ({ id: x.id, nome: x.nome, uso: x.uso })),
         };
       }
-      return { partes: { receitas: listaDeReceitas().length, colecao: COLECAO.length, conjuntos: TODOS_OS_CONJUNTOS.length, comodos: TIPOS_DE_COMODO.length, materiais: Object.fromEntries((['piso', 'papel', 'objeto', 'terreno', 'macico', 'agua', 'telhado'] as const).map(u => [u, materiaisDo(u).length])), telhado: ESTILOS_DE_TELHADO.length, climas: PRESETS_DE_CLIMA.length, luzes: PRESETS_DE_LUZ.length, presenca: PINCEIS_DE_PRESENCA.length, momentos: TIPOS_DE_PASSO.length }, dica: 'Peça uma parte por vez com atlas_catalogo { parte } ou use busca para procurar por palavra.' };
+      return { partes: { receitas: listaDeReceitas().length, colecao: COLECAO.length, familias: ACERVO.familias().length, conjuntos: TODOS_OS_CONJUNTOS.length, comodos: TIPOS_DE_COMODO.length, materiais: Object.fromEntries((['piso', 'papel', 'objeto', 'terreno', 'macico', 'agua', 'telhado'] as const).map(u => [u, materiaisDo(u).length])), telhado: ESTILOS_DE_TELHADO.length, climas: PRESETS_DE_CLIMA.length, luzes: PRESETS_DE_LUZ.length, presenca: PINCEIS_DE_PRESENCA.length, momentos: TIPOS_DE_PASSO.length }, dica: 'Peça uma parte por vez com atlas_catalogo { parte } ou use busca para procurar por palavra.' };
     default: throw new Error(`Parte desconhecida: "${String(parte)}". Use: ${PARTES.join(', ')}.`);
   }
 }

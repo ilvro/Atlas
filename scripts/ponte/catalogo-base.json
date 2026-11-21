@@ -2187,7 +2187,7 @@
   },
   {
     "nome": "atlas_objetos",
-    "descricao": "Coloca até 200 objetos no mapa aberto, em metros. \"item\": receita ou colecao (atlas_catalogo). Detalhes: plataforma_guia ferramentas-atlas.",
+    "descricao": "Coloca até 200 objetos, em metros. \"item\": receita, colecao ou \"familia:<id>\" (atlas_catalogo). Detalhes: plataforma_guia ferramentas-atlas.",
     "esquema": {
       "type": "object",
       "properties": {

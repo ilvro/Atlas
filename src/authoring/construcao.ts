@@ -29,6 +29,7 @@ import {
 } from '../domain/mapa.ts';
 import { ESTILOS_DE_TELHADO, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, estiloDeTelhado, presetDeLuz, telhadoPadrao, tipoDeComodo } from '../domain/presets.ts';
 import { aplicarComando, type Comando } from '../state/comandos.ts';
+import { erroDeFamilia, itemDoPedido } from './familia-do-pedido.ts';
 import { TODOS_OS_CONJUNTOS, conjuntoDeEspalhar, espalhar as espalharConjunto } from './espalhar.ts';
 import { celulasDaForma, medirForma, sementeDaForma, type Forma, type Ret } from './formas.ts';
 
@@ -313,7 +314,9 @@ function itemInvalido(item: string): ErroDeConstrucao {
 export function objetos(mapa: MapaAtlas, pedidos: readonly PedidoDeObjeto[], semente = 1, gerarId: GeradorDeId = novoIdEntidade): Construcao {
   const rng = mulberry32(Math.floor(semente) || 1), comandos: Comando[] = [], ids: string[] = [];
   for (const p of pedidos) {
-    const info = ACERVO.item(p.item); if (!info) throw itemInvalido(p.item);
+    // `familia:<id>` sorteia a variante com o gerador da chamada; um item comum não sorteia nada (a sequência de sementes não muda).
+    const item = itemDoPedido(p.item, rng); if (item === null) throw new ErroDeConstrucao(erroDeFamilia(p.item));
+    const info = ACERVO.item(item); if (!info) throw itemInvalido(p.item);
     if (p.camada && !CAMADAS.includes(p.camada)) throw new ErroDeConstrucao(`camada “${p.camada}” não existe; camadas: ${lista(CAMADAS)}`);
     const submerso = (p.submerso ?? info.submerso) ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : {};
     const seed = Math.floor(rng() * 2 ** 31), rotation = p.rotacao ?? rng() * Math.PI * 2;
@@ -333,11 +336,11 @@ export function objetos(mapa: MapaAtlas, pedidos: readonly PedidoDeObjeto[], sem
     if (info.tipo === 'parede' || p.camada === 'wall') {
       const largura = typeof p.params?.largura === 'number' ? p.params.largura : info.pegada[0];
       const enc = encaixarObjetoDeParede(mapa, [p.pos[0], p.pos[1]], largura, false, p.andar ?? null);
-      if (!enc) throw new ErroDeConstrucao(`“${p.item}” é de parede e precisa de uma parede de cômodo a até ~1 m de [${p.pos[0]}, ${p.pos[1]}], com o ponto do lado de dentro do cômodo`);
+      if (!enc) throw new ErroDeConstrucao(`“${item}” é de parede e precisa de uma parede de cômodo a até ~1 m de [${p.pos[0]}, ${p.pos[1]}], com o ponto do lado de dentro do cômodo`);
       naParede = { position: [enc.ponto[0], enc.ponto[1]] as Ponto, elevation: 'wall' as const, wall: { wallId: enc.parede.id, at: enc.at, face: 'inner' as const }, roomId: enc.roomId, blocks: { move: false, sight: false }, castsShadow: false, rotation: 0 };
     }
     const o = novoObjeto([p.pos[0], p.pos[1]], {
-      id: gerarId('o'), source: ACERVO.fonte(p.item, seed, p.params), rotation, ...submerso,
+      id: gerarId('o'), source: ACERVO.fonte(item, seed, item === p.item ? p.params : {}), rotation, ...submerso,
       ...(p.escala !== undefined ? { scale: p.escala } : {}), ...(p.camada ? { elevation: p.camada } : {}),
       ...(typeof p.oculto === 'boolean' ? { oculto: p.oculto } : {}),
       ...(p.andar ? { levelId: p.andar } : {}),

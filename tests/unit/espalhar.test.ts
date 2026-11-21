@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CONJUNTOS_DE_ESPALHAR, CONJUNTOS_EXTERIORES, espalhar } from '../../src/authoring/espalhar.ts';
+import { CONJUNTOS_DE_ESPALHAR, CONJUNTOS_EXTERIORES, espalhar, receitasDoItem } from '../../src/authoring/espalhar.ts';
 import { insightDoComodo } from '../../src/authoring/insight.ts';
 import { malhaDoComodo, retanguloLivre } from '../../src/authoring/malha.ts';
 import { novoObjeto } from '../../src/domain/fabrica.ts';
@@ -24,7 +24,7 @@ const pedido = (centro: [number, number], raio: number, conjunto: string, sement
 
 test('os conjuntos existem e só citam receitas que existem', () => {
   assert.deepEqual(CONJUNTOS_DE_ESPALHAR.map(c => c.id), ['papelada', 'caixotes', 'bibelos', 'refeicao', 'bagunca', 'plantas']);
-  for (const c of CONJUNTOS_DE_ESPALHAR) { assert.ok(c.densidade > 0); for (const i of c.itens) assert.ok(receitaDe(i.receita), i.receita); }
+  for (const c of CONJUNTOS_DE_ESPALHAR) { assert.ok(c.densidade > 0); for (const i of c.itens) for (const r of receitasDoItem(i)) assert.ok(receitaDe(r), r); }
   assert.deepEqual(espalhar(escritorio(), pedido([3, 2], 1.5, 'nao-existe')), []);
 });
 
@@ -72,8 +72,8 @@ test('conjuntos exteriores por bioma só usam itens do acervo e espalham fora de
   for (const id of novosBiomas) {
     const conj = CONJUNTOS_EXTERIORES.find(c => c.id === id);
     assert.ok(conj, `conjunto ${id} ausente`);
-    for (const item of conj.itens) assert.ok(ACERVO.item(item.receita), `${id}: item inválido ${item.receita}`);
-    const permitidos = new Set(conj.itens.map(i => i.receita));
+    for (const item of conj.itens) for (const r of receitasDoItem(item)) assert.ok(ACERVO.item(r), `${id}: item inválido ${r}`);
+    const permitidos = new Set(conj.itens.flatMap(receitasDoItem));
     const m = escritorio();
     const colocados = espalhar(m, pedido([25, 25], 8, id, 17));
     assert.ok(colocados.length >= 3, `${id}: gerou apenas ${colocados.length}`);

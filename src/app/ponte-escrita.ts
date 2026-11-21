@@ -471,7 +471,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
     },
     {
       nome: 'atlas_objetos',
-      descricao: 'Coloca até 200 objetos no mapa aberto, em metros. "item": receita ou colecao (atlas_catalogo). Detalhes: plataforma_guia ferramentas-atlas.',
+      descricao: 'Coloca até 200 objetos, em metros. "item": receita, colecao ou "familia:<id>" (atlas_catalogo). Detalhes: plataforma_guia ferramentas-atlas.',
       esquema: { type: 'object', properties: {
         objetos: { type: 'array', minItems: 1, maxItems: MAX_OBJETOS, items: { type: 'object', properties: {
           item: { type: 'string' }, pos: ponto, rotacao: { type: 'number' }, escala: { type: 'number', minimum: 0.05, maximum: 50 },

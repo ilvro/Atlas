@@ -36,7 +36,7 @@ Dispõe até 300 objetos em padrões geométricos com variação controlada (`fi
 
 Parâmetros principais:
 - `padrao`: `'fileiras' | 'grade-solta' | 'aglomerado' | 'ao-longo' | 'circulo' | 'bordas'`. Em `'ao-longo'`, `area` deve ser `{ faixa, largura }`.
-- `itens[]`: `{ item, peso?, escala?: [min, max], params? }` (confira ids com `atlas_catalogo`).
+- `itens[]`: `{ item, peso?, escala?: [min, max], params? }` (confira ids com `atlas_catalogo`). `item` aceita `familia:<id>`: cada posição sorteia uma variante da família.
 - `espacamento`: `[dx, dy]` em metros (ou `[passoAoLongo, afastamentoLateral]` em `ao-longo`).
 - `angulo`, `desalinho`, `giro`, `falhas` (`0..0.6`), `encarar` (`fileira | centro | caminho | livre`), `grupos` (`{ tamanho: [cols, rows], vazio }`), `andar` (id de andar ou `null` para o térreo).
 
@@ -79,7 +79,7 @@ Corredor de cascalho entre túmulos:
 
 ## atlas_catalogo
 
-Catálogo de opções: `receitas`, `colecao`, `conjuntos`, `comodos`, `materiais`, `telhado`, `climas`, `luzes`, `presenca` ou `momentos`. Sem `parte`, traz contagens. Com `busca` (texto de até 60 caracteres), filtra por id, nome, tags e funções (sem `parte`, procura em receitas, coleção, conjuntos e materiais, até 40 de cada). Use para não inventar ids.
+Catálogo de opções: `receitas`, `colecao`, `familias` (grupo, id, nome e variantes de cada família; cada item de `receitas` e `colecao` traz a sua `familia`), `conjuntos`, `comodos`, `materiais`, `telhado`, `climas`, `luzes`, `presenca` ou `momentos`. Sem `parte`, traz contagens. Com `busca` (texto de até 60 caracteres), filtra por id, nome, tags e funções (sem `parte`, procura em receitas, coleção, conjuntos e materiais, até 40 de cada). Use para não inventar ids.
 
 ## atlas_comodos
 
@@ -253,7 +253,7 @@ Escreve notas no mapa aberto (um passo de desfazer), substituindo o campo anteri
 
 ## atlas_objetos
 
-Coloca até 200 objetos no mapa aberto em metros (um passo de desfazer). "item": receita (atlas_catalogo { parte: "receitas" }) ou colecao.
+Coloca até 200 objetos no mapa aberto em metros (um passo de desfazer). "item": receita (atlas_catalogo { parte: "receitas" }) ou colecao, ou `familia:<id>` (atlas_catalogo { parte: "familias" }): a ferramenta sorteia a variante pela semente da chamada, e cada objeto do pedido pode sair de uma variante diferente.
 
 Parâmetros de cada objeto:
 - `item`: id da receita (ex.: `"arvore-morta"`, `"carroca-tombada"`, `"laje-de-pedra"`) ou `"casa:<assetId>"`.

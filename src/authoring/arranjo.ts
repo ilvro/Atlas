@@ -9,6 +9,7 @@ import type { MapaAtlas, Ponto } from '../domain/mapa.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { mulberry32 } from '../procedural/ruido.ts';
 import type { Comando } from '../state/comandos.ts';
+import { erroDeFamilia, ehPedidoDeFamilia, familiaDoPedido, itemDoPedido } from './familia-do-pedido.ts';
 import { ErroDeConstrucao, type Construcao, type GeradorDeId } from './construcao.ts';
 import { medirForma, sementeDaForma, type Forma } from './formas.ts';
 import { caixaDoObjeto, type Caixa } from './insight.ts';
@@ -163,7 +164,8 @@ export function arranjar(
     throw new ErroDeConstrucao('um arranjo precisa de ao menos 1 item');
   }
   for (const it of p.itens) {
-    if (!ACERVO.item(it.item)) throw erroDeItem(it.item);
+    if (ehPedidoDeFamilia(it.item)) { if (!familiaDoPedido(it.item)) throw new ErroDeConstrucao(erroDeFamilia(it.item)); }
+    else if (!ACERVO.item(it.item)) throw erroDeItem(it.item);
     if (it.peso !== undefined && (!Number.isFinite(it.peso) || it.peso <= 0)) {
       throw new ErroDeConstrucao(`peso inválido (${it.peso}) em “${it.item}”`);
     }
@@ -350,7 +352,7 @@ export function arranjar(
     const escolha = sortearItem(p.itens, pesosAcum, rng());
     const escala = escolha.escala ? escolha.escala[0] + rng() * (escolha.escala[1] - escolha.escala[0]) : 1;
     const itemSeed = Math.floor(rng() * 2 ** 31);
-    const fonte = ACERVO.fonte(escolha.item, itemSeed, escolha.params);
+    const itemId = itemDoPedido(escolha.item, rng)!, fonte = ACERVO.fonte(itemId, itemSeed, itemId === escolha.item ? escolha.params : {});
     const [fw, fh] = ACERVO.pegadaDaFonte(fonte);
     let rotacao: number;
     if (encarar === 'livre') rotacao = rng() * Math.PI * 2;
