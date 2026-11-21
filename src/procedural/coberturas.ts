@@ -31,6 +31,10 @@ export const PADROES_DE_COBERTURA = [
   'bambu',
   'couro-telhado',
   'chumbo',
+  'marmore-telhado',
+  'ouro-telhado',
+  'vidro-telhado',
+  'vitral-telhado',
 ] as const;
 export type PadraoDeCobertura = (typeof PADROES_DE_COBERTURA)[number];
 export const ehPadraoDeCobertura = (p: string): p is PadraoDeCobertura => (PADROES_DE_COBERTURA as readonly string[]).includes(p);
@@ -74,6 +78,10 @@ export const CAPA_DA_COBERTURA: Readonly<Record<PadraoDeCobertura, CapaDeCumeeir
   'concreto-laje': 'platibanda',
   'grama-telhado': 'grama',
   lona: 'lona',
+  'marmore-telhado': 'pedra',
+  'ouro-telhado': 'pedra',
+  'vidro-telhado': 'chapa-dobrada',
+  'vitral-telhado': 'chumbo',
 };
 
 /** Lado do ladrilho periódico em metros: no modo periódico todo padrão fecha nos dois eixos. */
@@ -90,6 +98,12 @@ export interface AmostraDeCobertura {
   h: number;
   /** Inteiro não-negativo estável por peça (telha, placa, tábua, chapa, painel). */
   id: number;
+  /** Opacidade local (0–1; ausente = 1, opaco). Vidro e vitral ficam translúcidos nos painéis e opacos nos caixilhos. */
+  alfa?: number;
+  /** Brilho especular local (0–1; ausente = usa `material.especular ?? 0`). */
+  especular?: number;
+  /** Cor RGB opcional (0–255) quando o padrão tem múltiplas cores ricas por peça (ex.: vitral colorido). */
+  cor?: [number, number, number];
 }
 
 type AmostradorInterno = (x: number, y: number, s: number, o: AmostraDeCobertura, periodico: boolean) => void;
@@ -167,6 +181,22 @@ function pecaNaFiada(
 
 /** Platô com junta funda e bisel nítido, como nos pintores de altura. */
 const bisel = (d: number, junta: number, larg: number) => entre(junta, junta + larg, d);
+
+/** Paleta translúcida de vidros coloridos para o vitral (cobalto, rubi, âmbar, esmeralda, violeta, safira). */
+const CORES_VITRAL: readonly (readonly [number, number, number])[] = [
+  [40, 92, 212],
+  [198, 36, 58],
+  [232, 166, 36],
+  [34, 156, 94],
+  [138, 58, 190],
+  [46, 152, 206],
+];
+
+function limparExtras(o: AmostraDeCobertura): void {
+  if (o.alfa !== undefined) delete o.alfa;
+  if (o.especular !== undefined) delete o.especular;
+  if (o.cor !== undefined) delete o.cor;
+}
 
 const AMOSTRADORES: Record<PadraoDeCobertura, AmostradorInterno> = {
   /**
@@ -1202,6 +1232,244 @@ const AMOSTRADORES: Record<PadraoDeCobertura, AmostradorInterno> = {
     o.h = lim(h);
     o.id = id;
   },
+
+  /**
+   * Lajes de mármore lavrado: blocos grandes (~0,67 × 0,5 m) desencontrados com juntas chanfradas nítidas,
+   * friso moldurado sutil perto da borda e veios orgânicos contínuos dentro de cada laje.
+   */
+  'marmore-telhado': (x, y, s, o, per) => {
+    const pw = P / 3, rh = 0.5;
+    const jRaw = Math.floor(y / rh), v = y / rh - jRaw;
+    const off = md(jRaw, 2) * (pw * 0.5);
+    const iRaw = Math.floor((x - off) / pw), u = (x - off) / pw - iRaw;
+    const i = per ? md(iRaw, 3) : iRaw, j = per ? md(jRaw, 4) : jRaw;
+    const id = idPeca(i, j);
+
+    const tomPeca = (hashDaPeca(id, s + 17) - 0.5) * 0.14;
+    const manchaPeca = (hashDaPeca(id, s + 29) - 0.5) * 0.16;
+    const altPeca = (hashDaPeca(id, s + 71) - 0.5) * 0.035;
+
+    const du = Math.min(u, 1 - u) * pw;
+    const dv = Math.min(v, 1 - v) * rh;
+    const dBorda = Math.min(du, dv);
+
+    // Veios contínuos dentro da laje (quebram naturalmente nas juntas).
+    const angV = 0.42 + (hashDaPeca(id, s + 31) - 0.5) * 0.9;
+    const faseV = hashDaPeca(id, s + 37) * 4;
+    const uxM = u * pw, vyM = v * rh;
+    const proj = uxM * Math.cos(angV) + vyM * Math.sin(angV);
+    const warp1 = fb(x, y, 8, 8, s + 11, per, 3);
+    const warp2 = fb(x, y, 20, 20, s + 19, per, 2);
+    const q = proj * 4.6 + faseV + (warp1 - 0.5) * 3.4 + (warp2 - 0.5) * 0.95;
+    const veioPrim = Math.pow(1 - Math.abs(Math.sin(q * Math.PI)), 7);
+    const veioSec = Math.pow(1 - Math.abs(Math.sin((q * 2.15 + 0.65) * Math.PI)), 9) * 0.55;
+    const polido = fb(x, y, 12, 12, s + 3, per, 2);
+
+    // Junta chanfrada precisa e friso lavrado discreto a ~4,5 cm da borda.
+    const plat = bisel(dBorda, 0.006, 0.018);
+    const friso = Math.exp(-Math.pow((dBorda - 0.044) / 0.0065, 2));
+    const rampa = 0.72 + 0.11 * v;
+    const h = 0.09 + (rampa + altPeca + (polido - 0.5) * 0.02) * plat - 0.09 * friso * plat;
+
+    let t = 0.54 + tomPeca + (polido - 0.5) * 0.12 - 0.28 * veioPrim + 0.18 * veioSec;
+    if (dBorda < 0.009) t = 0.14;
+    else if (dBorda < 0.022) t = t * 0.72 + 0.12;
+    else if (friso > 0.25) t -= 0.1 * friso;
+    if (v < 0.045) t -= 0.14 * (1 - v / 0.045);
+
+    o.t = t;
+    o.m = fb(x, y, 5, 5, s + 7, per) * 0.65 + 0.24 * (1 - entre(0.008, 0.06, dBorda)) + manchaPeca;
+    o.h = lim(h);
+    o.id = id;
+    if (dBorda < 0.012) o.especular = 0.06;
+  },
+
+  /**
+   * Folha de ouro: escamas/telhas ogivais sobrepostas com nervura central sutil, borda inferior clara,
+   * micro-martelado rico e brilho especular metálico intenso.
+   */
+  'ouro-telhado': (x, y, s, o, per) => {
+    const sw = 0.2, rh = 0.2, r = sw / 2;
+    const escama = (jRow: number) => {
+      const off = md(jRow, 2) * r;
+      const iRaw = Math.floor((x - off) / sw);
+      const cx = off + iRaw * sw + r;
+      const dx = (x - cx) / r;
+      const ax = Math.abs(dx);
+      // Borda inferior ogival/pontiaguda (distinta da escama semicircular de ardósia).
+      const ponta = Math.pow(Math.max(0, 1 - ax * ax), 0.72) * 0.65 + (1 - ax) * 0.4;
+      const fundo = jRow * rh + rh * 0.45 + rh * 0.92 * ponta;
+      return { iRaw, dx, ax, fundo };
+    };
+    const j0 = Math.floor(y / rh), cima = escama(j0 - 1);
+    const dentroDeCima = y <= cima.fundo;
+    const e = dentroDeCima ? cima : escama(j0);
+    const jRaw = dentroDeCima ? j0 - 1 : j0;
+    const i = per ? md(e.iRaw, 10) : e.iRaw, j = per ? md(jRaw, 10) : jRaw;
+    const id = idPeca(i, j);
+
+    const tomPeca = (hashDaPeca(id, s + 17) - 0.5) * 0.14;
+    const altPeca = (hashDaPeca(id, s + 71) - 0.5) * 0.04;
+    const martelado = fb(x, y, 28, 28, s + 3, per, 2);
+
+    const vb = e.fundo - y;
+    const vs = (1 - e.ax) * r;
+    const sobCima = dentroDeCima ? 1 : y - cima.fundo;
+
+    const rampa = 0.88 - 0.34 * lim(vb / 0.18);
+    const bordaInf = bisel(vb, 0.004, 0.015);
+    const bordaLat = bisel(vs, 0.004, 0.012);
+    const degrauCima = dentroDeCima ? 1 : 0.24 + 0.76 * entre(0, 0.022, sobCima);
+    const nervura = Math.exp(-e.dx * e.dx * 16) * 0.12 * bordaInf;
+
+    let h = (0.08 + (rampa - 0.08) * bordaInf * bordaLat) * degrauCima + nervura + altPeca + (martelado - 0.5) * 0.018;
+    // Borda inferior clara e nervura reluzente em folha de ouro.
+    const realceBorda = entre(0.036, 0.012, vb) * entre(0.004, 0.011, vb);
+    let t = 0.52 + tomPeca + 0.16 * realceBorda + 0.14 * nervura / 0.12 + 0.08 * (1 - e.ax * 0.7) + (martelado - 0.5) * 0.08;
+    let spec = 0.92;
+    if (vb < 0.009) {
+      t = 0.14;
+      h = Math.min(h, 0.12 + (vb / 0.009) * 0.15);
+      spec = 0.25;
+    }
+    if (vs < 0.006) {
+      t = Math.min(t, 0.2);
+      spec = 0.3;
+    }
+    if (!dentroDeCima && sobCima < 0.03) {
+      const kS = 1 - sobCima / 0.03;
+      t -= 0.28 * kS;
+      spec *= 1 - 0.65 * kS;
+    }
+
+    o.t = t;
+    o.m = fb(x, y, 5, 5, s + 7, per) * 0.5;
+    o.h = lim(h);
+    o.id = id;
+    o.especular = spec;
+  },
+
+  /**
+   * Estufa de vidro: caixilhos de ferro escuro opacos em relevo alto dividindo painéis de vidro translúcido
+   * (alfa ≈ 0,35, especular alto) com leve reflexo diagonal azul-celeste.
+   */
+  'vidro-telhado': (x, y, s, o, per) => {
+    const pw = 0.5, rh = 0.5;
+    const iRaw = Math.floor(x / pw), jRaw = Math.floor(y / rh);
+    const u = x / pw - iRaw, v = y / rh - jRaw;
+    const i = per ? md(iRaw, 4) : iRaw, j = per ? md(jRaw, 4) : jRaw;
+    const id = idPeca(i, j);
+
+    const du = Math.min(u, 1 - u) * pw;
+    const dv = Math.min(v, 1 - v) * rh;
+    const largMontante = 0.028;
+    const largTravessa = 0.02;
+    const noMontante = du < largMontante;
+    const naTravessa = dv < largTravessa;
+
+    if (noMontante || naTravessa) {
+      // Caixilho de ferro escuro em relevo alto (opaco).
+      const fM = noMontante ? 1 - du / largMontante : 0;
+      const fT = naTravessa ? 1 - dv / largTravessa : 0;
+      const perfil = Math.max(fM, fT);
+      const coroa = Math.sqrt(Math.max(0, 1 - (1 - perfil) * (1 - perfil)));
+      const noCruz = du < 0.022 && dv < 0.022;
+      const graoFerro = fb(x, y, 24, 24, s + 3, per, 2);
+
+      o.h = lim(0.62 + 0.28 * coroa + (noCruz ? 0.08 : 0) + (graoFerro - 0.5) * 0.02);
+      o.t = lim(0.1 + 0.16 * coroa + (noCruz ? 0.1 : 0) + (graoFerro - 0.5) * 0.05);
+      o.m = fb(x, y, 6, 6, s + 7, per) * 0.5;
+      o.id = id;
+      o.alfa = 1.0;
+      o.especular = 0.25;
+      return;
+    }
+
+    // Painel de vidro translúcido com leve reflexo diagonal azul-celeste.
+    const tomPeca = (hashDaPeca(id, s + 17) - 0.5) * 0.09;
+    const ondaVidro = fb(x, y, 10, 10, s + 11, per, 2);
+    const diag = u * 0.72 + v * 0.68;
+    const reflexo =
+      Math.exp(-Math.pow((diag - 0.46) / 0.13, 2)) * 0.34 +
+      Math.exp(-Math.pow((diag - 0.84) / 0.08, 2)) * 0.18;
+    const dQuadro = Math.min(du - largMontante, dv - largTravessa);
+    const bordaMassa = 1 - entre(0, 0.018, dQuadro);
+
+    o.h = lim(0.24 + 0.05 * bordaMassa + (ondaVidro - 0.5) * 0.02);
+    o.t = lim(0.5 + tomPeca + reflexo - 0.14 * bordaMassa + (ondaVidro - 0.5) * 0.06);
+    o.m = fb(x, y, 5, 5, s + 7, per) * 0.35 + 0.25 * bordaMassa;
+    o.id = id;
+    o.alfa = 0.35 + 0.12 * bordaMassa;
+    o.especular = 0.85;
+  },
+
+  /**
+   * Vitral colorido: malha de chumbo opaca em relevo dividindo painéis em losango e cantos ogivais
+   * com cores translúcidas ricas (cobalto, rubi, âmbar, esmeralda, violeta).
+   */
+  'vitral-telhado': (x, y, s, o, per) => {
+    const pw = 0.5, rh = 0.5;
+    const iRaw = Math.floor(x / pw), jRaw = Math.floor(y / rh);
+    const u = x / pw - iRaw, v = y / rh - jRaw;
+    const i = per ? md(iRaw, 4) : iRaw, j = per ? md(jRaw, 4) : jRaw;
+
+    const du = Math.min(u, 1 - u) * pw;
+    const dv = Math.min(v, 1 - v) * rh;
+    const cx = (u - 0.5) * 2;
+    const cy = (v - 0.5) * 2;
+    const dLos = Math.abs(cx) + Math.abs(cy);
+    const dDiagChumbo = Math.abs(dLos - 0.94);
+
+    // Subpeça estável: 0 = losango central, 1..4 = quatro cantos triangulares.
+    const sub = dLos < 0.94 ? 0 : 1 + (cx >= 0 ? 1 : 0) + (cy >= 0 ? 2 : 0);
+    const id = idPeca(i, j, sub);
+
+    const bordaExt = du < 0.02 || dv < 0.02;
+    const bordaLos = dDiagChumbo < 0.068;
+
+    if (bordaExt || bordaLos) {
+      // Malha de chumbo opaca em relevo arredondado.
+      const fExt = bordaExt ? 1 - Math.min(du, dv) / 0.02 : 0;
+      const fLos = bordaLos ? 1 - dDiagChumbo / 0.068 : 0;
+      const perfil = Math.max(fExt, fLos);
+      const arco = Math.sqrt(Math.max(0, 1 - (1 - perfil) * (1 - perfil)));
+      o.h = lim(0.68 + 0.24 * arco);
+      o.t = lim(0.08 + 0.14 * arco);
+      o.m = fb(x, y, 6, 6, s + 7, per) * 0.4;
+      o.id = id;
+      o.alfa = 1.0;
+      o.especular = 0.2;
+      if (o.cor !== undefined) delete o.cor;
+      return;
+    }
+
+    // Painel de vidro colorido translúcido.
+    const idxBase = Math.floor(hashDaPeca(idPeca(i, j, 0), s + 37) * CORES_VITRAL.length);
+    const idxCor = sub === 0
+      ? idxBase
+      : (idxBase + 1 + Math.floor(hashDaPeca(id, s + 43) * (CORES_VITRAL.length - 1))) % CORES_VITRAL.length;
+    const cBase = CORES_VITRAL[idxCor]!;
+
+    const vidroTex = fb(x, y, 22, 22, s + 5, per, 2);
+    const diag = u * 0.7 + v * 0.7;
+    const brilho = Math.exp(-Math.pow((diag - 0.5) / 0.16, 2)) * 0.24;
+    const dCentro = sub === 0 ? dLos / 0.94 : Math.min(1, Math.hypot(Math.abs(cx) - 0.75, Math.abs(cy) - 0.75) / 0.6);
+    const fatorLuz = 0.84 + 0.28 * (1 - dCentro) + brilho + (vidroTex - 0.5) * 0.16;
+
+    const r = Math.min(255, Math.max(0, cBase[0] * fatorLuz + brilho * 65));
+    const g = Math.min(255, Math.max(0, cBase[1] * fatorLuz + brilho * 65));
+    const b = Math.min(255, Math.max(0, cBase[2] * fatorLuz + brilho * 65));
+
+    if (!o.cor) o.cor = [r, g, b];
+    else { o.cor[0] = r; o.cor[1] = g; o.cor[2] = b; }
+
+    o.h = lim(0.24 + 0.12 * (1 - dCentro) + (vidroTex - 0.5) * 0.03);
+    o.t = lim(0.42 + 0.34 * (1 - dCentro) + brilho + (vidroTex - 0.5) * 0.12);
+    o.m = fb(x, y, 5, 5, s + 7, per) * 0.35;
+    o.id = id;
+    o.alfa = 0.45;
+    o.especular = 0.8;
+  },
 };
 
 function padraoDe(m: Material): PadraoDeCobertura {
@@ -1233,6 +1501,7 @@ export function amostrarPontoContinuo(
   semente = 1,
   saida: AmostraDeCobertura = { t: 0, m: 0, h: 0, id: 0 },
 ): AmostraDeCobertura {
+  limparExtras(saida);
   AMOSTRADORES[padraoDe(m)](u, v, Math.floor(semente) * 101 + 7, saida, false);
   return saida;
 }
@@ -1240,7 +1509,10 @@ export function amostrarPontoContinuo(
 /** Devolve um amostrador contínuo vinculado ao material e à semente (sem busca de mapa por pixel). */
 export function amostradorContinuo(m: Material, semente = 1): AmostradorDeCobertura {
   const fn = AMOSTRADORES[padraoDe(m)], s = Math.floor(semente) * 101 + 7;
-  return (u, v, saida) => fn(u, v, s, saida, false);
+  return (u, v, saida) => {
+    limparExtras(saida);
+    fn(u, v, s, saida, false);
+  };
 }
 
 const rgb = (hex: string): [number, number, number] => { const p = parseInt(hex.slice(1), 16); return [(p >> 16) & 255, (p >> 8) & 255, p & 255]; };
@@ -1278,23 +1550,37 @@ export function amostrarCobertura(m: Material, estilo: EstiloDaCobertura, sement
   const manchaPx = pixel ? [mix(M, [0, 0, 0], 0.35), M] : [];
   const dados = new Uint8ClampedArray(lado * lado * 4), o: AmostraDeCobertura = { t: 0, m: 0, h: 0, id: 0 };
   for (let py = 0; py < lado; py++) for (let px = 0; px < lado; px++) {
-    let soma = 0, menor = 1, somaM = 0;
+    let soma = 0, menor = 1, somaM = 0, somaA = 0, somaR = 0, somaG = 0, somaB = 0, temCor = false;
     for (let sy = 0; sy < sub; sy++) for (let sx = 0; sx < sub; sx++) {
+      limparExtras(o);
       amostrar((px + (sx + 0.5) / sub) * passo, (py + (sy + 0.5) / sub) * passo, s, o, true);
-      const t = lim(o.t); soma += t; somaM += o.m; if (t < menor) menor = t;
+      const t = lim(o.t); soma += t; somaM += o.m; somaA += o.alfa ?? 1; if (t < menor) menor = t;
+      if (!pixel) {
+        if (o.cor) {
+          temCor = true;
+          somaR += o.cor[0]; somaG += o.cor[1]; somaB += o.cor[2];
+        } else {
+          const baseS = t < 0.5 ? mix(E, B, t * 2) : mix(B, C, (t - 0.5) * 2);
+          somaR += baseS[0]!; somaG += baseS[1]!; somaB += baseS[2]!;
+        }
+      }
     }
     const n = sub * sub, media = soma / n, mm = somaM / n, peso = q > 0 ? entre(1 - q - 0.12, 1 - q + 0.12, mm) : 0;
     let cor: readonly number[];
+    let alfa = 255;
     if (pixel) {
       // A linha fina (junta, beira) puxa o pixel para baixo: o Pixel mantém as fiadas legíveis mesmo menores que um pixel.
       const t = media * 0.6 + menor * 0.4;
       cor = peso > 0.5 ? manchaPx[t < 0.42 ? 0 : 1]! : tons[Math.min(4, Math.floor(t * 5))]!;
     } else {
-      const base = media < 0.5 ? mix(E, B, media * 2) : mix(B, C, (media - 0.5) * 2);
+      const base = temCor
+        ? [somaR / n, somaG / n, somaB / n]
+        : media < 0.5 ? mix(E, B, media * 2) : mix(B, C, (media - 0.5) * 2);
       cor = peso > 0 ? mix(base, mix(mix(M, [0, 0, 0], 0.45), mix(M, [255, 255, 255], 0.12), media), peso * 0.92) : base;
+      alfa = Math.round(lim(somaA / n) * 255);
     }
     const k = (py * lado + px) * 4;
-    dados[k] = cor[0]!; dados[k + 1] = cor[1]!; dados[k + 2] = cor[2]!; dados[k + 3] = 255;
+    dados[k] = cor[0]!; dados[k + 1] = cor[1]!; dados[k + 2] = cor[2]!; dados[k + 3] = alfa;
   }
   return { lado, metros: P, dados };
 }

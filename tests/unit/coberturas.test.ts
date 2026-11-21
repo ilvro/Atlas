@@ -32,8 +32,8 @@ function diferenca(l: LadrilhoDeCobertura, a: number, b: number, eixo: 'x' | 'y'
   return soma / (l.lado * 3);
 }
 
-test('há 24 coberturas, todas com padrão de cobertura, capa de cumeeira e suporte no Pixel e fora de PADROES_DEPENDENTES_DE_AREA', () => {
-  assert.equal(COBERTURAS.length, 24);
+test('há 30 coberturas, todas com padrão de cobertura, capa de cumeeira e suporte no Pixel e fora de PADROES_DEPENDENTES_DE_AREA', () => {
+  assert.equal(COBERTURAS.length, 30);
   for (const m of COBERTURAS) {
     assert.ok(ehPadraoDeCobertura(m.padrao), `${m.id} tem padrão ${m.padrao}`);
     assert.equal(padraoDependeDaArea(m.padrao), false, `${m.id} (${m.padrao}) não deve depender de área`);
@@ -91,6 +91,7 @@ test('as coberturas são distintas: barro, ardósia e palha não saem iguais (ne
     'telha.barro', 'telha.ardosia', 'telha.palha', 'telha.escamas', 'telha.zinco',
     'telha.tabuas', 'telha.francesa', 'telha.esmaltada.verde', 'telha.chapa.cinza',
     'telha.fibrocimento', 'telha.bambu', 'telha.couro', 'telha.chumbo',
+    'telha.marmore', 'telha.ouro', 'telha.vidro', 'telha.vitral',
   ];
   const formas = ids.map(luminancias);
   for (let a = 0; a < ids.length; a++) for (let b = a + 1; b < ids.length; b++) {
@@ -161,6 +162,10 @@ test('duas peças vizinhas têm id diferente e pontos dentro da mesma peça mant
     bambu: [0.2, 0.4],
     'couro-telhado': [0.7, 0.5],
     chumbo: [0.7, 1.0],
+    'marmore-telhado': [0.7, 0.5],
+    'ouro-telhado': [0.2, 0.2],
+    'vidro-telhado': [0.5, 0.5],
+    'vitral-telhado': [0.5, 0.5],
   };
   for (const m of COBERTURAS) {
     const [du, dv] = passos[m.padrao]!;
@@ -220,4 +225,34 @@ test('corDaAmostra e hashDaPeca são determinísticos e ficam nas faixas válida
   assert.equal(h1, hashDaPeca(12345, 7));
   assert.ok(h1 >= 0 && h1 < 1);
   assert.notEqual(h1, hashDaPeca(12346, 7));
+});
+
+test('coberturas nobres e transparentes expõem alfa nos vidros/caixilhos, especular alto e cores ricas no vitral', () => {
+  const vidro = COBERTURAS.find(m => m.id === 'telha.vidro')!;
+  const vitral = COBERTURAS.find(m => m.id === 'telha.vitral')!;
+  const ouro = COBERTURAS.find(m => m.id === 'telha.ouro')!;
+  const marmore = COBERTURAS.find(m => m.id === 'telha.marmore')!;
+
+  assert.ok((ouro.especular ?? 0) > 0.85);
+  assert.ok((marmore.especular ?? 0) >= 0.3 && (marmore.especular ?? 0) <= 0.5);
+
+  const centroVidro = amostrarPontoContinuo(vidro, 0.25, 0.25, 1);
+  const caixilhoVidro = amostrarPontoContinuo(vidro, 0.005, 0.25, 1);
+  assert.ok((centroVidro.alfa ?? 1) < 0.5, `painel de vidro deve ser translúcido, veio alfa=${centroVidro.alfa}`);
+  assert.equal(caixilhoVidro.alfa, 1, 'caixilho de ferro do vidro deve ser opaco');
+  assert.ok((centroVidro.especular ?? 0) > 0.75);
+  assert.ok((caixilhoVidro.especular ?? 1) < 0.4);
+
+  const chumboVitral = amostrarPontoContinuo(vitral, 0.005, 0.25, 1);
+  assert.equal(chumboVitral.alfa, 1, 'malha de chumbo do vitral deve ser opaca');
+  assert.equal(chumboVitral.cor, undefined);
+
+  const coresVitral = new Set<string>();
+  for (let j = 0; j < 6; j++) for (let i = 0; i < 6; i++) {
+    const a = amostrarPontoContinuo(vitral, i * 0.5 + 0.25, j * 0.5 + 0.25, 3);
+    assert.ok((a.alfa ?? 1) < 0.6, `painel do vitral deve ser translúcido, veio alfa=${a.alfa}`);
+    assert.ok(a.cor, 'painel do vitral deve expor cor RGB');
+    coresVitral.add(a.cor.map(v => Math.round(v / 32)).join(','));
+  }
+  assert.ok(coresVitral.size >= 4, `vitral deve ter variedade de cores, achou ${coresVitral.size}`);
 });

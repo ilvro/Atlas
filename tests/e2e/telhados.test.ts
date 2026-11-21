@@ -507,3 +507,53 @@ test('fachada sob o beiral: mostra parede, porta e janela com telhado fechado, d
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test('estufa de vidro fechada deixa ver o piso embaixo: brilho sobre o telhado muda ao trocar o piso entre claro e escuro', async () => {
+  const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
+  await criarMapaPelaInterface(page);
+  await sessao(page, `(s, a) => {
+    const cel = []; for (let y = 4; y < 7; y++) for (let x = 6; x < 10; x++) cel.push([x, y]);
+    s.store.executar({ tipo: "terreno.base", material: "grama" });
+    s.store.executar({ tipo: "clima.aplicar", patch: { preset: "tarde", time: "12:00", ambient: { color: "#ffffff", intensity: 1 }, sun: { angle: 1.57, color: "#fff8e8", intensity: 1 } } });
+    s.store.executar({ tipo: "acabamento.atualizar", patch: { preset: "nenhum", texture: 0, vignette: 0, saturation: 1, grain: 0, tint: "#ffffff" } });
+    s.store.executar({ tipo: "comodo.criar", id: "estufa", nome: "Estufa", funcao: "sala", piso: { material: "marmore.branco", seed: 1 }, papel: null, telhado: "telha.vidro", celulas: cel });
+    s.store.executar({ tipo: "comodo.atualizar", id: "estufa", patch: { roof: { shape: "duas-aguas", ridge: "h", details: [] } } });
+    s.store.executar({ tipo: "item.adicionar", colecao: "lights", item: {
+      id: "l1", position: [12.0, 8.25], radius: 7, color: "#ffffff", intensity: 1.5,
+      flicker: 0, cone: null, ownerId: null, power: "magic", on: true, nightOnly: false, preset: "lamparina", rays: false
+    } });
+    s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: a.dentro });
+    s.store.executar({ tipo: "sessao.revelar", ids: ["estufa"] });
+    s.store.executar({ tipo: "sessao.telhados", modo: "fechados" });
+  }`, { dentro: peca('p1', 'Dentro', 9.75, 6.75) });
+  await page.waitForTimeout(900);
+
+  await page.click('[data-testid="modo-sessao"]');
+  await page.waitForTimeout(300);
+  await page.click('[data-testid="vista-jogador"]');
+  await page.waitForTimeout(3200);
+  await page.waitForFunction(() => (window as unknown as { __atlas: { viewport(): { pintando: number } } }).__atlas.viewport().pintando === 0, null, { timeout: 15_000 });
+  await page.waitForTimeout(500);
+
+  const diag = await telhados(page);
+  assert.deepEqual(diag.map(d => [d.id, d.alfa, d.alvo]), [['estufa', 1, 1]], 'estufa deve estar com telhado fechado');
+
+  const regiaoTelhado: [[number, number], [number, number]] = [[11.0, 7.2], [14.0, 9.5]];
+  const bPisoClaro = await brilho(page, ...regiaoTelhado);
+
+  await sessao(page, `(s) => {
+    s.store.executar({ tipo: "comodo.atualizar", id: "estufa", patch: { floor: { material: "tabuas.escuras", seed: 1 } } });
+  }`);
+  await page.waitForTimeout(1000);
+  await page.waitForFunction(() => (window as unknown as { __atlas: { viewport(): { pintando: number } } }).__atlas.viewport().pintando === 0, null, { timeout: 15_000 });
+  await page.waitForTimeout(500);
+
+  const bPisoEscuro = await brilho(page, ...regiaoTelhado);
+  assert.ok(
+    bPisoClaro > bPisoEscuro + 18,
+    `estufa de vidro fechada deve deixar ver o piso: com marmore.branco (${bPisoClaro.toFixed(1)}) deve ficar bem mais clara que com tabuas.escuras (${bPisoEscuro.toFixed(1)})`,
+  );
+
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});

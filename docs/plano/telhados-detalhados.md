@@ -196,7 +196,7 @@ Pronto quando: a prancha mostra os materiais novos distintos entre si, e o usuá
 Nota: O padrão de `telha.couro` foi nomeado `'couro-telhado'` em `PADROES_DE_COBERTURA` para não colidir com o padrão `'couro'` já existente em `Padrao` (`couro.marrom`, objeto), seguindo a mesma convenção de `'tabuas-telhado'`, `'grama-telhado'` e `'lajes-telhado'`. Exportado também `CAPAS_DE_CUMEEIRA`, `CAPA_DA_COBERTURA` e `capaDaCobertura` em `src/procedural/coberturas.ts` para uso da N4. Prancha de validação visual (12 coberturas novas sombreadas por sol fixo + mapa `h`) em `test-results/n8a-eras.png`.
 Commit: `added roof coverings for every era`
 
-### N8b — Coberturas nobres e transparentes  ⬜
+### N8b — Coberturas nobres e transparentes  ✅
 Objetivo: palácio de mármore, cúpula dourada, estufa e vitral.
 Depende de: N6, N8a.
 Ler: `assar-telhado.ts`, `telhados.ts` (luz do N6), `src/render/mascara-de-comodos.ts` e `nevoa.ts` (o que o jogador vê embaixo).
@@ -208,6 +208,7 @@ Como:
 Não fazer: refração.
 Testes: e2e, a estufa de vidro deixa ver o piso (o brilho embaixo muda quando o piso muda). O vitral tingir a luz no chão fica como pendência.
 Pronto quando: um palácio com cúpula dourada e uma estufa ficam convincentes na prancha.
+Nota: Para evitar colisão com `'marmore'` e `'vidro'` já existentes em `Padrao`, os 4 novos padrões foram registrados em `PADROES_DE_COBERTURA` como `'marmore-telhado'` (`pedra`), `'ouro-telhado'` (`pedra`), `'vidro-telhado'` (`chapa-dobrada`) e `'vitral-telhado'` (`chumbo`), com 6 materiais novos (`telha.marmore`, `.rosado`, `.negro`, `telha.ouro`, `telha.vidro`, `telha.vitral`) e `Material.especular` (também aplicado em `telha.esmaltada.*` e `telha.cobre`). `AmostraDeCobertura` ganhou `alfa`, `especular` e `cor` opcionais; `assarTelhado` escreve opacidade real em `cor.a` mantendo `normal.a = 255` (para recuperar `opac = c.a / n.a` na GPU) e só gera `Assado.altura` (mapa especular) quando algum trecho do edifício tem `especular > 0` (custo zero nos foscos). Em `telhados.ts`, o shader Blinn-Phong aplica brilho metálico/dielétrico e reflexo suave do céu nos vidros translúcidos preservando a transparência sobre o piso e a névoa. Prancha visual validada em `test-results/n8b-nobres.png`.
 Commit: `added marble, gold, glass and stained glass roofs`
 
 ### N9 — Estilos, estado do telhado no Inspetor e ponte  ⬜

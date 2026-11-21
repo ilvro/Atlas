@@ -81,10 +81,12 @@ export interface DetalheResolvido extends PosicaoDeDetalhe {
 export interface DadosDoTelhado {
   largura: number;
   altura: number;
-  /** Albedo RGBA (alfa 0 fora do beiral, 255 dentro). */
+  /** Albedo RGBA (alfa 0 fora do beiral, 0–255 dentro conforme transparência da cobertura). */
   cor: Uint8ClampedArray;
-  /** Normal/AO RGBA (`R = nx*0.5+0.5`, `G = ny*0.5+0.5`, `B = AO`, `A = alfa`), ou `null` no Pixel. */
+  /** Normal/AO RGBA (`R = nx*0.5+0.5`, `G = ny*0.5+0.5`, `B = AO`, `A = 255` na silhueta), ou `null` no Pixel. */
   normal: Uint8ClampedArray | null;
+  /** Mapa especular RGBA (`R = especular`, `A = 255` na silhueta), ou `null` quando nenhum trecho tem brilho especular. */
+  especular: Uint8ClampedArray | null;
   origem: Ponto;
   res: number;
   detalhes: DetalheResolvido[];
@@ -656,6 +658,7 @@ export function amostrarTelhado(
       altura: 1,
       cor: new Uint8ClampedArray(4),
       normal: estiloId === 'pixel' ? null : new Uint8ClampedArray([128, 128, 255, 0]),
+      especular: null,
       origem: [0, 0],
       res,
       detalhes: [],
@@ -692,6 +695,8 @@ export function amostrarTelhado(
   }
 
   const ctxs = e.trechos.map(prepararTrecho);
+  const temEspecular = !pixel && ctxs.some(ct => (ct.material.especular ?? 0) > 0);
+  const especular = temEspecular ? new Uint8ClampedArray(W * H * 4) : null;
   const chamines = detalhes.filter(d => d.detalhe === 'chamine');
   const eps = Math.max(0.004, 0.75 / res);
   const inv2Eps = 1 / (2 * eps);
@@ -724,9 +729,16 @@ export function amostrarTelhado(
         rgbOut[0] = cPx[0];
         rgbOut[1] = cPx[1];
         rgbOut[2] = cPx[2];
+      } else if (am0.cor) {
+        rgbOut[0] = am0.cor[0];
+        rgbOut[1] = am0.cor[1];
+        rgbOut[2] = am0.cor[2];
       } else {
         corDaAmostra(ct.material, am0.t, am0.m, rgbOut);
       }
+
+      let alfaEfetivo = pixel ? 1 : (am0.alfa ?? 1);
+      let specEfetivo = am0.especular ?? (ct.material.especular ?? 0);
 
       // Normal da água + micro-relevo da peça (em float).
       let gxTot = a.gx;
@@ -797,6 +809,8 @@ export function amostrarTelhado(
           if (cap.misturaCor > 0) {
             mixRgb(rgbOut, cap.corExtra, cap.misturaCor, rgbOut);
           }
+          alfaEfetivo = 1;
+          specEfetivo = ct.padrao === 'vidro-telhado' || ct.padrao === 'vitral-telhado' ? 0.25 : specEfetivo * 0.85;
           if (!pixel) {
             // Normal da capa substitui a micro-textura da água sobre a crista.
             gxTot = cap.dhds * geo.nxCross + cap.dhda * geo.txLine;
@@ -808,6 +822,8 @@ export function amostrarTelhado(
         const calha = 1 - entre(0.004, 0.022, a.folgaRincao);
         if (calha > 0.01) {
           mixRgb(rgbOut, COR_RINCAO_METAL, calha * 0.72, rgbOut);
+          alfaEfetivo = Math.max(alfaEfetivo, calha);
+          specEfetivo = specEfetivo * (1 - calha * 0.6) + 0.22 * calha * 0.6;
           if (!pixel) {
             gxTot *= 1 - calha * 0.45;
             gyTot *= 1 - calha * 0.45;
@@ -822,6 +838,8 @@ export function amostrarTelhado(
           const bordaInt = entre(0.105, 0.14, dPlat);
           const topo = 1 - Math.max(bordaExt, bordaInt);
           mixRgb(rgbOut, COR_PLATIBANDA_TOPO, 0.55 + 0.25 * topo, rgbOut);
+          alfaEfetivo = 1;
+          specEfetivo *= 0.2;
           if (bordaExt > 0.2 || bordaInt > 0.2) {
             const esc = 1 - 0.28 * Math.max(bordaExt, bordaInt);
             rgbOut[0] *= esc;
@@ -849,6 +867,8 @@ export function amostrarTelhado(
               clamp(COR_GUARDA_PO[2] + veio * 0.6, 0, 255),
             ];
             mixRgb(rgbOut, gpCor, kGP * 0.88, rgbOut);
+            alfaEfetivo = Math.max(alfaEfetivo, kGP);
+            specEfetivo *= 1 - kGP * 0.8;
             if (!pixel) {
               const bisel = 1 - entre(0, 0.025, a.distAresta);
               gxTot = a.gx * 0.6 + dux * (bisel * 0.5);
@@ -861,6 +881,8 @@ export function amostrarTelhado(
           const kTesteira = 1 - entre(0.032, 0.062, a.distAresta);
           if (kTesteira > 0.01) {
             mixRgb(rgbOut, COR_TESTEIRA, kTesteira * 0.82, rgbOut);
+            alfaEfetivo = Math.max(alfaEfetivo, kTesteira);
+            specEfetivo *= 1 - kTesteira * 0.8;
             if (!pixel) {
               // Borda do beiral inclina levemente para fora (queda d'água) com sombra inferior.
               gxTot -= dvx * 0.55 * kTesteira;
@@ -885,6 +907,10 @@ export function amostrarTelhado(
       const wear = ct.forma.wear;
       const snowEfetiva = wear.snow === 'auto' ? e.neve : wear.snow;
       if (wear.damage > 0 || wear.dirt > 0 || wear.moss > 0 || snowEfetiva > 0 || chamines.length > 0) {
+        const rAntes = rgbOut[0];
+        const gAntes = rgbOut[1];
+        const bAntes = rgbOut[2];
+        const aoAntes = ao;
         saidaDesgaste.gx = gxTot;
         saidaDesgaste.gy = gyTot;
         saidaDesgaste.ao = ao;
@@ -909,13 +935,21 @@ export function amostrarTelhado(
         gxTot = saidaDesgaste.gx;
         gyTot = saidaDesgaste.gy;
         ao = saidaDesgaste.ao;
+        if (!pixel && (alfaEfetivo < 1 || specEfetivo > 0)) {
+          const deltaCor = Math.hypot(rgbOut[0] - rAntes, rgbOut[1] - gAntes, rgbOut[2] - bAntes) / 255;
+          const coberturaDesgaste = Math.max(lim(deltaCor * 2.4), lim((aoAntes - ao) * 2.5));
+          if (coberturaDesgaste > 0.005) {
+            if (alfaEfetivo < 1) alfaEfetivo = alfaEfetivo + (1 - alfaEfetivo) * coberturaDesgaste;
+            if (specEfetivo > 0) specEfetivo *= 1 - coberturaDesgaste * 0.85;
+          }
+        }
       }
 
       const k = rowOff + px * 4;
       cor[k] = Math.round(clamp(rgbOut[0], 0, 255));
       cor[k + 1] = Math.round(clamp(rgbOut[1], 0, 255));
       cor[k + 2] = Math.round(clamp(rgbOut[2], 0, 255));
-      cor[k + 3] = 255;
+      cor[k + 3] = Math.round(clamp(alfaEfetivo, 0, 1) * 255);
 
       if (normal) {
         const invN = 1 / Math.hypot(-gxTot, -gyTot, 1);
@@ -926,6 +960,13 @@ export function amostrarTelhado(
         normal[k + 2] = Math.round(clamp(ao, 0, 1) * 255);
         normal[k + 3] = 255;
       }
+
+      if (especular) {
+        especular[k] = Math.round(clamp(specEfetivo, 0, 1) * 255);
+        especular[k + 1] = 0;
+        especular[k + 2] = 0;
+        especular[k + 3] = 255;
+      }
     }
   }
 
@@ -933,7 +974,7 @@ export function amostrarTelhado(
     comporDetalhesPuro(cor, normal, W, H, x0, y0, res, detalhes, e.sol, pixel);
   }
 
-  return { largura: W, altura: H, cor, normal, origem: [x0, y0], res, detalhes, campo };
+  return { largura: W, altura: H, cor, normal, especular, origem: [x0, y0], res, detalhes, campo };
 }
 
 /**
@@ -1111,6 +1152,15 @@ export function assarTelhado(e: EntradaDoTelhado, res: number, estilo: EstiloDeR
     nctx.putImageData(imgN, 0, 0);
   }
 
+  let altura: Tela | null = null;
+  if (dados.especular) {
+    altura = criarTela(dados.largura, dados.altura);
+    const sctx = contextoDe(altura);
+    const imgS = sctx.createImageData(dados.largura, dados.altura);
+    imgS.data.set(dados.especular);
+    sctx.putImageData(imgS, 0, 0);
+  }
+
   if (dados.detalhes.length > 0) {
     comporDetalhesNaTela(tela, normal, dados.origem[0], dados.origem[1], res, dados.detalhes, e.sol, estilo);
   }
@@ -1119,5 +1169,5 @@ export function assarTelhado(e: EntradaDoTelhado, res: number, estilo: EstiloDeR
     ? assarFachada(e, dados.campo, dados.origem, dados.largura, dados.altura, res, estilo)
     : null;
 
-  return { tela, altura: null, normal, fachada, origem: dados.origem, res };
+  return { tela, altura, normal, fachada, origem: dados.origem, res };
 }

@@ -85,6 +85,7 @@ export interface Telhados {
 interface TelhadoEmCache {
   cor: Texture;
   normal: Texture | null;
+  especular: Texture | null;
   fachada: Texture | null;
   origem: Ponto;
   res: number;
@@ -100,6 +101,7 @@ interface DoEdificio {
   ed: Edificio;
   corC: Container;
   normalC: Container;
+  especularC: Container;
   fachadaC: Container;
   sombraC: Container;
   sombraG: Graphics;
@@ -160,9 +162,11 @@ in vec2 vLuzCoord;
 out vec4 finalColor;
 uniform sampler2D uCor;
 uniform sampler2D uNormal;
+uniform sampler2D uEspecular;
 uniform sampler2D uLuzExterna;
 uniform float uEscalaLuz;
 uniform float uTemLuzExterna;
+uniform float uTemEspecular;
 uniform vec3 uAmbiente;
 uniform vec3 uSolCor;
 uniform vec3 uSolDir;
@@ -185,6 +189,9 @@ void main() {
   vec3 base = c.rgb / c.a;
   vec3 N = vec3(0.0, 0.0, 1.0);
   float ao = 1.0;
+  float opac = 1.0;
+  float fade = c.a;
+  float spec = 0.0;
   if (uUsarNormalFixa > 0.5) {
     float pesoRelevo = clamp(uRelevo / 0.7, 0.0, 1.0);
     N = normalize(mix(vec3(0.0, 0.0, 1.0), normalize(uNormalFixa), pesoRelevo));
@@ -202,6 +209,11 @@ void main() {
       float pesoRelevo = clamp(uRelevo / 0.7, 0.0, 1.0);
       N = normalize(mix(vec3(0.0, 0.0, 1.0), nRaw, pesoRelevo));
       ao = np.b;
+      opac = clamp(c.a / n.a, 0.0, 1.0);
+      fade = n.a;
+      if (uTemEspecular > 0.5) {
+        spec = clamp(texture(uEspecular, vUV).r / n.a, 0.0, 1.0);
+      }
     }
   }
   float aoAmb = mix(1.0, ao, uAO);
@@ -209,8 +221,30 @@ void main() {
   vec3 ext = uTemLuzExterna > 0.5 ? max(texture(uLuzExterna, vLuzCoord).rgb * uEscalaLuz, vec3(0.0)) : vec3(0.0);
   float ndl = max(dot(N, uSolDir), 0.0);
   vec3 corHDR = base * (uAmbiente * aoAmb + (uSolCor * ndl + ext) * aoDir);
+
+  float alfaFinal = c.a;
+  if (spec > 0.001) {
+    vec3 H = normalize(uSolDir + vec3(0.0, 0.0, 1.0));
+    float ndh = max(dot(N, H), 0.0);
+    float expo = mix(24.0, 96.0, spec);
+    float bril = pow(ndh, expo) * spec * (0.35 + 0.65 * smoothstep(0.0, 0.25, ndl));
+    float quente = smoothstep(0.08, 0.28, base.r - base.b) * smoothstep(0.85, 0.95, opac);
+    vec3 corSpec = mix(vec3(0.94, 0.97, 1.0), mix(vec3(1.0), base * 1.35, 0.78), quente);
+    float pesoSpec = mix(0.85, 1.45, smoothstep(0.5, 0.9, opac));
+    corHDR += (uSolCor * pesoSpec + ext * 0.45) * corSpec * bril * aoDir;
+    corHDR += base * uSolCor * pow(ndh, 8.0) * spec * quente * 0.42 * aoDir;
+
+    if (opac < 0.92) {
+      float transp = 1.0 - smoothstep(0.7, 0.92, opac);
+      vec3 reflexoCeu = (uAmbiente + uSolCor * 0.35) * spec * 0.26 * (1.0 - opac * 0.5) * transp;
+      corHDR += reflexoCeu;
+      float alfaRefl = min(0.28, (bril * 0.35 + spec * 0.08) * transp);
+      alfaFinal = clamp(opac + alfaRefl, 0.0, 1.0) * fade;
+    }
+  }
+
   vec3 lit = aces(max(corHDR, vec3(0.0)) * uExposicao);
-  finalColor = vec4(lit * c.a, c.a);
+  finalColor = vec4(lit * alfaFinal, alfaFinal);
 }`;
 
 /**
@@ -229,11 +263,13 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
   const sombrasC = new Container();
   const mundoCor = new Container();
   const mundoNormal = new Container();
+  const mundoEspecular = new Container();
   const saidaSprite = new Sprite(Texture.EMPTY);
   saidaSprite.visible = false;
   mundoNormal.renderable = false;
+  mundoEspecular.renderable = false;
   if (op.renderer) mundoCor.renderable = false;
-  raiz.addChild(sombrasC, mundoCor, mundoNormal, saidaSprite);
+  raiz.addChild(sombrasC, mundoCor, mundoNormal, mundoEspecular, saidaSprite);
 
   const fachadaRaiz = new Container();
   const fachadaMundoCor = new Container();
@@ -282,6 +318,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
     spInv: Matrix;
     corRT: RenderTexture | null;
     normalRT: RenderTexture | null;
+    especularRT: RenderTexture | null;
     saidaRT: RenderTexture | null;
     fachadaCorRT: RenderTexture | null;
     fachadaSaidaRT: RenderTexture | null;
@@ -297,6 +334,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
         uLuzMatriz: { value: new Matrix(), type: 'mat3x3<f32>' },
         uEscalaLuz: { value: 1, type: 'f32' },
         uTemLuzExterna: { value: 0, type: 'f32' },
+        uTemEspecular: { value: 0, type: 'f32' },
         uAmbiente: { value: new Float32Array([0.65, 0.65, 0.65]), type: 'vec3<f32>' },
         uSolCor: { value: new Float32Array([0.65, 0.65, 0.65]), type: 'vec3<f32>' },
         uSolDir: { value: new Float32Array([-0.55, -0.55, 0.63]), type: 'vec3<f32>' },
@@ -320,6 +358,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
         telhados: grupo,
         uCor: Texture.EMPTY.source,
         uNormal: Texture.EMPTY.source,
+        uEspecular: Texture.EMPTY.source,
         uLuzExterna: Texture.EMPTY.source,
       },
     });
@@ -329,6 +368,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
         telhados: grupoFachada,
         uCor: Texture.EMPTY.source,
         uNormal: Texture.EMPTY.source,
+        uEspecular: Texture.EMPTY.source,
         uLuzExterna: Texture.EMPTY.source,
       },
     });
@@ -350,6 +390,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
       spInv: new Matrix(),
       corRT: null,
       normalRT: null,
+      especularRT: null,
       saidaRT: null,
       fachadaCorRT: null,
       fachadaSaidaRT: null,
@@ -392,9 +433,11 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
       cor.source.scaleMode = estilo === 'pixel' ? 'nearest' : 'linear';
       const normal = r.normal ? texturaPropria(r.normal) : null;
       if (normal) normal.source.scaleMode = estilo === 'pixel' ? 'nearest' : 'linear';
+      const especular = r.altura ? texturaPropria(r.altura) : null;
+      if (especular) especular.source.scaleMode = estilo === 'pixel' ? 'nearest' : 'linear';
       const fachada = r.fachada ? texturaPropria(r.fachada) : null;
       if (fachada) fachada.source.scaleMode = estilo === 'pixel' ? 'nearest' : 'linear';
-      assados.set(chave, { cor, normal, fachada, origem: r.origem, res: r.res });
+      assados.set(chave, { cor, normal, especular, fachada, origem: r.origem, res: r.res });
       redesenharPorChave(chave);
     }).catch(erro => {
       emVoo.delete(chave);
@@ -614,6 +657,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
   function desenharEdificio(d: DoEdificio, m: MapaAtlas, ctx: ContextoDeEntradas): void {
     for (const ch of d.corC.removeChildren()) ch.destroy({ children: true });
     for (const ch of d.normalC.removeChildren()) ch.destroy({ children: true });
+    for (const ch of d.especularC.removeChildren()) ch.destroy({ children: true });
     for (const ch of d.fachadaC.removeChildren()) ch.destroy({ children: true });
     d.chaves.clear();
 
@@ -642,6 +686,13 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
         d.normalC.addChild(spNorm);
       }
 
+      if (assado.especular) {
+        const spSpec = new Sprite(assado.especular);
+        spSpec.position.set(assado.origem[0], assado.origem[1]);
+        spSpec.scale.set(1 / assado.res);
+        d.especularC.addChild(spSpec);
+      }
+
       if (assado.fachada) {
         const spFac = new Sprite(assado.fachada);
         spFac.position.set(assado.origem[0], assado.origem[1]);
@@ -661,6 +712,8 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
     d.corC.visible = vis;
     d.normalC.alpha = d.alfa;
     d.normalC.visible = vis;
+    d.especularC.alpha = d.alfa;
+    d.especularC.visible = vis;
     d.fachadaC.alpha = d.alfa;
     d.fachadaC.visible = vis;
     d.sombraC.alpha = d.sombraAlfaBase * d.alfa;
@@ -677,6 +730,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
       saidaSprite.visible = false;
       mundoCor.renderable = true;
       mundoNormal.renderable = false;
+      mundoEspecular.renderable = false;
       mundoCor.tint = tinta;
       fachadaSaidaSprite.visible = false;
       fachadaMundoCor.renderable = true;
@@ -687,10 +741,12 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
     mundoCor.tint = 0xffffff;
     fachadaMundoCor.tint = 0xffffff;
     let algumVisivel = false;
+    let algumEspecularVisivel = false;
     let algumaFachadaVisivel = false;
     for (const d of edificios.values()) {
       if (d.alfa > 0.001) {
         algumVisivel = true;
+        if (d.especularC.children.length > 0) algumEspecularVisivel = true;
         if (d.fachadaC.children.length > 0) algumaFachadaVisivel = true;
       }
     }
@@ -698,6 +754,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
       saidaSprite.visible = false;
       mundoCor.renderable = false;
       mundoNormal.renderable = false;
+      mundoEspecular.renderable = false;
       fachadaSaidaSprite.visible = false;
       fachadaMundoCor.renderable = false;
       return;
@@ -710,11 +767,13 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
     if (redimensionar) {
       gpu.corRT?.destroy(true);
       gpu.normalRT?.destroy(true);
+      gpu.especularRT?.destroy(true);
       gpu.saidaRT?.destroy(true);
       gpu.fachadaCorRT?.destroy(true);
       gpu.fachadaSaidaRT?.destroy(true);
       gpu.corRT = RenderTexture.create({ width: w, height: h, resolution: r, scaleMode: 'linear' });
       gpu.normalRT = RenderTexture.create({ width: w, height: h, resolution: r, scaleMode: 'linear' });
+      gpu.especularRT = null;
       gpu.saidaRT = RenderTexture.create({ width: w, height: h, resolution: r, scaleMode: 'linear' });
       gpu.fachadaCorRT = null;
       gpu.fachadaSaidaRT = null;
@@ -737,10 +796,20 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
     renderer.render({ container: mundoNormal, target: gpu.normalRT!, transform: gpu.camAtual, clear: true, clearColor: [0, 0, 0, 0] });
     mundoNormal.renderable = false;
 
+    if (algumEspecularVisivel) {
+      if (!gpu.especularRT) {
+        gpu.especularRT = RenderTexture.create({ width: w, height: h, resolution: r, scaleMode: 'linear' });
+      }
+      mundoEspecular.renderable = true;
+      renderer.render({ container: mundoEspecular, target: gpu.especularRT, transform: gpu.camAtual, clear: true, clearColor: [0, 0, 0, 0] });
+      mundoEspecular.renderable = false;
+    }
+
     const u = gpu.grupo.uniforms as {
       uLuzMatriz: Matrix;
       uEscalaLuz: number;
       uTemLuzExterna: number;
+      uTemEspecular: number;
       uAmbiente: Float32Array;
       uSolCor: Float32Array;
       uSolDir: Float32Array;
@@ -851,8 +920,10 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
     u.uExposicao = clamp(finish.exposure ?? EXPOSICAO_PADRAO, 0, 4);
 
     u.uUsarNormalFixa = 0;
+    u.uTemEspecular = algumEspecularVisivel ? 1 : 0;
     gpu.shader.resources.uCor = gpu.corRT!.source;
     gpu.shader.resources.uNormal = gpu.normalRT!.source;
+    gpu.shader.resources.uEspecular = algumEspecularVisivel && gpu.especularRT ? gpu.especularRT.source : Texture.EMPTY.source;
     renderer.render({ container: gpu.mesh, target: gpu.saidaRT!, clear: true, clearColor: [0, 0, 0, 0] });
 
     saidaSprite.setFromMatrix(gpu.camInv);
@@ -872,6 +943,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
       uf.uLuzMatriz.copyFrom(u.uLuzMatriz);
       uf.uEscalaLuz = u.uEscalaLuz;
       uf.uTemLuzExterna = u.uTemLuzExterna;
+      uf.uTemEspecular = 0;
       uf.uAmbiente[0] = u.uAmbiente[0]!;
       uf.uAmbiente[1] = u.uAmbiente[1]!;
       uf.uAmbiente[2] = u.uAmbiente[2]!;
@@ -891,6 +963,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
       gpu.shaderFachada.resources.uLuzExterna = gpu.shader.resources.uLuzExterna;
       gpu.shaderFachada.resources.uCor = gpu.fachadaCorRT.source;
       gpu.shaderFachada.resources.uNormal = Texture.EMPTY.source;
+      gpu.shaderFachada.resources.uEspecular = Texture.EMPTY.source;
       renderer.render({ container: gpu.meshFachada, target: gpu.fachadaSaidaRT, clear: true, clearColor: [0, 0, 0, 0] });
 
       fachadaSaidaSprite.setFromMatrix(gpu.camInv);
@@ -967,6 +1040,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
           if (!ids.has(id)) {
             d.corC.destroy({ children: true });
             d.normalC.destroy({ children: true });
+            d.especularC.destroy({ children: true });
             d.fachadaC.destroy({ children: true });
             d.sombraC.destroy({ children: true });
             edificios.delete(id);
@@ -979,22 +1053,26 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
           if (!d) {
             const corC = new Container();
             const normalC = new Container();
+            const especularC = new Container();
             const fachadaC = new Container();
             const sombraC = new Container();
             const sombraG = new Graphics();
             sombraC.addChild(sombraG);
             corC.visible = false;
             normalC.visible = false;
+            especularC.visible = false;
             fachadaC.visible = false;
             sombraC.visible = false;
             mundoCor.addChild(corC);
             mundoNormal.addChild(normalC);
+            mundoEspecular.addChild(especularC);
             fachadaMundoCor.addChild(fachadaC);
             sombrasC.addChild(sombraC);
             d = {
               ed,
               corC,
               normalC,
+              especularC,
               fachadaC,
               sombraC,
               sombraG,
@@ -1082,6 +1160,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
       for (const a of assados.values()) {
         a.cor.destroy(true);
         a.normal?.destroy(true);
+        a.especular?.destroy(true);
         a.fachada?.destroy(true);
       }
       assados.clear();
@@ -1095,6 +1174,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
       if (gpu) {
         gpu.corRT?.destroy(true);
         gpu.normalRT?.destroy(true);
+        gpu.especularRT?.destroy(true);
         gpu.saidaRT?.destroy(true);
         gpu.fachadaCorRT?.destroy(true);
         gpu.fachadaSaidaRT?.destroy(true);
