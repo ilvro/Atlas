@@ -379,16 +379,17 @@ test('MCP: jukebox_preset_ler e jukebox_preset_adicionar funcionam como ferramen
       fechar: () => {},
     };
 
-    // Com o catálogo base padrão, listarFerramentas deve conter as duas ferramentas mesmo sem ponte
+    // Com o catálogo base padrão, o índice de plataforma_ferramentas (sob demanda) traz as duas ferramentas mesmo sem ponte
     const base = JSON.parse(fs.readFileSync(CAMINHO_CATALOGO_BASE_PADRAO, 'utf8'));
     const ferramentas = listarFerramentas(base);
-    const nomes = ferramentas.map(f => f.name);
-    assert.ok(nomes.includes('jukebox_preset_ler'));
-    assert.ok(nomes.includes('jukebox_preset_adicionar'));
-    assert.equal(nomes.includes('jukebox_preset_receber'), false, 'não deve expor ferramentas internas');
+    const indice = ferramentas.find(f => f.name === 'plataforma_ferramentas')!.description;
+    assert.match(indice, /jukebox_preset_ler \(/);
+    assert.match(indice, /jukebox_preset_adicionar \(/);
+    assert.equal(indice.includes('jukebox_preset_receber'), false, 'não deve expor ferramentas internas');
 
     const comReceber = [...base, { nome: 'jukebox_preset_receber', descricao: 'interna', app: 'jukebox' }];
     assert.equal(listarFerramentas(comReceber as any).some(f => f.name === 'jukebox_preset_receber'), false);
+    assert.equal(listarFerramentas(comReceber as any).find(f => f.name === 'plataforma_ferramentas')!.description.includes('jukebox_preset_receber'), false);
 
     // Chamar adicionar via MCP com ponte desconectada deve funcionar localmente
     const rAdd = await chamarFerramenta(pontaDesligada, 'jukebox_preset_adicionar', {
@@ -625,14 +626,19 @@ test('abrir preset: erro no meio manda fim abortado e propaga; recusa do inicio 
   }
 });
 
-test('MCP: jukebox_preset_abrir está no tools/list sem ponte, com descrição curta e sem expor a interna', async () => {
+test('MCP: jukebox_preset_abrir carrega sob demanda sem ponte, com descrição curta e sem expor a interna', async () => {
   const base = JSON.parse(fs.readFileSync(CAMINHO_CATALOGO_BASE_PADRAO, 'utf8'));
-  const lista = listarFerramentas([...base, { nome: 'jukebox_preset_abrir_receber', descricao: 'i', esquema: {}, app: 'jukebox' }]);
-  const t = lista.find(f => f.name === 'jukebox_preset_abrir')!;
-  assert.ok(t, 'falta jukebox_preset_abrir');
-  assert.ok(t.description.length <= 180 && t.description.endsWith('Detalhes: plataforma_guia ferramentas-jukebox.'));
-  assert.deepEqual(t.annotations, { destructiveHint: false });
-  assert.equal(lista.some(f => f.name === 'jukebox_preset_abrir_receber'), false);
+  const catalogo = [...base, { nome: 'jukebox_preset_abrir_receber', descricao: 'i', esquema: {}, app: 'jukebox' }];
+  const lista = listarFerramentas(catalogo);
+  const indice = lista.find(f => f.name === 'plataforma_ferramentas')!.description;
+  assert.match(indice, /jukebox_preset_abrir \(/);
+  assert.equal(indice.includes('jukebox_preset_abrir_receber'), false);
+  assert.equal(lista.some(f => f.name === 'jukebox_preset_abrir' || f.name === 'jukebox_preset_abrir_receber'), false);
+  const r: any = await chamarFerramenta({ catalogo: () => catalogo } as never, 'plataforma_ferramentas', { nomes: ['jukebox_preset_abrir'] });
+  const t = JSON.parse(r.content[0].text);
+  assert.ok(t.descricao.length <= 180 && t.descricao.endsWith('Detalhes: plataforma_guia ferramentas-jukebox.'));
+  assert.deepEqual(t.anotacoes, { destructiveHint: false });
+  assert.equal(t.executor, 'plataforma_executar');
 });
 
 // --- atelie_imagem_definir ---
@@ -715,14 +721,18 @@ test('imagem_definir: o erro do Ateliê (lista de campos) chega ao assistente', 
   }
 });
 
-test('MCP: atelie_imagem_definir está no tools/list sem ponte, sem expor a interna, e funciona via chamarFerramenta', async () => {
+test('MCP: atelie_imagem_definir carrega sob demanda sem ponte, sem expor a interna, e funciona via chamarFerramenta', async () => {
   const base = JSON.parse(fs.readFileSync(CAMINHO_CATALOGO_BASE_PADRAO, 'utf8'));
-  const lista = listarFerramentas([...base, { nome: 'atelie_imagem_receber', descricao: 'i', esquema: {}, app: 'atelie' }]);
-  const t = lista.find(f => f.name === 'atelie_imagem_definir')!;
-  assert.ok(t, 'falta atelie_imagem_definir');
-  assert.ok(t.description.length <= 180 && t.description.endsWith('Detalhes: plataforma_guia ferramentas-atelie.'));
-  assert.deepEqual(t.annotations, { destructiveHint: false });
+  const catalogo = [...base, { nome: 'atelie_imagem_receber', descricao: 'i', esquema: {}, app: 'atelie' }];
+  const lista = listarFerramentas(catalogo);
+  const indice = lista.find(f => f.name === 'plataforma_ferramentas')!.description;
+  assert.match(indice, /atelie_imagem_definir \(/);
+  assert.equal(indice.includes('atelie_imagem_receber'), false);
   assert.equal(lista.some(f => f.name === 'atelie_imagem_receber'), false);
+  const carregada: any = await chamarFerramenta({ catalogo: () => catalogo } as never, 'plataforma_ferramentas', { nomes: ['atelie_imagem_definir'] });
+  const t = JSON.parse(carregada.content[0].text);
+  assert.ok(t.descricao.length <= 180 && t.descricao.endsWith('Detalhes: plataforma_guia ferramentas-atelie.'));
+  assert.deepEqual(t.anotacoes, { destructiveHint: false });
 
   const tmp = criarDiretorioTemporario();
   try {

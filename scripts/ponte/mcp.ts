@@ -12,6 +12,7 @@ import { lerMensagem, appDoPrefixo } from './protocolo.ts';
 import type { AppConectado, Conteudo, FerramentaDoApp, Resultado, AnotacoesDaFerramenta } from './protocolo.ts';
 import { definirImagemNoAtelie } from './imagens.ts';
 import { registrarUso, lerUso, gravarUso, CAMINHO_USO_PADRAO } from './uso.ts';
+import { ehSempre, ehDestrutiva, indiceSobDemanda, sugerirNomes } from './niveis.ts';
 import { lerPreset, adicionarAoPreset, abrirPresetNaJukebox } from './presets.ts';
 
 export const ATRASOS_MS = [1000, 2000, 5000, 10000];
@@ -170,6 +171,7 @@ export function ehLeitura(nome: string): boolean {
   return (
     nome === 'ponte_estado' ||
     nome === 'plataforma_guia' ||
+    nome === 'plataforma_ferramentas' ||
     nome === 'mesa_campanha_atual' ||
     nome === 'atlas_catalogo' ||
     nome.startsWith('campanha_') ||
@@ -605,13 +607,68 @@ export function textoDoGuia(secoes: SecaoDoGuia[], secao?: unknown, aviso?: stri
 /** Ferramentas internas: chamadas pelo próprio servidor, escondidas do `tools/list`. */
 export const FERRAMENTAS_INTERNAS_OCULTAS = ['jukebox_preset_receber', 'jukebox_preset_abrir_receber', 'atelie_imagem_receber'];
 
-/** Ferramentas para o `tools/list`: `ponte_estado` e `plataforma_guia` sempre, depois as do catálogo (exceto internas como `jukebox_preset_receber`). */
+export interface ResultadoMcp {
+  [k: string]: unknown;
+  isError?: boolean;
+  content: Array<{ type: 'text'; text: string } | { type: 'image'; data: string; mimeType: string }>;
+}
+
+export const EXECUTOR = 'plataforma_executar';
+export const EXECUTOR_DESTRUTIVO = 'plataforma_executar_destrutiva';
+export const FERRAMENTA_CARREGAR = 'plataforma_ferramentas';
+const NOMES_LOCAIS_DE_NIVEL = [FERRAMENTA_CARREGAR, EXECUTOR, EXECUTOR_DESTRUTIVO];
+
+const ESQUEMA_EXECUTOR = {
+  type: 'object' as const,
+  properties: {
+    ferramenta: { type: 'string', description: 'Nome da ferramenta sob demanda.' },
+    args: { type: 'object', description: 'Argumentos da ferramenta, como no esquema carregado.', default: {} },
+  },
+  required: ['ferramenta'],
+};
+
+function paraAsSobDemanda(catalogo: FerramentaDoApp[]) {
+  return catalogo.filter(f => !FERRAMENTAS_INTERNAS_OCULTAS.includes(f.nome));
+}
+
+export function ferramentaCarregar(catalogo: FerramentaDoApp[] = []) {
+  const indice = indiceSobDemanda(paraAsSobDemanda(catalogo));
+  return {
+    name: FERRAMENTA_CARREGAR,
+    description: `Ferramentas sob demanda: carregue o esquema e o guia antes de chamar com ${EXECUTOR} ou ${EXECUTOR_DESTRUTIVO} (a resposta diz qual).${indice ? `\n${indice}` : ''}`,
+    inputSchema: {
+      type: 'object' as const,
+      properties: { nomes: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 8, description: 'Nomes das ferramentas (até 8).' } },
+      required: ['nomes'],
+    },
+    annotations: { readOnlyHint: true, idempotentHint: true },
+  };
+}
+
+export const FERRAMENTA_EXECUTAR = {
+  name: EXECUTOR,
+  description: 'Chama uma ferramenta sob demanda não destrutiva, já carregada por plataforma_ferramentas.',
+  inputSchema: ESQUEMA_EXECUTOR,
+  annotations: { destructiveHint: false },
+};
+
+export const FERRAMENTA_EXECUTAR_DESTRUTIVA = {
+  name: EXECUTOR_DESTRUTIVO,
+  description: 'Chama uma ferramenta sob demanda destrutiva (altera ou substitui o que já existe), já carregada por plataforma_ferramentas.',
+  inputSchema: ESQUEMA_EXECUTOR,
+  annotations: { destructiveHint: true },
+};
+
+/** Ferramentas para o `tools/list`: as locais (`ponte_estado`, `plataforma_*`) e, do catálogo, só as `SEMPRE` (sem as internas). */
 export function listarFerramentas(catalogo: FerramentaDoApp[], guia: SecaoDoGuia[] = []) {
   return [
     FERRAMENTA_ESTADO,
     ferramentaGuia(guia),
-    ...catalogo
-      .filter(f => !FERRAMENTAS_INTERNAS_OCULTAS.includes(f.nome))
+    ferramentaCarregar(catalogo),
+    FERRAMENTA_EXECUTAR,
+    FERRAMENTA_EXECUTAR_DESTRUTIVA,
+    ...paraAsSobDemanda(catalogo)
+      .filter(f => ehSempre(f.nome))
       .map(f => {
         const anotacoes = anotacoesDaFerramenta(f.nome, f.anotacoes);
         return {
@@ -622,6 +679,69 @@ export function listarFerramentas(catalogo: FerramentaDoApp[], guia: SecaoDoGuia
         };
       }),
   ];
+}
+
+/** Texto da seção `## <nome>` (até o próximo `## `) nos guias `ferramentas-*`, ou `undefined`. */
+export function secaoDaFerramenta(guia: SecaoDoGuia[], nome: string): string | undefined {
+  for (const g of guia) {
+    if (!g.nome.startsWith('ferramentas-')) continue;
+    const linhas = g.texto.split('\n');
+    const i = linhas.findIndex(l => l.trim() === `## ${nome}`);
+    if (i < 0) continue;
+    let fim = linhas.findIndex((l, k) => k > i && /^##\s/.test(l));
+    if (fim < 0) fim = linhas.length;
+    return linhas.slice(i, fim).join('\n').trim();
+  }
+  return undefined;
+}
+
+function erroTexto(texto: string) {
+  return { isError: true, content: [{ type: 'text' as const, text: texto }] };
+}
+
+function carregarFerramentas(ponta: Ponta, args: Record<string, unknown>, guia: SecaoDoGuia[]) {
+  const nomes = args.nomes;
+  if (!Array.isArray(nomes) || nomes.length === 0 || nomes.length > 8 || nomes.some(n => typeof n !== 'string')) {
+    return erroTexto('Passe `nomes`: lista de 1 a 8 nomes de ferramentas (veja o índice na descrição de plataforma_ferramentas).');
+  }
+  const catalogo = paraAsSobDemanda(ponta.catalogo());
+  const conteudo: Array<{ type: 'text'; text: string }> = [];
+  for (const nome of nomes as string[]) {
+    const f = catalogo.find(x => x.nome === nome);
+    if (!f) {
+      const sugestoes = sugerirNomes(nome, catalogo.map(x => x.nome));
+      conteudo.push({ type: 'text', text: JSON.stringify({ nome, erro: `A ferramenta "${nome}" não existe.`, sugestoes }, null, 2) });
+      continue;
+    }
+    const anotacoes = anotacoesDaFerramenta(f.nome, f.anotacoes);
+    const executor = ehSempre(f.nome) ? f.nome : ehDestrutiva(anotacoes) ? EXECUTOR_DESTRUTIVO : EXECUTOR;
+    conteudo.push({ type: 'text', text: JSON.stringify({ nome: f.nome, app: f.app, executor, anotacoes, descricao: f.descricao, esquema: f.esquema ?? { type: 'object', properties: {} } }, null, 2) });
+    const secao = secaoDaFerramenta(guia, f.nome);
+    if (secao) conteudo.push({ type: 'text', text: secao });
+  }
+  return { content: conteudo };
+}
+
+async function executarSobDemanda(ponta: Ponta, executor: string, args: Record<string, unknown>, prazoMs: number | undefined, guia: SecaoDoGuia[], avisoGuia?: string): Promise<ResultadoMcp> {
+  const nome = args.ferramenta;
+  if (typeof nome !== 'string' || !nome) return erroTexto(`Passe \`ferramenta\` (nome de uma ferramenta) e \`args\` (objeto) em ${executor}.`);
+  if (nome === 'ponte_estado' || nome === 'plataforma_guia' || NOMES_LOCAIS_DE_NIVEL.includes(nome)) {
+    return erroTexto(`"${nome}" é chamada diretamente, não por ${executor}.`);
+  }
+  const catalogo = paraAsSobDemanda(ponta.catalogo());
+  const f = catalogo.find(x => x.nome === nome);
+  if (!f) {
+    const sugestoes = sugerirNomes(nome, catalogo.map(x => x.nome));
+    return erroTexto(`A ferramenta "${nome}" não existe.${sugestoes.length ? ` Parecidas: ${sugestoes.join(', ')}.` : ''} Veja o índice em plataforma_ferramentas.`);
+  }
+  const destrutiva = ehDestrutiva(anotacoesDaFerramenta(f.nome, f.anotacoes));
+  if (destrutiva && executor === EXECUTOR) return erroTexto(`"${nome}" é destrutiva: chame-a por ${EXECUTOR_DESTRUTIVO}, com os mesmos args.`);
+  if (!destrutiva && executor === EXECUTOR_DESTRUTIVO) return erroTexto(`"${nome}" não é destrutiva: chame-a por ${EXECUTOR}, com os mesmos args.`);
+  const interno = args.args;
+  if (interno !== undefined && (interno === null || typeof interno !== 'object' || Array.isArray(interno))) {
+    return erroTexto('`args` deve ser um objeto.');
+  }
+  return chamarFerramenta(ponta, nome, (interno ?? {}) as Record<string, unknown>, prazoMs, guia, avisoGuia);
 }
 
 export function converterConteudo(c: Conteudo) {
@@ -650,8 +770,10 @@ export function acrescentarAviso<T extends { content: Array<{ type: 'text'; text
 }
 
 /** `tools/call`: roteia para `ponte_estado`, ferramentas locais de preset ou para a ponte e converte o resultado. */
-export async function chamarFerramenta(ponta: Ponta, nome: string, args: Record<string, unknown>, prazoMs?: number, guia: SecaoDoGuia[] = [], avisoGuia?: string) {
+export async function chamarFerramenta(ponta: Ponta, nome: string, args: Record<string, unknown>, prazoMs?: number, guia: SecaoDoGuia[] = [], avisoGuia?: string): Promise<ResultadoMcp> {
   if (nome === 'plataforma_guia') return textoDoGuia(guia, args.secao, avisoGuia);
+  if (nome === FERRAMENTA_CARREGAR) return carregarFerramentas(ponta, args, guia);
+  if (nome === EXECUTOR || nome === EXECUTOR_DESTRUTIVO) return executarSobDemanda(ponta, nome, args, prazoMs, guia, avisoGuia);
   const ativas = ponta.ativas();
   const apps = ponta.apps();
   if (nome === FERRAMENTA_ESTADO.name) return { content: [{ type: 'text' as const, text: textoDoEstado(ponta.conectada(), ativas, apps, ponta.motivo()) }] };
@@ -811,9 +933,14 @@ export interface McpOpcoes {
   arquivoDeUso?: string | null;
 }
 
-/** Nome da ferramenta realmente usada numa chamada (a PM6b trata os executores). */
-export function nomeEfetivo(req: { params: { name: string } }): string {
-  return req.params.name;
+/** Nome da ferramenta realmente usada numa chamada: nos executores, o de `arguments.ferramenta`. */
+export function nomeEfetivo(req: { params: { name: string; arguments?: Record<string, unknown> } }): string {
+  const nome = req.params.name;
+  if (nome === EXECUTOR || nome === EXECUTOR_DESTRUTIVO) {
+    const alvo = req.params.arguments?.ferramenta;
+    if (typeof alvo === 'string' && alvo) return alvo;
+  }
+  return nome;
 }
 
 /** Monta o servidor MCP `mesa` (sem transporte) sobre uma conexão com a ponte. */
@@ -848,7 +975,7 @@ export function criarServidorMcp(op: McpOpcoes) {
       }, intervalo);
     }
     try {
-      const g = req.params.name === 'plataforma_guia' ? guiaAgora() : { secoes: [] };
+      const g = ['plataforma_guia', FERRAMENTA_CARREGAR, EXECUTOR, EXECUTOR_DESTRUTIVO].includes(req.params.name) ? guiaAgora() : { secoes: [] };
       return await chamarFerramenta(ponta, req.params.name, (req.params.arguments ?? {}) as Record<string, unknown>, op.prazoMs, g.secoes, g.aviso);
     } finally {
       if (timerProgresso) clearInterval(timerProgresso);

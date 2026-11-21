@@ -267,7 +267,7 @@ Testes: `registrarUso` soma as chamadas, guarda dias distintos, corta em 60 e at
 Pronto quando: depois de uma conversa real, `npm run ponte:uso` mostra as ferramentas usadas.
 Commit: bridge records which assistant tools get used
 
-### PM6b — Ferramentas sob demanda no servidor MCP  ⬜
+### PM6b — Ferramentas sob demanda no servidor MCP  ✅
 Objetivo: o `tools/list` traz só as ferramentas `SEMPRE` e três ferramentas locais; as outras são consultadas por `plataforma_ferramentas` e chamadas pelos executores.
 Depende de: PM6a (só pelo `nomeEfetivo`; se ela não estiver feita, pare e reporte).
 Ler: `scripts/ponte/mcp.ts` inteiro, sobretudo `listarFerramentas`, `chamarFerramenta`, `anotacoesDaFerramenta`, `FERRAMENTAS_INTERNAS_OCULTAS`, `ferramentaGuia`, `textoDoGuia`, `lerGuia` e `criarServidorMcp`; `tests/unit/ponte-mcp.test.ts` (os testes de `plataforma_guia`, de catálogo-base e de anotações, como modelo); `docs/assistente/guia/ferramentas-atlas.md` (formato das seções `## <nome>`); a seção "Decisões" desta etapa.

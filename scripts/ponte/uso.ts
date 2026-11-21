@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { SEMPRE } from './niveis.ts';
 
 export type RegistroDeUso = Record<string, { chamadas: number; ultima: string; dias: string[] }>;
 
@@ -65,8 +66,7 @@ async function principal() {
   } catch (e) {
     console.error('[uso] aviso: sem catálogo base para os tamanhos:', e);
   }
-  // A PM6b acrescenta a marca `*` das ferramentas em SEMPRE (scripts/ponte/niveis.ts).
-  console.log(relatorioDeUso(lerUso(CAMINHO_USO_PADRAO), tamanhos));
+  console.log(relatorioDeUso(lerUso(CAMINHO_USO_PADRAO), tamanhos, new Set(SEMPRE)));
 }
 
 if (import.meta.main) principal().catch(e => { console.error('[uso] erro:', e); process.exit(1); });
