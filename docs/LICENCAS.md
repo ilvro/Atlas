@@ -93,13 +93,16 @@ Ladrilhos de terreno preparados por `npm run texturas` (`scripts/preparar-textur
 | texturas/brown_mud_dry.webp<br>texturas/brown_mud_dry-alt.webp | brown_mud_dry | Rob Tuytel | Poly Haven | CC0 | https://polyhaven.com/a/brown_mud_dry |
 | texturas/damp_beach_sand_02.webp<br>texturas/damp_beach_sand_02-alt.webp | damp_beach_sand_02 | Dimitrios Savva | Poly Haven | CC0 | https://polyhaven.com/a/damp_beach_sand_02 |
 | texturas/dirt_floor.webp<br>texturas/dirt_floor-alt.webp | dirt_floor | eye-candy.xyz | Poly Haven | CC0 | https://polyhaven.com/a/dirt_floor |
+| texturas/dry_ground_01.webp<br>texturas/dry_ground_01-alt.webp | dry_ground_01 | Rob Tuytel | Poly Haven | CC0 | https://polyhaven.com/a/dry_ground_01 |
 | texturas/forest_ground_04.webp<br>texturas/forest_ground_04-alt.webp | forest_ground_04 | Rob Tuytel, Rico Cilliers | Poly Haven | CC0 | https://polyhaven.com/a/forest_ground_04 |
 | texturas/grass_ground.webp<br>texturas/grass_ground-alt.webp | grass_ground | Charlotte Baglioni | Poly Haven | CC0 | https://polyhaven.com/a/grass_ground |
 | texturas/gravel_floor.webp<br>texturas/gravel_floor-alt.webp | gravel_floor | Jenelle van Heerden, Matterfield | Poly Haven | CC0 | https://polyhaven.com/a/gravel_floor |
 | texturas/ground068.webp<br>texturas/ground068-alt.webp | Ground068 (tamanho real estimado em 1.5 m) | ambientCG | ambientCG | CC0 | https://ambientcg.com/view?id=Ground068 |
 | texturas/leafy_grass.webp<br>texturas/leafy_grass-alt.webp | leafy_grass | Charlotte Baglioni | Poly Haven | CC0 | https://polyhaven.com/a/leafy_grass |
 | texturas/leaves_forest_ground.webp<br>texturas/leaves_forest_ground-alt.webp | leaves_forest_ground | Dario Barresi, Dimitrios Savva | Poly Haven | CC0 | https://polyhaven.com/a/leaves_forest_ground |
+| texturas/mud_cracked_dry_03.webp<br>texturas/mud_cracked_dry_03-alt.webp | mud_cracked_dry_03 | Dario Barresi, Dimitrios Savva | Poly Haven | CC0 | https://polyhaven.com/a/mud_cracked_dry_03 |
 | texturas/mud_forest.webp<br>texturas/mud_forest-alt.webp | mud_forest | eye-candy.xyz | Poly Haven | CC0 | https://polyhaven.com/a/mud_forest |
+| texturas/red_dirt_mud_01.webp<br>texturas/red_dirt_mud_01-alt.webp | red_dirt_mud_01 | Rob Tuytel | Poly Haven | CC0 | https://polyhaven.com/a/red_dirt_mud_01 |
 | texturas/rocks_ground_02.webp<br>texturas/rocks_ground_02-alt.webp | rocks_ground_02 | Rob Tuytel | Poly Haven | CC0 | https://polyhaven.com/a/rocks_ground_02 |
 | texturas/rocky_trail.webp<br>texturas/rocky_trail-alt.webp | rocky_trail | Amal Kumar | Poly Haven | CC0 | https://polyhaven.com/a/rocky_trail |
 | texturas/sand_01.webp<br>texturas/sand_01-alt.webp | sand_01 | Rob Tuytel | Poly Haven | CC0 | https://polyhaven.com/a/sand_01 |

@@ -372,7 +372,7 @@ const PINTORES: Record<Padrao, (p: P) => void> = {
   lama: p => ruidoPixel(p, 'lama', 0.06, 0.16, true),
   areia: p => ruidoPixel(p, 'areia', 0.09, 0.07),
   neve: p => ruidoPixel(p, 'neve', 0.03, 0.05),
-  gelo, dunas: dunasPixel, rachado: rachadoPixel, cascalho: cascalhoPixel,
+  gelo, dunas: dunasPixel, 'dunas-areia': dunasPixel, rachado: rachadoPixel, cascalho: cascalhoPixel,
   paralelepipedo: paralelepipedoPixel, lajegrama: lajeGramadaPixel, sulcos: sulcosPixel, molhada: molhadaPixel,
   pedra: p => ladrilhar(p, ladrilho(chaveDe(p, 'pedra'), 64, 64, [p.t.c2, p.t.e1, p.t.E], (idx, w, h, r) => {
     for (let i = 0; i < 70; i++) { const x = Math.floor(r() * w), y = Math.floor(r() * h), bw = 2 + Math.floor(r() * 2); for (let k = 0; k < bw; k++) { idx[(y % h) * w + ((x + k) % w)] = r() < 0.5 ? 0 : 1; idx[((y + 1) % h) * w + ((x + k) % w)] = 2; } }

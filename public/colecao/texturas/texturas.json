@@ -1,6 +1,6 @@
 {
   "versao": 1,
-  "hash": "a38bf97c9ff9361f68e0c075608b401151707488",
+  "hash": "7f91f18097463d15a48887ffbde3c77b2c73041d",
   "texturas": [
     {
       "id": "brown_mud_dry",
@@ -37,6 +37,18 @@
       "autor": "eye-candy.xyz",
       "licenca": "CC0",
       "url": "https://polyhaven.com/a/dirt_floor"
+    },
+    {
+      "id": "dry_ground_01",
+      "nome": "dry_ground_01",
+      "arquivo": "dry_ground_01.webp",
+      "deslocamento": "dry_ground_01-alt.webp",
+      "metros": 4,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "Rob Tuytel",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/dry_ground_01"
     },
     {
       "id": "forest_ground_04",
@@ -111,6 +123,18 @@
       "url": "https://polyhaven.com/a/leaves_forest_ground"
     },
     {
+      "id": "mud_cracked_dry_03",
+      "nome": "mud_cracked_dry_03",
+      "arquivo": "mud_cracked_dry_03.webp",
+      "deslocamento": "mud_cracked_dry_03-alt.webp",
+      "metros": 1.5,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "Dario Barresi, Dimitrios Savva",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/mud_cracked_dry_03"
+    },
+    {
       "id": "mud_forest",
       "nome": "mud_forest",
       "arquivo": "mud_forest.webp",
@@ -121,6 +145,18 @@
       "autor": "eye-candy.xyz",
       "licenca": "CC0",
       "url": "https://polyhaven.com/a/mud_forest"
+    },
+    {
+      "id": "red_dirt_mud_01",
+      "nome": "red_dirt_mud_01",
+      "arquivo": "red_dirt_mud_01.webp",
+      "deslocamento": "red_dirt_mud_01-alt.webp",
+      "metros": 1.5,
+      "pxPorMetro": 128,
+      "fonte": "Poly Haven",
+      "autor": "Rob Tuytel",
+      "licenca": "CC0",
+      "url": "https://polyhaven.com/a/red_dirt_mud_01"
     },
     {
       "id": "rocks_ground_02",

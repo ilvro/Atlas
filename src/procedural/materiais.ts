@@ -5,7 +5,7 @@ import { amostrarSemRepeticao, mapaDeGradiente, pesoDaCamada, reduzirTextura, to
 import { texturaPronta } from './texturas-carregadas.ts';
 import { ehPadraoDeCobertura, texturaDeCobertura, type PadraoDeCobertura } from './coberturas.ts';
 
-export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho' | 'paralelepipedo' | 'lajegrama' | 'sulcos' | 'molhada' | 'batido' | 'folhico'
+export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'dunas-areia' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho' | 'paralelepipedo' | 'lajegrama' | 'sulcos' | 'molhada' | 'batido' | 'folhico'
   | 'palha-chao' | 'lajes-rusticas' | 'lajes-grandes' | 'marchetaria' | 'chapa-xadrez' | 'grade-metal' | 'toras' | 'manchado' | 'painel' | 'acolchoado' | 'pisada' | 'placas' | PadraoDeCobertura;
 export interface Material {
   id: string; nome: string; /** Para onde o material vai: piso, papel de parede, objeto ou terreno. */ uso: 'piso' | 'papel' | 'objeto' | 'terreno' | 'macico' | 'agua' | 'telhado';
@@ -162,6 +162,7 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('agua.rio', 'Rio', 'agua', '#5aa0b0', '#1f5468', '#b4e4ec', 'liso', { raso: '#8cc8c8', fundo: '#2a6a80', espuma: '#f4fdff', transparencia: 0.25 }),
   m('agua.gruta', 'Água de gruta', 'agua', '#2aa8a0', '#0c4a52', '#9af0e0', 'liso', { raso: '#58d0c0', fundo: '#106068', espuma: '#d8fff4', transparencia: 0.85, causticas: true, espumaForca: 0.12 }),
   m('agua.pantano', 'Pântano', 'agua', '#5a6a38', '#222a14', '#98a468', 'liso', { raso: '#7a8444', fundo: '#2c3418', espuma: '#c4c88c', transparencia: 0.2 }),
+  m('agua.arrozal', 'Arrozal alagado', 'agua', '#6a7448', '#2e3420', '#9aa070', 'liso', { raso: '#8a8a58', fundo: '#4a5030', espuma: '#d4d4b0', transparencia: 0.35, espumaForca: 0.2 }),
   m('agua.lava', 'Lava', 'agua', '#c8461a', '#2a1610', '#ffb050', 'liso', { raso: '#ff8a2a', fundo: '#b8300c', espuma: '#ffd27a', transparencia: 0, espumaForca: 0, brilho: 1 }),
   m('agua.turfa', 'Água de turfa', 'agua', '#25313a', '#0a1116', '#5d727c', 'liso', { raso: '#3b4d55', fundo: '#0b1419', espuma: '#9aaab0', transparencia: 0.08, espumaForca: 0.12 }),
   m('cascalho', 'Cascalho', 'terreno', '#7a756c', '#3f3b36', '#b0aaa0', 'cascalho', { textura: { tingir: 0.6, camadas: [{ textura: 'gravel_floor', escala: 2.2 }, { textura: 'rocks_ground_02', escala: 1.2, mascara: { freq: 0.5, limiar: 0.6, suave: 0.08, semente: 11 } }] } }),
@@ -169,7 +170,7 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('lajes.gramadas', 'Lajes com grama', 'terreno', '#8c8475', '#3b342b', '#bcb2a0', 'lajegrama'),
   m('lajes.escuras', 'Lajes escuras de salão', 'terreno', '#4a4f57', '#1e2126', '#737a84', 'lajes-grandes', { lado: 1.5 }),
   m('lajes.antigas', 'Lajes antigas', 'terreno', '#b3a487', '#5c5040', '#dccfb6', 'lajes-rusticas', { lado: 0.95 }),
-  m('terra.sulcos', 'Terra com sulcos', 'terreno', '#7a5a3a', '#3b2a1a', '#a1805a', 'sulcos'),
+  m('terra.sulcos', 'Terra arada', 'terreno', '#7a5a3a', '#3b2a1a', '#a1805a', 'sulcos'),
   m('areia.molhada', 'Areia molhada', 'terreno', '#9c855a', '#5a4a2c', '#d8c690', 'molhada', { textura: { tingir: 0.6, camadas: [{ textura: 'damp_beach_sand_02', escala: 1.4 }] } }),
   m('neve.pisada', 'Neve pisada', 'terreno', '#d3dae2', '#8693a3', '#f4f7fa', 'pisada', { textura: { tingir: 0.6, camadas: [{ textura: 'snow_01', escala: 1.4 }, { textura: 'snow_03', escala: 1.4, mascara: { freq: 0.45, limiar: 0.48, suave: 0.1, semente: 9 } }] } }),
   m('terra.congelada', 'Terra congelada', 'terreno', '#5e564c', '#2e2923', '#dfe4ea', 'terra', { textura: { tingir: 0.6, camadas: [{ textura: 'rocky_trail', escala: 1.5 }, { textura: 'snow_03', escala: 1.4, mascara: { freq: 0.4, limiar: 0.58, suave: 0.1, semente: 10 } }] } }),
@@ -185,6 +186,11 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
     { textura: 'ground068', escala: 1.2, mascara: { freq: 1.1, limiar: 0.63, suave: 0.05, semente: 4 }, tons: ['#1c2212', '#3c4826', '#64703e'] },
   ] } }),
   m('musgo', 'Musgo', 'terreno', '#3c4826', '#1c2212', '#64703e', 'grama', { franja: 1, textura: { tingir: 0.6, camadas: [{ textura: 'ground068', escala: 1.2 }] } }),
+  // Deserto e sertão (Q7)
+  m('areia.duna', 'Dunas', 'terreno', '#d2ac70', '#74481e', '#f4dca6', 'dunas-areia'),
+  m('terra.rachada', 'Terra rachada', 'terreno', '#8a7458', '#4e3e2c', '#b49e7c', 'rachado', { textura: { tingir: 0.75, camadas: [{ textura: 'dry_ground_01', escala: 1.1 }] } }),
+  m('laterita', 'Laterita', 'terreno', '#8a4428', '#4c2214', '#b0663e', 'terra', { textura: { tingir: 0.55, camadas: [{ textura: 'red_dirt_mud_01', escala: 1.5 }] } }),
+  m('salina', 'Salina', 'terreno', '#d4cfc2', '#7e776a', '#f6f4ee', 'rachado', { textura: { tingir: 0.9, camadas: [{ textura: 'mud_cracked_dry_03', escala: 1.6 }] } }),
   m('piso.hangar', 'Concreto industrial', 'terreno', '#7d7c78', '#3a3936', '#a6a49f', 'placas', { lado: 3, ouro: '#c9a12a' }),
 ].map(([id, mat]) => [id as string, mat as Material])) as Record<string, Material>;
 
@@ -226,6 +232,8 @@ const PADROES_DEPENDENTES_DE_AREA = new Set<Padrao>([
   'tabuas', 'xadrez', 'laje', 'damasco', 'listras', 'veio', 'losango',
   'hexagono', 'floral', 'lambri', 'vidro', 'pregas', 'pintura',
   'grama', 'terra', 'lama', 'areia', 'pedra',
+  // Giram com a direção do pincel em volta do centro da área: com a caixa de cada ladrilho, emendariam.
+  'sulcos', 'dunas-areia',
 ]);
 
 /** Verdadeiro para padrões cujo layout, gradiente ou sorteios (`r()`) dependem da caixa `area` passada. */
@@ -246,10 +254,12 @@ export function pintarMaterial(ctx: Contexto, id: string, area: Area, seed = 1, 
   if (mat.textura && pintarComTextura(ctx, mat, area)) return;
   ctx.save();
   ctx.fillStyle = mat.base; ctx.fillRect(area.x, area.y, area.w, area.h);
-  if (dir) { const cx = area.x + area.w / 2, cy = area.y + area.h / 2; ctx.translate(cx, cy); ctx.rotate(dir); ctx.translate(-cx, -cy); }
+  // As dunas giram as próprias coordenadas: com o canvas girado, o `porPixel` deixava uma faixa sem pintar.
+  const giraCanvas = dir !== 0 && mat.padrao !== 'dunas-areia';
+  if (giraCanvas) { const cx = area.x + area.w / 2, cy = area.y + area.h / 2; ctx.translate(cx, cy); ctx.rotate(dir); ctx.translate(-cx, -cy); }
   const diag = Math.hypot(area.w, area.h);
   const quadrado: Area = { x: area.x + area.w / 2 - diag / 2, y: area.y + area.h / 2 - diag / 2, w: diag, h: diag };
-  const A: Area = dir !== 0 || padraoDependeDaArea(mat.padrao) ? quadrado : area;
+  const A: Area = giraCanvas || padraoDependeDaArea(mat.padrao) ? quadrado : area;
   switch (mat.padrao) {
     case 'tabuas': {
       for (const t of layoutDeTabuas(mat, A, r)) {
@@ -365,6 +375,7 @@ export function pintarMaterial(ctx: Contexto, id: string, area: Area, seed = 1, 
       ctx.globalAlpha = 1; break;
     }
     case 'gelo': pintarGelo(ctx, mat, A, seed, r, pxDe(ctx)); break;
+    case 'dunas-areia': camadaDeRuido(ctx, A, seed, 3, 0.1, 'multiply', 6); pintarDunasDeAreia(ctx, mat, area, seed, dir); break;
     case 'dunas': camadaDeRuido(ctx, A, seed, 2.5, 0.16, 'multiply', 6); camadaDeRuido(ctx, A, seed + 1, 0.7, 0.2, 'soft-light', 10); pintarDunas(ctx, mat, A, seed); break;
     case 'rachado': pintarRachado(ctx, mat, A, seed, pxDe(ctx)); break;
     case 'cascalho': pintarCascalho(ctx, mat, A, seed); break;
@@ -632,6 +643,33 @@ function pintarNeve(ctx: Contexto, mat: Material, A: Area, seed: number): void {
 }
 
 /** Neve funda: por cima da neve de sempre, cristas de vento (subida suave clara, queda curta em sombra azul) em faixas de 2 a 4 m, mais marolas finas. */
+/**
+ * Dunas de areia vistas de cima: cristas a cada 4 a 6 m, perpendiculares ao vento (a direção do pincel), com o barlavento longo e claro,
+ * riscado de ondulações finas de vento, e a face de avalanche curta e em sombra depois da crista. As cristas ondulam e se bifurcam pelo
+ * ruído que entorta a coordenada.
+ */
+function pintarDunasDeAreia(ctx: Contexto, mat: Material, A: Area, seed: number, dir = 0): void {
+  const cd = Math.cos(dir), sd = Math.sin(dir);
+  const rn = valueNoise2D(seed * 23 + 5), E = rgbHex(mat.escuro), C = rgbHex(mat.claro);
+  // Ruído contínuo (não o campo amostrado em grade): a crista é uma transição nítida e mostraria os degraus da interpolação.
+  porPixel(ctx, A, (xm, ym, o) => {
+    // Coordenadas no referencial do vento: as cristas correm ao longo de x.
+    const x = xm * cd + ym * sd, y = -xm * sd + ym * cd;
+    const warp = (fbm(rn, x * 0.07 + 40, y * 0.07, 3) - 0.5) * 4.5 + (fbm(rn, x * 0.4 + 3, y * 0.4 + 17, 2) - 0.5) * 0.7, per = 4.4 + (fbm(rn, x * 0.12 + 7, y * 0.12 + 90, 2) - 0.5) * 2.8;
+    // Força da duna: em alguns trechos a crista some e a areia fica quase lisa (as dunas se quebram e se fundem).
+    const forca = 0.25 + 0.75 * passo(0.3, 0.62, fbm(rn, x * 0.11 + 61, y * 0.16 + 5, 2));
+    let sc = (y + warp) / per; sc -= Math.floor(sc);
+    // Barlavento (0 a 0,8): clareia subindo até a crista; crista em 0,8; sotavento (0,8 a 1): sombra forte que se abre.
+    // Barlavento (0 a 0,72) clareia até a crista; a crista é uma luz estreita e macia; o sotavento (0,72 a 1) é sombra que vai abrindo.
+    const crista = 0.72, borda = Math.exp(-(((sc - crista) / 0.018) ** 2));
+    // O terreno é assado a 32 px/m: a passagem da luz para a sombra se espalha por ~0,13 m, senão a crista vira escada ao ampliar.
+    const sobe = 0.04 + (Math.min(sc, crista) / crista) ** 1.8 * 0.3, desce = -0.62 * (1 - passo(crista, 1, Math.max(sc, crista)) ** 1.4) - 0.04;
+    let v = (sobe + (desce - sobe) * passo(crista - 0.008, crista + 0.03, sc) + borda * 0.3) * forca;
+    if (sc < crista - 0.04) { let m = (y + warp * 0.92 + (fbm(rn, x * 0.6 + 70, y * 0.6 + 30, 2) - 0.5) * 0.35) / 0.3; m -= Math.floor(m); v -= (m < 0.18 ? (1 - m / 0.18) * 0.16 : 0) * (0.4 + sc); }
+    if (v < 0) { o[0] = E[0]; o[1] = E[1]; o[2] = E[2]; o[3] = Math.min(255, -v * 1.3 * 255); } else { o[0] = C[0]; o[1] = C[1]; o[2] = C[2]; o[3] = Math.min(255, v * 1.4 * 255); }
+  });
+}
+
 function pintarDunas(ctx: Contexto, mat: Material, A: Area, seed: number): void {
   const rn = valueNoise2D(seed * 19 + 1), E = rgbHex(mat.escuro), C = rgbHex(mat.claro), ang = 0.35 + (seed % 7) * 0.09, ux = Math.cos(ang), uy = Math.sin(ang);
   const R = areaDeAmostragem(ctx, A);
