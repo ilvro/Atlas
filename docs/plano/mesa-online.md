@@ -27,6 +27,10 @@ Divisão do trabalho, como manda o `CLAUDE.md`: as fichas vão ao **Sonnet** com
 6. **As fichas dos jogadores moram na sala.** Cada ficha tem `dono = discordId` e `rev`. O Dossiê ganha um armazenamento trocável: `local` (como hoje) e `sala` (pela casca). O mestre vê e edita as fichas da sala no Dossiê dele, numa pasta "Sala", também pela ponte. Em conflito, ganha a última gravação, com aviso.
 7. **A peça própria é livre.** O jogador arrasta a peça ligada a uma ficha dele. A casca manda o pedido `atlas.mover-peca`, a sala carimba o autor, e o Atlas do mestre confere a ligação e aplica o movimento como um arraste do mestre, com desfazer. Não pede aprovação.
 8. **A sala é a única que carimba o autor.** Todo envelope que chega da sala traz `autor: { discordId, nome, papel, fichas: string[] }`. Quem recebe confia no carimbo e nunca num campo vindo do cliente.
+   - **Na casca, os canais locais têm nome próprio.** Do lado do jogador, o projetor e o Dossiê usam canais prefixados pela sala (`sala:<id>:atlas:projetor:*` e `sala:<id>:mesa:eventos`), nunca os canais do mestre. Abrir o link de jogador no mesmo navegador do mestre (o jeito natural de testar) não cria eco nem mistura eventos que não passaram pela sala.
+12. **Nada do que o jogador não vê sai do computador do mestre.** Na TV da sala, a névoa podia ser só desenho. Online, o documento chega ao navegador do jogador. Por isso, o que vai para a sala é uma **projeção remota** (R5b), que corta terreno, paredes, cômodos, objetos e luzes fora das áreas exploradas e tira os nomes e os textos que dão spoiler. Pelo mesmo motivo, o som e os eventos levam ids, não títulos.
+13. **Mestre por sala, não um só mestre.** O Worker tem uma lista de quem pode criar salas (`MESTRES_DISCORD_IDS`), e cada sala guarda o próprio dono, que é o mestre dela. Um amigo seu, posto na lista, mestra a campanha dele na mesma infraestrutura.
+14. **Toda mudança de contrato atualiza todas as cópias** do `mesa-core` (`Mesa`, `Dossie`, `Jukebox` e `Atelie`, em `vendor/mesa-core/`) no mesmo passo. Uma cópia velha recusa o envelope novo.
 9. **As rolagens começam no cliente.** Num primeiro momento, o Dossiê do jogador rola como hoje e a sala só espalha o resultado. Rolar na sala, para ninguém poder mexer no resultado, fica para a R20, porque depende de como os dados 3D decidem o valor.
 10. **Funcionar sem sala continua sendo a regra.** Sem login, nada muda. O online é um modo a mais. O §2 e o §10 do `PLATAFORMA.md` são atualizados na R3.
 11. **O som do Jukebox toca em cada jogador, e não pela voz do Discord.** O Jukebox do mestre publica o que está tocando: faixas, volumes, posições e efeitos. Cada arquivo sobe uma vez para a sala, identificado pelo hash do conteúdo, e cada casca toca os mesmos arquivos acompanhando o relógio da sala. Transmitir o áudio pela chamada perderia qualidade (compressão e supressão de ruído do Discord), misturaria com a voz do mestre e falha com frequência no Linux. Os arquivos da sala só saem para quem tem sessão válida daquela sala. **Filtros e efeitos do Jukebox são parte essencial e precisam chegar**, iguais. Para isso, a casca usa o **mesmo motor de mixagem** do Jukebox (`Jukebox/mixing/`), carregado de `/Jukebox/` em tempo de execução, e repete as ações do mestre (ativar e desativar efeitos, ajustes, regiões) em vez de copiar o som pronto. Assim, um efeito novo no Jukebox chega aos jogadores sem mudar a Mesa.
@@ -108,7 +112,7 @@ Pronto quando: `npm test` e `npm run typecheck` passam na Mesa, `npm run sala:de
 Commit: `room worker with durable object relay`
 Nota: feita (Mesa `d12d4af`). Wrangler 4.166, `compatibility_date = "2025-09-01"`. Sem parameter properties por causa do `erasableSyntaxOnly`.
 
-### R2 — Login pelo Discord e sessão assinada  ⬜
+### R2 — Login pelo Discord e sessão assinada  ✅
 Objetivo: o Worker sabe quem é cada conexão e quem é o mestre.
 Depende de: R1.
 Ler: o fluxo OAuth2 do Discord (troca do `code` em `https://discord.com/api/oauth2/token`, `GET /users/@me`); o exemplo de autenticação do Embedded App SDK.
@@ -122,6 +126,7 @@ Não fazer: o diretório (R4) nem o cliente (R5, R17).
 Testes: assinar e verificar; sessão vencida, adulterada ou com outro segredo é rejeitada; `papel` sai `mestre` só para o id configurado; o WebSocket sem `ola` válido é fechado. A troca com o Discord vai com `fetch` falso.
 Pronto quando: os testes passam e nenhum segredo aparece no código.
 Commit: `discord login and signed sessions in room worker`
+Nota: feita (Mesa `afbd70c`). `exp` em ms. Os tipos de `ola` e `bem-vindo` estão em `sala/ola.ts`, que a R3 leva para `src/online/protocolo.ts`. `retransmitirIdentificados` só entrega entre conexões com anexo. A troca real com o Discord foi testada só com `fetch` falso; ela é testada de verdade na R5.
 
 ### R3 — Protocolo da sala e contrato  ⬜
 Objetivo: os tipos e o cliente da sala, iguais para a Mesa do mestre e para a casca do jogador.
@@ -135,11 +140,11 @@ Como:
 1. Os tipos `MensagemParaSala` e `MensagemDaSala` da tabela do protocolo. `Autor = { discordId; nome; papel: 'mestre' | 'jogador'; fichas: string[] }`.
 2. `conectarSala({ url, sessao, WebSocket? }) → ClienteDaSala`, com `enviar`, `ouvir(tipo, f)`, `estado: 'conectando' | 'aberta' | 'caiu'` e `fechar`. Reconecta com espera crescente (1, 2, 4… até 30 s), refaz o `ola` e repete o `bem-vindo`.
 3. Blobs: `enviarBlob(id, blob)` divide em pedaços de 512 KB num quadro binário com cabeçalho `{ id, i, n, tipo }`; `ouvirBlob` remonta.
-4. `EVENTOS_DO_MESTRE`: a lista fechada do que a ponte do mestre pode repassar. Por enquanto, `ficha.rolagem` de personagens e `atlas.cena-aberta`.
+4. `EVENTOS_DO_MESTRE`: a lista fechada do que a ponte do mestre pode repassar. Por enquanto, só `ficha.rolagem` de personagens. `atlas.cena-aberta` fica de fora, porque leva a ref e o nome do mapa; a casca sabe que o mapa mudou pelo `estado` que chega.
 5. No `PLATAFORMA.md`: em §2, um parágrafo "Modo online (Frente R)"; em §5, o campo `autor`; em §10, trocar "fora do escopo" por um link para esta frente.
-6. `npm run build:core` e copiar o `dist/` para `Mesa/vendor/mesa-core/` e `Dossie/vendor/mesa-core/`. É um commit por repositório: Atlas (contrato), Mesa (protocolo e vendor) e Dossiê (vendor).
+6. `npm run build:core` e copiar o `dist/` para **todas** as cópias: `Mesa`, `Dossie`, `Jukebox` e `Atelie` (`vendor/mesa-core/`). É um commit por repositório: Atlas (contrato), Mesa (protocolo e vendor), Dossiê, Jukebox e Ateliê (vendor). Os testes de contrato de cada um precisam passar.
 Não fazer: a ponte (R5) nem a lógica de permissões (R4, no servidor).
-Testes: reconexão com um WebSocket falso; divisão e remontagem de um blob de 1,3 MB; `validarEvento` aceita `autor` e recusa `autor` malformado.
+Testes: reconexão com um WebSocket falso; divisão e remontagem de um blob de 1,3 MB; `validarEvento` aceita `autor` e recusa `autor` malformado (`autor` entra na lista `permitidas`, que hoje recusa qualquer campo desconhecido).
 Pronto quando: os testes do mesa-core e da Mesa passam, e as cópias em `vendor/` batem com o `dist/`.
 Commit: `online contract: event author and room events` (Atlas); `room protocol and client` (Mesa); `mesa-core com eventos da sala` (Dossiê)
 
@@ -165,6 +170,7 @@ Como:
    - `GET /sala/diretorio/:guildId` → `{ salaId }`.
    - `POST /sala/nova` (só o mestre) cria um id aleatório e um nome.
 7. Um limite simples de mensagens por conexão: 60 por segundo, acima disso descarta e avisa uma vez.
+8. Mestre por sala (decisão 13): o segredo vira `MESTRES_DISCORD_IDS` (ids separados por vírgula), e a sessão passa a dizer `podeMestrar`. `POST /sala/nova` grava `dono = discordId` em `config`. Dentro de uma sala, `papel = 'mestre'` só para o dono; os outros são jogadores, mesmo que estejam na lista. Ajuste a R2 (`papelDe`) e os testes dela.
 Não fazer: clientes.
 Testes: um jogador não consegue mandar `canal` nem salvar a ficha de outro; o mestre consegue; quem entra atrasado recebe o último `estado` e as fichas; o diretório liga e consulta.
 Pronto quando: os testes passam e o `wrangler deploy` publica (com o usuário logado).
@@ -184,7 +190,7 @@ Como:
    - ligar a um servidor do Discord, colando o id do servidor;
    - ver quem está conectado.
 3. Ponte de ida:
-   - ouvir `atlas:projetor:ativo` e repassar como `canal`;
+   - ouvir `atlas:projetor:ativo` e repassar como `canal`. Até a R5b, só em sala de teste; a partir dela, o `estado` que sai é o da projeção remota;
    - os blobs das mensagens `retrato` e `inspecao` vão por `enviarBlob`, e a mensagem segue com `blobId` no lugar do `Blob`;
    - no `mesa:eventos`, repassar só o que está em `EVENTOS_DO_MESTRE`.
 4. Ponte de volta: os eventos dos jogadores vão para o `BroadcastChannel('mesa:eventos')` local, com o `autor`.
@@ -193,6 +199,26 @@ Não fazer: compressão e divisão do `estado` (R6), fichas (R13).
 Testes: a ponte com um cliente da sala falso e um `BroadcastChannel` falso; um evento fora da lista não sai; um `Blob` vira `blobId`.
 Pronto quando: com o Atlas aberto e a Mesa em `#/online`, um cliente de teste conectado na sala recebe o `estado` do mapa.
 Commit: `mesa online bridge publishes projector to the room`
+
+### R5b — Projeção remota: só o que o jogador já viu  ⬜
+Objetivo: o documento que sai do computador do mestre não tem nada fora das áreas exploradas e visíveis, nem textos que deem spoiler.
+Depende de: R5. **Bloqueia** a R7: nenhum jogador recebe mapa antes desta ficha.
+Ler: `Atlas/src/domain/projecao.ts` (`projetarParaJogadores` e `CAMPOS_DO_MESTRE`), `Atlas/src/domain/nevoa.ts` (`celulasExploradas`, `celulasVisiveis` e `RES_NEVOA`), `Atlas/src/domain/celulas.ts`, `Atlas/src/domain/mapa.ts` (`MapaAtlas`: `terrain`, `rooms` com `cells`, `walls`, `openings`, `props`, `lights`, `presence`, `backdrop` e `memory`) e `iniciarPublicacao` em `Atlas/src/app/projetor.ts`.
+Arquivos: criar `Atlas/src/domain/projecao-remota.ts` e o teste; mudar `projetor.ts` (o publicador manda a projeção remota quando quem pediu foi a ponte online; o projetor local continua com a de hoje).
+Como:
+1. `projetarParaRemoto(m, andar)` parte de `projetarParaJogadores` e corta tudo pela área conhecida, `explorado ∪ visível` (com 1 célula de folga, para as bordas não ficarem secas):
+   - terreno e presenças: só as faixas dentro da área;
+   - cômodos: as células dentro da área, e `name` vazio se o cômodo não estiver revelado em `session.revealed`;
+   - paredes e aberturas: só as que tocam a área;
+   - objetos e luzes: só os que estão dentro dela;
+   - `name` do mapa e `groundLevelName` trocados por "Mapa"; os nomes de andar, por "Andar 1, 2…".
+2. Liste no relatório cada campo de `MapaAtlas` e o que acontece com ele. Um campo que não for tratado e puder mostrar o que está fora da área (como `backdrop` e `memory`) é tratado ou levado ao Opus. Na dúvida, corta.
+3. Sem névoa ligada (`session.explored === null`), o mestre mostra o mapa todo, como hoje no projetor. Nesse caso, a ponte online pede uma confirmação ("Este mapa está sem névoa: os jogadores vão receber o mapa inteiro"), lembrada por mapa.
+4. O publicador manda uma marca no `ola` (`{ tipo: 'ola', remoto: true }`) para escolher a projeção. A ponte online da R5 passa a mandar essa marca.
+Não fazer: diferenças entre versões (R6), visual da borda cortada.
+Testes: num mapa de teste com dois cômodos, um explorado e outro não, nada do cômodo não explorado sai (células, nome, objetos, luzes, paredes que só tocam nele); o cômodo explorado sai inteiro; sem névoa, sai igual à projeção de hoje; `CAMPOS_DO_MESTRE` continua coberto.
+Pronto quando: os testes passam, e um teste de ponta a ponta com a ponte da R5 mostra que o `estado` na sala não tem os nomes nem as células da área não explorada.
+Commit: `remote projection sends only what players have seen`
 
 ### R6 — Mapas grandes e assets  ⬜
 Objetivo: o `estado` de um mapa grande chega inteiro e sem estourar o limite de mensagem.
@@ -212,18 +238,18 @@ Commit: `compressed map state and asset dedup for the room`
 
 ### R7 — Casca do jogador, entrando por link  ⬜
 Objetivo: um jogador abre `ilvro.github.io/Mesa/#/jogar/<sala>`, entra com o Discord e vê o mapa.
-Depende de: R6.
+Depende de: R6 e R5b.
 Ler: `ModoSessao.tsx` (o `Escalado` e os `iframe`), `aplicativos.ts` (`baseDoApp`), `Atlas/src/app/rotas.ts` (`#/projetor/{id}`) e `Atlas/src/app/projetor.ts` (o lado receptor).
 Arquivos: criar `Mesa/src/jogar/Casca.tsx`, `Mesa/src/jogar/ponte-jogador.ts` e o teste; mudar `rotas.ts` e `main.tsx` (com `import()` sob demanda, para a casca não pesar no hub).
 Como:
 1. A casca ocupa a tela toda, sem a navegação da Mesa. O mapa fica à esquerda e o painel da ficha (reservado, vazio até a R12) à direita, com 360 px. Em telas estreitas na vertical, abas embaixo: Mapa | Ficha.
-2. Ponte de volta: o `canal` da sala vai para o `BroadcastChannel` local `atlas:projetor:<mapa>` e `atlas:projetor:ativo`, já com os blobs remontados e o `estado` descomprimido. O `evento` vai para o `mesa:eventos`.
+2. Ponte de volta: o `canal` da sala vai para canais locais **com o prefixo da sala** (`sala:<id>:atlas:projetor:<mapa>` e `sala:<id>:atlas:projetor:ativo`), já com os blobs remontados e o `estado` descomprimido. O `evento` vai para `sala:<id>:mesa:eventos`. Nunca escreva nos canais do mestre: com o mestre e o jogador no mesmo navegador, isso criaria eco (decisão 8).
 3. Ponte de ida: `MensagemDoProjetor` não sai (o mestre não precisa do tamanho de cada jogador), e os eventos permitidos a jogador saem.
-4. O `iframe` do Atlas abre em `../Atlas/#/projetor/<mapa>?remoto=1`. O mapa vem do último `estado`, e a casca troca o `src` quando o mestre muda de mapa.
-5. O projetor com `?remoto=1` só esconde o que é do mestre (o aviso "feche esta janela" e afins). Se a ficha não bater com o código do projetor, pare e reporte.
+4. O `iframe` do Atlas abre em `../Atlas/#/projetor/<mapa>?remoto=<id-da-sala>`, e o projetor, com esse parâmetro, ouve os canais prefixados. O mapa vem do último `estado`, e a casca troca o `src` quando o mestre muda de mapa.
+5. Fora isso, o projetor remoto só esconde o que é do mestre (o aviso "feche esta janela" e afins). Se a ficha não bater com o código do projetor, pare e reporte.
 6. Um selo de conexão mostra o estado do cliente (`aberta`, ou "reconectando…").
 Não fazer: o Discord (R17), as fichas (R11 e R12) e o arraste (R15).
-Testes: a ponte do jogador com falsos; um e2e com dois contextos do Playwright (mestre e jogador) e a sala em `wrangler dev`, se for viável. Se não for, anote e faça só o teste unitário.
+Testes: a ponte do jogador com falsos; com a casca e a ponte do mestre na mesma origem, nada do que a casca recebe volta para a sala; um e2e com dois contextos do Playwright (mestre e jogador) e a sala em `wrangler dev`, se for viável. Se não for, anote e faça só o teste unitário.
 Pronto quando: em dois navegadores, o mestre move uma peça e o jogador vê o movimento.
 Commit: `player shell shows the projected map from the room`
 
@@ -272,7 +298,7 @@ Depende de: R10 e R7.
 Ler: `armazenamento.js`, `mesa.js` e a barra lateral (`nav-rail`, pastas, compêndio, ameaças, licença do bestiário) e as vistas (`viewMode`, `presentationMode`) em `app.js`.
 Arquivos: criar `armazenamentoSala()` em `armazenamento.js`; mudar `app.js` e `mesa.js`; do lado da casca, `ponte-jogador.ts`.
 Como:
-1. Com `?sala=1` na URL, o armazenamento é `armazenamentoSala()`:
+1. Com `?sala=<id>` na URL, o barramento do Dossiê usa o canal `sala:<id>:mesa:eventos` (o `criarBarramento` aceita `criarCanal`), e o armazenamento é `armazenamentoSala()`:
    - `carregar` pede `sala.fichas` pelo barramento, e a casca responde com as fichas do `bem-vindo`;
    - `salvar` emite `sala.salvar-ficha`, com `debounce` de 800 ms, e a casca repassa como `ficha.salvar`;
    - `aoMudarFora` ouve `sala.ficha-atualizada` e redesenha, com o aviso "atualizada pelo mestre" quando o autor não é o jogador.
@@ -290,7 +316,7 @@ Depende de: R11.
 Ler: `Casca.tsx` e as vistas do Dossiê.
 Arquivos: mudar `Casca.tsx` e o CSS da casca.
 Como:
-1. Um único `iframe` do Dossiê em `../Dossie/?sala=1&vista=card`, no painel. O botão "Ficha completa" leva o `iframe` para a tela toda (sobreposto ao mapa, que continua vivo por trás) e manda `vista=completa`. "Voltar ao mapa" faz o inverso.
+1. Um único `iframe` do Dossiê em `../Dossie/?sala=<id>&vista=card`, no painel. O botão "Ficha completa" leva o `iframe` para a tela toda (sobreposto ao mapa, que continua vivo por trás) e manda `vista=completa`. "Voltar ao mapa" faz o inverso.
 2. Em celular na vertical, a aba Ficha mostra a completa direto.
 3. Um jogador com mais de uma ficha escolhe a ativa no card.
 Não fazer: estilo novo do Dossiê; o card é o que já existe.
@@ -326,18 +352,19 @@ Ler: `armazenamento.js`, as pastas do Dossiê (`src/workspace/folders.js`) e o `
 Arquivos: mudar `Dossie/src/app.js` (a pasta virtual), `armazenamento.js` (a combinação) e `Mesa/src/app/online.ts` (atender `sala.fichas`, repassar `sala.salvar-ficha` e `ficha.entregar`).
 Como:
 1. Com a Mesa online conectada, o Dossiê do mestre mostra uma pasta virtual "Sala: <nome>" com as fichas da sala, com o dono no rótulo. Editar uma delas grava na sala, e não no local.
-2. Uma ficha local ganha, no menu, "Entregar a um jogador…", que lista os membros conhecidos. A ficha é copiada para a sala com `dono` igual ao jogador; a local fica como está.
-3. Conflito: se chegar uma `ficha.atualizada` com `rev` maior enquanto o mestre edita, aparece o aviso "<nome> mexeu nesta ficha" com "Ver a versão dele" e "Manter a minha".
+2. Uma ficha local ganha, no menu, "Entregar a um jogador…", que lista os membros conhecidos. A ficha vai para a sala **com o mesmo id**, com `dono` igual ao jogador, e a local deixa de ser editada à parte (passa a ser a da sala).
+3. **As fichas da sala entram na campanha do mestre.** O `mesa.js` do Dossiê do mestre publica cada ficha da sala como entidade `personagem`, com o Ref `mesa:ficha/ficha/<id>` e o retrato, como já faz com as locais. Assim, o Atlas as encontra em `personagensComFicha`, e o mestre consegue pôr a peça ligada à ficha do jogador. Isso vale também para uma ficha que o jogador criou ou importou na sala. É esse vínculo que a R14 e a R15 usam.
+4. Conflito: se chegar uma `ficha.atualizada` com `rev` maior enquanto o mestre edita, aparece o aviso "<nome> mexeu nesta ficha" com "Ver a versão dele" e "Manter a minha".
 Não fazer: fusão campo a campo.
 Testes: a combinação de local com sala no armazenamento; a entrega com uma ponte falsa.
-Pronto quando: o mestre muda o PV de um jogador e o card do jogador atualiza.
+Pronto quando: o mestre muda o PV de um jogador e o card do jogador atualiza; uma ficha criada pelo jogador na sala aparece no Atlas do mestre para virar peça.
 Commit: `fichas da sala no dossiê do mestre`
 
 ## Bloco 5 — A peça própria
 
 ### R14 — Projetor sabe quais peças são do jogador  ⬜
 Objetivo: o projetor remoto destaca e libera a peça do jogador.
-Depende de: R7 e R11.
+Depende de: R7, R11 e R13 (o vínculo entre peça e ficha da sala).
 Ler: o receptor do projetor; `Peca.refs` em `Atlas/src/domain/mapa.ts`; `projetarParaJogadores` (que mantém `tokens.*.refs`).
 Arquivos: mudar o receptor do projetor e a ponte do jogador.
 Como: a casca manda ao `iframe` `{ tipo: 'jogador', fichas: string[] }` por `postMessage`. As peças de jogador cujas `refs` contêm `mesa:ficha/ficha/<id>` de uma dessas fichas ganham um anel discreto e o cursor de mão.
@@ -369,7 +396,7 @@ Commit: `players move their own tokens online`
 Objetivo: qualquer um na mesa aponta um lugar do mapa, e todos veem onde.
 Depende de: R14 (o projetor remoto já recebe gestos do jogador).
 Ler: o receptor do projetor e o gesto de arraste da R15; no Atlas do mestre, onde os eventos de cena (`EventoDeCena`) são desenhados sobre o mapa; `mesa-core/src/eventos.ts`.
-Arquivos: no mesa-core, o fato `mesa.ping { mapa, ponto: [x, y], levelId? }` no `CATALOGO` (dono `mesa`), com `autor` carimbado pela sala; mudar o receptor do projetor, o Atlas do mestre (o atalho e a exibição) e `EVENTOS_DO_MESTRE` (o ping do mestre sai); criar `pingsAtivos` puro com o teste.
+Arquivos: no mesa-core, o fato `mesa.ping { mapa, ponto: [x, y], levelId? }` no `CATALOGO` (dono `mesa`), com as quatro cópias de `vendor/` atualizadas (decisão 14), com `autor` carimbado pela sala; mudar o receptor do projetor, o Atlas do mestre (o atalho e a exibição) e `EVENTOS_DO_MESTRE` (o ping do mestre sai); criar `pingsAtivos` puro com o teste.
 Como:
 1. Gesto do jogador no projetor remoto: segurar 400 ms num ponto vazio, ou clicar com Alt. No celular, segurar o dedo. Não conflita com o arraste da própria peça: segurar *sobre* a peça arrasta.
 2. Gesto do mestre no Atlas, durante a sessão: Alt+clique no mapa.
@@ -410,7 +437,7 @@ Como:
 1. `main.tsx`: se a URL tem `frame_id` (a atividade sempre passa), carregar a casca em modo Discord por `import()`.
 2. `discord.ts`:
    - `new DiscordSDK(CLIENT_ID)` e `await ready()`;
-   - `authorize({ client_id, response_type: 'code', state: '', prompt: 'none', scope: ['identify', 'guilds'] })`;
+   - `authorize({ client_id, response_type: 'code', state: '', prompt: 'none', scope: ['identify'] })`. O `guildId` vem do próprio SDK (`discordSdk.guildId`) e não precisa do escopo `guilds`, que fica só para o login web do mestre (R18);
    - `POST /sala/token { code }` (sem `redirect_uri`) e `authenticate({ access_token })`.
    - A sessão fica em memória, não no `localStorage`.
 3. `commands.setActivity` com o nome da campanha, para aparecer no perfil de quem está jogando.
@@ -475,11 +502,12 @@ Nota: feita (Jukebox `634a94e`). API: `criarMotor({ audioContext?, destino?, tem
 Objetivo: o Jukebox do mestre diz, de forma completa, o que está tocando, com os efeitos, e entrega o arquivo de uma faixa quando pedem.
 Depende de: R21a e R3 (o contrato).
 Ler: `Jukebox/mesa.js` (`anunciarCena`, `pedidoDeEfeito`, `pedidoDeParar` e `contextoDaPonte`, que já lê `getAllSongStates()`), `Jukebox/mixing/motor.js` (`estadoDaFaixa`) e `Jukebox/scenes.js` (`activateScene`). Descubra de onde vem o áudio de cada faixa: os arquivos de `sample/` publicados no Pages, os arquivos que o mestre subiu (`URL.createObjectURL`) e os presets do servidor local.
-Arquivos: mudar `Jukebox/mesa.js` (e, se preciso, expor um leitor de estado em `player.js`); no mesa-core, acrescentar ao `CATALOGO` o fato `jukebox.mix`, o fato `jukebox.efeito-tocado` e o pedido `jukebox.arquivo`, e copiar o `vendor/` para o Jukebox, a Mesa e o Dossiê.
+Arquivos: mudar `Jukebox/mesa.js` (e, se preciso, expor um leitor de estado em `player.js`); no mesa-core, acrescentar ao `CATALOGO` o fato `jukebox.mix`, o fato `jukebox.efeito-tocado` e o pedido `jukebox.arquivo`, e copiar o `vendor/` para as quatro cópias (decisão 14).
 Como:
 1. `jukebox.mix { cena, mestre: volume, faixas: [{ faixaId, url?, titulo, loop, posicao, taxa, desde, pausada, estado: EstadoDaFaixa }] }`. Os pontos:
    - `faixaId` é o SHA-256 dos bytes, calculado uma vez por faixa e guardado em memória;
    - `url` só aparece quando o arquivo está publicado no Pages (`sample/`), caso em que a casca baixa direto, sem a sala;
+   - `titulo` e `cena` saem do Jukebox, mas a ponte do mestre (R22) os **tira** antes de mandar à sala, porque o nome de uma cena pode ser spoiler ("Traição do rei"). Para a casca bastam `faixaId`, `url` e `estado`. O nome do arquivo do Pages também é texto: a ponte manda `url` só se o mestre não marcar a faixa como "esconder nome" (o padrão é mandar);
    - `posicao` é o tempo da faixa, em segundos, no instante `desde` (`Date.now()`);
    - `taxa` é o `playbackRate` efetivo (velocidade, nightcore, reverse);
    - `estado` é o do motor (volume, efeitos, ajustes e regiões).
@@ -502,7 +530,7 @@ Depende de: R21b, R5 e R6.
 Ler: `Mesa/src/app/online.ts` e `Mesa/src/online/protocolo.ts` (`EVENTOS_DO_MESTRE`, blobs).
 Arquivos: mudar `online.ts`, `protocolo.ts` e `sala/sala.ts` (o último `mix` vai para quem chega, e a sala responde `temBlob`).
 Como:
-1. `jukebox.mix` e `jukebox.efeito-tocado` entram em `EVENTOS_DO_MESTRE`.
+1. `jukebox.mix` e `jukebox.efeito-tocado` entram em `EVENTOS_DO_MESTRE`, sem `titulo` e `cena` (decisão 12).
 2. Para cada `faixaId` nova no `mix` e sem `url`, a ponte pergunta à sala se ela já tem o blob. Se não tiver, pede `jukebox.arquivo` ao Jukebox e sobe com `enviarBlob`. Os arquivos ficam na sala entre sessões, então a segunda sessão quase não sobe nada.
 3. Ao ativar uma cena, sobem antes as faixas dela. Os efeitos `sfx` da campanha sobem em segundo plano, um por vez.
 4. Arquivos acima de 40 MB são recusados, com aviso na `#/online`. A tela mostra quanto a sala ocupa.
@@ -553,12 +581,12 @@ Commit: `server-side dice rolls`
 | --- | --- | --- | --- |
 | 0. Contas | R0 | Usuário | — |
 | 1. Sala | R1 → R2 → R3 → R4 | Sonnet | R0 só para publicar |
-| 2. O mestre publica | R5 → R6 | Sonnet | R4 |
+| 2. O mestre publica | R5 → R5b → R6 | Sonnet | R4; a R5b bloqueia a R7 |
 | 3. O jogador vê | R7 → R8, R9 | Sonnet | R6 |
-| 4. Fichas e saguão | R10 (já), R11 → R12 → R12b, R13 | Sonnet (o Opus revisa a R12 e a R12b) | R7 para a R11 |
+| 4. Fichas e saguão | R10 ✅, R11 → R12 → R12b, R13 | Sonnet (o Opus revisa a R12 e a R12b) | R7 para a R11 |
 | 5. Peça própria e ping | R14 → R15 → R15b → R15c | Sonnet; R15c pelo Opus | R11 |
-| 6. Discord | R16 (já), R17 → R18, R19 | Sonnet; R19 com o usuário | blocos 3 a 5 |
-| 7. Som | R21a (já) → R21b → R22 → R23 | Sonnet | R3 para a R21b; R5, R6 e R12b para as outras |
+| 6. Discord | R16 ✅, R17 → R18, R19 | Sonnet; R19 com o usuário | blocos 3 a 5 |
+| 7. Som | R21a ✅ → R21b → R22 → R23 | Sonnet | R3 para a R21b; R5, R6 e R12b para as outras |
 | Depois | R20 | Sonnet | R9 |
 
-Os blocos 1 a 5 já permitem jogar online por link, entrando com o Discord no navegador. A atividade (bloco 6) entra por cima sem refazer nada. A R10, a R16 e a R21a não dependem de nada e podem começar já.
+Os blocos 1 a 5 já permitem jogar online por link, entrando com o Discord no navegador. A atividade (bloco 6) entra por cima sem refazer nada. A R10, a R16 e a R21a já foram feitas.
