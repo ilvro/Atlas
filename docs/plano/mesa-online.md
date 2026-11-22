@@ -514,7 +514,7 @@ Pronto quando: os testes do Jukebox passam, a interface aplica e tira efeitos e 
 Commit: `headless mixing engine for effects and regions`
 Nota: feita (Jukebox `634a94e`). API: `criarMotor({ audioContext?, destino?, tempoDeRemocao? }) → { prepararFaixa(audio, { destino? }), volumeMestre(v) }`; `Faixa.aplicar(estado)`, `soltar()` e `estado()`; `estadoDaFaixa({ audio, audioEffects, progressBar })`. O tempo de remoção saiu do `settings.js` para `mixing/removal-duration.js`. O teste no Chromium (pelo Opus) confirmou: o motor carrega de outra página da mesma origem e toca com passa-baixa e eco. Ficaram de fora do motor, por serem da interface: crossfade, avanço suave, `playAndFadeOut` e `playAndStop` das regiões. Os efeitos de região são decididos a cada 25 ms em `player.js` (`syncRegionAudioEffects`), e o motor recebe a lista já resolvida.
 
-### R21b — Jukebox publica o que toca  ⬜
+### R21b — Jukebox publica o que toca  ✅
 Objetivo: o Jukebox do mestre diz, de forma completa, o que está tocando, com os efeitos, e entrega o arquivo de uma faixa quando pedem.
 Depende de: R21a e R3 (o contrato).
 Ler: `Jukebox/mesa.js` (`anunciarCena`, `pedidoDeEfeito`, `pedidoDeParar` e `contextoDaPonte`, que já lê `getAllSongStates()`), `Jukebox/mixing/motor.js` (`estadoDaFaixa`) e `Jukebox/scenes.js` (`activateScene`). Descubra de onde vem o áudio de cada faixa: os arquivos de `sample/` publicados no Pages, os arquivos que o mestre subiu (`URL.createObjectURL`) e os presets do servidor local.
@@ -539,6 +539,13 @@ Não fazer: a ponte (R22) nem a reprodução nos jogadores (R23).
 Testes: em `Jukebox/tests/`, montar o `mix` a partir de estados falsos (com efeitos e regiões); o hash de um mesmo arquivo dá sempre o mesmo `faixaId`.
 Pronto quando: com o Jukebox aberto, um ouvinte do barramento vê o `mix` mudar ao ativar uma cena, ligar um filtro e marcar uma região com eco.
 Commit: `jukebox publishes its mix for the online table` (Jukebox); `jukebox mix events in the contract` (Atlas)
+Nota: feita (Atlas `ca8dd65`, Jukebox `37678aa`; vendor na Mesa `551a715`, no Dossiê `7793dc0` e no Ateliê `632d5f8`).
+- Módulo novo: `Jukebox/mix.mjs`. `player.js` expõe `getMixSources()` e `getAudioEffectsFor(songId)`.
+- Gatilhos: o evento `jukeboxMixMudou` e uma verificação a cada 100 ms em `mesa.js`, que pega as mudanças sem gatilho (controles de ajuste, saltos de loop, `smoothLoop`). Limite: 250 ms entre envios, 100 ms em fade e um envio a cada 3 s.
+- No avanço suave, a segunda faixa vem com `crossfade: true` (mesmo `faixaId`).
+- `titulo` e `cena` são opcionais no catálogo, para a R22 poder tirá-los.
+- `url` só vale para `sample/` sem edição, e vai codificada duas vezes (`%2520`) de propósito.
+- No reverse, o elemento segue andando para a frente, mudo, e um buffer toca a região invertida; `posicao` é o `currentTime` do elemento.
 
 ### R22 — A ponte do mestre leva o som à sala  ⬜
 Objetivo: a sala sabe o que está tocando e tem todos os arquivos necessários.
@@ -550,6 +557,8 @@ Como:
 2. Para cada `faixaId` nova no `mix` e sem `url`, a ponte pergunta à sala se ela já tem o blob. Se não tiver, pede `jukebox.arquivo` ao Jukebox e sobe com `enviarBlob`. Os arquivos ficam na sala entre sessões, então a segunda sessão quase não sobe nada.
 3. Ao ativar uma cena, sobem antes as faixas dela. Os efeitos `sfx` da campanha sobem em segundo plano, um por vez.
 4. Arquivos acima de 40 MB são recusados, com aviso na `#/online`. A tela mostra quanto a sala ocupa.
+5. Ligar sob demanda (nota da R21b): hoje o Jukebox monta o `mix` e verifica mudanças a cada 100 ms sempre. A ponte passa a mandar um pedido `jukebox.ouvir { ligado }` (novo no catálogo, com as quatro cópias de `vendor/` atualizadas) enquanto a mesa online estiver aberta, e o Jukebox só publica e verifica enquanto houver quem ouça (repetido a cada 10 s; 30 s sem repetição desliga).
+6. Memória: o índice do Jukebox guarda cada blob com hash até a página fechar. Solte o blob quando a faixa sai do Jukebox.
 Não fazer: a reprodução (R23).
 Testes: a ponte com Jukebox e sala falsos não sobe o mesmo arquivo duas vezes, e o `mix` sai depois do arquivo.
 Pronto quando: um cliente de teste conectado recebe o `mix` e consegue baixar cada faixa citada nele.
@@ -568,6 +577,8 @@ Como:
 5. Liberar o áudio: o primeiro clique no saguão retoma o `AudioContext`. Se o navegador bloquear mesmo assim, aparece o botão "Ativar som".
 6. Na casca, os controles Música, Efeitos e Mudo, guardados no `localStorage` com `try/catch`. O volume do mestre multiplica o do jogador.
 7. Quem entra atrasado recebe o último `mix` e entra no ponto certo.
+8. Reverse (nota da R21b): o motor da casca reproduz o reverse a partir do `estado`, como o Jukebox faz (buffer invertido da região). Confira que o motor carregado de `/Jukebox/` faz isso sozinho com o `estado`. Se não fizer, pare e reporte.
+9. Duas entradas com o mesmo `faixaId` (a segunda com `crossfade: true`) são dois elementos de áudio tocando juntos, cada um com o próprio volume.
 Não fazer: a escolha de música pelo jogador.
 Testes: `sincronia.ts`: posição esperada (com `taxa`), decisão de corrigir ou não e estimativa do relógio com RTTs falsos.
 Pronto quando: em dois navegadores, o mestre ativa uma cena, liga um filtro passa-baixa, marca uma região com eco e toca um efeito `sfx`; o jogador ouve tudo igual, com diferença de até cerca de 1 s, e muda o volume dele sem afetar ninguém.
