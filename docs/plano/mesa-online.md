@@ -29,7 +29,7 @@ Divisão do trabalho, como manda o `CLAUDE.md`: as fichas vão ao **Sonnet** com
 8. **A sala é a única que carimba o autor.** Todo envelope que chega da sala traz `autor: { discordId, nome, papel, fichas: string[] }`. Quem recebe confia no carimbo e nunca num campo vindo do cliente.
 9. **As rolagens começam no cliente.** Num primeiro momento, o Dossiê do jogador rola como hoje e a sala só espalha o resultado. Rolar na sala, para ninguém poder mexer no resultado, fica para a R20, porque depende de como os dados 3D decidem o valor.
 10. **Funcionar sem sala continua sendo a regra.** Sem login, nada muda. O online é um modo a mais. O §2 e o §10 do `PLATAFORMA.md` são atualizados na R3.
-11. **O som do Jukebox toca em cada jogador, e não pela voz do Discord.** O Jukebox do mestre publica o que está tocando: faixas, volumes, posições e efeitos. Cada arquivo sobe uma vez para a sala, identificado pelo hash do conteúdo, e cada casca toca os mesmos arquivos acompanhando o relógio da sala. Transmitir o áudio pela chamada perderia qualidade (compressão e supressão de ruído do Discord), misturaria com a voz do mestre e falha com frequência no Linux. Os arquivos da sala só saem para quem tem sessão válida daquela sala.
+11. **O som do Jukebox toca em cada jogador, e não pela voz do Discord.** O Jukebox do mestre publica o que está tocando: faixas, volumes, posições e efeitos. Cada arquivo sobe uma vez para a sala, identificado pelo hash do conteúdo, e cada casca toca os mesmos arquivos acompanhando o relógio da sala. Transmitir o áudio pela chamada perderia qualidade (compressão e supressão de ruído do Discord), misturaria com a voz do mestre e falha com frequência no Linux. Os arquivos da sala só saem para quem tem sessão válida daquela sala. **Filtros e efeitos do Jukebox são parte essencial e precisam chegar**, iguais. Para isso, a casca usa o **mesmo motor de mixagem** do Jukebox (`Jukebox/mixing/`), carregado de `/Jukebox/` em tempo de execução, e repete as ações do mestre (ativar e desativar efeitos, ajustes, regiões) em vez de copiar o som pronto. Assim, um efeito novo no Jukebox chega aos jogadores sem mudar a Mesa.
 
 ## Arquitetura
 
@@ -45,7 +45,7 @@ Divisão do trabalho, como manda o `CLAUDE.md`: as fichas vão ao **Sonnet** com
                                                    └─────────────────────────┘
 ```
 
-**URL mappings da atividade:** `/` → `ilvro.github.io/Mesa`, `/Atlas` → `ilvro.github.io/Atlas`, `/Dossie` → `ilvro.github.io/Dossie` e `/sala` → `mesa-sala.<subdominio>.workers.dev`. Na R17, confira na documentação atual do Discord se os caminhos mapeados precisam do prefixo `/.proxy/`. O SDK tem `patchUrlMappings` para isso.
+**URL mappings da atividade:** `/` → `ilvro.github.io/Mesa`, `/Atlas` → `ilvro.github.io/Atlas`, `/Dossie` → `ilvro.github.io/Dossie`, `/Jukebox` → `ilvro.github.io/Jukebox` e `/sala` → `mesa-sala.<subdominio>.workers.dev`. Na R17, confira na documentação atual do Discord se os caminhos mapeados precisam do prefixo `/.proxy/`. O SDK tem `patchUrlMappings` para isso.
 
 ## Protocolo da sala (resumo; a R3 fixa os tipos)
 
@@ -80,7 +80,7 @@ Como:
 4. **Discord, seu id:** em *Configurações* → *Avançado* → *Modo de desenvolvedor*. Depois, clicar com o botão direito no próprio nome → *Copiar ID do usuário*. Esse é o `MESTRE_DISCORD_ID`.
 5. **Discord, Activities** (só depois da R17):
    - em *Settings*, ligar *Enable Activities* e marcar as plataformas (computador, Android, iOS);
-   - em *URL Mappings*, cadastrar os quatro da seção Arquitetura;
+   - em *URL Mappings*, cadastrar os cinco da seção Arquitetura;
    - em *Installation*, ligar *Guild Install* e instalar o app no servidor da mesa pelo link.
    - Se um jogador não vir a atividade no botão de Atividades (foguete) da chamada, acrescente-o em *App Testers*.
 Pronto quando: o usuário tem o Application ID, o Client Secret, o `MESTRE_DISCORD_ID` e a conta do Cloudflare logada (`npx wrangler login`).
@@ -363,6 +363,30 @@ Testes: o atendente com documento de teste (aceita a própria peça, recusa a do
 Pronto quando: em dois navegadores, o jogador arrasta a peça dele, o mestre vê mover e pode desfazer.
 Commit: `players move their own tokens online`
 
+### R15b — Ping no mapa  ⬜
+Objetivo: qualquer um na mesa aponta um lugar do mapa, e todos veem onde.
+Depende de: R14 (o projetor remoto já recebe gestos do jogador).
+Ler: o receptor do projetor e o gesto de arraste da R15; no Atlas do mestre, onde os eventos de cena (`EventoDeCena`) são desenhados sobre o mapa; `mesa-core/src/eventos.ts`.
+Arquivos: no mesa-core, o fato `mesa.ping { mapa, ponto: [x, y], levelId? }` no `CATALOGO` (dono `mesa`), com `autor` carimbado pela sala; mudar o receptor do projetor, o Atlas do mestre (o atalho e a exibição) e `EVENTOS_DO_MESTRE` (o ping do mestre sai); criar `pingsAtivos` puro com o teste.
+Como:
+1. Gesto do jogador no projetor remoto: segurar 400 ms num ponto vazio, ou clicar com Alt. No celular, segurar o dedo. Não conflita com o arraste da própria peça: segurar *sobre* a peça arrasta.
+2. Gesto do mestre no Atlas, durante a sessão: Alt+clique no mapa.
+3. Cada um tem uma cor, derivada do `discordId` (com a do mestre fixa). O ping mostra a cor e o nome de quem pingou.
+4. Na tela, por enquanto, um marcador simples (círculo com o nome) que dura 3 s. O visual definitivo é a R15c.
+5. Se o ponto estiver fora da câmera de quem recebe, aparece uma seta na borda da tela apontando para ele.
+6. Limite: um ping por segundo por pessoa (a sala descarta o excesso).
+7. Um ping em ponto que o jogador não vê (névoa) aparece mesmo assim, só como posição: é o jeito de o mestre dizer "aqui".
+Não fazer: desenho livre e réguas.
+Testes: `pingsAtivos(pings, agora)` expira em 3 s; cor estável para o mesmo id; seta na borda (a posição do indicador para um ponto fora da caixa).
+Pronto quando: em dois navegadores, o jogador pinga e o mestre vê no Atlas; o mestre pinga e o jogador vê, inclusive fora da câmera dele.
+Commit: `map pings for the online table`
+
+### R15c — Visual do ping  [Opus]  ⬜
+Objetivo: o ping chama o olho sem tapar o mapa, nos dois estilos.
+Depende de: R15b.
+Como: anel que se expande e some (duas ondas), com um ponto central na cor da pessoa e o nome em etiqueta pequena; um contorno escuro para ler sobre terreno claro e um claro sobre a noite; a seta da borda no mesmo traço. Conferir no Ilustrado, de dia, de noite e na névoa.
+Commit: `ping ripple visual`
+
 ## Bloco 6 — Discord
 
 ### R16 — Fontes locais no Dossiê  ⬜
@@ -419,36 +443,58 @@ Como: o usuário cadastra os URL mappings, instala o app no servidor e abre a at
 - o mestre troca de mapa;
 - um jogador sai e volta (recebe o estado);
 - celular na vertical;
-- som: o mestre ativa uma cena e toca um efeito, e o jogador ouve, inclusive quem entrou depois.
+- som: o mestre ativa uma cena, liga filtros e efeitos de região e toca um efeito `sfx`, e o jogador ouve tudo igual, inclusive quem entrou depois;
+- ping dos dois lados.
 Anotar o que falhar no `progress.md` e abrir fichas de correção aqui.
 Pronto quando: o roteiro passa no computador e no celular.
 
 ## Bloco 7 — Som na mesa
 
-### R21 — Jukebox publica o que toca  ⬜
-Objetivo: o Jukebox do mestre diz, de forma completa, o que está tocando, e entrega o arquivo de uma faixa quando pedem.
-Depende de: R3 (o contrato).
-Ler: `Jukebox/mesa.js` (`anunciarCena`, `pedidoDeEfeito`, `pedidoDeParar` e `contextoDaPonte`, que já lê `getAllSongStates()`), `Jukebox/player.js` (o estado de cada faixa, o volume, o crossfade e os efeitos `sfx`) e `Jukebox/scenes.js` (`activateScene`). **Antes de tudo**, descubra de onde vem o áudio de cada faixa: os arquivos de `sample/` publicados no Pages, os arquivos que o mestre subiu (`URL.createObjectURL`) e os presets do servidor local.
+### R21a — Jukebox: motor de mixagem sem interface  ⬜
+Objetivo: os efeitos, filtros e regiões do Jukebox podem ser aplicados a uma faixa por código, sem a interface, para a casca do jogador usar o mesmo motor.
+Depende de: —, e pode começar já.
+Ler: `Jukebox/mixing/` inteiro (`index.js`, `effects-registry.js`, `audio-context.js`, `selection-regions.js`, `context-menu.js` só para ver o que a interface chama, e `effects/*.js`), `Jukebox/settings.js` (`getEffectRemovalDuration`) e, em `Jukebox/player.js`, onde `setupAudioEffects` é chamado, como as regiões são salvas e restauradas, o crossfade, a edição de regiões (`decodeAudioData` e `editedBuffer`, ~linha 604) e o volume mestre.
+Arquivos: criar `Jukebox/mixing/motor.js`; mudar o que for preciso para o motor não depender do DOM da página (`progressBar` vira um objeto simples com as regiões; a interface continua passando o elemento real); criar um teste em `Jukebox/tests/`.
+Como:
+1. **Primeiro, faça um inventário** de tudo o que muda o som de uma faixa: efeitos (`loop`, `smoothLoop`, `reverse`, `speed`, `pitchShift`, `reverb`, `echo`, `tremolo`, `highpass`, `lowpass`, `nightcore`, `hell`), ajustes de cada um, regiões com efeitos, volume da faixa, volume mestre, crossfade, edições que geram arquivo novo e o que mais aparecer (`preset-mescla.js`, `background-timer.js`). Escreva o inventário numa linha "Nota:" da ficha.
+2. `criarMotor({ audioContext, destino })` devolve `{ prepararFaixa(audio) → Faixa, volumeMestre(v) }`. Cada `Faixa` tem `aplicar(estado)`, onde `estado = { volume, efeitos: string[], ajustes: Record<string, unknown>, regioes: RegiaoSerializada[] }`, além de `soltar()`. `aplicar` compara com o estado anterior e chama o mesmo `activateEffect`/`deactivateEffect` (com a saída gradual) e `setEffectSettings` que a interface usa, para a transição soar igual.
+3. Serialização: `estadoDaFaixa(...)` lê o estado de uma faixa tocando no Jukebox (a contraparte de `aplicar`), usando `getActiveEffectKeys`, `getEffectSettings` e `serializeSelectedRegions`.
+4. O motor importa só módulos de `mixing/` e `settings.js`. Se `settings.js` tocar no DOM ao ser importado, passe o tempo de remoção como opção do motor.
+5. O motor precisa funcionar carregado de outra página da mesma origem (`import('/Jukebox/mixing/motor.js')`): caminhos de import relativos e nada global fora do módulo.
+6. O Jukebox continua igual por fora: a interface passa a usar o motor ou continua como está, o que der o diff menor e seguro. Só a extração é obrigatória.
+Não fazer: publicar no barramento (R21b).
+Testes: `estadoDaFaixa` e `aplicar` fazem ida e volta com um `AudioContext` falso (nós com `connect`, `gain.value`, `disconnect`); `aplicar` de um estado igual não chama nada.
+Pronto quando: os testes do Jukebox passam, a interface aplica e tira efeitos e regiões como antes (teste manual: um filtro, um eco, um loop por região), e uma página de teste mínima toca uma faixa com efeitos pelo motor.
+Commit: `headless mixing engine for effects and regions`
+
+### R21b — Jukebox publica o que toca  ⬜
+Objetivo: o Jukebox do mestre diz, de forma completa, o que está tocando, com os efeitos, e entrega o arquivo de uma faixa quando pedem.
+Depende de: R21a e R3 (o contrato).
+Ler: `Jukebox/mesa.js` (`anunciarCena`, `pedidoDeEfeito`, `pedidoDeParar` e `contextoDaPonte`, que já lê `getAllSongStates()`), `Jukebox/mixing/motor.js` (`estadoDaFaixa`) e `Jukebox/scenes.js` (`activateScene`). Descubra de onde vem o áudio de cada faixa: os arquivos de `sample/` publicados no Pages, os arquivos que o mestre subiu (`URL.createObjectURL`) e os presets do servidor local.
 Arquivos: mudar `Jukebox/mesa.js` (e, se preciso, expor um leitor de estado em `player.js`); no mesa-core, acrescentar ao `CATALOGO` o fato `jukebox.mix`, o fato `jukebox.efeito-tocado` e o pedido `jukebox.arquivo`, e copiar o `vendor/` para o Jukebox, a Mesa e o Dossiê.
 Como:
-1. `jukebox.mix { cena, mestre: volume, faixas: [{ faixaId, titulo, volume, loop, posicao, desde, pausada }] }`. `faixaId` é o SHA-256 dos bytes, calculado uma vez por faixa e guardado em memória. `posicao` é o tempo da faixa, em segundos, no instante `desde` (`Date.now()`).
-2. Sai em toda mudança (cena, play, pausa, volume, busca, fim de crossfade) e, além disso, a cada 5 s enquanto algo toca. Mudanças contínuas de volume (arrastar o controle) saem no máximo 4 vezes por segundo.
-3. `jukebox.efeito-tocado { faixaId, titulo, volume }`, uma vez por efeito disparado.
-4. O pedido `jukebox.arquivo { faixaId }` responde com o `Blob` da faixa. Blob URLs só valem dentro do documento que os criou, por isso quem lê o arquivo é o próprio Jukebox, e não a Mesa.
-5. Filtros e regiões editadas: na primeira versão, a faixa vale como o arquivo que está tocando. Se o filtro for por Web Audio (sem arquivo novo), o jogador ouve sem o filtro; anote numa linha "Nota:".
+1. `jukebox.mix { cena, mestre: volume, faixas: [{ faixaId, url?, titulo, loop, posicao, taxa, desde, pausada, estado: EstadoDaFaixa }] }`. Os pontos:
+   - `faixaId` é o SHA-256 dos bytes, calculado uma vez por faixa e guardado em memória;
+   - `url` só aparece quando o arquivo está publicado no Pages (`sample/`), caso em que a casca baixa direto, sem a sala;
+   - `posicao` é o tempo da faixa, em segundos, no instante `desde` (`Date.now()`);
+   - `taxa` é o `playbackRate` efetivo (velocidade, nightcore, reverse);
+   - `estado` é o do motor (volume, efeitos, ajustes e regiões).
+2. Sai em toda mudança (cena, play, pausa, volume, busca, efeito, ajuste ou região, salto de loop e fim de crossfade) e, além disso, a cada 3 s enquanto algo toca. Mudanças contínuas (arrastar controle) saem no máximo 4 vezes por segundo.
+3. `jukebox.efeito-tocado { faixaId, url?, titulo, estado }`, uma vez por efeito `sfx` disparado.
+4. O pedido `jukebox.arquivo { faixaId }` responde com o `Blob` da faixa, ou do arquivo editado se a edição gerou um. Blob URLs só valem dentro do documento que os criou, por isso quem lê o arquivo é o próprio Jukebox.
 Não fazer: a ponte (R22) nem a reprodução nos jogadores (R23).
-Testes: em `Jukebox/tests/`, montar o `mix` a partir de estados falsos de faixa; o hash de um mesmo arquivo dá sempre o mesmo `faixaId`.
-Pronto quando: com o Jukebox aberto, um ouvinte do barramento vê o `mix` mudar ao ativar uma cena e ao mexer no volume.
+Testes: em `Jukebox/tests/`, montar o `mix` a partir de estados falsos (com efeitos e regiões); o hash de um mesmo arquivo dá sempre o mesmo `faixaId`.
+Pronto quando: com o Jukebox aberto, um ouvinte do barramento vê o `mix` mudar ao ativar uma cena, ligar um filtro e marcar uma região com eco.
 Commit: `jukebox publishes its mix for the online table` (Jukebox); `jukebox mix events in the contract` (Atlas)
 
 ### R22 — A ponte do mestre leva o som à sala  ⬜
 Objetivo: a sala sabe o que está tocando e tem todos os arquivos necessários.
-Depende de: R21, R5 e R6.
+Depende de: R21b, R5 e R6.
 Ler: `Mesa/src/app/online.ts` e `Mesa/src/online/protocolo.ts` (`EVENTOS_DO_MESTRE`, blobs).
 Arquivos: mudar `online.ts`, `protocolo.ts` e `sala/sala.ts` (o último `mix` vai para quem chega, e a sala responde `temBlob`).
 Como:
 1. `jukebox.mix` e `jukebox.efeito-tocado` entram em `EVENTOS_DO_MESTRE`.
-2. Para cada `faixaId` nova no `mix`, a ponte pergunta à sala se ela já tem o blob. Se não tiver, pede `jukebox.arquivo` ao Jukebox e sobe com `enviarBlob`. Os arquivos ficam na sala entre sessões, então a segunda sessão quase não sobe nada.
+2. Para cada `faixaId` nova no `mix` e sem `url`, a ponte pergunta à sala se ela já tem o blob. Se não tiver, pede `jukebox.arquivo` ao Jukebox e sobe com `enviarBlob`. Os arquivos ficam na sala entre sessões, então a segunda sessão quase não sobe nada.
 3. Ao ativar uma cena, sobem antes as faixas dela. Os efeitos `sfx` da campanha sobem em segundo plano, um por vez.
 4. Arquivos acima de 40 MB são recusados, com aviso na `#/online`. A tela mostra quanto a sala ocupa.
 Não fazer: a reprodução (R23).
@@ -463,14 +509,15 @@ Ler: `Mesa/src/jogar/Casca.tsx`, `Saguao.tsx` e `ponte-jogador.ts`; a parte de c
 Arquivos: criar `Mesa/src/jogar/som.ts` e `Mesa/src/online/sincronia.ts` (puro); mudar `Casca.tsx` e `Saguao.tsx`, mais testes.
 Como:
 1. Relógio: a sala manda `agora` no `bem-vindo` e num `pong` a cada 30 s. O cliente estima a diferença (o RTT dividido por dois) e calcula a posição esperada de uma faixa como `posicao + (agoraDaSala - desde) / 1000`.
-2. Reprodução: `HTMLAudioElement` por faixa, passando por um `GainNode` (canal Música) e, para os efeitos, por outro (canal Efeitos). A casca só corrige a posição se a diferença passar de 1,5 s, para não ficar pulando. Trocas de faixa e volume fazem fade de 1 s.
-3. Arquivos: baixar da sala e guardar no Cache Storage pelo `faixaId`, com `try/catch`. Sem cache, só baixa de novo. No saguão, os arquivos da cena ativa já vêm sendo baixados, com "Preparando os sons…".
-4. Liberar o áudio: o primeiro clique no saguão retoma o `AudioContext`. Se o navegador bloquear mesmo assim, aparece o botão "Ativar som".
-5. Na casca, os controles Música, Efeitos e Mudo, guardados no `localStorage` com `try/catch`. O volume do mestre multiplica o do jogador.
-6. Quem entra atrasado recebe o último `mix` e entra no ponto certo.
-Não fazer: filtros do Jukebox ainda não reproduzidos, nem a escolha de música pelo jogador.
-Testes: `sincronia.ts`: posição esperada, decisão de corrigir ou não e estimativa do relógio com RTTs falsos.
-Pronto quando: em dois navegadores, o mestre ativa uma cena e toca um efeito; o jogador ouve os dois com diferença de até cerca de 1 s e muda o volume dele sem afetar ninguém.
+2. Reprodução: um `HTMLAudioElement` por faixa, preparado pelo **motor do Jukebox** (`import('../Jukebox/mixing/motor.js')`, a R21a), com `destino` no canal Música (`GainNode`) ou no canal Efeitos. A cada `mix`, a casca chama `faixa.aplicar(estado)`, e o próprio motor faz as transições como no Jukebox.
+3. Posição: a esperada é `posicao + (agoraDaSala - desde) / 1000 * taxa`. A casca só corrige se a diferença passar de 1,5 s, para não ficar pulando. Um salto de loop chega como `mix` novo e é seguido na hora. Trocas de faixa fazem o mesmo fade do Jukebox.
+4. Arquivos: baixar da `url` (Pages) ou da sala e guardar no Cache Storage pelo `faixaId`, com `try/catch`. Sem cache, só baixa de novo. No saguão, os arquivos da cena ativa já vêm sendo baixados, com "Preparando os sons…".
+5. Liberar o áudio: o primeiro clique no saguão retoma o `AudioContext`. Se o navegador bloquear mesmo assim, aparece o botão "Ativar som".
+6. Na casca, os controles Música, Efeitos e Mudo, guardados no `localStorage` com `try/catch`. O volume do mestre multiplica o do jogador.
+7. Quem entra atrasado recebe o último `mix` e entra no ponto certo.
+Não fazer: a escolha de música pelo jogador.
+Testes: `sincronia.ts`: posição esperada (com `taxa`), decisão de corrigir ou não e estimativa do relógio com RTTs falsos.
+Pronto quando: em dois navegadores, o mestre ativa uma cena, liga um filtro passa-baixa, marca uma região com eco e toca um efeito `sfx`; o jogador ouve tudo igual, com diferença de até cerca de 1 s, e muda o volume dele sem afetar ninguém.
 Commit: `synced jukebox sound in the player shell`
 
 ## Depois (opcional)
@@ -500,9 +547,9 @@ Commit: `server-side dice rolls`
 | 2. O mestre publica | R5 → R6 | Sonnet | R4 |
 | 3. O jogador vê | R7 → R8, R9 | Sonnet | R6 |
 | 4. Fichas e saguão | R10 (já), R11 → R12 → R12b, R13 | Sonnet (o Opus revisa a R12 e a R12b) | R7 para a R11 |
-| 5. Peça própria | R14 → R15 | Sonnet | R11 |
+| 5. Peça própria e ping | R14 → R15 → R15b → R15c | Sonnet; R15c pelo Opus | R11 |
 | 6. Discord | R16 (já), R17 → R18, R19 | Sonnet; R19 com o usuário | blocos 3 a 5 |
-| 7. Som | R21 → R22 → R23 | Sonnet | R3 para a R21; R5, R6 e R12b para as outras |
+| 7. Som | R21a (já) → R21b → R22 → R23 | Sonnet | R3 para a R21b; R5, R6 e R12b para as outras |
 | Depois | R20 | Sonnet | R9 |
 
-Os blocos 1 a 5 já permitem jogar online por link, entrando com o Discord no navegador. A atividade (bloco 6) entra por cima sem refazer nada. A R10 e a R16 não dependem de nada e podem começar já.
+Os blocos 1 a 5 já permitem jogar online por link, entrando com o Discord no navegador. A atividade (bloco 6) entra por cima sem refazer nada. A R10, a R16 e a R21a não dependem de nada e podem começar já.
