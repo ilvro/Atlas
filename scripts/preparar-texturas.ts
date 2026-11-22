@@ -14,7 +14,7 @@ import { validarCatalogo, type CatalogoDeTexturas, type TexturaDoCatalogo } from
 const AQUI = import.meta.dirname, FONTE = join(AQUI, '../data-private/texturas-fonte'), SAIDA = join(AQUI, '../public/colecao/texturas'), LICENCAS = join(AQUI, '../docs/LICENCAS.md');
 const PX_POR_METRO = 128, FATOR_DA_BORDA = 3;
 
-interface Aprovada { id: string; pasta: string; fonte: string; autor: string; metros: number; estimado?: boolean; url: string; licenca: 'CC0' }
+interface Aprovada { id: string; pasta: string; fonte: string; autor: string; metros: number; estimado?: boolean; /** Dispensa o deslocamento (quando ele não fecha em ladrilho; o relevo sai da luminância). */ semRelevo?: boolean; url: string; licenca: 'CC0' }
 const aprovadas = JSON.parse(readFileSync(join(AQUI, 'texturas-aprovadas.json'), 'utf8')) as Aprovada[];
 
 /** Acha o arquivo de cor e o de deslocamento na pasta: Poly Haven (cor.jpg, alt.jpg) ou ambientCG (*_Color.jpg, *_Displacement.jpg). */
@@ -52,7 +52,7 @@ try {
   }, [b64, lado, cinza] as const);
 
   for (const a of aprovadas.slice().sort((p, q) => p.id.localeCompare(q.id))) {
-    const { cor, alt } = arquivosDaPasta(a), lado = Math.round(a.metros * PX_POR_METRO);
+    const arquivos = arquivosDaPasta(a), cor = arquivos.cor, alt = a.semRelevo ? null : arquivos.alt, lado = Math.round(a.metros * PX_POR_METRO);
     const saidas: [string, string, boolean][] = [[cor, `${a.id}.webp`, false]];
     if (alt) saidas.push([alt, `${a.id}-alt.webp`, true]);
     for (const [origem, nome, cinza] of saidas) {

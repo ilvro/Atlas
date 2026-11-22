@@ -20,5 +20,11 @@
   { "id": "snow010a", "pasta": "Snow010A", "fonte": "ambientCG", "autor": "ambientCG", "metros": 2, "estimado": true, "url": "https://ambientcg.com/view?id=Snow010A", "licenca": "CC0" },
   { "id": "dry_ground_01", "pasta": "dry_ground_01", "fonte": "Poly Haven", "autor": "Rob Tuytel", "metros": 4, "url": "https://polyhaven.com/a/dry_ground_01", "licenca": "CC0" },
   { "id": "mud_cracked_dry_03", "pasta": "mud_cracked_dry_03", "fonte": "Poly Haven", "autor": "Dario Barresi, Dimitrios Savva", "metros": 1.5, "url": "https://polyhaven.com/a/mud_cracked_dry_03", "licenca": "CC0" },
-  { "id": "red_dirt_mud_01", "pasta": "red_dirt_mud_01", "fonte": "Poly Haven", "autor": "Rob Tuytel", "metros": 1.5, "url": "https://polyhaven.com/a/red_dirt_mud_01", "licenca": "CC0" }
+  { "id": "red_dirt_mud_01", "pasta": "red_dirt_mud_01", "fonte": "Poly Haven", "autor": "Rob Tuytel", "metros": 1.5, "url": "https://polyhaven.com/a/red_dirt_mud_01", "licenca": "CC0" },
+  { "id": "forest_floor", "pasta": "forest_floor", "fonte": "Poly Haven", "autor": "eye-candy.xyz", "metros": 2.14, "url": "https://polyhaven.com/a/forest_floor", "licenca": "CC0" },
+  { "id": "brown_mud_leaves_01", "pasta": "brown_mud_leaves_01", "fonte": "Poly Haven", "autor": "Rob Tuytel", "metros": 1.3, "url": "https://polyhaven.com/a/brown_mud_leaves_01", "licenca": "CC0" },
+  { "id": "dry_decay_leaves", "pasta": "dry_decay_leaves", "fonte": "Poly Haven", "autor": "Amal Kumar", "metros": 2, "url": "https://polyhaven.com/a/dry_decay_leaves", "licenca": "CC0" },
+  { "id": "worn_asphalt", "pasta": "worn_asphalt", "fonte": "Poly Haven", "autor": "Amal Kumar", "metros": 2, "url": "https://polyhaven.com/a/worn_asphalt", "licenca": "CC0" },
+  { "id": "road_damaged", "pasta": "road_damaged", "fonte": "Poly Haven", "autor": "Dimitrios Savva", "metros": 2.2, "url": "https://polyhaven.com/a/road_damaged", "licenca": "CC0" },
+  { "id": "concrete_pavement", "pasta": "concrete_pavement", "fonte": "Poly Haven", "autor": "Charlotte Baglioni", "metros": 1.8, "url": "https://polyhaven.com/a/concrete_pavement", "licenca": "CC0", "semRelevo": true }
 ]
