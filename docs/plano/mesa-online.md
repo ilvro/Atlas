@@ -187,7 +187,7 @@ Nota: feita (Mesa `3133f81`). O núcleo puro está em `sala/mensagens.ts` (`trat
 
 ## Bloco 2 — O mestre publica
 
-### R5 — Ponte do mestre na Mesa  ⬜
+### R5 — Ponte do mestre na Mesa  ✅
 Objetivo: com a tela "Mesa online" aberta, o mapa projetado e os eventos permitidos saem para a sala.
 Depende de: R4.
 Ler: `Mesa/src/app/barramento.ts`, `Mesa/src/app/rotas.ts`, `Mesa/src/ui/ModoSessao.tsx` (como abre o Atlas) e, em `Atlas/src/app/projetor.ts`, `iniciarPublicacao` (o publicador só trabalha depois de um `ola` de projetor) e `MensagemDoProjetor`.
@@ -208,6 +208,11 @@ Não fazer: compressão e divisão do `estado` (R6), fichas (R13).
 Testes: a ponte com um cliente da sala falso e um `BroadcastChannel` falso; um evento fora da lista não sai; um `Blob` vira `blobId`.
 Pronto quando: com o Atlas aberto e a Mesa em `#/online`, um cliente de teste conectado na sala recebe o `estado` do mapa.
 Commit: `mesa online bridge publishes projector to the room`
+Nota: feita (Mesa `e3c54be`).
+- Arquivos: `src/online/config.ts` (`urlDaSala`, `URL_SALA_PRODUCAO` provisória), `src/app/online-login.ts`, `src/app/online-salas.ts`, `src/app/online.ts` (`criarPonte`), `src/ui/MesaOnline.tsx` e `online.css`.
+- Trava: o `canal` só sai para salas com nome `teste…` ou com `localStorage['mesa:online-permitir-mapa-inteiro'] = '1'`. A R5b a remove.
+- O `ola` remoto leva `remoto: true`.
+- O CORS da sala aceita a porta 5100 (`mesa-dev`), e não a 5195.
 
 ### R5b — Projeção remota: só o que o jogador já viu  ⬜
 Objetivo: o documento que sai do computador do mestre não tem nada fora das áreas exploradas e visíveis, nem textos que deem spoiler.
@@ -223,7 +228,8 @@ Como:
    - `name` do mapa e `groundLevelName` trocados por "Mapa"; os nomes de andar, por "Andar 1, 2…".
 2. Liste no relatório cada campo de `MapaAtlas` e o que acontece com ele. Um campo que não for tratado e puder mostrar o que está fora da área (como `backdrop` e `memory`) é tratado ou levado ao Opus. Na dúvida, corta.
 3. Sem névoa ligada (`session.explored === null`), o mestre mostra o mapa todo, como hoje no projetor. Nesse caso, a ponte online pede uma confirmação ("Este mapa está sem névoa: os jogadores vão receber o mapa inteiro"), lembrada por mapa.
-4. O publicador manda uma marca no `ola` (`{ tipo: 'ola', remoto: true }`) para escolher a projeção. A ponte online da R5 passa a mandar essa marca.
+4. O publicador recebe a marca no `ola` (`{ tipo: 'ola', ..., remoto: true }`), que a ponte da R5 já manda, e mantém **dois destinos separados**: o projetor local (projeção de hoje) e o remoto (projeção remota), cada um com o próprio estado de conectado. Hoje um `tchau` do projetor local desligaria tudo mesmo com jogadores online (nota da R5). Se o publicador manda no mesmo canal para os dois, a mensagem remota vai em `atlas:projetor:remoto` (canal novo) e a ponte da R5 passa a ouvir esse canal no lugar de `atlas:projetor:ativo`.
+5. Remova a trava da R5 em `Mesa/src/app/online.ts` (e os testes dela). O `canal` sai sempre, porque agora é a projeção remota.
 Não fazer: diferenças entre versões (R6), visual da borda cortada.
 Testes: num mapa de teste com dois cômodos, um explorado e outro não, nada do cômodo não explorado sai (células, nome, objetos, luzes, paredes que só tocam nele); o cômodo explorado sai inteiro; sem névoa, sai igual à projeção de hoje; `CAMPOS_DO_MESTRE` continua coberto.
 Pronto quando: os testes passam, e um teste de ponta a ponta com a ponte da R5 mostra que o `estado` na sala não tem os nomes nem as células da área não explorada.
