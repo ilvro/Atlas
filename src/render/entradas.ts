@@ -13,7 +13,7 @@ import { hashDasTexturas, usaTextura } from '../procedural/texturas-carregadas.t
 import { ACERVO } from '../procedural/acervo.ts';
 import { MARGEM_ASSENTAMENTO, MARGEM_RELEVO, larguraDoDeclive, margensDoTerreno, type EntradaDeTerreno, type EntradaDoComodo } from '../procedural/assar.ts';
 import type { EntradaDoTelhado, ParedeExternaDoTelhado, TrechoDoTelhado } from '../procedural/assar-telhado.ts';
-import { orientacaoDominante } from '../procedural/orientacao.ts';
+import { componentesDeFaixas, orientacaoDominante } from '../procedural/orientacao.ts';
 import { COLECAO, PPC_DO_PIXEL_ARQUIVO, RES_DA_COLECAO, fonteDoPixel, type ItemDaColecao } from '../procedural/colecao.ts';
 import { estiloDe, type IdDoEstilo, type OpcoesDoPixel, type TipoDeAssado } from '../procedural/estilos/index.ts';
 import type { PedidoDeBake } from '../procedural/executar.ts';
@@ -256,7 +256,15 @@ function caminhoTocaCaixa(path: readonly Ponto[], x0: number, y0: number, x1: nu
 export function ladrilhosDoTerreno(e: EntradaDeTerreno, res: number): LadrilhoDeTerreno[] {
   const margens = margensDoTerreno(res);
   let aguaCount = 0;
-  const metaCamadas = e.camadas.map(c => {
+  // Sulcos e dunas seguem a direção da forma: cada talhão (parte conectada) da camada vira uma entrada com a sua própria direção,
+  // a não ser que a camada tenha uma direção fixada.
+  const separadas = e.camadas.flatMap(c => {
+    const padrao = materialDe(c.material).padrao;
+    if ((padrao !== 'sulcos' && padrao !== 'dunas-areia') || c.dir !== undefined || c.celulas.length === 0) return [c];
+    const partes = componentesDeFaixas(c.celulas);
+    return partes.length > 1 ? partes.map(celulas => ({ ...c, celulas })) : [c];
+  });
+  const metaCamadas = separadas.map(c => {
     const mat = materialDe(c.material);
     const agua = mat.uso === 'agua';
     const macico = mat.uso === 'macico';

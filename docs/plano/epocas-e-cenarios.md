@@ -204,7 +204,7 @@ Como:
 - carimbos `plantacao.trigo` e `plantacao.milho` em fileiras, e `arrozal` (água rasa `agua.arrozal` com mudas em grade).
 Pronto quando: um recorte de 20 × 20 m com duna, oásis e lavoura lê como deserto à primeira vista.
 Commit: `added desert and farmland terrain`
-Nota: material com textura não aceita padrão procedural por cima, então as dunas não usam o `Ground054`. Elas têm um pintor próprio (`dunas-areia`), com cristas a cada 4–6 m, barlavento claro com ondulações de vento e face de sombra. As cristas variam de força, se fundem e somem. As coordenadas giram com a direção da camada, que é calculada sobre a camada inteira (em `entradas.ts`, como nos sulcos). Calculada por ladrilho, uma faixa estreita no fim do mapa girava 90°. `sulcos` e `dunas-areia` passaram a usar a área do mapa inteiro, para não emendar entre ladrilhos. A `terra.arada` seria o `terra.sulcos` repetido: ele virou "Terra arada" no grupo Campo. A `grama.florida` virou o carimbo `flores-do-campo`, e as lavouras viraram carimbos `plantacao.trigo`, `plantacao.milho` e `plantacao.arroz` (fileiras ao longo do comprimento; o milho tem 2 m e faz sombra), com `agua.arrozal` para as mudas. Grupos novos: "Deserto e sertão" e "Campo e lavoura". Uma camada só tem uma direção: dois talhões de sulcos em direções diferentes precisam de camadas diferentes.
+Nota: material com textura não aceita padrão procedural por cima, então as dunas não usam o `Ground054`. Elas têm um pintor próprio (`dunas-areia`), com cristas a cada 4–6 m, barlavento claro com ondulações de vento e face de sombra. As cristas variam de força, se fundem e somem. As coordenadas giram com a direção da camada, que é calculada sobre a camada inteira (em `entradas.ts`, como nos sulcos). Calculada por ladrilho, uma faixa estreita no fim do mapa girava 90°. `sulcos` e `dunas-areia` passaram a usar a área do mapa inteiro, para não emendar entre ladrilhos. A `terra.arada` seria o `terra.sulcos` repetido: ele virou "Terra arada" no grupo Campo. A `grama.florida` virou o carimbo `flores-do-campo`, e as lavouras viraram carimbos `plantacao.trigo`, `plantacao.milho` e `plantacao.arroz` (fileiras ao longo do comprimento; o milho tem 2 m e faz sombra), com `agua.arrozal` para as mudas. Grupos novos: "Deserto e sertão" e "Campo e lavoura". Depois da ficha, cada parte conectada da camada passou a ter a própria direção (`componentesDeFaixas` em `orientacao.ts`).
 
 ### Q8 — Selva, outono e cidade  ⬜ **[Opus]**
 Objetivo: terrenos tropicais, de outono e urbanos.
@@ -384,6 +384,22 @@ Depende de: Q4, Q12, Q21, E4.
 Ao fim de tudo: uma prancha com os nove exemplos novos lado a lado; a biblioteca, num mapa de cada gênero, não mostra nada de outra época (salvo os atemporais); `npm run typecheck`, `npm test` e `npm run test:e2e` passam; o tempo de carregamento de um mapa grande não fica pior que o da Frente M (as texturas novas são pré-carregadas só quando usadas).
 
 ---
+
+## Limites e pendências
+
+Mantida ao longo da frente. Cada ficha registra aqui o que ficou de fora ou o que o motor ainda não faz, com a causa e o que resolveria. Quando um item é resolvido, ele é riscado aqui e citado na ficha que o resolveu. A meta é ter o mínimo de limites.
+
+| origem | limite | causa | o que resolveria |
+| --- | --- | --- | --- |
+| Q4 | A lava não escorre: só cintila (a emissão tremula), sem a crosta deslizar. | A lava fica fora da superfície animada da água. | Um shader de superfície próprio que desloque o leito da lava pelo `flow` da camada. |
+| Q4 | Algumas fendas finas da lava saem tracejadas. | Fenda mais fina que um pixel a 32 px/m. | Largura mínima maior, ou fenda fina só como emissão (sem cor). |
+| Q4 | No Pixel, a lava não brilha. | O Pixel não tem mapa de altura nem emissão (Pixel em espera). | Retomar quando o Pixel voltar. |
+| Q6 | A neve funda tem uma mancha azulada leve. | A camada `snow010a` é azulada. | Tingir mais essa camada, se incomodar. |
+| Q13a | As miniaturas da galeria de exemplos ainda mostram as árvores antigas. | O Jardim do Colosso tinha mudanças de outra sessão em aberto. | `npm run exemplos` quando esses arquivos estiverem livres. |
+| Q13a | Os pinheiros não foram refeitos. | Já eram em camadas de agulhas, sem a cara de bola. | Refazer com nanquim, se destoarem no Desfiladeiro Nevado. |
+| ~~Q2b~~ | ~~Os seletores cortavam o texto ("Deste mapa (Inv…")~~ | | Resolvido: os seletores ficam um embaixo do outro, cada um na largura toda. |
+| ~~Q2c~~ | ~~O aviso do baker falava em "miniaturas" mesmo quando era o mapa~~ | | Resolvido: o texto agora vale para os dois. |
+| ~~Q7~~ | ~~Uma camada de sulcos ou dunas tinha uma direção só (talhões diferentes saíam na média)~~ | | Resolvido: cada parte conectada da camada ganha a própria direção (`componentesDeFaixas`). |
 
 ## Curadoria (Q5)
 

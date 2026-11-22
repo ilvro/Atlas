@@ -264,7 +264,7 @@ export function criarBaker(opcoes: { workers?: number; cache?: CacheDeAssados | 
     }
     if (++falhasSeguidas >= MAX_FALHAS_DE_WORKER && !quebrado) {
       quebrado = true;
-      console.warn('As miniaturas pararam de carregar; recarregue a página (Ctrl+Shift+R).', motivo);
+      console.warn('A pintura do Atlas parou (miniaturas ou mapa); recarregue a página (Ctrl+Shift+R).', motivo);
     }
   }
 

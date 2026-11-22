@@ -14,3 +14,21 @@ export function orientacaoDominante(celulas: ReadonlyArray<readonly [number, num
   if (Math.hypot(cxx - cyy, 2 * cxy) < 0.15 * (cxx + cyy)) return 0;      // quase isotrópica: não há direção
   return 0.5 * Math.atan2(2 * cxy, cxx - cyy);
 }
+
+/**
+ * Separa as corridas `[linha, x0, n]` de uma camada em partes conectadas (vizinhança de 4): duas corridas de linhas vizinhas que se
+ * sobrepõem em x são da mesma parte. Cada talhão de terra arada ou campo de dunas ganha assim a sua própria direção.
+ */
+export function componentesDeFaixas<F extends readonly [number, number, number]>(faixas: readonly F[]): F[][] {
+  const ordem = faixas.map((_, i) => i).sort((a, b) => faixas[a]![0] - faixas[b]![0] || faixas[a]![1] - faixas[b]![1]);
+  const pai = faixas.map((_, i) => i), raiz = (i: number): number => { while (pai[i] !== i) { pai[i] = pai[pai[i]!]!; i = pai[i]!; } return i; };
+  const porLinha = new Map<number, number[]>();
+  for (const i of ordem) { const y = faixas[i]![0]; const l = porLinha.get(y); if (l) l.push(i); else porLinha.set(y, [i]); }
+  for (const i of ordem) {
+    const [y, x0, n] = faixas[i]!;
+    for (const j of porLinha.get(y - 1) ?? []) { const [, a0, m] = faixas[j]!; if (a0 < x0 + n && x0 < a0 + m) pai[raiz(i)] = raiz(j); }
+  }
+  const grupos = new Map<number, F[]>();
+  for (const i of ordem) { const r = raiz(i); const g = grupos.get(r); if (g) g.push(faixas[i]!); else grupos.set(r, [faixas[i]!]); }
+  return [...grupos.values()];
+}
