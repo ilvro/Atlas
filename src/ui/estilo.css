@@ -2531,5 +2531,5 @@ body.projetor { overflow: hidden; background: #000; }
 .ver-mais { align-self: flex-start; }
 
 /* Filtros da biblioteca: selects compactos lado a lado */
-.filtros-linha { display: flex; gap: 6px; margin-bottom: 8px; }
-.filtro-select { flex: 1; min-width: 0; padding: 4px 6px; font-size: 12px; }
+.filtros-linha { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.filtro-select { width: 100%; min-width: 0; padding: 4px 6px; font-size: 12px; }

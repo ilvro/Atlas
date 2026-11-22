@@ -57,7 +57,7 @@ test('baker: depois de falhas seguidas fica quebrado, avisa uma vez e rejeita na
         await assert.rejects(p);
       }
       assert.equal(avisos.length, 1);
-      assert.match(String(avisos[0]![0]), /miniaturas pararam/);
+      assert.match(String(avisos[0]![0]), /pintura do Atlas parou/);
       await assert.rejects(baker.pedir('depois', pedido(9)), /quebrou/);
       assert.equal(WorkerFalso.todos.length, MAX_FALHAS_DE_WORKER);
       assert.equal(avisos.length, 1);
