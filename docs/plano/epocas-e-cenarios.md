@@ -110,6 +110,38 @@ Pronto quando: o inspetor oferece os gêneros novos; `atlas_mobiliar` num mapa `
 Commit: `added era genres with lights, palettes and base materials`
 Nota: `generosVisiveis` ficou em `presets.ts`, que `familias.ts` importa (sem ciclo). Três testes existentes precisaram de ajuste: a lista de `GENEROS` em `dominio.test.ts`, a igualdade entre `VARIACOES_DE_GENERO` e `GENEROS` em `regras-mobilia.test.ts` (virou "só cita gêneros que existem"; as variações dos gêneros novos chegam nas fichas `c`) e o orçamento total das ferramentas em `ponte-escrita.test.ts` (30 KB para 31 KB, pois o enum de gênero cresceu); `scripts/ponte/catalogo-base.json` foi regenerado. `Receita.generos` (via `serve` em `regras-mobilia.ts`) ainda não herda: itens só de `fantasia` não aparecem nos gêneros novos.
 
+### Q2b — Biblioteca enxuta, como a do Inkarnate  ⬜
+Objetivo: o painel de objetos cabe numa tela sem rolar até a grade: filtros em uma linha e propriedades raras escondidas.
+Depende de: Q2.
+Problema (captura do usuário, 2026-11-20): duas paredes de chips empilhadas, 13 de época e 15 de grupo, empurram a grade para baixo, e o painel de propriedades mostra Aparência e Colocação sempre abertas. No Inkarnate, a busca e as categorias ficam numa linha, e as opções raras ficam recolhidas.
+Ler: `src/ui/FamiliaNoPincel.tsx` (linhas ~100–170: `filtroAtual`, os chips de época, bioma e grupo, a grade), `src/ui/PropriedadesDoObjeto.tsx` (inteiro, 69 linhas), `src/app/filtros.ts`, o CSS dos `chips`/`select` existentes (procure um `<select>` já estilizado em `src/ui/` para copiar a classe), `docs/INTERFACE.md`.
+Arquivos: mudar `FamiliaNoPincel.tsx`, `PropriedadesDoObjeto.tsx` e o CSS do painel, se preciso; ajustar `tests/e2e/filtro-epoca.test.ts` e os e2e que clicam nos chips de grupo ou nas propriedades.
+Como:
+1. **Uma linha de filtros:** a busca ocupa a largura, e logo abaixo vêm dois `<select>` compactos lado a lado: **Grupo** ("Todos os grupos", depois os grupos que o filtro não esvazia) e **Época** ("Deste mapa (Fantasia)", depois os gêneros, depois "Todas as épocas"). Os chips de época e de grupo deixam de existir.
+2. **Bioma:** também vira `<select>`, que só aparece quando o grupo é Natureza. Na gaveta de terreno, os chips de bioma viram o mesmo `<select>`.
+3. **Recentes e Favoritos** continuam como abas pequenas, mas recolhidas por padrão numa linha "Recentes ▸", com o estado no `localStorage`.
+4. **Propriedades:** ficam à vista só **Escala** e **Rotação** (com o dado). **Camada**, **Espelhar**, **Aparência** (opacidade, sombra, bloqueio) e **Colocação** (um/vários, selecionar ao pôr, grade, mais opções) entram num único bloco recolhido **"Ver mais…"**. O estado aberto ou fechado fica no `localStorage` (`atlas.propriedadesAbertas`). Quando "Vários" está ativo, o resumo mostra "Ver mais… (vários)", para o usuário não esquecer.
+5. Nada de CSS novo além do necessário: reuse classes e tokens existentes.
+Não fazer: mudar a lógica dos filtros, a ordem das famílias ou o que as propriedades fazem.
+Testes: e2e atualizados (filtro por `<select>`; "Ver mais…" abre e fecha e guarda o estado); `npm test`.
+Pronto quando: com 900 px de altura de janela, o painel mostra a família na mão, a busca, os dois selects e ao menos duas fileiras da grade sem rolar.
+Commit: `object library uses compact filters and folds rare properties`
+
+### Q2c — Prévias que não morrem caladas  ⬜
+Objetivo: se o worker das prévias falhar, a biblioteca se recupera ou avisa, em vez de ficar com todos os quadros vazios para sempre.
+Depende de: —.
+Problema: quando o Vite reotimiza dependências, o import dinâmico falha ("504 Outdated Optimize Dep"), e o worker do baker das prévias (`src/ui/previa.ts`, `criarBaker({ workers: 1 })`) morre sem rejeitar as promessas. Como `pedirPrevia` guarda a promessa no cache e o `MiniReceita` engole o erro, nada mais aparece até recarregar a página.
+Ler: `src/procedural/baker.ts` (criação dos workers, fila, `pedir`), `src/procedural/bake.worker.ts`, `src/ui/previa.ts`, `src/ui/FamiliaNoPincel.tsx` (`MiniReceita`).
+Arquivos: mudar `baker.ts` e `previa.ts`; um teste unitário do baker, se ele já tiver testes (procure em `tests/unit/`), senão um teste do comportamento de `previa.ts` com baker falso.
+Como:
+1. No `baker.ts`, os eventos `error` e `messageerror` do worker rejeitam todas as tarefas que estavam nele, e o worker é recriado na próxima `pedir`, com no máximo 3 tentativas seguidas. Na terceira falha, o baker fica "quebrado" e rejeita na hora.
+2. Em `previa.ts`, uma promessa rejeitada sai do cache `previas`, para que a próxima montagem tente de novo.
+3. Quando o baker fica quebrado, a primeira falha registra um `console.warn` legível: "As miniaturas pararam de carregar; recarregue a página (Ctrl+Shift+R)". O mapa principal usa outro baker: confira se ele tem o mesmo problema e, se tiver, aplique a mesma recriação.
+Não fazer: mudar o formato das tarefas ou a resolução das prévias.
+Testes: um worker que dispara `error` rejeita a tarefa pendente e a seguinte cria um worker novo.
+Pronto quando: matar o worker das prévias no console (`__atlas` ou um teste) e reabrir a biblioteca mostra as miniaturas de novo.
+Commit: `bakers recover when a worker dies`
+
 ---
 
 ## Bloco 2 — Brilho próprio
@@ -230,6 +262,15 @@ Commit: `added post-apocalyptic and cyberpunk floors, walls and roofs`
 ---
 
 ## Bloco 5 — Biomas
+
+### Q13a — Árvores antigas no padrão novo  ⬜ **[Opus]**
+Objetivo: `arvore`, `carvalho-grande`, `pinheiro`, `arbusto`, `arvore-nevada`, `pinheiro-nevado` e `arbusto-seco` ficam na mesma qualidade da `arvore-da-mata` v12 (copa em nanquim, folhas em tufos, luz e sombra próprias).
+Depende de: —. Vem antes da Q13, que usa a mesma técnica para as árvores dos biomas.
+Problema (captura do usuário no Jardim do Colosso, 2026-11-20): o `carvalho-grande` (v2) e a `arvore` (v3) são bolas lisas e genéricas ao lado da `arvore-da-mata` refeita para o Acampamento.
+Ler: `src/procedural/pesados/plantas.ts` (o gerador da `arvore-da-mata` e os antigos), o histórico do `acampamento-na-nevoa` (git log de `plantas.ts`) e `scripts/assar-colecao.ts`.
+Como: extrair da `arvore-da-mata` uma copa parametrizada (tamanho do tufo, densidade, tons, silhueta) e refazer os antigos sobre ela, cada um com caráter próprio: o carvalho largo e irregular, a árvore comum redonda, os pinheiros em camadas de agulhas, as versões nevadas com neve nos tufos de cima. Sobe a `versao` de cada gerador e reassa com `npm run assar`.
+Pronto quando: uma prancha com as árvores antigas e as da mata lado a lado não tem uma árvore que destoe; o Jardim do Colosso e o Desfiladeiro Nevado regenerados ficam melhores que antes.
+Commit: `older trees share the forest tree's inked crowns`
 
 ### Q13 — Árvores e plantas geradas  ⬜ **[Opus]**
 Objetivo: a vegetação dos biomas novos.
