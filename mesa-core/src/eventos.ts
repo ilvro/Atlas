@@ -16,6 +16,8 @@ const num = (campo: string, opcional = false): Validador => d => ehObj(d) && ((o
 const texto = (campo: string, opcional = false): Validador => d => ehObj(d) && ((opcional && d[campo] === undefined) || typeof d[campo] === 'string') ? null : `“${campo}” deve ser texto.`;
 const listaDeRefs = (campo: string, opcional = false): Validador => d => ehObj(d) && ((opcional && d[campo] === undefined) || (Array.isArray(d[campo]) && d[campo].every(ehRef))) ? null : `“${campo}” deve ser lista de referências.`;
 
+const ehFichaSalva: Validador = d => ehObj(d) && ehObj(d.ficha) && typeof d.ficha.id === 'string' && (d.rev === undefined || Number.isFinite(d.rev)) ? null : '“ficha” deve ser um objeto com “id” texto e “rev” número, se houver.';
+
 interface Entrada { natureza: Natureza; dono: AppId; validar: Validador }
 
 /**
@@ -48,7 +50,25 @@ export const CATALOGO: Readonly<Record<string, Entrada>> = {
   'ficha.ajustar-recursos': { natureza: 'pedido', dono: 'ficha', validar: todos(ref('ficha'), num('deltaPv', true), num('deltaPd', true), num('pv', true), num('pd', true)) },
   'atelie.abrir': { natureza: 'pedido', dono: 'atelie', validar: ref('ref') },
   'mesa.focar': { natureza: 'pedido', dono: 'mesa', validar: ref('ref') },
+  /** Online: um jogador pede para mover a própria peça. `mapa` e `peca` são ids do Atlas. */
+  'atlas.mover-peca': { natureza: 'pedido', dono: 'atlas', validar: d => {
+    if (!ehObj(d) || typeof d.mapa !== 'string' || typeof d.peca !== 'string') return '“mapa” e “peca” devem ser texto.';
+    if (!Array.isArray(d.position) || d.position.length !== 2 || !d.position.every(Number.isFinite)) return '“position” deve ser [x, y].';
+    if (d.levelId !== undefined && d.levelId !== null && typeof d.levelId !== 'string') return '“levelId” deve ser texto ou nulo.';
+    return null;
+  } },
+  /** Online: pede à sala as fichas conhecidas. */
+  'sala.fichas': { natureza: 'pedido', dono: 'mesa', validar: d => d === undefined || d === null || ehObj(d) ? null : '“dados” deve ser objeto.' },
+  /** Online: grava uma ficha na sala. Com `rev` velho, a sala grava e marca conflito. */
+  'sala.salvar-ficha': { natureza: 'pedido', dono: 'mesa', validar: ehFichaSalva },
+  /** Online: a sala gravou uma ficha. */
+  'sala.ficha-atualizada': { natureza: 'fato', dono: 'mesa', validar: d => ehObj(d) && ehObj(d.ficha) && Number.isFinite(d.rev) && (d.conflito === undefined || typeof d.conflito === 'boolean') ? null : '“ficha” deve ser objeto, “rev” número e “conflito” booleano.' },
 };
+
+/** Quem originou o evento, carimbado pela sala (modo online). */
+export interface Autor { discordId: string; nome: string; papel: 'mestre' | 'jogador'; fichas: string[] }
+
+const ehAutor = (v: unknown): v is Autor => ehObj(v) && typeof v.discordId === 'string' && typeof v.nome === 'string' && (v.papel === 'mestre' || v.papel === 'jogador') && Array.isArray(v.fichas) && v.fichas.every(f => typeof f === 'string');
 
 export interface Evento<D = unknown> {
   contrato: number;
@@ -60,6 +80,8 @@ export interface Evento<D = unknown> {
   dados: D;
   /** Presente nas respostas: o `id` do pedido que está sendo respondido. */
   respondeA?: string;
+  /** Carimbado pela sala no modo online; ausente no uso local. */
+  autor?: Autor;
 }
 
 export type Validacao = { ok: true; evento: Evento } | { ok: false; motivo: 'formato' | 'contrato' | 'desconhecido' | 'dados' | 'dono'; detalhe: string };
@@ -67,13 +89,14 @@ export type Validacao = { ok: true; evento: Evento } | { ok: false; motivo: 'for
 /** Confere um envelope recebido. Nunca lança: o canal é compartilhado e qualquer aba pode mandar lixo. */
 export function validarEvento(valor: unknown): Validacao {
   if (!ehObj(valor)) return { ok: false, motivo: 'formato', detalhe: 'Não é um objeto.' };
-  const permitidas = ['contrato', 'app', 'tipo', 'id', 'em', 'campanhaId', 'dados', 'respondeA'];
+  const permitidas = ['contrato', 'app', 'tipo', 'id', 'em', 'campanhaId', 'dados', 'respondeA', 'autor'];
   const extra = Object.keys(valor).find(k => !permitidas.includes(k));
   if (extra) return { ok: false, motivo: 'formato', detalhe: `Campo desconhecido: ${extra}.` };
   if (valor.contrato !== CONTRATO) return { ok: false, motivo: 'contrato', detalhe: `Contrato ${String(valor.contrato)}; este entende ${CONTRATO}.` };
   if (!ehApp(valor.app) || typeof valor.tipo !== 'string' || typeof valor.id !== 'string' || !valor.id || !Number.isFinite(valor.em)) return { ok: false, motivo: 'formato', detalhe: 'Envelope incompleto.' };
   if (!(valor.campanhaId === null || typeof valor.campanhaId === 'string')) return { ok: false, motivo: 'formato', detalhe: '“campanhaId” inválido.' };
   if (valor.respondeA !== undefined && typeof valor.respondeA !== 'string') return { ok: false, motivo: 'formato', detalhe: '“respondeA” inválido.' };
+  if (valor.autor !== undefined && !ehAutor(valor.autor)) return { ok: false, motivo: 'formato', detalhe: '“autor” inválido.' };
   const entrada = CATALOGO[valor.tipo];
   if (!entrada) return { ok: false, motivo: 'desconhecido', detalhe: valor.tipo };
   // Fatos só valem vindos do dono; pedidos podem vir de qualquer aplicativo.
