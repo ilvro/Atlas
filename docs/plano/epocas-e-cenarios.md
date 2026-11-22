@@ -264,7 +264,7 @@ Commit: `added post-apocalyptic and cyberpunk floors, walls and roofs`
 
 ## Bloco 5 — Biomas
 
-### Q13a — Árvores antigas no padrão novo  ⬜ **[Opus]**
+### Q13a — Árvores antigas no padrão novo  ✅ **[Opus]**
 Objetivo: `arvore`, `carvalho-grande`, `pinheiro`, `arbusto`, `arvore-nevada`, `pinheiro-nevado` e `arbusto-seco` ficam na mesma qualidade da `arvore-da-mata` v12 (copa em nanquim, folhas em tufos, luz e sombra próprias).
 Depende de: —. Vem antes da Q13, que usa a mesma técnica para as árvores dos biomas.
 Problema (captura do usuário no Jardim do Colosso, 2026-11-20): o `carvalho-grande` (v2) e a `arvore` (v3) são bolas lisas e genéricas ao lado da `arvore-da-mata` refeita para o Acampamento.
@@ -272,6 +272,7 @@ Ler: `src/procedural/pesados/plantas.ts` (o gerador da `arvore-da-mata` e os ant
 Como: extrair da `arvore-da-mata` uma copa parametrizada (tamanho do tufo, densidade, tons, silhueta) e refazer os antigos sobre ela, cada um com caráter próprio: o carvalho largo e irregular, a árvore comum redonda, os pinheiros em camadas de agulhas, as versões nevadas com neve nos tufos de cima. Sobe a `versao` de cada gerador e reassa com `npm run assar`.
 Pronto quando: uma prancha com as árvores antigas e as da mata lado a lado não tem uma árvore que destoe; o Jardim do Colosso e o Desfiladeiro Nevado regenerados ficam melhores que antes.
 Commit: `older trees share the forest tree's inked crowns`
+Nota: a `copaDeRaminhos` ganhou `variantes`, `folha` (escala do raminho), `nanquim` e `galhos`; os padrões não mudaram, então a `arvore-da-mata` saiu igual. `arvore`, `arbusto`, `carvalho-grande` e `arvore-nevada` passaram a usá-la, cada uma com a sua paleta. Os pinheiros ficaram como estavam (já em camadas de agulhas). As miniaturas dos exemplos não foram regeneradas: o Jardim do Colosso tinha mudanças de outra sessão em aberto.
 
 ### Q13 — Árvores e plantas geradas  ⬜ **[Opus]**
 Objetivo: a vegetação dos biomas novos.
