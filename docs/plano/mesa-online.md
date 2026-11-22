@@ -128,7 +128,7 @@ Pronto quando: os testes passam e nenhum segredo aparece no código.
 Commit: `discord login and signed sessions in room worker`
 Nota: feita (Mesa `afbd70c`). `exp` em ms. Os tipos de `ola` e `bem-vindo` estão em `sala/ola.ts`, que a R3 leva para `src/online/protocolo.ts`. `retransmitirIdentificados` só entrega entre conexões com anexo. A troca real com o Discord foi testada só com `fetch` falso; ela é testada de verdade na R5.
 
-### R3 — Protocolo da sala e contrato  ⬜
+### R3 — Protocolo da sala e contrato  ✅
 Objetivo: os tipos e o cliente da sala, iguais para a Mesa do mestre e para a casca do jogador.
 Depende de: R2.
 Ler: `Atlas/mesa-core/src/eventos.ts` (`Evento`, `CanalLike`, `validarEvento`, `CATALOGO`), `Atlas/src/app/projetor.ts` (`MensagemDoMestre`, `MensagemDoProjetor`), `Atlas/docs/PLATAFORMA.md` §5 e §10.
@@ -147,6 +147,7 @@ Não fazer: a ponte (R5) nem a lógica de permissões (R4, no servidor).
 Testes: reconexão com um WebSocket falso; divisão e remontagem de um blob de 1,3 MB; `validarEvento` aceita `autor` e recusa `autor` malformado (`autor` entra na lista `permitidas`, que hoje recusa qualquer campo desconhecido).
 Pronto quando: os testes do mesa-core e da Mesa passam, e as cópias em `vendor/` batem com o `dist/`.
 Commit: `online contract: event author and room events` (Atlas); `room protocol and client` (Mesa); `mesa-core com eventos da sala` (Dossiê)
+Nota: feita (Atlas `596ee50`, Mesa `50560ab`, Dossiê `2baf01a`, Jukebox `babda5f`, Ateliê `e47ccfa`). O MIME no `blob` se chama `tipoMime`. `ultimoEstado` é `Record<canal, mensagem>`. O quadro binário é: 4 bytes com o tamanho do cabeçalho JSON, o cabeçalho e os dados. O cliente não reconecta depois de 4001, e `enviar` devolve `false` (sem fila) com a sala fechada. A validação completa do `envelope` (`validarEvento`) fica na sala (R4).
 
 ### R4 — Estado e permissões da sala  ⬜
 Objetivo: a sala guarda o que dura entre sessões e recusa o que cada papel não pode mandar.
