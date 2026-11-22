@@ -206,7 +206,7 @@ Pronto quando: um recorte de 20 × 20 m com duna, oásis e lavoura lê como dese
 Commit: `added desert and farmland terrain`
 Nota: material com textura não aceita padrão procedural por cima, então as dunas não usam o `Ground054`. Elas têm um pintor próprio (`dunas-areia`), com cristas a cada 4–6 m, barlavento claro com ondulações de vento e face de sombra. As cristas variam de força, se fundem e somem. As coordenadas giram com a direção da camada, que é calculada sobre a camada inteira (em `entradas.ts`, como nos sulcos). Calculada por ladrilho, uma faixa estreita no fim do mapa girava 90°. `sulcos` e `dunas-areia` passaram a usar a área do mapa inteiro, para não emendar entre ladrilhos. A `terra.arada` seria o `terra.sulcos` repetido: ele virou "Terra arada" no grupo Campo. A `grama.florida` virou o carimbo `flores-do-campo`, e as lavouras viraram carimbos `plantacao.trigo`, `plantacao.milho` e `plantacao.arroz` (fileiras ao longo do comprimento; o milho tem 2 m e faz sombra), com `agua.arrozal` para as mudas. Grupos novos: "Deserto e sertão" e "Campo e lavoura". Depois da ficha, cada parte conectada da camada passou a ter a própria direção (`componentesDeFaixas` em `orientacao.ts`).
 
-### Q8 — Selva, outono e cidade  ⬜ **[Opus]**
+### Q8 — Selva, outono e cidade  ✅ **[Opus]**
 Objetivo: terrenos tropicais, de outono e urbanos.
 Depende de: Q5.
 Arquivos: `materiais.ts`, `grupos-de-terreno.ts` (grupos `selva` e `cidade`; `folhas.outono` e `grama.outono` entram em `grama`, com bioma `outono`), texturas e licenças, `receitas/chao.ts`.
@@ -217,6 +217,7 @@ Como:
 - carimbos urbanos: `faixa-de-pedestre`, `faixa-continua`, `faixa-tracejada`, `bueiro`, `mancha-de-oleo`, `vaga-pintada`. Os pintados seguem a direção do pincel.
 Pronto quando: uma rua de 2 faixas com calçada e cruzamento é montada só com o terreno e os carimbos, sem nenhum objeto.
 Commit: `added jungle, autumn and city terrain`
+Nota: desvios. `folhas.outono` usa a alternativa `forest_floor` (com manchas de `dry_decay_leaves`), porque o preparo de texturas guarda só cor e relevo, e a `ScatteredLeaves007` dependia da transparência. A `grama.outono` é `withered_grass` com manchas de folhas secas. A `concrete_pavement` não tem relevo próprio: o deslocamento não fechava em ladrilho pelo critério do script, e o preparo ganhou `semRelevo`. A sinalização (faixa de pedestre, contínua, tracejada e vaga) é desenhada como carimbo: segue a rotação do objeto, não o pincel, e a tinta é contínua e gasta (falhas e grão, com `desgaste` de 0 a 1). Entraram ainda o `meio-fio`, porque a borda de toda camada de terreno é macia e a cidade precisa de borda nítida, além de `bueiro` (tampa ou grelha), `mancha-de-oleo` e `folhas-largas` para a selva. Grupos novos: Selva e Cidade; as duas de outono entram em Grama. Cena de teste: rua de duas faixas com calçada e cruzamento, só com terreno e carimbos.
 
 ### Q9 — Vulcão, subterrâneo e águas novas  ⬜ **[Opus]**
 Objetivo: terrenos vulcânicos e de caverna exótica, e as águas especiais.
@@ -397,6 +398,10 @@ Mantida ao longo da frente. Cada ficha registra aqui o que ficou de fora ou o qu
 | Q6 | A neve funda tem uma mancha azulada leve. | A camada `snow010a` é azulada. | Tingir mais essa camada, se incomodar. |
 | Q13a | As miniaturas da galeria de exemplos ainda mostram as árvores antigas. | O Jardim do Colosso tinha mudanças de outra sessão em aberto. | `npm run exemplos` quando esses arquivos estiverem livres. |
 | Q13a | Os pinheiros não foram refeitos. | Já eram em camadas de agulhas, sem a cara de bola. | Refazer com nanquim, se destoarem no Desfiladeiro Nevado. |
+| Q8 | A borda de uma camada de terreno é sempre macia; a borda nítida da rua vem do carimbo `meio-fio`, posto à mão. | A borda do terreno se desfaz por ruído (`suave(0.22, 0.78)`) em todos os materiais. | Uma opção de borda nítida por material (asfalto, calçada, lajes) ou meio-fio automático entre `asfalto` e `concreto.calcada`. |
+| Q8 | O meio-fio é reto: as esquinas não têm curva. | Só existe a peça reta. | Uma peça de esquina (quarto de círculo) na família. |
+| Q8 | A sinalização segue a rotação do objeto, não o traço do pincel; uma faixa curva precisa de vários pedaços. | É carimbo, não terreno. | Faixas ao longo de um caminho (`atlas_caminho`), quando houver ruas curvas. |
+| Q8 | A `ScatteredLeaves007` (folhas soltas com transparência) não é usada. | O preparo guarda só cor e relevo. | Guardar a opacidade no preparo e deixar a camada de textura usar alfa. |
 | ~~Q2b~~ | ~~Os seletores cortavam o texto ("Deste mapa (Inv…")~~ | | Resolvido: os seletores ficam um embaixo do outro, cada um na largura toda. |
 | ~~Q2c~~ | ~~O aviso do baker falava em "miniaturas" mesmo quando era o mapa~~ | | Resolvido: o texto agora vale para os dois. |
 | ~~Q7~~ | ~~Uma camada de sulcos ou dunas tinha uma direção só (talhões diferentes saíam na média)~~ | | Resolvido: cada parte conectada da camada ganha a própria direção (`componentesDeFaixas`). |

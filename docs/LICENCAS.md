@@ -91,9 +91,13 @@ Ladrilhos de terreno preparados por `npm run texturas` (`scripts/preparar-textur
 | arquivo | textura | autor | fonte | licença | link |
 | --- | --- | --- | --- | --- | --- |
 | texturas/brown_mud_dry.webp<br>texturas/brown_mud_dry-alt.webp | brown_mud_dry | Rob Tuytel | Poly Haven | CC0 | https://polyhaven.com/a/brown_mud_dry |
+| texturas/brown_mud_leaves_01.webp<br>texturas/brown_mud_leaves_01-alt.webp | brown_mud_leaves_01 | Rob Tuytel | Poly Haven | CC0 | https://polyhaven.com/a/brown_mud_leaves_01 |
+| texturas/concrete_pavement.webp | concrete_pavement | Charlotte Baglioni | Poly Haven | CC0 | https://polyhaven.com/a/concrete_pavement |
 | texturas/damp_beach_sand_02.webp<br>texturas/damp_beach_sand_02-alt.webp | damp_beach_sand_02 | Dimitrios Savva | Poly Haven | CC0 | https://polyhaven.com/a/damp_beach_sand_02 |
 | texturas/dirt_floor.webp<br>texturas/dirt_floor-alt.webp | dirt_floor | eye-candy.xyz | Poly Haven | CC0 | https://polyhaven.com/a/dirt_floor |
+| texturas/dry_decay_leaves.webp<br>texturas/dry_decay_leaves-alt.webp | dry_decay_leaves | Amal Kumar | Poly Haven | CC0 | https://polyhaven.com/a/dry_decay_leaves |
 | texturas/dry_ground_01.webp<br>texturas/dry_ground_01-alt.webp | dry_ground_01 | Rob Tuytel | Poly Haven | CC0 | https://polyhaven.com/a/dry_ground_01 |
+| texturas/forest_floor.webp<br>texturas/forest_floor-alt.webp | forest_floor | eye-candy.xyz | Poly Haven | CC0 | https://polyhaven.com/a/forest_floor |
 | texturas/forest_ground_04.webp<br>texturas/forest_ground_04-alt.webp | forest_ground_04 | Rob Tuytel, Rico Cilliers | Poly Haven | CC0 | https://polyhaven.com/a/forest_ground_04 |
 | texturas/grass_ground.webp<br>texturas/grass_ground-alt.webp | grass_ground | Charlotte Baglioni | Poly Haven | CC0 | https://polyhaven.com/a/grass_ground |
 | texturas/gravel_floor.webp<br>texturas/gravel_floor-alt.webp | gravel_floor | Jenelle van Heerden, Matterfield | Poly Haven | CC0 | https://polyhaven.com/a/gravel_floor |
@@ -103,6 +107,7 @@ Ladrilhos de terreno preparados por `npm run texturas` (`scripts/preparar-textur
 | texturas/mud_cracked_dry_03.webp<br>texturas/mud_cracked_dry_03-alt.webp | mud_cracked_dry_03 | Dario Barresi, Dimitrios Savva | Poly Haven | CC0 | https://polyhaven.com/a/mud_cracked_dry_03 |
 | texturas/mud_forest.webp<br>texturas/mud_forest-alt.webp | mud_forest | eye-candy.xyz | Poly Haven | CC0 | https://polyhaven.com/a/mud_forest |
 | texturas/red_dirt_mud_01.webp<br>texturas/red_dirt_mud_01-alt.webp | red_dirt_mud_01 | Rob Tuytel | Poly Haven | CC0 | https://polyhaven.com/a/red_dirt_mud_01 |
+| texturas/road_damaged.webp<br>texturas/road_damaged-alt.webp | road_damaged | Dimitrios Savva | Poly Haven | CC0 | https://polyhaven.com/a/road_damaged |
 | texturas/rocks_ground_02.webp<br>texturas/rocks_ground_02-alt.webp | rocks_ground_02 | Rob Tuytel | Poly Haven | CC0 | https://polyhaven.com/a/rocks_ground_02 |
 | texturas/rocky_trail.webp<br>texturas/rocky_trail-alt.webp | rocky_trail | Amal Kumar | Poly Haven | CC0 | https://polyhaven.com/a/rocky_trail |
 | texturas/sand_01.webp<br>texturas/sand_01-alt.webp | sand_01 | Rob Tuytel | Poly Haven | CC0 | https://polyhaven.com/a/sand_01 |
@@ -112,4 +117,5 @@ Ladrilhos de terreno preparados por `npm run texturas` (`scripts/preparar-textur
 | texturas/sparse_grass.webp<br>texturas/sparse_grass-alt.webp | sparse_grass | Amal Kumar | Poly Haven | CC0 | https://polyhaven.com/a/sparse_grass |
 | texturas/stony_dirt_path.webp<br>texturas/stony_dirt_path-alt.webp | stony_dirt_path | eye-candy.xyz | Poly Haven | CC0 | https://polyhaven.com/a/stony_dirt_path |
 | texturas/withered_grass.webp<br>texturas/withered_grass-alt.webp | withered_grass | Charlotte Baglioni | Poly Haven | CC0 | https://polyhaven.com/a/withered_grass |
+| texturas/worn_asphalt.webp<br>texturas/worn_asphalt-alt.webp | worn_asphalt | Amal Kumar | Poly Haven | CC0 | https://polyhaven.com/a/worn_asphalt |
 <!-- texturas:fim -->

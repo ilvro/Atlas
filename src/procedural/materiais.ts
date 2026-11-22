@@ -186,6 +186,22 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
     { textura: 'ground068', escala: 1.2, mascara: { freq: 1.1, limiar: 0.63, suave: 0.05, semente: 4 }, tons: ['#1c2212', '#3c4826', '#64703e'] },
   ] } }),
   m('musgo', 'Musgo', 'terreno', '#3c4826', '#1c2212', '#64703e', 'grama', { franja: 1, textura: { tingir: 0.6, camadas: [{ textura: 'ground068', escala: 1.2 }] } }),
+  // Selva, outono e cidade (Q8)
+  m('chao.de.selva', 'Chão de selva', 'terreno', '#2a3420', '#10160c', '#46562e', 'folhico', { franja: 1, textura: { tingir: 0.7, camadas: [
+    { textura: 'brown_mud_leaves_01', escala: 1.5, tons: ['#10160c', '#2a3420', '#4a5a30'] },
+    { textura: 'forest_ground_04', escala: 1.4, mascara: { freq: 0.35, limiar: 0.58, suave: 0.1, semente: 21 }, tons: ['#141208', '#2e2818', '#4a4028'] },
+  ] } }),
+  m('folhas.outono', 'Folhas de outono', 'terreno', '#8a5226', '#3e2210', '#c8823a', 'folhico', { franja: 1, textura: { tingir: 0.35, camadas: [
+    { textura: 'forest_floor', escala: 1.4, tons: ['#3a200e', '#8a5226', '#d08a3c'] },
+    { textura: 'dry_decay_leaves', escala: 1.4, mascara: { freq: 0.4, limiar: 0.55, suave: 0.1, semente: 22 }, tons: ['#30200f', '#704020', '#a8683a'] },
+  ] } }),
+  m('grama.outono', 'Grama de outono', 'terreno', '#6e6a34', '#3c3818', '#9c9450', 'grama', { textura: { tingir: 0.6, camadas: [
+    { textura: 'withered_grass', escala: 1.4 },
+    { textura: 'dry_decay_leaves', escala: 1.4, mascara: { freq: 1.1, limiar: 0.5, suave: 0.12, semente: 23 }, tons: ['#30200f', '#76461f', '#ae6e36'] },
+  ] } }),
+  m('asfalto', 'Asfalto', 'terreno', '#424448', '#202124', '#686a70', 'liso', { textura: { tingir: 0.97, camadas: [{ textura: 'worn_asphalt', escala: 1.3 }] } }),
+  m('asfalto.rachado', 'Asfalto rachado', 'terreno', '#3c3d40', '#18191b', '#56585c', 'rachado', { textura: { tingir: 0.95, camadas: [{ textura: 'road_damaged', escala: 1.3 }] } }),
+  m('concreto.calcada', 'Calçada de concreto', 'terreno', '#8e8a84', '#4c4a46', '#b6b2aa', 'laje', { textura: { tingir: 0.8, camadas: [{ textura: 'concrete_pavement', escala: 1 }] } }),
   // Deserto e sertão (Q7)
   m('areia.duna', 'Dunas', 'terreno', '#d2ac70', '#74481e', '#f4dca6', 'dunas-areia'),
   m('terra.rachada', 'Terra rachada', 'terreno', '#8a7458', '#4e3e2c', '#b49e7c', 'rachado', { textura: { tingir: 0.75, camadas: [{ textura: 'dry_ground_01', escala: 1.1 }] } }),

@@ -58,6 +58,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('natureza', 'folhico', 'Folhiço e galhos', ['folhico', 'galhada', 'gravetos', 'raizes'], { biomas: ['temperado'] }),
   f('natureza', 'brotos', 'Brotos', ['brotos'], { biomas: ['temperado'] }),
   f('natureza', 'flores', 'Flores do campo', ['flores-do-campo'], { biomas: ['temperado'] }),
+  f('natureza', 'folhas-largas', 'Folhas largas', ['folhas-largas'], { biomas: ['tropical'] }),
   f('natureza', 'monte-de-neve', 'Monte de neve', ['monte-de-neve'], { biomas: ['frio'] }),
   f('natureza', 'estalagmite', 'Estalagmite', ['estalagmite'], { biomas: ['subterraneo'] }),
   f('natureza', 'buraco', 'Buraco', ['buraco']),
@@ -169,6 +170,8 @@ export const FAMILIAS: readonly Familia[] = [
   f('moderno', 'notebook', 'Eletrônico', ['notebook', 'rack.tv'], { generos: ['moderno'] }),
   f('moderno', 'tv-de-parede', 'Aparelho de parede', ['tv.parede', 'interruptor'], { generos: ['moderno', 'investigacao'] }),
   f('moderno', 'extintor', 'Extintor', ['extintor'], { generos: ['moderno'] }),
+  f('moderno', 'sinalizacao', 'Sinalização da rua', ['faixa-tracejada', 'faixa-continua', 'vaga-pintada', 'faixa-de-pedestre'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'], biomas: ['urbano'] }),
+  f('moderno', 'bueiro', 'Bueiro, guia e mancha', ['mancha-de-oleo', 'bueiro', 'meio-fio'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'], biomas: ['urbano'] }),
   // Ficção científica
   f('ficcao', 'console', 'Console', ['console', 'mesa.navegacao', 'terminal.crt', 'painel.eletrico'], { generos: ['ficcao-cientifica', 'cyberpunk'] }),
   f('ficcao', 'gerador', 'Gerador', ['gerador'], { generos: ['ficcao-cientifica', 'cyberpunk'] }),
