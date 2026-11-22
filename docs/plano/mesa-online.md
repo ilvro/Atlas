@@ -149,7 +149,7 @@ Pronto quando: os testes do mesa-core e da Mesa passam, e as cópias em `vendor/
 Commit: `online contract: event author and room events` (Atlas); `room protocol and client` (Mesa); `mesa-core com eventos da sala` (Dossiê)
 Nota: feita (Atlas `596ee50`, Mesa `50560ab`, Dossiê `2baf01a`, Jukebox `babda5f`, Ateliê `e47ccfa`). O MIME no `blob` se chama `tipoMime`. `ultimoEstado` é `Record<canal, mensagem>`. O quadro binário é: 4 bytes com o tamanho do cabeçalho JSON, o cabeçalho e os dados. O cliente não reconecta depois de 4001, e `enviar` devolve `false` (sem fila) com a sala fechada. A validação completa do `envelope` (`validarEvento`) fica na sala (R4).
 
-### R4 — Estado e permissões da sala  ⬜
+### R4 — Estado e permissões da sala  ✅
 Objetivo: a sala guarda o que dura entre sessões e recusa o que cada papel não pode mandar.
 Depende de: R3.
 Ler: `Mesa/sala/sala.ts`, `Mesa/src/online/protocolo.ts` e a API SQL do Durable Object (`ctx.storage.sql.exec`).
@@ -176,6 +176,14 @@ Não fazer: clientes.
 Testes: um jogador não consegue mandar `canal` nem salvar a ficha de outro; o mestre consegue; quem entra atrasado recebe o último `estado` e as fichas; o diretório liga e consulta.
 Pronto quando: os testes passam e o `wrangler deploy` publica (com o usuário logado).
 Commit: `room state, permissions and guild directory`
+Nota: feita (Mesa `3133f81`). O núcleo puro está em `sala/mensagens.ts` (`tratar`, `bemVindo`), `sala/permissoes.ts` e `sala/registro.ts` (diretório). Há uma tabela `personagens(discord_id, ficha_id)`.
+- Rotas: `POST /sala/nova`, `POST /sala/diretorio/ligar`, `GET /sala/diretorio/:guildId` e `GET /sala/minhas`, todas com `Authorization: Bearer <sessao>`.
+- Uma sala nunca criada fecha com 4004.
+- O motivo do `erro` vai em `recusado`, porque `tipo` é o discriminante.
+- O `bem-vindo` traz `config`, `revs` e `donos`.
+- `ficha.atualizada` vai só ao mestre e ao dono.
+- A sessão traz `podeMestrar`, e o segredo é `MESTRES_DISCORD_IDS`.
+- Pendências encaminhadas: blobs para quem chega depois (R6), espalhar o `sala.config` (R12b) e avisar quem perdeu a ficha numa entrega (R13).
 
 ## Bloco 2 — O mestre publica
 
@@ -229,7 +237,7 @@ Arquivos: mudar `Mesa/src/app/online.ts` e `Mesa/src/online/protocolo.ts`, mais 
 Como:
 1. Um `estado` acima de 256 KB vai comprimido (`CompressionStream('gzip')`) como blob `estado:<mapa>:<versao>`. A mensagem `canal` leva só `{ tipo: 'estado', blobId, versao }`, e o receptor descomprime.
 2. Durante um gesto, `emGesto` e `peca-gesto` vão sem compressão e limitados a 15 por segundo.
-3. Assets e retratos são enviados uma vez por id por sessão da ponte. A sala já guarda e entrega a quem chega.
+3. Assets e retratos são enviados uma vez por id por sessão da ponte. **A sala ainda não manda blobs a quem chega depois** (nota da R4): a sala passa a mandar, depois do `bem-vindo`, os blobs citados no último `estado` de cada canal. A ponte pergunta `temBlob` (crie a mensagem `blob.tem { id } → blob.tem { id, tem }` em `protocolo.ts`) antes de subir.
 Não fazer: diferenças entre versões (só se a medição mostrar necessidade; nesse caso, anote).
 Testes: um `estado` de 3 MB atravessa e volta igual; o gesto é limitado.
 Pronto quando: o maior mapa de exemplo abre num cliente de teste em menos de 5 s.
@@ -330,7 +338,7 @@ Nota: o Opus revisa o resultado visual (proporções, legibilidade no celular) a
 Objetivo: a tela de chegada mostra quem está na mesa, com que personagem e se o mestre já abriu.
 Depende de: R12 e R4 (`membro.personagem` e `sala.config`).
 Ler: `Casca.tsx`, `MesaOnline.tsx` e `protocolo.ts`.
-Arquivos: criar `Mesa/src/jogar/Saguao.tsx` e `Mesa/src/online/saguao.ts` (puro); mudar `Casca.tsx`, `MesaOnline.tsx`, `online.ts` (manda `sala.config` com o nome e a capa da campanha ativa) e o tratamento das duas mensagens em `sala/sala.ts`.
+Arquivos: criar `Mesa/src/jogar/Saguao.tsx` e `Mesa/src/online/saguao.ts` (puro); mudar `Casca.tsx`, `MesaOnline.tsx`, `online.ts` (manda `sala.config` com o nome e a capa da campanha ativa) e `sala/mensagens.ts`. Hoje o `sala.config` só grava (nota da R4): ele passa a espalhar uma mensagem nova, `config { ... }`, a todos.
 Como:
 1. A casca abre no saguão quando a sala ainda não tem `estado` de mapa ou quando o jogador ainda não escolheu personagem. Depois, o saguão fica a um botão (ícone de pessoas) por cima do mapa.
 2. Ele mostra:
@@ -355,7 +363,8 @@ Como:
 1. Com a Mesa online conectada, o Dossiê do mestre mostra uma pasta virtual "Sala: <nome>" com as fichas da sala, com o dono no rótulo. Editar uma delas grava na sala, e não no local.
 2. Uma ficha local ganha, no menu, "Entregar a um jogador…", que lista os membros conhecidos. A ficha vai para a sala **com o mesmo id**, com `dono` igual ao jogador, e a local deixa de ser editada à parte (passa a ser a da sala).
 3. **As fichas da sala entram na campanha do mestre.** O `mesa.js` do Dossiê do mestre publica cada ficha da sala como entidade `personagem`, com o Ref `mesa:ficha/ficha/<id>` e o retrato, como já faz com as locais. Assim, o Atlas as encontra em `personagensComFicha`, e o mestre consegue pôr a peça ligada à ficha do jogador. Isso vale também para uma ficha que o jogador criou ou importou na sala. É esse vínculo que a R14 e a R15 usam.
-4. Conflito: se chegar uma `ficha.atualizada` com `rev` maior enquanto o mestre edita, aparece o aviso "<nome> mexeu nesta ficha" com "Ver a versão dele" e "Manter a minha".
+4. Na entrega, quem perde a ficha recebe `ficha.removida { id }` (mensagem nova em `protocolo.ts`), e a casca dele a tira da lista.
+5. Conflito: se chegar uma `ficha.atualizada` com `rev` maior enquanto o mestre edita, aparece o aviso "<nome> mexeu nesta ficha" com "Ver a versão dele" e "Manter a minha".
 Não fazer: fusão campo a campo.
 Testes: a combinação de local com sala no armazenamento; a entrega com uma ponte falsa.
 Pronto quando: o mestre muda o PV de um jogador e o card do jogador atualiza; uma ficha criada pelo jogador na sala aparece no Atlas do mestre para virar peça.
