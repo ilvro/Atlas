@@ -290,3 +290,43 @@ test('entradas da sala: atlas.mover-peca, sala.fichas, sala.salvar-ficha e sala.
   assert.equal(ok('mesa', 'sala.ficha-atualizada', { ficha: { id: 'f' } }), false);
   assert.equal(ok('ficha', 'sala.ficha-atualizada', { ficha: { id: 'f' }, rev: 3 }), false);
 });
+
+test('jukebox.mix, jukebox.efeito-tocado e jukebox.arquivo', async () => {
+  const estado = { volume: 0.5, efeitos: ['lowpass'], ajustes: { lowpass: { frequency: 800 } }, regioes: [] };
+  const faixa = { faixaId: 'ab12', url: 'sample/a.mp3', titulo: 'Chuva', loop: true, posicao: 12.5, taxa: 1, desde: 1000, pausada: false, estado };
+  const mix = (dados: unknown, app: Evento['app'] = 'jukebox') => validarEvento(base({ app, tipo: 'jukebox.mix', dados }));
+  assert.equal(mix({ cena: criarRef('jukebox', 'cena-sonora', 'c1'), mestre: 1, faixas: [faixa, { ...faixa, crossfade: true }] }).ok, true);
+  assert.equal(mix({ cena: null, mestre: 1, faixas: [] }).ok, true);
+  // a ponte do mestre tira `titulo`, `url` e `cena` antes de mandar à sala: continua válido
+  const { titulo: _t, url: _u, ...semTexto } = faixa;
+  assert.equal(mix({ mestre: 1, faixas: [semTexto] }).ok, true);
+  assert.equal(mix({ cena: 'x', mestre: 1, faixas: [] }).ok, false);
+  assert.equal(mix({ mestre: '1', faixas: [] }).ok, false);
+  assert.equal(mix({ mestre: 1, faixas: {} }).ok, false);
+  assert.equal(mix({ mestre: 1, faixas: [{ ...faixa, faixaId: '' }] }).ok, false);
+  assert.equal(mix({ mestre: 1, faixas: [{ ...faixa, pausada: 'não' }] }).ok, false);
+  assert.equal(mix({ mestre: 1, faixas: [{ ...faixa, posicao: Number.NaN }] }).ok, false);
+  assert.equal(mix({ mestre: 1, faixas: [{ ...faixa, estado: { ...estado, efeitos: [1] } }] }).ok, false);
+  assert.equal(mix({ mestre: 1, faixas: [{ ...faixa, estado: { volume: 1 } }] }).ok, false);
+  assert.equal(mix({ mestre: 1, faixas: [faixa] }, 'atlas').ok, false);
+
+  const tocado = (dados: unknown, app: Evento['app'] = 'jukebox') => validarEvento(base({ app, tipo: 'jukebox.efeito-tocado', dados })).ok;
+  assert.equal(tocado({ faixaId: 'ab12', titulo: 'Trovão', estado }), true);
+  assert.equal(tocado({ faixaId: 'ab12', url: 'sample/t.mp3', estado }), true);
+  assert.equal(tocado({ titulo: 'Trovão', estado }), false);
+  assert.equal(tocado({ faixaId: 'ab12', titulo: 'Trovão' }), false);
+  assert.equal(tocado({ faixaId: 'ab12', titulo: 'Trovão', estado }, 'mesa'), false);
+
+  const arquivo = (dados: unknown, app: Evento['app'] = 'mesa') => validarEvento(base({ app, tipo: 'jukebox.arquivo', dados })).ok;
+  assert.equal(arquivo({ faixaId: 'ab12' }), true);
+  assert.equal(arquivo({ faixaId: '' }), false);
+  assert.equal(arquivo({}), false);
+  assert.equal(arquivo({ faixaId: 7 }), false);
+});
+
+test('a resposta de jukebox.arquivo, com um Blob, passa pela validação do envelope', () => {
+  // O BroadcastChannel do Node não clona Blob (o dos navegadores clona); o ida e volta real foi conferido no Chromium.
+  const resposta = (dados: unknown) => validarEvento(base({ app: 'jukebox', tipo: 'mesa.resposta', respondeA: 'p1', dados }));
+  assert.equal(resposta({ ok: true, dados: { blob: new Blob([new Uint8Array([1, 2])], { type: 'audio/mpeg' }), tipo: 'audio/mpeg' } }).ok, true);
+  assert.equal(resposta({ ok: false, motivo: 'desconhecida' }).ok, true);
+});
