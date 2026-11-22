@@ -7,6 +7,7 @@ import { GENEROS, generoDe } from '../domain/presets.ts';
 import { definirFiltroDeBioma, definirFiltroDeEpoca, filtroDeBioma, filtroDeEpoca, generoDoFiltro } from '../app/filtros.ts';
 import { normalizar, pontuar } from '../app/busca.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
+import { definirRecentesAbertos, recentesAbertos } from '../app/preferencias.ts';
 import { alternarFavoritoDaFamilia, favoritos, recentes } from '../app/recentes.ts';
 import { desenharPrevia, pedirPrevia } from './previa.ts';
 
@@ -105,28 +106,17 @@ function filtroAtual(s: SessaoDeEdicao, grupo: string | null): Filtro {
   return { genero: generoDoFiltro(filtroDeEpoca.value, s.doc.value.style.genre), bioma: grupo === 'natureza' ? filtroDeBioma.value : null };
 }
 
-export function ChipsDeEpoca({ s }: { s: SessaoDeEdicao }) {
-  const v = filtroDeEpoca.value;
+/** Bioma em `<select>` compacto (Natureza e gaveta de terreno). */
+export function SeletorDeBioma() {
   return (
-    <div class="chips" role="group" aria-label="Época" data-testid="filtro-epoca">
-      <button type="button" class={`chip ${v === 'mapa' ? 'ativo' : ''}`} aria-pressed={v === 'mapa'} title={`Gênero do mapa: ${generoDe(s.doc.value.style.genre).nome}`} onClick={() => definirFiltroDeEpoca('mapa')} data-testid="epoca-mapa">Deste mapa</button>
-      {GENEROS.map(g => <button type="button" key={g.id} class={`chip ${v === g.id ? 'ativo' : ''}`} aria-pressed={v === g.id} title={g.descricao} onClick={() => definirFiltroDeEpoca(g.id)} data-testid={`epoca-${g.id}`}>{g.nome}</button>)}
-      <button type="button" class={`chip ${v === 'todas' ? 'ativo' : ''}`} aria-pressed={v === 'todas'} onClick={() => definirFiltroDeEpoca('todas')} data-testid="epoca-todas">Todas</button>
-    </div>
+    <select class="filtro-select" aria-label="Bioma" value={filtroDeBioma.value ?? ''} onChange={e => definirFiltroDeBioma((e.target as HTMLSelectElement).value || null)} data-testid="filtro-bioma">
+      <option value="">Todos os biomas</option>
+      {BIOMAS.map(b => <option key={b.id} value={b.id}>{b.nome}</option>)}
+    </select>
   );
 }
 
-export function ChipsDeBioma() {
-  const v = filtroDeBioma.value;
-  return (
-    <div class="chips" role="group" aria-label="Bioma" data-testid="filtro-bioma">
-      <button type="button" class={`chip ${v === null ? 'ativo' : ''}`} aria-pressed={v === null} onClick={() => definirFiltroDeBioma(null)} data-testid="bioma-todos">Todos</button>
-      {BIOMAS.map(b => <button type="button" key={b.id} class={`chip ${v === b.id ? 'ativo' : ''}`} aria-pressed={v === b.id} onClick={() => definirFiltroDeBioma(v === b.id ? null : b.id)} data-testid={`bioma-${b.id}`}>{b.nome}</button>)}
-    </div>
-  );
-}
-
-/** Busca, chips de época e de grupo e a grade de famílias. */
+/** Busca, filtros de grupo e de época (em `<select>`) e a grade de famílias. */
 export function CatalogoDeFamilias({ s }: { s: SessaoDeEdicao }) {
   const consulta = useSignal(''), grupo = useSignal<string | null>(null), atual = s.pincel.value.objeto;
   const lista = buscarFamilias(consulta.value, grupo.value, filtroAtual(s, grupo.value));
@@ -135,13 +125,19 @@ export function CatalogoDeFamilias({ s }: { s: SessaoDeEdicao }) {
   const filtroSemGrupo = filtroAtual(s, null), grupos = GRUPOS_DE_OBJETOS.filter(g => grupo.value === g.id || buscando || buscarFamilias('', g.id, { ...filtroSemGrupo, bioma: g.id === 'natureza' ? filtroDeBioma.value : null }).length > 0);
   const vazio = !lista.length && !buscando;
   return (<>
-    <ChipsDeEpoca s={s} />
     <input class="busca" type="search" placeholder="Buscar: mesa, cama, árvore…" aria-label="Buscar objeto" value={consulta.value} onInput={e => { consulta.value = (e.target as HTMLInputElement).value; }} data-testid="busca-objeto" />
-    <div class="chips">
-      <button type="button" class={`chip ${!grupo.value ? 'ativo' : ''}`} onClick={() => { grupo.value = null; }}>Todos</button>
-      {grupos.map(g => <button type="button" key={g.id} class={`chip ${grupo.value === g.id ? 'ativo' : ''}`} onClick={() => { grupo.value = grupo.value === g.id ? null : g.id; }} data-testid={`grupo-${g.id}`}>{g.nome}</button>)}
+    <div class="filtros-linha">
+      <select class="filtro-select" aria-label="Grupo" value={grupo.value ?? ''} onChange={e => { grupo.value = (e.target as HTMLSelectElement).value || null; }} data-testid="filtro-grupo">
+        <option value="">Todos os grupos</option>
+        {grupos.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
+      </select>
+      <select class="filtro-select" aria-label="Época" value={filtroDeEpoca.value} onChange={e => definirFiltroDeEpoca((e.target as HTMLSelectElement).value)} data-testid="filtro-epoca">
+        <option value="mapa">Deste mapa ({generoDe(s.doc.value.style.genre).nome})</option>
+        {GENEROS.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
+        <option value="todas">Todas as épocas</option>
+      </select>
     </div>
-    {grupo.value === 'natureza' && <ChipsDeBioma />}
+    {grupo.value === 'natureza' && <div class="filtros-linha"><SeletorDeBioma /></div>}
     <div class="grade-receitas" data-testid="lista-receitas">
       {lista.map(({ familia, item, fora }) => (
         <button type="button" key={familia.id} class={`receita ${atual.familia === familia.id ? 'ativa' : ''}`} onClick={() => pegarItem(s, item)} title={`${familia.nome} · ${familia.itens.length} ${familia.itens.length === 1 ? 'variante' : 'variantes'}`} data-testid={`familia-${familia.id}`}>
@@ -159,8 +155,11 @@ export function RecentesEFavoritos({ s }: { s: SessaoDeEdicao }) {
   const aba = useSignal<'recentes' | 'favoritos'>('recentes'), atual = s.pincel.value.objeto;
   const itens = recentes.value.filter(id => ACERVO.item(id));
   const familias = favoritos.value.map(id => ACERVO.familias().find(f => f.id === id)).filter((f): f is Familia => !!f);
+  const aberto = recentesAbertos.value;
   return (
     <div class="recentes-favoritos" data-testid="recentes-favoritos">
+      <button type="button" class="chip ver-mais" aria-expanded={aberto} onClick={() => definirRecentesAbertos(!aberto)} data-testid="recentes-alternar">{aberto ? '▾' : '▸'} Recentes e favoritos</button>
+      {aberto && <>
       <div class="chips" role="tablist">
         <button type="button" role="tab" aria-selected={aba.value === 'recentes'} class={`chip ${aba.value === 'recentes' ? 'ativo' : ''}`} onClick={() => { aba.value = 'recentes'; }} data-testid="aba-recentes">Recentes</button>
         <button type="button" role="tab" aria-selected={aba.value === 'favoritos'} class={`chip ${aba.value === 'favoritos' ? 'ativo' : ''}`} onClick={() => { aba.value = 'favoritos'; }} data-testid="aba-favoritos">Favoritos</button>
@@ -175,6 +174,7 @@ export function RecentesEFavoritos({ s }: { s: SessaoDeEdicao }) {
         {aba.value === 'recentes' && !itens.length && <p class="dica">Os objetos que você puser aparecem aqui.</p>}
         {aba.value === 'favoritos' && !familias.length && <p class="dica">Toque na estrela da família na mão para fixá-la aqui.</p>}
       </div>
+      </>}
     </div>
   );
 }

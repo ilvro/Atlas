@@ -16,7 +16,7 @@ import { Amostra, CampoMaterial } from './campos-material.tsx';
 import { Icone } from './Icone.tsx';
 import { PropriedadesDoObjeto } from './PropriedadesDoObjeto.tsx';
 import { filtroDeBioma } from '../app/filtros.ts';
-import { ChipsDeBioma, CatalogoDeFamilias, CatalogoFlutuante, FamiliaNaMao, RecentesEFavoritos } from './FamiliaNoPincel.tsx';
+import { SeletorDeBioma, CatalogoDeFamilias, CatalogoFlutuante, FamiliaNaMao, RecentesEFavoritos } from './FamiliaNoPincel.tsx';
 
 function mudar(s: SessaoDeEdicao, patch: Partial<Pincel>): void { s.pincel.value = { ...s.pincel.value, ...patch }; tocar('selecionar'); }
 
@@ -134,7 +134,7 @@ function CatalogoDeTerreno({ emRelevo, material, aoEscolher }: { s: SessaoDeEdic
     return { g, itens: filtrados };
   }).filter(x => x.itens.length > 0);
   return (<>
-    <ChipsDeBioma />
+    <div class="filtros-linha"><SeletorDeBioma /></div>
     <input type="search" class="busca" placeholder="Buscar material…" value={busca.value} onInput={e => { busca.value = (e.currentTarget as HTMLInputElement).value; }} data-testid="busca-terreno" />
     <div class="grupos-de-terreno">{grupos.map(({ g, itens }) => (
       <details key={g.id} class="grupo-de-terreno" open={buscando || !gruposRecolhidos.value.includes(g.id)} data-testid={`grupo-terreno-${g.id}`}

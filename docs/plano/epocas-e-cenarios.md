@@ -110,7 +110,7 @@ Pronto quando: o inspetor oferece os gêneros novos; `atlas_mobiliar` num mapa `
 Commit: `added era genres with lights, palettes and base materials`
 Nota: `generosVisiveis` ficou em `presets.ts`, que `familias.ts` importa (sem ciclo). Três testes existentes precisaram de ajuste: a lista de `GENEROS` em `dominio.test.ts`, a igualdade entre `VARIACOES_DE_GENERO` e `GENEROS` em `regras-mobilia.test.ts` (virou "só cita gêneros que existem"; as variações dos gêneros novos chegam nas fichas `c`) e o orçamento total das ferramentas em `ponte-escrita.test.ts` (30 KB para 31 KB, pois o enum de gênero cresceu); `scripts/ponte/catalogo-base.json` foi regenerado. `Receita.generos` (via `serve` em `regras-mobilia.ts`) ainda não herda: itens só de `fantasia` não aparecem nos gêneros novos.
 
-### Q2b — Biblioteca enxuta, como a do Inkarnate  ⬜
+### Q2b — Biblioteca enxuta, como a do Inkarnate  ✅
 Objetivo: o painel de objetos cabe numa tela sem rolar até a grade: filtros em uma linha e propriedades raras escondidas.
 Depende de: Q2.
 Problema (captura do usuário, 2026-11-20): duas paredes de chips empilhadas, 13 de época e 15 de grupo, empurram a grade para baixo, e o painel de propriedades mostra Aparência e Colocação sempre abertas. No Inkarnate, a busca e as categorias ficam numa linha, e as opções raras ficam recolhidas.
@@ -126,6 +126,7 @@ Não fazer: mudar a lógica dos filtros, a ordem das famílias ou o que as propr
 Testes: e2e atualizados (filtro por `<select>`; "Ver mais…" abre e fecha e guarda o estado); `npm test`.
 Pronto quando: com 900 px de altura de janela, o painel mostra a família na mão, a busca, os dois selects e ao menos duas fileiras da grade sem rolar.
 Commit: `object library uses compact filters and folds rare properties`
+Nota: o estado de "Ver mais…" e de Recentes (`atlas.propriedadesAbertas`, `atlas.recentesAbertos`) mora em `src/app/preferencias.ts`, não em `filtros.ts`. "Ver mais…" guarda Camada e espelho, Aparência e Colocação em cartões próprios; vale também para o inspetor (mesmo componente). `ChipsDeBioma`/`ChipsDeEpoca` viraram `SeletorDeBioma` e os selects da grade. Capturas: `test-results/q2b-painel.png`.
 
 ### Q2c — Prévias que não morrem caladas  ⬜
 Objetivo: se o worker das prévias falhar, a biblioteca se recupera ou avisa, em vez de ficar com todos os quadros vazios para sempre.
