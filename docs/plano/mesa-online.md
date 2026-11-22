@@ -88,7 +88,7 @@ Nota: o Application ID (que também é o client id), a public key e o `MESTRE_DI
 
 ## Bloco 1 — Sala
 
-### R1 — Sala na Mesa: Worker, Durable Object e WebSocket  ⬜
+### R1 — Sala na Mesa: Worker, Durable Object e WebSocket  ✅
 Objetivo: uma sala que aceita conexões e repete mensagens para os outros conectados.
 Depende de: R0 (só para publicar; dá para desenvolver com `wrangler dev`).
 Ler: a documentação de Durable Objects com SQLite e da *WebSocket Hibernation API* (`ctx.acceptWebSocket`, `webSocketMessage`, `webSocketClose`); `Mesa/AGENTS.md`, `Mesa/tsconfig.json`, `Mesa/package.json` e `.github/workflows/pages.yml` (o Pages publica só o `dist/`).
@@ -106,6 +106,7 @@ Não fazer: login (R2), estado (R4).
 Testes: dois clientes na mesma sala recebem a mensagem um do outro; em salas diferentes, não recebem.
 Pronto quando: `npm test` e `npm run typecheck` passam na Mesa, `npm run sala:dev` responde `/sala/saude`, e o `dist/` do build do Pages não tem nada da sala.
 Commit: `room worker with durable object relay`
+Nota: feita (Mesa `d12d4af`). Wrangler 4.166, `compatibility_date = "2025-09-01"`. Sem parameter properties por causa do `erasableSyntaxOnly`.
 
 ### R2 — Login pelo Discord e sessão assinada  ⬜
 Objetivo: o Worker sabe quem é cada conexão e quem é o mestre.
@@ -253,7 +254,7 @@ Commit: `shared roll feed for the online table`
 
 ## Bloco 4 — Fichas na sala
 
-### R10 — Dossiê: armazenamento trocável  ⬜
+### R10 — Dossiê: armazenamento trocável  ✅
 Objetivo: separar onde as fichas moram do resto do `app.js`, sem mudar o comportamento.
 Depende de: —, e pode andar em paralelo com os blocos 1 a 3.
 Ler: `Dossie/src/app.js`: o IndexedDB (~linha 797), `SHEETS_KEY` e a carga (~827–880), `persistedSheet` e `persistSheetsNow` (~1753–1860), e o plugin de API local em `vite.config.js`.
@@ -263,6 +264,7 @@ Não fazer: o adaptador da sala (R11).
 Testes: os testes atuais do Dossiê passam; um teste carrega, salva e carrega de novo com um IndexedDB falso.
 Pronto quando: o Dossiê funciona igual no navegador e no app de desktop.
 Commit: `extrair o armazenamento das fichas` (em português, no estilo do Dossiê)
+Nota: feita (Dossiê `5eecb4e`). As pastas continuam no `app.js`, usando o `idbGet`/`idbSet` exportados pelo armazenamento. `forcar` não muda nada no local, e `aoMudarFora` é vazio no local.
 
 ### R11 — Dossiê em modo jogador  ⬜
 Objetivo: dentro da casca, o Dossiê mostra e grava só as fichas do jogador, na sala.
@@ -389,7 +391,7 @@ Commit: `ping ripple visual`
 
 ## Bloco 6 — Discord
 
-### R16 — Fontes locais no Dossiê  ⬜
+### R16 — Fontes locais no Dossiê  ✅
 Objetivo: o Dossiê não depende do Google Fonts, que o Discord bloqueia.
 Depende de: —.
 Ler: `Dossie/index.html` (linhas 14–16: Barlow, Cinzel, Cinzel Decorative e Hanken Grotesk).
@@ -397,6 +399,7 @@ Arquivos: criar `Dossie/public/fontes/` com os `woff2` (fontes OFL, com a licen�
 Como: baixar só os pesos usados, servir localmente com `font-display: swap` e remover os `preconnect`. Procure no Atlas e na Mesa outras dependências externas (`grep -r "https://"` em `index.html` e `src/`) e liste-as numa linha "Nota:".
 Pronto quando: o Dossiê abre igual com a rede bloqueada para `fonts.googleapis.com`.
 Commit: `fontes servidas localmente`
+Nota: feita (Dossiê `33064ea`), com 20 `woff2` (cerca de 360 KB) em `public/fontes/` e a licença OFL. Atlas, Mesa e Dossiê não têm mais nenhum recurso externo em tempo de execução.
 
 ### R17 — Atividade do Discord  ⬜
 Objetivo: dentro de uma chamada, a atividade abre a casca na sala do servidor, já com o jogador identificado.
@@ -450,7 +453,7 @@ Pronto quando: o roteiro passa no computador e no celular.
 
 ## Bloco 7 — Som na mesa
 
-### R21a — Jukebox: motor de mixagem sem interface  ⬜
+### R21a — Jukebox: motor de mixagem sem interface  ✅
 Objetivo: os efeitos, filtros e regiões do Jukebox podem ser aplicados a uma faixa por código, sem a interface, para a casca do jogador usar o mesmo motor.
 Depende de: —, e pode começar já.
 Ler: `Jukebox/mixing/` inteiro (`index.js`, `effects-registry.js`, `audio-context.js`, `selection-regions.js`, `context-menu.js` só para ver o que a interface chama, e `effects/*.js`), `Jukebox/settings.js` (`getEffectRemovalDuration`) e, em `Jukebox/player.js`, onde `setupAudioEffects` é chamado, como as regiões são salvas e restauradas, o crossfade, a edição de regiões (`decodeAudioData` e `editedBuffer`, ~linha 604) e o volume mestre.
@@ -466,6 +469,7 @@ Não fazer: publicar no barramento (R21b).
 Testes: `estadoDaFaixa` e `aplicar` fazem ida e volta com um `AudioContext` falso (nós com `connect`, `gain.value`, `disconnect`); `aplicar` de um estado igual não chama nada.
 Pronto quando: os testes do Jukebox passam, a interface aplica e tira efeitos e regiões como antes (teste manual: um filtro, um eco, um loop por região), e uma página de teste mínima toca uma faixa com efeitos pelo motor.
 Commit: `headless mixing engine for effects and regions`
+Nota: feita (Jukebox `634a94e`). API: `criarMotor({ audioContext?, destino?, tempoDeRemocao? }) → { prepararFaixa(audio, { destino? }), volumeMestre(v) }`; `Faixa.aplicar(estado)`, `soltar()` e `estado()`; `estadoDaFaixa({ audio, audioEffects, progressBar })`. O tempo de remoção saiu do `settings.js` para `mixing/removal-duration.js`. O teste no Chromium (pelo Opus) confirmou: o motor carrega de outra página da mesma origem e toca com passa-baixa e eco. Ficaram de fora do motor, por serem da interface: crossfade, avanço suave, `playAndFadeOut` e `playAndStop` das regiões. Os efeitos de região são decididos a cada 25 ms em `player.js` (`syncRegionAudioEffects`), e o motor recebe a lista já resolvida.
 
 ### R21b — Jukebox publica o que toca  ⬜
 Objetivo: o Jukebox do mestre diz, de forma completa, o que está tocando, com os efeitos, e entrega o arquivo de uma faixa quando pedem.
@@ -481,7 +485,12 @@ Como:
    - `estado` é o do motor (volume, efeitos, ajustes e regiões).
 2. Sai em toda mudança (cena, play, pausa, volume, busca, efeito, ajuste ou região, salto de loop e fim de crossfade) e, além disso, a cada 3 s enquanto algo toca. Mudanças contínuas (arrastar controle) saem no máximo 4 vezes por segundo.
 3. `jukebox.efeito-tocado { faixaId, url?, titulo, estado }`, uma vez por efeito `sfx` disparado.
-4. O pedido `jukebox.arquivo { faixaId }` responde com o `Blob` da faixa, ou do arquivo editado se a edição gerou um. Blob URLs só valem dentro do documento que os criou, por isso quem lê o arquivo é o próprio Jukebox.
+4. Precisão do que sai (aprendido na R21a):
+   - `efeitos` e `ajustes` são os **já resolvidos** para o instante. Quando o monitor de regiões (`syncRegionAudioEffects`) muda a lista, sai um `mix` na hora.
+   - `volume` é o **efetivo**, já contando crossfade, avanço suave e `playAndFadeOut`, que são da interface e não do motor. Durante um fade, o volume sai até 10 vezes por segundo, e a casca reproduz o fade a partir disso.
+   - Num crossfade, as duas faixas aparecem no `mix` enquanto durar.
+   - `player.js` precisa expor um leitor do objeto de `setupAudioEffects` de cada faixa, para o `estadoDaFaixa`.
+5. O pedido `jukebox.arquivo { faixaId }` responde com o `Blob` da faixa, ou do arquivo editado se a edição gerou um. Blob URLs só valem dentro do documento que os criou, por isso quem lê o arquivo é o próprio Jukebox.
 Não fazer: a ponte (R22) nem a reprodução nos jogadores (R23).
 Testes: em `Jukebox/tests/`, montar o `mix` a partir de estados falsos (com efeitos e regiões); o hash de um mesmo arquivo dá sempre o mesmo `faixaId`.
 Pronto quando: com o Jukebox aberto, um ouvinte do barramento vê o `mix` mudar ao ativar uma cena, ligar um filtro e marcar uma região com eco.
@@ -509,7 +518,7 @@ Ler: `Mesa/src/jogar/Casca.tsx`, `Saguao.tsx` e `ponte-jogador.ts`; a parte de c
 Arquivos: criar `Mesa/src/jogar/som.ts` e `Mesa/src/online/sincronia.ts` (puro); mudar `Casca.tsx` e `Saguao.tsx`, mais testes.
 Como:
 1. Relógio: a sala manda `agora` no `bem-vindo` e num `pong` a cada 30 s. O cliente estima a diferença (o RTT dividido por dois) e calcula a posição esperada de uma faixa como `posicao + (agoraDaSala - desde) / 1000`.
-2. Reprodução: um `HTMLAudioElement` por faixa, preparado pelo **motor do Jukebox** (`import('../Jukebox/mixing/motor.js')`, a R21a), com `destino` no canal Música (`GainNode`) ou no canal Efeitos. A cada `mix`, a casca chama `faixa.aplicar(estado)`, e o próprio motor faz as transições como no Jukebox.
+2. Reprodução: **um motor por página** (o `audio-context.js` é um singleton e o `useAudioContext` recusa um segundo contexto). Cada faixa é um `HTMLAudioElement` da mesma origem (um blob local; arquivo de outra origem sem CORS sai mudo), preparado pelo **motor do Jukebox** (`import('../Jukebox/mixing/motor.js')`, a R21a), com `destino` no canal Música (`GainNode`) ou no canal Efeitos. A cada `mix`, a casca chama `faixa.aplicar(estado)`, e o próprio motor faz as transições como no Jukebox.
 3. Posição: a esperada é `posicao + (agoraDaSala - desde) / 1000 * taxa`. A casca só corrige se a diferença passar de 1,5 s, para não ficar pulando. Um salto de loop chega como `mix` novo e é seguido na hora. Trocas de faixa fazem o mesmo fade do Jukebox.
 4. Arquivos: baixar da `url` (Pages) ou da sala e guardar no Cache Storage pelo `faixaId`, com `try/catch`. Sem cache, só baixa de novo. No saguão, os arquivos da cena ativa já vêm sendo baixados, com "Preparando os sons…".
 5. Liberar o áudio: o primeiro clique no saguão retoma o `AudioContext`. Se o navegador bloquear mesmo assim, aparece o botão "Ativar som".
