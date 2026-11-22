@@ -242,7 +242,7 @@ Nota: feita (Atlas `04a6109`, Mesa `7392ebb`).
 - Canal novo `atlas:projetor:remoto`, com o signal `projetorRemotoConectado` separado.
 - `aviso-sem-nevoa { mapa, nome }` só no canal remoto. A ponte segura o `estado` até a confirmação (`mesa:online-sem-nevoa:<mapa>`). A trava da R5 saiu.
 
-### R5c — Parede em vários trechos na projeção remota  ⬜
+### R5c — Parede em vários trechos na projeção remota  ✅
 Objetivo: uma parede que entra na área em mais de um trecho aparece em todos eles.
 Depende de: R5b.
 Ler: `Atlas/src/domain/projecao-remota.ts` (o recorte de paredes, aberturas e objetos de parede) e o teste dela.
@@ -252,6 +252,7 @@ Não fazer: mudar a regra de área.
 Testes: uma parede reta que atravessa duas áreas exploradas, separadas por uma área escura, vira dois trechos com as aberturas certas; o teste por propriedades dos exemplos continua passando.
 Pronto quando: os testes passam.
 Commit: `remote projection keeps every visible wall piece`
+Nota: feita (Atlas `eedffa2`). O separador é `_` (`<id>_2`), porque `~` não passa em `IDENT`. As aberturas e os objetos de parede vão para o trecho certo, e o resultado passa em `validarMapa`.
 
 ### R6 — Mapas grandes e assets  ⬜
 Objetivo: o `estado` de um mapa grande chega inteiro e sem estourar o limite de mensagem.
