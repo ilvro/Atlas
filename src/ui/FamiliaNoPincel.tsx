@@ -2,7 +2,9 @@ import { useEffect, useRef } from 'preact/hooks';
 import { signal, useSignal } from '@preact/signals';
 import { tocar } from '../fx/som.ts';
 import { ACERVO } from '../procedural/acervo.ts';
-import { GRUPOS_DE_OBJETOS, type Familia } from '../procedural/familias.ts';
+import { BIOMAS, GRUPOS_DE_OBJETOS, familiasVisiveis, type Familia } from '../procedural/familias.ts';
+import { GENEROS, generoDe } from '../domain/presets.ts';
+import { definirFiltroDeBioma, definirFiltroDeEpoca, filtroDeBioma, filtroDeEpoca, generoDoFiltro } from '../app/filtros.ts';
 import { normalizar, pontuar } from '../app/busca.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { alternarFavoritoDaFamilia, favoritos, recentes } from '../app/recentes.ts';
@@ -23,7 +25,10 @@ function pegarItem(s: SessaoDeEdicao, id: string, ferramenta = true): void {
   tocar('selecionar');
 }
 
-interface Resultado { familia: Familia; item: string; nota: number }
+/** `fora`: a família não combina com o filtro (só aparece na busca, que o ignora). */
+interface Resultado { familia: Familia; item: string; nota: number; fora?: boolean }
+
+export interface Filtro { genero: string | null; bioma: string | null }
 
 /** Tags, funções e categoria só casam por trecho inteiro e valem menos que o nome: a busca por letras soltas num texto longo acharia quase tudo. */
 const extrasDoItem = (id: string): string => { const r = ACERVO.item(id); return r ? normalizar(`${r.tags.join(' ')} ${r.funcoes.join(' ')} ${r.categoria}`) : ''; };
@@ -34,14 +39,16 @@ function notaDoItem(q: string, id: string): number {
 }
 
 /** Famílias do grupo que casam com a consulta (pelo nome da família, dos itens, das tags e das funções), com a primeira variante que casou (ou a primeira da família). */
-export function buscarFamilias(consulta: string, grupo: string | null): Resultado[] {
-  const q = normalizar(consulta), lista = ACERVO.familias().filter(f => !grupo || f.grupo === grupo);
-  if (!q) return lista.map(familia => ({ familia, item: familia.itens[0]!, nota: 1 }));
-  const out: Resultado[] = [];
+export function buscarFamilias(consulta: string, grupo: string | null, filtro?: Filtro): Resultado[] {
+  const q = normalizar(consulta), todas = ACERVO.familias().filter(f => !grupo || f.grupo === grupo);
+  const visiveis = filtro ? new Set(familiasVisiveis(filtro.genero, filtro.bioma).map(f => f.id)) : null;
+  // O filtro vale só sem busca: quem procura pelo nome quer achar o item, e o que está fora do filtro vem marcado.
+  if (!q) return todas.filter(f => !visiveis || visiveis.has(f.id)).map(familia => ({ familia, item: familia.itens[0]!, nota: 1 }));
+  const out: Resultado[] = [], lista = todas;
   lista.forEach(familia => {
     const notas = familia.itens.map(id => notaDoItem(q, id)), k = notas.findIndex(n => n > 0);
     const nota = Math.max(pontuar(q, familia.nome), ...notas);
-    if (nota > 0) out.push({ familia, item: k >= 0 ? familia.itens[k]! : familia.itens[0]!, nota });
+    if (nota > 0) out.push({ familia, item: k >= 0 ? familia.itens[k]! : familia.itens[0]!, nota, ...(visiveis && !visiveis.has(familia.id) ? { fora: true } : {}) });
   });
   return out.map((r, i) => ({ r, i })).sort((a, b) => b.r.nota - a.r.nota || a.i - b.i).map(x => x.r);
 }
@@ -87,23 +94,62 @@ export function FamiliaNaMao({ s }: { s: SessaoDeEdicao }) {
   );
 }
 
-/** Busca, chips de grupo e a grade de famílias. */
+/** O selo de uma família achada fora do filtro: a época (ou o bioma) a que ela pertence. */
+function seloDeFora(f: Familia): string {
+  const g = f.generos?.[0], b = f.biomas?.[0];
+  return g ? generoDe(g).nome : (BIOMAS.find(x => x.id === b)?.nome ?? '');
+}
+
+/** O filtro em vigor: a época (do mapa, escolhida ou todas) e o bioma, que só vale na Natureza. */
+function filtroAtual(s: SessaoDeEdicao, grupo: string | null): Filtro {
+  return { genero: generoDoFiltro(filtroDeEpoca.value, s.doc.value.style.genre), bioma: grupo === 'natureza' ? filtroDeBioma.value : null };
+}
+
+export function ChipsDeEpoca({ s }: { s: SessaoDeEdicao }) {
+  const v = filtroDeEpoca.value;
+  return (
+    <div class="chips" role="group" aria-label="Época" data-testid="filtro-epoca">
+      <button type="button" class={`chip ${v === 'mapa' ? 'ativo' : ''}`} aria-pressed={v === 'mapa'} title={`Gênero do mapa: ${generoDe(s.doc.value.style.genre).nome}`} onClick={() => definirFiltroDeEpoca('mapa')} data-testid="epoca-mapa">Deste mapa</button>
+      {GENEROS.map(g => <button type="button" key={g.id} class={`chip ${v === g.id ? 'ativo' : ''}`} aria-pressed={v === g.id} title={g.descricao} onClick={() => definirFiltroDeEpoca(g.id)} data-testid={`epoca-${g.id}`}>{g.nome}</button>)}
+      <button type="button" class={`chip ${v === 'todas' ? 'ativo' : ''}`} aria-pressed={v === 'todas'} onClick={() => definirFiltroDeEpoca('todas')} data-testid="epoca-todas">Todas</button>
+    </div>
+  );
+}
+
+export function ChipsDeBioma() {
+  const v = filtroDeBioma.value;
+  return (
+    <div class="chips" role="group" aria-label="Bioma" data-testid="filtro-bioma">
+      <button type="button" class={`chip ${v === null ? 'ativo' : ''}`} aria-pressed={v === null} onClick={() => definirFiltroDeBioma(null)} data-testid="bioma-todos">Todos</button>
+      {BIOMAS.map(b => <button type="button" key={b.id} class={`chip ${v === b.id ? 'ativo' : ''}`} aria-pressed={v === b.id} onClick={() => definirFiltroDeBioma(v === b.id ? null : b.id)} data-testid={`bioma-${b.id}`}>{b.nome}</button>)}
+    </div>
+  );
+}
+
+/** Busca, chips de época e de grupo e a grade de famílias. */
 export function CatalogoDeFamilias({ s }: { s: SessaoDeEdicao }) {
   const consulta = useSignal(''), grupo = useSignal<string | null>(null), atual = s.pincel.value.objeto;
-  const lista = buscarFamilias(consulta.value, grupo.value);
+  const lista = buscarFamilias(consulta.value, grupo.value, filtroAtual(s, grupo.value));
+  const buscando = normalizar(consulta.value) !== '';
+  // Grupos que o filtro esvazia somem dos chips (o grupo escolhido fica, para dar para voltar).
+  const filtroSemGrupo = filtroAtual(s, null), grupos = GRUPOS_DE_OBJETOS.filter(g => grupo.value === g.id || buscando || buscarFamilias('', g.id, { ...filtroSemGrupo, bioma: g.id === 'natureza' ? filtroDeBioma.value : null }).length > 0);
+  const vazio = !lista.length && !buscando;
   return (<>
+    <ChipsDeEpoca s={s} />
     <input class="busca" type="search" placeholder="Buscar: mesa, cama, árvore…" aria-label="Buscar objeto" value={consulta.value} onInput={e => { consulta.value = (e.target as HTMLInputElement).value; }} data-testid="busca-objeto" />
     <div class="chips">
       <button type="button" class={`chip ${!grupo.value ? 'ativo' : ''}`} onClick={() => { grupo.value = null; }}>Todos</button>
-      {GRUPOS_DE_OBJETOS.map(g => <button type="button" key={g.id} class={`chip ${grupo.value === g.id ? 'ativo' : ''}`} onClick={() => { grupo.value = grupo.value === g.id ? null : g.id; }} data-testid={`grupo-${g.id}`}>{g.nome}</button>)}
+      {grupos.map(g => <button type="button" key={g.id} class={`chip ${grupo.value === g.id ? 'ativo' : ''}`} onClick={() => { grupo.value = grupo.value === g.id ? null : g.id; }} data-testid={`grupo-${g.id}`}>{g.nome}</button>)}
     </div>
+    {grupo.value === 'natureza' && <ChipsDeBioma />}
     <div class="grade-receitas" data-testid="lista-receitas">
-      {lista.map(({ familia, item }) => (
+      {lista.map(({ familia, item, fora }) => (
         <button type="button" key={familia.id} class={`receita ${atual.familia === familia.id ? 'ativa' : ''}`} onClick={() => pegarItem(s, item)} title={`${familia.nome} · ${familia.itens.length} ${familia.itens.length === 1 ? 'variante' : 'variantes'}`} data-testid={`familia-${familia.id}`}>
-          <MiniReceita id={item} /><span>{familia.nome}</span>{familia.itens.length > 1 && <i class="selo-variantes">{familia.itens.length}</i>}
+          <MiniReceita id={item} /><span>{familia.nome}</span>{fora ? <i class="selo-acervo" title="Fora do filtro de época">{seloDeFora(familia)}</i> : familia.itens.length > 1 && <i class="selo-variantes">{familia.itens.length}</i>}
         </button>
       ))}
-      {!lista.length && <p class="dica">Nada com “{consulta.value}”.</p>}
+      {!lista.length && buscando && <p class="dica">Nada com “{consulta.value}”.</p>}
+      {vazio && <p class="dica" data-testid="filtro-vazio">Nada desta época aqui — <button type="button" class="chip" onClick={() => { definirFiltroDeEpoca('todas'); definirFiltroDeBioma(null); }} data-testid="ver-todas">ver todas</button></p>}
     </div>
   </>);
 }
@@ -157,8 +203,9 @@ export function CatalogoFlutuante({ s }: { s: SessaoDeEdicao }) {
   }, [aberto]);
   useEffect(() => () => { clearTimeout(relogio); catalogoAberto.value = false; }, []);
   if (!aberto) return null;
-  const lista = buscarFamilias(consulta.value, null);
+  const genero = generoDoFiltro(filtroDeEpoca.value, s.doc.value.style.genre), bioma = filtroDeBioma.value;
   const buscando = normalizar(consulta.value) !== '';
+  const lista = buscarFamilias(consulta.value, null, { genero, bioma: null }).filter(r => buscando || !bioma || r.familia.grupo !== 'natureza' || !r.familia.biomas?.length || r.familia.biomas.includes(bioma));
   const secoes = buscando ? [{ id: 'busca', nome: `${lista.length} ${lista.length === 1 ? 'família' : 'famílias'}`, itens: lista }]
     : GRUPOS_DE_OBJETOS.map(g => ({ id: g.id, nome: g.nome, itens: lista.filter(r => r.familia.grupo === g.id) })).filter(x => x.itens.length);
   // Ficar com o foco na busca segura o catálogo aberto mesmo com o mouse fora.
@@ -176,9 +223,9 @@ export function CatalogoFlutuante({ s }: { s: SessaoDeEdicao }) {
           <section key={sec.id} class="catalogo-secao">
             <h4 class="faixa pequena">{sec.nome} <span>({sec.itens.length})</span></h4>
             <div class="catalogo-grade">
-              {sec.itens.map(({ familia, item }) => (
+              {sec.itens.map(({ familia, item, fora }) => (
                 <button type="button" key={familia.id} class={`receita ${atual.familia === familia.id ? 'ativa' : ''}`} onClick={() => pegarItem(s, item)} title={`${familia.nome} · ${familia.itens.length} ${familia.itens.length === 1 ? 'variante' : 'variantes'}`} data-testid={`catalogo-${familia.id}`}>
-                  <MiniReceita id={item} /><span>{familia.nome}</span>{familia.itens.length > 1 && <i class="selo-variantes">{familia.itens.length}</i>}
+                  <MiniReceita id={item} /><span>{familia.nome}</span>{fora ? <i class="selo-acervo" title="Fora do filtro de época">{seloDeFora(familia)}</i> : familia.itens.length > 1 && <i class="selo-variantes">{familia.itens.length}</i>}
                 </button>
               ))}
             </div>
