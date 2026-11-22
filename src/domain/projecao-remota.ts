@@ -20,11 +20,11 @@ import { podar } from './iniciativa.ts';
  * - `presence`: as células de cada presença recortadas para a área; sem célula dentro, some.
  * - `rooms`: só as células dentro da área; sem nenhuma, o cômodo some. `name` e `function` vazios se o cômodo não está em `session.revealed`.
  *   O `outline` (contorno livre) só fica se o cômodo ficou inteiro; senão sai e valem as células.
- * - `walls`: cada parede é aparada ao trecho contínuo (o maior) que toca a área; sem trecho, some. A posição `at` das aberturas
- *   e dos objetos de parede é refeita para o trecho novo; os que caem fora saem. `source.roomId` de cômodo que sumiu vira `null`.
- * - `openings`: só as que ficam sobre o trecho mantido da parede.
+ * - `walls`: cada trecho contínuo da parede dentro da área vira uma parede própria; sem trecho, some. O trecho maior mantém o id
+ *   original e os outros levam `<id>_2`, `<id>_3`… (pulando ids já usados). `source.roomId` de cômodo que sumiu vira `null`.
+ * - `openings`: vão para o trecho que as contém (`wallId` e `at` refeitos); as que não caem em nenhum trecho saem.
  * - `props`: só os que têm a posição dentro da área; `interaction.note`, `noteTitle`, `toPosition` e `toLevel` saem (texto e destino).
- *   Um objeto de parede cuja parede sumiu sai também.
+ *   Um objeto de parede vai para o trecho que o contém (`wall.wallId` e `wall.at` refeitos) e sai se não cair em nenhum.
  * - `lights`: só as que têm a posição dentro da área.
  * - `regions`: todas saem (a projeção local já as deixa sem `payload` e `refs`; polígono fora da área não vai, e não há uso visual).
  * - `tokens`: os da projeção local (jogadores e o que está à vista); `refs` das peças que não são de jogador saem.
@@ -72,22 +72,37 @@ export function projetarParaRemoto(m: MapaAtlas, andar: string | null = null): M
     if (!revelados.has(id)) { r.name = ''; r.function = null; }
   }
 
-  // Paredes (aparadas), aberturas e objetos de parede.
-  const aparos = new Map<string, { s0: number; s1: number; comprimento: number }>();
+  // Paredes (um trecho contínuo dentro da área vira uma parede), aberturas e objetos de parede.
+  const trechosDe = new Map<string, { id: string; s0: number; s1: number; comprimento: number }[]>();
+  const usados = new Set(Object.keys(p.walls));
   for (const [id, w] of Object.entries(p.walls)) {
-    const r = aparar(w, area);
-    if (!r) { delete p.walls[id]; continue; }
-    w.path = r.path; aparos.set(id, { s0: r.s0, s1: r.s1, comprimento: r.comprimento });
-    if (w.source && 'roomId' in w.source && !p.rooms[w.source.roomId]) w.source = null;
+    const trechos = aparar(w, area);
+    delete p.walls[id];
+    if (!trechos.length) continue;
+    let maior = 0;
+    trechos.forEach((t, i) => { if (t.s1 - t.s0 > trechos[maior]!.s1 - trechos[maior]!.s0) maior = i; });
+    let n = 1;
+    const lista = trechos.map((t, i) => {
+      let novoId = id;
+      if (i !== maior) { do { n++; novoId = `${id}${SEPARADOR_DE_TRECHO}${n}`; } while (usados.has(novoId)); usados.add(novoId); }
+      const parte: Parede = { ...w, id: novoId, path: t.path };
+      if (w.source && 'roomId' in w.source && !p.rooms[w.source.roomId]) parte.source = null;
+      p.walls[novoId] = parte;
+      return { id: novoId, s0: t.s0, s1: t.s1, comprimento: t.comprimento };
+    });
+    trechosDe.set(id, lista);
   }
-  const refazer = (wallId: string, at: number): number | null => {
-    const a = aparos.get(wallId); if (!a) return null;
-    const novo = (at * a.comprimento - a.s0) / (a.s1 - a.s0);
-    return novo >= 0 && novo <= 1 ? novo : null;
+  /** O trecho que contém `at` (fração da parede original) e o `at` refeito para ele. */
+  const refazer = (wallId: string, at: number): { wallId: string; at: number } | null => {
+    for (const t of trechosDe.get(wallId) ?? []) {
+      const novo = (at * t.comprimento - t.s0) / (t.s1 - t.s0);
+      if (novo >= 0 && novo <= 1) return { wallId: t.id, at: novo };
+    }
+    return null;
   };
   for (const [id, a] of Object.entries(p.openings)) {
     const novo = refazer(a.wallId, a.at);
-    if (novo === null) delete p.openings[id]; else a.at = novo;
+    if (!novo) delete p.openings[id]; else { a.wallId = novo.wallId; a.at = novo.at; }
   }
 
   // Objetos e luzes.
@@ -95,8 +110,8 @@ export function projetarParaRemoto(m: MapaAtlas, andar: string | null = null): M
     if (!area.ponto(o.position[0], o.position[1])) { delete p.props[id]; continue; }
     if (o.wall) {
       const novo = refazer(o.wall.wallId, o.wall.at);
-      if (novo === null) { delete p.props[id]; continue; }
-      o.wall.at = novo;
+      if (!novo) { delete p.props[id]; continue; }
+      o.wall.wallId = novo.wallId; o.wall.at = novo.at;
     }
     if (o.interaction) {
       delete o.interaction.note; delete o.interaction.noteTitle; delete o.interaction.toPosition; delete o.interaction.toLevel;
@@ -113,6 +128,9 @@ export function projetarParaRemoto(m: MapaAtlas, andar: string | null = null): M
   p.session.revealed = p.session.revealed.filter(existe);
   return p;
 }
+
+/** Separador do id dos trechos extras de uma parede (`<id>_2`). O `~` não passa em `IDENT` (`[A-Za-z0-9_-]`). */
+const SEPARADOR_DE_TRECHO = '_';
 
 interface Area {
   /** O ponto (em metros) está na área? */
@@ -153,14 +171,14 @@ function areaConhecida(p: MapaAtlas): Area {
   };
 }
 
-/** Apara a parede ao maior trecho contínuo dentro da área (amostras a cada meia célula). `null` se nenhum. */
-function aparar(w: Parede, area: Area): { path: Ponto[]; s0: number; s1: number; comprimento: number } | null {
+/** Cada trecho contínuo da parede dentro da área (amostras a cada meia célula), em ordem ao longo da parede. */
+function aparar(w: Parede, area: Area): { path: Ponto[]; s0: number; s1: number; comprimento: number }[] {
   const pts = w.path;
-  if (pts.length < 2) return pts.length === 1 && area.ponto(pts[0]![0], pts[0]![1]) ? { path: pts.map(q => [...q] as Ponto), s0: 0, s1: 1e-9, comprimento: 1e-9 } : null;
+  if (pts.length < 2) return pts.length === 1 && area.ponto(pts[0]![0], pts[0]![1]) ? [{ path: pts.map(q => [...q] as Ponto), s0: 0, s1: 1e-9, comprimento: 1e-9 }] : [];
   const acum = [0];
   for (let i = 1; i < pts.length; i++) acum.push(acum[i - 1]! + Math.hypot(pts[i]![0] - pts[i - 1]![0], pts[i]![1] - pts[i - 1]![1]));
   const L = acum[acum.length - 1]!;
-  if (L === 0) return null;
+  if (L === 0) return [];
   const em = (s: number): Ponto => {
     let i = 1; while (i < pts.length - 1 && acum[i]! < s) i++;
     const d = acum[i]! - acum[i - 1]!, f = d === 0 ? 0 : (s - acum[i - 1]!) / d;
@@ -168,17 +186,20 @@ function aparar(w: Parede, area: Area): { path: Ponto[]; s0: number; s1: number;
   };
   const passo = RES_NEVOA / 2, n = Math.max(1, Math.ceil(L / passo));
   const ss: number[] = []; for (let k = 0; k <= n; k++) ss.push(Math.min(L, k * passo));
-  let melhor: [number, number] | null = null, ini = -1;
+  const saida: { path: Ponto[]; s0: number; s1: number; comprimento: number }[] = [];
+  const fechar = (k0: number, k1: number) => {
+    const s0 = ss[k0]!, s1 = ss[k1]!;
+    if (s1 <= s0) return;
+    const path: Ponto[] = [em(s0)];
+    for (let i = 1; i < pts.length - 1; i++) if (acum[i]! > s0 && acum[i]! < s1) path.push([pts[i]![0], pts[i]![1]]);
+    path.push(em(s1));
+    saida.push({ path, s0, s1, comprimento: L });
+  };
+  let ini = -1;
   for (let k = 0; k <= ss.length; k++) {
     const dentro = k < ss.length && (() => { const q = em(ss[k]!); return area.ponto(q[0], q[1]); })();
     if (dentro && ini < 0) ini = k;
-    if (!dentro && ini >= 0) { if (!melhor || k - 1 - ini > melhor[1] - melhor[0]) melhor = [ini, k - 1]; ini = -1; }
+    if (!dentro && ini >= 0) { fechar(ini, k - 1); ini = -1; }
   }
-  if (!melhor) return null;
-  const s0 = ss[melhor[0]]!, s1 = ss[melhor[1]]!;
-  if (s1 <= s0) return null;
-  const path: Ponto[] = [em(s0)];
-  for (let i = 1; i < pts.length - 1; i++) if (acum[i]! > s0 && acum[i]! < s1) path.push([pts[i]![0], pts[i]![1]]);
-  path.push(em(s1));
-  return { path, s0, s1, comprimento: L };
+  return saida;
 }
