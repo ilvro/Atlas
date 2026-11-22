@@ -33,6 +33,8 @@ import {
   mapaNoProjetorId,
   iniciarPublicacao,
   CANAL_PROJETOR_GLOBAL,
+  CANAL_PROJETOR_REMOTO,
+  projetorRemotoConectado,
   nomeDoCanalDoProjetor,
   projetorConectado,
   seguirJogadores,
@@ -500,5 +502,69 @@ test('publicador: arrastar peça em movimento livre (gesto) envia câmera e esta
   } finally {
     seguirJogadores.value = false;
     pub.parar(); canalEsp.close(); sess.fechar();
+  }
+});
+
+test('publicador: destinos local e remoto são separados, e só o remoto recebe a projeção remota', async () => {
+  const mapa = criarMapa({ id: 'mapa-pub-remoto', nome: 'Cripta Secreta' });
+  mapa.session.explored = { res: 0.5, cells: [[0, 0, 4]] };
+  const sess = criarSessao(mapa, criarRepoMock({ [mapa.id]: mapa }), { salvo: true });
+  const pub = iniciarPublicacao(sess, async () => null);
+  const local = new BroadcastChannel(nomeDoCanalDoProjetor(mapa.id));
+  const remoto = new BroadcastChannel(CANAL_PROJETOR_REMOTO);
+  const msgsLocal: any[] = [], msgsRemoto: any[] = [];
+  local.onmessage = e => msgsLocal.push(e.data);
+  remoto.onmessage = e => msgsRemoto.push(e.data);
+  try {
+    remoto.postMessage({ tipo: 'ola', largura: 1920, altura: 1080, remoto: true, _seq: 1 });
+    await esperar(60);
+    assert.equal(projetorRemotoConectado.value, true);
+    assert.equal(projetorConectado.value, false, 'o ola remoto não liga o projetor local');
+    assert.equal(msgsLocal.length, 0, 'nada vai ao canal local');
+    const estadoRemoto = msgsRemoto.find(m => m.tipo === 'estado');
+    assert.ok(estadoRemoto, 'o remoto recebe o estado');
+    assert.equal(estadoRemoto.doc.name, 'Mapa', 'e é a projeção remota');
+    assert.ok(msgsRemoto.some(m => m.tipo === 'camera'));
+    assert.ok(!msgsRemoto.some(m => m.tipo === 'aviso-sem-nevoa'), 'com névoa não há aviso');
+
+    local.postMessage({ tipo: 'ola', largura: 1280, altura: 720, _seq: 1 });
+    await esperar(60);
+    assert.equal(projetorConectado.value, true);
+    assert.equal(msgsLocal.find(m => m.tipo === 'estado').doc.name, 'Cripta Secreta', 'o local segue com a projeção de hoje');
+
+    local.postMessage({ tipo: 'tchau', _seq: 2 });
+    await esperar(30);
+    assert.equal(projetorConectado.value, false);
+    assert.equal(projetorRemotoConectado.value, true, 'o tchau local não desliga o remoto');
+
+    local.postMessage({ tipo: 'ola', largura: 1280, altura: 720, _seq: 3 });
+    await esperar(30);
+    remoto.postMessage({ tipo: 'tchau', _seq: 2 });
+    await esperar(30);
+    assert.equal(projetorRemotoConectado.value, false);
+    assert.equal(projetorConectado.value, true, 'o tchau remoto não desliga o local');
+  } finally {
+    pub.parar(); local.close(); remoto.close(); sess.fechar();
+  }
+});
+
+test('publicador: sem névoa e com destino remoto, avisa a ponte uma vez por mapa', async () => {
+  const mapa = criarMapa({ id: 'mapa-sem-nevoa', nome: 'Aberto' });
+  const sess = criarSessao(mapa, criarRepoMock({ [mapa.id]: mapa }), { salvo: true });
+  const pub = iniciarPublicacao(sess, async () => null);
+  const remoto = new BroadcastChannel(CANAL_PROJETOR_REMOTO);
+  const msgs: any[] = [];
+  remoto.onmessage = e => msgs.push(e.data);
+  try {
+    remoto.postMessage({ tipo: 'ola', largura: 1920, altura: 1080, remoto: true, _seq: 1 });
+    await esperar(60);
+    remoto.postMessage({ tipo: 'tamanho', largura: 1000, altura: 600, _seq: 2 });
+    await esperar(60);
+    const avisos = msgs.filter(m => m.tipo === 'aviso-sem-nevoa');
+    assert.equal(avisos.length, 1);
+    assert.equal(avisos[0].mapa, 'mapa-sem-nevoa');
+    assert.ok(msgs.findIndex(m => m.tipo === 'aviso-sem-nevoa') < msgs.findIndex(m => m.tipo === 'estado'), 'o aviso vem antes do estado');
+  } finally {
+    pub.parar(); remoto.close(); sess.fechar();
   }
 });
