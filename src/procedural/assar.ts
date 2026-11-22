@@ -577,7 +577,7 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = pixel ? 1 : 0.5; ctx.drawImage(comAlfa(aro, material.escuro) as CanvasImageSource, dx, dy); ctx.globalAlpha = 1;
     const pintada = criarTela(cw, ch), pc = contextoDe(pintada, { willReadFrequently: !pixel });
-    const dir = material.padrao === 'sulcos' ? (camada.dir ?? orientacaoDominante(camada.celulas)) : 0;
+    const dir = material.padrao === 'sulcos' || material.padrao === 'dunas-areia' ? (camada.dir ?? orientacaoDominante(camada.celulas)) : 0;
     const caixaM = { x: x0 / res, y: y0 / res, w: cw / res, h: ch / res };
     const areaMaterial = pixel || padraoDependeDaArea(material.padrao) ? { x: 0, y: 0, w: e.largura, h: e.altura } : caixaM;
     pc.setTransform(res, 0, 0, res, -x0, -y0); estilo.pintarMaterial(pc, camada.material, areaMaterial, 11 + idx * 5, { res, dir });

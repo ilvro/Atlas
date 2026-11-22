@@ -192,7 +192,7 @@ Pronto quando: a prancha dos onze materiais, ao lado da do lote 1, não destoa e
 Commit: `second terrain batch is painted from cc0 textures`
 Nota: `tingir` 1 é só a paleta; a grama acinzentada pede 0,92, e as neves, 0,15 (a foto já é neutra). O cascalho a 32 px/m perde o grão: virou `gravel_floor` a 2,2× com manchas de `rocks_ground_02`. A neve pisada usa manchas de `snow_03` no lugar da camada de pegadas. A prancha sai de `node scripts/dev/prancha-terreno.ts [materiais…]` (tarde e noite, quadros de 6 m), que também serve às Q7–Q9.
 
-### Q7 — Deserto e campo  ⬜ **[Opus]**
+### Q7 — Deserto e campo  ✅ **[Opus]**
 Objetivo: terrenos de deserto e de lavoura.
 Depende de: Q5.
 Arquivos: `materiais.ts`, `grupos-de-terreno.ts` (grupo novo `deserto`, "Deserto e sertão", com `biomas: ['deserto']`, e `campo`, "Campo e lavoura"), texturas e licenças, `receitas/chao.ts` (carimbos).
@@ -204,6 +204,7 @@ Como:
 - carimbos `plantacao.trigo` e `plantacao.milho` em fileiras, e `arrozal` (água rasa `agua.arrozal` com mudas em grade).
 Pronto quando: um recorte de 20 × 20 m com duna, oásis e lavoura lê como deserto à primeira vista.
 Commit: `added desert and farmland terrain`
+Nota: material com textura não aceita padrão procedural por cima, então as dunas não usam o `Ground054`. Elas têm um pintor próprio (`dunas-areia`), com cristas a cada 4–6 m, barlavento claro com ondulações de vento e face de sombra. As cristas variam de força, se fundem e somem. As coordenadas giram com a direção da camada, que é calculada sobre a camada inteira (em `entradas.ts`, como nos sulcos). Calculada por ladrilho, uma faixa estreita no fim do mapa girava 90°. `sulcos` e `dunas-areia` passaram a usar a área do mapa inteiro, para não emendar entre ladrilhos. A `terra.arada` seria o `terra.sulcos` repetido: ele virou "Terra arada" no grupo Campo. A `grama.florida` virou o carimbo `flores-do-campo`, e as lavouras viraram carimbos `plantacao.trigo`, `plantacao.milho` e `plantacao.arroz` (fileiras ao longo do comprimento; o milho tem 2 m e faz sombra), com `agua.arrozal` para as mudas. Grupos novos: "Deserto e sertão" e "Campo e lavoura". Uma camada só tem uma direção: dois talhões de sulcos em direções diferentes precisam de camadas diferentes.
 
 ### Q8 — Selva, outono e cidade  ⬜ **[Opus]**
 Objetivo: terrenos tropicais, de outono e urbanos.

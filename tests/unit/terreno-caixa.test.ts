@@ -9,11 +9,11 @@ test('padraoDependeDaArea classifica corretamente padrões dependentes de A vs i
   const dependentes: Padrao[] = [
     'tabuas', 'xadrez', 'laje', 'damasco', 'listras', 'veio', 'losango',
     'hexagono', 'floral', 'lambri', 'vidro', 'pregas', 'pintura',
-    'grama', 'terra', 'lama', 'areia', 'pedra',
+    'grama', 'terra', 'lama', 'areia', 'pedra', 'sulcos', 'dunas-areia',
   ];
   const invariantes: Padrao[] = [
     'liso', 'trama', 'couro', 'metal', 'persa', 'espinha', 'marmore', 'marchetaria',
-    'gelo', 'dunas', 'rachado', 'cascalho', 'paralelepipedo', 'lajegrama', 'sulcos',
+    'gelo', 'dunas', 'rachado', 'cascalho', 'paralelepipedo', 'lajegrama',
     'molhada', 'palha-chao', 'lajes-rusticas', 'lajes-grandes', 'chapa-xadrez',
     'grade-metal', 'toras', 'manchado', 'painel', 'acolchoado', 'pisada', 'placas', 'neve',
     ...PADROES_DE_COBERTURA,

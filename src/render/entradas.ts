@@ -262,7 +262,7 @@ export function ladrilhosDoTerreno(e: EntradaDeTerreno, res: number): LadrilhoDe
     const macico = mat.uso === 'macico';
     const margem = macico ? margens.macico : agua ? margens.agua : margens.base;
     const indiceAgua = agua && c.celulas.length > 0 ? aguaCount++ : undefined;
-    const dir = mat.padrao === 'sulcos' && c.celulas.length > 0 ? r3(c.dir ?? orientacaoDominante(c.celulas)) : undefined;
+    const dir = (mat.padrao === 'sulcos' || mat.padrao === 'dunas-areia') && c.celulas.length > 0 ? r3(c.dir ?? orientacaoDominante(c.celulas)) : undefined;
     return { c, margem, indiceAgua, dir };
   });
 

@@ -17,5 +17,8 @@
   { "id": "snow_01", "pasta": "snow_01", "fonte": "Poly Haven", "autor": "Rob Tuytel", "metros": 2, "url": "https://polyhaven.com/a/snow_01", "licenca": "CC0" },
   { "id": "snow_03", "pasta": "snow_03", "fonte": "Poly Haven", "autor": "Rob Tuytel", "metros": 2, "url": "https://polyhaven.com/a/snow_03", "licenca": "CC0" },
   { "id": "rocky_trail", "pasta": "rocky_trail", "fonte": "Poly Haven", "autor": "Amal Kumar", "metros": 2, "url": "https://polyhaven.com/a/rocky_trail", "licenca": "CC0" },
-  { "id": "snow010a", "pasta": "Snow010A", "fonte": "ambientCG", "autor": "ambientCG", "metros": 2, "estimado": true, "url": "https://ambientcg.com/view?id=Snow010A", "licenca": "CC0" }
+  { "id": "snow010a", "pasta": "Snow010A", "fonte": "ambientCG", "autor": "ambientCG", "metros": 2, "estimado": true, "url": "https://ambientcg.com/view?id=Snow010A", "licenca": "CC0" },
+  { "id": "dry_ground_01", "pasta": "dry_ground_01", "fonte": "Poly Haven", "autor": "Rob Tuytel", "metros": 4, "url": "https://polyhaven.com/a/dry_ground_01", "licenca": "CC0" },
+  { "id": "mud_cracked_dry_03", "pasta": "mud_cracked_dry_03", "fonte": "Poly Haven", "autor": "Dario Barresi, Dimitrios Savva", "metros": 1.5, "url": "https://polyhaven.com/a/mud_cracked_dry_03", "licenca": "CC0" },
+  { "id": "red_dirt_mud_01", "pasta": "red_dirt_mud_01", "fonte": "Poly Haven", "autor": "Rob Tuytel", "metros": 1.5, "url": "https://polyhaven.com/a/red_dirt_mud_01", "licenca": "CC0" }
 ]
