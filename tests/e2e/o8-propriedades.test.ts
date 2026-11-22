@@ -12,6 +12,7 @@ test('O8: as propriedades do pincel valem ao pôr, e o inspetor edita o objeto p
   await page.click('[data-testid="ferramenta-objeto"]');
   const biblioteca = page.locator('[data-testid="biblioteca"]');
   await biblioteca.locator('[data-testid="prop-escala"]').fill('150'); await page.keyboard.press('Enter');
+  await biblioteca.locator('[data-testid="prop-ver-mais"]').click();
   await biblioteca.locator('[data-testid="prop-espelhar-h"]').click();
   await biblioteca.locator('[data-testid="prop-opacidade"]').fill('60'); await page.keyboard.press('Enter');
   const [x, y] = await clientDe(page, [12, 12]); await page.mouse.click(x, y);

@@ -1,6 +1,6 @@
 import type { ComponentChildren } from 'preact';
 import { useSignal } from '@preact/signals';
-import { definirObjetosNaGrade, objetosNaGrade } from '../app/preferencias.ts';
+import { definirObjetosNaGrade, definirPropriedadesAbertas, objetosNaGrade, propriedadesAbertas } from '../app/preferencias.ts';
 import type { PincelDeObjeto, PropriedadesDoObjeto as Propriedades } from '../domain/pincel-de-objeto.ts';
 import { CampoCaixa, CampoDeslizante, Linha } from './campos.tsx';
 
@@ -22,13 +22,17 @@ const Dado = ({ ligado, aoAlternar, dica, id }: { ligado: boolean; aoAlternar: (
  * no modo `selecao` edita o objeto (ou os objetos) já posto, e `aoMudar` recebe só o que mudou, num gesto.
  */
 export function PropriedadesDoObjeto({ valores: v, aoMudar, modo }: { valores: ValoresDoPainel; aoMudar: (patch: Partial<PincelDeObjeto>) => void; modo: 'pincel' | 'selecao' }) {
-  const pincel = modo === 'pincel', mais = useSignal(false);
+  const pincel = modo === 'pincel', mais = useSignal(false), aberto = propriedadesAbertas.value;
   return (
     <div class="propriedades-objeto" data-testid="propriedades-objeto" data-modo={modo}>
       <Cartao titulo="Transformar" id="transformar">
         <CampoDeslizante rotulo="Escala" id="prop-escala" valor={Math.round(v.escala * 100)} min={10} max={300} passo={5} unidade="%" aoConfirmar={x => aoMudar({ escala: x / 100 })} />
         <CampoDeslizante rotulo="Rotação" id="prop-rotacao" valor={graus(v.rotacao)} min={0} max={360} passo={5} unidade="°" aoConfirmar={x => aoMudar({ rotacao: radianos(x) })}
           extra={pincel ? <Dado ligado={!!v.rotacaoAleatoria} aoAlternar={() => aoMudar({ rotacaoAleatoria: !v.rotacaoAleatoria })} dica="Gira por sorteio a cada objeto posto" id="prop-rotacao-dado" /> : undefined} />
+      </Cartao>
+      <button type="button" class="chip ver-mais" aria-expanded={aberto} onClick={() => definirPropriedadesAbertas(!aberto)} data-testid="prop-ver-mais">{aberto ? '▾' : '▸'} Ver mais…{!aberto && pincel && v.colocar === 'varios' ? ' (vários)' : ''}</button>
+      {aberto && (<>
+      <Cartao titulo="Camada e espelho" id="camada">
         <CampoDeslizante rotulo="Camada" id="prop-camada" valor={v.camada ?? 0} min={-3} max={5} passo={1}
           dica="Ordem de empilhamento entre objetos: maior fica por cima. Sem escolha, vale a camada padrão do tipo."
           aoConfirmar={x => aoMudar({ camada: x })}
@@ -64,6 +68,7 @@ export function PropriedadesDoObjeto({ valores: v, aoMudar, modo }: { valores: V
           </div>)}
         </Cartao>
       )}
+      </>)}
     </div>
   );
 }
