@@ -254,7 +254,7 @@ Pronto quando: os testes passam.
 Commit: `remote projection keeps every visible wall piece`
 Nota: feita (Atlas `eedffa2`). O separador é `_` (`<id>_2`), porque `~` não passa em `IDENT`. As aberturas e os objetos de parede vão para o trecho certo, e o resultado passa em `validarMapa`.
 
-### R6 — Mapas grandes e assets  ⬜
+### R6 — Mapas grandes e assets  ✅
 Objetivo: o `estado` de um mapa grande chega inteiro e sem estourar o limite de mensagem.
 Depende de: R5.
 Ler: o tamanho do `estado` nos mapas de `Atlas/public/exemplos/` (meça); `online.ts`; e `lerAsset` em `iniciarPublicacao`.
@@ -267,6 +267,7 @@ Não fazer: diferenças entre versões (só se a medição mostrar necessidade; 
 Testes: um `estado` de 3 MB atravessa e volta igual; o gesto é limitado.
 Pronto quando: o maior mapa de exemplo abre num cliente de teste em menos de 5 s.
 Commit: `compressed map state and asset dedup for the room`
+Nota: feita (Mesa `9b7f3ad`). Medição: o maior exemplo tem 70 KB em JSON (14,8 KB em gzip), e a projeção remota com metade explorada fica perto de 40%. Os exemplos nunca são comprimidos, porque o limite é 256 KB. `descomprimirEstado` está em `src/online/estado-comprimido.ts`. A tabela `citados(canal, tipo, ids)` serve os blobs a quem chega depois. `blob.tem` existe, e o `estado:<mapa>:<versao>` sempre sobe de novo. Gestos: no máximo 15 por segundo por chave, e o último sempre sai.
 
 ## Bloco 3 — O jogador vê
 
