@@ -214,7 +214,7 @@ Nota: feita (Mesa `e3c54be`).
 - O `ola` remoto leva `remoto: true`.
 - O CORS da sala aceita a porta 5100 (`mesa-dev`), e não a 5195.
 
-### R5b — Projeção remota: só o que o jogador já viu  ⬜
+### R5b — Projeção remota: só o que o jogador já viu  ✅
 Objetivo: o documento que sai do computador do mestre não tem nada fora das áreas exploradas e visíveis, nem textos que deem spoiler.
 Depende de: R5. **Bloqueia** a R7: nenhum jogador recebe mapa antes desta ficha.
 Ler: `Atlas/src/domain/projecao.ts` (`projetarParaJogadores` e `CAMPOS_DO_MESTRE`), `Atlas/src/domain/nevoa.ts` (`celulasExploradas`, `celulasVisiveis` e `RES_NEVOA`), `Atlas/src/domain/celulas.ts`, `Atlas/src/domain/mapa.ts` (`MapaAtlas`: `terrain`, `rooms` com `cells`, `walls`, `openings`, `props`, `lights`, `presence`, `backdrop` e `memory`) e `iniciarPublicacao` em `Atlas/src/app/projetor.ts`.
@@ -234,6 +234,24 @@ Não fazer: diferenças entre versões (R6), visual da borda cortada.
 Testes: num mapa de teste com dois cômodos, um explorado e outro não, nada do cômodo não explorado sai (células, nome, objetos, luzes, paredes que só tocam nele); o cômodo explorado sai inteiro; sem névoa, sai igual à projeção de hoje; `CAMPOS_DO_MESTRE` continua coberto.
 Pronto quando: os testes passam, e um teste de ponta a ponta com a ponte da R5 mostra que o `estado` na sala não tem os nomes nem as células da área não explorada.
 Commit: `remote projection sends only what players have seen`
+Nota: feita (Atlas `04a6109`, Mesa `7392ebb`).
+- A lista campo a campo está no topo de `src/domain/projecao-remota.ts`.
+- O terreno e as presenças são recortados por faixas, sem decodificar célula.
+- As paredes são aparadas ao maior trecho dentro da área, e as aberturas e objetos de parede são recalculados.
+- As regiões não saem. O `backdrop.title` sai.
+- Canal novo `atlas:projetor:remoto`, com o signal `projetorRemotoConectado` separado.
+- `aviso-sem-nevoa { mapa, nome }` só no canal remoto. A ponte segura o `estado` até a confirmação (`mesa:online-sem-nevoa:<mapa>`). A trava da R5 saiu.
+
+### R5c — Parede em vários trechos na projeção remota  ⬜
+Objetivo: uma parede que entra na área em mais de um trecho aparece em todos eles.
+Depende de: R5b.
+Ler: `Atlas/src/domain/projecao-remota.ts` (o recorte de paredes, aberturas e objetos de parede) e o teste dela.
+Arquivos: mudar `projecao-remota.ts` e o teste.
+Como: cada trecho contínuo dentro da área vira uma parede, com o id `<id>~<n>` (o trecho maior mantém o id original, para a peça e a abertura que o citam continuarem valendo). Aberturas e objetos de parede vão para o trecho que os contém, com o `at` recalculado. Confira que o renderizador do projetor aceita ids com `~` (procure validações de id em `mapa.ts`). Se não aceitar, use outro separador permitido e diga qual.
+Não fazer: mudar a regra de área.
+Testes: uma parede reta que atravessa duas áreas exploradas, separadas por uma área escura, vira dois trechos com as aberturas certas; o teste por propriedades dos exemplos continua passando.
+Pronto quando: os testes passam.
+Commit: `remote projection keeps every visible wall piece`
 
 ### R6 — Mapas grandes e assets  ⬜
 Objetivo: o `estado` de um mapa grande chega inteiro e sem estourar o limite de mensagem.
