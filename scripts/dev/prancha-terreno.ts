@@ -2,7 +2,8 @@
  * Prancha de terreno: cada material num quadro de 6 × 6 m, lado a lado, à tarde e à noite com uma tocha no meio de cada quadro.
  * Serve para conferir textura, escala e tom de materiais novos contra os que já existem.
  *
- *   node scripts/dev/prancha-terreno.ts [--saida test-results/x.png] material1 material2 …
+ *   node scripts/dev/prancha-terreno.ts [--saida test-results/x.png] [--sem-luz] material1 material2 …
+ *   (--sem-luz: a noite sem tochas, para ver o que brilha sozinho)
  *   (sem materiais: o lote 2 da Frente P, ao lado da grama e da terra do lote 1)
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -15,7 +16,7 @@ import { Kit } from '../exemplos/kit.ts';
 
 const args = process.argv.slice(2), iSaida = args.indexOf('--saida');
 const SAIDA = join(import.meta.dirname, '../..', iSaida >= 0 ? args[iSaida + 1]! : 'test-results/prancha-terreno.png');
-const pedidos = args.filter((a, i) => i !== iSaida && i !== iSaida + 1);
+const semLuz = args.includes('--sem-luz'), pedidos = args.filter((a, i) => i !== iSaida && i !== iSaida + 1 && a !== '--sem-luz');
 const MATERIAIS = pedidos.length ? pedidos : ['grama', 'terra', 'grama.escura', 'grama.acinzentada', 'lama', 'areia', 'areia.molhada', 'cascalho', 'pedregulho', 'neve', 'neve.funda', 'neve.pisada', 'terra.congelada'];
 
 const LADO = 6, VAO = 1, COLUNAS = Math.min(5, MATERIAIS.length), LINHAS = Math.ceil(MATERIAIS.length / COLUNAS);
@@ -29,7 +30,7 @@ function montar(noite: boolean): MapaAtlas {
   k.base('rocha.rachada');
   MATERIAIS.forEach((mat, i) => { const [x, y] = origem(i); k.pintar(mat, { retangulo: [x, y, x + LADO, y + LADO] }); });
   if (noite) {
-    MATERIAIS.forEach((_, i) => { const [x, y] = origem(i); k.luz('tocha', [x + LADO / 2, y + LADO / 2], { radius: 5, intensity: 1.1, flicker: 0 }); });
+    if (!semLuz) MATERIAIS.forEach((_, i) => { const [x, y] = origem(i); k.luz('tocha', [x + LADO / 2, y + LADO / 2], { radius: 5, intensity: 1.1, flicker: 0 }); });
     k.clima('noite', { time: '23:00', tempo: { rain: 0, snow: 0, fog: 0, wind: 0 } });
   } else k.clima('tarde', { time: '15:00', tempo: { rain: 0, snow: 0, fog: 0, wind: 0 } });
   k.acabamento('neutro', { vignette: 0, edges: { kind: 'none', amount: 0 } });

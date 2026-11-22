@@ -1,5 +1,5 @@
 import type { Material } from './materiais.ts';
-import { fbm, valueNoise2D } from './ruido.ts';
+import { fbm, hash2D, valueNoise2D } from './ruido.ts';
 import { PROFUNDIDADE_MAXIMA, distanciaAMargem } from './profundidade.ts';
 
 /** Largura (m) da faixa de areia molhada que escurece o chão em volta da água. */
@@ -33,10 +33,71 @@ export interface SaidaDaAgua {
   margem: Uint8ClampedArray;
   /** Distância à margem em metros, saturada (0 fora da água). */
   profundidade: Float32Array;
+  /** Só na lava (`material.brilho`): quanto cada pixel emite (0 a 1), dentro e no clarão em volta. */
+  calor?: Float32Array;
 }
 
 /** Faixas de profundidade do Pixel: limites em metros entre raso, meio e fundo. */
 export const FAIXAS_DO_PIXEL = [0.5, 1.5] as const;
+
+/** Até onde (m) o clarão da lava aquece e chamusca o chão em volta. */
+export const CLARAO_DA_LAVA = 1.4;
+const CROSTA: [number, number, number][] = [[18, 12, 11], [36, 22, 17], [58, 34, 24]];
+const BRASA: [number, number, number][] = [[110, 22, 8], [190, 52, 10], [232, 98, 20], [246, 140, 40]];
+const rampa = (cores: [number, number, number][], t: number): [number, number, number] => {
+  const x = Math.min(0.999, Math.max(0, t)) * (cores.length - 1), i = Math.floor(x), f = x - i, a = cores[i]!, b = cores[i + 1]!;
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+};
+
+/** Ruído celular: distância (m) do ponto à borda da placa mais próxima (F2 − F1 de pontos sorteados numa grade de `lado` m). */
+function bordaDePlaca(x: number, y: number, lado: number, seed: number): number {
+  const gx = Math.floor(x / lado), gy = Math.floor(y / lado);
+  let f1 = Infinity, f2 = Infinity;
+  for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+    const cx = gx + i, cy = gy + j, px = (cx + hash2D(cx, cy, seed)) * lado, py = (cy + hash2D(cx, cy, seed + 1)) * lado, d = Math.hypot(x - px, y - py);
+    if (d < f1) { f2 = f1; f1 = d; } else if (d < f2) f2 = d;
+  }
+  return (f2 - f1) / 2;
+}
+
+/**
+ * Lava: placas de crosta escura separadas por uma rede de fendas acesas (bordas de células), que se alargam onde o rio é fundo, até virar
+ * um canal derretido no miolo; junto à margem a crosta esfria e as fendas somem. Fora, um anel de chão chamuscado e aquecido de laranja.
+ * `calor` diz o quanto cada pixel emite: o assar o grava no canal de emissão do mapa de altura, e a composição de luz o faz brilhar acima
+ * da luz da cena (a emissão multiplica a própria cor por até 3, então as cores ficam escuras e quem dá o brilho é o calor).
+ */
+function leitoDeLava(e: EntradaDaAgua, profundidade: Float32Array): SaidaDaAgua {
+  const { binaria, cobertura, largura: W, altura: H, res, pixel } = e, [ox, oy] = e.origemPx ?? [0, 0], n = W * H, forca = Math.min(1, Math.max(0, e.material.brilho ?? 1));
+  const terra = new Uint8Array(n); for (let i = 0; i < n; i++) terra[i] = binaria[i] ? 0 : 1;
+  const aFora = distanciaAMargem(terra, W, H, res, CLARAO_DA_LAVA + 1 / res);
+  const leito = new Uint8ClampedArray(n * 4), margem = new Uint8ClampedArray(n * 4), calor = new Float32Array(n);
+  const torcao = valueNoise2D(7300 + e.seed), grao = valueNoise2D(7400 + e.seed), sementeDasPlacas = 7500 + e.seed;
+  for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++) {
+    const k = i * 4, mx = (ox + x) / res, my = (oy + y) / res;
+    if (binaria[i]) {
+      const fundo = suave(0.25, 2.4, profundidade[i]!);
+      const wx = mx + (fbm(torcao, mx * 0.6, my * 0.6, 2) - 0.5) * 0.7, wy = my + (fbm(torcao, mx * 0.6 + 9, my * 0.6 + 4, 2) - 0.5) * 0.7;
+      const borda = Math.min(bordaDePlaca(wx, wy, 0.95, sementeDasPlacas), bordaDePlaca(wx * 2.1 + 3, wy * 2.1 + 7, 0.95, sementeDasPlacas + 2) / 2.1 + 0.035 - fundo * 0.03);
+      const largura = 0.03 + fundo * 0.06, fenda = 1 - suave(largura * 0.3, largura, borda);
+      const derretido = suave(0.55, 1, fundo) * (0.75 + 0.25 * fbm(grao, mx * 0.8, my * 0.8, 2));
+      let t = Math.max(fenda * (0.45 + 0.55 * fundo), derretido);
+      if (pixel) t = t > 0.6 ? 1 : t > 0.25 ? 0.5 : 0;
+      const crosta = rampa(CROSTA, fbm(grao, mx * 3, my * 3, 2)), brasa = rampa(BRASA, t), m = suave(0.02, 0.25, t);
+      const a = pixel ? 255 : (cobertura ? cobertura[i]! : 255);
+      leito[k] = crosta[0] + (brasa[0] - crosta[0]) * m; leito[k + 1] = crosta[1] + (brasa[1] - crosta[1]) * m; leito[k + 2] = crosta[2] + (brasa[2] - crosta[2]) * m; leito[k + 3] = a;
+      calor[i] = forca * (0.03 + 0.5 * t) * (a / 255);
+    } else if (aFora[i]! > 0 && aFora[i]! <= CLARAO_DA_LAVA + 1e-6) {
+      const f = aFora[i]! / CLARAO_DA_LAVA, perto = (1 - f) * (1 - f);
+      if (pixel) { if (aFora[i]! * res <= 2.01) { margem[k] = 34; margem[k + 1] = 20; margem[k + 2] = 16; margem[k + 3] = 255; } continue; }
+      // Junto à borda, chão chamuscado; mais longe, o chão tinge de laranja (a emissão multiplica essa cor: o clarão sai laranja, não branco).
+      const chamusco = suave(0.3, 0, aFora[i]!) * (0.7 + 0.3 * fbm(grao, mx * 2, my * 2, 2));
+      margem[k] = 48 * chamusco + 214 * (1 - chamusco); margem[k + 1] = 24 * chamusco + 74 * (1 - chamusco); margem[k + 2] = 14 * chamusco + 12 * (1 - chamusco);
+      margem[k + 3] = Math.min(255, Math.max(chamusco * 0.75, perto * 0.7) * 255);
+      calor[i] = forca * perto * 0.22;
+    }
+  }
+  return { leito, margem, profundidade, calor };
+}
 
 /**
  * O leito de uma camada de água: a cor passa de `raso` a `fundo` com a distância à margem e a água fica mais opaca com a profundidade
@@ -46,6 +107,7 @@ export const FAIXAS_DO_PIXEL = [0.5, 1.5] as const;
 export function leitoDaAgua(e: EntradaDaAgua): SaidaDaAgua {
   const { binaria, cobertura, largura: W, altura: H, res, pixel } = e, [ox, oy] = e.origemPx ?? [0, 0], n = W * H;
   const cores = coresDaAgua(e.material), profundidade = distanciaAMargem(binaria, W, H, res, PROFUNDIDADE_MAXIMA);
+  if (e.material.brilho) return leitoDeLava(e, profundidade);
   const terra = new Uint8Array(n); for (let i = 0; i < n; i++) terra[i] = binaria[i] ? 0 : 1;
   const aFora = distanciaAMargem(terra, W, H, res, MARGEM_MOLHADA + 1 / res);
   const leito = new Uint8ClampedArray(n * 4), margem = new Uint8ClampedArray(n * 4), ruido = valueNoise2D(7000 + e.seed), ruidoFundo = valueNoise2D(7100 + e.seed);
