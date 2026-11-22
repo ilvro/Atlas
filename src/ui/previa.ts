@@ -6,6 +6,9 @@ export { gerarMiniaturaDoMapa } from '../render/miniatura.ts';
 
 /** Um baker só para as miniaturas da biblioteca, separado do do mapa: elas não disputam a fila com o que está na tela. */
 let baker: Baker | null = null;
+
+/** Só para testes: troca o baker das prévias e limpa o cache. */
+export function _usarBakerDasPrevias(b: Baker | null): void { baker = b; previas.clear(); }
 const previas = new Map<string, Promise<{ bitmap: ImageBitmap; origem: [number, number]; res: number }>>();
 
 export function pedirPrevia(receita: string, params: Record<string, unknown> = {}, seed = 3, res = 72): Promise<{ bitmap: ImageBitmap; origem: [number, number]; res: number }> {
@@ -16,6 +19,9 @@ export function pedirPrevia(receita: string, params: Record<string, unknown> = {
     const item = ACERVO.item(receita), arquivo = item?.fonte === 'colecao' ? COLECAO.find(i => i.id === receita) : undefined;
     p = baker.pedir(chave, arquivo ? { tipo: 'imagem', url: urlDoItem(arquivo), pegada: arquivo.pegada, res, resImagem: arquivo.res ?? RES_DA_COLECAO, harmonizar: false, alvo: null } : { tipo: 'objeto', receita, params, seed, res, estilo: 'illustrated' });
     previas.set(chave, p);
+    // Falhou (worker morto, import desatualizado): sai do cache para a próxima montagem tentar de novo.
+    const atual = p;
+    atual.catch(() => { if (previas.get(chave) === atual) previas.delete(chave); });
   }
   return p;
 }
