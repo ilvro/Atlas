@@ -263,3 +263,30 @@ test('validação de ficha.ajustar-recursos e atlas.preparar-cena', () => {
 });
 
 test.after(() => { for (const b of abertos) b.fechar(); });
+
+test('autor: aceita o válido e recusa o malformado', () => {
+  const autor = { discordId: '1', nome: 'Ana', papel: 'jogador', fichas: ['f1'] };
+  assert.equal(validarEvento(base({ autor: autor as never })).ok, true);
+  for (const ruim of [null as unknown, 'x', { ...autor, papel: 'rei' }, { ...autor, fichas: [1] }, { ...autor, nome: 2 }, { discordId: '1' }]) {
+    const r = validarEvento(base({ autor: ruim as never }));
+    assert.equal(r.ok, false);
+    if (!r.ok) assert.equal(r.motivo, 'formato');
+  }
+});
+
+test('entradas da sala: atlas.mover-peca, sala.fichas, sala.salvar-ficha e sala.ficha-atualizada', () => {
+  const ok = (app: Evento['app'], tipo: string, dados: unknown) => validarEvento(base({ app, tipo, dados })).ok;
+  assert.equal(ok('atlas', 'atlas.mover-peca', { mapa: 'm', peca: 'p', position: [1, 2] }), true);
+  assert.equal(ok('atlas', 'atlas.mover-peca', { mapa: 'm', peca: 'p', position: [1, 2], levelId: null }), true);
+  assert.equal(ok('atlas', 'atlas.mover-peca', { mapa: 'm', peca: 'p', position: [1, 2], levelId: 3 }), false);
+  assert.equal(ok('atlas', 'atlas.mover-peca', { mapa: 'm', peca: 'p', position: [1] }), false);
+  assert.equal(ok('atlas', 'atlas.mover-peca', { mapa: 'm', position: [1, 2] }), false);
+  assert.equal(ok('ficha', 'sala.fichas', {}), true);
+  assert.equal(ok('ficha', 'sala.salvar-ficha', { ficha: { id: 'f' }, rev: 2 }), true);
+  assert.equal(ok('ficha', 'sala.salvar-ficha', { ficha: { id: 'f' } }), true);
+  assert.equal(ok('ficha', 'sala.salvar-ficha', { ficha: { id: 5 } }), false);
+  assert.equal(ok('ficha', 'sala.salvar-ficha', { ficha: { id: 'f' }, rev: 'x' }), false);
+  assert.equal(ok('mesa', 'sala.ficha-atualizada', { ficha: { id: 'f' }, rev: 3, conflito: true }), true);
+  assert.equal(ok('mesa', 'sala.ficha-atualizada', { ficha: { id: 'f' } }), false);
+  assert.equal(ok('ficha', 'sala.ficha-atualizada', { ficha: { id: 'f' }, rev: 3 }), false);
+});

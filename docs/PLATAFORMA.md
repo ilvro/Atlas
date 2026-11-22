@@ -29,6 +29,8 @@ Todos os projetos estão em `https://ilvro.github.io/<repositório>/`. A origem 
 
 **Limite:** dados no navegador são do navegador. Outro computador ou outro navegador começa vazio; a cópia de segurança de cada aplicativo (e a da campanha) é o transporte.
 
+**Modo online (Frente R):** a plataforma também roda com jogadores em outros dispositivos, como atividade do Discord. O navegador do mestre continua sendo a fonte da verdade; uma sala num Cloudflare Worker (Durable Object) autentica cada pessoa pelo Discord, guarda fichas e o último estado projetado e espalha os eventos entre mestre e jogadores. Funcionar sem sala continua sendo a regra: sem login, nada muda. Plano e decisões em [`docs/plano/mesa-online.md`](plano/mesa-online.md).
+
 ## 3. Identidade e referências
 
 Toda coisa que pode ser ligada tem uma referência:
@@ -73,6 +75,7 @@ Quem escreve: qualquer aplicativo, sempre por transação e pela biblioteca comu
 
 - **Fatos** (aconteceu): `ficha.rolagem`, `ficha.recursos`, `atlas.cena-aberta`, `atlas.regiao-entrou`, `atlas.revelado`, `atlas.inspecionado` `{ mapa, alvo }`, `atelie.documento-salvo`, `jukebox.tocando`, `mesa.sessao-iniciada`.
 - **Pedidos** (faça, se puder): `jukebox.tocar` `{ ref }` (uma cena sonora), `jukebox.efeito` `{ ref }` (um efeito avulso, uma faixa `sfx`, `mesa:jukebox/efeito/<titulo>`), `jukebox.prontidao` `{ ref }` (responde se a cena sonora tem todas as faixas carregadas: `{ ok, total, faltando, nome }`), `atlas.focar` `{ ref }`, `ficha.abrir` `{ ref }`, `atelie.abrir` `{ ref }`, `mesa.focar` `{ ref }` (abre/enquadra um quadro, item de quadro ou os cartões ancorados a um objeto/cômodo/região). Quem atende responde com um fato; sem resposta em 1,5 s, quem pediu avisa que o aplicativo não está aberto e oferece abri-lo.
+- **Online:** a sala carimba nos eventos que repassa o campo opcional `autor` (`{ discordId, nome, papel: 'mestre' | 'jogador', fichas: string[] }`). Quem atende um pedido vindo da sala decide com base nele; evento local não tem `autor`. Entradas do modo online: pedido `atlas.mover-peca` `{ mapa, peca, position, levelId? }`, pedidos `sala.fichas` e `sala.salvar-ficha` `{ ficha, rev? }` e fato `sala.ficha-atualizada` `{ ficha, rev, conflito? }`.
 - Catálogo versionado em `mesa-core`; quem recebe tipo ou versão desconhecida ignora e avisa uma vez no console.
 - O canal `mesa:handout` e o banco `mesa-handouts-v1` do contrato do Ateliê **continuam valendo** e passam a fazer parte do contrato da mesa, sem mudança.
 
@@ -115,7 +118,7 @@ O nome "Mesa" funciona em português e inglês, como Jukebox e Ateliê. Pode mud
 
 - **Obsidian:** exportar e importar notas e entidades como Markdown com `[[ligações]]`, se a campanha um dia for para um vault.
 - **Miro:** importação de quadros via pacote `.miro.zip` baixado pelo script local (`npm run miro:baixar` na Mesa) com fila de revisão semântica.
-- **Vários dispositivos e jogadores:** exige servidor ou sincronização; fora do escopo.
+- **Vários dispositivos e jogadores:** tratado pela Frente R, o modo online (ver §2 e [`docs/plano/mesa-online.md`](plano/mesa-online.md)).
 
 ## 10.1. Chaves e bancos compartilhados (v1, implementados no Atlas)
 
@@ -125,7 +128,7 @@ O nome "Mesa" funciona em português e inglês, como Jukebox e Ateliê. Pode mud
 | Campanha ativa | `localStorage['mesa:campanha-ativa']` → id da campanha | qualquer aplicativo |
 | Campanha | IndexedDB `mesa-campanha-v1` (`campanhas`, `entidades`, `ligacoes`, `sessoes`), sem escopo de caminho | quem criou a entidade altera tudo; os outros só as etiquetas, as notas e as próprias referências (aplicado pelo repositório e testado) |
 | Quadros da Mesa | IndexedDB `mesa-quadros-v1` (`quadros`, `itens`, `imagens`, `ajustes`), próprio da Mesa | só a Mesa |
-| Eventos | `BroadcastChannel('mesa:eventos')`, envelope `{ contrato, app, tipo, id, em, campanhaId, dados, respondeA? }`; fatos só do dono, pedidos de qualquer um, resposta como `mesa.resposta` | todos |
+| Eventos | `BroadcastChannel('mesa:eventos')`, envelope `{ contrato, app, tipo, id, em, campanhaId, dados, respondeA?, autor? }`; fatos só do dono, pedidos de qualquer um, resposta como `mesa.resposta` | todos |
 | Mapas do Atlas | IndexedDB `atlas-v1:<caminho>`, **com** escopo de caminho (interno ao Atlas) | só o Atlas |
 
 A implementação de referência é o `mesa-core` (`Atlas/mesa-core/`, TypeScript, 36 testes de contrato). `npm run build:core` o publica como JS + `.d.ts`; os outros projetos usam a cópia compilada em `vendor/mesa-core/`.
