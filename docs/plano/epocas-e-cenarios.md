@@ -147,7 +147,7 @@ Commit: `bakers recover when a worker dies`
 
 ## Bloco 2 — Brilho próprio
 
-### Q4 — Partes e água que brilham  ⬜ **[Opus]**
+### Q4 — Partes e água que brilham  ✅ **[Opus]**
 Objetivo: uma parte de objeto, um piso ou uma água pode brilhar acima do mapa de luz, para que lava, néon, cristal, tela e brasa leiam à noite.
 Depende de: —.
 Ler: `src/procedural/descricao.ts` (`Parte`), `src/procedural/assar.ts`, `src/procedural/sprite.ts`, `src/render/mapa-de-luz.ts` (a composição HDR), `src/render/halos.ts`, `src/procedural/agua.ts` e o shader de água em `src/render/`.
@@ -161,6 +161,7 @@ Não fazer: os materiais e objetos que usam o brilho (Q9, Q12, Q14 e kits).
 Testes: unitário: a descrição com `brilho` gera máscara e a sem `brilho` não gera; regressão visual da prancha de luz (de noite, um console com tela e uma poça de lava de teste).
 Pronto quando: na prancha noturna, a tela e a lava de teste brilham e iluminam em volta, e um mapa sem brilho fica idêntico ao de antes.
 Commit: `object parts and water can glow above the light map`
+Nota: a parte já existia desde a Frente L. `brilho: true` (sólida ou com `desfoque`) soma a cor e grava emissão no canal G do mapa de altura, e a composição de luz a faz brilhar acima da luz; telas, letreiros e brasas dos kits usam isso. O que faltava era a água: o material de água ganhou `brilho`, e `leitoDaAgua` desenha a lava (placas de crosta por ruído celular, fendas acesas que alargam no fundo, miolo derretido e um clarão chamuscado e laranja de 1,4 m em volta, que ilumina o chão sem luz posta à mão). O assar grava esse calor no canal de emissão e deixa a lava fora da superfície animada (sem ondas nem espuma). O `agua.lava` já entrou no grupo Água (com bioma vulcânico); a Q9 cuida das outras águas. Não há pulsação própria além da cintilação da emissão. Prancha: `node scripts/dev/prancha-terreno.ts --sem-luz agua.lava`.
 
 ---
 
@@ -223,7 +224,7 @@ Arquivos: `materiais.ts` (terrenos, maciço e água), `grupos-de-terreno.ts` (gr
 Como:
 - terreno: `basalto` (colunas hexagonais vistas de cima), `cinza.vulcanica`, `chao.de.fungos` (com pontos que brilham fraco), `cristal.chao`;
 - maciço: `rocha.basalto`, `rocha.cristal` (veios que brilham);
-- água: `agua.lava` (brilho 1, crosta escura que se move devagar, luz laranja nas margens), `agua.tropical` (turquesa, transparente, cáusticas), `agua.acida` (verde, brilho 0,3), `agua.esgoto`.
+- água: `agua.lava` (já feita na Q4), `agua.tropical` (turquesa, transparente, cáusticas), `agua.acida` (verde, brilho 0,3), `agua.esgoto`.
 Pronto quando: à noite, um rio de lava ilumina o basalto em volta sem nenhuma luz posta à mão; a água tropical mostra o fundo de areia.
 Commit: `added volcanic and underground terrain with lava and new waters`
 

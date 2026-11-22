@@ -1,4 +1,4 @@
-import { ALTURA_MAXIMA, temAlturaPropria, PISO_NO_MAPA, RAIO_PASSA_ALTA, alturaPorLuminancia, desenharAlturaDasPartes, pintarAlturaDoMaterial } from './altura.ts';
+import { ALTURA_MAXIMA, temAlturaPropria, PISO_NO_MAPA, RAIO_PASSA_ALTA, alturaPorLuminancia, comporEmissaoNoMapa, desenharAlturaDasPartes, pintarAlturaDoMaterial } from './altura.ts';
 import { contornoDoComodo, caixaDasCelulas } from '../domain/geometria.ts';
 import {
   AMPLIACAO_NA_FACE,
@@ -526,15 +526,24 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
         const pisoByte = Math.round(PISO_NO_MAPA * 255);
         for (let px = 0; px < cw * ch; px++) {
           const k = px * 4;
-          aguaAlt[k] = pisoByte; aguaAlt[k + 1] = 0; aguaAlt[k + 2] = 0; aguaAlt[k + 3] = cobertura[px]!;
+          aguaAlt[k] = pisoByte; aguaAlt[k + 1] = r.calor && binaria[px] ? Math.round(r.calor[px]! * 255) : 0; aguaAlt[k + 2] = 0; aguaAlt[k + 3] = cobertura[px]!;
         }
         const t = criarTela(cw, ch);
         contextoDe(t).putImageData(new ImageData(aguaAlt as Uint8ClampedArray<ArrayBuffer>, cw, ch), 0, 0);
         actx.setTransform(1, 0, 0, 1, 0, 0);
         actx.drawImage(t as CanvasImageSource, dx, dy);
+        // Lava: o clarão em volta soma emissão ao chão que já está no mapa, sem mexer na altura dele.
+        if (r.calor) {
+          const fora = new Uint8ClampedArray(cw * ch * 4);
+          for (let px = 0; px < cw * ch; px++) if (!binaria[px] && r.calor[px]! > 0) fora[px * 4 + 3] = Math.round(r.calor[px]! * 255);
+          const regiao = actx.getImageData(dx, dy, cw, ch);
+          comporEmissaoNoMapa(regiao.data, fora, 1);
+          actx.putImageData(regiao, dx, dy);
+        }
         resetTransform(actx);
       }
-      aguas.push({ profundidade: r.profundidade, binaria, x0, y0, cw, ch, indice: camada.indiceAgua ?? aguas.length });
+      // A lava não entra na superfície animada da água: sem ondas, espuma nem reflexo.
+      if (!material.brilho) aguas.push({ profundidade: r.profundidade, binaria, x0, y0, cw, ch, indice: camada.indiceAgua ?? aguas.length });
       return;
     }
     if (macico) {
