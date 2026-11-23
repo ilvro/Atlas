@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { signal } from '@preact/signals';
 import { iniciarTema } from '../app/tema.ts';
-import { CANAL_PROJETOR_GLOBAL, nomeDoCanalDoProjetor, type MensagemDoMestre, type MensagemDoProjetor } from '../app/projetor.ts';
+import { canaisDoProjetor, prepararDocRemoto, projetorPodeDizer, type MensagemDoMestre, type MensagemDoProjetor } from '../app/projetor.ts';
 import type { Recursos } from '../domain/fichas.ts';
 import { criarMapa, type MapaAtlas } from '../domain/mapa.ts';
 import { flutuarRolagem, ponto } from '../fx/fx.ts';
@@ -53,7 +53,8 @@ const recursosLocais = new Map<string, Recursos>();
 const lerRetratoLocal = async (id: string): Promise<Blob | null> => retratos.get(id) ?? null;
 
 /** A janela do projetor: só mostra o que o mestre publica (a projeção, a câmera, os eventos). Não abre o banco e não edita. */
-export function Projetor({ mapaId }: { mapaId: string }) {
+export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }) {
+  const remoto = salaId !== undefined;
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     silenciarNestaJanela();                                   // o áudio não toca no projetor
@@ -63,14 +64,13 @@ export function Projetor({ mapaId }: { mapaId: string }) {
     retratos.clear(); recursosLocais.clear(); fecharInspecaoNoProjetor();
     cortina.value = { escurecer: false, ms: 0 };
     letreiroDoProjetor.value = null;
-    const canalEspecifico = new BroadcastChannel(nomeDoCanalDoProjetor(mapaId));
-    const canalGlobal = new BroadcastChannel(CANAL_PROJETOR_GLOBAL);
+    const canais = canaisDoProjetor(mapaId, salaId).map(n => new BroadcastChannel(n));
     let vp: Viewport | null = null, store: Store | null = null, morto = false, caixa: Parameters<Viewport['enquadrarCaixa']>[0] | null = null, primeira = true;
     let seqProjetor = 0;
     const dizer = (m: MensagemDoProjetor) => {
+      if (!projetorPodeDizer(m, remoto)) return;
       const comSeq = { ...m, _seq: ++seqProjetor };
-      try { canalEspecifico.postMessage(comSeq); } catch { /* ignora */ }
-      try { canalGlobal.postMessage(comSeq); } catch { /* ignora */ }
+      for (const c of canais) { try { c.postMessage(comSeq); } catch { /* ignora */ } }
     };
     const tamanho = () => ({ largura: ref.current?.clientWidth ?? innerWidth, altura: ref.current?.clientHeight ?? innerHeight });
     const ola = () => dizer({ tipo: 'ola', ...tamanho() });
@@ -104,7 +104,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
         if (msg._seq === ultimoSeqMestre) return;
         ultimoSeqMestre = msg._seq;
       }
-      if (msg.tipo === 'estado') { doc.value = msg.doc; store!.projetar(msg.doc, { emGesto: msg.emGesto }); }
+      if (msg.tipo === 'estado') { const d = remoto ? prepararDocRemoto(msg.doc) : msg.doc; doc.value = d; store!.projetar(d, { emGesto: msg.emGesto }); }
       else if (msg.tipo === 'peca-gesto') {
         const atual = store?.documento;
         const t = atual?.tokens[msg.id];
@@ -146,8 +146,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       else if (msg.tipo === 'rolagem') { const t = doc.value?.tokens[msg.peca]; if (t && vp) { const [x, y] = vp.clientDe([t.position[0], t.position[1] - t.size * (doc.value?.grid.size ?? 1.5) / 2]); flutuarRolagem(ponto(x, y), msg.total, msg.titulo, msg.tom); } }
       else if (msg.tipo === 'retrato') { retratos.set(msg.id, msg.blob); versaoRetratos.value++; vp?.redesenharPecas(); }
     };
-    canalEspecifico.onmessage = (e: MessageEvent<MensagemDoMestre>) => tratarMensagem(e.data);
-    canalGlobal.onmessage = (e: MessageEvent<MensagemDoMestre>) => tratarMensagem(e.data);
+    for (const c of canais) c.onmessage = (e: MessageEvent<MensagemDoMestre>) => tratarMensagem(e.data);
 
     // Enquanto o mestre não responde, pergunta de novo (ele pode abrir o mapa depois).
     const insistir = setInterval(() => { if (!doc.value) ola(); }, 1500);
@@ -179,7 +178,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
     window.addEventListener('pointermove', mexeu); mexeu();
     return () => {
       morto = true; clearInterval(insistir); clearTimeout(sumir); aoSair();
-      canalEspecifico.close(); canalGlobal.close();
+      for (const c of canais) c.close();
       sairTema(); vp?.destruir(); store?.dispor();
       window.removeEventListener('resize', aoRedimensionar); window.removeEventListener('pagehide', aoSair); window.removeEventListener('pointermove', mexeu);
       window.removeEventListener('wheel', aoRolarJanela, { capture: true });
@@ -191,7 +190,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       letreiroDoProjetor.value = null;
       document.body.classList.remove('projetor');
     };
-  }, [mapaId]);
+  }, [mapaId, salaId]);
 
   const lerRetrato = useMemo(() => (id: string) => lerRetratoLocal(id), [versaoRetratos.value]);
   const m = doc.value;
@@ -201,7 +200,7 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       <div class="projetor-mapa" ref={ref} />
       <div class="projetor-moldura" aria-hidden="true"><i /><i /></div>
       {documentoDoProjetor.value && <div class="projetor-inspecao" data-testid="projetor-inspecao"><h2>{documentoDoProjetor.value.nome}</h2><VisorDeDocumento normal={documentoDoProjetor.value.normal} uv={documentoDoProjetor.value.uv} estado={estadoDaInspecao} testid="projetor-visor" /></div>}
-      {m ? <h1 class="projetor-titulo faixa" data-testid="projetor-titulo">{m.name}</h1> : <p class="projetor-espera" data-testid="projetor-espera">Aguardando o mestre…</p>}
+      {m ? !remoto && <h1 class="projetor-titulo faixa" data-testid="projetor-titulo">{m.name}</h1> : <p class="projetor-espera" data-testid="projetor-espera">Aguardando o mestre…</p>}
       {m?.session.initiative && <div class="projetor-iniciativa"><FaixaDeIniciativa ini={m.session.initiative} pecas={pecas} lerRetrato={lerRetrato} /></div>}
       <div
         class="projetor-cortina"
@@ -221,8 +220,8 @@ export function Projetor({ mapaId }: { mapaId: string }) {
       )}
       {!seguindo.value && <button type="button" class={`projetor-seguir ${botaoVisivel.value ? '' : 'oculto'}`} data-testid="projetor-seguir"
         onClick={() => { seguindo.value = true; zoomLocal = 1; if (caixaDoMestre) vpAtual?.enquadrarCaixa(caixaDoMestre, true); }}>Seguir o mestre</button>}
-      <button type="button" class={`projetor-tela-cheia ${botaoVisivel.value ? '' : 'oculto'}`} aria-label="Tela cheia" title="Tela cheia" data-testid="projetor-tela-cheia"
-        onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void document.documentElement.requestFullscreen?.(); }}><Icone nome="enquadrar" tamanho={20} /></button>
+      {!remoto && <button type="button" class={`projetor-tela-cheia ${botaoVisivel.value ? '' : 'oculto'}`} aria-label="Tela cheia" title="Tela cheia" data-testid="projetor-tela-cheia"
+        onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void document.documentElement.requestFullscreen?.(); }}><Icone nome="enquadrar" tamanho={20} /></button>}
     </main>
   );
 }

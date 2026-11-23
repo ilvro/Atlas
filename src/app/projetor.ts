@@ -23,6 +23,21 @@ export const CANAL_PROJETOR_GLOBAL = 'atlas:projetor:ativo';
  */
 export const CANAL_PROJETOR_REMOTO = 'atlas:projetor:remoto';
 export const nomeDoCanalDoProjetor = (mapaId: string): string => `atlas:projetor:${mapaId}`;
+/** O canal único do projetor remoto (a casca do jogador): prefixado pela sala, nunca os canais do mestre. */
+export const nomeDoCanalDaSala = (salaId: string): string => `sala:${salaId}:atlas:projetor`;
+/** Os canais em que o projetor ouve e fala: no modo remoto só o da sala; no local, o do mapa e o global. */
+export const canaisDoProjetor = (mapaId: string, salaId?: string): string[] =>
+  salaId ? [nomeDoCanalDaSala(salaId)] : [nomeDoCanalDoProjetor(mapaId), CANAL_PROJETOR_GLOBAL];
+/** O que o projetor pode dizer: no modo remoto só o `ola` (a casca o usa para reenviar o último estado); o resto (`tamanho`, `soltou`, `tchau`) é do mestre. */
+/**
+ * A projeção remota deixa o nome vazio nos cômodos que o mestre não revelou (spoiler), mas `validarMapa` exige pelo menos 1 caractere e o store do projetor
+ * recusaria o documento inteiro. O receptor põe um nome neutro; o cômodo não revelado não mostra nome na vista de jogador.
+ */
+export function prepararDocRemoto(doc: MapaAtlas): MapaAtlas {
+  if (!Object.values(doc.rooms).some(r => r.name === '')) return doc;
+  return { ...doc, rooms: Object.fromEntries(Object.entries(doc.rooms).map(([id, r]) => [id, r.name === '' ? { ...r, name: 'Cômodo' } : r])) };
+}
+export const projetorPodeDizer = (m: { tipo: string }, remoto: boolean): boolean => !remoto || m.tipo === 'ola';
 
 /** ID do mapa que o projetor está exibindo (desacoplado da aba ativa no editor). */
 export const mapaNoProjetorId = signal<string | null>(null);

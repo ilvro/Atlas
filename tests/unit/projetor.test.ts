@@ -568,3 +568,27 @@ test('publicador: sem névoa e com destino remoto, avisa a ponte uma vez por map
     pub.parar(); remoto.close(); sess.fechar();
   }
 });
+
+test('projetor remoto: só o canal da sala, e só diz "ola"', async () => {
+  const { canaisDoProjetor, nomeDoCanalDaSala, projetorPodeDizer } = await import('../../src/app/projetor.ts');
+  assert.deepEqual(canaisDoProjetor('casa', 'abc123'), ['sala:abc123:atlas:projetor']);
+  assert.equal(nomeDoCanalDaSala('abc123'), 'sala:abc123:atlas:projetor');
+  assert.deepEqual(canaisDoProjetor('casa'), ['atlas:projetor:casa', 'atlas:projetor:ativo']);
+  for (const canal of canaisDoProjetor('casa', 'abc123')) assert.ok(!['atlas:projetor:ativo', 'atlas:projetor:remoto', 'atlas:projetor:casa'].includes(canal));
+  assert.equal(projetorPodeDizer({ tipo: 'ola' }, true), true);
+  for (const tipo of ['tamanho', 'soltou', 'tchau']) { assert.equal(projetorPodeDizer({ tipo }, true), false); assert.equal(projetorPodeDizer({ tipo }, false), true); }
+});
+
+test('projetor remoto: o cômodo sem nome (não revelado) ganha um nome neutro e o mapa passa em validarMapa', async () => {
+  const { prepararDocRemoto } = await import('../../src/app/projetor.ts');
+  const { criarMapa } = await import('../../src/domain/mapa.ts');
+  const { validarMapa } = await import('../../src/domain/validacao.ts');
+  const m = criarMapa({ id: 'm', nome: 'Mapa' });
+  const comodo = { id: 'A', name: '', function: null, cells: [], floor: { material: 'tabuas.carvalho', seed: 1 }, wallpaper: null, wallStyle: null, palette: null, roof: { material: null, visible: true }, levelId: null };
+  const doc = { ...m, rooms: { A: comodo as never } };
+  assert.throws(() => validarMapa(doc));
+  const pronto = prepararDocRemoto(doc);
+  assert.doesNotThrow(() => validarMapa(pronto));
+  assert.equal(pronto.rooms.A!.name.length > 0, true);
+  assert.equal(prepararDocRemoto(m), m, 'sem cômodo vazio, devolve o mesmo objeto');
+});

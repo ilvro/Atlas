@@ -3,6 +3,8 @@ export type Rota =
   | { tipo: 'galeria' }
   | { tipo: 'mapa'; id: string; comodo?: string; objeto?: string; regiao?: string }
   | { tipo: 'projetor'; id: string }
+  /** O projetor da casca do jogador (mesa online): `#/projetor-remoto/{salaId}`. Ouve só os canais prefixados pela sala e aceita o mapa de qualquer `estado`. */
+  | { tipo: 'projetor-remoto'; sala: string }
   | { tipo: 'desconhecida'; hash: string };
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -14,6 +16,7 @@ export function lerRota(hash: string): Rota {
   if (partes.some(p => p === null)) return { tipo: 'desconhecida', hash };
   const [raiz, id, sub, filho, ...resto] = partes as string[];
   if (raiz === 'projetor' && id && ID.test(id) && !sub) return { tipo: 'projetor', id };
+  if (raiz === 'projetor-remoto' && id && ID.test(id) && !sub) return { tipo: 'projetor-remoto', sala: id };
   if (raiz === 'mapa' && id && ID.test(id)) {
     if (!sub && !resto.length) return { tipo: 'mapa', id };
     if (sub === 'comodo' && filho && ID.test(filho) && !resto.length) return { tipo: 'mapa', id, comodo: filho };
@@ -26,6 +29,7 @@ export function lerRota(hash: string): Rota {
 export function formatarRota(rota: Rota): string {
   if (rota.tipo === 'galeria') return '#/';
   if (rota.tipo === 'projetor') return `#/projetor/${encodeURIComponent(rota.id)}`;
+  if (rota.tipo === 'projetor-remoto') return `#/projetor-remoto/${encodeURIComponent(rota.sala)}`;
   if (rota.tipo === 'mapa') {
     if (rota.comodo) return `#/mapa/${encodeURIComponent(rota.id)}/comodo/${encodeURIComponent(rota.comodo)}`;
     if (rota.objeto) return `#/mapa/${encodeURIComponent(rota.id)}/objeto/${encodeURIComponent(rota.objeto)}`;
