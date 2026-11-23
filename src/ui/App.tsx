@@ -14,13 +14,16 @@ import { Toasts } from './Toasts.tsx';
 
 export function App() {
   useEffect(() => {
-    if (rota.value.tipo !== 'projetor') void iniciar();     // o projetor não abre o banco: só recebe do mestre
+    const soProjeta = rota.value.tipo === 'projetor' || rota.value.tipo === 'projetor-remoto';
+    if (!soProjeta) void iniciar();     // o projetor não abre o banco: só recebe do mestre
+    if (rota.value.tipo === 'projetor-remoto') return;     // sem atalhos de mestre no projetor remoto
     const tecla = (e: KeyboardEvent) => { tratarTecla(e); };
     window.addEventListener('keydown', tecla);
     return () => window.removeEventListener('keydown', tecla);
   }, []);
 
   if (rota.value.tipo === 'projetor') return <Projetor mapaId={rota.value.id} />;
+  if (rota.value.tipo === 'projetor-remoto') return <Projetor mapaId="remoto" salaId={rota.value.sala} />;
   if (erroInicial.value) return (
     <main class="erro-inicial" data-testid="erro-inicial"><div role="alert"><h1 class="faixa grande">Não consegui abrir o Atlas</h1><p>{erroInicial.value}</p><p class="meta">O Atlas guarda tudo no armazenamento do navegador (IndexedDB). Em janelas privadas de alguns navegadores ele fica indisponível.</p></div></main>
   );

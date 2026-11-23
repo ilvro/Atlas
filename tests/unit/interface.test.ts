@@ -132,6 +132,9 @@ test('tudo que a fábrica cria passa na validação do mapa', () => {
 // ---- rotas ----
 test('rotas: leitura e formatação são inversas, e o resto é "desconhecida"', () => {
   for (const hash of ['', '#', '#/']) assert.deepEqual(lerRota(hash), { tipo: 'galeria' });
+  assert.deepEqual(lerRota('#/projetor-remoto/a1b2c3'), { tipo: 'projetor-remoto', sala: 'a1b2c3' });
+  assert.equal(formatarRota({ tipo: 'projetor-remoto', sala: 'a1b2c3' }), '#/projetor-remoto/a1b2c3');
+  assert.equal(lerRota('#/projetor-remoto').tipo, 'desconhecida');
   assert.deepEqual(lerRota('#/mapa/casa-1'), { tipo: 'mapa', id: 'casa-1' });
   assert.deepEqual(lerRota('#/mapa/casa-1/comodo/biblioteca'), { tipo: 'mapa', id: 'casa-1', comodo: 'biblioteca' });
   for (const r of [{ tipo: 'galeria' }, { tipo: 'mapa', id: 'a_b-1' }, { tipo: 'mapa', id: 'a', comodo: 'sala' }] as const) assert.deepEqual(lerRota(formatarRota(r)), r);
