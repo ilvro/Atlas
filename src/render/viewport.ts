@@ -1332,7 +1332,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     destruir() {
       destruido = true; if (rafArrastoPeca) { cancelAnimationFrame(rafArrastoPeca); rafArrastoPeca = 0; } cancelarAssinatura(); observador.disconnect();
       window.removeEventListener('keydown', aoTeclar, true); window.removeEventListener('keyup', aoSoltar);
-      app.ticker.remove(aoQuadro); limparFantasmaSprite(); fantasmaDaProposta.destruir(); linhasDeNivel.destruir(); retratos.limpar(); cena.destruir(); baker.encerrar(); pixelizacao.destruir(); app.destroy(true, { children: true });
+      app.ticker.remove(aoQuadro); limparFantasmaSprite(); fantasmaDaProposta.destruir(); linhasDeNivel.destruir(); retratos.limpar(); cena.destruir(); baker.encerrar(); pixelizacao.destruir(); app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
     },
   };
 }
