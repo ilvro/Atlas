@@ -217,7 +217,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const somenteLeitura = ponte.somenteLeitura === true;
   const clarao = new Graphics(); clarao.visible = false;
   let camAnim: { de: Camera; para: Camera; t0: number } | null = null;
-  const store = ponte.store, baker: Baker = criarBaker();
+  const store = ponte.store, baker: Baker = criarBaker({ reaproveitarWorkers: true });
   const mundo = new Container(), area_ = new Graphics(), grade = new Graphics(), selecaoG = new Graphics(), fantasmaC = new Container(), fantasmaG = new Graphics(), laco = new Graphics();
   let camera: Camera = { x: 0, y: 0, zoom: 20 };
   let ponteiro: Ponto | null = null, interacao: Interacao | null = null, espaco = false, camadaSuja = true, gradeSuja = true, destruido = false, regua: Regua | null = null, altPressionado = false, modoProjetor = somenteLeitura;
