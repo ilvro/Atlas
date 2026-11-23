@@ -76,6 +76,29 @@ test('remota: a parede que sai da área é aparada, e a porta fora do trecho som
   assert.equal(p.openings.pLonga, undefined, 'a porta perto de B sai');
 });
 
+test('remota: a parede que atravessa duas áreas explora dois trechos, com as aberturas certas', () => {
+  const m = criarMapa({ id: 'x', nome: 'x', largura: 45, altura: 30 });
+  m.walls.w = parede('w', [[2, 5], [40, 5]]); // 38 m
+  m.openings.a1 = { id: 'a1', wallId: 'w', at: 6 / 38, width: 0.9, kind: 'door', state: 'closed', material: 'madeira.media', som: null, swing: 'a' };
+  m.openings.a2 = { id: 'a2', wallId: 'w', at: 20 / 38, width: 0.9, kind: 'door', state: 'closed', material: 'madeira.media', som: null, swing: 'a' };
+  m.openings.a3 = { id: 'a3', wallId: 'w', at: 33 / 38, width: 0.9, kind: 'door', state: 'closed', material: 'madeira.media', som: null, swing: 'a' };
+  m.props.p3 = objeto('p3', 35, 5, { elevation: 'wall', wall: { wallId: 'w', at: 33 / 38, face: 'inner' } });
+  m.props.p2 = objeto('p2', 22, 5, { elevation: 'wall', wall: { wallId: 'w', at: 20 / 38, face: 'inner' } });
+  // explorado: x de 3 a 9 e de 30 a 38 (y de 3 a 7); o meio fica escuro
+  m.session = { explored: { res: 0.5, cells: codificar([...decodificar(retangulo(6, 6, 18, 14)), ...decodificar(retangulo(60, 6, 76, 14))]) }, initiative: null, revealed: [], event: null };
+  m.tokens = {};
+  const p = projetarParaRemoto(m);
+  assert.deepEqual(Object.keys(p.walls).sort(), ['w', 'w_2']);
+  assert.doesNotThrow(() => validarMapa(p), 'ids passam na validação');
+  const maior = p.walls.w!, outro = p.walls.w_2!;
+  assert.ok(maior.path[0]![0] > 29 && outro.path[0]![0] < 10, 'o trecho maior (x > 29) fica com o id original');
+  assert.equal(p.openings.a2, undefined, 'a porta na área escura some');
+  assert.equal(p.openings.a1!.wallId, 'w_2'); assert.equal(p.openings.a3!.wallId, 'w');
+  const x = (t: typeof maior, at: number) => t.path[0]![0] + at * (t.path.at(-1)![0] - t.path[0]![0]);
+  assert.ok(Math.abs(x(outro, p.openings.a1!.at) - 8) < 1e-6 && Math.abs(x(maior, p.openings.a3!.at) - 35) < 1e-6);
+  assert.equal(p.props.p3!.wall!.wallId, 'w'); assert.equal(p.props.p2, undefined);
+});
+
 test('remota: nomes do mapa e dos andares são neutralizados', () => {
   const p = projetarParaRemoto(mapaDeDois());
   assert.equal(p.name, 'Mapa'); assert.equal(p.groundLevelName, 'Mapa');
