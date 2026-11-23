@@ -7,6 +7,8 @@ import { criarMapa, type MapaAtlas } from '../domain/mapa.ts';
 import { flutuarRolagem, ponto } from '../fx/fx.ts';
 import { silenciarNestaJanela } from '../fx/som.ts';
 import { criarViewport, type Viewport } from '../render/viewport.ts';
+import { zoomEm, type Camera } from '../render/camera.ts';
+import { CAMERA_REMOTA_INICIAL, decidirCamera, type EventoDaCameraRemota } from '../app/camera-remota.ts';
 import { criarStore, type Store } from '../state/store.ts';
 import { FaixaDeIniciativa } from './FaixaDeIniciativa.tsx';
 import { Icone } from './Icone.tsx';
@@ -23,6 +25,8 @@ const letreiroDoProjetor = signal<DadosDoLetreiro | null>(null);
 /** Enquanto segue o mestre, a câmera dele enquadra o projetor; o arrasto aqui solta o projetor até "Seguir o mestre". */
 const seguindo = signal(true);
 let caixaDoMestre: Parameters<Viewport['enquadrarCaixa']>[0] | null = null, vpAtual: Viewport | null = null;
+/** "Seguir o mestre" do projetor remoto (definido pelo efeito do componente). */
+let seguirMestreRemoto: () => void = () => {};
 /** Zoom local do projetor (1 = o enquadre do mestre; >1 aproxima). Sobrevive ao seguimento: só o arrasto o solta. */
 let zoomLocal = 1;
 const caixaComZoom = (c: NonNullable<typeof caixaDoMestre>) => {
@@ -67,6 +71,13 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
     const canais = canaisDoProjetor(mapaId, salaId).map(n => new BroadcastChannel(n));
     let vp: Viewport | null = null, store: Store | null = null, morto = false, caixa: Parameters<Viewport['enquadrarCaixa']>[0] | null = null, primeira = true;
     let seqProjetor = 0;
+    // No projetor remoto, a lógica de "livre ou seguindo" é a função pura `decidirCamera`; o `seguindo` só espelha o modo para a interface.
+    let estadoCam = CAMERA_REMOTA_INICIAL;
+    const decidirRemoto = (ev: EventoDaCameraRemota, suave = false) => {
+      const r = decidirCamera(estadoCam, ev); estadoCam = r.estado; seguindo.value = estadoCam.modo === 'seguindo';
+      if (r.caixa) { caixa = caixaDoMestre = r.caixa; vp?.enquadrarCaixa(r.caixa, suave && !primeira); primeira = false; }
+    };
+    seguirMestreRemoto = () => decidirRemoto({ tipo: 'seguir-mestre' }, true);
     const dizer = (m: MensagemDoProjetor) => {
       if (!projetorPodeDizer(m, remoto)) return;
       const comSeq = { ...m, _seq: ++seqProjetor };
@@ -129,12 +140,14 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
           doc.value = novoDoc;
           store!.projetar(novoDoc, { emGesto: true, pularValidacao: true });
         }
-        if (msg.caixa) {
+        if (msg.caixa && remoto) { caixa = msg.caixa; decidirRemoto({ tipo: 'camera', caixa: msg.caixa }); }
+        else if (msg.caixa) {
           caixa = caixaDoMestre = msg.caixa;
           if (msg.seguir) seguindo.value = true;
           if (seguindo.peek()) { vp?.enquadrarCaixa(caixaComZoom(msg.caixa), false); primeira = false; }
         }
       }
+      else if (msg.tipo === 'camera' && remoto) { caixa = msg.caixa; decidirRemoto({ tipo: 'camera', caixa: msg.caixa, ...(msg.imediata ? { imediata: true } : {}) }, !msg.imediata); }
       else if (msg.tipo === 'camera') { caixa = caixaDoMestre = msg.caixa; if (msg.seguir) seguindo.value = true; if (seguindo.peek()) { vp?.enquadrarCaixa(caixaComZoom(msg.caixa), !primeira && !msg.imediata); primeira = false; } }
       else if (msg.tipo === 'evento') vp?.dispararEvento(msg.nome);
       else if (msg.tipo === 'relampago') vp?.relampagoAgora();
@@ -162,18 +175,41 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
       e.preventDefault(); e.stopPropagation();
       const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
       const fator = Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015));
+      if (remoto) {   // zoom centrado no cursor, com os limites do editor (`zoomEm`); mexer solta a câmera
+        if (!vp || !ref.current) return;
+        soltarSeguimento();
+        const r = ref.current.getBoundingClientRect();
+        vp.definirCamera(zoomEm(vp.camera, [e.clientX - r.left, e.clientY - r.top], fator));
+        return;
+      }
       if (seguindo.peek() && caixaDoMestre) { zoomLocal = Math.min(20, Math.max(0.05, zoomLocal * fator)); vp?.enquadrarCaixa(caixaComZoom(caixaDoMestre), false); }
       else vp?.zoomPor(fator);
     };
     window.addEventListener('wheel', aoRolarJanela, { passive: false, capture: true });
     // Só o arrasto de mais de 4 px solta o projetor da câmera do mestre.
-    const soltarSeguimento = () => { if (!seguindo.peek()) return; seguindo.value = false; dizer({ tipo: 'soltou' }); };
+    function soltarSeguimento() { if (remoto) { estadoCam = decidirCamera(estadoCam, { tipo: 'mexeu' }).estado; seguindo.value = false; return; } if (!seguindo.peek()) return; seguindo.value = false; dizer({ tipo: 'soltou' }); }
     let apertado: { x: number; y: number } | null = null;
     const aoApertar = (e: PointerEvent) => { apertado = { x: e.clientX, y: e.clientY }; };
     const aoArrastar = (e: PointerEvent) => { if (apertado && Math.hypot(e.clientX - apertado.x, e.clientY - apertado.y) > 4) { soltarSeguimento(); apertado = null; } };
-    const aoSoltar = () => { apertado = null; };
+    const aoSoltar = (e?: PointerEvent) => { apertado = null; if (e) dedos.delete(e.pointerId); pinca = null; };
+    // Pinça (remoto): com dois dedos, o ponto entre eles e a distância movem e dão zoom na câmera local.
+    const dedos = new Map<number, { x: number; y: number }>();
+    let pinca: { dist: number; cam: Camera; mx: number; my: number } | null = null;
+    const aoApertarDedo = (e: PointerEvent) => { if (e.pointerType === 'touch') { dedos.set(e.pointerId, { x: e.clientX, y: e.clientY }); pinca = null; } };
+    const aoMoverDedo = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch' || !dedos.has(e.pointerId)) return;
+      dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (dedos.size !== 2 || !vp || !ref.current) return;
+      const [a, b] = [...dedos.values()] as [{ x: number; y: number }, { x: number; y: number }];
+      const r = ref.current.getBoundingClientRect(), mx = (a.x + b.x) / 2 - r.left, my = (a.y + b.y) / 2 - r.top, dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      if (!pinca) { pinca = { dist, cam: vp.camera, mx, my }; return; }
+      soltarSeguimento(); apertado = null;
+      const base = zoomEm(pinca.cam, [pinca.mx, pinca.my], dist / pinca.dist);   // o zoom em torno do ponto inicial, com os limites do editor
+      vp.definirCamera({ ...base, x: base.x + mx - pinca.mx, y: base.y + my - pinca.my });
+    };
     const hospedeiro = ref.current;
-    hospedeiro?.addEventListener('pointerdown', aoApertar); window.addEventListener('pointermove', aoArrastar); window.addEventListener('pointerup', aoSoltar); window.addEventListener('pointercancel', aoSoltar);
+    hospedeiro?.addEventListener('pointerdown', aoApertar); window.addEventListener('pointermove', aoArrastar);
+    if (remoto) { hospedeiro?.addEventListener('pointerdown', aoApertarDedo); window.addEventListener('pointermove', aoMoverDedo); } window.addEventListener('pointerup', aoSoltar); window.addEventListener('pointercancel', aoSoltar);
     // O botão de tela cheia some depois de 3 s sem mexer o mouse.
     let sumir: ReturnType<typeof setTimeout>;
     const mexeu = () => { botaoVisivel.value = true; clearTimeout(sumir); sumir = setTimeout(() => { botaoVisivel.value = false; }, 3000); };
@@ -184,8 +220,8 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
       sairTema(); vp?.destruir(); store?.dispor();
       window.removeEventListener('resize', aoRedimensionar); window.removeEventListener('pagehide', aoSair); window.removeEventListener('pointermove', mexeu);
       window.removeEventListener('wheel', aoRolarJanela, { capture: true });
-      hospedeiro?.removeEventListener('pointerdown', aoApertar); window.removeEventListener('pointermove', aoArrastar); window.removeEventListener('pointerup', aoSoltar); window.removeEventListener('pointercancel', aoSoltar);
-      vpAtual = null;
+      hospedeiro?.removeEventListener('pointerdown', aoApertar); hospedeiro?.removeEventListener('pointerdown', aoApertarDedo); window.removeEventListener('pointermove', aoMoverDedo); window.removeEventListener('pointermove', aoArrastar); window.removeEventListener('pointerup', aoSoltar); window.removeEventListener('pointercancel', aoSoltar);
+      vpAtual = null; seguirMestreRemoto = () => {};
       seguindo.value = true;
       versaoRetratos.value = 0;
       cortina.value = { escurecer: false, ms: 0 };
@@ -220,8 +256,8 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
           aoTerminar={() => { letreiroDoProjetor.value = null; }}
         />
       )}
-      {!seguindo.value && <button type="button" class={`projetor-seguir ${botaoVisivel.value ? '' : 'oculto'}`} data-testid="projetor-seguir"
-        onClick={() => { seguindo.value = true; zoomLocal = 1; if (caixaDoMestre) vpAtual?.enquadrarCaixa(caixaDoMestre, true); }}>Seguir o mestre</button>}
+      {!seguindo.value && <button type="button" class={`projetor-seguir${remoto ? ' remoto' : ` ${botaoVisivel.value ? '' : 'oculto'}`}`} data-testid="projetor-seguir"
+        onClick={() => { if (remoto) { seguirMestreRemoto(); return; } seguindo.value = true; zoomLocal = 1; if (caixaDoMestre) vpAtual?.enquadrarCaixa(caixaDoMestre, true); }}>Seguir o mestre</button>}
       {!remoto && <button type="button" class={`projetor-tela-cheia ${botaoVisivel.value ? '' : 'oculto'}`} aria-label="Tela cheia" title="Tela cheia" data-testid="projetor-tela-cheia"
         onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void document.documentElement.requestFullscreen?.(); }}><Icone nome="enquadrar" tamanho={20} /></button>}
     </main>
