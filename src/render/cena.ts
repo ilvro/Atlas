@@ -15,7 +15,7 @@ import { corDoNome, hexParaNumero } from './cores.ts';
 import { chaveDaEscarpa, chaveDoComodo, chaveDoObjeto, ehEscarpaAvulsa, entradaDaEscarpa, chaveDoTerreno, pedidoDoObjeto, contextoDeEntradas, entradaDoComodo, entradaDoTerreno, ladrilhosDoTerreno, opcoesDoPixel, resolucaoDe } from './entradas.ts';
 import { nivelDaLuz } from '../domain/clima.ts';
 import { tintDoRelevo } from '../domain/relevo.ts';
-import { carregarCatalogo, catalogoLido, usaTextura } from '../procedural/texturas-carregadas.ts';
+import { baseDasTexturas, carregarCatalogo, catalogoLido, usaTextura } from '../procedural/texturas-carregadas.ts';
 import { criarMapaDeLuz } from './mapa-de-luz.ts';
 import { criarCenaDeAltura } from './cena-de-altura.ts';
 import { criarComposicaoDeLuz } from './composicao-de-luz.ts';
@@ -250,10 +250,11 @@ export function criarCena(op: OpcoesDaCena): Cena {
         if (alvo.chave === chave) continue;
         const caixa = l.caixa;
         const resPrevia = Math.max(1, res / 4);
+        const baseTexturas = baseDasTexturas();
         const previa = estilo === 'illustrated' && !alvo.sprite
-          ? { chave: chaveDoTerreno(l.entrada, resPrevia, estilo), pedido: { tipo: 'terreno' as const, entrada: l.entrada, res: resPrevia, estilo } }
+          ? { chave: chaveDoTerreno(l.entrada, resPrevia, estilo), pedido: { tipo: 'terreno' as const, entrada: l.entrada, res: resPrevia, estilo, baseTexturas } }
           : undefined;
-        pintar(alvo, chave, { tipo: 'terreno', entrada: l.entrada, res, estilo }, (s, r) => {
+        pintar(alvo, chave, { tipo: 'terreno', entrada: l.entrada, res, estilo, baseTexturas }, (s, r) => {
           s.position.set(r.origem[0], r.origem[1]);
           s.scale.set(1 / r.res);
           cenaDeAltura.sincronizarLadrilhoTerreno(k, alvo!.texAltura, r.origem, r.res);

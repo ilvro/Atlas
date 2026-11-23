@@ -20,7 +20,7 @@ export type PedidoDeBake =
   /** A folha de quadros de um personagem (96 × 96 px, `res` 1). */
   | { tipo: 'sprite'; spec: SpriteDaPeca }
   | { tipo: 'comodo'; entrada: EntradaDoComodo; res: number; estilo: IdDoEstilo }
-  | { tipo: 'terreno'; entrada: EntradaDeTerreno; res: number; estilo: IdDoEstilo }
+  | { tipo: 'terreno'; entrada: EntradaDeTerreno; res: number; estilo: IdDoEstilo; baseTexturas?: string }
   /** Uma escarpa avulsa (parede `cliff` sem origem): a face de rocha do lado baixo. */
   | { tipo: 'escarpa'; entrada: EntradaDeEscarpa; res: number; estilo: IdDoEstilo }
   /** O ladrilho periódico de uma cobertura de telhado (2 × 2 m, queda para +y); no Pixel, a `res` do mapa. */
@@ -55,7 +55,7 @@ export async function executarBake(p: PedidoDeBake): Promise<ResultadoDeBake> {
     return paraBitmap({ tela: copia, origem: [0, 0], res: tela.width / metros });
   }
   const estilo = estiloDe(p.estilo);
-  if (p.tipo === 'terreno' && p.estilo === 'illustrated') await garantirTexturas(texturasDoTerreno(p.entrada));   // não rejeita: sem textura o pintor usa o `padrao`
+  if (p.tipo === 'terreno' && p.estilo === 'illustrated') await garantirTexturas(texturasDoTerreno(p.entrada), p.baseTexturas);   // não rejeita: sem textura o pintor usa o `padrao`
   if (p.tipo === 'detalhe-de-telhado') return paraBitmap(assarDescricao(descricaoDoDetalhe(p.detalhe, { cobertura: p.cobertura, semente: p.seed }), p.seed, p.res, estilo, p.pixel));
   if (p.tipo === 'gerado') return paraBitmap(await assarGerado(p, estilo));
   const a: Assado =

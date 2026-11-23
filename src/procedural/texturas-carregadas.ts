@@ -6,7 +6,13 @@ import { materialDe } from './materiais.ts';
 import { validarCatalogo, type CatalogoDeTexturas } from './texturas.ts';
 import type { Pixels } from './textura-de-terreno.ts';
 
-const BASE_PADRAO = '/colecao/texturas/';
+/** Base das texturas da coleção, respeitando subcaminhos (Discord Activity `/.proxy/Atlas/`, GitHub Pages). Fora do navegador (testes sem `location`), devolve `/colecao/texturas/`. */
+export function baseDasTexturas(): string {
+  const base = (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL;
+  if (typeof location === 'undefined') return `${base ?? '/'}colecao/texturas/`;
+  return new URL(`${base ?? './'}colecao/texturas/`, location.href).href;
+}
+
 const carregadas = new Map<string, Pixels>(), deslocamentos = new Map<string, Pixels>(), metros = new Map<string, number>();
 const pendentes = new Map<string, Promise<void>>();
 let catalogo: CatalogoDeTexturas | null = null, promessaDoCatalogo: Promise<CatalogoDeTexturas | null> | null = null, hash = '';
@@ -33,7 +39,7 @@ export const hashDasTexturas = (): string => hash;
 export const catalogoLido = (): boolean => promessaDoCatalogo !== null && (catalogo !== null || hash === 'indisponivel');
 
 /** Busca o catálogo uma vez. Falha de rede ou de formato só avisa no console e devolve `null` (hash 'indisponivel'). */
-export function carregarCatalogo(base = BASE_PADRAO): Promise<CatalogoDeTexturas | null> {
+export function carregarCatalogo(base = baseDasTexturas()): Promise<CatalogoDeTexturas | null> {
   promessaDoCatalogo ??= (async () => {
     try {
       const r = await fetch(`${base}texturas.json`);
@@ -56,7 +62,7 @@ async function carregarUma(url: string): Promise<Pixels> {
 }
 
 /** Carrega as texturas pedidas (se faltam). Nunca rejeita: falha só avisa no console e o pintor cai no `padrao`. */
-export async function garantirTexturas(ids: readonly string[], base = BASE_PADRAO): Promise<void> {
+export async function garantirTexturas(ids: readonly string[], base = baseDasTexturas()): Promise<void> {
   const faltam = ids.filter(id => !carregadas.has(id));
   if (!faltam.length) return;
   try {
