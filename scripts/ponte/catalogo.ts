@@ -73,7 +73,7 @@ export interface IrmaoDoCatalogo {
 }
 
 /** Contexto falso: só nome, descrição, esquema e anotações importam, então nenhuma ferramenta é executada. */
-const subcontextos = ['repositorio', 'sessoes', 'entidades', 'campanhas', 'cenas', 'elenco'];
+const subcontextos = ['repositorio', 'sessoes', 'entidades', 'campanhas', 'cenas', 'elenco', 'quadros'];
 
 export const IRMAOS_DO_CATALOGO: IrmaoDoCatalogo[] = [
   { app: 'mesa', pasta: 'Mesa', modulo: 'src/app/ponte-ferramentas.ts', montar: m => m.ferramentasDaMesa(Object.fromEntries(subcontextos.map(k => [k, {}]))) },
@@ -165,6 +165,10 @@ export function gerarCatalogoBase(
     for (const item of lerLista(caminhoDestino)) if (!jaTem.has(item?.app)) adicionar(item, 'catálogo atual');
   }
 
+  // O código vale mais que o cache e o catálogo antigo: uma ferramenta com o mesmo nome vinda de lá sai
+  // (por exemplo, as `campanha_*` do mesa-core, que o catálogo antigo guardava como do Atlas).
+  const nomesDoCodigo = new Set(ferramentasDoCodigo.map(f => f.nome));
+  for (let i = itens.length - 1; i >= 0; i--) if (nomesDoCodigo.has(itens[i]!.nome)) itens.splice(i, 1);
   for (const f of ferramentasDoCodigo) {
     appsPresentes.add(f.app);
     itens.push({ ...f });
