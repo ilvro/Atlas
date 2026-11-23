@@ -233,7 +233,13 @@ function fecharCopia(copia: ResultadoComExtras): void {
 /** Quantas falhas seguidas de worker o baker tolera antes de ficar quebrado. */
 export const MAX_FALHAS_DE_WORKER = 3;
 
-export function criarBaker(opcoes: { workers?: number; cache?: CacheDeAssados | null } = {}): Baker {
+/** Workers de baker encerrado que o próximo viewport reaproveita em vez de subir threads novas. */
+const workersOciosos: Worker[] = [];
+const MAX_WORKERS_OCIOSOS = 6;
+/** Contador de pedidos entre todos os bakers: um worker reaproveitado pode ainda responder um id antigo, que não pode colidir com um novo. */
+let proximoGlobal = 0;
+
+export function criarBaker(opcoes: { workers?: number; cache?: CacheDeAssados | null; reaproveitarWorkers?: boolean } = {}): Baker {
   const usarWorker = typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined';
   const padrao = Math.max(2, Math.min(6, (navigator.hardwareConcurrency || 3) - 1));
   const n = usarWorker ? Math.max(1, opcoes.workers ?? padrao) : 0;
@@ -245,7 +251,6 @@ export function criarBaker(opcoes: { workers?: number; cache?: CacheDeAssados | 
         : null;
   const workers: (Worker | null)[] = new Array<Worker | null>(n).fill(null);
   const esperando = new Map<number, { ok: (r: ResultadoDeBake) => void; erro: (e: Error) => void; tipo: PedidoDeBake['tipo']; indice: number }>();
-  let proximo = 0;
   let encerrado = false;
   /** Falhas seguidas de worker (zera quando um worker responde). Na `MAX_FALHAS_DE_WORKER`-ésima o baker fica quebrado. */
   let falhasSeguidas = 0;
@@ -271,7 +276,7 @@ export function criarBaker(opcoes: { workers?: number; cache?: CacheDeAssados | 
   function garantirWorker(indice: number): Worker {
     let w = workers[indice];
     if (!w) {
-      w = new Worker(new URL('./bake.worker.ts', import.meta.url), { type: 'module' });
+      w = (opcoes.reaproveitarWorkers && workersOciosos.pop()) || new Worker(new URL('./bake.worker.ts', import.meta.url), { type: 'module' });
       const criado = w;
       w.onerror = (e: ErrorEvent) => workerFalhou(indice, criado, e.message || 'erro ao carregar o worker');
       w.onmessageerror = () => workerFalhou(indice, criado, 'mensagem ilegível');
@@ -297,7 +302,7 @@ export function criarBaker(opcoes: { workers?: number; cache?: CacheDeAssados | 
     ? Array.from({ length: n }, (_, i) => (pedido: PedidoDeBake, chave: string) => {
         if (quebrado) return Promise.reject(new Error('O worker de pintura quebrou; recarregue a página.'));
         const w = garantirWorker(i);
-        const id = ++proximo;
+        const id = ++proximoGlobal;
         return new Promise<ResultadoDeBake>((ok, erro) => {
           esperando.set(id, { ok, erro, tipo: pedido.tipo, indice: i });
           w.postMessage({
@@ -347,7 +352,11 @@ export function criarBaker(opcoes: { workers?: number; cache?: CacheDeAssados | 
     encerrar() {
       encerrado = true;
       fila.encerrar();
-      for (const w of workers) w?.terminate();
+      for (const w of workers) {
+        if (!w) continue;
+        if (opcoes.reaproveitarWorkers && workersOciosos.length < MAX_WORKERS_OCIOSOS) { w.onmessage = w.onerror = w.onmessageerror = null; workersOciosos.push(w); }
+        else w.terminate();
+      }
       workers.length = 0;
       for (const espera of esperando.values()) espera.erro(new Error('Baker encerrado.'));
       esperando.clear();
