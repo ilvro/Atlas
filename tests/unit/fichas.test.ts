@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { chaveDaRef, criarBarramento, criarRef, type CanalLike, type Entidade } from '#mesa';
 import { emEstadoCritico, fracao, interpretarAjusteDeRecurso, pipsCheios, recursosParaOProjetor, refDaFicha, temPd, textoDeRecursos, tomDaRolagem, type Recursos } from '../../src/domain/fichas.ts';
 import { signal } from '@preact/signals';
-import { adicionarPersonagem, ajustarRecursos, ajustarRecursosDaPeca, ameacasComFicha, extrairNumeroDoToken, iniciarFichas, aoRolar, pecaDaFicha, personagensComFicha, personagensDoElenco, proximoNomeDeAmeaca, recursosDaPeca, recursosDasFichas } from '../../src/app/fichas.ts';
+import { adicionarPersonagem, ajustarRecursos, ajustarRecursosDaPeca, ameacasComFicha, extrairNumeroDoToken, iniciarFichas, aoRolar, mesclarPersonagensDaSala, pecaDaFicha, personagensComFicha, personagensDoElenco, proximoNomeDeAmeaca, recursosDaPeca, recursosDasFichas } from '../../src/app/fichas.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { novaPeca } from '../../src/domain/fabrica.ts';
 
@@ -247,4 +247,35 @@ test('personagensDoElenco: com elenco, sem elenco, com ID órfão e na ordem do 
     personagensDoElenco(todas, { elenco: ['p2', 'orfao', 'p4', 'a1', 'p1', 'p2'] }).map(e => e.id),
     ['p2', 'p1'],
   );
+});
+
+test('mesclarPersonagensDaSala: identifica jogador que escolheu ou é dono e inclui fichas novas da sala', () => {
+  const mk = (id: string, nome: string, fichaId: string): Entidade => ({
+    ...baseE,
+    id,
+    tipo: 'personagem',
+    nome,
+    refs: [criarRef('ficha', 'ficha', fichaId)],
+  });
+  const local = mk('e1', 'Muirenn', 'f-local');
+  const entregue = mk('e2', 'Rowan', 'f-rowan');
+
+  const res = mesclarPersonagensDaSala([local, entregue], {
+    eu: { discordId: '1', nome: 'Mestre' },
+    fichas: [
+      { id: 'f-rowan', name: 'Rowan' },
+      { id: 'f-sala', name: 'Muirenn da Lua Pálida' },
+      { id: 'f-mestre', name: 'NPC' },
+    ],
+    donos: { 'f-rowan': '2', 'f-sala': '3', 'f-mestre': '1' },
+    membros: [
+      { discordId: '1', nome: 'Mestre', papel: 'mestre', personagem: null },
+      { discordId: '3', nome: 'Cildum', papel: 'jogador', personagem: 'f-sala' },
+    ],
+    nomes: { '2': 'Ana', '3': 'Cildum' },
+  }, 'camp-1');
+
+  assert.deepEqual(res.donosPorFicha, { 'f-sala': 'Cildum', 'f-rowan': 'Ana' });
+  assert.deepEqual(res.lista.map(e => `${e.id}:${e.nome}`), ['sala:f-sala:Muirenn da Lua Pálida', 'e1:Muirenn', 'e2:Rowan']);
+  assert.deepEqual(res.lista[0]?.tags, ['dono:Cildum']);
 });

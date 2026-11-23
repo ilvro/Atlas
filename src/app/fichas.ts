@@ -106,6 +106,73 @@ export function personagensDoElenco(
   return resultado;
 }
 
+export interface RespostaSalaFichas {
+  eu?: { discordId: string; nome?: string };
+  fichas?: Array<{ id: string; name?: unknown }>;
+  donos?: Record<string, string>;
+  membros?: Array<{ discordId: string; nome: string; papel: string; personagem?: string | null }>;
+  nomes?: Record<string, string>;
+}
+
+/**
+ * Cruza os personagens locais com o estado vivo da sala (`sala.fichas`):
+ * devolve `donosPorFicha` (`fichaId -> nome do jogador`, priorizando quem escolheu a ficha no saguão)
+ * e acrescenta no topo da lista as fichas de jogadores da sala que ainda não existam na campanha local.
+ */
+export function mesclarPersonagensDaSala(
+  entidades: readonly Entidade[],
+  sala: RespostaSalaFichas | null | undefined,
+  campanhaId: string,
+): { lista: Entidade[]; donosPorFicha: Record<string, string> } {
+  const donosPorFicha: Record<string, string> = {};
+  if (!sala) return { lista: [...entidades], donosPorFicha };
+
+  const euId = sala.eu?.discordId;
+  const membros = sala.membros ?? [];
+  const nomes = sala.nomes ?? {};
+  const donos = sala.donos ?? {};
+
+  for (const m of membros) {
+    if (m.papel === 'jogador' && m.personagem && m.discordId !== euId && m.nome) {
+      donosPorFicha[m.personagem] = m.nome;
+    }
+  }
+  for (const [fichaId, discordId] of Object.entries(donos)) {
+    if (donosPorFicha[fichaId] || !discordId || (euId && discordId === euId)) continue;
+    const nome = nomes[discordId] ?? membros.find(m => m.discordId === discordId)?.nome;
+    if (nome) donosPorFicha[fichaId] = nome;
+  }
+
+  const existentesPorFichaId = new Set<string>();
+  for (const e of entidades) {
+    const ref = refDaFicha(e.refs);
+    if (ref) existentesPorFichaId.add(ref.id);
+  }
+
+  const extras: Entidade[] = [];
+  for (const f of sala.fichas ?? []) {
+    if (!f?.id || existentesPorFichaId.has(f.id)) continue;
+    const donoNome = donosPorFicha[f.id];
+    if (!donoNome) continue;
+    existentesPorFichaId.add(f.id);
+    const nome = typeof f.name === 'string' && f.name.trim() ? f.name.trim() : 'Sem nome';
+    extras.push({
+      id: `sala:${f.id}`,
+      campanhaId,
+      tipo: 'personagem',
+      nome,
+      refs: [criarRef('ficha', 'ficha', f.id)],
+      tags: [`dono:${donoNome}`],
+      notas: '',
+      criadaPor: 'ficha',
+      criadaEm: 0,
+      atualizadaEm: 0,
+    });
+  }
+
+  return { lista: [...extras, ...entidades], donosPorFicha };
+}
+
 /** Abre a Mesa pelo manifesto na tela de campanhas para escolher o elenco. */
 export async function abrirMesa(): Promise<'aba' | 'falhou'> {
   try {
