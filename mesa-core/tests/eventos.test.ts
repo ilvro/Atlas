@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { criarBarramento, criarRef, validarEvento, CONTRATO, type Barramento, type Evento } from '../src/index.ts';
+import { criarBarramento, CATALOGO, criarRef, validarEvento, CONTRATO, type Barramento, type Evento } from '../src/index.ts';
 
 const ficha = criarRef('ficha', 'ficha', 's1'), mapa = criarRef('atlas', 'mapa', 'm1');
 const base = (extra: Partial<Evento> & Record<string, unknown> = {}) => ({ contrato: CONTRATO, app: 'ficha', tipo: 'ficha.rolagem', id: 'e1', em: 1, campanhaId: null, dados: { ficha, titulo: 'Luta', total: 14 }, ...extra });
@@ -322,6 +322,17 @@ test('jukebox.mix, jukebox.efeito-tocado e jukebox.arquivo', async () => {
   assert.equal(arquivo({ faixaId: '' }), false);
   assert.equal(arquivo({}), false);
   assert.equal(arquivo({ faixaId: 7 }), false);
+});
+
+test('jukebox.ouvir', () => {
+  const ouvir = (dados: unknown, app: Evento['app'] = 'mesa') => validarEvento(base({ app, tipo: 'jukebox.ouvir', dados })).ok;
+  assert.equal(ouvir({ ligado: true }), true);
+  assert.equal(ouvir({ ligado: false }), true);
+  assert.equal(ouvir({}), false);
+  assert.equal(ouvir({ ligado: 1 }), false);
+  assert.equal(ouvir({ ligado: 'true' }), false);
+  assert.equal(CATALOGO['jukebox.ouvir']?.natureza, 'pedido');
+  assert.equal(CATALOGO['jukebox.ouvir']?.dono, 'jukebox');
 });
 
 test('a resposta de jukebox.arquivo, com um Blob, passa pela validação do envelope', () => {
