@@ -579,16 +579,52 @@ test('projetor remoto: só o canal da sala, e só diz "ola"', async () => {
   for (const tipo of ['tamanho', 'soltou', 'tchau']) { assert.equal(projetorPodeDizer({ tipo }, true), false); assert.equal(projetorPodeDizer({ tipo }, false), true); }
 });
 
-test('projetor remoto: o cômodo sem nome (não revelado) ganha um nome neutro e o mapa passa em validarMapa', async () => {
-  const { prepararDocRemoto } = await import('../../src/app/projetor.ts');
-  const { criarMapa } = await import('../../src/domain/mapa.ts');
+test('projetor remoto: o cômodo não revelado já sai com nome neutro e a projeção remota passa em validarMapa', async () => {
+  const { projetarParaRemoto } = await import('../../src/domain/projecao-remota.ts');
   const { validarMapa } = await import('../../src/domain/validacao.ts');
+  const { codificar } = await import('../../src/domain/celulas.ts');
   const m = criarMapa({ id: 'm', nome: 'Mapa' });
-  const comodo = { id: 'A', name: '', function: null, cells: [], floor: { material: 'tabuas.carvalho', seed: 1 }, wallpaper: null, wallStyle: null, palette: null, roof: { material: null, visible: true }, levelId: null };
-  const doc = { ...m, rooms: { A: comodo as never } };
-  assert.throws(() => validarMapa(doc));
-  const pronto = prepararDocRemoto(doc);
-  assert.doesNotThrow(() => validarMapa(pronto));
-  assert.equal(pronto.rooms.A!.name.length > 0, true);
-  assert.equal(prepararDocRemoto(m), m, 'sem cômodo vazio, devolve o mesmo objeto');
+  m.rooms.A = { id: 'A', name: 'Cofre secreto', function: 'sala', cells: codificar([[2, 2], [3, 2]]), floor: { material: 'tabuas.carvalho', seed: 1 }, wallpaper: null, wallStyle: null, palette: null, roof: { material: null, visible: true }, levelId: null } as never;
+  m.session.explored = { res: 0.5, cells: Array.from({ length: 20 }, (_, y) => [y, 0, 40] as [number, number, number]) };
+  const p = projetarParaRemoto(m);
+  assert.equal(p.rooms.A!.name, 'Cômodo');
+  assert.doesNotThrow(() => validarMapa(p));
+});
+
+test('publicador: o destino remoto recebe a câmera no aspecto do ola remoto e ela segue a peça', async () => {
+  const mapa = criarMapa({ id: 'mapa-pub-remoto-camera', nome: 'Arena' });
+  mapa.session.explored = { res: 0.5, cells: [[0, 0, 60]] };
+  const sess = criarSessao(mapa, criarRepoMock({ [mapa.id]: mapa }), { salvo: true });
+  sess.store.executar({ tipo: 'item.adicionar', colecao: 'tokens', item: { id: 'heroi', name: 'Herói', position: [4.5, 4.5], size: 1, facing: 'down', portrait: null, sprite: null, player: true, vision: { radius: 6, dark: false }, lightId: null, figure: { state: 'normal' }, refs: [], hp: null } });
+  seguirJogadores.value = true;
+  const pub = iniciarPublicacao(sess, async () => null);
+  const remoto = new BroadcastChannel(CANAL_PROJETOR_REMOTO);
+  const msgs: any[] = [];
+  remoto.onmessage = e => msgs.push(e.data);
+  const camera = () => msgs.filter(m => m.tipo === 'camera').at(-1);
+  try {
+    remoto.postMessage({ tipo: 'ola', largura: 1000, altura: 500, remoto: true, _seq: 1 });
+    await esperar(60);
+    let c = camera();
+    assert.ok(c, 'a câmera chega ao remoto');
+    assert.equal(c.seguir, true);
+    assert.ok(Math.abs((c.caixa.x1 - c.caixa.x0) / (c.caixa.y1 - c.caixa.y0) - 2) < 0.01, 'no aspecto do ola remoto (2:1)');
+    assert.ok(Math.abs((c.caixa.x0 + c.caixa.x1) / 2 - 4.5) < 0.01);
+
+    msgs.length = 0;
+    sess.store.executar({ tipo: 'peca.mover', id: 'heroi', para: [20, 10], livre: true });
+    await esperar(150);
+    c = camera();
+    assert.ok(c, 'mover a peça manda a câmera nova ao remoto');
+    assert.ok(Math.abs((c.caixa.x0 + c.caixa.x1) / 2 - 20.25) < 1, 'centrada na peça nova');
+
+    msgs.length = 0;
+    remoto.postMessage({ tipo: 'tamanho', largura: 500, altura: 1000, _seq: 2 });
+    await esperar(60);
+    c = camera();
+    assert.ok(Math.abs((c.caixa.x1 - c.caixa.x0) / (c.caixa.y1 - c.caixa.y0) - 0.5) < 0.01, 'o tamanho novo refaz a câmera');
+  } finally {
+    seguirJogadores.value = false;
+    pub.parar(); remoto.close(); sess.fechar();
+  }
 });
