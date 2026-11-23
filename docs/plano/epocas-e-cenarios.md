@@ -237,7 +237,7 @@ Nota: desvios e motor. O `brilho` da água deixou de significar lava: o campo `l
 
 Os materiais seguem o padrão de `materiais.ts` (uso `piso`, `papel` ou `telhado`). Telhados passam pelo `assar-telhado.ts` e pelas coberturas da Frente N.
 
-### Q10 — Antiguidade, Oriente e deserto  ⬜ **[Opus]**
+### Q10 — Antiguidade, Oriente e deserto  ✅ **[Opus]**
 Objetivo: os materiais das três épocas mais distantes do acervo atual.
 Arquivos: `materiais.ts`, `coberturas.ts` (se o telhado pedir relevo próprio).
 Como:
@@ -246,6 +246,7 @@ Como:
 - telhados: `telha.imbrex` (romana), `telha.curva.cinza` (oriental), `terraco.barro` (laje plana de barro com parapeito).
 Pronto quando: a prancha de materiais mostra os três estilos lado a lado e cada um se reconhece sem legenda.
 Commit: `added ancient, eastern and desert floors, walls and roofs`
+Nota: pintores novos: `mosaico` (grade preta com rosetas sobre tesselas), `medalhao` (centrado no cômodo: moldura em meandro e medalhão em faixas com roseta de 8 pétalas), `tatami`, `zellige` (estrelas de 8 pontas), `pompeiano`, `hieroglifos`, `shoji` e `taipa`. Reaproveitados: terracota em `xadrez` (que ganhou rejunte opcional por `borda`), arenito em `lajes-rusticas` e `laje`, tábuas laqueadas em `tabuas`, madeira laqueada em `lambri`, adobe em `manchado`. Cobertura nova `imbrex` (tégula chata com aba e ímbrice redondo na junta); a telha curva cinza usa a `telha-esmaltada`; o terraço de barro é `concreto-laje` com forma `plano` (a capa `platibanda` faz o parapeito). Cenas de teste: oito cômodos (piso e parede de cada época) e três casas (romana em duas águas, cinza em pagode, terraço).
 
 ### Q11 — Colonial, faroeste e vitoriano  ⬜ **[Opus]**
 Como:
@@ -407,6 +408,10 @@ Mantida ao longo da frente. Cada ficha registra aqui o que ficou de fora ou o qu
 | Q9 | Água com borda reta mostra um anel claro de reflexo do sol. | O especular da superfície é forte onde a borda inclina a normal. | Atenuar o especular na zona da margem; observar nos mapas reais, onde a borda é irregular. |
 | Q9 | No máximo 4 camadas de água animadas por mapa (a lava não conta). | Limite do shader (`MAX_CAMADAS_DE_AGUA`). | Uniformes em textura, se algum mapa precisar de mais. |
 | ~~Q4~~ | ~~A espuma de todas as águas tinha a cor da primeira camada (com lava, amarela)~~ | | Resolvido na Q9: espuma por camada. |
+| Q10 | Os hieróglifos (e qualquer desenho miúdo de parede) viram pontinhos na face da parede. | A face é achatada (~0,24) e estreita na vista de cima. | Sinais maiores ou um painel de parede em objeto (`painel-de-hieroglifos`, já previsto na Q15a). |
+| Q10 | As tesselas do mosaico mal aparecem; o que lê são os motivos. | O piso de cômodo é assado a 64 px/m (tessela de 5 cm ≈ 3 px). | Subir a resolução de pisos de mosaico, se a cena pedir de perto. |
+| Q10 | A forma `pagode` vista de cima parece um quatro-águas: as pontas erguidas não aparecem. | O telhado é desenhado em planta. | Pontas viradas e cumeeira curva desenhadas na forma (Q16, kit oriental). |
+| Q10 | O terraço de barro mostra juntas de placa. | Reaproveita a cobertura `concreto-laje`. | Uma cobertura de barro lisa, com rachaduras, se destoar. |
 | ~~Q2b~~ | ~~Os seletores cortavam o texto ("Deste mapa (Inv…")~~ | | Resolvido: os seletores ficam um embaixo do outro, cada um na largura toda. |
 | ~~Q2c~~ | ~~O aviso do baker falava em "miniaturas" mesmo quando era o mapa~~ | | Resolvido: o texto agora vale para os dois. |
 | ~~Q7~~ | ~~Uma camada de sulcos ou dunas tinha uma direção só (talhões diferentes saíam na média)~~ | | Resolvido: cada parte conectada da camada ganha a própria direção (`componentesDeFaixas`). |

@@ -123,6 +123,7 @@ function mixRgb(
 function amplitudeRelevo(padrao: PadraoDeCobertura): number {
   switch (padrao) {
     case 'telha-canal':
+    case 'imbrex':
     case 'telha-esmaltada':
     case 'bambu':
     case 'ondulado':
