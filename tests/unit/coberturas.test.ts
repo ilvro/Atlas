@@ -32,8 +32,8 @@ function diferenca(l: LadrilhoDeCobertura, a: number, b: number, eixo: 'x' | 'y'
   return soma / (l.lado * 3);
 }
 
-test('há 33 coberturas, todas com padrão de cobertura, capa de cumeeira e suporte no Pixel e fora de PADROES_DEPENDENTES_DE_AREA', () => {
-  assert.equal(COBERTURAS.length, 33);
+test('há 35 coberturas, todas com padrão de cobertura, capa de cumeeira e suporte no Pixel e fora de PADROES_DEPENDENTES_DE_AREA', () => {
+  assert.equal(COBERTURAS.length, 35);
   for (const m of COBERTURAS) {
     assert.ok(ehPadraoDeCobertura(m.padrao), `${m.id} tem padrão ${m.padrao}`);
     assert.equal(padraoDependeDaArea(m.padrao), false, `${m.id} (${m.padrao}) não deve depender de área`);
@@ -145,6 +145,7 @@ test('duas peças vizinhas têm id diferente e pontos dentro da mesma peça mant
   const passos: Record<string, [number, number]> = {
     'telha-canal': [0.25, 0.4],
     imbrex: [0.52, 0.55],
+    rebitada: [0.6, 0.45],
     escamas: [0.25, 0.22],
     ardosia: [0.25, 0.2],
     palha: [0.35, 0.5],

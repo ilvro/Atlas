@@ -28,6 +28,7 @@ export const PADROES_DE_COBERTURA = [
   'telha-francesa',
   'telha-esmaltada',
   'chapa-com-junta',
+  'rebitada',
   'fibrocimento',
   'bambu',
   'couro-telhado',
@@ -73,6 +74,7 @@ export const CAPA_DA_COBERTURA: Readonly<Record<PadraoDeCobertura, CapaDeCumeeir
   ondulado: 'chapa-dobrada',
   cobre: 'chapa-dobrada',
   'chapa-com-junta': 'chapa-dobrada',
+  rebitada: 'chapa-dobrada',
   fibrocimento: 'fibrocimento',
   bambu: 'bambu',
   'couro-telhado': 'couro',
@@ -975,6 +977,27 @@ const AMOSTRADORES: Record<PadraoDeCobertura, AmostradorInterno> = {
    * Chapa metálica com junta em pé (standing seam): painéis largos planos de 50 cm com duas micro-nervuras
    * de reforço, juntas em pé altas e nítidas, emendas horizontais desencontradas com rebites e ferrugem sutil.
    */
+  /**
+   * Chapa rebitada (vitoriano e steampunk): placas de 0,6 × 0,45 m em fiadas desencontradas, a de cima sobre a de baixo, com uma fileira
+   * de rebites na borda de baixo e nas laterais de cada placa; o metal varia de placa para placa.
+   */
+  rebitada: (x, y, s, o, per) => {
+    const pw = 0.6, ph = 0.45, jRaw = Math.floor(y / ph), off = md(jRaw, 2) * 0.5, iRaw = Math.floor(x / pw - off);
+    const i = per ? md(iRaw, 3) : iRaw, j = per ? md(jRaw, 4) : jRaw, u = x / pw - off - iRaw, v = y / ph - jRaw, id = idPeca(i, j, 0);
+    const tomPeca = (hashDaPeca(id, s + 17) - 0.5) * 0.24, borda = Math.min(u, 1 - u);
+    let h = 0.3 + 0.1 * v, t = 0.48 + tomPeca - (v > 0.93 ? 0.25 : 0) - (borda < 0.02 ? 0.18 : 0);
+    if (v > 0.93) h = 0.08;
+    // Rebites: a cada 0,1 m na borda de baixo (v ≈ 0,86) e nas laterais (u ≈ 0,05 e 0,95).
+    const ru = (u * pw) / 0.1, rv = (v * ph) / 0.1, dBaixo = Math.hypot(ru - Math.round(ru), (v - 0.86) * ph / 0.1), dLado = Math.hypot((Math.min(u, 1 - u) - 0.05) * pw / 0.1, rv - Math.round(rv));
+    const rebite = Math.min(dBaixo, dLado) < 0.18;
+    if (rebite) { h += 0.12; t += 0.18; }
+    const grao = fb(x, y, 20, 20, s + 3, per);
+    o.t = t + (grao - 0.5) * 0.1;
+    o.m = fb(x, y, 5, 5, s + 7, per) * 0.7 + 0.15 * v + (rebite ? 0.15 : 0);
+    o.h = lim(h + (grao - 0.5) * 0.02);
+    o.id = id;
+  },
+
   'chapa-com-junta': (x, y, s, o, per) => {
     const pan = 0.5, rh = 1.0;
     const iRaw = Math.floor(x / pan), u = x / pan - iRaw;

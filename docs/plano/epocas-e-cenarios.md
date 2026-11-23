@@ -248,13 +248,14 @@ Pronto quando: a prancha de materiais mostra os três estilos lado a lado e cada
 Commit: `added ancient, eastern and desert floors, walls and roofs`
 Nota: pintores novos: `mosaico` (grade preta com rosetas sobre tesselas), `medalhao` (centrado no cômodo: moldura em meandro e medalhão em faixas com roseta de 8 pétalas), `tatami`, `zellige` (estrelas de 8 pontas), `pompeiano`, `hieroglifos`, `shoji` e `taipa`. Reaproveitados: terracota em `xadrez` (que ganhou rejunte opcional por `borda`), arenito em `lajes-rusticas` e `laje`, tábuas laqueadas em `tabuas`, madeira laqueada em `lambri`, adobe em `manchado`. Cobertura nova `imbrex` (tégula chata com aba e ímbrice redondo na junta); a telha curva cinza usa a `telha-esmaltada`; o terraço de barro é `concreto-laje` com forma `plano` (a capa `platibanda` faz o parapeito). Cenas de teste: oito cômodos (piso e parede de cada época) e três casas (romana em duas águas, cinza em pagode, terraço).
 
-### Q11 — Colonial, faroeste e vitoriano  ⬜ **[Opus]**
+### Q11 — Colonial, faroeste e vitoriano  ✅ **[Opus]**
 Como:
 - pisos: `conves` (tábuas longas com calafeto e cavilhas), `tijoleira`, `tabuas.gastas`, `ladrilho.hidraulico`;
 - paredes: `caiado`, `enxaimel`, `tabuas.descascadas`, `tijolo.fuligem`, `azulejo.portugues`;
 - telhados: `telha.capa-canal`, `chapa.rebitada`.
 Pronto quando: a prancha mostra os três estilos lado a lado e cada um se reconhece sem legenda.
 Commit: `added colonial, frontier and victorian floors, walls and roofs`
+Nota: pintores novos: `conves` (pranchas de 4 a 6 m, calafeto de breu, cavilhas nas emendas), `hidraulico` (peças de 25 cm espelhadas formando rosáceas), `enxaimel`, `descascado` (tinta saindo em placas, mais gasta no pé) e `azulejo`. Reaproveitados: tijoleira em `espinha`, tábuas gastas em `tabuas`, caiado em `manchado`, tijolo com fuligem em `laje`, telha colonial em `telha-canal`, com manchas escuras. Cobertura nova `rebitada` (placas desencontradas com rebites, usada também no steampunk). A ficha previa `telha.capa-canal` e `chapa.rebitada`, e os dois ids foram mantidos. Cenas de teste: oito cômodos e três casas.
 
 ### Q12 — Pós-apocalíptico e cyberpunk  ⬜ **[Opus]**
 Depende de: Q4 (néon).
