@@ -369,7 +369,7 @@ Pronto quando: o Dossiê funciona igual no navegador e no app de desktop.
 Commit: `extrair o armazenamento das fichas` (em português, no estilo do Dossiê)
 Nota: feita (Dossiê `5eecb4e`). As pastas continuam no `app.js`, usando o `idbGet`/`idbSet` exportados pelo armazenamento. `forcar` não muda nada no local, e `aoMudarFora` é vazio no local.
 
-### R11 — Dossiê em modo jogador  ⬜
+### R11 — Dossiê em modo jogador  ✅
 Objetivo: dentro da casca, o Dossiê mostra e grava só as fichas do jogador, na sala.
 Depende de: R10 e R7.
 Ler: `armazenamento.js`, `mesa.js` e a barra lateral (`nav-rail`, pastas, compêndio, ameaças, licença do bestiário) e as vistas (`viewMode`, `presentationMode`) em `app.js`.
@@ -386,6 +386,15 @@ Não fazer: o lado do mestre (R13).
 Testes: o adaptador da sala com um barramento falso, cobrindo carga, gravação com `debounce` e atualização vinda de fora.
 Pronto quando: na casca, o jogador cria uma ficha, recarrega a página e ela continua lá.
 Commit: `modo jogador do dossiê com fichas na sala`
+Nota: feita (Dossiê `fcf5580`, Mesa `a77b1fd`).
+- `armazenamentoSala` grava só as fichas alteradas, com 800 ms de espera (na hora no `pagehide`), e repete uma vez em 2 s.
+- A casca atende `sala.fichas` e `sala.salvar-ficha` no canal prefixado e reemite `ficha.atualizada` como `sala.ficha-atualizada`.
+- O modo jogador esconde pastas, ameaças, compêndio da barra, bestiário e "Levar/Tirar da campanha". `?vista=card` liga o `data-compacto`, e o `postMessage` `dossie.vista` só é aceito do pai.
+- Achados:
+  1. A sala não carimba `autor` na `ficha.atualizada`, e a casca deduz (vai para a R13).
+  2. Uma rolagem de ficha ainda não gravada na sala é recusada (vai para a R12).
+  3. O Dossiê avulso com `?sala=` sem a casca fica em branco por até 20 s.
+- **Revisão visual do Opus** (`scratchpad/r11-card.png`): a 360 px, a barra de PV sai pela esquerda, e o "card" é a ficha móvel inteira rolando, não um resumo. Vira a R12c.
 
 ### R12 — Card e ficha completa na casca  ⬜
 Objetivo: a ficha fica à mão sem tapar o mapa, e a completa abre por cima.
@@ -396,11 +405,26 @@ Como:
 1. Um único `iframe` do Dossiê em `../Dossie/?sala=<id>&vista=card`, no painel. O botão "Ficha completa" leva o `iframe` para a tela toda (sobreposto ao mapa, que continua vivo por trás) e manda `vista=completa`. "Voltar ao mapa" faz o inverso.
 2. Em celular na vertical, a aba Ficha mostra a completa direto.
 3. Um jogador com mais de uma ficha escolhe a ativa no card.
+4. Uma ficha criada na casca é gravada na sala na hora (sem os 800 ms), para a primeira rolagem não ser recusada (achado da R11).
+5. O card em si (o que aparece em `vista=card`) é da R12c, do Opus. Aqui, use a vista como está.
 Não fazer: estilo novo do Dossiê; o card é o que já existe.
 Testes: e2e curto da troca de vista, se o e2e da R7 existir.
 Pronto quando: o jogador rola pelo card, abre a completa, edita um item e volta ao mapa sem recarregar.
 Commit: `sheet card and full sheet in player shell`
 Nota: o Opus revisa o resultado visual (proporções, legibilidade no celular) antes de fechar.
+
+### R12c — Card do jogador no Dossiê  [Opus]  ⬜
+Objetivo: um card de verdade para o painel de 360 px ao lado do mapa: quem é, como está e os botões de rolar, sem rolar a página.
+Depende de: R11.
+Como:
+- retrato, nome, classe e nível no topo;
+- PV, PD ou Sanidade com barra inteira e número, editáveis com − e +;
+- os três atributos como dados clicáveis que rolam;
+- as perícias treinadas, compactas, que rolam ao toque;
+- as ações dos itens (ataques), que rolam;
+- "Ficha completa" chama o pai.
+Precisa caber em 360 × 720 sem a barra de PV escapar, nos temas do Dossiê (Vigília e os outros), e usar os mesmos dados 3D e o mesmo `ficha.rolagem`.
+Commit: `card do jogador para a mesa online`
 
 ### R12b — Saguão da mesa  ⬜
 Objetivo: a tela de chegada mostra quem está na mesa, com que personagem e se o mestre já abriu.
@@ -428,6 +452,7 @@ Depende de: R11 e R5.
 Ler: `armazenamento.js`, as pastas do Dossiê (`src/workspace/folders.js`) e o `online.ts` da Mesa.
 Arquivos: mudar `Dossie/src/app.js` (a pasta virtual), `armazenamento.js` (a combinação) e `Mesa/src/app/online.ts` (atender `sala.fichas`, repassar `sala.salvar-ficha` e `ficha.entregar`).
 Como:
+0. **A sala carimba o autor da gravação** (achado da R11): `ficha.atualizada` ganha `autor` (o mesmo carimbo dos eventos), em `sala/mensagens.ts` e `protocolo.ts`. A casca passa a usar esse campo e apaga a dedução que faz hoje.
 1. Com a Mesa online conectada, o Dossiê do mestre mostra uma pasta virtual "Sala: <nome>" com as fichas da sala, com o dono no rótulo. Editar uma delas grava na sala, e não no local.
 2. Uma ficha local ganha, no menu, "Entregar a um jogador…", que lista os membros conhecidos. A ficha vai para a sala **com o mesmo id**, com `dono` igual ao jogador, e a local deixa de ser editada à parte (passa a ser a da sala).
 3. **As fichas da sala entram na campanha do mestre.** O `mesa.js` do Dossiê do mestre publica cada ficha da sala como entidade `personagem`, com o Ref `mesa:ficha/ficha/<id>` e o retrato, como já faz com as locais. Assim, o Atlas as encontra em `personagensComFicha`, e o mestre consegue pôr a peça ligada à ficha do jogador. Isso vale também para uma ficha que o jogador criou ou importou na sala. É esse vínculo que a R14 e a R15 usam.
