@@ -33,7 +33,7 @@ export interface SaidaDaAgua {
   margem: Uint8ClampedArray;
   /** Distância à margem em metros, saturada (0 fora da água). */
   profundidade: Float32Array;
-  /** Só na lava (`material.brilho`): quanto cada pixel emite (0 a 1), dentro e no clarão em volta. */
+  /** Só em água que brilha (`material.brilho`): quanto cada pixel emite (0 a 1); na lava, também no clarão em volta. */
   calor?: Float32Array;
 }
 
@@ -107,7 +107,7 @@ function leitoDeLava(e: EntradaDaAgua, profundidade: Float32Array): SaidaDaAgua 
 export function leitoDaAgua(e: EntradaDaAgua): SaidaDaAgua {
   const { binaria, cobertura, largura: W, altura: H, res, pixel } = e, [ox, oy] = e.origemPx ?? [0, 0], n = W * H;
   const cores = coresDaAgua(e.material), profundidade = distanciaAMargem(binaria, W, H, res, PROFUNDIDADE_MAXIMA);
-  if (e.material.brilho) return leitoDeLava(e, profundidade);
+  if (e.material.lava) return leitoDeLava(e, profundidade);
   const terra = new Uint8Array(n); for (let i = 0; i < n; i++) terra[i] = binaria[i] ? 0 : 1;
   const aFora = distanciaAMargem(terra, W, H, res, MARGEM_MOLHADA + 1 / res);
   const leito = new Uint8ClampedArray(n * 4), margem = new Uint8ClampedArray(n * 4), ruido = valueNoise2D(7000 + e.seed), ruidoFundo = valueNoise2D(7100 + e.seed);
@@ -129,6 +129,12 @@ export function leitoDaAgua(e: EntradaDaAgua): SaidaDaAgua {
       if (pixel) { if (aFora[i]! * res <= 2.01) { margem[k] = m0; margem[k + 1] = m1; margem[k + 2] = m2; margem[k + 3] = 255; } }
       else { const a = 0.5 * (1 - f) * (0.7 + 0.3 * fbm(ruido, mx * 2, my * 2, 2)); margem[k] = m0 * 0.6; margem[k + 1] = m1 * 0.6; margem[k + 2] = m2 * 0.6; margem[k + 3] = a * 255; }
     }
+  }
+  // Água que brilha sem ser lava (ácida, mágica): emite pela opacidade do leito, mais no fundo; a superfície continua animada.
+  if (e.material.brilho) {
+    const calor = new Float32Array(n), forca = Math.min(1, Math.max(0, e.material.brilho));
+    for (let i = 0; i < n; i++) if (binaria[i]) calor[i] = forca * (0.35 + 0.65 * suave(0, PROFUNDIDADE_MAXIMA, profundidade[i]!)) * (leito[i * 4 + 3]! / 255);
+    return { leito, margem, profundidade, calor };
   }
   return { leito, margem, profundidade };
 }

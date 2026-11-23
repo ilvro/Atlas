@@ -542,17 +542,19 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
         }
         resetTransform(actx);
       }
-      // A lava não entra na superfície animada da água: sem ondas, espuma nem reflexo.
-      if (!material.brilho) aguas.push({ profundidade: r.profundidade, binaria, x0, y0, cw, ch, indice: camada.indiceAgua ?? aguas.length });
+      // A lava não entra na superfície animada da água: sem ondas, espuma nem reflexo (a água que só brilha entra).
+      if (!material.lava) aguas.push({ profundidade: r.profundidade, binaria, x0, y0, cw, ch, indice: camada.indiceAgua ?? aguas.length });
       return;
     }
     if (macico) {
       // Maciço: volume próprio (patamares, estrias, sombra de contato) e nenhum aro escuro das camadas comuns.
       const r = sombrearMacico({ dentro: binaria, alfa: pixel ? null : cobertura, largura: cw, altura: ch, res, seed: 11 + idx * 5, cores: material, pixel, origemPx: [x0, y0] });
       const poe = (dados: Uint8ClampedArray) => { const t = criarTela(cw, ch), c = contextoDe(t); c.putImageData(new ImageData(dados as Uint8ClampedArray<ArrayBuffer>, cw, ch), 0, 0); ctx.drawImage(t as CanvasImageSource, dx, dy); };
+      const veios = material.brilho && material.veio && !pixel ? veiosDoMacico(r.rgba, binaria, cw, ch, res, [x0, y0], material.veio, 41 + idx * 7) : null;
       ctx.setTransform(1, 0, 0, 1, 0, 0); poe(r.sombra); poe(r.rgba); resetTransform(ctx);
       if (actx) {
         const altMacico = alturaPorLuminancia(r.rgba, cw, ch, res);
+        if (veios) for (let px = 0; px < cw * ch; px++) altMacico[px * 4 + 1] = Math.round(veios[px]! * (material.brilho ?? 0) * 255);
         const t = criarTela(cw, ch);
         contextoDe(t).putImageData(new ImageData(altMacico as Uint8ClampedArray<ArrayBuffer>, cw, ch), 0, 0);
         actx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1019,3 +1021,24 @@ function pintarAssentamento(
 }
 
 export type { Parte };
+
+/**
+ * Veios que brilham num maciço (`material.veio`): linhas finas e ramificadas de um ruído de cumeada, pintadas na cor do veio sobre a rocha
+ * já sombreada. Devolve quanto cada pixel do veio emite (0 a 1), para o canal de emissão do mapa de altura.
+ */
+function veiosDoMacico(rgba: Uint8ClampedArray, dentro: Uint8Array, W: number, H: number, res: number, [ox, oy]: [number, number], cor: string, seed: number): Float32Array {
+  const n = W * H, saida = new Float32Array(n), ruido = valueNoise2D(seed), torcao = valueNoise2D(seed + 1);
+  const c = parseInt(cor.slice(1), 16), vr = (c >> 16) & 255, vg = (c >> 8) & 255, vb = c & 255;
+  for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++) {
+    if (!dentro[i]) continue;
+    const mx = (ox + x) / res, my = (oy + y) / res, wx = mx + (fbm(torcao, mx * 0.4, my * 0.4, 2) - 0.5) * 1.2, wy = my + (fbm(torcao, mx * 0.4 + 5, my * 0.4 + 9, 2) - 0.5) * 1.2;
+    const v1 = Math.abs(fbm(ruido, wx * 0.45, wy * 0.45, 3) * 2 - 1), v2 = Math.abs(fbm(ruido, wx * 1.1 + 20, wy * 1.1, 2) * 2 - 1);
+    const veio = Math.max(1 - suaveVeio(0.006, 0.035, v1), (1 - suaveVeio(0.004, 0.02, v2)) * 0.6);
+    if (veio <= 0) continue;
+    const k = i * 4, a = rgba[k + 3]! / 255;
+    rgba[k] = rgba[k]! + (vr - rgba[k]!) * veio; rgba[k + 1] = rgba[k + 1]! + (vg - rgba[k + 1]!) * veio; rgba[k + 2] = rgba[k + 2]! + (vb - rgba[k + 2]!) * veio;
+    saida[i] = veio * a;
+  }
+  return saida;
+}
+const suaveVeio = (a: number, b: number, x: number): number => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
