@@ -2,7 +2,7 @@
 
 - Uma tarefa por vez, pela ficha em docs/plano/fase-N.md (como trabalhar: docs/plano/README.md). Leia a ficha, os arquivos que ela cita e este arquivo; VISAO, ARQUITETURA e ROADMAP só quando a ficha mandar ou para planejar uma fase.
 - Não decida arquitetura fora da ficha. Se a ficha não bate com o código, pare e reporte.
-- Para cada mudança é feito um commit, no usuário do git, sem coautoria e respeitando o limite diário (../CLAUDE.md). Ao fim de cada tarefa: typecheck e testes passando, ficha marcada ✅ e uma linha no progress.md.
+- Para cada mudança é feito um commit, no usuário do git, sem coautoria e respeitando o limite diário (../CLAUDE.md). A mensagem começa com a categoria entre parênteses, explicando o porquê do commit: `(feature)`, `(bug fix)`, `(performance)`, `(refactor)`, `(visual)`, `(test)`, `(docs)`, `(chore)`. Ex.: `(performance) viewport reuses idle bake workers`. Ao fim de cada tarefa: typecheck e testes passando, ficha marcada ✅ e uma linha no progress.md.
 - Opus planeja (fichas em docs/plano/) e delega a implementação ao Sonnet (esforço medium), uma tarefa por subagente. O Opus implementa direto o que é visual (render, receitas, sprites, assets) e o que o usuário pedir (ex.: mapas de exemplo). O estilo Pixel está em espera: assets novos só no Ilustrado, sem quebrar o Pixel. Ver ../CLAUDE.md.
 - Ao fim de cada fase, resuma no progress.md o que foi implementado, a validação e as pendências reais.
 - O documento do mapa guarda significado (cômodos, paredes, receitas, IDs de assets), nunca pixels de objetos. Toda automação produz entidades comuns e editáveis.
