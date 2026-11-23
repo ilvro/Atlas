@@ -13,6 +13,7 @@ import { hash2D } from './ruido.ts';
 
 export const PADROES_DE_COBERTURA = [
   'telha-canal',
+  'imbrex',
   'escamas',
   'ardosia',
   'palha',
@@ -60,6 +61,7 @@ export type CapaDeCumeeira = (typeof CAPAS_DE_CUMEEIRA)[number];
 
 export const CAPA_DA_COBERTURA: Readonly<Record<PadraoDeCobertura, CapaDeCumeeira>> = {
   'telha-canal': 'telha-canal',
+  imbrex: 'telha-canal',
   'telha-francesa': 'telha-canal',
   'telha-esmaltada': 'telha-esmaltada',
   escamas: 'ardosia',
@@ -252,6 +254,43 @@ const AMOSTRADORES: Record<PadraoDeCobertura, AmostradorInterno> = {
     const grao = fb(x, y, 16, 16, s + 3, per);
     o.t = t + (grao - 0.5) * 0.12;
     o.m = fb(x, y, 4, 4, s + 7, per) * 0.68 + fb(x, y, 40, 40, s + 8, per) * 0.24 + (capa ? -0.05 : 0.12) + 0.12 * v + manchaPeca - (troca > 0 ? 0.24 : 0);
+    o.h = lim(h + (grao - 0.5) * 0.025);
+    o.id = id;
+  },
+
+  /**
+   * Telha romana (tégula e ímbrice): telhas chatas e largas (tégula, 0,40 m) com a aba erguida dos lados, e sobre cada junta uma capa
+   * estreita e redonda (ímbrice, 0,12 m) que corre do beiral à cumeeira. A borda de baixo de cada fiada sobrepõe a seguinte.
+   */
+  imbrex: (x, y, s, o, per) => {
+    const cw = 0.52, rh = 0.55, larguraCapa = 0.24;
+    const iRaw = Math.floor(x / cw), jRaw = Math.floor(y / rh);
+    const i = per ? md(iRaw, 4) : iRaw, j = per ? md(jRaw, 4) : jRaw;
+    const u = x / cw - iRaw, v = y / rh - jRaw;
+    const capa = u >= 1 - larguraCapa;
+    const id = idPeca(i, j, capa ? 1 : 0);
+    const tomPeca = (hashDaPeca(id, s + 17) - 0.5) * 0.18, manchaPeca = (hashDaPeca(id, s + 29) - 0.5) * 0.2, altPeca = (hashDaPeca(id, s + 71) - 0.5) * 0.05;
+    const ponta = (capa ? 0.9 : 0.93) + (hashDaPeca(id, s + 61) - 0.5) * 0.03;
+    let h: number, t: number;
+    if (v > ponta) {
+      const f = (v - ponta) / Math.max(1e-4, 1 - ponta);
+      h = 0.05 + 0.05 * f; t = 0.08 + 0.08 * f;
+    } else if (capa) {
+      const uc = (u - (1 - larguraCapa)) / larguraCapa, dx = 2 * uc - 1, arco = Math.sqrt(Math.max(0, 1 - 0.95 * dx * dx));
+      const lip = entre(ponta, ponta - 0.05, v);
+      h = (0.34 + 0.6 * arco) * (0.8 + 0.2 * (v / ponta)) * (0.4 + 0.6 * lip) + altPeca;
+      t = 0.5 + 0.1 * Math.cos(Math.PI * uc) + 0.2 * Math.sin(Math.PI * uc) + tomPeca - (ponta - v < 0.04 ? 0.12 : 0);
+      if (v < 0.1) t -= 0.22 * (1 - v / 0.1);
+    } else {
+      // Tégula: plana, com a aba subindo junto às capas e uma sombra fina na borda delas.
+      const ut = u / (1 - larguraCapa), aba = Math.max(entre(0.88, 1, ut), entre(0.1, 0, ut));
+      h = (0.14 + 0.1 * aba) * (0.85 + 0.15 * (v / ponta)) + altPeca * 0.5;
+      t = 0.32 + tomPeca * 0.8 - (ut > 0.9 ? 0.2 : 0) - (ut < 0.06 ? 0.14 : 0) + 0.04 * aba;
+      if (v < 0.08) t -= 0.2 * (1 - v / 0.08);
+    }
+    const grao = fb(x, y, 16, 16, s + 3, per);
+    o.t = t + (grao - 0.5) * 0.12;
+    o.m = fb(x, y, 4, 4, s + 7, per) * 0.68 + fb(x, y, 40, 40, s + 8, per) * 0.24 + (capa ? -0.05 : 0.1) + 0.1 * v + manchaPeca;
     o.h = lim(h + (grao - 0.5) * 0.025);
     o.id = id;
   },

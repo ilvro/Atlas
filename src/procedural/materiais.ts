@@ -5,7 +5,7 @@ import { amostrarSemRepeticao, mapaDeGradiente, pesoDaCamada, reduzirTextura, to
 import { texturaPronta } from './texturas-carregadas.ts';
 import { ehPadraoDeCobertura, texturaDeCobertura, type PadraoDeCobertura } from './coberturas.ts';
 
-export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'dunas-areia' | 'basalto' | 'cristal' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho' | 'paralelepipedo' | 'lajegrama' | 'sulcos' | 'molhada' | 'batido' | 'folhico'
+export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'dunas-areia' | 'basalto' | 'cristal' | 'mosaico' | 'medalhao' | 'tatami' | 'zellige' | 'pompeiano' | 'hieroglifos' | 'shoji' | 'taipa' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho' | 'paralelepipedo' | 'lajegrama' | 'sulcos' | 'molhada' | 'batido' | 'folhico'
   | 'palha-chao' | 'lajes-rusticas' | 'lajes-grandes' | 'marchetaria' | 'chapa-xadrez' | 'grade-metal' | 'toras' | 'manchado' | 'painel' | 'acolchoado' | 'pisada' | 'placas' | PadraoDeCobertura;
 export interface Material {
   id: string; nome: string; /** Para onde o material vai: piso, papel de parede, objeto ou terreno. */ uso: 'piso' | 'papel' | 'objeto' | 'terreno' | 'macico' | 'agua' | 'telhado';
@@ -104,6 +104,24 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('tapete.desbotado', 'Tapete rosado desbotado', 'objeto', '#d4c8ac', '#6a5c48', '#efe6d0', 'persa', { borda: '#b39b6c', meio: '#a87a70' }),
   m('tapete.azul', 'Tapete persa azul', 'objeto', '#24365a', '#141a2a', '#d8c08a', 'persa', { borda: '#6e1c22', meio: '#b98a3a' }),
   // Coberturas de telhado (o desenho de cada padrão está em coberturas.ts; a queda d'água aponta para +y)
+  // Antiguidade, Oriente e deserto (Q10)
+  m('mosaico.romano', 'Mosaico romano', 'piso', '#e6dcc4', '#1e1a18', '#f4ecd8', 'mosaico', { borda: '#9a3a22', ouro: '#b8843a' }),
+  m('mosaico.medalhao', 'Mosaico com medalhão', 'piso', '#e6dcc4', '#1e1a18', '#f4ecd8', 'medalhao', { borda: '#9a3a22', ouro: '#b8843a' }),
+  m('terracota.quadrada', 'Terracota quadrada', 'piso', '#ad5e3c', '#a05436', '#bc6c44', 'xadrez', { lado: 0.33, borda: '#5e3422' }),
+  m('lajes.arenito', 'Lajes de arenito', 'piso', '#c4a476', '#6e5434', '#dcc49a', 'lajes-rusticas'),
+  m('tatami', 'Tatami', 'piso', '#b8b070', '#7a7440', '#d4cc8e', 'tatami', { borda: '#1e2a22' }),
+  m('tabuas.laqueadas', 'Tábuas laqueadas', 'piso', '#4a1e14', '#200a06', '#6e3420', 'tabuas'),
+  m('zellige', 'Zellige', 'piso', '#1e5a8a', '#3a342c', '#f0ece0', 'zellige', { borda: '#2a7a5a', ouro: '#d0a03a', meio: '#1e2e5a', lado: 0.5 }),
+  m('estuque.pompeiano', 'Estuque pompeiano', 'papel', '#9a2a1e', '#1a1412', '#e8dcc0', 'pompeiano', { ouro: '#d8b860' }),
+  m('alvenaria.arenito', 'Alvenaria de arenito', 'papel', '#c2a272', '#6a5232', '#dcc294', 'laje'),
+  m('parede.hieroglifos', 'Hieróglifos', 'papel', '#d4bc8c', '#2a1e16', '#e8d6aa', 'hieroglifos', { borda: '#2a4a8a', ouro: '#a8501e' }),
+  m('shoji', 'Shoji', 'papel', '#6a4a2a', '#2a1a10', '#f0eadc', 'shoji'),
+  m('madeira.laqueada', 'Madeira laqueada', 'papel', '#7a1e16', '#2a0806', '#a83a26', 'lambri'),
+  m('adobe', 'Adobe', 'papel', '#b08a5e', '#6e5234', '#ccaa7c', 'manchado'),
+  m('taipa', 'Taipa de pilão', 'papel', '#a07850', '#5a3e24', '#c8a074', 'taipa'),
+  m('telha.imbrex', 'Telha romana', 'telhado', '#b86440', '#4e2414', '#e0946a', 'imbrex'),
+  m('telha.curva.cinza', 'Telha curva cinza', 'telhado', '#5a5e66', '#1e2024', '#9aa0aa', 'telha-esmaltada', { especular: 0.25 }),
+  m('terraco.barro', 'Terraço de barro', 'telhado', '#a8845a', '#5a4228', '#c8a87a', 'concreto-laje', { mancha: { cor: '#6a5236', quanto: 0.3 } }),
   m('telha.barro', 'Telha de barro', 'telhado', '#a5553a', '#4a2014', '#d4845e', 'telha-canal'),
   m('telha.velha', 'Telha velha com musgo', 'telhado', '#8e5a44', '#3c2216', '#b9846a', 'telha-canal', { mancha: { cor: '#5f7a3a', quanto: 0.42 } }),
   m('telha.ardosia', 'Ardósia', 'telhado', '#3d444f', '#191d24', '#66717f', 'ardosia', { mancha: { cor: '#7d8a6a', quanto: 0.08 } }),
@@ -260,6 +278,8 @@ const PADROES_DEPENDENTES_DE_AREA = new Set<Padrao>([
   'grama', 'terra', 'lama', 'areia', 'pedra',
   // Giram com a direção do pincel em volta do centro da área: com a caixa de cada ladrilho, emendariam.
   'sulcos', 'dunas-areia',
+  // O medalhão fica no centro do cômodo.
+  'medalhao',
 ]);
 
 /** Verdadeiro para padrões cujo layout, gradiente ou sorteios (`r()`) dependem da caixa `area` passada. */
@@ -301,9 +321,11 @@ export function pintarMaterial(ctx: Contexto, id: string, area: Area, seed = 1, 
     }
     case 'xadrez': {
       const l = mat.lado ?? 0.5;
+      // Com `borda`, as juntas entre as peças ganham essa cor (lajota de terracota com rejunte).
+      if (mat.borda) { ctx.fillStyle = mat.borda; ctx.fillRect(A.x, A.y, A.w, A.h); }
       for (let y = Math.floor(A.y / l) * l; y < A.y + A.h; y += l) for (let x = Math.floor(A.x / l) * l; x < A.x + A.w; x += l) {
         const escuro = (Math.round(x / l) + Math.round(y / l)) % 2 === 0;
-        ctx.fillStyle = misturar(escuro ? mat.escuro : mat.base, escuro ? mat.base : mat.claro, r() * 0.12); ctx.fillRect(x + 0.006, y + 0.006, l - 0.012, l - 0.012);
+        ctx.fillStyle = misturar(escuro ? mat.escuro : mat.base, escuro ? mat.base : mat.claro, r() * 0.12); ctx.fillRect(x + (mat.borda ? 0.01 : 0.006), y + (mat.borda ? 0.01 : 0.006), l - (mat.borda ? 0.02 : 0.012), l - (mat.borda ? 0.02 : 0.012));
       }
       camadaDeRuido(ctx, A, seed, 2.2, 0.45); camadaDeRuido(ctx, A, seed + 3, 6, 0.3, 'multiply', 4); break;
     }
@@ -401,6 +423,14 @@ export function pintarMaterial(ctx: Contexto, id: string, area: Area, seed = 1, 
       ctx.globalAlpha = 1; break;
     }
     case 'gelo': pintarGelo(ctx, mat, A, seed, r, pxDe(ctx)); break;
+    case 'mosaico': pintarMosaico(ctx, mat, A, seed, false); break;
+    case 'medalhao': pintarMosaico(ctx, mat, A, seed, true); break;
+    case 'tatami': pintarTatami(ctx, mat, A, seed); break;
+    case 'zellige': pintarZellige(ctx, mat, A, seed); break;
+    case 'pompeiano': pintarPompeiano(ctx, mat, A, seed); break;
+    case 'hieroglifos': pintarHieroglifos(ctx, mat, A, seed); break;
+    case 'shoji': pintarShoji(ctx, mat, A, seed); break;
+    case 'taipa': pintarTaipa(ctx, mat, A, seed); break;
     case 'basalto': pintarCelulas(ctx, mat, A, seed, 'basalto'); break;
     case 'cristal': pintarCelulas(ctx, mat, A, seed, 'cristal'); break;
     case 'dunas-areia': camadaDeRuido(ctx, A, seed, 3, 0.1, 'multiply', 6); pintarDunasDeAreia(ctx, mat, area, seed, dir); break;
@@ -740,6 +770,124 @@ function pintarCelulas(ctx: Contexto, mat: Material, A: Area, seed: number, tipo
       rumo(o, E, (grao - 0.5) * 0.2);
     }
   });
+}
+
+// ---------- Pisos e paredes de época (Frente Q, Q10) ----------
+
+/** Meandro grego numa faixa: `s` corre ao longo da faixa e `t` (0 a 1) a atravessa; módulo de 5 × 5 com a chave em L. */
+const MEANDRO = ['11111', '00001', '11101', '10001', '10111'];
+const meandro = (s: number, t: number): boolean => { const i = Math.floor(((s % 1) + 1) % 1 * 5), j = Math.min(4, Math.max(0, Math.floor(t * 5))); return MEANDRO[j]![i] === '1'; };
+
+/**
+ * Mosaico romano em preto e branco: tesselas de 5 cm (cada uma num tom), uma grade de linhas pretas em quadros de 0,9 m com uma roseta
+ * de quatro pétalas no centro de cada quadro. Com `medalhao`, o centro do cômodo ganha um emblema: moldura quadrada em meandro e, dentro,
+ * um medalhão em faixas (terracota, preto, ocre) com uma roseta de oito pétalas.
+ */
+function pintarMosaico(ctx: Contexto, mat: Material, A: Area, seed: number, medalhao: boolean): void {
+  const F = rgbHex(mat.base), E = rgbHex(mat.escuro), C = rgbHex(mat.claro), T = rgbHex(mat.borda ?? '#9a3a22'), O = rgbHex(mat.ouro ?? '#c08a3a'), s = Math.floor(seed) * 13 + 5;
+  const tess = 0.05, q = 0.9, cx = A.x + A.w / 2, cy = A.y + A.h / 2, R = Math.min(A.w, A.h) * 0.24, lado = Math.min(A.w, A.h) * 0.34;
+  porPixel(ctx, A, (x, y, o) => {
+    const ti = Math.floor(x / tess), tj = Math.floor(y / tess), tom = hash2D(ti, tj, s), junta = Math.min(x / tess - ti, y / tess - tj) < 0.12;
+    let cor: Cor3 = F;
+    // Grade e rosetas.
+    const gx = x / q - Math.floor(x / q), gy = y / q - Math.floor(y / q), lx = Math.min(gx, 1 - gx) * q, ly = Math.min(gy, 1 - gy) * q;
+    if (Math.min(lx, ly) < 0.028) cor = E;
+    const px = (gx - 0.5) * q, py = (gy - 0.5) * q, dr = Math.hypot(px, py), ang = Math.atan2(py, px);
+    if (dr < 0.16 * Math.abs(Math.cos(ang * 2)) + 0.03) cor = dr < 0.045 ? T : E;
+    if (medalhao) {
+      const dx = x - cx, dy = y - cy, m = Math.max(Math.abs(dx), Math.abs(dy)), d = Math.hypot(dx, dy);
+      if (m < lado) cor = F;
+      if (m < lado && m > lado - 0.26) { const along = Math.abs(dx) > Math.abs(dy) ? dy : dx, across = (lado - m) / 0.26; cor = across < 0.12 || across > 0.88 ? E : meandro(along / 0.26, (across - 0.12) / 0.76) ? E : F; }
+      if (d < R) {
+        const f = d / R;
+        cor = f > 0.93 ? E : f > 0.85 ? T : f > 0.8 ? E : f > 0.72 ? O : C;
+        const a2 = Math.atan2(dy, dx), petala = Math.abs(Math.cos(a2 * 4));
+        if (f < 0.7 && f < 0.15 + 0.5 * petala) cor = f < 0.12 ? E : f < 0.15 + 0.32 * petala ? T : O;
+      }
+    }
+    mez(o, cor, cor === E ? E : C, cor === E ? 0 : (tom - 0.5) * 0.25 + 0.06);
+    if (cor !== E) rumo(o, F, (tom - 0.5) * 0.15);
+    if (junta) rumo(o, [o[0]! * 0.7, o[1]! * 0.7, o[2]! * 0.7], 0.7);
+  });
+}
+
+/** Tatami: módulos de 0,9 × 1,8 m, dois por bloco de 1,8 m, deitados e em pé alternados; trama fina ao comprido e debrum escuro nas bordas longas. */
+function pintarTatami(ctx: Contexto, mat: Material, A: Area, seed: number): void {
+  const B = rgbHex(mat.base), E = rgbHex(mat.escuro), C = rgbHex(mat.claro), H = rgbHex(mat.borda ?? '#1e2a22'), s = Math.floor(seed) * 17 + 3, tmp = [0, 0, 0];
+  porPixel(ctx, A, (x, y, o) => {
+    const bi = Math.floor(x / 1.8), bj = Math.floor(y / 1.8), deitado = (bi + bj) % 2 === 0, lx = x - bi * 1.8, ly = y - bj * 1.8;
+    // Dentro do bloco: dois módulos lado a lado; `ao` corre ao comprido do módulo, `at` atravessa (0 a 0,9).
+    const ao = deitado ? lx : ly, at = (deitado ? ly : lx) % 0.9, k = Math.floor((deitado ? ly : lx) / 0.9), id = hash2D(bi * 2 + k, bj, s);
+    const trama = 0.5 + 0.5 * Math.sin(at * Math.PI * 2 / 0.018), fio = hash2D(Math.floor(at / 0.018), Math.floor(ao / 0.3), s + 4);
+    mez(tmp, E, B, 0.55 + trama * 0.25 + (fio - 0.5) * 0.15); mez(o, tmp as unknown as Cor3, C, id * 0.25);
+    if (at < 0.04 || at > 0.86) { mez(o, H, H, 0); rumo(o, [0, 0, 0], 0.15 + 0.15 * Math.sin(ao * 60) * 0.5); }
+    if (at < 0.006 || at > 0.894 || ao < 0.006 || ao > 1.794) rumo(o, [12, 10, 8], 0.8);
+  });
+}
+
+/** Zellige: estrelas de oito pontas (dois quadrados, um girado 45°) em cores esmaltadas alternadas, cruzes brancas entre elas, rejunte fino. */
+function pintarZellige(ctx: Contexto, mat: Material, A: Area, seed: number): void {
+  const cores = [rgbHex(mat.base), rgbHex(mat.borda ?? '#2a6a4a'), rgbHex(mat.ouro ?? '#c8902a'), rgbHex(mat.meio ?? '#1e3a6a')], Bco = rgbHex(mat.claro), J = rgbHex(mat.escuro), l = mat.lado ?? 0.32, s = Math.floor(seed) * 19 + 1;
+  porPixel(ctx, A, (x, y, o) => {
+    const i = Math.floor(x / l), j = Math.floor(y / l), u = x / l - i - 0.5, v = y / l - j - 0.5;
+    const quad = Math.max(Math.abs(u), Math.abs(v)), losango = (Math.abs(u) + Math.abs(v)) / Math.SQRT2, estrela = Math.max(quad, losango) < 0.3 ? 0 : Math.min(quad, losango) < 0.3 ? 1 : 2;
+    const borda = Math.abs(Math.min(quad, losango) - 0.3) < 0.014 || Math.abs(Math.max(quad, losango) - 0.3) < 0.014 && Math.min(quad, losango) < 0.3;
+    const cor = estrela < 2 ? cores[(i * 3 + j * 5 + (estrela ? 1 : 0)) % 4]! : Bco;
+    mez(o, cor, cor, 0); rumo(o, Bco, (hash2D(i, j, s) - 0.5) * 0.12 + (estrela < 2 ? 0.05 * (0.5 - v) : 0));
+    if (borda) mez(o, J, J, 0);
+  });
+}
+
+/** Parede pompeiana: painéis vermelhos de 1,2 m emoldurados por um filete claro, pilastras pretas estreitas entre eles e um rodapé escuro. */
+function pintarPompeiano(ctx: Contexto, mat: Material, A: Area, seed: number): void {
+  ctx.fillStyle = mat.base; ctx.fillRect(A.x, A.y, A.w, A.h);
+  for (let x = Math.floor(A.x / 1.5) * 1.5; x < A.x + A.w; x += 1.5) {
+    ctx.fillStyle = mat.escuro; ctx.fillRect(x, A.y, 0.3, A.h);
+    ctx.strokeStyle = mat.ouro ?? '#d8b860'; ctx.lineWidth = 0.025; ctx.strokeRect(x + 0.42, A.y + 0.15, 0.96, A.h - 0.3);
+    ctx.strokeStyle = mat.claro; ctx.lineWidth = 0.012; ctx.strokeRect(x + 0.5, A.y + 0.23, 0.8, A.h - 0.46);
+    ctx.fillStyle = mat.ouro ?? '#d8b860'; ctx.beginPath(); ctx.arc(x + 0.9, A.y + A.h / 2, 0.06, 0, 7); ctx.fill();
+  }
+  camadaDeRuido(ctx, A, seed, 2, 0.35); camadaDeRuido(ctx, A, seed + 1, 5, 0.25, 'multiply', 4);
+}
+
+/** Hieróglifos: arenito em registros de 0,4 m separados por filetes, com sinais pintados (pássaros, olhos, ondas, juncos) em ocre, azul e preto. */
+function pintarHieroglifos(ctx: Contexto, mat: Material, A: Area, seed: number): void {
+  const r = mulberry32(seed * 31 + 7), tintas = [mat.escuro, mat.borda ?? '#2a4a8a', mat.ouro ?? '#a8501e'];
+  ctx.fillStyle = mat.base; ctx.fillRect(A.x, A.y, A.w, A.h); camadaDeRuido(ctx, A, seed, 1.6, 0.35);
+  for (let y = Math.floor(A.y / 0.4) * 0.4; y < A.y + A.h; y += 0.4) {
+    ctx.fillStyle = mat.escuro; ctx.globalAlpha = 0.6; ctx.fillRect(A.x, y, A.w, 0.015); ctx.globalAlpha = 1;
+    for (let x = A.x + 0.05; x < A.x + A.w - 0.1; x += 0.11 + r() * 0.05) {
+      const cx = x + 0.05, cy = y + 0.2, tipo = Math.floor(r() * 6);
+      ctx.fillStyle = ctx.strokeStyle = tintas[Math.floor(r() * tintas.length)]!; ctx.lineWidth = 0.012; ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      if (tipo === 0) { ctx.ellipse(cx, cy, 0.04, 0.025, 0, 0, 7); ctx.fill(); ctx.fillStyle = mat.base; ctx.beginPath(); ctx.arc(cx, cy, 0.01, 0, 7); ctx.fill(); }            // olho
+      else if (tipo === 1) { ctx.moveTo(cx - 0.04, cy); for (let k = 0; k < 4; k++) ctx.lineTo(cx - 0.03 + k * 0.022, cy + (k % 2 ? -0.015 : 0.015)); ctx.stroke(); }  // água
+      else if (tipo === 2) { ctx.moveTo(cx, cy + 0.08); ctx.lineTo(cx, cy - 0.08); ctx.stroke(); ctx.beginPath(); ctx.ellipse(cx + 0.015, cy - 0.06, 0.015, 0.03, 0.4, 0, 7); ctx.fill(); } // junco
+      else if (tipo === 3) { ctx.ellipse(cx, cy + 0.01, 0.035, 0.05, 0.3, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(cx + 0.02, cy - 0.05, 0.015, 0, 7); ctx.fill(); }      // pássaro
+      else if (tipo === 4) { ctx.arc(cx, cy, 0.035, 0, 7); ctx.stroke(); }                                                                          // sol
+      else { ctx.fillRect(cx - 0.03, cy - 0.07, 0.06, 0.012); ctx.fillRect(cx - 0.006, cy - 0.07, 0.012, 0.14); }                                   // ankh simples
+      ctx.globalAlpha = 1;
+    }
+  }
+  camadaDeRuido(ctx, A, seed + 2, 4, 0.3, 'multiply', 4);
+}
+
+/** Shoji: papel claro em painéis de 0,9 m com a treliça de madeira (montantes a 0,3 m, travessas a 0,45 m) e o marco mais largo. */
+function pintarShoji(ctx: Contexto, mat: Material, A: Area, seed: number): void {
+  ctx.fillStyle = mat.claro; ctx.fillRect(A.x, A.y, A.w, A.h); camadaDeRuido(ctx, A, seed, 1.2, 0.18);
+  ctx.fillStyle = mat.base;
+  for (let x = Math.floor(A.x / 0.3) * 0.3; x < A.x + A.w; x += 0.3) { const marco = Math.abs(x / 0.9 - Math.round(x / 0.9)) < 0.01; ctx.fillRect(x - (marco ? 0.025 : 0.012), A.y, marco ? 0.05 : 0.024, A.h); }
+  for (let y = Math.floor(A.y / 0.45) * 0.45; y < A.y + A.h; y += 0.45) ctx.fillRect(A.x, y - 0.012, A.w, 0.024);
+  ctx.fillStyle = mat.escuro; ctx.globalAlpha = 0.5; for (let x = Math.floor(A.x / 0.9) * 0.9; x < A.x + A.w; x += 0.9) ctx.fillRect(x - 0.005, A.y, 0.01, A.h); ctx.globalAlpha = 1;
+}
+
+/** Taipa de pilão: camadas horizontais de terra socada de 8 a 20 cm em tons diferentes, com os furos das agulhas da forma em fileiras. */
+function pintarTaipa(ctx: Contexto, mat: Material, A: Area, seed: number): void {
+  const r = mulberry32(seed * 37 + 3);
+  for (let y = A.y; y < A.y + A.h;) { const h = 0.08 + r() * 0.12; ctx.fillStyle = misturar(mat.escuro, mat.claro, 0.3 + r() * 0.55); ctx.fillRect(A.x, y, A.w, h + 0.005); ctx.fillStyle = mat.escuro; ctx.globalAlpha = 0.35; ctx.fillRect(A.x, y + h - 0.006, A.w, 0.008); ctx.globalAlpha = 1; y += h; }
+  ctx.fillStyle = mat.escuro;
+  for (let y = A.y + 0.5; y < A.y + A.h; y += 0.55) for (let x = A.x + r() * 0.3; x < A.x + A.w; x += 0.6 + r() * 0.2) { ctx.globalAlpha = 0.6; ctx.fillRect(x, y, 0.04, 0.03); }
+  ctx.globalAlpha = 1; camadaDeRuido(ctx, A, seed, 1.5, 0.35); camadaDeRuido(ctx, A, seed + 1, 4, 0.3, 'multiply', 4);
 }
 
 function pintarDunas(ctx: Contexto, mat: Material, A: Area, seed: number): void {
