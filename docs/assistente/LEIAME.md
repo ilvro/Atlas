@@ -23,4 +23,5 @@ A ponte de cada app só carrega em desenvolvimento: Atlas, Mesa, Ateliê e Dossi
   - `sessao`: planejar uma sessão (ler a campanha e a última sessão, plano aprovado, entidades, mapas e momentos, cenas, sessão com roteiro e notas, resumo), `mesa_abrir_apps`, falhas e regra de dono.
   - `documentos-fichas-trilha`: `atelie_*`, `dossie_*` (ameaças pelo VD) e `jukebox_*`, com os apps abertos.
   - `pedido-curto`: o ritmo de um pedido curto, em blocos.
+  - `quadros`: ler os quadros da Mesa em camadas (mapa, busca, seção em títulos, completa, imagem), citar itens pelo id curto, resumos e o vocabulário do mestre.
 - [`instrucoes.md`](instrucoes.md): aviso curto que aponta para o núcleo e o guia (o texto antigo foi dividido entre eles).

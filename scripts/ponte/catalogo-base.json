@@ -4359,5 +4359,140 @@
     "anotacoes": {
       "leitura": true
     }
+  },
+  {
+    "nome": "quadro_buscar",
+    "descricao": "Procura um termo (sem acento, sem diferenciar maiúsculas) nos textos dos quadros. Devolve até 20 ocorrências com o quadro, a seção, o #id curto do item e um trecho de até 120 caracteres. Sem quadro, busca em todos.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "termo": {
+          "type": "string"
+        },
+        "quadro": {
+          "type": "string",
+          "description": "Nome ou id; omita para buscar em todos os quadros."
+        }
+      },
+      "required": [
+        "termo"
+      ],
+      "additionalProperties": false
+    },
+    "app": "mesa",
+    "anotacoes": {
+      "leitura": true,
+      "idempotente": true
+    }
+  },
+  {
+    "nome": "quadro_imagem",
+    "descricao": "Vê uma imagem do quadro (reduzida, JPEG), com a legenda em texto. Cara em tokens: peça só a que precisar (handouts, mapas). O item é o #id curto que aparece em quadro_secao.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "quadro": {
+          "type": "string",
+          "description": "Nome ou id do quadro."
+        },
+        "item": {
+          "type": "string",
+          "description": "O #id curto (ou id completo) da imagem."
+        },
+        "lado": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 1568,
+          "description": "Lado maior em px. Padrão 768, máximo 1568."
+        }
+      },
+      "required": [
+        "quadro",
+        "item"
+      ],
+      "additionalProperties": false
+    },
+    "app": "mesa",
+    "anotacoes": {
+      "leitura": true,
+      "idempotente": true
+    }
+  },
+  {
+    "nome": "quadro_mapa",
+    "descricao": "O mapa do quadro: uma linha por seção (id, título, itens por tipo, tokens, vizinhas, setas), em ordem de leitura. Barato (poucas centenas a 6 mil tokens). Leia antes de abrir qualquer seção.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "quadro": {
+          "type": "string",
+          "description": "Nome ou id do quadro."
+        }
+      },
+      "required": [
+        "quadro"
+      ],
+      "additionalProperties": false
+    },
+    "app": "mesa",
+    "anotacoes": {
+      "leitura": true,
+      "idempotente": true
+    }
+  },
+  {
+    "nome": "quadro_secao",
+    "descricao": "O texto compacto de uma seção do quadro, paginado (~2,5 mil tokens por página). nivel \"titulos\" (padrão) traz só a primeira linha de cada item; \"completo\" traz tudo. Cite itens pelo #id curto.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "quadro": {
+          "type": "string",
+          "description": "Nome ou id do quadro."
+        },
+        "secao": {
+          "type": "string",
+          "description": "Id da seção (do quadro_mapa) ou o título."
+        },
+        "nivel": {
+          "type": "string",
+          "enum": [
+            "titulos",
+            "completo"
+          ],
+          "description": "Padrão: titulos."
+        },
+        "pagina": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Padrão: 1."
+        }
+      },
+      "required": [
+        "quadro",
+        "secao"
+      ],
+      "additionalProperties": false
+    },
+    "app": "mesa",
+    "anotacoes": {
+      "leitura": true,
+      "idempotente": true
+    }
+  },
+  {
+    "nome": "quadros_listar",
+    "descricao": "Os quadros da campanha ativa, cada um com id, nome, total de seções, de itens e tokens estimados para lê-lo inteiro. Comece por aqui; depois quadro_mapa.",
+    "esquema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "app": "mesa",
+    "anotacoes": {
+      "leitura": true,
+      "idempotente": true
+    }
   }
 ]
