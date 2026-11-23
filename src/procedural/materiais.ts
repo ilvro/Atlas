@@ -5,7 +5,7 @@ import { amostrarSemRepeticao, mapaDeGradiente, pesoDaCamada, reduzirTextura, to
 import { texturaPronta } from './texturas-carregadas.ts';
 import { ehPadraoDeCobertura, texturaDeCobertura, type PadraoDeCobertura } from './coberturas.ts';
 
-export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'dunas-areia' | 'basalto' | 'cristal' | 'mosaico' | 'medalhao' | 'tatami' | 'zellige' | 'pompeiano' | 'hieroglifos' | 'shoji' | 'taipa' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho' | 'paralelepipedo' | 'lajegrama' | 'sulcos' | 'molhada' | 'batido' | 'folhico'
+export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'dunas-areia' | 'basalto' | 'cristal' | 'mosaico' | 'medalhao' | 'tatami' | 'zellige' | 'pompeiano' | 'hieroglifos' | 'shoji' | 'taipa' | 'conves' | 'hidraulico' | 'enxaimel' | 'descascado' | 'azulejo' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho' | 'paralelepipedo' | 'lajegrama' | 'sulcos' | 'molhada' | 'batido' | 'folhico'
   | 'palha-chao' | 'lajes-rusticas' | 'lajes-grandes' | 'marchetaria' | 'chapa-xadrez' | 'grade-metal' | 'toras' | 'manchado' | 'painel' | 'acolchoado' | 'pisada' | 'placas' | PadraoDeCobertura;
 export interface Material {
   id: string; nome: string; /** Para onde o material vai: piso, papel de parede, objeto ou terreno. */ uso: 'piso' | 'papel' | 'objeto' | 'terreno' | 'macico' | 'agua' | 'telhado';
@@ -122,6 +122,18 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('telha.imbrex', 'Telha romana', 'telhado', '#b86440', '#4e2414', '#e0946a', 'imbrex'),
   m('telha.curva.cinza', 'Telha curva cinza', 'telhado', '#5a5e66', '#1e2024', '#9aa0aa', 'telha-esmaltada', { especular: 0.25 }),
   m('terraco.barro', 'Terraço de barro', 'telhado', '#a8845a', '#5a4228', '#c8a87a', 'concreto-laje', { mancha: { cor: '#6a5236', quanto: 0.3 } }),
+  // Colonial, faroeste e vitoriano (Q11)
+  m('conves', 'Convés', 'piso', '#8a7458', '#1a140e', '#b4a084', 'conves', { largura: 0.15, ouro: '#3a2a1a' }),
+  m('tijoleira', 'Tijoleira', 'piso', '#9a4a30', '#5a2a1a', '#b8664a', 'espinha'),
+  m('tabuas.gastas', 'Tábuas gastas', 'piso', '#7e7464', '#3a342a', '#a69c8a', 'tabuas', { largura: 0.22 }),
+  m('ladrilho.hidraulico', 'Ladrilho hidráulico', 'piso', '#3e6a6a', '#2a2a2a', '#e4dccb', 'hidraulico', { borda: '#9a3a2a', lado: 0.25 }),
+  m('caiado', 'Caiado', 'papel', '#e8e4da', '#a8a294', '#f6f3ec', 'manchado'),
+  m('enxaimel', 'Enxaimel', 'papel', '#3a2418', '#1a0e08', '#e6dcc8', 'enxaimel'),
+  m('tabuas.descascadas', 'Tábuas descascadas', 'papel', '#6a8a8a', '#2a2420', '#8aa8a6', 'descascado', { ouro: '#8a7a64' }),
+  m('tijolo.fuligem', 'Tijolo com fuligem', 'papel', '#5a3428', '#1e1210', '#7a4a3a', 'laje'),
+  m('azulejo.portugues', 'Azulejo português', 'papel', '#1e3e8a', '#b8b4aa', '#f2f0ea', 'azulejo', { lado: 0.15 }),
+  m('telha.capa-canal', 'Telha capa-canal colonial', 'telhado', '#a85a38', '#3e1c10', '#d4885e', 'telha-canal', { mancha: { cor: '#2e2a22', quanto: 0.3 } }),
+  m('chapa.rebitada', 'Chapa rebitada', 'telhado', '#6a6458', '#262420', '#a49c8a', 'rebitada', { especular: 0.45, mancha: { cor: '#8a4a22', quanto: 0.3 } }),
   m('telha.barro', 'Telha de barro', 'telhado', '#a5553a', '#4a2014', '#d4845e', 'telha-canal'),
   m('telha.velha', 'Telha velha com musgo', 'telhado', '#8e5a44', '#3c2216', '#b9846a', 'telha-canal', { mancha: { cor: '#5f7a3a', quanto: 0.42 } }),
   m('telha.ardosia', 'Ardósia', 'telhado', '#3d444f', '#191d24', '#66717f', 'ardosia', { mancha: { cor: '#7d8a6a', quanto: 0.08 } }),
@@ -431,6 +443,11 @@ export function pintarMaterial(ctx: Contexto, id: string, area: Area, seed = 1, 
     case 'hieroglifos': pintarHieroglifos(ctx, mat, A, seed); break;
     case 'shoji': pintarShoji(ctx, mat, A, seed); break;
     case 'taipa': pintarTaipa(ctx, mat, A, seed); break;
+    case 'conves': pintarConves(ctx, mat, A, seed); break;
+    case 'hidraulico': pintarHidraulico(ctx, mat, A, seed); break;
+    case 'enxaimel': pintarEnxaimel(ctx, mat, A, seed); break;
+    case 'descascado': pintarDescascado(ctx, mat, A, seed); break;
+    case 'azulejo': pintarAzulejo(ctx, mat, A, seed); break;
     case 'basalto': pintarCelulas(ctx, mat, A, seed, 'basalto'); break;
     case 'cristal': pintarCelulas(ctx, mat, A, seed, 'cristal'); break;
     case 'dunas-areia': camadaDeRuido(ctx, A, seed, 3, 0.1, 'multiply', 6); pintarDunasDeAreia(ctx, mat, area, seed, dir); break;
@@ -888,6 +905,89 @@ function pintarTaipa(ctx: Contexto, mat: Material, A: Area, seed: number): void 
   ctx.fillStyle = mat.escuro;
   for (let y = A.y + 0.5; y < A.y + A.h; y += 0.55) for (let x = A.x + r() * 0.3; x < A.x + A.w; x += 0.6 + r() * 0.2) { ctx.globalAlpha = 0.6; ctx.fillRect(x, y, 0.04, 0.03); }
   ctx.globalAlpha = 1; camadaDeRuido(ctx, A, seed, 1.5, 0.35); camadaDeRuido(ctx, A, seed + 1, 4, 0.3, 'multiply', 4);
+}
+
+// ---------- Colonial, faroeste e vitoriano (Frente Q, Q11) ----------
+
+/** Convés: pranchas longas (4 a 6 m) de 0,15 m, emendas desencontradas com duas cavilhas, calafeto de breu entre as fiadas e o sal desbotando a madeira. */
+function pintarConves(ctx: Contexto, mat: Material, A: Area, seed: number): void {
+  const r = mulberry32(seed * 41 + 5), larg = mat.largura ?? 0.15;
+  ctx.fillStyle = mat.escuro; ctx.fillRect(A.x, A.y, A.w, A.h);
+  for (let y = Math.floor(A.y / larg) * larg; y < A.y + A.h; y += larg) {
+    let x = A.x - r() * 5;
+    while (x < A.x + A.w) {
+      const comp = 4 + r() * 2;
+      ctx.fillStyle = misturar(mat.base, mat.claro, 0.15 + r() * 0.5); ctx.fillRect(x + 0.006, y + 0.008, comp - 0.012, larg - 0.016);
+      ctx.strokeStyle = mat.escuro; ctx.lineWidth = 0.005;
+      for (let v = 0; v < 3; v++) { const yy = y + larg * (0.2 + r() * 0.6); ctx.globalAlpha = 0.15 + r() * 0.15; ctx.beginPath(); ctx.moveTo(x, yy); for (let t = 0.3; t <= comp; t += 0.3) ctx.lineTo(x + t, yy + (r() - 0.5) * 0.012); ctx.stroke(); }
+      ctx.globalAlpha = 0.85; ctx.fillStyle = mat.ouro ?? '#3a2a1a';
+      for (const px of [x + 0.05, x + comp - 0.05]) for (const py of [y + larg * 0.3, y + larg * 0.7]) { ctx.beginPath(); ctx.arc(px, py, 0.012, 0, 7); ctx.fill(); }
+      ctx.globalAlpha = 1; x += comp;
+    }
+  }
+  camadaDeRuido(ctx, A, seed, 2.5, 0.4); camadaDeRuido(ctx, A, seed + 1, 6, 0.35, 'multiply', 4);
+}
+
+/**
+ * Ladrilho hidráulico de 20 cm: cada peça tem um quarto do desenho (arco no canto, pétala na diagonal, filete na borda) e as quatro em
+ * volta de um vértice se espelham, formando rosáceas que se repetem a cada 40 cm, em três cores de cimento.
+ */
+function pintarHidraulico(ctx: Contexto, mat: Material, A: Area, seed: number): void {
+  const B = rgbHex(mat.base), E = rgbHex(mat.escuro), C = rgbHex(mat.claro), D = rgbHex(mat.borda ?? '#6a2a22'), l = mat.lado ?? 0.2, s = Math.floor(seed) * 23 + 9;
+  porPixel(ctx, A, (x, y, o) => {
+    const i = Math.floor(x / l), j = Math.floor(y / l);
+    let u = x / l - i, v = y / l - j;
+    if (i & 1) u = 1 - u; if (j & 1) v = 1 - v;            // espelha: o canto (0, 0) de cada peça toca o centro da rosácea
+    const d = Math.hypot(u, v), diag = Math.abs(u - v), borda = Math.min(u, v, 1 - u, 1 - v);
+    let cor: Cor3 = C;
+    if (d < 0.6) cor = d < 0.2 ? D : d > 0.52 ? E : B;                                     // rosácea no canto
+    else if (diag < 0.16 * (1 - Math.abs(u + v - 1.4)) && u + v < 1.8) cor = D;           // pétala na diagonal
+    if (Math.hypot(1 - u, 1 - v) < 0.3) cor = Math.hypot(1 - u, 1 - v) < 0.22 ? B : E;   // quarto de círculo no canto oposto
+    if (borda < 0.04 && Math.max(u, v) > 0.5) cor = B;                                    // filete
+    mez(o, cor, cor, 0); rumo(o, C, (hash2D(i, j, s) - 0.5) * 0.08);
+    if (Math.min(x / l - i, y / l - j) < 0.015) rumo(o, E, 0.5);
+  });
+}
+
+/** Enxaimel: reboco claro entre peças de madeira escura (esteios a cada 1 m, frechal, peitoril e travessas em X nos vãos alternados). */
+function pintarEnxaimel(ctx: Contexto, mat: Material, A: Area, seed: number): void {
+  const r = mulberry32(seed * 43 + 1), w = 0.14;
+  ctx.fillStyle = mat.claro; ctx.fillRect(A.x, A.y, A.w, A.h); camadaDeRuido(ctx, A, seed, 1.5, 0.3);
+  ctx.fillStyle = mat.base; ctx.strokeStyle = mat.base; ctx.lineWidth = w * 0.85;
+  const x0 = Math.floor(A.x), y0 = Math.floor(A.y / 1.4) * 1.4;
+  for (let y = y0; y < A.y + A.h; y += 1.4) ctx.fillRect(A.x, y - w / 2, A.w, w);
+  for (let x = x0; x < A.x + A.w; x += 1) {
+    ctx.fillRect(x - w / 2, A.y, w, A.h);
+    if (Math.round(x) % 2 === 0) for (let y = y0; y < A.y + A.h; y += 1.4) { ctx.beginPath(); if (r() < 0.5) { ctx.moveTo(x, y); ctx.lineTo(x + 1, y + 1.4); } else { ctx.moveTo(x + 1, y); ctx.lineTo(x, y + 1.4); } ctx.stroke(); }
+  }
+  camadaDeRuido(ctx, A, seed + 1, 4, 0.3, 'multiply', 4);
+}
+
+/** Tábuas descascadas: tábuas em pé de 15 cm pintadas, com a tinta saindo em placas (a madeira cinza aparece) e o pé da parede mais gasto. */
+function pintarDescascado(ctx: Contexto, mat: Material, A: Area, seed: number): void {
+  const T = rgbHex(mat.base), M = rgbHex(mat.ouro ?? '#7a6a58'), E = rgbHex(mat.escuro), rn = valueNoise2D(seed * 47 + 2), larg = 0.15, s = Math.floor(seed) * 3 + 1;
+  porPixel(ctx, A, (x, y, o) => {
+    const k = Math.floor(x / larg), u = x / larg - k, tom = hash2D(k, 0, s);
+    const lasca = fbm(rn, x * 3.5 + k * 7, y * 2.2, 3) + (y - A.y) / Math.max(1, A.h) * 0.15;
+    mez(o, lasca > 0.6 ? M : T, lasca > 0.6 ? M : T, 0);
+    rumo(o, E, (tom - 0.5) * 0.25 + (lasca > 0.57 && lasca < 0.6 ? 0.45 : 0));
+    if (u < 0.05 || u > 0.97) rumo(o, E, 0.7);
+  });
+}
+
+/** Azulejo português de 15 cm: branco com o desenho em azul-cobalto (quarto de círculo nos cantos, flor no centro), o vidrado com reflexo leve. */
+function pintarAzulejo(ctx: Contexto, mat: Material, A: Area, seed: number): void {
+  const Bco = rgbHex(mat.claro), Az = rgbHex(mat.base), J = rgbHex(mat.escuro), l = mat.lado ?? 0.15, s = Math.floor(seed) * 29 + 3;
+  porPixel(ctx, A, (x, y, o) => {
+    const i = Math.floor(x / l), j = Math.floor(y / l), u = x / l - i - 0.5, v = y / l - j - 0.5, d = Math.hypot(u, v), a = Math.atan2(v, u);
+    const canto = Math.min(Math.hypot(Math.abs(u) - 0.5, Math.abs(v) - 0.5), 1);
+    const flor = d < 0.12 + 0.12 * Math.abs(Math.cos(a * 4)), anel = Math.abs(d - 0.3) < 0.025, quarto = canto < 0.2 && canto > 0.13;
+    const tinta = flor || anel || quarto || canto < 0.07;
+    mez(o, tinta ? Az : Bco, tinta ? Az : Bco, 0);
+    if (tinta) rumo(o, Bco, (hash2D(Math.floor(x * 60), Math.floor(y * 60), s) - 0.5) * 0.3);
+    rumo(o, [255, 255, 255], Math.max(0, 0.25 - Math.hypot(u + 0.2, v + 0.2)) * 0.6);
+    if (Math.min(x / l - i, y / l - j) < 0.03) mez(o, J, J, 0);
+  });
 }
 
 function pintarDunas(ctx: Contexto, mat: Material, A: Area, seed: number): void {
