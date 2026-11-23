@@ -295,7 +295,7 @@ Nota: feita (Mesa `e65a167`, Atlas `9f246d2`).
 - Achado: a projeção remota deixava `name: ''`, que `validarMapa` recusa. O receptor contorna com `prepararDocRemoto`; a correção na origem é a R7b.
 - **Revisão visual do Opus** (comparação do projetor local com o remoto no mesmo estado, script em `scratchpad/cmp.mjs`): o remoto desenha **preto em volta da peça**, onde o local mostra a rocha visível; e a câmera do remoto **não segue** a do mestre (mostra o mapa todo). O papel bege é o estilo "memória em esboço" do mapa e aparece igual nos dois. Corrigir na R7b.
 
-### R7b — Projetor remoto igual ao local dentro da área  ⬜
+### R7b — Projetor remoto igual ao local dentro da área  ✅
 Objetivo: dentro do que o jogador conhece, o projetor remoto desenha igual ao local, com a mesma câmera.
 Depende de: R7.
 Ler:
@@ -317,6 +317,12 @@ Como:
 Testes: um teste que compara local e remoto dentro da área (por exemplo, as células visíveis calculadas pelo receptor nos dois docs são as mesmas na área); a câmera chega ao remoto. Repita o `cmp.mjs` e anexe os screenshots novos (`cmp-local-2.png` e `cmp-remoto-2.png`) no scratchpad.
 Pronto quando: os dois screenshots mostram a mesma coisa dentro da área, com o mesmo enquadramento.
 Commit: `remote projector matches local inside the known area`
+Nota: feita (Atlas `f9623f4`). Causa: a `camera` chegava antes de o viewport do receptor estar pronto e se perdia, e o publicador só a mandava no `ola` e no `tamanho`. O remoto ficava com o mapa todo de longe e sem área desenhada. Correção:
+- o receptor reaplica a última caixa quando o viewport fica pronto;
+- o publicador ganhou `caixaRemota`/`enviarCameraRemota` (no `ola`, no `tamanho`, a cada mudança de peça ou documento, nos gestos e num `effect` que acompanha seguir, andar e o quadro do mestre);
+- `peca-gesto` sai separado para o local e o remoto;
+- o cômodo não revelado se chama "Cômodo" (`NOME_DO_COMODO_OCULTO`), e o `prepararDocRemoto` saiu.
+Revisão do Opus: `cmp-local-2.png` e `cmp-remoto-2.png` batem dentro da área.
 
 ### R8 — Câmera própria no projetor remoto  ⬜
 Objetivo: o jogador pode olhar o mapa por conta própria e voltar à câmera do mestre.
