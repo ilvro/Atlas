@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { signal } from '@preact/signals';
 import { iniciarTema } from '../app/tema.ts';
-import { canaisDoProjetor, prepararDocRemoto, projetorPodeDizer, type MensagemDoMestre, type MensagemDoProjetor } from '../app/projetor.ts';
+import { canaisDoProjetor, projetorPodeDizer, type MensagemDoMestre, type MensagemDoProjetor } from '../app/projetor.ts';
 import type { Recursos } from '../domain/fichas.ts';
 import { criarMapa, type MapaAtlas } from '../domain/mapa.ts';
 import { flutuarRolagem, ponto } from '../fx/fx.ts';
@@ -84,6 +84,8 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
     }).then(v => {
       if (morto) { v.destruir(); return; }
       vp = v; vpAtual = v;
+      // A câmera pode ter chegado antes do viewport ficar pronto (corrida): aplica a última agora.
+      if (caixa && seguindo.peek()) { v.enquadrarCaixa(caixaComZoom(caixa), false); primeira = false; }
       Object.defineProperty(window, '__projetor', {
         value: Object.freeze({
           doc: () => doc.value,
@@ -104,7 +106,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
         if (msg._seq === ultimoSeqMestre) return;
         ultimoSeqMestre = msg._seq;
       }
-      if (msg.tipo === 'estado') { const d = remoto ? prepararDocRemoto(msg.doc) : msg.doc; doc.value = d; store!.projetar(d, { emGesto: msg.emGesto }); }
+      if (msg.tipo === 'estado') { doc.value = msg.doc; store!.projetar(msg.doc, { emGesto: msg.emGesto }); }
       else if (msg.tipo === 'peca-gesto') {
         const atual = store?.documento;
         const t = atual?.tokens[msg.id];

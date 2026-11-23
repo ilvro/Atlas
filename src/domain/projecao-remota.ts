@@ -18,7 +18,7 @@ import { podar } from './iniciativa.ts';
  * - `backdrop`: fica a cor e o material; o `title` (texto e posição) é cortado (`null`).
  * - `terrain.layers[].cells` e `terrain.relief.patamares[].cells`: recortados por faixa para a área. `base` fica; `submerged` já sai cortado.
  * - `presence`: as células de cada presença recortadas para a área; sem célula dentro, some.
- * - `rooms`: só as células dentro da área; sem nenhuma, o cômodo some. `name` e `function` vazios se o cômodo não está em `session.revealed`.
+ * - `rooms`: só as células dentro da área; sem nenhuma, o cômodo some. `name` vira "Cômodo" (`validarMapa` recusa nome vazio) e `function` vira `null` se o cômodo não está em `session.revealed`.
  *   O `outline` (contorno livre) só fica se o cômodo ficou inteiro; senão sai e valem as células.
  * - `walls`: cada trecho contínuo da parede dentro da área vira uma parede própria; sem trecho, some. O trecho maior mantém o id
  *   original e os outros levam `<id>_2`, `<id>_3`… (pulando ids já usados). `source.roomId` de cômodo que sumiu vira `null`.
@@ -69,7 +69,7 @@ export function projetarParaRemoto(m: MapaAtlas, andar: string | null = null): M
     const dentro = todas.filter(([cx, cy]) => area.ponto(ox + (cx + 0.5) * g, oy + (cy + 0.5) * g));
     if (!dentro.length) { delete p.rooms[id]; continue; }
     if (dentro.length < todas.length) { r.cells = codificar(dentro); delete r.outline; }
-    if (!revelados.has(id)) { r.name = ''; r.function = null; }
+    if (!revelados.has(id)) { r.name = NOME_DO_COMODO_OCULTO; r.function = null; }
   }
 
   // Paredes (um trecho contínuo dentro da área vira uma parede), aberturas e objetos de parede.
@@ -128,6 +128,9 @@ export function projetarParaRemoto(m: MapaAtlas, andar: string | null = null): M
   p.session.revealed = p.session.revealed.filter(existe);
   return p;
 }
+
+/** O nome neutro do cômodo ainda não revelado. */
+export const NOME_DO_COMODO_OCULTO = 'Cômodo';
 
 /** Separador do id dos trechos extras de uma parede (`<id>_2`). O `~` não passa em `IDENT` (`[A-Za-z0-9_-]`). */
 const SEPARADOR_DE_TRECHO = '_';

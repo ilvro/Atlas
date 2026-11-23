@@ -6,6 +6,7 @@ import { projetarParaJogadores } from '../../src/domain/projecao.ts';
 import { decodificar, codificar } from '../../src/domain/celulas.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
 import { criarMapa, type MapaAtlas } from '../../src/domain/mapa.ts';
+import { celulasVisiveis, RES_NEVOA } from '../../src/domain/nevoa.ts';
 import { novaPeca } from '../../src/domain/fabrica.ts';
 
 const retangulo = (x0: number, y0: number, x1: number, y1: number) => { const cs: [number, number][] = []; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) cs.push([x, y]); return codificar(cs); };
@@ -64,7 +65,7 @@ test('remota: o cômodo explorado sai inteiro, com o nome só se revelado', () =
   assert.deepEqual(p.walls.wA!.path, m.walls.wA!.path, 'a parede inteira dentro não muda');
   m.session.revealed = [];
   const nao = projetarParaRemoto(m);
-  assert.equal(nao.rooms.A!.name, ''); assert.equal(nao.rooms.A!.function, null);
+  assert.equal(nao.rooms.A!.name, 'Cômodo'); assert.doesNotThrow(() => validarMapa(nao)); assert.equal(nao.rooms.A!.function, null);
   assert.ok(nao.rooms.A!.cells.length > 0);
 });
 
@@ -133,4 +134,24 @@ test('remota: num mapa de exemplo com névoa parcial, nada fica fora da área', 
     assert.equal(p.name, 'Mapa');
     assert.ok(Object.keys(p.props).length < Object.keys(m.props).length || Object.keys(m.props).length === 0, `${f}: cortou objetos`);
   }
+});
+
+test('remota igual à local dentro da área: a visão do receptor e as células de terreno coincidem (Sala da guarda, peça na rocha)', () => {
+  const m = JSON.parse(readFileSync(new URL('../../public/exemplos/sala-da-guarda.atlas.json', import.meta.url), 'utf8')) as MapaAtlas;
+  m.tokens.hugo = { ...novaPeca([9.75, 9.75]), id: 'hugo', name: 'Hugo', player: true, vision: { radius: 6, dark: false } };
+  const local = projetarParaJogadores(m, null);
+  m.session.explored = { res: RES_NEVOA, cells: celulasVisiveis(local, RES_NEVOA) };
+  const L = projetarParaJogadores(m, null), R = projetarParaRemoto(m, null);
+  const chaves = (cs: ReturnType<typeof celulasVisiveis>) => new Set(decodificar(cs).map(([x, y]) => `${x},${y}`));
+  const vl = chaves(celulasVisiveis(L, RES_NEVOA)), vr = chaves(celulasVisiveis(R, RES_NEVOA));
+  assert.ok(vl.size > 100);
+  assert.deepEqual([...vr].sort(), [...vl].sort(), 'o receptor enxerga as mesmas células com o documento remoto e com o local');
+  // Cada célula de terreno visível no local está no remoto (o recorte não come nada dentro da área).
+  const [ox, oy] = [0, 0], t = L.terrain.resolution;
+  for (const [id, camada] of Object.entries(L.terrain.layers)) {
+    const rem = new Set(decodificar(R.terrain.layers[id]?.cells ?? []).map(([x, y]) => `${x},${y}`));
+    const faltam = decodificar(camada.cells).filter(([x, y]) => vl.has(`${Math.floor(((x + 0.5) * t + ox) / RES_NEVOA)},${Math.floor(((y + 0.5) * t + oy) / RES_NEVOA)}`) && !rem.has(`${x},${y}`));
+    assert.equal(faltam.length, 0, `camada ${id}: nada visível foi cortado`);
+  }
+  assert.ok(Object.keys(R.terrain.layers).length > 0);
 });
