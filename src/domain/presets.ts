@@ -195,6 +195,7 @@ export const ESTILOS_DE_TELHADO: readonly EstiloDeTelhado[] = [
   { id: 'templo-de-cobre', nome: 'Templo de cobre', roof: { material: 'telha.cobre', shape: 'quatro-aguas', steep: true, details: [] } },
   { id: 'galpao-de-zinco', nome: 'Galpão de zinco', roof: { material: 'telha.zinco', shape: 'duas-aguas', steep: false, details: [] } },
   { id: 'laje-moderna', nome: 'Laje moderna', roof: { material: 'telha.concreto', shape: 'plano', details: ['caixa-dagua'] } },
+  { id: 'laje-equipada', nome: 'Laje com equipamentos', roof: { material: 'laje.equipada', shape: 'plano', details: ['ar-condicionado', 'antena', 'caixa-dagua'] } },
   { id: 'casa-nordica', nome: 'Casa nórdica', roof: { material: 'telha.grama', shape: 'duas-aguas', steep: false, details: ['chamine'] } },
   { id: 'tenda', nome: 'Tenda', roof: { material: 'telha.lona', shape: 'piramide', steep: false, details: [] } },
   { id: 'torre-redonda', nome: 'Torre redonda', roof: { material: 'telha.escamas', shape: 'cone', steep: true, details: ['catavento'] } },

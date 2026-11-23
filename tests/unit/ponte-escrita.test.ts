@@ -129,7 +129,7 @@ test('atlas_comodos aceita novas formas, telhadoEstado e telhadoDesgaste; recusa
   );
 
   const catTelhado = catalogo('telhado') as { estilos: unknown[]; coberturas: unknown[]; formas: string[]; estados: { id: string }[] };
-  assert.equal(catTelhado.estilos.length, 33);
+  assert.equal(catTelhado.estilos.length, 34);
   assert.ok(catTelhado.coberturas.length >= 15);
   assert.equal(catTelhado.formas.length, 12);
   assert.deepEqual(catTelhado.estados.map(e => e.id), ['novo', 'gasto', 'velho', 'abandonado', 'em-ruinas']);

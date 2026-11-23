@@ -5,13 +5,13 @@ import { amostrarSemRepeticao, mapaDeGradiente, pesoDaCamada, reduzirTextura, to
 import { texturaPronta } from './texturas-carregadas.ts';
 import { ehPadraoDeCobertura, texturaDeCobertura, type PadraoDeCobertura } from './coberturas.ts';
 
-export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'dunas-areia' | 'basalto' | 'cristal' | 'mosaico' | 'medalhao' | 'tatami' | 'zellige' | 'pompeiano' | 'hieroglifos' | 'shoji' | 'taipa' | 'conves' | 'hidraulico' | 'enxaimel' | 'descascado' | 'azulejo' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho' | 'paralelepipedo' | 'lajegrama' | 'sulcos' | 'molhada' | 'batido' | 'folhico'
+export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'dunas-areia' | 'basalto' | 'cristal' | 'mosaico' | 'medalhao' | 'tatami' | 'zellige' | 'pompeiano' | 'hieroglifos' | 'shoji' | 'taipa' | 'conves' | 'hidraulico' | 'enxaimel' | 'descascado' | 'azulejo' | 'neon' | 'pichado' | 'ferrugem' | 'metro' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho' | 'paralelepipedo' | 'lajegrama' | 'sulcos' | 'molhada' | 'batido' | 'folhico'
   | 'palha-chao' | 'lajes-rusticas' | 'lajes-grandes' | 'marchetaria' | 'chapa-xadrez' | 'grade-metal' | 'toras' | 'manchado' | 'painel' | 'acolchoado' | 'pisada' | 'placas' | PadraoDeCobertura;
 export interface Material {
   id: string; nome: string; /** Para onde o material vai: piso, papel de parede, objeto ou terreno. */ uso: 'piso' | 'papel' | 'objeto' | 'terreno' | 'macico' | 'agua' | 'telhado';
   base: string; escuro: string; claro: string; padrao: Padrao; /** Tapete: qual desenho (1 medalhão, 2 floral, 3 cercaduras, 4 kilim, 5 oval); ausente sorteia pela semente. */ desenho?: number; largura?: number; lado?: number; ouro?: string; borda?: string; meio?: string; /** Maciço: cor do topo (neve), onde a rocha passa de 70% da altura. */ topo?: string; /** Maciço e escarpa: quanto o pé da face escurece e quanto pesa a sombra de contato (0 a 1; ausente vale 1). */ pe?: number;
   /** Água: cor perto da margem e no fundo, cor da espuma e quanto se enxerga o leito (0 a 1) no fundo. */ raso?: string; fundo?: string; espuma?: string; transparencia?: number; /** Água: rede de luz animada sobre o leito (cáusticas). */ causticas?: boolean; /** Água: quanto de espuma na margem e em volta dos objetos (0 a 1, padrão 1); água parada de gruta quase não tem. */ espumaForca?: number; /** Água: rebentação, cristas de onda brancas que correm para a margem (0 a 1; só o mar). */ ondas?: number;
-  /** Água ou maciço que brilha: quanto emite acima da luz da cena (0 a 1). No maciço, são os veios (`veio`). */ brilho?: number; /** Água: desenha lava (crosta com fendas acesas, sem ondas nem espuma). */ lava?: boolean; /** Maciço com `brilho`: a cor dos veios. */ veio?: string;
+  /** Água, maciço, piso ou papel que brilha: quanto emite acima da luz da cena (0 a 1). No maciço são os veios (`veio`); no piso e no papel, as partes claras do desenho (o néon). */ brilho?: number; /** Água: desenha lava (crosta com fendas acesas, sem ondas nem espuma). */ lava?: boolean; /** Maciço com `brilho`: a cor dos veios. */ veio?: string;
   /** Terreno: quanto a borda da camada se desfaz em manchas (0 a 1; ausente = borda comum). Chão batido e folhiço se misturam com o vizinho. */ franja?: number;
   /** Terreno (Ilustrado): textura CC0 puxada para a paleta; o `padrao` continua como reserva e é o que o Pixel usa. */ textura?: ReceitaDeTextura;
   /** Telhado: o que cresce ou corrói na cobertura (musgo, ferrugem, azinhavre) e quanto dela cobre (0 a 1). */ mancha?: { cor: string; quanto: number };
@@ -134,6 +134,18 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('azulejo.portugues', 'Azulejo português', 'papel', '#1e3e8a', '#b8b4aa', '#f2f0ea', 'azulejo', { lado: 0.15 }),
   m('telha.capa-canal', 'Telha capa-canal colonial', 'telhado', '#a85a38', '#3e1c10', '#d4885e', 'telha-canal', { mancha: { cor: '#2e2a22', quanto: 0.3 } }),
   m('chapa.rebitada', 'Chapa rebitada', 'telhado', '#6a6458', '#262420', '#a49c8a', 'rebitada', { especular: 0.45, mancha: { cor: '#8a4a22', quanto: 0.3 } }),
+  // Pós-apocalíptico e cyberpunk (Q12)
+  m('concreto.rachado', 'Concreto rachado', 'piso', '#7e7c78', '#3a3836', '#a8a6a0', 'rachado'),
+  m('entulho', 'Entulho', 'piso', '#6e665c', '#2e2a26', '#9a9082', 'cascalho'),
+  m('linoleo', 'Linóleo', 'piso', '#8a8a74', '#5a6a6a', '#c8c4a8', 'xadrez', { lado: 0.3 }),
+  m('piso.neon', 'Piso com néon', 'piso', '#1c1e26', '#0c0d12', '#2ad8ff', 'neon', { ouro: '#ff2ad0', brilho: 0.9 }),
+  m('grade.cyber', 'Grade de piso escura', 'piso', '#2a2e36', '#0e1014', '#4a5464', 'grade-metal'),
+  m('concreto.pichado', 'Concreto pichado', 'papel', '#8a8780', '#4a4844', '#b0ada6', 'pichado'),
+  m('chapa.enferrujada', 'Chapa enferrujada', 'papel', '#4a4a48', '#2a2a28', '#8a8a86', 'ferrugem', { ouro: '#8a4422' }),
+  m('painel.neon', 'Painel com néon', 'papel', '#1a1c24', '#0a0b10', '#ff2ad0', 'neon', { ouro: '#2ad8ff', brilho: 0.9 }),
+  m('azulejo.metro', 'Azulejo de metrô', 'papel', '#e6e4de', '#8a8a86', '#fafaf6', 'metro'),
+  m('chapa.remendada', 'Chapa remendada', 'telhado', '#6a6660', '#2a2826', '#9a948a', 'remendada', { especular: 0.35, mancha: { cor: '#8a4422', quanto: 0.45 } }),
+  m('laje.equipada', 'Laje com equipamentos', 'telhado', '#7c7a76', '#3e3c3a', '#a6a4a0', 'concreto-laje', { mancha: { cor: '#3a3836', quanto: 0.3 } }),
   m('telha.barro', 'Telha de barro', 'telhado', '#a5553a', '#4a2014', '#d4845e', 'telha-canal'),
   m('telha.velha', 'Telha velha com musgo', 'telhado', '#8e5a44', '#3c2216', '#b9846a', 'telha-canal', { mancha: { cor: '#5f7a3a', quanto: 0.42 } }),
   m('telha.ardosia', 'Ardósia', 'telhado', '#3d444f', '#191d24', '#66717f', 'ardosia', { mancha: { cor: '#7d8a6a', quanto: 0.08 } }),
@@ -448,6 +460,10 @@ export function pintarMaterial(ctx: Contexto, id: string, area: Area, seed = 1, 
     case 'enxaimel': pintarEnxaimel(ctx, mat, A, seed); break;
     case 'descascado': pintarDescascado(ctx, mat, A, seed); break;
     case 'azulejo': pintarAzulejo(ctx, mat, A, seed); break;
+    case 'neon': pintarNeon(ctx, mat, A, seed); break;
+    case 'pichado': pintarPichado(ctx, mat, A, seed); break;
+    case 'ferrugem': pintarFerrugem(ctx, mat, A, seed); break;
+    case 'metro': pintarMetro(ctx, mat, A, seed); break;
     case 'basalto': pintarCelulas(ctx, mat, A, seed, 'basalto'); break;
     case 'cristal': pintarCelulas(ctx, mat, A, seed, 'cristal'); break;
     case 'dunas-areia': camadaDeRuido(ctx, A, seed, 3, 0.1, 'multiply', 6); pintarDunasDeAreia(ctx, mat, area, seed, dir); break;
@@ -987,6 +1003,73 @@ function pintarAzulejo(ctx: Contexto, mat: Material, A: Area, seed: number): voi
     if (tinta) rumo(o, Bco, (hash2D(Math.floor(x * 60), Math.floor(y * 60), s) - 0.5) * 0.3);
     rumo(o, [255, 255, 255], Math.max(0, 0.25 - Math.hypot(u + 0.2, v + 0.2)) * 0.6);
     if (Math.min(x / l - i, y / l - j) < 0.03) mez(o, J, J, 0);
+  });
+}
+
+// ---------- Pós-apocalíptico e cyberpunk (Frente Q, Q12) ----------
+
+/**
+ * Néon: placas escuras de 0,6 m com junta fina e, a cada 1,2 m, faixas de luz (`claro`) cruzando, com um segundo tom (`ouro`) nas
+ * transversais. Com `brilho` no material, as faixas emitem acima da luz (o resto não, por ser escuro).
+ */
+function pintarNeon(ctx: Contexto, mat: Material, A: Area, seed: number): void {
+  const B = rgbHex(mat.base), E = rgbHex(mat.escuro), N1 = rgbHex(mat.claro), N2 = rgbHex(mat.ouro ?? mat.claro), s = Math.floor(seed) * 31 + 7;
+  porPixel(ctx, A, (x, y, o) => {
+    const i = Math.floor(x / 0.6), j = Math.floor(y / 0.6), u = x / 0.6 - i, v = y / 0.6 - j;
+    mez(o, E, B, 0.6 + (hash2D(i, j, s) - 0.5) * 0.3);
+    if (Math.min(u, v, 1 - u, 1 - v) < 0.02) rumo(o, [0, 0, 0], 0.5);
+    const fx = Math.abs(((x / 1.2) % 1 + 1) % 1 - 0.5) * 1.2, fy = Math.abs(((y / 1.2) % 1 + 1) % 1 - 0.5) * 1.2;
+    const nucleo = (d: number) => 1 - passo(0.022, 0.04, d), halo = (d: number) => (1 - passo(0.04, 0.18, d)) * 0.5;
+    if (fx < 0.18) { mez(o, o as unknown as Cor3, N1, Math.max(nucleo(fx), halo(fx))); if (fx < 0.008) rumo(o, [255, 255, 255], 0.25); }
+    if (fy < 0.18) { rumo(o, N2, Math.max(nucleo(fy), halo(fy))); if (fy < 0.008) rumo(o, [255, 255, 255], 0.25); }
+  });
+}
+
+/** Concreto pichado: concreto manchado com pichações (letras infladas em contorno, tags em traço solto e respingos), sem texto legível. */
+function pintarPichado(ctx: Contexto, mat: Material, A: Area, seed: number): void {
+  const r = mulberry32(seed * 53 + 11), tintas = ['#d8303a', '#2a8ad8', '#e8c030', '#30c070', '#c040c0', '#f0f0f0', '#101010'];
+  ctx.fillStyle = mat.base; ctx.fillRect(A.x, A.y, A.w, A.h); camadaDeRuido(ctx, A, seed, 1.4, 0.45); camadaDeRuido(ctx, A, seed + 3, 5, 0.3, 'multiply', 4);
+  const n = Math.max(1, Math.round(A.w * A.h * 0.25));
+  for (let k = 0; k < n; k++) {
+    const cx = A.x + r() * A.w, cy = A.y + r() * A.h, cor = tintas[Math.floor(r() * tintas.length)]!, contorno = tintas[Math.floor(r() * tintas.length)]!;
+    if (r() < 0.55) {
+      // Letras infladas: uma fileira de bolhas com contorno.
+      const nl = 3 + Math.floor(r() * 4), h = 0.22 + r() * 0.25;
+      for (let i = 0; i < nl; i++) {
+        const x = cx + i * h * 0.62, y = cy + (r() - 0.5) * h * 0.2, w = h * (0.45 + r() * 0.2);
+        ctx.globalAlpha = 0.85; ctx.fillStyle = contorno; ctx.beginPath(); ctx.ellipse(x, y, w * 0.62, h * 0.6, (r() - 0.5) * 0.4, 0, 7); ctx.fill();
+        ctx.fillStyle = cor; ctx.beginPath(); ctx.ellipse(x, y, w * 0.5, h * 0.48, (r() - 0.5) * 0.4, 0, 7); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.4; ctx.beginPath(); ctx.ellipse(x - w * 0.15, y - h * 0.2, w * 0.12, h * 0.08, 0, 0, 7); ctx.fill();
+      }
+    } else {
+      // Tag: traço solto que vai e volta.
+      ctx.globalAlpha = 0.8; ctx.strokeStyle = cor; ctx.lineWidth = 0.025 + r() * 0.02; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(cx, cy);
+      for (let i = 0; i < 6; i++) ctx.lineTo(cx + i * 0.09 + (r() - 0.5) * 0.06, cy + (r() - 0.5) * 0.25); ctx.stroke();
+    }
+    for (let i = 0; i < 6; i++) { ctx.globalAlpha = 0.5; ctx.fillStyle = cor; ctx.beginPath(); ctx.arc(cx + (r() - 0.5) * 0.8, cy + (r() - 0.5) * 0.5, 0.006 + r() * 0.01, 0, 7); ctx.fill(); }
+  }
+  ctx.globalAlpha = 1;
+}
+
+/** Chapa enferrujada: chapa ondulada em pé (crista a cada 7,6 cm) com placas desencontradas e ferrugem escorrendo dos rebites e da base. */
+function pintarFerrugem(ctx: Contexto, mat: Material, A: Area, seed: number): void {
+  const B = rgbHex(mat.base), E = rgbHex(mat.escuro), C = rgbHex(mat.claro), F = rgbHex(mat.ouro ?? '#8a4422'), rn = valueNoise2D(seed * 59 + 4), s = Math.floor(seed) * 7 + 2;
+  porPixel(ctx, A, (x, y, o) => {
+    const onda = Math.sin((x / 0.076) * Math.PI * 2), placa = Math.floor(x / 0.9), tom = hash2D(placa, Math.floor(y / 2.4 + (placa & 1) * 0.5), s);
+    mez(o, E, C, 0.45 + onda * 0.25 + (tom - 0.5) * 0.2);
+    const ferr = fbm(rn, x * 1.5, y * 0.6, 3) + passo(0, A.h, y - A.y) * 0.15 + Math.max(0, 0.08 - Math.abs(((y / 2.4) % 1 + 1) % 1 - 0.05)) * 3;
+    rumo(o, F, passo(0.5, 0.75, ferr) * 0.8);
+    if (Math.abs(x / 0.9 - Math.round(x / 0.9)) < 0.012) rumo(o, B, 0.6);
+  });
+}
+
+/** Azulejo de metrô: tijolinhos brancos de 15 × 7,5 cm em amarração, rejunte cinza e o reflexo do vidrado no alto de cada peça. */
+function pintarMetro(ctx: Contexto, mat: Material, A: Area, seed: number): void {
+  const B = rgbHex(mat.base), J = rgbHex(mat.escuro), C = rgbHex(mat.claro), s = Math.floor(seed) * 3 + 9;
+  porPixel(ctx, A, (x, y, o) => {
+    const j = Math.floor(y / 0.075), off = (j & 1) * 0.075, i = Math.floor((x + off) / 0.15), u = (x + off) / 0.15 - i, v = y / 0.075 - j;
+    mez(o, B, C, 0.3 + (1 - v) * 0.5 + (hash2D(i, j, s) - 0.5) * 0.2);
+    if (u < 0.04 || v < 0.08) mez(o, J, J, 0);
   });
 }
 

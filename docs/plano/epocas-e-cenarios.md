@@ -257,7 +257,7 @@ Pronto quando: a prancha mostra os três estilos lado a lado e cada um se reconh
 Commit: `added colonial, frontier and victorian floors, walls and roofs`
 Nota: pintores novos: `conves` (pranchas de 4 a 6 m, calafeto de breu, cavilhas nas emendas), `hidraulico` (peças de 25 cm espelhadas formando rosáceas), `enxaimel`, `descascado` (tinta saindo em placas, mais gasta no pé) e `azulejo`. Reaproveitados: tijoleira em `espinha`, tábuas gastas em `tabuas`, caiado em `manchado`, tijolo com fuligem em `laje`, telha colonial em `telha-canal`, com manchas escuras. Cobertura nova `rebitada` (placas desencontradas com rebites, usada também no steampunk). A ficha previa `telha.capa-canal` e `chapa.rebitada`, e os dois ids foram mantidos. Cenas de teste: oito cômodos e três casas.
 
-### Q12 — Pós-apocalíptico e cyberpunk  ⬜ **[Opus]**
+### Q12 — Pós-apocalíptico e cyberpunk  ✅ **[Opus]**
 Depende de: Q4 (néon).
 Como:
 - pisos: `concreto.rachado`, `entulho`, `linoleo`, `piso.neon` (faixas que brilham), `grade.cyber`;
@@ -265,6 +265,7 @@ Como:
 - telhados: `chapa.remendada`, e `laje.equipada` (laje com caixas de ar-condicionado e antenas como detalhe, via `detalhes-de-telhado.ts`).
 Pronto quando: à noite, o `painel.neon` e o `piso.neon` brilham; de dia, parecem tinta.
 Commit: `added post-apocalyptic and cyberpunk floors, walls and roofs`
+Nota: motor. Piso e papel de parede passaram a emitir: um material com `brilho` grava emissão pelo valor da cor (o maior canal, para que o magenta acenda tanto quanto o ciano) com `emitirPorLuminancia`, no `assarComodo` (piso) e em `desenharFacesDasParedes` (face). Pintores novos: `neon` (placas escuras com faixas de luz em grade), `pichado` (letras infladas e tags sem texto legível), `ferrugem` (chapa ondulada com ferrugem escorrendo) e `metro` (tijolinho branco). Reaproveitados: concreto rachado em `rachado`, entulho em `cascalho`, linóleo em `xadrez`, grade escura em `grade-metal`. Cobertura nova `remendada` (fiadas de placas onduladas de origens diferentes; fecha no período de 2 m). Detalhes de telhado novos: `ar-condicionado` e `antena`; o estilo `laje-equipada` aplica a laje com os dois e a caixa-d'água num clique. O teste de validação usava `antena` como detalhe inválido e passou a usar `gargula`.
 
 ---
 
@@ -413,6 +414,8 @@ Mantida ao longo da frente. Cada ficha registra aqui o que ficou de fora ou o qu
 | Q10 | As tesselas do mosaico mal aparecem; o que lê são os motivos. | O piso de cômodo é assado a 64 px/m (tessela de 5 cm ≈ 3 px). | Subir a resolução de pisos de mosaico, se a cena pedir de perto. |
 | Q10 | A forma `pagode` vista de cima parece um quatro-águas: as pontas erguidas não aparecem. | O telhado é desenhado em planta. | Pontas viradas e cumeeira curva desenhadas na forma (Q16, kit oriental). |
 | Q10 | O terraço de barro mostra juntas de placa. | Reaproveita a cobertura `concreto-laje`. | Uma cobertura de barro lisa, com rachaduras, se destoar. |
+| Q12 | O néon de piso e parede acende só a si mesmo: não derrama luz colorida no chão em volta (a lava derrama). | A emissão de material é por pixel e sem halo. | Uma luz derivada (como `luzDoBrilho` da Q4), ou o letreiro como objeto com luz `neon` (Q23a). |
+| Q12 | À noite, as cores do néon ficam um pouco lavadas. | A emissão multiplica a cor por até 3 e satura. | Curva de tom própria para emissão, ou escurecer as cores do néon. |
 | ~~Q2b~~ | ~~Os seletores cortavam o texto ("Deste mapa (Inv…")~~ | | Resolvido: os seletores ficam um embaixo do outro, cada um na largura toda. |
 | ~~Q2c~~ | ~~O aviso do baker falava em "miniaturas" mesmo quando era o mapa~~ | | Resolvido: o texto agora vale para os dois. |
 | ~~Q7~~ | ~~Uma camada de sulcos ou dunas tinha uma direção só (talhões diferentes saíam na média)~~ | | Resolvido: cada parte conectada da camada ganha a própria direção (`componentesDeFaixas`). |

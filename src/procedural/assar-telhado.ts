@@ -147,6 +147,8 @@ const ALTURA_DETALHE: Record<DetalheDeTelhado, number> = {
   catavento: 1.15,
   claraboia: 0.16,
   'caixa-dagua': 0.95,
+  'ar-condicionado': 0.8,
+  antena: 1.6,
 };
 
 const DIRS_SONDA: readonly [number, number][] = Array.from({ length: 8 }, (_, i) => {
