@@ -5,13 +5,13 @@ import { amostrarSemRepeticao, mapaDeGradiente, pesoDaCamada, reduzirTextura, to
 import { texturaPronta } from './texturas-carregadas.ts';
 import { ehPadraoDeCobertura, texturaDeCobertura, type PadraoDeCobertura } from './coberturas.ts';
 
-export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'dunas-areia' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho' | 'paralelepipedo' | 'lajegrama' | 'sulcos' | 'molhada' | 'batido' | 'folhico'
+export type Padrao = 'tabuas' | 'xadrez' | 'damasco' | 'listras' | 'veio' | 'trama' | 'couro' | 'metal' | 'vidro' | 'pregas' | 'pintura' | 'persa' | 'laje' | 'liso' | 'grama' | 'terra' | 'areia' | 'pedra' | 'neve' | 'lama' | 'dunas-areia' | 'basalto' | 'cristal' | 'espinha' | 'marmore' | 'losango' | 'hexagono' | 'floral' | 'lambri' | 'gelo' | 'dunas' | 'rachado' | 'cascalho' | 'paralelepipedo' | 'lajegrama' | 'sulcos' | 'molhada' | 'batido' | 'folhico'
   | 'palha-chao' | 'lajes-rusticas' | 'lajes-grandes' | 'marchetaria' | 'chapa-xadrez' | 'grade-metal' | 'toras' | 'manchado' | 'painel' | 'acolchoado' | 'pisada' | 'placas' | PadraoDeCobertura;
 export interface Material {
   id: string; nome: string; /** Para onde o material vai: piso, papel de parede, objeto ou terreno. */ uso: 'piso' | 'papel' | 'objeto' | 'terreno' | 'macico' | 'agua' | 'telhado';
   base: string; escuro: string; claro: string; padrao: Padrao; /** Tapete: qual desenho (1 medalhão, 2 floral, 3 cercaduras, 4 kilim, 5 oval); ausente sorteia pela semente. */ desenho?: number; largura?: number; lado?: number; ouro?: string; borda?: string; meio?: string; /** Maciço: cor do topo (neve), onde a rocha passa de 70% da altura. */ topo?: string; /** Maciço e escarpa: quanto o pé da face escurece e quanto pesa a sombra de contato (0 a 1; ausente vale 1). */ pe?: number;
   /** Água: cor perto da margem e no fundo, cor da espuma e quanto se enxerga o leito (0 a 1) no fundo. */ raso?: string; fundo?: string; espuma?: string; transparencia?: number; /** Água: rede de luz animada sobre o leito (cáusticas). */ causticas?: boolean; /** Água: quanto de espuma na margem e em volta dos objetos (0 a 1, padrão 1); água parada de gruta quase não tem. */ espumaForca?: number; /** Água: rebentação, cristas de onda brancas que correm para a margem (0 a 1; só o mar). */ ondas?: number;
-  /** Água que brilha (lava): quanto emite acima da luz da cena (0 a 1). Vira crosta com fendas acesas, sem ondas nem espuma. */ brilho?: number;
+  /** Água ou maciço que brilha: quanto emite acima da luz da cena (0 a 1). No maciço, são os veios (`veio`). */ brilho?: number; /** Água: desenha lava (crosta com fendas acesas, sem ondas nem espuma). */ lava?: boolean; /** Maciço com `brilho`: a cor dos veios. */ veio?: string;
   /** Terreno: quanto a borda da camada se desfaz em manchas (0 a 1; ausente = borda comum). Chão batido e folhiço se misturam com o vizinho. */ franja?: number;
   /** Terreno (Ilustrado): textura CC0 puxada para a paleta; o `padrao` continua como reserva e é o que o Pixel usa. */ textura?: ReceitaDeTextura;
   /** Telhado: o que cresce ou corrói na cobertura (musgo, ferrugem, azinhavre) e quanto dela cobre (0 a 1). */ mancha?: { cor: string; quanto: number };
@@ -156,6 +156,8 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('rocha.caverna', 'Rocha de caverna', 'macico', '#566069', '#1b2128', '#8fa1ad', 'pedra', { pe: 1 }),
   m('rocha.nevada', 'Rocha nevada', 'macico', '#77808a', '#2d343c', '#b4bec8', 'pedra', { topo: '#f1f6fa', pe: 0.35 }),
   m('rocha.arenito', 'Arenito', 'macico', '#b49a72', '#5e4a30', '#e0c9a0', 'pedra', { pe: 0.25 }),
+  m('rocha.basalto', 'Basalto', 'macico', '#2a2a2e', '#0e0e10', '#4e4e56', 'liso'),
+  m('rocha.cristal', 'Rocha com cristais', 'macico', '#3a3446', '#141018', '#6a6080', 'liso', { brilho: 0.6, veio: '#8a6aff' }),
   // Água: o assar pinta o leito pela distância à margem (raso → fundo); o padrão serve de amostra
   m('agua.mar', 'Mar', 'agua', '#2f6f86', '#0d2f45', '#8fd0e0', 'liso', { raso: '#58a8b8', fundo: '#0f3a54', espuma: '#f2fbff', transparencia: 0.12, ondas: 1 }),
   m('agua.lago', 'Lago', 'agua', '#2f7a78', '#0f3438', '#8fd8cc', 'liso', { raso: '#5fae9c', fundo: '#12404a', espuma: '#e6f6f0', transparencia: 0.18 }),
@@ -163,7 +165,10 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('agua.gruta', 'Água de gruta', 'agua', '#2aa8a0', '#0c4a52', '#9af0e0', 'liso', { raso: '#58d0c0', fundo: '#106068', espuma: '#d8fff4', transparencia: 0.85, causticas: true, espumaForca: 0.12 }),
   m('agua.pantano', 'Pântano', 'agua', '#5a6a38', '#222a14', '#98a468', 'liso', { raso: '#7a8444', fundo: '#2c3418', espuma: '#c4c88c', transparencia: 0.2 }),
   m('agua.arrozal', 'Arrozal alagado', 'agua', '#6a7448', '#2e3420', '#9aa070', 'liso', { raso: '#8a8a58', fundo: '#4a5030', espuma: '#d4d4b0', transparencia: 0.35, espumaForca: 0.2 }),
-  m('agua.lava', 'Lava', 'agua', '#c8461a', '#2a1610', '#ffb050', 'liso', { raso: '#ff8a2a', fundo: '#b8300c', espuma: '#ffd27a', transparencia: 0, espumaForca: 0, brilho: 1 }),
+  m('agua.tropical', 'Água tropical', 'agua', '#3ab8b8', '#14607a', '#9af0e8', 'liso', { raso: '#5ad6c8', fundo: '#1a7894', espuma: '#f4fffc', transparencia: 0.62, causticas: true, ondas: 0.4 }),
+  m('agua.acida', 'Água ácida', 'agua', '#6ac83a', '#2a5a14', '#c8ff8a', 'liso', { raso: '#8ae04a', fundo: '#2e6a18', espuma: '#d8ff9a', transparencia: 0.3, espumaForca: 0.2, brilho: 0.35 }),
+  m('agua.esgoto', 'Esgoto', 'agua', '#4e4c36', '#24231a', '#7a7656', 'liso', { raso: '#5e5a40', fundo: '#2a281c', espuma: '#8a8468', transparencia: 0.05, espumaForca: 0.12 }),
+  m('agua.lava', 'Lava', 'agua', '#c8461a', '#2a1610', '#ffb050', 'liso', { raso: '#ff8a2a', fundo: '#b8300c', espuma: '#ffd27a', transparencia: 0, espumaForca: 0, brilho: 1, lava: true }),
   m('agua.turfa', 'Água de turfa', 'agua', '#25313a', '#0a1116', '#5d727c', 'liso', { raso: '#3b4d55', fundo: '#0b1419', espuma: '#9aaab0', transparencia: 0.08, espumaForca: 0.12 }),
   m('cascalho', 'Cascalho', 'terreno', '#7a756c', '#3f3b36', '#b0aaa0', 'cascalho', { textura: { tingir: 0.6, camadas: [{ textura: 'gravel_floor', escala: 2.2 }, { textura: 'rocks_ground_02', escala: 1.2, mascara: { freq: 0.5, limiar: 0.6, suave: 0.08, semente: 11 } }] } }),
   m('paralelepipedo', 'Paralelepípedo', 'terreno', '#85878a', '#393c40', '#b8babc', 'paralelepipedo'),
@@ -202,6 +207,11 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('asfalto', 'Asfalto', 'terreno', '#424448', '#202124', '#686a70', 'liso', { textura: { tingir: 0.97, camadas: [{ textura: 'worn_asphalt', escala: 1.3 }] } }),
   m('asfalto.rachado', 'Asfalto rachado', 'terreno', '#3c3d40', '#18191b', '#56585c', 'rachado', { textura: { tingir: 0.95, camadas: [{ textura: 'road_damaged', escala: 1.3 }] } }),
   m('concreto.calcada', 'Calçada de concreto', 'terreno', '#8e8a84', '#4c4a46', '#b6b2aa', 'laje', { textura: { tingir: 0.8, camadas: [{ textura: 'concrete_pavement', escala: 1 }] } }),
+  // Vulcão e subterrâneo (Q9)
+  m('basalto', 'Basalto em colunas', 'terreno', '#3c3c40', '#18181b', '#6a6a70', 'basalto'),
+  m('cinza.vulcanica', 'Cinza vulcânica', 'terreno', '#4a4846', '#262422', '#6e6a66', 'terra', { textura: { tingir: 0.95, camadas: [{ textura: 'moon_02', escala: 1 }] } }),
+  m('chao.de.fungos', 'Chão de fungos', 'terreno', '#3a2c34', '#1a1218', '#5e4a56', 'folhico', { franja: 1, textura: { tingir: 0.75, camadas: [{ textura: 'mud_forest', escala: 1.5 }] } }),
+  m('cristal.chao', 'Chão de cristal', 'terreno', '#5a4a8a', '#221a3e', '#c8b8ff', 'cristal'),
   // Deserto e sertão (Q7)
   m('areia.duna', 'Dunas', 'terreno', '#d2ac70', '#74481e', '#f4dca6', 'dunas-areia'),
   m('terra.rachada', 'Terra rachada', 'terreno', '#8a7458', '#4e3e2c', '#b49e7c', 'rachado', { textura: { tingir: 0.75, camadas: [{ textura: 'dry_ground_01', escala: 1.1 }] } }),
@@ -391,6 +401,8 @@ export function pintarMaterial(ctx: Contexto, id: string, area: Area, seed = 1, 
       ctx.globalAlpha = 1; break;
     }
     case 'gelo': pintarGelo(ctx, mat, A, seed, r, pxDe(ctx)); break;
+    case 'basalto': pintarCelulas(ctx, mat, A, seed, 'basalto'); break;
+    case 'cristal': pintarCelulas(ctx, mat, A, seed, 'cristal'); break;
     case 'dunas-areia': camadaDeRuido(ctx, A, seed, 3, 0.1, 'multiply', 6); pintarDunasDeAreia(ctx, mat, area, seed, dir); break;
     case 'dunas': camadaDeRuido(ctx, A, seed, 2.5, 0.16, 'multiply', 6); camadaDeRuido(ctx, A, seed + 1, 0.7, 0.2, 'soft-light', 10); pintarDunas(ctx, mat, A, seed); break;
     case 'rachado': pintarRachado(ctx, mat, A, seed, pxDe(ctx)); break;
@@ -683,6 +695,50 @@ function pintarDunasDeAreia(ctx: Contexto, mat: Material, A: Area, seed: number,
     let v = (sobe + (desce - sobe) * passo(crista - 0.008, crista + 0.03, sc) + borda * 0.3) * forca;
     if (sc < crista - 0.04) { let m = (y + warp * 0.92 + (fbm(rn, x * 0.6 + 70, y * 0.6 + 30, 2) - 0.5) * 0.35) / 0.3; m -= Math.floor(m); v -= (m < 0.18 ? (1 - m / 0.18) * 0.16 : 0) * (0.4 + sc); }
     if (v < 0) { o[0] = E[0]; o[1] = E[1]; o[2] = E[2]; o[3] = Math.min(255, -v * 1.3 * 255); } else { o[0] = C[0]; o[1] = C[1]; o[2] = C[2]; o[3] = Math.min(255, v * 1.4 * 255); }
+  });
+}
+
+/**
+ * Pontos de uma rede quase hexagonal (fileiras a `lado`·0,87, alternadas em meio passo) com um tremor: os dois mais próximos de (x, y),
+ * a célula do mais próximo e o vetor dele até o ponto. Basalto e cristal partem daqui.
+ */
+function celulaHex(x: number, y: number, lado: number, tremor: number, seed: number): { borda: number; id: number; dx: number; dy: number } {
+  const h = lado * 0.866, fy = Math.floor(y / h);
+  let f1 = Infinity, f2 = Infinity, id = 0, dx = 0, dy = 0;
+  for (let j = fy - 1; j <= fy + 1; j++) {
+    const off = (j & 1) * lado * 0.5, fx = Math.floor((x - off) / lado);
+    for (let i = fx - 1; i <= fx + 1; i++) {
+      const cx = i * lado + off + (hash2D(i, j, seed) - 0.5) * tremor * lado, cy = j * h + (hash2D(i, j, seed + 1) - 0.5) * tremor * lado, d = Math.hypot(x - cx, y - cy);
+      if (d < f1) { f2 = f1; f1 = d; id = Math.imul(i, 73856093) ^ Math.imul(j, 19349663); dx = x - cx; dy = y - cy; } else if (d < f2) f2 = d;
+    }
+  }
+  return { borda: (f2 - f1) / 2, id, dx, dy };
+}
+
+/**
+ * Basalto: colunas hexagonais de ~0,55 m vistas de cima, cada topo num tom, com junta escura e um chanfro claro do lado da luz.
+ * Cristal: facetas de ~0,7 m, cada uma com um degradê na sua própria direção (a luz batendo num plano inclinado) e arestas claras.
+ */
+function pintarCelulas(ctx: Contexto, mat: Material, A: Area, seed: number, tipo: 'basalto' | 'cristal'): void {
+  const E = rgbHex(mat.escuro), B = rgbHex(mat.base), C = rgbHex(mat.claro), rn = valueNoise2D(seed * 29 + 3), tmp = [0, 0, 0], basalto = tipo === 'basalto';
+  const lado = basalto ? 0.6 : 0.75, s = Math.floor(seed) * 7 + 11;
+  porPixel(ctx, A, (x, y, o) => {
+    const c = celulaHex(x, y, lado, basalto ? 0.32 : 0.7, s), tom = hash2D(c.id, 7, s), grao = fbm(rn, x * 6, y * 6, 2);
+    if (basalto) {
+      // Cada coluna num tom; uma em seis afundada (mais escura, com a borda do lado da luz em sombra), algumas rachadas ao meio.
+      const afundada = tom < 0.16, racha = hash2D(c.id, 11, s) < 0.18 ? Math.abs(c.dx * 0.8 - c.dy * 0.6) : 1;
+      mez(tmp, E, B, afundada ? 0.15 + tom : 0.35 + tom * 0.65); mez(o, tmp as unknown as Cor3, C, Math.max(0, grao - 0.55) * 0.5);
+      rumo(o, E, (1 - passo(0.004, 0.012, racha)) * 0.7);
+      const chanfro = 1 - passo(0.02, 0.085, c.borda), lado = -(c.dx + c.dy) * Math.SQRT1_2 / (Math.hypot(c.dx, c.dy) || 1);   // > 0 no lado noroeste (a luz), como em `organico.ts` (que importa este arquivo)
+      if (chanfro > 0) { const luz = afundada ? -lado : lado; rumo(o, luz > 0 ? C : E, chanfro * (luz > 0 ? 0.5 : 0.65) * Math.abs(lado)); }
+      rumo(o, [10, 10, 12], 1 - passo(0.004, 0.014, c.borda));
+    } else {
+      const a = hash2D(c.id, 3, s) * Math.PI * 2, plano = (c.dx * Math.cos(a) + c.dy * Math.sin(a)) / lado + 0.5;
+      mez(o, E, B, Math.min(1, Math.max(0, plano * 0.9 + tom * 0.3)));
+      rumo(o, C, Math.max(0, plano - 0.65) * 1.6 * (0.5 + tom * 0.5));
+      rumo(o, C, (1 - passo(0.006, 0.03, c.borda)) * 0.75);
+      rumo(o, E, (grao - 0.5) * 0.2);
+    }
   });
 }
 

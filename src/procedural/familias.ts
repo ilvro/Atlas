@@ -61,6 +61,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('natureza', 'folhas-largas', 'Folhas largas', ['folhas-largas'], { biomas: ['tropical'] }),
   f('natureza', 'monte-de-neve', 'Monte de neve', ['monte-de-neve'], { biomas: ['frio'] }),
   f('natureza', 'estalagmite', 'Estalagmite', ['estalagmite'], { biomas: ['subterraneo'] }),
+  f('natureza', 'fungos', 'Fungos luminosos', ['fungos-luminosos'], { biomas: ['subterraneo'] }),
   f('natureza', 'buraco', 'Buraco', ['buraco']),
   // Água e fundo
   f('agua', 'planta-aquatica', 'Planta aquática', ['vitoria-regia', 'alga'], { biomas: ['mar', 'tropical'] }),

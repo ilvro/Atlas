@@ -269,7 +269,7 @@ export function ladrilhosDoTerreno(e: EntradaDeTerreno, res: number): LadrilhoDe
     const agua = mat.uso === 'agua';
     const macico = mat.uso === 'macico';
     const margem = macico ? margens.macico : agua ? margens.agua : margens.base;
-    const indiceAgua = agua && c.celulas.length > 0 ? aguaCount++ : undefined;
+    const indiceAgua = agua && !mat.lava && c.celulas.length > 0 ? aguaCount++ : undefined;   // a lava não tem superfície animada
     const dir = (mat.padrao === 'sulcos' || mat.padrao === 'dunas-areia') && c.celulas.length > 0 ? r3(c.dir ?? orientacaoDominante(c.celulas)) : undefined;
     return { c, margem, indiceAgua, dir };
   });

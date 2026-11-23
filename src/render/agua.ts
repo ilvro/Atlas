@@ -34,7 +34,10 @@ uniform highp vec2 uTamanho;
 uniform highp float uTempo;
 uniform vec2 uSol;
 uniform vec3 uLuz;
-uniform vec3 uEspuma;
+uniform vec3 uEspuma0;
+uniform vec3 uEspuma1;
+uniform vec3 uEspuma2;
+uniform vec3 uEspuma3;
 uniform vec2 uFlow0;
 uniform vec2 uFlow1;
 uniform vec2 uFlow2;
@@ -65,6 +68,8 @@ void main() {
   vec2 v = idx < 1.5 ? uFlow0 : idx < 2.5 ? uFlow1 : idx < 3.5 ? uFlow2 : uFlow3;
   float rede = idx < 1.5 ? uCaustica.x : idx < 2.5 ? uCaustica.y : idx < 3.5 ? uCaustica.z : uCaustica.w;
   float forcaDaEspuma = idx < 1.5 ? uForcaEspuma.x : idx < 2.5 ? uForcaEspuma.y : idx < 3.5 ? uForcaEspuma.z : uForcaEspuma.w;
+  // Cada camada de água tem a sua espuma (antes era uma cor para todas: a da primeira, e a lava amarelava as outras).
+  vec3 uEspuma = idx < 1.5 ? uEspuma0 : idx < 2.5 ? uEspuma1 : idx < 3.5 ? uEspuma2 : uEspuma3;
   float t = pixel ? floor(uTempo * 3.3) / 3.3 : uTempo;       // no Pixel a superfície tem 4 quadros por ciclo de ~1,2 s
   float vel = length(v);
   float e = 0.12;
@@ -142,7 +147,8 @@ export interface RenderDeAgua {
 }
 
 /** As camadas de água na ordem em que o assar numera a textura (o `B` dela): as que têm células, pela ordem de pintura. */
-const camadasDeAgua = (m: MapaAtlas) => Object.values(m.terrain.layers).filter(c => c.cells.length && materialDe(c.material).uso === 'agua').sort((a, b) => a.order - b.order);
+/** As camadas de água com superfície animada, na ordem do índice (canal B) que o assar grava; a lava não tem superfície e não ocupa vaga. */
+const camadasDeAgua = (m: MapaAtlas) => Object.values(m.terrain.layers).filter(c => c.cells.length && materialDe(c.material).uso === 'agua' && !materialDe(c.material).lava).sort((a, b) => a.order - b.order);
 
 interface Desenho {
   mesh: Mesh<Geometry, Shader>;
@@ -172,15 +178,16 @@ export function criarAgua(): RenderDeAgua {
     mapaAtual = m;
     if (!desenho) return;
     const u = desenho.grupo.uniforms as Record<string, unknown>, sol = m.climate.sun;
-    const espuma = camadasDeAgua(m).map(c => materialDe(c.material)).find(x => x.espuma)?.espuma ?? '#f2fbff';
     u.uSol = sol ? new Float32Array([Math.cos(sol.angle), Math.sin(sol.angle)]) : new Float32Array([-0.5, -0.7]);
-    u.uLuz = cor3(sol?.color ?? m.climate.ambient.color); u.uEspuma = cor3(espuma);
+    u.uLuz = cor3(sol?.color ?? m.climate.ambient.color);
     const pixel = m.style.renderer === 'pixel', camadas = camadasDeAgua(m);
     u.uPixel = pixel ? 1 : 0; u.uPpm = m.style.pixel.pixelsPerCell / m.grid.size;
     const vel = (i: number) => { const f = camadas[i]?.flow; return f ? new Float32Array([Math.cos(f.angle) * f.speed, Math.sin(f.angle) * f.speed]) : new Float32Array([0, 0]); };
     u.uFlow0 = vel(0); u.uFlow1 = vel(1); u.uFlow2 = vel(2); u.uFlow3 = vel(3);
     u.uCaustica = new Float32Array([0, 1, 2, 3].map(i => (camadas[i] && materialDe(camadas[i]!.material).causticas ? 1 : 0)));
     u.uOndas = new Float32Array([0, 1, 2, 3].map(i => (camadas[i] ? materialDe(camadas[i]!.material).ondas ?? 0 : 0)));
+    const espumaDe = (i: number) => cor3((camadas[i] ? materialDe(camadas[i]!.material).espuma : undefined) ?? '#f2fbff');
+    u.uEspuma0 = espumaDe(0); u.uEspuma1 = espumaDe(1); u.uEspuma2 = espumaDe(2); u.uEspuma3 = espumaDe(3);
     u.uForcaEspuma = new Float32Array([0, 1, 2, 3].map(i => (camadas[i] ? materialDe(camadas[i]!.material).espumaForca ?? 1 : 1)));
     const modo = pixel ? 'nearest' : 'linear'; if (desenho.textura.source.scaleMode !== modo) desenho.textura.source.scaleMode = modo;
   }
@@ -210,7 +217,7 @@ export function criarAgua(): RenderDeAgua {
     const geometria = new Geometry({ attributes: { aPosition: new Float32Array([0, 0, w, 0, w, h, 0, h]), aUV: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]) }, indexBuffer: new Uint16Array([0, 1, 2, 0, 2, 3]) });
     const grupo = new UniformGroup({
       uTamanho: { value: new Float32Array([w, h]), type: 'vec2<f32>' }, uTempo: { value: tempo, type: 'f32' }, uSol: { value: new Float32Array([-0.5, -0.7]), type: 'vec2<f32>' },
-      uLuz: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' }, uEspuma: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
+      uLuz: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' }, uEspuma0: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' }, uEspuma1: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' }, uEspuma2: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' }, uEspuma3: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
       uFlow0: { value: new Float32Array(2), type: 'vec2<f32>' }, uFlow1: { value: new Float32Array(2), type: 'vec2<f32>' }, uFlow2: { value: new Float32Array(2), type: 'vec2<f32>' }, uFlow3: { value: new Float32Array(2), type: 'vec2<f32>' },
       uCaustica: { value: new Float32Array(4), type: 'vec4<f32>' }, uForcaEspuma: { value: new Float32Array([1, 1, 1, 1]), type: 'vec4<f32>' }, uOndas: { value: new Float32Array(4), type: 'vec4<f32>' }, uPixel: { value: 0, type: 'f32' }, uPpm: { value: 1, type: 'f32' },
     });

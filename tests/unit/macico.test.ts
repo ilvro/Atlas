@@ -8,8 +8,9 @@ const W = 160, H = 120, RES = 16;
 const disco = (): Uint8Array => { const m = new Uint8Array(W * H); for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (((x - 80) / 55) ** 2 + ((y - 60) / 40) ** 2 < 1) m[y * W + x] = 1; return m; };
 const rodar = (id: string, pixel: boolean) => { const dentro = disco(), mat = materialDe(id); return { dentro, ...sombrearMacico({ dentro, alfa: pixel ? null : dentro.map(v => v * 255), largura: W, altura: H, res: RES, seed: 3, cores: mat, pixel }) }; };
 
-test('maciço: quatro materiais de uso macico, o nevado com topo', () => {
-  assert.deepEqual(materiaisDo('macico').map(m => m.id).sort(), ['rocha.arenito', 'rocha.caverna', 'rocha.cinza', 'rocha.nevada']);
+test('maciço: seis materiais de uso macico, o nevado com topo e o de cristal com veios', () => {
+  assert.deepEqual(materiaisDo('macico').map(m => m.id).sort(), ['rocha.arenito', 'rocha.basalto', 'rocha.caverna', 'rocha.cinza', 'rocha.cristal', 'rocha.nevada']);
+  assert.ok(materialDe('rocha.cristal').brilho && materialDe('rocha.cristal').veio);
   assert.ok(materialDe('rocha.nevada').topo);
   assert.ok(!materialDe('rocha.caverna').topo);
 });

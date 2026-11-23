@@ -21,6 +21,9 @@ test('a lava é opaca, emite dentro e aquece o chão em volta até o clarão', (
   assert.ok(fendas > 0 && fendas < 32 * 32, 'há fendas acesas, mas nem toda a lava está acesa');
 });
 
-test('água comum não emite', () => {
+test('água comum não emite; a ácida emite só dentro, sem clarão e sem crosta', () => {
   assert.equal(leitoDaAgua(entrada('agua.rio')).calor, undefined);
+  const acida = leitoDaAgua(entrada('agua.acida'));
+  assert.ok(acida.calor![32 * W + 32]! > 0);
+  assert.equal(acida.calor![32 * W + 14]!, 0);
 });
