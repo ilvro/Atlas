@@ -271,7 +271,7 @@ Nota: feita (Mesa `9b7f3ad`). Medição: o maior exemplo tem 70 KB em JSON (14,8
 
 ## Bloco 3 — O jogador vê
 
-### R7 — Casca do jogador, entrando por link  ⬜
+### R7 — Casca do jogador, entrando por link  ✅
 Objetivo: um jogador abre `ilvro.github.io/Mesa/#/jogar/<sala>`, entra com o Discord e vê o mapa.
 Depende de: R6 e R5b.
 Ler: `ModoSessao.tsx` (o `Escalado` e os `iframe`), `aplicativos.ts` (`baseDoApp`), `Atlas/src/app/rotas.ts` (`#/projetor/{id}`) e `Atlas/src/app/projetor.ts` (o lado receptor).
@@ -287,6 +287,36 @@ Não fazer: o Discord (R17), as fichas (R11 e R12) e o arraste (R15).
 Testes: a ponte do jogador com falsos; com a casca e a ponte do mestre na mesma origem, nada do que a casca recebe volta para a sala; um e2e com dois contextos do Playwright (mestre e jogador) e a sala em `wrangler dev`, se for viável. Se não for, anote e faça só o teste unitário.
 Pronto quando: em dois navegadores, o mestre move uma peça e o jogador vê o movimento.
 Commit: `player shell shows the projected map from the room`
+Nota: feita (Mesa `e65a167`, Atlas `9f246d2`).
+- Rota do projetor remoto: `#/projetor-remoto/<salaId>`, que ouve só `sala:<salaId>:atlas:projetor`.
+- A ponte do jogador troca `{ blobId }` pelo `Blob` (espera até 15 s), descomprime o `estado` e reposta o último `estado` e a última `camera` quando o projetor manda `ola`.
+- `criarCanal` recusa nome fora do prefixo da sala. O cliente ganhou `aoFechar` e não reconecta no 4004.
+- Teste de ponta a ponta: o jogador recebeu 10 de 66 objetos e 1 de 2 cômodos, e não houve eco.
+- Achado: a projeção remota deixava `name: ''`, que `validarMapa` recusa. O receptor contorna com `prepararDocRemoto`; a correção na origem é a R7b.
+- **Revisão visual do Opus** (comparação do projetor local com o remoto no mesmo estado, script em `scratchpad/cmp.mjs`): o remoto desenha **preto em volta da peça**, onde o local mostra a rocha visível; e a câmera do remoto **não segue** a do mestre (mostra o mapa todo). O papel bege é o estilo "memória em esboço" do mapa e aparece igual nos dois. Corrigir na R7b.
+
+### R7b — Projetor remoto igual ao local dentro da área  ⬜
+Objetivo: dentro do que o jogador conhece, o projetor remoto desenha igual ao local, com a mesma câmera.
+Depende de: R7.
+Ler:
+- os dois screenshots da revisão: `/tmp/claude-1000/-home-ilvro-Documents-Projects/8d7a3247-9208-46e5-8654-39d197ed64ab/scratchpad/cmp-local.png` e `cmp-remoto.png`;
+- os scripts `scratchpad/cmp.mjs` (monta a cena e fotografa os dois) e `scratchpad/cmp2.mjs` (compara as projeções);
+- `Atlas/src/domain/projecao-remota.ts`, o receptor do projetor (`src/ui/Projetor.tsx`, `prepararDocRemoto`) e o publicador em `src/app/projetor.ts` (a câmera do destino remoto).
+Arquivos: os que a causa pedir, no Atlas.
+Como:
+1. **Diagnóstico primeiro.** Na cena do script (exemplo "Sala da guarda", peça `hugo` em [9,75; 9,75] com visão 6), o documento remoto tem o terreno certo na área (a camada `rocha.caverna` tem 1.375 células), as luzes não alcançam a peça, e o relevo cortado está longe. Mesmo assim, o remoto desenha preto em volta da peça. Descubra por quê. Candidatos:
+   - o receptor remoto não calcula a visão (ou a névoa) como o local;
+   - `prepararDocRemoto` muda algo;
+   - a área usada no recorte não contém a visível do render (a visão do render usa paredes, que foram aparadas);
+   - o terreno base não é desenhado onde não há camada;
+   - outro motivo.
+   Diga a causa no relatório, com a prova.
+2. Corrija a causa. Se for o recorte, mantenha o princípio da decisão 12: nada de fora sai.
+3. **Câmera:** o destino remoto precisa receber as mensagens `camera` (e o `seguir`) do mestre, calculadas para o aspecto do `ola` remoto, e o receptor remoto precisa aplicá-las. Hoje o remoto mostra o mapa todo.
+4. **Nome na origem:** `projetarParaRemoto` passa a gerar um nome válido e neutro ("Cômodo") para o cômodo não revelado, em vez de `''`. Atualize o teste da R5b e tire o contorno de `prepararDocRemoto`, se ele ficar sem função.
+Testes: um teste que compara local e remoto dentro da área (por exemplo, as células visíveis calculadas pelo receptor nos dois docs são as mesmas na área); a câmera chega ao remoto. Repita o `cmp.mjs` e anexe os screenshots novos (`cmp-local-2.png` e `cmp-remoto-2.png`) no scratchpad.
+Pronto quando: os dois screenshots mostram a mesma coisa dentro da área, com o mesmo enquadramento.
+Commit: `remote projector matches local inside the known area`
 
 ### R8 — Câmera própria no projetor remoto  ⬜
 Objetivo: o jogador pode olhar o mapa por conta própria e voltar à câmera do mestre.
@@ -567,7 +597,7 @@ Nota: feita (Atlas `ca8dd65`, Jukebox `37678aa`; vendor na Mesa `551a715`, no Do
 - `url` só vale para `sample/` sem edição, e vai codificada duas vezes (`%2520`) de propósito.
 - No reverse, o elemento segue andando para a frente, mudo, e um buffer toca a região invertida; `posicao` é o `currentTime` do elemento.
 
-### R22 — A ponte do mestre leva o som à sala  ⬜
+### R22 — A ponte do mestre leva o som à sala  ✅
 Objetivo: a sala sabe o que está tocando e tem todos os arquivos necessários.
 Depende de: R21b, R5 e R6.
 Ler: `Mesa/src/app/online.ts` e `Mesa/src/online/protocolo.ts` (`EVENTOS_DO_MESTRE`, blobs).
@@ -583,6 +613,12 @@ Não fazer: a reprodução (R23).
 Testes: a ponte com Jukebox e sala falsos não sobe o mesmo arquivo duas vezes, e o `mix` sai depois do arquivo.
 Pronto quando: um cliente de teste conectado recebe o `mix` e consegue baixar cada faixa citada nele.
 Commit: `master bridge uploads jukebox tracks to the room`
+Nota: feita (Atlas `430173e`, Jukebox `e72888c`, Mesa `9db5f8e`; vendor no Dossiê `1eee026` e no Ateliê `90e155d`).
+- O pedido `jukebox.ouvir` liga o Jukebox por 30 s, e a ponte o repete a cada 10 s.
+- A ponte sobe as faixas uma por vez, por hash (`blob.tem` responde também o `tamanho`), e segura o `mix` até os arquivos dele chegarem.
+- A sala guarda o último `jukebox.mix` em `ultimo_evento` e o manda logo depois do `bem-vindo`. `blob.pedir { id }` entrega só ids do último mix, dos últimos 50 efeitos ou dos citados.
+- **Não feito:** subir os efeitos `sfx` da campanha em segundo plano (o primeiro disparo pode atrasar). Vai para a R23.
+- **Para a R23:** quando a mesa fecha, o último `mix` fica na sala como "tocando". A casca trata um `mix` com mais de 10 s (pelo `desde` e pelo relógio da sala) como velho e não toca.
 
 ### R23 — Som na casca do jogador  ⬜
 Objetivo: o jogador ouve a mesma música e os mesmos efeitos, no mesmo ponto, com volume próprio.
@@ -596,7 +632,8 @@ Como:
 4. Arquivos: baixar da `url` (Pages) ou da sala e guardar no Cache Storage pelo `faixaId`, com `try/catch`. Sem cache, só baixa de novo. No saguão, os arquivos da cena ativa já vêm sendo baixados, com "Preparando os sons…".
 5. Liberar o áudio: o primeiro clique no saguão retoma o `AudioContext`. Se o navegador bloquear mesmo assim, aparece o botão "Ativar som".
 6. Na casca, os controles Música, Efeitos e Mudo, guardados no `localStorage` com `try/catch`. O volume do mestre multiplica o do jogador.
-7. Quem entra atrasado recebe o último `mix` e entra no ponto certo.
+7. Quem entra atrasado recebe o último `mix` (vem logo depois do `bem-vindo`) e entra no ponto certo. Um `mix` sem envio novo há mais de 10 s é velho: não toca (nota da R22).
+10. A ponte do mestre passa a subir em segundo plano, um por vez, os efeitos `sfx` da campanha, para o primeiro disparo não atrasar (pendência da R22). A casca baixa as faixas por `blob.pedir` (ou pela `url`, se houver).
 8. Reverse (nota da R21b): o motor da casca reproduz o reverse a partir do `estado`, como o Jukebox faz (buffer invertido da região). Confira que o motor carregado de `/Jukebox/` faz isso sozinho com o `estado`. Se não fizer, pare e reporte.
 9. Duas entradas com o mesmo `faixaId` (a segunda com `crossfade: true`) são dois elementos de áudio tocando juntos, cada um com o próprio volume.
 Não fazer: a escolha de música pelo jogador.
