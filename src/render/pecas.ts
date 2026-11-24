@@ -9,7 +9,7 @@ import { criarFiltroDeRespiracao, type ParametrosRespiracao } from './respiracao
 export interface PecaVisual {
   readonly c: Container;
   /** Refaz o desenho com os dados da peça; `tex` é o retrato (ou `null`). */
-  atualizar(t: Peca, tamanhoDaCelula: number, acento: number, tex: Texture | null, animar?: boolean, sprite?: { folha: Texture | null; pixel: boolean }, recursos?: Recursos | null): void;
+  atualizar(t: Peca, tamanhoDaCelula: number, acento: number, tex: Texture | null, animar?: boolean, sprite?: { folha: Texture | null; pixel: boolean }, recursos?: Recursos | null, doJogador?: boolean): void;
   /** Animação do pulso, do tremor, do deslize e da trilha; `ms` é o relógio. Parada com `efeitos` desligados. */
   quadro(ms: number, efeitos: boolean): void;
   /** É a vez desta peça na iniciativa? Ganha um anel pulsante por fora. */
@@ -24,8 +24,8 @@ const [QW, QH] = [16, 24], LINHA_DO_LADO = { down: 0, left: 1, right: 2, up: 3 }
 const MS_PARADO = 500, MS_ANDANDO = 125;
 
 export function criarPeca(): PecaVisual {
-  const c = new Container(), trilha = new Graphics(), corpo = new Container(), anel = new Graphics(), marca = new Graphics(), vezG = new Graphics(), pips = new Graphics(), badge = new Container();
-  c.addChild(trilha, vezG, corpo, anel, marca, pips, badge);
+  const c = new Container(), trilha = new Graphics(), corpo = new Container(), anel = new Graphics(), jogadorG = new Graphics(), marca = new Graphics(), vezG = new Graphics(), pips = new Graphics(), badge = new Container();
+  c.addChild(trilha, vezG, jogadorG, corpo, anel, marca, pips, badge);
   // Os pips de PV (vermelho) e PD (azul): piscam por um instante quando o valor cai.
   let ultimoRecursos: Recursos | null = null, piscaAte = 0;
   let vez = false;
@@ -42,7 +42,7 @@ export function criarPeca(): PecaVisual {
 
   return {
     c,
-    atualizar(t, grade, acento, tex, animar = false, comSprite = { folha: null, pixel: false }, recursos = null) {
+    atualizar(t, grade, acento, tex, animar = false, comSprite = { folha: null, pixel: false }, recursos = null, doJogador = false) {
       estadoVisto = t.figure.state;
       estiloToken = t.tokenStyle ?? 'coin';
       escalaVisual = typeof t.portraitScale === 'number' && Number.isFinite(t.portraitScale) ? Math.max(0.5, Math.min(3, t.portraitScale)) : 1;
@@ -148,6 +148,12 @@ export function criarPeca(): PecaVisual {
       else if (usaSprite) anel.clear().ellipse(0, 0.21 * grade * t.size, 0.4 * grade * t.size, 0.17 * grade * t.size).stroke({ width: 0.05, color: cor });
       else {
         anel.clear().circle(0, 0, r).stroke({ width: 0.07, color: cor }).circle(0, 0, r * 0.92).stroke({ width: 0.02, color: 0xffffff, alpha: 0.35 });
+      }
+      jogadorG.clear();
+      if (doJogador) {
+        if (eImersivo) jogadorG.ellipse(0, rBase * 0.65, rBase * 0.92, rBase * 0.36).stroke({ width: 0.045, color: acento, alpha: 0.8 });
+        else if (usaSprite && !ap.deitado) jogadorG.ellipse(0, 0.21 * grade * t.size, 0.46 * grade * t.size, 0.2 * grade * t.size).stroke({ width: 0.045, color: acento, alpha: 0.8 });
+        else jogadorG.circle(0, 0, r * 1.1).stroke({ width: 0.045, color: acento, alpha: 0.8 });
       }
       marca.clear();
       if (ap.marca === 'x') {

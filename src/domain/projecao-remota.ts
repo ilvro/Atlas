@@ -206,3 +206,20 @@ function aparar(w: Parede, area: Area): { path: Ponto[]; s0: number; s1: number;
   }
   return saida;
 }
+
+/**
+ * Ids das peças de jogador cujas `refs` apontam para alguma ficha em `fichas` (`ficha/ficha/<id>`).
+ * Usado pelo projetor remoto (R14) para destacar e liberar a peça própria do jogador.
+ */
+export function pecasDoJogador(doc: Pick<MapaAtlas, 'tokens'> | null | undefined, fichas: readonly string[]): Set<string> {
+  const ids = new Set<string>();
+  if (!doc || fichas.length === 0) return ids;
+  const alvo = new Set(fichas);
+  for (const t of Object.values(doc.tokens)) {
+    if (!t.player) continue;
+    if (t.refs.some(r => r.app === 'ficha' && r.tipo === 'ficha' && alvo.has(r.id))) {
+      ids.add(t.id);
+    }
+  }
+  return ids;
+}

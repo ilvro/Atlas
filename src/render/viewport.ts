@@ -70,6 +70,8 @@ export interface PonteViewport {
   lerRetrato?(id: string): Promise<Blob | null>;
   /** PV e PD da ficha ligada a uma peça, para os pips; sem a função (ou `null`) não há pips. */
   recursosDaPeca?(t: Peca): Recursos | null;
+  /** A peça pertence ao jogador que está vendo o projetor remoto (R14)? */
+  pecaDoJogador?(t: Peca): boolean;
   /** Na sessão, arrastar uma peça a leva de célula em célula e as outras coisas só se selecionam. */
   emSessao?(): boolean;
   /** Na sessão, mover peças sem encaixar na grade (com atualização em tempo real durante o arrasto). */
@@ -220,7 +222,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const store = ponte.store, baker: Baker = criarBaker({ reaproveitarWorkers: true });
   const mundo = new Container(), area_ = new Graphics(), grade = new Graphics(), selecaoG = new Graphics(), fantasmaC = new Container(), fantasmaG = new Graphics(), laco = new Graphics();
   let camera: Camera = { x: 0, y: 0, zoom: 20 };
-  let ponteiro: Ponto | null = null, interacao: Interacao | null = null, espaco = false, camadaSuja = true, gradeSuja = true, destruido = false, regua: Regua | null = null, altPressionado = false, modoProjetor = somenteLeitura;
+  let ponteiro: Ponto | null = null, interacao: Interacao | null = null, espaco = false, camadaSuja = true, gradeSuja = true, destruido = false, regua: Regua | null = null, altPressionado = false, modoProjetor = somenteLeitura, sobrePecaDoJogador = false;
   const reguaTexto = new Text({ text: '', style: { fontFamily: 'system-ui, sans-serif', fontSize: 14, fontWeight: '600', fill: 0xffffff, stroke: { color: 0x07080b, width: 4 } } });
   reguaTexto.visible = false;
   const completo = (): MapaAtlas => store.documento;
@@ -238,7 +240,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     // Chegou um retrato: redesenha as peças (só as peças, sem refazer o resto).
     if (destruido) return; const m = doc(); cena.sincronizar(m, { completo: false, colecoes: { tokens: Object.keys(m.tokens) }, campos: [] }, false, visaoDoClima(m), ctxAndar()); camadaSuja = true;
   });
-  const cena: Cena = criarCena({ baker, renderer: app.renderer, acento, efeitos: fxAtivo, aoPintar: () => { camadaSuja = true; }, retrato: (id, pixel) => retratos.obter(id, pixel), recursos: t => ponte.recursosDaPeca?.(t) ?? null });
+  const cena: Cena = criarCena({ baker, renderer: app.renderer, acento, efeitos: fxAtivo, aoPintar: () => { camadaSuja = true; }, retrato: (id, pixel) => retratos.obter(id, pixel), recursos: t => ponte.recursosDaPeca?.(t) ?? null, pecaDoJogador: t => ponte.pecaDoJogador?.(t) ?? false });
   const acabamento = criarFiltroAcabamento();
   const pixelizacao = criarPixelizacao(app.renderer);
   let pixelAtivo = false, zoomLivre = camera.zoom;
@@ -698,6 +700,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const mundoDe = (e: { clientX: number; clientY: number }): Ponto => telaParaMundo(camera, telaDe(e));
   const posicaoDe = (m: MapaAtlas, a: Alvo): Ponto => a.colecao === 'regions' ? m.regions[a.id]!.polygon[0]! : (m[a.colecao as ColecaoLivre] as Record<string, { position: Ponto }>)[a.id]!.position;
   const cursor = () => {
+    if (somenteLeitura) { canvas.style.cursor = interacao?.tipo === 'pan' ? 'grabbing' : sobrePecaDoJogador ? 'grab' : 'default'; return; }
     const f = ponte.ferramenta();
     canvas.style.cursor = interacao?.tipo === 'pan' ? 'grabbing' : (f === 'mao' || espaco) ? 'grab' : interacao?.tipo === 'alinhamento-grade' ? (interacao.modo === 'escala' ? 'nwse-resize' : 'move') : f === 'selecionar' ? (interacao?.tipo === 'mover' || interacao?.tipo === 'peca' || interacao?.tipo === 'deslizar' ? 'move' : 'default') : 'crosshair';
   };
@@ -1008,6 +1011,11 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     ponteiro = mundoDe(e); altPressionado = e.altKey;
     const [tx, ty] = telaDe(e), m = doc();
     if (!interacao) {
+      if (somenteLeitura && ponte.pecaDoJogador) {
+        const hit = alvoEm(m, ponteiro, px(8));
+        const sobre = hit?.colecao === 'tokens' && !!m.tokens[hit.id] && ponte.pecaDoJogador(m.tokens[hit.id]!);
+        if (sobre !== sobrePecaDoJogador) { sobrePecaDoJogador = sobre; cursor(); }
+      }
       // Com um ponto só fixado, a régua acompanha o ponteiro até o próximo clique.
       if (regua && regua.pontos.length === 1 && ponte.ferramenta() === 'regua') regua.atual = centroDaCelula(m, ponteiro);
       camadaSuja = true; return;
