@@ -56,7 +56,7 @@ test('antiguidade: a mobília dos tipos da época só traz itens antigos ou atem
   tem('atrio', 'impluvio', 'lucerna', 'busto-em-pedestal', 'estante-de-rolos');
   tem('peristilo', 'pergolado-com-videira', 'fonte-com-mascara', 'estatua-classica', 'coluna.dorica');
   tem('triclinio', 'triclinio', 'mesa-romana', 'lucerna', 'anfora', 'lira');
-  tem('termas', 'impluvio', 'banco', 'anfora', 'lucerna');
+  tem('termas', 'tanque-de-banho', 'banco', 'anfora', 'lucerna');
   tem('templo', 'estatua-classica', 'altar-de-sacrificio', 'tripe-de-bronze', 'coluna.corintia');
   tem('forum', 'estatua-classica', 'aquila', 'banca-de-mercado.toldo', 'obelisco', 'coluna.jonica');
   tem('taberna', 'mesa-romana', 'anforas-empilhadas', 'pithos', 'lucerna');
