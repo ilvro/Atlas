@@ -12,7 +12,7 @@ import { RendererType } from 'pixi.js';
 import { ALTURA_DE_PAREDE } from '../../src/render/cena-de-altura.ts';
 import { EXPOSICAO_PADRAO } from '../../src/domain/mapa.ts';
 import { tonalizar } from '../../src/render/acabamento.ts';
-import { ALTURA_DA_LUZ, ESCALA_HDR, codificarLuz, decodificarLuz, formatoDaLuz, luzAfetadaPorTokens, nivelAtivoDe, poligonoDaLuz, sincronizarOclusao } from '../../src/render/mapa-de-luz.ts';
+import { ALTURA_DA_LUZ, ESCALA_HDR, codificarLuz, decodificarLuz, formatoDaLuz, luzAfetadaPorTokens, nivelAtivoDe, poligonoDaLuz, sincronizarOclusao, toposIluminados } from '../../src/render/mapa-de-luz.ts';
 import { PESO_AO_CURTO, PESO_AO_LONGO, EMISSAO_PADRAO, modoDeDepuracaoDaLuz, oclusaoDeAmostras, realceDoRelevo } from '../../src/render/composicao-de-luz.ts';
 import { LIMIAR_BLOOM, aces, limiarDoBloom } from '../../src/render/bloom.ts';
 import { TAMANHO_TEXTURA_DIRECAO, floatParaHalf, pixelDeDirecao, texturaDeDirecao } from '../../src/render/luzes.ts';
@@ -96,6 +96,20 @@ test('lanterna de um token ilumina ao redor do portador, projeta sombra atrás d
   assert.ok(!luzAfetadaPorTokens(longe, s2.tokensMudados));
   const poli2 = poligonoDaLuz(lanterna, s2.ctx);
   assert.ok(dentroPoligono(poli2, 10.5, 6), 'antiga posição atrás do token voltou a ficar iluminada');
+});
+
+test('o topo de um objeto alto que a luz vê é iluminado; o escondido atrás de outro, não, e a sombra continua', () => {
+  const m = mapaCom(sala('s', 0, 0, 16, 10, { name: 'Salão', function: 'sala' }));
+  const luz = novaLuz([3, 5], { id: 'tocha', radius: 12 });
+  m.lights[luz.id] = luz;
+  m.props.perto = novoObjeto([6, 5], { id: 'perto', source: ACERVO.fonte('pilar', 1), scale: 1.8 });
+  m.props.atras = novoObjeto([10, 5], { id: 'atras', source: ACERVO.fonte('pilar', 1), scale: 1.2 });
+  const { ctx } = sincronizarOclusao(null, m, null);
+  const poli = poligonoDaLuz(luz, ctx), topos = toposIluminados(luz, ctx, poli);
+  assert.ok(!dentroPoligono(poli, 8.5, 5), 'a sombra atrás do pilar continua');
+  assert.equal(topos.length, 1, 'só o pilar que a luz vê');
+  assert.ok(dentroPoligono(topos[0]!, 6, 5), 'o topo do pilar de perto entra na luz');
+  assert.deepEqual(toposIluminados(luz, ctx, []), []);
 });
 
 test('oclusão de objetos e tokens respeita recorte de andar vindo de mapaDoAndar', () => {

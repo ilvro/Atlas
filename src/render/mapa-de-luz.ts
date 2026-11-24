@@ -9,6 +9,7 @@ import {
   oclusoresDeObjetos,
   oclusoresDeTokens,
   poligonoIluminado,
+  pontoNaBorda,
   segmentosParaFonte,
   type OclusorDeObjeto,
   type OclusorDeToken,
@@ -260,6 +261,27 @@ export function poligonoDaLuz(l: Luz, ctx: ContextoDeOclusao): number[] {
   return poligonoIluminado(l.position, segs, l.radius, l.cone);
 }
 
+/**
+ * Os topos dos objetos altos que a luz enxerga. O oclusor é a pegada inteira do objeto, então o polígono iluminado para na face virada para a
+ * luz e o topo ficaria escuro (estátuas, obeliscos, colunas à noite). O topo de um oclusor entra na luz quando o polígono iluminado encosta na
+ * borda dele (ou seja, a luz o vê). Um objeto escondido atrás de uma parede ou de outro objeto continua escuro, e a sombra atrás dele, cortada.
+ */
+export function toposIluminados(l: Luz, ctx: ContextoDeOclusao, poligono: readonly number[]): number[][] {
+  if (poligono.length < 6) return [];
+  const r = l.radius, lx = l.position[0], ly = l.position[1], vertices: [number, number][] = [];
+  for (let i = 0; i < poligono.length; i += 2) vertices.push([poligono[i]!, poligono[i + 1]!]);
+  const topos: number[][] = [];
+  for (const o of ctx.objetos) {
+    if (o.x1 < lx - r || o.x0 > lx + r || o.y1 < ly - r || o.y0 > ly + r) continue;
+    const oc = o.oclusor;
+    if (l.ownerId && oc.id === l.ownerId) continue;
+    if (pontoNoPoligono(l.position, oc.poligono) || pontoNaBorda(l.position, oc.poligono)) continue;
+    if (!vertices.some(v => pontoNaBorda(v, oc.poligono, 2e-3))) continue;
+    topos.push(oc.poligono.flatMap(p => [p[0], p[1]]));
+  }
+  return topos;
+}
+
 /** Diz se uma luz ilumina o exterior e os telhados: janelas e luzes dentro de cômodos cobertos ficam abaixo do telhado; estruturas altas contam como externas. */
 export function ehLuzExterna(
   l: Luz,
@@ -480,8 +502,10 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       g.chaveGeo = geo; g.versaoGeo = oclusao.versaoEstatica;
       const pts = poligonoDaLuz(l, oclusao);
       g.poligono = pts;
+      const topos = toposIluminados(l, oclusao, pts);
       g.m.clear(); if (pts.length >= 6) g.m.poly(pts).fill(0xffffff);
       g.mDir.clear(); if (pts.length >= 6) g.mDir.poly(pts).fill(0xffffff);
+      for (const t of topos) { g.m.poly(t).fill(0xffffff); g.mDir.poly(t).fill(0xffffff); }
       g.mesh.position.set(l.position[0], l.position[1]);
       g.mesh.scale.set(l.radius * 2);
       g.meshDir.position.set(l.position[0], l.position[1]);
