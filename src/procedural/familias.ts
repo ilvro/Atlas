@@ -38,9 +38,16 @@ const f = (grupo: string, id: string, nome: string, itens: readonly string[], ma
 
 export const FAMILIAS: readonly Familia[] = [
   // Natureza
-  f('natureza', 'arvore', 'Árvore', ['casa:arvore-3m', 'casa:arvore-5m', 'casa:arvore-7m'], { biomas: ['temperado'] }),
+  f('natureza', 'arvore', 'Árvore', ['casa:arvore-3m', 'casa:arvore-5m', 'casa:arvore-5m-outono-laranja', 'casa:arvore-5m-outono-vermelha', 'casa:arvore-7m'], { biomas: ['temperado', 'outono'] }),
   f('natureza', 'arvore-da-mata', 'Árvore da mata', ['casa:arvore-da-mata-4m', 'casa:arvore-da-mata-5m-amarelada', 'casa:arvore-da-mata-6m', 'casa:arvore-da-mata-6m-rala', 'casa:arvore-da-mata-8m'], { biomas: ['temperado'] }),
-  f('natureza', 'carvalho', 'Carvalho', ['casa:carvalho-grande-6m', 'casa:carvalho-grande-7m', 'casa:carvalho-grande-8m'], { biomas: ['temperado'] }),
+  f('natureza', 'carvalho', 'Carvalho', ['casa:carvalho-grande-6m', 'casa:carvalho-grande-7m', 'casa:carvalho-grande-7m-outono-laranja', 'casa:carvalho-grande-7m-outono-vermelha', 'casa:carvalho-grande-8m'], { biomas: ['temperado', 'outono'] }),
+  f('natureza', 'cerejeira', 'Cerejeira', ['casa:cerejeira-4m', 'casa:cerejeira-5m-rala', 'casa:cerejeira-6m'], { biomas: ['temperado'] }),
+  f('natureza', 'arvore-de-selva', 'Árvore de selva', ['casa:arvore-de-selva-5m', 'casa:arvore-de-selva-8m'], { biomas: ['tropical'] }),
+  f('natureza', 'coqueiro', 'Coqueiro e tamareira', ['casa:coqueiro-4m', 'casa:tamareira-5m', 'casa:coqueiro-6m'], { biomas: ['tropical', 'mar', 'deserto'] }),
+  f('natureza', 'arvore-de-mangue', 'Árvore de mangue', ['casa:arvore-de-mangue-4m', 'casa:arvore-de-mangue-6m'], { biomas: ['tropical', 'mar'] }),
+  f('natureza', 'baoba', 'Baobá', ['casa:baoba-7m'], { biomas: ['deserto', 'tropical'] }),
+  f('natureza', 'bambuzal', 'Bambuzal', ['casa:bambuzal-2m', 'casa:bambuzal-4m'], { biomas: ['tropical', 'temperado'] }),
+  f('natureza', 'cacto', 'Cacto', ['casa:cacto-redondo-um', 'casa:cacto-redondo-grupo', 'casa:opuntia-a', 'casa:opuntia-b', 'casa:saguaro-a', 'casa:saguaro-b'], { biomas: ['deserto'] }),
   f('natureza', 'pinheiro', 'Pinheiro', ['casa:pinheiro-3m', 'casa:pinheiro-4m'], { biomas: ['temperado', 'frio'] }),
   f('natureza', 'arvore-nevada', 'Árvore nevada', ['casa:arvore-nevada-3m', 'casa:pinheiro-nevado-3m', 'casa:arvore-nevada-5m', 'casa:pinheiro-nevado-4m'], { biomas: ['frio'] }),
   f('natureza', 'arvore-morta', 'Árvore morta', ['arvore-morta', 'arvore-morta-caida'], { biomas: ['temperado', 'frio', 'deserto'] }),

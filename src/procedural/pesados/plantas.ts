@@ -7,7 +7,7 @@ import type { GeradorPesado } from './index.ts';
 const num = (v: unknown, padrao: number, min: number, max: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : padrao);
 
 /** Uma folha em forma de lente: da base (x, y) para a direção `ang`, com `len` de comprimento e `w` de largura. */
-function folha(x: number, y: number, ang: number, len: number, w: number, mat: string, z: number, extra: Partial<Parte> = {}): Parte {
+export function folha(x: number, y: number, ang: number, len: number, w: number, mat: string, z: number, extra: Partial<Parte> = {}): Parte {
   const c = Math.cos(ang), s = Math.sin(ang), local = [0, 0, len * 0.3, w / 2, len * 0.7, w / 3, len, 0, len * 0.7, -w / 3, len * 0.3, -w / 2];
   const pts: number[] = []; for (let i = 0; i < local.length; i += 2) pts.push(x + local[i]! * c - local[i + 1]! * s, y + local[i]! * s + local[i + 1]! * c);
   return poli(pts, mat, z, { contorno: false, sombraLeve: true, ...extra });
@@ -46,7 +46,11 @@ function copaDeTufos(diametro: number, seed: number, tons: Tons, { miudo = 0.3, 
   return { tipo: 'piso', pegada: [diametro, diametro], partes };
 }
 
-const copaRedonda = (diametro: number, seed: number): DescricaoDePiso => copaDeRaminhos(diametro, seed, { tons: JARDIM, variantes: [JARDIM_SOL, JARDIM_FRIO], folha: Math.min(0.85, 0.45 + diametro * 0.07), ralo: 0 });
+/** Os tons de outono (`tons: 'outono-laranja' | 'outono-vermelha'`) de `arvore` e `carvalho-grande`, ou `null` para o verde de cada uma. */
+const outono = (t: unknown): Partial<OpcoesDaCopa> | null =>
+  t === 'outono-laranja' ? { tons: LARANJA, variantes: [AMARELO_OUTONO, VERMELHO], nanquim: NANQUIM_OUTONO, galhos: '#3a2a1e' }
+    : t === 'outono-vermelha' ? { tons: VERMELHO, variantes: [LARANJA, VINHO], nanquim: NANQUIM_OUTONO, galhos: '#3a2a1e' } : null;
+const copaRedonda = (diametro: number, seed: number, tons?: unknown): DescricaoDePiso => copaDeRaminhos(diametro, seed, { tons: JARDIM, variantes: [JARDIM_SOL, JARDIM_FRIO], folha: Math.min(0.85, 0.45 + diametro * 0.07), ralo: 0, ...outono(tons) });
 
 /**
  * Conífera vista de cima: silhueta de muitas pontas irregulares e, por cima, cinco camadas de ramos em lente fina, do escuro de fora ao claro
@@ -84,7 +88,7 @@ const arvoreNevada = (diametro: number, seed: number): DescricaoDePiso => copaDe
 /** Pinheiro de neve: a conífera com neve sobre cada ramo, do lado da luz. */
 const pinheiroNevado = (diametro: number, seed: number): DescricaoDePiso => conifera(diametro, seed, true);
 /** Carvalho: copa densa de muitos tufos pequenos, com folhas pintadas. */
-const carvalhoGrande = (diametro: number, seed: number): DescricaoDePiso => copaDeRaminhos(diametro, seed, { tons: CARVALHO, variantes: [CARVALHO_SOL, CARVALHO_FRIO], folha: 0.8, ralo: 0.05 });
+const carvalhoGrande = (diametro: number, seed: number, tons?: unknown): DescricaoDePiso => copaDeRaminhos(diametro, seed, { tons: CARVALHO, variantes: [CARVALHO_SOL, CARVALHO_FRIO], folha: 0.8, ralo: 0.05, ...outono(tons) });
 
 /** Tons da mata fechada: verde-oliva acinzentado, com moitas amareladas e outras mais frias (ver `copaDeRaminhos`). */
 const OLIVA: Tons = { fundo: '#272a1c', base: '#4a4e33', meio: '#5e633e', luz: '#777b4d', brilho: '#91935e' };
@@ -101,8 +105,14 @@ const JARDIM_FRIO: Tons = { fundo: '#1c2e1e', base: '#345634', meio: '#426a40', 
 const NEVADA: Tons = { fundo: '#3a4c58', base: '#9aaec4', meio: '#c4d2e2', luz: '#e4ecf4', brilho: '#ffffff' };
 const NEVADA_SOL: Tons = { fundo: '#465860', base: '#a8b8c8', meio: '#d0dce6', luz: '#eef2f6', brilho: '#ffffff' };
 const NEVADA_FRIA: Tons = { fundo: '#2e4050', base: '#8aa0ba', meio: '#b2c4da', luz: '#d6e2f0', brilho: '#f2f6fb' };
+/** Outono: laranja (com moitas amarelas e vermelhas), vermelho (com laranja e vinho); o nanquim é castanho, não verde. */
+const LARANJA: Tons = { fundo: '#3a1d0c', base: '#86421a', meio: '#a85a20', luz: '#c97a2a', brilho: '#e4a242' };
+const AMARELO_OUTONO: Tons = { fundo: '#3a2a0e', base: '#8a6a1c', meio: '#a88524', luz: '#c6a232', brilho: '#e0c04c' };
+const VERMELHO: Tons = { fundo: '#34110e', base: '#7c2618', meio: '#9c361e', luz: '#bc4e28', brilho: '#d8723a' };
+const VINHO: Tons = { fundo: '#2a0e12', base: '#5e1c20', meio: '#7a2828', luz: '#963a32', brilho: '#b05440' };
+const NANQUIM_OUTONO = ['#1a0f08', '#26160c'] as const;
 /** A cor entre `a` e `b` (t de 0 a 1): os raminhos variam em tons contínuos, não em degraus. */
-function misturar(a: string, b: string, t: number): string {
+export function misturar(a: string, b: string, t: number): string {
   const p = (h: string, k: number) => parseInt(h.slice(1 + k * 2, 3 + k * 2), 16), c = [0, 1, 2].map(k => Math.round(p(a, k) + (p(b, k) - p(a, k)) * t));
   return '#' + c.map(v => v.toString(16).padStart(2, '0')).join('');
 }
@@ -136,7 +146,8 @@ function desenharRaminho(partes: Parte[], f: Raminho, cor: string, z: number, en
  * seguem as pontas das folhas. Moitas de tamanhos bem diferentes dão o contorno irregular; galhos aparecem entre as camadas; os vãos são
  * escuros. A luz vem do noroeste. `ralo` (0 a 1) espaça os raminhos.
  */
-function copaDeRaminhos(diametro: number, seed: number, { ralo = 0.2, tons = OLIVA, variantes = [AMARELADO, FRIO], folha = 1, nanquim = [NANQUIM, '#1d2116'], galhos = '#4a3828' }: { ralo?: number; tons?: Tons; variantes?: readonly [Tons, Tons]; folha?: number; nanquim?: readonly [string, string]; galhos?: string } = {}): DescricaoDePiso {
+export interface OpcoesDaCopa { ralo: number; tons: Tons; variantes: readonly [Tons, Tons]; folha: number; nanquim: readonly [string, string]; galhos: string }
+export function copaDeRaminhos(diametro: number, seed: number, { ralo = 0.2, tons = OLIVA, variantes = [AMARELADO, FRIO], folha = 1, nanquim = [NANQUIM, '#1d2116'], galhos = '#4a3828' }: Partial<OpcoesDaCopa> = {}): DescricaoDePiso {
   const r = mulberry32(seed), R = diametro / 2 - 0.3 * folha, partes: Parte[] = [];
   // Moitas: uma grande perto do miolo e de 2 a 6 em volta, com raios bem diferentes; a copa é a união delas.
   const moitas: { x: number; y: number; r: number; tons: Tons }[] = [];
@@ -269,8 +280,9 @@ export const PLANTAS: GeradorPesado[] = [
   { id: 'costela-de-adao', nome: 'Costela-de-adão', categoria: 'decoracao', funcoes: ['sala', 'quarto', 'escritorio', 'corredor'], tags: ['planta', 'monstera', 'vaso', 'folhagem'], generos: [], kit: null, versao: 1,
     variantes: DUAS('madeira', { vaso: 'madeira.escura' }, 'pedra', { vaso: 'pedra.escura' }), gerar: p => monstera(p.seed, String(p.params.vaso ?? 'madeira.escura')) },
   { id: 'arvore', altura: ([w]) => w * 1.6, nome: 'Árvore', categoria: 'exterior', funcoes: ['jardim'], tags: ['arvore', 'planta', 'copa', 'exterior'], generos: [], kit: 'exterior', versao: 5, res: 64,
-    variantes: [{ nome: '3 m', sufixo: '3m', params: { diametro: 3 }, seed: 31 }, { nome: '5 m', sufixo: '5m', params: { diametro: 5 }, seed: 32 }, { nome: '7 m', sufixo: '7m', params: { diametro: 7 }, seed: 33 }],
-    gerar: p => copaRedonda(num(p.params.diametro, 5, 2, 10), p.seed) },
+    variantes: [{ nome: '3 m', sufixo: '3m', params: { diametro: 3 }, seed: 31 }, { nome: '5 m', sufixo: '5m', params: { diametro: 5 }, seed: 32 }, { nome: '7 m', sufixo: '7m', params: { diametro: 7 }, seed: 33 },
+      { nome: '5 m, outono laranja', sufixo: '5m-outono-laranja', params: { diametro: 5, tons: 'outono-laranja' }, seed: 34 }, { nome: '5 m, outono vermelha', sufixo: '5m-outono-vermelha', params: { diametro: 5, tons: 'outono-vermelha' }, seed: 35 }],
+    gerar: p => copaRedonda(num(p.params.diametro, 5, 2, 10), p.seed, p.params.tons) },
   { id: 'pinheiro', altura: ([w]) => w * 2, nome: 'Pinheiro', categoria: 'exterior', funcoes: ['jardim'], tags: ['arvore', 'pinheiro', 'conifera', 'exterior'], generos: [], kit: 'exterior', versao: 3, res: 64,
     variantes: [{ nome: '3 m', sufixo: '3m', params: { diametro: 3 }, seed: 41 }, { nome: '4,5 m', sufixo: '4m', params: { diametro: 4.5 }, seed: 42 }], gerar: p => pinheiro(num(p.params.diametro, 3, 2, 8), p.seed) },
   { id: 'arbusto', altura: ([w]) => w * 0.5, nome: 'Arbusto', categoria: 'exterior', funcoes: ['jardim'], tags: ['arbusto', 'planta', 'exterior'], generos: [], kit: 'exterior', versao: 5,
@@ -284,7 +296,9 @@ export const PLANTAS: GeradorPesado[] = [
     variantes: [{ nome: '1,2 m', sufixo: '1m', params: { diametro: 1.2 }, seed: 81 }, { nome: '2 m', sufixo: '2m', params: { diametro: 2 }, seed: 82 }, { nome: '2 m com neve', sufixo: '2m-neve', params: { diametro: 2, neve: true }, seed: 83 }],
     gerar: p => arbustoSeco(num(p.params.diametro, 1.5, 0.8, 4), p.seed, p.params.neve === true) },
   { id: 'carvalho-grande', altura: ([w]) => w * 1.6, nome: 'Carvalho grande', categoria: 'exterior', funcoes: ['jardim'], tags: ['arvore', 'carvalho', 'planta', 'copa', 'exterior', 'mata'], generos: [], kit: 'mata', versao: 3, res: 64,
-    variantes: [{ nome: '6 m', sufixo: '6m', params: { diametro: 6 }, seed: 91 }, { nome: '7 m', sufixo: '7m', params: { diametro: 7 }, seed: 92 }, { nome: '8 m', sufixo: '8m', params: { diametro: 8 }, seed: 93 }], gerar: p => carvalhoGrande(num(p.params.diametro, 7, 5, 10), p.seed) },
+    variantes: [{ nome: '6 m', sufixo: '6m', params: { diametro: 6 }, seed: 91 }, { nome: '7 m', sufixo: '7m', params: { diametro: 7 }, seed: 92 }, { nome: '8 m', sufixo: '8m', params: { diametro: 8 }, seed: 93 },
+      { nome: '7 m, outono laranja', sufixo: '7m-outono-laranja', params: { diametro: 7, tons: 'outono-laranja' }, seed: 94 }, { nome: '7 m, outono vermelho', sufixo: '7m-outono-vermelha', params: { diametro: 7, tons: 'outono-vermelha' }, seed: 95 }],
+    gerar: p => carvalhoGrande(num(p.params.diametro, 7, 5, 10), p.seed, p.params.tons) },
   { id: 'arvore-da-mata', altura: ([w]) => w * 1.7, nome: 'Árvore da mata', categoria: 'exterior', funcoes: ['jardim'], tags: ['arvore', 'planta', 'copa', 'exterior', 'mata', 'floresta'], generos: [], kit: 'mata', versao: 12, res: 64,
     variantes: [{ nome: '4 m', sufixo: '4m', params: { diametro: 4 }, seed: 111 }, { nome: '6 m', sufixo: '6m', params: { diametro: 6 }, seed: 112 }, { nome: '8 m', sufixo: '8m', params: { diametro: 8 }, seed: 113 }, { nome: '6 m, ralinha', sufixo: '6m-rala', params: { diametro: 6, ralo: 0.7 }, seed: 114 }, { nome: '5 m, amarelada', sufixo: '5m-amarelada', params: { diametro: 5, tons: 'amarelado' }, seed: 115 }],
     gerar: p => copaDeRaminhos(num(p.params.diametro, 6, 2, 12), p.seed, { ralo: num(p.params.ralo, 0.2, 0, 1), tons: p.params.tons === 'amarelado' ? AMARELADO : p.params.tons === 'frio' ? FRIO : OLIVA }) },
