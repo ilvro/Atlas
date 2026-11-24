@@ -30,3 +30,10 @@ export function definirRecentesAbertos(v: boolean): void {
   recentesAbertos.value = v;
   try { if (typeof localStorage !== 'undefined') localStorage.setItem('atlas.recentesAbertos', v ? '1' : '0'); } catch { /* só some ao recarregar */ }
 }
+
+/** Avisar com toast quando um jogador move a própria peça online (R15). Ligado por padrão. */
+export const avisarMovimentoDeJogador = signal<boolean>(lerBool('atlas:avisar-movimento-jogador', true));
+export function definirAvisarMovimentoDeJogador(v: boolean): void {
+  avisarMovimentoDeJogador.value = v;
+  try { if (typeof localStorage !== 'undefined') localStorage.setItem('atlas:avisar-movimento-jogador', v ? '1' : '0'); } catch { /* só some ao recarregar */ }
+}

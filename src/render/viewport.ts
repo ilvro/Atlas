@@ -72,6 +72,8 @@ export interface PonteViewport {
   recursosDaPeca?(t: Peca): Recursos | null;
   /** A peça pertence ao jogador que está vendo o projetor remoto (R14)? */
   pecaDoJogador?(t: Peca): boolean;
+  /** No projetor remoto (R15), o jogador arrastou a própria peça até `para`; resolve `true` se o mestre aceitou. */
+  aoArrastarPecaRemota?(peca: Peca, para: Ponto): Promise<boolean>;
   /** Na sessão, arrastar uma peça a leva de célula em célula e as outras coisas só se selecionam. */
   emSessao?(): boolean;
   /** Na sessão, mover peças sem encaixar na grade (com atualização em tempo real durante o arrasto). */
@@ -178,6 +180,7 @@ type Interacao =
   | { tipo: 'pan'; botao: number; x0: number; y0: number; camera0: Camera; moveu: boolean }
   | { tipo: 'mover'; hit: Alvo; alvos: AlvoMovel[]; origem: Ponto; ref: Ponto; aplicado: Ponto; gesto: Gesto | null; x0: number; y0: number; estavaNaSelecao: boolean; ctrl: boolean }
   | { tipo: 'peca'; id: string; de: Ponto; para: Ponto; offset: Ponto; motivo: string | null; livre: boolean; semGrade: boolean; gesto: Gesto | null; pendente: boolean; x0: number; y0: number; moveu: boolean }
+  | { tipo: 'peca-remota'; id: string; de: Ponto; para: Ponto; offset: Ponto; x0: number; y0: number; moveu: boolean }
   | { tipo: 'deslizar'; id: string; gesto: Gesto | null; x0: number; y0: number }
   | { tipo: 'retangulo'; ini: Ponto; atual: Ponto; modo: 'trocar' | 'somar'; x0: number; y0: number; moveu: boolean }
   | { tipo: 'laco'; pontos: Ponto[]; modo: 'trocar' | 'somar' }
@@ -223,6 +226,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const mundo = new Container(), area_ = new Graphics(), grade = new Graphics(), selecaoG = new Graphics(), fantasmaC = new Container(), fantasmaG = new Graphics(), laco = new Graphics();
   let camera: Camera = { x: 0, y: 0, zoom: 20 };
   let ponteiro: Ponto | null = null, interacao: Interacao | null = null, espaco = false, camadaSuja = true, gradeSuja = true, destruido = false, regua: Regua | null = null, altPressionado = false, modoProjetor = somenteLeitura, sobrePecaDoJogador = false;
+  let pecaRemotaPendente: { id: string; de: Ponto; para: Ponto } | null = null;
   const reguaTexto = new Text({ text: '', style: { fontFamily: 'system-ui, sans-serif', fontSize: 14, fontWeight: '600', fill: 0xffffff, stroke: { color: 0x07080b, width: 4 } } });
   reguaTexto.visible = false;
   const completo = (): MapaAtlas => store.documento;
@@ -519,6 +523,11 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         laco.rect(para[0] - t / 2, para[1] - t / 2, t, t).fill({ color: cor3, alpha: 0.22 }).stroke({ width: px(1.5), color: cor3, alpha: 0.9 });
       }
       laco.moveTo(de[0], de[1]).lineTo(para[0], para[1]).stroke({ width: px(2.5), color: cor3, alpha: 0.9, cap: 'round' });
+    } else if ((interacao?.tipo === 'peca-remota' && interacao.moveu) || pecaRemotaPendente) {
+      const alvo = interacao?.tipo === 'peca-remota' && interacao.moveu ? interacao : pecaRemotaPendente!;
+      const tam = (m.tokens[alvo.id]?.size ?? 1) * m.grid.size * 0.44;
+      laco.circle(alvo.para[0], alvo.para[1], tam).fill({ color: cor, alpha: 0.22 }).stroke({ width: px(1.8), color: cor, alpha: 0.9 });
+      laco.moveTo(alvo.de[0], alvo.de[1]).lineTo(alvo.para[0], alvo.para[1]).stroke({ width: px(2), color: cor, alpha: 0.8, cap: 'round' });
     } else if (interacao?.tipo === 'parede') {
       laco.moveTo(interacao.ini[0], interacao.ini[1]).lineTo(interacao.fim[0], interacao.fim[1]).stroke({ width: 0.2, color: cor, alpha: 0.75, cap: 'round' });
       for (const q of [interacao.ini, interacao.fim]) laco.circle(q[0], q[1], px(5)).fill(0xffffff).stroke({ width: px(1.5), color: cor });
@@ -910,6 +919,18 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     }
     if (interacao) return;
     if (somenteLeitura) {
+      if (e.button === 0 && ponte.pecaDoJogador && ponte.aoArrastarPecaRemota) {
+        const p = mundoDe(e), m = doc(), hit = alvoEm(m, p, px(8));
+        const t = hit?.colecao === 'tokens' ? m.tokens[hit.id] : undefined;
+        if (t && ponte.pecaDoJogador(t)) {
+          e.stopPropagation();
+          canvas.setPointerCapture(e.pointerId);
+          const [tx, ty] = telaDe(e);
+          interacao = { tipo: 'peca-remota', id: t.id, de: [t.position[0], t.position[1]], para: [t.position[0], t.position[1]], offset: [t.position[0] - p[0], t.position[1] - p[1]], x0: tx, y0: ty, moveu: false };
+          cursor();
+          return;
+        }
+      }
       if (e.button === 0 || e.button === 1 || e.button === 2) {
         canvas.setPointerCapture(e.pointerId);
         const [tx, ty] = telaDe(e);
@@ -1068,6 +1089,12 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       } else {
         i.motivo = i.livre ? null : bloqueioNoCaminho(m, i.de, i.para);
       }
+    } else if (i.tipo === 'peca-remota') {
+      if (Math.hypot(tx - i.x0, ty - i.y0) > LIMIAR_ARRASTO) i.moveu = true;
+      const livre = !m.grid.snap || e.altKey;
+      i.para = livre
+        ? [Math.max(0, Math.min(m.bounds.width, ponteiro[0] + i.offset[0])), Math.max(0, Math.min(m.bounds.height, ponteiro[1] + i.offset[1]))]
+        : centroDaCelula(m, ponteiro);
     } else if (i.tipo === 'deslizar') {
       if (!i.gesto) { if (Math.hypot(tx - i.x0, ty - i.y0) <= LIMIAR_ARRASTO) return; i.gesto = store.iniciarGesto('Mover abertura'); }
       const a = m.openings[i.id]; if (!a) return;
@@ -1169,6 +1196,17 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         }
       } else if (!cancelado && i.moveu && Math.hypot(i.para[0] - i.de[0], i.para[1] - i.de[1]) > 1e-6) {
         tentar(() => store.executar({ tipo: 'peca.mover', id: i.id, para: i.para, livre: i.livre, semGrade: i.semGrade }));
+      }
+    } else if (i.tipo === 'peca-remota') {
+      if (!cancelado && i.moveu && Math.hypot(i.para[0] - i.de[0], i.para[1] - i.de[1]) > 1e-6) {
+        const t = m.tokens[i.id];
+        if (t && ponte.aoArrastarPecaRemota) {
+          const pendente = { id: i.id, de: i.de, para: i.para };
+          pecaRemotaPendente = pendente;
+          void ponte.aoArrastarPecaRemota(t, i.para).finally(() => {
+            if (pecaRemotaPendente === pendente) { pecaRemotaPendente = null; camadaSuja = true; }
+          });
+        }
       }
     } else if (i.tipo === 'regua') {
       if (cancelado) { /* nada */ } else if (i.moveu) {

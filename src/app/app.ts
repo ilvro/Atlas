@@ -27,6 +27,8 @@ import { pedirCena, pedirEfeito, pedirSilencio, pedirSomDoClima, pedirSomDoMapa,
 import { comandoDaEtapaDeAgua, etapasDaAgua } from '../domain/agua.ts';
 import { gatilhoJaDisparou, iniciarRegioes, marcarGatilhoDisparado, nomeDaRegiao } from './regioes.ts';
 import { modo, movimentoLivre, vistaDeJogador } from './modo.ts';
+import { atenderMoverPeca, type DadosMoverPeca } from './mover-peca-remota.ts';
+import { avisarMovimentoDeJogador, definirAvisarMovimentoDeJogador } from './preferencias.ts';
 import { iniciarSugestoes } from './sugestoes.ts';
 import { abrirJanelaDoProjetor, ajustarAoAspecto, aspectoDoProjetor, caixaDoProjetor, iniciarPublicacao, mapaNoProjetorId, projetorConectado, seguirJogadores, telaEscura, type Publicador } from './projetor.ts';
 import type { EventoDeCena } from '../render/eventos-de-cena.ts';
@@ -106,6 +108,20 @@ export async function iniciar(): Promise<void> {
     s.barramento?.atender('atlas.momento', dados => {
       return tocarMomentoRemoto(s, dados as DadosAtlasMomento);
     });
+    s.barramento?.atender('atlas.mover-peca', (dados, evento) => atenderMoverPeca(
+      {
+        store: () => sessao.value?.store ?? null,
+        movimentoLivre: () => movimentoLivre.value,
+        aoMover: ({ autor, pecaNome }) => {
+          if (!avisarMovimentoDeJogador.peek()) return;
+          avisar(`${autor.nome} moveu ${pecaNome}`, {
+            acao: { rotulo: 'Silenciar', fazer: () => definirAvisarMovimentoDeJogador(false) },
+          });
+        },
+      },
+      dados as DadosMoverPeca,
+      evento.autor,
+    ));
   } catch (erro) {
     erroInicial.value = erro instanceof Error ? erro.message : String(erro);
     return;

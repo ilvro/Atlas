@@ -506,7 +506,7 @@ Testes: uma função pura `pecasDoJogador(doc, fichas)`.
 Pronto quando: o jogador vê a própria peça marcada e as outras não.
 Commit: `remote projector marks the player's own tokens`
 
-### R15 — Arrastar a própria peça  ⬜
+### R15 — Arrastar a própria peça  ✅
 Objetivo: o jogador move a peça dele, e todos veem.
 Depende de: R14.
 Ler: o arraste de peça no editor do Atlas (o comando de mover e o desfazer) e o lado receptor do projetor.
@@ -735,7 +735,7 @@ Commit: `server-side dice rolls`
 | 2. O mestre publica | R5 → R5b → R6 | Sonnet | R4; a R5b bloqueia a R7 |
 | 3. O jogador vê | R7 → R8, R9 | Sonnet | R6 |
 | 4. Fichas e saguão | R10 ✅, R11 ✅ → R12 ✅ → R12b ✅, R13 ✅ | Sonnet (o Opus revisa a R12 e a R12b) | R7 para a R11 |
-| 5. Peça própria e ping | R14 ✅ → R15 → R15b → R15c | Sonnet; R15c pelo Opus | R11 |
+| 5. Peça própria e ping | R14 ✅ → R15 ✅ → R15b → R15c | Sonnet; R15c pelo Opus | R11 |
 | 6. Discord | R16 ✅, R17 → R18, R19 | Sonnet; R19 com o usuário | blocos 3 a 5 |
 | 7. Som | R21a ✅ → R21b → R22 → R23 | Sonnet | R3 para a R21b; R5, R6 e R12b para as outras |
 | Depois | R20 | Sonnet | R9 |
