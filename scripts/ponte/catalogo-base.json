@@ -4388,6 +4388,38 @@
     }
   },
   {
+    "nome": "quadro_descrever_imagem",
+    "descricao": "Grava a descrição em texto de uma imagem do quadro (até 600 caracteres), depois de vê-la com quadro_imagem. Passa a aparecer no lugar da legenda em quadro_secao. Só aceita item que seja imagem; não troca uma descrição escrita pelo mestre.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "quadro": {
+          "type": "string",
+          "description": "Nome ou id do quadro."
+        },
+        "item": {
+          "type": "string",
+          "description": "O #id curto (ou id completo) da imagem."
+        },
+        "texto": {
+          "type": "string",
+          "description": "A descrição, até 600 caracteres."
+        }
+      },
+      "required": [
+        "quadro",
+        "item",
+        "texto"
+      ],
+      "additionalProperties": false
+    },
+    "app": "mesa",
+    "anotacoes": {
+      "destrutiva": false,
+      "idempotente": true
+    }
+  },
+  {
     "nome": "quadro_imagem",
     "descricao": "Vê uma imagem do quadro (reduzida, JPEG), com a legenda em texto. Cara em tokens: peça só a que precisar (handouts, mapas). O item é o #id curto que aparece em quadro_secao.",
     "esquema": {
@@ -4439,6 +4471,38 @@
     "app": "mesa",
     "anotacoes": {
       "leitura": true,
+      "idempotente": true
+    }
+  },
+  {
+    "nome": "quadro_resumir",
+    "descricao": "Grava o resumo de uma seção (até 400 caracteres, duas ou três linhas) depois de lê-la a fundo. Aparece no quadro_mapa nas próximas conversas e é marcado como desatualizado se a seção mudar. Não troca um resumo escrito pelo mestre.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "quadro": {
+          "type": "string",
+          "description": "Nome ou id do quadro."
+        },
+        "secao": {
+          "type": "string",
+          "description": "Id da seção (do quadro_mapa) ou o título."
+        },
+        "texto": {
+          "type": "string",
+          "description": "O resumo, até 400 caracteres."
+        }
+      },
+      "required": [
+        "quadro",
+        "secao",
+        "texto"
+      ],
+      "additionalProperties": false
+    },
+    "app": "mesa",
+    "anotacoes": {
+      "destrutiva": false,
       "idempotente": true
     }
   },
