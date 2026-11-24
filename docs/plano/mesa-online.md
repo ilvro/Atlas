@@ -561,7 +561,7 @@ Pronto quando: o Dossiê abre igual com a rede bloqueada para `fonts.googleapis.
 Commit: `fontes servidas localmente`
 Nota: feita (Dossiê `33064ea`), com 20 `woff2` (cerca de 360 KB) em `public/fontes/` e a licença OFL. Atlas, Mesa e Dossiê não têm mais nenhum recurso externo em tempo de execução.
 
-### R17 — Atividade do Discord  ⬜
+### R17 — Atividade do Discord  ✅
 Objetivo: dentro de uma chamada, a atividade abre a casca na sala do servidor, já com o jogador identificado.
 Depende de: R12, R15, R16 e R0 (passo 5).
 Ler: a documentação atual do Embedded App SDK (`DiscordSDK`, `ready`, `commands.authorize`, `commands.authenticate`, `guildId`, `channelId`, `instanceId`, `patchUrlMappings`, o prefixo `/.proxy/`) e `Mesa/src/main.tsx`.
@@ -582,6 +582,7 @@ Não fazer: comandos de barra, convites nem outros recursos do Discord.
 Testes: unitários da escolha do modo (`frame_id`) e do caminho sem sala ligada; o resto é a R19.
 Pronto quando: o build passa e a casca em modo Discord funciona com um SDK falso.
 Commit: `mesa as a discord activity`
+Nota: subcaminhos mapeados no Discord usam o prefixo `/.proxy/` (`/.proxy/sala/...`, `/.proxy/Atlas/`, `/.proxy/Dossie/`). Nos URL Mappings do Developer Portal, `/sala` deve apontar para `mesa-sala.<subdominio>.workers.dev/sala` porque o proxy remove o prefixo `/sala`. O `BroadcastChannel` entre casca e iframes será validado no cliente real do Discord na R19.
 
 ### R18 — Mestre liga a sala ao servidor  ⬜
 Objetivo: o mestre liga a sala ao servidor sem copiar ids à mão.
@@ -736,7 +737,7 @@ Commit: `server-side dice rolls`
 | 3. O jogador vê | R7 → R8, R9 | Sonnet | R6 |
 | 4. Fichas e saguão | R10 ✅, R11 ✅ → R12 ✅ → R12b ✅, R13 ✅ | Sonnet (o Opus revisa a R12 e a R12b) | R7 para a R11 |
 | 5. Peça própria e ping | R14 ✅ → R15 ✅ → R15b ✅ → R15c ✅ | Sonnet; R15c pelo Opus | R11 |
-| 6. Discord | R16 ✅, R17 → R18, R19 | Sonnet; R19 com o usuário | blocos 3 a 5 |
+| 6. Discord | R16 ✅, R17 ✅ → R18, R19 | Sonnet; R19 com o usuário | blocos 3 a 5 |
 | 7. Som | R21a ✅ → R21b → R22 → R23 | Sonnet | R3 para a R21b; R5, R6 e R12b para as outras |
 | Depois | R20 | Sonnet | R9 |
 
