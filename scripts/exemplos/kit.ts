@@ -33,6 +33,7 @@ import { novaLuz, novaPeca, novoObjeto } from '../../src/domain/fabrica.ts';
 import { PAREDE_PADRAO, atualizarSalasDosObjetos, encaixarNaParede, encaixarObjetoDeParede, motivoDeNaoCaber, recalcularParedes } from '../../src/domain/geometria.ts';
 import { criarMapa, type Abertura, type Acabamento, type Comodo, type Estilo, type Fundo, type MapaAtlas, type Objeto, type Parede, type Peca, type Ponto, type Regiao, type Tempo } from '../../src/domain/mapa.ts';
 import { camposDoPreset, presetDeAcabamento, presetDeClima, presetDeLuz, pincelDePresenca, tipoDeComodo, TIPOS_DE_COMODO } from '../../src/domain/presets.ts';
+import { sincronizarLuzesProprias } from '../../src/domain/luz-propria.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
 import { revisarMapa } from '../../src/authoring/revisao.ts';
 import { mulberry32 } from '../../src/procedural/ruido.ts';
@@ -358,7 +359,8 @@ export class Kit {
       m.presence[id] = { id, brush: pincel, cells: codificar([...chaves].map(k => [k % 65_536, Math.floor(k / 65_536)] as const)), intensity: this.intensidades.get(pincel) ?? 0.6, seed: Math.floor(this.semente * 977 + pincel.length), gmOnly: false };
     }
     atualizarEscarpasDoMacico(m);      // o maciço pintado por aqui também bloqueia, igual ao pintado no editor
-    atualizarSalasDosObjetos(m); m.createdAt = m.updatedAt = CARIMBO_DOS_EXEMPLOS;
+    atualizarSalasDosObjetos(m); sincronizarLuzesProprias(m);   // objetos que brilham trazem a própria luz
+    m.createdAt = m.updatedAt = CARIMBO_DOS_EXEMPLOS;
     return m;
   }
 }

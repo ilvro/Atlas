@@ -6,6 +6,7 @@ import { clonar, produzir } from './imutavel.ts';
 import { COLECOES_LIVRES, type Acabamento, type Andar, type Clima, type ColecaoLivre, type Estilo, type Fundo, type Grade, type Luz, type Memoria, type MapaAtlas, type ModoTelhadosSessao, type NomeColecao, type Objeto, type Peca, type Ponto, type Presenca, type Regiao } from '../domain/mapa.ts';
 import { andarDe, mapaDoAndar } from '../domain/andares.ts';
 import { atualizarSalasDosObjetos } from '../domain/geometria.ts';
+import { sincronizarLuzesProprias } from '../domain/luz-propria.ts';
 import { alvosDoInterruptor } from '../domain/interagiveis.ts';
 import { definirValor, iniciar, passo, podar } from '../domain/iniciativa.ts';
 import { celulasVisiveis, exploradoAgora, RES_NEVOA } from '../domain/nevoa.ts';
@@ -439,7 +440,7 @@ function aplicar(m: MapaAtlas, c: Comando): void {
  * deixando o recebido intacto. O resultado inteiro é validado antes de ser aceito (ou ao concluir um gesto contínuo).
  */
 export function aplicarComando(mapa: MapaAtlas, comando: Comando): MapaAtlas {
-  const proximo = produzir(mapa, rascunho => aplicar(rascunho, comando));
+  const proximo = produzir(mapa, rascunho => { aplicar(rascunho, comando); sincronizarLuzesProprias(rascunho); });
   if (proximo === mapa) return mapa;
   if (!(comando.tipo === 'peca.mover' && comando.emArrasto === true)) {
     try { validarMapa(proximo); } catch (erro) {

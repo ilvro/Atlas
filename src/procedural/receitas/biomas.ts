@@ -2,7 +2,7 @@ import { elipse, poli, type Parte } from '../descricao.ts';
 import { tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
 import { LUZ_X, LUZ_Y, bolha, lente, tira } from '../organico.ts';
-import { num, piso, type Receita } from './comum.ts';
+import { num, piso, type Receita, type LuzDeReceita } from './comum.ts';
 
 // Biomas (Frente Q): o que dá caráter a caverna, selva, praia, deserto, outono e vulcão. Os que brilham usam partes `brilho`, que emitem
 // acima da luz da cena (multiplicam a própria cor por até 3): por isso as cores do brilho são escuras e saturadas. O clarão no chão é uma
@@ -292,6 +292,23 @@ function petalas(seed: number, R: number): Parte[] {
 }
 
 const ALTURA = { id: 'altura', rotulo: 'Altura (m)', tipo: 'numero' as const };
+const clareza = (p: Record<string, unknown>, id: string, padrao: number, min: number, max: number): number => { const v = p[id]; return typeof v === 'number' && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : padrao; };
+
+/** A luz do cogumelo gigante: a cor que ele emite, raio pelo tamanho do chapéu e pelo brilho; sem brilho, nada. */
+const luzDoCogumelo = (p: Record<string, unknown>): LuzDeReceita | null => {
+  const brilho = clareza(p, 'brilho', 0.7, 0, 1); if (brilho <= 0) return null;
+  const h = clareza(p, 'altura', 4, 2, 6), cor = COGUMELOS[Math.round(clareza(p, 'cor', 1, 0, 3))]!.emite;
+  return { preset: 'cogumelo', raio: Math.round(((0.8 + h * 0.45) * 1.6 * brilho + 1) * 100) / 100, cor, intensidade: Math.round((0.8 + 1.4 * brilho) * 100) / 100 };
+};
+/** A luz do cristal: a cor `emite` da paleta, raio pelo tamanho. */
+const luzDoCristal = (p: Record<string, unknown>): LuzDeReceita | null => {
+  const brilho = clareza(p, 'brilho', 0.7, 0, 1); if (brilho <= 0) return null;
+  const t = clareza(p, 'tamanho', 1.5, 0.5, 3), cor = CRISTAIS[Math.round(clareza(p, 'cor', 0, 0, 4))]![4];
+  return { preset: 'cristal', raio: Math.round((t * 2 + 1) * 100) / 100, cor, intensidade: Math.round((0.8 + 1.4 * brilho) * 100) / 100 };
+};
+/** A fumarola: um bruxuleio laranja fraco. */
+const luzDaFumarola = (): LuzDeReceita => ({ preset: 'fumarola', raio: 1.5, cor: '#ff8a3c', intensidade: 0.5, power: 'fire', flicker: 0.25 });
+
 const BRILHO = { id: 'brilho', rotulo: 'Brilho (0 a 1)', tipo: 'numero' as const, min: 0, max: 1, passo: 0.1 };
 
 export const RECEITAS_DE_BIOMAS: Receita[] = [
@@ -300,12 +317,15 @@ export const RECEITAS_DE_BIOMAS: Receita[] = [
     gerar: p => { const R = num(p, 'raio', 0.3, 0.15, 0.8); return piso([R * 2, R * 2], fungosLuminosos(p.seed, R, num(p, 'lilas', 0, 0, 1) >= 0.5)); } },
   { id: 'cogumelo-gigante', nome: 'Cogumelo gigante', categoria: 'exterior', tipo: 'piso', funcoes: ['caverna', 'jardim'], kit: 'caverna', tags: ['cogumelo', 'fungo', 'gigante', 'brilho', 'luminoso', 'caverna', 'subterraneo', 'natureza', 'magia', 'floresta'], pegada: [4.68, 4.68],
     campos: [{ ...ALTURA, padrao: 4, min: 2, max: 6, passo: 1 }, { ...BRILHO, padrao: 0.7 }, { id: 'cor', rotulo: 'Cor (0 castanho, 1 verde-água, 2 lilás, 3 vermelho)', tipo: 'numero', padrao: 1, min: 0, max: 3, passo: 1 }],
+    luz: luzDoCogumelo,
     gerar: p => { const h = num(p, 'altura', 4, 2, 6), d = (0.8 + h * 0.45) * 1.8; return piso([d, d], cogumeloGigante(p.seed, h, Math.round(num(p, 'cor', 1, 0, 3)), num(p, 'brilho', 0.7, 0, 1))); } },
   { id: 'cristal', nome: 'Cristais', categoria: 'exterior', tipo: 'piso', funcoes: ['caverna'], kit: 'caverna', tags: ['cristal', 'cristais', 'gema', 'brilho', 'luminoso', 'caverna', 'subterraneo', 'magia', 'mina'], pegada: [2.4, 2.4],
     campos: [{ id: 'tamanho', rotulo: 'Tamanho (m)', tipo: 'numero', padrao: 1.5, min: 0.5, max: 3, passo: 0.5 }, { ...BRILHO, padrao: 0.7 }, { id: 'cor', rotulo: 'Cor (0 ciano, 1 violeta, 2 âmbar, 3 verde, 4 rosa)', tipo: 'numero', padrao: 0, min: 0, max: 4, passo: 1 }],
+    luz: luzDoCristal,
     gerar: p => { const t = num(p, 'tamanho', 1.5, 0.5, 3); return piso([t * 1.6, t * 1.6], cristal(p.seed, t, Math.round(num(p, 'cor', 0, 0, 4)), num(p, 'brilho', 0.7, 0, 1))); } },
   { id: 'fumarola', nome: 'Fumarola', categoria: 'exterior', tipo: 'piso', funcoes: ['jardim', 'caverna'], kit: 'ermos', tags: ['fumarola', 'vapor', 'enxofre', 'fenda', 'vulcao', 'vulcanico', 'brasa', 'rasteira'], pegada: [1.2, 0.84], altura: 0.06,
     campos: [{ id: 'comprimento', rotulo: 'Comprimento (m)', tipo: 'numero', padrao: 1.2, min: 0.6, max: 2.5, passo: 0.1 }],
+    luz: luzDaFumarola,
     gerar: p => { const L = num(p, 'comprimento', 1.2, 0.6, 2.5); return piso([L, L * 0.7], fumarola(p.seed, L)); } },
   { id: 'concha', nome: 'Conchas', categoria: 'exterior', tipo: 'piso', funcoes: ['jardim'], kit: 'porto', tags: ['concha', 'conchas', 'praia', 'mar', 'areia', 'rasteira'], pegada: [0.6, 0.6], altura: 0.04,
     campos: [{ id: 'quantas', rotulo: 'Quantas', tipo: 'numero', padrao: 4, min: 1, max: 10, passo: 1 }],
