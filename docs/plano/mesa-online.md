@@ -400,7 +400,7 @@ Nota: feita (Dossiê `fcf5580`, Mesa `a77b1fd`).
   3. O Dossiê avulso com `?sala=` sem a casca fica em branco por até 20 s.
 - **Revisão visual do Opus** (`scratchpad/r11-card.png`): a 360 px, a barra de PV sai pela esquerda, e o "card" é a ficha móvel inteira rolando, não um resumo. Vira a R12c.
 
-### R12 — Card e ficha completa na casca  ⬜
+### R12 — Card e ficha completa na casca  ✅
 Objetivo: a ficha fica à mão sem tapar o mapa, e a completa abre por cima.
 Depende de: R11.
 Ler: `Casca.tsx` e as vistas do Dossiê.
@@ -417,6 +417,13 @@ Testes: e2e curto da troca de vista, se o e2e da R7 existir.
 Pronto quando: o jogador rola pelo card, abre a completa, edita um item e volta ao mapa sem recarregar.
 Commit: `sheet card and full sheet in player shell`
 Nota: o Opus revisa o resultado visual (proporções, legibilidade no celular) antes de fechar.
+Nota: feita (Mesa `4e4146b`, Dossiê `69c623d`).
+- Um só `iframe` do Dossiê, filho da casca: `data-ficha` o move por CSS entre o painel de 360 px e a tela toda, sem remontar. A lógica pura está em `src/jogar/vista-ficha.ts`.
+- "Voltar ao mapa" (fixo no topo) e `Esc` (com o foco na casca ou no Dossiê) voltam. No celular na vertical, as abas decidem a vista, sem o botão.
+- Item 3: a escolha da ficha ativa já estava no card (R12c).
+- Item 4: feito no Dossiê, porque a casca já repassava na hora. `armazenamentoSala` grava sem espera uma ficha sem versão enviada nem `rev`; as edições seguintes esperam os 800 ms.
+- Desvio: o feed de rolagens fica por baixo da ficha completa e só reaparece ao voltar ao mapa.
+- Limite visual: no celular, a ficha completa do Dossiê corta a barra de PV à esquerda (layout do Dossiê, não da casca).
 
 ### R12c — Card do jogador no Dossiê  [Opus]  ✅
 Objetivo: um card de verdade para o painel de 360 px ao lado do mapa: quem é, como está e os botões de rolar, sem rolar a página.
@@ -715,7 +722,7 @@ Commit: `server-side dice rolls`
 | 1. Sala | R1 → R2 → R3 → R4 | Sonnet | R0 só para publicar |
 | 2. O mestre publica | R5 → R5b → R6 | Sonnet | R4; a R5b bloqueia a R7 |
 | 3. O jogador vê | R7 → R8, R9 | Sonnet | R6 |
-| 4. Fichas e saguão | R10 ✅, R11 → R12 → R12b, R13 | Sonnet (o Opus revisa a R12 e a R12b) | R7 para a R11 |
+| 4. Fichas e saguão | R10 ✅, R11 ✅ → R12 ✅ → R12b, R13 | Sonnet (o Opus revisa a R12 e a R12b) | R7 para a R11 |
 | 5. Peça própria e ping | R14 → R15 → R15b → R15c | Sonnet; R15c pelo Opus | R11 |
 | 6. Discord | R16 ✅, R17 → R18, R19 | Sonnet; R19 com o usuário | blocos 3 a 5 |
 | 7. Som | R21a ✅ → R21b → R22 → R23 | Sonnet | R3 para a R21b; R5, R6 e R12b para as outras |
