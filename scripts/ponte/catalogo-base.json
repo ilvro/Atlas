@@ -4475,6 +4475,70 @@
     }
   },
   {
+    "nome": "quadro_propor",
+    "descricao": "Propõe notas num quadro: cria uma moldura \"✦ <titulo>\" no primeiro espaço livre à direita (ou abaixo) da seção \"perto\", com as notas dentro (até 30, cada uma até 2000 caracteres, tipo opcional: leitura, teste, segredo, loot, evento, fala, tarefa, rever, titulo). Tudo entra na fila de revisão do mestre, marcado como do assistente; nada se mistura ao material dele sem aceite. No quadro aberto na tela, um Ctrl+Z desfaz; em outro quadro grava direto, sem histórico. Devolve o id da moldura e o total de notas.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "quadro": {
+          "type": "string",
+          "description": "Nome ou id do quadro."
+        },
+        "titulo": {
+          "type": "string",
+          "description": "Título da moldura (o \"✦ \" é acrescentado)."
+        },
+        "notas": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 30,
+          "items": {
+            "type": "object",
+            "properties": {
+              "texto": {
+                "type": "string"
+              },
+              "tipo": {
+                "type": "string",
+                "enum": [
+                  "leitura",
+                  "teste",
+                  "segredo",
+                  "loot",
+                  "evento",
+                  "fala",
+                  "tarefa",
+                  "rever",
+                  "titulo"
+                ],
+                "description": "Tipo semântico (cor); opcional."
+              }
+            },
+            "required": [
+              "texto"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "perto": {
+          "type": "string",
+          "description": "Id ou título da seção (do quadro_mapa) ao lado da qual propor; omita para pôr à direita de tudo."
+        }
+      },
+      "required": [
+        "quadro",
+        "titulo",
+        "notas"
+      ],
+      "additionalProperties": false
+    },
+    "app": "mesa",
+    "anotacoes": {
+      "destrutiva": false,
+      "idempotente": false
+    }
+  },
+  {
     "nome": "quadro_resumir",
     "descricao": "Grava o resumo de uma seção (até 400 caracteres, duas ou três linhas) depois de lê-la a fundo. Aparece no quadro_mapa nas próximas conversas e é marcado como desatualizado se a seção mudar. Não troca um resumo escrito pelo mestre.",
     "esquema": {

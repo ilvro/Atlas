@@ -2,7 +2,7 @@
 
 # Ler os quadros da Mesa
 
-Os quadros do mestre são enormes (dezenas de milhares de tokens). Nunca leia tudo: leia em camadas, do barato ao caro, e pare quando já souber o bastante. As ferramentas `quadros_listar`, `quadro_mapa`, `quadro_secao`, `quadro_buscar` e `quadro_imagem` (leitura) e `quadro_resumir` e `quadro_descrever_imagem` (notas sobre o quadro) são sob demanda: carregue-as com `plataforma_ferramentas`. Nenhuma muda o conteúdo do quadro.
+Os quadros do mestre são enormes (dezenas de milhares de tokens). Nunca leia tudo: leia em camadas, do barato ao caro, e pare quando já souber o bastante. As ferramentas `quadros_listar`, `quadro_mapa`, `quadro_secao`, `quadro_buscar` e `quadro_imagem` (leitura) `quadro_resumir` e `quadro_descrever_imagem` (notas sobre o quadro) e `quadro_propor` (propostas para revisão) são sob demanda: carregue-as com `plataforma_ferramentas`. Só `quadro_propor` acrescenta itens ao quadro, e sempre marcados para revisão.
 
 ## A ordem
 
@@ -45,6 +45,12 @@ Assim a próxima conversa já começa com os resumos no mapa e lê menos. Regras
 - **Setas** aparecem no fim da seção: `"começo" #id → "começo" #id: rótulo`. Elas costumam ser ordem, causa ou consequência.
 - **Ilhas e "Soltos"**: o que não está numa moldura é agrupado por proximidade; o título é detectado (fonte maior, cabeçalho). Se o título da ilha parecer errado, diga ao mestre em vez de supor.
 
+## Propor ideias no quadro
+
+Quando o mestre pedir ideias para pôr no quadro (ganchos, testes, falas, segredos, uma cena), use `quadro_propor(quadro, titulo, notas, perto?)`: ela cria uma moldura "✦ título" no primeiro espaço livre ao lado da seção `perto` (ou à direita de tudo), com até 30 notas `{ texto, tipo? }`. O `tipo` é um dos tipos semânticos (`leitura`, `teste`, `segredo`, `loot`, `evento`, `fala`, `tarefa`, `rever`, `titulo`) e dá a cor da nota. Escreva no vocabulário do mestre: marcadores como `[PERCEPÇÃO 13]` e `[[Nome]]` para entidades.
+
+Tudo entra marcado para revisão, no grupo "Do assistente" da fila: o mestre aceita, edita ou descarta. No quadro aberto, um Ctrl+Z desfaz a proposta inteira; num quadro fechado, ela é gravada direto e se desfaz pela fila ("Descartar todas"). Prefira uma proposta por pedido, com notas curtas, a várias molduras soltas.
+
 ## Respeito ao que é do mestre
 
-O quadro é material do mestre: leia, resuma e comente, mas não o reescreva. Propostas novas vão para uma moldura própria e para a fila de revisão (Fase 7, L4a); nada se mistura ao material dele sem aceite.
+O quadro é material do mestre: leia, resuma e comente, mas não o reescreva. Propostas novas vão por `quadro_propor`, para uma moldura própria e a fila de revisão; nada se mistura ao material dele sem aceite.
