@@ -655,3 +655,18 @@ test('publicador: movimento livre do mestre reflete em grid.snap do estado remot
     pub.parar(); remoto.close(); sess.fechar();
   }
 });
+
+test('publicador: pede ola no canal remoto ao iniciar para retomar após troca de mapa', async () => {
+  const mapa = criarMapa({ id: 'mapa-pub-precisa-ola', nome: 'Arena' });
+  const sess = criarSessao(mapa, criarRepoMock({ [mapa.id]: mapa }), { salvo: true });
+  const remoto = new BroadcastChannel(CANAL_PROJETOR_REMOTO);
+  const msgs: any[] = [];
+  remoto.onmessage = e => msgs.push(e.data);
+  const pub = iniciarPublicacao(sess, async () => null);
+  try {
+    await esperar(30);
+    assert.ok(msgs.some(m => m?.tipo === 'precisa-ola'), 'publicador pede ola ao iniciar');
+  } finally {
+    pub.parar(); remoto.close(); sess.fechar();
+  }
+});
