@@ -324,7 +324,7 @@ Nota: feita (Atlas `f9623f4`). Causa: a `camera` chegava antes de o viewport do 
 - o cômodo não revelado se chama "Cômodo" (`NOME_DO_COMODO_OCULTO`), e o `prepararDocRemoto` saiu.
 Revisão do Opus: `cmp-local-2.png` e `cmp-remoto-2.png` batem dentro da área.
 
-### R8 — Câmera própria no projetor remoto  ⬜
+### R8 — Câmera própria no projetor remoto  ✅
 Objetivo: o jogador pode olhar o mapa por conta própria e voltar à câmera do mestre.
 Depende de: R7.
 Ler: o tratamento de `camera` e de `seguir` no lado receptor do projetor; os controles de câmera do Atlas.
@@ -334,6 +334,12 @@ Não fazer: o arraste de peça (R15).
 Testes: a lógica de "câmera livre ou seguindo" como função pura.
 Pronto quando: o jogador dá zoom num canto, o mestre muda a câmera e nada acontece; ao clicar "Seguir o mestre", a câmera volta.
 Commit: `free camera for remote projector`
+Nota: feita (Atlas `3c5e243`).
+- A função pura `decidirCamera` está em `src/app/camera-remota.ts`.
+- O botão "Seguir o mestre" fica dentro do projetor remoto, no canto inferior direito.
+- Gestos: arrastar com qualquer botão (o clique direito não abre menu), roda com zoom no cursor e pinça.
+- No remoto, só `imediata` devolve o modo "seguindo", e o `seguir: true` do publicador é ignorado.
+- Pendências: a pinça não foi testada em toque de verdade, e uma animação de câmera de 700 ms em andamento não é cancelada pelo gesto (pode dar um tranco curto).
 
 ### R9 — Rolagens para todos  ⬜
 Objetivo: toda rolagem de ficha de jogador aparece para a mesa inteira.
