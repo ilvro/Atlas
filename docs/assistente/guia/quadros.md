@@ -1,8 +1,8 @@
-> resumo: ler os quadros da Mesa do jeito barato: mapa, busca, seção em títulos, seção completa, imagem só se precisar; citar itens pelo id curto, não pedir todas as imagens e o vocabulário do mestre (marcadores, tipos, [[ligações]]).
+> resumo: ler os quadros da Mesa do jeito barato: mapa, busca, seção em títulos, seção completa, imagem só se precisar; gravar resumos e descrições de imagem; citar itens pelo id curto, não pedir todas as imagens e o vocabulário do mestre (marcadores, tipos, [[ligações]]).
 
 # Ler os quadros da Mesa
 
-Os quadros do mestre são enormes (dezenas de milhares de tokens). Nunca leia tudo: leia em camadas, do barato ao caro, e pare quando já souber o bastante. As ferramentas `quadros_listar`, `quadro_mapa`, `quadro_secao`, `quadro_buscar` e `quadro_imagem` são sob demanda: carregue-as com `plataforma_ferramentas`. Todas só leem; nada muda no quadro.
+Os quadros do mestre são enormes (dezenas de milhares de tokens). Nunca leia tudo: leia em camadas, do barato ao caro, e pare quando já souber o bastante. As ferramentas `quadros_listar`, `quadro_mapa`, `quadro_secao`, `quadro_buscar` e `quadro_imagem` (leitura) e `quadro_resumir` e `quadro_descrever_imagem` (notas sobre o quadro) são sob demanda: carregue-as com `plataforma_ferramentas`. Nenhuma muda o conteúdo do quadro.
 
 ## A ordem
 
@@ -24,9 +24,16 @@ Os quadros do mestre são enormes (dezenas de milhares de tokens). Nunca leia tu
 
 Cada linha da seção começa com `#id` (os 6 primeiros caracteres do id do item, mais longo se houver colisão). Cite assim ao mestre ("na nota #a3f9c1 da seção \"Capítulo 2\""), e use o mesmo `#id` em `quadro_imagem(item)`. Cite também a seção pelo título, para o mestre achar no quadro.
 
-## Resumos (Fase 7, L3a)
+## Resumos e descrições
 
-Depois de ler uma seção a fundo, grave um resumo de duas ou três linhas com `quadro_resumir`, e descreva as imagens importantes com `quadro_descrever_imagem`; assim a próxima conversa já começa com eles no mapa. (Essas ferramentas só existem quando a L3a estiver pronta; até lá, apenas leia.) Um resumo marcado `(resumo desatualizado)` ficou para trás do quadro: releia a seção antes de confiar nele. Um resumo marcado `(escrito pelo mestre: não troque sem pedir)` não se sobrescreve sem o mestre pedir.
+Depois de ler uma seção a fundo, grave um resumo de duas ou três linhas (até 400 caracteres) com `quadro_resumir(quadro, secao, texto)`: o que há ali e para que serve na campanha, não a lista dos itens. Para as imagens importantes que você viu com `quadro_imagem` (handouts, mapas, retratos), grave uma descrição (até 600 caracteres) com `quadro_descrever_imagem(quadro, item, texto)`; dali em diante ela aparece no lugar da legenda, e ninguém precisa ver a imagem de novo. As duas ferramentas são de escrita (não destrutivas) e não mudam o quadro, só as notas sobre ele.
+
+Assim a próxima conversa já começa com os resumos no mapa e lê menos. Regras:
+
+- Resuma só o que leu de verdade; não resuma pelo título.
+- Um resumo marcado `(resumo desatualizado)` ficou para trás do quadro: releia a seção e grave um novo.
+- Um resumo marcado `(escrito pelo mestre: não troque sem pedir)` é do mestre: a ferramenta recusa sobrescrever, e você não deve pedir para trocar sem motivo.
+- O mestre vê e corrige os resumos no navegador de molduras do quadro.
 
 ## O vocabulário do mestre
 
