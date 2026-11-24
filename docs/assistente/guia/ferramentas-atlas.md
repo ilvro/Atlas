@@ -121,6 +121,8 @@ Tipo dos cômodos: ver `atlas_catalogo`.
 | Clássico / Nobre | `cupula-dourada` | `telha.ouro` | `cupula` | não | — |
 | Clássico / Nobre | `igreja-ortodoxa` | `telha.ouro` | `bulbo` | não | `cruz` |
 | Clássico / Nobre | `capela-de-vitral` | `telha.vitral` | `duas-aguas` | sim | — |
+| Antiguidade | `casa-romana` | `telha.imbrex` | `quatro-aguas` | não | — |
+| Antiguidade | `terraco-de-barro` | `terraco.barro` | `plano` | não | — |
 | Oriental | `pagode` | `telha.esmaltada.verde` | `pagode` | não | — |
 | Oriental | `templo-oriental` | `telha.esmaltada.amarela` | `quatro-aguas` | sim | — |
 | Oriental | `casa-de-bambu` | `telha.bambu` | `duas-aguas` | não | — |

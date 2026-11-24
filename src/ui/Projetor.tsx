@@ -99,6 +99,21 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
     const ola = () => dizer({ tipo: 'ola', ...tamanho() });
     let fichasDoJogador: string[] = [];
 
+    let ultimoPingEm = 0;
+    const sairPing = barramento?.ouvir('mesa.ping', evento => {
+      const d = evento.dados as { mapa?: string; ponto?: [number, number]; levelId?: string | null };
+      if (!d || typeof d.mapa !== 'string' || d.mapa !== doc.value?.id || !d.ponto) return;
+      vp?.dispararPing({
+        id: evento.id,
+        mapa: d.mapa,
+        ponto: d.ponto,
+        levelId: d.levelId ?? null,
+        discordId: evento.autor?.discordId ?? 'mestre',
+        nome: evento.autor?.nome ?? 'Mestre',
+        papel: evento.autor?.papel ?? 'mestre',
+        em: Date.now(),
+      });
+    });
     void criarViewport(ref.current!, {
       store: (store = criarStore(criarMapa({ id: mapaId, nome: 'Aguardando…' }), { salvo: false })),
       somenteLeitura: true, selecao: () => [], definirSelecao() {}, ferramenta: () => 'selecionar', definirFerramenta() {}, pincel: () => ({}) as never, definirPincel() {},
@@ -121,6 +136,26 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
               return false;
             }
             return true;
+          }
+        : undefined,
+      aoPingar: remoto && barramento
+        ? pontoPing => {
+            const atual = doc.value;
+            if (!atual) return;
+            const agora = Date.now();
+            if (agora - ultimoPingEm < 1000) return;
+            ultimoPingEm = agora;
+            const ev = barramento.emitir('mesa.ping', { mapa: atual.id, ponto: pontoPing });
+            vp?.dispararPing({
+              id: ev.id,
+              mapa: atual.id,
+              ponto: pontoPing,
+              levelId: null,
+              discordId: 'eu',
+              nome: 'Você',
+              papel: 'jogador',
+              em: agora,
+            });
           }
         : undefined,
     }).then(v => {
@@ -257,6 +292,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
     return () => {
       morto = true; clearInterval(insistir); clearTimeout(sumir); clearTimeout(relogioAvisoRemoto); avisoRemoto.value = null; aoSair();
       for (const c of canais) c.close();
+      sairPing?.();
       barramento?.fechar();
       if (remoto) window.removeEventListener('message', aoMensagem);
       sairTema(); vp?.destruir(); store?.dispor();

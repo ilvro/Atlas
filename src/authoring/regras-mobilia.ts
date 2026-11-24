@@ -324,13 +324,90 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('vaso', ['vaso.planta'], 'canto', [1, 3], 2),
     item('poco', ['poco', 'fonte'], 'centro', [0, 1], 3, { areaMinima: 20 }),
   ],
+  // Antiguidade (Q15c). Fora do gênero, os itens exclusivos da época saem das alternativas (`regrasPara`); sobram os atemporais (pilar, banco, vaso, arbusto).
+  atrio: [
+    item('impluvio', ['impluvio'], 'centro', [1, 1], 1, { areaMinima: 14, paramsPorArea: [[30, { comprimento: 4.2, largura: 3 }]] }),
+    item('lucerna', ['lucerna'], 'canto', [2, 3], 2, { params: { pe: 1 } }),
+    item('busto', ['busto-em-pedestal'], 'parede', [1, 2], 3),
+    item('rolos', ['estante-de-rolos'], 'parede', [0, 1], 4, { areaMinima: 18, alto: true }),
+    item('tear', ['tear-vertical'], 'parede', [0, 1], 5, { areaMinima: 20, alto: true }),
+    item('anfora', ['anfora'], 'canto', [1, 2], 6),
+    item('banco', ['banco'], 'parede', [0, 2], 7),
+    item('vaso', ['vaso.planta', 'urna.pedestal'], 'canto', [1, 2], 8),
+    item('coluna', ['coluna.jonica', 'coluna.dorica', 'pilar'], 'canto', [0, 4], 9, { areaMinima: 24, params: { altura: 4 } }),
+  ],
+  peristilo: [
+    item('impluvio', ['impluvio'], 'centro', [0, 1], 1, { areaMinima: 30, params: { comprimento: 4.5, largura: 3 } }),
+    item('pergola', ['pergolado-com-videira'], 'parede', [0, 2], 2, { areaMinima: 24 }),
+    item('fonte', ['fonte-com-mascara', 'fonte'], 'parede', [0, 1], 3),
+    item('estatua', ['estatua-classica', 'busto-em-pedestal', 'estatua'], 'canto', [1, 2], 4),
+    item('coluna', ['coluna.dorica', 'coluna.jonica', 'pilar'], 'canto', [2, 6], 5, { escala: 0.5, params: { altura: 5 } }),
+    item('banco', ['banco.jardim'], 'parede', [1, 3], 6),
+    item('arbusto', ['casa:arbusto-verde', 'casa:arbusto-florido'], 'canto', [1, 3], 7),
+    item('vaso', ['vaso.planta', 'urna.pedestal'], 'canto', [0, 2], 8),
+  ],
+  triclinio: [
+    item('mesa', ['mesa-romana'], 'centro', [1, 1], 1),
+    // Um leito de cada lado da mesa (o `triclinio` em U não cabe em volta dela): três leitos de um lugar só.
+    item('leito', ['triclinio'], 'junto', [3, 3], 2, { junto: { de: 'mesa', modo: 'ao-redor' }, senao: 'parede', params: { leitos: 1 } }),
+    item('louca', ['pratos.servico', 'fruteira', 'garrafa.tacas'], 'sobre', [1, 2], 3, { junto: { de: 'mesa', modo: 'ao-lado' } }),
+    item('lucerna', ['lucerna'], 'canto', [2, 3], 4, { params: { pe: 1 } }),
+    item('anfora', ['anfora'], 'canto', [1, 2], 5),
+    item('lira', ['lira'], 'canto', [0, 1], 6),
+    item('busto', ['busto-em-pedestal'], 'parede', [0, 1], 7),
+    item('vaso', ['vaso.planta', 'urna.pedestal'], 'canto', [0, 2], 8),
+  ],
+  termas: [
+    item('tanque', ['impluvio'], 'centro', [1, 1], 1, { areaMinima: 14, params: { comprimento: 4.2, largura: 3 }, paramsPorArea: [[40, { comprimento: 5.6, largura: 3.6 }]] }),
+    item('banco', ['banco', 'banco.jardim'], 'parede', [2, 4], 2),
+    item('anfora', ['anfora'], 'canto', [1, 3], 3),
+    item('fonte', ['fonte-com-mascara'], 'parede', [0, 1], 4),
+    item('lucerna', ['lucerna'], 'canto', [2, 3], 5, { params: { pe: 1 } }),
+    item('estatua', ['busto-em-pedestal', 'estatua-classica'], 'canto', [0, 2], 6),
+    item('vaso', ['vaso.planta', 'urna.pedestal'], 'canto', [1, 2], 7),
+    item('coluna', ['coluna.dorica', 'coluna.jonica', 'pilar'], 'canto', [0, 4], 8, { areaMinima: 30, params: { altura: 4 } }),
+  ],
+  templo: [
+    item('estatua', ['estatua-classica', 'estatua'], 'parede', [1, 1], 1, { alto: true }),
+    item('altar', ['altar-de-sacrificio', 'altar'], 'centro', [1, 1], 2, { areaMinima: 14 }),
+    item('tripe', ['tripe-de-bronze'], 'junto', [2, 2], 3, { junto: { de: 'altar', modo: 'ladeando' }, senao: 'parede' }),
+    item('coluna', ['coluna.dorica', 'coluna.jonica', 'coluna.corintia', 'pilar'], 'canto', [2, 4], 4, { params: { altura: 4 } }),
+    item('painel', ['painel-de-hieroglifos'], 'na-parede', [0, 2], 5, { areaMinima: 16 }),
+    item('busto', ['busto-em-pedestal'], 'parede', [0, 2], 6),
+    item('lucerna', ['lucerna'], 'canto', [1, 2], 7, { params: { pe: 1 } }),
+    item('rolos', ['estante-de-rolos'], 'parede', [0, 1], 8, { areaMinima: 24, alto: true }),
+    item('urna', ['urna.pedestal'], 'canto', [0, 2], 9),
+  ],
+  forum: [
+    item('obelisco', ['obelisco'], 'centro', [0, 1], 1, { areaMinima: 60 }),
+    item('estatua', ['estatua-classica', 'busto-em-pedestal', 'estatua'], 'canto', [1, 3], 2, { escala: 0.5 }),
+    item('coluna', ['coluna.dorica', 'coluna.jonica', 'coluna.corintia', 'pilar'], 'canto', [2, 6], 3, { escala: 0.5, params: { altura: 6 } }),
+    item('aquila', ['aquila'], 'canto', [0, 2], 4),
+    item('banca', ['banca-de-mercado.toldo'], 'parede', [1, 3], 5, { areaMinima: 30, escala: 0.5 }),
+    item('altar', ['altar-de-sacrificio'], 'parede', [0, 1], 6, { areaMinima: 40 }),
+    item('biga', ['biga'], 'parede', [0, 1], 7, { areaMinima: 50 }),
+    item('fonte', ['fonte-com-mascara', 'fonte'], 'parede', [0, 1], 8),
+    item('anfora', ['anfora'], 'canto', [1, 3], 9),
+    item('banco', ['banco.jardim'], 'parede', [1, 3], 10),
+    item('arbusto', ['casa:arbusto-verde'], 'canto', [0, 2], 11),
+  ],
+  taberna: [
+    item('mesa', ['mesa-romana'], 'centro', [1, 3], 1),
+    item('banco', ['banco', 'banqueta'], 'junto', [2, 6], 2, { junto: { de: 'mesa', modo: 'ao-redor' } }),
+    item('anforas', ['anforas-empilhadas'], 'canto', [1, 2], 3),
+    item('pithos', ['pithos'], 'parede', [1, 2], 4),
+    item('anfora', ['anfora'], 'canto', [1, 3], 5),
+    item('lucerna', ['lucerna'], 'sobre', [1, 2], 6, { junto: { de: 'mesa', modo: 'ao-lado' }, params: { pe: 0 } }),
+    item('barril', ['barril.em-pe'], 'canto', [0, 2], 7),
+    item('caixa', ['caixa'], 'canto', [0, 2], 8),
+  ],
 };
 
 /**
  * Como o gênero muda as regras: `trocar` e `sem` usam chaves `funcao:chave`. Em `trocar`, a chave é um item ou uma receita
  * (as receitas do item, ou a receita citada, passam a ser as dadas); `sem` tira o item (e o que dependia dele). `investigacao` não muda nada.
  */
-export const VARIACOES_DE_GENERO: Readonly<Record<string, { trocar?: Record<string, string[]>; sem?: string[] }>> = {
+const VARIACOES_BASE: Readonly<Record<string, { trocar?: Record<string, string[]>; sem?: string[] }>> = {
   investigacao: {},
   moderno: {
     sem: ['quarto:estante'],
@@ -351,6 +428,15 @@ export const VARIACOES_DE_GENERO: Readonly<Record<string, { trocar?: Record<stri
       'refeitorio:mesa': ['mesa.banquete', 'mesa.taverna'], 'refeitorio:banco': ['banco.longo'], 'refeitorio:lareira': ['lareira.pedra'],
       'salao:mesa': ['mesa.banquete'], 'salao:banco': ['banco.longo'], 'salao:lareira': ['lareira.pedra'],
     },
+  },
+};
+
+/** Antiguidade: parte do que a fantasia troca (banco no lugar de cadeira, catre, lareira de pedra) e põe a mesa romana nas salas de comer. */
+export const VARIACOES_DE_GENERO: Readonly<Record<string, { trocar?: Record<string, string[]>; sem?: string[] }>> = {
+  ...VARIACOES_BASE,
+  antiguidade: {
+    sem: VARIACOES_BASE.fantasia!.sem,
+    trocar: { ...VARIACOES_BASE.fantasia!.trocar, 'sala-de-jantar:mesa': ['mesa-romana'], 'sala-de-jantar:cadeira': ['banco'], 'salao:mesa': ['mesa-romana'], 'taverna:mesa': ['mesa-romana'] },
   },
 };
 

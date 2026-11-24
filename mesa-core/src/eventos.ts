@@ -96,6 +96,13 @@ export const CATALOGO: Readonly<Record<string, Entrada>> = {
   'sala.conexao': { natureza: 'fato', dono: 'mesa', validar: d => ehObj(d) && typeof d.conectada === 'boolean' && (d.nome === undefined || typeof d.nome === 'string') ? null : '“conectada” deve ser booleano e “nome” texto, se houver.' },
   /** Online (só o mestre): entrega uma ficha da sala a um jogador (`dono` é o `discordId`). */
   'sala.entregar-ficha': { natureza: 'pedido', dono: 'mesa', validar: d => ehObj(d) && typeof d.fichaId === 'string' && d.fichaId && typeof d.dono === 'string' && d.dono ? null : '“fichaId” e “dono” devem ser texto.' },
+  /** Online (R15b): ping no mapa para apontar um lugar. */
+  'mesa.ping': { natureza: 'fato', dono: 'mesa', validar: d => {
+    if (!ehObj(d) || typeof d.mapa !== 'string' || !d.mapa) return '“mapa” deve ser texto.';
+    if (!Array.isArray(d.ponto) || d.ponto.length !== 2 || !d.ponto.every(Number.isFinite)) return '“ponto” deve ser [x, y].';
+    if (d.levelId !== undefined && d.levelId !== null && typeof d.levelId !== 'string') return '“levelId” deve ser texto ou nulo.';
+    return null;
+  } },
 };
 
 /** Quem originou o evento, carimbado pela sala (modo online). */
@@ -133,7 +140,7 @@ export function validarEvento(valor: unknown): Validacao {
   const entrada = CATALOGO[valor.tipo];
   if (!entrada) return { ok: false, motivo: 'desconhecido', detalhe: valor.tipo };
   // Fatos só valem vindos do dono; pedidos podem vir de qualquer aplicativo.
-  if (entrada.natureza === 'fato' && entrada.dono !== valor.app && valor.tipo !== 'mesa.resposta') return { ok: false, motivo: 'dono', detalhe: `${valor.tipo} só é emitido por ${entrada.dono}.` };
+  if (entrada.natureza === 'fato' && entrada.dono !== valor.app && valor.tipo !== 'mesa.resposta' && valor.tipo !== 'mesa.ping') return { ok: false, motivo: 'dono', detalhe: `${valor.tipo} só é emitido por ${entrada.dono}.` };
   const erro = entrada.validar(valor.dados);
   if (erro) return { ok: false, motivo: 'dados', detalhe: erro };
   return { ok: true, evento: valor as unknown as Evento };

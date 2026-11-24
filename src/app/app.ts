@@ -122,6 +122,20 @@ export async function iniciar(): Promise<void> {
       dados as DadosMoverPeca,
       evento.autor,
     ));
+    s.barramento?.ouvir('mesa.ping', evento => {
+      const d = evento.dados as { mapa?: string; ponto?: [number, number]; levelId?: string | null };
+      if (!d || typeof d.mapa !== 'string' || d.mapa !== sessao.value?.doc.value.id || !d.ponto) return;
+      viewport.atual?.dispararPing({
+        id: evento.id,
+        mapa: d.mapa,
+        ponto: d.ponto,
+        levelId: d.levelId ?? null,
+        discordId: evento.autor?.discordId ?? 'mestre',
+        nome: evento.autor?.nome ?? 'Mestre',
+        papel: evento.autor?.papel ?? 'mestre',
+        em: Date.now(),
+      });
+    });
   } catch (erro) {
     erroInicial.value = erro instanceof Error ? erro.message : String(erro);
     return;
@@ -130,6 +144,31 @@ export async function iniciar(): Promise<void> {
   window.addEventListener('pagehide', () => { void sessao.value?.auto.descarregar(); });
   window.addEventListener('beforeunload', e => { if (sessao.value?.sujo.value && sessao.value.gravacao.value !== 'limpo') { e.preventDefault(); } });
   await sincronizarRota();
+}
+
+let ultimoPingMestre = 0;
+export function emitirPing(ponto: [number, number]): void {
+  const s = sessao.value;
+  if (!s) return;
+  const agora = Date.now();
+  if (agora - ultimoPingMestre < 1000) return;
+  ultimoPingMestre = agora;
+  const andar = s.andarAtivo.peek();
+  const ev = servicos.value?.barramento?.emitir('mesa.ping', {
+    mapa: s.doc.value.id,
+    ponto,
+    ...(andar ? { levelId: andar } : {}),
+  });
+  viewport.atual?.dispararPing({
+    id: ev?.id ?? crypto.randomUUID(),
+    mapa: s.doc.value.id,
+    ponto,
+    levelId: andar,
+    discordId: 'mestre',
+    nome: 'Mestre',
+    papel: 'mestre',
+    em: agora,
+  });
 }
 
 export function navegar(r: Rota): void {

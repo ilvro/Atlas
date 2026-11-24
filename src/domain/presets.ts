@@ -31,6 +31,14 @@ export const TIPOS_DE_COMODO: readonly TipoDeComodo[] = [
   { id: 'refeitorio', nome: 'Refeitório', funcao: 'refeitorio', piso: 'tabuas.escuras', papel: 'tijolo', descricao: 'Tábuas escuras e mesas compridas' },
   { id: 'salao', nome: 'Salão', funcao: 'salao', piso: 'tabuas.carvalho', papel: 'boiserie.escura', descricao: 'Tábuas de carvalho e boiserie escura' },
   { id: 'patio', nome: 'Pátio', funcao: 'patio', piso: 'laje.pedra', papel: 'reboco.branco', descricao: 'Lajes de pedra ao ar livre' },
+  // Antiguidade (Q15c).
+  { id: 'atrio', nome: 'Átrio', funcao: 'atrio', piso: 'mosaico.romano', papel: 'estuque.pompeiano', descricao: 'Mosaico romano, estuque pompeiano e impluvio' },
+  { id: 'peristilo', nome: 'Peristilo', funcao: 'peristilo', piso: 'lajes.arenito', papel: 'alvenaria.arenito', descricao: 'Jardim com colunas, ao ar livre' },
+  { id: 'triclinio', nome: 'Triclínio', funcao: 'triclinio', piso: 'mosaico.medalhao', papel: 'estuque.pompeiano', descricao: 'Sala de banquete: leitos em volta da mesa' },
+  { id: 'termas', nome: 'Termas', funcao: 'termas', piso: 'mosaico.romano', papel: 'alvenaria.arenito', descricao: 'Banhos romanos: tanques, bancos e ânforas' },
+  { id: 'templo', nome: 'Templo', funcao: 'templo', piso: 'lajes.arenito', papel: 'alvenaria.arenito', descricao: 'Estátua do deus, altar, tripés e colunas' },
+  { id: 'forum', nome: 'Fórum', funcao: 'forum', piso: 'lajes.arenito', papel: 'alvenaria.arenito', descricao: 'Praça da cidade antiga, ao ar livre' },
+  { id: 'taberna', nome: 'Taberna', funcao: 'taberna', piso: 'terracota.quadrada', papel: 'alvenaria.arenito', descricao: 'Terracota, mesas, ânforas e pithos' },
 ];
 export const tipoDeComodo = (id: string): TipoDeComodo | undefined => TIPOS_DE_COMODO.find(t => t.id === id);
 
@@ -179,7 +187,7 @@ export const generoDe = (id: string): Genero => GENEROS.find(g => g.id === id) ?
 export const generosVisiveis = (id: string): string[] => [id, ...(GENEROS.find(g => g.id === id)?.herda ?? [])];
 
 /** Funções de cômodo ao ar livre que nascem sem telhado por padrão. */
-export const FUNCOES_AO_AR_LIVRE = new Set(['varanda', 'patio', 'claustro', 'quintal']);
+export const FUNCOES_AO_AR_LIVRE = new Set(['varanda', 'patio', 'claustro', 'quintal', 'peristilo', 'forum']);
 
 /** Um estilo de telhado: combinação nomeada de cobertura, forma, inclinação e detalhes (só usada na interface e construção; o documento grava os campos resultantes em `room.roof`). */
 export interface EstiloDeTelhado { id: string; nome: string; roof: Omit<Comodo['roof'], 'visible'> }
@@ -197,6 +205,8 @@ export const ESTILOS_DE_TELHADO: readonly EstiloDeTelhado[] = [
   { id: 'laje-moderna', nome: 'Laje moderna', roof: { material: 'telha.concreto', shape: 'plano', details: ['caixa-dagua'] } },
   { id: 'laje-equipada', nome: 'Laje com equipamentos', roof: { material: 'laje.equipada', shape: 'plano', details: ['ar-condicionado', 'antena', 'caixa-dagua'] } },
   { id: 'casa-nordica', nome: 'Casa nórdica', roof: { material: 'telha.grama', shape: 'duas-aguas', steep: false, details: ['chamine'] } },
+  { id: 'casa-romana', nome: 'Casa romana', roof: { material: 'telha.imbrex', shape: 'quatro-aguas', steep: false, details: [] } },
+  { id: 'terraco-de-barro', nome: 'Terraço de barro', roof: { material: 'terraco.barro', shape: 'plano', details: [] } },
   { id: 'tenda', nome: 'Tenda', roof: { material: 'telha.lona', shape: 'piramide', steep: false, details: [] } },
   { id: 'torre-redonda', nome: 'Torre redonda', roof: { material: 'telha.escamas', shape: 'cone', steep: true, details: ['catavento'] } },
   { id: 'torre-conica-de-palha', nome: 'Torre de palha', roof: { material: 'telha.palha', shape: 'cone', steep: true, details: [] } },
@@ -293,5 +303,6 @@ export function telhadoPadrao(
   const genero = m.style.genre;
   if (genero === 'fantasia') return clonarTelhado(estiloDeTelhado('choupana')!.roof);
   if (genero === 'moderno') return clonarTelhado(estiloDeTelhado('laje-moderna')!.roof);
+  if (genero === 'antiguidade') return clonarTelhado(estiloDeTelhado('casa-romana')!.roof);
   return clonarTelhado(estiloDeTelhado('casa-velha')!.roof);
 }

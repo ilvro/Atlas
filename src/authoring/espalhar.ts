@@ -63,6 +63,14 @@ export const CONJUNTOS_EXTERIORES: readonly ConjuntoDeEspalhar[] = [
     { receita: 'rochedo', peso: 2, contexto: 'livre' }, { receita: 'pedra.grande', peso: 2, contexto: 'livre' },
     { receita: 'pedra.media', peso: 3, contexto: 'livre' }, { receita: 'seixos', peso: 4, contexto: 'livre' },
     { receita: 'tronco.caido', peso: 1, contexto: 'livre' }, { receita: 'galho-seco', peso: 2, contexto: 'livre' }, { receita: 'junco', peso: 2, contexto: 'livre' }] },
+  { id: 'ruina-classica', nome: 'Ruína clássica', descricao: 'Colunas de pé e caídas, frontões, pedras e arbustos secos', densidade: 0.05, itens: [
+    { receita: 'coluna-classica.caida', peso: 3, contexto: 'livre' }, { receita: 'frontao-caido', peso: 1, contexto: 'livre' },
+    { familia: 'coluna-classica', peso: 3, contexto: 'livre' },
+    { receita: 'pedra.media', peso: 3, contexto: 'livre' }, { receita: 'pedra.pequena', peso: 3, contexto: 'livre' }, { receita: 'pedra.grande', peso: 1, contexto: 'livre' },
+    { receita: 'casa:arbusto-seco-1m', peso: 2, contexto: 'livre' }, { receita: 'casa:arbusto-seco-2m', peso: 1, contexto: 'livre' }] },
+  { id: 'mercado-antigo', nome: 'Mercado antigo', descricao: 'Bancas com toldo, ânforas, pithos e caixotes', densidade: 0.07, itens: [
+    { receita: 'banca-de-mercado.toldo', peso: 4, contexto: 'livre' }, { receita: 'anfora', peso: 3, contexto: 'livre' }, { receita: 'anforas-empilhadas', peso: 2, contexto: 'livre' },
+    { receita: 'pithos', peso: 2, contexto: 'livre' }, { receita: 'caixa', peso: 2, contexto: 'livre' }] },
 ];
 export const TODOS_OS_CONJUNTOS: readonly ConjuntoDeEspalhar[] = [...CONJUNTOS_DE_ESPALHAR, ...CONJUNTOS_EXTERIORES];
 export const conjuntoDeEspalhar = (id: string): ConjuntoDeEspalhar | undefined => TODOS_OS_CONJUNTOS.find(c => c.id === id);

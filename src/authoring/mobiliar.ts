@@ -32,6 +32,13 @@ const MATERIAIS_BASE: Readonly<Record<string, Record<string, MateriaisDoComodo>>
       refeitorio: { pisos: ['tabuas.rusticas', 'laje.pedra'], papeis: ['reboco.branco', 'pedra.aparelhada'] },
       salao: { pisos: ['parquet.espinha', 'marmore.xadrez-diagonal'], papeis: ['papel.damasco-vinho', 'boiserie.verde'] },
       patio: { pisos: ['pedra.rustica', 'marmore.branco'], papeis: ['tijolo', 'pedra.aparelhada'] },
+      atrio: { pisos: ['marmore.xadrez-diagonal', 'marmore.branco'], papeis: ['papel.damasco-vinho', 'reboco.branco'] },
+      peristilo: { pisos: ['pedra.rustica', 'marmore.branco'], papeis: ['reboco.branco', 'pedra.aparelhada'] },
+      triclinio: { pisos: ['tabuas.carvalho', 'marmore.xadrez-diagonal'], papeis: ['papel.damasco-vinho', 'boiserie.verde'] },
+      termas: { pisos: ['marmore.branco', 'azulejo.branco'], papeis: ['reboco.branco', 'pedra.aparelhada'] },
+      templo: { pisos: ['marmore.branco', 'laje.pedra'], papeis: ['reboco.branco', 'pedra.aparelhada'] },
+      forum: { pisos: ['laje.pedra', 'pedra.rustica'], papeis: ['tijolo', 'pedra.aparelhada'] },
+      taberna: { pisos: ['tabuas.escuras', 'tabuas.rusticas'], papeis: ['tijolo', 'reboco.sujo'] },
     };
     const e = extra[t.funcao]!; return [t.funcao, { pisos: [t.piso, ...e.pisos], papeis: [t.papel, ...e.papeis] }];
   })),
@@ -43,6 +50,31 @@ const MATERIAIS_BASE: Readonly<Record<string, Record<string, MateriaisDoComodo>>
     : t.funcao === 'estabulo' || t.funcao === 'celeiro' ? { pisos: ['palha.chao', 'terra.batida', 'tabuas.rusticas'], papeis: ['toras', 'tijolo'] }
     : t.funcao === 'cela' || t.funcao === 'forja' || t.funcao === 'patio' ? { pisos: ['pedra.rustica', 'laje.pedra'], papeis: ['pedra.aparelhada', 'tijolo'] }
     : { pisos: ['laje.pedra', 'tabuas.escuras', 'tabuas.rusticas'], papeis: ['tijolo', 'pedra.aparelhada', 'papel.liso-escuro'] }])),
+};
+
+/** Antiguidade: mosaico, terracota, estuque pompeiano e arenito (Q10) nos cômodos da época; o resto herda o par de pedra e madeira da fantasia. */
+const ANTIGUIDADE_POR_FUNCAO: Readonly<Record<string, MateriaisDoComodo>> = {
+  atrio: { pisos: ['mosaico.romano', 'mosaico.medalhao', 'lajes.arenito'], papeis: ['estuque.pompeiano', 'alvenaria.arenito'] },
+  peristilo: { pisos: ['lajes.arenito', 'mosaico.romano', 'laje.pedra'], papeis: ['alvenaria.arenito', 'estuque.pompeiano'] },
+  triclinio: { pisos: ['mosaico.medalhao', 'mosaico.romano'], papeis: ['estuque.pompeiano', 'alvenaria.arenito'] },
+  termas: { pisos: ['mosaico.romano', 'marmore.branco', 'lajes.arenito'], papeis: ['alvenaria.arenito', 'estuque.pompeiano', 'reboco.branco'] },
+  templo: { pisos: ['lajes.arenito', 'marmore.branco', 'mosaico.romano'], papeis: ['alvenaria.arenito', 'parede.hieroglifos', 'reboco.branco'] },
+  forum: { pisos: ['lajes.arenito', 'laje.pedra', 'terra.batida'], papeis: ['alvenaria.arenito', 'estuque.pompeiano'] },
+  taberna: { pisos: ['terracota.quadrada', 'lajes.arenito', 'terra.batida'], papeis: ['alvenaria.arenito', 'estuque.pompeiano'] },
+  sala: { pisos: ['mosaico.romano', 'terracota.quadrada', 'lajes.arenito'], papeis: ['estuque.pompeiano', 'alvenaria.arenito'] },
+  quarto: { pisos: ['terracota.quadrada', 'mosaico.romano'], papeis: ['estuque.pompeiano', 'alvenaria.arenito'] },
+  cozinha: { pisos: ['terracota.quadrada', 'lajes.arenito'], papeis: ['alvenaria.arenito'] },
+  biblioteca: { pisos: ['mosaico.romano', 'terracota.quadrada'], papeis: ['estuque.pompeiano', 'alvenaria.arenito'] },
+  escritorio: { pisos: ['terracota.quadrada', 'mosaico.romano'], papeis: ['estuque.pompeiano', 'alvenaria.arenito'] },
+  banheiro: { pisos: ['mosaico.romano', 'marmore.branco'], papeis: ['alvenaria.arenito', 'estuque.pompeiano'] },
+  corredor: { pisos: ['terracota.quadrada', 'lajes.arenito'], papeis: ['estuque.pompeiano', 'alvenaria.arenito'] },
+  'sala-de-jantar': { pisos: ['mosaico.medalhao', 'mosaico.romano'], papeis: ['estuque.pompeiano', 'alvenaria.arenito'] },
+  salao: { pisos: ['mosaico.romano', 'lajes.arenito', 'marmore.branco'], papeis: ['estuque.pompeiano', 'alvenaria.arenito'] },
+  capela: { pisos: ['lajes.arenito', 'marmore.branco'], papeis: ['alvenaria.arenito', 'parede.hieroglifos'] },
+  varanda: { pisos: ['lajes.arenito', 'terracota.quadrada'], papeis: ['alvenaria.arenito'] },
+  patio: { pisos: ['lajes.arenito', 'laje.pedra'], papeis: ['alvenaria.arenito'] },
+  loja: { pisos: ['terracota.quadrada', 'lajes.arenito'], papeis: ['alvenaria.arenito', 'estuque.pompeiano'] },
+  taverna: { pisos: ['terracota.quadrada', 'lajes.arenito'], papeis: ['alvenaria.arenito', 'estuque.pompeiano'] },
 };
 
 const PALETAS_BASE: Readonly<Record<string, Paleta[]>> = {
@@ -66,7 +98,7 @@ const PALETAS_BASE: Readonly<Record<string, Paleta[]>> = {
 /** Cada gênero novo copia, por enquanto, o mais próximo; os materiais próprios chegam com as Q10–Q12 e as fichas `c` de cada época os ligam. */
 export const MATERIAIS_POR_GENERO: Readonly<Record<string, Record<string, MateriaisDoComodo>>> = {
   ...MATERIAIS_BASE,
-  antiguidade: MATERIAIS_BASE.fantasia!, // trocado na ficha Q15c
+  antiguidade: { ...MATERIAIS_BASE.fantasia!, ...ANTIGUIDADE_POR_FUNCAO },
   oriental: MATERIAIS_BASE.fantasia!, // trocado na ficha Q16c
   deserto: MATERIAIS_BASE.fantasia!, // trocado na ficha Q17c
   faroeste: MATERIAIS_BASE.investigacao!, // trocado na ficha Q18c
@@ -78,7 +110,11 @@ export const MATERIAIS_POR_GENERO: Readonly<Record<string, Record<string, Materi
 
 export const PALETAS_POR_GENERO: Readonly<Record<string, Paleta[]>> = {
   ...PALETAS_BASE,
-  antiguidade: PALETAS_BASE.fantasia!, // trocado na ficha Q15c
+  antiguidade: [
+    { nome: 'Pompeia', madeira: 'madeira.escura', tecidos: ['tecido.veludo-vinho', 'tecido.linho'], tapete: 'tapete.persa' },
+    { nome: 'Linho e oliveira', madeira: 'madeira.media', tecidos: ['tecido.salvia', 'tecido.linho'], tapete: 'tapete.verde' },
+    { nome: 'Púrpura e cedro', madeira: 'madeira.clara', tecidos: ['tecido.veludo-azul', 'tecido.linho'], tapete: 'tapete.persa' },
+  ],
   oriental: PALETAS_BASE.fantasia!, // trocado na ficha Q16c
   deserto: PALETAS_BASE.fantasia!, // trocado na ficha Q17c
   faroeste: PALETAS_BASE.investigacao!, // trocado na ficha Q18c

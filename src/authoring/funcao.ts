@@ -10,6 +10,13 @@ const FUNCOES = new Set(TIPOS_DE_COMODO.map(t => t.funcao));
 
 // Das mais específicas para as mais genéricas: a primeira palavra que bate decide.
 const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number }[] = [
+  { palavras: ['atrio'], funcao: 'atrio', confianca: 0.9 },
+  { palavras: ['peristilo'], funcao: 'peristilo', confianca: 0.9 },
+  { palavras: ['triclinio'], funcao: 'triclinio', confianca: 0.9 },
+  { palavras: ['termas', 'terma', 'balneario'], funcao: 'termas', confianca: 0.9 },
+  { palavras: ['templo', 'delubro'], funcao: 'templo', confianca: 0.9 },
+  { palavras: ['forum', 'agora'], funcao: 'forum', confianca: 0.9 },
+  { palavras: ['taberna', 'termopolio'], funcao: 'taberna', confianca: 0.9 },
   { palavras: ['cozinha', 'copa'], funcao: 'cozinha', confianca: 0.9 },
   { palavras: ['quarto', 'suite', 'alcova'], funcao: 'quarto', confianca: 0.9 },
   { palavras: ['dormitorio', 'alojamento', 'quartel'], funcao: 'dormitorio', confianca: 0.9 },
@@ -21,7 +28,7 @@ const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number
   { palavras: ['taverna', 'bar', 'estalagem', 'pub'], funcao: 'taverna', confianca: 0.9 },
   { palavras: ['varanda', 'terraco', 'sacada', 'alpendre'], funcao: 'varanda', confianca: 0.9 },
   { palavras: ['patio', 'quintal'], funcao: 'patio', confianca: 0.9 },
-  { palavras: ['capela', 'igreja', 'templo', 'santuario'], funcao: 'capela', confianca: 0.9 },
+  { palavras: ['capela', 'igreja', 'santuario'], funcao: 'capela', confianca: 0.9 },
   { palavras: ['forja', 'ferraria'], funcao: 'forja', confianca: 0.9 },
   { palavras: ['oficina', 'carpintaria'], funcao: 'oficina', confianca: 0.9 },
   { palavras: ['estabulo', 'cocheira'], funcao: 'estabulo', confianca: 0.9 },
