@@ -543,7 +543,7 @@ Testes: `pingsAtivos(pings, agora)` expira em 3 s; cor estável para o mesmo id;
 Pronto quando: em dois navegadores, o jogador pinga e o mestre vê no Atlas; o mestre pinga e o jogador vê, inclusive fora da câmera dele.
 Commit: `map pings for the online table`
 
-### R15c — Visual do ping  [Opus]  ⬜
+### R15c — Visual do ping  [Opus]  ✅
 Objetivo: o ping chama o olho sem tapar o mapa, nos dois estilos.
 Depende de: R15b.
 Como: anel que se expande e some (duas ondas), com um ponto central na cor da pessoa e o nome em etiqueta pequena; um contorno escuro para ler sobre terreno claro e um claro sobre a noite; a seta da borda no mesmo traço. Conferir no Ilustrado, de dia, de noite e na névoa.
@@ -735,7 +735,7 @@ Commit: `server-side dice rolls`
 | 2. O mestre publica | R5 → R5b → R6 | Sonnet | R4; a R5b bloqueia a R7 |
 | 3. O jogador vê | R7 → R8, R9 | Sonnet | R6 |
 | 4. Fichas e saguão | R10 ✅, R11 ✅ → R12 ✅ → R12b ✅, R13 ✅ | Sonnet (o Opus revisa a R12 e a R12b) | R7 para a R11 |
-| 5. Peça própria e ping | R14 ✅ → R15 ✅ → R15b ✅ → R15c | Sonnet; R15c pelo Opus | R11 |
+| 5. Peça própria e ping | R14 ✅ → R15 ✅ → R15b ✅ → R15c ✅ | Sonnet; R15c pelo Opus | R11 |
 | 6. Discord | R16 ✅, R17 → R18, R19 | Sonnet; R19 com o usuário | blocos 3 a 5 |
 | 7. Som | R21a ✅ → R21b → R22 → R23 | Sonnet | R3 para a R21b; R5, R6 e R12b para as outras |
 | Depois | R20 | Sonnet | R9 |
