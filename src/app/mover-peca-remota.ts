@@ -21,7 +21,7 @@ export interface ContextoMoverPeca {
  * - recusa se não houver mapa aberto ou se o mapa aberto não for o pedido;
  * - recusa se `autor` faltar;
  * - recusa se a peça não existir, não for `player`, ou nenhuma `ref` dela apontar para uma ficha em `autor.fichas`;
- * - aplica com `peca.mover` (com desfazer e encaixe na grade, sem colisão com paredes).
+ * - aplica com `peca.mover` (com desfazer, encaixe na grade e colisão com paredes e portas fechadas).
  */
 export function atenderMoverPeca(
   ctx: ContextoMoverPeca,
@@ -48,7 +48,7 @@ export function atenderMoverPeca(
 
   const semGrade = !doc.grid.snap || ctx.movimentoLivre?.() === true;
   try {
-    store.executar({ tipo: 'peca.mover', id: peca.id, para: dados.position, livre: true, semGrade });
+    store.executar({ tipo: 'peca.mover', id: peca.id, para: dados.position, livre: false, semGrade });
   } catch (erro) {
     return { ok: false, motivo: erro instanceof Error ? erro.message : String(erro) };
   }
