@@ -1,4 +1,4 @@
-import { ALTURA_MAXIMA, temAlturaPropria, PISO_NO_MAPA, RAIO_PASSA_ALTA, alturaPorLuminancia, comporEmissaoNoMapa, desenharAlturaDasPartes, pintarAlturaDoMaterial } from './altura.ts';
+import { ALTURA_MAXIMA, temAlturaPropria, PISO_NO_MAPA, RAIO_PASSA_ALTA, alturaPorLuminancia, comporEmissaoNoMapa, desenharAlturaDasPartes, emitirPorLuminancia, pintarAlturaDoMaterial } from './altura.ts';
 import { contornoDoComodo, caixaDasCelulas } from '../domain/geometria.ts';
 import {
   AMPLIACAO_NA_FACE,
@@ -153,6 +153,9 @@ export function assarComodo(e: EntradaDoComodo, res: number, estilo: EstiloDeRas
     pintarAlturaDoMaterial(actx, e.piso.material, { x: caixa.x0, y: caixa.y0, w: caixa.x1 - caixa.x0, h: caixa.y1 - caixa.y0 }, e.piso.seed, { res });
     if (e.degraus?.length) pintarAlturaDegrausConstruidos(actx, e.degraus);
     actx.restore();
+    // Piso que brilha (néon): as faixas claras emitem.
+    const brilho = materialDe(e.piso.material).brilho;
+    if (brilho) emitirPorLuminancia(ctx, actx, { x: 0, y: 0, w: tela.width, h: tela.height }, brilho);
   }
 
   if (e.estilo === 'box' && e.coberto !== false) {

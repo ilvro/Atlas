@@ -94,7 +94,7 @@ export interface Terreno { resolution: number; base: string; layers: Record<stri
 
 export const FORMAS_DE_TELHADO = ['quatro-aguas', 'duas-aguas', 'plano', 'piramide', 'cone', 'uma-agua', 'mansarda', 'holandes', 'cupula', 'abobada', 'pagode', 'bulbo'] as const;
 export type FormaDeTelhado = (typeof FORMAS_DE_TELHADO)[number];
-export const DETALHES_DE_TELHADO = ['chamine', 'cruz', 'sino', 'catavento', 'claraboia', 'caixa-dagua'] as const;
+export const DETALHES_DE_TELHADO = ['chamine', 'cruz', 'sino', 'catavento', 'claraboia', 'caixa-dagua', 'ar-condicionado', 'antena'] as const;
 export type DetalheDeTelhado = (typeof DETALHES_DE_TELHADO)[number];
 export const CUMEEIRAS_DE_TELHADO = ['auto', 'h', 'v'] as const;
 export type CumeeiraDeTelhado = (typeof CUMEEIRAS_DE_TELHADO)[number];

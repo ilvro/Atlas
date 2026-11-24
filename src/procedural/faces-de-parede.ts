@@ -1,6 +1,6 @@
 import { facesDoContorno, type SegmentoDeContorno } from '../domain/geometria.ts';
 import type { Parede, Ponto } from '../domain/mapa.ts';
-import { PISO_NO_MAPA, alturaNoMapa, desenharAlturaDasPartes, parteEscreveEmissao } from './altura.ts';
+import { PISO_NO_MAPA, alturaNoMapa, desenharAlturaDasPartes, emitirPorLuminancia, parteEscreveEmissao } from './altura.ts';
 import type { Contexto } from './canvas.ts';
 import type { Descricao, Parte } from './descricao.ts';
 import type { EstiloDeRaster } from './estilos/index.ts';
@@ -385,6 +385,13 @@ export function desenharFacesDasParedes(
       actx.restore();
       if (emissivos.length) desenharAlturaDasPartes(actx, emissivos, { res });
       actx.restore();
+      // Papel que brilha (painel de néon): as faixas claras da face emitem.
+      const brilho = materialDe(f.material).brilho;
+      if (brilho) {
+        const qp = f.quad.map(q => [(q[0] - origem[0]) * res, (q[1] - origem[1]) * res] as const), xs = qp.map(q => q[0]), ys = qp.map(q => q[1]);
+        const dentro = (x: number, y: number): boolean => { let ok = false; for (let i = 0, j = qp.length - 1; i < qp.length; j = i++) { const [xi, yi] = qp[i]!, [xj, yj] = qp[j]!; if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) ok = !ok; } return ok; };
+        emitirPorLuminancia(ctx, actx, { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) }, brilho, dentro);
+      }
     }
   }
 }

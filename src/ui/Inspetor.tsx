@@ -704,6 +704,8 @@ const ROTULOS_DETALHES: Record<DetalheDeTelhado, string> = {
   catavento: 'Cata-vento',
   claraboia: 'Claraboia',
   'caixa-dagua': 'Caixa-d’água',
+  'ar-condicionado': 'Ar-condicionado',
+  antena: 'Antena',
 };
 
 const ROTULOS_FORMAS: Record<FormaDeTelhado, string> = {

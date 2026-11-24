@@ -29,6 +29,7 @@ export const PADROES_DE_COBERTURA = [
   'telha-esmaltada',
   'chapa-com-junta',
   'rebitada',
+  'remendada',
   'fibrocimento',
   'bambu',
   'couro-telhado',
@@ -75,6 +76,7 @@ export const CAPA_DA_COBERTURA: Readonly<Record<PadraoDeCobertura, CapaDeCumeeir
   cobre: 'chapa-dobrada',
   'chapa-com-junta': 'chapa-dobrada',
   rebitada: 'chapa-dobrada',
+  remendada: 'chapa-dobrada',
   fibrocimento: 'fibrocimento',
   bambu: 'bambu',
   'couro-telhado': 'couro',
@@ -995,6 +997,22 @@ const AMOSTRADORES: Record<PadraoDeCobertura, AmostradorInterno> = {
     o.t = t + (grao - 0.5) * 0.1;
     o.m = fb(x, y, 5, 5, s + 7, per) * 0.7 + 0.15 * v + (rebite ? 0.15 : 0);
     o.h = lim(h + (grao - 0.5) * 0.02);
+    o.id = id;
+  },
+
+  /**
+   * Chapa remendada (pós-apocalíptico): chapa ondulada em placas de tamanhos diferentes, cada uma de uma origem (tom, direção da onda,
+   * ferrugem), sobrepostas de qualquer jeito, com a borda de cada remendo fazendo sombra.
+   */
+  remendada: (x, y, s, o, per) => {
+    // Fiadas de placas de 1 m, cada fiada deslocada ao acaso: as juntas não se alinham, e o desenho fecha no período de 2 m.
+    const jRaw = Math.floor(y), j = per ? md(jRaw, 2) : jRaw, off = hashDaPeca(idPeca(0, j, 4), s + 5);
+    const iRaw = Math.floor(x - off), i = per ? md(iRaw, 2) : iRaw, u = x - off - iRaw, v = y - jRaw, id = idPeca(i, j, 0);
+    const deitada = hashDaPeca(id, s + 9) < 0.35, onda = Math.sin(((deitada ? y : x) / 0.076) * Math.PI * 2);
+    const tomPeca = (hashDaPeca(id, s + 17) - 0.5) * 0.4, borda = Math.min(u, 1 - u, v, 1 - v);
+    o.t = 0.45 + onda * 0.12 + tomPeca - (borda < 0.03 ? 0.25 : 0);
+    o.h = lim(0.3 + onda * 0.08 + (borda < 0.03 ? -0.15 : 0));
+    o.m = fb(x, y, 4, 4, s + 7, per) * 0.6 + hashDaPeca(id, s + 13) * 0.5;
     o.id = id;
   },
 

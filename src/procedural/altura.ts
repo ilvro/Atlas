@@ -232,3 +232,23 @@ export function desenharAlturaDasPartes(ctx: Contexto, partes: readonly Parte[],
   }
   ctx.restore();
 }
+
+/**
+ * Emissão de um material que brilha (néon pintado em piso ou parede): numa caixa em pixels, onde há superfície no mapa de altura (alfa > 0)
+ * e `dentro` aceita o pixel, o canal G recebe `brilho × suave(0,45, 0,85, valor da cor)` (o maior canal, não a luminância: um néon magenta
+ * ou vermelho é tão aceso quanto um ciano). As faixas do néon acendem e o fundo escuro do material não; a cor emitida é a própria cor pintada.
+ */
+export function emitirPorLuminancia(cor: Contexto, alt: Contexto, caixa: { x: number; y: number; w: number; h: number }, brilho: number, dentro?: (x: number, y: number) => boolean): void {
+  const W = cor.canvas.width, H = cor.canvas.height;
+  const x0 = Math.max(0, Math.floor(caixa.x)), y0 = Math.max(0, Math.floor(caixa.y)), x1 = Math.min(W, Math.ceil(caixa.x + caixa.w)), y1 = Math.min(H, Math.ceil(caixa.y + caixa.h));
+  if (x1 <= x0 || y1 <= y0 || brilho <= 0 || typeof cor.getImageData !== 'function') return;
+  const c = cor.getImageData(x0, y0, x1 - x0, y1 - y0), a = alt.getImageData(x0, y0, x1 - x0, y1 - y0), w = x1 - x0;
+  for (let i = 0; i < c.data.length; i += 4) {
+    if (a.data[i + 3]! === 0) continue;
+    const p = i / 4, x = x0 + (p % w), y = y0 + Math.floor(p / w);
+    if (dentro && !dentro(x + 0.5, y + 0.5)) continue;
+    const valor = Math.max(c.data[i]!, c.data[i + 1]!, c.data[i + 2]!) / 255, t = Math.min(1, Math.max(0, (valor - 0.45) / 0.4));
+    a.data[i + 1] = Math.max(a.data[i + 1]!, Math.round(brilho * t * t * (3 - 2 * t) * 255));
+  }
+  alt.putImageData(a, x0, y0);
+}

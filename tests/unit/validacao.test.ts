@@ -141,7 +141,7 @@ test('validação de telhado: aceita ausência dos campos novos e recusa valores
   })), `rooms.${chaveSala}.roof.ridge`);
 
   assert.equal(caminhoDoErro(mexer(x => {
-    x.rooms[chaveSala].roof.details = ['antena'];
+    x.rooms[chaveSala].roof.details = ['gargula'];
   })), `rooms.${chaveSala}.roof.details[0]`);
 });
 

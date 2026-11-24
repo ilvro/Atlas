@@ -76,6 +76,32 @@ function claraboia(): Parte[] {
   ];
 }
 
+/** Ar-condicionado de janela/telhado: caixa de metal claro com a grade do ventilador (pás e cubo) e o duto saindo para a água. */
+function arCondicionado(r: () => number): Parte[] {
+  const giro = r() * Math.PI;
+  return [
+    ret(0, 0, 0.96, 0.66, '#b8bab6', 0.75, { contorno: 'leve' }),
+    ret(0.36, 0, 0.16, 0.6, '#9a9c98', 0.78, MIUDO),
+    ...[-0.24, -0.12, 0, 0.12, 0.24].map(y => ret(0.36, y, 0.14, 0.03, '#6a6c68', 0.79, MIUDO)),
+    elipse(-0.14, 0, 0.56, 0.56, '#3a3c3a', 0.78, { ...MIUDO, detalhe: 2 }),
+    ...[0, 1, 2].map(k => poli([[-0.14, 0], [-0.14 + Math.cos(giro + k * 2.094) * 0.25, Math.sin(giro + k * 2.094) * 0.25], [-0.14 + Math.cos(giro + k * 2.094 + 0.5) * 0.22, Math.sin(giro + k * 2.094 + 0.5) * 0.22]].flat(), '#8a8c88', 0.79, MIUDO)),
+    elipse(-0.14, 0, 0.1, 0.1, '#5a5c58', 0.8, MIUDO),
+    ret(-0.62, 0.12, 0.3, 0.08, '#6a6c68', 0.3, MIUDO),
+  ];
+}
+
+/** Antena parabólica num pé: prato claro com o braço do receptor e a sombra interna do lado da luz. */
+function antena(r: () => number): Parte[] {
+  const a = r() * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
+  return [
+    elipse(0, 0, 0.24, 0.24, 'ferro', 0.9, LEVE),
+    elipse(c * 0.12, s * 0.12, 0.92, 0.8, '#d6d6d0', 1.5, { contorno: 'leve' }),
+    elipse(c * 0.16, s * 0.16, 0.7, 0.6, '#b0b0aa', 1.52, { ...MIUDO, suave: true }),
+    poli([c * 0.1 - s * 0.02, s * 0.1 + c * 0.02, c * 0.45 - s * 0.02, s * 0.45 + c * 0.02, c * 0.45 + s * 0.02, s * 0.45 - c * 0.02, c * 0.1 + s * 0.02, s * 0.1 - c * 0.02], 'ferro', 1.6, MIUDO),
+    elipse(c * 0.47, s * 0.47, 0.08, 0.08, '#3a3a3a', 1.62, MIUDO),
+  ];
+}
+
 function caixaDagua(): Parte[] {
   return [
     ret(0, 0, 1.56, 1.56, 'concreto', 0.4, LEVE),
@@ -90,8 +116,8 @@ function caixaDagua(): Parte[] {
 /** A descrição de um detalhe; a cobertura escolhe o material da chaminé, a semente varia tamanho e rumo. */
 export function descricaoDoDetalhe(detalhe: DetalheDeTelhado, o: { cobertura: string; semente: number }): DescricaoDePiso {
   const r = mulberry32(o.semente * 7919 + 17);
-  const partes = detalhe === 'chamine' ? chamine(o.cobertura, r) : detalhe === 'cruz' ? cruz() : detalhe === 'sino' ? sino() : detalhe === 'catavento' ? catavento(r) : detalhe === 'claraboia' ? claraboia() : caixaDagua();
-  const pegada: Record<DetalheDeTelhado, [number, number]> = { chamine: [0.8, 0.7], cruz: [0.52, 0.92], sino: [1.24, 1.24], catavento: [1, 1], claraboia: [0.92, 0.72], 'caixa-dagua': [1.56, 1.56] };
+  const partes = detalhe === 'chamine' ? chamine(o.cobertura, r) : detalhe === 'cruz' ? cruz() : detalhe === 'sino' ? sino() : detalhe === 'catavento' ? catavento(r) : detalhe === 'claraboia' ? claraboia() : detalhe === 'ar-condicionado' ? arCondicionado(r) : detalhe === 'antena' ? antena(r) : caixaDagua();
+  const pegada: Record<DetalheDeTelhado, [number, number]> = { chamine: [0.8, 0.7], cruz: [0.52, 0.92], sino: [1.24, 1.24], catavento: [1, 1], claraboia: [0.92, 0.72], 'caixa-dagua': [1.56, 1.56], 'ar-condicionado': [1.4, 0.7], antena: [1.1, 1.1] };
   return { tipo: 'piso', pegada: pegada[detalhe], partes };
 }
 
@@ -185,6 +211,10 @@ export function posicoesDosDetalhes(
       } else p = [cx, cy];
     } else if (d === 'catavento') {
       p = cume ? [(cume[0][0] + cume[1][0]) / 2, (cume[0][1] + cume[1][1]) / 2] : [cx, cy];
+    } else if (d === 'ar-condicionado') {
+      p = [cx + (azar(3) < 0.5 ? -1 : 1) * Math.min(1.2, (x1 - x0) * 0.25), cy + (azar(4) - 0.5) * Math.min(1, (y1 - y0) * 0.3)];
+    } else if (d === 'antena') {
+      p = [azar(5) < 0.5 ? x0 + 0.8 : x1 - 0.8, azar(6) < 0.5 ? y0 + 0.8 : y1 - 0.8];
     } else if (d === 'claraboia') {
       const maior = faces.filter(f => !f.platibanda).reduce((a, b) => (area(b) > area(a) ? b : a), faces[0]!);
       p = centro(maior); ang = maior.normal[0] || maior.normal[1] ? Math.atan2(maior.queda[1], maior.queda[0]) - Math.PI / 2 : 0;
