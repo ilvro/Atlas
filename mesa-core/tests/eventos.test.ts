@@ -291,6 +291,18 @@ test('entradas da sala: atlas.mover-peca, sala.fichas, sala.salvar-ficha e sala.
   assert.equal(ok('ficha', 'sala.ficha-atualizada', { ficha: { id: 'f' }, rev: 3 }), false);
 });
 
+test('entradas da sala da R13: sala.ficha-removida, sala.conexao e sala.entregar-ficha', () => {
+  const ok = (app: Evento['app'], tipo: string, dados: unknown) => validarEvento(base({ app, tipo, dados })).ok;
+  assert.equal(ok('mesa', 'sala.ficha-removida', { id: 'f' }), true);
+  assert.equal(ok('mesa', 'sala.ficha-removida', { id: '' }), false);
+  assert.equal(ok('ficha', 'sala.ficha-removida', { id: 'f' }), false);
+  assert.equal(ok('mesa', 'sala.conexao', { conectada: true, nome: 'Mesa' }), true);
+  assert.equal(ok('mesa', 'sala.conexao', { conectada: false }), true);
+  assert.equal(ok('mesa', 'sala.conexao', { conectada: 'sim' }), false);
+  assert.equal(ok('ficha', 'sala.entregar-ficha', { fichaId: 'f', dono: '2' }), true);
+  assert.equal(ok('ficha', 'sala.entregar-ficha', { fichaId: 'f' }), false);
+});
+
 test('jukebox.mix, jukebox.efeito-tocado e jukebox.arquivo', async () => {
   const estado = { volume: 0.5, efeitos: ['lowpass'], ajustes: { lowpass: { frequency: 800 } }, regioes: [] };
   const faixa = { faixaId: 'ab12', url: 'sample/a.mp3', titulo: 'Chuva', loop: true, posicao: 12.5, taxa: 1, desde: 1000, pausada: false, estado };
