@@ -155,7 +155,7 @@ export interface RepositorioCampanha {
    * (acrescentar, trocar, tirar); qualquer outra diferença é recusada.
    */
   salvarEntidade(entidade: Entidade): Promise<void>;
-  /** Remove a entidade e as ligações que partem dela ou chegam nela. Só o criador remove. */
+  /** Remove a entidade e as ligações que partem dela ou chegam nela. Só o criador ou a Mesa remove. */
   removerEntidade(id: string): Promise<void>;
   /** Acha a entidade que uma referência de outro aplicativo representa. */
   entidadeDaRef(campanhaId: string, ref: Ref): Promise<Entidade | undefined>;
@@ -230,8 +230,9 @@ export async function abrirRepositorioCampanha(opcoes: OpcoesRepositorio): Promi
     removerEntidade: id => transacao(banco, ['entidades', 'ligacoes'], 'readwrite', async tx => {
       const store = tx.objectStore('entidades'), entidade = await promessa(store.get(id)) as Entidade | undefined;
       if (!entidade) return;
-      falha(entidade.criadaPor === opcoes.app, `Só ${entidade.criadaPor} remove esta entidade.`, 'entidade');
+      falha(entidade.criadaPor === opcoes.app || opcoes.app === 'mesa', `Só ${entidade.criadaPor} remove esta entidade.`, 'entidade');
       const chaves = new Set(entidade.refs.map(chaveRef));
+      chaves.add(`mesa/entidade/${entidade.id}`);
       for (const l of await porCampanha<Ligacao>(tx, 'ligacoes', entidade.campanhaId)) if (chaves.has(chaveRef(l.de)) || chaves.has(chaveRef(l.para))) await promessa(tx.objectStore('ligacoes').delete(l.id));
       await promessa(store.delete(id));
     }),

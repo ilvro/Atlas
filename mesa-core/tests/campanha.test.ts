@@ -126,12 +126,18 @@ test('uma transação que falha no meio não grava nada do que veio antes', asyn
   banco.close();
 });
 
-test('remover entidade ou ligação de outro aplicativo é recusado e não muda nada', async () => {
+test('remover entidade ou ligação de outro aplicativo é recusado (exceto a Mesa, que pode limpar entidades de qualquer app)', async () => {
   const idb = new IDBFactory(), mesa = await abrir('mesa', idb), atlas = await abrir('atlas', idb);
   const c = await mesa.criarCampanha({ nome: 'A' }), e = await mesa.criarEntidade({ campanhaId: c.id, tipo: 'lugar', nome: 'Casa', refs: [mapaRef] });
   await mesa.ligar({ campanhaId: c.id, de: mapaRef, para: fichaRef, tipo: 'menciona' });
   await assert.rejects(atlas.removerEntidade(e.id), /Só mesa remove/);
   assert.equal((await mesa.obterEntidade(e.id))?.nome, 'Casa');
+  assert.equal((await mesa.listarLigacoes(c.id)).length, 1);
+
+  const eDoAtlas = await atlas.criarEntidade({ campanhaId: c.id, tipo: 'lugar', nome: 'Lixo Antigo', refs: [tokenRef] });
+  await mesa.ligar({ campanhaId: c.id, de: { app: 'mesa', tipo: 'entidade', id: eDoAtlas.id }, para: fichaRef, tipo: 'menciona' });
+  await mesa.removerEntidade(eDoAtlas.id);
+  assert.equal(await mesa.obterEntidade(eDoAtlas.id), undefined);
   assert.equal((await mesa.listarLigacoes(c.id)).length, 1);
 });
 
