@@ -341,7 +341,7 @@ Nota: feita (Atlas `3c5e243`).
 - No remoto, só `imediata` devolve o modo "seguindo", e o `seguir: true` do publicador é ignorado.
 - Pendências: a pinça não foi testada em toque de verdade, e uma animação de câmera de 700 ms em andamento não é cancelada pelo gesto (pode dar um tranco curto).
 
-### R9 — Rolagens para todos  ⬜
+### R9 — Rolagens para todos  ✅
 Objetivo: toda rolagem de ficha de jogador aparece para a mesa inteira.
 Depende de: R7.
 Ler: `Dossie/src/mesa.js` (onde emite `ficha.rolagem`), a mensagem `rolagem` do projetor e a parte do Atlas que traduz `ficha.rolagem` em `rolagem` sobre a peça.
@@ -354,6 +354,10 @@ Não fazer: rolar na sala (R20).
 Testes: o feed recebe, ordena e expira.
 Pronto quando: um jogador rola, e o mestre e os outros jogadores veem.
 Commit: `shared roll feed for the online table`
+Nota: feita (Mesa `faeaaf6`).
+- O feed fica em `src/online/feed.ts` e `src/jogar/FeedDeRolagens.tsx`. O `bem-vindo` traz as últimas 50 rolagens, e `rolagens.historico` devolve as 200 da sala.
+- As rolagens de ameaças do mestre não saem: `fichaEhAmeaca` consulta as entidades `ameaca` da campanha ativa. Uma ameaça ainda não publicada na campanha sai.
+- Testado com três jogadores. Revisão do Opus em `r9-feed.png`: legível. Várias rolagens seguidas empilham o texto flutuante sobre a peça (efeito antigo do Atlas).
 
 ## Bloco 4 — Fichas na sala
 
@@ -404,6 +408,7 @@ Arquivos: mudar `Casca.tsx` e o CSS da casca.
 Como:
 1. Um único `iframe` do Dossiê em `../Dossie/?sala=<id>&vista=card`, no painel. O botão "Ficha completa" leva o `iframe` para a tela toda (sobreposto ao mapa, que continua vivo por trás) e manda `vista=completa`. "Voltar ao mapa" faz o inverso.
 2. Em celular na vertical, a aba Ficha mostra a completa direto.
+2b. A casca atende `{ tipo: 'dossie.pedir-vista', vista }` vindo do `iframe` do Dossiê (o botão "Ficha completa" do card, R12c), aceitando só do próprio `iframe` e da mesma origem.
 3. Um jogador com mais de uma ficha escolhe a ativa no card.
 4. Uma ficha criada na casca é gravada na sala na hora (sem os 800 ms), para a primeira rolagem não ser recusada (achado da R11).
 5. O card em si (o que aparece em `vista=card`) é da R12c, do Opus. Aqui, use a vista como está.
@@ -413,7 +418,7 @@ Pronto quando: o jogador rola pelo card, abre a completa, edita um item e volta 
 Commit: `sheet card and full sheet in player shell`
 Nota: o Opus revisa o resultado visual (proporções, legibilidade no celular) antes de fechar.
 
-### R12c — Card do jogador no Dossiê  [Opus]  ⬜
+### R12c — Card do jogador no Dossiê  [Opus]  ✅
 Objetivo: um card de verdade para o painel de 360 px ao lado do mapa: quem é, como está e os botões de rolar, sem rolar a página.
 Depende de: R11.
 Como:
@@ -425,6 +430,12 @@ Como:
 - "Ficha completa" chama o pai.
 Precisa caber em 360 × 720 sem a barra de PV escapar, nos temas do Dossiê (Vigília e os outros), e usar os mesmos dados 3D e o mesmo `ficha.rolagem`.
 Commit: `card do jogador para a mesa online`
+Nota: feita pelo Opus (Dossiê `85804f2`).
+- `src/cartao-jogador.js` desenha o card. O `app.js` troca a ficha pelo card quando `vistaJogador === 'card'`.
+- Os recursos usam `data-cartao-recurso`, com limite no máximo; as rolagens usam os ganchos que já existiam.
+- "Ficha completa" manda `{ tipo: 'dossie.pedir-vista', vista: 'completa' }` ao pai. **A casca precisa atender** (R12); sem pai, troca sozinho.
+- Funciona na Ordem 2 e na Ordem 1 (PV, SAN/PD e PE, com os cinco atributos). Fotos: `scratchpad/cartao-o2.png` e `cartao-o1.png`.
+- A barra de navegação do celular sai no card, e a de Pavor/Lesões/Traumas fica.
 
 ### R12b — Saguão da mesa  ⬜
 Objetivo: a tela de chegada mostra quem está na mesa, com que personagem e se o mestre já abriu.
@@ -683,7 +694,7 @@ Commit: `synced jukebox sound in the player shell`
 ### R20 — Rolagem feita na sala  ⬜
 Objetivo: o resultado vem do servidor, e ninguém mexe nele.
 Depende de: R9.
-Ler: `Dossie/src/dice3d.js` e `src/fx/dice-*.js`: **antes de tudo**, descobrir se o valor sai da física ou é sorteado antes e animado. Se a física decide e não dá para forçar a face, pare e reporte.
+Ler: `Dossie/src/dice3d.js` e `src/fx/dice-*.js` (e `dice-hand.js`): **antes de tudo**, descobrir se o valor sai da física ou é sorteado antes e animado. Na revisão da R12c, o Opus viu a cena "Pegue os dados e arremesse": o jogador arremessa, então é provável que a física decida. Se a física decide e não dá para forçar a face, pare e reporte.
 Como: `sala.rolar { fichaId, expressao, titulo }`. A sala sorteia com `crypto.getRandomValues`, guarda e espalha. O Dossiê anima até o resultado recebido. Uma rolagem marcada "secreta" pelo mestre vai só para ele.
 Commit: `server-side dice rolls`
 
