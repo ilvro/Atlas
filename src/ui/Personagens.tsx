@@ -38,13 +38,18 @@ function Item({ s, e, pecas }: { s: SessaoDeEdicao; e: Entidade; pecas: SessaoDe
   const pecasDaEntidade = Object.values(pecas).filter(t => t.refs.some(r => chaveDaRef(r) === chaveDaRef(ref)));
   const noMapa = pecasDaEntidade.length > 0;
   const rec = recursosDasFichas.value[chaveDaRef(ref)];
+  const tagDono = !ameaca ? e.tags.find(t => t.startsWith('dono:')) : undefined;
+  const dono = tagDono ? tagDono.slice(5) : null;
   const textoBotao = ameaca
     ? (noMapa ? `+1 no mapa (×${pecasDaEntidade.length})` : 'Pôr no mapa')
     : (noMapa ? 'Selecionar' : 'Pôr no mapa');
   return (
     <div class={`personagem${ameaca ? ' ameaca' : ''}`} draggable data-testid={`${pref}-${e.id}`} title="Arraste para o mapa"
       onDragStart={ev => { ev.dataTransfer?.setData(TIPO_ARRASTE, e.id); ev.dataTransfer?.setData('text/plain', e.nome); }}>
-      <span class="personagem-nome">{e.nome}</span>
+      <span class="personagem-nome">
+        {e.nome}
+        {dono && <span class="personagem-dono" data-testid={`personagem-dono-${e.id}`}> · {dono}</span>}
+      </span>
       {rec && <span class="personagem-recursos" data-testid={`${pref}-recursos-${e.id}`}>{textoDeRecursos(rec)}</span>}
       <button type="button" class="botao-pilula" data-testid={`${pref}-por-${e.id}`} onClick={() => tentar(() => { adicionarPersonagem(s, e, viewport.atual?.centro(), servicos.value?.repo); })}>{textoBotao}</button>
     </div>
