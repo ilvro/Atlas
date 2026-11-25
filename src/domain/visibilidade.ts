@@ -251,7 +251,8 @@ export function oclusoresDeObjetos(m: Pick<MapaAtlas, 'props'>, opcoes: OpcoesOc
   return saida;
 }
 
-function pontoNaBorda(p: Ponto, poligono: readonly Ponto[], tol = 1e-4): boolean {
+/** Diz se `p` está na borda do polígono (a menos de `tol`). */
+export function pontoNaBorda(p: Ponto, poligono: readonly Ponto[], tol = 1e-4): boolean {
   const tol2 = tol * tol;
   for (let i = 0; i < poligono.length; i++) {
     const a = poligono[i]!, b = poligono[(i + 1) % poligono.length]!;
