@@ -600,13 +600,13 @@ export function criarCena(op: OpcoesDaCena): Cena {
     }
     const pronta = folhaDaPeca.get(t.id); return pronta ? texturas.get(pronta)?.tex ?? null : null;
   }
-  function desenharPeca(c: Container, t: Peca, m: MapaAtlas): void {
+  function desenharPeca(c: Container, t: Peca, m: MapaAtlas, animar: boolean): void {
     let v = visuais.get(c); if (!v) { v = criarPeca(); visuais.set(c, v); c.addChild(v.c); }
-    const folha = folhaDe(t, () => { if (!destruida && !c.destroyed && mapa?.tokens[t.id]) desenharPeca(c, mapa.tokens[t.id]!, mapa); });
+    const folha = folhaDe(t, () => { if (!destruida && !c.destroyed && mapa?.tokens[t.id]) desenharPeca(c, mapa.tokens[t.id]!, mapa, false); });
     const pixel = m.style.renderer === 'pixel', px = m.style.pixel;
     const noPixel: RetratoNoPixel | undefined = pixel ? { chave: `${m.style.palette}|${px.pixelsPerCell}|${t.size}|${px.dither}|${px.outline}`, lado: Math.max(8, Math.round(t.size * px.pixelsPerCell * 0.9)), paleta: paletaDe(m.style.palette).cores, dither: px.dither === 'bayer4', contorno: px.outline } : undefined;
     const rec = op.recursos?.(t) ?? null, aparente = rec && emEstadoCritico(rec) && t.figure.state === 'normal' ? { ...t, figure: { state: 'hurt' as const } } : t;      // PV baixo: "ferida" só na tela
-    v.atualizar(aparente, m.grid.size, op.acento(), op.retrato?.(t.portrait?.id, noPixel) ?? null, op.efeitos(), { folha, pixel }, rec, op.pecaDoJogador?.(t) === true);
+    v.atualizar(aparente, m.grid.size, op.acento(), op.retrato?.(t.portrait?.id, noPixel) ?? null, animar && op.efeitos(), { folha, pixel }, rec, op.pecaDoJogador?.(t) === true);
   }
 
   function desenharRegiao(c: Container, r: Regiao): void {
@@ -731,7 +731,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       luz.sincronizar(v, mud); telhados.atualizarClima?.(v); composicaoDeLuz.definirRelevo(v.finish.relief ?? RELEVO_PADRAO); composicaoDeLuz.definirAO(v.finish.ao ?? AO_PADRAO); composicaoDeLuz.definirGlow(v.finish.glow); composicaoDeLuz.definirExposicao(v.finish.exposure ?? EXPOSICAO_PADRAO); atualizarComposicaoDeLuz(); neblina.sincronizar(v, mud); fumaca.sincronizar(v, mud); bordas.sincronizar(v, mud); particulas.sincronizar(v, mud); halos.sincronizar(v, mud);
       // Os marcadores das luzes também refletem o clima (apagada pela rede ou pelo dia), então refazem quando ele muda.
       if (tudo || colecao('lights') || campos('climate')) sincronizarSimples(luzes, luzesC, m.lights, tudo || campos('climate') ? null : mud!.colecoes.lights ?? null, (c, l) => desenharLuz(c, l, m), comPop);
-      if (tudo || colecao('tokens') || campos('grid', 'style')) sincronizarSimples(pecas, pecasC, m.tokens, tudo || campos('grid', 'style') ? null : mud!.colecoes.tokens ?? null, (c, t) => desenharPeca(c, t, m), comPop);
+      if (tudo || colecao('tokens') || campos('grid', 'style')) sincronizarSimples(pecas, pecasC, m.tokens, tudo || campos('grid', 'style') ? null : mud!.colecoes.tokens ?? null, (c, t) => desenharPeca(c, t, m, comPop), comPop);
       for (const id of [...folhaDaPeca.keys()]) if (!m.tokens[id]) { soltar(folhaDaPeca.get(id)!); folhaDaPeca.delete(id); }
       { const vezDe = m.session.initiative?.order[m.session.initiative.current]?.tokenId; for (const [id, c] of pecas) visuais.get(c)?.definirVez(id === vezDe); }
       if (tudo || colecao('regions')) sincronizarSimples(regioes, regioesC, m.regions, tudo ? null : mud!.colecoes.regions ?? null, desenharRegiao, comPop);
@@ -751,7 +751,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     forcarTelhados: alfa => telhados.forcar(alfa),
     definirTelhadosNoEditor: v => telhados.definirNoEditor(v),
     diagnosticoDosTelhados: () => telhados.diagnostico(),
-    redesenharPecas() { if (mapa) sincronizarSimples(pecas, pecasC, mapa.tokens, null, (c, t) => desenharPeca(c, t, mapa!), false); },
+    redesenharPecas() { if (mapa) sincronizarSimples(pecas, pecasC, mapa.tokens, null, (c, t) => desenharPeca(c, t, mapa!, false), false); },
     contagemDeParticulas: () => particulas.contagem(),
     contagemDePresencas: () => presenca.contagem(),
     contagemDePresencasSubmersas: () => presenca.contagemSubmersas(),
