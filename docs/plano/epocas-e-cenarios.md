@@ -281,7 +281,7 @@ Pronto quando: uma prancha com as árvores antigas e as da mata lado a lado não
 Commit: `older trees share the forest tree's inked crowns`
 Nota: a `copaDeRaminhos` ganhou `variantes`, `folha` (escala do raminho), `nanquim` e `galhos`; os padrões não mudaram, então a `arvore-da-mata` saiu igual. `arvore`, `arbusto`, `carvalho-grande` e `arvore-nevada` passaram a usá-la, cada uma com a sua paleta. Os pinheiros ficaram como estavam (já em camadas de agulhas). As miniaturas dos exemplos não foram regeneradas: o Jardim do Colosso tinha mudanças de outra sessão em aberto.
 
-### Q13 — Árvores e plantas geradas  ⬜ **[Opus]**
+### Q13 — Árvores e plantas geradas  ✅ **[Opus]**
 Objetivo: a vegetação dos biomas novos.
 Ler: `src/procedural/pesados/plantas.ts` (`PLANTAS`), `scripts/assar-colecao.ts`, `public/colecao/colecao.json`.
 Arquivos: `plantas.ts`, `colecao.json`, os `.webp` gerados, `LICENCAS.md` (bloco gerados) e `familias.ts`.
@@ -296,6 +296,7 @@ Como (famílias novas com bioma):
 - `baoba` (7 m) — `deserto`, `tropical`.
 Pronto quando: uma prancha com cada bioma (selva, praia, deserto, outono, jardim oriental) lê à primeira vista, e as árvores novas usam a mesma luz e o mesmo nanquim das atuais.
 Commit: `added jungle, beach, desert, blossom and autumn trees`
+Nota: desvios. Os geradores novos ficam em `pesados/plantas-dos-biomas.ts`, que usa a `copaDeRaminhos` (agora exportada) para selva, cerejeira, mangue e as moitas do baobá. Os cactos viraram três geradores (`saguaro`, `opuntia`, `cacto-redondo`) numa família só, porque a `altura` do gerador sai da pegada e as três alturas não cabiam num gerador. A palma tem pegada de 2 m (as raquetes em cadeia passavam de 1,5 m). Coqueiro e tamareira dividem a família "Coqueiro e tamareira"; a `palmeira` antiga continua sendo a de vaso. A cerejeira com pétalas no chão virou `cerejeira-5m-rala` (copa rala, com folhas verdes): as pétalas fora da copa entrariam na silhueta da sombra do sol esticada pela altura da árvore, e vão para a Q14 como carimbo `petalas-de-cerejeira`. Armadilha do motor: o mapa de altura sai do `z` das partes, e uma coluna estreita de 3 m (o saguaro) escurecia um anel do chão em volta à noite (oclusão de ambiente). O saguaro desenha com `z` de 1,2 m e mantém `altura` 3 m, que dá a sombra do sol. Pranchas: `node scripts/dev/prancha-objetos.ts [itens…]` (um quadro por item, tarde e noite) e `node scripts/dev/prancha-biomas.ts` (recortes de 14 m: selva, praia, deserto, outono, oriental).
 
 ### Q14 — Fungos, cristais, praia e outono  ⬜ **[Opus]**
 Depende de: Q4.

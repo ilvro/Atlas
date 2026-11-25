@@ -3,6 +3,7 @@ import type { PedidoDeReceita } from '../receitas/comum.ts';
 import type { Categoria } from '../receitas/index.ts';
 import { ESTOFADOS } from './estofados.ts';
 import { PLANTAS } from './plantas.ts';
+import { PLANTAS_DOS_BIOMAS } from './plantas-dos-biomas.ts';
 import { TAPETES } from './tapetes.ts';
 
 /**
@@ -22,7 +23,7 @@ export interface GeradorPesado {
   gerar(p: PedidoDeReceita): DescricaoDePiso;
 }
 
-export const PESADOS: readonly GeradorPesado[] = [...ESTOFADOS, ...PLANTAS, ...TAPETES];
+export const PESADOS: readonly GeradorPesado[] = [...ESTOFADOS, ...PLANTAS, ...PLANTAS_DOS_BIOMAS, ...TAPETES];
 
 /** O id do item da coleção de uma variante: `casa:<gerador>-<sufixo>`. */
 export const idDaVariante = (g: GeradorPesado, sufixo: string): string => `casa:${g.id}-${sufixo}`;

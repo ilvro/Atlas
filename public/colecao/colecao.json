@@ -257,6 +257,72 @@
       }
     },
     {
+      "id": "casa:arvore-5m-outono-laranja",
+      "nome": "Árvore (5 m, outono laranja)",
+      "arquivo": "gerados/arvore-5m-outono-laranja.webp",
+      "categoria": "exterior",
+      "pegada": [
+        5,
+        5
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "planta",
+        "copa",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "exterior",
+      "altura": 8,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arvore",
+        "params": {
+          "diametro": 5,
+          "tons": "outono-laranja"
+        },
+        "seed": 34,
+        "versao": 5
+      }
+    },
+    {
+      "id": "casa:arvore-5m-outono-vermelha",
+      "nome": "Árvore (5 m, outono vermelha)",
+      "arquivo": "gerados/arvore-5m-outono-vermelha.webp",
+      "categoria": "exterior",
+      "pegada": [
+        5,
+        5
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "planta",
+        "copa",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "exterior",
+      "altura": 8,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arvore",
+        "params": {
+          "diametro": 5,
+          "tons": "outono-vermelha"
+        },
+        "seed": 35,
+        "versao": 5
+      }
+    },
+    {
       "id": "casa:arvore-7m",
       "nome": "Árvore (7 m)",
       "arquivo": "gerados/arvore-7m.webp",
@@ -461,6 +527,146 @@
       }
     },
     {
+      "id": "casa:arvore-de-mangue-4m",
+      "nome": "Árvore de mangue (4 m)",
+      "arquivo": "gerados/arvore-de-mangue-4m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        4,
+        4
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "mangue",
+        "raizes",
+        "pantano",
+        "tropical",
+        "praia",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 4.4,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arvore-de-mangue",
+        "params": {
+          "diametro": 4
+        },
+        "seed": 201,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:arvore-de-mangue-6m",
+      "nome": "Árvore de mangue (6 m)",
+      "arquivo": "gerados/arvore-de-mangue-6m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        6,
+        6
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "mangue",
+        "raizes",
+        "pantano",
+        "tropical",
+        "praia",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 6.6,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arvore-de-mangue",
+        "params": {
+          "diametro": 6
+        },
+        "seed": 202,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:arvore-de-selva-5m",
+      "nome": "Árvore de selva (5 m)",
+      "arquivo": "gerados/arvore-de-selva-5m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        5,
+        5
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "planta",
+        "copa",
+        "exterior",
+        "selva",
+        "tropical",
+        "cipo"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 9,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arvore-de-selva",
+        "params": {
+          "diametro": 5
+        },
+        "seed": 121,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:arvore-de-selva-8m",
+      "nome": "Árvore de selva (8 m)",
+      "arquivo": "gerados/arvore-de-selva-8m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        8,
+        8
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "planta",
+        "copa",
+        "exterior",
+        "selva",
+        "tropical",
+        "cipo"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 12,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "arvore-de-selva",
+        "params": {
+          "diametro": 8
+        },
+        "seed": 122,
+        "versao": 1
+      }
+    },
+    {
       "id": "casa:arvore-nevada-3m",
       "nome": "Árvore nevada (3 m)",
       "arquivo": "gerados/arvore-nevada-3m.webp",
@@ -526,6 +732,176 @@
         },
         "seed": 62,
         "versao": 4
+      }
+    },
+    {
+      "id": "casa:bambuzal-2m",
+      "nome": "Bambuzal (2 m)",
+      "arquivo": "gerados/bambuzal-2m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        2,
+        2
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "bambu",
+        "bambuzal",
+        "touceira",
+        "planta",
+        "exterior",
+        "oriental",
+        "tropical"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 4,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "bambuzal",
+        "params": {
+          "diametro": 2
+        },
+        "seed": 191,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:bambuzal-4m",
+      "nome": "Bambuzal (4 m)",
+      "arquivo": "gerados/bambuzal-4m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        4,
+        4
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "bambu",
+        "bambuzal",
+        "touceira",
+        "planta",
+        "exterior",
+        "oriental",
+        "tropical"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 8,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "bambuzal",
+        "params": {
+          "diametro": 4
+        },
+        "seed": 192,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:baoba-7m",
+      "nome": "Baobá (7 m)",
+      "arquivo": "gerados/baoba-7m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        7,
+        7
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "baoba",
+        "savana",
+        "deserto",
+        "tropical",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 7,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "baoba",
+        "params": {
+          "diametro": 7
+        },
+        "seed": 211,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:cacto-redondo-grupo",
+      "nome": "Cacto redondo (grupo)",
+      "arquivo": "gerados/cacto-redondo-grupo.webp",
+      "categoria": "exterior",
+      "pegada": [
+        1.4,
+        1.4
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "cacto",
+        "barril",
+        "deserto",
+        "planta",
+        "exterior",
+        "flor"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 0.7,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "cacto-redondo",
+        "params": {
+          "diametro": 1.4
+        },
+        "seed": 172,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:cacto-redondo-um",
+      "nome": "Cacto redondo (um)",
+      "arquivo": "gerados/cacto-redondo-um.webp",
+      "categoria": "exterior",
+      "pegada": [
+        0.8,
+        0.8
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "cacto",
+        "barril",
+        "deserto",
+        "planta",
+        "exterior",
+        "flor"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 0.8,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "cacto-redondo",
+        "params": {
+          "diametro": 0.8
+        },
+        "seed": 171,
+        "versao": 1
       }
     },
     {
@@ -597,6 +973,76 @@
       }
     },
     {
+      "id": "casa:carvalho-grande-7m-outono-laranja",
+      "nome": "Carvalho grande (7 m, outono laranja)",
+      "arquivo": "gerados/carvalho-grande-7m-outono-laranja.webp",
+      "categoria": "exterior",
+      "pegada": [
+        7,
+        7
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "carvalho",
+        "planta",
+        "copa",
+        "exterior",
+        "mata"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 11.2,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "carvalho-grande",
+        "params": {
+          "diametro": 7,
+          "tons": "outono-laranja"
+        },
+        "seed": 94,
+        "versao": 3
+      }
+    },
+    {
+      "id": "casa:carvalho-grande-7m-outono-vermelha",
+      "nome": "Carvalho grande (7 m, outono vermelho)",
+      "arquivo": "gerados/carvalho-grande-7m-outono-vermelha.webp",
+      "categoria": "exterior",
+      "pegada": [
+        7,
+        7
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "carvalho",
+        "planta",
+        "copa",
+        "exterior",
+        "mata"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 11.2,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "carvalho-grande",
+        "params": {
+          "diametro": 7,
+          "tons": "outono-vermelha"
+        },
+        "seed": 95,
+        "versao": 3
+      }
+    },
+    {
       "id": "casa:carvalho-grande-8m",
       "nome": "Carvalho grande (8 m)",
       "arquivo": "gerados/carvalho-grande-8m.webp",
@@ -628,6 +1074,118 @@
         },
         "seed": 93,
         "versao": 3
+      }
+    },
+    {
+      "id": "casa:cerejeira-4m",
+      "nome": "Cerejeira (4 m)",
+      "arquivo": "gerados/cerejeira-4m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        4,
+        4
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "cerejeira",
+        "sakura",
+        "flor",
+        "rosa",
+        "planta",
+        "copa",
+        "exterior",
+        "oriental"
+      ],
+      "generos": [],
+      "kit": "exterior",
+      "altura": 5.2,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "cerejeira",
+        "params": {
+          "diametro": 4
+        },
+        "seed": 181,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:cerejeira-5m-rala",
+      "nome": "Cerejeira (5 m, perdendo as flores)",
+      "arquivo": "gerados/cerejeira-5m-rala.webp",
+      "categoria": "exterior",
+      "pegada": [
+        5,
+        5
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "cerejeira",
+        "sakura",
+        "flor",
+        "rosa",
+        "planta",
+        "copa",
+        "exterior",
+        "oriental"
+      ],
+      "generos": [],
+      "kit": "exterior",
+      "altura": 6.5,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "cerejeira",
+        "params": {
+          "diametro": 5,
+          "rala": true
+        },
+        "seed": 183,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:cerejeira-6m",
+      "nome": "Cerejeira (6 m)",
+      "arquivo": "gerados/cerejeira-6m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        6,
+        6
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "cerejeira",
+        "sakura",
+        "flor",
+        "rosa",
+        "planta",
+        "copa",
+        "exterior",
+        "oriental"
+      ],
+      "generos": [],
+      "kit": "exterior",
+      "altura": 7.8,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "cerejeira",
+        "params": {
+          "diametro": 6
+        },
+        "seed": 182,
+        "versao": 1
       }
     },
     {
@@ -738,6 +1296,74 @@
           "estofado": "tecido.veludo-vinho"
         },
         "seed": 11,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:coqueiro-4m",
+      "nome": "Coqueiro (4 m)",
+      "arquivo": "gerados/coqueiro-4m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        4,
+        4
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "palmeira",
+        "coqueiro",
+        "praia",
+        "tropical",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 6,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "coqueiro",
+        "params": {
+          "diametro": 4
+        },
+        "seed": 131,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:coqueiro-6m",
+      "nome": "Coqueiro (6 m)",
+      "arquivo": "gerados/coqueiro-6m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        6,
+        6
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "palmeira",
+        "coqueiro",
+        "praia",
+        "tropical",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 9,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "coqueiro",
+        "params": {
+          "diametro": 6
+        },
+        "seed": 132,
         "versao": 1
       }
     },
@@ -982,6 +1608,70 @@
           "diametro": 2.4
         },
         "seed": 102,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:opuntia-a",
+      "nome": "Palma (opuntia) (a)",
+      "arquivo": "gerados/opuntia-a.webp",
+      "categoria": "exterior",
+      "pegada": [
+        2,
+        2
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "cacto",
+        "palma",
+        "opuntia",
+        "deserto",
+        "planta",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 1.5,
+      "res": 96,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "opuntia",
+        "params": {},
+        "seed": 161,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:opuntia-b",
+      "nome": "Palma (opuntia) (b)",
+      "arquivo": "gerados/opuntia-b.webp",
+      "categoria": "exterior",
+      "pegada": [
+        2,
+        2
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "cacto",
+        "palma",
+        "opuntia",
+        "deserto",
+        "planta",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 1.5,
+      "res": 96,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "opuntia",
+        "params": {},
+        "seed": 162,
         "versao": 1
       }
     },
@@ -1393,6 +2083,72 @@
       }
     },
     {
+      "id": "casa:saguaro-a",
+      "nome": "Cacto saguaro (dois braços)",
+      "arquivo": "gerados/saguaro-a.webp",
+      "categoria": "exterior",
+      "pegada": [
+        1.7,
+        1.7
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "cacto",
+        "saguaro",
+        "deserto",
+        "planta",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 3,
+      "res": 96,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "saguaro",
+        "params": {
+          "bracos": 2
+        },
+        "seed": 151,
+        "versao": 1
+      }
+    },
+    {
+      "id": "casa:saguaro-b",
+      "nome": "Cacto saguaro (três braços)",
+      "arquivo": "gerados/saguaro-b.webp",
+      "categoria": "exterior",
+      "pegada": [
+        1.7,
+        1.7
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "cacto",
+        "saguaro",
+        "deserto",
+        "planta",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 3,
+      "res": 96,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "saguaro",
+        "params": {
+          "bracos": 3
+        },
+        "seed": 152,
+        "versao": 1
+      }
+    },
+    {
       "id": "casa:samambaia-a",
       "nome": "Samambaia em pedestal (a)",
       "arquivo": "gerados/samambaia-a.webp",
@@ -1458,6 +2214,40 @@
         "params": {},
         "seed": 22,
         "versao": 2
+      }
+    },
+    {
+      "id": "casa:tamareira-5m",
+      "nome": "Tamareira (5 m)",
+      "arquivo": "gerados/tamareira-5m.webp",
+      "categoria": "exterior",
+      "pegada": [
+        5,
+        5
+      ],
+      "funcoes": [
+        "jardim"
+      ],
+      "tags": [
+        "arvore",
+        "palmeira",
+        "tamareira",
+        "oasis",
+        "deserto",
+        "exterior"
+      ],
+      "generos": [],
+      "kit": "mata",
+      "altura": 6.5,
+      "res": 64,
+      "origem": {
+        "tipo": "gerado",
+        "gerador": "tamareira",
+        "params": {
+          "diametro": 5
+        },
+        "seed": 141,
+        "versao": 1
       }
     },
     {

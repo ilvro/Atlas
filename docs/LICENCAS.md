@@ -23,20 +23,38 @@ Imagens assadas pelo próprio Atlas (`npm run assar`) a partir de geradores em `
 | gerados/arbusto-verde.webp | arbusto | Arbusto (verde) |
 | gerados/arvore-3m.webp | arvore | Árvore (3 m) |
 | gerados/arvore-5m.webp | arvore | Árvore (5 m) |
+| gerados/arvore-5m-outono-laranja.webp | arvore | Árvore (5 m, outono laranja) |
+| gerados/arvore-5m-outono-vermelha.webp | arvore | Árvore (5 m, outono vermelha) |
 | gerados/arvore-7m.webp | arvore | Árvore (7 m) |
 | gerados/arvore-da-mata-4m.webp | arvore-da-mata | Árvore da mata (4 m) |
 | gerados/arvore-da-mata-5m-amarelada.webp | arvore-da-mata | Árvore da mata (5 m, amarelada) |
 | gerados/arvore-da-mata-6m.webp | arvore-da-mata | Árvore da mata (6 m) |
 | gerados/arvore-da-mata-6m-rala.webp | arvore-da-mata | Árvore da mata (6 m, ralinha) |
 | gerados/arvore-da-mata-8m.webp | arvore-da-mata | Árvore da mata (8 m) |
+| gerados/arvore-de-mangue-4m.webp | arvore-de-mangue | Árvore de mangue (4 m) |
+| gerados/arvore-de-mangue-6m.webp | arvore-de-mangue | Árvore de mangue (6 m) |
+| gerados/arvore-de-selva-5m.webp | arvore-de-selva | Árvore de selva (5 m) |
+| gerados/arvore-de-selva-8m.webp | arvore-de-selva | Árvore de selva (8 m) |
 | gerados/arvore-nevada-3m.webp | arvore-nevada | Árvore nevada (3 m) |
 | gerados/arvore-nevada-5m.webp | arvore-nevada | Árvore nevada (5 m) |
+| gerados/bambuzal-2m.webp | bambuzal | Bambuzal (2 m) |
+| gerados/bambuzal-4m.webp | bambuzal | Bambuzal (4 m) |
+| gerados/baoba-7m.webp | baoba | Baobá (7 m) |
+| gerados/cacto-redondo-grupo.webp | cacto-redondo | Cacto redondo (grupo) |
+| gerados/cacto-redondo-um.webp | cacto-redondo | Cacto redondo (um) |
 | gerados/carvalho-grande-6m.webp | carvalho-grande | Carvalho grande (6 m) |
 | gerados/carvalho-grande-7m.webp | carvalho-grande | Carvalho grande (7 m) |
+| gerados/carvalho-grande-7m-outono-laranja.webp | carvalho-grande | Carvalho grande (7 m, outono laranja) |
+| gerados/carvalho-grande-7m-outono-vermelha.webp | carvalho-grande | Carvalho grande (7 m, outono vermelho) |
 | gerados/carvalho-grande-8m.webp | carvalho-grande | Carvalho grande (8 m) |
+| gerados/cerejeira-4m.webp | cerejeira | Cerejeira (4 m) |
+| gerados/cerejeira-5m-rala.webp | cerejeira | Cerejeira (5 m, perdendo as flores) |
+| gerados/cerejeira-6m.webp | cerejeira | Cerejeira (6 m) |
 | gerados/chesterfield-couro.webp | chesterfield | Sofá chesterfield (couro) |
 | gerados/chesterfield-verde.webp | chesterfield | Sofá chesterfield (verde-garrafa) |
 | gerados/chesterfield-vinho.webp | chesterfield | Sofá chesterfield (vinho) |
+| gerados/coqueiro-4m.webp | coqueiro | Coqueiro (4 m) |
+| gerados/coqueiro-6m.webp | coqueiro | Coqueiro (6 m) |
 | gerados/costela-de-adao-madeira.webp | costela-de-adao | Costela-de-adão (madeira) |
 | gerados/costela-de-adao-pedra.webp | costela-de-adao | Costela-de-adão (pedra) |
 | gerados/diva-couro.webp | diva | Divã capitonê (couro) |
@@ -44,6 +62,8 @@ Imagens assadas pelo próprio Atlas (`npm run assar`) a partir de geradores em `
 | gerados/diva-vinho.webp | diva | Divã capitonê (vinho) |
 | gerados/folhagem-tropical-1m.webp | folhagem-tropical | Folhagem tropical (1,6 m) |
 | gerados/folhagem-tropical-2m.webp | folhagem-tropical | Folhagem tropical (2,4 m) |
+| gerados/opuntia-a.webp | opuntia | Palma (opuntia) (a) |
+| gerados/opuntia-b.webp | opuntia | Palma (opuntia) (b) |
 | gerados/palmeira-madeira.webp | palmeira | Palmeira em vaso (madeira) |
 | gerados/palmeira-pedra.webp | palmeira | Palmeira em vaso (pedra) |
 | gerados/passadeira-creme.webp | passadeira | Passadeira de corredor (creme e terracota) |
@@ -56,8 +76,11 @@ Imagens assadas pelo próprio Atlas (`npm run assar`) a partir de geradores em `
 | gerados/poltrona-capitone-couro.webp | poltrona-capitone | Poltrona capitonê (couro) |
 | gerados/poltrona-capitone-verde.webp | poltrona-capitone | Poltrona capitonê (verde-garrafa) |
 | gerados/poltrona-capitone-vinho.webp | poltrona-capitone | Poltrona capitonê (vinho) |
+| gerados/saguaro-a.webp | saguaro | Cacto saguaro (dois braços) |
+| gerados/saguaro-b.webp | saguaro | Cacto saguaro (três braços) |
 | gerados/samambaia-a.webp | samambaia | Samambaia em pedestal (a) |
 | gerados/samambaia-b.webp | samambaia | Samambaia em pedestal (b) |
+| gerados/tamareira-5m.webp | tamareira | Tamareira (5 m) |
 | gerados/tapete-oval-creme.webp | tapete-oval | Tapete oval (creme e terracota) |
 | gerados/tapete-oval-verde.webp | tapete-oval | Tapete oval (verde e ouro) |
 | gerados/tapete-oval-vinho.webp | tapete-oval | Tapete oval (vinho e azul-marinho) |
