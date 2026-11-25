@@ -2,7 +2,7 @@ import { PAREDE_PADRAO, centroDaAbertura, comodoEm, comprimentoDaParede, contorn
 import { novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
 import type { MapaAtlas, Objeto, Ponto } from '../domain/mapa.ts';
 import { mulberry32 } from '../procedural/ruido.ts';
-import { ACERVO } from '../procedural/acervo.ts';
+import { ACERVO, itemBloqueiaMovimentoPorPadrao } from '../procedural/acervo.ts';
 import { caixaDoObjeto, insightDoComodo, type Caixa, type InsightDoComodo } from './insight.ts';
 import { circulacao, malhaDoComodo, marcarRetangulo, retanguloLivre, type Circulacao, type Malha } from './malha.ts';
 import { reservasDePorta } from './portas.ts';
@@ -82,7 +82,7 @@ class Gerador {
     this.m = m; this.ins = ins; this.malha = malha; this.circ = circ; this.regras = regras; this.pedido = pedido; this.gerarId = gerarId; this.rng = rng; this.nivel = nivel;
     this.segmentos = contornoDoComodo(m, ins.celulas, m.rooms[ins.id]?.outline).flat().map(s => { const comprimento = distancia(s.a, s.b); return { a: s.a, b: s.b, n: s.n, comprimento, t: [(s.b[0] - s.a[0]) / comprimento, (s.b[1] - s.a[1]) / comprimento] as Ponto }; });
     this.existentes = Object.values(m.props).filter(o => (o.levelId ?? null) === nivel && o.roomId === ins.id);
-    for (const o of this.existentes) if (o.elevation === 'floor' && o.blocks.move) this.bloqueantes.push(caixaDoObjeto(o));
+    for (const o of this.existentes) if (o.elevation === 'floor' && ACERVO.item(ACERVO.idDaFonte(o.source))?.categoria !== 'tapetes') this.bloqueantes.push(caixaDoObjeto(o));
     let sx = 0, sy = 0, n = 0;
     for (let l = 0; l < malha.linhas; l++) for (let c = 0; c < malha.colunas; c++) if (malha.dentro[l * malha.colunas + c]) { sx += malha.x0 + (c + 0.5) * malha.res; sy += malha.y0 + (l + 0.5) * malha.res; n++; }
     this.centroide = n ? [sx / n, sy / n] : [(ins.caixa.x0 + ins.caixa.x1) / 2, (ins.caixa.y0 + ins.caixa.y1) / 2];
@@ -129,7 +129,7 @@ class Gerador {
     const params = { ...(regra.params ?? {}), ...porArea, ...(this.pedido.params?.(receita) ?? {}) }, [w, h] = ACERVO.pegadaDaFonte(ACERVO.fonte(receita, 1, params));
     if (regra.lugar === 'na-parede') return this.colocarNaParede(receita, params, w);
     if (regra.lugar === 'sobre') return this.colocarSobre(regra, receita, params, w, h);
-    const tapete = rec.categoria === 'tapetes', bloqueia = !tapete;
+    const tapete = rec.categoria === 'tapetes', ocupa = !tapete, bloqueiaMovimento = itemBloqueiaMovimentoPorPadrao(receita);
     const temDependentes = this.regras.some(r => r.junto?.de === regra.id);
     const lista = this.candidatos(regra, w, h);
     if (regra.senao && regra.lugar === 'junto') lista.push(...(regra.senao === 'centro' ? this.deCentro() : this.deParede(w, h, false).sort((a, b) => b.nota - a.nota)).map(c => ({ ...c, nota: c.nota - 1000 })));
@@ -138,16 +138,16 @@ class Gerador {
       if (comodoEm(this.m, c.pos, this.indice) !== this.ins.id) continue;
       const base = novoObjeto(c.pos, { rotation: c.rot, source: ACERVO.fonte(receita, 1, params) }), caixa = caixaDoObjeto(base);
       if (!retanguloLivre(this.malha, caixa, tapete ? [this.malha.porta] : [this.malha.porta, this.circ.faixa])) continue;
-      if (bloqueia) {
+      if (ocupa) {
         const margem = regra.lugar === 'junto' ? FOLGA_JUNTO : regra.lugar === 'centro' ? (temDependentes ? 1.0 : 0.3) : FOLGA;
         if (this.bloqueantes.some(b => intersecta(caixa, b, regra.lugar === 'junto' ? 0 : margem))) continue;
         if (regra.alto && this.naFrenteDeJanela(caixa)) continue;
       }
       const obj = novoObjeto(c.pos, {
         id: this.gerarId('o'), source: ACERVO.fonte(receita, Math.floor(this.rng() * 2 ** 31), params), rotation: c.rot, roomId: this.ins.id,
-        blocks: { move: bloqueia, sight: false }, castsShadow: bloqueia,
+        blocks: { move: bloqueiaMovimento, sight: false }, castsShadow: ocupa,
       });
-      if (bloqueia) this.bloqueantes.push(caixa);
+      if (ocupa) this.bloqueantes.push(caixa);
       return obj;
     }
     return null;

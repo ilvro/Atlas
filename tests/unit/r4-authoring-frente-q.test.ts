@@ -183,7 +183,7 @@ test('R4.5: espalhar não aborta em contexto mesa misto e deriva castsShadow/blo
   }
 
   const mataFechada = espalhar(mExt, { centro: [30, 30], raio: 12, conjunto: 'mata-fechada', semente: 5, gerarId: contador() });
-  const arvores = mataFechada.filter(o => ACERVO.item(ACERVO.idDaFonte(o.source))?.tags.includes('arvore'));
+  const arvores = mataFechada.filter(o => ACERVO.item(ACERVO.idDaFonte(o.source))?.tags.includes('copa'));
   const rasteiros = mataFechada.filter(o => ACERVO.item(ACERVO.idDaFonte(o.source))?.tags.includes('rasteira'));
   assert.ok(arvores.length >= 1 && rasteiros.length >= 1);
   for (const a of arvores) assert.equal(a.castsShadow, true, 'árvore projeta sombra');
@@ -196,7 +196,7 @@ test('R4.5: espalhar não aborta em contexto mesa misto e deriva castsShadow/blo
   const bag = espalhar(mSala, { centro: [4.5, 3.75], raio: 3.5, conjunto: 'bagunca', semente: 2, gerarId: contador() });
   for (const o of bag) {
     const id = ACERVO.idDaFonte(o.source);
-    if (id === 'papeis' || id === 'jornais') {
+    if (id === 'papeis' || id === 'jornais' || id === 'livros.pilha' || id === 'sapatos') {
       assert.equal(o.castsShadow, false, `${id} não projeta sombra`);
       assert.equal(o.blocks.move, false, `${id} não bloqueia`);
     } else {

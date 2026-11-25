@@ -917,7 +917,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       const receita = ACERVO.item(c.item); if (!receita || receita.tipo === 'parede') continue;
       const seed = c.item === pincel.item && pincel.semente !== null ? pincel.semente : Math.floor(Math.random() * 2 ** 30);
       const escada = interacaoDeEscadaPadrao(m, andar, receita.id);
-      const item = novoObjeto(c.posicao, { source: ACERVO.fonte(receita.id, seed, c.item === pincel.item ? pincel.params : {}), ...(receita.submerso ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : {}), ...(escada ? { interaction: escada } : {}), ...(andar !== null ? { levelId: andar } : {}), ...c.campos });
+      const item = novoObjeto(c.posicao, { source: ACERVO.fonte(receita.id, seed, c.item === pincel.item ? pincel.params : {}), ...(receita.submerso ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : { blocks: { move: pincel.bloqueia, sight: false } }), ...(escada ? { interaction: escada } : {}), ...(andar !== null ? { levelId: andar } : {}), ...c.campos });
       if (!tentar(() => i.gesto.aplicar({ tipo: 'item.adicionar', colecao: 'props', item }))) { i.gesto.cancelar(); interacao = null; return; }
       i.postos.push(item.id); ponte.aoPorObjeto?.(receita.id);
     }
@@ -963,7 +963,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       }
       const escada = interacaoDeEscadaPadrao(m, andar, receita.id);
       const campos = camposDoSorteio();
-      const item = novoObjeto(alvo, { source: fonte, ...(receita.submerso ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : {}), ...(escada ? { interaction: escada } : {}), ...(andar !== null ? { levelId: andar } : {}), ...campos });
+      const item = novoObjeto(alvo, { source: fonte, ...(receita.submerso ? { elevation: 'underwater' as const, castsShadow: false, blocks: { move: false, sight: false } } : { blocks: { move: pincel.objeto.bloqueia, sight: false } }), ...(escada ? { interaction: escada } : {}), ...(andar !== null ? { levelId: andar } : {}), ...campos });
       if (tentar(() => store.executar({ tipo: 'item.adicionar', colecao: 'props', item }, { rotulo: `Pôr ${receita.nome.toLowerCase()}` }))) { if (pincel.objeto.selecionarAoPor) ponte.definirSelecao([{ colecao: 'props', id: item.id }]); ponte.aoColocar(receita.nome, alvo); ponte.aoPorObjeto?.(receita.id); novaSemente(); renovarSorteio(); sortearProximaVariante(); }
       return;
     }

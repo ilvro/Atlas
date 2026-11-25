@@ -180,11 +180,26 @@ test('objeto obstáculo em outro andar (levelId diferente) não bloqueia o andar
   assert.equal(bloqueioNoCaminho(m, [2.25, 6.75], [3.75, 6.75], { levelId: 'andar2' }), 'Bloqueado por obstáculo.');
 });
 
-test('padrão de obstáculo no acervo: pedras/árvores bloqueiam, tapetes/rasteira/papéis não', () => {
+test('padrão de obstáculo no acervo: pedras/árvores bloqueiam, tapetes/rasteira/papéis/piso/assentos leves não', () => {
   assert.equal(itemBloqueiaMovimentoPorPadrao('rochedo'), true);
   assert.equal(itemBloqueiaMovimentoPorPadrao('pedra.grande'), true);
   assert.equal(itemBloqueiaMovimentoPorPadrao('pinheiro'), true);
+  assert.equal(itemBloqueiaMovimentoPorPadrao('mesa.retangular'), true);
   assert.equal(itemBloqueiaMovimentoPorPadrao('tapete.persa'), false);
   assert.equal(itemBloqueiaMovimentoPorPadrao('moita-de-samambaia'), false);
+  assert.equal(itemBloqueiaMovimentoPorPadrao('tufo-de-capim'), false);
+  assert.equal(itemBloqueiaMovimentoPorPadrao('tufo-de-grama'), false);
+  assert.equal(itemBloqueiaMovimentoPorPadrao('bueiro'), false);
+  assert.equal(itemBloqueiaMovimentoPorPadrao('faixa-continua'), false);
+  assert.equal(itemBloqueiaMovimentoPorPadrao('cobertura-de-posto'), false);
+  assert.equal(itemBloqueiaMovimentoPorPadrao('cadeira'), false);
+  assert.equal(itemBloqueiaMovimentoPorPadrao('banqueta'), false);
+  assert.equal(itemBloqueiaMovimentoPorPadrao('colchao-no-chao'), false);
   assert.equal(itemBloqueiaMovimentoPorPadrao('papeis'), false);
+
+  // novoObjeto deriva blocks.move do padrão do acervo quando não especificado
+  assert.equal(novoObjeto([0, 0], { source: { kind: 'recipe', recipe: 'bueiro', seed: 1, params: {} } }).blocks.move, false);
+  assert.equal(novoObjeto([0, 0], { source: { kind: 'recipe', recipe: 'cadeira', seed: 1, params: {} } }).blocks.move, false);
+  assert.equal(novoObjeto([0, 0], { source: { kind: 'recipe', recipe: 'tufo-de-capim', seed: 1, params: {} } }).blocks.move, false);
+  assert.equal(novoObjeto([0, 0], { source: { kind: 'recipe', recipe: 'rochedo', seed: 1, params: {} } }).blocks.move, true);
 });

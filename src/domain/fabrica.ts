@@ -1,4 +1,4 @@
-import { ACERVO } from '../procedural/acervo.ts';
+import { ACERVO, itemBloqueiaMovimentoPorPadrao } from '../procedural/acervo.ts';
 import type { ColecaoLivre, Luz, MapaAtlas, Objeto, Peca, Ponto, Regiao } from './mapa.ts';
 
 /** Identificador curto e único o bastante para uma entidade criada no editor. */
@@ -8,10 +8,15 @@ export const novaLuz = (position: Ponto, extra: Partial<Luz> = {}): Luz => ({
   id: novoIdEntidade('l'), position, radius: 5, color: '#ffb36b', intensity: 1, flicker: 0.1, cone: null, ownerId: null, power: 'fire', on: true, nightOnly: false, preset: null, rays: false, ...extra,
 });
 
-export const novoObjeto = (position: Ponto, extra: Partial<Objeto> = {}): Objeto => ({
-  id: novoIdEntidade('o'), source: { kind: 'recipe', recipe: 'caixa', seed: Math.floor(Math.random() * 2 ** 31), params: {} }, position, rotation: 0, scale: 1,
-  elevation: 'floor', wall: null, roomId: null, blocks: { move: true, sight: false }, castsShadow: true, harmonize: true, interaction: null, ...extra,
-});
+export const novoObjeto = (position: Ponto, extra: Partial<Objeto> = {}): Objeto => {
+  const source = extra.source ?? { kind: 'recipe', recipe: 'caixa', seed: Math.floor(Math.random() * 2 ** 31), params: {} };
+  const elevation = extra.elevation ?? 'floor';
+  const movePadrao = elevation === 'floor' && itemBloqueiaMovimentoPorPadrao(ACERVO.idDaFonte(source));
+  return {
+    id: novoIdEntidade('o'), source, position, rotation: 0, scale: 1,
+    elevation, wall: null, roomId: null, blocks: { move: movePadrao, sight: false }, castsShadow: true, harmonize: true, interaction: null, ...extra,
+  };
+};
 
 export const novaPeca = (position: Ponto, name = 'Peça', extra: Partial<Peca> = {}): Peca => ({
   id: novoIdEntidade('t'), name, portrait: null, sprite: null, facing: 'down', position, size: 1, player: false, vision: { radius: 18, dark: false }, lightId: null, figure: { state: 'normal' }, refs: [], hp: null, ...extra,
