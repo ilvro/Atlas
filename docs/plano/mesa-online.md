@@ -688,7 +688,7 @@ Nota: feita (Atlas `430173e`, Jukebox `e72888c`, Mesa `9db5f8e`; vendor no Dossi
 - **Não feito:** subir os efeitos `sfx` da campanha em segundo plano (o primeiro disparo pode atrasar). Vai para a R23.
 - **Para a R23:** quando a mesa fecha, o último `mix` fica na sala como "tocando". A casca trata um `mix` com mais de 10 s (pelo `desde` e pelo relógio da sala) como velho e não toca.
 
-### R23 — Som na casca do jogador  ⬜
+### R23 — Som na casca do jogador  ✅
 Objetivo: o jogador ouve a mesma música e os mesmos efeitos, no mesmo ponto, com volume próprio.
 Depende de: R22, R7 e R12b (o clique do saguão libera o áudio).
 Ler: `Mesa/src/jogar/Casca.tsx`, `Saguao.tsx` e `ponte-jogador.ts`; a parte de crossfade do `Jukebox/player.js`, para o fade soar parecido.
@@ -708,6 +708,7 @@ Não fazer: a escolha de música pelo jogador.
 Testes: `sincronia.ts`: posição esperada (com `taxa`), decisão de corrigir ou não e estimativa do relógio com RTTs falsos.
 Pronto quando: em dois navegadores, o mestre ativa uma cena, liga um filtro passa-baixa, marca uma região com eco e toca um efeito `sfx`; o jogador ouve tudo igual, com diferença de até cerca de 1 s, e muda o volume dele sem afetar ninguém.
 Commit: `synced jukebox sound in the player shell`
+Nota: `ReverseEffect` está integrado no `EffectsRegistry` carregado por `/Jukebox/mixing/motor.js` e decodifica o próprio `audio.src` (blob URL de mesma origem). O pré-carregamento em segundo plano de `sfx` antes do primeiro disparo ficou pendente na ponte porque `Jukebox/mesa.js` não expõe os `faixaId`s dos `sfx` antecipadamente (e `Mesa/AGENTS.md` restringe editar `Jukebox` nesta etapa).
 
 ## Depois (opcional)
 
@@ -738,7 +739,7 @@ Commit: `server-side dice rolls`
 | 4. Fichas e saguão | R10 ✅, R11 ✅ → R12 ✅ → R12b ✅, R13 ✅ | Sonnet (o Opus revisa a R12 e a R12b) | R7 para a R11 |
 | 5. Peça própria e ping | R14 ✅ → R15 ✅ → R15b ✅ → R15c ✅ | Sonnet; R15c pelo Opus | R11 |
 | 6. Discord | R16 ✅, R17 ✅ → R18 ✅, R19 | Sonnet; R19 com o usuário | blocos 3 a 5 |
-| 7. Som | R21a ✅ → R21b → R22 → R23 | Sonnet | R3 para a R21b; R5, R6 e R12b para as outras |
+| 7. Som | R21a ✅ → R21b ✅ → R22 ✅ → R23 ✅ | Sonnet | R3 para a R21b; R5, R6 e R12b para as outras |
 | Depois | R20 | Sonnet | R9 |
 
 Os blocos 1 a 5 já permitem jogar online por link, entrando com o Discord no navegador. A atividade (bloco 6) entra por cima sem refazer nada. A R10, a R16 e a R21a já foram feitas.
