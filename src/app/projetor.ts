@@ -270,6 +270,7 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
       if (msg.tipo === 'ola' && ultimoEstadoTela?.acao === 'escurecer') enviar({ tipo: 'tela', acao: 'escurecer', ms: ultimoEstadoTela.ms }, 'remoto');
     } else if (msg.tipo === 'tchau') projetorRemotoConectado.value = false;
   };
+  canalRemoto.postMessage({ tipo: 'precisa-ola' });
 
   let cameraEmGesto = false;
   let ultimoEnvioGesto = 0;
