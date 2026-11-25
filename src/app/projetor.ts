@@ -5,6 +5,7 @@ import type { Vista } from '../domain/inspecao.ts';
 import type { MapaAtlas } from '../domain/mapa.ts';
 import type { PassoDeMomento } from '../domain/momentos.ts';
 import { mostrarPvNoProjetor, recursosDaPeca, recursosDasFichas } from './fichas.ts';
+import { movimentoLivre } from './modo.ts';
 import { recursosParaOProjetor } from '../domain/fichas.ts';
 import { projetarParaJogadores } from '../domain/projecao.ts';
 import { projetarParaRemoto } from '../domain/projecao-remota.ts';
@@ -199,9 +200,11 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
     if ((!local && !remoto) || parado) return;
     enviarRetratos(m);
     const extra = { versao: s.store.versaoEdicao, ...(s.store.emGesto ? { emGesto: true } : {}) };
-    if (local) enviar({ tipo: 'estado', doc: projetarParaJogadores(m, andar), ...extra }, 'local');
+    const livre = movimentoLivre.peek();
+    const comModo = (d: MapaAtlas): MapaAtlas => (livre && d.grid.snap ? { ...d, grid: { ...d.grid, snap: false } } : d);
+    if (local) enviar({ tipo: 'estado', doc: comModo(projetarParaJogadores(m, andar)), ...extra }, 'local');
     if (remoto) {
-      const doc = projetarParaRemoto(m, andar);
+      const doc = comModo(projetarParaRemoto(m, andar));
       // Sem névoa o mestre mostra o mapa todo: a ponte pede a confirmação dele, uma vez por mapa, e segura o `estado` até lá.
       if (doc.session.explored === null) {
         if (!semNevoaAvisados.has(m.id)) { semNevoaAvisados.add(m.id); enviar({ tipo: 'aviso-sem-nevoa', mapa: m.id, nome: m.name }, 'remoto'); }
@@ -334,6 +337,7 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
   });
   const parar3 = effect(() => { void recursosDasFichas.value; void mostrarPvNoProjetor.value; enviarRecursos(); });
   const parar2 = effect(() => { const c = caixaDoProjetor.value; if (c && projetorConectado.peek() && !cameraEmGesto) enviar({ tipo: 'camera', caixa: c, ...(seguirJogadores.peek() ? { seguir: true } : {}) }, 'local'); });
+  const parar6 = effect(() => { void movimentoLivre.value; if (algum() && !parado) enviarEstado(); });
 
   return {
     evento: nome => { if (algum()) enviar({ tipo: 'evento', nome }); },
@@ -394,7 +398,7 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
       }
     },
     parar() {
-      parado = true; sair(); parar1(); parar2(); parar3(); parar4(); parar5();
+      parado = true; sair(); parar1(); parar2(); parar3(); parar4(); parar5(); parar6();
       if (temporizador) clearTimeout(temporizador);
       canalEspecifico.close();
       canalGlobal.close();

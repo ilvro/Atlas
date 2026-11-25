@@ -628,3 +628,30 @@ test('publicador: o destino remoto recebe a câmera no aspecto do ola remoto e e
     pub.parar(); remoto.close(); sess.fechar();
   }
 });
+
+test('publicador: movimento livre do mestre reflete em grid.snap do estado remoto', async () => {
+  const { definirMovimentoLivre, movimentoLivre } = await import('../../src/app/modo.ts');
+  const mapa = criarMapa({ id: 'mapa-pub-livre', nome: 'Arena' });
+  mapa.session.explored = { res: 0.5, cells: [[0, 0, 60]] };
+  const sess = criarSessao(mapa, criarRepoMock({ [mapa.id]: mapa }), { salvo: true });
+  const pub = iniciarPublicacao(sess, async () => null);
+  const remoto = new BroadcastChannel(CANAL_PROJETOR_REMOTO);
+  const estados: boolean[] = [];
+  remoto.onmessage = e => { if (e.data?.tipo === 'estado') estados.push(e.data.doc.grid.snap); };
+  try {
+    definirMovimentoLivre(false);
+    remoto.postMessage({ tipo: 'ola', largura: 1000, altura: 500, remoto: true, _seq: 1 });
+    await esperar(60);
+    assert.equal(estados.at(-1), true);
+    definirMovimentoLivre(true);
+    await esperar(60);
+    assert.equal(estados.at(-1), false);
+    definirMovimentoLivre(false);
+    await esperar(60);
+    assert.equal(estados.at(-1), true);
+  } finally {
+    definirMovimentoLivre(false);
+    assert.equal(movimentoLivre.value, false);
+    pub.parar(); remoto.close(); sess.fechar();
+  }
+});
