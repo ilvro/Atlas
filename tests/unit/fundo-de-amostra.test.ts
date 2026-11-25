@@ -31,3 +31,16 @@ test('a camada manda: a escala muda o ladrilho e o tom base da camada tinge a am
   assert.ok(f.backgroundImage.includes('#445566'));
   assert.ok(!f.backgroundImage.includes(mats['teste.a']!.base));
 });
+
+test('fundoDaAmostra resolve a URL da textura respeitando subcaminho em location', () => {
+  const g = globalThis as { location?: Location };
+  const orig = g.location;
+  g.location = { href: 'https://discord.example/.proxy/Atlas/' } as Location;
+  try {
+    const f = fundoDaAmostra(mats['teste.a']!, catalogo, 40);
+    assert.match(f.backgroundImage, /url\(https:\/\/discord\.example\/\.proxy\/Atlas\/colecao\/texturas\/tx_a\.webp\)/);
+  } finally {
+    if (orig === undefined) delete g.location;
+    else g.location = orig;
+  }
+});

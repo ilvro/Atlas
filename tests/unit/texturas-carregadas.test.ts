@@ -2,7 +2,7 @@ import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { MATERIAIS, type Material } from '../../src/procedural/materiais.ts';
 import type { EntradaDeTerreno } from '../../src/procedural/assar.ts';
-import { _definirHashDasTexturas, _reiniciarTexturas, garantirTexturas, hashDasTexturas, texturaCarregada, texturasDoTerreno } from '../../src/procedural/texturas-carregadas.ts';
+import { _definirHashDasTexturas, _reiniciarTexturas, baseDasTexturas, carregarCatalogo, garantirTexturas, hashDasTexturas, texturaCarregada, texturasDoTerreno } from '../../src/procedural/texturas-carregadas.ts';
 import { chaveDoTerreno } from '../../src/render/entradas.ts';
 
 // Materiais fictícios com texturas conhecidas; `calcada` continua procedural (sem textura).
@@ -35,4 +35,31 @@ test('sem rede o carregamento degrada sem lançar', async () => {
   try { await garantirTexturas(['lama']); } finally { console.warn = aviso; }
   assert.equal(texturaCarregada('lama'), undefined);
   assert.equal(hashDasTexturas(), 'indisponivel');
+});
+
+test('baseDasTexturas respeita subcaminho quando há location (ex.: /.proxy/Atlas/)', async () => {
+  assert.equal(baseDasTexturas(), '/colecao/texturas/');
+
+  const g = globalThis as { location?: Location };
+  const origLoc = g.location;
+  const origFetch = globalThis.fetch;
+  const urls: string[] = [];
+  _reiniciarTexturas();
+  g.location = { href: 'https://discord.example/.proxy/Atlas/index.html#/projetor/m1' } as Location;
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    urls.push(String(input));
+    return new Response(JSON.stringify({ versao: 1, hash: 'abc', texturas: [] }), { status: 200 });
+  }) as typeof fetch;
+  try {
+    const base = baseDasTexturas();
+    assert.equal(base, 'https://discord.example/.proxy/Atlas/colecao/texturas/');
+    assert.ok(!base.startsWith('/colecao/'));
+    await carregarCatalogo();
+    assert.deepEqual(urls, ['https://discord.example/.proxy/Atlas/colecao/texturas/texturas.json']);
+  } finally {
+    _reiniciarTexturas();
+    if (origLoc === undefined) delete g.location;
+    else g.location = origLoc;
+    globalThis.fetch = origFetch;
+  }
 });

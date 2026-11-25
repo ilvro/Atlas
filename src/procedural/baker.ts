@@ -1,4 +1,5 @@
 import type { PedidoDeBake, ResultadoDeBake } from './executar.ts';
+import { baseDasTexturas } from './texturas-carregadas.ts';
 import {
   cacheDeAssadosPadrao,
   cachePersistenteAtivo,
@@ -305,9 +306,10 @@ export function criarBaker(opcoes: { workers?: number; cache?: CacheDeAssados | 
         const id = ++proximoGlobal;
         return new Promise<ResultadoDeBake>((ok, erro) => {
           esperando.set(id, { ok, erro, tipo: pedido.tipo, indice: i });
+          const pedidoNoWorker = pedido.tipo === 'terreno' && !pedido.baseTexturas ? { ...pedido, baseTexturas: baseDasTexturas() } : pedido;
           w.postMessage({
             id,
-            pedido,
+            pedido: pedidoNoWorker,
             ...(cache && pedidoCacheavel(pedido) ? { cacheChave: chave } : {}),
           });
         });
