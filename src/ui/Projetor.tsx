@@ -310,6 +310,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
       window.removeEventListener('wheel', aoRolarJanela, { capture: true });
       hospedeiro?.removeEventListener('pointerdown', aoApertar); hospedeiro?.removeEventListener('pointerdown', aoApertarDedo); window.removeEventListener('pointermove', aoMoverDedo); window.removeEventListener('pointermove', aoArrastar); window.removeEventListener('pointerup', aoSoltar); window.removeEventListener('pointercancel', aoSoltar);
       vpAtual = null; seguirMestreRemoto = () => {};
+      doc.value = null;
       seguindo.value = true;
       versaoRetratos.value = 0;
       cortina.value = { escurecer: false, ms: 0 };
