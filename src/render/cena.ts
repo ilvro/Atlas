@@ -611,6 +611,24 @@ export function criarCena(op: OpcoesDaCena): Cena {
     v.atualizar(aparente, m.grid.size, op.acento(), op.retrato?.(t.portrait?.id, noPixel) ?? null, animar && op.efeitos(), { folha, pixel }, rec, op.pecaDoJogador?.(t) === true);
   }
 
+  function atualizarLuzDasPecas(): void {
+    for (const [id, c] of pecas) {
+      const t = mapa?.tokens[id];
+      const v = visuais.get(c);
+      if (!t || !v) continue;
+      if (!atmosferaLigada || vistaDaCena === 'construir') {
+        v.definirLuzAmbiente([1, 1, 1], 1);
+        continue;
+      }
+      const pos: Ponto = [v.c.x || t.position[0], v.c.y || t.position[1]];
+      const rgb = luz.amostrarPonto(pos);
+      const piso = vistaDaCena === 'jogador' || modoDoProjetor
+        ? (t.player ? 0.12 : 0.02)
+        : 0.28;
+      v.definirLuzAmbiente(rgb, piso);
+    }
+  }
+
   function desenharRegiao(c: Container, r: Regiao): void {
     const cor = r.gmOnly ? 0xd9a23b : 0x5aa9e6;
     grafico(c).clear().poly(r.polygon.flat()).fill({ color: cor, alpha: 0.1 }).stroke({ width: 0.04, color: cor, alpha: 0.7 });
@@ -760,22 +778,24 @@ export function criarCena(op: OpcoesDaCena): Cena {
       { const vezDe = m.session.initiative?.order[m.session.initiative.current]?.tokenId; for (const [id, c] of pecas) visuais.get(c)?.definirVez(id === vezDe); }
       if (tudo || colecao('regions')) sincronizarSimples(regioes, regioesC, m.regions, tudo ? null : mud!.colecoes.regions ?? null, desenharRegiao, comPop);
       if (tudo || campos('backdrop', 'bounds', 'style', 'grid')) sincronizarTitulo(m);
+      atualizarLuzDasPecas();
       op.baker.coletar(chavesEmUso());
     },
     atualizarAtmosfera(visao) {
       const mud: Mudancas = { completo: false, colecoes: {}, campos: ['climate'] };
       tempo.atualizar(visao, objetos);
       luz.sincronizar(visao, mud); telhados.atualizarClima?.(visao); composicaoDeLuz.definirRelevo(visao.finish.relief ?? RELEVO_PADRAO); composicaoDeLuz.definirAO(visao.finish.ao ?? AO_PADRAO); composicaoDeLuz.definirGlow(visao.finish.glow); composicaoDeLuz.definirExposicao(visao.finish.exposure ?? EXPOSICAO_PADRAO); neblina.sincronizar(visao, mud); fumaca.sincronizar(visao, mud); bordas.sincronizar(visao, mud); particulas.sincronizar(visao, mud); halos.sincronizar(visao, mud);
+      atualizarLuzDasPecas();
     },
-    definirAtmosfera: ligada => { atmosferaLigada = ligada; sombras.definirLigado(ligada); contato.definirLigado(ligada); tempo.definirLigado(ligada, mapa, objetos); if (ligada && mapa) sombras.atualizar(mapa, objetos, pixelRes0(mapa)); luz.definirLigado(ligada); telhados.definirAtmosfera?.(ligada); atualizarComposicaoDeLuz(); neblina.definirLigado(ligada); fumaca.definirLigado(ligada); bordas.definirLigado(ligada); particulas.definirLigado(ligada); halos.definirLigado(ligada); },
+    definirAtmosfera: ligada => { atmosferaLigada = ligada; sombras.definirLigado(ligada); contato.definirLigado(ligada); tempo.definirLigado(ligada, mapa, objetos); if (ligada && mapa) sombras.atualizar(mapa, objetos, pixelRes0(mapa)); luz.definirLigado(ligada); telhados.definirAtmosfera?.(ligada); atualizarComposicaoDeLuz(); neblina.definirLigado(ligada); fumaca.definirLigado(ligada); bordas.definirLigado(ligada); particulas.definirLigado(ligada); halos.definirLigado(ligada); atualizarLuzDasPecas(); },
     relampagoAgora: () => luz.relampagoAgora(),
-    definirModoProjetor: ligado => { modoDoProjetor = ligado; marcasVisiveis(); luzesC.visible = !ligado; regioesC.visible = !ligado; if (mapa) { sincronizarObjetos(mapa, null, false); tempo.atualizar(mapa, objetos); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } },
+    definirModoProjetor: ligado => { modoDoProjetor = ligado; marcasVisiveis(); luzesC.visible = !ligado; regioesC.visible = !ligado; if (mapa) { sincronizarObjetos(mapa, null, false); tempo.atualizar(mapa, objetos); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } atualizarLuzDasPecas(); },
     definirEfeitosDeLuz: (luzes, ambiente) => luz.definirEfeitos(luzes, ambiente),
-    definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); if (v !== vistaDaCena) { vistaDaCena = v; if (mapa) { desenharParedes(mapa); sincronizarObjetos(mapa, null, false); tempo.atualizar(mapa, objetos); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } } marcasVisiveis(); },
+    definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); if (v !== vistaDaCena) { vistaDaCena = v; if (mapa) { desenharParedes(mapa); sincronizarObjetos(mapa, null, false); tempo.atualizar(mapa, objetos); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } } marcasVisiveis(); atualizarLuzDasPecas(); },
     forcarTelhados: alfa => telhados.forcar(alfa),
     definirTelhadosNoEditor: v => telhados.definirNoEditor(v),
     diagnosticoDosTelhados: () => telhados.diagnostico(),
-    redesenharPecas() { if (mapa) sincronizarSimples(pecas, pecasC, mapa.tokens, null, (c, t) => desenharPeca(c, t, mapa!, false), false); },
+    redesenharPecas() { if (mapa) { sincronizarSimples(pecas, pecasC, mapa.tokens, null, (c, t) => desenharPeca(c, t, mapa!, false), false); atualizarLuzDasPecas(); } },
     contagemDeParticulas: () => particulas.contagem(),
     contagemDePresencas: () => presenca.contagem(),
     contagemDePresencasSubmersas: () => presenca.contagemSubmersas(),
@@ -787,6 +807,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     quadro(agora) {
       luz.quadro(agora); nevoa.quadro(agora); telhados.quadro(agora);
       for (const c of pecas.values()) visuais.get(c)?.quadro(agora, op.efeitos());
+      atualizarLuzDasPecas();
       const dt = ultimoQuadro < 0 ? 0 : (agora - ultimoQuadro) / 1000; ultimoQuadro = agora; neblina.quadro(dt); fumaca.quadro(dt); bordas.quadro(dt); particulas.quadro(dt); presenca.quadro(dt); agua.quadro(dt); cachoeiras.quadro(dt); halos.quadro(agora, dt);
       let animouObjeto = false;
       for (let i = animacoes.length - 1; i >= 0; i--) {

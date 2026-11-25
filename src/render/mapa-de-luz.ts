@@ -2,7 +2,8 @@ import { Container, Geometry, GlProgram, Graphics, Mesh, RendererType, RenderTex
 import { DURACAO_DA_QUEDA, DURACAO_DA_VOLTA, LUZ_INTERIOR_PADRAO, curvaDoClarao, ehNoite, intervaloDoRelampago, luzesDerivadas, nivelDaLuz, piscarDaQueda, piscarDaVolta } from '../domain/clima.ts';
 import { pontoNoPoligono } from '../domain/formas-de-comodo.ts';
 import { comodoEm, indiceDeCelulas } from '../domain/geometria.ts';
-import type { Luz, MapaAtlas } from '../domain/mapa.ts';
+import { EXPOSICAO_PADRAO, type Luz, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
+import { aces } from './bloom.ts';
 import {
   IndiceDeSegmentos,
   oclusores,
@@ -97,6 +98,8 @@ export interface MapaDeLuz {
   poligono(id: string): readonly number[] | null;
   /** Todas as luzes ativas (do mapa e derivadas). */
   todasAsLuzes(): readonly Luz[];
+  /** Amostra a cor e intensidade da luz efetiva em um ponto do mapa (em `[0, 1]` pós-exposição). */
+  amostrarPonto(ponto: Ponto): [number, number, number];
   destruir(): void;
 }
 
@@ -129,6 +132,60 @@ interface LuzNaGPU {
 }
 
 const rgb01 = (hex: string): [number, number, number] => { const n = hexParaNumero(hex); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
+
+function pontoNoPoligonoPlano(ponto: Ponto, poligono: readonly number[]): boolean {
+  const [px, py] = ponto;
+  let dentro = false;
+  for (let i = 0, j = poligono.length - 2; i < poligono.length; j = i, i += 2) {
+    const xi = poligono[i]!, yi = poligono[i + 1]!;
+    const xj = poligono[j]!, yj = poligono[j + 1]!;
+    if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) dentro = !dentro;
+  }
+  return dentro;
+}
+
+const quedaRadial = (u: number): number => (u <= 0 ? 1 : u >= 1 ? 0 : (1 - u * u) ** 2);
+
+/**
+ * Calcula a iluminação efetiva `[r, g, b]` em `[0, 1]` num ponto do mapa, somando o ambiente
+ * (interno se em cômodo coberto, externo caso contrário) e a contribuição das luzes ativas
+ * cujos polígonos de visibilidade contêm o ponto, passando pela curva de tom ACES.
+ */
+export function calcularLuzNoPonto(
+  ponto: Ponto,
+  opcoes: {
+    ambiente: readonly [number, number, number];
+    ambienteInterior: readonly [number, number, number];
+    emInteriorCoberto: boolean;
+    exposicao?: number;
+    luzes: readonly { luz: Luz; intensidade: number; poligono: readonly number[] | null }[];
+  },
+): [number, number, number] {
+  const base = opcoes.emInteriorCoberto ? opcoes.ambienteInterior : opcoes.ambiente;
+  let r = Math.max(0, base[0]);
+  let g = Math.max(0, base[1]);
+  let b = Math.max(0, base[2]);
+  for (const item of opcoes.luzes) {
+    const k = item.intensidade;
+    if (k <= 0.01) continue;
+    const { luz, poligono } = item;
+    if (luz.radius <= 0) continue;
+    const dx = ponto[0] - luz.position[0];
+    const dy = ponto[1] - luz.position[1];
+    const dist = Math.hypot(dx, dy);
+    if (dist >= luz.radius) continue;
+    const noMesmoPonto = dist < 1e-4;
+    if (!noMesmoPonto && poligono && poligono.length >= 6 && !pontoNoPoligonoPlano(ponto, poligono)) continue;
+    const peso = k * quedaRadial(dist / luz.radius);
+    if (peso <= 0) continue;
+    const [cr, cg, cb] = rgb01(luz.color);
+    r += cr * peso;
+    g += cg * peso;
+    b += cb * peso;
+  }
+  const exp = opcoes.exposicao ?? EXPOSICAO_PADRAO;
+  return [aces(r * exp), aces(g * exp), aces(b * exp)];
+}
 
 const fragmentLuz = `in vec2 vUV;
 out vec4 finalColor;
@@ -615,6 +672,33 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
   const ambienteEfetivo: [number, number, number] = [1, 1, 1];
   const ambienteInteriorEfetivo: [number, number, number] = [1, 1, 1];
 
+  const obterAmbiente = (): readonly [number, number, number] => {
+    const brilho = claraoAtual * 0.35;
+    ambienteEfetivo[0] = ambiente[0] * efAmbiente + brilho;
+    ambienteEfetivo[1] = ambiente[1] * efAmbiente + brilho;
+    ambienteEfetivo[2] = ambiente[2] * efAmbiente + brilho;
+    return ambienteEfetivo;
+  };
+
+  const obterAmbienteInterior = (): readonly [number, number, number] => {
+    const brilho = claraoAtual * 0.35;
+    const fatorInterior = mapa?.climate.interiorLight ?? FATOR_DO_INTERIOR;
+    ambienteInteriorEfetivo[0] = ambiente[0] * efAmbiente * fatorInterior + brilho * 0.3;
+    ambienteInteriorEfetivo[1] = ambiente[1] * efAmbiente * fatorInterior + brilho * 0.3;
+    ambienteInteriorEfetivo[2] = ambiente[2] * efAmbiente * fatorInterior + brilho * 0.3;
+    return ambienteInteriorEfetivo;
+  };
+
+  const pontoEmComodoCoberto = (ponto: Ponto, m: MapaAtlas): boolean => {
+    const idCel = comodoEm(m, ponto, indiceComodos ?? undefined);
+    if (idCel && m.rooms[idCel]?.roof.material) return true;
+    for (const r of Object.values(m.rooms)) {
+      if (!r.roof.material) continue;
+      if (r.outline && r.outline.length >= 3 && pontoNoPoligono(ponto, r.outline)) return true;
+    }
+    return false;
+  };
+
   return {
     sprite,
     get direcao() { return !pixel && direcaoRT ? direcaoRT : Texture.EMPTY; },
@@ -622,19 +706,10 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     get luzExterna() { return !pixel && luzExternaRT ? luzExternaRT : Texture.EMPTY; },
     get escala() { return escalaAtiva; },
     get ambiente(): readonly [number, number, number] {
-      const brilho = claraoAtual * 0.35;
-      ambienteEfetivo[0] = ambiente[0] * efAmbiente + brilho;
-      ambienteEfetivo[1] = ambiente[1] * efAmbiente + brilho;
-      ambienteEfetivo[2] = ambiente[2] * efAmbiente + brilho;
-      return ambienteEfetivo;
+      return obterAmbiente();
     },
     get ambienteInterior(): readonly [number, number, number] {
-      const brilho = claraoAtual * 0.35;
-      const fatorInterior = mapa?.climate.interiorLight ?? FATOR_DO_INTERIOR;
-      ambienteInteriorEfetivo[0] = ambiente[0] * efAmbiente * fatorInterior + brilho * 0.3;
-      ambienteInteriorEfetivo[1] = ambiente[1] * efAmbiente * fatorInterior + brilho * 0.3;
-      ambienteInteriorEfetivo[2] = ambiente[2] * efAmbiente * fatorInterior + brilho * 0.3;
-      return ambienteInteriorEfetivo;
+      return obterAmbienteInterior();
     },
     get alcance() {
       let somaPeso = 0, somaRaio = 0;
@@ -731,6 +806,26 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     intensidade: (id: string) => { const g = luzes.get(id); return g ? Math.max(0, g.alfa) : 0; },
     poligono: (id: string) => { const g = luzes.get(id); return g?.poligono && g.poligono.length >= 6 ? g.poligono : null; },
     todasAsLuzes: () => todasLuzes,
+    amostrarPonto(ponto: Ponto): [number, number, number] {
+      if (!ligado || !mapa) return [1, 1, 1];
+      const lista: { luz: Luz; intensidade: number; poligono: readonly number[] | null }[] = [];
+      for (const g of luzes.values()) {
+        if (g.alfa > 0.01) {
+          lista.push({
+            luz: g.luz,
+            intensidade: g.alfa,
+            poligono: g.poligono.length >= 6 ? g.poligono : null,
+          });
+        }
+      }
+      return calcularLuzNoPonto(ponto, {
+        ambiente: obterAmbiente(),
+        ambienteInterior: obterAmbienteInterior(),
+        emInteriorCoberto: pontoEmComodoCoberto(ponto, mapa),
+        exposicao: mapa.finish.exposure ?? EXPOSICAO_PADRAO,
+        luzes: lista,
+      });
+    },
     destruir() {
       destruido = true;
       for (const g of luzes.values()) {

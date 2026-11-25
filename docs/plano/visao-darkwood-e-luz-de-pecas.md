@@ -79,7 +79,8 @@ Ordem: W1, W2 e W4 podem começar em paralelo; W3 depende de W2; W5 e W6 depende
 
 ---
 
-### W1 — Sombras e escuridão afetam o token do personagem  ⬜
+### W1 — Sombras e escuridão afetam o token do personagem  ✅
+Nota: `calcularLuzNoPonto` e `amostrarPonto` adicionados em `src/render/mapa-de-luz.ts` (somando ambiente externo/interno coberto e luzes ativas recortadas pelo polígono de visibilidade com queda radial `(1 - u²)²`, exceção para o próprio portador no vértice do cone e curva de tom `aces`); `definirLuzAmbiente` em `src/render/pecas.ts` tinge o corpo da peça (moeda, retrato imersivo, sprite e fundo circular/inicial) e modula a sombra de base sem escurecer anel, pips ou indicadores; `atualizarLuzDasPecas` em `src/render/cena.ts` aplica piso `0.28` na vista do mestre, `0.12` para peças de jogador e `0.02` para NPCs na vista de jogador/projetor. Testes em `tests/unit/luz-nas-pecas.test.ts`.
 Objetivo: quando uma peça vai para uma região escura ou sombreada, o corpo do token escurece e recebe a cor da luz local em vez de continuar 100% aceso.
 Depende de: —.
 Ler: `src/render/mapa-de-luz.ts` (`todasAsLuzes`, `poligono`, `intensidade`, `ambiente`, `ambienteInterior`, `ehLuzExterna`), `src/render/pecas.ts` (`criarPeca`, `atualizar`, `tingir`), `src/render/cena.ts` (`desenharPeca`, `quadro`).
