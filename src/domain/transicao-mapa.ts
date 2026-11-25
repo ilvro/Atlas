@@ -254,3 +254,97 @@ export function transicaoPertoDaPeca(
 
   return melhor ? melhor.item : null;
 }
+
+/** Monta o descritor `TransicaoDeMapa` apontando de volta para uma porta ou escada do mapa de origem `m`. */
+export function criarTransicaoDeRetorno(
+  m: MapaAtlas,
+  alvo: { colecao: 'openings' | 'props'; id: string },
+): TransicaoDeMapa | null {
+  if (alvo.colecao === 'openings') {
+    const a = m.openings[alvo.id];
+    if (!a || a.kind === 'window') return null;
+    const parede = m.walls[a.wallId];
+    if (!parede) return null;
+    const { ponto } = pontoNaParede(parede, centroDaAbertura(parede, a));
+    return {
+      toMapId: m.id,
+      toTargetId: a.id,
+      toLevel: andarDe(parede),
+      toPosition: [arredondar(ponto[0]), arredondar(ponto[1])],
+      label: m.name,
+    };
+  }
+  const o = m.props[alvo.id];
+  if (!o) return null;
+  return {
+    toMapId: m.id,
+    toTargetId: o.id,
+    toLevel: andarDe(o),
+    toPosition: [arredondar(o.position[0]), arredondar(o.position[1])],
+    label: m.name,
+  };
+}
+
+/** Verifica se a entrada `targetId` do mapa `destino` já aponta de volta para `origemMapId` / `origemItemId`. */
+export function jaTemVinculoDeVolta(
+  destino: MapaAtlas,
+  targetId: string,
+  origemMapId: string,
+  origemItemId: string,
+): boolean {
+  const abertura = destino.openings[targetId];
+  if (abertura) {
+    const t = transicaoDaAbertura(abertura);
+    return t?.toMapId === origemMapId && t?.toTargetId === origemItemId;
+  }
+  const prop = destino.props[targetId];
+  if (prop) {
+    const t = transicaoDoObjeto(prop);
+    return t?.toMapId === origemMapId && t?.toTargetId === origemItemId;
+  }
+  return false;
+}
+
+/**
+ * Grava em `targetId` (porta/arco em `destino.openings` ou escada/objeto em `destino.props`)
+ * o vínculo de transição `retorno`, devolvendo uma cópia atualizada de `destino` (ou `null` se o alvo não existir).
+ */
+export function aplicarVinculoDeVolta(
+  destino: MapaAtlas,
+  targetId: string,
+  retorno: TransicaoDeMapa,
+): MapaAtlas | null {
+  const abertura = destino.openings[targetId];
+  if (abertura && abertura.kind !== 'window') {
+    const copia = structuredClone(destino);
+    copia.openings[targetId]!.transition = {
+      toMapId: retorno.toMapId,
+      ...(retorno.toLevel !== undefined ? { toLevel: retorno.toLevel } : {}),
+      ...(retorno.toTargetId !== undefined ? { toTargetId: retorno.toTargetId } : {}),
+      ...(retorno.toPosition !== undefined ? { toPosition: [retorno.toPosition[0], retorno.toPosition[1]] } : {}),
+      ...(retorno.label !== undefined ? { label: retorno.label } : {}),
+    };
+    return copia;
+  }
+
+  const prop = destino.props[targetId];
+  if (prop) {
+    const copia = structuredClone(destino);
+    const anterior = copia.props[targetId]!.interaction;
+    copia.props[targetId]!.interaction = {
+      kind: 'stairs',
+      on: false,
+      targets: [],
+      sound: anterior?.sound ?? null,
+      clue: null,
+      toMapId: retorno.toMapId,
+      toTargetId: retorno.toTargetId ?? null,
+      toLevel: retorno.toLevel ?? null,
+      ...(retorno.toPosition ? { toPosition: [retorno.toPosition[0], retorno.toPosition[1]] } : {}),
+    };
+    return copia;
+  }
+
+  return null;
+}
+

@@ -6,13 +6,17 @@ import { ErroDeValidacao } from '../../src/domain/esquema.ts';
 import { recalcularParedes } from '../../src/domain/geometria.ts';
 import { novaPeca, novoObjeto } from '../../src/domain/fabrica.ts';
 import {
+  aplicarVinculoDeVolta,
+  criarTransicaoDeRetorno,
   entradasDeTransicao,
+  jaTemVinculoDeVolta,
   posicoesDeChegadaDasPecas,
   resolverChegada,
   transicaoDaAbertura,
   transicaoDoObjeto,
   transicaoPertoDaPeca,
 } from '../../src/domain/transicao-mapa.ts';
+import { aplicarComando } from '../../src/state/comandos.ts';
 
 const caminhoDoErro = (m: unknown): string | null => {
   try {
@@ -249,3 +253,59 @@ test('transicaoPertoDaPeca: encontra porta e escada vinculadas a até 1,5 m no m
   const pecaLonge = novaPeca([15, 15], 'Erin', { player: true });
   assert.equal(transicaoPertoDaPeca(m, pecaLonge), null);
 });
+
+test('comandos e vínculo de volta: abertura.atualizar grava transition e aplicarVinculoDeVolta cria vínculo recíproco em porta e escada', () => {
+  const mapaA = criarMapaComComodo();
+  const mapaB = criarMapaComComodo();
+  mapaB.id = 'mapa-taverna';
+  mapaB.name = 'Interior da Taverna';
+
+  // 1. Vincula porta1 do Mapa A à porta1 do Mapa B via comando abertura.atualizar
+  const mapaAVinculado = aplicarComando(mapaA, {
+    tipo: 'abertura.atualizar',
+    id: 'porta1',
+    patch: {
+      transition: {
+        toMapId: mapaB.id,
+        toTargetId: 'porta1',
+        toLevel: null,
+        toPosition: [6, 3],
+        label: mapaB.name,
+      },
+    },
+  });
+  assert.equal(mapaAVinculado.openings.porta1?.transition?.toMapId, 'mapa-taverna');
+  assert.equal(mapaAVinculado.openings.porta1?.transition?.toTargetId, 'porta1');
+
+  // 2. Gera transição de retorno de porta1 do Mapa A e aplica na porta1 do Mapa B
+  const retornoPorta = criarTransicaoDeRetorno(mapaAVinculado, { colecao: 'openings', id: 'porta1' });
+  assert.ok(retornoPorta);
+  assert.equal(retornoPorta.toMapId, 'mapa-1');
+  assert.equal(retornoPorta.toTargetId, 'porta1');
+  assert.deepEqual(retornoPorta.toPosition, [6, 3]);
+
+  assert.equal(jaTemVinculoDeVolta(mapaB, 'porta1', 'mapa-1', 'porta1'), false);
+  const mapaBComVoltaPorta = aplicarVinculoDeVolta(mapaB, 'porta1', retornoPorta);
+  assert.ok(mapaBComVoltaPorta);
+  assert.equal(caminhoDoErro(mapaBComVoltaPorta), null);
+  assert.equal(jaTemVinculoDeVolta(mapaBComVoltaPorta, 'porta1', 'mapa-1', 'porta1'), true);
+  assert.equal(mapaBComVoltaPorta.openings.porta1?.transition?.toMapId, 'mapa-1');
+  assert.equal(mapaBComVoltaPorta.openings.porta1?.transition?.toTargetId, 'porta1');
+
+  // 3. Vínculo de volta em escada (props) no Mapa B
+  const retornoEscada = criarTransicaoDeRetorno(mapaAVinculado, { colecao: 'props', id: 'escada1' });
+  assert.ok(retornoEscada);
+  assert.equal(jaTemVinculoDeVolta(mapaB, 'escada1', 'mapa-1', 'escada1'), false);
+
+  const mapaBComVoltaEscada = aplicarVinculoDeVolta(mapaB, 'escada1', retornoEscada);
+  assert.ok(mapaBComVoltaEscada);
+  assert.equal(caminhoDoErro(mapaBComVoltaEscada), null);
+  assert.equal(jaTemVinculoDeVolta(mapaBComVoltaEscada, 'escada1', 'mapa-1', 'escada1'), true);
+  assert.equal(mapaBComVoltaEscada.props.escada1?.interaction?.kind, 'stairs');
+  assert.equal(mapaBComVoltaEscada.props.escada1?.interaction?.toMapId, 'mapa-1');
+  assert.equal(mapaBComVoltaEscada.props.escada1?.interaction?.toTargetId, 'escada1');
+
+  // 4. Alvo inexistente devolve null
+  assert.equal(aplicarVinculoDeVolta(mapaB, 'inexistente', retornoPorta), null);
+});
+

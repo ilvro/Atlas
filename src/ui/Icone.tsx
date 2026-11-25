@@ -50,6 +50,7 @@ const CAMINHOS: Record<string, string> = {
   nota: 'M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z',
   tremor: 'M2 12l3-6 4 12 4-12 4 12 3-6',
   escada: 'M4 20h5v-4h5v-4h6M4 12l7-7M11 5h5v5',
+  mapa: 'M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15M15 6v15',
 };
 
 export function Icone({ nome, tamanho = 18 }: { nome: string; tamanho?: number }) {

@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'preact/hooks';
 import { useSignal } from '@preact/signals';
 import { chaveDaRef, formatarRef, lerRef, type Entidade, type Ref } from '#mesa';
 import { campanhaAtiva, campanhas, criarCampanha, escolherCampanha, refDoComodo } from '../app/campanha.ts';
-import { servicos } from '../app/app.ts';
+import { resumos, servicos } from '../app/app.ts';
+import { BlocoTransicaoDeMapa, objetoParaVincularMapa } from './BlocoTransicaoDeMapa.tsx';
 import { avisar } from '../app/toasts.ts';
 import { NOMES_COLECAO, desfazer, duplicarSelecao, refazer, removerSelecao, sessao } from '../app/app.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
@@ -469,7 +470,7 @@ function InteracaoDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
   };
 
   return (<>
-    {(receitaEscada || i?.kind === 'stairs') && multi && (
+    {(receitaEscada || i?.kind === 'stairs') && multi && !i?.toMapId && (
       <div class="escada-entre-andares" data-testid="escada-destino-bloco">
         <CampoOpcoes
           rotulo="Leva a"
@@ -495,19 +496,40 @@ function InteracaoDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
         )}
       </div>
     )}
+    {(receitaEscada || i?.kind === 'stairs' || objetoParaVincularMapa.value === o.id) && (
+      <BlocoTransicaoDeMapa s={s} alvo={{ colecao: 'props', id: o.id }} />
+    )}
     <CampoOpcoes rotulo="Interação" dica="O que o mestre aciona na sessão, clicando no objeto ou com Enter ao lado de uma peça." valor={i?.kind ?? ''}
-      opcoes={[['', 'Nenhuma'], ['switch', 'Interruptor'], ['drawer', 'Gaveta'], ['clue', 'Pista do Ateliê'], ['note', 'Nota / Descrição'], ...(multi ? [['stairs', 'Escada entre andares'] as const] : [])]}
-      aoMudar={v => editar(v ? {
-        kind: v as 'switch' | 'drawer' | 'clue' | 'note' | 'stairs',
-        on: (v === 'clue' || v === 'note' || v === 'stairs') ? false : i?.on ?? true,
-        targets: [],
-        sound: i?.sound ?? null,
-        clue: v === 'clue' ? i?.clue ?? null : null,
-        note: v === 'note' ? i?.note ?? '' : undefined,
-        noteTitle: v === 'note' ? i?.noteTitle ?? '' : undefined,
-        gmOnly: v === 'note' ? i?.gmOnly ?? false : undefined,
-        ...(v === 'stairs' ? { toLevel: padraoDestino ?? null } : {}),
-      } : null, 'Interação do objeto')} />
+      opcoes={[['', 'Nenhuma'], ['switch', 'Interruptor'], ['drawer', 'Gaveta'], ['clue', 'Pista do Ateliê'], ['note', 'Nota / Descrição'], ['stairs', 'Escada entre andares']]}
+      aoMudar={v => {
+        if (v === 'stairs' && !multi) {
+          const outroMapaId = resumos.value.find(r => r.id !== m.id && !r.erro)?.id ?? null;
+          if (!outroMapaId) {
+            objetoParaVincularMapa.value = o.id;
+            return true;
+          }
+          return editar({
+            kind: 'stairs',
+            on: false,
+            targets: [],
+            sound: i?.sound ?? null,
+            clue: null,
+            toMapId: outroMapaId,
+            toLevel: null,
+          }, 'Interação do objeto');
+        }
+        return editar(v ? {
+          kind: v as 'switch' | 'drawer' | 'clue' | 'note' | 'stairs',
+          on: (v === 'clue' || v === 'note' || v === 'stairs') ? false : i?.on ?? true,
+          targets: [],
+          sound: i?.sound ?? null,
+          clue: v === 'clue' ? i?.clue ?? null : null,
+          note: v === 'note' ? i?.note ?? '' : undefined,
+          noteTitle: v === 'note' ? i?.noteTitle ?? '' : undefined,
+          gmOnly: v === 'note' ? i?.gmOnly ?? false : undefined,
+          ...(v === 'stairs' ? { toLevel: padraoDestino ?? null } : {}),
+        } : null, 'Interação do objeto');
+      }} />
     {(i?.kind === 'switch' || i?.kind === 'drawer') && <EscolherCena s={s} tipo="efeito" id="som-do-objeto" rotulo="Som" dica="Um efeito do Jukebox toca ao usar. Sem escolha (ou com o Jukebox fechado), vale o som do Atlas." valor={i.sound} aoEscolher={ref => editar({ ...i, sound: ref }, 'Som do objeto')} />}
     {i?.kind === 'clue' && <PistaDoObjeto i={i} aoEscolher={ref => editar({ ...i, clue: ref }, 'Pista do objeto')} />}
     {i?.kind === 'note' && (<>
@@ -954,12 +976,14 @@ function CamposDaParede({ s, w }: { s: SessaoDeEdicao; w: Parede }) {
 function CamposDaAbertura({ s, o }: { s: SessaoDeEdicao; o: Abertura }) {
   const editar = (patch: Extract<Comando, { tipo: 'abertura.atualizar' }>['patch'], rotulo?: string) => tentar(() => s.store.executar({ tipo: 'abertura.atualizar', id: o.id, patch }, rotulo ? { rotulo } : {}));
   const porta = o.kind === 'door' || o.kind === 'secret';
+  const passagem = o.kind === 'door' || o.kind === 'arch' || o.kind === 'secret';
   return (<>
     <CampoOpcoes rotulo="Tipo" valor={o.kind} opcoes={[['door', 'Porta'], ['window', 'Janela'], ['arch', 'Arco'], ['secret', 'Porta secreta']]} aoMudar={v => editar({ kind: v }, 'Tipo da abertura')} />
     {porta && <CampoOpcoes rotulo="Estado" valor={o.state} opcoes={[['closed', 'Fechada'], ['open', 'Aberta'], ['locked', 'Trancada']]} aoMudar={v => editar({ state: v }, 'Estado da porta')} />}
     {o.kind === 'door' && <CampoOpcoes rotulo="Abre para" valor={o.swing} opcoes={[['a', 'Um lado'], ['b', 'O outro lado']]} aoMudar={v => editar({ swing: v }, 'Lado da porta')} />}
     <CampoNumero rotulo="Largura" unidade="m" valor={o.width} min={0.4} max={6} passo={0.1} aoConfirmar={v => editar({ width: v }, 'Largura da abertura')} />
     {porta && <EscolherCena s={s} tipo="efeito" id="som-da-porta" rotulo="Som da porta" dica="Um efeito do Jukebox toca ao abrir e ao fechar. Sem escolha (ou com o Jukebox fechado), vale o som do Atlas." valor={o.som} aoEscolher={ref => editar({ som: ref }, 'Som da porta')} />}
+    {passagem && <BlocoTransicaoDeMapa s={s} alvo={{ colecao: 'openings', id: o.id }} />}
   </>);
 }
 
