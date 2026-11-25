@@ -464,7 +464,7 @@ Pronto quando: dois jogadores entram, escolhem personagem e se veem; o mestre ab
 Commit: `lobby for the online table`
 Nota: o Opus revisa o visual do saguão.
 
-### R13 — Fichas da sala no Dossiê do mestre  ⬜
+### R13 — Fichas da sala no Dossiê do mestre  ✅
 Objetivo: o mestre vê, edita e entrega as fichas da sala pelo Dossiê dele.
 Depende de: R11 e R5.
 Ler: `armazenamento.js`, as pastas do Dossiê (`src/workspace/folders.js`) e o `online.ts` da Mesa.
@@ -480,6 +480,18 @@ Não fazer: fusão campo a campo.
 Testes: a combinação de local com sala no armazenamento; a entrega com uma ponte falsa.
 Pronto quando: o mestre muda o PV de um jogador e o card do jogador atualiza; uma ficha criada pelo jogador na sala aparece no Atlas do mestre para virar peça.
 Commit: `fichas da sala no dossiê do mestre`
+Nota: feita (Atlas `d03dd00`, Jukebox `3bd7e07`, Ateliê `d938937`, Mesa `fd9b77c`, Dossiê `017027f`).
+- Contrato novo no `mesa-core`: o fato `sala.ficha-removida { id }`, o fato `sala.conexao { conectada, nome? }` e o pedido `sala.entregar-ficha { fichaId, dono }`, que só o mestre faz. As 4 cópias `vendor/` foram sincronizadas.
+- A sala carimba `autor` na `ficha.atualizada`, e o campo passou a ser obrigatório; a casca apagou a dedução. `ficha.removida` vai só para quem perdeu a ficha, que também perde o personagem escolhido.
+- Dossiê: `armazenamentoCombinado` separa por id o que vai ao local e o que vai à sala. A pasta virtual "Sala: <nome>" mostra "Dono: …" sob o nome. "Entregar a um jogador…" está no menu da ficha. O `mesa.js` publica as fichas da sala como `personagem`, e os ids ficam lembrados em `mesa:ficha-da-sala` para não sumirem quando a sala cai. O aviso de conflito é uma segunda barra abaixo de "alterações não salvas" e só aparece quando o mestre tem rascunho.
+- Corrigido além da ficha: no modo jogador, a ficha vinda de fora era reenviada normalizada sem o jogador mexer, o que subia o `rev` e geraria conflito falso. Agora é marcada como enviada.
+- Limites:
+  - Entregar lista só os jogadores conectados e os donos de fichas já vistos.
+  - Ficha da sala não se apaga, não muda de pasta nem se clona dentro da pasta virtual (a sala não tem mensagem para remover).
+  - Ameaças não entram em "Entregar".
+  - Se o mestre e o jogador gravarem dentro dos mesmos 800 ms, a versão do mestre vence sem aviso.
+  - O vínculo peça-ficha foi conferido no IndexedDB, não no Atlas.
+- Revisão visual do Opus: as barras de "alterações não salvas" e de conflito ficam por cima das abas Frente/Verso (a primeira já era assim antes). Não bloqueia.
 
 ## Bloco 5 — A peça própria
 
@@ -722,7 +734,7 @@ Commit: `server-side dice rolls`
 | 1. Sala | R1 → R2 → R3 → R4 | Sonnet | R0 só para publicar |
 | 2. O mestre publica | R5 → R5b → R6 | Sonnet | R4; a R5b bloqueia a R7 |
 | 3. O jogador vê | R7 → R8, R9 | Sonnet | R6 |
-| 4. Fichas e saguão | R10 ✅, R11 ✅ → R12 ✅ → R12b, R13 | Sonnet (o Opus revisa a R12 e a R12b) | R7 para a R11 |
+| 4. Fichas e saguão | R10 ✅, R11 ✅ → R12 ✅ → R12b, R13 ✅ | Sonnet (o Opus revisa a R12 e a R12b) | R7 para a R11 |
 | 5. Peça própria e ping | R14 → R15 → R15b → R15c | Sonnet; R15c pelo Opus | R11 |
 | 6. Discord | R16 ✅, R17 → R18, R19 | Sonnet; R19 com o usuário | blocos 3 a 5 |
 | 7. Som | R21a ✅ → R21b → R22 → R23 | Sonnet | R3 para a R21b; R5, R6 e R12b para as outras |
