@@ -2073,6 +2073,7 @@ body.projetor { overflow: hidden; background: #000; }
 .personagens .link-discreto:hover { color: var(--acento, var(--texto)); }
 .personagem { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border: 1px solid var(--linha); border-radius: 8px; background: rgba(255, 255, 255, 0.03); cursor: grab; }
 .personagem-nome { font: 700 12px var(--corpo); flex: 1; }
+.personagem-dono { font: 600 11px var(--corpo); color: var(--acento, var(--apagado)); }
 .personagem-recursos { font: 600 11px var(--corpo); color: var(--apagado); }
 
 /* O resultado de uma rolagem da Ficha, flutuando sobre a peça (no mapa e no projetor). */
