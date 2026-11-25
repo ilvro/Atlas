@@ -119,7 +119,7 @@ Commit: (feature) add PixiJS 8 board viewport, grid, and mipmap image cache
 
 ---
 
-### QW6 — Renderização GPU de molduras, formas, traços e setas (incluindo curvas QW2)  ⬜
+### QW6 — Renderização GPU de molduras, formas, traços e setas (incluindo curvas QW2)  ✅
 Objetivo: desenhar na cena PixiJS todos os itens vetoriais e de imagem (molduras, formas, caixas de texto, cartões, traços à mão livre e setas com curvas editáveis).
 Depende de: QW2, QW5
 Ler: `Mesa/src/dominio/formas.ts`, `Mesa/src/dominio/tracos.ts`, `Mesa/src/dominio/setas.ts`, `Mesa/src/dominio/paleta.ts`, `Mesa/src/ui/quadro/ItemForma.tsx`, `Mesa/src/ui/quadro/ItemSeta.tsx`, `Mesa/src/ui/quadro/ItemMoldura.tsx`.
