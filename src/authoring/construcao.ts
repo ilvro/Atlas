@@ -27,6 +27,7 @@ import {
   type Parede,
   type Ponto,
   type Regiao,
+  type TransicaoDeMapa,
 } from '../domain/mapa.ts';
 import { ESTADOS_DE_TELHADO, ESTILOS_DE_TELHADO, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, estadoDeTelhado, estiloDeTelhado, presetDeLuz, telhadoPadrao, tipoDeComodo } from '../domain/presets.ts';
 import { aplicarComando, type Comando } from '../state/comandos.ts';
@@ -305,7 +306,7 @@ export function paredes(mapa: MapaAtlas, pedidos: readonly PedidoDeParede[], _se
 }
 
 // ---------- Portas ----------
-export interface PedidoDePorta { perto: Ponto; tipo?: Abertura['kind']; estado?: Abertura['state']; largura?: number; andar?: string | null }
+export interface PedidoDePorta { perto: Ponto; tipo?: Abertura['kind']; estado?: Abertura['state']; largura?: number; andar?: string | null; transicao?: TransicaoDeMapa }
 const TIPOS_DE_ABERTURA: readonly Abertura['kind'][] = ['door', 'window', 'arch', 'secret'];
 const ESTADOS_DE_ABERTURA: readonly Abertura['state'][] = ['closed', 'open', 'locked'];
 
@@ -322,7 +323,18 @@ export function portas(mapa: MapaAtlas, pedidos: readonly PedidoDePorta[], _seme
     if (!ESTADOS_DE_ABERTURA.includes(estado)) throw new ErroDeConstrucao(`estado “${estado}” não existe; estados: ${lista(ESTADOS_DE_ABERTURA)}`);
     const e = encaixarNaParede(atual, p.perto, largura, 0.75, undefined, p.andar);
     if (!e) throw new ErroDeConstrucao(`não há parede perto de [${p.perto[0]}, ${p.perto[1]}] para a abertura; crie o cômodo ou a parede antes e aponte para a parede (até ~0,75 m)`);
-    const abertura: Abertura = { id: gerarId('a'), wallId: e.parede.id, at: e.at, width: largura, kind: tipo, state: estado, material: 'madeira.media', som: null, swing: 'a' };
+    const abertura: Abertura = {
+      id: gerarId('a'),
+      wallId: e.parede.id,
+      at: e.at,
+      width: largura,
+      kind: tipo,
+      state: estado,
+      material: 'madeira.media',
+      som: null,
+      swing: 'a',
+      ...(p.transicao ? { transition: p.transicao } : {}),
+    };
     const motivo = motivoDeNaoCaber(atual, abertura);
     if (motivo) throw new ErroDeConstrucao(motivo);
     const comando: Comando = { tipo: 'abertura.adicionar', abertura };
@@ -333,7 +345,7 @@ export function portas(mapa: MapaAtlas, pedidos: readonly PedidoDePorta[], _seme
 }
 
 // ---------- Objetos ----------
-export interface PedidoDeObjeto { item: string; pos: Ponto; rotacao?: number; escala?: number; params?: Record<string, unknown>; camada?: Objeto['elevation']; submerso?: boolean; oculto?: boolean; andar?: string | null; escada?: { leva: string | null; posicao?: Ponto } }
+export interface PedidoDeObjeto { item: string; pos: Ponto; rotacao?: number; escala?: number; params?: Record<string, unknown>; camada?: Objeto['elevation']; submerso?: boolean; oculto?: boolean; andar?: string | null; escada?: { leva?: string | null; mapa?: string; entrada?: string; posicao?: Ponto } }
 const CAMADAS: readonly Objeto['elevation'][] = ['floor', 'table', 'wall', 'ceiling', 'underwater'];
 
 function itemInvalido(item: string): ErroDeConstrucao {
@@ -360,7 +372,9 @@ export function objetos(mapa: MapaAtlas, pedidos: readonly PedidoDeObjeto[], sem
         targets: [],
         sound: null,
         clue: null,
-        toLevel: p.escada.leva,
+        toLevel: p.escada.leva ?? null,
+        ...(p.escada.mapa ? { toMapId: p.escada.mapa } : {}),
+        ...(p.escada.entrada ? { toTargetId: p.escada.entrada } : {}),
         ...(p.escada.posicao ? { toPosition: [p.escada.posicao[0], p.escada.posicao[1]] as Ponto } : {}),
       },
     } : {};

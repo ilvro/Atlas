@@ -4,7 +4,9 @@ import { area, decodificar, limites } from '../domain/celulas.ts';
 import { edificiosDe, type Edificio } from '../domain/edificios.ts';
 import { EVENTOS_DE_CENA } from '../domain/eventos-de-cena.ts';
 import { detectarCirculo } from '../domain/formas-de-comodo.ts';
-import { CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, FORMAS_DE_TELHADO, colunas, linhas, type Comodo, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
+import { CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, FORMAS_DE_TELHADO, colunas, linhas, type Comodo, type MapaAtlas, type Ponto, type TransicaoDeMapa } from '../domain/mapa.ts';
+import { centroDaAbertura, pontoNaParede } from '../domain/geometria.ts';
+import { transicaoDaAbertura, transicaoDoObjeto } from '../domain/transicao-mapa.ts';
 import { descreverPasso } from '../domain/momentos.ts';
 import { ESTADOS_DE_TELHADO, ESTILOS_DE_TELHADO, FUNCOES_AO_AR_LIVRE, GENEROS, PACOTES_DE_PRESENCA, PINCEIS_DE_PRESENCA, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO } from '../domain/presets.ts';
 import { formaDe, retangulosDe } from '../domain/telhado-geometria.ts';
@@ -192,7 +194,28 @@ export function resumirMapa(m: MapaAtlas, opcoes?: { comodos?: readonly string[]
     };
   });
   const escarpasDerivadas = Object.values(m.walls).filter(w => w.source && 'reliefStep' in w.source).length;
-  const grupos = new Map<string, { fonte: string; andar: string | null; quantidade: number; ids: string[]; posicoes: Ponto[] }>();
+  const resumirTransicao = (tr: TransicaoDeMapa) => ({
+    mapa: tr.toMapId,
+    ...(tr.toTargetId ? { entrada: tr.toTargetId } : {}),
+    ...(tr.toLevel !== undefined ? { andar: tr.toLevel } : {}),
+    ...(tr.toPosition ? { posicao: pt(tr.toPosition) } : {}),
+  });
+  const grupos = new Map<string, { fonte: string; andar: string | null; quantidade: number; ids: string[]; posicoes: Ponto[]; transicao?: ReturnType<typeof resumirTransicao> }>();
+  const transicoes: Record<string, unknown>[] = [];
+  for (const a of Object.values(m.openings)) {
+    const tr = transicaoDaAbertura(a);
+    if (!tr) continue;
+    const parede = m.walls[a.wallId];
+    const pos = parede ? pt(pontoNaParede(parede, centroDaAbertura(parede, a)).ponto) : null;
+    transicoes.push({
+      id: a.id,
+      colecao: 'openings',
+      tipo: a.kind,
+      andar: parede ? andarDe(parede) : null,
+      ...(pos ? { posicao: pos } : {}),
+      transicao: resumirTransicao(tr),
+    });
+  }
   for (const o of Object.values(m.props)) {
     const fonte = o.source.kind === 'recipe' ? o.source.recipe : `asset:${o.source.assetId}`;
     const nivel = andarDe(o);
@@ -200,9 +223,30 @@ export function resumirMapa(m: MapaAtlas, opcoes?: { comodos?: readonly string[]
     const g = grupos.get(chave) ?? { fonte, andar: nivel, quantidade: 0, ids: [], posicoes: [] };
     g.quantidade++;
     if (g.posicoes.length < MAX_POSICOES) { g.posicoes.push(pt(o.position)); g.ids.push(o.id); }
+    const tr = transicaoDoObjeto(o);
+    if (tr) {
+      const resumoTr = resumirTransicao(tr);
+      g.transicao = resumoTr;
+      transicoes.push({
+        id: o.id,
+        colecao: 'props',
+        tipo: fonte,
+        andar: nivel,
+        posicao: pt(o.position),
+        transicao: resumoTr,
+      });
+    }
     grupos.set(chave, g);
   }
-  const objetos = [...grupos.values()].map(g => ({ fonte: g.fonte, andar: g.andar, quantidade: g.quantidade, posicoes: g.posicoes, ids: g.ids, ...(g.quantidade > g.posicoes.length ? { maisPosicoes: g.quantidade - g.posicoes.length } : {}) }));
+  const objetos = [...grupos.values()].map(g => ({
+    fonte: g.fonte,
+    andar: g.andar,
+    quantidade: g.quantidade,
+    posicoes: g.posicoes,
+    ids: g.ids,
+    ...(g.transicao ? { transicao: g.transicao } : {}),
+    ...(g.quantidade > g.posicoes.length ? { maisPosicoes: g.quantidade - g.posicoes.length } : {}),
+  }));
   const luzes = Object.values(m.lights).map(l => ({ id: l.id, andar: andarDe(l), posicao: pt(l.position), raio: r1(l.radius), cor: l.color, preset: l.preset, ligada: l.on, energia: l.power }));
   const regioes = Object.values(m.regions).map(g => {
     const xs = g.polygon.map(p => p[0]), ys = g.polygon.map(p => p[1]);
@@ -218,6 +262,7 @@ export function resumirMapa(m: MapaAtlas, opcoes?: { comodos?: readonly string[]
     relevo, escarpasDerivadas,
     resumo, edificios, comodos,
     paredes: Object.keys(m.walls).length, aberturas: Object.values(m.openings).reduce<Record<string, number>>((a, o) => { a[o.kind] = (a[o.kind] ?? 0) + 1; return a; }, {}),
+    ...(transicoes.length ? { transicoes } : {}),
     objetos, luzes, regioes,
     presenca: Object.values(m.presence).map(p => ({ id: p.id, pincel: p.brush, celulas: area(p.cells) })),
     pecas: Object.values(m.tokens).map(p => ({ id: p.id, nome: p.name, jogador: p.player, andar: andarDe(p), posicao: pt(p.position) })),

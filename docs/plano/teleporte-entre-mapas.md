@@ -111,7 +111,7 @@ Nota: Adicionado selo visual turquesa (`0x38bdf8`) com seta `↗` em `desenharMa
 
 ---
 
-### T4 — Ponte MCP: vincular sub-mapas pelo assistente  ⬜
+### T4 — Ponte MCP: vincular sub-mapas pelo assistente  ✅
 Objetivo: o assistente pode vincular portas e escadas entre mapas da campanha via ferramentas MCP.
 Depende de: T1, T2.
 Ler: `src/app/ponte-escrita.ts` (`atlas_portas`, `atlas_objetos`), `src/app/ponte-leitura.ts` (`resumirMapa`), `scripts/ponte/catalogo-base.json`.
@@ -124,3 +124,4 @@ Como:
 Testes: criar porta e escada com `transicao`/`mapa` pela ponte e verificar no resumo do mapa.
 Pronto quando: `npm run typecheck` e `npm test` passam e o catálogo está atualizado.
 Commit: `(feature) expose cross-map door and stair transitions in mcp bridge`
+Nota: `atlas_portas` (`transicao: { mapa, entrada, andar, posicao }`) e `atlas_objetos` (`escada: { leva, mapa, entrada, posicao }`) estendidos em `src/app/ponte-escrita.ts` e `src/authoring/construcao.ts`; `resumirMapa` (`src/app/ponte-leitura.ts`) expõe `transicoes` nas aberturas/escadas e `transicao` nos grupos de objetos; `scripts/ponte/catalogo-base.json` atualizado dentro do orçamento de 31 KB e testado em `tests/unit/ponte-escrita.test.ts`.
