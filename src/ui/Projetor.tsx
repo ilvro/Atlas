@@ -236,7 +236,12 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
       fichasDoJogador = d.fichas.filter((x): x is string => typeof x === 'string');
       vp?.redesenharPecas();
     };
-    if (remoto) window.addEventListener('message', aoMensagem);
+    if (remoto) {
+      window.addEventListener('message', aoMensagem);
+      if (window.parent !== window) {
+        try { window.parent.postMessage({ tipo: 'projetor.pronto' }, location.origin); } catch { /* ignora */ }
+      }
+    }
 
     // Enquanto o mestre não responde, pergunta de novo (ele pode abrir o mapa depois).
     const insistir = setInterval(() => { if (!doc.value) ola(); }, 1500);
