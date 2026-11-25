@@ -121,4 +121,72 @@ describe('atenderMoverPeca (R15)', () => {
     );
     assert.equal(resSem.ok, false);
   });
+
+  it('recusa atravessar parede ou porta fechada e aceita porta aberta', () => {
+    const m = criarMapa({ id: 'mapa-1', nome: 'Taverna' });
+    m.grid.snap = true;
+    m.grid.size = 1.5;
+    m.grid.offset = [0, 0];
+    m.tokens.t1 = {
+      id: 't1',
+      name: 'Lia',
+      player: true,
+      position: [0.75, 0.75],
+      size: 1,
+      facing: 'down',
+      portrait: null,
+      sprite: null,
+      vision: { radius: 6, dark: false },
+      lightId: null,
+      figure: { state: 'normal' },
+      refs: [{ app: 'ficha', tipo: 'ficha', id: 'ficha-lia' }],
+    };
+    m.walls.w1 = {
+      id: 'w1',
+      path: [[1.5, 0], [1.5, 3]],
+      height: 2.6,
+      thickness: 0.2,
+      material: 'parede.topo',
+      kind: 'wall',
+      blocks: { move: true, sight: true, light: true },
+      drop: null,
+      source: null,
+    };
+    m.openings.p1 = {
+      id: 'p1',
+      wallId: 'w1',
+      at: 0.25,
+      width: 0.9,
+      kind: 'door',
+      state: 'closed',
+      material: 'madeira.media',
+      som: null,
+      swing: 'a',
+    };
+    const store = criarStore(m, { salvo: true });
+
+    const bloqueadoParede = atenderMoverPeca(
+      { store: () => store },
+      { mapa: 'mapa-1', peca: 't1', position: [2.25, 2.25] },
+      autorLia,
+    );
+    assert.equal(bloqueadoParede.ok, false);
+    assert.deepEqual(store.documento.tokens.t1!.position, [0.75, 0.75]);
+
+    const bloqueadoPorta = atenderMoverPeca(
+      { store: () => store },
+      { mapa: 'mapa-1', peca: 't1', position: [2.25, 0.75] },
+      autorLia,
+    );
+    assert.equal(bloqueadoPorta.ok, false);
+
+    store.executar({ tipo: 'abertura.atualizar', id: 'p1', patch: { state: 'open' } });
+    const liberado = atenderMoverPeca(
+      { store: () => store },
+      { mapa: 'mapa-1', peca: 't1', position: [2.25, 0.75] },
+      autorLia,
+    );
+    assert.deepEqual(liberado, { ok: true });
+    assert.deepEqual(store.documento.tokens.t1!.position, [2.25, 0.75]);
+  });
 });
