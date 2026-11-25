@@ -78,7 +78,7 @@ Commit: (feature) add draggable curve handle and extended arrow thickness contro
 
 ---
 
-### QW4 — Dependência PixiJS 8 no Mesa e índice espacial O(log N) / O(1)  ⬜
+### QW4 — Dependência PixiJS 8 no Mesa e índice espacial O(log N) / O(1)  ✅
 Objetivo: instalar `pixi.js` 8.22.0 no projeto `Mesa` e criar um índice espacial puro para consultas de viewport e hit-test em quadros com 10.000+ itens.
 Depende de: —
 Ler: `Mesa/package.json`, `Mesa/src/dominio/camera.ts` (`itensVisiveis`, `caixaEnvolventeDeItem`), `Mesa/src/dominio/quadro-operacoes.ts` (`itemNoPonto`), `Atlas/package.json`.
@@ -97,7 +97,7 @@ Commit: (performance) add spatial index for large boards and pixi.js dependency
 
 ---
 
-### QW5 — Motor `ViewportQuadro` em PixiJS 8: câmera, fundo, grade e imagens com mipmaps  ⬜
+### QW5 — Motor `ViewportQuadro` em PixiJS 8: câmera, fundo, grade e imagens com mipmaps  ✅
 Objetivo: criar a fundação do renderizador WebGL/Canvas do quadro em PixiJS 8 com fundo, grade e pipeline de imagens em duas resoluções (miniatura + completa).
 Depende de: QW4
 Ler: `Mesa/src/ui/quadro/Quadro.tsx`, `Mesa/src/ui/quadro/quadro-helpers.ts` (`estiloGrade`), `Mesa/src/app/imagens-quadro.ts`, `Mesa/src/app/banco-quadros.ts`, `Atlas/src/render/viewport.ts` (referência de ciclo de vida PixiJS 8).
