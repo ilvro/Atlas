@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { acaoEscadaParaPeca, andarDe, andaresDosJogadores, ehMultiandar, interacaoDeEscadaPadrao, listaDeAndares, mapaDoAndar, temEscadaDeChegada } from '../../src/domain/andares.ts';
+import { acaoEscadaParaPeca, andarDe, andarDoDocumento, andaresDosJogadores, ehMultiandar, interacaoDeEscadaPadrao, listaDeAndares, mapaDoAndar, temEscadaDeChegada } from '../../src/domain/andares.ts';
 import { codificar } from '../../src/domain/celulas.ts';
 import { ACERVO } from '../../src/procedural/acervo.ts';
 import { novaLuz, novoObjeto, novaPeca } from '../../src/domain/fabrica.ts';
@@ -9,6 +9,7 @@ import { gerarLayout } from '../../src/authoring/layout.ts';
 import { criarMapa, type MapaAtlas } from '../../src/domain/mapa.ts';
 import { ErroDeValidacao } from '../../src/domain/esquema.ts';
 import { projetarParaJogadores } from '../../src/domain/projecao.ts';
+import { projetarParaRemoto } from '../../src/domain/projecao-remota.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
 import { comandoDeComodoPorContorno } from '../../src/render/pincel.ts';
 import { todosOsAlvos } from '../../src/render/selecao.ts';
@@ -319,4 +320,15 @@ test('H5: escadas entre andares, validação, ação radial perto/longe e par au
   // Remover porão desvincula esc0 em vez de deixar destino quebrado
   s.executar({ tipo: 'andar.remover', id: 'b1' });
   assert.equal(s.documento.props.esc0!.interaction, null);
+});
+
+test('andarDoDocumento identifica o andar ativo no documento projetado (térreo ou outro andar)', () => {
+  const m = mapaExemplo();
+  m.tokens.jB = novaPeca([3, 3], 'JB', { id: 'jB', player: true, levelId: 'b1' });
+  const terreo = projetarParaRemoto(m, null);
+  const andar1 = projetarParaRemoto(m, 'a1');
+  const porao = projetarParaRemoto(m, 'b1');
+  assert.equal(andarDoDocumento(terreo), null);
+  assert.equal(andarDoDocumento(andar1), 'a1');
+  assert.equal(andarDoDocumento(porao), 'b1');
 });

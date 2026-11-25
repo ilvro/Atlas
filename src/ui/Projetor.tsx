@@ -3,7 +3,7 @@ import { signal } from '@preact/signals';
 import { iniciarTema } from '../app/tema.ts';
 import { criarBarramento, type CanalLike } from '#mesa';
 import { canaisDoProjetor, nomeDoCanalEventosDaSala, projetorPodeDizer, type MensagemDoMestre, type MensagemDoProjetor } from '../app/projetor.ts';
-import { andarDe } from '../domain/andares.ts';
+import { andarDe, andarDoDocumento } from '../domain/andares.ts';
 import type { Recursos } from '../domain/fichas.ts';
 import { criarMapa, type MapaAtlas } from '../domain/mapa.ts';
 import { pecasDoJogador } from '../domain/projecao-remota.ts';
@@ -145,12 +145,17 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
             const agora = Date.now();
             if (agora - ultimoPingEm < 1000) return;
             ultimoPingEm = agora;
-            const ev = barramento.emitir('mesa.ping', { mapa: atual.id, ponto: pontoPing });
+            const andar = andarDoDocumento(atual);
+            const ev = barramento.emitir('mesa.ping', {
+              mapa: atual.id,
+              ponto: pontoPing,
+              ...(andar ? { levelId: andar } : {}),
+            });
             vp?.dispararPing({
               id: ev.id,
               mapa: atual.id,
               ponto: pontoPing,
-              levelId: null,
+              levelId: andar,
               discordId: 'eu',
               nome: 'Você',
               papel: 'jogador',

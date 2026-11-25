@@ -26,6 +26,19 @@ export function andarDe(e: { levelId?: string | null }): string | null {
   return e.levelId ?? null;
 }
 
+/** O identificador do andar exibido por um documento já recortado por `mapaDoAndar` (`null` = térreo). */
+export function andarDoDocumento(
+  doc: Pick<MapaAtlas, 'tokens' | 'rooms' | 'walls' | 'props' | 'lights' | 'presence' | 'regions'>,
+): string | null {
+  for (const col of [doc.tokens, doc.rooms, doc.walls, doc.props, doc.lights, doc.presence, doc.regions]) {
+    for (const item of Object.values(col)) {
+      const a = andarDe(item);
+      if (a) return a;
+    }
+  }
+  return null;
+}
+
 /** O mapa tem pelo menos um andar além do térreo? */
 export function ehMultiandar(m: Pick<MapaAtlas, 'levels'>): boolean {
   return !!m.levels && Object.keys(m.levels).length > 0;
