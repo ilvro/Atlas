@@ -128,7 +128,7 @@ Pronto quando: com 900 px de altura de janela, o painel mostra a família na mã
 Commit: `object library uses compact filters and folds rare properties`
 Nota: o estado de "Ver mais…" e de Recentes (`atlas.propriedadesAbertas`, `atlas.recentesAbertos`) mora em `src/app/preferencias.ts`, não em `filtros.ts`. "Ver mais…" guarda Camada e espelho, Aparência e Colocação em cartões próprios; vale também para o inspetor (mesmo componente). `ChipsDeBioma`/`ChipsDeEpoca` viraram `SeletorDeBioma` e os selects da grade. Capturas: `test-results/q2b-painel.png`.
 
-### Q2c — Prévias que não morrem caladas  ⬜
+### Q2c — Prévias que não morrem caladas  ✅
 Objetivo: se o worker das prévias falhar, a biblioteca se recupera ou avisa, em vez de ficar com todos os quadros vazios para sempre.
 Depende de: —.
 Problema: quando o Vite reotimiza dependências, o import dinâmico falha ("504 Outdated Optimize Dep"), e o worker do baker das prévias (`src/ui/previa.ts`, `criarBaker({ workers: 1 })`) morre sem rejeitar as promessas. Como `pedirPrevia` guarda a promessa no cache e o `MiniReceita` engole o erro, nada mais aparece até recarregar a página.
@@ -142,6 +142,7 @@ Não fazer: mudar o formato das tarefas ou a resolução das prévias.
 Testes: um worker que dispara `error` rejeita a tarefa pendente e a seguinte cria um worker novo.
 Pronto quando: matar o worker das prévias no console (`__atlas` ou um teste) e reabrir a biblioteca mostra as miniaturas de novo.
 Commit: `bakers recover when a worker dies`
+Nota: feita (Atlas `af72160`). `MAX_FALHAS_DE_WORKER = 3` em `src/procedural/baker.ts`, recriação sob demanda em `garantirWorker`, limpeza de promessas rejeitadas em `src/ui/previa.ts` e cache persistente em IndexedDB (`atlas-assados-v1`) integrado pela ficha M5 (`3a6e4a8`).
 
 ---
 
