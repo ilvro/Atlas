@@ -990,6 +990,84 @@ function impluvio(seed: number, C: number, Lg: number): Parte[] {
   return partes;
 }
 
+/** Golfinho de mosaico no fundo do tanque, em tesselas escuras: corpo arqueado com bico, barbatanas, cauda em leque, a barriga clara e o olho. `k` é o comprimento. */
+function golfinho(partes: Parte[], x: number, y: number, ang: number, k: number, cor: string, claro: string, z: number): void {
+  const f = quadro(x, y, ang), arqueia = (pts: number[]) => pts.map((v, i) => (i % 2 ? (v - 0.16 * (1 - (2 * pts[i - 1]!) ** 2)) * k : v * k));
+  const corpo = [0.5, 0, 0.44, -0.035, 0.3, -0.08, 0.1, -0.11, -0.1, -0.095, -0.3, -0.055, -0.42, -0.025, -0.52, -0.14, -0.47, 0, -0.52, 0.14, -0.42, 0.025, -0.3, 0.045, -0.1, 0.075, 0.1, 0.085, 0.3, 0.065, 0.44, 0.03];
+  partes.push(poli(em(f, arqueia(corpo)), cor, z, { ...O, detalhe: 1 }));
+  partes.push(poli(em(f, arqueia([0.06, -0.1, -0.1, -0.22, -0.12, -0.09])), cor, z, { ...O, detalhe: 2 }));
+  partes.push(poli(em(f, arqueia([0.2, 0.07, 0.07, 0.2, 0.05, 0.08])), cor, z, { ...O, detalhe: 2 }));
+  partes.push(tira(em(f, arqueia([0.38, 0.03, 0.15, 0.06, -0.15, 0.045])), 0.022 * k, claro, z + 0.001, { ...O, detalhe: 3 }, 0.3));
+  const olho = em(f, arqueia([0.33, -0.03]));
+  partes.push(elipse(olho[0]!, olho[1]!, 0.035 * k, 0.035 * k, claro, z + 0.001, { ...O, detalhe: 3 }));
+}
+
+/**
+ * Tanque de banho das termas (alveus): borda larga de mármore, três degraus que descem para dentro da água numa ponta,
+ * o banco submerso ao longo dos lados, o fundo de mosaico com golfinhos e a bica de bronze na outra ponta.
+ * `quente` (caldário) põe vapor sobre a água e a deixa mais verde; frio (frigidário), mais azul e limpa.
+ */
+function tanqueDeBanho(seed: number, C: number, Lg: number, quente: boolean): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], b = 0.32, ci = C - 2 * b, li = Lg - 2 * b;
+  const x0 = -ci / 2, x1 = ci / 2, y0 = -li / 2, y1 = li / 2, passo = Math.min(0.38, ci * 0.1), banco = Math.min(0.3, li * 0.12);
+  const fundo = quente ? '#a49c84' : '#a8aca0', tessela = quente ? '#2a3a3a' : '#1c2c40';
+  // Fundo de mosaico: o campo claro, a barra de ondas escura e os golfinhos.
+  partes.push(poli(retQ(ID, 0, 0, ci + 0.02, li + 0.02), fundo, 0.01, { ...O, detalhe: 1 }));
+  const fx0 = x0 + 3 * passo + 0.12, fx1 = x1 - 0.12, fy0 = y0 + banco + 0.12, fy1 = y1 - banco - 0.12;
+  partes.push(tira([fx0, fy0, fx1, fy0, fx1, fy1, fx0, fy1, fx0, fy0], 0.05, tessela, 0.012, { ...O, detalhe: 2 }));
+  for (const yy of [fy0 + 0.1, fy1 - 0.1]) for (let x = fx0 + 0.12; x < fx1 - 0.1; x += 0.22) partes.push(tira(arco(x, yy, 0.07, 0.05, Math.PI, Math.PI * 2.6, 8), 0.022, tessela, 0.013, { ...O, detalhe: 3 }));
+  const meioX = (fx0 + fx1) / 2, kG = Math.min(1.6, (fx1 - fx0) * 0.36, (fy1 - fy0) * 0.75);
+  golfinho(partes, meioX - kG * 0.3, -(fy1 - fy0) * 0.18, -0.12, kG, tessela, fundo, 0.014);
+  golfinho(partes, meioX + kG * 0.3, (fy1 - fy0) * 0.2, Math.PI - 0.12, kG, tessela, fundo, 0.014);
+  // O banco submerso ao longo dos lados compridos e os degraus da ponta de entrar, cada um mais fundo (mais escuro) que o de cima.
+  for (const s of [-1, 1]) {
+    const yb = s * (li / 2 - banco / 2);
+    partes.push(poli(retQ(ID, (x0 + 3 * passo + x1) / 2, yb, ci - 3 * passo, banco), MARMORE.base, 0.015, { ...O, detalhe: 1 }));
+    partes.push(tira([x0 + 3 * passo, yb - s * banco / 2, x1, yb - s * banco / 2], 0.02, MARMORE.sombra, 0.016, { ...O, detalhe: 2 }));
+  }
+  for (let k = 0; k < 3; k++) {
+    const xa = x0 + k * passo, tons = [MARMORE.luz, MARMORE.meio, MARMORE.base];
+    partes.push(poli([xa, y0, xa + passo, y0, xa + passo, y1, xa, y1], tons[k]!, 0.016 + k * 0.001, { ...O, detalhe: 1 }));
+    partes.push(tira([xa + passo - 0.025, y0, xa + passo - 0.025, y1], 0.05, '#4e463a', 0.018, { ...O, alfa: 0.85, detalhe: 2 }));
+    partes.push(tira([xa + 0.025, y0 + 0.02, xa + 0.025, y1 - 0.02], 0.035, MARMORE.brilho, 0.0235, { ...O, alfa: 0.75 - k * 0.2, detalhe: 2 }));
+  }
+  // A água: veladura que engrossa do degrau de cima para a parte funda, a sombra da borda (noroeste), o céu e as cáusticas.
+  const agua = quente ? '#1f5a52' : '#1a4e6e', ceu = quente ? '#8cc4b0' : '#8cc0dc';
+  // O degrau de cima fica quase fora d'água: só a lâmina rasa e a linha molhada.
+  partes.push(poli([x0, y0, x0 + passo, y0, x0 + passo, y1, x0, y1], agua, 0.02, { ...O, alfa: 0.12, detalhe: 1 }));
+  partes.push(poli([x0 + passo, y0, x1, y0, x1, y1, x0 + passo, y1], agua, 0.02, { ...O, alfa: 0.36, detalhe: 1 }));
+  partes.push(poli([x0 + 2 * passo, y0, x1, y0, x1, y1, x0 + 2 * passo, y1], agua, 0.0205, { ...O, alfa: 0.16, detalhe: 1 }));
+  partes.push(tira([x0 + passo, y0, x0 + passo, y1], 0.02, '#e8f6f4', 0.0225, { ...O, alfa: 0.45, detalhe: 2 }));
+  partes.push(poli([x0 + 3 * passo, y0 + banco, x1, y0 + banco, x1, y1 - banco, x0 + 3 * passo, y1 - banco], agua, 0.021, { ...O, alfa: 0.2, detalhe: 1 }));
+  partes.push(poli([x0, y0, x1, y0, x1, y0 + 0.16, x0 + 0.16, y0 + 0.16, x0 + 0.16, y1, x0, y1], '#0c2228', 0.022, { ...S, alfa: 0.4, detalhe: 2 }));
+  partes.push(poli(retQ(ID, 0.1, 0, ci * 0.7, li * 0.6), ceu, 0.0225, { ...S, alfa: 0.14, detalhe: 2 }));
+  for (let k = 0; k < 7; k++) {
+    const x = x0 + passo * 2 + r() * (ci - passo * 2.6), y = y0 + 0.2 + r() * (li - 0.4), w = 0.25 + r() * 0.35;
+    partes.push(tira([x - w / 2, y + (r() - 0.5) * 0.1, x, y + (r() - 0.5) * 0.12, x + w / 2, y + (r() - 0.5) * 0.1], 0.025, '#eaf6f4', 0.023, { ...O, alfa: 0.28, detalhe: 3 }, 0.4));
+  }
+  // A borda de mármore em lajes, com a junta das quinas.
+  bloco(partes, quadro(0, -Lg / 2 + b / 2), C, b, MARMORE, 0.14, 0.06);
+  bloco(partes, quadro(0, Lg / 2 - b / 2), C, b, MARMORE, 0.14, 0.06);
+  bloco(partes, quadro(-C / 2 + b / 2, 0), b, li, MARMORE, 0.141, 0.06);
+  bloco(partes, quadro(C / 2 - b / 2, 0), b, li, MARMORE, 0.141, 0.06);
+  for (const [x, y] of [[-C / 2 + b, -Lg / 2 + b], [C / 2 - b, -Lg / 2 + b], [-C / 2 + b, Lg / 2 - b], [C / 2 - b, Lg / 2 - b]] as const) partes.push(tira([x, y - 0.14, x, y + 0.14], 0.008, MARMORE.nanquim, 0.16, { ...O, alfa: 0.35, detalhe: 3 }));
+  for (let k = 0; k < 4; k++) { const x = (r() - 0.5) * (C - 0.6), s = r() < 0.5 ? -1 : 1; partes.push(tira([x, s * (Lg / 2 - b * 0.7), x + 0.1, s * (Lg / 2 - b * 0.4)], 0.008, MARMORE.sombra, 0.161, { ...O, alfa: 0.5, detalhe: 3 })); }
+  // A bica de bronze no meio da ponta funda, com o jorro e a espuma.
+  const bx = C / 2 - b / 2, B = BRONZE;
+  disco(partes, bx, 0, 0.13, B, 0.2, 0.12);
+  partes.push(elipse(bx - 0.06, 0, 0.07, 0.05, '#1a1612', 0.22, { contorno: 'leve', detalhe: 2 }));
+  partes.push(elipse(bx + 0.03, -0.09, 0.05, 0.04, PATINA, 0.215, { ...O, alfa: 0.6, detalhe: 3 }));
+  partes.push(tira([bx - 0.08, 0, x1 - 0.2, 0.01], 0.06, '#8ac4d0', 0.19, { contorno: 'leve', alfa: 0.9, detalhe: 1 }, 0.6), tira([bx - 0.08, -0.005, x1 - 0.22, 0], 0.018, '#f0fafa', 0.195, { ...O, alfa: 0.9, detalhe: 2 }));
+  for (const rr of [0.1, 0.2, 0.3]) partes.push(tira(anel(x1 - 0.24, 0, rr, rr * 0.85, 18), 0.014, '#e8f6f4', 0.024, { ...O, alfa: 0.55 - rr, detalhe: 3 }));
+  partes.push(elipse(x1 - 0.24, 0, 0.16, 0.13, '#f2fafa', 0.025, { ...S, alfa: 0.7, detalhe: 2 }));
+  // Vapor do caldário: véus claros e moles por cima da água e da borda.
+  if (quente) for (let k = 0; k < 7; k++) {
+    const x = (r() - 0.5) * ci * 0.85, y = (r() - 0.5) * li * 0.7;
+    for (let j = 0; j < 3; j++) { const w = 0.5 + r() * 0.6; partes.push(elipse(x + (r() - 0.5) * 0.6, y + (r() - 0.5) * 0.3, w, w * (0.45 + r() * 0.25), '#eef2ee', 0.3, { ...S, alfa: 0.07 + r() * 0.05, detalhe: 2 })); }
+  }
+  return partes;
+}
+
 /** Fonte de parede com máscara: a laje de mármore encostada na parede, a cabeça de leão que verte água e a bacia semicircular à frente. */
 function fonteComMascara(seed: number): Parte[] {
   const r = mulberry32(seed), partes: Parte[] = [], cy = -0.3, RX = 0.64, RY = 0.74;
@@ -1185,6 +1263,10 @@ export const RECEITAS_DA_ANTIGUIDADE: Receita[] = [
   { id: 'impluvio', nome: 'Impluvio', categoria: 'decoracao', tipo: 'piso', funcoes: ['atrio', 'peristilo', 'termas'], ...A, tags: ['impluvio', 'tanque', 'agua', 'chuva', 'atrio', 'mosaico', 'marmore', 'romana'], pegada: [3, 2.2], altura: 0.15,
     campos: [{ id: 'comprimento', rotulo: 'Comprimento (m)', tipo: 'numero', padrao: 3, min: 1.6, max: 6, passo: 0.2 }, { id: 'largura', rotulo: 'Largura (m)', tipo: 'numero', padrao: 2.2, min: 1.2, max: 4, passo: 0.2 }],
     gerar: p => { const C = num(p, 'comprimento', 3, 1.6, 6), L = num(p, 'largura', 2.2, 1.2, 4); return piso([C, L], impluvio(p.seed, C, L)); } },
+  { id: 'tanque-de-banho', nome: 'Tanque de banho', categoria: 'banheiro', tipo: 'piso', funcoes: ['termas', 'banheiro', 'peristilo'], ...A, tags: ['tanque', 'banho', 'piscina', 'termas', 'caldario', 'frigidario', 'degraus', 'agua', 'mosaico', 'golfinho', 'marmore', 'romana', 'vapor'], pegada: [5, 3.6], altura: 0.15,
+    campos: [{ id: 'comprimento', rotulo: 'Comprimento (m)', tipo: 'numero', padrao: 5, min: 3, max: 9, passo: 0.2 }, { id: 'largura', rotulo: 'Largura (m)', tipo: 'numero', padrao: 3.6, min: 2.4, max: 6, passo: 0.2 },
+      { id: 'quente', rotulo: 'Água (0 fria, 1 quente com vapor)', tipo: 'numero', padrao: 0, min: 0, max: 1, passo: 1 }],
+    gerar: p => { const C = num(p, 'comprimento', 5, 3, 9), L = num(p, 'largura', 3.6, 2.4, 6); return piso([C, L], tanqueDeBanho(p.seed, C, L, Math.round(num(p, 'quente', 0, 0, 1)) === 1)); } },
   { id: 'fonte-com-mascara', nome: 'Fonte com máscara', categoria: 'decoracao', tipo: 'piso', funcoes: ['atrio', 'peristilo', 'jardim', 'praca', 'forum', 'termas'], ...A, tags: ['fonte', 'mascara', 'leao', 'bica', 'agua', 'bacia', 'marmore', 'parede', 'romana', 'grega'], pegada: [1.4, 1.0], altura: 1.5,
     gerar: p => piso([1.4, 1.0], fonteComMascara(p.seed)) },
   { id: 'estante-de-rolos', nome: 'Armário de rolos', categoria: 'armazenamento', tipo: 'piso', funcoes: ['biblioteca', 'atrio', 'escritorio', 'templo', 'sala'], ...A, tags: ['estante', 'armario', 'rolos', 'papiro', 'pergaminho', 'biblioteca', 'livros', 'tabuinhas', 'romana', 'grega'], pegada: [1.8, 0.56], altura: 1.9,

@@ -155,7 +155,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('construcao', 'laje', 'Piso especial', ['laje-de-pedra', 'roseta-de-calcamento', 'circulo-runico', 'fosso-de-luz']),
   f('construcao', 'casulo', 'Casulo', ['casulo']),
   f('construcao', 'fonte', 'Fonte', ['fonte']),
-  f('construcao', 'fonte-classica', 'Fonte e tanque clássicos', ['fonte-com-mascara', 'impluvio'], { generos: ['antiguidade', 'fantasia'] }),
+  f('construcao', 'fonte-classica', 'Fonte e tanque clássicos', ['fonte-com-mascara', 'impluvio', 'tanque-de-banho'], { generos: ['antiguidade', 'fantasia'] }),
   f('construcao', 'pergolado', 'Pérgola', ['pergolado-com-videira'], { generos: ['antiguidade', 'fantasia'] }),
   // Templo e cemitério
   f('religiao', 'altar', 'Altar e púlpito', ['altar', 'relicario', 'pulpito', 'atril', 'altar-de-sacrificio'], { generos: ['fantasia', 'investigacao'] }),

@@ -358,7 +358,7 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('vaso', ['vaso.planta', 'urna.pedestal'], 'canto', [0, 2], 8),
   ],
   termas: [
-    item('tanque', ['impluvio'], 'centro', [1, 1], 1, { areaMinima: 14, params: { comprimento: 4.2, largura: 3 }, paramsPorArea: [[40, { comprimento: 5.6, largura: 3.6 }]] }),
+    item('tanque', ['tanque-de-banho'], 'centro', [1, 1], 1, { areaMinima: 14, params: { comprimento: 4.2, largura: 3 }, paramsPorArea: [[30, { comprimento: 5, largura: 3.6 }], [48, { comprimento: 6.4, largura: 4.2 }]] }),
     item('banco', ['banco', 'banco.jardim'], 'parede', [2, 4], 2),
     item('anfora', ['anfora'], 'canto', [1, 3], 3),
     item('fonte', ['fonte-com-mascara'], 'parede', [0, 1], 4),

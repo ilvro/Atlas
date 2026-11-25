@@ -62,7 +62,7 @@ export const LUZES_POR_FUNCAO: Readonly<Record<string, LuzDaFuncao>> = {
   atrio: { m2PorLuz: 14, tamanho: 'principal', sobre: ['mesa-romana', 'impluvio'] },
   peristilo: { m2PorLuz: 20, tamanho: 'pequena', sobre: [], semLuz: true },
   triclinio: { m2PorLuz: 10, tamanho: 'principal', sobre: ['mesa-romana'] },
-  termas: { m2PorLuz: 14, tamanho: 'principal', sobre: ['impluvio'] },
+  termas: { m2PorLuz: 14, tamanho: 'principal', sobre: ['tanque-de-banho', 'impluvio'] },
   templo: { m2PorLuz: 12, tamanho: 'principal', sobre: ['altar-de-sacrificio', 'tripe-de-bronze'] },
   forum: { m2PorLuz: 20, tamanho: 'pequena', sobre: [], semLuz: true },
   taberna: { m2PorLuz: 12, tamanho: 'principal', sobre: ['mesa-romana'] },
