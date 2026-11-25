@@ -5,7 +5,9 @@ import type { Mudancas } from '../state/mudancas.ts';
 import { FATOR_DE_MOVIMENTO_REDUZIDO, corDaNeblina } from './particulas-config.ts';
 
 /** Receitas que soltam fumaça quando estão ao ar livre (fora de cômodo). */
-export const FONTES_DE_FUMACA: ReadonlySet<string> = new Set(['fogueira', 'braseiro']);
+export const FONTES_DE_FUMACA: ReadonlySet<string> = new Set(['fogueira', 'braseiro', 'fumarola']);
+/** As que soltam vapor: branco e frio desde a boca, sem o âmbar do fogo. */
+const FONTES_DE_VAPOR: ReadonlySet<string> = new Set(['fumarola']);
 /** Baforadas por fonte e quanto cada uma vive (s). */
 const BAFORADAS = 16, VIDA = 7;
 
@@ -35,7 +37,7 @@ function baforada(): Texture {
   return texturaDaBaforada;
 }
 
-interface Fonte { pos: Ponto; tamanho: number; sprites: Sprite[]; idade: number[]; deriva: number[] }
+interface Fonte { pos: Ponto; tamanho: number; vapor: boolean; sprites: Sprite[]; idade: number[]; deriva: number[] }
 
 /**
  * Fumaça das fogueiras e braseiros ao ar livre: baforadas que nascem no fogo, sobem (no mapa visto de cima, derivam para o lado do
@@ -46,7 +48,9 @@ export function criarFumaca(): Fumaca {
   const raiz = new Container();
   let fontes: Fonte[] = [], mapa: MapaAtlas | null = null, ligado = true, cor: [number, number, number] = [0.5, 0.5, 0.5];
 
-  const tingir = (s: Sprite, t: number) => {
+  const tingir = (s: Sprite, t: number, vapor: boolean) => {
+    // O vapor é a cor do ambiente clareada (vapor d'água espalha a luz).
+    if (vapor) { const v = (k: number) => Math.round(Math.min(1, cor[k]! * 0.55 + 0.45) * 255); s.tint = (v(0) << 16) | (v(1) << 8) | v(2); return; }
     // Perto do fogo a fumaça pega a luz dele (âmbar); depois fica da cor do ambiente.
     const quente = Math.max(0, 1 - t * 3.5), r = cor[0] * (1 - quente) + 1 * quente * 0.9, g = cor[1] * (1 - quente) + 0.62 * quente * 0.9, b = cor[2] * (1 - quente) + 0.35 * quente * 0.9;
     s.tint = (Math.round(Math.min(1, r) * 255) << 16) | (Math.round(Math.min(1, g) * 255) << 8) | Math.round(Math.min(1, b) * 255);
@@ -58,8 +62,8 @@ export function criarFumaca(): Fumaca {
     s.position.set(f.pos[0] - d * 0.45 + d * vento * 1.2 + ondula, f.pos[1] - d * 0.9 + f.deriva[i]! * 0.05);
     const lado = (0.35 + t * 1.6) * f.tamanho;
     s.width = s.height = lado; s.rotation = f.deriva[i]! + t * 0.8;
-    s.alpha = Math.sin(Math.min(1, t * 6) * Math.PI / 2) * (1 - t) ** 1.4 * 0.85;
-    tingir(s, t);
+    s.alpha = Math.sin(Math.min(1, t * 6) * Math.PI / 2) * (1 - t) ** 1.4 * (f.vapor ? 0.6 : 0.85);
+    tingir(s, t, f.vapor);
   };
 
   return {
@@ -74,7 +78,7 @@ export function criarFumaca(): Fumaca {
       raiz.removeChildren().forEach(c => c.destroy());
       fontes = novas.map(o => {
         const tamanho = Math.max(0.6, Math.min(2, o.scale * (o.source.kind === 'recipe' && o.source.recipe === 'braseiro' ? 0.8 : 1)));
-        const f: Fonte = { pos: [o.position[0], o.position[1]], tamanho, sprites: [], idade: [], deriva: [] };
+        const f: Fonte = { pos: [o.position[0], o.position[1]], tamanho, vapor: o.source.kind === 'recipe' && FONTES_DE_VAPOR.has(o.source.recipe), sprites: [], idade: [], deriva: [] };
         for (let i = 0; i < BAFORADAS; i++) {
           const s = new Sprite(baforada()); s.anchor.set(0.5); raiz.addChild(s);
           f.sprites.push(s); f.idade.push((i / BAFORADAS) * VIDA); f.deriva.push(Math.random() * 6);

@@ -2,7 +2,7 @@
  * Prancha de biomas: recortes de 14 × 14 m montados só com o acervo (terreno, plantas e objetos), de dia e de noite, para conferir se
  * cada bioma lê à primeira vista. Cada recorte é uma função abaixo; acrescente um quando o acervo ganhar um bioma.
  *
- *   node scripts/dev/prancha-biomas.ts [--saida test-results/x.png] [--sem-luz] [selva praia deserto outono oriental caverna …]
+ *   node scripts/dev/prancha-biomas.ts [--saida test-results/x.png] [--sem-luz] [selva praia deserto outono oriental caverna vulcao …]
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -32,6 +32,7 @@ const RECORTES: Record<string, Recorte> = {
     k.objeto('casa:coqueiro-6m', em(o, 4, 3.5), { rotation: 0.3 }); k.objeto('casa:coqueiro-4m', em(o, 6, 9), { rotation: -0.4 }); k.objeto('casa:coqueiro-6m', em(o, 2.5, 11.5), { rotation: 0.9 });
     k.objeto('casa:arvore-de-mangue-4m', em(o, 11.5, 12));
     for (const [x, y] of [[1, 6], [8, 3]] as const) k.objeto('casa:folhagem-tropical-1m', em(o, x, y));
+    k.objeto('madeira-a-deriva', em(o, 7.8, 6), { rotation: 1.3 }); k.objeto('alga-na-areia', em(o, 8.6, 11), { rotation: 1.4, params: { comprimento: 2.2 } }); k.objeto('concha', em(o, 7, 2)); k.objeto('estrela-do-mar', em(o, 9.2, 8.5)); k.objeto('concha', em(o, 8.8, 13));
   },
   deserto(k, o) {
     k.pintar('areia.duna', ret(o, 0, 0, L, L));
@@ -57,6 +58,22 @@ const RECORTES: Record<string, Recorte> = {
     k.objeto('casa:bambuzal-4m', em(o, 2, 11.5)); k.objeto('casa:bambuzal-2m', em(o, 5, 13));
     for (const [x, y] of [[5, 5.5], [9.8, 9.6], [5.6, 9.5]] as const) k.objeto('pedra.media', em(o, x, y));
   },
+  caverna(k, o) {
+    k.pintar('chao.de.fungos', ret(o, 0, 0, L, L));
+    k.pintar('cristal.chao', { poligono: [em(o, 8, 0), em(o, L, 0), em(o, L, 6), em(o, 10, 5)], irregular: 0.6 });
+    k.pintar('agua.gruta', { disco: em(o, 5, 10), raio: 2, irregular: 0.5 });
+    k.objeto('cogumelo-gigante', em(o, 3.2, 3.5), { params: { altura: 6, cor: 1, brilho: 0.8 } }); k.objeto('cogumelo-gigante', em(o, 9, 10.5), { params: { altura: 4, cor: 2, brilho: 0.8 } });
+    k.objeto('cogumelo-gigante', em(o, 6.5, 6.5), { params: { altura: 2, cor: 1, brilho: 0.6 } }); k.objeto('cogumelo-gigante', em(o, 12.5, 12.5), { params: { altura: 2, cor: 2, brilho: 0.7 } });
+    k.objeto('cristal', em(o, 11, 3), { params: { tamanho: 3, cor: 0, brilho: 0.8 } }); k.objeto('cristal', em(o, 13, 7), { params: { tamanho: 1, cor: 0 } }); k.objeto('cristal', em(o, 1.5, 12.5), { params: { tamanho: 1.5, cor: 1 } });
+    for (const [x, y, l] of [[1.5, 7.5, 0], [7.5, 2, 1], [11.5, 8.5, 0], [3, 12.8, 1], [7.5, 13, 0]] as const) k.objeto('fungos-luminosos', em(o, x, y), { params: { raio: 0.5, lilas: l } });
+  },
+  vulcao(k, o) {
+    k.pintar('basalto', ret(o, 0, 0, L, L));
+    k.pintar('cinza.vulcanica', { poligono: [em(o, 0, 0), em(o, 8, 0), em(o, 6, 7), em(o, 0, 9)], irregular: 0.6 });
+    k.pintar('agua.lava', { faixa: [em(o, 9, 0), em(o, 10.5, 6), em(o, 9.5, 14)], largura: 2, irregular: 0.5 });
+    k.objeto('fumarola', em(o, 3, 3)); k.objeto('fumarola', em(o, 5, 11), { params: { comprimento: 1.8 } }); k.objeto('fumarola', em(o, 13, 4), { params: { comprimento: 0.8 } });
+    k.objeto('casa:arbusto-seco-1m', em(o, 2, 7.5)); k.objeto('pedra.grande', em(o, 6.5, 6));
+  },
 };
 
 const args = process.argv.slice(2), iSaida = args.indexOf('--saida'), semLuz = args.includes('--sem-luz');
@@ -73,7 +90,7 @@ function montar(noite: boolean): MapaAtlas {
   k.estilo({ genre: 'fantasia', palette: 'fantasia' });
   k.fundo({ kind: 'solid', color: '#14171a' });
   k.base('rocha.rachada');
-  NOMES.forEach((n, i) => { const o = origem(i); RECORTES[n]!(k, o, noite); if (noite && !semLuz && n !== 'caverna') k.luz('fogueira', [o[0] + L / 2, o[1] + L / 2], { radius: 9, intensity: 1, flicker: 0 }); });
+  NOMES.forEach((n, i) => { const o = origem(i); RECORTES[n]!(k, o, noite); if (noite && !semLuz && n !== 'caverna' && n !== 'vulcao') k.luz('fogueira', [o[0] + L / 2, o[1] + L / 2], { radius: 9, intensity: 1, flicker: 0 }); });
   if (noite) k.clima('noite', { time: '23:00', tempo: { rain: 0, snow: 0, fog: 0, wind: 0 } });
   else k.clima('tarde', { time: '15:30', tempo: { rain: 0, snow: 0, fog: 0, wind: 0 } });
   k.acabamento('neutro', { vignette: 0, edges: { kind: 'none', amount: 0 } });

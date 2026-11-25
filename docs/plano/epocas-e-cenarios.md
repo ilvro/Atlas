@@ -33,7 +33,7 @@ O estilo Pixel está em espera: os assets novos só precisam ficar bons no Ilust
 | 2. Brilho próprio | Q4 | Opus | — |
 | 3. Terreno | Q5 → Q6, Q7, Q8, Q9 | Opus | Q5 (curadoria); Q9 depende da Q4 |
 | 4. Pisos, paredes, telhados | Q10, Q11, Q12 | Opus | Q12 depende da Q4 |
-| 5. Biomas | Q13, Q14 | Opus | Q14 depende da Q4 |
+| 5. Biomas | Q13, Q14, Q14b | Opus (Q14b: Sonnet) | Q14 depende da Q4; Q14b, da Q14 |
 | 6. Épocas | Q15 … Q23 (a, b, c, d em cada) | Opus (a, b, d), Sonnet (c) | Q3; cada época depende dos materiais e biomas que usa |
 
 Ordem recomendada das épocas: Antiguidade, Oriental, Deserto, Faroeste, Colonial, Vitoriano, Moderno, Pós-apocalíptico, Cyberpunk. O Pós-apocalíptico reaproveita os carros do Moderno, e o Cyberpunk depende da E4 e do Moderno.
@@ -298,7 +298,7 @@ Pronto quando: uma prancha com cada bioma (selva, praia, deserto, outono, jardim
 Commit: `added jungle, beach, desert, blossom and autumn trees`
 Nota: desvios. Os geradores novos ficam em `pesados/plantas-dos-biomas.ts`, que usa a `copaDeRaminhos` (agora exportada) para selva, cerejeira, mangue e as moitas do baobá. Os cactos viraram três geradores (`saguaro`, `opuntia`, `cacto-redondo`) numa família só, porque a `altura` do gerador sai da pegada e as três alturas não cabiam num gerador. A palma tem pegada de 2 m (as raquetes em cadeia passavam de 1,5 m). Coqueiro e tamareira dividem a família "Coqueiro e tamareira"; a `palmeira` antiga continua sendo a de vaso. A cerejeira com pétalas no chão virou `cerejeira-5m-rala` (copa rala, com folhas verdes): as pétalas fora da copa entrariam na silhueta da sombra do sol esticada pela altura da árvore, e vão para a Q14 como carimbo `petalas-de-cerejeira`. Armadilha do motor: o mapa de altura sai do `z` das partes, e uma coluna estreita de 3 m (o saguaro) escurecia um anel do chão em volta à noite (oclusão de ambiente). O saguaro desenha com `z` de 1,2 m e mantém `altura` 3 m, que dá a sombra do sol. Pranchas: `node scripts/dev/prancha-objetos.ts [itens…]` (um quadro por item, tarde e noite) e `node scripts/dev/prancha-biomas.ts` (recortes de 14 m: selva, praia, deserto, outono, oriental).
 
-### Q14 — Fungos, cristais, praia e outono  ⬜ **[Opus]**
+### Q14 — Fungos, cristais, praia e outono  ✅ **[Opus]**
 Depende de: Q4.
 Arquivos: uma receita nova `receitas/biomas.ts` e o `index.ts`; `familias.ts`.
 Como:
@@ -311,6 +311,16 @@ Como:
 - `monte-de-folhas` (laranja e vermelho) — `outono`.
 Pronto quando: uma caverna de fungos com cristais, à noite, se ilumina só com os próprios objetos.
 Commit: `added fungi, crystals, beach and autumn props`
+Nota: desvios e motor. `concha` é um punhado de conchas (vieira, caramujo e mexilhão; campo `quantas`), porque uma concha só some na escala do mapa. Entrou também o carimbo `petalas-de-cerejeira` (que saiu da Q13), na família "Flores e pétalas". O vapor da fumarola usa a fumaça das fogueiras (`fumaca.ts`), com a cor do ambiente clareada e sem o âmbar do fogo. O clarão de um objeto que brilha é uma parte `brilho` desfocada no chão, como o da lava. Ele precisa caber na pegada: o desfoque que passa da borda do sprite é cortado em quadrado, e por isso cogumelo e cristal têm pegada maior que o desenho. Limite: à noite, cada cogumelo e cada cristal brilha e acende o chão em volta, mas o clarão não passa da pegada, e o chão entre eles fica escuro. Para a caverna inteira se acender sozinha, o objeto que brilha precisa trazer uma luz de verdade (ficha Q14b). Cenas: `node scripts/dev/prancha-biomas.ts caverna vulcao praia`.
+
+### Q14b — Objetos que brilham trazem luz  ⬜
+Objetivo: um objeto com brilho (cogumelo, cristal, fumarola e, nos kits, braseiro, tela e letreiro) ilumina o entorno com uma luz de verdade, sem que o usuário a ponha à mão.
+Depende de: Q14.
+Ler: `src/procedural/receitas/comum.ts` (`Receita`), `src/domain/fabrica.ts` (`novaLuz`, `ownerId`), `src/state/comandos.ts` (remoção das luzes do dono), `scripts/exemplos/kit.ts` (`objeto`), os caminhos que põem objeto no mapa (biblioteca, pincel de família, `espalhar`, ponte MCP).
+Como: a `Receita` ganha `luz?: (params) => { preset, raio, cor, intensidade } | null` (o cogumelo devolve a cor `emite` e um raio proporcional ao `brilho`; com `brilho` 0, `null`). Ao pôr o objeto, nasce uma luz com `ownerId` do objeto; ao mudar os parâmetros, a luz acompanha; ao apagar o objeto, ela some (já acontece).
+Testes: pôr um `cogumelo-gigante` cria uma luz com `ownerId`; `brilho` 0 não cria; apagar o objeto apaga a luz.
+Pronto quando: na cena `caverna` da prancha de biomas, à noite, o chão entre os cogumelos fica iluminado sem nenhuma luz posta à mão.
+Commit: `glowing objects bring their own light`
 
 ---
 
