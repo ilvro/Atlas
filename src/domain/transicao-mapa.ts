@@ -1,3 +1,4 @@
+import { mesmaRef } from '#mesa';
 import { andarDe, ehReceitaDeEscada } from './andares.ts';
 import { nomeDoAlvo } from './fabrica.ts';
 import { arredondar, centroDaAbertura, comprimentoDaParede, normalParaDentro, pontoNaParede, salasDaAbertura } from './geometria.ts';
@@ -152,15 +153,17 @@ export function resolverChegada(destino: MapaAtlas, transicao: TransicaoDeMapa):
   }
 
   if (transicao.toPosition) {
+    const andarDestino = transicao.toLevel && destino.levels?.[transicao.toLevel] ? transicao.toLevel : null;
     return {
-      levelId: transicao.toLevel ?? null,
+      levelId: andarDestino,
       posicao: limitarAoMapa(destino.bounds, [transicao.toPosition[0], transicao.toPosition[1]]),
       alvoId: null,
     };
   }
 
+  const andarDestino = transicao.toLevel && destino.levels?.[transicao.toLevel] ? transicao.toLevel : null;
   return {
-    levelId: transicao.toLevel ?? null,
+    levelId: andarDestino,
     posicao: [arredondar(destino.bounds.width / 2), arredondar(destino.bounds.height / 2)],
     alvoId: null,
   };
@@ -347,4 +350,106 @@ export function aplicarVinculoDeVolta(
 
   return null;
 }
+
+export interface ResultadoTransferenciaJogadores {
+  mapa: MapaAtlas;
+  chegada: ChegadaResolvida;
+  pecasTransferidas: string[];
+}
+
+function acharPecaCorrespondenteNoDestino(destino: MapaAtlas, origemPeca: Peca): Peca | undefined {
+  if (destino.tokens[origemPeca.id]) return destino.tokens[origemPeca.id];
+  const refsFicha = origemPeca.refs.filter(r => r.app === 'ficha');
+  if (refsFicha.length > 0) {
+    const porRef = Object.values(destino.tokens).find(t =>
+      t.refs.some(tr => refsFicha.some(or => mesmaRef(tr, or))),
+    );
+    if (porRef) return porRef;
+  }
+  const nomeNorm = origemPeca.name.trim().toLowerCase();
+  return Object.values(destino.tokens).find(
+    t => t.player && t.name.trim().toLowerCase() === nomeNorm,
+  );
+}
+
+/**
+ * Transfere as peças de jogador (`player: true`, mais `opcoes.pecaId` se informada) do mapa `origem`
+ * para o mapa `destino` ao redor do ponto de chegada de `transicao`, preservando luzes portadas e estado.
+ */
+export function transferirJogadoresParaMapa(
+  origem: MapaAtlas,
+  destino: MapaAtlas,
+  transicao: TransicaoDeMapa,
+  opcoes?: { pecaId?: string },
+): ResultadoTransferenciaJogadores {
+  const chegada = resolverChegada(destino, transicao);
+  const pecas: Peca[] = Object.values(origem.tokens).filter(t => t.player);
+  if (opcoes?.pecaId) {
+    const extra = origem.tokens[opcoes.pecaId];
+    if (extra && !pecas.some(p => p.id === extra.id)) {
+      pecas.unshift(extra);
+    }
+  }
+
+  if (pecas.length === 0) {
+    return { mapa: destino, chegada, pecasTransferidas: [] };
+  }
+
+  const copia = structuredClone(destino);
+  const posicoes = posicoesDeChegadaDasPecas(copia, chegada.posicao, pecas.length);
+  const pecasTransferidas: string[] = [];
+
+  pecas.forEach((pecaOrigem, idx) => {
+    const pos = posicoes[idx] ?? chegada.posicao;
+    const existente = acharPecaCorrespondenteNoDestino(copia, pecaOrigem);
+
+    if (existente) {
+      existente.position = [pos[0], pos[1]];
+      existente.facing = pecaOrigem.facing;
+      existente.figure = structuredClone(pecaOrigem.figure);
+      if (pecaOrigem.hp !== undefined) existente.hp = structuredClone(pecaOrigem.hp);
+      if (chegada.levelId === null) delete existente.levelId;
+      else existente.levelId = chegada.levelId;
+
+      if (existente.lightId && copia.lights[existente.lightId]) {
+        const luzDest = copia.lights[existente.lightId]!;
+        luzDest.position = [pos[0], pos[1]];
+        if (chegada.levelId === null) delete luzDest.levelId;
+        else luzDest.levelId = chegada.levelId;
+      } else if (pecaOrigem.lightId && origem.lights[pecaOrigem.lightId]) {
+        const luzCopia = structuredClone(origem.lights[pecaOrigem.lightId]!);
+        luzCopia.ownerId = existente.id;
+        luzCopia.position = [pos[0], pos[1]];
+        if (chegada.levelId === null) delete luzCopia.levelId;
+        else luzCopia.levelId = chegada.levelId;
+        copia.lights[luzCopia.id] = luzCopia;
+        existente.lightId = luzCopia.id;
+      }
+      pecasTransferidas.push(existente.id);
+    } else {
+      const nova = structuredClone(pecaOrigem);
+      nova.position = [pos[0], pos[1]];
+      if (chegada.levelId === null) delete nova.levelId;
+      else nova.levelId = chegada.levelId;
+
+      if (pecaOrigem.lightId && origem.lights[pecaOrigem.lightId]) {
+        const luzCopia = structuredClone(origem.lights[pecaOrigem.lightId]!);
+        luzCopia.ownerId = nova.id;
+        luzCopia.position = [pos[0], pos[1]];
+        if (chegada.levelId === null) delete luzCopia.levelId;
+        else luzCopia.levelId = chegada.levelId;
+        copia.lights[luzCopia.id] = luzCopia;
+        nova.lightId = luzCopia.id;
+      } else {
+        nova.lightId = null;
+      }
+
+      copia.tokens[nova.id] = nova;
+      pecasTransferidas.push(nova.id);
+    }
+  });
+
+  return { mapa: copia, chegada, pecasTransferidas };
+}
+
 

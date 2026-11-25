@@ -19,6 +19,9 @@ import { Icone } from './Icone.tsx';
 import { materiaisDo } from '../procedural/materiais.ts';
 import { nomeDoAlvo } from '../domain/fabrica.ts';
 import { secretaOculta } from '../domain/nevoa.ts';
+import type { TransicaoDeMapa } from '../domain/mapa.ts';
+import { transicaoDaAbertura, transicaoDoObjeto, transicaoPertoDaPeca } from '../domain/transicao-mapa.ts';
+import { nomeDoMapaDestino, viajarParaMapa } from '../app/transicao-mapa.ts';
 
 const posicao = signal<{ x: number; y: number; abaixo: boolean } | null>(null);
 
@@ -212,6 +215,32 @@ const Acao = ({ icone, rotulo, aoClicar, perigo, id }: { icone: string; rotulo: 
   <button type="button" class={`cartao-acao ${perigo ? 'perigo' : ''}`} title={rotulo} aria-label={rotulo} onClick={aoClicar} data-testid={id}><Icone nome={icone} tamanho={16} /></button>
 );
 
+function BotoesDeTransicaoDeMapa({ transicao, temJogadores, pecaId }: { transicao: TransicaoDeMapa; temJogadores: boolean; pecaId?: string }) {
+  const destinoNome = nomeDoMapaDestino(transicao.toMapId, transicao.label);
+  return (
+    <>
+      <button
+        type="button"
+        class="cartao-texto"
+        data-testid="cartao-ir-mapa"
+        onClick={() => void viajarParaMapa(transicao, { levarJogadores: false })}
+      >
+        ↗ Ir para {destinoNome}
+      </button>
+      {(temJogadores || pecaId) && (
+        <button
+          type="button"
+          class="cartao-texto"
+          data-testid="cartao-levar-grupo-mapa"
+          onClick={() => void viajarParaMapa(transicao, { levarJogadores: true, ...(pecaId ? { pecaId } : {}) })}
+        >
+          👥 Levar grupo para {destinoNome}
+        </button>
+      )}
+    </>
+  );
+}
+
 /** O cartão contextual: nome do que está selecionado e as ações que fazem sentido ali, sem abrir painel. */
 export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
   useSeguirSelecao(s);
@@ -222,55 +251,75 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
   const editar = (fn: () => void) => { if (tentar(fn)) tocar('selecionar'); };
   let acoes = null;
   const emSessao = modo.value === 'sessao';
-  if (emSessao && a.colecao === 'props' && m.props[a.id]?.interaction && m.props[a.id]!.interaction!.kind !== 'stairs') {
+  const temJogadores = Object.values(m.tokens).some(t => t.player);
+  if (emSessao && a.colecao === 'props') {
     const o = m.props[a.id]!;
-    acoes = <button type="button" class="cartao-texto" onClick={() => usarObjeto(o.id)} data-testid="cartao-usar">{acaoDoInterativo(o)}</button>;
+    const transicao = transicaoDoObjeto(o);
+    const interativo = o.interaction && o.interaction.kind !== 'stairs';
+    if (!transicao && !interativo) return null;
+    acoes = (
+      <>
+        {interativo && <button type="button" class="cartao-texto" onClick={() => usarObjeto(o.id)} data-testid="cartao-usar">{acaoDoInterativo(o)}</button>}
+        {transicao && <BotoesDeTransicaoDeMapa transicao={transicao} temJogadores={temJogadores} />}
+      </>
+    );
   } else if (emSessao && a.colecao === 'tokens') {
-    // Peça ligada a uma ficha: PV e PD (da Ficha, pelo barramento ou local na peça) e o atalho para abri-la.
+    // Peça ligada a uma ficha ou próxima de uma transição entre mapas.
     const token = m.tokens[a.id]!;
-    const ref = refDaFicha(token.refs); if (!ref) return null;
-    const rec = recursosDaPeca(token);
+    const ref = refDaFicha(token.refs);
+    const prox = transicaoPertoDaPeca(m, token);
+    if (!ref && !prox) return null;
+    const rec = ref ? recursosDaPeca(token) : null;
     acoes = (<>
-      {rec ? (
+      {ref && (rec ? (
         <ControlesDeRecursosToken s={s} peca={token} refFicha={ref} />
       ) : (
         <span class="cartao-texto" data-testid="cartao-recursos">Sem dados da ficha</span>
+      ))}
+      {ref && (
+        <>
+          <button
+            type="button"
+            class="cartao-texto"
+            data-testid="cartao-alternar-estilo-token"
+            title="Alternar estilo do token (Moeda / Imersivo)"
+            onClick={() => {
+              const estilo = (token.tokenStyle ?? 'coin') === 'coin' ? 'immersive' : 'coin';
+              editar(() => st.executar({ tipo: 'item.atualizar', colecao: 'tokens', id: token.id, patch: { tokenStyle: estilo } }, { rotulo: `Estilo do token: ${estilo}` }));
+            }}
+          >
+            {(token.tokenStyle ?? 'coin') === 'coin' ? '◯' : '🧍'}
+          </button>
+          <button
+            type="button"
+            class={`cartao-texto cartao-espiar-btn ${previaDaFichaAberta.value ? 'ativo' : ''}`}
+            data-testid="cartao-espiar-ficha"
+            aria-pressed={previaDaFichaAberta.value}
+            title="Espiar ficha ao lado do token"
+            onClick={() => {
+              previaDaFichaAberta.value = !previaDaFichaAberta.value;
+              tocar('pop');
+            }}
+          >
+            ▸ Ficha
+          </button>
+          <button type="button" class="cartao-texto" data-testid="cartao-abrir-ficha" onClick={() => void abrirFicha(servicos.peek()?.barramento, ref)}>Abrir ficha</button>
+        </>
       )}
-      <button
-        type="button"
-        class="cartao-texto"
-        data-testid="cartao-alternar-estilo-token"
-        title="Alternar estilo do token (Moeda / Imersivo)"
-        onClick={() => {
-          const estilo = (token.tokenStyle ?? 'coin') === 'coin' ? 'immersive' : 'coin';
-          editar(() => st.executar({ tipo: 'item.atualizar', colecao: 'tokens', id: token.id, patch: { tokenStyle: estilo } }, { rotulo: `Estilo do token: ${estilo}` }));
-        }}
-      >
-        {(token.tokenStyle ?? 'coin') === 'coin' ? '◯' : '🧍'}
-      </button>
-      <button
-        type="button"
-        class={`cartao-texto cartao-espiar-btn ${previaDaFichaAberta.value ? 'ativo' : ''}`}
-        data-testid="cartao-espiar-ficha"
-        aria-pressed={previaDaFichaAberta.value}
-        title="Espiar ficha ao lado do token"
-        onClick={() => {
-          previaDaFichaAberta.value = !previaDaFichaAberta.value;
-          tocar('pop');
-        }}
-      >
-        ▸ Ficha
-      </button>
-      <button type="button" class="cartao-texto" data-testid="cartao-abrir-ficha" onClick={() => void abrirFicha(servicos.peek()?.barramento, ref)}>Abrir ficha</button>
+      {prox && <BotoesDeTransicaoDeMapa transicao={prox.transicao} temJogadores={temJogadores} pecaId={token.id} />}
     </>);
   } else if (emSessao && a.colecao !== 'openings') return null;       // na sessão o cartão só tem ações de porta (a 7.6a acrescenta as dos interativos)
   else if (emSessao) {
     const o = m.openings[a.id]!, porta = o.kind === 'door' || o.kind === 'secret';
-    acoes = porta ? (<>
-      <Acao icone="porta" rotulo={o.state === 'open' ? 'Fechar a porta' : 'Abrir a porta'} aoClicar={() => alternarPorta(o.id)} id="cartao-abrir" />
-      <Acao icone="secreta" rotulo={o.state === 'locked' ? 'Destrancar' : 'Trancar'} aoClicar={() => trancarPorta(o.id)} id="cartao-trancar" />
-      {secretaOculta(m, o) && <button type="button" class="cartao-texto" title="Mostrar esta porta secreta aos jogadores" onClick={() => revelarPorta(o.id)} data-testid="cartao-revelar">Revelar aos jogadores</button>}
-    </>) : <span class="cartao-texto">Sem folha para abrir</span>;
+    const transicao = transicaoDaAbertura(o);
+    acoes = (<>
+      {porta ? (<>
+        <Acao icone="porta" rotulo={o.state === 'open' ? 'Fechar a porta' : 'Abrir a porta'} aoClicar={() => alternarPorta(o.id)} id="cartao-abrir" />
+        <Acao icone="secreta" rotulo={o.state === 'locked' ? 'Destrancar' : 'Trancar'} aoClicar={() => trancarPorta(o.id)} id="cartao-trancar" />
+        {secretaOculta(m, o) && <button type="button" class="cartao-texto" title="Mostrar esta porta secreta aos jogadores" onClick={() => revelarPorta(o.id)} data-testid="cartao-revelar">Revelar aos jogadores</button>}
+      </>) : (!transicao && <span class="cartao-texto">Sem folha para abrir</span>)}
+      {transicao && <BotoesDeTransicaoDeMapa transicao={transicao} temJogadores={temJogadores} />}
+    </>);
   } else if (a.colecao === 'rooms') {
     const r = m.rooms[a.id]!;
     acoes = (<>

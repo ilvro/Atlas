@@ -21,7 +21,9 @@ import type { Alvo } from '../render/selecao.ts';
 import { acaoEscadaParaPeca, andarDe } from '../domain/andares.ts';
 import { edificioDaSala } from '../domain/edificios.ts';
 import { comodoEm } from '../domain/geometria.ts';
-import type { Ponto } from '../domain/mapa.ts';
+import type { Ponto, TransicaoDeMapa } from '../domain/mapa.ts';
+import { transicaoDaAbertura, transicaoDoObjeto, transicaoPertoDaPeca } from '../domain/transicao-mapa.ts';
+import { nomeDoMapaDestino, viajarParaMapa } from './transicao-mapa.ts';
 
 /** Uma coisa que o mestre pode mandar o Atlas fazer. A paleta, os atalhos e o menu radial leem a mesma lista. */
 export interface Acao {
@@ -332,16 +334,52 @@ export function itensDoMenuRadial(alvo: Alvo | null, mundo: Ponto): ItemRadial[]
   if (modo.value === 'sessao') {
     const salaId = comodoEm(m, mundo), ed = salaId ? edificioDaSala(m, salaId) : null;
     const itensSessao: ItemRadial[] = [];
-    if (alvo?.colecao === 'tokens') {
+    let transicaoSessao: TransicaoDeMapa | null = null;
+    let pecaTransicaoId: string | undefined;
+
+    if (alvo?.colecao === 'openings') {
+      const ab = m.openings[alvo.id];
+      if (ab) transicaoSessao = transicaoDaAbertura(ab);
+    } else if (alvo?.colecao === 'props') {
+      const obj = m.props[alvo.id];
+      if (obj) transicaoSessao = transicaoDoObjeto(obj);
+    } else if (alvo?.colecao === 'tokens') {
       const peca = m.tokens[alvo.id];
-      const acaoEscada = peca ? acaoEscadaParaPeca(m, peca) : null;
-      if (peca && acaoEscada) {
-        const origem = andarDe(peca);
+      if (peca) {
+        const prox = transicaoPertoDaPeca(m, peca);
+        if (prox) {
+          transicaoSessao = prox.transicao;
+          pecaTransicaoId = peca.id;
+        }
+        const acaoEscada = acaoEscadaParaPeca(m, peca);
+        if (acaoEscada && !prox) {
+          const origem = andarDe(peca);
+          itensSessao.push({
+            id: `escada-${acaoEscada.escadaId}`,
+            rotulo: acaoEscada.rotulo,
+            icone: 'escada',
+            fazer: () => app.executarMudancaDeAndarDaPeca(peca.id, acaoEscada.destino, acaoEscada.posicao, origem),
+          });
+        }
+      }
+    }
+
+    if (transicaoSessao) {
+      const t = transicaoSessao;
+      const nomeDest = nomeDoMapaDestino(t.toMapId, t.label);
+      const temJogadores = Object.values(m.tokens).some(tk => tk.player) || !!pecaTransicaoId;
+      itensSessao.push({
+        id: 'viajar-mapa',
+        rotulo: `Ir para ${nomeDest}`,
+        icone: 'mapa',
+        fazer: () => { void viajarParaMapa(t, { levarJogadores: false }); },
+      });
+      if (temJogadores) {
         itensSessao.push({
-          id: `escada-${acaoEscada.escadaId}`,
-          rotulo: acaoEscada.rotulo,
-          icone: 'escada',
-          fazer: () => app.executarMudancaDeAndarDaPeca(peca.id, acaoEscada.destino, acaoEscada.posicao, origem),
+          id: 'levar-grupo-mapa',
+          rotulo: `Levar grupo para ${nomeDest}`,
+          icone: 'peca',
+          fazer: () => { void viajarParaMapa(t, { levarJogadores: true, ...(pecaTransicaoId ? { pecaId: pecaTransicaoId } : {}) }); },
         });
       }
     }

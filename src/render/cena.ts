@@ -2,7 +2,8 @@ import { Container, Graphics, Sprite, Text, Texture, type Renderer } from 'pixi.
 import { listaDeAndares } from '../domain/andares.ts';
 import { decodificar } from '../domain/celulas.ts';
 import { pontoNoPoligono } from '../domain/formas-de-comodo.ts';
-import { comodoEm, comprimentoDaParede, contornoDoComodo, indiceDeCelulas, pontoNaParede } from '../domain/geometria.ts';
+import { comodoEm, comprimentoDaParede, centroDaAbertura, contornoDoComodo, indiceDeCelulas, pontoNaParede } from '../domain/geometria.ts';
+import { transicaoDaAbertura, transicaoDoObjeto } from '../domain/transicao-mapa.ts';
 import { AO_PADRAO, EXPOSICAO_PADRAO, RELEVO_PADRAO, type Abertura, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Ponto, type Regiao } from '../domain/mapa.ts';
 import { alturaTopoDaFace } from '../procedural/faces-de-parede.ts';
 import { materialDe, tom } from '../procedural/materiais.ts';
@@ -630,12 +631,34 @@ export function criarCena(op: OpcoesDaCena): Cena {
   const marcasVisiveis = () => { marcasG.visible = !modoDoProjetor && vistaDaCena !== 'jogador'; };
   function desenharMarcas(m: MapaAtlas): void {
     marcasG.clear();
+    const desenharSeloDeTransicao = (x: number, y: number) => {
+      const cor = 0x38bdf8;
+      marcasG.circle(x, y, 0.22).fill({ color: 0x0c0c12, alpha: 0.88 }).stroke({ width: 0.04, color: cor });
+      marcasG
+        .moveTo(x - 0.08, y + 0.08)
+        .lineTo(x + 0.08, y - 0.08)
+        .moveTo(x - 0.01, y - 0.08)
+        .lineTo(x + 0.08, y - 0.08)
+        .lineTo(x + 0.08, y + 0.01)
+        .stroke({ width: 0.045, color: cor, cap: 'round', join: 'round' });
+    };
     for (const o of Object.values(m.props) as Objeto[]) {
+      if (transicaoDoObjeto(o)) {
+        desenharSeloDeTransicao(o.position[0], o.position[1]);
+        continue;
+      }
       const i = o.interaction; if (!i || i.kind === 'clue') continue;
       const [x, y] = o.position, cor = i.kind === 'switch' ? (i.on ? 0xffd23f : 0x6b6f80) : (i.on ? 0x4fc3f7 : 0x6b6f80);
       marcasG.circle(x, y, 0.2).fill({ color: 0x0c0c12, alpha: 0.85 }).stroke({ width: 0.04, color: cor });
       if (i.kind === 'switch') marcasG.moveTo(x, y + 0.08).lineTo(x, y - 0.1).stroke({ width: 0.05, color: cor, cap: 'round' });
       else marcasG.rect(x - 0.09, y - 0.07, 0.18, 0.14).stroke({ width: 0.035, color: cor }).moveTo(x - 0.03, y).lineTo(x + 0.03, y).stroke({ width: 0.035, color: cor });
+    }
+    for (const a of Object.values(m.openings)) {
+      if (!transicaoDaAbertura(a)) continue;
+      const parede = m.walls[a.wallId];
+      if (!parede) continue;
+      const { ponto } = pontoNaParede(parede, centroDaAbertura(parede, a));
+      desenharSeloDeTransicao(ponto[0], ponto[1]);
     }
   }
 

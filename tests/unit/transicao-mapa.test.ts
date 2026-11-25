@@ -4,7 +4,8 @@ import { criarMapa, type MapaAtlas } from '../../src/domain/mapa.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
 import { ErroDeValidacao } from '../../src/domain/esquema.ts';
 import { recalcularParedes } from '../../src/domain/geometria.ts';
-import { novaPeca, novoObjeto } from '../../src/domain/fabrica.ts';
+import { novaLuz, novaPeca, novoObjeto } from '../../src/domain/fabrica.ts';
+import { criarRef } from '#mesa';
 import {
   aplicarVinculoDeVolta,
   criarTransicaoDeRetorno,
@@ -15,6 +16,7 @@ import {
   transicaoDaAbertura,
   transicaoDoObjeto,
   transicaoPertoDaPeca,
+  transferirJogadoresParaMapa,
 } from '../../src/domain/transicao-mapa.ts';
 import { aplicarComando } from '../../src/state/comandos.ts';
 
@@ -308,4 +310,80 @@ test('comandos e vínculo de volta: abertura.atualizar grava transition e aplica
   // 4. Alvo inexistente devolve null
   assert.equal(aplicarVinculoDeVolta(mapaB, 'inexistente', retornoPorta), null);
 });
+
+test('transferirJogadoresParaMapa: transfere grupo de jogadores, atualiza peças existentes por ref e leva lanterna portada', () => {
+  const origem = criarMapaComComodo();
+  const destino = criarMapaComComodo();
+  destino.id = 'mapa-taverna';
+  destino.levels = {
+    porao: { id: 'porao', name: 'Porão', order: -1 },
+  };
+  destino.props.escadaPorao = novoObjeto([9, 9], {
+    id: 'escadaPorao',
+    levelId: 'porao',
+    source: { kind: 'recipe', recipe: 'alcapao', seed: 2, params: {} },
+  });
+
+  // Peça 1 no mapa de origem com lanterna portada e ref de ficha
+  const refArthur = criarRef('ficha', 'personagem', 'arthur-1');
+  const luzArthur = novaLuz([3, 3], { id: 'luz-arthur', ownerId: 't-arthur' });
+  origem.lights[luzArthur.id] = luzArthur;
+  origem.tokens['t-arthur'] = novaPeca([3, 3], 'Arthur', {
+    id: 't-arthur',
+    player: true,
+    lightId: luzArthur.id,
+    refs: [refArthur],
+    hp: { pv: 18, pvMax: 24 },
+  });
+
+  // Peça 2 no mapa de origem (nova no destino)
+  origem.tokens['t-kaiser'] = novaPeca([4.5, 3], 'Kaiser', {
+    id: 't-kaiser',
+    player: true,
+  });
+
+  // Peça do mestre (não deve ir a menos que seja pecaId)
+  origem.tokens['t-ameaca'] = novaPeca([12, 12], 'Zumbi', {
+    id: 't-ameaca',
+    player: false,
+  });
+
+  // Destino já tem uma peça antiga do Arthur com outro ID, mas mesma ref de ficha
+  destino.tokens['token-antigo-arthur'] = novaPeca([1.5, 1.5], 'Arthur', {
+    id: 'token-antigo-arthur',
+    player: true,
+    refs: [refArthur],
+    hp: { pv: 24, pvMax: 24 },
+  });
+
+  const resultado = transferirJogadoresParaMapa(origem, destino, {
+    toMapId: destino.id,
+    toTargetId: 'escadaPorao',
+  });
+
+  assert.equal(caminhoDoErro(resultado.mapa), null);
+  assert.equal(resultado.chegada.levelId, 'porao');
+  assert.deepEqual(resultado.chegada.posicao, [9, 9]);
+  assert.deepEqual(resultado.pecasTransferidas.sort(), ['t-kaiser', 'token-antigo-arthur']);
+
+  // A peça existente por ref foi atualizada no andar e posição de chegada, recebendo HP e lanterna
+  const arthurNoDestino = resultado.mapa.tokens['token-antigo-arthur']!;
+  assert.ok(arthurNoDestino);
+  assert.equal(arthurNoDestino.levelId, 'porao');
+  assert.deepEqual(arthurNoDestino.hp, { pv: 18, pvMax: 24 });
+  assert.equal(arthurNoDestino.lightId, 'luz-arthur');
+  assert.ok(resultado.mapa.lights['luz-arthur']);
+  assert.equal(resultado.mapa.lights['luz-arthur']!.ownerId, 'token-antigo-arthur');
+  assert.equal(resultado.mapa.lights['luz-arthur']!.levelId, 'porao');
+  assert.deepEqual(resultado.mapa.lights['luz-arthur']!.position, arthurNoDestino.position);
+
+  // A peça nova do Kaiser foi criada no destino no mesmo andar
+  const kaiserNoDestino = resultado.mapa.tokens['t-kaiser']!;
+  assert.ok(kaiserNoDestino);
+  assert.equal(kaiserNoDestino.levelId, 'porao');
+
+  // A peça do mestre não foi transferida
+  assert.equal(resultado.mapa.tokens['t-ameaca'], undefined);
+});
+
 

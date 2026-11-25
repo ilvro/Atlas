@@ -85,7 +85,7 @@ Nota: Criado `src/ui/BlocoTransicaoDeMapa.tsx` integrado a `CamposDaAbertura` (`
 
 ---
 
-### T3 — Marcador visual e teleporte entre mapas na Sessão  ⬜
+### T3 — Marcador visual e teleporte entre mapas na Sessão  ✅
 Objetivo: na Sessão, portas e escadas vinculadas mostram um ícone de transição e permitem abrir o mapa de destino já centralizado na chegada (com ou sem transferência das peças dos jogadores).
 Depende de: T1, T2.
 Ler: `src/render/cena.ts` (`desenharMarcas`), `src/ui/CartaoContextual.tsx`, `src/app/acoes.ts` (`itensDoMenuRadial`), `src/app/app.ts` (`abrirMapa`, `definirAndarAtivo`, `projetarAba`, `mapaNoProjetorId`, `viewport`), `src/domain/transicao-mapa.ts`.
@@ -107,6 +107,7 @@ Como:
 Testes: e2e/unitário: vincular Porta A (Mapa 1) à Porta B (Mapa 2); em modo Sessão, acionar "Levar grupo para Mapa 2" → a aba ativa muda para o Mapa 2, o andar e a câmera focam na Porta B e as peças dos jogadores estão posicionadas na chegada.
 Pronto quando: clicar na transição no modo Sessão troca para o mapa de destino centralizado na entrada correspondente e leva o grupo.
 Commit: `(feature) travel between linked maps from doors and stairs during session`
+Nota: Adicionado selo visual turquesa (`0x38bdf8`) com seta `↗` em `desenharMarcas` (`src/render/cena.ts`) para portas e escadas vinculadas; implementada a transferência pura de peças e lanternas em `transferirJogadoresParaMapa` (`src/domain/transicao-mapa.ts`) e a ação `viajarParaMapa` (`src/app/transicao-mapa.ts`); integrados os botões "↗ Ir para <mapa>" e "👥 Levar grupo para <mapa>" no `CartaoContextual` e em `itensDoMenuRadial` (`src/app/acoes.ts`) para portas, escadas e peças próximas na Sessão.
 
 ---
 
