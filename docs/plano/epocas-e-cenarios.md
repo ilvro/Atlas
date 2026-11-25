@@ -313,7 +313,7 @@ Pronto quando: uma caverna de fungos com cristais, à noite, se ilumina só com 
 Commit: `added fungi, crystals, beach and autumn props`
 Nota: desvios e motor. `concha` é um punhado de conchas (vieira, caramujo e mexilhão; campo `quantas`), porque uma concha só some na escala do mapa. Entrou também o carimbo `petalas-de-cerejeira` (que saiu da Q13), na família "Flores e pétalas". O vapor da fumarola usa a fumaça das fogueiras (`fumaca.ts`), com a cor do ambiente clareada e sem o âmbar do fogo. O clarão de um objeto que brilha é uma parte `brilho` desfocada no chão, como o da lava. Ele precisa caber na pegada: o desfoque que passa da borda do sprite é cortado em quadrado, e por isso cogumelo e cristal têm pegada maior que o desenho. Limite: à noite, cada cogumelo e cada cristal brilha e acende o chão em volta, mas o clarão não passa da pegada, e o chão entre eles fica escuro. Para a caverna inteira se acender sozinha, o objeto que brilha precisa trazer uma luz de verdade (ficha Q14b). Cenas: `node scripts/dev/prancha-biomas.ts caverna vulcao praia`.
 
-### Q14b — Objetos que brilham trazem luz  ⬜
+### Q14b — Objetos que brilham trazem luz  ✅
 Objetivo: um objeto com brilho (cogumelo, cristal, fumarola e, nos kits, braseiro, tela e letreiro) ilumina o entorno com uma luz de verdade, sem que o usuário a ponha à mão.
 Depende de: Q14.
 Ler: `src/procedural/receitas/comum.ts` (`Receita`), `src/domain/fabrica.ts` (`novaLuz`, `ownerId`), `src/state/comandos.ts` (remoção das luzes do dono), `scripts/exemplos/kit.ts` (`objeto`), os caminhos que põem objeto no mapa (biblioteca, pincel de família, `espalhar`, ponte MCP).
@@ -321,6 +321,7 @@ Como: a `Receita` ganha `luz?: (params) => { preset, raio, cor, intensidade } | 
 Testes: pôr um `cogumelo-gigante` cria uma luz com `ownerId`; `brilho` 0 não cria; apagar o objeto apaga a luz.
 Pronto quando: na cena `caverna` da prancha de biomas, à noite, o chão entre os cogumelos fica iluminado sem nenhuma luz posta à mão.
 Commit: `glowing objects bring their own light`
+Nota: desvios e limites. A luz é sincronizada em `sincronizarLuzesProprias` (`src/domain/luz-propria.ts`), chamada no fim de todo comando (`aplicarComando`) e no `Kit.construir`; assim cobre biblioteca, pincel de família, `espalhar`, mobiliar e ponte MCP sem tocar em cada caminho. A luz tem id `lp-<id do objeto>` (estável no desfazer) e `power: 'magic'`; o raio acompanha a escala do objeto. Só essas luzes são geridas: mudar raio, cor ou intensidade à mão numa delas é refeito no comando seguinte (o `on` do mestre é respeitado); para uma luz livre, duplique-a. Cogumelo e cristal devolvem intensidade 0,8 a 2,2 (a cor `emite` é escura, e com menos o chão quase não acende); fumarola, laranja fraco de raio 1,5. Sem luz própria: `fungos-luminosos`; braseiro, tela e letreiro entram com os kits de época (basta pôr `luz` na receita). Na caverna da prancha, à noite, o chão e a rocha em volta ficam tingidos, mas o fundo longe dos cogumelos continua escuro, como numa caverna.
 
 ---
 

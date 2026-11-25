@@ -6,6 +6,9 @@ export const CATEGORIAS: readonly (readonly [Categoria, string])[] = [['mesas', 
 export interface CampoDeReceita { id: string; rotulo: string; tipo: 'numero' | 'material'; padrao: number | string; min?: number; max?: number; passo?: number; /** Para `material`: que uso de material oferecer. */ uso?: 'piso' | 'papel' | 'objeto' | 'terreno' }
 export interface PedidoDeReceita { seed: number; params: Record<string, unknown> }
 
+/** O que a receita pede de luz; o resto (dono, posição, andar) vem do objeto. `power` ausente vale `magic`. */
+export interface LuzDeReceita { raio: number; cor: string; intensidade: number; preset?: string; power?: 'grid' | 'fire' | 'battery' | 'magic'; flicker?: number }
+
 export interface Receita {
   id: string; nome: string; categoria: Categoria; tipo: 'piso' | 'parede';
   /** Para que cômodos serve (a construção inteligente da Fase 5 usa isto). */
@@ -23,6 +26,8 @@ export interface Receita {
   /** Animação própria acrescentada pela cena por cima da parte assada. */
   animacao?: 'cachoeira';
   campos?: CampoDeReceita[];
+  /** A luz que o objeto traz consigo (cogumelo, cristal…): nasce com o objeto, acompanha os parâmetros e some quando o brilho some. `null` = sem luz. */
+  luz?: (params: Record<string, unknown>) => LuzDeReceita | null;
   gerar(p: PedidoDeReceita): Descricao;
 }
 
