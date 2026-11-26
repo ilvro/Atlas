@@ -62,7 +62,7 @@ Nota: Entregue `TransicaoDeMapa` em `Abertura.transition` e `toMapId`/`toTargetI
 
 ---
 
-### T2 — Inspetor e menu radial: vincular porta/escada a outro mapa e vínculo de volta  ⬜
+### T2 — Inspetor e menu radial: vincular porta/escada a outro mapa e vínculo de volta  ✅
 Objetivo: o mestre vincula uma porta, escada ou alçapão a outro mapa da campanha pelo botão direito ou pelo Inspetor, podendo criar o vínculo de volta com um clique.
 Depende de: T1.
 Ler: `src/ui/Inspetor.tsx` (`CamposDaAbertura`, `InteracaoDoObjeto`), `src/app/acoes.ts` (`itensDoMenuRadial`), `src/app/app.ts` (`resumos`, `servicos`), `src/app/modo.ts` (`abaDoInspetor`).
@@ -81,6 +81,7 @@ Não fazer: a execução do teleporte na Sessão (T3).
 Testes: teste unitário/e2e de vincular uma porta ao Mapa B, escolher a porta de chegada e clicar em "Vincular caminho de volta" (conferindo que o Mapa B salvo no repositório ganhou o vínculo inverso).
 Pronto quando: no editor, botão direito numa porta ou escada permite vinculá-la a outro mapa e criar o vínculo recíproco.
 Commit: `(feature) link doors and stairs to other campaign maps in inspector and radial menu`
+Nota: Criado `src/ui/BlocoTransicaoDeMapa.tsx` integrado a `CamposDaAbertura` (`door`, `arch`, `secret`) e `InteracaoDoObjeto` (habilitando `stairs` mesmo em mapas de 1 andar), comando `abertura.atualizar` estendido com `transition`, item radial `vincular-mapa` com ícone `'mapa'` em `src/app/acoes.ts`, e funções puras `criarTransicaoDeRetorno`, `jaTemVinculoDeVolta` e `aplicarVinculoDeVolta` em `src/domain/transicao-mapa.ts` testadas em `tests/unit/transicao-mapa.test.ts`.
 
 ---
 

@@ -12,7 +12,8 @@ import { ROTULO_DA_FERRAMENTA, type Ferramenta } from '../render/pincel.ts';
 import { colecaoDaFerramenta } from '../render/viewport.ts';
 import { campanhaAtiva } from './campanha.ts';
 import { PRESETS_DE_CLIMA } from '../domain/presets.ts';
-import { FERRAMENTAS_DA_SESSAO, definirMovimentoLivre, modo, mostrarRelevo, movimentoLivre, vistaDeJogador } from './modo.ts';
+import { FERRAMENTAS_DA_SESSAO, abaDoInspetor, definirMovimentoLivre, modo, mostrarRelevo, movimentoLivre, vistaDeJogador } from './modo.ts';
+import { objetoParaVincularMapa } from '../ui/BlocoTransicaoDeMapa.tsx';
 import { aceitarSugestao, definirSugestoesLigadas, dispensarSugestao, outraSugestao, sugestao, sugestoesLigadas } from './sugestoes.ts';
 import { momentoEmCurso, pararMomento } from './momentos.ts';
 import { dispararEspaco } from './barra-de-efeitos.ts';
@@ -366,10 +367,24 @@ export function itensDoMenuRadial(alvo: Alvo | null, mundo: Ponto): ItemRadial[]
   const item = (id: string, rotulo: string, icone: string, atalho?: string): ItemRadial => ({ id, rotulo, icone, ...(atalho ? { atalho } : {}), fazer: () => { const a = acaoPorId(id); if (a) executarAcao(a); } });
   if (alvo) {
     const luz = alvo.colecao === 'lights';
+    const podeVincularMapa =
+      (alvo.colecao === 'openings' && m.openings[alvo.id]?.kind !== 'window')
+      || alvo.colecao === 'props';
     const refQuadro = refDoAlvoParaQuadro(m.id, alvo);
     return [
       item('duplicar', 'Duplicar', 'duplicar', 'Ctrl+D'), item('remover', 'Remover', 'lixeira', 'Del'),
       ...(luz ? [item('luz-acesa', s.doc.value.lights[alvo.id]?.on ? 'Apagar' : 'Acender', 'luz', 'I')] : []),
+      ...(podeVincularMapa ? [{
+        id: 'vincular-mapa',
+        rotulo: 'Vincular a outro mapa…',
+        icone: 'mapa',
+        fazer: () => {
+          if (alvo.colecao === 'props') objetoParaVincularMapa.value = alvo.id;
+          s.selecao.value = [alvo];
+          abaDoInspetor.value = 'selecao';
+          setTimeout(() => document.querySelector<HTMLElement>('[data-testid="transicao-mapa-destino"]')?.focus(), 30);
+        },
+      }] : []),
       item('centralizar', 'Centralizar', 'alvo', 'Z'), item('desfazer', 'Desfazer', 'desfazer', 'Ctrl+Z'),
       ...(refQuadro ? itensDeQuadroRadial(refQuadro) : []),
     ];

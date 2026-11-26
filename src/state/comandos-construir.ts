@@ -29,7 +29,7 @@ export type ComandoConstruir =
   | { tipo: 'parede.remover'; id: string }
   | { tipo: 'parede.desanexar'; id: string }
   | { tipo: 'abertura.adicionar'; abertura: Abertura }
-  | { tipo: 'abertura.atualizar'; id: string; patch: Partial<Pick<Abertura, 'at' | 'width' | 'kind' | 'state' | 'material' | 'som' | 'swing' | 'wallId'>> }
+  | { tipo: 'abertura.atualizar'; id: string; patch: Partial<Pick<Abertura, 'at' | 'width' | 'kind' | 'state' | 'material' | 'som' | 'swing' | 'wallId' | 'transition'>> }
   | { tipo: 'abertura.remover'; id: string }
   /** `suavizar` (só água): arredonda a borda da camada onde a pincelada passou. */
   /** `lembrar` (água que sobe): guarda em `terrain.submerged` o que cada camada perdeu, para `terreno.emergir` devolver. Sem ele, pintar tira essas células do guardado. */
@@ -215,7 +215,13 @@ export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
       const a = m.openings[c.id] ?? nao(`A abertura “${c.id}” não existe.`);
       const depois = { ...JSON.parse(JSON.stringify(a)), ...c.patch };
       const motivo = motivoDeNaoCaber(m, depois); if (motivo) nao(motivo);
-      mesclar(a, c.patch as Record<string, unknown>); break;
+      const { transition, ...resto } = c.patch;
+      mesclar(a, resto as Record<string, unknown>);
+      if ('transition' in c.patch) {
+        if (transition === undefined) delete a.transition;
+        else a.transition = clonar(transition);
+      }
+      break;
     }
     case 'abertura.remover': { if (!m.openings[c.id]) nao(`A abertura “${c.id}” não existe.`); delete m.openings[c.id]; m.session.revealed = m.session.revealed.filter(x => x !== c.id); break; }
 
