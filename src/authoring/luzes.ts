@@ -66,6 +66,12 @@ export const LUZES_POR_FUNCAO: Readonly<Record<string, LuzDaFuncao>> = {
   templo: { m2PorLuz: 12, tamanho: 'principal', sobre: ['altar-de-sacrificio', 'tripe-de-bronze'] },
   forum: { m2PorLuz: 20, tamanho: 'pequena', sobre: [], semLuz: true },
   taberna: { m2PorLuz: 12, tamanho: 'principal', sobre: ['mesa-romana'] },
+  // Oriental (Q16c): o andon, a lanterna de papel e a de pedra trazem a própria luz; sem eles, o gênero põe a lanterna de papel/vela de `LUZES_POR_GENERO`.
+  'sala-de-tatami': { m2PorLuz: 12, tamanho: 'principal', sobre: ['mesa-baixa'] },
+  'casa-de-cha': { m2PorLuz: 10, tamanho: 'principal', sobre: ['irori', 'mesa-baixa'] },
+  dojo: { m2PorLuz: 16, tamanho: 'principal', sobre: [] },
+  santuario: { m2PorLuz: 10, tamanho: 'pequena', sobre: ['incensario'] },
+  jardim: { m2PorLuz: 20, tamanho: 'pequena', sobre: [], semLuz: true },
 };
 
 const DISTANCIA_MINIMA = 2;

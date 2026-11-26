@@ -10,6 +10,11 @@ const FUNCOES = new Set(TIPOS_DE_COMODO.map(t => t.funcao));
 
 // Das mais específicas para as mais genéricas: a primeira palavra que bate decide.
 const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number }[] = [
+  // Oriental (Q16c): antes do templo, para "templo xintoísta" ser santuário.
+  { palavras: ['santuario', 'jinja', 'xintoista'], funcao: 'santuario', confianca: 0.9 },
+  { palavras: ['tatami', 'washitsu'], funcao: 'sala-de-tatami', confianca: 0.9 },
+  { palavras: ['cha', 'chashitsu'], funcao: 'casa-de-cha', confianca: 0.9 },
+  { palavras: ['dojo'], funcao: 'dojo', confianca: 0.9 },
   { palavras: ['atrio'], funcao: 'atrio', confianca: 0.9 },
   { palavras: ['peristilo'], funcao: 'peristilo', confianca: 0.9 },
   { palavras: ['triclinio'], funcao: 'triclinio', confianca: 0.9 },
@@ -28,7 +33,7 @@ const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number
   { palavras: ['taverna', 'bar', 'estalagem', 'pub'], funcao: 'taverna', confianca: 0.9 },
   { palavras: ['varanda', 'terraco', 'sacada', 'alpendre'], funcao: 'varanda', confianca: 0.9 },
   { palavras: ['patio', 'quintal'], funcao: 'patio', confianca: 0.9 },
-  { palavras: ['capela', 'igreja', 'santuario'], funcao: 'capela', confianca: 0.9 },
+  { palavras: ['capela', 'igreja'], funcao: 'capela', confianca: 0.9 },
   { palavras: ['forja', 'ferraria'], funcao: 'forja', confianca: 0.9 },
   { palavras: ['oficina', 'carpintaria'], funcao: 'oficina', confianca: 0.9 },
   { palavras: ['estabulo', 'cocheira'], funcao: 'estabulo', confianca: 0.9 },

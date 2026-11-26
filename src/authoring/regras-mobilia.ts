@@ -401,6 +401,49 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('barril', ['barril.em-pe'], 'canto', [0, 2], 7),
     item('caixa', ['caixa'], 'canto', [0, 2], 8),
   ],
+  // Oriental (Q16c). Fora do gênero, os itens exclusivos da época saem das alternativas (`regrasPara`); os que são só `oriental`/`fantasia` ainda servem à fantasia.
+  'sala-de-tatami': [
+    item('mesa', ['mesa-baixa'], 'centro', [1, 1], 1),
+    item('zabuton', ['zabuton'], 'junto', [4, 4], 2, { junto: { de: 'mesa', modo: 'ao-redor' }, senao: 'parede' }),
+    item('tansu', ['tansu'], 'parede', [0, 1], 3, { areaMinima: 10, alto: true }),
+    item('biombo', ['biombo'], 'parede', [0, 1], 4, { areaMinima: 12 }),
+    item('pergaminho', ['pergaminho-de-parede'], 'na-parede', [1, 1], 5),
+    item('ikebana', ['ikebana'], 'canto', [1, 1], 6),
+    item('andon', ['andon'], 'canto', [1, 2], 7),
+  ],
+  'casa-de-cha': [
+    item('mesa', ['irori', 'mesa-baixa'], 'centro', [1, 1], 1),
+    item('servico', ['bule-e-xicaras.oriental'], 'sobre', [1, 1], 2, { junto: { de: 'mesa', modo: 'ao-redor' } }),
+    item('zabuton', ['zabuton'], 'junto', [3, 5], 3, { junto: { de: 'mesa', modo: 'ao-redor' }, senao: 'parede' }),
+    item('pergaminho', ['pergaminho-de-parede'], 'na-parede', [1, 1], 4),
+    item('ikebana', ['ikebana'], 'canto', [1, 1], 5),
+    item('andon', ['andon'], 'canto', [1, 2], 6),
+    item('bonsai', ['bonsai'], 'canto', [0, 1], 7),
+  ],
+  dojo: [
+    item('suporte', ['suporte-de-espadas'], 'parede', [1, 1], 1),
+    item('armadura', ['armadura-oriental'], 'parede', [1, 2], 2, { escala: 0.5 }),
+    item('pergaminho', ['pergaminho-de-parede'], 'na-parede', [1, 2], 3),
+    item('zabuton', ['zabuton'], 'parede', [1, 3], 4),
+    item('andon', ['andon'], 'canto', [2, 4], 5),
+  ],
+  santuario: [
+    item('estatua', ['estatua-sentada'], 'parede', [1, 1], 1, { alto: true }),
+    item('incensario', ['incensario'], 'junto', [1, 1], 2, { junto: { de: 'estatua', modo: 'em-frente', folga: 1.4 }, senao: 'centro' }),
+    item('lanterna', ['andon', 'lanterna-de-papel'], 'canto', [2, 3], 3),
+    item('zabuton', ['zabuton'], 'parede', [1, 3], 4),
+    item('ikebana', ['ikebana'], 'canto', [1, 2], 5),
+  ],
+  jardim: [
+    item('rastelado', ['rastelado'], 'centro', [1, 1], 1, { areaMinima: 20 }),
+    item('lanterna', ['lanterna-de-pedra'], 'canto', [1, 3], 2),
+    item('bacia', ['bacia-de-pedra'], 'parede', [1, 1], 3),
+    item('cerejeira', ['casa:cerejeira-4m', 'casa:cerejeira-5m-rala', 'casa:cerejeira-6m'], 'canto', [1, 2], 4, { areaMinima: 30 }),
+    item('bambuzal', ['casa:bambuzal-2m'], 'parede', [1, 3], 5),
+    item('bonsai', ['bonsai'], 'canto', [1, 2], 6),
+    item('pedra', ['pedra.grande', 'pedra.media', 'pedra.pequena'], 'canto', [2, 4], 7, { escala: 0.5 }),
+    item('banco', ['banco.jardim'], 'parede', [0, 1], 8),
+  ],
 };
 
 /**
@@ -437,6 +480,11 @@ export const VARIACOES_DE_GENERO: Readonly<Record<string, { trocar?: Record<stri
   antiguidade: {
     sem: VARIACOES_BASE.fantasia!.sem,
     trocar: { ...VARIACOES_BASE.fantasia!.trocar, 'sala-de-jantar:mesa': ['mesa-romana'], 'sala-de-jantar:cadeira': ['banco'], 'salao:mesa': ['mesa-romana'], 'taverna:mesa': ['mesa-romana'] },
+  },
+  /** Oriental: a cozinha tem irori no lugar da lareira, mesa baixa com zabutons, tansu e serviço de chá; sem geladeira nem fogão. */
+  oriental: {
+    sem: ['cozinha:geladeira', 'cozinha:fogao', 'cozinha:balcao', 'cozinha:painel'],
+    trocar: { ...VARIACOES_BASE.fantasia!.trocar, 'cozinha:mesa': ['mesa-baixa'], 'cozinha:cadeira': ['zabuton'], 'cozinha:lareira': ['irori'], 'cozinha:aparador': ['tansu'], 'cozinha:servico': ['bule-e-xicaras.oriental'] },
   },
 };
 

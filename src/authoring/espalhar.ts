@@ -71,6 +71,14 @@ export const CONJUNTOS_EXTERIORES: readonly ConjuntoDeEspalhar[] = [
   { id: 'mercado-antigo', nome: 'Mercado antigo', descricao: 'Bancas com toldo, ânforas, pithos e caixotes', densidade: 0.07, itens: [
     { receita: 'banca-de-mercado.toldo', peso: 4, contexto: 'livre' }, { receita: 'anfora', peso: 3, contexto: 'livre' }, { receita: 'anforas-empilhadas', peso: 2, contexto: 'livre' },
     { receita: 'pithos', peso: 2, contexto: 'livre' }, { receita: 'caixa', peso: 2, contexto: 'livre' }] },
+  { id: 'jardim-de-pedras', nome: 'Jardim de pedras', descricao: 'Cascalho rastelado, pedras, lanterna, bacia, musgo e bonsai', densidade: 0.05, itens: [
+    { receita: 'rastelado', peso: 2, contexto: 'livre' }, { receita: 'pedra.grande', peso: 3, contexto: 'livre' }, { receita: 'pedra.media', peso: 3, contexto: 'livre' },
+    { receita: 'lanterna-de-pedra', peso: 1, contexto: 'livre' }, { receita: 'bacia-de-pedra', peso: 1, contexto: 'livre' },
+    { receita: 'casa:arbusto-verde', peso: 2, contexto: 'livre' }, { receita: 'bonsai', peso: 1, contexto: 'livre' }] },
+  { id: 'bosque-de-bambu', nome: 'Bosque de bambu', descricao: 'Bambuzais de vários tamanhos, lanternas, pedras e muro de bambu', densidade: 0.09, itens: [
+    { receita: 'casa:bambuzal-2m', peso: 4, contexto: 'livre' }, { receita: 'casa:bambuzal-4m', peso: 4, contexto: 'livre' },
+    { receita: 'lanterna-de-pedra', peso: 1, contexto: 'livre' }, { receita: 'pedra.media', peso: 2, contexto: 'livre' }, { receita: 'pedra.pequena', peso: 2, contexto: 'livre' },
+    { receita: 'muro-de-bambu', peso: 1, contexto: 'livre' }] },
 ];
 export const TODOS_OS_CONJUNTOS: readonly ConjuntoDeEspalhar[] = [...CONJUNTOS_DE_ESPALHAR, ...CONJUNTOS_EXTERIORES];
 export const conjuntoDeEspalhar = (id: string): ConjuntoDeEspalhar | undefined => TODOS_OS_CONJUNTOS.find(c => c.id === id);

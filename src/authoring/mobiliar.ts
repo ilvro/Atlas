@@ -39,6 +39,11 @@ const MATERIAIS_BASE: Readonly<Record<string, Record<string, MateriaisDoComodo>>
       templo: { pisos: ['marmore.branco', 'laje.pedra'], papeis: ['reboco.branco', 'pedra.aparelhada'] },
       forum: { pisos: ['laje.pedra', 'pedra.rustica'], papeis: ['tijolo', 'pedra.aparelhada'] },
       taberna: { pisos: ['tabuas.escuras', 'tabuas.rusticas'], papeis: ['tijolo', 'reboco.sujo'] },
+      'sala-de-tatami': { pisos: ['tabuas.claras', 'tabuas.carvalho'], papeis: ['reboco.branco', 'papel.liso-claro'] },
+      'casa-de-cha': { pisos: ['tabuas.claras', 'tabuas.carvalho'], papeis: ['reboco.branco', 'papel.liso-claro'] },
+      dojo: { pisos: ['tabuas.carvalho', 'tabuas.escuras'], papeis: ['reboco.branco', 'papel.liso-claro'] },
+      santuario: { pisos: ['laje.pedra', 'marmore.branco'], papeis: ['reboco.branco', 'pedra.aparelhada'] },
+      jardim: { pisos: ['laje.pedra', 'pedra.rustica'], papeis: ['pedra.aparelhada', 'reboco.branco'] },
     };
     const e = extra[t.funcao]!; return [t.funcao, { pisos: [t.piso, ...e.pisos], papeis: [t.papel, ...e.papeis] }];
   })),
@@ -77,6 +82,27 @@ const ANTIGUIDADE_POR_FUNCAO: Readonly<Record<string, MateriaisDoComodo>> = {
   taverna: { pisos: ['terracota.quadrada', 'lajes.arenito'], papeis: ['alvenaria.arenito', 'estuque.pompeiano'] },
 };
 
+/** Oriental: tatami e tábuas laqueadas, shoji e madeira laqueada (Q10) nos cômodos da época; o resto herda a fantasia. */
+const ORIENTAL_POR_FUNCAO: Readonly<Record<string, MateriaisDoComodo>> = {
+  'sala-de-tatami': { pisos: ['tatami', 'tabuas.laqueadas'], papeis: ['shoji', 'madeira.laqueada'] },
+  'casa-de-cha': { pisos: ['tatami', 'tabuas.laqueadas'], papeis: ['shoji', 'madeira.laqueada'] },
+  dojo: { pisos: ['tabuas.claras', 'tabuas.laqueadas'], papeis: ['shoji', 'madeira.laqueada'] },
+  santuario: { pisos: ['tabuas.laqueadas', 'laje.pedra'], papeis: ['madeira.laqueada', 'shoji'] },
+  jardim: { pisos: ['pedra.rustica', 'laje.pedra'], papeis: ['pedra.aparelhada'] },
+  sala: { pisos: ['tatami', 'tabuas.laqueadas'], papeis: ['shoji', 'madeira.laqueada'] },
+  quarto: { pisos: ['tatami', 'tabuas.laqueadas'], papeis: ['shoji', 'madeira.laqueada'] },
+  cozinha: { pisos: ['tabuas.laqueadas', 'laje.pedra'], papeis: ['madeira.laqueada', 'shoji'] },
+  biblioteca: { pisos: ['tatami', 'tabuas.laqueadas'], papeis: ['shoji', 'madeira.laqueada'] },
+  escritorio: { pisos: ['tatami', 'tabuas.laqueadas'], papeis: ['shoji', 'madeira.laqueada'] },
+  corredor: { pisos: ['tabuas.laqueadas', 'tabuas.claras'], papeis: ['shoji', 'madeira.laqueada'] },
+  'sala-de-jantar': { pisos: ['tatami', 'tabuas.laqueadas'], papeis: ['shoji', 'madeira.laqueada'] },
+  salao: { pisos: ['tatami', 'tabuas.laqueadas'], papeis: ['shoji', 'madeira.laqueada'] },
+  capela: { pisos: ['tabuas.laqueadas', 'laje.pedra'], papeis: ['madeira.laqueada', 'shoji'] },
+  varanda: { pisos: ['tabuas.claras', 'laje.pedra'], papeis: ['madeira.laqueada'] },
+  patio: { pisos: ['pedra.rustica', 'laje.pedra'], papeis: ['pedra.aparelhada'] },
+  taverna: { pisos: ['tatami', 'tabuas.laqueadas'], papeis: ['shoji', 'madeira.laqueada'] },
+};
+
 const PALETAS_BASE: Readonly<Record<string, Paleta[]>> = {
   investigacao: [
     { nome: 'Vinho e carvalho', madeira: 'madeira.escura', tecidos: ['tecido.veludo-vinho', 'tecido.linho'], tapete: 'tapete.persa' },
@@ -99,7 +125,7 @@ const PALETAS_BASE: Readonly<Record<string, Paleta[]>> = {
 export const MATERIAIS_POR_GENERO: Readonly<Record<string, Record<string, MateriaisDoComodo>>> = {
   ...MATERIAIS_BASE,
   antiguidade: { ...MATERIAIS_BASE.fantasia!, ...ANTIGUIDADE_POR_FUNCAO },
-  oriental: MATERIAIS_BASE.fantasia!, // trocado na ficha Q16c
+  oriental: { ...MATERIAIS_BASE.fantasia!, ...ORIENTAL_POR_FUNCAO },
   deserto: MATERIAIS_BASE.fantasia!, // trocado na ficha Q17c
   faroeste: MATERIAIS_BASE.investigacao!, // trocado na ficha Q18c
   colonial: MATERIAIS_BASE.investigacao!, // trocado na ficha Q19c
@@ -115,7 +141,11 @@ export const PALETAS_POR_GENERO: Readonly<Record<string, Paleta[]>> = {
     { nome: 'Linho e oliveira', madeira: 'madeira.media', tecidos: ['tecido.salvia', 'tecido.linho'], tapete: 'tapete.verde' },
     { nome: 'Púrpura e cedro', madeira: 'madeira.clara', tecidos: ['tecido.veludo-azul', 'tecido.linho'], tapete: 'tapete.persa' },
   ],
-  oriental: PALETAS_BASE.fantasia!, // trocado na ficha Q16c
+  oriental: [
+    { nome: 'Papel e cedro', madeira: 'madeira.clara', tecidos: ['tecido.salvia', 'tecido.linho'], tapete: 'tapete.verde' },
+    { nome: 'Laca e ouro', madeira: 'madeira.escura', tecidos: ['tecido.veludo-vinho', 'tecido.linho'], tapete: 'tapete.persa' },
+    { nome: 'Musgo e granito', madeira: 'madeira.media', tecidos: ['tecido.verde', 'tecido.linho'], tapete: 'tapete.verde' },
+  ],
   deserto: PALETAS_BASE.fantasia!, // trocado na ficha Q17c
   faroeste: PALETAS_BASE.investigacao!, // trocado na ficha Q18c
   colonial: PALETAS_BASE.investigacao!, // trocado na ficha Q19c

@@ -39,6 +39,12 @@ export const TIPOS_DE_COMODO: readonly TipoDeComodo[] = [
   { id: 'templo', nome: 'Templo', funcao: 'templo', piso: 'lajes.arenito', papel: 'alvenaria.arenito', descricao: 'Estátua do deus, altar, tripés e colunas' },
   { id: 'forum', nome: 'Fórum', funcao: 'forum', piso: 'lajes.arenito', papel: 'alvenaria.arenito', descricao: 'Praça da cidade antiga, ao ar livre' },
   { id: 'taberna', nome: 'Taberna', funcao: 'taberna', piso: 'terracota.quadrada', papel: 'alvenaria.arenito', descricao: 'Terracota, mesas, ânforas e pithos' },
+  // Oriental (Q16c).
+  { id: 'sala-de-tatami', nome: 'Sala de tatami', funcao: 'sala-de-tatami', piso: 'tatami', papel: 'shoji', descricao: 'Tatami, shoji, mesa baixa e tokonoma' },
+  { id: 'casa-de-cha', nome: 'Casa de chá', funcao: 'casa-de-cha', piso: 'tatami', papel: 'shoji', descricao: 'Tatami, irori ou mesa baixa e o serviço de chá' },
+  { id: 'dojo', nome: 'Dojo', funcao: 'dojo', piso: 'tabuas.claras', papel: 'shoji', descricao: 'Assoalho livre, espadas e armadura na parede' },
+  { id: 'santuario', nome: 'Santuário', funcao: 'santuario', piso: 'tabuas.laqueadas', papel: 'madeira.laqueada', descricao: 'Estátua sentada, incensário e lanternas' },
+  { id: 'jardim', nome: 'Jardim', funcao: 'jardim', piso: 'pedra.rustica', papel: 'pedra.aparelhada', descricao: 'Lanternas de pedra, cascalho rastelado e bonsai, ao ar livre' },
 ];
 export const tipoDeComodo = (id: string): TipoDeComodo | undefined => TIPOS_DE_COMODO.find(t => t.id === id);
 
@@ -187,7 +193,7 @@ export const generoDe = (id: string): Genero => GENEROS.find(g => g.id === id) ?
 export const generosVisiveis = (id: string): string[] => [id, ...(GENEROS.find(g => g.id === id)?.herda ?? [])];
 
 /** Funções de cômodo ao ar livre que nascem sem telhado por padrão. */
-export const FUNCOES_AO_AR_LIVRE = new Set(['varanda', 'patio', 'claustro', 'quintal', 'peristilo', 'forum']);
+export const FUNCOES_AO_AR_LIVRE = new Set(['varanda', 'patio', 'claustro', 'quintal', 'peristilo', 'forum', 'jardim']);
 
 /** Um estilo de telhado: combinação nomeada de cobertura, forma, inclinação e detalhes (só usada na interface e construção; o documento grava os campos resultantes em `room.roof`). */
 export interface EstiloDeTelhado { id: string; nome: string; roof: Omit<Comodo['roof'], 'visible'> }
@@ -225,6 +231,7 @@ export const ESTILOS_DE_TELHADO: readonly EstiloDeTelhado[] = [
   { id: 'catedral', nome: 'Catedral', roof: { material: 'telha.chumbo', shape: 'duas-aguas', steep: true, details: ['cruz'] } },
   { id: 'observatorio', nome: 'Observatório', roof: { material: 'telha.chapa.cinza', shape: 'cupula', steep: false, details: [] } },
   { id: 'estufa', nome: 'Estufa', roof: { material: 'telha.vidro', shape: 'duas-aguas', steep: false, details: [] } },
+  { id: 'casa-japonesa', nome: 'Casa japonesa', roof: { material: 'telha.curva.cinza', shape: 'quatro-aguas', steep: false, details: [] } },
   { id: 'capela-de-vitral', nome: 'Capela de vitral', roof: { material: 'telha.vitral', shape: 'duas-aguas', steep: true, details: [] } },
   { id: 'iurta', nome: 'Iurta', roof: { material: 'telha.couro', shape: 'cone', steep: false, details: [] } },
   { id: 'casa-de-bambu', nome: 'Casa de bambu', roof: { material: 'telha.bambu', shape: 'duas-aguas', steep: false, details: [] } },
@@ -304,5 +311,6 @@ export function telhadoPadrao(
   if (genero === 'fantasia') return clonarTelhado(estiloDeTelhado('choupana')!.roof);
   if (genero === 'moderno') return clonarTelhado(estiloDeTelhado('laje-moderna')!.roof);
   if (genero === 'antiguidade') return clonarTelhado(estiloDeTelhado('casa-romana')!.roof);
+  if (genero === 'oriental') return clonarTelhado(estiloDeTelhado('casa-japonesa')!.roof);
   return clonarTelhado(estiloDeTelhado('casa-velha')!.roof);
 }
