@@ -128,5 +128,15 @@
       36
     ],
     "miniatura": "vila-do-atrio.webp"
+  },
+  {
+    "id": "templo-na-encosta",
+    "nome": "Templo na encosta",
+    "descricao": "Santuário na encosta, numa manhã de neblina: torii na entrada, caminho de lanternas de pedra, lago de carpas com ilha e ponte vermelha, casa de chá no jardim de bambu e, no terraço de cima, o salão com o Buda, o incensário, o sino e o jardim seco.",
+    "tamanho": [
+      42,
+      30
+    ],
+    "miniatura": "templo-na-encosta.webp"
   }
 ]

@@ -707,7 +707,7 @@ export const RECEITAS_ORIENTAIS: Receita[] = [
     gerar: p => piso([4.6, 1.0], torii(p.seed)) },
   { id: 'lanterna-de-pedra', nome: 'Lanterna de pedra', categoria: 'exterior', tipo: 'piso', funcoes: ['jardim', 'santuario', 'casa-de-cha', 'praca', 'estrada'], ...OR, tags: ['lanterna', 'toro', 'pedra', 'granito', 'musgo', 'jardim', 'templo', 'luz', 'japonesa', 'oriental'], pegada: [1.1, 1.1], altura: 2.0,
     campos: [{ id: 'acesa', rotulo: 'Acesa (0 não, 1 sim)', tipo: 'numero', padrao: 1, min: 0, max: 1, passo: 1 }],
-    luz: p => (Math.round(Number(p.acesa ?? 1)) === 1 ? { raio: 3, cor: '#ffb060', intensidade: 0.55, power: 'fire', flicker: 0.12 } : null),
+    luz: p => (Math.round(Number(p.acesa ?? 1)) === 1 ? { raio: 4, cor: '#ffb060', intensidade: 0.7, power: 'fire', flicker: 0.12 } : null),
     gerar: p => piso([1.1, 1.1], lanternaDePedra(p.seed, Math.round(num(p, 'acesa', 1, 0, 1)) === 1)) },
   { id: 'ponte-arqueada', nome: 'Ponte arqueada', categoria: 'exterior', tipo: 'piso', funcoes: ['jardim', 'santuario', 'estrada', 'agua'], ...OR, tags: ['ponte', 'arqueada', 'taikobashi', 'vermelho', 'lago', 'rio', 'jardim', 'japonesa', 'chinesa', 'oriental'], pegada: [6.2, 2.1], altura: 1.6,
     campos: [{ id: 'vao', rotulo: 'Vão (m)', tipo: 'numero', padrao: 5, min: 3, max: 10, passo: 0.5 }],

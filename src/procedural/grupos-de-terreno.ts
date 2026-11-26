@@ -15,5 +15,5 @@ export const GRUPOS_DE_TERRENO: readonly GrupoDeTerreno[] = [
   { id: 'calcamento', nome: 'Calçamento', materiais: ['calcada', 'paralelepipedo', 'lajes.gramadas', 'lajes.escuras', 'lajes.antigas', 'piso.hangar'], biomas: ['urbano', 'temperado'] },
   { id: 'neve', nome: 'Neve e gelo', materiais: ['neve', 'neve.funda', 'neve.pisada', 'gelo'], biomas: ['frio'] },
   { id: 'macico', nome: 'Rocha (maciço)', materiais: ['rocha.cinza', 'rocha.caverna', 'rocha.nevada', 'rocha.arenito', 'rocha.basalto', 'rocha.cristal'], biomas: ['temperado', 'frio', 'deserto', 'subterraneo', 'vulcanico'] },
-  { id: 'agua', nome: 'Água', materiais: ['agua.mar', 'agua.lago', 'agua.rio', 'agua.gruta', 'agua.pantano', 'agua.turfa', 'agua.arrozal', 'agua.tropical', 'agua.acida', 'agua.esgoto', 'agua.lava'], biomas: ['vulcanico', 'temperado', 'frio', 'tropical', 'mar', 'subterraneo', 'urbano'] },
+  { id: 'agua', nome: 'Água', materiais: ['agua.mar', 'agua.lago', 'agua.jardim', 'agua.rio', 'agua.gruta', 'agua.pantano', 'agua.turfa', 'agua.arrozal', 'agua.tropical', 'agua.acida', 'agua.esgoto', 'agua.lava'], biomas: ['vulcanico', 'temperado', 'frio', 'tropical', 'mar', 'subterraneo', 'urbano'] },
 ];

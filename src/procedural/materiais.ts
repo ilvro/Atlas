@@ -204,6 +204,8 @@ export const MATERIAIS: Readonly<Record<string, Material>> = Object.fromEntries(
   m('agua.mar', 'Mar', 'agua', '#2f6f86', '#0d2f45', '#8fd0e0', 'liso', { raso: '#58a8b8', fundo: '#0f3a54', espuma: '#f2fbff', transparencia: 0.12, ondas: 1 }),
   m('agua.lago', 'Lago', 'agua', '#2f7a78', '#0f3438', '#8fd8cc', 'liso', { raso: '#5fae9c', fundo: '#12404a', espuma: '#e6f6f0', transparencia: 0.18 }),
   m('agua.rio', 'Rio', 'agua', '#5aa0b0', '#1f5468', '#b4e4ec', 'liso', { raso: '#8cc8c8', fundo: '#2a6a80', espuma: '#f4fdff', transparencia: 0.25 }),
+  // Lago de jardim (Q16d): água parada e funda, verde-escura, com pouca espuma; as carpas aparecem por baixo da superfície.
+  m('agua.jardim', 'Lago de jardim', 'agua', '#225a64', '#0a2630', '#86c4c0', 'liso', { raso: '#3a7a7a', fundo: '#0a2c36', espuma: '#d8ece0', transparencia: 0.14, espumaForca: 0.18 }),
   m('agua.gruta', 'Água de gruta', 'agua', '#2aa8a0', '#0c4a52', '#9af0e0', 'liso', { raso: '#58d0c0', fundo: '#106068', espuma: '#d8fff4', transparencia: 0.85, causticas: true, espumaForca: 0.12 }),
   m('agua.pantano', 'Pântano', 'agua', '#5a6a38', '#222a14', '#98a468', 'liso', { raso: '#7a8444', fundo: '#2c3418', espuma: '#c4c88c', transparencia: 0.2 }),
   m('agua.arrozal', 'Arrozal alagado', 'agua', '#6a7448', '#2e3420', '#9aa070', 'liso', { raso: '#8a8a58', fundo: '#4a5030', espuma: '#d4d4b0', transparencia: 0.35, espumaForca: 0.2 }),
