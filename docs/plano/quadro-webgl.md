@@ -19,7 +19,7 @@ Este plano organiza a implementação dessas melhorias de UX primeiro (já utili
 
 ---
 
-### QW1 — Pan com botão direito + menu de contexto apenas no clique parado  ⬜
+### QW1 — Pan com botão direito + menu de contexto apenas no clique parado  ✅
 Objetivo: permitir mover o quadro arrastando com o botão direito (`e.button === 2`), mantendo o menu de contexto quando o clique direito não arrastar.
 Depende de: —
 Ler: `Mesa/src/ui/quadro/Quadro.tsx` (`aoPressionarArea`, `aoMoverArea`, `aoSoltarArea`, `onContextMenu`), `Mesa/tests/e2e/quadro.test.ts`.
@@ -37,7 +37,7 @@ Commit: (feature) pan board by dragging with right mouse button
 
 ---
 
-### QW2 — Curvas editáveis e espessura ampliada nas setas (domínio)  ⬜
+### QW2 — Curvas editáveis e espessura ampliada nas setas (domínio)  ✅
 Objetivo: permitir que setas curvas armazenem um ponto de controle manual (`curva`) e suportem espessura maior (até `48 px`) no modelo puro.
 Depende de: —
 Ler: `Mesa/src/dominio/quadro.ts` (`Item` tipo `'seta'`, `validarItem`), `Mesa/src/dominio/setas.ts` (`caminhoDaSeta`, `caixaDaSeta`), `Mesa/tests/unit/setas.test.ts`.
@@ -57,7 +57,8 @@ Commit: (feature) add editable curve handle and wider thickness to arrow model
 
 ---
 
-### QW3 — Alça arrastável de curva e controles de linha/espessura na barra  ⬜
+### QW3 — Alça arrastável de curva e controles de linha/espessura na barra  ✅
+Nota: adicionada `z-index: 10000` em `.alca-ponta-seta` para que as alças fiquem acima da área clicável de setas espessas.
 Objetivo: permitir puxar o meio de uma seta curva diretamente na tela e ajustar espessura (`1–48`) e tipo de rota com fluidez na barra.
 Depende de: QW2
 Ler: `Mesa/src/ui/quadro/Selecao.tsx`, `Mesa/src/ui/quadro/Quadro.tsx`, `Mesa/src/ui/quadro/BarraDeFormatacao.tsx`, `Mesa/src/ui/quadro/ItemSeta.tsx`.
