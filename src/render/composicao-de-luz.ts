@@ -51,6 +51,21 @@ export function oclusaoDeAmostras(h0: number, amostras: readonly AmostraAO[]): n
   return t * t * (3 - 2 * t);
 }
 
+/**
+ * Espelho puro da penumbra periférica estilo Darkwood aplicada fora do cone de visão:
+ * com `visivel = 1` preserva a cor exata; com `visivel = 0` dessatura em 82% com tom frio azulado e reduz o brilho para 52%.
+ */
+export function aplicarPenumbraDarkwood(cor: readonly [number, number, number], visivel: number): [number, number, number] {
+  const v = Math.min(1, Math.max(0, visivel));
+  const [r, g, b] = cor;
+  const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+  const mix = (a: number, c: number, t: number) => a + (c - a) * t;
+  const sr = mix(r, luma * 0.76, 0.82) * 0.52;
+  const sg = mix(g, luma * 0.84, 0.82) * 0.52;
+  const sb = mix(b, luma * 0.96, 0.82) * 0.52;
+  return [mix(sr, r, v), mix(sg, g, v), mix(sb, b, v)];
+}
+
 let ultimoSearchModo: string | null = null;
 let ultimoModoCache: 'direcao' | 'altura' | null = null;
 
@@ -101,10 +116,13 @@ uniform sampler2D uLuz;
 uniform sampler2D uDirecao;
 uniform sampler2D uAltura;
 uniform sampler2D uMascaraInterior;
+uniform sampler2D uVisivel;
 uniform float uEscala;
 uniform float uEscalaHdr;
 uniform float uModoDirecao;
 uniform float uModoAltura;
+uniform float uDarkwood;
+uniform vec2 uDarkwoodBounds;
 uniform vec3 uAmbiente;
 uniform vec3 uAmbienteInterior;
 uniform vec2 uAlturaTexel;
@@ -162,6 +180,15 @@ float anelAO(float h0, float raioTexels, float c, float s) {
   return soma;
 }
 
+vec3 aplicarDarkwood(vec3 cor) {
+  if (uDarkwood <= 0.5) return cor;
+  vec2 uvVis = clamp(vMundoPos / max(uDarkwoodBounds, vec2(0.001)), vec2(0.0), vec2(1.0));
+  float vis = clamp(texture(uVisivel, uvVis).a, 0.0, 1.0);
+  float luma = dot(cor, vec3(0.299, 0.587, 0.114));
+  vec3 sombrio = mix(cor, vec3(luma * 0.76, luma * 0.84, luma * 0.96), 0.82) * 0.52;
+  return mix(sombrio, cor, vis);
+}
+
 void main() {
   vec4 c = texture(uTexture, vUV);
   vec4 alt = texture(uAltura, vUV);
@@ -192,7 +219,7 @@ void main() {
   vec3 luzEmissiva = base * emissao * uEmissao * cint;
 
   if (uPassoEmMetros <= 0.0 || (uRelevo <= 0.0001 && uAO <= 0.0001)) {
-    vec3 cor = max(base * (ambBase + direta) + luzEmissiva, vec3(0.0));
+    vec3 cor = aplicarDarkwood(max(base * (ambBase + direta) + luzEmissiva, vec3(0.0)));
     finalColor = vec4((cor * c.a) / uEscalaHdr, c.a);
     return;
   }
@@ -245,7 +272,7 @@ void main() {
     fatorAO = uAO * smoothstep(0.0, 0.6, ao);
   }
 
-  vec3 cor = max(base * (ambiente * (1.0 - fatorAO) + luzDireta * (1.0 - 0.5 * fatorAO)) + luzEmissiva, vec3(0.0));
+  vec3 cor = aplicarDarkwood(max(base * (ambiente * (1.0 - fatorAO) + luzDireta * (1.0 - 0.5 * fatorAO)) + luzEmissiva, vec3(0.0)));
   finalColor = vec4((cor * c.a) / uEscalaHdr, c.a);
 }`;
 
@@ -257,6 +284,7 @@ export interface ComposicaoDeLuz {
   definirAO(v: number): void;
   definirGlow(v: number): void;
   definirExposicao(v: number): void;
+  definirDarkwood(ativo: boolean, mascara: Texture | null, bounds: { width: number; height: number } | null): void;
   /** Renderiza `mundoIluminado` em `corRT`, compõe luz/relevo/AO/emissão em `hdrRT`, aplica bloom e escreve `saidaRT`. */
   atualizar(mundoIluminado: Container, ativo: boolean, tempoSeg: number): void;
   destruir(): void;
@@ -275,6 +303,8 @@ export function criarComposicaoDeLuz(renderer: Renderer, luz: MapaDeLuz, altura:
     uEscalaHdr: { value: 1, type: 'f32' },
     uModoDirecao: { value: 0, type: 'f32' },
     uModoAltura: { value: 0, type: 'f32' },
+    uDarkwood: { value: 0, type: 'f32' },
+    uDarkwoodBounds: { value: new Float32Array([1, 1]), type: 'vec2<f32>' },
     uAmbiente: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
     uAmbienteInterior: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
     uAlturaTexel: { value: new Float32Array([0, 0]), type: 'vec2<f32>' },
@@ -299,6 +329,7 @@ export function criarComposicaoDeLuz(renderer: Renderer, luz: MapaDeLuz, altura:
       uDirecao: Texture.EMPTY.source,
       uAltura: Texture.EMPTY.source,
       uMascaraInterior: Texture.EMPTY.source,
+      uVisivel: Texture.EMPTY.source,
     },
   });
   const mesh = new Mesh({ geometry: quad, shader });
@@ -323,6 +354,10 @@ export function criarComposicaoDeLuz(renderer: Renderer, luz: MapaDeLuz, altura:
   let ao = AO_PADRAO;
   let glow = 0;
   let exposicao = EXPOSICAO_PADRAO;
+  let darkwoodAtivo = false;
+  let darkwoodMascara: Texture | null = null;
+  let darkwoodLargura = 1;
+  let darkwoodAltura = 1;
   let pronta = false;
   let destruida = false;
 
@@ -365,6 +400,12 @@ export function criarComposicaoDeLuz(renderer: Renderer, luz: MapaDeLuz, altura:
     definirExposicao(v) {
       exposicao = Math.min(4, Math.max(0, Number.isFinite(v) ? v : EXPOSICAO_PADRAO));
     },
+    definirDarkwood(ativo, mascara, bounds) {
+      darkwoodAtivo = ativo;
+      darkwoodMascara = mascara;
+      darkwoodLargura = bounds && bounds.width > 0 ? bounds.width : 1;
+      darkwoodAltura = bounds && bounds.height > 0 ? bounds.height : 1;
+    },
     atualizar(mundoIluminado, ativo, tempoSeg) {
       if (destruida) return;
       if (!ativo) {
@@ -391,6 +432,8 @@ export function criarComposicaoDeLuz(renderer: Renderer, luz: MapaDeLuz, altura:
         uEscalaHdr: number;
         uModoDirecao: number;
         uModoAltura: number;
+        uDarkwood: number;
+        uDarkwoodBounds: Float32Array;
         uAmbiente: Float32Array;
         uAmbienteInterior: Float32Array;
         uAlturaTexel: Float32Array;
@@ -472,6 +515,26 @@ export function criarComposicaoDeLuz(renderer: Renderer, luz: MapaDeLuz, altura:
       const modo = modoDeDepuracaoDaLuz();
       u.uModoDirecao = modo === 'direcao' ? 1 : 0;
       u.uModoAltura = modo === 'altura' ? 1 : 0;
+
+      const visPronta = Boolean(
+        darkwoodAtivo &&
+        darkwoodMascara &&
+        !darkwoodMascara.destroyed &&
+        darkwoodMascara.source &&
+        !darkwoodMascara.source.destroyed &&
+        darkwoodMascara !== Texture.EMPTY,
+      );
+      if (visPronta && darkwoodMascara) {
+        u.uDarkwood = 1;
+        u.uDarkwoodBounds[0] = darkwoodLargura;
+        u.uDarkwoodBounds[1] = darkwoodAltura;
+        shader.resources.uVisivel = darkwoodMascara.source;
+      } else {
+        u.uDarkwood = 0;
+        u.uDarkwoodBounds[0] = 1;
+        u.uDarkwoodBounds[1] = 1;
+        shader.resources.uVisivel = Texture.EMPTY.source;
+      }
 
       shader.resources.uTexture = corRT.source;
       renderer.render({ container: mesh, target: hdrRT, clear: true, clearColor: [0, 0, 0, 0] });

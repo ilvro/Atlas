@@ -16,7 +16,9 @@ import { PALETAS_PIXEL } from '../domain/paletas.ts';
 import { nomeDoAlvo, novaLuz } from '../domain/fabrica.ts';
 import { alvosDoInterruptor } from '../domain/interagiveis.ts';
 import { ROTULOS_DE_ESTADO } from '../domain/figuras.ts';
-import { DETALHES_DE_TELHADO, ESTADOS_FIGURA, FORMAS_DE_TELHADO, type Abertura, type Acabamento, type Clima, type Comodo, type DetalheDeTelhado, type Estilo, type FormaDeTelhado, type Luz, type MapaAtlas, type Objeto, type Parede, type Peca, type Presenca, type Regiao } from '../domain/mapa.ts';
+import { DETALHES_DE_TELHADO, ESTADOS_FIGURA, FORMAS_DE_TELHADO, type Abertura, type Acabamento, type Clima, type Comodo, type DetalheDeTelhado, type Estilo, type FormaDeTelhado, type Luz, type MapaAtlas, type ModoDeMemoria, type ModoDeVisao, type Objeto, type Parede, type Peca, type Presenca, type Regiao } from '../domain/mapa.ts';
+import { ABERTURA_VISAO_PADRAO, PROXIMIDADE_VISAO_PADRAO, modoDeVisaoDaPeca } from '../domain/nevoa.ts';
+import { modoDeMemoriaEfetivo } from '../render/nevoa.ts';
 import { ESTADOS_DE_TELHADO, ESTILOS_DE_TELHADO, GENEROS, generoDe, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, TIPOS_DE_COMODO, camposDoPreset, posicaoDeTitulo, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
 import { telhadoEfetivo } from '../domain/telhado-geometria.ts';
 import { acabamentoLigado, aplicarClima, definirAcabamentoLigado, definirTelhadosNoEditor, telhadosNoEditor, tocarMomentoDoMapa } from '../app/app.ts';
@@ -57,8 +59,20 @@ function ExploracaoDoMapa({ s }: { s: SessaoDeEdicao }) {
   const confirmando = useSignal(false), andar = s.andarAtivo.value, m = s.doc.value;
   const e = andar === null ? m.session.explored : (m.session.exploredLevels?.[andar] ?? null);
   const res = e?.res ?? 0.5, metros = e ? Math.round(area(e.cells) * res * res) : 0;
+  const modoVisao = modoDeMemoriaEfetivo(m);
   return (<>
     <h3 class="faixa pequena">Exploração</h3>
+    <CampoOpcoes
+      rotulo="Modo de visão"
+      dica="Como as áreas fora da visão direta aparecem para os jogadores."
+      valor={modoVisao}
+      opcoes={[
+        ['darkwood', 'Darkwood (cone + penumbra)'],
+        ['sketch', 'Esboço em papel'],
+        ['shroud', 'Breu (só explorado)'],
+      ]}
+      aoMudar={v => tentar(() => s.store.executar({ tipo: 'memoria.atualizar', patch: { mode: v as ModoDeMemoria, sketch: v === 'sketch' } }, { rotulo: 'Modo de visão' }))}
+    />
     <p class="dica" data-testid="exploracao-area">{metros ? `Os jogadores já viram cerca de ${metros} m².` : 'Os jogadores ainda não exploraram nada.'}</p>
     {confirmando.value
       ? <div class="acoes-selecao"><button type="button" class="botao-pilula perigo" data-testid="exploracao-confirmar" onClick={() => { confirmando.value = false; tentar(() => s.store.executar({ tipo: 'sessao.esquecer', andar })); }}>Apagar a memória</button><button type="button" class="botao-pilula" onClick={() => { confirmando.value = false; }}>Cancelar</button></div>
@@ -410,6 +424,21 @@ function CamposDaPeca({ s, t }: { s: SessaoDeEdicao; t: Peca }) {
     <CampoCaixa rotulo="Jogador" dica="A névoa e a visão da sessão vêm das peças de jogador." valor={t.player} aoMudar={v => editar({ player: v }, v ? 'Peça de jogador' : 'Peça do mestre')} />
     <CampoNumero rotulo="Tamanho" unidade="células" valor={t.size} min={0.5} max={4} passo={0.5} aoConfirmar={v => editar({ size: v }, 'Tamanho da peça')} />
     <CampoNumero rotulo="Visão" unidade="m" valor={t.vision.radius} min={0} max={200} passo={1} aoConfirmar={v => editar({ vision: { radius: v } }, 'Visão da peça')} />
+    <CampoOpcoes
+      rotulo="Formato da visão"
+      dica="No modo Cone (Darkwood), a peça enxerga à frente e numa pequena bolha 360° ao redor."
+      valor={t.vision.mode ?? ''}
+      opcoes={[
+        ['', 'Do mapa'],
+        ['cone', 'Cone (Darkwood)'],
+        ['circle', '360°'],
+      ]}
+      aoMudar={v => editar({ vision: { mode: v ? (v as ModoDeVisao) : undefined } }, 'Formato da visão')}
+    />
+    {modoDeVisaoDaPeca(s.doc.value, t) === 'cone' && <>
+      <CampoNumero rotulo="Abertura do cone" unidade="°" valor={t.vision.angle ?? ABERTURA_VISAO_PADRAO} min={30} max={360} passo={5} aoConfirmar={v => editar({ vision: { angle: v } }, 'Abertura do cone de visão')} />
+      <CampoNumero rotulo="Percepção imediata" unidade="m" valor={t.vision.proximity ?? PROXIMIDADE_VISAO_PADRAO} min={0} max={10} passo={0.2} aoConfirmar={v => editar({ vision: { proximity: v } }, 'Percepção imediata')} />
+    </>}
     <CampoOpcoes rotulo="Lanterna" dica="A luz anda com a peça e aponta para onde ela andou. Q e E giram o facho na Sessão." valor={lanterna} opcoes={opcoesDeLanterna} aoMudar={trocarLanterna} />
     <CampoOpcoes rotulo="Estado" valor={t.figure.state} opcoes={ESTADOS_FIGURA.map(e => [e, ROTULOS_DE_ESTADO[e]] as const)} aoMudar={v => editar({ figure: { state: v } }, 'Estado da peça')} />
   </>);

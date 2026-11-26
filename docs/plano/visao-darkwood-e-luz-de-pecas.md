@@ -212,7 +212,8 @@ Commit: `(feature) directional vision cone and proximity bubble for darkwood vis
 
 ---
 
-### W5 — Renderização Darkwood: mundo exterior visível em penumbra dessaturada fora do cone  ⬜
+### W5 — Renderização Darkwood: mundo exterior visível em penumbra dessaturada fora do cone  ✅
+Nota: `modoDeMemoriaEfetivo`, `mascaraVisivel` e `modoDarkwood` adicionados em `src/render/nevoa.ts`, com véu translúcido frio (`0x080b12` alpha `0.68` fora do explorado e `0x0b0f18` alpha `0.42` no explorado) apagado pela máscara de visão direta; `aplicarPenumbraDarkwood` e uniformes `uDarkwood`/`uDarkwoodBounds`/`uVisivel` no shader de `src/render/composicao-de-luz.ts` (ligados em `src/render/cena.ts` na vista de jogador) dessaturam em 82% com tom frio e reduzem o brilho para 52% fora do cone; `src/domain/projecao-remota.ts` mantém a geometria estática em modo Darkwood preservando a sanitização de nomes, notas, transições, regiões, objetos ocultos e NPCs; seletores de modo de visão e formato/abertura/percepção do cone em `src/ui/Inspetor.tsx`. Testes em `tests/unit/darkwood-render.test.ts` e `tests/unit/projecao-remota.test.ts`.
 Objetivo: fora do cone/alcance de visão direta (ex.: o mundo exterior quando o personagem está dentro de uma casa), o jogador ainda vê o terreno, paredes e arquitetura do mundo, porém mais escuro e dessaturado como em *Darkwood*, sem papel bege tapando a cena.
 Depende de: W4.
 Ler: `src/render/nevoa.ts`, `src/render/cena.ts`, `src/domain/projecao-remota.ts`, `src/ui/Inspetor.tsx`.

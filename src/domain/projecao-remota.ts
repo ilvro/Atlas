@@ -34,7 +34,6 @@ import { podar } from './iniciativa.ts';
 export function projetarParaRemoto(m: MapaAtlas, andar: string | null = null): MapaAtlas {
   const p = projetarParaJogadores(m, andar);
   if (p.session.explored === null) return p;
-  const area = areaConhecida(p);
 
   p.name = 'Mapa';
   if (p.groundLevelName !== undefined) p.groundLevelName = 'Mapa';
@@ -44,80 +43,101 @@ export function projetarParaRemoto(m: MapaAtlas, andar: string | null = null): M
   }
   p.backdrop = { ...p.backdrop, title: null };
 
-  // Terreno e presenças.
-  const t = p.terrain.resolution;
-  for (const [id, c] of Object.entries(p.terrain.layers)) {
-    c.cells = area.recortar(c.cells, t);
-    if (!c.cells.length) delete p.terrain.layers[id];
-  }
-  if (p.terrain.relief) {
-    for (const [id, pat] of Object.entries(p.terrain.relief.patamares)) {
-      pat.cells = area.recortar(pat.cells, t);
-      if (!pat.cells.length) delete p.terrain.relief.patamares[id];
-    }
-  }
-  for (const [id, x] of Object.entries(p.presence)) {
-    x.cells = area.recortar(x.cells, t);
-    if (!x.cells.length) delete p.presence[id];
-  }
-
-  // Cômodos.
   const revelados = new Set(p.session.revealed);
-  const g = p.grid.size, [ox, oy] = p.grid.offset;
-  for (const [id, r] of Object.entries(p.rooms)) {
-    const todas = decodificar(r.cells);
-    const dentro = todas.filter(([cx, cy]) => area.ponto(ox + (cx + 0.5) * g, oy + (cy + 0.5) * g));
-    if (!dentro.length) { delete p.rooms[id]; continue; }
-    if (dentro.length < todas.length) { r.cells = codificar(dentro); delete r.outline; }
-    if (!revelados.has(id)) { r.name = NOME_DO_COMODO_OCULTO; r.function = null; }
-  }
+  const darkwood = p.memory.mode === 'darkwood';
 
-  // Paredes (um trecho contínuo dentro da área vira uma parede), aberturas e objetos de parede.
-  const trechosDe = new Map<string, { id: string; s0: number; s1: number; comprimento: number }[]>();
-  const usados = new Set(Object.keys(p.walls));
-  for (const [id, w] of Object.entries(p.walls)) {
-    const trechos = aparar(w, area);
-    delete p.walls[id];
-    if (!trechos.length) continue;
-    let maior = 0;
-    trechos.forEach((t, i) => { if (t.s1 - t.s0 > trechos[maior]!.s1 - trechos[maior]!.s0) maior = i; });
-    let n = 1;
-    const lista = trechos.map((t, i) => {
-      let novoId = id;
-      if (i !== maior) { do { n++; novoId = `${id}${SEPARADOR_DE_TRECHO}${n}`; } while (usados.has(novoId)); usados.add(novoId); }
-      const parte: Parede = { ...w, id: novoId, path: t.path };
-      if (w.source && 'roomId' in w.source && !p.rooms[w.source.roomId]) parte.source = null;
-      p.walls[novoId] = parte;
-      return { id: novoId, s0: t.s0, s1: t.s1, comprimento: t.comprimento };
-    });
-    trechosDe.set(id, lista);
-  }
-  /** O trecho que contém `at` (fração da parede original) e o `at` refeito para ele. */
-  const refazer = (wallId: string, at: number): { wallId: string; at: number } | null => {
-    for (const t of trechosDe.get(wallId) ?? []) {
-      const novo = (at * t.comprimento - t.s0) / (t.s1 - t.s0);
-      if (novo >= 0 && novo <= 1) return { wallId: t.id, at: novo };
+  if (darkwood) {
+    // Em modo Darkwood, a geometria estática do andar fica disponível para desenhar a penumbra periférica,
+    // mas nomes não revelados, notas, destinos de transição, regiões e NPCs fora do cone continuam sanitizados.
+    for (const [id, r] of Object.entries(p.rooms)) {
+      if (!revelados.has(id)) { r.name = NOME_DO_COMODO_OCULTO; r.function = null; }
     }
-    return null;
-  };
-  for (const [id, a] of Object.entries(p.openings)) {
-    const novo = refazer(a.wallId, a.at);
-    if (!novo) delete p.openings[id]; else { a.wallId = novo.wallId; a.at = novo.at; }
-  }
+    for (const o of Object.values(p.props)) {
+      if (o.interaction) {
+        delete o.interaction.note; delete o.interaction.noteTitle;
+        delete o.interaction.toPosition; delete o.interaction.toLevel;
+        delete o.interaction.toMapId; delete o.interaction.toTargetId;
+      }
+    }
+  } else {
+    const area = areaConhecida(p);
 
-  // Objetos e luzes.
-  for (const [id, o] of Object.entries(p.props)) {
-    if (!area.ponto(o.position[0], o.position[1])) { delete p.props[id]; continue; }
-    if (o.wall) {
-      const novo = refazer(o.wall.wallId, o.wall.at);
-      if (!novo) { delete p.props[id]; continue; }
-      o.wall.wallId = novo.wallId; o.wall.at = novo.at;
+    // Terreno e presenças.
+    const t = p.terrain.resolution;
+    for (const [id, c] of Object.entries(p.terrain.layers)) {
+      c.cells = area.recortar(c.cells, t);
+      if (!c.cells.length) delete p.terrain.layers[id];
     }
-    if (o.interaction) {
-      delete o.interaction.note; delete o.interaction.noteTitle; delete o.interaction.toPosition; delete o.interaction.toLevel;
+    if (p.terrain.relief) {
+      for (const [id, pat] of Object.entries(p.terrain.relief.patamares)) {
+        pat.cells = area.recortar(pat.cells, t);
+        if (!pat.cells.length) delete p.terrain.relief.patamares[id];
+      }
     }
+    for (const [id, x] of Object.entries(p.presence)) {
+      x.cells = area.recortar(x.cells, t);
+      if (!x.cells.length) delete p.presence[id];
+    }
+
+    // Cômodos.
+    const g = p.grid.size, [ox, oy] = p.grid.offset;
+    for (const [id, r] of Object.entries(p.rooms)) {
+      const todas = decodificar(r.cells);
+      const dentro = todas.filter(([cx, cy]) => area.ponto(ox + (cx + 0.5) * g, oy + (cy + 0.5) * g));
+      if (!dentro.length) { delete p.rooms[id]; continue; }
+      if (dentro.length < todas.length) { r.cells = codificar(dentro); delete r.outline; }
+      if (!revelados.has(id)) { r.name = NOME_DO_COMODO_OCULTO; r.function = null; }
+    }
+
+    // Paredes (um trecho contínuo dentro da área vira uma parede), aberturas e objetos de parede.
+    const trechosDe = new Map<string, { id: string; s0: number; s1: number; comprimento: number }[]>();
+    const usados = new Set(Object.keys(p.walls));
+    for (const [id, w] of Object.entries(p.walls)) {
+      const trechos = aparar(w, area);
+      delete p.walls[id];
+      if (!trechos.length) continue;
+      let maior = 0;
+      trechos.forEach((t, i) => { if (t.s1 - t.s0 > trechos[maior]!.s1 - trechos[maior]!.s0) maior = i; });
+      let n = 1;
+      const lista = trechos.map((t, i) => {
+        let novoId = id;
+        if (i !== maior) { do { n++; novoId = `${id}${SEPARADOR_DE_TRECHO}${n}`; } while (usados.has(novoId)); usados.add(novoId); }
+        const parte: Parede = { ...w, id: novoId, path: t.path };
+        if (w.source && 'roomId' in w.source && !p.rooms[w.source.roomId]) parte.source = null;
+        p.walls[novoId] = parte;
+        return { id: novoId, s0: t.s0, s1: t.s1, comprimento: t.comprimento };
+      });
+      trechosDe.set(id, lista);
+    }
+    /** O trecho que contém `at` (fração da parede original) e o `at` refeito para ele. */
+    const refazer = (wallId: string, at: number): { wallId: string; at: number } | null => {
+      for (const t of trechosDe.get(wallId) ?? []) {
+        const novo = (at * t.comprimento - t.s0) / (t.s1 - t.s0);
+        if (novo >= 0 && novo <= 1) return { wallId: t.id, at: novo };
+      }
+      return null;
+    };
+    for (const [id, a] of Object.entries(p.openings)) {
+      const novo = refazer(a.wallId, a.at);
+      if (!novo) delete p.openings[id]; else { a.wallId = novo.wallId; a.at = novo.at; }
+    }
+
+    // Objetos e luzes.
+    for (const [id, o] of Object.entries(p.props)) {
+      if (!area.ponto(o.position[0], o.position[1])) { delete p.props[id]; continue; }
+      if (o.wall) {
+        const novo = refazer(o.wall.wallId, o.wall.at);
+        if (!novo) { delete p.props[id]; continue; }
+        o.wall.wallId = novo.wallId; o.wall.at = novo.at;
+      }
+      if (o.interaction) {
+        delete o.interaction.note; delete o.interaction.noteTitle;
+        delete o.interaction.toPosition; delete o.interaction.toLevel;
+        delete o.interaction.toMapId; delete o.interaction.toTargetId;
+      }
+    }
+    for (const [id, l] of Object.entries(p.lights)) if (!area.ponto(l.position[0], l.position[1])) delete p.lights[id];
   }
-  for (const [id, l] of Object.entries(p.lights)) if (!area.ponto(l.position[0], l.position[1])) delete p.lights[id];
 
   p.regions = {};
   for (const tk of Object.values(p.tokens)) if (!tk.player) tk.refs = [];

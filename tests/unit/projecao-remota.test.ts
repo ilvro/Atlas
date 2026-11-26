@@ -166,3 +166,38 @@ test('pecasDoJogador: marca só as peças de jogador ligadas às fichas informad
   assert.deepEqual([...pecasDoJogador(m, [])], []);
   assert.deepEqual([...pecasDoJogador(null, ['f1'])], []);
 });
+
+test('remota em modo darkwood mantém geometria estática exterior, mas sanitiza nomes, notas, regiões e NPCs fora do cone', () => {
+  const m = mapaDeDois();
+  m.memory = { ...m.memory, mode: 'darkwood' };
+  m.props.oB = objeto('oB', 25, 18, {
+    roomId: 'B',
+    interaction: { kind: 'note', on: false, targets: [], sound: null, clue: null, note: 'NOTA-NO-COFRE', noteTitle: 'TITULO-NO-COFRE', toMapId: 'mapa-secreto', toTargetId: 'alvo-secreto' },
+  });
+  m.props.oOculto = objeto('oOculto', 25, 19, { oculto: true });
+  m.tokens.npcFora = { ...novaPeca([25, 18]), id: 'npcFora', name: 'Monstro Oculto', player: false };
+
+  const p = projetarParaRemoto(m);
+  validarMapa(p);
+
+  // Geometria estática do cômodo exterior/não explorado permanece para desenhar a penumbra Darkwood
+  assert.ok(p.rooms.B, 'cômodo B fica para renderizar arquitetura em penumbra');
+  assert.ok(p.walls.wB, 'paredes externas permanecem');
+  assert.ok(p.openings.pB, 'aberturas não-secretas permanecem');
+  assert.ok(p.props.oB, 'objetos não-ocultos permanecem');
+  assert.ok(p.lights.lB, 'luzes do cenário permanecem');
+  assert.equal(p.terrain.layers.chao!.cells.length, m.terrain.layers.chao!.cells.length, 'terreno não é recortado');
+
+  // Spoilers continuam removidos/neutralizados
+  assert.equal(p.rooms.B!.name, 'Cômodo');
+  assert.equal(p.rooms.B!.function, null);
+  assert.equal(p.rooms.A!.name, 'Sala A', 'cômodo revelado mantém o nome');
+  assert.equal(p.props.oOculto, undefined, 'objeto oculto continua removido');
+  assert.equal(p.tokens.npcFora, undefined, 'NPC fora do cone continua removido');
+  assert.deepEqual(p.regions, {});
+  assert.equal(p.session.event, null);
+  const json = JSON.stringify(p);
+  for (const segredo of ['COFRE-SECRETO', 'TITULO-SECRETO', 'Cripta do Rei Louco', 'Câmara do Tesouro', 'Saguão Secreto', 'NOTA-SECRETA', 'TITULO-NOTA', 'NOTA-NO-COFRE', 'TITULO-NO-COFRE', 'mapa-secreto', 'alvo-secreto', 'EVENTO-SECRETO', 'Monstro Oculto']) {
+    assert.ok(!json.includes(segredo), `vazou em darkwood: ${segredo}`);
+  }
+});

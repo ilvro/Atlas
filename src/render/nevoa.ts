@@ -1,6 +1,6 @@
-import { BlurFilter, Container, Graphics, RenderTexture, Sprite, type Renderer } from 'pixi.js';
+import { BlurFilter, Container, Graphics, RenderTexture, Sprite, Texture, type Renderer } from 'pixi.js';
 import { subtrair, unir } from '../domain/celulas.ts';
-import type { MapaAtlas } from '../domain/mapa.ts';
+import type { MapaAtlas, ModoDeMemoria } from '../domain/mapa.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import { RES_NEVOA, celulasDosComodos, celulasDasRegioes, celulasDosPoligonos, celulasExploradas, poligonosDeVisao } from '../domain/nevoa.ts';
 import type { Mudancas } from '../state/mudancas.ts';
@@ -14,9 +14,18 @@ const TEXTURA_MAX = 4096;
 /** O visível exibido caminha até o visível de verdade: sobe em ~0,5 s e desce em ~1,2 s (constantes de tempo, em segundos). */
 const SOBE = 0.12, DESCE = 0.3, ASSENTAR = 1600;
 
+/** Modo efetivo de memória/névoa do mapa (`'darkwood'`, `'sketch'` ou `'shroud'`). */
+export function modoDeMemoriaEfetivo(m: Pick<MapaAtlas, 'memory'>): ModoDeMemoria {
+  return m.memory.mode ?? (m.memory.sketch ? 'sketch' : 'shroud');
+}
+
 export interface Nevoa {
   /** A cobertura em metros: onde as peças de jogador não veem, a memória em esboço (explorado) ou o fundo do mapa (nunca visto). Invisível na vista do mestre. */
   readonly sprite: Sprite;
+  /** A textura atual do visível suavizado (`rt(11)` ou `rt(1)` quando assentado), ou `Texture.EMPTY` se ainda não dimensionada. */
+  readonly mascaraVisivel: Texture;
+  /** Verdadeiro quando o mapa atual está em modo de visão Darkwood. */
+  readonly modoDarkwood: boolean;
   sincronizar(m: MapaAtlas, mudancas: Mudancas | null): void;
   /** Mestre vê tudo; jogador vê só o que as suas peças enxergam. */
   definirVista(v: Vista): void;
@@ -82,7 +91,9 @@ export function criarNevoa(renderer: Renderer): Nevoa {
     visG.clear(); for (const pts of poligonos) visG.poly(pts).fill(0xffffff);
     desenhar(visRaiz, rt(0)); desenhar(visBorrada, rt(1));
     const res = m.session.explored?.res ?? RES_NEVOA;
-    const esboco = m.memory.sketch && memoria.textura !== null;
+    const modo = modoDeMemoriaEfetivo(m);
+    const darkwood = modo === 'darkwood';
+    const esboco = modo === 'sketch' && memoria.textura !== null;
     const faixasExp = esboco
       ? unir(unir(subtrair(m.session.explored?.cells ?? [], celulasDosPoligonos(m, poligonos, res)), celulasDosComodos(m, m.session.revealed.filter(id => m.rooms[id]), res)), celulasDasRegioes(m, m.session.revealed.filter(id => m.regions[id]), res))
       : celulasExploradas(m);
@@ -90,15 +101,18 @@ export function criarNevoa(renderer: Renderer): Nevoa {
     expG.fill(0xffffff);
     desenhar(expRaiz, rt(2)); desenhar(expBorrada, rt(3));
     invFundo.clear().rect(0, 0, pw, ph).fill(0xffffff); desenhar(invC, rt(4));
-    // Memória: o esboço, ou a cena escurecida (um véu preto) quando o mestre desliga o esboço.
+    // Memória: o esboço, o véu de penumbra Darkwood, ou a cena escurecida (um véu preto) quando o mestre desliga o esboço.
     if (esboco) {
       visG.clear(); for (const pts of poligonos) visG.poly(pts).fill(0xffffff).stroke({ width: 0.35, color: 0xffffff, join: 'round', cap: 'round' });
       desenhar(visRaiz, rt(0)); desenhar(visBorrada, rt(2));
     }
     memEsboco.visible = esboco; memEscuro.visible = !esboco; memVis.visible = esboco;
-    if (esboco) memEsboco.texture = memoria.textura!; else memEscuro.clear().rect(0, 0, pw, ph).fill({ color: 0x000000, alpha: 0.65 });
+    if (esboco) memEsboco.texture = memoria.textura!;
+    else if (darkwood) memEscuro.clear().rect(0, 0, pw, ph).fill({ color: 0x0b0f18, alpha: 0.42 });
+    else memEscuro.clear().rect(0, 0, pw, ph).fill({ color: 0x000000, alpha: 0.65 });
     desenhar(memC, rt(5)); fimExp.visible = !esboco;
-    fundoG.clear().rect(0, 0, pw, ph).fill(hexParaNumero(m.backdrop.color));
+    if (darkwood) fundoG.clear().rect(0, 0, pw, ph).fill({ color: 0x080b12, alpha: 0.68 });
+    else fundoG.clear().rect(0, 0, pw, ph).fill(hexParaNumero(m.backdrop.color));
   }
 
   /** `destino = origem + (visível − origem) · a`: um passo de média móvel, entre duas texturas do par. */
@@ -120,13 +134,15 @@ export function criarNevoa(renderer: Renderer): Nevoa {
 
   return {
     sprite,
+    get mascaraVisivel() { return rts.length ? fimVis.texture : Texture.EMPTY; },
+    get modoDarkwood() { return mapa !== null && modoDeMemoriaEfetivo(mapa) === 'darkwood'; },
     sincronizar(m, mud) {
       if (destruido) return;
       const tudo = !mud || mud.completo, col = (c: string) => tudo || !!(mud!.colecoes as Record<string, unknown>)[c], campo = (...c: string[]) => tudo || c.some(x => mud!.campos.includes(x));
       mapa = m;
       memoria.sincronizar(m, mud);
       if (campo('bounds', 'style', 'grid') || !rts.length) dimensionar(m);
-      if (tudo || col('tokens') || col('walls') || col('openings') || col('rooms') || campo('backdrop', 'session', 'memory', 'grid')) sujo = true;
+      if (tudo || col('tokens') || col('walls') || col('openings') || col('rooms') || col('props') || col('lights') || campo('backdrop', 'session', 'memory', 'grid')) sujo = true;
       if (tudo) assentar = true;
     },
     definirVista(v) { if (v === vista) return; vista = v; sprite.visible = v === 'jogador'; sujo = true; assentar = true; },

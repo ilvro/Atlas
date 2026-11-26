@@ -820,6 +820,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (animouObjeto) cenaDeAltura.sincronizarObjetos(objetos, objetosC);
       const ativo = atmosferaLigada && !ehPixel;
       cenaDeAltura.atualizar(op.renderer, mundoIluminado, ativo);
+      composicaoDeLuz.definirDarkwood(vistaDaCena === 'jogador' && nevoa.modoDarkwood, nevoa.mascaraVisivel, mapa?.bounds ?? null);
       composicaoDeLuz.atualizar(mundoIluminado, ativo, movimentoReduzido() ? 0 : agora / 1000);
     },
     destruir() {
