@@ -137,7 +137,7 @@ Commit: (feature) render shapes, frames, strokes, and curved arrows in PixiJS
 
 ---
 
-### QW7 — Renderização de texto rico no PixiJS com cache LRU e LOD nítido  ⬜
+### QW7 — Renderização de texto rico no PixiJS com cache LRU e LOD nítido  ✅
 Objetivo: renderizar textos de notas, formas, molduras e rótulos de setas dentro do PixiJS com fidelidade tipográfica e sem estourar VRAM em quadros com milhares de textos.
 Depende de: QW6
 Ler: `Mesa/src/dominio/doc-rico.ts`, `Mesa/src/dominio/fontes.ts`, `Mesa/src/ui/quadro/TextoDecorado.tsx`, `Mesa/src/ui/quadro/desenho-lod.ts`.
