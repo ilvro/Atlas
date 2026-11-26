@@ -2312,6 +2312,12 @@
                       "null"
                     ]
                   },
+                  "mapa": {
+                    "type": "string"
+                  },
+                  "entrada": {
+                    "type": "string"
+                  },
                   "posicao": {
                     "type": "array",
                     "items": {
@@ -2321,10 +2327,7 @@
                     "maxItems": 2,
                     "description": "[x, y] em metros."
                   }
-                },
-                "required": [
-                  "leva"
-                ]
+                }
               }
             },
             "required": [
@@ -2479,6 +2482,35 @@
                 "type": [
                   "string",
                   "null"
+                ]
+              },
+              "transicao": {
+                "type": "object",
+                "properties": {
+                  "mapa": {
+                    "type": "string"
+                  },
+                  "entrada": {
+                    "type": "string"
+                  },
+                  "andar": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "posicao": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "description": "[x, y] em metros."
+                  }
+                },
+                "required": [
+                  "mapa"
                 ]
               }
             },

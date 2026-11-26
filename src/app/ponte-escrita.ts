@@ -11,7 +11,7 @@ import { listaDeAndares } from '../domain/andares.ts';
 import { ceuNoHorario } from '../domain/clima.ts';
 import { EVENTOS_DE_CENA } from '../domain/eventos-de-cena.ts';
 import { novoIdEntidade } from '../domain/fabrica.ts';
-import { CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, FORMAS_DE_TELHADO, criarMapa, type CumeeiraDeTelhado, type DesgasteDeTelhado, type DetalheDeTelhado, type FormaDeTelhado, type MapaAtlas, type Ponto } from '../domain/mapa.ts';
+import { CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, FORMAS_DE_TELHADO, criarMapa, type CumeeiraDeTelhado, type DesgasteDeTelhado, type DetalheDeTelhado, type FormaDeTelhado, type MapaAtlas, type Ponto, type TransicaoDeMapa } from '../domain/mapa.ts';
 import { descreverPasso, duracaoEstimada, momentoValido, type Momento, type PassoDeMomento } from '../domain/momentos.ts';
 import { GENEROS, PINCEIS_DE_PRESENCA, PRESETS_DE_ACABAMENTO, PRESETS_DE_CLIMA, PRESETS_DE_LUZ, pincelDePresenca, presetDeAcabamento, presetDeClima } from '../domain/presets.ts';
 import { validarMapa } from '../domain/validacao.ts';
@@ -467,17 +467,36 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
       esquema: { type: 'object', properties: {
         portas: { type: 'array', minItems: 1, maxItems: MAX_ITENS, items: { type: 'object', properties: {
           perto: ponto, tipo: { type: 'string', enum: ['door', 'window', 'arch', 'secret'] }, estado: { type: 'string', enum: ['closed', 'open', 'locked'] }, largura: { type: 'number' }, andar: andarSchema,
+          transicao: { type: 'object', properties: { mapa: { type: 'string' }, entrada: { type: 'string' }, andar: andarSchema, posicao: ponto }, required: ['mapa'] },
         }, required: ['perto'] } },
         andar: andarSchema,
       }, required: ['portas'], additionalProperties: false },
       anotacoes: { destrutiva: true },
       async executar(args) {
         const andarBase = lerAndar(args.andar);
-        const pedidos = itens(args, 'portas').map((p, i) => ({
-          perto: pontos([p.perto], `portas[${i}].perto`)[0]!, ...(p.tipo !== undefined ? { tipo: p.tipo as 'door' } : {}), ...(p.estado !== undefined ? { estado: p.estado as 'open' } : {}),
-          ...(p.largura !== undefined ? { largura: numero(p.largura, 'largura', 0.2, 6) } : {}),
-          ...(p.andar !== undefined ? { andar: lerAndar(p.andar, `portas[${i}].andar`) } : {}),
-        }));
+        const pedidos = itens(args, 'portas').map((p, i) => {
+          let transicao: TransicaoDeMapa | undefined;
+          if (p.transicao !== undefined) {
+            const tr = objeto(p.transicao, `portas[${i}].transicao`);
+            const mapaDest = textoOpcional(tr.mapa, `portas[${i}].transicao.mapa`, 64)?.trim();
+            if (!mapaDest) throw new Error(`Falta "portas[${i}].transicao.mapa".`);
+            const entrada = textoOpcional(tr.entrada, `portas[${i}].transicao.entrada`, 64)?.trim();
+            const andarDest = lerAndar(tr.andar, `portas[${i}].transicao.andar`);
+            const posDest = tr.posicao !== undefined ? pontos([tr.posicao], `portas[${i}].transicao.posicao`)[0]! : undefined;
+            transicao = {
+              toMapId: mapaDest,
+              ...(entrada ? { toTargetId: entrada } : {}),
+              ...(andarDest !== undefined ? { toLevel: andarDest } : {}),
+              ...(posDest ? { toPosition: posDest } : {}),
+            };
+          }
+          return {
+            perto: pontos([p.perto], `portas[${i}].perto`)[0]!, ...(p.tipo !== undefined ? { tipo: p.tipo as 'door' } : {}), ...(p.estado !== undefined ? { estado: p.estado as 'open' } : {}),
+            ...(p.largura !== undefined ? { largura: numero(p.largura, 'largura', 0.2, 6) } : {}),
+            ...(p.andar !== undefined ? { andar: lerAndar(p.andar, `portas[${i}].andar`) } : {}),
+            ...(transicao ? { transicao } : {}),
+          };
+        });
         return [texto(escrever(ctx, `${pedidos.length} abertura(s)`, mapa => geracao(portas(mapa, aplicarAndarBase(mapa, pedidos, andarBase)))))];
       },
     },
@@ -489,7 +508,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
           item: { type: 'string' }, pos: ponto, rotacao: { type: 'number' }, escala: { type: 'number', minimum: 0.05, maximum: 50 },
           camada: { type: 'string', enum: ['floor', 'table', 'wall', 'ceiling', 'underwater'] }, submerso: { type: 'boolean' }, oculto: { type: 'boolean' }, params: { type: 'object' },
           andar: andarSchema,
-          escada: { type: 'object', properties: { leva: andarSchema, posicao: ponto }, required: ['leva'] },
+          escada: { type: 'object', properties: { leva: andarSchema, mapa: { type: 'string' }, entrada: { type: 'string' }, posicao: ponto } },
         }, required: ['item', 'pos'] } },
         andar: andarSchema,
         semente,
@@ -498,13 +517,17 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
       async executar(args) {
         const andarBase = lerAndar(args.andar);
         const pedidos = itens(args, 'objetos', MAX_OBJETOS).map((o, i) => {
-          let escada: { leva: string | null; posicao?: Ponto } | undefined;
+          let escada: { leva?: string | null; mapa?: string; entrada?: string; posicao?: Ponto } | undefined;
           if (o.escada !== undefined) {
             const eo = objeto(o.escada, `objetos[${i}].escada`);
             const leva = lerAndar(eo.leva, `objetos[${i}].escada.leva`);
-            if (leva === undefined) throw new Error(`Falta "objetos[${i}].escada.leva".`);
+            const mapaDest = textoOpcional(eo.mapa, `objetos[${i}].escada.mapa`, 64)?.trim();
+            const entrada = textoOpcional(eo.entrada, `objetos[${i}].escada.entrada`, 64)?.trim();
+            if (leva === undefined && !mapaDest) throw new Error(`Falta "objetos[${i}].escada.leva" ou "objetos[${i}].escada.mapa".`);
             escada = {
-              leva,
+              leva: leva ?? null,
+              ...(mapaDest ? { mapa: mapaDest } : {}),
+              ...(entrada ? { entrada } : {}),
               ...(eo.posicao !== undefined ? { posicao: pontos([eo.posicao], `objetos[${i}].escada.posicao`)[0]! } : {}),
             };
           }
@@ -521,7 +544,7 @@ export function ferramentasDeEscrita(ctx: ContextoDeEscrita): FerramentaDaPonte[
         const s = sementeDe(args);
         return [texto(escrever(ctx, `${pedidos.length} objeto(s)`, mapa => {
           const lista = aplicarAndarBase(mapa, pedidos, andarBase);
-          for (const it of lista) if (it.escada) verificarAndar(mapa, it.escada.leva);
+          for (const it of lista) if (it.escada && !it.escada.mapa) verificarAndar(mapa, it.escada.leva);
           return geracao(objetos(mapa, lista, s));
         }))];
       },

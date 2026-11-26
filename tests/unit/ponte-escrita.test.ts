@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { catalogo, ferramentasDeLeitura } from '../../src/app/ponte-leitura.ts';
+import { catalogo, ferramentasDeLeitura, resumirMapa } from '../../src/app/ponte-leitura.ts';
 import { esquemaDoPasso, TIPOS_DE_PASSO_ESQUEMA, ferramentasDeEscrita, type ContextoDeEscrita } from '../../src/app/ponte-escrita.ts';
 import { area } from '../../src/domain/celulas.ts';
 import { criarMapa, type MapaAtlas } from '../../src/domain/mapa.ts';
@@ -746,3 +746,70 @@ test('atlas_edificio aceita rotacao em radianos e gera cômodos outline com aber
   assert.ok(Object.keys(store.documento.openings).length >= 2);
   assert.ok(Object.keys(store.documento.props).length >= 2);
 });
+
+test('atlas_portas e atlas_objetos criam transições entre mapas e resumirMapa inclui transicao', async () => {
+  const { store, chamar } = montar();
+  await chamar('atlas_comodos', {
+    comodos: [{ rets: [[2, 2, 6, 6]], tipo: 'sala', nome: 'Entrada da Caverna' }],
+  });
+
+  await chamar('atlas_portas', {
+    portas: [{
+      perto: [6, 9],
+      tipo: 'door',
+      transicao: {
+        mapa: 'mapa-taverna',
+        entrada: 'porta-principal',
+        andar: null,
+        posicao: [4.5, 3.9],
+      },
+    }],
+  });
+
+  await chamar('atlas_objetos', {
+    objetos: [{
+      item: 'alcapao',
+      pos: [6, 6],
+      escada: {
+        mapa: 'masmorra-subterranea',
+        entrada: 'escada-entrada',
+        leva: 'nivel-1',
+        posicao: [10, 12],
+      },
+    }],
+  });
+
+  const doc = store.documento;
+  validarMapa(doc);
+
+  const abertura = Object.values(doc.openings)[0]!;
+  assert.deepEqual(abertura.transition, {
+    toMapId: 'mapa-taverna',
+    toTargetId: 'porta-principal',
+    toLevel: null,
+    toPosition: [4.5, 3.9],
+  });
+
+  const alcapao = Object.values(doc.props)[0]!;
+  assert.equal(alcapao.interaction?.kind, 'stairs');
+  assert.equal(alcapao.interaction?.toMapId, 'masmorra-subterranea');
+  assert.equal(alcapao.interaction?.toTargetId, 'escada-entrada');
+  assert.equal(alcapao.interaction?.toLevel, 'nivel-1');
+  assert.deepEqual(alcapao.interaction?.toPosition, [10, 12]);
+
+  const resumo = resumirMapa(doc) as {
+    transicoes?: { id: string; colecao: string; transicao: { mapa: string; entrada?: string; andar?: string | null } }[];
+    objetos: { fonte: string; transicao?: { mapa: string; entrada?: string; andar?: string | null } }[];
+  };
+  assert.ok(Array.isArray(resumo.transicoes));
+  assert.equal(resumo.transicoes!.length, 2);
+  assert.deepEqual(
+    resumo.transicoes!.find(t => t.colecao === 'openings')?.transicao,
+    { mapa: 'mapa-taverna', entrada: 'porta-principal', andar: null, posicao: [4.5, 3.9] },
+  );
+  assert.deepEqual(
+    resumo.objetos.find(o => o.fonte === 'alcapao')?.transicao,
+    { mapa: 'masmorra-subterranea', entrada: 'escada-entrada', andar: 'nivel-1', posicao: [10, 12] },
+  );
+});
+
