@@ -62,7 +62,7 @@ test('peça: o retrato enviado aparece recortado na peça, o tamanho vale, e o e
   await criarMapaPelaInterface(page);
   await sessao(page, '(s, p) => s.store.executar({ tipo: "item.adicionar", colecao: "tokens", item: p })', peca('hugo', 'Hugo', 10, 10, { size: 2 }));
   await page.waitForTimeout(300);
-  let d = (await diag(page))[0]!; assert.equal(d.retrato, false, 'sem retrato: a inicial'); assert.ok(Math.abs(d.raio - 1.35) < 0.01, `tamanho 2 células de 1,5 m: raio ${d.raio}`);
+  let d = (await diag(page))[0]!; assert.equal(d.retrato, false, 'sem retrato: a inicial'); assert.ok(Math.abs(d.raio - 1.32) < 0.01, `tamanho 2 células de 1,5 m: raio ${d.raio}`);
   await sessao(page, '(s) => { s.selecao.value = [{ colecao: "tokens", id: "hugo" }]; }'); await page.click('[data-testid="aba-selecao"]');
   await page.locator('[data-testid="retrato-arquivo"]').setInputFiles('tests/e2e/retrato-de-teste.png');
   await page.waitForFunction(() => (window as unknown as { __atlas: { viewport(): { diagnosticoDasPecas(): { retrato: boolean }[] } } }).__atlas.viewport().diagnosticoDasPecas()[0]?.retrato === true, null, { timeout: 8000 });
@@ -218,30 +218,33 @@ test('visão: na vista de jogador o outro lado da parede é o fundo do mapa, abr
   assert.deepEqual(erros, []); await ctx.close();
 });
 
-test('memória: o que a peça já viu e deixou para trás vira esboço em papel; o nunca visto continua fundo; esquecer apaga a memória', async () => {
+test('memória: o que a peça já viu e deixou para trás fica na penumbra da memória; o nunca visto continua fundo; esquecer apaga a memória', async () => {
   const ctx = await novoContexto(amb), { page, erros } = await abrir(ctx, amb.url);
   await criarMapaPelaInterface(page);
   await cenarioDaVisao(page, 'open');
   await sessao(page, '(s) => s.store.executar({ tipo: "item.atualizar", colecao: "tokens", id: "hugo", patch: { vision: { radius: 6 } } })');
-  await page.click('[data-testid="modo-sessao"]'); await page.waitForTimeout(400); await page.click('[data-testid="vista-jogador"]'); await page.waitForTimeout(600);
+  await page.click('[data-testid="modo-sessao"]'); await page.waitForTimeout(400); await page.click('[data-testid="vista-jogador"]'); await page.waitForTimeout(800);
   const lembrada: [[number, number], [number, number]] = [[5, 8.2], [7, 9.4]], nunca: [[number, number], [number, number]] = [[38, 24], [43, 28]], aqui = (x: number): [[number, number], [number, number]] => [[x - 2, 8.5], [x + 2, 10.5]];
   assert.ok(await brilho(page, ...lembrada) > 30, 'a peça enxerga o lugar');
-  // A peça atravessa a porta e vai longe: o que ficou para trás sai do alcance mas fica na memória.
+  // A peça atravessa a porta e vai longe: o que ficou para trás sai do alcance mas fica na memória (penumbra Darkwood).
   await sessao(page, '(s) => s.store.executar({ tipo: "peca.mover", id: "hugo", para: [24.75, 9.75] })'); await page.waitForTimeout(1200);
   const m = await documento(page); assert.ok(m.session.explored && m.session.explored.cells.length > 0, 'o explorado foi gravado'); assert.equal(m.session.explored.res, 0.5);
-  const papel = await brilho(page, ...lembrada), fundo = await brilho(page, ...nunca), vendo = await brilho(page, ...aqui(24.75));
-  assert.ok(papel > 120, `memória: papel claro (${papel})`); assert.ok(fundo < 18, `nunca visto: fundo (${fundo})`); assert.ok(vendo > 20 && vendo < papel, `visível: a cena (${vendo})`);
+  const memoria = await brilho(page, ...lembrada), fundo = await brilho(page, ...nunca), vendo = await brilho(page, ...aqui(24.75));
+  assert.ok(fundo < 18, `nunca visto: fundo (${fundo})`);
+  assert.ok(vendo > 40, `visível: a cena (${vendo})`);
+  assert.ok(memoria > fundo + 3 && memoria < vendo * 0.6, `memória Darkwood entre o breu e o visível (${fundo} < ${memoria} < ${vendo})`);
   await page.screenshot({ path: 'test-results/fase7-memoria.png' });
-  // Sem esboço, o explorado é a cena escurecida.
-  await sessao(page, '(s) => s.store.executar({ tipo: "memoria.atualizar", patch: { sketch: false } })'); await page.waitForTimeout(700);
-  const escura = await brilho(page, ...lembrada); assert.ok(escura > 8 && escura < papel * 0.5, `sem esboço: escurecida (${escura})`);
-  await sessao(page, '(s) => s.store.executar({ tipo: "memoria.atualizar", patch: { sketch: true } })'); await page.waitForTimeout(500);
+  // Em modo Breu (shroud), o explorado segue escurecido.
+  await sessao(page, '(s) => s.store.executar({ tipo: "memoria.atualizar", patch: { mode: "shroud" } })'); await page.waitForTimeout(700);
+  const escura = await brilho(page, ...lembrada); assert.ok(escura > fundo + 3 && escura < vendo * 0.6, `modo Breu: escurecida (${escura})`);
+  await sessao(page, '(s) => s.store.executar({ tipo: "memoria.atualizar", patch: { mode: "darkwood" } })'); await page.waitForTimeout(500);
   // Recomeçar a exploração apaga a memória.
   await page.click('[data-testid="aba-mapa"]'); await page.click('[data-testid="exploracao-recomecar"]'); await page.click('[data-testid="exploracao-confirmar"]'); await page.waitForTimeout(700);
   assert.equal((await documento(page)).session.explored, null);
   assert.ok(await brilho(page, ...lembrada) < 18, 'sem memória, o lugar vira fundo de novo');
   await page.keyboard.press('Control+z'); await page.waitForTimeout(700);
-  assert.ok(await brilho(page, ...lembrada) > 120, 'desfazer devolve a memória');
+  const restaurada = await brilho(page, ...lembrada);
+  assert.ok(restaurada > fundo + 3 && restaurada < vendo * 0.6, `desfazer devolve a memória (${restaurada})`);
   assert.deepEqual(erros, []); await ctx.close();
 });
 
@@ -278,9 +281,13 @@ test('telhado: cobre o cômodo na vista de jogador até uma peça entrar, com fa
   // Sair de novo fecha o telhado.
   await sessao(page, '(s) => s.store.executar({ tipo: "peca.mover", id: "hugo", para: [3.75, 3.75], livre: true })'); await page.waitForTimeout(900);
   assert.equal((await telhados(page))[0]!.alfa, 1);
-  // Telhado "não visível" não aparece.
+  // Na vista de jogador, roof.visible=false do editor não descobre o telhado; na vista do mestre (e em Construir), sim.
   await sessao(page, '(s) => s.store.executar({ tipo: "comodo.atualizar", id: "casa", patch: { roof: { visible: false } } })'); await page.waitForTimeout(800);
-  assert.equal((await telhados(page))[0]!.alfa, 0);
+  assert.equal((await telhados(page))[0]!.alfa, 1, 'na vista de jogador, roof.visible=false mantém o telhado cobrindo');
+  await page.click('[data-testid="vista-jogador"]'); await page.waitForTimeout(300);
+  assert.equal((await telhados(page))[0]!.alfa, 0, 'na vista do mestre, roof.visible=false esconde o telhado');
+  await page.click('[data-testid="modo-construir"]'); await page.waitForTimeout(300);
+  assert.equal((await telhados(page))[0]!.alfa, 0, 'em Construir também fica escondido');
   assert.deepEqual(erros, []); await ctx.close();
 });
 
@@ -325,7 +332,6 @@ test('revelação: abrir a porta na vista de jogador revela o outro lado aos pou
   await page.click('[data-testid="modo-sessao"]'); await page.waitForTimeout(400); await page.click('[data-testid="vista-jogador"]'); await page.waitForTimeout(800);
   const escuro = await brilho(page, ...fora);
   await sessao(page, '(s) => s.store.executar({ tipo: "abertura.atualizar", id: "o1", patch: { state: "open" } })');
-  await page.waitForTimeout(60);
   const meio = await brilho(page, ...fora); await page.screenshot({ path: 'test-results/fase7-revelando.png' });
   await page.waitForTimeout(1400);
   const cheio = await brilho(page, ...fora);
@@ -464,6 +470,11 @@ test('dock: o clima ao vivo muda com a transição escolhida (o meio de 3 s fica
   await sessao(page, '(s) => s.store.executar({ tipo: "terreno.base", material: "grama" })'); await page.waitForTimeout(500);
   assert.equal(await page.locator('[data-testid="dock"]').count(), 0, 'o dock só existe na Sessão');
   await page.click('[data-testid="modo-sessao"]'); await page.locator('[data-testid="dock"]').waitFor();
+  const cabecalhoClima = (await page.locator('[data-testid="dock-secao-clima"] .dock-painel-cabecalho').boundingBox())!;
+  await page.mouse.move(cabecalhoClima.x + cabecalhoClima.width / 2, cabecalhoClima.y + cabecalhoClima.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(cabecalhoClima.x + cabecalhoClima.width / 2 + 420, cabecalhoClima.y + cabecalhoClima.height / 2 - 320, { steps: 6 });
+  await page.mouse.up();
   const area: [[number, number], [number, number]] = [[3, 3], [12, 12]];
   await page.click('[data-testid="dock-clima-tarde"]'); await page.waitForTimeout(2500);
   const dia = await brilho(page, ...area);
@@ -482,6 +493,7 @@ test('dock: eventos de cena não mudam o documento; arrastar a intensidade de um
   await criarMapaPelaInterface(page);
   await sessao(page, '(s) => s.store.executar({ tipo: "item.adicionar", colecao: "presence", item: { id: "pr1", brush: "musgo", cells: [[4, 4, 6]], intensity: 0, seed: 3, gmOnly: false } })');
   await page.click('[data-testid="modo-sessao"]'); await page.locator('[data-testid="dock"]').waitFor();
+  if (await page.locator('[data-testid="dock-secao-clima"]').count()) await page.click('[data-testid="dock-titulo-clima"]');
   const antes = JSON.stringify(await documento(page)), n0 = await historico(page);
   for (const [espaco, e] of [[2, 'tremor'], [3, 'piscar'], [5, 'clarao']] as const) {
     await page.click(`[data-testid="barra-espaco-${espaco}"]`); await page.waitForTimeout(60);
@@ -546,7 +558,7 @@ test('projetor: recebe só a projeção (sem notas, região do mestre, porta sec
   proj.on('pageerror', e => errosProj.push(e.message)); proj.on('console', m => { if (m.type() === 'error') errosProj.push(m.text()); });
   await proj.goto(`${amb.url}#/projetor/${mapaId}`);
   await proj.waitForFunction(() => (window as unknown as { __projetor?: { doc(): unknown } }).__projetor?.doc() != null, null, { timeout: 20_000 });
-  await page.getByText('Conectado', { exact: true }).waitFor({ timeout: 5000 });
+  await page.waitForFunction(() => document.querySelector('[data-testid="dock-projetor-estado"]')?.textContent === 'Projetor local conectado', null, { timeout: 5000 });
   const docP = () => proj.evaluate(() => structuredClone((window as unknown as { __projetor: { doc(): import('../../src/domain/mapa.ts').MapaAtlas } }).__projetor.doc()));
   const recebido = await docP(), json = JSON.stringify(recebido);
   for (const segredo of ['NOTA-DO-MESTRE', 'REGIAO-SECRETA', 'ORC-ESCONDIDO', 'rg1']) assert.ok(!json.includes(segredo), `vazou para o projetor: ${segredo}`);
@@ -565,6 +577,7 @@ test('projetor: recebe só a projeção (sem notas, região do mestre, porta sec
   await sessao(page, '(s) => s.store.executar({ tipo: "sessao.revelar", ids: ["o1"] })');
   await proj.waitForFunction(() => !!(window as unknown as { __projetor: { doc(): { openings: Record<string, unknown> } } }).__projetor.doc().openings.o1, null, { timeout: 5000 });
   // Um evento de cena da barra unificada chega ao projetor.
+  if (await page.locator('[data-testid="dock-secao-clima"]').count()) await page.click('[data-testid="dock-titulo-clima"]');
   await page.click('[data-testid="barra-espaco-2"]');
   await proj.waitForFunction(() => (window as unknown as { __projetor: { viewport(): { diagnosticoDosEventos(): { ativos: string[] } } } }).__projetor.viewport().diagnosticoDosEventos().ativos.includes('tremor'), null, { timeout: 2000 });
   // Com o projetor aberto, o editor segue fluido.
@@ -665,7 +678,7 @@ test('fase 7: jogar a casa no projetor — portas, clima, revelação, interrupt
   proj.on('pageerror', e => errosProj.push(e.message)); proj.on('console', m => { if (m.type() === 'error') errosProj.push(m.text()); });
   await proj.goto(`${amb.url}#/projetor/${mapaId}`);
   await proj.waitForFunction(() => (window as unknown as { __projetor?: { doc(): unknown } }).__projetor?.doc() != null, null, { timeout: 20_000 });
-  await page.getByText('Conectado', { exact: true }).waitFor({ timeout: 5000 });
+  await page.waitForFunction(() => document.querySelector('[data-testid="dock-projetor-estado"]')?.textContent === 'Projetor local conectado', null, { timeout: 5000 });
 
   /** Em cada passo: nada do mestre no que o projetor recebeu. `secretaRevelada` libera a porta secreta; `ogroVisto`, o inimigo. */
   const confere = async (passo: string, { secretaRevelada = false, ogroVisto = false } = {}) => {
@@ -724,6 +737,7 @@ test('fase 7: jogar a casa no projetor — portas, clima, revelação, interrupt
   assert.equal((await documento(page)).props.sw!.interaction!.on, false);
 
   // Iniciativa de duas rodadas, vista pelo projetor.
+  if (await page.locator('[data-testid="dock-secao-clima"]').count()) await page.click('[data-testid="dock-titulo-clima"]');
   await page.click('[data-testid="dock-titulo-iniciativa"]');
   await page.locator('[data-testid="dock-iniciativa-valor-ana"]').fill('15'); await page.locator('[data-testid="dock-iniciativa-valor-beto"]').fill('10'); await page.locator('[data-testid="dock-iniciativa-valor-ogro"]').fill('5');
   await page.click('[data-testid="dock-iniciativa-comecar"]');
@@ -752,7 +766,7 @@ test('projetor: retrato aparece e reflete modo moeda vs imersivo', async () => {
   proj.on('pageerror', e => errosProj.push(e.message)); proj.on('console', m => { if (m.type() === 'error') errosProj.push(m.text()); });
   await proj.goto(`${amb.url}#/projetor/${mapaId}`);
   await proj.waitForFunction(() => (window as unknown as { __projetor?: { doc(): unknown } }).__projetor?.doc() != null, null, { timeout: 20_000 });
-  await page.getByText('Conectado', { exact: true }).waitFor({ timeout: 5000 });
+  await page.waitForFunction(() => document.querySelector('[data-testid="dock-projetor-estado"]')?.textContent === 'Projetor local conectado', null, { timeout: 5000 });
 
   // Retrato deve aparecer no projetor (mesmo quando estado chegou antes do blob) e refletir tokenStyle 'coin' vs 'immersive'.
   await proj.waitForFunction(() => {
@@ -781,13 +795,15 @@ test('projetor: seguir os jogadores sincroniza com o mestre', async () => {
   proj.on('pageerror', e => errosProj.push(e.message)); proj.on('console', m => { if (m.type() === 'error') errosProj.push(m.text()); });
   await proj.goto(`${amb.url}#/projetor/${mapaId}`);
   await proj.waitForFunction(() => (window as unknown as { __projetor?: { doc(): unknown } }).__projetor?.doc() != null, null, { timeout: 20_000 });
-  await page.getByText('Conectado', { exact: true }).waitFor({ timeout: 5000 });
+  await page.waitForFunction(() => document.querySelector('[data-testid="dock-projetor-estado"]')?.textContent === 'Projetor local conectado', null, { timeout: 5000 });
 
   await page.click('[data-testid="dock-projetor-seguir"]');
   await page.locator('[data-testid="dock-projetor-seguir"][aria-pressed="true"]').waitFor({ timeout: 3000 });
 
   await proj.mouse.move(300, 300);
-  await proj.mouse.wheel(0, 120);
+  await proj.mouse.down();
+  await proj.mouse.move(380, 360, { steps: 6 });
+  await proj.mouse.up();
   await proj.locator('[data-testid="projetor-seguir"]').waitFor({ timeout: 3000 });
   await page.locator('[data-testid="dock-projetor-seguir"][aria-pressed="false"]').waitFor({ timeout: 3000 });
 
