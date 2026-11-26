@@ -5,7 +5,8 @@ import { alternarLuzes, alternarPorta, usarObjeto, desfazer, revelarPorta, tranc
 import { modo } from '../app/modo.ts';
 import { abrirFicha, ajustarRecursos, ajustarRecursosDaPeca, recursosDaPeca, recursosDasFichas } from '../app/fichas.ts';
 import { previaDaFichaAberta } from './PreviaDaFicha.tsx';
-import { emEstadoCritico, fracao, interpretarAjusteDeRecurso, refDaFicha, temPd, textoDeRecursos, type Recursos } from '../domain/fichas.ts';
+import { emEstadoCritico, fracao, interpretarAjusteDeRecurso, luzesDisponiveisParaPeca, refDaFicha, temPd, textoDeRecursos, type Recursos } from '../domain/fichas.ts';
+import { alternarLuzDaPeca, rotuloDaLuz } from '../app/luz-da-peca.ts';
 import type { Ref } from '#mesa';
 import { chaveDaRef } from '#mesa';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
@@ -264,13 +265,41 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
       </>
     );
   } else if (emSessao && a.colecao === 'tokens') {
-    // Peça ligada a uma ficha ou próxima de uma transição entre mapas.
     const token = m.tokens[a.id]!;
     const ref = refDaFicha(token.refs);
     const prox = transicaoPertoDaPeca(m, token);
-    if (!ref && !prox) return null;
     const rec = ref ? recursosDaPeca(token) : null;
+    const infoLuz = luzesDisponiveisParaPeca(m, token, rec);
+    const presetAtual = infoLuz.presetAtivo ?? infoLuz.presets[0] ?? 'lanterna';
+    const nomeLuz = rotuloDaLuz(presetAtual);
     acoes = (<>
+      <button
+        type="button"
+        class={`cartao-texto ${infoLuz.ativa ? 'ativo' : ''}`}
+        data-testid="cartao-luz-peca"
+        aria-pressed={infoLuz.ativa}
+        title={infoLuz.ativa ? `Apagar ${nomeLuz} (L) · Q/E giram o facho` : `Acender ${nomeLuz} (L) · Q/E giram o facho`}
+        onClick={() => {
+          editar(() => { alternarLuzDaPeca(st, token.id, { recursos: rec }); });
+        }}
+      >
+        🔦 {nomeLuz}
+      </button>
+      {rec?.luzes && rec.luzes.length > 1 && (
+        <select
+          class="cartao-select"
+          data-testid="cartao-luz-preset"
+          aria-label="Item de luz da ficha"
+          title="Trocar item de luz da ficha"
+          value={presetAtual}
+          onChange={e => {
+            const valor = (e.target as HTMLSelectElement).value;
+            editar(() => { alternarLuzDaPeca(st, token.id, { preset: valor, recursos: rec }); });
+          }}
+        >
+          {infoLuz.presets.map(id => <option key={id} value={id}>{rotuloDaLuz(id)}</option>)}
+        </select>
+      )}
       {ref && (rec ? (
         <ControlesDeRecursosToken s={s} peca={token} refFicha={ref} />
       ) : (

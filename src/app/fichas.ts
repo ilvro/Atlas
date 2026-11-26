@@ -34,7 +34,19 @@ export function iniciarFichas(b: Pick<Barramento, 'ouvir'>): () => void {
   const parar1 = b.ouvir('ficha.recursos', e => {
     const d = e.dados as { ficha: Ref } & Recursos;
     if (![d.pv, d.pvMax, d.pd, d.pdMax].every(ehNumero)) return;
-    recursosDasFichas.value = { ...recursosDasFichas.peek(), [chaveDaRef(d.ficha)]: { pv: d.pv, pvMax: d.pvMax, pd: d.pd, pdMax: d.pdMax } };
+    const luzes = Array.isArray(d.luzes)
+      ? d.luzes.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+      : undefined;
+    recursosDasFichas.value = {
+      ...recursosDasFichas.peek(),
+      [chaveDaRef(d.ficha)]: {
+        pv: d.pv,
+        pvMax: d.pvMax,
+        pd: d.pd,
+        pdMax: d.pdMax,
+        ...(luzes && luzes.length > 0 ? { luzes } : {}),
+      },
+    };
   });
   const parar2 = b.ouvir('ficha.rolagem', e => {
     const d = e.dados as { ficha: Ref; titulo: string; total: number; modificador?: number };

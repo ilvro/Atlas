@@ -1,8 +1,28 @@
 import { chaveDaRef, type Ref } from '#mesa';
-import type { Peca } from './mapa.ts';
+import type { MapaAtlas, Peca } from './mapa.ts';
 
-/** PV e PD de uma ficha, como a Ficha os publica em `ficha.recursos`. Vivem na memória da sessão: o documento do mapa só guarda o `Ref`. */
-export interface Recursos { pv: number; pvMax: number; pd: number; pdMax: number }
+/** PV, PD e fontes de luz de uma ficha, como a Ficha os publica em `ficha.recursos`. Vivem na memória da sessão: o documento do mapa só guarda o `Ref`. */
+export interface Recursos { pv: number; pvMax: number; pd: number; pdMax: number; luzes?: readonly string[] }
+
+const PRESETS_LUZ_PADRAO: readonly string[] = ['lanterna', 'lamparina', 'tocha', 'vela'];
+
+/** Fontes de luz disponíveis para uma peça na sessão (da ficha vinculada ou padrão) e estado atual da luz portada. */
+export function luzesDisponiveisParaPeca(
+  m: Pick<MapaAtlas, 'lights'>,
+  t: Pick<Peca, 'lightId' | 'refs'>,
+  recursos: Recursos | null,
+): { presets: string[]; ativa: boolean; presetAtivo: string | null } {
+  const luz = t.lightId ? m.lights[t.lightId] : undefined;
+  const ativa = Boolean(luz?.on);
+  const presetAtivo = luz?.preset ?? null;
+  const base = recursos?.luzes && recursos.luzes.length > 0 ? [...recursos.luzes] : [...PRESETS_LUZ_PADRAO];
+  const presets: string[] = [];
+  if (presetAtivo) presets.push(presetAtivo);
+  for (const id of base) {
+    if (!presets.includes(id)) presets.push(id);
+  }
+  return { presets, ativa, presetAtivo };
+}
 
 /** Extrai o sufixo numérico final do nome de um token (ex.: "Esqueleto 2" → "2", "Zumbi" → null). */
 export function extrairNumeroDoToken(nome: string): string | null {

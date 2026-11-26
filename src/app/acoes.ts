@@ -24,6 +24,9 @@ import { comodoEm } from '../domain/geometria.ts';
 import type { Ponto, TransicaoDeMapa } from '../domain/mapa.ts';
 import { transicaoDaAbertura, transicaoDoObjeto, transicaoPertoDaPeca } from '../domain/transicao-mapa.ts';
 import { nomeDoMapaDestino, viajarParaMapa } from './transicao-mapa.ts';
+import { luzesDisponiveisParaPeca } from '../domain/fichas.ts';
+import { recursosDaPeca } from './fichas.ts';
+import { alternarLuzDaPeca, rotuloDaLuz } from './luz-da-peca.ts';
 
 /** Uma coisa que o mestre pode mandar o Atlas fazer. A paleta, os atalhos e o menu radial leem a mesma lista. */
 export interface Acao {
@@ -144,6 +147,26 @@ export const ACOES: readonly Acao[] = [
   { id: 'ferr-regua', nome: 'Ferramenta: régua (medir em quadrados)', grupo: 'Sessão', palavras: 'medir distancia metros quadrados', atalhos: ['R'], habilitada: () => modo.value === 'sessao', executar: () => usarFerramenta('regua') },
   { id: 'barra-efeitos', nome: 'Barra de efeitos: espaços 1 a 9', grupo: 'Sessão', palavras: 'barra efeitos momentos hotbar atalhos teclas', atalhos: ['1…9'], habilitada: () => modo.value === 'sessao', executar: () => {} },
   { id: 'interagir', nome: 'Interagir (abrir ou fechar a porta ao lado da peça)', grupo: 'Sessão', palavras: 'porta abrir fechar usar peca', atalhos: ['Enter'], habilitada: () => modo.value === 'sessao' && (app.sessao.value?.selecao.value.some(a => a.colecao === 'tokens') ?? false), executar: () => app.interagirComPerto() },
+  {
+    id: 'peca-luz',
+    nome: 'Acender ou apagar a luz da peça selecionada',
+    grupo: 'Sessão',
+    palavras: 'lanterna lamparina tocha vela luz peca ficha',
+    atalhos: ['L'],
+    habilitada: () => modo.value === 'sessao' && (app.sessao.value?.selecao.value.some(a => a.colecao === 'tokens') ?? false),
+    executar: () => {
+      const s = app.sessao.value;
+      if (!s) return;
+      const pecas = s.selecao.value.filter(a => a.colecao === 'tokens');
+      let mudou = false;
+      for (const a of pecas) {
+        const t = s.store.documento.tokens[a.id];
+        if (!t) continue;
+        if (alternarLuzDaPeca(s.store, t.id, { recursos: recursosDaPeca(t) })) mudou = true;
+      }
+      if (mudou) tocar('selecionar');
+    },
+  },
   { id: 'virar-lanterna-esq', nome: 'Virar a lanterna para a esquerda (45°)', grupo: 'Sessão', palavras: 'facho cone luz peça', atalhos: ['Q'], habilitada: () => modo.value === 'sessao' && app.comLanterna(), executar: () => app.virarLanterna(-45) },
   { id: 'virar-lanterna-dir', nome: 'Virar a lanterna para a direita (45°)', grupo: 'Sessão', palavras: 'facho cone luz peça', atalhos: ['E'], habilitada: () => modo.value === 'sessao' && app.comLanterna(), executar: () => app.virarLanterna(45) },
   { id: 'girar-dir', nome: 'Girar para a direita (90°)', grupo: 'Construir', palavras: 'rotacionar', atalhos: ['E'], habilitada: noEditor, executar: () => girar(90) },
@@ -346,6 +369,18 @@ export function itensDoMenuRadial(alvo: Alvo | null, mundo: Ponto): ItemRadial[]
     } else if (alvo?.colecao === 'tokens') {
       const peca = m.tokens[alvo.id];
       if (peca) {
+        const rec = recursosDaPeca(peca);
+        const infoLuz = luzesDisponiveisParaPeca(m, peca, rec);
+        const nomeLuz = rotuloDaLuz(infoLuz.presetAtivo ?? infoLuz.presets[0] ?? 'lanterna');
+        itensSessao.push({
+          id: 'peca-luz',
+          rotulo: infoLuz.ativa ? `Apagar ${nomeLuz}` : `Acender ${nomeLuz}`,
+          icone: 'luz',
+          atalho: 'L',
+          fazer: () => {
+            if (alternarLuzDaPeca(s.store, peca.id, { recursos: rec })) tocar('selecionar');
+          },
+        });
         const prox = transicaoPertoDaPeca(m, peca);
         if (prox) {
           transicaoSessao = prox.transicao;

@@ -108,6 +108,7 @@ Commit: `(visual) shade character tokens with local light and darkness`
 ---
 
 ### W2 — Contrato e Dossiê: detectar itens de luz na ficha e pedido `atlas.luz-peca`  ⬜
+Nota: a detecção automática de itens de luz na ficha (`luzesDoInventario` em `Dossie/src/mesa.js` anexando `luzes` em `ficha.recursos`) foi entregue em `Dossie bbb3603`; o pedido remoto `atlas.luz-peca` no contrato (`mesa-core/src/eventos.ts` + `Mesa/sala/permissoes.ts` + sincronização de `vendor/mesa-core/`) fica pendente da conclusão da edição concorrente em `mesa-core/src/eventos.ts`.
 Objetivo: o Dossiê informa quais fontes de luz o personagem possui no inventário da ficha, e o contrato permite ativar/alternar/mirar a luz da peça no Atlas (local e online).
 Depende de: —.
 Ler: `Atlas/mesa-core/src/eventos.ts`, `Dossie/src/mesa.js`, `Mesa/sala/permissoes.ts`, `Mesa/src/online/protocolo.ts`.
@@ -132,7 +133,8 @@ Commit: `(feature) publish sheet light items and allow toggling token light in c
 
 ---
 
-### W3 — Ativar e mirar lanterna/lamparina no Atlas (Sessão e Projetor do jogador)  ⬜
+### W3 — Ativar e mirar lanterna/lamparina no Atlas (Sessão e Projetor do jogador)  ✅
+Nota: parte local do Atlas entregue — `Recursos.luzes` e `luzesDisponiveisParaPeca` em `src/domain/fichas.ts`, preservação de `luzes` em `src/app/fichas.ts`, `ROTULO_LUZ_PECA`/`rotuloDaLuz`/`alternarLuzDaPeca`/`mirarLuzDaPeca` em `src/app/luz-da-peca.ts`, botão rápido `🔦` e seletor de item de luz no `src/ui/CartaoContextual.tsx`, atalho `L` (`peca-luz`) e item radial na Sessão em `src/app/acoes.ts`, com testes em `tests/unit/luz-da-peca.test.ts`. O botão/atendente no projetor remoto (`src/app/app.ts` + `src/ui/Projetor.tsx`) fica pendente da conclusão da edição concorrente nesses arquivos e do pedido `atlas.luz-peca` da W2.
 Objetivo: o mestre e o jogador podem ativar/desativar a lanterna ou lamparina da ficha com um clique no Atlas e apontar o facho em tempo real.
 Depende de: W2.
 Ler: `src/app/fichas.ts` (`recursosDasFichas`), `src/ui/CartaoContextual.tsx`, `src/app/acoes.ts` (`itensDoMenuRadial`, `ACOES`), `src/app/app.ts` (`comLanterna`, `virarLanterna`, `iniciar`), `src/ui/Projetor.tsx`.
