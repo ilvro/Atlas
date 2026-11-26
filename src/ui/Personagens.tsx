@@ -3,7 +3,7 @@ import { signal } from '@preact/signals';
 import type { Entidade } from '#mesa';
 import { campanhaAtiva, escolherCampanha } from '../app/campanha.ts';
 import { servicos, viewport } from '../app/app.ts';
-import { adicionarPersonagem, abrirMesa, ameacasComFicha, personagensDoElenco, recursosDasFichas } from '../app/fichas.ts';
+import { adicionarPersonagem, abrirMesa, ameacasComFicha, mesclarPersonagensDaSala, personagensDoElenco, recursosDasFichas, type RespostaSalaFichas } from '../app/fichas.ts';
 import { refDaFicha, textoDeRecursos } from '../domain/fichas.ts';
 import { chaveDaRef } from '#mesa';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
@@ -11,6 +11,7 @@ import { tentar } from './campos.tsx';
 
 const lista = signal<Entidade[]>([]);
 const ameacas = signal<Entidade[]>([]);
+const donosDaSala = signal<Record<string, string>>({});
 const busca = signal('');
 const buscaPersonagem = signal('');
 /** Quantas ameaças a lista mostra de uma vez: a campanha pode ter centenas (a Ficha traz as dela e as que você criar). A busca acha as outras. */
@@ -19,16 +20,24 @@ const semAcento = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLoc
 export const TIPO_ARRASTE = 'application/x-atlas-personagem';
 
 async function carregar(): Promise<void> {
-  const c = campanhaAtiva.peek(), r = servicos.peek()?.campanhas;
-  if (!c || !r) { lista.value = []; ameacas.value = []; return; }
+  const c = campanhaAtiva.peek(), srv = servicos.peek(), r = srv?.campanhas;
+  if (!c || !r) { lista.value = []; ameacas.value = []; donosDaSala.value = {}; return; }
   try {
     const fresca = (await r.obterCampanha?.(c.id)) ?? c;
     if (fresca.atualizadaEm !== c.atualizadaEm || JSON.stringify(fresca.elenco) !== JSON.stringify(c.elenco)) {
       campanhaAtiva.value = fresca;
     }
-    lista.value = personagensDoElenco(await r.listarEntidades(c.id, { tipo: 'personagem' }), fresca);
-    ameacas.value = ameacasComFicha(await r.listarEntidades(c.id, { tipo: 'ameaca' }));
-  } catch (erro) { console.warn('Atlas: não consegui listar os personagens', erro); lista.value = []; ameacas.value = []; }
+    const [todasPersonagens, todasAmeacas, respSala] = await Promise.all([
+      r.listarEntidades(c.id, { tipo: 'personagem' }),
+      r.listarEntidades(c.id, { tipo: 'ameaca' }),
+      srv?.barramento ? srv.barramento.pedir('sala.fichas', {}, { prazoMs: 350 }).catch(() => null) : Promise.resolve(null),
+    ]);
+    const salaDados = respSala && respSala.ok ? (respSala.resposta.dados as RespostaSalaFichas) : null;
+    const mesclado = mesclarPersonagensDaSala(personagensDoElenco(todasPersonagens, fresca), salaDados, c.id);
+    lista.value = mesclado.lista;
+    donosDaSala.value = mesclado.donosPorFicha;
+    ameacas.value = ameacasComFicha(todasAmeacas);
+  } catch (erro) { console.warn('Atlas: não consegui listar os personagens', erro); lista.value = []; ameacas.value = []; donosDaSala.value = {}; }
 }
 
 /** Os personagens da campanha que têm ficha: arrastar para o mapa (ou "Pôr no mapa") cria a peça ligada à ficha. */
@@ -39,7 +48,8 @@ function Item({ s, e, pecas }: { s: SessaoDeEdicao; e: Entidade; pecas: SessaoDe
   const noMapa = pecasDaEntidade.length > 0;
   const rec = recursosDasFichas.value[chaveDaRef(ref)];
   const tagDono = !ameaca ? e.tags.find(t => t.startsWith('dono:')) : undefined;
-  const dono = tagDono ? tagDono.slice(5) : null;
+  const donoDaTag = tagDono ? tagDono.slice(5).replace(/^Dono:\s*/i, '') : null;
+  const dono = !ameaca ? (donosDaSala.value[ref.id] ?? (donoDaTag && donoDaTag !== 'você' ? donoDaTag : null)) : null;
   const textoBotao = ameaca
     ? (noMapa ? `+1 no mapa (×${pecasDaEntidade.length})` : 'Pôr no mapa')
     : (noMapa ? 'Selecionar' : 'Pôr no mapa');
@@ -72,17 +82,24 @@ export function Personagens({ s }: { s: SessaoDeEdicao }) {
     const aoFocar = () => { void carregar(); };
     const aoVisibilidade = () => { if (document.visibilityState === 'visible') void carregar(); };
     const aoStorage = (e: StorageEvent) => {
-      if (e.key === 'mesa:campanha-ativa' || e.key === 'mesa:campanha-atualizada') void carregar();
+      if (e.key === 'mesa:campanha-ativa' || e.key === 'mesa:campanha-atualizada' || e.key === 'mesa:sala-atualizada') void carregar();
     };
+    const b = servicos.value?.barramento;
+    const pararSala = b ? [
+      b.ouvir('sala.conexao', () => { void carregar(); }),
+      b.ouvir('sala.ficha-atualizada', () => { void carregar(); }),
+      b.ouvir('sala.ficha-removida', () => { void carregar(); }),
+    ] : [];
     window.addEventListener('focus', aoFocar);
     document.addEventListener('visibilitychange', aoVisibilidade);
     window.addEventListener('storage', aoStorage);
     return () => {
+      for (const parar of pararSala) parar();
       window.removeEventListener('focus', aoFocar);
       document.removeEventListener('visibilitychange', aoVisibilidade);
       window.removeEventListener('storage', aoStorage);
     };
-  }, []);
+  }, [servicos.value?.barramento]);
   const campanha = campanhaAtiva.value, pecas = s.doc.value.tokens;
   if (!campanha) return <p class="dock-dica" data-testid="personagens-vazio">Escolha uma campanha na aba Mapa para ver os personagens.</p>;
   const termo = semAcento(busca.value).trim(), achadas = ameacas.value.filter(e => !termo || semAcento(e.nome).includes(termo)), mostradas = achadas.slice(0, LIMITE_DE_AMEACAS);
