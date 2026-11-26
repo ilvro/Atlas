@@ -172,7 +172,7 @@ Commit: (feature) implement PixiJS selection overlay, handles, and spatial hit-t
 
 ---
 
-### QW9 — Troca do `Mundo.tsx` para PixiJS + overlay DOM só para edição e cartões  ⬜
+### QW9 — Troca do `Mundo.tsx` para PixiJS + overlay DOM só para edição e cartões  ✅
 Objetivo: conectar o `ViewportQuadro` PixiJS no `Mundo.tsx` / `Quadro.tsx`, mantendo um overlay DOM leve apenas para o item em edição (`EditorRico`/TipTap) e cartões/botões interativos em foco.
 Depende de: QW1, QW7, QW8
 Ler: `Mesa/src/ui/quadro/Mundo.tsx`, `Mesa/src/ui/quadro/Quadro.tsx`, `Mesa/src/ui/quadro/EditorRico.tsx`, `Mesa/src/ui/quadro/ItemRef.tsx`, `Mesa/tests/e2e/quadro.test.ts`, `Mesa/tests/e2e/quadro-pacote.test.ts`.
@@ -190,7 +190,8 @@ Commit: (refactor) switch whiteboard Mundo renderer to PixiJS with DOM edit over
 
 ---
 
-### QW10 — Limpeza do legado DOM/LOD e validação em quadro de 7.100+ itens  ⬜
+### QW10 — Limpeza do legado DOM/LOD e validação em quadro de 7.100+ itens  ✅
+Nota: `desenho-lod.ts`, `.item-lod-linhas` e a prop `lodSimples` foram removidos; `Item*.tsx` e `Selecao.tsx` permanecem apenas para o overlay interativo (edição TipTap, pinos de âncora, cartões `ref` e alças) e para `ProjecaoDoQuadro.tsx`. Além da suíte E2E (`Q2k` com 3.000 itens abaixo de 35 ms/quadro em SwiftShader), `pixi-quadro.test.ts` valida sincronização, culling e hit-test em quadro sintético de 7.500 itens + 4.000 traços (11.500 itens).
 Objetivo: remover o código morto do renderizador DOM/Canvas 2D antigo e validar desempenho e uso de memória em escala real (`vaesen.miro.zip`).
 Depende de: QW9
 Ler: `Mesa/src/ui/quadro/` (arquivos legados não mais importados), `Mesa/src/ui/estilo.css`.
