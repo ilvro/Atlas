@@ -1602,9 +1602,12 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     redesenharPecas: () => { cena.redesenharPecas(); camadaSuja = true; },
     diagnosticoDosTelhados: () => cena.diagnosticoDosTelhados(),
     atualizarSobreposicoes: () => {
-      if (ultimoAndar !== andarAtual() || ultimoConstruir !== ctxAndar().construir) { redesenharTudo(); return; }
       if (Boolean(ponte.alinhandoGrade?.()) !== ultimoAlinhandoGrade) gradeSuja = true;
-      camadaSuja = true; cena.definirVista(ponte.vista?.() ?? 'construir'); cena.definirFiltroDeVisao?.(ponte.filtroDeVisao?.() ?? null, ponte.minhasFichas?.() ?? null); aplicarAcabamento();
+      camadaSuja = true;
+      cena.definirVista(ponte.vista?.() ?? 'construir');
+      cena.definirFiltroDeVisao?.(ponte.filtroDeVisao?.() ?? null, ponte.minhasFichas?.() ?? null);
+      if (ultimoAndar !== andarAtual() || ultimoConstruir !== ctxAndar().construir) redesenharTudo();
+      aplicarAcabamento();
     },
     relampagoAgora: () => cena.relampagoAgora(),
     dispararPing: ping => camadaPings.adicionar(ping),
