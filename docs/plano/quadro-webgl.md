@@ -155,7 +155,7 @@ Commit: (feature) render rich text items with LRU texture cache in PixiJS
 
 ---
 
-### QW8 — Seleção, alças (redimensionar, girar, conectar, curvar) e hit-test no PixiJS  ⬜
+### QW8 — Seleção, alças (redimensionar, girar, conectar, curvar) e hit-test no PixiJS  ✅
 Objetivo: unificar seleção múltipla, retângulo de seleção, linhas-guia, prévia de traço e todas as alças de manipulação no viewport PixiJS usando o índice espacial.
 Depende de: QW3, QW4, QW6
 Ler: `Mesa/src/ui/quadro/Selecao.tsx`, `Mesa/src/ui/quadro/Quadro.tsx` (gestos e `itemNoPonto`), `Mesa/src/dominio/gestos.ts`, `Mesa/src/dominio/alinhamento.ts`.
