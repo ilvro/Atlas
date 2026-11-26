@@ -24,7 +24,7 @@ export interface Receita {
   /** Objeto de fundo de água: ao pôr no mapa nasce `elevation: 'underwater'`, sem sombra e sem bloquear. */
   submerso?: boolean;
   /** Animação própria acrescentada pela cena por cima da parte assada. */
-  animacao?: 'cachoeira';
+  animacao?: 'cachoeira' | 'nadar';
   campos?: CampoDeReceita[];
   /** A luz que o objeto traz consigo (cogumelo, cristal…): nasce com o objeto, acompanha os parâmetros e some quando o brilho some. `null` = sem luz. */
   luz?: (params: Record<string, unknown>) => LuzDeReceita | null;

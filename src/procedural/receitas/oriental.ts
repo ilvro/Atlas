@@ -519,25 +519,34 @@ function estatuaSentada(seed: number): Parte[] {
   sombraNoChao(partes, bolha(0, 0, 1.05, 1.05, 16, 0.03, r), 0.02, '#0d0a08', 0.45);
   const oct = Array.from({ length: 8 }, (_, k) => { const a = Math.PI / 8 + (k / 8) * Math.PI * 2; return [Math.cos(a) * 1.05, Math.sin(a) * 1.05]; }).flat();
   partes.push(poli(oct.map((v, i) => v + (i % 2 ? 0.03 : 0.025)), PEDRA.nanquim, 0.25, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), poli(oct, PEDRA.base, 0.253, { ...O, detalhe: 1 }), poli(oct.map(v => v * 0.9), PEDRA.meio, 0.255, { ...O, detalhe: 1 }));
-  for (const [anelR, n, z, off] of [[0.62, 14, 0.5, 0], [0.5, 14, 0.58, 0.5]] as const) for (let k = 0; k < n; k++) {
-    const a = ((k + off) / n) * Math.PI * 2, x = Math.cos(a) * anelR * 0.45, y = Math.sin(a) * anelR * 0.45;
-    partes.push(lente(x, y, a, anelR * 0.95, 0.3, t.nanquim, z, { contorno: 'leve', detalhe: 1 }), lente(x, y, a, anelR * 0.9, 0.24, tom(t.base, olhar(a) * 0.3), z + 0.003, { ...O, detalhe: 2 }), lente(x + Math.cos(a) * 0.05, y + Math.sin(a) * 0.05, a, anelR * 0.7, 0.05, tom(t.base, olhar(a) * 0.3 + 0.15), z + 0.005, { ...O, alfa: 0.6, detalhe: 3 }));
+  // O lótus: uma coroa de pétalas curtas em volta de um assento redondo e liso.
+  for (const [anelR, n, z, off] of [[0.92, 16, 0.5, 0], [0.8, 16, 0.55, 0.5]] as const) for (let k = 0; k < n; k++) {
+    const a = ((k + off) / n) * Math.PI * 2, x = Math.cos(a) * (anelR - 0.36), y = Math.sin(a) * (anelR - 0.36);
+    partes.push(lente(x, y, a, 0.36, 0.3, t.nanquim, z, { contorno: 'leve', detalhe: 1 }), lente(x, y, a, 0.33, 0.24, tom(t.base, olhar(a) * 0.3), z + 0.003, { ...O, detalhe: 2 }), lente(x + Math.cos(a) * 0.04, y + Math.sin(a) * 0.04, a, 0.22, 0.05, tom(t.base, olhar(a) * 0.3 + 0.15), z + 0.005, { ...O, alfa: 0.6, detalhe: 3 }));
   }
-  disco(partes, 0, 0.16, 0.48, t, 0.9, 0.26);
-  for (let k = 0; k < 4; k++) partes.push(tira(arco(0, 0.16, 0.42 - k * 0.08, 0.2 - k * 0.04, 0.3, Math.PI - 0.3, 10), 0.012, t.sombra, 0.92, { ...O, alfa: 0.6, detalhe: 3 }));
-  disco(partes, 0, -0.07, 0.36, t, 1.0, 0.2);
-  disco(partes, 0, -0.04, 0.27, t, 1.1, 0.22);
-  partes.push(tira([-0.25, -0.12, -0.05, 0.0, 0.2, 0.12], 0.025, t.sombra, 1.13, { ...O, alfa: 0.7, detalhe: 3 }, 0.4));
-  disco(partes, 0, 0.2, 0.1, t, 1.12, 0.07);
-  partes.push(tira(anel(0, 0.2, 0.035, 0.025, 12), 0.012, t.nanquim, 1.14, { ...O, alfa: 0.7, detalhe: 3 }));
-  for (const k of [-1, 1]) partes.push(lente(k * 0.15, -0.04, Math.PI / 2, 0.12, 0.045, tom(t.base, k < 0 ? 0.2 : -0.2), 1.2, { contorno: 'leve', detalhe: 3 }));
-  disco(partes, 0, -0.04, 0.15, t, 1.25);
-  for (const [rr, n] of [[0.12, 16], [0.08, 11], [0.04, 6]] as const) for (let k = 0; k < n; k++) { const a = (k / n) * 6.28; partes.push(elipse(Math.cos(a) * rr, -0.04 + Math.sin(a) * rr, 0.032, 0.032, tom(t.base, olhar(a) * 0.3 - 0.1), 1.27, { contorno: 'leve', detalhe: 3 })); }
-  disco(partes, 0, -0.06, 0.065, t, 1.3);
-  partes.push(elipse(0, 0.105, 0.025, 0.025, OURO.luz, 1.3, { ...O, detalhe: 3 }));
-  // A auréola, atrás das costas.
-  partes.push(tira(arco(0, -0.2, 0.5, 0.14, Math.PI * 1.1, Math.PI * 1.9, 16), 0.07, OURO.nanquim, 1.45, { contorno: 'leve', detalhe: 1 }), tira(arco(0, -0.2, 0.5, 0.14, Math.PI * 1.1, Math.PI * 1.9, 16), 0.045, bronze ? OURO.base : PEDRA.luz, 1.453, { ...O, detalhe: 2 }));
-  for (let k = 0; k < 9; k++) { const a = Math.PI * (1.14 + (k / 8) * 0.72); partes.push(lente(Math.cos(a) * 0.52, -0.2 + Math.sin(a) * 0.15, -Math.PI / 2, 0.07, 0.035, bronze ? OURO.luz : PEDRA.meio, 1.455, { ...O, detalhe: 3 })); }
+  disco(partes, 0, 0, 0.6, t, 0.6);
+  // A figura: joelhos abertos dos dois lados, o manto caído entre eles, as mãos no colo, o tronco e os ombros.
+  for (const k of [-1, 1]) disco(partes, k * 0.36, 0.2, 0.19, t, 0.9, 0.16);
+  partes.push(poli([-0.36, 0.08, 0.36, 0.08, 0.3, 0.36, 0, 0.42, -0.3, 0.36], tom(t.base, -0.05), 0.92, { contorno: 'leve', detalhe: 1 }));
+  for (let k = 0; k < 3; k++) partes.push(tira([-0.22 + k * 0.03, 0.14 + k * 0.08, 0, 0.2 + k * 0.08, 0.22 - k * 0.03, 0.14 + k * 0.08], 0.014, t.sombra, 0.925, { ...O, alfa: 0.6, detalhe: 3 }));
+  disco(partes, 0, 0.17, 0.11, t, 0.96, 0.07);
+  partes.push(tira(anel(0, 0.17, 0.04, 0.025, 12), 0.012, t.nanquim, 0.97, { ...O, alfa: 0.7, detalhe: 3 }));
+  // O tronco: costas largas atrás (−y), cintura estreita no colo, e o manto que cruza do ombro esquerdo.
+  const tronco = [-0.34, -0.2, -0.2, -0.3, 0.2, -0.3, 0.34, -0.2, 0.3, -0.02, 0.16, 0.1, -0.16, 0.1, -0.3, -0.02];
+  partes.push(poli(tronco.map((v, i) => v + (i % 2 ? 0.025 : 0.02)), t.nanquim, 1.0, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), poli(tronco, t.base, 1.003, { ...O, detalhe: 1 }));
+  partes.push(poli([-0.3, -0.2, -0.18, -0.27, 0.05, -0.27, 0.0, 0.05, -0.14, 0.08, -0.26, -0.02], t.meio, 1.005, { ...S, detalhe: 2 }), poli([-0.27, -0.2, -0.17, -0.25, -0.05, -0.25, -0.12, -0.05, -0.22, -0.06], t.luz, 1.007, { ...S, alfa: 0.8, detalhe: 3 }));
+  partes.push(tira([-0.3, -0.2, -0.05, -0.05, 0.2, 0.08], 0.022, t.sombra, 1.01, { ...O, alfa: 0.7, detalhe: 3 }, 0.4));
+  // Os braços: dos ombros descem pelos lados até as mãos no colo.
+  for (const k of [-1, 1]) {
+    const braco = [k * 0.33, -0.18, k * 0.36, 0.0, k * 0.24, 0.13, k * 0.1, 0.17];
+    partes.push(tira(braco, 0.13, t.nanquim, 1.02, { contorno: 'leve', detalhe: 1 }, 0.7), tira(braco, 0.1, k < 0 ? t.meio : t.base, 1.023, { ...O, detalhe: 2 }, 0.7));
+  }
+  disco(partes, 0, 0.17, 0.1, t, 1.03, 0.065);
+  // A cabeça, inclinada sobre o peito, com o coque e os cachos em relevo baixo; as orelhas compridas dos lados.
+  for (const k of [-1, 1]) partes.push(lente(k * 0.15, -0.1, Math.PI / 2, 0.13, 0.05, tom(t.base, k < 0 ? 0.15 : -0.2), 1.2, { contorno: 'leve', detalhe: 3 }));
+  disco(partes, 0, -0.1, 0.15, t, 1.25);
+  for (let k = 0; k < 14; k++) { const a = (k / 14) * 6.28, rr = k % 2 ? 0.1 : 0.07; partes.push(elipse(Math.cos(a) * rr, -0.1 + Math.sin(a) * rr, 0.03, 0.03, tom(t.base, olhar(a) * 0.25), 1.27, { ...O, detalhe: 3 })); }
+  disco(partes, 0, -0.12, 0.06, t, 1.3);
   if (bronze) for (let k = 0; k < 8; k++) { const a = r() * 6.28, d = r() * 0.5; partes.push(poli(bolha(Math.cos(a) * d, Math.sin(a) * d * 0.8, 0.06, 0.04, 8, 0.3, r), PATINA, 1.31, { ...S, alfa: 0.45, detalhe: 3 })); }
   return partes;
 }
@@ -559,9 +568,13 @@ function carpa(partes: Parte[], r: () => number, x: number, y: number, ang: numb
 }
 
 function carpas(seed: number): Parte[] {
-  const r = mulberry32(seed), partes: Parte[] = [], n = 5 + Math.floor(r() * 3), giro = r() * 6.28;
-  // Um cardume solto que nada mais ou menos para o mesmo lado, com uma ou duas desgarradas.
-  for (let i = 0; i < n; i++) { const x = (r() - 0.5) * 1.7, y = (r() - 0.5) * 1.2, a = i < 2 ? r() * 6.28 : giro + (r() - 0.5) * 0.9; carpa(partes, r, x, y, a, 0.5 + r() * 0.25, 0.3 + i * 0.01); }
+  // Os peixes se espalham num anel e apontam no sentido em que a cena gira o cardume (`animacao: 'nadar'` em render/cena.ts:
+  // semente % 997 abaixo da metade gira no sentido horário da tela), então nadam para a frente enquanto rodeiam o lago.
+  const r = mulberry32(seed), partes: Parte[] = [], n = 5 + Math.floor(r() * 3), giro = r() * 6.28, sentido = (seed % 997) / 997 < 0.5 ? 1 : -1;
+  for (let i = 0; i < n; i++) {
+    const a = giro + (i / n) * 6.28 + (r() - 0.5) * 0.5, d = 0.45 + r() * 0.4, x = Math.cos(a) * d * 1.15, y = Math.sin(a) * d * 0.85;
+    carpa(partes, r, x, y, Math.atan2(y, x) + sentido * Math.PI / 2 + (r() - 0.5) * 0.4, 0.5 + r() * 0.22, 0.3 + i * 0.01);
+  }
   return partes;
 }
 
@@ -708,7 +721,7 @@ export const RECEITAS_ORIENTAIS: Receita[] = [
     gerar: p => { const d = num(p, 'distancia', 3, 1.4, 8), r = mulberry32(p.seed), partes: Parte[] = []; sombraNoChao(partes, [-d / 2 - 0.48, -0.48, -d / 2 + 0.48, -0.48, -d / 2 + 0.48, 0.48, -d / 2 - 0.48, 0.48], 0.01, '#0d0a08', 0.4); sombraNoChao(partes, [d / 2 - 0.48, -0.48, d / 2 + 0.48, -0.48, d / 2 + 0.48, 0.48, d / 2 - 0.48, 0.48], 0.01, '#0d0a08', 0.4); komainu(partes, r, -d / 2, true, -1); komainu(partes, r, d / 2, false, 1); return piso([Math.round((d + 0.9) * 100) / 100, 1.0], partes); } },
   { id: 'estatua-sentada', nome: 'Estátua sentada (Buda)', categoria: 'decoracao', tipo: 'piso', funcoes: ['santuario', 'templo', 'jardim', 'salao'], ...OR, tags: ['estatua', 'buda', 'sentada', 'lotus', 'meditacao', 'bronze', 'pedra', 'templo', 'budista', 'oriental'], pegada: [2.2, 2.2], altura: 3.2,
     gerar: p => piso([2.2, 2.2], estatuaSentada(p.seed)) },
-  { id: 'carpas', nome: 'Carpas', categoria: 'exterior', tipo: 'piso', funcoes: ['jardim', 'agua', 'santuario'], ...OR, submerso: true, tags: ['carpa', 'koi', 'peixe', 'lago', 'agua', 'submerso', 'jardim', 'japonesa', 'oriental'], pegada: [2.6, 2.0], altura: 0.05,
+  { id: 'carpas', nome: 'Carpas', categoria: 'exterior', tipo: 'piso', funcoes: ['jardim', 'agua', 'santuario'], ...OR, submerso: true, animacao: 'nadar', tags: ['carpa', 'koi', 'peixe', 'lago', 'agua', 'submerso', 'jardim', 'japonesa', 'oriental'], pegada: [2.6, 2.0], altura: 0.05,
     gerar: p => piso([2.6, 2.0], carpas(p.seed)) },
   { id: 'rastelado', nome: 'Cascalho rastelado', categoria: 'exterior', tipo: 'piso', funcoes: ['jardim', 'santuario', 'casa-de-cha'], ...OR, tags: ['cascalho', 'rastelado', 'areia', 'zen', 'karesansui', 'jardim-seco', 'rasteira', 'chao', 'japonesa', 'oriental'], pegada: [3, 2], altura: 0.01,
     campos: [{ id: 'comprimento', rotulo: 'Comprimento (m)', tipo: 'numero', padrao: 3, min: 1, max: 8, passo: 0.2 }, { id: 'largura', rotulo: 'Largura (m)', tipo: 'numero', padrao: 2, min: 1, max: 6, passo: 0.2 },

@@ -20,7 +20,7 @@ export interface ItemDoAcervo {
   /** Nasce submerso (fundo da água). */
   submerso?: boolean;
   /** Animação própria acrescentada pela cena por cima da parte assada. */
-  animacao?: 'cachoeira';
+  animacao?: 'cachoeira' | 'nadar';
 }
 
 /** O que o acervo precisa saber de um item da coleção (o catálogo completo, com arquivo e origem, está em `colecao.ts`). */
