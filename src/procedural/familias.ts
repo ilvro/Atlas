@@ -81,6 +81,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('agua', 'planta-aquatica', 'Planta aquática', ['vitoria-regia', 'alga'], { biomas: ['mar', 'tropical'] }),
   f('agua', 'coral', 'Coral e fundo', ['coral', 'anemona', 'ourico', 'rocha-submersa'], { biomas: ['mar', 'tropical'] }),
   f('agua', 'cachoeira', 'Cachoeira', ['cachoeira']),
+  f('agua', 'carpas', 'Carpas', ['carpas'], { generos: ['oriental', 'fantasia'] }),
   // Móveis
   f('moveis', 'mesa-redonda', 'Mesa redonda', ['mesa.redonda', 'mesa.redonda-rustica']),
   f('moveis', 'mesa-retangular', 'Mesa retangular', ['mesa.retangular', 'mesa.cavalete', 'mesa.taverna', 'mesa.refeitorio']),
@@ -125,6 +126,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('luz-e-fogo', 'castical', 'Castiçal', ['castical.mesa', 'candelabro', 'candelabro.pe', 'tocheiro', 'velas-votivas'], { generos: ['fantasia', 'investigacao'] }),
   f('luz-e-fogo', 'lucerna', 'Lucerna', ['lucerna'], { generos: ['antiguidade', 'fantasia'] }),
   f('luz-e-fogo', 'lanterna-oriental', 'Lanterna de papel', ['andon', 'lanterna-de-papel'], { generos: ['oriental', 'fantasia'] }),
+  f('luz-e-fogo', 'lanterna-de-pedra', 'Lanterna de pedra', ['lanterna-de-pedra'], { generos: ['oriental', 'fantasia'] }),
   f('luz-e-fogo', 'luminaria', 'Luminária', ['abajur.mesa', 'luminaria.chao', 'luminaria.franja', 'lustre']),
   f('luz-e-fogo', 'poste-de-luz', 'Poste de luz', ['lanterna-de-poste', 'poste.luz', 'lanterna.farol']),
   f('luz-e-fogo', 'tocha', 'Tocha de parede', ['tocha.parede', 'arandela']),
@@ -165,6 +167,9 @@ export const FAMILIAS: readonly Familia[] = [
   f('construcao', 'fonte', 'Fonte', ['fonte']),
   f('construcao', 'fonte-classica', 'Fonte e tanque clássicos', ['fonte-com-mascara', 'impluvio', 'tanque-de-banho'], { generos: ['antiguidade', 'fantasia'] }),
   f('construcao', 'pergolado', 'Pérgola', ['pergolado-com-videira'], { generos: ['antiguidade', 'fantasia'] }),
+  f('construcao', 'ponte-arqueada', 'Ponte arqueada', ['ponte-arqueada'], { generos: ['oriental', 'fantasia'] }),
+  f('construcao', 'jardim-seco', 'Jardim seco', ['rastelado', 'bacia-de-pedra'], { generos: ['oriental', 'fantasia'] }),
+  f('construcao', 'cerca-oriental', 'Cerca e portão orientais', ['muro-de-bambu', 'portao-de-madeira'], { generos: ['oriental', 'fantasia'] }),
   // Templo e cemitério
   f('religiao', 'altar', 'Altar e púlpito', ['altar', 'relicario', 'pulpito', 'atril', 'altar-de-sacrificio'], { generos: ['fantasia', 'investigacao'] }),
   f('religiao', 'banco-de-igreja', 'Banco de igreja', ['banco.igreja', 'genuflexorio', 'confessionario', 'pia-batismal'], { generos: ['fantasia', 'investigacao', 'colonial', 'vitoriano'] }),
@@ -175,7 +180,10 @@ export const FAMILIAS: readonly Familia[] = [
   f('religiao', 'estatua-classica', 'Estátua clássica', ['busto-em-pedestal', 'estatua-classica'], { generos: ['antiguidade', 'fantasia'] }),
   f('religiao', 'monumento-egipcio', 'Monumento egípcio', ['estatua-egipcia', 'obelisco', 'esfinge'], { generos: ['antiguidade', 'fantasia'] }),
   f('religiao', 'painel-de-hieroglifos', 'Relevo de parede', ['painel-de-hieroglifos'], { generos: ['antiguidade', 'fantasia'] }),
-  f('religiao', 'sino', 'Sino', ['sino'], { generos: ['fantasia', 'investigacao'] }),
+  f('religiao', 'torii', 'Torii', ['torii'], { generos: ['oriental', 'fantasia'] }),
+  f('religiao', 'incensario', 'Incensário', ['incensario'], { generos: ['oriental', 'fantasia'] }),
+  f('religiao', 'estatua-oriental', 'Estátua oriental', ['guardiao-de-pedra', 'estatua-sentada'], { generos: ['oriental', 'fantasia'] }),
+  f('religiao', 'sino', 'Sino', ['sino', 'sino-de-templo'], { generos: ['fantasia', 'investigacao', 'oriental'] }),
   f('religiao', 'orgao-de-tubos', 'Órgão de tubos', ['orgao-de-tubos'], { generos: ['fantasia', 'investigacao', 'colonial', 'vitoriano'] }),
   f('religiao', 'crucifixo', 'Adorno de igreja', ['crucifixo', 'icone.parede', 'vitral', 'pia-de-agua-benta'], { generos: ['fantasia', 'investigacao', 'colonial', 'vitoriano'] }),
   // Ofício e guerra
