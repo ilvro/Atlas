@@ -22,6 +22,7 @@ import { ravinaNoturna } from './ravina-noturna.ts';
 import { ruinaCosteira } from './ruina-costeira.ts';
 import { acampamentoNaNevoa } from './acampamento-na-nevoa.ts';
 import { vilaDosTelhados } from './vila-dos-telhados.ts';
+import { vilaDoAtrio } from './vila-do-atrio.ts';
 
 /** A lista dos exemplos publicados na galeria. */
 export const EXEMPLOS: readonly Exemplo[] = [
@@ -37,6 +38,7 @@ export const EXEMPLOS: readonly Exemplo[] = [
   salaDaGuarda,
   pantanoDasBrumas,
   acampamentoNaNevoa,
+  vilaDoAtrio,
 ];
 
 const SAIDA = join(import.meta.dirname, '../../public/exemplos');

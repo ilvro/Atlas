@@ -118,5 +118,15 @@
       24
     ],
     "miniatura": "acampamento-na-nevoa.webp"
+  },
+  {
+    "id": "vila-do-atrio",
+    "nome": "Vila do átrio",
+    "descricao": "Domus romana à tarde: taberna na rua, átrio com impluvio, peristilo com colunata e jardim, triclínio posto para o banquete e as termas da casa, com o tanque frio e o quente, ao lado da horta com a pérgola.",
+    "tamanho": [
+      48,
+      36
+    ],
+    "miniatura": "vila-do-atrio.webp"
   }
 ]
