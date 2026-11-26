@@ -135,11 +135,20 @@ export interface Parede {
   source: null | { roomId: string } | { terrainLayerId: string } | { reliefStep: number };
   levelId?: string | null;
 }
+export interface TransicaoDeMapa {
+  toMapId: string;
+  toLevel?: string | null;
+  toTargetId?: string | null;
+  toPosition?: Ponto;
+  label?: string;
+}
 export interface Abertura {
   id: string; wallId: string; at: number; width: number; kind: 'door' | 'window' | 'arch' | 'secret';
   state: 'closed' | 'open' | 'locked'; material: string; som: Ref | null;
   /** De que lado a porta abre: 'a' (esquerda/cima da parede) ou 'b' (direita/baixo). */
   swing: 'a' | 'b';
+  /** Vínculo opcional de teleporte para outro mapa da campanha. */
+  transition?: TransicaoDeMapa | null;
 }
 export type FonteObjeto = { kind: 'recipe'; recipe: string; seed: number; params: Record<string, unknown> } | { kind: 'asset'; assetId: string };
 export interface Objeto {
@@ -171,6 +180,8 @@ export interface Interacao {
   gmOnly?: boolean;
   toLevel?: string | null;
   toPosition?: Ponto;
+  toMapId?: string | null;
+  toTargetId?: string | null;
 }
 export interface Luz {
   id: string; position: Ponto; radius: number; color: string; intensity: number; flicker: number;

@@ -36,7 +36,7 @@ Ordem: T1 → T2 → T3 → T4.
 
 ---
 
-### T1 — Modelo, validação e resolução de chegada entre mapas  ⬜
+### T1 — Modelo, validação e resolução de chegada entre mapas  ✅
 Objetivo: `Abertura` e `Interacao` guardam vínculos para outros mapas, com validação e cálculo puro do ponto de chegada.
 Depende de: —.
 Ler: `src/domain/mapa.ts` (`Abertura`, `Interacao`, `Objeto`), `src/domain/validacao.ts`, `src/domain/andares.ts` (`acaoEscadaParaPeca`, `escadasPerto`), `src/domain/interacao.ts` (`interagiveisPerto`), `src/domain/geometria.ts` (`centroDaAbertura`, `pontoNaParede`).
@@ -58,6 +58,7 @@ Não fazer: interface e troca de aba (T2 e T3).
 Testes: validação aceita `transition` em abertura e `toMapId` em escada (mesmo num mapa de 1 só andar!); `resolverChegada` acha porta, acha escada, faz fallback para `toPosition` e para o centro; `transicaoPertoDaPeca` encontra porta e escada próximas.
 Pronto quando: `npm run typecheck` e `npm test` passam.
 Commit: `(feature) domain model and arrival resolver for cross-map transitions`
+Nota: Entregue `TransicaoDeMapa` em `Abertura.transition` e `toMapId`/`toTargetId` em `Interacao`, validação de esquema e relaxamento de `toLevel` para escadas inter-mapas, mais `src/domain/transicao-mapa.ts` (`entradasDeTransicao`, `resolverChegada`, `posicoesDeChegadaDasPecas`, `transicaoPertoDaPeca`, `transicaoDaAbertura`, `transicaoDoObjeto`) com 5 testes unitários em `tests/unit/transicao-mapa.test.ts`.
 
 ---
 
