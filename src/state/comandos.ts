@@ -9,7 +9,7 @@ import { atualizarSalasDosObjetos } from '../domain/geometria.ts';
 import { sincronizarLuzesProprias } from '../domain/luz-propria.ts';
 import { alvosDoInterruptor } from '../domain/interagiveis.ts';
 import { definirValor, iniciar, passo, podar } from '../domain/iniciativa.ts';
-import { celulasVisiveis, exploradoAgora, RES_NEVOA } from '../domain/nevoa.ts';
+import { celulasVisiveis, exploradoAgora, modoDeVisaoDaPeca, RES_NEVOA } from '../domain/nevoa.ts';
 import { anguloDoMovimento, bloqueioNoCaminho, centroDaCelula, ladoDoMovimento } from '../domain/movimento.ts';
 import { presetDeClima } from '../domain/presets.ts';
 import { validarMapa } from '../domain/validacao.ts';
@@ -233,13 +233,17 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       // O que a peça de jogador via de onde estava também fica explorado (antes de ela sair do lugar).
       const res = antesNivel.session.explored?.res ?? RES_NEVOA;
       const viam = t.player && !c.emArrasto ? celulasVisiveis(antesNivel, res) : [];
+      const anguloMov = anguloDoMovimento(de, destino);
       t.position = destino; t.facing = ladoDoMovimento(de, destino);
       // A lanterna vai junto e aponta para onde a peça andou.
       const luz = t.lightId ? m.lights[t.lightId] : undefined;
       if (luz) {
         luz.position = [destino[0], destino[1]];
-        if (luz.cone) luz.cone.direction = anguloDoMovimento(de, destino);
+        if (luz.cone) luz.cone.direction = anguloMov;
         if (nivel !== null) luz.levelId = nivel; else delete luz.levelId;
+      }
+      if (t.vision.direction !== undefined && !luz?.cone) {
+        t.vision.direction = anguloMov;
       }
       if (t.player && !c.emArrasto) {
         const exp = exploradoAgora(mapaDoAndar(m as unknown as MapaAtlas, nivel, true), viam);
@@ -252,8 +256,11 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       const t = m.tokens[c.id] ?? nao(`A peça “${c.id}” não existe.`);
       if (!Number.isFinite(c.direcao)) nao('Direção inválida.');
       const luz = t.lightId ? m.lights[t.lightId] : undefined;
-      if (!luz?.cone) nao('Esta peça não carrega uma lanterna.');
-      else luz.cone.direction = c.direcao;
+      const emConeDeVisao = modoDeVisaoDaPeca(m, t) === 'cone' || t.vision.direction !== undefined;
+      if (!luz?.cone && !emConeDeVisao) nao('Esta peça não carrega uma lanterna.');
+      if (luz?.cone) luz.cone.direction = c.direcao;
+      if (emConeDeVisao || luz?.cone) t.vision.direction = c.direcao;
+      t.facing = ladoDoMovimento([0, 0], [Math.cos(c.direcao), Math.sin(c.direcao)]);
       break;
     }
     case 'peca.mudarAndar': {

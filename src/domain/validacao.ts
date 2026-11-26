@@ -2,7 +2,7 @@ import { ehRef } from '#mesa';
 import { ehCanonica } from './celulas.ts';
 import { AREA_MINIMA_CONTORNO, MAX_VERTICES_CONTORNO, MIN_VERTICES_CONTORNO, areaDoPoligono, ehPoligonoSimples } from './formas-de-comodo.ts';
 import { ErroDeValidacao, HEX, IDENT, e, type Esq } from './esquema.ts';
-import { COLECOES, CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, ESTADOS_FIGURA, ESTILOS_DE_LINHA_DA_GRADE, FORMAS_DE_TELHADO, MODOS_TELHADOS_SESSAO, SCHEMA_MAPA, TIPOS_DE_GRADE, VERSAO_MAPA, colunas, linhas, type MapaAtlas } from './mapa.ts';
+import { COLECOES, CUMEEIRAS_DE_TELHADO, DETALHES_DE_TELHADO, ESTADOS_FIGURA, ESTILOS_DE_LINHA_DA_GRADE, FORMAS_DE_TELHADO, MODOS_DE_MEMORIA, MODOS_DE_VISAO, MODOS_TELHADOS_SESSAO, SCHEMA_MAPA, TIPOS_DE_GRADE, VERSAO_MAPA, colunas, linhas, type MapaAtlas } from './mapa.ts';
 import { momentoValido, type Momento } from './momentos.ts';
 
 const ponto = e.tupla(e.num({ min: -10_000, max: 10_000 }), e.num({ min: -10_000, max: 10_000 }));
@@ -121,7 +121,14 @@ const peca = e.obj({
   id, name: nome, portrait: refAsset,
   sprite: e.nulo(e.obj({ body: e.texto({ min: 1, max: 40 }), hair: e.texto({ min: 1, max: 40 }), outfit: e.texto({ min: 1, max: 40 }), accessories: e.lista(e.texto({ min: 1, max: 40 }), { max: 20 }), colors: e.json(2_000), seed: e.num({ inteiro: true, min: 0, max: 2 ** 31 }) })),
   facing: e.um('down', 'left', 'right', 'up'), position: ponto, size: e.num({ min: 0.5, max: 12 }), player: e.bool(),
-  vision: e.obj({ radius: e.num({ min: 0, max: 200 }), dark: e.bool() }), lightId: idOuNulo,
+  vision: e.obj({
+    radius: e.num({ min: 0, max: 200 }),
+    dark: e.bool(),
+    mode: e.opt(e.um(...MODOS_DE_VISAO)),
+    angle: e.opt(e.num({ min: 10, max: 360 })),
+    direction: e.opt(e.num()),
+    proximity: e.opt(e.num({ min: 0, max: 50 })),
+  }), lightId: idOuNulo,
   figure: e.obj({ state: e.um(...ESTADOS_FIGURA) }), refs,
   hp: e.opt(e.nulo(e.obj({ pv: e.num({ min: 0 }), pvMax: e.num({ min: 1 }) }))),
   tokenStyle: e.opt(e.um('coin', 'immersive')),
@@ -172,7 +179,7 @@ export const ESQUEMA_MAPA: Esq = e.obj({
   }),
   climate: e.obj({ preset: e.texto({ min: 1, max: 60 }), ...CAMPOS_DO_CLIMA }),
   finish: e.obj({ preset: e.texto({ min: 1, max: 60 }), ...CAMPOS_DO_ACABAMENTO }),
-  memory: e.obj({ sketch: e.bool(), paper: e.texto({ min: 1, max: 60 }), ink: hex }),
+  memory: e.obj({ sketch: e.bool(), paper: e.texto({ min: 1, max: 60 }), ink: hex, mode: e.opt(e.um(...MODOS_DE_MEMORIA)) }),
   backdrop: e.obj({
     kind: e.um('solid', 'texture'), color: hex, material: e.nulo(material),
     title: e.nulo(e.obj({ text: e.texto({ min: 1, max: 120 }), font: e.texto({ min: 1, max: 80 }), position: ponto })),

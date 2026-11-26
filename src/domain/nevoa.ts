@@ -1,27 +1,85 @@
 import { codificar, decodificar, unir, type Faixa } from './celulas.ts';
-import type { Abertura, MapaAtlas, Ponto, Sessao } from './mapa.ts';
-import { IndiceDeSegmentos, oclusores, poligonoIluminado } from './visibilidade.ts';
+import type { Abertura, MapaAtlas, ModoDeVisao, Peca, Ponto, Sessao } from './mapa.ts';
+import { IndiceDeSegmentos, oclusores, oclusoresDeObjetos, poligonoDeVisaoDarkwood, poligonoIluminado, segmentosParaFonte } from './visibilidade.ts';
 
 /** Lado de cada célula do explorado, em metros. */
 export const RES_NEVOA = 0.5;
+/** Abertura padrão do cone de visão direcional em graus (estilo Darkwood). */
+export const ABERTURA_VISAO_PADRAO = 85;
+/** Raio padrão da bolha de percepção imediata 360° em metros. */
+export const PROXIMIDADE_VISAO_PADRAO = 1.8;
 
-/** O que uma peça de jogador enxerga: um polígono por peça (paredes, portas fechadas e janelas bloqueiam; portas abertas e arcos deixam ver), limitado ao raio de visão. */
+const ANGULO_DO_LADO: Record<Peca['facing'], number> = {
+  right: 0,
+  down: Math.PI / 2,
+  left: Math.PI,
+  up: -Math.PI / 2,
+};
+
+/** Modo efetivo de visão da peça ('cone' ou 'circle'). Segue `vision.mode` quando definido, ou `memory.mode === 'darkwood'`. */
+export function modoDeVisaoDaPeca(m: Pick<MapaAtlas, 'memory'>, t: Pick<Peca, 'vision'>): ModoDeVisao {
+  if (t.vision.mode === 'cone' || t.vision.mode === 'circle') return t.vision.mode;
+  return m.memory?.mode === 'darkwood' ? 'cone' : 'circle';
+}
+
+/** Direção do olhar da peça em radianos: `vision.direction` explícita, direção do cone da luz portada acesa, ou `facing`. */
+export function direcaoDeVisaoDaPeca(
+  m: Pick<MapaAtlas, 'lights'>,
+  t: Pick<Peca, 'vision' | 'lightId' | 'facing'>,
+): number {
+  if (typeof t.vision.direction === 'number' && Number.isFinite(t.vision.direction)) return t.vision.direction;
+  const luz = t.lightId ? m.lights?.[t.lightId] : undefined;
+  if (luz?.on && luz.cone) return luz.cone.direction;
+  return ANGULO_DO_LADO[t.facing] ?? 0;
+}
+
+/** O que uma peça de jogador enxerga: um polígono por peça (paredes, portas fechadas, janelas e objetos que bloqueiam visão recortam; portas abertas e arcos deixam ver), limitado ao raio de visão. */
 export function poligonosDeVisao(m: MapaAtlas): number[][] {
   // Quem pergunta várias vezes sobre o mesmo documento (névoa, telhados, explorado) paga uma vez: o resultado vale enquanto o que importa não mudar.
-  if (guardado && guardado.tokens === m.tokens && guardado.walls === m.walls && guardado.openings === m.openings && guardado.revealed === m.session.revealed) return guardado.poligonos;
+  const modoMemoria = m.memory?.mode;
+  if (
+    guardado &&
+    guardado.tokens === m.tokens &&
+    guardado.walls === m.walls &&
+    guardado.openings === m.openings &&
+    guardado.props === m.props &&
+    guardado.lights === m.lights &&
+    guardado.modoMemoria === modoMemoria &&
+    guardado.revealed === m.session.revealed
+  ) {
+    return guardado.poligonos;
+  }
   const poligonos = calcularPoligonos(m);
-  guardado = { tokens: m.tokens, walls: m.walls, openings: m.openings, revealed: m.session.revealed, poligonos };
+  guardado = {
+    tokens: m.tokens,
+    walls: m.walls,
+    openings: m.openings,
+    props: m.props,
+    lights: m.lights,
+    modoMemoria,
+    revealed: m.session.revealed,
+    poligonos,
+  };
   return poligonos;
 }
-let guardado: { tokens: MapaAtlas['tokens']; walls: MapaAtlas['walls']; openings: MapaAtlas['openings']; revealed: MapaAtlas['session']['revealed']; poligonos: number[][] } | null = null;
+let guardado: {
+  tokens: MapaAtlas['tokens'];
+  walls: MapaAtlas['walls'];
+  openings: MapaAtlas['openings'];
+  props: MapaAtlas['props'];
+  lights: MapaAtlas['lights'];
+  modoMemoria: MapaAtlas['memory']['mode'];
+  revealed: MapaAtlas['session']['revealed'];
+  poligonos: number[][];
+} | null = null;
 
 /** Uma porta secreta que ninguém revelou ainda é parede para os jogadores, esteja ela aberta ou não. */
 export function secretaOculta(m: Pick<MapaAtlas, 'session'>, a: Pick<Abertura, 'id' | 'kind'>): boolean {
   return a.kind === 'secret' && !m.session.revealed.includes(a.id);
 }
 
-/** O polígono de cada peça, guardado pela posição, pelo raio e por uma assinatura dos segmentos que bloqueiam a visão: mover uma peça só refaz a dela. */
-const porPeca = new Map<string, { x: number; y: number; r: number; assinatura: string; pts: number[] }>();
+/** O polígono de cada peça, guardado pela posição, parâmetros de visão e assinatura dos segmentos que bloqueiam a visão: mover uma peça só refaz a dela. */
+const porPeca = new Map<string, { x: number; y: number; chaveVisao: string; assinatura: string; pts: number[] }>();
 
 /** Assinatura barata dos segmentos (o tamanho e dois hashes de 32 bits das coordenadas). */
 function assinaturaDe(segs: readonly { a: Ponto; b: Ponto }[]): string {
@@ -37,16 +95,58 @@ function calcularPoligonos(m: MapaAtlas): number[][] {
   const aberturas = Object.values(m.openings).some(a => secretaOculta(m, a) && a.state !== 'closed')
     ? Object.fromEntries(Object.entries(m.openings).map(([id, a]) => [id, secretaOculta(m, a) ? { ...a, state: 'closed' as const } : a]))
     : m.openings;
-  const segs = oclusores({ walls: m.walls, openings: aberturas }, 'visao'), assinatura = assinaturaDe(segs), saida: number[][] = [];
-  let indice: IndiceDeSegmentos | null = null;
+  const segsParedes = oclusores({ walls: m.walls, openings: aberturas }, 'visao');
+  const oclusoresPorAndar = new Map<string | null, ReturnType<typeof oclusoresDeObjetos>>();
+  const oclusoresDoAndar = (nivel: string | null) => {
+    let lista = oclusoresPorAndar.get(nivel);
+    if (!lista) {
+      const propsVisao = Object.fromEntries(
+        Object.entries(m.props ?? {}).filter(([, o]) => (o.levelId ?? null) === nivel && o.blocks.sight && !o.oculto),
+      );
+      lista = oclusoresDeObjetos({ props: propsVisao }, { levelId: nivel });
+      oclusoresPorAndar.set(nivel, lista);
+    }
+    return lista;
+  };
+  let indiceParedes: IndiceDeSegmentos | null = null;
+  const saida: number[][] = [];
   const vivos = new Set<string>();
   for (const t of Object.values(m.tokens)) {
     if (!t.player || t.vision.radius <= 0) continue;
-    const x = t.position[0], y = t.position[1], r = t.vision.radius; vivos.add(t.id);
+    const x = t.position[0], y = t.position[1], r = t.vision.radius;
+    const p: Ponto = [x, y];
+    const nivel = t.levelId ?? null;
+    const modo = modoDeVisaoDaPeca(m, t);
+    const luz = t.lightId ? m.lights?.[t.lightId] : undefined;
+    const rCone = modo === 'cone' && luz?.on && luz.cone ? Math.max(r, luz.radius) : r;
+    const proxBase = t.vision.proximity ?? PROXIMIDADE_VISAO_PADRAO;
+    const rProx = modo === 'cone'
+      ? Math.min(rCone, luz?.on && !luz.cone ? Math.max(proxBase, luz.radius * 0.85) : proxBase)
+      : r;
+    const anguloGraus = t.vision.angle ?? ABERTURA_VISAO_PADRAO;
+    const direcao = modo === 'cone' ? direcaoDeVisaoDaPeca(m, t) : 0;
+    const chaveVisao = modo === 'cone'
+      ? `cone:${rCone.toFixed(3)}:${rProx.toFixed(3)}:${anguloGraus.toFixed(2)}:${direcao.toFixed(4)}`
+      : `circle:${r.toFixed(3)}`;
+
+    const objs = oclusoresDoAndar(nivel);
+    let segsPerto: ReturnType<typeof segmentosParaFonte>;
+    if (objs.length === 0) {
+      indiceParedes ??= new IndiceDeSegmentos(segsParedes);
+      segsPerto = indiceParedes.perto(p, rCone);
+    } else {
+      const todos = segmentosParaFonte(p, segsParedes, objs, [], { ownerId: t.id });
+      segsPerto = new IndiceDeSegmentos(todos).perto(p, rCone);
+    }
+    const assinatura = assinaturaDe(segsPerto);
+    vivos.add(t.id);
     let e = porPeca.get(t.id);
-    if (!e || e.x !== x || e.y !== y || e.r !== r || e.assinatura !== assinatura) {
-      const p: Ponto = [x, y]; indice ??= new IndiceDeSegmentos(segs);
-      e = { x, y, r, assinatura, pts: poligonoIluminado(p, indice.perto(p, r), r, null) }; porPeca.set(t.id, e);
+    if (!e || e.x !== x || e.y !== y || e.chaveVisao !== chaveVisao || e.assinatura !== assinatura) {
+      const pts = modo === 'cone'
+        ? poligonoDeVisaoDarkwood(p, segsPerto, rCone, rProx, { angle: (anguloGraus * Math.PI) / 180, direction: direcao })
+        : poligonoIluminado(p, segsPerto, r, null);
+      e = { x, y, chaveVisao, assinatura, pts };
+      porPeca.set(t.id, e);
     }
     if (e.pts.length >= 6) saida.push(e.pts);
   }

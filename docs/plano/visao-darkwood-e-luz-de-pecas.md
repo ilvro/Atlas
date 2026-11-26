@@ -159,7 +159,8 @@ Commit: `(feature) toggle and aim character sheet light items directly in atlas`
 
 ---
 
-### W4 — Geometria de visão estilo Darkwood: cone direcional + bolha de proximidade  ⬜
+### W4 — Geometria de visão estilo Darkwood: cone direcional + bolha de proximidade  ✅
+Nota: `MODOS_DE_VISAO`, `MODOS_DE_MEMORIA`, `Peca.vision.{mode,angle,direction,proximity}` e `Memoria.mode` adicionados em `src/domain/mapa.ts` e validados em `src/domain/validacao.ts`; `poligonoDeVisaoDarkwood` em `src/domain/visibilidade.ts` gera um único polígono estrelado contínuo unindo o cone direcional longo e a bolha de proximidade 360° com transições nítidas nas bordas `±angle/2`; `modoDeVisaoDaPeca`, `direcaoDeVisaoDaPeca` e oclusão de visão por objetos com `blocks.sight: true` em `src/domain/nevoa.ts`; `peca.virar` e `peca.mover` em `src/state/comandos.ts` atualizam `vision.direction`. Testes em `tests/unit/nevoa.test.ts`.
 Objetivo: o campo de visão das peças de jogador funciona como em *Darkwood*: um cone direcional para onde o personagem olha/mira somado a uma bolha curta de percepção imediata 360° ao redor do corpo, ambos bloqueados por paredes e obstáculos altos.
 Depende de: —.
 Ler: `src/domain/mapa.ts` (`Peca`, `Memoria`), `src/domain/validacao.ts`, `src/domain/nevoa.ts` (`poligonosDeVisao`, `calcularPoligonos`), `src/domain/visibilidade.ts` (`poligonoIluminado`, `oclusores`, `oclusoresDeObjetos`).

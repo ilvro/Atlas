@@ -156,6 +156,65 @@ export function poligonoIluminado(o: Ponto, segs: readonly Segmento[], alcance: 
 }
 
 /**
+ * O polígono de visão estilo Darkwood: um único polígono estrelado contínuo em torno de `o`
+ * que une o cone direcional longo (`alcanceCone` dentro de `cone.direction ± cone.angle / 2`)
+ * com a bolha de percepção imediata 360° (`alcanceProximidade` fora do cone), recortados pelos mesmos oclusores.
+ */
+export function poligonoDeVisaoDarkwood(
+  o: Ponto,
+  segs: readonly Segmento[],
+  alcanceCone: number,
+  alcanceProximidade: number,
+  cone: { angle: number; direction: number },
+): number[] {
+  const rCone = Math.max(0, alcanceCone);
+  const rProx = Math.min(rCone, Math.max(0, alcanceProximidade));
+  if (rProx <= 0) return poligonoIluminado(o, segs, rCone, cone);
+  const meia = Math.min(Math.PI, Math.max(0, cone.angle / 2));
+  if (meia >= Math.PI - 1e-6) return poligonoIluminado(o, segs, rCone, null);
+
+  const rel = (a: number) => {
+    let d = a - cone.direction;
+    while (d <= -Math.PI) d += 2 * Math.PI;
+    while (d > Math.PI) d -= 2 * Math.PI;
+    return d;
+  };
+
+  const rels: number[] = [];
+  for (const s of segs) for (const p of [s.a, s.b]) {
+    if (Math.hypot(p[0] - o[0], p[1] - o[1]) > rCone * 1.5) continue;
+    const a = Math.atan2(p[1] - o[1], p[0] - o[0]);
+    rels.push(rel(a - 1e-4), rel(a), rel(a + 1e-4));
+  }
+  for (let i = 0; i < 96; i++) rels.push(rel(-Math.PI + (i * Math.PI * 2) / 96));
+
+  const eps = 1e-7;
+  const antes = rels.filter(d => d < -meia - eps).sort((a, b) => a - b);
+  const dentro = rels.filter(d => d > -meia + eps && d < meia - eps).sort((a, b) => a - b);
+  const depois = rels.filter(d => d > meia + eps).sort((a, b) => a - b);
+
+  const amostras: { d: number; rMax: number }[] = [];
+  for (const d of antes) amostras.push({ d, rMax: rProx });
+  amostras.push({ d: -meia, rMax: rProx });
+  amostras.push({ d: -meia, rMax: rCone });
+  for (const d of dentro) amostras.push({ d, rMax: rCone });
+  amostras.push({ d: meia, rMax: rCone });
+  amostras.push({ d: meia, rMax: rProx });
+  for (const d of depois) amostras.push({ d, rMax: rProx });
+
+  const proximos = segs.filter(s => distanciaAoSegmento2(o, s) <= rCone * rCone);
+  const pelaGrade = proximos.length >= SEGMENTOS_PARA_GRADE ? criarGradeDeRaios(o, proximos, rCone) : null;
+  const pontos: number[] = [];
+  for (const { d, rMax } of amostras) {
+    const a = d + cone.direction;
+    const dx = Math.cos(a), dy = Math.sin(a);
+    const t = Math.min(rMax, pelaGrade ? pelaGrade(dx, dy) : raio(o, dx, dy, proximos));
+    pontos.push(o[0] + dx * t, o[1] + dy * t);
+  }
+  return pontos;
+}
+
+/**
  * Baldes de 4 m: só os segmentos perto da fonte entram na conta. O resultado é o mesmo de usar a lista inteira
  * (a área consultada, 1,5 × o alcance, é a mesma que `poligonoIluminado` considera para os ângulos).
  */

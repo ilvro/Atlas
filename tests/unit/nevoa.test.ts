@@ -85,7 +85,8 @@ test('peça do mestre não explora; "esquecer" zera; revelar faz o cômodo conta
   assert.throws(() => aplicarComando(m, { tipo: 'sessao.revelar', ids: ['nao-existe'] }), /não é um cômodo/);
 });
 
-import { comodosConhecidos } from '../../src/domain/nevoa.ts';
+import { comodosConhecidos, direcaoDeVisaoDaPeca, modoDeVisaoDaPeca } from '../../src/domain/nevoa.ts';
+import { novaLuz, novoObjeto } from '../../src/domain/fabrica.ts';
 
 test('revelar região do tipo "reveal" faz a área dela contar como explorado', () => {
   let m = dois();
@@ -114,4 +115,128 @@ test('um cômodo é conhecido se algum pedaço dele (ou o lado de fora das suas 
   assert.deepEqual([...comodosConhecidos(m)], ['aqui']);
   const revelado = aplicarComando(m, { tipo: 'sessao.revelar', ids: ['la'] });
   assert.deepEqual([...comodosConhecidos(revelado)].sort(), ['aqui', 'la']);
+});
+
+test('modo cone (Darkwood): vê a 6 m à frente, não vê a 6 m atrás e vê a 1,2 m atrás dentro da bolha de proximidade', () => {
+  let m = criarMapa();
+  m = aplicarComando(m, { tipo: 'memoria.atualizar', patch: { mode: 'darkwood' } });
+  m = aplicarComando(m, {
+    tipo: 'item.adicionar',
+    colecao: 'tokens',
+    item: {
+      ...novaPeca([15, 15]),
+      id: 't0',
+      name: 'P0',
+      player: true,
+      facing: 'right',
+      vision: { radius: 12, dark: false },
+    } as never,
+  });
+  assert.equal(modoDeVisaoDaPeca(m, m.tokens.t0!), 'cone');
+  assert.equal(direcaoDeVisaoDaPeca(m, m.tokens.t0!), 0);
+
+  // 6 m à frente (x = 21, y = 15) dentro do cone -> visível
+  assert.ok(ve(m, 21, 15), 'ponto a 6 m à frente do cone é visível');
+  // 6 m atrás (x = 9, y = 15) fora do cone e fora da bolha de 1,8 m -> invisível
+  assert.ok(!ve(m, 9, 15), 'ponto a 6 m atrás da peça está fora do cone e da bolha');
+  // 1,2 m atrás (x = 13.8, y = 15) dentro da bolha de proximidade de 1,8 m -> visível
+  assert.ok(ve(m, 13.8, 15), 'ponto a 1,2 m atrás da peça está dentro da bolha de proximidade');
+});
+
+test('modo cone (Darkwood): parede dentro da bolha de proximidade ou dentro do cone bloqueia a visão', () => {
+  let m = criarMapa();
+  // Parede atrás a 0,7 m (x = 14.3) e parede à frente a 3 m (x = 18)
+  m.walls.tras = {
+    id: 'tras', path: [[14.3, 12], [14.3, 18]], height: 2.6, thickness: 0.2,
+    material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, drop: null, source: null,
+  };
+  m.walls.frente = {
+    id: 'frente', path: [[18, 12], [18, 18]], height: 2.6, thickness: 0.2,
+    material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, drop: null, source: null,
+  };
+  m = aplicarComando(m, {
+    tipo: 'item.adicionar',
+    colecao: 'tokens',
+    item: {
+      ...novaPeca([15, 15]),
+      id: 't0',
+      name: 'P0',
+      player: true,
+      facing: 'right',
+      vision: { radius: 12, dark: false, mode: 'cone', angle: 85, proximity: 1.8 },
+    } as never,
+  });
+  assert.ok(!ve(m, 13.8, 15), 'parede dentro da bolha de 1,8 m bloqueia visão a 1,2 m atrás');
+  assert.ok(ve(m, 16.5, 15), 'antes da parede frontal é visível');
+  assert.ok(!ve(m, 20, 15), 'atrás da parede frontal é bloqueado');
+});
+
+test('objeto com blocks.sight: true projeta sombra de visão atrás dele', () => {
+  let m = criarMapa();
+  m = aplicarComando(m, {
+    tipo: 'item.adicionar',
+    colecao: 'tokens',
+    item: {
+      ...novaPeca([10, 15]),
+      id: 't0',
+      name: 'P0',
+      player: true,
+      facing: 'right',
+      vision: { radius: 14, dark: false, mode: 'cone' },
+    } as never,
+  });
+  // Sem obstáculo, vê (18, 15)
+  assert.ok(ve(m, 18, 15));
+  // Pilar que bloqueia visão em (14, 15)
+  m = aplicarComando(m, {
+    tipo: 'item.adicionar',
+    colecao: 'props',
+    item: novoObjeto([14, 15], {
+      id: 'pilar1',
+      source: { kind: 'recipe', recipe: 'pilar', seed: 1, params: {} },
+      scale: 1.5,
+      blocks: { move: true, sight: true },
+    }) as never,
+  });
+  assert.ok(!ve(m, 18, 15), 'atrás do pilar com blocks.sight: true fica em sombra de visão');
+  assert.ok(ve(m, 16, 17.5), 'ao lado do pilar dentro do cone continua visível');
+});
+
+test('peca.virar gira a direção do cone de visão (com ou sem lanterna) e revela o que estava atrás', () => {
+  let m = criarMapa();
+  m = aplicarComando(m, {
+    tipo: 'item.adicionar',
+    colecao: 'tokens',
+    item: {
+      ...novaPeca([15, 15]),
+      id: 't0',
+      name: 'P0',
+      player: true,
+      facing: 'right',
+      vision: { radius: 12, dark: false, mode: 'cone' },
+    } as never,
+  });
+  assert.ok(ve(m, 21, 15) && !ve(m, 9, 15));
+
+  // Vira 180° (olhando para a esquerda = Math.PI)
+  m = aplicarComando(m, { tipo: 'peca.virar', id: 't0', direcao: Math.PI });
+  assert.equal(m.tokens.t0!.vision.direction, Math.PI);
+  assert.equal(m.tokens.t0!.facing, 'left');
+  assert.ok(ve(m, 9, 15), 'agora enxerga 6 m à esquerda');
+  assert.ok(!ve(m, 21, 15), 'e não enxerga mais 6 m à direita');
+
+  // Com lanterna em cone de alcance maior (16 m), o cone de visão estende até o raio da lanterna
+  m = aplicarComando(m, {
+    tipo: 'item.adicionar',
+    colecao: 'lights',
+    item: {
+      ...novaLuz([15, 15], { radius: 16, cone: { angle: Math.PI / 3, direction: Math.PI }, ownerId: 't0', on: true }),
+      id: 'lant',
+    } as never,
+  });
+  m = aplicarComando(m, { tipo: 'item.atualizar', colecao: 'tokens', id: 't0', patch: { lightId: 'lant' } });
+  m = aplicarComando(m, { tipo: 'peca.virar', id: 't0', direcao: 0 });
+  assert.equal(m.lights.lant!.cone!.direction, 0);
+  assert.equal(m.tokens.t0!.vision.direction, 0);
+  assert.ok(ve(m, 29, 15), 'alcance do cone acompanha os 16 m da lanterna acesa');
 });

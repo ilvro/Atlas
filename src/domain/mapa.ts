@@ -80,7 +80,12 @@ export interface Acabamento { preset: string; texture: number; vignette: number;
   /** Tonalização dividida entre sombras e luzes. */ split?: TonalizacaoDividida }
 /** Um clima do usuário: o clima e o acabamento de um momento, guardados com nome para voltar a eles. */
 export interface ClimaSalvo { id: string; name: string; climate: Omit<Clima, 'preset'>; finish: Omit<Acabamento, 'preset'> }
-export interface Memoria { sketch: boolean; paper: string; ink: string }
+export interface Memoria {
+  sketch: boolean;
+  paper: string;
+  ink: string;
+  mode?: ModoDeMemoria;
+}
 export interface Fundo { kind: 'solid' | 'texture'; color: string; material: string | null; title: null | { text: string; font: string; position: Ponto } }
 export interface Patamar { id: string; altura: number; cells: Faixa[] }
 export interface RelevoDoTerreno { patamares: Record<string, Patamar> }
@@ -203,13 +208,28 @@ export interface Presenca { id: string; brush: string; cells: Faixa[]; intensity
 export const ESTADOS_FIGURA = ['normal', 'hurt', 'dying', 'unconscious', 'dead', 'maddened'] as const;
 export const ESTILOS_DE_TOKEN = ['coin', 'immersive'] as const;
 export type EstiloDeToken = (typeof ESTILOS_DE_TOKEN)[number];
+export const MODOS_DE_VISAO = ['cone', 'circle'] as const;
+export type ModoDeVisao = (typeof MODOS_DE_VISAO)[number];
+export const MODOS_DE_MEMORIA = ['darkwood', 'sketch', 'shroud'] as const;
+export type ModoDeMemoria = (typeof MODOS_DE_MEMORIA)[number];
 export interface Peca {
   id: string; name: string; portrait: RefAsset | null;
   sprite: null | { body: string; hair: string; outfit: string; accessories: string[]; colors: Record<string, string>; seed: number };
   facing: 'down' | 'left' | 'right' | 'up'; position: Ponto; size: number;
   /** É uma peça de jogador? A visão (névoa) e o explorado vêm só das peças de jogador. */
   player: boolean;
-  vision: { radius: number; dark: boolean }; lightId: string | null;
+  vision: {
+    radius: number;
+    dark: boolean;
+    mode?: ModoDeVisao;
+    /** Abertura do cone de visão em graus (30 a 360; padrão 85). */
+    angle?: number;
+    /** Direção do olhar em radianos; quando ausente, segue o cone da lanterna da peça ou `facing`. */
+    direction?: number;
+    /** Raio da bolha de percepção imediata 360° ao redor da peça em metros (padrão 1.8). */
+    proximity?: number;
+  };
+  lightId: string | null;
   figure: { state: (typeof ESTADOS_FIGURA)[number] }; refs: Ref[];
   /** HP independente da peça (ex.: instâncias de ameaça numeradas 1, 2, 3 com vidas separadas). */
   hp?: { pv: number; pvMax: number } | null;
