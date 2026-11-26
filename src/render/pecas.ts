@@ -14,6 +14,8 @@ export interface PecaVisual {
   quadro(ms: number, efeitos: boolean): void;
   /** É a vez desta peça na iniciativa? Ganha um anel pulsante por fora. */
   definirVez(vez: boolean): void;
+  /** Aplica a iluminação local do mapa ao corpo e à sombra da peça (sem escurecer anel, pips ou indicadores). */
+  definirLuzAmbiente(rgb: readonly [number, number, number], pisoMinimo?: number): void;
   /** Para os testes e o diagnóstico. */
   estado(): { vez: boolean; retrato: boolean; deitada: boolean; raio: number; deslizando: boolean; trilha: number; /** O quadro do sprite agora (linha: baixo, esquerda, direita, cima), ou `null` sem sprite. */ quadro: { linha: number; coluna: number } | null; /** Os PV e PD que os pips mostram, ou `null`. */ pips: Recursos | null; /** O estado de aparência desta peça agora (pode ser "ferido" só na tela, por PV baixo). */ estadoVisto: string; tokenStyle?: string; portraitScale?: number };
 }
@@ -36,9 +38,17 @@ export function criarPeca(): PecaVisual {
   let retratoImersivo: Sprite | null = null;
   let paramsRespiracao: ParametrosRespiracao = { period: 4.2, amp: 1, tremor: 0 };
   // O sprite: a folha (96 × 96) fatiada em quadros, o sprite que mostra o quadro e a linha do lado para onde a peça olha.
-  let estadoVisto = 'normal', pxDoSprite = 1, tintaNum = 0xffffff, folhaAtual: Texture | null = null, quadros: Texture[][] = [], spriteRef: Sprite | null = null, ladoParado = 0, corrente: { linha: number; coluna: number } | null = null;
+  let estadoVisto = 'normal', pxDoSprite = 1, tintaEstado = 0xffffff, tintaLuz = 0xffffff, lumaLuz = 1, tintaNum = 0xffffff, folhaAtual: Texture | null = null, quadros: Texture[][] = [], spriteRef: Sprite | null = null, figuraRef: Sprite | null = null, fundoCirculoRef: Graphics | null = null, rotuloRef: Text | null = null, sombraRef: Graphics | null = null, sombraAlfaBase = 0.4, ladoParado = 0, corrente: { linha: number; coluna: number } | null = null;
   let chaveCorpo = '', chaveBadge = '';
   const fatiar = (folha: Texture): Texture[][] => Array.from({ length: 4 }, (_, l) => Array.from({ length: 6 }, (_, k) => new Texture({ source: folha.source, frame: new Rectangle(k * QW, l * QH, QW, QH) })));
+
+  function aplicarLuzAoCorpo(): void {
+    tintaNum = tingir(tintaEstado, tintaLuz);
+    if (figuraRef) figuraRef.tint = tintaNum;
+    if (fundoCirculoRef) fundoCirculoRef.tint = tintaNum;
+    if (rotuloRef) rotuloRef.tint = tintaNum;
+    if (sombraRef) sombraRef.alpha = sombraAlfaBase * (0.25 + 0.75 * lumaLuz);
+  }
 
   return {
     c,
@@ -51,6 +61,8 @@ export function criarPeca(): PecaVisual {
       const ap = aparenciaDoEstado(t.figure.state);
       raio = r; deitada = ap.deitado; pulso = ap.pulso; tremor = ap.tremor;
       const tinta = ap.tinta ? hexParaNumero(ap.tinta) : 0xffffff;
+      tintaEstado = tinta;
+      tintaNum = tingir(tintaEstado, tintaLuz);
       // O Pixel usa o sprite quando há; o Ilustrado só quando a peça não tem retrato.
       const folha = comSprite.folha, usaSprite = !!folha && !!t.sprite && (comSprite.pixel || !tex);
       if (folha !== folhaAtual) { for (const q of quadros.flat()) q.destroy(false); quadros = folha ? fatiar(folha) : []; folhaAtual = folha; }
@@ -63,14 +75,19 @@ export function criarPeca(): PecaVisual {
         chaveCorpo = novaChaveCorpo;
         if (retratoImersivo) { retratoImersivo.filters = []; retratoImersivo = null; }
         for (const f of corpo.removeChildren()) f.destroy({ children: true });
-        spriteRef = null; corrente = null;
+        spriteRef = null; figuraRef = null; fundoCirculoRef = null; rotuloRef = null; sombraRef = null; corrente = null;
 
       if (eImersivo) {
-        const fundo = new Graphics().ellipse(0, rBase * 0.65, rBase * 0.85, rBase * 0.32).fill({ color: 0x000000, alpha: 0.45 });
+        const fundo = new Graphics().ellipse(0, rBase * 0.65, rBase * 0.85, rBase * 0.32).fill({ color: 0x000000, alpha: 1 });
+        sombraRef = fundo;
+        sombraAlfaBase = 0.45;
         corpo.addChild(fundo);
       } else {
-        const fundo = new Graphics().circle(0, 0, r).fill(ap.tinta ? tingir(corDoNome(t.name, 0.5, 0.4), tinta) : corDoNome(t.name, 0.5, 0.4));
-        if (!usaSprite) corpo.addChild(fundo);
+        const fundo = new Graphics().circle(0, 0, r).fill(corDoNome(t.name, 0.5, 0.4));
+        if (!usaSprite) {
+          fundoCirculoRef = fundo;
+          corpo.addChild(fundo);
+        }
       }
 
       if (usaSprite) {
@@ -80,11 +97,11 @@ export function criarPeca(): PecaVisual {
           sp.anchor.set(ap.deitado ? 0.5 : 0.5, ap.deitado ? 0.6 : 0.72);
           sp.position.set(0, rBase * 0.65);
           sp.scale.set(escala);
-          sp.tint = tinta;
+          sp.tint = tintaNum;
           spriteRef = sp;
+          figuraRef = sp;
           corrente = { linha: ladoParado, coluna: 0 };
           pxDoSprite = escala;
-          tintaNum = tinta;
           corpo.addChild(sp);
           const marcas = new Graphics(), ox = ap.deitado ? 8 : 8, oy = ap.deitado ? 14.4 : 20.64;
           const pxl = (x: number, y: number, cor: number) => marcas.rect(x - ox, y - oy, 1, 1).fill(cor);
@@ -92,11 +109,11 @@ export function criarPeca(): PecaVisual {
           if (ap.marca === 'x') for (const [x, y] of [[7, 12], [9, 12], [8, 13], [7, 14], [9, 14]] as const) pxl(x, y, 0x7a1010);
           sp.addChild(marcas);
         } else {
-          const escala = (grade * t.size) / QW, sombra = new Graphics().ellipse(0, 0.21 * grade * t.size, 0.34 * grade * t.size, 0.14 * grade * t.size).fill({ color: 0x000000, alpha: 0.4 });
-          const sp = new Sprite(quadros[ladoParado]![0]); sp.anchor.set(ap.deitado ? 0.5 : 0.5, ap.deitado ? 0.6 : 0.86); sp.scale.set(escala); sp.tint = tinta; spriteRef = sp; corrente = { linha: ladoParado, coluna: 0 };
-          pxDoSprite = escala; tintaNum = tinta;
+          const escala = (grade * t.size) / QW, sombra = new Graphics().ellipse(0, 0.21 * grade * t.size, 0.34 * grade * t.size, 0.14 * grade * t.size).fill({ color: 0x000000, alpha: 1 });
+          const sp = new Sprite(quadros[ladoParado]![0]); sp.anchor.set(ap.deitado ? 0.5 : 0.5, ap.deitado ? 0.6 : 0.86); sp.scale.set(escala); sp.tint = tintaNum; spriteRef = sp; figuraRef = sp; corrente = { linha: ladoParado, coluna: 0 };
+          pxDoSprite = escala;
           // Deitada (inconsciente ou morta): o quadro parado girado, sem a sombra. Ferida: 2 pixels vermelhos no tronco. Morta: um X de 3 px.
-          if (!ap.deitado) corpo.addChild(sombra);
+          if (!ap.deitado) { sombraRef = sombra; sombraAlfaBase = 0.4; corpo.addChild(sombra); }
           corpo.addChild(sp);
           const marcas = new Graphics(), ox = ap.deitado ? 8 : 8, oy = ap.deitado ? 14.4 : 20.64;
           const pxl = (x: number, y: number, cor: number) => marcas.rect(x - ox, y - oy, 1, 1).fill(cor);
@@ -112,7 +129,8 @@ export function criarPeca(): PecaVisual {
           sp.scale.set(esc);
           sp.anchor.set(0.5, 0.72);
           sp.position.set(0, rBase * 0.65);
-          sp.tint = tinta;
+          sp.tint = tintaNum;
+          figuraRef = sp;
           if (!ap.deitado) {
             respiracao ??= criarFiltroDeRespiracao();
             const criticoPv = t.figure.state === 'hurt' || t.figure.state === 'dying' || (recursos !== null && emEstadoCritico(recursos));
@@ -127,7 +145,8 @@ export function criarPeca(): PecaVisual {
           corpo.addChild(sp);
         } else {
           const sp = new Sprite(tex), cobrir = Math.max((2 * r) / tex.width, (2 * r) / tex.height);
-          sp.scale.set(cobrir); sp.tint = tinta;
+          sp.scale.set(cobrir); sp.tint = tintaNum;
+          figuraRef = sp;
           if (tex.height > tex.width * 1.12) {
             sp.anchor.set(0.5, 0.36);
           } else {
@@ -138,9 +157,10 @@ export function criarPeca(): PecaVisual {
         }
         } else {
           const rotulo = new Text({ text: (t.name.trim()[0] ?? '?').toUpperCase(), style: { fontFamily: 'Hanken Grotesk Variable, Hanken Grotesk, sans-serif', fontSize: 64, fontWeight: '800', fill: 0xffffff } });
-          rotulo.anchor.set(0.5); rotulo.scale.set((r * 1.1) / 64); corpo.addChild(rotulo);
+          rotulo.anchor.set(0.5); rotulo.scale.set((r * 1.1) / 64); rotuloRef = rotulo; corpo.addChild(rotulo);
         }
       }
+      aplicarLuzAoCorpo();
       corpo.rotation = ap.deitado ? Math.PI / 2 : 0;
       const cor = ap.anel ? hexParaNumero(ap.anel) : acento;
       if (eImersivo) anel.clear();
@@ -252,7 +272,7 @@ export function criarPeca(): PecaVisual {
         }
       }
       // Morrendo: o sprite pisca em vermelho (o anel pulsa por baixo).
-      if (spriteRef && pulso) spriteRef.tint = efeitos && Math.floor(ms / 180) % 2 ? 0xff6a5a : tintaNum;
+      if (spriteRef && pulso) spriteRef.tint = efeitos && Math.floor(ms / 180) % 2 ? tingir(0xff6a5a, tintaLuz) : tintaNum;
       if (respiracao && retratoImersivo) {
         respiracao.filtro.enabled = efeitos && !deitada;
         if (respiracao.filtro.enabled) respiracao.atualizar(ms / 1000, semente, paramsRespiracao);
@@ -263,6 +283,15 @@ export function criarPeca(): PecaVisual {
       if (tremor) corpo.position.set(...(spriteRef ? [Math.round(Math.sin(t * 47 + semente)) * pxDoSprite, Math.round(Math.cos(t * 53 + semente * 1.7)) * pxDoSprite] as const : [Math.sin(t * 47 + semente) * 0.035 * tremor * (raio / 0.5), Math.cos(t * 53 + semente * 1.7) * 0.035 * tremor * (raio / 0.5)] as const));
     },
     definirVez(v) { vez = v; if (!v) vezG.clear(); },
+    definirLuzAmbiente(rgb, pisoMinimo = 0) {
+      const piso = Math.max(0, Math.min(1, pisoMinimo));
+      const r = Math.max(piso, Math.min(1, rgb[0]));
+      const g = Math.max(piso, Math.min(1, rgb[1]));
+      const b = Math.max(piso, Math.min(1, rgb[2]));
+      tintaLuz = (Math.round(r * 255) << 16) | (Math.round(g * 255) << 8) | Math.round(b * 255);
+      lumaLuz = Math.max(0, Math.min(1, 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]));
+      aplicarLuzAoCorpo();
+    },
     estado: () => ({
       retrato: tem,
       vez,
