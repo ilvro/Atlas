@@ -95,12 +95,22 @@ export function edificiosParaRevisao(m: Pick<MapaAtlas, 'rooms'>): Edificio[] {
   return edificiosDe({ rooms: salas });
 }
 
-/** Sobrado decorativo fechado de cenário: telhado visível, sem aberturas nem objetos, num mapa em que os interiores jogáveis têm `roof.visible: false`. */
-function ehSobradoDecorativoFechado(m: MapaAtlas, sala: Comodo, ins: InsightDoComodo, algumTelhadoAberto: boolean): boolean {
+/** O mapa tem ao menos um cômodo jogável (telhado aberto ou com porta e objetos), permitindo distinguir sobrados decorativos fechados. */
+function mapaTemInteriorJogavel(m: MapaAtlas, salas: readonly Comodo[], arestas: ReturnType<typeof arestasDeParede>, insPorId?: ReadonlyMap<string, InsightDoComodo>): boolean {
+  return salas.some(s => {
+    if (!s.roof.visible) return true;
+    const ins = insPorId ? insPorId.get(s.id) : insightDoComodo(m, s.id, arestas);
+    return !!ins && ins.portas.length > 0 && ins.objetos.length > 0;
+  });
+}
+
+/** Sobrado decorativo fechado de cenário: edifício isolado com telhado visível, sem aberturas nem objetos, num mapa que já tem interiores jogáveis. */
+function ehSobradoDecorativoFechado(sala: Comodo, ins: InsightDoComodo, temInteriorJogavel: boolean): boolean {
   return (
-    algumTelhadoAberto &&
+    temInteriorJogavel &&
     sala.roof.material !== null &&
     sala.roof.visible &&
+    ins.vizinhos.length === 0 &&
     ins.portas.length === 0 &&
     ins.janelas.length === 0 &&
     ins.objetos.length === 0
@@ -116,7 +126,7 @@ function regraComodoSemAcesso(m: MapaAtlas): Achado[] {
     const ins = insightDoComodo(m, s.id, arestas);
     if (ins) insPorId.set(s.id, ins);
   }
-  const algumTelhadoAberto = salas.some(s => !s.roof.visible);
+  const temInteriorJogavel = mapaTemInteriorJogavel(m, salas, arestas, insPorId);
   const indices = new Map<string | null, Map<number, string>>();
   const escadasPorSala = new Map<string, string[]>();
   const escadasDoExterior: string[] = [];
@@ -178,7 +188,7 @@ function regraComodoSemAcesso(m: MapaAtlas): Achado[] {
   for (const s of salas) {
     if (acessiveis.has(s.id)) continue;
     const ins = insPorId.get(s.id);
-    if (!ins || ehSobradoDecorativoFechado(m, s, ins, algumTelhadoAberto)) continue;
+    if (!ins || ehSobradoDecorativoFechado(s, ins, temInteriorJogavel)) continue;
     achados.push({
       regra: 'comodo-sem-acesso',
       gravidade: 'erro',
@@ -232,12 +242,12 @@ function regraInteriorVazio(m: MapaAtlas): Achado[] {
   if (!salas.length) return [];
   const arestas = arestasDeParede(m);
   const indices = new Map<string | null, Map<number, string>>();
-  const algumTelhadoAberto = salas.some(s => !s.roof.visible);
+  const temInteriorJogavel = mapaTemInteriorJogavel(m, salas, arestas);
   const achados: Achado[] = [];
   for (const s of salas) {
     if (s.function === 'corredor' || (s.function !== null && FUNCOES_AO_AR_LIVRE.has(s.function))) continue;
     const ins = insightDoComodo(m, s.id, arestas);
-    if (!ins || ins.area < LIMIAR_AREA_INTERIOR_VAZIO || ehSobradoDecorativoFechado(m, s, ins, algumTelhadoAberto)) continue;
+    if (!ins || ins.area < LIMIAR_AREA_INTERIOR_VAZIO || ehSobradoDecorativoFechado(s, ins, temInteriorJogavel)) continue;
     const nivel = s.levelId ?? null;
     const objetosDePiso = Object.values(m.props).filter(
       o => (o.levelId ?? null) === nivel && o.elevation === 'floor' && (o.roomId === s.id || (o.roomId === null && salaNoPonto(m, o.position, nivel, indices) === s.id)),
@@ -353,12 +363,12 @@ function regraCasasIguais(m: MapaAtlas): Achado[] {
   const salas = Object.values(m.rooms);
   if (!salas.length) return [];
   const arestas = arestasDeParede(m);
-  const algumTelhadoAberto = salas.some(s => !s.roof.visible);
+  const temInteriorJogavel = mapaTemInteriorJogavel(m, salas, arestas);
   const salasFiltradas: Record<string, Comodo> = {};
   for (const s of salas) {
     if (!s.roof.material && s.function !== null && FUNCOES_AO_AR_LIVRE.has(s.function)) continue;
     const ins = insightDoComodo(m, s.id, arestas);
-    if (ins && ehSobradoDecorativoFechado(m, s, ins, algumTelhadoAberto)) continue;
+    if (ins && ehSobradoDecorativoFechado(s, ins, temInteriorJogavel)) continue;
     salasFiltradas[s.id] = s.roof.material ? s : { ...s, roof: { ...s.roof, material: '__agrupar__' } };
   }
   const eds = edificiosDe({ rooms: salasFiltradas });
@@ -593,12 +603,12 @@ function regraNoiteSemLuz(m: MapaAtlas): Achado[] {
   if (!salas.length) return [];
   const arestas = arestasDeParede(m);
   const ativasIds = new Set(luzesAtivas.map(l => l.id));
-  const algumTelhadoAberto = salas.some(s => !s.roof.visible);
+  const temInteriorJogavel = mapaTemInteriorJogavel(m, salas, arestas);
   const achados: Achado[] = [];
   for (const s of salas) {
     if (s.function !== null && FUNCOES_AO_AR_LIVRE.has(s.function)) continue;
     const ins = insightDoComodo(m, s.id, arestas);
-    if (!ins || ins.area < LIMIAR_AREA_COMODO_SEM_LUZ || ehSobradoDecorativoFechado(m, s, ins, algumTelhadoAberto)) continue;
+    if (!ins || ins.area < LIMIAR_AREA_COMODO_SEM_LUZ || ehSobradoDecorativoFechado(s, ins, temInteriorJogavel)) continue;
     const temLuz = ins.luzes.some(id => ativasIds.has(id));
     if (!temLuz && ins.janelas.length === 0) {
       achados.push({
