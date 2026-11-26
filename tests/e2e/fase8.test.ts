@@ -215,7 +215,7 @@ test('Pixel: paredes caixa e sólida (faces em degraus, porta, janela, quadro e 
   await page.screenshot({ path: 'test-results/fase8-paredes-solidas.png', clip: await area([5, 5], [16, 15]) });
   assert.ok((await coresEm(page, [9, 5.9], [11.5, 6.1])).size <= 6, 'faixa do estilo sólido');
   // A face assada: papel, degraus escuros e rodapé, poucas cores e opaco.
-  const f = await coresDoBake(page, { tipo: 'comodo', entrada: comodoDe('tabuas.carvalho'), res: RES_PIXEL, estilo: 'pixel' }, [7.5, 6.05, 10.5, 6.5]);
+  const f = await coresDoBake(page, { tipo: 'comodo', entrada: comodoDe('tabuas.carvalho'), res: RES_PIXEL, estilo: 'pixel' }, [7.5, 6.0, 10.5, 6.65]);
   assert.equal(f.alfaMin, 255); assert.ok(f.cores >= 4 && f.cores <= 14, `${f.cores} cores na face`);
   assert.deepEqual(erros, []); await ctx.close();
 });
@@ -417,7 +417,9 @@ test('luz em faixas: no Pixel a lamparina tem anéis nítidos (poucos valores ao
   await sessao(page, '(s, l) => s.store.executar({ tipo: "item.adicionar", colecao: "lights", item: l })', luz);
   await sessao(page, '(s) => { s.store.executar({ tipo: "terreno.base", material: "pintura.paisagem" }); s.store.executar({ tipo: "clima.aplicar", patch: { ambient: { color: "#5a6090", intensity: 0.2 } } }); s.store.executar({ tipo: "acabamento.atualizar", patch: { grain: 0, vignette: 0, texture: 0 } }); s.store.executar({ tipo: "grade.atualizar", patch: { visible: false } }); }');
   await ferramenta(page, 'selecionar'); await clicar(page, [38, 28]);
-  await page.click('[data-testid="aba-mapa"]'); await page.waitForTimeout(600);
+  await page.click('[data-testid="aba-mapa"]');
+  await page.waitForFunction(() => (window as unknown as { __atlas: { viewport(): { pintando: number } | null } }).__atlas.viewport()?.pintando === 0, null, { timeout: 20_000 });
+  await page.waitForTimeout(300);
   /** Os pixels ao longo de uma linha do centro da luz para a direita (cores rgb). */
   const linha = async () => {
     const [x0, y0] = await clientDe(page, [20.3, 15.6]), [x1] = await clientDe(page, [26.5, 15.6]);
@@ -426,7 +428,9 @@ test('luz em faixas: no Pixel a lamparina tem anéis nítidos (poucos valores ao
   };
   await page.screenshot({ path: 'test-results/fase8-luz-ilustrado.png' });
   const ilustrado = await linha();
-  await page.getByLabel('Renderizador').selectOption('pixel'); await page.getByLabel('Dithering').selectOption('none'); await page.getByLabel('Paleta').selectOption('fantasia-quente'); await page.waitForTimeout(1500);
+  await page.getByLabel('Renderizador').selectOption('pixel'); await page.getByLabel('Dithering').selectOption('none'); await page.getByLabel('Paleta').selectOption('fantasia-quente');
+  await page.waitForFunction(() => (window as unknown as { __atlas: { viewport(): { pintando: number } | null } }).__atlas.viewport()?.pintando === 0, null, { timeout: 20_000 });
+  await page.waitForTimeout(300);
   const pixel = await linha();
   assert.ok(new Set(ilustrado).size > 12, `o Ilustrado é suave: ${new Set(ilustrado).size} valores`);
   const valores = new Set(pixel); assert.ok(valores.size >= 3 && valores.size <= 6, `no Pixel a linha tem ${valores.size} valores`);
@@ -551,7 +555,7 @@ test('fase 8: a casa no Pixel — o mapa da Fase 7 sem mudar o documento, jogado
   proj.on('pageerror', e => errosProj.push(e.message)); proj.on('console', m => { if (m.type() === 'error') errosProj.push(m.text()); });
   await proj.goto(`${amb.url}#/projetor/${mapaId}`);
   await proj.waitForFunction(() => (window as unknown as Projetor).__projetor?.doc() != null, null, { timeout: 20_000 });
-  await page.getByText('Conectado', { exact: true }).waitFor({ timeout: 5000 });
+  await page.locator('[data-testid="dock-projetor-estado"]', { hasText: 'Projetor local conectado' }).waitFor({ timeout: 5000 });
   await proj.evaluate(() => (window as unknown as Projetor).__projetor.viewport().enquadrarCaixa({ x0: 0, y0: 0, x1: 45, y1: 30 }, false));
   const esperaNoProjetor = (fn: string, arg?: unknown) => proj.waitForFunction(`(() => { const d = window.__projetor.doc(); const a = ${JSON.stringify(arg ?? null)}; return (${fn})(d, a); })()`, null, { timeout: 8000 });
 

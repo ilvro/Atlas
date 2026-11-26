@@ -99,7 +99,7 @@ test('mestre controla telhados na sessão: chave geral nos três estados (chega 
   proj.on('console', m => { if (m.type() === 'error') errosProj.push(m.text()); });
   await proj.goto(`${amb.url}#/projetor/${mapaId}`);
   await proj.waitForFunction(() => (window as unknown as { __projetor?: { doc(): unknown } }).__projetor?.doc() != null, null, { timeout: 20_000 });
-  await page.getByText('Conectado', { exact: true }).waitFor({ timeout: 5000 });
+  await page.locator('[data-testid="dock-projetor-estado"]', { hasText: 'Projetor local conectado' }).waitFor({ timeout: 5000 });
 
   await page.click('[data-testid="vista-jogador"]');
   await page.waitForTimeout(500);
@@ -144,7 +144,10 @@ test('mestre controla telhados na sessão: chave geral nos três estados (chega 
   await page.waitForTimeout(400);
   assert.deepEqual(porId(await telhados(page)), { tavA: 1, tavB: 1, anexo: 1 });
 
-  // Clique direito sobre célula da taverna abre/fecha todas as salas do edifício num só gesto ("Telhado").
+  // Na vista do mestre, o clique direito sobre célula da taverna abre/fecha todas as salas do edifício num só gesto ("Telhado"),
+  // enquanto a vista de jogador / projetor mantém casas com telhado cobertas.
+  await page.click('[data-testid="vista-jogador"]');
+  await page.waitForTimeout(300);
   const [rx, ry] = await clientDe(page, [8.25, 8.25]);
   await page.mouse.click(rx, ry, { button: 'right' });
   const menu = page.locator('[data-testid="menu-radial"]');
@@ -155,7 +158,8 @@ test('mestre controla telhados na sessão: chave geral nos três estados (chega 
   assert.equal(doc.rooms.tavA!.roof.visible, false);
   assert.equal(doc.rooms.tavB!.roof.visible, false);
   assert.equal(doc.rooms.anexo!.roof.visible, true);
-  assert.deepEqual(porId(await telhados(page)), { tavA: 0, tavB: 0, anexo: 1 });
+  assert.deepEqual(porId(await telhados(page)), { tavA: 0, tavB: 0, anexo: 0.25 });
+  assert.deepEqual(porId(await telhadosProj()), { tavA: 1, tavB: 1, anexo: 1 });
   assert.equal(await sessao(page, '(s) => s.rotuloDesfazer.value'), 'Telhado');
 
   // Segundo clique direito na outra sala do mesmo edifício oferece "Fechar telhado da casa".
@@ -170,7 +174,7 @@ test('mestre controla telhados na sessão: chave geral nos três estados (chega 
   doc = await documento(page);
   assert.equal(doc.rooms.tavA!.roof.visible, true);
   assert.equal(doc.rooms.tavB!.roof.visible, true);
-  assert.deepEqual(porId(await telhados(page)), { tavA: 1, tavB: 1, anexo: 1 });
+  assert.deepEqual(porId(await telhados(page)), { tavA: 0.25, tavB: 0.25, anexo: 0.25 });
 
   assert.deepEqual(erros, []);
   assert.deepEqual(errosProj, []);
