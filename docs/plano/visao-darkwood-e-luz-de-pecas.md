@@ -239,7 +239,8 @@ Commit: `(feature) darkwood vision mode renders areas outside line of sight in d
 
 ---
 
-### W6 — Ocultação com fade de NPCs e elementos dinâmicos fora do cone de visão  ⬜
+### W6 — Ocultação com fade de NPCs e elementos dinâmicos fora do cone de visão  ✅
+Nota: `pontoVisivelAgora` adicionado em `src/domain/nevoa.ts` com teste par-ímpar exato contra `poligonosDeVisao(m)` e margem cardinal para bordas de peças; `projetarParaJogadores` em `src/domain/projecao.ts` filtra NPCs e luzes portadas fora do cone/bolha de visão ativa via `pontoVisivelAgora` mesmo em cômodos explorados; `atualizarVisibilidadeDasPecas` em `src/render/cena.ts` oculta peças `!t.player` fora do cone na vista de jogador/projetor com fade suave de `150 ms` (respeitando `movimentoReduzido()`). Testes em `tests/unit/nevoa.test.ts` e `tests/unit/projecao.test.ts`.
 Objetivo: fora do cone e da bolha de visão direta, NPCs, monstros e objetos dinâmicos desaparecem suavemente na vista dos jogadores (mesmo que estejam numa área iluminada ou já explorada).
 Depende de: W4, W5.
 Ler: `src/render/cena.ts` (`sincronizar`, `quadro`, `desenharPeca`, `sincronizarObjetos`), `src/domain/nevoa.ts` (`poligonosDeVisao`), `src/domain/projecao.ts` (`projetarParaJogadores`).

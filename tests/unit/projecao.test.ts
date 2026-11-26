@@ -109,3 +109,52 @@ test('session.roofs chega ao projetor pela projeção', () => {
   validarMapa(p);
   assert.equal(p.session.roofs, 'fechados');
 });
+
+test('NPC em cômodo já explorado mas atrás das costas (fora do cone Darkwood) é ocultado na projeção até o jogador virar para ele', () => {
+  let m = mapaCompleto();
+  m = aplicarComando(m, { tipo: 'memoria.atualizar', patch: { mode: 'darkwood' } });
+  // Revela o cômodo inteiro como já explorado pelos jogadores
+  m = aplicarComando(m, { tipo: 'sessao.revelar', ids: ['sala'] });
+  // Jogador no centro da sala (10, 8) olhando para a direita (0 rad), com cone Darkwood
+  m = aplicarComando(m, {
+    tipo: 'item.adicionar',
+    colecao: 'tokens',
+    item: {
+      ...novaPeca([10, 8]),
+      id: 'hugo',
+      name: 'Hugo',
+      player: true,
+      facing: 'right',
+      vision: { radius: 12, dark: false, mode: 'cone', angle: 85, proximity: 1.8 },
+    } as never,
+  });
+  // NPC atrás das costas do jogador (x = 5, y = 8 — a 5 m atrás, no mesmo cômodo já explorado), carregando uma luz
+  m = aplicarComando(m, {
+    tipo: 'item.adicionar',
+    colecao: 'tokens',
+    item: {
+      ...novaPeca([5, 8]),
+      id: 'cachorro',
+      name: 'Cachorro',
+      player: false,
+    } as never,
+  });
+  m = aplicarComando(m, {
+    tipo: 'item.adicionar',
+    colecao: 'lights',
+    item: { ...m.lights.lampiao!, id: 'luz-cachorro', ownerId: 'cachorro', position: [5, 8] } as never,
+  });
+  m = aplicarComando(m, { tipo: 'item.atualizar', colecao: 'tokens', id: 'cachorro', patch: { lightId: 'luz-cachorro' } });
+
+  const antes = projetarParaJogadores(m);
+  validarMapa(antes);
+  assert.equal(antes.tokens.cachorro, undefined, 'NPC atrás das costas fora do cone não entra na projeção mesmo em cômodo explorado');
+  assert.equal(antes.lights['luz-cachorro'], undefined, 'luz carregada pelo NPC oculto também é removida');
+
+  // Jogador vira para a esquerda (Math.PI) na direção do NPC
+  const virado = aplicarComando(m, { tipo: 'peca.virar', id: 'hugo', direcao: Math.PI });
+  const depois = projetarParaJogadores(virado);
+  validarMapa(depois);
+  assert.ok(depois.tokens.cachorro, 'ao virar o cone de visão para o NPC, ele passa a aparecer na projeção');
+  assert.ok(depois.lights['luz-cachorro'], 'a luz carregada pelo NPC também aparece');
+});

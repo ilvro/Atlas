@@ -177,6 +177,34 @@ export function celulasDosPoligonos(m: Pick<MapaAtlas, 'bounds'>, poligonos: rea
 /** Tudo o que as peças de jogador veem agora, como células do explorado. */
 export const celulasVisiveis = (m: MapaAtlas, res = RES_NEVOA): Faixa[] => celulasDosPoligonos(m, poligonosDeVisao(m), res);
 
+function pontoEmPoligonoPlano(x: number, y: number, pts: readonly number[]): boolean {
+  let dentro = false;
+  for (let i = 0, j = pts.length - 2; i < pts.length; j = i, i += 2) {
+    const xi = pts[i]!, yi = pts[i + 1]!;
+    const xj = pts[j]!, yj = pts[j + 1]!;
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) dentro = !dentro;
+  }
+  return dentro;
+}
+
+/** Verifica diretamente se `ponto` (ou sua borda de raio `margem`) está dentro de algum polígono de visão ativa das peças de jogador. */
+export function pontoVisivelAgora(m: MapaAtlas, ponto: Ponto, margem = 0.25): boolean {
+  const poligonos = poligonosDeVisao(m);
+  if (!poligonos.length) return false;
+  const emAlgum = (x: number, y: number) => poligonos.some(pts => pontoEmPoligonoPlano(x, y, pts));
+  const [x, y] = ponto;
+  if (emAlgum(x, y)) return true;
+  if (margem > 0) {
+    return (
+      emAlgum(x + margem, y) ||
+      emAlgum(x - margem, y) ||
+      emAlgum(x, y + margem) ||
+      emAlgum(x, y - margem)
+    );
+  }
+  return false;
+}
+
 /** As células do explorado (de lado `res`) que cobrem os cômodos dados, que vivem na grade do mapa. */
 export function celulasDosComodos(m: Pick<MapaAtlas, 'grid' | 'rooms' | 'bounds'>, ids: readonly string[], res = RES_NEVOA): Faixa[] {
   const t = m.grid.size, [ox, oy] = m.grid.offset, colunas = Math.ceil(m.bounds.width / res), linhas = Math.ceil(m.bounds.height / res), celulas: [number, number][] = [];

@@ -85,7 +85,7 @@ test('peça do mestre não explora; "esquecer" zera; revelar faz o cômodo conta
   assert.throws(() => aplicarComando(m, { tipo: 'sessao.revelar', ids: ['nao-existe'] }), /não é um cômodo/);
 });
 
-import { comodosConhecidos, direcaoDeVisaoDaPeca, modoDeVisaoDaPeca } from '../../src/domain/nevoa.ts';
+import { comodosConhecidos, direcaoDeVisaoDaPeca, modoDeVisaoDaPeca, pontoVisivelAgora } from '../../src/domain/nevoa.ts';
 import { novaLuz, novoObjeto } from '../../src/domain/fabrica.ts';
 
 test('revelar região do tipo "reveal" faz a área dela contar como explorado', () => {
@@ -239,4 +239,40 @@ test('peca.virar gira a direção do cone de visão (com ou sem lanterna) e reve
   assert.equal(m.lights.lant!.cone!.direction, 0);
   assert.equal(m.tokens.t0!.vision.direction, 0);
   assert.ok(ve(m, 29, 15), 'alcance do cone acompanha os 16 m da lanterna acesa');
+});
+
+test('pontoVisivelAgora testa cone Darkwood, bolha de proximidade, margem e paredes', () => {
+  let m = criarMapa();
+  m.walls.frente = {
+    id: 'frente', path: [[19, 10], [19, 20]], height: 2.6, thickness: 0.2,
+    material: 'parede.topo', kind: 'wall', blocks: { move: true, sight: true, light: true }, drop: null, source: null,
+  };
+  m = aplicarComando(m, { tipo: 'memoria.atualizar', patch: { mode: 'darkwood' } });
+  // Sem peças de jogador, nenhum ponto é visível
+  assert.equal(pontoVisivelAgora(m, [15, 15]), false);
+
+  m = aplicarComando(m, {
+    tipo: 'item.adicionar',
+    colecao: 'tokens',
+    item: {
+      ...novaPeca([15, 15]),
+      id: 't0',
+      name: 'P0',
+      player: true,
+      facing: 'right',
+      vision: { radius: 12, dark: false, mode: 'cone', angle: 85, proximity: 1.8 },
+    } as never,
+  });
+
+  // Ponto à frente dentro do cone e antes da parede -> true
+  assert.equal(pontoVisivelAgora(m, [17.5, 15]), true);
+  // Ponto atrás fora da bolha de proximidade -> false
+  assert.equal(pontoVisivelAgora(m, [10, 15]), false);
+  // Ponto atrás dentro da bolha de proximidade (1,2 m atrás) -> true
+  assert.equal(pontoVisivelAgora(m, [13.8, 15]), true);
+  // Ponto atrás da parede (x = 21) -> false
+  assert.equal(pontoVisivelAgora(m, [21, 15]), false);
+  // Ponto logo fora da bolha (1,95 m atrás): com margem 0 é false, com margem 0,25 a borda entra na bolha -> true
+  assert.equal(pontoVisivelAgora(m, [13.05, 15], 0), false);
+  assert.equal(pontoVisivelAgora(m, [13.05, 15], 0.25), true);
 });
