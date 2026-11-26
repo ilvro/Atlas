@@ -92,7 +92,7 @@ test('rolagem sobre a peça: o resultado da Ficha flutua sobre a peça certa no 
   proj.on('pageerror', e => errosProj.push(e.message));
   await proj.goto(`${amb.url}#/projetor/${doc.id}`);
   await proj.waitForFunction(() => (window as unknown as { __projetor?: { doc(): { tokens: Record<string, unknown> } | null } }).__projetor?.doc()?.tokens != null, null, { timeout: 20_000 });
-  await page.getByText('Conectado', { exact: true }).waitFor({ timeout: 5000 });
+  await page.getByText('Projetor local conectado', { exact: true }).waitFor({ timeout: 5000 });
 
   await ficha.emitir('ficha.rolagem', { ficha: REF_FICHA, titulo: 'Investigação', total: 17, modificador: 5 });
   const naTela = page.locator('[data-testid="rolagem-flutuante"]').first(); await naTela.waitFor({ timeout: 4000 });
@@ -139,6 +139,7 @@ async function ateliePublica(page: Page, registro: { id: string; name: string; h
 test('pistas do Ateliê: o documento entregue aparece na lista (ao vivo), vira um objeto-pista ligado ao cômodo e, se sumir do banco, o inspetor avisa', async () => {
   const ctx = await novoContexto(amb), { page, erros } = await cenario(ctx), atelie = await aplicativoFalso(ctx, 'atelie');
   await ferramenta(page, 'objeto'); await page.locator('[data-testid="biblioteca"]').waitFor();
+  await page.click('[data-testid="documentos-aba-todos"]');
   assert.equal(await page.locator('[data-testid="pistas-vazio"]').count(), 1, 'sem o Ateliê, a lista está vazia');
   await ateliePublica(page, { id: 'carta-1', name: 'Carta rasgada', hasUv: true });
   await atelie.emitir('handout-saved', {}).catch(() => undefined);      // o canal do Ateliê é outro; o aviso abaixo é o de verdade
@@ -171,7 +172,8 @@ test('pistas do Ateliê: o documento entregue aparece na lista (ao vivo), vira u
 test('inspeção de pista: clicar abre o documento grande, a luz UV revela o assado UV sob a lanterna, e "Mostrar aos jogadores" leva tudo ao projetor (lanterna fluida)', async () => {
   const ctx = await novoContexto(amb), { page, erros } = await cenario(ctx);
   await ateliePublica(page, { id: 'carta-uv', name: 'Carta com tinta invisível', hasUv: true });
-  await ferramenta(page, 'objeto'); await page.locator('[data-testid="pista-carta-uv"]').waitFor({ timeout: 6000 }).catch(async () => { await page.evaluate(() => { const c = new BroadcastChannel('mesa:handout'); c.postMessage({ app: 'atelie', contract: 1, type: 'handout-saved', id: 'carta-uv', revision: 2, source: '' }); c.close(); }); await page.locator('[data-testid="pista-carta-uv"]').waitFor({ timeout: 6000 }); });
+  await ferramenta(page, 'objeto'); await page.click('[data-testid="documentos-aba-todos"]');
+  await page.locator('[data-testid="pista-carta-uv"]').waitFor({ timeout: 6000 }).catch(async () => { await page.evaluate(() => { const c = new BroadcastChannel('mesa:handout'); c.postMessage({ app: 'atelie', contract: 1, type: 'handout-saved', id: 'carta-uv', revision: 2, source: '' }); c.close(); }); await page.locator('[data-testid="pista-carta-uv"]').waitFor({ timeout: 6000 }); });
   await page.evaluate(() => (window as unknown as { __atlas: { viewport(): { focarEm(c: object): void } } }).__atlas.viewport().focarEm({ x0: 3, y0: 3, x1: 15, y1: 10.5 })); await page.waitForTimeout(300);
   await page.click('[data-testid="pista-por-carta-uv"]'); await page.waitForTimeout(500);
   const doc = await documento(page), obj = Object.values(doc.props).find(o => o.interaction?.kind === 'clue')!;
@@ -179,8 +181,8 @@ test('inspeção de pista: clicar abre o documento grande, a luz UV revela o ass
   await page.click('[data-testid="dock-titulo-projetor"]');
   const proj = await ctx.newPage(); await proj.goto(`${amb.url}#/projetor/${doc.id}`);
   await proj.waitForFunction(() => (window as unknown as { __projetor?: { doc(): unknown } }).__projetor?.doc() != null, null, { timeout: 20_000 });
-  await page.getByText('Conectado', { exact: true }).waitFor({ timeout: 5000 });
-  await page.click('[data-testid="dock-titulo-projetor"]');       // recolhe a seção para o dock não cobrir a pista
+  await page.getByText('Projetor local conectado', { exact: true }).waitFor({ timeout: 5000 });
+  await page.click('[data-testid="dock-secao-projetor"] .dock-fechar');       // recolhe a seção para o dock não cobrir a pista
 
   // Clicar na pista a seleciona e abre o cartão; o botão inspeciona o documento; Esc fecha; abrir de novo.
   await clicar(page, obj.position as [number, number]); await page.click('[data-testid="cartao-usar"]');
@@ -295,7 +297,8 @@ test('fase 9 (parte do Atlas, com Ficha, Ateliê e Jukebox falsos no barramento)
   // A casa: o personagem da campanha vira peça; a pista entra no cômodo; as cenas sonoras ficam escolhidas.
   await page.click('[data-testid="aba-mapa"]'); await page.locator('[data-testid^="personagem-por-"]').first().click(); await page.waitForTimeout(300);
   await page.evaluate(() => (window as unknown as { __atlas: { viewport(): { focarEm(c: object): void } } }).__atlas.viewport().focarEm({ x0: 3, y0: 3, x1: 15, y1: 10.5 })); await page.waitForTimeout(250);
-  await ferramenta(page, 'objeto'); await page.locator('[data-testid="pista-bilhete"]').waitFor({ timeout: 6000 }); await page.click('[data-testid="pista-por-bilhete"]'); await page.waitForTimeout(400);
+  await ferramenta(page, 'objeto'); await page.click('[data-testid="documentos-aba-todos"]');
+  await page.locator('[data-testid="pista-bilhete"]').waitFor({ timeout: 6000 }); await page.click('[data-testid="pista-por-bilhete"]'); await page.waitForTimeout(400);
   const doc0 = await documento(page), peca = Object.values(doc0.tokens)[0]!, pista = Object.values(doc0.props).find(o => o.interaction?.kind === 'clue')!;
   await sessao(page, `(s, a) => {
     s.store.executar({ tipo: "clima.audio", id: "tempestade", ref: a.chuva });
@@ -305,7 +308,7 @@ test('fase 9 (parte do Atlas, com Ficha, Ateliê e Jukebox falsos no barramento)
   await page.click('[data-testid="modo-sessao"]'); await page.locator('[data-testid="dock"]').waitFor(); await page.click('[data-testid="dock-titulo-projetor"]');
   const proj = await ctx.newPage(); await proj.goto(`${amb.url}#/projetor/${doc0.id}`);
   await proj.waitForFunction(() => (window as unknown as { __projetor?: { doc(): { tokens: object } | null } }).__projetor?.doc()?.tokens != null, null, { timeout: 20_000 });
-  await page.getByText('Conectado', { exact: true }).waitFor({ timeout: 5000 });
+  await page.getByText('Projetor local conectado', { exact: true }).waitFor({ timeout: 5000 });
   await page.click('[data-testid="dock-titulo-projetor"]'); await page.click('[data-testid="dock-titulo-clima"]').catch(() => undefined);
   // 1. A ficha: PV e PD nos pips e a rolagem sobre a peça, no mapa e no projetor.
   await ficha.emitir('ficha.recursos', { ficha: REF_FICHA, pv: 14, pvMax: 20, pd: 9, pdMax: 10 });

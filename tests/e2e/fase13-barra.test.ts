@@ -80,6 +80,10 @@ test('fase 13: barra de efeitos na tela, configuração do espaço 6 para Grito 
   }, null, { timeout: 3000 });
 
   // 8. Testa recolher e expandir a barra
+  // Fecha o painel flutuante de clima (aberto por padrão na sessão) para não cobrir a alça recolhida centralizada
+  if (await page.locator('[data-testid="dock-secao-clima"]').isVisible()) {
+    await page.click('[data-testid="dock-titulo-clima"]');
+  }
   const toggle = page.locator('[data-testid="barra-efeitos-toggle"]');
   await toggle.click();
   assert.ok((await barra.getAttribute('class'))?.includes('recolhida'));

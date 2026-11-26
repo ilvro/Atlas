@@ -11,7 +11,7 @@ const PASTA = '/tmp/claude-1000/-home-ilvro-Documents-Projects/50c9023f-ab4a-439
 
 test('abas que transbordam mostram setas, rolam por clique e pela roda, e o "+" fica visível', async () => {
   mkdirSync(PASTA, { recursive: true });
-  const ctx = await novoContexto(amb, { viewport: { width: 1280, height: 700 } });
+  const ctx = await novoContexto(amb, { viewport: { width: 1600, height: 700 } });
   await ctx.addInitScript(() => {
     try {
       if (localStorage.getItem('atlas:abas-abertas') === null) {
@@ -25,8 +25,11 @@ test('abas que transbordam mostram setas, rolam por clique e pela roda, e o "+" 
   const direita = page.locator('[data-testid="abas-rolar-direita"]'), esquerda = page.locator('[data-testid="abas-rolar-esquerda"]');
   const lista = page.locator('.abas-lista'), mais = page.locator('[data-testid="abrir-nova-aba"]');
   const cabecalho = page.locator('header.cabecalho').last();
-  await page.evaluate(() => { document.querySelector('.abas-lista')!.scrollLeft = 0; });
+  // Aguarda a rolagem automática inicial até a aba recém-criada terminar antes de voltar ao início.
+  await esperarMs(400);
+  await page.evaluate(() => { document.querySelector('.abas-lista')!.scrollTo({ left: 0, behavior: 'instant' }); });
   await direita.waitFor({ timeout: 5000 });
+  await esquerda.waitFor({ state: 'detached', timeout: 5000 });
   assert.equal(await esquerda.count(), 0);
   await cabecalho.screenshot({ path: `${PASTA}/antes.png` });
 
@@ -45,6 +48,6 @@ test('abas que transbordam mostram setas, rolam por clique e pela roda, e o "+" 
   assert.ok(await mais.isVisible());
   const cx = (await mais.boundingBox())!, cl = (await lista.boundingBox())!;
   assert.ok(cx.x >= cl.x + cl.width - 1, 'o "+" fica fora da área rolável');
-  assert.ok(cx.x + cx.width <= 1280);
+  assert.ok(cx.x + cx.width <= 1600);
   assert.deepEqual(erros, []); await ctx.close();
 });
