@@ -1,5 +1,6 @@
+import { ACERVO } from '../procedural/acervo.ts';
 import { codificar, decodificar, unir, type Faixa } from './celulas.ts';
-import type { Abertura, MapaAtlas, ModoDeVisao, Peca, Ponto, Sessao } from './mapa.ts';
+import type { Abertura, MapaAtlas, ModoDeVisao, Objeto, Peca, Ponto, Sessao } from './mapa.ts';
 import { IndiceDeSegmentos, oclusores, oclusoresDeObjetos, poligonoDeVisaoDarkwood, poligonoIluminado, segmentosParaFonte } from './visibilidade.ts';
 
 /** Lado de cada célula do explorado, em metros. */
@@ -16,10 +17,30 @@ const ANGULO_DO_LADO: Record<Peca['facing'], number> = {
   up: -Math.PI / 2,
 };
 
-/** Modo efetivo de visão da peça ('cone' ou 'circle'). Segue `vision.mode` quando definido, ou `memory.mode === 'darkwood'`. */
-export function modoDeVisaoDaPeca(m: Pick<MapaAtlas, 'memory'>, t: Pick<Peca, 'vision'>): ModoDeVisao {
+const RECEITAS_DOCUMENTOS_DINAMICOS = new Set([
+  'papeis',
+  'jornais',
+  'livro.aberto',
+  'livros.pilha',
+  'mapa-do-tesouro',
+  'tinteiro.pena',
+]);
+
+/**
+ * Indica se o objeto representa um detalhe dinâmico/documento (pista, nota, item solto sobre mesa ou papelada)
+ * que só deve ficar visível dentro da linha de visão ativa dos jogadores, sumindo na memória escurecida.
+ */
+export function objetoDinamicoDeVisao(o: Pick<Objeto, 'elevation' | 'interaction' | 'source'>): boolean {
+  if (o.interaction?.kind === 'clue' || o.interaction?.kind === 'note') return true;
+  if (o.elevation === 'table') return true;
+  if (o.source.kind === 'recipe' && RECEITAS_DOCUMENTOS_DINAMICOS.has(ACERVO.idDaFonte(o.source))) return true;
+  return false;
+}
+
+/** Modo efetivo de visão da peça ('cone' ou 'circle'). Segue `vision.mode` quando definido; padrão é 'circle' (360°). */
+export function modoDeVisaoDaPeca(_m: Pick<MapaAtlas, 'memory'>, t: Pick<Peca, 'vision'>): ModoDeVisao {
   if (t.vision.mode === 'cone' || t.vision.mode === 'circle') return t.vision.mode;
-  return m.memory?.mode === 'darkwood' ? 'cone' : 'circle';
+  return 'circle';
 }
 
 /** Direção do olhar da peça em radianos: `vision.direction` explícita, direção do cone da luz portada acesa, ou `facing`. */

@@ -34,9 +34,9 @@ export interface OpcoesOclusoresDeObjetos {
   levelId?: string | null;
 }
 
-/** O vão da abertura deixa passar a luz, a visão ou quem anda? Arco sempre; porta e porta secreta só abertas (a trancada não); janela só a luz. */
+/** O vão da abertura deixa passar a luz, a visão ou quem anda? Arco sempre; porta e porta secreta só abertas (a trancada não); janela passa luz e visão. */
 const deixaPassar = (kind: 'door' | 'window' | 'arch' | 'secret', estado: 'closed' | 'open' | 'locked', para: 'luz' | 'visao' | 'movimento'): boolean =>
-  kind === 'arch' || ((kind === 'door' || kind === 'secret') && estado === 'open') || (kind === 'window' && para === 'luz');
+  kind === 'arch' || ((kind === 'door' || kind === 'secret') && estado === 'open') || (kind === 'window' && para !== 'movimento');
 
 /** Os segmentos que bloqueiam, já sem os vãos das aberturas que deixam passar. */
 export function oclusores(m: Pick<MapaAtlas, 'walls' | 'openings'>, para: 'luz' | 'visao' | 'movimento'): Segmento[] {

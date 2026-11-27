@@ -236,8 +236,11 @@ export function criarHalos(mapaDeLuz: MapaDeLuz, telhados: Telhados): Halos {
 
       // Halos
       for (const h of halos.values()) {
+        const vis = mapaDeLuz.estadoVisual(h.luz.id);
+        const pos = vis ? vis.position : h.luz.position;
+        h.s.position.set(pos[0], pos[1]);
         const k = mapaDeLuz.intensidade(h.luz.id);
-        const salaId = indiceCelulas ? comodoEm(mapa, h.luz.position, indiceCelulas) : null;
+        const salaId = indiceCelulas ? comodoEm(mapa, pos, indiceCelulas) : null;
         const oculta = salaId !== null && telhados.visivel(salaId);
         const alfa = oculta ? 0 : Math.min(1, Math.max(0, mapa.finish.glow * k));
         h.s.alpha = alfa;
@@ -246,13 +249,17 @@ export function criarHalos(mapaDeLuz: MapaDeLuz, telhados: Telhados): Halos {
 
       // Raios
       for (const r of raios.values()) {
+        const vis = mapaDeLuz.estadoVisual(r.luz.id);
+        const pos = vis ? vis.position : r.luz.position;
+        r.mesh.position.set(pos[0], pos[1]);
         const k = mapaDeLuz.intensidade(r.luz.id);
-        const salaId = indiceCelulas ? comodoEm(mapa, r.luz.position, indiceCelulas) : null;
+        const salaId = indiceCelulas ? comodoEm(mapa, pos, indiceCelulas) : null;
         const oculta = salaId !== null && telhados.visivel(salaId);
         const alfa = oculta ? 0 : Math.min(1, Math.max(0, k));
         r.c.visible = ligado && alfa > 0.001;
         if (r.c.visible) {
           const u = r.grupo.uniforms as Record<string, unknown>;
+          if (vis && vis.direction !== null) u.uDirecao = vis.direction;
           u.uIntensidade = alfa;
           u.uTempo = tempoRaios;
           const pts = mapaDeLuz.poligono(r.luz.id);

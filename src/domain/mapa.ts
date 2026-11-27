@@ -301,7 +301,7 @@ export function criarMapa(o: OpcoesNovoMapa = {}): MapaAtlas {
     style: { renderer: 'illustrated', palette: 'investigacao-sepia', walls: 'box', genre: 'investigacao', pixel: { pixelsPerCell: 16, dither: 'bayer4', outline: true } },
     climate: { preset: 'dia', ambient: { color: '#d1ccc0', intensity: 0.82 }, sun: { angle: 0.6, color: '#fff2d6', intensity: 1 }, time: '14:30', weather: { rain: 0, snow: 0, fog: 0, wind: 0, dust: 0, embers: 0, leaves: 0, lightning: 0 }, gridPower: true },
     finish: { preset: 'neutro', texture: 0.2, vignette: 0.28, saturation: 1, grain: 0.03, tint: '#ffffff', grade: { lift: 0, gamma: 1, gain: 1 }, edges: { kind: 'none', amount: 0 }, glow: 0 },
-    memory: { sketch: true, paper: 'papel-claro', ink: '#241b14' },
+    memory: { sketch: false, paper: 'papel-claro', ink: '#241b14', mode: 'darkwood' },
     backdrop: { kind: 'solid', color: '#07080b', material: null, title: null },
     terrain: { resolution: 0.25, base: 'vazio', layers: {} },
     rooms: {}, walls: {}, openings: {}, props: {}, lights: {}, regions: {}, presence: {}, tokens: {},

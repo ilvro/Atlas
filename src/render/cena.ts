@@ -23,7 +23,7 @@ import { criarComposicaoDeLuz } from './composicao-de-luz.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import { FATOR_DE_MOVIMENTO_REDUZIDO } from './particulas-config.ts';
 import { criarNevoa, type Vista } from './nevoa.ts';
-import { pontoVisivelAgora, secretaOculta } from '../domain/nevoa.ts';
+import { objetoDinamicoDeVisao, pontoVisivelAgora, secretaOculta } from '../domain/nevoa.ts';
 import { criarNeblina } from './neblina.ts';
 import { criarBordas } from './bordas.ts';
 import { criarHalos } from './halos.ts';
@@ -111,7 +111,7 @@ export interface Cena {
   destruir(): void;
 }
 
-interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; texAltura: Texture | null; chave: string; chaveTextura: string | null; chavePrevia?: string | null }
+interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; texAltura: Texture | null; chave: string; chaveTextura: string | null; chavePrevia?: string | null; alphaAlvo?: number }
 
 export function criarCena(op: OpcoesDaCena): Cena {
   const raiz = new Container(), mundoIluminado = new Container(), terrenoC = new Container(), veuTerrenoG = new Graphics(), submersosC = Object.assign(new Container(), { sortableChildren: true }), escarpasC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics(), fantasmaAndarG = new Graphics();
@@ -535,7 +535,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     const canal = (sh: number) => Math.round(255 - (255 - Math.min(255, ((sub.cor >> sh) & 255) * 1.8 + 40)) * 0.8 * t);
     c.tint = multiplicarTint((canal(16) << 16) | (canal(8) << 8) | canal(0), tRel); c.alpha = (pixel ? 1 : 1 - 0.45 * t) * opaco;
   }
-  function reaplicarSubmersos(m: MapaAtlas): void { for (const [id, e] of objetos) { const o = m.props[id] as Objeto | undefined; if (o?.elevation === 'underwater') aplicarSubmersao(e.c, o, m); } }
+  function reaplicarSubmersos(m: MapaAtlas): void { for (const [id, e] of objetos) { const o = m.props[id] as Objeto | undefined; if (o?.elevation === 'underwater') { aplicarSubmersao(e.c, o, m); e.alphaAlvo = e.c.alpha; } } }
 
   // Cardumes (`animacao: 'nadar'`): o desenho inteiro gira devagar em volta do centro, com um leve vaivém, como carpas rodeando o lago.
   const nadadores = new Map<string, { c: Container; giro: number; fase: number }>();
@@ -564,6 +564,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (entrada.c.parent !== pai) pai.addChild(entrada.c);
       entrada.c.position.set(o.position[0], o.position[1]); entrada.c.rotation = o.rotation; entrada.c.zIndex = camadaDoObjeto(o);
       aplicarSubmersao(entrada.c, o, m);
+      entrada.alphaAlvo = entrada.c.alpha;
       if (o.elevation === 'underwater' && ACERVO.item(ACERVO.idDaFonte(o.source))?.animacao === 'nadar') nadadores.set(id, { c: entrada.c, giro: o.rotation, fase: o.source.kind === 'recipe' ? (o.source.seed % 997) / 997 : 0 });
       else nadadores.delete(id);
       if (o.oculto) {
@@ -637,12 +638,40 @@ export function criarCena(op: OpcoesDaCena): Cena {
         v.definirLuzAmbiente([1, 1, 1], 1);
         continue;
       }
-      const pos: Ponto = [v.c.x || t.position[0], v.c.y || t.position[1]];
+      const pos: Ponto = [v.c.x, v.c.y];
       const rgb = luz.amostrarPonto(pos);
       const piso = vistaDaCena === 'jogador' || modoDoProjetor
         ? (t.player ? 0.12 : 0.02)
         : 0.28;
       v.definirLuzAmbiente(rgb, piso);
+    }
+  }
+
+  function atualizarVisibilidadeDosObjetos(dtSeg: number, imediato: boolean): void {
+    if (!mapa) return;
+    const restringir = vistaDaCena === 'jogador' || modoDoProjetor;
+    for (const [id, e] of objetos) {
+      const o = mapa.props[id] as Objeto | undefined;
+      if (!o) continue;
+      const baseAlpha = e.alphaAlvo ?? (o.opacity ?? 1);
+      if (o.oculto) {
+        e.c.visible = !restringir;
+        e.c.alpha = restringir ? 0 : baseAlpha * 0.5;
+        continue;
+      }
+      if (!restringir || !objetoDinamicoDeVisao(o)) {
+        e.c.alpha = baseAlpha;
+        e.c.visible = true;
+        continue;
+      }
+      const alvo = pontoVisivelAgora(mapa, o.position, 0.25) ? baseAlpha : 0;
+      if (imediato) {
+        e.c.alpha = alvo;
+      } else if (dtSeg > 0) {
+        e.c.alpha += (alvo - e.c.alpha) * (1 - Math.exp(-dtSeg / 0.15));
+        if (Math.abs(alvo - e.c.alpha) < 0.01) e.c.alpha = alvo;
+      }
+      e.c.visible = e.c.alpha > 0.01;
     }
   }
 
@@ -824,6 +853,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (tudo || campos('backdrop', 'bounds', 'style', 'grid')) sincronizarTitulo(m);
       atualizarLuzDasPecas();
       atualizarVisibilidadeDasPecas(0, true);
+      atualizarVisibilidadeDosObjetos(0, true);
       op.baker.coletar(chavesEmUso());
     },
     atualizarAtmosfera(visao) {
@@ -834,9 +864,9 @@ export function criarCena(op: OpcoesDaCena): Cena {
     },
     definirAtmosfera: ligada => { atmosferaLigada = ligada; sombras.definirLigado(ligada); contato.definirLigado(ligada); tempo.definirLigado(ligada, mapa, objetos); if (ligada && mapa) sombras.atualizar(mapa, objetos, pixelRes0(mapa)); luz.definirLigado(ligada); telhados.definirAtmosfera?.(ligada); atualizarComposicaoDeLuz(); neblina.definirLigado(ligada); fumaca.definirLigado(ligada); bordas.definirLigado(ligada); particulas.definirLigado(ligada); halos.definirLigado(ligada); atualizarLuzDasPecas(); },
     relampagoAgora: () => luz.relampagoAgora(),
-    definirModoProjetor: ligado => { modoDoProjetor = ligado; marcasVisiveis(); luzesC.visible = !ligado; regioesC.visible = !ligado; if (mapa) { sincronizarObjetos(mapa, null, false); tempo.atualizar(mapa, objetos); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } atualizarLuzDasPecas(); atualizarVisibilidadeDasPecas(0, true); },
+    definirModoProjetor: ligado => { modoDoProjetor = ligado; marcasVisiveis(); luzesC.visible = !ligado; regioesC.visible = !ligado; if (mapa) { sincronizarObjetos(mapa, null, false); tempo.atualizar(mapa, objetos); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } atualizarLuzDasPecas(); atualizarVisibilidadeDasPecas(0, true); atualizarVisibilidadeDosObjetos(0, true); },
     definirEfeitosDeLuz: (luzes, ambiente) => luz.definirEfeitos(luzes, ambiente),
-    definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); if (v !== vistaDaCena) { vistaDaCena = v; if (mapa) { desenharParedes(mapa); sincronizarObjetos(mapa, null, false); tempo.atualizar(mapa, objetos); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } } marcasVisiveis(); atualizarLuzDasPecas(); atualizarVisibilidadeDasPecas(0, true); },
+    definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); if (v !== vistaDaCena) { vistaDaCena = v; if (mapa) { desenharParedes(mapa); sincronizarObjetos(mapa, null, false); tempo.atualizar(mapa, objetos); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } } marcasVisiveis(); atualizarLuzDasPecas(); atualizarVisibilidadeDasPecas(0, true); atualizarVisibilidadeDosObjetos(0, true); },
     forcarTelhados: alfa => telhados.forcar(alfa),
     definirTelhadosNoEditor: v => telhados.definirNoEditor(v),
     diagnosticoDosTelhados: () => telhados.diagnostico(),
@@ -850,10 +880,44 @@ export function criarCena(op: OpcoesDaCena): Cena {
     objetosPintados: () => [...objetos.values()].filter(e => e.sprite !== null && !e.placeholder.visible).length,
     tintDeObjeto: id => objetos.get(id)?.c.tint ?? null,
     quadro(agora) {
-      luz.quadro(agora); nevoa.quadro(agora); telhados.quadro(agora);
-      for (const c of pecas.values()) visuais.get(c)?.quadro(agora, op.efeitos());
+      const posicoesDeTokens = new Map<string, Ponto>();
+      const tokensVivos = new Map<string, { position: Ponto; direction?: number }>();
+      for (const [id, c] of pecas) {
+        const v = visuais.get(c);
+        if (!v) continue;
+        v.quadro(agora, op.efeitos());
+        const pos: Ponto = [v.c.x, v.c.y];
+        posicoesDeTokens.set(id, pos);
+      }
+      luz.quadro(agora, posicoesDeTokens);
+      if (mapa) {
+        for (const [id, c] of pecas) {
+          const t = mapa.tokens[id];
+          const v = visuais.get(c);
+          if (!t?.player || !v) continue;
+          const pos: Ponto = [v.c.x, v.c.y];
+          const deslizando = v.estado().deslizando;
+          const luzToken = t.lightId ? mapa.lights[t.lightId] : undefined;
+          const visLuz = t.lightId ? luz.estadoVisual(t.lightId) : null;
+          const girandoLuz = Boolean(
+            luzToken?.cone && visLuz?.direction !== null && visLuz?.direction !== undefined &&
+            Math.abs(visLuz.direction - luzToken.cone.direction) > 1e-3,
+          );
+          if (deslizando || girandoLuz) {
+            tokensVivos.set(id, {
+              position: pos,
+              ...(visLuz?.direction !== null && visLuz?.direction !== undefined ? { direction: visLuz.direction } : {}),
+            });
+          }
+        }
+      }
+      nevoa.quadro(agora, tokensVivos.size > 0 ? tokensVivos : undefined);
+      telhados.quadro(agora);
       atualizarLuzDasPecas();
-      const dt = ultimoQuadro < 0 ? 0 : (agora - ultimoQuadro) / 1000; ultimoQuadro = agora; atualizarVisibilidadeDasPecas(dt, movimentoReduzido()); neblina.quadro(dt); fumaca.quadro(dt); bordas.quadro(dt); particulas.quadro(dt); presenca.quadro(dt); agua.quadro(dt); cachoeiras.quadro(dt); nadar(dt); halos.quadro(agora, dt);
+      const dt = ultimoQuadro < 0 ? 0 : (agora - ultimoQuadro) / 1000; ultimoQuadro = agora;
+      atualizarVisibilidadeDasPecas(dt, movimentoReduzido());
+      atualizarVisibilidadeDosObjetos(dt, movimentoReduzido());
+      neblina.quadro(dt); fumaca.quadro(dt); bordas.quadro(dt); particulas.quadro(dt); presenca.quadro(dt); agua.quadro(dt); cachoeiras.quadro(dt); nadar(dt); halos.quadro(agora, dt);
       let animouObjeto = false;
       for (let i = animacoes.length - 1; i >= 0; i--) {
         const a = animacoes[i]!, t = Math.min(1, (agora - a.t0) / a.dur), e = 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2;   // easeOutBack

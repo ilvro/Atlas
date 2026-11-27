@@ -53,16 +53,17 @@ export function oclusaoDeAmostras(h0: number, amostras: readonly AmostraAO[]): n
 
 /**
  * Espelho puro da penumbra periférica estilo Darkwood aplicada fora do cone de visão:
- * com `visivel = 1` preserva a cor exata; com `visivel = 0` dessatura em 82% com tom frio azulado e reduz o brilho para 52%.
+ * com `visivel = 1` preserva a cor exata; com `visivel = 0` dessatura em 82% com tom frio azulado e reduz o brilho para 58%.
  */
 export function aplicarPenumbraDarkwood(cor: readonly [number, number, number], visivel: number): [number, number, number] {
   const v = Math.min(1, Math.max(0, visivel));
   const [r, g, b] = cor;
+  if (v >= 1) return [r, g, b];
   const luma = 0.299 * r + 0.587 * g + 0.114 * b;
   const mix = (a: number, c: number, t: number) => a + (c - a) * t;
-  const sr = mix(r, luma * 0.76, 0.82) * 0.52;
-  const sg = mix(g, luma * 0.84, 0.82) * 0.52;
-  const sb = mix(b, luma * 0.96, 0.82) * 0.52;
+  const sr = mix(r, luma * 0.76, 0.82) * 0.58;
+  const sg = mix(g, luma * 0.84, 0.82) * 0.58;
+  const sb = mix(b, luma * 0.96, 0.82) * 0.58;
   return [mix(sr, r, v), mix(sg, g, v), mix(sb, b, v)];
 }
 
@@ -185,7 +186,7 @@ vec3 aplicarDarkwood(vec3 cor) {
   vec2 uvVis = clamp(vMundoPos / max(uDarkwoodBounds, vec2(0.001)), vec2(0.0), vec2(1.0));
   float vis = clamp(texture(uVisivel, uvVis).a, 0.0, 1.0);
   float luma = dot(cor, vec3(0.299, 0.587, 0.114));
-  vec3 sombrio = mix(cor, vec3(luma * 0.76, luma * 0.84, luma * 0.96), 0.82) * 0.52;
+  vec3 sombrio = mix(cor, vec3(luma * 0.76, luma * 0.84, luma * 0.96), 0.82) * 0.58;
   return mix(sombrio, cor, vis);
 }
 

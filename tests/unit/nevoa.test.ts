@@ -22,13 +22,14 @@ test('a peça vê o próprio cômodo e não o vizinho, com a parede entre os doi
   assert.ok(!ve(m, 9, 6) && !ve(m, 8, 2));
 });
 
-test('com a porta aberta a peça vê pela porta; fechada, trancada ou janela, não', () => {
+test('com porta aberta, arco ou janela a peça vê através da abertura; fechada ou trancada, não', () => {
   const m = dois({ state: 'open' }, [[4.5, 6]]);
   assert.ok(ve(m, 9, 6), 'em frente à porta aberta');
   assert.ok(!ve(m, 9, 1), 'mas não tudo do outro lado');
   assert.ok(!ve(dois({ state: 'closed' }, [[4.5, 6]]), 9, 6));
   assert.ok(!ve(dois({ state: 'locked' }, [[4.5, 6]]), 9, 6));
-  assert.ok(!ve(dois({ kind: 'window' }, [[4.5, 6]]), 9, 6), 'a janela deixa a luz, não a visão');
+  assert.ok(ve(dois({ kind: 'window' }, [[4.5, 6]]), 9, 6), 'a janela deixa ver o outro lado');
+  assert.ok(!ve(dois({ kind: 'window' }, [[4.5, 6]]), 9, 1), 'mas apenas pelo vão da janela');
   assert.ok(ve(dois({ kind: 'arch' }, [[4.5, 6]]), 9, 6), 'o arco deixa ver');
 });
 
@@ -85,7 +86,7 @@ test('peça do mestre não explora; "esquecer" zera; revelar faz o cômodo conta
   assert.throws(() => aplicarComando(m, { tipo: 'sessao.revelar', ids: ['nao-existe'] }), /não é um cômodo/);
 });
 
-import { comodosConhecidos, direcaoDeVisaoDaPeca, modoDeVisaoDaPeca, pontoVisivelAgora } from '../../src/domain/nevoa.ts';
+import { comodosConhecidos, direcaoDeVisaoDaPeca, modoDeVisaoDaPeca, objetoDinamicoDeVisao, pontoVisivelAgora } from '../../src/domain/nevoa.ts';
 import { novaLuz, novoObjeto } from '../../src/domain/fabrica.ts';
 
 test('revelar região do tipo "reveal" faz a área dela contar como explorado', () => {
@@ -117,7 +118,7 @@ test('um cômodo é conhecido se algum pedaço dele (ou o lado de fora das suas 
   assert.deepEqual([...comodosConhecidos(revelado)].sort(), ['aqui', 'la']);
 });
 
-test('modo cone (Darkwood): vê a 6 m à frente, não vê a 6 m atrás e vê a 1,2 m atrás dentro da bolha de proximidade', () => {
+test('modo darkwood mantém visão 360° por padrão e modo cone explícito ativa cone + bolha de proximidade', () => {
   let m = criarMapa();
   m = aplicarComando(m, { tipo: 'memoria.atualizar', patch: { mode: 'darkwood' } });
   m = aplicarComando(m, {
@@ -132,6 +133,10 @@ test('modo cone (Darkwood): vê a 6 m à frente, não vê a 6 m atrás e vê a 1
       vision: { radius: 12, dark: false },
     } as never,
   });
+  assert.equal(modoDeVisaoDaPeca(m, m.tokens.t0!), 'circle', 'darkwood não impõe cone estreito por padrão');
+  assert.ok(ve(m, 21, 15) && ve(m, 9, 15), 'visão 360° vê frente e trás dentro do raio');
+
+  m = aplicarComando(m, { tipo: 'item.atualizar', colecao: 'tokens', id: 't0', patch: { vision: { mode: 'cone' } } });
   assert.equal(modoDeVisaoDaPeca(m, m.tokens.t0!), 'cone');
   assert.equal(direcaoDeVisaoDaPeca(m, m.tokens.t0!), 0);
 
@@ -275,4 +280,26 @@ test('pontoVisivelAgora testa cone Darkwood, bolha de proximidade, margem e pare
   // Ponto logo fora da bolha (1,95 m atrás): com margem 0 é false, com margem 0,25 a borda entra na bolha -> true
   assert.equal(pontoVisivelAgora(m, [13.05, 15], 0), false);
   assert.equal(pontoVisivelAgora(m, [13.05, 15], 0.25), true);
+});
+
+test('objetoDinamicoDeVisao identifica documentos, pistas, notas e itens de mesa sem ocultar mobília fixa', () => {
+  const mesa = novoObjeto([4, 4], { source: { kind: 'recipe', recipe: 'mesa.redonda', seed: 1, params: {} }, elevation: 'floor' });
+  const estante = novoObjeto([4, 4], { source: { kind: 'recipe', recipe: 'estante', seed: 1, params: {} }, elevation: 'wall' });
+  const pista = novoObjeto([4, 4], {
+    source: { kind: 'recipe', recipe: 'mesa.redonda', seed: 1, params: {} },
+    interaction: { kind: 'clue', on: false, targets: [], sound: null, clue: null },
+  });
+  const nota = novoObjeto([4, 4], {
+    source: { kind: 'recipe', recipe: 'caixa', seed: 1, params: {} },
+    interaction: { kind: 'note', on: false, targets: [], sound: null, clue: null, note: 'segredo' },
+  });
+  const itemMesa = novoObjeto([4, 4], { source: { kind: 'recipe', recipe: 'livro.aberto', seed: 1, params: {} }, elevation: 'table' });
+  const papeisChao = novoObjeto([4, 4], { source: { kind: 'recipe', recipe: 'papeis', seed: 1, params: {} }, elevation: 'floor' });
+
+  assert.equal(objetoDinamicoDeVisao(mesa), false);
+  assert.equal(objetoDinamicoDeVisao(estante), false);
+  assert.equal(objetoDinamicoDeVisao(pista), true);
+  assert.equal(objetoDinamicoDeVisao(nota), true);
+  assert.equal(objetoDinamicoDeVisao(itemMesa), true);
+  assert.equal(objetoDinamicoDeVisao(papeisChao), true);
 });

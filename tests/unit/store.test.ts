@@ -148,6 +148,29 @@ test('gesto: o mapa muda a cada passo, mas o histórico recebe uma entrada só',
   s.desfazer(); assert.deepEqual(s.documento.tokens.muirenn!.position, [5.25, 6.75]);
 });
 
+test('peca.mover em arrasto evita trancos em micro-passos e aceita direção suavizada', () => {
+  const m = mapaCompleto();
+  const s = criarStore(m);
+  const g = s.iniciarGesto('Arrasto suave');
+  // Micro-passo vertical (< 8 cm) durante emArrasto não dá tranco na lanterna que apontava para a direita (0 rad)
+  g.aplicar({ tipo: 'peca.mover', id: 'muirenn', para: [5.25, 6.77], livre: true, semGrade: true, emArrasto: true });
+  assert.equal(s.documento.lights.lanterna!.cone!.direction, 0);
+  // Passo com direção suavizada explícita orienta lanterna e facing de acordo
+  g.aplicar({ tipo: 'peca.mover', id: 'muirenn', para: [5.27, 6.79], livre: true, semGrade: true, emArrasto: true, direcao: Math.PI / 2 });
+  assert.equal(s.documento.lights.lanterna!.cone!.direction, Math.PI / 2);
+  assert.equal(s.documento.tokens.muirenn!.facing, 'down');
+  g.concluir();
+});
+
+test('memoria.atualizar com sketch sincroniza mode quando mode é omitido', () => {
+  const m = criarMapa();
+  assert.equal(m.memory.mode, 'darkwood');
+  const esboco = aplicarComando(m, { tipo: 'memoria.atualizar', patch: { sketch: true } });
+  assert.equal(esboco.memory.mode, 'sketch');
+  const breu = aplicarComando(esboco, { tipo: 'memoria.atualizar', patch: { sketch: false } });
+  assert.equal(breu.memory.mode, 'shroud');
+});
+
 test('gesto cancelado volta ao mapa de antes; gesto sem efeito não vira entrada', () => {
   const s = criarStore(mapaCompleto()), antes = s.documento;
   const g = s.iniciarGesto('Mover');

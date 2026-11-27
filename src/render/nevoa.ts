@@ -1,6 +1,6 @@
 import { BlurFilter, Container, Graphics, RenderTexture, Sprite, Texture, type Renderer } from 'pixi.js';
 import { subtrair, unir } from '../domain/celulas.ts';
-import type { MapaAtlas, ModoDeMemoria } from '../domain/mapa.ts';
+import type { MapaAtlas, ModoDeMemoria, Ponto } from '../domain/mapa.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import { RES_NEVOA, celulasDosComodos, celulasDasRegioes, celulasDosPoligonos, celulasExploradas, poligonosDeVisao } from '../domain/nevoa.ts';
 import type { Mudancas } from '../state/mudancas.ts';
@@ -30,7 +30,7 @@ export interface Nevoa {
   /** Mestre vê tudo; jogador vê só o que as suas peças enxergam. */
   definirVista(v: Vista): void;
   vista(): Vista;
-  quadro(agora: number): void;
+  quadro(agora: number, posicoesVivas?: ReadonlyMap<string, { position: Ponto; direction?: number }>): void;
   destruir(): void;
 }
 
@@ -62,7 +62,7 @@ export function criarNevoa(renderer: Renderer): Nevoa {
   sprite.visible = false;
   const rts: (RenderTexture | null)[] = [], rt = (i: number) => rts[i]!;
   let largura = 0, altura = 0, resAtual = 0, pixel = false, pw = 0, ph = 0, mapa: MapaAtlas | null = null, vista: Vista = 'mestre', sujo = true, destruido = false;
-  let mudouEm = 0, animando = false, assentar = true, ultimo = -1, u = 7, d = 9;     // `u` e `d`: o índice da textura atual de cada média (a outra do par é o destino)
+  let mudouEm = 0, animando = false, assentar = true, ultimo = -1, u = 7, d = 9, vivasAtivas = false;     // `u` e `d`: o índice da textura atual de cada média (a outra do par é o destino)
 
   function dimensionar(m: MapaAtlas): void {
     const w = m.bounds.width, h = m.bounds.height, r0 = resDaMemoria(m);
@@ -108,11 +108,39 @@ export function criarNevoa(renderer: Renderer): Nevoa {
     }
     memEsboco.visible = esboco; memEscuro.visible = !esboco; memVis.visible = esboco;
     if (esboco) memEsboco.texture = memoria.textura!;
-    else if (darkwood) memEscuro.clear().rect(0, 0, pw, ph).fill({ color: 0x0b0f18, alpha: 0.42 });
+    else if (darkwood) memEscuro.clear().rect(0, 0, pw, ph).fill({ color: 0x080b12, alpha: pixel ? 0.72 : 0.42 });
     else memEscuro.clear().rect(0, 0, pw, ph).fill({ color: 0x000000, alpha: 0.65 });
     desenhar(memC, rt(5)); fimExp.visible = !esboco;
-    if (darkwood) fundoG.clear().rect(0, 0, pw, ph).fill({ color: 0x080b12, alpha: 0.68 });
-    else fundoG.clear().rect(0, 0, pw, ph).fill(hexParaNumero(m.backdrop.color));
+    fundoG.clear().rect(0, 0, pw, ph).fill(hexParaNumero(m.backdrop.color));
+  }
+
+  function renderizarVisivelVivo(posicoesVivas?: ReadonlyMap<string, { position: Ponto; direction?: number }>): void {
+    const m = mapa; if (!m || !rts.length) return;
+    let alvo = m;
+    if (posicoesVivas && posicoesVivas.size > 0) {
+      const tokens = { ...m.tokens };
+      let lights = m.lights;
+      let mudou = false;
+      for (const [id, vivo] of posicoesVivas) {
+        const t = tokens[id];
+        if (!t) continue;
+        tokens[id] = {
+          ...t,
+          position: vivo.position,
+          ...(vivo.direction !== undefined ? { vision: { ...t.vision, direction: vivo.direction } } : {}),
+        };
+        if (vivo.direction !== undefined && t.lightId && lights[t.lightId]?.cone) {
+          if (lights === m.lights) lights = { ...m.lights };
+          const luz = lights[t.lightId]!;
+          lights[t.lightId] = { ...luz, position: vivo.position, cone: { ...luz.cone!, direction: vivo.direction } };
+        }
+        mudou = true;
+      }
+      if (mudou) alvo = { ...m, tokens, lights };
+    }
+    const poligonos = poligonosDeVisao(alvo);
+    visG.clear(); for (const pts of poligonos) visG.poly(pts).fill(0xffffff);
+    desenhar(visRaiz, rt(0)); desenhar(visBorrada, rt(1));
   }
 
   /** `destino = origem + (visível − origem) · a`: um passo de média móvel, entre duas texturas do par. */
@@ -147,14 +175,25 @@ export function criarNevoa(renderer: Renderer): Nevoa {
     },
     definirVista(v) { if (v === vista) return; vista = v; sprite.visible = v === 'jogador'; sujo = true; assentar = true; },
     vista: () => vista,
-    quadro(agora) {
+    quadro(agora, posicoesVivas) {
       if (destruido || vista !== 'jogador') { ultimo = -1; return; }
       const dt = ultimo < 0 ? 0 : Math.min(0.1, (agora - ultimo) / 1000); ultimo = agora;
       if (memoria.quadro(agora)) sujo = true;
       if (sujo) { renderizarMascaras(); sujo = false; mudouEm = agora; animando = true; }
+      if (posicoesVivas && posicoesVivas.size > 0) {
+        renderizarVisivelVivo(posicoesVivas);
+        vivasAtivas = true;
+        mudouEm = agora;
+        animando = true;
+      } else if (vivasAtivas) {
+        renderizarVisivelVivo();
+        vivasAtivas = false;
+        mudouEm = agora;
+        animando = true;
+      }
       if (!animando) return;
       // Abrir o mapa, trocar de vista ou o movimento reduzido: o visível entra de uma vez. Senão caminha até ele e, passado um tempo, assenta.
-      const imediato = assentar || movimentoReduzido() || agora - mudouEm > ASSENTAR;
+      const imediato = assentar || movimentoReduzido() || (!vivasAtivas && agora - mudouEm > ASSENTAR);
       renderizarCobertura(dt, imediato);
       if (imediato) { animando = false; assentar = false; }
     },

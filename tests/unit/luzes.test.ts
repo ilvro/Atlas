@@ -12,7 +12,7 @@ import { RendererType } from 'pixi.js';
 import { ALTURA_DE_PAREDE } from '../../src/render/cena-de-altura.ts';
 import { EXPOSICAO_PADRAO } from '../../src/domain/mapa.ts';
 import { tonalizar } from '../../src/render/acabamento.ts';
-import { ALTURA_DA_LUZ, ESCALA_HDR, codificarLuz, decodificarLuz, formatoDaLuz, luzAfetadaPorTokens, nivelAtivoDe, poligonoDaLuz, sincronizarOclusao, toposIluminados } from '../../src/render/mapa-de-luz.ts';
+import { ALTURA_DA_LUZ, ESCALA_HDR, codificarLuz, decodificarLuz, deltaAnguloCurto, formatoDaLuz, interpolarAnguloCurto, luzAfetadaPorTokens, nivelAtivoDe, poligonoDaLuz, sincronizarOclusao, toposIluminados } from '../../src/render/mapa-de-luz.ts';
 import { PESO_AO_CURTO, PESO_AO_LONGO, EMISSAO_PADRAO, modoDeDepuracaoDaLuz, oclusaoDeAmostras, realceDoRelevo } from '../../src/render/composicao-de-luz.ts';
 import { LIMIAR_BLOOM, aces, limiarDoBloom } from '../../src/render/bloom.ts';
 import { TAMANHO_TEXTURA_DIRECAO, floatParaHalf, pixelDeDirecao, texturaDeDirecao } from '../../src/render/luzes.ts';
@@ -110,6 +110,16 @@ test('o topo de um objeto alto que a luz vê é iluminado; o escondido atrás de
   assert.equal(topos.length, 1, 'só o pilar que a luz vê');
   assert.ok(dentroPoligono(topos[0]!, 6, 5), 'o topo do pilar de perto entra na luz');
   assert.deepEqual(toposIluminados(luz, ctx, []), []);
+});
+
+test('interpolarAnguloCurto e deltaAnguloCurto giram pelo menor arco ao cruzar ±π', () => {
+  // De +170° para -170° deve andar +20° (passando por π), nunca -340°
+  const a0 = (170 * Math.PI) / 180;
+  const a1 = (-170 * Math.PI) / 180;
+  const d = deltaAnguloCurto(a0, a1);
+  assert.ok(Math.abs(d - (20 * Math.PI) / 180) < 1e-9, `delta curto esperado +20°, recebeu ${(d * 180) / Math.PI}`);
+  const meio = interpolarAnguloCurto(a0, a1, 0.5);
+  assert.ok(Math.abs(meio - Math.PI) < 1e-9, `ponto médio deve cruzar π, recebeu ${meio}`);
 });
 
 test('oclusão de objetos e tokens respeita recorte de andar vindo de mapaDoAndar', () => {

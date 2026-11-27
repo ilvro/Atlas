@@ -167,33 +167,30 @@ test('pecasDoJogador: marca só as peças de jogador ligadas às fichas informad
   assert.deepEqual([...pecasDoJogador(null, ['f1'])], []);
 });
 
-test('remota em modo darkwood mantém geometria estática exterior, mas sanitiza nomes, notas, regiões e NPCs fora do cone', () => {
+test('remota em modo darkwood recorta o nunca explorado, mantém o explorado exterior e sanitiza nomes, notas, regiões e NPCs fora da visão', () => {
   const m = mapaDeDois();
   m.memory = { ...m.memory, mode: 'darkwood' };
   m.props.oB = objeto('oB', 25, 18, {
     roomId: 'B',
     interaction: { kind: 'note', on: false, targets: [], sound: null, clue: null, note: 'NOTA-NO-COFRE', noteTitle: 'TITULO-NO-COFRE', toMapId: 'mapa-secreto', toTargetId: 'alvo-secreto' },
   });
-  m.props.oOculto = objeto('oOculto', 25, 19, { oculto: true });
-  m.tokens.npcFora = { ...novaPeca([25, 18]), id: 'npcFora', name: 'Monstro Oculto', player: false };
+  m.props.oOculto = objeto('oOculto', 4, 4, { oculto: true });
+  m.tokens.npcFora = { ...novaPeca([7, 7]), id: 'npcFora', name: 'Monstro Oculto', player: false };
+  m.tokens.hugo = { ...novaPeca([4, 4]), id: 'hugo', name: 'Hugo', player: true, vision: { radius: 3, dark: false, mode: 'cone', angle: 60 }, facing: 'right' };
 
   const p = projetarParaRemoto(m);
   validarMapa(p);
 
-  // Geometria estática do cômodo exterior/não explorado permanece para desenhar a penumbra Darkwood
-  assert.ok(p.rooms.B, 'cômodo B fica para renderizar arquitetura em penumbra');
-  assert.ok(p.walls.wB, 'paredes externas permanecem');
-  assert.ok(p.openings.pB, 'aberturas não-secretas permanecem');
-  assert.ok(p.props.oB, 'objetos não-ocultos permanecem');
-  assert.ok(p.lights.lB, 'luzes do cenário permanecem');
-  assert.equal(p.terrain.layers.chao!.cells.length, m.terrain.layers.chao!.cells.length, 'terreno não é recortado');
+  // Área explorada (A e entorno explorado) permanece, mas cômodo B nunca explorado é recortado
+  assert.ok(p.rooms.A, 'cômodo A explorado permanece');
+  assert.equal(p.rooms.B, undefined, 'cômodo B nunca explorado não vaza');
+  assert.ok(p.props.oA, 'mobília explorada permanece');
+  assert.equal(p.props.oB, undefined, 'objeto de cômodo não explorado não vaza');
 
   // Spoilers continuam removidos/neutralizados
-  assert.equal(p.rooms.B!.name, 'Cômodo');
-  assert.equal(p.rooms.B!.function, null);
   assert.equal(p.rooms.A!.name, 'Sala A', 'cômodo revelado mantém o nome');
   assert.equal(p.props.oOculto, undefined, 'objeto oculto continua removido');
-  assert.equal(p.tokens.npcFora, undefined, 'NPC fora do cone continua removido');
+  assert.equal(p.tokens.npcFora, undefined, 'NPC fora da visão ativa continua removido mesmo na área explorada');
   assert.deepEqual(p.regions, {});
   assert.equal(p.session.event, null);
   const json = JSON.stringify(p);

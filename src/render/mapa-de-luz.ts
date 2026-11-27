@@ -85,8 +85,10 @@ export interface MapaDeLuz {
   /** Alcance médio (m) das luzes ativas ponderado pela intensidade (padrão `6`). */
   readonly alcance: number;
   sincronizar(m: MapaAtlas, mudancas: Mudancas | null): void;
-  /** Tremulação das luzes; `agora` em milissegundos. */
-  quadro(agora: number): void;
+  /** Tremulação e acompanhamento suave das luzes; `agora` em milissegundos. */
+  quadro(agora: number, posicoesDeTokens?: ReadonlyMap<string, Ponto>): void;
+  /** Posição e direção visual interpoladas agora (para alinhar halos e raios com luzes em movimento). */
+  estadoVisual(id: string): { position: Ponto; direction: number | null } | null;
   definirLigado(ligado: boolean): void;
   /** Dispara um relâmpago agora (e o trovão, se o som estiver ligado). */
   relampagoAgora(): void;
@@ -129,6 +131,24 @@ interface LuzNaGPU {
   corG: number;
   corB: number;
   poligono: number[];
+  posVisual: Ponto;
+  dirVisual: number | null;
+  posGeo: Ponto;
+  dirGeo: number | null;
+}
+
+/** Menor diferença angular em radianos no intervalo `(-π, π]`. */
+export function deltaAnguloCurto(atual: number, alvo: number): number {
+  let d = (alvo - atual) % (Math.PI * 2);
+  if (d > Math.PI) d -= Math.PI * 2;
+  if (d <= -Math.PI) d += Math.PI * 2;
+  return d;
+}
+
+/** Interpola ângulos pelo menor arco com fator em `[0, 1]`. */
+export function interpolarAnguloCurto(atual: number, alvo: number, fator: number): number {
+  const f = Math.min(1, Math.max(0, fator));
+  return atual + deltaAnguloCurto(atual, alvo) * f;
 }
 
 const rgb01 = (hex: string): [number, number, number] => { const n = hexParaNumero(hex); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
@@ -428,6 +448,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
   let brutaExtRT: RenderTexture | null = null, luzExternaRT: RenderTexture | null = null;
   let largura = 0, altura = 0, resAtual = 0, pixel = false, pxPorMetro = 0, escalaAtiva = 1, ehFloatAtivo = false;
   let oclusao: ContextoDeOclusao | null = null, indiceComodos: Map<number, string> | null = null, derivadas: Luz[] = [], ambiente: [number, number, number] = [1, 1, 1];
+  const donoPorLuz = new Map<string, string>();
   let sujo = true, ligado = true, destruido = false, contador = 0, interiorPronto = false, interiorSujo = true;
   // O estado do momento (clima): o mapa atual, se é noite, a queda de energia, o relâmpago e os trovões a caminho.
   let mapa: MapaAtlas | null = null, noite = false, redeAnterior: boolean | null = null, queda = 0, volta = 0;
@@ -542,11 +563,48 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       cDir, meshDir, shaderDir, grupoDir, mDir,
       cExt, meshExt, mExt, externa: false,
       luz: l, raio: l.radius, chaveGeo: '', versaoGeo: -1, semente: ++contador * 13.7, alfa: -1, clarao: -1, corR: -1, corG: -1, corB: -1, poligono: [],
+      posVisual: [l.position[0], l.position[1]],
+      dirVisual: l.cone ? l.cone.direction : null,
+      posGeo: [Number.NaN, Number.NaN],
+      dirGeo: null,
     };
+  }
+
+  function atualizarGeometria(g: LuzNaGPU, l: Luz, pos: Ponto, dir: number | null): void {
+    if (!oclusao) return;
+    const coneEfetivo = l.cone ? { ...l.cone, direction: dir ?? l.cone.direction } : null;
+    const luzEfetiva: Luz = { ...l, position: pos, cone: coneEfetivo };
+    const pts = poligonoDaLuz(luzEfetiva, oclusao);
+    g.poligono = pts;
+    const topos = toposIluminados(luzEfetiva, oclusao, pts);
+    g.m.clear(); if (pts.length >= 6) g.m.poly(pts).fill(0xffffff);
+    g.mDir.clear(); if (pts.length >= 6) g.mDir.poly(pts).fill(0xffffff);
+    for (const t of topos) { g.m.poly(t).fill(0xffffff); g.mDir.poly(t).fill(0xffffff); }
+    g.mesh.position.set(pos[0], pos[1]);
+    g.mesh.scale.set(l.radius * 2);
+    g.meshDir.position.set(pos[0], pos[1]);
+    g.meshDir.scale.set(l.radius * 2);
+    g.meshExt.position.set(pos[0], pos[1]);
+    g.meshExt.scale.set(l.radius * 2);
+    if (coneEfetivo) {
+      desenharConeExterno(g.mExt, luzEfetiva);
+      g.mExt.visible = true;
+      g.meshExt.mask = g.mExt;
+    } else {
+      g.meshExt.mask = null;
+      g.mExt.clear();
+      g.mExt.visible = false;
+    }
+    g.raio = l.radius;
+    g.posGeo = [pos[0], pos[1]];
+    g.dirGeo = dir;
+    g.versaoGeo = oclusao.versaoEstatica;
   }
 
   function atualizar(g: LuzNaGPU, l: Luz): void {
     g.luz = l;
+    if (!l.cone) g.dirVisual = null;
+    else if (g.dirVisual === null) g.dirVisual = l.cone.direction;
     const externa = mapa ? ehLuzExterna(l, mapa, indiceComodos ?? undefined) : false;
     if (externa !== g.externa) {
       g.externa = externa;
@@ -554,31 +612,12 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       g.cExt.visible = visExt;
       g.meshExt.visible = visExt;
     }
-    const geo = JSON.stringify([l.position, l.radius, l.cone, l.ownerId]);
-    if (oclusao && (geo !== g.chaveGeo || g.versaoGeo !== oclusao.versaoEstatica)) {
-      g.chaveGeo = geo; g.versaoGeo = oclusao.versaoEstatica;
-      const pts = poligonoDaLuz(l, oclusao);
-      g.poligono = pts;
-      const topos = toposIluminados(l, oclusao, pts);
-      g.m.clear(); if (pts.length >= 6) g.m.poly(pts).fill(0xffffff);
-      g.mDir.clear(); if (pts.length >= 6) g.mDir.poly(pts).fill(0xffffff);
-      for (const t of topos) { g.m.poly(t).fill(0xffffff); g.mDir.poly(t).fill(0xffffff); }
-      g.mesh.position.set(l.position[0], l.position[1]);
-      g.mesh.scale.set(l.radius * 2);
-      g.meshDir.position.set(l.position[0], l.position[1]);
-      g.meshDir.scale.set(l.radius * 2);
-      g.meshExt.position.set(l.position[0], l.position[1]);
-      g.meshExt.scale.set(l.radius * 2);
-      if (l.cone) {
-        desenharConeExterno(g.mExt, l);
-        g.mExt.visible = true;
-        g.meshExt.mask = g.mExt;
-      } else {
-        g.meshExt.mask = null;
-        g.mExt.clear();
-        g.mExt.visible = false;
-      }
-      g.raio = l.radius;
+    const geo = JSON.stringify([l.radius, l.cone?.angle ?? null, l.ownerId]);
+    const mudouPos = Math.hypot(g.posVisual[0] - g.posGeo[0], g.posVisual[1] - g.posGeo[1]) > 1e-4;
+    const mudouDir = (g.dirVisual !== g.dirGeo) && (g.dirVisual === null || g.dirGeo === null || Math.abs(deltaAnguloCurto(g.dirGeo, g.dirVisual)) > 1e-4);
+    if (oclusao && (geo !== g.chaveGeo || g.versaoGeo !== oclusao.versaoEstatica || mudouPos || mudouDir)) {
+      g.chaveGeo = geo;
+      atualizarGeometria(g, l, g.posVisual, g.dirVisual);
     } else if (!pixel && g.raio !== l.radius) {
       g.raio = l.radius;
       g.mesh.scale.set(l.radius * 2);
@@ -752,6 +791,8 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
         ambiente = pixel ? [Math.min(1, r * a.intensity), Math.min(1, g * a.intensity), Math.min(1, b * a.intensity)] : [r * a.intensity, g * a.intensity, b * a.intensity];
       }
       todasLuzes = [...Object.values(m.lights), ...derivadas];
+      donoPorLuz.clear();
+      for (const tok of Object.values(m.tokens)) if (tok.lightId) donoPorLuz.set(tok.lightId, tok.id);
       const vivos = new Set<string>();
       for (const l of todasLuzes) { vivos.add(l.id); let g = luzes.get(l.id); if (!g) { g = criar(l); luzes.set(l.id, g); } atualizar(g, l); }
       for (const [id, g] of luzes) if (!vivos.has(id)) {
@@ -762,11 +803,12 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       }
       sujo = true;
     },
-    quadro(agora) {
+    quadro(agora, posicoesDeTokens) {
       if (destruido) return;
       const dt = ultimoQuadro < 0 ? 0 : Math.min(0.1, (agora - ultimoQuadro) / 1000); ultimoQuadro = agora;
       if (!ligado || !mapa) return;
       const t = agora / 1000, reduzido = movimentoReduzido();
+      const fatorAngulo = reduzido ? 1 : dt > 0 ? 1 - Math.exp(-dt / 0.055) : 1;
       if (queda > 0) { queda = Math.max(0, queda - dt); sujo = true; }
       if (volta > 0) { volta = Math.max(0, volta - dt); sujo = true; }
       if (forcaDoRaio > 0 && (proximoRaio -= dt) <= 0) { disparar(); proximoRaio = intervaloDoRelampago(forcaDoRaio, Math.random()); }
@@ -776,6 +818,25 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       if (clarao !== claraoAtual) { claraoAtual = clarao; sujo = true; }
       for (const g of luzes.values()) {
         const l = g.luz, daRede = l.power === 'grid';
+        const dono = donoPorLuz.get(l.id) ?? (l.ownerId && mapa.tokens[l.ownerId] ? l.ownerId : undefined);
+        const posViva = dono && posicoesDeTokens ? posicoesDeTokens.get(dono) : undefined;
+        const alvoPos = posViva ?? l.position;
+        g.posVisual = [alvoPos[0], alvoPos[1]];
+        if (l.cone) {
+          if (g.dirVisual === null || reduzido) g.dirVisual = l.cone.direction;
+          else {
+            g.dirVisual = interpolarAnguloCurto(g.dirVisual, l.cone.direction, fatorAngulo);
+            if (Math.abs(deltaAnguloCurto(g.dirVisual, l.cone.direction)) < 1e-4) g.dirVisual = l.cone.direction;
+          }
+        } else {
+          g.dirVisual = null;
+        }
+        const mudouPos = Math.hypot(g.posVisual[0] - g.posGeo[0], g.posVisual[1] - g.posGeo[1]) > 1e-4;
+        const mudouDir = (g.dirVisual !== g.dirGeo) && (g.dirVisual === null || g.dirGeo === null || Math.abs(deltaAnguloCurto(g.dirGeo, g.dirVisual)) > 1e-4);
+        if (oclusao && (mudouPos || mudouDir || g.versaoGeo !== oclusao.versaoEstatica)) {
+          atualizarGeometria(g, l, g.posVisual, g.dirVisual);
+          sujo = true;
+        }
         // Durante o piscar da queda a rede ainda "existe": a luz tremula e só depois apaga (quando o documento já diz que a rede caiu).
         const nivel = nivelDaLuz(l, mapa, queda > 0 ? { redeLigada: true, noite } : { noite });
         const piscar = !daRede ? 1 : queda > 0 ? piscarDaQueda(queda) : volta > 0 ? piscarDaVolta(volta) : 1;
@@ -806,13 +867,18 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
     intensidade: (id: string) => { const g = luzes.get(id); return g ? Math.max(0, g.alfa) : 0; },
     poligono: (id: string) => { const g = luzes.get(id); return g?.poligono && g.poligono.length >= 6 ? g.poligono : null; },
     todasAsLuzes: () => todasLuzes,
+    estadoVisual(id: string) {
+      const g = luzes.get(id);
+      if (!g) return null;
+      return { position: [g.posVisual[0], g.posVisual[1]], direction: g.dirVisual };
+    },
     amostrarPonto(ponto: Ponto): [number, number, number] {
       if (!ligado || !mapa) return [1, 1, 1];
       const lista: { luz: Luz; intensidade: number; poligono: readonly number[] | null }[] = [];
       for (const g of luzes.values()) {
         if (g.alfa > 0.01) {
           lista.push({
-            luz: g.luz,
+            luz: { ...g.luz, position: g.posVisual },
             intensidade: g.alfa,
             poligono: g.poligono.length >= 6 ? g.poligono : null,
           });

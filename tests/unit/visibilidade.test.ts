@@ -36,11 +36,12 @@ test('porta fechada bloqueia, aberta deixa passar; porta secreta idem; arco semp
   porta.kind = 'arch'; porta.state = 'closed'; assert.ok(dentro(fechado(), 7.5, 4.5), 'um arco nunca fecha');
 });
 
-test('janela deixa passar a luz, mas não a visão', () => {
+test('janela deixa passar a luz e a visão, mas bloqueia movimento', () => {
   const m = mapaCom(sala('a', retangulo(2, 2, 4, 4)), sala('b', retangulo(4, 2, 6, 4)));
   abertura(m, paredeEntre(m, 6).id, { kind: 'window', width: 1.2 });
   assert.ok(dentro(poligonoIluminado([4.5, 4.5], oclusores(m, 'luz'), 12, null), 7.5, 4.5));
-  assert.ok(!dentro(poligonoIluminado([4.5, 4.5], oclusores(m, 'visao'), 12, null), 7.5, 4.5));
+  assert.ok(dentro(poligonoIluminado([4.5, 4.5], oclusores(m, 'visao'), 12, null), 7.5, 4.5));
+  assert.ok(oclusores(m, 'movimento').some(s => s.a[0] === 6 && s.b[0] === 6));
 });
 
 test('o vão recorta a parede em dois pedaços, também numa parede dobrada', () => {

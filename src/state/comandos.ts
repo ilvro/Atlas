@@ -65,7 +65,7 @@ export type Comando =
   | { tipo: 'proposta.aceitar'; rotulo: string; comandos: Comando[] }
   | { tipo: 'selecao.mover'; alvos: AlvoMovel[]; delta: Ponto }
   /** Anda com uma peça: encaixa no centro da célula (a menos que `semGrade`) e recusa atravessar parede ou porta fechada (a menos que `livre`). `emArrasto` pula a atualização da memória explorada nos quadros intermediários. */
-  | { tipo: 'peca.mover'; id: string; para: Ponto; livre?: boolean; semGrade?: boolean; emArrasto?: boolean }
+  | { tipo: 'peca.mover'; id: string; para: Ponto; livre?: boolean; semGrade?: boolean; emArrasto?: boolean; direcao?: number }
   /** Gira o cone da lanterna da peça para `direcao` (rad), sem mover a peça. */
   | { tipo: 'peca.virar'; id: string; direcao: number }
   /** Transfere uma peça para outro andar (por uma escada) e, opcionalmente, para uma nova posição. */
@@ -183,7 +183,13 @@ function aplicar(m: MapaAtlas, c: Comando): void {
     }
     case 'acabamento.atualizar': mesclar(m.finish, c.patch); break;
     case 'fundo.atualizar': mesclar(m.backdrop, c.patch); break;
-    case 'memoria.atualizar': mesclar(m.memory, c.patch); break;
+    case 'memoria.atualizar': {
+      mesclar(m.memory, c.patch);
+      if (c.patch.mode === undefined && typeof c.patch.sketch === 'boolean') {
+        m.memory.mode = c.patch.sketch ? 'sketch' : 'shroud';
+      }
+      break;
+    }
     case 'item.adicionar': {
       if (!(COLECOES_LIVRES as readonly string[]).includes(c.colecao)) nao(`“${c.colecao}” não aceita itens genéricos.`);
       const colecao = m[c.colecao] as Record<string, unknown>;
@@ -233,16 +239,22 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       // O que a peça de jogador via de onde estava também fica explorado (antes de ela sair do lugar).
       const res = antesNivel.session.explored?.res ?? RES_NEVOA;
       const viam = t.player && !c.emArrasto ? celulasVisiveis(antesNivel, res) : [];
-      const anguloMov = anguloDoMovimento(de, destino);
-      t.position = destino; t.facing = ladoDoMovimento(de, destino);
+      const anguloMov = typeof c.direcao === 'number' && Number.isFinite(c.direcao) ? c.direcao : anguloDoMovimento(de, destino);
+      const atualizarDirecao = !c.emArrasto || typeof c.direcao === 'number' || Math.hypot(destino[0] - de[0], destino[1] - de[1]) >= 0.08;
+      t.position = destino;
+      if (atualizarDirecao) {
+        t.facing = typeof c.direcao === 'number' && Number.isFinite(c.direcao)
+          ? ladoDoMovimento([0, 0], [Math.cos(c.direcao), Math.sin(c.direcao)])
+          : ladoDoMovimento(de, destino);
+      }
       // A lanterna vai junto e aponta para onde a peça andou.
       const luz = t.lightId ? m.lights[t.lightId] : undefined;
       if (luz) {
         luz.position = [destino[0], destino[1]];
-        if (luz.cone) luz.cone.direction = anguloMov;
+        if (luz.cone && atualizarDirecao) luz.cone.direction = anguloMov;
         if (nivel !== null) luz.levelId = nivel; else delete luz.levelId;
       }
-      if (t.vision.direction !== undefined && !luz?.cone) {
+      if (t.vision.direction !== undefined && !luz?.cone && atualizarDirecao) {
         t.vision.direction = anguloMov;
       }
       if (t.player && !c.emArrasto) {
