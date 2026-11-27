@@ -80,3 +80,4 @@ Commit: mensagem curta em inglês
 | [teleporte-entre-mapas.md](teleporte-entre-mapas.md) | T — vínculo de portas e escadas com teleporte entre mapas/sub-mapas da campanha (`T1`–`T4`, planejada) |
 | [visao-darkwood-e-luz-de-pecas.md](visao-darkwood-e-luz-de-pecas.md) | W — sombreamento de tokens na escuridão, ativação de lanterna/lamparina da ficha no Atlas e rework de visão estilo Darkwood (`W1`–`W6`, planejada) |
 | [quadro-webgl.md](quadro-webgl.md) | QW — pan com botão direito, curvas editáveis/espessura de setas e migração do quadro da Mesa para PixiJS 8 (`QW1`–`QW10`, planejada) |
+| [mesa-tutoriais.md](mesa-tutoriais.md) | MT — aba Aprender na Mesa: motor do tutor, campanha de treino e lições do Quadro, Modo Sessão, cena e mesa online (`MT1`–`MT5`, planejada) |
