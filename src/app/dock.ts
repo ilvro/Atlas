@@ -6,7 +6,6 @@ import { tocar } from '../fx/som.ts';
 // Embutido na Mesa o espaço é curto: o dock começa com as seções recolhidas, para não cobrir o mapa.
 export const secoesAbertasNoDock = signal<Record<string, boolean>>({
   clima: !embutido,
-  cena: !embutido,
   presenca: false,
   momentos: false,
   iniciativa: false,

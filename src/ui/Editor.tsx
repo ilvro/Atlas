@@ -1,5 +1,6 @@
 import { recursosDaPeca } from '../app/fichas.ts';
 import { iniciarPonteDeIniciativa } from '../app/ponte-iniciativa.ts';
+import { emConstrucaoRemota } from '../app/construcao-remota.ts';
 import { TIPO_ARRASTE, soltarPersonagem } from './Personagens.tsx';
 import { Inspecao } from './Inspecao.tsx';
 import { TIPO_ARRASTE_PISTA, soltarPista } from './Pistas.tsx';
@@ -23,7 +24,7 @@ import { Biblioteca } from './Biblioteca.tsx';
 import { CartaoContextual } from './CartaoContextual.tsx';
 import { Icone } from './Icone.tsx';
 import { Dock } from './Dock.tsx';
-import { aspectoDoProjetor, caixaDoProjetor, mostrarQuadroDoProjetor, projetorConectado, seguirJogadores } from '../app/projetor.ts';
+import { aspectoDoProjetor, caixaDoProjetor, mostrarQuadroDoProjetor, projetorConectado, projetorRemotoConectado, seguirJogadores } from '../app/projetor.ts';
 import { Inspetor } from './Inspetor.tsx';
 import { PilulaDeSugestao } from './PilulaDeSugestao.tsx';
 import { BarraInferior } from './BarraInferior.tsx';
@@ -70,7 +71,7 @@ function ponteDa(s: SessaoDeEdicao): PonteViewport {
     vista: vistaAtual,
     regraDaRegua: () => regraDaRegua.peek(),
     duracaoDaTransicao: () => duracaoDoClima.peek(),
-    caixaDoProjetor: () => (mostrarQuadroDoProjetor.peek() && projetorConectado.peek() ? caixaDoProjetor.peek() : null),
+    caixaDoProjetor: () => (mostrarQuadroDoProjetor.peek() && (projetorConectado.peek() || projetorRemotoConectado.peek()) ? caixaDoProjetor.peek() : null),
     aspectoDoProjetor: () => aspectoDoProjetor.peek(),
     aoMudarCaixaDoProjetor: c => { seguirJogadores.value = false; caixaDoProjetor.value = c; },
     aoInteragir: alvo => { if (alvo.colecao === 'openings') alternarPorta(alvo.id); else if (alvo.colecao === 'props') usarObjeto(alvo.id); },
@@ -95,7 +96,7 @@ function AreaDoMapa({ s }: { s: SessaoDeEdicao }) {
     return () => { morto = true; vp?.destruir(); if (viewportAtual.atual === vp) viewportAtual.atual = null; };
   }, [s]);
   // A seleção, a ferramenta e o pincel vivem em signals; o viewport só precisa saber que deve redesenhar as sobreposições.
-  useSignalEffect(() => { s.selecao.value; s.ferramenta.value; s.pincel.value; s.andarAtivo.value; modo.value; movimentoLivre.value; acabamentoLigado.value; telhadosNoEditor.value; vistaAtual(); regraDaRegua.value; caixaDoProjetor.value; projetorConectado.value; mostrarQuadroDoProjetor.value; alinhandoGrade.value; mostrarRelevo.value; viewportAtual.atual?.atualizarSobreposicoes(); });
+  useSignalEffect(() => { s.selecao.value; s.ferramenta.value; s.pincel.value; s.andarAtivo.value; modo.value; movimentoLivre.value; acabamentoLigado.value; telhadosNoEditor.value; vistaAtual(); regraDaRegua.value; caixaDoProjetor.value; projetorConectado.value; projetorRemotoConectado.value; mostrarQuadroDoProjetor.value; alinhandoGrade.value; mostrarRelevo.value; viewportAtual.atual?.atualizarSobreposicoes(); });
   useSignalEffect(() => { const d = duracaoDoClima.value; if (d) viewportAtual.atual?.definirDuracaoDaTransicao(d); });
   useSignalEffect(() => { tema.value; requestAnimationFrame(() => viewportAtual.atual?.redesenhar()); });
   useEffect(() => {
@@ -175,6 +176,7 @@ function ModalNotaDeObjeto() {
 
 export function Editor() {
   useEffect(() => {
+    if (emConstrucaoRemota.peek()) return;
     const parar = iniciarPonteDeIniciativa();
     return () => parar();
   }, []);

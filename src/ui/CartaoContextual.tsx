@@ -3,6 +3,7 @@ import { signal } from '@preact/signals';
 import { acaoDoInterativo } from '../domain/interagiveis.ts';
 import { alternarLuzes, alternarPorta, usarObjeto, desfazer, revelarPorta, trancarPorta, duplicarSelecao, removerSelecao, viewport, servicos } from '../app/app.ts';
 import { modo } from '../app/modo.ts';
+import { fichaProjetadaId, projetarFicha } from '../app/projetor.ts';
 import { abrirFicha, ajustarRecursos, ajustarRecursosDaPeca, recursosDaPeca, recursosDasFichas } from '../app/fichas.ts';
 import { previaDaFichaAberta } from './PreviaDaFicha.tsx';
 import { emEstadoCritico, fracao, interpretarAjusteDeRecurso, luzesDisponiveisParaPeca, refDaFicha, temPd, textoDeRecursos, type Recursos } from '../domain/fichas.ts';
@@ -333,6 +334,24 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
             ▸ Ficha
           </button>
           <button type="button" class="cartao-texto" data-testid="cartao-abrir-ficha" onClick={() => void abrirFicha(servicos.peek()?.barramento, ref)}>Abrir ficha</button>
+          {token.player && (() => {
+            const jaProjetada = fichaProjetadaId.value === ref.id;
+            return (
+              <button
+                type="button"
+                class={`cartao-texto cartao-projetar-btn ${jaProjetada ? 'ativa' : ''}`}
+                data-testid="cartao-projetar-ficha"
+                aria-pressed={jaProjetada}
+                title={jaProjetada ? 'Parar projeção da ficha na tela dos jogadores' : 'Projetar ficha em tela cheia na Activity'}
+                onClick={() => {
+                  projetarFicha(jaProjetada ? null : ref.id);
+                  tocar('pop');
+                }}
+              >
+                {jaProjetada ? 'Parar projeção' : 'Projetar Ficha'}
+              </button>
+            );
+          })()}
         </>
       )}
       {prox && <BotoesDeTransicaoDeMapa transicao={prox.transicao} temJogadores={temJogadores} pecaId={token.id} />}

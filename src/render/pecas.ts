@@ -20,7 +20,7 @@ export interface PecaVisual {
   estado(): { vez: boolean; retrato: boolean; deitada: boolean; raio: number; deslizando: boolean; trilha: number; /** O quadro do sprite agora (linha: baixo, esquerda, direita, cima), ou `null` sem sprite. */ quadro: { linha: number; coluna: number } | null; /** Os PV e PD que os pips mostram, ou `null`. */ pips: Recursos | null; /** O estado de aparência desta peça agora (pode ser "ferido" só na tela, por PV baixo). */ estadoVisto: string; tokenStyle?: string; portraitScale?: number };
 }
 
-const MS_POR_CELULA = 160, MS_MAXIMO = 600, MS_DA_TRILHA = 2000, MS_GESTO_REMOTO = 65;
+const MS_POR_CELULA = 160, MS_MAXIMO = 600, MS_DA_TRILHA = 2000, MS_GESTO_REMOTO = 24;
 const [QW, QH] = [16, 24], LINHA_DO_LADO = { down: 0, left: 1, right: 2, up: 3 } as const;
 /** O quadro parado alterna a 2 Hz; andando, 4 quadros a 8 Hz. */
 const MS_PARADO = 500, MS_ANDANDO = 125;

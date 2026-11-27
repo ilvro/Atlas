@@ -310,7 +310,8 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
   outline: none;
 }
 
-.cartao-espiar-btn.ativo {
+.cartao-espiar-btn.ativo,
+.cartao-texto.ativa {
   background: var(--acento-suave);
   color: var(--acento);
   border-color: var(--acento);
@@ -607,7 +608,7 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
 .dock-barra {
   position: absolute;
   left: 50%;
-  bottom: 58px;
+  bottom: 54px;
   transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
@@ -627,7 +628,7 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
 .barra-inferior-container {
   position: absolute;
   left: 50%;
-  bottom: 12px;
+  bottom: 10px;
   transform: translateX(-50%);
   z-index: 26;
   pointer-events: none;
@@ -853,7 +854,7 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
 .barra-efeitos-container {
   position: absolute;
   left: 50%;
-  bottom: 104px;
+  bottom: 94px;
   transform: translateX(-50%);
   z-index: 24;
   pointer-events: auto;
@@ -865,7 +866,7 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
 }
 
 .barra-efeitos-container.recolhida {
-  bottom: 102px;
+  bottom: 92px;
 }
 
 .barra-efeitos-handle-recolhida {
@@ -1691,10 +1692,18 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
 }
 
 .dock-painel-clima { width: 380px; }
-.dock-painel-cena { width: 280px; }
 .dock-painel-presenca { min-width: 280px; }
 .dock-painel-iniciativa { min-width: 320px; max-width: 440px; }
-.dock-painel-projetor { width: 280px; }
+.dock-painel-projetor { width: 344px; }
+.dock-projetor-secoes { display: flex; flex-direction: column; gap: 8px; }
+.dock-projetor-bloco { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--linha); }
+.dock-projetor-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dock-projetor-status { font: 700 10.5px var(--corpo); padding: 2px 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.07); color: var(--apagado); white-space: nowrap; }
+.dock-projetor-status.ativo { background: var(--acento-suave); color: var(--acento); }
+.dock-segmentado { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 3px; border-radius: 7px; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--linha); }
+.dock-segmentado-btn { padding: 6px 8px; border-radius: 5px; border: 1px solid transparent; background: transparent; color: var(--apagado); font: 700 11px var(--corpo); letter-spacing: 0.03em; text-align: center; white-space: nowrap; cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s; }
+.dock-segmentado-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.05); }
+.dock-segmentado-btn.ativa { background: var(--acento-suave); border-color: var(--acento); color: #fff; }
 .dock-painel-personagens { width: 310px; }
 .dock-painel-pistas { width: 340px; }
 .dock-painel-momentos { width: 340px; }
@@ -1875,7 +1884,8 @@ body.projetor { overflow: hidden; background: #000; }
 .projetor-tela-cheia { position: absolute; right: 18px; top: 18px; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: rgba(12, 12, 18, 0.85); border: 1px solid var(--linha); color: #fff; transition: opacity 0.4s; }
 .projetor-tela-cheia.oculto { opacity: 0; pointer-events: none; }
 .projetor-seguir { position: absolute; right: 70px; top: 18px; height: 40px; padding: 0 16px; border-radius: 20px; background: rgba(12, 12, 18, 0.85); border: 1px solid var(--linha); color: #fff; font: 700 13px var(--corpo); transition: opacity 0.4s; }
-.projetor-seguir.remoto { right: 16px; top: auto; bottom: 16px; background: var(--painel, rgba(12, 12, 18, 0.85)); color: var(--texto, #fff); height: 34px; padding: 0 14px; font-size: 12px; }
+.projetor-seguir.remoto { right: 16px; top: auto; bottom: 16px; background: rgba(12, 12, 18, 0.56); backdrop-filter: blur(8px); color: var(--texto, #fff); height: 34px; padding: 0 14px; font-size: 12px; opacity: 0.55; transition: opacity 0.2s, background 0.2s, border-color 0.2s; }
+.projetor-seguir.remoto:hover, .projetor-seguir.remoto:focus-visible { opacity: 1; background: var(--painel, rgba(12, 12, 18, 0.88)); border-color: var(--acento); }
 .projetor-seguir.oculto { opacity: 0; pointer-events: none; }
 .projetor-aviso-remoto { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); padding: 8px 16px; border-radius: 999px; background: rgba(180, 35, 35, 0.92); color: #fff; font: 600 13px var(--corpo); pointer-events: none; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); z-index: 20; }
 

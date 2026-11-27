@@ -87,7 +87,8 @@ test('ferramentas visíveis mudam conforme o modo', () => {
   modo.value = 'construir';
 });
 
-test('controle de abertura e alternância de seções no Dock', () => {
+test('controle de abertura e alternância de seções no Dock (sem seção duplicada Cena)', () => {
+  assert.equal('cena' in secoesAbertasNoDock.value, false);
   secoesAbertasNoDock.value = { ...secoesAbertasNoDock.value, projetor: false };
   assert.equal(secoesAbertasNoDock.value.projetor, false);
 

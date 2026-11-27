@@ -1,12 +1,11 @@
 import { signal } from '@preact/signals';
 import { useRef } from 'preact/hooks';
-import { abrirProjetor, aplicarClima, dispararEventoDeCena, obterSessaoParaProjetor, servicos } from '../app/app.ts';
-import { caixaDoProjetor, mostrarQuadroDoProjetor, projetorConectado, projetorRemotoConectado, seguirJogadores } from '../app/projetor.ts';
+import { abrirProjetor, aplicarClima, obterSessaoParaProjetor, servicos } from '../app/app.ts';
+import { caixaDoProjetor, forcarCameraRemota, mostrarQuadroDoProjetor, projetorConectado, projetorRemotoConectado, seguirJogadores } from '../app/projetor.ts';
 import { acaoPorId, executarAcao } from '../app/acoes.ts';
 import { controleJogadores, definirControleJogadores, definirDuracaoDoClima, duracaoDoClima } from '../app/modo.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { PRESETS_DE_CLIMA } from '../domain/presets.ts';
-import { EVENTOS_DE_CENA, ROTULO_DO_EVENTO } from '../render/eventos-de-cena.ts';
 import { tocar } from '../fx/som.ts';
 import { tentar } from './campos.tsx';
 import { FaixaDeIniciativa } from './FaixaDeIniciativa.tsx';
@@ -73,8 +72,6 @@ function posicaoPadrao(id: string): { x: number; y: number } {
   switch (id) {
     case 'clima':
       return { x: Math.max(16, Math.round((largura - 680) / 2)), y: Math.max(16, altura - 230) };
-    case 'cena':
-      return { x: Math.max(16, Math.round((largura - 680) / 2) + 380), y: Math.max(16, altura - 150) };
     case 'presenca':
       return { x: 20, y: Math.max(16, altura - 250) };
     case 'iniciativa':
@@ -175,14 +172,6 @@ function SecaoDeClima({ s }: { s: SessaoDeEdicao }) {
   </>);
 }
 
-function SecaoDeCena() {
-  return (
-    <div class="dock-linha">
-      {EVENTOS_DE_CENA.map(e => <button type="button" key={e} class="dock-pilula" data-testid={`dock-evento-${e}`} onClick={() => dispararEventoDeCena(e)}>{ROTULO_DO_EVENTO[e]}</button>)}
-    </div>
-  );
-}
-
 /** Um controle de intensidade: arrastar é UM gesto (uma entrada de histórico), e a presença cresce ou recolhe ao vivo enquanto se arrasta. */
 function ControleDePresenca({ s, id }: { s: SessaoDeEdicao; id: string }) {
   const p = s.doc.value.presence[id]; const gesto = useRef<ReturnType<SessaoDeEdicao['store']['iniciarGesto']> | null>(null);
@@ -239,55 +228,80 @@ function SecaoDoProjetor({ s }: { s: SessaoDeEdicao }) {
   const remoto = projetorRemotoConectado.value;
   const sessaoProjetor = obterSessaoParaProjetor() ?? s;
   const estadoTexto = conectado && remoto
-    ? 'Local + Activity'
-    : conectado
-      ? 'Conectado'
-      : remoto
-        ? 'Activity conectada'
+    ? 'Local + Activity do Discord'
+    : remoto
+      ? 'Activity do Discord conectada'
+      : conectado
+        ? 'Projetor local conectado'
         : 'Nenhum projetor aberto';
-  return (<>
-    <div class="dock-linha">
-      <button type="button" class="dock-pilula destaque" data-testid="dock-projetor-abrir" onClick={abrirProjetor}>Abrir o projetor</button>
-      <span class="dock-rotulo" data-testid="dock-projetor-estado">{estadoTexto}</span>
+  const quadroVisivel = (conectado || remoto) && caixaDoProjetor.value && mostrarQuadroDoProjetor.value;
+
+  return (
+    <div class="dock-projetor-secoes">
+      <div class="dock-projetor-bloco">
+        <div class="dock-projetor-topo">
+          <span class="dock-rotulo">Conexão</span>
+          <span class={`dock-projetor-status ${conectado || remoto ? 'ativo' : ''}`} data-testid="dock-projetor-estado">{estadoTexto}</span>
+        </div>
+        <div class="dock-linha">
+          <button type="button" class="dock-pilula destaque" data-testid="dock-projetor-abrir" onClick={abrirProjetor}>Abrir projetor local</button>
+          <span class="dock-dica">Para TV ou monitor presencial.</span>
+        </div>
+      </div>
+
+      <div class="dock-projetor-bloco">
+        <span class="dock-rotulo">Controle da Activity</span>
+        <div class="dock-segmentado" role="group" aria-label="Controle da Activity">
+          {([['livres', 'Jogadores livres'], ['mestre', 'Controle do mestre']] as const).map(([modoVal, rotulo]) => {
+            const ativo = controleJogadores.value === modoVal;
+            return (
+              <button
+                type="button"
+                key={modoVal}
+                class={`dock-segmentado-btn ${ativo ? 'ativa' : ''}`}
+                aria-pressed={ativo}
+                data-testid={`dock-projetor-controle-${modoVal}`}
+                onClick={() => {
+                  definirControleJogadores(modoVal);
+                  if (modoVal === 'mestre') forcarCameraRemota();
+                }}
+              >
+                {rotulo}
+              </button>
+            );
+          })}
+        </div>
+        <p class="dock-dica">
+          {controleJogadores.value === 'livres'
+            ? 'Jogadores movem a câmera e o próprio token livremente.'
+            : 'Câmera travada na sua visão; jogadores não movem tokens.'}
+        </p>
+      </div>
+
+      <div class="dock-projetor-bloco">
+        <span class="dock-rotulo">Câmera dos jogadores</span>
+        <div class="dock-linha">
+          <button type="button" class={`dock-pilula ${seguirJogadores.value ? 'ativa' : ''}`} aria-pressed={seguirJogadores.value} data-testid="dock-projetor-seguir" onClick={() => { seguirJogadores.value = !seguirJogadores.value; }}>Seguir os jogadores</button>
+          <SeletorDeJogadorSeguido s={sessaoProjetor} testid="dock-projetor-jogador" />
+        </div>
+        <div class="dock-linha">
+          <button type="button" class={`dock-pilula ${mostrarQuadroDoProjetor.value ? 'ativa' : ''}`} aria-pressed={mostrarQuadroDoProjetor.value} data-testid="dock-projetor-quadro" onClick={() => { mostrarQuadroDoProjetor.value = !mostrarQuadroDoProjetor.value; }}>Mostrar o quadro</button>
+        </div>
+        {quadroVisivel && <p class="dock-dica">Arraste a borda ou os cantos do quadro azul no mapa.</p>}
+      </div>
+
+      <div class="dock-projetor-bloco">
+        <span class="dock-rotulo">Exibição</span>
+        <div class="dock-linha">
+          <button type="button" class={`dock-pilula ${mostrarPvNoProjetor.value ? 'ativa' : ''}`} aria-pressed={mostrarPvNoProjetor.value} data-testid="dock-projetor-pv" title="Mostrar PV e PD das peças aos jogadores" onClick={() => definirMostrarPvNoProjetor(!mostrarPvNoProjetor.value)}>Mostrar PV no projetor</button>
+        </div>
+      </div>
     </div>
-    <div class="dock-linha">
-      <button type="button" class={`dock-pilula ${seguirJogadores.value ? 'ativa' : ''}`} aria-pressed={seguirJogadores.value} data-testid="dock-projetor-seguir" onClick={() => { seguirJogadores.value = !seguirJogadores.value; }}>Seguir os jogadores</button>
-      <SeletorDeJogadorSeguido s={sessaoProjetor} testid="dock-projetor-jogador" />
-    </div>
-    <div class="dock-linha" role="group" aria-label="Activity">
-      <span class="dock-rotulo">Activity</span>
-      {([['livres', 'Jogadores livres'], ['mestre', 'Controle do mestre']] as const).map(([modoVal, rotulo]) => {
-        const ativo = controleJogadores.value === modoVal;
-        return (
-          <button
-            type="button"
-            key={modoVal}
-            class={`dock-pilula ${ativo ? 'ativa' : ''}`}
-            aria-pressed={ativo}
-            data-testid={`dock-projetor-controle-${modoVal}`}
-            title={modoVal === 'livres'
-              ? 'Em “Jogadores livres”, eles movem os próprios personagens e a câmera.'
-              : 'Em “Controle do mestre”, só você move e controla a câmera da activity.'}
-            onClick={() => definirControleJogadores(modoVal)}
-          >
-            {rotulo}
-          </button>
-        );
-      })}
-    </div>
-    <div class="dock-linha">
-      <button type="button" class={`dock-pilula ${mostrarQuadroDoProjetor.value ? 'ativa' : ''}`} aria-pressed={mostrarQuadroDoProjetor.value} data-testid="dock-projetor-quadro" onClick={() => { mostrarQuadroDoProjetor.value = !mostrarQuadroDoProjetor.value; }}>Mostrar o quadro</button>
-    </div>
-    <div class="dock-linha">
-      <button type="button" class={`dock-pilula ${mostrarPvNoProjetor.value ? 'ativa' : ''}`} aria-pressed={mostrarPvNoProjetor.value} data-testid="dock-projetor-pv" title="Mostrar PV e PD das peças aos jogadores" onClick={() => definirMostrarPvNoProjetor(!mostrarPvNoProjetor.value)}>Mostrar PV no projetor</button>
-    </div>
-    {conectado && caixaDoProjetor.value && <p class="dock-dica">Arraste o quadro azul no mapa (a borda move, os cantos redimensionam).</p>}
-  </>);
+  );
 }
 
 const SECOES = [
   { id: 'clima', titulo: 'Clima', icone: 'luz' },
-  { id: 'cena', titulo: 'Cena', icone: 'anim' },
   { id: 'presenca', titulo: 'Presença', icone: 'presenca' },
   { id: 'momentos', titulo: 'Momentos', icone: 'anim' },
   { id: 'iniciativa', titulo: 'Iniciativa', icone: 'alvo' },
@@ -420,7 +434,6 @@ export function Dock({ s }: { s: SessaoDeEdicao }) {
         return (
           <PainelFlutuante key={id} id={id} titulo={titulo} icone={icone} onFechar={() => alternar(id)}>
             {id === 'clima' && <SecaoDeClima s={s} />}
-            {id === 'cena' && <SecaoDeCena />}
             {id === 'presenca' && <SecaoDePresenca s={s} />}
             {id === 'momentos' && <SecaoDeMomentos s={s} />}
             {id === 'iniciativa' && <SecaoDeIniciativa s={s} />}

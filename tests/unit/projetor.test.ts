@@ -41,6 +41,9 @@ import {
   jogadorSeguido,
   caixaDoProjetor,
   telaEscura,
+  fichaProjetadaId,
+  projetarFicha,
+  forcarCameraRemota,
   type MensagemDoMestre,
 } from '../../src/app/projetor.ts';
 import {
@@ -54,6 +57,7 @@ import {
 } from '../../src/app/app.ts';
 import { mapaNoProjetorId as mapaNoProjetorIdReexportado, registrarAbaAberta, abasAbertas } from '../../src/app/abas.ts';
 import { criarMapa, type MapaAtlas } from '../../src/domain/mapa.ts';
+import { novaLuz } from '../../src/domain/fabrica.ts';
 import { criarSessao, type SessaoDeEdicao } from '../../src/app/sessao.ts';
 import type { RepositorioMapas } from '../../src/data/repositorio.ts';
 
@@ -569,13 +573,14 @@ test('publicador: sem névoa e com destino remoto, avisa a ponte uma vez por map
   }
 });
 
-test('projetor remoto: só o canal da sala, e só diz "ola"', async () => {
+test('projetor remoto: só o canal da sala, e só diz "ola" e "pedir-retrato"', async () => {
   const { canaisDoProjetor, nomeDoCanalDaSala, projetorPodeDizer } = await import('../../src/app/projetor.ts');
   assert.deepEqual(canaisDoProjetor('casa', 'abc123'), ['sala:abc123:atlas:projetor']);
   assert.equal(nomeDoCanalDaSala('abc123'), 'sala:abc123:atlas:projetor');
   assert.deepEqual(canaisDoProjetor('casa'), ['atlas:projetor:casa', 'atlas:projetor:ativo']);
   for (const canal of canaisDoProjetor('casa', 'abc123')) assert.ok(!['atlas:projetor:ativo', 'atlas:projetor:remoto', 'atlas:projetor:casa'].includes(canal));
   assert.equal(projetorPodeDizer({ tipo: 'ola' }, true), true);
+  assert.equal(projetorPodeDizer({ tipo: 'pedir-retrato' }, true), true);
   for (const tipo of ['tamanho', 'soltou', 'tchau']) { assert.equal(projetorPodeDizer({ tipo }, true), false); assert.equal(projetorPodeDizer({ tipo }, false), true); }
 });
 
@@ -790,5 +795,150 @@ test('projetarAba: com destino remoto ativo, troca o mapa na Activity sem abrir 
     mapaNoProjetorId.value = null;
     sincronizarPublicador();
     remoto.close();
+  }
+});
+
+test('publicador: projetarFicha envia projetar-ficha e reenvia no ola quando ativa', async () => {
+  const mapa = criarMapa({ id: 'mapa-pub-ficha', nome: 'Sala' });
+  mapa.session.explored = { res: 0.5, cells: [[0, 0, 20]] };
+  const sess = criarSessao(mapa, criarRepoMock({ [mapa.id]: mapa }), { salvo: true });
+  fichaProjetadaId.value = null;
+  const pub = iniciarPublicacao(sess, async () => null);
+  const local = new BroadcastChannel(nomeDoCanalDoProjetor(mapa.id));
+  const remoto = new BroadcastChannel(CANAL_PROJETOR_REMOTO);
+  const msgsLocal: any[] = [], msgsRemoto: any[] = [];
+  local.onmessage = e => msgsLocal.push(e.data);
+  remoto.onmessage = e => msgsRemoto.push(e.data);
+
+  try {
+    remoto.postMessage({ tipo: 'ola', largura: 1280, altura: 720, remoto: true, _seq: 1 });
+    await esperar(50);
+
+    projetarFicha('ficha-muirenn');
+    await esperar(30);
+    assert.equal(fichaProjetadaId.value, 'ficha-muirenn');
+    assert.deepEqual(msgsRemoto.filter(m => m.tipo === 'projetar-ficha').map(m => m.fichaId), ['ficha-muirenn']);
+
+    // Novo projetor local conecta via ola e recebe a ficha projetada ativa
+    local.postMessage({ tipo: 'ola', largura: 1280, altura: 720, _seq: 1 });
+    await esperar(50);
+    assert.deepEqual(msgsLocal.filter(m => m.tipo === 'projetar-ficha').map(m => m.fichaId), ['ficha-muirenn']);
+
+    // Parar projeção envia null para ambos
+    projetarFicha(null);
+    await esperar(30);
+    assert.equal(msgsRemoto.filter(m => m.tipo === 'projetar-ficha').at(-1)?.fichaId, null);
+    assert.equal(msgsLocal.filter(m => m.tipo === 'projetar-ficha').at(-1)?.fichaId, null);
+  } finally {
+    projetarFicha(null);
+    pub.parar(); local.close(); remoto.close(); sess.fechar();
+  }
+});
+
+test('publicador: arrasto de peça com lanterna envia peca-gesto leve (tokens + lights) e sem flood de estado', async () => {
+  const mapa = criarMapa({ id: 'mapa-pub-gesto-luz', nome: 'Corredor' });
+  mapa.session.explored = { res: 0.5, cells: [[0, 0, 40]] };
+  const sess = criarSessao(mapa, criarRepoMock({ [mapa.id]: mapa }), { salvo: true });
+  sess.store.executar({
+    tipo: 'item.adicionar',
+    colecao: 'tokens',
+    item: { id: 'h1', name: 'Herói', position: [3, 3], size: 1, facing: 'right', portrait: null, sprite: null, player: true, vision: { radius: 8, dark: false }, lightId: null, figure: { state: 'normal' }, refs: [] },
+  });
+  sess.store.executar({
+    tipo: 'item.adicionar',
+    colecao: 'lights',
+    item: novaLuz([3, 3], { id: 'l1', radius: 6, cone: { direction: 0, angle: Math.PI / 3 }, preset: 'lanterna', ownerId: 'h1' }),
+  });
+  sess.store.executar({ tipo: 'item.atualizar', colecao: 'tokens', id: 'h1', patch: { lightId: 'l1' } });
+  seguirJogadores.value = true;
+  const pub = iniciarPublicacao(sess, async () => null);
+  const remoto = new BroadcastChannel(CANAL_PROJETOR_REMOTO);
+  const msgs: any[] = [];
+  remoto.onmessage = e => msgs.push(e.data);
+  try {
+    remoto.postMessage({ tipo: 'ola', largura: 1600, altura: 900, remoto: true, _seq: 1 });
+    await esperar(60);
+    msgs.length = 0;
+
+    const gesto = sess.store.iniciarGesto('Mover peça');
+    gesto.aplicar({ tipo: 'peca.mover', id: 'h1', para: [6.5, 4.5], semGrade: true, emArrasto: true, direcao: 0.5 });
+    await esperar(30);
+
+    assert.equal(msgs.some(m => m.tipo === 'estado'), false, 'não envia mapa completo durante gesto');
+    const pg = msgs.filter(m => m.tipo === 'peca-gesto').at(-1);
+    assert.ok(pg, 'enviou peca-gesto mesmo com lightId acoplado');
+    assert.deepEqual(pg.position, [6.5, 4.5]);
+    assert.equal(pg.lightDirection, 0.5);
+    assert.ok(pg.caixa, 'remoto recebe caixa junto com peca-gesto quando seguir=true');
+    assert.equal(msgs.some(m => m.tipo === 'camera'), false, 'não duplica pacote camera durante o gesto remoto');
+
+    gesto.concluir();
+  } finally {
+    seguirJogadores.value = false;
+    pub.parar(); remoto.close(); sess.fechar();
+  }
+});
+
+test('publicador: retratos são enviados separadamente por destino, reenviados no ola e respondem a pedir-retrato', async () => {
+  const mapa = criarMapa({ id: 'mapa-pub-retrato', nome: 'Taverna' });
+  mapa.session.explored = { res: 0.5, cells: [[0, 0, 20]] };
+  const blobRetrato = new Blob(['png-fake'], { type: 'image/png' });
+  const sess = criarSessao(mapa, criarRepoMock({ [mapa.id]: mapa }), { salvo: true });
+  sess.store.executar({
+    tipo: 'item.adicionar',
+    colecao: 'tokens',
+    item: { id: 'h1', name: 'Muirenn', position: [3, 3], size: 1, facing: 'down', portrait: { id: 'asset-muirenn', hash: 'h1234567' }, sprite: null, player: true, vision: { radius: 6, dark: false }, lightId: null, figure: { state: 'normal' }, refs: [] },
+  });
+  const pub = iniciarPublicacao(sess, async id => (id === 'asset-muirenn' ? blobRetrato : null));
+  const local = new BroadcastChannel(nomeDoCanalDoProjetor(mapa.id));
+  const remoto = new BroadcastChannel(CANAL_PROJETOR_REMOTO);
+  const msgsLocal: any[] = [], msgsRemoto: any[] = [];
+  local.onmessage = e => msgsLocal.push(e.data);
+  remoto.onmessage = e => msgsRemoto.push(e.data);
+
+  try {
+    // 1. Local conecta primeiro e recebe o retrato
+    local.postMessage({ tipo: 'ola', largura: 1280, altura: 720, _seq: 1 });
+    await esperar(60);
+    assert.equal(msgsLocal.filter(m => m.tipo === 'retrato' && m.id === 'asset-muirenn').length, 1);
+
+    // 2. Remoto conecta depois: também deve receber o retrato (set separado + ola reenvia)
+    remoto.postMessage({ tipo: 'ola', largura: 1280, altura: 720, remoto: true, _seq: 1 });
+    await esperar(60);
+    assert.equal(msgsRemoto.filter(m => m.tipo === 'retrato' && m.id === 'asset-muirenn').length, 1);
+
+    // 3. Pedido explícito pedir-retrato reenvia imediatamente
+    msgsRemoto.length = 0;
+    remoto.postMessage({ tipo: 'pedir-retrato', id: 'asset-muirenn', _seq: 2 });
+    await esperar(50);
+    assert.equal(msgsRemoto.filter(m => m.tipo === 'retrato' && m.id === 'asset-muirenn').length, 1);
+  } finally {
+    pub.parar(); local.close(); remoto.close(); sess.fechar();
+  }
+});
+
+test('publicador: forcarCameraRemota reenvia camera com forcar mesmo já estando em controle do mestre', async () => {
+  const { definirControleJogadores } = await import('../../src/app/modo.ts');
+  const mapa = criarMapa({ id: 'mapa-pub-forcar', nome: 'Sala' });
+  mapa.session.explored = { res: 0.5, cells: [[0, 0, 20]] };
+  const sess = criarSessao(mapa, criarRepoMock({ [mapa.id]: mapa }), { salvo: true });
+  definirControleJogadores('mestre');
+  const pub = iniciarPublicacao(sess, async () => null);
+  const remoto = new BroadcastChannel(CANAL_PROJETOR_REMOTO);
+  const msgs: any[] = [];
+  remoto.onmessage = e => msgs.push(e.data);
+  try {
+    remoto.postMessage({ tipo: 'ola', largura: 1280, altura: 720, remoto: true, _seq: 1 });
+    await esperar(60);
+    assert.ok(caixaDoProjetor.value, 'ola remoto inicializa caixaDoProjetor');
+    msgs.length = 0;
+
+    forcarCameraRemota();
+    await esperar(40);
+    const cam = msgs.filter(m => m.tipo === 'camera').at(-1);
+    assert.ok(cam && cam.forcar === true, 'forcarCameraRemota envia camera com forcar: true');
+  } finally {
+    definirControleJogadores('livres');
+    pub.parar(); remoto.close(); sess.fechar();
   }
 });

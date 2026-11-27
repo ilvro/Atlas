@@ -483,8 +483,8 @@ test('dock: eventos de cena não mudam o documento; arrastar a intensidade de um
   await sessao(page, '(s) => s.store.executar({ tipo: "item.adicionar", colecao: "presence", item: { id: "pr1", brush: "musgo", cells: [[4, 4, 6]], intensity: 0, seed: 3, gmOnly: false } })');
   await page.click('[data-testid="modo-sessao"]'); await page.locator('[data-testid="dock"]').waitFor();
   const antes = JSON.stringify(await documento(page)), n0 = await historico(page);
-  for (const e of ['tremor', 'piscar', 'escurecer', 'clarao']) {
-    await page.click(`[data-testid="dock-evento-${e}"]`); await page.waitForTimeout(60);
+  for (const [espaco, e] of [[2, 'tremor'], [3, 'piscar'], [5, 'clarao']] as const) {
+    await page.click(`[data-testid="barra-espaco-${espaco}"]`); await page.waitForTimeout(60);
     assert.ok((await eventosDiag(page)).ativos.includes(e), `${e} está rodando`);
   }
   const d = await eventosDiag(page); assert.ok(d.ambiente < 1 || d.luzes < 1 || d.clarao > 0, 'os eventos têm efeito');
@@ -564,8 +564,8 @@ test('projetor: recebe só a projeção (sem notas, região do mestre, porta sec
   // Revelar a porta secreta: ela passa a existir no projetor.
   await sessao(page, '(s) => s.store.executar({ tipo: "sessao.revelar", ids: ["o1"] })');
   await proj.waitForFunction(() => !!(window as unknown as { __projetor: { doc(): { openings: Record<string, unknown> } } }).__projetor.doc().openings.o1, null, { timeout: 5000 });
-  // Um evento de cena do dock chega ao projetor.
-  await page.click('[data-testid="dock-evento-tremor"]');
+  // Um evento de cena da barra unificada chega ao projetor.
+  await page.click('[data-testid="barra-espaco-2"]');
   await proj.waitForFunction(() => (window as unknown as { __projetor: { viewport(): { diagnosticoDosEventos(): { ativos: string[] } } } }).__projetor.viewport().diagnosticoDosEventos().ativos.includes('tremor'), null, { timeout: 2000 });
   // Com o projetor aberto, o editor segue fluido.
   await page.bringToFront();

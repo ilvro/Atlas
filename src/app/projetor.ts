@@ -32,14 +32,26 @@ export const nomeDoCanalEventosDaSala = (salaId: string): string => `sala:${sala
 export const canaisDoProjetor = (mapaId: string, salaId?: string): string[] =>
   salaId ? [nomeDoCanalDaSala(salaId)] : [nomeDoCanalDoProjetor(mapaId), CANAL_PROJETOR_GLOBAL];
 /** O que o projetor pode dizer: no modo remoto só o `ola` (a casca o usa para reenviar o último estado); o resto (`tamanho`, `soltou`, `tchau`) é do mestre. */
-export const projetorPodeDizer = (m: { tipo: string }, remoto: boolean): boolean => !remoto || m.tipo === 'ola';
+export const projetorPodeDizer = (m: { tipo: string }, remoto: boolean): boolean => !remoto || m.tipo === 'ola' || m.tipo === 'pedir-retrato';
 
 /** ID do mapa que o projetor está exibindo (desacoplado da aba ativa no editor). */
 export const mapaNoProjetorId = signal<string | null>(null);
+/** ID da ficha projetada em tela cheia na Activity (`null` = mostra o mapa normal). */
+export const fichaProjetadaId = signal<string | null>(null);
+/** Projeta uma ficha em tela cheia para os jogadores (`null` para encerrar a projeção). */
+export function projetarFicha(fichaId: string | null): void {
+  fichaProjetadaId.value = fichaId;
+}
+const pulsoFocoRemoto = signal(0);
+/** Força o reenquadramento imediato da câmera remota na visão atual do mestre. */
+export function forcarCameraRemota(): void {
+  pulsoFocoRemoto.value++;
+}
 
 export type MensagemDoMestre =
   | { tipo: 'estado'; doc: MapaAtlas; versao: number; emGesto?: boolean; controleJogadores?: ControleJogadores }
   | { tipo: 'controle-jogadores'; modo: ControleJogadores }
+  | { tipo: 'projetar-ficha'; fichaId: string | null }
   | { tipo: 'peca-gesto'; id: string; position: [number, number]; facing: MapaAtlas['tokens'][string]['facing']; lightDirection?: number; caixa?: Caixa; seguir?: boolean }
   | { tipo: 'camera'; caixa: Caixa; seguir?: boolean; imediata?: boolean; forcar?: boolean }
   | { tipo: 'evento'; nome: EventoDeCena }
@@ -61,7 +73,8 @@ export type MensagemDoProjetor =
   | { tipo: 'ola'; largura: number; altura: number; remoto?: boolean }
   | { tipo: 'tamanho'; largura: number; altura: number }
   | { tipo: 'soltou' }
-  | { tipo: 'tchau' };
+  | { tipo: 'tchau' }
+  | { tipo: 'pedir-retrato'; id: string };
 
 /** O que o publicador manda só à ponte remota: o mapa está sem névoa, e o `estado` dele não deve sair até o mestre confirmar. `nome` é só para a tela do mestre. */
 export interface AvisoSemNevoa { tipo: 'aviso-sem-nevoa'; mapa: string; nome: string }
@@ -153,7 +166,8 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
       try { canalRemoto.postMessage(comSeq); } catch { /* ignora */ }
     }
   };
-  let retratosEnviados = new Set<string>(), temporizador: ReturnType<typeof setTimeout> | null = null, parado = false;
+  let retratosEnviadosLocal = new Set<string>(), retratosEnviadosRemoto = new Set<string>();
+  let temporizador: ReturnType<typeof setTimeout> | null = null, parado = false;
   let ultimoAndarMovido: string | null | undefined = undefined;
   let ultimosJogadores = new Map<string, { x: number; y: number; andar: string | null }>();
   const registrarJogadores = (m: MapaAtlas) => {
@@ -182,11 +196,28 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
   andarAtual(s.store.documento);
   caixaDoProjetor.value = null; projetorConectado.value = false; projetorRemotoConectado.value = false;
 
-  const enviarRetratos = (m: MapaAtlas) => {
+  const enviarRetratoPorId = (rid: string, onde: 'local' | 'remoto' | 'ambos', forcar = false) => {
+    const querLocal = onde !== 'remoto' && projetorConectado.peek() && (forcar || !retratosEnviadosLocal.has(rid));
+    const querRemoto = onde !== 'local' && projetorRemotoConectado.peek() && (forcar || !retratosEnviadosRemoto.has(rid));
+    if (!querLocal && !querRemoto) return;
+    if (querLocal) retratosEnviadosLocal.add(rid);
+    if (querRemoto) retratosEnviadosRemoto.add(rid);
+    const destino: 'local' | 'remoto' | 'ambos' = querLocal && querRemoto ? 'ambos' : querLocal ? 'local' : 'remoto';
+    void lerAsset(rid).then(blob => {
+      if (blob && !parado) enviar({ tipo: 'retrato', id: rid, blob }, destino);
+      else {
+        if (querLocal) retratosEnviadosLocal.delete(rid);
+        if (querRemoto) retratosEnviadosRemoto.delete(rid);
+      }
+    }).catch(() => {
+      if (querLocal) retratosEnviadosLocal.delete(rid);
+      if (querRemoto) retratosEnviadosRemoto.delete(rid);
+    });
+  };
+  const enviarRetratos = (m: MapaAtlas, onde: 'local' | 'remoto' | 'ambos' = 'ambos', forcar = false) => {
     for (const t of Object.values(m.tokens)) {
-      const rid = t.portrait?.id; if (!rid || retratosEnviados.has(rid)) continue;
-      retratosEnviados.add(rid);
-      void lerAsset(rid).then(blob => { if (blob && !parado) enviar({ tipo: 'retrato', id: rid, blob }); else retratosEnviados.delete(rid); }).catch(() => retratosEnviados.delete(rid));
+      const rid = t.portrait?.id;
+      if (rid) enviarRetratoPorId(rid, onde, forcar);
     }
   };
   /** PV e PD por peça de jogador, ou nada se o mestre não quer mostrá-los. */
@@ -194,12 +225,12 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
     if (!algum() || parado) return;
     enviar({ tipo: 'recursos', por: recursosParaOProjetor(s.store.documento.tokens, recursosDaPeca, mostrarPvNoProjetor.peek()) });
   };
-  const enviarEstado = (onde: 'local' | 'remoto' | 'ambos' = 'ambos') => {
+  const enviarEstado = (onde: 'local' | 'remoto' | 'ambos' = 'ambos', forcarRetratos = false) => {
     const m = s.store.documento;
     const andar = andarAtual(m);
     const local = onde !== 'remoto' && projetorConectado.peek(), remoto = onde !== 'local' && projetorRemotoConectado.peek();
     if ((!local && !remoto) || parado) return;
-    enviarRetratos(m);
+    enviarRetratos(m, onde, forcarRetratos);
     const extra = { versao: s.store.versaoEdicao, ...(s.store.emGesto ? { emGesto: true } : {}) };
     const livre = movimentoLivre.peek();
     const comModo = (d: MapaAtlas): MapaAtlas => (livre && d.grid.snap ? { ...d, grid: { ...d.grid, snap: false } } : d);
@@ -231,15 +262,21 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
     }
     if (msg.tipo === 'ola' || msg.tipo === 'tamanho') {
       if (msg.largura > 0 && msg.altura > 0) aspectoDoProjetor.value = msg.largura / msg.altura;
-      if (msg.tipo === 'ola') { retratosEnviados = new Set(); projetorConectado.value = true; }
+      const ehOla = msg.tipo === 'ola';
+      if (ehOla) { retratosEnviadosLocal = new Set(); projetorConectado.value = true; }
       const atual = caixaDoProjetor.peek(), asp = aspectoDoProjetor.peek(), m = s.store.documento;
       const caixa = seguirJogadores.peek() || !atual ? caixaDosJogadores(m, asp, 5, andarAtual(m), jogadorSeguido.peek()) : ajustarAoAspecto(atual, asp);
       caixaDoProjetor.value = caixa;
-      enviarEstado('local');
+      enviarEstado('local', ehOla);
       enviar({ tipo: 'camera', caixa, ...(seguirJogadores.peek() ? { seguir: true } : {}) }, 'local');
-      if (msg.tipo === 'ola' && ultimoEstadoTela?.acao === 'escurecer') {
+      if (ehOla && ultimoEstadoTela?.acao === 'escurecer') {
         enviar({ tipo: 'tela', acao: 'escurecer', ms: ultimoEstadoTela.ms }, 'local');
       }
+      if (ehOla && fichaProjetadaId.peek()) {
+        enviar({ tipo: 'projetar-ficha', fichaId: fichaProjetadaId.peek() }, 'local');
+      }
+    } else if (msg.tipo === 'pedir-retrato' && typeof msg.id === 'string' && msg.id) {
+      if (projetorConectado.peek()) enviarRetratoPorId(msg.id, 'local', true);
     } else if (msg.tipo === 'soltou') { seguirJogadores.value = false; }
     else if (msg.tipo === 'tchau') { projetorConectado.value = false; caixaDoProjetor.value = null; }
   };
@@ -271,14 +308,24 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
     const msg = e.data;
     if (msg._seq !== undefined) { if (msg._seq === ultimoSeqRemoto) return; ultimoSeqRemoto = msg._seq; }
     if (msg.tipo === 'ola' || msg.tipo === 'tamanho') {
-      if (msg.tipo === 'ola') { retratosEnviados = new Set(); semNevoaAvisados.clear(); projetorRemotoConectado.value = true; }
+      const ehOla = msg.tipo === 'ola';
+      if (ehOla) { retratosEnviadosRemoto = new Set(); semNevoaAvisados.clear(); projetorRemotoConectado.value = true; }
       if (!projetorRemotoConectado.peek()) return;
-      if (msg.largura > 0 && msg.altura > 0) aspectoRemoto = msg.largura / msg.altura;
+      if (msg.largura > 0 && msg.altura > 0) {
+        aspectoRemoto = msg.largura / msg.altura;
+        if (!projetorConectado.peek()) aspectoDoProjetor.value = aspectoRemoto;
+      }
       const m = s.store.documento;
-      enviarEstado('remoto');
+      if (!caixaDoProjetor.peek()) {
+        caixaDoProjetor.value = caixaDosJogadores(m, aspectoRemoto, 5, andarAtual(m), jogadorSeguido.peek());
+      }
+      enviarEstado('remoto', ehOla);
       enviar({ tipo: 'controle-jogadores', modo: controleJogadores.peek() }, 'remoto');
       enviarCameraRemota(m, controleJogadores.peek() === 'mestre' ? { forcar: true } : undefined);
-      if (msg.tipo === 'ola' && ultimoEstadoTela?.acao === 'escurecer') enviar({ tipo: 'tela', acao: 'escurecer', ms: ultimoEstadoTela.ms }, 'remoto');
+      if (ehOla && ultimoEstadoTela?.acao === 'escurecer') enviar({ tipo: 'tela', acao: 'escurecer', ms: ultimoEstadoTela.ms }, 'remoto');
+      if (ehOla && fichaProjetadaId.peek()) enviar({ tipo: 'projetar-ficha', fichaId: fichaProjetadaId.peek() }, 'remoto');
+    } else if (msg.tipo === 'pedir-retrato' && typeof msg.id === 'string' && msg.id) {
+      if (projetorRemotoConectado.peek()) enviarRetratoPorId(msg.id, 'remoto', true);
     } else if (msg.tipo === 'tchau') projetorRemotoConectado.value = false;
   };
   canalRemoto.postMessage({ tipo: 'precisa-ola' });
@@ -288,18 +335,25 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
   const sair = s.store.assinar(e => {
     if (e.mudancas.completo || e.mudancas.colecoes.tokens) registrarJogadores(e.documento);
     andarAtual(e.documento);
-    if (e.tipo === 'gesto' && e.mudancas.colecoes.tokens?.length === 1 && !e.mudancas.completo && !e.mudancas.campos.length) {
+    if (
+      e.tipo === 'gesto'
+      && e.mudancas.colecoes.tokens?.length === 1
+      && !e.mudancas.completo
+      && !e.mudancas.campos.length
+      && Object.keys(e.mudancas.colecoes).every(k => k === 'tokens' || k === 'lights')
+    ) {
       const tokenId = e.mudancas.colecoes.tokens[0]!;
       const t = e.documento.tokens[tokenId];
       const seguir = seguirJogadores.peek();
-      if (seguir && projetorConectado.peek()) {
+      if (seguir && (projetorConectado.peek() || projetorRemotoConectado.peek())) {
+        const asp = projetorConectado.peek() ? aspectoDoProjetor.peek() : aspectoRemoto;
         cameraEmGesto = true;
-        caixaDoProjetor.value = caixaDosJogadores(e.documento, aspectoDoProjetor.peek(), 5, andarAtual(e.documento), jogadorSeguido.peek());
+        caixaDoProjetor.value = caixaDosJogadores(e.documento, asp, 5, andarAtual(e.documento), jogadorSeguido.peek());
         cameraEmGesto = false;
       }
       if (algum() && !parado && t && t.player && andarDe(t) === andarDoProjetor.peek()) {
         const agora = performance.now();
-        if (agora - ultimoEnvioGesto >= 16) {
+        if (agora - ultimoEnvioGesto >= 12) {
           ultimoEnvioGesto = agora;
           const luz = t.lightId ? e.documento.lights[t.lightId] : undefined;
           const c = seguir ? caixaDoProjetor.peek() ?? undefined : undefined;
@@ -311,17 +365,16 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
             ...(luz?.cone ? { lightDirection: luz.cone.direction } : {}),
           };
           enviar({ ...base, ...(c ? { caixa: c, seguir: true } : {}) }, 'local');
-          // O remoto recebe a peça sem a caixa do local (aspecto diferente) e a câmera própria, no aspecto dele.
-          enviar(base, 'remoto');
-          if (seguir || !caixaDoProjetor.peek()) enviarCameraRemota(e.documento);
+          enviar({ ...base, ...(seguir ? { caixa: caixaRemota(e.documento), seguir: true } : {}) }, 'remoto');
         }
       }
       return;
     }
     agendar(100);
     if (e.mudancas.completo || e.mudancas.colecoes.tokens) enviarCameraRemota(e.documento);
-    if (seguirJogadores.peek() && projetorConectado.peek() && (e.mudancas.completo || e.mudancas.colecoes.tokens)) {
-      caixaDoProjetor.value = caixaDosJogadores(e.documento, aspectoDoProjetor.peek(), 5, andarAtual(e.documento), jogadorSeguido.peek());
+    if (seguirJogadores.peek() && (projetorConectado.peek() || projetorRemotoConectado.peek()) && (e.mudancas.completo || e.mudancas.colecoes.tokens)) {
+      const asp = projetorConectado.peek() ? aspectoDoProjetor.peek() : aspectoRemoto;
+      caixaDoProjetor.value = caixaDosJogadores(e.documento, asp, 5, andarAtual(e.documento), jogadorSeguido.peek());
     }
   });
   // Ligar "seguir os jogadores" enquadra na hora; a caixa publicada segue qualquer mudança (arrastar o quadro, seguir).
@@ -331,7 +384,7 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
       const m = s.store.documento;
       const antesAndar = andarDoProjetor.peek();
       const novoAndar = andarAtual(m);
-      if (conectado) caixaDoProjetor.value = caixaDosJogadores(m, asp, 5, novoAndar, quem);
+      caixaDoProjetor.value = caixaDosJogadores(m, conectado ? asp : aspectoRemoto, 5, novoAndar, quem);
       if (conectado || novoAndar !== antesAndar) enviarEstado();
     }
   });
@@ -341,7 +394,10 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
     const andar = andarAtual(m);
     if (algum() && !parado) {
       enviarEstado();
-      if (seguirJogadores.peek()) caixaDoProjetor.value = caixaDosJogadores(m, aspectoDoProjetor.peek(), 5, andar, jogadorSeguido.peek());
+      if (seguirJogadores.peek()) {
+        const asp = projetorConectado.peek() ? aspectoDoProjetor.peek() : aspectoRemoto;
+        caixaDoProjetor.value = caixaDosJogadores(m, asp, 5, andar, jogadorSeguido.peek());
+      }
     }
   });
   // O destino remoto acompanha a câmera do mestre: seguir, jogador seguido, andar e o quadro dele (no aspecto do remoto).
@@ -354,17 +410,28 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
     const mudouFoco = (seguir && !ultimoSeguir) || (seguir && quem !== ultimoJogadorSeguido);
     ultimoSeguir = seguir;
     ultimoJogadorSeguido = quem;
-    if (remoto) enviarCameraRemota(s.store.documento, mudouFoco ? { forcar: true } : undefined);
+    if (remoto && !cameraEmGesto) enviarCameraRemota(s.store.documento, mudouFoco ? { forcar: true } : undefined);
   });
   const parar3 = effect(() => { void recursosDasFichas.value; void mostrarPvNoProjetor.value; enviarRecursos(); });
   const parar2 = effect(() => { const c = caixaDoProjetor.value; if (c && projetorConectado.peek() && !cameraEmGesto) enviar({ tipo: 'camera', caixa: c, ...(seguirJogadores.peek() ? { seguir: true } : {}) }, 'local'); });
   const parar6 = effect(() => { void movimentoLivre.value; if (algum() && !parado) enviarEstado(); });
   const parar7 = effect(() => {
     const modo = controleJogadores.value;
+    void pulsoFocoRemoto.value;
     if (projetorRemotoConectado.peek() && !parado) {
       enviar({ tipo: 'controle-jogadores', modo }, 'remoto');
-      if (modo === 'mestre') enviarCameraRemota(s.store.documento, { forcar: true });
+      if (modo === 'mestre') {
+        const m = s.store.documento;
+        if (!caixaDoProjetor.peek()) {
+          caixaDoProjetor.value = caixaDosJogadores(m, aspectoRemoto, 5, andarAtual(m), jogadorSeguido.peek());
+        }
+        enviarCameraRemota(m, { forcar: true });
+      }
     }
+  });
+  const parar8 = effect(() => {
+    const fichaId = fichaProjetadaId.value;
+    if (algum() && !parado) enviar({ tipo: 'projetar-ficha', fichaId });
   });
 
   return {
@@ -386,11 +453,22 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
       if (!algum()) return;
       const peca = l.peca ? s.store.documento.tokens[l.peca] : null;
       const rid = peca?.portrait?.id ?? null;
-      if (rid && !retratosEnviados.has(rid)) {
-        retratosEnviados.add(rid);
+      const precisaEnviar = rid && (
+        (projetorConectado.peek() && !retratosEnviadosLocal.has(rid))
+        || (projetorRemotoConectado.peek() && !retratosEnviadosRemoto.has(rid))
+      );
+      if (rid && precisaEnviar) {
+        const querLocal = projetorConectado.peek() && !retratosEnviadosLocal.has(rid);
+        const querRemoto = projetorRemotoConectado.peek() && !retratosEnviadosRemoto.has(rid);
+        if (querLocal) retratosEnviadosLocal.add(rid);
+        if (querRemoto) retratosEnviadosRemoto.add(rid);
+        const destino: 'local' | 'remoto' | 'ambos' = querLocal && querRemoto ? 'ambos' : querLocal ? 'local' : 'remoto';
         void lerAsset(rid).then(blob => {
-          if (blob && !parado) enviar({ tipo: 'retrato', id: rid, blob });
-          else retratosEnviados.delete(rid);
+          if (blob && !parado) enviar({ tipo: 'retrato', id: rid, blob }, destino);
+          else {
+            if (querLocal) retratosEnviadosLocal.delete(rid);
+            if (querRemoto) retratosEnviadosRemoto.delete(rid);
+          }
           if (!parado && algum()) {
             enviar({
               tipo: 'letreiro',
@@ -402,7 +480,8 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
             });
           }
         }).catch(() => {
-          retratosEnviados.delete(rid);
+          if (querLocal) retratosEnviadosLocal.delete(rid);
+          if (querRemoto) retratosEnviadosRemoto.delete(rid);
           if (!parado && algum()) {
             enviar({
               tipo: 'letreiro',
@@ -426,7 +505,7 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
       }
     },
     parar() {
-      parado = true; sair(); parar1(); parar2(); parar3(); parar4(); parar5(); parar6(); parar7();
+      parado = true; sair(); parar1(); parar2(); parar3(); parar4(); parar5(); parar6(); parar7(); parar8();
       if (temporizador) clearTimeout(temporizador);
       canalEspecifico.close();
       canalGlobal.close();

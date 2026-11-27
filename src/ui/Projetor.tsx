@@ -99,12 +99,22 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
     };
     const tamanho = () => ({ largura: ref.current?.clientWidth ?? innerWidth, altura: ref.current?.clientHeight ?? innerHeight });
     const ola = () => dizer({ tipo: 'ola', ...tamanho() });
+    const retratosPedidos = new Set<string>();
+    const pedirRetratosFaltantes = (m: MapaAtlas) => {
+      for (const t of Object.values(m.tokens)) {
+        const rid = t.portrait?.id;
+        if (rid && !retratos.has(rid) && !retratosPedidos.has(rid)) {
+          retratosPedidos.add(rid);
+          dizer({ tipo: 'pedir-retrato', id: rid });
+        }
+      }
+    };
     let fichasDoJogador: string[] = [];
 
     let ultimoPingEm = 0;
     const sairPing = barramento?.ouvir('mesa.ping', evento => {
       const d = evento.dados as { mapa?: string; ponto?: [number, number]; levelId?: string | null };
-      if (!d || typeof d.mapa !== 'string' || d.mapa !== doc.value?.id || !d.ponto) return;
+      if (!d || typeof d.mapa !== 'string' || d.mapa !== (store?.documento ?? doc.value)?.id || !d.ponto) return;
       vp?.dispararPing({
         id: evento.id,
         mapa: d.mapa,
@@ -127,7 +137,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
       cameraBloqueada: () => remoto && controleRemoto.peek() === 'mestre',
       aoArrastarPecaRemota: remoto && barramento
         ? async (peca, para) => {
-            const atual = doc.value;
+            const atual = store?.documento ?? doc.value;
             if (!atual) return false;
             const andar = andarDe(peca);
             const r = await barramento.pedir(
@@ -144,7 +154,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
         : undefined,
       aoPingar: remoto && barramento
         ? pontoPing => {
-            const atual = doc.value;
+            const atual = store?.documento ?? doc.value;
             if (!atual) return;
             const agora = Date.now();
             if (agora - ultimoPingEm < 1000) return;
@@ -172,9 +182,10 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
       vp = v; vpAtual = v;
       // A câmera pode ter chegado antes do viewport ficar pronto (corrida): aplica a última agora.
       if (caixa && seguindo.peek()) { v.enquadrarCaixa(caixaComZoom(caixa), false); primeira = false; }
+      if (retratos.size > 0) v.redesenharPecas();
       Object.defineProperty(window, '__projetor', {
         value: Object.freeze({
-          doc: () => doc.value,
+          doc: () => store?.documento ?? doc.value,
           viewport: () => vp,
           retratos: () => [...retratos.keys()],
           cortina: () => cortina.value,
@@ -194,14 +205,18 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
       }
       if (msg.tipo === 'estado') {
         const docAntesId = doc.value?.id;
-        if (remoto && docAntesId && docAntesId !== msg.doc.id) {
-          estadoCam = CAMERA_REMOTA_INICIAL;
-          seguindo.value = true;
-          primeira = true;
-          caixa = caixaDoMestre = null;
+        if (docAntesId && docAntesId !== msg.doc.id) {
+          retratosPedidos.clear();
+          if (remoto) {
+            estadoCam = CAMERA_REMOTA_INICIAL;
+            seguindo.value = true;
+            primeira = true;
+            caixa = caixaDoMestre = null;
+          }
         }
         doc.value = msg.doc;
         store!.projetar(msg.doc, { emGesto: msg.emGesto });
+        pedirRetratosFaltantes(msg.doc);
         if (remoto && (msg.controleJogadores === 'livres' || msg.controleJogadores === 'mestre')) {
           controleRemoto.value = msg.controleJogadores;
           if (msg.controleJogadores === 'mestre') decidirRemoto({ tipo: 'seguir-mestre' }, true);
@@ -230,10 +245,9 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
               },
             } : {}),
           };
-          doc.value = novoDoc;
           store!.projetar(novoDoc, { emGesto: true, pularValidacao: true });
         }
-        if (msg.caixa && remoto) { caixa = msg.caixa; decidirRemoto({ tipo: 'camera', caixa: msg.caixa }); }
+        if (msg.caixa && remoto) { caixa = msg.caixa; decidirRemoto({ tipo: 'camera', caixa: msg.caixa, ...(controleRemoto.peek() === 'mestre' ? { forcar: true } : {}) }); }
         else if (msg.caixa) {
           caixa = caixaDoMestre = msg.caixa;
           if (msg.seguir) seguindo.value = true;
@@ -274,8 +288,8 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
       else if (msg.tipo === 'inspecao') void abrirInspecaoNoProjetor(msg.nome, msg.normal, msg.uv);
       else if (msg.tipo === 'inspecao-estado') alvoDaInspecao = { vista: msg.vista, lanterna: msg.lanterna };
       else if (msg.tipo === 'inspecao-fim') fecharInspecaoNoProjetor();
-      else if (msg.tipo === 'rolagem') { const t = doc.value?.tokens[msg.peca]; if (t && vp) { const [x, y] = vp.clientDe([t.position[0], t.position[1] - t.size * (doc.value?.grid.size ?? 1.5) / 2]); flutuarRolagem(ponto(x, y), msg.total, msg.titulo, msg.tom); } }
-      else if (msg.tipo === 'retrato') { retratos.set(msg.id, msg.blob); versaoRetratos.value++; vp?.redesenharPecas(); }
+      else if (msg.tipo === 'rolagem') { const atual = store?.documento ?? doc.value; const t = atual?.tokens[msg.peca]; if (t && vp) { const [x, y] = vp.clientDe([t.position[0], t.position[1] - t.size * (atual?.grid.size ?? 1.5) / 2]); flutuarRolagem(ponto(x, y), msg.total, msg.titulo, msg.tom); } }
+      else if (msg.tipo === 'retrato') { retratos.set(msg.id, msg.blob); retratosPedidos.delete(msg.id); versaoRetratos.value++; vp?.redesenharPecas(); }
     };
     for (const c of canais) c.onmessage = (e: MessageEvent<MensagemDoMestre>) => tratarMensagem(e.data);
     const aoMensagem = (ev: MessageEvent) => {
@@ -391,7 +405,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
           aoTerminar={() => { letreiroDoProjetor.value = null; }}
         />
       )}
-      {!seguindo.value && <button type="button" class={`projetor-seguir${remoto ? ' remoto' : ` ${botaoVisivel.value ? '' : 'oculto'}`}`} data-testid="projetor-seguir"
+      {!seguindo.value && !(remoto && controleRemoto.value === 'mestre') && <button type="button" class={`projetor-seguir${remoto ? ' remoto' : ` ${botaoVisivel.value ? '' : 'oculto'}`}`} data-testid="projetor-seguir"
         onClick={() => { if (remoto) { seguirMestreRemoto(); return; } seguindo.value = true; zoomLocal = 1; if (caixaDoMestre) vpAtual?.enquadrarCaixa(caixaDoMestre, true); }}>Seguir o mestre</button>}
       {avisoRemoto.value && <div class="projetor-aviso-remoto" role="status" data-testid="projetor-aviso-remoto">{avisoRemoto.value}</div>}
       {!remoto && <button type="button" class={`projetor-tela-cheia ${botaoVisivel.value ? '' : 'oculto'}`} aria-label="Tela cheia" title="Tela cheia" data-testid="projetor-tela-cheia"
