@@ -72,6 +72,11 @@ export const LUZES_POR_FUNCAO: Readonly<Record<string, LuzDaFuncao>> = {
   dojo: { m2PorLuz: 16, tamanho: 'principal', sobre: [] },
   santuario: { m2PorLuz: 10, tamanho: 'pequena', sobre: ['incensario'] },
   jardim: { m2PorLuz: 20, tamanho: 'pequena', sobre: [], semLuz: true },
+  // Deserto (Q17c): a lanterna marroquina e a fogueira de caravana trazem a própria luz; sem elas, o gênero põe a lamparina/vela de `LUZES_POR_GENERO`. O depósito já tem a sua.
+  tenda: { m2PorLuz: 12, tamanho: 'pequena', sobre: ['mesa-de-latao'] },
+  'patio-com-fonte': { m2PorLuz: 20, tamanho: 'pequena', sobre: [], semLuz: true },
+  bazar: { m2PorLuz: 16, tamanho: 'principal', sobre: ['banca-de-especiarias'] },
+  'salao-de-cha': { m2PorLuz: 10, tamanho: 'pequena', sobre: ['mesa-de-latao'] },
 };
 
 const DISTANCIA_MINIMA = 2;

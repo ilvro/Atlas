@@ -79,6 +79,14 @@ export const CONJUNTOS_EXTERIORES: readonly ConjuntoDeEspalhar[] = [
     { receita: 'casa:bambuzal-2m', peso: 4, contexto: 'livre' }, { receita: 'casa:bambuzal-4m', peso: 4, contexto: 'livre' },
     { receita: 'lanterna-de-pedra', peso: 1, contexto: 'livre' }, { receita: 'pedra.media', peso: 2, contexto: 'livre' }, { receita: 'pedra.pequena', peso: 2, contexto: 'livre' },
     { receita: 'muro-de-bambu', peso: 1, contexto: 'livre' }] },
+  { id: 'oasis', nome: 'Oásis', descricao: 'Poço, tamareiras, coqueiros, arbustos, cactos, jarros e camelos bebendo', densidade: 0.07, itens: [
+    { receita: 'poco.oasis', peso: 1, contexto: 'livre' }, { receita: 'casa:tamareira-5m', peso: 5, contexto: 'livre' }, { receita: 'casa:coqueiro-4m', peso: 2, contexto: 'livre' },
+    { receita: 'casa:arbusto-verde', peso: 3, contexto: 'livre' }, { receita: 'casa:cacto-redondo-grupo', peso: 1, contexto: 'livre' },
+    { receita: 'jarro-de-barro', peso: 1, contexto: 'livre' }, { receita: 'camelo', peso: 1, contexto: 'livre' }] },
+  { id: 'acampamento-de-caravana', nome: 'Acampamento de caravana', descricao: 'Tendas, fogueira, camelos deitados e carregados, cântaros e palanquim', densidade: 0.05, itens: [
+    { receita: 'tenda-beduina', peso: 2, contexto: 'livre' }, { receita: 'fogueira-de-caravana', peso: 2, contexto: 'livre' }, { receita: 'camelo', peso: 3, contexto: 'livre' },
+    { receita: 'cantaros-empilhados', peso: 2, contexto: 'livre' }, { receita: 'palanquim', peso: 1, contexto: 'livre' }, { receita: 'jarro-de-barro', peso: 1, contexto: 'livre' },
+    { receita: 'cesto', peso: 1, contexto: 'livre' }] },
 ];
 export const TODOS_OS_CONJUNTOS: readonly ConjuntoDeEspalhar[] = [...CONJUNTOS_DE_ESPALHAR, ...CONJUNTOS_EXTERIORES];
 export const conjuntoDeEspalhar = (id: string): ConjuntoDeEspalhar | undefined => TODOS_OS_CONJUNTOS.find(c => c.id === id);

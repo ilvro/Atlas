@@ -45,6 +45,11 @@ export const TIPOS_DE_COMODO: readonly TipoDeComodo[] = [
   { id: 'dojo', nome: 'Dojo', funcao: 'dojo', piso: 'tabuas.claras', papel: 'shoji', descricao: 'Assoalho livre, espadas e armadura na parede' },
   { id: 'santuario', nome: 'Santuário', funcao: 'santuario', piso: 'tabuas.laqueadas', papel: 'madeira.laqueada', descricao: 'Estátua sentada, incensário e lanternas' },
   { id: 'jardim', nome: 'Jardim', funcao: 'jardim', piso: 'pedra.rustica', papel: 'pedra.aparelhada', descricao: 'Lanternas de pedra, cascalho rastelado e bonsai, ao ar livre' },
+  // Deserto (Q17c). O `deposito` já existe; o gênero só troca o que ele guarda (cântaros, cestos, baús).
+  { id: 'tenda', nome: 'Tenda', funcao: 'tenda', piso: 'palha.chao', papel: 'taipa', descricao: 'Por dentro da tenda: tapetes, almofadas, mesa de latão e lanternas' },
+  { id: 'patio-com-fonte', nome: 'Pátio com fonte', funcao: 'patio-com-fonte', piso: 'zellige', papel: 'adobe', descricao: 'Zellige, fonte ou poço, palmeiras e toldo, ao ar livre' },
+  { id: 'bazar', nome: 'Bazar', funcao: 'bazar', piso: 'terracota.quadrada', papel: 'adobe', descricao: 'Bancas de especiarias, tapetes pendurados, cestos e cântaros' },
+  { id: 'salao-de-cha', nome: 'Salão de chá', funcao: 'salao-de-cha', piso: 'zellige', papel: 'reboco.branco', descricao: 'Almofadas, mesas de latão, narguilés e lanternas' },
 ];
 export const tipoDeComodo = (id: string): TipoDeComodo | undefined => TIPOS_DE_COMODO.find(t => t.id === id);
 
@@ -193,7 +198,7 @@ export const generoDe = (id: string): Genero => GENEROS.find(g => g.id === id) ?
 export const generosVisiveis = (id: string): string[] => [id, ...(GENEROS.find(g => g.id === id)?.herda ?? [])];
 
 /** Funções de cômodo ao ar livre que nascem sem telhado por padrão. */
-export const FUNCOES_AO_AR_LIVRE = new Set(['varanda', 'patio', 'claustro', 'quintal', 'peristilo', 'forum', 'jardim']);
+export const FUNCOES_AO_AR_LIVRE = new Set(['varanda', 'patio', 'claustro', 'quintal', 'peristilo', 'forum', 'jardim', 'patio-com-fonte']);
 
 /** Um estilo de telhado: combinação nomeada de cobertura, forma, inclinação e detalhes (só usada na interface e construção; o documento grava os campos resultantes em `room.roof`). */
 export interface EstiloDeTelhado { id: string; nome: string; roof: Omit<Comodo['roof'], 'visible'> }
@@ -312,5 +317,6 @@ export function telhadoPadrao(
   if (genero === 'moderno') return clonarTelhado(estiloDeTelhado('laje-moderna')!.roof);
   if (genero === 'antiguidade') return clonarTelhado(estiloDeTelhado('casa-romana')!.roof);
   if (genero === 'oriental') return clonarTelhado(estiloDeTelhado('casa-japonesa')!.roof);
+  if (genero === 'deserto') return clonarTelhado(estiloDeTelhado('terraco-de-barro')!.roof);
   return clonarTelhado(estiloDeTelhado('casa-velha')!.roof);
 }

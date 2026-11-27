@@ -10,6 +10,11 @@ const FUNCOES = new Set(TIPOS_DE_COMODO.map(t => t.funcao));
 
 // Das mais específicas para as mais genéricas: a primeira palavra que bate decide.
 const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number }[] = [
+  // Deserto (Q17c): "caravançará" (pátio de pouso das caravanas) e "oásis" dão o pátio com fonte; "salão de chá" é uma frase (ver `FRASES`), porque `cha` é da casa de chá.
+  { palavras: ['tenda', 'beduina', 'beduino'], funcao: 'tenda', confianca: 0.9 },
+  { palavras: ['bazar', 'souk', 'souq', 'suq'], funcao: 'bazar', confianca: 0.9 },
+  { palavras: ['majlis', 'hortela'], funcao: 'salao-de-cha', confianca: 0.9 },
+  { palavras: ['oasis', 'caravancara', 'caravanserai', 'caravanserail'], funcao: 'patio-com-fonte', confianca: 0.9 },
   // Oriental (Q16c): antes do templo, para "templo xintoísta" ser santuário.
   { palavras: ['santuario', 'jinja', 'xintoista'], funcao: 'santuario', confianca: 0.9 },
   { palavras: ['tatami', 'washitsu'], funcao: 'sala-de-tatami', confianca: 0.9 },
@@ -48,6 +53,11 @@ const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number
   { palavras: ['salao', 'comunal'], funcao: 'salao', confianca: 0.9 },
   { palavras: ['estar'], funcao: 'sala', confianca: 0.9 },
 ];
+/** Frases que valem mais que as palavras soltas ("salão de chá" não é "casa de chá"); vêm antes de `POR_NOME`. */
+const FRASES: readonly { frase: RegExp; funcao: string; confianca: number }[] = [
+  { frase: /\bsalao(es)? de cha\b/, funcao: 'salao-de-cha', confianca: 0.9 },
+  { frase: /\bpatio com fonte\b/, funcao: 'patio-com-fonte', confianca: 0.9 },
+];
 const CONHECIDAS = new Set(POR_NOME.flatMap(r => r.palavras));
 const LIGACOES = new Set(['de', 'do', 'da', 'dos', 'das']);
 const bate = (palavra: string, chave: string) => palavra === chave || palavra === `${chave}s`;
@@ -55,6 +65,8 @@ const bate = (palavra: string, chave: string) => palavra === chave || palavra ==
 /** Pelo nome: "Cozinha", "Quarto do Hugo", "Sala de jantar". "Sala" sozinha vale menos, e "sala de <coisa desconhecida>" não é sala. */
 function pelaNome(nome: string): Palpite | null {
   const palavras = normalizar(nome).split(/[^a-z0-9]+/).filter(Boolean);
+  const normal = palavras.join(' ');
+  for (const f of FRASES) if (f.frase.test(normal)) return { funcao: f.funcao, confianca: f.confianca, motivo: 'nome' };
   for (const regra of POR_NOME) if (palavras.some(p => regra.palavras.some(k => bate(p, k)))) return { funcao: regra.funcao, confianca: regra.confianca, motivo: 'nome' };
   const i = palavras.findIndex(p => bate(p, 'sala'));
   if (i < 0) return null;

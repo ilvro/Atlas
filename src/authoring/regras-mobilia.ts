@@ -444,6 +444,51 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('pedra', ['pedra.grande', 'pedra.media', 'pedra.pequena'], 'canto', [2, 4], 7, { escala: 0.5 }),
     item('banco', ['banco.jardim'], 'parede', [0, 1], 8),
   ],
+  // Deserto (Q17c). Os itens só do gênero saem fora dele (`regrasPara`); o `deposito` já existe e o gênero troca o que ele guarda (`VARIACOES_DE_GENERO.deserto`).
+  tenda: [
+    item('mesa', ['mesa-de-latao'], 'centro', [1, 1], 1),
+    item('tapete', ['tapete-de-chao'], 'junto', [1, 1], 2, { junto: { de: 'mesa', modo: 'em-frente', folga: -1.2 }, senao: 'centro', paramsPorArea: [[14, { comprimento: 3.4, largura: 2.4 }]] }),
+    item('almofadas', ['almofadas'], 'junto', [2, 4], 3, { junto: { de: 'mesa', modo: 'ao-redor' }, senao: 'parede' }),
+    item('narguile', ['narguile'], 'junto', [0, 1], 4, { junto: { de: 'mesa', modo: 'ao-lado' }, senao: 'parede' }),
+    item('bau', ['bau-pintado'], 'parede', [1, 1], 5),
+    item('jarro', ['jarro-de-barro'], 'canto', [1, 2], 6),
+    item('cesto', ['cesto'], 'canto', [0, 2], 7),
+    item('lanterna', ['lanterna-marroquina'], 'canto', [1, 2], 8),
+    item('tear', ['tear-de-chao'], 'parede', [0, 1], 9, { areaMinima: 16 }),
+  ],
+  'patio-com-fonte': [
+    item('fonte', ['fonte', 'poco.oasis'], 'centro', [1, 1], 1, { areaMinima: 16 }),
+    item('palmeira', ['casa:tamareira-5m', 'casa:coqueiro-4m'], 'canto', [1, 3], 2, { areaMinima: 20 }),
+    item('arbusto', ['casa:arbusto-verde', 'casa:cacto-redondo-grupo', 'casa:cacto-redondo-um'], 'canto', [1, 2], 3),
+    item('banco', ['banco.jardim'], 'parede', [0, 2], 4),
+    item('jarro', ['jarro-de-barro', 'cantaros-empilhados'], 'parede', [1, 2], 5),
+    item('lanterna', ['lanterna-marroquina'], 'parede', [1, 3], 6),
+    item('toldo', ['toldo-listrado'], 'parede', [0, 1], 7, { areaMinima: 24 }),
+    item('tear', ['tear-de-chao'], 'parede', [0, 1], 8, { areaMinima: 30 }),
+    item('palanquim', ['palanquim'], 'parede', [0, 1], 9, { areaMinima: 40 }),
+  ],
+  bazar: [
+    item('banca', ['banca-de-especiarias'], 'parede', [2, 4], 1, { escala: 0.5 }),
+    item('tapetes', ['tapetes-pendurados'], 'parede', [1, 3], 2, { escala: 0.3 }),
+    item('tapete', ['tapete-de-chao'], 'centro', [1, 1], 3, { areaMinima: 10 }),
+    item('cesto', ['cesto'], 'canto', [1, 3], 4),
+    item('cantaros', ['cantaros-empilhados'], 'canto', [1, 2], 5),
+    item('jarro', ['jarro-de-barro'], 'parede', [0, 2], 6),
+    item('mesa', ['mesa-de-latao'], 'parede', [0, 1], 7, { areaMinima: 14 }),
+    item('lanterna', ['lanterna-marroquina'], 'canto', [1, 2], 8),
+    item('toldo', ['toldo-listrado'], 'parede', [0, 1], 9, { areaMinima: 30 }),
+  ],
+  'salao-de-cha': [
+    item('mesa', ['mesa-de-latao'], 'centro', [1, 1], 1),
+    item('tapete', ['tapete-de-chao'], 'junto', [1, 1], 2, { junto: { de: 'mesa', modo: 'em-frente', folga: -1.2 }, senao: 'centro', paramsPorArea: [[16, { comprimento: 3.6, largura: 2.6 }]] }),
+    item('almofadas', ['almofadas'], 'junto', [2, 4], 3, { junto: { de: 'mesa', modo: 'ao-redor' }, senao: 'parede' }),
+    item('narguile', ['narguile'], 'junto', [1, 2], 4, { junto: { de: 'mesa', modo: 'ao-lado' }, senao: 'parede' }),
+    item('mesa-parede', ['mesa-de-latao'], 'parede', [1, 3], 5, { areaMinima: 14, escala: 0.4 }),
+    item('almofadas-parede', ['almofadas'], 'parede', [1, 3], 6, { areaMinima: 14 }),
+    item('lanterna', ['lanterna-marroquina'], 'canto', [2, 3], 7),
+    item('jarro', ['jarro-de-barro'], 'canto', [0, 1], 8),
+    item('cesto', ['cesto'], 'canto', [0, 1], 9),
+  ],
 };
 
 /**
@@ -485,6 +530,18 @@ export const VARIACOES_DE_GENERO: Readonly<Record<string, { trocar?: Record<stri
   oriental: {
     sem: ['cozinha:geladeira', 'cozinha:fogao', 'cozinha:balcao', 'cozinha:painel'],
     trocar: { ...VARIACOES_BASE.fantasia!.trocar, 'cozinha:mesa': ['mesa-baixa'], 'cozinha:cadeira': ['zabuton'], 'cozinha:lareira': ['irori'], 'cozinha:aparador': ['tansu'], 'cozinha:servico': ['bule-e-xicaras.oriental'] },
+  },
+  /** Deserto: almofadas e mesas de latão no lugar de sofás, cadeiras e mesas; tapete de kilim, baús pintados, cântaros e cestos; a cozinha sem geladeira nem fogão e o depósito com cântaros, cestos e baús. */
+  deserto: {
+    sem: ['cozinha:geladeira', 'cozinha:fogao', 'cozinha:balcao', 'cozinha:painel'],
+    trocar: {
+      ...VARIACOES_BASE.fantasia!.trocar,
+      'sala:sofa': ['almofadas'], 'sala:poltrona': ['almofadas'], 'sala:mesa-centro': ['mesa-de-latao'], 'sala:tapete': ['tapete-de-chao'], 'sala:mesinha': ['mesa-de-latao'], 'sala:recanto': ['almofadas'],
+      'quarto:tapete': ['tapete-de-chao'], 'quarto:armario': ['bau-pintado'], 'quarto:comoda': ['bau-pintado'],
+      'sala-de-jantar:mesa': ['mesa-de-latao'], 'sala-de-jantar:cadeira': ['almofadas'], 'salao:mesa': ['mesa-de-latao'], 'salao:banco': ['almofadas'], 'taverna:mesa': ['mesa-de-latao'], 'taverna:banco': ['almofadas'], 'taverna:cadeira': ['almofadas'],
+      'cozinha:mesa': ['mesa-de-latao'], 'cozinha:cadeira': ['almofadas'],
+      'deposito:barril': ['cantaros-empilhados', 'jarro-de-barro'], 'deposito:caixote': ['cesto', 'bau-pintado'], 'deposito:sacos': ['sacos', 'cesto'],
+    },
   },
 };
 
