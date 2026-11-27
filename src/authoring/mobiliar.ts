@@ -50,6 +50,8 @@ const MATERIAIS_BASE: Readonly<Record<string, Record<string, MateriaisDoComodo>>
       'salao-de-cha': { pisos: ['tabuas.escuras', 'laje.pedra'], papeis: ['reboco.branco', 'reboco.sujo'] },
       saloon: { pisos: ['tabuas.escuras'], papeis: ['boiserie.escura'] }, xerifado: { pisos: ['tabuas.rusticas'], papeis: ['reboco.sujo'] }, 'armazem-geral': { pisos: ['tabuas.rusticas'], papeis: ['reboco.sujo'] },
       banco: { pisos: ['marmore.xadrez-diagonal'], papeis: ['boiserie.escura'] }, estacao: { pisos: ['tabuas.escuras'], papeis: ['reboco.sujo'] },
+      conves: { pisos: ['tabuas.escuras'], papeis: ['tabuas.descascadas'] }, 'cabine-do-capitao': { pisos: ['tabuas.escuras'], papeis: ['boiserie.escura'] }, 'taverna-do-porto': { pisos: ['tabuas.escuras'], papeis: ['reboco.sujo'] },
+      fortim: { pisos: ['laje.pedra'], papeis: ['pedra.aparelhada'] }, 'casa-colonial': { pisos: ['tabuas.carvalho'], papeis: ['reboco.branco'] },
     };
     const e = extra[t.funcao]!; return [t.funcao, { pisos: [t.piso, ...e.pisos], papeis: [t.papel, ...e.papeis] }];
   })),
@@ -153,6 +155,29 @@ const FAROESTE_POR_FUNCAO: Readonly<Record<string, MateriaisDoComodo>> = {
   'sala-de-jogos': { pisos: ['tabuas.gastas', 'tabuas.escuras'], papeis: ['tabuas.descascadas', 'boiserie.escura'] },
 };
 
+/** Colonial e pirata: tábuas de convés, caiado, tijoleira e cantaria do fortim; o resto herda a investigação com caiado e tábuas no lugar do papel de parede. */
+const COLONIAL_POR_FUNCAO: Readonly<Record<string, MateriaisDoComodo>> = {
+  conves: { pisos: ['tabuas.gastas', 'tabuas.escuras'], papeis: ['tabuas.descascadas', 'toras'] },
+  'cabine-do-capitao': { pisos: ['tabuas.carvalho', 'tabuas.escuras'], papeis: ['boiserie.escura', 'tabuas.descascadas'] },
+  'taverna-do-porto': { pisos: ['tabuas.gastas', 'tabuas.escuras'], papeis: ['caiado', 'tabuas.descascadas'] },
+  fortim: { pisos: ['laje.pedra', 'pedra.rustica'], papeis: ['pedra.aparelhada', 'tijolo.fuligem'] },
+  'casa-colonial': { pisos: ['tijoleira', 'tabuas.carvalho'], papeis: ['caiado', 'reboco.branco'] },
+  porao: { pisos: ['laje.pedra', 'tabuas.gastas'], papeis: ['tabuas.descascadas', 'pedra.aparelhada'] },
+  taverna: { pisos: ['tabuas.gastas', 'tabuas.escuras'], papeis: ['caiado', 'tabuas.descascadas'] },
+  deposito: { pisos: ['tabuas.gastas', 'tijoleira'], papeis: ['caiado', 'tabuas.descascadas'] },
+  loja: { pisos: ['tijoleira', 'tabuas.carvalho'], papeis: ['caiado', 'reboco.branco'] },
+  escritorio: { pisos: ['tabuas.carvalho', 'tabuas.escuras'], papeis: ['caiado', 'boiserie.escura'] },
+  sala: { pisos: ['tijoleira', 'tabuas.carvalho'], papeis: ['caiado', 'reboco.branco'] },
+  quarto: { pisos: ['tabuas.carvalho', 'tijoleira'], papeis: ['caiado', 'reboco.branco'] },
+  cozinha: { pisos: ['tijoleira', 'terracota.quadrada'], papeis: ['caiado', 'reboco.branco'] },
+  corredor: { pisos: ['tijoleira', 'tabuas.carvalho'], papeis: ['caiado', 'reboco.branco'] },
+  capela: { pisos: ['laje.pedra', 'tijoleira'], papeis: ['caiado', 'reboco.branco'] },
+  cela: { pisos: ['laje.pedra', 'pedra.rustica'], papeis: ['pedra.aparelhada', 'tijolo'] },
+  varanda: { pisos: ['tijoleira', 'terracota.quadrada'], papeis: ['caiado', 'reboco.branco'] },
+  salao: { pisos: ['tabuas.carvalho', 'tijoleira'], papeis: ['caiado', 'boiserie.escura'] },
+  'sala-de-jantar': { pisos: ['tabuas.carvalho', 'tijoleira'], papeis: ['caiado', 'boiserie.escura'] },
+};
+
 const PALETAS_BASE: Readonly<Record<string, Paleta[]>> = {
   investigacao: [
     { nome: 'Vinho e carvalho', madeira: 'madeira.escura', tecidos: ['tecido.veludo-vinho', 'tecido.linho'], tapete: 'tapete.persa' },
@@ -178,7 +203,7 @@ export const MATERIAIS_POR_GENERO: Readonly<Record<string, Record<string, Materi
   oriental: { ...MATERIAIS_BASE.fantasia!, ...ORIENTAL_POR_FUNCAO },
   deserto: { ...MATERIAIS_BASE.fantasia!, ...DESERTO_POR_FUNCAO },
   faroeste: { ...MATERIAIS_BASE.investigacao!, ...FAROESTE_POR_FUNCAO },
-  colonial: MATERIAIS_BASE.investigacao!, // trocado na ficha Q19c
+  colonial: { ...MATERIAIS_BASE.investigacao!, ...COLONIAL_POR_FUNCAO },
   vitoriano: MATERIAIS_BASE.investigacao!, // trocado na ficha Q20c
   'pos-apocaliptico': MATERIAIS_BASE.moderno!, // trocado na ficha Q22c
   cyberpunk: MATERIAIS_BASE.moderno!, // trocado na ficha Q23c
@@ -206,7 +231,11 @@ export const PALETAS_POR_GENERO: Readonly<Record<string, Paleta[]>> = {
     { nome: 'Pinho e couro', madeira: 'madeira.media', tecidos: ['couro.marrom', 'tecido.linho'], tapete: 'tapete.persa' },
     { nome: 'Veludo e poeira', madeira: 'madeira.clara', tecidos: ['tecido.veludo-vinho', 'tecido.linho'], tapete: 'tapete.persa' },
   ],
-  colonial: PALETAS_BASE.investigacao!, // trocado na ficha Q19c
+  colonial: [
+    { nome: 'Mogno e couro', madeira: 'madeira.escura', tecidos: ['couro.marrom', 'tecido.linho'], tapete: 'tapete.persa' },
+    { nome: 'Carvalho e lona', madeira: 'madeira.media', tecidos: ['tecido.mostarda', 'tecido.linho'], tapete: 'tapete.verde' },
+    { nome: 'Pau-brasil e veludo', madeira: 'madeira.clara', tecidos: ['tecido.veludo-vinho', 'tecido.linho'], tapete: 'tapete.persa' },
+  ],
   vitoriano: PALETAS_BASE.investigacao!, // trocado na ficha Q20c
   'pos-apocaliptico': PALETAS_BASE.moderno!, // trocado na ficha Q22c
   cyberpunk: PALETAS_BASE.moderno!, // trocado na ficha Q23c

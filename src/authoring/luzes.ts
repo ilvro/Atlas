@@ -83,6 +83,12 @@ export const LUZES_POR_FUNCAO: Readonly<Record<string, LuzDaFuncao>> = {
   'armazem-geral': { m2PorLuz: 16, tamanho: 'principal', sobre: ['balcao'] },
   banco: { m2PorLuz: 16, tamanho: 'principal', sobre: ['balcao', 'mesa-de-xerife', 'escrivaninha'] },
   estacao: { m2PorLuz: 16, tamanho: 'principal', sobre: ['balcao', 'mesa-de-xerife'] },
+  // Colonial (Q19c): lamparina e vela do gênero; a mesa de cartógrafo e o oratório já trazem a vela deles. Convés e fortim ficam ao ar livre, sem luz interna.
+  conves: { m2PorLuz: 20, tamanho: 'pequena', sobre: [], semLuz: true },
+  fortim: { m2PorLuz: 20, tamanho: 'pequena', sobre: [], semLuz: true },
+  'cabine-do-capitao': { m2PorLuz: 14, tamanho: 'pequena', sobre: ['mesa-de-cartografo'] },
+  'taverna-do-porto': { m2PorLuz: 12, tamanho: 'principal', sobre: ['mesa.taverna', 'balcao'] },
+  'casa-colonial': { m2PorLuz: 14, tamanho: 'principal', sobre: ['mesa.retangular', 'oratorio'] },
 };
 
 const DISTANCIA_MINIMA = 2;

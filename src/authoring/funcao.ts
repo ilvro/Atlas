@@ -10,6 +10,9 @@ const FUNCOES = new Set(TIPOS_DE_COMODO.map(t => t.funcao));
 
 // Das mais específicas para as mais genéricas: a primeira palavra que bate decide.
 const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number }[] = [
+  // Colonial e pirata (Q19c): "convés" e "cabine" só valem em nome inteiro (a cabine do capitão tem frase própria); "forte" sozinho é adjetivo, então só "fortim" e "fortaleza" valem solto. "Enseada" é exterior (conjunto de espalhar), não cômodo.
+  { palavras: ['conves'], funcao: 'conves', confianca: 0.9 },
+  { palavras: ['fortim', 'fortaleza', 'baluarte'], funcao: 'fortim', confianca: 0.9 },
   // Faroeste (Q18c): "banco" e "armazém" sozinhos já têm outro sentido (banco de sentar, depósito), então esses vão em `FRASES`. "Rancho" é o estábulo.
   { palavras: ['saloon', 'saloons'], funcao: 'saloon', confianca: 0.9 },
   { palavras: ['xerife', 'xerifado', 'delegacia'], funcao: 'xerifado', confianca: 0.9 },
@@ -61,6 +64,10 @@ const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number
 ];
 /** Frases que valem mais que as palavras soltas ("salão de chá" não é "casa de chá"); vêm antes de `POR_NOME`. */
 const FRASES: readonly { frase: RegExp; funcao: string; confianca: number }[] = [
+  { frase: /\bcabine (do|de) (capitao|comandante)\b|\bcamarote (do|de) (capitao|comandante)\b|^cabine( \d+)?$/, funcao: 'cabine-do-capitao', confianca: 0.9 },
+  { frase: /\btaverna (do|de) porto\b|\btaverna do (cais|porto)\b|\btaverna (pirata|dos piratas)\b/, funcao: 'taverna-do-porto', confianca: 0.9 },
+  { frase: /^forte( \d+)?$|\bforte (de|do|da|dos|das|real|velho|sao|santo|santa)\b/, funcao: 'fortim', confianca: 0.9 },
+  { frase: /\bcasa (colonial|grande|de engenho)\b|\bsobrado colonial\b/, funcao: 'casa-colonial', confianca: 0.9 },
   { frase: /\barmazem(ns)? (geral|gerais)\b/, funcao: 'armazem-geral', confianca: 0.9 },
   { frase: /^banco( \d+)?$|\bbanco (da|do|de|nacional|federal|comercial|rural) (fronteira|cidade|oeste|povoado|vila|comercio|agricultura|[a-z]+ city)\b|\bbanco (nacional|federal|comercial|rural)\b/, funcao: 'banco', confianca: 0.9 },
   { frase: /\bsalao(es)? de cha\b/, funcao: 'salao-de-cha', confianca: 0.9 },

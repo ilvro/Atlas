@@ -96,6 +96,14 @@ export const CONJUNTOS_EXTERIORES: readonly ConjuntoDeEspalhar[] = [
     { receita: 'casa:cacto-redondo-um', peso: 2, contexto: 'livre' }, { receita: 'casa:cacto-redondo-grupo', peso: 2, contexto: 'livre' },
     { receita: 'casa:arbusto-seco-1m', peso: 4, contexto: 'livre' }, { receita: 'casa:arbusto-seco-2m', peso: 2, contexto: 'livre' },
     { receita: 'rochedo', peso: 1, contexto: 'livre' }, { receita: 'pedra.media', peso: 2, contexto: 'livre' }, { receita: 'cranio-de-boi', peso: 1, contexto: 'livre' }] },
+  { id: 'enseada', nome: 'Enseada', descricao: 'Coqueiros, canoas, cabanas de palha, rede de pesca, barris, rolos de corda e âncora', densidade: 0.04, itens: [
+    { receita: 'casa:coqueiro-4m', peso: 4, contexto: 'livre' }, { receita: 'casa:coqueiro-6m', peso: 2, contexto: 'livre' }, { receita: 'canoa', peso: 2, contexto: 'livre' },
+    { receita: 'cabana-de-palha', peso: 1, contexto: 'livre' }, { receita: 'rede-de-pesca', peso: 1, contexto: 'livre' }, { receita: 'barril', peso: 2, contexto: 'livre' },
+    { receita: 'rolo-de-corda', peso: 2, contexto: 'livre' }, { receita: 'ancora', peso: 1, contexto: 'livre' }, { receita: 'fardos-de-acucar', peso: 1, contexto: 'livre' }] },
+  { id: 'tesouro-espalhado', nome: 'Tesouro espalhado', descricao: 'Baús de tesouro, moedas e cálices, ossada, bandeira pirata e barris', densidade: 0.03, itens: [
+    { receita: 'bau-de-tesouro', peso: 3, contexto: 'livre' }, { receita: 'moedas-espalhadas', peso: 4, contexto: 'livre' },
+    { receita: 'ossada', peso: 2, contexto: 'livre' }, { receita: 'cranio-animal', peso: 1, contexto: 'livre' }, { receita: 'bandeira-pirata', peso: 1, contexto: 'livre' },
+    { receita: 'barril-de-rum', peso: 1, contexto: 'livre' }, { receita: 'pedra.media', peso: 1, contexto: 'livre' }] },
 ];
 export const TODOS_OS_CONJUNTOS: readonly ConjuntoDeEspalhar[] = [...CONJUNTOS_DE_ESPALHAR, ...CONJUNTOS_EXTERIORES];
 export const conjuntoDeEspalhar = (id: string): ConjuntoDeEspalhar | undefined => TODOS_OS_CONJUNTOS.find(c => c.id === id);

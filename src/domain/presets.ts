@@ -56,6 +56,12 @@ export const TIPOS_DE_COMODO: readonly TipoDeComodo[] = [
   { id: 'armazem-geral', nome: 'Armazém geral', funcao: 'armazem-geral', piso: 'tabuas.gastas', papel: 'tabuas.descascadas', descricao: 'Balcão, estantes, sacos, barris e caixotes' },
   { id: 'banco', nome: 'Banco', funcao: 'banco', piso: 'ladrilho.hidraulico', papel: 'caiado', descricao: 'Balcão do caixa, cofre e escrivaninha' },
   { id: 'estacao', nome: 'Estação', funcao: 'estacao', piso: 'tijoleira', papel: 'tabuas.descascadas', descricao: 'Bilheteria, bancos de espera, caixotes e relógio' },
+  // Colonial e pirata (Q19c). O `porao` já existe; o gênero só troca o que ele guarda (barris de rum, fardos de açúcar, rede de dormir, canhão naval).
+  { id: 'conves', nome: 'Convés', funcao: 'conves', piso: 'tabuas.gastas', papel: 'tabuas.descascadas', descricao: 'Timão, mastro, canhões nas bordas, barris e cordame, ao ar livre' },
+  { id: 'cabine-do-capitao', nome: 'Cabine do capitão', funcao: 'cabine-do-capitao', piso: 'tabuas.carvalho', papel: 'boiserie.escura', descricao: 'Mesa de cartógrafo, baú de tesouro, mapa e luneta, rede e estante' },
+  { id: 'taverna-do-porto', nome: 'Taverna do porto', funcao: 'taverna-do-porto', piso: 'tabuas.gastas', papel: 'caiado', descricao: 'Mesas de taverna, barris de rum e balcão' },
+  { id: 'fortim', nome: 'Fortim', funcao: 'fortim', piso: 'laje.pedra', papel: 'pedra.aparelhada', descricao: 'Canhões de forte, balas, sino de cais e bandeira, ao ar livre' },
+  { id: 'casa-colonial', nome: 'Casa colonial', funcao: 'casa-colonial', piso: 'tijoleira', papel: 'caiado', descricao: 'Oratório, mesa, rede de dormir e botica' },
 ];
 export const tipoDeComodo = (id: string): TipoDeComodo | undefined => TIPOS_DE_COMODO.find(t => t.id === id);
 
@@ -204,7 +210,7 @@ export const generoDe = (id: string): Genero => GENEROS.find(g => g.id === id) ?
 export const generosVisiveis = (id: string): string[] => [id, ...(GENEROS.find(g => g.id === id)?.herda ?? [])];
 
 /** Funções de cômodo ao ar livre que nascem sem telhado por padrão. */
-export const FUNCOES_AO_AR_LIVRE = new Set(['varanda', 'patio', 'claustro', 'quintal', 'peristilo', 'forum', 'jardim', 'patio-com-fonte']);
+export const FUNCOES_AO_AR_LIVRE = new Set(['varanda', 'patio', 'claustro', 'quintal', 'peristilo', 'forum', 'jardim', 'patio-com-fonte', 'conves', 'fortim']);
 
 /** Um estilo de telhado: combinação nomeada de cobertura, forma, inclinação e detalhes (só usada na interface e construção; o documento grava os campos resultantes em `room.roof`). */
 export interface EstiloDeTelhado { id: string; nome: string; roof: Omit<Comodo['roof'], 'visible'> }
@@ -325,5 +331,6 @@ export function telhadoPadrao(
   if (genero === 'oriental') return clonarTelhado(estiloDeTelhado('casa-japonesa')!.roof);
   if (genero === 'deserto') return clonarTelhado(estiloDeTelhado('terraco-de-barro')!.roof);
   if (genero === 'faroeste') return clonarTelhado(estiloDeTelhado('cabana-de-tabuas')!.roof);
+  if (genero === 'colonial') return clonarTelhado(estiloDeTelhado('casa-colonial')!.roof);
   return clonarTelhado(estiloDeTelhado('casa-velha')!.roof);
 }
