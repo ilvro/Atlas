@@ -13,7 +13,7 @@ const TONS_DE_OSSO = ['#e4ddca', '#d8ccb0', '#cbbf9f', '#c2bba9', '#dcd3bd'];
 const PINCEL: Partial<Parte> = { contorno: false, semSombra: true, suave: true };
 
 /** Um osso longo: haste em fita com as duas cabeças (epífises) em lóbulos, luz de um lado e sombra do outro; de (x, y) para `ang`. */
-function osso(partes: Parte[], x: number, y: number, ang: number, len: number, w: number, z: number, cor = OSSO, r: () => number = Math.random): void {
+export function osso(partes: Parte[], x: number, y: number, ang: number, len: number, w: number, z: number, cor = OSSO, r: () => number = Math.random): void {
   const c = Math.cos(ang), s = Math.sin(ang), p = (u: number, v: number): [number, number] => [x + u * c - v * s, y + u * s + v * c];
   const curva = (r() - 0.5) * w * 0.6, haste = [...p(0, 0), ...p(len * 0.5, curva), ...p(len, 0)];
   partes.push(tira(haste, w, cor, z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }, 0.75));
@@ -24,7 +24,7 @@ function osso(partes: Parte[], x: number, y: number, ang: number, len: number, w
 }
 
 /** Uma costela: arco afinando, de (x, y) saindo em `ang` e curvando para `lado`. */
-function costela(partes: Parte[], x: number, y: number, ang: number, len: number, w: number, lado: number, cor: string, z: number): void {
+export function costela(partes: Parte[], x: number, y: number, ang: number, len: number, w: number, lado: number, cor: string, z: number): void {
   const pts: number[] = [];
   for (let k = 0; k <= 6; k++) { const t = k / 6, a = ang + lado * t * 1.1; pts.push(x + Math.cos(a) * len * t, y + Math.sin(a) * len * t); }
   partes.push(tira(pts, w, cor, z, { contorno: 'leve', sombraLeve: true, detalhe: 2 }, 0.35));
@@ -34,7 +34,7 @@ function costela(partes: Parte[], x: number, y: number, ang: number, len: number
  * Crânio de animal (lobo, cervo) visto de cima, de (x, y) olhando para `ang`: caixa craniana redonda atrás, arcos das maçãs abertos na altura
  * dos olhos, focinho longo e estreito; órbitas e narinas escuras, crista no meio, luz a noroeste. `chifres` põe dois chifres curvos.
  */
-function cranio(partes: Parte[], x: number, y: number, ang: number, s: number, z: number, chifres: boolean, cor = OSSO): void {
+export function cranio(partes: Parte[], x: number, y: number, ang: number, s: number, z: number, chifres: boolean, cor = OSSO): void {
   const c = Math.cos(ang), s2 = Math.sin(ang), p = (u: number, v: number): [number, number] => [x + (u * c - v * s2) * s, y + (u * s2 + v * c) * s];
   const perfil: [number, number][] = [[-0.5, 0], [-0.47, 0.17], [-0.36, 0.3], [-0.18, 0.33], [-0.04, 0.4], [0.08, 0.38], [0.16, 0.22], [0.3, 0.17], [0.48, 0.14], [0.6, 0.1], [0.64, 0]];
   const forma = [...perfil, ...perfil.slice(1, -1).reverse().map(([u, v]) => [u, -v] as [number, number])].flatMap(([u, v]) => p(u, v));

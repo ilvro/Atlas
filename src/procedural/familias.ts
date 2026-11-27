@@ -125,7 +125,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('moveis', 'relogio-de-pe', 'Peça decorativa', ['relogio.pe', 'cabideiro', 'globo.terrestre'], { generos: ['investigacao'] }),
   // Luz e fogo
   f('luz-e-fogo', 'lareira', 'Lareira', ['lareira.pedra', 'lareira.marmore', 'lareira.nobre'], { generos: ['fantasia', 'investigacao'] }),
-  f('luz-e-fogo', 'fogueira', 'Fogueira', ['fogueira', 'braseiro', 'tripe-de-bronze', 'caldeirao', 'espeto-de-assar', 'irori'], { generos: ['fantasia', 'oriental'] }),
+  f('luz-e-fogo', 'fogueira', 'Fogueira', ['fogueira', 'fogueira-de-caravana', 'braseiro', 'tripe-de-bronze', 'caldeirao', 'espeto-de-assar', 'irori'], { generos: ['fantasia', 'oriental', 'deserto'] }),
   f('luz-e-fogo', 'castical', 'Castiçal', ['castical.mesa', 'candelabro', 'candelabro.pe', 'tocheiro', 'velas-votivas'], { generos: ['fantasia', 'investigacao'] }),
   f('luz-e-fogo', 'lucerna', 'Lucerna', ['lucerna'], { generos: ['antiguidade', 'fantasia'] }),
   f('luz-e-fogo', 'lanterna-oriental', 'Lanterna de papel', ['andon', 'lanterna-de-papel'], { generos: ['oriental', 'fantasia'] }),
@@ -153,7 +153,7 @@ export const FAMILIAS: readonly Familia[] = [
   // Carga e armazenamento
   f('carga', 'caixote', 'Caixote', ['caixa', 'caixote', 'caixa.carga', 'pilha-de-caixotes']),
   f('carga', 'barril', 'Barril', ['barril.em-pe', 'barril', 'barril.deitado', 'barril-de-chuva', 'pilha-de-barris']),
-  f('carga', 'jarro-de-barro', 'Jarro e cântaros de barro', ['jarro-de-barro'], { generos: ['deserto', 'fantasia'] }),
+  f('carga', 'jarro-de-barro', 'Jarro e cântaros de barro', ['jarro-de-barro', 'cantaros-empilhados'], { generos: ['deserto', 'fantasia'] }),
   f('carga', 'cesto', 'Cesto de palha', ['cesto'], { generos: ['deserto', 'fantasia'] }),
   f('carga', 'anfora', 'Ânfora e jarrão', ['anfora', 'anforas-empilhadas', 'pithos'], { generos: ['antiguidade', 'fantasia'] }),
   f('carga', 'saco', 'Saco', ['sacos']),
@@ -206,15 +206,16 @@ export const FAMILIAS: readonly Familia[] = [
   // Campo e estrada
   f('campo', 'carroca', 'Carroça', ['carroca', 'carroca-de-feno', 'carroca-tombada', 'carrinho-de-mao', 'carrinho-de-carga', 'treno']),
   f('campo', 'biga', 'Carro de guerra', ['biga'], { generos: ['antiguidade', 'fantasia'] }),
-  f('campo', 'cavalo', 'Animal', ['cavalo', 'galinheiro']),
+  f('campo', 'cavalo', 'Animal', ['cavalo', 'camelo', 'galinheiro']),
   f('campo', 'feno', 'Feno', ['fardo-de-feno', 'monte-de-palha', 'pilha-de-lenha']),
-  f('campo', 'poco', 'Poço', ['poco', 'bebedouro']),
+  f('campo', 'poco', 'Poço', ['poco', 'poco.oasis', 'bebedouro']),
   f('campo', 'varal', 'Varal', ['varal']),
   f('campo', 'plantacao', 'Plantação', ['plantacao.arroz', 'plantacao.trigo', 'plantacao.milho']),
   f('campo', 'espantalho', 'Espantalho', ['espantalho']),
   f('campo', 'moinho', 'Pás de moinho', ['pas.moinho']),
-  f('campo', 'barraca', 'Barraca', ['tenda', 'barraca-de-feira', 'estandarte', 'tenda-beduina']),
-  f('campo', 'banca-de-mercado', 'Banca de mercado', ['banca-de-mercado.toldo'], { generos: ['antiguidade', 'fantasia'] }),
+  f('campo', 'barraca', 'Barraca', ['tenda', 'barraca-de-feira', 'estandarte', 'toldo-listrado', 'tenda-beduina']),
+  f('campo', 'banca-de-mercado', 'Banca de mercado', ['banca-de-mercado.toldo', 'banca-de-especiarias', 'tapetes-pendurados'], { generos: ['antiguidade', 'fantasia', 'deserto'] }),
+  f('campo', 'palanquim', 'Palanquim', ['palanquim'], { generos: ['deserto', 'fantasia'] }),
   // Porto
   f('porto', 'barco', 'Barco', ['barco-a-remo', 'barco-de-vela', 'bote-com-carga', 'barcaca', 'navio']),
   f('porto', 'cais', 'Cais', ['cais-segmento', 'guindaste-de-cais']),
@@ -236,7 +237,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('ficcao', 'criotubo', 'Criotubo', ['criotubo'], { generos: ['ficcao-cientifica', 'cyberpunk'] }),
   f('ficcao', 'tubulacao', 'Tubulação', ['tubulacao', 'cabos', 'grade.ventilacao'], { generos: ['ficcao-cientifica', 'cyberpunk'] }),
   // Ossos e restos
-  f('ossos', 'ossada', 'Ossada', ['ossada', 'pilha-de-ossos', 'cranio-animal']),
+  f('ossos', 'ossada', 'Ossada', ['ossada', 'ossada-de-camelo', 'pilha-de-ossos', 'cranio-animal']),
   f('ossos', 'peles', 'Peles', ['pilha-de-peles']),
 ];
 
