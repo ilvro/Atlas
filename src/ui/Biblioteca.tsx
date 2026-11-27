@@ -1,6 +1,7 @@
 import { Pistas } from './Pistas.tsx';
 import { signal, useSignal } from '@preact/signals';
 import { modo } from '../app/modo.ts';
+import { emConstrucaoRemota } from '../app/construcao-remota.ts';
 import { objetosNaGrade } from '../app/preferencias.ts';
 import { tocar } from '../fx/som.ts';
 import { TIPOS_DE_COMODO, PRESETS_DE_LUZ, PACOTES_DE_PRESENCA, PINCEIS_DE_PRESENCA } from '../domain/presets.ts';
@@ -13,6 +14,7 @@ import { GRUPOS_DE_TERRENO } from '../procedural/grupos-de-terreno.ts';
 import { CampoCaixa, CampoCor, CampoNumero } from './campos.tsx';
 import { TODOS_OS_CONJUNTOS } from '../authoring/espalhar.ts';
 import { Amostra, CampoMaterial } from './campos-material.tsx';
+import { CamposDaReceita } from './campos-receita.tsx';
 import { Icone } from './Icone.tsx';
 import { PropriedadesDoObjeto } from './PropriedadesDoObjeto.tsx';
 import { filtroDeBioma } from '../app/filtros.ts';
@@ -67,9 +69,7 @@ function Objetos({ s }: { s: SessaoDeEdicao }) {
     <CatalogoDeFamilias s={s} />
     {receita && <div class="ajustes"><h4>{receita.nome}</h4>
       <p class="dica"><kbd>Q</kbd> <kbd>E</kbd> giram. <kbd>Ctrl</kbd>+clique num objeto copia o pincel. <kbd>Alt</kbd> {objetosNaGrade.value ? 'põe fora da grade' : 'encaixa na grade'}.</p>
-      {receita.campos.map(c => c.tipo === 'numero'
-        ? <CampoNumero key={c.id} rotulo={c.rotulo} unidade="m" valor={typeof atual.params[c.id] === 'number' ? atual.params[c.id] as number : c.padrao as number} min={c.min ?? 0} max={c.max ?? 20} passo={c.passo ?? 0.1} aoConfirmar={v => { s.pincel.value = { ...s.pincel.value, objeto: { ...atual, params: { ...atual.params, [c.id]: v } } }; }} />
-        : <CampoMaterial key={c.id} rotulo={c.rotulo} uso={c.uso ?? 'objeto'} valor={typeof atual.params[c.id] === 'string' ? atual.params[c.id] as string : c.padrao as string} aoMudar={v => { if (v) s.pincel.value = { ...s.pincel.value, objeto: { ...atual, params: { ...atual.params, [c.id]: v } } }; }} />)}
+      <CamposDaReceita campos={receita.campos} params={atual.params} aoMudar={(id, v) => { s.pincel.value = { ...s.pincel.value, objeto: { ...atual, params: { ...atual.params, [id]: v } } }; }} />
     </div>}
   </>);
 }
@@ -207,7 +207,7 @@ export function Biblioteca({ s }: { s: SessaoDeEdicao }) {
     <aside class="biblioteca" aria-label={`Biblioteca: ${TITULOS[f]}`} data-testid="biblioteca">
       <div class="biblioteca-topo"><h3 class="faixa pequena">{TITULOS[f]}</h3><button type="button" class="botao-icone" aria-label="Fechar a biblioteca" title="Fechar (B)" onClick={() => { s.biblioteca.value = false; }}><Icone nome="fechar" tamanho={16} /></button></div>
       <div class="biblioteca-corpo">
-        {f === 'comodo' && <Comodos s={s} />}{f === 'objeto' && <><Objetos s={s} /><h3 class="faixa pequena">Pistas do Ateliê</h3><Pistas s={s} /></>}{f === 'luz' && <Luzes s={s} />}
+        {f === 'comodo' && <Comodos s={s} />}{f === 'objeto' && <><Objetos s={s} />{!emConstrucaoRemota.value && <><h3 class="faixa pequena">Pistas do Ateliê</h3><Pistas s={s} /></>}</>}{f === 'luz' && <Luzes s={s} />}
         {f === 'abertura' && <Aberturas s={s} />}{f === 'parede' && <Paredes s={s} />}{f === 'terreno' && <Terreno s={s} />}{f === 'presenca' && <Presenca s={s} />}{f === 'espalhar' && <Espalhar s={s} />}
       </div>
       {f === 'objeto' && <CatalogoFlutuante s={s} />}

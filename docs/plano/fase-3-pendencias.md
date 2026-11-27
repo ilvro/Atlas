@@ -32,8 +32,8 @@ Testes: unitário de validação aceitando `kind: 'texture'` com material; captu
 Pronto quando: escolher "Textura → pedra" muda o fundo ao vivo e desfaz.
 Commit: textured map backdrop
 
-### P3c — Parâmetros da receita no inspetor  ⬜
-Nota (3 de novembro): ainda aberta. Depois da 6.0b, leia os campos por `ACERVO.item(id).campos` em vez de `receitaDe`; item da coleção não tem parâmetros.
+### P3c — Parâmetros da receita no inspetor  ✅
+Nota (21 de novembro): implementada com o componente compartilhado `CamposDaReceita` em `src/ui/campos-receita.tsx` (reaproveitado em `Biblioteca.tsx` e `Inspetor.tsx`), lendo `ACERVO.item(ACERVO.idDaFonte(o.source)).campos` e aplicando `item.atualizar` com `source: { params: { [id]: v } }` ("Ajustar objeto").
 Objetivo: depois de pôr um objeto, o inspetor edita os parâmetros da receita (hoje só "Variar").
 Depende de: —
 Ler: `src/ui/Biblioteca.tsx` (como os parâmetros aparecem antes de pôr); `src/procedural/receitas.ts` (definição dos parâmetros); `src/ui/Inspetor.tsx` (`CamposDoObjeto`).
