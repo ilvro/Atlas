@@ -8,6 +8,7 @@ export interface DadosMoverPeca {
   peca: string;
   position: Ponto;
   levelId?: string | null;
+  emArrasto?: boolean;
 }
 
 export interface ContextoMoverPeca {
@@ -51,11 +52,14 @@ export function atenderMoverPeca(
 
   const semGrade = !doc.grid.snap || ctx.movimentoLivre?.() === true;
   try {
-    store.executar({ tipo: 'peca.mover', id: peca.id, para: dados.position, livre: false, semGrade });
+    store.executar(
+      { tipo: 'peca.mover', id: peca.id, para: dados.position, livre: false, semGrade, ...(dados.emArrasto ? { emArrasto: true } : {}) },
+      { fusao: `mover-peca-remota:${peca.id}` },
+    );
   } catch (erro) {
     return { ok: false, motivo: erro instanceof Error ? erro.message : String(erro) };
   }
 
-  ctx.aoMover?.({ autor, pecaNome: peca.name || 'peça' });
+  if (!dados.emArrasto) ctx.aoMover?.({ autor, pecaNome: peca.name || 'peça' });
   return { ok: true };
 }

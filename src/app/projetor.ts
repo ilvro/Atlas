@@ -31,8 +31,9 @@ export const nomeDoCanalEventosDaSala = (salaId: string): string => `sala:${sala
 /** Os canais em que o projetor ouve e fala: no modo remoto só o da sala; no local, o do mapa e o global. */
 export const canaisDoProjetor = (mapaId: string, salaId?: string): string[] =>
   salaId ? [nomeDoCanalDaSala(salaId)] : [nomeDoCanalDoProjetor(mapaId), CANAL_PROJETOR_GLOBAL];
-/** O que o projetor pode dizer: no modo remoto só o `ola` (a casca o usa para reenviar o último estado); o resto (`tamanho`, `soltou`, `tchau`) é do mestre. */
-export const projetorPodeDizer = (m: { tipo: string }, remoto: boolean): boolean => !remoto || m.tipo === 'ola' || m.tipo === 'pedir-retrato';
+/** O que o projetor pode dizer: no modo remoto `ola`, `pedir-retrato` e `alternar-porta` (a casca filtra); o resto (`tamanho`, `soltou`, `tchau`) é do mestre. */
+export const projetorPodeDizer = (m: { tipo: string }, remoto: boolean): boolean =>
+  !remoto || m.tipo === 'ola' || m.tipo === 'pedir-retrato' || m.tipo === 'alternar-porta';
 
 /** ID do mapa que o projetor está exibindo (desacoplado da aba ativa no editor). */
 export const mapaNoProjetorId = signal<string | null>(null);
@@ -74,7 +75,8 @@ export type MensagemDoProjetor =
   | { tipo: 'tamanho'; largura: number; altura: number }
   | { tipo: 'soltou' }
   | { tipo: 'tchau' }
-  | { tipo: 'pedir-retrato'; id: string };
+  | { tipo: 'pedir-retrato'; id: string }
+  | { tipo: 'alternar-porta'; id: string };
 
 /** O que o publicador manda só à ponte remota: o mapa está sem névoa, e o `estado` dele não deve sair até o mestre confirmar. `nome` é só para a tela do mestre. */
 export interface AvisoSemNevoa { tipo: 'aviso-sem-nevoa'; mapa: string; nome: string }
@@ -140,7 +142,11 @@ export interface Publicador {
 }
 
 /** Começa a publicar o mapa aberto para um projetor que apareça. Não faz nada pesado enquanto nenhum projetor estiver ligado. */
-export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => Promise<Blob | null>): Publicador {
+export function iniciarPublicacao(
+  s: SessaoDeEdicao,
+  lerAsset: (id: string) => Promise<Blob | null>,
+  aoAlternarPorta?: (id: string) => void,
+): Publicador {
   const id = s.store.documento.id;
   if (typeof BroadcastChannel !== 'function') {
     return {
@@ -326,6 +332,13 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
       if (ehOla && fichaProjetadaId.peek()) enviar({ tipo: 'projetar-ficha', fichaId: fichaProjetadaId.peek() }, 'remoto');
     } else if (msg.tipo === 'pedir-retrato' && typeof msg.id === 'string' && msg.id) {
       if (projetorRemotoConectado.peek()) enviarRetratoPorId(msg.id, 'remoto', true);
+    } else if (msg.tipo === 'alternar-porta' && typeof msg.id === 'string' && msg.id) {
+      if (controleJogadores.peek() !== 'livres') return;
+      const m = s.store.documento;
+      const o = m.openings[msg.id];
+      if (!o || (o.kind !== 'door' && o.kind !== 'secret') || o.state === 'locked') return;
+      if (o.kind === 'secret' && !m.session.revealed.includes(o.id)) return;
+      aoAlternarPorta?.(msg.id);
     } else if (msg.tipo === 'tchau') projetorRemotoConectado.value = false;
   };
   canalRemoto.postMessage({ tipo: 'precisa-ola' });
@@ -335,11 +348,12 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
   const sair = s.store.assinar(e => {
     if (e.mudancas.completo || e.mudancas.colecoes.tokens) registrarJogadores(e.documento);
     andarAtual(e.documento);
+    const apenasSessao = e.mudancas.campos.every(c => c === 'session');
     if (
       e.tipo === 'gesto'
       && e.mudancas.colecoes.tokens?.length === 1
       && !e.mudancas.completo
-      && !e.mudancas.campos.length
+      && apenasSessao
       && Object.keys(e.mudancas.colecoes).every(k => k === 'tokens' || k === 'lights')
     ) {
       const tokenId = e.mudancas.colecoes.tokens[0]!;
@@ -368,6 +382,7 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
           enviar({ ...base, ...(seguir ? { caixa: caixaRemota(e.documento), seguir: true } : {}) }, 'remoto');
         }
       }
+      if (e.mudancas.campos.includes('session')) agendar(200);
       return;
     }
     agendar(100);

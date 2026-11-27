@@ -20,7 +20,7 @@ export interface PecaVisual {
   estado(): { vez: boolean; retrato: boolean; deitada: boolean; raio: number; deslizando: boolean; trilha: number; /** O quadro do sprite agora (linha: baixo, esquerda, direita, cima), ou `null` sem sprite. */ quadro: { linha: number; coluna: number } | null; /** Os PV e PD que os pips mostram, ou `null`. */ pips: Recursos | null; /** O estado de aparência desta peça agora (pode ser "ferido" só na tela, por PV baixo). */ estadoVisto: string; tokenStyle?: string; portraitScale?: number };
 }
 
-const MS_POR_CELULA = 160, MS_MAXIMO = 600, MS_DA_TRILHA = 2000, MS_GESTO_REMOTO = 24;
+const MS_POR_CELULA = 160, MS_MAXIMO = 600, MS_DA_TRILHA = 2000, TAU_GESTO_MS = 48;
 const [QW, QH] = [16, 24], LINHA_DO_LADO = { down: 0, left: 1, right: 2, up: 3 } as const;
 /** O quadro parado alterna a 2 Hz; andando, 4 quadros a 8 Hz. */
 const MS_PARADO = 500, MS_ANDANDO = 125;
@@ -31,7 +31,7 @@ export function criarPeca(): PecaVisual {
   // Os pips de PV (vermelho) e PD (azul): piscam por um instante quando o valor cai.
   let ultimoRecursos: Recursos | null = null, piscaAte = 0;
   let vez = false;
-  let desliza: { de: Ponto; para: Ponto; t0: number; dur: number; linear?: boolean } | null = null, rastro: { de: Ponto; para: Ponto; t0: number }[] = [], alvo: Ponto | null = null, cor0 = 0xffffff, grade0 = 1;
+  let desliza: { de: Ponto; para: Ponto; t0: number; dur: number; linear?: boolean } | null = null, gestoSuave: { destino: Ponto; ultimoMs: number; t0: number } | null = null, rastro: { de: Ponto; para: Ponto; t0: number }[] = [], alvo: Ponto | null = null, cor0 = 0xffffff, grade0 = 1;
   let pulso = 0, tremor = 0, raio = 0.5, tem = false, deitada = false, semente = Math.random() * 100;
   let estiloToken: 'coin' | 'immersive' = 'coin', escalaVisual = 1, rBase = 0.5, eImersivo = false;
   let respiracao: ReturnType<typeof criarFiltroDeRespiracao> | null = null;
@@ -235,13 +235,20 @@ export function criarPeca(): PecaVisual {
       const novo: Ponto = [t.position[0], t.position[1]];
       const mudouPosicao = !alvo || Math.abs(novo[0] - alvo[0]) > 1e-6 || Math.abs(novo[1] - alvo[1]) > 1e-6;
       if (alvo && animar === 'gesto' && (Math.abs(novo[0] - c.x) > 1e-6 || Math.abs(novo[1] - c.y) > 1e-6)) {
-        desliza = { de: [c.x, c.y], para: novo, t0: performance.now(), dur: MS_GESTO_REMOTO, linear: true };
+        desliza = null;
+        const agora = performance.now();
+        gestoSuave = { destino: novo, ultimoMs: gestoSuave?.ultimoMs ?? agora, t0: gestoSuave?.t0 ?? agora };
       } else if (alvo && animar === true && mudouPosicao) {
+        gestoSuave = null;
         const agora = performance.now(), de: Ponto = desliza ? [c.x, c.y] : alvo;
         const celulas = Math.hypot(novo[0] - alvo[0], novo[1] - alvo[1]) / grade;
         desliza = { de, para: novo, t0: agora, dur: Math.min(MS_MAXIMO, Math.max(MS_POR_CELULA, celulas * MS_POR_CELULA)) };
         rastro.push({ de: alvo, para: novo, t0: agora });
-      } else if (!desliza || (!animar && mudouPosicao)) { desliza = null; c.position.set(novo[0], novo[1]); }
+      } else if ((!desliza && !gestoSuave) || (!animar && mudouPosicao)) {
+        desliza = null;
+        gestoSuave = null;
+        c.position.set(novo[0], novo[1]);
+      }
       alvo = novo;
     },
     quadro(ms, efeitos) {
@@ -249,10 +256,32 @@ export function criarPeca(): PecaVisual {
       if (spriteRef) {
         // Parado alterna 2 quadros; deslizando anda na direção do movimento (a linha vem do vetor, e `facing` vale quando para).
         let linha = ladoParado, coluna = efeitos ? Math.floor(ms / MS_PARADO) % 2 : 0;
-        if (desliza) { const dx = desliza.para[0] - desliza.de[0], dy = desliza.para[1] - desliza.de[1]; linha = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 1 : 2) : (dy < 0 ? 3 : 0); coluna = 2 + (Math.floor((ms - desliza.t0) / MS_ANDANDO) % 4); }
+        const movendo = desliza
+          ? { dx: desliza.para[0] - desliza.de[0], dy: desliza.para[1] - desliza.de[1], t0: desliza.t0 }
+          : gestoSuave
+            ? { dx: gestoSuave.destino[0] - c.x, dy: gestoSuave.destino[1] - c.y, t0: gestoSuave.t0 }
+            : null;
+        if (movendo) { linha = Math.abs(movendo.dx) > Math.abs(movendo.dy) ? (movendo.dx < 0 ? 1 : 2) : (movendo.dy < 0 ? 3 : 0); coluna = 2 + (Math.floor((ms - movendo.t0) / MS_ANDANDO) % 4); }
         if (!corrente || corrente.linha !== linha || corrente.coluna !== coluna) { corrente = { linha, coluna }; spriteRef.texture = quadros[linha]![coluna]!; }
       }
-      if (desliza) {
+      if (gestoSuave) {
+        if (!efeitos) {
+          c.position.set(gestoSuave.destino[0], gestoSuave.destino[1]);
+          gestoSuave = null;
+        } else {
+          const dt = Math.max(0, Math.min(100, ms - gestoSuave.ultimoMs));
+          gestoSuave.ultimoMs = ms;
+          const f = 1 - Math.exp(-dt / TAU_GESTO_MS);
+          const nx = c.x + (gestoSuave.destino[0] - c.x) * f;
+          const ny = c.y + (gestoSuave.destino[1] - c.y) * f;
+          if (Math.hypot(gestoSuave.destino[0] - nx, gestoSuave.destino[1] - ny) < Math.max(1e-3, grade0 * 1e-3)) {
+            c.position.set(gestoSuave.destino[0], gestoSuave.destino[1]);
+            gestoSuave = null;
+          } else {
+            c.position.set(nx, ny);
+          }
+        }
+      } else if (desliza) {
         const k = Math.min(1, (ms - desliza.t0) / desliza.dur), e = desliza.linear ? k : 1 - (1 - k) ** 3;
         c.position.set(desliza.de[0] + (desliza.para[0] - desliza.de[0]) * e, desliza.de[1] + (desliza.para[1] - desliza.de[1]) * e);
         if (k >= 1) desliza = null;
@@ -300,7 +329,7 @@ export function criarPeca(): PecaVisual {
       vez,
       deitada,
       raio,
-      deslizando: !!desliza,
+      deslizando: !!desliza || !!gestoSuave,
       trilha: rastro.length,
       quadro: spriteRef ? corrente : null,
       pips: pips.visible ? ultimoRecursos : null,

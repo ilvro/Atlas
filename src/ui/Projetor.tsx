@@ -136,20 +136,34 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
       podeMoverPecaRemota: () => !remoto || controleRemoto.peek() === 'livres',
       cameraBloqueada: () => remoto && controleRemoto.peek() === 'mestre',
       aoArrastarPecaRemota: remoto && barramento
-        ? async (peca, para) => {
+        ? async (peca, para, emArrasto) => {
             const atual = store?.documento ?? doc.value;
             if (!atual) return false;
             const andar = andarDe(peca);
             const r = await barramento.pedir(
               'atlas.mover-peca',
-              { mapa: atual.id, peca: peca.id, position: para, ...(andar ? { levelId: andar } : {}) },
+              {
+                mapa: atual.id,
+                peca: peca.id,
+                position: para,
+                ...(andar ? { levelId: andar } : {}),
+                ...(emArrasto ? { emArrasto: true } : {}),
+              },
               { prazoMs: 5000 },
             );
             if (!r.ok) {
-              mostrarAvisoRemoto(r.motivo === 'recusado' && r.detalhe ? `Não deu: ${r.detalhe}` : 'Não deu para mover a peça.');
+              if (!emArrasto) {
+                mostrarAvisoRemoto(r.motivo === 'recusado' && r.detalhe ? `Não deu: ${r.detalhe}` : 'Não deu para mover a peça.');
+              }
               return false;
             }
             return true;
+          }
+        : undefined,
+      aoAlternarPortaRemota: remoto
+        ? id => {
+            if (controleRemoto.peek() !== 'livres') return;
+            dizer({ tipo: 'alternar-porta', id });
           }
         : undefined,
       aoPingar: remoto && barramento

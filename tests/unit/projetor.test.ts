@@ -581,6 +581,7 @@ test('projetor remoto: só o canal da sala, e só diz "ola" e "pedir-retrato"', 
   for (const canal of canaisDoProjetor('casa', 'abc123')) assert.ok(!['atlas:projetor:ativo', 'atlas:projetor:remoto', 'atlas:projetor:casa'].includes(canal));
   assert.equal(projetorPodeDizer({ tipo: 'ola' }, true), true);
   assert.equal(projetorPodeDizer({ tipo: 'pedir-retrato' }, true), true);
+  assert.equal(projetorPodeDizer({ tipo: 'alternar-porta' }, true), true);
   for (const tipo of ['tamanho', 'soltou', 'tchau']) { assert.equal(projetorPodeDizer({ tipo }, true), false); assert.equal(projetorPodeDizer({ tipo }, false), true); }
 });
 
@@ -937,6 +938,66 @@ test('publicador: forcarCameraRemota reenvia camera com forcar mesmo já estando
     await esperar(40);
     const cam = msgs.filter(m => m.tipo === 'camera').at(-1);
     assert.ok(cam && cam.forcar === true, 'forcarCameraRemota envia camera com forcar: true');
+  } finally {
+    definirControleJogadores('livres');
+    pub.parar(); remoto.close(); sess.fechar();
+  }
+});
+
+test('publicador: arrasto em gesto de peça de jogador com mudança em session.explored ainda envia peca-gesto', async () => {
+  const mapa = criarMapa({ id: 'mapa-pub-gesto-explored', nome: 'Masmorra' });
+  mapa.session.explored = { res: 0.5, cells: [] };
+  const sess = criarSessao(mapa, criarRepoMock({ [mapa.id]: mapa }), { salvo: true });
+  sess.store.executar({
+    tipo: 'item.adicionar',
+    colecao: 'tokens',
+    item: { id: 'h1', name: 'Herói', position: [3, 3], size: 1, facing: 'right', portrait: null, sprite: null, player: true, vision: { radius: 6, dark: false }, lightId: null, figure: { state: 'normal' }, refs: [] },
+  });
+  const pub = iniciarPublicacao(sess, async () => null);
+  const remoto = new BroadcastChannel(CANAL_PROJETOR_REMOTO);
+  const msgs: any[] = [];
+  remoto.onmessage = e => msgs.push(e.data);
+  try {
+    remoto.postMessage({ tipo: 'ola', largura: 1600, altura: 900, remoto: true, _seq: 1 });
+    await esperar(60);
+    msgs.length = 0;
+
+    const g = sess.store.iniciarGesto('Mover');
+    g.aplicar({ tipo: 'peca.mover', id: 'h1', para: [6, 3], livre: true, semGrade: true });
+    await esperar(40);
+    const gestos = msgs.filter(m => m.tipo === 'peca-gesto');
+    assert.ok(gestos.length >= 1, 'enviou peca-gesto mesmo com session.explored alterado');
+    assert.deepEqual(gestos[0].position, [6, 3]);
+    g.cancelar();
+  } finally {
+    pub.parar(); remoto.close(); sess.fechar();
+  }
+});
+
+test('publicador: alternar-porta remoto só executa quando controleJogadores está em livres e porta é válida', async () => {
+  const { definirControleJogadores } = await import('../../src/app/modo.ts');
+  const mapa = criarMapa({ id: 'mapa-pub-porta', nome: 'Taverna' });
+  mapa.walls.w1 = { id: 'w1', kind: 'wall', path: [[0, 0], [6, 0]], height: 2.8, thickness: 0.2, material: 'parede.reboco', blocks: { sight: true, move: true, light: true }, drop: null, source: null, levelId: null };
+  mapa.openings.d1 = { id: 'd1', kind: 'door', wallId: 'w1', at: 0.5, width: 1, state: 'closed', material: 'madeira.escura', som: null, swing: 'a' };
+  mapa.openings.dLock = { id: 'dLock', kind: 'door', wallId: 'w1', at: 0.2, width: 1, state: 'locked', material: 'madeira.escura', som: null, swing: 'a' };
+  const sess = criarSessao(mapa, criarRepoMock({ [mapa.id]: mapa }), { salvo: true });
+  const alternadas: string[] = [];
+  const pub = iniciarPublicacao(sess, async () => null, id => alternadas.push(id));
+  const remoto = new BroadcastChannel(CANAL_PROJETOR_REMOTO);
+  try {
+    definirControleJogadores('mestre');
+    remoto.postMessage({ tipo: 'alternar-porta', id: 'd1', _seq: 1 });
+    await esperar(30);
+    assert.deepEqual(alternadas, [], 'recusa quando controle é do mestre');
+
+    definirControleJogadores('livres');
+    remoto.postMessage({ tipo: 'alternar-porta', id: 'dLock', _seq: 2 });
+    await esperar(30);
+    assert.deepEqual(alternadas, [], 'recusa porta trancada');
+
+    remoto.postMessage({ tipo: 'alternar-porta', id: 'd1', _seq: 3 });
+    await esperar(30);
+    assert.deepEqual(alternadas, ['d1'], 'aceita porta livre');
   } finally {
     definirControleJogadores('livres');
     pub.parar(); remoto.close(); sess.fechar();

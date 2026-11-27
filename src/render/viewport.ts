@@ -79,7 +79,9 @@ export interface PonteViewport {
   /** No projetor remoto, a câmera está bloqueada para o jogador (controle do mestre)? */
   cameraBloqueada?(): boolean;
   /** No projetor remoto (R15), o jogador arrastou a própria peça até `para`; resolve `true` se o mestre aceitou. */
-  aoArrastarPecaRemota?(peca: Peca, para: Ponto): Promise<boolean>;
+  aoArrastarPecaRemota?(peca: Peca, para: Ponto, emArrasto?: boolean): Promise<boolean>;
+  /** No projetor remoto com jogadores livres, clicar numa porta pede para abri-la ou fechá-la. */
+  aoAlternarPortaRemota?(id: string): void;
   /** Ping no mapa (R15b): Alt+clique (mestre/jogador) ou segurar 400 ms num ponto vazio (jogador remoto). */
   aoPingar?(ponto: Ponto): void;
   /** Na sessão, arrastar uma peça a leva de célula em célula e as outras coisas só se selecionam. */
@@ -187,10 +189,10 @@ const LIMIAR_ARRASTO = 4;
 const COR_PADRAO_ACENTO = 0xe91d25;
 
 type Interacao =
-  | { tipo: 'pan'; botao: number; x0: number; y0: number; camera0: Camera; moveu: boolean }
+  | { tipo: 'pan'; botao: number; x0: number; y0: number; camera0: Camera; moveu: boolean; portaId?: string }
   | { tipo: 'mover'; hit: Alvo; alvos: AlvoMovel[]; origem: Ponto; ref: Ponto; aplicado: Ponto; gesto: Gesto | null; x0: number; y0: number; estavaNaSelecao: boolean; ctrl: boolean }
   | { tipo: 'peca'; id: string; de: Ponto; para: Ponto; offset: Ponto; dirRef: Ponto; dirAtual?: number; motivo: string | null; livre: boolean; semGrade: boolean; gesto: Gesto | null; pendente: boolean; x0: number; y0: number; moveu: boolean }
-  | { tipo: 'peca-remota'; id: string; de: Ponto; para: Ponto; offset: Ponto; motivo: string | null; semGrade: boolean; x0: number; y0: number; moveu: boolean }
+  | { tipo: 'peca-remota'; id: string; de: Ponto; para: Ponto; offset: Ponto; motivo: string | null; semGrade: boolean; x0: number; y0: number; moveu: boolean; ultimoEnvio?: number; emVoo?: boolean }
   | { tipo: 'deslizar'; id: string; gesto: Gesto | null; x0: number; y0: number }
   | { tipo: 'retangulo'; ini: Ponto; atual: Ponto; modo: 'trocar' | 'somar'; x0: number; y0: number; moveu: boolean }
   | { tipo: 'laco'; pontos: Ponto[]; modo: 'trocar' | 'somar' }
@@ -235,7 +237,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const store = ponte.store, baker: Baker = criarBaker({ reaproveitarWorkers: true });
   const mundo = new Container(), area_ = new Graphics(), grade = new Graphics(), selecaoG = new Graphics(), fantasmaC = new Container(), fantasmaG = new Graphics(), laco = new Graphics();
   let camera: Camera = { x: 0, y: 0, zoom: 20 };
-  let ponteiro: Ponto | null = null, interacao: Interacao | null = null, espaco = false, camadaSuja = true, gradeSuja = true, destruido = false, regua: Regua | null = null, altPressionado = false, modoProjetor = somenteLeitura, sobrePecaDoJogador = false;
+  let ponteiro: Ponto | null = null, interacao: Interacao | null = null, espaco = false, camadaSuja = true, gradeSuja = true, destruido = false, regua: Regua | null = null, altPressionado = false, modoProjetor = somenteLeitura, sobrePecaDoJogador = false, sobrePortaRemota = false;
   let pecaRemotaPendente: { id: string; de: Ponto; para: Ponto; motivo: string | null; semGrade: boolean; relogio?: ReturnType<typeof setTimeout> } | null = null;
   const limparPecaRemotaPendente = () => {
     if (!pecaRemotaPendente) return;
@@ -523,7 +525,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     const m = doc();
     if (somenteLeitura) {
       const alvo = interacao?.tipo === 'peca-remota' && interacao.moveu ? interacao : pecaRemotaPendente;
-      if (!alvo) return;
+      if (!alvo || alvo.semGrade) return;
       const cor3 = desenharPreviaDeArrasto(m, alvo.id, alvo.de, alvo.para, alvo.motivo, false, alvo.semGrade);
       const tam = (m.tokens[alvo.id]?.size ?? 1) * m.grid.size * 0.44;
       laco.circle(alvo.de[0], alvo.de[1], px(4)).fill(0xffffff).stroke({ width: px(1.5), color: cor3 });
@@ -742,7 +744,10 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       if (trocou && ponte.acabamento() && fxAtivo()) iniciarTransicao(antes, mAndar); else pararTransicao();
     }
     if (mud.campos.includes('finish')) aplicarAcabamento();
-    cena.sincronizar(mAndar, mud, e.tipo === 'executar' || e.tipo === 'refazer' || e.tipo === 'concluir', visaoDoClima(mAndar), ctxAndar());
+    const mParaCena = interacao?.tipo === 'peca-remota' && interacao.semGrade && interacao.moveu && mAndar.tokens[interacao.id]
+      ? { ...mAndar, tokens: { ...mAndar.tokens, [interacao.id]: { ...mAndar.tokens[interacao.id]!, position: interacao.para } } }
+      : mAndar;
+    cena.sincronizar(mParaCena, mud, e.tipo === 'executar' || e.tipo === 'refazer' || e.tipo === 'concluir', visaoDoClima(mAndar), ctxAndar());
     if (transicao) aplicarAcabamento();
     vistoDoDoc = estadoDoDoc(mAndar);
     camadaSuja = true;
@@ -761,7 +766,16 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const mundoDe = (e: { clientX: number; clientY: number }): Ponto => telaParaMundo(camera, telaDe(e));
   const posicaoDe = (m: MapaAtlas, a: Alvo): Ponto => a.colecao === 'regions' ? m.regions[a.id]!.polygon[0]! : (m[a.colecao as ColecaoLivre] as Record<string, { position: Ponto }>)[a.id]!.position;
   const cursor = () => {
-    if (somenteLeitura) { canvas.style.cursor = (interacao?.tipo === 'peca-remota' || (interacao?.tipo === 'pan' && !ponte.cameraBloqueada?.())) ? 'grabbing' : (sobrePecaDoJogador && ponte.podeMoverPecaRemota?.() !== false) ? 'grab' : 'default'; return; }
+    if (somenteLeitura) {
+      canvas.style.cursor = (interacao?.tipo === 'peca-remota' || (interacao?.tipo === 'pan' && !ponte.cameraBloqueada?.()))
+        ? 'grabbing'
+        : (sobrePecaDoJogador && ponte.podeMoverPecaRemota?.() !== false)
+          ? 'grab'
+          : (sobrePortaRemota && ponte.podeMoverPecaRemota?.() !== false)
+            ? 'pointer'
+            : 'default';
+      return;
+    }
     const f = ponte.ferramenta();
     canvas.style.cursor = interacao?.tipo === 'pan' ? 'grabbing' : (f === 'mao' || espaco) ? 'grab' : interacao?.tipo === 'alinhamento-grade' ? (interacao.modo === 'escala' ? 'nwse-resize' : 'move') : f === 'selecionar' ? (interacao?.tipo === 'mover' || interacao?.tipo === 'peca' || interacao?.tipo === 'deslizar' ? 'move' : 'default') : 'crosshair';
   };
@@ -990,8 +1004,12 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       if (e.button === 0 || e.button === 1 || e.button === 2) {
         canvas.setPointerCapture(e.pointerId);
         const [tx, ty] = telaDe(e);
-        interacao = { tipo: 'pan', botao: e.button, x0: tx, y0: ty, camera0: camera, moveu: false };
-        if (e.button === 0 && ponte.aoPingar) {
+        const hitPorta = e.button === 0 && !e.altKey && ponte.aoAlternarPortaRemota && ponte.podeMoverPecaRemota?.() !== false
+          ? alvoEm(doc(), mundoDe(e), px(8))
+          : null;
+        const portaId = hitPorta?.colecao === 'openings' && doc().openings[hitPorta.id]?.kind === 'door' ? hitPorta.id : undefined;
+        interacao = { tipo: 'pan', botao: e.button, x0: tx, y0: ty, camera0: camera, moveu: false, ...(portaId ? { portaId } : {}) };
+        if (e.button === 0 && ponte.aoPingar && !portaId) {
           const pontoPing = mundoDe(e);
           cancelarRelogioPing();
           relogioPing = setTimeout(() => {
@@ -1104,10 +1122,16 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     ponteiro = mundoDe(e); altPressionado = e.altKey;
     const [tx, ty] = telaDe(e), m = doc();
     if (!interacao) {
-      if (somenteLeitura && ponte.pecaDoJogador) {
+      if (somenteLeitura) {
         const hit = alvoEm(m, ponteiro, px(8));
-        const sobre = ponte.podeMoverPecaRemota?.() !== false && hit?.colecao === 'tokens' && !!m.tokens[hit.id] && ponte.pecaDoJogador(m.tokens[hit.id]!);
-        if (sobre !== sobrePecaDoJogador) { sobrePecaDoJogador = sobre; cursor(); }
+        const pode = ponte.podeMoverPecaRemota?.() !== false;
+        const sobrePeca = !!ponte.pecaDoJogador && pode && hit?.colecao === 'tokens' && !!m.tokens[hit.id] && ponte.pecaDoJogador(m.tokens[hit.id]!);
+        const sobrePorta = !!ponte.aoAlternarPortaRemota && pode && hit?.colecao === 'openings' && m.openings[hit.id]?.kind === 'door';
+        if (sobrePeca !== sobrePecaDoJogador || sobrePorta !== sobrePortaRemota) {
+          sobrePecaDoJogador = sobrePeca;
+          sobrePortaRemota = sobrePorta;
+          cursor();
+        }
       }
       // Com um ponto só fixado, a régua acompanha o ponteiro até o próximo clique.
       if (regua && regua.pontos.length === 1 && ponte.ferramenta() === 'regua') regua.atual = centroDaCelula(m, ponteiro);
@@ -1175,8 +1199,28 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       const alvoBruto: Ponto = semGrade
         ? [Math.max(0, Math.min(m.bounds.width, ponteiro[0] + i.offset[0])), Math.max(0, Math.min(m.bounds.height, ponteiro[1] + i.offset[1]))]
         : centroDaCelula(m, [Math.max(0, Math.min(m.bounds.width - 1e-4, ponteiro[0])), Math.max(0, Math.min(m.bounds.height - 1e-4, ponteiro[1]))]);
-      i.para = [Math.max(0, Math.min(m.bounds.width, alvoBruto[0])), Math.max(0, Math.min(m.bounds.height, alvoBruto[1]))];
-      i.motivo = bloqueioNoCaminho(m, i.de, i.para);
+      const candidato: Ponto = [Math.max(0, Math.min(m.bounds.width, alvoBruto[0])), Math.max(0, Math.min(m.bounds.height, alvoBruto[1]))];
+      if (semGrade) {
+        const atual = m.tokens[i.id]?.position ?? i.de;
+        const motivo = bloqueioNoCaminho(m, atual, candidato);
+        i.motivo = motivo;
+        if (!motivo) {
+          i.para = candidato;
+          const tLocal = completo().tokens[i.id];
+          if (i.moveu && tLocal && Math.hypot(candidato[0] - atual[0], candidato[1] - atual[1]) > 1e-6) {
+            store.projetar({ ...completo(), tokens: { ...completo().tokens, [i.id]: { ...tLocal, position: candidato } } }, { emGesto: true, pularValidacao: true });
+            const agora = performance.now();
+            if (ponte.aoArrastarPecaRemota && !i.emVoo && agora - (i.ultimoEnvio ?? 0) >= 40) {
+              i.ultimoEnvio = agora;
+              i.emVoo = true;
+              void ponte.aoArrastarPecaRemota(tLocal, candidato, true).finally(() => { i.emVoo = false; });
+            }
+          }
+        }
+      } else {
+        i.para = candidato;
+        i.motivo = bloqueioNoCaminho(m, i.de, i.para);
+      }
     } else if (i.tipo === 'deslizar') {
       if (!i.gesto) { if (Math.hypot(tx - i.x0, ty - i.y0) <= LIMIAR_ARRASTO) return; i.gesto = store.iniciarGesto('Mover abertura'); }
       const a = m.openings[i.id]; if (!a) return;
@@ -1259,6 +1303,9 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     const m = doc(), sel = ponte.selecao();
     if (i.tipo === 'pan') {
       if (!i.moveu && i.botao === 2 && !cancelado) { const p = mundoDe(e); ponte.aoMenuContexto({ tela: [e.clientX, e.clientY], mundo: p, alvo: alvoEm(m, p, px(8)) }); }
+      else if (!i.moveu && i.botao === 0 && !cancelado && i.portaId && ponte.aoAlternarPortaRemota && ponte.podeMoverPecaRemota?.() !== false) {
+        ponte.aoAlternarPortaRemota(i.portaId);
+      }
     } else if (i.tipo === 'mover') {
       if (i.gesto) { if (cancelado) i.gesto.cancelar(); else i.gesto.concluir(); }
       else if (!cancelado && i.ctrl) pipeta(i.hit);
@@ -1281,7 +1328,20 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         tentar(() => store.executar({ tipo: 'peca.mover', id: i.id, para: i.para, livre: i.livre, semGrade: i.semGrade, ...(i.dirAtual !== undefined ? { direcao: i.dirAtual } : {}) }));
       }
     } else if (i.tipo === 'peca-remota') {
-      if (!cancelado && i.moveu && Math.hypot(i.para[0] - i.de[0], i.para[1] - i.de[1]) > 1e-6) {
+      if (i.semGrade) {
+        const t = m.tokens[i.id];
+        if (cancelado) {
+          const tComp = completo().tokens[i.id];
+          if (tComp) store.projetar({ ...completo(), tokens: { ...completo().tokens, [i.id]: { ...tComp, position: i.de } } }, { emGesto: true, pularValidacao: true });
+        } else if (i.moveu && t && ponte.aoArrastarPecaRemota && Math.hypot(i.para[0] - i.de[0], i.para[1] - i.de[1]) > 1e-6) {
+          void ponte.aoArrastarPecaRemota(t, i.para, false).then(aceito => {
+            if (!aceito) {
+              const tComp = completo().tokens[i.id];
+              if (tComp) store.projetar({ ...completo(), tokens: { ...completo().tokens, [i.id]: { ...tComp, position: i.de } } }, { emGesto: true, pularValidacao: true });
+            }
+          });
+        }
+      } else if (!cancelado && i.moveu && Math.hypot(i.para[0] - i.de[0], i.para[1] - i.de[1]) > 1e-6) {
         const t = m.tokens[i.id];
         if (t && ponte.aoArrastarPecaRemota) {
           limparPecaRemotaPendente();
@@ -1290,7 +1350,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
             if (pecaRemotaPendente === pendente) limparPecaRemotaPendente();
           }, 1500);
           pecaRemotaPendente = pendente;
-          void ponte.aoArrastarPecaRemota(t, i.para).then(
+          void ponte.aoArrastarPecaRemota(t, i.para, false).then(
             aceito => {
               if (pecaRemotaPendente !== pendente) return;
               const posAtual = doc().tokens[pendente.id]?.position;

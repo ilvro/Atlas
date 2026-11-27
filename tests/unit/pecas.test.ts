@@ -40,3 +40,25 @@ test('criarPeca: redesenhar com animar=false sem mudar posição preserva desliz
   assert.equal(pv.c.x, 8);
   assert.equal(pv.c.y, 8);
 });
+
+test('criarPeca: modo gesto usa interpolação exponencial contínua até alcançar o destino', () => {
+  const pv = criarPeca();
+  pv.atualizar(pecaBase(1, 1), 1.5, 0xe91d25, null, false);
+  const t0 = performance.now();
+  pv.atualizar(pecaBase(5, 1), 1.5, 0xe91d25, null, 'gesto');
+  assert.equal(pv.estado().deslizando, true);
+
+  // Avança em passos de 16 ms (60 fps): aproxima suavemente sem parar aos 24 ms
+  pv.quadro(t0 + 16, true);
+  const x16 = pv.c.x;
+  assert.ok(x16 > 1 && x16 < 5, `x16=${x16}`);
+
+  pv.quadro(t0 + 48, true);
+  const x48 = pv.c.x;
+  assert.ok(x48 > x16 && x48 < 5, `x48=${x48}`);
+
+  // Com efeitos desligados, encaixa direto no destino
+  pv.quadro(t0 + 64, false);
+  assert.equal(pv.c.x, 5);
+  assert.equal(pv.estado().deslizando, false);
+});

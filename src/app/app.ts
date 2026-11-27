@@ -388,7 +388,11 @@ export function sincronizarPublicador(): void {
   publicador?.parar();
   publicador = null;
   mapaPublicadoId = alvoId;
-  publicador = iniciarPublicacao(sessaoAlvo, async assetId => (await s?.repo.obterAsset(assetId))?.blob ?? null);
+  publicador = iniciarPublicacao(
+    sessaoAlvo,
+    async assetId => (await s?.repo.obterAsset(assetId))?.blob ?? null,
+    id => alternarPorta(id, undefined, sessaoAlvo),
+  );
 }
 
 export async function projetarAba(id: string): Promise<void> {
@@ -1032,8 +1036,8 @@ function emitirRevelado(id: string, tipo = 'abertura'): void {
 }
 
 /** Abre ou fecha uma porta na sessão (e soma ao explorado o que ela passa a mostrar). Trancada não abre. Uma secreta que se abre é revelada junto. */
-export function alternarPorta(id: string, fusao?: string): void {
-  const s = sessao.value; if (!s) return;
+export function alternarPorta(id: string, fusao?: string, sessaoAlvo: SessaoDeEdicao | null = sessao.value): void {
+  const s = sessaoAlvo; if (!s) return;
   const o = s.doc.value.openings[id]; if (!o || (o.kind !== 'door' && o.kind !== 'secret')) return;
   // O `som` da abertura (um efeito do Jukebox) toca no lugar do sintetizado, que fica de reserva (`tocarSomEscolhido`).
   if (o.state === 'locked') { avisar('Trancada', { duracao: 1600 }); tocar('trancada'); return; }

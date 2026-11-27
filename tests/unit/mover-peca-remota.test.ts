@@ -208,4 +208,25 @@ describe('atenderMoverPeca (R15)', () => {
     assert.deepEqual(liberado, { ok: true });
     assert.deepEqual(store.documento.tokens.t1!.position, [3.75, 2.25]);
   });
+
+  it('emArrasto funde histórico em um único desfazer e só notifica ao soltar', () => {
+    const { store } = cenario();
+    store.executar({ tipo: 'grade.atualizar', patch: { snap: false } });
+    const avisos: string[] = [];
+    const ctx = { store: () => store, aoMover: ({ autor, pecaNome }: { autor: Autor; pecaNome: string }) => avisos.push(`${autor.nome} moveu ${pecaNome}`) };
+
+    const p1 = atenderMoverPeca(ctx, { mapa: 'mapa-1', peca: 't1', position: [1.5, 0.75], emArrasto: true }, autorLia);
+    const p2 = atenderMoverPeca(ctx, { mapa: 'mapa-1', peca: 't1', position: [2.5, 0.75], emArrasto: true }, autorLia);
+    assert.deepEqual(p1, { ok: true });
+    assert.deepEqual(p2, { ok: true });
+    assert.deepEqual(avisos, [], 'não notifica durante o arrasto');
+
+    const p3 = atenderMoverPeca(ctx, { mapa: 'mapa-1', peca: 't1', position: [3.2, 0.75] }, autorLia);
+    assert.deepEqual(p3, { ok: true });
+    assert.deepEqual(avisos, ['Ana moveu Lia']);
+    assert.deepEqual(store.documento.tokens.t1!.position, [3.2, 0.75]);
+
+    store.desfazer();
+    assert.deepEqual(store.documento.tokens.t1!.position, [0.75, 0.75], 'desfaz todo o arrasto de uma vez');
+  });
 });
