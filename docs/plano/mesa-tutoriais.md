@@ -22,7 +22,7 @@ Esta frente leva o mesmo modelo à Mesa.
 
 ## Fichas
 
-### MT1 — motor do tutor e condições da Mesa  ⬜
+### MT1 — motor do tutor e condições da Mesa  ✅
 Objetivo: o motor (`criarTutor`) e as condições, puros e testados, sem UI.
 Depende de: —
 Ler: `Atlas/src/tutorial/tutor.ts`, `Atlas/src/tutorial/condicoes.ts`, `Atlas/tests/unit/tutor.test.ts`; na Mesa, `src/app/quadros.ts` (signals `itens`, `quadroAberto`, `selecao`), `src/app/rotas.ts` (`tela`), `src/app/registro.ts` (`sessaoAtiva`, `gravando`, `linhas`), `src/app/sessao.ts` (`layout`, `cenaAtivadaNestaVisita`), `src/dominio/layout.ts` (`presetDe`), `src/app/foco-do-quadro.ts` (`modoFocoSessao`), `src/app/projecao.ts` (`projetando`), `src/app/modelos.ts`, `src/dominio/marcadores.ts` (`analisarMarcadores`), `src/dominio/quadro.ts` (`Item`, `textoPuro`).
@@ -34,9 +34,10 @@ Como:
 Não fazer: UI, lições, campanha de treino.
 Testes: motor (iniciar, avançar por `tique`, `ler` espera `continuar`, voltar retém, pular, progresso gravado, `porPasta`) e cada condição com um estado montado à mão.
 Pronto quando: typecheck e testes passam; `src/tutorial` não importa UI nem DOM.
+Nota: `tela` e `ferramenta` são `string` no `EstadoDoTutor` para `src/tutorial` não importar `src/app`; o espelho do Quadro só vale com ele montado.
 Commit: `(feature) tutorial engine and board/session conditions for mesa`
 
-### MT2 — campanha de treino, tela Aprender e cartão do tutor  ⬜
+### MT2 — campanha de treino, tela Aprender e cartão do tutor  ✅
 Objetivo: a pessoa abre **Aprender**, começa uma lição (a lição oculta de teste) e o cartão aparece sobre a tela de verdade.
 Depende de: MT1.
 Ler: `Atlas/src/app/tutoriais.ts`, `Atlas/src/ui/Tutor.tsx`, `Atlas/src/ui/Aprender.tsx`, o CSS `.tutor*` e `.aprender*` de `Atlas/src/ui/*.css`; na Mesa, `src/app/campanha.ts` (`criarCampanha`, `escolherCampanha`, `removerCampanha`, `criarEntidade`, `alterarEntidade`), `src/app/quadros.ts` (`criarQuadro`, `abrirQuadro`), `src/app/banco-quadros.ts` (`gravarItens`), `src/app/registro.ts` (`removerSessao`, `sessoes`), `src/app/modelos.ts` (`apagarModelo`), `src/ui/App.tsx`, `src/ui/Cabecalho.tsx`, `src/app/rotas.ts`, `src/ui/BuscaRapida.tsx` (`buscaRapidaAberta`), `src/ui/MenuDeContexto.tsx` (o signal do menu aberto).
@@ -52,9 +53,10 @@ Como:
 Não fazer: lições reais (MT3–MT5); mexer em `ModoSessao.tsx` (outra sessão está nele).
 Testes: unitário de `estadoDoTutor` não é preciso; e2e em `tests/e2e/tutoriais.test.ts` (ver `tests/e2e/apoio.ts`): abre Aprender, começa a lição oculta por `iniciarLicao` exposto em `window` só em dev, ou pela lista se a oculta for mostrada com `?tutor-teste`, faz os dois passos pela interface e vê o cartão final; apagar o treino volta à campanha anterior.
 Pronto quando: a aba Aprender lista as pastas; a lição de teste roda de ponta a ponta numa campanha de treino e apagar o treino não deixa rastro.
+Nota: `?tutor-teste` mostra as lições ocultas (e2e). Começar outra lição apaga o treino anterior. `buscaRapidaAberta` e o menu de contexto foram para `src/app/sobreposicoes.ts` (o teste de arquitetura proíbe `app` importar `ui`). `removerCampanha` já leva sessões, quadros e modelos de escopo.
 Commit: `(feature) learn tab with training campaign and tutor card`
 
-### MT3 — lições do Quadro  ⬜
+### MT3 — lições do Quadro  ✅
 Objetivo: duas lições reais do Quadro, numa campanha de treino com Joana (personagem), Casa abandonada (lugar), Carta rasgada (pista) e um quadro "Preparação".
 Depende de: MT2.
 Ler: `src/ui/quadro/BarraDeFerramentas.tsx`, `src/ui/quadro/Quadro.tsx` (criar moldura, renomear moldura, nota, seta, `seletor-entidade`, menu de contexto do item), `src/ui/quadro/MenuDoItem.tsx` (`menu-salvar-modelo`, `modelo-*`, `menu-mostrar-aos-jogadores`), `src/ui/quadro/FilaDeRevisao.tsx`, `src/dominio/marcadores.ts` (sintaxe exata de teste, segredo, loot e fala).
@@ -67,9 +69,10 @@ Como:
 Não fazer: lições de sessão e campanha.
 Testes: `licoes.test.ts`: todo `feito` usa uma condição de `CONDICOES`; todo texto de nota sugerido nas lições passa por `analisarMarcadores` e dá o tipo que o passo espera; todo `alvo` `[data-testid="x"]` aparece em algum `src/ui/**/*.tsx` (busca textual, aceitando os prefixos montados com template). E2e: `quadro-notas` de ponta a ponta pela interface.
 Pronto quando: as duas lições rodam sem pular passo num navegador.
+Nota: na Quadro II a fila de revisão vem primeiro (aberta, cobria o seletor de entidade). Os passos de menu e de canvas apontam `area-quadro`, porque o menu do item e o título da moldura só existem depois do clique ou no canvas. Fala usa `[CASEIRO] …`. A projeção também omite os testes.
 Commit: `(feature) board tutorials: notes, markers, links, templates and projection`
 
-### MT4 — lição do Modo Sessão  ⬜
+### MT4 — lição do Modo Sessão  ✅
 Objetivo: a lição "Modo Sessão · seu escudo ao vivo" (~5 min).
 Depende de: MT2 (MT3 pela pasta e pelo teste das lições).
 Ler: `src/ui/ModoSessao.tsx` (só ler; não editar), `src/dominio/layout.ts`, `src/ui/FaixaDeCombateSessao.tsx`, `src/ui/Diario.tsx`.
@@ -78,9 +81,10 @@ Como: pasta `sessao`. Semente: personagem Joana, cena "Chegada à casa" ligada �
 Não fazer: editar `ModoSessao.tsx`; exigir o combate.
 Testes: os de `licoes.test.ts` passam a cobrir a lição.
 Pronto quando: a lição roda inteira sem o Atlas aberto.
+Nota: o passo do seletor de quadro virou leitura (o painel abre o primeiro quadro sozinho). O combate é só leitura, sem anel (a faixa só existe com dados do Atlas). O passo de iniciar aponta o botão, não o nome. Ao começar, a lição zera a cena ativada e o Foco; o Foco volta à preferência da pessoa no fim. O layout não é zerado: com o preset já em Com quadro, o passo passa sozinho.
 Commit: `(feature) session mode tutorial`
 
-### MT5 — lições da campanha e da mesa online  ⬜
+### MT5 — lições da campanha e da mesa online  ✅
 Objetivo: "Preparar uma cena" (~4 min) e "Mesa online · o caminho" (~3 min, só leitura).
 Depende de: MT2.
 Ler: `src/ui/Entidades.tsx` (criador), `src/ui/EditorDeCena.tsx`, `src/ui/BuscaRapida.tsx`, `src/ui/MenuDeContexto.tsx`, `src/ui/MesaOnline.tsx`.
@@ -89,4 +93,5 @@ Como: pasta `campanha`. "Preparar uma cena": semente Joana, Casa abandonada, Car
 Não fazer: criar sala ou login de verdade.
 Testes: `licoes.test.ts` cobre as duas.
 Pronto quando: as duas lições rodam inteiras numa campanha de treino.
+Nota: a pessoa não cria a cena, porque `TIPOS_CRIAVEIS` não tem `cena` (cenas vêm do Jukebox). A semente traz "Chegada à casa" sem ligações e o passo 1 é abrir a cena. Pôr `cena` no criador é decisão de produto. Ctrl+K não tem anel. Na Online, só `online-entrar` existe deslogado; o resto é leitura sem alvo.
 Commit: `(feature) campaign prep and online table tutorials`
