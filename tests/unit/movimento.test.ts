@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { anguloDoMovimento, bloqueioNoCaminho, centroDaCelula, ladoDoMovimento } from '../../src/domain/movimento.ts';
-import { novaLuz, novaPeca } from '../../src/domain/fabrica.ts';
+import { novaLuz, novaPeca, novoObjeto } from '../../src/domain/fabrica.ts';
+import { itemBloqueiaMovimentoPorPadrao } from '../../src/procedural/acervo.ts';
 import { camposDoPreset, presetDeLuz } from '../../src/domain/presets.ts';
 import { criarMapa, type MapaAtlas, type Abertura } from '../../src/domain/mapa.ts';
 import { criarStore } from '../../src/state/store.ts';
@@ -120,4 +121,70 @@ test('remover a peça remove a lanterna; desfazer o movimento devolve a direçã
   assert.equal(store.documento.lights.luz!.cone!.direction, 0);
   store.desfazer();
   assert.equal(store.documento.lights.luz!.cone!.direction, Math.PI / 2); assert.deepEqual(store.documento.lights.luz!.position, [2.25, 6.75]);
+});
+
+test('objeto com blocks.move: true bloqueia atravessar e parar sobre ele; blocks.move: false deixa passar', () => {
+  let m = criarMapa();
+  m = aplicarComando(m, { tipo: 'item.adicionar', colecao: 'tokens', item: { ...novaPeca([2.25, 6.75]), id: 't', name: 'Muirenn' } as never });
+  m = aplicarComando(m, {
+    tipo: 'item.adicionar',
+    colecao: 'props',
+    item: {
+      ...novoObjeto([3.75, 6.75], { source: { kind: 'recipe', recipe: 'rochedo', seed: 1, params: {} }, blocks: { move: true, sight: false } }),
+      id: 'pedra',
+    } as never,
+  });
+
+  // Não pode parar sobre o obstáculo nem atravessá-lo até o outro lado.
+  assert.equal(bloqueioNoCaminho(m, [2.25, 6.75], [3.75, 6.75]), 'Bloqueado por obstáculo.');
+  assert.equal(bloqueioNoCaminho(m, [2.25, 6.75], [5.25, 6.75]), 'Bloqueado por obstáculo.');
+  assert.throws(() => aplicarComando(m, { tipo: 'peca.mover', id: 't', para: [3.75, 6.75] }), /obstáculo/i);
+  assert.throws(() => aplicarComando(m, { tipo: 'peca.mover', id: 't', para: [5.25, 6.75] }), /obstáculo/i);
+
+  // Movimento livre (Alt / mestre) ainda passa, e andar ao lado do obstáculo também passa.
+  assert.equal(bloqueioNoCaminho(m, [2.25, 6.75], [2.25, 8.25]), null);
+
+  // Desligando blocks.move (com desfazer), o caminho fica livre.
+  const store = criarStore(m);
+  store.executar({ tipo: 'item.atualizar', colecao: 'props', id: 'pedra', patch: { blocks: { move: false } } });
+  assert.equal(bloqueioNoCaminho(store.documento, [2.25, 6.75], [3.75, 6.75]), null);
+  assert.equal(bloqueioNoCaminho(store.documento, [2.25, 6.75], [5.25, 6.75]), null);
+  store.executar({ tipo: 'peca.mover', id: 't', para: [5.25, 6.75] });
+  assert.deepEqual(store.documento.tokens.t!.position, [5.25, 6.75]);
+
+  store.desfazer(); // desfaz mover
+  store.desfazer(); // desfaz atualizar obstáculo
+  assert.equal(bloqueioNoCaminho(store.documento, [2.25, 6.75], [3.75, 6.75]), 'Bloqueado por obstáculo.');
+});
+
+test('objeto obstáculo em outro andar (levelId diferente) não bloqueia o andar atual', () => {
+  let m = criarMapa();
+  m.levels = { andar2: { id: 'andar2', name: '1º Andar', order: 1 } };
+  m = aplicarComando(m, { tipo: 'item.adicionar', colecao: 'tokens', item: { ...novaPeca([2.25, 6.75]), id: 't', name: 'Muirenn' } as never });
+  m = aplicarComando(m, {
+    tipo: 'item.adicionar',
+    colecao: 'props',
+    item: {
+      ...novoObjeto([3.75, 6.75], { source: { kind: 'recipe', recipe: 'pinheiro', seed: 1, params: {} }, blocks: { move: true, sight: false }, levelId: 'andar2' }),
+      id: 'arvore-cima',
+    } as never,
+  });
+
+  // Peça no térreo passa normalmente sob o objeto do 1º andar.
+  assert.equal(bloqueioNoCaminho(m, [2.25, 6.75], [3.75, 6.75]), null);
+  assert.equal(bloqueioNoCaminho(m, [2.25, 6.75], [5.25, 6.75]), null);
+  const movido = aplicarComando(m, { tipo: 'peca.mover', id: 't', para: [5.25, 6.75] });
+  assert.deepEqual(movido.tokens.t!.position, [5.25, 6.75]);
+
+  // Já no mesmo andar ('andar2'), o objeto bloqueia.
+  assert.equal(bloqueioNoCaminho(m, [2.25, 6.75], [3.75, 6.75], { levelId: 'andar2' }), 'Bloqueado por obstáculo.');
+});
+
+test('padrão de obstáculo no acervo: pedras/árvores bloqueiam, tapetes/rasteira/papéis não', () => {
+  assert.equal(itemBloqueiaMovimentoPorPadrao('rochedo'), true);
+  assert.equal(itemBloqueiaMovimentoPorPadrao('pedra.grande'), true);
+  assert.equal(itemBloqueiaMovimentoPorPadrao('pinheiro'), true);
+  assert.equal(itemBloqueiaMovimentoPorPadrao('tapete.persa'), false);
+  assert.equal(itemBloqueiaMovimentoPorPadrao('moita-de-samambaia'), false);
+  assert.equal(itemBloqueiaMovimentoPorPadrao('papeis'), false);
 });

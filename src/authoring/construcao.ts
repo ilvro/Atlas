@@ -4,7 +4,7 @@
  * os comandos (store, transação) ou encadeia com `aplicarEmCopia`. Unidades: metros, exceto `comodos` (células do grid, fim exclusivo).
  * Aleatoriedade (rotação e semente dos objetos, borda irregular, espalhar) vem de `semente`; ids vêm de `gerarId` (padrão `novoIdEntidade`).
  */
-import { ACERVO } from '../procedural/acervo.ts';
+import { ACERVO, itemBloqueiaMovimentoPorPadrao } from '../procedural/acervo.ts';
 import { MATERIAIS, materiaisDo, type Material } from '../procedural/materiais.ts';
 import { mulberry32 } from '../procedural/ruido.ts';
 import { mapaDoAndar } from '../domain/andares.ts';
@@ -386,8 +386,9 @@ export function objetos(mapa: MapaAtlas, pedidos: readonly PedidoDeObjeto[], sem
       if (!enc) throw new ErroDeConstrucao(`“${item}” é de parede e precisa de uma parede de cômodo a até ~1 m de [${p.pos[0]}, ${p.pos[1]}], com o ponto do lado de dentro do cômodo`);
       naParede = { position: [enc.ponto[0], enc.ponto[1]] as Ponto, elevation: 'wall' as const, wall: { wallId: enc.parede.id, at: enc.at, face: 'inner' as const }, roomId: enc.roomId, blocks: { move: false, sight: false }, castsShadow: false, rotation: 0 };
     }
+    const bloqueia = (!p.camada || p.camada === 'floor') && !(p.submerso ?? info.submerso) && info.tipo !== 'parede' && itemBloqueiaMovimentoPorPadrao(item);
     const o = novoObjeto([p.pos[0], p.pos[1]], {
-      id: gerarId('o'), source: ACERVO.fonte(item, seed, item === p.item ? p.params : {}), rotation, ...submerso,
+      id: gerarId('o'), source: ACERVO.fonte(item, seed, item === p.item ? p.params : {}), rotation, blocks: { move: bloqueia, sight: false }, ...submerso,
       ...(p.escala !== undefined ? { scale: p.escala } : {}), ...(p.camada ? { elevation: p.camada } : {}),
       ...(typeof p.oculto === 'boolean' ? { oculto: p.oculto } : {}),
       ...(p.andar ? { levelId: p.andar } : {}),

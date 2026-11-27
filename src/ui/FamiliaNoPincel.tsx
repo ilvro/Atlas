@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'preact/hooks';
 import { signal, useSignal } from '@preact/signals';
 import { tocar } from '../fx/som.ts';
-import { ACERVO } from '../procedural/acervo.ts';
+import { ACERVO, itemBloqueiaMovimentoPorPadrao } from '../procedural/acervo.ts';
 import { BIOMAS, GRUPOS_DE_OBJETOS, familiasVisiveis, type Familia } from '../procedural/familias.ts';
 import { GENEROS, generoDe } from '../domain/presets.ts';
 import { definirFiltroDeBioma, definirFiltroDeEpoca, filtroDeBioma, filtroDeEpoca, generoDoFiltro } from '../app/filtros.ts';
@@ -22,7 +22,7 @@ function pegarItem(s: SessaoDeEdicao, id: string, ferramenta = true): void {
   catalogoAberto.value = false;
   const o = s.pincel.value.objeto;
   if (ferramenta) s.ferramenta.value = 'objeto';
-  s.pincel.value = { ...s.pincel.value, objeto: { ...o, item: id, params: {}, familia: ACERVO.familiaDoItem(id)?.id ?? null } };
+  s.pincel.value = { ...s.pincel.value, objeto: { ...o, item: id, params: {}, familia: ACERVO.familiaDoItem(id)?.id ?? null, bloqueia: itemBloqueiaMovimentoPorPadrao(id) } };
   tocar('selecionar');
 }
 

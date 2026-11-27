@@ -4,7 +4,7 @@ import { decodificar } from '../domain/celulas.ts';
 import { novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
 import type { MapaAtlas, Objeto, Ponto } from '../domain/mapa.ts';
 import { mulberry32 } from '../procedural/ruido.ts';
-import { ACERVO } from '../procedural/acervo.ts';
+import { ACERVO, itemBloqueiaMovimentoPorPadrao } from '../procedural/acervo.ts';
 import { caixaDoObjeto, insightDoComodo, type Caixa } from './insight.ts';
 import { circulacao, malhaDoComodo, retanguloLivre, type Circulacao, type Malha } from './malha.ts';
 import { rotacaoDeParede } from './layout.ts';
@@ -224,9 +224,10 @@ export function espalhar(m: MapaAtlas, o: PedidoDeEspalhar): Objeto[] {
       if (!sala && naFrenteDePortaExterna(pos, Math.max(w, h) / 2)) continue;              // a frente de uma porta para fora fica livre (semicírculo de 1,5 m)
     }
     const blocks = ['caixa', 'vaso.planta', 'pedra.media', 'poco', 'banco.jardim'].includes(item.receita);
+    const bloqueiaMovimento = itemBloqueiaMovimentoPorPadrao(item.receita) && elevation === 'floor';
     novos.push(novoObjeto(pos, {
       id: gerarId('o'), source: ACERVO.fonte(item.receita, Math.floor(rng() * 2 ** 31)), rotation: rot, elevation, roomId: sala ?? comodoEm(m, pos, indice),
-      blocks: { move: blocks && elevation === 'floor', sight: false }, castsShadow: elevation === 'floor' && blocks,
+      blocks: { move: bloqueiaMovimento, sight: false }, castsShadow: elevation === 'floor' && blocks,
     }));
     colocados.push({ pos, lado: Math.max(w, h), arvore: ehMinhaArvore });
     if (elevation === 'floor' && blocks) bloqueantes.push(caixa);

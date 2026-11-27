@@ -235,7 +235,7 @@ function aplicar(m: MapaAtlas, c: Comando): void {
       if (Math.hypot(destino[0] - de[0], destino[1] - de[1]) < 1e-6) break;
       const nivel = andarDe(t);
       const antesNivel = mapaDoAndar(m as unknown as MapaAtlas, nivel, true);
-      if (!c.livre) { const motivo = bloqueioNoCaminho(antesNivel, de, destino); if (motivo) nao(motivo); }
+      if (!c.livre) { const motivo = bloqueioNoCaminho(antesNivel, de, destino, { levelId: nivel }); if (motivo) nao(motivo); }
       // O que a peça de jogador via de onde estava também fica explorado (antes de ela sair do lugar).
       const res = antesNivel.session.explored?.res ?? RES_NEVOA;
       const viam = t.player && !c.emArrasto ? celulasVisiveis(antesNivel, res) : [];

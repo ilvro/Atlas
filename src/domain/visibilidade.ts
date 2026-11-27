@@ -280,7 +280,7 @@ export function segmentosDoPoligono(poligono: readonly Ponto[]): Segmento[] {
   return segs;
 }
 
-function poligonoDoObjeto(o: Objeto): Ponto[] {
+export function poligonoDoObjeto(o: Objeto): Ponto[] {
   const [pw, ph] = ACERVO.pegadaDaFonte(o.source);
   const w = pw * o.scale, h = ph * o.scale;
   if (w <= 0 || h <= 0) return [];

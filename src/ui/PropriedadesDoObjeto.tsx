@@ -29,6 +29,7 @@ export function PropriedadesDoObjeto({ valores: v, aoMudar, modo }: { valores: V
         <CampoDeslizante rotulo="Escala" id="prop-escala" valor={Math.round(v.escala * 100)} min={10} max={300} passo={5} unidade="%" aoConfirmar={x => aoMudar({ escala: x / 100 })} />
         <CampoDeslizante rotulo="Rotação" id="prop-rotacao" valor={graus(v.rotacao)} min={0} max={360} passo={5} unidade="°" aoConfirmar={x => aoMudar({ rotacao: radianos(x) })}
           extra={pincel ? <Dado ligado={!!v.rotacaoAleatoria} aoAlternar={() => aoMudar({ rotacaoAleatoria: !v.rotacaoAleatoria })} dica="Gira por sorteio a cada objeto posto" id="prop-rotacao-dado" /> : undefined} />
+        <CampoCaixa rotulo="Obstáculo" dica="Impede personagens de passar ou parar por cima deste objeto" valor={v.bloqueia} aoMudar={x => aoMudar({ bloqueia: x })} id="prop-bloqueia" />
       </Cartao>
       <button type="button" class="chip ver-mais" aria-expanded={aberto} onClick={() => definirPropriedadesAbertas(!aberto)} data-testid="prop-ver-mais">{aberto ? '▾' : '▸'} Ver mais…{!aberto && pincel && v.colocar === 'varios' ? ' (vários)' : ''}</button>
       {aberto && (<>
@@ -47,7 +48,6 @@ export function PropriedadesDoObjeto({ valores: v, aoMudar, modo }: { valores: V
       <Cartao titulo="Aparência" id="aparencia">
         <CampoDeslizante rotulo="Opacidade" id="prop-opacidade" valor={Math.round(v.opacidade * 100)} min={10} max={100} passo={5} unidade="%" aoConfirmar={x => aoMudar({ opacidade: x / 100 })} />
         <CampoCaixa rotulo="Projeta sombra" valor={v.sombra} aoMudar={x => aoMudar({ sombra: x })} id="prop-sombra" />
-        <CampoCaixa rotulo="Bloqueia o movimento" valor={v.bloqueia} aoMudar={x => aoMudar({ bloqueia: x })} id="prop-bloqueia" />
       </Cartao>
       {pincel && (
         <Cartao titulo="Colocação" id="colocacao">

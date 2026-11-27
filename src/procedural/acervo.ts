@@ -82,3 +82,25 @@ export function criarAcervo(receitas: readonly Receita[], colecao: readonly Item
 
 /** As receitas de verdade e a coleção da casa. */
 export const ACERVO: Acervo = criarAcervo(listaDeReceitas(), COLECAO);
+
+const RECEITAS_PASSAVEIS = new Set([
+  'papeis',
+  'jornais',
+  'seixos',
+  'escada.madeira',
+  'escada.pedra',
+  'escada.caracol',
+  'escada.de-mao',
+  'alcapao',
+]);
+
+/** Indica se um item do acervo bloqueia o movimento de peças por padrão ao ser colocado no piso. */
+export function itemBloqueiaMovimentoPorPadrao(id: string): boolean {
+  if (RECEITAS_PASSAVEIS.has(id)) return false;
+  const item = ACERVO.item(id);
+  if (!item) return true;
+  if (item.tipo === 'parede' || item.submerso) return false;
+  if (item.categoria === 'tapetes') return false;
+  if (item.tags.includes('rasteira') || item.tags.includes('poca')) return false;
+  return true;
+}
