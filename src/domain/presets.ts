@@ -50,6 +50,12 @@ export const TIPOS_DE_COMODO: readonly TipoDeComodo[] = [
   { id: 'patio-com-fonte', nome: 'Pátio com fonte', funcao: 'patio-com-fonte', piso: 'zellige', papel: 'adobe', descricao: 'Zellige, fonte ou poço, palmeiras e toldo, ao ar livre' },
   { id: 'bazar', nome: 'Bazar', funcao: 'bazar', piso: 'terracota.quadrada', papel: 'adobe', descricao: 'Bancas de especiarias, tapetes pendurados, cestos e cântaros' },
   { id: 'salao-de-cha', nome: 'Salão de chá', funcao: 'salao-de-cha', piso: 'zellige', papel: 'reboco.branco', descricao: 'Almofadas, mesas de latão, narguilés e lanternas' },
+  // Faroeste (Q18c). O `estabulo` já existe; o gênero só troca o que ele guarda (poste com cocho, bomba de manivela).
+  { id: 'saloon', nome: 'Saloon', funcao: 'saloon', piso: 'tabuas.gastas', papel: 'tabuas.descascadas', descricao: 'Balcão com garrafas, mesas de pôquer, piano e escarradeiras' },
+  { id: 'xerifado', nome: 'Xerifado', funcao: 'xerifado', piso: 'tabuas.gastas', papel: 'caiado', descricao: 'Mesa do xerife, cela de cadeia, cofre e cartazes de procurado' },
+  { id: 'armazem-geral', nome: 'Armazém geral', funcao: 'armazem-geral', piso: 'tabuas.gastas', papel: 'tabuas.descascadas', descricao: 'Balcão, estantes, sacos, barris e caixotes' },
+  { id: 'banco', nome: 'Banco', funcao: 'banco', piso: 'ladrilho.hidraulico', papel: 'caiado', descricao: 'Balcão do caixa, cofre e escrivaninha' },
+  { id: 'estacao', nome: 'Estação', funcao: 'estacao', piso: 'tijoleira', papel: 'tabuas.descascadas', descricao: 'Bilheteria, bancos de espera, caixotes e relógio' },
 ];
 export const tipoDeComodo = (id: string): TipoDeComodo | undefined => TIPOS_DE_COMODO.find(t => t.id === id);
 
@@ -318,5 +324,6 @@ export function telhadoPadrao(
   if (genero === 'antiguidade') return clonarTelhado(estiloDeTelhado('casa-romana')!.roof);
   if (genero === 'oriental') return clonarTelhado(estiloDeTelhado('casa-japonesa')!.roof);
   if (genero === 'deserto') return clonarTelhado(estiloDeTelhado('terraco-de-barro')!.roof);
+  if (genero === 'faroeste') return clonarTelhado(estiloDeTelhado('cabana-de-tabuas')!.roof);
   return clonarTelhado(estiloDeTelhado('casa-velha')!.roof);
 }

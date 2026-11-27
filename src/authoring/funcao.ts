@@ -10,6 +10,12 @@ const FUNCOES = new Set(TIPOS_DE_COMODO.map(t => t.funcao));
 
 // Das mais específicas para as mais genéricas: a primeira palavra que bate decide.
 const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number }[] = [
+  // Faroeste (Q18c): "banco" e "armazém" sozinhos já têm outro sentido (banco de sentar, depósito), então esses vão em `FRASES`. "Rancho" é o estábulo.
+  { palavras: ['saloon', 'saloons'], funcao: 'saloon', confianca: 0.9 },
+  { palavras: ['xerife', 'xerifado', 'delegacia'], funcao: 'xerifado', confianca: 0.9 },
+  { palavras: ['emporio'], funcao: 'armazem-geral', confianca: 0.9 },
+  { palavras: ['estacao', 'ferroviaria'], funcao: 'estacao', confianca: 0.9 },
+  { palavras: ['rancho', 'curral'], funcao: 'estabulo', confianca: 0.9 },
   // Deserto (Q17c): "caravançará" (pátio de pouso das caravanas) e "oásis" dão o pátio com fonte; "salão de chá" é uma frase (ver `FRASES`), porque `cha` é da casa de chá.
   { palavras: ['tenda', 'beduina', 'beduino'], funcao: 'tenda', confianca: 0.9 },
   { palavras: ['bazar', 'souk', 'souq', 'suq'], funcao: 'bazar', confianca: 0.9 },
@@ -55,6 +61,8 @@ const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number
 ];
 /** Frases que valem mais que as palavras soltas ("salão de chá" não é "casa de chá"); vêm antes de `POR_NOME`. */
 const FRASES: readonly { frase: RegExp; funcao: string; confianca: number }[] = [
+  { frase: /\barmazem(ns)? (geral|gerais)\b/, funcao: 'armazem-geral', confianca: 0.9 },
+  { frase: /^banco( \d+)?$|\bbanco (da|do|de|nacional|federal|comercial|rural) (fronteira|cidade|oeste|povoado|vila|comercio|agricultura|[a-z]+ city)\b|\bbanco (nacional|federal|comercial|rural)\b/, funcao: 'banco', confianca: 0.9 },
   { frase: /\bsalao(es)? de cha\b/, funcao: 'salao-de-cha', confianca: 0.9 },
   { frase: /\bpatio com fonte\b/, funcao: 'patio-com-fonte', confianca: 0.9 },
 ];

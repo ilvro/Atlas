@@ -77,6 +77,12 @@ export const LUZES_POR_FUNCAO: Readonly<Record<string, LuzDaFuncao>> = {
   'patio-com-fonte': { m2PorLuz: 20, tamanho: 'pequena', sobre: [], semLuz: true },
   bazar: { m2PorLuz: 16, tamanho: 'principal', sobre: ['banca-de-especiarias'] },
   'salao-de-cha': { m2PorLuz: 10, tamanho: 'pequena', sobre: ['mesa-de-latao'] },
+  // Faroeste (Q18c): lamparina e vela do gênero (`LUZES_POR_GENERO`); a mesa do xerife já traz o lampião dela, e o estábulo já tem a sua.
+  saloon: { m2PorLuz: 12, tamanho: 'principal', sobre: ['mesa-de-poquer', 'balcao-de-saloon'] },
+  xerifado: { m2PorLuz: 18, tamanho: 'pequena', sobre: ['mesa-de-xerife'] },
+  'armazem-geral': { m2PorLuz: 16, tamanho: 'principal', sobre: ['balcao'] },
+  banco: { m2PorLuz: 16, tamanho: 'principal', sobre: ['balcao', 'mesa-de-xerife', 'escrivaninha'] },
+  estacao: { m2PorLuz: 16, tamanho: 'principal', sobre: ['balcao', 'mesa-de-xerife'] },
 };
 
 const DISTANCIA_MINIMA = 2;

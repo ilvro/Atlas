@@ -87,6 +87,15 @@ export const CONJUNTOS_EXTERIORES: readonly ConjuntoDeEspalhar[] = [
     { receita: 'tenda-beduina', peso: 2, contexto: 'livre' }, { receita: 'fogueira-de-caravana', peso: 2, contexto: 'livre' }, { receita: 'camelo', peso: 3, contexto: 'livre' },
     { receita: 'cantaros-empilhados', peso: 2, contexto: 'livre' }, { receita: 'palanquim', peso: 1, contexto: 'livre' }, { receita: 'jarro-de-barro', peso: 1, contexto: 'livre' },
     { receita: 'cesto', peso: 1, contexto: 'livre' }] },
+  { id: 'rua-de-fronteira', nome: 'Rua de fronteira', descricao: 'Postes de amarrar, barris, bomba de manivela, diligência, carroça coberta, cavalos e caixotes', densidade: 0.05, itens: [
+    { receita: 'poste-de-amarrar', peso: 3, contexto: 'livre' }, { receita: 'barril', peso: 2, contexto: 'livre' }, { receita: 'bomba-de-manivela', peso: 1, contexto: 'livre' },
+    { receita: 'diligencia', peso: 1, contexto: 'livre' }, { receita: 'carroca-coberta', peso: 1, contexto: 'livre' }, { receita: 'cavalo', peso: 2, contexto: 'livre' },
+    { receita: 'caixote', peso: 2, contexto: 'livre' }, { receita: 'cerca-de-tabuas', peso: 1, contexto: 'livre' }] },
+  { id: 'deserto-de-cactos', nome: 'Deserto de cactos', descricao: 'Saguaros, opúncias, cactos redondos, arbustos secos, rochedos e crânio de boi', densidade: 0.05, itens: [
+    { receita: 'casa:saguaro-a', peso: 3, contexto: 'livre' }, { receita: 'casa:saguaro-b', peso: 3, contexto: 'livre' }, { receita: 'casa:opuntia-a', peso: 2, contexto: 'livre' }, { receita: 'casa:opuntia-b', peso: 2, contexto: 'livre' },
+    { receita: 'casa:cacto-redondo-um', peso: 2, contexto: 'livre' }, { receita: 'casa:cacto-redondo-grupo', peso: 2, contexto: 'livre' },
+    { receita: 'casa:arbusto-seco-1m', peso: 4, contexto: 'livre' }, { receita: 'casa:arbusto-seco-2m', peso: 2, contexto: 'livre' },
+    { receita: 'rochedo', peso: 1, contexto: 'livre' }, { receita: 'pedra.media', peso: 2, contexto: 'livre' }, { receita: 'cranio-de-boi', peso: 1, contexto: 'livre' }] },
 ];
 export const TODOS_OS_CONJUNTOS: readonly ConjuntoDeEspalhar[] = [...CONJUNTOS_DE_ESPALHAR, ...CONJUNTOS_EXTERIORES];
 export const conjuntoDeEspalhar = (id: string): ConjuntoDeEspalhar | undefined => TODOS_OS_CONJUNTOS.find(c => c.id === id);
