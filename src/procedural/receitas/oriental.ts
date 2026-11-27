@@ -22,10 +22,10 @@ const PINHO: TonsDeTufo = { fundo: '#0e1a10', base: '#22382a', meio: '#2e4a32', 
 const PAPEL = '#e6dcc2', MUSGO = '#4e6a2e', TINTA = '#141010', DOURADO = '#c49a3e', SELO = '#a8281a';
 
 /** Clarão no chão que soma luz (lanterna, brasa): cores escuras e saturadas, porque a emissão multiplica por até 3. */
-const halo = (partes: Parte[], x: number, y: number, R: number, cor: string, alfa: number): void => { partes.push(elipse(x, y, R * 2, R * 2, cor, 0.01, { ...O, brilho: true, alfa, desfoque: R * 0.3, detalhe: 1 })); };
+export const halo = (partes: Parte[], x: number, y: number, R: number, cor: string, alfa: number): void => { partes.push(elipse(x, y, R * 2, R * 2, cor, 0.01, { ...O, brilho: true, alfa, desfoque: R * 0.3, detalhe: 1 })); };
 
 /** Brasas de carvão que brilham num disco de raio `R`. */
-function brasas(partes: Parte[], r: () => number, x: number, y: number, R: number, z: number, n = 16): void {
+export function brasas(partes: Parte[], r: () => number, x: number, y: number, R: number, z: number, n = 16): void {
   partes.push(elipse(x, y, R * 2, R * 2, '#2a0a04', z, { ...O, detalhe: 1 }));
   partes.push(elipse(x, y, R * 1.5, R * 1.5, '#8a2a06', z + 0.002, { ...O, brilho: true, alfa: 0.7, desfoque: R * 0.25, detalhe: 1 }));
   for (let k = 0; k < n; k++) { const a = r() * 6.28, d = Math.sqrt(r()) * R * 0.85; partes.push(elipse(x + Math.cos(a) * d, y + Math.sin(a) * d, 0.05 + r() * 0.05, 0.04 + r() * 0.04, r() < 0.3 ? '#1a0e0a' : r() < 0.5 ? '#8a2206' : '#b0400c', z + 0.005, { ...O, brilho: true, detalhe: 2 })); }
@@ -33,7 +33,7 @@ function brasas(partes: Parte[], r: () => number, x: number, y: number, R: numbe
 }
 
 /** Pedra de jardim arredondada (bolha), com o lado da luz claro e musgo do lado de sombra. */
-function pedra(partes: Parte[], r: () => number, x: number, y: number, rx: number, ry: number, z: number, musgo = 0.5): void {
+export function pedra(partes: Parte[], r: () => number, x: number, y: number, rx: number, ry: number, z: number, musgo = 0.5): void {
   const forma = bolha(x, y, rx, ry, 14, 0.12, r, r() * 6);
   partes.push(poli(forma.map((v, i) => v + (i % 2 ? 0.03 : 0.025)), PEDRA.nanquim, z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
   partes.push(poli(forma, PEDRA.base, z + 0.003, { ...O, detalhe: 1 }));
