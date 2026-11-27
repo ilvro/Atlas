@@ -55,14 +55,13 @@ export const portoNoturno: Exemplo = {
       telhadoVisivel: true,
     });
 
-    // 1. Estalagem a noroeste (quartos, átrio ajardinado e sala de jantar abertos)
+    // 1. Estalagem a noroeste (quartos, átrio ajardinado e sala de jantar)
     const quartoNO = k.comodo([3, 2, 7, 5], 'quarto', {
       id: 'estalagem-quarto-norte',
       nome: 'Quarto de hóspedes norte',
       piso: 'tabuas.claras',
       papel: 'pedra.escura',
       telhado: 'telha.barro',
-      telhadoVisivel: false,
     });
     k.comodo([3, 5, 7, 8], 'quarto', {
       id: 'estalagem-quarto-sul',
@@ -70,7 +69,6 @@ export const portoNoturno: Exemplo = {
       piso: 'tabuas.claras',
       papel: 'pedra.escura',
       telhado: 'telha.barro',
-      telhadoVisivel: false,
     });
     k.comodo([7, 2, 9, 9], 'corredor', {
       id: 'estalagem-atrio',
@@ -78,7 +76,6 @@ export const portoNoturno: Exemplo = {
       piso: 'laje.pedra',
       papel: 'pedra.escura',
       telhado: 'telha.barro',
-      telhadoVisivel: false,
     });
     const refeitorioId = k.comodo([9, 2, 15, 5], 'sala-de-jantar', {
       id: 'estalagem-jantar',
@@ -86,7 +83,6 @@ export const portoNoturno: Exemplo = {
       piso: 'tabuas.escuras',
       papel: 'pedra.escura',
       telhado: 'telha.barro',
-      telhadoVisivel: false,
     });
     k.comodo([9, 5, 12, 8], 'escritorio', {
       id: 'estalagem-gabinete',
@@ -94,7 +90,6 @@ export const portoNoturno: Exemplo = {
       piso: 'tabuas.escuras',
       papel: 'pedra.escura',
       telhado: 'telha.barro',
-      telhadoVisivel: false,
     });
     k.comodo([12, 5, 15, 8], 'quarto', {
       id: 'estalagem-quarto-leste',
@@ -102,7 +97,6 @@ export const portoNoturno: Exemplo = {
       piso: 'tabuas.claras',
       papel: 'pedra.escura',
       telhado: 'telha.barro',
-      telhadoVisivel: false,
     });
 
     // 2. Mansão / Casa da Guilda a nordeste
@@ -112,7 +106,6 @@ export const portoNoturno: Exemplo = {
       piso: 'tabuas.claras',
       papel: 'pedra.escura',
       telhado: 'telha.barro',
-      telhadoVisivel: false,
     });
     k.comodo([25, 5, 29, 8], 'quarto', {
       id: 'guilda-quarto-2',
@@ -120,7 +113,6 @@ export const portoNoturno: Exemplo = {
       piso: 'tabuas.claras',
       papel: 'pedra.escura',
       telhado: 'telha.barro',
-      telhadoVisivel: false,
     });
     k.comodo([29, 2, 31, 8], 'corredor', {
       id: 'guilda-atrio',
@@ -128,7 +120,6 @@ export const portoNoturno: Exemplo = {
       piso: 'laje.pedra',
       papel: 'pedra.escura',
       telhado: 'telha.barro',
-      telhadoVisivel: false,
     });
     const salaoGuilda = k.comodo([31, 2, 36, 5], 'biblioteca', {
       id: 'guilda-cartografia',
@@ -136,7 +127,6 @@ export const portoNoturno: Exemplo = {
       piso: 'tabuas.escuras',
       papel: 'pedra.escura',
       telhado: 'telha.barro',
-      telhadoVisivel: false,
     });
     k.comodo([31, 5, 36, 8], 'escritorio', {
       id: 'guilda-tesouraria',
@@ -144,7 +134,6 @@ export const portoNoturno: Exemplo = {
       piso: 'tabuas.escuras',
       papel: 'pedra.escura',
       telhado: 'telha.barro',
-      telhadoVisivel: false,
     });
 
     // 3. Armazém da Alfândega a sudoeste e Oficina naval no centro-sul
@@ -154,7 +143,6 @@ export const portoNoturno: Exemplo = {
       piso: 'laje.pedra',
       papel: 'pedra.escura',
       telhado: 'telha.ardosia',
-      telhadoVisivel: false,
     });
     const oficinaId = k.comodo([24, 11, 30, 15], 'forja', {
       id: 'oficina-naval',
@@ -162,7 +150,6 @@ export const portoNoturno: Exemplo = {
       piso: 'laje.pedra',
       papel: 'pedra.escura',
       telhado: 'telha.ardosia',
-      telhadoVisivel: false,
     });
 
     // Variedade de formas, estados/desgaste e fachadas externas para os edifícios do porto

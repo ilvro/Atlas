@@ -12,6 +12,7 @@ import { covilNaCaverna } from '../../scripts/exemplos/covil-na-caverna.ts';
 import { enseadaDosPiratas } from '../../scripts/exemplos/enseada-dos-piratas.ts';
 import { Kit, montarExemplo } from '../../scripts/exemplos/kit.ts';
 import { oasisDaCaravana } from '../../scripts/exemplos/oasis-da-caravana.ts';
+import { portoNoturno } from '../../scripts/exemplos/porto-noturno.ts';
 import { temploNaEncosta } from '../../scripts/exemplos/templo-na-encosta.ts';
 import { vilaDoAtrio } from '../../scripts/exemplos/vila-do-atrio.ts';
 
@@ -109,6 +110,12 @@ test('todos os mapas de exemplo publicados têm construções cobertas com telha
     const semTelhado = revisarMapa(mapa, { regras: ['edificio-sem-telhado'] });
     assert.deepEqual(semTelhado, [], `${arq} tem edifício sem telhado`);
 
+    for (const sala of Object.values(mapa.rooms)) {
+      if (sala.roof.material !== null) {
+        assert.equal(sala.roof.visible, true, `${arq}: cômodo "${sala.name}" (${sala.id}) tem telhado oculto (roof.visible: false)`);
+      }
+    }
+
     const exterior = mapa.terrain.base !== 'vazio'
       && mapa.terrain.base !== 'rocha.rachada'
       && MATERIAIS[mapa.terrain.base]?.uso !== 'macico';
@@ -118,13 +125,14 @@ test('todos os mapas de exemplo publicados têm construções cobertas com telha
       if (sala.levelId && (mapa.levels?.[sala.levelId]?.order ?? 0) < 0) continue;
       assert.ok(sala.roof.material, `${arq}: cômodo "${sala.name}" (${sala.id}) sem material de telhado`);
       assert.equal(MATERIAIS[sala.roof.material]?.uso, 'telhado', `${arq}: material inválido "${sala.roof.material}"`);
+      assert.equal(sala.roof.visible, true, `${arq}: cômodo "${sala.name}" (${sala.id}) com telhado invisível`);
     }
   }
 });
 
 test('exemplos corrigidos geram exatamente o JSON publicado e passam validarMapa', () => {
   const pastaExemplos = new URL('../../public/exemplos/', import.meta.url);
-  for (const exemplo of [cidadeDaFronteira, enseadaDosPiratas, oasisDaCaravana, temploNaEncosta, vilaDoAtrio]) {
+  for (const exemplo of [cidadeDaFronteira, enseadaDosPiratas, oasisDaCaravana, portoNoturno, temploNaEncosta, vilaDoAtrio]) {
     const gerado = montarExemplo(exemplo);
     validarMapa(gerado);
     const publicado = JSON.parse(readFileSync(new URL(`${exemplo.id}.atlas.json`, pastaExemplos), 'utf8'));

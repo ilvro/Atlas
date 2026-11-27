@@ -38,7 +38,7 @@ export const oasisDaCaravana: Exemplo = {
     k.pintar('agua.jardim', { poligono: [[10.8, 12.4], [15.4, 11.4], [19.2, 12.6], [20.2, 15], [18.8, 17.4], [14.6, 18.1], [11.2, 16.9], [10.2, 14.4]], irregular: 0.35 });
 
     // ---------- O depósito de adobe ----------
-    const deposito = k.comodo([1, 13, 5, 17], 'deposito', { nome: 'Depósito de adobe', piso: 'terracota.quadrada', papel: 'adobe', telhado: 'terraco-de-barro', telhadoVisivel: false });
+    const deposito = k.comodo([1, 13, 5, 17], 'deposito', { nome: 'Depósito de adobe', piso: 'terracota.quadrada', papel: 'adobe', telhado: 'terraco-de-barro' });
     k.porta([7.5, 22.5], 'door', { width: 1.2, state: 'open', material: 'madeira.escura' });
     k.porta([4.5, 19.5], 'window', { width: 0.9 });
     k.objeto('cantaros-empilhados', [3.2, 21.6], { rotation: 0 });

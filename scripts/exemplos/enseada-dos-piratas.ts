@@ -73,7 +73,7 @@ export const enseadaDosPiratas: Exemplo = {
     for (const [x, y] of [[13.0, 22.2], [15.8, 22.4], [13.2, 19.0]] as const) k.objeto('caixote', [x, y], { rotation: x });
 
     // ---------- A taverna de tábuas, a noroeste ----------
-    const taverna = k.comodo([2, 2, 8, 6], 'taverna-do-porto', { nome: 'Taverna do Papagaio', telhado: 'telha.tabuas', telhadoForma: 'duas-aguas', telhadoDetalhes: ['chamine'], telhadoVisivel: false });
+    const taverna = k.comodo([2, 2, 8, 6], 'taverna-do-porto', { nome: 'Taverna do Papagaio', telhado: 'telha.tabuas', telhadoForma: 'duas-aguas', telhadoDetalhes: ['chamine'] });
     k.porta([7.5, 9], 'door', { width: 1.5, state: 'open' });
     k.porta([4.5, 9], 'window', { width: 1.2 });
     k.porta([3, 6], 'window', { width: 1.2 });
@@ -88,7 +88,7 @@ export const enseadaDosPiratas: Exemplo = {
     k.luz('lamparina', [6.5, 6], { radius: 5.5, intensity: 0.9 });
 
     // ---------- O fortim no promontório ----------
-    const fortim = k.comodo([29, 1, 33, 5], 'fortim', { nome: 'Fortim de São Brás', piso: 'laje.pedra', telhado: null, telhadoVisivel: false });
+    const fortim = k.comodo([29, 1, 33, 5], 'fortim', { nome: 'Fortim de São Brás', piso: 'laje.pedra', telhado: null });
     k.porta([43.5, 4.5], 'door', { width: 1.5, state: 'open', material: 'madeira.escura' });
     k.porta([46.5, 7.5], 'window', { width: 0.9 });
     k.objeto('mesa-de-cartografo', [46.6, 3.0], { rotation: 0 });

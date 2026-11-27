@@ -48,8 +48,8 @@ export const temploNaEncosta: Exemplo = {
     k.pintar('cascalho', { faixa: [[29.4, 23], [31.4, 24.6], [34.5, 26]], largura: 1, irregular: 0.2 });
 
     // ---------- O salão do santuário e a casa de chá ----------
-    const salao = k.comodo([11, 3, 17, 7], 'santuario', { nome: 'Salão do santuário', piso: 'tabuas.laqueadas', papel: 'madeira.laqueada', telhado: 'pagode', telhadoVisivel: false });
-    const casaDeCha = k.comodo([22, 13, 26, 17], 'casa-de-cha', { nome: 'Casa de chá', piso: 'tatami', papel: 'shoji', telhado: 'casa-japonesa', telhadoVisivel: false });
+    const salao = k.comodo([11, 3, 17, 7], 'santuario', { nome: 'Salão do santuário', piso: 'tabuas.laqueadas', papel: 'madeira.laqueada', telhado: 'pagode' });
+    const casaDeCha = k.comodo([22, 13, 26, 17], 'casa-de-cha', { nome: 'Casa de chá', piso: 'tatami', papel: 'shoji', telhado: 'casa-japonesa' });
     k.porta([21, 10.5], 'door', { width: 2.4, state: 'open', material: 'madeira.escura' });
     k.porta([33, 23.25], 'door', { width: 1.2, state: 'open' });
     k.porta([39, 21.75], 'window', { width: 1.2 });
