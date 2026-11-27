@@ -31,8 +31,9 @@ import { atualizarEscarpasDoMacico } from '../../src/domain/contorno.ts';
 import { ceuNoHorario } from '../../src/domain/clima.ts';
 import { novaLuz, novaPeca, novoObjeto } from '../../src/domain/fabrica.ts';
 import { PAREDE_PADRAO, atualizarSalasDosObjetos, encaixarNaParede, encaixarObjetoDeParede, motivoDeNaoCaber, recalcularParedes } from '../../src/domain/geometria.ts';
-import { criarMapa, type Abertura, type Acabamento, type Comodo, type Estilo, type Fundo, type MapaAtlas, type Objeto, type Parede, type Peca, type Ponto, type Regiao, type Tempo } from '../../src/domain/mapa.ts';
-import { camposDoPreset, presetDeAcabamento, presetDeClima, presetDeLuz, pincelDePresenca, tipoDeComodo, TIPOS_DE_COMODO } from '../../src/domain/presets.ts';
+import { criarMapa, type Abertura, type Acabamento, type Comodo, type CumeeiraDeTelhado, type DesgasteDeTelhado, type DetalheDeTelhado, type Estilo, type FormaDeTelhado, type Fundo, type MapaAtlas, type Objeto, type Parede, type Peca, type Ponto, type Regiao, type Telhado, type Tempo } from '../../src/domain/mapa.ts';
+import { camposDoPreset, estiloDeTelhado, presetDeAcabamento, presetDeClima, presetDeLuz, pincelDePresenca, telhadoPadrao, tipoDeComodo, TIPOS_DE_COMODO } from '../../src/domain/presets.ts';
+import { MATERIAIS } from '../../src/procedural/materiais.ts';
 import { sincronizarLuzesProprias } from '../../src/domain/luz-propria.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
 import { revisarMapa } from '../../src/authoring/revisao.ts';
@@ -128,16 +129,58 @@ export class Kit {
    * Cria um cômodo com o piso e o papel do tipo (`TIPOS_DE_COMODO`: sala, cozinha, taverna, porao…). `ret` em CÉLULAS DO GRID, `[x0, y0, x1, y1]`
    * com fim exclusivo; uma lista de retângulos faz cômodos em L. As paredes derivadas são refeitas na hora (já dá para pôr portas).
    */
-  comodo(ret: Ret | readonly Ret[], tipo: string, extra: { id?: string; nome?: string; funcao?: string | null; piso?: string; papel?: string | null; telhado?: string | null; telhadoVisivel?: boolean } = {}): string {
+  comodo(
+    ret: Ret | readonly Ret[],
+    tipo: string,
+    extra: {
+      id?: string;
+      nome?: string;
+      funcao?: string | null;
+      piso?: string;
+      papel?: string | null;
+      telhado?: string | null;
+      telhadoVisivel?: boolean;
+      telhadoForma?: FormaDeTelhado;
+      telhadoCumeeira?: CumeeiraDeTelhado;
+      telhadoDetalhes?: readonly DetalheDeTelhado[];
+      telhadoDesgaste?: DesgasteDeTelhado;
+    } = {},
+  ): string {
     const t = tipoDeComodo(tipo); if (!t) throw new Error(`Kit: tipo de cômodo desconhecido “${tipo}” (${TIPOS_DE_COMODO.map(x => x.id).join(', ')}).`);
     const rets = (typeof ret[0] === 'number' ? [ret as Ret] : ret as readonly Ret[]), celulas: [number, number][] = [];
     for (const [x0, y0, x1, y1] of rets) for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) celulas.push([x, y]);
     const id = extra.id ?? this.id('c');
+    const funcao = extra.funcao === undefined ? t.funcao : extra.funcao;
+    let baseTelhado: Omit<Telhado, 'visible'> | null;
+    if (extra.telhado === undefined) {
+      baseTelhado = telhadoPadrao(this.m, funcao, celulas, null);
+    } else if (extra.telhado === null) {
+      baseTelhado = null;
+    } else {
+      const est = estiloDeTelhado(extra.telhado);
+      if (est) {
+        baseTelhado = { ...est.roof, ...(est.roof.details ? { details: [...est.roof.details] } : {}), ...(est.roof.wear ? { wear: { ...est.roof.wear } } : {}) };
+      } else {
+        const mat = MATERIAIS[extra.telhado];
+        if (!mat || mat.uso !== 'telhado') throw new Error(`Kit: telhado desconhecido “${extra.telhado}”.`);
+        baseTelhado = { material: extra.telhado };
+      }
+    }
+    const roof: Telhado = baseTelhado
+      ? {
+          ...baseTelhado,
+          ...(extra.telhadoForma !== undefined ? { shape: extra.telhadoForma } : {}),
+          ...(extra.telhadoCumeeira !== undefined ? { ridge: extra.telhadoCumeeira } : {}),
+          ...(extra.telhadoDetalhes !== undefined ? { details: [...extra.telhadoDetalhes] } : {}),
+          ...(extra.telhadoDesgaste !== undefined ? { wear: { ...(baseTelhado.wear ?? {}), ...extra.telhadoDesgaste } } : {}),
+          visible: extra.telhadoVisivel ?? true,
+        }
+      : { material: null, visible: extra.telhadoVisivel ?? true };
     const sala: Comodo = {
-      id, name: extra.nome ?? t.nome, function: extra.funcao === undefined ? t.funcao : extra.funcao, cells: codificar(celulas),
+      id, name: extra.nome ?? t.nome, function: funcao, cells: codificar(celulas),
       floor: { material: extra.piso ?? t.piso, seed: Math.floor(this.rng() * 2 ** 31) },
       wallpaper: extra.papel === null ? null : { material: extra.papel ?? t.papel, seed: Math.floor(this.rng() * 2 ** 31) },
-      wallStyle: null, palette: null, roof: { material: extra.telhado ?? null, visible: extra.telhadoVisivel ?? true }, levelId: null,
+      wallStyle: null, palette: null, roof, levelId: null,
     };
     this.m.rooms[id] = sala; recalcularParedes(this.m); return id;
   }

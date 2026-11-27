@@ -35,19 +35,19 @@ export const vilaDoAtrio: Exemplo = {
     k.pintar('cascalho', { faixa: [[13.5, 4.3], [13.5, 7.9]], largura: 0.9 });
 
     // ---------- A casa ----------
-    const taberna = k.comodo([3, 16, 8, 20], 'taberna', { nome: 'Taberna', piso: 'terracota.quadrada', papel: 'alvenaria.arenito', telhadoVisivel: false });
-    k.comodo([8, 16, 10, 20], 'corredor', { nome: 'Fauces', piso: 'mosaico.romano', papel: 'estuque.pompeiano', telhadoVisivel: false });
-    const cubiculo = k.comodo([10, 16, 15, 20], 'quarto', { nome: 'Cubículo', piso: 'mosaico.romano', papel: 'estuque.pompeiano', telhadoVisivel: false });
-    const atrio = k.comodo([3, 10, 15, 16], 'atrio', { nome: 'Átrio', piso: 'mosaico.romano', papel: 'estuque.pompeiano', telhadoVisivel: false });
-    k.comodo([3, 7, 7, 10], 'cozinha', { nome: 'Culina', piso: 'terracota.quadrada', papel: 'alvenaria.arenito', telhadoVisivel: false });
-    const tablino = k.comodo([7, 7, 11, 10], 'escritorio', { nome: 'Tablino', piso: 'mosaico.romano', papel: 'estuque.pompeiano', telhadoVisivel: false });
-    k.comodo([11, 7, 15, 10], 'biblioteca', { nome: 'Biblioteca', piso: 'mosaico.romano', papel: 'estuque.pompeiano', telhadoVisivel: false });
-    const triclinio = k.comodo([15, 2, 20, 8], 'triclinio', { nome: 'Triclínio', piso: 'mosaico.medalhao', papel: 'estuque.pompeiano', telhadoVisivel: false });
-    k.comodo([15, 8, 20, 10], 'corredor', { nome: 'Pórtico das termas', piso: 'lajes.arenito', papel: 'alvenaria.arenito', telhadoVisivel: false });
-    const frigidario = k.comodo([15, 10, 20, 16], 'termas', { nome: 'Frigidário', piso: 'mosaico.romano', papel: 'alvenaria.arenito', telhadoVisivel: false });
-    const caldario = k.comodo([20, 10, 25, 16], 'termas', { nome: 'Caldário', piso: 'mosaico.romano', papel: 'estuque.pompeiano', telhadoVisivel: false });
-    k.comodo([15, 16, 20, 20], 'sala', { nome: 'Vestiário', piso: 'lajes.arenito', papel: 'alvenaria.arenito', telhadoVisivel: false });
-    k.comodo([25, 12, 28, 16], 'deposito', { nome: 'Fornalha', piso: 'lajes.arenito', papel: 'alvenaria.arenito', telhadoVisivel: false });
+    const taberna = k.comodo([3, 16, 8, 20], 'taberna', { nome: 'Taberna', piso: 'terracota.quadrada', papel: 'alvenaria.arenito', telhado: 'casa-romana', telhadoVisivel: false });
+    k.comodo([8, 16, 10, 20], 'corredor', { nome: 'Fauces', piso: 'mosaico.romano', papel: 'estuque.pompeiano', telhado: 'casa-romana', telhadoVisivel: false });
+    const cubiculo = k.comodo([10, 16, 15, 20], 'quarto', { nome: 'Cubículo', piso: 'mosaico.romano', papel: 'estuque.pompeiano', telhado: 'casa-romana', telhadoVisivel: false });
+    const atrio = k.comodo([3, 10, 15, 16], 'atrio', { nome: 'Átrio', piso: 'mosaico.romano', papel: 'estuque.pompeiano', telhado: 'casa-romana', telhadoVisivel: false });
+    k.comodo([3, 7, 7, 10], 'cozinha', { nome: 'Culina', piso: 'terracota.quadrada', papel: 'alvenaria.arenito', telhado: 'casa-romana', telhadoVisivel: false });
+    const tablino = k.comodo([7, 7, 11, 10], 'escritorio', { nome: 'Tablino', piso: 'mosaico.romano', papel: 'estuque.pompeiano', telhado: 'casa-romana', telhadoVisivel: false });
+    k.comodo([11, 7, 15, 10], 'biblioteca', { nome: 'Biblioteca', piso: 'mosaico.romano', papel: 'estuque.pompeiano', telhado: 'casa-romana', telhadoVisivel: false });
+    const triclinio = k.comodo([15, 2, 20, 8], 'triclinio', { nome: 'Triclínio', piso: 'mosaico.medalhao', papel: 'estuque.pompeiano', telhado: 'casa-romana', telhadoVisivel: false });
+    k.comodo([15, 8, 20, 10], 'corredor', { nome: 'Pórtico das termas', piso: 'lajes.arenito', papel: 'alvenaria.arenito', telhado: 'casa-romana', telhadoVisivel: false });
+    const frigidario = k.comodo([15, 10, 20, 16], 'termas', { nome: 'Frigidário', piso: 'mosaico.romano', papel: 'alvenaria.arenito', telhado: 'casa-romana', telhadoVisivel: false });
+    const caldario = k.comodo([20, 10, 25, 16], 'termas', { nome: 'Caldário', piso: 'mosaico.romano', papel: 'estuque.pompeiano', telhado: 'casa-romana', telhadoVisivel: false });
+    k.comodo([15, 16, 20, 20], 'sala', { nome: 'Vestiário', piso: 'lajes.arenito', papel: 'alvenaria.arenito', telhado: 'casa-romana', telhadoVisivel: false });
+    k.comodo([25, 12, 28, 16], 'deposito', { nome: 'Fornalha', piso: 'lajes.arenito', papel: 'alvenaria.arenito', telhado: 'casa-romana', telhadoVisivel: false });
 
     // O muro do peristilo (oeste e norte) e o da horta.
     k.parede([[4.5, 10.5], [4.5, 1.5], [22.5, 1.5], [22.5, 3]], { material: 'alvenaria.arenito', thickness: 0.3 });

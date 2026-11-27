@@ -1,9 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { covilNaCaverna } from '../../scripts/exemplos/covil-na-caverna.ts';
-import { Kit, montarExemplo } from '../../scripts/exemplos/kit.ts';
+import { readdirSync, readFileSync } from 'node:fs';
+import { revisarMapa } from '../../src/authoring/revisao.ts';
 import { decodificar } from '../../src/domain/celulas.ts';
+import { lerMapa } from '../../src/domain/migracoes.ts';
+import { FUNCOES_AO_AR_LIVRE } from '../../src/domain/presets.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
+import { MATERIAIS } from '../../src/procedural/materiais.ts';
+import { cidadeDaFronteira } from '../../scripts/exemplos/cidade-da-fronteira.ts';
+import { covilNaCaverna } from '../../scripts/exemplos/covil-na-caverna.ts';
+import { enseadaDosPiratas } from '../../scripts/exemplos/enseada-dos-piratas.ts';
+import { Kit, montarExemplo } from '../../scripts/exemplos/kit.ts';
+import { oasisDaCaravana } from '../../scripts/exemplos/oasis-da-caravana.ts';
+import { temploNaEncosta } from '../../scripts/exemplos/templo-na-encosta.ts';
+import { vilaDoAtrio } from '../../scripts/exemplos/vila-do-atrio.ts';
 
 const novo = (semente = 3) => new Kit({ id: 'teste', nome: 'Teste', largura: 30, altura: 20, semente });
 const celulasDe = (k: Kit, material: string) => { const m = k.construir(), c = Object.values(m.terrain.layers).find(l => l.material === material); return c ? decodificar(c.cells) : []; };
@@ -73,4 +83,51 @@ test('erros claros para nomes desconhecidos', () => {
   assert.throws(() => k.comodo([0, 0, 2, 2], 'nada'), /tipo de cômodo/); assert.throws(() => k.luz('nada', [1, 1]), /luz/);
   assert.throws(() => k.objeto('nada', [1, 1]), /item desconhecido/); assert.throws(() => k.clima('nada'), /clima/);
   assert.throws(() => k.espalhar('nada', { disco: [1, 1], raio: 1 }), /conjunto/); assert.throws(() => k.porta([5, 5]), /parede/);
+  assert.throws(() => k.comodo([0, 0, 2, 2], 'sala', { telhado: 'inexistente' }), /telhado/);
+});
+
+test('Kit.comodo atribui telhado padrão do gênero por omissão e respeita ar livre ou telhado: null', () => {
+  const k = novo();
+  k.estilo({ genre: 'deserto' });
+  const sala = k.comodo([1, 1, 4, 4], 'sala');
+  const varanda = k.comodo([1, 4, 4, 5], 'varanda');
+  const porao = k.comodo([6, 1, 8, 3], 'porao', { telhado: null });
+  const m = k.construir();
+  validarMapa(m);
+  assert.equal(m.rooms[sala]!.roof.material, 'terraco.barro');
+  assert.equal(m.rooms[varanda]!.roof.material, null);
+  assert.equal(m.rooms[porao]!.roof.material, null);
+});
+
+test('todos os mapas de exemplo publicados têm construções cobertas com telhado válido', () => {
+  const pastaExemplos = new URL('../../public/exemplos/', import.meta.url);
+  const arquivos = readdirSync(pastaExemplos).filter(f => f.endsWith('.atlas.json')).sort();
+  assert.ok(arquivos.length >= 17);
+  for (const arq of arquivos) {
+    const mapa = lerMapa(JSON.parse(readFileSync(new URL(arq, pastaExemplos), 'utf8')));
+    validarMapa(mapa);
+    const semTelhado = revisarMapa(mapa, { regras: ['edificio-sem-telhado'] });
+    assert.deepEqual(semTelhado, [], `${arq} tem edifício sem telhado`);
+
+    const exterior = mapa.terrain.base !== 'vazio'
+      && mapa.terrain.base !== 'rocha.rachada'
+      && MATERIAIS[mapa.terrain.base]?.uso !== 'macico';
+    if (!exterior) continue;
+    for (const sala of Object.values(mapa.rooms)) {
+      if (sala.function && FUNCOES_AO_AR_LIVRE.has(sala.function)) continue;
+      if (sala.levelId && (mapa.levels?.[sala.levelId]?.order ?? 0) < 0) continue;
+      assert.ok(sala.roof.material, `${arq}: cômodo "${sala.name}" (${sala.id}) sem material de telhado`);
+      assert.equal(MATERIAIS[sala.roof.material]?.uso, 'telhado', `${arq}: material inválido "${sala.roof.material}"`);
+    }
+  }
+});
+
+test('exemplos corrigidos geram exatamente o JSON publicado e passam validarMapa', () => {
+  const pastaExemplos = new URL('../../public/exemplos/', import.meta.url);
+  for (const exemplo of [cidadeDaFronteira, enseadaDosPiratas, oasisDaCaravana, temploNaEncosta, vilaDoAtrio]) {
+    const gerado = montarExemplo(exemplo);
+    validarMapa(gerado);
+    const publicado = JSON.parse(readFileSync(new URL(`${exemplo.id}.atlas.json`, pastaExemplos), 'utf8'));
+    assert.deepEqual(gerado, publicado, `${exemplo.id}.atlas.json está desatualizado em relação ao script`);
+  }
 });

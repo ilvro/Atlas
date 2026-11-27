@@ -30,12 +30,12 @@ export const cidadeDaFronteira: Exemplo = {
     k.aplicar(m => caminho(m, { pontos: [[34, 19.8], [36.6, 22.4]], largura: [2, 2.4], material: 'chao.batido', irregular: 0.3 }, 182));
 
     // ---------- Os prédios ----------
-    const saloon = k.comodo([2, 2, 10, 8], 'saloon', { nome: 'Saloon Ferradura', piso: 'tabuas.gastas', papel: 'tabuas.descascadas', telhadoVisivel: false });
-    const armazem = k.comodo([11, 3, 16, 8], 'armazem-geral', { nome: 'Armazém geral', piso: 'tabuas.gastas', papel: 'tabuas.descascadas', telhadoVisivel: false });
-    const banco = k.comodo([17, 4, 22, 8], 'banco', { nome: 'Banco', piso: 'ladrilho.hidraulico', papel: 'tijolo.fuligem', telhadoVisivel: false });
-    const xerifado = k.comodo([3, 15, 10, 20], 'xerifado', { nome: 'Xerifado', piso: 'tabuas.gastas', papel: 'tabuas.descascadas', telhadoVisivel: false });
-    k.comodo([12, 15, 17, 20], 'estabulo', { nome: 'Estábulo', telhadoVisivel: false });
-    const estacao = k.comodo([18, 15, 25, 19], 'estacao', { nome: 'Estação', piso: 'tabuas.gastas', papel: 'caiado', telhadoVisivel: false });
+    const saloon = k.comodo([2, 2, 10, 8], 'saloon', { nome: 'Saloon Ferradura', piso: 'tabuas.gastas', papel: 'tabuas.descascadas', telhado: 'telha.tabuas', telhadoForma: 'duas-aguas', telhadoCumeeira: 'h', telhadoVisivel: false });
+    const armazem = k.comodo([11, 3, 16, 8], 'armazem-geral', { nome: 'Armazém geral', piso: 'tabuas.gastas', papel: 'tabuas.descascadas', telhado: 'telha.tabuinhas', telhadoForma: 'duas-aguas', telhadoCumeeira: 'h', telhadoVisivel: false });
+    const banco = k.comodo([17, 4, 22, 8], 'banco', { nome: 'Banco', piso: 'ladrilho.hidraulico', papel: 'tijolo.fuligem', telhado: 'telha.ardosia', telhadoForma: 'plano', telhadoVisivel: false });
+    const xerifado = k.comodo([3, 15, 10, 20], 'xerifado', { nome: 'Xerifado', piso: 'tabuas.gastas', papel: 'tabuas.descascadas', telhado: 'telha.tabuas', telhadoForma: 'duas-aguas', telhadoCumeeira: 'h', telhadoVisivel: false });
+    k.comodo([12, 15, 17, 20], 'estabulo', { nome: 'Estábulo', telhado: 'celeiro', telhadoVisivel: false });
+    const estacao = k.comodo([18, 15, 25, 19], 'estacao', { nome: 'Estação', piso: 'tabuas.gastas', papel: 'caiado', telhado: 'telha.tabuinhas', telhadoForma: 'duas-aguas', telhadoCumeeira: 'h', telhadoDetalhes: ['chamine'], telhadoVisivel: false });
     k.porta([9, 12], 'door', { width: 1.5, state: 'open' });
     for (const x of [5.25, 12.75]) k.porta([x, 12], 'window', { width: 1.2 });
     k.porta([20.25, 12], 'door', { width: 1.2, state: 'open' });

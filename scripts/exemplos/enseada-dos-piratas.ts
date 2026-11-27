@@ -73,7 +73,7 @@ export const enseadaDosPiratas: Exemplo = {
     for (const [x, y] of [[13.0, 22.2], [15.8, 22.4], [13.2, 19.0]] as const) k.objeto('caixote', [x, y], { rotation: x });
 
     // ---------- A taverna de tábuas, a noroeste ----------
-    const taverna = k.comodo([2, 2, 8, 6], 'taverna-do-porto', { nome: 'Taverna do Papagaio', telhadoVisivel: false });
+    const taverna = k.comodo([2, 2, 8, 6], 'taverna-do-porto', { nome: 'Taverna do Papagaio', telhado: 'telha.tabuas', telhadoForma: 'duas-aguas', telhadoDetalhes: ['chamine'], telhadoVisivel: false });
     k.porta([7.5, 9], 'door', { width: 1.5, state: 'open' });
     k.porta([4.5, 9], 'window', { width: 1.2 });
     k.porta([3, 6], 'window', { width: 1.2 });
@@ -88,7 +88,7 @@ export const enseadaDosPiratas: Exemplo = {
     k.luz('lamparina', [6.5, 6], { radius: 5.5, intensity: 0.9 });
 
     // ---------- O fortim no promontório ----------
-    const fortim = k.comodo([29, 1, 33, 5], 'fortim', { nome: 'Fortim de São Brás', piso: 'laje.pedra', telhadoVisivel: false });
+    const fortim = k.comodo([29, 1, 33, 5], 'fortim', { nome: 'Fortim de São Brás', piso: 'laje.pedra', telhado: null, telhadoVisivel: false });
     k.porta([43.5, 4.5], 'door', { width: 1.5, state: 'open', material: 'madeira.escura' });
     k.porta([46.5, 7.5], 'window', { width: 0.9 });
     k.objeto('mesa-de-cartografo', [46.6, 3.0], { rotation: 0 });
@@ -111,8 +111,8 @@ export const enseadaDosPiratas: Exemplo = {
       ['casa:coqueiro-6m', 2.4, 21.2, 1], ['casa:coqueiro-4m', 7.0, 21.0, 1], ['casa:coqueiro-6m', 9.4, 17.8, 0.95], ['casa:coqueiro-4m', 16.4, 15.6, 1],
       ['casa:coqueiro-6m', 22.8, 20.8, 1.05], ['casa:coqueiro-4m', 25.6, 16.2, 1], ['casa:coqueiro-6m', 27.6, 11.4, 0.95], ['casa:coqueiro-4m', 28.4, 6.6, 1],
       ['casa:coqueiro-6m', 0.8, 25.4, 0.9], ['casa:coqueiro-4m', 19.0, 13.0, 0.9], ['casa:coqueiro-6m', 33.6, 3.2, 0.9], ['casa:coqueiro-4m', 13.6, 24.0, 0.85],
-      ['casa:arvore-de-selva-8m', 1.6, 1.6, 1], ['casa:arvore-de-selva-5m', 15.2, 2.0, 1], ['casa:arvore-de-selva-8m', 21.0, 1.0, 0.9], ['casa:arvore-de-selva-5m', 1.2, 12.6, 1],
-      ['casa:arvore-de-selva-5m', 26.6, 1.2, 0.9], ['casa:bambuzal-4m', 13.4, 6.8, 1], ['casa:bambuzal-2m', 0.8, 8.2, 1],
+      ['casa:arvore-de-selva-5m', 1.0, 1.0, 0.7], ['casa:arvore-de-selva-5m', 15.2, 2.0, 1], ['casa:arvore-de-selva-8m', 21.0, 1.0, 0.9], ['casa:arvore-de-selva-5m', 1.2, 12.6, 1],
+      ['casa:arvore-de-selva-5m', 26.6, 1.2, 0.9], ['casa:bambuzal-4m', 14.8, 6.8, 1], ['casa:bambuzal-2m', 0.8, 8.2, 1],
       ['casa:folhagem-tropical-2m', 3.0, 14.2, 1], ['casa:folhagem-tropical-1m', 17.6, 8.6, 1], ['casa:folhagem-tropical-2m', 23.2, 9.8, 1], ['casa:folhagem-tropical-1m', 10.6, 11.0, 1],
       ['casa:folhagem-tropical-1m', 31.0, 0.8, 1], ['casa:folhagem-tropical-2m', 8.4, 0.8, 1],
     ] as const) k.objeto(item, [x, y], { rotation: x + y, scale: s });

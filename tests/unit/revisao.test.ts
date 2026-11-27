@@ -377,7 +377,17 @@ test('objeto-externo-no-interior: monte-de-neve invadindo quarto rotacionado dis
   assert.equal(achados[0]!.ids[1], idQuarto);
   assert.match(achados[0]!.sugestao, /atlas_mover|atlas_remover/);
 
-  // Do lado de fora afastado do quarto, não dispara
+  // Do lado de fora afastado do quarto, não dispara; e itens próprios da função (cavalo no estábulo) não disparam
+  let mEstabulo = criarMapa({ largura: 30, altura: 20 });
+  mEstabulo = aplicarEmCopia(mEstabulo, comodos(mEstabulo, [
+    { rets: [[2, 2, 7, 7]], tipo: 'estabulo', nome: 'Estábulo' },
+  ]).comandos);
+  mEstabulo = aplicarEmCopia(mEstabulo, objetos(mEstabulo, [
+    { item: 'cavalo', pos: [6.5, 6.5] },
+    { item: 'fardo-de-feno', pos: [4.5, 4.5] },
+  ]).comandos);
+  assert.deepEqual(revisarMapa(mEstabulo, { regras: ['objeto-externo-no-interior'] }), []);
+
   const fora = aplicarEmCopia(m, objetos(m, [
     { item: 'monte-de-neve', pos: [3.5, 3.5] },
   ]).comandos);

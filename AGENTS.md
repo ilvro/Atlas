@@ -15,3 +15,4 @@
 - Código adaptado do Tabletop, da Ficha ou do Ateliê é copiado e ajustado; não importe entre projetos.
 - Integrações passam pelo contrato da mesa (docs/PLATAFORMA.md): Refs, banco `mesa-campanha-v1`, barramento `mesa:eventos`, manifesto, tema. Nada de pontes ponto a ponto novas.
 - Não altere Ficha, Ateliê, Jukebox ou Tabletop sem autorização do usuário. Contratos existentes não mudam sem mudar os dois lados.
+- **Telhados obrigatórios em construções:** todas as construções/edifícios em mapas (incluindo exemplos e geradores) devem ter telhados definidos (`room.roof.material !== null`, exceto áreas ao ar livre em `FUNCOES_AO_AR_LIVRE` ou cômodos subterrâneos), para manter consistência visual, de clima/iluminação e de exploração/visão. Valide com `validarMapa` e `revisarMapa` (regra `edificio-sem-telhado`).

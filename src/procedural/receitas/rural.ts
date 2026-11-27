@@ -182,7 +182,7 @@ export const RECEITAS_RURAIS: Receita[] = [
       partes.push(elipse(0, 0, 0.6, 0.6, 'madeira.escura', 8.7, { contorno: 'leve' }), elipse(0, 0, 0.3, 0.3, 'ferro', 8.8, LEVE));
       return piso([2 * R, 2 * R], partes);
     } },
-  { id: 'pilha-de-lenha', nome: 'Pilha de lenha', ...G, funcoes: ['jardim', 'cozinha', 'varanda'], tags: ['lenha', 'madeira', 'pilha', 'toras', 'inverno'], pegada: [1.8, 0.7], altura: 1.2,
+  { id: 'pilha-de-lenha', nome: 'Pilha de lenha', ...G, funcoes: ['jardim', 'cozinha', 'varanda', 'deposito', 'forja'], tags: ['lenha', 'madeira', 'pilha', 'toras', 'inverno'], pegada: [1.8, 0.7], altura: 1.2,
     gerar: p => {
       const r = r0(p.seed), partes: Parte[] = [ret(0, 0, 1.8, 0.7, 'madeira.escura', 0.3, { contorno: 'leve' })];
       for (let fila = 0; fila < 3; fila++) for (let i = 0; i < 8; i++) {

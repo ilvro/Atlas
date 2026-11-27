@@ -721,6 +721,7 @@ function regraObjetoExternoNoInterior(m: MapaAtlas): Achado[] {
       if (!salaId) continue;
       const sala = m.rooms[salaId];
       if (!sala || sala.roof.material === null) continue;
+      if (sala.function && item.funcoes.includes(sala.function)) continue;
       achados.push({
         regra: 'objeto-externo-no-interior',
         gravidade: 'erro',
