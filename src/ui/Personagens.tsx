@@ -33,7 +33,7 @@ async function carregar(): Promise<void> {
       srv?.barramento ? srv.barramento.pedir('sala.fichas', {}, { prazoMs: 350 }).catch(() => null) : Promise.resolve(null),
     ]);
     const salaDados = respSala && respSala.ok ? (respSala.resposta.dados as RespostaSalaFichas) : null;
-    const mesclado = mesclarPersonagensDaSala(personagensDoElenco(todasPersonagens, fresca), salaDados, c.id);
+    const mesclado = mesclarPersonagensDaSala(personagensDoElenco(todasPersonagens, fresca), salaDados, c.id, todasPersonagens);
     lista.value = mesclado.lista;
     donosDaSala.value = mesclado.donosPorFicha;
     ameacas.value = ameacasComFicha(todasAmeacas);
@@ -77,18 +77,18 @@ export function Personagens({ s }: { s: SessaoDeEdicao }) {
     }
   }, [s.doc.value.campanhaId]);
 
-  useEffect(() => { void carregar(); }, [campanhaAtiva.value?.id, JSON.stringify(campanhaAtiva.value?.elenco)]);
+  const barramentoAtual = servicos.value?.barramento ?? null;
+  useEffect(() => { void carregar(); }, [campanhaAtiva.value?.id, JSON.stringify(campanhaAtiva.value?.elenco), barramentoAtual]);
   useEffect(() => {
     const aoFocar = () => { void carregar(); };
     const aoVisibilidade = () => { if (document.visibilityState === 'visible') void carregar(); };
     const aoStorage = (e: StorageEvent) => {
       if (e.key === 'mesa:campanha-ativa' || e.key === 'mesa:campanha-atualizada' || e.key === 'mesa:sala-atualizada') void carregar();
     };
-    const b = servicos.value?.barramento;
-    const pararSala = b ? [
-      b.ouvir('sala.conexao', () => { void carregar(); }),
-      b.ouvir('sala.ficha-atualizada', () => { void carregar(); }),
-      b.ouvir('sala.ficha-removida', () => { void carregar(); }),
+    const pararSala = barramentoAtual ? [
+      barramentoAtual.ouvir('sala.conexao', () => { void carregar(); }),
+      barramentoAtual.ouvir('sala.ficha-atualizada', () => { void carregar(); }),
+      barramentoAtual.ouvir('sala.ficha-removida', () => { void carregar(); }),
     ] : [];
     window.addEventListener('focus', aoFocar);
     document.addEventListener('visibilitychange', aoVisibilidade);
@@ -99,7 +99,7 @@ export function Personagens({ s }: { s: SessaoDeEdicao }) {
       document.removeEventListener('visibilitychange', aoVisibilidade);
       window.removeEventListener('storage', aoStorage);
     };
-  }, [servicos.value?.barramento]);
+  }, [barramentoAtual]);
   const campanha = campanhaAtiva.value, pecas = s.doc.value.tokens;
   if (!campanha) return <p class="dock-dica" data-testid="personagens-vazio">Escolha uma campanha na aba Mapa para ver os personagens.</p>;
   const termo = semAcento(busca.value).trim(), achadas = ameacas.value.filter(e => !termo || semAcento(e.nome).includes(termo)), mostradas = achadas.slice(0, LIMITE_DE_AMEACAS);

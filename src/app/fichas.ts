@@ -135,6 +135,7 @@ export function mesclarPersonagensDaSala(
   entidades: readonly Entidade[],
   sala: RespostaSalaFichas | null | undefined,
   campanhaId: string,
+  todasDaCampanha?: readonly Entidade[],
 ): { lista: Entidade[]; donosPorFicha: Record<string, string> } {
   const donosPorFicha: Record<string, string> = {};
   if (!sala) return { lista: [...entidades], donosPorFicha };
@@ -160,6 +161,12 @@ export function mesclarPersonagensDaSala(
     const ref = refDaFicha(e.refs);
     if (ref) existentesPorFichaId.add(ref.id);
   }
+  const todasPorFichaId = new Map<string, Entidade>();
+  for (const e of todasDaCampanha ?? []) {
+    if (e.tipo !== 'personagem') continue;
+    const ref = refDaFicha(e.refs);
+    if (ref) todasPorFichaId.set(ref.id, e);
+  }
 
   const extras: Entidade[] = [];
   for (const f of sala.fichas ?? []) {
@@ -167,6 +174,11 @@ export function mesclarPersonagensDaSala(
     const donoNome = donosPorFicha[f.id];
     if (!donoNome) continue;
     existentesPorFichaId.add(f.id);
+    const real = todasPorFichaId.get(f.id);
+    if (real) {
+      extras.push(real);
+      continue;
+    }
     const nome = typeof f.name === 'string' && f.name.trim() ? f.name.trim() : 'Sem nome';
     extras.push({
       id: `sala:${f.id}`,

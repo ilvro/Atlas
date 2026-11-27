@@ -278,4 +278,14 @@ test('mesclarPersonagensDaSala: identifica jogador que escolheu ou é dono e inc
   assert.deepEqual(res.donosPorFicha, { 'f-sala': 'Cildum', 'f-rowan': 'Ana' });
   assert.deepEqual(res.lista.map(e => `${e.id}:${e.nome}`), ['sala:f-sala:Muirenn da Lua Pálida', 'e1:Muirenn', 'e2:Rowan']);
   assert.deepEqual(res.lista[0]?.tags, ['dono:Cildum']);
+
+  // Quando a ficha da sala já existe no banco local (vinda do Dossiê), mas está fora do elenco, preserva a entidade real com retrato
+  const daSalaReal = { ...mk('e-sala', 'Muirenn da Sala', 'f-sala'), notas: 'real' };
+  const comElenco = mesclarPersonagensDaSala([local], {
+    eu: { discordId: '1', nome: 'Mestre' },
+    fichas: [{ id: 'f-sala', name: 'Muirenn da Sala' }],
+    donos: { 'f-sala': '3' },
+    membros: [{ discordId: '3', nome: 'Cildum', papel: 'jogador', personagem: 'f-sala' }],
+  }, 'camp-1', [local, daSalaReal]);
+  assert.deepEqual(comElenco.lista.map(e => e.id), ['e-sala', 'e1']);
 });
