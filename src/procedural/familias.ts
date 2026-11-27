@@ -107,7 +107,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('moveis', 'poltrona', 'Poltrona', ['poltrona', 'poltrona.capitone']),
   f('moveis', 'poltrona-capitone', 'Poltrona capitonê', ['casa:poltrona-capitone-couro', 'casa:poltrona-capitone-verde', 'casa:poltrona-capitone-vinho']),
   f('moveis', 'cama', 'Cama', ['cama.solteiro', 'cama.casal', 'cama.box', 'cama.dossel', 'beliche', 'beliche.capsula']),
-  f('moveis', 'cama-rustica', 'Cama rústica', ['saco-de-dormir', 'enxergao', 'catre', 'catre-de-peles']),
+  f('moveis', 'cama-rustica', 'Cama rústica', ['saco-de-dormir', 'enxergao', 'catre', 'catre-de-peles', 'rede-de-dormir']),
   f('moveis', 'futon', 'Futon', ['futon'], { generos: ['oriental', 'fantasia'] }),
   f('moveis', 'guarda-roupa', 'Guarda-roupa', ['armario', 'guarda-roupa.liso', 'armario.metal']),
   f('moveis', 'comoda', 'Cômoda', ['comoda', 'aparador', 'balcao']),
@@ -144,6 +144,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('sobre-a-mesa', 'louca', 'Louça e comida', ['bule.xicaras', 'bule-e-xicaras.oriental', 'garrafa.tacas', 'pratos.servico', 'fruteira']),
   f('sobre-a-mesa', 'pequenos-objetos', 'Pequenos objetos', ['relogio.mesa', 'telefone.antigo', 'tabuleiro.xadrez', 'sapatos', 'cesto.roupa']),
   f('sobre-a-mesa', 'instrumento-antigo', 'Instrumento antigo', ['lira'], { generos: ['antiguidade', 'fantasia'] }),
+  f('sobre-a-mesa', 'navegacao', 'Mapa e navegação', ['mapa-do-tesouro', 'luneta-e-sextante'], { generos: ['colonial', 'fantasia'] }),
   f('sobre-a-mesa', 'narguile', 'Narguilé', ['narguile'], { generos: ['deserto', 'fantasia'] }),
   f('sobre-a-mesa', 'arranjo-oriental', 'Ikebana e bonsai', ['ikebana', 'bonsai'], { generos: ['oriental', 'fantasia'] }),
   // De parede
@@ -158,13 +159,14 @@ export const FAMILIAS: readonly Familia[] = [
   f('parede', 'pergaminho', 'Pergaminho de parede', ['pergaminho-de-parede'], { generos: ['oriental', 'fantasia'] }),
   // Carga e armazenamento
   f('carga', 'caixote', 'Caixote', ['caixa', 'caixote', 'caixa.carga', 'pilha-de-caixotes']),
-  f('carga', 'barril', 'Barril', ['barril.em-pe', 'barril', 'barril.deitado', 'barril-de-chuva', 'pilha-de-barris']),
+  f('carga', 'barril', 'Barril', ['barril.em-pe', 'barril', 'barril.deitado', 'barril-de-chuva', 'barril-de-rum', 'pilha-de-barris']),
   f('carga', 'jarro-de-barro', 'Jarro e cântaros de barro', ['jarro-de-barro', 'cantaros-empilhados'], { generos: ['deserto', 'fantasia'] }),
   f('carga', 'cesto', 'Cesto de palha', ['cesto'], { generos: ['deserto', 'fantasia'] }),
   f('carga', 'anfora', 'Ânfora e jarrão', ['anfora', 'anforas-empilhadas', 'pithos'], { generos: ['antiguidade', 'fantasia'] }),
   f('carga', 'saco', 'Saco', ['sacos']),
   f('carga', 'cofre', 'Cofre', ['cofre'], { generos: ['faroeste', 'fantasia'] }),
-  f('carga', 'bau', 'Baú', ['bau', 'bau-pintado'], { generos: ['fantasia', 'deserto'] }),
+  f('carga', 'bau', 'Baú', ['bau', 'bau-pintado', 'bau-de-tesouro'], { generos: ['fantasia', 'deserto', 'colonial'] }),
+  f('carga', 'tesouro', 'Tesouro espalhado', ['moedas-espalhadas'], { generos: ['colonial', 'fantasia'] }),
   // Construção
   f('construcao', 'escada', 'Escada', ['escada.madeira', 'escada.pedra', 'escada.externa', 'estrutura.escadaria', 'escadaria.nobre', 'escada.caracol', 'escada.de-mao']),
   f('construcao', 'alcapao', 'Alçapão', ['alcapao', 'escotilha'], { generos: ['fantasia', 'ficcao-cientifica'] }),
@@ -206,11 +208,12 @@ export const FAMILIAS: readonly Familia[] = [
   // Ofício e guerra
   f('oficio', 'forja', 'Forja', ['bigorna', 'fornalha', 'pedra-de-amolar', 'tina-de-agua'], { generos: ['fantasia'] }),
   f('oficio', 'tear', 'Fiação e moagem', ['roca-de-fiar', 'tear', 'tear-vertical', 'tear-de-chao', 'mo'], { generos: ['fantasia', 'antiguidade', 'deserto'] }),
-  f('oficio', 'pelourinho', 'Prisão e tortura', ['pelourinho', 'mesa-de-tortura', 'gaiola-de-ferro'], { generos: ['fantasia'] }),
+  f('oficio', 'pelourinho', 'Prisão e tortura', ['pelourinho', 'mesa-de-tortura', 'gaiola-de-ferro', 'forca'], { generos: ['fantasia', 'colonial'] }),
   f('oficio', 'suporte-de-armas', 'Armas e armaduras', ['suporte-de-armas', 'suporte-de-lancas', 'armas-caidas', 'escudos-empilhados', 'mesa-de-armas', 'manequim-de-armadura'], { generos: ['fantasia'] }),
   f('oficio', 'municao', 'Munição', ['barril-de-flechas', 'pilha-de-balas'], { generos: ['fantasia'] }),
   f('oficio', 'treino', 'Alvo de treino', ['alvo-de-arqueiro', 'boneco-de-treino'], { generos: ['fantasia'] }),
   f('oficio', 'maquina-de-cerco', 'Máquina de cerco', ['balista', 'catapulta', 'canhao'], { generos: ['fantasia'] }),
+  f('oficio', 'canhao-naval', 'Canhão de navio e de forte', ['canhao-naval'], { generos: ['colonial', 'fantasia'] }),
   f('oficio', 'aquila', 'Estandarte romano', ['aquila'], { generos: ['antiguidade'] }),
   f('oficio', 'armas-orientais', 'Espadas e armadura orientais', ['suporte-de-espadas', 'armadura-oriental'], { generos: ['oriental', 'fantasia'] }),
   // Campo e estrada
@@ -224,7 +227,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('campo', 'plantacao', 'Plantação', ['plantacao.arroz', 'plantacao.trigo', 'plantacao.milho']),
   f('campo', 'espantalho', 'Espantalho', ['espantalho']),
   f('campo', 'moinho', 'Pás de moinho', ['pas.moinho']),
-  f('campo', 'barraca', 'Barraca', ['tenda', 'barraca-de-feira', 'estandarte', 'toldo-listrado', 'tenda-beduina']),
+  f('campo', 'barraca', 'Barraca', ['tenda', 'barraca-de-feira', 'estandarte', 'bandeira-pirata', 'toldo-listrado', 'tenda-beduina']),
   f('campo', 'banca-de-mercado', 'Banca de mercado', ['banca-de-mercado.toldo', 'banca-de-especiarias', 'tapetes-pendurados'], { generos: ['antiguidade', 'fantasia', 'deserto'] }),
   f('campo', 'palanquim', 'Palanquim', ['palanquim'], { generos: ['deserto', 'fantasia'] }),
   // Porto
@@ -232,6 +235,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('porto', 'cais', 'Cais', ['cais-segmento', 'guindaste-de-cais']),
   f('porto', 'estaca', 'Estaca de amarração', ['estaca', 'poste-de-amarracao', 'poste-de-amarrar']),
   f('porto', 'rede-de-pesca', 'Corda e âncora', ['rede-de-pesca', 'rolo-de-corda', 'ancora']),
+  f('porto', 'aparelho-do-navio', 'Timão e mastro', ['timao', 'mastro'], { generos: ['colonial', 'fantasia'] }),
   // Moderno
   f('moderno', 'geladeira', 'Eletrodoméstico', ['geladeira', 'fogao'], { generos: ['moderno'] }),
   f('moderno', 'notebook', 'Eletrônico', ['notebook', 'rack.tv'], { generos: ['moderno'] }),
