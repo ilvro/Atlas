@@ -1,4 +1,5 @@
 import { recursosDaPeca } from '../app/fichas.ts';
+import { iniciarPonteDeIniciativa } from '../app/ponte-iniciativa.ts';
 import { TIPO_ARRASTE, soltarPersonagem } from './Personagens.tsx';
 import { Inspecao } from './Inspecao.tsx';
 import { TIPO_ARRASTE_PISTA, soltarPista } from './Pistas.tsx';
@@ -173,6 +174,10 @@ function ModalNotaDeObjeto() {
 }
 
 export function Editor() {
+  useEffect(() => {
+    const parar = iniciarPonteDeIniciativa();
+    return () => parar();
+  }, []);
   const s = sessao.value;
   if (!s) return null;
   return (
