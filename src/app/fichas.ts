@@ -197,6 +197,145 @@ export function mesclarPersonagensDaSala(
   return { lista: [...extras, ...entidades], donosPorFicha };
 }
 
+export interface PainelDePersonagensOrganizado {
+  online: boolean;
+  nomeDaSala?: string;
+  /** Fichas ativas na sessão: carregadas pelos jogadores da sala (quando online) ou elenco local (quando offline). */
+  naSala: Entidade[];
+  /** Jogadores conectados na sala que ainda não escolheram personagem no saguão. */
+  jogadoresSemFicha: Array<{ discordId: string; nome: string }>;
+  /** Demais fichas locais/NPCs da campanha disponíveis para adicionar externamente. */
+  locais: Entidade[];
+  /** Mapa `fichaId -> nome do jogador` para identificar o dono na interface. */
+  donosPorFicha: Record<string, string>;
+}
+
+/**
+ * Separa as fichas para o painel do Modo Sessão:
+ * - Com sala conectada (`sala` presente): `naSala` contém apenas as fichas carregadas/dono dos jogadores na sala,
+ *   e `locais` contém todas as demais fichas locais da campanha (sem duplicar as que já estão em `naSala`).
+ * - Sem sala conectada (`sala` nulo): `naSala` segue o elenco da campanha e `locais` reúne os personagens fora do elenco.
+ */
+export function organizarPainelDePersonagens({
+  todasPersonagens,
+  campanha,
+  sala,
+  campanhaId,
+}: {
+  todasPersonagens: readonly Entidade[];
+  campanha?: Pick<Campanha, 'elenco'> | null;
+  sala?: (RespostaSalaFichas & { nome?: string }) | null;
+  campanhaId: string;
+}): PainelDePersonagensOrganizado {
+  const comFicha = personagensComFicha(todasPersonagens);
+  const elenco = personagensDoElenco(comFicha, campanha);
+
+  if (!sala) {
+    const idsNoElenco = new Set(
+      elenco.map(e => refDaFicha(e.refs)?.id).filter((id): id is string => Boolean(id)),
+    );
+    const locais = comFicha.filter(e => {
+      const ref = refDaFicha(e.refs);
+      return ref ? !idsNoElenco.has(ref.id) : false;
+    });
+    return {
+      online: false,
+      naSala: elenco,
+      jogadoresSemFicha: [],
+      locais,
+      donosPorFicha: {},
+    };
+  }
+
+  const donosPorFicha: Record<string, string> = {};
+  const euId = sala.eu?.discordId;
+  const membros = sala.membros ?? [];
+  const nomes = sala.nomes ?? {};
+  const donos = sala.donos ?? {};
+
+  for (const m of membros) {
+    if (m.papel === 'jogador' && m.personagem && (!euId || m.discordId !== euId) && m.nome) {
+      donosPorFicha[m.personagem] = m.nome;
+    }
+  }
+  for (const [fichaId, discordId] of Object.entries(donos)) {
+    if (donosPorFicha[fichaId] || !discordId || (euId && discordId === euId)) continue;
+    const nome = nomes[discordId] ?? membros.find(m => m.discordId === discordId)?.nome;
+    if (nome) donosPorFicha[fichaId] = nome;
+  }
+
+  const todasPorFichaId = new Map<string, Entidade>();
+  for (const e of comFicha) {
+    const ref = refDaFicha(e.refs);
+    if (ref && !todasPorFichaId.has(ref.id)) todasPorFichaId.set(ref.id, e);
+  }
+
+  const naSala: Entidade[] = [];
+  const fichasNaSalaIds = new Set<string>();
+
+  const adicionarFichaDaSala = (fichaId: string, nomeBruto?: unknown) => {
+    if (!fichaId || fichasNaSalaIds.has(fichaId)) return;
+    const donoNome = donosPorFicha[fichaId];
+    if (!donoNome) return;
+    fichasNaSalaIds.add(fichaId);
+    const real = todasPorFichaId.get(fichaId);
+    if (real) {
+      naSala.push(real);
+      return;
+    }
+    const nome = typeof nomeBruto === 'string' && nomeBruto.trim() ? nomeBruto.trim() : 'Sem nome';
+    naSala.push({
+      id: `sala:${fichaId}`,
+      campanhaId,
+      tipo: 'personagem',
+      nome,
+      refs: [criarRef('ficha', 'ficha', fichaId)],
+      tags: [`dono:${donoNome}`],
+      notas: '',
+      criadaPor: 'ficha',
+      criadaEm: 0,
+      atualizadaEm: 0,
+    });
+  };
+
+  for (const f of sala.fichas ?? []) {
+    if (f?.id) adicionarFichaDaSala(f.id, f.name);
+  }
+  for (const m of membros) {
+    if (m.papel === 'jogador' && m.personagem && (!euId || m.discordId !== euId)) {
+      adicionarFichaDaSala(m.personagem);
+    }
+  }
+
+  const jogadoresSemFicha = membros
+    .filter(m => m.papel === 'jogador' && !m.personagem && (!euId || m.discordId !== euId))
+    .map(m => ({ discordId: m.discordId, nome: m.nome }));
+
+  const ordemElenco = new Map(elenco.map((e, idx) => [e.id, idx]));
+  const locais = comFicha
+    .filter(e => {
+      const ref = refDaFicha(e.refs);
+      return ref ? !fichasNaSalaIds.has(ref.id) : false;
+    })
+    .sort((a, b) => {
+      const ia = ordemElenco.get(a.id);
+      const ib = ordemElenco.get(b.id);
+      if (ia !== undefined && ib !== undefined) return ia - ib;
+      if (ia !== undefined) return -1;
+      if (ib !== undefined) return 1;
+      return a.nome.localeCompare(b.nome, 'pt-BR');
+    });
+
+  return {
+    online: true,
+    ...(typeof sala.nome === 'string' && sala.nome ? { nomeDaSala: sala.nome } : {}),
+    naSala,
+    jogadoresSemFicha,
+    locais,
+    donosPorFicha,
+  };
+}
+
 /** Abre a Mesa pelo manifesto na tela de campanhas para escolher o elenco. */
 export async function abrirMesa(): Promise<'aba' | 'falhou'> {
   try {

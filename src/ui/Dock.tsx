@@ -394,7 +394,7 @@ export function Dock({ s }: { s: SessaoDeEdicao }) {
             {id === 'presenca' && <SecaoDePresenca s={s} />}
             {id === 'momentos' && <SecaoDeMomentos s={s} />}
             {id === 'iniciativa' && <SecaoDeIniciativa s={s} />}
-            {id === 'personagens' && <Personagens s={s} />}
+            {id === 'personagens' && <Personagens s={s} contexto="sessao" />}
             {id === 'pistas' && <Pistas s={s} />}
             {id === 'projetor' && <SecaoDoProjetor s={s} />}
           </PainelFlutuante>

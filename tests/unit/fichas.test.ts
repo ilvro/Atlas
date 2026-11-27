@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { chaveDaRef, criarBarramento, criarRef, type CanalLike, type Entidade } from '#mesa';
 import { emEstadoCritico, fracao, interpretarAjusteDeRecurso, pipsCheios, recursosParaOProjetor, refDaFicha, temPd, textoDeRecursos, tomDaRolagem, type Recursos } from '../../src/domain/fichas.ts';
 import { signal } from '@preact/signals';
-import { adicionarPersonagem, ajustarRecursos, ajustarRecursosDaPeca, ameacasComFicha, extrairNumeroDoToken, iniciarFichas, aoRolar, mesclarPersonagensDaSala, pecaDaFicha, personagensComFicha, personagensDoElenco, proximoNomeDeAmeaca, recursosDaPeca, recursosDasFichas } from '../../src/app/fichas.ts';
+import { adicionarPersonagem, ajustarRecursos, ajustarRecursosDaPeca, ameacasComFicha, extrairNumeroDoToken, iniciarFichas, aoRolar, mesclarPersonagensDaSala, organizarPainelDePersonagens, pecaDaFicha, personagensComFicha, personagensDoElenco, proximoNomeDeAmeaca, recursosDaPeca, recursosDasFichas } from '../../src/app/fichas.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { novaPeca } from '../../src/domain/fabrica.ts';
 
@@ -288,4 +288,59 @@ test('mesclarPersonagensDaSala: identifica jogador que escolheu ou é dono e inc
     membros: [{ discordId: '3', nome: 'Cildum', papel: 'jogador', personagem: 'f-sala' }],
   }, 'camp-1', [local, daSalaReal]);
   assert.deepEqual(comElenco.lista.map(e => e.id), ['e-sala', 'e1']);
+});
+
+test('organizarPainelDePersonagens: separa fichas dos jogadores na sala das fichas locais no modo sessão', () => {
+  const mk = (id: string, nome: string, fichaId: string): Entidade => ({
+    ...baseE,
+    id,
+    tipo: 'personagem',
+    nome,
+    refs: [criarRef('ficha', 'ficha', fichaId)],
+  });
+  const localMuirenn = mk('e-local-1', 'Muirenn da Lua Pálida', 'f-local-muirenn');
+  const localSorcha = mk('e-local-2', 'Sorcha Roth', 'f-local-sorcha');
+  const daSalaReal = { ...mk('e-sala-1', 'Muirenn da Lua Pálida', 'f-sala-cildum'), notas: 'real' };
+
+  // Online: Na Sala tem só fichas carregadas/dos jogadores (sem misturar locais), e Locais não duplica a da sala
+  const online = organizarPainelDePersonagens({
+    todasPersonagens: [localMuirenn, localSorcha, daSalaReal],
+    campanha: { elenco: ['e-local-1'] },
+    campanhaId: 'camp-1',
+    sala: {
+      nome: 'Sessão de Sábado',
+      eu: { discordId: '1', nome: 'Mestre' },
+      fichas: [
+        { id: 'f-sala-cildum', name: 'Muirenn da Lua Pálida' },
+        { id: 'f-mestre-npc', name: 'NPC do Mestre' },
+      ],
+      donos: { 'f-sala-cildum': '3', 'f-mestre-npc': '1' },
+      membros: [
+        { discordId: '1', nome: 'Mestre', papel: 'mestre', personagem: null },
+        { discordId: '3', nome: 'Cildum', papel: 'jogador', personagem: 'f-sala-cildum' },
+        { discordId: '4', nome: 'Ana', papel: 'jogador', personagem: null },
+      ],
+      nomes: { '3': 'Cildum', '4': 'Ana' },
+    },
+  });
+
+  assert.equal(online.online, true);
+  assert.equal(online.nomeDaSala, 'Sessão de Sábado');
+  assert.deepEqual(online.naSala.map(e => e.id), ['e-sala-1']);
+  assert.deepEqual(online.locais.map(e => e.id), ['e-local-1', 'e-local-2']);
+  assert.deepEqual(online.donosPorFicha, { 'f-sala-cildum': 'Cildum' });
+  assert.deepEqual(online.jogadoresSemFicha, [{ discordId: '4', nome: 'Ana' }]);
+
+  // Offline: Na Sala cai para o elenco e Locais mostra quem ficou fora do elenco
+  const offline = organizarPainelDePersonagens({
+    todasPersonagens: [localMuirenn, localSorcha],
+    campanha: { elenco: ['e-local-1'] },
+    campanhaId: 'camp-1',
+    sala: null,
+  });
+
+  assert.equal(offline.online, false);
+  assert.deepEqual(offline.naSala.map(e => e.id), ['e-local-1']);
+  assert.deepEqual(offline.locais.map(e => e.id), ['e-local-2']);
+  assert.deepEqual(offline.jogadoresSemFicha, []);
 });
