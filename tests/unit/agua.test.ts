@@ -156,3 +156,16 @@ test('água que baixa: a primeira etapa é a mais distante do centro e a união 
   const chave = (e: readonly (readonly [number, number])[][]) => new Set(e.flat().map(c => c.join(',')));
   assert.deepEqual(chave(baixa), chave(sobe));
 });
+
+test('água tropical: absorve a cor do leito no raso e só fica opaca longe da margem (rampa longa); o lago não muda', () => {
+  const RES2 = 2, lado = 24, margem = 2, W = (lado + 2 * margem) * RES2, binaria = new Uint8Array(W * W);
+  for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) binaria[y * W + x] = x >= margem * RES2 && x < (margem + lado) * RES2 && y >= margem * RES2 && y < (margem + lado) * RES2 ? 1 : 0;
+  const entrada = (id: string, pixel = false) => leitoDaAgua({ binaria, cobertura: pixel ? null : binaria.map(v => v * 255), largura: W, altura: W, res: RES2, seed: 1, material: materialDe(id), pixel });
+  const tropical = entrada('agua.tropical'), alfa = (s: ReturnType<typeof entrada>, xm: number) => s.leito[((W / 2) * W + Math.round(xm * RES2)) * 4 + 3]!;
+  assert.ok(tropical.absorcao, 'a tropical devolve a camada de absorção');
+  assert.ok(tropical.absorcao![((W / 2) * W + (margem + 1) * RES2) * 4 + 3]! > 200, 'a absorção cobre a água inteira');
+  // A 4 m da margem ainda se vê o leito; no meio (12 m) a água já é quase opaca.
+  assert.ok(alfa(tropical, margem + 4) < alfa(tropical, margem + 12) - 80, `${alfa(tropical, margem + 4)} × ${alfa(tropical, margem + 12)}`);
+  assert.equal(entrada('agua.lago').absorcao, undefined);
+  assert.equal(entrada('agua.tropical', true).absorcao, undefined, 'o Pixel não multiplica');
+});

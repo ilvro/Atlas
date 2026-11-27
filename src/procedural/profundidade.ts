@@ -1,5 +1,7 @@
 /** Profundidade máxima (m) guardada pela transformada de distância; mais fundo que isso é "fundo". */
 export const PROFUNDIDADE_MAXIMA = 3;
+/** Até onde (m) a cor do leito pode ir de `raso` a `fundo` num material com `fundoEm` (água clara, de rampa longa); a janela do assar cresce junto, para não haver emenda entre ladrilhos. */
+export const PROFUNDIDADE_DO_LEITO_MAXIMA = 10;
 
 /**
  * Distância à margem, em metros, de cada pixel de uma máscara binária (`1` = dentro, `0` = fora), por transformada de distância

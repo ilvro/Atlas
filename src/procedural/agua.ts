@@ -1,6 +1,6 @@
 import type { Material } from './materiais.ts';
 import { fbm, hash2D, valueNoise2D } from './ruido.ts';
-import { PROFUNDIDADE_MAXIMA, distanciaAMargem } from './profundidade.ts';
+import { PROFUNDIDADE_DO_LEITO_MAXIMA, PROFUNDIDADE_MAXIMA, distanciaAMargem } from './profundidade.ts';
 
 /** Largura (m) da faixa de areia molhada que escurece o chão em volta da água. */
 export const MARGEM_MOLHADA = 0.3;
@@ -31,6 +31,8 @@ export interface SaidaDaAgua {
   leito: Uint8ClampedArray;
   /** RGBA da faixa de areia molhada em volta da água. */
   margem: Uint8ClampedArray;
+  /** Só em água clara (`material.absorcao`, Ilustrado): RGBA que multiplica o chão de baixo antes do leito (a cor que a água tira dele). */
+  absorcao?: Uint8ClampedArray;
   /** Distância à margem em metros, saturada (0 fora da água). */
   profundidade: Float32Array;
   /** Só em água que brilha (`material.brilho`): quanto cada pixel emite (0 a 1); na lava, também no clarão em volta. */
@@ -108,6 +110,10 @@ export function leitoDaAgua(e: EntradaDaAgua): SaidaDaAgua {
   const { binaria, cobertura, largura: W, altura: H, res, pixel } = e, [ox, oy] = e.origemPx ?? [0, 0], n = W * H;
   const cores = coresDaAgua(e.material), profundidade = distanciaAMargem(binaria, W, H, res, PROFUNDIDADE_MAXIMA);
   if (e.material.lava) return leitoDeLava(e, profundidade);
+  // Água clara: a cor vai de raso a fundo numa rampa mais longa (`fundoEm`), e a água absorve do leito a cor de `absorcao`.
+  const fundoEm = Math.min(PROFUNDIDADE_DO_LEITO_MAXIMA, Math.max(PROFUNDIDADE_MAXIMA, e.material.fundoEm ?? PROFUNDIDADE_MAXIMA));
+  const rampa = fundoEm > PROFUNDIDADE_MAXIMA && !pixel ? distanciaAMargem(binaria, W, H, res, fundoEm) : profundidade;
+  const absorve = e.material.absorcao && !pixel ? rgb(e.material.absorcao) : null, absorcao = absorve ? new Uint8ClampedArray(n * 4) : undefined;
   const terra = new Uint8Array(n); for (let i = 0; i < n; i++) terra[i] = binaria[i] ? 0 : 1;
   const aFora = distanciaAMargem(terra, W, H, res, MARGEM_MOLHADA + 1 / res);
   const leito = new Uint8ClampedArray(n * 4), margem = new Uint8ClampedArray(n * 4), ruido = valueNoise2D(7000 + e.seed), ruidoFundo = valueNoise2D(7100 + e.seed);
@@ -121,7 +127,9 @@ export function leitoDaAgua(e: EntradaDaAgua): SaidaDaAgua {
         if (faixa === 0 && (((ox + x) + (oy + y)) & 1)) continue;                        // o raso é vazado em xadrez: o leito aparece por entre os pixels
         leito[k] = cores.raso[0] + (cores.fundo[0] - cores.raso[0]) * t; leito[k + 1] = cores.raso[1] + (cores.fundo[1] - cores.raso[1]) * t; leito[k + 2] = cores.raso[2] + (cores.fundo[2] - cores.raso[2]) * t; leito[k + 3] = 255;
       } else {
-        const t = suave(0, PROFUNDIDADE_MAXIMA, d), a = ((cobertura ? cobertura[i]! / 255 : 1)) * (0.14 + (opaco - 0.14) * t);
+        const dr = rampa === profundidade ? d : Math.max(0, rampa[i]! + (fbm(ruidoFundo, mx * 0.9, my * 0.9, 2) - 0.5) * 0.7 * (fundoEm / PROFUNDIDADE_MAXIMA));
+        const t = suave(0, fundoEm, dr), cob = cobertura ? cobertura[i]! / 255 : 1, a = cob * (0.14 + (opaco - 0.14) * t);
+        if (absorve && absorcao) { absorcao[k] = absorve[0]; absorcao[k + 1] = absorve[1]; absorcao[k + 2] = absorve[2]; absorcao[k + 3] = cob * 255; }
         leito[k] = cores.raso[0] + (cores.fundo[0] - cores.raso[0]) * t; leito[k + 1] = cores.raso[1] + (cores.fundo[1] - cores.raso[1]) * t; leito[k + 2] = cores.raso[2] + (cores.fundo[2] - cores.raso[2]) * t; leito[k + 3] = a * 255;
       }
     } else if (aFora[i]! > 0 && aFora[i]! <= MARGEM_MOLHADA + 1e-6) {
@@ -134,9 +142,9 @@ export function leitoDaAgua(e: EntradaDaAgua): SaidaDaAgua {
   if (e.material.brilho) {
     const calor = new Float32Array(n), forca = Math.min(1, Math.max(0, e.material.brilho));
     for (let i = 0; i < n; i++) if (binaria[i]) calor[i] = forca * (0.35 + 0.65 * suave(0, PROFUNDIDADE_MAXIMA, profundidade[i]!)) * (leito[i * 4 + 3]! / 255);
-    return { leito, margem, profundidade, calor };
+    return { leito, margem, profundidade, calor, ...(absorcao ? { absorcao } : {}) };
   }
-  return { leito, margem, profundidade };
+  return { leito, margem, profundidade, ...(absorcao ? { absorcao } : {}) };
 }
 
 /** Quantas camadas de água distintas a superfície sabe animar (cada uma com a sua correnteza). */

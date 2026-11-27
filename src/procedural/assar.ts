@@ -29,7 +29,7 @@ import { orientacaoDominante } from './orientacao.ts';
 import { descreverReceita, receitaDe } from './receitas/index.ts';
 import { fatorDeProfundidade } from '../domain/relevo.ts';
 import { ladoBaixo } from './escarpa.ts';
-import { PROFUNDIDADE_MAXIMA, distanciaAMargem } from './profundidade.ts';
+import { PROFUNDIDADE_DO_LEITO_MAXIMA, PROFUNDIDADE_MAXIMA, distanciaAMargem } from './profundidade.ts';
 
 export interface Assado {
   tela: Tela;
@@ -223,7 +223,7 @@ export const MARGEM_ASSENTAMENTO = 2;
 /** Margens (m) das camadas de terreno por uso do material, compartilhadas entre `ladrilhosDoTerreno` e `assarTerreno`. */
 export function margensDoTerreno(res: number): { base: number; agua: number; macico: number } {
   const base = Math.max(1.5, RAIO_PASSA_ALTA, 1 / Math.max(1e-6, res)) + 1;
-  const agua = base + PROFUNDIDADE_MAXIMA;
+  const agua = base + Math.max(PROFUNDIDADE_MAXIMA, PROFUNDIDADE_DO_LEITO_MAXIMA);
   const macico = Math.max(base + Math.max(PROFUNDIDADE_MAXIMA, SOMBRA_DE_CONTATO + 0.15), 10);
   return { base, agua, macico };
 }
@@ -523,7 +523,10 @@ export function assarTerreno(e: EntradaDeTerreno, res: number, estilo: EstiloDeR
       // Água: o que está embaixo continua à vista e ganha a cor do leito pela profundidade; a margem é uma faixa de areia molhada.
       const r = leitoDaAgua({ binaria, cobertura: pixel ? null : cobertura, largura: cw, altura: ch, res, seed: 13 + idx * 5, material, pixel, origemPx: [x0, y0] });
       const poe = (dados: Uint8ClampedArray) => { const t = criarTela(cw, ch), c = contextoDe(t); c.putImageData(new ImageData(dados as Uint8ClampedArray<ArrayBuffer>, cw, ch), 0, 0); ctx.drawImage(t as CanvasImageSource, dx, dy); };
-      ctx.setTransform(1, 0, 0, 1, 0, 0); poe(r.margem); poe(r.leito); resetTransform(ctx);
+      ctx.setTransform(1, 0, 0, 1, 0, 0); poe(r.margem);
+      // Água clara: primeiro a absorção multiplica o chão de baixo (a areia fica turquesa, não cinza), depois o leito tinge por cima.
+      if (r.absorcao) { const antes = ctx.globalCompositeOperation; ctx.globalCompositeOperation = 'multiply'; poe(r.absorcao); ctx.globalCompositeOperation = antes; }
+      poe(r.leito); resetTransform(ctx);
       if (actx) {
         const aguaAlt = new Uint8ClampedArray(cw * ch * 4);
         const pisoByte = Math.round(PISO_NO_MAPA * 255);
