@@ -630,7 +630,7 @@ function ossadaDeCamelo(seed: number): Parte[] {
 // ---------- Receitas ----------
 
 const DE = { generos: ['deserto', 'fantasia'], kit: 'deserto' };
-const luzMarroquina = (pendurada: boolean): LuzDeReceita => ({ raio: pendurada ? 4.5 : 3.5, cor: '#ffa858', intensidade: 0.8, power: 'fire', flicker: 0.12 });
+const luzMarroquina = (pendurada: boolean): LuzDeReceita => ({ raio: pendurada ? 5 : 4, cor: '#ffa858', intensidade: 0.9, power: 'fire', flicker: 0.12 });
 
 /** O kit do deserto: tenda e casa (Q17a), caravana e mercado (Q17b). */
 export const RECEITAS_DO_DESERTO: Receita[] = [
@@ -679,7 +679,7 @@ export const RECEITAS_DO_DESERTO: Receita[] = [
   { id: 'cantaros-empilhados', nome: 'Cântaros empilhados', categoria: 'cozinha', tipo: 'piso', funcoes: ['deposito', 'cozinha', 'bazar', 'patio-com-fonte', 'mercado'], ...DE, tags: ['cantaro', 'jarro', 'barro', 'agua', 'pote', 'grupo', 'deposito', 'deserto'], pegada: [1.5, 1.1], altura: 0.8,
     gerar: p => piso([1.5, 1.1], cantarosEmpilhados(p.seed)) },
   { id: 'fogueira-de-caravana', nome: 'Fogueira de caravana', categoria: 'lareira-e-luz', tipo: 'piso', funcoes: ['jardim', 'tenda', 'estrada'], ...DE, tags: ['fogueira', 'fogo', 'acampamento', 'caravana', 'cafe', 'dallah', 'pedras', 'brasa', 'deserto', 'luz', 'brilho'], pegada: [1.6, 1.6], altura: 1.0,
-    luz: (): LuzDeReceita => ({ raio: 6.5, cor: '#ff9040', intensidade: 1.0, power: 'fire', flicker: 0.3 }),
+    luz: (): LuzDeReceita => ({ raio: 8, cor: '#ff9040', intensidade: 1.2, power: 'fire', flicker: 0.3 }),
     gerar: p => piso([1.6, 1.6], fogueiraDeCaravana(p.seed)) },
   { id: 'ossada-de-camelo', nome: 'Ossada de camelo', categoria: 'exterior', tipo: 'piso', funcoes: ['jardim', 'estrada'], ...DE, tags: ['ossos', 'ossada', 'camelo', 'esqueleto', 'cranio', 'areia', 'deserto', 'ermo'], pegada: [3.0, 1.7], altura: 0.35,
     gerar: p => piso([3.0, 1.7], ossadaDeCamelo(p.seed)) },

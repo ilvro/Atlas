@@ -138,5 +138,15 @@
       30
     ],
     "miniatura": "templo-na-encosta.webp"
+  },
+  {
+    "id": "oasis-da-caravana",
+    "nome": "Oásis da caravana",
+    "descricao": "Uma caravana acampada num oásis ao entardecer: a lagoa com tamareiras e o poço onde os camelos bebem, o canto dos mercadores com especiarias e tapetes, duas tendas beduínas em volta da fogueira, o depósito de adobe e as dunas em volta.",
+    "tamanho": [
+      45,
+      33
+    ],
+    "miniatura": "oasis-da-caravana.webp"
   }
 ]
