@@ -34,6 +34,7 @@ import { chaveDoObjeto, opcoesDoPixel, pedidoDoObjeto, resolucaoDe } from './ent
 import { texturaPropria } from './textura-propria.ts';
 import { criarFantasmaDeProposta } from './fantasma-proposta.ts';
 import type { Vista } from './nevoa.ts';
+import type { FiltroDeVisao } from '../domain/nevoa.ts';
 import { criarRetratos } from './retratos.ts';
 import { ajustarGradePorAlinhamento, celulasHexagonaisVisiveis, deltaEncaixado, encaixar, intersecoesDaGrade, linhasDaGrade, segmentosTracejados } from './grade.ts';
 import { LARGURA_DA_ABERTURA, comandoDeComodoPorContorno, comandoDoPincelDeTerreno, pontoPreso45, type Ferramenta, type Pincel } from './pincel.ts';
@@ -90,6 +91,9 @@ export interface PonteViewport {
   movimentoLivre?(): boolean;
   /** Pelos olhos de quem se vê o mapa agora (o mestre em Construir vê sempre tudo). */
   vista?(): Vista;
+  /** Filtro de visão de personagens e fichas do jogador local (para névoa/telhados). */
+  filtroDeVisao?(): FiltroDeVisao | null;
+  minhasFichas?(): readonly string[] | null;
   /** Quanto dura a transição entre dois climas, em ms (preferência local); sem a função vale o padrão. */
   duracaoDaTransicao?(): number | null;
   /** O projetor não edita nem seleciona nada: só mostra. */
@@ -1109,7 +1113,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (!i.semGrade || !i.moveu || !i.pendente || !i.gesto) return;
     i.pendente = false;
     const m = doc(), atual = m.tokens[i.id]?.position ?? i.de;
-    const motivo = i.livre ? null : bloqueioNoCaminho(m, atual, i.para);
+    const motivo = i.livre ? null : bloqueioNoCaminho(m, atual, i.para, { levelId: andarAtual() });
     i.motivo = motivo;
     if (!motivo && Math.hypot(i.para[0] - atual[0], i.para[1] - atual[1]) > 1e-6) {
       try { i.gesto.aplicar({ tipo: 'peca.mover', id: i.id, para: i.para, livre: i.livre, semGrade: true, emArrasto: true, ...(i.dirAtual !== undefined ? { direcao: i.dirAtual } : {}) }); } catch { /* bloqueado */ }
@@ -1177,7 +1181,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       if (semGrade && i.moveu) {
         if (!i.gesto) i.gesto = store.iniciarGesto('Mover peça');
         const atual = m.tokens[i.id]?.position ?? i.de;
-        i.motivo = i.livre ? null : bloqueioNoCaminho(m, atual, alvoPos);
+        i.motivo = i.livre ? null : bloqueioNoCaminho(m, atual, alvoPos, { levelId: andarAtual() });
         i.pendente = true;
         if (!rafArrastoPeca) {
           if (typeof requestAnimationFrame === 'function') {
@@ -1190,7 +1194,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
           }
         }
       } else {
-        i.motivo = i.livre ? null : bloqueioNoCaminho(m, i.de, i.para);
+        i.motivo = i.livre ? null : bloqueioNoCaminho(m, i.de, i.para, { levelId: andarAtual() });
       }
     } else if (i.tipo === 'peca-remota') {
       if (Math.hypot(tx - i.x0, ty - i.y0) > LIMIAR_ARRASTO) i.moveu = true;
@@ -1202,7 +1206,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       const candidato: Ponto = [Math.max(0, Math.min(m.bounds.width, alvoBruto[0])), Math.max(0, Math.min(m.bounds.height, alvoBruto[1]))];
       if (semGrade) {
         const atual = m.tokens[i.id]?.position ?? i.de;
-        const motivo = bloqueioNoCaminho(m, atual, candidato);
+        const motivo = bloqueioNoCaminho(m, atual, candidato, { levelId: andarAtual() });
         i.motivo = motivo;
         if (!motivo) {
           i.para = candidato;
@@ -1219,7 +1223,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         }
       } else {
         i.para = candidato;
-        i.motivo = bloqueioNoCaminho(m, i.de, i.para);
+        i.motivo = bloqueioNoCaminho(m, i.de, i.para, { levelId: andarAtual() });
       }
     } else if (i.tipo === 'deslizar') {
       if (!i.gesto) { if (Math.hypot(tx - i.x0, ty - i.y0) <= LIMIAR_ARRASTO) return; i.gesto = store.iniciarGesto('Mover abertura'); }
@@ -1462,6 +1466,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   cena.definirModoProjetor(somenteLeitura);
   cena.definirVista(ponte.vista?.() ?? 'construir');      // o projetor já nasce na vista de jogador
+  cena.definirFiltroDeVisao?.(ponte.filtroDeVisao?.() ?? null, ponte.minhasFichas?.() ?? null);
   redesenharTudo();
   if (ponte.cameraInicial) {
     definirCamera(ponte.cameraInicial);
@@ -1508,7 +1513,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     atualizarSobreposicoes: () => {
       if (ultimoAndar !== andarAtual() || ultimoConstruir !== ctxAndar().construir) { redesenharTudo(); return; }
       if (Boolean(ponte.alinhandoGrade?.()) !== ultimoAlinhandoGrade) gradeSuja = true;
-      camadaSuja = true; cena.definirVista(ponte.vista?.() ?? 'construir'); aplicarAcabamento();
+      camadaSuja = true; cena.definirVista(ponte.vista?.() ?? 'construir'); cena.definirFiltroDeVisao?.(ponte.filtroDeVisao?.() ?? null, ponte.minhasFichas?.() ?? null); aplicarAcabamento();
     },
     relampagoAgora: () => cena.relampagoAgora(),
     dispararPing: ping => camadaPings.adicionar(ping),

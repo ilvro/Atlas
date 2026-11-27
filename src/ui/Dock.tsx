@@ -1,9 +1,9 @@
 import { signal } from '@preact/signals';
 import { useRef } from 'preact/hooks';
 import { abrirProjetor, aplicarClima, obterSessaoParaProjetor, servicos } from '../app/app.ts';
-import { caixaDoProjetor, forcarCameraRemota, mostrarQuadroDoProjetor, projetorConectado, projetorRemotoConectado, seguirJogadores } from '../app/projetor.ts';
+import { caixaDoProjetor, definirFiltroDeVisao, filtroDeVisao, forcarCameraRemota, jogadorSeguido, mostrarQuadroDoProjetor, projetorConectado, projetorRemotoConectado, seguirJogadores } from '../app/projetor.ts';
 import { acaoPorId, executarAcao } from '../app/acoes.ts';
-import { controleJogadores, definirControleJogadores, definirDuracaoDoClima, duracaoDoClima } from '../app/modo.ts';
+import { controleJogadores, definirControleJogadores, definirDuracaoDoClima, definirMovimentoLivre, duracaoDoClima } from '../app/modo.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { PRESETS_DE_CLIMA } from '../domain/presets.ts';
 import { tocar } from '../fx/som.ts';
@@ -197,19 +197,52 @@ function SecaoDePresenca({ s }: { s: SessaoDeEdicao }) {
 function SecaoDeIniciativa({ s }: { s: SessaoDeEdicao }) {
   const m = s.doc.value, ini = m.session.initiative, pecas = m.tokens;
   const lerRetrato = async (id: string) => (await servicos.peek()?.repo.obterAsset(id))?.blob ?? null;
+  const sessaoProjetor = obterSessaoParaProjetor() ?? s;
+  const focarJogadorNaActivity = (id: string) => {
+    jogadorSeguido.value = id;
+    seguirJogadores.value = true;
+    forcarCameraRemota();
+  };
   if (ini) {
     return (<>
-      <FaixaDeIniciativa ini={ini} pecas={pecas} lerRetrato={lerRetrato} aoEditarValor={(tokenId, value) => tentar(() => s.store.executar({ tipo: 'iniciativa.valor', tokenId, value }))} />
+      <FaixaDeIniciativa
+        ini={ini}
+        pecas={pecas}
+        lerRetrato={lerRetrato}
+        aoEditarValor={(tokenId, value) => tentar(() => s.store.executar({ tipo: 'iniciativa.valor', tokenId, value }))}
+        aoFocarPeca={focarJogadorNaActivity}
+      />
       <div class="dock-linha">
         <button type="button" class="dock-pilula" aria-label="Vez anterior" data-testid="iniciativa-anterior" onClick={() => tentar(() => s.store.executar({ tipo: 'iniciativa.passo', passo: -1 }))}>‹</button>
         <button type="button" class="dock-pilula destaque" aria-label="Próxima vez" data-testid="iniciativa-proxima" onClick={() => { if (tentar(() => s.store.executar({ tipo: 'iniciativa.passo', passo: 1 }))) tocar('selecionar'); }}>›</button>
         <button type="button" class="dock-pilula" data-testid="iniciativa-encerrar" onClick={() => tentar(() => s.store.executar({ tipo: 'iniciativa.encerrar' }))}>Encerrar</button>
       </div>
+      <div class="dock-linha">
+        <SeletorDeJogadorSeguido s={sessaoProjetor} testid="dock-iniciativa-jogador" />
+        <button
+          type="button"
+          class={`dock-pilula ${seguirJogadores.value ? 'ativa' : ''}`}
+          aria-pressed={seguirJogadores.value}
+          data-testid="dock-iniciativa-seguir"
+          title="Seguir o jogador selecionado (ou todos) na Activity"
+          onClick={() => {
+            seguirJogadores.value = !seguirJogadores.value;
+            if (seguirJogadores.value) forcarCameraRemota();
+          }}
+        >
+          {seguirJogadores.value ? 'Seguindo' : 'Seguir'}
+        </button>
+      </div>
     </>);
   }
   const selecionadas = s.selecao.value.filter(a => a.colecao === 'tokens' && pecas[a.id]).map(a => a.id), candidatas = selecionadas.length ? selecionadas : Object.keys(pecas);
   if (!candidatas.length) return <p class="dock-dica">Ponha peças no mapa (em Construir) para montar a iniciativa.</p>;
-  const comecar = () => tentar(() => s.store.executar({ tipo: 'iniciativa.iniciar', entradas: candidatas.map(id => ({ tokenId: id, value: Number(valoresIniciais.value[id]) || 0 })) }, { rotulo: 'Começar a iniciativa' }));
+  const comecar = () => {
+    if (tentar(() => s.store.executar({ tipo: 'iniciativa.iniciar', entradas: candidatas.map(id => ({ tokenId: id, value: Number(valoresIniciais.value[id]) || 0 })) }, { rotulo: 'Começar a iniciativa' }))) {
+      definirControleJogadores('livres');
+      definirMovimentoLivre(false);
+    }
+  };
   return (<>
     <p class="dock-dica">{selecionadas.length ? 'Peças selecionadas:' : 'Todas as peças (ou selecione algumas):'}</p>
     <div class="dock-linha">
@@ -285,9 +318,124 @@ function SecaoDoProjetor({ s }: { s: SessaoDeEdicao }) {
           <SeletorDeJogadorSeguido s={sessaoProjetor} testid="dock-projetor-jogador" />
         </div>
         <div class="dock-linha">
+          <button
+            type="button"
+            class="dock-pilula destaque"
+            data-testid="dock-projetor-trazer-todos"
+            title="Enquadra imediatamente a câmera de todos os jogadores na Activity na sua visão"
+            onClick={() => forcarCameraRemota()}
+          >
+            Trazer todos para minha câmera
+          </button>
           <button type="button" class={`dock-pilula ${mostrarQuadroDoProjetor.value ? 'ativa' : ''}`} aria-pressed={mostrarQuadroDoProjetor.value} data-testid="dock-projetor-quadro" onClick={() => { mostrarQuadroDoProjetor.value = !mostrarQuadroDoProjetor.value; }}>Mostrar o quadro</button>
         </div>
         {quadroVisivel && <p class="dock-dica">Arraste a borda ou os cantos do quadro azul no mapa.</p>}
+      </div>
+
+      <div class="dock-projetor-bloco">
+        <span class="dock-rotulo">Visão na tela</span>
+        {(() => {
+          const jogadores = Object.values(sessaoProjetor.doc.value.tokens).filter(t => t.player);
+          const filtro = filtroDeVisao.value;
+          const gruposAtuais = filtro.tipo === 'individual' ? (filtro.grupos ?? {}) : {};
+          return (
+            <>
+              <div class="dock-segmentado" role="group" aria-label="Visão na tela">
+                {([
+                  ['todos', 'Todos'],
+                  ['foco', 'Um personagem'],
+                  ['individual', 'Separados'],
+                ] as const).map(([modoVisao, rotulo]) => {
+                  const ativo = filtro.tipo === modoVisao;
+                  return (
+                    <button
+                      type="button"
+                      key={modoVisao}
+                      class={`dock-segmentado-btn ${ativo ? 'ativa' : ''}`}
+                      aria-pressed={ativo}
+                      data-testid={`dock-projetor-visao-${modoVisao}`}
+                      onClick={() => {
+                        if (modoVisao === 'todos') {
+                          definirFiltroDeVisao({ tipo: 'todos' });
+                        } else if (modoVisao === 'foco') {
+                          const atual = filtro.tipo === 'foco' && jogadores.some(j => j.id === filtro.tokenId)
+                            ? filtro.tokenId
+                            : jogadorSeguido.peek() && jogadores.some(j => j.id === jogadorSeguido.peek())
+                              ? jogadorSeguido.peek()!
+                              : (jogadores[0]?.id ?? '');
+                          if (atual) definirFiltroDeVisao({ tipo: 'foco', tokenId: atual });
+                        } else {
+                          definirFiltroDeVisao({ tipo: 'individual', grupos: gruposAtuais });
+                        }
+                      }}
+                    >
+                      {rotulo}
+                    </button>
+                  );
+                })}
+              </div>
+              {filtro.tipo === 'foco' && (
+                <div class="dock-linha">
+                  <select
+                    class="dock-seletor-seguir"
+                    data-testid="dock-projetor-visao-personagem"
+                    aria-label="Personagem com visão na tela"
+                    value={filtro.tokenId}
+                    onChange={e => {
+                      const tokenId = (e.target as HTMLSelectElement).value;
+                      if (tokenId) definirFiltroDeVisao({ tipo: 'foco', tokenId });
+                    }}
+                  >
+                    {jogadores.map(t => (
+                      <option key={t.id} value={t.id}>{t.name || 'Jogador sem nome'}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {filtro.tipo === 'individual' && (
+                <div class="dock-visao-grupos" data-testid="dock-projetor-visao-grupos">
+                  {jogadores.length === 0 ? (
+                    <p class="dock-dica">Nenhuma peça de jogador no mapa.</p>
+                  ) : (
+                    jogadores.map(t => {
+                      const grupo = gruposAtuais[t.id] ?? 'solo';
+                      return (
+                        <div key={t.id} class="dock-visao-grupo-linha">
+                          <span class="dock-visao-grupo-nome">{t.name || 'Jogador sem nome'}</span>
+                          <select
+                            class="dock-seletor-grupo"
+                            data-testid={`dock-projetor-grupo-${t.id}`}
+                            aria-label={`Grupo de visão de ${t.name || 'jogador'}`}
+                            value={grupo}
+                            onChange={e => {
+                              const valor = (e.target as HTMLSelectElement).value;
+                              const prox = { ...gruposAtuais };
+                              if (valor === 'solo') delete prox[t.id];
+                              else prox[t.id] = valor;
+                              definirFiltroDeVisao({ tipo: 'individual', grupos: prox });
+                            }}
+                          >
+                            <option value="solo">Solo</option>
+                            <option value="A">Grupo A</option>
+                            <option value="B">Grupo B</option>
+                            <option value="C">Grupo C</option>
+                          </select>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+              <p class="dock-dica">
+                {filtro.tipo === 'todos'
+                  ? 'Todos os jogadores compartilham a mesma visão.'
+                  : filtro.tipo === 'foco'
+                    ? 'A tela exibe apenas o que este personagem enxerga.'
+                    : 'Cada jogador vê apenas o próprio personagem (ou seu grupo).'}
+              </p>
+            </>
+          );
+        })()}
       </div>
 
       <div class="dock-projetor-bloco">

@@ -2,7 +2,7 @@ import { codificar, decodificar, type Faixa } from './celulas.ts';
 import { edificiosDe } from './edificios.ts';
 import { projetarParaJogadores } from './projecao.ts';
 import type { MapaAtlas, Parede, Ponto } from './mapa.ts';
-import { celulasVisiveis, comodosConhecidos, edificioTocadoPorPoligonos, poligonosDeVisao, RES_NEVOA } from './nevoa.ts';
+import { celulasVisiveis, comodosConhecidos, edificioTocadoPorPoligonos, poligonosDeVisao, RES_NEVOA, type FiltroDeVisao } from './nevoa.ts';
 import { podar } from './iniciativa.ts';
 
 /**
@@ -35,8 +35,9 @@ import { podar } from './iniciativa.ts';
  * - `session.explored`: o explorado de verdade (já é o que os jogadores conhecem); `exploredLevels` sai; `event` vira `null`;
  *   `revealed` e `initiative` só com o que ficou; `roofs` fica.
  */
-export function projetarParaRemoto(m: MapaAtlas, andar: string | null = null): MapaAtlas {
-  const p = projetarParaJogadores(m, andar);
+export function projetarParaRemoto(m: MapaAtlas, andar: string | null = null, filtro?: FiltroDeVisao | null): MapaAtlas {
+  const filtroFoco = filtro?.tipo === 'foco' ? filtro : undefined;
+  const p = projetarParaJogadores(m, andar, filtroFoco);
   if (p.session.explored === null) return p;
 
   p.name = 'Mapa';
@@ -48,7 +49,7 @@ export function projetarParaRemoto(m: MapaAtlas, andar: string | null = null): M
   p.backdrop = { ...p.backdrop, title: null };
 
   const revelados = new Set(p.session.revealed);
-  const area = areaConhecida(p);
+  const area = areaConhecida(p, filtroFoco);
 
   // Terreno e presenças.
   const t = p.terrain.resolution;
@@ -71,8 +72,8 @@ export function projetarParaRemoto(m: MapaAtlas, andar: string | null = null): M
   // Edifícios com telhado conhecido/tocado mantêm suas `cells` (e `outline`) estruturais intactas
   // para o telhado e o contorno externo renderizarem inteiros e idênticos ao desktop.
   const g = p.grid.size, [ox, oy] = p.grid.offset;
-  const conhecidos = comodosConhecidos(p);
-  const poligonos = poligonosDeVisao(p);
+  const conhecidos = comodosConhecidos(p, filtroFoco);
+  const poligonos = poligonosDeVisao(p, filtroFoco);
   const salaNaArea = (cells: readonly Faixa[]): boolean =>
     decodificar(cells).some(([cx, cy]) => area.ponto(ox + (cx + 0.5) * g, oy + (cy + 0.5) * g));
   const salasDeEdificioConhecido = new Set<string>();
@@ -169,9 +170,9 @@ interface Area {
 }
 
 /** `explorado ∪ visível` mais 1 célula de folga, em células de `RES_NEVOA`. */
-function areaConhecida(p: MapaAtlas): Area {
+function areaConhecida(p: MapaAtlas, filtro?: FiltroDeVisao | null): Area {
   const res = p.session.explored?.res ?? RES_NEVOA;
-  const base = [...(p.session.explored?.cells ?? []), ...celulasVisiveis(p, res)];
+  const base = [...(p.session.explored?.cells ?? []), ...celulasVisiveis(p, res, filtro)];
   const colunasPorLinha = new Map<number, Set<number>>();
   for (const [y, x0, n] of base) for (let j = y - 1; j <= y + 1; j++) {
     let l = colunasPorLinha.get(j); if (!l) colunasPorLinha.set(j, l = new Set());

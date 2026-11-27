@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { signal } from '@preact/signals';
 import { iniciarTema } from '../app/tema.ts';
 import { criarBarramento, type CanalLike } from '#mesa';
-import { canaisDoProjetor, nomeDoCanalEventosDaSala, projetorPodeDizer, type MensagemDoMestre, type MensagemDoProjetor } from '../app/projetor.ts';
+import { ajustarAoAspecto, canaisDoProjetor, nomeDoCanalEventosDaSala, projetorPodeDizer, type MensagemDoMestre, type MensagemDoProjetor } from '../app/projetor.ts';
 import { andarDe, andarDoDocumento } from '../domain/andares.ts';
 import type { Recursos } from '../domain/fichas.ts';
 import { criarMapa, type MapaAtlas } from '../domain/mapa.ts';
+import { tokensDeVisaoAtivos, type FiltroDeVisao } from '../domain/nevoa.ts';
 import { pecasDoJogador } from '../domain/projecao-remota.ts';
 import { flutuarRolagem, ponto } from '../fx/fx.ts';
 import { silenciarNestaJanela } from '../fx/som.ts';
@@ -37,6 +38,8 @@ function mostrarAvisoRemoto(texto: string): void {
 const seguindo = signal(true);
 /** Modo de controle na activity remota: 'livres' (jogadores movem peças e câmera) ou 'mestre' (só o mestre). */
 const controleRemoto = signal<'livres' | 'mestre'>('livres');
+/** Filtro de visão recebido do mestre (todos, foco em um personagem ou individual/grupos). */
+const filtroVisaoProjetor = signal<FiltroDeVisao>({ tipo: 'todos' });
 let caixaDoMestre: Parameters<Viewport['enquadrarCaixa']>[0] | null = null, vpAtual: Viewport | null = null;
 /** "Seguir o mestre" do projetor remoto (definido pelo efeito do componente). */
 let seguirMestreRemoto: () => void = () => {};
@@ -77,7 +80,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
     silenciarNestaJanela();                                   // o áudio não toca no projetor
     const sairTema = iniciarTema();
     document.body.classList.add('projetor');
-    seguindo.value = true; controleRemoto.value = 'livres'; caixaDoMestre = null; zoomLocal = 1;
+    seguindo.value = true; controleRemoto.value = 'livres'; filtroVisaoProjetor.value = { tipo: 'todos' }; caixaDoMestre = null; zoomLocal = 1;
     retratos.clear(); recursosLocais.clear(); fecharInspecaoNoProjetor();
     cortina.value = { escurecer: false, ms: 0 };
     letreiroDoProjetor.value = null;
@@ -133,6 +136,8 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
       lerRetrato: lerRetratoLocal,
       recursosDaPeca: t => recursosLocais.get(t.id) ?? null,
       pecaDoJogador: t => remoto && pecasDoJogador({ tokens: { [t.id]: t } }, fichasDoJogador).has(t.id),
+      filtroDeVisao: () => filtroVisaoProjetor.value,
+      minhasFichas: () => (remoto ? fichasDoJogador : null),
       podeMoverPecaRemota: () => !remoto || controleRemoto.peek() === 'livres',
       cameraBloqueada: () => remoto && controleRemoto.peek() === 'mestre',
       aoArrastarPecaRemota: remoto && barramento
@@ -240,6 +245,10 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
         controleRemoto.value = msg.modo;
         if (msg.modo === 'mestre') decidirRemoto({ tipo: 'seguir-mestre' }, true);
       }
+      else if (msg.tipo === 'visao-remota') {
+        filtroVisaoProjetor.value = msg.filtro;
+        vp?.atualizarSobreposicoes();
+      }
       else if (msg.tipo === 'peca-gesto') {
         const atual = store?.documento;
         const t = atual?.tokens[msg.id];
@@ -269,12 +278,29 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
         }
       }
       else if (msg.tipo === 'camera' && remoto) {
-        caixa = msg.caixa;
+        let alvoCaixa = msg.caixa;
+        const atualDoc = store?.documento ?? doc.value;
+        if (
+          primeira &&
+          !msg.forcar &&
+          controleRemoto.peek() !== 'mestre' &&
+          filtroVisaoProjetor.peek().tipo === 'individual' &&
+          fichasDoJogador.length > 0 &&
+          atualDoc
+        ) {
+          const meus = tokensDeVisaoAtivos(atualDoc, { tipo: 'individual' }, fichasDoJogador);
+          if (meus.length > 0) {
+            const xs = meus.map(t => t.position[0]), ys = meus.map(t => t.position[1]);
+            const asp = Math.max(0.2, (ref.current?.clientWidth || innerWidth) / Math.max(1, ref.current?.clientHeight || innerHeight));
+            alvoCaixa = ajustarAoAspecto({ x0: Math.min(...xs) - 5, y0: Math.min(...ys) - 5, x1: Math.max(...xs) + 5, y1: Math.max(...ys) + 5 }, asp);
+          }
+        }
+        caixa = alvoCaixa;
         const forcar = msg.forcar || controleRemoto.peek() === 'mestre';
         decidirRemoto(
           {
             tipo: 'camera',
-            caixa: msg.caixa,
+            caixa: alvoCaixa,
             ...(msg.imediata ? { imediata: true } : {}),
             ...(forcar ? { forcar: true } : {}),
           },
@@ -313,6 +339,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
       if (!d || typeof d !== 'object' || d.tipo !== 'jogador' || !Array.isArray(d.fichas)) return;
       fichasDoJogador = d.fichas.filter((x): x is string => typeof x === 'string');
       vp?.redesenharPecas();
+      vp?.atualizarSobreposicoes();
     };
     if (remoto) {
       window.addEventListener('message', aoMensagem);
@@ -386,6 +413,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
       doc.value = null;
       seguindo.value = true;
       controleRemoto.value = 'livres';
+      filtroVisaoProjetor.value = { tipo: 'todos' };
       versaoRetratos.value = 0;
       cortina.value = { escurecer: false, ms: 0 };
       letreiroDoProjetor.value = null;

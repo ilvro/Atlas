@@ -9,6 +9,7 @@ import { controleJogadores, movimentoLivre, type ControleJogadores } from './mod
 import { recursosParaOProjetor } from '../domain/fichas.ts';
 import { projetarParaJogadores } from '../domain/projecao.ts';
 import { projetarParaRemoto } from '../domain/projecao-remota.ts';
+import type { FiltroDeVisao } from '../domain/nevoa.ts';
 import type { EventoDeCena } from '../render/eventos-de-cena.ts';
 import type { Caixa } from '../render/selecao.ts';
 import type { SessaoDeEdicao } from './sessao.ts';
@@ -52,6 +53,7 @@ export function forcarCameraRemota(): void {
 export type MensagemDoMestre =
   | { tipo: 'estado'; doc: MapaAtlas; versao: number; emGesto?: boolean; controleJogadores?: ControleJogadores }
   | { tipo: 'controle-jogadores'; modo: ControleJogadores }
+  | { tipo: 'visao-remota'; filtro: FiltroDeVisao }
   | { tipo: 'projetar-ficha'; fichaId: string | null }
   | { tipo: 'peca-gesto'; id: string; position: [number, number]; facing: MapaAtlas['tokens'][string]['facing']; lightDirection?: number; caixa?: Caixa; seguir?: boolean }
   | { tipo: 'camera'; caixa: Caixa; seguir?: boolean; imediata?: boolean; forcar?: boolean }
@@ -92,6 +94,11 @@ export const telaEscura = signal(false);
 export const seguirJogadores = signal(false);
 /** Com "seguir os jogadores" ligado, enquadra só esta peça de jogador (`null` = todos). */
 export const jogadorSeguido = signal<string | null>(null);
+/** Filtro de visão ativa na tela dos jogadores (todos, foco em um personagem ou visão individual/grupos). */
+export const filtroDeVisao = signal<FiltroDeVisao>({ tipo: 'todos' });
+export function definirFiltroDeVisao(f: FiltroDeVisao): void {
+  filtroDeVisao.value = f;
+}
 export const aspectoDoProjetor = signal(16 / 9);
 /** Mostrar o quadro do projetor sobre o mapa do mestre. */
 export const mostrarQuadroDoProjetor = signal(true);
@@ -240,9 +247,11 @@ export function iniciarPublicacao(
     const extra = { versao: s.store.versaoEdicao, ...(s.store.emGesto ? { emGesto: true } : {}) };
     const livre = movimentoLivre.peek();
     const comModo = (d: MapaAtlas): MapaAtlas => (livre && d.grid.snap ? { ...d, grid: { ...d.grid, snap: false } } : d);
-    if (local) enviar({ tipo: 'estado', doc: comModo(projetarParaJogadores(m, andar)), ...extra }, 'local');
+    const filtro = filtroDeVisao.peek();
+    const filtroFoco = filtro.tipo === 'foco' ? filtro : undefined;
+    if (local) enviar({ tipo: 'estado', doc: comModo(projetarParaJogadores(m, andar, filtroFoco)), ...extra }, 'local');
     if (remoto) {
-      const doc = comModo(projetarParaRemoto(m, andar));
+      const doc = comModo(projetarParaRemoto(m, andar, filtroFoco));
       // Sem névoa o mestre mostra o mapa todo: a ponte pede a confirmação dele, uma vez por mapa, e segura o `estado` até lá.
       if (doc.session.explored === null) {
         if (!semNevoaAvisados.has(m.id)) { semNevoaAvisados.add(m.id); enviar({ tipo: 'aviso-sem-nevoa', mapa: m.id, nome: m.name }, 'remoto'); }
@@ -274,6 +283,7 @@ export function iniciarPublicacao(
       const caixa = seguirJogadores.peek() || !atual ? caixaDosJogadores(m, asp, 5, andarAtual(m), jogadorSeguido.peek()) : ajustarAoAspecto(atual, asp);
       caixaDoProjetor.value = caixa;
       enviarEstado('local', ehOla);
+      if (ehOla) enviar({ tipo: 'visao-remota', filtro: filtroDeVisao.peek() }, 'local');
       enviar({ tipo: 'camera', caixa, ...(seguirJogadores.peek() ? { seguir: true } : {}) }, 'local');
       if (ehOla && ultimoEstadoTela?.acao === 'escurecer') {
         enviar({ tipo: 'tela', acao: 'escurecer', ms: ultimoEstadoTela.ms }, 'local');
@@ -327,6 +337,7 @@ export function iniciarPublicacao(
       }
       enviarEstado('remoto', ehOla);
       enviar({ tipo: 'controle-jogadores', modo: controleJogadores.peek() }, 'remoto');
+      if (ehOla) enviar({ tipo: 'visao-remota', filtro: filtroDeVisao.peek() }, 'remoto');
       enviarCameraRemota(m, controleJogadores.peek() === 'mestre' ? { forcar: true } : undefined);
       if (ehOla && ultimoEstadoTela?.acao === 'escurecer') enviar({ tipo: 'tela', acao: 'escurecer', ms: ultimoEstadoTela.ms }, 'remoto');
       if (ehOla && fichaProjetadaId.peek()) enviar({ tipo: 'projetar-ficha', fichaId: fichaProjetadaId.peek() }, 'remoto');
@@ -430,12 +441,15 @@ export function iniciarPublicacao(
   const parar3 = effect(() => { void recursosDasFichas.value; void mostrarPvNoProjetor.value; enviarRecursos(); });
   const parar2 = effect(() => { const c = caixaDoProjetor.value; if (c && projetorConectado.peek() && !cameraEmGesto) enviar({ tipo: 'camera', caixa: c, ...(seguirJogadores.peek() ? { seguir: true } : {}) }, 'local'); });
   const parar6 = effect(() => { void movimentoLivre.value; if (algum() && !parado) enviarEstado(); });
+  let ultimoPulsoFoco = pulsoFocoRemoto.peek();
   const parar7 = effect(() => {
     const modo = controleJogadores.value;
-    void pulsoFocoRemoto.value;
+    const pulso = pulsoFocoRemoto.value;
+    const forcado = pulso !== ultimoPulsoFoco;
+    ultimoPulsoFoco = pulso;
     if (projetorRemotoConectado.peek() && !parado) {
       enviar({ tipo: 'controle-jogadores', modo }, 'remoto');
-      if (modo === 'mestre') {
+      if (modo === 'mestre' || forcado) {
         const m = s.store.documento;
         if (!caixaDoProjetor.peek()) {
           caixaDoProjetor.value = caixaDosJogadores(m, aspectoRemoto, 5, andarAtual(m), jogadorSeguido.peek());
@@ -447,6 +461,16 @@ export function iniciarPublicacao(
   const parar8 = effect(() => {
     const fichaId = fichaProjetadaId.value;
     if (algum() && !parado) enviar({ tipo: 'projetar-ficha', fichaId });
+  });
+  let ultimoTipoFiltro = filtroDeVisao.peek().tipo;
+  const parar9 = effect(() => {
+    const filtro = filtroDeVisao.value;
+    const eraFoco = ultimoTipoFiltro === 'foco';
+    ultimoTipoFiltro = filtro.tipo;
+    if (algum() && !parado) {
+      enviar({ tipo: 'visao-remota', filtro });
+      if (filtro.tipo === 'foco' || eraFoco) enviarEstado();
+    }
   });
 
   return {
@@ -520,7 +544,7 @@ export function iniciarPublicacao(
       }
     },
     parar() {
-      parado = true; sair(); parar1(); parar2(); parar3(); parar4(); parar5(); parar6(); parar7(); parar8();
+      parado = true; sair(); parar1(); parar2(); parar3(); parar4(); parar5(); parar6(); parar7(); parar8(); parar9();
       if (temporizador) clearTimeout(temporizador);
       canalEspecifico.close();
       canalGlobal.close();

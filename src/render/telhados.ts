@@ -28,7 +28,7 @@ import {
   type Peca,
   type Ponto,
 } from '../domain/mapa.ts';
-import { comodosConhecidos, edificioTocadoPorPoligonos, poligonosDeVisao } from '../domain/nevoa.ts';
+import { comodosConhecidos, edificioTocadoPorPoligonos, poligonosDeVisao, tokensDeVisaoAtivos, type FiltroDeVisao } from '../domain/nevoa.ts';
 import { elevacaoDaLua, elevacaoDoSol, sombraDoSol } from '../domain/sol.ts';
 import { aguasDoTrecho, expandirContorno, formaDe, retangulosDe, trechosDe } from '../domain/telhado-geometria.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
@@ -65,6 +65,7 @@ export interface Telhados {
   readonly fachadaRaiz: Container;
   sincronizar(m: MapaAtlas, mudancas: Mudancas | null): void;
   definirVista(v: Vista): void;
+  definirFiltroDeVisao?(filtro: FiltroDeVisao | null, minhasFichas?: readonly string[] | null): void;
   /** No modo Construir, mostra os telhados em vez de escondê-los. */
   definirNoEditor(v: boolean): void;
   forcar(alfa: number | null): void;
@@ -1009,12 +1010,17 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
     });
   }
 
+  let filtroVisao: FiltroDeVisao | null = null;
+  let minhasFichas: readonly string[] | null = null;
+
   function reavaliar(): void {
     const m = mapa; if (!m) return;
     // Um telhado que ninguém viu continua escondido: só se mostra o de uma casa de que algum pedaço está à vista ou explorado.
-    const conhecidos = vista === 'jogador' && edificios.size ? comodosConhecidos(m) : null;
-    const poligonos = vista === 'jogador' && edificios.size ? poligonosDeVisao(m) : null;
-    const jogadores = Object.values(m.tokens).filter(p => p.player);
+    const conhecidos = vista === 'jogador' && edificios.size ? comodosConhecidos(m, filtroVisao, minhasFichas) : null;
+    const poligonos = vista === 'jogador' && edificios.size ? poligonosDeVisao(m, filtroVisao, minhasFichas) : null;
+    const jogadores = vista === 'jogador'
+      ? tokensDeVisaoAtivos(m, filtroVisao, minhasFichas)
+      : Object.values(m.tokens).filter(p => p.player);
     for (const d of edificios.values()) {
       d.dentro = jogadorDentroDoEdificio(m, d.ed, jogadores);
       d.conhecido = !conhecidos || d.ed.salas.some(id => conhecidos.has(id)) || (poligonos !== null && edificioTocadoPorPoligonos(m, d.ed, poligonos));
@@ -1144,6 +1150,11 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
       }
     },
     definirVista(v) { if (v === vista) return; vista = v; imediato = true; reavaliar(); imediato = false; },
+    definirFiltroDeVisao(f, fichas) {
+      filtroVisao = f ?? null;
+      minhasFichas = fichas ?? null;
+      if (vista === 'jogador') { imediato = true; reavaliar(); imediato = false; }
+    },
     definirNoEditor(v) { if (v === noEditor) return; noEditor = v; reavaliar(); },
     forcar(alfa) { forcado = alfa; imediato = true; reavaliar(); imediato = false; },
     quadro(agora) {

@@ -97,7 +97,7 @@ test('montarEstadoDeIniciativa: sem combate e com combate ativo, incluindo PV/PD
   assert.equal(andar2.ativa, false, 'iniciativa podada quando nenhum combatente está no 2º andar');
 });
 
-test('executarComandoDeIniciativa: iniciar, passo, definir-valor, ajustar-pv, focar-peca e encerrar', () => {
+test('executarComandoDeIniciativa: iniciar, passo, definir-valor, ajustar-pv, focar-peca e encerrar', async () => {
   const refPj = criarRef('ficha', 'ficha', 'pj-2');
   const m = criarMapa({ id: 'mapa-2', nome: 'Cripta', agora: 1 });
   const pj = novaPeca([2, 2], 'Beatriz', { player: true, refs: [refPj] });
@@ -119,8 +119,13 @@ test('executarComandoDeIniciativa: iniciar, passo, definir-valor, ajustar-pv, fo
   };
   const focados: string[] = [];
 
-  // 1. Iniciar combate
+  // 1. Iniciar combate (também ativa Jogadores livres + movimento em grid)
+  const { controleJogadores, definirControleJogadores, definirMovimentoLivre, movimentoLivre } = await import('../../src/app/modo.ts');
+  definirControleJogadores('mestre');
+  definirMovimentoLivre(true);
   assert.equal(executarComandoDeIniciativa({ tipo: 'iniciar' }, { sessao: s, barramento }), true);
+  assert.equal(controleJogadores.value, 'livres');
+  assert.equal(movimentoLivre.value, false);
   assert.ok(s.store.documento.session.initiative);
   assert.equal(s.store.documento.session.initiative!.order.length, 2);
   assert.equal(s.store.documento.session.initiative!.round, 1);

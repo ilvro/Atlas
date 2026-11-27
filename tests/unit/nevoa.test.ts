@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { contem } from '../../src/domain/celulas.ts';
 import { novaPeca } from '../../src/domain/fabrica.ts';
 import { criarMapa, type Abertura, type MapaAtlas } from '../../src/domain/mapa.ts';
-import { RES_NEVOA, celulasVisiveis, poligonosDeVisao } from '../../src/domain/nevoa.ts';
+import { RES_NEVOA, celulasVisiveis, poligonosDeVisao, tokensDeVisaoAtivos } from '../../src/domain/nevoa.ts';
 import { aplicarComando } from '../../src/state/comandos.ts';
 
 /** Dois cômodos lado a lado separados por uma parede em x = 6 (de y = 0 a 12); uma peça de jogador em (3, 6). */
@@ -302,4 +302,41 @@ test('objetoDinamicoDeVisao identifica documentos, pistas, notas e itens de mesa
   assert.equal(objetoDinamicoDeVisao(nota), true);
   assert.equal(objetoDinamicoDeVisao(itemMesa), true);
   assert.equal(objetoDinamicoDeVisao(papeisChao), true);
+});
+
+test('tokensDeVisaoAtivos e poligonosDeVisao respeitam FiltroDeVisao (todos, foco, individual e grupos)', () => {
+  const base = dois(undefined, [[3, 6], [9, 6]]);
+  const m: MapaAtlas = {
+    ...base,
+    tokens: {
+      t0: { ...base.tokens.t0!, refs: [{ app: 'ficha', tipo: 'ficha', id: 'f-rowan' }] },
+      t1: { ...base.tokens.t1!, refs: [{ app: 'ficha', tipo: 'ficha', id: 'f-muirenn' }] },
+      t2: { ...novaPeca([11, 10]), id: 't2', name: 'Kael', player: true, vision: { radius: 8, dark: false }, refs: [{ app: 'ficha', tipo: 'ficha', id: 'f-kael' }] },
+    },
+  };
+
+  // Todos
+  assert.equal(tokensDeVisaoAtivos(m, { tipo: 'todos' }).length, 3);
+  assert.ok(pontoVisivelAgora(m, [3, 6], 0.2, { tipo: 'todos' }));
+  assert.ok(pontoVisivelAgora(m, [9, 6], 0.2, { tipo: 'todos' }));
+
+  // Foco em t1 (esconde sala de t0!)
+  assert.deepEqual(tokensDeVisaoAtivos(m, { tipo: 'foco', tokenId: 't1' }).map(t => t.id), ['t1']);
+  assert.ok(!pontoVisivelAgora(m, [3, 6], 0.2, { tipo: 'foco', tokenId: 't1' }), 't0 oculto no foco de t1');
+  assert.ok(pontoVisivelAgora(m, [9, 6], 0.2, { tipo: 'foco', tokenId: 't1' }), 't1 visível no foco de t1');
+
+  // Individual sem grupos (solo)
+  const ind = { tipo: 'individual' as const };
+  assert.deepEqual(tokensDeVisaoAtivos(m, ind, ['f-rowan']).map(t => t.id), ['t0']);
+  assert.ok(pontoVisivelAgora(m, [3, 6], 0.2, ind, ['f-rowan']));
+  assert.ok(!pontoVisivelAgora(m, [9, 6], 0.2, ind, ['f-rowan']));
+
+  // Individual com grupos (t0 e t1 no Grupo A; t2 solo)
+  const comGrupos = { tipo: 'individual' as const, grupos: { t0: 'A', t1: 'A' } };
+  assert.deepEqual(tokensDeVisaoAtivos(m, comGrupos, ['f-rowan']).map(t => t.id).sort(), ['t0', 't1']);
+  assert.deepEqual(tokensDeVisaoAtivos(m, comGrupos, ['f-kael']).map(t => t.id), ['t2']);
+
+  // Espectador (minhasFichas vazio/nulo) vê todos os jogadores
+  assert.equal(tokensDeVisaoAtivos(m, comGrupos, []).length, 3);
+  assert.equal(tokensDeVisaoAtivos(m, comGrupos, null).length, 3);
 });

@@ -55,10 +55,59 @@ export function direcaoDeVisaoDaPeca(
   return ANGULO_DO_LADO[t.facing] ?? 0;
 }
 
+/** Filtro de visão: controla quais tokens de jogador contribuem com visão na tela. */
+export type FiltroDeVisao =
+  | { tipo: 'todos' }
+  | { tipo: 'foco'; tokenId: string }
+  | { tipo: 'individual'; grupos?: Record<string, string> };
+
+/** Seleciona os tokens de jogador que contribuem para a visão ativa no andar atual conforme `filtro` e `minhasFichas`. */
+export function tokensDeVisaoAtivos(
+  m: Pick<MapaAtlas, 'tokens'>,
+  filtro?: FiltroDeVisao | null,
+  minhasFichas?: readonly string[] | null,
+): Peca[] {
+  const jogadores = Object.values(m.tokens).filter(t => t.player);
+  if (!filtro || filtro.tipo === 'todos') return jogadores;
+  if (filtro.tipo === 'foco') {
+    const t = m.tokens[filtro.tokenId];
+    return t ? [t] : [];
+  }
+  if (!minhasFichas || minhasFichas.length === 0) return jogadores;
+  const alvo = new Set(minhasFichas);
+  const proprios = jogadores.filter(t =>
+    t.refs.some(r => r.app === 'ficha' && r.tipo === 'ficha' && alvo.has(r.id)),
+  );
+  if (!proprios.length) return [];
+  const grupos = filtro.grupos ?? {};
+  const gruposDosProprios = new Set<string>();
+  for (const t of proprios) {
+    const g = grupos[t.id];
+    if (g && g !== 'solo') gruposDosProprios.add(g);
+  }
+  if (gruposDosProprios.size === 0) return proprios;
+  const ids = new Set(proprios.map(t => t.id));
+  return jogadores.filter(t => ids.has(t.id) || (grupos[t.id] !== undefined && gruposDosProprios.has(grupos[t.id]!)));
+}
+
+function chaveFiltroDeVisao(filtro?: FiltroDeVisao | null, minhasFichas?: readonly string[] | null): string {
+  if (!filtro || filtro.tipo === 'todos') return 'todos';
+  if (filtro.tipo === 'foco') return `foco:${filtro.tokenId}`;
+  const grupos = filtro.grupos
+    ? Object.entries(filtro.grupos).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join(',')
+    : '';
+  return `ind:${minhasFichas?.join(',') ?? ''}:${grupos}`;
+}
+
 /** O que uma peça de jogador enxerga: um polígono por peça (paredes, portas fechadas, janelas e objetos que bloqueiam visão recortam; portas abertas e arcos deixam ver), limitado ao raio de visão. */
-export function poligonosDeVisao(m: MapaAtlas): number[][] {
+export function poligonosDeVisao(
+  m: MapaAtlas,
+  filtro?: FiltroDeVisao | null,
+  minhasFichas?: readonly string[] | null,
+): number[][] {
   // Quem pergunta várias vezes sobre o mesmo documento (névoa, telhados, explorado) paga uma vez: o resultado vale enquanto o que importa não mudar.
   const modoMemoria = m.memory?.mode;
+  const chaveFiltro = chaveFiltroDeVisao(filtro, minhasFichas);
   if (
     guardado &&
     guardado.tokens === m.tokens &&
@@ -67,11 +116,12 @@ export function poligonosDeVisao(m: MapaAtlas): number[][] {
     guardado.props === m.props &&
     guardado.lights === m.lights &&
     guardado.modoMemoria === modoMemoria &&
-    guardado.revealed === m.session.revealed
+    guardado.revealed === m.session.revealed &&
+    guardado.chaveFiltro === chaveFiltro
   ) {
     return guardado.poligonos;
   }
-  const poligonos = calcularPoligonos(m);
+  const poligonos = calcularPoligonos(m, filtro, minhasFichas);
   guardado = {
     tokens: m.tokens,
     walls: m.walls,
@@ -80,6 +130,7 @@ export function poligonosDeVisao(m: MapaAtlas): number[][] {
     lights: m.lights,
     modoMemoria,
     revealed: m.session.revealed,
+    chaveFiltro,
     poligonos,
   };
   return poligonos;
@@ -92,6 +143,7 @@ let guardado: {
   lights: MapaAtlas['lights'];
   modoMemoria: MapaAtlas['memory']['mode'];
   revealed: MapaAtlas['session']['revealed'];
+  chaveFiltro: string;
   poligonos: number[][];
 } | null = null;
 
@@ -113,7 +165,11 @@ function assinaturaDe(segs: readonly { a: Ponto; b: Ponto }[]): string {
   return `${segs.length}:${h1 >>> 0}:${h2 >>> 0}`;
 }
 
-function calcularPoligonos(m: MapaAtlas): number[][] {
+function calcularPoligonos(
+  m: MapaAtlas,
+  filtro?: FiltroDeVisao | null,
+  minhasFichas?: readonly string[] | null,
+): number[][] {
   const aberturas = Object.values(m.openings).some(a => secretaOculta(m, a) && a.state !== 'closed')
     ? Object.fromEntries(Object.entries(m.openings).map(([id, a]) => [id, secretaOculta(m, a) ? { ...a, state: 'closed' as const } : a]))
     : m.openings;
@@ -133,8 +189,8 @@ function calcularPoligonos(m: MapaAtlas): number[][] {
   let indiceParedes: IndiceDeSegmentos | null = null;
   const saida: number[][] = [];
   const vivos = new Set<string>();
-  for (const t of Object.values(m.tokens)) {
-    if (!t.player || t.vision.radius <= 0) continue;
+  for (const t of tokensDeVisaoAtivos(m, filtro, minhasFichas)) {
+    if (t.vision.radius <= 0) continue;
     const x = t.position[0], y = t.position[1], r = t.vision.radius;
     const p: Ponto = [x, y];
     const nivel = t.levelId ?? null;
@@ -197,7 +253,12 @@ export function celulasDosPoligonos(m: Pick<MapaAtlas, 'bounds'>, poligonos: rea
 }
 
 /** Tudo o que as peças de jogador veem agora, como células do explorado. */
-export const celulasVisiveis = (m: MapaAtlas, res = RES_NEVOA): Faixa[] => celulasDosPoligonos(m, poligonosDeVisao(m), res);
+export const celulasVisiveis = (
+  m: MapaAtlas,
+  res = RES_NEVOA,
+  filtro?: FiltroDeVisao | null,
+  minhasFichas?: readonly string[] | null,
+): Faixa[] => celulasDosPoligonos(m, poligonosDeVisao(m, filtro, minhasFichas), res);
 
 function pontoEmPoligonoPlano(x: number, y: number, pts: readonly number[]): boolean {
   let dentro = false;
@@ -210,8 +271,14 @@ function pontoEmPoligonoPlano(x: number, y: number, pts: readonly number[]): boo
 }
 
 /** Verifica diretamente se `ponto` (ou sua borda de raio `margem`) está dentro de algum polígono de visão ativa das peças de jogador. */
-export function pontoVisivelAgora(m: MapaAtlas, ponto: Ponto, margem = 0.25): boolean {
-  const poligonos = poligonosDeVisao(m);
+export function pontoVisivelAgora(
+  m: MapaAtlas,
+  ponto: Ponto,
+  margem = 0.25,
+  filtro?: FiltroDeVisao | null,
+  minhasFichas?: readonly string[] | null,
+): boolean {
+  const poligonos = poligonosDeVisao(m, filtro, minhasFichas);
   if (!poligonos.length) return false;
   const emAlgum = (x: number, y: number) => poligonos.some(pts => pontoEmPoligonoPlano(x, y, pts));
   const [x, y] = ponto;
@@ -270,10 +337,14 @@ export function exploradoAgora(m: MapaAtlas, jaViam: readonly Faixa[] = []): Non
  * Os cômodos que os jogadores conhecem: algum pedaço deles, ou o que está logo fora das suas paredes, está à vista agora ou já foi explorado.
  * (De fora de uma casa vê-se a parede por fora, não o interior: é o bastante para o telhado aparecer.)
  */
-export function comodosConhecidos(m: MapaAtlas): Set<string> {
+export function comodosConhecidos(
+  m: MapaAtlas,
+  filtro?: FiltroDeVisao | null,
+  minhasFichas?: readonly string[] | null,
+): Set<string> {
   const res = m.session.explored?.res ?? RES_NEVOA, t = m.grid.size, [ox, oy] = m.grid.offset, saida = new Set<string>();
   const linhas = new Map<number, [number, number][]>();
-  for (const [y, x0, n] of [...celulasVisiveis(m, res), ...celulasExploradas(m)]) { const l = linhas.get(y) ?? []; l.push([x0, x0 + n]); linhas.set(y, l); }
+  for (const [y, x0, n] of [...celulasVisiveis(m, res, filtro, minhasFichas), ...celulasExploradas(m)]) { const l = linhas.get(y) ?? []; l.push([x0, x0 + n]); linhas.set(y, l); }
   const visto = (x: number, y: number) => { const i = Math.floor(x / res), l = linhas.get(Math.floor(y / res)); return !!l && l.some(([a, b]) => i >= a && i < b); };
   for (const sala of Object.values(m.rooms)) {
     for (const [cx, cy] of decodificar(sala.cells)) {

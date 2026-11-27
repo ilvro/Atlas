@@ -285,3 +285,23 @@ test('remota: edifício multi-cômodo com telhado preserva todo o edifício cone
     assert.ok(!json.includes(segredo), `vazou segredo: ${segredo}`);
   }
 });
+
+test('remota: filtro de visão foco oculta NPCs visíveis apenas para outro personagem', () => {
+  const m = criarMapa({ id: 'foco-remoto', nome: 'Taverna', largura: 30, altura: 20 });
+  m.walls.div = { id: 'div', kind: 'wall', path: [[15, 0], [15, 20]], height: 2.8, thickness: 0.2, material: 'parede.reboco', blocks: { sight: true, move: true, light: true }, drop: null, source: null, levelId: null };
+  m.session.explored = { res: 0.5, cells: retangulo(0, 0, 60, 40) };
+  m.tokens = {
+    rowan: { ...novaPeca([5, 10]), id: 'rowan', name: 'Rowan', player: true, vision: { radius: 8, dark: false } },
+    muirenn: { ...novaPeca([22, 10]), id: 'muirenn', name: 'Muirenn', player: true, vision: { radius: 8, dark: false } },
+    npcRowan: { ...novaPeca([8, 10]), id: 'npcRowan', name: 'Bandido', player: false, vision: { radius: 0, dark: false } },
+    npcMuirenn: { ...novaPeca([25, 10]), id: 'npcMuirenn', name: 'Guarda', player: false, vision: { radius: 0, dark: false } },
+  };
+
+  const focoMuirenn = projetarParaRemoto(m, null, { tipo: 'foco', tokenId: 'muirenn' });
+  assert.equal(focoMuirenn.tokens.npcRowan, undefined, 'NPC visto só por Rowan não vaza no foco de Muirenn');
+  assert.ok(focoMuirenn.tokens.npcMuirenn, 'NPC visto por Muirenn aparece');
+
+  const individual = projetarParaRemoto(m, null, { tipo: 'individual', grupos: {} });
+  assert.ok(individual.tokens.npcRowan, 'no modo individual, estado geral mantém NPCs visíveis para filtragem local');
+  assert.ok(individual.tokens.npcMuirenn);
+});

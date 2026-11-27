@@ -6,6 +6,7 @@ import type { MapaAtlas, Peca } from '../domain/mapa.ts';
 import { caixaDaSelecao } from '../render/selecao.ts';
 import { servicos, sessao, viewport } from './app.ts';
 import { ajustarRecursosDaPeca, recursosDaPeca, recursosDasFichas, type AjusteRecursoPatch } from './fichas.ts';
+import { definirControleJogadores, definirMovimentoLivre } from './modo.ts';
 import type { SessaoDeEdicao } from './sessao.ts';
 
 export const CANAL_COMBATE = 'atlas:combate';
@@ -135,6 +136,8 @@ export function executarComandoDeIniciativa(
       if (!entradas.length) return false;
       try {
         s.store.executar({ tipo: 'iniciativa.iniciar', entradas }, { rotulo: 'Começar a iniciativa' });
+        definirControleJogadores('livres');
+        definirMovimentoLivre(false);
         return true;
       } catch {
         return false;

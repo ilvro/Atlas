@@ -23,7 +23,7 @@ import { criarComposicaoDeLuz } from './composicao-de-luz.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import { FATOR_DE_MOVIMENTO_REDUZIDO } from './particulas-config.ts';
 import { criarNevoa, type Vista } from './nevoa.ts';
-import { objetoDinamicoDeVisao, pontoVisivelAgora, secretaOculta } from '../domain/nevoa.ts';
+import { objetoDinamicoDeVisao, pontoVisivelAgora, secretaOculta, tokensDeVisaoAtivos, type FiltroDeVisao } from '../domain/nevoa.ts';
 import { criarNeblina } from './neblina.ts';
 import { criarBordas } from './bordas.ts';
 import { criarHalos } from './halos.ts';
@@ -84,6 +84,7 @@ export interface Cena {
   diagnosticoDosTelhados(): ReturnType<ReturnType<typeof criarTelhados>['diagnostico']>;
   /** Pelos olhos de quem se vê o mapa: Construir e mestre veem tudo; os jogadores só o que as suas peças enxergam, com os telhados fechados. */
   definirVista(v: Vista): void;
+  definirFiltroDeVisao?(filtro: FiltroDeVisao | null, minhasFichas?: readonly string[] | null): void;
   /** Força a opacidade dos telhados visíveis no mapa (ex.: captura na vista de telhados); `null` volta ao cálculo normal. */
   forcarTelhados(alfa: number | null): void;
   /** No modo Construir, mostra os telhados (das casas com telhado visível) em vez de escondê-los. */
@@ -124,6 +125,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
   raiz.addChild(mundoIluminado, composicaoDeLuz.sprite, luz.sprite, presenca.acima, halos.raiz, fumaca.raiz, neblina.raiz, particulas.raiz, bordas.raiz, regioesC, luzesC, marcasG, telhados.fachadaRaiz, pecasC, telhados.raiz, nevoa.sprite, tituloC);
 
   let mapa: MapaAtlas | null = null, vistaDaCena: Vista = 'construir', destruida = false, pintandoAgora = 0, ultimoQuadro = -1;
+  let filtroVisao: FiltroDeVisao | null = null, minhasFichas: readonly string[] | null = null;
   let ultimoContextoAndar: ContextoDoAndar | null = null, atmosferaLigada = true, ehPixel = false;
   const atualizarComposicaoDeLuz = () => {
     const ativo = atmosferaLigada && !ehPixel;
@@ -664,7 +666,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
         e.c.visible = true;
         continue;
       }
-      const alvo = pontoVisivelAgora(mapa, o.position, 0.25) ? baseAlpha : 0;
+      const alvo = pontoVisivelAgora(mapa, o.position, 0.25, filtroVisao, minhasFichas) ? baseAlpha : 0;
       if (imediato) {
         e.c.alpha = alvo;
       } else if (dtSeg > 0) {
@@ -688,7 +690,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       }
       const v = visuais.get(c);
       const pos: Ponto = [v?.c.x || c.x || t.position[0], v?.c.y || c.y || t.position[1]];
-      const alvo = pontoVisivelAgora(mapa, pos, t.size * mapa.grid.size * 0.35) ? 1 : 0;
+      const alvo = pontoVisivelAgora(mapa, pos, t.size * mapa.grid.size * 0.35, filtroVisao, minhasFichas) ? 1 : 0;
       if (imediato) {
         c.alpha = alvo;
       } else if (dtSeg > 0) {
@@ -867,6 +869,16 @@ export function criarCena(op: OpcoesDaCena): Cena {
     definirModoProjetor: ligado => { modoDoProjetor = ligado; marcasVisiveis(); luzesC.visible = !ligado; regioesC.visible = !ligado; if (mapa) { sincronizarObjetos(mapa, null, false); tempo.atualizar(mapa, objetos); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } atualizarLuzDasPecas(); atualizarVisibilidadeDasPecas(0, true); atualizarVisibilidadeDosObjetos(0, true); },
     definirEfeitosDeLuz: (luzes, ambiente) => luz.definirEfeitos(luzes, ambiente),
     definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); if (v !== vistaDaCena) { vistaDaCena = v; if (mapa) { desenharParedes(mapa); sincronizarObjetos(mapa, null, false); tempo.atualizar(mapa, objetos); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } } marcasVisiveis(); atualizarLuzDasPecas(); atualizarVisibilidadeDasPecas(0, true); atualizarVisibilidadeDosObjetos(0, true); },
+    definirFiltroDeVisao: (f, fichas) => {
+      filtroVisao = f ?? null;
+      minhasFichas = fichas ?? null;
+      nevoa.definirFiltroDeVisao?.(filtroVisao, minhasFichas);
+      telhados.definirFiltroDeVisao?.(filtroVisao, minhasFichas);
+      if (mapa) {
+        atualizarVisibilidadeDasPecas(0, true);
+        atualizarVisibilidadeDosObjetos(0, true);
+      }
+    },
     forcarTelhados: alfa => telhados.forcar(alfa),
     definirTelhadosNoEditor: v => telhados.definirNoEditor(v),
     diagnosticoDosTelhados: () => telhados.diagnostico(),
@@ -891,10 +903,11 @@ export function criarCena(op: OpcoesDaCena): Cena {
       }
       luz.quadro(agora, posicoesDeTokens);
       if (mapa) {
+        const ativos = new Set(tokensDeVisaoAtivos(mapa, filtroVisao, minhasFichas).map(t => t.id));
         for (const [id, c] of pecas) {
           const t = mapa.tokens[id];
           const v = visuais.get(c);
-          if (!t?.player || !v) continue;
+          if (!t || !ativos.has(id) || !v) continue;
           const pos: Ponto = [v.c.x, v.c.y];
           const deslizando = v.estado().deslizando;
           const luzToken = t.lightId ? mapa.lights[t.lightId] : undefined;

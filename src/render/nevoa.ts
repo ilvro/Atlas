@@ -2,7 +2,7 @@ import { BlurFilter, Container, Graphics, RenderTexture, Sprite, Texture, Unifor
 import { edificiosDe, jogadorDentroDoEdificio, type Edificio } from '../domain/edificios.ts';
 import type { MapaAtlas, Ponto } from '../domain/mapa.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
-import { RES_NEVOA, celulasExploradas, comodosConhecidos, edificioTocadoPorPoligonos, poligonosDeVisao } from '../domain/nevoa.ts';
+import { RES_NEVOA, celulasExploradas, comodosConhecidos, edificioTocadoPorPoligonos, poligonosDeVisao, tokensDeVisaoAtivos, type FiltroDeVisao } from '../domain/nevoa.ts';
 import { expandirContorno, retangulosDe, trechosDe } from '../domain/telhado-geometria.ts';
 import type { Mudancas } from '../state/mudancas.ts';
 import { criarFiltroDeMundo } from './filtro-de-mundo.ts';
@@ -34,12 +34,16 @@ export function modoDeMemoriaEfetivo(m: Pick<MapaAtlas, 'memory'>): 'darkwood' |
 }
 
 /** Edifícios com telhado atualmente fechado na vista dos jogadores (considerando `session.roofs` e tokens de jogador dentro). */
-export function edificiosFechadosNaNevoa(m: MapaAtlas): Edificio[] {
+export function edificiosFechadosNaNevoa(
+  m: MapaAtlas,
+  filtro?: FiltroDeVisao | null,
+  minhasFichas?: readonly string[] | null,
+): Edificio[] {
   const modoTelhados = m.session.roofs ?? 'auto';
   if (modoTelhados === 'abertos') return [];
   const todos = edificiosDe(m);
   if (modoTelhados === 'fechados') return todos;
-  const jogadores = Object.values(m.tokens).filter(p => p.player);
+  const jogadores = tokensDeVisaoAtivos(m, filtro, minhasFichas);
   return todos.filter(ed => !jogadorDentroDoEdificio(m, ed, jogadores));
 }
 
@@ -112,6 +116,7 @@ export interface Nevoa {
   sincronizar(m: MapaAtlas, mudancas: Mudancas | null): void;
   /** Mestre vê tudo; jogador vê só o que as suas peças enxergam. */
   definirVista(v: Vista): void;
+  definirFiltroDeVisao?(filtro: FiltroDeVisao | null, minhasFichas?: readonly string[] | null): void;
   vista(): Vista;
   quadro(agora: number, posicoesVivas?: ReadonlyMap<string, { position: Ponto; direction?: number }>): void;
   destruir(): void;
@@ -155,6 +160,7 @@ export function criarNevoa(renderer: Renderer): Nevoa {
   raiz.visible = false;
   const rts: (RenderTexture | null)[] = [], rt = (i: number) => rts[i]!;
   let largura = 0, altura = 0, resAtual = 0, pixel = false, pw = 0, ph = 0, mapa: MapaAtlas | null = null, vista: Vista = 'mestre', sujo = true, destruido = false;
+  let filtroVisao: FiltroDeVisao | null = null, minhasFichas: readonly string[] | null = null;
   let mudouEm = 0, animando = false, assentar = true, ultimo = -1, u = 7, d = 9, vivasAtivas = false, tempo = 0;
 
   function atualizarFora(m: MapaAtlas): void {
@@ -207,8 +213,8 @@ export function criarNevoa(renderer: Renderer): Nevoa {
   /** As máscaras que só mudam quando o mundo muda: visível (alvo), explorado, e a memória onde há explorado. */
   function renderizarMascaras(): void {
     const m = mapa; if (!m || !rts.length) return;
-    const poligonos = poligonosDeVisao(m);
-    const fechados = edificiosFechadosNaNevoa(m);
+    const poligonos = poligonosDeVisao(m, filtroVisao, minhasFichas);
+    const fechados = edificiosFechadosNaNevoa(m, filtroVisao, minhasFichas);
     desenharVisivelComTelhados(m, poligonos, fechados);
     const res = m.session.explored?.res ?? RES_NEVOA;
     const modo = modoDeMemoriaEfetivo(m);
@@ -217,7 +223,7 @@ export function criarNevoa(renderer: Renderer): Nevoa {
     expG.clear();
     for (const [y, x0, n] of faixasExp) expG.rect(x0 * res, y * res, n * res + 0.02, res + 0.02);
     if (fechados.length) {
-      const conhecidos = comodosConhecidos(m);
+      const conhecidos = comodosConhecidos(m, filtroVisao, minhasFichas);
       for (const ed of fechados) {
         if (ed.salas.some(id => conhecidos.has(id))) desenharEdificioNaMascara(expG, m, ed);
       }
@@ -257,8 +263,8 @@ export function criarNevoa(renderer: Renderer): Nevoa {
       }
       if (mudou) alvo = { ...m, tokens, lights };
     }
-    const poligonos = poligonosDeVisao(alvo);
-    desenharVisivelComTelhados(alvo, poligonos, edificiosFechadosNaNevoa(alvo));
+    const poligonos = poligonosDeVisao(alvo, filtroVisao, minhasFichas);
+    desenharVisivelComTelhados(alvo, poligonos, edificiosFechadosNaNevoa(alvo, filtroVisao, minhasFichas));
   }
 
   /** `destino = origem + (visível − origem) · a`: um passo de média móvel, entre duas texturas do par. */
@@ -291,6 +297,12 @@ export function criarNevoa(renderer: Renderer): Nevoa {
       if (tudo) assentar = true;
     },
     definirVista(v) { if (v === vista) return; vista = v; raiz.visible = v === 'jogador'; sujo = true; assentar = true; },
+    definirFiltroDeVisao(f, fichas) {
+      filtroVisao = f ?? null;
+      minhasFichas = fichas ?? null;
+      sujo = true;
+      assentar = true;
+    },
     vista: () => vista,
     quadro(agora, posicoesVivas) {
       if (destruido || vista !== 'jogador') { ultimo = -1; return; }

@@ -1792,8 +1792,14 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
 .dock-valor-ini input, .ini-valor { width: 52px; padding: 3px 6px; background: #0e0f17; border: 1px solid var(--linha-forte); border-radius: 6px; color: #fff; font: 700 12px var(--corpo); text-align: center; }
 .faixa-iniciativa { display: flex; align-items: stretch; gap: 8px; overflow-x: auto; padding: 4px 0; }
 .ini-rodada { align-self: center; font: 800 10px var(--corpo); letter-spacing: 0.14em; text-transform: uppercase; color: var(--acento); white-space: nowrap; }
-.ini-entrada { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 8px; border-radius: 10px; border: 2px solid transparent; background: var(--superficie-2); min-width: 68px; }
+.ini-entrada { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 8px; border-radius: 10px; border: 2px solid transparent; background: var(--superficie-2); min-width: 68px; }
 .ini-entrada.atual { border-color: #ffd23f; background: #22201a; box-shadow: 0 0 14px rgba(255, 210, 63, 0.35); }
+.ini-focar { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; display: grid; place-items: center; padding: 0; border: 1px solid var(--linha-forte); border-radius: 5px; background: rgba(14, 15, 23, 0.85); color: var(--texto); cursor: pointer; opacity: 0.75; }
+.ini-focar:hover { opacity: 1; border-color: var(--acento); color: var(--acento); }
+.dock-visao-grupos { display: flex; flex-direction: column; gap: 4px; }
+.dock-visao-grupo-linha { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dock-visao-grupo-nome { font: 600 12px var(--corpo); color: var(--texto); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dock-seletor-grupo { padding: 3px 6px; background: #0e0f17; border: 1px solid var(--linha-forte); border-radius: 6px; color: var(--texto); font: 600 11.5px var(--corpo); }
 .ini-retrato { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
 .ini-inicial { display: grid; place-items: center; background: #34364a; color: #fff; font: 800 18px var(--corpo); }
 .ini-nome { max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 11px var(--corpo); }

@@ -1,7 +1,7 @@
 import { mapaDoAndar } from './andares.ts';
 import { podar } from './iniciativa.ts';
 import type { MapaAtlas } from './mapa.ts';
-import { celulasExploradas, pontoVisivelAgora, RES_NEVOA, secretaOculta } from './nevoa.ts';
+import { celulasExploradas, pontoVisivelAgora, RES_NEVOA, secretaOculta, type FiltroDeVisao } from './nevoa.ts';
 
 /**
  * O que é do mestre e nunca vai para quem vê o mapa pelo projetor. Quem acrescentar um campo ao documento
@@ -18,7 +18,7 @@ import { celulasExploradas, pontoVisivelAgora, RES_NEVOA, secretaOculta } from '
 export const CAMPOS_DO_MESTRE = ['notes', 'comodosExtra', 'campanhaId', 'audioCue', 'climateAudio', 'customClimates', 'moments', 'regions.gmOnly', 'regions.payload', 'regions.refs', 'presence.gmOnly', 'openings.secret', 'props.oculto', 'tokens.foraDaVista', 'props.interaction.clue'] as const;
 
 /** O mapa que os jogadores podem ver em um dado andar (`null` = térreo). Pura: não muda `m`. */
-export function projetarParaJogadores(m: MapaAtlas, andar: string | null = null): MapaAtlas {
+export function projetarParaJogadores(m: MapaAtlas, andar: string | null = null, filtro?: FiltroDeVisao | null): MapaAtlas {
   const escopo = mapaDoAndar(m, andar, true);
   const p = structuredClone(escopo);
   const res = escopo.session.explored?.res ?? RES_NEVOA;
@@ -44,7 +44,7 @@ export function projetarParaJogadores(m: MapaAtlas, andar: string | null = null)
 
   // Quem os jogadores não veem agora não é enviado (nem a posição, nem a luz).
   for (const [id, t] of Object.entries(p.tokens)) {
-    if (t.player || pontoVisivelAgora(escopo, t.position, t.size * escopo.grid.size * 0.35)) continue;
+    if (t.player || pontoVisivelAgora(escopo, t.position, t.size * escopo.grid.size * 0.35, filtro)) continue;
     delete p.tokens[id];
     for (const [lid, l] of Object.entries(p.lights)) if (l.ownerId === id || lid === t.lightId) delete p.lights[lid];
   }

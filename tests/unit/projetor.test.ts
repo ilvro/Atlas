@@ -1003,3 +1003,48 @@ test('publicador: alternar-porta remoto só executa quando controleJogadores est
     pub.parar(); remoto.close(); sess.fechar();
   }
 });
+
+test('publicador: forcarCameraRemota funciona em Jogadores livres e filtroDeVisao envia visao-remota', async () => {
+  const { definirControleJogadores } = await import('../../src/app/modo.ts');
+  const { definirFiltroDeVisao, filtroDeVisao, forcarCameraRemota } = await import('../../src/app/projetor.ts');
+  const mapa = criarMapa({ id: 'mapa-pub-visao', nome: 'Praça' });
+  mapa.session.explored = { res: 0.5, cells: [[0, 0, 8]] };
+  const sess = criarSessao(mapa, criarRepoMock({ [mapa.id]: mapa }), { salvo: true });
+  sess.store.executar({
+    tipo: 'item.adicionar',
+    colecao: 'tokens',
+    item: {
+      id: 'p1', name: 'Rowan', position: [5, 5], size: 1, facing: 'down',
+      portrait: null, sprite: null, player: true, vision: { radius: 10, dark: false },
+      lightId: null, figure: { state: 'normal' }, refs: [], hp: null,
+    },
+  });
+  definirControleJogadores('livres');
+  definirFiltroDeVisao({ tipo: 'todos' });
+  const pub = iniciarPublicacao(sess, async () => null);
+  const remoto = new BroadcastChannel(CANAL_PROJETOR_REMOTO);
+  const msgs: any[] = [];
+  remoto.onmessage = e => msgs.push(e.data);
+  try {
+    remoto.postMessage({ tipo: 'ola', largura: 1280, altura: 720, _seq: 1 });
+    await esperar(80);
+    const visaoInicial = msgs.find(m => m.tipo === 'visao-remota');
+    assert.deepEqual(visaoInicial?.filtro, { tipo: 'todos' });
+
+    msgs.length = 0;
+    forcarCameraRemota();
+    await esperar(50);
+    const camForcada = msgs.find(m => m.tipo === 'camera' && m.forcar === true);
+    assert.ok(camForcada, 'forcarCameraRemota envia camera com forcar: true mesmo em Jogadores livres');
+
+    msgs.length = 0;
+    definirFiltroDeVisao({ tipo: 'foco', tokenId: 'p1' });
+    await esperar(50);
+    const visaoFoco = msgs.find(m => m.tipo === 'visao-remota');
+    assert.deepEqual(visaoFoco?.filtro, { tipo: 'foco', tokenId: 'p1' });
+  } finally {
+    definirFiltroDeVisao({ tipo: 'todos' });
+    definirControleJogadores('livres');
+    pub.parar(); remoto.close(); sess.fechar();
+  }
+});
