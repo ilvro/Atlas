@@ -35,11 +35,12 @@ Conteúdo:
 Pronto quando: as três seções aparecem em `plataforma_guia`, o `mapas.md` aponta para elas, e o Opus testa com o Claude do app pedindo "uma vila de montanha nevada" e "a ponte de comando de um cargueiro espacial", comparando com o resultado antigo.
 Nota: o repertório virou duas seções (`lugares` para exteriores e `interiores`), para cada uma ficar abaixo de 6 KB. Todos os ids citados foram conferidos por script contra o catálogo. Falta o teste com o Claude do app (o mestre roda; o guia é lido na partida do servidor MCP até a B3, então reinicie o app do Claude antes).
 
-### C2 — O guia ensina as ferramentas e o motor novos  ⬜ **[Opus]**
+### C2 — O guia ensina as ferramentas e o motor novos  ✅ **[Opus]**
 Depende de: D, E, F, G e H prontos (ou cada um, à medida que ficar pronto).
 Arquivos: `projetar.md`, `lugares.md`, `mapas.md`, `ferramentas-atlas.md`.
 Conteúdo: `atlas_edificio`, `atlas_mobiliar`, `atlas_caminho` e `atlas_arranjo` dentro do método (o passo 4 vira "edifício por programa"); patamares no passo 3; cômodos redondos e andares no repertório (torre, farol, moinho, mansão de dois andares, deques de nave). Exemplos completos de chamadas para um lugar pequeno de cada tipo.
 Pronto quando: o guia não menciona nenhum contorno manual que uma ferramenta nova resolve melhor.
+Nota (conferida em 2026-11-21): `mapas.md`, `ferramentas-atlas.md`, `projetar.md`, `referencias.md` e `nucleo.md` já documentam `atlas_edificio`, `atlas_mobiliar`, `atlas_caminho`, `atlas_arranjo`, `atlas_revisar`, `vista: "telhados"` e `atlas_andares`.
 
 ### C3 — Núcleo enxuto atualizado  ✅ **[Opus]**
 Depende de: C1.
