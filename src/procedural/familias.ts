@@ -171,10 +171,11 @@ export const FAMILIAS: readonly Familia[] = [
   f('construcao', 'pilar', 'Pilar', ['pilar', 'coluna-arruinada', 'coluna-caida']),
   f('construcao', 'coluna-classica', 'Coluna clássica', ['coluna.dorica', 'coluna.jonica', 'coluna.corintia'], { generos: ['antiguidade', 'fantasia'] }),
   f('construcao', 'ruina-classica', 'Ruína clássica', ['coluna-classica.caida', 'frontao-caido'], { generos: ['antiguidade', 'fantasia'] }),
-  f('construcao', 'cerca', 'Cerca', ['cerca', 'palicada']),
+  f('construcao', 'cerca', 'Cerca', ['cerca', 'cerca-de-tabuas', 'palicada']),
   f('construcao', 'muralha', 'Muro e muralha', ['mureta-de-pedra', 'balaustrada', 'muralha-em-degraus', 'estrutura.muralha']),
   f('construcao', 'grade', 'Grade e portão', ['grade.ferro', 'portao.ferro', 'cela-de-xerife', 'arco-de-pedra']),
   f('construcao', 'porta-de-vaivem', 'Porta de vaivém', ['porta-de-vaivem'], { generos: ['faroeste', 'fantasia'] }),
+  f('construcao', 'caixa-dagua', "Caixa-d'água e cata-vento", ['cata-vento', 'caixa-dagua-de-ferrovia'], { generos: ['faroeste', 'fantasia'] }),
   f('construcao', 'plataforma', 'Plataforma', ['tablado', 'estrutura.estrado', 'estrutura.plataforma', 'andaime', 'arquibancada']),
   f('construcao', 'escombros', 'Escombros', ['escombros', 'viga-partida', 'tabua-solta']),
   f('construcao', 'laje', 'Piso especial', ['laje-de-pedra', 'roseta-de-calcamento', 'circulo-runico', 'fosso-de-luz']),
@@ -212,11 +213,12 @@ export const FAMILIAS: readonly Familia[] = [
   f('oficio', 'aquila', 'Estandarte romano', ['aquila'], { generos: ['antiguidade'] }),
   f('oficio', 'armas-orientais', 'Espadas e armadura orientais', ['suporte-de-espadas', 'armadura-oriental'], { generos: ['oriental', 'fantasia'] }),
   // Campo e estrada
-  f('campo', 'carroca', 'Carroça', ['carroca', 'carroca-de-feno', 'carroca-tombada', 'carrinho-de-mao', 'carrinho-de-carga', 'treno']),
+  f('campo', 'carroca', 'Carroça', ['carroca', 'carroca-coberta', 'diligencia', 'carroca-de-feno', 'carroca-tombada', 'carrinho-de-mao', 'carrinho-de-carga', 'treno']),
   f('campo', 'biga', 'Carro de guerra', ['biga'], { generos: ['antiguidade', 'fantasia'] }),
   f('campo', 'cavalo', 'Animal', ['cavalo', 'camelo', 'galinheiro']),
   f('campo', 'feno', 'Feno', ['fardo-de-feno', 'monte-de-palha', 'pilha-de-lenha']),
-  f('campo', 'poco', 'Poço', ['poco', 'poco.oasis', 'bebedouro']),
+  f('campo', 'poco', 'Poço', ['poco', 'poco.oasis', 'bomba-de-manivela', 'bebedouro']),
+  f('campo', 'ferrovia', 'Ferrovia', ['trilho', 'vagao', 'locomotiva'], { generos: ['faroeste', 'fantasia'] }),
   f('campo', 'varal', 'Varal', ['varal']),
   f('campo', 'plantacao', 'Plantação', ['plantacao.arroz', 'plantacao.trigo', 'plantacao.milho']),
   f('campo', 'espantalho', 'Espantalho', ['espantalho']),
@@ -227,7 +229,7 @@ export const FAMILIAS: readonly Familia[] = [
   // Porto
   f('porto', 'barco', 'Barco', ['barco-a-remo', 'barco-de-vela', 'bote-com-carga', 'barcaca', 'navio']),
   f('porto', 'cais', 'Cais', ['cais-segmento', 'guindaste-de-cais']),
-  f('porto', 'estaca', 'Estaca de amarração', ['estaca', 'poste-de-amarracao']),
+  f('porto', 'estaca', 'Estaca de amarração', ['estaca', 'poste-de-amarracao', 'poste-de-amarrar']),
   f('porto', 'rede-de-pesca', 'Corda e âncora', ['rede-de-pesca', 'rolo-de-corda', 'ancora']),
   // Moderno
   f('moderno', 'geladeira', 'Eletrodoméstico', ['geladeira', 'fogao'], { generos: ['moderno'] }),
@@ -245,7 +247,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('ficcao', 'criotubo', 'Criotubo', ['criotubo'], { generos: ['ficcao-cientifica', 'cyberpunk'] }),
   f('ficcao', 'tubulacao', 'Tubulação', ['tubulacao', 'cabos', 'grade.ventilacao'], { generos: ['ficcao-cientifica', 'cyberpunk'] }),
   // Ossos e restos
-  f('ossos', 'ossada', 'Ossada', ['ossada', 'ossada-de-camelo', 'pilha-de-ossos', 'cranio-animal']),
+  f('ossos', 'ossada', 'Ossada', ['ossada', 'ossada-de-camelo', 'pilha-de-ossos', 'cranio-animal', 'cranio-de-boi']),
   f('ossos', 'peles', 'Peles', ['pilha-de-peles']),
 ];
 
