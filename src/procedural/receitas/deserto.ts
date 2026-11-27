@@ -12,10 +12,10 @@ import { costela, cranio, osso } from './caverna.ts';
 // em degraus de tom para o noroeste, `z` das partes até 1,5 m e a `altura` real na receita (para a sombra do sol).
 
 const PELO_DE_CABRA: Tons = { nanquim: '#070504', sombra: '#14100c', base: '#221c16', meio: '#2c241c', luz: '#3c3228', brilho: '#5e5244' };
-const LATAO: Tons = { nanquim: '#241806', sombra: '#6a4c16', base: '#946e26', meio: '#ad8532', luz: '#c89e46', brilho: '#ead07c' };
+export const LATAO: Tons = { nanquim: '#241806', sombra: '#6a4c16', base: '#946e26', meio: '#ad8532', luz: '#c89e46', brilho: '#ead07c' };
 const BARRO: Tons = { nanquim: '#2a160a', sombra: '#7a4a2a', base: '#a2663a', meio: '#b67a48', luz: '#ca9260', brilho: '#e2b486' };
 const ADOBE: Tons = { nanquim: '#2a1c10', sombra: '#806040', base: '#a88458', meio: '#ba966a', luz: '#cca87c', brilho: '#e0c49a' };
-const PRATA: Tons = { nanquim: '#161618', sombra: '#5a5c62', base: '#80848a', meio: '#989ca2', luz: '#b4b8be', brilho: '#e0e4e8' };
+export const PRATA: Tons = { nanquim: '#161618', sombra: '#5a5c62', base: '#80848a', meio: '#989ca2', luz: '#b4b8be', brilho: '#e0e4e8' };
 const PALHA = '#b89a5a', CORDA = '#a8946a', CREME = '#e2d4b4', AREIA = '#c9a874';
 
 /** Paletas de kilim: [fundo, motivo principal, claro, segundo motivo, escuro]. */
