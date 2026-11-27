@@ -28,7 +28,7 @@ import {
   type Peca,
   type Ponto,
 } from '../domain/mapa.ts';
-import { comodosConhecidos } from '../domain/nevoa.ts';
+import { comodosConhecidos, edificioTocadoPorPoligonos, poligonosDeVisao } from '../domain/nevoa.ts';
 import { elevacaoDaLua, elevacaoDoSol, sombraDoSol } from '../domain/sol.ts';
 import { aguasDoTrecho, expandirContorno, formaDe, retangulosDe, trechosDe } from '../domain/telhado-geometria.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
@@ -1013,10 +1013,11 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
     const m = mapa; if (!m) return;
     // Um telhado que ninguém viu continua escondido: só se mostra o de uma casa de que algum pedaço está à vista ou explorado.
     const conhecidos = vista === 'jogador' && edificios.size ? comodosConhecidos(m) : null;
+    const poligonos = vista === 'jogador' && edificios.size ? poligonosDeVisao(m) : null;
     const jogadores = Object.values(m.tokens).filter(p => p.player);
     for (const d of edificios.values()) {
       d.dentro = jogadorDentroDoEdificio(m, d.ed, jogadores);
-      d.conhecido = !conhecidos || d.ed.salas.some(id => conhecidos.has(id));
+      d.conhecido = !conhecidos || d.ed.salas.some(id => conhecidos.has(id)) || (poligonos !== null && edificioTocadoPorPoligonos(m, d.ed, poligonos));
       d.visivelNoMapa = d.ed.salas.some(id => m.rooms[id]?.roof.visible);
       d.alvo = alvoDe(d);
       if (imediato || forcado !== null || movimentoReduzido()) {

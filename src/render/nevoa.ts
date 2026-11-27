@@ -2,13 +2,17 @@ import { BlurFilter, Container, Graphics, RenderTexture, Sprite, Texture, Unifor
 import { edificiosDe, jogadorDentroDoEdificio, type Edificio } from '../domain/edificios.ts';
 import type { MapaAtlas, Ponto } from '../domain/mapa.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
-import { RES_NEVOA, celulasExploradas, comodosConhecidos, poligonosDeVisao } from '../domain/nevoa.ts';
+import { RES_NEVOA, celulasExploradas, comodosConhecidos, edificioTocadoPorPoligonos, poligonosDeVisao } from '../domain/nevoa.ts';
 import { expandirContorno, retangulosDe, trechosDe } from '../domain/telhado-geometria.ts';
 import type { Mudancas } from '../state/mudancas.ts';
-import { hexParaNumero } from './cores.ts';
 import { criarFiltroDeMundo } from './filtro-de-mundo.ts';
 import { resDaMemoria } from './memoria.ts';
 import { criarFiltroDeDitherDeAlfa } from './pixelizar.ts';
+
+export { edificioTocadoPorPoligonos } from '../domain/nevoa.ts';
+
+/** Cor escura neutra usada no lugar do não explorado (`fundoG` e `foraG`), nos modos `darkwood` e `shroud`, independente de `m.backdrop.color`. */
+export const COR_NAO_EXPLORADO = 0x07090e;
 
 /** Pelos olhos de quem se vê o mapa: Construir (tudo, sem telhado), o mestre na sessão (tudo, telhado esmaecido) ou os jogadores (névoa e telhado). */
 export type Vista = 'construir' | 'mestre' | 'jogador';
@@ -37,49 +41,6 @@ export function edificiosFechadosNaNevoa(m: MapaAtlas): Edificio[] {
   if (modoTelhados === 'fechados') return todos;
   const jogadores = Object.values(m.tokens).filter(p => p.player);
   return todos.filter(ed => !jogadorDentroDoEdificio(m, ed, jogadores));
-}
-
-function pontoEmPoligono(x: number, y: number, pts: readonly number[]): boolean {
-  let dentro = false;
-  for (let i = 0, j = pts.length - 2; i < pts.length; j = i, i += 2) {
-    const xi = pts[i]!, yi = pts[i + 1]!;
-    const xj = pts[j]!, yj = pts[j + 1]!;
-    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) dentro = !dentro;
-  }
-  return dentro;
-}
-
-/** Indica se alguma célula (ou borda externa de parede) do edifício está tocada por algum polígono de visão ativa. */
-export function edificioTocadoPorPoligonos(
-  m: Pick<MapaAtlas, 'grid'>,
-  ed: Pick<Edificio, 'celulas'>,
-  poligonos: readonly (readonly number[])[],
-): boolean {
-  if (!poligonos.length || !ed.celulas.length) return false;
-  const caixas = poligonos.map(pts => {
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (let i = 0; i < pts.length; i += 2) {
-      const px = pts[i]!, py = pts[i + 1]!;
-      if (px < x0) x0 = px;
-      if (py < y0) y0 = py;
-      if (px > x1) x1 = px;
-      if (py > y1) y1 = py;
-    }
-    return { pts, x0, y0, x1, y1 };
-  });
-  const t = m.grid.size, [ox, oy] = m.grid.offset, f = t / 2 + 0.3;
-  const visto = (x: number, y: number): boolean => {
-    for (const c of caixas) {
-      if (x < c.x0 || x > c.x1 || y < c.y0 || y > c.y1) continue;
-      if (pontoEmPoligono(x, y, c.pts)) return true;
-    }
-    return false;
-  };
-  for (const [cx, cy] of ed.celulas) {
-    const x = ox + (cx + 0.5) * t, y = oy + (cy + 0.5) * t;
-    if (visto(x, y) || visto(x - f, y) || visto(x + f, y) || visto(x, y - f) || visto(x, y + f)) return true;
-  }
-  return false;
 }
 
 function desenharEdificioNaMascara(g: Graphics, m: MapaAtlas, ed: Edificio): void {
@@ -200,7 +161,7 @@ export function criarNevoa(renderer: Renderer): Nevoa {
     const w = m.bounds.width, h = m.bounds.height;
     foraG.clear()
       .rect(-MARGEM_EXTERNA, -MARGEM_EXTERNA, w + MARGEM_EXTERNA * 2, h + MARGEM_EXTERNA * 2)
-      .fill(hexParaNumero(m.backdrop.color))
+      .fill(COR_NAO_EXPLORADO)
       .rect(0, 0, w, h)
       .cut();
   }
@@ -268,7 +229,7 @@ export function criarNevoa(renderer: Renderer): Nevoa {
     if (darkwood) memEscuro.clear().rect(0, 0, pw, ph).fill({ color: 0x080b12, alpha: pixel ? 0.72 : 0.42 });
     else memEscuro.clear().rect(0, 0, pw, ph).fill({ color: 0x000000, alpha: 0.65 });
     desenhar(memC, rt(5)); fimExp.visible = true;
-    fundoG.clear().rect(0, 0, pw, ph).fill(hexParaNumero(m.backdrop.color));
+    fundoG.clear().rect(0, 0, pw, ph).fill(COR_NAO_EXPLORADO);
     atualizarFora(m);
   }
 

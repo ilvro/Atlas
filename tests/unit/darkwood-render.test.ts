@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { aplicarPenumbraDarkwood } from '../../src/render/composicao-de-luz.ts';
-import { edificiosFechadosNaNevoa, edificioTocadoPorPoligonos, modoDeMemoriaEfetivo } from '../../src/render/nevoa.ts';
+import { COR_NAO_EXPLORADO, edificiosFechadosNaNevoa, edificioTocadoPorPoligonos, modoDeMemoriaEfetivo } from '../../src/render/nevoa.ts';
 import { alvoDoTelhado } from '../../src/render/telhados.ts';
 import { codificar } from '../../src/domain/celulas.ts';
 import { novaPeca } from '../../src/domain/fabrica.ts';
@@ -111,4 +111,12 @@ test('edificiosFechadosNaNevoa e edificioTocadoPorPoligonos acompanham jogador f
   assert.equal(edificiosFechadosNaNevoa(m).length, 1);
   m.session.roofs = 'abertos';
   assert.equal(edificiosFechadosNaNevoa(m).length, 0);
+});
+
+test('COR_NAO_EXPLORADO usa breu neutro escuro independente de backdrop.color', () => {
+  assert.equal(COR_NAO_EXPLORADO, 0x07090e);
+  const r = (COR_NAO_EXPLORADO >> 16) & 255;
+  const g = (COR_NAO_EXPLORADO >> 8) & 255;
+  const b = COR_NAO_EXPLORADO & 255;
+  assert.ok(r < 24 && g < 24 && b < 24, `cor escura neutra esperada, obtido RGB(${r},${g},${b})`);
 });

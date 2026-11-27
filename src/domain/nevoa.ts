@@ -1,5 +1,6 @@
 import { ACERVO } from '../procedural/acervo.ts';
 import { codificar, decodificar, unir, type Faixa } from './celulas.ts';
+import type { Edificio } from './edificios.ts';
 import type { Abertura, MapaAtlas, ModoDeVisao, Objeto, Peca, Ponto, Sessao } from './mapa.ts';
 import { IndiceDeSegmentos, oclusores, oclusoresDeObjetos, poligonoDeVisaoDarkwood, poligonoIluminado, segmentosParaFonte } from './visibilidade.ts';
 
@@ -281,4 +282,37 @@ export function comodosConhecidos(m: MapaAtlas): Set<string> {
     }
   }
   return saida;
+}
+
+/** Indica se alguma célula (ou borda externa de parede) do edifício está tocada por algum polígono de visão ativa. */
+export function edificioTocadoPorPoligonos(
+  m: Pick<MapaAtlas, 'grid'>,
+  ed: Pick<Edificio, 'celulas'>,
+  poligonos: readonly (readonly number[])[],
+): boolean {
+  if (!poligonos.length || !ed.celulas.length) return false;
+  const caixas = poligonos.map(pts => {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let i = 0; i < pts.length; i += 2) {
+      const px = pts[i]!, py = pts[i + 1]!;
+      if (px < x0) x0 = px;
+      if (py < y0) y0 = py;
+      if (px > x1) x1 = px;
+      if (py > y1) y1 = py;
+    }
+    return { pts, x0, y0, x1, y1 };
+  });
+  const t = m.grid.size, [ox, oy] = m.grid.offset, f = t / 2 + 0.3;
+  const visto = (x: number, y: number): boolean => {
+    for (const c of caixas) {
+      if (x < c.x0 || x > c.x1 || y < c.y0 || y > c.y1) continue;
+      if (pontoEmPoligonoPlano(x, y, c.pts)) return true;
+    }
+    return false;
+  };
+  for (const [cx, cy] of ed.celulas) {
+    const x = ox + (cx + 0.5) * t, y = oy + (cy + 0.5) * t;
+    if (visto(x, y) || visto(x - f, y) || visto(x + f, y) || visto(x, y - f) || visto(x, y + f)) return true;
+  }
+  return false;
 }

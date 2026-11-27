@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { pecasDoJogador, projetarParaRemoto } from '../../src/domain/projecao-remota.ts';
 import { projetarParaJogadores } from '../../src/domain/projecao.ts';
+import { edificiosDe } from '../../src/domain/edificios.ts';
 import { decodificar, codificar } from '../../src/domain/celulas.ts';
 import { validarMapa } from '../../src/domain/validacao.ts';
 import { criarMapa, type MapaAtlas } from '../../src/domain/mapa.ts';
 import { celulasVisiveis, RES_NEVOA } from '../../src/domain/nevoa.ts';
+import { trechosDe } from '../../src/domain/telhado-geometria.ts';
 import { novaPeca } from '../../src/domain/fabrica.ts';
 
 const retangulo = (x0: number, y0: number, x1: number, y1: number) => { const cs: [number, number][] = []; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) cs.push([x, y]); return codificar(cs); };
@@ -126,7 +128,28 @@ test('remota: num mapa de exemplo com névoa parcial, nada fica fora da área', 
     for (const o of Object.values(p.props)) assert.ok(dentro(o.position[0], o.position[1]), `${f}: objeto ${o.id} fora`);
     for (const l of Object.values(p.lights)) assert.ok(dentro(l.position[0], l.position[1]), `${f}: luz ${l.id} fora`);
     const g = m.grid.size;
-    for (const r of Object.values(p.rooms)) for (const [x, y] of decodificar(r.cells)) assert.ok(dentro(m.grid.offset[0] + (x + 0.5) * g, m.grid.offset[1] + (y + 0.5) * g), `${f}: célula do cômodo ${r.id} fora`);
+    const edOriginalPorSala = new Map<string, ReturnType<typeof edificiosDe>[number]>();
+    for (const ed of edificiosDe(m)) for (const id of ed.salas) edOriginalPorSala.set(id, ed);
+    for (const r of Object.values(p.rooms)) {
+      const edOrig = edOriginalPorSala.get(r.id);
+      if (edOrig) {
+        // Edifício com telhado conhecido preserva as células estruturais inteiras (sem cortar o telhado em escada),
+        // mantendo o nome oculto e ao menos uma célula do edifício perto da área explorada/visível.
+        assert.deepEqual(r.cells, m.rooms[r.id]!.cells, `${f}: edifício com telhado ${r.id} preserva cells`);
+        assert.equal(r.name, 'Cômodo', `${f}: nome do cômodo ${r.id} continua oculto`);
+        assert.equal(r.function, null, `${f}: função do cômodo ${r.id} continua oculta`);
+        assert.ok(
+          edOrig.celulas.some(([cx, cy]) => {
+            const x = m.grid.offset[0] + (cx + 0.5) * g, y = m.grid.offset[1] + (cy + 0.5) * g;
+            const mg = g / 2 + 0.8;
+            return x >= x0 - mg && x <= x1 + mg && y >= y0 - mg && y <= y1 + mg;
+          }),
+          `${f}: edifício com telhado ${r.id} é realmente tocado pela área`,
+        );
+      } else {
+        for (const [x, y] of decodificar(r.cells)) assert.ok(dentro(m.grid.offset[0] + (x + 0.5) * g, m.grid.offset[1] + (y + 0.5) * g), `${f}: célula do cômodo ${r.id} fora`);
+      }
+    }
     for (const w of Object.values(p.walls)) for (const [x, y] of w.path) assert.ok(dentro(x, y), `${f}: parede ${w.id} fora`);
     const t = m.terrain.resolution;
     for (const c of Object.values(p.terrain.layers)) for (const [x, y] of decodificar(c.cells)) assert.ok(dentro((x + 0.5) * t, (y + 0.5) * t), `${f}: terreno ${c.id} fora`);
@@ -196,5 +219,69 @@ test('remota em modo darkwood recorta o nunca explorado, mantém o explorado ext
   const json = JSON.stringify(p);
   for (const segredo of ['COFRE-SECRETO', 'TITULO-SECRETO', 'Cripta do Rei Louco', 'Câmara do Tesouro', 'Saguão Secreto', 'NOTA-SECRETA', 'TITULO-NOTA', 'NOTA-NO-COFRE', 'TITULO-NO-COFRE', 'mapa-secreto', 'alvo-secreto', 'EVENTO-SECRETO', 'Monstro Oculto']) {
     assert.ok(!json.includes(segredo), `vazou em darkwood: ${segredo}`);
+  }
+});
+
+test('remota: edifício com telhado tocado parcialmente (Enseada dos Piratas) preserva cells inteiras sem vazar interior', () => {
+  const m = JSON.parse(readFileSync(new URL('../../public/exemplos/enseada-dos-piratas.atlas.json', import.meta.url), 'utf8')) as MapaAtlas;
+  // Jogador fora da Taverna do Papagaio (canto sudoeste/oeste), explorando só o lado esquerdo da taverna (x 1..6.5, y 2..12)
+  m.session = { explored: { res: 0.5, cells: retangulo(2, 4, 13, 24) }, initiative: null, revealed: [], event: null };
+  m.tokens = { j: { ...novaPeca([2.2, 8.5]), id: 'j', player: true, vision: { radius: 4, dark: false } } };
+
+  const p = projetarParaRemoto(m);
+  validarMapa(p);
+
+  const tavernaOrig = m.rooms.cc37cd116tq!;
+  const tavernaRem = p.rooms.cc37cd116tq!;
+  assert.ok(tavernaRem, 'Taverna do Papagaio conhecida entra no remoto');
+  assert.deepEqual(tavernaRem.cells, tavernaOrig.cells, 'cells da taverna ficam inteiras (sem telhado cortado em escada)');
+  assert.deepEqual(trechosDe(p, edificiosDe(p)[0]!), trechosDe(m, edificiosDe(m)[0]!), 'geometria do telhado é idêntica à do desktop');
+  assert.equal(tavernaRem.name, 'Cômodo', 'nome do cômodo não revelado continua oculto');
+  assert.equal(tavernaRem.function, null, 'função do cômodo não revelado continua oculta');
+  assert.equal(p.rooms.ccf70ku18jq, undefined, 'Fortim distante não explorado não entra');
+  // Objetos internos fora da área explorada (lado direito da taverna, x > 7) continuam cortados
+  for (const o of Object.values(p.props)) assert.ok(o.position[0] <= 7.1, `objeto fora da área vazou: ${o.id} em x=${o.position[0]}`);
+  const json = JSON.stringify(p);
+  assert.ok(!json.includes('Taverna do Papagaio'));
+  assert.ok(!json.includes('Fortim de São Brás'));
+});
+
+test('remota: edifício multi-cômodo com telhado preserva todo o edifício conectado quando tocado, mantendo salas não reveladas e edifícios distantes isolados', () => {
+  const m = criarMapa({ id: 'multi', nome: 'Vila', largura: 40, altura: 30 });
+  m.rooms.alaOeste = {
+    ...comodo('alaOeste', 'Ala Oeste Secreta', retangulo(2, 2, 4, 4)),
+    roof: { material: 'telha.barro', visible: true, shape: 'duas-aguas' },
+  };
+  m.rooms.alaLeste = {
+    ...comodo('alaLeste', 'Cofre da Ala Leste', retangulo(4, 2, 6, 4)),
+    roof: { material: 'telha.barro', visible: true, shape: 'duas-aguas' },
+  };
+  m.rooms.torreLonge = {
+    ...comodo('torreLonge', 'Torre Oculta', retangulo(18, 12, 20, 14)),
+    roof: { material: 'telha.ardosia', visible: true, shape: 'piramide' },
+  };
+  m.props.tesouroLeste = objeto('tesouroLeste', 7.5, 4.5, {
+    roomId: 'alaLeste',
+    interaction: { kind: 'note', on: false, targets: [], sound: null, clue: null, note: 'SENHA-LESTE', noteTitle: 'TITULO-LESTE' },
+  });
+  m.props.bauTorre = objeto('bauTorre', 28, 19, { roomId: 'torreLonge' });
+  // Explora apenas fora da parede oeste (x = 1.5..2.8, y = 3..6), tocando só a borda externa da alaOeste
+  m.session = { explored: { res: 0.5, cells: retangulo(3, 6, 6, 12) }, initiative: null, revealed: [], event: null };
+  m.tokens = { j: { ...novaPeca([2.2, 4.5]), id: 'j', player: true, vision: { radius: 3, dark: false } } };
+
+  const p = projetarParaRemoto(m);
+  validarMapa(p);
+
+  assert.deepEqual(p.rooms.alaOeste!.cells, m.rooms.alaOeste!.cells);
+  assert.deepEqual(p.rooms.alaLeste!.cells, m.rooms.alaLeste!.cells);
+  assert.equal(p.rooms.alaOeste!.name, 'Cômodo');
+  assert.equal(p.rooms.alaLeste!.name, 'Cômodo');
+  assert.equal(p.rooms.alaLeste!.function, null);
+  assert.equal(p.rooms.torreLonge, undefined, 'edifício distante nunca visto continua fora');
+  assert.equal(p.props.tesouroLeste, undefined, 'objeto interno não explorado na Ala Leste continua oculto');
+  assert.equal(p.props.bauTorre, undefined);
+  const json = JSON.stringify(p);
+  for (const segredo of ['Ala Oeste Secreta', 'Cofre da Ala Leste', 'Torre Oculta', 'SENHA-LESTE', 'TITULO-LESTE']) {
+    assert.ok(!json.includes(segredo), `vazou segredo: ${segredo}`);
   }
 });

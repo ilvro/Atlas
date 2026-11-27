@@ -1,7 +1,8 @@
 import { codificar, decodificar, type Faixa } from './celulas.ts';
+import { edificiosDe } from './edificios.ts';
 import { projetarParaJogadores } from './projecao.ts';
 import type { MapaAtlas, Parede, Ponto } from './mapa.ts';
-import { celulasVisiveis, RES_NEVOA } from './nevoa.ts';
+import { celulasVisiveis, comodosConhecidos, edificioTocadoPorPoligonos, poligonosDeVisao, RES_NEVOA } from './nevoa.ts';
 import { podar } from './iniciativa.ts';
 
 /**
@@ -18,8 +19,11 @@ import { podar } from './iniciativa.ts';
  * - `backdrop`: fica a cor e o material; o `title` (texto e posição) é cortado (`null`).
  * - `terrain.layers[].cells` e `terrain.relief.patamares[].cells`: recortados por faixa para a área. `base` fica; `submerged` já sai cortado.
  * - `presence`: as células de cada presença recortadas para a área; sem célula dentro, some.
- * - `rooms`: só as células dentro da área; sem nenhuma, o cômodo some. `name` vira "Cômodo" (`validarMapa` recusa nome vazio) e `function` vira `null` se o cômodo não está em `session.revealed`.
- *   O `outline` (contorno livre) só fica se o cômodo ficou inteiro; senão sai e valem as células.
+ * - `rooms`: só as células dentro da área; sem nenhuma, o cômodo some. Exceção: quando um edifício (`edificiosDe`) tem telhado
+ *   (`roof.material !== null`) e é conhecido ou tocado pela área/visão, as `cells` (e `outline`) estruturais dos cômodos desse
+ *   edifício são preservadas inteiras para que o telhado e a máscara de névoa renderizem idênticos ao desktop. `name` vira "Cômodo"
+ *   (`validarMapa` recusa nome vazio) e `function` vira `null` se o cômodo não está em `session.revealed`.
+ *   Para cômodos sem telhado (ou fora de edifício conhecido), o `outline` só fica se o cômodo ficou inteiro; senão sai e valem as células.
  * - `walls`: cada trecho contínuo da parede dentro da área vira uma parede própria; sem trecho, some. O trecho maior mantém o id
  *   original e os outros levam `<id>_2`, `<id>_3`… (pulando ids já usados). `source.roomId` de cômodo que sumiu vira `null`.
  * - `openings`: vão para o trecho que as contém (`wallId` e `at` refeitos); as que não caem em nenhum trecho saem.
@@ -64,8 +68,27 @@ export function projetarParaRemoto(m: MapaAtlas, andar: string | null = null): M
   }
 
   // Cômodos.
+  // Edifícios com telhado conhecido/tocado mantêm suas `cells` (e `outline`) estruturais intactas
+  // para o telhado e o contorno externo renderizarem inteiros e idênticos ao desktop.
   const g = p.grid.size, [ox, oy] = p.grid.offset;
+  const conhecidos = comodosConhecidos(p);
+  const poligonos = poligonosDeVisao(p);
+  const salaNaArea = (cells: readonly Faixa[]): boolean =>
+    decodificar(cells).some(([cx, cy]) => area.ponto(ox + (cx + 0.5) * g, oy + (cy + 0.5) * g));
+  const salasDeEdificioConhecido = new Set<string>();
+  for (const ed of edificiosDe(p)) {
+    if (
+      ed.salas.some(id => conhecidos.has(id) || salaNaArea(p.rooms[id]!.cells)) ||
+      edificioTocadoPorPoligonos(p, ed, poligonos)
+    ) {
+      for (const id of ed.salas) salasDeEdificioConhecido.add(id);
+    }
+  }
   for (const [id, r] of Object.entries(p.rooms)) {
+    if (salasDeEdificioConhecido.has(id)) {
+      if (!revelados.has(id)) { r.name = NOME_DO_COMODO_OCULTO; r.function = null; }
+      continue;
+    }
     const todas = decodificar(r.cells);
     const dentro = todas.filter(([cx, cy]) => area.ponto(ox + (cx + 0.5) * g, oy + (cy + 0.5) * g));
     if (!dentro.length) { delete p.rooms[id]; continue; }
