@@ -85,7 +85,7 @@ Commit: `(feature) add session vs build mode selector in activity lobby`
 
 ## Bloco 2 — Editor colaborativo no Atlas (`Atlas`)
 
-### S3 — Rota `#/construir-remoto/<salaId>` e ponte de sessão no Atlas  ⬜
+### S3 — Rota `#/construir-remoto/<salaId>` e ponte de sessão no Atlas  ✅
 Objetivo: o Atlas abre em modo de construção remoto dentro de um `iframe`, recebendo e enviando operações pelo `BroadcastChannel` prefixado da sala sem gravar no IndexedDB local.
 Depende de: S1.
 Ler: `Atlas/src/app/rotas.ts`, `Atlas/src/ui/App.tsx`, `Atlas/src/app/app.ts`, `Atlas/src/app/servicos.ts`, `Atlas/src/app/embutido.ts`, `Atlas/src/ui/Cabecalho.tsx`, `Atlas/src/ui/Editor.tsx`, `Atlas/src/app/projetor.ts`.
@@ -104,7 +104,7 @@ Testes: `lerRota('#/construir-remoto/sala-1')`, inicialização do `construir-re
 Pronto quando: `#/construir-remoto/<sala>` abre o editor do Atlas carregando o mapa enviado pelo canal local.
 Commit: `(feature) add remote collaborative build route in Atlas`
 
-### S4 — Reconciliação determinística de comandos, gestos e snapshots  ⬜
+### S4 — Reconciliação determinística de comandos, gestos e snapshots  ✅
 Objetivo: múltiplos participantes editam o mesmo mapa ao mesmo tempo mantendo convergência de estado entre todos os clientes e compactação por snapshot.
 Depende de: S3.
 Ler: `Atlas/src/state/store.ts`, `Atlas/src/state/comandos.ts`, `Atlas/src/state/comandos-construir.ts`, `Atlas/src/app/construcao-remota.ts`.

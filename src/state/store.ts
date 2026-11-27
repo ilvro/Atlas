@@ -66,13 +66,22 @@ export class ErroDeStore extends Error {
 interface Entrada { antes: MapaAtlas; depois: MapaAtlas; rotulo: string; fusao?: string }
 const LIMITE_HISTORICO = 150;
 
-export function criarStore(inicial: MapaAtlas, opcoes: { salvo?: boolean } = {}): Store {
+export interface OpcoesStore {
+  salvo?: boolean;
+  /** Chamado após `executar` ou `gesto.concluir` efetivamente aplicarem comandos locais (nunca em `projetar`, `substituir`, `desfazer` ou `refazer`). */
+  aoExecutarComandos?: (comandos: Comando[], rotulo: string) => void;
+  /** Chamado sempre que um gesto ativo termina (`concluir` ou `cancelar`), mesmo se nada mudou. */
+  aoTerminarGesto?: (motivo: 'concluir' | 'cancelar') => void;
+}
+
+export function criarStore(inicial: MapaAtlas, opcoes: OpcoesStore = {}): Store {
+  const { aoExecutarComandos, aoTerminarGesto } = opcoes;
   validarMapa(inicial);
   let documento = congelar(inicial), versao = 0;
   let confirmado = { revision: documento.revision, createdAt: documento.createdAt, updatedAt: documento.updatedAt };
   let conteudoSalvo: string | null = opcoes.salvo === false ? null : conteudo(documento);
   let desfazer: Entrada[] = [], refazer: Entrada[] = [];
-  let gestoAtual: { antes: MapaAtlas; rotulo: string; ativo: boolean } | null = null;
+  let gestoAtual: { antes: MapaAtlas; rotulo: string; ativo: boolean; comandos: Comando[] } | null = null;
   const assinantes = new Set<(e: EventoStore) => void>();
   const cache = new WeakMap<MapaAtlas, string>();
   const conteudoDe = (m: MapaAtlas) => { let c = cache.get(m); if (c === undefined) { c = conteudo(m); cache.set(m, c); } return c; };
@@ -110,40 +119,55 @@ export function criarStore(inicial: MapaAtlas, opcoes: { salvo?: boolean } = {})
       }
       refazer = []; documento = proximo; versao++;
       avisar('executar', antes, rotulo);
+      aoExecutarComandos?.([comando], rotulo);
       return documento;
     },
 
-    iniciarGesto(rotulo, opcoes = {}) {
+    iniciarGesto(rotulo, opcoesGesto = {}) {
       if (store.emGesto) throw new ErroDeStore('Já há um gesto em andamento.');
-      const estado = { antes: documento, rotulo, ativo: true };
+      const estado = { antes: documento, rotulo, ativo: true, comandos: [] as Comando[] };
       gestoAtual = estado;
       const gesto: Gesto = {
         get ativo() { return estado.ativo; },
         aplicar(comando) {
           if (!estado.ativo) throw new ErroDeStore('O gesto já terminou.');
           const antes = documento, proximo = aplicarComando(antes, comando);
-          if (proximo !== antes) { documento = proximo; versao++; avisar('gesto', antes, rotulo); }
+          if (proximo !== antes) {
+            documento = proximo;
+            versao++;
+            estado.comandos.push(comando);
+            avisar('gesto', antes, rotulo);
+          }
           return documento;
         },
         concluir() {
           if (!estado.ativo) throw new ErroDeStore('O gesto já terminou.');
           estado.ativo = false; gestoAtual = null;
-          if (documento === estado.antes) return documento;
-          validarMapa(documento);
-          const topo = desfazer.at(-1), fusao = opcoes.fusao;
-          if (fusao !== undefined && topo && topo.fusao === fusao) topo.depois = documento;
-          else {
-            desfazer.push(fusao !== undefined ? { antes: estado.antes, depois: documento, rotulo, fusao } : { antes: estado.antes, depois: documento, rotulo });
-            if (desfazer.length > LIMITE_HISTORICO) desfazer.shift();
+          if (documento === estado.antes) {
+            aoTerminarGesto?.('concluir');
+            return documento;
           }
-          refazer = [];
-          avisar('concluir', estado.antes, rotulo);
-          return documento;
+          try {
+            validarMapa(documento);
+            const topo = desfazer.at(-1), fusao = opcoesGesto.fusao;
+            if (fusao !== undefined && topo && topo.fusao === fusao) topo.depois = documento;
+            else {
+              desfazer.push(fusao !== undefined ? { antes: estado.antes, depois: documento, rotulo, fusao } : { antes: estado.antes, depois: documento, rotulo });
+              if (desfazer.length > LIMITE_HISTORICO) desfazer.shift();
+            }
+            refazer = [];
+            avisar('concluir', estado.antes, rotulo);
+            if (estado.comandos.length > 0) aoExecutarComandos?.([...estado.comandos], rotulo);
+            return documento;
+          } finally {
+            aoTerminarGesto?.('concluir');
+          }
         },
         cancelar() {
           if (!estado.ativo) return documento;
           estado.ativo = false; gestoAtual = null;
           if (documento !== estado.antes) { const atual = documento; documento = estado.antes; versao++; avisar('cancelar', atual, rotulo); }
+          aoTerminarGesto?.('cancelar');
           return documento;
         },
       };
@@ -218,6 +242,7 @@ export function criarStore(inicial: MapaAtlas, opcoes: { salvo?: boolean } = {})
     if (!g) return documento;
     g.ativo = false; gestoAtual = null;
     if (documento !== g.antes) { const atual = documento; documento = g.antes; versao++; avisar('cancelar', atual, g.rotulo); }
+    aoTerminarGesto?.('cancelar');
     return documento;
   }
 

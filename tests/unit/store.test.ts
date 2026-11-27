@@ -325,3 +325,56 @@ test('fusão: executar com chave limpa o refazer', () => {
   assert.equal(store.podeRefazer, false);
   assert.equal(store.historico.length, 1);
 });
+
+test('ganchos aoExecutarComandos e aoTerminarGesto disparam apenas para edições locais e não em projetar/desfazer/refazer', () => {
+  const executados: { comandos: Comando[]; rotulo: string }[] = [];
+  const gestosTerminados: ('concluir' | 'cancelar')[] = [];
+  const store = criarStore(mapaCompleto(), {
+    aoExecutarComandos(comandos, rotulo) {
+      executados.push({ comandos, rotulo });
+    },
+    aoTerminarGesto(motivo) {
+      gestosTerminados.push(motivo);
+    },
+  });
+
+  // No-op em executar não dispara
+  store.executar({ tipo: 'mapa.renomear', nome: store.documento.name });
+  assert.equal(executados.length, 0);
+
+  // Executar normal dispara exatamente 1 comando
+  store.executar({ tipo: 'mapa.renomear', nome: 'Novo Nome' });
+  assert.equal(executados.length, 1);
+  assert.deepEqual(executados[0]?.comandos, [{ tipo: 'mapa.renomear', nome: 'Novo Nome' }]);
+
+  // Gesto só dispara ao concluir, com todos os comandos consolidados
+  const g = store.iniciarGesto('Mover mesa');
+  g.aplicar({ tipo: 'selecao.mover', alvos: [{ colecao: 'props', id: 'mesa' }], delta: [1, 0] });
+  g.aplicar({ tipo: 'selecao.mover', alvos: [{ colecao: 'props', id: 'mesa' }], delta: [0, 2] });
+  assert.equal(executados.length, 1);
+  assert.equal(gestosTerminados.length, 0);
+  g.concluir();
+  assert.equal(executados.length, 2);
+  assert.equal(executados[1]?.comandos.length, 2);
+  assert.equal(executados[1]?.rotulo, 'Mover mesa');
+  assert.deepEqual(gestosTerminados, ['concluir']);
+
+  // Gesto cancelado (inclusive via desfazer() no meio do gesto) não envia comandos e dispara aoTerminarGesto
+  const gCancel = store.iniciarGesto('Cancelado');
+  gCancel.aplicar({ tipo: 'mapa.notas', texto: 'temporario' });
+  store.desfazer();
+  assert.equal(executados.length, 2);
+  assert.deepEqual(gestosTerminados, ['concluir', 'cancelar']);
+
+  // Gesto vazio ainda dispara aoTerminarGesto
+  const gVazio = store.iniciarGesto('Vazio');
+  gVazio.concluir();
+  assert.equal(executados.length, 2);
+  assert.deepEqual(gestosTerminados, ['concluir', 'cancelar', 'concluir']);
+
+  // Desfazer, refazer e projetar não disparam aoExecutarComandos
+  store.desfazer();
+  store.refazer();
+  store.projetar({ ...store.documento, notes: 'Projeção externa' }, { pularValidacao: false });
+  assert.equal(executados.length, 2);
+});

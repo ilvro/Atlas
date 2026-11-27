@@ -12,6 +12,12 @@ import { lerMapa } from '../domain/migracoes.ts';
 import { validarMapa } from '../domain/validacao.ts';
 import { aplicarComando, ErroDeComando, type Comando } from '../state/comandos.ts';
 import { modo, vistaDeJogador } from './modo.ts';
+import {
+  criarReconciliador,
+  type ComandoRemoto,
+  type EntradaAplicada,
+  type Reconciliador,
+} from './reconciliacao.ts';
 import { rota } from './rotas.ts';
 import { criarSessao, sessao, type SessaoDeEdicao } from './sessao.ts';
 import { avisar } from './toasts.ts';
@@ -150,20 +156,50 @@ export interface OpcoesConstrucaoRemota {
   postarPai?: (msg: unknown, origem: string) => void;
   origemPai?: string;
   repo?: RepositorioMapas;
+  gerarOpId?: () => string;
+  limiarSnapshot?: number;
 }
 
 export interface PonteConstrucaoRemota {
   readonly rev: number;
   readonly mapaId: string | null;
+  readonly pendentes: number;
   parar(): void;
 }
 
+const MAX_COMANDOS_POR_OP = 100;
 const ehObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+
+function fatiarComandos(comandos: readonly Comando[], limite: number): Comando[][] {
+  if (comandos.length <= limite) return [[...comandos]];
+  const lotes: Comando[][] = [];
+  for (let i = 0; i < comandos.length; i += limite) {
+    lotes.push(comandos.slice(i, i + limite));
+  }
+  return lotes;
+}
+
+function filtrarComandosAplicaveis(mapaInicial: MapaAtlas, comandos: readonly Comando[]): Comando[] {
+  const validos: Comando[] = [];
+  let atual = mapaInicial;
+  for (const cmd of comandos) {
+    try {
+      atual = aplicarComando(atual, cmd);
+      validos.push(cmd);
+    } catch (erro) {
+      if (erro instanceof ErroDeComando) continue;
+      throw erro;
+    }
+  }
+  return validos;
+}
 
 /**
  * Conecta o editor remoto do Atlas ao canal `sala:<salaId>:atlas:construcao`, anuncia que está
  * pronto (no canal e via `postMessage` para `window.parent` quando em `iframe`), aplica `construcao.estado`
- * (validando com `lerMapa` e aplicando `ops` em ordem) e limpa a sessão quando recebe `construcao.fechada`.
+ * (validando com `lerMapa` e aplicando `ops` em ordem), reconcilia edições locais/remotas com
+ * `criarReconciliador`, envia `construcao.comando` / `construcao.ressincronizar` / `construcao.snapshot`
+ * e limpa a sessão quando recebe `construcao.fechada`.
  */
 export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteConstrucaoRemota {
   const nomeCanal = canalConstrucaoDaSala(opcoes.salaId);
@@ -175,11 +211,61 @@ export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteCo
 
   const repo = opcoes.repo ?? criarRepositorioMemoria();
   let morto = false;
-  let revAtual = 0;
+  let reconciliador: Reconciliador | null = null;
   let sessaoLocal: SessaoDeEdicao | null = null;
+  let projecaoPendente = false;
+  let ressincronizando = false;
+
+  const postarNoCanal = (msg: unknown) => {
+    if (!canal || morto) return;
+    try {
+      canal.postMessage(msg);
+    } catch {
+      /* ignora erro de postMessage */
+    }
+  };
+
+  const projetarSemEco = (mapa: MapaAtlas) => {
+    if (!sessaoLocal) return;
+    sessaoLocal.store.projetar(mapa, { pularValidacao: false });
+  };
+
+  const aoExecutarComandos = (comandos: Comando[], rotulo: string) => {
+    if (morto || !reconciliador || !sessaoLocal || comandos.length === 0) return;
+    const haviaPendenciaVisual = projecaoPendente;
+    let precisouProjetar = haviaPendenciaVisual;
+
+    for (const lote of fatiarComandos(comandos, MAX_COMANDOS_POR_OP)) {
+      try {
+        const { mensagem } = reconciliador.aoEditarLocal(lote, rotulo);
+        postarNoCanal(mensagem);
+      } catch (erro) {
+        if (!(erro instanceof ErroDeComando)) throw erro;
+        precisouProjetar = true;
+        const validos = filtrarComandosAplicaveis(reconciliador.mapaVisivel, lote);
+        if (validos.length > 0) {
+          const { mensagem } = reconciliador.aoEditarLocal(validos, rotulo);
+          postarNoCanal(mensagem);
+        }
+      }
+    }
+
+    if (precisouProjetar) {
+      projecaoPendente = false;
+      projetarSemEco(reconciliador.mapaVisivel);
+    }
+  };
+
+  const aoTerminarGesto = () => {
+    if (morto || !reconciliador || !sessaoLocal || !projecaoPendente || sessaoLocal.store.emGesto) return;
+    projecaoPendente = false;
+    projetarSemEco(reconciliador.mapaVisivel);
+  };
 
   const fecharSessaoLocal = () => {
-    revAtual = 0;
+    reconciliador = null;
+    projecaoPendente = false;
+    ressincronizando = false;
     batch(() => {
       modo.value = 'construir';
       vistaDeJogador.value = false;
@@ -209,37 +295,36 @@ export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteCo
       return;
     }
 
-    let revEfetiva = typeof msg.rev === 'number' && Number.isFinite(msg.rev) ? msg.rev : 0;
+    const revInicial = typeof msg.rev === 'number' && Number.isFinite(msg.rev) ? msg.rev : 0;
+    const opsIniciais: EntradaAplicada[] = [];
     if (Array.isArray(msg.ops)) {
-      const ordenadas = [...msg.ops].sort((a, b) => {
-        const ra = ehObj(a) && typeof a.rev === 'number' ? a.rev : 0;
-        const rb = ehObj(b) && typeof b.rev === 'number' ? b.rev : 0;
-        return ra - rb;
-      });
-      for (const op of ordenadas) {
+      for (const op of msg.ops) {
         if (!ehObj(op) || !Array.isArray(op.comandos)) continue;
-        for (const cmd of op.comandos) {
-          if (!ehObj(cmd) || typeof cmd.tipo !== 'string' || !cmd.tipo) continue;
-          try {
-            doc = aplicarComando(doc, cmd as unknown as Comando);
-          } catch (erro) {
-            if (erro instanceof ErroDeComando) continue;
-            throw erro;
-          }
-        }
-        if (typeof op.rev === 'number' && Number.isFinite(op.rev) && op.rev > revEfetiva) {
-          revEfetiva = op.rev;
-        }
+        if (typeof op.rev !== 'number' || !Number.isFinite(op.rev)) continue;
+        opsIniciais.push({
+          rev: op.rev,
+          opId: typeof op.opId === 'string' ? op.opId : '',
+          comandos: op.comandos as readonly ComandoRemoto[],
+          ...(typeof op.rotulo === 'string' ? { rotulo: op.rotulo } : {}),
+        });
       }
     }
 
-    revAtual = revEfetiva;
+    const proximoReconciliador = criarReconciliador(doc, revInicial, opsIniciais, {
+      ...(opcoes.gerarOpId ? { gerarOpId: opcoes.gerarOpId } : {}),
+      ...(opcoes.limiarSnapshot !== undefined ? { limiarSnapshot: opcoes.limiarSnapshot } : {}),
+    });
+    reconciliador = proximoReconciliador;
+    projecaoPendente = false;
+    ressincronizando = false;
+
+    const docVisivel = proximoReconciliador.mapaVisivel;
     batch(() => {
       modo.value = 'construir';
       vistaDeJogador.value = false;
       const ativa = sessao.peek();
-      if (sessaoLocal && ativa === sessaoLocal && sessaoLocal.doc.peek().id === doc.id) {
-        sessaoLocal.store.substituir(doc, { salvo: true });
+      if (sessaoLocal && ativa === sessaoLocal && sessaoLocal.doc.peek().id === docVisivel.id) {
+        sessaoLocal.store.substituir(docVisivel, { salvo: true });
         sessaoLocal.selecao.value = [];
         sessaoLocal.ferramenta.value = 'selecionar';
         sessaoLocal.biblioteca.value = false;
@@ -252,10 +337,55 @@ export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteCo
           if (sessao.peek() === sessaoLocal) sessao.value = null;
           sessaoLocal.fechar();
         }
-        sessaoLocal = criarSessao(doc, repo, { salvo: true });
+        sessaoLocal = criarSessao(docVisivel, repo, {
+          salvo: true,
+          aoExecutarComandos,
+          aoTerminarGesto,
+        });
         sessao.value = sessaoLocal;
       }
     });
+  };
+
+  const aplicarRemota = (msg: Record<string, unknown>) => {
+    if (!reconciliador || !sessaoLocal) return;
+    if (typeof msg.rev !== 'number' || !Number.isInteger(msg.rev) || msg.rev < 1) return;
+    if (typeof msg.opId !== 'string' || !msg.opId || !Array.isArray(msg.comandos)) return;
+
+    const res = reconciliador.aoReceberAplicada({
+      rev: msg.rev,
+      opId: msg.opId,
+      comandos: msg.comandos as readonly ComandoRemoto[],
+      ...(typeof msg.rotulo === 'string' ? { rotulo: msg.rotulo } : {}),
+    });
+
+    if (res.precisaRessincronizar) {
+      if (!ressincronizando) {
+        ressincronizando = true;
+        postarNoCanal({ tipo: 'construcao.ressincronizar' });
+      }
+      return;
+    }
+
+    if (res.ignorada) return;
+
+    if (sessaoLocal.store.emGesto) {
+      projecaoPendente = true;
+    } else {
+      projecaoPendente = false;
+      projetarSemEco(res.mapaVisivel);
+    }
+
+    if (res.snapshotSugerido) {
+      const { rev, mapa } = res.snapshotSugerido;
+      postarNoCanal({
+        tipo: 'construcao.snapshot',
+        rev,
+        mapa,
+        nome: mapa.name,
+      });
+      reconciliador.marcarSnapshotEnviado(rev);
+    }
   };
 
   if (canal) {
@@ -263,17 +393,15 @@ export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteCo
       if (morto || !ehObj(ev?.data) || typeof ev.data.tipo !== 'string') return;
       if (ev.data.tipo === 'construcao.estado') {
         aplicarEstado(ev.data);
+      } else if (ev.data.tipo === 'construcao.aplicada') {
+        aplicarRemota(ev.data);
       } else if (ev.data.tipo === 'construcao.fechada') {
         fecharSessaoLocal();
       }
     };
 
     const pronto = { tipo: 'atlas-construcao.pronto' };
-    try {
-      canal.postMessage(pronto);
-    } catch {
-      /* ignora erro de postMessage */
-    }
+    postarNoCanal(pronto);
     const origem = opcoes.origemPai ?? (typeof location !== 'undefined' && location.origin ? location.origin : '*');
     if (opcoes.postarPai) {
       try {
@@ -292,10 +420,13 @@ export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteCo
 
   return {
     get rev() {
-      return revAtual;
+      return reconciliador?.baseRev ?? 0;
     },
     get mapaId() {
       return sessaoLocal?.doc.peek().id ?? null;
+    },
+    get pendentes() {
+      return reconciliador?.pendentes.length ?? 0;
     },
     parar() {
       if (morto) return;

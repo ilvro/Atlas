@@ -6,7 +6,7 @@ import type { MapaAtlas } from '../domain/mapa.ts';
 import { obterAndarDaAba } from './abas.ts';
 import { podarSelecao, type Alvo } from '../render/selecao.ts';
 import { PINCEL_PADRAO, type Ferramenta, type Pincel } from '../render/pincel.ts';
-import { criarStore, type Store } from '../state/store.ts';
+import { criarStore, type OpcoesStore, type Store } from '../state/store.ts';
 
 /** Tudo de um mapa aberto: o store, o autossalvamento e o estado de interface que depende dele, como signals. */
 export interface SessaoDeEdicao {
@@ -34,8 +34,12 @@ export interface SessaoDeEdicao {
 /** Sessão de edição aberta atualmente na interface (`null` na galeria ou enquanto aguarda construção remota). */
 export const sessao = signal<SessaoDeEdicao | null>(null);
 
-export function criarSessao(mapa: MapaAtlas, repo: RepositorioMapas, opcoes: { salvo: boolean }): SessaoDeEdicao {
-  const store = criarStore(mapa, { salvo: opcoes.salvo });
+export interface OpcoesSessao extends OpcoesStore {
+  salvo: boolean;
+}
+
+export function criarSessao(mapa: MapaAtlas, repo: RepositorioMapas, opcoes: OpcoesSessao): SessaoDeEdicao {
+  const store = criarStore(mapa, opcoes);
   const auto = criarAutosalvamento({ store, repo });
   const doc = signal(store.documento), sujo = signal(store.sujo), podeDesfazer = signal(false), podeRefazer = signal(false);
   const rotuloDesfazer = signal(''), rotuloRefazer = signal(''), historico = signal<readonly string[]>([]);
