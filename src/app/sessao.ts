@@ -31,6 +31,9 @@ export interface SessaoDeEdicao {
   fechar(): void;
 }
 
+/** Sessão de edição aberta atualmente na interface (`null` na galeria ou enquanto aguarda construção remota). */
+export const sessao = signal<SessaoDeEdicao | null>(null);
+
 export function criarSessao(mapa: MapaAtlas, repo: RepositorioMapas, opcoes: { salvo: boolean }): SessaoDeEdicao {
   const store = criarStore(mapa, { salvo: opcoes.salvo });
   const auto = criarAutosalvamento({ store, repo });

@@ -13,11 +13,13 @@ export interface DadosMoverPeca {
 export interface ContextoMoverPeca {
   store: () => Store | null;
   movimentoLivre?: () => boolean;
+  controleJogadores?: () => 'livres' | 'mestre';
   aoMover?: (info: { autor: Autor; pecaNome: string }) => void;
 }
 
 /**
  * Atende `atlas.mover-peca` vindo da sala online (R15):
+ * - recusa se o controle estiver com o mestre;
  * - recusa se não houver mapa aberto ou se o mapa aberto não for o pedido;
  * - recusa se `autor` faltar;
  * - recusa se a peça não existir, não for `player`, ou nenhuma `ref` dela apontar para uma ficha em `autor.fichas`;
@@ -28,6 +30,7 @@ export function atenderMoverPeca(
   dados: DadosMoverPeca,
   autor: Autor | undefined,
 ): Resposta {
+  if (ctx.controleJogadores?.() === 'mestre') return { ok: false, motivo: 'O mestre está no controle.' };
   const store = ctx.store();
   if (!store) return { ok: false, motivo: 'Nenhum mapa aberto.' };
   const doc = store.documento;

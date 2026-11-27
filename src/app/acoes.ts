@@ -13,17 +13,17 @@ import { colecaoDaFerramenta } from '../render/viewport.ts';
 import { campanhaAtiva } from './campanha.ts';
 import { PRESETS_DE_CLIMA } from '../domain/presets.ts';
 import { FERRAMENTAS_DA_SESSAO, abaDoInspetor, definirMovimentoLivre, modo, mostrarRelevo, movimentoLivre, vistaDeJogador } from './modo.ts';
-import { objetoParaVincularMapa } from '../ui/BlocoTransicaoDeMapa.tsx';
 import { aceitarSugestao, definirSugestoesLigadas, dispensarSugestao, outraSugestao, sugestao, sugestoesLigadas } from './sugestoes.ts';
 import { momentoEmCurso, pararMomento } from './momentos.ts';
 import { dispararEspaco } from './barra-de-efeitos.ts';
 import type { Alvo } from '../render/selecao.ts';
 import { acaoEscadaParaPeca, andarDe } from '../domain/andares.ts';
+import { emConstrucaoRemota } from './construcao-remota.ts';
 import { edificioDaSala } from '../domain/edificios.ts';
 import { comodoEm } from '../domain/geometria.ts';
 import type { Ponto, TransicaoDeMapa } from '../domain/mapa.ts';
 import { transicaoDaAbertura, transicaoDoObjeto, transicaoPertoDaPeca } from '../domain/transicao-mapa.ts';
-import { nomeDoMapaDestino, viajarParaMapa } from './transicao-mapa.ts';
+import { nomeDoMapaDestino, objetoParaVincularMapa, viajarParaMapa } from './transicao-mapa.ts';
 import { luzesDisponiveisParaPeca } from '../domain/fichas.ts';
 import { recursosDaPeca } from './fichas.ts';
 import { alternarLuzDaPeca, rotuloDaLuz } from './luz-da-peca.ts';
@@ -44,6 +44,8 @@ export const fxLigado = signal(fxPreferido());
 export const somLigado = signal(somPreferido());
 
 const noEditor = () => app.sessao.value !== null;
+const noEditorLocal = () => noEditor() && !emConstrucaoRemota.value;
+const editavelLocal = () => !emConstrucaoRemota.value;
 const comSelecao = () => (app.sessao.value?.selecao.value.length ?? 0) > 0;
 const passoDeSetas = (grande: boolean) => { const g = app.sessao.value?.doc.value.grid.size ?? 1.5; return grande ? g : g / 2; };
 
@@ -91,12 +93,12 @@ export const ACOES: readonly Acao[] = [
   { id: 'paleta', nome: 'Abrir a paleta de comandos', grupo: 'Geral', atalhos: ['Ctrl+K'], executar: () => { app.paletaAberta.value = !app.paletaAberta.value; } },
   { id: 'ajuda', nome: 'Mostrar os atalhos', grupo: 'Geral', atalhos: ['?', 'F1'], executar: () => { app.ajudaAberta.value = !app.ajudaAberta.value; } },
   { id: 'tutorial-relatorio', nome: 'Exportar o relatório dos tutoriais', grupo: 'Geral', palavras: 'aprender licoes progresso ajuda', executar: () => exportarRelatorioDosTutoriais() },
-  { id: 'galeria', nome: 'Ir para a galeria de mapas', grupo: 'Geral', palavras: 'inicio voltar mapas', atalhos: ['Alt+G'], habilitada: noEditor, executar: () => app.navegar({ tipo: 'galeria' }) },
-  { id: 'novo-mapa', nome: 'Novo mapa', grupo: 'Geral', atalhos: ['Alt+N'], executar: () => app.criarMapaNovo() },
-  { id: 'gravar', nome: 'Gravar o mapa', grupo: 'Geral', atalhos: ['Ctrl+S'], habilitada: noEditor, executar: () => app.salvar() },
+  { id: 'galeria', nome: 'Ir para a galeria de mapas', grupo: 'Geral', palavras: 'inicio voltar mapas', atalhos: ['Alt+G'], habilitada: noEditorLocal, executar: () => app.navegar({ tipo: 'galeria' }) },
+  { id: 'novo-mapa', nome: 'Novo mapa', grupo: 'Geral', atalhos: ['Alt+N'], habilitada: editavelLocal, executar: () => app.criarMapaNovo() },
+  { id: 'gravar', nome: 'Gravar o mapa', grupo: 'Geral', atalhos: ['Ctrl+S'], habilitada: noEditorLocal, executar: () => app.salvar() },
   { id: 'exportar', nome: 'Exportar este mapa (.atlas.json)', grupo: 'Geral', palavras: 'baixar arquivo', atalhos: ['Ctrl+E'], habilitada: noEditor, executar: () => app.exportar() },
-  { id: 'exportar-tudo', nome: 'Exportar tudo (cópia de segurança)', grupo: 'Geral', palavras: 'backup baixar', executar: () => app.exportar([]) },
-  { id: 'importar', nome: 'Importar mapa ou cópia de segurança…', grupo: 'Geral', palavras: 'abrir arquivo backup', executar: () => app.escolherArquivoParaImportar() },
+  { id: 'exportar-tudo', nome: 'Exportar tudo (cópia de segurança)', grupo: 'Geral', palavras: 'backup baixar', habilitada: editavelLocal, executar: () => app.exportar([]) },
+  { id: 'importar', nome: 'Importar mapa ou cópia de segurança…', grupo: 'Geral', palavras: 'abrir arquivo backup', habilitada: editavelLocal, executar: () => app.escolherArquivoParaImportar() },
 
   { id: 'desfazer', nome: 'Desfazer', grupo: 'Editar', atalhos: ['Ctrl+Z'], habilitada: noEditor, executar: app.desfazer },
   { id: 'refazer', nome: 'Refazer', grupo: 'Editar', atalhos: ['Ctrl+Shift+Z', 'Ctrl+Y'], habilitada: noEditor, executar: app.refazer },
@@ -140,7 +142,7 @@ export const ACOES: readonly Acao[] = [
   { id: 'sugestao-outra', nome: 'Outra sugestão', grupo: 'Assistente', palavras: 'assistente pilula gerar de novo', habilitada: () => sugestao.value !== null, executar: outraSugestao },
   { id: 'sugestao-dispensar', nome: 'Dispensar a sugestão', grupo: 'Assistente', palavras: 'assistente pilula agora nao', habilitada: () => sugestao.value !== null, executar: dispensarSugestao },
   { id: 'sugestoes-alternar', nome: 'Ligar ou desligar sugestões', grupo: 'Assistente', palavras: 'assistente pilula', habilitada: noEditor, executar: () => definirSugestoesLigadas(!sugestoesLigadas.value) },
-  { id: 'modo', nome: 'Alternar modo: Construir / Sessão', grupo: 'Geral', palavras: 'jogar mestre construir sessao editar', atalhos: ['M'], habilitada: noEditor, executar: () => app.alternarModo() },
+  { id: 'modo', nome: 'Alternar modo: Construir / Sessão', grupo: 'Geral', palavras: 'jogar mestre construir sessao editar', atalhos: ['M'], habilitada: noEditorLocal, executar: () => app.alternarModo() },
   { id: 'biblioteca', nome: 'Abrir ou fechar a biblioteca', grupo: 'Construir', palavras: 'gaveta itens catalogo', atalhos: ['B'], habilitada: noEditor, executar: () => { const s = app.sessao.value; if (s) s.biblioteca.value = !s.biblioteca.value; } },
   { id: 'vista-jogador', nome: 'Ver como jogador (névoa) / ver tudo', grupo: 'Sessão', palavras: 'visao nevoa mestre jogadores', atalhos: ['J'], habilitada: () => modo.value === 'sessao', executar: () => { vistaDeJogador.value = !vistaDeJogador.value; avisar(vistaDeJogador.value ? 'Vista dos jogadores.' : 'Vista do mestre.', { duracao: 1400 }); } },
   { id: 'movimento-livre', nome: 'Alternar movimento: em grade / livre (freeform)', grupo: 'Sessão', palavras: 'grade livre freeform combate exploracao peca mover encaixar', atalhos: ['G'], habilitada: () => modo.value === 'sessao', executar: () => { definirMovimentoLivre(!movimentoLivre.value); tocar('selecionar'); avisar(movimentoLivre.value ? 'Movimento livre (sem grade).' : 'Movimento em grade.', { duracao: 1400 }); } },
@@ -459,7 +461,7 @@ export function itensDoMenuRadial(alvo: Alvo | null, mundo: Ponto): ItemRadial[]
         },
       }] : []),
       item('centralizar', 'Centralizar', 'alvo', 'Z'), item('desfazer', 'Desfazer', 'desfazer', 'Ctrl+Z'),
-      ...(refQuadro ? itensDeQuadroRadial(refQuadro) : []),
+      ...(refQuadro && !emConstrucaoRemota.peek() ? itensDeQuadroRadial(refQuadro) : []),
     ];
   }
   // "Aqui" é onde o botão direito foi clicado, não onde o ponteiro estiver quando o item for escolhido.

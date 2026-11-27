@@ -103,6 +103,12 @@ export const CATALOGO: Readonly<Record<string, Entrada>> = {
     if (d.levelId !== undefined && d.levelId !== null && typeof d.levelId !== 'string') return '“levelId” deve ser texto ou nulo.';
     return null;
   } },
+  /** Online / Sessão: alterna entre jogadores livres e controle do mestre na activity. */
+  'mesa.controle-jogadores': {
+    natureza: 'fato',
+    dono: 'mesa',
+    validar: d => ehObj(d) && (d.modo === 'livres' || d.modo === 'mestre') ? null : '“modo” deve ser “livres” ou “mestre”.',
+  },
 };
 
 /** Quem originou o evento, carimbado pela sala (modo online). */

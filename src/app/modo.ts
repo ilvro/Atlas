@@ -45,3 +45,15 @@ export const mostrarRelevo = signal(false);
 export const movimentoLivre = signal(false);
 export function definirMovimentoLivre(v: boolean): void { movimentoLivre.value = v; }
 
+/** Na Sessão / mesa online, se os jogadores podem mover peças e a câmera da activity ou se só o mestre controla. */
+export type ControleJogadores = 'livres' | 'mestre';
+export const CHAVE_CONTROLE_JOGADORES = 'mesa:sessao-controle-jogadores';
+function lerControleJogadores(): ControleJogadores {
+  try { return localStorage.getItem(CHAVE_CONTROLE_JOGADORES) === 'mestre' ? 'mestre' : 'livres'; } catch { return 'livres'; }
+}
+export const controleJogadores = signal<ControleJogadores>(lerControleJogadores());
+export function definirControleJogadores(modo: ControleJogadores): void {
+  controleJogadores.value = modo;
+  try { localStorage.setItem(CHAVE_CONTROLE_JOGADORES, modo); } catch { /* sem armazenamento: vale só nesta aba */ }
+}
+

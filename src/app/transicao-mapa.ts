@@ -1,4 +1,8 @@
+import { signal } from '@preact/signals';
 import { abrirMapa, cacheDeSessoes, resumos, servicos, sessao, sincronizarPublicador, viewport } from './app.ts';
+
+/** ID do objeto (`props`) para o qual o mestre pediu "Vincular a outro mapa…" no menu radial. */
+export const objetoParaVincularMapa = signal<string | null>(null);
 import { refDoMapa } from './campanha.ts';
 import { modo } from './modo.ts';
 import { mapaNoProjetorId, projetorConectado, projetorRemotoConectado } from './projetor.ts';

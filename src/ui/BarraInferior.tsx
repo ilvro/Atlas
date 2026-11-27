@@ -13,6 +13,7 @@ import {
 } from '../app/modo.ts';
 import { ROTULO_DA_REGRA, type RegraDeDiagonal } from '../domain/regua.ts';
 import { abrirProjetor } from '../app/app.ts';
+import { emConstrucaoRemota } from '../app/construcao-remota.ts';
 import {
   projetorConectado,
   seguirJogadores,
@@ -341,34 +342,36 @@ export function BarraInferior({ s }: { s: SessaoDeEdicao }) {
         <div class="barra-inferior-divisor" />
 
         {/* Bloco Direito: Olho da Vista de Jogador & Opções do Projetor */}
-        <div class="barra-inferior-bloco barra-inferior-direita" aria-label="Vista de jogador e projetor">
-          <div class="grupo-vista-jogador">
-            <button
-              type="button"
-              class={`botao-vista-jogador ${vistaDeJogador.value ? 'ativa' : ''}`}
-              aria-pressed={vistaDeJogador.value}
-              title="Ver como jogador (V)"
-              data-testid="barra-vista-jogador"
-              onClick={() => executar('vista-jogador')}
-            >
-              <Icone nome="olho" tamanho={15} />
-              <span>Jogador</span>
-            </button>
-            <button
-              type="button"
-              class={`botao-chevron-projetor ${menuAberto === 'projetor' ? 'aberto' : ''}`}
-              title="Opções do Projetor"
-              aria-label="Opções do Projetor"
-              aria-expanded={menuAberto === 'projetor'}
-              data-testid="barra-projetor-menu"
-              onClick={e => {
-                e.stopPropagation();
-                setMenuAberto(menuAberto === 'projetor' ? null : 'projetor');
-              }}
-            >
-              ▾
-            </button>
-          </div>
+        <div class="barra-inferior-bloco barra-inferior-direita" aria-label={emConstrucaoRemota.value ? 'Ajuda' : 'Vista de jogador e projetor'}>
+          {!emConstrucaoRemota.value && (
+            <div class="grupo-vista-jogador">
+              <button
+                type="button"
+                class={`botao-vista-jogador ${vistaDeJogador.value ? 'ativa' : ''}`}
+                aria-pressed={vistaDeJogador.value}
+                title="Ver como jogador (V)"
+                data-testid="barra-vista-jogador"
+                onClick={() => executar('vista-jogador')}
+              >
+                <Icone nome="olho" tamanho={15} />
+                <span>Jogador</span>
+              </button>
+              <button
+                type="button"
+                class={`botao-chevron-projetor ${menuAberto === 'projetor' ? 'aberto' : ''}`}
+                title="Opções do Projetor"
+                aria-label="Opções do Projetor"
+                aria-expanded={menuAberto === 'projetor'}
+                data-testid="barra-projetor-menu"
+                onClick={e => {
+                  e.stopPropagation();
+                  setMenuAberto(menuAberto === 'projetor' ? null : 'projetor');
+                }}
+              >
+                ▾
+              </button>
+            </div>
+          )}
           <button
             type="button"
             class="ferramenta"

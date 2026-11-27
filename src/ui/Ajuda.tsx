@@ -1,12 +1,16 @@
 import { useEffect } from 'preact/hooks';
 import { ACOES, executarAcao } from '../app/acoes.ts';
 import { ajudaAberta, rota } from '../app/app.ts';
+import { emConstrucaoRemota } from '../app/construcao-remota.ts';
 import { mostrarAtalho } from '../app/atalhos.ts';
 import { aprenderAberto } from './Aprender.tsx';
+
+const OCULTAS_NO_REMOTO = new Set(['modo', 'galeria', 'gravar', 'novo-mapa']);
 
 /** Mapa de atalhos: tudo que a paleta faz, agrupado. `?` abre, Esc fecha. */
 export function Ajuda() {
   const aberta = ajudaAberta.value;
+  const remoto = emConstrucaoRemota.value;
 
   useEffect(() => {
     if (!aberta) return;
@@ -22,7 +26,11 @@ export function Ajuda() {
 
   if (!aberta) return null;
   const grupos = new Map<string, typeof ACOES[number][]>();
-  for (const a of ACOES) if (a.atalhos?.length) grupos.set(a.grupo, [...(grupos.get(a.grupo) ?? []), a]);
+  for (const a of ACOES) {
+    if (!a.atalhos?.length) continue;
+    if (remoto && OCULTAS_NO_REMOTO.has(a.id)) continue;
+    grupos.set(a.grupo, [...(grupos.get(a.grupo) ?? []), a]);
+  }
 
   const abrirTutoriais = () => {
     ajudaAberta.value = false;
@@ -35,14 +43,16 @@ export function Ajuda() {
       <section class="ajuda" aria-label="Atalhos do teclado" data-testid="ajuda">
         <header class="ajuda-cabecalho">
           <h2 class="faixa">Atalhos</h2>
-          <button
-            type="button"
-            class="botao-pilula"
-            data-testid="ajuda-abrir-tutoriais"
-            onClick={abrirTutoriais}
-          >
-            Abrir Tutoriais (Aprender)
-          </button>
+          {!remoto && (
+            <button
+              type="button"
+              class="botao-pilula"
+              data-testid="ajuda-abrir-tutoriais"
+              onClick={abrirTutoriais}
+            >
+              Abrir Tutoriais (Aprender)
+            </button>
+          )}
           <button type="button" class="ajuda-fechar" aria-label="Fechar" onClick={() => { ajudaAberta.value = false; }}>×</button>
         </header>
         <div class="ajuda-grade">

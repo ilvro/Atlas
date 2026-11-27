@@ -1,8 +1,9 @@
 import { useEffect } from 'preact/hooks';
-import { signal, useSignal } from '@preact/signals';
+import { useSignal } from '@preact/signals';
 import { resumos, servicos } from '../app/app.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { avisar } from '../app/toasts.ts';
+import { objetoParaVincularMapa } from '../app/transicao-mapa.ts';
 import { andarDe, andarVizinhoDeEscada, ehMultiandar, ehReceitaDeEscada, listaDeAndares } from '../domain/andares.ts';
 import type { MapaAtlas, Ponto, TransicaoDeMapa } from '../domain/mapa.ts';
 import {
@@ -15,8 +16,7 @@ import {
 } from '../domain/transicao-mapa.ts';
 import { CampoNumero, Linha, tentar } from './campos.tsx';
 
-/** ID do objeto (`props`) para o qual o mestre pediu "Vincular a outro mapa…" no menu radial. */
-export const objetoParaVincularMapa = signal<string | null>(null);
+export { objetoParaVincularMapa };
 
 export interface PropsBlocoTransicaoDeMapa {
   s: SessaoDeEdicao;

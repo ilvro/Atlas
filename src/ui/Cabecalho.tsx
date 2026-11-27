@@ -1,8 +1,9 @@
 import type { ComponentType } from 'preact';
 import { mostrarAtalho } from '../app/atalhos.ts';
 import { embutido } from '../app/embutido.ts';
+import { emConstrucaoRemota } from '../app/construcao-remota.ts';
 import { acaoPorId, executarAcao, fxLigado, somLigado } from '../app/acoes.ts';
-import { abrirProjetor, ajudaAberta, definirTelhadosNoEditor, navegar, paletaAberta, rota, sessao, telhadosNoEditor } from '../app/app.ts';
+import { abrirProjetor, ajudaAberta, definirTelhadosNoEditor, navegar, paletaAberta, renomearMapaAberto, rota, sessao, telhadosNoEditor } from '../app/app.ts';
 import { ROTULO_DO_MODO, modo, vistaDeJogador, type Modo } from '../app/modo.ts';
 import { andarDoProjetor, andarManualDoProjetor } from '../app/projetor.ts';
 import { seloDoAssistente } from '../app/assistente-slot.ts';
@@ -102,27 +103,51 @@ function CabecalhoEmbutido({ Selo }: { Selo: ComponentType | null }) {
 
 export function Cabecalho() {
   const Selo = seloDoAssistente.value;
-  if (embutido) return <CabecalhoEmbutido Selo={Selo} />;
-  const s = sessao.value, noEditor = rota.value.tipo === 'mapa' && s;
+  const remoto = emConstrucaoRemota.value;
+  if (embutido && !remoto) return <CabecalhoEmbutido Selo={Selo} />;
+  const s = sessao.value, noEditor = (rota.value.tipo === 'mapa' || remoto) && s;
   return (
     <header class={`cabecalho ${noEditor && modo.value === 'sessao' ? 'em-sessao' : ''}`} data-modo={noEditor ? modo.value : undefined}>
-      <a class="marca" href="#/" onClick={e => { e.preventDefault(); navegar({ tipo: 'galeria' }); }} aria-label="Atlas: ir para a galeria"><span class="marca-escudo" aria-hidden="true">◈</span> ATLAS</a>
-      {noEditor && s ? <AbasDeMapas /> : null}
-      {noEditor && modo.value === 'sessao' ? <span class="faixa-sessao" data-testid="faixa-sessao">SESSÃO</span> : null}
-      {noEditor && modo.value === 'sessao' ? <button type="button" class="botao-pilula botao-vista" aria-pressed={vistaDeJogador.value} title={dica('Ver como jogador', 'vista-jogador')} onClick={executar('vista-jogador')} data-testid="vista-jogador"><Icone nome="olho" tamanho={14} />Ver como jogador</button> : null}
-      {noEditor && s && modo.value === 'sessao' ? <BotaoTelhadosSessao s={s} /> : null}
+      {remoto
+        ? <span class="marca" aria-label="Atlas"><span class="marca-escudo" aria-hidden="true">◈</span> ATLAS</span>
+        : <a class="marca" href="#/" onClick={e => { e.preventDefault(); navegar({ tipo: 'galeria' }); }} aria-label="Atlas: ir para a galeria"><span class="marca-escudo" aria-hidden="true">◈</span> ATLAS</a>}
+      {!remoto && noEditor && s ? <AbasDeMapas /> : null}
+      {remoto && noEditor && s ? (
+        <input
+          id="nome-do-mapa"
+          class="nome-do-mapa"
+          key={s.doc.value.id + s.doc.value.name}
+          defaultValue={s.doc.value.name}
+          aria-label="Nome do mapa"
+          data-testid="nome-do-mapa-remoto"
+          maxLength={120}
+          spellcheck={false}
+          onFocus={e => (e.target as HTMLInputElement).select()}
+          onChange={e => {
+            const v = (e.target as HTMLInputElement).value;
+            if (!v.trim()) (e.target as HTMLInputElement).value = s.doc.value.name;
+            else void renomearMapaAberto(v);
+          }}
+          onKeyDown={e => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+          }}
+        />
+      ) : null}
+      {!remoto && noEditor && modo.value === 'sessao' ? <span class="faixa-sessao" data-testid="faixa-sessao">SESSÃO</span> : null}
+      {!remoto && noEditor && modo.value === 'sessao' ? <button type="button" class="botao-pilula botao-vista" aria-pressed={vistaDeJogador.value} title={dica('Ver como jogador', 'vista-jogador')} onClick={executar('vista-jogador')} data-testid="vista-jogador"><Icone nome="olho" tamanho={14} />Ver como jogador</button> : null}
+      {!remoto && noEditor && s && modo.value === 'sessao' ? <BotaoTelhadosSessao s={s} /> : null}
       {noEditor && s && modo.value === 'construir' ? <BotaoTelhadosConstruir /> : null}
-      {noEditor && s && modo.value === 'sessao' ? <SeletorAndarProjetor s={s} /> : null}
+      {!remoto && noEditor && s && modo.value === 'sessao' ? <SeletorAndarProjetor s={s} /> : null}
       <span class="espaco" />
-      {noEditor && s ? (<div class="grupo chave-de-modo" role="radiogroup" aria-label="Modo" data-testid="chave-de-modo">
+      {!remoto && noEditor && s ? (<div class="grupo chave-de-modo" role="radiogroup" aria-label="Modo" data-testid="chave-de-modo">
         {(['construir', 'sessao'] as Modo[]).map(id => <button type="button" key={id} role="radio" aria-checked={modo.value === id} class={`ficha ${modo.value === id ? 'ativa' : ''}`} title={dica(`Modo ${ROTULO_DO_MODO[id]}`, 'modo')} data-testid={`modo-${id}`} onClick={() => { if (modo.value !== id) executar('modo')(); }}>{ROTULO_DO_MODO[id]}</button>)}
       </div>) : null}
       {noEditor && s ? (<div class="grupo">
         <button type="button" class="botao-icone" title={s.rotuloDesfazer.value ? `Desfazer: ${s.rotuloDesfazer.value} (Ctrl+Z)` : 'Desfazer (Ctrl+Z)'} disabled={!s.podeDesfazer.value} onClick={executar('desfazer')} data-testid="desfazer"><Icone nome="desfazer" /></button>
         <button type="button" class="botao-icone" title={s.rotuloRefazer.value ? `Refazer: ${s.rotuloRefazer.value} (Ctrl+Shift+Z)` : 'Refazer (Ctrl+Shift+Z)'} disabled={!s.podeRefazer.value} onClick={executar('refazer')} data-testid="refazer"><Icone nome="refazer" /></button>
-        <button type="button" class="botao-pilula" title={dica('Gravar o mapa', 'gravar')} onClick={executar('gravar')} data-testid="gravar"><Icone nome="gravar" tamanho={15} />Gravar</button>
+        {!remoto ? <button type="button" class="botao-pilula" title={dica('Gravar o mapa', 'gravar')} onClick={executar('gravar')} data-testid="gravar"><Icone nome="gravar" tamanho={15} />Gravar</button> : null}
       </div>) : null}
-      {Selo ? <Selo /> : null}
+      {!remoto && Selo ? <Selo /> : null}
       <div class="grupo" role="radiogroup" aria-label="Tema">
         {(Object.keys(TEMAS) as TemaId[]).map(id => <button type="button" key={id} role="radio" aria-checked={tema.value.id === id} class={`ficha ${tema.value.id === id ? 'ativa' : ''}`} onClick={() => trocarTema({ id })} data-testid={`tema-${id}`}>{TEMAS[id].nome}</button>)}
       </div>

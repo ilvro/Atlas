@@ -189,4 +189,23 @@ describe('atenderMoverPeca (R15)', () => {
     assert.deepEqual(liberado, { ok: true });
     assert.deepEqual(store.documento.tokens.t1!.position, [2.25, 0.75]);
   });
+
+  it('recusa mover peça quando controleJogadores está em mestre e aceita em livres', () => {
+    const { store } = cenario();
+    const bloqueado = atenderMoverPeca(
+      { store: () => store, controleJogadores: () => 'mestre' },
+      { mapa: 'mapa-1', peca: 't1', position: [3.75, 2.25] },
+      autorLia,
+    );
+    assert.equal(bloqueado.ok, false);
+    assert.deepEqual(store.documento.tokens.t1!.position, [0.75, 0.75]);
+
+    const liberado = atenderMoverPeca(
+      { store: () => store, controleJogadores: () => 'livres' },
+      { mapa: 'mapa-1', peca: 't1', position: [3.75, 2.25] },
+      autorLia,
+    );
+    assert.deepEqual(liberado, { ok: true });
+    assert.deepEqual(store.documento.tokens.t1!.position, [3.75, 2.25]);
+  });
 });
