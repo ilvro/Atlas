@@ -45,6 +45,7 @@ export interface ParedeExternaDoTelhado {
     centro: Ponto;
     largura: number;
     material?: string;
+    aberta?: boolean;
   }[];
 }
 

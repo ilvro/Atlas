@@ -584,6 +584,7 @@ export function entradaDoTelhado(
           centro: [r3(ponto[0]), r3(ponto[1])],
           largura: r3(a.width),
           ...(a.material ? { material: a.material } : {}),
+          ...(a.state === 'open' ? { aberta: true } : {}),
         });
         aberturasPorParede.set(p.id, lista);
       }

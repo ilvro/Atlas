@@ -156,6 +156,7 @@ function desenharPorta(
   matId: string | undefined,
   res: number,
   pixel: boolean,
+  aberta = false,
 ): void {
   const px = 1 / res;
   const q = (v: number) => (pixel ? Math.round(v * res) * px : v);
@@ -202,11 +203,33 @@ function desenharPorta(
   ctx.fillStyle = 'rgba(255,248,230,0.16)';
   ctx.fillRect(vergaX, yTop - qw(0.015), vergaW, qw(0.016));
 
-  // Folha interna de tábuas verticais.
+  // Vão interno: escuro/interior quando aberta; folha de tábuas verticais quando fechada.
   const fx0 = q(x0 + moldura);
   const fy0 = q(yTop + vergaH * 0.85);
   const fw = Math.max(px, w - moldura * 2);
   const fh = Math.max(px, yBase - soleiraH * 0.85 - fy0);
+
+  if (aberta) {
+    if (pixel) {
+      ctx.fillStyle = '#141218';
+      ctx.fillRect(fx0, fy0, fw, fh);
+    } else {
+      const gr = ctx.createLinearGradient(u, fy0, u, fy0 + fh);
+      gr.addColorStop(0, '#0c0b10');
+      gr.addColorStop(0.65, '#191720');
+      gr.addColorStop(1, '#26232d');
+      ctx.fillStyle = gr;
+      ctx.fillRect(fx0, fy0, fw, fh);
+    }
+    // Borda fina da folha recolhida junto ao batente esquerdo.
+    const folhaRecolhidaW = Math.min(fw * 0.14, qw(0.065));
+    ctx.fillStyle = corFolha;
+    ctx.fillRect(fx0, fy0, folhaRecolhidaW, fh);
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(fx0 + folhaRecolhidaW, fy0, qw(0.018), fh);
+    void hTotal;
+    return;
+  }
 
   ctx.fillStyle = corFolha;
   ctx.fillRect(fx0, fy0, fw, fh);
@@ -556,7 +579,7 @@ export function assarFachada(
       if (u === null) continue;
       const largDisp = Math.min(ab.largura, Math.max(0.45, larg - 0.12));
       if (ab.tipo === 'door') {
-        desenharPorta(ctx, u, largDisp, beiral, hTotal, ab.material, res, pixel);
+        desenharPorta(ctx, u, largDisp, beiral, hTotal, ab.material, res, pixel, ab.aberta === true);
       } else if (ab.tipo === 'window') {
         desenharJanela(ctx, u, largDisp, beiral, hTotal, ab.material, res, pixel);
       } else if (ab.tipo === 'arch') {
