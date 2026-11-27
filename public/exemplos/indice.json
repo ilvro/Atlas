@@ -148,5 +148,15 @@
       33
     ],
     "miniatura": "oasis-da-caravana.webp"
+  },
+  {
+    "id": "cidade-da-fronteira",
+    "nome": "Cidade da fronteira",
+    "descricao": "A rua de terra de uma cidade de fronteira ao meio-dia: saloon, armazém e banco de um lado, xerifado com as celas, estábulo e estação do outro, o trem parado na linha, a caixa-d'água e o curral com o cata-vento.",
+    "tamanho": [
+      48,
+      33
+    ],
+    "miniatura": "cidade-da-fronteira.webp"
   }
 ]

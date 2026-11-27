@@ -174,6 +174,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('construcao', 'cerca', 'Cerca', ['cerca', 'cerca-de-tabuas', 'palicada']),
   f('construcao', 'muralha', 'Muro e muralha', ['mureta-de-pedra', 'balaustrada', 'muralha-em-degraus', 'estrutura.muralha']),
   f('construcao', 'grade', 'Grade e portão', ['grade.ferro', 'portao.ferro', 'cela-de-xerife', 'arco-de-pedra']),
+  f('construcao', 'passeio-de-tabuas', 'Passeio de tábuas', ['passeio-de-tabuas'], { generos: ['faroeste', 'fantasia'] }),
   f('construcao', 'porta-de-vaivem', 'Porta de vaivém', ['porta-de-vaivem'], { generos: ['faroeste', 'fantasia'] }),
   f('construcao', 'caixa-dagua', "Caixa-d'água e cata-vento", ['cata-vento', 'caixa-dagua-de-ferrovia'], { generos: ['faroeste', 'fantasia'] }),
   f('construcao', 'plataforma', 'Plataforma', ['tablado', 'estrutura.estrado', 'estrutura.plataforma', 'andaime', 'arquibancada']),

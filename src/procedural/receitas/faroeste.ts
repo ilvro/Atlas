@@ -549,6 +549,24 @@ function cranioDeBoi(seed: number): Parte[] {
   return partes;
 }
 
+/** Passeio de tábuas (calçada elevada da cidade): as tábuas atravessadas, gastas e de tons trocados, a viga da frente (+y) e os esteios do alpendre a cada 3 m. */
+function passeioDeTabuas(seed: number, C: number, L: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [];
+  sombraNoChao(partes, [-C / 2, -L / 2, C / 2, -L / 2, C / 2, L / 2 + 0.12, -C / 2, L / 2 + 0.12], 0.01, '#0d0a08', 0.4, [0, 0.06]);
+  partes.push(poli(retQ(ID, 0, 0, C + 0.02, L + 0.02), PINHO.nanquim, 0.25, { contorno: 'leve', detalhe: 1 }));
+  for (let u = -C / 2, k = 0; u < C / 2 - 0.01; u += 0.2, k++) {
+    const w = Math.min(0.19, C / 2 - u), cor = tom(PINHO.base, (r() - 0.5) * 0.16 + (k % 3 === 0 ? -0.05 : 0));
+    partes.push(poli(retQ(ID, u + w / 2, 0, w - 0.012, L - 0.02), cor, 0.252, { ...O, detalhe: 2 }));
+    if (r() < 0.25) partes.push(tira([u + 0.04 + r() * 0.1, -L / 2 + 0.1 + r() * L * 0.4, u + 0.05 + r() * 0.1, L / 2 - 0.1 - r() * L * 0.3], 0.008, PINHO.sombra, 0.254, { ...O, alfa: 0.6, detalhe: 3 }));
+    for (const v of [-L / 2 + 0.1, L / 2 - 0.12]) partes.push(elipse(u + 0.1, v, 0.02, 0.02, '#2a2a2a', 0.255, { ...O, alfa: 0.7, detalhe: 3 }));
+  }
+  partes.push(poli(retQ(ID, 0, -L * 0.2, C, L * 0.5), PINHO.brilho, 0.256, { ...S, alfa: 0.12, detalhe: 2 }));
+  partes.push(tira([-C / 2, L / 2 - 0.05, C / 2, L / 2 - 0.05], 0.12, PINHO.nanquim, 0.27, { contorno: 'leve', detalhe: 1 }), tira([-C / 2, L / 2 - 0.06, C / 2, L / 2 - 0.06], 0.07, PINHO.sombra, 0.272, { ...O, detalhe: 2 }));
+  const n = Math.max(1, Math.round(C / 3));
+  for (let i = 0; i <= n; i++) { const u = -C / 2 + 0.1 + (i * (C - 0.2)) / n; bloco(partes, quadro(u, L / 2 - 0.1), 0.16, 0.16, PINHO, 0.9, 0.03); }
+  return partes;
+}
+
 // ---------- Receitas ----------
 
 const FA = { generos: ['faroeste', 'fantasia'], kit: 'faroeste' };
@@ -607,4 +625,7 @@ export const RECEITAS_DO_FAROESTE: Receita[] = [
     gerar: p => { const C = num(p, 'comprimento', 4.8, 1.2, 14); return piso([C, 0.3], cercaDeTabuas(p.seed, C)); } },
   { id: 'cranio-de-boi', nome: 'Crânio de boi', categoria: 'exterior', tipo: 'piso', funcoes: ['jardim', 'estrada'], ...FA, tags: ['cranio', 'boi', 'chifres', 'ossos', 'deserto', 'faroeste'], pegada: [0.8, 1.5], altura: 0.25,
     gerar: p => piso([0.8, 1.5], cranioDeBoi(p.seed)) },
+  { id: 'passeio-de-tabuas', nome: 'Passeio de tábuas', categoria: 'exterior', tipo: 'piso', funcoes: ['estrada', 'praca', 'varanda', 'saloon', 'estacao'], ...FA, tags: ['passeio', 'calcada', 'tabuas', 'tablado', 'alpendre', 'esteio', 'rua', 'cidade', 'faroeste'], pegada: [6, 1.8], altura: 0.3,
+    campos: [{ id: 'comprimento', rotulo: 'Comprimento (m)', tipo: 'numero', padrao: 6, min: 1.5, max: 24, passo: 0.5 }, { id: 'largura', rotulo: 'Largura (m)', tipo: 'numero', padrao: 1.8, min: 1, max: 4, passo: 0.1 }],
+    gerar: p => { const C = num(p, 'comprimento', 6, 1.5, 24), L = num(p, 'largura', 1.8, 1, 4); return piso([C, L], passeioDeTabuas(p.seed, C, L)); } },
 ];
