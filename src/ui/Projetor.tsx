@@ -35,6 +35,8 @@ function mostrarAvisoRemoto(texto: string): void {
 }
 /** Enquanto segue o mestre, a câmera dele enquadra o projetor; o arrasto aqui solta o projetor até "Seguir o mestre". */
 const seguindo = signal(true);
+/** Modo de controle na activity remota: 'livres' (jogadores movem peças e câmera) ou 'mestre' (só o mestre). */
+const controleRemoto = signal<'livres' | 'mestre'>('livres');
 let caixaDoMestre: Parameters<Viewport['enquadrarCaixa']>[0] | null = null, vpAtual: Viewport | null = null;
 /** "Seguir o mestre" do projetor remoto (definido pelo efeito do componente). */
 let seguirMestreRemoto: () => void = () => {};
@@ -75,7 +77,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
     silenciarNestaJanela();                                   // o áudio não toca no projetor
     const sairTema = iniciarTema();
     document.body.classList.add('projetor');
-    seguindo.value = true; caixaDoMestre = null; zoomLocal = 1;
+    seguindo.value = true; controleRemoto.value = 'livres'; caixaDoMestre = null; zoomLocal = 1;
     retratos.clear(); recursosLocais.clear(); fecharInspecaoNoProjetor();
     cortina.value = { escurecer: false, ms: 0 };
     letreiroDoProjetor.value = null;
@@ -121,6 +123,8 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
       lerRetrato: lerRetratoLocal,
       recursosDaPeca: t => recursosLocais.get(t.id) ?? null,
       pecaDoJogador: t => remoto && pecasDoJogador({ tokens: { [t.id]: t } }, fichasDoJogador).has(t.id),
+      podeMoverPecaRemota: () => !remoto || controleRemoto.peek() === 'livres',
+      cameraBloqueada: () => remoto && controleRemoto.peek() === 'mestre',
       aoArrastarPecaRemota: remoto && barramento
         ? async (peca, para) => {
             const atual = doc.value;
@@ -184,11 +188,29 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
     let ultimoSeqMestre = -1;
     const tratarMensagem = (msg: MensagemDoMestre & { _seq?: number }) => {
       if (morto) return;
-      if (msg._seq !== undefined) {
+      if (!remoto && msg._seq !== undefined) {
         if (msg._seq === ultimoSeqMestre) return;
         ultimoSeqMestre = msg._seq;
       }
-      if (msg.tipo === 'estado') { doc.value = msg.doc; store!.projetar(msg.doc, { emGesto: msg.emGesto }); }
+      if (msg.tipo === 'estado') {
+        const docAntesId = doc.value?.id;
+        if (remoto && docAntesId && docAntesId !== msg.doc.id) {
+          estadoCam = CAMERA_REMOTA_INICIAL;
+          seguindo.value = true;
+          primeira = true;
+          caixa = caixaDoMestre = null;
+        }
+        doc.value = msg.doc;
+        store!.projetar(msg.doc, { emGesto: msg.emGesto });
+        if (remoto && (msg.controleJogadores === 'livres' || msg.controleJogadores === 'mestre')) {
+          controleRemoto.value = msg.controleJogadores;
+          if (msg.controleJogadores === 'mestre') decidirRemoto({ tipo: 'seguir-mestre' }, true);
+        }
+      }
+      else if (msg.tipo === 'controle-jogadores' && remoto) {
+        controleRemoto.value = msg.modo;
+        if (msg.modo === 'mestre') decidirRemoto({ tipo: 'seguir-mestre' }, true);
+      }
       else if (msg.tipo === 'peca-gesto') {
         const atual = store?.documento;
         const t = atual?.tokens[msg.id];
@@ -218,14 +240,37 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
           if (seguindo.peek()) { vp?.enquadrarCaixa(caixaComZoom(msg.caixa), false); primeira = false; }
         }
       }
-      else if (msg.tipo === 'camera' && remoto) { caixa = msg.caixa; decidirRemoto({ tipo: 'camera', caixa: msg.caixa, ...(msg.imediata ? { imediata: true } : {}) }, !msg.imediata); }
+      else if (msg.tipo === 'camera' && remoto) {
+        caixa = msg.caixa;
+        const forcar = msg.forcar || controleRemoto.peek() === 'mestre';
+        decidirRemoto(
+          {
+            tipo: 'camera',
+            caixa: msg.caixa,
+            ...(msg.imediata ? { imediata: true } : {}),
+            ...(forcar ? { forcar: true } : {}),
+          },
+          !msg.imediata,
+        );
+      }
       else if (msg.tipo === 'camera') { caixa = caixaDoMestre = msg.caixa; if (msg.seguir) seguindo.value = true; if (seguindo.peek()) { vp?.enquadrarCaixa(caixaComZoom(msg.caixa), !primeira && !msg.imediata); primeira = false; } }
       else if (msg.tipo === 'evento') vp?.dispararEvento(msg.nome);
       else if (msg.tipo === 'relampago') vp?.relampagoAgora();
       else if (msg.tipo === 'tela') { cortina.value = { escurecer: msg.acao === 'escurecer', ms: msg.ms }; }
       else if (msg.tipo === 'letreiro') { letreiroDoProjetor.value = { titulo: msg.titulo, subtitulo: msg.subtitulo, estilo: msg.estilo, retrato: msg.retrato, ms: msg.ms }; }
       else if (msg.tipo === 'letreiro-fim') { letreiroDoProjetor.value = null; }
-      else if (msg.tipo === 'recursos') { recursosLocais.clear(); for (const [id, r] of Object.entries(msg.por)) recursosLocais.set(id, r); vp?.redesenharPecas(); }
+      else if (msg.tipo === 'recursos') {
+        const entradas = Object.entries(msg.por);
+        const mudou = entradas.length !== recursosLocais.size || entradas.some(([id, r]) => {
+          const ant = recursosLocais.get(id);
+          return !ant || ant.pv !== r.pv || ant.pvMax !== r.pvMax || ant.pd !== r.pd || ant.pdMax !== r.pdMax;
+        });
+        if (mudou) {
+          recursosLocais.clear();
+          for (const [id, r] of entradas) recursosLocais.set(id, r);
+          vp?.redesenharPecas();
+        }
+      }
       else if (msg.tipo === 'inspecao') void abrirInspecaoNoProjetor(msg.nome, msg.normal, msg.uv);
       else if (msg.tipo === 'inspecao-estado') alvoDaInspecao = { vista: msg.vista, lanterna: msg.lanterna };
       else if (msg.tipo === 'inspecao-fim') fecharInspecaoNoProjetor();
@@ -261,7 +306,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
       const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
       const fator = Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015));
       if (remoto) {   // zoom centrado no cursor, com os limites do editor (`zoomEm`); mexer solta a câmera
-        if (!vp || !ref.current) return;
+        if (!vp || !ref.current || controleRemoto.peek() === 'mestre') return;
         soltarSeguimento();
         const r = ref.current.getBoundingClientRect();
         vp.definirCamera(zoomEm(vp.camera, [e.clientX - r.left, e.clientY - r.top], fator));
@@ -272,7 +317,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
     };
     window.addEventListener('wheel', aoRolarJanela, { passive: false, capture: true });
     // Só o arrasto de mais de 4 px solta o projetor da câmera do mestre.
-    function soltarSeguimento() { if (remoto) { estadoCam = decidirCamera(estadoCam, { tipo: 'mexeu' }).estado; seguindo.value = false; return; } if (!seguindo.peek()) return; seguindo.value = false; dizer({ tipo: 'soltou' }); }
+    function soltarSeguimento() { if (remoto) { if (controleRemoto.peek() === 'mestre') return; estadoCam = decidirCamera(estadoCam, { tipo: 'mexeu' }).estado; seguindo.value = false; return; } if (!seguindo.peek()) return; seguindo.value = false; dizer({ tipo: 'soltou' }); }
     let apertado: { x: number; y: number } | null = null;
     const aoApertar = (e: PointerEvent) => { apertado = { x: e.clientX, y: e.clientY }; };
     const aoArrastar = (e: PointerEvent) => { if (apertado && Math.hypot(e.clientX - apertado.x, e.clientY - apertado.y) > 4) { soltarSeguimento(); apertado = null; } };
@@ -284,7 +329,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
     const aoMoverDedo = (e: PointerEvent) => {
       if (e.pointerType !== 'touch' || !dedos.has(e.pointerId)) return;
       dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (dedos.size !== 2 || !vp || !ref.current) return;
+      if (dedos.size !== 2 || !vp || !ref.current || controleRemoto.peek() === 'mestre') return;
       const [a, b] = [...dedos.values()] as [{ x: number; y: number }, { x: number; y: number }];
       const r = ref.current.getBoundingClientRect(), mx = (a.x + b.x) / 2 - r.left, my = (a.y + b.y) / 2 - r.top, dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
       if (!pinca) { pinca = { dist, cam: vp.camera, mx, my }; return; }
@@ -312,6 +357,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
       vpAtual = null; seguirMestreRemoto = () => {};
       doc.value = null;
       seguindo.value = true;
+      controleRemoto.value = 'livres';
       versaoRetratos.value = 0;
       cortina.value = { escurecer: false, ms: 0 };
       letreiroDoProjetor.value = null;

@@ -233,14 +233,15 @@ export function criarPeca(): PecaVisual {
       ultimoRecursos = recursos; pips.visible = !!recursos;
       cor0 = acento; grade0 = grade;
       const novo: Ponto = [t.position[0], t.position[1]];
+      const mudouPosicao = !alvo || Math.abs(novo[0] - alvo[0]) > 1e-6 || Math.abs(novo[1] - alvo[1]) > 1e-6;
       if (alvo && animar === 'gesto' && (Math.abs(novo[0] - c.x) > 1e-6 || Math.abs(novo[1] - c.y) > 1e-6)) {
         desliza = { de: [c.x, c.y], para: novo, t0: performance.now(), dur: MS_GESTO_REMOTO, linear: true };
-      } else if (alvo && animar === true && (Math.abs(novo[0] - alvo[0]) > 1e-6 || Math.abs(novo[1] - alvo[1]) > 1e-6)) {
+      } else if (alvo && animar === true && mudouPosicao) {
         const agora = performance.now(), de: Ponto = desliza ? [c.x, c.y] : alvo;
         const celulas = Math.hypot(novo[0] - alvo[0], novo[1] - alvo[1]) / grade;
         desliza = { de, para: novo, t0: agora, dur: Math.min(MS_MAXIMO, Math.max(MS_POR_CELULA, celulas * MS_POR_CELULA)) };
         rastro.push({ de: alvo, para: novo, t0: agora });
-      } else if (!desliza || !animar) { desliza = null; c.position.set(novo[0], novo[1]); }
+      } else if (!desliza || (!animar && mudouPosicao)) { desliza = null; c.position.set(novo[0], novo[1]); }
       alvo = novo;
     },
     quadro(ms, efeitos) {

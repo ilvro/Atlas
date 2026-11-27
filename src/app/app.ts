@@ -26,17 +26,18 @@ import { campanhaAtiva, carregarCampanhas, desvincularMapa, entidadesDaCampanha,
 import { pedirCena, pedirEfeito, pedirSilencio, pedirSomDoClima, pedirSomDoMapa, tocarSomEscolhido } from './audio-do-clima.ts';
 import { comandoDaEtapaDeAgua, etapasDaAgua } from '../domain/agua.ts';
 import { gatilhoJaDisparou, iniciarRegioes, marcarGatilhoDisparado, nomeDaRegiao } from './regioes.ts';
-import { modo, movimentoLivre, vistaDeJogador } from './modo.ts';
+import { CHAVE_CONTROLE_JOGADORES, controleJogadores, definirControleJogadores, modo, movimentoLivre, vistaDeJogador } from './modo.ts';
 import { atenderMoverPeca, type DadosMoverPeca } from './mover-peca-remota.ts';
 import { avisarMovimentoDeJogador, definirAvisarMovimentoDeJogador } from './preferencias.ts';
 import { iniciarSugestoes } from './sugestoes.ts';
-import { abrirJanelaDoProjetor, ajustarAoAspecto, aspectoDoProjetor, caixaDoProjetor, iniciarPublicacao, mapaNoProjetorId, projetorConectado, seguirJogadores, telaEscura, type Publicador } from './projetor.ts';
+import { abrirJanelaDoProjetor, ajustarAoAspecto, aspectoDoProjetor, caixaDoProjetor, iniciarPublicacao, mapaNoProjetorId, projetorConectado, projetorRemotoConectado, seguirJogadores, telaEscura, type Publicador } from './projetor.ts';
 import type { EventoDeCena } from '../render/eventos-de-cena.ts';
 import type { EfeitoDeCena, Momento, PassoDeMomento } from '../domain/momentos.ts';
 import { executarPasso, fusaoDoMomento, momentoEmCurso, pararMomento, tocarMomento, type SaidasDeMomento } from './momentos.ts';
-import { lerRota, formatarRota, type Rota } from './rotas.ts';
+import { lerRota, formatarRota, rota, type Rota } from './rotas.ts';
 import { iniciarServicos, type Servicos } from './servicos.ts';
-import { criarSessao, type SessaoDeEdicao } from './sessao.ts';
+import { criarSessao, sessao, type SessaoDeEdicao } from './sessao.ts';
+import { criarRepositorioMemoria, emConstrucaoRemota, iniciarConstrucaoRemota } from './construcao-remota.ts';
 import { iniciarTema } from './tema.ts';
 import { avisar } from './toasts.ts';
 import { comTransicao } from './transicao.ts';
@@ -45,8 +46,7 @@ import { abasAbertas, atualizarNomeDaAba, fecharAba, lembrarAndarDaAba, lembrarC
 // ---------- Estado global da interface ----------
 export const servicos = signal<Servicos | null>(null);
 export const erroInicial = signal<string | null>(null);
-export const rota = signal<Rota>(lerRota(typeof location !== 'undefined' ? location.hash : ''));
-export const sessao = signal<SessaoDeEdicao | null>(null);
+export { rota, sessao };
 export const mapaAusente = signal<string | null>(null);
 export const carregando = signal(false);
 export const resumos = signal<ResumoMapa[]>([]);
@@ -76,12 +76,83 @@ const SINGULAR: Record<ColecaoSelecionavel, string> = { lights: 'luz', props: 'o
 const PLURAL: Record<ColecaoSelecionavel, string> = { lights: 'luzes', props: 'objetos', tokens: 'peças', regions: 'regiões', presence: 'presenças', rooms: 'cômodos', walls: 'paredes', openings: 'aberturas' };
 
 // ---------- Início ----------
+let ponteRemota: { salaId: string; parar: () => void } | null = null;
+let ouvinteHashRemoto: (() => void) | null = null;
+
+function pararPonteRemota(): void {
+  if (ponteRemota) {
+    ponteRemota.parar();
+    ponteRemota = null;
+  }
+}
+
+function conectarPonteRemota(salaId: string, repo: Servicos['repo']): void {
+  if (ponteRemota?.salaId === salaId) return;
+  pararPonteRemota();
+  const ponte = iniciarConstrucaoRemota({ salaId, repo });
+  ponteRemota = { salaId, parar: ponte.parar };
+}
+
+/**
+ * Inicializa o Atlas em modo construção colaborativa remota (`#/construir-remoto/<salaId>`):
+ * não abre IndexedDB local (usa repositório puro em memória, sem campanhas nem barramento local)
+ * e trava o modo em `'construir'`.
+ */
+export function iniciarModoConstrucaoRemota(salaId: string): () => void {
+  if (typeof document !== 'undefined') iniciarTema();
+  batch(() => {
+    modo.value = 'construir';
+    vistaDeJogador.value = false;
+    erroInicial.value = null;
+    mapaAusente.value = null;
+    carregando.value = false;
+  });
+  const repo = criarRepositorioMemoria();
+  servicos.value = { repo, campanhas: null, barramento: null };
+  conectarPonteRemota(salaId, repo);
+
+  if (!iniciado && !ouvinteHashRemoto && typeof window !== 'undefined') {
+    ouvinteHashRemoto = () => {
+      const nova = lerRota(location.hash);
+      rota.value = nova;
+      if (nova.tipo === 'construir-remoto') {
+        conectarPonteRemota(nova.sala, repo);
+      } else {
+        pararPonteRemota();
+        if (ouvinteHashRemoto) {
+          window.removeEventListener('hashchange', ouvinteHashRemoto);
+          ouvinteHashRemoto = null;
+        }
+        if (nova.tipo !== 'projetor' && nova.tipo !== 'projetor-remoto') {
+          void iniciar();
+        }
+      }
+    };
+    window.addEventListener('hashchange', ouvinteHashRemoto);
+  }
+
+  return () => {
+    pararPonteRemota();
+    if (ouvinteHashRemoto && typeof window !== 'undefined') {
+      window.removeEventListener('hashchange', ouvinteHashRemoto);
+      ouvinteHashRemoto = null;
+    }
+  };
+}
+
 let iniciado = false;
+let servicosLocais: Servicos | null = null;
 export async function iniciar(): Promise<void> {
+  const atual = rota.peek();
+  if (atual.tipo === 'construir-remoto') {
+    iniciarModoConstrucaoRemota(atual.sala);
+    return;
+  }
   if (iniciado) return; iniciado = true;
   iniciarTema();
   try {
     const s = await iniciarServicos();
+    servicosLocais = s;
     servicos.value = s;
     await carregarCampanhas(s);
     if (s.barramento) iniciarFichas(s.barramento);
@@ -110,8 +181,9 @@ export async function iniciar(): Promise<void> {
     });
     s.barramento?.atender('atlas.mover-peca', (dados, evento) => atenderMoverPeca(
       {
-        store: () => sessao.value?.store ?? null,
+        store: () => obterSessaoParaProjetor()?.store ?? sessao.value?.store ?? null,
         movimentoLivre: () => movimentoLivre.value,
+        controleJogadores: () => controleJogadores.value,
         aoMover: ({ autor, pecaNome }) => {
           if (!avisarMovimentoDeJogador.peek()) return;
           avisar(`${autor.nome} moveu ${pecaNome}`, {
@@ -122,6 +194,15 @@ export async function iniciar(): Promise<void> {
       dados as DadosMoverPeca,
       evento.autor,
     ));
+    s.barramento?.ouvir('mesa.controle-jogadores', evento => {
+      const modo = (evento.dados as { modo?: unknown } | null)?.modo;
+      if (modo === 'livres' || modo === 'mestre') definirControleJogadores(modo);
+    });
+    window.addEventListener('storage', e => {
+      if (e.key === CHAVE_CONTROLE_JOGADORES) {
+        definirControleJogadores(e.newValue === 'mestre' ? 'mestre' : 'livres');
+      }
+    });
     s.barramento?.ouvir('mesa.ping', evento => {
       const d = evento.dados as { mapa?: string; ponto?: [number, number]; levelId?: string | null };
       if (!d || typeof d.mapa !== 'string' || d.mapa !== sessao.value?.doc.value.id || !d.ponto) return;
@@ -141,15 +222,15 @@ export async function iniciar(): Promise<void> {
     return;
   }
   window.addEventListener('hashchange', () => { rota.value = lerRota(location.hash); void sincronizarRota(); });
-  window.addEventListener('pagehide', () => { void sessao.value?.auto.descarregar(); });
-  window.addEventListener('beforeunload', e => { if (sessao.value?.sujo.value && sessao.value.gravacao.value !== 'limpo') { e.preventDefault(); } });
+  window.addEventListener('pagehide', () => { if (!emConstrucaoRemota.peek()) void sessao.value?.auto.descarregar(); });
+  window.addEventListener('beforeunload', e => { if (!emConstrucaoRemota.peek() && sessao.value?.sujo.value && sessao.value.gravacao.value !== 'limpo') { e.preventDefault(); } });
   await sincronizarRota();
 }
 
 let ultimoPingMestre = 0;
 export function emitirPing(ponto: [number, number]): void {
   const s = sessao.value;
-  if (!s) return;
+  if (!s || emConstrucaoRemota.peek()) return;
   const agora = Date.now();
   if (agora - ultimoPingMestre < 1000) return;
   ultimoPingMestre = agora;
@@ -172,6 +253,7 @@ export function emitirPing(ponto: [number, number]): void {
 }
 
 export function navegar(r: Rota): void {
+  if (emConstrucaoRemota.peek() && r.tipo !== 'construir-remoto') return;
   const alvo = formatarRota(r);
   if (typeof location === 'undefined') { rota.value = r; void sincronizarRota(); return; }
   if (location.hash === alvo || (alvo === '#/' && (location.hash === '' || location.hash === '#'))) { rota.value = r; void sincronizarRota(); return; }
@@ -193,6 +275,16 @@ async function sincronizarRota(): Promise<void> {
 async function sincronizarRotaAtual(): Promise<void> {
   const r = rota.value, s = servicos.value;
   if (!s) return;
+  if (r.tipo === 'construir-remoto') {
+    if (sessao.value) await comTransicao(fecharSessao);
+    mapaAusente.value = null;
+    iniciarModoConstrucaoRemota(r.sala);
+    return;
+  }
+  pararPonteRemota();
+  if (servicosLocais && servicos.peek() !== servicosLocais) {
+    servicos.value = servicosLocais;
+  }
   if (r.tipo === 'mapa') {
     const foco: FocoPendente | undefined = r.comodo
       ? { tipo: 'comodo', id: r.comodo }
@@ -215,9 +307,16 @@ export async function atualizarLista(): Promise<void> {
 }
 
 // ---------- Abrir e fechar mapas ----------
+/** Em construção colaborativa remota, o modo permanece travado em `'construir'`. */
+effect(() => {
+  if (emConstrucaoRemota.value && modo.value !== 'construir') {
+    modo.value = 'construir';
+  }
+});
+
 /** Troca entre Construir e Sessão: ao entrar na Sessão, a ferramenta volta a selecionar e a biblioteca fecha. */
 export function alternarModo(): void {
-  const s = sessao.value; if (!s || embutido) return;          // embutido: só Sessão
+  const s = sessao.value; if (!s || embutido || emConstrucaoRemota.peek()) return;          // embutido: só Sessão; remoto: só Construir
   const novo = modo.value === 'construir' ? 'sessao' : 'construir';
   batch(() => { modo.value = novo; if (novo === 'sessao' || s.ferramenta.value === 'regua') { s.ferramenta.value = 'selecionar'; s.biblioteca.value = false; } });
   tocar('selecionar'); avisar(novo === 'sessao' ? 'Modo Sessão' : 'Modo Construir', { duracao: 1200 });
@@ -294,7 +393,8 @@ export function sincronizarPublicador(): void {
 
 export async function projetarAba(id: string): Promise<void> {
   const s = servicos.value;
-  mapaNoProjetorId.value = id;
+  const remotoAtivo = projetorRemotoConectado.peek();
+  const localAtivo = projetorConectado.peek();
   let sessaoAlvo = sessao.value?.doc.value.id === id ? sessao.value : cacheDeSessoes.get(id);
   if (!sessaoAlvo && s) {
     const mapa = await s.repo.obter(id);
@@ -303,8 +403,9 @@ export async function projetarAba(id: string): Promise<void> {
       adicionarAoCache(id, sessaoAlvo);
     }
   }
+  mapaNoProjetorId.value = id;
   sincronizarPublicador();
-  if (!projetorConectado.peek()) {
+  if (!localAtivo && !remotoAtivo) {
     abrirJanelaDoProjetor(id);
   }
 }
@@ -357,9 +458,11 @@ export function abrirProjetor(): void {
 
 export function fecharSessao(): void {
   const atual = sessao.value; if (!atual) return;
-  lembrarAndarDaAba(atual.doc.value.id, atual.andarAtivo.peek());
-  if (viewport.atual?.camera) {
-    lembrarCameraDaAba(atual.doc.value.id, { ...viewport.atual.camera });
+  if (!emConstrucaoRemota.peek()) {
+    lembrarAndarDaAba(atual.doc.value.id, atual.andarAtivo.peek());
+    if (viewport.atual?.camera) {
+      lembrarCameraDaAba(atual.doc.value.id, { ...viewport.atual.camera });
+    }
   }
   pararSugestoes?.(); pararSugestoes = null; pararRegioes?.(); pararRegioes = null;
   modo.value = 'construir'; vistaDeJogador.value = false;
@@ -615,7 +718,7 @@ export async function tocarMomentoRemoto(
 
 // ---------- Mapas ----------
 export async function criarMapaNovo(): Promise<void> {
-  const s = servicos.value; if (!s) return;
+  const s = servicos.value; if (!s || emConstrucaoRemota.peek()) return;
   const mapa = criarMapa({ nome: 'Mapa sem nome', campanhaId: campanhaAtiva.value?.id ?? null });
   const gravado = await s.repo.salvar(mapa);
   await sincronizarMapaComCampanha(s, gravado);
@@ -646,12 +749,13 @@ export async function renomearMapaAberto(nome: string): Promise<void> {
   const limpo = nome.trim().slice(0, 120);
   if (!limpo || limpo === s.doc.value.name) return;
   s.store.executar({ tipo: 'mapa.renomear', nome: limpo });
-  atualizarNomeDaAba(s.doc.value.id, limpo);
+  if (!emConstrucaoRemota.peek()) atualizarNomeDaAba(s.doc.value.id, limpo);
 }
 
 // ---------- Gravar, exportar, importar ----------
 /** Grava o mapa aberto (o caminho do botão Gravar): salva, avisa, sincroniza a campanha e atualiza a lista. Falhas sobem. */
 export async function gravarMapa(): Promise<MapaAtlas> {
+  if (emConstrucaoRemota.peek()) throw new Error('Não é possível gravar localmente em construção remota.');
   const atual = sessao.value, s = servicos.value;
   if (!atual || !s) throw new Error('Não há mapa aberto.');
   const confirmado = await atual.auto.salvarAgora();
@@ -661,7 +765,7 @@ export async function gravarMapa(): Promise<MapaAtlas> {
 }
 
 export async function salvar(): Promise<void> {
-  const atual = sessao.value; if (!atual || !servicos.value) return;
+  const atual = sessao.value; if (!atual || !servicos.value || emConstrucaoRemota.peek()) return;
   try {
     await gravarMapa();
   } catch (erro) {
@@ -681,6 +785,15 @@ function baixar(nome: string, texto: string): void {
 /** `ids` vazio exporta tudo (cópia de segurança). Sem argumento, exporta o mapa aberto. */
 export async function exportar(ids?: string[]): Promise<void> {
   const s = servicos.value; if (!s) return;
+  if (emConstrucaoRemota.peek()) {
+    const doc = sessao.value?.doc.peek();
+    if (!doc) return;
+    await s.repo.restaurar(doc);
+    const pacote = await exportarBackup(s.repo, { ids: [doc.id] });
+    baixar(nomeDoArquivo(doc.name), JSON.stringify(pacote));
+    tocar('salvar'); avisar('Mapa exportado.');
+    return;
+  }
   const abertoId = sessao.value?.doc.value.id;
   const alvo = ids ?? (abertoId ? [abertoId] : undefined);
   if (abertoId && alvo?.includes(abertoId) && sessao.value?.sujo.value) await salvar();
@@ -771,7 +884,7 @@ export function definirAndarAtivo(id: string | null): void {
   if (s.andarAtivo.peek() === id) return;
   s.andarAtivo.value = id;
   s.selecao.value = [];
-  lembrarAndarDaAba(m.id, id);
+  if (!emConstrucaoRemota.peek()) lembrarAndarDaAba(m.id, id);
   viewport.atual?.redesenhar();
   tocar('selecionar');
 }
@@ -1047,7 +1160,7 @@ effect(() => { void recursosDasFichas.value; viewport.atual?.redesenharPecas(); 
 // Mantém o nome da aba sincronizado com as mudanças do documento (ex.: desfazer/refazer).
 effect(() => {
   const s = sessao.value;
-  if (s) {
+  if (s && !emConstrucaoRemota.peek()) {
     atualizarNomeDaAba(s.doc.value.id, s.doc.value.name);
   }
 });

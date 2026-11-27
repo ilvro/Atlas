@@ -5,7 +5,7 @@ import type { Vista } from '../domain/inspecao.ts';
 import type { MapaAtlas } from '../domain/mapa.ts';
 import type { PassoDeMomento } from '../domain/momentos.ts';
 import { mostrarPvNoProjetor, recursosDaPeca, recursosDasFichas } from './fichas.ts';
-import { movimentoLivre } from './modo.ts';
+import { controleJogadores, movimentoLivre, type ControleJogadores } from './modo.ts';
 import { recursosParaOProjetor } from '../domain/fichas.ts';
 import { projetarParaJogadores } from '../domain/projecao.ts';
 import { projetarParaRemoto } from '../domain/projecao-remota.ts';
@@ -38,9 +38,10 @@ export const projetorPodeDizer = (m: { tipo: string }, remoto: boolean): boolean
 export const mapaNoProjetorId = signal<string | null>(null);
 
 export type MensagemDoMestre =
-  | { tipo: 'estado'; doc: MapaAtlas; versao: number; emGesto?: boolean }
+  | { tipo: 'estado'; doc: MapaAtlas; versao: number; emGesto?: boolean; controleJogadores?: ControleJogadores }
+  | { tipo: 'controle-jogadores'; modo: ControleJogadores }
   | { tipo: 'peca-gesto'; id: string; position: [number, number]; facing: MapaAtlas['tokens'][string]['facing']; lightDirection?: number; caixa?: Caixa; seguir?: boolean }
-  | { tipo: 'camera'; caixa: Caixa; seguir?: boolean; imediata?: boolean }
+  | { tipo: 'camera'; caixa: Caixa; seguir?: boolean; imediata?: boolean; forcar?: boolean }
   | { tipo: 'evento'; nome: EventoDeCena }
   | { tipo: 'relampago' }
   | { tipo: 'retrato'; id: string; blob: Blob }
@@ -209,7 +210,7 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
       if (doc.session.explored === null) {
         if (!semNevoaAvisados.has(m.id)) { semNevoaAvisados.add(m.id); enviar({ tipo: 'aviso-sem-nevoa', mapa: m.id, nome: m.name }, 'remoto'); }
       } else semNevoaAvisados.delete(m.id);
-      enviar({ tipo: 'estado', doc, ...extra }, 'remoto');
+      enviar({ tipo: 'estado', doc, ...extra, controleJogadores: controleJogadores.peek() }, 'remoto');
     }
     enviarRecursos();
   };
@@ -252,9 +253,18 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
     const atual = caixaDoProjetor.peek();
     return seguirJogadores.peek() || !atual ? caixaDosJogadores(m, aspectoRemoto, 5, andarAtual(m), jogadorSeguido.peek()) : ajustarAoAspecto(atual, aspectoRemoto);
   };
-  const enviarCameraRemota = (m: MapaAtlas = s.store.documento) => {
+  const enviarCameraRemota = (m: MapaAtlas = s.store.documento, opcoes?: { forcar?: boolean; imediata?: boolean }) => {
     if (!projetorRemotoConectado.peek() || parado) return;
-    enviar({ tipo: 'camera', caixa: caixaRemota(m), ...(seguirJogadores.peek() ? { seguir: true } : {}) }, 'remoto');
+    enviar(
+      {
+        tipo: 'camera',
+        caixa: caixaRemota(m),
+        ...(seguirJogadores.peek() ? { seguir: true } : {}),
+        ...(opcoes?.forcar ? { forcar: true } : {}),
+        ...(opcoes?.imediata ? { imediata: true } : {}),
+      },
+      'remoto',
+    );
   };
   canalRemoto.onmessage = (e: MessageEvent<MensagemDoProjetor & { _seq?: number }>) => {
     if (parado) return;
@@ -266,7 +276,8 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
       if (msg.largura > 0 && msg.altura > 0) aspectoRemoto = msg.largura / msg.altura;
       const m = s.store.documento;
       enviarEstado('remoto');
-      enviarCameraRemota(m);
+      enviar({ tipo: 'controle-jogadores', modo: controleJogadores.peek() }, 'remoto');
+      enviarCameraRemota(m, controleJogadores.peek() === 'mestre' ? { forcar: true } : undefined);
       if (msg.tipo === 'ola' && ultimoEstadoTela?.acao === 'escurecer') enviar({ tipo: 'tela', acao: 'escurecer', ms: ultimoEstadoTela.ms }, 'remoto');
     } else if (msg.tipo === 'tchau') projetorRemotoConectado.value = false;
   };
@@ -315,11 +326,13 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
   });
   // Ligar "seguir os jogadores" enquadra na hora; a caixa publicada segue qualquer mudança (arrastar o quadro, seguir).
   const parar1 = effect(() => {
-    const seguir = seguirJogadores.value, conectado = projetorConectado.value, asp = aspectoDoProjetor.value, quem = jogadorSeguido.value;
-    if (seguir && conectado) {
+    const seguir = seguirJogadores.value, conectado = projetorConectado.value, remoto = projetorRemotoConectado.value, asp = aspectoDoProjetor.value, quem = jogadorSeguido.value;
+    if (seguir && (conectado || remoto)) {
       const m = s.store.documento;
-      caixaDoProjetor.value = caixaDosJogadores(m, asp, 5, andarAtual(m), quem);
-      enviarEstado();
+      const antesAndar = andarDoProjetor.peek();
+      const novoAndar = andarAtual(m);
+      if (conectado) caixaDoProjetor.value = caixaDosJogadores(m, asp, 5, novoAndar, quem);
+      if (conectado || novoAndar !== antesAndar) enviarEstado();
     }
   });
   const parar4 = effect(() => {
@@ -332,13 +345,27 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
     }
   });
   // O destino remoto acompanha a câmera do mestre: seguir, jogador seguido, andar e o quadro dele (no aspecto do remoto).
+  let ultimoSeguir = seguirJogadores.peek();
+  let ultimoJogadorSeguido = jogadorSeguido.peek();
   const parar5 = effect(() => {
-    void seguirJogadores.value; void jogadorSeguido.value; void andarDoProjetor.value; void caixaDoProjetor.value;
-    if (projetorRemotoConectado.value) enviarCameraRemota();
+    const seguir = seguirJogadores.value, quem = jogadorSeguido.value;
+    void andarDoProjetor.value; void caixaDoProjetor.value;
+    const remoto = projetorRemotoConectado.value;
+    const mudouFoco = (seguir && !ultimoSeguir) || (seguir && quem !== ultimoJogadorSeguido);
+    ultimoSeguir = seguir;
+    ultimoJogadorSeguido = quem;
+    if (remoto) enviarCameraRemota(s.store.documento, mudouFoco ? { forcar: true } : undefined);
   });
   const parar3 = effect(() => { void recursosDasFichas.value; void mostrarPvNoProjetor.value; enviarRecursos(); });
   const parar2 = effect(() => { const c = caixaDoProjetor.value; if (c && projetorConectado.peek() && !cameraEmGesto) enviar({ tipo: 'camera', caixa: c, ...(seguirJogadores.peek() ? { seguir: true } : {}) }, 'local'); });
   const parar6 = effect(() => { void movimentoLivre.value; if (algum() && !parado) enviarEstado(); });
+  const parar7 = effect(() => {
+    const modo = controleJogadores.value;
+    if (projetorRemotoConectado.peek() && !parado) {
+      enviar({ tipo: 'controle-jogadores', modo }, 'remoto');
+      if (modo === 'mestre') enviarCameraRemota(s.store.documento, { forcar: true });
+    }
+  });
 
   return {
     evento: nome => { if (algum()) enviar({ tipo: 'evento', nome }); },
@@ -399,7 +426,7 @@ export function iniciarPublicacao(s: SessaoDeEdicao, lerAsset: (id: string) => P
       }
     },
     parar() {
-      parado = true; sair(); parar1(); parar2(); parar3(); parar4(); parar5(); parar6();
+      parado = true; sair(); parar1(); parar2(); parar3(); parar4(); parar5(); parar6(); parar7();
       if (temporizador) clearTimeout(temporizador);
       canalEspecifico.close();
       canalGlobal.close();

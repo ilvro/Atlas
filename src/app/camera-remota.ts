@@ -8,7 +8,7 @@ export interface EstadoDaCameraRemota {
 }
 
 export type EventoDaCameraRemota =
-  | { tipo: 'camera'; caixa: Caixa; imediata?: boolean }
+  | { tipo: 'camera'; caixa: Caixa; imediata?: boolean; forcar?: boolean }
   | { tipo: 'mexeu' }
   | { tipo: 'seguir-mestre' };
 
@@ -16,12 +16,12 @@ export const CAMERA_REMOTA_INICIAL: EstadoDaCameraRemota = { modo: 'seguindo', u
 
 /**
  * Decide se a câmera do mestre vale agora. Seguindo, toda `camera` é aplicada; livre, só a `imediata`
- * (um momento de cena), que devolve o modo "seguindo". "Seguir o mestre" volta e aplica a última caixa.
+ * (um momento de cena) ou `forcar` (mestre retomou o foco), que devolvem o modo "seguindo". "Seguir o mestre" volta e aplica a última caixa.
  */
 export function decidirCamera(estado: EstadoDaCameraRemota, evento: EventoDaCameraRemota): { estado: EstadoDaCameraRemota; caixa?: Caixa } {
   switch (evento.tipo) {
     case 'camera':
-      if (estado.modo === 'seguindo' || evento.imediata) return { estado: { modo: 'seguindo', ultima: evento.caixa }, caixa: evento.caixa };
+      if (estado.modo === 'seguindo' || evento.imediata || evento.forcar) return { estado: { modo: 'seguindo', ultima: evento.caixa }, caixa: evento.caixa };
       return { estado: { ...estado, ultima: evento.caixa } };
     case 'mexeu':
       return { estado: estado.modo === 'livre' ? estado : { ...estado, modo: 'livre' } };

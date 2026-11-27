@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { abasAbertas } from '../app/abas.ts';
-import { mapaNoProjetorId } from '../app/projetor.ts';
+import { mapaNoProjetorId, projetorConectado, projetorRemotoConectado } from '../app/projetor.ts';
 import {
   criarMapaNovo,
   navegar,
@@ -22,6 +22,7 @@ export function AbasDeMapas() {
   const s = sessao.value;
   const abas = abasAbertas.value;
   const ativoId = s?.doc.value.id;
+  const mapaProjetadoId = mapaNoProjetorId.value ?? ((projetorConectado.value || projetorRemotoConectado.value) ? (ativoId ?? null) : null);
 
   const [popoverAberto, setPopoverAberto] = useState(false);
   const [busca, setBusca] = useState('');
@@ -172,10 +173,10 @@ export function AbasDeMapas() {
                 </span>
                 <button
                   type="button"
-                  class={`botao-aba-projetor ${mapaNoProjetorId.value === aba.id ? 'projetando' : ''}`}
-                  title={`Mostrar ${aba.nome} na visão dos jogadores`}
+                  class={`botao-aba-projetor ${mapaProjetadoId === aba.id ? 'projetando' : ''}`}
+                  title={mapaProjetadoId === aba.id ? `Exibindo ${aba.nome} na visão dos jogadores` : `Mostrar ${aba.nome} na visão dos jogadores`}
                   aria-label={`Mostrar ${aba.nome} na visão dos jogadores`}
-                  aria-pressed={mapaNoProjetorId.value === aba.id}
+                  aria-pressed={mapaProjetadoId === aba.id}
                   data-testid={`aba-projetor-${aba.id}`}
                   onClick={e => {
                     e.stopPropagation();
@@ -213,10 +214,10 @@ export function AbasDeMapas() {
               <span class="aba-rotulo">{aba.nome}</span>
               <button
                 type="button"
-                class={`botao-aba-projetor ${mapaNoProjetorId.value === aba.id ? 'projetando' : ''}`}
-                title={`Mostrar ${aba.nome} na visão dos jogadores`}
+                class={`botao-aba-projetor ${mapaProjetadoId === aba.id ? 'projetando' : ''}`}
+                title={mapaProjetadoId === aba.id ? `Exibindo ${aba.nome} na visão dos jogadores` : `Mostrar ${aba.nome} na visão dos jogadores`}
                 aria-label={`Mostrar ${aba.nome} na visão dos jogadores`}
-                aria-pressed={mapaNoProjetorId.value === aba.id}
+                aria-pressed={mapaProjetadoId === aba.id}
                 data-testid={`aba-projetor-${aba.id}`}
                 onClick={e => {
                   e.stopPropagation();

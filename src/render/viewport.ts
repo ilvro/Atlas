@@ -74,6 +74,10 @@ export interface PonteViewport {
   recursosDaPeca?(t: Peca): Recursos | null;
   /** A peça pertence ao jogador que está vendo o projetor remoto (R14)? */
   pecaDoJogador?(t: Peca): boolean;
+  /** No projetor remoto, o jogador pode arrastar a própria peça? (ausente = sim). */
+  podeMoverPecaRemota?(): boolean;
+  /** No projetor remoto, a câmera está bloqueada para o jogador (controle do mestre)? */
+  cameraBloqueada?(): boolean;
   /** No projetor remoto (R15), o jogador arrastou a própria peça até `para`; resolve `true` se o mestre aceitou. */
   aoArrastarPecaRemota?(peca: Peca, para: Ponto): Promise<boolean>;
   /** Ping no mapa (R15b): Alt+clique (mestre/jogador) ou segurar 400 ms num ponto vazio (jogador remoto). */
@@ -185,8 +189,8 @@ const COR_PADRAO_ACENTO = 0xe91d25;
 type Interacao =
   | { tipo: 'pan'; botao: number; x0: number; y0: number; camera0: Camera; moveu: boolean }
   | { tipo: 'mover'; hit: Alvo; alvos: AlvoMovel[]; origem: Ponto; ref: Ponto; aplicado: Ponto; gesto: Gesto | null; x0: number; y0: number; estavaNaSelecao: boolean; ctrl: boolean }
-  | { tipo: 'peca'; id: string; de: Ponto; para: Ponto; offset: Ponto; motivo: string | null; livre: boolean; semGrade: boolean; gesto: Gesto | null; pendente: boolean; x0: number; y0: number; moveu: boolean }
-  | { tipo: 'peca-remota'; id: string; de: Ponto; para: Ponto; offset: Ponto; x0: number; y0: number; moveu: boolean }
+  | { tipo: 'peca'; id: string; de: Ponto; para: Ponto; offset: Ponto; dirRef: Ponto; dirAtual?: number; motivo: string | null; livre: boolean; semGrade: boolean; gesto: Gesto | null; pendente: boolean; x0: number; y0: number; moveu: boolean }
+  | { tipo: 'peca-remota'; id: string; de: Ponto; para: Ponto; offset: Ponto; motivo: string | null; semGrade: boolean; x0: number; y0: number; moveu: boolean }
   | { tipo: 'deslizar'; id: string; gesto: Gesto | null; x0: number; y0: number }
   | { tipo: 'retangulo'; ini: Ponto; atual: Ponto; modo: 'trocar' | 'somar'; x0: number; y0: number; moveu: boolean }
   | { tipo: 'laco'; pontos: Ponto[]; modo: 'trocar' | 'somar' }
@@ -232,7 +236,13 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const mundo = new Container(), area_ = new Graphics(), grade = new Graphics(), selecaoG = new Graphics(), fantasmaC = new Container(), fantasmaG = new Graphics(), laco = new Graphics();
   let camera: Camera = { x: 0, y: 0, zoom: 20 };
   let ponteiro: Ponto | null = null, interacao: Interacao | null = null, espaco = false, camadaSuja = true, gradeSuja = true, destruido = false, regua: Regua | null = null, altPressionado = false, modoProjetor = somenteLeitura, sobrePecaDoJogador = false;
-  let pecaRemotaPendente: { id: string; de: Ponto; para: Ponto } | null = null;
+  let pecaRemotaPendente: { id: string; de: Ponto; para: Ponto; motivo: string | null; semGrade: boolean; relogio?: ReturnType<typeof setTimeout> } | null = null;
+  const limparPecaRemotaPendente = () => {
+    if (!pecaRemotaPendente) return;
+    if (pecaRemotaPendente.relogio !== undefined) clearTimeout(pecaRemotaPendente.relogio);
+    pecaRemotaPendente = null;
+    camadaSuja = true;
+  };
   let relogioPing: ReturnType<typeof setTimeout> | undefined;
   const cancelarRelogioPing = () => { if (relogioPing !== undefined) { clearTimeout(relogioPing); relogioPing = undefined; } };
   const reguaTexto = new Text({ text: '', style: { fontFamily: 'system-ui, sans-serif', fontSize: 14, fontWeight: '600', fill: 0xffffff, stroke: { color: 0x07080b, width: 4 } } });
@@ -487,10 +497,52 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     void cor;
   }
 
+  function desenharPreviaDeArrasto(
+    m: MapaAtlas,
+    id: string,
+    de: Ponto,
+    para: Ponto,
+    motivo: string | null,
+    livre: boolean,
+    semGrade: boolean,
+  ): number {
+    const t = m.grid.size, cor3 = motivo ? 0xe0342c : livre ? 0xd9a23b : 0x3fb950;
+    if (semGrade) {
+      const tam = (m.tokens[id]?.size ?? 1) * t * 0.44;
+      laco.circle(para[0], para[1], tam).fill({ color: cor3, alpha: 0.22 }).stroke({ width: px(1.5), color: cor3, alpha: 0.9 });
+    } else {
+      laco.rect(para[0] - t / 2, para[1] - t / 2, t, t).fill({ color: cor3, alpha: 0.22 }).stroke({ width: px(1.5), color: cor3, alpha: 0.9 });
+    }
+    laco.moveTo(de[0], de[1]).lineTo(para[0], para[1]).stroke({ width: px(2.5), color: cor3, alpha: 0.9, cap: 'round' });
+    return cor3;
+  }
+
   function desenharLaco(): void {
     laco.clear();
-    if (somenteLeitura) return;
-    const cor = acento(), m = doc();
+    reguaTexto.visible = false;
+    const m = doc();
+    if (somenteLeitura) {
+      const alvo = interacao?.tipo === 'peca-remota' && interacao.moveu ? interacao : pecaRemotaPendente;
+      if (!alvo) return;
+      const cor3 = desenharPreviaDeArrasto(m, alvo.id, alvo.de, alvo.para, alvo.motivo, false, alvo.semGrade);
+      const tam = (m.tokens[alvo.id]?.size ?? 1) * m.grid.size * 0.44;
+      laco.circle(alvo.de[0], alvo.de[1], px(4)).fill(0xffffff).stroke({ width: px(1.5), color: cor3 });
+      if (!alvo.semGrade) {
+        laco.circle(alvo.para[0], alvo.para[1], tam).fill({ color: cor3, alpha: 0.14 }).stroke({ width: px(1.5), color: cor3, alpha: 0.7 });
+      }
+      const dist = Math.hypot(alvo.para[0] - alvo.de[0], alvo.para[1] - alvo.de[1]);
+      if (alvo.motivo || dist > 1e-3) {
+        const textoDist = alvo.semGrade
+          ? `${String(Math.round(dist * 10) / 10).replace('.', ',')} m`
+          : textoDaRegua(distanciaDoPercurso([alvo.de, alvo.para], m.grid.size, ponte.regraDaRegua?.() ?? 'simples'), m.grid.size);
+        reguaTexto.text = alvo.motivo ?? textoDist;
+        reguaTexto.scale.set(1 / camera.zoom);
+        reguaTexto.position.set(alvo.para[0] + px(12), alvo.para[1] - px(26));
+        reguaTexto.visible = true;
+      }
+      return;
+    }
+    const cor = acento();
     desenharCaixaDoProjetor(cor);
     desenharRegua(cor);
     if (interacao?.tipo === 'retangulo' && interacao.moveu) {
@@ -524,19 +576,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         laco.circle(q[0], q[1], px(k === 0 && pertoPrimeiro ? 7 : 4.5)).fill(k === 0 && pertoPrimeiro ? cor : 0xffffff).stroke({ width: px(1.5), color: corPol });
       }
     } else if (interacao?.tipo === 'peca' && interacao.moveu) {
-      const { de, para, motivo, livre, semGrade } = interacao, t = m.grid.size, cor3 = motivo ? 0xe0342c : livre ? 0xd9a23b : 0x3fb950;
-      if (semGrade) {
-        const tam = (m.tokens[interacao.id]?.size ?? 1) * t * 0.44;
-        laco.circle(para[0], para[1], tam).fill({ color: cor3, alpha: 0.22 }).stroke({ width: px(1.5), color: cor3, alpha: 0.9 });
-      } else {
-        laco.rect(para[0] - t / 2, para[1] - t / 2, t, t).fill({ color: cor3, alpha: 0.22 }).stroke({ width: px(1.5), color: cor3, alpha: 0.9 });
-      }
-      laco.moveTo(de[0], de[1]).lineTo(para[0], para[1]).stroke({ width: px(2.5), color: cor3, alpha: 0.9, cap: 'round' });
-    } else if ((interacao?.tipo === 'peca-remota' && interacao.moveu) || pecaRemotaPendente) {
-      const alvo = interacao?.tipo === 'peca-remota' && interacao.moveu ? interacao : pecaRemotaPendente!;
-      const tam = (m.tokens[alvo.id]?.size ?? 1) * m.grid.size * 0.44;
-      laco.circle(alvo.para[0], alvo.para[1], tam).fill({ color: cor, alpha: 0.22 }).stroke({ width: px(1.8), color: cor, alpha: 0.9 });
-      laco.moveTo(alvo.de[0], alvo.de[1]).lineTo(alvo.para[0], alvo.para[1]).stroke({ width: px(2), color: cor, alpha: 0.8, cap: 'round' });
+      desenharPreviaDeArrasto(m, interacao.id, interacao.de, interacao.para, interacao.motivo, interacao.livre, interacao.semGrade);
     } else if (interacao?.tipo === 'parede') {
       laco.moveTo(interacao.ini[0], interacao.ini[1]).lineTo(interacao.fim[0], interacao.fim[1]).stroke({ width: 0.2, color: cor, alpha: 0.75, cap: 'round' });
       for (const q of [interacao.ini, interacao.fim]) laco.circle(q[0], q[1], px(5)).fill(0xffffff).stroke({ width: px(1.5), color: cor });
@@ -689,6 +729,9 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   function aoEvento(e: EventoStore): void {
     if (destruido) return;
+    if (pecaRemotaPendente && (e.mudancas.completo || e.mudancas.colecoes.tokens?.includes(pecaRemotaPendente.id))) {
+      limparPecaRemotaPendente();
+    }
     if (e.mudancas.completo || ultimoAndar !== andarAtual()) { redesenharTudo(); if (e.tipo === 'substituir') enquadrarMapa(); return; }
     const mud = e.mudancas, mAndar = doc();
     if (mud.campos.some(c => ['backdrop', 'bounds', 'grid'].includes(c)) || mud.campos.includes('levels')) { desenharBase(mAndar); gradeSuja = true; }
@@ -699,7 +742,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       if (trocou && ponte.acabamento() && fxAtivo()) iniciarTransicao(antes, mAndar); else pararTransicao();
     }
     if (mud.campos.includes('finish')) aplicarAcabamento();
-    cena.sincronizar(mAndar, mud, e.tipo === 'executar' || e.tipo === 'refazer', visaoDoClima(mAndar), ctxAndar());
+    cena.sincronizar(mAndar, mud, e.tipo === 'executar' || e.tipo === 'refazer' || e.tipo === 'concluir', visaoDoClima(mAndar), ctxAndar());
     if (transicao) aplicarAcabamento();
     vistoDoDoc = estadoDoDoc(mAndar);
     camadaSuja = true;
@@ -718,7 +761,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const mundoDe = (e: { clientX: number; clientY: number }): Ponto => telaParaMundo(camera, telaDe(e));
   const posicaoDe = (m: MapaAtlas, a: Alvo): Ponto => a.colecao === 'regions' ? m.regions[a.id]!.polygon[0]! : (m[a.colecao as ColecaoLivre] as Record<string, { position: Ponto }>)[a.id]!.position;
   const cursor = () => {
-    if (somenteLeitura) { canvas.style.cursor = interacao?.tipo === 'pan' ? 'grabbing' : sobrePecaDoJogador ? 'grab' : 'default'; return; }
+    if (somenteLeitura) { canvas.style.cursor = (interacao?.tipo === 'peca-remota' || (interacao?.tipo === 'pan' && !ponte.cameraBloqueada?.())) ? 'grabbing' : (sobrePecaDoJogador && ponte.podeMoverPecaRemota?.() !== false) ? 'grab' : 'default'; return; }
     const f = ponte.ferramenta();
     canvas.style.cursor = interacao?.tipo === 'pan' ? 'grabbing' : (f === 'mao' || espaco) ? 'grab' : interacao?.tipo === 'alinhamento-grade' ? (interacao.modo === 'escala' ? 'nwse-resize' : 'move') : f === 'selecionar' ? (interacao?.tipo === 'mover' || interacao?.tipo === 'peca' || interacao?.tipo === 'deslizar' ? 'move' : 'default') : 'crosshair';
   };
@@ -928,14 +971,14 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     }
     if (interacao) return;
     if (somenteLeitura) {
-      if (e.button === 0 && ponte.pecaDoJogador && ponte.aoArrastarPecaRemota) {
+      if (e.button === 0 && ponte.pecaDoJogador && ponte.aoArrastarPecaRemota && ponte.podeMoverPecaRemota?.() !== false) {
         const p = mundoDe(e), m = doc(), hit = alvoEm(m, p, px(8));
         const t = hit?.colecao === 'tokens' ? m.tokens[hit.id] : undefined;
         if (t && ponte.pecaDoJogador(t)) {
           e.stopPropagation();
           canvas.setPointerCapture(e.pointerId);
           const [tx, ty] = telaDe(e);
-          interacao = { tipo: 'peca-remota', id: t.id, de: [t.position[0], t.position[1]], para: [t.position[0], t.position[1]], offset: [t.position[0] - p[0], t.position[1] - p[1]], x0: tx, y0: ty, moveu: false };
+          interacao = { tipo: 'peca-remota', id: t.id, de: [t.position[0], t.position[1]], para: [t.position[0], t.position[1]], offset: [t.position[0] - p[0], t.position[1] - p[1]], motivo: null, semGrade: !m.grid.snap, x0: tx, y0: ty, moveu: false };
           cursor();
           return;
         }
@@ -1017,7 +1060,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         ponte.definirSelecao([hit]);
         const t = m.tokens[hit.id]; if (!t) return;
         const semGrade = !m.grid.snap || ponte.movimentoLivre?.() === true;
-        interacao = { tipo: 'peca', id: hit.id, de: [t.position[0], t.position[1]], para: [t.position[0], t.position[1]], offset: [t.position[0] - p[0], t.position[1] - p[1]], motivo: null, livre: e.altKey, semGrade, gesto: null, pendente: false, x0: tx, y0: ty, moveu: false };
+        interacao = { tipo: 'peca', id: hit.id, de: [t.position[0], t.position[1]], para: [t.position[0], t.position[1]], offset: [t.position[0] - p[0], t.position[1] - p[1]], dirRef: [t.position[0], t.position[1]], motivo: null, livre: e.altKey, semGrade, gesto: null, pendente: false, x0: tx, y0: ty, moveu: false };
         cursor(); return;
       }
       if (hit) {
@@ -1051,7 +1094,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     const motivo = i.livre ? null : bloqueioNoCaminho(m, atual, i.para);
     i.motivo = motivo;
     if (!motivo && Math.hypot(i.para[0] - atual[0], i.para[1] - atual[1]) > 1e-6) {
-      try { i.gesto.aplicar({ tipo: 'peca.mover', id: i.id, para: i.para, livre: i.livre, semGrade: true, emArrasto: true }); } catch { /* bloqueado */ }
+      try { i.gesto.aplicar({ tipo: 'peca.mover', id: i.id, para: i.para, livre: i.livre, semGrade: true, emArrasto: true, ...(i.dirAtual !== undefined ? { direcao: i.dirAtual } : {}) }); } catch { /* bloqueado */ }
     }
   }
 
@@ -1063,7 +1106,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (!interacao) {
       if (somenteLeitura && ponte.pecaDoJogador) {
         const hit = alvoEm(m, ponteiro, px(8));
-        const sobre = hit?.colecao === 'tokens' && !!m.tokens[hit.id] && ponte.pecaDoJogador(m.tokens[hit.id]!);
+        const sobre = ponte.podeMoverPecaRemota?.() !== false && hit?.colecao === 'tokens' && !!m.tokens[hit.id] && ponte.pecaDoJogador(m.tokens[hit.id]!);
         if (sobre !== sobrePecaDoJogador) { sobrePecaDoJogador = sobre; cursor(); }
       }
       // Com um ponto só fixado, a régua acompanha o ponteiro até o próximo clique.
@@ -1073,7 +1116,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     const i = interacao;
     if (i.tipo === 'pan') {
       if (Math.hypot(tx - i.x0, ty - i.y0) > LIMIAR_ARRASTO) { i.moveu = true; cancelarRelogioPing(); }
-      if (i.moveu) definirCamera(panear({ ...i.camera0 }, tx - i.x0, ty - i.y0));
+      if (i.moveu && !ponte.cameraBloqueada?.()) definirCamera(panear({ ...i.camera0 }, tx - i.x0, ty - i.y0));
     } else if (i.tipo === 'mover') {
       if (!i.gesto) {
         if (Math.hypot(tx - i.x0, ty - i.y0) <= LIMIAR_ARRASTO || !i.alvos.length) return;
@@ -1100,6 +1143,13 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
           ? [Math.max(0, Math.min(m.bounds.width, ponteiro[0])), Math.max(0, Math.min(m.bounds.height, ponteiro[1]))]
           : centroDaCelula(m, ponteiro);
       i.para = alvoPos;
+      const dxDir = alvoPos[0] - i.dirRef[0], dyDir = alvoPos[1] - i.dirRef[1];
+      const distDir = Math.hypot(dxDir, dyDir);
+      if (distDir >= 0.2) {
+        i.dirAtual = Math.atan2(dyDir, dxDir);
+        const recuo = Math.min(0.12, distDir * 0.5);
+        i.dirRef = [alvoPos[0] - (dxDir / distDir) * recuo, alvoPos[1] - (dyDir / distDir) * recuo];
+      }
       if (semGrade && i.moveu) {
         if (!i.gesto) i.gesto = store.iniciarGesto('Mover peça');
         const atual = m.tokens[i.id]?.position ?? i.de;
@@ -1120,10 +1170,13 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       }
     } else if (i.tipo === 'peca-remota') {
       if (Math.hypot(tx - i.x0, ty - i.y0) > LIMIAR_ARRASTO) i.moveu = true;
-      const livre = !m.grid.snap || e.altKey;
-      i.para = livre
+      const semGrade = !m.grid.snap;
+      i.semGrade = semGrade;
+      const alvoBruto: Ponto = semGrade
         ? [Math.max(0, Math.min(m.bounds.width, ponteiro[0] + i.offset[0])), Math.max(0, Math.min(m.bounds.height, ponteiro[1] + i.offset[1]))]
-        : centroDaCelula(m, ponteiro);
+        : centroDaCelula(m, [Math.max(0, Math.min(m.bounds.width - 1e-4, ponteiro[0])), Math.max(0, Math.min(m.bounds.height - 1e-4, ponteiro[1]))]);
+      i.para = [Math.max(0, Math.min(m.bounds.width, alvoBruto[0])), Math.max(0, Math.min(m.bounds.height, alvoBruto[1]))];
+      i.motivo = bloqueioNoCaminho(m, i.de, i.para);
     } else if (i.tipo === 'deslizar') {
       if (!i.gesto) { if (Math.hypot(tx - i.x0, ty - i.y0) <= LIMIAR_ARRASTO) return; i.gesto = store.iniciarGesto('Mover abertura'); }
       const a = m.openings[i.id]; if (!a) return;
@@ -1217,7 +1270,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
           if (i.moveu && !i.motivo) {
             const atual = doc().tokens[i.id]?.position ?? i.de;
             if (Math.hypot(i.para[0] - atual[0], i.para[1] - atual[1]) > 1e-6) {
-              try { i.gesto.aplicar({ tipo: 'peca.mover', id: i.id, para: i.para, livre: i.livre, semGrade: i.semGrade }); } catch { /* ignora */ }
+              try { i.gesto.aplicar({ tipo: 'peca.mover', id: i.id, para: i.para, livre: i.livre, semGrade: i.semGrade, ...(i.dirAtual !== undefined ? { direcao: i.dirAtual } : {}) }); } catch { /* ignora */ }
             } else if (doc().tokens[i.id]?.player) {
               try { i.gesto.aplicar({ tipo: 'sessao.explorar' }); } catch { /* ignora */ }
             }
@@ -1225,17 +1278,27 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
           i.gesto.concluir();
         }
       } else if (!cancelado && i.moveu && Math.hypot(i.para[0] - i.de[0], i.para[1] - i.de[1]) > 1e-6) {
-        tentar(() => store.executar({ tipo: 'peca.mover', id: i.id, para: i.para, livre: i.livre, semGrade: i.semGrade }));
+        tentar(() => store.executar({ tipo: 'peca.mover', id: i.id, para: i.para, livre: i.livre, semGrade: i.semGrade, ...(i.dirAtual !== undefined ? { direcao: i.dirAtual } : {}) }));
       }
     } else if (i.tipo === 'peca-remota') {
       if (!cancelado && i.moveu && Math.hypot(i.para[0] - i.de[0], i.para[1] - i.de[1]) > 1e-6) {
         const t = m.tokens[i.id];
         if (t && ponte.aoArrastarPecaRemota) {
-          const pendente = { id: i.id, de: i.de, para: i.para };
+          limparPecaRemotaPendente();
+          const pendente: NonNullable<typeof pecaRemotaPendente> = { id: i.id, de: i.de, para: i.para, motivo: i.motivo, semGrade: i.semGrade };
+          pendente.relogio = setTimeout(() => {
+            if (pecaRemotaPendente === pendente) limparPecaRemotaPendente();
+          }, 1500);
           pecaRemotaPendente = pendente;
-          void ponte.aoArrastarPecaRemota(t, i.para).finally(() => {
-            if (pecaRemotaPendente === pendente) { pecaRemotaPendente = null; camadaSuja = true; }
-          });
+          void ponte.aoArrastarPecaRemota(t, i.para).then(
+            aceito => {
+              if (pecaRemotaPendente !== pendente) return;
+              const posAtual = doc().tokens[pendente.id]?.position;
+              const jaMoveu = posAtual && (Math.abs(posAtual[0] - pendente.de[0]) > 1e-6 || Math.abs(posAtual[1] - pendente.de[1]) > 1e-6);
+              if (!aceito || jaMoveu) limparPecaRemotaPendente();
+            },
+            () => { if (pecaRemotaPendente === pendente) limparPecaRemotaPendente(); },
+          );
         }
       }
     } else if (i.tipo === 'regua') {
@@ -1410,7 +1473,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     destruir() {
       destruido = true; if (rafArrastoPeca) { cancelAnimationFrame(rafArrastoPeca); rafArrastoPeca = 0; } cancelarAssinatura(); observador.disconnect();
       window.removeEventListener('keydown', aoTeclar, true); window.removeEventListener('keyup', aoSoltar);
-      cancelarRelogioPing();
+      cancelarRelogioPing(); limparPecaRemotaPendente();
       camadaPings.destruir();
       app.ticker.remove(aoQuadro); limparFantasmaSprite(); fantasmaDaProposta.destruir(); linhasDeNivel.destruir(); retratos.limpar(); cena.destruir(); baker.encerrar(); pixelizacao.destruir(); app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
     },

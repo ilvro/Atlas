@@ -670,3 +670,125 @@ test('publicador: pede ola no canal remoto ao iniciar para retomar após troca d
     pub.parar(); remoto.close(); sess.fechar();
   }
 });
+
+test('publicador: seguir jogadores, jogador seguido e controle do mestre forçam foco no destino remoto', async () => {
+  const { definirControleJogadores, controleJogadores } = await import('../../src/app/modo.ts');
+  const mapa = criarMapa({ id: 'mapa-pub-foco-remoto', nome: 'Torre' });
+  mapa.levels = { l2: { id: 'l2', name: 'Superior', order: 1 } };
+  mapa.session.explored = { res: 0.5, cells: [[0, 0, 60]] };
+  mapa.session.exploredLevels = { l2: { res: 0.5, cells: [[0, 0, 60]] } };
+  const sess = criarSessao(mapa, criarRepoMock({ [mapa.id]: mapa }), { salvo: true });
+  sess.store.executar({ tipo: 'item.adicionar', colecao: 'tokens', item: { id: 'p1', name: 'Lia', position: [3, 3], size: 1, facing: 'down', portrait: null, sprite: null, player: true, vision: { radius: 6, dark: false }, lightId: null, figure: { state: 'normal' }, refs: [], hp: null } });
+  sess.store.executar({ tipo: 'item.adicionar', colecao: 'tokens', item: { id: 'p2', name: 'Kael', position: [25, 18], size: 1, facing: 'down', portrait: null, sprite: null, player: true, vision: { radius: 6, dark: false }, lightId: null, figure: { state: 'normal' }, refs: [], hp: null, levelId: 'l2' } });
+
+  definirControleJogadores('livres');
+  seguirJogadores.value = false;
+  jogadorSeguido.value = null;
+  const pub = iniciarPublicacao(sess, async () => null);
+  const remoto = new BroadcastChannel(CANAL_PROJETOR_REMOTO);
+  const msgs: any[] = [];
+  remoto.onmessage = e => msgs.push(e.data);
+  try {
+    remoto.postMessage({ tipo: 'ola', largura: 1600, altura: 900, remoto: true, _seq: 1 });
+    await esperar(60);
+
+    // 1. Ligar seguirJogadores envia camera com seguir e forcar
+    msgs.length = 0;
+    seguirJogadores.value = true;
+    await esperar(50);
+    const camSeguir = msgs.filter(m => m.tipo === 'camera').at(-1);
+    assert.ok(camSeguir, 'enviou camera ao ligar seguirJogadores');
+    assert.equal(camSeguir.seguir, true);
+    assert.equal(camSeguir.forcar, true);
+
+    // 2. Trocar jogadorSeguido para p2 (outro andar) envia estado do novo andar e camera com forcar centrada em p2
+    msgs.length = 0;
+    jogadorSeguido.value = 'p2';
+    await esperar(60);
+    const estadoNovoAndar = msgs.filter(m => m.tipo === 'estado').at(-1);
+    assert.ok(estadoNovoAndar, 'enviou estado do novo andar ao focar jogador em outro andar');
+    assert.ok(estadoNovoAndar.doc.tokens.p2, 'estado contém o token p2');
+    const camP2 = msgs.filter(m => m.tipo === 'camera').at(-1);
+    assert.ok(camP2, 'enviou camera para p2');
+    assert.equal(camP2.forcar, true);
+    assert.ok(Math.abs((camP2.caixa.x0 + camP2.caixa.x1) / 2 - 25) < 0.01);
+
+    // 3. Mudar para Controle do mestre envia controle-jogadores e camera com forcar
+    msgs.length = 0;
+    definirControleJogadores('mestre');
+    await esperar(50);
+    const ctrl = msgs.filter(m => m.tipo === 'controle-jogadores').at(-1);
+    assert.equal(ctrl?.modo, 'mestre');
+    const camMestre = msgs.filter(m => m.tipo === 'camera').at(-1);
+    assert.ok(camMestre, 'enviou camera ao ativar controle do mestre');
+    assert.equal(camMestre.forcar, true);
+  } finally {
+    definirControleJogadores('livres');
+    assert.equal(controleJogadores.value, 'livres');
+    seguirJogadores.value = false;
+    jogadorSeguido.value = null;
+    pub.parar(); remoto.close(); sess.fechar();
+  }
+});
+
+test('projetarAba: com destino remoto ativo, troca o mapa na Activity sem abrir janela local', async () => {
+  cacheDeSessoes.clear();
+  const mapaA = criarMapa({ id: 'mapa-aba-a', nome: 'Mapa A' });
+  const mapaB = criarMapa({ id: 'mapa-aba-b', nome: 'Mapa B' });
+  mapaA.session.explored = { res: 0.5, cells: [[0, 0, 20]] };
+  mapaB.session.explored = { res: 0.5, cells: [[0, 0, 20]] };
+  const repo = criarRepoMock({ [mapaA.id]: mapaA, [mapaB.id]: mapaB });
+  servicos.value = { repo, campanhas: null, barramento: null };
+
+  const sessA = criarSessao(mapaA, repo, { salvo: true });
+  sessao.value = sessA;
+  cacheDeSessoes.set(mapaA.id, sessA);
+  mapaNoProjetorId.value = null;
+  sincronizarPublicador();
+
+  let abriuJanela = 0;
+  const openOriginal = globalThis.window.open;
+  globalThis.window.open = (() => { abriuJanela++; return null; }) as any;
+
+  const remoto = new BroadcastChannel(CANAL_PROJETOR_REMOTO);
+  const estados: string[] = [];
+  remoto.onmessage = e => {
+    const d = e.data;
+    if (d?.tipo === 'precisa-ola') {
+      remoto.postMessage({ tipo: 'ola', largura: 1280, altura: 720, remoto: true, _seq: Math.random() });
+    } else if (d?.tipo === 'estado') {
+      estados.push(d.doc.id);
+    }
+  };
+
+  try {
+    remoto.postMessage({ tipo: 'ola', largura: 1280, altura: 720, remoto: true, _seq: 1 });
+    await esperar(60);
+    assert.equal(projetorRemotoConectado.value, true);
+
+    estados.length = 0;
+    await projetarAba(mapaB.id);
+    await esperar(80);
+
+    assert.equal(mapaNoProjetorId.value, mapaB.id);
+    assert.equal(abriuJanela, 0, 'não abre janela popup local quando destino remoto está ativo');
+    assert.ok(estados.includes(mapaB.id), 'novo mapa foi publicado no canal remoto');
+
+    // Quando desconectado (offline/presencial), continua abrindo janela local
+    remoto.postMessage({ tipo: 'tchau', _seq: 2 });
+    await esperar(40);
+    assert.equal(projetorRemotoConectado.value, false);
+    await projetarAba(mapaA.id);
+    assert.equal(abriuJanela, 1, 'abre janela local quando nenhum projetor está conectado');
+  } finally {
+    globalThis.window.open = openOriginal;
+    fecharAbaComSessao(mapaB.id);
+    fecharAbaComSessao(mapaA.id);
+    sessA.fechar();
+    cacheDeSessoes.clear();
+    sessao.value = null;
+    mapaNoProjetorId.value = null;
+    sincronizarPublicador();
+    remoto.close();
+  }
+});

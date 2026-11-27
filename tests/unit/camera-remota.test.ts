@@ -32,3 +32,8 @@ test('Seguir o mestre sem nenhuma camera recebida não aplica nada', () => {
   const r = decidirCamera(decidirCamera(CAMERA_REMOTA_INICIAL, { tipo: 'mexeu' }).estado, { tipo: 'seguir-mestre' });
   assert.equal(r.caixa, undefined); assert.equal(r.estado.modo, 'seguindo');
 });
+test('livre, camera com forcar é aplicada e volta a seguir', () => {
+  const livre = decidirCamera(decidirCamera(CAMERA_REMOTA_INICIAL, { tipo: 'camera', caixa: A }).estado, { tipo: 'mexeu' }).estado;
+  const r = decidirCamera(livre, { tipo: 'camera', caixa: C, forcar: true });
+  assert.deepEqual(r.caixa, C); assert.equal(r.estado.modo, 'seguindo');
+});

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { useSignal } from '@preact/signals';
 import { chaveDaRef, formatarRef, lerRef, type Entidade, type Ref } from '#mesa';
 import { campanhaAtiva, campanhas, criarCampanha, escolherCampanha, refDoComodo } from '../app/campanha.ts';
+import { emConstrucaoRemota } from '../app/construcao-remota.ts';
 import { resumos, servicos } from '../app/app.ts';
 import { BlocoTransicaoDeMapa, objetoParaVincularMapa } from './BlocoTransicaoDeMapa.tsx';
 import { avisar } from '../app/toasts.ts';
@@ -27,6 +28,7 @@ import { ROTULO_DA_REGRA, type RegraDeDiagonal } from '../domain/regua.ts';
 import { definirSugestoesLigadas, sugestoesLigadas } from '../app/sugestoes.ts';
 import { COLECAO } from '../procedural/colecao.ts';
 import { receitaDe } from '../procedural/receitas/index.ts';
+import { CamposDaReceita } from './campos-receita.tsx';
 import { materialDe, materiaisDo } from '../procedural/materiais.ts';
 import { Amostra } from './campos-material.tsx';
 import { PropriedadesDoObjeto } from './PropriedadesDoObjeto.tsx';
@@ -67,7 +69,7 @@ function ExploracaoDoMapa({ s }: { s: SessaoDeEdicao }) {
       dica="Como as áreas fora da visão direta aparecem para os jogadores."
       valor={modoVisao}
       opcoes={[
-        ['darkwood', 'Darkwood (cone + penumbra)'],
+        ['darkwood', 'Darkwood (breu sem detalhes)'],
         ['sketch', 'Esboço em papel'],
         ['shroud', 'Breu (só explorado)'],
       ]}
@@ -109,37 +111,41 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
       <h3 class="faixa pequena">Mapa</h3>
       <CampoTexto rotulo="Nome" valor={m.name} aoConfirmar={v => v.trim() ? tentar(() => st.executar({ tipo: 'mapa.renomear', nome: v.trim() })) : false} />
       <CampoOpcoes rotulo="Gênero" dica={generoDe(m.style.genre).descricao} valor={generoDe(m.style.genre).id} opcoes={GENEROS.map(g => [g.id, g.nome] as const)} aoMudar={v => tentar(() => st.executar({ tipo: 'estilo.atualizar', patch: { genre: v } }, { rotulo: 'Gênero do mapa' }))} />
-      <label class="linha"><span class="linha-rotulo">Campanha</span><span class="linha-controle">
-        <select
-          data-testid="campanha-do-mapa"
-          value={m.campanhaId ?? ''}
-          onChange={e => {
-            const v = (e.target as HTMLSelectElement).value || null;
-            tentar(() => st.executar({ tipo: 'mapa.campanha', campanhaId: v }, { rotulo: 'Ligar à campanha' }));
-            escolherCampanha(v, servicos.value ?? undefined);
-          }}
-        >
-          <option value="">Nenhuma</option>
-          {campanhas.value.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-          {m.campanhaId && !campanhas.value.some(c => c.id === m.campanhaId) && <option value={m.campanhaId}>(campanha ausente)</option>}
-        </select></span></label>
-      {campanhas.value.length === 0 && (
-        <button
-          type="button"
-          class="botao-pilula"
-          data-testid="criar-campanha-rapida"
-          onClick={async () => {
-            const nome = prompt('Nome da nova campanha:', 'Minha Campanha');
-            if (nome && servicos.value) {
-              const c = await criarCampanha(servicos.value, nome.trim());
-              st.executar({ tipo: 'mapa.campanha', campanhaId: c.id }, { rotulo: 'Ligar à nova campanha' });
-            }
-          }}
-        >
-          + Criar campanha
-        </button>
+      {!emConstrucaoRemota.value && (
+        <>
+          <label class="linha"><span class="linha-rotulo">Campanha</span><span class="linha-controle">
+            <select
+              data-testid="campanha-do-mapa"
+              value={m.campanhaId ?? ''}
+              onChange={e => {
+                const v = (e.target as HTMLSelectElement).value || null;
+                tentar(() => st.executar({ tipo: 'mapa.campanha', campanhaId: v }, { rotulo: 'Ligar à campanha' }));
+                escolherCampanha(v, servicos.value ?? undefined);
+              }}
+            >
+              <option value="">Nenhuma</option>
+              {campanhas.value.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              {m.campanhaId && !campanhas.value.some(c => c.id === m.campanhaId) && <option value={m.campanhaId}>(campanha ausente)</option>}
+            </select></span></label>
+          {campanhas.value.length === 0 && (
+            <button
+              type="button"
+              class="botao-pilula"
+              data-testid="criar-campanha-rapida"
+              onClick={async () => {
+                const nome = prompt('Nome da nova campanha:', 'Minha Campanha');
+                if (nome && servicos.value) {
+                  const c = await criarCampanha(servicos.value, nome.trim());
+                  st.executar({ tipo: 'mapa.campanha', campanhaId: c.id }, { rotulo: 'Ligar à nova campanha' });
+                }
+              }}
+            >
+              + Criar campanha
+            </button>
+          )}
+          {!m.campanhaId && campanhaAtiva.value && <p class="dica">Este mapa não está em nenhuma campanha. A ativa é “{campanhaAtiva.value.nome}”.</p>}
+        </>
       )}
-      {!m.campanhaId && campanhaAtiva.value && <p class="dica">Este mapa não está em nenhuma campanha. A ativa é “{campanhaAtiva.value.nome}”.</p>}
       <h3 class="faixa pequena">Grade</h3>
       <CampoCaixa rotulo="Mostrar" valor={m.grid.visible} aoMudar={v => tentar(() => st.executar({ tipo: 'grade.atualizar', patch: { visible: v } }, { rotulo: v ? 'Mostrar a grade' : 'Esconder a grade' }))} />
       <CampoCaixa rotulo="Encaixar" valor={m.grid.snap} aoMudar={v => tentar(() => st.executar({ tipo: 'grade.atualizar', patch: { snap: v } }, { rotulo: v ? 'Encaixar na grade' : 'Desencaixar da grade' }))} />
@@ -426,11 +432,11 @@ function CamposDaPeca({ s, t }: { s: SessaoDeEdicao; t: Peca }) {
     <CampoNumero rotulo="Visão" unidade="m" valor={t.vision.radius} min={0} max={200} passo={1} aoConfirmar={v => editar({ vision: { radius: v } }, 'Visão da peça')} />
     <CampoOpcoes
       rotulo="Formato da visão"
-      dica="No modo Cone (Darkwood), a peça enxerga à frente e numa pequena bolha 360° ao redor."
+      dica="Padrão 360°. Em Cone, a peça enxerga à frente e numa pequena bolha 360° ao redor."
       valor={t.vision.mode ?? ''}
       opcoes={[
-        ['', 'Do mapa'],
-        ['cone', 'Cone (Darkwood)'],
+        ['', 'Do mapa (360°)'],
+        ['cone', 'Cone'],
         ['circle', '360°'],
       ]}
       aoMudar={v => editar({ vision: { mode: v ? (v as ModoDeVisao) : undefined } }, 'Formato da visão')}
@@ -605,12 +611,14 @@ function copiarParaOPincel(s: SessaoDeEdicao, o: Objeto): void {
 function CamposDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
   const editar = (patch: Record<string, unknown>, rotulo?: string) => tentar(() => s.store.executar({ tipo: 'item.atualizar', colecao: 'props', id: o.id, patch }, rotulo ? { rotulo } : {}));
   const receita = o.source.kind === 'recipe' ? receitaDe(o.source.recipe) : null;
+  const itemAcervo = o.source.kind === 'recipe' ? ACERVO.item(ACERVO.idDaFonte(o.source)) : null;
   const item = o.source.kind === 'asset' ? COLECAO.find(i => i.id === (o.source as { assetId: string }).assetId) ?? null : null;
   const origem = item ? (item.origem.tipo === 'gerado' ? 'gerado pelo Atlas' : `achado: ${item.origem.autor}, ${item.origem.licenca}`) : null;
   return (<>
     {o.source.kind === 'asset' && <div class="item-da-colecao" data-testid="item-da-colecao"><strong>{item?.nome ?? o.source.assetId}</strong><span class="dica">{item ? `Coleção da casa · ${origem}` : 'Este item não está na coleção desta versão do Atlas: aparece como marcador.'}</span></div>}
     {o.source.kind === 'asset' && <CampoCaixa rotulo="Harmonizar com o mapa" dica="Recorta o vazio, põe contorno e sombra e puxa a cor para a do gênero do mapa. Vale para imagens achadas; as geradas já nascem no traço da casa." valor={o.harmonize} aoMudar={v => editar({ harmonize: v }, 'Harmonizar objeto')} />}
     {o.source.kind === 'recipe' && <Linha rotulo={receita?.nome ?? o.source.recipe}><button type="button" class="botao-pilula" data-testid="variar" onClick={() => editar({ source: { seed: (o.source.kind === 'recipe' ? o.source.seed : 0) + 1 } }, 'Variar o objeto')}>Variar</button></Linha>}
+    {o.source.kind === 'recipe' && itemAcervo && itemAcervo.campos.length > 0 && <CamposDaReceita campos={itemAcervo.campos} params={o.source.params} aoMudar={(id, v) => editar({ source: { params: { [id]: v } } }, 'Ajustar objeto')} />}
     <PropriedadesDaSelecao s={s} ids={[o.id]} />
     <Linha rotulo="Camada"><div class="acoes-selecao" data-testid="camadas">
       <button type="button" class="botao-pilula" data-testid="camada-tras" title="Enviar para trás (Ctrl+Shift+[)" onClick={() => tentar(() => s.store.executar({ tipo: 'objeto.camada', ids: [o.id], modo: 'tras' }, { rotulo: 'Enviar para trás' }))}>Para trás</button>

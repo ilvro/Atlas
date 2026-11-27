@@ -1,9 +1,9 @@
 import { signal } from '@preact/signals';
 import { useRef } from 'preact/hooks';
-import { abrirProjetor, aplicarClima, dispararEventoDeCena, servicos } from '../app/app.ts';
-import { caixaDoProjetor, mostrarQuadroDoProjetor, projetorConectado, seguirJogadores } from '../app/projetor.ts';
+import { abrirProjetor, aplicarClima, dispararEventoDeCena, obterSessaoParaProjetor, servicos } from '../app/app.ts';
+import { caixaDoProjetor, mostrarQuadroDoProjetor, projetorConectado, projetorRemotoConectado, seguirJogadores } from '../app/projetor.ts';
 import { acaoPorId, executarAcao } from '../app/acoes.ts';
-import { definirDuracaoDoClima, duracaoDoClima } from '../app/modo.ts';
+import { controleJogadores, definirControleJogadores, definirDuracaoDoClima, duracaoDoClima } from '../app/modo.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { PRESETS_DE_CLIMA } from '../domain/presets.ts';
 import { EVENTOS_DE_CENA, ROTULO_DO_EVENTO } from '../render/eventos-de-cena.ts';
@@ -236,14 +236,44 @@ function SecaoDeIniciativa({ s }: { s: SessaoDeEdicao }) {
 
 function SecaoDoProjetor({ s }: { s: SessaoDeEdicao }) {
   const conectado = projetorConectado.value;
+  const remoto = projetorRemotoConectado.value;
+  const sessaoProjetor = obterSessaoParaProjetor() ?? s;
+  const estadoTexto = conectado && remoto
+    ? 'Local + Activity'
+    : conectado
+      ? 'Conectado'
+      : remoto
+        ? 'Activity conectada'
+        : 'Nenhum projetor aberto';
   return (<>
     <div class="dock-linha">
       <button type="button" class="dock-pilula destaque" data-testid="dock-projetor-abrir" onClick={abrirProjetor}>Abrir o projetor</button>
-      <span class="dock-rotulo" data-testid="dock-projetor-estado">{conectado ? 'Conectado' : 'Nenhum projetor aberto'}</span>
+      <span class="dock-rotulo" data-testid="dock-projetor-estado">{estadoTexto}</span>
     </div>
     <div class="dock-linha">
       <button type="button" class={`dock-pilula ${seguirJogadores.value ? 'ativa' : ''}`} aria-pressed={seguirJogadores.value} data-testid="dock-projetor-seguir" onClick={() => { seguirJogadores.value = !seguirJogadores.value; }}>Seguir os jogadores</button>
-      <SeletorDeJogadorSeguido s={s} testid="dock-projetor-jogador" />
+      <SeletorDeJogadorSeguido s={sessaoProjetor} testid="dock-projetor-jogador" />
+    </div>
+    <div class="dock-linha" role="group" aria-label="Activity">
+      <span class="dock-rotulo">Activity</span>
+      {([['livres', 'Jogadores livres'], ['mestre', 'Controle do mestre']] as const).map(([modoVal, rotulo]) => {
+        const ativo = controleJogadores.value === modoVal;
+        return (
+          <button
+            type="button"
+            key={modoVal}
+            class={`dock-pilula ${ativo ? 'ativa' : ''}`}
+            aria-pressed={ativo}
+            data-testid={`dock-projetor-controle-${modoVal}`}
+            title={modoVal === 'livres'
+              ? 'Em “Jogadores livres”, eles movem os próprios personagens e a câmera.'
+              : 'Em “Controle do mestre”, só você move e controla a câmera da activity.'}
+            onClick={() => definirControleJogadores(modoVal)}
+          >
+            {rotulo}
+          </button>
+        );
+      })}
     </div>
     <div class="dock-linha">
       <button type="button" class={`dock-pilula ${mostrarQuadroDoProjetor.value ? 'ativa' : ''}`} aria-pressed={mostrarQuadroDoProjetor.value} data-testid="dock-projetor-quadro" onClick={() => { mostrarQuadroDoProjetor.value = !mostrarQuadroDoProjetor.value; }}>Mostrar o quadro</button>
