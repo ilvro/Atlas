@@ -1,5 +1,5 @@
 import { decodificar } from './celulas.ts';
-import type { Comodo, MapaAtlas } from './mapa.ts';
+import type { Comodo, MapaAtlas, Peca } from './mapa.ts';
 
 export interface Edificio {
   id: string;
@@ -109,4 +109,16 @@ export function edificioDaSala(m: Pick<MapaAtlas, 'rooms'>, salaId: string): Edi
     if (ed.salas.includes(salaId)) return ed;
   }
   return null;
+}
+
+/** Há alguma peça informada dentro de alguma célula do edifício? */
+export function jogadorDentroDoEdificio(
+  m: Pick<MapaAtlas, 'grid'>,
+  ed: Pick<Edificio, 'celulas'>,
+  jogadores: readonly Pick<Peca, 'position'>[],
+): boolean {
+  const t = m.grid.size;
+  const [ox, oy] = m.grid.offset;
+  const celulas = new Set(ed.celulas.map(([x, y]) => `${x},${y}`));
+  return jogadores.some(p => celulas.has(`${Math.floor((p.position[0] - ox) / t)},${Math.floor((p.position[1] - oy) / t)}`));
 }

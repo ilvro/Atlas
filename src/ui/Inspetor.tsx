@@ -70,10 +70,9 @@ function ExploracaoDoMapa({ s }: { s: SessaoDeEdicao }) {
       valor={modoVisao}
       opcoes={[
         ['darkwood', 'Darkwood (breu sem detalhes)'],
-        ['sketch', 'Esboço em papel'],
         ['shroud', 'Breu (só explorado)'],
       ]}
-      aoMudar={v => tentar(() => s.store.executar({ tipo: 'memoria.atualizar', patch: { mode: v as ModoDeMemoria, sketch: v === 'sketch' } }, { rotulo: 'Modo de visão' }))}
+      aoMudar={v => tentar(() => s.store.executar({ tipo: 'memoria.atualizar', patch: { mode: v as ModoDeMemoria, sketch: false } }, { rotulo: 'Modo de visão' }))}
     />
     <p class="dica" data-testid="exploracao-area">{metros ? `Os jogadores já viram cerca de ${metros} m².` : 'Os jogadores ainda não exploraram nada.'}</p>
     {confirmando.value

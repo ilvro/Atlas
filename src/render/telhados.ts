@@ -16,7 +16,7 @@ import {
 } from 'pixi.js';
 import { ALTURA_BASE_TELHADO, campoDoEdificio } from '../domain/campo-do-telhado.ts';
 import { ehNoite, lerHorario } from '../domain/clima.ts';
-import { edificiosDe, type Edificio } from '../domain/edificios.ts';
+import { edificiosDe, jogadorDentroDoEdificio, type Edificio } from '../domain/edificios.ts';
 import {
   AO_PADRAO,
   EXPOSICAO_PADRAO,
@@ -256,6 +256,28 @@ export function luzSobreOsTelhados(c: Pick<MapaAtlas['climate'], 'ambient' | 'su
   const a = rgb(c.ambient.color), s = c.sun ? rgb(c.sun.color) : [0, 0, 0], ks = c.sun ? c.sun.intensity * 0.5 : 0;
   const canal = (i: number) => Math.round(Math.max(0.12, Math.min(1, a[i]! * c.ambient.intensity + s[i]! * ks)) * 255);
   return (canal(0) << 16) | (canal(1) << 8) | canal(2);
+}
+
+/**
+ * Opacidade alvo de um telhado (`room.roof.material !== null`) para uma vista:
+ * - No editor (`construir`/`mestre`), `roof.visible === false` esconde o telhado para facilitar edição/narração.
+ * - Na vista de jogador/projetor (`jogador`), construções com telhado ficam SEMPRE cobertas quando conhecidas
+ *   e fechadas para os jogadores (`!dentro` ou `modoTelhados === 'fechados'`), independentemente de `roof.visible`.
+ */
+export function alvoDoTelhado(op: {
+  vista: Vista;
+  modoTelhados: 'auto' | 'fechados' | 'abertos';
+  visivelNoMapa: boolean;
+  conhecido: boolean;
+  dentro: boolean;
+  noEditor: boolean;
+  forcado: number | null;
+}): number {
+  if (op.forcado !== null) return op.visivelNoMapa ? op.forcado : 0;
+  if (op.vista === 'construir') return op.noEditor && op.visivelNoMapa ? 1 : 0;
+  if (op.modoTelhados === 'abertos') return 0;
+  if (op.vista === 'mestre') return op.visivelNoMapa ? ALFA_DO_MESTRE : 0;
+  return !op.conhecido || (op.modoTelhados !== 'fechados' && op.dentro) ? 0 : 1;
 }
 
 export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: MapaDeLuz; aoPintar?(): void } = {}): Telhados {
@@ -974,19 +996,17 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
     }
   }
 
-  /** Há peça de jogador dentro do edifício (em alguma célula dele)? */
-  function alguemDentro(m: MapaAtlas, ed: Edificio, jogadores: readonly Peca[]): boolean {
-    const t = m.grid.size, [ox, oy] = m.grid.offset, celulas = new Set(ed.celulas.map(([x, y]) => `${x},${y}`));
-    return jogadores.some(p => celulas.has(`${Math.floor((p.position[0] - ox) / t)},${Math.floor((p.position[1] - oy) / t)}`));
-  }
-
+  /** Calcula a opacidade alvo de um telhado conforme a vista e as regras da sessão. */
   function alvoDe(d: DoEdificio): number {
-    if (forcado !== null) return d.visivelNoMapa ? forcado : 0;
-    const modoTelhados = mapa?.session.roofs ?? 'auto';
-    if (vista === 'construir') return noEditor && d.visivelNoMapa ? 1 : 0;
-    if (!d.visivelNoMapa || modoTelhados === 'abertos') return 0;
-    if (vista === 'mestre') return ALFA_DO_MESTRE;
-    return !d.conhecido || (modoTelhados !== 'fechados' && d.dentro) ? 0 : 1;
+    return alvoDoTelhado({
+      vista,
+      modoTelhados: mapa?.session.roofs ?? 'auto',
+      visivelNoMapa: d.visivelNoMapa,
+      conhecido: d.conhecido,
+      dentro: d.dentro,
+      noEditor,
+      forcado,
+    });
   }
 
   function reavaliar(): void {
@@ -995,7 +1015,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
     const conhecidos = vista === 'jogador' && edificios.size ? comodosConhecidos(m) : null;
     const jogadores = Object.values(m.tokens).filter(p => p.player);
     for (const d of edificios.values()) {
-      d.dentro = alguemDentro(m, d.ed, jogadores);
+      d.dentro = jogadorDentroDoEdificio(m, d.ed, jogadores);
       d.conhecido = !conhecidos || d.ed.salas.some(id => conhecidos.has(id));
       d.visivelNoMapa = d.ed.salas.some(id => m.rooms[id]?.roof.visible);
       d.alvo = alvoDe(d);
