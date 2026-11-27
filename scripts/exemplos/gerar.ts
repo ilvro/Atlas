@@ -26,6 +26,7 @@ import { vilaDoAtrio } from './vila-do-atrio.ts';
 import { temploNaEncosta } from './templo-na-encosta.ts';
 import { oasisDaCaravana } from './oasis-da-caravana.ts';
 import { cidadeDaFronteira } from './cidade-da-fronteira.ts';
+import { enseadaDosPiratas } from './enseada-dos-piratas.ts';
 
 /** A lista dos exemplos publicados na galeria. */
 export const EXEMPLOS: readonly Exemplo[] = [
@@ -45,6 +46,7 @@ export const EXEMPLOS: readonly Exemplo[] = [
   temploNaEncosta,
   oasisDaCaravana,
   cidadeDaFronteira,
+  enseadaDosPiratas,
 ];
 
 const SAIDA = join(import.meta.dirname, '../../public/exemplos');

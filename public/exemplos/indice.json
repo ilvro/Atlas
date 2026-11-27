@@ -158,5 +158,15 @@
       33
     ],
     "miniatura": "cidade-da-fronteira.webp"
+  },
+  {
+    "id": "enseada-dos-piratas",
+    "nome": "Enseada dos piratas",
+    "descricao": "Uma enseada de água tropical à tarde: o navio pirata fundeado na baía, a praia de coqueiros com o acampamento, as cabanas de palha e o tesouro, o cais com o sino, a taverna e, no promontório, o fortim com a bateria de canhões.",
+    "tamanho": [
+      52,
+      36
+    ],
+    "miniatura": "enseada-dos-piratas.webp"
   }
 ]
