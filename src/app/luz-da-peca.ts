@@ -94,3 +94,45 @@ export function mirarLuzDaPeca(store: Store, pecaId: string, direcaoRad: number)
     return false;
   }
 }
+
+export const ALCANCE_MIN_LUZ_PECA = 1;
+export const ALCANCE_MAX_LUZ_PECA = 40;
+const COR_HEX = /^#[0-9a-f]{6}$/i;
+
+/**
+ * Ajusta o alcance (m, entre 1 e 40) e/ou a cor (`#rrggbb`) da luz portada pela peça.
+ * Edições seguidas da mesma luz se fundem num passo só do histórico (arrastar o controle não enche o Ctrl+Z).
+ */
+export function atualizarLuzDaPeca(store: Store, pecaId: string, patch: { radius?: number; color?: string }): boolean {
+  const t = store.documento.tokens[pecaId];
+  const luz = t?.lightId ? store.documento.lights[t.lightId] : undefined;
+  if (!luz) return false;
+  const campos: { radius?: number; color?: string } = {};
+  if (patch.radius !== undefined) {
+    if (!Number.isFinite(patch.radius)) return false;
+    campos.radius = Math.min(ALCANCE_MAX_LUZ_PECA, Math.max(ALCANCE_MIN_LUZ_PECA, patch.radius));
+  }
+  if (patch.color !== undefined) {
+    if (!COR_HEX.test(patch.color)) return false;
+    campos.color = patch.color.toLowerCase();
+  }
+  if (campos.radius === undefined && campos.color === undefined) return false;
+  store.executar(
+    { tipo: 'item.atualizar', colecao: 'lights', id: luz.id, patch: campos },
+    { rotulo: 'Ajustar luz da peça', fusao: `luz-peca:${luz.id}` },
+  );
+  return true;
+}
+
+/** Devolve o alcance e a cor da luz da peça aos valores do preset de origem. */
+export function restaurarPadraoLuzDaPeca(store: Store, pecaId: string): boolean {
+  const t = store.documento.tokens[pecaId];
+  const luz = t?.lightId ? store.documento.lights[t.lightId] : undefined;
+  const preset = luz?.preset ? presetDeLuz(luz.preset) : undefined;
+  if (!luz || !preset) return false;
+  store.executar(
+    { tipo: 'item.atualizar', colecao: 'lights', id: luz.id, patch: { radius: preset.radius, color: preset.color } },
+    { rotulo: 'Restaurar luz da peça' },
+  );
+  return true;
+}

@@ -218,6 +218,11 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
 .cartao-acao.perigo:hover { color: var(--perigo); }
 .cartao-texto { padding: 4px 10px; border-radius: 4px; border: 1px solid var(--linha); font: 700 11px var(--corpo); }
 .cartao-texto:hover { border-color: var(--acento); }
+.cartao-luz-ajuste { display: inline-flex; align-items: center; gap: 6px; }
+.cartao-luz-alcance { display: inline-flex; align-items: center; gap: 5px; font: 700 11px var(--corpo); }
+.cartao-luz-alcance input { width: 84px; }
+.cartao-luz-alcance output { min-width: 3ch; text-align: right; }
+.cartao-luz-cor { width: 26px; height: 22px; padding: 0; border: 1px solid var(--linha); border-radius: 4px; background: none; cursor: pointer; }
 .cartao-select { display: inline-flex; align-items: center; gap: 5px; }
 .cartao-select select { width: 118px; padding: 3px 6px; font-size: 12px; }
 .cartao-cor { width: 30px; height: 26px; padding: 0; border: 1px solid var(--linha); border-radius: 5px; background: none; }

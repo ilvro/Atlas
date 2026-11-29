@@ -5,7 +5,7 @@ import { luzesDisponiveisParaPeca, type Recursos } from '../../src/domain/fichas
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { camposDoPreset, presetDeLuz } from '../../src/domain/presets.ts';
 import { criarStore } from '../../src/state/store.ts';
-import { alternarLuzDaPeca, mirarLuzDaPeca, rotuloDaLuz } from '../../src/app/luz-da-peca.ts';
+import { alternarLuzDaPeca, atualizarLuzDaPeca, mirarLuzDaPeca, restaurarPadraoLuzDaPeca, rotuloDaLuz } from '../../src/app/luz-da-peca.ts';
 
 function mapaComPeca(extra: Partial<ReturnType<typeof novaPeca>> = {}) {
   const m = criarMapa();
@@ -111,4 +111,34 @@ test('mirarLuzDaPeca gira o cone da lanterna e a direção de visão da peça', 
   assert.equal(luz.cone?.direction, Math.PI / 2);
   assert.equal(t.vision.direction, Math.PI / 2);
   assert.equal(t.facing, 'down');
+});
+
+test('atualizarLuzDaPeca limita o alcance, valida a cor, funde no histórico e restaura o preset', () => {
+  const { m, peca } = mapaComPeca();
+  const store = criarStore(m);
+  assert.equal(atualizarLuzDaPeca(store, peca.id, { radius: 5 }), false, 'sem luz vinculada não faz nada');
+  alternarLuzDaPeca(store, peca.id, { preset: 'lanterna' });
+  const luz = () => store.documento.lights[store.documento.tokens[peca.id]!.lightId!]!;
+  const padrao = presetDeLuz('lanterna')!;
+
+  assert.equal(atualizarLuzDaPeca(store, peca.id, { radius: 500 }), true);
+  assert.equal(luz().radius, 40);
+  assert.equal(atualizarLuzDaPeca(store, peca.id, { radius: 0.2 }), true);
+  assert.equal(luz().radius, 1);
+  assert.equal(atualizarLuzDaPeca(store, peca.id, { radius: Number.NaN }), false);
+  assert.equal(atualizarLuzDaPeca(store, peca.id, { color: 'vermelho' }), false);
+  assert.equal(atualizarLuzDaPeca(store, peca.id, { color: '#FF8800' }), true);
+  assert.equal(luz().color, '#ff8800');
+  assert.equal(atualizarLuzDaPeca(store, peca.id, {}), false);
+
+  store.desfazer();
+  assert.equal(luz().on, true, 'as edições fundidas se desfazem juntas, sem apagar a luz');
+  assert.equal(luz().radius, padrao.radius);
+  assert.equal(luz().color, padrao.color);
+
+  atualizarLuzDaPeca(store, peca.id, { radius: 3, color: '#00ff00' });
+  assert.equal(restaurarPadraoLuzDaPeca(store, peca.id), true);
+  assert.equal(luz().radius, padrao.radius);
+  assert.equal(luz().color, padrao.color);
+  assert.equal(restaurarPadraoLuzDaPeca(store, 'inexistente'), false);
 });

@@ -7,7 +7,7 @@ import { fichaProjetadaId, projetarFicha } from '../app/projetor.ts';
 import { abrirFicha, ajustarRecursos, ajustarRecursosDaPeca, recursosDaPeca, recursosDasFichas } from '../app/fichas.ts';
 import { previaDaFichaAberta } from './PreviaDaFicha.tsx';
 import { emEstadoCritico, fracao, interpretarAjusteDeRecurso, luzesDisponiveisParaPeca, refDaFicha, temPd, textoDeRecursos, type Recursos } from '../domain/fichas.ts';
-import { alternarLuzDaPeca, rotuloDaLuz } from '../app/luz-da-peca.ts';
+import { ALCANCE_MIN_LUZ_PECA, alternarLuzDaPeca, atualizarLuzDaPeca, restaurarPadraoLuzDaPeca, rotuloDaLuz } from '../app/luz-da-peca.ts';
 import type { Ref } from '#mesa';
 import { chaveDaRef } from '#mesa';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
@@ -273,6 +273,7 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
     const infoLuz = luzesDisponiveisParaPeca(m, token, rec);
     const presetAtual = infoLuz.presetAtivo ?? infoLuz.presets[0] ?? 'lanterna';
     const nomeLuz = rotuloDaLuz(presetAtual);
+    const luzDaPeca = token.lightId ? m.lights[token.lightId] : undefined;
     acoes = (<>
       <button
         type="button"
@@ -286,6 +287,35 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
       >
         🔦 {nomeLuz}
       </button>
+      {luzDaPeca?.on && (
+        <span class="cartao-luz-ajuste" data-testid="cartao-luz-ajuste">
+          <label class="cartao-luz-alcance" title="Alcance da luz">
+            <input
+              type="range"
+              data-testid="cartao-luz-alcance"
+              aria-label="Alcance da luz"
+              min={ALCANCE_MIN_LUZ_PECA}
+              max={30}
+              step={0.5}
+              value={Math.min(30, luzDaPeca.radius)}
+              onInput={e => { atualizarLuzDaPeca(st, token.id, { radius: Number((e.target as HTMLInputElement).value) }); }}
+            />
+            <output>{`${Number(luzDaPeca.radius.toFixed(1))}m`}</output>
+          </label>
+          <input
+            type="color"
+            class="cartao-luz-cor"
+            data-testid="cartao-luz-cor"
+            aria-label="Cor da luz"
+            title="Cor da luz"
+            value={luzDaPeca.color}
+            onInput={e => { atualizarLuzDaPeca(st, token.id, { color: (e.target as HTMLInputElement).value }); }}
+          />
+          {luzDaPeca.preset && (
+            <button type="button" class="cartao-texto" data-testid="cartao-luz-restaurar" title="Restaurar alcance e cor do item" aria-label="Restaurar alcance e cor padrão" onClick={() => { restaurarPadraoLuzDaPeca(st, token.id); }}>↺</button>
+          )}
+        </span>
+      )}
       {rec?.luzes && rec.luzes.length > 1 && (
         <select
           class="cartao-select"

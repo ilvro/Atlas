@@ -40,6 +40,7 @@ import { tocar } from '../fx/som.ts';
 import { chaveDoAlvo, type Alvo } from '../render/selecao.ts';
 import type { Comando, ParcialProfundo } from '../state/comandos.ts';
 import type { Gesto } from '../state/store.ts';
+import { ALCANCE_MAX_LUZ_PECA, ALCANCE_MIN_LUZ_PECA, atualizarLuzDaPeca } from '../app/luz-da-peca.ts';
 import { useGestoDeCor } from './gesto-de-cor.ts';
 import { PainelDoSprite } from './PainelDoSprite.tsx';
 import { Personagens } from './Personagens.tsx';
@@ -402,6 +403,7 @@ function CamposDaPeca({ s, t }: { s: SessaoDeEdicao; t: Peca }) {
     try { const ref = await repo.salvarAsset(await reduzirParaRetrato(arquivo)); editar({ portrait: ref }, 'Retrato da peça'); } catch (erro) { avisar(`Não consegui usar essa imagem: ${erro instanceof Error ? erro.message : String(erro)}`, { tipo: 'erro' }); }
   };
   const luz = t.lightId ? s.doc.value.lights[t.lightId] : undefined;
+  const gestoDaLuz = useGestoDeCor(s, 'Cor da luz da peça');
   const lanterna = luz ? (luz.preset && LANTERNAS_DA_PECA.includes(luz.preset) ? luz.preset : 'outra') : 'nenhuma';
   const opcoesDeLanterna: readonly (readonly [string, string])[] = [['nenhuma', 'Nenhuma'], ...LANTERNAS_DA_PECA.map(id => [id, PRESETS_DE_LUZ.find(p => p.id === id)!.nome] as const), ...(lanterna === 'outra' ? [['outra', 'Personalizada'] as const] : [])];
   /** Escolher cria a luz da peça (e tira a anterior) numa transação só; "nenhuma" a remove. */
@@ -445,6 +447,10 @@ function CamposDaPeca({ s, t }: { s: SessaoDeEdicao; t: Peca }) {
       <CampoNumero rotulo="Percepção imediata" unidade="m" valor={t.vision.proximity ?? PROXIMIDADE_VISAO_PADRAO} min={0} max={10} passo={0.2} aoConfirmar={v => editar({ vision: { proximity: v } }, 'Percepção imediata')} />
     </>}
     <CampoOpcoes rotulo="Lanterna" dica="A luz anda com a peça e aponta para onde ela andou. Q e E giram o facho na Sessão." valor={lanterna} opcoes={opcoesDeLanterna} aoMudar={trocarLanterna} />
+    {luz && <>
+      <CampoNumero id="peca-luz-alcance" rotulo="Alcance da luz" unidade="m" valor={luz.radius} min={ALCANCE_MIN_LUZ_PECA} max={ALCANCE_MAX_LUZ_PECA} passo={0.5} aoConfirmar={v => tentar(() => atualizarLuzDaPeca(s.store, t.id, { radius: v }))} />
+      <CampoCor rotulo="Cor da luz" valor={luz.color} aoPrevia={v => gestoDaLuz.previa(x => x.aplicar({ tipo: 'item.atualizar', colecao: 'lights', id: luz.id, patch: { color: v } }))} aoConfirmar={gestoDaLuz.confirmar} />
+    </>}
     <CampoOpcoes rotulo="Estado" valor={t.figure.state} opcoes={ESTADOS_FIGURA.map(e => [e, ROTULOS_DE_ESTADO[e]] as const)} aoMudar={v => editar({ figure: { state: v } }, 'Estado da peça')} />
   </>);
 }
