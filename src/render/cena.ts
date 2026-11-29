@@ -1,3 +1,4 @@
+import { raioDoOclusorDeToken } from '../domain/visibilidade.ts';
 import { Container, Graphics, Sprite, Text, Texture, type Renderer } from 'pixi.js';
 import { listaDeAndares } from '../domain/andares.ts';
 import { decodificar } from '../domain/celulas.ts';
@@ -641,7 +642,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
         continue;
       }
       const pos: Ponto = [v.c.x, v.c.y];
-      const rgb = luz.amostrarPonto(pos);
+      const rgb = luz.amostrarPonto(pos, raioDoOclusorDeToken(t));
       const piso = vistaDaCena === 'jogador' || modoDoProjetor
         ? (t.player ? 0.12 : 0.02)
         : 0.28;

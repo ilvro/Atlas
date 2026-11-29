@@ -101,7 +101,8 @@ export interface MapaDeLuz {
   /** Todas as luzes ativas (do mapa e derivadas). */
   todasAsLuzes(): readonly Luz[];
   /** Amostra a cor e intensidade da luz efetiva em um ponto do mapa (em `[0, 1]` pós-exposição). */
-  amostrarPonto(ponto: Ponto): [number, number, number];
+  /** `raioToken`: raio do oclusor da peça amostrada; a luz é medida na face voltada para a fonte, não no centro (que fica atrás do próprio oclusor). */
+  amostrarPonto(ponto: Ponto, raioToken?: number): [number, number, number];
   destruir(): void;
 }
 
@@ -178,7 +179,9 @@ export function calcularLuzNoPonto(
     ambienteInterior: readonly [number, number, number];
     emInteriorCoberto: boolean;
     exposicao?: number;
-    luzes: readonly { luz: Luz; intensidade: number; poligono: readonly number[] | null }[];
+    luzes: readonly { luz: Luz; intensidade: number; poligono: readonly number[] | null; exigePoligono?: boolean }[];
+    /** Raio do oclusor da peça no ponto: amostra a face voltada para a luz (sem atravessar paredes). */
+    raioToken?: number;
   },
 ): [number, number, number] {
   const base = opcoes.emInteriorCoberto ? opcoes.ambienteInterior : opcoes.ambiente;
@@ -195,8 +198,22 @@ export function calcularLuzNoPonto(
     const dist = Math.hypot(dx, dy);
     if (dist >= luz.radius) continue;
     const noMesmoPonto = dist < 1e-4;
-    if (!noMesmoPonto && poligono && poligono.length >= 6 && !pontoNoPoligonoPlano(ponto, poligono)) continue;
-    const peso = k * quedaRadial(dist / luz.radius);
+    let distEfetiva = dist;
+    if (!noMesmoPonto) {
+      if (item.exigePoligono !== false) {
+        // Sem polígono pronto não há como saber o que a parede cobre: não ilumina (em vez de atravessar paredes).
+        if (!poligono || poligono.length < 6) continue;
+        let alvo = ponto;
+        const raioToken = opcoes.raioToken ?? 0;
+        if (raioToken > 0) {
+          const desloc = Math.min(dist * 0.85, raioToken + 0.08);
+          alvo = [ponto[0] - (dx / dist) * desloc, ponto[1] - (dy / dist) * desloc];
+          distEfetiva = Math.max(0, dist - desloc * 0.5);
+        }
+        if (!pontoNoPoligonoPlano(alvo, poligono)) continue;
+      } else if (poligono && poligono.length >= 6 && !pontoNoPoligonoPlano(ponto, poligono)) continue;
+    }
+    const peso = k * quedaRadial(distEfetiva / luz.radius);
     if (peso <= 0) continue;
     const [cr, cg, cb] = rgb01(luz.color);
     r += cr * peso;
@@ -872,16 +889,17 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       if (!g) return null;
       return { position: [g.posVisual[0], g.posVisual[1]], direction: g.dirVisual };
     },
-    amostrarPonto(ponto: Ponto): [number, number, number] {
+    amostrarPonto(ponto: Ponto, raioToken = 0): [number, number, number] {
       if (!ligado || !mapa) return [1, 1, 1];
-      const lista: { luz: Luz; intensidade: number; poligono: readonly number[] | null }[] = [];
+      const lista: { luz: Luz; intensidade: number; poligono: readonly number[] | null; exigePoligono: boolean }[] = [];
       for (const g of luzes.values()) {
         if (g.alfa > 0.01) {
-          lista.push({
-            luz: { ...g.luz, position: g.posVisual },
-            intensidade: g.alfa,
-            poligono: g.poligono.length >= 6 ? g.poligono : null,
-          });
+          // Geometria velha (ou ainda não calculada) deixaria a luz atravessar paredes: refaz antes de amostrar.
+          if (oclusao && g.versaoGeo !== oclusao.versaoEstatica) atualizarGeometria(g, g.luz, g.posVisual, g.dirVisual);
+          const luzVisual: Luz = g.luz.cone && g.dirVisual !== null
+            ? { ...g.luz, position: g.posVisual, cone: { ...g.luz.cone, direction: g.dirVisual } }
+            : { ...g.luz, position: g.posVisual };
+          lista.push({ luz: luzVisual, intensidade: g.alfa, poligono: g.poligono.length >= 6 ? g.poligono : null, exigePoligono: !!oclusao });
         }
       }
       return calcularLuzNoPonto(ponto, {
@@ -890,6 +908,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
         emInteriorCoberto: pontoEmComodoCoberto(ponto, mapa),
         exposicao: mapa.finish.exposure ?? EXPOSICAO_PADRAO,
         luzes: lista,
+        raioToken,
       });
     },
     destruir() {

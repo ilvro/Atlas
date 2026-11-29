@@ -104,3 +104,30 @@ test('calcularLuzNoPonto: cômodo coberto usa ambienteInterior em vez de ambient
   assert.ok(fora[0] > 0.5 && fora[1] > 0.5, `fora usa ambiente claro: ${fora}`);
   assert.ok(dentro[0] < 0.2 && dentro[1] < 0.22, `dentro usa ambienteInterior escuro: ${dentro}`);
 });
+
+test('calcularLuzNoPonto: peça de frente para a lanterna recebe luz pela face (raioToken), mesmo com o próprio oclusor', async () => {
+  const { novaPeca } = await import('../../src/domain/fabrica.ts');
+  const { raioDoOclusorDeToken } = await import('../../src/domain/visibilidade.ts');
+  const m = mapaCom(sala('s', 0, 0, 8, 4, { name: 'Salão', function: 'sala' }));
+  const ameaca = novaPeca([6, 3], 'Orc', { id: 'orc', player: false });
+  m.tokens.orc = ameaca;
+  const lanterna = novaLuz([2, 3], { id: 'lanterna', radius: 10, color: '#eef6ff', intensity: 1.4, cone: { angle: Math.PI / 2, direction: 0 } });
+  m.lights.lanterna = lanterna;
+  const { ctx } = sincronizarOclusao(null, m, null);
+  const poli = poligonoDaLuz(lanterna, ctx);
+  const op = { ambiente: [0.02, 0.02, 0.03] as const, ambienteInterior: [0.01, 0.01, 0.015] as const, emInteriorCoberto: true, luzes: [{ luz: lanterna, intensidade: 1.4, poligono: poli }] };
+  const semFace = calcularLuzNoPonto([6, 3], op);
+  assert.ok(semFace[0] < 0.1, `sem raioToken o centro fica no oclusor e escuro: ${semFace}`);
+  const pelaFace = calcularLuzNoPonto([6, 3], { ...op, raioToken: raioDoOclusorDeToken(ameaca) });
+  assert.ok(pelaFace[0] > 0.3, `ameaça iluminada pela face: ${pelaFace}`);
+});
+
+test('calcularLuzNoPonto: sem polígono pronto a luz não atravessa paredes (nem pisca ao mover)', () => {
+  const tocha = novaLuz([2, 2], { id: 'tocha', radius: 6, color: '#ff9438', intensity: 1.5 });
+  const base = { ambiente: [0.02, 0.02, 0.03] as const, ambienteInterior: [0.01, 0.01, 0.02] as const, emInteriorCoberto: true };
+  const soAmbiente = calcularLuzNoPonto([4, 2], { ...base, luzes: [] });
+  const semPoligono = calcularLuzNoPonto([4, 2], { ...base, luzes: [{ luz: tocha, intensidade: 1.5, poligono: null }], raioToken: 0.3 });
+  assert.deepEqual(semPoligono, soAmbiente);
+  const atrasDaParede = calcularLuzNoPonto([4, 2], { ...base, raioToken: 0.3, luzes: [{ luz: tocha, intensidade: 1.5, poligono: [0, 0, 3, 0, 3, 4, 0, 4] }] });
+  assert.deepEqual(atrasDaParede, soAmbiente, 'a face não vaza para fora do polígono quando a parede está no meio');
+});
