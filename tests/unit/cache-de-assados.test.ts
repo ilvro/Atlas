@@ -192,6 +192,10 @@ test('exclui pedidos sprite e imagem com pixelManual do cache persistente', asyn
   assert.equal(pedidoCacheavel(manual), false);
   assert.equal(pedidoCacheavel(imagemComum), true);
   assert.equal(pedidoCacheavel(objeto), true);
+  assert.equal(pedidoCacheavel({ tipo: 'terreno', entrada: { semCache: 1 } as never, res: 8, estilo: 'illustrated', semCache: true }), false);
+  assert.equal(pedidoCacheavel({ tipo: 'terreno', entrada: {} as never, res: 8, estilo: 'illustrated' }), true);
+  assert.equal(pedidoCacheavel({ ...imagemComum, harmonizar: false } as PedidoDeBake), false);
+  assert.equal(pedidoCacheavel({ ...imagemComum, harmonizar: false, estilo: 'pixel' } as PedidoDeBake), true);
 
   let consultas = 0;
   let execucoes = 0;

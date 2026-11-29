@@ -212,7 +212,7 @@ export function entradaDoTerreno(m: MapaAtlas): EntradaDeTerreno {
   };
 }
 
-export const LADO_DO_LADRILHO = 16;
+export const LADO_DO_LADRILHO = 8;
 
 export interface LadrilhoDeTerreno {
   i: number;

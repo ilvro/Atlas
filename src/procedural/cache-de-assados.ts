@@ -75,6 +75,9 @@ export function cachePersistenteAtivo(
 export function pedidoCacheavel(pedido: PedidoDeBake): boolean {
   if (pedido.tipo === 'sprite') return false;
   if (pedido.tipo === 'imagem' && pedido.pixelManual) return false;
+  if ('semCache' in pedido && pedido.semCache === true) return false;
+  // Imagem da coleção já pronta: o cache HTTP do navegador basta, sem re-codificar em PNG.
+  if (pedido.tipo === 'imagem' && !pedido.harmonizar && pedido.estilo !== 'pixel') return false;
   return true;
 }
 

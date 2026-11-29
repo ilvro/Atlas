@@ -20,7 +20,7 @@ export type PedidoDeBake =
   /** A folha de quadros de um personagem (96 × 96 px, `res` 1). */
   | { tipo: 'sprite'; spec: SpriteDaPeca }
   | { tipo: 'comodo'; entrada: EntradaDoComodo; res: number; estilo: IdDoEstilo }
-  | { tipo: 'terreno'; entrada: EntradaDeTerreno; res: number; estilo: IdDoEstilo; baseTexturas?: string }
+  | { tipo: 'terreno'; entrada: EntradaDeTerreno; res: number; estilo: IdDoEstilo; baseTexturas?: string; /** Terreno efêmero (recortado pela névoa, prévia): não entra no cache persistente. */ semCache?: boolean }
   /** Uma escarpa avulsa (parede `cliff` sem origem): a face de rocha do lado baixo. */
   | { tipo: 'escarpa'; entrada: EntradaDeEscarpa; res: number; estilo: IdDoEstilo }
   /** O ladrilho periódico de uma cobertura de telhado (2 × 2 m, queda para +y); no Pixel, a `res` do mapa. */

@@ -173,9 +173,10 @@ export function criarCena(op: OpcoesDaCena): Cena {
     aplicar: (s: Sprite, r: ResultadoDeBake) => void,
     prioridade?: number,
     previa?: { chave: string; pedido: PedidoDeBake },
+    forcarPrevia = false,
   ): void {
     if (e.chave === chave) return;
-    const usarPrevia = !!previa && previa.chave !== chave && !e.sprite;
+    const usarPrevia = !!previa && previa.chave !== chave && (!e.sprite || forcarPrevia);
     e.chave = chave;
     e.chavePrevia = usarPrevia ? previa.chave : null;
 
@@ -225,6 +226,8 @@ export function criarCena(op: OpcoesDaCena): Cena {
       return;
     }
     const estilo = m.style.renderer, res = resolucaoDe(m, 'terreno');
+    // No projetor com névoa o terreno é recortado pelo que o jogador conhece: vale um passo só, não vai para o IndexedDB.
+    const terrenoEfemero = modoDoProjetor && m.session.explored !== null;
     const ladrilhos = ladrilhosDoTerreno(e, res);
     const vivos = new Set(ladrilhos.map(l => `${l.i},${l.j}`));
     for (const [k, ent] of terrenos) {
@@ -256,10 +259,10 @@ export function criarCena(op: OpcoesDaCena): Cena {
         const caixa = l.caixa;
         const resPrevia = Math.max(1, res / 4);
         const baseTexturas = baseDasTexturas();
-        const previa = estilo === 'illustrated' && !alvo.sprite
-          ? { chave: chaveDoTerreno(l.entrada, resPrevia, estilo), pedido: { tipo: 'terreno' as const, entrada: l.entrada, res: resPrevia, estilo, baseTexturas } }
+        const previa = estilo === 'illustrated' && (!alvo.sprite || modoDoProjetor)
+          ? { chave: chaveDoTerreno(l.entrada, resPrevia, estilo), pedido: { tipo: 'terreno' as const, entrada: l.entrada, res: resPrevia, estilo, baseTexturas, semCache: true } }
           : undefined;
-        pintar(alvo, chave, { tipo: 'terreno', entrada: l.entrada, res, estilo, baseTexturas }, (s, r) => {
+        pintar(alvo, chave, { tipo: 'terreno', entrada: l.entrada, res, estilo, baseTexturas, ...(terrenoEfemero ? { semCache: true } : {}) }, (s, r) => {
           s.position.set(r.origem[0], r.origem[1]);
           s.scale.set(1 / r.res);
           cenaDeAltura.sincronizarLadrilhoTerreno(k, alvo!.texAltura, r.origem, r.res);
@@ -267,13 +270,13 @@ export function criarCena(op: OpcoesDaCena): Cena {
             agua.aplicarLadrilho(caixa, r.agua, mapa);
             reaplicarSubmersos(mapa);
           }
-        }, 0, previa);
+        }, 0, previa, modoDoProjetor);
       }
       op.baker.coletar(chavesEmUso());
     };
 
-    // Na abertura do mapa não há ladrilhos ainda: assa de imediato; durante pinceladas espera 140 ms.
-    if (terrenos.size === 0) pedirLadrilhos();
+    // Na abertura do mapa e no projetor: assa de imediato; só no editor, durante pinceladas, espera 140 ms.
+    if (terrenos.size === 0 || modoDoProjetor) pedirLadrilhos();
     else terrenoTimer = setTimeout(pedirLadrilhos, 140);
   }
 
@@ -828,7 +831,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       ultimoContextoAndar = contextoAndar ?? null;
       const tudo = !mud || mud.completo, campos = (...c: string[]) => tudo || c.some(x => mud!.campos.includes(x)), colecao = (c: string) => tudo || !!(mud!.colecoes as Record<string, unknown>)[c];
       const refazerPorRelevo = !!m.terrain.relief && campos('climate', 'terrain');
-      if (campos('terrain', 'bounds', 'grid', 'backdrop', 'style') || colecao('rooms') || colecao('walls') || colecao('openings') || refazerPorRelevo) sincronizarTerreno(m);
+      if (campos('terrain', 'bounds', 'grid', 'backdrop', 'style') || (m.style.settle !== false && (colecao('rooms') || colecao('walls') || colecao('openings'))) || refazerPorRelevo) sincronizarTerreno(m);
       if (tudo || colecao('walls') || campos('style')) sincronizarEscarpas(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('style', 'grid') || refazerPorRelevo) sincronizarComodos(m);
       if (tudo || colecao('rooms') || colecao('walls') || colecao('openings') || colecao('props') || campos('grid', 'session', 'style')) desenharParedes(m);
