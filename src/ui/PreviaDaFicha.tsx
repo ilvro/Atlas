@@ -14,6 +14,9 @@ import {
   arrastandoPrevia,
   calcularPosicaoDaPrevia,
   urlDaPreviaDaFicha,
+  tamanhoPrevia,
+  limitarTamanhoDaPrevia,
+  salvarTamanhoDaPrevia,
 } from '../app/previa-ficha.ts';
 
 export {
@@ -44,6 +47,7 @@ export function PreviaDaFicha({ s }: { s: SessaoDeEdicao }) {
     }
   }, [alvos, alvoToken, ref]);
 
+  const tamanho = tamanhoPrevia.value;
   const [posicao, setPosicao] = useState<{ x: number; y: number } | null>(null);
 
   // Calcula e atualiza a posição do card ancorado ao lado do token
@@ -61,7 +65,8 @@ export function PreviaDaFicha({ s }: { s: SessaoDeEdicao }) {
         const [cx1, cy1] = v.clientDe([c.x1, c.y1]);
         const pos = calcularPosicaoDaPrevia(
           { cx0, cy0, cx1, cy1 },
-          { left: area.left, right: area.right, top: area.top, bottom: area.bottom }
+          { left: area.left, right: area.right, top: area.top, bottom: area.bottom },
+          tamanhoPrevia.peek(),
         );
         setPosicao(pos);
       }
@@ -105,8 +110,7 @@ export function PreviaDaFicha({ s }: { s: SessaoDeEdicao }) {
     arrastandoPrevia.value = true;
 
     const aoMover = (ev: PointerEvent) => {
-      const largura = rect.width || 380;
-      const altura = rect.height || 500;
+      const largura = rect.width || tamanhoPrevia.peek().largura;
       const x = Math.max(10, Math.min(window.innerWidth - largura - 10, ev.clientX - offsetX));
       const y = Math.max(52, Math.min(window.innerHeight - 60, ev.clientY - offsetY));
       posicaoManualPrevia.value = { x: Math.round(x), y: Math.round(y) };
@@ -124,13 +128,38 @@ export function PreviaDaFicha({ s }: { s: SessaoDeEdicao }) {
     window.addEventListener('pointercancel', aoSoltar);
   };
 
+  /** Arrasta uma borda ou o canto: `dx`/`dy` dizem quais eixos crescem com o ponteiro. */
+  const iniciarRedimensao = (dx: 0 | 1, dy: 0 | 1) => (e: PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const x0 = e.clientX, y0 = e.clientY, base = tamanhoPrevia.peek();
+    arrastandoPrevia.value = true;
+    const aoMover = (ev: PointerEvent) => {
+      tamanhoPrevia.value = limitarTamanhoDaPrevia({
+        largura: base.largura + (dx ? ev.clientX - x0 : 0),
+        altura: base.altura + (dy ? ev.clientY - y0 : 0),
+      });
+    };
+    const aoSoltar = () => {
+      arrastandoPrevia.value = false;
+      salvarTamanhoDaPrevia();
+      window.removeEventListener('pointermove', aoMover);
+      window.removeEventListener('pointerup', aoSoltar);
+      window.removeEventListener('pointercancel', aoSoltar);
+    };
+    window.addEventListener('pointermove', aoMover);
+    window.addEventListener('pointerup', aoSoltar);
+    window.addEventListener('pointercancel', aoSoltar);
+  };
+
   const posManual = posicaoManualPrevia.value;
+  const dimensoes = { width: `${tamanho.largura}px`, height: `${tamanho.altura}px` };
   const estiloPosicao = posManual
-    ? { left: `${posManual.x}px`, top: `${posManual.y}px`, position: 'fixed' as const }
+    ? { ...dimensoes, left: `${posManual.x}px`, top: `${posManual.y}px`, position: 'fixed' as const }
     : fixada
-      ? undefined
+      ? dimensoes
       : posicao
-        ? { left: `${posicao.x}px`, top: `${posicao.y}px` }
+        ? { ...dimensoes, left: `${posicao.x}px`, top: `${posicao.y}px` }
         : { display: 'none' };
 
   return (
@@ -199,6 +228,9 @@ export function PreviaDaFicha({ s }: { s: SessaoDeEdicao }) {
           title={`Ficha de ${token.name}`}
         />
       </div>
+      <div class="previa-alca previa-alca-d" data-testid="previa-alca-d" onPointerDown={iniciarRedimensao(1, 0)} aria-hidden="true" />
+      <div class="previa-alca previa-alca-b" data-testid="previa-alca-b" onPointerDown={iniciarRedimensao(0, 1)} aria-hidden="true" />
+      <div class="previa-alca previa-alca-c" data-testid="previa-alca-c" onPointerDown={iniciarRedimensao(1, 1)} aria-hidden="true" />
     </div>
   );
 }

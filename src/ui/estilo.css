@@ -327,8 +327,8 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
 .previa-da-ficha {
   position: fixed;
   z-index: 25;
-  width: 380px;
-  height: 500px;
+  width: 440px;
+  height: 540px;
   background: var(--painel);
   border: 1px solid var(--linha-forte);
   border-radius: 8px;
@@ -342,6 +342,10 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
   pointer-events: auto;
 }
 
+.previa-alca { position: absolute; z-index: 2; touch-action: none; }
+.previa-alca-d { top: 36px; right: 0; bottom: 14px; width: 6px; cursor: ew-resize; }
+.previa-alca-b { left: 0; right: 14px; bottom: 0; height: 6px; cursor: ns-resize; }
+.previa-alca-c { right: 0; bottom: 0; width: 14px; height: 14px; cursor: nwse-resize; background: linear-gradient(135deg, transparent 55%, var(--linha-forte) 55% 65%, transparent 65% 78%, var(--linha-forte) 78% 88%, transparent 88%); }
 .previa-da-ficha.fixada {
   position: absolute;
   top: 52px;

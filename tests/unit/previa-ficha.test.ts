@@ -60,3 +60,18 @@ test('previa-ficha: geometria de posicionamento da gaveta em relacao ao token', 
   assert.equal(posBordaDireita.x, 1100 - 380 - 14, 'deve transbordar para a esquerda do token');
 });
 
+
+test('calcularPosicaoDaPrevia respeita tamanhos customizados e limitarTamanhoDaPrevia aplica mínimo e máximo', async () => {
+  const { limitarTamanhoDaPrevia } = await import('../../src/app/previa-ficha.ts');
+  const area = { left: 0, right: 1200, top: 50, bottom: 800 };
+  const pos = calcularPosicaoDaPrevia({ cx0: 100, cy0: 300, cx1: 140, cy1: 340 }, area, { largura: 600, altura: 700 });
+  assert.equal(pos.x, 154);
+  assert.equal(pos.y, 60, 'clampa no topo quando a altura é grande');
+  const colado = calcularPosicaoDaPrevia({ cx0: 1000, cy0: 300, cx1: 1040, cy1: 340 }, area, { largura: 600, altura: 400 });
+  assert.equal(colado.x, 386, 'vai para a esquerda do token');
+
+  const janela = { largura: 1000, altura: 700 };
+  assert.deepEqual(limitarTamanhoDaPrevia({ largura: 100, altura: 100 }, janela), { largura: 320, altura: 320 });
+  assert.deepEqual(limitarTamanhoDaPrevia({ largura: 5000, altura: 5000 }, janela), { largura: 900, altura: 628 });
+  assert.deepEqual(limitarTamanhoDaPrevia({ largura: Number.NaN, altura: 400 }, janela), { largura: 440, altura: 400 });
+});
