@@ -206,7 +206,16 @@ export const ACOES: readonly Acao[] = [
 /** O que só existe em Construir: tudo o que muda o mapa (ferramentas de pôr, biblioteca, assistente, remover, duplicar, grade). Na Sessão fica desabilitado. */
 const GRUPOS_SO_DE_CONSTRUIR = new Set(['Construir', 'Adicionar', 'Assistente']), IDS_SO_DE_CONSTRUIR = new Set(['remover', 'duplicar', 'luz-acesa', 'grade', 'relevo']);
 const soEmConstruir = (a: Acao) => GRUPOS_SO_DE_CONSTRUIR.has(a.grupo) || IDS_SO_DE_CONSTRUIR.has(a.id);
-const HABILITADA = (a: Acao) => (modo.value === 'sessao' && soEmConstruir(a) ? false : a.habilitada ? a.habilitada() : true);
+/** Na Sessão ainda se apagam objetos e luzes (e se acendem/apagam luzes); cômodos, paredes, peças e o resto seguem só em Construir. */
+export function liberadaNaSessao(a: Acao, selecao: readonly { colecao: string }[]): boolean {
+  if (a.id === 'remover') return selecao.length > 0 && selecao.every(x => x.colecao === 'props' || x.colecao === 'lights');
+  if (a.id === 'luz-acesa') return selecao.some(x => x.colecao === 'lights');
+  return false;
+}
+const HABILITADA = (a: Acao) => {
+  if (modo.value === 'sessao' && soEmConstruir(a)) return liberadaNaSessao(a, app.sessao.value?.selecao.value ?? []) && (a.habilitada ? a.habilitada() : true);
+  return a.habilitada ? a.habilitada() : true;
+};
 export const acaoPorId = (id: string): Acao | undefined => {
   if (id.startsWith('momento-')) {
     const s = app.sessao.value;

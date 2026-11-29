@@ -213,8 +213,8 @@ function ControlesDeRecursosToken({ s, peca, refFicha }: { s: SessaoDeEdicao; pe
   );
 }
 
-const Acao = ({ icone, rotulo, aoClicar, perigo, id }: { icone: string; rotulo: string; aoClicar: () => void; perigo?: boolean; id?: string }) => (
-  <button type="button" class={`cartao-acao ${perigo ? 'perigo' : ''}`} title={rotulo} aria-label={rotulo} onClick={aoClicar} data-testid={id}><Icone nome={icone} tamanho={16} /></button>
+const Acao = ({ icone, rotulo, aoClicar, perigo, id, ativo }: { icone: string; rotulo: string; aoClicar: () => void; perigo?: boolean; id?: string; ativo?: boolean }) => (
+  <button type="button" class={`cartao-acao ${perigo ? 'perigo' : ''} ${ativo ? 'ativo' : ''}`} aria-pressed={ativo} title={rotulo} aria-label={rotulo} onClick={aoClicar} data-testid={id}><Icone nome={icone} tamanho={16} /></button>
 );
 
 function BotoesDeTransicaoDeMapa({ transicao, temJogadores, pecaId }: { transicao: TransicaoDeMapa; temJogadores: boolean; pecaId?: string }) {
@@ -258,13 +258,19 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
     const o = m.props[a.id]!;
     const transicao = transicaoDoObjeto(o);
     const interativo = o.interaction && o.interaction.kind !== 'stairs';
-    if (!transicao && !interativo) return null;
     acoes = (
       <>
         {interativo && <button type="button" class="cartao-texto" onClick={() => usarObjeto(o.id)} data-testid="cartao-usar">{acaoDoInterativo(o)}</button>}
         {transicao && <BotoesDeTransicaoDeMapa transicao={transicao} temJogadores={temJogadores} />}
+        <Acao icone="lixeira" rotulo="Remover objeto (Del)" aoClicar={removerSelecao} perigo id="cartao-remover" />
       </>
     );
+  } else if (emSessao && a.colecao === 'lights') {
+    const l = m.lights[a.id]!;
+    acoes = (<>
+      <Acao icone="luz" rotulo={l.on ? 'Apagar luz (I)' : 'Acender luz (I)'} ativo={l.on} aoClicar={alternarLuzes} id="cartao-luz" />
+      <Acao icone="lixeira" rotulo="Remover luz (Del)" aoClicar={removerSelecao} perigo id="cartao-remover" />
+    </>);
   } else if (emSessao && a.colecao === 'tokens') {
     const token = m.tokens[a.id]!;
     const ref = refDaFicha(token.refs);
