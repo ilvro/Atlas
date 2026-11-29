@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { criarFilaDeBake, prioridadePadraoDoPedido } from '../../src/procedural/baker.ts';
+import { criarFilaDeBake, ErroDeBakeCancelado, prioridadePadraoDoPedido } from '../../src/procedural/baker.ts';
 
 function esperar(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -150,4 +150,55 @@ test('prioridade padrão por tipo de pedido segue a tabela chão < objetos < tel
   assert.equal(prioridadePadraoDoPedido('sprite'), 1);
   assert.equal(prioridadePadraoDoPedido('cobertura'), 2);
   assert.equal(prioridadePadraoDoPedido('detalhe-de-telhado'), 2);
+});
+
+test('coletar remove da fila o que saiu de uso, rejeita com ErroDeBakeCancelado e preserva o que está em uso', async () => {
+  const liberadores: Array<() => void> = [];
+  const iniciados: string[] = [];
+  const { executores } = criarExecutoresFalsos<string>(1, async nome => {
+    iniciados.push(nome);
+    await new Promise<void>(resolve => liberadores.push(resolve));
+    return `ok:${nome}`;
+  });
+  const fila = criarFilaDeBake(executores);
+  const pOcupado = fila.pedir('ocupado', 'ocupado', 0);
+  const pVelho = fila.pedir('velho', 'velho', 0);
+  const pAtual = fila.pedir('atual', 'atual', 1);
+  const rejeicao = assert.rejects(pVelho, (e: unknown) => e instanceof ErroDeBakeCancelado && e.name === 'BakeCancelado');
+
+  fila.coletar(new Set(['ocupado', 'atual']));
+  await rejeicao;
+  assert.equal(fila.pendentes, 2);
+
+  while (liberadores.length > 0 || fila.pendentes > 0) {
+    if (liberadores.length > 0) liberadores.shift()!();
+    await esperar(0);
+  }
+  assert.equal(await pOcupado, 'ok:ocupado');
+  assert.equal(await pAtual, 'ok:atual');
+  assert.deepEqual(iniciados, ['ocupado', 'atual']);
+});
+
+test('consulta de cache cancelada por coletar não enfileira trabalho e descarta o resultado', async () => {
+  let liberarConsulta!: (v: string | null) => void;
+  const descartados: string[] = [];
+  let execucoes = 0;
+  const { executores } = criarExecutoresFalsos<string>(1, async nome => { execucoes++; return `ok:${nome}`; });
+  const fila = criarFilaDeBake(executores, () => 1, {
+    consultarCache: () => new Promise<string | null>(resolve => { liberarConsulta = resolve; }),
+    descartar: r => descartados.push(r),
+  });
+  const p = fila.pedir('a', 'a');
+  const rejeicao = assert.rejects(p, ErroDeBakeCancelado);
+  await esperar(0);
+  assert.equal(fila.pendentes, 1);
+
+  fila.coletar(new Set());
+  await rejeicao;
+  assert.equal(fila.pendentes, 0);
+  liberarConsulta('do-cache');
+  await esperar(5);
+  assert.equal(execucoes, 0);
+  assert.deepEqual(descartados, ['do-cache']);
+  assert.equal(fila.pendentes, 0);
 });

@@ -22,6 +22,14 @@ export interface Baker {
   encerrar(): void;
 }
 
+/** Rejeição de um pedido que `coletar` descartou porque a chave saiu de uso; quem pede deve ignorá-la. */
+export class ErroDeBakeCancelado extends Error {
+  constructor(mensagem = 'Pedido de bake cancelado.') {
+    super(mensagem);
+    this.name = 'BakeCancelado';
+  }
+}
+
 export interface FilaDeBake<TPedido, TResultado> {
   pedir(chave: string, pedido: TPedido, prioridade?: number): Promise<TResultado>;
   coletar(emUso: ReadonlySet<string>): void;
@@ -32,6 +40,8 @@ export interface FilaDeBake<TPedido, TResultado> {
 export interface OpcoesFilaDeBake<TPedido, TResultado> {
   consultarCache?: (chave: string, pedido: TPedido) => Promise<TResultado | null>;
   podeCachear?: (pedido: TPedido) => boolean;
+  /** Libera (ex.: fecha bitmaps) um resultado de cache que chegou depois de a consulta ser cancelada. */
+  descartar?: (resultado: TResultado) => void;
 }
 
 /** Prioridade padrão por tipo de assado: chão (0) antes de objetos/imagens (1), que vêm antes de telhados (2). */
@@ -60,6 +70,7 @@ export function criarFilaDeBake<TPedido, TResultado>(
     rejeitar: (e: unknown) => void;
   }
   interface ConsultaPendente {
+    cancelada?: boolean;
     prioridade: number;
     rejeitar: (e: unknown) => void;
   }
@@ -146,12 +157,14 @@ export function criarFilaDeBake<TPedido, TResultado>(
             .then(
               hit => {
                 if (consultandoPorChave.get(chave) === consulta) consultandoPorChave.delete(chave);
+                if (consulta.cancelada) { if (hit !== null) opcoes.descartar?.(hit); return; }
                 if (encerrada) { rejeitar(new Error('Baker encerrado.')); return; }
                 if (hit !== null) { resolver(hit); return; }
                 enfileirar(consulta.prioridade);
               },
               () => {
                 if (consultandoPorChave.get(chave) === consulta) consultandoPorChave.delete(chave);
+                if (consulta.cancelada) return;
                 if (encerrada) { rejeitar(new Error('Baker encerrado.')); return; }
                 enfileirar(consulta.prioridade);
               },
@@ -168,7 +181,20 @@ export function criarFilaDeBake<TPedido, TResultado>(
       return p;
     },
     coletar(emUso) {
-      for (const k of cache.keys()) if (!emUso.has(k)) cache.delete(k);
+      for (const k of [...cache.keys()]) if (!emUso.has(k)) cache.delete(k);
+      for (let i = fila.length - 1; i >= 0; i--) {
+        const item = fila[i]!;
+        if (emUso.has(item.chave)) continue;
+        fila.splice(i, 1);
+        if (naFilaPorChave.get(item.chave) === item) naFilaPorChave.delete(item.chave);
+        item.rejeitar(new ErroDeBakeCancelado());
+      }
+      for (const [chave, consulta] of [...consultandoPorChave]) {
+        if (emUso.has(chave)) continue;
+        consulta.cancelada = true;
+        consultandoPorChave.delete(chave);
+        consulta.rejeitar(new ErroDeBakeCancelado());
+      }
     },
     get pendentes() { return emExecucao + fila.length + consultandoPorChave.size; },
     encerrar() {
@@ -342,6 +368,7 @@ export function criarBaker(opcoes: { workers?: number; cache?: CacheDeAssados | 
   const fila = criarFilaDeBake(executores, p => prioridadePadraoDoPedido(p.tipo), {
     consultarCache: cache ? chave => cache.obter(chave) : undefined,
     podeCachear: pedidoCacheavel,
+    descartar: fecharCopia,
   });
 
   return {

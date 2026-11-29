@@ -10,7 +10,7 @@ import { alturaTopoDaFace } from '../procedural/faces-de-parede.ts';
 import { materialDe, tom } from '../procedural/materiais.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { camadaDoObjeto } from '../domain/camadas.ts';
-import type { Baker } from '../procedural/baker.ts';
+import { ErroDeBakeCancelado, type Baker } from '../procedural/baker.ts';
 import type { PedidoDeBake, ResultadoDeBake } from '../procedural/executar.ts';
 import type { Mudancas } from '../state/mudancas.ts';
 import { corDoNome, hexParaNumero } from './cores.ts';
@@ -197,13 +197,13 @@ export function criarCena(op: OpcoesDaCena): Cena {
       pintandoAgora++;
       op.baker.pedir(chavePrevia, previa.pedido, 0).then(r => {
         aplicarResultado(chavePrevia, r, true);
-      }).catch(erro => console.warn('Atlas: falha ao pintar prévia', erro)).finally(() => { pintandoAgora--; });
+      }).catch(erro => { if (!(erro instanceof ErroDeBakeCancelado)) console.warn('Atlas: falha ao pintar prévia', erro); }).finally(() => { pintandoAgora--; });
     }
 
     pintandoAgora++;
     op.baker.pedir(chave, pedido, usarPrevia ? 1 : prioridade).then(r => {
       aplicarResultado(chave, r, false);
-    }).catch(erro => console.warn('Atlas: falha ao pintar', erro)).finally(() => { pintandoAgora--; });
+    }).catch(erro => { if (!(erro instanceof ErroDeBakeCancelado)) console.warn('Atlas: falha ao pintar', erro); }).finally(() => { pintandoAgora--; });
   }
 
   const pixelRes0 = (m: MapaAtlas): boolean => m.style.renderer === 'pixel';
