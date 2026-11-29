@@ -1048,3 +1048,37 @@ test('publicador: forcarCameraRemota funciona em Jogadores livres e filtroDeVisa
     pub.parar(); remoto.close(); sess.fechar();
   }
 });
+
+test('publicador: arrasto de ameaça visível envia peca-gesto ao remoto; fora da visão não vaza (anti-spoiler)', async () => {
+  const mapa = criarMapa({ id: 'mapa-pub-gesto-ameaca', nome: 'Cripta' });
+  mapa.session.explored = { res: 0.5, cells: [] };
+  const sess = criarSessao(mapa, criarRepoMock({ [mapa.id]: mapa }), { salvo: true });
+  const peca = (id: string, player: boolean, position: [number, number]) => ({ id, name: id, position, size: 1, facing: 'right' as const, portrait: null, sprite: null, player, vision: { radius: 6, dark: false }, lightId: null, figure: { state: 'normal' as const }, refs: [] });
+  sess.store.executar({ tipo: 'item.adicionar', colecao: 'tokens', item: peca('h1', true, [3, 3]) });
+  sess.store.executar({ tipo: 'item.adicionar', colecao: 'tokens', item: peca('orc', false, [4, 3]) });
+  sess.store.executar({ tipo: 'item.adicionar', colecao: 'tokens', item: peca('longe', false, [40, 25]) });
+  const pub = iniciarPublicacao(sess, async () => null);
+  const remoto = new BroadcastChannel(CANAL_PROJETOR_REMOTO);
+  const msgs: any[] = [];
+  remoto.onmessage = e => msgs.push(e.data);
+  try {
+    remoto.postMessage({ tipo: 'ola', largura: 1600, altura: 900, remoto: true, _seq: 1 });
+    await esperar(60);
+    msgs.length = 0;
+
+    const g = sess.store.iniciarGesto('Mover ameaça');
+    g.aplicar({ tipo: 'peca.mover', id: 'orc', para: [5, 3], livre: true, semGrade: true });
+    await esperar(40);
+    assert.ok(msgs.some(m => m.tipo === 'peca-gesto' && m.id === 'orc'), 'ameaça visível anda em tempo real');
+    g.cancelar();
+
+    msgs.length = 0;
+    const g2 = sess.store.iniciarGesto('Mover escondida');
+    g2.aplicar({ tipo: 'peca.mover', id: 'longe', para: [41, 25], livre: true, semGrade: true });
+    await esperar(40);
+    assert.ok(!msgs.some(m => m.tipo === 'peca-gesto' && m.id === 'longe'), 'ameaça fora da visão não vaza posição');
+    g2.cancelar();
+  } finally {
+    pub.parar(); remoto.close(); sess.fechar();
+  }
+});

@@ -9,7 +9,7 @@ import { controleJogadores, movimentoLivre, type ControleJogadores } from './mod
 import { recursosParaOProjetor } from '../domain/fichas.ts';
 import { projetarParaJogadores } from '../domain/projecao.ts';
 import { projetarParaRemoto } from '../domain/projecao-remota.ts';
-import type { FiltroDeVisao } from '../domain/nevoa.ts';
+import { pontoVisivelAgora, type FiltroDeVisao } from '../domain/nevoa.ts';
 import type { EventoDeCena } from '../render/eventos-de-cena.ts';
 import type { Caixa } from '../render/selecao.ts';
 import type { SessaoDeEdicao } from './sessao.ts';
@@ -238,6 +238,10 @@ export function iniciarPublicacao(
     if (!algum() || parado) return;
     enviar({ tipo: 'recursos', por: recursosParaOProjetor(s.store.documento.tokens, recursosDaPeca, mostrarPvNoProjetor.peek()) });
   };
+  // Ameaças (peças que não são de jogador) presentes no último `estado` enviado a cada destino: o gesto leve só vale para elas.
+  let ameacasNoEstadoLocal = new Set<string>();
+  let ameacasNoEstadoRemoto = new Set<string>();
+  const ameacasDoEstado = (d: MapaAtlas) => new Set(Object.values(d.tokens).filter(x => !x.player).map(x => x.id));
   const enviarEstado = (onde: 'local' | 'remoto' | 'ambos' = 'ambos', forcarRetratos = false) => {
     const m = s.store.documento;
     const andar = andarAtual(m);
@@ -249,9 +253,14 @@ export function iniciarPublicacao(
     const comModo = (d: MapaAtlas): MapaAtlas => (livre && d.grid.snap ? { ...d, grid: { ...d.grid, snap: false } } : d);
     const filtro = filtroDeVisao.peek();
     const filtroFoco = filtro.tipo === 'foco' ? filtro : undefined;
-    if (local) enviar({ tipo: 'estado', doc: comModo(projetarParaJogadores(m, andar, filtroFoco)), ...extra }, 'local');
+    if (local) {
+      const doc = comModo(projetarParaJogadores(m, andar, filtroFoco));
+      ameacasNoEstadoLocal = ameacasDoEstado(doc);
+      enviar({ tipo: 'estado', doc, ...extra }, 'local');
+    }
     if (remoto) {
       const doc = comModo(projetarParaRemoto(m, andar, filtroFoco));
+      ameacasNoEstadoRemoto = ameacasDoEstado(doc);
       // Sem névoa o mestre mostra o mapa todo: a ponte pede a confirmação dele, uma vez por mapa, e segura o `estado` até lá.
       if (doc.session.explored === null) {
         if (!semNevoaAvisados.has(m.id)) { semNevoaAvisados.add(m.id); enviar({ tipo: 'aviso-sem-nevoa', mapa: m.id, nome: m.name }, 'remoto'); }
@@ -376,12 +385,18 @@ export function iniciarPublicacao(
         caixaDoProjetor.value = caixaDosJogadores(e.documento, asp, 5, andarAtual(e.documento), jogadorSeguido.peek());
         cameraEmGesto = false;
       }
-      if (algum() && !parado && t && t.player && andarDe(t) === andarDoProjetor.peek()) {
+      if (algum() && !parado && t && andarDe(t) === andarDoProjetor.peek()) {
+        // Anti-spoiler: ameaça só viaja no gesto enquanto os jogadores a veem; entrar/sair da vista pede um `estado`.
+        const filtro = filtroDeVisao.peek();
+        const visivel = t.player || pontoVisivelAgora(e.documento, t.position, t.size * e.documento.grid.size * 0.35, filtro.tipo === 'foco' ? filtro : undefined);
+        const noLocal = t.player || ameacasNoEstadoLocal.has(tokenId), noRemoto = t.player || ameacasNoEstadoRemoto.has(tokenId);
+        if (!t.player && ((projetorConectado.peek() && visivel !== noLocal) || (projetorRemotoConectado.peek() && visivel !== noRemoto))) agendar(80);
         const agora = performance.now();
-        if (agora - ultimoEnvioGesto >= 12) {
+        if (visivel && agora - ultimoEnvioGesto >= 12) {
           ultimoEnvioGesto = agora;
           const luz = t.lightId ? e.documento.lights[t.lightId] : undefined;
-          const c = seguir ? caixaDoProjetor.peek() ?? undefined : undefined;
+          const alvoSeguido = t.player || jogadorSeguido.peek() === tokenId;
+          const c = seguir && alvoSeguido ? caixaDoProjetor.peek() ?? undefined : undefined;
           const base = {
             tipo: 'peca-gesto' as const,
             id: tokenId,
@@ -389,8 +404,8 @@ export function iniciarPublicacao(
             facing: t.facing,
             ...(luz?.cone ? { lightDirection: luz.cone.direction } : {}),
           };
-          enviar({ ...base, ...(c ? { caixa: c, seguir: true } : {}) }, 'local');
-          enviar({ ...base, ...(seguir ? { caixa: caixaRemota(e.documento), seguir: true } : {}) }, 'remoto');
+          if (noLocal) enviar({ ...base, ...(c ? { caixa: c, seguir: true } : {}) }, 'local');
+          if (noRemoto) enviar({ ...base, ...(seguir && alvoSeguido ? { caixa: caixaRemota(e.documento), seguir: true } : {}) }, 'remoto');
         }
       }
       if (e.mudancas.campos.includes('session')) agendar(200);
