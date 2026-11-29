@@ -24,7 +24,8 @@ Antes de compor um mapa, criar um momento, planejar uma sessão ou criar documen
 - `mapas`: ordem de construção, conferir com os olhos, regras de ouro.
 - `momentos`: criar e testar um momento.
 - `sessao`: planejar uma sessão, abrir apps, falhas e dono de cada coisa.
-- `documentos-fichas-trilha`: Ateliê, Dossiê e Jukebox.
+- `oficio-de-documentos`: como fazer documentos (pistas) específicos e variados no Ateliê. **Leia antes de criar documentos.**
+- `documentos-fichas-trilha`: ferramentas do Ateliê, Dossiê e Jukebox.
 - `pedido-curto`: ritmo de um pedido curto, em blocos.
 
 ## Ferramentas sob demanda

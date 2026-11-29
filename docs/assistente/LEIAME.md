@@ -21,6 +21,7 @@ A ponte de cada app só carrega em desenvolvimento: Atlas, Mesa, Ateliê e Dossi
   - `mapas`: o que ler antes, como compor um mapa em blocos conferidos com `atlas_ver_mapa`, as regras aprendidas na Fase 10 e o respeito ao que é do mestre.
   - `momentos`: criar e testar momentos.
   - `sessao`: planejar uma sessão (ler a campanha e a última sessão, plano aprovado, entidades, mapas e momentos, cenas, sessão com roteiro e notas, resumo), `mesa_abrir_apps`, falhas e regra de dono.
+  - `oficio-de-documentos`: ofício de documentos memoráveis (contexto, voz, suporte, UV).
   - `documentos-fichas-trilha`: `atelie_*`, `dossie_*` (ameaças pelo VD) e `jukebox_*`, com os apps abertos.
   - `pedido-curto`: o ritmo de um pedido curto, em blocos.
   - `quadros`: ler os quadros da Mesa em camadas (mapa, busca, seção em títulos, completa, imagem), citar itens pelo id curto, resumos e o vocabulário do mestre.
