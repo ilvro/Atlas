@@ -3,7 +3,9 @@ import type { SessaoDeEdicao } from '../app/sessao.ts';
 
 /** Escolhe quem o projetor segue: todos os jogadores ou uma peça só. Escolher uma peça liga o seguimento. */
 export function SeletorDeJogadorSeguido({ s, testid }: { s: SessaoDeEdicao; testid: string }) {
-  const jogadores = Object.values(s.doc.value.tokens).filter(t => t.player);
+  const m = s.doc.value;
+  const naIniciativa = new Set(m.session.initiative?.order.map(e => e.tokenId) ?? []);
+  const jogadores = Object.values(m.tokens).filter(t => t.player || naIniciativa.has(t.id));
   const atual = jogadores.some(t => t.id === jogadorSeguido.value) ? jogadorSeguido.value! : '';
   return (
     <select
@@ -19,7 +21,7 @@ export function SeletorDeJogadorSeguido({ s, testid }: { s: SessaoDeEdicao; test
       }}
     >
       <option value="">Todos os jogadores</option>
-      {jogadores.map(t => <option key={t.id} value={t.id}>{t.name || 'Jogador sem nome'}</option>)}
+      {jogadores.map(t => <option key={t.id} value={t.id}>{t.name || (t.player ? 'Jogador sem nome' : 'Peça sem nome')}</option>)}
     </select>
   );
 }

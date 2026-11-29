@@ -1117,3 +1117,28 @@ test('o projetor remoto fixa o mapa em mapaNoProjetorId ao dizer "ola"', async (
     mapaNoProjetorId.value = null; pub.parar(); remoto.close(); sess.fechar();
   }
 });
+
+test('caixaDosJogadores: segue combatente da iniciativa que não é jogador, mas ignora peça fora dela', async () => {
+  const { caixaDosJogadores } = await import('../../src/app/projetor.ts');
+  const m = criarMapa({ id: 'mapa-caixa-ini', nome: 'Caixa' });
+  const mk = (id: string, x: number, player: boolean) => ({ id, name: id, position: [x, 10.5] as [number, number], size: 1, facing: 'down' as const, portrait: null, sprite: null, player, vision: { radius: 18, dark: false }, lightId: null, figure: { state: 'normal' as const }, refs: [], hp: null });
+  m.tokens.p = mk('p', 4.5, true) as never;
+  m.tokens.orc = mk('orc', 12.5, false) as never;
+  m.tokens.solto = mk('solto', 20.5, false) as never;
+  const centro = (c: { x0: number; x1: number }) => (c.x0 + c.x1) / 2;
+  assert.ok(Math.abs(centro(caixaDosJogadores(m, 16 / 9, 5, undefined, 'orc')) - 4.5) < 0.01, 'fora da iniciativa: enquadra os jogadores');
+  m.session.initiative = { order: [{ tokenId: 'p', value: 5 }, { tokenId: 'orc', value: 3 }], current: 1, round: 1 };
+  assert.ok(Math.abs(centro(caixaDosJogadores(m, 16 / 9, 5, undefined, 'orc')) - 12.5) < 0.01, 'na iniciativa: enquadra o combatente');
+  assert.ok(Math.abs(centro(caixaDosJogadores(m, 16 / 9, 5, undefined, 'solto')) - 4.5) < 0.01, 'peça fora da iniciativa não vira alvo');
+});
+
+test('caixaDosJogadores: ameaça da iniciativa fora da vista dos jogadores não é revelada', async () => {
+  const { caixaDosJogadores } = await import('../../src/app/projetor.ts');
+  const m = criarMapa({ id: 'mapa-caixa-oculta', nome: 'Oculta' });
+  const mk = (id: string, x: number, player: boolean) => ({ id, name: id, position: [x, 10.5] as [number, number], size: 1, facing: 'down' as const, portrait: null, sprite: null, player, vision: { radius: 6, dark: false }, lightId: null, figure: { state: 'normal' as const }, refs: [], hp: null });
+  m.tokens.p = mk('p', 4.5, true) as never;
+  m.tokens.orc = mk('orc', 80.5, false) as never;
+  m.session.initiative = { order: [{ tokenId: 'p', value: 5 }, { tokenId: 'orc', value: 3 }], current: 1, round: 1 };
+  const c = caixaDosJogadores(m, 16 / 9, 5, undefined, 'orc');
+  assert.ok(Math.abs((c.x0 + c.x1) / 2 - 4.5) < 0.01, 'fica nos jogadores');
+});

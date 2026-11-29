@@ -50,6 +50,19 @@ export function forcarCameraRemota(): void {
   pulsoFocoRemoto.value++;
 }
 
+/**
+ * Depois de iniciar ou passar a iniciativa: seleciona a peça do turno, passa a seguir essa peça e,
+ * com "Seguindo" ligado, reenquadra a câmera da Activity nela.
+ */
+export function focarTurnoAtualDaIniciativa(s: SessaoDeEdicao): void {
+  const ini = s.store.documento.session.initiative;
+  const tokenId = ini?.order[ini.current]?.tokenId;
+  if (!tokenId || !s.store.documento.tokens[tokenId]) return;
+  s.selecao.value = [{ colecao: 'tokens', id: tokenId }];
+  jogadorSeguido.value = tokenId;
+  if (seguirJogadores.peek()) forcarCameraRemota();
+}
+
 export type MensagemDoMestre =
   | { tipo: 'estado'; doc: MapaAtlas; versao: number; emGesto?: boolean; controleJogadores?: ControleJogadores }
   | { tipo: 'controle-jogadores'; modo: ControleJogadores }
@@ -127,10 +140,23 @@ export function ajustarAoAspecto(c: Caixa, asp: number): Caixa {
   return { x0: cx - w / 2, y0: cy - h / 2, x1: cx + w / 2, y1: cy + h / 2 };
 }
 
+/**
+ * A peça que o projetor pode seguir: um jogador, ou um combatente da iniciativa ativa.
+ * Anti-spoiler: uma ameaça só é seguida enquanto os jogadores a veem; fora da vista, o enquadre fica nos jogadores.
+ */
+export function alvoSeguivel(m: MapaAtlas, id: string | null): MapaAtlas['tokens'][string] | undefined {
+  const t = id ? m.tokens[id] : undefined;
+  if (!t) return undefined;
+  if (t.player) return t;
+  if (!m.session.initiative?.order.some(e => e.tokenId === t.id)) return undefined;
+  const filtro = filtroDeVisao.peek();
+  return pontoVisivelAgora(m, t.position, t.size * m.grid.size * 0.35, filtro.tipo === 'foco' ? filtro : undefined) ? t : undefined;
+}
+
 /** A caixa que enquadra as peças de jogador com folga (ou o mapa todo, se não houver). */
 export function caixaDosJogadores(m: MapaAtlas, asp: number, margem = 5, andar?: string | null, jogadorId: string | null = null): Caixa {
-  const alvo = jogadorId ? m.tokens[jogadorId] : undefined;
-  const pecas = alvo?.player ? [alvo] : Object.values(m.tokens).filter(t => t.player && (andar === undefined || andarDe(t) === andar));
+  const alvo = alvoSeguivel(m, jogadorId);
+  const pecas = alvo ? [alvo] : Object.values(m.tokens).filter(t => t.player && (andar === undefined || andarDe(t) === andar));
   if (!pecas.length) return ajustarAoAspecto({ x0: 0, y0: 0, x1: m.bounds.width, y1: m.bounds.height }, asp);
   const xs = pecas.map(t => t.position[0]), ys = pecas.map(t => t.position[1]);
   return ajustarAoAspecto({ x0: Math.min(...xs) - margem, y0: Math.min(...ys) - margem, x1: Math.max(...xs) + margem, y1: Math.max(...ys) + margem }, asp);
@@ -198,8 +224,8 @@ export function iniciarPublicacao(
   };
   registrarJogadores(s.store.documento);
   const andarAtual = (m: MapaAtlas): string | null => {
-    const seguido = seguirJogadores.peek() ? m.tokens[jogadorSeguido.peek() ?? ''] : undefined;
-    const resolvido = seguido?.player && andarManualDoProjetor.peek() === undefined
+    const seguido = seguirJogadores.peek() ? alvoSeguivel(m, jogadorSeguido.peek()) : undefined;
+    const resolvido = seguido && andarManualDoProjetor.peek() === undefined
       ? andarDe(seguido)
       : resolverAndarDoProjetor(m, ultimoAndarMovido, andarManualDoProjetor.peek());
     andarDoProjetor.value = resolvido;

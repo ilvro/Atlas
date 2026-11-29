@@ -1,7 +1,7 @@
 import { signal } from '@preact/signals';
 import { useRef } from 'preact/hooks';
 import { abrirProjetor, aplicarClima, obterSessaoParaProjetor, servicos } from '../app/app.ts';
-import { caixaDoProjetor, definirFiltroDeVisao, filtroDeVisao, forcarCameraRemota, jogadorSeguido, mostrarQuadroDoProjetor, projetorConectado, projetorRemotoConectado, seguirJogadores } from '../app/projetor.ts';
+import { caixaDoProjetor, definirFiltroDeVisao, filtroDeVisao, focarTurnoAtualDaIniciativa, forcarCameraRemota, jogadorSeguido, mostrarQuadroDoProjetor, projetorConectado, projetorRemotoConectado, seguirJogadores } from '../app/projetor.ts';
 import { acaoPorId, executarAcao } from '../app/acoes.ts';
 import { controleJogadores, definirControleJogadores, definirDuracaoDoClima, definirMovimentoLivre, duracaoDoClima } from '../app/modo.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
@@ -213,8 +213,8 @@ function SecaoDeIniciativa({ s }: { s: SessaoDeEdicao }) {
         aoFocarPeca={focarJogadorNaActivity}
       />
       <div class="dock-linha">
-        <button type="button" class="dock-pilula" aria-label="Vez anterior" data-testid="iniciativa-anterior" onClick={() => tentar(() => s.store.executar({ tipo: 'iniciativa.passo', passo: -1 }))}>‹</button>
-        <button type="button" class="dock-pilula destaque" aria-label="Próxima vez" data-testid="iniciativa-proxima" onClick={() => { if (tentar(() => s.store.executar({ tipo: 'iniciativa.passo', passo: 1 }))) tocar('selecionar'); }}>›</button>
+        <button type="button" class="dock-pilula" aria-label="Vez anterior" data-testid="iniciativa-anterior" onClick={() => { if (tentar(() => s.store.executar({ tipo: 'iniciativa.passo', passo: -1 }))) focarTurnoAtualDaIniciativa(s); }}>‹</button>
+        <button type="button" class="dock-pilula destaque" aria-label="Próxima vez" data-testid="iniciativa-proxima" onClick={() => { if (tentar(() => s.store.executar({ tipo: 'iniciativa.passo', passo: 1 }))) { tocar('selecionar'); focarTurnoAtualDaIniciativa(s); } }}>›</button>
         <button type="button" class="dock-pilula" data-testid="iniciativa-encerrar" onClick={() => tentar(() => s.store.executar({ tipo: 'iniciativa.encerrar' }))}>Encerrar</button>
       </div>
       <div class="dock-linha">
@@ -241,6 +241,7 @@ function SecaoDeIniciativa({ s }: { s: SessaoDeEdicao }) {
     if (tentar(() => s.store.executar({ tipo: 'iniciativa.iniciar', entradas: candidatas.map(id => ({ tokenId: id, value: Number(valoresIniciais.value[id]) || 0 })) }, { rotulo: 'Começar a iniciativa' }))) {
       definirControleJogadores('livres');
       definirMovimentoLivre(false);
+      focarTurnoAtualDaIniciativa(s);
     }
   };
   return (<>

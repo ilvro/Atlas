@@ -5,6 +5,7 @@ import type { Recursos } from '../domain/fichas.ts';
 import type { MapaAtlas, Peca } from '../domain/mapa.ts';
 import { caixaDaSelecao } from '../render/selecao.ts';
 import { servicos, sessao, viewport } from './app.ts';
+import { focarTurnoAtualDaIniciativa } from './projetor.ts';
 import { ajustarRecursosDaPeca, recursosDaPeca, recursosDasFichas, type AjusteRecursoPatch } from './fichas.ts';
 import { definirControleJogadores, definirMovimentoLivre } from './modo.ts';
 import type { SessaoDeEdicao } from './sessao.ts';
@@ -138,6 +139,7 @@ export function executarComandoDeIniciativa(
         s.store.executar({ tipo: 'iniciativa.iniciar', entradas }, { rotulo: 'Começar a iniciativa' });
         definirControleJogadores('livres');
         definirMovimentoLivre(false);
+        focarTurnoAtualDaIniciativa(s);
         return true;
       } catch {
         return false;
@@ -148,6 +150,7 @@ export function executarComandoDeIniciativa(
       if (!doc.session.initiative) return false;
       try {
         s.store.executar({ tipo: 'iniciativa.passo', passo: cmd.direcao === -1 ? -1 : 1 });
+        focarTurnoAtualDaIniciativa(s);
         return true;
       } catch {
         return false;

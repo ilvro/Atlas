@@ -195,3 +195,23 @@ test('executarComandoDeIniciativa: iniciar, passo, definir-valor, ajustar-pv, fo
   assert.equal(executarComandoDeIniciativa({ tipo: 'encerrar' }, { sessao: s }), true);
   assert.equal(s.store.documento.session.initiative, null);
 });
+
+test('iniciativa: iniciar e passar a vez selecionam a peça do turno e a passam a seguir', async () => {
+  const { jogadorSeguido } = await import('../../src/app/projetor.ts');
+  const m = criarMapa({ id: 'mapa-foco', nome: 'Foco', agora: 1 });
+  const a = novaPeca([2, 2], 'Ana', { player: true });
+  const orc = novaPeca([6, 6], 'Orc', { player: false });
+  m.tokens[a.id] = a;
+  m.tokens[orc.id] = orc;
+  const s = criarSessaoFake(m);
+  jogadorSeguido.value = null;
+  executarComandoDeIniciativa({ tipo: 'iniciar', entradas: [{ tokenId: a.id, valor: 20 }, { tokenId: orc.id, valor: 10 }] }, { sessao: s });
+  assert.deepEqual(s.selecao.value, [{ colecao: 'tokens', id: a.id }]);
+  assert.equal(jogadorSeguido.value, a.id);
+  executarComandoDeIniciativa({ tipo: 'passo', direcao: 1 }, { sessao: s });
+  assert.deepEqual(s.selecao.value, [{ colecao: 'tokens', id: orc.id }]);
+  assert.equal(jogadorSeguido.value, orc.id, 'combatente que não é jogador também vira alvo');
+  executarComandoDeIniciativa({ tipo: 'passo', direcao: -1 }, { sessao: s });
+  assert.equal(jogadorSeguido.value, a.id);
+  jogadorSeguido.value = null;
+});
