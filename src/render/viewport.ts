@@ -25,7 +25,7 @@ import { camposDoPincel, pincelDoObjeto, type CamposDoPincel } from '../domain/p
 import { materialDe } from '../procedural/materiais.ts';
 import type { EventoStore, Gesto, Store } from '../state/store.ts';
 import { criarFiltroAcabamento } from './acabamento.ts';
-import { enquadrar as calcularEnquadre, limitarZoom, mundoParaTela, panear, telaParaMundo, zoomEm, type Camera, type Tela } from './camera.ts';
+import { enquadrar as calcularEnquadre, limitarZoom, mundoParaTela, panear, passoDoZoomSuave, telaParaMundo, zoomEm, type Camera, type Tela } from './camera.ts';
 import { criarPixelizacao } from './pixelizar.ts';
 import { criarCena, type Cena } from './cena.ts';
 import { bloqueioNoCaminho, centroDaCelula } from '../domain/movimento.ts';
@@ -135,6 +135,8 @@ export interface Viewport {
   definirCamera(camera: Camera): void;
   focarEm(caixa: Caixa): void;
   zoomPor(fator: number): void;
+  /** Zoom em torno de `pontoTela` que anima até o alvo; rolagens seguidas se acumulam sobre o alvo atual. */
+  zoomSuaveEm(pontoTela: Ponto, fator: number): void;
   /** Posição na tela do navegador (px de `client`) de um ponto do mundo, para ancorar efeitos DOM e o cartão contextual. */
   clientDe(mundo: Ponto): Ponto;
   /** O ponto do mundo sob uma posição da tela do navegador (soltar um personagem arrastado). */
@@ -238,6 +240,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   const somenteLeitura = ponte.somenteLeitura === true;
   const clarao = new Graphics(); clarao.visible = false;
   let camAnim: { de: Camera; para: Camera; t0: number } | null = null;
+  let zoomAnim: { alvo: Camera; ultimoMs: number } | null = null;
   const store = ponte.store, baker: Baker = criarBaker({ reaproveitarWorkers: true });
   const mundo = new Container(), area_ = new Graphics(), grade = new Graphics(), selecaoG = new Graphics(), fantasmaC = new Container(), fantasmaG = new Graphics(), laco = new Graphics();
   let camera: Camera = { x: 0, y: 0, zoom: 20 };
@@ -1144,6 +1147,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     const i = interacao;
     if (i.tipo === 'pan') {
       if (Math.hypot(tx - i.x0, ty - i.y0) > LIMIAR_ARRASTO) { i.moveu = true; cancelarRelogioPing(); }
+      if (i.moveu && !ponte.cameraBloqueada?.()) zoomAnim = null;
       if (i.moveu && !ponte.cameraBloqueada?.()) definirCamera(panear({ ...i.camera0 }, tx - i.x0, ty - i.y0));
     } else if (i.tipo === 'mover') {
       if (!i.gesto) {
@@ -1443,6 +1447,12 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       definirCamera({ x: de.x + (para.x - de.x) * e, y: de.y + (para.y - de.y) * e, zoom: de.zoom * (para.zoom / de.zoom) ** e });
       if (k >= 1) camAnim = null;
     }
+    if (zoomAnim) {
+      const agora = performance.now(), passo = passoDoZoomSuave(camera, zoomAnim.alvo, agora - zoomAnim.ultimoMs);
+      zoomAnim.ultimoMs = agora;
+      definirCamera(passo.camera);
+      if (passo.fim) zoomAnim = null;
+    }
     // Eventos de cena: sacodem a câmera, piscam as luzes, escurecem o ambiente ou cobrem tudo de branco.
     { const agora = performance.now(), ev = eventos.estado(agora);
       if (ev.tremor[0] !== tremorAtual[0] || ev.tremor[1] !== tremorAtual[1]) { tremorAtual = ev.tremor; posicaoDoMundo(); }
@@ -1486,7 +1496,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         definirCamera,
         modoProjetor: () => modoProjetor,
         projetor,
-        limparAnimacaoCamera: () => { camAnim = null; },
+        limparAnimacaoCamera: () => { camAnim = null; zoomAnim = null; },
         pintandoSimulado: () => pintandoSimulado,
       },
       opcoes,
@@ -1500,8 +1510,15 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     ponteiro: () => ponteiro,
     centro: () => telaParaMundo(camera, [app.screen.width / 2, app.screen.height / 2]),
     enquadrar: enquadrarMapa, focarEm, zoomPor,
-    definirCamera: (c: Camera) => definirCamera(c),
+    definirCamera: (c: Camera) => { zoomAnim = null; definirCamera(c); },
+    zoomSuaveEm(pontoTela, fator) {
+      if (movimentoReduzido()) { zoomAnim = null; definirCamera(zoomEm(camera, pontoTela, fator)); return; }
+      camAnim = null;
+      const base = zoomAnim ? zoomAnim.alvo : camera;
+      zoomAnim = { alvo: zoomEm(base, pontoTela, fator), ultimoMs: performance.now() };
+    },
     enquadrarCaixa(c, suave) {
+      zoomAnim = null;
       const alvo = calcularEnquadre({ x: c.x0, y: c.y0, largura: Math.max(c.x1 - c.x0, 1), altura: Math.max(c.y1 - c.y0, 1) }, tela(), 0);
       if (!suave || movimentoReduzido()) { camAnim = null; definirCamera(alvo); } else camAnim = { de: camera, para: alvo, t0: performance.now() };
     },

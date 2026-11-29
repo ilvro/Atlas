@@ -364,11 +364,11 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
         if (!vp || !ref.current || controleRemoto.peek() === 'mestre') return;
         soltarSeguimento();
         const r = ref.current.getBoundingClientRect();
-        vp.definirCamera(zoomEm(vp.camera, [e.clientX - r.left, e.clientY - r.top], fator));
+        vp.zoomSuaveEm([e.clientX - r.left, e.clientY - r.top], fator);
         return;
       }
       if (seguindo.peek() && caixaDoMestre) { zoomLocal = Math.min(20, Math.max(0.05, zoomLocal * fator)); vp?.enquadrarCaixa(caixaComZoom(caixaDoMestre), false); }
-      else vp?.zoomPor(fator);
+      else if (vp && ref.current) { const r = ref.current.getBoundingClientRect(); vp.zoomSuaveEm([r.width / 2, r.height / 2], fator); }
     };
     window.addEventListener('wheel', aoRolarJanela, { passive: false, capture: true });
     // Só o arrasto de mais de 4 px solta o projetor da câmera do mestre.

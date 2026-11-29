@@ -18,6 +18,18 @@ export function zoomEm(c: Camera, foco: Ponto, fator: number, min = ZOOM_MIN, ma
   return { x: foco[0] - mx * zoom, y: foco[1] - my * zoom, zoom };
 }
 
+/**
+ * Um passo do zoom suave: aproxima `atual` de `alvo` com constante de tempo `constanteMs` (exponencial, independente do
+ * ritmo dos quadros). O zoom é interpolado em escala logarítmica, para entrar e sair com a mesma sensação. `fim` quando já está perto.
+ */
+export function passoDoZoomSuave(atual: Camera, alvo: Camera, dtMs: number, constanteMs = 85): { camera: Camera; fim: boolean } {
+  const f = 1 - Math.exp(-Math.max(0, dtMs) / constanteMs);
+  const zoom = atual.zoom * (alvo.zoom / atual.zoom) ** f;
+  const x = atual.x + (alvo.x - atual.x) * f, y = atual.y + (alvo.y - atual.y) * f;
+  if (Math.abs(alvo.zoom - zoom) / zoom < 1e-3 && Math.hypot(alvo.x - x, alvo.y - y) < 0.5) return { camera: alvo, fim: true };
+  return { camera: { x, y, zoom }, fim: false };
+}
+
 /** Câmera que mostra `area` (em metros) inteira e centrada, deixando `margem` px livres. `reservado` tira largura (painéis). */
 export function enquadrar(area: { x: number; y: number; largura: number; altura: number }, tela: Tela, margem = 48, reservado = { esquerda: 0, direita: 0, topo: 0, base: 0 }): Camera {
   const livreL = Math.max(1, tela.largura - reservado.esquerda - reservado.direita - 2 * margem);
