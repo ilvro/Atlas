@@ -177,8 +177,8 @@ export interface Barramento {
   emitir(tipo: string, dados: unknown, opcoes?: { respondeA?: string }): Evento;
   /** `'*'` recebe todos os eventos válidos. Devolve a função que cancela. */
   ouvir(tipo: string, ouvinte: (evento: Evento) => void): () => void;
-  /** Registra quem atende um pedido; a resposta vai sozinha. */
-  atender(tipo: string, atendente: (dados: unknown, evento: Evento) => Resposta | Promise<Resposta>): () => void;
+  /** Registra quem atende um pedido; a resposta vai sozinha. Devolver `undefined` abstém-se: outra instância pode responder. */
+  atender(tipo: string, atendente: (dados: unknown, evento: Evento) => Resposta | undefined | Promise<Resposta | undefined>): () => void;
   /** Pede e espera. Sem resposta no prazo, o chamador oferece abrir o aplicativo. */
   pedir(tipo: string, dados: unknown, opcoes?: { prazoMs?: number }): Promise<ResultadoPedido>;
   fechar(): void;
@@ -188,7 +188,7 @@ export function criarBarramento(opcoes: OpcoesBarramento): Barramento {
   const canal = (opcoes.criarCanal ?? (() => new BroadcastChannel(CANAL_EVENTOS)))();
   const agora = opcoes.agora ?? Date.now, novoId = opcoes.novoId ?? (() => crypto.randomUUID());
   const aviso = opcoes.aviso ?? (m => console.warn(m));
-  const ouvintes = new Map<string, Set<(e: Evento) => void>>(), atendentes = new Map<string, (d: unknown, e: Evento) => Resposta | Promise<Resposta>>();
+  const ouvintes = new Map<string, Set<(e: Evento) => void>>(), atendentes = new Map<string, (d: unknown, e: Evento) => Resposta | undefined | Promise<Resposta | undefined>>();
   const avisados = new Set<string>();
   const barramento: Barramento = {
     app: opcoes.app,
@@ -235,7 +235,7 @@ export function criarBarramento(opcoes: OpcoesBarramento): Barramento {
     const atendente = CATALOGO[evento.tipo]?.natureza === 'pedido' && (evento.app !== opcoes.app || evento.autor !== undefined) ? atendentes.get(evento.tipo) : undefined;
     if (!atendente) return;
     Promise.resolve().then(() => atendente(evento.dados, evento)).then(
-      resposta => barramento.emitir('mesa.resposta', resposta, { respondeA: evento.id }),
+      resposta => { if (resposta !== undefined) barramento.emitir('mesa.resposta', resposta, { respondeA: evento.id }); },
       erro => barramento.emitir('mesa.resposta', { ok: false, motivo: String(erro) }, { respondeA: evento.id }),
     );
   }

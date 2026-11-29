@@ -49,6 +49,7 @@ import {
 import {
   cacheDeSessoes,
   obterSessaoParaProjetor,
+  obterStorePorMapaId,
   projetarAba,
   fecharAbaComSessao,
   sessao,
@@ -1080,5 +1081,39 @@ test('publicador: arrasto de ameaça visível envia peca-gesto ao remoto; fora d
     g2.cancelar();
   } finally {
     pub.parar(); remoto.close(); sess.fechar();
+  }
+});
+
+test('obterStorePorMapaId acha o mapa pedido mesmo com outra aba ativa; sem ele, devolve null', () => {
+  const mapaA = criarMapa({ id: 'mapa-a2', nome: 'A' });
+  const mapaB = criarMapa({ id: 'mapa-b2', nome: 'B' });
+  const repo = criarRepoMock({ [mapaA.id]: mapaA, [mapaB.id]: mapaB });
+  const sessA = criarSessao(mapaA, repo, { salvo: true });
+  const sessB = criarSessao(mapaB, repo, { salvo: true });
+  cacheDeSessoes.set(mapaA.id, sessA);
+  sessao.value = sessB; // o mestre está olhando a aba B enquanto projeta o A
+  mapaNoProjetorId.value = null;
+  try {
+    assert.equal(obterStorePorMapaId('mapa-a2'), sessA.store, 'o mapa projetado vem do cache');
+    assert.equal(obterStorePorMapaId('mapa-b2'), sessB.store, 'o mapa ativo');
+    assert.equal(obterStorePorMapaId('mapa-z'), null, 'instância sem o mapa não tem store');
+    assert.equal(obterStorePorMapaId(undefined), null);
+  } finally {
+    sessA.fechar(); sessB.fechar(); cacheDeSessoes.clear(); sessao.value = null; mapaNoProjetorId.value = null;
+  }
+});
+
+test('o projetor remoto fixa o mapa em mapaNoProjetorId ao dizer "ola"', async () => {
+  const mapa = criarMapa({ id: 'mapa-pin-ola', nome: 'Pin' });
+  const sess = criarSessao(mapa, criarRepoMock({ [mapa.id]: mapa }), { salvo: true });
+  mapaNoProjetorId.value = null;
+  const pub = iniciarPublicacao(sess, async () => null);
+  const remoto = new BroadcastChannel(CANAL_PROJETOR_REMOTO);
+  try {
+    remoto.postMessage({ tipo: 'ola', largura: 1600, altura: 900, remoto: true, _seq: 1 });
+    await esperar(60);
+    assert.equal(mapaNoProjetorId.value, 'mapa-pin-ola');
+  } finally {
+    mapaNoProjetorId.value = null; pub.parar(); remoto.close(); sess.fechar();
   }
 });

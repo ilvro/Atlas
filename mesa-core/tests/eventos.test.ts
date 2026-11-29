@@ -76,6 +76,17 @@ test('quem atende pode recusar ou falhar', async () => {
   assert.match(String((r as { detalhe?: string }).detalhe), /quebrou/);
 });
 
+test('quem se abstém (undefined) não responde; outra instância pode responder', async () => {
+  const atlas = novo('atlas'), abstem = novo('jukebox'), atende = novo('jukebox');
+  abstem.atender('jukebox.ouvir', () => undefined);
+  atende.atender('jukebox.ouvir', () => ({ ok: true }));
+  const r = await atlas.pedir('jukebox.ouvir', { ligado: true });
+  assert.equal(r.ok, true, 'a resposta de quem atende vence, sem erro falso da que se absteve');
+  const so = novo('atlas'), mudo = novo('jukebox');
+  mudo.atender('jukebox.parar', () => undefined);
+  assert.deepEqual(await so.pedir('jukebox.parar', { ms: 10 }, { prazoMs: 40 }), { ok: false, motivo: 'sem-resposta' });
+});
+
 test('só se pode atender e pedir o que é pedido do catálogo', async () => {
   const f = novo('ficha');
   assert.throws(() => f.atender('ficha.rolagem', () => ({ ok: true })), /não é um pedido/);

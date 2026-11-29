@@ -28,6 +28,7 @@ import { comandoDaEtapaDeAgua, etapasDaAgua } from '../domain/agua.ts';
 import { gatilhoJaDisparou, iniciarRegioes, marcarGatilhoDisparado, nomeDaRegiao } from './regioes.ts';
 import { CHAVE_CONTROLE_JOGADORES, controleJogadores, definirControleJogadores, modo, movimentoLivre, vistaDeJogador } from './modo.ts';
 import { atenderMoverPeca, type DadosMoverPeca } from './mover-peca-remota.ts';
+import type { Store } from '../state/store.ts';
 import { avisarMovimentoDeJogador, definirAvisarMovimentoDeJogador } from './preferencias.ts';
 import { iniciarSugestoes } from './sugestoes.ts';
 import { abrirJanelaDoProjetor, ajustarAoAspecto, aspectoDoProjetor, caixaDoProjetor, iniciarPublicacao, mapaNoProjetorId, projetorConectado, projetorRemotoConectado, seguirJogadores, telaEscura, type Publicador } from './projetor.ts';
@@ -179,9 +180,15 @@ export async function iniciar(): Promise<void> {
     s.barramento?.atender('atlas.momento', dados => {
       return tocarMomentoRemoto(s, dados as DadosAtlasMomento);
     });
-    s.barramento?.atender('atlas.mover-peca', (dados, evento) => atenderMoverPeca(
+    s.barramento?.atender('atlas.mover-peca', (dados, evento) => {
+      const d = dados as DadosMoverPeca;
+      const alvo = obterStorePorMapaId(d?.mapa);
+      // Outra instância do Atlas (outra aba/janela) pode ter o mapa: só quem projeta para a sala recusa em nome de todas.
+      if (!alvo && !projetorRemotoConectado.peek()) return undefined;
+      if (!alvo) return { ok: false, motivo: 'Outro mapa está aberto.' };
+      return atenderMoverPeca(
       {
-        store: () => obterSessaoParaProjetor()?.store ?? sessao.value?.store ?? null,
+        store: () => alvo,
         movimentoLivre: () => movimentoLivre.value,
         controleJogadores: () => controleJogadores.value,
         aoMover: ({ autor, pecaNome }) => {
@@ -191,9 +198,10 @@ export async function iniciar(): Promise<void> {
           });
         },
       },
-      dados as DadosMoverPeca,
+      d,
       evento.autor,
-    ));
+      );
+    });
     s.barramento?.ouvir('mesa.controle-jogadores', evento => {
       const modo = (evento.dados as { modo?: unknown } | null)?.modo;
       if (modo === 'livres' || modo === 'mestre') definirControleJogadores(modo);
@@ -363,6 +371,15 @@ function adicionarAoCache(id: string, s: SessaoDeEdicao): void {
     }
   }
   cacheDeSessoes.set(id, s);
+}
+
+/** O store do mapa `mapaId` nesta instância: o do projetor, o ativo ou qualquer aba em cache. */
+export function obterStorePorMapaId(mapaId: string | undefined): Store | null {
+  if (!mapaId) return null;
+  const doProjetor = obterSessaoParaProjetor();
+  if (doProjetor?.doc.value.id === mapaId) return doProjetor.store;
+  if (sessao.value?.doc.value.id === mapaId) return sessao.value.store;
+  return cacheDeSessoes.get(mapaId)?.store ?? null;
 }
 
 export function obterSessaoParaProjetor(): SessaoDeEdicao | null {

@@ -334,7 +334,7 @@ export function iniciarPublicacao(
     if (msg._seq !== undefined) { if (msg._seq === ultimoSeqRemoto) return; ultimoSeqRemoto = msg._seq; }
     if (msg.tipo === 'ola' || msg.tipo === 'tamanho') {
       const ehOla = msg.tipo === 'ola';
-      if (ehOla) { retratosEnviadosRemoto = new Set(); semNevoaAvisados.clear(); projetorRemotoConectado.value = true; }
+      if (ehOla) { retratosEnviadosRemoto = new Set(); semNevoaAvisados.clear(); projetorRemotoConectado.value = true; if (mapaNoProjetorId.peek() === null) mapaNoProjetorId.value = id; }
       if (!projetorRemotoConectado.peek()) return;
       if (msg.largura > 0 && msg.altura > 0) {
         aspectoRemoto = msg.largura / msg.altura;
