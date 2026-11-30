@@ -54,7 +54,7 @@ O problema não é um único bug, mas **cinco gargalos encadeados** entre `Atlas
 
 ## 3. Tarefas de Implementação
 
-### Tarefa 1 (Atlas) — Cancelamento de jobs obsoletos e prioridade dinâmica na fila do `baker`
+### Tarefa 1 (Atlas) — Cancelamento de jobs obsoletos e prioridade dinâmica na fila do `baker` — ✅ concluída
 
 **Objetivo:** Garantir que versões antigas de ladrilhos de terreno ou cômodos nunca entupam os workers quando uma nova versão já foi pedida.
 
@@ -78,7 +78,7 @@ O problema não é um único bug, mas **cinco gargalos encadeados** entre `Atlas
 
 ---
 
-### Tarefa 2 (Atlas) — Ladrilhos `8×8 m`, prévia rápida na atualização do projetor, sem debounce infinito e sem poluir IndexedDB
+### Tarefa 2 (Atlas) — Ladrilhos `8×8 m`, prévia rápida na atualização do projetor, sem debounce infinito e sem poluir IndexedDB — ✅ concluída
 
 **Objetivo:** Fazer o terreno recém-revelado pelo fog aparecer praticamente instantâneo (4× menos pixels por ladrilho + prévia `res/4` imediata + sem atraso de 140 ms no projetor + sem gravar ladrilhos efêmeros no IDB).
 
@@ -107,7 +107,7 @@ O problema não é um único bug, mas **cinco gargalos encadeados** entre `Atlas
 
 ---
 
-### Tarefa 3 (Atlas) — Eliminar scan `O(N)` no IndexedDB em `cache-de-assados.ts`
+### Tarefa 3 (Atlas) — Eliminar scan `O(N)` no IndexedDB em `cache-de-assados.ts` — ✅ concluída
 
 **Objetivo:** Remover o gargalo de I/O que bloqueia o IndexedDB a cada gravação de assado.
 
@@ -129,7 +129,7 @@ O problema não é um único bug, mas **cinco gargalos encadeados** entre `Atlas
 
 ---
 
-### Tarefa 4 (Atlas) — Coalescência de pós-processamento na Main Thread + Priorização por Viewport (Camera-First)
+### Tarefa 4 (Atlas) — Coalescência de pós-processamento na Main Thread + Priorização por Viewport (Camera-First) — ✅ concluída
 
 **Objetivo:** Eliminar os travamentos de main thread causados por 50+ re-renderizações de sombras/tempo/altura durante o carregamento e garantir que terreno e objetos visíveis na câmera atual sempre assem antes do que está fora da tela.
 
@@ -168,7 +168,7 @@ O problema não é um único bug, mas **cinco gargalos encadeados** entre `Atlas
 
 ---
 
-### Tarefa 5 (Atlas) — Evitar reenvio redundante de `estado` no mestre e validação redundante no projetor
+### Tarefa 5 (Atlas) — Evitar reenvio redundante de `estado` no mestre e validação redundante no projetor — ✅ concluída
 
 **Objetivo:** Reduzir drasticamente a quantidade de snapshots pesados gerados, serializados e validados durante a sessão.
 
@@ -197,7 +197,7 @@ O problema não é um único bug, mas **cinco gargalos encadeados** entre `Atlas
 
 ---
 
-### Tarefa 6 (Mesa) — Coalescência de `estado` (latest-wins) nas pontes do Mestre e do Jogador
+### Tarefa 6 (Mesa) — Coalescência de `estado` (latest-wins) nas pontes do Mestre e do Jogador — ✅ concluída
 
 **Objetivo:** Evitar acúmulo de blobs gzip antigos na fila de saída do mestre e na fila de entrada do jogador quando vários `estado`s chegam em sequência rápida.
 
@@ -221,7 +221,7 @@ O problema não é um único bug, mas **cinco gargalos encadeados** entre `Atlas
 
 ---
 
-### Tarefa 7 (Validação Final e Empacotamento Desktop)
+### Tarefa 7 (Validação Final e Empacotamento Desktop) — ✅ automática concluída; ⏳ item 4 (manual) pendente
 
 1. Rodar `npm --prefix Atlas run typecheck && npm --prefix Atlas test`.
 2. Rodar `npm --prefix Mesa run typecheck && npm --prefix Mesa test`.
@@ -234,15 +234,15 @@ O problema não é um único bug, mas **cinco gargalos encadeados** entre `Atlas
 
 ## 4. Ordem de Prioridade e Impacto Esperado
 
-| Ordem | Tarefa | Projeto | Impacto direto no sintoma das imagens |
-| :---: | :--- | :---: | :--- |
-| **1** | Cancelamento na fila do `baker` | `Atlas` | **Crítico** — para de travar os workers com bakes antigos e destrava objetos |
-| **2** | Ladrilhos `8×8 m` + prévia no projetor + sem debounce + sem IDB efêmero | `Atlas` | **Crítico** — chão com calçamento aparece em ~5 ms (prévia) e 4× mais rápido em alta res |
-| **3** | Eliminar scan `O(N)` no IndexedDB | `Atlas` | **Alto** — elimina engasgos de I/O em sessões longas (mestre e jogador) |
-| **4** | Coalescência de sombras/tempo/altura + prioridade por viewport + boot do catálogo | `Atlas` | **Alto** — elimina travamentos na main thread e prioriza o que está na câmera |
-| **5** | Supressão de reenvio redundante + `store.projetar` + `compartilhar` | `Atlas` | **Médio/Alto** — reduz tráfego de rede e CPU na sincronização |
-| **6** | Coalescência latest-wins nas pontes do mestre e jogador | `Mesa` | **Médio/Alto** — evita backlog de blobs gzip em movimentos rápidos |
-| **7** | Validação completa + `desktop:prep` | `Mesa` | Obrigatório ao fim do lote |
+| Ordem | Tarefa | Projeto | Impacto direto no sintoma das imagens | Status |
+| :---: | :--- | :---: | :--- | :---: |
+| **1** | Cancelamento na fila do `baker` | `Atlas` | **Crítico** — para de travar os workers com bakes antigos e destrava objetos | ✅ |
+| **2** | Ladrilhos `8×8 m` + prévia no projetor + sem debounce + sem IDB efêmero | `Atlas` | **Crítico** — chão com calçamento aparece em ~5 ms (prévia) e 4× mais rápido em alta res | ✅ |
+| **3** | Eliminar scan `O(N)` no IndexedDB | `Atlas` | **Alto** — elimina engasgos de I/O em sessões longas (mestre e jogador) | ✅ |
+| **4** | Coalescência de sombras/tempo/altura + prioridade por viewport + boot do catálogo | `Atlas` | **Alto** — elimina travamentos na main thread e prioriza o que está na câmera | ✅ |
+| **5** | Supressão de reenvio redundante + `store.projetar` + `compartilhar` | `Atlas` | **Médio/Alto** — reduz tráfego de rede e CPU na sincronização | ✅ |
+| **6** | Coalescência latest-wins nas pontes do mestre e jogador | `Mesa` | **Médio/Alto** — evita backlog de blobs gzip em movimentos rápidos | ✅ |
+| **7** | Validação completa + `desktop:prep` | `Mesa` | Obrigatório ao fim do lote | ⏳ manual pendente |
 
 ---
 
@@ -260,14 +260,14 @@ Formato: **Tarefa N** — desvio ou limite; motivo; estado (corrigido / aceito /
 - Teste e2e `terreno-ladrilhos` não tinha sido rodado. **Corrigido:** rodado com `LADO_DO_LADRILHO = 8`, passa.
 - No projetor, a prévia de baixa resolução substitui o sprite antigo até a alta chegar; o chão pode ficar borrado por instantes ao revelar. **Aceito:** troca consciente por mostrar o calçamento na hora (o sprite antigo nem tem as camadas novas).
 - Imagens da coleção prontas (`harmonizar: false`, não Pixel) saem do IndexedDB e dependem do cache HTTP do navegador. **Aceito:** é o item 3 do plano.
-- A prioridade 2 para ladrilho fora da tela fica para a Tarefa 4. **Aberto.**
+- A prioridade para ladrilho fora da tela ficou para a Tarefa 4. **Corrigido:** fora da tela vale 4 (ver Tarefa 4).
 
 ### Tarefa 3
 - O total em memória não enxerga gravações de outra aba. **Corrigido:** a cada 64 gravações o índice é varrido de novo e o total é recalculado.
 - As gravações passaram a ser **serializadas** (cadeia de promessas), coisa que o plano não pedia: sem isso duas gravações simultâneas liam o total antes de a outra terminar. **Corrigido** (é parte da solução).
 
 ### Tarefa 4
-- Repriorização ao mover a câmera. **Corrigido:** `cena.repriorizar()` (chamada pelo viewport 120 ms após a câmera parar) sobe na fila o que entrou na tela, via `baker.pedir` com prioridade menor. Só promove; o que saiu da tela não é rebaixado. **Aceito.**
+- Repriorização ao mover a câmera. **Corrigido:** `cena.repriorizar()` (chamada pelo viewport 120 ms após a câmera parar) sobe na fila o que entrou na tela, via `baker.pedir` com prioridade menor. Quem saiu da tela é rebaixado (`baker.repriorizar`, nos dois sentidos). **Corrigido.**
 - Cômodos ficavam com prioridade 0. **Corrigido:** entram na regra por viewport (0 na tela, 3 fora, sem prévia fora).
 - Objeto grande com o centro fora da margem. **Corrigido:** a visibilidade usa o ponto com folga de 1,5 m, além da margem de 2 m do viewport.
 - O `sombrasSuja` de terreno só liga com camadas de terreno no mapa (a sombra dos maciços lê `terrain.layers`, não a textura). **Aceito:** é o comportamento correto.
@@ -284,3 +284,8 @@ Formato: **Tarefa N** — desvio ou limite; motivo; estado (corrigido / aceito /
 - No mestre, um `estado` de gesto não derruba um `estado` firme que espera; um firme derruba qualquer um anterior. **Aceito:** o firme traz a posição final.
 - No jogador, o blob de um `estado` descartado que ainda não chegou é ignorado ao chegar (`blobsDescartados`); o que já estava guardado é apagado. **Corrigido.**
 - Sem desvios abertos.
+
+### Tarefa 7
+- Atlas: `typecheck` passa; `npm test` 1960 ok, **2 falhas que já existiam e não vêm deste plano**: `exemplos corrigidos geram exatamente o JSON publicado` e `revisarMapa nos exemplos da Fase 10` (os JSON de `public/exemplos/` estão defasados em relação a `scripts/exemplos/`; `npm run exemplos` reescreve quase todos os mapas e `.webp`, então não foi rodado aqui). **Aberto, fora do plano.**
+- Mesa: `typecheck` e `npm test` (721) passam; `desktop:prep` rodou.
+- **Item 4 (conferir na Activity do Discord) não pode ser feito pelo agente.** **Aberto: precisa do usuário.**
