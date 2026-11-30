@@ -272,3 +272,15 @@ Formato: **Tarefa N** — desvio ou limite; motivo; estado (corrigido / aceito /
 - Objeto grande com o centro fora da margem. **Corrigido:** a visibilidade usa o ponto com folga de 1,5 m, além da margem de 2 m do viewport.
 - O `sombrasSuja` de terreno só liga com camadas de terreno no mapa (a sombra dos maciços lê `terrain.layers`, não a textura). **Aceito:** é o comportamento correto.
 - Adicionado `descarregarPendencias()` à `Cena` e chamado em `captura.ts` antes do `render` final. **Corrigido** (acréscimo ao plano).
+
+### Tarefa 5
+- `pularValidacao` antes pulava também `compartilhar`; agora são opções separadas e os 4 chamadores de gesto (viewport e Projetor) passam as duas para manter o comportamento. **Corrigido.**
+- O envio remoto é comparado por `JSON.stringify([doc, emGesto, controleJogadores])`, não por hash: custa uma serialização por envio, mas o doc serializaria de qualquer jeito na ponte. **Aceito.**
+- O `peca-gesto` e o `estado` de gesto não passam pela comparação (só o estado firme e o de gesto que chegam a `enviarEstado` passam, e o de gesto tem `emGesto` na chave). **Aceito.**
+- `concluir` cancela o timer pendente do arrasto e envia em 50 ms (o plano dizia "50 ou imediato"). **Corrigido.**
+
+### Tarefa 6
+- Os `estado`s só se substituem dentro do **mesmo mapa** (`doc.id`; no comprimido, pelo `blobId`): a ponte do mestre pode ter mais de um mapa na fila. **Corrigido** (acréscimo ao plano).
+- No mestre, um `estado` de gesto não derruba um `estado` firme que espera; um firme derruba qualquer um anterior. **Aceito:** o firme traz a posição final.
+- No jogador, o blob de um `estado` descartado que ainda não chegou é ignorado ao chegar (`blobsDescartados`); o que já estava guardado é apagado. **Corrigido.**
+- Sem desvios abertos.
