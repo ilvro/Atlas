@@ -33,7 +33,7 @@ import { elevacaoDaLua, elevacaoDoSol, sombraDoSol } from '../domain/sol.ts';
 import { aguasDoTrecho, expandirContorno, formaDe, retangulosDe, trechosDe } from '../domain/telhado-geometria.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import { RES_DO_TELHADO } from '../procedural/assar-telhado.ts';
-import type { Baker } from '../procedural/baker.ts';
+import { ErroDeBakeCancelado, type Baker } from '../procedural/baker.ts';
 import { ehPadraoDeCobertura, PERIODO_DA_COBERTURA, RES_DA_COBERTURA } from '../procedural/coberturas.ts';
 import { posicoesDosDetalhes } from '../procedural/detalhes-de-telhado.ts';
 import type { IdDoEstilo, OpcoesDoPixel } from '../procedural/estilos/index.ts';
@@ -481,6 +481,20 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
       redesenharPorChave(chave);
     }).catch(erro => {
       emVoo.delete(chave);
+      if (erro instanceof ErroDeBakeCancelado) {
+        // O `coletar` cancelou porque a chave saiu de uso, mas ela pode ter voltado (porta aberta e fechada de novo):
+        // sem um novo pedido o edifício ficaria para sempre na prévia vetorial (top-view, sem fachada).
+        if (!destruido && mapa) {
+          const m = mapa;
+          const ctx = contextoDeEntradas(m);
+          let tocou = false;
+          for (const d of edificios.values()) {
+            if (d.chaveAssado === chave) { desenharEdificio(d, m, ctx); tocou = true; }
+          }
+          if (tocou) op.aoPintar?.();
+        }
+        return;
+      }
       console.warn('Atlas: falha ao assar telhado', erro);
     });
     return null;
