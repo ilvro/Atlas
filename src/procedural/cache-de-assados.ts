@@ -185,6 +185,9 @@ export function criarCacheDeAssados(opcoes: OpcoesCacheDeAssados = {}): CacheDeA
   let bancoPromise: Promise<IDBDatabase> | null = null;
   let bancoAberto: IDBDatabase | null = null;
   let fechando = false;
+  // Soma dos bytes gravados, mantida em memória; null até a primeira gravação varrer o índice.
+  let totalBytesEstimado: number | null = null;
+  let gravacoesEmSerie: Promise<void> = Promise.resolve();
   const toquesPendentes = new Map<string, number>();
   let flushAgendado: Promise<void> | null = null;
   let flushEmCurso: Promise<void> = Promise.resolve();
@@ -243,10 +246,12 @@ export function criarCacheDeAssados(opcoes: OpcoesCacheDeAssados = {}): CacheDeA
           b.close();
           bancoAberto = null;
           bancoPromise = null;
+          totalBytesEstimado = null;
         };
         b.onclose = () => {
           bancoAberto = null;
           bancoPromise = null;
+          totalBytesEstimado = null;
         };
         return b;
       });
@@ -344,29 +349,53 @@ export function criarCacheDeAssados(opcoes: OpcoesCacheDeAssados = {}): CacheDeA
         usadoEm: agora(),
       };
 
-      await transacao(banco, [STORE_ASSADOS], 'readwrite', async tx => {
-        const store = tx.objectStore(STORE_ASSADOS);
-        const entradas: { chaveHash: string; bytes: number; usadoEm: number }[] = [];
-        let total = 0;
-        await percorrerIndiceUsadoEm(store, reg => {
-          if (reg.chaveHash === chaveHash) return;
-          entradas.push({ chaveHash: reg.chaveHash, bytes: reg.bytes, usadoEm: reg.usadoEm });
-          total += reg.bytes;
-        });
-        if (!store.indexNames.contains('usadoEm')) {
-          entradas.sort((a, b) => a.usadoEm - b.usadoEm);
+      // Gravações em série: o total em memória só vale se uma gravação termina antes da próxima ler.
+      const turno = gravacoesEmSerie.then(async () => {
+        try {
+          await transacao(banco, [STORE_ASSADOS], 'readwrite', async tx => {
+            const store = tx.objectStore(STORE_ASSADOS);
+            const existente = (await promessa(store.get(chaveHash))) as RegistroAssado | undefined;
+            const bytesExistente = existente?.bytes ?? 0;
+            // O total só é varrido uma vez por conexão; depois é mantido em memória.
+            if (totalBytesEstimado === null) {
+              let soma = 0;
+              await percorrerIndiceUsadoEm(store, reg => { soma += reg.bytes; });
+              totalBytesEstimado = soma;
+            }
+            let novoTotal = totalBytesEstimado - bytesExistente + bytes;
+            if (novoTotal > limiteBytes) {
+              // Só então vale o custo de varrer o índice para escolher as vítimas (LRU).
+              const entradas: { chaveHash: string; bytes: number; usadoEm: number }[] = [];
+              let total = 0;
+              await percorrerIndiceUsadoEm(store, reg => {
+                if (reg.chaveHash === chaveHash) return;
+                entradas.push({ chaveHash: reg.chaveHash, bytes: reg.bytes, usadoEm: reg.usadoEm });
+                total += reg.bytes;
+              });
+              if (!store.indexNames.contains('usadoEm')) {
+                entradas.sort((a, b) => a.usadoEm - b.usadoEm);
+              }
+              const apagar: string[] = [];
+              for (let i = 0; i < entradas.length && total + bytes > limiteBytes; i++) {
+                const vitima = entradas[i]!;
+                apagar.push(vitima.chaveHash);
+                total -= vitima.bytes;
+              }
+              if (apagar.length > 0) {
+                await Promise.all(apagar.map(k => promessa(store.delete(k))));
+              }
+              novoTotal = total + bytes;
+            }
+            await promessa(store.put(registro));
+            totalBytesEstimado = novoTotal;
+          });
+        } catch (e) {
+          totalBytesEstimado = null;
+          throw e;
         }
-        const apagar: string[] = [];
-        for (let i = 0; i < entradas.length && total + bytes > limiteBytes; i++) {
-          const vitima = entradas[i]!;
-          apagar.push(vitima.chaveHash);
-          total -= vitima.bytes;
-        }
-        if (apagar.length > 0) {
-          await Promise.all(apagar.map(k => promessa(store.delete(k))));
-        }
-        await promessa(store.put(registro));
       });
+      gravacoesEmSerie = turno.catch(() => undefined);
+      await turno;
     } catch {
       // Falha silenciosa (aba privada, cota excedida, erro de transação, indisponibilidade).
     }
@@ -405,6 +434,7 @@ export function criarCacheDeAssados(opcoes: OpcoesCacheDeAssados = {}): CacheDeA
       bancoAberto = null;
     }
     bancoPromise = null;
+    totalBytesEstimado = null;
   }
 
   return { versao, obter, gravar, obterBruto, gravarBruto, fechar };

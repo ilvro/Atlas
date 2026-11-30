@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { IDBFactory } from 'fake-indexeddb';
+import { IDBFactory, IDBIndex } from 'fake-indexeddb';
 import {
   cachePersistenteAtivo,
   criarCacheDeAssados,
@@ -152,6 +152,52 @@ test('despejo LRU apaga registros com usadoEm mais antigo quando ultrapassa o li
   assert.ok(await cache.obterBruto('d'));
 
   cache.fechar();
+});
+
+test('gravações abaixo do limite varrem o índice só uma vez e o limite continua valendo', async () => {
+  const idb = new IDBFactory();
+  let relogio = 10;
+  const cache = criarCacheDeAssados({
+    idb,
+    versao: 'v1',
+    limiteBytes: 1000,
+    agora: () => relogio,
+    decodificar: decodificadorFalso,
+    codificar: codificadorFalso,
+  });
+  const proto = IDBIndex.prototype as unknown as { openCursor: (...a: unknown[]) => unknown };
+  const original = proto.openCursor;
+  let varreduras = 0;
+  proto.openCursor = function (this: unknown, ...args: unknown[]) {
+    varreduras++;
+    return original.apply(this, args);
+  };
+  try {
+    for (const k of ['a', 'b', 'c', 'd']) {
+      relogio += 10;
+      await cache.gravarBruto(k, { cor: blobDeTamanho(200, k), altura: null, agua: null, origem: [0, 0], res: 32 });
+    }
+    assert.equal(varreduras, 1, 'só a primeira gravação varre o índice');
+
+    // Regravar a mesma chave substitui o registro em vez de somar duas vezes.
+    relogio += 10;
+    await cache.gravarBruto('a', { cor: blobDeTamanho(200, 'a'), altura: null, agua: null, origem: [0, 0], res: 32 });
+    assert.equal(varreduras, 1);
+    for (const k of ['b', 'c', 'd', 'a']) {
+      relogio += 1;
+      assert.ok(await cache.obterBruto(k), `${k} continua no cache`);
+    }
+
+    // 800 + 400 > 1000: precisa varrer e despejar só a mais antiga ('b'): 600 + 400 cabe exatamente no limite.
+    relogio += 10;
+    await cache.gravarBruto('e', { cor: blobDeTamanho(400, 'e'), altura: null, agua: null, origem: [0, 0], res: 32 });
+    assert.equal(varreduras, 2);
+    assert.equal(await cache.obterBruto('b'), null);
+    for (const k of ['c', 'd', 'a', 'e']) assert.ok(await cache.obterBruto(k), `${k} sobrevive`);
+  } finally {
+    proto.openCursor = original;
+    cache.fechar();
+  }
 });
 
 test('exclui pedidos sprite e imagem com pixelManual do cache persistente', async () => {
