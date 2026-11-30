@@ -198,5 +198,15 @@
       34
     ],
     "miniatura": "posto-avancado.webp"
+  },
+  {
+    "id": "beco-de-neon",
+    "nome": "Beco de néon",
+    "descricao": "Um beco molhado de chuva entre o bar e o hotel de cápsulas, com a barraca de lámen acesa no meio, letreiros dos dois lados, um drone de vigia e a porta dos fundos da clínica clandestina.",
+    "tamanho": [
+      36,
+      30
+    ],
+    "miniatura": "beco-de-neon.webp"
   }
 ]

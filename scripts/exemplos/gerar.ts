@@ -30,6 +30,7 @@ import { enseadaDosPiratas } from './enseada-dos-piratas.ts';
 import { docaDoDirigivel } from './doca-do-dirigivel.ts';
 import { postoNaEstrada } from './posto-na-estrada.ts';
 import { postoAvancado } from './posto-avancado.ts';
+import { becoDeNeon } from './beco-de-neon.ts';
 
 /** A lista dos exemplos publicados na galeria. */
 export const EXEMPLOS: readonly Exemplo[] = [
@@ -53,6 +54,7 @@ export const EXEMPLOS: readonly Exemplo[] = [
   docaDoDirigivel,
   postoNaEstrada,
   postoAvancado,
+  becoDeNeon,
 ];
 
 const SAIDA = join(import.meta.dirname, '../../public/exemplos');
