@@ -1,7 +1,13 @@
 import type { ComponentType } from 'preact';
 import { mostrarAtalho } from '../app/atalhos.ts';
 import { embutido } from '../app/embutido.ts';
-import { emConstrucaoRemota } from '../app/construcao-remota.ts';
+import {
+  emConstrucaoRemota,
+  podeDesfazerRemoto,
+  podeRefazerRemoto,
+  rotuloDesfazerRemoto,
+  rotuloRefazerRemoto,
+} from '../app/construcao-remota.ts';
 import { acaoPorId, executarAcao, fxLigado, somLigado } from '../app/acoes.ts';
 import { abrirProjetor, ajudaAberta, definirTelhadosNoEditor, navegar, paletaAberta, renomearMapaAberto, rota, sessao, telhadosNoEditor } from '../app/app.ts';
 import { ROTULO_DO_MODO, modo, vistaDeJogador, type Modo } from '../app/modo.ts';
@@ -142,11 +148,19 @@ export function Cabecalho() {
       {!remoto && noEditor && s ? (<div class="grupo chave-de-modo" role="radiogroup" aria-label="Modo" data-testid="chave-de-modo">
         {(['construir', 'sessao'] as Modo[]).map(id => <button type="button" key={id} role="radio" aria-checked={modo.value === id} class={`ficha ${modo.value === id ? 'ativa' : ''}`} title={dica(`Modo ${ROTULO_DO_MODO[id]}`, 'modo')} data-testid={`modo-${id}`} onClick={() => { if (modo.value !== id) executar('modo')(); }}>{ROTULO_DO_MODO[id]}</button>)}
       </div>) : null}
-      {noEditor && s ? (<div class="grupo">
-        <button type="button" class="botao-icone" title={s.rotuloDesfazer.value ? `Desfazer: ${s.rotuloDesfazer.value} (Ctrl+Z)` : 'Desfazer (Ctrl+Z)'} disabled={!s.podeDesfazer.value} onClick={executar('desfazer')} data-testid="desfazer"><Icone nome="desfazer" /></button>
-        <button type="button" class="botao-icone" title={s.rotuloRefazer.value ? `Refazer: ${s.rotuloRefazer.value} (Ctrl+Shift+Z)` : 'Refazer (Ctrl+Shift+Z)'} disabled={!s.podeRefazer.value} onClick={executar('refazer')} data-testid="refazer"><Icone nome="refazer" /></button>
-        {!remoto ? <button type="button" class="botao-pilula" title={dica('Gravar o mapa', 'gravar')} onClick={executar('gravar')} data-testid="gravar"><Icone nome="gravar" tamanho={15} />Gravar</button> : null}
-      </div>) : null}
+      {noEditor && s ? (() => {
+        const podeDesfazer = remoto ? podeDesfazerRemoto.value : s.podeDesfazer.value;
+        const rotuloDesfazer = remoto ? rotuloDesfazerRemoto.value : s.rotuloDesfazer.value;
+        const podeRefazer = remoto ? podeRefazerRemoto.value : s.podeRefazer.value;
+        const rotuloRefazer = remoto ? rotuloRefazerRemoto.value : s.rotuloRefazer.value;
+        return (
+          <div class="grupo">
+            <button type="button" class="botao-icone" title={rotuloDesfazer ? `Desfazer: ${rotuloDesfazer} (Ctrl+Z)` : 'Desfazer (Ctrl+Z)'} disabled={!podeDesfazer} onClick={executar('desfazer')} data-testid="desfazer"><Icone nome="desfazer" /></button>
+            <button type="button" class="botao-icone" title={rotuloRefazer ? `Refazer: ${rotuloRefazer} (Ctrl+Shift+Z)` : 'Refazer (Ctrl+Shift+Z)'} disabled={!podeRefazer} onClick={executar('refazer')} data-testid="refazer"><Icone nome="refazer" /></button>
+            {!remoto ? <button type="button" class="botao-pilula" title={dica('Gravar o mapa', 'gravar')} onClick={executar('gravar')} data-testid="gravar"><Icone nome="gravar" tamanho={15} />Gravar</button> : null}
+          </div>
+        );
+      })() : null}
       {!remoto && Selo ? <Selo /> : null}
       <div class="grupo" role="radiogroup" aria-label="Tema">
         {(Object.keys(TEMAS) as TemaId[]).map(id => <button type="button" key={id} role="radio" aria-checked={tema.value.id === id} class={`ficha ${tema.value.id === id ? 'ativa' : ''}`} onClick={() => trocarTema({ id })} data-testid={`tema-${id}`}>{TEMAS[id].nome}</button>)}

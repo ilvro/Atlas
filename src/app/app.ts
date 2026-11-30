@@ -38,7 +38,14 @@ import { executarPasso, fusaoDoMomento, momentoEmCurso, pararMomento, tocarMomen
 import { lerRota, formatarRota, rota, type Rota } from './rotas.ts';
 import { iniciarServicos, type Servicos } from './servicos.ts';
 import { criarSessao, sessao, type SessaoDeEdicao } from './sessao.ts';
-import { criarRepositorioMemoria, emConstrucaoRemota, iniciarConstrucaoRemota } from './construcao-remota.ts';
+import {
+  criarRepositorioMemoria,
+  desfazerConstrucaoRemota,
+  emConstrucaoRemota,
+  iniciarConstrucaoRemota,
+  podeRefazerRemoto,
+  refazerConstrucaoRemota,
+} from './construcao-remota.ts';
 import { iniciarTema } from './tema.ts';
 import { avisar } from './toasts.ts';
 import { comTransicao } from './transicao.ts';
@@ -1149,6 +1156,13 @@ export function centralizarNaSelecao(): void {
 
 export function desfazer(): void {
   const s = sessao.value; if (!s) return;
+  if (emConstrucaoRemota.peek()) {
+    const rotulo = desfazerConstrucaoRemota();
+    if (rotulo === null) { avisar('Nada para desfazer.'); return; }
+    tocar('desfazer');
+    if (rotulo) avisar(`Desfeito: ${rotulo}`, { ...(podeRefazerRemoto.peek() ? { acao: { rotulo: 'Refazer', fazer: refazer } } : {}), duracao: 3200 });
+    return;
+  }
   if (!s.podeDesfazer.value && !s.store.emGesto) { avisar('Nada para desfazer.'); return; }
   const rotulo = s.rotuloDesfazer.value;
   s.store.desfazer(); tocar('desfazer');
@@ -1156,6 +1170,13 @@ export function desfazer(): void {
 }
 export function refazer(): void {
   const s = sessao.value; if (!s) return;
+  if (emConstrucaoRemota.peek()) {
+    const rotulo = refazerConstrucaoRemota();
+    if (rotulo === null) { avisar('Nada para refazer.'); return; }
+    tocar('refazer');
+    avisar(`Refeito: ${rotulo}`, { duracao: 2200 });
+    return;
+  }
   if (!s.podeRefazer.value) { avisar('Nada para refazer.'); return; }
   const rotulo = s.rotuloRefazer.value;
   s.store.refazer(); tocar('refazer');

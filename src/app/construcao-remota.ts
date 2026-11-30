@@ -19,6 +19,10 @@ import { validarMapa } from '../domain/validacao.ts';
 import { aplicarComando, ErroDeComando, type Comando } from '../state/comandos.ts';
 import { modo, vistaDeJogador } from './modo.ts';
 import {
+  criarPilhaDesfazerColaborativo,
+  type OrigemOperacaoColaborativa,
+} from './desfazer-colaborativo.ts';
+import {
   criarReconciliador,
   type ComandoRemoto,
   type EntradaAplicada,
@@ -177,6 +181,27 @@ export function enviarCursorRemoto(info: InfoCursorRemoto): void {
   emissorCursorAtivo?.(info);
 }
 
+/** Estado reativo da pilha de desfazer/refazer por autor no modo construção remoto (S6). */
+export const podeDesfazerRemoto = signal(false);
+export const rotuloDesfazerRemoto = signal('');
+export const podeRefazerRemoto = signal(false);
+export const rotuloRefazerRemoto = signal('');
+
+let controladorDesfazerAtivo: {
+  desfazer: () => string | null;
+  refazer: () => string | null;
+} | null = null;
+
+/** Desfaz a última operação confirmada deste participante no modo construção remoto (ou cancela o gesto ativo). */
+export function desfazerConstrucaoRemota(): string | null {
+  return controladorDesfazerAtivo?.desfazer() ?? null;
+}
+
+/** Refaz a última operação desfeita deste participante no modo construção remoto. */
+export function refazerConstrucaoRemota(): string | null {
+  return controladorDesfazerAtivo?.refazer() ?? null;
+}
+
 export interface OpcoesConstrucaoRemota {
   salaId: string;
   criarCanal?: (nome: string) => CanalConstrucaoLike;
@@ -247,9 +272,25 @@ export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteCo
   let ressincronizando = false;
   let ultimoEnvioCursorEm = -Infinity;
   let ultimoPintando = false;
+  const pilhaDesfazer = criarPilhaDesfazerColaborativo();
+
+  const sincronizarSignalsDesfazer = () => {
+    batch(() => {
+      podeDesfazerRemoto.value = pilhaDesfazer.podeDesfazer;
+      rotuloDesfazerRemoto.value = pilhaDesfazer.rotuloDesfazer;
+      podeRefazerRemoto.value = pilhaDesfazer.podeRefazer;
+      rotuloRefazerRemoto.value = pilhaDesfazer.rotuloRefazer;
+    });
+  };
+
+  const limparDesfazer = () => {
+    pilhaDesfazer.limpar();
+    sincronizarSignalsDesfazer();
+  };
 
   cursoresRemotos.value = [];
   meuDiscordIdRemoto.value = opcoes.meuDiscordId ?? null;
+  limparDesfazer();
 
   const postarNoCanal = (msg: unknown) => {
     if (!canal || morto) return;
@@ -285,31 +326,77 @@ export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteCo
     sessaoLocal.store.projetar(mapa, { pularValidacao: false });
   };
 
-  const aoExecutarComandos = (comandos: Comando[], rotulo: string) => {
-    if (morto || !reconciliador || !sessaoLocal || comandos.length === 0) return;
-    const haviaPendenciaVisual = projecaoPendente;
-    let precisouProjetar = haviaPendenciaVisual;
-
+  const enviarLotesLocais = (
+    comandos: readonly Comando[],
+    rotulo: string,
+    origem: OrigemOperacaoColaborativa,
+  ): { enviou: boolean; teveErro: boolean } => {
+    if (!reconciliador) return { enviou: false, teveErro: false };
+    let enviou = false;
+    let teveErro = false;
     for (const lote of fatiarComandos(comandos, MAX_COMANDOS_POR_OP)) {
+      const mapaAntes = reconciliador.mapaVisivel;
       try {
-        const { mensagem } = reconciliador.aoEditarLocal(lote, rotulo);
+        const { mensagem, mapaVisivel } = reconciliador.aoEditarLocal(lote, rotulo);
+        pilhaDesfazer.registrarPendente(mensagem.opId, rotulo, mapaAntes, mapaVisivel, lote, origem);
         postarNoCanal(mensagem);
+        enviou = true;
       } catch (erro) {
         if (!(erro instanceof ErroDeComando)) throw erro;
-        precisouProjetar = true;
-        const validos = filtrarComandosAplicaveis(reconciliador.mapaVisivel, lote);
+        teveErro = true;
+        const validos = filtrarComandosAplicaveis(mapaAntes, lote);
         if (validos.length > 0) {
-          const { mensagem } = reconciliador.aoEditarLocal(validos, rotulo);
+          const { mensagem, mapaVisivel } = reconciliador.aoEditarLocal(validos, rotulo);
+          pilhaDesfazer.registrarPendente(mensagem.opId, rotulo, mapaAntes, mapaVisivel, validos, origem);
           postarNoCanal(mensagem);
+          enviou = true;
         }
       }
     }
+    return { enviou, teveErro };
+  };
 
-    if (precisouProjetar) {
+  const aoExecutarComandos = (comandos: Comando[], rotulo: string) => {
+    if (morto || !reconciliador || !sessaoLocal || comandos.length === 0) return;
+    const { teveErro } = enviarLotesLocais(comandos, rotulo, 'normal');
+    if (projecaoPendente || teveErro) {
       projecaoPendente = false;
       projetarSemEco(reconciliador.mapaVisivel);
     }
   };
+
+  const executarDesfazerRefazer = (tipo: 'desfazer' | 'refazer'): string | null => {
+    if (morto || !reconciliador || !sessaoLocal) return null;
+    if (tipo === 'desfazer' && sessaoLocal.store.emGesto) {
+      sessaoLocal.store.desfazer();
+      return '';
+    }
+    if (sessaoLocal.store.emGesto) return null;
+    const preparado =
+      tipo === 'desfazer'
+        ? pilhaDesfazer.prepararDesfazer(reconciliador.mapaVisivel)
+        : pilhaDesfazer.prepararRefazer(reconciliador.mapaVisivel);
+    if (!preparado) {
+      sincronizarSignalsDesfazer();
+      return null;
+    }
+    const { enviou } =
+      preparado.comandos.length > 0
+        ? enviarLotesLocais(preparado.comandos, preparado.rotulo, tipo)
+        : { enviou: false };
+    if (enviou || projecaoPendente) {
+      projecaoPendente = false;
+      projetarSemEco(reconciliador.mapaVisivel);
+    }
+    sincronizarSignalsDesfazer();
+    return preparado.rotulo;
+  };
+
+  const controladorDesfazer = {
+    desfazer: () => executarDesfazerRefazer('desfazer'),
+    refazer: () => executarDesfazerRefazer('refazer'),
+  };
+  controladorDesfazerAtivo = controladorDesfazer;
 
   const aoTerminarGesto = () => {
     if (morto || !reconciliador || !sessaoLocal || !projecaoPendente || sessaoLocal.store.emGesto) return;
@@ -324,6 +411,7 @@ export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteCo
     ultimoEnvioCursorEm = -Infinity;
     ultimoPintando = false;
     cursoresRemotos.value = [];
+    limparDesfazer();
     if (emissorCursorAtivo === emitirCursor) emissorCursorAtivo = null;
     batch(() => {
       modo.value = 'construir';
@@ -380,6 +468,8 @@ export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteCo
     projecaoPendente = false;
     ressincronizando = false;
     emissorCursorAtivo = emitirCursor;
+    controladorDesfazerAtivo = controladorDesfazer;
+    limparDesfazer();
 
     const docVisivel = proximoReconciliador.mapaVisivel;
     batch(() => {
@@ -431,6 +521,13 @@ export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteCo
     }
 
     if (res.ignorada) return;
+
+    for (const descartada of res.descartadas) {
+      pilhaDesfazer.descartarPendente(descartada.opId);
+    }
+    if (pilhaDesfazer.confirmar(msg.opId)) {
+      sincronizarSignalsDesfazer();
+    }
 
     if (sessaoLocal.store.emGesto) {
       projecaoPendente = true;
@@ -538,6 +635,7 @@ export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteCo
         }
       }
       fecharSessaoLocal();
+      if (controladorDesfazerAtivo === controladorDesfazer) controladorDesfazerAtivo = null;
       meuDiscordIdRemoto.value = null;
     },
   };
