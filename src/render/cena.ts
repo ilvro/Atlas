@@ -75,6 +75,8 @@ export interface Cena {
   atualizarAtmosfera(visao: MapaAtlas): void;
   /** Avança as animações de entrada e a tremulação das luzes. */
   quadro(agora: number): void;
+  /** A câmera andou: sobe na fila de assado o que entrou na tela. */
+  repriorizar(): void;
   /** Faz já o pós-processamento adiado (coleta do baker, altura dos objetos, sombras, tempo); o `quadro` faz o mesmo no início. */
   descarregarPendencias(): void;
   /** A atmosfera (luz, sombras) aparece? É do editor, não do mapa. */
@@ -116,6 +118,12 @@ export interface Cena {
   readonly pintando: number;
   destruir(): void;
 }
+
+/** Onde a coisa está no mapa e com que prioridade assar: `[na tela, fora da tela]`. */
+/** Folga em volta do ponto de um objeto ao decidir se está na tela (objetos grandes: copa de árvore, mesa comprida). */
+const RAIO_DE_VISAO = 1.5;
+
+interface AlvoDeVisao { caixa: readonly [number, number, number, number]; prios: readonly [number, number] }
 
 interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; texAltura: Texture | null; chave: string; chaveTextura: string | null; chavePrevia?: string | null; alphaAlvo?: number }
 
@@ -179,6 +187,16 @@ export function criarCena(op: OpcoesDaCena): Cena {
     if (tempoSujo && mapa) { tempoSujo = false; tempo.atualizar(mapa, objetos); }
   }
 
+  /** Quem ainda espera o baker e tem uma região no mapa: a câmera andou, então o que entrou na tela sobe na fila. */
+  const pendentes = new Map<string, { pedido: PedidoDeBake } & AlvoDeVisao>();
+  function repriorizar(): void {
+    if (destruida) return;
+    for (const [chave, p] of pendentes) {
+      const [x0, y0, x1, y1] = p.caixa;
+      if (visivel(x0, y0, x1, y1)) op.baker.pedir(chave, p.pedido, p.prios[0]).catch(() => undefined);
+    }
+  }
+
   /** A caixa (em metros) está, ao menos em parte, dentro do que a câmera mostra? Sem câmera conhecida, tudo conta como visível. */
   function visivel(x0: number, y0: number, x1: number, y1: number): boolean {
     const v = op.caixaVisivel?.();
@@ -195,6 +213,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     previa?: { chave: string; pedido: PedidoDeBake },
     forcarPrevia = false,
     tipo: 'terreno' | 'escarpa' | 'comodo' | 'objeto' = 'objeto',
+    visao?: AlvoDeVisao,
   ): void {
     if (e.chave === chave) return;
     const usarPrevia = !!previa && previa.chave !== chave && (!e.sprite || forcarPrevia);
@@ -233,9 +252,10 @@ export function criarCena(op: OpcoesDaCena): Cena {
     }
 
     pintandoAgora++;
+    if (visao) pendentes.set(chave, { pedido, ...visao });
     op.baker.pedir(chave, pedido, usarPrevia ? 1 : prioridade).then(r => {
       aplicarResultado(chave, r, false);
-    }).catch(erro => { if (!(erro instanceof ErroDeBakeCancelado)) console.warn('Atlas: falha ao pintar', erro); }).finally(() => { pintandoAgora--; });
+    }).catch(erro => { if (!(erro instanceof ErroDeBakeCancelado)) console.warn('Atlas: falha ao pintar', erro); }).finally(() => { pintandoAgora--; pendentes.delete(chave); });
   }
 
   const pixelRes0 = (m: MapaAtlas): boolean => m.style.renderer === 'pixel';
@@ -307,7 +327,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
             agua.aplicarLadrilho(caixa, r.agua, mapa);
             reaplicarSubmersos(mapa);
           }
-        }, naTela ? 1 : 4, previa, modoDoProjetor, 'terreno');
+        }, naTela ? 1 : 4, previa, modoDoProjetor, 'terreno', { caixa: [l.caixa.x, l.caixa.y, l.caixa.x + l.caixa.w, l.caixa.y + l.caixa.h], prios: [1, 4] });
       }
       op.baker.coletar(chavesEmUso());
     };
@@ -347,11 +367,14 @@ export function criarCena(op: OpcoesDaCena): Cena {
       const entrada = entradaDoComodo(m, sala, ctx);
       const estilo = m.style.renderer, res = resolucaoDe(m, 'comodo');
       const alvo = e;
+      let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+      { const t = m.grid.size, [ox, oy] = m.grid.offset; for (const [x, y] of decodificar(sala.cells)) { bx0 = Math.min(bx0, ox + x * t); by0 = Math.min(by0, oy + y * t); bx1 = Math.max(bx1, ox + (x + 1) * t); by1 = Math.max(by1, oy + (y + 1) * t); } }
+      const comodoNaTela = bx0 === Infinity || visivel(bx0, by0, bx1, by1);
       const resPrevia = Math.max(1, res / 4);
-      const previa = estilo === 'illustrated' && !alvo.sprite
+      const previa = comodoNaTela && estilo === 'illustrated' && !alvo.sprite
         ? { chave: chaveDoComodo(entrada, resPrevia, estilo), pedido: { tipo: 'comodo' as const, entrada, res: resPrevia, estilo } }
         : undefined;
-      pintar(alvo, chaveDoComodo(entrada, res, estilo), { tipo: 'comodo', entrada, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); cenaDeAltura.sincronizarComodo(sala.id, alvo.texAltura, r.origem, r.res); }, 0, previa, false, 'comodo');
+      pintar(alvo, chaveDoComodo(entrada, res, estilo), { tipo: 'comodo', entrada, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); cenaDeAltura.sincronizarComodo(sala.id, alvo.texAltura, r.origem, r.res); }, comodoNaTela ? 0 : 3, previa, false, 'comodo', bx0 === Infinity ? undefined : { caixa: [bx0, by0, bx1, by1], prios: [0, 3] });
     }
   }
 
@@ -617,14 +640,14 @@ export function criarCena(op: OpcoesDaCena): Cena {
         entrada.c.visible = true;
       }
       if (!animacoes.some(a => a.alvo === entrada!.c)) entrada.c.scale.set(o.scale);
-      const naTela = visivel(o.position[0], o.position[1], o.position[0], o.position[1]);
+      const naTela = visivel(o.position[0] - RAIO_DE_VISAO, o.position[1] - RAIO_DE_VISAO, o.position[0] + RAIO_DE_VISAO, o.position[1] + RAIO_DE_VISAO);
       const pedido = pedidoDoObjeto(o, res, m.style.genre, m.style.renderer, opcoesDoPixel(m));
       if (pedido) pintar(entrada, chave, pedido, (sp, r) => {
         sp.position.set(r.origem[0], r.origem[1]); sp.scale.set(1 / r.res);
         // Sombra projetada: a textura só serve à camada das sombras do sol; o objeto em si não aparece.
         sp.alpha = ehSombraProjetada(o) ? 0 : 1;
         if (espelharImagem(mapa?.props[id] as Objeto | undefined)) { sp.position.x = -sp.position.x; sp.scale.x = -sp.scale.x; }
-      }, naTela ? 1 : 5, undefined, false, 'objeto');
+      }, naTela ? 1 : 5, undefined, false, 'objeto', { caixa: [o.position[0] - RAIO_DE_VISAO, o.position[1] - RAIO_DE_VISAO, o.position[0] + RAIO_DE_VISAO, o.position[1] + RAIO_DE_VISAO], prios: [1, 5] });
       // Imagem da coleção: o espelho é do sprite (a chave não muda), então acompanha o `flip` sem novo assado. Receita: já vem espelhada do assado.
       const sp = entrada.sprite;
       if (sp && !sp.destroyed && (sp.scale.x < 0) !== espelharImagem(o)) { sp.position.x = -sp.position.x; sp.scale.x = -sp.scale.x; }
@@ -933,6 +956,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     objetosPintados: () => [...objetos.values()].filter(e => e.sprite !== null && !e.placeholder.visible).length,
     tintDeObjeto: id => objetos.get(id)?.c.tint ?? null,
     descarregarPendencias,
+    repriorizar,
     quadro(agora) {
       descarregarPendencias();
       const posicoesDeTokens = new Map<string, Ponto>();

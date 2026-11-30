@@ -263,12 +263,12 @@ Formato: **Tarefa N** — desvio ou limite; motivo; estado (corrigido / aceito /
 - A prioridade 2 para ladrilho fora da tela fica para a Tarefa 4. **Aberto.**
 
 ### Tarefa 3
-- O total em memória (`totalBytesEstimado`) é por conexão e não enxerga gravações de outra aba/janela; a estimativa pode ficar abaixo do real até a próxima abertura. **Aceito:** o cache é um teto frouxo e a conexão se reabre (e recalcula) em `onclose`/`onversionchange`.
+- O total em memória não enxerga gravações de outra aba. **Corrigido:** a cada 64 gravações o índice é varrido de novo e o total é recalculado.
 - As gravações passaram a ser **serializadas** (cadeia de promessas), coisa que o plano não pedia: sem isso duas gravações simultâneas liam o total antes de a outra terminar. **Corrigido** (é parte da solução).
 
 ### Tarefa 4
-- A repriorização dos itens já na fila quando a câmera se move (item opcional do plano) **não foi feita**: `sincronizarTerreno` e `sincronizarObjetos` saem cedo quando a chave não mudou, então não chegam a chamar `baker.pedir` de novo. Pede um gatilho próprio no viewport. **Aberto.**
-- Cômodos ficam com prioridade 0 (não entram na priorização por viewport): o plano só cita terreno, objetos e telhados. **Aceito.**
-- A visibilidade de objeto usa só o ponto de posição, com a margem de 2 m do viewport; objeto grande com o centro logo fora da margem cai na prioridade 5. **Aceito.**
-- O `sombrasSuja` de terreno só liga com camadas de terreno no mapa (a sombra dos maciços lê `terrain.layers`, não a textura). **Aceito.**
-- Adicionado `descarregarPendencias()` à `Cena` e chamado em `captura.ts` antes do `render` final, para a captura nunca sair sem sombras/altura pendentes. **Corrigido** (acréscimo ao plano).
+- Repriorização ao mover a câmera. **Corrigido:** `cena.repriorizar()` (chamada pelo viewport 120 ms após a câmera parar) sobe na fila o que entrou na tela, via `baker.pedir` com prioridade menor. Só promove; o que saiu da tela não é rebaixado. **Aceito.**
+- Cômodos ficavam com prioridade 0. **Corrigido:** entram na regra por viewport (0 na tela, 3 fora, sem prévia fora).
+- Objeto grande com o centro fora da margem. **Corrigido:** a visibilidade usa o ponto com folga de 1,5 m, além da margem de 2 m do viewport.
+- O `sombrasSuja` de terreno só liga com camadas de terreno no mapa (a sombra dos maciços lê `terrain.layers`, não a textura). **Aceito:** é o comportamento correto.
+- Adicionado `descarregarPendencias()` à `Cena` e chamado em `captura.ts` antes do `render` final. **Corrigido** (acréscimo ao plano).

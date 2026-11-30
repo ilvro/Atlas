@@ -691,7 +691,13 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   /** No Pixel a posição do mundo cai na grade de pixels do dispositivo, para os pixels do Pixel não tremerem nem ficarem de tamanhos diferentes. */
   const naGrade = (v: number): number => (pixelAtivo ? Math.round(v * app.renderer.resolution) / app.renderer.resolution : v);
   const posicaoDoMundo = (): void => { mundo.position.set(naGrade(camera.x + tremorAtual[0]), naGrade(camera.y + tremorAtual[1])); };
-  function aplicarCamera(): void { posicaoDoMundo(); mundo.scale.set(camera.zoom); camadaSuja = true; gradeSuja = true; ponte.aoCamera?.(camera); }
+  let repriorizarTimer: ReturnType<typeof setTimeout> | null = null;
+  function aplicarCamera(): void {
+    posicaoDoMundo(); mundo.scale.set(camera.zoom); camadaSuja = true; gradeSuja = true; ponte.aoCamera?.(camera);
+    // Com a câmera parada por um instante, o que entrou na tela sobe na fila de assado.
+    if (repriorizarTimer) clearTimeout(repriorizarTimer);
+    repriorizarTimer = setTimeout(() => { repriorizarTimer = null; if (!destruido) cena.repriorizar(); }, 120);
+  }
   /** No Pixel o zoom é múltiplo inteiro de pixels do dispositivo por pixel do Pixel; `zoomPedido` guarda o zoom contínuo (senão a roda travaria em passos pequenos). */
   function encaixarNoPixel(c: Camera): Camera {
     if (!pixelAtivo) return c;
