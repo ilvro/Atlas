@@ -415,6 +415,57 @@ function bombaDeGasolina(seed: number): Parte[] {
   return partes;
 }
 
+/**
+ * Cobertura de posto (Q21d), com o teto oculto como os telhados dos exemplos: a testeira em volta (a faixa na cor da bandeira por fora e a chapa
+ * branca por dentro, com as faces em degraus de tom), as colunas de chapa nos eixos das ilhas (v = ±D/4) e, acesa, as poças de luz das
+ * luminárias no piso. As bombas vão por baixo, nas ilhas: com `C` 14, nas posições u = ±2,2.
+ */
+function coberturaDePosto(seed: number, C: number, D: number, acesa: boolean): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], cor = tonsDe(['#b42218', '#1e4a8a', '#2a7a3a', '#c86a10'][Math.floor(r() * 4)]!), CHAPA = tonsDe('#d2d4d2');
+  const U = C / 2, V = D / 2, b = 0.62, fx = 0.26;
+  // As colunas: a sapata de concreto e o pilar de chapa.
+  const us = C > 18 ? [-(U - 1.6), 0, U - 1.6] : [-(U - 1.6), U - 1.6];
+  for (const cu of us) for (const s of [-1, 1]) {
+    const cv = (s * D) / 4;
+    sombraNoChao(partes, retQ(ID, cu, cv, 0.62, 0.62), 0.01, '#0a0a0c', 0.45);
+    bloco(partes, quadro(cu, cv), 0.56, 0.56, CONCRETO, 0.16, 0.06);
+    bloco(partes, quadro(cu, cv), 0.34, 0.34, CHAPA, 1.42, 0.05);
+  }
+  // As poças das luminárias, no piso, entre as colunas.
+  if (acesa) for (let u = -U + 2.2; u <= U - 2.2 + 0.01; u += (C - 4.4) / Math.max(1, Math.round((C - 4.4) / 3.4))) for (const s of [-1, 1]) partes.push(elipse(u, (s * D) / 4, 1.7, 1.5, '#1e2228', 0.012, { ...O, brilho: true, alfa: 0.55, desfoque: 0.9, detalhe: 1 }));
+  // A testeira: o nanquim por fora, a faixa da bandeira e a chapa, lado a lado, com a face de cada lado no tom da sua orientação.
+  const lado = (e0: number, e1: number): number[][] => [
+    [-U + e0, -V + e0, U - e0, -V + e0, U - e1, -V + e1, -U + e1, -V + e1], [U - e0, -V + e0, U - e0, V - e0, U - e1, V - e1, U - e1, -V + e1],
+    [U - e0, V - e0, -U + e0, V - e0, -U + e1, V - e1, U - e1, V - e1], [-U + e0, V - e0, -U + e0, -V + e0, -U + e1, -V + e1, -U + e1, V - e1],
+  ];
+  const normais = [-Math.PI / 2, 0, Math.PI / 2, Math.PI];
+  lado(-0.04, b + 0.03).forEach(pts => partes.push(poli(pts, cor.nanquim, 1.5, { contorno: 'leve', sombraLeve: true, detalhe: 1 })));
+  lado(0, fx).forEach((pts, i) => partes.push(poli(pts, tomDaFace(cor, olhar(normais[i]!)), 1.503, { ...O, detalhe: 1 })));
+  lado(fx, b).forEach((pts, i) => partes.push(poli(pts, tomDaFace(CHAPA, olhar(normais[i]!)), 1.503, { ...O, detalhe: 1 })));
+  // O friso claro na aresta de fora (lado da luz) e a borda de dentro na sombra.
+  partes.push(tira([-U + 0.03, V - 0.03, -U + 0.03, -V + 0.03, U - 0.03, -V + 0.03], 0.05, cor.brilho, 1.506, { ...O, alfa: 0.7, detalhe: 2 }));
+  partes.push(tira([-U + b, -V + b, U - b, -V + b, U - b, V - b, -U + b, V - b, -U + b, -V + b], 0.05, CHAPA.sombra, 1.506, { ...O, alfa: 0.8, detalhe: 2 }));
+  // As juntas das placas da testeira.
+  for (let u = -U + 2; u < U - 1; u += 2) for (const s of [-1, 1]) partes.push(tira([u, s * (V - fx), u, s * (V - b + 0.02)], 0.02, CHAPA.sombra, 1.507, { ...O, alfa: 0.5, detalhe: 3 }));
+  return partes;
+}
+
+/** Poste de rua (Q21d): a base, a haste de aço galvanizado do pé (−x) até a cabeça (+x), a luminária fechada e, acesa, o clarão que escapa pela borda. */
+function posteDeRua(sodio: boolean, acesa: boolean): Parte[] {
+  const partes: Parte[] = [], px = -1.1, hx = 0.72, t = tonsDe('#8a8e92');
+  sombraNoChao(partes, anel(px, 0, 0.24, 0.24, 12), 0.01, '#0a0a0c', 0.4);
+  disco(partes, px, 0, 0.21, CONCRETO, 0.05);
+  disco(partes, px, 0, 0.11, ACO, 1.1);
+  cilindro(partes, px, 0, hx - 0.3, 0, 0.065, 0.045, ACO, 1.4);
+  if (acesa) partes.push(elipse(hx, 0.02, 1.05, 0.55, sodio ? '#5a3410' : '#36404e', 1.441, { ...O, brilho: true, alfa: 0.6, desfoque: 0.14, detalhe: 2 }));
+  partes.push(poli(retR(ID, hx + 0.012, 0.018, 0.84, 0.36, 0.16), t.nanquim, 1.45, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
+  partes.push(poli(retR(ID, hx, 0, 0.8, 0.32, 0.15), t.base, 1.452, { ...O, detalhe: 1 }), poli(retR(ID, hx - 0.05, -0.04, 0.6, 0.18, 0.08), t.luz, 1.454, { ...S, detalhe: 2 }));
+  partes.push(lente(hx - 0.32, -0.09, 0, 0.5, 0.035, t.brilho, 1.456, { ...S, alfa: 0.7, detalhe: 3 }));
+  return partes;
+}
+const luzDoPoste = (params: Record<string, unknown>): LuzDeReceita | null => (ligado(params, 'acesa', 1) ? { raio: 8, cor: ligado(params, 'sodio', 1) ? '#ffc27a' : '#e4ecff', intensidade: 0.85, power: 'grid', flicker: 0 } : null);
+const luzDaCobertura = (params: Record<string, unknown>): LuzDeReceita | null => (ligado(params, 'acesa', 1) ? { raio: Math.max(7, num({ seed: 0, params }, 'comprimento', 14, 8, 24) * 0.6), cor: '#eef2ff', intensidade: 0.9, power: 'grid', flicker: 0 } : null);
+
 // ---------- Escritório, mercado e lanchonete (Q21b) ----------
 
 const LAMINADO: Tons = tonsDe('#cdc6b6'), CINZA_CLARO: Tons = tonsDe('#c4c6c4'), PAPEL = '#eeeae0', TELA = '#2a5a8a';
@@ -751,6 +802,13 @@ export const RECEITAS_DO_MODERNO_URBANO: Receita[] = [
     gerar: p => { const C = num(p, 'comprimento', 4, 1.2, 16); return piso([C, 0.66], barreira(p.seed, C, ligado(p.params, 'plastica'))); } },
   { id: 'bomba-de-gasolina', nome: 'Bomba de gasolina', ...RUA, funcoes: ['posto', 'garagem'], tags: ['bomba', 'gasolina', 'combustivel', 'posto', 'ilha', 'mangueira', 'moderno', 'luz'], pegada: [3.1, 1.25], altura: 1.9,
     luz: luzDaBomba, gerar: p => piso([3.1, 1.25], bombaDeGasolina(p.seed)) },
+  // Q21d: a cobertura das bombas e o poste de rua.
+  { id: 'cobertura-de-posto', nome: 'Cobertura de posto', ...RUA, funcoes: ['posto'], tags: ['cobertura', 'posto', 'gasolina', 'marquise', 'testeira', 'bombas', 'moderno', 'luz'], pegada: [14, 8], altura: 5.2,
+    campos: [{ id: 'comprimento', rotulo: 'Comprimento (m)', tipo: 'numero', padrao: 14, min: 8, max: 24, passo: 1 }, { id: 'profundidade', rotulo: 'Profundidade (m)', tipo: 'numero', padrao: 8, min: 5, max: 12, passo: 1 }, { id: 'acesa', rotulo: 'Acesa (0 não, 1 sim)', tipo: 'numero', padrao: 1, min: 0, max: 1, passo: 1 }],
+    luz: luzDaCobertura, gerar: p => { const C = num(p, 'comprimento', 14, 8, 24), D = num(p, 'profundidade', 8, 5, 12); return piso([C, D], coberturaDePosto(p.seed, C, D, ligado(p.params, 'acesa', 1))); } },
+  { id: 'poste-de-rua', nome: 'Poste de rua', ...RUA, funcoes: ['rua', 'estacionamento', 'posto', 'praca'], tags: ['poste', 'luz', 'iluminacao', 'luminaria', 'rua', 'sodio', 'led', 'moderno'], pegada: [2.6, 0.8], altura: 7,
+    campos: [{ id: 'sodio', rotulo: 'Lâmpada (0 LED branca, 1 sódio amarela)', tipo: 'numero', padrao: 1, min: 0, max: 1, passo: 1 }, { id: 'acesa', rotulo: 'Acesa (0 não, 1 sim)', tipo: 'numero', padrao: 1, min: 0, max: 1, passo: 1 }],
+    luz: luzDoPoste, gerar: p => piso([2.6, 0.8], posteDeRua(ligado(p.params, 'sodio', 1), ligado(p.params, 'acesa', 1))) },
   // Escritório, mercado e lanchonete (Q21b)
   { id: 'estacao-de-trabalho', nome: 'Estação de trabalho', ...INT, categoria: 'mesas', funcoes: ['escritorio', 'recepcao', 'sala-de-servidores', 'delegacia'], tags: ['mesa', 'escritorio', 'computador', 'monitor', 'teclado', 'cadeira', 'baia', 'trabalho', 'moderno'], pegada: [1.65, 1.5], altura: 1.2,
     campos: [{ id: 'monitores', rotulo: 'Monitores (1 ou 2)', tipo: 'numero', padrao: 1, min: 1, max: 2, passo: 1 }],

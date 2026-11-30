@@ -137,7 +137,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('luz-e-fogo', 'lanterna-marroquina', 'Lanterna marroquina', ['lanterna-marroquina'], { generos: ['deserto', 'fantasia'] }),
   f('luz-e-fogo', 'lanterna-de-pedra', 'Lanterna de pedra', ['lanterna-de-pedra'], { generos: ['oriental', 'fantasia'] }),
   f('luz-e-fogo', 'luminaria', 'Luminária', ['abajur.mesa', 'luminaria.chao', 'luminaria.franja', 'lustre']),
-  f('luz-e-fogo', 'poste-de-luz', 'Poste de luz', ['lanterna-de-poste', 'lampiao-a-gas', 'poste.luz', 'lanterna.farol']),
+  f('luz-e-fogo', 'poste-de-luz', 'Poste de luz', ['lanterna-de-poste', 'lampiao-a-gas', 'poste.luz', 'lanterna.farol', 'poste-de-rua']),
   f('luz-e-fogo', 'tocha', 'Tocha de parede', ['tocha.parede', 'arandela']),
   // Sobre a mesa
   f('sobre-a-mesa', 'livro', 'Livro', ['livro.aberto', 'livros.pilha']),
@@ -257,7 +257,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('moderno', 'onibus', 'Ônibus e ponto', ['ponto-de-onibus', 'onibus'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
   f('moderno', 'mobiliario-urbano', 'Mobiliário urbano', ['hidrante', 'lixeira', 'orelhao', 'semaforo'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
   f('moderno', 'obra', 'Cone, barreira e caçamba', ['cone', 'barreira', 'cacamba'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
-  f('moderno', 'bomba-de-gasolina', 'Bomba de gasolina', ['bomba-de-gasolina'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
+  f('moderno', 'bomba-de-gasolina', 'Bomba e cobertura de posto', ['bomba-de-gasolina', 'cobertura-de-posto'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
   f('moderno', 'escritorio', 'Escritório', ['bebedouro.galao', 'copiadora', 'divisoria', 'estacao-de-trabalho'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
   f('moderno', 'mercado', 'Mercado', ['freezer', 'gondola', 'caixa-registradora'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
   f('moderno', 'lanchonete', 'Lanchonete e máquina de venda', ['maquina-de-venda', 'mesa-de-lanchonete'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
