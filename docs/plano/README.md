@@ -8,7 +8,7 @@ O [ROADMAP](../ROADMAP.md) diz **o quê** e em que ordem. Esta pasta diz **como*
 2. **Implementar (Sonnet):** uma tarefa por sessão. Pedido típico: *"Implemente a tarefa 4.1a de docs/plano/fase-4.md."* Leia a ficha, os arquivos de "Ler" e o [AGENTS.md](../../AGENTS.md); não é preciso reler VISAO e ARQUITETURA inteiros.
 3. **Fechar a tarefa:**
    - `npm run typecheck` e `npm test` passando (e `npm run test:e2e` quando a ficha pedir);
-   - marcar a ficha com ✅ (⬜ → ✅) e anotar desvios, se houve, numa linha "Nota:" dentro da ficha;
+   - marcar a ficha com ✅ (⬜ → ✅) e anotar desvios, se houve, numa linha "Nota:" dentro da ficha (em plano avulso sem fichas, na seção de desvios e limites ao fim do arquivo; antes de registrar um limite, tente eliminá-lo);
    - acrescentar uma linha na fase em andamento do [progress.md](../../progress.md);
    - fazer **um commit atômico por tarefa** (usando a mensagem da ficha, ajustada se preciso, seguindo o estilo do histórico do repositório).
 4. **Fechar a fase:** depois da última tarefa, o resumo completo da fase vai para o progress.md (implementado, validação, pendências reais) e o Opus detalha a próxima.

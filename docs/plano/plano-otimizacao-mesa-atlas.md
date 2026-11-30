@@ -48,6 +48,7 @@ O problema não é um único bug, mas **cinco gargalos encadeados** entre `Atlas
   - No `Atlas`: `npm --prefix Atlas run typecheck && npm --prefix Atlas test`
   - Na `Mesa`: `npm --prefix Mesa run typecheck && npm --prefix Mesa test`
 - Ao concluir o lote inteiro, rodar `npm --prefix Mesa run desktop:prep`.
+- **Desvios e limites vão para o fim deste arquivo** (seção "Desvios e limites registrados"): sempre que um agente implementar uma tarefa e encontrar um desvio do que está escrito ou um limite que não conseguiu eliminar, anota ali, numa linha por item, com a tarefa, o que mudou e por quê. Antes de reportar, tente eliminar o limite; só registre o que sobrar. Se não houve nenhum, escreva "sem desvios".
 
 ---
 
@@ -242,3 +243,21 @@ O problema não é um único bug, mas **cinco gargalos encadeados** entre `Atlas
 | **5** | Supressão de reenvio redundante + `store.projetar` + `compartilhar` | `Atlas` | **Médio/Alto** — reduz tráfego de rede e CPU na sincronização |
 | **6** | Coalescência latest-wins nas pontes do mestre e jogador | `Mesa` | **Médio/Alto** — evita backlog de blobs gzip em movimentos rápidos |
 | **7** | Validação completa + `desktop:prep` | `Mesa` | Obrigatório ao fim do lote |
+
+---
+
+## 5. Desvios e limites registrados
+
+Formato: **Tarefa N** — desvio ou limite; motivo; estado (corrigido / aceito / aberto).
+
+### Tarefa 1
+- Não implementou `semCachePersistente` em `baker.pedir` (item 3): uma opção separada não seria honrada na gravação sem mexer em `executar.ts`. A Tarefa 2 cobre com `semCache` em `PedidoDeBake` + `pedidoCacheavel`. **Corrigido pela Tarefa 2.**
+- Cancelar um item da fila rejeita a Promise compartilhada da chave; `pintar` ignora o erro e o próximo `pedir` refaz o trabalho. **Aceito.**
+
+### Tarefa 2
+- A prévia `res/4` com `semCache` valia também no editor (antes era cacheada). **Corrigido:** agora só leva `semCache` no terreno efêmero do projetor.
+- Teste "semCache não muda a chave" era vazio (`chaveDoTerreno` não recebe `semCache`). **Corrigido:** removido; a cobertura real está em `pedidoCacheavel` (`cache-de-assados.test.ts`).
+- Teste e2e `terreno-ladrilhos` não tinha sido rodado. **Corrigido:** rodado com `LADO_DO_LADRILHO = 8`, passa.
+- No projetor, a prévia de baixa resolução substitui o sprite antigo até a alta chegar; o chão pode ficar borrado por instantes ao revelar. **Aceito:** troca consciente por mostrar o calçamento na hora (o sprite antigo nem tem as camadas novas).
+- Imagens da coleção prontas (`harmonizar: false`, não Pixel) saem do IndexedDB e dependem do cache HTTP do navegador. **Aceito:** é o item 3 do plano.
+- A prioridade 2 para ladrilho fora da tela fica para a Tarefa 4. **Aberto.**
