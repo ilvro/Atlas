@@ -24,7 +24,7 @@ import { criarComposicaoDeLuz } from './composicao-de-luz.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import { FATOR_DE_MOVIMENTO_REDUZIDO } from './particulas-config.ts';
 import { criarNevoa, type Vista } from './nevoa.ts';
-import { objetoDinamicoDeVisao, pontoVisivelAgora, secretaOculta, tokensDeVisaoAtivos, type FiltroDeVisao } from '../domain/nevoa.ts';
+import { objetoDinamicoDeVisao, pecaSempreVisivel, pontoVisivelAgora, secretaOculta, tokensDeVisaoAtivos, type FiltroDeVisao } from '../domain/nevoa.ts';
 import { criarNeblina } from './neblina.ts';
 import { criarBordas } from './bordas.ts';
 import { criarHalos } from './halos.ts';
@@ -747,7 +747,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     for (const [id, c] of pecas) {
       const t = mapa.tokens[id];
       if (!t) continue;
-      if (!restringir || t.player) {
+      if (!restringir || pecaSempreVisivel(t, filtroVisao)) {
         c.alpha = 1;
         c.visible = true;
         continue;

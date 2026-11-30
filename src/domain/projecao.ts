@@ -1,7 +1,7 @@
 import { mapaDoAndar } from './andares.ts';
 import { podar } from './iniciativa.ts';
 import type { MapaAtlas } from './mapa.ts';
-import { celulasExploradas, pontoVisivelAgora, RES_NEVOA, secretaOculta, type FiltroDeVisao } from './nevoa.ts';
+import { celulasExploradas, pecaSempreVisivel, pontoVisivelAgora, RES_NEVOA, secretaOculta, type FiltroDeVisao } from './nevoa.ts';
 
 /**
  * O que é do mestre e nunca vai para quem vê o mapa pelo projetor. Quem acrescentar um campo ao documento
@@ -44,7 +44,7 @@ export function projetarParaJogadores(m: MapaAtlas, andar: string | null = null,
 
   // Quem os jogadores não veem agora não é enviado (nem a posição, nem a luz).
   for (const [id, t] of Object.entries(p.tokens)) {
-    if (t.player || pontoVisivelAgora(escopo, t.position, t.size * escopo.grid.size * 0.35, filtro)) continue;
+    if (pecaSempreVisivel(t, filtro) || pontoVisivelAgora(escopo, t.position, t.size * escopo.grid.size * 0.35, filtro)) continue;
     delete p.tokens[id];
     for (const [lid, l] of Object.entries(p.lights)) if (l.ownerId === id || lid === t.lightId) delete p.lights[lid];
   }

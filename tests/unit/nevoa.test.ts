@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { contem } from '../../src/domain/celulas.ts';
 import { novaPeca } from '../../src/domain/fabrica.ts';
 import { criarMapa, type Abertura, type MapaAtlas } from '../../src/domain/mapa.ts';
-import { RES_NEVOA, celulasVisiveis, poligonosDeVisao, tokensDeVisaoAtivos } from '../../src/domain/nevoa.ts';
+import { RES_NEVOA, celulasVisiveis, pecaSempreVisivel, poligonosDeVisao, tokensDeVisaoAtivos } from '../../src/domain/nevoa.ts';
+import { projetarParaJogadores } from '../../src/domain/projecao.ts';
 import { aplicarComando } from '../../src/state/comandos.ts';
 
 /** Dois cômodos lado a lado separados por uma parede em x = 6 (de y = 0 a 12); uma peça de jogador em (3, 6). */
@@ -339,4 +340,19 @@ test('tokensDeVisaoAtivos e poligonosDeVisao respeitam FiltroDeVisao (todos, foc
   // Espectador (minhasFichas vazio/nulo) vê todos os jogadores
   assert.equal(tokensDeVisaoAtivos(m, comGrupos, []).length, 3);
   assert.equal(tokensDeVisaoAtivos(m, comGrupos, null).length, 3);
+});
+
+test('com a tela presa a um personagem, os outros jogadores fora do alcance dele não vão na projeção', () => {
+  const base = dois(undefined, [[3, 6], [9, 6]]);
+  const m = base;
+  assert.equal(pecaSempreVisivel(m.tokens.t0!, { tipo: 'foco', tokenId: 't1' }), false);
+  assert.equal(pecaSempreVisivel(m.tokens.t1!, { tipo: 'foco', tokenId: 't1' }), true);
+  assert.equal(pecaSempreVisivel(m.tokens.t0!, { tipo: 'todos' }), true);
+  assert.equal(pecaSempreVisivel(m.tokens.t0!, null), true);
+
+  const todos = projetarParaJogadores(m, null, undefined);
+  assert.ok(todos.tokens.t0 && todos.tokens.t1, 'sem foco, todos os jogadores aparecem');
+  const foco = projetarParaJogadores(m, null, { tipo: 'foco', tokenId: 't1' });
+  assert.ok(foco.tokens.t1, 'o personagem em foco aparece');
+  assert.equal(foco.tokens.t0, undefined, 'o outro jogador, fora da sala dele, não vai');
 });

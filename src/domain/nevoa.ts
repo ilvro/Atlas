@@ -61,6 +61,15 @@ export type FiltroDeVisao =
   | { tipo: 'foco'; tokenId: string }
   | { tipo: 'individual'; grupos?: Record<string, string> };
 
+/**
+ * A peça de jogador aparece sempre (sem depender de ser vista)? Sim, salvo quando a tela está presa à visão de **um** personagem:
+ * então só ele aparece sempre, e os outros jogadores seguem a regra das ameaças (só se estiverem no alcance da visão dele).
+ */
+export function pecaSempreVisivel(t: Pick<Peca, 'id' | 'player'>, filtro?: FiltroDeVisao | null): boolean {
+  if (!t.player) return false;
+  return !filtro || filtro.tipo !== 'foco' || filtro.tokenId === t.id;
+}
+
 /** Seleciona os tokens de jogador que contribuem para a visão ativa no andar atual conforme `filtro` e `minhasFichas`. */
 export function tokensDeVisaoAtivos(
   m: Pick<MapaAtlas, 'tokens'>,

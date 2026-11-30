@@ -9,7 +9,7 @@ import { controleJogadores, movimentoLivre, type ControleJogadores } from './mod
 import { recursosParaOProjetor } from '../domain/fichas.ts';
 import { projetarParaJogadores } from '../domain/projecao.ts';
 import { projetarParaRemoto } from '../domain/projecao-remota.ts';
-import { pontoVisivelAgora, type FiltroDeVisao } from '../domain/nevoa.ts';
+import { pecaSempreVisivel, pontoVisivelAgora, type FiltroDeVisao } from '../domain/nevoa.ts';
 import type { EventoDeCena } from '../render/eventos-de-cena.ts';
 import type { Caixa } from '../render/selecao.ts';
 import type { SessaoDeEdicao } from './sessao.ts';
@@ -269,7 +269,7 @@ export function iniciarPublicacao(
   let ameacasNoEstadoRemoto = new Set<string>();
   // O que o remoto recebeu por último (projeção + modo): se o novo `estado` sai igual, não vai de novo pela rede.
   let ultimoEstadoRemotoJson: string | null = null;
-  const ameacasDoEstado = (d: MapaAtlas) => new Set(Object.values(d.tokens).filter(x => !x.player).map(x => x.id));
+  const ameacasDoEstado = (d: MapaAtlas, filtro?: FiltroDeVisao | null) => new Set(Object.values(d.tokens).filter(x => !pecaSempreVisivel(x, filtro)).map(x => x.id));
   const enviarEstado = (onde: 'local' | 'remoto' | 'ambos' = 'ambos', forcarRetratos = false) => {
     const m = s.store.documento;
     const andar = andarAtual(m);
@@ -283,12 +283,12 @@ export function iniciarPublicacao(
     const filtroFoco = filtro.tipo === 'foco' ? filtro : undefined;
     if (local) {
       const doc = comModo(projetarParaJogadores(m, andar, filtroFoco));
-      ameacasNoEstadoLocal = ameacasDoEstado(doc);
+      ameacasNoEstadoLocal = ameacasDoEstado(doc, filtroFoco);
       enviar({ tipo: 'estado', doc, ...extra }, 'local');
     }
     if (remoto) {
       const doc = comModo(projetarParaRemoto(m, andar, filtroFoco));
-      ameacasNoEstadoRemoto = ameacasDoEstado(doc);
+      ameacasNoEstadoRemoto = ameacasDoEstado(doc, filtroFoco);
       // Sem névoa o mestre mostra o mapa todo: a ponte pede a confirmação dele, uma vez por mapa, e segura o `estado` até lá.
       if (doc.session.explored === null) {
         if (!semNevoaAvisados.has(m.id)) { semNevoaAvisados.add(m.id); enviar({ tipo: 'aviso-sem-nevoa', mapa: m.id, nome: m.name }, 'remoto'); }
@@ -420,9 +420,10 @@ export function iniciarPublicacao(
       if (algum() && !parado && t && andarDe(t) === andarDoProjetor.peek()) {
         // Anti-spoiler: ameaça só viaja no gesto enquanto os jogadores a veem; entrar/sair da vista pede um `estado`.
         const filtro = filtroDeVisao.peek();
-        const visivel = t.player || pontoVisivelAgora(e.documento, t.position, t.size * e.documento.grid.size * 0.35, filtro.tipo === 'foco' ? filtro : undefined);
-        const noLocal = t.player || ameacasNoEstadoLocal.has(tokenId), noRemoto = t.player || ameacasNoEstadoRemoto.has(tokenId);
-        if (!t.player && ((projetorConectado.peek() && visivel !== noLocal) || (projetorRemotoConectado.peek() && visivel !== noRemoto))) agendar(80);
+        const livre = pecaSempreVisivel(t, filtro);
+        const visivel = livre || pontoVisivelAgora(e.documento, t.position, t.size * e.documento.grid.size * 0.35, filtro.tipo === 'foco' ? filtro : undefined);
+        const noLocal = livre || ameacasNoEstadoLocal.has(tokenId), noRemoto = livre || ameacasNoEstadoRemoto.has(tokenId);
+        if (!livre && ((projetorConectado.peek() && visivel !== noLocal) || (projetorRemotoConectado.peek() && visivel !== noRemoto))) agendar(80);
         const agora = performance.now();
         if (visivel && agora - ultimoEnvioGesto >= 12) {
           ultimoEnvioGesto = agora;
