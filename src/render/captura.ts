@@ -21,7 +21,7 @@ export interface Captura {
 
 export interface ContextoDeCaptura {
   app: Application;
-  cena: Pick<Cena, 'forcarTelhados' | 'pintando'>;
+  cena: Pick<Cena, 'forcarTelhados' | 'pintando' | 'descarregarPendencias'>;
   doc(): MapaAtlas;
   tela(): Tela;
   camera(): Camera;
@@ -93,6 +93,7 @@ export async function capturarViewport(
     if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
       ctx.app.ticker.update();
     }
+    ctx.cena.descarregarPendencias();
     ctx.app.renderer.render(ctx.app.stage);
     const cam = ctx.camera();
     const [ax, ay] = mundoParaTela(cam, [caixa.x0, caixa.y0]);

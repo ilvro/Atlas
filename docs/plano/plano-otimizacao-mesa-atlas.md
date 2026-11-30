@@ -261,3 +261,14 @@ Formato: **Tarefa N** — desvio ou limite; motivo; estado (corrigido / aceito /
 - No projetor, a prévia de baixa resolução substitui o sprite antigo até a alta chegar; o chão pode ficar borrado por instantes ao revelar. **Aceito:** troca consciente por mostrar o calçamento na hora (o sprite antigo nem tem as camadas novas).
 - Imagens da coleção prontas (`harmonizar: false`, não Pixel) saem do IndexedDB e dependem do cache HTTP do navegador. **Aceito:** é o item 3 do plano.
 - A prioridade 2 para ladrilho fora da tela fica para a Tarefa 4. **Aberto.**
+
+### Tarefa 3
+- O total em memória (`totalBytesEstimado`) é por conexão e não enxerga gravações de outra aba/janela; a estimativa pode ficar abaixo do real até a próxima abertura. **Aceito:** o cache é um teto frouxo e a conexão se reabre (e recalcula) em `onclose`/`onversionchange`.
+- As gravações passaram a ser **serializadas** (cadeia de promessas), coisa que o plano não pedia: sem isso duas gravações simultâneas liam o total antes de a outra terminar. **Corrigido** (é parte da solução).
+
+### Tarefa 4
+- A repriorização dos itens já na fila quando a câmera se move (item opcional do plano) **não foi feita**: `sincronizarTerreno` e `sincronizarObjetos` saem cedo quando a chave não mudou, então não chegam a chamar `baker.pedir` de novo. Pede um gatilho próprio no viewport. **Aberto.**
+- Cômodos ficam com prioridade 0 (não entram na priorização por viewport): o plano só cita terreno, objetos e telhados. **Aceito.**
+- A visibilidade de objeto usa só o ponto de posição, com a margem de 2 m do viewport; objeto grande com o centro logo fora da margem cai na prioridade 5. **Aceito.**
+- O `sombrasSuja` de terreno só liga com camadas de terreno no mapa (a sombra dos maciços lê `terrain.layers`, não a textura). **Aceito.**
+- Adicionado `descarregarPendencias()` à `Cena` e chamado em `captura.ts` antes do `render` final, para a captura nunca sair sem sombras/altura pendentes. **Corrigido** (acréscimo ao plano).

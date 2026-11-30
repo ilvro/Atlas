@@ -1,3 +1,4 @@
+import { carregarCatalogo } from '../procedural/texturas-carregadas.ts';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { signal } from '@preact/signals';
 import { iniciarTema } from '../app/tema.ts';
@@ -77,6 +78,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
   const remoto = salaId !== undefined;
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    void carregarCatalogo();                                  // o catálogo de texturas vem em paralelo ao primeiro `estado`
     silenciarNestaJanela();                                   // o áudio não toca no projetor
     const sairTema = iniciarTema();
     document.body.classList.add('projetor');

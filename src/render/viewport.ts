@@ -271,7 +271,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     // Chegou um retrato: redesenha as peças (só as peças, sem refazer o resto).
     if (destruido) return; const m = doc(); cena.sincronizar(m, { completo: false, colecoes: { tokens: Object.keys(m.tokens) }, campos: [] }, false, visaoDoClima(m), ctxAndar()); camadaSuja = true;
   });
-  const cena: Cena = criarCena({ baker, renderer: app.renderer, acento, efeitos: fxAtivo, aoPintar: () => { camadaSuja = true; }, retrato: (id, pixel) => retratos.obter(id, pixel), recursos: t => ponte.recursosDaPeca?.(t) ?? null, pecaDoJogador: t => ponte.pecaDoJogador?.(t) ?? false });
+  const cena: Cena = criarCena({ baker, renderer: app.renderer, acento, efeitos: fxAtivo, aoPintar: () => { camadaSuja = true; }, caixaVisivel: () => { const t = tela(), [x0, y0] = telaParaMundo(camera, [0, 0]), [x1, y1] = telaParaMundo(camera, [t.largura, t.altura]); return { x0: x0 - 2, y0: y0 - 2, x1: x1 + 2, y1: y1 + 2 }; }, retrato: (id, pixel) => retratos.obter(id, pixel), recursos: t => ponte.recursosDaPeca?.(t) ?? null, pecaDoJogador: t => ponte.pecaDoJogador?.(t) ?? false });
   const acabamento = criarFiltroAcabamento();
   const pixelizacao = criarPixelizacao(app.renderer);
   let pixelAtivo = false, zoomLivre = camera.zoom;

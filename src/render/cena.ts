@@ -57,6 +57,8 @@ export interface OpcoesDaCena {
   recursos?(t: Peca): Recursos | null;
   /** A peça pertence ao jogador que está vendo o projetor remoto (R14)? */
   pecaDoJogador?(t: Peca): boolean;
+  /** O que a câmera mostra agora (em metros, com margem), para assar primeiro o que está na tela; `null` quando não se sabe. */
+  caixaVisivel?(): { x0: number; y0: number; x1: number; y1: number } | null;
 }
 
 export interface ContextoDoAndar {
@@ -73,6 +75,8 @@ export interface Cena {
   atualizarAtmosfera(visao: MapaAtlas): void;
   /** Avança as animações de entrada e a tremulação das luzes. */
   quadro(agora: number): void;
+  /** Faz já o pós-processamento adiado (coleta do baker, altura dos objetos, sombras, tempo); o `quadro` faz o mesmo no início. */
+  descarregarPendencias(): void;
   /** A atmosfera (luz, sombras) aparece? É do editor, não do mapa. */
   definirAtmosfera(ligada: boolean): void;
   /** Um relâmpago agora (com trovão, se o som estiver ligado). */
@@ -118,7 +122,7 @@ interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; 
 export function criarCena(op: OpcoesDaCena): Cena {
   const raiz = new Container(), mundoIluminado = new Container(), terrenoC = new Container(), veuTerrenoG = new Graphics(), submersosC = Object.assign(new Container(), { sortableChildren: true }), escarpasC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics(), fantasmaAndarG = new Graphics();
   const marcasG = new Graphics(), regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), tituloC = new Container();
-  const luz = criarMapaDeLuz(op.renderer), cenaDeAltura = criarCenaDeAltura(), composicaoDeLuz = criarComposicaoDeLuz(op.renderer, luz, cenaDeAltura), nevoa = criarNevoa(op.renderer), telhados = criarTelhados({ baker: op.baker, renderer: op.renderer, luz, aoPintar: op.aoPintar }), neblina = criarNeblina({ textura: () => (luz.sprite.texture === Texture.EMPTY ? null : luz.sprite.texture), escala: () => luz.escala }), bordas = criarBordas(), particulas = criarParticulas(), presenca = criarPresenca(), agua = criarAgua(), cachoeiras = criarCachoeiras(), sombras = criarSombrasDoSol(op.renderer), contato = criarContatoExterno(op.renderer), tempo = criarTempoNoChao(op.renderer);
+  const luz = criarMapaDeLuz(op.renderer), cenaDeAltura = criarCenaDeAltura(), composicaoDeLuz = criarComposicaoDeLuz(op.renderer, luz, cenaDeAltura), nevoa = criarNevoa(op.renderer), telhados = criarTelhados({ baker: op.baker, renderer: op.renderer, luz, aoPintar: op.aoPintar, ...(op.caixaVisivel ? { caixaVisivel: op.caixaVisivel } : {}) }), neblina = criarNeblina({ textura: () => (luz.sprite.texture === Texture.EMPTY ? null : luz.sprite.texture), escala: () => luz.escala }), bordas = criarBordas(), particulas = criarParticulas(), presenca = criarPresenca(), agua = criarAgua(), cachoeiras = criarCachoeiras(), sombras = criarSombrasDoSol(op.renderer), contato = criarContatoExterno(op.renderer), tempo = criarTempoNoChao(op.renderer);
   const halos = criarHalos(luz, telhados), fumaca = criarFumaca();
   // A tinta do chão (presença natural) cobre o piso, mas não a face de rocha das escarpas, que sobe acima dela.
   // No Ilustrado, a composição de luz renderiza `mundoIluminado` em `corRT`, escreve HDR em `hdrRT` e aplica bloom em `composicaoDeLuz.sprite`; no Pixel, `luz.sprite` multiplica em 8 bits. Marcadores, regiões e peças ficam por cima.
@@ -165,6 +169,22 @@ export function criarCena(op: OpcoesDaCena): Cena {
     }
   };
 
+  // Pós-processamento adiado: pintar 60 objetos de uma vez rodava sombras, tempo e altura 60 vezes na main thread.
+  let coletaSuja = false, alturaObjetosSuja = false, sombrasSuja = false, tempoSujo = false;
+  function descarregarPendencias(): void {
+    if (destruida) return;
+    if (coletaSuja) { coletaSuja = false; op.baker.coletar(chavesEmUso()); }
+    if (alturaObjetosSuja) { alturaObjetosSuja = false; cenaDeAltura.sincronizarObjetos(objetos, objetosC); }
+    if (sombrasSuja && mapa) { sombrasSuja = false; sombras.atualizar(mapa, objetos, pixelRes0(mapa)); }
+    if (tempoSujo && mapa) { tempoSujo = false; tempo.atualizar(mapa, objetos); }
+  }
+
+  /** A caixa (em metros) está, ao menos em parte, dentro do que a câmera mostra? Sem câmera conhecida, tudo conta como visível. */
+  function visivel(x0: number, y0: number, x1: number, y1: number): boolean {
+    const v = op.caixaVisivel?.();
+    return !v || (x1 >= v.x0 && x0 <= v.x1 && y1 >= v.y0 && y0 <= v.y1);
+  }
+
   /** Pede a pintura e, quando chega, troca o desenho — a menos que a coisa já tenha mudado de novo. */
   function pintar(
     e: Entrada,
@@ -174,6 +194,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     prioridade?: number,
     previa?: { chave: string; pedido: PedidoDeBake },
     forcarPrevia = false,
+    tipo: 'terreno' | 'escarpa' | 'comodo' | 'objeto' = 'objeto',
   ): void {
     if (e.chave === chave) return;
     const usarPrevia = !!previa && previa.chave !== chave && (!e.sprite || forcarPrevia);
@@ -183,14 +204,24 @@ export function criarCena(op: OpcoesDaCena): Cena {
     const aplicarResultado = (chaveRecebida: string, r: ResultadoDeBake, ehPrevia: boolean) => {
       if (destruida || e.chave !== chave || e.c.destroyed) return;
       if (ehPrevia && (e.chavePrevia !== chaveRecebida || e.chaveTextura === chave)) return;
+      const tinhaAltura = e.texAltura !== null;
       const { tex, texAltura } = adquirir(chaveRecebida, r), antiga = e.chaveTextura;
       if (!e.sprite) { e.sprite = new Sprite(tex); e.c.addChild(e.sprite); } else e.sprite.texture = tex;
       e.texAltura = texAltura;
       aplicar(e.sprite, r); e.chaveTextura = chaveRecebida; e.placeholder.visible = false;
       if (!ehPrevia) e.chavePrevia = null;
       soltar(antiga);
-      if (!ehPrevia) op.baker.coletar(chavesEmUso());
-      if (mapa && !e.c.destroyed) { sombras.atualizar(mapa, objetos, pixelRes0(mapa)); tempo.atualizar(mapa, objetos); } op.aoPintar?.();
+      // O pós-processamento é adiado e junta tudo o que chegou no mesmo quadro (ver `descarregarPendencias`).
+      if (!ehPrevia) coletaSuja = true;
+      if (tipo === 'objeto') {
+        if (tinhaAltura || e.texAltura !== null) alturaObjetosSuja = true;
+        const o = mapa?.props[e.c.label] as Objeto | undefined;
+        if (o && (o.castsShadow || ehSombraProjetada(o)) && o.elevation === 'floor' && o.roomId === null) sombrasSuja = true;
+        if (mapa && (mapa.climate.weather.snow > 0.2 || mapa.climate.weather.rain > 0.3)) tempoSujo = true;
+      } else if (tipo === 'escarpa' || (tipo === 'terreno' && !ehPrevia && mapa && Object.keys(mapa.terrain.layers).length > 0)) {
+        sombrasSuja = true;
+      }
+      op.aoPintar?.();
     };
 
     if (usarPrevia) {
@@ -250,8 +281,14 @@ export function criarCena(op: OpcoesDaCena): Cena {
     const pedirLadrilhos = () => {
       terrenoTimer = null;
       if (destruida) return;
-      for (const l of ladrilhos) {
+      // Primeiro o que está na tela (e, entre eles, o mais perto do centro): os ladrilhos fora dela esperam.
+      const vis = op.caixaVisivel?.() ?? null;
+      const cx = vis ? (vis.x0 + vis.x1) / 2 : 0, cy = vis ? (vis.y0 + vis.y1) / 2 : 0;
+      const dist = (l: (typeof ladrilhos)[number]): number => (l.caixa.x + l.caixa.w / 2 - cx) ** 2 + (l.caixa.y + l.caixa.h / 2 - cy) ** 2;
+      const ordenados = vis ? [...ladrilhos].sort((a, b) => dist(a) - dist(b)) : ladrilhos;
+      for (const l of ordenados) {
         const k = `${l.i},${l.j}`;
+        const naTela = visivel(l.caixa.x, l.caixa.y, l.caixa.x + l.caixa.w, l.caixa.y + l.caixa.h);
         let alvo = terrenos.get(k);
         if (!alvo) { alvo = novaEntrada(terrenoC); terrenos.set(k, alvo); }
         const chave = chaveDoTerreno(l.entrada, res, estilo);
@@ -259,7 +296,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
         const caixa = l.caixa;
         const resPrevia = Math.max(1, res / 4);
         const baseTexturas = baseDasTexturas();
-        const previa = estilo === 'illustrated' && (!alvo.sprite || modoDoProjetor)
+        const previa = naTela && estilo === 'illustrated' && (!alvo.sprite || modoDoProjetor)
           ? { chave: chaveDoTerreno(l.entrada, resPrevia, estilo), pedido: { tipo: 'terreno' as const, entrada: l.entrada, res: resPrevia, estilo, baseTexturas, ...(terrenoEfemero ? { semCache: true } : {}) } }
           : undefined;
         pintar(alvo, chave, { tipo: 'terreno', entrada: l.entrada, res, estilo, baseTexturas, ...(terrenoEfemero ? { semCache: true } : {}) }, (s, r) => {
@@ -270,7 +307,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
             agua.aplicarLadrilho(caixa, r.agua, mapa);
             reaplicarSubmersos(mapa);
           }
-        }, 0, previa, modoDoProjetor);
+        }, naTela ? 1 : 4, previa, modoDoProjetor, 'terreno');
       }
       op.baker.coletar(chavesEmUso());
     };
@@ -290,7 +327,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       const p = m.walls[id]!, entrada = entradaDaEscarpa(p), origem = p.path[0]!;
       let e = escarpas.get(id); if (!e) { e = novaEntrada(escarpasC); escarpas.set(id, e); }
       e.c.position.set(origem[0], origem[1]);
-      pintar(e, chaveDaEscarpa(entrada, res, estilo), { tipo: 'escarpa', entrada, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); }, 0);
+      pintar(e, chaveDaEscarpa(entrada, res, estilo), { tipo: 'escarpa', entrada, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); }, 0, undefined, false, 'escarpa');
     }
   }
 
@@ -314,7 +351,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       const previa = estilo === 'illustrated' && !alvo.sprite
         ? { chave: chaveDoComodo(entrada, resPrevia, estilo), pedido: { tipo: 'comodo' as const, entrada, res: resPrevia, estilo } }
         : undefined;
-      pintar(alvo, chaveDoComodo(entrada, res, estilo), { tipo: 'comodo', entrada, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); cenaDeAltura.sincronizarComodo(sala.id, alvo.texAltura, r.origem, r.res); }, 0, previa);
+      pintar(alvo, chaveDoComodo(entrada, res, estilo), { tipo: 'comodo', entrada, res, estilo }, (s, r) => { s.position.set(r.origem[0], r.origem[1]); s.scale.set(1 / r.res); cenaDeAltura.sincronizarComodo(sala.id, alvo.texAltura, r.origem, r.res); }, 0, previa, false, 'comodo');
     }
   }
 
@@ -580,14 +617,14 @@ export function criarCena(op: OpcoesDaCena): Cena {
         entrada.c.visible = true;
       }
       if (!animacoes.some(a => a.alvo === entrada!.c)) entrada.c.scale.set(o.scale);
+      const naTela = visivel(o.position[0], o.position[1], o.position[0], o.position[1]);
       const pedido = pedidoDoObjeto(o, res, m.style.genre, m.style.renderer, opcoesDoPixel(m));
       if (pedido) pintar(entrada, chave, pedido, (sp, r) => {
         sp.position.set(r.origem[0], r.origem[1]); sp.scale.set(1 / r.res);
         // Sombra projetada: a textura só serve à camada das sombras do sol; o objeto em si não aparece.
         sp.alpha = ehSombraProjetada(o) ? 0 : 1;
         if (espelharImagem(mapa?.props[id] as Objeto | undefined)) { sp.position.x = -sp.position.x; sp.scale.x = -sp.scale.x; }
-        cenaDeAltura.sincronizarObjetos(objetos, objetosC);
-      }, 1);
+      }, naTela ? 1 : 5, undefined, false, 'objeto');
       // Imagem da coleção: o espelho é do sprite (a chave não muda), então acompanha o `flip` sem novo assado. Receita: já vem espelhada do assado.
       const sp = entrada.sprite;
       if (sp && !sp.destroyed && (sp.scale.x < 0) !== espelharImagem(o)) { sp.position.x = -sp.position.x; sp.scale.x = -sp.scale.x; }
@@ -895,7 +932,9 @@ export function criarCena(op: OpcoesDaCena): Cena {
     diagnosticoDasPecas: () => [...pecas.entries()].map(([id, c]) => ({ id, ...(visuais.get(c)?.estado() ?? { vez: false, retrato: false, deitada: false, raio: 0, deslizando: false, trilha: 0, quadro: null, pips: null, estadoVisto: 'normal' }) })),
     objetosPintados: () => [...objetos.values()].filter(e => e.sprite !== null && !e.placeholder.visible).length,
     tintDeObjeto: id => objetos.get(id)?.c.tint ?? null,
+    descarregarPendencias,
     quadro(agora) {
+      descarregarPendencias();
       const posicoesDeTokens = new Map<string, Ponto>();
       const tokensVivos = new Map<string, { position: Ponto; direction?: number }>();
       for (const [id, c] of pecas) {

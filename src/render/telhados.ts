@@ -281,7 +281,7 @@ export function alvoDoTelhado(op: {
   return !op.conhecido || (op.modoTelhados !== 'fechados' && op.dentro) ? 0 : 1;
 }
 
-export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: MapaDeLuz; aoPintar?(): void } = {}): Telhados {
+export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: MapaDeLuz; aoPintar?(): void; caixaVisivel?(): { x0: number; y0: number; x1: number; y1: number } | null } = {}): Telhados {
   const raiz = new Container();
   const sombrasC = new Container();
   const mundoCor = new Container();
@@ -444,12 +444,29 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
     if (tocou) op.aoPintar?.();
   }
 
+  /** O telhado toca o que a câmera mostra? Sem câmera conhecida, sim. */
+  function telhadoNaTela(entrada: EntradaDoTelhado): boolean {
+    const v = op.caixaVisivel?.();
+    if (!v) return true;
+    const { size, offset } = entrada.grade;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const t of entrada.trechos) {
+      for (const [cx, cy] of t.celulas) {
+        const x = offset[0] + cx * size, y = offset[1] + cy * size;
+        if (x < x0) x0 = x; if (y < y0) y0 = y; if (x + size > x1) x1 = x + size; if (y + size > y1) y1 = y + size;
+      }
+      for (const [x, y] of t.outline ?? []) { if (x < x0) x0 = x; if (y < y0) y0 = y; if (x > x1) x1 = x; if (y > y1) y1 = y; }
+    }
+    if (x0 === Infinity) return true;
+    return x1 >= v.x0 && x0 <= v.x1 && y1 >= v.y0 && y0 <= v.y1;
+  }
+
   function pedirTelhado(chave: string, entrada: EntradaDoTelhado, res: number, estilo: IdDoEstilo): TelhadoEmCache | null {
     const pronto = assados.get(chave);
     if (pronto) return pronto;
     if (!op.baker || emVoo.has(chave)) return null;
     emVoo.add(chave);
-    op.baker.pedir(chave, { tipo: 'telhado', entrada, res, estilo }, 2).then(r => {
+    op.baker.pedir(chave, { tipo: 'telhado', entrada, res, estilo }, telhadoNaTela(entrada) ? 3 : 6).then(r => {
       emVoo.delete(chave);
       if (destruido) return;
       const cor = texturaPropria(r.bitmap);
