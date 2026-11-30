@@ -106,6 +106,10 @@ export function compartilhar<T>(velho: unknown, novo: T): T {
   if (Object.is(velho, novo) || !ehObjeto(velho) || !ehObjeto(novo)) return novo;
   if (Array.isArray(novo)) {
     if (!Array.isArray(velho)) return novo;
+    // Faixas e tuplas de números: compara sem criar o array intermediário.
+    if (novo.every(x => typeof x !== 'object' || x === null)) {
+      return (novo.length === velho.length && novo.every((x, i) => Object.is(x, velho[i])) ? velho : novo) as T;
+    }
     const r = novo.map((x, i) => compartilhar(velho[i], x));
     return (r.length === velho.length && r.every((x, i) => x === velho[i]) ? velho : r) as T;
   }
