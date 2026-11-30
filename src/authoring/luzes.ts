@@ -94,6 +94,12 @@ export const LUZES_POR_FUNCAO: Readonly<Record<string, LuzDaFuncao>> = {
   'oficina-de-inventor': { m2PorLuz: 12, tamanho: 'principal', sobre: ['bancada-de-inventor', 'bobina-de-tesla'] },
   clube: { m2PorLuz: 14, tamanho: 'principal', sobre: ['mesa.bilhar', 'mesa.carteado', 'mesa.centro'] },
   'estacao-de-dirigivel': { m2PorLuz: 16, tamanho: 'principal', sobre: ['banca-de-jornal', 'banco.longo'] },
+  // Moderno urbano (Q21c): lâmpada do gênero; as máquinas de venda e o caixa já trazem a luz deles.
+  mercado: { m2PorLuz: 14, tamanho: 'principal', sobre: ['gondola', 'caixa-registradora'] },
+  lanchonete: { m2PorLuz: 12, tamanho: 'principal', sobre: ['mesa-de-lanchonete', 'balcao'] },
+  garagem: { m2PorLuz: 16, tamanho: 'principal', sobre: ['bancada.ferramentas'] },
+  posto: { m2PorLuz: 14, tamanho: 'principal', sobre: ['gondola', 'caixa-registradora'] },
+  vestiario: { m2PorLuz: 14, tamanho: 'principal', sobre: ['armario-de-vestiario'] },
 };
 
 const DISTANCIA_MINIMA = 2;

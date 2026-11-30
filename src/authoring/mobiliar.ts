@@ -54,6 +54,8 @@ const MATERIAIS_BASE: Readonly<Record<string, Record<string, MateriaisDoComodo>>
       fortim: { pisos: ['laje.pedra'], papeis: ['pedra.aparelhada'] }, 'casa-colonial': { pisos: ['tabuas.carvalho'], papeis: ['reboco.branco'] },
       fabrica: { pisos: ['laje.pedra'], papeis: ['tijolo'] }, 'oficina-de-inventor': { pisos: ['tabuas.rusticas'], papeis: ['tijolo'] },
       clube: { pisos: ['parquet.espinha'], papeis: ['papel.damasco-azul'] }, 'estacao-de-dirigivel': { pisos: ['marmore.xadrez-diagonal'], papeis: ['tijolo'] },
+      mercado: { pisos: ['vinil.industrial'], papeis: ['papel.liso-claro'] }, lanchonete: { pisos: ['ladrilho.xadrez'], papeis: ['azulejo.metro'] }, garagem: { pisos: ['concreto.placas'], papeis: ['reboco.branco'] },
+      posto: { pisos: ['vinil.industrial'], papeis: ['papel.liso-claro'] }, vestiario: { pisos: ['azulejo.branco'], papeis: ['azulejo.metro'] },
     };
     const e = extra[t.funcao]!; return [t.funcao, { pisos: [t.piso, ...e.pisos], papeis: [t.papel, ...e.papeis] }];
   })),
@@ -203,6 +205,15 @@ const VITORIANO_POR_FUNCAO: Readonly<Record<string, MateriaisDoComodo>> = {
   loja: { pisos: ['ladrilho.xadrez', 'parquet.espinha'], papeis: ['papel.listras-creme', 'boiserie.verde'] },
 };
 
+/** Moderno urbano: pisos frios e laváveis (vinil, concreto, azulejo) e o xadrez da lanchonete; paredes claras ou de azulejo de metrô. */
+const MODERNO_POR_FUNCAO: Readonly<Record<string, MateriaisDoComodo>> = {
+  mercado: { pisos: ['vinil.industrial', 'ladrilho.cozinha'], papeis: ['papel.liso-claro', 'reboco.branco'] },
+  lanchonete: { pisos: ['ladrilho.xadrez', 'azulejo.branco'], papeis: ['azulejo.metro', 'papel.liso-claro'] },
+  garagem: { pisos: ['concreto.placas', 'concreto'], papeis: ['reboco.branco', 'painel.metalico'] },
+  posto: { pisos: ['vinil.industrial', 'ladrilho.cozinha'], papeis: ['papel.liso-claro', 'painel.metalico'] },
+  vestiario: { pisos: ['azulejo.branco', 'vinil.industrial'], papeis: ['azulejo.metro', 'reboco.branco'] },
+};
+
 const PALETAS_BASE: Readonly<Record<string, Paleta[]>> = {
   investigacao: [
     { nome: 'Vinho e carvalho', madeira: 'madeira.escura', tecidos: ['tecido.veludo-vinho', 'tecido.linho'], tapete: 'tapete.persa' },
@@ -224,6 +235,7 @@ const PALETAS_BASE: Readonly<Record<string, Paleta[]>> = {
 /** Cada gênero novo copia, por enquanto, o mais próximo; os materiais próprios chegam com as Q10–Q12 e as fichas `c` de cada época os ligam. */
 export const MATERIAIS_POR_GENERO: Readonly<Record<string, Record<string, MateriaisDoComodo>>> = {
   ...MATERIAIS_BASE,
+  moderno: { ...MATERIAIS_BASE.moderno!, ...MODERNO_POR_FUNCAO },
   antiguidade: { ...MATERIAIS_BASE.fantasia!, ...ANTIGUIDADE_POR_FUNCAO },
   oriental: { ...MATERIAIS_BASE.fantasia!, ...ORIENTAL_POR_FUNCAO },
   deserto: { ...MATERIAIS_BASE.fantasia!, ...DESERTO_POR_FUNCAO },

@@ -112,6 +112,13 @@ export const CONJUNTOS_EXTERIORES: readonly ConjuntoDeEspalhar[] = [
     { receita: 'chamine-industrial', peso: 1, contexto: 'livre' }, { receita: 'tubulacao.cobre', peso: 2, contexto: 'livre' }, { receita: 'esteira', peso: 1, contexto: 'livre' },
     { receita: 'carroca', peso: 1, contexto: 'livre' }, { receita: 'caixote', peso: 3, contexto: 'livre' }, { receita: 'pilha-de-caixotes', peso: 2, contexto: 'livre' },
     { receita: 'barril', peso: 2, contexto: 'livre' }, { receita: 'sacos', peso: 2, contexto: 'livre' }, { receita: 'lampiao-a-gas', peso: 1, contexto: 'livre' }] },
+  { id: 'rua-urbana', nome: 'Rua urbana', descricao: 'Semáforos, hidrantes, lixeiras, ponto de ônibus, orelhão, carros estacionados, motos e cones', densidade: 0.04, itens: [
+    { receita: 'semaforo', peso: 1, contexto: 'livre' }, { receita: 'hidrante', peso: 2, contexto: 'livre' }, { receita: 'lixeira', peso: 3, contexto: 'livre' },
+    { receita: 'ponto-de-onibus', peso: 1, contexto: 'livre' }, { receita: 'orelhao', peso: 1, contexto: 'livre' }, { familia: 'carro', peso: 5, contexto: 'livre' },
+    { receita: 'moto', peso: 1, contexto: 'livre' }, { receita: 'bicicleta', peso: 1, contexto: 'livre' }, { receita: 'cone', peso: 2, contexto: 'livre' }] },
+  { id: 'estacionamento', nome: 'Estacionamento', descricao: 'Carros e motos, caçamba, cones e barreiras', densidade: 0.05, itens: [
+    { familia: 'carro', peso: 8, contexto: 'livre' }, { receita: 'moto', peso: 1, contexto: 'livre' }, { receita: 'cacamba', peso: 1, contexto: 'livre' },
+    { receita: 'cone', peso: 3, contexto: 'livre' }, { receita: 'barreira', peso: 2, contexto: 'livre' }, { receita: 'lixeira', peso: 1, contexto: 'livre' }] },
 ];
 export const TODOS_OS_CONJUNTOS: readonly ConjuntoDeEspalhar[] = [...CONJUNTOS_DE_ESPALHAR, ...CONJUNTOS_EXTERIORES];
 export const conjuntoDeEspalhar = (id: string): ConjuntoDeEspalhar | undefined => TODOS_OS_CONJUNTOS.find(c => c.id === id);

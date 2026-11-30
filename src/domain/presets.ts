@@ -67,6 +67,12 @@ export const TIPOS_DE_COMODO: readonly TipoDeComodo[] = [
   { id: 'oficina-de-inventor', nome: 'Oficina de inventor', funcao: 'oficina-de-inventor', piso: 'tabuas.gastas', papel: 'tijolo.fuligem', descricao: 'Bancada de inventor, autômato, bobina de Tesla, engrenagens e prensa' },
   { id: 'clube', nome: 'Clube de cavalheiros', funcao: 'clube', piso: 'tabuas.escuras', papel: 'papel.damasco-vinho', descricao: 'Poltronas de couro, lareira, mesa de bilhar, gramofone e estante' },
   { id: 'estacao-de-dirigivel', nome: 'Estação de dirigível', funcao: 'estacao-de-dirigivel', piso: 'ladrilho.xadrez', papel: 'tijolo.fuligem', descricao: 'Salão de embarque: bancos, banca de jornal, relógio, malas e esteira de bagagem' },
+  // Moderno urbano (Q21c). `enfermaria` já existe (função `hospital`) e ganha cama hospitalar no gênero; o posto é só a loja de conveniência (as bombas ficam fora, no exterior), e por isso tem telhado.
+  { id: 'mercado', nome: 'Mercado', funcao: 'mercado', piso: 'vinil.industrial', papel: 'papel.liso-claro', descricao: 'Gôndolas em fileiras, freezers na parede e caixas' },
+  { id: 'lanchonete', nome: 'Lanchonete', funcao: 'lanchonete', piso: 'ladrilho.xadrez', papel: 'azulejo.metro', descricao: 'Mesas com assento estofado, balcão e máquina de venda' },
+  { id: 'garagem', nome: 'Garagem', funcao: 'garagem', piso: 'concreto.placas', papel: 'reboco.branco', descricao: 'Carros, bancada de ferramentas, tambores e caixotes' },
+  { id: 'posto', nome: 'Posto (conveniência)', funcao: 'posto', piso: 'vinil.industrial', papel: 'papel.liso-claro', descricao: 'Loja de conveniência: gôndolas, freezer, caixa e máquina de venda' },
+  { id: 'vestiario', nome: 'Vestiário', funcao: 'vestiario', piso: 'azulejo.branco', papel: 'azulejo.metro', descricao: 'Armários de vestiário nas paredes e bancos' },
 ];
 export const tipoDeComodo = (id: string): TipoDeComodo | undefined => TIPOS_DE_COMODO.find(t => t.id === id);
 
@@ -311,7 +317,7 @@ export function telhadoPadrao(
     return clonarTelhado(estiloDeTelhado('torre-redonda')!.roof);
   }
   if (funcao && ESTILO_POR_FUNCAO[funcao]) return clonarTelhado(estiloDeTelhado(ESTILO_POR_FUNCAO[funcao]!)!.roof);
-  if (m.style.genre === 'moderno' && (funcao === 'deposito' || funcao === 'oficina')) {
+  if (m.style.genre === 'moderno' && (funcao === 'deposito' || funcao === 'oficina' || funcao === 'garagem')) {
     return clonarTelhado(estiloDeTelhado('galpao-de-zinco')!.roof);
   }
   if (celulas.length) {

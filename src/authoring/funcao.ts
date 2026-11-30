@@ -10,6 +10,11 @@ const FUNCOES = new Set(TIPOS_DE_COMODO.map(t => t.funcao));
 
 // Das mais específicas para as mais genéricas: a primeira palavra que bate decide.
 const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number }[] = [
+  // Moderno urbano (Q21c): "lanchonete", "mercado" e "garagem" valem soltos. "Posto" sozinho é ambíguo (posto de guarda, posto avançado), então só vale em nome inteiro ou com "gasolina/combustível" (ver `FRASES`); "enfermaria" continua indo para `hospital`.
+  { palavras: ['lanchonete', 'diner', 'lancheria', 'hamburgueria', 'cafeteria'], funcao: 'lanchonete', confianca: 0.9 },
+  { palavras: ['supermercado', 'minimercado', 'hipermercado', 'mercado'], funcao: 'mercado', confianca: 0.9 },
+  { palavras: ['garagem', 'garagens'], funcao: 'garagem', confianca: 0.9 },
+  { palavras: ['vestiario'], funcao: 'vestiario', confianca: 0.9 },
   // Vitoriano (Q20c): "clube" e "dirigível" valem soltos; "fábrica", "tecelagem" e "usina" também. "Caldeira" é palavra solta de outra coisa (panela grande), então só "sala/casa da(s) caldeira(s)" vale (ver `FRASES`). "Oficina" sozinha continua a oficina comum; a de inventor tem frase própria.
   { palavras: ['fabrica', 'tecelagem', 'usina'], funcao: 'fabrica', confianca: 0.9 },
   { palavras: ['dirigivel', 'zeppelin'], funcao: 'estacao-de-dirigivel', confianca: 0.9 },
@@ -68,6 +73,7 @@ const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number
 ];
 /** Frases que valem mais que as palavras soltas ("salão de chá" não é "casa de chá"); vêm antes de `POR_NOME`. */
 const FRASES: readonly { frase: RegExp; funcao: string; confianca: number }[] = [
+  { frase: /^posto( \d+)?$|\bposto (de |da )?(gasolina|combustivel|combustiveis|abastecimento|servico|servicos)\b|\bloja de conveniencia\b|\bconveniencia\b/, funcao: 'posto', confianca: 0.9 },
   { frase: /\b(oficina|laboratorio|atelie) (do|de) inventor\b|\boficina (de )?invencoes\b|\boficina steampunk\b/, funcao: 'oficina-de-inventor', confianca: 0.9 },
   { frase: /\b(sala|casa) (da|das|de) caldeiras?\b/, funcao: 'fabrica', confianca: 0.9 },
   { frase: /\bcabine (do|de) (capitao|comandante)\b|\bcamarote (do|de) (capitao|comandante)\b|^cabine( \d+)?$/, funcao: 'cabine-do-capitao', confianca: 0.9 },

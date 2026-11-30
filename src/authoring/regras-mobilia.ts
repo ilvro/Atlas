@@ -129,6 +129,11 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('globo', ['globo.terrestre'], 'canto', [0, 1], 9),
     item('enfeite-mesa', ['tinteiro.pena', 'abajur.mesa', 'livro.aberto', 'telefone.antigo', 'papeis', 'notebook'], 'sobre', [2, 3], 10, { junto: { de: 'escrivaninha', modo: 'ao-lado' } }),
     item('jornais', ['jornais'], 'parede', [0, 1], 11),
+    // Moderno (Q21c): as receitas só servem ao gênero moderno e herdeiros, então nos outros estes itens saem sozinhos.
+    item('estacao', ['estacao-de-trabalho'], 'parede', [0, 3], 3.2, { areaMinima: 10, escala: 0.5 }),
+    item('divisoria', ['divisoria'], 'centro', [0, 2], 3.4, { areaMinima: 20 }),
+    item('copiadora', ['copiadora'], 'canto', [0, 1], 6.5, { areaMinima: 10 }),
+    item('bebedouro', ['bebedouro.galao'], 'canto', [0, 1], 6.6, { areaMinima: 8 }),
   ],
   banheiro: [
     item('banheira', ['banheira.pes'], 'parede', [1, 1], 1, { areaMinima: 6 }),
@@ -233,6 +238,9 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('mesinha', ['mesinha'], 'junto', [1, 3], 2, { junto: { de: 'cama', modo: 'ao-lado' } }),
     item('balcao', ['balcao'], 'parede', [0, 1], 3, { areaMinima: 10 }),
     item('cadeira', ['cadeira'], 'canto', [0, 1], 4),
+    // Moderno (Q21c): armário de vestiário e bebedouro na enfermaria.
+    item('armario', ['armario-de-vestiario'], 'parede', [0, 1], 5, { areaMinima: 10 }),
+    item('bebedouro', ['bebedouro.galao'], 'canto', [0, 1], 6, { areaMinima: 12 }),
   ],
   taverna: [
     item('balcao', ['balcao'], 'parede', [1, 1], 1, { areaMinima: 12, params: { largura: 3 } }),
@@ -605,6 +613,47 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('quadro', ['quadro'], 'na-parede', [0, 2], 10),
     item('arandela', ['arandela'], 'na-parede', [1, 2], 11),
   ],
+  // Moderno urbano (Q21c). Limites de área em m²; o que é grande (carros, gôndolas do meio) só entra nas áreas maiores.
+  mercado: [
+    item('caixa', ['caixa-registradora'], 'parede', [1, 2], 1, { escala: 0.3 }),
+    item('gondola', ['gondola'], 'centro', [2, 4], 2, { areaMinima: 14, escala: 0.6 }),
+    item('gondola-parede', ['gondola'], 'parede', [1, 2], 3, { areaMinima: 8 }),
+    item('freezer', ['freezer'], 'parede', [1, 2], 4, { areaMinima: 10 }),
+    item('maquina-de-venda', ['maquina-de-venda'], 'canto', [0, 1], 5, { areaMinima: 20 }),
+  ],
+  lanchonete: [
+    item('balcao', ['balcao'], 'parede', [1, 1], 1, { areaMinima: 10, params: { largura: 3 } }),
+    item('mesa', ['mesa-de-lanchonete'], 'centro', [2, 4], 2, { areaMinima: 8, escala: 0.6 }),
+    item('maquina-de-venda', ['maquina-de-venda'], 'canto', [0, 1], 3, { areaMinima: 12 }),
+    item('freezer', ['freezer'], 'parede', [0, 1], 4, { areaMinima: 18 }),
+    item('caixa', ['caixa-registradora'], 'parede', [0, 1], 5, { areaMinima: 24 }),
+    item('vaso', ['vaso.planta'], 'canto', [0, 1], 6),
+  ],
+  garagem: [
+    item('carro', ['carro.sedan', 'carro.hatch', 'carro.picape', 'carro.van'], 'centro', [1, 2], 1, { areaMinima: 14, escala: 0.5 }),
+    item('bancada', ['bancada.ferramentas'], 'parede', [1, 2], 2, { areaMinima: 8 }),
+    item('moto', ['moto', 'bicicleta'], 'canto', [0, 1], 3, { areaMinima: 10 }),
+    item('armario', ['armario-de-vestiario'], 'parede', [0, 1], 4, { areaMinima: 16 }),
+    item('tambor', ['barril', 'barril.em-pe'], 'canto', [1, 2], 5),
+    item('caixote', ['caixote'], 'canto', [0, 2], 6),
+    item('extintor', ['extintor'], 'canto', [0, 1], 7),
+  ],
+  // O posto é só a loja de conveniência; as bombas ficam fora, no exterior.
+  posto: [
+    item('caixa', ['caixa-registradora'], 'parede', [1, 1], 1),
+    item('gondola', ['gondola'], 'centro', [1, 2], 2, { areaMinima: 14 }),
+    item('gondola-parede', ['gondola'], 'parede', [1, 1], 3, { areaMinima: 8 }),
+    item('freezer', ['freezer'], 'parede', [1, 2], 4, { areaMinima: 8 }),
+    item('maquina-de-venda', ['maquina-de-venda'], 'canto', [1, 1], 5, { areaMinima: 8 }),
+    item('extintor', ['extintor'], 'canto', [0, 1], 6),
+  ],
+  vestiario: [
+    item('armario', ['armario-de-vestiario'], 'parede', [2, 4], 1, { escala: 0.5 }),
+    item('banco', ['banco', 'banco.longo'], 'centro', [1, 2], 2, { areaMinima: 8 }),
+    item('bebedouro', ['bebedouro.galao'], 'canto', [0, 1], 3, { areaMinima: 8 }),
+    item('maquina-de-venda', ['maquina-de-venda'], 'canto', [0, 1], 4, { areaMinima: 16 }),
+    item('cesto', ['cesto.roupa'], 'canto', [0, 1], 5),
+  ],
   // Vitoriano e steampunk (Q20c). Máquinas só nas áreas maiores; as peças de parede (manômetros, engrenagens) e a luz da caldeira, da bancada e da bobina vêm dos próprios objetos.
   fabrica: [
     item('caldeira', ['caldeira'], 'parede', [1, 1], 1, { areaMinima: 18 }),
@@ -677,6 +726,7 @@ const VARIACOES_BASE: Readonly<Record<string, { trocar?: Record<string, string[]
       'escritorio:escrivaninha': ['escrivaninha.computador'], 'sala-de-jantar:mesa': ['mesa.vidro'], 'cozinha:mesa': ['mesa.vidro'],
       'oficina:bancada': ['bancada.ferramentas'], 'oficina:banqueta': ['cadeira'], 'dormitorio:bau': ['comoda'], 'cela:cama': ['cama.solteiro'],
       'refeitorio:mesa': ['mesa.retangular'], 'refeitorio:banco': ['cadeira', 'banco'], 'salao:mesa': ['mesa.retangular'], 'salao:banco': ['cadeira'],
+      'hospital:cama': ['cama-hospitalar'],
     },
   },
   fantasia: {

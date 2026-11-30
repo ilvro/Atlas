@@ -30,7 +30,7 @@ test('as receitas do kit exterior desenham sem erro, com pegada estável e parte
 });
 
 test('os conjuntos exteriores só citam itens do acervo, e as árvores levam a tag `arvore`', () => {
-  assert.deepEqual(CONJUNTOS_EXTERIORES.map(c => c.id), ['mata', 'mata-fechada', 'jardim', 'cemiterio', 'mata-nevada', 'bosque-morto', 'encosta-rochosa', 'costa-rochosa', 'ruina-classica', 'mercado-antigo', 'jardim-de-pedras', 'bosque-de-bambu', 'oasis', 'acampamento-de-caravana', 'rua-de-fronteira', 'deserto-de-cactos', 'enseada', 'tesouro-espalhado', 'rua-de-paralelepipedo', 'patio-de-fabrica']); assert.equal(TODOS_OS_CONJUNTOS.length, 26);
+  assert.deepEqual(CONJUNTOS_EXTERIORES.map(c => c.id), ['mata', 'mata-fechada', 'jardim', 'cemiterio', 'mata-nevada', 'bosque-morto', 'encosta-rochosa', 'costa-rochosa', 'ruina-classica', 'mercado-antigo', 'jardim-de-pedras', 'bosque-de-bambu', 'oasis', 'acampamento-de-caravana', 'rua-de-fronteira', 'deserto-de-cactos', 'enseada', 'tesouro-espalhado', 'rua-de-paralelepipedo', 'patio-de-fabrica', 'rua-urbana', 'estacionamento']); assert.equal(TODOS_OS_CONJUNTOS.length, 28);
   for (const c of CONJUNTOS_EXTERIORES) for (const i of c.itens) for (const r of receitasDoItem(i)) assert.ok(ACERVO.item(r), r);
   for (const a of ['casa:arvore-3m', 'casa:arvore-5m', 'casa:arvore-7m', 'casa:pinheiro-3m', 'casa:pinheiro-4m', 'casa:pinheiro-nevado-3m', 'casa:pinheiro-nevado-4m', 'casa:arvore-nevada-3m', 'casa:arvore-nevada-5m']) assert.ok(ACERVO.item(a)?.tags.includes('arvore'), a);
   assert.ok(!ACERVO.item('casa:arbusto-verde')?.tags.includes('arvore'));

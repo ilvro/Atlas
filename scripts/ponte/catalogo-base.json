@@ -1343,7 +1343,9 @@
             "enseada",
             "tesouro-espalhado",
             "rua-de-paralelepipedo",
-            "patio-de-fabrica"
+            "patio-de-fabrica",
+            "rua-urbana",
+            "estacionamento"
           ]
         },
         "forma": {
