@@ -178,5 +178,15 @@
       34
     ],
     "miniatura": "doca-do-dirigivel.webp"
+  },
+  {
+    "id": "posto-na-estrada",
+    "nome": "Posto na estrada",
+    "descricao": "Um posto de beira de rodovia numa noite de chuva: a cobertura acesa sobre as bombas, a loja de conveniência, a lanchonete com a viatura parada na frente, a borracharia e a estrada molhada sob os postes de sódio.",
+    "tamanho": [
+      48,
+      34
+    ],
+    "miniatura": "posto-na-estrada.webp"
   }
 ]
