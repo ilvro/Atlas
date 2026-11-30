@@ -258,6 +258,11 @@ export const FAMILIAS: readonly Familia[] = [
   f('moderno', 'mobiliario-urbano', 'Mobiliário urbano', ['hidrante', 'lixeira', 'orelhao', 'semaforo'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
   f('moderno', 'obra', 'Cone, barreira e caçamba', ['cone', 'barreira', 'cacamba'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
   f('moderno', 'bomba-de-gasolina', 'Bomba de gasolina', ['bomba-de-gasolina'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
+  f('moderno', 'escritorio', 'Escritório', ['bebedouro.galao', 'copiadora', 'divisoria', 'estacao-de-trabalho'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
+  f('moderno', 'mercado', 'Mercado', ['freezer', 'gondola', 'caixa-registradora'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
+  f('moderno', 'lanchonete', 'Lanchonete e máquina de venda', ['maquina-de-venda', 'mesa-de-lanchonete'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
+  f('moderno', 'armario-de-vestiario', 'Armário de vestiário', ['armario-de-vestiario'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
+  f('moderno', 'cama-hospitalar', 'Cama hospitalar', ['cama-hospitalar'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
   // Ficção científica
   f('ficcao', 'console', 'Console', ['console', 'mesa.navegacao', 'terminal.crt', 'painel.eletrico'], { generos: ['ficcao-cientifica', 'cyberpunk'] }),
   f('ficcao', 'gerador', 'Gerador', ['gerador'], { generos: ['ficcao-cientifica', 'cyberpunk'] }),

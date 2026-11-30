@@ -3,11 +3,11 @@ import { tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
 import { LUZ_X, LUZ_Y, bolha, lente, sombraNoChao, tira } from '../organico.ts';
 import { num, piso, type LuzDeReceita, type Receita } from './comum.ts';
-import { ID, O, S, anel, arco, bloco, disco, em, olhar, quadro, retQ, retR, tomDaFace, type Quadro, type Tons } from './antiguidade.ts';
+import { ID, O, S, anel, arco, bloco, disco, em, estofado, olhar, quadro, retQ, retR, tomDaFace, type Quadro, type Tons } from './antiguidade.ts';
 import { cilindro } from './colonial.ts';
 import { halo } from './oriental.ts';
 
-// Moderno urbano (Q21): a rua (Q21a). Lataria pintada com verniz (o teto e o capô pegam o céu), vidro escuro com o reflexo do céu,
+// Moderno urbano (Q21): a rua (Q21a) e os interiores de escritório, mercado, lanchonete, vestiário e enfermaria (Q21b). Lataria pintada com verniz (o teto e o capô pegam o céu), vidro escuro com o reflexo do céu,
 // borracha preta, plástico laranja de obra, concreto e aço galvanizado. As regras do acervo: nanquim por baixo da silhueta, volume em
 // degraus de tom para o noroeste, `z` das partes até 1,5 m e a `altura` real na receita. Os veículos olham para +x.
 
@@ -415,6 +415,281 @@ function bombaDeGasolina(seed: number): Parte[] {
   return partes;
 }
 
+// ---------- Escritório, mercado e lanchonete (Q21b) ----------
+
+const LAMINADO: Tons = tonsDe('#cdc6b6'), CINZA_CLARO: Tons = tonsDe('#c4c6c4'), PAPEL = '#eeeae0', TELA = '#2a5a8a';
+const PRODUTOS = ['#c8281c', '#e0a020', '#2a6ab0', '#3a8a3a', '#e8e4d8', '#8a2a6a', '#d86a1a', '#1e1e22', '#6ab0d8', '#f0d040'];
+
+/** Cadeira de escritório em (x, y), com o encosto para o lado `ang`: a base de cinco patas com rodízios, o assento, os braços e o encosto. */
+function cadeiraDeEscritorio(partes: Parte[], r: () => number, x: number, y: number, ang: number, cor: string): void {
+  const f = quadro(x, y, ang - Math.PI / 2), g = r() * 1.2;
+  for (let k = 0; k < 5; k++) { const a = g + (k / 5) * Math.PI * 2, px = x + Math.cos(a) * 0.3, py = y + Math.sin(a) * 0.3; partes.push(tira([x, y, px, py], 0.04, GRAFITE.base, 0.1, { contorno: 'leve', detalhe: 2 }), elipse(px, py, 0.06, 0.06, '#0a0a0c', 0.08, { contorno: 'leve', detalhe: 3 })); }
+  estofado(partes, f, ang - Math.PI / 2, 0, -0.03, 0.48, 0.46, cor, 0.48, 0.1);
+  for (const s of [-1, 1]) partes.push(poli(retR(f, s * 0.26, -0.02, 0.06, 0.3, 0.03), GRAFITE.base, 0.66, { contorno: 'leve', detalhe: 2 }));
+  estofado(partes, f, ang - Math.PI / 2, 0, 0.26, 0.46, 0.1, tom(cor, -0.15), 1.0, 0.05);
+}
+
+/** Monitor visto de cima, encostado no fundo da mesa: o pé, a tela em fita e a face acesa vista um pouco de frente (+y). */
+function monitor(partes: Parte[], x: number, y: number, w: number, z: number, aceso = true): void {
+  partes.push(elipse(x, y - 0.04, 0.2, 0.12, GRAFITE.base, z, { contorno: 'leve', detalhe: 2 }));
+  partes.push(poli(retR(ID, x, y - 0.08, w, 0.05, 0.015), GRAFITE.nanquim, z + 0.3, { contorno: 'leve', detalhe: 1 }), poli(retQ(ID, x, y - 0.03, w - 0.02, 0.06), '#0c0e12', z + 0.302, { ...O, detalhe: 2 }));
+  if (aceso) partes.push(poli(retQ(ID, x, y - 0.03, w - 0.05, 0.04), TELA, z + 0.304, { ...O, brilho: true, alfa: 0.8, detalhe: 2 }));
+}
+
+/** Estação de trabalho: a mesa de laminado com o fundo para −y, um ou dois monitores, o teclado, o mouse, papéis e a caneca; a cadeira de rodinhas na frente. */
+function estacaoDeTrabalho(seed: number, monitores: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], yM = -0.375;
+  sombraNoChao(partes, retQ(ID, 0, -0.1, 1.65, 1.3), 0.01, '#0a0a0c', 0.3);
+  cadeiraDeEscritorio(partes, r, 0.05 + (r() - 0.5) * 0.2, 0.35, Math.PI / 2 + (r() - 0.5) * 0.4, ['#24272b', '#1e3a6e', '#5a1e1e'][Math.floor(r() * 3)]!);
+  bloco(partes, quadro(0, yM), 1.6, 0.75, LAMINADO, 0.75, 0.02);
+  partes.push(elipse(0.65, -0.68, 0.06, 0.06, '#1a1a1c', 0.78, { ...O, detalhe: 3 }));
+  if (monitores >= 2) { monitor(partes, -0.3, -0.6, 0.54, 0.77); monitor(partes, 0.28, -0.6, 0.54, 0.77); } else monitor(partes, 0, -0.6, 0.6, 0.77);
+  // O teclado com as teclas, o mouse e o cabo.
+  partes.push(poli(retR(ID, 0, -0.27, 0.44, 0.14, 0.015), '#16181c', 0.78, { contorno: 'leve', detalhe: 2 }));
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 12; j++) partes.push(poli(retQ(ID, -0.19 + j * 0.035, -0.32 + i * 0.03, 0.026, 0.022), '#3a3d44', 0.782, { ...O, detalhe: 3 }));
+  partes.push(elipse(0.32, -0.26, 0.06, 0.09, '#1c1e22', 0.78, { contorno: 'leve', detalhe: 3 }), elipse(0.315, -0.28, 0.025, 0.03, '#5a5e66', 0.782, { ...S, detalhe: 3 }));
+  // Papéis, a caneca e, às vezes, um vasinho.
+  for (let k = 0; k < 3; k++) partes.push(poli(retQ(quadro(-0.6 + r() * 0.1, -0.3 + r() * 0.08, (r() - 0.5) * 0.5), 0, 0, 0.21, 0.29), PAPEL, 0.78 + k * 0.002, { contorno: 'leve', detalhe: 2 }));
+  partes.push(tira([-0.67, -0.36, -0.55, -0.36], 0.01, '#5a5a5a', 0.79, { ...O, alfa: 0.5, detalhe: 3 }), tira([-0.67, -0.32, -0.58, -0.32], 0.01, '#5a5a5a', 0.79, { ...O, alfa: 0.5, detalhe: 3 }));
+  disco(partes, 0.58, -0.32, 0.045, tonsDe(PRODUTOS[Math.floor(r() * PRODUTOS.length)]!), 0.82);
+  partes.push(elipse(0.58, -0.32, 0.06, 0.06, '#2a1608', 0.84, { ...O, detalhe: 3 }));
+  if (r() < 0.6) { disco(partes, 0.66, -0.62, 0.05, tonsDe('#a85a32'), 0.82); for (let k = 0; k < 6; k++) partes.push(lente(0.66, -0.62, r() * 6.28, 0.1, 0.035, k % 2 ? '#3a7a3a' : '#2a5a2a', 0.9, { contorno: 'leve', detalhe: 3 })); }
+  return partes;
+}
+
+/** Divisória de baias: o painel de tecido entre os perfis de alumínio, com os montantes e os pés. */
+function divisoria(seed: number, C: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], t = tonsDe(['#4a5a6a', '#6a6a64', '#3a4a5a'][Math.floor(r() * 3)]!);
+  sombraNoChao(partes, retQ(ID, 0, 0.03, C, 0.14), 0.01, '#0a0a0c', 0.3);
+  const n = Math.max(1, Math.round(C / 1.2));
+  for (let k = 0; k <= n; k++) { const u = -C / 2 + (C * k) / n; partes.push(poli(retQ(ID, u, 0, 0.05, 0.44), ACO.sombra, 0.04, { contorno: 'leve', detalhe: 2 })); }
+  partes.push(poli(retQ(ID, 0.01, 0.012, C, 0.09), t.nanquim, 1.2, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), poli(retQ(ID, 0, 0, C - 0.02, 0.07), t.base, 1.202, { ...O, detalhe: 1 }));
+  partes.push(tira([-C / 2 + 0.02, -0.02, C / 2 - 0.02, -0.02], 0.025, ACO.luz, 1.21, { ...O, detalhe: 2 }), tira([-C / 2 + 0.02, -0.025, C / 2 - 0.02, -0.025], 0.008, ACO.brilho, 1.212, { ...O, alfa: 0.8, detalhe: 3 }));
+  for (let k = 0; k <= n; k++) { const u = -C / 2 + (C * k) / n; partes.push(poli(retQ(ID, u, 0, 0.05, 0.1), ACO.base, 1.22, { contorno: 'leve', detalhe: 2 })); }
+  return partes;
+}
+
+/** Copiadora multifuncional: o corpo cinza-claro, a tampa do vidro com a pega, o painel com a tela acesa, a bandeja de saída com folhas e as gavetas de papel na frente. */
+function copiadora(seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [];
+  sombraNoChao(partes, retQ(ID, 0, 0, 1.15, 0.75), 0.01, '#0a0a0c', 0.35);
+  bloco(partes, quadro(-0.5, -0.02), 0.22, 0.4, CINZA_CLARO, 0.85, 0.02);
+  for (let k = 0; k < 4; k++) partes.push(poli(retQ(quadro(-0.5 + (r() - 0.5) * 0.02, -0.02, (r() - 0.5) * 0.08), 0, 0, 0.19, 0.28), PAPEL, 0.87 + k * 0.003, { contorno: 'leve', detalhe: 3 }));
+  bloco(partes, quadro(0.08, 0), 0.92, 0.66, CINZA_CLARO, 1.1, 0.04);
+  for (const v of [0.2, 0.28]) partes.push(tira([-0.32, v, 0.48, v], 0.008, CINZA_CLARO.nanquim, 1.105, { ...O, alfa: 0.6, detalhe: 3 }));
+  // A tampa do vidro e o alimentador de originais.
+  bloco(partes, quadro(-0.04, -0.06), 0.6, 0.44, tonsDe('#8a8c8e'), 1.2, 0.03);
+  partes.push(poli(retQ(ID, -0.04, -0.12, 0.42, 0.16), '#5a5c5e', 1.22, { contorno: 'leve', detalhe: 2 }), poli(retQ(ID, -0.04, 0.14, 0.24, 0.03), '#4a4c4e', 1.22, { ...O, detalhe: 3 }));
+  // O painel de comando com a tela e os botões.
+  partes.push(poli(retR(ID, 0.4, 0.1, 0.22, 0.26, 0.02), '#1c1e22', 1.2, { contorno: 'leve', detalhe: 2 }), poli(retQ(ID, 0.4, 0.05, 0.16, 0.1), '#3a7ab0', 1.202, { ...O, brilho: true, alfa: 0.7, detalhe: 2 }));
+  for (let k = 0; k < 6; k++) partes.push(elipse(0.34 + (k % 3) * 0.06, 0.15 + Math.floor(k / 3) * 0.05, 0.03, 0.03, k === 5 ? '#2a8a3a' : '#5a5e66', 1.203, { ...O, detalhe: 3 }));
+  return partes;
+}
+
+/** Bebedouro de galão: o corpo branco, as torneiras na frente (+y) sobre a bandeja, o galão azul de cabeça para baixo e o copinho do lado. */
+function bebedouroDeGalao(seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [];
+  sombraNoChao(partes, retQ(ID, 0, 0, 0.4, 0.4), 0.01, '#0a0a0c', 0.35);
+  bloco(partes, ID, 0.34, 0.34, tonsDe('#dcdcd6'), 1.0, 0.03);
+  partes.push(poli(retQ(ID, 0, 0.17, 0.2, 0.06), '#3a3c40', 1.0, { contorno: 'leve', detalhe: 3 }));
+  for (const [s, c] of [[-1, '#2a5aa8'], [1, '#b8281c']] as const) partes.push(elipse(s * 0.06, 0.16, 0.04, 0.05, c, 1.02, { contorno: 'leve', detalhe: 3 }));
+  // O galão: o azul translúcido, os anéis do plástico, o ombro e o fundo, o brilho.
+  partes.push(elipse(0.01, 0.012, 0.31, 0.31, '#0c2440', 1.3, { contorno: 'leve', detalhe: 1 }), elipse(0, 0, 0.29, 0.29, '#3a7ac0', 1.302, { ...O, vidro: true, alfa: 0.85, detalhe: 1 }));
+  for (const R of [0.11, 0.075]) partes.push(tira(anel(0, 0, R, R, 20), 0.012, '#6aa8e0', 1.305, { ...O, alfa: 0.7, detalhe: 3 }));
+  partes.push(elipse(0, 0, 0.08, 0.08, '#2a5a98', 1.31, { ...O, alfa: 0.8, detalhe: 3 }), lente(-0.1, -0.06, -0.6, 0.12, 0.035, '#e8f4ff', 1.312, { ...S, alfa: 0.7, detalhe: 3 }));
+  cilindro(partes, -0.2, -0.1, -0.2, 0.06, 0.07, 0.07, tonsDe('#dcdcd6'), 0.9);
+  if (r() < 0.5) partes.push(elipse(0.12, 0.26, 0.05, 0.05, '#f0f0ec', 0.03, { contorno: 'leve', detalhe: 3 }));
+  return partes;
+}
+
+/** Um produto de prateleira visto de cima, num retângulo de `w` × `h`: caixas com o rótulo, latas ou garrafas com a tampa. */
+function produtos(partes: Parte[], r: () => number, x0: number, y0: number, w: number, h: number, z: number): void {
+  const tipo = Math.floor(r() * 3), cor = PRODUTOS[Math.floor(r() * PRODUTOS.length)]!, t = tonsDe(cor);
+  if (tipo === 0) { // caixas em fila
+    const bw = 0.1 + r() * 0.08, bh = h * 0.9;
+    for (let x = x0 + bw / 2; x < x0 + w - bw / 2 + 0.001; x += bw + 0.01) { partes.push(poli(retQ(ID, x, y0 + h / 2, bw, bh), t.base, z, { contorno: 'leve', detalhe: 2 }), poli(retQ(ID, x - bw * 0.1, y0 + h / 2, bw * 0.6, bh * 0.3), r() < 0.5 ? '#f0ece0' : t.luz, z + 0.002, { ...O, detalhe: 3 })); }
+    return;
+  }
+  const R = tipo === 1 ? 0.035 : 0.03, passo = R * 2 + 0.01;
+  for (let x = x0 + R; x < x0 + w - R + 0.001; x += passo) for (let y = y0 + R; y < y0 + h - R + 0.001; y += passo) {
+    if (tipo === 1) partes.push(elipse(x, y, R * 2, R * 2, ACO.base, z, { contorno: 'leve', detalhe: 2 }), elipse(x, y, R * 1.3, R * 1.3, cor, z + 0.001, { ...O, detalhe: 3 }), elipse(x - R * 0.3, y - R * 0.3, R * 0.5, R * 0.5, ACO.brilho, z + 0.002, { ...O, alfa: 0.7, detalhe: 3 }));
+    else partes.push(elipse(x, y, R * 2, R * 2, tom(cor, -0.3), z, { contorno: 'leve', vidro: true, detalhe: 2 }), elipse(x, y, R * 0.9, R * 0.9, cor, z + 0.001, { ...O, detalhe: 3 }), elipse(x - R * 0.35, y - R * 0.35, R * 0.5, R * 0.4, '#ffffff', z + 0.002, { ...S, alfa: 0.5, detalhe: 3 }));
+  }
+}
+
+/** Gôndola de mercado de dupla face: o painel do meio, as prateleiras de cima dos dois lados cheias de produtos e as etiquetas de preço na borda. */
+function gondola(seed: number, C: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], D = 0.9;
+  sombraNoChao(partes, retQ(ID, 0, 0, C + 0.05, D + 0.05), 0.01, '#0a0a0c', 0.4);
+  bloco(partes, ID, C, D, CINZA_CLARO, 1.35, 0.02);
+  partes.push(poli(retQ(ID, 0, 0, C - 0.02, 0.06), CINZA_CLARO.sombra, 1.36, { ...O, detalhe: 2 }), tira([-C / 2 + 0.02, -0.02, C / 2 - 0.02, -0.02], 0.012, CINZA_CLARO.brilho, 1.362, { ...O, alfa: 0.8, detalhe: 3 }));
+  const nb = Math.max(1, Math.round(C)), bw = C / nb;
+  for (let b = 0; b < nb; b++) for (const s of [-1, 1]) {
+    const x0 = -C / 2 + b * bw + 0.03, y0 = s < 0 ? -D / 2 + 0.04 : 0.05;
+    partes.push(poli(retQ(ID, x0 + (bw - 0.06) / 2, y0 + 0.18, bw - 0.06, 0.36), '#9a9c9c', 1.37, { ...O, detalhe: 2 }));
+    produtos(partes, r, x0, y0 + 0.01, (bw - 0.06) / 2 - 0.01, 0.34, 1.4);
+    produtos(partes, r, x0 + (bw - 0.06) / 2 + 0.01, y0 + 0.01, (bw - 0.06) / 2 - 0.01, 0.34, 1.4);
+    const ye = s < 0 ? -D / 2 + 0.02 : D / 2 - 0.02;
+    partes.push(tira([x0, ye, x0 + bw - 0.06, ye], 0.03, '#e8e4d8', 1.45, { ...O, detalhe: 3 }));
+    for (let k = 0; k < 3; k++) partes.push(poli(retQ(ID, x0 + 0.12 + k * (bw - 0.2) / 2.2, ye, 0.07, 0.025), '#e8c020', 1.452, { ...O, detalhe: 3 }));
+  }
+  for (const s of [-1, 1]) partes.push(poli(retQ(ID, s * (C / 2 - 0.02), 0, 0.04, D), CINZA_CLARO.base, 1.46, { contorno: 'leve', detalhe: 2 }));
+  return partes;
+}
+
+/** Caixa de mercado: o balcão com a esteira e as compras, o leitor de vidro, a área de ensacar com as sacolas; do lado do operador (−y), o terminal com a tela acesa, a gaveta, a maquininha, o banco e o poste com o número aceso. */
+function caixaRegistradora(seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], yB = 0.2;
+  sombraNoChao(partes, retQ(ID, 0, 0.05, 2.25, 1.0), 0.01, '#0a0a0c', 0.35);
+  // O banco do operador.
+  disco(partes, 0.35, -0.35, 0.16, GRAFITE, 0.6);
+  partes.push(elipse(0.35, -0.35, 0.24, 0.24, '#3a3d44', 0.62, { ...S, detalhe: 2 }), elipse(0.33, -0.37, 0.12, 0.1, '#5a5e66', 0.622, { ...S, alfa: 0.7, detalhe: 3 }));
+  bloco(partes, quadro(0, yB), 2.2, 0.62, tonsDe('#d0ccc0'), 0.9, 0.03);
+  // A esteira de borracha com as nervuras e as compras.
+  partes.push(poli(retQ(ID, -0.5, yB, 1.1, 0.44), '#101012', 0.92, { contorno: 'leve', detalhe: 1 }));
+  for (let u = -1.02; u < 0.03; u += 0.06) partes.push(tira([u, yB - 0.2, u, yB + 0.2], 0.012, '#26282c', 0.922, { ...O, detalhe: 3 }));
+  for (let k = 0; k < 5; k++) { const x = -0.95 + k * 0.2 + r() * 0.05, y = yB + (r() - 0.5) * 0.2, c = tonsDe(PRODUTOS[Math.floor(r() * PRODUTOS.length)]!); if (r() < 0.5) bloco(partes, quadro(x, y, (r() - 0.5) * 0.6), 0.12 + r() * 0.06, 0.08 + r() * 0.05, c, 0.95, 0.01); else disco(partes, x, y, 0.035 + r() * 0.02, c, 0.95); }
+  partes.push(poli(retQ(ID, -0.62, yB, 0.03, 0.4), '#2a6ab0', 0.96, { contorno: 'leve', detalhe: 3 }));
+  // O leitor e a balança, as sacolas.
+  partes.push(poli(retQ(ID, 0.25, yB, 0.32, 0.36), '#1a1c20', 0.93, { contorno: 'leve', detalhe: 2 }), poli(retQ(ID, 0.25, yB, 0.24, 0.26), '#5a2020', 0.932, { ...O, vidro: true, alfa: 0.8, detalhe: 2 }), tira([0.15, yB, 0.35, yB], 0.01, '#ff4030', 0.934, { ...O, brilho: true, detalhe: 3 }));
+  for (let k = 0; k < 2; k++) partes.push(poli(bolha(0.72 + k * 0.2, yB + (r() - 0.5) * 0.1, 0.12, 0.16, 9, 0.18, r), '#ecece6', 1.0 + k * 0.01, { contorno: 'leve', detalhe: 2 }), elipse(0.72 + k * 0.2, yB, 0.08, 0.04, '#bcbcb4', 1.005 + k * 0.01, { ...O, detalhe: 3 }));
+  // O terminal com a tela para o operador, a gaveta e a maquininha.
+  partes.push(poli(retR(ID, 0.5, yB - 0.25, 0.36, 0.05, 0.01), '#101014', 1.25, { contorno: 'leve', detalhe: 1 }), poli(retQ(ID, 0.5, yB - 0.29, 0.32, 0.04), '#3a8ad0', 1.252, { ...O, brilho: true, alfa: 0.8, detalhe: 2 }));
+  partes.push(poli(retQ(ID, 0.5, yB - 0.14, 0.4, 0.12), '#2a2c30', 0.95, { contorno: 'leve', detalhe: 2 }), poli(retR(quadro(0.0, yB - 0.18, 0.3), 0, 0, 0.08, 0.14, 0.015), '#1c1e22', 0.97, { contorno: 'leve', detalhe: 3 }));
+  // O poste do número do caixa, aceso.
+  disco(partes, -1.0, yB - 0.22, 0.04, ACO, 1.2);
+  partes.push(poli(retQ(ID, -1.0, yB - 0.22, 0.24, 0.1), '#141416', 1.4, { contorno: 'leve', detalhe: 2 }), poli(retQ(ID, -1.0, yB - 0.22, 0.2, 0.06), '#d83a2a', 1.402, { ...O, brilho: true, alfa: 0.9, detalhe: 2 }));
+  return partes;
+}
+
+/** Freezer horizontal: o corpo branco, as duas tampas de vidro de correr com os potes e picolés por baixo, a geada e a faixa de cor na frente. */
+function freezer(seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], C = 1.8, D = 0.82, faixa = PRODUTOS[Math.floor(r() * 4)]!;
+  sombraNoChao(partes, retQ(ID, 0, 0, C + 0.05, D + 0.05), 0.01, '#0a0a0c', 0.4);
+  bloco(partes, ID, C, D, tonsDe('#e0e0da'), 0.88, 0.05);
+  partes.push(poli(retQ(ID, 0, D / 2 - 0.03, C - 0.06, 0.04), faixa, 0.925, { ...O, detalhe: 2 }));
+  partes.push(poli(retQ(ID, 0, -0.02, C - 0.14, D - 0.2), '#a8b8c0', 0.9, { ...O, detalhe: 1 }));
+  for (let k = 0; k < 22; k++) {
+    const x = -C / 2 + 0.15 + r() * (C - 0.3), y = -D / 2 + 0.16 + r() * (D - 0.36), c = PRODUTOS[Math.floor(r() * PRODUTOS.length)]!;
+    if (r() < 0.5) disco(partes, x, y, 0.07, tonsDe(c), 0.905 + k * 0.0005);
+    else partes.push(poli(retQ(quadro(x, y, (r() - 0.5) * 0.4), 0, 0, 0.2, 0.08), c, 0.905 + k * 0.0005, { contorno: 'leve', detalhe: 2 }));
+  }
+  for (let k = 0; k < 5; k++) partes.push(poli(bolha(-C / 2 + 0.2 + r() * (C - 0.4), -D / 2 + 0.15 + r() * 0.1, 0.12, 0.05, 8, 0.3, r), '#f4faff', 0.92, { ...S, alfa: 0.6, detalhe: 3 }));
+  // As tampas de vidro, uma meio aberta sobre a outra, com o puxador e o reflexo.
+  const ab = 0.1 + r() * 0.3;
+  for (const [u, z] of [[-C / 4 + 0.02, 0.93], [C / 4 - 0.02 - ab, 0.94]] as const) {
+    partes.push(poli(retQ(ID, u, -0.02, C / 2 - 0.06, D - 0.18), '#c8e0ec', z, { ...O, vidro: true, alfa: 0.35, detalhe: 1 }));
+    partes.push(tira([u - C / 4 + 0.05, -D / 2 + 0.1, u - C / 4 + 0.05, D / 2 - 0.14], 0.03, ACO.luz, z + 0.002, { contorno: 'leve', detalhe: 2 }));
+    partes.push(lente(u - C / 4 + 0.15, -D / 2 + 0.2, 0.35, 0.5, 0.05, '#ffffff', z + 0.003, { ...S, alfa: 0.35, detalhe: 3 }));
+  }
+  return partes;
+}
+
+/** Mesa de lanchonete: a mesa de fórmica com a borda cromada encostada na parede (−y), os dois bancos estofados de vinil com o encosto alto, o porta-guardanapos, os molhos, o cardápio e, às vezes, um prato. */
+function mesaDeLanchonete(seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], vinil = ['#a8221c', '#2a7a7a', '#c86a1a'][Math.floor(r() * 3)]!, tampo = tonsDe(['#d8c8a0', '#c8d8d8', '#e0d0c8'][Math.floor(r() * 3)]!);
+  sombraNoChao(partes, retQ(ID, 0, 0, 1.75, 1.4), 0.01, '#0a0a0c', 0.3);
+  for (const s of [-1, 1]) {
+    const f = quadro(s * 0.62, 0, 0);
+    bloco(partes, f, 0.52, 1.36, tonsDe('#3a3a3e'), 0.4, 0.02);
+    estofado(partes, f, 0, -s * 0.04, 0.02, 0.4, 1.28, vinil, 0.45, 0.08);
+    for (let v = -0.42; v <= 0.42; v += 0.42) partes.push(tira([s * 0.62 - s * 0.04 - 0.16, v, s * 0.62 - s * 0.04 + 0.16, v], 0.012, tom(vinil, -0.5), 0.462, { ...O, alfa: 0.6, detalhe: 3 }));
+    estofado(partes, quadro(s * 0.78, 0), 0, 0, 0.02, 0.16, 1.32, tom(vinil, -0.1), 1.05, 0.06);
+    partes.push(tira([s * 0.86, -0.66, s * 0.86, 0.68], 0.02, ACO.luz, 1.07, { ...O, detalhe: 3 }));
+  }
+  bloco(partes, quadro(0, -0.08), 0.74, 1.12, tampo, 0.75, 0.025);
+  partes.push(tira([...retR(quadro(0, -0.08), 0, 0, 0.72, 1.1, 0.04), ...retR(quadro(0, -0.08), 0, 0, 0.72, 1.1, 0.04).slice(0, 2)], 0.02, ACO.luz, 0.76, { ...O, detalhe: 2 }));
+  // O porta-guardanapos, os molhos, o sal e a pimenta, o cardápio.
+  bloco(partes, quadro(0, -0.55), 0.14, 0.08, ACO, 0.85, 0.01);
+  partes.push(poli(retQ(ID, 0, -0.55, 0.1, 0.03), PAPEL, 0.87, { ...O, detalhe: 3 }));
+  disco(partes, -0.13, -0.56, 0.035, VERMELHO, 0.9); disco(partes, 0.13, -0.56, 0.035, AMARELO, 0.9);
+  for (const s of [-1, 1]) disco(partes, s * 0.22, -0.5, 0.02, s < 0 ? tonsDe('#e8e8e2') : GRAFITE, 0.88);
+  bloco(partes, quadro(-0.2, -0.38, 0.2), 0.14, 0.04, tonsDe('#a8221c'), 0.85, 0.008);
+  if (r() < 0.7) for (const s of [-1, 1]) if (r() < 0.7) {
+    const x = s * 0.18, y = 0.05 + r() * 0.2;
+    partes.push(elipse(x, y, 0.26, 0.26, '#a0a098', 0.77, { contorno: 'leve', detalhe: 2 }), elipse(x, y, 0.24, 0.24, '#f0eee6', 0.772, { ...O, detalhe: 2 }));
+    disco(partes, x - 0.03, y, 0.055, tonsDe('#b8742a'), 0.78);
+    for (let k = 0; k < 7; k++) partes.push(tira([x + 0.03 + r() * 0.04, y - 0.06 + r() * 0.1, x + 0.06 + r() * 0.05, y - 0.04 + r() * 0.1], 0.016, '#e8b84a', 0.79, { contorno: 'leve', detalhe: 3 }));
+  }
+  return partes;
+}
+
+/** Fila de armários de vestiário: o tampo de chapa com as frestas, e a frente (+y) vista um pouco de frente, com as portas, as venezianas, os puxadores e as plaquinhas; às vezes uma porta aberta. */
+function armarioDeVestiario(seed: number, n: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], w = 0.4, C = n * w, D = 0.5, t = tonsDe(['#5a6a7a', '#7a7e82', '#3a5a4a', '#8a3a2a'][Math.floor(r() * 4)]!);
+  sombraNoChao(partes, retQ(ID, 0, 0, C + 0.05, D + 0.05), 0.01, '#0a0a0c', 0.4);
+  bloco(partes, quadro(0, -0.06), C, D - 0.12, t, 1.45, 0.02);
+  for (let k = 0; k < n; k++) {
+    const u = -C / 2 + w * (k + 0.5);
+    partes.push(poli(retQ(ID, u, -0.06, w - 0.03, D - 0.17), k % 2 ? t.meio : t.luz, 1.47, { ...O, alfa: 0.7, detalhe: 2 }));
+    for (let j = 0; j < 4; j++) partes.push(tira([u - 0.1, 0.02 + j * 0.022, u + 0.1, 0.02 + j * 0.022], 0.008, t.nanquim, 1.472, { ...O, alfa: 0.55, detalhe: 3 }));
+    if (k > 0) partes.push(tira([u - w / 2, -D / 2 + 0.02, u - w / 2, D / 2 - 0.13], 0.016, t.nanquim, 1.474, { ...O, alfa: 0.8, detalhe: 3 }));
+  }
+  // A frente: a faixa das portas, um pouco de frente.
+  const aberta = r() < 0.5 ? Math.floor(r() * n) : -1, yF = D / 2 - 0.08;
+  partes.push(poli(retQ(ID, 0, yF, C, 0.16), t.nanquim, 1.3, { contorno: 'leve', detalhe: 1 }));
+  for (let k = 0; k < n; k++) {
+    const u = -C / 2 + w * (k + 0.5);
+    if (k === aberta) {
+      partes.push(poli(retQ(ID, u, yF, w - 0.04, 0.14), '#0e0f12', 1.302, { ...O, detalhe: 2 }));
+      partes.push(tira([u - w / 2 + 0.02, yF + 0.05, u - w / 2 + 0.12, yF + 0.05 + 0.34], 0.025, t.luz, 1.31, { contorno: 'leve', detalhe: 2 }));
+      continue;
+    }
+    partes.push(poli(retQ(ID, u, yF, w - 0.04, 0.14), k % 2 ? t.meio : t.base, 1.302, { ...O, detalhe: 2 }));
+    for (let j = 0; j < 3; j++) partes.push(tira([u - 0.1, yF - 0.035 + j * 0.012, u + 0.1, yF - 0.035 + j * 0.012], 0.005, t.nanquim, 1.304, { ...O, alfa: 0.7, detalhe: 3 }));
+    partes.push(poli(retQ(ID, u + 0.13, yF + 0.01, 0.025, 0.04), ACO.luz, 1.305, { ...O, detalhe: 3 }), poli(retQ(ID, u - 0.08, yF + 0.03, 0.06, 0.018), '#e8e4d8', 1.305, { ...O, detalhe: 3 }));
+  }
+  partes.push(lente(-C / 2 + 0.1, -D / 2 + 0.08, 0, C * 0.6, 0.04, t.brilho, 1.48, { ...S, alfa: 0.5, detalhe: 3 }));
+  return partes;
+}
+
+/** Máquina de venda: o gabinete na cor da bandeira com a frente (+y) vista um pouco de frente: o vidro aceso com as fileiras de produtos e o painel de moedas; o clarão no chão. `neon` reserva a variante da Q23. */
+function maquinaDeVenda(seed: number, acesa: boolean, neon = false): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], t = tonsDe(neon ? '#1a1a2a' : ['#a8221c', '#1e4a8a', '#1e1e22', '#2a6a3a'][Math.floor(r() * 4)]!), yF = 0.27;
+  sombraNoChao(partes, retQ(ID, 0, -0.1, 1.0, 0.8), 0.01, '#0a0a0c', 0.4);
+  if (acesa) halo(partes, -0.08, 0.42, 0.2, neon ? '#3a0a4a' : '#2a3a4a', 0.5);
+  bloco(partes, quadro(0, -0.12), 0.96, 0.74, t, 1.45, 0.04);
+  partes.push(poli(retQ(ID, 0, -0.3, 0.8, 0.12), t.luz, 1.46, { ...O, detalhe: 3 }));
+  // A frente: o vidro com as fileiras e o painel de moedas.
+  partes.push(poli(retQ(ID, 0, yF, 0.96, 0.18), t.nanquim, 1.3, { contorno: 'leve', detalhe: 1 }));
+  partes.push(poli(retQ(ID, -0.1, yF, 0.66, 0.15), acesa ? (neon ? '#3a2a5a' : '#3a4a5a') : '#14181c', 1.302, { ...O, brilho: acesa, detalhe: 1 }));
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 7; j++) partes.push(poli(retQ(ID, -0.38 + j * 0.09, yF - 0.055 + i * 0.035, 0.06, 0.022), PRODUTOS[Math.floor(r() * PRODUTOS.length)]!, 1.304, { ...O, alfa: acesa ? 1 : 0.6, detalhe: 3 }));
+  partes.push(poli(retQ(ID, 0.36, yF, 0.18, 0.15), t.sombra, 1.302, { ...O, detalhe: 2 }), poli(retQ(ID, 0.36, yF - 0.04, 0.12, 0.04), acesa ? '#3aa860' : '#0a1a10', 1.304, { ...O, brilho: acesa, detalhe: 3 }));
+  for (let k = 0; k < 6; k++) partes.push(elipse(0.33 + (k % 3) * 0.03, yF + 0.01 + Math.floor(k / 3) * 0.025, 0.018, 0.018, ACO.luz, 1.305, { ...O, detalhe: 3 }));
+  partes.push(poli(retQ(ID, 0.36, yF + 0.06, 0.1, 0.02), '#050505', 1.305, { ...O, detalhe: 3 }));
+  if (acesa) partes.push(lente(-0.4, yF - 0.05, 0, 0.5, 0.02, '#ffffff', 1.306, { ...S, alfa: 0.3, brilho: true, detalhe: 3 }));
+  return partes;
+}
+
+/** Cama hospitalar: a cabeceira (−y) e os pés de plástico, o colchão com a cabeceira erguida, o travesseiro, o lençol e o cobertor azul, as grades, os rodízios e o suporte de soro com a bolsa e o equipo. */
+function camaHospitalar(seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], W = 0.95, L = 2.1, cobre = ['#6a9ac8', '#7ab0a8', '#c8c8d8'][Math.floor(r() * 3)]!;
+  sombraNoChao(partes, retQ(ID, 0, 0, W + 0.1, L + 0.1), 0.01, '#0a0a0c', 0.35);
+  for (const su of [-1, 1]) for (const sv of [-1, 1]) partes.push(elipse(su * (W / 2 - 0.06), sv * (L / 2 - 0.08), 0.08, 0.08, '#141416', 0.08, { contorno: 'leve', detalhe: 3 }));
+  bloco(partes, ID, W, L, CINZA_CLARO, 0.5, 0.03);
+  // O colchão: a parte da cabeça erguida (mais clara, pega a luz) com a dobra.
+  estofado(partes, ID, 0, 0, 0.05, W - 0.1, L - 0.25, '#e8ecec', 0.62, 0.06);
+  partes.push(poli(retQ(ID, 0, -0.62, W - 0.12, 0.6), '#f6f8f8', 0.7, { contorno: 'leve', detalhe: 1 }), tira([-W / 2 + 0.06, -0.32, W / 2 - 0.06, -0.32], 0.02, '#a8b0b4', 0.702, { ...O, detalhe: 3 }));
+  estofado(partes, quadro(0, -0.72, (r() - 0.5) * 0.15), 0, 0, 0, 0.6, 0.32, '#ffffff', 0.74, 0.1);
+  // O cobertor dobrado, com as rugas.
+  const y0 = -0.05 + r() * 0.15;
+  partes.push(poli(retR(ID, 0, (y0 + L / 2 - 0.15) / 2, W - 0.08, L / 2 - 0.15 - y0, 0.05), tom(cobre, -0.5), 0.71, { contorno: 'leve', detalhe: 1 }), poli(retR(ID, 0, (y0 + L / 2 - 0.15) / 2, W - 0.12, L / 2 - 0.17 - y0, 0.05), cobre, 0.712, { ...O, detalhe: 1 }));
+  partes.push(poli(retQ(ID, 0, y0 + 0.07, W - 0.1, 0.14), '#f0f2f2', 0.714, { contorno: 'leve', detalhe: 2 }));
+  for (let k = 0; k < 4; k++) { const y = y0 + 0.3 + r() * 0.6; partes.push(tira([-W / 2 + 0.1 + r() * 0.2, y, W / 2 - 0.1 - r() * 0.2, y + (r() - 0.5) * 0.1], 0.025, tom(cobre, -0.25), 0.716, { ...S, alfa: 0.6, detalhe: 3 }, 0.3)); }
+  partes.push(lente(-W / 2 + 0.08, y0 + 0.25, Math.PI / 2, 0.6, 0.06, tom(cobre, 0.3), 0.716, { ...S, alfa: 0.6, detalhe: 3 }));
+  // A cabeceira, os pés e as grades.
+  bloco(partes, quadro(0, -L / 2 + 0.03), W, 0.08, tonsDe('#c8bca0'), 0.95, 0.015);
+  bloco(partes, quadro(0, L / 2 - 0.03), W, 0.08, tonsDe('#c8bca0'), 0.8, 0.015);
+  for (const s of [-1, 1]) partes.push(tira([s * (W / 2 + 0.01), -0.85, s * (W / 2 + 0.01), 0.1], 0.035, ACO.luz, 0.85, { contorno: 'leve', detalhe: 2 }));
+  // O suporte de soro: o pé de cinco patas, a haste e a bolsa, com o equipo até a cama.
+  const sx = -W / 2 - 0.22, sy = -0.8;
+  for (let k = 0; k < 5; k++) { const a = (k / 5) * Math.PI * 2 + 0.3; partes.push(tira([sx, sy, sx + Math.cos(a) * 0.2, sy + Math.sin(a) * 0.2], 0.025, ACO.base, 0.08, { contorno: 'leve', detalhe: 3 })); }
+  disco(partes, sx, sy, 0.025, ACO, 1.2);
+  partes.push(tira([sx - 0.1, sy, sx + 0.1, sy], 0.02, ACO.luz, 1.3, { contorno: 'leve', detalhe: 3 }), poli(retR(ID, sx + 0.07, sy + 0.02, 0.1, 0.16, 0.04), '#dce8ec', 1.25, { contorno: 'leve', vidro: true, alfa: 0.8, detalhe: 2 }));
+  partes.push(tira([sx + 0.07, sy + 0.1, sx + 0.12, sy + 0.4, -W / 2 + 0.12, -0.2, -W / 2 + 0.2, -0.05], 0.008, '#c8d8e0', 0.8, { ...O, alfa: 0.8, detalhe: 3 }));
+  return partes;
+}
+
 // ---------- Receitas ----------
 
 const RUA = { categoria: 'exterior' as const, tipo: 'piso' as const, generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'], kit: 'moderno' };
@@ -425,6 +700,8 @@ const luzDosFarois = (params: Record<string, unknown>): LuzDeReceita | null => (
 const luzDoGiroflex = (params: Record<string, unknown>): LuzDeReceita | null => (ligado(params, 'giroflex', 1) ? { raio: 5, cor: '#5a6aff', intensidade: 0.9, power: 'battery', flicker: 0.6 } : luzDosFarois(params));
 const luzDoSemaforo = (params: Record<string, unknown>): LuzDeReceita => ({ raio: 2.2, cor: ['#3aff7a', '#ffc02a', '#ff3a2a'][Math.round(num({ seed: 0, params }, 'sinal', 0, 0, 2))]!, intensidade: 0.45, power: 'grid', flicker: 0 });
 const luzDoPainel = (params: Record<string, unknown>): LuzDeReceita | null => (ligado(params, 'aceso', 1) ? { raio: 2.5, cor: '#f0e6c8', intensidade: 0.5, power: 'grid', flicker: 0 } : null);
+const luzDaMaquina = (params: Record<string, unknown>): LuzDeReceita | null => (ligado(params, 'acesa', 1) ? { raio: 2.2, cor: '#d8e8ff', intensidade: 0.45, power: 'grid', flicker: 0 } : null);
+const INT = { tipo: 'piso' as const, generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'], kit: 'moderno' };
 const luzDaBomba = (): LuzDeReceita => ({ raio: 1.8, cor: '#7affa8', intensidade: 0.35, power: 'grid', flicker: 0 });
 
 const pegadaDe = (m: Modelo): [number, number] => [m.L + 0.1, m.W + 0.2];
@@ -474,4 +751,32 @@ export const RECEITAS_DO_MODERNO_URBANO: Receita[] = [
     gerar: p => { const C = num(p, 'comprimento', 4, 1.2, 16); return piso([C, 0.66], barreira(p.seed, C, ligado(p.params, 'plastica'))); } },
   { id: 'bomba-de-gasolina', nome: 'Bomba de gasolina', ...RUA, funcoes: ['posto', 'garagem'], tags: ['bomba', 'gasolina', 'combustivel', 'posto', 'ilha', 'mangueira', 'moderno', 'luz'], pegada: [3.1, 1.25], altura: 1.9,
     luz: luzDaBomba, gerar: p => piso([3.1, 1.25], bombaDeGasolina(p.seed)) },
+  // Escritório, mercado e lanchonete (Q21b)
+  { id: 'estacao-de-trabalho', nome: 'Estação de trabalho', ...INT, categoria: 'mesas', funcoes: ['escritorio', 'recepcao', 'sala-de-servidores', 'delegacia'], tags: ['mesa', 'escritorio', 'computador', 'monitor', 'teclado', 'cadeira', 'baia', 'trabalho', 'moderno'], pegada: [1.65, 1.5], altura: 1.2,
+    campos: [{ id: 'monitores', rotulo: 'Monitores (1 ou 2)', tipo: 'numero', padrao: 1, min: 1, max: 2, passo: 1 }],
+    gerar: p => piso([1.65, 1.5], estacaoDeTrabalho(p.seed, Math.round(num(p, 'monitores', 1, 1, 2)))) },
+  { id: 'divisoria', nome: 'Divisória de baia', ...INT, categoria: 'decoracao', funcoes: ['escritorio', 'recepcao'], tags: ['divisoria', 'baia', 'painel', 'escritorio', 'moderno'], pegada: [2.4, 0.45], altura: 1.4,
+    campos: [{ id: 'comprimento', rotulo: 'Comprimento (m)', tipo: 'numero', padrao: 2.4, min: 0.8, max: 8, passo: 0.4 }],
+    gerar: p => { const C = num(p, 'comprimento', 2.4, 0.8, 8); return piso([C, 0.45], divisoria(p.seed, C)); } },
+  { id: 'copiadora', nome: 'Copiadora', ...INT, categoria: 'decoracao', funcoes: ['escritorio', 'recepcao', 'biblioteca'], tags: ['copiadora', 'xerox', 'impressora', 'papel', 'escritorio', 'moderno'], pegada: [1.15, 0.75], altura: 1.25,
+    gerar: p => piso([1.15, 0.75], copiadora(p.seed)) },
+  { id: 'bebedouro.galao', nome: 'Bebedouro de galão', ...INT, categoria: 'cozinha', funcoes: ['escritorio', 'recepcao', 'corredor', 'vestiario', 'enfermaria'], tags: ['bebedouro', 'galao', 'agua', 'escritorio', 'moderno'], pegada: [0.45, 0.45], altura: 1.45,
+    gerar: p => piso([0.45, 0.45], bebedouroDeGalao(p.seed)) },
+  { id: 'gondola', nome: 'Gôndola de mercado', ...INT, categoria: 'armazenamento', funcoes: ['mercado', 'loja', 'deposito', 'posto'], tags: ['gondola', 'prateleira', 'mercado', 'produtos', 'loja', 'supermercado', 'moderno'], pegada: [2, 0.9], altura: 1.8,
+    campos: [{ id: 'comprimento', rotulo: 'Comprimento (m)', tipo: 'numero', padrao: 2, min: 1, max: 8, passo: 1 }],
+    gerar: p => { const C = num(p, 'comprimento', 2, 1, 8); return piso([C, 0.9], gondola(p.seed, C)); } },
+  { id: 'caixa-registradora', nome: 'Caixa de mercado', ...INT, categoria: 'mesas', funcoes: ['mercado', 'loja', 'posto', 'lanchonete'], tags: ['caixa', 'registradora', 'esteira', 'checkout', 'mercado', 'loja', 'moderno'], pegada: [2.25, 1.0], altura: 1.4,
+    gerar: p => piso([2.25, 1.0], caixaRegistradora(p.seed)) },
+  { id: 'freezer', nome: 'Freezer horizontal', ...INT, categoria: 'cozinha', funcoes: ['mercado', 'loja', 'posto', 'lanchonete', 'cozinha'], tags: ['freezer', 'sorvete', 'congelados', 'geladeira', 'mercado', 'moderno'], pegada: [1.85, 0.85], altura: 0.9,
+    gerar: p => piso([1.85, 0.85], freezer(p.seed)) },
+  { id: 'mesa-de-lanchonete', nome: 'Mesa de lanchonete', ...INT, categoria: 'mesas', funcoes: ['lanchonete', 'cozinha', 'bar', 'refeitorio'], tags: ['mesa', 'lanchonete', 'diner', 'banco', 'estofado', 'vinil', 'restaurante', 'moderno'], pegada: [1.75, 1.4], altura: 1.1,
+    gerar: p => piso([1.75, 1.4], mesaDeLanchonete(p.seed)) },
+  { id: 'armario-de-vestiario', nome: 'Armários de vestiário', ...INT, categoria: 'armazenamento', funcoes: ['vestiario', 'garagem', 'escola', 'delegacia', 'enfermaria', 'quartel'], tags: ['armario', 'vestiario', 'escaninho', 'metal', 'portas', 'moderno'], pegada: [1.6, 0.5], altura: 1.9,
+    campos: [{ id: 'portas', rotulo: 'Portas', tipo: 'numero', padrao: 4, min: 2, max: 12, passo: 1 }],
+    gerar: p => { const n = Math.round(num(p, 'portas', 4, 2, 12)); return piso([n * 0.4, 0.5], armarioDeVestiario(p.seed, n)); } },
+  { id: 'maquina-de-venda', nome: 'Máquina de venda', ...INT, categoria: 'decoracao', funcoes: ['corredor', 'recepcao', 'posto', 'lanchonete', 'vestiario', 'estacao', 'escritorio'], tags: ['maquina', 'venda', 'refrigerante', 'salgadinho', 'automatica', 'moderno', 'luz'], pegada: [1.0, 1.1], altura: 1.9,
+    campos: [{ id: 'acesa', rotulo: 'Acesa (0 não, 1 sim)', tipo: 'numero', padrao: 1, min: 0, max: 1, passo: 1 }],
+    luz: luzDaMaquina, gerar: p => piso([1.0, 1.1], maquinaDeVenda(p.seed, ligado(p.params, 'acesa', 1))) },
+  { id: 'cama-hospitalar', nome: 'Cama hospitalar', ...INT, categoria: 'camas', funcoes: ['enfermaria', 'hospital', 'clinica', 'quarto'], tags: ['cama', 'hospital', 'enfermaria', 'soro', 'leito', 'paciente', 'moderno'], pegada: [1.45, 2.25], altura: 1.0,
+    gerar: p => piso([1.45, 2.25], camaHospitalar(p.seed)) },
 ];
