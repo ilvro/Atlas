@@ -126,7 +126,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('moveis', 'vaso-sanitario', 'Vaso sanitário', ['vaso.sanitario', 'vaso.moderno'], { generos: ['moderno', 'investigacao'] }),
   f('moveis', 'pia', 'Pia', ['pia.pedestal'], { generos: ['investigacao'] }),
   f('moveis', 'piano', 'Piano', ['piano-de-armario', 'piano.cauda'], { generos: ['investigacao', 'faroeste'] }),
-  f('moveis', 'relogio-de-pe', 'Peça decorativa', ['relogio.pe', 'cabideiro', 'globo.terrestre'], { generos: ['investigacao'] }),
+  f('moveis', 'relogio-de-pe', 'Peça decorativa', ['relogio.pe', 'cabideiro', 'globo.terrestre', 'gramofone'], { generos: ['investigacao'] }),
   // Luz e fogo
   f('luz-e-fogo', 'lareira', 'Lareira', ['lareira.pedra', 'lareira.marmore', 'lareira.nobre'], { generos: ['fantasia', 'investigacao'] }),
   f('luz-e-fogo', 'fogueira', 'Fogueira', ['fogueira', 'fogueira-de-caravana', 'braseiro', 'tripe-de-bronze', 'caldeirao', 'espeto-de-assar', 'irori'], { generos: ['fantasia', 'oriental', 'deserto'] }),
@@ -137,7 +137,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('luz-e-fogo', 'lanterna-marroquina', 'Lanterna marroquina', ['lanterna-marroquina'], { generos: ['deserto', 'fantasia'] }),
   f('luz-e-fogo', 'lanterna-de-pedra', 'Lanterna de pedra', ['lanterna-de-pedra'], { generos: ['oriental', 'fantasia'] }),
   f('luz-e-fogo', 'luminaria', 'Luminária', ['abajur.mesa', 'luminaria.chao', 'luminaria.franja', 'lustre']),
-  f('luz-e-fogo', 'poste-de-luz', 'Poste de luz', ['lanterna-de-poste', 'poste.luz', 'lanterna.farol']),
+  f('luz-e-fogo', 'poste-de-luz', 'Poste de luz', ['lanterna-de-poste', 'lampiao-a-gas', 'poste.luz', 'lanterna.farol']),
   f('luz-e-fogo', 'tocha', 'Tocha de parede', ['tocha.parede', 'arandela']),
   // Sobre a mesa
   f('sobre-a-mesa', 'livro', 'Livro', ['livro.aberto', 'livros.pilha']),
@@ -220,10 +220,11 @@ export const FAMILIAS: readonly Familia[] = [
   f('oficio', 'canhao-naval', 'Canhão de navio e de forte', ['canhao-naval', 'canhao-de-forte'], { generos: ['colonial', 'fantasia'] }),
   f('oficio', 'maquina-a-vapor', 'Caldeira e máquina a vapor', ['caldeira', 'maquina-a-vapor'], { generos: ['vitoriano', 'investigacao', 'fantasia'] }),
   f('oficio', 'maquinario', 'Maquinário de fábrica', ['engrenagens', 'prensa', 'tear-mecanico', 'esteira'], { generos: ['vitoriano', 'investigacao', 'fantasia'] }),
+  f('oficio', 'invencoes', 'Invenções', ['bancada-de-inventor', 'automato', 'bobina-de-tesla'], { generos: ['vitoriano', 'investigacao', 'fantasia'] }),
   f('oficio', 'aquila', 'Estandarte romano', ['aquila'], { generos: ['antiguidade'] }),
   f('oficio', 'armas-orientais', 'Espadas e armadura orientais', ['suporte-de-espadas', 'armadura-oriental'], { generos: ['oriental', 'fantasia'] }),
   // Campo e estrada
-  f('campo', 'carroca', 'Carroça', ['carroca', 'carroca-coberta', 'diligencia', 'carroca-de-feno', 'carroca-tombada', 'carrinho-de-mao', 'carrinho-de-carga', 'treno']),
+  f('campo', 'carroca', 'Carroça', ['carroca', 'carroca-coberta', 'carruagem-fechada', 'diligencia', 'carroca-de-feno', 'carroca-tombada', 'carrinho-de-mao', 'carrinho-de-carga', 'treno']),
   f('campo', 'biga', 'Carro de guerra', ['biga'], { generos: ['antiguidade', 'fantasia'] }),
   f('campo', 'cavalo', 'Animal', ['cavalo', 'camelo', 'galinheiro']),
   f('campo', 'feno', 'Feno', ['fardo-de-feno', 'monte-de-palha', 'pilha-de-lenha']),
@@ -235,6 +236,8 @@ export const FAMILIAS: readonly Familia[] = [
   f('campo', 'moinho', 'Pás de moinho', ['pas.moinho']),
   f('campo', 'barraca', 'Barraca', ['tenda', 'barraca-de-feira', 'estandarte', 'bandeira-pirata', 'toldo-listrado', 'tenda-beduina']),
   f('campo', 'banca-de-mercado', 'Banca de mercado', ['banca-de-mercado.toldo', 'banca-de-especiarias', 'tapetes-pendurados'], { generos: ['antiguidade', 'fantasia', 'deserto'] }),
+  f('campo', 'rua-vitoriana', 'Banca e relógio de rua', ['relogio-de-rua', 'banca-de-jornal'], { generos: ['vitoriano', 'investigacao', 'fantasia'] }),
+  f('campo', 'dirigivel', 'Dirigível', ['dirigivel'], { generos: ['vitoriano', 'investigacao', 'fantasia'] }),
   f('campo', 'palanquim', 'Palanquim', ['palanquim'], { generos: ['deserto', 'fantasia'] }),
   // Porto
   f('porto', 'barco', 'Barco', ['canoa', 'barco-a-remo', 'barco-de-vela', 'bote-com-carga', 'barcaca', 'navio']),
