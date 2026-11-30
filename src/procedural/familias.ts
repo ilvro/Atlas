@@ -30,6 +30,7 @@ export const GRUPOS_DE_OBJETOS: readonly GrupoDeObjetos[] = [
   { id: 'porto', nome: 'Porto' },
   { id: 'moderno', nome: 'Moderno' },
   { id: 'ruina', nome: 'Ruína e sucata' },
+  { id: 'neon', nome: 'Néon e cabos' },
   { id: 'ficcao', nome: 'Ficção científica' },
   { id: 'ossos', nome: 'Ossos e restos' },
 ];
@@ -262,7 +263,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('moderno', 'bomba-de-gasolina', 'Bomba e cobertura de posto', ['bomba-de-gasolina', 'cobertura-de-posto'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
   f('moderno', 'escritorio', 'Escritório', ['bebedouro.galao', 'copiadora', 'divisoria', 'estacao-de-trabalho'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
   f('moderno', 'mercado', 'Mercado', ['freezer', 'gondola', 'caixa-registradora'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
-  f('moderno', 'lanchonete', 'Lanchonete e máquina de venda', ['maquina-de-venda', 'mesa-de-lanchonete'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
+  f('moderno', 'lanchonete', 'Lanchonete e máquina de venda', ['maquina-de-venda', 'maquina-de-venda.neon', 'mesa-de-lanchonete'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
   f('moderno', 'armario-de-vestiario', 'Armário de vestiário', ['armario-de-vestiario'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
   f('moderno', 'cama-hospitalar', 'Cama hospitalar', ['cama-hospitalar'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
   // Ruína e sucata (pós-apocalíptico)
@@ -275,6 +276,15 @@ export const FAMILIAS: readonly Familia[] = [
   f('ruina', 'horta-em-pneus', 'Horta em pneus', ['horta-em-pneus'], { generos: ['pos-apocaliptico'] }),
   f('ruina', 'placa-pichada', 'Placa pichada', ['placa-pichada'], { generos: ['pos-apocaliptico'] }),
   f('ruina', 'caixa-de-suprimentos', 'Caixa de suprimentos', ['caixa-de-suprimentos'], { generos: ['pos-apocaliptico'] }),
+  // Néon e cabos (cyberpunk)
+  f('neon', 'letreiro-neon', 'Letreiro de néon', ['letreiro-neon'], { generos: ['cyberpunk', 'moderno'] }),
+  f('neon', 'letreiro-de-fachada', 'Letreiro de néon de fachada', ['letreiro-neon.rua'], { generos: ['cyberpunk', 'moderno'] }),
+  f('neon', 'holograma', 'Holograma', ['holograma'], { generos: ['cyberpunk', 'ficcao-cientifica'] }),
+  f('neon', 'barraca-de-lamen', 'Barraca de lámen', ['barraca-de-lamen'], { generos: ['cyberpunk'] }),
+  f('neon', 'drone', 'Drone', ['drone'], { generos: ['cyberpunk', 'moderno', 'ficcao-cientifica'] }),
+  f('neon', 'antena-parabolica', 'Antena parabólica', ['antena-parabolica'], { generos: ['cyberpunk', 'moderno', 'pos-apocaliptico'] }),
+  f('neon', 'quadro-de-cabos', 'Quadro de cabos', ['quadro-de-cabos'], { generos: ['cyberpunk', 'moderno', 'pos-apocaliptico'] }),
+  f('neon', 'poste-com-telas', 'Poste com telas', ['poste-com-telas'], { generos: ['cyberpunk'] }),
   // Ficção científica
   f('ficcao', 'console', 'Console', ['console', 'mesa.navegacao', 'terminal.crt', 'painel.eletrico'], { generos: ['ficcao-cientifica', 'cyberpunk'] }),
   f('ficcao', 'gerador', 'Gerador', ['gerador'], { generos: ['ficcao-cientifica', 'cyberpunk'] }),

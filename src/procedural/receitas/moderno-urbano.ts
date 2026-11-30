@@ -699,8 +699,8 @@ function armarioDeVestiario(seed: number, n: number): Parte[] {
   return partes;
 }
 
-/** Máquina de venda: o gabinete na cor da bandeira com a frente (+y) vista um pouco de frente: o vidro aceso com as fileiras de produtos e o painel de moedas; o clarão no chão. `neon` reserva a variante da Q23. */
-function maquinaDeVenda(seed: number, acesa: boolean, neon = false): Parte[] {
+/** Máquina de venda: o gabinete na cor da bandeira com a frente (+y) vista um pouco de frente: o vidro aceso com as fileiras de produtos e o painel de moedas; o clarão no chão. `neon` é o gabinete escuro da variante da Q23a (`maquina-de-venda.neon`, que põe o néon por cima). */
+export function maquinaDeVenda(seed: number, acesa: boolean, neon = false): Parte[] {
   const r = mulberry32(seed), partes: Parte[] = [], t = tonsDe(neon ? '#1a1a2a' : ['#a8221c', '#1e4a8a', '#1e1e22', '#2a6a3a'][Math.floor(r() * 4)]!), yF = 0.27;
   sombraNoChao(partes, retQ(ID, 0, -0.1, 1.0, 0.8), 0.01, '#0a0a0c', 0.4);
   if (acesa) halo(partes, -0.08, 0.42, 0.2, neon ? '#3a0a4a' : '#2a3a4a', 0.5);
