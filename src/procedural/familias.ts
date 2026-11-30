@@ -130,7 +130,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('moveis', 'relogio-de-pe', 'Peça decorativa', ['relogio.pe', 'cabideiro', 'globo.terrestre', 'gramofone'], { generos: ['investigacao'] }),
   // Luz e fogo
   f('luz-e-fogo', 'lareira', 'Lareira', ['lareira.pedra', 'lareira.marmore', 'lareira.nobre'], { generos: ['fantasia', 'investigacao'] }),
-  f('luz-e-fogo', 'tonel-com-fogo', 'Tonel com fogo', ['tonel-com-fogo'], { generos: ['pos-apocaliptico'] }),
+  f('luz-e-fogo', 'tonel-com-fogo', 'Tonel e fogareiro', ['tonel-com-fogo', 'fogareiro'], { generos: ['pos-apocaliptico'] }),
   f('luz-e-fogo', 'fogueira', 'Fogueira', ['fogueira', 'fogueira-de-caravana', 'braseiro', 'tripe-de-bronze', 'caldeirao', 'espeto-de-assar', 'irori'], { generos: ['fantasia', 'oriental', 'deserto'] }),
   f('luz-e-fogo', 'castical', 'Castiçal', ['castical.mesa', 'candelabro', 'candelabro.pe', 'tocheiro', 'velas-votivas'], { generos: ['fantasia', 'investigacao'] }),
   f('luz-e-fogo', 'lucerna', 'Lucerna', ['lucerna'], { generos: ['antiguidade', 'fantasia'] }),
@@ -270,6 +270,11 @@ export const FAMILIAS: readonly Familia[] = [
   f('ruina', 'barricada', 'Barricada e defesa', ['sacos-de-areia', 'barricada', 'cerca-de-arame-farpado'], { generos: ['pos-apocaliptico', 'moderno'] }),
   f('ruina', 'pneus-empilhados', 'Pneus empilhados', ['pneus-empilhados'], { generos: ['pos-apocaliptico', 'moderno'] }),
   f('ruina', 'torre-de-vigia', 'Torre de vigia', ['torre-de-vigia'], { generos: ['pos-apocaliptico'] }),
+  f('ruina', 'barraca-improvisada', 'Barraca e colchão', ['barraca-improvisada', 'colchao-no-chao'], { generos: ['pos-apocaliptico'] }),
+  f('ruina', 'gerador-a-diesel', 'Gerador e tanque de água', ['gerador-a-diesel', 'tanque-de-agua'], { generos: ['pos-apocaliptico', 'moderno'] }),
+  f('ruina', 'horta-em-pneus', 'Horta em pneus', ['horta-em-pneus'], { generos: ['pos-apocaliptico'] }),
+  f('ruina', 'placa-pichada', 'Placa pichada', ['placa-pichada'], { generos: ['pos-apocaliptico'] }),
+  f('ruina', 'caixa-de-suprimentos', 'Caixa de suprimentos', ['caixa-de-suprimentos'], { generos: ['pos-apocaliptico'] }),
   // Ficção científica
   f('ficcao', 'console', 'Console', ['console', 'mesa.navegacao', 'terminal.crt', 'painel.eletrico'], { generos: ['ficcao-cientifica', 'cyberpunk'] }),
   f('ficcao', 'gerador', 'Gerador', ['gerador'], { generos: ['ficcao-cientifica', 'cyberpunk'] }),

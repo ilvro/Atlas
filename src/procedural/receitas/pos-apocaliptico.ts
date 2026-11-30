@@ -1,16 +1,17 @@
 import { elipse, poli, type Parte } from '../descricao.ts';
 import { tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
-import { LUZ_X, LUZ_Y, bolha, lente, sombraNoChao, tira } from '../organico.ts';
+import { LUZ_X, LUZ_Y, bolha, lente, sombraNoChao, tira, tufo, type Tons as TonsDeTufo } from '../organico.ts';
 import { num, piso, type LuzDeReceita, type Receita } from './comum.ts';
 import { ID, O, S, anel, arco, bloco, disco, em, estofado, fogoQueBrilha, olhar, quadro, retQ, retR, tomDaFace, type Quadro, type Tons } from './antiguidade.ts';
 import { cilindro } from './colonial.ts';
 import { halo } from './oriental.ts';
-import { ACO, CONCRETO, CORES_DE_CARRO, LIBRES, MODELOS, lataria, ligado, tonsDe, type Modelo } from './moderno-urbano.ts';
+import { ACO, CONCRETO, CORES_DE_CARRO, GRAFITE, LIBRES, MODELOS, lataria, ligado, tonsDe, type Modelo } from './moderno-urbano.ts';
 
 // Pós-apocalíptico (Q22): a ruína e a sucata (Q22a). Tinta desbotada pelo sol e comida pela ferrugem, vidro quebrado, chapa ondulada remendada,
 // lona, sacos de aniagem, borracha gasta e fogo de tonel. As regras do acervo: nanquim por baixo da silhueta, volume em degraus de tom para o
-// noroeste, `z` das partes até 1,5 m e a `altura` real na receita. Os veículos olham para +x, como os da Q21.
+// noroeste, `z` das partes até 1,5 m e a `altura` real na receita. Os veículos olham para +x, como os da Q21. O acampamento (Q22b): lona, paletes,
+// papelão, plástico azul, horta em pneus e fogo de aro de roda.
 
 const FERRUGEM: Tons = { nanquim: '#140b06', sombra: '#3a2213', base: '#55321c', meio: '#663e22', luz: '#7c4e2e', brilho: '#9e6a44' };
 const PNEU: Tons = { nanquim: '#040405', sombra: '#0c0c0e', base: '#17171a', meio: '#1f1f23', luz: '#2b2b30', brilho: '#4a4a52' };
@@ -468,6 +469,367 @@ function torreDeVigia(seed: number): Parte[] {
   return partes;
 }
 
+// ---------- Acampamento (Q22b) ----------
+
+const PALETE: Tons = { nanquim: '#1a140c', sombra: '#5e4c32', base: '#86704c', meio: '#967f58', luz: '#ac9468', brilho: '#c8b288' };
+const LONAS = ['#2c5a8c', '#56663a', '#9a5a26', '#8a8a80', '#3a6a6a'];
+const CORDA = '#c8b48a', TERRA = '#3a2a1a', TERRA_CLARA = '#5a4430';
+
+/** Palete deitado no referencial `k` (1,2 × 0,8 m, as tábuas ao longo de u): o vão escuro, as três travessas por baixo e as cinco tábuas de cima. */
+function palete(partes: Parte[], r: () => number, k: Quadro, z: number, t: Tons = PALETE): void {
+  partes.push(poli(retQ(k, 0.015, 0.02, 1.24, 0.84), t.nanquim, z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), poli(retQ(k, 0, 0, 1.2, 0.8), '#17120c', z + 0.002, { ...O, detalhe: 1 }));
+  for (const u of [-0.55, 0, 0.55]) partes.push(poli(retQ(k, u, 0, 0.1, 0.78), t.sombra, z + 0.003, { ...O, detalhe: 2 }));
+  for (let i = 0; i < 5; i++) { const v = -0.33 + i * 0.165, g = (r() - 0.5) * 0.02; tabua(partes, ...k(-0.6, v + g), ...k(0.6, v - g), 0.12, r() < 0.25 ? tonsDe('#7a6648') : t, z + 0.006 + i * 0.0005); }
+  for (const u of [-0.55, 0, 0.55]) for (let i = 0; i < 5; i++) partes.push(elipse(...k(u, -0.33 + i * 0.165), 0.02, 0.02, t.nanquim, z + 0.01, { ...O, alfa: 0.7, detalhe: 3 }));
+}
+
+/** Pedra de segurar lona, pequena e cinza, com a luz do noroeste. */
+function pedrinha(partes: Parte[], r: () => number, x: number, y: number, R: number, z: number): void {
+  const forma = bolha(x, y, R, R * 0.8, 10, 0.18, r, r() * 6);
+  partes.push(poli(forma.map((v, i) => v + (i % 2 ? 0.025 : 0.02)), '#141412', z, { contorno: 'leve', sombraLeve: true, detalhe: 2 }), poli(forma, '#5e5a54', z + 0.002, { ...O, detalhe: 2 }));
+  partes.push(poli(bolha(x + LUZ_X * R * 0.3, y + LUZ_Y * R * 0.3, R * 0.5, R * 0.4, 8, 0.2, r), '#8a857c', z + 0.004, { ...S, alfa: 0.8, detalhe: 3 }));
+}
+
+/**
+ * Barraca improvisada (frente para +x): a lona em duas águas sobre uma cumeeira de cano, a água do noroeste mais clara, as dobras que cedem
+ * entre os apoios, um remendo de outra lona com fita, as cordas até as estacas e as pedras na barra; atrás (−x), um palete em pé fecha o fundo;
+ * na frente, a aba dobrada mostra o escuro de dentro com o colchão, e um palete deitado serve de soleira.
+ */
+function barracaImprovisada(seed: number, cor: string): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], t = desbotada(cor, 0.3), u0 = -1.4, u1 = 1.0, E = 1.1;
+  sombraNoChao(partes, retR(ID, -0.2, 0.05, 2.8, 2.5, 0.3), 0.01, '#0a0a0c', 0.6);
+  // O chão batido em volta e a soleira de palete.
+  partes.push(poli(bolha(0, 0, 1.9, 1.35, 18, 0.12, r), '#2e261c', 0.012, { ...S, alfa: 0.35, desfoque: 0.2, detalhe: 2 }));
+  palete(partes, r, quadro(1.45, 0.25, Math.PI / 2 + (r() - 0.5) * 0.12), 0.05);
+  // O escuro de dentro, que a aba aberta mostra, com o colchão e o saco de dormir.
+  partes.push(poli([u1 + 0.02, 0.02, u1 + 0.05, E, u1 - 0.95, E, u1 - 0.9, 0.02], '#0e0c0a', 0.2, { ...O, detalhe: 1 }));
+  estofado(partes, quadro(u1 - 0.5, 0.55, 0.05), 0.05, 0, 0, 1.1, 0.7, '#7a7464', 0.22, 0.12);
+  partes.push(poli(retR(quadro(u1 - 0.45, 0.6, 0.1), 0, 0, 0.9, 0.5, 0.15), desbotada('#8a3a22', 0.3).base, 0.24, { ...S, detalhe: 2 }));
+  // O palete em pé que fecha o fundo (−x): de cima, o topo das tábuas.
+  for (let v = -E + 0.05; v < E - 0.05; v += 0.2) partes.push(poli(retQ(ID, u0 - 0.12, v + 0.09, 0.16, 0.14), PALETE.base, 0.6, { contorno: 'leve', detalhe: 2 }), tira([u0 - 0.18, v + 0.04, u0 - 0.18, v + 0.14], 0.02, PALETE.luz, 0.602, { ...O, alfa: 0.8, detalhe: 3 }));
+  partes.push(tira([u0 - 0.12, -E, u0 - 0.12, E], 0.05, PALETE.nanquim, 0.59, { ...O, alfa: 0.8, detalhe: 2 }));
+  // As duas águas: a do noroeste (−y) na luz, a de +y na sombra, com a barra ondulada; a água de +y tem a quina da frente aberta.
+  const barra = (s: number, a: number, b: number): number[] => { const p: number[] = []; for (let i = 0; i <= 10; i++) { const u = b + (a - b) * (i / 10); p.push(u, s * (E + Math.sin(i * 1.7 + seed) * 0.04)); } return p; };
+  const norte = [u0, 0, u1, 0, ...barra(-1, u0 - 0.05, u1 + 0.05)], sul = [u0, 0, u1, 0, u1 - 0.85, E, ...barra(1, u0 - 0.05, u1 - 0.9).slice(2)];
+  for (const [pts, base, meio] of [[norte, t.meio, t.luz], [sul, t.sombra, t.base]] as const) {
+    partes.push(poli(pts.map((v, i) => v + (i % 2 ? 0.03 : 0.025)), t.nanquim, 1.0, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), poli(pts, base, 1.002, { ...O, detalhe: 1 }));
+    const s = pts === norte ? -1 : 1;
+    partes.push(poli(bolha((u0 + u1) / 2 - (s > 0 ? 0.35 : 0), s * E * 0.3, (u1 - u0) * (s > 0 ? 0.32 : 0.42), E * 0.26, 16, 0.15, r), meio, 1.004, { ...S, alfa: 0.5, desfoque: 0.25, detalhe: 2 }));
+  }
+  // As dobras que cedem entre os apoios e descem para a barra.
+  for (const s of [-1, 1]) for (let u = u0 + 0.4; u < u1 - (s > 0 ? 0.9 : 0.1); u += 0.55) partes.push(lente(u + (r() - 0.5) * 0.15, s * 0.15, s * Math.PI / 2 + (r() - 0.5) * 0.3, E * 0.85, 0.2, s < 0 ? t.base : t.nanquim, 1.006, { ...S, alfa: 0.55, desfoque: 0.05, detalhe: 2 }));
+  for (const s of [-1, 1]) for (let u = u0 + 0.65; u < u1 - (s > 0 ? 1.0 : 0.3); u += 0.55) partes.push(lente(u + (r() - 0.5) * 0.1, s * 0.2, s * Math.PI / 2 + (r() - 0.5) * 0.3, E * 0.6, 0.08, s < 0 ? t.brilho : t.base, 1.007, { ...S, alfa: 0.45, desfoque: 0.03, detalhe: 3 }));
+  // O remendo de outra lona com a fita prateada em xis.
+  const rm = quadro(-0.5 + r() * 0.6, -0.55, (r() - 0.5) * 0.3), tr = desbotada(LONAS[(LONAS.indexOf(cor) + 2) % LONAS.length]!, 0.35);
+  partes.push(poli(retR(rm, 0.015, 0.02, 0.62, 0.42, 0.04), tr.nanquim, 1.01, { ...O, alfa: 0.6, detalhe: 2 }), poli(retR(rm, 0, 0, 0.6, 0.4, 0.04), tr.meio, 1.012, { ...O, detalhe: 2 }));
+  for (const s of [-1, 1]) partes.push(tira(em(rm, [-0.36, s * 0.26, 0.36, -s * 0.26]), 0.07, '#9a9c9e', 1.014, { ...O, alfa: 0.85, detalhe: 3 }));
+  // A cumeeira: o cano com a luz, e as pontas que sobram.
+  cilindro(partes, u0 - 0.2, 0, u1 + 0.15, 0, 0.07, 0.07, ACO, 1.05);
+  partes.push(tira([u0, 0.0, u1, 0.0], 0.03, CORDA, 1.07, { ...O, alfa: 0.6, detalhe: 3 }));
+  // A aba dobrada da frente, mostrando o avesso, e o nó.
+  partes.push(poli([u1, 0.02, u1 - 0.85, E, u1 - 0.6, 0.45], t.nanquim, 1.08, { contorno: 'leve', sombraLeve: true, detalhe: 2 }), poli([u1 - 0.03, 0.06, u1 - 0.82, E - 0.04, u1 - 0.6, 0.48], tom(t.sombra, -0.2), 1.082, { ...O, detalhe: 2 }));
+  partes.push(elipse(u1 - 0.6, 0.47, 0.07, 0.06, CORDA, 1.085, { ...O, detalhe: 3 }));
+  // As cordas até as estacas e as pedras na barra.
+  for (const [x, y, ex, ey] of [[u0 - 0.05, -E, u0 - 0.35, -E - 0.3], [u0 - 0.05, E, u0 - 0.35, E + 0.3], [u1 + 0.05, -E, u1 + 0.35, -E - 0.3]] as const) {
+    partes.push(tira([x, y, ex, ey], 0.022, CORDA, 0.5, { contorno: 'leve', detalhe: 3 }), elipse(ex, ey, 0.07, 0.07, '#2a1e12', 0.08, { contorno: 'leve', detalhe: 3 }));
+  }
+  for (const s of [-1, 1]) for (let u = u0 + 0.3; u < u1 - (s > 0 ? 1.0 : 0); u += 0.65 + r() * 0.3) pedrinha(partes, r, u, s * (E + 0.04), 0.11 + r() * 0.05, 1.1);
+  // Um balde e latas na frente.
+  disco(partes, 1.55, -0.95, 0.17, desbotada('#2a4a7a', 0.4), 0.3);
+  partes.push(elipse(1.55, -0.95, 0.24, 0.24, '#141210', 0.32, { ...O, detalhe: 2 }), tira(arco(1.55, -0.95, 0.19, 0.19, -2.4, -0.6, 8), 0.015, ACO.luz, 0.34, { ...O, detalhe: 3 }));
+  for (let k = 0; k < 2; k++) disco(partes, 1.85 + k * 0.12, -0.6 + k * 0.1, 0.045, ACO, 0.1);
+  return partes;
+}
+
+/** Colchão no chão (2 × 1 m, cabeceira em −u): sobre um papelão aberto, o colchão de listras manchado, o travesseiro, o cobertor amarfanhado e o que fica à mão. */
+function colchaoNoChao(seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], g = (r() - 0.5) * 0.08, k = quadro(0, 0, g);
+  sombraNoChao(partes, retR(k, 0, 0, 2.1, 1.1, 0.1), 0.01, '#0a0a0c', 0.4);
+  // O papelão: aberto, com o vinco, a ponta rasgada e a marca impressa.
+  const pk = quadro(0.05, 0.05, -g * 2);
+  partes.push(poli(retQ(pk, 0, 0, 2.2, 1.35), '#4a3a24', 0.02, { contorno: 'leve', detalhe: 1 }), poli(retQ(pk, -0.01, -0.01, 2.17, 1.32), '#8a6e46', 0.022, { ...O, detalhe: 1 }));
+  partes.push(tira(em(pk, [-1.08, 0.02, 1.08, 0.02]), 0.02, '#6a5434', 0.024, { ...O, alfa: 0.7, detalhe: 3 }), poli(retQ(pk, 0.7, 0.5, 0.3, 0.12), '#3a2c1a', 0.024, { ...O, alfa: 0.4, detalhe: 3 }));
+  partes.push(poli(em(pk, [1.1, -0.67, 0.85, -0.67, 1.1, -0.4]), '#2a241c', 0.025, { ...O, detalhe: 2 }));
+  // O colchão de listras, com as manchas e os botões.
+  estofado(partes, k, g, 0, 0, 1.9, 0.92, '#a8a294', 0.15, 0.1);
+  for (let v = -0.38; v <= 0.38; v += 0.095) partes.push(tira(em(k, [-0.9, v, 0.9, v]), 0.025, '#5a6a7e', 0.162, { ...O, alfa: 0.3, detalhe: 3 }));
+  for (let i = 0; i < 4; i++) { const [x, y] = k((r() - 0.5) * 1.5, (r() - 0.5) * 0.6), rx = 0.1 + r() * 0.15; partes.push(poli(bolha(x, y, rx * 1.2, rx, 12, 0.3, r), '#5a4a2a', 0.164, { ...S, alfa: 0.18, detalhe: 2 }), poli(bolha(x, y, rx, rx * 0.8, 12, 0.3, r), '#8a7a4a', 0.165, { ...S, alfa: 0.22, detalhe: 2 })); }
+  for (const u of [-0.6, -0.2, 0.2, 0.6]) for (const v of [-0.22, 0.22]) partes.push(elipse(...k(u, v), 0.035, 0.035, '#4a4638', 0.166, { ...O, alfa: 0.6, detalhe: 3 }));
+  // O travesseiro na cabeceira.
+  estofado(partes, quadro(...k(-0.68, -0.05), g + 0.15), g + 0.15, 0, 0, 0.42, 0.62, '#b8b0a0', 0.2, 0.12);
+  partes.push(lente(...k(-0.68, -0.1), g + 1.5, 0.35, 0.06, '#8a8272', 0.208, { ...S, alfa: 0.5, detalhe: 3 }));
+  // O cobertor jogado sobre a metade dos pés, com as dobras e a beira virada.
+  const cb = desbotada(['#4a5236', '#7a2a22', '#4e5258', '#6a4a2a'][Math.floor(r() * 4)]!, 0.2);
+  const cp = em(k, [-0.15, -0.5, 0.25, -0.52, 0.98, -0.44, 1.0, 0.1, 0.92, 0.5, 0.3, 0.55, -0.25, 0.48, -0.05, 0.1]);
+  partes.push(poli(cp.map((v, i) => v + (i % 2 ? 0.025 : 0.02)), cb.nanquim, 0.22, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), poli(cp, cb.base, 0.222, { ...O, detalhe: 1 }));
+  for (let i = 0; i < 5; i++) { const [x, y] = k(0.1 + r() * 0.7, (r() - 0.5) * 0.7); partes.push(lente(x, y, g + (r() - 0.5) * 1.2, 0.35 + r() * 0.25, 0.09, i % 2 ? cb.luz : cb.sombra, 0.224, { ...S, alfa: 0.6, detalhe: 2 })); }
+  if (r() < 0.6) for (let v = -0.45; v < 0.5; v += 0.15) partes.push(tira(em(k, [-0.1 + v * 0.1, v, 0.95, v + 0.02]), 0.02, cb.sombra, 0.226, { ...O, alfa: 0.35, detalhe: 3 }));
+  partes.push(tira(em(k, [-0.22, -0.48, -0.05, 0.1, -0.22, 0.46]), 0.08, cb.luz, 0.228, { ...O, detalhe: 2 }));
+  // À mão: a garrafa e a lata do lado +y, e um livro sem capa.
+  const [bx, by] = k(-0.4, 0.62);
+  partes.push(lente(bx, by, g + 0.3, 0.3, 0.09, '#2a4a2e', 0.05, { contorno: 'leve', detalhe: 2 }), lente(bx + 0.03, by - 0.01, g + 0.3, 0.2, 0.025, '#8ab08a', 0.052, { ...O, alfa: 0.6, detalhe: 3 }));
+  disco(partes, ...k(0.1, 0.66), 0.05, ACO, 0.05);
+  bloco(partes, quadro(...k(0.55, 0.68), g - 0.4), 0.22, 0.16, tonsDe('#d0c4a4'), 0.04, 0.02);
+  return partes;
+}
+
+/**
+ * Gerador a diesel de quadro aberto (frente para +y): o quadro de cano, o tanque em cima com a tampa, o motor com as aletas e a partida
+ * retrátil, o escapamento enferrujado, o painel com as tomadas e a luz-piloto, o cabo laranja que sai pelo chão, a mancha de óleo e o galão.
+ * Ligado, a luz-piloto brilha e sai fumaça pelo escapamento.
+ */
+function geradorADiesel(seed: number, ligadoAgora: boolean): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], W = 1.2, H = 0.75, tinta = desbotada(r() < 0.6 ? '#d8a018' : '#b83a1e', 0.25);
+  sombraNoChao(partes, retR(ID, 0, 0, W + 0.1, H + 0.1, 0.08), 0.01, '#0a0a0c', 0.65);
+  partes.push(poli(bolha(0.15, 0.2, 0.55, 0.35, 14, 0.3, r), '#0a0806', 0.012, { ...S, alfa: 0.45, desfoque: 0.08, detalhe: 2 }), lente(0.0, 0.25, 0.3, 0.3, 0.06, '#3a4a5a', 0.014, { ...S, alfa: 0.25, detalhe: 3 }));
+  // O cabo: sai do painel (+y) e corre pelo chão até a borda.
+  partes.push(tira([-0.3, H / 2, -0.25, H / 2 + 0.2, 0.1, H / 2 + 0.25, 0.4, H / 2 + 0.15, 0.75, H / 2 + 0.28, 0.95, H / 2 + 0.25], 0.045, '#3a1a08', 0.05, { contorno: 'leve', detalhe: 2 }));
+  partes.push(tira([-0.3, H / 2, -0.25, H / 2 + 0.2, 0.1, H / 2 + 0.25, 0.4, H / 2 + 0.15, 0.75, H / 2 + 0.28, 0.95, H / 2 + 0.25], 0.03, '#c8641a', 0.052, { ...O, detalhe: 2 }));
+  // O motor (metade −u) e o alternador (metade +u), por baixo do tanque.
+  bloco(partes, quadro(-0.25, 0.05), 0.55, 0.55, GRAFITE, 0.3, 0.05);
+  for (let v = -0.2; v <= 0.2; v += 0.06) partes.push(tira([-0.5, v, -0.36, v], 0.025, GRAFITE.luz, 0.31, { ...O, alfa: 0.7, detalhe: 3 }));
+  disco(partes, -0.5, 0.15, 0.14, tonsDe('#3a3c40'), 0.32);
+  partes.push(elipse(-0.5, 0.15, 0.08, 0.08, '#c83a1e', 0.335, { ...O, detalhe: 3 }));
+  disco(partes, 0.32, 0.05, 0.22, tonsDe('#5a5e64'), 0.3, 0.2);
+  for (let k = 0; k < 6; k++) partes.push(tira(em(quadro(0.32, 0.05), [-0.16, -0.12 + k * 0.05, 0.16, -0.12 + k * 0.05]), 0.015, '#1a1a1c', 0.32, { ...O, alfa: 0.6, detalhe: 3 }));
+  // O escapamento: o abafador enferrujado de lado e o cano virado para fora.
+  cilindro(partes, -0.6, -0.3, -0.25, -0.3, 0.14, 0.14, FERRUGEM, 0.65);
+  partes.push(elipse(-0.66, -0.3, 0.07, 0.07, '#0a0806', 0.68, { ...O, detalhe: 3 }));
+  // O quadro de cano.
+  for (const pts of [[-W / 2, -H / 2, W / 2, -H / 2], [-W / 2, H / 2, W / 2, H / 2], [-W / 2, -H / 2, -W / 2, H / 2], [W / 2, -H / 2, W / 2, H / 2]]) cilindro(partes, pts[0]!, pts[1]!, pts[2]!, pts[3]!, 0.06, 0.06, GRAFITE, 0.8);
+  for (const su of [-1, 1]) for (const sv of [-1, 1]) partes.push(elipse(su * W / 2, sv * H / 2, 0.1, 0.1, GRAFITE.meio, 0.83, { ...O, detalhe: 3 }));
+  // O tanque em cima, com a tampa e o marcador.
+  const tk = quadro(0.05, -0.08);
+  partes.push(poli(retR(tk, 0.015, 0.02, 0.82, 0.5, 0.12), tinta.nanquim, 0.9, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), poli(retR(tk, 0, 0, 0.8, 0.48, 0.12), tinta.base, 0.902, { ...O, detalhe: 1 }));
+  partes.push(poli(retR(tk, -0.02, -0.03, 0.7, 0.36, 0.1), tinta.meio, 0.904, { ...S, detalhe: 1 }), poli(retR(tk, -0.08, -0.08, 0.45, 0.14, 0.06), tinta.luz, 0.906, { ...S, alfa: 0.7, detalhe: 2 }));
+  ferrugem(partes, r, tk, 0, 0, 0.78, 0.46, 0.908, 4, 0.8);
+  disco(partes, ...tk(0.22, -0.05), 0.07, ACO, 0.92);
+  partes.push(elipse(...tk(-0.22, 0.08), 0.1, 0.06, '#e8e4d8', 0.92, { ...O, detalhe: 3 }), elipse(...tk(-0.22, 0.08), 0.07, 0.035, '#1a1a1a', 0.921, { ...O, detalhe: 3 }));
+  // O painel na frente (+y), com as tomadas e a luz-piloto.
+  partes.push(poli(retQ(ID, -0.15, H / 2 - 0.08, 0.5, 0.12), '#2a2c30', 0.86, { contorno: 'leve', detalhe: 2 }), poli(retQ(ID, -0.15, H / 2 - 0.09, 0.46, 0.08), '#5a5e64', 0.862, { ...O, detalhe: 2 }));
+  for (const u of [-0.32, -0.2, -0.08]) partes.push(elipse(u, H / 2 - 0.09, 0.07, 0.05, '#141416', 0.864, { ...O, detalhe: 3 }));
+  partes.push(elipse(0.04, H / 2 - 0.09, 0.05, 0.05, ligadoAgora ? '#30d040' : '#1a3a1e', 0.866, { ...O, brilho: ligadoAgora, detalhe: 3 }));
+  // O galão ao lado e a fumaça, se ligado.
+  const gk = quadro(0.78, 0.45, 0.4 + (r() - 0.5) * 0.3), gt = desbotada('#a82a1e', 0.35);
+  bloco(partes, gk, 0.36, 0.2, gt, 0.35, 0.03);
+  partes.push(tira(em(gk, [-0.1, 0, 0.06, 0]), 0.04, gt.nanquim, 0.4, { ...O, detalhe: 3 }), elipse(...gk(0.14, -0.05), 0.06, 0.06, '#1a1a1a', 0.4, { ...O, detalhe: 3 }));
+  if (ligadoAgora) for (let k = 0; k < 4; k++) partes.push(elipse(-0.75 - k * 0.12 + (r() - 0.5) * 0.05, -0.32 - k * 0.1, 0.16 + k * 0.08, 0.13 + k * 0.07, '#5a5a58', 1.3 + k * 0.01, { ...S, alfa: 0.22 - k * 0.04, desfoque: 0.06 + k * 0.03, detalhe: 2 }));
+  return partes;
+}
+
+/**
+ * Tanque de água: a caixa d'água de plástico azul sobre blocos (modelo 0), com os anéis, a tampa de rosca e a torneira com a mangueira, o
+ * balde e a poça; ou o contêiner IBC (modelo 1), o tanque branco leitoso na gaiola de ferro sobre o palete, com o limo verde na água de dentro.
+ */
+function tanqueDeAgua(seed: number, modelo: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [];
+  // A poça e a mangueira (comuns aos dois), na frente (+y).
+  partes.push(poli(bolha(0.25, 0.95, 0.45, 0.22, 14, 0.3, r), '#20282c', 0.012, { ...S, alfa: 0.75, detalhe: 2 }), lente(0.1, 0.9, 0.2, 0.4, 0.05, '#7a909a', 0.014, { ...S, alfa: 0.35, detalhe: 3 }));
+  const espiral: number[] = []; for (let k = 0; k <= 40; k++) { const a = k * 0.42, R = 0.08 + k * 0.006; espiral.push(-0.55 + Math.cos(a) * R, 0.95 + Math.sin(a) * R * 0.8); }
+  partes.push(tira(espiral, 0.045, '#0e2a12', 0.04, { contorno: 'leve', detalhe: 2 }), tira(espiral, 0.028, '#3a8a3e', 0.042, { ...O, detalhe: 2 }));
+  if (modelo === 1) {
+    const L = 1.2, W = 1.0;
+    sombraNoChao(partes, retQ(ID, 0, 0, L + 0.1, W + 0.1), 0.01, '#0a0a0c', 0.7);
+    palete(partes, r, quadro(0, 0.04), 0.05);
+    // O tanque leitoso: a água escura por dentro, o limo e a luz no plástico.
+    const tq = quadro(0, 0);
+    partes.push(poli(retR(tq, 0.015, 0.02, L - 0.06, W - 0.1, 0.12), '#3a3a34', 0.6, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), poli(retR(tq, 0, 0, L - 0.08, W - 0.12, 0.12), '#c8c6b8', 0.602, { ...O, detalhe: 1 }));
+    partes.push(poli(retR(tq, 0.04, 0.06, L - 0.3, W - 0.34, 0.1), '#8a9286', 0.604, { ...S, alfa: 0.55, desfoque: 0.06, detalhe: 2 }), poli(bolha(0.25, 0.15, 0.25, 0.18, 12, 0.3, r), '#4a6a3a', 0.606, { ...S, alfa: 0.35, desfoque: 0.05, detalhe: 2 }));
+    partes.push(poli(retR(tq, -0.25, -0.22, 0.5, 0.18, 0.08), '#ecebe2', 0.608, { ...S, alfa: 0.6, detalhe: 2 }));
+    disco(partes, 0, 0, 0.14, tonsDe('#8a8a84'), 0.62);
+    // A gaiola: os tubos verticais e horizontais.
+    for (let u = -L / 2 + 0.02; u <= L / 2; u += L / 6) partes.push(tira([u, -W / 2 + 0.03, u, W / 2 - 0.03], 0.05, ACO.nanquim, 0.9, { contorno: 'leve', detalhe: 2 }), tira([u - 0.01, -W / 2 + 0.03, u - 0.01, W / 2 - 0.03], 0.025, ACO.luz, 0.902, { ...O, detalhe: 3 }));
+    for (const v of [-W / 2 + 0.03, W / 2 - 0.03]) partes.push(tira([-L / 2, v, L / 2, v], 0.06, ACO.nanquim, 0.91, { contorno: 'leve', detalhe: 2 }), tira([-L / 2, v - 0.01, L / 2, v - 0.01], 0.03, ACO.meio, 0.912, { ...O, detalhe: 3 }));
+    for (const u of [-L / 2, L / 2]) partes.push(tira([u, -W / 2, u, W / 2], 0.06, ACO.sombra, 0.91, { contorno: 'leve', detalhe: 2 }));
+    ferrugem(partes, r, ID, 0, 0, L, W, 0.92, 6, 0.9);
+    // A válvula da frente.
+    partes.push(poli(retQ(ID, 0, W / 2 + 0.08, 0.16, 0.12), '#2a2a2c', 0.4, { contorno: 'leve', detalhe: 2 }), elipse(0, W / 2 + 0.1, 0.1, 0.06, '#c8961a', 0.42, { ...O, detalhe: 3 }));
+  } else {
+    const R = 0.78, t = desbotada('#2a5c94', 0.2);
+    sombraNoChao(partes, anel(0, 0, R + 0.06, R + 0.06, 24), 0.01, '#0a0a0c', 0.75);
+    for (const [x, y] of [[-0.55, -0.55], [0.55, -0.55], [-0.55, 0.55], [0.55, 0.55]] as const) bloco(partes, quadro(x, y), 0.4, 0.2, CONCRETO, 0.1, 0.03);
+    disco(partes, 0, 0, R, t, 1.0);
+    for (const f of [0.86, 0.62]) partes.push(tira(anel(0, 0, R * f, R * f, 36), 0.035, t.sombra, 1.02, { ...O, alfa: 0.55, detalhe: 2 }), tira(arco(0, 0, R * f - 0.03, R * f - 0.03, Math.PI * 0.95, Math.PI * 1.55, 10), 0.02, t.brilho, 1.021, { ...O, alfa: 0.5, detalhe: 3 }));
+    partes.push(poli(bolha(0.25, 0.3, 0.35, 0.25, 12, 0.3, r), POEIRA, 1.025, { ...S, alfa: 0.25, detalhe: 2 }));
+    disco(partes, 0, 0, 0.3, tonsDe('#1e4676'), 1.03);
+    for (let k = 0; k < 12; k++) { const a = (k / 12) * 6.28; partes.push(tira([Math.cos(a) * 0.24, Math.sin(a) * 0.24, Math.cos(a) * 0.3, Math.sin(a) * 0.3], 0.025, '#10264a', 1.05, { ...O, alfa: 0.7, detalhe: 3 })); }
+    // A calha de lona que leva a chuva: uma ponta de cano entrando pela tampa.
+    if (r() < 0.6) { cilindro(partes, -0.1, -0.1, -0.75, -0.65, 0.07, 0.07, tonsDe('#d0ccc0'), 1.2); }
+    // A torneira em +y.
+    partes.push(poli(retQ(ID, 0, R + 0.06, 0.08, 0.14), ACO.nanquim, 0.4, { contorno: 'leve', detalhe: 2 }), elipse(0, R + 0.1, 0.12, 0.05, ACO.luz, 0.42, { ...O, detalhe: 3 }));
+  }
+  // O balde ao pé da torneira.
+  disco(partes, 0.3, 0.95, 0.18, desbotada('#8a8a84', 0.2), 0.3);
+  partes.push(elipse(0.3, 0.95, 0.26, 0.26, '#2a343a', 0.32, { ...O, detalhe: 2 }), lente(0.26, 0.9, -0.8, 0.12, 0.04, '#9ab0ba', 0.33, { ...S, alfa: 0.5, detalhe: 3 }), tira(arco(0.3, 0.95, 0.2, 0.2, 0.4, 2.6, 8), 0.015, ACO.luz, 0.34, { ...O, detalhe: 3 }));
+  return partes;
+}
+
+const VERDES: TonsDeTufo[] = [
+  { fundo: '#0e1a0c', base: '#2a4a1e', meio: '#3a6428', luz: '#5a8a36', brilho: '#8ab456' },
+  { fundo: '#0c1814', base: '#2a4a40', meio: '#386052', luz: '#56806a', brilho: '#86a890' },
+  { fundo: '#121a0a', base: '#3a5a1a', meio: '#4e7420', luz: '#74982e', brilho: '#a6c454' },
+];
+
+/** Roseta de folhas (alface, couve) em (x, y): as folhas de fora escuras, as de dentro claras, com a nervura. */
+function roseta(partes: Parte[], r: () => number, x: number, y: number, R: number, t: TonsDeTufo, z: number): void {
+  const n = 7 + Math.floor(r() * 3);
+  for (let k = 0; k < n; k++) { const a = (k / n) * 6.28 + r() * 0.4, c = Math.cos(a) * LUZ_X + Math.sin(a) * LUZ_Y > 0.3 ? t.meio : t.base; partes.push(lente(x, y, a, R, R * 0.62, c, z, { contorno: 'leve', detalhe: 2 })); }
+  for (let k = 0; k < 5; k++) { const a = (k / 5) * 6.28 + r(); partes.push(lente(x, y, a, R * 0.6, R * 0.45, k % 2 ? t.luz : t.meio, z + 0.004, { ...O, detalhe: 2 }), tira([x, y, x + Math.cos(a) * R * 0.5, y + Math.sin(a) * R * 0.5], 0.012, t.brilho, z + 0.006, { ...O, alfa: 0.5, detalhe: 3 })); }
+  partes.push(elipse(x + LUZ_X * R * 0.05, y + LUZ_Y * R * 0.05, R * 0.45, R * 0.42, t.brilho, z + 0.008, { ...S, alfa: 0.8, detalhe: 3 }));
+}
+
+/**
+ * Horta em pneus: quatro ou cinco pneus deitados (um ou dois empilhados, de canteiro mais alto, e um pintado), cheios de terra, com alface,
+ * couve, um pé de tomate amarrado na estaca e mudas em fila; o regador ao lado.
+ */
+function hortaEmPneus(seed: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], R = 0.38;
+  const lugares: [number, number, number][] = [[-0.8, -0.35, 1 + (r() < 0.5 ? 1 : 0)], [0.0, -0.4, 1], [0.8, -0.3, 2], [-0.4, 0.42, 1], [0.45, 0.45, 1]];
+  if (r() < 0.3) lugares.pop();
+  sombraNoChao(partes, bolha(0, 0.05, 1.3, 0.85, 16, 0.15, r), 0.01, '#0a0a0c', 0.4);
+  partes.push(poli(bolha(0, 0.05, 1.35, 0.9, 18, 0.15, r), TERRA, 0.012, { ...S, alfa: 0.4, desfoque: 0.15, detalhe: 2 }));
+  lugares.forEach(([x, y, n], i) => {
+    for (let j = 0; j < n; j++) partes.push(...pneuDeitado(x, y, R, 0.1 + j * 0.22));
+    const z = 0.1 + (n - 1) * 0.22 + 0.012, ri = R * 0.58;
+    // A tinta (um pneu pintado de branco ou de cor, já descascando).
+    if (i === 2 || r() < 0.2) { const c = ['#d8d4c8', '#c84a2a', '#e0b82a'][Math.floor(r() * 3)]!; partes.push(tira(anel(x, y, R * 0.8, R * 0.8, 28), R * 0.3, c, z - 0.004, { ...O, alfa: 0.7, detalhe: 2 })); for (let k = 0; k < 5; k++) { const a = r() * 6.28; partes.push(elipse(x + Math.cos(a) * R * 0.8, y + Math.sin(a) * R * 0.8, 0.06, 0.05, PNEU.base, z - 0.003, { ...O, detalhe: 3 })); } }
+    // A terra, mais escura na borda e esfarelada.
+    partes.push(elipse(x, y, ri * 2.2, ri * 2.2, '#22170c', z, { ...O, detalhe: 1 }), elipse(x + LUZ_X * 0.02, y + LUZ_Y * 0.02, ri * 1.9, ri * 1.9, TERRA, z + 0.001, { ...S, detalhe: 1 }));
+    for (let k = 0; k < 8; k++) { const a = r() * 6.28, d = Math.sqrt(r()) * ri * 0.85; partes.push(elipse(x + Math.cos(a) * d, y + Math.sin(a) * d, 0.03, 0.025, TERRA_CLARA, z + 0.002, { ...O, alfa: 0.8, detalhe: 3 })); }
+    // A planta.
+    const tipo = (i + seed) % 4;
+    if (tipo === 0) roseta(partes, r, x, y, R * 0.95, VERDES[0]!, z + 0.01);
+    else if (tipo === 1) for (const [dx, dy] of [[-0.09, -0.08], [0.1, -0.05], [0, 0.1]] as const) roseta(partes, r, x + dx * 1.4, y + dy * 1.4, R * 0.55, VERDES[1]!, z + 0.01 + dy * 0.01);
+    else if (tipo === 2) {
+      // O tomateiro: a copa irregular, os tomates e a estaca amarrada.
+      tufo(partes, r, x - 0.02, y + 0.02, R * 1.05, VERDES[2]!, z + 0.3, 10, 16, 10);
+      for (let k = 0; k < 5; k++) { const a = r() * 6.28, d = R * (0.25 + r() * 0.55); partes.push(elipse(x + Math.cos(a) * d + 0.012, y + Math.sin(a) * d + 0.014, 0.1, 0.1, '#3a0a06', z + 0.34, { ...O, detalhe: 2 }), elipse(x + Math.cos(a) * d, y + Math.sin(a) * d, 0.085, 0.085, k % 3 ? '#b8281a' : '#c8781a', z + 0.342, { ...O, detalhe: 2 }), elipse(x + Math.cos(a) * d - 0.015, y + Math.sin(a) * d - 0.015, 0.03, 0.03, '#f0b8a0', z + 0.344, { ...O, alfa: 0.7, detalhe: 3 })); }
+      partes.push(elipse(x + 0.03, y - 0.04, 0.06, 0.06, MADEIRA.luz, z + 0.4, { contorno: 'leve', detalhe: 3 }));
+    } else for (let k = -1; k <= 1; k++) for (let j = -1; j <= 1; j++) {
+      // Mudas em fila.
+      const mx = x + k * ri * 0.6, my = y + j * ri * 0.55;
+      for (let f = 0; f < 4; f++) partes.push(lente(mx, my, (f / 4) * 6.28 + r(), 0.1, 0.06, f % 2 ? VERDES[2]!.luz : VERDES[2]!.meio, z + 0.01, { ...O, detalhe: 3 }));
+    }
+  });
+  // O regador.
+  const rk = quadro(1.05, 0.55, -0.6 + (r() - 0.5) * 0.4), rt = desbotada('#3a6a3a', 0.35);
+  bloco(partes, rk, 0.26, 0.2, rt, 0.25, 0.04);
+  partes.push(tira(em(rk, [0.12, 0, 0.42, -0.06]), 0.035, rt.sombra, 0.3, { contorno: 'leve', detalhe: 3 }), elipse(...rk(0.43, -0.06), 0.06, 0.06, rt.luz, 0.31, { ...O, detalhe: 3 }), tira(em(rk, [-0.12, -0.08, -0.16, 0, -0.12, 0.08]), 0.025, rt.nanquim, 0.32, { ...O, detalhe: 3 }));
+  return partes;
+}
+
+/**
+ * Placa pichada: um compensado ou uma chapa pregada em dois paus, com o aviso a spray (caveira, seta ou xis, e garatujas que leem como letras
+ * sem formar palavra), escorridos de tinta. Como no orelhão, a face aparece um pouco de frente, numa faixa em +y, porque de cima é só uma tábua.
+ */
+function placaPichada(seed: number, desenho: number): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], W = 1.4, H = 0.62, cy = 0.12, chapa = r() < 0.5;
+  const fundo = chapa ? desbotada('#8a8e90', 0.2) : tonsDe('#a08a62'), sp = r() < 0.6 ? '#b0201a' : '#1a1a1c', sp2 = sp === '#1a1a1c' ? '#c8c4b8' : '#1a1a1c';
+  sombraNoChao(partes, retQ(ID, 0.1, 0.12, W, 0.35), 0.01, '#0a0a0c', 0.5);
+  // Os paus, com a ponta enterrada.
+  for (const s of [-1, 1]) { partes.push(elipse(s * 0.5, -0.12, 0.12, 0.1, '#2a1e12', 0.03, { ...O, detalhe: 3 })); tabua(partes, s * 0.5, -0.12, s * 0.5, cy + H / 2 - 0.05, 0.08, MADEIRA, 0.5); }
+  // A face: nanquim, o compensado (veio) ou a chapa (ferrugem), os pregos.
+  const k = quadro(0, cy, (r() - 0.5) * 0.06);
+  partes.push(poli(retQ(k, 0.015, 0.02, W + 0.04, H + 0.04), fundo.nanquim, 1.2, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), poli(retQ(k, 0, 0, W, H), fundo.base, 1.202, { ...O, detalhe: 1 }));
+  partes.push(poli(retQ(k, -0.05, -0.06, W - 0.2, H * 0.5), fundo.meio, 1.203, { ...S, alfa: 0.6, detalhe: 2 }));
+  if (chapa) ferrugem(partes, r, k, 0, 0, W, H, 1.204, 8, 0.8);
+  else for (let v = -H / 2 + 0.06; v < H / 2; v += 0.09) partes.push(tira(em(k, [-W / 2 + 0.03, v + (r() - 0.5) * 0.02, W / 2 - 0.03, v + (r() - 0.5) * 0.02]), 0.012, fundo.sombra, 1.204, { ...O, alfa: 0.4, detalhe: 3 }, 0.3));
+  for (const s of [-1, 1]) for (const v of [-0.2, 0.2]) partes.push(elipse(...k(s * 0.5, v), 0.03, 0.03, '#141414', 1.205, { ...O, detalhe: 3 }));
+  const spray = (pts: number[], w: number, cor: string, z: number): void => { partes.push(tira(em(k, pts), w * 1.8, cor, z, { ...S, alfa: 0.25, detalhe: 2 }, 0.5), tira(em(k, pts), w, cor, z + 0.001, { ...O, alfa: 0.9, detalhe: 2 }, 0.6)); };
+  const escorrer = (u: number, v: number, cor: string): void => { partes.push(tira(em(k, [u, v, u + (r() - 0.5) * 0.01, v + 0.06 + r() * 0.1]), 0.012, cor, 1.215, { ...O, alfa: 0.8, detalhe: 3 }, 0.3)); };
+  // O símbolo à esquerda.
+  const sx = -0.42;
+  if (desenho === 0) {
+    // Caveira: o crânio, os olhos, os dentes e os ossos cruzados.
+    spray([sx - 0.2, 0.2, sx + 0.2, -0.05], 0.035, sp, 1.21); spray([sx - 0.2, -0.05, sx + 0.2, 0.2], 0.035, sp, 1.21);
+    partes.push(poli(em(k, arco(sx, -0.04, 0.13, 0.12, 0, 6.28, 16)), sp, 1.212, { ...O, alfa: 0.92, detalhe: 2 }), poli(retQ(k, sx, 0.08, 0.13, 0.08), sp, 1.212, { ...O, alfa: 0.92, detalhe: 2 }));
+    for (const s of [-1, 1]) partes.push(elipse(...k(sx + s * 0.05, -0.05), 0.06, 0.06, fundo.base, 1.214, { ...O, detalhe: 3 }));
+    for (const s of [-0.04, 0, 0.04]) partes.push(tira(em(k, [sx + s, 0.05, sx + s, 0.11]), 0.012, fundo.base, 1.214, { ...O, detalhe: 3 }));
+    escorrer(sx + 0.05, 0.12, sp);
+  } else if (desenho === 1) {
+    spray([sx - 0.18, 0, sx + 0.16, 0], 0.05, sp, 1.21); spray([sx + 0.05, -0.12, sx + 0.18, 0, sx + 0.05, 0.12], 0.05, sp, 1.21); escorrer(sx - 0.1, 0.03, sp);
+  } else {
+    spray([sx - 0.17, -0.2, sx + 0.17, 0.2], 0.06, sp, 1.21); spray([sx - 0.17, 0.2, sx + 0.17, -0.2], 0.06, sp, 1.21); escorrer(sx + 0.15, 0.22, sp); escorrer(sx - 0.14, 0.22, sp);
+  }
+  // As garatujas: duas linhas de traços que leem como letras.
+  for (const [v, h] of [[-0.12, 0.13], [0.12, 0.09]] as const) {
+    let u = -0.15;
+    while (u < W / 2 - 0.12) {
+      const w = h * (0.5 + r() * 0.4), f = Math.floor(r() * 5), pts = f === 0 ? [u, v + h / 2, u, v - h / 2, u + w, v - h / 2] : f === 1 ? [u, v + h / 2, u + w / 2, v - h / 2, u + w, v + h / 2] : f === 2 ? [u + w, v - h / 2, u, v - h / 2, u, v + h / 2, u + w, v + h / 2] : f === 3 ? [u, v + h / 2, u, v - h / 2, u + w, v + h / 2, u + w, v - h / 2] : [u, v - h / 2, u + w, v - h / 2, u + w / 2, v - h / 2, u + w / 2, v + h / 2];
+      spray(pts, 0.022, v < 0 ? sp : sp2, 1.22);
+      if (r() < 0.25) escorrer(u + w / 2, v + h / 2, v < 0 ? sp : sp2);
+      u += w + 0.05;
+    }
+  }
+  // A borda de cima da tábua (o que se vê de cima), na luz.
+  partes.push(tira(em(k, [-W / 2, -H / 2, W / 2, -H / 2]), 0.035, fundo.brilho, 1.23, { ...O, alfa: 0.8, detalhe: 3 }));
+  return partes;
+}
+
+/**
+ * Caixa de suprimentos militar (frente para +y): madeira verde-oliva com o estêncil, as alças de corda e as cantoneiras; aberta, a tampa
+ * encostada atrás e, dentro, latas, sacos de ração, garrafas d'água e um kit de primeiros socorros.
+ */
+function caixaDeSuprimentos(seed: number, aberta: boolean): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], L = 0.9, W = 0.55, t = desbotada('#4a5230', 0.15), k = quadro(0, 0.08, (r() - 0.5) * 0.1);
+  sombraNoChao(partes, retR(k, 0, 0, L + 0.06, W + 0.06, 0.04), 0.01, '#0a0a0c', 0.6);
+  // A tampa encostada atrás (−y), ou fechada.
+  const tampa = (kk: Quadro, z: number): void => {
+    partes.push(poli(retQ(kk, 0.015, 0.02, L + 0.04, W + 0.04), t.nanquim, z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), poli(retQ(kk, 0, 0, L, W), t.meio, z + 0.002, { ...O, detalhe: 1 }));
+    for (let v = -W / 2 + W / 6; v < W / 2; v += W / 3) partes.push(tira(em(kk, [-L / 2 + 0.02, v, L / 2 - 0.02, v]), 0.012, t.sombra, z + 0.003, { ...O, alfa: 0.6, detalhe: 3 }));
+    partes.push(poli(retQ(kk, -0.1, -0.08, L - 0.3, 0.1), t.luz, z + 0.004, { ...S, alfa: 0.4, detalhe: 2 }));
+    // O estêncil: a estrela e as letras de código, em amarelo apagado.
+    const est: number[] = []; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i / 10) * 6.28, d = i % 2 ? 0.035 : 0.085; est.push(-0.25 + Math.cos(a) * d, 0.02 + Math.sin(a) * d); }
+    partes.push(poli(em(kk, est), '#c8b46a', z + 0.005, { ...O, alfa: 0.7, detalhe: 3 }));
+    for (let i = 0; i < 5; i++) partes.push(poli(retQ(kk, -0.05 + i * 0.07, 0.02, 0.045, 0.08), '#c8b46a', z + 0.005, { ...O, alfa: 0.6, detalhe: 3 }), poli(retQ(kk, -0.05 + i * 0.07, 0.02, 0.02, 0.04), t.meio, z + 0.006, { ...O, detalhe: 3 }));
+    for (const su of [-1, 1]) for (const sv of [-1, 1]) partes.push(poli(retQ(kk, su * (L / 2 - 0.04), sv * (W / 2 - 0.04), 0.08, 0.08), '#3a3c3a', z + 0.007, { ...O, detalhe: 3 }));
+  };
+  if (aberta) tampa(quadro(...k(0, -W / 2 - W / 2 - 0.03), (r() - 0.5) * 0.15), 0.1);
+  // A caixa: o nanquim, as paredes em volume e o fundo.
+  partes.push(poli(retQ(k, 0.015, 0.02, L + 0.04, W + 0.04), t.nanquim, 0.4, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), poli(retQ(k, 0, 0, L, W), t.base, 0.402, { ...O, detalhe: 1 }));
+  for (const s of [-1, 1]) { const [x, y] = k(s * (L / 2 + 0.04), 0); partes.push(tira(arco(x, y, 0.05, 0.08, s > 0 ? -1.5 : 1.6, s > 0 ? 1.5 : 4.7, 8), 0.025, CORDA, 0.41, { contorno: 'leve', detalhe: 3 })); }
+  if (!aberta) { tampa(k, 0.55); return partes; }
+  partes.push(poli(retQ(k, 0, 0, L - 0.08, W - 0.08), '#1a1c12', 0.404, { ...O, detalhe: 1 }), poli(retQ(k, 0.02, 0.02, L - 0.12, W - 0.12), '#2a2c1e', 0.405, { ...O, detalhe: 1 }));
+  // Dentro: as latas, os sacos de ração, as garrafas e o kit.
+  for (let i = 0; i < 4; i++) disco(partes, ...k(-0.32 + (i % 2) * 0.12, -0.1 + Math.floor(i / 2) * 0.13), 0.055, i === 3 ? tonsDe('#8a6a3a') : ACO, 0.42 + i * 0.001);
+  for (let i = 0; i < 2; i++) { const kk = quadro(...k(-0.03 + i * 0.05, -0.05 + i * 0.12), (r() - 0.5) * 0.6); partes.push(poli(retR(kk, 0.01, 0.01, 0.26, 0.15, 0.03), '#2a2a18', 0.43 + i * 0.002, { contorno: 'leve', detalhe: 2 }), poli(retR(kk, 0, 0, 0.24, 0.13, 0.03), '#8a7a52', 0.431 + i * 0.002, { ...O, detalhe: 2 }), poli(retQ(kk, 0, 0, 0.12, 0.04), '#3a3a28', 0.432 + i * 0.002, { ...O, alfa: 0.6, detalhe: 3 })); }
+  for (let i = 0; i < 3; i++) { const [x, y] = k(0.2 + i * 0.07, -0.08 + (i % 2) * 0.04); partes.push(lente(x, y + 0.12, -Math.PI / 2, 0.26, 0.07, '#3a5a6a', 0.44, { contorno: 'leve', detalhe: 2 }), lente(x - 0.015, y + 0.1, -Math.PI / 2, 0.18, 0.02, '#c8dce4', 0.442, { ...O, alfa: 0.6, detalhe: 3 }), elipse(x, y - 0.13, 0.04, 0.04, '#2a5a9a', 0.443, { ...O, detalhe: 3 })); }
+  const kk = quadro(...k(0.33, 0.12), 0.1);
+  partes.push(poli(retR(kk, 0, 0, 0.16, 0.12, 0.02), '#d8d4c8', 0.45, { contorno: 'leve', detalhe: 2 }), poli(retQ(kk, 0, 0, 0.08, 0.025), '#b82a1e', 0.452, { ...O, detalhe: 3 }), poli(retQ(kk, 0, 0, 0.025, 0.08), '#b82a1e', 0.452, { ...O, detalhe: 3 }));
+  // As bordas de cima das paredes, na luz do noroeste.
+  partes.push(tira(em(k, [-L / 2 + 0.02, W / 2 - 0.02, -L / 2 + 0.02, -W / 2 + 0.02, L / 2 - 0.02, -W / 2 + 0.02]), 0.03, t.luz, 0.47, { ...O, detalhe: 3 }));
+  partes.push(tira(em(k, [L / 2 - 0.02, -W / 2 + 0.02, L / 2 - 0.02, W / 2 - 0.02, -L / 2 + 0.02, W / 2 - 0.02]), 0.03, t.sombra, 0.47, { ...O, detalhe: 3 }));
+  return partes;
+}
+
+/** Fogareiro de roda: o aro de carro deitado sobre três tijolos, com a grelha, o fogo de gravetos por baixo e a panela amassada em cima, com o vapor. */
+function fogareiro(seed: number, aceso: boolean): Parte[] {
+  const r = mulberry32(seed), partes: Parte[] = [], R = 0.24;
+  if (aceso) halo(partes, 0, 0, 0.42, '#7a2804', 0.5);
+  sombraNoChao(partes, anel(0, 0, R + 0.05, R + 0.05, 16), 0.012, '#0a0a0c', 0.5);
+  for (let k = 0; k < 3; k++) { const a = (k / 3) * 6.28 + 0.4; bloco(partes, quadro(Math.cos(a) * R * 0.95, Math.sin(a) * R * 0.95, a), 0.12, 0.2, tonsDe('#8a3a22'), 0.08, 0.02); }
+  // O aro: o anel de ferro com os furos dos parafusos, por onde o fogo aparece.
+  partes.push(tira(anel(0, 0, R, R, 28), 0.09, ACO.nanquim, 0.2, { contorno: 'leve', sombraLeve: true, detalhe: 1 }), tira(anel(0, 0, R, R, 28), 0.065, desbotada('#6a6a6a', 0.3).base, 0.202, { ...O, detalhe: 1 }));
+  partes.push(tira(arco(0, 0, R, R, Math.PI * 0.95, Math.PI * 1.6, 10), 0.03, ACO.luz, 0.204, { ...O, alfa: 0.7, detalhe: 3 }));
+  ferrugem(partes, r, ID, 0, 0, R * 2.1, R * 2.1, 0.206, 4, 0.9);
+  partes.push(elipse(0, 0, R * 1.7, R * 1.7, '#0e0806', 0.21, { ...O, detalhe: 1 }));
+  if (aceso) fogoQueBrilha(partes, r, R * 0.82, 0.22);
+  else partes.push(poli(bolha(0, 0, R * 0.6, R * 0.6, 10, 0.2, r), '#4a4640', 0.22, { ...S, detalhe: 2 }));
+  // A grelha.
+  for (let u = -R * 0.7; u <= R * 0.7; u += 0.07) partes.push(tira([u, -Math.sqrt(R * R * 0.8 - u * u), u, Math.sqrt(R * R * 0.8 - u * u)], 0.015, '#1a1a1c', 0.3, { contorno: 'leve', detalhe: 3 }));
+  // A panela amassada, com o cabo, a água e o vapor.
+  const px = 0.08, py = 0.07, P = 0.12;
+  disco(partes, px, py, P, ACO, 0.35);
+  partes.push(elipse(px, py, P * 1.7, P * 1.7, '#2a3034', 0.37, { ...O, detalhe: 2 }), elipse(px + 0.02, py + 0.02, P * 1.3, P * 1.3, '#3a4448', 0.372, { ...S, alfa: 0.7, detalhe: 2 }));
+  partes.push(tira([px + P * 0.95, py, px + P + 0.18, py + 0.05], 0.035, '#1a1a1c', 0.36, { contorno: 'leve', detalhe: 3 }));
+  if (aceso) for (let k = 0; k < 5; k++) { const a = r() * 6.28, d = r() * P * 0.6; partes.push(elipse(px + Math.cos(a) * d, py + Math.sin(a) * d, 0.035, 0.035, '#8aa0aa', 0.374, { ...O, alfa: 0.6, detalhe: 3 })); }
+  if (aceso) for (let k = 0; k < 3; k++) partes.push(elipse(px - 0.05 - k * 0.07, py - 0.06 - k * 0.08, 0.16 + k * 0.07, 0.12 + k * 0.06, '#c8ccd0', 0.5 + k * 0.01, { ...S, alfa: 0.18 - k * 0.04, desfoque: 0.05 + k * 0.02, detalhe: 2 }));
+  // A lenha de reserva.
+  for (let k = 0; k < 3; k++) partes.push(tira([0.3 + k * 0.03, 0.25 + k * 0.05, 0.05 + k * 0.03, 0.38 + k * 0.05], 0.04, '#3a2a1a', 0.05 + k * 0.01, { contorno: 'leve', detalhe: 3 }));
+  return partes;
+}
+const luzDoFogareiro = (params: Record<string, unknown>): LuzDeReceita | null => (ligado(params, 'aceso', 1) ? { raio: 3.5, cor: '#ff8a3a', intensidade: 0.8, preset: 'fogueira', power: 'fire', flicker: 0.35 } : null);
+
 // ---------- Receitas ----------
 
 const PA = { generos: ['pos-apocaliptico'], kit: 'pos-apocaliptico' };
@@ -502,4 +864,32 @@ export const RECEITAS_POS_APOCALIPTICAS: Receita[] = [
     pegada: [1.8, 1.5], altura: 1.0, gerar: p => piso([1.8, 1.5], pneusEmpilhados(p.seed)) },
   { id: 'torre-de-vigia', nome: 'Torre de vigia de sucata', categoria: 'exterior', tipo: 'piso', ...PA, funcoes: ['acampamento', 'posto-de-guarda', 'estrada'], tags: ['torre', 'vigia', 'sentinela', 'plataforma', 'sucata', 'lona', 'defesa', 'pos-apocaliptico'],
     pegada: [3.2, 3.2], altura: 5, gerar: p => piso([3.2, 3.2], torreDeVigia(p.seed)) },
+  { id: 'barraca-improvisada', nome: 'Barraca improvisada', categoria: 'exterior', tipo: 'piso', ...PA, funcoes: ['acampamento', 'abrigo', 'estrada'], tags: ['barraca', 'lona', 'palete', 'abrigo', 'tenda', 'acampamento', 'improvisado', 'pos-apocaliptico'],
+    pegada: [4, 3], altura: 1.6,
+    campos: [{ id: 'lona', rotulo: 'Lona (−1 sorteada; 0 azul, 1 oliva, 2 laranja, 3 cinza, 4 verde-água)', tipo: 'numero', padrao: -1, min: -1, max: 4, passo: 1 }],
+    gerar: p => { const i = Math.round(num(p, 'lona', -1, -1, 4)), r = mulberry32(p.seed ^ 0x10a); return piso([4, 3], barracaImprovisada(p.seed, LONAS[i >= 0 ? i : Math.floor(r() * LONAS.length)]!)); } },
+  { id: 'colchao-no-chao', nome: 'Colchão no chão', categoria: 'camas', tipo: 'piso', ...PA, funcoes: ['acampamento', 'abrigo', 'enfermaria-improvisada', 'quarto'], tags: ['colchao', 'cama', 'papelao', 'cobertor', 'dormir', 'abrigo', 'acampamento', 'pos-apocaliptico'],
+    pegada: [2.3, 1.5], altura: 0.25, gerar: p => piso([2.3, 1.5], colchaoNoChao(p.seed)) },
+  { id: 'gerador-a-diesel', nome: 'Gerador a diesel', categoria: 'exterior', tipo: 'piso', generos: ['pos-apocaliptico', 'moderno'], kit: 'pos-apocaliptico', funcoes: ['acampamento', 'abrigo', 'oficina-de-sucata', 'posto-de-guarda', 'garagem', 'obra'], tags: ['gerador', 'diesel', 'motor', 'energia', 'eletricidade', 'cabo', 'galao', 'acampamento', 'pos-apocaliptico'],
+    pegada: [2, 1.3], altura: 1.0,
+    campos: [{ id: 'ligado', rotulo: 'Ligado (0 não, 1 sim)', tipo: 'numero', padrao: 1, min: 0, max: 1, passo: 1 }],
+    gerar: p => piso([2, 1.3], geradorADiesel(p.seed, ligado(p.params, 'ligado', 1))) },
+  { id: 'tanque-de-agua', nome: 'Tanque de água', categoria: 'exterior', tipo: 'piso', generos: ['pos-apocaliptico', 'moderno'], kit: 'pos-apocaliptico', funcoes: ['acampamento', 'abrigo', 'quintal', 'oficina-de-sucata'], tags: ['tanque', 'agua', 'caixa-dagua', 'ibc', 'cisterna', 'chuva', 'balde', 'mangueira', 'acampamento', 'pos-apocaliptico'],
+    pegada: [1.9, 2.3], altura: 1.4,
+    campos: [{ id: 'modelo', rotulo: "Modelo (0 caixa d'água de plástico, 1 contêiner IBC)", tipo: 'numero', padrao: 0, min: 0, max: 1, passo: 1 }],
+    gerar: p => piso([1.9, 2.3], tanqueDeAgua(p.seed, Math.round(num(p, 'modelo', 0, 0, 1)))) },
+  { id: 'horta-em-pneus', nome: 'Horta em pneus', categoria: 'exterior', tipo: 'piso', ...PA, funcoes: ['acampamento', 'abrigo', 'quintal', 'horta'], tags: ['horta', 'pneus', 'canteiro', 'alface', 'couve', 'tomate', 'planta', 'cultivo', 'acampamento', 'pos-apocaliptico'],
+    pegada: [2.8, 1.9], altura: 0.9, gerar: p => piso([2.8, 1.9], hortaEmPneus(p.seed)) },
+  { id: 'placa-pichada', nome: 'Placa pichada', categoria: 'exterior', tipo: 'piso', ...PA, funcoes: ['acampamento', 'estrada', 'posto-de-guarda', 'abrigo', 'rua'], tags: ['placa', 'aviso', 'pichacao', 'spray', 'caveira', 'perigo', 'sinal', 'acampamento', 'pos-apocaliptico'],
+    pegada: [1.6, 0.9], altura: 1.6,
+    campos: [{ id: 'desenho', rotulo: 'Desenho (0 caveira, 1 seta, 2 xis)', tipo: 'numero', padrao: 0, min: 0, max: 2, passo: 1 }],
+    gerar: p => piso([1.6, 0.9], placaPichada(p.seed, Math.round(num(p, 'desenho', 0, 0, 2)))) },
+  { id: 'caixa-de-suprimentos', nome: 'Caixa de suprimentos', categoria: 'armazenamento', tipo: 'piso', ...PA, funcoes: ['acampamento', 'abrigo', 'enfermaria-improvisada', 'posto-de-guarda', 'deposito'], tags: ['caixa', 'suprimentos', 'militar', 'racao', 'latas', 'agua', 'kit', 'saque', 'acampamento', 'pos-apocaliptico'],
+    pegada: [1.0, 1.3], altura: 0.5,
+    campos: [{ id: 'aberta', rotulo: 'Aberta (0 não, 1 sim)', tipo: 'numero', padrao: 1, min: 0, max: 1, passo: 1 }],
+    gerar: p => piso([1.0, 1.3], caixaDeSuprimentos(p.seed, ligado(p.params, 'aberta', 1))) },
+  { id: 'fogareiro', nome: 'Fogareiro de roda', categoria: 'lareira-e-luz', tipo: 'piso', ...PA, funcoes: ['acampamento', 'abrigo', 'cozinha', 'posto-de-guarda'], tags: ['fogareiro', 'fogo', 'panela', 'cozinhar', 'aro', 'roda', 'grelha', 'brasa', 'acampamento', 'luz', 'brilho', 'pos-apocaliptico'],
+    pegada: [0.9, 0.9], altura: 0.45,
+    campos: [{ id: 'aceso', rotulo: 'Aceso (0 não, 1 sim)', tipo: 'numero', padrao: 1, min: 0, max: 1, passo: 1 }],
+    luz: luzDoFogareiro, gerar: p => piso([0.9, 0.9], fogareiro(p.seed, ligado(p.params, 'aceso', 1))) },
 ];
