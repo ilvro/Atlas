@@ -56,6 +56,8 @@ const MATERIAIS_BASE: Readonly<Record<string, Record<string, MateriaisDoComodo>>
       clube: { pisos: ['parquet.espinha'], papeis: ['papel.damasco-azul'] }, 'estacao-de-dirigivel': { pisos: ['marmore.xadrez-diagonal'], papeis: ['tijolo'] },
       mercado: { pisos: ['vinil.industrial'], papeis: ['papel.liso-claro'] }, lanchonete: { pisos: ['ladrilho.xadrez'], papeis: ['azulejo.metro'] }, garagem: { pisos: ['concreto.placas'], papeis: ['reboco.branco'] },
       posto: { pisos: ['vinil.industrial'], papeis: ['papel.liso-claro'] }, vestiario: { pisos: ['azulejo.branco'], papeis: ['azulejo.metro'] },
+      acampamento: { pisos: ['terra.batida'], papeis: ['chapa.enferrujada'] }, abrigo: { pisos: ['concreto.rachado'], papeis: ['concreto.pichado'] }, 'enfermaria-improvisada': { pisos: ['linoleo'], papeis: ['azulejo.metro'] },
+      'oficina-de-sucata': { pisos: ['entulho'], papeis: ['chapa.enferrujada'] }, 'posto-de-guarda': { pisos: ['concreto.rachado'], papeis: ['chapa.enferrujada'] },
     };
     const e = extra[t.funcao]!; return [t.funcao, { pisos: [t.piso, ...e.pisos], papeis: [t.papel, ...e.papeis] }];
   })),
@@ -214,6 +216,22 @@ const MODERNO_POR_FUNCAO: Readonly<Record<string, MateriaisDoComodo>> = {
   vestiario: { pisos: ['azulejo.branco', 'vinil.industrial'], papeis: ['azulejo.metro', 'reboco.branco'] },
 };
 
+/** Pós-apocalíptico: concreto rachado, entulho, terra batida e linóleo gasto; paredes de chapa enferrujada e concreto pichado (Q12). */
+const POS_APOCALIPTICO_POR_FUNCAO: Readonly<Record<string, MateriaisDoComodo>> = {
+  acampamento: { pisos: ['terra.batida', 'entulho'], papeis: ['chapa.enferrujada', 'concreto.pichado'] },
+  abrigo: { pisos: ['concreto.rachado', 'concreto', 'linoleo'], papeis: ['concreto.pichado', 'reboco.branco'] },
+  'enfermaria-improvisada': { pisos: ['linoleo', 'concreto.rachado'], papeis: ['azulejo.metro', 'concreto.pichado'] },
+  'oficina-de-sucata': { pisos: ['entulho', 'concreto.rachado', 'terra.batida'], papeis: ['chapa.enferrujada', 'painel.metalico'] },
+  'posto-de-guarda': { pisos: ['concreto.rachado', 'entulho'], papeis: ['chapa.enferrujada', 'concreto.pichado'] },
+  // Os cômodos comuns do moderno ficam gastos: piso rachado e parede pichada ou de chapa.
+  sala: { pisos: ['concreto.rachado', 'linoleo', 'entulho'], papeis: ['concreto.pichado', 'chapa.enferrujada'] },
+  quarto: { pisos: ['linoleo', 'concreto.rachado'], papeis: ['concreto.pichado', 'reboco.sujo'] },
+  cozinha: { pisos: ['linoleo', 'concreto.rachado'], papeis: ['azulejo.metro', 'concreto.pichado'] },
+  deposito: { pisos: ['concreto.rachado', 'entulho'], papeis: ['chapa.enferrujada', 'concreto.pichado'] },
+  oficina: { pisos: ['entulho', 'concreto.rachado'], papeis: ['chapa.enferrujada', 'painel.metalico'] },
+  garagem: { pisos: ['concreto.rachado', 'entulho'], papeis: ['chapa.enferrujada', 'concreto.pichado'] },
+};
+
 const PALETAS_BASE: Readonly<Record<string, Paleta[]>> = {
   investigacao: [
     { nome: 'Vinho e carvalho', madeira: 'madeira.escura', tecidos: ['tecido.veludo-vinho', 'tecido.linho'], tapete: 'tapete.persa' },
@@ -242,7 +260,7 @@ export const MATERIAIS_POR_GENERO: Readonly<Record<string, Record<string, Materi
   faroeste: { ...MATERIAIS_BASE.investigacao!, ...FAROESTE_POR_FUNCAO },
   colonial: { ...MATERIAIS_BASE.investigacao!, ...COLONIAL_POR_FUNCAO },
   vitoriano: { ...MATERIAIS_BASE.investigacao!, ...VITORIANO_POR_FUNCAO },
-  'pos-apocaliptico': MATERIAIS_BASE.moderno!, // trocado na ficha Q22c
+  'pos-apocaliptico': { ...MATERIAIS_BASE.moderno!, ...MODERNO_POR_FUNCAO, ...POS_APOCALIPTICO_POR_FUNCAO },
   cyberpunk: MATERIAIS_BASE.moderno!, // trocado na ficha Q23c
 };
 
@@ -278,7 +296,12 @@ export const PALETAS_POR_GENERO: Readonly<Record<string, Paleta[]>> = {
     { nome: 'Verde-garrafa e mogno', madeira: 'madeira.escura', tecidos: ['tecido.verde', 'tecido.linho'], tapete: 'tapete.verde' },
     { nome: 'Couro e carvalho escuro', madeira: 'madeira.media', tecidos: ['couro.marrom', 'tecido.linho'], tapete: 'tapete.persa' },
   ],
-  'pos-apocaliptico': PALETAS_BASE.moderno!, // trocado na ficha Q22c
+  // Pós-apocalíptico (Q22c): madeira de palete e tábua velha, lona e panos desbotados.
+  'pos-apocaliptico': [
+    { nome: 'Palete e lona', madeira: 'madeira.escura', tecidos: ['tecido.verde', 'tecido.linho'], tapete: 'tapete.verde' },
+    { nome: 'Tábua velha e couro', madeira: 'madeira.media', tecidos: ['couro.marrom', 'tecido.linho'], tapete: 'tapete.persa' },
+    { nome: 'Compensado e mostarda', madeira: 'madeira.clara', tecidos: ['tecido.mostarda', 'tecido.linho'], tapete: 'tapete.verde' },
+  ],
   cyberpunk: PALETAS_BASE.moderno!, // trocado na ficha Q23c
 };
 

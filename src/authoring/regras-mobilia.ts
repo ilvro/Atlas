@@ -654,6 +654,53 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('maquina-de-venda', ['maquina-de-venda'], 'canto', [0, 1], 4, { areaMinima: 16 }),
     item('cesto', ['cesto.roupa'], 'canto', [0, 1], 5),
   ],
+  // Pós-apocalíptico (Q22c). Limites de área em m²; as receitas do kit só servem ao gênero, então nos outros estes itens saem sozinhos. O acampamento é ao ar livre: fogo no centro, barracas e depósitos pelas bordas.
+  acampamento: [
+    item('fogo', ['tonel-com-fogo', 'fogareiro'], 'centro', [1, 1], 1),
+    item('barraca', ['barraca-improvisada'], 'parede', [1, 3], 2, { areaMinima: 20, escala: 0.4 }),
+    item('colchao', ['colchao-no-chao'], 'parede', [1, 2], 3, { areaMinima: 8 }),
+    item('caixa', ['caixa-de-suprimentos'], 'canto', [1, 2], 4),
+    item('gerador', ['gerador-a-diesel'], 'canto', [0, 1], 5, { areaMinima: 30 }),
+    item('tanque', ['tanque-de-agua'], 'canto', [0, 1], 6, { areaMinima: 30 }),
+    item('horta', ['horta-em-pneus'], 'parede', [0, 1], 7, { areaMinima: 40 }),
+    item('placa', ['placa-pichada'], 'canto', [0, 1], 8),
+  ],
+  abrigo: [
+    item('colchao', ['colchao-no-chao'], 'parede', [1, 3], 1, { escala: 0.4 }),
+    item('caixa', ['caixa-de-suprimentos'], 'parede', [1, 3], 2),
+    item('prateleira', ['estante.piso'], 'parede', [1, 2], 3, { areaMinima: 9 }),
+    item('tanque', ['tanque-de-agua'], 'canto', [0, 1], 4, { areaMinima: 14 }),
+    item('gerador', ['gerador-a-diesel'], 'canto', [0, 1], 5, { areaMinima: 16 }),
+    item('caixote', ['caixote', 'pilha-de-caixotes'], 'canto', [1, 2], 6),
+    item('fogareiro', ['fogareiro'], 'canto', [0, 1], 7, { areaMinima: 10 }),
+    item('barril', ['barril', 'barril.em-pe'], 'canto', [0, 1], 8),
+  ],
+  'enfermaria-improvisada': [
+    item('cama', ['cama-hospitalar'], 'parede', [1, 3], 1, { escala: 0.4 }),
+    item('colchao', ['colchao-no-chao'], 'parede', [1, 2], 2, { areaMinima: 8 }),
+    item('caixa', ['caixa-de-suprimentos'], 'canto', [1, 1], 3),
+    item('mesa', ['mesa.retangular'], 'centro', [0, 1], 4, { areaMinima: 8 }),
+    item('armario', ['armario-de-vestiario'], 'parede', [0, 1], 5, { areaMinima: 10 }),
+    item('cadeira', ['cadeira'], 'canto', [0, 2], 6),
+  ],
+  'oficina-de-sucata': [
+    item('bancada', ['bancada.ferramentas'], 'parede', [1, 2], 1),
+    item('pneus', ['pneus-empilhados'], 'canto', [1, 2], 2),
+    item('carcaca', ['carro.enferrujado'], 'centro', [0, 1], 3, { areaMinima: 36 }),
+    item('gerador', ['gerador-a-diesel'], 'canto', [0, 1], 4, { areaMinima: 16 }),
+    item('tambor', ['barril', 'barril.em-pe'], 'canto', [1, 3], 5),
+    item('caixote', ['caixote', 'pilha-de-caixotes'], 'canto', [0, 2], 6),
+    item('tonel', ['tonel-com-fogo'], 'canto', [0, 1], 7, { areaMinima: 14 }),
+  ],
+  // O posto de guarda é uma guarita pequena: muro de sacos, fogo à porta, caixa e uma cadeira.
+  'posto-de-guarda': [
+    item('sacos', ['sacos-de-areia'], 'parede', [1, 2], 1, { params: { comprimento: 2 } }),
+    item('caixa', ['caixa-de-suprimentos'], 'canto', [1, 1], 2),
+    item('tonel', ['tonel-com-fogo'], 'canto', [1, 1], 3),
+    item('cadeira', ['cadeira'], 'canto', [0, 1], 4),
+    item('mesa', ['mesa.retangular'], 'parede', [0, 1], 5, { areaMinima: 8 }),
+    item('placa', ['placa-pichada'], 'canto', [0, 1], 6),
+  ],
   // Vitoriano e steampunk (Q20c). Máquinas só nas áreas maiores; as peças de parede (manômetros, engrenagens) e a luz da caldeira, da bancada e da bobina vêm dos próprios objetos.
   fabrica: [
     item('caldeira', ['caldeira'], 'parede', [1, 1], 1, { areaMinima: 18 }),
@@ -728,6 +775,11 @@ const VARIACOES_BASE: Readonly<Record<string, { trocar?: Record<string, string[]
       'refeitorio:mesa': ['mesa.retangular'], 'refeitorio:banco': ['cadeira', 'banco'], 'salao:mesa': ['mesa.retangular'], 'salao:banco': ['cadeira'],
       'hospital:cama': ['cama-hospitalar'],
     },
+  },
+  // Pós-apocalíptico (Q22c): as trocas do moderno, com colchão no chão no lugar da cama e a enfermaria improvisada com camas hospitalares.
+  'pos-apocaliptico': {
+    sem: ['quarto:estante'],
+    trocar: { 'quarto:cama': ['colchao-no-chao', 'cama.solteiro'], 'quarto:cama.casal': ['colchao-no-chao'], 'cela:cama': ['colchao-no-chao'], 'hospital:cama': ['cama-hospitalar', 'colchao-no-chao'], 'oficina:bancada': ['bancada.ferramentas'], 'oficina:banqueta': ['cadeira'] },
   },
   fantasia: {
     sem: ['cozinha:balcao'],

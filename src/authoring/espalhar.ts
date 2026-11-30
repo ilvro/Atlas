@@ -119,6 +119,14 @@ export const CONJUNTOS_EXTERIORES: readonly ConjuntoDeEspalhar[] = [
   { id: 'estacionamento', nome: 'Estacionamento', descricao: 'Carros e motos, caçamba, cones e barreiras', densidade: 0.05, itens: [
     { familia: 'carro', peso: 8, contexto: 'livre' }, { receita: 'moto', peso: 1, contexto: 'livre' }, { receita: 'cacamba', peso: 1, contexto: 'livre' },
     { receita: 'cone', peso: 3, contexto: 'livre' }, { receita: 'barreira', peso: 2, contexto: 'livre' }, { receita: 'lixeira', peso: 1, contexto: 'livre' }] },
+  { id: 'estrada-abandonada', nome: 'Estrada abandonada', descricao: 'Carcaças de carros, ônibus tombado, barricadas, pneus, placas pichadas e cerca de arame', densidade: 0.03, itens: [
+    { receita: 'carro.enferrujado', peso: 6, contexto: 'livre' }, { receita: 'onibus-tombado', peso: 1, contexto: 'livre' }, { receita: 'barricada', peso: 2, contexto: 'livre' },
+    { receita: 'pneus-empilhados', peso: 2, contexto: 'livre' }, { receita: 'placa-pichada', peso: 2, contexto: 'livre' }, { receita: 'cerca-de-arame-farpado', peso: 1, contexto: 'livre' }] },
+  { id: 'acampamento-de-sobreviventes', nome: 'Acampamento de sobreviventes', descricao: 'Barracas, tonel e fogareiro, horta em pneus, tanque, gerador, colchões, caixas, torre de vigia e cerca', densidade: 0.05, itens: [
+    { receita: 'barraca-improvisada', peso: 4, contexto: 'livre' }, { receita: 'tonel-com-fogo', peso: 2, contexto: 'livre' }, { receita: 'fogareiro', peso: 2, contexto: 'livre' },
+    { receita: 'horta-em-pneus', peso: 2, contexto: 'livre' }, { receita: 'tanque-de-agua', peso: 1, contexto: 'livre' }, { receita: 'gerador-a-diesel', peso: 1, contexto: 'livre' },
+    { receita: 'colchao-no-chao', peso: 2, contexto: 'livre' }, { receita: 'caixa-de-suprimentos', peso: 3, contexto: 'livre' }, { receita: 'torre-de-vigia', peso: 1, contexto: 'livre' },
+    { receita: 'cerca-de-arame-farpado', peso: 1, contexto: 'livre' }] },
 ];
 export const TODOS_OS_CONJUNTOS: readonly ConjuntoDeEspalhar[] = [...CONJUNTOS_DE_ESPALHAR, ...CONJUNTOS_EXTERIORES];
 export const conjuntoDeEspalhar = (id: string): ConjuntoDeEspalhar | undefined => TODOS_OS_CONJUNTOS.find(c => c.id === id);

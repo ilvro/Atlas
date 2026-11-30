@@ -73,6 +73,12 @@ export const TIPOS_DE_COMODO: readonly TipoDeComodo[] = [
   { id: 'garagem', nome: 'Garagem', funcao: 'garagem', piso: 'concreto.placas', papel: 'reboco.branco', descricao: 'Carros, bancada de ferramentas, tambores e caixotes' },
   { id: 'posto', nome: 'Posto (conveniência)', funcao: 'posto', piso: 'vinil.industrial', papel: 'papel.liso-claro', descricao: 'Loja de conveniência: gôndolas, freezer, caixa e máquina de venda' },
   { id: 'vestiario', nome: 'Vestiário', funcao: 'vestiario', piso: 'azulejo.branco', papel: 'azulejo.metro', descricao: 'Armários de vestiário nas paredes e bancos' },
+  // Pós-apocalíptico (Q22c). O acampamento é ao ar livre (sem telhado, ver `FUNCOES_AO_AR_LIVRE`); o posto de guarda é uma guarita, com teto.
+  { id: 'acampamento', nome: 'Acampamento', funcao: 'acampamento', piso: 'terra.batida', papel: 'chapa.enferrujada', descricao: 'Barracas, colchões, tonel e fogareiro no centro, gerador, tanque, horta e caixas, ao ar livre' },
+  { id: 'abrigo', nome: 'Abrigo (bunker)', funcao: 'abrigo', piso: 'concreto.rachado', papel: 'concreto.pichado', descricao: 'Colchões, caixas de suprimentos, tanque, gerador e prateleiras' },
+  { id: 'enfermaria-improvisada', nome: 'Enfermaria improvisada', funcao: 'enfermaria-improvisada', piso: 'linoleo', papel: 'azulejo.metro', descricao: 'Camas hospitalares e colchões, caixa de suprimentos, mesa e armário' },
+  { id: 'oficina-de-sucata', nome: 'Oficina de sucata', funcao: 'oficina-de-sucata', piso: 'entulho', papel: 'chapa.enferrujada', descricao: 'Bancada, pneus empilhados, carcaça de carro, gerador, tambores e caixotes' },
+  { id: 'posto-de-guarda', nome: 'Posto de guarda', funcao: 'posto-de-guarda', piso: 'concreto.rachado', papel: 'chapa.enferrujada', descricao: 'Guarita com sacos de areia, caixa de suprimentos, tonel com fogo e placa' },
 ];
 export const tipoDeComodo = (id: string): TipoDeComodo | undefined => TIPOS_DE_COMODO.find(t => t.id === id);
 
@@ -221,7 +227,7 @@ export const generoDe = (id: string): Genero => GENEROS.find(g => g.id === id) ?
 export const generosVisiveis = (id: string): string[] => [id, ...(GENEROS.find(g => g.id === id)?.herda ?? [])];
 
 /** Funções de cômodo ao ar livre que nascem sem telhado por padrão. */
-export const FUNCOES_AO_AR_LIVRE = new Set(['varanda', 'patio', 'claustro', 'quintal', 'peristilo', 'forum', 'jardim', 'patio-com-fonte', 'conves', 'fortim']);
+export const FUNCOES_AO_AR_LIVRE = new Set(['varanda', 'patio', 'claustro', 'quintal', 'peristilo', 'forum', 'jardim', 'patio-com-fonte', 'conves', 'fortim', 'acampamento']);
 
 /** Um estilo de telhado: combinação nomeada de cobertura, forma, inclinação e detalhes (só usada na interface e construção; o documento grava os campos resultantes em `room.roof`). */
 export interface EstiloDeTelhado { id: string; nome: string; roof: Omit<Comodo['roof'], 'visible'> }
@@ -343,6 +349,10 @@ export function telhadoPadrao(
   if (genero === 'deserto') return clonarTelhado(estiloDeTelhado('terraco-de-barro')!.roof);
   if (genero === 'faroeste') return clonarTelhado(estiloDeTelhado('cabana-de-tabuas')!.roof);
   if (genero === 'colonial') return clonarTelhado(estiloDeTelhado('casa-colonial')!.roof);
+  // Pós-apocalíptico (Q22c): o abrigo é de laje (com caixas de ar e antena); o resto, de chapa remendada.
+  if (genero === 'pos-apocaliptico') {
+    return funcao === 'abrigo' ? clonarTelhado(estiloDeTelhado('laje-equipada')!.roof) : { material: 'chapa.remendada', shape: 'uma-agua', steep: false, details: [] };
+  }
   // Vitoriano (Q20c): a fábrica e a estação têm galpão de chapa; o resto, o sobrado de mansarda de ardósia.
   if (genero === 'vitoriano') return clonarTelhado(estiloDeTelhado(funcao === 'fabrica' || funcao === 'estacao-de-dirigivel' ? 'galpao-abobadado' : 'sobrado-de-mansarda')!.roof);
   return clonarTelhado(estiloDeTelhado('casa-velha')!.roof);

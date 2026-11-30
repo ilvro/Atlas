@@ -10,6 +10,10 @@ const FUNCOES = new Set(TIPOS_DE_COMODO.map(t => t.funcao));
 
 // Das mais específicas para as mais genéricas: a primeira palavra que bate decide.
 const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number }[] = [
+  // Pós-apocalíptico (Q22c): "acampamento", "abrigo", "bunker" e "sucata" valem soltos; "posto avançado/de guarda", "guarita", "ferro-velho" e "enfermaria improvisada" têm frase própria (ver `FRASES`).
+  { palavras: ['acampamento', 'acampamentos'], funcao: 'acampamento', confianca: 0.9 },
+  { palavras: ['abrigo', 'bunker', 'refugio'], funcao: 'abrigo', confianca: 0.9 },
+  { palavras: ['sucata', 'sucatas'], funcao: 'oficina-de-sucata', confianca: 0.9 },
   // Moderno urbano (Q21c): "lanchonete", "mercado" e "garagem" valem soltos. "Posto" sozinho é ambíguo (posto de guarda, posto avançado), então só vale em nome inteiro ou com "gasolina/combustível" (ver `FRASES`); "enfermaria" continua indo para `hospital`.
   { palavras: ['lanchonete', 'diner', 'lancheria', 'hamburgueria', 'cafeteria'], funcao: 'lanchonete', confianca: 0.9 },
   { palavras: ['supermercado', 'minimercado', 'hipermercado', 'mercado'], funcao: 'mercado', confianca: 0.9 },
@@ -73,6 +77,9 @@ const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number
 ];
 /** Frases que valem mais que as palavras soltas ("salão de chá" não é "casa de chá"); vêm antes de `POR_NOME`. */
 const FRASES: readonly { frase: RegExp; funcao: string; confianca: number }[] = [
+  { frase: /\b(enfermaria|clinica|hospital) (improvisad[oa]|de campanha)\b/, funcao: 'enfermaria-improvisada', confianca: 0.9 },
+  { frase: /\bposto (avancado|de guarda|de vigia|de sentinela|de controle)\b|\bguarita\b|\bcheckpoint\b/, funcao: 'posto-de-guarda', confianca: 0.9 },
+  { frase: /\bferro velho\b|\boficina de sucata\b/, funcao: 'oficina-de-sucata', confianca: 0.9 },
   { frase: /^posto( \d+)?$|\bposto (de |da )?(gasolina|combustivel|combustiveis|abastecimento|servico|servicos)\b|\bloja de conveniencia\b|\bconveniencia\b/, funcao: 'posto', confianca: 0.9 },
   { frase: /\b(oficina|laboratorio|atelie) (do|de) inventor\b|\boficina (de )?invencoes\b|\boficina steampunk\b/, funcao: 'oficina-de-inventor', confianca: 0.9 },
   { frase: /\b(sala|casa) (da|das|de) caldeiras?\b/, funcao: 'fabrica', confianca: 0.9 },

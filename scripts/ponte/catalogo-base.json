@@ -1345,7 +1345,9 @@
             "rua-de-paralelepipedo",
             "patio-de-fabrica",
             "rua-urbana",
-            "estacionamento"
+            "estacionamento",
+            "estrada-abandonada",
+            "acampamento-de-sobreviventes"
           ]
         },
         "forma": {

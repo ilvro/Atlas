@@ -100,6 +100,12 @@ export const LUZES_POR_FUNCAO: Readonly<Record<string, LuzDaFuncao>> = {
   garagem: { m2PorLuz: 16, tamanho: 'principal', sobre: ['bancada.ferramentas'] },
   posto: { m2PorLuz: 14, tamanho: 'principal', sobre: ['gondola', 'caixa-registradora'] },
   vestiario: { m2PorLuz: 14, tamanho: 'principal', sobre: ['armario-de-vestiario'] },
+  // Pós-apocalíptico (Q22c): o tonel e o fogareiro já iluminam; o acampamento ao ar livre não ganha luz automática.
+  acampamento: { m2PorLuz: 20, tamanho: 'pequena', sobre: [], semLuz: true },
+  abrigo: { m2PorLuz: 12, tamanho: 'pequena', sobre: ['caixa-de-suprimentos'] },
+  'enfermaria-improvisada': { m2PorLuz: 12, tamanho: 'pequena', sobre: ['mesa.retangular', 'caixa-de-suprimentos'] },
+  'oficina-de-sucata': { m2PorLuz: 14, tamanho: 'principal', sobre: ['bancada.ferramentas'] },
+  'posto-de-guarda': { m2PorLuz: 10, tamanho: 'pequena', sobre: ['caixa-de-suprimentos'] },
 };
 
 const DISTANCIA_MINIMA = 2;
