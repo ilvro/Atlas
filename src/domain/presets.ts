@@ -62,6 +62,11 @@ export const TIPOS_DE_COMODO: readonly TipoDeComodo[] = [
   { id: 'taverna-do-porto', nome: 'Taverna do porto', funcao: 'taverna-do-porto', piso: 'tabuas.gastas', papel: 'caiado', descricao: 'Mesas de taverna, barris de rum e balcão' },
   { id: 'fortim', nome: 'Fortim', funcao: 'fortim', piso: 'laje.pedra', papel: 'pedra.aparelhada', descricao: 'Canhões de forte, balas, sino de cais e bandeira, ao ar livre' },
   { id: 'casa-colonial', nome: 'Casa colonial', funcao: 'casa-colonial', piso: 'tijoleira', papel: 'caiado', descricao: 'Oratório, mesa, rede de dormir e botica' },
+  // Vitoriano e steampunk (Q20c). As salas comuns (sala, escritório, quarto…) usam a paleta do gênero em `MATERIAIS_POR_GENERO.vitoriano`.
+  { id: 'fabrica', nome: 'Fábrica', funcao: 'fabrica', piso: 'tabuas.gastas', papel: 'tijolo.fuligem', descricao: 'Caldeira, máquina a vapor, teares, prensa e esteira; tubulação de cobre e manômetros na parede' },
+  { id: 'oficina-de-inventor', nome: 'Oficina de inventor', funcao: 'oficina-de-inventor', piso: 'tabuas.gastas', papel: 'tijolo.fuligem', descricao: 'Bancada de inventor, autômato, bobina de Tesla, engrenagens e prensa' },
+  { id: 'clube', nome: 'Clube de cavalheiros', funcao: 'clube', piso: 'tabuas.escuras', papel: 'papel.damasco-vinho', descricao: 'Poltronas de couro, lareira, mesa de bilhar, gramofone e estante' },
+  { id: 'estacao-de-dirigivel', nome: 'Estação de dirigível', funcao: 'estacao-de-dirigivel', piso: 'ladrilho.xadrez', papel: 'tijolo.fuligem', descricao: 'Salão de embarque: bancos, banca de jornal, relógio, malas e esteira de bagagem' },
 ];
 export const tipoDeComodo = (id: string): TipoDeComodo | undefined => TIPOS_DE_COMODO.find(t => t.id === id);
 
@@ -332,5 +337,7 @@ export function telhadoPadrao(
   if (genero === 'deserto') return clonarTelhado(estiloDeTelhado('terraco-de-barro')!.roof);
   if (genero === 'faroeste') return clonarTelhado(estiloDeTelhado('cabana-de-tabuas')!.roof);
   if (genero === 'colonial') return clonarTelhado(estiloDeTelhado('casa-colonial')!.roof);
+  // Vitoriano (Q20c): a fábrica e a estação têm galpão de chapa; o resto, o sobrado de mansarda de ardósia.
+  if (genero === 'vitoriano') return clonarTelhado(estiloDeTelhado(funcao === 'fabrica' || funcao === 'estacao-de-dirigivel' ? 'galpao-abobadado' : 'sobrado-de-mansarda')!.roof);
   return clonarTelhado(estiloDeTelhado('casa-velha')!.roof);
 }

@@ -104,6 +104,14 @@ export const CONJUNTOS_EXTERIORES: readonly ConjuntoDeEspalhar[] = [
     { receita: 'bau-de-tesouro', peso: 3, contexto: 'livre' }, { receita: 'moedas-espalhadas', peso: 4, contexto: 'livre' },
     { receita: 'ossada', peso: 2, contexto: 'livre' }, { receita: 'cranio-animal', peso: 1, contexto: 'livre' }, { receita: 'bandeira-pirata', peso: 1, contexto: 'livre' },
     { receita: 'barril-de-rum', peso: 1, contexto: 'livre' }, { receita: 'pedra.media', peso: 1, contexto: 'livre' }] },
+  { id: 'rua-de-paralelepipedo', nome: 'Rua de paralelepípedo', descricao: 'Lampiões a gás, banca de jornal, relógio de rua, carruagem fechada, bancos, caixotes e barris', densidade: 0.04, itens: [
+    { receita: 'lampiao-a-gas', peso: 4, contexto: 'livre' }, { receita: 'banca-de-jornal', peso: 1, contexto: 'livre' }, { receita: 'relogio-de-rua', peso: 1, contexto: 'livre' },
+    { receita: 'carruagem-fechada', peso: 1, contexto: 'livre' }, { receita: 'banco.jardim', peso: 2, contexto: 'livre' }, { receita: 'caixote', peso: 2, contexto: 'livre' },
+    { receita: 'barril', peso: 2, contexto: 'livre' }] },
+  { id: 'patio-de-fabrica', nome: 'Pátio de fábrica', descricao: 'Chaminé industrial, tubulação de cobre, esteira, carroça, caixotes, barris e sacos', densidade: 0.04, itens: [
+    { receita: 'chamine-industrial', peso: 1, contexto: 'livre' }, { receita: 'tubulacao.cobre', peso: 2, contexto: 'livre' }, { receita: 'esteira', peso: 1, contexto: 'livre' },
+    { receita: 'carroca', peso: 1, contexto: 'livre' }, { receita: 'caixote', peso: 3, contexto: 'livre' }, { receita: 'pilha-de-caixotes', peso: 2, contexto: 'livre' },
+    { receita: 'barril', peso: 2, contexto: 'livre' }, { receita: 'sacos', peso: 2, contexto: 'livre' }, { receita: 'lampiao-a-gas', peso: 1, contexto: 'livre' }] },
 ];
 export const TODOS_OS_CONJUNTOS: readonly ConjuntoDeEspalhar[] = [...CONJUNTOS_DE_ESPALHAR, ...CONJUNTOS_EXTERIORES];
 export const conjuntoDeEspalhar = (id: string): ConjuntoDeEspalhar | undefined => TODOS_OS_CONJUNTOS.find(c => c.id === id);

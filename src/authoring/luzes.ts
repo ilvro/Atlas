@@ -89,6 +89,11 @@ export const LUZES_POR_FUNCAO: Readonly<Record<string, LuzDaFuncao>> = {
   'cabine-do-capitao': { m2PorLuz: 14, tamanho: 'pequena', sobre: ['mesa-de-cartografo'] },
   'taverna-do-porto': { m2PorLuz: 12, tamanho: 'principal', sobre: ['mesa.taverna', 'balcao'] },
   'casa-colonial': { m2PorLuz: 14, tamanho: 'principal', sobre: ['mesa.retangular', 'oratorio'] },
+  // Vitoriano (Q20c): lampião a gás e vela do gênero; a caldeira, a bancada de inventor e a bobina de Tesla já trazem a luz delas.
+  fabrica: { m2PorLuz: 16, tamanho: 'principal', sobre: ['caldeira', 'prensa'] },
+  'oficina-de-inventor': { m2PorLuz: 12, tamanho: 'principal', sobre: ['bancada-de-inventor', 'bobina-de-tesla'] },
+  clube: { m2PorLuz: 14, tamanho: 'principal', sobre: ['mesa.bilhar', 'mesa.carteado', 'mesa.centro'] },
+  'estacao-de-dirigivel': { m2PorLuz: 16, tamanho: 'principal', sobre: ['banca-de-jornal', 'banco.longo'] },
 };
 
 const DISTANCIA_MINIMA = 2;

@@ -605,6 +605,63 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('quadro', ['quadro'], 'na-parede', [0, 2], 10),
     item('arandela', ['arandela'], 'na-parede', [1, 2], 11),
   ],
+  // Vitoriano e steampunk (Q20c). Máquinas só nas áreas maiores; as peças de parede (manômetros, engrenagens) e a luz da caldeira, da bancada e da bobina vêm dos próprios objetos.
+  fabrica: [
+    item('caldeira', ['caldeira'], 'parede', [1, 1], 1, { areaMinima: 18 }),
+    item('maquina', ['maquina-a-vapor'], 'centro', [1, 1], 2, { areaMinima: 30 }),
+    item('tear', ['tear-mecanico'], 'parede', [1, 3], 3, { areaMinima: 20 }),
+    item('prensa', ['prensa'], 'parede', [1, 2], 4, { areaMinima: 14 }),
+    item('esteira', ['esteira'], 'parede', [0, 1], 5, { areaMinima: 24 }),
+    item('engrenagens', ['engrenagens'], 'canto', [1, 2], 6, { areaMinima: 10 }),
+    item('tubulacao', ['tubulacao.cobre'], 'parede', [1, 2], 7),
+    item('manometros', ['painel-de-manometros'], 'na-parede', [1, 2], 8),
+    item('engrenagens-parede', ['engrenagens.parede'], 'na-parede', [0, 2], 9),
+    item('caixote', ['caixote', 'pilha-de-caixotes'], 'canto', [1, 3], 10),
+    item('sacos', ['sacos'], 'canto', [0, 2], 11),
+    item('barril', ['barril'], 'canto', [0, 1], 12),
+    item('arandela', ['arandela'], 'na-parede', [0, 2], 13),
+  ],
+  'oficina-de-inventor': [
+    item('bancada', ['bancada-de-inventor'], 'parede', [1, 2], 1, { areaMinima: 8 }),
+    item('banqueta', ['banqueta', 'cadeira'], 'junto', [1, 2], 2, { junto: { de: 'bancada', modo: 'em-frente', folga: 0.1 } }),
+    item('automato', ['automato'], 'canto', [1, 1], 3),
+    item('bobina', ['bobina-de-tesla'], 'centro', [1, 1], 4, { areaMinima: 16 }),
+    item('prensa', ['prensa'], 'parede', [0, 1], 5, { areaMinima: 14 }),
+    item('engrenagens-parede', ['engrenagens.parede'], 'na-parede', [1, 2], 6),
+    item('estante', ['estante'], 'na-parede', [1, 2], 7, { escala: 0.4 }),
+    item('globo', ['globo.terrestre'], 'canto', [0, 1], 8),
+    item('gramofone', ['gramofone'], 'canto', [0, 1], 9),
+    item('caixote', ['caixote'], 'canto', [0, 2], 10),
+    item('quadro', ['mapa.mundi', 'quadros.grupo'], 'na-parede', [0, 1], 11),
+  ],
+  clube: [
+    item('lareira', ['lareira.nobre', 'lareira.marmore'], 'parede', [1, 1], 1, { alto: true, areaMinima: 12 }),
+    item('poltrona', ['poltrona.capitone', 'casa:poltrona-capitone-couro'], 'junto', [2, 4], 2, { junto: { de: 'lareira', modo: 'em-frente', folga: 2.2 }, senao: 'parede' }),
+    item('sofa', ['sofa.capitone', 'casa:chesterfield-couro'], 'parede', [0, 1], 3, { areaMinima: 20 }),
+    item('mesa-centro', ['mesa.centro'], 'centro', [0, 1], 4, { areaMinima: 16 }),
+    item('bilhar', ['mesa.bilhar', 'mesa.carteado'], 'centro', [0, 1], 5, { areaMinima: 30 }),
+    item('tapete', ['tapete.persa', 'tapete.oval', 'casa:tapete-persa-p-vinho', 'casa:tapete-persa-p-verde'], 'centro', [0, 1], 6, { areaMinima: 14 }),
+    item('estante', ['estante'], 'na-parede', [1, 2], 7, { escala: 0.4 }),
+    item('aparador', ['aparador'], 'parede', [1, 1], 8, { alto: true, escala: 0.4 }),
+    item('gramofone', ['gramofone'], 'canto', [0, 1], 9),
+    item('relogio', ['relogio.pe'], 'canto', [0, 1], 10),
+    item('globo', ['globo.terrestre'], 'canto', [0, 1], 11, { areaMinima: 16 }),
+    item('quadro', ['quadro', 'retrato.oval', 'paisagem.grande'], 'na-parede', [1, 3], 12),
+    item('arandela', ['arandela'], 'na-parede', [1, 2], 13),
+  ],
+  // O salão de embarque: o dirigível ancora fora (conjunto ou exemplo), não entra na mobília interior.
+  'estacao-de-dirigivel': [
+    item('banco', ['banco.longo', 'banco'], 'parede', [2, 4], 1),
+    item('banca', ['banca-de-jornal'], 'parede', [0, 1], 2, { areaMinima: 20 }),
+    item('relogio', ['relogio-de-rua'], 'canto', [1, 1], 3),
+    item('esteira', ['esteira'], 'parede', [0, 1], 4, { areaMinima: 24 }),
+    item('malas', ['caixote', 'pilha-de-caixotes'], 'canto', [1, 3], 5),
+    item('sacos', ['sacos'], 'canto', [0, 2], 6),
+    item('manometros', ['painel-de-manometros'], 'na-parede', [1, 1], 7),
+    item('lampiao', ['lampiao-a-gas'], 'canto', [0, 2], 8, { areaMinima: 20 }),
+    item('relogio-parede', ['relogio.parede'], 'na-parede', [0, 1], 9),
+    item('arandela', ['arandela'], 'na-parede', [0, 2], 10),
+  ],
 };
 
 /**
@@ -678,6 +735,14 @@ export const VARIACOES_DE_GENERO: Readonly<Record<string, { trocar?: Record<stri
       'porao:caixote-canto': ['barril-de-rum', 'fardos-de-acucar'], 'porao:caixote-parede': ['fardos-de-acucar', 'barril-de-rum', 'caixa'],
       'taverna:barril': ['barril-de-rum'], 'quarto:cama': ['rede-de-dormir', 'catre'], 'escritorio:escrivaninha': ['mesa-de-cartografo', 'escrivaninha'],
       'deposito:barril': ['barril-de-rum', 'pilha-de-barris'], 'deposito:caixote': ['fardos-de-acucar', 'caixote'], 'loja:estante-piso': ['botica', 'estante.piso'],
+    },
+  },
+  /** Vitoriano: parte da investigação (a casa burguesa, sem as trocas rústicas da fantasia), com gramofone na sala, autômato e engrenagens de parede no escritório, bancada de inventor na oficina comum, caixotes e sacos no porão. */
+  vitoriano: {
+    trocar: {
+      'sala:relogio': ['gramofone', 'relogio.pe'], 'escritorio:globo': ['globo.terrestre', 'automato'], 'escritorio:mapa': ['engrenagens.parede', 'mapa.mundi'],
+      'oficina:bancada': ['bancada-de-inventor', 'bancada.trabalho'], 'oficina:amolar': ['engrenagens', 'pedra-de-amolar'],
+      'porao:caixote-canto': ['caixote', 'sacos'], 'porao:caixote-parede': ['pilha-de-caixotes', 'caixote'],
     },
   },
 };
