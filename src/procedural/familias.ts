@@ -252,6 +252,12 @@ export const FAMILIAS: readonly Familia[] = [
   f('moderno', 'extintor', 'Extintor', ['extintor'], { generos: ['moderno'] }),
   f('moderno', 'sinalizacao', 'Sinalização da rua', ['faixa-tracejada', 'faixa-continua', 'vaga-pintada', 'faixa-de-pedestre'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'], biomas: ['urbano'] }),
   f('moderno', 'bueiro', 'Bueiro, guia e mancha', ['mancha-de-oleo', 'bueiro', 'meio-fio'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'], biomas: ['urbano'] }),
+  f('moderno', 'carro', 'Carro', ['carro.hatch', 'carro.sedan', 'carro.taxi', 'carro.viatura', 'carro.picape', 'carro.van'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
+  f('moderno', 'duas-rodas', 'Moto e bicicleta', ['bicicleta', 'moto'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
+  f('moderno', 'onibus', 'Ônibus e ponto', ['ponto-de-onibus', 'onibus'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
+  f('moderno', 'mobiliario-urbano', 'Mobiliário urbano', ['hidrante', 'lixeira', 'orelhao', 'semaforo'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
+  f('moderno', 'obra', 'Cone, barreira e caçamba', ['cone', 'barreira', 'cacamba'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
+  f('moderno', 'bomba-de-gasolina', 'Bomba de gasolina', ['bomba-de-gasolina'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'] }),
   // Ficção científica
   f('ficcao', 'console', 'Console', ['console', 'mesa.navegacao', 'terminal.crt', 'painel.eletrico'], { generos: ['ficcao-cientifica', 'cyberpunk'] }),
   f('ficcao', 'gerador', 'Gerador', ['gerador'], { generos: ['ficcao-cientifica', 'cyberpunk'] }),
