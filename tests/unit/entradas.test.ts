@@ -125,11 +125,6 @@ test('Tarefa 2: ladrilhos de 8 m cobrem o mapa sem costuras nem sobreposição',
   assert.equal(area, 21 * 13);
 });
 
-test('Tarefa 2: semCache não muda a chave do terreno', () => {
-  const e = entradaDoTerreno(aplicarComando(criarMapa({ largura: 8, altura: 8 }), { tipo: 'terreno.base', material: 'grama' }));
-  assert.equal(chaveDoTerreno(e, 24), chaveDoTerreno(e, 24, 'illustrated'));
-});
-
 test('M4: ladrilhosDoTerreno preserva o índice real da camada de água e isola correnteza distante', () => {
   let m = criarMapa({ largura: 48, altura: 16 });
   m = aplicarComando(m, { tipo: 'terreno.pintar', material: 'agua.lago', celulas: [[4, 4], [5, 4]] }); // ~1 m

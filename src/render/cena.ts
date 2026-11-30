@@ -260,7 +260,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
         const resPrevia = Math.max(1, res / 4);
         const baseTexturas = baseDasTexturas();
         const previa = estilo === 'illustrated' && (!alvo.sprite || modoDoProjetor)
-          ? { chave: chaveDoTerreno(l.entrada, resPrevia, estilo), pedido: { tipo: 'terreno' as const, entrada: l.entrada, res: resPrevia, estilo, baseTexturas, semCache: true } }
+          ? { chave: chaveDoTerreno(l.entrada, resPrevia, estilo), pedido: { tipo: 'terreno' as const, entrada: l.entrada, res: resPrevia, estilo, baseTexturas, ...(terrenoEfemero ? { semCache: true } : {}) } }
           : undefined;
         pintar(alvo, chave, { tipo: 'terreno', entrada: l.entrada, res, estilo, baseTexturas, ...(terrenoEfemero ? { semCache: true } : {}) }, (s, r) => {
           s.position.set(r.origem[0], r.origem[1]);
