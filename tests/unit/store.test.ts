@@ -378,3 +378,18 @@ test('ganchos aoExecutarComandos e aoTerminarGesto disparam apenas para ediçõe
   store.projetar({ ...store.documento, notes: 'Projeção externa' }, { pularValidacao: false });
   assert.equal(executados.length, 2);
 });
+
+test('projetar: pularValidacao mantém o compartilhamento, então diferencas() só vê o que mudou', () => {
+  const store = criarStore(criarMapa({ id: 'proj-compartilha', nome: 'A' }));
+  const antes = store.documento;
+  const copia = JSON.parse(JSON.stringify(antes)) as typeof antes;
+  copia.name = 'B';
+  store.projetar(copia, { pularValidacao: true });
+  assert.equal(store.documento.name, 'B');
+  assert.equal(store.documento.grid, antes.grid, 'o que não mudou mantém a referência');
+  assert.equal(store.documento.terrain, antes.terrain);
+
+  const outra = JSON.parse(JSON.stringify(store.documento)) as typeof antes;
+  store.projetar(outra, { pularValidacao: true, pularCompartilhamento: true });
+  assert.notEqual(store.documento.grid, antes.grid, 'com pularCompartilhamento as referências são as da cópia');
+});

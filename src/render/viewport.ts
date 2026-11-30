@@ -1222,7 +1222,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
           i.para = candidato;
           const tLocal = completo().tokens[i.id];
           if (i.moveu && tLocal && Math.hypot(candidato[0] - atual[0], candidato[1] - atual[1]) > 1e-6) {
-            store.projetar({ ...completo(), tokens: { ...completo().tokens, [i.id]: { ...tLocal, position: candidato } } }, { emGesto: true, pularValidacao: true });
+            store.projetar({ ...completo(), tokens: { ...completo().tokens, [i.id]: { ...tLocal, position: candidato } } }, { emGesto: true, pularValidacao: true, pularCompartilhamento: true });
             const agora = performance.now();
             if (ponte.aoArrastarPecaRemota && !i.emVoo && agora - (i.ultimoEnvio ?? 0) >= 40) {
               i.ultimoEnvio = agora;
@@ -1346,12 +1346,12 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
         const t = m.tokens[i.id];
         if (cancelado) {
           const tComp = completo().tokens[i.id];
-          if (tComp) store.projetar({ ...completo(), tokens: { ...completo().tokens, [i.id]: { ...tComp, position: i.de } } }, { emGesto: true, pularValidacao: true });
+          if (tComp) store.projetar({ ...completo(), tokens: { ...completo().tokens, [i.id]: { ...tComp, position: i.de } } }, { emGesto: true, pularValidacao: true, pularCompartilhamento: true });
         } else if (i.moveu && t && ponte.aoArrastarPecaRemota && Math.hypot(i.para[0] - i.de[0], i.para[1] - i.de[1]) > 1e-6) {
           void ponte.aoArrastarPecaRemota(t, i.para, false).then(aceito => {
             if (!aceito) {
               const tComp = completo().tokens[i.id];
-              if (tComp) store.projetar({ ...completo(), tokens: { ...completo().tokens, [i.id]: { ...tComp, position: i.de } } }, { emGesto: true, pularValidacao: true });
+              if (tComp) store.projetar({ ...completo(), tokens: { ...completo().tokens, [i.id]: { ...tComp, position: i.de } } }, { emGesto: true, pularValidacao: true, pularCompartilhamento: true });
             }
           });
         }

@@ -236,7 +236,8 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
           }
         }
         doc.value = msg.doc;
-        store!.projetar(msg.doc, { emGesto: msg.emGesto });
+        // Mesmo mapa: já foi validado na primeira carga; `compartilhar` continua, para `diferencas()` ver só o que mudou.
+        store!.projetar(msg.doc, { emGesto: msg.emGesto, pularValidacao: docAntesId === msg.doc.id });
         pedirRetratosFaltantes(msg.doc);
         if (remoto && (msg.controleJogadores === 'livres' || msg.controleJogadores === 'mestre')) {
           controleRemoto.value = msg.controleJogadores;
@@ -270,7 +271,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
               },
             } : {}),
           };
-          store!.projetar(novoDoc, { emGesto: true, pularValidacao: true });
+          store!.projetar(novoDoc, { emGesto: true, pularValidacao: true, pularCompartilhamento: true });
         }
         if (msg.caixa && remoto) { caixa = msg.caixa; decidirRemoto({ tipo: 'camera', caixa: msg.caixa, ...(controleRemoto.peek() === 'mestre' ? { forcar: true } : {}) }); }
         else if (msg.caixa) {
