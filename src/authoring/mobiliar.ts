@@ -58,6 +58,8 @@ const MATERIAIS_BASE: Readonly<Record<string, Record<string, MateriaisDoComodo>>
       posto: { pisos: ['vinil.industrial'], papeis: ['papel.liso-claro'] }, vestiario: { pisos: ['azulejo.branco'], papeis: ['azulejo.metro'] },
       acampamento: { pisos: ['terra.batida'], papeis: ['chapa.enferrujada'] }, abrigo: { pisos: ['concreto.rachado'], papeis: ['concreto.pichado'] }, 'enfermaria-improvisada': { pisos: ['linoleo'], papeis: ['azulejo.metro'] },
       'oficina-de-sucata': { pisos: ['entulho'], papeis: ['chapa.enferrujada'] }, 'posto-de-guarda': { pisos: ['concreto.rachado'], papeis: ['chapa.enferrujada'] },
+      'clinica-clandestina': { pisos: ['grade.cyber'], papeis: ['azulejo.metro'] }, bar: { pisos: ['piso.neon'], papeis: ['painel.neon'] }, 'hotel-capsula': { pisos: ['grade.cyber'], papeis: ['painel.metalico'] },
+      'sala-de-servidores': { pisos: ['grade.cyber'], papeis: ['painel.metalico'] }, 'mercado-noturno': { pisos: ['concreto.rachado'], papeis: ['concreto.pichado'] },
     };
     const e = extra[t.funcao]!; return [t.funcao, { pisos: [t.piso, ...e.pisos], papeis: [t.papel, ...e.papeis] }];
   })),
@@ -232,6 +234,24 @@ const POS_APOCALIPTICO_POR_FUNCAO: Readonly<Record<string, MateriaisDoComodo>> =
   garagem: { pisos: ['concreto.rachado', 'entulho'], papeis: ['chapa.enferrujada', 'concreto.pichado'] },
 };
 
+/** Cyberpunk: grade escura e piso com néon, painéis metálicos e de néon, concreto pichado nas ruas; o azulejo de metrô fica na clínica (Q12). */
+const CYBERPUNK_POR_FUNCAO: Readonly<Record<string, MateriaisDoComodo>> = {
+  'clinica-clandestina': { pisos: ['grade.cyber', 'linoleo', 'concreto.rachado'], papeis: ['azulejo.metro', 'painel.metalico', 'concreto.pichado'] },
+  bar: { pisos: ['piso.neon', 'grade.cyber', 'concreto.rachado'], papeis: ['painel.neon', 'concreto.pichado', 'painel.metalico'] },
+  'hotel-capsula': { pisos: ['grade.cyber', 'vinil.industrial'], papeis: ['painel.metalico', 'painel.neon'] },
+  'sala-de-servidores': { pisos: ['grade.cyber', 'metal.grade'], papeis: ['painel.metalico', 'chapa.enferrujada'] },
+  'mercado-noturno': { pisos: ['concreto.rachado', 'concreto.placas', 'grade.cyber'], papeis: ['concreto.pichado', 'painel.metalico'] },
+  // Os cômodos comuns do moderno ficam mais frios e escuros: grade ou concreto, painéis e concreto pichado.
+  sala: { pisos: ['grade.cyber', 'concreto.rachado', 'carpete.cinza'], papeis: ['painel.metalico', 'concreto.pichado', 'papel.liso-escuro'] },
+  quarto: { pisos: ['carpete.cinza', 'grade.cyber'], papeis: ['papel.liso-escuro', 'painel.metalico'] },
+  cozinha: { pisos: ['linoleo', 'grade.cyber'], papeis: ['azulejo.metro', 'painel.metalico'] },
+  deposito: { pisos: ['grade.cyber', 'concreto.rachado'], papeis: ['painel.metalico', 'concreto.pichado'] },
+  oficina: { pisos: ['grade.cyber', 'concreto.rachado'], papeis: ['painel.metalico', 'chapa.enferrujada'] },
+  lanchonete: { pisos: ['piso.neon', 'ladrilho.xadrez'], papeis: ['painel.neon', 'azulejo.metro'] },
+  hospital: { pisos: ['grade.cyber', 'linoleo'], papeis: ['azulejo.metro', 'painel.metalico'] },
+  taverna: { pisos: ['piso.neon', 'grade.cyber'], papeis: ['painel.neon', 'concreto.pichado'] },
+};
+
 const PALETAS_BASE: Readonly<Record<string, Paleta[]>> = {
   investigacao: [
     { nome: 'Vinho e carvalho', madeira: 'madeira.escura', tecidos: ['tecido.veludo-vinho', 'tecido.linho'], tapete: 'tapete.persa' },
@@ -261,7 +281,7 @@ export const MATERIAIS_POR_GENERO: Readonly<Record<string, Record<string, Materi
   colonial: { ...MATERIAIS_BASE.investigacao!, ...COLONIAL_POR_FUNCAO },
   vitoriano: { ...MATERIAIS_BASE.investigacao!, ...VITORIANO_POR_FUNCAO },
   'pos-apocaliptico': { ...MATERIAIS_BASE.moderno!, ...MODERNO_POR_FUNCAO, ...POS_APOCALIPTICO_POR_FUNCAO },
-  cyberpunk: MATERIAIS_BASE.moderno!, // trocado na ficha Q23c
+  cyberpunk: { ...MATERIAIS_BASE.moderno!, ...MODERNO_POR_FUNCAO, ...CYBERPUNK_POR_FUNCAO },
 };
 
 export const PALETAS_POR_GENERO: Readonly<Record<string, Paleta[]>> = {
@@ -302,7 +322,12 @@ export const PALETAS_POR_GENERO: Readonly<Record<string, Paleta[]>> = {
     { nome: 'Tábua velha e couro', madeira: 'madeira.media', tecidos: ['couro.marrom', 'tecido.linho'], tapete: 'tapete.persa' },
     { nome: 'Compensado e mostarda', madeira: 'madeira.clara', tecidos: ['tecido.mostarda', 'tecido.linho'], tapete: 'tapete.verde' },
   ],
-  cyberpunk: PALETAS_BASE.moderno!, // trocado na ficha Q23c
+  // Cyberpunk (Q23c): grafite e cromo, com um tecido de cor forte (magenta ou ciano ficam por conta do néon).
+  cyberpunk: [
+    { nome: 'Grafite e cromo', madeira: 'madeira.escura', tecidos: ['tecido.cinza', 'tecido.linho'], tapete: 'tapete.desbotado' },
+    { nome: 'Preto e magenta', madeira: 'madeira.escura', tecidos: ['tecido.veludo-vinho', 'tecido.linho'], tapete: 'tapete.marinho' },
+    { nome: 'Ciano e aço', madeira: 'madeira.media', tecidos: ['tecido.veludo-azul', 'tecido.linho'], tapete: 'tapete.azul' },
+  ],
 };
 
 export const materiaisDe = (genero: string, funcao: string): MateriaisDoComodo => (MATERIAIS_POR_GENERO[generoDe(genero).id] ?? MATERIAIS_POR_GENERO.investigacao!)[funcao] ?? SEM_PAR(funcao);

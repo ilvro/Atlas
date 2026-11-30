@@ -701,6 +701,51 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
     item('mesa', ['mesa.retangular'], 'parede', [0, 1], 5, { areaMinima: 8 }),
     item('placa', ['placa-pichada'], 'canto', [0, 1], 6),
   ],
+  // Cyberpunk (Q23c). As receitas do kit só servem ao gênero (e aos que declaram), então nos outros estes itens saem sozinhos. O mercado noturno é ao ar livre: barracas e letreiros pelas bordas, o resto, pelos cantos.
+  'clinica-clandestina': [
+    item('cadeira', ['cadeira-de-implante'], 'centro', [1, 1], 1),
+    item('cama', ['cama-hospitalar'], 'parede', [1, 2], 2, { escala: 0.4 }),
+    item('estacao', ['estacao-hacker'], 'parede', [0, 1], 3, { areaMinima: 14 }),
+    item('rack', ['rack-de-servidores'], 'parede', [0, 1], 4, { areaMinima: 24 }),
+    item('armario', ['armario-de-vestiario', 'armario.amostras'], 'parede', [1, 1], 5, { areaMinima: 8 }),
+    item('bancada', ['bancada.ferramentas'], 'parede', [0, 1], 6, { areaMinima: 12 }),
+    item('letreiro', ['letreiro-neon'], 'na-parede', [1, 1], 7, { params: { forma: 5 } }),
+    item('cabos', ['quadro-de-cabos'], 'canto', [0, 1], 8, { areaMinima: 16 }),
+  ],
+  bar: [
+    item('balcao', ['balcao-luminoso'], 'parede', [1, 1], 1, { areaMinima: 10 }),
+    item('mesa', ['mesa-de-lanchonete', 'mesa.retangular'], 'centro', [1, 3], 2, { areaMinima: 8, escala: 0.5 }),
+    item('banqueta', ['cadeira', 'banco'], 'canto', [2, 4], 3),
+    item('fliperama', ['fliperama'], 'parede', [0, 2], 4, { areaMinima: 18 }),
+    item('maquina-de-venda', ['maquina-de-venda.neon'], 'canto', [0, 1], 5, { areaMinima: 12 }),
+    item('letreiro', ['letreiro-neon'], 'na-parede', [1, 1], 6, { params: { forma: 4 } }),
+    item('holograma', ['holograma'], 'centro', [0, 1], 7, { areaMinima: 36 }),
+    item('vaso', ['vaso.planta'], 'canto', [0, 1], 8, { areaMinima: 24 }),
+  ],
+  'hotel-capsula': [
+    item('maquina-de-venda', ['maquina-de-venda.neon'], 'parede', [1, 1], 1),
+    item('capsula', ['capsula-de-hotel'], 'parede', [2, 4], 2, { escala: 0.5 }),
+    item('armario', ['armario-de-vestiario'], 'parede', [1, 2], 3, { areaMinima: 8, escala: 0.3 }),
+    item('bebedouro', ['bebedouro.galao'], 'canto', [0, 1], 4, { areaMinima: 10 }),
+    item('letreiro', ['letreiro-neon'], 'na-parede', [0, 1], 5),
+  ],
+  'sala-de-servidores': [
+    item('fileira', ['rack-de-servidores'], 'centro', [1, 3], 1, { areaMinima: 20, escala: 0.4 }),
+    item('rack', ['rack-de-servidores'], 'parede', [2, 4], 2, { escala: 0.5 }),
+    item('gaiola', ['gaiola-de-cabos'], 'parede', [0, 1], 3, { areaMinima: 20 }),
+    item('estacao', ['estacao-hacker'], 'parede', [1, 1], 4, { areaMinima: 10 }),
+    item('cabos', ['quadro-de-cabos'], 'canto', [1, 1], 5),
+    item('extintor', ['extintor'], 'canto', [0, 1], 6),
+  ],
+  'mercado-noturno': [
+    item('barraca', ['barraca-de-lamen'], 'parede', [1, 3], 1, { areaMinima: 20, escala: 0.4 }),
+    item('letreiro', ['letreiro-neon.rua'], 'parede', [1, 2], 2),
+    item('maquina-de-venda', ['maquina-de-venda.neon'], 'canto', [1, 1], 3),
+    item('poste', ['poste-com-telas'], 'canto', [0, 1], 4, { areaMinima: 30 }),
+    item('lixeira', ['lixeira'], 'canto', [1, 2], 5),
+    item('caixote', ['caixote', 'pilha-de-caixotes'], 'canto', [1, 2], 6),
+    item('holograma', ['holograma'], 'centro', [0, 1], 7, { areaMinima: 40 }),
+  ],
   // Vitoriano e steampunk (Q20c). Máquinas só nas áreas maiores; as peças de parede (manômetros, engrenagens) e a luz da caldeira, da bancada e da bobina vêm dos próprios objetos.
   fabrica: [
     item('caldeira', ['caldeira'], 'parede', [1, 1], 1, { areaMinima: 18 }),
@@ -780,6 +825,19 @@ const VARIACOES_BASE: Readonly<Record<string, { trocar?: Record<string, string[]
   'pos-apocaliptico': {
     sem: ['quarto:estante'],
     trocar: { 'quarto:cama': ['colchao-no-chao', 'cama.solteiro'], 'quarto:cama.casal': ['colchao-no-chao'], 'cela:cama': ['colchao-no-chao'], 'hospital:cama': ['cama-hospitalar', 'colchao-no-chao'], 'oficina:bancada': ['bancada.ferramentas'], 'oficina:banqueta': ['cadeira'] },
+  },
+  // Cyberpunk (Q23c): as trocas do moderno, com o balcão luminoso e as mesas de lanchonete no bar (a taverna também, para o "Bar" solto), cápsulas no lugar das camas dos quartos coletivos e cama hospitalar na enfermaria.
+  cyberpunk: {
+    sem: ['quarto:estante', 'taverna:tapecaria', 'taverna:espadas', 'taverna:brasao', 'taverna:tocha', 'taverna:espeto'],
+    trocar: {
+      'sala:sofa': ['sofa.canto'], 'quarto:cama': ['cama.box'], 'quarto:cama.casal': ['cama.box'], 'quarto:armario': ['guarda-roupa.liso'], 'banheiro:vaso': ['vaso.moderno'], 'banheiro:pia': ['balcao'],
+      'escritorio:escrivaninha': ['estacao-hacker', 'escrivaninha.computador'], 'sala-de-jantar:mesa': ['mesa.vidro'], 'cozinha:mesa': ['mesa.vidro'],
+      'oficina:bancada': ['bancada.ferramentas'], 'oficina:banqueta': ['cadeira'], 'dormitorio:bau': ['comoda'], 'dormitorio:cama': ['capsula-de-hotel'], 'cela:cama': ['cama.solteiro'],
+      'refeitorio:mesa': ['mesa.retangular'], 'refeitorio:banco': ['cadeira', 'banco'], 'salao:mesa': ['mesa.retangular'], 'salao:banco': ['cadeira'],
+      'hospital:cama': ['cama-hospitalar'], 'hospital:balcao': ['balcao'],
+      'taverna:balcao': ['balcao-luminoso'], 'taverna:mesa': ['mesa-de-lanchonete', 'mesa.retangular'], 'taverna:cadeira': ['cadeira'], 'taverna:banco': ['cadeira'],
+      'taverna:barril': ['maquina-de-venda.neon'], 'taverna:trofeu': ['letreiro-neon'], 'taverna:lareira': ['fliperama'],
+    },
   },
   fantasia: {
     sem: ['cozinha:balcao'],

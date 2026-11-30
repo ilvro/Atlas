@@ -127,6 +127,14 @@ export const CONJUNTOS_EXTERIORES: readonly ConjuntoDeEspalhar[] = [
     { receita: 'horta-em-pneus', peso: 2, contexto: 'livre' }, { receita: 'tanque-de-agua', peso: 1, contexto: 'livre' }, { receita: 'gerador-a-diesel', peso: 1, contexto: 'livre' },
     { receita: 'colchao-no-chao', peso: 2, contexto: 'livre' }, { receita: 'caixa-de-suprimentos', peso: 3, contexto: 'livre' }, { receita: 'torre-de-vigia', peso: 1, contexto: 'livre' },
     { receita: 'cerca-de-arame-farpado', peso: 1, contexto: 'livre' }] },
+  { id: 'beco-de-neon', nome: 'Beco de néon', descricao: 'Letreiros de rua, caçamba, lixeiras, quadro de cabos, antenas, drone e máquina de venda', densidade: 0.05, itens: [
+    { receita: 'letreiro-neon.rua', peso: 3, contexto: 'livre' }, { receita: 'cacamba', peso: 2, contexto: 'livre' }, { receita: 'lixeira', peso: 3, contexto: 'livre' },
+    { receita: 'quadro-de-cabos', peso: 2, contexto: 'livre' }, { receita: 'antena-parabolica', peso: 1, contexto: 'livre' }, { receita: 'drone', peso: 1, contexto: 'livre' },
+    { receita: 'maquina-de-venda.neon', peso: 1, contexto: 'livre' }, { receita: 'caixote', peso: 1, contexto: 'livre' }] },
+  { id: 'mercado-noturno', nome: 'Mercado noturno', descricao: 'Barracas de lámen, letreiros, poste com telas, máquinas de venda, holograma e caixotes', densidade: 0.06, itens: [
+    { receita: 'barraca-de-lamen', peso: 4, contexto: 'livre' }, { receita: 'letreiro-neon.rua', peso: 3, contexto: 'livre' }, { receita: 'poste-com-telas', peso: 1, contexto: 'livre' },
+    { receita: 'maquina-de-venda.neon', peso: 2, contexto: 'livre' }, { receita: 'holograma', peso: 1, contexto: 'livre' }, { receita: 'lixeira', peso: 1, contexto: 'livre' },
+    { receita: 'caixote', peso: 2, contexto: 'livre' }] },
 ];
 export const TODOS_OS_CONJUNTOS: readonly ConjuntoDeEspalhar[] = [...CONJUNTOS_DE_ESPALHAR, ...CONJUNTOS_EXTERIORES];
 export const conjuntoDeEspalhar = (id: string): ConjuntoDeEspalhar | undefined => TODOS_OS_CONJUNTOS.find(c => c.id === id);

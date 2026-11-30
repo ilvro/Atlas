@@ -79,6 +79,12 @@ export const TIPOS_DE_COMODO: readonly TipoDeComodo[] = [
   { id: 'enfermaria-improvisada', nome: 'Enfermaria improvisada', funcao: 'enfermaria-improvisada', piso: 'linoleo', papel: 'azulejo.metro', descricao: 'Camas hospitalares e colchões, caixa de suprimentos, mesa e armário' },
   { id: 'oficina-de-sucata', nome: 'Oficina de sucata', funcao: 'oficina-de-sucata', piso: 'entulho', papel: 'chapa.enferrujada', descricao: 'Bancada, pneus empilhados, carcaça de carro, gerador, tambores e caixotes' },
   { id: 'posto-de-guarda', nome: 'Posto de guarda', funcao: 'posto-de-guarda', piso: 'concreto.rachado', papel: 'chapa.enferrujada', descricao: 'Guarita com sacos de areia, caixa de suprimentos, tonel com fogo e placa' },
+  // Cyberpunk (Q23c). O mercado noturno é ao ar livre (sem telhado, ver `FUNCOES_AO_AR_LIVRE`). O `bar` convive com a `taverna` (as palavras "bar" soltas continuam indo para a taverna; ver `funcao.ts`).
+  { id: 'clinica-clandestina', nome: 'Clínica clandestina', funcao: 'clinica-clandestina', piso: 'grade.cyber', papel: 'azulejo.metro', descricao: 'Cadeira de implante, cama hospitalar, estação hacker, armário e bancada' },
+  { id: 'bar', nome: 'Bar (néon)', funcao: 'bar', piso: 'piso.neon', papel: 'painel.neon', descricao: 'Balcão luminoso, banquetas, mesas, fliperamas, máquina de venda e letreiro' },
+  { id: 'hotel-capsula', nome: 'Hotel cápsula', funcao: 'hotel-capsula', piso: 'grade.cyber', papel: 'painel.metalico', descricao: 'Pilhas de cápsulas nas paredes, armários de vestiário e máquina de venda' },
+  { id: 'sala-de-servidores', nome: 'Sala de servidores', funcao: 'sala-de-servidores', piso: 'grade.cyber', papel: 'painel.metalico', descricao: 'Racks em fileira e nas paredes, gaiola de cabos, estação hacker e quadro de cabos' },
+  { id: 'mercado-noturno', nome: 'Mercado noturno', funcao: 'mercado-noturno', piso: 'concreto.rachado', papel: 'concreto.pichado', descricao: 'Barracas de lámen, letreiros de rua, máquinas de venda, poste com telas e caixotes, ao ar livre' },
 ];
 export const tipoDeComodo = (id: string): TipoDeComodo | undefined => TIPOS_DE_COMODO.find(t => t.id === id);
 
@@ -227,7 +233,7 @@ export const generoDe = (id: string): Genero => GENEROS.find(g => g.id === id) ?
 export const generosVisiveis = (id: string): string[] => [id, ...(GENEROS.find(g => g.id === id)?.herda ?? [])];
 
 /** Funções de cômodo ao ar livre que nascem sem telhado por padrão. */
-export const FUNCOES_AO_AR_LIVRE = new Set(['varanda', 'patio', 'claustro', 'quintal', 'peristilo', 'forum', 'jardim', 'patio-com-fonte', 'conves', 'fortim', 'acampamento']);
+export const FUNCOES_AO_AR_LIVRE = new Set(['varanda', 'patio', 'claustro', 'quintal', 'peristilo', 'forum', 'jardim', 'patio-com-fonte', 'conves', 'fortim', 'acampamento', 'mercado-noturno']);
 
 /** Um estilo de telhado: combinação nomeada de cobertura, forma, inclinação e detalhes (só usada na interface e construção; o documento grava os campos resultantes em `room.roof`). */
 export interface EstiloDeTelhado { id: string; nome: string; roof: Omit<Comodo['roof'], 'visible'> }
@@ -353,6 +359,8 @@ export function telhadoPadrao(
   if (genero === 'pos-apocaliptico') {
     return funcao === 'abrigo' ? clonarTelhado(estiloDeTelhado('laje-equipada')!.roof) : { material: 'chapa.remendada', shape: 'uma-agua', steep: false, details: [] };
   }
+  // Cyberpunk (Q23c): lajes equipadas (antenas, caixas de ar) sobre tudo.
+  if (genero === 'cyberpunk') return clonarTelhado(estiloDeTelhado('laje-equipada')!.roof);
   // Vitoriano (Q20c): a fábrica e a estação têm galpão de chapa; o resto, o sobrado de mansarda de ardósia.
   if (genero === 'vitoriano') return clonarTelhado(estiloDeTelhado(funcao === 'fabrica' || funcao === 'estacao-de-dirigivel' ? 'galpao-abobadado' : 'sobrado-de-mansarda')!.roof);
   return clonarTelhado(estiloDeTelhado('casa-velha')!.roof);

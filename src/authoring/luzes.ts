@@ -106,6 +106,12 @@ export const LUZES_POR_FUNCAO: Readonly<Record<string, LuzDaFuncao>> = {
   'enfermaria-improvisada': { m2PorLuz: 12, tamanho: 'pequena', sobre: ['mesa.retangular', 'caixa-de-suprimentos'] },
   'oficina-de-sucata': { m2PorLuz: 14, tamanho: 'principal', sobre: ['bancada.ferramentas'] },
   'posto-de-guarda': { m2PorLuz: 10, tamanho: 'pequena', sobre: ['caixa-de-suprimentos'] },
+  // Cyberpunk (Q23c): as luzes do gênero são néon (ciano e magenta). O mercado noturno ao ar livre não ganha luz automática: barracas, letreiros e telas já iluminam.
+  'clinica-clandestina': { m2PorLuz: 12, tamanho: 'principal', sobre: ['cadeira-de-implante', 'bancada.ferramentas'] },
+  bar: { m2PorLuz: 14, tamanho: 'pequena', sobre: ['balcao-luminoso', 'mesa-de-lanchonete'] },
+  'hotel-capsula': { m2PorLuz: 16, tamanho: 'pequena', sobre: ['maquina-de-venda.neon'] },
+  'sala-de-servidores': { m2PorLuz: 18, tamanho: 'pequena', sobre: ['rack-de-servidores', 'estacao-hacker'] },
+  'mercado-noturno': { m2PorLuz: 20, tamanho: 'pequena', sobre: [], semLuz: true },
 };
 
 const DISTANCIA_MINIMA = 2;

@@ -14,6 +14,11 @@ const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number
   { palavras: ['acampamento', 'acampamentos'], funcao: 'acampamento', confianca: 0.9 },
   { palavras: ['abrigo', 'bunker', 'refugio'], funcao: 'abrigo', confianca: 0.9 },
   { palavras: ['sucata', 'sucatas'], funcao: 'oficina-de-sucata', confianca: 0.9 },
+  // Cyberpunk (Q23c): "servidor(es)", "ripperdoc", "capsula(s)" e "boteco" valem soltos; "clínica clandestina/de implantes", "covil/toca hacker", "data center", "hotel cápsula", "bar de néon" e "mercado/feira noturna" têm frase própria (ver `FRASES`). "Bar" solto continua indo para a taverna (que no cyberpunk ganha balcão luminoso); "beco" não tem função: é conjunto exterior.
+  { palavras: ['servidor', 'servidores', 'datacenter'], funcao: 'sala-de-servidores', confianca: 0.9 },
+  { palavras: ['capsula', 'capsulas'], funcao: 'hotel-capsula', confianca: 0.9 },
+  { palavras: ['ripperdoc', 'ripperdocs'], funcao: 'clinica-clandestina', confianca: 0.9 },
+  { palavras: ['boteco'], funcao: 'bar', confianca: 0.9 },
   // Moderno urbano (Q21c): "lanchonete", "mercado" e "garagem" valem soltos. "Posto" sozinho é ambíguo (posto de guarda, posto avançado), então só vale em nome inteiro ou com "gasolina/combustível" (ver `FRASES`); "enfermaria" continua indo para `hospital`.
   { palavras: ['lanchonete', 'diner', 'lancheria', 'hamburgueria', 'cafeteria'], funcao: 'lanchonete', confianca: 0.9 },
   { palavras: ['supermercado', 'minimercado', 'hipermercado', 'mercado'], funcao: 'mercado', confianca: 0.9 },
@@ -77,6 +82,11 @@ const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number
 ];
 /** Frases que valem mais que as palavras soltas ("salão de chá" não é "casa de chá"); vêm antes de `POR_NOME`. */
 const FRASES: readonly { frase: RegExp; funcao: string; confianca: number }[] = [
+  { frase: /\bclinica (clandestina|de implantes?|de cromo|do submundo|ilegal)\b|\b(consultorio|cirurgia) clandestin[oa]\b/, funcao: 'clinica-clandestina', confianca: 0.9 },
+  { frase: /\b(covil|toca|esconderijo|quarto|sala) (do |de |dos |da )?hackers?\b|\bdata center\b|\bsala (de |dos? )?(servidores|racks)\b|\bcentro de dados\b/, funcao: 'sala-de-servidores', confianca: 0.9 },
+  { frase: /\bhotel (de )?capsulas?\b|\bmotel (de )?capsulas?\b/, funcao: 'hotel-capsula', confianca: 0.9 },
+  { frase: /\bbar (de |do |da )?(neon|hacker|hackers|cyber|cyberpunk|implantes?|baixo mundo|submundo)\b|\bneon bar\b/, funcao: 'bar', confianca: 0.9 },
+  { frase: /\b(mercado|feira|bazar|camelodromo) noturn[oa]\b|\bmercado (de rua|negro|clandestino)\b/, funcao: 'mercado-noturno', confianca: 0.9 },
   { frase: /\b(enfermaria|clinica|hospital) (improvisad[oa]|de campanha)\b/, funcao: 'enfermaria-improvisada', confianca: 0.9 },
   { frase: /\bposto (avancado|de guarda|de vigia|de sentinela|de controle)\b|\bguarita\b|\bcheckpoint\b/, funcao: 'posto-de-guarda', confianca: 0.9 },
   { frase: /\bferro velho\b|\boficina de sucata\b/, funcao: 'oficina-de-sucata', confianca: 0.9 },
