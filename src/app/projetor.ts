@@ -267,6 +267,8 @@ export function iniciarPublicacao(
   // Ameaças (peças que não são de jogador) presentes no último `estado` enviado a cada destino: o gesto leve só vale para elas.
   let ameacasNoEstadoLocal = new Set<string>();
   let ameacasNoEstadoRemoto = new Set<string>();
+  // O que o remoto recebeu por último (projeção + modo): se o novo `estado` sai igual, não vai de novo pela rede.
+  let ultimoEstadoRemotoJson: string | null = null;
   const ameacasDoEstado = (d: MapaAtlas) => new Set(Object.values(d.tokens).filter(x => !x.player).map(x => x.id));
   const enviarEstado = (onde: 'local' | 'remoto' | 'ambos' = 'ambos', forcarRetratos = false) => {
     const m = s.store.documento;
@@ -291,7 +293,11 @@ export function iniciarPublicacao(
       if (doc.session.explored === null) {
         if (!semNevoaAvisados.has(m.id)) { semNevoaAvisados.add(m.id); enviar({ tipo: 'aviso-sem-nevoa', mapa: m.id, nome: m.name }, 'remoto'); }
       } else semNevoaAvisados.delete(m.id);
-      enviar({ tipo: 'estado', doc, ...extra, controleJogadores: controleJogadores.peek() }, 'remoto');
+      const conteudo = JSON.stringify([doc, extra.emGesto === true, controleJogadores.peek()]);
+      if (conteudo !== ultimoEstadoRemotoJson) {
+        ultimoEstadoRemotoJson = conteudo;
+        enviar({ tipo: 'estado', doc, ...extra, controleJogadores: controleJogadores.peek() }, 'remoto');
+      }
     }
     enviarRecursos();
   };
@@ -360,7 +366,7 @@ export function iniciarPublicacao(
     if (msg._seq !== undefined) { if (msg._seq === ultimoSeqRemoto) return; ultimoSeqRemoto = msg._seq; }
     if (msg.tipo === 'ola' || msg.tipo === 'tamanho') {
       const ehOla = msg.tipo === 'ola';
-      if (ehOla) { retratosEnviadosRemoto = new Set(); semNevoaAvisados.clear(); projetorRemotoConectado.value = true; if (mapaNoProjetorId.peek() === null) mapaNoProjetorId.value = id; }
+      if (ehOla) { retratosEnviadosRemoto = new Set(); ultimoEstadoRemotoJson = null; semNevoaAvisados.clear(); projetorRemotoConectado.value = true; if (mapaNoProjetorId.peek() === null) mapaNoProjetorId.value = id; }
       if (!projetorRemotoConectado.peek()) return;
       if (msg.largura > 0 && msg.altura > 0) {
         aspectoRemoto = msg.largura / msg.altura;
@@ -385,7 +391,7 @@ export function iniciarPublicacao(
       if (!o || (o.kind !== 'door' && o.kind !== 'secret') || o.state === 'locked') return;
       if (o.kind === 'secret' && !m.session.revealed.includes(o.id)) return;
       aoAlternarPorta?.(msg.id);
-    } else if (msg.tipo === 'tchau') projetorRemotoConectado.value = false;
+    } else if (msg.tipo === 'tchau') { projetorRemotoConectado.value = false; ultimoEstadoRemotoJson = null; }
   };
   canalRemoto.postMessage({ tipo: 'precisa-ola' });
 
@@ -434,10 +440,12 @@ export function iniciarPublicacao(
           if (noRemoto) enviar({ ...base, ...(seguir && alvoSeguido ? { caixa: caixaRemota(e.documento), seguir: true } : {}) }, 'remoto');
         }
       }
-      if (e.mudancas.campos.includes('session')) agendar(200);
+      // Durante o arrasto o `peca-gesto` leve mantém o movimento; fog e terreno atualizam ~3×/s. Ao soltar, vai quase na hora.
+      if (e.mudancas.campos.includes('session')) agendar(350);
       return;
     }
-    agendar(100);
+    if (e.tipo === 'concluir' && temporizador) { clearTimeout(temporizador); temporizador = null; }   // soltou a peça: não espera o ritmo do arrasto
+    agendar(e.tipo === 'concluir' ? 50 : 100);
     if (e.mudancas.completo || e.mudancas.colecoes.tokens) enviarCameraRemota(e.documento);
     if (seguirJogadores.peek() && (projetorConectado.peek() || projetorRemotoConectado.peek()) && (e.mudancas.completo || e.mudancas.colecoes.tokens)) {
       const asp = projetorConectado.peek() ? aspectoDoProjetor.peek() : aspectoRemoto;

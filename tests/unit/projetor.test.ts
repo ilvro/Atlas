@@ -553,6 +553,33 @@ test('publicador: destinos local e remoto são separados, e só o remoto recebe 
   }
 });
 
+test('publicador: mudança invisível ao jogador (notas) não reenvia o estado remoto; mudança visível reenvia', async () => {
+  const mapa = criarMapa({ id: 'mapa-pub-redundante', nome: 'Cripta' });
+  mapa.session.explored = { res: 0.5, cells: [[0, 0, 4]] };
+  const sess = criarSessao(mapa, criarRepoMock({ [mapa.id]: mapa }), { salvo: true });
+  const pub = iniciarPublicacao(sess, async () => null);
+  const remoto = new BroadcastChannel(CANAL_PROJETOR_REMOTO);
+  const msgs: any[] = [];
+  remoto.onmessage = e => msgs.push(e.data);
+  const estados = () => msgs.filter(m => m.tipo === 'estado').length;
+  try {
+    remoto.postMessage({ tipo: 'ola', largura: 1920, altura: 1080, remoto: true, _seq: 1 });
+    await esperar(80);
+    const inicial = estados();
+    assert.ok(inicial >= 1);
+
+    sess.store.executar({ tipo: 'mapa.notas', texto: 'o mestre anotou algo' });
+    await esperar(250);
+    assert.equal(estados(), inicial, 'notas não vão ao remoto, então o estado não é reenviado');
+
+    sess.store.executar({ tipo: 'limites.atualizar', largura: 40, altura: 40 });
+    await esperar(250);
+    assert.ok(estados() > inicial, 'uma mudança que o jogador vê é enviada');
+  } finally {
+    pub.parar(); remoto.close(); sess.fechar();
+  }
+});
+
 test('publicador: sem névoa e com destino remoto, avisa a ponte uma vez por mapa', async () => {
   const mapa = criarMapa({ id: 'mapa-sem-nevoa', nome: 'Aberto' });
   const sess = criarSessao(mapa, criarRepoMock({ [mapa.id]: mapa }), { salvo: true });
