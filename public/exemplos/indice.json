@@ -188,5 +188,15 @@
       34
     ],
     "miniatura": "posto-na-estrada.webp"
+  },
+  {
+    "id": "posto-avancado",
+    "nome": "Posto avançado",
+    "descricao": "O posto da rodovia, anos depois: cercado de arame, com a guarita no portão, o fogo do acampamento sob a cobertura apagada, a enfermaria na velha lanchonete, a horta em pneus no estacionamento e o ônibus tombado na estrada.",
+    "tamanho": [
+      48,
+      34
+    ],
+    "miniatura": "posto-avancado.webp"
   }
 ]
