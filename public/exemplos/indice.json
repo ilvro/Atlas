@@ -168,5 +168,15 @@
       36
     ],
     "miniatura": "enseada-dos-piratas.webp"
+  },
+  {
+    "id": "doca-do-dirigivel",
+    "nome": "Doca do dirigível",
+    "descricao": "Um bairro fabril numa noite de névoa: a tecelagem a vapor com a caldeira acesa e as chaminés, o dirigível amarrado ao mastro diante da estação, a rua de paralelepípedo com lampiões a gás e carruagens, a oficina do inventor com a bobina ligada e o clube.",
+    "tamanho": [
+      48,
+      34
+    ],
+    "miniatura": "doca-do-dirigivel.webp"
   }
 ]
