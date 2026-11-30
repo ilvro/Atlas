@@ -367,7 +367,7 @@ function busto(seed: number): Parte[] {
 }
 
 /** Brasas e chamas que brilham (cores escuras e saturadas: a emissão multiplica por até 3), num disco de raio `R`. */
-function fogoQueBrilha(partes: Parte[], r: () => number, R: number, z: number): void {
+export function fogoQueBrilha(partes: Parte[], r: () => number, R: number, z: number): void {
   partes.push(elipse(0, 0, R * 2, R * 2, '#2a0a04', z, { ...O, detalhe: 1 }));
   for (let k = 0; k < 16; k++) { const a = r() * 6.28, d = Math.sqrt(r()) * R * 0.85; partes.push(elipse(Math.cos(a) * d, Math.sin(a) * d, 0.06 + r() * 0.05, 0.05 + r() * 0.04, r() < 0.35 ? '#1a0e0a' : r() < 0.5 ? '#8a2206' : '#a8380a', z + 0.005, { ...O, brilho: true, detalhe: 2 })); }
   const macio = (pts: number[], c: string, zz: number, alfa: number, d: number): Parte => poli(pts, c, zz, { ...O, alfa, desfoque: d, brilho: true, detalhe: 2 });

@@ -11,15 +11,15 @@ import { halo } from './oriental.ts';
 // borracha preta, plástico laranja de obra, concreto e aço galvanizado. As regras do acervo: nanquim por baixo da silhueta, volume em
 // degraus de tom para o noroeste, `z` das partes até 1,5 m e a `altura` real na receita. Os veículos olham para +x.
 
-const tonsDe = (cor: string): Tons => ({ nanquim: tom(cor, -0.8), sombra: tom(cor, -0.42), base: cor, meio: tom(cor, 0.1), luz: tom(cor, 0.24), brilho: tom(cor, 0.55) });
-const ACO: Tons = { nanquim: '#141618', sombra: '#5a5e64', base: '#7e848a', meio: '#969ca2', luz: '#b2b8be', brilho: '#e4e8ec' };
-const GRAFITE: Tons = { nanquim: '#060708', sombra: '#16181b', base: '#24272b', meio: '#2e3237', luz: '#40454b', brilho: '#7a8088' };
-const CONCRETO: Tons = { nanquim: '#1c1c1a', sombra: '#6a6862', base: '#8a8780', meio: '#9c9990', luz: '#b2afa6', brilho: '#d2cfc6' };
+export const tonsDe = (cor: string): Tons => ({ nanquim: tom(cor, -0.8), sombra: tom(cor, -0.42), base: cor, meio: tom(cor, 0.1), luz: tom(cor, 0.24), brilho: tom(cor, 0.55) });
+export const ACO: Tons = { nanquim: '#141618', sombra: '#5a5e64', base: '#7e848a', meio: '#969ca2', luz: '#b2b8be', brilho: '#e4e8ec' };
+export const GRAFITE: Tons = { nanquim: '#060708', sombra: '#16181b', base: '#24272b', meio: '#2e3237', luz: '#40454b', brilho: '#7a8088' };
+export const CONCRETO: Tons = { nanquim: '#1c1c1a', sombra: '#6a6862', base: '#8a8780', meio: '#9c9990', luz: '#b2afa6', brilho: '#d2cfc6' };
 const LARANJA: Tons = tonsDe('#d2561a'), AMARELO: Tons = tonsDe('#d0a018'), VERMELHO: Tons = tonsDe('#a8221a');
-const BORRACHA = '#0b0b0d', VIDRO = '#18212a', CEU = '#a8bccc', BRANCO = '#e8e8e2';
+export const BORRACHA = '#0b0b0d', VIDRO = '#18212a', CEU = '#a8bccc', BRANCO = '#e8e8e2';
 
 /** As cores de lataria do campo `cor`: vermelho, azul, prata, branco, preto, verde, amarelo e grafite. */
-const CORES_DE_CARRO = ['#8e1c1c', '#1e3a6e', '#9aa0a6', '#d4d8d8', '#1c1d21', '#24452f', '#c8961a', '#4a4e56'];
+export const CORES_DE_CARRO = ['#8e1c1c', '#1e3a6e', '#9aa0a6', '#d4d8d8', '#1c1d21', '#24452f', '#c8961a', '#4a4e56'];
 const corDoCampo = (r: () => number, i: number): string => CORES_DE_CARRO[i >= 0 ? Math.min(CORES_DE_CARRO.length - 1, i) : Math.floor(r() * CORES_DE_CARRO.length)]!;
 
 /** Lanterna ou farol: a lente apagada, ou acesa (soma luz e brilha à noite). */
@@ -33,7 +33,7 @@ function lampada(partes: Parte[], f: Quadro, u: number, v: number, w: number, h:
  * Lataria vista de cima, no referencial `f` (frente em +u): o nanquim, a base, o flanco claro do lado da luz e o escuro do outro,
  * e o tampo (capô, teto e porta-malas) num tom acima. `raio` arredonda os cantos.
  */
-function lataria(partes: Parte[], f: Quadro, u: number, L: number, W: number, t: Tons, z: number, raio: number): void {
+export function lataria(partes: Parte[], f: Quadro, u: number, L: number, W: number, t: Tons, z: number, raio: number): void {
   partes.push(poli(retR(f, u + 0.012, 0.014, L + 0.05, W + 0.05, raio + 0.02), t.nanquim, z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
   partes.push(poli(retR(f, u, 0, L, W, raio), t.base, z + 0.003, { ...O, detalhe: 1 }));
   partes.push(poli(retR(f, u - 0.02, -W * 0.36, L - 0.12, W * 0.24, raio * 0.6), t.luz, z + 0.005, { ...S, alfa: 0.75, detalhe: 2 }));
@@ -41,8 +41,8 @@ function lataria(partes: Parte[], f: Quadro, u: number, L: number, W: number, t:
   partes.push(poli(retR(f, u, -0.01, L - 0.16, W * 0.76, raio * 0.85), t.meio, z + 0.007, { ...S, detalhe: 1 }));
 }
 
-interface Modelo { L: number; W: number; eixo: number; cabine: [number, number]; parabrisa: number; vidroTras: number; raio: number; cacamba?: [number, number] }
-const MODELOS: Record<'sedan' | 'hatch' | 'picape' | 'van', Modelo> = {
+export interface Modelo { L: number; W: number; eixo: number; cabine: [number, number]; parabrisa: number; vidroTras: number; raio: number; cacamba?: [number, number] }
+export const MODELOS: Record<'sedan' | 'hatch' | 'picape' | 'van', Modelo> = {
   sedan: { L: 4.6, W: 1.8, eixo: 1.35, cabine: [-1.3, 0.62], parabrisa: 0.58, vidroTras: 0.46, raio: 0.38 },
   hatch: { L: 3.95, W: 1.74, eixo: 1.25, cabine: [-1.78, 0.42], parabrisa: 0.58, vidroTras: 0.3, raio: 0.4 },
   picape: { L: 5.3, W: 1.9, eixo: 1.6, cabine: [-0.45, 1.0], parabrisa: 0.52, vidroTras: 0.12, raio: 0.34, cacamba: [-2.52, -0.56] },
@@ -182,7 +182,7 @@ function bicicleta(seed: number): Parte[] {
 // ---------- Ônibus ----------
 
 /** As pinturas do ônibus: a cor da saia e a da faixa. */
-const LIBRES: readonly [string, string][] = [['#c8c4b8', '#1e5aa0'], ['#d8a018', '#2a2a2a'], ['#2a6a3a', '#d8d4c4'], ['#a82a22', '#e0dcd0']];
+export const LIBRES: readonly [string, string][] = [['#c8c4b8', '#1e5aa0'], ['#d8a018', '#2a2a2a'], ['#2a6a3a', '#d8d4c4'], ['#a82a22', '#e0dcd0']];
 
 /** Ônibus urbano visto de cima (12 m, frente em +x): o teto claro com o ar-condicionado e as escotilhas, as janelas em fita nos lados, o para-brisa largo, os retrovisores em antena e a faixa da pintura. */
 function onibus(seed: number, corIdx: number): Parte[] {
@@ -746,7 +746,7 @@ function camaHospitalar(seed: number): Parte[] {
 const RUA = { categoria: 'exterior' as const, tipo: 'piso' as const, generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'], kit: 'moderno' };
 const COR = { id: 'cor', rotulo: 'Cor (−1 sorteada; 0 vermelho, 1 azul, 2 prata, 3 branco, 4 preto, 5 verde, 6 amarelo, 7 grafite)', tipo: 'numero' as const, padrao: -1, min: -1, max: 7, passo: 1 };
 const FAROIS = { id: 'farois', rotulo: 'Faróis (0 apagados, 1 acesos)', tipo: 'numero' as const, padrao: 0, min: 0, max: 1, passo: 1 };
-const ligado = (params: Record<string, unknown>, id: string, padrao = 0): boolean => Math.round(num({ seed: 0, params }, id, padrao, 0, 1)) === 1;
+export const ligado = (params: Record<string, unknown>, id: string, padrao = 0): boolean => Math.round(num({ seed: 0, params }, id, padrao, 0, 1)) === 1;
 const luzDosFarois = (params: Record<string, unknown>): LuzDeReceita | null => (ligado(params, 'farois') ? { raio: 3.5, cor: '#fff0d0', intensidade: 0.6, power: 'battery', flicker: 0 } : null);
 const luzDoGiroflex = (params: Record<string, unknown>): LuzDeReceita | null => (ligado(params, 'giroflex', 1) ? { raio: 5, cor: '#5a6aff', intensidade: 0.9, power: 'battery', flicker: 0.6 } : luzDosFarois(params));
 const luzDoSemaforo = (params: Record<string, unknown>): LuzDeReceita => ({ raio: 2.2, cor: ['#3aff7a', '#ffc02a', '#ff3a2a'][Math.round(num({ seed: 0, params }, 'sinal', 0, 0, 2))]!, intensidade: 0.45, power: 'grid', flicker: 0 });
