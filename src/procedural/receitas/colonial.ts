@@ -21,7 +21,7 @@ const tonsDe = (cor: string): Tons => ({ nanquim: tom(cor, -0.78), sombra: tom(c
  * Cilindro deitado de (ax, ay) a (bx, by), de largura `wa` a `wb` (cano de canhão, rolo, mastro deitado): o nanquim, a base, e as faixas
  * de meio-tom, luz e brilho do lado que olha para o noroeste; o outro lado, na sombra.
  */
-function cilindro(partes: Parte[], ax: number, ay: number, bx: number, by: number, wa: number, wb: number, t: Tons, z: number, nitido = 1): void {
+export function cilindro(partes: Parte[], ax: number, ay: number, bx: number, by: number, wa: number, wb: number, t: Tons, z: number, nitido = 1): void {
   const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L, lado = nx * LUZ_X + ny * LUZ_Y >= 0 ? 1 : -1;
   const faixa = (o0: number, o1: number, e = 0): number[] => {
     const ex = (dx / L) * e, ey = (dy / L) * e;

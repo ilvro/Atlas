@@ -155,6 +155,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('parede', 'armas-de-parede', 'Armas e troféus', ['escudo.parede', 'arco.parede', 'lancas.parede', 'machados.cruzados', 'espadas.cruzadas', 'trofeu.cervo', 'brasao'], { generos: ['fantasia', 'investigacao'] }),
   f('parede', 'tapecaria', 'Tapeçaria e cortina', ['tapecaria', 'painel.azulejo', 'cortina.janela', 'mapa.mundi', 'relogio.parede']),
   f('parede', 'grilhoes', 'Grilhões', ['grilhoes.parede'], { generos: ['fantasia'] }),
+  f('parede', 'painel-de-manometros', 'Manômetros e engrenagens', ['painel-de-manometros', 'engrenagens.parede'], { generos: ['vitoriano', 'investigacao', 'fantasia'] }),
   f('parede', 'cabeca-de-bufalo', 'Cabeça de bisão', ['cabeca-de-bufalo'], { generos: ['faroeste', 'fantasia'] }),
   f('parede', 'placa-de-procurado', 'Cartaz de procurado', ['placa-de-procurado'], { generos: ['faroeste', 'fantasia'] }),
   f('parede', 'pergaminho', 'Pergaminho de parede', ['pergaminho-de-parede'], { generos: ['oriental', 'fantasia'] }),
@@ -178,6 +179,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('construcao', 'muralha', 'Muro e muralha', ['mureta-de-pedra', 'balaustrada', 'muralha-em-degraus', 'estrutura.muralha']),
   f('construcao', 'grade', 'Grade e portão', ['grade.ferro', 'portao.ferro', 'cela-de-xerife', 'arco-de-pedra']),
   f('construcao', 'cabana', 'Cabana de palha', ['cabana-de-palha'], { generos: ['colonial', 'fantasia'] }),
+  f('construcao', 'chamine-industrial', 'Chaminé industrial', ['chamine-industrial'], { generos: ['vitoriano', 'investigacao', 'fantasia'] }),
   f('construcao', 'passeio-de-tabuas', 'Passeio de tábuas', ['passeio-de-tabuas'], { generos: ['faroeste', 'fantasia'] }),
   f('construcao', 'porta-de-vaivem', 'Porta de vaivém', ['porta-de-vaivem'], { generos: ['faroeste', 'fantasia'] }),
   f('construcao', 'caixa-dagua', "Caixa-d'água e cata-vento", ['cata-vento', 'caixa-dagua-de-ferrovia'], { generos: ['faroeste', 'fantasia'] }),
@@ -216,6 +218,8 @@ export const FAMILIAS: readonly Familia[] = [
   f('oficio', 'treino', 'Alvo de treino', ['alvo-de-arqueiro', 'boneco-de-treino'], { generos: ['fantasia'] }),
   f('oficio', 'maquina-de-cerco', 'Máquina de cerco', ['balista', 'catapulta', 'canhao'], { generos: ['fantasia'] }),
   f('oficio', 'canhao-naval', 'Canhão de navio e de forte', ['canhao-naval', 'canhao-de-forte'], { generos: ['colonial', 'fantasia'] }),
+  f('oficio', 'maquina-a-vapor', 'Caldeira e máquina a vapor', ['caldeira', 'maquina-a-vapor'], { generos: ['vitoriano', 'investigacao', 'fantasia'] }),
+  f('oficio', 'maquinario', 'Maquinário de fábrica', ['engrenagens', 'prensa', 'tear-mecanico', 'esteira'], { generos: ['vitoriano', 'investigacao', 'fantasia'] }),
   f('oficio', 'aquila', 'Estandarte romano', ['aquila'], { generos: ['antiguidade'] }),
   f('oficio', 'armas-orientais', 'Espadas e armadura orientais', ['suporte-de-espadas', 'armadura-oriental'], { generos: ['oriental', 'fantasia'] }),
   // Campo e estrada
@@ -252,7 +256,7 @@ export const FAMILIAS: readonly Familia[] = [
   f('ficcao', 'maca', 'Equipamento médico', ['maca.medica', 'scanner.corpo'], { generos: ['ficcao-cientifica', 'cyberpunk'] }),
   f('ficcao', 'bancada-de-laboratorio', 'Laboratório', ['mesa.laboratorio', 'armario.amostras'], { generos: ['ficcao-cientifica', 'cyberpunk'] }),
   f('ficcao', 'criotubo', 'Criotubo', ['criotubo'], { generos: ['ficcao-cientifica', 'cyberpunk'] }),
-  f('ficcao', 'tubulacao', 'Tubulação', ['tubulacao', 'cabos', 'grade.ventilacao'], { generos: ['ficcao-cientifica', 'cyberpunk'] }),
+  f('ficcao', 'tubulacao', 'Tubulação', ['tubulacao', 'tubulacao.cobre', 'cabos', 'grade.ventilacao'], { generos: ['ficcao-cientifica', 'cyberpunk', 'vitoriano', 'investigacao'] }),
   // Ossos e restos
   f('ossos', 'ossada', 'Ossada', ['ossada', 'ossada-de-camelo', 'pilha-de-ossos', 'cranio-animal', 'cranio-de-boi']),
   f('ossos', 'peles', 'Peles', ['pilha-de-peles']),
