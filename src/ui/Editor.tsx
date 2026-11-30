@@ -1,6 +1,11 @@
 import { recursosDaPeca } from '../app/fichas.ts';
 import { iniciarPonteDeIniciativa } from '../app/ponte-iniciativa.ts';
-import { emConstrucaoRemota } from '../app/construcao-remota.ts';
+import {
+  cursoresRemotos,
+  emConstrucaoRemota,
+  enviarCursorRemoto,
+  meuDiscordIdRemoto,
+} from '../app/construcao-remota.ts';
 import { TIPO_ARRASTE, soltarPersonagem } from './Personagens.tsx';
 import { Inspecao } from './Inspecao.tsx';
 import { TIPO_ARRASTE_PISTA, soltarPista } from './Pistas.tsx';
@@ -83,6 +88,13 @@ function ponteDa(s: SessaoDeEdicao): PonteViewport {
     mostrarRelevo: () => mostrarRelevo.value,
     andarAtivo: () => s.andarAtivo.peek(),
     espalhar: comandosDeEspalhar,
+    ...(emConstrucaoRemota.peek()
+      ? {
+          aoMoverCursor: info => enviarCursorRemoto(info),
+          cursoresRemotos: () => cursoresRemotos.peek(),
+          meuDiscordId: () => meuDiscordIdRemoto.peek(),
+        }
+      : {}),
   };
 }
 

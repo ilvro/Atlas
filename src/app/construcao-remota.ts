@@ -1,4 +1,10 @@
-import { batch, computed, type ReadonlySignal } from '@preact/signals';
+import { batch, computed, signal, type ReadonlySignal } from '@preact/signals';
+import {
+  deveEnviarCursor,
+  INTERVALO_ENVIO_CURSOR_MS,
+  registrarCursorRemoto,
+  type CursorRemoto,
+} from '../domain/cursores-remotos.ts';
 import {
   ErroDeConflito,
   resumir,
@@ -150,6 +156,27 @@ export interface OpConstrucaoRemota {
   rotulo?: string;
 }
 
+export interface InfoCursorRemoto {
+  x: number;
+  y: number;
+  levelId: string | null;
+  ferramenta: string;
+  pintando?: boolean;
+}
+
+/** Cursores colaborativos dos participantes no modo construção remoto (S5). */
+export const cursoresRemotos = signal<CursorRemoto[]>([]);
+
+/** Discord ID do participante local na sessão de construção remota (S5). */
+export const meuDiscordIdRemoto = signal<string | null>(null);
+
+let emissorCursorAtivo: ((info: InfoCursorRemoto) => void) | null = null;
+
+/** Envia a posição e estado do cursor local para os colegas da construção remota (com throttle). */
+export function enviarCursorRemoto(info: InfoCursorRemoto): void {
+  emissorCursorAtivo?.(info);
+}
+
 export interface OpcoesConstrucaoRemota {
   salaId: string;
   criarCanal?: (nome: string) => CanalConstrucaoLike;
@@ -158,6 +185,8 @@ export interface OpcoesConstrucaoRemota {
   repo?: RepositorioMapas;
   gerarOpId?: () => string;
   limiarSnapshot?: number;
+  meuDiscordId?: string;
+  agora?: () => number;
 }
 
 export interface PonteConstrucaoRemota {
@@ -210,11 +239,17 @@ export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteCo
       : null;
 
   const repo = opcoes.repo ?? criarRepositorioMemoria();
+  const agoraFn = opcoes.agora ?? (() => Date.now());
   let morto = false;
   let reconciliador: Reconciliador | null = null;
   let sessaoLocal: SessaoDeEdicao | null = null;
   let projecaoPendente = false;
   let ressincronizando = false;
+  let ultimoEnvioCursorEm = -Infinity;
+  let ultimoPintando = false;
+
+  cursoresRemotos.value = [];
+  meuDiscordIdRemoto.value = opcoes.meuDiscordId ?? null;
 
   const postarNoCanal = (msg: unknown) => {
     if (!canal || morto) return;
@@ -224,6 +259,26 @@ export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteCo
       /* ignora erro de postMessage */
     }
   };
+
+  const emitirCursor = (info: InfoCursorRemoto) => {
+    if (morto || !canal) return;
+    const agora = agoraFn();
+    const pintandoAgora = Boolean(info.pintando);
+    if (!deveEnviarCursor(ultimoEnvioCursorEm, agora, ultimoPintando, pintandoAgora, INTERVALO_ENVIO_CURSOR_MS)) {
+      return;
+    }
+    ultimoEnvioCursorEm = agora;
+    ultimoPintando = pintandoAgora;
+    postarNoCanal({
+      tipo: 'construcao.cursor',
+      x: info.x,
+      y: info.y,
+      levelId: info.levelId,
+      ferramenta: info.ferramenta,
+      pintando: pintandoAgora,
+    });
+  };
+  emissorCursorAtivo = emitirCursor;
 
   const projetarSemEco = (mapa: MapaAtlas) => {
     if (!sessaoLocal) return;
@@ -266,6 +321,10 @@ export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteCo
     reconciliador = null;
     projecaoPendente = false;
     ressincronizando = false;
+    ultimoEnvioCursorEm = -Infinity;
+    ultimoPintando = false;
+    cursoresRemotos.value = [];
+    if (emissorCursorAtivo === emitirCursor) emissorCursorAtivo = null;
     batch(() => {
       modo.value = 'construir';
       vistaDeJogador.value = false;
@@ -285,6 +344,9 @@ export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteCo
   };
 
   const aplicarEstado = (msg: Record<string, unknown>) => {
+    if (ehObj(msg.eu) && typeof msg.eu.discordId === 'string' && msg.eu.discordId) {
+      meuDiscordIdRemoto.value = msg.eu.discordId;
+    }
     if (!ehObj(msg.mapa)) return;
     let doc: MapaAtlas;
     try {
@@ -317,6 +379,7 @@ export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteCo
     reconciliador = proximoReconciliador;
     projecaoPendente = false;
     ressincronizando = false;
+    emissorCursorAtivo = emitirCursor;
 
     const docVisivel = proximoReconciliador.mapaVisivel;
     batch(() => {
@@ -388,13 +451,48 @@ export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteCo
     }
   };
 
+  const aplicarCursorRemoto = (msg: Record<string, unknown>) => {
+    if (!ehObj(msg.autor)) return;
+    if (typeof msg.autor.discordId !== 'string' || !msg.autor.discordId) return;
+    if (typeof msg.autor.nome !== 'string') return;
+    if (typeof msg.x !== 'number' || !Number.isFinite(msg.x)) return;
+    if (typeof msg.y !== 'number' || !Number.isFinite(msg.y)) return;
+    if (msg.levelId !== null && typeof msg.levelId !== 'string') return;
+    if (typeof msg.ferramenta !== 'string') return;
+    if (msg.pintando !== undefined && typeof msg.pintando !== 'boolean') return;
+
+    const papel = msg.autor.papel === 'mestre' || msg.autor.papel === 'jogador' ? msg.autor.papel : 'jogador';
+    const agora = agoraFn();
+    cursoresRemotos.value = registrarCursorRemoto(
+      cursoresRemotos.value,
+      {
+        discordId: msg.autor.discordId,
+        nome: msg.autor.nome,
+        papel,
+        x: msg.x,
+        y: msg.y,
+        levelId: msg.levelId,
+        ferramenta: msg.ferramenta,
+        ...(msg.pintando !== undefined ? { pintando: msg.pintando } : {}),
+        atualizadoEm: agora,
+      },
+      agora,
+    );
+  };
+
   if (canal) {
     canal.onmessage = ev => {
       if (morto || !ehObj(ev?.data) || typeof ev.data.tipo !== 'string') return;
       if (ev.data.tipo === 'construcao.estado') {
         aplicarEstado(ev.data);
+      } else if (ev.data.tipo === 'construcao.identidade') {
+        if (typeof ev.data.discordId === 'string' && ev.data.discordId) {
+          meuDiscordIdRemoto.value = ev.data.discordId;
+        }
       } else if (ev.data.tipo === 'construcao.aplicada') {
         aplicarRemota(ev.data);
+      } else if (ev.data.tipo === 'construcao.cursor') {
+        aplicarCursorRemoto(ev.data);
       } else if (ev.data.tipo === 'construcao.fechada') {
         fecharSessaoLocal();
       }
@@ -440,6 +538,7 @@ export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteCo
         }
       }
       fecharSessaoLocal();
+      meuDiscordIdRemoto.value = null;
     },
   };
 }
