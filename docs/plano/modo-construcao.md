@@ -126,7 +126,7 @@ Testes: dois clientes virtuais com `reconciliacao.ts` editando em paralelo (um p
 Pronto quando: testes de convergência/conflito passam e dois clientes no navegador editam o mapa juntos sem dessincronizar.
 Commit: `(feature) deterministic command reconciliation for collaborative map building`
 
-### S5 — Cursores colaborativos sobre o mapa  ⬜
+### S5 — Cursores colaborativos sobre o mapa  ✅
 Objetivo: cada participante vê onde os colegas estão apontando ou desenhando sobre o canvas do Atlas, com nome, cor e indicação de andar.
 Depende de: S3.
 Ler: `Atlas/src/domain/pings.ts`, `Atlas/src/render/pings-camada.ts`, `Atlas/src/render/viewport.ts`, `Atlas/src/ui/Editor.tsx`.
@@ -140,7 +140,7 @@ Testes: `cursoresAtivos` filtra por `levelId`, expira após 5 s e ignora o próp
 Pronto quando: ao mover o mouse ou pintar em um cliente, o outro vê o cursor identificado em tempo real.
 Commit: `(feature) remote collaborator cursors on Atlas canvas`
 
-### S6 — Desfazer por autor no modo colaborativo  ⬜
+### S6 — Desfazer por autor no modo colaborativo  ✅
 Objetivo: `Ctrl+Z` / botão Desfazer no modo construção reverte apenas a última operação do próprio usuário, sem apagar edições de outros participantes.
 Depende de: S4.
 Ler: `Atlas/src/state/store.ts`, `Atlas/src/state/comandos.ts`, `Atlas/src/state/comandos-construir.ts`, `Atlas/src/app/acoes.ts`.
@@ -158,7 +158,7 @@ Commit: `(feature) per-author undo for collaborative map building`
 
 ## Bloco 3 — Casca, painel lateral e retorno para a campanha (`Mesa` + `mesa-core`)
 
-### S7 — Casca em modo construção com ponte, painel lateral e troca em tempo real  ⬜
+### S7 — Casca em modo construção com ponte, painel lateral e troca em tempo real  ✅
 Objetivo: a `Casca` alterna automaticamente entre Sessão e Construção quando o mestre muda o modo no saguão, conectando o editor do Atlas e o painel lateral colaborativo.
 Depende de: S2, S4, S5 e S6.
 Ler: `Mesa/src/jogar/Casca.tsx`, `Mesa/src/jogar/ponte-jogador.ts`, `Mesa/src/jogar/casca.css`, `Mesa/src/online/feed.ts`.
