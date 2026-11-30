@@ -393,7 +393,7 @@ function barreira(seed: number, C: number, plastica: boolean): Parte[] {
 }
 
 /** Bomba de gasolina na ilha: o meio-fio de concreto com as pontas zebradas, os protetores amarelos, o gabinete com os visores acesos nas duas faces e as mangueiras com os bicos. */
-function bombaDeGasolina(seed: number): Parte[] {
+function bombaDeGasolina(seed: number, acesa = true): Parte[] {
   const r = mulberry32(seed), partes: Parte[] = [], cor = tonsDe(['#a8221a', '#1e4a8a', '#2a6a3a'][Math.floor(r() * 3)]!);
   sombraNoChao(partes, retQ(ID, 0, 0, 3.1, 1.25), 0.01, '#0a0a0c', 0.4);
   bloco(partes, ID, 3.0, 1.1, CONCRETO, 0.15, 0.06);
@@ -403,8 +403,8 @@ function bombaDeGasolina(seed: number): Parte[] {
   bloco(partes, ID, 1.0, 0.5, tonsDe('#d8d6ce'), 1.4, 0.05);
   partes.push(poli(retR(ID, 0, 0, 0.86, 0.36, 0.04), cor.base, 1.42, { contorno: 'leve', detalhe: 1 }), poli(retR(ID, -0.04, -0.05, 0.7, 0.16, 0.04), cor.luz, 1.422, { ...S, detalhe: 2 }));
   for (const s of [-1, 1]) {
-    partes.push(poli(retQ(ID, -0.15, s * 0.255, 0.42, 0.05), '#0a1a10', 1.43, { ...O, detalhe: 2 }), poli(retQ(ID, -0.15, s * 0.255, 0.38, 0.03), '#3aa860', 1.432, { ...O, brilho: true, detalhe: 2 }));
-    partes.push(elipse(-0.15, s * 0.33, 0.5, 0.14, '#0e3a1e', 1.433, { ...O, brilho: true, alfa: 0.5, desfoque: 0.04, detalhe: 3 }));
+    partes.push(poli(retQ(ID, -0.15, s * 0.255, 0.42, 0.05), '#0a1a10', 1.43, { ...O, detalhe: 2 }), poli(retQ(ID, -0.15, s * 0.255, 0.38, 0.03), acesa ? '#3aa860' : '#1e2a26', 1.432, { ...O, brilho: acesa, detalhe: 2 }));
+    if (acesa) partes.push(elipse(-0.15, s * 0.33, 0.5, 0.14, '#0e3a1e', 1.433, { ...O, brilho: true, alfa: 0.5, desfoque: 0.04, detalhe: 3 }));
     for (const u of [0.22, 0.38]) {
       const v0 = s * 0.27, pts = [u, v0, u + 0.04, s * 0.42, u - 0.08 + r() * 0.06, s * 0.48, u - 0.18, s * 0.4, u - 0.1 + r() * 0.04, v0];
       partes.push(tira(pts, 0.035, '#08080a', 1.0, { contorno: 'leve', detalhe: 2 }));
@@ -412,6 +412,11 @@ function bombaDeGasolina(seed: number): Parte[] {
     }
   }
   partes.push(lente(-0.42, -0.2, 0, 0.8, 0.03, '#ffffff', 1.445, { ...S, alfa: 0.4, detalhe: 3 }));
+  // Apagada (abandonada): a poeira assentada no tampo e as manchas de ferrugem nas quinas.
+  if (!acesa) {
+    partes.push(poli(retR(ID, 0.05, 0.04, 0.8, 0.3, 0.04), '#8a7a5c', 1.446, { ...S, alfa: 0.3, desfoque: 0.04, detalhe: 2 }));
+    for (let k = 0; k < 4; k++) partes.push(elipse((r() - 0.5) * 0.9, (r() - 0.5) * 0.4, 0.08 + r() * 0.08, 0.05 + r() * 0.04, '#5a3420', 1.447, { ...S, alfa: 0.5, detalhe: 3 }));
+  }
   return partes;
 }
 
@@ -753,7 +758,7 @@ const luzDoSemaforo = (params: Record<string, unknown>): LuzDeReceita => ({ raio
 const luzDoPainel = (params: Record<string, unknown>): LuzDeReceita | null => (ligado(params, 'aceso', 1) ? { raio: 2.5, cor: '#f0e6c8', intensidade: 0.5, power: 'grid', flicker: 0 } : null);
 const luzDaMaquina = (params: Record<string, unknown>): LuzDeReceita | null => (ligado(params, 'acesa', 1) ? { raio: 2.2, cor: '#d8e8ff', intensidade: 0.45, power: 'grid', flicker: 0 } : null);
 const INT = { tipo: 'piso' as const, generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'], kit: 'moderno' };
-const luzDaBomba = (): LuzDeReceita => ({ raio: 1.8, cor: '#7affa8', intensidade: 0.35, power: 'grid', flicker: 0 });
+const luzDaBomba = (params: Record<string, unknown>): LuzDeReceita | null => (ligado(params, 'acesa', 1) ? { raio: 1.8, cor: '#7affa8', intensidade: 0.35, power: 'grid', flicker: 0 } : null);
 
 const pegadaDe = (m: Modelo): [number, number] => [m.L + 0.1, m.W + 0.2];
 const tagsDeCarro = ['carro', 'automovel', 'veiculo', 'rua', 'estacionamento', 'moderno'];
@@ -801,7 +806,8 @@ export const RECEITAS_DO_MODERNO_URBANO: Receita[] = [
     campos: [{ id: 'comprimento', rotulo: 'Comprimento (m)', tipo: 'numero', padrao: 4, min: 1.2, max: 16, passo: 0.4 }, { id: 'plastica', rotulo: 'Modelo (0 concreto, 1 plástico)', tipo: 'numero', padrao: 0, min: 0, max: 1, passo: 1 }],
     gerar: p => { const C = num(p, 'comprimento', 4, 1.2, 16); return piso([C, 0.66], barreira(p.seed, C, ligado(p.params, 'plastica'))); } },
   { id: 'bomba-de-gasolina', nome: 'Bomba de gasolina', ...RUA, funcoes: ['posto', 'garagem'], tags: ['bomba', 'gasolina', 'combustivel', 'posto', 'ilha', 'mangueira', 'moderno', 'luz'], pegada: [3.1, 1.25], altura: 1.9,
-    luz: luzDaBomba, gerar: p => piso([3.1, 1.25], bombaDeGasolina(p.seed)) },
+    campos: [{ id: 'acesa', rotulo: 'Visores acesos (0 não, 1 sim)', tipo: 'numero', padrao: 1, min: 0, max: 1, passo: 1 }],
+    luz: luzDaBomba, gerar: p => piso([3.1, 1.25], bombaDeGasolina(p.seed, ligado(p.params, 'acesa', 1))) },
   // Q21d: a cobertura das bombas e o poste de rua.
   { id: 'cobertura-de-posto', nome: 'Cobertura de posto', ...RUA, funcoes: ['posto'], tags: ['cobertura', 'posto', 'gasolina', 'marquise', 'testeira', 'bombas', 'moderno', 'luz'], pegada: [14, 8], altura: 5.2,
     campos: [{ id: 'comprimento', rotulo: 'Comprimento (m)', tipo: 'numero', padrao: 14, min: 8, max: 24, passo: 1 }, { id: 'profundidade', rotulo: 'Profundidade (m)', tipo: 'numero', padrao: 8, min: 5, max: 12, passo: 1 }, { id: 'acesa', rotulo: 'Acesa (0 não, 1 sim)', tipo: 'numero', padrao: 1, min: 0, max: 1, passo: 1 }],
