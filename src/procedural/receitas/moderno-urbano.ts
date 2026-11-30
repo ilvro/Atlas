@@ -477,7 +477,7 @@ const LAMINADO: Tons = tonsDe('#cdc6b6'), CINZA_CLARO: Tons = tonsDe('#c4c6c4'),
 const PRODUTOS = ['#c8281c', '#e0a020', '#2a6ab0', '#3a8a3a', '#e8e4d8', '#8a2a6a', '#d86a1a', '#1e1e22', '#6ab0d8', '#f0d040'];
 
 /** Cadeira de escritório em (x, y), com o encosto para o lado `ang`: a base de cinco patas com rodízios, o assento, os braços e o encosto. */
-function cadeiraDeEscritorio(partes: Parte[], r: () => number, x: number, y: number, ang: number, cor: string): void {
+export function cadeiraDeEscritorio(partes: Parte[], r: () => number, x: number, y: number, ang: number, cor: string): void {
   const f = quadro(x, y, ang - Math.PI / 2), g = r() * 1.2;
   for (let k = 0; k < 5; k++) { const a = g + (k / 5) * Math.PI * 2, px = x + Math.cos(a) * 0.3, py = y + Math.sin(a) * 0.3; partes.push(tira([x, y, px, py], 0.04, GRAFITE.base, 0.1, { contorno: 'leve', detalhe: 2 }), elipse(px, py, 0.06, 0.06, '#0a0a0c', 0.08, { contorno: 'leve', detalhe: 3 })); }
   estofado(partes, f, ang - Math.PI / 2, 0, -0.03, 0.48, 0.46, cor, 0.48, 0.1);
