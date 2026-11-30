@@ -173,6 +173,8 @@ function percorrerIndiceUsadoEm(store: IDBObjectStore, aoItem: (reg: RegistroAss
   });
 }
 
+const GRAVACOES_ENTRE_VARREDURAS = 64;
+
 export function criarCacheDeAssados(opcoes: OpcoesCacheDeAssados = {}): CacheDeAssados {
   const nomeBanco = opcoes.nomeBanco ?? NOME_BANCO_ASSADOS;
   const versao = opcoes.versao ?? versaoDosPintores();
@@ -187,6 +189,7 @@ export function criarCacheDeAssados(opcoes: OpcoesCacheDeAssados = {}): CacheDeA
   let fechando = false;
   // Soma dos bytes gravados, mantida em memória; null até a primeira gravação varrer o índice.
   let totalBytesEstimado: number | null = null;
+  let gravacoesDesdeVarredura = 0;
   let gravacoesEmSerie: Promise<void> = Promise.resolve();
   const toquesPendentes = new Map<string, number>();
   let flushAgendado: Promise<void> | null = null;
@@ -357,7 +360,9 @@ export function criarCacheDeAssados(opcoes: OpcoesCacheDeAssados = {}): CacheDeA
             const existente = (await promessa(store.get(chaveHash))) as RegistroAssado | undefined;
             const bytesExistente = existente?.bytes ?? 0;
             // O total só é varrido uma vez por conexão; depois é mantido em memória.
-            if (totalBytesEstimado === null) {
+            // A cada tantas gravações recalcula, para absorver o que outra aba gravou ou apagou.
+            if (totalBytesEstimado === null || ++gravacoesDesdeVarredura > GRAVACOES_ENTRE_VARREDURAS) {
+              gravacoesDesdeVarredura = 0;
               let soma = 0;
               await percorrerIndiceUsadoEm(store, reg => { soma += reg.bytes; });
               totalBytesEstimado = soma;
