@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { chaveDaRef, criarBarramento, criarRef, type CanalLike, type Entidade } from '#mesa';
 import { emEstadoCritico, fracao, interpretarAjusteDeRecurso, pipsCheios, recursosParaOProjetor, refDaFicha, temPd, textoDeRecursos, tomDaRolagem, type Recursos } from '../../src/domain/fichas.ts';
 import { signal } from '@preact/signals';
-import { adicionarPersonagem, ajustarRecursos, ajustarRecursosDaPeca, ameacasComFicha, extrairNumeroDoToken, iniciarFichas, aoRolar, mesclarPersonagensDaSala, organizarPainelDePersonagens, pecaDaFicha, personagensComFicha, personagensDoElenco, proximoNomeDeAmeaca, recursosDaPeca, recursosDasFichas } from '../../src/app/fichas.ts';
+import { adicionarPersonagem, ajustarRecursos, ajustarRecursosDaPeca, ameacasComFicha, dadosDaRespostaDaSala, extrairNumeroDoToken, iniciarFichas, aoRolar, mesclarPersonagensDaSala, organizarPainelDePersonagens, pecaDaFicha, personagensComFicha, personagensDoElenco, proximoNomeDeAmeaca, recursosDaPeca, recursosDasFichas } from '../../src/app/fichas.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { novaPeca } from '../../src/domain/fabrica.ts';
 
@@ -343,4 +343,10 @@ test('organizarPainelDePersonagens: separa fichas dos jogadores na sala das fich
   assert.deepEqual(offline.naSala.map(e => e.id), ['e-local-1']);
   assert.deepEqual(offline.locais.map(e => e.id), ['e-local-2']);
   assert.deepEqual(offline.jogadoresSemFicha, []);
+});
+
+test('dadosDaRespostaDaSala: lê os campos soltos da resposta da Mesa e também o formato com `dados`', () => {
+  const solta = { ok: true, nome: 'Sala', fichas: [{ id: 'f1' }], membros: [] };
+  assert.equal(dadosDaRespostaDaSala(solta).fichas?.[0]?.id, 'f1');
+  assert.equal(dadosDaRespostaDaSala({ ok: true, dados: { fichas: [{ id: 'f2' }] } }).fichas?.[0]?.id, 'f2');
 });

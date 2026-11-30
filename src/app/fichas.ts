@@ -126,6 +126,12 @@ export interface RespostaSalaFichas {
   nomes?: Record<string, string>;
 }
 
+/** A Mesa responde `sala.fichas` com os campos na própria resposta (o Dossiê lê assim); aceita também o formato com `dados`. */
+export function dadosDaRespostaDaSala(resposta: object): RespostaSalaFichas & { nome?: string } {
+  const d = (resposta as { dados?: unknown }).dados;
+  return (d && typeof d === 'object' ? d : resposta) as RespostaSalaFichas & { nome?: string };
+}
+
 /**
  * Cruza os personagens locais com o estado vivo da sala (`sala.fichas`):
  * devolve `donosPorFicha` (`fichaId -> nome do jogador`, priorizando quem escolheu a ficha no saguão)

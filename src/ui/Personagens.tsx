@@ -3,7 +3,7 @@ import { signal } from '@preact/signals';
 import type { Entidade } from '#mesa';
 import { campanhaAtiva, escolherCampanha } from '../app/campanha.ts';
 import { servicos, viewport } from '../app/app.ts';
-import { adicionarPersonagem, abrirMesa, ameacasComFicha, mesclarPersonagensDaSala, organizarPainelDePersonagens, personagensDoElenco, recursosDasFichas, type PainelDePersonagensOrganizado, type RespostaSalaFichas } from '../app/fichas.ts';
+import { adicionarPersonagem, abrirMesa, ameacasComFicha, dadosDaRespostaDaSala, mesclarPersonagensDaSala, organizarPainelDePersonagens, personagensDoElenco, recursosDasFichas, type PainelDePersonagensOrganizado, type RespostaSalaFichas } from '../app/fichas.ts';
 import { refDaFicha, textoDeRecursos } from '../domain/fichas.ts';
 import { chaveDaRef } from '#mesa';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
@@ -46,7 +46,7 @@ async function carregar(): Promise<void> {
       r.listarEntidades(c.id, { tipo: 'ameaca' }),
       srv?.barramento ? srv.barramento.pedir('sala.fichas', {}, { prazoMs: 350 }).catch(() => null) : Promise.resolve(null),
     ]);
-    const salaDados = respSala && respSala.ok ? (respSala.resposta.dados as RespostaSalaFichas & { nome?: string }) : null;
+    const salaDados = respSala && respSala.ok ? dadosDaRespostaDaSala(respSala.resposta) : null;
     const mesclado = mesclarPersonagensDaSala(personagensDoElenco(todasPersonagens, fresca), salaDados, c.id, todasPersonagens);
     lista.value = mesclado.lista;
     donosDaSala.value = mesclado.donosPorFicha;
