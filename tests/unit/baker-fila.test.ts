@@ -202,3 +202,16 @@ test('consulta de cache cancelada por coletar não enfileira trabalho e descarta
   assert.deepEqual(descartados, ['do-cache']);
   assert.equal(fila.pendentes, 0);
 });
+
+test('repriorizar sobe e desce a prioridade de quem ainda espera na fila', async () => {
+  const ordem: string[] = [];
+  const { executores } = criarExecutoresFalsos<string>(1, async p => { await esperar(5); ordem.push(p); return p; });
+  const fila = criarFilaDeBake(executores);
+  const ocupa = fila.pedir('ocupa', 'ocupa', 0);        // ocupa o único executor
+  const a = fila.pedir('a', 'a', 1), b = fila.pedir('b', 'b', 5), c = fila.pedir('c', 'c', 3);
+  fila.repriorizar('b', 0);                              // sobe: passa à frente
+  fila.repriorizar('a', 9);                              // desce: vai para o fim
+  fila.repriorizar('inexistente', 0);                    // no-op
+  await Promise.all([ocupa, a, b, c]);
+  assert.deepEqual(ordem, ['ocupa', 'b', 'c', 'a']);
+});

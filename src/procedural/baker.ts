@@ -15,6 +15,8 @@ import {
 export interface Baker {
   /** Pede (ou reaproveita) o resultado da `chave`. Chaves iguais compartilham o mesmo trabalho. */
   pedir(chave: string, pedido: PedidoDeBake, prioridade?: number): Promise<ResultadoDeBake>;
+  /** Muda a prioridade de um pedido que ainda espera (para cima ou para baixo); no-op se já começou ou não existe. */
+  repriorizar(chave: string, prioridade: number): void;
   /** Esquece as chaves que não estão em `emUso`. */
   coletar(emUso: ReadonlySet<string>): void;
   readonly pendentes: number;
@@ -32,6 +34,7 @@ export class ErroDeBakeCancelado extends Error {
 
 export interface FilaDeBake<TPedido, TResultado> {
   pedir(chave: string, pedido: TPedido, prioridade?: number): Promise<TResultado>;
+  repriorizar(chave: string, prioridade: number): void;
   coletar(emUso: ReadonlySet<string>): void;
   readonly pendentes: number;
   encerrar(): void;
@@ -179,6 +182,12 @@ export function criarFilaDeBake<TPedido, TResultado>(
         if (cache.get(chave) === p) cache.delete(chave);
       });
       return p;
+    },
+    repriorizar(chave, prioridade) {
+      const pendente = naFilaPorChave.get(chave);
+      if (pendente) pendente.prioridade = prioridade;
+      const consulta = consultandoPorChave.get(chave);
+      if (consulta) consulta.prioridade = prioridade;
     },
     coletar(emUso) {
       for (const k of [...cache.keys()]) if (!emUso.has(k)) cache.delete(k);
@@ -375,6 +384,7 @@ export function criarBaker(opcoes: { workers?: number; cache?: CacheDeAssados | 
     pedir(chave, pedido, prioridade) {
       return fila.pedir(chave, pedido, prioridade);
     },
+    repriorizar(chave, prioridade) { fila.repriorizar(chave, prioridade); },
     coletar(emUso) { fila.coletar(emUso); },
     get pendentes() { return fila.pendentes; },
     get noWorker() { return n > 0 && !encerrado; },

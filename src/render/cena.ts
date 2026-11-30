@@ -193,7 +193,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     if (destruida) return;
     for (const [chave, p] of pendentes) {
       const [x0, y0, x1, y1] = p.caixa;
-      if (visivel(x0, y0, x1, y1)) op.baker.pedir(chave, p.pedido, p.prios[0]).catch(() => undefined);
+      op.baker.repriorizar(chave, visivel(x0, y0, x1, y1) ? p.prios[0] : p.prios[1]);
     }
   }
 
