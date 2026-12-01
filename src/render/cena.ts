@@ -288,7 +288,11 @@ export function criarCena(op: OpcoesDaCena): Cena {
         terrenos.delete(k);
       }
     }
-    if (!e.camadas.some(c => c.celulas.length > 0 && materialDe(c.material).uso === 'agua')) {
+    if (!e.camadas.some(c => {
+      if (c.celulas.length === 0) return false;
+      const mat = materialDe(c.material);
+      return mat.uso === 'agua' && !mat.lava;
+    })) {
       agua.aplicar(undefined, m);
     }
 
@@ -672,16 +676,36 @@ export function criarCena(op: OpcoesDaCena): Cena {
   const visuais = new WeakMap<Container, PecaVisual>();
   // As folhas de sprite das peças: pedidas ao baker, com a chave do spec; a antiga fica até a nova chegar.
   const folhaDaPeca = new Map<string, string>();
+  const folhaPendente = new Map<string, Map<string, () => void>>();
   const chaveDoSprite = (t: Peca): string | null => (t.sprite ? `pixel|sprite|${JSON.stringify(t.sprite)}` : null);
   function folhaDe(t: Peca, redesenhar: () => void): Texture | null {
     const chave = chaveDoSprite(t), atual = folhaDaPeca.get(t.id) ?? null;
     if (!chave) { if (atual) { soltar(atual); folhaDaPeca.delete(t.id); } return null; }
     if (chave !== atual) {
-      const spec = t.sprite!;
-      op.baker.pedir(chave, { tipo: 'sprite', spec }, 1).then(r => {
-        if (destruida || chaveDoSprite(mapa?.tokens[t.id] ?? ({ sprite: null } as Peca)) !== chave) return;
-        const antes = folhaDaPeca.get(t.id) ?? null; adquirir(chave, r); folhaDaPeca.set(t.id, chave); soltar(antes); redesenhar();
-      }).catch(erro => console.warn('Atlas: falha ao pintar o sprite', erro));
+      let esperas = folhaPendente.get(chave);
+      if (!esperas) {
+        esperas = new Map<string, () => void>();
+        folhaPendente.set(chave, esperas);
+        const spec = t.sprite!;
+        op.baker.pedir(chave, { tipo: 'sprite', spec }, 1).then(r => {
+          const callbacks = folhaPendente.get(chave);
+          folhaPendente.delete(chave);
+          if (destruida || !callbacks) return;
+          for (const [id, cb] of callbacks) {
+            if (chaveDoSprite(mapa?.tokens[id] ?? ({ sprite: null } as Peca)) !== chave) continue;
+            const antes = folhaDaPeca.get(id) ?? null;
+            if (antes === chave) continue;
+            adquirir(chave, r);
+            folhaDaPeca.set(id, chave);
+            soltar(antes);
+            cb();
+          }
+        }).catch(erro => {
+          folhaPendente.delete(chave);
+          if (!(erro instanceof ErroDeBakeCancelado)) console.warn('Atlas: falha ao pintar o sprite', erro);
+        });
+      }
+      esperas.set(t.id, redesenhar);
     }
     const pronta = folhaDaPeca.get(t.id); return pronta ? texturas.get(pronta)?.tex ?? null : null;
   }
@@ -713,39 +737,41 @@ export function criarCena(op: OpcoesDaCena): Cena {
     }
   }
 
-  function atualizarVisibilidadeDosObjetos(dtSeg: number, imediato: boolean): void {
-    if (!mapa) return;
+  function atualizarVisibilidadeDosObjetos(dtSeg: number, imediato: boolean, mVisao: MapaAtlas | null = mapa): void {
+    if (!mVisao) return;
     const restringir = vistaDaCena === 'jogador' || modoDoProjetor;
+    let mudouVis = false;
     for (const [id, e] of objetos) {
-      const o = mapa.props[id] as Objeto | undefined;
+      const o = mVisao.props[id] as Objeto | undefined;
       if (!o) continue;
+      const visAntes = e.c.visible, alfaAntes = e.c.alpha;
       const baseAlpha = e.alphaAlvo ?? (o.opacity ?? 1);
       if (o.oculto) {
         e.c.visible = !restringir;
         e.c.alpha = restringir ? 0 : baseAlpha * 0.5;
-        continue;
-      }
-      if (!restringir || !objetoDinamicoDeVisao(o)) {
+      } else if (!restringir || !objetoDinamicoDeVisao(o)) {
         e.c.alpha = baseAlpha;
         e.c.visible = true;
-        continue;
+      } else {
+        const alvo = pontoVisivelAgora(mVisao, o.position, 0.25, filtroVisao, minhasFichas) ? baseAlpha : 0;
+        if (imediato) {
+          e.c.alpha = alvo;
+        } else if (dtSeg > 0) {
+          e.c.alpha += (alvo - e.c.alpha) * (1 - Math.exp(-dtSeg / 0.15));
+          if (Math.abs(alvo - e.c.alpha) < 0.01) e.c.alpha = alvo;
+        }
+        e.c.visible = e.c.alpha > 0.01;
       }
-      const alvo = pontoVisivelAgora(mapa, o.position, 0.25, filtroVisao, minhasFichas) ? baseAlpha : 0;
-      if (imediato) {
-        e.c.alpha = alvo;
-      } else if (dtSeg > 0) {
-        e.c.alpha += (alvo - e.c.alpha) * (1 - Math.exp(-dtSeg / 0.15));
-        if (Math.abs(alvo - e.c.alpha) < 0.01) e.c.alpha = alvo;
-      }
-      e.c.visible = e.c.alpha > 0.01;
+      if (e.c.visible !== visAntes || e.c.alpha !== alfaAntes) mudouVis = true;
     }
+    if (mudouVis) alturaObjetosSuja = true;
   }
 
-  function atualizarVisibilidadeDasPecas(dtSeg: number, imediato: boolean): void {
-    if (!mapa) return;
+  function atualizarVisibilidadeDasPecas(dtSeg: number, imediato: boolean, mVisao: MapaAtlas | null = mapa): void {
+    if (!mVisao) return;
     const restringir = vistaDaCena === 'jogador' || modoDoProjetor;
     for (const [id, c] of pecas) {
-      const t = mapa.tokens[id];
+      const t = mVisao.tokens[id];
       if (!t) continue;
       if (!restringir || pecaSempreVisivel(t, filtroVisao)) {
         c.alpha = 1;
@@ -753,8 +779,8 @@ export function criarCena(op: OpcoesDaCena): Cena {
         continue;
       }
       const v = visuais.get(c);
-      const pos: Ponto = [v?.c.x || c.x || t.position[0], v?.c.y || c.y || t.position[1]];
-      const alvo = pontoVisivelAgora(mapa, pos, t.size * mapa.grid.size * 0.35, filtroVisao, minhasFichas) ? 1 : 0;
+      const pos: Ponto = [v?.c.x ?? c.x ?? t.position[0], v?.c.y ?? c.y ?? t.position[1]];
+      const alvo = pontoVisivelAgora(mVisao, pos, t.size * mVisao.grid.size * 0.35, filtroVisao, minhasFichas) ? 1 : 0;
       if (imediato) {
         c.alpha = alvo;
       } else if (dtSeg > 0) {
@@ -773,7 +799,18 @@ export function criarCena(op: OpcoesDaCena): Cena {
   function sincronizarSimples<T extends { id: string }>(mapaDeObjetos: Map<string, Container>, pai: Container, dados: Record<string, T>, ids: readonly string[] | null, desenhar: (c: Container, item: T) => void, comPop: boolean): void {
     for (const id of ids ?? [...new Set([...mapaDeObjetos.keys(), ...Object.keys(dados)])]) {
       const item = dados[id], atual = mapaDeObjetos.get(id);
-      if (!item) { atual?.destroy({ children: true }); mapaDeObjetos.delete(id); continue; }
+      if (!item) {
+        if (atual) {
+          const v = visuais.get(atual);
+          if (v) {
+            (v as { destruir?: () => void }).destruir?.();
+            visuais.delete(atual);
+          }
+          atual.destroy({ children: true });
+          mapaDeObjetos.delete(id);
+        }
+        continue;
+      }
       let c = atual;
       if (!c) { c = new Container(); pai.addChild(c); mapaDeObjetos.set(id, c); if (comPop && op.efeitos() && pai !== regioesC) { c.scale.set(0.6); animacoes.push({ alvo: c, t0: performance.now(), dur: 180, final: 1 }); } }
       desenhar(c, item);
@@ -840,6 +877,8 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (e.chave) s.add(e.chave);
       if (e.chavePrevia) s.add(e.chavePrevia);
     }
+    for (const c of folhaDaPeca.values()) s.add(c);
+    for (const c of folhaPendente.keys()) s.add(c);
     for (const c of telhados.chavesEmUso()) s.add(c);
     return s;
   }
@@ -900,7 +939,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       if (tudo || colecao('props') || campos('style') || refazerPorRelevo) sincronizarObjetos(m, (tudo || campos('style') || refazerPorRelevo) ? null : mud!.colecoes.props ?? null, comPop);
       if (tudo || colecao('props') || campos('style', 'grid')) cachoeiras.sincronizar(m);
       if (tudo || colecao('props') || colecao('walls') || campos('climate', 'terrain', 'bounds', 'style')) sombras.atualizar(m, objetos, pixelRes0(m));
-      if (tudo || colecao('props')) desenharMarcas(m);
+      if (tudo || colecao('props') || colecao('openings') || colecao('walls')) desenharMarcas(m);
       agua.sincronizar(m); if (tudo || colecao('props') || campos('style')) agua.objetos(m);
       presenca.sincronizar(m, mud); nevoa.sincronizar(m, mud); telhados.sincronizar(m, mud);
       const v = visaoDoClima ?? m;
@@ -991,12 +1030,34 @@ export function criarCena(op: OpcoesDaCena): Cena {
           }
         }
       }
-      nevoa.quadro(agora, tokensVivos.size > 0 ? tokensVivos : undefined);
+      let mapaVivo = mapa;
+      if (mapa && tokensVivos.size > 0) {
+        const tokens = { ...mapa.tokens };
+        let lights = mapa.lights;
+        let mudouVivo = false;
+        for (const [id, vivo] of tokensVivos) {
+          const t = tokens[id];
+          if (!t) continue;
+          tokens[id] = {
+            ...t,
+            position: vivo.position,
+            ...(vivo.direction !== undefined ? { vision: { ...t.vision, direction: vivo.direction } } : {}),
+          };
+          if (vivo.direction !== undefined && t.lightId && lights[t.lightId]?.cone) {
+            if (lights === mapa.lights) lights = { ...mapa.lights };
+            const l = lights[t.lightId]!;
+            lights[t.lightId] = { ...l, position: vivo.position, cone: { ...l.cone!, direction: vivo.direction } };
+          }
+          mudouVivo = true;
+        }
+        if (mudouVivo) mapaVivo = { ...mapa, tokens, lights };
+      }
+      const alvoVisao = (nevoa.quadro(agora, tokensVivos.size > 0 ? tokensVivos : undefined) as MapaAtlas | undefined) ?? mapaVivo;
       telhados.quadro(agora);
       atualizarLuzDasPecas();
       const dt = ultimoQuadro < 0 ? 0 : (agora - ultimoQuadro) / 1000; ultimoQuadro = agora;
-      atualizarVisibilidadeDasPecas(dt, movimentoReduzido());
-      atualizarVisibilidadeDosObjetos(dt, movimentoReduzido());
+      atualizarVisibilidadeDasPecas(dt, movimentoReduzido(), alvoVisao);
+      atualizarVisibilidadeDosObjetos(dt, movimentoReduzido(), alvoVisao);
       neblina.quadro(dt); fumaca.quadro(dt); bordas.quadro(dt); particulas.quadro(dt); presenca.quadro(dt); agua.quadro(dt); cachoeiras.quadro(dt); nadar(dt); halos.quadro(agora, dt);
       let animouObjeto = false;
       for (let i = animacoes.length - 1; i >= 0; i--) {
@@ -1006,7 +1067,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
         if (a.alvo.parent === objetosC) animouObjeto = true;
         if (t >= 1) { a.alvo.scale.set(a.final); animacoes.splice(i, 1); }
       }
-      if (animouObjeto) cenaDeAltura.sincronizarObjetos(objetos, objetosC);
+      if (animouObjeto || alturaObjetosSuja) { alturaObjetosSuja = false; cenaDeAltura.sincronizarObjetos(objetos, objetosC); }
       const ativo = atmosferaLigada && !ehPixel;
       cenaDeAltura.atualizar(op.renderer, mundoIluminado, ativo);
       composicaoDeLuz.definirDarkwood(vistaDaCena === 'jogador' && nevoa.modoDarkwood, nevoa.mascaraVisivel, mapa?.bounds ?? null);
@@ -1014,6 +1075,11 @@ export function criarCena(op: OpcoesDaCena): Cena {
     },
     destruir() {
       destruida = true; if (terrenoTimer) clearTimeout(terrenoTimer);
+      for (const c of pecas.values()) {
+        const v = visuais.get(c);
+        if (v) { (v as { destruir?: () => void }).destruir?.(); visuais.delete(c); }
+      }
+      folhaDaPeca.clear(); folhaPendente.clear();
       for (const e of [...salas.values(), ...objetos.values(), ...escarpas.values(), ...terrenos.values()]) soltar(e.chaveTextura);
       for (const t of texturas.values()) { t.tex.destroy(true); t.texAltura?.destroy(true); } texturas.clear();
       composicaoDeLuz.destruir(); cenaDeAltura.destruir();

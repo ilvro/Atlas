@@ -436,7 +436,8 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
   brutaS.blendMode = 'add'; composicao.addChild(brutaS);
   sprite.blendMode = 'multiply';
   // No Pixel a luz final passa por um filtro de faixas (degraus de borda dura) antes de multiplicar a cena.
-  const passadaFaixas = new Container(), faixasS = new Sprite(); passadaFaixas.addChild(faixasS); passadaFaixas.filters = [criarFiltroDeFaixas()];
+  const filtroFaixas = criarFiltroDeFaixas();
+  const passadaFaixas = new Container(), faixasS = new Sprite(); passadaFaixas.addChild(faixasS); passadaFaixas.filters = [filtroFaixas];
   const progLuz = GlProgram.from({ vertex: VERTEX_QUAD, fragment: fragmentLuz, preferredFragmentPrecision: 'highp', name: 'atlas-luz-hdr' });
   const progDirecao = GlProgram.from({ vertex: VERTEX_QUAD, fragment: fragmentDirecao, preferredFragmentPrecision: 'highp', name: 'atlas-luz-direcao' });
   const progBlur = GlProgram.from({ vertex: VERTEX_QUAD, fragment: FRAGMENT_BLUR_GAUSSIANO, preferredFragmentPrecision: 'highp', name: 'atlas-luz-blur' });
@@ -466,7 +467,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
   let largura = 0, altura = 0, resAtual = 0, pixel = false, pxPorMetro = 0, escalaAtiva = 1, ehFloatAtivo = false;
   let oclusao: ContextoDeOclusao | null = null, indiceComodos: Map<number, string> | null = null, derivadas: Luz[] = [], ambiente: [number, number, number] = [1, 1, 1];
   const donoPorLuz = new Map<string, string>();
-  let sujo = true, ligado = true, destruido = false, contador = 0, interiorPronto = false, interiorSujo = true;
+  let sujo = true, externaSuja = true, ligado = true, destruido = false, contador = 0, interiorPronto = false, interiorSujo = true;
   // O estado do momento (clima): o mapa atual, se é noite, a queda de energia, o relâmpago e os trovões a caminho.
   let mapa: MapaAtlas | null = null, noite = false, redeAnterior: boolean | null = null, queda = 0, volta = 0;
   let efLuzes = 1, efAmbiente = 1, flash = 0, forcaDoRaio = 0, proximoRaio = Infinity, ultimoQuadro = -1, claraoAtual = 0;
@@ -546,6 +547,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       for (const g of luzes.values()) if (g.alfa >= 0) aplicarAlfa(g, g.alfa);
     }
     sujo = true;
+    externaSuja = true;
   }
 
   function criar(l: Luz): LuzNaGPU {
@@ -714,12 +716,13 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
         blurVShader.resources.uTexture = desfoqueRT.source;
         renderer.render({ container: passadaV, target: direcaoRT, clear: true, clearColor: [0, 0, 0, 0] });
       }
-      if (brutaExtRT && luzExternaRT) {
+      if (externaSuja && brutaExtRT && luzExternaRT) {
         renderer.render({ container: raizExterna, target: brutaExtRT, clear: true, clearColor: [0, 0, 0, 0] });
         blurHShader.resources.uTexture = brutaExtRT.source;
         renderer.render({ container: blurH, target: desfoqueRT, clear: true, clearColor: [0, 0, 0, 0] });
         blurVShader.resources.uTexture = desfoqueRT.source;
         renderer.render({ container: passadaV, target: luzExternaRT, clear: true, clearColor: [0, 0, 0, 0] });
+        externaSuja = false;
       }
     }
     sujo = false;
@@ -819,6 +822,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
         luzes.delete(id);
       }
       sujo = true;
+      externaSuja = true;
     },
     quadro(agora, posicoesDeTokens) {
       if (destruido) return;
@@ -853,13 +857,14 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
         if (oclusao && (mudouPos || mudouDir || g.versaoGeo !== oclusao.versaoEstatica)) {
           atualizarGeometria(g, l, g.posVisual, g.dirVisual);
           sujo = true;
+          if (g.externa) externaSuja = true;
         }
         // Durante o piscar da queda a rede ainda "existe": a luz tremula e só depois apaga (quando o documento já diz que a rede caiu).
         const nivel = nivelDaLuz(l, mapa, queda > 0 ? { redeLigada: true, noite } : { noite });
         const piscar = !daRede ? 1 : queda > 0 ? piscarDaQueda(queda) : volta > 0 ? piscarDaVolta(volta) : 1;
         const janela = l.id.startsWith('janela:');          // só a luz do céu pelas janelas leva o clarão
         let k = nivel * piscar * efLuzes * (pixel ? Math.min(3, Math.max(0, l.intensity)) : Math.max(0, l.intensity));
-        if (k > 0 && l.flicker > 0) {
+        if (!reduzido && k > 0 && l.flicker > 0) {
           const f = (ruido(t * 9 + g.semente, g.semente) + 0.5 * ruido(t * 23, g.semente + 9)) / 1.5;
           if (!pixel) k *= 1 - l.flicker * 0.7 * f;
           else {
@@ -869,18 +874,19 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
           }
         } else if (pixel && g.raio !== l.radius) { g.raio = l.radius; g.mesh.scale.set(l.radius * 2); sujo = true; }
         if (janela) k = pixel ? Math.min(3, k + clarao * 1.2) : k + clarao * 1.2;
-        if (Math.abs(k - g.alfa) > 1e-3) { aplicarAlfa(g, k); sujo = true; }
+        if (Math.abs(k - g.alfa) > 1e-3) { aplicarAlfa(g, k); sujo = true; if (g.externa) externaSuja = true; }
         if (janela && clarao !== g.clarao) {
           g.clarao = clarao;
           const [r, gCor, b] = rgb01(l.color), c = clarao > 0 ? clarao * 0.6 : 0;
           aplicarCor(g, Math.min(1, r + c), Math.min(1, gCor + c), Math.min(1, b + c));
+          if (g.externa) externaSuja = true;
         }
       }
       if (sujo) renderizar();
     },
     relampagoAgora: disparar,
-    definirEfeitos(luzes, ambiente) { if (luzes === efLuzes && ambiente === efAmbiente) return; efLuzes = luzes; efAmbiente = ambiente; sujo = true; },
-    definirLigado(v) { ligado = v; sprite.visible = pixel ? v : true; sprite.renderable = pixel; if (v) sujo = true; },
+    definirEfeitos(luzes, ambiente) { if (luzes === efLuzes && ambiente === efAmbiente) return; efLuzes = luzes; efAmbiente = ambiente; sujo = true; externaSuja = true; },
+    definirLigado(v) { ligado = v; sprite.visible = pixel ? v : true; sprite.renderable = pixel; if (v) { sujo = true; externaSuja = true; } },
     intensidade: (id: string) => { const g = luzes.get(id); return g ? Math.max(0, g.alfa) : 0; },
     poligono: (id: string) => { const g = luzes.get(id); return g?.poligono && g.poligono.length >= 6 ? g.poligono : null; },
     todasAsLuzes: () => todasLuzes,
@@ -924,7 +930,8 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       brutaRT?.destroy(true); desfoqueRT?.destroy(true); finalRT?.destroy(true); faixasRT?.destroy(true);
       brutaDirRT?.destroy(true); direcaoRT?.destroy(true); interiorRT?.destroy(true);
       brutaExtRT?.destroy(true); luzExternaRT?.destroy(true);
-      passadaFaixas.destroy({ children: false }); faixasS.destroy(); interior.destroy(); sprite.destroy(); composicao.destroy({ children: false }); raiz.destroy({ children: true }); raizDirecao.destroy({ children: true }); raizExterna.destroy({ children: true });
+      passadaFaixas.filters = []; filtroFaixas.destroy();
+      passadaFaixas.destroy({ children: false }); faixasS.destroy(); brutaS.destroy(); interior.destroy(); sprite.destroy(); composicao.destroy({ children: false }); raiz.destroy({ children: true }); raizDirecao.destroy({ children: true }); raizExterna.destroy({ children: true });
     },
   };
 }

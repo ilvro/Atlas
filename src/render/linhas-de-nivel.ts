@@ -133,6 +133,18 @@ export interface LinhasDeNivel {
   destruir(): void;
 }
 
+/** Hash leve do conteúdo das faixas RLE para invalidar o cache ao estender/encolher um trecho. */
+function hashFaixas(cells: readonly (readonly [number, number, number])[]): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < cells.length; i++) {
+    const [y, x0, n] = cells[i]!;
+    h = Math.imul(h ^ (y | 0), 16777619);
+    h = Math.imul(h ^ (x0 | 0), 16777619);
+    h = Math.imul(h ^ (n | 0), 16777619);
+  }
+  return h >>> 0;
+}
+
 /** Camada Pixi com linhas tracejadas e rótulos de altitude do relevo. */
 export function criarLinhasDeNivel(): LinhasDeNivel {
   const container = new Container();
@@ -162,7 +174,7 @@ export function criarLinhasDeNivel(): LinhasDeNivel {
       container.visible = visivel;
       if (!visivel) return;
       const rel = m.terrain.relief;
-      const chave = rel ? `${m.bounds.width}x${m.bounds.height}:${m.terrain.resolution}:${Object.entries(rel.patamares).map(([id, p]) => `${id}=${p.altura}:${p.cells.length}`).join('|')}` : '';
+      const chave = rel ? `${m.bounds.width}x${m.bounds.height}:${m.terrain.resolution}:${Object.entries(rel.patamares).map(([id, p]) => `${id}=${p.altura}:${p.cells.length}:${hashFaixas(p.cells)}`).join('|')}` : '';
       if (chave === ultimaChave && Math.abs(zoom - ultimoZoom) < 1e-6) return;
       ultimaChave = chave;
       ultimoZoom = zoom;

@@ -272,7 +272,9 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   let ultimoAndar: string | null = andarAtual();
   let ultimoConstruir = ctxAndar().construir;
   const tela = (): Tela => ({ largura: app.screen.width, altura: app.screen.height });
-  const acento = (): number => { const v = getComputedStyle(document.documentElement).getPropertyValue('--acento').trim(); return /^#[0-9a-f]{6}$/i.test(v) ? hexParaNumero(v) : COR_PADRAO_ACENTO; };
+  const lerAcento = (): number => { const v = getComputedStyle(document.documentElement).getPropertyValue('--acento').trim(); return /^#[0-9a-f]{6}$/i.test(v) ? hexParaNumero(v) : COR_PADRAO_ACENTO; };
+  let acentoEmCache: number | null = null;
+  const acento = (): number => (acentoEmCache ??= lerAcento());
   const px = (n: number) => n / camera.zoom;
 
   const retratos = criarRetratos(async id => (await ponte.lerRetrato?.(id)) ?? null, () => {
@@ -293,7 +295,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   // ---------- Transição de clima ----------
   // O documento muda na hora; o que a cena exibe (luz, partículas, neblina, acabamento) caminha até ele em `duracaoDaTransicao`.
-  let duracaoDaTransicao = ponte.duracaoDaTransicao?.() ?? DURACAO_PADRAO_DA_TRANSICAO;
+  let duracaoDaTransicao = Math.max(0, ponte.duracaoDaTransicao?.() ?? DURACAO_PADRAO_DA_TRANSICAO);
   const eventos = criarEventosDeCena(movimentoReduzido);
   let tremorAtual: [number, number] = [0, 0];
   let transicao: { de: EstadoDeClima; alvo: EstadoDeClima; inicio: number } | null = null;
@@ -320,12 +322,13 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
 
   function pararTransicao(): void { transicao = null; exibido = null; }
   function iniciarTransicao(de: EstadoDeClima, m: MapaAtlas): void {
+    if (duracaoDaTransicao <= 0) { pararTransicao(); return; }
     transicao = { de, alvo: estadoDoDoc(m), inicio: performance.now() };
     exibido = misturar(de, transicao.alvo, 0);
   }
   function passoDaTransicao(agora: number): void {
     if (!transicao) return;
-    const t = Math.min(1, (agora - transicao.inicio) / duracaoDaTransicao), m = doc();
+    const t = duracaoDaTransicao <= 0 ? 1 : Math.min(1, (agora - transicao.inicio) / duracaoDaTransicao), m = doc();
     if (t >= 1) { pararTransicao(); cena.atualizarAtmosfera(m); aplicarAcabamento(); return; }
     exibido = misturar(transicao.de, transicao.alvo, suave(t));
     cena.atualizarAtmosfera(visaoDoClima(m)); aplicarAcabamento();
@@ -391,7 +394,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
             grade.stroke({ width: w, color: cor, alpha });
           });
         } else if (lineStyle === 'dashed' || lineStyle === 'dotted') {
-          const comp = lineStyle === 'dotted' ? Math.max(px(2) / camera.zoom, 0.04) : m.grid.size * 0.2;
+          const comp = lineStyle === 'dotted' ? Math.max(px(2), 0.04) : m.grid.size * 0.2;
           const espaco = lineStyle === 'dotted' ? m.grid.size * 0.15 : m.grid.size * 0.15;
           desenharComEstilo((alpha, isShadow) => {
             for (const x of l.verticais) {
@@ -743,6 +746,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   }
 
   function redesenharTudo(): void {
+    acentoEmCache = lerAcento();
     const m = doc();
     ultimoAndar = andarAtual();
     ultimoConstruir = ctxAndar().construir;
@@ -1490,8 +1494,13 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     if (e.key === ' ') { espaco = false; cursor(); }
     if (e.key === 'Alt') { altPressionado = false; camadaSuja = true; }
   };
+  const aoPerderFoco = () => {
+    if (espaco) { espaco = false; cursor(); }
+    if (altPressionado) { altPressionado = false; camadaSuja = true; }
+  };
   window.addEventListener('keydown', aoTeclar, true);
   window.addEventListener('keyup', aoSoltar);
+  window.addEventListener('blur', aoPerderFoco);
 
   // ---------- Laço do desenho ----------
   const aoQuadro = () => {
@@ -1539,6 +1548,7 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
   observador.observe(host);
 
   cena.definirModoProjetor(somenteLeitura);
+  camadaCursores.raiz.visible = !somenteLeitura;
   cena.definirVista(ponte.vista?.() ?? 'construir');      // o projetor já nasce na vista de jogador
   cena.definirFiltroDeVisao?.(ponte.filtroDeVisao?.() ?? null, ponte.minhasFichas?.() ?? null);
   redesenharTudo();
@@ -1617,11 +1627,14 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
     simularPintando: (n: number | null) => { pintandoSimulado = n; },
     capturar,
     destruir() {
-      destruido = true; if (rafArrastoPeca) { cancelAnimationFrame(rafArrastoPeca); rafArrastoPeca = 0; } cancelarAssinatura(); observador.disconnect();
-      window.removeEventListener('keydown', aoTeclar, true); window.removeEventListener('keyup', aoSoltar);
+      destruido = true;
+      if (repriorizarTimer) { clearTimeout(repriorizarTimer); repriorizarTimer = null; }
+      if (rafArrastoPeca) { cancelAnimationFrame(rafArrastoPeca); rafArrastoPeca = 0; } cancelarAssinatura(); observador.disconnect();
+      window.removeEventListener('keydown', aoTeclar, true); window.removeEventListener('keyup', aoSoltar); window.removeEventListener('blur', aoPerderFoco);
       cancelarRelogioPing(); limparPecaRemotaPendente();
       camadaCursores.destruir();
       camadaPings.destruir();
+      cena.raiz.filters = []; pixelizacao.sprite.filters = []; acabamento.filtro.destroy();
       app.ticker.remove(aoQuadro); limparFantasmaSprite(); fantasmaDaProposta.destruir(); linhasDeNivel.destruir(); retratos.limpar(); cena.destruir(); baker.encerrar(); pixelizacao.destruir(); app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
     },
   };
