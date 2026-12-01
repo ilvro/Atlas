@@ -1,8 +1,8 @@
-> resumo: ler os quadros da Mesa do jeito barato: mapa, busca, seção em títulos, seção completa, imagem só se precisar; gravar resumos e descrições de imagem; citar itens pelo id curto, não pedir todas as imagens e o vocabulário do mestre (marcadores, tipos, [[ligações]]).
+> resumo: ler os quadros da Mesa do jeito barato (mapa, busca, seção em títulos, completa, imagem só se precisar); gravar resumos e descrições de imagem; citar itens pelo id curto; o vocabulário do mestre; montar ou continuar material no estilo dele (quadro_estilo, quadro_inserir, conferir com quadro_ver_regiao) e propor ideias soltas (quadro_propor).
 
 # Ler os quadros da Mesa
 
-Os quadros do mestre são enormes (dezenas de milhares de tokens). Nunca leia tudo: leia em camadas, do barato ao caro, e pare quando já souber o bastante. As ferramentas `quadros_listar`, `quadro_mapa`, `quadro_secao`, `quadro_buscar` e `quadro_imagem` (leitura) `quadro_resumir` e `quadro_descrever_imagem` (notas sobre o quadro) e `quadro_propor` (propostas para revisão) são sob demanda: carregue-as com `plataforma_ferramentas`. Só `quadro_propor` acrescenta itens ao quadro, e sempre marcados para revisão.
+Os quadros do mestre são enormes (dezenas de milhares de tokens). Nunca leia tudo: leia em camadas, do barato ao caro, e pare quando já souber o bastante. As ferramentas `quadros_listar`, `quadro_mapa`, `quadro_secao`, `quadro_buscar`, `quadro_imagem`, `quadro_estilo` e `quadro_ver_regiao` (leitura), `quadro_resumir` e `quadro_descrever_imagem` (notas sobre o quadro), `quadro_inserir` e `quadro_propor` (itens novos, para revisão) são sob demanda: carregue-as com `plataforma_ferramentas`. Só `quadro_inserir` e `quadro_propor` acrescentam itens ao quadro, sempre marcados para revisão.
 
 ## A ordem
 
@@ -11,7 +11,8 @@ Os quadros do mestre são enormes (dezenas de milhares de tokens). Nunca leia tu
 3. **`quadro_buscar`**: se a pergunta cita um nome, lugar ou objeto, busque o termo (sem acento nem caixa; até 20 ocorrências, com a seção e o id curto). Sem `quadro`, busca em todos. Muitas vezes isso responde sem abrir seção nenhuma.
 4. **`quadro_secao` com `nivel: "titulos"`** (padrão): só a primeira linha de cada item. Serve para saber o que há na seção e decidir se vale ler mais.
 5. **`quadro_secao` com `nivel: "completo"`**: o texto inteiro, em páginas de cerca de 2,5 mil tokens (`pagina: 2`, 3…). Peça só das seções que importam e só as páginas que precisar.
-6. **`quadro_imagem`**: por último, e só se o texto não bastar. Handouts são texto dentro de imagem e só se leem assim, mas cada imagem custa bem mais que uma seção de texto. Use `lado` pequeno (o padrão, 768 px, serve para quase tudo; 1568 só para letras miúdas).
+6. **`quadro_secao` com `nivel: "estrutura"`**: o *visual* de cada item (formato, posição relativa à seção, fonte, tamanho, cores, destaques por trecho) e os blocos internos (`▸ bloco "COMBATE"`). Use quando for escrever no quadro, não para ler o conteúdo.
+7. **`quadro_imagem`**: por último, e só se o texto não bastar. Handouts são texto dentro de imagem e só se leem assim, mas cada imagem custa bem mais que uma seção de texto. Use `lado` pequeno (o padrão, 768 px, serve para quase tudo; 1568 só para letras miúdas).
 
 ## Regras de custo
 
@@ -45,12 +46,31 @@ Assim a próxima conversa já começa com os resumos no mapa e lê menos. Regras
 - **Setas** aparecem no fim da seção: `"começo" #id → "começo" #id: rótulo`. Elas costumam ser ordem, causa ou consequência.
 - **Ilhas e "Soltos"**: o que não está numa moldura é agrupado por proximidade; o título é detectado (fonte maior, cabeçalho). Se o título da ilha parecer errado, diga ao mestre em vez de supor.
 
+## Montar, transcrever ou continuar material
+
+Quando o mestre pede para **montar** algo no quadro (uma missão, uma cena, a transcrição de um PDF) ou **continuar** o que ele começou, o resultado tem que parecer escrito por ele. Não é uma lista de ideias soltas.
+
+1. **Leia o estilo antes de escrever.** `quadro_estilo(quadro, secao?)` resume como o mestre escreve: estilos de título e de corpo, cores de destaque (com um palpite de uso, como narração, regra ou fala), fluxo (coluna, espaço entre itens), de que lado ficam as imagens e se ele usa tipos. Cada estilo vem com um `#id` de exemplo. Depois, `quadro_secao` com `nivel: "estrutura"` da seção-alvo mostra os blocos e onde continuar. Se precisar, use `quadro_ver_regiao(quadro, secao)` para ver a seção como o mestre a vê.
+2. **Imite o formato e o fluxo** com `quadro_inserir(quadro, itens, abaixo_de | ao_lado_de, abrir_espaco?, setas?)`:
+   - `formato: "titulo"` e `formato: "texto"` saem no estilo detectado de título e de corpo. `estilo_como: "#id"` copia o estilo de um item específico do mestre.
+   - Texto com destaques: `paragrafos: [{ texto, como: "#id" }]`, em que cada parágrafo copia o destaque predominante do item indicado (a narração com o fundo amarelo dele, a regra com o fundo escuro…). Use os `#id` de exemplo do `quadro_estilo`.
+   - `abaixo_de: "#id"` continua a coluna no fim do bloco daquele título (ou logo abaixo do item). `abaixo_de: <seção>` continua no fim da coluna. Se o bloco seguinte estiver no caminho, a ferramenta recusa e diz o que bloqueia: só use `abrir_espaco: true` (a coluna e as imagens ao lado descem) se o mestre pediu para inserir no meio. `ao_lado_de: <seção>` abre uma coluna nova.
+   - Imagens que já estão na campanha: `formato: "imagem"` com `de: "#id"`; `lado: "direita"` a põe ao lado do texto anterior, como o mestre faz.
+   - `setas: [{ de, para, rotulo? }]` liga itens novos (pelo índice) ou existentes (`#id`).
+   - `tipo` (leitura, segredo…) grava só a semântica, para o modo sessão, e não muda a cor quando há estilo.
+3. **Se o estilo não puder ser reproduzido**, por exemplo porque o mestre usa algo que `quadro_inserir` não cria, **avise o mestre e pergunte antes** de criar qualquer coisa. Não troque o estilo dele pelo seu em silêncio.
+4. **Confira ao terminar.** A resposta traz os `criados`. Chame `quadro_ver_regiao(quadro, itens: criados)` (ou a seção inteira) e compare com a parte do mestre: fonte, destaques, largura, espaço e alinhamento. Corrija antes de responder, ou diga o que ficou diferente.
+
+Se `quadro_estilo` diz que o mestre **não usa post-its tipados**, não use `quadro_propor` nem cores por tipo para material: o vocabulário de cores (leitura amarela, segredo rosa…) é da Mesa, não dele.
+
+Tudo entra na fila de revisão ("Do assistente"), sem moldura, com um contorno tracejado e uma estrela até o mestre aceitar. No quadro aberto, um Ctrl+Z desfaz a inserção inteira, inclusive o que desceu com `abrir_espaco`.
+
 ## Propor ideias no quadro
 
-Quando o mestre pedir ideias para pôr no quadro (ganchos, testes, falas, segredos, uma cena), use `quadro_propor(quadro, titulo, notas, perto?)`: ela cria uma moldura "✦ título" no primeiro espaço livre ao lado da seção `perto` (ou à direita de tudo), com até 30 notas `{ texto, tipo? }`. O `tipo` é um dos tipos semânticos (`leitura`, `teste`, `segredo`, `loot`, `evento`, `fala`, `tarefa`, `rever`, `titulo`) e dá a cor da nota. Escreva no vocabulário do mestre: marcadores como `[PERCEPÇÃO 13]` e `[[Nome]]` para entidades.
+Quando o mestre pedir **ideias soltas** para avaliar ("me dê ganchos para…", "sugira testes para esta cena"), e não material montado, use `quadro_propor(quadro, titulo, notas, perto?)`: ela cria uma moldura "✦ título" no primeiro espaço livre ao lado da seção `perto` (ou à direita de tudo), com até 30 notas `{ texto, tipo? }`. O `tipo` é um dos tipos semânticos (`leitura`, `teste`, `segredo`, `loot`, `evento`, `fala`, `tarefa`, `rever`, `titulo`) e dá a cor da nota. Escreva no vocabulário do mestre: marcadores como `[PERCEPÇÃO 13]` e `[[Nome]]` para entidades.
 
 Tudo entra marcado para revisão, no grupo "Do assistente" da fila: o mestre aceita, edita ou descarta. No quadro aberto, um Ctrl+Z desfaz a proposta inteira; num quadro fechado, ela é gravada direto e se desfaz pela fila ("Descartar todas"). Prefira uma proposta por pedido, com notas curtas, a várias molduras soltas.
 
 ## Respeito ao que é do mestre
 
-O quadro é material do mestre: leia, resuma e comente, mas não o reescreva. Propostas novas vão por `quadro_propor`, para uma moldura própria e a fila de revisão; nada se mistura ao material dele sem aceite.
+O quadro é material do mestre: leia, resuma e comente, mas não o reescreva. Itens novos vão por `quadro_inserir` (no estilo dele) ou `quadro_propor` (ideias numa moldura própria), sempre pela fila de revisão; nada fica no material dele sem aceite.
