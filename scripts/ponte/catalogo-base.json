@@ -1,5 +1,30 @@
 [
   {
+    "nome": "arquivo_imagens",
+    "descricao": "Lista as imagens de uma pasta ou de um PDF (ids para o `de` de quadro_inserir) e, com ver, mostra a miniatura. Use em PDFs e pastas de extras antes de transcrever um material.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "caminho": {
+          "type": "string",
+          "description": "Pasta ou PDF no disco (dentro das pastas permitidas)."
+        },
+        "ver": {
+          "type": "string",
+          "description": "Id de uma imagem da lista: devolve a miniatura."
+        }
+      },
+      "required": [
+        "caminho"
+      ],
+      "additionalProperties": false
+    },
+    "app": "mesa",
+    "anotacoes": {
+      "leitura": true
+    }
+  },
+  {
     "nome": "atelie_documento_criar",
     "descricao": "Cria um documento (pista) de um modelo: preenche campos, texto UV opcional, arquiva e registra na campanha. Modelo e rótulos vêm de atelie_modelos_listar. Detalhes: plataforma_guia ferramentas-atelie.",
     "esquema": {
@@ -4530,7 +4555,7 @@
   },
   {
     "nome": "quadro_inserir",
-    "descricao": "Insere texto, títulos, notas, imagens do quadro ou retratos e setas, no estilo do mestre, numa coluna: abaixo_de (#id ou seção) ou ao_lado_de (seção). Para montar, transcrever ou continuar material; para ideias em post-its numa moldura, use quadro_propor. Confira depois com quadro_ver_regiao. Ctrl+Z desfaz.",
+    "descricao": "Insere texto, títulos, notas, imagens do quadro ou retratos e setas, no estilo do mestre, numa coluna (grupos linha/grade põem cartões lado a lado): abaixo_de (#id ou seção) ou ao_lado_de (seção). Para montar, transcrever ou continuar material; para ideias em post-its numa moldura, use quadro_propor. Confira depois com quadro_ver_regiao. Ctrl+Z desfaz.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -4542,23 +4567,62 @@
           "type": "array",
           "minItems": 1,
           "maxItems": 40,
-          "description": "Itens na ordem de cima para baixo.",
+          "description": "Itens e grupos (linha, grade) de cima para baixo; até 40 itens no total.",
           "items": {
             "type": "object",
             "properties": {
+              "linha": {
+                "type": "array",
+                "description": "Grupo: células lado a lado; célula = lista de itens empilhados (um cartão).",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Item com os mesmos campos (sem lado)."
+                  }
+                }
+              },
+              "grade": {
+                "type": "array",
+                "description": "Grupo: células em fileiras de \"colunas\" células.",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Item com os mesmos campos (sem lado)."
+                  }
+                }
+              },
+              "colunas": {
+                "type": "integer",
+                "description": "Só grade: células por fileira."
+              },
+              "espaco": {
+                "type": "number",
+                "description": "Só grupo: px entre células (padrão: 3 × o da coluna, mín. 24)."
+              },
+              "largura_da_celula": {
+                "type": "number",
+                "description": "Só grupo: largura forçada dos itens da célula."
+              },
               "formato": {
                 "type": "string",
                 "enum": [
                   "texto",
                   "titulo",
+                  "rotulo",
                   "nota",
                   "imagem"
                 ],
-                "description": "texto (corpo), titulo, nota (post-it) ou imagem."
+                "description": "texto (corpo), titulo, rotulo (só o trecho do papel), nota (post-it) ou imagem."
+              },
+              "papel": {
+                "type": "string",
+                "description": "Papel da legenda (quadro_estilo): o texto todo, ou os parágrafos sem como/papel."
               },
               "de": {
                 "type": "string",
-                "description": "Só imagem: #id de imagem do quadro ou entidade:<nome ou id> (retrato)."
+                "description": "Só imagem: #id, entidade:<nome> ou arquivo:/pdf: (ponte)."
               },
               "lado": {
                 "type": "string",
@@ -4574,21 +4638,43 @@
               },
               "paragrafos": {
                 "type": "array",
-                "description": "Parágrafos, cada um com o destaque de um item do mestre.",
+                "description": "Parágrafos: texto ou trechos, com papel ou como.",
                 "items": {
                   "type": "object",
                   "properties": {
                     "texto": {
                       "type": "string"
                     },
+                    "papel": {
+                      "type": "string"
+                    },
                     "como": {
                       "type": "string",
                       "description": "#id do item cujo destaque copiar."
+                    },
+                    "trechos": {
+                      "type": "array",
+                      "description": "No lugar de texto: partes {texto, papel?, como?}.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "texto": {
+                            "type": "string"
+                          },
+                          "papel": {
+                            "type": "string"
+                          },
+                          "como": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "texto"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
-                  "required": [
-                    "texto"
-                  ],
                   "additionalProperties": false
                 }
               },
@@ -4616,9 +4702,6 @@
                 "description": "Largura em px; padrão: a do estilo (imagem: mediana das imagens)."
               }
             },
-            "required": [
-              "formato"
-            ],
             "additionalProperties": false
           }
         },
@@ -4634,7 +4717,7 @@
                   "integer",
                   "string"
                 ],
-                "description": "Índice (de 0) de um item novo ou #id existente."
+                "description": "Índice (de 0, também dentro de grupos) de um item novo ou #id."
               },
               "para": {
                 "type": [
