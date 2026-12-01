@@ -1,9 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { corDoPing, DURACAO_PING_MS, pingsAtivos, setaNaBorda, type Ping } from '../../src/domain/pings.ts';
+import { corDoPing, DURACAO_PING_MS, pingsAtivos, setaNaBorda, TOLERANCIA_SKEW_RELOGIO_MS, type Ping } from '../../src/domain/pings.ts';
 
 describe('pings (R15b)', () => {
-  it('pingsAtivos expira em 3 s', () => {
+  it('pingsAtivos expira em 3 s e tolera skew de relógio', () => {
     const base: Ping = {
       id: 'p1',
       mapa: 'm1',
@@ -17,7 +17,8 @@ describe('pings (R15b)', () => {
     assert.equal(pingsAtivos([base], 1000).length, 1);
     assert.equal(pingsAtivos([base], 1000 + DURACAO_PING_MS - 1).length, 1);
     assert.equal(pingsAtivos([base], 1000 + DURACAO_PING_MS).length, 0);
-    assert.equal(pingsAtivos([base], 999).length, 0);
+    assert.equal(pingsAtivos([base], 500).length, 1);
+    assert.equal(pingsAtivos([base], 1000 - TOLERANCIA_SKEW_RELOGIO_MS - 1).length, 0);
   });
 
   it('corDoPing é estável para o mesmo id e fixa para o mestre', () => {

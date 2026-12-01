@@ -1,6 +1,6 @@
 import { mesmaRef } from '#mesa';
 import { andarDe, ehReceitaDeEscada } from './andares.ts';
-import { nomeDoAlvo } from './fabrica.ts';
+import { nomeDoAlvo, novoIdEntidade } from './fabrica.ts';
 import { arredondar, centroDaAbertura, comprimentoDaParede, normalParaDentro, pontoNaParede, salasDaAbertura } from './geometria.ts';
 import type { Abertura, MapaAtlas, Objeto, Peca, Ponto, TransicaoDeMapa } from './mapa.ts';
 
@@ -372,6 +372,26 @@ function acharPecaCorrespondenteNoDestino(destino: MapaAtlas, origemPeca: Peca):
   );
 }
 
+function copiarLuzPortada(
+  origem: MapaAtlas,
+  destino: MapaAtlas,
+  lightIdOrigem: string,
+  ownerId: string,
+  pos: Ponto,
+  levelId: string | null,
+): string {
+  const luzCopia = structuredClone(origem.lights[lightIdOrigem]!);
+  while (destino.lights[luzCopia.id]) {
+    luzCopia.id = novoIdEntidade('l');
+  }
+  luzCopia.ownerId = ownerId;
+  luzCopia.position = [pos[0], pos[1]];
+  if (levelId === null) delete luzCopia.levelId;
+  else luzCopia.levelId = levelId;
+  destino.lights[luzCopia.id] = luzCopia;
+  return luzCopia.id;
+}
+
 /**
  * Transfere as peças de jogador (`player: true`, mais `opcoes.pecaId` se informada) do mapa `origem`
  * para o mapa `destino` ao redor do ponto de chegada de `transicao`, preservando luzes portadas e estado.
@@ -417,13 +437,14 @@ export function transferirJogadoresParaMapa(
         if (chegada.levelId === null) delete luzDest.levelId;
         else luzDest.levelId = chegada.levelId;
       } else if (pecaOrigem.lightId && origem.lights[pecaOrigem.lightId]) {
-        const luzCopia = structuredClone(origem.lights[pecaOrigem.lightId]!);
-        luzCopia.ownerId = existente.id;
-        luzCopia.position = [pos[0], pos[1]];
-        if (chegada.levelId === null) delete luzCopia.levelId;
-        else luzCopia.levelId = chegada.levelId;
-        copia.lights[luzCopia.id] = luzCopia;
-        existente.lightId = luzCopia.id;
+        existente.lightId = copiarLuzPortada(
+          origem,
+          copia,
+          pecaOrigem.lightId,
+          existente.id,
+          pos,
+          chegada.levelId,
+        );
       }
       pecasTransferidas.push(existente.id);
     } else {
@@ -433,13 +454,14 @@ export function transferirJogadoresParaMapa(
       else nova.levelId = chegada.levelId;
 
       if (pecaOrigem.lightId && origem.lights[pecaOrigem.lightId]) {
-        const luzCopia = structuredClone(origem.lights[pecaOrigem.lightId]!);
-        luzCopia.ownerId = nova.id;
-        luzCopia.position = [pos[0], pos[1]];
-        if (chegada.levelId === null) delete luzCopia.levelId;
-        else luzCopia.levelId = chegada.levelId;
-        copia.lights[luzCopia.id] = luzCopia;
-        nova.lightId = luzCopia.id;
+        nova.lightId = copiarLuzPortada(
+          origem,
+          copia,
+          pecaOrigem.lightId,
+          nova.id,
+          pos,
+          chegada.levelId,
+        );
       } else {
         nova.lightId = null;
       }

@@ -322,6 +322,11 @@ export function validarMapa(valor: unknown): asserts valor is MapaAtlas {
     if (camada.id !== cid) falha('Identificador diferente da chave.', `terrain.layers.${cid}.id`);
     for (const [y, x0, n] of camada.cells) if (y >= linT || x0 + n > celT) falha('Células de terreno fora dos limites do mapa.', `terrain.layers.${cid}.cells`);
   }
+  if (m.terrain.submerged) {
+    for (const [cid, camada] of Object.entries(m.terrain.submerged)) {
+      for (const [y, x0, n] of camada.cells) if (y >= linT || x0 + n > celT) falha('Células de terreno submerso fora dos limites do mapa.', `terrain.submerged.${cid}.cells`);
+    }
+  }
   if (m.terrain.relief) {
     const porLinha = new Map<number, [number, number][]>();
     for (const [pid, pat] of Object.entries(m.terrain.relief.patamares)) {

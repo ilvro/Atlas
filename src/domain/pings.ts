@@ -2,6 +2,9 @@ import type { Ponto } from './mapa.ts';
 
 export const DURACAO_PING_MS = 3000;
 
+/** Tolerância para dessincronia positiva de relógio entre pares remotos (60 s). */
+export const TOLERANCIA_SKEW_RELOGIO_MS = 60_000;
+
 export interface Ping {
   id: string;
   mapa: string;
@@ -36,9 +39,12 @@ export function corDoPing(discordId: string, papel: 'mestre' | 'jogador'): strin
   return PALETA_JOGADORES[(h >>> 0) % PALETA_JOGADORES.length]!;
 }
 
-/** Pings ainda dentro da janela de 3 s. */
+/** Pings ainda dentro da janela de 3 s (tolerando leve dessincronia positiva de relógio). */
 export function pingsAtivos(pings: readonly Ping[], agora: number, duracaoMs = DURACAO_PING_MS): Ping[] {
-  return pings.filter(p => agora - p.em >= 0 && agora - p.em < duracaoMs);
+  return pings.filter(p => {
+    const idade = agora - p.em;
+    return idade < duracaoMs && -idade <= TOLERANCIA_SKEW_RELOGIO_MS;
+  });
 }
 
 export interface SetaNaBorda {

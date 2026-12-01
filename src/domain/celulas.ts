@@ -6,7 +6,7 @@ import type { Ponto } from './mapa.ts';
 export type Celula = readonly [x: number, y: number];
 export type Faixa = readonly [y: number, x0: number, comprimento: number];
 
-const chave = (x: number, y: number) => y * 100_003 + x;
+const chave = (x: number, y: number) => y * 200_003 + x;
 
 /** Remove repetições e ordena por linha e coluna. */
 export function normalizar(celulas: Iterable<Celula>): Celula[] {

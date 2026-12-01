@@ -35,6 +35,7 @@ import {
   EXPIRACAO_CURSOR_MS,
   INTERVALO_ENVIO_CURSOR_MS,
   registrarCursorRemoto,
+  TOLERANCIA_SKEW_RELOGIO_MS,
   type CursorRemoto,
 } from '../../src/domain/cursores-remotos.ts';
 import { corDoPing } from '../../src/domain/pings.ts';
@@ -127,7 +128,57 @@ describe('cursores-remotos (S5)', () => {
     // Expiração exatamente em 5000 ms (4999 ativo, 5000 expirado)
     assert.equal(cursoresAtivos([cMestre], 1000 + EXPIRACAO_CURSOR_MS - 1).length, 1);
     assert.equal(cursoresAtivos([cMestre], 1000 + EXPIRACAO_CURSOR_MS).length, 0);
-    assert.equal(cursoresAtivos([cMestre], 999).length, 0);
+    // Leve dessincronia positiva (+500 ms no futuro) é tolerada; futuro extremo (> 60 s) é descartado
+    assert.equal(cursoresAtivos([cMestre], 500).length, 1);
+    assert.equal(cursoresAtivos([cMestre], 1000 - TOLERANCIA_SKEW_RELOGIO_MS).length, 1);
+    assert.equal(cursoresAtivos([cMestre], 1000 - TOLERANCIA_SKEW_RELOGIO_MS - 1).length, 0);
+  });
+
+  it('cursores-remotos tolera clock skew positivo (+500 ms) e ignora entradas já expiradas em registrarCursorRemoto', () => {
+    const base: CursorRemoto = {
+      discordId: 'u-ativo',
+      nome: 'Ativo',
+      cor: corDoPing('u-ativo', 'jogador'),
+      x: 4,
+      y: 5,
+      levelId: null,
+      ferramenta: 'parede',
+      pintando: false,
+      atualizadoEm: 10_000,
+    };
+
+    // Entrada com +500 ms de skew em relação a `agora` é aceita e preservada por cursoresAtivos
+    let lista = registrarCursorRemoto(
+      [base],
+      {
+        discordId: 'u-skew',
+        nome: 'Remoto',
+        x: 7,
+        y: 8,
+        levelId: null,
+        ferramenta: 'comodo',
+        atualizadoEm: 10_500,
+      },
+      10_000,
+    );
+    assert.deepEqual(lista.map(c => c.discordId), ['u-ativo', 'u-skew']);
+    assert.deepEqual(cursoresAtivos(lista, 10_000).map(c => c.discordId), ['u-ativo', 'u-skew']);
+
+    // Entrada já expirada em relação a `agora` é ignorada (não inserida), enquanto cursores válidos permanecem
+    lista = registrarCursorRemoto(
+      lista,
+      {
+        discordId: 'u-expirado',
+        nome: 'Velho',
+        x: 1,
+        y: 1,
+        levelId: null,
+        ferramenta: 'selecionar',
+        atualizadoEm: 4_000,
+      },
+      10_000,
+    );
+    assert.deepEqual(lista.map(c => c.discordId), ['u-ativo', 'u-skew']);
   });
 
   it('registrarCursorRemoto atualiza cursor existente sem duplicar e remove expirados', () => {

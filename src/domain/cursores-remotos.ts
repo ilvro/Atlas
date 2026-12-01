@@ -1,10 +1,17 @@
-import { corDoPing } from './pings.ts';
+import { corDoPing, TOLERANCIA_SKEW_RELOGIO_MS } from './pings.ts';
 
 /** Tempo após o qual um cursor remoto parado desaparece (5 s). */
 export const EXPIRACAO_CURSOR_MS = 5000;
 
 /** Intervalo mínimo entre envios de posição de cursor (~15/s). */
 export const INTERVALO_ENVIO_CURSOR_MS = 67;
+
+export { TOLERANCIA_SKEW_RELOGIO_MS };
+
+function cursorDentroDaJanela(atualizadoEm: number, agora: number, expiracaoMs: number): boolean {
+  const idade = agora - atualizadoEm;
+  return idade < expiracaoMs && -idade <= TOLERANCIA_SKEW_RELOGIO_MS;
+}
 
 export interface CursorRemoto {
   discordId: string;
@@ -40,6 +47,9 @@ export function registrarCursorRemoto(
   entrada: EntradaCursorRemoto,
   agora = entrada.atualizadoEm,
 ): CursorRemoto[] {
+  if (!cursorDentroDaJanela(entrada.atualizadoEm, agora, EXPIRACAO_CURSOR_MS)) {
+    return lista.filter(c => cursorDentroDaJanela(c.atualizadoEm, agora, EXPIRACAO_CURSOR_MS));
+  }
   const proximo: CursorRemoto = {
     discordId: entrada.discordId,
     nome: entrada.nome,
@@ -52,7 +62,7 @@ export function registrarCursorRemoto(
     atualizadoEm: entrada.atualizadoEm,
   };
   const filtrados = lista.filter(
-    c => c.discordId !== entrada.discordId && agora - c.atualizadoEm >= 0 && agora - c.atualizadoEm < EXPIRACAO_CURSOR_MS,
+    c => c.discordId !== entrada.discordId && cursorDentroDaJanela(c.atualizadoEm, agora, EXPIRACAO_CURSOR_MS),
   );
   return [...filtrados, proximo];
 }
@@ -71,7 +81,7 @@ export function cursoresAtivos(
   const filtrarAndar = opcoes?.levelId !== undefined;
   const andarAlvo = opcoes?.levelId ?? null;
   return lista.filter(c => {
-    if (agora - c.atualizadoEm < 0 || agora - c.atualizadoEm >= expiracaoMs) return false;
+    if (!cursorDentroDaJanela(c.atualizadoEm, agora, expiracaoMs)) return false;
     if (meuId !== null && c.discordId === meuId) return false;
     if (filtrarAndar && c.levelId !== andarAlvo) return false;
     return true;
