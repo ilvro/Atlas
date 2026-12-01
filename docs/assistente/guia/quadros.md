@@ -69,7 +69,7 @@ Tudo entra na fila de revisão ("Do assistente"), sem moldura, com um contorno t
 
 Quando o mestre pede para pôr no quadro uma missão pronta, um capítulo ou um suplemento, a fonte tem estrutura e imagens. Elas entram também, não só o texto.
 
-1. **Leia a legenda.** O `quadro_estilo` mostra a legenda do mestre: a seção "LEGENDA" do quadro e as cores dos trechos `[…]` que ele já destacou. Cada papel (`ponto`, `narracao`, `teste`, `loot`, `segredo`, `evento`, `transicao`, `gancho`, `condicao`, `fala`) tem cor e negrito próprios. Escreva por papel, não por cópia de item. Sem legenda, pergunte ao mestre o que cada cor significa antes de escrever.
+1. **Leia a legenda.** O `quadro_estilo` mostra a legenda do mestre, que é fixa na Mesa (o quadro pode sobrescrever com uma seção "LEGENDA"). Cada papel (`ponto`, `narracao`, `teste`, `loot`, `segredo`, `evento`, `transicao`, `gancho`, `condicao`, `fala`) tem cor e negrito próprios. Escreva por papel, não por cópia de item.
 2. **Procure as imagens antes de escrever.** `arquivo_imagens(caminho)` lista as imagens de um PDF por página (sem os fundos repetidos) e de uma pasta, por exemplo a de extras ao lado do PDF, com handouts, tokens e mapas. `arquivo_imagens(caminho, ver: id)` mostra a miniatura de uma delas. Para uma ficha ou tabela que não é imagem no PDF, recorte a página: `pdf:<caminho>#p=<página>&recorte=x,y,l,a` (frações da página).
 3. **Mapeie a estrutura da fonte para a do mestre:**
    - Caixa de narração vira texto com `papel: "narracao"`.
@@ -81,7 +81,18 @@ Quando o mestre pede para pôr no quadro uma missão pronta, um capítulo ou um 
    - Tabela-resumo de rodadas vira uma linha de texto por rodada ou uma `grade` de duas colunas.
    - A arte de página pode servir de referência visual da cena, ao lado do título dela.
 4. **Antes de inserir, liste ao mestre o que não dá para reproduzir** (uma tabela complexa, uma imagem que não está no PDF nem nos extras) **e pergunte.** Não troque por texto em silêncio.
-5. **Insira cena por cena e confira cada uma** com `quadro_ver_regiao(itens: criados)` antes de seguir para a próxima. Corrija o que destoar da parte do mestre (largura, espaço, alinhamento, cor).
+5. **O princípio do layout: sequência na vertical, mesma área na horizontal.** O que acontece em ordem (cenas, fases, rodadas, "depois disso") desce na coluna. O que existe ao mesmo tempo, no mesmo lugar ou como alternativa (pontos de interesse de uma sala, boxes de regras da mesma fase, finais bom e ruim, duas narrações da mesma cena) fica lado a lado, em `linha` ou `grade`. Uma missão transcrita só na vertical está errada.
+6. **Erros que o mestre já apontou (não repita):**
+   - Tudo numa tira vertical de texto (veja o item 5).
+   - Testes sem cor, enfiados no meio das regras: cada teste é um trecho `papel: "teste"` (`[PERÍCIA] [DT]`) seguido do resultado.
+   - Nenhuma imagem: mapa, arte das páginas, handouts dos extras e a ficha da criatura (recorte) sempre entram.
+   - Pontos de interesse como texto corrido: são cartões numa `grade`, abaixo do mapa numerado.
+   - Ficha da criatura de fora: vai ao lado do bloco em que ela entra.
+7. **Detalhes que o motor cobra:**
+   - Imagem com `lado` ao lado de um texto curto bate no que vem logo abaixo, e a ferramenta recusa: ponha o texto e a imagem numa `linha` própria.
+   - Narração lida aos jogadores usa o destaque de narração; o resultado de um teste também (é o que os jogadores ouvem). Regra e instrução ao mestre, o fundo escuro.
+   - Transições (`[AVANCE PARA …]`) com `papel: "transicao"`; rodadas e gatilhos de tempo com `papel: "evento"`.
+8. **Insira cena por cena e confira cada uma** com `quadro_ver_regiao(itens: criados)` antes de seguir para a próxima. Corrija o que destoar da parte do mestre (largura, espaço, alinhamento, cor).
 
 ## Propor ideias no quadro
 
