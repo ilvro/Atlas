@@ -82,23 +82,33 @@ export const JANELA_ABERTURA = 2.1, JANELA_ALCANCE = 9.5, JANELA_FORA_ALCANCE = 
  */
 export function luzesDerivadas(m: MapaAtlas): Luz[] {
   const sun = m.climate.sun;
-  const saida: Luz[] = [], arestas = arestasDeParede(m), indice = indiceDeCelulas(m), noite = ehNoite(m);
+  const saida: Luz[] = [], arestas = arestasDeParede(m), noite = ehNoite(m);
+  const indices = new Map<string | null, Map<number, string>>();
+  const indiceDoNivel = (nivel: string | null) => {
+    let idx = indices.get(nivel);
+    if (!idx) { idx = indiceDeCelulas(m, nivel); indices.set(nivel, idx); }
+    return idx;
+  };
   // Cômodos com ao menos uma luz acesa dentro: as cores delas (para a janela acesa à noite).
   const acesas = new Map<string, Cor[]>();
   if (noite) for (const l of Object.values(m.lights)) {
     if (nivelDaLuz(l, m, { noite }) === 0) continue;
-    const sala = comodoEm(m, l.position, indice); if (sala) acesas.set(sala, [...(acesas.get(sala) ?? []), canaisDe(l.color)]);
+    const sala = comodoEm(m, l.position, indiceDoNivel(l.levelId ?? null));
+    if (sala) acesas.set(sala, [...(acesas.get(sala) ?? []), canaisDe(l.color)]);
   }
   for (const a of Object.values(m.openings)) {
     if (a.kind !== 'window') continue;
     const parede = m.walls[a.wallId]; if (!parede) continue;
+    const nivel = parede.levelId ?? null;
     const salas = salasDaAbertura(m, a, arestas); if (salas.length !== 1) continue;
     const { ponto } = pontoNaParede(parede, centroDaAbertura(parede, a));
-    const para = normalParaDentro(m, parede, centroDaAbertura(parede, a), salas[0]!, indice); if (!para) continue;
+    const para = normalParaDentro(m, parede, centroDaAbertura(parede, a), salas[0]!, indiceDoNivel(nivel)); if (!para) continue;
     const direcao = Math.atan2(para[1], para[0]);
+    const extraNivel = nivel !== null ? { levelId: nivel } : {};
     if (sun) saida.push({
       id: `janela:${a.id}`, position: [ponto[0] + para[0] * 0.3, ponto[1] + para[1] * 0.3], radius: JANELA_ALCANCE, color: sun.color, intensity: sun.intensity, flicker: 0,
       cone: { angle: JANELA_ABERTURA, direction: direcao }, ownerId: a.id, power: 'magic', on: true, nightOnly: false, preset: null, rays: false,
+      ...extraNivel,
     });
     // À noite, a janela de um cômodo com luz acesa brilha para fora, na cor média das luzes de dentro.
     const cores = acesas.get(salas[0]!);
@@ -107,6 +117,7 @@ export function luzesDerivadas(m: MapaAtlas): Luz[] {
       saida.push({
         id: `janela-fora:${a.id}`, position: [ponto[0] - para[0] * 0.3, ponto[1] - para[1] * 0.3], radius: JANELA_FORA_ALCANCE, color: media, intensity: 0.6, flicker: 0,
         cone: { angle: JANELA_ABERTURA, direction: Math.atan2(-para[1], -para[0]) }, ownerId: a.id, power: 'magic', on: true, nightOnly: false, preset: null, rays: false,
+        ...extraNivel,
       });
     }
   }

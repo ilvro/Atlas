@@ -19,11 +19,16 @@ function pontoMaisPerto(p: Ponto, a: Ponto, b: Ponto): Ponto {
  * As portas (e portas secretas) ao alcance da peça, a que estiver à frente dela primeiro e, entre iguais, a mais perto.
  * A distância é até o vão da porta, não até o centro: uma porta larga também se alcança pelo lado.
  */
-export function interagiveisPerto(m: Pick<MapaAtlas, 'walls' | 'openings'> & Partial<Pick<MapaAtlas, 'props'>>, peca: Pick<Peca, 'position' | 'facing'>, alcance = ALCANCE_DE_INTERACAO): Interagivel[] {
+export function interagiveisPerto(
+  m: Pick<MapaAtlas, 'walls' | 'openings'> & Partial<Pick<MapaAtlas, 'props'>>,
+  peca: Pick<Peca, 'position' | 'facing'> & Partial<Pick<Peca, 'levelId'>>,
+  alcance = ALCANCE_DE_INTERACAO,
+  nivel: string | null = peca.levelId ?? null,
+): Interagivel[] {
   const p: Ponto = [peca.position[0], peca.position[1]], olhar = OLHAR[peca.facing], saida: Interagivel[] = [];
   for (const o of Object.values(m.openings)) {
     if (o.kind !== 'door' && o.kind !== 'secret') continue;
-    const parede = m.walls[o.wallId]; if (!parede) continue;
+    const parede = m.walls[o.wallId]; if (!parede || (parede.levelId ?? null) !== nivel) continue;
     const c = centroDaAbertura(parede, o), meia = o.width / 2, comp = comprimentoDaParede(parede);
     const perto = pontoMaisPerto(p, pontoNaParede(parede, Math.max(0, c - meia)).ponto, pontoNaParede(parede, Math.min(comp, c + meia)).ponto);
     const distancia = Math.hypot(perto[0] - p[0], perto[1] - p[1]);
@@ -33,7 +38,7 @@ export function interagiveisPerto(m: Pick<MapaAtlas, 'walls' | 'openings'> & Par
   }
   // Objetos interativos (interruptor, gaveta): alcançados pelo ponto onde estão.
   for (const o of Object.values(m.props ?? {})) {
-    if (!o.interaction || o.interaction.kind === 'stairs') continue;
+    if ((o.levelId ?? null) !== nivel || !o.interaction || o.interaction.kind === 'stairs') continue;
     const dx = o.position[0] - p[0], dy = o.position[1] - p[1], distancia = Math.hypot(dx, dy);
     if (distancia > alcance + (o.elevation === 'wall' ? 0.3 : 0.5)) continue;
     saida.push({ tipo: 'objeto', id: o.id, distancia, aFrente: distancia < 1e-6 || (dx * olhar[0] + dy * olhar[1]) / distancia > 0.5 });

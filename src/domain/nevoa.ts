@@ -182,7 +182,18 @@ function calcularPoligonos(
   const aberturas = Object.values(m.openings).some(a => secretaOculta(m, a) && a.state !== 'closed')
     ? Object.fromEntries(Object.entries(m.openings).map(([id, a]) => [id, secretaOculta(m, a) ? { ...a, state: 'closed' as const } : a]))
     : m.openings;
-  const segsParedes = oclusores({ walls: m.walls, openings: aberturas }, 'visao');
+  const paredesPorAndar = new Map<string | null, { segs: ReturnType<typeof oclusores>; indice: IndiceDeSegmentos | null }>();
+  const paredesDoAndar = (nivel: string | null) => {
+    let entrada = paredesPorAndar.get(nivel);
+    if (!entrada) {
+      const paredes = Object.fromEntries(
+        Object.entries(m.walls).filter(([, w]) => (w.levelId ?? null) === nivel),
+      );
+      entrada = { segs: oclusores({ walls: paredes, openings: aberturas }, 'visao'), indice: null };
+      paredesPorAndar.set(nivel, entrada);
+    }
+    return entrada;
+  };
   const oclusoresPorAndar = new Map<string | null, ReturnType<typeof oclusoresDeObjetos>>();
   const oclusoresDoAndar = (nivel: string | null) => {
     let lista = oclusoresPorAndar.get(nivel);
@@ -195,7 +206,6 @@ function calcularPoligonos(
     }
     return lista;
   };
-  let indiceParedes: IndiceDeSegmentos | null = null;
   const saida: number[][] = [];
   const vivos = new Set<string>();
   for (const t of tokensDeVisaoAtivos(m, filtro, minhasFichas)) {
@@ -216,13 +226,14 @@ function calcularPoligonos(
       ? `cone:${rCone.toFixed(3)}:${rProx.toFixed(3)}:${anguloGraus.toFixed(2)}:${direcao.toFixed(4)}`
       : `circle:${r.toFixed(3)}`;
 
+    const entradaParedes = paredesDoAndar(nivel);
     const objs = oclusoresDoAndar(nivel);
     let segsPerto: ReturnType<typeof segmentosParaFonte>;
     if (objs.length === 0) {
-      indiceParedes ??= new IndiceDeSegmentos(segsParedes);
-      segsPerto = indiceParedes.perto(p, rCone);
+      entradaParedes.indice ??= new IndiceDeSegmentos(entradaParedes.segs);
+      segsPerto = entradaParedes.indice.perto(p, rCone);
     } else {
-      const todos = segmentosParaFonte(p, segsParedes, objs, [], { ownerId: t.id });
+      const todos = segmentosParaFonte(p, entradaParedes.segs, objs, [], { ownerId: t.id });
       segsPerto = new IndiceDeSegmentos(todos).perto(p, rCone);
     }
     const assinatura = assinaturaDe(segsPerto);

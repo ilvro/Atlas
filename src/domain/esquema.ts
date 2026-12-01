@@ -59,9 +59,9 @@ export const e = {
   obj: (campos: Record<string, Esq>): Esq => ({
     verificar(v, c) {
       if (!ehObjeto(v)) return falha('Deve ser um objeto.', c);
-      for (const k of Object.keys(v)) if (!(k in campos)) falha('Campo desconhecido.', c ? `${c}.${k}` : k);
+      for (const k of Object.keys(v)) if (!Object.hasOwn(campos, k)) falha('Campo desconhecido.', c ? `${c}.${k}` : k);
       for (const [k, esq] of Object.entries(campos)) {
-        if (!(k in v) || v[k] === undefined) { if (!esq.opcional) falha('Campo obrigatório ausente.', c ? `${c}.${k}` : k); continue; }
+        if (!Object.hasOwn(v, k) || v[k] === undefined) { if (!esq.opcional) falha('Campo obrigatório ausente.', c ? `${c}.${k}` : k); continue; }
         esq.verificar(v[k], c ? `${c}.${k}` : k);
       }
     },
@@ -92,7 +92,8 @@ export const e = {
   uniao: (campo: string, casos: Record<string, Esq>): Esq => ({
     verificar(v, c) {
       if (!ehObjeto(v)) return falha('Deve ser um objeto.', c);
-      const esq = casos[String(v[campo])];
+      const chave = Object.hasOwn(v, campo) ? String(v[campo]) : undefined;
+      const esq = chave !== undefined && Object.hasOwn(casos, chave) ? casos[chave] : undefined;
       if (!esq) return falha(`Valor inválido; opções: ${Object.keys(casos).join(', ')}.`, c ? `${c}.${campo}` : campo);
       esq.verificar(v, c);
     },

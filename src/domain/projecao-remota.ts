@@ -109,9 +109,22 @@ export function projetarParaRemoto(m: MapaAtlas, andar: string | null = null, fi
     let n = 1;
     const lista = trechos.map((tr, i) => {
       let novoId = id;
-      if (i !== maior) { do { n++; novoId = `${id}${SEPARADOR_DE_TRECHO}${n}`; } while (usados.has(novoId)); usados.add(novoId); }
+      if (i !== maior) {
+        do {
+          n++;
+          const sufixo = `${SEPARADOR_DE_TRECHO}${n}`;
+          novoId = `${id.slice(0, 64 - sufixo.length)}${sufixo}`;
+        } while (usados.has(novoId));
+        usados.add(novoId);
+      }
       const parte: Parede = { ...w, id: novoId, path: tr.path };
-      if (w.source && 'roomId' in w.source && !p.rooms[w.source.roomId]) parte.source = null;
+      if (
+        w.source &&
+        (('roomId' in w.source && !p.rooms[w.source.roomId]) ||
+          ('terrainLayerId' in w.source && !p.terrain.layers[w.source.terrainLayerId]))
+      ) {
+        parte.source = null;
+      }
       p.walls[novoId] = parte;
       return { id: novoId, s0: tr.s0, s1: tr.s1, comprimento: tr.comprimento };
     });
@@ -138,13 +151,23 @@ export function projetarParaRemoto(m: MapaAtlas, andar: string | null = null, fi
       if (!novo) { delete p.props[id]; continue; }
       o.wall.wallId = novo.wallId; o.wall.at = novo.at;
     }
+    if (o.roomId && !p.rooms[o.roomId]) o.roomId = null;
     if (o.interaction) {
-      delete o.interaction.note; delete o.interaction.noteTitle;
-      delete o.interaction.toPosition; delete o.interaction.toLevel;
-      delete o.interaction.toMapId; delete o.interaction.toTargetId;
+      if (o.interaction.kind === 'stairs') {
+        o.interaction = null;
+      } else {
+        delete o.interaction.note; delete o.interaction.noteTitle;
+        delete o.interaction.toPosition; delete o.interaction.toLevel;
+        delete o.interaction.toMapId; delete o.interaction.toTargetId;
+      }
     }
   }
   for (const [id, l] of Object.entries(p.lights)) if (!area.ponto(l.position[0], l.position[1])) delete p.lights[id];
+  for (const l of Object.values(p.lights)) if (l.ownerId && !p.props[l.ownerId] && !p.tokens[l.ownerId]) l.ownerId = null;
+  for (const t of Object.values(p.tokens)) if (t.lightId && !p.lights[t.lightId]) t.lightId = null;
+  for (const o of Object.values(p.props)) {
+    if (o.interaction?.targets.length) o.interaction.targets = o.interaction.targets.filter(lid => !!p.lights[lid]);
+  }
 
   p.regions = {};
   for (const tk of Object.values(p.tokens)) if (!tk.player) tk.refs = [];

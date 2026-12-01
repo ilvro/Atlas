@@ -25,11 +25,14 @@ export function bloqueioNoCaminho(
   para: Ponto,
   opcoes: { levelId?: string | null } = {},
 ): string | null {
-  for (const s of oclusores(m, 'movimento')) {
+  const paredes = opcoes.levelId !== undefined
+    ? Object.fromEntries(Object.entries(m.walls).filter(([, w]) => (w.levelId ?? null) === (opcoes.levelId ?? null)))
+    : m.walls;
+  for (const s of oclusores({ walls: paredes, openings: m.openings }, 'movimento')) {
     const x = cruzamento(de, para, s); if (!x) continue;
     // Se o cruzamento cai no vão de uma porta, o motivo é a porta; senão, é a parede.
     for (const o of Object.values(m.openings)) {
-      const p = m.walls[o.wallId]; if (!p || (o.kind !== 'door' && o.kind !== 'secret')) continue;
+      const p = paredes[o.wallId]; if (!p || (o.kind !== 'door' && o.kind !== 'secret')) continue;
       const r = projetarNaParede(p, x);
       if (r.distancia < 0.15 && Math.abs(r.dist - centroDaAbertura(p, o)) <= o.width / 2 + 0.02) return o.state === 'locked' ? 'A porta está trancada.' : 'A porta está fechada.';
     }

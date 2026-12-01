@@ -51,7 +51,18 @@ export function projetarParaJogadores(m: MapaAtlas, andar: string | null = null,
   p.session.initiative = podar(p.session.initiative, id => !!p.tokens[id]);
 
   const revelados = new Set(escopo.session.revealed);
-  for (const o of Object.values(p.props)) if (o.interaction && !revelados.has(o.id)) o.interaction.clue = null;
+  for (const o of Object.values(p.props)) {
+    if (!o.interaction) continue;
+    if (o.interaction.targets.length) {
+      o.interaction.targets = o.interaction.targets.filter(lid => !!p.lights[lid]);
+    }
+    if (!revelados.has(o.id)) o.interaction.clue = null;
+    if (o.interaction.gmOnly) {
+      delete o.interaction.note;
+      delete o.interaction.noteTitle;
+      o.interaction.clue = null;
+    }
+  }
   p.session.revealed = p.session.revealed.filter(id => ['rooms', 'openings', 'props', 'tokens', 'regions'].some(c => (p as unknown as Record<string, Record<string, unknown>>)[c]![id]));
   return p;
 }

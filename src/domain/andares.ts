@@ -232,7 +232,7 @@ export function acaoEscadaParaPeca(
   peca: Pick<Peca, 'position' | 'levelId'>,
 ): AcaoDeEscada | null {
   const origem = andarDe(peca);
-  const esc = escadasPerto(m, peca.position, origem, 1.5)[0];
+  const esc = escadasPerto(m, peca.position, origem, 1.5).find(e => !e.interaction?.toMapId);
   if (!esc || esc.interaction?.kind !== 'stairs') return null;
   const dest = esc.interaction.toLevel ?? null;
   if (dest === origem) return null;
