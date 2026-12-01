@@ -4622,7 +4622,7 @@
   },
   {
     "nome": "quadro_secao",
-    "descricao": "O texto compacto de uma seção do quadro, paginado (~2,5 mil tokens por página). nivel \"titulos\" (padrão) traz só a primeira linha de cada item; \"completo\" traz tudo. Cite itens pelo #id curto.",
+    "descricao": "O texto compacto de uma seção do quadro, paginado (~2,5 mil tokens por página). nivel \"titulos\" (padrão) traz só a primeira linha de cada item; \"completo\" traz tudo; \"estrutura\" traz formato, posição, fonte, cores e blocos de cada item. Cite itens pelo #id curto.",
     "esquema": {
       "type": "object",
       "properties": {
@@ -4638,7 +4638,8 @@
           "type": "string",
           "enum": [
             "titulos",
-            "completo"
+            "completo",
+            "estrutura"
           ],
           "description": "Padrão: titulos."
         },
