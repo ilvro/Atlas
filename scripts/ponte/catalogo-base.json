@@ -4666,6 +4666,14 @@
         "abrir_espaco": {
           "type": "boolean",
           "description": "Desce a coluna abaixo se algo estiver no caminho."
+        },
+        "alinhar": {
+          "type": "string",
+          "enum": [
+            "esquerda",
+            "centro"
+          ],
+          "description": "centro: itens centrados no eixo; esquerda: pela borda. Padrão: o do estilo."
         }
       },
       "required": [
