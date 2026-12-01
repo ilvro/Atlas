@@ -1,4 +1,4 @@
-> resumo: ler os quadros da Mesa do jeito barato (mapa, busca, seção em títulos, completa, imagem só se precisar); gravar resumos e descrições de imagem; citar itens pelo id curto; o vocabulário do mestre; montar ou continuar material no estilo dele (quadro_estilo, quadro_inserir, conferir com quadro_ver_regiao) e propor ideias soltas (quadro_propor).
+> resumo: transcrever material (legenda, imagens do PDF e extras, cartões e linhas); ler os quadros da Mesa do jeito barato (mapa, busca, seção em títulos, completa, imagem só se precisar); gravar resumos e descrições de imagem; citar itens pelo id curto; o vocabulário do mestre; montar ou continuar material no estilo dele (quadro_estilo, quadro_inserir, conferir com quadro_ver_regiao) e propor ideias soltas (quadro_propor).
 
 # Ler os quadros da Mesa
 
@@ -64,6 +64,24 @@ Quando o mestre pede para **montar** algo no quadro (uma missão, uma cena, a tr
 Se `quadro_estilo` diz que o mestre **não usa post-its tipados**, não use `quadro_propor` nem cores por tipo para material: o vocabulário de cores (leitura amarela, segredo rosa…) é da Mesa, não dele.
 
 Tudo entra na fila de revisão ("Do assistente"), sem moldura, com um contorno tracejado e uma estrela até o mestre aceitar. No quadro aberto, um Ctrl+Z desfaz a inserção inteira, inclusive o que desceu com `abrir_espaco`.
+
+## Transcrever um material (PDF, extras)
+
+Quando o mestre pede para pôr no quadro uma missão pronta, um capítulo ou um suplemento, a fonte tem estrutura e imagens. Elas entram também, não só o texto.
+
+1. **Leia a legenda.** O `quadro_estilo` mostra a legenda do mestre: a seção "LEGENDA" do quadro e as cores dos trechos `[…]` que ele já destacou. Cada papel (`ponto`, `narracao`, `teste`, `loot`, `segredo`, `evento`, `transicao`, `gancho`, `condicao`, `fala`) tem cor e negrito próprios. Escreva por papel, não por cópia de item. Sem legenda, pergunte ao mestre o que cada cor significa antes de escrever.
+2. **Procure as imagens antes de escrever.** `arquivo_imagens(caminho)` lista as imagens de um PDF por página (sem os fundos repetidos) e de uma pasta, por exemplo a de extras ao lado do PDF, com handouts, tokens e mapas. `arquivo_imagens(caminho, ver: id)` mostra a miniatura de uma delas. Para uma ficha ou tabela que não é imagem no PDF, recorte a página: `pdf:<caminho>#p=<página>&recorte=x,y,l,a` (frações da página).
+3. **Mapeie a estrutura da fonte para a do mestre:**
+   - Caixa de narração vira texto com `papel: "narracao"`.
+   - Tabela de perícias vira uma linha por teste, com `trechos: [{ papel: "teste", texto: "[PERCEPÇÃO] [6]" }, { texto: " o que se descobre" }]`. Não enfie os testes dentro do texto de regra.
+   - Itens e loot recebem `papel: "loot"`; o que é só do mestre, `segredo`; condições `[SE …]`, `condicao`; falas `[NOME] "…"`, `fala`.
+   - Ponto de interesse vira um **cartão** dentro de uma `grade`: o handout ou o recorte em cima, `{ formato: "rotulo", papel: "ponto", texto: "[ARBUSTO]" }`, a narração curta e os testes. Se a fonte tem um mapa numerado, ponha o mapa e a grade de cartões logo abaixo, na ordem dos números.
+   - Boxes paralelos (regras da perseguição, fôlego, ações) vão numa `linha`, e não um embaixo do outro.
+   - Criatura ou NPC vira a ficha (imagem ou recorte da página) com `lado: "direita"` ao lado do bloco em que ela entra, como o mestre fez com a ficha do afogado.
+   - Tabela-resumo de rodadas vira uma linha de texto por rodada ou uma `grade` de duas colunas.
+   - A arte de página pode servir de referência visual da cena, ao lado do título dela.
+4. **Antes de inserir, liste ao mestre o que não dá para reproduzir** (uma tabela complexa, uma imagem que não está no PDF nem nos extras) **e pergunte.** Não troque por texto em silêncio.
+5. **Insira cena por cena e confira cada uma** com `quadro_ver_regiao(itens: criados)` antes de seguir para a próxima. Corrija o que destoar da parte do mestre (largura, espaço, alinhamento, cor).
 
 ## Propor ideias no quadro
 
