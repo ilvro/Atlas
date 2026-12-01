@@ -2,8 +2,10 @@ import type { MapaAtlas, Ponto, Regiao } from './mapa.ts';
 
 /** Ponto dentro de um polígono (par-ímpar). A borda conta como dentro só por acaso; regiões são áreas, não linhas. */
 export function pontoNoPoligono(p: Ponto, poligono: readonly Ponto[]): boolean {
+  const n = poligono.length;
+  if (n < 3) return false;
   let dentro = false;
-  for (let i = 0, j = poligono.length - 1; i < poligono.length; j = i++) {
+  for (let i = 0, j = n - 1; i < n; j = i++) {
     const [xi, yi] = poligono[i]!, [xj, yj] = poligono[j]!;
     if ((yi > p[1]) !== (yj > p[1]) && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) dentro = !dentro;
   }

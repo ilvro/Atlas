@@ -1,6 +1,9 @@
 import { decodificar, type Celula } from './celulas.ts';
-import { pontoNoPoligono, normalizarContorno } from './formas-de-comodo.ts';
+import { normalizarContorno } from './formas-de-comodo.ts';
 import type { Abertura, MapaAtlas, Objeto, Parede, Ponto } from './mapa.ts';
+import { pontoNoPoligono } from './regioes.ts';
+
+export { pontoNoPoligono };
 
 /**
  * Geometria derivada dos cômodos: que arestas da grade viram parede, em que trechos, e como portas e janelas

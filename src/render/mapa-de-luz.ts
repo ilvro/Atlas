@@ -20,7 +20,7 @@ import { somPreferido, trovao } from '../fx/som.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { valueNoise2D } from '../procedural/ruido.ts';
 import type { Mudancas } from '../state/mudancas.ts';
-import { hexParaNumero } from './cores.ts';
+import { hexParaRgb01 } from './cores.ts';
 import { criarFiltroDeFaixas } from './faixas.ts';
 import { ALTURA_DA_LUZ, ALTURA_DO_FEIXE, ALTURA_MAXIMA_DA_LUZ, texturaDeBrilho, texturaDeDirecao } from './luzes.ts';
 import { FRAGMENT_BLUR_GAUSSIANO, VERTEX_QUAD, criarQuadUnitario } from './passadas.ts';
@@ -152,8 +152,6 @@ export function interpolarAnguloCurto(atual: number, alvo: number, fator: number
   return atual + deltaAnguloCurto(atual, alvo) * f;
 }
 
-const rgb01 = (hex: string): [number, number, number] => { const n = hexParaNumero(hex); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
-
 function pontoNoPoligonoPlano(ponto: Ponto, poligono: readonly number[]): boolean {
   const [px, py] = ponto;
   let dentro = false;
@@ -215,7 +213,7 @@ export function calcularLuzNoPonto(
     }
     const peso = k * quedaRadial(distEfetiva / luz.radius);
     if (peso <= 0) continue;
-    const [cr, cg, cb] = rgb01(luz.color);
+    const [cr, cg, cb] = hexParaRgb01(luz.color);
     r += cr * peso;
     g += cg * peso;
     b += cb * peso;
@@ -643,7 +641,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       g.meshDir.scale.set(l.radius * 2);
       g.meshExt.scale.set(l.radius * 2);
     }
-    const [r, gCor, b] = rgb01(l.color);
+    const [r, gCor, b] = hexParaRgb01(l.color);
     const c = g.clarao > 0 && l.id.startsWith('janela:') ? g.clarao * 0.6 : 0;
     aplicarCor(g, Math.min(1, r + c), Math.min(1, gCor + c), Math.min(1, b + c));
     (g.grupoDir.uniforms as Record<string, unknown>).uAlturaNorm = (l.rays ? ALTURA_DO_FEIXE : ALTURA_DA_LUZ) / ALTURA_MAXIMA_DA_LUZ;
@@ -807,7 +805,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
       }
       if (estaticoMudou || col('lights') || campo('climate')) derivadas = luzesDerivadas(m);
       if (campo('climate', 'style')) {
-        const a = m.climate.ambient, [r, g, b] = rgb01(a.color);
+        const a = m.climate.ambient, [r, g, b] = hexParaRgb01(a.color);
         ambiente = pixel ? [Math.min(1, r * a.intensity), Math.min(1, g * a.intensity), Math.min(1, b * a.intensity)] : [r * a.intensity, g * a.intensity, b * a.intensity];
       }
       todasLuzes = [...Object.values(m.lights), ...derivadas];
@@ -877,7 +875,7 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
         if (Math.abs(k - g.alfa) > 1e-3) { aplicarAlfa(g, k); sujo = true; if (g.externa) externaSuja = true; }
         if (janela && clarao !== g.clarao) {
           g.clarao = clarao;
-          const [r, gCor, b] = rgb01(l.color), c = clarao > 0 ? clarao * 0.6 : 0;
+          const [r, gCor, b] = hexParaRgb01(l.color), c = clarao > 0 ? clarao * 0.6 : 0;
           aplicarCor(g, Math.min(1, r + c), Math.min(1, gCor + c), Math.min(1, b + c));
           if (g.externa) externaSuja = true;
         }

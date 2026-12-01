@@ -3,9 +3,10 @@ import { comodoEm, indiceDeCelulas } from '../domain/geometria.ts';
 import type { Luz, MapaAtlas } from '../domain/mapa.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import type { Mudancas } from '../state/mudancas.ts';
-import { hexParaNumero } from './cores.ts';
+import { hexParaNumero, hexParaRgb01 } from './cores.ts';
 import { texturaDeBrilho, texturaDeBrilhoPixel } from './luzes.ts';
 import type { MapaDeLuz } from './mapa-de-luz.ts';
+import { VERTEX_QUAD } from './passadas.ts';
 import type { Telhados } from './telhados.ts';
 
 export interface Halos {
@@ -16,18 +17,6 @@ export interface Halos {
   definirLigado(ligado: boolean): void;
   destruir(): void;
 }
-
-const vertexRaios = `in vec2 aPosition;
-in vec2 aUV;
-out vec2 vUV;
-uniform mat3 uProjectionMatrix;
-uniform mat3 uWorldTransformMatrix;
-uniform mat3 uTransformMatrix;
-void main(void) {
-  mat3 mvp = uProjectionMatrix * uWorldTransformMatrix * uTransformMatrix;
-  gl_Position = vec4((mvp * vec3(aPosition, 1.0)).xy, 0.0, 1.0);
-  vUV = aUV;
-}`;
 
 const fragmentRaios = `in vec2 vUV;
 out vec4 finalColor;
@@ -96,11 +85,6 @@ void main() {
   finalColor = vec4(uCor * alfa, alfa);
 }`;
 
-const rgb01 = (hex: string): [number, number, number] => {
-  const n = hexParaNumero(hex);
-  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
-};
-
 interface HaloGPU {
   s: Sprite;
   luz: Luz;
@@ -140,7 +124,7 @@ export function criarHalos(mapaDeLuz: MapaDeLuz, telhados: Telhados): Halos {
   let ligado = true, destruido = false, pixel = false, ppm = 1;
 
   function obterPrograma(): GlProgram {
-    programaRaios ??= GlProgram.from({ vertex: vertexRaios, fragment: fragmentRaios, preferredFragmentPrecision: 'highp', name: 'atlas-raios' });
+    programaRaios ??= GlProgram.from({ vertex: VERTEX_QUAD, fragment: fragmentRaios, preferredFragmentPrecision: 'highp', name: 'atlas-raios' });
     return programaRaios;
   }
 
@@ -220,7 +204,7 @@ export function criarHalos(mapaDeLuz: MapaDeLuz, telhados: Telhados): Halos {
         u.uDirecao = l.cone ? l.cone.direction : 0;
         u.uAbertura = l.cone ? l.cone.angle : Math.PI * 2;
         u.uRaio = l.radius;
-        u.uCor = new Float32Array(rgb01(l.color));
+        u.uCor = new Float32Array(hexParaRgb01(l.color));
         u.uPixel = pixel ? 1 : 0;
         u.uPpm = ppm;
         item.mesh.position.set(l.position[0], l.position[1]);

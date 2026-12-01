@@ -7,6 +7,9 @@
  * o mesmo sentido produzido por `contornoDoComodo` (com normal interna `[dy, -dx]`).
  */
 import type { MapaAtlas, Ponto } from './mapa.ts';
+import { pontoNoPoligono } from './regioes.ts';
+
+export { pontoNoPoligono };
 
 export const AREA_MINIMA_CONTORNO = 2;
 export const MIN_VERTICES_CONTORNO = 3;
@@ -143,21 +146,6 @@ export function normalizarContorno(pts: readonly Ponto[]): Ponto[] {
   }
   if (areaComSinal(limpos) > 0) limpos.reverse();
   return limpos;
-}
-
-/** Teste par-ímpar (ray casting) de ponto dentro de um polígono simples. */
-export function pontoNoPoligono(p: Ponto, poligono: readonly Ponto[]): boolean {
-  const n = poligono.length;
-  if (n < 3) return false;
-  let dentro = false;
-  for (let i = 0, j = n - 1; i < n; j = i++) {
-    const a = poligono[i]!, b = poligono[j]!;
-    if ((a[1] > p[1]) !== (b[1] > p[1])) {
-      const xInter = ((b[0] - a[0]) * (p[1] - a[1])) / (b[1] - a[1]) + a[0];
-      if (p[0] < xInter) dentro = !dentro;
-    }
-  }
-  return dentro;
 }
 
 /** Células não negativas da grade cujo centro cai dentro de `outline`. */

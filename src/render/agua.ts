@@ -7,21 +7,11 @@ import { forcaDoAnel, geraAnelDeEspuma } from './espuma.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { RES_DA_TEXTURA_DE_AGUA } from '../procedural/agua.ts';
 import { materialDe } from '../procedural/materiais.ts';
-import { hexParaNumero } from './cores.ts';
+import { hexParaNumero, hexParaRgb01 } from './cores.ts';
+import { VERTEX_QUAD } from './passadas.ts';
 import { FATOR_DE_MOVIMENTO_REDUZIDO } from './particulas-config.ts';
 
 // Malha própria (como a presença): o ruído é do mundo, não da tela, e não nada quando a câmera anda.
-const vertex = `in vec2 aPosition;
-in vec2 aUV;
-out vec2 vUV;
-uniform mat3 uProjectionMatrix;
-uniform mat3 uWorldTransformMatrix;
-uniform mat3 uTransformMatrix;
-void main(void) {
-  mat3 mvp = uProjectionMatrix * uWorldTransformMatrix * uTransformMatrix;
-  gl_Position = vec4((mvp * vec3(aPosition, 1.0)).xy, 0.0, 1.0);
-  vUV = aUV;
-}`;
 
 // A textura de água (2 px/m): R = profundidade (0 a 1 sobre 3 m), G = margem (1 na borda, 0 a 0,6 m dela), B = índice da camada de água (50, 100, 150, 200).
 // A superfície é só o que se mexe por cima do leito já assado: brilho de ondas, sombras de ondulação, espuma, correnteza e cáusticas.
@@ -181,7 +171,7 @@ export function criarAgua(): RenderDeAgua {
       desenho = null;
     }
   };
-  const cor3 = (hex: string) => { const n = hexParaNumero(hex); return new Float32Array([((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]); };
+  const cor3 = (hex: string) => new Float32Array(hexParaRgb01(hex));
 
   function sincronizar(m: MapaAtlas): void {
     mapaAtual = m;
@@ -230,7 +220,7 @@ export function criarAgua(): RenderDeAgua {
       uFlow0: { value: new Float32Array(2), type: 'vec2<f32>' }, uFlow1: { value: new Float32Array(2), type: 'vec2<f32>' }, uFlow2: { value: new Float32Array(2), type: 'vec2<f32>' }, uFlow3: { value: new Float32Array(2), type: 'vec2<f32>' },
       uCaustica: { value: new Float32Array(4), type: 'vec4<f32>' }, uForcaEspuma: { value: new Float32Array([1, 1, 1, 1]), type: 'vec4<f32>' }, uOndas: { value: new Float32Array(4), type: 'vec4<f32>' }, uPixel: { value: 0, type: 'f32' }, uPpm: { value: 1, type: 'f32' },
     });
-    prog ??= GlProgram.from({ vertex, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-agua' });
+    prog ??= GlProgram.from({ vertex: VERTEX_QUAD, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-agua' });
     const dados = new Uint8ClampedArray(wa * ha * 4);
     const mascara = document.createElement('canvas'); mascara.width = wa; mascara.height = ha;
     const texMascara = Texture.from(mascara); texMascara.source.scaleMode = 'linear'; texMascara.source.addressMode = 'clamp-to-edge';

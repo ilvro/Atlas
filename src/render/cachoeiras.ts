@@ -3,6 +3,7 @@ import type { MapaAtlas, Objeto } from '../domain/mapa.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { FATOR_DE_MOVIMENTO_REDUZIDO } from './particulas-config.ts';
+import { GLSL_BAYER, VERTEX_QUAD } from './passadas.ts';
 
 export interface RenderDeCachoeiras {
   readonly raiz: Container;
@@ -13,18 +14,6 @@ export interface RenderDeCachoeiras {
   contagem(): number;
   destruir(): void;
 }
-
-const vertex = `in vec2 aPosition;
-in vec2 aUV;
-out vec2 vUV;
-uniform mat3 uProjectionMatrix;
-uniform mat3 uWorldTransformMatrix;
-uniform mat3 uTransformMatrix;
-void main(void) {
-  mat3 mvp = uProjectionMatrix * uWorldTransformMatrix * uTransformMatrix;
-  gl_Position = vec4((mvp * vec3(aPosition, 1.0)).xy, 0.0, 1.0);
-  vUV = aUV;
-}`;
 
 // Listras de água descendo no eixo da queda (+y), névoa local no pé e anéis de espuma se espalhando na água de baixo.
 // No Pixel tudo é medido em pixels inteiros do Pixel e o ciclo tem 4 quadros discretos.
@@ -46,8 +35,7 @@ float ruido(vec2 p) {
   f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
 }
-float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
-float bayer(vec2 p) { return bayer2(0.5 * p) * 0.25 + bayer2(p) - 0.47; }
+${GLSL_BAYER}
 
 void main() {
   bool pixel = uPixel > 0.5;
@@ -109,7 +97,7 @@ void main() {
   finalColor = vec4(cor * alfa, alfa);
 }`;
 
-const programa = () => GlProgram.from({ vertex, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-cachoeira' });
+const programa = () => GlProgram.from({ vertex: VERTEX_QUAD, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-cachoeira' });
 
 interface Desenho {
   mesh: Mesh<Geometry, Shader>;

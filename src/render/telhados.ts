@@ -39,7 +39,7 @@ import { posicoesDosDetalhes } from '../procedural/detalhes-de-telhado.ts';
 import type { IdDoEstilo, OpcoesDoPixel } from '../procedural/estilos/index.ts';
 import { materialDe } from '../procedural/materiais.ts';
 import type { Mudancas } from '../state/mudancas.ts';
-import { hexParaNumero } from './cores.ts';
+import { hexParaNumero, hexParaRgb01 } from './cores.ts';
 import {
   chaveDoTelhado,
   contextoDeEntradas,
@@ -130,11 +130,6 @@ const chaveDetalhe = (
   px?: OpcoesDoPixel,
 ): string =>
   `detalhe-telhado|${detalhe}|${cobertura}|${seed}|${res.toFixed(3)}|${estilo}|${px ? `${px.ppc}|${px.contorno ? 1 : 0}|${px.paleta}|${px.dither}` : 'i'}`;
-
-const rgb01 = (hex: string): [number, number, number] => {
-  const n = hexParaNumero(hex);
-  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
-};
 
 const clamp = (v: number, min: number, max: number): number => Math.min(max, Math.max(min, v));
 
@@ -253,8 +248,7 @@ void main() {
  * ambiente mais metade do sol, cada canal até 1. De dia fica como está; no entardecer e à noite escurece com o resto do mapa.
  */
 export function luzSobreOsTelhados(c: Pick<MapaAtlas['climate'], 'ambient' | 'sun'>): number {
-  const rgb = (h: string) => { const n = parseInt(h.slice(1), 16); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
-  const a = rgb(c.ambient.color), s = c.sun ? rgb(c.sun.color) : [0, 0, 0], ks = c.sun ? c.sun.intensity * 0.5 : 0;
+  const a = hexParaRgb01(c.ambient.color), s = c.sun ? hexParaRgb01(c.sun.color) : [0, 0, 0], ks = c.sun ? c.sun.intensity * 0.5 : 0;
   const canal = (i: number) => Math.round(Math.max(0.12, Math.min(1, a[i]! * c.ambient.intensity + s[i]! * ks)) * 255);
   return (canal(0) << 16) | (canal(1) << 8) | canal(2);
 }
@@ -315,11 +309,11 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
   function atualizarFiltroSombra(cor: string): void {
     if (cor === corSombraAtual) return;
     corSombraAtual = cor;
-    const n = hexParaNumero(cor);
+    const [r, g, b] = hexParaRgb01(cor);
     achatar.matrix = [
-      0, 0, 0, 0, ((n >> 16) & 255) / 255,
-      0, 0, 0, 0, ((n >> 8) & 255) / 255,
-      0, 0, 0, 0, (n & 255) / 255,
+      0, 0, 0, 0, r,
+      0, 0, 0, 0, g,
+      0, 0, 0, 0, b,
       0, 0, 0, 1, 0,
     ];
   }
@@ -952,7 +946,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
       if (luz) {
         ambLuz = luz.ambiente;
       } else {
-        const [ar, ag, ab] = rgb01(clima.ambient.color);
+        const [ar, ag, ab] = hexParaRgb01(clima.ambient.color);
         ambLuz = [ar * clima.ambient.intensity, ag * clima.ambient.intensity, ab * clima.ambient.intensity];
       }
       const lumAmb = 0.299 * ambLuz[0] + 0.587 * ambLuz[1] + 0.114 * ambLuz[2];
@@ -960,7 +954,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
         const sun = clima.sun;
         const hora = lerHorario(clima.time);
         const noite = ehNoite({ climate: clima });
-        const [sr, sg, sb] = rgb01(sun.color);
+        const [sr, sg, sb] = hexParaRgb01(sun.color);
         if (!noite) {
           const elev = clamp(elevacaoDoSol(hora), 0.42, 0.76);
           dirL = normalizar3(Math.cos(sun.angle) * Math.cos(elev), -Math.sin(sun.angle) * Math.cos(elev), Math.sin(elev));

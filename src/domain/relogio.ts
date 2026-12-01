@@ -57,13 +57,24 @@ export function chaveContador(mapaId: string): string {
   return `atlas:contador:${mapaId}`;
 }
 
+export type StorageContador = Pick<Storage, 'getItem' | 'setItem'>;
+
+function storagePadrao(): StorageContador | null {
+  try {
+    return typeof globalThis !== 'undefined' && 'localStorage' in globalThis
+      ? globalThis.localStorage
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export function carregarContador(
   mapaId: string,
-  storage?: Pick<Storage, 'getItem'>,
+  storage: StorageContador | null = storagePadrao(),
 ): ContadorDramatico {
   try {
-    const s = storage ?? (typeof localStorage !== 'undefined' ? localStorage : undefined);
-    const bruto = s?.getItem(chaveContador(mapaId));
+    const bruto = storage?.getItem(chaveContador(mapaId));
     if (!bruto) return { ...CONTADOR_PADRAO };
     const dados = JSON.parse(bruto);
     const rotulo =
@@ -83,11 +94,10 @@ export function carregarContador(
 export function salvarContador(
   mapaId: string,
   dados: ContadorDramatico,
-  storage?: Pick<Storage, 'setItem'>,
+  storage: StorageContador | null = storagePadrao(),
 ): void {
   try {
-    const s = storage ?? (typeof localStorage !== 'undefined' ? localStorage : undefined);
-    s?.setItem(chaveContador(mapaId), JSON.stringify(dados));
+    storage?.setItem(chaveContador(mapaId), JSON.stringify(dados));
   } catch {
     // ignorar quota de armazenamento
   }

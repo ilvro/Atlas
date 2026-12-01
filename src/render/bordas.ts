@@ -2,8 +2,10 @@ import { Container, Sprite, Texture, UniformGroup } from 'pixi.js';
 import type { MapaAtlas } from '../domain/mapa.ts';
 import { movimentoReduzido } from '../fx/fx.ts';
 import type { Mudancas } from '../state/mudancas.ts';
+import { hexParaRgb01 } from './cores.ts';
 import { criarFiltroDeMundo } from './filtro-de-mundo.ts';
 import { FATOR_DE_MOVIMENTO_REDUZIDO } from './particulas-config.ts';
+import { GLSL_BAYER } from './passadas.ts';
 
 export interface Bordas {
   readonly raiz: Container;
@@ -35,8 +37,7 @@ uniform vec3 uCor;
 uniform float uPixel;
 uniform float uPpm;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
-float bayer(vec2 p) { return bayer2(0.5 * p) * 0.25 + bayer2(p) - 0.47; }
+${GLSL_BAYER}
 float ruido(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
 float fbm(vec2 p) {
   mat2 giro = mat2(0.8, -0.6, 0.6, 0.8);
@@ -110,7 +111,7 @@ export function criarBordas(): Bordas {
       if (campo('style', 'grid')) { u().uPixel = m.style.renderer === 'pixel' ? 1 : 0; u().uPpm = m.style.pixel.pixelsPerCell / m.grid.size; }
       if (campo('bounds')) { veu.width = m.bounds.width; veu.height = m.bounds.height; u().uTamanho = new Float32Array([m.bounds.width, m.bounds.height]); }
       if (campo('bounds', 'climate', 'finish')) {
-        const e = m.finish.edges, a = m.climate.ambient, bruto = [1, 3, 5].map(i => parseInt(a.color.slice(i, i + 2), 16) / 255 * a.intensity);
+        const e = m.finish.edges, a = m.climate.ambient, bruto = hexParaRgb01(a.color).map(v => v * a.intensity);
         u().uTipo = TIPO[e.kind]; u().uLargura = larguraDaBorda(e.amount, m.bounds.width, m.bounds.height);
         // Iluminada pelo ambiente, como a neblina: de dia a nuvem é quase branca, de noite fica escura.
         u().uCor = new Float32Array(bruto.map(v => Math.min(1, 0.1 + v * 0.95)));

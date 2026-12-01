@@ -5,7 +5,8 @@ import { movimentoReduzido } from '../fx/fx.ts';
 import { desfocarAlfa } from '../procedural/desfocar.ts';
 import { orientacaoDominante } from '../procedural/orientacao.ts';
 import type { Mudancas } from '../state/mudancas.ts';
-import { hexParaNumero } from './cores.ts';
+import { hexParaRgb01 } from './cores.ts';
+import { GLSL_BAYER, VERTEX_QUAD } from './passadas.ts';
 import { ampliacaoDaMascara, camadaDaPresenca, type CamadaDePresenca, opacidadeDaPresenca } from './presenca-camada.ts';
 import { FATOR_DE_MOVIMENTO_REDUZIDO } from './particulas-config.ts';
 
@@ -29,17 +30,6 @@ export interface RenderDePresenca {
 }
 
 // Malha própria (e não um filtro): o filtro recorta ao que está na tela e o ruído nadaria ao mexer a câmera; aqui o ruído é do mundo.
-const vertex = `in vec2 aPosition;
-in vec2 aUV;
-out vec2 vUV;
-uniform mat3 uProjectionMatrix;
-uniform mat3 uWorldTransformMatrix;
-uniform mat3 uTransformMatrix;
-void main(void) {
-  mat3 mvp = uProjectionMatrix * uWorldTransformMatrix * uTransformMatrix;
-  gl_Position = vec4((mvp * vec3(aPosition, 1.0)).xy, 0.0, 1.0);
-  vUV = aUV;
-}`;
 
 // A máscara (já desfocada em CPU, vários texels por célula) dá a borda macia; o ruído fbm decide até onde a mancha chegou
 // (`uIntensidade`: 0 recolhe, 1 vai até a máscara inteira). Sem arrays constantes (GLSL ES 1.00).
@@ -65,8 +55,7 @@ float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 float ruido(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
 float massa(vec2 uv) { return texture(uTexture, uv).a; }
 // Bayer 4×4 sem arrays (o Pixi compila também para GLSL ES 1.00).
-float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
-float bayer(vec2 p) { return bayer2(0.5 * p) * 0.25 + bayer2(p) - 0.47; }
+${GLSL_BAYER}
 void main() {
   bool pixel = uPixel > 0.5;
   // No Pixel tudo é medido em pixels do Pixel: a coordenada do mundo é arredondada ao pixel antes do ruído e da máscara.
@@ -125,7 +114,7 @@ void main() {
   finalColor = vec4(cor * alfa, alfa);
 }`;
 
-const programa = () => GlProgram.from({ vertex, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-presenca' });
+const programa = () => GlProgram.from({ vertex: VERTEX_QUAD, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-presenca' });
 const MARGEM = 2;     // células a mais em volta, para o desfoque e a borda irregular terem onde crescer
 
 interface Desenho {
@@ -179,8 +168,8 @@ export function criarPresenca(): RenderDePresenca {
   }
 
   function atualizarUniformes(d: Desenho, p: Presenca, m: MapaAtlas): void {
-    const b = pincelDePresenca(p.brush), n = hexParaNumero(b?.cor ?? '#ffffff'), u = d.grupo.uniforms as Record<string, unknown>;
-    u.uCor = new Float32Array([((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]);
+    const b = pincelDePresenca(p.brush), u = d.grupo.uniforms as Record<string, unknown>;
+    u.uCor = new Float32Array(hexParaRgb01(b?.cor ?? '#ffffff'));
     u.uIntensidade = p.intensity; u.uOpaco = opacidadeDaPresenca(p.intensity); u.uPulso = b?.pulso ?? 0; u.uEscala = b?.escala ?? 1; u.uBrilha = b?.brilho ? 1 : 0; u.uSemente = p.seed % 1000; u.uGm = p.gmOnly ? 1 : 0;
     const formaId = b?.forma === 'arrastado' ? 1 : b?.forma === 'sulcos' ? 2 : 0;
     u.uForma = formaId;

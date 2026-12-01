@@ -2,20 +2,7 @@ import { Container, Filter, GlProgram, Graphics, Rectangle, RenderTexture, Sprit
 import type { MapaAtlas } from '../domain/mapa.ts';
 import { CORES_DA_PALETA, paletaDe } from '../domain/paletas.ts';
 import { hexParaNumero } from './cores.ts';
-
-const vertex = `in vec2 aPosition;
-out vec2 vTextureCoord;
-uniform vec4 uInputSize;
-uniform vec4 uOutputFrame;
-uniform vec4 uOutputTexture;
-vec4 filterVertexPosition(void) {
-  vec2 position = aPosition * uOutputFrame.zw + uOutputFrame.xy;
-  position.x = position.x * (2.0 / uOutputTexture.x) - 1.0;
-  position.y = position.y * (2.0 * uOutputTexture.z / uOutputTexture.y) - uOutputTexture.z;
-  return vec4(position, 0.0, 1.0);
-}
-vec2 filterTextureCoord(void) { return aPosition * (uOutputFrame.zw * uInputSize.zw); }
-void main(void) { gl_Position = filterVertexPosition(); vTextureCoord = filterTextureCoord(); }`;
+import { GLSL_BAYER, VERTEX_FILTRO } from './passadas.ts';
 
 // Quantização para a paleta com dithering ordenado 4×4 (porte do protótipo). Sem arrays: o Pixi pode compilar para GLSL ES 1.00.
 const fragment = `in vec2 vTextureCoord;
@@ -23,8 +10,7 @@ out vec4 finalColor;
 uniform sampler2D uTexture;
 uniform sampler2D uPaleta;
 uniform float uDither;
-float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
-float bayer(vec2 p) { return bayer2(0.5 * p) * 0.25 + bayer2(p) - 0.47; }
+${GLSL_BAYER}
 void main() {
   vec4 c = texture(uTexture, vTextureCoord);
   vec3 base = c.a > 0.0 ? c.rgb / c.a : c.rgb;
@@ -46,8 +32,7 @@ const fragmentoDeAlfa = `in vec2 vTextureCoord;
 out vec4 finalColor;
 uniform sampler2D uTexture;
 uniform float uRevelado;
-float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
-float bayer(vec2 p) { return bayer2(0.5 * p) * 0.25 + bayer2(p) - 0.47; }
+${GLSL_BAYER}
 void main() {
   vec4 c = texture(uTexture, vTextureCoord);
   float limiar = bayer(floor(gl_FragCoord.xy)) + 0.5;
@@ -59,7 +44,7 @@ void main() {
 /** O filtro de dithering do alfa. `uRevelado` (0 a 1) escala o alfa antes do limiar: é como a revelação em dithering dissolve (8.4b). */
 export function criarFiltroDeDitherDeAlfa(): { filtro: Filter; definirRevelado(v: number): void } {
   const grupo = new UniformGroup({ uRevelado: { value: 1, type: 'f32' } });
-  const filtro = new Filter({ glProgram: GlProgram.from({ vertex, fragment: fragmentoDeAlfa, preferredFragmentPrecision: 'highp', name: 'atlas-dither-alfa' }), resources: { ditherAlfa: grupo } });
+  const filtro = new Filter({ glProgram: GlProgram.from({ vertex: VERTEX_FILTRO, fragment: fragmentoDeAlfa, preferredFragmentPrecision: 'highp', name: 'atlas-dither-alfa' }), resources: { ditherAlfa: grupo } });
   return { filtro, definirRevelado: v => { (grupo.uniforms as Record<string, unknown>).uRevelado = v; } };
 }
 
@@ -69,7 +54,7 @@ export function criarFiltroDePaleta(): { filtro: Filter; definir(cores: readonly
   const ctx = canvas.getContext('2d')!;
   const textura = Texture.from(canvas); textura.source.scaleMode = 'nearest';
   const grupo = new UniformGroup({ uDither: { value: DITHER_BAYER4, type: 'f32' } });
-  const filtro = new Filter({ glProgram: GlProgram.from({ vertex, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-paleta' }), resources: { uPaleta: textura.source, paleta: grupo } });
+  const filtro = new Filter({ glProgram: GlProgram.from({ vertex: VERTEX_FILTRO, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-paleta' }), resources: { uPaleta: textura.source, paleta: grupo } });
   let atual = '';
   return {
     filtro,

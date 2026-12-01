@@ -13,6 +13,25 @@ void main(void) {
   vUV = aUV;
 }`;
 
+/** Vertex shader padrão para `Filter` do PixiJS (`vTextureCoord` normalizado pelo frame). */
+export const VERTEX_FILTRO = `in vec2 aPosition;
+out vec2 vTextureCoord;
+uniform vec4 uInputSize;
+uniform vec4 uOutputFrame;
+uniform vec4 uOutputTexture;
+vec4 filterVertexPosition(void) {
+  vec2 position = aPosition * uOutputFrame.zw + uOutputFrame.xy;
+  position.x = position.x * (2.0 / uOutputTexture.x) - 1.0;
+  position.y = position.y * (2.0 * uOutputTexture.z / uOutputTexture.y) - uOutputTexture.z;
+  return vec4(position, 0.0, 1.0);
+}
+vec2 filterTextureCoord(void) { return aPosition * (uOutputFrame.zw * uInputSize.zw); }
+void main(void) { gl_Position = filterVertexPosition(); vTextureCoord = filterTextureCoord(); }`;
+
+/** Dithering ordenado Bayer 4×4 sem arrays constantes (compatível com GLSL ES 1.00). */
+export const GLSL_BAYER = `float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
+float bayer(vec2 p) { return bayer2(0.5 * p) * 0.25 + bayer2(p) - 0.47; }`;
+
 /** Blur gaussiano separável (9 amostras, pesos somando 1.0) feito direto em `RenderTexture` para preservar HDR. */
 export const FRAGMENT_BLUR_GAUSSIANO = `in vec2 vUV;
 out vec4 finalColor;

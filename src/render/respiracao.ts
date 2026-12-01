@@ -1,18 +1,5 @@
 import { Filter, GlProgram, UniformGroup } from 'pixi.js';
-
-const vertex = `in vec2 aPosition;
-out vec2 vTextureCoord;
-uniform vec4 uInputSize;
-uniform vec4 uOutputFrame;
-uniform vec4 uOutputTexture;
-vec4 filterVertexPosition(void) {
-  vec2 position = aPosition * uOutputFrame.zw + uOutputFrame.xy;
-  position.x = position.x * (2.0 / uOutputTexture.x) - 1.0;
-  position.y = position.y * (2.0 * uOutputTexture.z / uOutputTexture.y) - uOutputTexture.z;
-  return vec4(position, 0.0, 1.0);
-}
-vec2 filterTextureCoord(void) { return aPosition * (uOutputFrame.zw * uInputSize.zw); }
-void main(void) { gl_Position = filterVertexPosition(); vTextureCoord = filterTextureCoord(); }`;
+import { VERTEX_FILTRO } from './passadas.ts';
 
 // Mesma deformação regional do retrato vivo da Vigília (Dossiê): base fixa, peito expande, ombros/cabeça sobem e tronco balança.
 const fragment = `in vec2 vTextureCoord;
@@ -45,7 +32,7 @@ void main() {
 let programaCompartilhado: GlProgram | null = null;
 function obterPrograma(): GlProgram {
   return (programaCompartilhado ??= GlProgram.from({
-    vertex,
+    vertex: VERTEX_FILTRO,
     fragment,
     preferredFragmentPrecision: 'highp',
     name: 'atlas-respiracao-token',

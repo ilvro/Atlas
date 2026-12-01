@@ -10,6 +10,7 @@ import { materialDe } from '../procedural/materiais.ts';
 import { distanciaAMargem } from '../procedural/profundidade.ts';
 import { fbm, hash2D, valueNoise2D } from '../procedural/ruido.ts';
 import { criarCamadaEmTextura } from './camada-em-textura.ts';
+import { hexParaRgb01 } from './cores.ts';
 import { resolucaoDe } from './entradas.ts';
 
 const LIMIAR_NEVE = 0.2;
@@ -30,8 +31,8 @@ const suave = (a: number, b: number, x: number): number => {
   return t * t * (3 - 2 * t);
 };
 const hexRgb = (h: string): [number, number, number] => {
-  const n = parseInt(h.slice(1), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const [r, g, b] = hexParaRgb01(h);
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
 };
 
 /** Verdadeiro se o cômodo está exposto ao céu (sem material de telhado ou com função aberta). */

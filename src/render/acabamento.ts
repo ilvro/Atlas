@@ -1,14 +1,11 @@
 import { Filter, GlProgram, UniformGroup } from 'pixi.js';
 import type { Acabamento, TonalizacaoDividida } from '../domain/mapa.ts';
+import { hexParaRgb01, preencherRgb01 } from './cores.ts';
+import { VERTEX_FILTRO } from './passadas.ts';
 
 const LUM_R = 0.299;
 const LUM_G = 0.587;
 const LUM_B = 0.114;
-
-const hexParaRgb01 = (hex: string): [number, number, number] => {
-  const p = parseInt(hex.slice(1), 16);
-  return [((p >> 16) & 255) / 255, ((p >> 8) & 255) / 255, (p & 255) / 255];
-};
 
 /**
  * Espelho puro da tonalização dividida (`finish.split`) aplicada no acabamento:
@@ -35,20 +32,6 @@ export function tonalizar(cor: readonly [number, number, number], split: Tonaliz
   }
   return [r, g, b];
 }
-
-const vertex = `in vec2 aPosition;
-out vec2 vTextureCoord;
-uniform vec4 uInputSize;
-uniform vec4 uOutputFrame;
-uniform vec4 uOutputTexture;
-vec4 filterVertexPosition(void) {
-  vec2 position = aPosition * uOutputFrame.zw + uOutputFrame.xy;
-  position.x = position.x * (2.0 / uOutputTexture.x) - 1.0;
-  position.y = position.y * (2.0 * uOutputTexture.z / uOutputTexture.y) - uOutputTexture.z;
-  return vec4(position, 0.0, 1.0);
-}
-vec2 filterTextureCoord(void) { return aPosition * (uOutputFrame.zw * uInputSize.zw); }
-void main(void) { gl_Position = filterVertexPosition(); vTextureCoord = filterTextureCoord(); }`;
 
 // Sem arrays constantes: o Pixi pode compilar para GLSL ES 1.00. Os uniformes compartilhados com o vértice são highp.
 const fragment = `in vec2 vTextureCoord;
@@ -95,13 +78,6 @@ void main() {
   finalColor = vec4(clamp(cor, 0.0, 1.0) * c.a, c.a);
 }`;
 
-const preencherRgb = (destino: Float32Array, hex: string): void => {
-  const p = parseInt(hex.slice(1), 16);
-  destino[0] = ((p >> 16) & 255) / 255;
-  destino[1] = ((p >> 8) & 255) / 255;
-  destino[2] = (p & 255) / 255;
-};
-
 /** O acabamento da cena (saturação, tinta, tonalização dividida, textura, vinheta, granulação, curva de cor), igual nos dois renderizadores. */
 export function criarFiltroAcabamento(): { filtro: Filter; aplicar(a: Acabamento, tempo?: number): void } {
   const uTom = new Float32Array([1, 1, 1]);
@@ -115,17 +91,17 @@ export function criarFiltroAcabamento(): { filtro: Filter; aplicar(a: Acabamento
     uSplitBalance: { value: 0, type: 'f32' },
     uSplitAmount: { value: 0, type: 'f32' },
   });
-  const filtro = new Filter({ glProgram: GlProgram.from({ vertex, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-acabamento' }), resources: { acabamento: grupo } });
+  const filtro = new Filter({ glProgram: GlProgram.from({ vertex: VERTEX_FILTRO, fragment, preferredFragmentPrecision: 'highp', name: 'atlas-acabamento' }), resources: { acabamento: grupo } });
   return {
     filtro,
     aplicar(a, tempo = 0) {
       const u = grupo.uniforms as Record<string, unknown>;
-      u.uSaturacao = a.saturation; preencherRgb(uTom, a.tint); u.uVinheta = a.vignette; u.uGrao = a.grain; u.uTextura = a.texture;
+      u.uSaturacao = a.saturation; preencherRgb01(uTom, a.tint); u.uVinheta = a.vignette; u.uGrao = a.grain; u.uTextura = a.texture;
       u.uLift = a.grade.lift; u.uGamma = a.grade.gamma; u.uGain = a.grade.gain; u.uTempo = tempo;
       const split = a.split;
       if (split) {
-        preencherRgb(uSplitShadows, split.shadows);
-        preencherRgb(uSplitHighlights, split.highlights);
+        preencherRgb01(uSplitShadows, split.shadows);
+        preencherRgb01(uSplitHighlights, split.highlights);
         u.uSplitBalance = split.balance;
         u.uSplitAmount = split.amount;
       } else {

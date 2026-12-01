@@ -5,6 +5,7 @@ import type { Mudancas } from '../state/mudancas.ts';
 import { criarFiltroDeMundo } from './filtro-de-mundo.ts';
 import { desenharComodos } from './mascara-de-comodos.ts';
 import { FATOR_DE_MOVIMENTO_REDUZIDO, NEBLINA_DENTRO, alfaDaNeblina, coberturaDaNeblina, corDaNeblina } from './particulas-config.ts';
+import { GLSL_BAYER } from './passadas.ts';
 
 export interface Neblina {
   readonly raiz: Container;
@@ -33,8 +34,7 @@ uniform float uPpm;
 uniform float uUsarLuz;
 uniform float uEscalaLuz;
 float hash(vec2 p) { p = fract(p * vec2(0.1031, 0.1030)); p += dot(p, p.yx + 33.33); return fract((p.x + p.y) * p.x); }
-float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
-float bayer(vec2 p) { return bayer2(0.5 * p) * 0.25 + bayer2(p) - 0.47; }
+${GLSL_BAYER}
 float ruido(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
 // Cada oitava gira o domínio: o ruído de valor é alinhado à grade, e sem isso a névoa sai quadriculada.
 float fbm(vec2 p) {
