@@ -1,4 +1,5 @@
 import { Pistas } from './Pistas.tsx';
+import { useGestoDeCor } from './gesto-de-cor.ts';
 import { signal, useSignal } from '@preact/signals';
 import { modo } from '../app/modo.ts';
 import { emConstrucaoRemota } from '../app/construcao-remota.ts';
@@ -146,6 +147,11 @@ function CatalogoDeTerreno({ emRelevo, material, aoEscolher }: { s: SessaoDeEdic
   </>);
 }
 
+function TomDaBase({ s, valor }: { s: SessaoDeEdicao; valor: string }) {
+  const g = useGestoDeCor(s, 'Tom da base');
+  return <CampoCor rotulo="Tom da base" dica="Personalize o tom de cor da grama da base do mapa" valor={valor} aoPrevia={cor => g.previa(x => x.aplicar({ tipo: 'terreno.base', material: `grama#${cor.replace('#', '')}` }))} aoConfirmar={g.confirmar} aoCancelar={g.cancelar} />;
+}
+
 function Terreno({ s }: { s: SessaoDeEdicao }) {
   const p = s.pincel.value.terreno;
   const emRelevo = p.modo === 'relevo';
@@ -172,7 +178,7 @@ function Terreno({ s }: { s: SessaoDeEdicao }) {
     {materialDe(p.material).uso === 'agua' && <CampoCaixa rotulo="Suavizar a margem" dica="Arredonda a borda da água onde você pintar: lagos e poças mais redondos." valor={p.suavizar === true} aoMudar={v => { mudar(s, { terreno: { ...p, suavizar: v } }); }} />}
     {materialDe(p.material).uso === 'agua' && <Correnteza s={s} material={p.material} />}
     <CampoMaterial rotulo="Base do mapa" dica="Cobre o mapa todo, por baixo de tudo" uso="terreno" valor={s.doc.value.terrain.base === 'vazio' ? null : s.doc.value.terrain.base} comNenhum="Nenhuma (fundo escuro)" aoMudar={v => { s.store.executar({ tipo: 'terreno.base', material: v ?? 'vazio' }); }} />
-    {matBase?.padrao === 'grama' && <CampoCor rotulo="Tom da base" dica="Personalize o tom de cor da grama da base do mapa" valor={matBase.base} aoPrevia={cor => { s.store.executar({ tipo: 'terreno.base', material: `grama#${cor.replace('#', '')}` }); }} aoConfirmar={() => {}} />}
+    {matBase?.padrao === 'grama' && <TomDaBase s={s} valor={matBase.base} />}
   </>);
 }
 

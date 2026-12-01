@@ -19,15 +19,17 @@ export function MiniReceita({ id, tamanho = 72 }: { id: string; tamanho?: number
 
 /** Põe um item (a variante) no pincel, junto com a família dele. Mantém rotação, dado e semente. */
 function pegarItem(s: SessaoDeEdicao, id: string, ferramenta = true): void {
-  catalogoAberto.value = false;
+  fecharCatalogo();
   const o = s.pincel.value.objeto;
   if (ferramenta) s.ferramenta.value = 'objeto';
   s.pincel.value = { ...s.pincel.value, objeto: { ...o, item: id, params: {}, familia: ACERVO.familiaDoItem(id)?.id ?? null, bloqueia: itemBloqueiaMovimentoPorPadrao(id) } };
   tocar('selecionar');
 }
 
+export type MotivoFora = 'epoca' | 'bioma';
+
 /** `fora`: a família não combina com o filtro (só aparece na busca, que o ignora). */
-interface Resultado { familia: Familia; item: string; nota: number; fora?: boolean }
+interface Resultado { familia: Familia; item: string; nota: number; fora?: MotivoFora }
 
 export interface Filtro { genero: string | null; bioma: string | null }
 
@@ -42,6 +44,7 @@ function notaDoItem(q: string, id: string): number {
 /** Famílias do grupo que casam com a consulta (pelo nome da família, dos itens, das tags e das funções), com a primeira variante que casou (ou a primeira da família). */
 export function buscarFamilias(consulta: string, grupo: string | null, filtro?: Filtro): Resultado[] {
   const q = normalizar(consulta), todas = ACERVO.familias().filter(f => !grupo || f.grupo === grupo);
+  const visiveisEpoca = filtro ? new Set(familiasVisiveis(filtro.genero, null).map(f => f.id)) : null;
   const visiveis = filtro ? new Set(familiasVisiveis(filtro.genero, filtro.bioma).map(f => f.id)) : null;
   // O filtro vale só sem busca: quem procura pelo nome quer achar o item, e o que está fora do filtro vem marcado.
   if (!q) return todas.filter(f => !visiveis || visiveis.has(f.id)).map(familia => ({ familia, item: familia.itens[0]!, nota: 1 }));
@@ -49,7 +52,12 @@ export function buscarFamilias(consulta: string, grupo: string | null, filtro?: 
   lista.forEach(familia => {
     const notas = familia.itens.map(id => notaDoItem(q, id)), k = notas.findIndex(n => n > 0);
     const nota = Math.max(pontuar(q, familia.nome), ...notas);
-    if (nota > 0) out.push({ familia, item: k >= 0 ? familia.itens[k]! : familia.itens[0]!, nota, ...(visiveis && !visiveis.has(familia.id) ? { fora: true } : {}) });
+    if (nota > 0) {
+      const fora: MotivoFora | undefined = visiveis && !visiveis.has(familia.id)
+        ? (visiveisEpoca && !visiveisEpoca.has(familia.id) ? 'epoca' : 'bioma')
+        : undefined;
+      out.push({ familia, item: k >= 0 ? familia.itens[k]! : familia.itens[0]!, nota, ...(fora ? { fora } : {}) });
+    }
   });
   return out.map((r, i) => ({ r, i })).sort((a, b) => b.r.nota - a.r.nota || a.i - b.i).map(x => x.r);
 }
@@ -96,7 +104,11 @@ export function FamiliaNaMao({ s }: { s: SessaoDeEdicao }) {
 }
 
 /** O selo de uma família achada fora do filtro: a época (ou o bioma) a que ela pertence. */
-function seloDeFora(f: Familia): string {
+function seloDeFora(f: Familia, motivo: MotivoFora = 'epoca'): string {
+  if (motivo === 'bioma') {
+    const b = f.biomas?.[0];
+    return BIOMAS.find(x => x.id === b)?.nome ?? '';
+  }
   const g = f.generos?.[0], b = f.biomas?.[0];
   return g ? generoDe(g).nome : (BIOMAS.find(x => x.id === b)?.nome ?? '');
 }
@@ -141,7 +153,7 @@ export function CatalogoDeFamilias({ s }: { s: SessaoDeEdicao }) {
     <div class="grade-receitas" data-testid="lista-receitas">
       {lista.map(({ familia, item, fora }) => (
         <button type="button" key={familia.id} class={`receita ${atual.familia === familia.id ? 'ativa' : ''}`} onClick={() => pegarItem(s, item)} title={`${familia.nome} · ${familia.itens.length} ${familia.itens.length === 1 ? 'variante' : 'variantes'}`} data-testid={`familia-${familia.id}`}>
-          <MiniReceita id={item} /><span>{familia.nome}</span>{fora ? <i class="selo-acervo" title="Fora do filtro de época">{seloDeFora(familia)}</i> : familia.itens.length > 1 && <i class="selo-variantes">{familia.itens.length}</i>}
+          <MiniReceita id={item} /><span>{familia.nome}</span>{fora ? <i class="selo-acervo" title={fora === 'bioma' ? 'Fora do filtro de bioma' : 'Fora do filtro de época'}>{seloDeFora(familia, fora)}</i> : familia.itens.length > 1 && <i class="selo-variantes">{familia.itens.length}</i>}
         </button>
       ))}
       {!lista.length && buscando && <p class="dica">Nada com “{consulta.value}”.</p>}
@@ -185,6 +197,11 @@ export const catalogoAberto = signal(false);
 const abrirPorClique = signal(false);
 const ABRIR_MS = 220, FECHAR_MS = 450;
 let relogio: ReturnType<typeof setTimeout> | undefined;
+function fecharCatalogo(): void {
+  clearTimeout(relogio);
+  catalogoAberto.value = false;
+  abrirPorClique.value = false;
+}
 function agendarCatalogo(abrir: boolean, ms: number): void {
   clearTimeout(relogio);
   if (!abrir && !catalogoAberto.peek()) { abrirPorClique.value = false; return; }
@@ -197,15 +214,18 @@ export function CatalogoFlutuante({ s }: { s: SessaoDeEdicao }) {
   useEffect(() => {
     if (!aberto) return;
     if (abrirPorClique.peek()) busca.current?.focus();
-    const tecla = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); clearTimeout(relogio); catalogoAberto.value = false; } };
+    const tecla = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); fecharCatalogo(); } };
     window.addEventListener('keydown', tecla, true);
     return () => window.removeEventListener('keydown', tecla, true);
   }, [aberto]);
-  useEffect(() => () => { clearTimeout(relogio); catalogoAberto.value = false; }, []);
+  useEffect(() => () => fecharCatalogo(), []);
   if (!aberto) return null;
   const genero = generoDoFiltro(filtroDeEpoca.value, s.doc.value.style.genre), bioma = filtroDeBioma.value;
   const buscando = normalizar(consulta.value) !== '';
-  const lista = buscarFamilias(consulta.value, null, { genero, bioma: null }).filter(r => buscando || !bioma || r.familia.grupo !== 'natureza' || !r.familia.biomas?.length || r.familia.biomas.includes(bioma));
+  const foraDoBioma = (f: Familia) => !!bioma && f.grupo === 'natureza' && !!f.biomas?.length && !f.biomas.includes(bioma);
+  const lista = buscarFamilias(consulta.value, null, { genero, bioma: null })
+    .filter(r => buscando || !foraDoBioma(r.familia))
+    .map(r => (!r.fora && foraDoBioma(r.familia) ? { ...r, fora: 'bioma' as const } : r));
   const secoes = buscando ? [{ id: 'busca', nome: `${lista.length} ${lista.length === 1 ? 'família' : 'famílias'}`, itens: lista }]
     : GRUPOS_DE_OBJETOS.map(g => ({ id: g.id, nome: g.nome, itens: lista.filter(r => r.familia.grupo === g.id) })).filter(x => x.itens.length);
   // Ficar com o foco na busca segura o catálogo aberto mesmo com o mouse fora.
@@ -216,7 +236,7 @@ export function CatalogoFlutuante({ s }: { s: SessaoDeEdicao }) {
       <div class="catalogo-topo">
         <input ref={busca} class="busca" type="search" placeholder="Buscar no catálogo…" aria-label="Buscar no catálogo" value={consulta.value}
           onInput={e => { consulta.value = (e.target as HTMLInputElement).value; }} onBlur={e => { const p = (e.currentTarget as HTMLElement).closest('.catalogo-flutuante'); if (p && !p.matches(':hover')) agendarCatalogo(false, FECHAR_MS); }} data-testid="busca-catalogo" />
-        <button type="button" class="botao-icone" aria-label="Fechar o catálogo" title="Fechar (Esc)" onClick={() => { clearTimeout(relogio); catalogoAberto.value = false; }}>✕</button>
+        <button type="button" class="botao-icone" aria-label="Fechar o catálogo" title="Fechar (Esc)" onClick={fecharCatalogo}>✕</button>
       </div>
       <div class="catalogo-corpo">
         {secoes.map(sec => (
@@ -225,13 +245,14 @@ export function CatalogoFlutuante({ s }: { s: SessaoDeEdicao }) {
             <div class="catalogo-grade">
               {sec.itens.map(({ familia, item, fora }) => (
                 <button type="button" key={familia.id} class={`receita ${atual.familia === familia.id ? 'ativa' : ''}`} onClick={() => pegarItem(s, item)} title={`${familia.nome} · ${familia.itens.length} ${familia.itens.length === 1 ? 'variante' : 'variantes'}`} data-testid={`catalogo-${familia.id}`}>
-                  <MiniReceita id={item} /><span>{familia.nome}</span>{fora ? <i class="selo-acervo" title="Fora do filtro de época">{seloDeFora(familia)}</i> : familia.itens.length > 1 && <i class="selo-variantes">{familia.itens.length}</i>}
+                  <MiniReceita id={item} /><span>{familia.nome}</span>{fora ? <i class="selo-acervo" title={fora === 'bioma' ? 'Fora do filtro de bioma' : 'Fora do filtro de época'}>{seloDeFora(familia, fora)}</i> : familia.itens.length > 1 && <i class="selo-variantes">{familia.itens.length}</i>}
                 </button>
               ))}
             </div>
           </section>
         ))}
-        {!lista.length && <p class="dica">Nada com “{consulta.value}”.</p>}
+        {!lista.length && buscando && <p class="dica">Nada com “{consulta.value}”.</p>}
+        {!lista.length && !buscando && <p class="dica" data-testid="catalogo-filtro-vazio">Nada desta época aqui — <button type="button" class="chip" onClick={() => { definirFiltroDeEpoca('todas'); definirFiltroDeBioma(null); }} data-testid="catalogo-ver-todas">ver todas</button></p>}
       </div>
     </div>
   );

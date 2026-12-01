@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { useSignal } from '@preact/signals';
 import { chaveDaRef, formatarRef, lerRef, type Entidade, type Ref } from '#mesa';
 import { campanhaAtiva, campanhas, criarCampanha, escolherCampanha, refDoComodo } from '../app/campanha.ts';
-import { emConstrucaoRemota } from '../app/construcao-remota.ts';
+import { emConstrucaoRemota, podeDesfazerRemoto, podeRefazerRemoto } from '../app/construcao-remota.ts';
 import { resumos, servicos } from '../app/app.ts';
 import { BlocoTransicaoDeMapa, objetoParaVincularMapa } from './BlocoTransicaoDeMapa.tsx';
 import { avisar } from '../app/toasts.ts';
@@ -30,7 +30,6 @@ import { COLECAO } from '../procedural/colecao.ts';
 import { receitaDe } from '../procedural/receitas/index.ts';
 import { CamposDaReceita } from './campos-receita.tsx';
 import { materialDe, materiaisDo } from '../procedural/materiais.ts';
-import { Amostra } from './campos-material.tsx';
 import { PropriedadesDoObjeto } from './PropriedadesDoObjeto.tsx';
 import { camadaDoObjeto } from '../domain/camadas.ts';
 import { patchDoObjeto, pincelDoObjeto, valoresDoObjeto, type PincelDeObjeto } from '../domain/pincel-de-objeto.ts';
@@ -39,7 +38,6 @@ import { desenharMiniaturaDoTelhado } from '../render/miniatura.ts';
 import { tocar } from '../fx/som.ts';
 import { chaveDoAlvo, type Alvo } from '../render/selecao.ts';
 import type { Comando, ParcialProfundo } from '../state/comandos.ts';
-import type { Gesto } from '../state/store.ts';
 import { ALCANCE_MAX_LUZ_PECA, ALCANCE_MIN_LUZ_PECA, atualizarLuzDaPeca } from '../app/luz-da-peca.ts';
 import { useGestoDeCor } from './gesto-de-cor.ts';
 import { PainelDoSprite } from './PainelDoSprite.tsx';
@@ -184,15 +182,7 @@ function PainelDoMapa({ s }: { s: SessaoDeEdicao }) {
       <h3 class="faixa pequena">Terreno</h3>
       <CampoOpcoes rotulo="Base" valor={m.terrain.base} opcoes={[['vazio', 'Vazio (o fundo)'], ...(m.terrain.base !== 'vazio' && !materiaisDo('terreno').some(x => x.id === m.terrain.base) ? [[m.terrain.base, materialDe(m.terrain.base).nome] as const] : []), ...materiaisDo('terreno').map(x => [x.id, x.nome] as const)]} aoMudar={v => tentar(() => st.executar({ tipo: 'terreno.base', material: v }))} />
       {m.terrain.base !== 'vazio' && materialDe(m.terrain.base).padrao === 'grama' && (
-        <CampoCor
-          rotulo="Tom da base"
-          dica="Personalize a cor da grama da base do mapa"
-          valor={materialDe(m.terrain.base).base}
-          aoPrevia={cor => {
-            st.executar({ tipo: 'terreno.base', material: `grama#${cor.replace('#', '')}` });
-          }}
-          aoConfirmar={() => {}}
-        />
+        <TomDaBase s={s} valor={materialDe(m.terrain.base).base} />
       )}
       </>}
       {modo.value === 'sessao' && <>
@@ -310,7 +300,13 @@ function SeletorDeClima({ s }: { s: SessaoDeEdicao }) {
 /** Cor com prévia: arrastar o seletor muda o fundo na hora e vira UM item de histórico. */
 function CorDoFundo({ s }: { s: SessaoDeEdicao }) {
   const g = useGestoDeCor(s, 'Cor do fundo');
-  return <CampoCor rotulo="Cor" valor={s.doc.value.backdrop.color} aoPrevia={v => g.previa(x => x.aplicar({ tipo: 'fundo.atualizar', patch: { color: v } }))} aoConfirmar={g.confirmar} />;
+  return <CampoCor rotulo="Cor" valor={s.doc.value.backdrop.color} aoPrevia={v => g.previa(x => x.aplicar({ tipo: 'fundo.atualizar', patch: { color: v } }))} aoConfirmar={g.confirmar} aoCancelar={g.cancelar} />;
+}
+
+/** Tom da grama da base do mapa com prévia: arrastar o seletor vira UM item de histórico. */
+function TomDaBase({ s, valor }: { s: SessaoDeEdicao; valor: string }) {
+  const g = useGestoDeCor(s, 'Tom da base');
+  return <CampoCor rotulo="Tom da base" dica="Personalize a cor da grama da base do mapa" valor={valor} aoPrevia={cor => g.previa(x => x.aplicar({ tipo: 'terreno.base', material: `grama#${cor.replace('#', '')}` }))} aoConfirmar={g.confirmar} aoCancelar={g.cancelar} />;
 }
 
 const FONTES_DO_TITULO = [['Cinzel', 'Cinzel (títulos)'], ['Special Elite', 'Máquina de escrever'], ['Hanken Grotesk Variable', 'Hanken Grotesk']] as const;
@@ -350,7 +346,7 @@ function CamposDaLuz({ s, l }: { s: SessaoDeEdicao; l: Luz }) {
   return (<>
     <CampoOpcoes rotulo="Tipo" valor={l.preset ?? ''} opcoes={[['', 'Personalizada'], ...PRESETS_DE_LUZ.map(p => [p.id, p.nome] as const)]} aoMudar={v => { const p = PRESETS_DE_LUZ.find(x => x.id === v); if (p) editar({ ...camposDoPreset(p, l.cone?.direction ?? 0) }, `Virar ${p.nome.toLowerCase()}`); }} />
     <CampoCaixa rotulo="Acesa" valor={l.on} aoMudar={v => editar({ on: v }, v ? 'Acender' : 'Apagar')} />
-    <CampoCor rotulo="Cor" valor={l.color} aoPrevia={v => g.previa(x => x.aplicar({ tipo: 'item.atualizar', colecao: 'lights', id: l.id, patch: { color: v } }))} aoConfirmar={g.confirmar} />
+    <CampoCor rotulo="Cor" valor={l.color} aoPrevia={v => g.previa(x => x.aplicar({ tipo: 'item.atualizar', colecao: 'lights', id: l.id, patch: { color: v } }))} aoConfirmar={g.confirmar} aoCancelar={g.cancelar} />
     <CampoNumero rotulo="Alcance" unidade="m" valor={l.radius} min={0.1} max={200} passo={0.5} aoConfirmar={v => editar({ radius: v }, 'Alcance da luz')} />
     <CampoNumero rotulo="Intensidade" valor={l.intensity} min={0} max={3} passo={0.1} aoConfirmar={v => editar({ intensity: v }, 'Intensidade da luz')} />
     <CampoNumero rotulo="Tremulação" valor={l.flicker} min={0} max={1} passo={0.05} aoConfirmar={v => editar({ flicker: v }, 'Tremulação da luz')} />
@@ -368,15 +364,18 @@ function CamposDaLuz({ s, l }: { s: SessaoDeEdicao; l: Luz }) {
 /** Reduz uma imagem para um retrato de até 512 px (WebP), preservando a proporção original. */
 async function reduzirParaRetrato(arquivo: File): Promise<Blob> {
   const bitmap = await createImageBitmap(arquivo);
-  const escala = Math.min(1, 512 / Math.max(bitmap.width, bitmap.height));
-  const w = Math.max(1, Math.round(bitmap.width * escala));
-  const h = Math.max(1, Math.round(bitmap.height * escala));
-  const tela = document.createElement('canvas');
-  tela.width = w;
-  tela.height = h;
-  tela.getContext('2d')!.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height, 0, 0, w, h);
-  bitmap.close();
-  return new Promise((ok, falha) => tela.toBlob(b => (b ? ok(b) : falha(new Error('Não consegui converter a imagem.'))), 'image/webp', 0.9));
+  try {
+    const escala = Math.min(1, 512 / Math.max(bitmap.width, bitmap.height));
+    const w = Math.max(1, Math.round(bitmap.width * escala));
+    const h = Math.max(1, Math.round(bitmap.height * escala));
+    const tela = document.createElement('canvas');
+    tela.width = w;
+    tela.height = h;
+    tela.getContext('2d')!.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height, 0, 0, w, h);
+    return await new Promise((ok, falha) => tela.toBlob(b => (b ? ok(b) : falha(new Error('Não consegui converter a imagem.'))), 'image/webp', 0.9));
+  } finally {
+    bitmap.close();
+  }
 }
 
 /** As luzes que uma peça pode carregar, e para onde o facho aponta (rad) quando a peça olha para cada lado. */
@@ -449,7 +448,7 @@ function CamposDaPeca({ s, t }: { s: SessaoDeEdicao; t: Peca }) {
     <CampoOpcoes rotulo="Lanterna" dica="A luz anda com a peça e aponta para onde ela andou. Q e E giram o facho na Sessão." valor={lanterna} opcoes={opcoesDeLanterna} aoMudar={trocarLanterna} />
     {luz && <>
       <CampoNumero id="peca-luz-alcance" rotulo="Alcance da luz" unidade="m" valor={luz.radius} min={ALCANCE_MIN_LUZ_PECA} max={ALCANCE_MAX_LUZ_PECA} passo={0.5} aoConfirmar={v => tentar(() => atualizarLuzDaPeca(s.store, t.id, { radius: v }))} />
-      <CampoCor rotulo="Cor da luz" valor={luz.color} aoPrevia={v => gestoDaLuz.previa(x => x.aplicar({ tipo: 'item.atualizar', colecao: 'lights', id: luz.id, patch: { color: v } }))} aoConfirmar={gestoDaLuz.confirmar} />
+      <CampoCor rotulo="Cor da luz" valor={luz.color} aoPrevia={v => gestoDaLuz.previa(x => x.aplicar({ tipo: 'item.atualizar', colecao: 'lights', id: luz.id, patch: { color: v } }))} aoConfirmar={gestoDaLuz.confirmar} aoCancelar={gestoDaLuz.cancelar} />
     </>}
     <CampoOpcoes rotulo="Estado" valor={t.figure.state} opcoes={ESTADOS_FIGURA.map(e => [e, ROTULOS_DE_ESTADO[e]] as const)} aoMudar={v => editar({ figure: { state: v } }, 'Estado da peça')} />
   </>);
@@ -468,7 +467,7 @@ function PistaDoObjeto({ i, aoEscolher }: { i: NonNullable<Objeto['interaction']
 
 function InteracaoDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
   const m = s.doc.value, i = o.interaction;
-  const editar = (interaction: Objeto['interaction'] | undefined, rotulo: string) => tentar(() => s.store.executar({ tipo: 'item.atualizar', colecao: 'props', id: o.id, patch: { interaction } }, { rotulo }));
+  const editar = (interaction: Objeto['interaction'] | undefined, rotulo: string, fusao?: string) => tentar(() => s.store.executar({ tipo: 'item.atualizar', colecao: 'props', id: o.id, patch: { interaction } }, fusao ? { rotulo, fusao } : { rotulo }));
   const efetivas = i?.kind === 'switch' ? alvosDoInterruptor(m, o) : [];
   const trocar = (id: string, marcar: boolean) => editar({ ...i!, targets: marcar ? [...new Set([...efetivas, id])] : efetivas.filter(x => x !== id) }, 'Luzes do interruptor');
   const multi = ehMultiandar(m);
@@ -582,7 +581,7 @@ function InteracaoDoObjeto({ s, o }: { s: SessaoDeEdicao; o: Objeto }) {
           data-testid="objeto-nota-texto"
           placeholder="O que há escrito, escondido ou perceptível neste objeto…"
           value={i.note ?? ''}
-          onInput={e => editar({ ...i, note: (e.target as HTMLTextAreaElement).value }, 'Texto da nota')}
+          onInput={e => editar({ ...i, note: (e.target as HTMLTextAreaElement).value }, 'Texto da nota', `nota-objeto:${o.id}`)}
         />
       </label>
       <CampoCaixa rotulo="Só o mestre vê" dica="Se marcado, a nota não é enviada aos jogadores nem avisada na sessão." valor={i.gmOnly ?? false} aoMudar={v => editar({ ...i, gmOnly: v }, 'Visibilidade da nota')} />
@@ -1030,13 +1029,13 @@ function CamposDaAbertura({ s, o }: { s: SessaoDeEdicao; o: Abertura }) {
 }
 
 function Detalhe({ s, m, a }: { s: SessaoDeEdicao; m: MapaAtlas; a: Alvo }) {
-  if (a.colecao === 'lights') return <CamposDaLuz s={s} l={m.lights[a.id]!} />;
-  if (a.colecao === 'tokens') return <CamposDaPeca s={s} t={m.tokens[a.id]!} />;
-  if (a.colecao === 'props') return <CamposDoObjeto s={s} o={m.props[a.id]!} />;
-  if (a.colecao === 'regions') return <CamposDaRegiao s={s} r={m.regions[a.id]!} />;
-  if (a.colecao === 'rooms') return <CamposDoComodo s={s} c={m.rooms[a.id]!} />;
-  if (a.colecao === 'walls') return <CamposDaParede s={s} w={m.walls[a.id]!} />;
-  if (a.colecao === 'openings') return <CamposDaAbertura s={s} o={m.openings[a.id]!} />;
+  if (a.colecao === 'lights') { const l = m.lights[a.id]; return l ? <CamposDaLuz s={s} l={l} /> : null; }
+  if (a.colecao === 'tokens') { const t = m.tokens[a.id]; return t ? <CamposDaPeca s={s} t={t} /> : null; }
+  if (a.colecao === 'props') { const o = m.props[a.id]; return o ? <CamposDoObjeto s={s} o={o} /> : null; }
+  if (a.colecao === 'regions') { const r = m.regions[a.id]; return r ? <CamposDaRegiao s={s} r={r} /> : null; }
+  if (a.colecao === 'rooms') { const c = m.rooms[a.id]; return c ? <CamposDoComodo s={s} c={c} /> : null; }
+  if (a.colecao === 'walls') { const w = m.walls[a.id]; return w ? <CamposDaParede s={s} w={w} /> : null; }
+  if (a.colecao === 'openings') { const o = m.openings[a.id]; return o ? <CamposDaAbertura s={s} o={o} /> : null; }
   return null;
 }
 
@@ -1060,13 +1059,19 @@ function PainelDaSelecao({ s }: { s: SessaoDeEdicao }) {
     );
   }
   const unico = alvos.length === 1 ? alvos[0]! : null;
+  const itemUnico = unico ? (m[unico.colecao] as Record<string, { id: string } | undefined>)[unico.id] : undefined;
+  if (unico && !itemUnico) return null;
   return (
     <div class="painel-corpo" data-testid="painel-selecao">
-      <h3 class="faixa pequena" data-testid="titulo-selecao">{unico ? nomeDoAlvo(unico.colecao, (m[unico.colecao] as Record<string, { id: string }>)[unico.id]!) : `${alvos.length} itens`}</h3>
+      <h3 class="faixa pequena" data-testid="titulo-selecao">{unico && itemUnico ? nomeDoAlvo(unico.colecao, itemUnico) : `${alvos.length} itens`}</h3>
       {!unico && modo.value === 'construir' && alvos.every(a => a.colecao === 'props') && <PropriedadesDaSelecao s={s} ids={alvos.map(a => a.id)} />}
       {unico ? (modo.value === 'sessao' && unico.colecao !== 'tokens' ? <p class="dica" data-testid="dica-sessao">Na Sessão só as peças se ajustam aqui. Para editar isto, volte ao modo Construir (M).</p> : <Detalhe s={s} m={m} a={unico} />) : (
-        <ul class="lista-itens">{alvos.map(a => <li key={chaveDoAlvo(a)}><button type="button" onClick={() => { s.selecao.value = [a]; }}>
-          <span class="tipo-item">{NOMES_COLECAO.singular[a.colecao]}</span> {nomeDoAlvo(a.colecao, (m[a.colecao] as Record<string, { id: string }>)[a.id]!)}</button></li>)}</ul>
+        <ul class="lista-itens">{alvos.map(a => {
+          const item = (m[a.colecao] as Record<string, { id: string } | undefined>)[a.id];
+          if (!item) return null;
+          return <li key={chaveDoAlvo(a)}><button type="button" onClick={() => { s.selecao.value = [a]; }}>
+            <span class="tipo-item">{NOMES_COLECAO.singular[a.colecao]}</span> {nomeDoAlvo(a.colecao, item)}</button></li>;
+        })}</ul>
       )}
       {modo.value === 'construir' && <div class="acoes-selecao">
         <button type="button" class="botao-pilula" onClick={duplicarSelecao} data-testid="duplicar"><Icone nome="duplicar" tamanho={14} />Duplicar</button>
@@ -1077,12 +1082,15 @@ function PainelDaSelecao({ s }: { s: SessaoDeEdicao }) {
 }
 
 function PainelDoHistorico({ s }: { s: SessaoDeEdicao }) {
+  const remoto = emConstrucaoRemota.value;
+  const podeDesfazer = remoto ? podeDesfazerRemoto.value : s.podeDesfazer.value;
+  const podeRefazer = remoto ? podeRefazerRemoto.value : s.podeRefazer.value;
   const lista = [...s.historico.value].reverse();
   return (
     <div class="painel-corpo" data-testid="painel-historico">
       <div class="acoes-selecao">
-        <button type="button" class="botao-pilula" disabled={!s.podeDesfazer.value} onClick={desfazer}><Icone nome="desfazer" tamanho={14} />Desfazer</button>
-        <button type="button" class="botao-pilula" disabled={!s.podeRefazer.value} onClick={refazer}><Icone nome="refazer" tamanho={14} />Refazer</button>
+        <button type="button" class="botao-pilula" disabled={!podeDesfazer} onClick={desfazer}><Icone nome="desfazer" tamanho={14} />Desfazer</button>
+        <button type="button" class="botao-pilula" disabled={!podeRefazer} onClick={refazer}><Icone nome="refazer" tamanho={14} />Refazer</button>
       </div>
       {lista.length ? <ol class="historico">{lista.map((r, i) => <li key={`${lista.length - i}`} class={i === 0 ? 'atual' : ''}>{r}</li>)}</ol> : <p class="dica">Nada feito ainda. Cada ação, automática ou não, entra aqui e pode ser desfeita.</p>}
       <p class="meta">Guarda as últimas 150 ações.</p>

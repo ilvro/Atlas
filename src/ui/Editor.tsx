@@ -11,23 +11,20 @@ import { Inspecao } from './Inspecao.tsx';
 import { TIPO_ARRASTE_PISTA, soltarPista } from './Pistas.tsx';
 import { useEffect, useRef } from 'preact/hooks';
 import { signal, useSignalEffect } from '@preact/signals';
-import { acaoPorId, executarAcao, itensDoMenuRadial } from '../app/acoes.ts';
-import { FERRAMENTAS_DA_SESSAO, alinhandoGrade, duracaoDoClima, modo, mostrarRelevo, movimentoLivre, regraDaRegua, vistaAtual } from '../app/modo.ts';
+import { itensDoMenuRadial } from '../app/acoes.ts';
+import { alinhandoGrade, duracaoDoClima, modo, mostrarRelevo, movimentoLivre, regraDaRegua, vistaAtual } from '../app/modo.ts';
 import { lembrarRecente } from '../app/recentes.ts';
 import { objetosNaGrade } from '../app/preferencias.ts';
 import { acabamentoLigado, telhadosNoEditor, adicionarEm, alternarPorta, usarObjeto, aoColocar, comandosDeEspalhar, emitirPing, focarNoComodo, focoPendente, menuRadial, notaDeObjetoAberta, servicos, sessao, viewport as viewportAtual } from '../app/app.ts';
 import { obterCameraDaAba } from '../app/abas.ts';
-import { mostrarAtalho } from '../app/atalhos.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { tema } from '../app/tema.ts';
 import { avisar } from '../app/toasts.ts';
 import { tocar } from '../fx/som.ts';
 import { encaixar } from '../render/grade.ts';
-import { ROTULO_DA_FERRAMENTA, type Ferramenta } from '../render/pincel.ts';
 import { criarViewport, type PonteViewport, type Viewport } from '../render/viewport.ts';
 import { Biblioteca } from './Biblioteca.tsx';
 import { CartaoContextual } from './CartaoContextual.tsx';
-import { Icone } from './Icone.tsx';
 import { Dock } from './Dock.tsx';
 import { aspectoDoProjetor, caixaDoProjetor, filtroDeVisao, mostrarQuadroDoProjetor, projetorConectado, projetorRemotoConectado, seguirJogadores } from '../app/projetor.ts';
 import { Inspetor } from './Inspetor.tsx';
@@ -148,7 +145,7 @@ function ModalNotaDeObjeto() {
     if (!nota) return;
     const aoTecla = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        e.stopPropagation();
+        e.stopImmediatePropagation();
         notaDeObjetoAberta.value = null;
       }
     };
