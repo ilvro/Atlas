@@ -161,7 +161,7 @@ test('GENEROS: `herda` só cita gêneros que existem (ou o planejado ficcao-cien
   const ids = new Set([...GENEROS.map(g => g.id), 'ficcao-cientifica']);
   for (const g of GENEROS) for (const h of g.herda ?? []) assert.ok(ids.has(h) && h !== g.id, `${g.id} herda ${h}`);
   assert.deepEqual(generosVisiveis('vitoriano'), ['vitoriano', 'investigacao', 'fantasia']);
-  assert.deepEqual(generosVisiveis('desconhecido'), ['desconhecido']);
+  assert.deepEqual(generosVisiveis('desconhecido'), ['investigacao']);
 });
 
 test('familiasVisiveis respeita a herança de gênero', () => {

@@ -47,6 +47,7 @@ const POR_NOME: readonly { palavras: string[]; funcao: string; confianca: number
   { palavras: ['tatami', 'washitsu'], funcao: 'sala-de-tatami', confianca: 0.9 },
   { palavras: ['cha', 'chashitsu'], funcao: 'casa-de-cha', confianca: 0.9 },
   { palavras: ['dojo'], funcao: 'dojo', confianca: 0.9 },
+  { palavras: ['jardim', 'jardins'], funcao: 'jardim', confianca: 0.9 },
   { palavras: ['atrio'], funcao: 'atrio', confianca: 0.9 },
   { palavras: ['peristilo'], funcao: 'peristilo', confianca: 0.9 },
   { palavras: ['triclinio'], funcao: 'triclinio', confianca: 0.9 },

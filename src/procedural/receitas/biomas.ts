@@ -298,16 +298,16 @@ const clareza = (p: Record<string, unknown>, id: string, padrao: number, min: nu
 const luzDoCogumelo = (p: Record<string, unknown>): LuzDeReceita | null => {
   const brilho = clareza(p, 'brilho', 0.7, 0, 1); if (brilho <= 0) return null;
   const h = clareza(p, 'altura', 4, 2, 6), cor = COGUMELOS[Math.round(clareza(p, 'cor', 1, 0, 3))]!.emite;
-  return { preset: 'cogumelo', raio: Math.round(((0.8 + h * 0.45) * 1.6 * brilho + 1) * 100) / 100, cor, intensidade: Math.round((0.8 + 1.4 * brilho) * 100) / 100 };
+  return { raio: Math.round(((0.8 + h * 0.45) * 1.6 * brilho + 1) * 100) / 100, cor, intensidade: Math.round((0.8 + 1.4 * brilho) * 100) / 100 };
 };
 /** A luz do cristal: a cor `emite` da paleta, raio pelo tamanho. */
 const luzDoCristal = (p: Record<string, unknown>): LuzDeReceita | null => {
   const brilho = clareza(p, 'brilho', 0.7, 0, 1); if (brilho <= 0) return null;
   const t = clareza(p, 'tamanho', 1.5, 0.5, 3), cor = CRISTAIS[Math.round(clareza(p, 'cor', 0, 0, 4))]![4];
-  return { preset: 'cristal', raio: Math.round((t * 2 + 1) * 100) / 100, cor, intensidade: Math.round((0.8 + 1.4 * brilho) * 100) / 100 };
+  return { raio: Math.round((t * 2 + 1) * 100) / 100, cor, intensidade: Math.round((0.8 + 1.4 * brilho) * 100) / 100 };
 };
 /** A fumarola: um bruxuleio laranja fraco. */
-const luzDaFumarola = (): LuzDeReceita => ({ preset: 'fumarola', raio: 1.5, cor: '#ff8a3c', intensidade: 0.5, power: 'fire', flicker: 0.25 });
+const luzDaFumarola = (): LuzDeReceita => ({ raio: 1.5, cor: '#ff8a3c', intensidade: 0.5, power: 'fire', flicker: 0.25 });
 
 const BRILHO = { id: 'brilho', rotulo: 'Brilho (0 a 1)', tipo: 'numero' as const, min: 0, max: 1, passo: 0.1 };
 

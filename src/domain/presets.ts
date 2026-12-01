@@ -230,7 +230,7 @@ export const GENEROS: readonly Genero[] = [
 ];
 export const generoDe = (id: string): Genero => GENEROS.find(g => g.id === id) ?? GENEROS[0]!;
 /** O gênero e os que ele herda; `familias.ts` usa isto para decidir que famílias aparecem (fica aqui para não haver import circular). */
-export const generosVisiveis = (id: string): string[] => [id, ...(GENEROS.find(g => g.id === id)?.herda ?? [])];
+export const generosVisiveis = (id: string): string[] => { const g = generoDe(id); return [g.id, ...(g.herda ?? [])]; };
 
 /** Funções de cômodo ao ar livre que nascem sem telhado por padrão. */
 export const FUNCOES_AO_AR_LIVRE = new Set(['varanda', 'patio', 'claustro', 'quintal', 'peristilo', 'forum', 'jardim', 'patio-com-fonte', 'conves', 'fortim', 'acampamento', 'mercado-noturno']);
@@ -314,6 +314,7 @@ const ESTILO_POR_FUNCAO: Readonly<Record<string, string>> = {
   campanario: 'torre',
   estabulo: 'celeiro',
   celeiro: 'celeiro',
+  tenda: 'tenda',
 };
 
 /** Estilo de telhado padrão ao criar um cômodo: ar livre fica sem; contorno circular ganha cone; funções especiais sobrepõem vizinhos; senão herda do vizinho (do mesmo nível) ou usa o gênero do mapa. */

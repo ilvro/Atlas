@@ -1,4 +1,4 @@
-import { generosVisiveis } from '../domain/presets.ts';
+import { generoDe } from '../domain/presets.ts';
 
 /**
  * A taxonomia do acervo: grupo → família → variante. Uma família reúne coisas intercambiáveis no mapa (a mesma coisa em tamanho, cor, estação ou desenho diferente);
@@ -251,7 +251,7 @@ export const FAMILIAS: readonly Familia[] = [
   // Moderno
   f('moderno', 'geladeira', 'Eletrodoméstico', ['geladeira', 'fogao'], { generos: ['moderno'] }),
   f('moderno', 'notebook', 'Eletrônico', ['notebook', 'rack.tv'], { generos: ['moderno'] }),
-  f('moderno', 'tv-de-parede', 'Aparelho de parede', ['tv.parede', 'interruptor'], { generos: ['moderno', 'investigacao'] }),
+  f('moderno', 'tv-de-parede', 'Aparelho de parede', ['tv.parede', 'interruptor'], { generos: ['moderno'] }),
   f('moderno', 'extintor', 'Extintor', ['extintor'], { generos: ['moderno'] }),
   f('moderno', 'sinalizacao', 'Sinalização da rua', ['faixa-tracejada', 'faixa-continua', 'vaga-pintada', 'faixa-de-pedestre'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'], biomas: ['urbano'] }),
   f('moderno', 'bueiro', 'Bueiro, guia e mancha', ['mancha-de-oleo', 'bueiro', 'meio-fio'], { generos: ['moderno', 'pos-apocaliptico', 'cyberpunk'], biomas: ['urbano'] }),
@@ -312,8 +312,9 @@ export function sortearVariante(f: Familia, atual: string, rand: () => number): 
   return outros[Math.min(outros.length - 1, Math.floor(rand() * outros.length))] ?? atual;
 }
 
-/** As famílias que combinam com o gênero (ou um dos que ele herda) e o bioma. `null` não filtra; uma família sem a marca correspondente (atemporal) aparece sempre. */
+/** As famílias que combinam com o gênero (ou o gênero principal das famílias dos gêneros herdados) e o bioma. `null` não filtra; uma família sem a marca correspondente (atemporal) aparece sempre. */
 export function familiasVisiveis(genero: string | null, bioma: string | null): Familia[] {
-  const aceitos = genero === null ? null : generosVisiveis(genero);
-  return FAMILIAS.filter(f => (aceitos === null || !f.generos?.length || f.generos.some(g => aceitos.includes(g))) && (bioma === null || !f.biomas?.length || f.biomas.includes(bioma)));
+  const g = genero === null ? null : generoDe(genero);
+  const herdados = g === null ? null : new Set(g.herda ?? []);
+  return FAMILIAS.filter(f => (g === null || !f.generos?.length || f.generos.includes(g.id) || (f.generos[0] !== undefined && herdados!.has(f.generos[0]))) && (bioma === null || !f.biomas?.length || f.biomas.includes(bioma)));
 }

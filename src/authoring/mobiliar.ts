@@ -165,7 +165,7 @@ const FAROESTE_POR_FUNCAO: Readonly<Record<string, MateriaisDoComodo>> = {
 
 /** Colonial e pirata: tábuas de convés, caiado, tijoleira e cantaria do fortim; o resto herda a investigação com caiado e tábuas no lugar do papel de parede. */
 const COLONIAL_POR_FUNCAO: Readonly<Record<string, MateriaisDoComodo>> = {
-  conves: { pisos: ['tabuas.gastas', 'tabuas.escuras'], papeis: ['tabuas.descascadas', 'toras'] },
+  conves: { pisos: ['conves', 'tabuas.gastas', 'tabuas.escuras'], papeis: ['tabuas.descascadas', 'toras'] },
   'cabine-do-capitao': { pisos: ['tabuas.carvalho', 'tabuas.escuras'], papeis: ['boiserie.escura', 'tabuas.descascadas'] },
   'taverna-do-porto': { pisos: ['tabuas.gastas', 'tabuas.escuras'], papeis: ['caiado', 'tabuas.descascadas'] },
   fortim: { pisos: ['laje.pedra', 'pedra.rustica'], papeis: ['pedra.aparelhada', 'tijolo.fuligem'] },
