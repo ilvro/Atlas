@@ -434,6 +434,35 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
   let forcado: number | null = null;
   let noEditor = false;
 
+  function chavesAtivas(): Set<string> {
+    const s = new Set<string>();
+    for (const d of edificios.values()) {
+      for (const k of d.chaves) s.add(k);
+    }
+    return s;
+  }
+
+  function coletarCaches(emUso: Set<string>): void {
+    for (const [k, a] of assados) {
+      if (emUso.has(k)) continue;
+      a.cor.destroy(true);
+      a.normal?.destroy(true);
+      a.especular?.destroy(true);
+      a.fachada?.destroy(true);
+      assados.delete(k);
+    }
+    for (const [k, tex] of coberturas) {
+      if (emUso.has(k)) continue;
+      tex.destroy(true);
+      coberturas.delete(k);
+    }
+    for (const [k, det] of detalhes) {
+      if (emUso.has(k)) continue;
+      det.tex.destroy(true);
+      detalhes.delete(k);
+    }
+  }
+
   function redesenharPorChave(chave: string): void {
     const m = mapa; if (!m || destruido) return;
     let tocou = false;
@@ -441,6 +470,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
     for (const d of edificios.values()) {
       if (d.chaves.has(chave)) { desenharEdificio(d, m, ctx); tocou = true; }
     }
+    coletarCaches(chavesAtivas());
     if (tocou) op.aoPintar?.();
   }
 
@@ -514,6 +544,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
       redesenharPorChave(chave);
     }).catch(erro => {
       emVoo.delete(chave);
+      if (erro instanceof ErroDeBakeCancelado) return;
       console.warn('Atlas: falha ao assar cobertura de telhado', erro);
     });
     return null;
@@ -541,6 +572,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
       redesenharPorChave(chave);
     }).catch(erro => {
       emVoo.delete(chave);
+      if (erro instanceof ErroDeBakeCancelado) return;
       console.warn('Atlas: falha ao assar detalhe de telhado', erro);
     });
     return null;
@@ -554,7 +586,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
       d.sombraC.visible = false;
       d.sombraG.clear();
       d.sombraG.visible = false;
-      if (d.sombraSp) d.sombraSp.visible = false;
+      if (d.sombraSp) { d.sombraSp.visible = false; d.sombraSp.texture = Texture.EMPTY; }
       return;
     }
 
@@ -582,7 +614,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
       return;
     }
 
-    if (d.sombraSp) d.sombraSp.visible = false;
+    if (d.sombraSp) { d.sombraSp.visible = false; d.sombraSp.texture = Texture.EMPTY; }
     d.sombraG.clear();
     d.sombraG.visible = true;
     d.sombraG.filters = pixel ? [] : [desfoque];
@@ -832,6 +864,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
       gpu.fachadaCorRT = null;
       gpu.fachadaSaidaRT = null;
       saidaSprite.texture = gpu.saidaRT;
+      fachadaSaidaSprite.texture = Texture.EMPTY;
       gpu.mesh.scale.set(w, h);
       gpu.meshFachada.scale.set(w, h);
       gpu.largura = w;
@@ -1152,6 +1185,7 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
           for (const salaId of ed.salas) salaParaEdificio.set(salaId, ed.id);
           desenharEdificio(d, m, ctx);
         }
+        coletarCaches(chavesAtivas());
       }
       reavaliar();
       imediato = false;
@@ -1212,10 +1246,8 @@ export function criarTelhados(op: { baker?: Baker; renderer?: Renderer; luz?: Ma
       return !!d && d.corC.visible && d.alfa > 0.3;
     },
     chavesEmUso: () => {
-      const s = new Set<string>();
-      for (const d of edificios.values()) {
-        for (const k of d.chaves) s.add(k);
-      }
+      const s = chavesAtivas();
+      coletarCaches(s);
       return s;
     },
     destruir() {

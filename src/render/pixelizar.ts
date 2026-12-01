@@ -64,7 +64,7 @@ export function criarFiltroDeDitherDeAlfa(): { filtro: Filter; definirRevelado(v
 }
 
 /** O filtro de paleta: troca as cores pelas da paleta, com ou sem dithering. */
-export function criarFiltroDePaleta(): { filtro: Filter; definir(cores: readonly string[], dither: 'none' | 'bayer4'): void } {
+export function criarFiltroDePaleta(): { filtro: Filter; definir(cores: readonly string[], dither: 'none' | 'bayer4'): void; destruir(): void } {
   const canvas = document.createElement('canvas'); canvas.width = CORES_DA_PALETA; canvas.height = 1;
   const ctx = canvas.getContext('2d')!;
   const textura = Texture.from(canvas); textura.source.scaleMode = 'nearest';
@@ -77,6 +77,10 @@ export function criarFiltroDePaleta(): { filtro: Filter; definir(cores: readonly
       const assinatura = cores.join();
       if (assinatura !== atual) { atual = assinatura; cores.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(i, 0, 1, 1); }); textura.source.update(); }
       (grupo.uniforms as Record<string, unknown>).uDither = dither === 'bayer4' ? DITHER_BAYER4 : 0;
+    },
+    destruir() {
+      filtro.destroy(false);
+      textura.destroy(true);
     },
   };
 }
@@ -133,6 +137,12 @@ export function criarPixelizacao(renderer: Renderer): Pixelizacao {
       if (raiz.parent !== interno) interno.addChild(raiz);
       renderer.render({ container: interno, target: rt, clear: true, clearColor: [0, 0, 0, 0] });
     },
-    destruir() { soltar(); interno.destroy({ children: false }); fundo.destroy(); },
+    destruir() {
+      soltar();
+      interno.filters = [];
+      paleta.destruir();
+      interno.destroy({ children: false });
+      fundo.destroy();
+    },
   };
 }

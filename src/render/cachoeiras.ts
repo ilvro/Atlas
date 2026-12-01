@@ -127,7 +127,9 @@ export function criarCachoeiras(): RenderDeCachoeiras {
   let tempo = 0, destruido = false, prog: GlProgram | null = null;
 
   function apagar(d: Desenho): void {
-    d.mesh.destroy(true);
+    d.mesh.geometry.destroy(true);
+    d.mesh.shader?.destroy(false);
+    d.mesh.destroy();
   }
 
   function criar(largura: number, queda: number): Desenho {
@@ -206,6 +208,8 @@ export function criarCachoeiras(): RenderDeCachoeiras {
       destruido = true;
       for (const d of desenhos.values()) apagar(d);
       desenhos.clear();
+      prog?.destroy();
+      prog = null;
       raiz.destroy({ children: true });
     },
   };

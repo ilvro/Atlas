@@ -137,7 +137,12 @@ export function criarPresenca(): RenderDePresenca {
   const desenhos = new Map<string, Desenho>();
   let tempo = 0, destruido = false, prog: GlProgram | null = null;
 
-  function apagar(d: Desenho): void { d.mesh.destroy(); d.textura.destroy(true); }
+  function apagar(d: Desenho): void {
+    d.mesh.geometry.destroy(true);
+    d.mesh.shader?.destroy(false);
+    d.mesh.destroy();
+    d.textura.destroy(true);
+  }
 
   function criar(p: Presenca, res: number, cols: number, lins: number): Desenho {
     // A caixa das células (mais a margem), em células do terreno.
@@ -212,6 +217,8 @@ export function criarPresenca(): RenderDePresenca {
       destruido = true;
       for (const d of desenhos.values()) apagar(d);
       desenhos.clear();
+      prog?.destroy();
+      prog = null;
       submerso.destroy({ children: true });
       chao.destroy({ children: true });
       abaixo.destroy({ children: true });

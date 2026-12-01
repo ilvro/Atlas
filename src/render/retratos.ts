@@ -37,7 +37,7 @@ export function criarRetratos(ler: (id: string) => Promise<Blob | null>, aoChega
       }
       return null;
     },
-    limpar() { vivo = false; for (const t of prontas.values()) t.destroy(true); for (const t of derivadas.values()) t.destroy(true); prontas.clear(); derivadas.clear(); bitmaps.clear(); pedidas.clear(); },
+    limpar() { vivo = false; for (const t of prontas.values()) t.destroy(true); for (const t of derivadas.values()) t.destroy(true); for (const bmp of bitmaps.values()) bmp.close(); prontas.clear(); derivadas.clear(); bitmaps.clear(); pedidas.clear(); },
   };
 }
 

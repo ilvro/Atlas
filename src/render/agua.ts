@@ -171,7 +171,16 @@ export function criarAgua(): RenderDeAgua {
   const raiz = new Container();
   let desenho: Desenho | null = null, mapaAtual: MapaAtlas | null = null, tempo = 0, destruido = false, prog: GlProgram | null = null;
 
-  const apagar = () => { if (desenho) { desenho.mesh.destroy(); desenho.textura.destroy(true); desenho.texMascara.destroy(true); desenho = null; } };
+  const apagar = () => {
+    if (desenho) {
+      desenho.mesh.geometry.destroy(true);
+      desenho.mesh.shader?.destroy(false);
+      desenho.mesh.destroy();
+      desenho.textura.destroy(true);
+      desenho.texMascara.destroy(true);
+      desenho = null;
+    }
+  };
   const cor3 = (hex: string) => { const n = hexParaNumero(hex); return new Float32Array([((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]); };
 
   function sincronizar(m: MapaAtlas): void {
@@ -242,7 +251,7 @@ export function criarAgua(): RenderDeAgua {
       if (ix < 0 || iy < 0 || ix >= desenho.largura || iy >= desenho.altura) return null;
       const k = (iy * desenho.largura + ix) * 4, prof = desenho.dados[k]! / 255;
       if (prof <= 0 && desenho.dados[k + 1]! === 0) return null;
-      const camada = (desenho.dados[k + 2]! / 50 | 0) - 1, material = mapaAtual ? camadasDeAgua(mapaAtual)[Math.max(0, camada)]?.material : undefined;
+      const camada = Math.round(desenho.dados[k + 2]! / 50) - 1, material = mapaAtual ? camadasDeAgua(mapaAtual)[Math.max(0, camada)]?.material : undefined;
       if (!material) return null;
       return { profundidade: prof, cor: hexParaNumero(materialDe(material).fundo ?? materialDe(material).escuro), material };
     },
@@ -304,6 +313,6 @@ export function criarAgua(): RenderDeAgua {
       (desenho.grupo.uniforms as Record<string, unknown>).uTempo = tempo;
     },
     ativa: () => desenho !== null,
-    destruir() { destruido = true; apagar(); raiz.destroy({ children: true }); },
+    destruir() { destruido = true; apagar(); prog?.destroy(); prog = null; raiz.destroy({ children: true }); },
   };
 }
