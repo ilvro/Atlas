@@ -177,7 +177,9 @@ export function espalhar(m: MapaAtlas, o: PedidoDeEspalhar): Objeto[] {
     const comprimento = distancia(s.a, s.b); if (comprimento > 0) segmentos.push({ a: s.a, n: s.n, t: [(s.b[0] - s.a[0]) / comprimento, (s.b[1] - s.a[1]) / comprimento], comprimento, roomId: sala.id });
   }
   const mesas = Object.values(m.props).filter(p => p.elevation === 'floor' && ACERVO.item(ACERVO.idDaFonte(p.source))?.categoria === 'mesas').map(p => ({ obj: p, caixa: caixaDoObjeto(p) }));
-  const bloqueantes: Caixa[] = Object.values(m.props).filter(p => p.elevation === 'floor' && p.blocks.move).map(caixaDoObjeto);
+  const bloqueantes: { caixa: Caixa; arvore: boolean }[] = Object.values(m.props)
+    .filter(p => p.elevation === 'floor' && p.blocks.move)
+    .map(p => ({ caixa: caixaDoObjeto(p), arvore: ehArvore(ACERVO.idDaFonte(p.source)) }));
   const colocados: { pos: Ponto; lado: number; arvore: boolean }[] = existentes.map(p => ({ pos: p.position, lado: lado(ACERVO.idDaFonte(p.source), p.scale), arvore: ehArvore(ACERVO.idDaFonte(p.source)) })), novos: Objeto[] = [];
   // As árvores do mapa (todas, não só as do círculo: a copa pode entrar nele) e as portas para fora, com o lado de fora de cada uma.
   const arvores = Object.values(m.props).filter(p => ehArvore(ACERVO.idDaFonte(p.source))).map(p => ({ pos: p.position, raio: ACERVO.pegadaDaFonte(p.source)[0] * p.scale / 2 }));
@@ -229,7 +231,7 @@ export function espalhar(m: MapaAtlas, o: PedidoDeEspalhar): Objeto[] {
         if (distancia(p, o.centro) > o.raio || !aceitaPelaBorda(p)) continue;
         pos = p; elevation = 'table';
       } else {
-        const proximas = mesas.filter(t => dentroDa(t.caixa, o.centro, o.raio + DISTANCIA_DA_MESA)); if (!proximas.length) break;
+        const proximas = mesas.filter(t => dentroDa(t.caixa, o.centro, o.raio + DISTANCIA_DA_MESA)); if (!proximas.length) continue;
         const p = noDisco(); if (!aceitaPelaBorda(p)) continue;
         const t = proximas.find(x => dentroDa(x.caixa, p, DISTANCIA_DA_MESA) && !dentroDa(x.caixa, p, 0.05)); if (!t) continue;
         pos = p;
@@ -247,21 +249,25 @@ export function espalhar(m: MapaAtlas, o: PedidoDeEspalhar): Objeto[] {
     const base = novoObjeto(pos, { rotation: rot, source: ACERVO.fonte(item.receita, 1) }), caixa = caixaDoObjeto(base);
     const sala = no ?? comodoEm(m, pos, indice);
     if (elevation === 'floor') {
-      if (item.contexto !== 'mesa' && bloqueantes.some(b => intersecta(caixa, b, 0.03))) continue;
+      if (item.contexto !== 'mesa' && bloqueantes.some(b => !(b.arvore && (ehMinhaArvore || item.contexto === 'sob-arvore')) && intersecta(caixa, b.caixa, 0.03))) continue;
       if (sala) {
         // Dentro de um cômodo: fora da área das portas e da passagem, e dentro dele.
         const s = salaDe(sala); if (!s || !retanguloLivre(s.malha, caixa, [s.malha.porta, s.circ.faixa])) continue;
       } else if (item.contexto !== 'livre' && item.contexto !== 'sob-arvore') continue;     // fora de cômodos, só "livre" e sob árvore
       if (!sala && naFrenteDePortaExterna(pos, Math.max(w, h) / 2)) continue;              // a frente de uma porta para fora fica livre (semicírculo de 1,5 m)
     }
-    const blocks = ['caixa', 'vaso.planta', 'pedra.media', 'poco', 'banco.jardim'].includes(item.receita);
+    const info = ACERVO.item(item.receita);
     const bloqueiaMovimento = itemBloqueiaMovimentoPorPadrao(item.receita) && elevation === 'floor';
+    const projetaSombra = elevation === 'floor'
+      && bloqueiaMovimento
+      && (!info || (info.tipo !== 'parede' && !info.submerso && info.categoria !== 'tapetes' && !info.tags.includes('rasteira') && !info.tags.includes('poca')))
+      && ACERVO.alturaDaFonte(base.source) > 0.12;
     novos.push(novoObjeto(pos, {
       id: gerarId('o'), source: ACERVO.fonte(item.receita, Math.floor(rng() * 2 ** 31)), rotation: rot, elevation, roomId: sala ?? comodoEm(m, pos, indice),
-      blocks: { move: bloqueiaMovimento, sight: false }, castsShadow: elevation === 'floor' && blocks,
+      blocks: { move: bloqueiaMovimento, sight: false }, castsShadow: projetaSombra,
     }));
     colocados.push({ pos, lado: Math.max(w, h), arvore: ehMinhaArvore });
-    if (elevation === 'floor' && blocks) bloqueantes.push(caixa);
+    if (bloqueiaMovimento) bloqueantes.push({ caixa, arvore: ehMinhaArvore });
   }
   return novos;
 }

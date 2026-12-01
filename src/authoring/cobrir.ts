@@ -9,12 +9,14 @@ function compararId(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-function elegivel(s: Comodo): boolean {
+function elegivel(s: Comodo, m: Partial<Pick<MapaAtlas, 'levels'>>): boolean {
+  const nivel = s.levelId ?? null;
+  if (nivel !== null && (m.levels?.[nivel]?.order ?? 0) < 0) return false;
   return s.roof.material === null && !(s.function && FUNCOES_AO_AR_LIVRE.has(s.function));
 }
 
-/** Gera comandos `comodo.atualizar` para cobrir cômodos sem telhado (exceto áreas ao ar livre), em ordem de vizinhança. */
-export function cobrirCasas(m: Pick<MapaAtlas, 'rooms' | 'style'>): Comando[] {
+/** Gera comandos `comodo.atualizar` para cobrir cômodos sem telhado (exceto áreas ao ar livre e subsolos), em ordem de vizinhança. */
+export function cobrirCasas(m: Pick<MapaAtlas, 'rooms' | 'style'> & Partial<Pick<MapaAtlas, 'levels'>>): Comando[] {
   const porNivel = new Map<string | null, Comodo[]>();
   for (const s of Object.values(m.rooms)) {
     const nivel = s.levelId ?? null;
@@ -28,7 +30,7 @@ export function cobrirCasas(m: Pick<MapaAtlas, 'rooms' | 'style'>): Comando[] {
 
   for (const nivel of niveis) {
     const salasDoNivel = porNivel.get(nivel)!;
-    const descobertas = salasDoNivel.filter(elegivel).sort((a, b) => compararId(a.id, b.id));
+    const descobertas = salasDoNivel.filter(s => elegivel(s, m)).sort((a, b) => compararId(a.id, b.id));
     if (!descobertas.length) continue;
 
     const roomsDoNivel: Record<string, Comodo> = Object.fromEntries(salasDoNivel.map(s => [s.id, s]));
@@ -41,7 +43,7 @@ export function cobrirCasas(m: Pick<MapaAtlas, 'rooms' | 'style'>): Comando[] {
       celulasPorId.set(s.id, cels);
       if (s.roof.material) {
         for (const [x, y] of cels) celulasCobertas.add(`${x},${y}`);
-      } else if (elegivel(s)) {
+      } else if (elegivel(s, m)) {
         for (const [x, y] of cels) dono.set(`${x},${y}`, s.id);
       }
     }
@@ -84,7 +86,7 @@ export function cobrirCasas(m: Pick<MapaAtlas, 'rooms' | 'style'>): Comando[] {
 
       const sala = roomsDoNivel[id]!;
       const cels = celulasPorId.get(id)!;
-      const roof = telhadoPadrao({ style: m.style, rooms: roomsDoNivel }, sala.function, cels, nivel);
+      const roof = telhadoPadrao({ style: m.style, rooms: roomsDoNivel }, sala.function, cels, nivel, sala.outline);
       if (roof) {
         comandos.push({
           tipo: 'comodo.atualizar',

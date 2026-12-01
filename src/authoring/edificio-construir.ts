@@ -70,7 +70,7 @@ export function construirEdificios(
       const planta = plantaDoEdificio(escopoAndar, pedido, s);
       const rotacao = pedido.rotacao ?? 0;
       const rotacionado = Math.abs(rotacao) > 1e-4;
-      const ab = aberturasDoEdificio(planta, grade);
+      const ab = aberturasDoEdificio(planta, grade, atual.grid.offset);
       const todosVaosOrto = [...ab.portas, ...ab.janelas].map(v => pedido.andar ? { ...v, andar: pedido.andar } : v);
 
       const pedidosComodoBase = planta.comodos.map(cm => {
@@ -180,6 +180,25 @@ export function construirEdificios(
             idRealPorOrto.set(idOrto, idsComodos[Number(idxStr)]!);
           }
           const mobComandos: Comando[] = [];
+          for (const [idOrto, idReal] of idRealPorOrto) {
+            const salaOrto = ortoMobiliado.rooms[idOrto];
+            const salaReal = proximo.rooms[idReal];
+            if (!salaOrto || !salaReal) continue;
+            const mudouFloor = salaOrto.floor.material !== salaReal.floor.material;
+            const mudouWallpaper = (salaOrto.wallpaper?.material ?? null) !== (salaReal.wallpaper?.material ?? null);
+            if (mudouFloor || mudouWallpaper) {
+              mobComandos.push({
+                tipo: 'comodo.atualizar',
+                id: idReal,
+                patch: {
+                  ...(mudouFloor ? { floor: { material: salaOrto.floor.material } } : {}),
+                  ...(mudouWallpaper
+                    ? { wallpaper: salaOrto.wallpaper ? { material: salaOrto.wallpaper.material, seed: salaReal.wallpaper?.seed ?? salaOrto.wallpaper.seed } : null }
+                    : {}),
+                },
+              });
+            }
+          }
           const idPropPorOrto = new Map<string, string>();
           for (const obj of Object.values(ortoMobiliado.props)) {
             const posRot = rotacionarPonto(obj.position, pivo, cos, sin);
@@ -218,6 +237,7 @@ export function construirEdificios(
             idsEdificio.push(novoId);
           }
           for (const luz of Object.values(ortoMobiliado.lights)) {
+            if (luz.id.startsWith('lp-')) continue;
             const novoId = gerarId('l');
             const ownerId = luz.ownerId ? (idPropPorOrto.get(luz.ownerId) ?? luz.ownerId) : null;
             mobComandos.push({

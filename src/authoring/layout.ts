@@ -1,4 +1,4 @@
-import { PAREDE_PADRAO, centroDaAbertura, comodoEm, contornoDoComodo, encaixarObjetoDeParede, indiceDeCelulas } from '../domain/geometria.ts';
+import { PAREDE_PADRAO, centroDaAbertura, comodoEm, comprimentoDaParede, contornoDoComodo, encaixarObjetoDeParede, indiceDeCelulas } from '../domain/geometria.ts';
 import { novoIdEntidade, novoObjeto } from '../domain/fabrica.ts';
 import type { MapaAtlas, Objeto, Ponto } from '../domain/mapa.ts';
 import { mulberry32 } from '../procedural/ruido.ts';
@@ -251,7 +251,7 @@ class Gerador {
     }
     lacos.sort((a, b) => b.nota - a.nota);
     for (const c of lacos) {
-      const parede = this.m.walls[c.wallId]!, total = Math.hypot(...[0, 1].map(i => parede.path.at(-1)![i]! - parede.path[0]![i]!)), centro = c.at * total;
+      const parede = this.m.walls[c.wallId]!, total = comprimentoDaParede(parede), centro = c.at * total;
       // Longe de portas e janelas, e de outros objetos de parede (existentes ou novos), 0,2 m pelo menos.
       const livreDeAberturas = Object.values(this.m.openings).every(a => a.wallId !== c.wallId || Math.abs(centroDaAbertura(parede, a) - centro) >= largura / 2 + a.width / 2 + 0.2);
       if (!livreDeAberturas) continue;

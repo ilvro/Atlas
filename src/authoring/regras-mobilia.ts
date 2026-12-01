@@ -809,22 +809,27 @@ export const REGRAS_DE_MOBILIA: Readonly<Record<string, ItemDeRegra[]>> = {
  * Como o gênero muda as regras: `trocar` e `sem` usam chaves `funcao:chave`. Em `trocar`, a chave é um item ou uma receita
  * (as receitas do item, ou a receita citada, passam a ser as dadas); `sem` tira o item (e o que dependia dele). `investigacao` não muda nada.
  */
+const TROCAR_MODERNO: Record<string, string[]> = {
+  'sala:sofa': ['sofa.canto'], 'quarto:cama': ['cama.box'], 'quarto:cama.casal': ['cama.box'], 'quarto:armario': ['guarda-roupa.liso'], 'banheiro:vaso': ['vaso.moderno'], 'banheiro:pia': ['balcao'],
+  'escritorio:escrivaninha': ['escrivaninha.computador'], 'sala-de-jantar:mesa': ['mesa.vidro'], 'cozinha:mesa': ['mesa.vidro'],
+  'oficina:bancada': ['bancada.ferramentas'], 'oficina:banqueta': ['cadeira'], 'dormitorio:bau': ['comoda'], 'cela:cama': ['cama.solteiro'],
+  'refeitorio:mesa': ['mesa.retangular'], 'refeitorio:banco': ['cadeira', 'banco'], 'salao:mesa': ['mesa.retangular'], 'salao:banco': ['cadeira'],
+  'hospital:cama': ['cama-hospitalar'],
+};
+
 const VARIACOES_BASE: Readonly<Record<string, { trocar?: Record<string, string[]>; sem?: string[] }>> = {
   investigacao: {},
   moderno: {
     sem: ['quarto:estante'],
-    trocar: {
-      'sala:sofa': ['sofa.canto'], 'quarto:cama': ['cama.box'], 'quarto:cama.casal': ['cama.box'], 'quarto:armario': ['guarda-roupa.liso'], 'banheiro:vaso': ['vaso.moderno'], 'banheiro:pia': ['balcao'],
-      'escritorio:escrivaninha': ['escrivaninha.computador'], 'sala-de-jantar:mesa': ['mesa.vidro'], 'cozinha:mesa': ['mesa.vidro'],
-      'oficina:bancada': ['bancada.ferramentas'], 'oficina:banqueta': ['cadeira'], 'dormitorio:bau': ['comoda'], 'cela:cama': ['cama.solteiro'],
-      'refeitorio:mesa': ['mesa.retangular'], 'refeitorio:banco': ['cadeira', 'banco'], 'salao:mesa': ['mesa.retangular'], 'salao:banco': ['cadeira'],
-      'hospital:cama': ['cama-hospitalar'],
-    },
+    trocar: TROCAR_MODERNO,
   },
   // Pós-apocalíptico (Q22c): as trocas do moderno, com colchão no chão no lugar da cama e a enfermaria improvisada com camas hospitalares.
   'pos-apocaliptico': {
     sem: ['quarto:estante'],
-    trocar: { 'quarto:cama': ['colchao-no-chao', 'cama.solteiro'], 'quarto:cama.casal': ['colchao-no-chao'], 'cela:cama': ['colchao-no-chao'], 'hospital:cama': ['cama-hospitalar', 'colchao-no-chao'], 'oficina:bancada': ['bancada.ferramentas'], 'oficina:banqueta': ['cadeira'] },
+    trocar: {
+      ...TROCAR_MODERNO,
+      'quarto:cama': ['colchao-no-chao', 'cama.solteiro'], 'quarto:cama.casal': ['colchao-no-chao'], 'cela:cama': ['colchao-no-chao'], 'hospital:cama': ['cama-hospitalar', 'colchao-no-chao'], 'oficina:bancada': ['bancada.ferramentas'], 'oficina:banqueta': ['cadeira'],
+    },
   },
   // Cyberpunk (Q23c): as trocas do moderno, com o balcão luminoso e as mesas de lanchonete no bar (a taverna também, para o "Bar" solto), cápsulas no lugar das camas dos quartos coletivos e cama hospitalar na enfermaria.
   cyberpunk: {
@@ -857,18 +862,19 @@ export const VARIACOES_DE_GENERO: Readonly<Record<string, { trocar?: Record<stri
   ...VARIACOES_BASE,
   antiguidade: {
     sem: VARIACOES_BASE.fantasia!.sem,
-    trocar: { ...VARIACOES_BASE.fantasia!.trocar, 'sala-de-jantar:mesa': ['mesa-romana'], 'sala-de-jantar:cadeira': ['banco'], 'salao:mesa': ['mesa-romana'], 'taverna:mesa': ['mesa-romana'] },
+    trocar: { ...VARIACOES_BASE.fantasia!.trocar, 'quarto:cama.casal': ['cama.casal'], 'sala-de-jantar:mesa': ['mesa-romana'], 'sala-de-jantar:cadeira': ['banco'], 'salao:mesa': ['mesa-romana'], 'taverna:mesa': ['mesa-romana'] },
   },
   /** Oriental: a cozinha tem irori no lugar da lareira, mesa baixa com zabutons, tansu e serviço de chá; sem geladeira nem fogão. */
   oriental: {
     sem: ['cozinha:geladeira', 'cozinha:fogao', 'cozinha:balcao', 'cozinha:painel'],
-    trocar: { ...VARIACOES_BASE.fantasia!.trocar, 'cozinha:mesa': ['mesa-baixa'], 'cozinha:cadeira': ['zabuton'], 'cozinha:lareira': ['irori'], 'cozinha:aparador': ['tansu'], 'cozinha:servico': ['bule-e-xicaras.oriental'] },
+    trocar: { ...VARIACOES_BASE.fantasia!.trocar, 'quarto:cama.casal': ['futon'], 'cozinha:mesa': ['mesa-baixa'], 'cozinha:cadeira': ['zabuton'], 'cozinha:lareira': ['irori'], 'cozinha:aparador': ['tansu'], 'cozinha:servico': ['bule-e-xicaras.oriental'] },
   },
   /** Deserto: almofadas e mesas de latão no lugar de sofás, cadeiras e mesas; tapete de kilim, baús pintados, cântaros e cestos; a cozinha sem geladeira nem fogão e o depósito com cântaros, cestos e baús. */
   deserto: {
     sem: ['cozinha:geladeira', 'cozinha:fogao', 'cozinha:balcao', 'cozinha:painel'],
     trocar: {
       ...VARIACOES_BASE.fantasia!.trocar,
+      'quarto:cama.casal': ['cama.casal'],
       'sala:sofa': ['almofadas'], 'sala:poltrona': ['almofadas'], 'sala:mesa-centro': ['mesa-de-latao'], 'sala:tapete': ['tapete-de-chao'], 'sala:mesinha': ['mesa-de-latao'], 'sala:recanto': ['almofadas'],
       'quarto:tapete': ['tapete-de-chao'], 'quarto:armario': ['bau-pintado'], 'quarto:comoda': ['bau-pintado'],
       'sala-de-jantar:mesa': ['mesa-de-latao'], 'sala-de-jantar:cadeira': ['almofadas'], 'salao:mesa': ['mesa-de-latao'], 'salao:banco': ['almofadas'], 'taverna:mesa': ['mesa-de-latao'], 'taverna:banco': ['almofadas'], 'taverna:cadeira': ['almofadas'],
@@ -881,6 +887,7 @@ export const VARIACOES_DE_GENERO: Readonly<Record<string, { trocar?: Record<stri
     sem: VARIACOES_BASE.fantasia!.sem,
     trocar: {
       ...VARIACOES_BASE.fantasia!.trocar,
+      'quarto:cama.casal': ['cama.casal'],
       'taverna:balcao': ['balcao-de-saloon'], 'taverna:mesa': ['mesa-de-poquer', 'mesa.redonda-rustica'], 'taverna:cadeira': ['cadeira'], 'taverna:banco': ['banco'], 'taverna:trofeu': ['cabeca-de-bufalo'],
       'salao:mesa': ['mesa-de-poquer', 'mesa.taverna'], 'salao:banco': ['banco'],
       'estabulo:bebedouro': ['bebedouro', 'poste-de-amarrar'], 'estabulo:tina': ['bomba-de-manivela', 'tina-de-agua'],
@@ -892,6 +899,7 @@ export const VARIACOES_DE_GENERO: Readonly<Record<string, { trocar?: Record<stri
     sem: VARIACOES_BASE.fantasia!.sem,
     trocar: {
       ...VARIACOES_BASE.fantasia!.trocar,
+      'quarto:cama.casal': ['cama.casal'],
       'porao:caixote-canto': ['barril-de-rum', 'fardos-de-acucar'], 'porao:caixote-parede': ['fardos-de-acucar', 'barril-de-rum', 'caixa'],
       'taverna:barril': ['barril-de-rum'], 'quarto:cama': ['rede-de-dormir', 'catre'], 'escritorio:escrivaninha': ['mesa-de-cartografo', 'escrivaninha'],
       'deposito:barril': ['barril-de-rum', 'pilha-de-barris'], 'deposito:caixote': ['fardos-de-acucar', 'caixote'], 'loja:estante-piso': ['botica', 'estante.piso'],
@@ -909,7 +917,7 @@ export const VARIACOES_DE_GENERO: Readonly<Record<string, { trocar?: Record<stri
 
 /** As regras de uma função para um gênero (id desconhecido vale como `investigacao`). Uma função sem regra devolve lista vazia. */
 export function regrasPara(funcao: string, genero: string): ItemDeRegra[] {
-  const base = REGRAS_DE_MOBILIA[funcao] ?? [], v = VARIACOES_DE_GENERO[genero] ?? {}, id = generoDe(genero).id;
+  const id = generoDe(genero).id, base = REGRAS_DE_MOBILIA[funcao] ?? [], v = VARIACOES_DE_GENERO[id] ?? {};
   // Itens do acervo que servem só a certos gêneros (`generos` não vazio) saem das alternativas dos outros; um gênero aceita também os que herda.
   const aceitos = generosVisiveis(id), serve = (r: string) => { const g = ACERVO.item(r)?.generos ?? []; return !g.length || g.some(x => aceitos.includes(x)); };
   const tirados = new Set((v.sem ?? []).filter(k => k.startsWith(`${funcao}:`)).map(k => k.slice(funcao.length + 1)));
@@ -920,7 +928,14 @@ export function regrasPara(funcao: string, genero: string): ItemDeRegra[] {
     const troca = v.trocar?.[`${funcao}:${r.id}`] ?? null;
     const porReceita = (alternativas: string[]) => alternativas.flatMap(x => v.trocar?.[`${funcao}:${x}`] ?? [x]);
     const receitas = (troca ?? porReceita(r.receitas)).filter(serve);
-    return { ...r, receitas: [...new Set(receitas)], ...(r.porArea ? { porArea: r.porArea.map(([a, rec]) => [a, (v.trocar?.[`${funcao}:${rec}`] ?? [rec])[0]!] as [number, string]) } : {}) };
+    const { porArea: porAreaBruta, ...resto } = r;
+    const porArea = porAreaBruta
+      ?.map(([a, rec]) => {
+        const candidata = (v.trocar?.[`${funcao}:${rec}`] ?? [rec]).find(serve);
+        return candidata ? ([a, candidata] as [number, string]) : null;
+      })
+      .filter((x): x is [number, string] => x !== null);
+    return { ...resto, receitas: [...new Set(receitas)], ...(porArea?.length ? { porArea } : {}) };
   }).filter(r => r.receitas.length > 0);
   // Quem depende de um item que ficou sem nenhuma alternativa para este gênero sai também (em cascata).
   let restantes = lista;

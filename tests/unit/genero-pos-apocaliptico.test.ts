@@ -7,7 +7,8 @@ import { materiaisDo } from '../../src/procedural/materiais.ts';
 import { REGRAS_DE_MOBILIA, regrasPara } from '../../src/authoring/regras-mobilia.ts';
 import { MATERIAIS_POR_GENERO, PALETAS_POR_GENERO, propostaDeMobilia } from '../../src/authoring/mobiliar.ts';
 import { TODOS_OS_CONJUNTOS, receitasDoItem } from '../../src/authoring/espalhar.ts';
-import { LUZES_POR_FUNCAO } from '../../src/authoring/luzes.ts';
+import { LUZES_POR_FUNCAO, LUZES_POR_GENERO, propostaDeLuzes } from '../../src/authoring/luzes.ts';
+import { presetDeLuz } from '../../src/domain/presets.ts';
 import { funcaoProvavel } from '../../src/authoring/funcao.ts';
 import { insightDoComodo } from '../../src/authoring/insight.ts';
 import { mapaCom, sala } from './apoio-casa.ts';
@@ -98,4 +99,21 @@ test('pós-apocalíptico: as palavras do nome dão a função, e "Posto avançad
     const p = funcaoProvavel(insightDoComodo(mapaCom(sala('c', 0, 0, 4, 3, { name: n })), 'c')!);
     assert.equal(p?.funcao, f, n); assert.equal(p!.motivo, 'nome');
   }
+});
+
+test('pós-apocalíptico: herda trocas modernas em banheiro/sala/escritório/quarto e usa luz pequena omnidirecional', () => {
+  assert.deepEqual(regrasPara('banheiro', 'pos-apocaliptico').find(r => r.id === 'vaso')?.receitas, ['vaso.moderno']);
+  assert.deepEqual(regrasPara('banheiro', 'pos-apocaliptico').find(r => r.id === 'pia')?.receitas, ['balcao']);
+  assert.ok(regrasPara('sala', 'pos-apocaliptico').flatMap(r => r.receitas).includes('sofa.canto'));
+  assert.deepEqual(regrasPara('escritorio', 'pos-apocaliptico').find(r => r.id === 'escrivaninha')?.receitas, ['escrivaninha.computador']);
+  assert.deepEqual(regrasPara('quarto', 'pos-apocaliptico').find(r => r.id === 'armario')?.receitas, ['guarda-roupa.liso']);
+  assert.deepEqual(regrasPara('quarto', 'pos-apocaliptico').find(r => r.id === 'cama')?.receitas, ['colchao-no-chao', 'cama.solteiro']);
+
+  const pequena = presetDeLuz(LUZES_POR_GENERO['pos-apocaliptico']!.pequena)!;
+  assert.ok(pequena);
+  assert.equal(pequena.cone, null);
+  const m = mapaCom(sala('a', 0, 0, 4, 3, { name: 'Abrigo', function: 'abrigo' }));
+  m.style = { ...m.style, genre: 'pos-apocaliptico' };
+  const prop = propostaDeLuzes({ m, versao: 0, semente: 1, gerarId: q => `${q}1` }, 'a')!;
+  assert.equal((prop.comandos[0] as { item: { cone: unknown } }).item.cone, null);
 });

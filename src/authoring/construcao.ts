@@ -152,7 +152,7 @@ function resolverTelhadoPedido(
   const desgastePedido = p.telhadoDesgaste !== undefined ? validarDesgastePedido(p.telhadoDesgaste) : undefined;
   let base: Omit<Comodo['roof'], 'visible'> | null;
   if (p.telhado === undefined) {
-    base = telhadoPadrao(acumulado, funcao, celulas, null, outline);
+    base = telhadoPadrao(acumulado, funcao, celulas, p.andar ?? null, outline);
   } else if (p.telhado === null) {
     base = null;
   } else {

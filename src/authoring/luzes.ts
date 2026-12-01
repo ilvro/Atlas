@@ -17,7 +17,7 @@ export const LUZES_POR_GENERO: Readonly<Record<string, { principal: string; pequ
   faroeste: { principal: 'lamparina', pequena: 'vela' },
   colonial: { principal: 'lamparina', pequena: 'vela' },
   vitoriano: { principal: 'lampiao-a-gas', pequena: 'vela' },
-  'pos-apocaliptico': { principal: 'tonel', pequena: 'lanterna' },
+  'pos-apocaliptico': { principal: 'tonel', pequena: 'lamparina' },
   cyberpunk: { principal: 'neon', pequena: 'neon-rosa' },
 };
 

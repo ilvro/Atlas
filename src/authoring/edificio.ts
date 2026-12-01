@@ -99,7 +99,8 @@ function bordaCompartilhada(a: Ret, b: Ret): number {
 
 function paredesBloqueiam(m: MapaAtlas, r: Ret): boolean {
   const g = m.grid.size || 1.5;
-  const rx0 = r[0] * g + 0.05, ry0 = r[1] * g + 0.05, rx1 = r[2] * g - 0.05, ry1 = r[3] * g - 0.05;
+  const [ox, oy] = m.grid.offset;
+  const rx0 = ox + r[0] * g + 0.05, ry0 = oy + r[1] * g + 0.05, rx1 = ox + r[2] * g - 0.05, ry1 = oy + r[3] * g - 0.05;
   if (rx1 <= rx0 || ry1 <= ry0) return false;
   for (const p of Object.values(m.walls)) {
     for (let i = 0; i + 1 < p.path.length; i++) {
@@ -788,7 +789,7 @@ interface ArestaDaPlanta {
   salaB: number | null;
 }
 
-const TIPOS_ENTRADA_LARGA = new Set(['salao', 'celeiro', 'capela', 'taverna', 'igreja']);
+const TIPOS_ENTRADA_LARGA = new Set(['salao', 'celeiro', 'capela', 'taverna']);
 const TIPOS_SERVICO = new Set(['cozinha', 'deposito', 'oficina', 'estabulo']);
 const SEM_JANELAS = new Set(['porao', 'deposito', 'cela', 'corredor', ...FUNCOES_AO_AR_LIVRE]);
 const OPOSTA: Record<Frente, Frente> = { n: 's', s: 'n', l: 'o', o: 'l' };
@@ -858,8 +859,8 @@ function agruparTrechos(arestas: readonly ArestaDaPlanta[]): ArestaDaPlanta[][] 
   return grupos;
 }
 
-function pontoDaAresta(a: ArestaDaPlanta, grade: number): Ponto {
-  return [a.cx * grade, a.cy * grade];
+function pontoDaAresta(a: ArestaDaPlanta, grade: number, offset: Ponto = [0, 0]): Ponto {
+  return [offset[0] + a.cx * grade, offset[1] + a.cy * grade];
 }
 
 function arestaDoMeio(trecho: readonly ArestaDaPlanta[]): ArestaDaPlanta {
@@ -871,7 +872,7 @@ function arestaDoMeio(trecho: readonly ArestaDaPlanta[]): ArestaDaPlanta {
  * entrada na frente (do alpendre ou do principal), portas internas segundo `ligadoA`/corredor,
  * porta de fundos opcional e janelas nas fachadas longas longe das portas.
  */
-export function aberturasDoEdificio(planta: PlantaDoEdificio, grade = 1.5): AberturasDoEdificio {
+export function aberturasDoEdificio(planta: PlantaDoEdificio, grade = 1.5, offset: Ponto = [0, 0]): AberturasDoEdificio {
   const arestas = arestasDaPlanta(planta);
   const portas: PedidoDePorta[] = [];
   const janelas: PedidoDePorta[] = [];
@@ -895,7 +896,7 @@ export function aberturasDoEdificio(planta: PlantaDoEdificio, grade = 1.5): Aber
   }
   if (trechoEntrada) {
     portas.push({
-      perto: pontoDaAresta(arestaDoMeio(trechoEntrada), grade),
+      perto: pontoDaAresta(arestaDoMeio(trechoEntrada), grade, offset),
       tipo: 'door',
       largura: larguraEntrada,
     });
@@ -929,7 +930,7 @@ export function aberturasDoEdificio(planta: PlantaDoEdificio, grade = 1.5): Aber
     paresComPorta.add(chavePar(idx, alvo));
     const trecho = trechos[0]!;
     portas.push({
-      perto: pontoDaAresta(arestaDoMeio(trecho), grade),
+      perto: pontoDaAresta(arestaDoMeio(trecho), grade, offset),
       tipo: 'door',
       largura: 0.9,
     });
@@ -946,7 +947,7 @@ export function aberturasDoEdificio(planta: PlantaDoEdificio, grade = 1.5): Aber
       const alvo = vizinhos[0][0]!.salaB!;
       paresComPorta.add(chavePar(idx, alvo));
       portas.push({
-        perto: pontoDaAresta(arestaDoMeio(vizinhos[0]), grade),
+        perto: pontoDaAresta(arestaDoMeio(vizinhos[0]), grade, offset),
         tipo: 'door',
         largura: 0.9,
       });
@@ -962,7 +963,7 @@ export function aberturasDoEdificio(planta: PlantaDoEdificio, grade = 1.5): Aber
         arestas.filter(a => a.salaA === idx && a.salaB === null && a.lado === oposta),
       ).sort((a, b) => b.length - a.length);
       if (!trechosOpostos.length) continue;
-      const meio = pontoDaAresta(arestaDoMeio(trechosOpostos[0]!), grade);
+      const meio = pontoDaAresta(arestaDoMeio(trechosOpostos[0]!), grade, offset);
       if (!pertoDeAlgumaPorta(meio, grade * 0.99)) {
         portas.push({ perto: meio, tipo: 'door', largura: 0.9 });
         break;
@@ -989,7 +990,7 @@ export function aberturasDoEdificio(planta: PlantaDoEdificio, grade = 1.5): Aber
             .map((a, i) => ({ a, distIdx: Math.abs(i - alvoIdx) }))
             .sort((x, y) => x.distIdx - y.distIdx);
           for (const { a } of candidatos) {
-            const p = pontoDaAresta(a, grade);
+            const p = pontoDaAresta(a, grade, offset);
             if (pertoDeAlgumaPorta(p, grade - 1e-6)) continue;
             if (usadasNesteTrecho.some(u => Math.hypot(u[0] - p[0], u[1] - p[1]) < grade * 1.5)) continue;
             janelas.push({ perto: p, tipo: 'window', largura: 0.9 });
@@ -1005,7 +1006,7 @@ export function aberturasDoEdificio(planta: PlantaDoEdificio, grade = 1.5): Aber
 }
 
 /** Verifica por busca em largura a partir da entrada se todos os cômodos da planta têm acesso por porta. */
-export function acessivel(planta: PlantaDoEdificio, aberturas: AberturasDoEdificio, grade = 1.5): boolean {
+export function acessivel(planta: PlantaDoEdificio, aberturas: AberturasDoEdificio, grade = 1.5, offset: Ponto = [0, 0]): boolean {
   if (!planta.comodos.length) return false;
   const arestas = arestasDaPlanta(planta);
   const adj = new Map<number, Set<number>>();
@@ -1015,7 +1016,7 @@ export function acessivel(planta: PlantaDoEdificio, aberturas: AberturasDoEdific
 
   for (const d of aberturas.portas) {
     for (const a of arestas) {
-      const [ax, ay] = pontoDaAresta(a, grade);
+      const [ax, ay] = pontoDaAresta(a, grade, offset);
       if (Math.hypot(ax - d.perto[0], ay - d.perto[1]) <= tol) {
         if (a.salaB === null) inicios.add(a.salaA);
         else {
