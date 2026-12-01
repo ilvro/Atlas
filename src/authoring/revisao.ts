@@ -211,13 +211,14 @@ function regraEdificioSemTelhado(m: MapaAtlas): Achado[] {
         if (s.levelId && (m.levels?.[s.levelId]?.order ?? 0) < 0) return false;
         return true;
       });
-    if (!cobertas.length || cobertas.some(s => s.roof.material !== null)) continue;
+    if (!cobertas.length || cobertas.every(s => s.roof.material !== null)) continue;
+    const semTelhado = cobertas.filter(s => s.roof.material === null);
     const c = caixaDasCelulas(m, ed.celulas);
     const nomes = ed.salas.map(id => m.rooms[id]!.name).slice(0, 3).join(', ');
     achados.push({
       regra: 'edificio-sem-telhado',
       gravidade: 'aviso',
-      mensagem: `Edifício (${nomes}) com ${cobertas.length} cômodo(s) coberto(s) sem telhado.`,
+      mensagem: `Edifício (${nomes}) com ${semTelhado.length} cômodo(s) coberto(s) sem telhado.`,
       sugestao: 'Defina um estilo ou cobertura de telhado nos cômodos cobertos (ex.: telhado em atlas_comodos).',
       ids: [...ed.salas],
       ...(c ? { caixa: tuplaCaixa(c) } : {}),
@@ -230,15 +231,16 @@ function regraInteriorVazio(m: MapaAtlas): Achado[] {
   const salas = Object.values(m.rooms);
   if (!salas.length) return [];
   const arestas = arestasDeParede(m);
-  const indice = indiceDeCelulas(m);
+  const indices = new Map<string | null, Map<number, string>>();
   const algumTelhadoAberto = salas.some(s => !s.roof.visible);
   const achados: Achado[] = [];
   for (const s of salas) {
     if (s.function === 'corredor' || (s.function !== null && FUNCOES_AO_AR_LIVRE.has(s.function))) continue;
     const ins = insightDoComodo(m, s.id, arestas);
     if (!ins || ins.area < LIMIAR_AREA_INTERIOR_VAZIO || ehSobradoDecorativoFechado(m, s, ins, algumTelhadoAberto)) continue;
+    const nivel = s.levelId ?? null;
     const objetosDePiso = Object.values(m.props).filter(
-      o => o.elevation === 'floor' && (o.roomId === s.id || (o.roomId === null && comodoEm(m, o.position, indice) === s.id)),
+      o => (o.levelId ?? null) === nivel && o.elevation === 'floor' && (o.roomId === s.id || (o.roomId === null && salaNoPonto(m, o.position, nivel, indices) === s.id)),
     ).length;
     const minimo = Math.max(1, Math.floor(ins.area / M2_POR_OBJETO_INTERIOR));
     if (objetosDePiso < minimo) {
@@ -266,10 +268,11 @@ function regraPortaBloqueada(m: MapaAtlas): Achado[] {
   const achados: Achado[] = [];
   const reportados = new Set<string>();
   for (const s of salas) {
+    const nivel = s.levelId ?? null;
     const ins = insightDoComodo(m, s.id, arestas);
     const reservas = reservasDePorta(m, s.id);
     for (const { obj, caixa } of bloqueantes) {
-      if (reportados.has(obj.id)) continue;
+      if ((obj.levelId ?? null) !== nivel || reportados.has(obj.id)) continue;
       const naReserva =
         (obj.roomId === null || obj.roomId === s.id) && reservas.some(z => intersecta(caixa, z));
       const noVao =
@@ -318,7 +321,7 @@ function regraEscalaSuspeita(m: MapaAtlas): Achado[] {
     const item = ACERVO.item(id);
     if (!item) continue;
     const lado = Math.max(...tamanhoDoObjeto(o));
-    if (item.tags.includes('arvore') && lado < LIMIAR_ESCALA_ARVORE) {
+    if (id !== 'bonsai' && item.tags.includes('arvore') && lado < LIMIAR_ESCALA_ARVORE) {
       achados.push({
         regra: 'escala-suspeita',
         gravidade: 'dica',

@@ -146,7 +146,7 @@ export const postoAvancado: Exemplo = {
     k.objeto('pneus-empilhados', [41.6, 10.4], { rotation: 0.2 });
     for (const [x, y] of [[41.3, 3.9], [42.2, 4.1]] as const) k.objeto('barril', [x, y], { rotation: x });
     k.objeto('caixa', [41.4, 5.6], { rotation: 0.2 });
-    k.objeto('mancha-de-oleo', [43.4, 9.6], { rotation: 0.3, params: { raio: 1.0 } });
+    k.objeto('mancha-de-oleo', [45.2, 13.7], { rotation: 0.3, params: { raio: 1.0 } });
     k.luz('lampada', [43.5, 7.0], { radius: 5.5, intensity: 0.5, color: '#ffd8a0' });
 
     // ---------- O acampamento no estacionamento ----------
@@ -160,7 +160,7 @@ export const postoAvancado: Exemplo = {
     k.objeto('carro.enferrujado', [40.8, 21.6], { rotation: Math.PI / 2 + 0.08, params: { modelo: 3, cor: 1 } });
 
     // ---------- O mato: as árvores cresceram e o capim rompe o chão ----------
-    for (const [x, y, s] of [[1.6, 1.8, 1.1], [14.6, 2.6, 1], [22.0, 0.4, 0.8], [46.4, 1.6, 1.2], [0.8, 29.8, 1], [2.4, 33.0, 0.9], [46.8, 33.0, 1], [19.0, 33.4, 0.8]] as const) k.objeto(s > 0.95 ? 'casa:arvore-5m' : 'casa:arvore-3m', [x, y], { rotation: x, scale: s });
+    for (const [x, y, s] of [[1.6, 1.8, 1.1], [14.6, 2.6, 1], [22.0, 0.4, 0.8], [19.4, 2.6, 1.1], [0.8, 29.8, 1], [2.4, 33.0, 0.9], [46.8, 33.0, 1], [19.0, 33.4, 0.8]] as const) k.objeto(s > 0.95 ? 'casa:arvore-5m' : 'casa:arvore-3m', [x, y], { rotation: x, scale: s });
     for (let i = 0; i < 36; i++) {
       const x = 1 + ((i * 13.37) % 46), y = 9.5 + ((i * 7.91) % 23.5);
       const dentro = (x > 1 && x < 14 && y > 5.5 && y < 18.5) || (x > 23.5 && x < 38 && y < 9.5) || (x > 40 && x < 47 && y < 12.5);

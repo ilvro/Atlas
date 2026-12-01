@@ -117,7 +117,7 @@ export const postoNaEstrada: Exemplo = {
     for (const [x, y] of [[41.3, 3.9], [42.2, 4.1]] as const) k.objeto('barril', [x, y], { rotation: x });
     k.objeto('extintor', [45.9, 11.2], { rotation: 0 });
     k.objeto('caixa', [41.4, 5.6], { rotation: 0.2 });
-    k.objeto('mancha-de-oleo', [43.4, 9.6], { rotation: 0.3, params: { raio: 0.8 } });
+    k.objeto('mancha-de-oleo', [45.2, 13.6], { rotation: 0.3, params: { raio: 0.8 } });
     k.luz('lampada', [43.5, 7.0], { radius: 6, intensity: 0.7 });
 
     // ---------- O estacionamento ----------
@@ -130,7 +130,7 @@ export const postoNaEstrada: Exemplo = {
     k.objeto('poste-de-rua', [38.6, 20.8], { rotation: -Math.PI / 2, params: { sodio: 0 } });
 
     // ---------- O mato em volta ----------
-    for (const [x, y, s] of [[1.4, 1.6, 1], [15.6, 3.2, 0.9], [46.6, 1.6, 1.1], [0.8, 30.0, 0.8], [2.0, 33.2, 0.9], [46.8, 33.0, 0.8]] as const) k.objeto(s > 0.95 ? 'casa:arvore-5m' : 'casa:arvore-3m', [x, y], { rotation: x, scale: s });
+    for (const [x, y, s] of [[1.4, 1.6, 1], [15.6, 3.2, 0.9], [19.6, 2.6, 1.1], [0.8, 30.0, 0.8], [2.0, 33.2, 0.9], [46.8, 33.0, 0.8]] as const) k.objeto(s > 0.95 ? 'casa:arvore-5m' : 'casa:arvore-3m', [x, y], { rotation: x, scale: s });
 
     // Luz: madrugada de chuva; a cobertura, os postes de sódio e as janelas fazem as ilhas de luz.
     k.clima('noite', { time: '02:20', ambient: { color: '#5e6a80', intensity: 0.55 }, sun: { angle: 2.1, color: '#98a8c4', intensity: 0.35 }, tempo: { rain: 0.75, wind: 0.25, fog: 0.12 } });
