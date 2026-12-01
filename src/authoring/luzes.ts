@@ -1,13 +1,13 @@
 import { novaLuz, novoIdEntidade } from '../domain/fabrica.ts';
 import type { Luz, Ponto } from '../domain/mapa.ts';
-import { camposDoPreset, generoDe, presetDeLuz } from '../domain/presets.ts';
+import { camposDoPreset, generoDe, presetDeLuz, type GeneroId, type PresetDeLuzId } from '../domain/presets.ts';
 import { insightDoComodo } from './insight.ts';
 import { malhaDoComodo } from './malha.ts';
 import { novaProposta, type Proposta } from './proposta.ts';
 import type { Contexto } from './sugestoes.ts';
 
 /** Que predefinição (de `PRESETS_DE_LUZ`) cada gênero usa para a luz principal e para as pequenas. */
-export const LUZES_POR_GENERO: Readonly<Record<string, { principal: string; pequena: string }>> = {
+export const LUZES_POR_GENERO: Readonly<Record<GeneroId, { principal: PresetDeLuzId; pequena: PresetDeLuzId }>> & Readonly<Record<string, { principal: PresetDeLuzId; pequena: PresetDeLuzId }>> = {
   investigacao: { principal: 'lamparina', pequena: 'vela' },
   moderno: { principal: 'lampada', pequena: 'lampada' },
   fantasia: { principal: 'tocha', pequena: 'vela' },

@@ -835,11 +835,10 @@ const VARIACOES_BASE: Readonly<Record<string, { trocar?: Record<string, string[]
   cyberpunk: {
     sem: ['quarto:estante', 'taverna:tapecaria', 'taverna:espadas', 'taverna:brasao', 'taverna:tocha', 'taverna:espeto'],
     trocar: {
-      'sala:sofa': ['sofa.canto'], 'quarto:cama': ['cama.box'], 'quarto:cama.casal': ['cama.box'], 'quarto:armario': ['guarda-roupa.liso'], 'banheiro:vaso': ['vaso.moderno'], 'banheiro:pia': ['balcao'],
-      'escritorio:escrivaninha': ['estacao-hacker', 'escrivaninha.computador'], 'sala-de-jantar:mesa': ['mesa.vidro'], 'cozinha:mesa': ['mesa.vidro'],
-      'oficina:bancada': ['bancada.ferramentas'], 'oficina:banqueta': ['cadeira'], 'dormitorio:bau': ['comoda'], 'dormitorio:cama': ['capsula-de-hotel'], 'cela:cama': ['cama.solteiro'],
-      'refeitorio:mesa': ['mesa.retangular'], 'refeitorio:banco': ['cadeira', 'banco'], 'salao:mesa': ['mesa.retangular'], 'salao:banco': ['cadeira'],
-      'hospital:cama': ['cama-hospitalar'], 'hospital:balcao': ['balcao'],
+      ...TROCAR_MODERNO,
+      'escritorio:escrivaninha': ['estacao-hacker', 'escrivaninha.computador'],
+      'dormitorio:cama': ['capsula-de-hotel'],
+      'hospital:balcao': ['balcao'],
       'taverna:balcao': ['balcao-luminoso'], 'taverna:mesa': ['mesa-de-lanchonete', 'mesa.retangular'], 'taverna:cadeira': ['cadeira'], 'taverna:banco': ['cadeira'],
       'taverna:barril': ['maquina-de-venda.neon'], 'taverna:trofeu': ['letreiro-neon'], 'taverna:lareira': ['fliperama'],
     },

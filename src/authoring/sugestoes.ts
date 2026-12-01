@@ -49,7 +49,7 @@ const SUGESTAO_DE_LUZ: TipoDeSugestao = { tipo: 'luz', variavel: false, texto: t
 
 const SUGESTAO_DE_MOBILIA: TipoDeSugestao = {
   tipo: 'mobiliar', variavel: true,
-  texto: (c, roomId) => (propostaDeMobilia(c, roomId) ? `Mobiliar a ${c.m.rooms[roomId]!.name}?` : null),
+  texto: (c, roomId) => { const p = propostaDeMobilia(c, roomId); return p ? `${p.rotulo}?` : null; },
   gerar: propostaDeMobilia,
 };
 
@@ -61,14 +61,18 @@ export const chaveDeDispensa = (tipo: string, roomId: string): string => `${tipo
 /** A sugestão que vale agora para o cômodo, pulando as dispensadas (`${tipo}:${roomId}`). */
 export function proximaSugestao(c: Contexto, roomId: string, dispensadas: ReadonlySet<string>): Proposta | null {
   for (const t of TIPOS_DE_SUGESTAO) {
-    if (dispensadas.has(chaveDeDispensa(t.tipo, roomId)) || t.texto(c, roomId) === null) continue;
+    if (dispensadas.has(chaveDeDispensa(t.tipo, roomId))) continue;
     const p = t.gerar(c, roomId); if (p) return p;
   }
   return null;
 }
 
 /** O texto da pílula de uma proposta já gerada. */
-export const textoDaSugestao = (c: Contexto, p: Proposta): string => (p.roomId ? TIPOS_DE_SUGESTAO.find(t => t.tipo === p.tipo)?.texto(c, p.roomId) : null) ?? p.rotulo;
+export const textoDaSugestao = (c: Contexto, p: Proposta): string => {
+  if (!p.roomId) return p.rotulo;
+  if (p.tipo === 'funcao' || p.tipo === 'mobiliar' || p.tipo === 'luz') return `${p.rotulo}?`;
+  return TIPOS_DE_SUGESTAO.find(t => t.tipo === p.tipo)?.texto(c, p.roomId) ?? p.rotulo;
+};
 
 /** Outra do mesmo tipo (semente seguinte): o que "gerar de novo" faz. */
 export function outraDoMesmoTipo(c: Contexto, p: Proposta): Proposta | null {

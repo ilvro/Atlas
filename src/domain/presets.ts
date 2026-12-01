@@ -3,6 +3,19 @@ import { ambienteDaCor, ceuNoHorario } from './clima.ts';
 import type { Acabamento, Clima, Comodo, Luz, MapaAtlas, Ponto, Tempo } from './mapa.ts';
 
 /** Um tipo de cômodo: o piso e o papel de parede que combinam, e a função que a construção inteligente (Fase 5) vai usar. */
+export type FuncaoId =
+  | 'sala' | 'cozinha' | 'quarto' | 'biblioteca' | 'escritorio' | 'banheiro' | 'corredor' | 'hospital'
+  | 'taverna' | 'sala-de-jantar' | 'sala-de-jogos' | 'capela' | 'forja' | 'varanda' | 'porao'
+  | 'estabulo' | 'celeiro' | 'deposito' | 'loja' | 'oficina' | 'cela' | 'dormitorio' | 'refeitorio' | 'salao' | 'patio'
+  | 'atrio' | 'peristilo' | 'triclinio' | 'termas' | 'templo' | 'forum' | 'taberna'
+  | 'sala-de-tatami' | 'casa-de-cha' | 'dojo' | 'santuario' | 'jardim'
+  | 'tenda' | 'patio-com-fonte' | 'bazar' | 'salao-de-cha'
+  | 'saloon' | 'xerifado' | 'armazem-geral' | 'banco' | 'estacao'
+  | 'conves' | 'cabine-do-capitao' | 'taverna-do-porto' | 'fortim' | 'casa-colonial'
+  | 'fabrica' | 'oficina-de-inventor' | 'clube' | 'estacao-de-dirigivel'
+  | 'mercado' | 'lanchonete' | 'garagem' | 'posto' | 'vestiario'
+  | 'acampamento' | 'abrigo' | 'enfermaria-improvisada' | 'oficina-de-sucata' | 'posto-de-guarda'
+  | 'clinica-clandestina' | 'bar' | 'hotel-capsula' | 'sala-de-servidores' | 'mercado-noturno';
 export interface TipoDeComodo { id: string; nome: string; funcao: string; piso: string; papel: string; descricao: string }
 
 export const TIPOS_DE_COMODO: readonly TipoDeComodo[] = [
@@ -90,6 +103,10 @@ export const tipoDeComodo = (id: string): TipoDeComodo | undefined => TIPOS_DE_C
 
 /** Uma predefinição de luz: círculo (lamparina, vela, lâmpada…) ou cone (lanterna, holofote, farol). */
 export interface PresetDeLuz { id: string; nome: string; descricao: string; radius: number; color: string; intensity: number; flicker: number; power: Luz['power']; /** Abertura do cone, em graus; `null` ilumina em círculo. */ cone: number | null; /** Raios visíveis (num círculo: o feixe que desce do alto). */ rays?: boolean }
+
+export type PresetDeLuzId =
+  | 'vela' | 'lamparina' | 'tocha' | 'fogueira' | 'lampada' | 'neon' | 'luar' | 'feixe'
+  | 'lanterna' | 'holofote' | 'farol' | 'lucerna' | 'lanterna-de-papel' | 'lampiao-a-gas' | 'tonel' | 'neon-rosa';
 
 export const PRESETS_DE_LUZ: readonly PresetDeLuz[] = [
   { id: 'vela', nome: 'Vela', descricao: 'Luz pequena e trêmula', radius: 3, color: '#ffcf8a', intensity: 0.7, flicker: 0.25, power: 'fire', cone: null },
@@ -213,6 +230,9 @@ export const PINCEIS_DE_PRESENCA: readonly PincelDePresenca[] = [
 export const pincelDePresenca = (id: string): PincelDePresenca | undefined => PINCEIS_DE_PRESENCA.find(p => p.id === id);
 
 // ---------- Gênero ----------
+export type GeneroId =
+  | 'investigacao' | 'moderno' | 'fantasia' | 'antiguidade' | 'oriental' | 'deserto'
+  | 'faroeste' | 'colonial' | 'vitoriano' | 'pos-apocaliptico' | 'cyberpunk';
 /** O gênero guia o que o assistente sugere (materiais, paleta, luzes). Um id desconhecido vale como `investigacao`. */
 export interface Genero { id: string; nome: string; descricao: string; /** Para onde a cor das imagens da coleção é puxada (saturação e luminância médias, 0 a 1, e uma tinta leve). */ alvoDeCor: { saturacao: number; luminancia: number; tinta: string }; /** Gêneros cujas famílias este também aceita (ex.: o vitoriano usa lareira e piano da investigação). */ herda?: readonly string[] }
 export const GENEROS: readonly Genero[] = [
@@ -317,6 +337,25 @@ const ESTILO_POR_FUNCAO: Readonly<Record<string, string>> = {
   tenda: 'tenda',
 };
 
+const TELHADO_CHAPA_REMENDADA: Omit<Comodo['roof'], 'visible'> = { material: 'chapa.remendada', shape: 'uma-agua', steep: false, details: [] };
+
+const TELHADO_POR_GENERO: Readonly<Record<GeneroId, (funcao: string | null) => Omit<Comodo['roof'], 'visible'>>> = {
+  investigacao: () => clonarTelhado(estiloDeTelhado('casa-velha')!.roof),
+  moderno: () => clonarTelhado(estiloDeTelhado('laje-moderna')!.roof),
+  fantasia: () => clonarTelhado(estiloDeTelhado('choupana')!.roof),
+  antiguidade: () => clonarTelhado(estiloDeTelhado('casa-romana')!.roof),
+  oriental: () => clonarTelhado(estiloDeTelhado('casa-japonesa')!.roof),
+  deserto: () => clonarTelhado(estiloDeTelhado('terraco-de-barro')!.roof),
+  faroeste: () => clonarTelhado(estiloDeTelhado('cabana-de-tabuas')!.roof),
+  colonial: () => clonarTelhado(estiloDeTelhado('casa-colonial')!.roof),
+  // Vitoriano (Q20c): a fábrica e a estação têm galpão de chapa; o resto, o sobrado de mansarda de ardósia.
+  vitoriano: funcao => clonarTelhado(estiloDeTelhado(funcao === 'fabrica' || funcao === 'estacao-de-dirigivel' ? 'galpao-abobadado' : 'sobrado-de-mansarda')!.roof),
+  // Pós-apocalíptico (Q22c): o abrigo é de laje (com caixas de ar e antena); o resto, de chapa remendada.
+  'pos-apocaliptico': funcao => (funcao === 'abrigo' ? clonarTelhado(estiloDeTelhado('laje-equipada')!.roof) : clonarTelhado(TELHADO_CHAPA_REMENDADA)),
+  // Cyberpunk (Q23c): lajes equipadas (antenas, caixas de ar) sobre tudo.
+  cyberpunk: () => clonarTelhado(estiloDeTelhado('laje-equipada')!.roof),
+};
+
 /** Estilo de telhado padrão ao criar um cômodo: ar livre fica sem; contorno circular ganha cone; funções especiais sobrepõem vizinhos; senão herda do vizinho (do mesmo nível) ou usa o gênero do mapa. */
 export function telhadoPadrao(
   m: Pick<MapaAtlas, 'rooms' | 'style'>,
@@ -348,21 +387,5 @@ export function telhadoPadrao(
       }
     }
   }
-  const genero = m.style.genre;
-  if (genero === 'fantasia') return clonarTelhado(estiloDeTelhado('choupana')!.roof);
-  if (genero === 'moderno') return clonarTelhado(estiloDeTelhado('laje-moderna')!.roof);
-  if (genero === 'antiguidade') return clonarTelhado(estiloDeTelhado('casa-romana')!.roof);
-  if (genero === 'oriental') return clonarTelhado(estiloDeTelhado('casa-japonesa')!.roof);
-  if (genero === 'deserto') return clonarTelhado(estiloDeTelhado('terraco-de-barro')!.roof);
-  if (genero === 'faroeste') return clonarTelhado(estiloDeTelhado('cabana-de-tabuas')!.roof);
-  if (genero === 'colonial') return clonarTelhado(estiloDeTelhado('casa-colonial')!.roof);
-  // Pós-apocalíptico (Q22c): o abrigo é de laje (com caixas de ar e antena); o resto, de chapa remendada.
-  if (genero === 'pos-apocaliptico') {
-    return funcao === 'abrigo' ? clonarTelhado(estiloDeTelhado('laje-equipada')!.roof) : { material: 'chapa.remendada', shape: 'uma-agua', steep: false, details: [] };
-  }
-  // Cyberpunk (Q23c): lajes equipadas (antenas, caixas de ar) sobre tudo.
-  if (genero === 'cyberpunk') return clonarTelhado(estiloDeTelhado('laje-equipada')!.roof);
-  // Vitoriano (Q20c): a fábrica e a estação têm galpão de chapa; o resto, o sobrado de mansarda de ardósia.
-  if (genero === 'vitoriano') return clonarTelhado(estiloDeTelhado(funcao === 'fabrica' || funcao === 'estacao-de-dirigivel' ? 'galpao-abobadado' : 'sobrado-de-mansarda')!.roof);
-  return clonarTelhado(estiloDeTelhado('casa-velha')!.roof);
+  return TELHADO_POR_GENERO[generoDe(m.style.genre).id as GeneroId](funcao);
 }

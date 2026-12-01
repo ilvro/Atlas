@@ -1,5 +1,5 @@
 import { novoIdEntidade } from '../domain/fabrica.ts';
-import { GENEROS, TIPOS_DE_COMODO, generoDe } from '../domain/presets.ts';
+import { TIPOS_DE_COMODO, generoDe, type GeneroId } from '../domain/presets.ts';
 import { ACERVO } from '../procedural/acervo.ts';
 import { gerarLayout } from './layout.ts';
 import { novaProposta, type Proposta } from './proposta.ts';
@@ -15,7 +15,7 @@ const SEM_PAR = (funcao: string): MateriaisDoComodo => {
 };
 
 /** Pisos e papéis por gênero e função; para a investigação, o par atual de `TIPOS_DE_COMODO` vem primeiro (é o que a pílula de função já pôs). */
-const MATERIAIS_BASE: Readonly<Record<string, Record<string, MateriaisDoComodo>>> = {
+const MATERIAIS_BASE: Readonly<Record<'investigacao' | 'moderno' | 'fantasia', Record<string, MateriaisDoComodo>>> = {
   investigacao: Object.fromEntries(TIPOS_DE_COMODO.map(t => {
     const extra: Record<string, MateriaisDoComodo> = {
       sala: { pisos: ['tabuas.escuras', 'parquet.espinha', 'marmore.xadrez-diagonal'], papeis: ['papel.listras-musgo', 'papel.verde-esmeralda', 'boiserie.escura'] }, cozinha: { pisos: ['azulejo.branco', 'hexagono.salvia', 'hexagono.terracota'], papeis: ['reboco.branco', 'papel.floral-azul'] },
@@ -252,7 +252,7 @@ const CYBERPUNK_POR_FUNCAO: Readonly<Record<string, MateriaisDoComodo>> = {
   taverna: { pisos: ['piso.neon', 'grade.cyber'], papeis: ['painel.neon', 'concreto.pichado'] },
 };
 
-const PALETAS_BASE: Readonly<Record<string, Paleta[]>> = {
+const PALETAS_BASE: Readonly<Record<'investigacao' | 'moderno' | 'fantasia', Paleta[]>> = {
   investigacao: [
     { nome: 'Vinho e carvalho', madeira: 'madeira.escura', tecidos: ['tecido.veludo-vinho', 'tecido.linho'], tapete: 'tapete.persa' },
     { nome: 'Azul e nogueira', madeira: 'madeira.media', tecidos: ['tecido.veludo-azul', 'tecido.linho'], tapete: 'tapete.persa' },
@@ -270,8 +270,8 @@ const PALETAS_BASE: Readonly<Record<string, Paleta[]>> = {
   ],
 };
 
-/** Cada gênero novo copia, por enquanto, o mais próximo; os materiais próprios chegam com as Q10–Q12 e as fichas `c` de cada época os ligam. */
-export const MATERIAIS_POR_GENERO: Readonly<Record<string, Record<string, MateriaisDoComodo>>> = {
+/** Pisos e papéis disponíveis por gênero e função de cômodo. */
+export const MATERIAIS_POR_GENERO: Readonly<Record<GeneroId, Record<string, MateriaisDoComodo>>> & Readonly<Record<string, Record<string, MateriaisDoComodo>>> = {
   ...MATERIAIS_BASE,
   moderno: { ...MATERIAIS_BASE.moderno!, ...MODERNO_POR_FUNCAO },
   antiguidade: { ...MATERIAIS_BASE.fantasia!, ...ANTIGUIDADE_POR_FUNCAO },
@@ -284,7 +284,7 @@ export const MATERIAIS_POR_GENERO: Readonly<Record<string, Record<string, Materi
   cyberpunk: { ...MATERIAIS_BASE.moderno!, ...MODERNO_POR_FUNCAO, ...CYBERPUNK_POR_FUNCAO },
 };
 
-export const PALETAS_POR_GENERO: Readonly<Record<string, Paleta[]>> = {
+export const PALETAS_POR_GENERO: Readonly<Record<GeneroId, Paleta[]>> & Readonly<Record<string, Paleta[]>> = {
   ...PALETAS_BASE,
   antiguidade: [
     { nome: 'Pompeia', madeira: 'madeira.escura', tecidos: ['tecido.veludo-vinho', 'tecido.linho'], tapete: 'tapete.persa' },
@@ -330,7 +330,7 @@ export const PALETAS_POR_GENERO: Readonly<Record<string, Paleta[]>> = {
   ],
 };
 
-export const materiaisDe = (genero: string, funcao: string): MateriaisDoComodo => (MATERIAIS_POR_GENERO[generoDe(genero).id] ?? MATERIAIS_POR_GENERO.investigacao!)[funcao] ?? SEM_PAR(funcao);
+export const materiaisDe = (genero: string, funcao: string): MateriaisDoComodo => (MATERIAIS_POR_GENERO[generoDe(genero).id] ?? MATERIAIS_POR_GENERO.investigacao)[funcao] ?? SEM_PAR(funcao);
 export const paletaDe = (genero: string, semente: number): Paleta => { const l = PALETAS_POR_GENERO[generoDe(genero).id]!; return l[Math.abs(semente) % l.length]!; };
 
 /** Que tecidos de paleta combinam com a cor de cada tapete da coleção (pelo sufixo do id). */
@@ -377,5 +377,3 @@ export function propostaDeMobilia(c: Contexto, roomId: string): Proposta | null 
   for (const o of layout.objetos) comandos.push({ tipo: 'item.adicionar', colecao: 'props', item: o });
   return novaProposta({ tipo: 'mobiliar', rotulo: `Mobiliar a ${sala.name}`, comandos, versaoEsperada: c.versao, roomId, semente: c.semente });
 }
-
-export { GENEROS };
