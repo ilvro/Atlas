@@ -199,10 +199,11 @@ function percorrer(raiz: string, amb: Ambiente): { arquivos: string[]; cortada: 
       if (e.isDirectory() || e.isSymbolicLink()) {
         let real: string;
         try { real = validarCaminho(completo, amb); } catch { continue; }
-        if (fs.statSync(real).isDirectory()) { if (nivel < NIVEIS_DE_PASTA) visitar(real, nivel + 1); continue; }
+        if (fs.statSync(real).isDirectory()) { if (nivel < NIVEIS_DE_PASTA) visitar(completo, nivel + 1); continue; }
       }
       if (EXTENSOES.has(path.extname(e.name).toLowerCase())) {
-        try { arquivos.push(validarCaminho(completo, amb)); } catch { /* link para fora: ignora */ }
+        // O id usa o caminho pedido (dentro da raiz), não o real: um atalho do mestre leva para fora dela.
+        try { validarCaminho(completo, amb); arquivos.push(completo); } catch { /* link para fora: ignora */ }
       }
     }
   };
@@ -213,9 +214,11 @@ function percorrer(raiz: string, amb: Ambiente): { arquivos: string[]; cortada: 
 export async function listarImagens(caminho: string, amb: Ambiente = {}): Promise<Listagem> {
   const ext = amb.externos ?? externosReais;
   const real = validarCaminho(caminho, amb);
+  // Os ids saem pelo caminho pedido, normalizado: é o que passa por validarCaminho de novo na leitura.
+  const pedido = path.resolve(expandirTil(String(caminho).trim(), amb.home ?? os.homedir()));
   const stat = fs.statSync(real);
   if (stat.isDirectory()) {
-    const { arquivos, cortada } = percorrer(real, amb);
+    const { arquivos, cortada } = percorrer(pedido, amb);
     const imagens: ImagemDePasta[] = [];
     for (const arq of arquivos) {
       let largura: number | null = null;
@@ -224,9 +227,9 @@ export async function listarImagens(caminho: string, amb: Ambiente = {}): Promis
         const [l, a] = (await ext.executar('identify', ['-ping', '-format', '%w %h', `${arq}[0]`])).toString().trim().split(/\s+/).map(Number);
         if (Number.isFinite(l) && Number.isFinite(a)) { largura = l!; altura = a!; }
       } catch { /* sem tamanho */ }
-      imagens.push({ id: `arquivo:${arq}`, nome: path.relative(real, arq), largura, altura });
+      imagens.push({ id: `arquivo:${arq}`, nome: path.relative(pedido, arq), largura, altura });
     }
-    return { tipo: 'pasta', caminho: real, imagens, ...(cortada ? { cortada: true } : {}) };
+    return { tipo: 'pasta', caminho: pedido, imagens, ...(cortada ? { cortada: true } : {}) };
   }
   if (path.extname(real).toLowerCase() === '.pdf') {
     const saida = (await ext.executar('pdfimages', ['-list', real])).toString();
@@ -235,7 +238,7 @@ export async function listarImagens(caminho: string, amb: Ambiente = {}): Promis
       const m = /^Pages:\s*(\d+)/m.exec((await ext.executar('pdfinfo', [real])).toString());
       if (m) paginas = Number(m[1]);
     } catch { /* pdfinfo ausente */ }
-    return { tipo: 'pdf', caminho: real, paginas, imagens: filtrarImagensDePdf(saida, real) };
+    return { tipo: 'pdf', caminho: pedido, paginas, imagens: filtrarImagensDePdf(saida, pedido) };
   }
   throw new Error(`"${real}" não é uma pasta nem um PDF.`);
 }
