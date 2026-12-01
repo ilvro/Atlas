@@ -1,5 +1,5 @@
 import { signal } from '@preact/signals';
-import { useRef } from 'preact/hooks';
+import { useEffect, useRef } from 'preact/hooks';
 import { abrirProjetor, aplicarClima, obterSessaoParaProjetor, servicos } from '../app/app.ts';
 import { caixaDoProjetor, definirFiltroDeVisao, filtroDeVisao, focarTurnoAtualDaIniciativa, forcarCameraRemota, jogadorSeguido, mostrarQuadroDoProjetor, projetorConectado, projetorRemotoConectado, seguirJogadores } from '../app/projetor.ts';
 import { acaoPorId, executarAcao } from '../app/acoes.ts';
@@ -91,12 +91,12 @@ function posicaoPadrao(id: string): { x: number; y: number } {
   }
 }
 
-function iniciarArrasto(id: string, ev: PointerEvent) {
-  if ((ev.target as HTMLElement).closest('button, input, select, textarea, .dock-fechar')) return;
+function iniciarArrasto(id: string, ev: PointerEvent): (() => void) | null {
+  if ((ev.target as HTMLElement).closest('button, input, select, textarea, .dock-fechar')) return null;
   ev.preventDefault();
   const alvo = ev.currentTarget as HTMLElement;
   const painel = alvo.closest('.dock-painel') as HTMLElement;
-  if (!painel) return;
+  if (!painel) return null;
 
   trazerParaFrente(id);
 
@@ -115,19 +115,24 @@ function iniciarArrasto(id: string, ev: PointerEvent) {
     const x = Math.max(10, Math.min(maxX, e.clientX - retDock.left - deslX));
     const y = Math.max(10, Math.min(maxY, e.clientY - retDock.top - deslY));
     posicoes.value = { ...posicoes.value, [id]: { x: Math.round(x), y: Math.round(y) } };
-    salvarPosicoes(posicoes.value);
   };
 
-  const aoSoltar = () => {
+  const limpar = () => {
     painel.classList.remove('arrastando');
     window.removeEventListener('pointermove', aoMover);
     window.removeEventListener('pointerup', aoSoltar);
     window.removeEventListener('pointercancel', aoSoltar);
   };
 
+  const aoSoltar = () => {
+    limpar();
+    salvarPosicoes(posicoes.value);
+  };
+
   window.addEventListener('pointermove', aoMover);
   window.addEventListener('pointerup', aoSoltar);
   window.addEventListener('pointercancel', aoSoltar);
+  return limpar;
 }
 
 function SecaoDeClima({ s }: { s: SessaoDeEdicao }) {
@@ -475,6 +480,12 @@ export function PainelFlutuante({
   const pos = posicoes.value[id] ?? posicaoPadrao(id);
   const padraoZ = id === 'editor-momento' ? 40 : 20;
   const z = zIndices.value[id] ?? padraoZ;
+  const limparArrastoRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => () => {
+    limparArrastoRef.current?.();
+    limparArrastoRef.current = null;
+  }, []);
 
   return (
     <section
@@ -485,7 +496,10 @@ export function PainelFlutuante({
     >
       <header
         class="dock-painel-cabecalho"
-        onPointerDown={e => iniciarArrasto(id, e)}
+        onPointerDown={e => {
+          limparArrastoRef.current?.();
+          limparArrastoRef.current = iniciarArrasto(id, e);
+        }}
         onDblClick={() => redefinirPosicao(id)}
         title="Arraste pelo cabeçalho para mover pelo mapa · Clique duplo restaura posição inicial"
       >

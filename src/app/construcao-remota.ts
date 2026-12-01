@@ -597,7 +597,7 @@ export function iniciarConstrucaoRemota(opcoes: OpcoesConstrucaoRemota): PonteCo
 
     const pronto = { tipo: 'atlas-construcao.pronto' };
     postarNoCanal(pronto);
-    const origem = opcoes.origemPai ?? (typeof location !== 'undefined' && location.origin ? location.origin : '*');
+    const origem = opcoes.origemPai ?? (typeof location !== 'undefined' && location.origin && location.origin !== 'null' ? location.origin : '*');
     if (opcoes.postarPai) {
       try {
         opcoes.postarPai(pronto, origem);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { chaveDaRef, type Ref } from '#mesa';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
 import { refDaFicha, textoDeRecursos } from '../domain/fichas.ts';
@@ -49,6 +49,19 @@ export function PreviaDaFicha({ s }: { s: SessaoDeEdicao }) {
 
   const tamanho = tamanhoPrevia.value;
   const [posicao, setPosicao] = useState<{ x: number; y: number } | null>(null);
+  const limparOuvintesRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => () => {
+    limparOuvintesRef.current?.();
+    limparOuvintesRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    if (!aberta || !token || !ref) {
+      limparOuvintesRef.current?.();
+      limparOuvintesRef.current = null;
+    }
+  }, [aberta, token, ref]);
 
   // Calcula e atualiza a posição do card ancorado ao lado do token
   useEffect(() => {
@@ -116,13 +129,18 @@ export function PreviaDaFicha({ s }: { s: SessaoDeEdicao }) {
       posicaoManualPrevia.value = { x: Math.round(x), y: Math.round(y) };
     };
 
-    const aoSoltar = () => {
+    const limpar = () => {
       arrastandoPrevia.value = false;
       window.removeEventListener('pointermove', aoMover);
       window.removeEventListener('pointerup', aoSoltar);
       window.removeEventListener('pointercancel', aoSoltar);
+      if (limparOuvintesRef.current === limpar) limparOuvintesRef.current = null;
     };
 
+    const aoSoltar = () => limpar();
+
+    limparOuvintesRef.current?.();
+    limparOuvintesRef.current = limpar;
     window.addEventListener('pointermove', aoMover);
     window.addEventListener('pointerup', aoSoltar);
     window.addEventListener('pointercancel', aoSoltar);
@@ -140,13 +158,18 @@ export function PreviaDaFicha({ s }: { s: SessaoDeEdicao }) {
         altura: base.altura + (dy ? ev.clientY - y0 : 0),
       });
     };
-    const aoSoltar = () => {
+    const limpar = (salvar = false) => {
       arrastandoPrevia.value = false;
-      salvarTamanhoDaPrevia();
+      if (salvar) salvarTamanhoDaPrevia();
       window.removeEventListener('pointermove', aoMover);
       window.removeEventListener('pointerup', aoSoltar);
       window.removeEventListener('pointercancel', aoSoltar);
+      if (limparOuvintesRef.current === cancelar) limparOuvintesRef.current = null;
     };
+    const aoSoltar = () => limpar(true);
+    const cancelar = () => limpar(false);
+    limparOuvintesRef.current?.();
+    limparOuvintesRef.current = cancelar;
     window.addEventListener('pointermove', aoMover);
     window.addEventListener('pointerup', aoSoltar);
     window.addEventListener('pointercancel', aoSoltar);

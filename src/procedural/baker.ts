@@ -259,9 +259,9 @@ async function clonarResultadoParaCache(r: ResultadoComExtras): Promise<Resultad
 }
 
 function fecharCopia(copia: ResultadoComExtras): void {
-  copia.bitmap.close?.();
+  copia.bitmap?.close?.();
   copia.altura?.close?.();
-  copia.agua?.bitmap.close?.();
+  copia.agua?.bitmap?.close?.();
   copia.normal?.close?.();
   copia.fachada?.close?.();
 }
@@ -318,7 +318,11 @@ export function criarBaker(opcoes: { workers?: number; cache?: CacheDeAssados | 
       w.onmessageerror = () => workerFalhou(indice, criado, 'mensagem ilegível');
       w.onmessage = (e: MessageEvent<{ id: number; ok: boolean; resultado?: ResultadoDeBake; erro?: string; ms?: number }>) => {
         falhasSeguidas = 0;
-        const espera = esperando.get(e.data.id); if (!espera) return;
+        const espera = esperando.get(e.data.id);
+        if (!espera) {
+          if (e.data.ok && e.data.resultado) fecharCopia(e.data.resultado as ResultadoComExtras);
+          return;
+        }
         esperando.delete(e.data.id);
         if (e.data.ok) {
           const r = e.data.resultado!;

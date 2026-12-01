@@ -47,7 +47,10 @@ export function criarAutosalvamento(opcoes: OpcoesAutosalvamento): Autosalvament
   const gravarRascunho = () => enfileirar(async () => {
     if (fechado) return;
     const doc = store.documento;
-    if (!store.sujo) { await repo.descartarRascunho(doc.id); mudar('limpo'); return; }
+    if (!store.sujo) {
+      try { await repo.descartarRascunho(doc.id); mudar('limpo'); } catch (erro) { mudar('erro'); aoErro(erro); }
+      return;
+    }
     mudar('gravando');
     try { await repo.salvarRascunho(doc); mudar(store.sujo ? 'pendente' : 'limpo'); } catch (erro) { mudar('erro'); aoErro(erro); }
   });
@@ -68,15 +71,18 @@ export function criarAutosalvamento(opcoes: OpcoesAutosalvamento): Autosalvament
     salvarAgora(extra = {}) {
       parar();
       return enfileirar(async () => {
+        if (fechado) return store.documento;
         const enviado = store.documento;
         mudar('gravando');
         try {
           const confirmado = await repo.salvar(enviado, extra);
+          if (fechado) return confirmado;
           store.marcarSalvo(confirmado);
           mudar(store.sujo ? 'pendente' : 'limpo');
           if (store.sujo) agendarRascunho();
           return confirmado;
         } catch (erro) {
+          if (fechado) throw erro;
           mudar(erro instanceof ErroDeConflito ? 'conflito' : 'erro');
           if (!(erro instanceof ErroDeConflito)) aoErro(erro);
           throw erro;
@@ -87,10 +93,16 @@ export function criarAutosalvamento(opcoes: OpcoesAutosalvamento): Autosalvament
     descarregar() { parar(); return store.sujo ? gravarRascunho() : Promise.resolve(); },
 
     async rascunhoParaRecuperar() {
-      const id = store.documento.id, rascunho = await repo.obterRascunho(id);
+      const id = store.documento.id;
+      let rascunho: Rascunho | undefined;
+      try { rascunho = await repo.obterRascunho(id); } catch { return undefined; }
       if (!rascunho) return undefined;
-      const gravado = await repo.obter(id);
-      if (gravado && conteudo(gravado) === conteudo(rascunho.mapa)) { await repo.descartarRascunho(id); return undefined; }
+      let gravado: MapaAtlas | undefined;
+      try { gravado = await repo.obter(id); } catch { gravado = undefined; }
+      if (gravado && conteudo(gravado) === conteudo(rascunho.mapa)) {
+        try { await repo.descartarRascunho(id); } catch { /* ignora erro ao descartar */ }
+        return undefined;
+      }
       return { rascunho, obsoleto: !!gravado && rascunho.mapa.revision < gravado.revision };
     },
 

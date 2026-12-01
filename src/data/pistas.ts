@@ -36,7 +36,11 @@ export function pistaDoRegistro(v: unknown): Pista | null {
  */
 async function abrir(): Promise<IDBDatabase | null> {
   if (typeof indexedDB === 'undefined') return null;
-  if (typeof indexedDB.databases === 'function' && !(await indexedDB.databases()).some(d => d.name === BANCO_DE_PISTAS)) return null;
+  if (typeof indexedDB.databases === 'function') {
+    let dbs: IDBDatabaseInfo[];
+    try { dbs = await indexedDB.databases(); } catch { dbs = []; }
+    if (!dbs.some(d => d.name === BANCO_DE_PISTAS)) return null;
+  }
   return new Promise(resolver => {
     const pedido = indexedDB.open(BANCO_DE_PISTAS);
     pedido.onerror = () => resolver(null); pedido.onblocked = () => resolver(null);

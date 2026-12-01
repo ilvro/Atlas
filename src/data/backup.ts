@@ -49,7 +49,9 @@ export function lerPacote(texto: string): PacoteBackup {
   const o = bruto as Record<string, unknown>;
   if (o.schema === SCHEMA_MAPA) return { formato: FORMATO_BACKUP, versao: VERSAO_BACKUP, criadoEm: Date.now(), mapas: [o], assets: [] };
   if (o.formato !== FORMATO_BACKUP) throw new ErroDeBackup('O arquivo não é um backup do Atlas.');
-  if (typeof o.versao !== 'number' || o.versao > VERSAO_BACKUP) throw new ErroDeBackup(`Backup da versão ${String(o.versao)}; este Atlas entende até a ${VERSAO_BACKUP}. Atualize o Atlas.`);
+  if (typeof o.versao !== 'number' || !Number.isInteger(o.versao) || o.versao < 1 || o.versao > VERSAO_BACKUP) {
+    throw new ErroDeBackup(`Backup da versão ${String(o.versao)}; este Atlas entende até a ${VERSAO_BACKUP}. Atualize o Atlas.`);
+  }
   if (!Array.isArray(o.mapas) || !Array.isArray(o.assets)) throw new ErroDeBackup('Backup incompleto: faltam as listas de mapas e assets.');
   return o as unknown as PacoteBackup;
 }
@@ -71,27 +73,37 @@ export async function importarBackup(repo: RepositorioMapas, pacote: PacoteBacku
   const relatorio: RelatorioImportacao = { importados: [], pulados: [], erros: [], assets: 0 };
 
   for (const [i, a] of pacote.assets.entries()) {
+    const obj = a && typeof a === 'object' && !Array.isArray(a) ? (a as unknown as Record<string, unknown>) : null;
+    const nomeAsset = obj && typeof obj.id === 'string' && obj.id ? `asset ${obj.id}` : `asset #${i}`;
     try {
-      await repo.restaurarAsset({ id: a.id, hash: a.hash, tipo: a.tipo, blob: deBase64(a.base64, a.tipo), criadoEm: a.criadoEm } satisfies Asset);
+      if (!obj || typeof obj.id !== 'string' || typeof obj.hash !== 'string' || typeof obj.base64 !== 'string') {
+        throw new Error('Entrada de asset inválida no backup.');
+      }
+      const tipo = typeof obj.tipo === 'string' ? obj.tipo : 'application/octet-stream';
+      const criadoEm = typeof obj.criadoEm === 'number' && Number.isFinite(obj.criadoEm) ? obj.criadoEm : agora();
+      await repo.restaurarAsset({ id: obj.id, hash: obj.hash, tipo, blob: deBase64(obj.base64, tipo), criadoEm } satisfies Asset);
       relatorio.assets++;
-    } catch (erro) { relatorio.erros.push({ posicao: i, nome: `asset ${a.id}`, motivo: erro instanceof Error ? erro.message : String(erro) }); }
+    } catch (erro) { relatorio.erros.push({ posicao: i, nome: nomeAsset, motivo: erro instanceof Error ? erro.message : String(erro) }); }
   }
 
   for (const [i, bruto] of pacote.mapas.entries()) {
     const nomeBruto = bruto && typeof bruto === 'object' && typeof (bruto as { name?: unknown }).name === 'string' ? (bruto as { name: string }).name : null;
-    let mapa: MapaAtlas;
-    try { mapa = lerMapa(bruto); } catch (erro) { relatorio.erros.push({ posicao: i, nome: nomeBruto, motivo: erro instanceof Error ? erro.message : String(erro) }); continue; }
-    const existente = await repo.obter(mapa.id);
-    if (!existente) { await repo.restaurar(mapa); relatorio.importados.push({ id: mapa.id, nome: mapa.name, comoCopia: false, substituiu: false }); continue; }
-    if (conflito === 'pular') { relatorio.pulados.push({ id: mapa.id, nome: mapa.name, motivo: 'Já existe um mapa com este identificador.' }); continue; }
-    if (conflito === 'substituir') {
-      await repo.restaurar({ ...mapa, revision: existente.revision + 1, updatedAt: agora() });
-      relatorio.importados.push({ id: mapa.id, nome: mapa.name, comoCopia: false, substituiu: true }); continue;
-    }
-    // Copia: é uma cópia fiel (com o que aconteceu na sessão), só com identidade nova.
-    const copia = { ...duplicarParaNovaSessao(mapa, { ...(opcoes.novoId ? { id: opcoes.novoId() } : {}), agora: agora(), nome: `${mapa.name} (importado)` }), session: mapa.session };
-    await repo.restaurar(copia);
-    relatorio.importados.push({ id: copia.id, nome: copia.name, comoCopia: true, substituiu: false });
+    let nomeErro = nomeBruto;
+    try {
+      const mapa = lerMapa(bruto);
+      nomeErro = mapa.name;
+      const existente = await repo.obter(mapa.id);
+      if (!existente) { await repo.restaurar(mapa); relatorio.importados.push({ id: mapa.id, nome: mapa.name, comoCopia: false, substituiu: false }); continue; }
+      if (conflito === 'pular') { relatorio.pulados.push({ id: mapa.id, nome: mapa.name, motivo: 'Já existe um mapa com este identificador.' }); continue; }
+      if (conflito === 'substituir') {
+        await repo.restaurar({ ...mapa, revision: existente.revision + 1, updatedAt: agora() });
+        relatorio.importados.push({ id: mapa.id, nome: mapa.name, comoCopia: false, substituiu: true }); continue;
+      }
+      // Copia: é uma cópia fiel (com o que aconteceu na sessão), só com identidade nova.
+      const copia = { ...duplicarParaNovaSessao(mapa, { ...(opcoes.novoId ? { id: opcoes.novoId() } : {}), agora: agora(), nome: `${mapa.name} (importado)` }), session: mapa.session };
+      await repo.restaurar(copia);
+      relatorio.importados.push({ id: copia.id, nome: copia.name, comoCopia: true, substituiu: false });
+    } catch (erro) { relatorio.erros.push({ posicao: i, nome: nomeErro, motivo: erro instanceof Error ? erro.message : String(erro) }); }
   }
   return relatorio;
 }

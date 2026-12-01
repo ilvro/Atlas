@@ -90,9 +90,13 @@ export async function abrirRepositorioMapas(opcoes: OpcoesRepositorioMapas): Pro
       validarMapa(mapa);
       return transacao(banco, ['mapas', 'rascunhos'], 'readwrite', async tx => {
         const store = tx.objectStore('mapas'), atualBruto = await promessa(store.get(mapa.id));
-        const atual = atualBruto === undefined ? undefined : lerMapa(atualBruto);
+        const atual = atualBruto === undefined || extra.forcar ? undefined : lerMapa(atualBruto);
         if (atual && atual.revision !== mapa.revision && !extra.forcar) throw new ErroDeConflito(atual);
-        const confirmado: MapaAtlas = { ...mapa, revision: (atual?.revision ?? mapa.revision) + 1, createdAt: atual?.createdAt ?? mapa.createdAt, updatedAt: agora() };
+        const brutoObj = atualBruto && typeof atualBruto === 'object' ? (atualBruto as Record<string, unknown>) : undefined;
+        const revBruta = typeof brutoObj?.revision === 'number' && Number.isFinite(brutoObj.revision) ? brutoObj.revision : undefined;
+        const criadoBruto = typeof brutoObj?.createdAt === 'number' && Number.isFinite(brutoObj.createdAt) ? brutoObj.createdAt : undefined;
+        const revisaoBase = atual?.revision ?? (revBruta !== undefined ? Math.max(mapa.revision, revBruta) : mapa.revision);
+        const confirmado: MapaAtlas = { ...mapa, revision: revisaoBase + 1, createdAt: atual?.createdAt ?? criadoBruto ?? mapa.createdAt, updatedAt: agora() };
         await promessa(store.put(confirmado));
         await promessa(tx.objectStore('rascunhos').delete(mapa.id));
         return confirmado;

@@ -13,9 +13,10 @@ import { tocar } from '../fx/som.ts';
 import { tentar } from './campos.tsx';
 
 let intervaloCronometro: ReturnType<typeof setInterval> | null = null;
+let instanciasMontadas = 0;
 
 function sincronizarIntervalo(rodando: boolean) {
-  if (rodando) {
+  if (rodando && instanciasMontadas > 0) {
     if (!intervaloCronometro && typeof setInterval !== 'undefined') {
       intervaloCronometro = setInterval(() => {
         estadoCronometro.value = {
@@ -152,6 +153,15 @@ function WidgetTempo({ s }: { s: SessaoDeEdicao }) {
   } catch {
     noite = false;
   }
+
+  useEffect(() => {
+    instanciasMontadas++;
+    sincronizarIntervalo(estadoCronometro.peek().rodando);
+    return () => {
+      instanciasMontadas = Math.max(0, instanciasMontadas - 1);
+      if (instanciasMontadas === 0) sincronizarIntervalo(false);
+    };
+  }, []);
 
   useEffect(() => {
     sincronizarIntervalo(crono.rodando);

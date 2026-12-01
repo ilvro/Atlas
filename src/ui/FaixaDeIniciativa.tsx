@@ -5,11 +5,47 @@ import { Icone } from './Icone.tsx';
 
 export interface PecaDaFaixa { name: string; portrait: RefAsset | null; player?: boolean }
 
+export const MAX_RETRATOS = 100;
+
 /** Retratos já lidos, por id de asset (a faixa é redesenhada a cada passo e não deve reler o banco). */
 const retratos = new Map<string, Promise<string | null>>();
-function urlDoRetrato(id: string, ler: (id: string) => Promise<Blob | null>): Promise<string | null> {
+
+function revogarSeExistir(p: Promise<string | null> | undefined): void {
+  p?.then(u => { if (u && typeof URL !== 'undefined') URL.revokeObjectURL?.(u); }).catch(() => {});
+}
+
+export function limparRetratos(): void {
+  for (const p of retratos.values()) revogarSeExistir(p);
+  retratos.clear();
+}
+
+export function urlDoRetrato(id: string, ler: (id: string) => Promise<Blob | null>): Promise<string | null> {
   let p = retratos.get(id);
-  if (!p) { p = ler(id).then(b => { if (!b) retratos.delete(id); return b ? URL.createObjectURL(b) : null; }).catch(() => { retratos.delete(id); return null; }); retratos.set(id, p); }
+  if (p) {
+    retratos.delete(id);
+    retratos.set(id, p);
+  } else {
+    p = ler(id)
+      .then(b => {
+        if (!b) {
+          if (retratos.get(id) === p) retratos.delete(id);
+          return null;
+        }
+        return URL.createObjectURL(b);
+      })
+      .catch(() => {
+        if (retratos.get(id) === p) retratos.delete(id);
+        return null;
+      });
+    retratos.set(id, p);
+    while (retratos.size > MAX_RETRATOS) {
+      const maisAntigo = retratos.keys().next().value;
+      if (maisAntigo === undefined) break;
+      const evitado = retratos.get(maisAntigo);
+      retratos.delete(maisAntigo);
+      revogarSeExistir(evitado);
+    }
+  }
   return p;
 }
 
