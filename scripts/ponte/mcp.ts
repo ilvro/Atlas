@@ -13,6 +13,7 @@ import type { AppConectado, Conteudo, FerramentaDoApp, Resultado, AnotacoesDaFer
 import { definirImagemNoAtelie } from './imagens.ts';
 import { registrarUso, lerUso, gravarUso, CAMINHO_USO_PADRAO } from './uso.ts';
 import { ehSempre, ehDestrutiva, indiceSobDemanda, sugerirNomes } from './niveis.ts';
+import { listarImagens, lerImagem, reescreverImagensDoQuadro, LADO_MAX_MINIATURA } from './arquivos.ts';
 import { lerPreset, adicionarAoPreset, abrirPresetNaJukebox } from './presets.ts';
 
 export const ATRASOS_MS = [1000, 2000, 5000, 10000];
@@ -283,7 +284,7 @@ export function conectarNaPonte(op: PontaOpcoes): Ponta {
         // Ferramenta removida do código: sai do cache quando o app dela se registra sem ela.
         const appsAtivos = new Set(m.lista.map(f => f.app));
         for (const [nome, f] of catalogo) {
-          if (nome === 'jukebox_preset_ler' || nome === 'jukebox_preset_adicionar' || nome === 'jukebox_preset_abrir' || nome === 'atelie_imagem_definir') continue;
+          if (nome === 'jukebox_preset_ler' || nome === 'jukebox_preset_adicionar' || nome === 'jukebox_preset_abrir' || nome === 'atelie_imagem_definir' || nome === 'arquivo_imagens') continue;
           if (appsAtivos.has(f.app) && !m.lista.some(nova => nova.nome === nome)) {
             catalogo.delete(nome);
           }
@@ -479,6 +480,18 @@ export const ESQUEMA_IMAGEM_DEFINIR = {
   required: ['id', 'campo', 'arquivo'],
   additionalProperties: false,
 };
+
+export const ESQUEMA_ARQUIVO_IMAGENS = {
+  type: 'object' as const,
+  properties: {
+    caminho: { type: 'string', description: 'Pasta ou PDF no disco (dentro das pastas permitidas).' },
+    ver: { type: 'string', description: 'Id de uma imagem da lista: devolve a miniatura.' },
+  },
+  required: ['caminho'],
+  additionalProperties: false,
+};
+
+export const DESCRICAO_ARQUIVO_IMAGENS = 'Lista as imagens de uma pasta ou de um PDF (ids para o `de` de quadro_inserir) e, com ver, mostra a miniatura. Use em PDFs e pastas de extras antes de transcrever um material.';
 
 export const DESCRICAO_IMAGEM_DEFINIR = 'Define a imagem de um campo de imagem de um documento do Ateliê a partir de um arquivo (PNG, JPEG, WebP; até 15 MB). Detalhes: plataforma_guia ferramentas-atelie.';
 
@@ -741,7 +754,15 @@ async function executarSobDemanda(ponta: Ponta, executor: string, args: Record<s
   if (interno !== undefined && (interno === null || typeof interno !== 'object' || Array.isArray(interno))) {
     return erroTexto('`args` deve ser um objeto.');
   }
-  return chamarFerramenta(ponta, nome, (interno ?? {}) as Record<string, unknown>, prazoMs, guia, avisoGuia);
+  let argsFinais = (interno ?? {}) as Record<string, unknown>;
+  if (nome === 'quadro_inserir') {
+    try {
+      argsFinais = await reescreverImagensDoQuadro(argsFinais);
+    } catch (err) {
+      return erroTexto((err as Error).message);
+    }
+  }
+  return chamarFerramenta(ponta, nome, argsFinais, prazoMs, guia, avisoGuia);
 }
 
 export function converterConteudo(c: Conteudo) {
@@ -784,6 +805,20 @@ export async function chamarFerramenta(ponta: Ponta, nome: string, args: Record<
       if (!pasta) throw new Error('Parâmetro "pasta" é obrigatório');
       const resultado = lerPreset(pasta);
       return { content: [{ type: 'text' as const, text: JSON.stringify(resultado, null, 2) }] };
+    } catch (err) {
+      return { isError: true, content: [{ type: 'text' as const, text: (err as Error).message }] };
+    }
+  }
+
+  if (nome === 'arquivo_imagens') {
+    try {
+      const caminho = String(args?.caminho ?? '');
+      if (!caminho) throw new Error('Parâmetro "caminho" é obrigatório');
+      if (typeof args?.ver === 'string' && args.ver) {
+        const img = await lerImagem(args.ver, { ladoMax: LADO_MAX_MINIATURA });
+        return { content: [{ type: 'text' as const, text: `${args.ver} (${img.largura}x${img.altura})` }, { type: 'image' as const, data: img.bytes.toString('base64'), mimeType: img.mime }] };
+      }
+      return { content: [{ type: 'text' as const, text: JSON.stringify(await listarImagens(caminho), null, 2) }] };
     } catch (err) {
       return { isError: true, content: [{ type: 'text' as const, text: (err as Error).message }] };
     }

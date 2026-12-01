@@ -3,7 +3,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ferramentasDeEscrita } from '../../src/app/ponte-escrita.ts';
 import { ferramentasDeLeitura } from '../../src/app/ponte-leitura.ts';
-import { DESCRICAO_IMAGEM_DEFINIR, DESCRICAO_PRESET_ABRIR, ESQUEMA_IMAGEM_DEFINIR, ESQUEMA_PRESET_ABRIR, ESQUEMA_PRESET_ADICIONAR, ESQUEMA_PRESET_LER } from './mcp.ts';
+import { DESCRICAO_ARQUIVO_IMAGENS, ESQUEMA_ARQUIVO_IMAGENS, DESCRICAO_IMAGEM_DEFINIR, DESCRICAO_PRESET_ABRIR, ESQUEMA_IMAGEM_DEFINIR, ESQUEMA_PRESET_ABRIR, ESQUEMA_PRESET_ADICIONAR, ESQUEMA_PRESET_LER } from './mcp.ts';
 
 export const APPS_CONHECIDOS = ['atlas', 'mesa', 'ficha', 'atelie', 'jukebox'];
 
@@ -19,6 +19,13 @@ export interface ItemCatalogoBase {
 }
 
 export const FERRAMENTAS_LOCAIS_CATALOGO: ItemCatalogoBase[] = [
+  {
+    nome: 'arquivo_imagens',
+    descricao: DESCRICAO_ARQUIVO_IMAGENS,
+    esquema: ESQUEMA_ARQUIVO_IMAGENS as Record<string, unknown>,
+    app: 'mesa',
+    anotacoes: { leitura: true },
+  },
   {
     nome: 'jukebox_preset_adicionar',
     descricao: 'Adiciona música MP3 a uma pasta de preset da Jukebox no disco (use substituir: true para atualizar).',
