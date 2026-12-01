@@ -3,72 +3,21 @@ import { tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
 import { LUZ_X, LUZ_Y, bolha, lente, silhuetaDeDiscos, sombraNoChao, tira, tonsComLuz, tufo } from '../organico.ts';
 import { num, parede, piso, type LuzDeReceita, type Receita } from './comum.ts';
+import {
+  BRONZE, ID, MADEIRA, O, OURO, PATINA, S, anel, arco, bloco, desgaste, disco, em, estofado, fogoQueBrilha, fruta,
+  luzLocal, olhar, quadro, retQ, retR, tomDaFace, type Quadro, type Tons,
+} from './formas.ts';
 
 // Antiguidade (Q15a): templo e cidade. Mármore claro e quente, bronze com pátina, arenito e granito pintados para o Egito.
 // Como no resto do acervo: nanquim por baixo do que conta na silhueta, volume em degraus de tom para o noroeste e `z` moderado
 // (≈1–1,5 m) nas partes, com a `altura` real declarada na receita para a sombra do sol: peça estreita com `z` alto escurece um anel
 // do chão em volta à noite (oclusão do mapa de altura).
 
-export const O = { contorno: false as const, semSombra: true };
-export const S = { ...O, suave: true };
-const LUZ_A = Math.atan2(LUZ_Y, LUZ_X);
-
-/** Os tons de um material de pedra ou metal, do nanquim (silhueta) ao brilho. */
-export interface Tons { nanquim: string; sombra: string; base: string; meio: string; luz: string; brilho: string }
-export const MARMORE: Tons = { nanquim: '#2a231b', sombra: '#8f8472', base: '#b5aa94', meio: '#cbc1ab', luz: '#ded5c1', brilho: '#f2ebdb' };
+const MARMORE: Tons = { nanquim: '#2a231b', sombra: '#8f8472', base: '#b5aa94', meio: '#cbc1ab', luz: '#ded5c1', brilho: '#f2ebdb' };
 const MARMORE_VELHO: Tons = { nanquim: '#26201a', sombra: '#7e7462', base: '#a29682', meio: '#b8ad98', luz: '#cdc3ae', brilho: '#e0d8c6' };
 const ARENITO: Tons = { nanquim: '#2a1c10', sombra: '#7e6040', base: '#a6865a', meio: '#bc9c6c', luz: '#d2b484', brilho: '#e8cfa0' };
 const GRANITO: Tons = { nanquim: '#1e1210', sombra: '#5a3a32', base: '#7e5448', meio: '#956656', luz: '#ae7e6a', brilho: '#c89c86' };
-export const BRONZE: Tons = { nanquim: '#1a120a', sombra: '#4a3418', base: '#74522a', meio: '#8e6834', luz: '#b08646', brilho: '#d8b26c' };
-export const OURO: Tons = { nanquim: '#2a1a06', sombra: '#7a5418', base: '#a27424', meio: '#bc8c2e', luz: '#d6aa44', brilho: '#f0d684' };
-export const PATINA = '#4f8a72', AZUL = '#24447e', TURQUESA = '#2c8480', VERMELHO = '#963a1e', TINTA = '#1e1612', CINZA = '#3a3430';
-
-export type Quadro = (u: number, v: number) => [number, number];
-/** Um referencial local (u ao longo, v através) com centro em (cx, cy) e girado `ang`. */
-export const quadro = (cx: number, cy: number, ang = 0): Quadro => { const c = Math.cos(ang), s = Math.sin(ang); return (u, v) => [cx + u * c - v * s, cy + u * s + v * c]; };
-export const em = (f: Quadro, uv: readonly number[]): number[] => { const out: number[] = []; for (let i = 0; i < uv.length; i += 2) out.push(...f(uv[i]!, uv[i + 1]!)); return out; };
-export const ID = quadro(0, 0);
-/** Quanto uma face de normal `ang` olha para a luz (1 de frente, −1 de costas). */
-export const olhar = (ang: number): number => Math.cos(ang - LUZ_A);
-export const tomDaFace = (t: Tons, d: number): string => (d > 0.55 ? t.luz : d > 0.05 ? t.meio : d > -0.55 ? t.base : t.sombra);
-
-/** Disco em volume (tambor, toro, cabeça): nanquim, base e degraus de luz para o noroeste. */
-export function disco(partes: Parte[], x: number, y: number, R: number, t: Tons, z: number, rY = R): void {
-  partes.push(elipse(x + 0.012, y + 0.014, R * 2 + 0.05, rY * 2 + 0.05, t.nanquim, z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
-  partes.push(elipse(x, y, R * 2, rY * 2, t.base, z + 0.003, { ...O, detalhe: 1 }));
-  partes.push(elipse(x + LUZ_X * R * 0.1, y + LUZ_Y * rY * 0.1, R * 1.72, rY * 1.72, t.meio, z + 0.006, { ...S, detalhe: 1 }));
-  partes.push(elipse(x + LUZ_X * R * 0.28, y + LUZ_Y * rY * 0.28, R * 1.0, rY * 0.96, t.luz, z + 0.009, { ...S, detalhe: 2 }));
-  partes.push(elipse(x + LUZ_X * R * 0.46, y + LUZ_Y * rY * 0.46, R * 0.34, rY * 0.3, t.brilho, z + 0.012, { ...S, alfa: 0.8, detalhe: 3 }));
-}
-
-/** Bloco de pedra visto de cima, no referencial `f`: nanquim, tampo e bisel com cada face no tom da luz que recebe. */
-export function bloco(partes: Parte[], f: Quadro, w: number, h: number, t: Tons, z: number, b = Math.min(w, h) * 0.12, ang = 0): void {
-  const u = w / 2, v = h / 2;
-  partes.push(poli(em(f, [-u - 0.02, -v - 0.02, u + 0.035, -v - 0.02, u + 0.035, v + 0.04, -u - 0.02, v + 0.04]), t.nanquim, z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
-  partes.push(poli(em(f, [-u, -v, u, -v, u, v, -u, v]), t.base, z + 0.003, { ...O, detalhe: 1 }));
-  const faces: [number[], number][] = [
-    [[-u, -v, u, -v, u - b, -v + b, -u + b, -v + b], -Math.PI / 2], [[u, -v, u, v, u - b, v - b, u - b, -v + b], 0],
-    [[u, v, -u, v, -u + b, v - b, u - b, v - b], Math.PI / 2], [[-u, v, -u, -v, -u + b, -v + b, -u + b, v - b], Math.PI],
-  ];
-  for (const [pts, n] of faces) partes.push(poli(em(f, pts), tomDaFace(t, olhar(n + ang)), z + 0.005, { ...O, detalhe: 2 }));
-  partes.push(poli(em(f, [-u + b, -v + b, u - b, -v + b, u - b, v - b, -u + b, v - b]), t.meio, z + 0.006, { ...O, detalhe: 1 }));
-  partes.push(tira(em(f, [-u + b * 0.2, v - b, -u + b * 0.2, -v + b * 0.2, u - b, -v + b * 0.2]), Math.max(0.012, b * 0.18), t.brilho, z + 0.007, { ...O, alfa: 0.8, detalhe: 3 }));
-}
-
-/** Lascas escuras nas quinas e rachaduras finas num bloco (pedra gasta pelo tempo). */
-export function desgaste(partes: Parte[], r: () => number, f: Quadro, w: number, h: number, t: Tons, z: number, n = 3): void {
-  for (let i = 0; i < n; i++) {
-    const su = r() < 0.5 ? -1 : 1, sv = r() < 0.5 ? -1 : 1, s = Math.min(w, h) * (0.06 + r() * 0.08);
-    const cu = su * w / 2, cv = sv * h / 2;
-    partes.push(poli(em(f, [cu, cv, cu - su * s * (1 + r()), cv, cu - su * s * 0.5, cv - sv * s * 0.6, cu, cv - sv * s * (1 + r())]), t.sombra, z + 0.008, { ...O, detalhe: 2 }));
-  }
-  for (let i = 0; i < Math.ceil(n / 2); i++) {
-    const u0 = (r() - 0.5) * w * 0.8, v0 = (r() - 0.5) * h * 0.8, pts: number[] = [u0, v0];
-    let a = r() * 6.28, u = u0, v = v0;
-    for (let k = 0; k < 4; k++) { a += (r() - 0.5) * 1.2; u += Math.cos(a) * Math.min(w, h) * 0.1; v += Math.sin(a) * Math.min(w, h) * 0.1; pts.push(u, v); }
-    partes.push(tira(em(f, pts), 0.012, t.nanquim, z + 0.009, { ...O, alfa: 0.55, detalhe: 3 }, 0.3));
-  }
-}
+const AZUL = '#24447e', TURQUESA = '#2c8480', VERMELHO = '#963a1e', TINTA = '#1e1612', CINZA = '#3a3430';
 
 /** Contorno de um fuste canelado (vista de cima): `n` caneluras côncavas de fundo `fundo`·R, com filete plano entre elas (`filete`, de 0 a 0,4). */
 function contornoCanelado(R: number, n: number, fundo: number, filete: number, cx = 0, cy = 0): number[] {
@@ -366,18 +315,6 @@ function busto(seed: number): Parte[] {
   return partes;
 }
 
-/** Brasas e chamas que brilham (cores escuras e saturadas: a emissão multiplica por até 3), num disco de raio `R`. */
-export function fogoQueBrilha(partes: Parte[], r: () => number, R: number, z: number): void {
-  partes.push(elipse(0, 0, R * 2, R * 2, '#2a0a04', z, { ...O, detalhe: 1 }));
-  for (let k = 0; k < 16; k++) { const a = r() * 6.28, d = Math.sqrt(r()) * R * 0.85; partes.push(elipse(Math.cos(a) * d, Math.sin(a) * d, 0.06 + r() * 0.05, 0.05 + r() * 0.04, r() < 0.35 ? '#1a0e0a' : r() < 0.5 ? '#8a2206' : '#a8380a', z + 0.005, { ...O, brilho: true, detalhe: 2 })); }
-  const macio = (pts: number[], c: string, zz: number, alfa: number, d: number): Parte => poli(pts, c, zz, { ...O, alfa, desfoque: d, brilho: true, detalhe: 2 });
-  for (let k = 0; k < 7; k++) { const a = (k / 7) * 6.28 + r() * 0.5, d = R * 0.35; partes.push(macio(bolha(Math.cos(a) * d, Math.sin(a) * d, R * 0.42, R * 0.3, 9, 0.3, r, a), '#a8340a', z + 0.02 + k * 0.001, 0.85, 0.03)); }
-  partes.push(macio(bolha(0, 0, R * 0.62, R * 0.62, 12, 0.22, r), '#b8480c', z + 0.03, 0.9, 0.03));
-  partes.push(macio(bolha(0.01, 0.01, R * 0.4, R * 0.4, 10, 0.2, r), '#c06414', z + 0.035, 0.92, 0.025));
-  partes.push(elipse(0, 0, R * 0.36, R * 0.36, '#c88a2a', z + 0.04, { ...O, desfoque: 0.02, brilho: true, detalhe: 2 }));
-  for (let k = 0; k < 8; k++) { const a = r() * 6.28, d = R * (0.9 + r() * 0.3); partes.push(elipse(Math.cos(a) * d, Math.sin(a) * d, 0.025, 0.025, '#c0600e', z + 0.05, { ...O, alfa: 0.9, desfoque: 0.006, brilho: true, detalhe: 3 })); }
-}
-
 /** Tripé de bronze: três pernas de pata de leão abertas, a bacia com pátina e o fogo que brilha; o clarão no chão cabe na pegada. */
 function tripe(seed: number): Parte[] {
   const r = mulberry32(seed), partes: Parte[] = [], R = 0.3, giro = r() * 6.28;
@@ -637,39 +574,8 @@ function painelDeHieroglifos(seed: number, l: number): { face: Parte[]; topo: Pa
 
 const TERRACOTA: Tons = { nanquim: '#2a1208', sombra: '#6e3218', base: '#984a26', meio: '#b05c32', luz: '#c87648', brilho: '#e09a6c' };
 const BARRO: Tons = { nanquim: '#2a1a0e', sombra: '#7a5a3a', base: '#a07a50', meio: '#b48c60', luz: '#c8a274', brilho: '#e0c094' };
-export const MADEIRA: Tons = { nanquim: '#1c1008', sombra: '#432814', base: '#62401f', meio: '#7a5229', luz: '#946637', brilho: '#b88a52' };
 const ESTUQUE: Tons = { nanquim: '#2a2018', sombra: '#8a7860', base: '#b0a080', meio: '#c4b494', luz: '#d6c8a8', brilho: '#ece0c4' };
 const POMPEIA = '#8e2c1c', OCRE = '#b8862e', PURPURA = '#5a2440', LINHO = '#d8ccb0', ANIL = '#2e4a6a';
-
-/** A direção da luz (noroeste) no referencial girado de `ang`. */
-export const luzLocal = (ang: number): [number, number] => [LUZ_X * Math.cos(ang) + LUZ_Y * Math.sin(ang), -LUZ_X * Math.sin(ang) + LUZ_Y * Math.cos(ang)];
-/** Retângulo de cantos arredondados (u, v, w, h, raio) no referencial `f`. */
-export function retR(f: Quadro, u: number, v: number, w: number, h: number, raio = 0): number[] {
-  const rr = Math.max(0.001, Math.min(raio, w / 2, h / 2)), pts: number[] = [];
-  const cantos: [number, number, number][] = [[u + w / 2 - rr, v - h / 2 + rr, -Math.PI / 2], [u + w / 2 - rr, v + h / 2 - rr, 0], [u - w / 2 + rr, v + h / 2 - rr, Math.PI / 2], [u - w / 2 + rr, v - h / 2 + rr, Math.PI]];
-  for (const [cu, cv, a0] of cantos) for (let k = 0; k <= 3; k++) { const a = a0 + (k / 3) * (Math.PI / 2); pts.push(cu + Math.cos(a) * rr, cv + Math.sin(a) * rr); }
-  return em(f, pts);
-}
-/** Retângulo (u, v, w, h) no referencial `f`. */
-export const retQ = (f: Quadro, u: number, v: number, w: number, h: number): number[] => em(f, [u - w / 2, v - h / 2, u + w / 2, v - h / 2, u + w / 2, v + h / 2, u - w / 2, v + h / 2]);
-/** Um arco de `a0` a `a1` (rad) em `n` passos. */
-export const arco = (x: number, y: number, rx: number, ry: number, a0: number, a1: number, n = 12): number[] => { const p: number[] = []; for (let k = 0; k <= n; k++) { const a = a0 + (k / n) * (a1 - a0); p.push(x + Math.cos(a) * rx, y + Math.sin(a) * ry); } return p; };
-/** Um círculo de `n` pontos (para tiras em anel). */
-export const anel = (x: number, y: number, rx: number, ry = rx, n = 28): number[] => { const p: number[] = []; for (let k = 0; k <= n; k++) { const a = (k / n) * Math.PI * 2; p.push(x + Math.cos(a) * rx, y + Math.sin(a) * ry); } return p; };
-
-/** Tecido estofado (colchão, almofada) no referencial `f`: nanquim, base, o lado da luz mais claro e a borda de baixo escura. */
-export function estofado(partes: Parte[], f: Quadro, ang: number, u: number, v: number, w: number, h: number, cor: string, z: number, raio = Math.min(w, h) * 0.3): void {
-  const [lu, lv] = luzLocal(ang);
-  partes.push(poli(retR(f, u - lu * 0.012, v - lv * 0.014, w + 0.03, h + 0.03, raio), tom(cor, -0.62), z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
-  partes.push(poli(retR(f, u, v, w, h, raio), tom(cor, -0.16), z + 0.003, { ...O, detalhe: 1 }));
-  partes.push(poli(retR(f, u + lu * w * 0.05, v + lv * h * 0.07, w * 0.88, h * 0.78, raio * 0.8), cor, z + 0.005, { ...S, detalhe: 1 }));
-  partes.push(poli(retR(f, u + lu * w * 0.12, v + lv * h * 0.2, w * 0.7, h * 0.36, raio * 0.6), tom(cor, 0.1), z + 0.007, { ...S, alfa: 0.45, detalhe: 2 }));
-}
-
-/** Uma fruta ou bolinha em volume (uva, romã, figo, pão): nanquim, base e o brilho para o noroeste. */
-export function fruta(partes: Parte[], x: number, y: number, R: number, cor: string, z: number): void {
-  partes.push(elipse(x + 0.006, y + 0.007, R * 2 + 0.014, R * 2 + 0.014, tom(cor, -0.7), z, { contorno: false, semSombra: true, detalhe: 2 }), elipse(x, y, R * 2, R * 2, cor, z + 0.001, { ...O, detalhe: 2 }), elipse(x + LUZ_X * R * 0.4, y + LUZ_Y * R * 0.4, R * 0.7, R * 0.7, tom(cor, 0.35), z + 0.002, { ...S, alfa: 0.85, detalhe: 3 }));
-}
 
 /** Cacho de uvas (n bagos) em volta de (x, y). */
 function cacho(partes: Parte[], r: () => number, x: number, y: number, k: number, cor: string, z: number, n = 9): void {

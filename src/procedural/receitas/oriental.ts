@@ -3,7 +3,10 @@ import { tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
 import { LUZ_X, LUZ_Y, bolha, lente, sombraNoChao, tira, tufo, type Tons as TonsDeTufo } from '../organico.ts';
 import { num, parede, piso, type LuzDeReceita, type Receita } from './comum.ts';
-import { BRONZE, ID, MADEIRA, O, OURO, PATINA, S, anel, arco, bloco, desgaste, disco, em, estofado, olhar, quadro, retQ, retR, tomDaFace, type Tons } from './antiguidade.ts';
+import {
+  BRONZE, ID, MADEIRA, O, OURO, PATINA, S, anel, arco, bloco, brasas, desgaste, disco, em, estofado, halo, olhar,
+  pedra, quadro, retQ, retR, tomDaFace, type Tons,
+} from './formas.ts';
 
 // Oriental (Q16): casa (Q16a), jardim e templo (Q16b). Madeira clara (hinoki), laca preta e vermelha, papel que brilha, granito cinza
 // com musgo, bronze escuro e bambu. As mesmas regras do resto do acervo: nanquim por baixo da silhueta, volume em degraus de tom
@@ -20,27 +23,6 @@ const CELADON: Tons = { nanquim: '#141a16', sombra: '#5a6e60', base: '#7a9080', 
 const BARRO_VERMELHO: Tons = { nanquim: '#1e0c06', sombra: '#5a2a16', base: '#7a3c20', meio: '#8e4a28', luz: '#a85e36', brilho: '#c8845a' };
 const PINHO: TonsDeTufo = { fundo: '#0e1a10', base: '#22382a', meio: '#2e4a32', luz: '#46663e', brilho: '#6a8a52' };
 const PAPEL = '#e6dcc2', MUSGO = '#4e6a2e', TINTA = '#141010', DOURADO = '#c49a3e', SELO = '#a8281a';
-
-/** Clarão no chão que soma luz (lanterna, brasa): cores escuras e saturadas, porque a emissão multiplica por até 3. */
-export const halo = (partes: Parte[], x: number, y: number, R: number, cor: string, alfa: number): void => { partes.push(elipse(x, y, R * 2, R * 2, cor, 0.01, { ...O, brilho: true, alfa, desfoque: R * 0.3, detalhe: 1 })); };
-
-/** Brasas de carvão que brilham num disco de raio `R`. */
-export function brasas(partes: Parte[], r: () => number, x: number, y: number, R: number, z: number, n = 16): void {
-  partes.push(elipse(x, y, R * 2, R * 2, '#2a0a04', z, { ...O, detalhe: 1 }));
-  partes.push(elipse(x, y, R * 1.5, R * 1.5, '#8a2a06', z + 0.002, { ...O, brilho: true, alfa: 0.7, desfoque: R * 0.25, detalhe: 1 }));
-  for (let k = 0; k < n; k++) { const a = r() * 6.28, d = Math.sqrt(r()) * R * 0.85; partes.push(elipse(x + Math.cos(a) * d, y + Math.sin(a) * d, 0.05 + r() * 0.05, 0.04 + r() * 0.04, r() < 0.3 ? '#1a0e0a' : r() < 0.5 ? '#8a2206' : '#b0400c', z + 0.005, { ...O, brilho: true, detalhe: 2 })); }
-  partes.push(elipse(x, y, R * 0.7, R * 0.7, '#c06414', z + 0.01, { ...O, brilho: true, alfa: 0.8, desfoque: R * 0.2, detalhe: 2 }));
-}
-
-/** Pedra de jardim arredondada (bolha), com o lado da luz claro e musgo do lado de sombra. */
-export function pedra(partes: Parte[], r: () => number, x: number, y: number, rx: number, ry: number, z: number, musgo = 0.5): void {
-  const forma = bolha(x, y, rx, ry, 14, 0.12, r, r() * 6);
-  partes.push(poli(forma.map((v, i) => v + (i % 2 ? 0.03 : 0.025)), PEDRA.nanquim, z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
-  partes.push(poli(forma, PEDRA.base, z + 0.003, { ...O, detalhe: 1 }));
-  partes.push(poli(bolha(x + LUZ_X * rx * 0.15, y + LUZ_Y * ry * 0.15, rx * 0.78, ry * 0.76, 12, 0.12, r), PEDRA.meio, z + 0.006, { ...S, detalhe: 2 }));
-  partes.push(poli(bolha(x + LUZ_X * rx * 0.35, y + LUZ_Y * ry * 0.35, rx * 0.4, ry * 0.36, 10, 0.18, r), PEDRA.luz, z + 0.009, { ...S, alfa: 0.85, detalhe: 3 }));
-  if (r() < musgo) partes.push(poli(bolha(x - LUZ_X * rx * 0.4, y - LUZ_Y * ry * 0.4, rx * 0.5, ry * 0.4, 10, 0.3, r), MUSGO, z + 0.012, { ...S, alfa: 0.75, detalhe: 2 }));
-}
 
 // ---------- Casa (Q16a) ----------
 

@@ -3,9 +3,10 @@ import { tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
 import { LUZ_X, LUZ_Y, bolha, lente, sombraNoChao, tira, tufo, type Tons as TonsDeTufo } from '../organico.ts';
 import { num, piso, type LuzDeReceita, type Receita } from './comum.ts';
-import { ID, O, S, anel, arco, bloco, disco, em, estofado, fogoQueBrilha, olhar, quadro, retQ, retR, tomDaFace, type Quadro, type Tons } from './antiguidade.ts';
-import { cilindro } from './colonial.ts';
-import { halo } from './oriental.ts';
+import {
+  ID, O, S, anel, arco, bloco, cilindro, disco, em, estofado, fogoQueBrilha, halo, olhar, quadro, retQ, retR,
+  tomDaFace, type Quadro, type Tons,
+} from './formas.ts';
 import { ACO, CONCRETO, CORES_DE_CARRO, GRAFITE, LIBRES, MODELOS, lataria, ligado, tonsDe, type Modelo } from './moderno-urbano.ts';
 
 // Pós-apocalíptico (Q22): a ruína e a sucata (Q22a). Tinta desbotada pelo sol e comida pela ferrugem, vidro quebrado, chapa ondulada remendada,

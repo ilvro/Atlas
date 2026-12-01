@@ -3,8 +3,9 @@ import { tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
 import { LUZ_X, LUZ_Y, bolha, lente, sombraNoChao, tira } from '../organico.ts';
 import { num, parede, piso, type LuzDeReceita, type Receita } from './comum.ts';
-import { ID, O, S, anel, arco, bloco, disco, em, estofado, quadro, retQ, retR, type Quadro, type Tons } from './antiguidade.ts';
-import { cilindro } from './colonial.ts';
+import {
+  ID, O, S, anel, arco, bloco, cilindro, disco, em, estofado, quadro, retQ, retR, type Quadro, type Tons,
+} from './formas.ts';
 import { ACO, CONCRETO, GRAFITE, cadeiraDeEscritorio, ligado, maquinaDeVenda, tonsDe } from './moderno-urbano.ts';
 
 // Cyberpunk (Q23): a rua (Q23a) e os interiores (Q23b). Néon em tubo (o halo largo e macio, a luva colorida e o miolo quase branco), telas que brilham, chapa preta,

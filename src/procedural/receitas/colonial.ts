@@ -3,8 +3,10 @@ import { tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
 import { LUZ_X, LUZ_Y, bolha, lente, sombraNoChao, tira } from '../organico.ts';
 import { num, piso, type LuzDeReceita, type Receita } from './comum.ts';
-import { ID, O, OURO, S, anel, arco, bloco, disco, em, estofado, quadro, retQ, retR, type Quadro, type Tons } from './antiguidade.ts';
-import { LATAO, PRATA } from './deserto.ts';
+import {
+  ID, LATAO, O, OURO, PRATA, S, anel, arco, bloco, cilindro, disco, em, estofado, quadro, retQ, retR,
+  type Quadro, type Tons,
+} from './formas.ts';
 
 // Colonial e pirata (Q19): navio e tesouro (Q19a), colônia e praia (Q19b). Carvalho de navio gasto pelo sal, ferro preto de canhão,
 // carreta pintada de zarcão, lona crua, corda de cânhamo, ouro. As regras do acervo: nanquim por baixo da silhueta, volume em degraus
@@ -16,24 +18,6 @@ const FERRO: Tons = { nanquim: '#060606', sombra: '#1a1c20', base: '#2a2d33', me
 const ZARCAO: Tons = { nanquim: '#1e0806', sombra: '#4e1a10', base: '#6e2a1a', meio: '#823420', luz: '#9a442a', brilho: '#c06a4a' };
 const CORDA = '#b8a478', LONA = '#ddd4ba', PERGAMINHO = '#d8c08a', TINTA = '#2a1a10', SANGUE = '#9a1e14';
 const tonsDe = (cor: string): Tons => ({ nanquim: tom(cor, -0.78), sombra: tom(cor, -0.42), base: cor, meio: tom(cor, 0.1), luz: tom(cor, 0.24), brilho: tom(cor, 0.5) });
-
-/**
- * Cilindro deitado de (ax, ay) a (bx, by), de largura `wa` a `wb` (cano de canhão, rolo, mastro deitado): o nanquim, a base, e as faixas
- * de meio-tom, luz e brilho do lado que olha para o noroeste; o outro lado, na sombra.
- */
-export function cilindro(partes: Parte[], ax: number, ay: number, bx: number, by: number, wa: number, wb: number, t: Tons, z: number, nitido = 1): void {
-  const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L, lado = nx * LUZ_X + ny * LUZ_Y >= 0 ? 1 : -1;
-  const faixa = (o0: number, o1: number, e = 0): number[] => {
-    const ex = (dx / L) * e, ey = (dy / L) * e;
-    return [ax - ex + nx * wa / 2 * o0, ay - ey + ny * wa / 2 * o0, bx + ex + nx * wb / 2 * o0, by + ey + ny * wb / 2 * o0, bx + ex + nx * wb / 2 * o1, by + ey + ny * wb / 2 * o1, ax - ex + nx * wa / 2 * o1, ay - ey + ny * wa / 2 * o1];
-  };
-  partes.push(poli(faixa(-1.18, 1.18, 0.015), t.nanquim, z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
-  partes.push(poli(faixa(-1, 1), t.base, z + 0.003, { ...O, detalhe: 1 }));
-  partes.push(poli(faixa(-lado * 0.62, -lado * 1), t.sombra, z + 0.004, { ...S, alfa: 0.7, detalhe: 2 }));
-  partes.push(poli(faixa(-lado * 0.1, lado * 0.88), t.meio, z + 0.005, { ...S, detalhe: 1 }));
-  partes.push(poli(faixa(lado * 0.3, lado * 0.72), t.luz, z + 0.007, { ...S, detalhe: 2 }));
-  if (nitido) partes.push(poli(faixa(lado * 0.46, lado * 0.6), t.brilho, z + 0.009, { ...S, alfa: 0.75, detalhe: 3 }));
-}
 
 /** Corda: o fio escuro por baixo e o cânhamo por cima, com a torção marcada. */
 function corda(partes: Parte[], pts: number[], w: number, z: number, cor = CORDA): void {

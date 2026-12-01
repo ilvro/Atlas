@@ -3,11 +3,10 @@ import { tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
 import { LUZ_X, LUZ_Y, bolha, lente, sombraNoChao, tira } from '../organico.ts';
 import { num, parede, piso, type LuzDeReceita, type Receita } from './comum.ts';
-import { ID, MADEIRA, O, S, anel, arco, bloco, disco, em, estofado, olhar, quadro, retQ, retR, tomDaFace, type Tons } from './antiguidade.ts';
-import { roda } from './faroeste.ts';
-import { LATAO } from './deserto.ts';
-import { cilindro } from './colonial.ts';
-import { brasas, halo } from './oriental.ts';
+import {
+  ID, LATAO, MADEIRA, O, S, anel, arco, bloco, brasas, cilindro, disco, em, estofado, halo, olhar, quadro,
+  retQ, retR, roda, tomDaFace, type Tons,
+} from './formas.ts';
 
 // Vitoriano e steampunk (Q20): fábrica e vapor (Q20a), rua e invenções (Q20b). Ferro fundido preto e o verde-garrafa das máquinas pintadas, latão polido,
 // cobre com azinhavre, tijolo de fuligem, aço claro das hastes. As regras do acervo: nanquim por baixo da silhueta, volume em degraus

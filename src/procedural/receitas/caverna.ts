@@ -3,51 +3,15 @@ import { tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
 import { num, piso, type Receita } from './comum.ts';
 import { galho } from './ermos.ts';
+import { costela, cranio, osso } from './formas.ts';
 import { faixa, rot } from './porto.ts';
-import { LUZ_X, LUZ_Y, bolha, sombraNoChao, tira, lente } from '../organico.ts';
+import { bolha, sombraNoChao, tira, lente } from '../organico.ts';
 
 const G = { categoria: 'exterior' as const, tipo: 'piso' as const, funcoes: ['caverna', 'masmorra', 'jardim'], kit: 'ermos' };
 const FINO: Partial<Parte> = { contorno: false, semSombra: true, detalhe: 3 };
-const OSSO = '#d9d2c0', OSSO_SOMBRA = '#8f8775', NANQUIM = '#2a2118', MANCHA = '#1c1410';
+const MANCHA = '#1c1410';
 const TONS_DE_OSSO = ['#e4ddca', '#d8ccb0', '#cbbf9f', '#c2bba9', '#dcd3bd'];
 const PINCEL: Partial<Parte> = { contorno: false, semSombra: true, suave: true };
-
-/** Um osso longo: haste em fita com as duas cabeças (epífises) em lóbulos, luz de um lado e sombra do outro; de (x, y) para `ang`. */
-export function osso(partes: Parte[], x: number, y: number, ang: number, len: number, w: number, z: number, cor = OSSO, r: () => number = Math.random): void {
-  const c = Math.cos(ang), s = Math.sin(ang), p = (u: number, v: number): [number, number] => [x + u * c - v * s, y + u * s + v * c];
-  const curva = (r() - 0.5) * w * 0.6, haste = [...p(0, 0), ...p(len * 0.5, curva), ...p(len, 0)];
-  partes.push(tira(haste, w, cor, z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }, 0.75));
-  for (const u of [0, len]) for (const v of [-0.42, 0.42]) { const [px, py] = p(u + (u ? -1 : 1) * w * 0.15, v * w * 1.15); partes.push(poli(bolha(px, py, w * 0.62, w * 0.55, 8, 0.12, r, ang), cor, z + 0.005, { contorno: 'leve', semSombra: true, detalhe: 2 })); }
-  const ox = LUZ_X * w * 0.18, oy = LUZ_Y * w * 0.18;
-  partes.push(tira([...p(w * 0.4, 0), ...p(len * 0.5, curva), ...p(len - w * 0.4, 0)].map((v, i) => v + (i % 2 ? oy : ox)), w * 0.32, tom(cor, 0.35), z + 0.01, { ...PINCEL, detalhe: 3 }, 0.5));
-  partes.push(tira([...p(w * 0.5, 0), ...p(len * 0.5, curva), ...p(len - w * 0.5, 0)].map((v, i) => v - (i % 2 ? oy : ox) * 1.6), w * 0.22, tom(cor, -0.28), z + 0.01, { ...PINCEL, detalhe: 3 }, 0.5));
-}
-
-/** Uma costela: arco afinando, de (x, y) saindo em `ang` e curvando para `lado`. */
-export function costela(partes: Parte[], x: number, y: number, ang: number, len: number, w: number, lado: number, cor: string, z: number): void {
-  const pts: number[] = [];
-  for (let k = 0; k <= 6; k++) { const t = k / 6, a = ang + lado * t * 1.1; pts.push(x + Math.cos(a) * len * t, y + Math.sin(a) * len * t); }
-  partes.push(tira(pts, w, cor, z, { contorno: 'leve', sombraLeve: true, detalhe: 2 }, 0.35));
-}
-
-/**
- * Crânio de animal (lobo, cervo) visto de cima, de (x, y) olhando para `ang`: caixa craniana redonda atrás, arcos das maçãs abertos na altura
- * dos olhos, focinho longo e estreito; órbitas e narinas escuras, crista no meio, luz a noroeste. `chifres` põe dois chifres curvos.
- */
-export function cranio(partes: Parte[], x: number, y: number, ang: number, s: number, z: number, chifres: boolean, cor = OSSO): void {
-  const c = Math.cos(ang), s2 = Math.sin(ang), p = (u: number, v: number): [number, number] => [x + (u * c - v * s2) * s, y + (u * s2 + v * c) * s];
-  const perfil: [number, number][] = [[-0.5, 0], [-0.47, 0.17], [-0.36, 0.3], [-0.18, 0.33], [-0.04, 0.4], [0.08, 0.38], [0.16, 0.22], [0.3, 0.17], [0.48, 0.14], [0.6, 0.1], [0.64, 0]];
-  const forma = [...perfil, ...perfil.slice(1, -1).reverse().map(([u, v]) => [u, -v] as [number, number])].flatMap(([u, v]) => p(u, v));
-  if (chifres) for (const lado of [-1, 1]) { const arco: number[] = []; for (let i = 0; i <= 7; i++) { const t = i / 7; arco.push(...p(-0.22 - t * 0.42 + t * t * 0.3, lado * (0.22 + t * 0.32 + t * t * 0.06))); } partes.push(tira(arco, 0.09 * s, '#8a7d62', z - 0.01, { contorno: 'leve', sombraLeve: true, detalhe: 2 }, 0.3)); }
-  partes.push(poli(forma, cor, z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }));
-  partes.push(poli(forma.map((v, i) => (i % 2 ? y + (v - y) * 0.8 + LUZ_Y * 0.03 * s : x + (v - x) * 0.8 + LUZ_X * 0.03 * s)), tom(cor, 0.18), z + 0.01, { ...PINCEL, detalhe: 2 }));
-  for (const lado of [-1, 1]) {
-    const [ox, oy] = p(0.08, lado * 0.25); partes.push(elipse(ox, oy, 0.17 * s, 0.13 * s, NANQUIM, z + 0.02, { ...PINCEL, detalhe: 1 }));
-    const [nx, ny] = p(0.6, lado * 0.035); partes.push(elipse(nx, ny, 0.06 * s, 0.035 * s, NANQUIM, z + 0.02, { ...PINCEL, detalhe: 2 }));
-    partes.push(tira([...p(-0.42, lado * 0.06), ...p(-0.2, lado * 0.2), ...p(0.0, lado * 0.32)], 0.025 * s, tom(cor, -0.3), z + 0.02, { ...PINCEL, detalhe: 3 }, 0.4));
-  }
-  partes.push(tira([...p(-0.48, 0), ...p(-0.1, 0), ...p(0.45, 0)], 0.035 * s, tom(cor, -0.22), z + 0.02, { ...PINCEL, detalhe: 3 }, 0.5));
-}
 
 /** O kit da caverna: ossos, peles, buracos e as feições da pedra. */
 export const RECEITAS_CAVERNA: Receita[] = [

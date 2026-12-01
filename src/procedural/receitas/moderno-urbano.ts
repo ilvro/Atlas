@@ -3,9 +3,10 @@ import { tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
 import { LUZ_X, LUZ_Y, bolha, lente, sombraNoChao, tira } from '../organico.ts';
 import { num, piso, type LuzDeReceita, type Receita } from './comum.ts';
-import { ID, O, S, anel, arco, bloco, disco, em, estofado, olhar, quadro, retQ, retR, tomDaFace, type Quadro, type Tons } from './antiguidade.ts';
-import { cilindro } from './colonial.ts';
-import { halo } from './oriental.ts';
+import {
+  ID, O, S, anel, arco, bloco, cilindro, disco, em, estofado, halo, olhar, quadro, retQ, retR, tomDaFace,
+  type Quadro, type Tons,
+} from './formas.ts';
 
 // Moderno urbano (Q21): a rua (Q21a) e os interiores de escritório, mercado, lanchonete, vestiário e enfermaria (Q21b). Lataria pintada com verniz (o teto e o capô pegam o céu), vidro escuro com o reflexo do céu,
 // borracha preta, plástico laranja de obra, concreto e aço galvanizado. As regras do acervo: nanquim por baixo da silhueta, volume em

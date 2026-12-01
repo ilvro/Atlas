@@ -3,9 +3,10 @@ import { tom } from '../materiais.ts';
 import { mulberry32 } from '../ruido.ts';
 import { LUZ_X, LUZ_Y, bolha, lente, sombraNoChao, tira } from '../organico.ts';
 import { num, parede, piso, type LuzDeReceita, type Receita } from './comum.ts';
-import { ID, MADEIRA, O, S, anel, arco, bloco, disco, em, estofado, olhar, quadro, retQ, retR, tomDaFace, type Quadro, type Tons } from './antiguidade.ts';
-import { LATAO, PRATA } from './deserto.ts';
-import { cranio } from './caverna.ts';
+import {
+  ID, LATAO, MADEIRA, O, PRATA, S, anel, arco, bloco, cranio, disco, em, estofado, olhar, quadro, retQ, retR,
+  roda, tomDaFace, type Quadro, type Tons,
+} from './formas.ts';
 
 // Faroeste (Q18): saloon e cidade (Q18a), rua e estrada de ferro (Q18b). Mogno envernizado do saloon, pinho cinzento de tábua velha,
 // ferro preto com latão, feltro verde, lona crua. As regras do acervo: nanquim por baixo da silhueta, volume em degraus de tom para o
@@ -23,14 +24,6 @@ function tabuado(partes: Parte[], r: () => number, f: Quadro, w: number, h: numb
   for (let v = -h / 2 + larg; v < h / 2 - 0.02; v += larg) partes.push(tira(em(f, [-w / 2, v, w / 2, v]), 0.012, t.nanquim, z + 0.002, { ...O, alfa: 0.55, detalhe: 3 }));
   for (let v = -h / 2 + larg / 2, k = 0; v < h / 2; v += larg, k++) if (k % 2) partes.push(poli(retQ(f, (r() - 0.5) * w * 0.4, v, w * (0.3 + r() * 0.4), larg * 0.7), tom(t.base, (r() - 0.5) * 0.14), z + 0.001, { ...S, alfa: 0.6, detalhe: 3 }));
   for (let k = 0; k < Math.ceil(w * h * 3); k++) partes.push(elipse(...f((r() - 0.5) * w * 0.9, (r() - 0.5) * h * 0.9), 0.03, 0.02, t.sombra, z + 0.003, { ...O, alfa: 0.6, detalhe: 3 }));
-}
-
-/** Roda vista de cima (a banda de ferro ao longo de u), com o cubo saindo para fora (lado `s` de v). */
-export function roda(partes: Parte[], f: Quadro, u: number, v: number, D: number, w: number, z: number, s: number, cor = '#6a2a1a'): void {
-  partes.push(tira(em(f, [u - D / 2, v, u + D / 2, v]), w + 0.03, FERRO.nanquim, z, { contorno: 'leve', sombraLeve: true, detalhe: 1 }, 0.6));
-  partes.push(tira(em(f, [u - D / 2 + 0.03, v, u + D / 2 - 0.03, v]), w * 0.7, cor, z + 0.003, { ...O, detalhe: 2 }, 0.7));
-  partes.push(tira(em(f, [u - D / 2 + 0.06, v - w * 0.15, u + D / 2 - 0.06, v - w * 0.15]), w * 0.18, tom(cor, 0.35), z + 0.005, { ...O, alfa: 0.7, detalhe: 3 }, 0.5));
-  const [hx, hy] = f(u, v + s * w * 0.7); partes.push(elipse(hx, hy, 0.12, 0.12, FERRO.base, z + 0.006, { contorno: 'leve', detalhe: 2 }), elipse(hx, hy, 0.05, 0.05, FERRO.brilho, z + 0.008, { ...O, detalhe: 3 }));
 }
 
 /** Garrafa vista de cima: o ombro de vidro escuro, o gargalo, a rolha e o brilho. */
