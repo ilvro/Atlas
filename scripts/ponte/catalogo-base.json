@@ -4470,6 +4470,32 @@
     }
   },
   {
+    "nome": "quadro_estilo",
+    "descricao": "Como o mestre escreve numa seção: estilos de título e corpo, destaques por cor, fluxo (coluna, grade), lado das imagens, uso de tipos; cada um com um #id de exemplo. Chame antes de montar ou continuar material no quadro. Sem secao, usa a do mestre com mais texto.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "quadro": {
+          "type": "string",
+          "description": "Nome ou id do quadro."
+        },
+        "secao": {
+          "type": "string",
+          "description": "Id da seção (do quadro_mapa) ou o título; opcional."
+        }
+      },
+      "required": [
+        "quadro"
+      ],
+      "additionalProperties": false
+    },
+    "app": "mesa",
+    "anotacoes": {
+      "leitura": true,
+      "idempotente": true
+    }
+  },
+  {
     "nome": "quadro_imagem",
     "descricao": "Vê uma imagem do quadro (reduzida, JPEG), com a legenda em texto. Cara em tokens: peça só a que precisar (handouts, mapas). O item é o #id curto que aparece em quadro_secao.",
     "esquema": {
@@ -4500,6 +4526,158 @@
     "anotacoes": {
       "leitura": true,
       "idempotente": true
+    }
+  },
+  {
+    "nome": "quadro_inserir",
+    "descricao": "Insere texto, títulos, notas, imagens do quadro ou retratos e setas, no estilo do mestre, numa coluna: abaixo_de (#id ou seção) ou ao_lado_de (seção). Para montar, transcrever ou continuar material; para ideias em post-its numa moldura, use quadro_propor. Confira depois com quadro_ver_regiao. Ctrl+Z desfaz.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "quadro": {
+          "type": "string",
+          "description": "Nome ou id do quadro."
+        },
+        "itens": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 40,
+          "description": "Itens na ordem de cima para baixo.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "formato": {
+                "type": "string",
+                "enum": [
+                  "texto",
+                  "titulo",
+                  "nota",
+                  "imagem"
+                ],
+                "description": "texto (corpo), titulo, nota (post-it) ou imagem."
+              },
+              "de": {
+                "type": "string",
+                "description": "Só imagem: #id de imagem do quadro ou entidade:<nome ou id> (retrato)."
+              },
+              "lado": {
+                "type": "string",
+                "enum": [
+                  "direita",
+                  "esquerda"
+                ],
+                "description": "Só imagem: ao lado do texto anterior, sem ocupar altura; sem lado, na coluna."
+              },
+              "texto": {
+                "type": "string",
+                "description": "O texto; ou use paragrafos."
+              },
+              "paragrafos": {
+                "type": "array",
+                "description": "Parágrafos, cada um com o destaque de um item do mestre.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "texto": {
+                      "type": "string"
+                    },
+                    "como": {
+                      "type": "string",
+                      "description": "#id do item cujo destaque copiar."
+                    }
+                  },
+                  "required": [
+                    "texto"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "estilo_como": {
+                "type": "string",
+                "description": "#id do item de texto cujo estilo copiar (quadro_estilo)."
+              },
+              "tipo": {
+                "type": "string",
+                "enum": [
+                  "leitura",
+                  "teste",
+                  "segredo",
+                  "loot",
+                  "evento",
+                  "fala",
+                  "tarefa",
+                  "rever",
+                  "titulo"
+                ],
+                "description": "Tipo semântico; opcional, sem cor com estilo."
+              },
+              "largura": {
+                "type": "number",
+                "description": "Largura em px; padrão: a do estilo (imagem: mediana das imagens)."
+              }
+            },
+            "required": [
+              "formato"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "setas": {
+          "type": "array",
+          "maxItems": 40,
+          "description": "Setas entre itens, no estilo das do mestre.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "de": {
+                "type": [
+                  "integer",
+                  "string"
+                ],
+                "description": "Índice (de 0) de um item novo ou #id existente."
+              },
+              "para": {
+                "type": [
+                  "integer",
+                  "string"
+                ],
+                "description": "Índice (de 0) de um item novo ou #id existente."
+              },
+              "rotulo": {
+                "type": "string",
+                "description": "Texto sobre a seta; opcional."
+              }
+            },
+            "required": [
+              "de",
+              "para"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "abaixo_de": {
+          "type": "string",
+          "description": "#id de um item (abaixo do bloco dele) ou seção (fim da coluna)."
+        },
+        "ao_lado_de": {
+          "type": "string",
+          "description": "Seção (id ou título): abre uma coluna nova à direita."
+        },
+        "abrir_espaco": {
+          "type": "boolean",
+          "description": "Desce a coluna abaixo se algo estiver no caminho."
+        }
+      },
+      "required": [
+        "quadro",
+        "itens"
+      ],
+      "additionalProperties": false
+    },
+    "app": "mesa",
+    "anotacoes": {
+      "destrutiva": false,
+      "idempotente": false
     }
   },
   {
@@ -4652,6 +4830,47 @@
       "required": [
         "quadro",
         "secao"
+      ],
+      "additionalProperties": false
+    },
+    "app": "mesa",
+    "anotacoes": {
+      "leitura": true,
+      "idempotente": true
+    }
+  },
+  {
+    "nome": "quadro_ver_regiao",
+    "descricao": "Vê uma região do quadro como imagem (JPEG), como o mestre a vê: uma seção inteira ou a caixa de alguns itens (#id). Use para conferir o estilo antes de escrever e o resultado depois. Propostas do assistente aparecem com contorno tracejado e uma estrela. Lado padrão 1024, máximo 1568.",
+    "esquema": {
+      "type": "object",
+      "properties": {
+        "quadro": {
+          "type": "string",
+          "description": "Nome ou id do quadro."
+        },
+        "secao": {
+          "type": "string",
+          "description": "Id da seção (do quadro_mapa) ou o título."
+        },
+        "itens": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "maxItems": 60,
+          "description": "Os #ids curtos; a imagem cobre a caixa deles."
+        },
+        "lado": {
+          "type": "integer",
+          "minimum": 256,
+          "maximum": 1568,
+          "description": "Lado maior em px."
+        }
+      },
+      "required": [
+        "quadro"
       ],
       "additionalProperties": false
     },
