@@ -42,15 +42,28 @@ export function nomeDoAlvo(colecao: string, entidade: { id: string }): string {
  */
 export function copiasDe(mapa: MapaAtlas, alvos: readonly { colecao: string; id: string }[], delta: Ponto): { comandos: { tipo: 'item.adicionar'; colecao: ColecaoLivre; item: { id: string } & Record<string, unknown> }[]; alvos: { colecao: ColecaoLivre; id: string }[] } {
   const comandos: { tipo: 'item.adicionar'; colecao: ColecaoLivre; item: { id: string } & Record<string, unknown> }[] = [], novos: { colecao: ColecaoLivre; id: string }[] = [];
+  const propsCopiados = new Set(
+    alvos
+      .filter(a => a.colecao === 'props' && mapa.props[a.id] && mapa.props[a.id]!.elevation !== 'wall')
+      .map(a => a.id),
+  );
+  const sufixoCopia = ' (cópia)';
   for (const a of alvos) {
     if (!(['props', 'lights', 'tokens', 'regions'] as string[]).includes(a.colecao)) continue;
     const colecao = a.colecao as ColecaoLivre, original = ((mapa[colecao] as unknown) as Record<string, Record<string, unknown>>)[a.id]; if (!original) continue;
     if (colecao === 'props' && (original as unknown as Objeto).elevation === 'wall') continue;
+    if (colecao === 'lights' && a.id.startsWith('lp-') && typeof original.ownerId === 'string' && propsCopiados.has(original.ownerId)) continue;
     const copia = structuredClone(original) as { id: string } & Record<string, unknown>;
     copia.id = novoIdEntidade(colecao[0]);
     if (colecao === 'regions') copia.polygon = (copia.polygon as Ponto[]).map(([x, y]) => [x + delta[0], y + delta[1]]);
     else copia.position = [(copia.position as Ponto)[0] + delta[0], (copia.position as Ponto)[1] + delta[1]];
-    if (colecao === 'tokens') { copia.name = `${String(copia.name)} (cópia)`; copia.lightId = null; }
+    if (colecao === 'tokens') {
+      const baseNome = String(copia.name);
+      copia.name = baseNome.length + sufixoCopia.length > 120
+        ? `${baseNome.slice(0, 120 - sufixoCopia.length)}${sufixoCopia}`
+        : `${baseNome}${sufixoCopia}`;
+      copia.lightId = null;
+    }
     if (colecao === 'lights') copia.ownerId = null;
     if (colecao === 'props') copia.roomId = null;
     comandos.push({ tipo: 'item.adicionar', colecao, item: copia }); novos.push({ colecao, id: copia.id });

@@ -77,7 +77,7 @@ const normais = (cel: readonly CelulaDoComando[]): Celula[] => cel.map(([x, y]) 
 });
 
 /** Dá as `celulas` ao cômodo `id`, tirando-as de quem as tinha; cômodos que ficam sem células deixam de existir. */
-function darCelulas(m: MapaAtlas, id: string, celulas: readonly Celula[]): void {
+function darCelulas(m: MapaAtlas, id: string, celulas: readonly Celula[]): string[] {
   const sala = m.rooms[id] ?? nao(`O cômodo “${id}” não existe.`);
   const nivel = sala.levelId ?? null;
   const novas = codificar(celulas);
@@ -90,6 +90,7 @@ function darCelulas(m: MapaAtlas, id: string, celulas: readonly Celula[]): void 
   sala.cells = unir(sala.cells, novas);
   for (const [outraId, roubadas] of doOutro) m.rooms[outraId]!.cells = subtrair(m.rooms[outraId]!.cells, codificar(roubadas));
   removerVazios(m);
+  return [...doOutro.keys()];
 }
 
 function removerVazios(m: MapaAtlas): void { for (const s of Object.values(m.rooms)) if (!s.cells.length) delete m.rooms[s.id]; }
@@ -148,11 +149,21 @@ export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
       m.rooms[c.id] = { id: c.id, name: c.nome, function: c.funcao, cells: [], ...(outline ? { outline } : {}), floor: clonar(c.piso), wallpaper: c.papel ? clonar(c.papel) : null, ...(c.wallFace !== undefined ? { wallFace: c.wallFace } : {}), wallStyle: null, palette: null, roof, levelId: c.levelId ?? null };
       darCelulas(m, c.id, cel); recalcularParedes(m); break;
     }
-    case 'comodo.pintar': darCelulas(m, c.id, normais(c.celulas)); recalcularParedes(m); break;
+    case 'comodo.pintar': {
+      const afetados = darCelulas(m, c.id, normais(c.celulas));
+      if (m.rooms[c.id]?.outline) delete m.rooms[c.id]!.outline;
+      for (const outraId of afetados) if (m.rooms[outraId]?.outline) delete m.rooms[outraId]!.outline;
+      recalcularParedes(m); break;
+    }
     case 'comodo.apagar': {
       const tirar = codificar(normais(c.celulas));
       const nivel = c.levelId ?? null;
-      for (const s of Object.values(m.rooms)) if ((s.levelId ?? null) === nivel) s.cells = subtrair(s.cells, tirar);
+      for (const s of Object.values(m.rooms)) {
+        if ((s.levelId ?? null) !== nivel) continue;
+        const antes = s.cells;
+        s.cells = subtrair(s.cells, tirar);
+        if (s.outline && !mesmasFaixas(antes, s.cells)) delete s.outline;
+      }
       removerVazios(m); recalcularParedes(m); break;
     }
     case 'comodo.atualizar': {
@@ -263,6 +274,7 @@ export function aplicarConstrucao(m: MapaAtlas, c: ComandoConstruir): void {
       const antes = guardarCamadas(m);
       const tirar = codificar(normais(c.celulas));
       for (const camada of Object.values(m.terrain.layers)) { camada.cells = subtrair(camada.cells, tirar); if (!camada.cells.length) delete m.terrain.layers[camada.id]; }
+      tirarDoGuardado(m, tirar);
       atualizarEscarpasDoMacico(m, camadasMudadas(m, antes)); break;
     }
     case 'terreno.base': m.terrain.base = c.material; break;

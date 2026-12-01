@@ -100,9 +100,10 @@ test('mover a seleção desloca objetos, luzes, peças e regiões', () => {
     { colecao: 'props', id: 'mesa' }, { colecao: 'lights', id: 'lampiao' }, { colecao: 'tokens', id: 'muirenn' }, { colecao: 'regions', id: 'entrada' }] });
   assert.deepEqual(d.props.mesa!.position, [8.5, 4.2]);
   assert.deepEqual(d.lights.lampiao!.position, [8.5, 4.2]);
+  assert.deepEqual(d.lights.lanterna!.position, [6, 3]);
   assert.deepEqual(d.tokens.muirenn!.position, [6.25, 4.75]);
   assert.deepEqual(d.regions.entrada!.polygon[0], [4, 1]);
-  assert.deepEqual(diferencas(m, d).colecoes, { props: ['mesa'], lights: ['lampiao'], tokens: ['muirenn'], regions: ['entrada'] });
+  assert.deepEqual(diferencas(m, d).colecoes, { props: ['mesa'], lights: ['lampiao', 'lanterna'], tokens: ['muirenn'], regions: ['entrada'] });
 });
 
 test('histórico: desfazer e refazer com rótulos, e uma ação nova apaga o refazer', () => {

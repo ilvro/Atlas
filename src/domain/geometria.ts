@@ -455,10 +455,30 @@ export function atualizarSalasDosObjetos(m: Rascunho): void {
   }
 }
 
+/** Desvincula uma luz removida de interruptores, tokens e itens revelados. */
+export function desvincularLuz(m: MapaAtlas, luzId: string): void {
+  for (const o of Object.values(m.props)) {
+    if (o.interaction?.kind === 'switch' && o.interaction.targets.includes(luzId)) {
+      o.interaction.targets = o.interaction.targets.filter(id => id !== luzId);
+    }
+  }
+  for (const t of Object.values(m.tokens)) {
+    if (t.lightId === luzId) t.lightId = null;
+  }
+  if (m.session.revealed.includes(luzId)) {
+    m.session.revealed = m.session.revealed.filter(id => id !== luzId);
+  }
+}
+
 /** O que dependia de algo que não existe mais: luzes sem dono, peças sem luz, cômodos de objetos, notas de cômodo. */
 export function limparOrfaos(m: Rascunho): void {
   atualizarSalasDosObjetos(m);
-  for (const luz of Object.values(m.lights)) if (luz.ownerId && !m.props[luz.ownerId] && !m.tokens[luz.ownerId]) delete m.lights[luz.id];
+  for (const luz of Object.values(m.lights)) {
+    if (luz.ownerId && !m.props[luz.ownerId] && !m.tokens[luz.ownerId]) {
+      delete m.lights[luz.id];
+      desvincularLuz(m, luz.id);
+    }
+  }
   for (const t of Object.values(m.tokens)) if (t.lightId && !m.lights[t.lightId]) t.lightId = null;
   for (const id of Object.keys(m.comodosExtra)) if (!m.rooms[id]) delete m.comodosExtra[id];
   m.session.revealed = m.session.revealed.filter(id => [m.rooms, m.walls, m.openings, m.props, m.lights, m.regions, m.presence, m.tokens].some(c => (c as Record<string, unknown>)[id] !== undefined));

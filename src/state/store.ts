@@ -112,8 +112,10 @@ export function criarStore(inicial: MapaAtlas, opcoes: OpcoesStore = {}): Store 
       if (proximo === antes) return antes;
       const rotulo = extra.rotulo ?? ROTULOS[comando.tipo];
       const topo = desfazer.at(-1);
-      if (extra.fusao !== undefined && topo && topo.fusao === extra.fusao) topo.depois = proximo;
-      else {
+      if (extra.fusao !== undefined && topo && topo.fusao === extra.fusao) {
+        if (topo.antes === proximo || conteudoDe(topo.antes) === conteudoDe(proximo)) desfazer.pop();
+        else topo.depois = proximo;
+      } else {
         desfazer.push(extra.fusao !== undefined ? { antes, depois: proximo, rotulo, fusao: extra.fusao } : { antes, depois: proximo, rotulo });
         if (desfazer.length > LIMITE_HISTORICO) desfazer.shift();
       }
@@ -149,9 +151,22 @@ export function criarStore(inicial: MapaAtlas, opcoes: OpcoesStore = {}): Store 
           }
           try {
             validarMapa(documento);
+          } catch (erro) {
+            if (documento !== estado.antes) {
+              const atual = documento;
+              documento = estado.antes;
+              versao++;
+              avisar('cancelar', atual, rotulo);
+            }
+            aoTerminarGesto?.('cancelar');
+            throw erro;
+          }
+          try {
             const topo = desfazer.at(-1), fusao = opcoesGesto.fusao;
-            if (fusao !== undefined && topo && topo.fusao === fusao) topo.depois = documento;
-            else {
+            if (fusao !== undefined && topo && topo.fusao === fusao) {
+              if (topo.antes === documento || conteudoDe(topo.antes) === conteudoDe(documento)) desfazer.pop();
+              else topo.depois = documento;
+            } else {
               desfazer.push(fusao !== undefined ? { antes: estado.antes, depois: documento, rotulo, fusao } : { antes: estado.antes, depois: documento, rotulo });
               if (desfazer.length > LIMITE_HISTORICO) desfazer.shift();
             }
@@ -211,8 +226,11 @@ export function criarStore(inicial: MapaAtlas, opcoes: OpcoesStore = {}): Store 
 
     substituir(mapa, extra = {}) {
       validarMapa(mapa);
-      if (gestoAtual) gestoAtual.ativo = false;
-      gestoAtual = null;
+      if (gestoAtual) {
+        gestoAtual.ativo = false;
+        aoTerminarGesto?.('cancelar');
+        gestoAtual = null;
+      }
       const base = extra.base;
       if (base && base.id !== mapa.id) throw new ErroDeStore('A base é de outro mapa.');
       documento = congelar(base ? { ...mapa, revision: base.revision, createdAt: base.createdAt, updatedAt: base.updatedAt } : mapa); versao++;

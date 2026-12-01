@@ -6,7 +6,7 @@ import { clonar, produzir } from './imutavel.ts';
 import { COLECOES_LIVRES, type Acabamento, type Andar, type Clima, type ColecaoLivre, type Estilo, type Fundo, type Grade, type Luz, type Memoria, type MapaAtlas, type ModoTelhadosSessao, type NomeColecao, type Objeto, type Peca, type Ponto, type Presenca, type Regiao } from '../domain/mapa.ts';
 import { andarDe, mapaDoAndar } from '../domain/andares.ts';
 import { atualizarSalasDosObjetos } from '../domain/geometria.ts';
-import { sincronizarLuzesProprias } from '../domain/luz-propria.ts';
+import { desvincularLuz, sincronizarLuzesProprias } from '../domain/luz-propria.ts';
 import { alvosDoInterruptor } from '../domain/interagiveis.ts';
 import { definirValor, iniciar, passo, podar } from '../domain/iniciativa.ts';
 import { celulasVisiveis, exploradoAgora, modoDeVisaoDaPeca, RES_NEVOA } from '../domain/nevoa.ts';
@@ -117,8 +117,8 @@ function remover(m: MapaAtlas, colecao: ColecaoLivre, id: string): void {
     for (const luz of Object.values(m.lights)) if (luz.ownerId === id) remover(m, 'lights', luz.id);
     if (colecao === 'tokens') m.session.initiative = podar(m.session.initiative, t => t !== id);
   }
-  if (colecao === 'lights') for (const t of Object.values(m.tokens)) if (t.lightId === id) t.lightId = null;
-  m.session.revealed = m.session.revealed.filter(x => x !== id);
+  if (colecao === 'lights') desvincularLuz(m, id);
+  if (m.session.revealed.includes(id)) m.session.revealed = m.session.revealed.filter(x => x !== id);
 }
 
 function aplicar(m: MapaAtlas, c: Comando): void {
@@ -218,11 +218,25 @@ function aplicar(m: MapaAtlas, c: Comando): void {
     case 'selecao.mover': {
       const [dx, dy] = c.delta;
       if (!Number.isFinite(dx) || !Number.isFinite(dy)) nao('Deslocamento inválido.');
+      const luzesNosAlvos = new Set(c.alvos.filter(a => a.colecao === 'lights').map(a => a.id));
+      const luzesMovidas = new Set<string>();
       for (const { colecao, id } of c.alvos) {
         const item = existente(m, colecao, id);
         if (colecao === 'regions') item.polygon = item.polygon.map(([x, y]: Ponto) => [x + dx, y + dy]);
         else if (item.position) item.position = [item.position[0] + dx, item.position[1] + dy];
         else nao(`“${id}” não tem posição.`);
+        if (colecao === 'props' && item.wall) {
+          item.wall = null;
+          if (item.elevation === 'wall') item.elevation = 'floor';
+        }
+        if (colecao === 'tokens') {
+          const t = item as Peca;
+          const luz = t.lightId ? m.lights[t.lightId] : undefined;
+          if (luz && !luzesNosAlvos.has(luz.id) && !luzesMovidas.has(luz.id)) {
+            luz.position = [luz.position[0] + dx, luz.position[1] + dy];
+            luzesMovidas.add(luz.id);
+          }
+        }
       }
       atualizarSalasDosObjetos(m);
       break;
@@ -254,7 +268,7 @@ function aplicar(m: MapaAtlas, c: Comando): void {
         if (luz.cone && atualizarDirecao) luz.cone.direction = anguloMov;
         if (nivel !== null) luz.levelId = nivel; else delete luz.levelId;
       }
-      if (t.vision.direction !== undefined && !luz?.cone && atualizarDirecao) {
+      if ((t.vision.direction !== undefined || modoDeVisaoDaPeca(m, t) === 'cone') && atualizarDirecao) {
         t.vision.direction = anguloMov;
       }
       if (t.player && !c.emArrasto) {
@@ -438,7 +452,7 @@ function aplicar(m: MapaAtlas, c: Comando): void {
         if (andarDe(o) === c.id) delete m.props[id];
         else if (o.interaction?.kind === 'stairs' && o.interaction.toLevel === c.id) o.interaction = null;
       }
-      for (const [id, l] of Object.entries(m.lights)) if (andarDe(l) === c.id) delete m.lights[id];
+      for (const [id, l] of Object.entries(m.lights)) if (andarDe(l) === c.id) { delete m.lights[id]; desvincularLuz(m, id); }
       for (const [id, r] of Object.entries(m.regions)) if (andarDe(r) === c.id) delete m.regions[id];
       for (const [id, p] of Object.entries(m.presence)) if (andarDe(p) === c.id) delete m.presence[id];
       for (const [id, t] of Object.entries(m.tokens)) if (andarDe(t) === c.id) delete m.tokens[id];
