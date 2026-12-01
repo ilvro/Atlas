@@ -93,7 +93,7 @@ export function criarNeblina(fonteDeLuz?: FonteDeLuzDaNeblina): Neblina {
   const raiz = new Container(), fora = new Container(), dentro = new Container(), veuFora = veu(grupoFora), veuDentro = veu(grupoDentro);
   const mascaraFora = new Graphics(), mascaraDentro = new Graphics();
   fora.addChild(veuFora, mascaraFora); dentro.addChild(veuDentro, mascaraDentro);
-  fora.setMask({ mask: mascaraFora, inverse: true }); dentro.mask = mascaraDentro; dentro.alpha = NEBLINA_DENTRO;
+  fora.setMask({ mask: mascaraFora, inverse: true }); dentro.mask = mascaraDentro; dentro.alpha = 1;
   raiz.addChild(fora, dentro); raiz.visible = false;
 
   let mapa: MapaAtlas | null = null, tempo = 0, desloc: [number, number] = [0, 0], ligado = true, destruido = false;
@@ -138,6 +138,10 @@ export function criarNeblina(fonteDeLuz?: FonteDeLuzDaNeblina): Neblina {
       }
     },
     definirLigado(v) { ligado = v; raiz.visible = v && (mapa?.climate.weather.fog ?? 0) > 0.001; },
-    destruir() { destruido = true; raiz.destroy({ children: true }); },
+    destruir() {
+      destruido = true;
+      for (const f of filtros) f.destroy();
+      raiz.destroy({ children: true });
+    },
   };
 }

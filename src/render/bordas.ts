@@ -94,7 +94,8 @@ export function criarBordas(): Bordas {
     uPixel: { value: 0, type: 'f32' }, uPpm: { value: 1, type: 'f32' }, uCor: { value: new Float32Array([1, 1, 1]), type: 'vec3<f32>' },
   });
   const veu = new Sprite(Texture.WHITE);
-  veu.filters = [criarFiltroDeMundo(veu, { fragment, nome: 'atlas-bordas', recursos: { bordas: grupo } })];
+  const filtro = criarFiltroDeMundo(veu, { fragment, nome: 'atlas-bordas', recursos: { bordas: grupo } });
+  veu.filters = [filtro];
   const raiz = new Container(); raiz.addChild(veu); raiz.visible = false;
 
   let mapa: MapaAtlas | null = null, tempo = 0, desloc: [number, number] = [0, 0], ligado = true, ativo = false, destruido = false;
@@ -123,6 +124,10 @@ export function criarBordas(): Bordas {
       u().uTempo = tempo; u().uDeslocamento = new Float32Array(desloc);
     },
     definirLigado(v) { ligado = v; raiz.visible = v && ativo; },
-    destruir() { destruido = true; raiz.destroy({ children: true }); },
+    destruir() {
+      destruido = true;
+      filtro.destroy();
+      raiz.destroy({ children: true });
+    },
   };
 }

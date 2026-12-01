@@ -25,7 +25,7 @@ export interface Fumaca {
 let texturaDaBaforada: Texture | null = null;
 /** Uma baforada: mancha redonda e macia, com o miolo pouco mais denso e a borda irregular. */
 function baforada(): Texture {
-  if (texturaDaBaforada) return texturaDaBaforada;
+  if (texturaDaBaforada && !texturaDaBaforada.destroyed) return texturaDaBaforada;
   const c = document.createElement('canvas'), L = 64; c.width = c.height = L;
   const g = c.getContext('2d')!;
   for (let i = 0; i < 6; i++) {
@@ -72,7 +72,7 @@ export function criarFumaca(): Fumaca {
       mapa = m;
       if (mud && !mud.completo && !(mud.colecoes as Record<string, unknown>).props && !mud.campos.includes('climate')) return;
       cor = corDaNeblina(m.climate.ambient);
-      const novas = Object.values(m.props).filter(o => o.source.kind === 'recipe' && FONTES_DE_FUMACA.has(o.source.recipe) && o.roomId === null);
+      const novas = Object.values(m.props).filter(o => !o.oculto && o.source.kind === 'recipe' && FONTES_DE_FUMACA.has(o.source.recipe) && o.roomId === null);
       const chave = (p: Ponto) => `${p[0].toFixed(2)},${p[1].toFixed(2)}`;
       if (novas.length === fontes.length && novas.every((o, i) => chave(o.position) === chave(fontes[i]!.pos))) { for (const f of fontes) for (let i = 0; i < f.sprites.length; i++) posicionar(f, i); return; }
       raiz.removeChildren().forEach(c => c.destroy());

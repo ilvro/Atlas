@@ -85,8 +85,8 @@ export function criarSombrasDoSol(renderer: Renderer) {
     const vivos = new Set<string>();
     for (const o of Object.values(m.props)) {
       const projetada = ehSombraProjetada(o);
-      if ((!o.castsShadow && !projetada) || o.elevation !== 'floor' || o.roomId !== null) continue;
-      const e = entradas.get(o.id), sp = e?.sprite; if (!e || !sp || sp.destroyed || sp.texture.destroyed) continue;
+      if ((!o.castsShadow && !projetada) || o.elevation !== 'floor' || o.roomId !== null || o.oculto) continue;
+      const e = entradas.get(o.id), sp = e?.sprite; if (!e || !e.c.visible || !sp || sp.destroyed || sp.texture.destroyed) continue;
       vivos.add(o.id);
       let c = sprites.get(o.id), filho = c?.children[0] as Sprite | undefined;
       if (!c || !filho) { c = new Container(); filho = new Sprite(sp.texture); c.addChild(filho); objetos.addChild(c); sprites.set(o.id, c); }

@@ -144,13 +144,19 @@ export function criarHalos(mapaDeLuz: MapaDeLuz, telhados: Telhados): Halos {
     return programaRaios;
   }
 
+  function destruirRaio(r: RaiosGPU): void {
+    r.mesh.geometry.destroy();
+    r.mesh.shader?.destroy();
+    r.c.destroy({ children: true });
+  }
+
   return {
     raiz,
     sincronizar(m, mud) {
       if (destruido) return;
-      const tudo = !mud || mud.completo, campo = (...c: string[]) => tudo || c.some(x => mud!.campos.includes(x));
+      const tudo = !mud || mud.completo, colecao = (c: string) => tudo || !!(mud!.colecoes as Record<string, unknown>)[c], campo = (...c: string[]) => tudo || c.some(x => mud!.campos.includes(x));
       mapa = m;
-      if (tudo || campo('rooms', 'grid')) indiceCelulas = indiceDeCelulas(m);
+      if (tudo || colecao('rooms') || campo('grid')) indiceCelulas = indiceDeCelulas(m);
       if (campo('style', 'grid')) {
         pixel = m.style.renderer === 'pixel';
         ppm = pixel ? m.style.pixel.pixelsPerCell / m.grid.size : 1;
@@ -183,7 +189,7 @@ export function criarHalos(mapaDeLuz: MapaDeLuz, telhados: Telhados): Halos {
         const querRaios = l.rays;
         let r = raios.get(l.id);
         if (!querRaios) {
-          if (r) { r.mesh.geometry.destroy(); r.c.destroy({ children: true }); raios.delete(l.id); }
+          if (r) { destruirRaio(r); raios.delete(l.id); }
           continue;
         }
         if (!r) {
@@ -227,7 +233,7 @@ export function criarHalos(mapaDeLuz: MapaDeLuz, telhados: Telhados): Halos {
           item.m.clear(); if (pts && pts.length >= 6) item.m.poly(pts as number[]).fill(0xffffff);
         }
       }
-      for (const [id, r] of raios) if (!idsVivas.has(id)) { r.mesh.geometry.destroy(); r.c.destroy({ children: true }); raios.delete(id); }
+      for (const [id, r] of raios) if (!idsVivas.has(id)) { destruirRaio(r); raios.delete(id); }
     },
     quadro(agora) {
       if (destruido || !mapa) return;
@@ -278,7 +284,8 @@ export function criarHalos(mapaDeLuz: MapaDeLuz, telhados: Telhados): Halos {
     destruir() {
       destruido = true;
       for (const h of halos.values()) h.s.destroy(); halos.clear();
-      for (const r of raios.values()) { r.mesh.geometry.destroy(); r.c.destroy({ children: true }); } raios.clear();
+      for (const r of raios.values()) destruirRaio(r); raios.clear();
+      programaRaios?.destroy(); programaRaios = null;
       raiz.destroy({ children: true });
     },
   };

@@ -173,9 +173,9 @@ export function criarNevoa(renderer: Renderer): Nevoa {
   }
 
   function dimensionar(m: MapaAtlas): void {
-    const w = m.bounds.width, h = m.bounds.height, r0 = resDaMemoria(m);
-    if (rts.length && w === largura && h === altura && r0 === resAtual) return;
-    largura = w; altura = h; resAtual = r0; pixel = m.style.renderer === 'pixel';
+    const w = m.bounds.width, h = m.bounds.height, r0 = resDaMemoria(m), querPixel = m.style.renderer === 'pixel';
+    if (rts.length && w === largura && h === altura && r0 === resAtual && querPixel === pixel) return;
+    largura = w; altura = h; resAtual = r0; pixel = querPixel;
     const res = Math.min(r0, TEXTURA_MAX / Math.max(w, h)); pw = Math.max(1, Math.round(w * res)); ph = Math.max(1, Math.round(h * res));
     const antigas = rts.splice(0);
     for (let i = 0; i < 12; i++) rts.push(RenderTexture.create({ width: pw, height: ph, scaleMode: pixel ? 'nearest' : 'linear' }));
@@ -333,6 +333,10 @@ export function criarNevoa(renderer: Renderer): Nevoa {
       destruido = true;
       filtroNaoExplorado.destroy();
       ditherDeAlfa.filtro.destroy();
+      for (const c of [visBorrada, expBorrada]) {
+        for (const f of c.filters ?? []) f.destroy();
+        c.filters = null;
+      }
       lerpC.destroy({ children: true }); uniaoC.destroy({ children: true });
       for (const t of rts) t?.destroy(true);
       raiz.destroy({ children: true });

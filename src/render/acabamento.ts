@@ -73,7 +73,7 @@ float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.545
 float suave(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
 void main() {
   vec4 c = texture(uTexture, vTextureCoord);
-  vec3 cor = c.rgb;
+  vec3 cor = c.a > 1e-5 ? c.rgb / c.a : vec3(0.0);
   float l = dot(cor, vec3(0.299, 0.587, 0.114));
   cor = mix(vec3(l), cor, uSaturacao);
   cor = cor * uGain + uLift;
