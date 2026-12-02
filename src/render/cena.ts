@@ -32,6 +32,7 @@ import { criarFumaca } from './fumaca.ts';
 import { criarParticulas } from './particulas.ts';
 import { criarTelhados } from './telhados.ts';
 import { criarPeca, type PecaVisual } from './pecas.ts';
+import { criarFiltroDePecas } from './filtro-pecas.ts';
 import { emEstadoCritico, type Recursos } from '../domain/fichas.ts';
 import type { RetratoNoPixel } from './retratos.ts';
 import { paletaDe } from '../domain/paletas.ts';
@@ -81,8 +82,8 @@ export interface Cena {
   descarregarPendencias(): void;
   /** A atmosfera (luz, sombras) aparece? É do editor, não do mapa. */
   definirAtmosfera(ligada: boolean): void;
-  /** Um relâmpago agora (com trovão, se o som estiver ligado). */
-  relampagoAgora(): void;
+  /** Um relâmpago agora (com trovão, se o som estiver ligado e não silenciado). */
+  relampagoAgora(opcoes?: { som?: boolean }): void;
   /** Eventos de cena: multiplicadores da intensidade das luzes e do ambiente. */
   definirEfeitosDeLuz(luzes: number, ambiente: number): void;
   /** No projetor: sem marcadores de luz nem regiões (são do mestre). */
@@ -129,13 +130,17 @@ interface Entrada { c: Container; placeholder: Graphics; sprite: Sprite | null; 
 
 export function criarCena(op: OpcoesDaCena): Cena {
   const raiz = new Container(), mundoIluminado = new Container(), terrenoC = new Container(), veuTerrenoG = new Graphics(), submersosC = Object.assign(new Container(), { sortableChildren: true }), escarpasC = new Container(), comodosC = new Container(), objetosC = Object.assign(new Container(), { sortableChildren: true }), paredesG = new Graphics(), fantasmaAndarG = new Graphics();
-  const marcasG = new Graphics(), regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), tituloC = new Container();
+  const marcasG = new Graphics(), regioesC = new Container(), luzesC = new Container(), pecasC = new Container(), pecasOcultaveisC = new Container(), pecasVisiveisC = new Container(), tituloC = new Container();
+  const refMundoPecas = new Sprite(Texture.WHITE);
+  refMundoPecas.renderable = false;
+  pecasC.addChild(pecasOcultaveisC, pecasVisiveisC);
+  const filtroPecasVisiveis = criarFiltroDePecas(refMundoPecas), filtroPecasOcultaveis = criarFiltroDePecas(refMundoPecas);
   const luz = criarMapaDeLuz(op.renderer), cenaDeAltura = criarCenaDeAltura(), composicaoDeLuz = criarComposicaoDeLuz(op.renderer, luz, cenaDeAltura), nevoa = criarNevoa(op.renderer), telhados = criarTelhados({ baker: op.baker, renderer: op.renderer, luz, aoPintar: op.aoPintar, ...(op.caixaVisivel ? { caixaVisivel: op.caixaVisivel } : {}) }), neblina = criarNeblina({ textura: () => (luz.sprite.texture === Texture.EMPTY ? null : luz.sprite.texture), escala: () => luz.escala }), bordas = criarBordas(), particulas = criarParticulas(), presenca = criarPresenca(), agua = criarAgua(), cachoeiras = criarCachoeiras(), sombras = criarSombrasDoSol(op.renderer), contato = criarContatoExterno(op.renderer), tempo = criarTempoNoChao(op.renderer);
   const halos = criarHalos(luz, telhados), fumaca = criarFumaca();
   // A tinta do chão (presença natural) cobre o piso, mas não a face de rocha das escarpas, que sobe acima dela.
   // No Ilustrado, a composição de luz renderiza `mundoIluminado` em `corRT`, escreve HDR em `hdrRT` e aplica bloom em `composicaoDeLuz.sprite`; no Pixel, `luz.sprite` multiplica em 8 bits. Marcadores, regiões e peças ficam por cima.
   mundoIluminado.addChild(terrenoC, presenca.submerso, submersosC, agua.raiz, veuTerrenoG, comodosC, presenca.chao, tempo.chao, escarpasC, contato.raiz, sombras.raiz, objetosC, tempo.chapeus, cachoeiras.raiz, paredesG, fantasmaAndarG, presenca.abaixo);
-  raiz.addChild(mundoIluminado, composicaoDeLuz.sprite, luz.sprite, presenca.acima, halos.raiz, fumaca.raiz, neblina.raiz, particulas.raiz, bordas.raiz, regioesC, luzesC, marcasG, telhados.fachadaRaiz, pecasC, telhados.raiz, nevoa.sprite, tituloC);
+  raiz.addChild(mundoIluminado, composicaoDeLuz.sprite, luz.sprite, presenca.acima, halos.raiz, fumaca.raiz, neblina.raiz, particulas.raiz, bordas.raiz, regioesC, luzesC, marcasG, telhados.fachadaRaiz, refMundoPecas, pecasC, telhados.raiz, nevoa.sprite, tituloC);
 
   let mapa: MapaAtlas | null = null, vistaDaCena: Vista = 'construir', destruida = false, pintandoAgora = 0, ultimoQuadro = -1;
   let filtroVisao: FiltroDeVisao | null = null, minhasFichas: readonly string[] | null = null;
@@ -760,12 +765,58 @@ export function criarCena(op: OpcoesDaCena): Cena {
     v.atualizar(aparente, m.grid.size, op.acento(), op.retrato?.(t.portrait?.id, noPixel) ?? null, animarPeca, { folha, pixel }, rec, op.pecaDoJogador?.(t) === true);
   }
 
+  const filtroDinamicoDePecasAtivo = (): boolean =>
+    atmosferaLigada && !ehPixel && vistaDaCena !== 'construir' && !!mapa && luz.sprite.texture !== Texture.EMPTY;
+
+  function atualizarFiltrosDasPecas(): void {
+    const ativo = filtroDinamicoDePecasAtivo();
+    if (!ativo || !mapa) {
+      if (pecasVisiveisC.filters?.length) pecasVisiveisC.filters = [];
+      if (pecasOcultaveisC.filters?.length) pecasOcultaveisC.filters = [];
+      return;
+    }
+    const restringir = vistaDaCena === 'jogador' || modoDoProjetor;
+    const base = {
+      largura: mapa.bounds.width,
+      altura: mapa.bounds.height,
+      luz: luz.sprite.texture,
+      mascaraInterior: luz.mascaraInterior,
+      visivel: nevoa.mascaraVisivel,
+      escalaLuz: luz.escala,
+      ambiente: luz.ambiente,
+      ambienteInterior: luz.ambienteInterior,
+    };
+    if (pecasVisiveisC.children.length > 0) {
+      filtroPecasVisiveis.atualizar({
+        ...base,
+        piso: restringir ? 0.14 : 0.28,
+        usarVisao: false,
+        recortarSombra: false,
+      });
+      if (pecasVisiveisC.filters?.[0] !== filtroPecasVisiveis.filtro) pecasVisiveisC.filters = [filtroPecasVisiveis.filtro];
+    } else if (pecasVisiveisC.filters?.length) {
+      pecasVisiveisC.filters = [];
+    }
+    if (pecasOcultaveisC.children.length > 0) {
+      filtroPecasOcultaveis.atualizar({
+        ...base,
+        piso: restringir ? 0 : 0.28,
+        usarVisao: restringir && nevoa.mascaraVisivel !== Texture.EMPTY,
+        recortarSombra: restringir,
+      });
+      if (pecasOcultaveisC.filters?.[0] !== filtroPecasOcultaveis.filtro) pecasOcultaveisC.filters = [filtroPecasOcultaveis.filtro];
+    } else if (pecasOcultaveisC.filters?.length) {
+      pecasOcultaveisC.filters = [];
+    }
+  }
+
   function atualizarLuzDasPecas(): void {
+    const dinamico = filtroDinamicoDePecasAtivo();
     for (const [id, c] of pecas) {
       const t = mapa?.tokens[id];
       const v = visuais.get(c);
       if (!t || !v) continue;
-      if (!atmosferaLigada || vistaDaCena === 'construir') {
+      if (!atmosferaLigada || vistaDaCena === 'construir' || dinamico) {
         v.definirLuzAmbiente([1, 1, 1], 1);
         continue;
       }
@@ -776,6 +827,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
         : 0.28;
       v.definirLuzAmbiente(rgb, piso);
     }
+    atualizarFiltrosDasPecas();
   }
 
   function atualizarVisibilidadeDosObjetos(dtSeg: number, imediato: boolean, mVisao: MapaAtlas | null = mapa): void {
@@ -811,18 +863,27 @@ export function criarCena(op: OpcoesDaCena): Cena {
   function atualizarVisibilidadeDasPecas(dtSeg: number, imediato: boolean, mVisao: MapaAtlas | null = mapa): void {
     if (!mVisao) return;
     const restringir = vistaDaCena === 'jogador' || modoDoProjetor;
+    const dinamico = filtroDinamicoDePecasAtivo();
     for (const [id, c] of pecas) {
       const t = mVisao.tokens[id];
       if (!t) continue;
-      if (!restringir || pecaSempreVisivel(t, filtroVisao)) {
+      const sempreVisivel = !restringir || pecaSempreVisivel(t, filtroVisao);
+      const destino = sempreVisivel ? pecasVisiveisC : pecasOcultaveisC;
+      if (c.parent !== destino) destino.addChild(c);
+      if (sempreVisivel) {
         c.alpha = 1;
         c.visible = true;
         continue;
       }
       const v = visuais.get(c);
       const pos: Ponto = [v?.c.x ?? c.x ?? t.position[0], v?.c.y ?? c.y ?? t.position[1]];
-      const alvo = pontoVisivelAgora(mVisao, pos, t.size * mVisao.grid.size * 0.35, filtroVisao, minhasFichas) ? 1 : 0;
-      if (imediato) {
+      // Com o filtro pixel-a-pixel ativo, a máscara de visão e a luz recortam a peça com precisão;
+      // aqui usamos um raio amplo apenas para descartar peças completamente fora do alcance.
+      const raioTeste = dinamico
+        ? Math.max(0.9, t.size * mVisao.grid.size * 0.85)
+        : t.size * mVisao.grid.size * 0.35;
+      const alvo = pontoVisivelAgora(mVisao, pos, raioTeste, filtroVisao, minhasFichas) ? 1 : 0;
+      if (imediato || dinamico) {
         c.alpha = alvo;
       } else if (dtSeg > 0) {
         c.alpha += (alvo - c.alpha) * (1 - Math.exp(-dtSeg / 0.15));
@@ -830,6 +891,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       }
       c.visible = c.alpha > 0.01;
     }
+    atualizarFiltrosDasPecas();
   }
 
   function desenharRegiao(c: Container, r: Regiao): void {
@@ -989,9 +1051,13 @@ export function criarCena(op: OpcoesDaCena): Cena {
       luz.sincronizar(v, mud); telhados.atualizarClima?.(v); composicaoDeLuz.definirRelevo(v.finish.relief ?? RELEVO_PADRAO); composicaoDeLuz.definirAO(v.finish.ao ?? AO_PADRAO); composicaoDeLuz.definirGlow(v.finish.glow); composicaoDeLuz.definirExposicao(v.finish.exposure ?? EXPOSICAO_PADRAO); atualizarComposicaoDeLuz(); neblina.sincronizar(v, mud); fumaca.sincronizar(v, mud); bordas.sincronizar(v, mud); particulas.sincronizar(v, mud); halos.sincronizar(v, mud);
       // Os marcadores das luzes também refletem o clima (apagada pela rede ou pelo dia), então refazem quando ele muda.
       if (tudo || colecao('lights') || campos('climate')) sincronizarSimples(luzes, luzesC, m.lights, tudo || campos('climate') ? null : mud!.colecoes.lights ?? null, (c, l) => desenharLuz(c, l, m), comPop);
+      if (tudo || campos('bounds')) {
+        refMundoPecas.width = m.bounds.width;
+        refMundoPecas.height = m.bounds.height;
+      }
       if (tudo || colecao('tokens') || campos('grid', 'style')) {
         const animarPeca = comPop ? true : (modoDoProjetor && !tudo && mud?.colecoes.tokens?.length === 1 && !mud.campos.length ? 'gesto' : false);
-        sincronizarSimples(pecas, pecasC, m.tokens, tudo || campos('grid', 'style') ? null : mud!.colecoes.tokens ?? null, (c, t) => desenharPeca(c, t, m, animarPeca), comPop);
+        sincronizarSimples(pecas, pecasVisiveisC, m.tokens, tudo || campos('grid', 'style') ? null : mud!.colecoes.tokens ?? null, (c, t) => desenharPeca(c, t, m, animarPeca), comPop);
       }
       for (const id of [...folhaDaPeca.keys()]) if (!m.tokens[id]) { soltar(folhaDaPeca.get(id)!); folhaDaPeca.delete(id); }
       { const vezDe = m.session.initiative?.order[m.session.initiative.current]?.tokenId; for (const [id, c] of pecas) visuais.get(c)?.definirVez(id === vezDe); }
@@ -1009,7 +1075,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       atualizarLuzDasPecas();
     },
     definirAtmosfera: ligada => { atmosferaLigada = ligada; sombras.definirLigado(ligada); contato.definirLigado(ligada); tempo.definirLigado(ligada, mapa, objetos); if (ligada && mapa) sombras.atualizar(mapa, objetos, pixelRes0(mapa)); luz.definirLigado(ligada); telhados.definirAtmosfera?.(ligada); atualizarComposicaoDeLuz(); neblina.definirLigado(ligada); fumaca.definirLigado(ligada); bordas.definirLigado(ligada); particulas.definirLigado(ligada); halos.definirLigado(ligada); atualizarLuzDasPecas(); },
-    relampagoAgora: () => luz.relampagoAgora(),
+    relampagoAgora: opcoes => luz.relampagoAgora(opcoes),
     definirModoProjetor: ligado => { modoDoProjetor = ligado; marcasVisiveis(); luzesC.visible = !ligado; regioesC.visible = !ligado; if (mapa) { sincronizarObjetos(mapa, null, false); tempo.atualizar(mapa, objetos); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } atualizarLuzDasPecas(); atualizarVisibilidadeDasPecas(0, true); atualizarVisibilidadeDosObjetos(0, true); },
     definirEfeitosDeLuz: (luzes, ambiente) => luz.definirEfeitos(luzes, ambiente),
     definirVista: v => { nevoa.definirVista(v); telhados.definirVista(v); if (v !== vistaDaCena) { vistaDaCena = v; if (mapa) { desenharParedes(mapa); sincronizarObjetos(mapa, null, false); tempo.atualizar(mapa, objetos); desenharOverlaysDeAndar(mapa, ultimoContextoAndar ?? undefined); } } marcasVisiveis(); atualizarLuzDasPecas(); atualizarVisibilidadeDasPecas(0, true); atualizarVisibilidadeDosObjetos(0, true); },
@@ -1026,7 +1092,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     forcarTelhados: alfa => telhados.forcar(alfa),
     definirTelhadosNoEditor: v => telhados.definirNoEditor(v),
     diagnosticoDosTelhados: () => telhados.diagnostico(),
-    redesenharPecas() { if (mapa) { sincronizarSimples(pecas, pecasC, mapa.tokens, null, (c, t) => desenharPeca(c, t, mapa!, false), false); atualizarLuzDasPecas(); } },
+    redesenharPecas() { if (mapa) { sincronizarSimples(pecas, pecasVisiveisC, mapa.tokens, null, (c, t) => desenharPeca(c, t, mapa!, false), false); atualizarLuzDasPecas(); atualizarVisibilidadeDasPecas(0, true); } },
     contagemDeParticulas: () => particulas.contagem(),
     contagemDePresencas: () => presenca.contagem(),
     contagemDePresencasSubmersas: () => presenca.contagemSubmersas(),
@@ -1123,6 +1189,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       folhaDaPeca.clear(); folhaPendente.clear();
       for (const e of [...salas.values(), ...objetos.values(), ...escarpas.values(), ...terrenos.values()]) soltar(e.chaveTextura);
       for (const t of texturas.values()) { t.tex.destroy(true); t.texAltura?.destroy(true); } texturas.clear();
+      filtroPecasVisiveis.destruir(); filtroPecasOcultaveis.destruir();
       composicaoDeLuz.destruir(); cenaDeAltura.destruir();
       tempo.destruir(); sombras.destruir(); contato.destruir(); luz.destruir(); halos.destruir(); nevoa.destruir(); telhados.destruir(); neblina.destruir(); fumaca.destruir(); bordas.destruir(); particulas.destruir(); presenca.destruir(); agua.destruir(); cachoeiras.destruir(); raiz.destroy({ children: true });
     },
