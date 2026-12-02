@@ -24,6 +24,7 @@ import { ESTADOS_DE_TELHADO, ESTILOS_DE_TELHADO, GENEROS, generoDe, PRESETS_DE_A
 import { telhadoEfetivo } from '../domain/telhado-geometria.ts';
 import { acabamentoLigado, aplicarClima, definirAcabamentoLigado, definirTelhadosNoEditor, telhadosNoEditor, tocarMomentoDoMapa } from '../app/app.ts';
 import { abaDoInspetor, alinhandoGrade, definirMovimentoLivre, definirRegraDaRegua, modo, movimentoLivre, regraDaRegua } from '../app/modo.ts';
+import { definirInspetorAberto, inspetorAberto } from '../app/preferencias.ts';
 import { ROTULO_DA_REGRA, type RegraDeDiagonal } from '../domain/regua.ts';
 import { definirSugestoesLigadas, sugestoesLigadas } from '../app/sugestoes.ts';
 import { COLECAO } from '../procedural/colecao.ts';
@@ -1103,11 +1104,36 @@ const ABAS = [['mapa', 'Mapa'], ['selecao', 'Seleção'], ['historico', 'Histór
 export function Inspetor() {
   const s = sessao.value, aba = abaDoInspetor;
   if (!s) return null;
+  if (!inspetorAberto.value) {
+    return (
+      <button
+        type="button"
+        class="inspetor-recolhido-aba"
+        data-testid="abrir-inspetor"
+        title="Abrir propriedades (])"
+        aria-label="Abrir propriedades"
+        onClick={() => { definirInspetorAberto(true); tocar('selecionar'); }}
+      >
+        <span aria-hidden="true">⟨</span>
+        <span>Propriedades</span>
+      </button>
+    );
+  }
   const n = s.selecao.value.length;
   return (
     <aside class="inspetor" aria-label="Inspetor">
       <div class="abas" role="tablist">
         {ABAS.map(([id, nome]) => <button type="button" key={id} role="tab" aria-selected={aba.value === id} class={aba.value === id ? 'ativa' : ''} onClick={() => { aba.value = id; tocar('selecionar'); }} data-testid={`aba-${id}`}>{nome}{id === 'selecao' && n > 0 ? <b class="contador">{n}</b> : null}</button>)}
+        <button
+          type="button"
+          class="inspetor-recolher"
+          data-testid="recolher-inspetor"
+          title="Recolher propriedades (])"
+          aria-label="Recolher propriedades"
+          onClick={() => { definirInspetorAberto(false); tocar('selecionar'); }}
+        >
+          ⟩
+        </button>
       </div>
       {aba.value === 'mapa' ? <PainelDoMapa s={s} /> : aba.value === 'selecao' ? <PainelDaSelecao s={s} /> : <PainelDoHistorico s={s} />}
     </aside>

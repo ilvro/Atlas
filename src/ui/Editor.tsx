@@ -14,7 +14,7 @@ import { signal, useSignalEffect } from '@preact/signals';
 import { itensDoMenuRadial } from '../app/acoes.ts';
 import { alinhandoGrade, duracaoDoClima, modo, mostrarRelevo, movimentoLivre, regraDaRegua, vistaAtual } from '../app/modo.ts';
 import { lembrarRecente } from '../app/recentes.ts';
-import { objetosNaGrade } from '../app/preferencias.ts';
+import { definirInspetorAberto, inspetorAberto, objetosNaGrade } from '../app/preferencias.ts';
 import { acabamentoLigado, telhadosNoEditor, adicionarEm, alternarPorta, usarObjeto, aoColocar, comandosDeEspalhar, emitirPing, focarNoComodo, focoPendente, menuRadial, notaDeObjetoAberta, servicos, sessao, viewport as viewportAtual } from '../app/app.ts';
 import { obterCameraDaAba } from '../app/abas.ts';
 import type { SessaoDeEdicao } from '../app/sessao.ts';
@@ -190,6 +190,22 @@ export function Editor() {
     const parar = iniciarPonteDeIniciativa();
     return () => parar();
   }, []);
+  useEffect(() => {
+    const aoTecla = (e: KeyboardEvent) => {
+      if (e.key !== ']' || e.ctrlKey || e.metaKey || e.altKey) return;
+      const alvo = e.target as HTMLElement | null;
+      if (alvo && (alvo.tagName === 'INPUT' || alvo.tagName === 'TEXTAREA' || alvo.tagName === 'SELECT' || alvo.isContentEditable)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      definirInspetorAberto(!inspetorAberto.peek());
+    };
+    window.addEventListener('keydown', aoTecla, true);
+    return () => window.removeEventListener('keydown', aoTecla, true);
+  }, []);
+  useSignalEffect(() => {
+    inspetorAberto.value;
+    requestAnimationFrame(() => { window.dispatchEvent(new Event('resize')); });
+  });
   const s = sessao.value;
   if (!s) return null;
   return (

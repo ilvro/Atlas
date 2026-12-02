@@ -166,7 +166,7 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
 .erro-inicial { max-width: 640px; margin: 10vh auto; }
 
 /* ---- Editor ---- */
-.editor { flex: 1; min-height: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) 312px; grid-template-rows: minmax(0, 1fr) 30px; background: var(--fundo-mapa); }
+.editor { flex: 1; min-height: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr) 30px; background: var(--fundo-mapa); }
 .ferramentas { display: flex; align-items: center; gap: 3px; }
 .ferramenta { position: relative; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; color: var(--apagado); transition: background 0.15s, color 0.15s; cursor: pointer; padding: 0; border: none; background: transparent; }
 .ferramenta:hover { background: var(--superficie-2); color: #fff; }
@@ -462,11 +462,14 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
 }
 
 /* ---- Inspetor ---- */
-.inspetor { grid-row: 1; grid-column: 3; display: flex; flex-direction: column; background: var(--painel); border-left: 1px solid var(--linha); min-height: 0; }
+.inspetor { grid-row: 1; grid-column: 3; width: 312px; display: flex; flex-direction: column; background: var(--painel); border-left: 1px solid var(--linha); min-height: 0; }
 .abas { display: flex; border-bottom: 1px solid var(--linha); flex: none; }
 .abas button { flex: 1; padding: 11px 6px; color: var(--apagado); font: 700 12px var(--corpo); letter-spacing: 0.06em; text-transform: uppercase; border-bottom: 2px solid transparent; }
 .abas button:hover { color: #fff; }
 .abas button.ativa { color: #fff; border-bottom-color: var(--acento); }
+.abas button.inspetor-recolher { flex: none; width: 34px; padding: 11px 4px; border-left: 1px solid var(--linha); font-size: 14px; line-height: 1; }
+.inspetor-recolhido-aba { position: fixed; right: 10px; top: 60px; z-index: 6; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--linha); background: var(--painel); color: var(--texto); font: 700 11px var(--corpo); letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); }
+.inspetor-recolhido-aba:hover { border-color: var(--acento); color: #fff; }
 .contador { margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--acento-media); color: var(--acento); font-size: 10px; }
 .painel-corpo { padding: 12px 16px 20px; overflow: auto; min-height: 0; flex: 1; }
 .linha { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 0; font-size: 13px; }
@@ -2254,7 +2257,9 @@ body.projetor { overflow: hidden; background: #000; }
 .vazio-embutido { flex: 1; display: grid; place-content: center; text-align: center; gap: 8px; color: var(--apagado); padding: 24px; }
 .vazio-embutido .faixa { justify-self: center; }
 
-[data-embutido] .editor { grid-template-columns: auto minmax(0, 1fr) 248px; }
+[data-embutido] .editor { grid-template-columns: auto minmax(0, 1fr) auto; }
+[data-embutido] .inspetor { width: 248px; }
+[data-embutido] .inspetor-recolhido-aba { top: 48px; }
 
 /* Ameaças (monstros) na lista de personagens */
 .ameacas { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
