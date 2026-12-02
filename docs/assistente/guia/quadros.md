@@ -90,6 +90,7 @@ Quando o mestre pede para pôr no quadro uma missão pronta, um capítulo ou um 
    - Ficha da criatura de fora: vai ao lado do bloco em que ela entra.
 7. **Detalhes que o motor cobra:**
    - Imagem com `lado` ao lado de um texto curto bate no que vem logo abaixo, e a ferramenta recusa: ponha o texto e a imagem numa `linha` própria.
+   - Para continuar depois de uma `linha` ou `grade`, ancore `abaixo_de` no **título da cena** (a coluna segue no fim do bloco dele, no eixo do título) ou num item solto da coluna, nunca num item de dentro de uma célula: a coluna nova se alinharia por aquela célula e sairia deslocada.
    - Narração lida aos jogadores usa o destaque de narração; o resultado de um teste também (é o que os jogadores ouvem). Regra e instrução ao mestre, o fundo escuro.
    - Transições (`[AVANCE PARA …]`) com `papel: "transicao"`; rodadas e gatilhos de tempo com `papel: "evento"`.
 8. **Insira cena por cena e confira cada uma** com `quadro_ver_regiao(itens: criados)` antes de seguir para a próxima. Corrija o que destoar da parte do mestre (largura, espaço, alinhamento, cor).
