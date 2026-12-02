@@ -416,6 +416,7 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
         </>
       )}
       {prox && <BotoesDeTransicaoDeMapa transicao={prox.transicao} temJogadores={temJogadores} pecaId={token.id} />}
+      <Acao icone="lixeira" rotulo="Remover personagem (Del)" aoClicar={removerSelecao} perigo id="cartao-remover" />
     </>);
   } else if (emSessao && a.colecao !== 'openings') return null;       // na sessão o cartão só tem ações de porta (a 7.6a acrescenta as dos interativos)
   else if (emSessao) {

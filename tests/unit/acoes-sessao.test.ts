@@ -31,13 +31,14 @@ if (typeof globalThis.window === 'undefined') {
 
 import { acaoPorId, liberadaNaSessao } from '../../src/app/acoes.ts';
 
-test('na Sessão, remover vale só para objetos e luzes; I só com luz selecionada', () => {
+test('na Sessão, remover vale só para objetos, luzes e peças; I só com luz selecionada', () => {
   const remover = acaoPorId('remover')!, luz = acaoPorId('luz-acesa')!;
   assert.ok(remover && luz);
   assert.equal(liberadaNaSessao(remover, [{ colecao: 'props' }]), true);
   assert.equal(liberadaNaSessao(remover, [{ colecao: 'props' }, { colecao: 'lights' }]), true);
+  assert.equal(liberadaNaSessao(remover, [{ colecao: 'tokens' }]), true);
   assert.equal(liberadaNaSessao(remover, [{ colecao: 'props' }, { colecao: 'rooms' }]), false);
-  assert.equal(liberadaNaSessao(remover, [{ colecao: 'tokens' }]), false);
+  assert.equal(liberadaNaSessao(remover, [{ colecao: 'walls' }]), false);
   assert.equal(liberadaNaSessao(remover, []), false);
   assert.equal(liberadaNaSessao(luz, [{ colecao: 'lights' }]), true);
   assert.equal(liberadaNaSessao(luz, [{ colecao: 'props' }]), false);

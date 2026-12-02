@@ -206,9 +206,9 @@ export const ACOES: readonly Acao[] = [
 /** O que só existe em Construir: tudo o que muda o mapa (ferramentas de pôr, biblioteca, assistente, remover, duplicar, grade). Na Sessão fica desabilitado. */
 const GRUPOS_SO_DE_CONSTRUIR = new Set(['Construir', 'Adicionar', 'Assistente']), IDS_SO_DE_CONSTRUIR = new Set(['remover', 'duplicar', 'luz-acesa', 'grade', 'relevo']);
 const soEmConstruir = (a: Acao) => GRUPOS_SO_DE_CONSTRUIR.has(a.grupo) || IDS_SO_DE_CONSTRUIR.has(a.id);
-/** Na Sessão ainda se apagam objetos e luzes (e se acendem/apagam luzes); cômodos, paredes, peças e o resto seguem só em Construir. */
+/** Na Sessão ainda se apagam objetos, luzes e personagens (e se acendem/apagam luzes); cômodos, paredes e o resto seguem só em Construir. */
 export function liberadaNaSessao(a: Acao, selecao: readonly { colecao: string }[]): boolean {
-  if (a.id === 'remover') return selecao.length > 0 && selecao.every(x => x.colecao === 'props' || x.colecao === 'lights');
+  if (a.id === 'remover') return selecao.length > 0 && selecao.every(x => x.colecao === 'props' || x.colecao === 'lights' || x.colecao === 'tokens');
   if (a.id === 'luz-acesa') return selecao.some(x => x.colecao === 'lights');
   return false;
 }
@@ -407,6 +407,16 @@ export function itensDoMenuRadial(alvo: Alvo | null, mundo: Ponto): ItemRadial[]
             fazer: () => app.executarMudancaDeAndarDaPeca(peca.id, acaoEscada.destino, acaoEscada.posicao, origem),
           });
         }
+        itensSessao.push({
+          id: 'remover',
+          rotulo: 'Remover personagem',
+          icone: 'lixeira',
+          atalho: 'Del',
+          fazer: () => {
+            s.selecao.value = [{ colecao: 'tokens', id: peca.id }];
+            app.removerSelecao();
+          },
+        });
       }
     }
 
