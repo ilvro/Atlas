@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { chaveDaRef, criarBarramento, criarRef, type CanalLike, type Entidade } from '#mesa';
 import { emEstadoCritico, fracao, interpretarAjusteDeRecurso, pipsCheios, recursosParaOProjetor, refDaFicha, temPd, textoDeRecursos, tomDaRolagem, type Recursos } from '../../src/domain/fichas.ts';
 import { signal } from '@preact/signals';
-import { adicionarPersonagem, ajustarRecursos, ajustarRecursosDaPeca, ameacasComFicha, dadosDaRespostaDaSala, extrairNumeroDoToken, iniciarFichas, aoRolar, mesclarPersonagensDaSala, organizarPainelDePersonagens, pecaDaFicha, personagensComFicha, personagensDoElenco, proximoNomeDeAmeaca, recursosDaPeca, recursosDasFichas } from '../../src/app/fichas.ts';
+import { adicionarPersonagem, ajustarRecursos, ajustarRecursosDaPeca, ameacasComFicha, dadosDaRespostaDaSala, extrairNumeroDoToken, iniciarFichas, aoRolar, mesclarPersonagensDaSala, organizarPainelDePersonagens, pecaDaFicha, personagensComFicha, personagensDoElenco, proximoNomeDeAmeaca, recursosDaPeca, recursosDasFichas, resolverUrlRetratoDaFicha } from '../../src/app/fichas.ts';
 import { criarMapa } from '../../src/domain/mapa.ts';
 import { novaPeca } from '../../src/domain/fabrica.ts';
 
@@ -349,4 +349,89 @@ test('dadosDaRespostaDaSala: lê os campos soltos da resposta da Mesa e também 
   const solta = { ok: true, nome: 'Sala', fichas: [{ id: 'f1' }], membros: [] };
   assert.equal(dadosDaRespostaDaSala(solta).fichas?.[0]?.id, 'f1');
   assert.equal(dadosDaRespostaDaSala({ ok: true, dados: { fichas: [{ id: 'f2' }] } }).fichas?.[0]?.id, 'f2');
+});
+
+test('resolverUrlRetratoDaFicha e retratosUrlPorFicha: extrai e resolve tokenImage das fichas da sala', () => {
+  assert.equal(
+    resolverUrlRetratoDaFicha('/assets/vigilia/token-muirenn-portrait.png', 'http://localhost:5190/Atlas/index.html'),
+    'http://localhost:5190/Dossie/assets/vigilia/token-muirenn-portrait.png',
+  );
+  assert.equal(
+    resolverUrlRetratoDaFicha('./assets/vigilia/token-cavan.png', 'http://localhost:5190/Atlas/'),
+    'http://localhost:5190/Dossie/assets/vigilia/token-cavan.png',
+  );
+  assert.equal(
+    resolverUrlRetratoDaFicha('data:image/png;base64,abc', 'http://localhost:5190/Atlas/'),
+    'data:image/png;base64,abc',
+  );
+  assert.equal(resolverUrlRetratoDaFicha(''), null);
+
+  const org = organizarPainelDePersonagens({
+    todasPersonagens: [],
+    campanha: null,
+    campanhaId: 'camp-1',
+    sala: {
+      eu: { discordId: '1', nome: 'Mestre' },
+      fichas: [
+        { id: 'f-muirenn', name: 'Muirenn da Lua Pálida', tokenImage: '/assets/vigilia/token-muirenn-portrait.png' },
+      ],
+      donos: { 'f-muirenn': '3' },
+      membros: [{ discordId: '3', nome: 'Cildum', papel: 'jogador', personagem: 'f-muirenn' }],
+    },
+  });
+  assert.ok(org.retratosUrlPorFicha['f-muirenn']?.endsWith('Dossie/assets/vigilia/token-muirenn-portrait.png'));
+});
+
+test('adicionarPersonagem: carrega retrato da sala via retratoUrl quando entidade não tem retrato local (e preenche peça existente sem retrato)', async () => {
+  const m = criarMapa({ id: 'm-retrato-sala', nome: 'Vila' });
+  const docs = { current: m };
+  const executados: unknown[] = [];
+  const sess = {
+    store: {
+      get documento() { return docs.current; },
+      executar(cmd: { tipo: string; item?: { id: string; portrait?: unknown }; id?: string; patch?: { portrait?: unknown } }) {
+        executados.push(cmd);
+        if (cmd.tipo === 'item.adicionar' && cmd.item) {
+          docs.current = { ...docs.current, tokens: { ...docs.current.tokens, [cmd.item.id]: cmd.item as never } };
+        } else if (cmd.tipo === 'item.atualizar' && cmd.id && cmd.patch) {
+          const prev = docs.current.tokens[cmd.id];
+          if (prev) docs.current = { ...docs.current, tokens: { ...docs.current.tokens, [cmd.id]: { ...prev, ...cmd.patch } as never } };
+        }
+      },
+    },
+    selecao: signal<unknown[]>([]),
+  } as unknown as Parameters<typeof adicionarPersonagem>[0];
+
+  const entidadeSala: Entidade = {
+    ...baseE,
+    id: 'sala:f-muirenn',
+    tipo: 'personagem',
+    nome: 'Muirenn da Lua Pálida',
+    refs: [criarRef('ficha', 'ficha', 'f-muirenn')],
+  };
+  let urlPedida = '';
+  const repo = {
+    salvarAsset: async (blob: Blob) => ({ id: `asset-${blob.size}`, hash: 'h12345678' }),
+  };
+
+  const peca = adicionarPersonagem(sess, entidadeSala, [4, 4], repo, {
+    retratoUrl: 'http://localhost:5190/Dossie/assets/vigilia/token-muirenn-portrait.png',
+    carregarRetrato: async url => {
+      urlPedida = url;
+      return new Blob(['png-bytes'], { type: 'image/png' });
+    },
+  });
+  assert.ok(peca);
+  await esperar();
+  assert.equal(urlPedida, 'http://localhost:5190/Dossie/assets/vigilia/token-muirenn-portrait.png');
+  assert.deepEqual(docs.current.tokens[peca!.id]?.portrait, { id: 'asset-9', hash: 'h12345678' });
+
+  // Se uma peça já estava no mapa sem retrato, clicar novamente também recupera o retrato
+  docs.current = { ...docs.current, tokens: { ...docs.current.tokens, [peca!.id]: { ...docs.current.tokens[peca!.id]!, portrait: null } } };
+  adicionarPersonagem(sess, entidadeSala, [4, 4], repo, {
+    retratoUrl: 'data:image/png;base64,xyz',
+    carregarRetrato: async () => new Blob(['novo'], { type: 'image/png' }),
+  });
+  await esperar();
+  assert.deepEqual(docs.current.tokens[peca!.id]?.portrait, { id: 'asset-4', hash: 'h12345678' });
 });

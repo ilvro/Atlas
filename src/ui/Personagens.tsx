@@ -12,12 +12,14 @@ import { tentar } from './campos.tsx';
 const lista = signal<Entidade[]>([]);
 const ameacas = signal<Entidade[]>([]);
 const donosDaSala = signal<Record<string, string>>({});
+const retratosUrlDaSala = signal<Record<string, string>>({});
 const painelSessao = signal<PainelDePersonagensOrganizado>({
   online: false,
   naSala: [],
   jogadoresSemFicha: [],
   locais: [],
   donosPorFicha: {},
+  retratosUrlPorFicha: {},
 });
 const abaSessao = signal<'sala' | 'locais' | 'ameacas'>('sala');
 const busca = signal('');
@@ -33,7 +35,8 @@ async function carregar(): Promise<void> {
     lista.value = [];
     ameacas.value = [];
     donosDaSala.value = {};
-    painelSessao.value = { online: false, naSala: [], jogadoresSemFicha: [], locais: [], donosPorFicha: {} };
+    retratosUrlDaSala.value = {};
+    painelSessao.value = { online: false, naSala: [], jogadoresSemFicha: [], locais: [], donosPorFicha: {}, retratosUrlPorFicha: {} };
     return;
   }
   try {
@@ -50,6 +53,7 @@ async function carregar(): Promise<void> {
     const mesclado = mesclarPersonagensDaSala(personagensDoElenco(todasPersonagens, fresca), salaDados, c.id, todasPersonagens);
     lista.value = mesclado.lista;
     donosDaSala.value = mesclado.donosPorFicha;
+    retratosUrlDaSala.value = mesclado.retratosUrlPorFicha;
     painelSessao.value = organizarPainelDePersonagens({
       todasPersonagens,
       campanha: fresca,
@@ -62,7 +66,8 @@ async function carregar(): Promise<void> {
     lista.value = [];
     ameacas.value = [];
     donosDaSala.value = {};
-    painelSessao.value = { online: false, naSala: [], jogadoresSemFicha: [], locais: [], donosPorFicha: {} };
+    retratosUrlDaSala.value = {};
+    painelSessao.value = { online: false, naSala: [], jogadoresSemFicha: [], locais: [], donosPorFicha: {}, retratosUrlPorFicha: {} };
   }
 }
 
@@ -72,11 +77,13 @@ function Item({
   e,
   pecas,
   donos = donosDaSala.value,
+  retratosUrl = retratosUrlDaSala.value,
 }: {
   s: SessaoDeEdicao;
   e: Entidade;
   pecas: SessaoDeEdicao['doc']['value']['tokens'];
   donos?: Record<string, string>;
+  retratosUrl?: Record<string, string>;
 }) {
   const ameaca = e.tipo === 'ameaca', pref = ameaca ? 'ameaca' : 'personagem';
   const ref = refDaFicha(e.refs)!;
@@ -89,6 +96,7 @@ function Item({
   const textoBotao = ameaca
     ? (noMapa ? `+1 no mapa (×${pecasDaEntidade.length})` : 'Pôr no mapa')
     : (noMapa ? 'Selecionar' : 'Pôr no mapa');
+  const retratoUrl = !ameaca ? retratosUrl[ref.id] : undefined;
   return (
     <div class={`personagem${ameaca ? ' ameaca' : ''}`} draggable data-testid={`${pref}-${e.id}`} title="Arraste para o mapa"
       onDragStart={ev => { ev.dataTransfer?.setData(TIPO_ARRASTE, e.id); ev.dataTransfer?.setData('text/plain', e.nome); }}>
@@ -97,7 +105,7 @@ function Item({
         {dono && <span class="personagem-dono" data-testid={`personagem-dono-${e.id}`}> · {dono}</span>}
       </span>
       {rec && <span class="personagem-recursos" data-testid={`${pref}-recursos-${e.id}`}>{textoDeRecursos(rec)}</span>}
-      <button type="button" class="botao-pilula" data-testid={`${pref}-por-${e.id}`} onClick={() => tentar(() => { adicionarPersonagem(s, e, viewport.atual?.centro(), servicos.value?.repo); })}>{textoBotao}</button>
+      <button type="button" class="botao-pilula" data-testid={`${pref}-por-${e.id}`} onClick={() => tentar(() => { adicionarPersonagem(s, e, viewport.atual?.centro(), servicos.value?.repo, retratoUrl ? { retratoUrl } : undefined); })}>{textoBotao}</button>
     </div>
   );
 }
@@ -241,7 +249,7 @@ export function Personagens({ s, contexto = 'construir' }: { s: SessaoDeEdicao; 
                 )}
               </p>
             )}
-            {org.naSala.map(e => <Item key={e.id} s={s} e={e} pecas={pecas} donos={org.donosPorFicha} />)}
+            {org.naSala.map(e => <Item key={e.id} s={s} e={e} pecas={pecas} donos={org.donosPorFicha} retratosUrl={org.retratosUrlPorFicha} />)}
             {org.jogadoresSemFicha.map(j => (
               <div key={j.discordId} class="personagem personagem-pendente" data-testid={`jogador-sem-ficha-${j.discordId}`}>
                 <span class="personagem-nome">{j.nome}</span>
@@ -273,7 +281,7 @@ export function Personagens({ s, contexto = 'construir' }: { s: SessaoDeEdicao; 
                   value={buscaPersonagem.value}
                   onInput={ev => { buscaPersonagem.value = (ev.target as HTMLInputElement).value; }}
                 />
-                {locaisFiltrados.map(e => <Item key={e.id} s={s} e={e} pecas={pecas} donos={org.donosPorFicha} />)}
+                {locaisFiltrados.map(e => <Item key={e.id} s={s} e={e} pecas={pecas} donos={org.donosPorFicha} retratosUrl={org.retratosUrlPorFicha} />)}
                 {locaisFiltrados.length === 0 && (
                   <p class="dock-dica" data-testid="personagens-nenhum">Nenhum personagem com “{buscaPersonagem.value}”.</p>
                 )}
@@ -404,5 +412,9 @@ export function soltarPersonagem(s: SessaoDeEdicao, evento: DragEvent): void {
   const org = painelSessao.peek();
   const e = [...org.naSala, ...org.locais, ...lista.peek(), ...ameacas.peek()].find(x => x.id === id);
   const mundo = viewport.atual?.mundoDe(evento.clientX, evento.clientY);
-  if (e) tentar(() => { adicionarPersonagem(s, e, mundo, servicos.value?.repo); });
+  if (e) {
+    const ref = refDaFicha(e.refs);
+    const retratoUrl = ref ? (org.retratosUrlPorFicha[ref.id] ?? retratosUrlDaSala.peek()[ref.id]) : undefined;
+    tentar(() => { adicionarPersonagem(s, e, mundo, servicos.value?.repo, retratoUrl ? { retratoUrl } : undefined); });
+  }
 }

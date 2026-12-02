@@ -120,10 +120,73 @@ export function personagensDoElenco(
 
 export interface RespostaSalaFichas {
   eu?: { discordId: string; nome?: string };
-  fichas?: Array<{ id: string; name?: unknown }>;
+  fichas?: Array<{ id: string; name?: unknown; tokenImage?: unknown }>;
   donos?: Record<string, string>;
   membros?: Array<{ discordId: string; nome: string; papel: string; personagem?: string | null }>;
   nomes?: Record<string, string>;
+}
+
+const LIMITE_RETRATO_BYTES = 512 * 1024;
+const LADO_MAX_RETRATO = 256;
+
+/**
+ * Resolve o `tokenImage` vindo de uma ficha do Dossiê (local ou sala online) para uma URL legível a partir do Atlas.
+ * Caminhos `/assets/...` e `./assets/...` do Dossiê são resolvidos contra `../Dossie/`.
+ */
+export function resolverUrlRetratoDaFicha(tokenImage: unknown, baseHref?: string): string | null {
+  if (typeof tokenImage !== 'string') return null;
+  const bruto = tokenImage.trim();
+  if (!bruto) return null;
+  if (/^(data:image\/|blob:|https?:)/i.test(bruto)) return bruto;
+  const base = baseHref ?? (typeof location !== 'undefined' ? location.href : undefined);
+  if (/^(?:\.?\/)?assets\//i.test(bruto)) {
+    const rel = `../Dossie/${bruto.replace(/^\.?\//, '')}`;
+    if (!base) return rel;
+    try { return new URL(rel, base).href; } catch { return rel; }
+  }
+  if (/^(\/|\.\/)/.test(bruto)) {
+    if (!base) return bruto;
+    try { return new URL(bruto, base).href; } catch { return bruto; }
+  }
+  return null;
+}
+
+/** Busca o retrato de uma URL (ex.: `tokenImage` de ficha da sala) e reduz para até 512 KB / 256 px se necessário. */
+export async function carregarRetratoDeUrl(url: string, opcoes?: { fetchFn?: typeof fetch }): Promise<Blob | null> {
+  const fn = opcoes?.fetchFn ?? (typeof fetch === 'function' ? fetch : null);
+  if (!fn || !url) return null;
+  try {
+    const resp = await fn(url);
+    if (!resp.ok) return null;
+    const blob = await resp.blob();
+    if (!blob.size || (blob.type && !blob.type.startsWith('image/'))) return null;
+    if (blob.size <= LIMITE_RETRATO_BYTES) return blob;
+    if (typeof createImageBitmap !== 'function' || typeof OffscreenCanvas === 'undefined') return blob;
+    const bitmap = await createImageBitmap(blob);
+    try {
+      const escala = Math.min(1, LADO_MAX_RETRATO / Math.max(1, bitmap.width, bitmap.height));
+      const tela = new OffscreenCanvas(Math.max(1, Math.round(bitmap.width * escala)), Math.max(1, Math.round(bitmap.height * escala)));
+      const ctx = tela.getContext('2d');
+      if (!ctx) return blob;
+      ctx.drawImage(bitmap, 0, 0, tela.width, tela.height);
+      const menor = await tela.convertToBlob({ type: 'image/webp', quality: 0.85 });
+      return menor.size > 0 && menor.size <= LIMITE_RETRATO_BYTES ? menor : blob;
+    } finally {
+      bitmap.close?.();
+    }
+  } catch {
+    return null;
+  }
+}
+
+function extrairRetratosDaSala(fichas: RespostaSalaFichas['fichas'], baseHref?: string): Record<string, string> {
+  const mapa: Record<string, string> = {};
+  for (const f of fichas ?? []) {
+    if (!f?.id) continue;
+    const url = resolverUrlRetratoDaFicha(f.tokenImage, baseHref);
+    if (url) mapa[f.id] = url;
+  }
+  return mapa;
 }
 
 /** A Mesa responde `sala.fichas` com os campos na própria resposta (o Dossiê lê assim); aceita também o formato com `dados`. */
@@ -142,9 +205,10 @@ export function mesclarPersonagensDaSala(
   sala: RespostaSalaFichas | null | undefined,
   campanhaId: string,
   todasDaCampanha?: readonly Entidade[],
-): { lista: Entidade[]; donosPorFicha: Record<string, string> } {
+): { lista: Entidade[]; donosPorFicha: Record<string, string>; retratosUrlPorFicha: Record<string, string> } {
   const donosPorFicha: Record<string, string> = {};
-  if (!sala) return { lista: [...entidades], donosPorFicha };
+  if (!sala) return { lista: [...entidades], donosPorFicha, retratosUrlPorFicha: {} };
+  const retratosUrlPorFicha = extrairRetratosDaSala(sala.fichas);
 
   const euId = sala.eu?.discordId;
   const membros = sala.membros ?? [];
@@ -200,7 +264,7 @@ export function mesclarPersonagensDaSala(
     });
   }
 
-  return { lista: [...extras, ...entidades], donosPorFicha };
+  return { lista: [...extras, ...entidades], donosPorFicha, retratosUrlPorFicha };
 }
 
 export interface PainelDePersonagensOrganizado {
@@ -214,6 +278,8 @@ export interface PainelDePersonagensOrganizado {
   locais: Entidade[];
   /** Mapa `fichaId -> nome do jogador` para identificar o dono na interface. */
   donosPorFicha: Record<string, string>;
+  /** Mapa `fichaId -> URL do retrato` extraído de `tokenImage` das fichas da sala (fallback quando não há `Entidade.retrato` local). */
+  retratosUrlPorFicha: Record<string, string>;
 }
 
 /**
@@ -250,8 +316,11 @@ export function organizarPainelDePersonagens({
       jogadoresSemFicha: [],
       locais,
       donosPorFicha: {},
+      retratosUrlPorFicha: {},
     };
   }
+
+  const retratosUrlPorFicha = extrairRetratosDaSala(sala.fichas);
 
   const donosPorFicha: Record<string, string> = {};
   const euId = sala.eu?.discordId;
@@ -339,6 +408,7 @@ export function organizarPainelDePersonagens({
     jogadoresSemFicha,
     locais,
     donosPorFicha,
+    retratosUrlPorFicha,
   };
 }
 
@@ -360,23 +430,66 @@ export async function abrirMesa(): Promise<'aba' | 'falhou'> {
 /** As ameaças (monstros) da campanha que têm ficha: entidades `ameaca` com um Ref do aplicativo `ficha`. Em ordem alfabética, sem acento atrapalhar. */
 export const ameacasComFicha = (lista: readonly Entidade[]): Entidade[] => lista.filter(e => e.tipo === 'ameaca' && refDaFicha(e.refs)).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
+export interface OpcoesAdicionarPersonagem {
+  retratoUrl?: string | null;
+  carregarRetrato?: (url: string) => Promise<Blob | null>;
+}
+
+function aplicarRetratoDaEntidade(
+  s: SessaoDeEdicao,
+  pecaId: string,
+  nome: string,
+  e: Pick<Entidade, 'retrato'>,
+  repo?: Pick<RepositorioMapas, 'salvarAsset'> | null,
+  opcoes?: OpcoesAdicionarPersonagem,
+): void {
+  if (!repo) return;
+  const salvar = (blob: Blob | null) => {
+    if (!blob) return;
+    return repo.salvarAsset(blob).then(portrait => {
+      if (s.store.documento.tokens[pecaId]) {
+        s.store.executar({ tipo: 'item.atualizar', colecao: 'tokens', id: pecaId, patch: { portrait } }, { rotulo: `Retrato de ${nome}` });
+      }
+    });
+  };
+  if (e.retrato) {
+    void Promise.resolve(salvar(e.retrato)).catch(erro => console.warn('Atlas: não consegui guardar o retrato', erro));
+    return;
+  }
+  const url = opcoes?.retratoUrl;
+  if (!url) return;
+  const carregar = opcoes?.carregarRetrato ?? carregarRetratoDeUrl;
+  void carregar(url).then(salvar).catch(erro => console.warn('Atlas: não consegui carregar o retrato da sala', erro));
+}
+
 /**
  * Põe o personagem ou a ameaça no mapa como peça ligada à ficha.
  * Para personagens de jogador (`personagem`): 1 peça por personagem (adicionar de novo apenas seleciona a existente).
  * Para ameaças (`ameaca`): sempre adiciona uma nova peça numerada (ex.: Zumbi 1, Zumbi 2) com HP independente.
  */
-export function adicionarPersonagem(s: SessaoDeEdicao, e: Entidade, onde?: Ponto, repo?: Pick<RepositorioMapas, 'salvarAsset'> | null): Peca | null {
+export function adicionarPersonagem(
+  s: SessaoDeEdicao,
+  e: Entidade,
+  onde?: Ponto,
+  repo?: Pick<RepositorioMapas, 'salvarAsset'> | null,
+  opcoes?: OpcoesAdicionarPersonagem,
+): Peca | null {
   const ref = refDaFicha(e.refs); if (!ref || (e.tipo !== 'personagem' && e.tipo !== 'ameaca')) return null;
   const m = s.store.documento, existente = pecaDaFicha(m, ref);
 
   if (e.tipo === 'personagem') {
-    if (existente) { s.selecao.value = [{ colecao: 'tokens', id: existente.id }]; avisar(`${e.nome} já está no mapa.`, { duracao: 1800 }); return existente; }
+    if (existente) {
+      s.selecao.value = [{ colecao: 'tokens', id: existente.id }];
+      if (!existente.portrait) aplicarRetratoDaEntidade(s, existente.id, e.nome, e, repo, opcoes);
+      avisar(`${e.nome} já está no mapa.`, { duracao: 1800 });
+      return existente;
+    }
     const centro = (m.grid.snap === false && onde) ? onde : centroDaCelula(m, onde ?? [m.bounds.width / 2, m.bounds.height / 2]);
     const andar = s.andarAtivo?.peek() ?? null;
     const peca = novaPeca(centro, e.nome, { player: true, refs: [ref], ...(andar !== null ? { levelId: andar } : {}) });
     s.store.executar({ tipo: 'item.adicionar', colecao: 'tokens', item: peca as never }, { rotulo: `Pôr ${e.nome} no mapa` });
     s.selecao.value = [{ colecao: 'tokens', id: peca.id }];
-    if (e.retrato && repo) void repo.salvarAsset(e.retrato).then(portrait => { if (s.store.documento.tokens[peca.id]) s.store.executar({ tipo: 'item.atualizar', colecao: 'tokens', id: peca.id, patch: { portrait } }, { rotulo: `Retrato de ${e.nome}` }); }).catch(erro => console.warn('Atlas: não consegui guardar o retrato', erro));
+    aplicarRetratoDaEntidade(s, peca.id, e.nome, e, repo, opcoes);
     return peca;
   }
 
