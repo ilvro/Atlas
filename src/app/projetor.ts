@@ -5,6 +5,7 @@ import type { Vista } from '../domain/inspecao.ts';
 import type { MapaAtlas } from '../domain/mapa.ts';
 import type { PassoDeMomento } from '../domain/momentos.ts';
 import { mostrarPvNoProjetor, recursosDaPeca, recursosDasFichas } from './fichas.ts';
+import { ROTULO_ARRASTO_REMOTO } from './mover-peca-remota.ts';
 import { controleJogadores, movimentoLivre, type ControleJogadores } from './modo.ts';
 import { recursosParaOProjetor } from '../domain/fichas.ts';
 import { projetarParaJogadores } from '../domain/projecao.ts';
@@ -401,8 +402,9 @@ export function iniciarPublicacao(
     if (e.mudancas.completo || e.mudancas.colecoes.tokens) registrarJogadores(e.documento);
     andarAtual(e.documento);
     const apenasSessao = e.mudancas.campos.every(c => c === 'session');
+    const gestoRemoto = e.tipo === 'executar' && e.rotulo === ROTULO_ARRASTO_REMOTO;
     if (
-      e.tipo === 'gesto'
+      (e.tipo === 'gesto' || gestoRemoto)
       && e.mudancas.colecoes.tokens?.length === 1
       && !e.mudancas.completo
       && apenasSessao

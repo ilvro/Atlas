@@ -154,6 +154,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
   const luzes = new Map<string, Container>(), pecas = new Map<string, Container>(), regioes = new Map<string, Container>();
   const animacoes: { alvo: Container; t0: number; dur: number; final: number }[] = [];
   let terrenoTimer: ReturnType<typeof setTimeout> | null = null;
+  let terrenoRefinoTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Texturas compartilhadas por chave, com contagem de uso: quando ninguém mais usa, saem da GPU.
   const texturas = new Map<string, { tex: Texture; texAltura: Texture | null; usos: number }>();
@@ -269,6 +270,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
     if (m.style.renderer === 'illustrated' && usaTextura(e) && !catalogoLido()) { void carregarCatalogo().then(() => { if (!destruida && mapa) sincronizarTerreno(mapa); }); return; }
     const temAlgo = e.base !== 'vazio' || e.camadas.length > 0 || !!e.relevo || !!e.assentamento;
     if (terrenoTimer) { clearTimeout(terrenoTimer); terrenoTimer = null; }
+    if (terrenoRefinoTimer) { clearTimeout(terrenoRefinoTimer); terrenoRefinoTimer = null; }
     if (!temAlgo) {
       for (const ent of terrenos.values()) removerEntrada(ent);
       terrenos.clear();
@@ -310,6 +312,12 @@ export function criarCena(op: OpcoesDaCena): Cena {
       const cx = vis ? (vis.x0 + vis.x1) / 2 : 0, cy = vis ? (vis.y0 + vis.y1) / 2 : 0;
       const dist = (l: (typeof ladrilhos)[number]): number => (l.caixa.x + l.caixa.w / 2 - cx) ** 2 + (l.caixa.y + l.caixa.h / 2 - cy) ** 2;
       const ordenados = vis ? [...ladrilhos].sort((a, b) => dist(a) - dist(b)) : ladrilhos;
+      const baseTexturas = baseDasTexturas();
+      const resPrevia = Math.max(1, res / 4);
+      // No projetor com névoa, o terreno cresce a cada passo do jogador: assa a prévia (1/4) na hora para revelar
+      // sem buracos nem travar os workers, e adia o refino em alta resolução até o movimento assentar.
+      const incrementalNoProjetor = terrenoEfemero && estilo === 'illustrated' && terrenos.size > 0;
+      const paraRefinar: typeof ordenados = [];
       for (const l of ordenados) {
         const k = `${l.i},${l.j}`;
         const naTela = visivel(l.caixa.x, l.caixa.y, l.caixa.x + l.caixa.w, l.caixa.y + l.caixa.h);
@@ -318,12 +326,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
         const chave = chaveDoTerreno(l.entrada, res, estilo);
         if (alvo.chave === chave) continue;
         const caixa = l.caixa;
-        const resPrevia = Math.max(1, res / 4);
-        const baseTexturas = baseDasTexturas();
-        const previa = naTela && estilo === 'illustrated' && (!alvo.sprite || modoDoProjetor)
-          ? { chave: chaveDoTerreno(l.entrada, resPrevia, estilo), pedido: { tipo: 'terreno' as const, entrada: l.entrada, res: resPrevia, estilo, baseTexturas, ...(terrenoEfemero ? { semCache: true } : {}) } }
-          : undefined;
-        pintar(alvo, chave, { tipo: 'terreno', entrada: l.entrada, res, estilo, baseTexturas, ...(terrenoEfemero ? { semCache: true } : {}) }, (s, r) => {
+        const aplicarLadrilho = (s: Sprite, r: ResultadoDeBake) => {
           s.position.set(r.origem[0], r.origem[1]);
           s.scale.set(1 / r.res);
           cenaDeAltura.sincronizarLadrilhoTerreno(k, alvo!.texAltura, r.origem, r.res);
@@ -331,7 +334,45 @@ export function criarCena(op: OpcoesDaCena): Cena {
             agua.aplicarLadrilho(caixa, r.agua, mapa);
             reaplicarSubmersos(mapa);
           }
-        }, naTela ? 1 : 4, previa, modoDoProjetor, 'terreno', { caixa: [l.caixa.x, l.caixa.y, l.caixa.x + l.caixa.w, l.caixa.y + l.caixa.h], prios: [1, 4] });
+        };
+        if (incrementalNoProjetor) {
+          paraRefinar.push(l);
+          if (naTela) {
+            const chavePrevia = chaveDoTerreno(l.entrada, resPrevia, estilo);
+            pintar(alvo, chavePrevia, { tipo: 'terreno', entrada: l.entrada, res: resPrevia, estilo, baseTexturas, semCache: true }, aplicarLadrilho, 0, undefined, false, 'terreno', { caixa: [l.caixa.x, l.caixa.y, l.caixa.x + l.caixa.w, l.caixa.y + l.caixa.h], prios: [0, 3] });
+          }
+          continue;
+        }
+        const previa = naTela && estilo === 'illustrated' && (!alvo.sprite || modoDoProjetor)
+          ? { chave: chaveDoTerreno(l.entrada, resPrevia, estilo), pedido: { tipo: 'terreno' as const, entrada: l.entrada, res: resPrevia, estilo, baseTexturas, ...(terrenoEfemero ? { semCache: true } : {}) } }
+          : undefined;
+        pintar(alvo, chave, { tipo: 'terreno', entrada: l.entrada, res, estilo, baseTexturas, ...(terrenoEfemero ? { semCache: true } : {}) }, aplicarLadrilho, naTela ? 1 : 4, previa, modoDoProjetor, 'terreno', { caixa: [l.caixa.x, l.caixa.y, l.caixa.x + l.caixa.w, l.caixa.y + l.caixa.h], prios: [1, 4] });
+      }
+      if (paraRefinar.length > 0) {
+        terrenoRefinoTimer = setTimeout(() => {
+          terrenoRefinoTimer = null;
+          if (destruida) return;
+          for (const l of paraRefinar) {
+            const k = `${l.i},${l.j}`;
+            const alvo = terrenos.get(k);
+            if (!alvo) continue;
+            const chave = chaveDoTerreno(l.entrada, res, estilo);
+            if (alvo.chave === chave) continue;
+            const naTela = visivel(l.caixa.x, l.caixa.y, l.caixa.x + l.caixa.w, l.caixa.y + l.caixa.h);
+            const caixa = l.caixa;
+            pintar(alvo, chave, { tipo: 'terreno', entrada: l.entrada, res, estilo, baseTexturas, semCache: true }, (s, r) => {
+              s.position.set(r.origem[0], r.origem[1]);
+              s.scale.set(1 / r.res);
+              cenaDeAltura.sincronizarLadrilhoTerreno(k, alvo.texAltura, r.origem, r.res);
+              if (mapa) {
+                agua.aplicarLadrilho(caixa, r.agua, mapa);
+                reaplicarSubmersos(mapa);
+              }
+            }, naTela ? 2 : 4, undefined, false, 'terreno', { caixa: [l.caixa.x, l.caixa.y, l.caixa.x + l.caixa.w, l.caixa.y + l.caixa.h], prios: [2, 4] });
+          }
+          op.baker.coletar(chavesEmUso());
+        }, 240);
+        if (typeof terrenoRefinoTimer?.unref === 'function') terrenoRefinoTimer.unref();
       }
       op.baker.coletar(chavesEmUso());
     };
@@ -1074,7 +1115,7 @@ export function criarCena(op: OpcoesDaCena): Cena {
       composicaoDeLuz.atualizar(mundoIluminado, ativo, movimentoReduzido() ? 0 : agora / 1000);
     },
     destruir() {
-      destruida = true; if (terrenoTimer) clearTimeout(terrenoTimer);
+      destruida = true; if (terrenoTimer) clearTimeout(terrenoTimer); if (terrenoRefinoTimer) clearTimeout(terrenoRefinoTimer);
       for (const c of pecas.values()) {
         const v = visuais.get(c);
         if (v) { (v as { destruir?: () => void }).destruir?.(); visuais.delete(c); }

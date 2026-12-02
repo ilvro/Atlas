@@ -26,6 +26,8 @@ export interface ContextoMoverPeca {
  * - recusa se a peça não existir, não for `player`, ou nenhuma `ref` dela apontar para uma ficha em `autor.fichas`;
  * - aplica com `peca.mover` (com desfazer, encaixe na grade e colisão com paredes e portas fechadas).
  */
+export const ROTULO_ARRASTO_REMOTO = 'Arrastar peça remota';
+
 export function atenderMoverPeca(
   ctx: ContextoMoverPeca,
   dados: DadosMoverPeca,
@@ -54,7 +56,7 @@ export function atenderMoverPeca(
   try {
     store.executar(
       { tipo: 'peca.mover', id: peca.id, para: dados.position, livre: false, semGrade, ...(dados.emArrasto ? { emArrasto: true } : {}) },
-      { fusao: `mover-peca-remota:${peca.id}` },
+      { fusao: `mover-peca-remota:${peca.id}`, ...(dados.emArrasto ? { rotulo: ROTULO_ARRASTO_REMOTO } : {}) },
     );
   } catch (erro) {
     return { ok: false, motivo: erro instanceof Error ? erro.message : String(erro) };
