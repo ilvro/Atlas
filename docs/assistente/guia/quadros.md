@@ -69,7 +69,7 @@ Tudo entra na fila de revisão ("Do assistente"), sem moldura, com um contorno t
 
 Quando o mestre pede para pôr no quadro uma missão pronta, um capítulo ou um suplemento, a fonte tem estrutura e imagens. Elas entram também, não só o texto.
 
-1. **Leia a legenda.** O `quadro_estilo` mostra a legenda do mestre, que é fixa na Mesa (o quadro pode sobrescrever com uma seção "LEGENDA"). Cada papel (`ponto`, `narracao`, `teste`, `loot`, `segredo`, `evento`, `transicao`, `gancho`, `condicao`, `fala`) tem cor e negrito próprios. Escreva por papel, não por cópia de item.
+1. **Leia a legenda.** O `quadro_estilo` mostra a legenda do mestre, que é fixa na Mesa (o quadro pode sobrescrever com uma seção "LEGENDA"). Cada papel (`ponto`, `narracao`, `teste`, `loot`, `segredo`, `evento`, `transicao`, `gancho`, `condicao`, `fala`) tem cor e negrito próprios. Escreva por papel, não por cópia de item. O negrito da legenda vai só nos rótulos `[…]`; narração e regra corridas levam só o destaque. Num quadro novo, sem texto do mestre para copiar (só o título, por exemplo), `quadro_inserir` já escreve no estilo fixo do mestre, o do Pântano: não peça itens de exemplo.
 2. **Procure as imagens antes de escrever.** `arquivo_imagens(caminho)` lista as imagens de um PDF por página (sem os fundos repetidos) e de uma pasta, por exemplo a de extras ao lado do PDF, com handouts, tokens e mapas. `arquivo_imagens(caminho, ver: id)` mostra a miniatura de uma delas. Para uma ficha ou tabela que não é imagem no PDF, recorte a página: `pdf:<caminho>#p=<página>&recorte=x,y,l,a` (frações da página).
 3. **Mapeie a estrutura da fonte para a do mestre:**
    - Caixa de narração vira texto com `papel: "narracao"`.
