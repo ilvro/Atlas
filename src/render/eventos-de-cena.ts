@@ -19,22 +19,26 @@ export interface EstadoDosEventos {
 }
 
 export interface EventosDeCena {
-  disparar(e: EventoDeCena, agora: number): void;
+  disparar(e: EventoDeCena, agora: number, intensidade?: number): void;
   estado(agora: number): EstadoDosEventos;
 }
 
 /** Com movimento reduzido o tremor vira um clarão curto. */
 export function criarEventosDeCena(reduzido: () => boolean): EventosDeCena {
-  const inicio = new Map<EventoDeCena, number>();
+  const inicio = new Map<EventoDeCena, { t0: number; intensidade: number }>();
   return {
-    disparar(e, agora) { inicio.set(reduzido() && e === 'tremor' ? 'clarao' : e, agora); },
+    disparar(e, agora, intensidade = 1) {
+      const alvo = reduzido() && e === 'tremor' ? 'clarao' : e;
+      const forca = Number.isFinite(intensidade) ? Math.max(0.1, Math.min(3, intensidade)) : 1;
+      inicio.set(alvo, { t0: agora, intensidade: forca });
+    },
     estado(agora) {
       const s: EstadoDosEventos = { tremor: [0, 0], luzes: 1, ambiente: 1, clarao: 0, ativos: [] };
-      for (const [e, t0] of inicio) {
-        const ms = agora - t0, u = ms / DURACAO_DO_EVENTO_MS[e];
+      for (const [e, reg] of inicio) {
+        const ms = agora - reg.t0, u = ms / DURACAO_DO_EVENTO_MS[e];
         if (u >= 1) { inicio.delete(e); continue; }
         s.ativos.push(e);
-        if (e === 'tremor') { const a = 9 * (1 - u) ** 2; s.tremor = [Math.sin(ms * 0.11) * a, Math.cos(ms * 0.087 + 1) * a * 0.8]; }
+        if (e === 'tremor') { const a = 9 * reg.intensidade * (1 - u) ** 2; s.tremor = [Math.sin(ms * 0.11) * a, Math.cos(ms * 0.087 + 1) * a * 0.8]; }
         else if (e === 'piscar') s.luzes = u > 0.8 ? 0.15 + 0.85 * ((u - 0.8) / 0.2) : Math.sin(ms * 0.045) + 0.6 * Math.sin(ms * 0.13) > 0 ? 1 : 0.12;
         else if (e === 'escurecer') s.ambiente = ms < 400 ? 1 - 0.7 * (ms / 400) : u > 0.75 ? 0.3 + 0.7 * ((u - 0.75) / 0.25) : 0.3;
         else s.clarao = Math.max(s.clarao, (reduzido() ? 0.4 : 0.9) * (1 - u) ** 2);

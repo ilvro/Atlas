@@ -5,7 +5,7 @@ import type { AlvoDeCamera, EfeitoDeCena, Momento, PassoDeMomento } from '../dom
 export interface SaidasDeMomento {
   som(ref: Ref): void;
   silencio(ms: number): void;
-  efeito(e: EfeitoDeCena): void;
+  efeito(e: EfeitoDeCena, opcoes?: { som?: boolean; intensidade?: number }): void;
   clima(id: string): void;
   tela(acao: 'escurecer' | 'clarear', ms: number): void;
   letreiro(l: Extract<PassoDeMomento, { tipo: 'letreiro' }> | null): void; // null = tira da tela
@@ -77,7 +77,7 @@ export function executarPasso(p: PassoDeMomento, saidas: SaidasDeMomento): void 
       saidas.silencio(p.ms);
       break;
     case 'efeito':
-      saidas.efeito(p.efeito);
+      saidas.efeito(p.efeito, { ...(p.som !== undefined ? { som: p.som } : {}), ...(p.intensidade !== undefined ? { intensidade: p.intensidade } : {}) });
       break;
     case 'clima':
       saidas.clima(p.clima);

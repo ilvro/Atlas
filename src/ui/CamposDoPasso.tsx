@@ -181,6 +181,9 @@ export function CamposDoPasso({
 
     case 'efeito': {
       const opcoes: EfeitoDeCena[] = ['relampago', ...EVENTOS_DE_CENA];
+      const intensidade = passo.intensidade ?? 1;
+      const rotuloIntensidade =
+        intensidade <= 0.5 ? 'Fraco' : intensidade <= 1.2 ? 'Médio' : intensidade <= 1.9 ? 'Forte' : 'Intenso';
       return (
         <div class="campos-passo campos-efeito">
           <label class="dock-rotulo">
@@ -189,7 +192,11 @@ export function CamposDoPasso({
               value={passo.efeito}
               class="campo-select"
               onChange={e => {
-                aoAtualizar({ ...passo, efeito: (e.target as HTMLSelectElement).value as EfeitoDeCena });
+                const novo = (e.target as HTMLSelectElement).value as EfeitoDeCena;
+                const proximo: Extract<PassoDeMomento, { tipo: 'efeito' }> = { tipo: 'efeito', efeito: novo };
+                if ((novo === 'relampago' || novo === 'tremor') && passo.som === false) proximo.som = false;
+                if (novo === 'tremor' && passo.intensidade !== undefined) proximo.intensidade = passo.intensidade;
+                aoAtualizar(proximo);
               }}
             >
               {opcoes.map(ef => (
@@ -199,6 +206,39 @@ export function CamposDoPasso({
               ))}
             </select>
           </label>
+          {passo.efeito === 'tremor' && (
+            <label class="dock-rotulo">
+              Intensidade do tremor ({Math.round(intensidade * 100)}% · {rotuloIntensidade}):
+              <input
+                type="range"
+                min={0.2}
+                max={2.5}
+                step={0.1}
+                value={intensidade}
+                data-testid="passo-efeito-intensidade"
+                onInput={e => {
+                  aoAtualizar({ ...passo, intensidade: Number((e.target as HTMLInputElement).value) });
+                }}
+              />
+            </label>
+          )}
+          {(passo.efeito === 'relampago' || passo.efeito === 'tremor') && (
+            <label class="dock-rotulo" style={{ flexDirection: 'row', alignItems: 'center', gap: '6px' }}>
+              <input
+                type="checkbox"
+                checked={passo.som !== false}
+                data-testid="passo-efeito-som"
+                onChange={e => {
+                  const comSom = (e.target as HTMLInputElement).checked;
+                  const proximo: Extract<PassoDeMomento, { tipo: 'efeito' }> = { ...passo };
+                  if (comSom) delete proximo.som;
+                  else proximo.som = false;
+                  aoAtualizar(proximo);
+                }}
+              />
+              <span>{passo.efeito === 'relampago' ? 'Tocar som de trovão' : 'Tocar som de tremor'}</span>
+            </label>
+          )}
         </div>
       );
     }

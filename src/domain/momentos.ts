@@ -11,7 +11,7 @@ export type PassoDeMomento =
   | { tipo: 'esperar'; ms: number }                                   // 100..120000
   | { tipo: 'som'; ref: Ref }                                         // jukebox cena-sonora ou efeito
   | { tipo: 'silencio'; ms: number }                                  // fade do som no Jukebox, 0..30000
-  | { tipo: 'efeito'; efeito: EfeitoDeCena }
+  | { tipo: 'efeito'; efeito: EfeitoDeCena; som?: boolean; intensidade?: number }
   | { tipo: 'clima'; clima: string }                                  // id de predefinição ou de customClimates
   | { tipo: 'tela'; acao: 'escurecer' | 'clarear'; ms: number }      // fade da cortina preta no projetor, 0..10000
   | { tipo: 'letreiro'; titulo: string; subtitulo: string; peca: string | null; estilo: 'apresentacao' | 'capitulo'; ms: number } // ms 1000..20000
@@ -71,7 +71,12 @@ export function descreverPasso(p: PassoDeMomento, mapa?: MapaAtlas): string {
     }
     case 'efeito': {
       const nome = p.efeito === 'relampago' ? 'Relâmpago' : (ROTULO_DO_EVENTO[p.efeito] ?? p.efeito);
-      return `Efeito: ${nome}`;
+      const detalhes: string[] = [];
+      if (p.efeito === 'tremor' && typeof p.intensidade === 'number' && p.intensidade !== 1) {
+        detalhes.push(`${Math.round(p.intensidade * 100)}%`);
+      }
+      if (p.som === false) detalhes.push('sem som');
+      return detalhes.length ? `Efeito: ${nome} (${detalhes.join(', ')})` : `Efeito: ${nome}`;
     }
     case 'clima': {
       const nome = mapa?.customClimates[p.clima]?.name ?? p.clima;
@@ -195,6 +200,12 @@ export function passoValido(p: unknown): string | null {
     case 'efeito': {
       if (passo.efeito !== 'relampago' && !EVENTOS_DE_CENA.includes(passo.efeito)) {
         return 'Efeito de cena desconhecido.';
+      }
+      if (passo.som !== undefined && typeof passo.som !== 'boolean') {
+        return 'Opção de som do efeito deve ser booleana.';
+      }
+      if (passo.intensidade !== undefined && (typeof passo.intensidade !== 'number' || !Number.isFinite(passo.intensidade) || passo.intensidade < 0.1 || passo.intensidade > 3)) {
+        return 'Intensidade do efeito deve ser entre 0,1 e 3.';
       }
       return null;
     }

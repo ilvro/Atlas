@@ -479,15 +479,15 @@ effect(() => {
 });
 
 /** Um evento de cena (tremor, piscar…) no mapa do mestre e, junto, no projetor. */
-export function dispararEventoDeCena(e: EventoDeCena): void { viewport.atual?.dispararEvento(e); publicador?.evento(e); }
+export function dispararEventoDeCena(e: EventoDeCena, intensidade?: number): void { viewport.atual?.dispararEvento(e, intensidade); publicador?.evento(e, intensidade); }
 export function relampagoNoProjetor(): void { publicador?.relampago(); }
-export function dispararEfeitoDeCenaOuRelampago(efeito: EfeitoDeCena): void {
+export function dispararEfeitoDeCenaOuRelampago(efeito: EfeitoDeCena, opcoes?: { som?: boolean; intensidade?: number }): void {
   if (efeito === 'relampago') {
-    viewport.atual?.relampagoAgora();
+    viewport.atual?.relampagoAgora(opcoes?.som !== undefined ? { som: opcoes.som } : undefined);
     relampagoNoProjetor();
   } else {
-    dispararEventoDeCena(efeito);
-    if (efeito === 'tremor') trovao(1.2);
+    dispararEventoDeCena(efeito, opcoes?.intensidade);
+    if (efeito === 'tremor' && opcoes?.som !== false) trovao(1.1 * (opcoes?.intensidade ?? 1));
   }
 }
 export function abrirProjetor(): void {
@@ -1261,8 +1261,8 @@ export function saidasDeMomento(s: Servicos | null): SaidasDeMomento {
     silencio: ms => {
       pedirSilencio(s?.barramento, ms);
     },
-    efeito: e => {
-      dispararEfeitoDeCenaOuRelampago(e);
+    efeito: (e, opcoes) => {
+      dispararEfeitoDeCenaOuRelampago(e, opcoes);
     },
     clima: id => {
       aplicarClima(id);

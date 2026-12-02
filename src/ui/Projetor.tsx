@@ -311,7 +311,7 @@ export function Projetor({ mapaId, salaId }: { mapaId: string; salaId?: string }
         );
       }
       else if (msg.tipo === 'camera') { caixa = caixaDoMestre = msg.caixa; if (msg.seguir) seguindo.value = true; if (seguindo.peek()) { vp?.enquadrarCaixa(caixaComZoom(msg.caixa), !primeira && !msg.imediata); primeira = false; } }
-      else if (msg.tipo === 'evento') vp?.dispararEvento(msg.nome);
+      else if (msg.tipo === 'evento') vp?.dispararEvento(msg.nome, msg.intensidade);
       else if (msg.tipo === 'relampago') vp?.relampagoAgora();
       else if (msg.tipo === 'tela') { cortina.value = { escurecer: msg.acao === 'escurecer', ms: msg.ms }; }
       else if (msg.tipo === 'letreiro') { letreiroDoProjetor.value = { titulo: msg.titulo, subtitulo: msg.subtitulo, estilo: msg.estilo, retrato: msg.retrato, ms: msg.ms }; }

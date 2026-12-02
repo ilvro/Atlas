@@ -183,7 +183,9 @@ test('descreverPasso gera resumo em português e aponta quando alvo sumiu', () =
   assert.equal(descreverPasso({ tipo: 'som', ref: criarRef('jukebox', 'efeito', 'trovao') }), 'Som: trovao');
   assert.equal(descreverPasso({ tipo: 'silencio', ms: 1500 }), 'Silêncio (1,5 s)');
   assert.equal(descreverPasso({ tipo: 'efeito', efeito: 'tremor' }), 'Efeito: Tremor');
+  assert.equal(descreverPasso({ tipo: 'efeito', efeito: 'tremor', intensidade: 1.8 }), 'Efeito: Tremor (180%)');
   assert.equal(descreverPasso({ tipo: 'efeito', efeito: 'relampago' }), 'Efeito: Relâmpago');
+  assert.equal(descreverPasso({ tipo: 'efeito', efeito: 'relampago', som: false }), 'Efeito: Relâmpago (sem som)');
   assert.equal(descreverPasso({ tipo: 'clima', clima: 'tempestade' }), 'Clima: tempestade');
   assert.equal(descreverPasso({ tipo: 'tela', acao: 'escurecer', ms: 800 }), 'Tela: Escurecer (0,8 s)');
   assert.equal(descreverPasso({ tipo: 'tela', acao: 'clarear', ms: 1000 }), 'Tela: Clarear (1 s)');

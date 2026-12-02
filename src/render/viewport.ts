@@ -155,8 +155,8 @@ export interface Viewport {
   redesenharPecas(): void;
   /** Só a seleção, o fantasma e a grade: a seleção, a ferramenta ou o pincel mudaram fora do viewport. */
   atualizarSobreposicoes(): void;
-  /** Dispara um relâmpago (e o trovão, se o som estiver ligado). Só vale com a atmosfera visível. */
-  relampagoAgora(): void;
+  /** Dispara um relâmpago (e o trovão, se o som estiver ligado e não silenciado). Só vale com a atmosfera visível. */
+  relampagoAgora(opcoes?: { som?: boolean }): void;
   /** Exibe um ping animado no mapa (R15b). */
   dispararPing(ping: Ping): void;
   /** Quanto dura, daqui em diante, a transição entre dois climas. */
@@ -164,7 +164,7 @@ export interface Viewport {
   /** Enquadra `caixa` (em metros) na tela inteira; `suave` anima a câmera (o projetor). */
   enquadrarCaixa(caixa: Caixa, suave: boolean): void;
   /** Um evento de cena (tremor, piscar, escurecer, clarão): do render, não muda o documento. */
-  dispararEvento(e: EventoDeCena): void;
+  dispararEvento(e: EventoDeCena, intensidade?: number): void;
   /** Para os testes: os eventos rodando agora e o que fazem. */
   diagnosticoDosEventos(): EstadoDosEventos;
   /** Quantas partículas de cada tipo existem agora (diagnóstico e testes). */
@@ -1609,10 +1609,10 @@ export async function criarViewport(host: HTMLElement, ponte: PonteViewport): Pr
       if (ultimoAndar !== andarAtual() || ultimoConstruir !== ctxAndar().construir) redesenharTudo();
       aplicarAcabamento();
     },
-    relampagoAgora: () => cena.relampagoAgora(),
+    relampagoAgora: opcoes => cena.relampagoAgora(opcoes),
     dispararPing: ping => camadaPings.adicionar(ping),
     definirDuracaoDaTransicao: ms => { duracaoDaTransicao = Math.max(0, ms); },
-    dispararEvento: e => { eventos.disparar(e, performance.now()); },
+    dispararEvento: (e, intensidade) => { eventos.disparar(e, performance.now(), intensidade); },
     diagnosticoDosEventos: () => eventos.estado(performance.now()),
     contagemDeParticulas: () => cena.contagemDeParticulas(),
     contagemDePresencas: () => cena.contagemDePresencas(),

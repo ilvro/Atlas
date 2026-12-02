@@ -90,8 +90,8 @@ export interface MapaDeLuz {
   /** Posição e direção visual interpoladas agora (para alinhar halos e raios com luzes em movimento). */
   estadoVisual(id: string): { position: Ponto; direction: number | null } | null;
   definirLigado(ligado: boolean): void;
-  /** Dispara um relâmpago agora (e o trovão, se o som estiver ligado). */
-  relampagoAgora(): void;
+  /** Dispara um relâmpago agora (e o trovão, se o som estiver ligado e não silenciado). */
+  relampagoAgora(opcoes?: { som?: boolean }): void;
   /** Eventos de cena: multiplicam a intensidade de todas as luzes (piscar) e a do ambiente (escurecer). 1 = sem efeito. */
   definirEfeitos(luzes: number, ambiente: number): void;
   /** Intensidade atual da luz (inclui flicker, queda de rede, relâmpago, etc.). */
@@ -655,9 +655,10 @@ export function criarMapaDeLuz(renderer: Renderer): MapaDeLuz {
   }
 
   /** Um relâmpago: o clarão entra pelas janelas e, um instante depois, o trovão (se o som estiver ligado). */
-  function disparar(): void {
+  function disparar(opcoes?: { som?: boolean }): void {
     if (!ligado) return;
-    flash = 1; if (somPreferido()) trovoes.push(0.4 + Math.random() * 1.2);
+    flash = 1;
+    if (opcoes?.som !== false && somPreferido()) trovoes.push(0.4 + Math.random() * 1.2);
   }
 
   function desenharInterior(m: MapaAtlas): void {

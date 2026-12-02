@@ -71,7 +71,7 @@ export type MensagemDoMestre =
   | { tipo: 'projetar-ficha'; fichaId: string | null }
   | { tipo: 'peca-gesto'; id: string; position: [number, number]; facing: MapaAtlas['tokens'][string]['facing']; lightDirection?: number; caixa?: Caixa; seguir?: boolean }
   | { tipo: 'camera'; caixa: Caixa; seguir?: boolean; imediata?: boolean; forcar?: boolean }
-  | { tipo: 'evento'; nome: EventoDeCena }
+  | { tipo: 'evento'; nome: EventoDeCena; intensidade?: number }
   | { tipo: 'relampago' }
   | { tipo: 'retrato'; id: string; blob: Blob }
   /** Cortina preta e letreiros para momentos de cena */
@@ -164,7 +164,7 @@ export function caixaDosJogadores(m: MapaAtlas, asp: number, margem = 5, andar?:
 }
 
 export interface Publicador {
-  evento(nome: EventoDeCena): void;
+  evento(nome: EventoDeCena, intensidade?: number): void;
   relampago(): void;
   rolagem(peca: string, titulo: string, total: number, tom: 'alto' | 'baixo' | 'normal'): void;
   /** Abre (ou, com `null`, fecha) a inspeção de um documento no projetor. */
@@ -526,7 +526,7 @@ export function iniciarPublicacao(
   });
 
   return {
-    evento: nome => { if (algum()) enviar({ tipo: 'evento', nome }); },
+    evento: (nome, intensidade) => { if (algum()) enviar({ tipo: 'evento', nome, ...(intensidade !== undefined ? { intensidade } : {}) }); },
     relampago: () => { if (algum()) enviar({ tipo: 'relampago' }); },
     rolagem: (peca, titulo, total, tom) => { if (algum()) enviar({ tipo: 'rolagem', peca, titulo, total, tom }); },
     inspecao: d => { if (algum()) enviar(d ? { tipo: 'inspecao', nome: d.nome, normal: d.normal, uv: d.uv } : { tipo: 'inspecao-fim' }); },
