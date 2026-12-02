@@ -218,6 +218,24 @@ export async function iniciar(): Promise<void> {
         definirControleJogadores(e.newValue === 'mestre' ? 'mestre' : 'livres');
       }
     });
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        const canalDesafios = new BroadcastChannel('mesa:desafios');
+        canalDesafios.onmessage = (ev: MessageEvent) => {
+          const data = ev.data as { tipo?: unknown; mapaId?: unknown; id?: unknown } | null;
+          if (!data || typeof data !== 'object' || data.tipo !== 'atlas.destrancar-porta') return;
+          if (typeof data.mapaId !== 'string' || typeof data.id !== 'string') return;
+          const atual = sessao.value;
+          if (!atual || atual.doc.value.id !== data.mapaId) return;
+          const abertura = atual.doc.value.openings[data.id];
+          if (!abertura || abertura.state !== 'locked') return;
+          trancarPorta(data.id);
+          avisar('Fechadura destrancada!');
+        };
+      } catch {
+        // sem BroadcastChannel
+      }
+    }
     s.barramento?.ouvir('mesa.ping', evento => {
       const d = evento.dados as { mapa?: string; ponto?: [number, number]; levelId?: string | null };
       if (!d || typeof d.mapa !== 'string' || d.mapa !== sessao.value?.doc.value.id || !d.ponto) return;

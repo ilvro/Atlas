@@ -243,6 +243,22 @@ function BotoesDeTransicaoDeMapa({ transicao, temJogadores, pecaId }: { transica
   );
 }
 
+function enviarFechaduraParaMesa(mapaId: string, colecao: 'openings' | 'props', id: string, nome: string): void {
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      const canal = new BroadcastChannel('mesa:desafios');
+      canal.postMessage({
+        tipo: 'desafio.abrir-lockpick',
+        objeto: { mapaId, colecao, id, nome },
+      });
+      canal.close();
+    }
+  } catch {
+    // sem BroadcastChannel
+  }
+  avisar(`Fechadura de "${nome}" enviada para a Mesa`);
+}
+
 /** O cartão contextual: nome do que está selecionado e as ações que fazem sentido ali, sem abrir painel. */
 export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
   useSeguirSelecao(s);
@@ -261,6 +277,15 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
     acoes = (
       <>
         {interativo && <button type="button" class="cartao-texto" onClick={() => usarObjeto(o.id)} data-testid="cartao-usar">{acaoDoInterativo(o)}</button>}
+        <button
+          type="button"
+          class="cartao-texto"
+          data-testid="cartao-fechadura"
+          title="Abrir teste de fechadura (Lockpick) na Mesa para este objeto"
+          onClick={() => enviarFechaduraParaMesa(m.id, 'props', o.id, nomeDoAlvo('props', o))}
+        >
+          🔒 Fechadura
+        </button>
         {transicao && <BotoesDeTransicaoDeMapa transicao={transicao} temJogadores={temJogadores} />}
         <Acao icone="lixeira" rotulo="Remover objeto (Del)" aoClicar={removerSelecao} perigo id="cartao-remover" />
       </>
@@ -400,6 +425,15 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
       {porta ? (<>
         <Acao icone="porta" rotulo={o.state === 'open' ? 'Fechar a porta' : 'Abrir a porta'} aoClicar={() => alternarPorta(o.id)} id="cartao-abrir" />
         <Acao icone="secreta" rotulo={o.state === 'locked' ? 'Destrancar' : 'Trancar'} aoClicar={() => trancarPorta(o.id)} id="cartao-trancar" />
+        <button
+          type="button"
+          class="cartao-texto"
+          data-testid="cartao-fechadura"
+          title="Abrir teste de fechadura (Lockpick) na Mesa para este objeto"
+          onClick={() => enviarFechaduraParaMesa(m.id, 'openings', o.id, nomeDoAlvo('openings', o))}
+        >
+          🔒 Fechadura
+        </button>
         {secretaOculta(m, o) && <button type="button" class="cartao-texto" title="Mostrar esta porta secreta aos jogadores" onClick={() => revelarPorta(o.id)} data-testid="cartao-revelar">Revelar aos jogadores</button>}
       </>) : (!transicao && <span class="cartao-texto">Sem folha para abrir</span>)}
       {transicao && <BotoesDeTransicaoDeMapa transicao={transicao} temJogadores={temJogadores} />}
@@ -475,7 +509,7 @@ export function CartaoContextual({ s }: { s: SessaoDeEdicao }) {
       <Acao icone="duplicar" rotulo="Duplicar" aoClicar={duplicarSelecao} /><Acao icone="lixeira" rotulo="Remover" aoClicar={removerSelecao} perigo id="cartao-remover" />
     </>);
   } else acoes = (<><Acao icone="duplicar" rotulo="Duplicar" aoClicar={duplicarSelecao} /><Acao icone="lixeira" rotulo="Remover" aoClicar={removerSelecao} perigo id="cartao-remover" /></>);
-  void avisar; void desfazer;
+  void desfazer;
   return (
     <div class={`cartao-contextual ${p.abaixo ? 'abaixo' : ''}`} style={{ left: `${p.x}px`, top: `${p.y}px` }} role="toolbar" aria-label="Ações do item" data-testid="cartao-contextual" key={`${a.colecao}:${a.id}`}>
       <span class="cartao-titulo">{nomeDoAlvo(a.colecao, item)}</span>{acoes}
