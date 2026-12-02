@@ -573,10 +573,10 @@ select:focus, input:focus, textarea:focus { border-color: var(--acento); outline
   .cartao:hover { transform: none; }
 }
 @media (max-width: 900px) {
-  .editor { grid-template-columns: 52px auto minmax(0, 1fr); }
+  .editor { grid-template-columns: auto minmax(0, 1fr); }
   .biblioteca { width: min(260px, 60vw); }
   .inspetor { position: fixed; right: 0; top: 52px; bottom: 30px; width: min(312px, 86vw); z-index: 6; }
-  .barra-de-estado { grid-column: 2 / 4; }
+  .barra-de-estado { grid-column: 1 / 3; }
   .nome-do-mapa { max-width: 22vw; }
 }
 
@@ -2254,7 +2254,7 @@ body.projetor { overflow: hidden; background: #000; }
 .vazio-embutido { flex: 1; display: grid; place-content: center; text-align: center; gap: 8px; color: var(--apagado); padding: 24px; }
 .vazio-embutido .faixa { justify-self: center; }
 
-[data-embutido] .editor { grid-template-columns: 56px auto minmax(0, 1fr) 248px; }
+[data-embutido] .editor { grid-template-columns: auto minmax(0, 1fr) 248px; }
 
 /* Ameaças (monstros) na lista de personagens */
 .ameacas { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
